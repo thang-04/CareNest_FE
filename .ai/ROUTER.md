@@ -1,15 +1,26 @@
-# Chọn context cho task Web
+# Router — chọn context cho task Web
 
-Đọc `AGENTS.md` và mô tả task trước. Chọn một hàng chính; chỉ mở thêm context khi tác động thực tế yêu cầu.
+1. Xác định **loại task** → bảng 1 (profile, workflow, skill, mức khởi đầu).
+2. Xác định **vùng nghiệp vụ** → grep từ khóa trong `.ai/CONTEXT_MAP.yaml` mục `keywords` → đọc BE module card + FE doc được map.
+3. Đọc thêm chỉ khi `.ai/ESCALATION.md` yêu cầu.
 
-| Task | Profile | Workflow | Mức đầu tiên |
-| --- | --- | --- | --- |
-| Bug UI, validation, refactor cục bộ | `profiles/code.md` | `workflows/fix-bug.md` | L1 |
-| Màn hình hoặc chức năng Web mới | `profiles/feature.md` | `workflows/implement-feature.md` | L2 |
-| Review code Web | `profiles/code.md` | `workflows/review-code.md` | L1 |
-| Tích hợp endpoint, auth hoặc thay đổi contract | `profiles/feature.md` | `workflows/integrate-api.md` | L2; L3 nếu đổi BE/APP |
-| Thay đổi ảnh hưởng BE/APP hoặc nhiều domain | `profiles/cross-repo.md` | Workflow theo loại thay đổi | L3 |
-| Kiến trúc client, security hoặc triển khai lớn | `profiles/cross-repo.md` | Chọn workflow hiện có nếu phù hợp | L4 |
+## Bảng 1 — Loại task
 
-Mức L1–L4 ở `ESCALATION.md`. Chỉ các đường dẫn trong `CONTEXT_MAP.yaml` mục `available` được coi là đã tồn tại.
+| Task | Profile | Workflow | Skill | Mức đầu |
+| --- | --- | --- | --- | --- |
+| Bug UI, hiển thị sai, state lỗi, validation form, console error | `profiles/code.md` | `workflows/fix-bug.md` | fix-bug | L1 |
+| Refactor nhỏ, sửa cục bộ component/hook | `profiles/code.md` | `workflows/implement-feature.md` (rút gọn) | implement-feature | L1 |
+| Màn hình / chức năng Web mới, đổi luồng màn hình | `profiles/feature.md` | `workflows/implement-feature.md` | implement-feature | L2 |
+| Review code / PR | `profiles/code.md` | `workflows/review-code.md` | review-code | L1→L2 |
+| Gọi endpoint mới, đổi API client, xử lý lỗi API, auth/token | `profiles/feature.md` | `workflows/integrate-api.md` | integrate-api | L2; L3 nếu contract cần đổi |
+| Cần BE đổi contract / ảnh hưởng APP / bug nghi do BE | `profiles/cross-repo.md` | theo loại thay đổi | — | L3 |
+| Kiến trúc client: routing, state, folder, auth flow, chọn thư viện nền | `profiles/architecture.md` | — | — | L3–L4 |
+| Onboarding toàn bộ, audit lớn, thiết kế lại FE | `profiles/full.md` | — | — | FULL |
 
+## Bảng 2 — Tín hiệu nâng mức ngay (≥ L3)
+
+Chạm bất kỳ mục nào: số suất ăn / MealCount (xác nhận, điều chỉnh) · phân quyền / ẩn-hiện theo role/scope · dữ liệu sức khỏe / dị ứng · hiển thị output AI (DRAFT/duyệt) · auth/token · response/HTTP status khác contract BE · dữ liệu trẻ hiển thị cho actor mới.
+
+## Bảng 3 — Ngoài scope
+
+Kho/NCC, tài sản/khấu hao/bảo trì/kiểm kê, chat, giáo án, chẩn đoán, multi-school, payroll/kế toán, màn hình Phụ huynh/Bếp (thuộc APP) ⇒ **dừng**, đối chiếu `../CareNest_BE/docs/context/PROJECT_CONTEXT.md` (Exclusions) và hỏi người dùng.

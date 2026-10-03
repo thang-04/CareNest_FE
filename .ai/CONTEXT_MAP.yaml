@@ -1,31 +1,101 @@
-version: 1
+# KHÔNG đọc cả file: grep -iE "<từ khóa>" .ai/CONTEXT_MAP.yaml rồi chỉ mở file được trỏ tới.
+# Bản đồ context CareNest_FE. Agent: grep `keywords` → đọc `be_module_card` (nghiệp vụ, rule ID) + `fe_docs` (màn hình, tích hợp).
+# Đường dẫn `be_module_card` tương đối từ root FE (repo sibling ../CareNest_BE). Không có sibling ⇒ đọc trên related_repositories.CareNest_BE.
+# Chỉ đường dẫn trong `available` đã tồn tại ở FE; `skeleton_only` tồn tại nhưng không dùng làm nguồn; `planned` chưa tồn tại.
+version: 2
 repository: CareNest_FE
+role: client Web (System Admin, Principal, Vice Principal, Teacher) — consumer của API contract BE
+
+keywords:
+  # từ khóa (VN|EN, regex-friendly) -> {be_module_card, fe_docs}
+  "điểm danh|attendance|đi muộn|đến muộn|late arrival|vắng":
+    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
+  "đơn nghỉ|xin nghỉ|leave":
+    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md]}   # actor PENDING P-15
+  "báo ăn|tham gia ăn|meal participation":
+    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
+  "suất ăn|số suất|meal count|chốt suất|xác nhận suất|adjustment":
+    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}   # actor PENDING P-05
+  "thực đơn|menu|duyệt thực đơn|món|dish|dinh dưỡng|nutrient|định lượng":
+    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
+  "kho|nhà cung cấp|supplier|inventory|tồn kho":
+    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: []}   # ngoài V1 — ADR-0009
+  "dị ứng|allergy":
+    {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md]}
+  "trẻ|child|hồ sơ trẻ|ghi danh|enrollment|guardian":
+    {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
+  "sức khỏe|health|chiều cao|cân nặng|measurement|tăng trưởng|trend|biểu đồ":
+    {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}   # người nhập PENDING
+  "quan sát|observation|tiêu chí|criteria|nhận xét|summary|đánh giá|assessment|phát triển|development profile":
+    {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
+  "hoạt động|activity|giáo án|gokids":
+    {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: []}   # ADR-0006 OPEN — không làm màn hình
+  "cơ sở vật chất|csvc|thiết bị|sự cố|facility|hỏng|thiếu":
+    {be_module_card: ../CareNest_BE/docs/modules/facility-issue.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
+  "tài sản|asset|khấu hao|bảo trì|kiểm kê":
+    {be_module_card: ../CareNest_BE/docs/modules/facility-issue.md, fe_docs: []}   # ngoài V1 — FAC-03
+  "đăng nhập|login|logout|token|session|refresh":
+    {be_module_card: ../CareNest_BE/docs/modules/identity-access.md, fe_docs: [docs/integration/AUTH_FLOW.md, docs/integration/BACKEND_INTEGRATION.md]}
+  "role|permission|phân quyền|scope|403|ẩn nút|guard|tài khoản|account":
+    {be_module_card: ../CareNest_BE/docs/modules/identity-access.md, fe_docs: [docs/integration/BACKEND_INTEGRATION.md, docs/architecture/ROUTE_MAP.md]}
+  "điểm trường|campus|lớp|classroom|năm học|phân công|assignment|hiệu phó|hiệu trưởng":
+    {be_module_card: ../CareNest_BE/docs/modules/school-structure.md, fe_docs: [docs/architecture/ROUTE_MAP.md]}
+  "thông báo|notification":
+    {be_module_card: ../CareNest_BE/docs/modules/notification.md, fe_docs: [docs/features/README.md]}
+  "audit|nhật ký|lịch sử thay đổi":
+    {be_module_card: ../CareNest_BE/docs/modules/audit.md, fe_docs: []}
+  "ai|gợi ý|draft|bản nháp|duyệt ai":
+    {be_module_card: ../CareNest_BE/docs/modules/ai-assistance.md, fe_docs: [docs/features/README.md]}
+  "báo cáo|report|thống kê|dashboard|tổng hợp":
+    {be_module_card: ../CareNest_BE/docs/modules/reporting.md, fe_docs: [docs/architecture/ROUTE_MAP.md, docs/features/README.md]}
+  "api|endpoint|error code|lỗi api|pagination|problem detail|fetch|request":
+    {be_module_card: null, fe_docs: [docs/integration/BACKEND_INTEGRATION.md, ../CareNest_BE/docs/contracts/API_CONVENTIONS.md, ../CareNest_BE/docs/contracts/ERROR_CONTRACT.md]}
+  "phụ huynh|parent|bếp|kitchen staff":
+    {be_module_card: null, fe_docs: []}   # màn hình thuộc CareNest_APP, không thuộc Web
+
+topics:
+  project:      [docs/context/REPOSITORY_CONTEXT.md, docs/context/CURRENT_STATE.md, ../CareNest_BE/docs/context/PROJECT_CONTEXT.md]
+  business:     [../CareNest_BE/docs/business/BUSINESS_RULES.md, ../CareNest_BE/docs/business/USER_ROLES.md, ../CareNest_BE/docs/modules/README.md]
+  screens:      [docs/architecture/ROUTE_MAP.md, docs/features/README.md]
+  architecture: [docs/architecture/FRONTEND_ARCHITECTURE.md, docs/architecture/FOLDER_STRUCTURE.md, docs/architecture/STATE_MANAGEMENT.md]
+  integration:  [docs/integration/BACKEND_INTEGRATION.md, docs/integration/AUTH_FLOW.md, ../CareNest_BE/docs/contracts/API_CONVENTIONS.md, ../CareNest_BE/docs/contracts/ERROR_CONTRACT.md]
+  cross-repo:   [../CareNest_BE/docs/system/CROSS_REPO_MAP.md, ../CareNest_BE/docs/knowledge/CROSS_MODULE_ISSUES.md]
+  memory:       [docs/knowledge/ISSUE_INDEX.md, docs/knowledge/KNOWN_ISSUES.md, docs/knowledge/PATTERNS.md, docs/knowledge/TROUBLESHOOTING.md, ../CareNest_BE/docs/knowledge/ISSUE_INDEX.md]
+  quality:      [docs/quality/DEFINITION_OF_DONE.md]
+  coding-rules: [.claude/rules/]
+
 available:
-  entrypoints:
-    - AGENTS.md
-    - CLAUDE.md
-  routing:
-    - .ai/ROUTER.md
-    - .ai/ESCALATION.md
-    - .ai/CONTEXT_MAP.yaml
-  context:
-    - .ai/REPO_CONTEXT.md
-  profiles:
-    - .ai/profiles/code.md
-    - .ai/profiles/feature.md
-    - .ai/profiles/cross-repo.md
-  workflows:
-    - .ai/workflows/fix-bug.md
-    - .ai/workflows/implement-feature.md
-    - .ai/workflows/review-code.md
-    - .ai/workflows/integrate-api.md
-  agent_skills:
-    - .agents/skills/carenest-web/SKILL.md
-    - .claude/skills/carenest-web/SKILL.md
+  entrypoints: [AGENTS.md, CLAUDE.md, docs/INDEX.md]
+  routing: [.ai/ROUTER.md, .ai/ESCALATION.md, .ai/CONTEXT_MAP.yaml]
+  profiles: [.ai/profiles/code.md, .ai/profiles/feature.md, .ai/profiles/architecture.md, .ai/profiles/cross-repo.md, .ai/profiles/full.md]
+  workflows: [.ai/workflows/fix-bug.md, .ai/workflows/implement-feature.md, .ai/workflows/review-code.md, .ai/workflows/integrate-api.md]
+  skills: [.agents/skills/fix-bug/SKILL.md, .agents/skills/implement-feature/SKILL.md, .agents/skills/review-code/SKILL.md, .agents/skills/integrate-api/SKILL.md,
+           .claude/skills/fix-bug/SKILL.md, .claude/skills/implement-feature/SKILL.md, .claude/skills/review-code/SKILL.md, .claude/skills/integrate-api/SKILL.md]
+  rules: [.claude/rules/typescript.md, .claude/rules/component.md, .claude/rules/state.md, .claude/rules/api-client.md]
+  docs:
+    - docs/context/REPOSITORY_CONTEXT.md
+    - docs/context/CURRENT_STATE.md
+    - docs/architecture/ROUTE_MAP.md
+    - docs/features/README.md
+    - docs/integration/BACKEND_INTEGRATION.md
+    - docs/knowledge/ISSUE_INDEX.md
+    - docs/knowledge/KNOWN_ISSUES.md
+    - docs/knowledge/TROUBLESHOOTING.md
+    - docs/knowledge/PATTERNS.md
+    - docs/knowledge/incidents/_TEMPLATE.md
+    - docs/quality/DEFINITION_OF_DONE.md
+
+skeleton_only:   # tồn tại nhưng chưa có nội dung — không dùng làm nguồn (trừ mục được header nêu rõ là dùng được)
+  - docs/architecture/FRONTEND_ARCHITECTURE.md   # mục "Ràng buộc đã biết" dùng được
+  - docs/architecture/STATE_MANAGEMENT.md        # mục "Nguyên tắc" dùng được
+  - docs/architecture/FOLDER_STRUCTURE.md
+  - docs/integration/AUTH_FLOW.md
+
 planned:
-  - docs/INDEX.md
-  - docs/architecture/FRONTEND_ARCHITECTURE.md
-  - docs/integration/BACKEND_INTEGRATION.md
+  - src/                                  # chưa có source; framework PROPOSED
+  - README.md                             # setup/build/run khi có source
+  - docs/features/<feature>.md            # tạo theo template trong docs/features/README.md khi bắt đầu màn hình
+
 related_repositories:
-  CareNest_BE: https://github.com/thang-04/CareNest_BE.git
-  CareNest_APP: https://github.com/thang-04/CareNest_APP.git
+  CareNest_BE: https://github.com/thang-04/CareNest_BE.git    # source of truth; sibling ../CareNest_BE
+  CareNest_APP: https://github.com/thang-04/CareNest_APP.git  # Mobile: Parent, Teacher, Kitchen Staff

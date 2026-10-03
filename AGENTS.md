@@ -1,18 +1,42 @@
-# CareNest Web — hướng dẫn cho coding agent
+# CareNest Web — hướng dẫn cho AI coding agent
 
-Bạn đang làm việc trong repository Web của CareNest. Đọc `.ai/ROUTER.md` để chọn profile và workflow liên quan; không nạp toàn bộ `.ai/` theo mặc định. `.ai/REPO_CONTEXT.md` mô tả trách nhiệm Web, còn `.ai/CONTEXT_MAP.yaml` phân biệt file hiện có và dự kiến.
+Repo này là **client Web** của CareNest (Trường Mầm non Thượng Hồng, Hải Phòng — 1 trường / 2 điểm trường). Phục vụ System Admin, Principal, Vice Principal (theo campus), Teacher. FE sở hữu màn hình, route, client state, tích hợp API. **`CareNest_BE` là source of truth** cho business rule, authorization, API contract và engineering memory nghiệp vụ.
 
-- FE sở hữu màn hình, điều hướng, trạng thái client và tích hợp API cho Admin, Ban giám hiệu và Giáo viên. BE sở hữu business rule, authorization và API contract.
-- Không sao chép hoặc tự diễn giải quy tắc nghiệp vụ, dữ liệu dinh dưỡng và chính sách sức khỏe vào FE. Khi thiếu contract/quy tắc, tra BE rồi nêu điều cần chốt.
-- Không đưa dữ liệu trẻ em, sức khỏe, tài khoản hay secret thật vào prompt, log, fixture hoặc commit.
-- Với thay đổi API/auth có tác động đến client khác, dùng profile liên repo và kiểm tra BE/APP khi có thể. Nếu tài liệu và implementation mâu thuẫn, báo xung đột trước khi chọn hành vi.
-- React/Next.js chỉ là phương án dự kiến. Đọc source thực tế trước khi áp rule framework.
+Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling). Không có sibling ⇒ đọc trên https://github.com/thang-04/CareNest_BE.git và nói rõ đã đọc bản remote.
+
+## Bắt đầu mọi task
+
+1. Phân loại task bằng `.ai/ROUTER.md` → profile, workflow, skill, mức context (L1–L4).
+2. Tìm vùng nghiệp vụ bằng `.ai/CONTEXT_MAP.yaml` (mục `keywords`) → đọc **BE module card** (`BE:docs/modules/<module>.md`) + FE doc tương ứng (`docs/features/README.md`, `docs/architecture/ROUTE_MAP.md`).
+3. Bug/lỗi/case lạ: **search `docs/knowledge/ISSUE_INDEX.md` (FE) và `BE:docs/knowledge/ISSUE_INDEX.md` trước** khi điều tra. Incident cũ là manh mối, phải kiểm chứng lại với code hiện tại.
+4. Kết thúc: đối chiếu `docs/quality/DEFINITION_OF_DONE.md`, gồm cập nhật engineering memory.
+
+## Đọc tiết kiệm token
+
+- **`.ai/CONTEXT_MAP.yaml`: grep, không đọc cả file** — `grep -iE "<từ khóa>" .ai/CONTEXT_MAP.yaml` để ra module/card. Chỉ mở cả file khi cần sửa map.
+- **Contract BE**: chỉ đọc `BE:docs/backend-coding-guide.md` mục 7–8 khi đụng API (grep tiêu đề `^## 7\.`/`^## 8\.`); không đọc cả guide.
+- **Engineering memory:** grep `docs/knowledge/ISSUE_INDEX.md` (+ `BE:docs/knowledge/ISSUE_INDEX.md` nếu lỗi contract/nghiệp vụ) theo chuỗi lỗi/từ khóa; chỉ mở `incidents/<ID>-*.md` khi dòng index khớp. Ghi mới: 1 issue = 1 dòng ngắn trong index, chi tiết để trong file incident.
+- Không đọc toàn bộ `docs/` trừ profile `full`. Mức đọc theo `.ai/ESCALATION.md`.
+
+## Nguyên tắc bất biến
+
+1. **BE sở hữu business rule, authorization, API contract.** FE chỉ hiển thị và gửi yêu cầu; BE quyết định hợp lệ.
+2. **Không sao chép business rule vào FE.** Cần rule ⇒ dẫn chiếu rule ID / module card BE bằng đường dẫn, không chép nội dung. Validation FE chỉ hỗ trợ nhập liệu (required, format), không thay validation BE.
+3. **Ẩn UI ≠ phân quyền.** Ẩn nút/menu theo dữ liệu quyền từ BE là UX; không lọc dữ liệu theo scope chỉ ở client. 403/404 từ BE là kết quả hợp lệ phải xử lý.
+4. **1 trường, 2 campus** — không phải multi-school/multi-tenant. Không tự suy luận scope (campus/lớp) ở client; dùng dữ liệu BE trả về.
+5. **Không dữ liệu trẻ thật / sức khỏe / tài khoản / secret** trong prompt, log, console, fixture, mock, screenshot, commit.
+6. **PENDING / OPEN ⇒ hỏi.** Mục chưa chốt (actor, field hiển thị, framework, auth) ⇒ nêu khoảng trống, hỏi hoặc làm cấu hình được — không đoán. AI chỉ tạo DRAFT; UI phải thể hiện trạng thái DRAFT và bước người duyệt.
+7. **Ghi lại bug không hiển nhiên** (kể cả các cách đã thử thất bại) vào `docs/knowledge/`. Bug UI/client ở FE; **bug contract/nghiệp vụ** phát hiện từ FE ⇒ đề xuất ghi vào `BE:docs/knowledge/CROSS_MODULE_ISSUES.md` (không tự sửa repo BE).
+8. **Không mở rộng scope V1:** không asset management (CSVC chỉ báo/theo dõi sự cố), không chat thay Zalo, không giáo án, không chẩn đoán. Đối chiếu `BE:docs/context/PROJECT_CONTEXT.md` (Exclusions).
+
+## Stack
+
+React + TypeScript: **PROPOSED** (Next.js cũng chỉ PROPOSED). Chưa có source. Router, state/cache, UI kit, cách lưu token: chưa chốt ⇒ hỏi trước khi chọn. Coding rule: `.claude/rules/` (dùng chung cho mọi agent). Đọc source thực tế trước khi áp rule framework.
 
 ## Git, commit và comment (bắt buộc)
 
-- Không tự ý commit, push, tạo/merge pull request khi user chưa cho phép rõ trong tin nhắn hiện tại; không commit thẳng `main`.
-- Không chạy lệnh git phá hủy (`reset --hard`, `push --force`, `rebase`, `branch -D`, `clean -fd`...) khi chưa hỏi; không `--no-verify`.
-- Commit theo Conventional Commits tiếng Anh, subject ≤ 72 ký tự, body ngắn nói lý do; không ghi tên model/công cụ AI hay `Co-Authored-By` của AI.
-- Comment code chỉ ngắn gọn ở flow có logic chính; không comment code hiển nhiên, không để code comment-out.
-- Hỏi trước khi đổi dependency, contract hoặc thứ ảnh hưởng cả nhóm; không sửa ngoài phạm vi task hoặc repo CareNest khác. Trả lời user bằng tiếng Việt.
-- Chi tiết: mục "Quy tắc chung CareNest" trong `CLAUDE.md`.
+Bản đầy đủ (đồng bộ BE/FE/APP): `CLAUDE.md` mục "Quy tắc chung CareNest" — Claude tự nạp; **Codex phải đọc mục đó trước khi chạy lệnh git hoặc commit.** Tối thiểu:
+
+- Không tự commit/push/tạo-merge PR khi user chưa cho phép rõ trong tin nhắn hiện tại; không tự tạo branch mới khi chưa được cho phép (hỏi trước); không lệnh git phá hủy hay `--no-verify` khi chưa hỏi.
+- Conventional Commits tiếng Anh, footer `Refs: <JIRA-KEY>` (chưa có key ⇒ hỏi, không bịa); không ghi tên/attribution công cụ AI.
+- Hỏi trước khi đổi dependency, contract hoặc thứ ảnh hưởng cả nhóm; không sửa repo CareNest khác. Trả lời user bằng tiếng Việt.
