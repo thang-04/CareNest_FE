@@ -1,0 +1,31 @@
+version: 1
+repository: CareNest_FE
+available:
+  entrypoints:
+    - AGENTS.md
+    - CLAUDE.md
+  routing:
+    - .ai/ROUTER.md
+    - .ai/ESCALATION.md
+    - .ai/CONTEXT_MAP.yaml
+  context:
+    - .ai/REPO_CONTEXT.md
+  profiles:
+    - .ai/profiles/code.md
+    - .ai/profiles/feature.md
+    - .ai/profiles/cross-repo.md
+  workflows:
+    - .ai/workflows/fix-bug.md
+    - .ai/workflows/implement-feature.md
+    - .ai/workflows/review-code.md
+    - .ai/workflows/integrate-api.md
+  agent_skills:
+    - .agents/skills/carenest-web/SKILL.md
+    - .claude/skills/carenest-web/SKILL.md
+planned:
+  - docs/INDEX.md
+  - docs/architecture/FRONTEND_ARCHITECTURE.md
+  - docs/integration/BACKEND_INTEGRATION.md
+related_repositories:
+  CareNest_BE: https://github.com/thang-04/CareNest_BE.git
+  CareNest_APP: https://github.com/thang-04/CareNest_APP.git
