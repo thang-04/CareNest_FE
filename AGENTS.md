@@ -11,6 +11,8 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 3. Bug/lỗi/case lạ: **search `docs/knowledge/ISSUE_INDEX.md` (FE) và `BE:docs/knowledge/ISSUE_INDEX.md` trước** khi điều tra. Incident cũ là manh mối, phải kiểm chứng lại với code hiện tại.
 4. Kết thúc: đối chiếu `docs/quality/DEFINITION_OF_DONE.md`, gồm cập nhật engineering memory.
 
+**Tri thức mới** — user đưa nghiệp vụ mới / chốt PENDING, hoặc gặp **bug mới** / edge case ⇒ chạy `.ai/workflows/update-knowledge.md` ngay trong lượt (không đợi cuối task).
+
 ## Đọc tiết kiệm token
 
 - **`.ai/CONTEXT_MAP.yaml`: grep, không đọc cả file** — `grep -iE "<từ khóa>" .ai/CONTEXT_MAP.yaml` để ra module/card. Chỉ mở cả file khi cần sửa map.

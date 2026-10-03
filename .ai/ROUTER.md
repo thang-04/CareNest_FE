@@ -24,3 +24,7 @@ Chạm bất kỳ mục nào: số suất ăn / MealCount (xác nhận, điều 
 ## Bảng 3 — Ngoài scope
 
 Kho/NCC, tài sản/khấu hao/bảo trì/kiểm kê, chat, giáo án, chẩn đoán, multi-school, payroll/kế toán, màn hình Phụ huynh/Bếp (thuộc APP) ⇒ **dừng**, đối chiếu `../CareNest_BE/docs/context/PROJECT_CONTEXT.md` (Exclusions) và hỏi người dùng.
+
+## Cập nhật tri thức (song song với mọi task)
+
+User đưa thông tin nghiệp vụ mới / chốt PENDING, gặp **bug mới** hoặc edge case ⇒ chạy `workflows/update-knowledge.md` (skill `update-knowledge`) **ngay trong lượt**, rồi tiếp tục task chính. Claude có Stop hook (`.claude/hooks/memory-reminder.mjs`) nhắc một lần khi code đổi mà `docs/` chưa đổi.
