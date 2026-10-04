@@ -23,7 +23,7 @@ Chạm bất kỳ mục nào: số suất ăn / MealCount (xác nhận, điều 
 
 ## Bảng 3 — Ngoài scope
 
-Kho/NCC, tài sản/khấu hao/bảo trì/kiểm kê, chat, giáo án, chẩn đoán, multi-school, payroll/kế toán, màn hình Phụ huynh/Bếp (thuộc APP) ⇒ **dừng**, đối chiếu `../CareNest_BE/docs/context/PROJECT_CONTEXT.md` (Exclusions) và hỏi người dùng.
+Kho/NCC, tài sản/khấu hao/bảo trì/kiểm kê, chat, giáo án, chẩn đoán, multi-school, payroll/kế toán, màn hình Phụ huynh (thuộc APP) ⇒ **dừng**, đối chiếu `../CareNest_BE/docs/context/PROJECT_CONTEXT.md` (Exclusions) và hỏi người dùng. Kitchen trên Web: chỉ khi được yêu cầu (`BE:docs/business/USER_ROLES.md`).
 
 ## Cập nhật tri thức (song song với mọi task)
 

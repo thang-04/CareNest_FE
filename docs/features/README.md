@@ -2,25 +2,25 @@
 
 File này **không chứa business rule**. Rule, flow, PENDING nằm ở BE module card/flow; ở đây chỉ map feature sang màn hình Web và chỉ chỗ đọc. Actor và permission từng màn hình: `docs/architecture/ROUTE_MAP.md`.
 
-`BE:` = `../CareNest_BE/docs/`.
+`BE:<path>` = `../CareNest_BE/<path>` (xem `AGENTS.md`).
 
 ## Bảng map
 
 | Feature V1 (BE) | Màn hình Web (screen group) | Module card | Flow | Rule nhóm |
 | --- | --- | --- | --- | --- |
-| Điểm danh + báo ăn | Teacher: Điểm danh + báo ăn | `BE:modules/attendance.md` | `BE:business/flows/attendance.md` | ATT |
-| Số suất đã xác nhận → bếp | BGH (actor PENDING): Xác nhận số suất | `BE:modules/nutrition.md` | `BE:business/flows/meal-management.md` | NUT |
-| Đơn xin nghỉ | Teacher/BGH: Đơn nghỉ (actor PENDING P-15) | `BE:modules/attendance.md` | `BE:business/flows/leave-request.md` | ATT |
-| Thực đơn, dinh dưỡng; AI gợi ý thực đơn có duyệt | BGH: Duyệt thực đơn | `BE:modules/nutrition.md` | `BE:business/flows/meal-management.md` | NUT, AI |
-| Hồ sơ sức khỏe định kỳ, trend, AI diễn giải có duyệt | Teacher: Nhập đo (actor PENDING) · BGH: Tổng quan sức khỏe | `BE:modules/health.md` | `BE:business/flows/health-check.md` | HLT, AI |
-| Quan sát hằng ngày; summary; hồ sơ phát triển | Teacher: Quan sát, Review summary · BGH: Summary & hồ sơ phát triển | `BE:modules/learning-observation.md` | `BE:business/flows/child-observation.md` | OBS, AI |
-| Báo & theo dõi sự cố CSVC | Teacher: Báo sự cố · BGH: Theo dõi sự cố | `BE:modules/facility-issue.md` | `BE:business/flows/facility-issue.md` | FAC |
-| Báo cáo lớp/campus/trường | BGH: Dashboard báo cáo | `BE:modules/reporting.md` | — | AUTH-08 |
-| Tài khoản, phân quyền, phân công | Admin: Tài khoản, Role, Phân công | `BE:modules/identity-access.md`, `BE:modules/school-structure.md` | — | AUTH |
-| Hồ sơ trẻ, ghi danh, dị ứng | (màn hình Web chưa xác định — hỏi) | `BE:modules/child.md` | — | AUTH-04, HLT-06 |
-| Ngữ cảnh hoạt động/học tập | **Không làm** — OPEN (ADR-0006) | `BE:modules/learning-observation.md` | — | OBS-07 |
+| Điểm danh + báo ăn | Teacher: Điểm danh + báo ăn | `BE:docs/modules/attendance.md` | `BE:docs/business/flows/attendance.md` | ATT |
+| Số suất đã xác nhận → bếp | Actor PENDING P-05 (theo `meal-count:confirm`): Xác nhận số suất | `BE:docs/modules/nutrition.md` | `BE:docs/business/flows/meal-management.md` | NUT |
+| Báo nghỉ (phụ huynh gửi qua app, không duyệt) | Teacher: Báo nghỉ của lớp · BGH: Báo nghỉ của campus (chỉ xem) | `BE:docs/modules/attendance.md` | `BE:docs/business/flows/leave-request.md` | ATT-04, ATT-05, ATT-05b |
+| Thực đơn (MealPlan), dinh dưỡng; AI gợi ý thực đơn có duyệt | BGH: Duyệt thực đơn | `BE:docs/modules/nutrition.md` | `BE:docs/business/flows/meal-management.md` | NUT, AI |
+| Hồ sơ sức khỏe định kỳ, trend, AI diễn giải có duyệt | Teacher: Nhập đo (actor PENDING) · BGH: Tổng quan sức khỏe | `BE:docs/modules/health.md` | `BE:docs/business/flows/health-check.md` | HLT, AI |
+| Quan sát hằng ngày; summary; hồ sơ phát triển | Teacher: Quan sát, Review summary · BGH: Summary & hồ sơ phát triển | `BE:docs/modules/learning-observation.md` | `BE:docs/business/flows/child-observation.md` | OBS, AI |
+| Báo & theo dõi sự cố CSVC | Teacher: Báo sự cố · BGH: Theo dõi sự cố | `BE:docs/modules/facility-issue.md` | `BE:docs/business/flows/facility-issue.md` | FAC |
+| Báo cáo lớp/campus/trường | BGH: Dashboard báo cáo | `BE:docs/modules/reporting.md` | — | AUTH-08 |
+| Tài khoản, phân quyền, phân công | Admin: Tài khoản, Role, Phân công | `BE:docs/modules/identity-access.md`, `BE:docs/modules/school-structure.md` | — | AUTH |
+| Hồ sơ trẻ, ghi danh, dị ứng | (màn hình Web chưa xác định — hỏi) | `BE:docs/modules/child.md` | — | AUTH-04, HLT-06 |
+| Ngữ cảnh hoạt động/học tập | **Không làm** — OPEN (ADR-0006) | `BE:docs/modules/learning-observation.md` | — | OBS-07 |
 
-Parent visibility (PAR-*) và màn hình bếp thuộc APP.
+Parent visibility (PAR-*) và gửi báo nghỉ thuộc APP. Kitchen trên Web: chỉ khi được yêu cầu (`BE:docs/business/USER_ROLES.md`).
 
 ## Cách dùng khi làm một feature
 

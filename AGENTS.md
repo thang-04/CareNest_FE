@@ -18,6 +18,8 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 - **`.ai/CONTEXT_MAP.yaml`: grep, không đọc cả file** — `grep -iE "<từ khóa>" .ai/CONTEXT_MAP.yaml` để ra module/card. Chỉ mở cả file khi cần sửa map.
 - **Contract BE**: chỉ đọc `BE:docs/backend-coding-guide.md` mục 7–8 khi đụng API (grep tiêu đề `^## 7\.`/`^## 8\.`); không đọc cả guide.
 - **Engineering memory:** grep `docs/knowledge/ISSUE_INDEX.md` (+ `BE:docs/knowledge/ISSUE_INDEX.md` nếu lỗi contract/nghiệp vụ) theo chuỗi lỗi/từ khóa; chỉ mở `incidents/<ID>-*.md` khi dòng index khớp. Ghi mới: 1 issue = 1 dòng ngắn trong index, chi tiết để trong file incident.
+- **Coding rule theo loại file** ở `.claude/rules/<tên>.md` (frontmatter `paths`). Claude tự nạp; agent khác (Codex) tự mở rule khớp file đang sửa.
+- `.agents/skills/` là bản mirror của `.claude/skills/` — sửa một bên thì chép y hệt sang bên kia.
 - Không đọc toàn bộ `docs/` trừ profile `full`. Mức đọc theo `.ai/ESCALATION.md`.
 
 ## Nguyên tắc bất biến
@@ -35,10 +37,46 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 
 React + TypeScript: **PROPOSED** (Next.js cũng chỉ PROPOSED). Chưa có source. Router, state/cache, UI kit, cách lưu token: chưa chốt ⇒ hỏi trước khi chọn. Coding rule: `.claude/rules/` (dùng chung cho mọi agent). Đọc source thực tế trước khi áp rule framework.
 
-## Git, commit và comment (bắt buộc)
+## Quy tắc chung CareNest (bắt buộc)
 
-Bản đầy đủ (đồng bộ BE/FE/APP): `CLAUDE.md` mục "Quy tắc chung CareNest" — Claude tự nạp; **Codex phải đọc mục đó trước khi chạy lệnh git hoặc commit.** Tối thiểu:
+Khối này giống nhau ở cả ba repo `CareNest_BE`, `CareNest_FE`, `CareNest_APP`; chỉ mục "Hỏi trước khi làm" và "Phạm vi" khác theo repo. Sửa ở một repo thì đồng bộ sang hai repo còn lại.
 
-- Không tự commit/push/tạo-merge PR khi user chưa cho phép rõ trong tin nhắn hiện tại; không tự tạo branch mới khi chưa được cho phép (hỏi trước); không lệnh git phá hủy hay `--no-verify` khi chưa hỏi.
-- Conventional Commits tiếng Anh, footer `Refs: <JIRA-KEY>` (chưa có key ⇒ hỏi, không bịa); không ghi tên/attribution công cụ AI.
-- Hỏi trước khi đổi dependency, contract hoặc thứ ảnh hưởng cả nhóm; không sửa repo CareNest khác. Trả lời user bằng tiếng Việt.
+### Git — commit, push, pull request
+
+- KHÔNG tự `git commit` / `git push` / tạo-merge-đóng PR / tạo branch khi user chưa cho phép rõ **trong tin nhắn hiện tại** (được phép một lần ≠ lần sau). Branch khi được phép: `feature/<KEY>-<mo-ta>`, `fix/<KEY>-<mo-ta>`, `chore/<mo-ta>`; làm trên branch khác `main` ⇒ hỏi trước.
+- KHÔNG lệnh git phá hủy khi chưa hỏi (`reset --hard`, `push --force`, `rebase`, `branch -D`, `clean -fd`, `checkout -- .`, `restore .`, `stash drop`); KHÔNG `--no-verify`/bỏ qua hook.
+
+### Commit message
+
+- Conventional Commits tiếng Anh `<type>(<scope>): <subject>`, `type` ∈ `feat|fix|refactor|test|docs|chore|build|ci`; subject ≤72 ký tự, mệnh lệnh, không dấu chấm cuối; body tùy chọn ≤~5 gạch đầu dòng nói lý do/tác động (không liệt kê file, không kể quá trình). 1 commit = 1 thay đổi logic.
+- **Jira:** user bảo commit mà chưa nêu task ⇒ hỏi "Thay đổi này thuộc task Jira nào (vd. `CN-123`)?". 1 commit = đúng 1 key ở footer `Refs: <KEY>`; nhiều task ⇒ tách commit; user xác nhận không có task ⇒ commit không key và nói rõ. Không đoán/bịa key.
+- KHÔNG ghi tên model/công cụ AI, `Co-Authored-By` AI, "Generated with ..." trong commit, PR hay comment code (ghi đè attribution mặc định của công cụ).
+
+```text
+feat(response): add PageResponse for paginated APIs
+
+- Avoid exposing Spring Page structure to clients
+
+Refs: CN-123
+```
+
+### Comment trong code
+
+- Chỉ comment ngắn (1 dòng, tối đa 2–3) ở logic chính/không hiển nhiên; nói *tại sao / quy tắc gì*, tiếng Việt, giữ identifier tiếng Anh. Không comment code tự giải thích, không Javadoc/JSDoc tràn lan.
+- KHÔNG code comment-out, comment nhật ký, TODO mơ hồ (cần thì `// TODO(<người/issue>): <việc cụ thể>`), thông tin AI, dữ liệu thật/secret. Sửa code ⇒ sửa/xóa comment liên quan.
+
+### Hỏi trước khi làm
+
+- Thêm/xóa/nâng dependency (`package.json`, lockfile) hoặc đổi version công cụ build.
+- Chọn framework/thư viện nền khi team chưa chốt: router, state/cache, UI kit, cách lưu token.
+- Gọi API khác contract BE hoặc cần BE đổi contract — nêu thay đổi cần thống nhất thay vì tự giả định.
+
+### Phạm vi
+
+- Chỉ sửa trong phạm vi task; KHÔNG xóa/đổi tên/di chuyển file ngoài phạm vi khi chưa hỏi.
+- KHÔNG sửa repo `CareNest_BE`, `CareNest_APP` trừ khi user cho phép rõ trong tin nhắn hiện tại (vd. đồng bộ tri thức theo `update-knowledge.md`).
+- KHÔNG tự thêm thư viện/hạ tầng mới khi team chưa chốt.
+
+### Giao tiếp
+
+- Trả lời user tiếng Việt; commit, branch, identifier tiếng Anh. Yêu cầu chưa rõ ⇒ hỏi trước. Báo kết quả đúng sự thật (test fail/skip/chưa chạy phải nói rõ).

@@ -1,5 +1,7 @@
 # Docs Index — CareNest_FE
 
+Người đọc muốn hiểu kiến trúc tài liệu AI (3 repo, thư mục nào làm gì): `BE:docs/README_AI.md`.
+
 Không đọc hết. Task thường: `.ai/ROUTER.md` → BE module card + FE doc được map trong `.ai/CONTEXT_MAP.yaml`. Status: **FULL** = dùng làm nguồn · **SKELETON** = chưa có nội dung, không dùng làm nguồn.
 
 Nghiệp vụ, rule, contract, kiến trúc hệ thống **không nằm ở đây** — xem `../CareNest_BE/docs/INDEX.md` (source of truth).
@@ -15,9 +17,9 @@ Nghiệp vụ, rule, contract, kiến trúc hệ thống **không nằm ở đâ
 | features | `features/README.md` | Feature nghiệp vụ → màn hình Web → BE card/flow; template doc feature | FULL |
 | integration | `integration/BACKEND_INTEGRATION.md` | Envelope, lỗi, 403/404, phân quyền phía client | FULL (theo BE hiện tại) |
 | | `integration/AUTH_FLOW.md` | Đăng nhập, token, phiên | SKELETON |
-| knowledge | `knowledge/ISSUE_INDEX.md` | **Search đầu tiên khi debug** (bug UI/client) | FULL (chưa có issue) |
+| knowledge | `knowledge/ISSUE_INDEX.md` | **Search đầu tiên khi debug** (bug UI/client, kể cả bug đang `open`) | FULL (chưa có issue) |
 | | `knowledge/incidents/_TEMPLATE.md` | Mẫu incident (có Attempts) | FULL |
-| | `knowledge/KNOWN_ISSUES.md` | Giới hạn đang tồn tại | FULL |
+| | `knowledge/KNOWN_ISSUES.md` | Known Limitations: giới hạn cố ý/chưa làm (không phải bug) | FULL |
 | | `knowledge/TROUBLESHOOTING.md` | Lỗi build/dev/môi trường | FULL (chưa có mục) |
 | | `knowledge/PATTERNS.md` | Bài học tổng quát hóa | FULL |
 | quality | `quality/DEFINITION_OF_DONE.md` | Tiêu chí hoàn thành FE + memory checklist | FULL |

@@ -1,10 +1,10 @@
 ---
-id: FE-BUG-000         # FE-BUG-xxx | FE-CASE-xxx | FE-ENV-xxx
+id: FE-BUG-YYMMDD-slug    # FE-BUG- | FE-CASE- | FE-ENV- ; tên file = <id>.md
 type: bug              # bug | edge-case | env
 screens: [attendance-entry]   # screen group / route
 be_modules: [attendance]      # module BE liên quan (nếu có)
 rules: [ATT-01]               # rule ID BE liên quan (nếu có)
-status: fixed          # fixed | workaround | open
+status: open           # open (đang điều tra, root cause có thể chưa rõ) | workaround | fixed
 date: YYYY-MM-DD
 keywords: [điểm danh, stale cache, 403]
 similar_to: []         # ID incident FE/BE liên quan
@@ -21,13 +21,13 @@ Hiện tượng quan sát được (màn hình, role, thao tác). Chuỗi lỗi 
 ## Điều kiện tái hiện
 Route, role/scope, dữ liệu tối thiểu, trình duyệt, bước. Không dùng dữ liệu trẻ thật.
 
-## Attempts — đã thử
+## Attempts — đã thử (cập nhật mỗi phiên điều tra, để phiên sau không lặp lại)
 | # | Cách thử | Kết quả | Vì sao không đúng / bài học |
 | --- | --- | --- | --- |
 | 1 | | | |
 
 ## Root cause
-Nguyên nhân + **bằng chứng** (file:line, network log, test chứng minh). Ghi rõ FE hay BE.
+Nguyên nhân + **bằng chứng** (file:line, network log, test chứng minh). Ghi rõ FE hay BE. Chưa chứng minh ⇒ ghi `Chưa rõ` + giả thuyết hiện tại.
 
 ## Fix
 Thay đổi gì, ở đâu (file/PR/commit). Vì sao cách này đúng.
@@ -36,7 +36,7 @@ Thay đổi gì, ở đâu (file/PR/commit). Vì sao cách này đúng.
 Tên test + vị trí. Test fail trước fix, pass sau fix.
 
 ## Ảnh hưởng
-Màn hình/role khác bị ảnh hưởng; cần BE/APP thay đổi không (nếu có ⇒ đã đề xuất ghi BE `CROSS_MODULE_ISSUES.md`).
+Màn hình/role khác bị ảnh hưởng; cần BE/APP thay đổi không (nếu có ⇒ đã đề xuất ghi `BE:docs/knowledge/CROSS_MODULE_ISSUES.md`).
 
 ## Lesson
 1–2 câu tổng quát. Nếu lặp ở chỗ khác ⇒ thêm vào `docs/knowledge/PATTERNS.md`.

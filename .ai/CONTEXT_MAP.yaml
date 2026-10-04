@@ -10,8 +10,8 @@ keywords:
   # từ khóa (VN|EN, regex-friendly) -> {be_module_card, fe_docs}
   "điểm danh|attendance|đi muộn|đến muộn|late arrival|vắng":
     {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
-  "đơn nghỉ|xin nghỉ|leave":
-    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md]}   # actor PENDING P-15
+  "đơn nghỉ|báo nghỉ|xin nghỉ|leave":
+    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}   # phụ huynh gửi qua app, không duyệt (ATT-05); Web chỉ xem
   "báo ăn|tham gia ăn|meal participation":
     {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
   "suất ăn|số suất|meal count|chốt suất|xác nhận suất|adjustment":
@@ -19,7 +19,7 @@ keywords:
   "thực đơn|menu|duyệt thực đơn|món|dish|dinh dưỡng|nutrient|định lượng":
     {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
   "kho|nhà cung cấp|supplier|inventory|tồn kho":
-    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: []}   # ngoài V1 — ADR-0009
+    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: []}   # OPEN — ADR-0009, dừng và hỏi
   "dị ứng|allergy":
     {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md]}
   "trẻ|child|hồ sơ trẻ|ghi danh|enrollment|guardian":
@@ -48,10 +48,12 @@ keywords:
     {be_module_card: ../CareNest_BE/docs/modules/ai-assistance.md, fe_docs: [docs/features/README.md]}
   "báo cáo|report|thống kê|dashboard|tổng hợp":
     {be_module_card: ../CareNest_BE/docs/modules/reporting.md, fe_docs: [docs/architecture/ROUTE_MAP.md, docs/features/README.md]}
-  "api|endpoint|error code|lỗi api|pagination|problem detail|fetch|request":
+  "api|endpoint|error code|lỗi api|pagination|problem detail|fetch|request|swagger|openapi":
     {be_module_card: null, fe_docs: [docs/integration/BACKEND_INTEGRATION.md, ../CareNest_BE/docs/contracts/API_CONVENTIONS.md, ../CareNest_BE/docs/contracts/ERROR_CONTRACT.md]}
-  "phụ huynh|parent|bếp|kitchen staff":
+  "phụ huynh|parent":
     {be_module_card: null, fe_docs: []}   # màn hình thuộc CareNest_APP, không thuộc Web
+  "bếp|kitchen staff":
+    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/architecture/ROUTE_MAP.md]}   # Kitchen trên Web: chỉ khi được yêu cầu (../CareNest_BE/docs/business/USER_ROLES.md)
 
 topics:
   project:      [docs/context/REPOSITORY_CONTEXT.md, docs/context/CURRENT_STATE.md, ../CareNest_BE/docs/context/PROJECT_CONTEXT.md]
@@ -70,8 +72,8 @@ available:
   routing: [.ai/ROUTER.md, .ai/ESCALATION.md, .ai/CONTEXT_MAP.yaml]
   profiles: [.ai/profiles/code.md, .ai/profiles/feature.md, .ai/profiles/architecture.md, .ai/profiles/cross-repo.md, .ai/profiles/full.md]
   workflows: [.ai/workflows/fix-bug.md, .ai/workflows/implement-feature.md, .ai/workflows/review-code.md, .ai/workflows/integrate-api.md, .ai/workflows/update-knowledge.md]
-  skills: [.agents/skills/fix-bug/SKILL.md, .agents/skills/implement-feature/SKILL.md, .agents/skills/review-code/SKILL.md, .agents/skills/integrate-api/SKILL.md,
-           .claude/skills/fix-bug/SKILL.md, .claude/skills/implement-feature/SKILL.md, .claude/skills/review-code/SKILL.md, .claude/skills/integrate-api/SKILL.md]
+  skills: [.agents/skills/fix-bug/SKILL.md, .agents/skills/implement-feature/SKILL.md, .agents/skills/review-code/SKILL.md, .agents/skills/integrate-api/SKILL.md, .agents/skills/update-knowledge/SKILL.md,
+           .claude/skills/fix-bug/SKILL.md, .claude/skills/implement-feature/SKILL.md, .claude/skills/review-code/SKILL.md, .claude/skills/integrate-api/SKILL.md, .claude/skills/update-knowledge/SKILL.md]
   rules: [.claude/rules/typescript.md, .claude/rules/component.md, .claude/rules/state.md, .claude/rules/api-client.md]
   docs:
     - docs/context/REPOSITORY_CONTEXT.md

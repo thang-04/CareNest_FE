@@ -1,4 +1,4 @@
-> **Status: CHƯA CÓ NỘI DUNG — không dùng làm nguồn.** Cơ chế auth chưa quyết định (BE `docs/contracts/AUTH_CONTRACT.md` cũng là SKELETON). Không tự chọn cách lưu token — hỏi trước.
+> **Status: CHƯA CÓ NỘI DUNG — không dùng làm nguồn.** Cơ chế auth chưa quyết định (`BE:docs/contracts/AUTH_CONTRACT.md` cũng là SKELETON). Không tự chọn cách lưu token — hỏi trước.
 
 # Auth Flow (Web)
 

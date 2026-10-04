@@ -4,7 +4,7 @@ Bối cảnh dự án đầy đủ (trường, vấn đề, scope V1, exclusions
 
 ## CareNest là gì (tóm tắt)
 
-Nền tảng Web + Mobile hỗ trợ vận hành và quản lý thông tin trẻ cho **Trường Mầm non Thượng Hồng (Hải Phòng) — 1 trường, 2 điểm trường (campus)**. Không phải multi-school/multi-tenant. CareNest bổ sung, không thay thế PMS/GoKids/Zalo. AI chỉ hỗ trợ: tạo bản nháp, con người duyệt.
+Nền tảng Web + Mobile hỗ trợ vận hành và quản lý thông tin trẻ cho **Trường Mầm non Thượng Hồng (Hải Phòng) — 1 trường, 2 điểm trường (campus)**. Không phải multi-school/multi-tenant. CareNest bao phủ + mở rộng workflow cần thiết của PMS/GoKids, không thay hệ thống ngành và không thay Zalo chat (`BE:docs/context/PROJECT_CONTEXT.md` "Định vị"). AI chỉ hỗ trợ: tạo bản nháp, con người duyệt.
 
 ## 3 repo
 
@@ -23,7 +23,7 @@ Nền tảng Web + Mobile hỗ trợ vận hành và quản lý thông tin trẻ
 | Vice Principal | Như Principal nhưng **trong campus được phân công** (AUTH-02) | như trên |
 | Teacher | Lớp được phân công (Web + App) | như trên |
 
-Parent và Kitchen Staff dùng APP — màn hình của họ không thuộc repo này.
+Parent dùng APP — màn hình của họ không thuộc repo này. Kitchen Staff dùng APP; Kitchen trên Web: chỉ khi được yêu cầu (`BE:docs/business/USER_ROLES.md`).
 
 ## FE sở hữu
 
@@ -39,7 +39,7 @@ Màn hình, route/navigation, client state, tích hợp API, UX/accessibility, �
 
 ## Ngoài scope V1 (liên quan Web)
 
-Quản lý tài sản (khấu hao, bảo trì, kiểm kê) — CSVC chỉ **báo và theo dõi sự cố** · kho/NCC · chat thay Zalo · giáo án · chẩn đoán y tế/tâm lý · payroll/kế toán. Ngữ cảnh hoạt động/học tập: OPEN (BE ADR-0006) — không làm màn hình cho tới khi chốt.
+Quản lý tài sản (khấu hao, bảo trì, kiểm kê) — CSVC chỉ **báo và theo dõi sự cố** · kho/NCC (OPEN — `BE:docs/decisions/ADR-0009-nutrition-inventory-scope.md`, chưa làm) · chat thay Zalo · giáo án · chẩn đoán y tế/tâm lý · payroll/kế toán. Ngữ cảnh hoạt động/học tập: OPEN (BE ADR-0006) — không làm màn hình cho tới khi chốt.
 
 ## Stack Web
 

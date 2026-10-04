@@ -12,7 +12,7 @@
 | AI output là DRAFT, cần người duyệt; UI dùng được khi AI tắt | CONFIRMED | BE ADR-0008 |
 | React + TypeScript | PROPOSED | `docs/context/REPOSITORY_CONTEXT.md` |
 | Next.js (SSR/App Router) | PROPOSED — chưa chốt | — |
-| Router, state/cache, UI kit, HTTP client, test tool | Chưa chốt — hỏi trước | `CLAUDE.md` "Hỏi trước khi làm" |
+| Router, state/cache, UI kit, HTTP client, test tool | Chưa chốt — hỏi trước | `AGENTS.md` "Hỏi trước khi làm" |
 | Team 5 người, thời gian giới hạn ⇒ kiến trúc đơn giản đủ dùng | CONFIRMED | BE PROJECT_CONTEXT |
 
 ## Cần quyết định (điền khi chốt)

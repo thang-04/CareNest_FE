@@ -1,6 +1,6 @@
 # Backend Integration
 
-**CareNest_BE là owner của API contract.** File này mô tả cách Web tiêu thụ contract; khi khác với BE ⇒ BE thắng, cập nhật file này. Nguồn theo thứ tự: source BE (`../CareNest_BE/src/main/java/com/carenest/` — `utils/ResponseJson.java`, `utils/ApiCode.java`, `dto/common/PageResponse.java`, `exception/GlobalExceptionHandler.java`) → `../CareNest_BE/docs/contracts/API_CONVENTIONS.md`, `ERROR_CONTRACT.md` → `../CareNest_BE/docs/backend-coding-guide.md`. `openapi.yaml` chưa tồn tại.
+**CareNest_BE là owner của API contract.** File này mô tả cách Web tiêu thụ contract; khi khác với BE ⇒ BE thắng, cập nhật file này. Nguồn theo thứ tự: source BE (`../CareNest_BE/src/main/java/com/carenest/` — `utils/ResponseJson.java`, `utils/ApiCode.java`, `dto/common/PageResponse.java`, `exception/GlobalExceptionHandler.java`) → Swagger UI của BE đang chạy (springdoc, `/swagger-ui/index.html`) → `BE:docs/contracts/API_CONVENTIONS.md`, `ERROR_CONTRACT.md` → `BE:docs/backend-coding-guide.md`. File OpenAPI export (`BE:docs/api/`) chưa có.
 
 ## Base URL & prefix
 
@@ -21,23 +21,25 @@
 
 - 400 validation: `data` là danh sách `{ field, message }` ⇒ map vào lỗi từng field của form.
 - Phân trang: `data` = `{ items, page, size, totalElements, totalPages }`; `page` bắt đầu từ 0.
-- JSON `camelCase`; ngày `YYYY-MM-DD`; ID dạng string.
+- JSON `camelCase`; ngày `YYYY-MM-DD`. Kiểu ID: theo DTO BE (`BE:src/`), không tự giả định.
 
 ## HTTP status → hành vi FE
 
-| Status | Ý nghĩa (BE) | FE |
-| --- | --- | --- |
-| 200 / 201 | Thành công | Hiển thị `data`; sau mutation refetch dữ liệu liên quan |
-| 400 | Request không hợp lệ / malformed | Lỗi field (nếu có) hoặc thông báo chung |
-| 401 | Chưa đăng nhập / hết phiên | Luồng auth (`AUTH_FLOW.md`, chưa chốt) |
-| 403 | Không có permission **hoặc ngoài scope** | Màn hình "không có quyền"; không retry; không tự đổi sang dữ liệu khác |
-| 404 | Không tồn tại **hoặc bị ẩn do ngoài scope** (BE có thể chọn 404 cho dữ liệu trẻ) | "Không tìm thấy"; không suy luận là dữ liệu không tồn tại thật |
-| 409 | Xung đột / sai trạng thái nghiệp vụ (vd. số suất đã xác nhận) | Hiển thị `desc`, refetch trạng thái mới |
-| 413 / 415 | File quá lớn / sai định dạng | Thông báo tại ô upload |
-| 500 | Lỗi nội bộ | Thông báo chung, không lộ chi tiết |
-| 503 / 504 | Dịch vụ ngoài (vd. AI) không khả dụng / timeout | Thông báo; cho phép tiếp tục luồng không AI |
+Ý nghĩa từng status và khi nào BE trả: `BE:docs/contracts/ERROR_CONTRACT.md`. Bảng dưới chỉ là hành vi client.
 
-Lỗi cùng status phân biệt bằng `desc` ở BE hiện tại. FE cần phân biệt bằng máy ⇒ **đề xuất BE thêm mã lỗi ổn định** (cross-repo), không parse text.
+| Status | FE |
+| --- | --- |
+| 200 / 201 | Hiển thị `data`; sau mutation refetch dữ liệu liên quan |
+| 400 | Lỗi field (nếu có) hoặc thông báo chung |
+| 401 | Luồng auth (`AUTH_FLOW.md`, chưa chốt) |
+| 403 | Màn hình "không có quyền"; không retry; không tự đổi sang dữ liệu khác |
+| 404 | "Không tìm thấy"; không suy luận là dữ liệu không tồn tại thật (có thể bị ẩn do scope) |
+| 409 | Hiển thị `desc`, refetch trạng thái mới |
+| 413 / 415 | Thông báo tại ô upload |
+| 500 | Thông báo chung, không lộ chi tiết |
+| 503 / 504 | Thông báo; cho phép tiếp tục luồng không AI |
+
+Lỗi cùng status phân biệt bằng `desc` ở BE hiện tại (FE-KI-002). FE cần phân biệt bằng máy ⇒ **đề xuất BE thêm mã lỗi ổn định** (cross-repo), không parse text.
 
 ## Phân quyền & scope
 

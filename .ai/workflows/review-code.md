@@ -9,7 +9,7 @@
 5. **State & async:** race condition, stale cache sau mutation, double submit, cleanup effect, loading/empty/error đầy đủ.
 6. **UX/accessibility:** label, focus, keyboard, thông báo lỗi dễ hiểu (tiếng Việt), responsive cho bảng/form.
 7. **Test:** có test hành vi chính, lỗi API, ẩn/hiện theo permission, regression cho bug fix?
-8. **Convention:** `.claude/rules/`, quy tắc comment/commit trong `CLAUDE.md`.
-9. **Memory:** fix bug không hiển nhiên có incident + dòng `ISSUE_INDEX.md` chưa? Đối chiếu `docs/knowledge/PATTERNS.md`.
+8. **Convention:** `.claude/rules/`, quy tắc comment/commit trong `AGENTS.md`.
+9. **Memory:** fix bug không hiển nhiên có incident + dòng `ISSUE_INDEX.md` chưa (theo `update-knowledge.md` T2)? Đối chiếu `docs/knowledge/PATTERNS.md`.
 
 Mỗi phát hiện: vị trí, kịch bản gây lỗi, cách sửa. Phân biệt lỗi đã chứng minh với câu hỏi/giả định. Không tuyên bố đã chạy runtime/trình duyệt nếu chỉ đọc tĩnh.

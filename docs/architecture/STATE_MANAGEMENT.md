@@ -4,15 +4,9 @@
 
 ## Nguyên tắc (dùng được)
 
-1. **Server state từ BE là nguồn sự thật.** FE cache để hiển thị, không biến cache thành bản ghi chính.
-2. **Không tính lại nghiệp vụ ở client:** số suất ăn, định lượng, trend sức khỏe, tổng hợp báo cáo, trạng thái duyệt — hiển thị giá trị BE trả. Dữ liệu dẫn xuất đã xác nhận ở BE là snapshot (BE ADR-0005); client không "sửa cho khớp".
-3. **Sau mutation ⇒ refetch/invalidate** dữ liệu liên quan từ BE. Optimistic update chỉ cho thay đổi không có hệ quả nghiệp vụ, phải rollback khi lỗi.
-4. **UI state tách khỏi server state:** form, filter (campus/lớp/ngày), tab, modal.
-5. **Phạm vi dữ liệu không suy luận ở client:** danh sách campus/lớp được chọn lấy từ BE theo user.
-6. **Không persist dữ liệu trẻ/sức khỏe** ở storage trình duyệt. Logout/đổi user ⇒ xóa toàn bộ cache.
-7. Trạng thái DRAFT/APPROVED của nội dung AI do BE quản lý; client chỉ phản ánh.
-
-Rule code tương ứng: `.claude/rules/state.md`.
+- Server state vs UI state, refetch sau mutation, optimistic update, không persist dữ liệu trẻ, xóa cache khi logout, filter scope: **`.claude/rules/state.md`** (nguồn duy nhất, không chép lại ở đây).
+- Không tính lại nghiệp vụ ở client; dữ liệu dẫn xuất đã xác nhận là snapshot: FP-NO-CLIENT-RECOMPUTE (`docs/knowledge/PATTERNS.md`), BE ADR-0005.
+- Trạng thái DRAFT/APPROVED của nội dung AI do BE quản lý; client chỉ phản ánh (FP-AI-DRAFT-UI).
 
 ## Cần quyết định (điền khi chốt)
 

@@ -11,7 +11,7 @@ Agent và developer đối chiếu trước khi báo hoàn thành. Bỏ qua mụ
 - [ ] Màn hình đủ trạng thái: loading, empty, error, 403, 404, submitting; nội dung AI có nhãn DRAFT + bước duyệt + dùng được khi AI tắt.
 - [ ] Không secret, không dữ liệu trẻ thật trong code/test/fixture/log/console/storage.
 - [ ] Không thêm dependency/thư viện nền khi chưa được user đồng ý.
-- [ ] Theo `.claude/rules/` và quy tắc comment trong `CLAUDE.md`.
+- [ ] Theo `.claude/rules/` và quy tắc comment trong `AGENTS.md`.
 
 ## Test
 - [ ] Test cho hành vi chính, lỗi API quan trọng, ẩn/hiện theo permission.
@@ -28,8 +28,5 @@ Agent và developer đối chiếu trước khi báo hoàn thành. Bỏ qua mụ
 - [ ] Quyết định kiến trúc client đã chốt ⇒ cập nhật file SKELETON tương ứng thành FULL.
 
 ## Engineering memory
-- [ ] Lỗi không hiển nhiên / thử >1 cách / có thể lặp / lỗi môi trường >15 phút ⇒ incident `docs/knowledge/incidents/` + dòng `ISSUE_INDEX.md` (kèm các cách đã thử thất bại).
-- [ ] Bẫy đặc thù feature ⇒ 1 dòng "Known pitfalls" trong `docs/features/<feature>.md`.
-- [ ] Bài học tổng quát ⇒ `docs/knowledge/PATTERNS.md`.
-- [ ] Giới hạn còn tồn tại / chưa rõ root cause ⇒ `docs/knowledge/KNOWN_ISSUES.md`.
-- [ ] Bug contract/nghiệp vụ do BE ⇒ báo cáo có nội dung đề xuất cho BE `docs/knowledge/CROSS_MODULE_ISSUES.md`.
+- [ ] Đã chạy `.ai/workflows/update-knowledge.md` nếu có trigger T1/T2/T3 (hoặc nêu 1 dòng vì sao không cần).
+- [ ] Sửa skill ⇒ `.agents/skills` và `.claude/skills` giống hệt nhau (`diff -r .agents/skills .claude/skills`).
