@@ -63,17 +63,18 @@ topics:
   integration:  [docs/integration/BACKEND_INTEGRATION.md, docs/integration/AUTH_FLOW.md, ../CareNest_BE/docs/contracts/API_CONVENTIONS.md, ../CareNest_BE/docs/contracts/ERROR_CONTRACT.md]
   cross-repo:   [../CareNest_BE/docs/system/CROSS_REPO_MAP.md, ../CareNest_BE/docs/knowledge/CROSS_MODULE_ISSUES.md]
   memory:       [docs/knowledge/ISSUE_INDEX.md, docs/knowledge/KNOWN_ISSUES.md, docs/knowledge/PATTERNS.md, docs/knowledge/TROUBLESHOOTING.md, ../CareNest_BE/docs/knowledge/ISSUE_INDEX.md]
-  quality:      [docs/quality/DEFINITION_OF_DONE.md]
+  quality:      [docs/quality/DEFINITION_OF_DONE.md, docs/quality/VERIFICATION.md]
   coding-rules: [.claude/rules/]
 
 available:
   entrypoints: [AGENTS.md, CLAUDE.md, docs/INDEX.md]
-  hooks: [.claude/settings.json, .claude/hooks/memory-reminder.mjs]   # Claude Stop hook nhắc cập nhật memory
+  hooks: [.claude/settings.json, .claude/hooks/session-orient.mjs, .claude/hooks/guard-edits.mjs, .claude/hooks/track-activity.mjs, .claude/hooks/stop-gate.mjs, .claude/hooks/lib/]   # Claude hooks (BE ADR-0012)
   routing: [.ai/ROUTER.md, .ai/ESCALATION.md, .ai/CONTEXT_MAP.yaml]
   profiles: [.ai/profiles/code.md, .ai/profiles/feature.md, .ai/profiles/architecture.md, .ai/profiles/cross-repo.md, .ai/profiles/full.md]
-  workflows: [.ai/workflows/fix-bug.md, .ai/workflows/implement-feature.md, .ai/workflows/review-code.md, .ai/workflows/integrate-api.md, .ai/workflows/update-knowledge.md]
-  skills: [.agents/skills/fix-bug/SKILL.md, .agents/skills/implement-feature/SKILL.md, .agents/skills/review-code/SKILL.md, .agents/skills/integrate-api/SKILL.md, .agents/skills/update-knowledge/SKILL.md,
-           .claude/skills/fix-bug/SKILL.md, .claude/skills/implement-feature/SKILL.md, .claude/skills/review-code/SKILL.md, .claude/skills/integrate-api/SKILL.md, .claude/skills/update-knowledge/SKILL.md]
+  workflows: [.ai/workflows/fix-bug.md, .ai/workflows/implement-feature.md, .ai/workflows/review-code.md, .ai/workflows/integrate-api.md, .ai/workflows/update-knowledge.md, .ai/workflows/clarify-business.md, .ai/workflows/plan-change.md]
+  harness: [docs/quality/VERIFICATION.md, docs/plans/_TEMPLATE.md, scripts/verify.mjs, scripts/check-ai-layer.mjs, scripts/ai-layer/, .githooks/, .claude/hooks/harness.config.json, .gitattributes, .editorconfig]   # quy trình làn S/M/L + cổng (BE ADR-0012)
+  skills: [.agents/skills/fix-bug/SKILL.md, .agents/skills/implement-feature/SKILL.md, .agents/skills/review-code/SKILL.md, .agents/skills/integrate-api/SKILL.md, .agents/skills/update-knowledge/SKILL.md, .agents/skills/plan-change/SKILL.md,
+           .claude/skills/fix-bug/SKILL.md, .claude/skills/implement-feature/SKILL.md, .claude/skills/review-code/SKILL.md, .claude/skills/integrate-api/SKILL.md, .claude/skills/update-knowledge/SKILL.md, .claude/skills/plan-change/SKILL.md]
   rules: [.claude/rules/typescript.md, .claude/rules/component.md, .claude/rules/state.md, .claude/rules/api-client.md]
   docs:
     - docs/context/REPOSITORY_CONTEXT.md

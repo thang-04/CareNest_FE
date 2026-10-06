@@ -1,5 +1,7 @@
 # Workflow — Fix bug (Web)
 
+Làn S (1–2 file, nguyên nhân rõ): triệu chứng, grep memory, sửa, regression test fail-trước/pass-sau. Làn M/L: đủ các bước; root cause đủ 6 mục (triệu chứng nguyên văn · tái hiện · mong đợi vs thực tế · `file:line` + bằng chứng · vì sao giờ mới lộ · phạm vi ảnh hưởng) trước khi sửa. Không có nguồn cho "hành vi đúng" ⇒ `clarify-business.md`. **3 lần sửa thất bại ⇒ dừng**, ghi Attempts, hỏi user.
+
 1. **Triệu chứng:** ghi nguyên văn chuỗi lỗi (console, network response `{code, desc}`, UI message), route, role/scope người dùng, bước thao tác, hành vi mong đợi (từ rule ID / flow trong BE module card). Tái hiện bằng dữ liệu giả, tối thiểu.
 2. **Tra memory trước khi điều tra:**
    - grep `docs/knowledge/ISSUE_INDEX.md` (FE) theo chuỗi lỗi, màn hình, từ khóa VN/EN; lỗi build/dev server ⇒ `docs/knowledge/TROUBLESHOOTING.md`.

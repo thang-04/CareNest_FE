@@ -1,5 +1,7 @@
 # Workflow — Review code (Web)
 
+Làn S: tự kiểm 3 điểm (đúng phạm vi, không đổi contract, có test). Làn M: các mục liên quan. Làn L: đủ, kể cả spec trước (mỗi AC trong plan: PASS / MISSING / EXTRA) và Kết luận; review qua subagent nếu công cụ hỗ trợ.
+
 Đọc mục tiêu thay đổi + diff + BE module card liên quan. Kiểm tra theo thứ tự ưu tiên:
 
 1. **Business logic bị chép vào FE:** client tự tính số suất, trend, trạng thái duyệt, cut-off, quyền? Hard-code role cho hành động có actor PENDING? Hiển thị field ngoài quyền?
@@ -12,4 +14,11 @@
 8. **Convention:** `.claude/rules/`, quy tắc comment/commit trong `AGENTS.md`.
 9. **Memory:** fix bug không hiển nhiên có incident + dòng `ISSUE_INDEX.md` chưa (theo `update-knowledge.md` T2)? Đối chiếu `docs/knowledge/PATTERNS.md`.
 
-Mỗi phát hiện: vị trí, kịch bản gây lỗi, cách sửa. Phân biệt lỗi đã chứng minh với câu hỏi/giả định. Không tuyên bố đã chạy runtime/trình duyệt nếu chỉ đọc tĩnh.
+## Phát hiện
+`[Severity] file:line — kịch bản lỗi — cách sửa — đã chứng minh | giả thuyết`. Severity: **Critical** (lộ dữ liệu trẻ/token, vượt quyền, sai nghiệp vụ lõi) · **High** (vd. làm theo rule chưa CONFIRMED hoặc lệch tài liệu mà không hỏi) · **Medium** · **Low**. Spec không rõ ⇒ ghi là câu hỏi. Mỗi phát hiện: vị trí, kịch bản gây lỗi, cách sửa. Phân biệt lỗi đã chứng minh với câu hỏi/giả định. Không tuyên bố đã chạy runtime/trình duyệt nếu chỉ đọc tĩnh.
+
+## Kết luận (làn L)
+`PASS` · `PASS_WITH_RISK` (liệt kê rủi ro chấp nhận) · `BLOCKED` (≥1 Critical/High đã chứng minh). Tối đa 3 vòng review–sửa, sau đó hỏi user.
+
+## Nhận review
+Kiểm chứng từng phát hiện trước khi sửa; sai ⇒ phản biện bằng bằng chứng. Không âm thầm đảo quyết định user đã ghi trong plan.

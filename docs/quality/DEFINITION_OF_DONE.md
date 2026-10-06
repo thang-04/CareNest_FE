@@ -1,6 +1,13 @@
 # Definition of Done — CareNest_FE
 
-Agent và developer đối chiếu trước khi báo hoàn thành. Bỏ qua mục không áp dụng, nhưng nêu lý do.
+Agent và developer đối chiếu trước khi báo hoàn thành, theo làn (`AGENTS.md`). Bỏ qua mục không áp dụng, nhưng nêu lý do. Bằng chứng: `docs/quality/VERIFICATION.md`.
+
+## Làn S (3 mục)
+- [ ] Đúng phạm vi, không đổi contract/hành vi ngoài yêu cầu (đổi ⇒ đã qua `clarify-business.md`).
+- [ ] Có test/bước kiểm cho thay đổi; bug fix có regression fail-trước/pass-sau.
+- [ ] Dòng `VERIFY` (hoặc `Verify: chưa chạy — <lý do>`) trong lượt, sau lần sửa cuối.
+
+Làn M/L: các mục dưới.
 
 ## Code
 - [ ] Không chép business rule vào FE; rule liên quan dẫn chiếu bằng rule ID / BE module card.
@@ -28,5 +35,6 @@ Agent và developer đối chiếu trước khi báo hoàn thành. Bỏ qua mụ
 - [ ] Quyết định kiến trúc client đã chốt ⇒ cập nhật file SKELETON tương ứng thành FULL.
 
 ## Engineering memory
+- [ ] Sửa `.ai/`, `.claude/`, `.agents/`, `docs/` ⇒ `node scripts/check-ai-layer.mjs` exit 0.
 - [ ] Đã chạy `.ai/workflows/update-knowledge.md` nếu có trigger T1/T2/T3 (hoặc nêu 1 dòng vì sao không cần).
 - [ ] Sửa skill ⇒ `.agents/skills` và `.claude/skills` giống hệt nhau (`diff -r .agents/skills .claude/skills`).

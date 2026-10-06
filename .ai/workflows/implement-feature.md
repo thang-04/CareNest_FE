@@ -1,5 +1,8 @@
 # Workflow — Implement feature (Web)
 
+Làn S (`AGENTS.md`): bước 0, 5, 6, 8 — rule 1 dòng. Làn L: bước 0 rồi `plan-change.md`, làm theo phase.
+
+0. **Làn + nghiệp vụ:** xác định làn S/M/L (`AGENTS.md`); đổi nghiệp vụ/thứ người dùng thấy ⇒ `clarify-business.md` (hỏi tới khi rõ, đối chiếu tài liệu, ảnh hưởng) trước khi code; làn L ⇒ `plan-change.md`.
 1. **Requirement:** actor, outcome, điều kiện hoàn thành. Map sang **BE module card + rule ID** (`.ai/CONTEXT_MAP.yaml` → `keywords`). Dẫn chiếu rule ID, không chép nội dung rule vào FE. Rule/actor PENDING hoặc OPEN ⇒ nêu khoảng trống, hỏi hoặc làm theo permission BE trả về — không tự quyết.
 2. **Business flow:** đọc flow trong card (`../CareNest_BE/docs/business/flows/`). Chỉ bước `[S]` là hành động trên hệ thống; bước `[B]` không thành màn hình.
 3. **Screen / route / state:**
@@ -11,4 +14,4 @@
 5. **Code:** theo `.claude/rules/` (typescript, component, state, api-client). Pattern có sẵn trong source được ưu tiên hơn đề xuất mới.
 6. **Test:** component test cho hành vi chính + lỗi API + ẩn/hiện theo permission; dữ liệu giả. Nêu rõ phần chưa chạy trên trình duyệt/BE thật. Kiểm tra accessibility cơ bản (label, focus, keyboard) và responsive cho màn hình có form/bảng.
 7. **Docs & memory:** cập nhật `docs/architecture/ROUTE_MAP.md` (screen thực tế), `docs/context/CURRENT_STATE.md`, tạo/cập nhật `docs/features/<feature>.md` theo template nếu màn hình phức tạp. Edge case đáng nhớ ⇒ `.ai/workflows/update-knowledge.md` T3. Cần BE đổi contract ⇒ liệt kê trong báo cáo.
-8. Báo: đã chạy gì, chưa kiểm chứng gì, phần chờ BE/APP. Đối chiếu `docs/quality/DEFINITION_OF_DONE.md`.
+8. **Verify + báo cáo** theo `docs/quality/VERIFICATION.md` (mẫu theo làn). Báo: đã chạy gì, chưa kiểm chứng gì, phần chờ BE/APP. Đối chiếu `docs/quality/DEFINITION_OF_DONE.md`.

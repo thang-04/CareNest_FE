@@ -4,23 +4,19 @@ Repo này là **client Web** của CareNest (Trường Mầm non Thượng Hồn
 
 Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling). Không có sibling ⇒ đọc trên https://github.com/thang-04/CareNest_BE.git và nói rõ đã đọc bản remote.
 
-## Bắt đầu mọi task
+## Bắt đầu mọi task — chọn làn
 
-1. Phân loại task bằng `.ai/ROUTER.md` → profile, workflow, skill, mức context (L1–L4).
-2. Tìm vùng nghiệp vụ bằng `.ai/CONTEXT_MAP.yaml` (mục `keywords`) → đọc **BE module card** (`BE:docs/modules/<module>.md`) + FE doc tương ứng (`docs/features/README.md`, `docs/architecture/ROUTE_MAP.md`).
-3. Bug/lỗi/case lạ: **search `docs/knowledge/ISSUE_INDEX.md` (FE) và `BE:docs/knowledge/ISSUE_INDEX.md` trước** khi điều tra. Incident cũ là manh mối, phải kiểm chứng lại với code hiện tại.
-4. Kết thúc: đối chiếu `docs/quality/DEFINITION_OF_DONE.md`, gồm cập nhật engineering memory.
+| Làn | Khi nào | Đọc | Plan · verify · báo cáo |
+| --- | --- | --- | --- |
+| **S** | ≤2 file, việc rõ, ngoài vùng rủi ro | File đích + test; bug: grep `ISSUE_INDEX.md` (+ BE nếu lỗi contract) | Không plan · `node scripts/verify.mjs` · ≤3 dòng |
+| **M** | 3–8 file; màn hình/hành vi trong 1 nhóm | `.ai/ROUTER.md` → grep `.ai/CONTEXT_MAP.yaml` → BE card + feature doc | Mini-plan chat · verify · ≤8 dòng |
+| **L** | Thư viện nền, auth/token, API client chung, điều hướng theo role, dependency, ≥2 nhóm màn hình, đổi contract BE, >8 file | + `.ai/ESCALATION.md` L3–L4 | Plan `.ai/workflows/plan-change.md` user duyệt · Progress log |
 
-**Tri thức mới** — user đưa nghiệp vụ mới / chốt PENDING, hoặc gặp **bug mới** / edge case ⇒ chạy `.ai/workflows/update-knowledge.md` ngay trong lượt (không đợi cuối task).
-
-## Đọc tiết kiệm token
-
-- **`.ai/CONTEXT_MAP.yaml`: grep, không đọc cả file** — `grep -iE "<từ khóa>" .ai/CONTEXT_MAP.yaml` để ra module/card. Chỉ mở cả file khi cần sửa map.
-- **Contract BE**: chỉ đọc `BE:docs/backend-coding-guide.md` mục 7–8 khi đụng API (grep tiêu đề `^## 7\.`/`^## 8\.`); không đọc cả guide.
-- **Engineering memory:** grep `docs/knowledge/ISSUE_INDEX.md` (+ `BE:docs/knowledge/ISSUE_INDEX.md` nếu lỗi contract/nghiệp vụ) theo chuỗi lỗi/từ khóa; chỉ mở `incidents/<ID>-*.md` khi dòng index khớp. Ghi mới: 1 issue = 1 dòng ngắn trong index, chi tiết để trong file incident.
-- **Coding rule theo loại file** ở `.claude/rules/<tên>.md` (frontmatter `paths`). Claude tự nạp; agent khác (Codex) tự mở rule khớp file đang sửa.
-- `.agents/skills/` là bản mirror của `.claude/skills/` — sửa một bên thì chép y hệt sang bên kia.
-- Không đọc toàn bộ `docs/` trừ profile `full`. Mức đọc theo `.ai/ESCALATION.md`.
+- Đổi nghiệp vụ/thứ người dùng thấy ⇒ `.ai/workflows/clarify-business.md` trước khi code. Vượt tiêu chí ⇒ nâng làn, không hạ làn.
+- Plan `docs/plans/active/` khớp branch ⇒ đọc Progress log cuối.
+- Grep, không đọc cả file: CONTEXT_MAP, ISSUE_INDEX, BE guide mục 7–8.
+- `.claude/rules/` theo file (Codex tự mở); `.agents/skills/` = mirror `.claude/skills/`.
+- Báo xong: `docs/quality/VERIFICATION.md` + DoD theo làn.
 
 ## Nguyên tắc bất biến
 
@@ -29,13 +25,13 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 3. **Ẩn UI ≠ phân quyền.** Ẩn nút/menu theo dữ liệu quyền từ BE là UX; không lọc dữ liệu theo scope chỉ ở client. 403/404 từ BE là kết quả hợp lệ phải xử lý.
 4. **1 trường, 2 campus** — không phải multi-school/multi-tenant. Không tự suy luận scope (campus/lớp) ở client; dùng dữ liệu BE trả về.
 5. **Không dữ liệu trẻ thật / sức khỏe / tài khoản / secret** trong prompt, log, console, fixture, mock, screenshot, commit.
-6. **PENDING / OPEN ⇒ hỏi.** Mục chưa chốt (actor, field hiển thị, framework, auth) ⇒ nêu khoảng trống, hỏi hoặc làm cấu hình được — không đoán. AI chỉ tạo DRAFT; UI phải thể hiện trạng thái DRAFT và bước người duyệt.
-7. **Ghi lại bug không hiển nhiên** (kể cả các cách đã thử thất bại) vào `docs/knowledge/`. Bug UI/client ở FE; **bug contract/nghiệp vụ** phát hiện từ FE ⇒ đề xuất ghi vào `BE:docs/knowledge/CROSS_MODULE_ISSUES.md` (không tự sửa repo BE).
+6. **Chưa rõ / PENDING / OPEN / lệch tài liệu ⇒ hỏi user tới khi rõ** (actor, field); cấu hình được chỉ khi user nói chưa chốt. AI chỉ tạo DRAFT; UI phải thể hiện trạng thái DRAFT và bước người duyệt.
+7. **Tri thức mới, bug không hiển nhiên** (kể cả cách thử thất bại) ⇒ `.ai/workflows/update-knowledge.md` ngay trong lượt; bug contract/nghiệp vụ ⇒ đề xuất ghi `BE:docs/knowledge/CROSS_MODULE_ISSUES.md`.
 8. **Không mở rộng scope V1:** không asset management (CSVC chỉ báo/theo dõi sự cố), không chat thay Zalo, không giáo án, không chẩn đoán. Đối chiếu `BE:docs/context/PROJECT_CONTEXT.md` (Exclusions).
 
 ## Stack
 
-React + TypeScript: **PROPOSED** (Next.js cũng chỉ PROPOSED). Chưa có source. Router, state/cache, UI kit, cách lưu token: chưa chốt ⇒ hỏi trước khi chọn. Coding rule: `.claude/rules/` (dùng chung cho mọi agent). Đọc source thực tế trước khi áp rule framework.
+React + TypeScript: **PROPOSED** (Next.js cũng chỉ PROPOSED). Chưa có source. Router, state/cache, UI kit, cách lưu token: chưa chốt ⇒ hỏi trước khi chọn. Đọc source thực tế trước khi áp rule framework.
 
 ## Quy tắc chung CareNest (bắt buộc)
 
@@ -64,6 +60,12 @@ Refs: CN-123
 
 - Chỉ comment ngắn (1 dòng, tối đa 2–3) ở logic chính/không hiển nhiên; nói *tại sao / quy tắc gì*, tiếng Việt, giữ identifier tiếng Anh. Không comment code tự giải thích, không Javadoc/JSDoc tràn lan.
 - KHÔNG code comment-out, comment nhật ký, TODO mơ hồ (cần thì `// TODO(<người/issue>): <việc cụ thể>`), thông tin AI, dữ liệu thật/secret. Sửa code ⇒ sửa/xóa comment liên quan.
+
+### Cổng chất lượng
+
+- **Iron Law:** chưa có output `node scripts/verify.mjs` chạy sau lần sửa cuối ⇒ không báo "xong/pass/đã sửa"; skip = chưa kiểm chứng (`docs/quality/VERIFICATION.md`).
+- Làn L ⇒ plan user duyệt mới code. Sửa bug thất bại 3 lần ⇒ dừng, ghi Attempts, hỏi.
+- Sửa `.ai/ .claude/ .agents/ docs/` ⇒ `node scripts/check-ai-layer.mjs`. Cổng fail ⇒ sửa nguyên nhân, không lách.
 
 ### Hỏi trước khi làm
 

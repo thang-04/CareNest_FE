@@ -1,5 +1,7 @@
 # Router — chọn context cho task Web
 
+Làn S (`AGENTS.md`) không cần đọc file này.
+
 1. Xác định **loại task** → bảng 1 (profile, workflow, skill, mức khởi đầu).
 2. Xác định **vùng nghiệp vụ** → grep từ khóa trong `.ai/CONTEXT_MAP.yaml` mục `keywords` → đọc BE module card + FE doc được map.
 3. Đọc thêm chỉ khi `.ai/ESCALATION.md` yêu cầu.
@@ -16,6 +18,8 @@
 | Cần BE đổi contract / ảnh hưởng APP / bug nghi do BE | `profiles/cross-repo.md` | theo loại thay đổi | — | L3 |
 | Kiến trúc client: routing, state, folder, auth flow, chọn thư viện nền | `profiles/architecture.md` | — | — | L3–L4 |
 | Onboarding toàn bộ, audit lớn, thiết kế lại FE | `profiles/full.md` | — | — | FULL |
+| Đổi nghiệp vụ / thứ người dùng thấy, yêu cầu chưa rõ hoặc lệch tài liệu | `profiles/feature.md` | `workflows/clarify-business.md` → workflow theo loại | implement-feature | L2 |
+| Làn L: thư viện nền, auth/token, API client chung, điều hướng theo role, dependency, ≥2 nhóm màn hình, đổi contract BE, >8 file | `profiles/architecture.md` | `workflows/clarify-business.md` → `workflows/plan-change.md` | plan-change | L3 |
 
 ## Bảng 2 — Tín hiệu nâng mức ngay (≥ L3)
 
@@ -27,4 +31,4 @@ Kho/NCC, tài sản/khấu hao/bảo trì/kiểm kê, chat, giáo án, chẩn đ
 
 ## Cập nhật tri thức (song song với mọi task)
 
-User đưa thông tin nghiệp vụ mới / chốt PENDING, gặp **bug mới** hoặc edge case ⇒ chạy `workflows/update-knowledge.md` (skill `update-knowledge`) **ngay trong lượt**, rồi tiếp tục task chính. Claude có Stop hook (`.claude/hooks/memory-reminder.mjs`) nhắc một lần khi code đổi mà `docs/` chưa đổi.
+User đưa thông tin nghiệp vụ mới / chốt PENDING, gặp **bug mới** hoặc edge case ⇒ chạy `workflows/update-knowledge.md` (skill `update-knowledge`) **ngay trong lượt**, rồi tiếp tục task chính. Claude có Stop hook nhắc khi session có dấu hiệu bug khó (verify fail rồi pass) mà chưa ghi memory (BE ADR-0012).
