@@ -1,0 +1,72 @@
+{
+  "repo": "FE",
+  "siblings": {
+    "BE": [
+      "../CareNest_BE-main",
+      "../CareNest_BE"
+    ],
+    "FE": [
+      "../CareNest_FE"
+    ],
+    "APP": [
+      "../CareNest_APP"
+    ]
+  },
+  "lanes": {
+    "smallMaxFiles": 2,
+    "mediumMaxFiles": 8,
+    "riskGlobs": [
+      "package.json",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "bun.lock*",
+      ".nvmrc",
+      ".npmrc"
+    ]
+  },
+  "verify": {
+    "activeWhen": [
+      "package.json"
+    ],
+    "globs": [
+      "src/**",
+      "package.json",
+      "tsconfig*.json",
+      "public/**"
+    ],
+    "display": "node scripts/verify.mjs"
+  },
+  "guard": {
+    "dependencyGlobs": [
+      "package.json",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "bun.lock*",
+      ".nvmrc",
+      ".npmrc"
+    ],
+    "immutableGlobs": [],
+    "contractGlobs": [],
+    "highRisk": []
+  },
+  "checkAiLayer": {
+    "pathRoots": [
+      "docs",
+      ".ai"
+    ],
+    "incidentIdPattern": "^FE-(BUG|CASE|ENV)-\\d{6}-[a-z0-9-]+$",
+    "sharedFiles": [
+      ".claude/settings.json",
+      ".claude/hooks/*.mjs",
+      ".claude/hooks/lib/**",
+      ".claude/hooks/__tests__/**",
+      ".githooks/**",
+      "scripts/**",
+      ".gitattributes",
+      ".editorconfig",
+      "docs/plans/_TEMPLATE.md"
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+# Dependencies / build
+node_modules/
+dist/
+build/
+.next/
+coverage/
+verify.log
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Claude Code (cấu hình cá nhân)
+.claude/settings.local.json
+CLAUDE.local.md
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+.DS_Store
+Thumbs.db
