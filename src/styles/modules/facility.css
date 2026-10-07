@@ -1,0 +1,157 @@
+/*
+ * Facility issues, requests and proposals
+ * Styles used only by the facility module (prefix bh-).
+ */
+
+/* Issue type picker: three radio cards */
+.bh-type-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.bh-type-option {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  min-width: 0;
+}
+.bh-type-option:hover {
+  background: var(--surface-hover);
+}
+.bh-type-option--active {
+  border-color: var(--primary);
+  background: var(--primary-25);
+  box-shadow: var(--focus-ring);
+}
+.bh-type-option input {
+  margin-top: 3px;
+}
+.bh-type-option__title {
+  font-weight: 500;
+}
+.bh-type-option__hint {
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  margin-top: var(--space-1);
+}
+
+/* Selected asset summary on the report / request forms */
+.bh-asset-summary {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  min-width: 0;
+}
+.bh-asset-summary__body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Two quantity inputs side by side */
+.bh-qty-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 220px));
+  gap: var(--space-4);
+}
+
+/* Read-only evidence photos on detail pages */
+.bh-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.bh-photo {
+  width: 132px;
+  height: 99px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-soft);
+  cursor: zoom-in;
+}
+.bh-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Decision / result box on detail pages */
+.bh-result {
+  display: grid;
+  gap: var(--space-2);
+}
+.bh-change {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* Proposal lines editor */
+.bh-lines .input,
+.bh-lines .select {
+  min-width: 0;
+}
+.bh-lines__qty {
+  width: 84px;
+}
+.bh-lines__cost {
+  width: 130px;
+}
+.bh-total {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+
+/* Source picker rows in the "add from approved reports" dialog */
+.bh-source {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.bh-source--on {
+  border-color: var(--primary);
+  background: var(--primary-25);
+}
+.bh-source + .bh-source {
+  margin-top: var(--space-2);
+}
+.bh-source__body {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.bh-cell-wrap {
+  white-space: normal;
+  min-width: 180px;
+  max-width: 320px;
+}
+
+@media (max-width: 1280px) {
+  .bh-type-options {
+    grid-template-columns: 1fr;
+  }
+  .bh-qty-pair {
+    grid-template-columns: 1fr;
+  }
+}
