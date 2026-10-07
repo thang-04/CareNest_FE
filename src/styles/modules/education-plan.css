@@ -1,0 +1,585 @@
+/*
+ * Education plan (Kế hoạch giáo dục) – module-only styles. Prefix: ga- (giáo án).
+ * Shared classes (btn, card, table, chip, alert, form-row, stepper…) come from styles/components.css.
+ */
+
+/* ---------- Page / card helpers ---------- */
+.ga-page-head {
+  margin-bottom: var(--space-4);
+}
+.ga-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary-50);
+  color: var(--primary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  margin-right: var(--space-2);
+}
+.ga-card-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface-soft);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.ga-stack-cards > .card + .card {
+  margin-top: var(--space-4);
+}
+.ga-field-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+.ga-field-meta .char-count {
+  margin-left: auto;
+}
+.ga-upload--error .dropzone {
+  border-color: var(--danger);
+}
+.ga-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--space-4);
+  align-items: start;
+}
+.ga-split--wide {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.ga-divider {
+  height: 1px;
+  background: var(--border);
+  margin: var(--space-4) 0;
+}
+.ga-muted-box {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
+}
+.ga-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.ga-summary-row:last-child {
+  border-bottom: none;
+}
+.ga-text-right {
+  text-align: right;
+}
+.ga-note {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-soft);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+}
+.ga-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+/* Page that fits the viewport: only the list inside the card scrolls */
+.ga-page-fill {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 64px - var(--space-8) * 2);
+}
+.ga-page-fill > * {
+  flex-shrink: 0;
+}
+.ga-page-fill > .ga-card-fill {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ga-card-fill > .ga-card-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* History dot tones */
+.history-list__dot.ga-dot--ok {
+  background: var(--success);
+}
+.history-list__dot.ga-dot--err {
+  background: var(--danger);
+}
+
+/* ---------- Signature ---------- */
+.ga-sign-preview {
+  height: 100px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+}
+.ga-sign-preview img {
+  max-height: 84px;
+  max-width: 100%;
+}
+.ga-signature-font {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+}
+
+/* ---------- Choice cards ---------- */
+.ga-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+.ga-choice {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.ga-choice:hover {
+  border-color: var(--primary);
+}
+.ga-choice--selected {
+  border-color: var(--primary);
+  background: var(--primary-50);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.ga-choice svg {
+  width: 22px;
+  height: 22px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.ga-choice__title {
+  font-weight: 600;
+}
+.ga-choice__desc {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+/* ---------- Goal domains (collapsible groups) ---------- */
+.ga-domain {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.ga-domain + .ga-domain {
+  margin-top: var(--space-3);
+}
+.ga-domain__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.ga-domain__head .ga-domain__name {
+  height: 34px;
+  max-width: 460px;
+  font-weight: 600;
+  background: transparent;
+  border-color: transparent;
+}
+.ga-domain__head .ga-domain__name:hover {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+.ga-domain__head .ga-domain__name:focus {
+  background: var(--surface);
+}
+.ga-domain__head h3 {
+  margin: 0;
+  font-size: var(--fs-title-sm);
+  font-weight: 600;
+}
+.ga-domain__toggle {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+.ga-domain__toggle svg {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+  transition: transform 0.15s;
+}
+.ga-domain--collapsed .ga-domain__toggle svg {
+  transform: rotate(-90deg);
+}
+.ga-domain--collapsed .ga-domain__head {
+  border-bottom: none;
+  border-radius: var(--radius-lg);
+}
+.ga-domain__bar {
+  width: 4px;
+  height: 18px;
+  border-radius: 2px;
+  background: var(--primary);
+}
+.ga-domain__body {
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.ga-goal-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+.ga-goal-row--read {
+  grid-template-columns: 64px 1fr;
+}
+.ga-goal-check--head {
+  grid-template-columns: 20px 1fr;
+}
+.ga-goal-check--child {
+  margin-left: var(--space-6);
+}
+.ga-goal-code {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--primary);
+}
+.ga-goal-check {
+  display: grid;
+  grid-template-columns: 20px 56px 1fr;
+  gap: var(--space-2);
+  align-items: start;
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.ga-goal-check:hover {
+  background: var(--primary-50);
+}
+.ga-goal-check input {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+.ga-pick-list {
+  max-height: 380px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
+}
+
+/* ---------- Requirement codes (YCCĐ) ---------- */
+.ga-code-chip {
+  font-weight: 600;
+}
+.ga-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.ga-chip-x:hover {
+  background: var(--primary-100);
+}
+.ga-chip-x svg {
+  width: 11px;
+  height: 11px;
+}
+.ga-chip-add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 24px;
+  padding: 0 var(--space-2);
+  border: 1px dashed var(--border-dashed);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--primary);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  cursor: pointer;
+}
+.ga-chip-add:hover {
+  border-color: var(--primary);
+  background: var(--primary-50);
+}
+.ga-chip-add svg {
+  width: 12px;
+  height: 12px;
+}
+.ga-code-picker {
+  position: relative;
+}
+.ga-code-pop {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 380px;
+  max-width: 80vw;
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+.ga-code-pop__list {
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: var(--space-2);
+}
+.ga-code-pop__group {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  padding: var(--space-2) var(--space-2) 2px;
+}
+.ga-code-opt {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 18px 56px 1fr;
+  gap: var(--space-2);
+  align-items: start;
+  padding: var(--space-2);
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.ga-code-opt:hover,
+.ga-code-opt--selected {
+  background: var(--primary-50);
+}
+.ga-code-check {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ga-code-opt--selected .ga-code-check {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.ga-code-check svg {
+  width: 12px;
+  height: 12px;
+  color: var(--text-inverse);
+}
+.ga-code-text {
+  line-height: 1.4;
+}
+
+/* ---------- Theme plan rows ---------- */
+.ga-plan-row {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ga-plan-row__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ga-plan-row__goal {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ga-plan-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.ga-plan-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+.table.ga-plan-table td {
+  white-space: normal;
+  vertical-align: top;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.table.ga-plan-table th,
+.table.ga-plan-table td {
+  border-right: 1px solid var(--border);
+}
+.table.ga-plan-table th:last-child,
+.table.ga-plan-table td:last-child {
+  border-right: none;
+}
+.table.ga-plan-table tbody tr:hover {
+  background: none;
+}
+.ga-week-table td {
+  min-width: 130px;
+}
+.ga-cell-title {
+  font-weight: 600;
+}
+.ga-cell-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.ga-cell-text {
+  white-space: pre-line;
+  margin-bottom: var(--space-1);
+}
+.ga-branch-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.ga-branch-row {
+  display: grid;
+  grid-template-columns: 64px 100px 1fr;
+  gap: var(--space-3);
+  align-items: center;
+}
+.ga-theme-card {
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s;
+}
+.ga-theme-card:hover {
+  border-color: var(--primary);
+}
+.ga-theme-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* ---------- Weekly / daily lesson plans ---------- */
+.ga-week-cells {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.ga-week-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.ga-week-cell .textarea {
+  min-height: 72px;
+  font-size: var(--fs-sm);
+}
+.ga-slot-duration {
+  max-width: 140px;
+}
+.ga-day-slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ga-day-section-title {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--border);
+}
+.ga-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding-top: var(--space-1);
+}
+.ga-steps-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.ga-steps-head,
+.ga-steps-row {
+  display: grid;
+  grid-template-columns: 170px 1fr 1fr 36px;
+  gap: var(--space-2);
+  align-items: start;
+}
+.ga-steps-head {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.ga-after-days {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+/* ---------- Responsive (DESIGN.md: only 1280px) ---------- */
+@media (max-width: 1280px) {
+  .ga-split,
+  .ga-split--wide,
+  .ga-choice-grid,
+  .ga-plan-grid,
+  .ga-plan-grid-3,
+  .ga-steps-head,
+  .ga-steps-row {
+    grid-template-columns: 1fr;
+  }
+  .ga-week-cells,
+  .ga-after-days {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
