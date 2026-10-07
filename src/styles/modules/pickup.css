@@ -1,0 +1,118 @@
+/*
+ * Child pickup
+ * Styles used only by the pickup feature (prefix dt-).
+ */
+
+.dt-bar {
+  border-bottom: 1px solid var(--border);
+}
+.dt-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.dt-field .field__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.dt-search {
+  flex: 1;
+}
+.dt-tabs {
+  padding: var(--space-2) var(--space-4) 0;
+}
+.dt-table-wrap {
+  border: none;
+  border-radius: 0;
+}
+.dt-note {
+  max-width: 260px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Verification ---------- */
+.dt-guardians {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+.dt-guardian {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
+}
+.dt-guardian__info {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dt-photo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.dt-photo--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.dt-photo__initials {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-50);
+  color: var(--primary);
+  font-size: var(--fs-h2);
+  font-weight: 700;
+}
+.dt-photo__note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.dt-call {
+  border-color: var(--warning-border);
+}
+.dt-phones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.dt-phones li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.dt-call__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.dt-confirm-row {
+  padding: var(--space-3);
+  background: var(--surface-soft);
+  border-radius: var(--radius);
+}
