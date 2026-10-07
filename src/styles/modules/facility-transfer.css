@@ -1,0 +1,301 @@
+/*
+ * Facility transfer
+ * Styles used only by the facility-transfer feature.
+ */
+
+/* ---------- Wizard grids ---------- */
+.wizard-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 14px;
+}
+.wizard-bottom-grid .form-row {
+  grid-template-columns: 150px 1fr;
+}
+/* ---------- Campus / location ---------- */
+.campus-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--info-border);
+  background: var(--primary-25);
+}
+.campus-card--green {
+  background: var(--success-25);
+  border-color: var(--success-border-soft);
+}
+.campus-card__img {
+  width: 64px;
+  height: 48px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--brand-sky-300), var(--brand-blue-600));
+  color: var(--text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.campus-card--green .campus-card__img {
+  background: linear-gradient(135deg, var(--brand-mint-300), var(--teal));
+}
+.route-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  padding: 12px 18px;
+  line-height: 1.6;
+}
+.route-banner__arrow {
+  margin: 0 26px;
+}
+
+/* ---------- Asset selection ---------- */
+.asset-layout {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.category-list {
+  width: 200px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.category-list__title {
+  font-weight: 600;
+  padding: 4px 8px 8px;
+}
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: none;
+  padding: 9px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+}
+.category-item:hover {
+  background: var(--gray-50);
+}
+.category-item--active {
+  background: var(--primary-50);
+  color: var(--primary);
+  font-weight: 500;
+}
+.asset-table td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+/* ---------- Assign users ---------- */
+.assign-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+.assign-grid > :first-child {
+  padding-right: 28px;
+  border-right: 1px solid var(--border);
+}
+.loc-banner {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  border: 1px solid;
+}
+.loc-banner--from {
+  background: var(--info-bg);
+  border-color: var(--info-border);
+}
+.loc-banner--to {
+  background: var(--success-25);
+  border-color: var(--success-border-soft);
+}
+.loc-banner__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-100);
+  color: var(--primary);
+}
+.loc-banner--to .loc-banner__icon {
+  background: var(--success-50);
+  color: var(--success);
+}
+.user-picker__options {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 12px 14px;
+  align-items: center;
+}
+.user-picker__static {
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 6px 12px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+.contact-bar {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 8px 16px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: var(--fs-sm);
+}
+.contact-bar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.contact-bar--empty {
+  display: block;
+  color: var(--text-3);
+}
+/* ---------- Review ---------- */
+.review-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  gap: 16px;
+}
+.person-block__loc {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* ---------- Discrepancy history ---------- */
+.disc-block {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+.disc-block--open {
+  border-color: var(--purple-border);
+  background: var(--purple-25);
+}
+.disc-block__desc {
+  color: var(--text-2);
+  margin-top: 6px;
+}
+
+.disc-row--action {
+  cursor: pointer;
+}
+.disc-row--action td {
+  background: var(--danger-25);
+}
+.disc-row--action:hover td {
+  background: var(--danger-hover-bg);
+}
+.resp-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.resp-options {
+  display: grid;
+  gap: 8px;
+}
+.resp-option {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.resp-option input {
+  margin-top: 3px;
+  accent-color: var(--primary);
+  width: 17px;
+  height: 17px;
+}
+.resp-option--active {
+  border-color: var(--primary);
+  background: var(--primary-50);
+}
+.resp-form {
+  display: grid;
+  gap: 12px;
+}
+
+/* ---------- Stock movement ---------- */
+.stock-flow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.stock-delta {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.stock-delta--minus {
+  background: var(--danger-50);
+  color: var(--danger-700);
+}
+.stock-delta--plus {
+  background: var(--success-50);
+  color: var(--success-700);
+}
+
+/* Transfer list: "from -> to" in one column so the table fits without horizontal scroll */
+.transfer-route {
+  min-width: 190px;
+  white-space: normal;
+}
+.transfer-route__to {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-start;
+  margin-top: 2px;
+}
+.transfer-route__to svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+/* Discrepancy resolution: one fieldset per problem part (thiếu / thừa / hỏng) */
+.disc-choice {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+}
+.disc-choice legend {
+  padding: 0 var(--space-1);
+}
