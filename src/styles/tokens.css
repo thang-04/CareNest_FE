@@ -1,0 +1,113 @@
+/*
+ * Design tokens
+ * Only place where raw colors / sizes are defined. Everything else uses var(--token). See DESIGN.md.
+ */
+
+:root {
+  /* Brand (sampled from logo) */
+  --brand-blue-700: #0269c5;
+  --brand-blue-600: #1675cf;
+  --brand-sky-400: #4fb0f5;
+  --brand-sky-300: #71c6fd;
+  --brand-mint-300: #94debd;
+
+  /* Primary action color (kept from the mockups) */
+  --primary: #1565e0;
+  --primary-600: #0f55c4;
+  --primary-50: #eaf2fe;
+  --primary-100: #d6e6fd;
+  --text: #1b2433;
+  --text-2: #4a5568;
+  --text-3: #66728a; /* 4.8:1 on white (WCAG AA) */
+  --border: #e3e9f2;
+  --border-strong: #cdd6e3;
+  --bg: #f5f8fc;
+  --surface: #ffffff;
+  --sidebar-bg: #f3f7fd;
+  --success: #12a150;
+  --success-50: #e7f7ee;
+  --warning: #e8890c;
+  --warning-50: #fff4e3;
+  --danger: #e03131;
+  --danger-50: #fdecec;
+  --purple: #7048e8;
+  --purple-50: #f1edff;
+  --teal: #0c8599;
+  --teal-50: #e3f6f8;
+  --teal-700: #0a6e7f;
+  --gray-50: #f1f3f6;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --focus-ring: 0 0 0 3px var(--primary-100);
+  --shadow-md: 0 8px 24px rgba(16, 24, 40, 0.12);
+  --primary-25: #f3f8ff;
+  --primary-hover-bg: #e6eefb;
+  --primary-active-bg: #e2ecfc;
+  --info-bg: #eef5ff;
+  --info-border: #cfe1fb;
+  --success-25: #f6fcf8;
+  --success-border: #b5e5c8;
+  --warning-25: #fffaf0;
+  --warning-border: #f7d49c;
+  --danger-25: #fff5f5;
+  --danger-border: #f6b9b9;
+  --purple-25: #fbf9ff;
+  --purple-border: #d5c9fb;
+  --surface-soft: #f8fafc;
+  --surface-hover: #f7faff;
+  --line-muted: #d5dde8;
+  --border-dashed: #b9c6d8;
+  --text-inverse: #ffffff;
+  /* Dark text on light semantic backgrounds (chips, badges) */
+  --success-700: #0b7a3b;
+  --warning-700: #9a5100;
+  --danger-700: #c92a2a;
+  --warning-border-strong: #f7c879;
+  --warning-hover-bg: #ffe9c7;
+  --danger-hover-bg: #ffecec;
+  --success-border-soft: #c7ebd4;
+  --disabled: #adb5bd;
+  --danger-border-soft: #f2a5a5;
+  /* Text color inside alerts */
+  --info-700: #1d3f7a;
+  --warning-800: #8a4b00;
+  --danger-800: #9b1c1c;
+  --success-800: #0b5e2f;
+  --purple-700: #4d2db7;
+  --skeleton: #eef1f5;
+  --asset-icon: #5b7bb5;
+  --placeholder-avatar: #cbd5e1;
+  --neutral-avatar: #64748b;
+  /* File type colors (FileUploader) */
+  --file-pdf: var(--danger);
+  --file-archive: var(--warning);
+  --file-image: var(--teal);
+  --file-sheet: var(--success);
+  --file-other: var(--text-2);
+  --overlay: rgba(15, 23, 42, 0.45);
+
+  /* Breakpoints (use the number in @media; CSS vars cannot be used there)
+     1280px: 2-3 column grids -> 1 column · 900px: auth page hides brand panel */
+
+  /* Spacing scale (4px) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Typography */
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-title-sm: 15px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-h2: 24px;
+  --fs-2xl: 28px;
+  --font: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}

@@ -1,0 +1,6 @@
+/* Global styles – import once in main.jsx. Order matters. */
+@import './tokens.css';
+@import './base.css';
+@import './components.css';
+@import './utilities.css';
+@import './print.css';

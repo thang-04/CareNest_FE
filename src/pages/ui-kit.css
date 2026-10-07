@@ -1,0 +1,42 @@
+/* UI Kit page only */
+.uikit-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  position: sticky;
+  top: 64px;
+  z-index: 50;
+  background: var(--bg);
+  padding: var(--space-2) 0 var(--space-3);
+}
+.uikit-section {
+  scroll-margin-top: 120px;
+}
+.uikit-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-3);
+}
+.uikit-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-xs);
+}
+.uikit-swatch__color {
+  height: 56px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.uikit-code {
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--text);
+  color: var(--primary-50);
+  border-radius: var(--radius);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+}

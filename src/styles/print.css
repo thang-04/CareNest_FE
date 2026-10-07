@@ -1,0 +1,232 @@
+/*
+ * Print
+ * A4 document template (.print-sheet / .ps-*) and @media print rules. Print colors are intentionally fixed (paper output).
+ */
+
+/* ---------- Print ---------- */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  body {
+    background: #fff;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-sheet,
+  .print-sheet * {
+    visibility: visible;
+  }
+  .print-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+.print-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.print-preview__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.print-preview__paper {
+  background: #e9edf3;
+  border-radius: 10px;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+}
+
+.print-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  background: #fff;
+  padding: 14mm 14mm 16mm;
+  font-family: 'Tinos', 'Times New Roman', serif;
+  color: #111;
+  font-size: 15px;
+  line-height: 1.4;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+}
+.ps-header {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding-bottom: 14px;
+  border-bottom: 1.5px solid #333;
+}
+.ps-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 22px;
+  border-right: 1px solid #bbb;
+}
+.ps-brand__slogan {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 10.5px;
+  color: #555;
+  margin-top: 4px;
+}
+.ps-school {
+  font-size: 13.5px;
+  color: #333;
+}
+.ps-school__name {
+  font-weight: 700;
+  font-size: 19px;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.ps-title {
+  position: relative;
+  text-align: center;
+  margin: 22px 0 18px;
+}
+.ps-title h1 {
+  font-size: 25px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  letter-spacing: 0.3px;
+}
+.ps-version {
+  font-size: 13px;
+  color: #555;
+}
+.ps-stamp {
+  position: absolute;
+  right: 0;
+  top: 0;
+  padding: 6px 14px;
+  border: 1.5px solid;
+  border-radius: 6px;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+}
+.ps-stamp--red {
+  color: #e03131;
+  border-color: #e03131;
+  background: #fff1f1;
+}
+.ps-stamp--orange {
+  color: #d9480f;
+  border-color: #f08c00;
+  background: #fff6e8;
+}
+.ps-stamp--green {
+  color: #2b8a3e;
+  border-color: #2b8a3e;
+  background: #ebfbee;
+}
+.ps-stamp--purple {
+  color: #6741d9;
+  border-color: #6741d9;
+  background: #f3f0ff;
+}
+.ps-stamp--gray {
+  color: #555;
+  border-color: #888;
+  background: #f4f4f4;
+}
+
+.ps-section {
+  background: #e9ecef;
+  font-weight: 700;
+  font-size: 17px;
+  padding: 6px 10px;
+  margin: 18px 0 8px;
+}
+.ps-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ps-table th,
+.ps-table td {
+  border: 1px solid #555;
+  padding: 7px 10px;
+  vertical-align: top;
+}
+.ps-table thead th {
+  background: #f1f3f5;
+  font-weight: 700;
+  text-align: center;
+}
+.ps-table .c {
+  text-align: center;
+}
+.ps-table--info th {
+  width: 34%;
+  text-align: left;
+  font-weight: 700;
+}
+.ps-total td {
+  font-weight: 700;
+}
+.ps-sign td {
+  width: 33.33%;
+  text-align: center;
+  height: 210px;
+}
+.ps-sign__title {
+  font-weight: 700;
+}
+.ps-sign__role {
+  font-style: italic;
+}
+.ps-sign__img {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0;
+}
+.ps-sign__img img {
+  max-height: 92px;
+  max-width: 90%;
+}
+.ps-sign__pending {
+  color: #777;
+  font-style: italic;
+}
+.ps-sign__name {
+  font-weight: 700;
+}
+
+@media print {
+  .print-preview__paper {
+    background: none;
+    padding: 0;
+  }
+  .print-sheet {
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    font-size: 14px;
+  }
+  .ps-section,
+  .ps-table thead th,
+  .ps-stamp {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

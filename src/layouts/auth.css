@@ -1,0 +1,134 @@
+/* Auth pages (login, forgot password…). Uses tokens only. */
+.auth {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(380px, 46%) 1fr;
+  background: var(--bg);
+}
+.auth__brand {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--brand-blue-700) 0%, var(--brand-blue-600) 45%, var(--brand-sky-400) 100%);
+  color: var(--text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+}
+.auth__brand::after {
+  content: '';
+  position: absolute;
+  inset: auto -20% -35% -20%;
+  height: 55%;
+  border-radius: 50%;
+  background: var(--brand-mint-300);
+  opacity: 0.35;
+}
+.auth__brand-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+}
+.auth__logo-card {
+  display: inline-flex;
+  padding: var(--space-4) var(--space-6);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  margin-bottom: var(--space-6);
+}
+.auth__headline {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  margin: 0 0 var(--space-2);
+}
+.auth__tagline {
+  margin: 0 0 var(--space-6);
+  opacity: 0.9;
+}
+.auth__points {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.9;
+  opacity: 0.95;
+}
+.auth__main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-6);
+  gap: var(--space-4);
+}
+.auth__card {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--space-8);
+  box-shadow: var(--shadow-md);
+}
+.auth__card-head {
+  margin-bottom: var(--space-6);
+}
+.auth__title {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+}
+.auth__subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--text-2);
+}
+.auth__footer {
+  width: 100%;
+  max-width: 440px;
+}
+.auth__copyright {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.auth-form__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.demo-accounts {
+  width: 100%;
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: var(--space-4);
+}
+.demo-accounts__list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.demo-account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-2);
+  cursor: pointer;
+  text-align: left;
+  font-size: var(--fs-sm);
+}
+.demo-account:hover {
+  border-color: var(--primary);
+  background: var(--surface-hover);
+}
+@media (max-width: 900px) {
+  .auth {
+    grid-template-columns: 1fr;
+  }
+  .auth__brand {
+    display: none;
+  }
+}
