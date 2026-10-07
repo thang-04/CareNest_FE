@@ -1,0 +1,130 @@
+/* Kitchen module (food stock & meal preparation) – class prefix kb- */
+
+.kb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.kb-toolbar__end {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.kb-sessions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+@media (max-width: 1280px) {
+  .kb-sessions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.kb-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.kb-num {
+  width: 110px;
+  text-align: right;
+}
+.kb-num--wide {
+  width: 140px;
+}
+
+.kb-short {
+  color: var(--danger-700);
+  font-weight: 600;
+}
+.kb-over {
+  color: var(--warning-700);
+  font-weight: 600;
+}
+
+.kb-row--short {
+  background: var(--danger-25);
+}
+
+.kb-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+.kb-menu {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  background: var(--surface);
+  min-width: 0;
+}
+.kb-menu--allergy {
+  border-color: var(--warning-border);
+  background: var(--warning-25);
+}
+.kb-menu__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.kb-dishes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.kb-dishes li {
+  overflow-wrap: anywhere;
+}
+
+.kb-week {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.kb-cell-wrap {
+  white-space: normal;
+  min-width: 160px;
+  max-width: 320px;
+  overflow-wrap: anywhere;
+}
+
+.kb-prep-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+@media (max-width: 1280px) {
+  .kb-prep-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.kb-prep-option {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  background: var(--surface);
+  cursor: pointer;
+}
+.kb-prep-option--active {
+  border-color: var(--primary);
+  background: var(--primary-50);
+  box-shadow: var(--focus-ring);
+}
+.kb-prep-option--disabled {
+  cursor: not-allowed;
+  background: var(--gray-50);
+  color: var(--text-3);
+}
