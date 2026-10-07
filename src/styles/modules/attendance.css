@@ -1,0 +1,240 @@
+/*
+ * Attendance & meal reporting
+ * Styles used only by the attendance feature (prefix dd-).
+ */
+
+/* ---------- Filter bar (class + date) ---------- */
+.dd-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+}
+.dd-bar__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.dd-bar__field .field__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.dd-bar__error {
+  align-self: center;
+}
+
+/* ---------- Small counters ---------- */
+.dd-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+.dd-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+}
+.dd-stat--green {
+  border-left-color: var(--success);
+}
+.dd-stat--orange {
+  border-left-color: var(--warning);
+}
+.dd-stat--red {
+  border-left-color: var(--danger);
+}
+.dd-stat--gray {
+  border-left-color: var(--border-strong);
+}
+.dd-stat--blue {
+  border-left-color: var(--brand-sky-400);
+}
+.dd-stat__value {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.dd-stat__label {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+/* ---------- Attendance table ---------- */
+.dd-table-wrap {
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+.dd-row--error td {
+  background: var(--danger-25);
+}
+.dd-tags {
+  gap: var(--space-1);
+  margin-top: 2px;
+}
+.dd-check {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.dd-check:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Segmented radio group (attendance status, meal session) */
+.dd-seg {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+.dd-seg__item {
+  padding: 6px var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  white-space: nowrap;
+  border-right: 1px solid var(--border);
+}
+.dd-seg__item:last-child {
+  border-right: none;
+}
+.dd-seg__item:hover {
+  background: var(--surface-hover);
+}
+.dd-seg__item:focus-within {
+  box-shadow: inset var(--focus-ring);
+}
+.dd-seg__item.is-on {
+  background: var(--primary-50);
+  color: var(--primary);
+}
+.dd-seg__item--present.is-on {
+  background: var(--success-50);
+  color: var(--success-700);
+}
+.dd-seg__item--excused.is-on {
+  background: var(--warning-50);
+  color: var(--warning-700);
+}
+.dd-seg__item--unexcused.is-on {
+  background: var(--danger-50);
+  color: var(--danger-700);
+}
+
+/* Meal session modal */
+.dd-sessions {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.dd-session {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.dd-session:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-25);
+}
+
+/* ---------- Summary ---------- */
+.dd-summary {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+.dd-summary > .card {
+  min-width: 0;
+}
+.dd-weekday {
+  display: inline-block;
+  width: 22px;
+}
+
+/* ---------- Meal count ---------- */
+.dd-count-grid,
+.dd-handover-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.dd-handover-grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+.dd-count__totals,
+.dd-handover__nums {
+  display: flex;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+.dd-count__totals > div,
+.dd-handover__nums > div {
+  display: flex;
+  flex-direction: column;
+}
+.dd-count__num {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--text);
+}
+.dd-count__num--sub {
+  color: var(--danger-700);
+}
+.dd-count__actions {
+  justify-content: flex-end;
+}
+.dd-adjust {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+}
+.dd-adjust li {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Meal handover ---------- */
+.dd-handover {
+  border-top: 4px solid var(--border-strong);
+}
+.dd-handover--ready,
+.dd-handover--supplemented {
+  border-top-color: var(--primary);
+}
+.dd-handover--shortage_reported {
+  border-top-color: var(--danger);
+}
+.dd-handover--waiting_kitchen {
+  border-top-color: var(--warning);
+}
+.dd-handover--confirmed {
+  border-top-color: var(--success);
+}
+
+@media (max-width: 1280px) {
+  .dd-summary,
+  .dd-count-grid {
+    grid-template-columns: 1fr;
+  }
+}
