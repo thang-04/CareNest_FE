@@ -1,0 +1,198 @@
+/*
+ * School configuration
+ * Styles used only by the school-config module (prefix sc-).
+ */
+
+.sc-inline-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 200px;
+}
+.sc-inline-field .field__label {
+  margin: 0;
+}
+
+/* Table inside a card: the card already draws the frame. */
+.sc-table-flat {
+  border: none;
+  border-radius: 0;
+}
+.card > .filter-bar + .sc-table-flat,
+.card__header + .sc-table-flat {
+  border-top: 1px solid var(--border);
+}
+
+.sc-row-btn {
+  margin-left: var(--space-2);
+}
+
+.sc-wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 140px;
+}
+
+/* ---------- Age groups ---------- */
+.sc-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--space-3);
+}
+.sc-group-card {
+  padding: var(--space-4);
+  min-width: 0;
+}
+.sc-group-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+}
+.sc-group-card__note {
+  margin: var(--space-2) 0 0;
+}
+.sc-group-row td {
+  background: var(--surface-soft);
+}
+.sc-group-row__add {
+  margin-left: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ---------- History ---------- */
+.sc-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.sc-history li {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--line-muted);
+}
+
+/* ---------- Cutoff ---------- */
+.sc-cutoff {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.sc-cutoff__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
+  display: grid;
+  place-items: center;
+  background: var(--primary-50);
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.sc-cutoff__time {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+/* ---------- People ---------- */
+.sc-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.sc-person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.sc-person__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Roles & permissions ---------- */
+.sc-role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+.sc-role-card {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sc-role-card__desc {
+  flex: 1;
+  margin: var(--space-2) 0 var(--space-3);
+}
+.sc-role-card .btn {
+  align-self: flex-start;
+}
+.sc-matrix__name {
+  min-width: 240px;
+  white-space: normal;
+}
+.sc-matrix th a {
+  color: inherit;
+}
+
+.sc-level {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.sc-level__opt {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sc-level__opt + .sc-level__opt {
+  border-left: 1px solid var(--border-strong);
+}
+.sc-level__opt input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.sc-level__opt:focus-within {
+  box-shadow: inset var(--focus-ring);
+}
+.sc-level__opt--on.sc-level__opt--full {
+  background: var(--success-50);
+  color: var(--success-700);
+}
+.sc-level__opt--on.sc-level__opt--restricted {
+  background: var(--primary-50);
+  color: var(--primary-600);
+}
+.sc-level__opt--on.sc-level__opt--none {
+  background: var(--gray-50);
+  color: var(--text);
+}
+.sc-level:has(input:disabled) {
+  opacity: 0.6;
+}
+.sc-level:has(input:disabled) .sc-level__opt {
+  cursor: not-allowed;
+}
+
+.sc-change-list {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+  font-size: var(--fs-sm);
+}
