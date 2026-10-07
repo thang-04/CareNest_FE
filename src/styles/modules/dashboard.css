@@ -1,0 +1,197 @@
+/* Dashboards (#10–#14) and Pending Approval Requests (#126) – class prefix db- */
+
+.db-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.db-head .page__title {
+  margin-bottom: var(--space-1);
+}
+.db-head__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.db-head__filters .field {
+  margin: 0;
+  min-width: 200px;
+}
+
+/* KPI cards are links: keep the stat-card look, no underline */
+.db-kpi {
+  display: block;
+  color: var(--text);
+  text-decoration: none;
+  min-width: 0;
+}
+.db-kpi:hover {
+  text-decoration: none;
+}
+.db-kpi--static {
+  cursor: default;
+}
+.db-kpi--static:hover {
+  box-shadow: none;
+}
+.db-kpi__value {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+.db-kpi__hint {
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  margin-top: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.db-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.db-grid--wide {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+}
+@media (max-width: 1280px) {
+  .db-grid,
+  .db-grid--wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.db-widget {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.db-widget .card__body {
+  flex: 1;
+}
+.db-widget__link {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.db-widget .state {
+  padding: var(--space-6) var(--space-4);
+}
+.db-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Short lists of records / tasks */
+.db-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.db-list__item + .db-list__item {
+  border-top: 1px solid var(--border);
+}
+.db-list__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  color: var(--text);
+  text-decoration: none;
+  min-width: 0;
+}
+.db-list__link:hover .db-list__title {
+  color: var(--primary);
+}
+.db-list__icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  background: var(--primary-50);
+  color: var(--primary);
+}
+.db-list__main {
+  flex: 1;
+  min-width: 0;
+}
+.db-list__title {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.db-list__meta {
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+.db-list__end {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.db-count {
+  min-width: 28px;
+  text-align: right;
+  font-weight: 700;
+  font-size: var(--fs-lg);
+}
+.db-count--zero {
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.db-code {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Quick entries of the role menus (SRS: "menus …" of each dashboard) */
+.db-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.db-session + .db-session {
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+}
+.db-session__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.db-dishes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Approvals page: one card per type */
+.db-group + .db-group {
+  margin-top: var(--space-4);
+}
+.db-group .card__title {
+  flex-wrap: wrap;
+}
+.db-group__count {
+  font-weight: 400;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
