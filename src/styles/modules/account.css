@@ -1,0 +1,129 @@
+/* Account module (forgot / OTP / reset password, password change, profile, notification detail). Prefix: ac- */
+
+.ac-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--primary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  align-self: center;
+}
+.ac-back-link:hover {
+  text-decoration: underline;
+}
+
+.ac-account-line {
+  margin: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.ac-otp-input {
+  font-size: var(--fs-xl);
+  letter-spacing: 0.5em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ac-demo-otp {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--primary);
+}
+
+/* Password policy checklist */
+.ac-rules {
+  list-style: none;
+  margin: calc(var(--space-2) * -1) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.ac-rules__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.ac-rules__item--ok {
+  color: var(--success-700);
+}
+
+/* Signed-in pages */
+.ac-narrow {
+  max-width: 560px;
+}
+.ac-narrow--wide {
+  max-width: 760px;
+}
+.stack.ac-form {
+  gap: var(--space-4);
+}
+.page-actions.ac-actions {
+  margin-top: 0;
+  border-top: 1px solid var(--border);
+}
+.ac-head-actions {
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ac-identity__body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.ac-identity__text {
+  min-width: 0;
+}
+.ac-identity__name {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+}
+.ac-identity__meta {
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-1);
+  overflow-wrap: anywhere;
+}
+.ac-grid > * {
+  min-width: 0;
+}
+
+/* Notification detail */
+.ac-notif__meta {
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.ac-notif__title {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  margin: var(--space-3) 0 var(--space-2);
+}
+.ac-notif__message {
+  margin: 0;
+  line-height: 1.6;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .grid-2.ac-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .ac-rules {
+    grid-template-columns: 1fr;
+  }
+  .ac-actions {
+    flex-wrap: wrap;
+  }
+}
