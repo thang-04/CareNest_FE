@@ -1,0 +1,244 @@
+/*
+ * Inventory inspection
+ * Styles used only by the inventory-inspection feature (prefix kk-).
+ */
+
+/* ---------- Inventory module ---------- */
+
+.kk-scope {
+  display: grid;
+  gap: 8px;
+}
+.kk-scope-row {
+  display: grid;
+  grid-template-columns: 28px 1.4fr 110px 1.4fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.kk-scope-row--on {
+  border-color: var(--primary);
+  background: var(--surface-hover);
+}
+.kk-scope-row--locked {
+  opacity: 0.6;
+  background: var(--surface-soft);
+}
+.kk-scope-group {
+  font-weight: 600;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  margin: 10px 0 2px;
+}
+
+.kk-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.kk-stat {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--surface);
+}
+.kk-stat__value {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+}
+.kk-stat__label {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.kk-stat--warn .kk-stat__value {
+  color: var(--warning);
+}
+.kk-stat--danger .kk-stat__value {
+  color: var(--danger);
+}
+.kk-stat--ok .kk-stat__value {
+  color: var(--success);
+}
+
+.kk-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.kk-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.kk-filter {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.kk-filter--active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-inverse);
+}
+
+.kk-qty {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.kk-qty button {
+  width: 30px;
+  height: 34px;
+  border: none;
+  background: var(--surface-soft);
+  cursor: pointer;
+  font-size: var(--fs-lg);
+  color: var(--text-2);
+}
+.kk-qty button:hover:not(:disabled) {
+  background: var(--primary-50);
+  color: var(--primary);
+}
+.kk-qty input {
+  width: 56px;
+  height: 34px;
+  border: none;
+  text-align: center;
+  outline: none;
+  font-weight: 600;
+}
+.kk-qty--error {
+  border-color: var(--danger);
+}
+.kk-row--variance td {
+  background: var(--warning-25);
+}
+.kk-row--damaged td {
+  background: var(--danger-25);
+}
+.kk-row--flagged td:first-child {
+  box-shadow: inset 4px 0 0 var(--danger);
+}
+.kk-diff {
+  font-weight: 700;
+}
+.kk-diff--minus {
+  color: var(--danger);
+}
+.kk-diff--plus {
+  color: var(--primary);
+}
+.kk-row-error {
+  color: var(--danger);
+  font-size: var(--fs-xs);
+  margin-top: 2px;
+}
+
+.kk-sign-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1280px) {
+  .kk-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .kk-scope-row {
+    grid-template-columns: 28px 1fr;
+  }
+}
+
+/* ---------- Scope axes (create round) ---------- */
+.kk-scope-axes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.kk-axis {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--surface-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.kk-axis__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: var(--fs-title-sm);
+  color: var(--primary-600);
+}
+.kk-axis__block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-strong);
+}
+.kk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.kk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  user-select: none;
+}
+.kk-chip input {
+  accent-color: var(--primary);
+}
+.kk-chip--on {
+  border-color: var(--primary);
+  background: var(--primary-50);
+  color: var(--primary-600);
+  font-weight: 500;
+}
+.kk-chip--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.kk-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.kk-row--muted td {
+  color: var(--text-3);
+  background: var(--surface-soft);
+}
+@media (max-width: 1280px) {
+  .kk-scope-axes {
+    grid-template-columns: 1fr;
+  }
+}
