@@ -264,18 +264,21 @@ export default function PrincipalDashboard() {
           loading={firstLoad(eduQ)}
           error={eduQ.error}
           onRetry={eduQ.reload}
+          to="/education/school"
+          linkLabel="Xem kế hoạch"
         >
-          {/* TODO(lead): no Principal route to the lesson plans yet (UC "View Lesson Plans"); rows stay unlinked until it exists. */}
           <ShortList
             rows={[
               {
                 key: 'themes',
+                to: '/education/school',
                 title: 'Kế hoạch chủ đề đã duyệt',
                 meta: `${themes.filter((t) => t.status === EDU_STATUS.PENDING_VP).length} kế hoạch đang chờ Phó hiệu trưởng duyệt`,
                 end: <span className="db-count">{themes.filter((t) => t.status === EDU_STATUS.APPROVED).length}</span>,
               },
               {
                 key: 'lessons',
+                to: '/education/school',
                 title: 'Giáo án đã duyệt',
                 meta: `${lessons.filter((l) => [EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP].includes(l.status)).length} giáo án đang chờ duyệt`,
                 end: <span className="db-count">{lessons.filter((l) => l.status === EDU_STATUS.APPROVED).length}</span>,

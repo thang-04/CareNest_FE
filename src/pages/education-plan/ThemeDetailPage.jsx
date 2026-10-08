@@ -89,7 +89,11 @@ export default function ThemeDetailPage() {
       <PageHead
         crumbs={[
           { label: 'Kế hoạch giáo dục' },
-          isVp ? { label: 'Phê duyệt kế hoạch', to: '/education/approvals' } : { label: 'Kế hoạch chủ đề', to: '/education/themes' },
+          isVp
+            ? { label: 'Phê duyệt kế hoạch', to: '/education/approvals' }
+            : role === ROLES.PRINCIPAL
+              ? { label: 'Kế hoạch toàn trường', to: '/education/school' }
+              : { label: 'Kế hoạch chủ đề', to: '/education/themes' },
           { label: t.code },
         ]}
         title={`Chủ đề: ${t.name}`}

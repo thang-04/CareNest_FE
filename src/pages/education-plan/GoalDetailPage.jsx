@@ -34,6 +34,7 @@ export default function GoalDetailPage() {
     );
 
   const isVP = role === ROLES.VICE_PRINCIPAL;
+  const isPrincipal = role === ROLES.PRINCIPAL;
   const isDraft = g.status === EDU_STATUS.DRAFT;
   const ageName = AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name;
   const usedBy = themes.filter((t) => t.goalId === g.id);
@@ -41,7 +42,11 @@ export default function GoalDetailPage() {
   return (
     <div className="page">
       <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Mục tiêu năm học', to: '/education/goals' }, { label: g.code }]}
+        crumbs={[
+          { label: 'Kế hoạch giáo dục' },
+          isPrincipal ? { label: 'Kế hoạch toàn trường', to: '/education/school' } : { label: 'Mục tiêu năm học', to: '/education/goals' },
+          { label: g.code },
+        ]}
         title={g.title}
         desc={
           <span className="row" style={{ gap: 12 }}>
@@ -70,9 +75,11 @@ export default function GoalDetailPage() {
               )}
             </>
           ) : (
-            <Link className="btn btn--primary" to="/education/themes/new">
-              <Layers size={16} aria-hidden /> Lập kế hoạch chủ đề
-            </Link>
+            role === ROLES.TEAM_LEADER && (
+              <Link className="btn btn--primary" to="/education/themes/new">
+                <Layers size={16} aria-hidden /> Lập kế hoạch chủ đề
+              </Link>
+            )
           )
         }
       />

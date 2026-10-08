@@ -130,14 +130,20 @@ export default function LessonDetailPage() {
       </div>
     );
   const theme = themes.find((t) => t.id === l.themeId);
-  const isOwner = role !== ROLES.VICE_PRINCIPAL && l.classId === user.classId;
+  const isOwner = (role === ROLES.TEACHER || role === ROLES.TEAM_LEADER) && l.classId === user.classId;
   const editable = isOwner && (l.status === EDU_STATUS.DRAFT || l.status === EDU_STATUS.REJECTED);
   const lastReject = l.status === EDU_STATUS.REJECTED && [...l.history].reverse().find((h) => h.tone === 'err');
 
   return (
     <div className="page">
       <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Giáo án của lớp', to: '/education/lessons' }, { label: l.code }]}
+        crumbs={[
+          { label: 'Kế hoạch giáo dục' },
+          role === ROLES.PRINCIPAL
+            ? { label: 'Kế hoạch toàn trường', to: '/education/school' }
+            : { label: 'Giáo án của lớp', to: '/education/lessons' },
+          { label: l.code },
+        ]}
         title={`${typeLabel(l.type)} · Tuần ${l.weekIndex}: ${l.branch}`}
         desc={
           <span className="row" style={{ gap: 12 }}>

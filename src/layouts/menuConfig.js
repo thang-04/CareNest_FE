@@ -64,6 +64,7 @@ const ITEMS = {
   mealHandover: { label: 'Bàn giao suất ăn', to: '/attendance/meal-handover' },
   pickup: { label: 'Đón trẻ', to: '/pickup' },
 
+  eduSchool: { label: 'Kế hoạch toàn trường', to: '/education/school' },
   eduGoals: { label: 'Mục tiêu năm học', to: '/education/goals' },
   eduThemes: { label: 'Kế hoạch chủ đề', to: '/education/themes' },
   eduOverview: { label: 'Mục tiêu & chủ đề', to: '/education/overview' },
@@ -123,6 +124,7 @@ const MENUS = {
     group('children', ['childList', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'mealCount']),
     group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards']),
+    group('education', ['eduSchool']),
     group('menu', ['menuPlans']),
     group('kitchen', ['publishedMenu', 'confirmedMealCount']),
     group('facility', ['assets', 'issues', 'requests', 'proposals', 'transfers', 'inspections']),
