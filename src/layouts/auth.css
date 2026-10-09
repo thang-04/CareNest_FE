@@ -83,8 +83,11 @@
   padding: var(--space-6) var(--space-10) var(--space-8);
 }
 
-/* Giới thiệu bên trái */
+/* Giới thiệu bên trái: dời cả khối sang trái tối đa 176px, không vượt khoảng trống ngoài lưới 1200px để không sát mép màn; form giữ chỗ */
 .auth__intro {
+  /* Co theo bề rộng chữ để lớp kính mờ (::before) ôm đúng khối chữ, không kéo dài về phía form */
+  justify-self: start;
+  left: calc(-1 * clamp(0px, (100vw - 1200px) / 2, 176px));
   animation: slideInUp var(--duration-slow) var(--ease-out) both;
 }
 .auth__heading {
