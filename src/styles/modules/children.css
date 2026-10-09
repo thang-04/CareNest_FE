@@ -1,4 +1,4 @@
-/* Child records & child health module – prefix tr- (DESIGN.md §9). Tokens only. */
+/* Child records & child health module – prefix tr- (docs/architecture/CODING_GUIDE.md §3). Tokens only. */
 
 .tr-fieldset {
   border: none;

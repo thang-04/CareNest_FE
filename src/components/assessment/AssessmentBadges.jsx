@@ -2,7 +2,7 @@ import { CheckCircle2, Clock, FileEdit, AlertTriangle, XCircle, Sparkles, Undo2,
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { AI_DRAFT_LABEL, EVAL_STATUS_LABELS, REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
 
-/* Tones follow DESIGN.md §6: purple = waiting for review, red = needs action, green = done. */
+/* Tones follow DESIGN.md §3.2: purple = waiting for review, red = needs action, green = done. */
 export const EvaluationStatusBadge = createStatusBadge(
   {
     AWAITING_REVIEW: ['purple', Clock],

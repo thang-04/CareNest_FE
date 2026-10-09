@@ -2,7 +2,7 @@ import { CheckCircle2, Clock, FileEdit, XCircle, Stamp, Send, Lock } from '@/com
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { ISSUE_STATUS_LABELS, ISSUE_TYPE_LABELS, REQUEST_STATUS_LABELS, PROPOSAL_STATUS_LABELS } from '@/models/facility/facilityConstants';
 
-/* Tones follow the shared convention in components/ui/StatusBadge.jsx (DESIGN.md §6). */
+/* Tones follow the shared convention in components/ui/StatusBadge.jsx (DESIGN.md §3.2). */
 export const IssueStatusBadge = createStatusBadge(
   {
     SUBMITTED: ['purple', Send],

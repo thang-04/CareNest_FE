@@ -10,7 +10,7 @@ luân chuyển, kiểm kê), dashboard theo vai trò và danh sách chờ duyệ
 
 Thư mục `docs/`, `.ai/`, `.claude/` và file `AGENTS.md` là tài liệu, quy tắc làm việc của repo.
 
-> 📘 **Trước khi code: đọc [DESIGN.md](./DESIGN.md)** (màu sắc, component, bố cục, quy trình thêm module, quy tắc nghiệp vụ chung)
+> 📘 **Trước khi code: đọc [DESIGN.md](./DESIGN.md)** (design system chung web + app: màu, chữ, component, bố cục, câu chữ) và [CODING_GUIDE](./docs/architecture/CODING_GUIDE.md) (thư mục, luồng dữ liệu, thêm module, quy tắc chung)
 > và mở trang **`/ui-kit`** trong app để xem component chạy thật.
 > Ảnh thiết kế gốc: thư mục [`mockups/`](./mockups/README.md).
 
@@ -76,4 +76,4 @@ Mỗi module có nhóm route riêng; vai trò được phép xem ở `src/routes
 ## Nối Spring Boot
 
 `VITE_USE_MOCK=false`. Endpoint đề xuất trong `src/services/<module>/api/*.js` và `src/services/*Service.js`.
-Luật nghiệp vụ backend cần làm theo nằm ở `src/services/<module>/mock/*MockRepository.js`. Chi tiết: DESIGN.md §16.
+Luật nghiệp vụ backend cần làm theo nằm ở `src/services/<module>/mock/*MockRepository.js`. Chi tiết: `docs/architecture/CODING_GUIDE.md` §8.

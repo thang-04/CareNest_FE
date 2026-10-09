@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+</head><body>
+<title>CareNest Phụ huynh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: lưới khung điện thoại 360×760 theo nhóm màn; mỗi khung là một trạng thái tĩnh. Chỉ giao diện sáng (spec không có dark mode). */
+:root {
+  color-scheme: light;
+  --brand: #4fb0f5; --brand-pressed: #71c6fd; --on-brand: #0e3f63;
+  --primary: #0b72bc; --primary-soft: #e2f2fd; --primary-border: #95cff9;
+  --accent: #94debd; --accent-soft: #eefaf4; --accent-fg: #1f7a59;
+  --bg: #f1f9fe; --surface: #ffffff; --surface-muted: #f8fafc;
+  --text: #1b2433; --text-2: #4a5568; --muted: #66728a; --disabled: #a3aebd;
+  --border: #e3e9f2; --border-strong: #cdd6e3; --skeleton: #eef1f5; --track: #eef1f5;
+  --overlay: rgba(14, 63, 99, 0.32);
+  --blue: #2ba0f3; --blue-fg: #0e3f63; --blue-bg: #eaf6fe;
+  --green: #22b573; --green-fg: #176f51; --green-bg: #e9f8f1;
+  --orange: #f5820b; --orange-fg: #944f06; --orange-bg: #fef3e7;
+  --red: #f0475a; --red-fg: #a63749; --red-bg: #feedef;
+  --gray: #7b8aa0; --gray-fg: #556377; --gray-bg: #f2f3f6;
+  --teal: #13b5b1; --teal-fg: #0f6c71; --teal-bg: #e7f8f7;
+  --danger-btn-bg: #fdecec; --danger-btn-fg: #c92a2a;
+  --bezel: #1b2433; --canvas: #e8f1f9; --canvas-ink: #0e3f63;
+  --font: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 12px 32px -16px rgba(11, 114, 188, 0.28);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--canvas); color: var(--text); font-family: var(--font); font-size: 16px; line-height: 1.5; padding-inline: 16px; padding-block: 32px 64px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 40px; }
+.intro { display: grid; gap: 12px; max-width: 760px; }
+.intro__eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+.intro__eyebrow img { width: 28px; height: 28px; }
+.intro h1 { margin: 0; font-size: clamp(28px, 4vw, 40px); line-height: 1.15; color: var(--canvas-ink); text-wrap: balance; }
+.intro p { margin: 0; color: var(--text-2); max-width: 65ch; }
+.intro code { font-size: 14px; background: var(--surface); padding: 2px 6px; border-radius: 6px; }
+.jump { display: flex; flex-wrap: wrap; gap: 8px; }
+.jump a { text-decoration: none; color: var(--on-brand); background: var(--surface); border: 1px solid var(--primary-border); padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 600; }
+.jump a:hover { background: var(--primary-soft); }
+.jump a:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.group { display: grid; gap: 20px; scroll-margin-top: 16px; }
+.group__head h2 { margin: 0; font-size: 22px; color: var(--canvas-ink); }
+.group__head p { margin: 4px 0 0; color: var(--text-2); font-size: 15px; max-width: 70ch; }
+.frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 32px 24px; justify-items: center; }
+figure { margin: 0; display: grid; gap: 12px; width: min(360px, 100%); }
+figcaption { display: grid; gap: 2px; padding-inline: 8px; }
+figcaption b { font-size: 15px; color: var(--canvas-ink); }
+figcaption span { font-size: 14px; color: var(--text-2); line-height: 1.45; }
+
+/* ---------- Khung điện thoại ---------- */
+.phone { width: 100%; height: 760px; border-radius: 44px; background: var(--bezel); padding: 9px; box-shadow: 0 30px 60px -30px rgba(14, 63, 99, 0.45); }
+.screen { position: relative; height: 100%; border-radius: 36px; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }
+.sb { height: 40px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 26px 0 30px; font-size: 14px; font-weight: 600; color: var(--text); position: relative; z-index: 5; }
+.sb--light { color: var(--text); }
+.sb__icons { display: flex; gap: 5px; align-items: center; }
+.sb__icons i { display: block; width: 16px; height: 10px; border-radius: 3px; border: 1.5px solid currentColor; position: relative; }
+.sb__icons i::after { content: ''; position: absolute; inset: 1.5px; right: 4px; background: currentColor; border-radius: 1px; }
+.sb__icons s { display: block; width: 14px; height: 10px; background: linear-gradient(90deg, currentColor 0 2px, transparent 2px 4px, currentColor 4px 6px, transparent 6px 8px, currentColor 8px 10px, transparent 10px 12px, currentColor 12px); clip-path: polygon(0 100%, 100% 0, 100% 100%); }
+.body { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 12px; padding: 4px 16px 16px; }
+.body--nav { padding-bottom: 96px; }
+svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+svg.i--22 { width: 22px; height: 22px; }
+svg.i--24 { width: 24px; height: 24px; }
+svg.i--14 { width: 14px; height: 14px; stroke-width: 2; }
+
+/* Thanh điều hướng đáy */
+.nav { position: absolute; left: 0; right: 0; bottom: 0; height: 84px; background: var(--surface); border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 4px 18px; z-index: 4; }
+.nav a { display: grid; justify-items: center; align-content: start; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 500; text-decoration: none; position: relative; }
+.nav a span.pill { width: 64px; height: 32px; border-radius: 999px; display: grid; place-items: center; }
+.nav a.on { color: var(--primary); font-weight: 600; }
+.nav a.on span.pill { background: var(--primary-soft); }
+.nav a em { position: absolute; top: -2px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--red); color: #fff; font-size: 11px; font-style: normal; font-weight: 700; display: grid; place-items: center; border: 2px solid var(--surface); }
+
+/* AppBar màn con */
+.appbar { height: 56px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 8px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.appbar h3 { margin: 0; font-size: 18px; font-weight: 600; flex: 1; }
+.iconbtn { width: 48px; height: 48px; border-radius: 999px; display: grid; place-items: center; color: var(--text); background: none; border: 0; padding: 0; }
+.pagetitle { margin: 4px 0 0; font-size: 22px; line-height: 30px; font-weight: 700; }
+
+/* Card */
+.card { background: var(--surface); border-radius: 24px; padding: 20px; box-shadow: var(--card-shadow); display: grid; gap: 14px; }
+.card--dense { padding: 16px; gap: 12px; }
+.card__head { display: flex; align-items: center; gap: 12px; }
+.card__head h4 { margin: 0; font-size: 17px; font-weight: 600; flex: 1; }
+.tile { width: 40px; height: 40px; border-radius: 20px; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; flex: none; }
+.tile--green { background: var(--green-bg); color: var(--green-fg); }
+.tile--teal { background: var(--teal-bg); color: var(--teal-fg); }
+.tile--orange { background: var(--orange-bg); color: var(--orange-fg); }
+.tile--gray { background: var(--gray-bg); color: var(--gray-fg); }
+.link { color: var(--primary); font-weight: 600; font-size: 15px; display: inline-flex; align-items: center; gap: 2px; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; line-height: 20px; }
+.cap { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Badge */
+.badge { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 999px; font-size: 13px; font-weight: 600; border: 1px solid; white-space: nowrap; }
+.b-green { background: var(--green-bg); color: var(--green-fg); border-color: rgba(34, 181, 115, 0.4); }
+.b-blue { background: var(--blue-bg); color: var(--blue-fg); border-color: rgba(43, 160, 243, 0.4); }
+.b-orange { background: var(--orange-bg); color: var(--orange-fg); border-color: rgba(245, 130, 11, 0.4); }
+.b-gray { background: var(--gray-bg); color: var(--gray-fg); border-color: rgba(123, 138, 160, 0.4); }
+.b-teal { background: var(--teal-bg); color: var(--teal-fg); border-color: rgba(19, 181, 177, 0.4); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px rgba(34, 181, 115, 0.22); }
+
+/* Nút */
+.btn { height: 52px; border-radius: 999px; border: 0; font: inherit; font-size: 16px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; width: 100%; }
+.btn--primary { background: var(--brand); color: var(--on-brand); }
+.btn--secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); font-weight: 600; }
+.btn--danger { background: var(--danger-btn-bg); color: var(--danger-btn-fg); }
+.btn--sm { height: 44px; font-size: 15px; }
+.btnrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dock { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 26px; background: var(--surface); border-top: 1px solid var(--border); z-index: 3; }
+
+/* Dòng danh sách */
+.rows { display: grid; }
+.row { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 0; position: relative; }
+.row + .row::before { content: ''; position: absolute; top: 0; left: 52px; right: 0; height: 1px; background: var(--border); }
+.row__txt { flex: 1; min-width: 0; display: grid; }
+.row__txt b { font-size: 16px; font-weight: 600; line-height: 22px; }
+.row__txt span { font-size: 14px; color: var(--muted); line-height: 20px; }
+.row__chev { color: var(--muted); }
+.unread .row__txt b { font-weight: 700; }
+.unread::after { content: ''; position: absolute; left: -10px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--brand); }
+
+/* Avatar chữ cái */
+.av { border-radius: 50%; display: grid; place-items: center; font-weight: 700; flex: none; }
+.av--32 { width: 32px; height: 32px; font-size: 13px; }
+.av--40 { width: 40px; height: 40px; font-size: 15px; }
+.av--56 { width: 56px; height: 56px; font-size: 20px; }
+.av--88 { width: 88px; height: 88px; font-size: 30px; }
+.av--blue { background: var(--primary-soft); color: var(--on-brand); }
+.av--mint { background: var(--accent-soft); color: var(--accent-fg); }
+.av--sun { background: #fef3c7; color: #835c00; }
+
+/* Chip chọn con */
+.kid { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px 0 6px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-weight: 600; font-size: 15px; }
+
+/* Hero Hôm nay */
+.hero { position: relative; height: 224px; flex: none; margin-top: -40px; }
+.hero img { width: 100%; height: 100%; object-fit: cover; object-position: center 55%; display: block; }
+.hero::after { content: ''; position: absolute; inset: auto 0 0 0; height: 80px; background: linear-gradient(180deg, rgba(241, 249, 254, 0), var(--bg)); }
+.glass { position: relative; z-index: 2; margin: -96px 16px 0; padding: 16px 18px; border-radius: 20px; background: rgba(255, 255, 255, 0.72); -webkit-backdrop-filter: blur(20px) saturate(1.2); backdrop-filter: blur(20px) saturate(1.2); border: 1px solid rgba(255, 255, 255, 0.85); display: grid; gap: 6px; }
+.glass h3 { margin: 0; font-size: 26px; line-height: 34px; font-weight: 700; }
+.glass .meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Bữa ăn */
+.meal { display: grid; grid-template-columns: 56px 1fr; gap: 4px 12px; }
+.meal dt { font-size: 14px; color: var(--muted); font-weight: 500; padding-top: 1px; }
+.meal dd { margin: 0; font-size: 16px; font-weight: 500; line-height: 22px; }
+
+/* Thông tin nhãn – giá trị */
+.info { display: grid; gap: 12px; margin: 0; }
+.info div { display: grid; gap: 2px; }
+.info dt { font-size: 14px; color: var(--muted); }
+.info dd { margin: 0; font-size: 16px; }
+
+/* Segmented */
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; height: 44px; padding: 4px; border-radius: 999px; background: var(--track); }
+.seg span { border-radius: 999px; display: grid; place-items: center; font-weight: 600; font-size: 15px; color: var(--text-2); }
+.seg span.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1); }
+
+/* Lịch tháng */
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px 0; text-align: center; }
+.cal .wd { font-size: 12px; font-weight: 600; color: var(--muted); padding-bottom: 4px; }
+.cal .d { height: 40px; display: grid; justify-items: center; align-content: center; gap: 3px; font-size: 15px; font-variant-numeric: tabular-nums; border-radius: 12px; }
+.cal .d i { width: 6px; height: 6px; border-radius: 50%; background: transparent; }
+.cal .d.g i { background: var(--green); }
+.cal .d.o i { background: var(--orange); }
+.cal .d.we { color: var(--disabled); }
+.cal .d.today { box-shadow: inset 0 0 0 2px var(--primary); color: var(--primary); font-weight: 700; }
+.cal .d.fut { color: var(--text-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--text-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Dải ngày */
+.strip { display: grid; grid-template-columns: 24px repeat(5, 1fr) 24px; align-items: center; gap: 4px; }
+.strip .day { height: 60px; border-radius: 18px; display: grid; justify-items: center; align-content: center; background: var(--surface); font-variant-numeric: tabular-nums; }
+.strip .day small { font-size: 12px; color: var(--muted); font-weight: 500; }
+.strip .day b { font-size: 17px; }
+.strip .day.on { background: var(--brand); color: var(--on-brand); }
+.strip .day.on small { color: var(--on-brand); }
+.strip .arr { color: var(--muted); display: grid; place-items: center; }
+
+/* Banner */
+.banner { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; font-size: 14px; line-height: 20px; }
+.banner--orange { background: var(--orange-bg); color: var(--orange-fg); }
+.banner--blue { background: var(--blue-bg); color: var(--blue-fg); }
+.banner--gray { background: var(--gray-bg); color: var(--gray-fg); }
+.banner b { font-weight: 600; }
+
+/* Số đo */
+.measure { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.measure div { background: var(--surface-muted); border-radius: 16px; padding: 12px 14px; display: grid; }
+.measure small { font-size: 14px; color: var(--muted); }
+.measure b { font-size: 28px; line-height: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.measure b span { font-size: 15px; font-weight: 500; color: var(--text-2); margin-left: 3px; }
+.chart text { font-family: var(--font); font-size: 11px; fill: var(--muted); }
+
+/* Form */
+.field { display: grid; gap: 6px; }
+.field label { font-size: 15px; font-weight: 600; }
+.input { height: 52px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--surface); display: flex; align-items: center; gap: 8px; padding: 0 18px; font-size: 16px; color: var(--text); }
+.input--ph { color: var(--muted); }
+.input--focus { border: 2px solid var(--primary); box-shadow: 0 0 0 3px #c5e5fc; padding: 0 17px; }
+.input svg { margin-left: auto; color: var(--muted); }
+.textarea { min-height: 96px; border-radius: 16px; border: 1px solid var(--border-strong); background: var(--surface); padding: 12px 16px; font-size: 16px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--surface); font-size: 15px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+.chip.on { border-color: var(--primary-border); background: var(--primary-soft); color: var(--on-brand); font-weight: 600; }
+.help { font-size: 14px; color: var(--muted); }
+
+/* Lớp phủ, sheet, hộp thoại */
+.scrim { position: absolute; inset: 0; background: var(--overlay); z-index: 6; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; background: var(--surface); border-radius: 28px 28px 0 0; padding: 10px 16px 28px; display: grid; gap: 8px; box-shadow: 0 -8px 40px rgba(14, 63, 99, 0.18); }
+.sheet__grab { width: 36px; height: 4px; border-radius: 4px; background: var(--border-strong); justify-self: center; }
+.sheet__head { display: flex; align-items: center; justify-content: space-between; }
+.sheet__head h4 { margin: 0; font-size: 18px; font-weight: 600; }
+.pick { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 20px; }
+.pick.on { background: var(--primary-soft); }
+.pick .row__txt b { font-size: 16px; }
+.pick .ok { color: var(--primary); }
+.dialog { position: absolute; left: 20px; right: 20px; top: 50%; transform: translateY(-50%); z-index: 7; background: var(--surface); border-radius: 28px; padding: 28px 20px 20px; display: grid; gap: 10px; justify-items: center; text-align: center; box-shadow: 0 24px 60px -20px rgba(14, 63, 99, 0.45); }
+.dialog .big { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: var(--red-bg); color: var(--red-fg); margin-bottom: 4px; }
+.dialog h4 { margin: 0; font-size: 19px; font-weight: 700; }
+.dialog p { margin: 0 0 8px; color: var(--text-2); }
+.dialog .btn { width: 100%; }
+.submit { position: absolute; inset: 0; z-index: 6; background: rgba(255, 255, 255, 0.92); display: grid; place-content: center; justify-items: center; gap: 14px; text-align: center; }
+.dots { display: flex; gap: 8px; }
+.dots i { width: 12px; height: 12px; border-radius: 50%; animation: hop 1.1s var(--ease) infinite; }
+.dots i:nth-child(1) { background: var(--primary); }
+.dots i:nth-child(2) { background: var(--brand); animation-delay: 0.15s; }
+.dots i:nth-child(3) { background: var(--accent); animation-delay: 0.3s; }
+@keyframes hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
+.toast { position: absolute; left: 12px; right: 12px; top: 46px; z-index: 8; background: var(--green-bg); color: var(--green-fg); border-radius: 20px; padding: 14px 16px 16px; display: flex; gap: 10px; align-items: center; font-weight: 600; font-size: 15px; overflow: hidden; box-shadow: 0 16px 32px -16px rgba(14, 63, 99, 0.35); border: 1px solid rgba(34, 181, 115, 0.3); }
+.toast__ic { width: 30px; height: 30px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; flex: none; }
+.toast::after { content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: 62%; background: var(--green); animation: count 3.5s linear infinite; }
+@keyframes count { from { width: 100%; } to { width: 0; } }
+
+/* Trạng thái */
+.sk { background: var(--skeleton); border-radius: 12px; animation: breathe 1.2s ease-in-out infinite alternate; }
+@keyframes breathe { from { opacity: 0.6; } to { opacity: 1; } }
+.state { flex: 1; display: grid; place-content: center; justify-items: center; text-align: center; gap: 10px; padding: 0 28px; }
+.state img { width: 168px; height: 124px; object-fit: cover; border-radius: 20px; margin-bottom: 6px; }
+.state h4 { margin: 0; font-size: 19px; font-weight: 700; }
+.state p { margin: 0; color: var(--text-2); }
+.state .big { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: var(--gray-bg); color: var(--gray-fg); }
+.state .btn { width: auto; margin-top: 8px; }
+
+/* Đăng nhập */
+.login-art { height: 330px; flex: none; margin-top: -40px; position: relative; }
+.login-art img { width: 100%; height: 100%; object-fit: cover; object-position: 30% 60%; display: block; }
+.login-sheet { margin-top: -28px; position: relative; flex: 1; background: var(--surface); border-radius: 28px 28px 0 0; padding: 22px 20px 24px; display: grid; align-content: start; gap: 14px; }
+.login-sheet .logo { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; }
+.login-sheet .logo img { width: 36px; height: 36px; }
+.login-sheet .logo .care { color: var(--blue-fg); }
+.login-sheet .logo .nest { color: var(--brand); }
+.login-sheet h3 { margin: 0; font-size: 22px; font-weight: 700; }
+.right { justify-self: end; }
+
+.timeline { display: grid; gap: 0; }
+.tl { display: grid; grid-template-columns: 20px 1fr; gap: 12px; padding-bottom: 14px; position: relative; }
+.tl::before { content: ''; position: absolute; left: 9px; top: 14px; bottom: 0; width: 2px; background: var(--border); }
+.tl:last-child::before { display: none; }
+.tl > i { width: 12px; height: 12px; border-radius: 50%; margin: 5px 0 0 4px; position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dots i, .sk { animation: none; }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M3 12h1m8-9v1m8 8h1m-9 8v1M5.6 5.6l.7.7m12.1-.7l-.7.7m0 11.4l.7.7m-12.1-.7l-.7.7"/></symbol>
+    <symbol id="kid" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 0 0 5 0M12 3a2 2 0 0 0 0 4"/></symbol>
+    <symbol id="bell" viewBox="0 0 24 24"><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3H4a4 4 0 0 0 2-3v-3a7 7 0 0 1 4-6M9 17v1a3 3 0 0 0 6 0v-1"/></symbol>
+    <symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.17 18.85A4 4 0 0 1 10 16h4a4 4 0 0 1 3.83 2.86"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16M9 16l2 2l4-4"/></symbol>
+    <symbol id="meal" viewBox="0 0 24 24"><path d="M4 3h8l-1 9H5zM7 18h2v3H7zM20 3v12h-5c0-3.7.2-7.4 5-12zM20 15v6h-1v-3M8 12v6"/></symbol>
+    <symbol id="heart" viewBox="0 0 24 24"><path d="M19.5 12.57L12 20l-7.5-7.43A5 5 0 1 1 12 6a5 5 0 1 1 7.5 6.57M5 12h3l1.5-3l2 6l1.5-3h3"/></symbol>
+    <symbol id="seed" viewBox="0 0 24 24"><path d="M12 10a6 6 0 0 0-6-6H3v2a6 6 0 0 0 6 6h3M12 14a6 6 0 0 1 6-6h3v1a6 6 0 0 1-6 6h-3M12 20V10"/></symbol>
+    <symbol id="doc" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2zM9 9h1M9 13h6M9 17h6"/></symbol>
+    <symbol id="right" viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></symbol>
+    <symbol id="left" viewBox="0 0 24 24"><path d="M15 6l-6 6l6 6"/></symbol>
+    <symbol id="down" viewBox="0 0 24 24"><path d="M6 9l6 6l6-6"/></symbol>
+    <symbol id="back" viewBox="0 0 24 24"><path d="M5 12h14M5 12l6 6M5 12l6-6"/></symbol>
+    <symbol id="check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></symbol>
+    <symbol id="x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+    <symbol id="eye" viewBox="0 0 24 24"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0-4 0M21 12c-2.4 4-5.4 6-9 6s-6.6-2-9-6c2.4-4 5.4-6 9-6s6.6 2 9 6"/></symbol>
+    <symbol id="alert" viewBox="0 0 24 24"><path d="M12 9v4M10.36 3.59L2.26 17.13a1.91 1.91 0 0 0 1.63 2.87h16.22a1.91 1.91 0 0 0 1.63-2.87L13.64 3.59a1.91 1.91 0 0 0-3.28 0zM12 16h.01"/></symbol>
+    <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></symbol>
+    <symbol id="logout" viewBox="0 0 24 24"><path d="M14 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2M9 12h12l-3-3m0 6l3-3"/></symbol>
+    <symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 1 1 8 0v4"/></symbol>
+    <symbol id="text" viewBox="0 0 24 24"><path d="M3 7V5h13v2M10 5v14M12 19H8M15 13v-1h6v1M18 12v7M17 19h2"/></symbol>
+    <symbol id="school" viewBox="0 0 24 24"><path d="M22 9L12 5L2 9l10 4l10-4v6M6 10.6V16a6 3 0 0 0 12 0v-5.4"/></symbol>
+    <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol>
+    <symbol id="wifi" viewBox="0 0 24 24"><path d="M12 18h.01M9.17 15.17a4 4 0 0 1 5.66 0M6.34 12.34a8 8 0 0 1 4.2-2.2M3.52 9.52a12 12 0 0 1 3.55-2.46M17.6 12.4a8 8 0 0 0-1.4-1.1M20.5 9.5a12 12 0 0 0-6.5-3.3M3 3l18 18"/></symbol>
+    <symbol id="refresh" viewBox="0 0 24 24"><path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="users" viewBox="0 0 24 24"><path d="M5 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.85"/></symbol>
+  </defs>
+</svg>
+
+<main class="wrap">
+  <header class="intro">
+    <div class="intro__eyebrow"><img src="img/logo-mark.png" alt="">Demo thiết kế · app mobile</div>
+    <h1>CareNest cho phụ huynh</h1>
+    <p>18 màn hình tĩnh dựng đúng theo spec <code>DESIGN.md</code>: màu trời của web v2, chữ Be Vietnam Pro cỡ 16, nút viên thuốc, card trắng bo 24, tranh sáp màu ở màn Hôm nay, đăng nhập và màn trống. Tên trẻ, phụ huynh, số đo, thực đơn đều là dữ liệu giả.</p>
+    <nav class="jump" aria-label="Nhóm màn">
+      <a href="#chinh">Màn chính</a><a href="#be">Thông tin của bé</a><a href="#nghi">Báo nghỉ</a><a href="#trangthai">Trạng thái</a>
+    </nav>
+  </header>
+
+  <!-- ================= MÀN CHÍNH ================= -->
+  <section class="group" id="chinh">
+    <div class="group__head"><h2>Màn chính</h2><p>Bốn mục ở thanh đáy: Hôm nay, Bé, Thông báo, Tài khoản. Đăng nhập không có nút đăng ký vì tài khoản do trường tạo.</p></div>
+    <div class="frames">
+
+      <figure>
+        <div class="phone"><div class="screen">
+          <div class="sb" data-sb></div>
+          <div class="login-art"><img src="img/login-scene.webp" alt=""></div>
+          <div class="login-sheet">
+            <div class="logo"><img src="img/logo-mark.png" alt=""><span><span class="care">Care</span><span class="nest">Nest</span></span></div>
+            <h3>Chào mừng phụ huynh</h3>
+            <div class="field"><label for="u1">Số điện thoại</label><div class="input" id="u1">0912 345 218</div></div>
+            <div class="field"><label for="p1">Mật khẩu</label><div class="input input--focus input--ph" id="p1">••••••••<svg class="i"><use href="#eye"/></svg></div></div>
+            <span class="link right">Quên mật khẩu</span>
+            <button class="btn btn--primary" type="button">Đăng nhập</button>
+          </div>
+        </div></div>
+        <figcaption><b>Đăng nhập</b><span>Tranh chiếm phần trên, form nằm trên sheet trắng bo 28. Ô mật khẩu đang focus: viền xanh 2px và quầng nhạt.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen">
+          <div class="sb" data-sb></div>
+          <div class="hero"><img src="img/san-choi.webp" alt="Tranh sân chơi vẽ sáp màu"></div>
+          <div class="glass">
+            <span class="cap">Thứ Sáu, 9/10</span>
+            <h3>Chào buổi chiều</h3>
+            <div class="meta"><span class="kid"><span class="av av--32 av--blue">A</span>Bé An<svg class="i"><use href="#down"/></svg></span><span class="small muted">Mầm 2 · Điểm trường 1</span></div>
+          </div>
+          <div class="body body--nav" style="padding-top:12px">
+            <div class="card card--dense">
+              <div class="card__head"><span class="tile tile--green"><svg class="i i--22"><use href="#i-cal"/></svg></span><h4>Điểm danh</h4><span class="badge b-green num"><svg class="i i--14"><use href="#check"/></svg>Đã đến lớp · 7:42</span></div>
+            </div>
+            <div class="card card--dense">
+              <div class="card__head"><span class="tile tile--teal"><svg class="i i--22"><use href="#meal"/></svg></span><h4>Bữa ăn hôm nay</h4><span class="link">Xem<svg class="i"><use href="#right"/></svg></span></div>
+              <dl class="meal" style="margin:0"><dt>Sáng</dt><dd>Cháo thịt bằm, sữa</dd><dt>Trưa</dt><dd>Cơm, cá sốt cà chua, canh bí đỏ</dd></dl>
+            </div>
+            <div class="card card--dense">
+              <div class="card__head"><span class="tile"><svg class="i i--22"><use href="#seed"/></svg></span><h4>Cập nhật mới</h4><span class="link">Xem<svg class="i"><use href="#right"/></svg></span></div>
+            </div>
+          </div>
+          <div class="nav" data-nav="0"></div>
+        </div></div>
+        <figcaption><b>Hôm nay</b><span>Trả lời “con ổn không” trong một lần nhìn. Kính mờ chỉ dùng ở khối chào trên tranh; các card bên dưới là nền trắng đặc.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen">
+          <div class="sb" data-sb></div>
+          <div class="body body--nav">
+            <div style="display:flex;align-items:center;gap:14px;padding:8px 0 4px">
+              <span class="av av--56 av--blue">A</span>
+              <div style="display:grid;gap:4px"><span class="kid" style="height:36px;padding:0 10px;justify-self:start">Nguyễn Minh An<svg class="i"><use href="#down"/></svg></span><span class="small muted">Mầm 2 · Điểm trường 1</span></div>
+            </div>
+            <div class="card card--dense" style="gap:0;padding-block:4px">
+              <div class="rows">
+                <div class="row"><span class="tile tile--green"><svg class="i"><use href="#i-cal"/></svg></span><div class="row__txt"><b>Điểm danh</b></div><svg class="i row__chev"><use href="#right"/></svg></div>
+                <div class="row"><span class="tile tile--teal"><svg class="i"><use href="#meal"/></svg></span><div class="row__txt"><b>Thực đơn</b></div><svg class="i row__chev"><use href="#right"/></svg></div>
+                <div class="row"><span class="tile"><svg class="i"><use href="#heart"/></svg></span><div class="row__txt"><b>Sức khỏe</b></div><svg class="i row__chev"><use href="#right"/></svg></div>
+                <div class="row"><span class="tile tile--green"><svg class="i"><use href="#seed"/></svg></span><div class="row__txt"><b>Cập nhật phát triển</b></div><svg class="i row__chev"><use href="#right"/></svg></div>
+                <div class="row"><span class="tile tile--orange"><svg class="i"><use href="#doc"/></svg></span><div class="row__txt"><b>Thông báo nghỉ</b></div><svg class="i row__chev"><use href="#right"/></svg></div>
+              </div>
+            </div>
+            <div class="card card--dense">
+              <div class="card__head"><h4>Thông tin của bé</h4></div>
+              <dl class="info"><div><dt>Ngày sinh</dt><dd class="num">12/03/2021</dd></div><div><dt>Dị ứng</dt><dd class="muted">Nhà trường chưa cập nhật</dd></div></dl>
+            </div>
+          </div>
+          <div class="nav" data-nav="1"></div>
+        </div></div>
+        <figcaption><b>Bé</b><span>Một danh sách lối vào cho mọi thông tin của con. Ô “Dị ứng” để trống thì ghi “Nhà trường chưa cập nhật” chứ không bỏ trắng.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen">
+          <div class="sb" data-sb></div>
+          <div class="body body--nav">
+            <h3 class="pagetitle">Thông báo</h3>
+            <span class="link" style="justify-self:end;font-size:14px">Đánh dấu đã đọc hết</span>
+            <span class="cap">Hôm nay</span>
+            <div class="card card--dense" style="gap:0;padding-block:4px;padding-left:22px">
+              <div class="rows">
+                <div class="row unread"><span class="tile"><svg class="i"><use href="#seed"/></svg></span><div class="row__txt"><b>Có cập nhật phát triển mới về bé An</b><span class="num">8:05</span></div></div>
+                <div class="row unread"><span class="tile tile--teal"><svg class="i"><use href="#meal"/></svg></span><div class="row__txt"><b>Thực đơn tuần 12/10 đã có</b><span class="num">7:30</span></div></div>
+              </div>
+            </div>
+            <span class="cap">Hôm qua</span>
+            <div class="card card--dense" style="gap:0;padding-block:4px;padding-left:22px">
+              <div class="rows">
+                <div class="row"><span class="tile"><svg class="i"><use href="#heart"/></svg></span><div class="row__txt"><b>Kết quả cân đo tháng 10</b><span class="num">16:20</span></div></div>
+                <div class="row"><span class="tile tile--gray"><svg class="i"><use href="#school"/></svg></span><div class="row__txt"><b>Họp phụ huynh đầu năm, thứ Bảy 17/10</b><span class="num">9:00</span></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="nav" data-nav="2"></div>
+        </div></div>
+        <figcaption><b>Thông báo</b><span>Nhóm theo ngày. Mục chưa đọc có chấm xanh và chữ đậm hơn. Thông báo đẩy chỉ báo “có cập nhật mới”, không chứa dữ liệu sức khỏe.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen">
+          <div class="sb" data-sb></div>
+          <div class="body body--nav">
+            <h3 class="pagetitle">Tài khoản</h3>
+            <div style="display:flex;align-items:center;gap:14px"><span class="av av--56 av--sun">H</span><div style="display:grid"><b style="font-size:17px">Nguyễn Thu Hằng</b><span class="small muted num">0912 345 218</span></div></div>
+            <div class="card card--dense" style="gap:4px">
+              <div class="card__head"><h4>Con của tôi</h4></div>
+              <div class="rows">
+                <div class="row"><span class="av av--40 av--blue">A</span><div class="row__txt"><b>Nguyễn Minh An</b><span>Mầm 2 · Điểm trường 1</span></div></div>
+                <div class="row"><span class="av av--40 av--mint">K</span><div class="row__txt"><b>Nguyễn Minh Khôi</b><span>Nhà trẻ 1 · Điểm trường 2</span></div></div>
+              </div>
+            </div>
+            <div class="card card--dense" style="gap:0;padding-block:4px">
+              <div class="rows">
+                <div class="row"><span class="tile tile--gray"><svg class="i"><use href="#bell"/></svg></span><div class="row__txt"><b>Thông báo</b></div><svg class="i row__chev"><use href="#right"/></svg></div>
+                <div class="row"><span class="tile tile--gray"><svg class="i"><use href="#lock"/></svg></span><div class="row__txt"><b>Đổi mật khẩu</b></div><svg class="i row__chev"><use href="#right"/></svg></div>
+                <div class="row"><span class="tile tile--gray"><svg class="i"><use href="#text"/></svg></span><div class="row__txt"><b>Cỡ chữ</b><span>Theo cài đặt điện thoại</span></div><svg class="i row__chev"><use href="#right"/></svg></div>
+              </div>
+            </div>
+            <button class="btn btn--danger btn--sm" type="button"><svg class="i"><use href="#logout"/></svg>Đăng xuất</button>
+          </div>
+          <div class="nav" data-nav="3"></div>
+        </div></div>
+        <figcaption><b>Tài khoản</b><span>Avatar là chữ cái trên nền pastel, chọn màu theo tên. Nút Đăng xuất dùng kiểu nguy hiểm: nền đỏ nhạt, chữ đỏ.</span></figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================= THÔNG TIN CỦA BÉ ================= -->
+  <section class="group" id="be">
+    <div class="group__head"><h2>Thông tin của bé</h2><p>Màn con có AppBar trắng với nút quay lại. App chỉ hiện số liệu BE trả về: không tự đếm, không tự tô màu đánh giá sức khỏe.</p></div>
+    <div class="frames">
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Điểm danh</h3></div>
+          <div class="body" style="padding-top:14px;background:var(--bg)">
+            <div class="seg"><span>Tuần</span><span class="on">Tháng</span></div>
+            <div class="card card--dense">
+              <div style="display:flex;align-items:center;justify-content:space-between"><span class="iconbtn" style="width:36px;height:36px"><svg class="i"><use href="#left"/></svg></span><b>Tháng 10, 2026</b><span class="iconbtn" style="width:36px;height:36px"><svg class="i"><use href="#right"/></svg></span></div>
+              <div class="cal" id="cal"></div>
+              <div class="legend"><span><i style="background:var(--green)"></i>Đến lớp</span><span><i style="background:var(--orange)"></i>Nghỉ có báo</span><span><i style="background:var(--red)"></i>Nghỉ không báo</span></div>
+            </div>
+            <div class="banner banner--blue"><svg class="i"><use href="#info"/></svg><span><b class="num">Tháng 10: 6 ngày đến lớp, 1 ngày nghỉ có báo.</b> Số liệu do nhà trường cập nhật, có thể thay đổi trong ngày.</span></div>
+          </div>
+        </div></div>
+        <figcaption><b>Điểm danh, xem theo tháng</b><span>Mỗi ngày một chấm màu, có chú giải bên dưới để không chỉ dựa vào màu. Hôm nay có viền xanh. Dòng tổng chỉ hiện khi BE trả số tổng.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Thực đơn</h3></div>
+          <div class="body" style="padding-top:14px;background:var(--bg)">
+            <div class="strip"><span class="arr"><svg class="i"><use href="#left"/></svg></span>
+              <div class="day"><small>T2</small><b>5</b></div><div class="day"><small>T3</small><b>6</b></div><div class="day"><small>T4</small><b>7</b></div><div class="day"><small>T5</small><b>8</b></div><div class="day on"><small>T6</small><b>9</b></div>
+              <span class="arr"><svg class="i"><use href="#right"/></svg></span></div>
+            <div class="banner banner--orange"><svg class="i"><use href="#alert"/></svg><span><b>Dị ứng đã khai báo: Tôm.</b> Cần trao đổi về bữa ăn của bé, phụ huynh liên hệ cô giáo.</span></div>
+            <div class="card card--dense"><div class="card__head"><h4>Bữa sáng</h4><span class="small muted num">7:30</span></div><div class="small" style="font-size:16px;display:grid;gap:4px"><b style="font-weight:600">Cháo thịt bằm</b><b style="font-weight:600">Sữa tươi</b></div></div>
+            <div class="card card--dense"><div class="card__head"><h4>Bữa trưa</h4><span class="small muted num">10:30</span></div><div style="display:grid;gap:4px"><b style="font-weight:600">Cơm trắng</b><b style="font-weight:600">Cá sốt cà chua</b><b style="font-weight:600">Canh bí đỏ nấu thịt</b><b style="font-weight:600">Chuối</b></div></div>
+            <div class="card card--dense"><div class="card__head"><h4>Bữa chiều</h4><span class="badge b-teal">Bữa phụ</span><span class="small muted num">14:30</span></div></div>
+          </div>
+        </div></div>
+        <figcaption><b>Thực đơn</b><span>Dải ngày theo tuần, ngày đang xem nền xanh trời. Dị ứng của bé hiện thành banner cam ở đầu màn. Chỉ hiện thực đơn nhà trường đã công bố.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Sức khỏe</h3></div>
+          <div class="body" style="padding-top:14px;background:var(--bg)">
+            <div class="card card--dense">
+              <div class="card__head"><h4>Lần đo gần nhất</h4><span class="small muted num">05/10/2026</span></div>
+              <div class="measure"><div><small>Chiều cao</small><b>104,5<span>cm</span></b></div><div><small>Cân nặng</small><b>17,2<span>kg</span></b></div></div>
+            </div>
+            <div class="card card--dense">
+              <div class="card__head"><h4>Chiều cao theo tháng</h4></div>
+              <svg class="chart" viewBox="0 0 300 150" role="img" aria-label="Chiều cao từ tháng 5 đến tháng 10: 101,0; 101,8; 102,6; 103,1; 103,9; 104,5 cm">
+                <g stroke="var(--border)" stroke-width="1">
+                  <line x1="34" y1="20" x2="292" y2="20"/><line x1="34" y1="56" x2="292" y2="56"/><line x1="34" y1="92" x2="292" y2="92"/><line x1="34" y1="128" x2="292" y2="128"/>
+                </g>
+                <text x="26" y="24" text-anchor="end">106</text><text x="26" y="60" text-anchor="end">104</text><text x="26" y="96" text-anchor="end">102</text><text x="26" y="132" text-anchor="end">100</text>
+                <polyline fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="48,110 94,95.6 140,81.2 186,72.2 232,57.8 278,47"/>
+                <g fill="var(--surface)" stroke="var(--primary)" stroke-width="2"><circle cx="48" cy="110" r="3.5"/><circle cx="94" cy="95.6" r="3.5"/><circle cx="140" cy="81.2" r="3.5"/><circle cx="186" cy="72.2" r="3.5"/><circle cx="232" cy="57.8" r="3.5"/></g>
+                <circle cx="278" cy="47" r="5" fill="var(--primary)"/>
+                <text x="48" y="146" text-anchor="middle">T5</text><text x="94" y="146" text-anchor="middle">T6</text><text x="140" y="146" text-anchor="middle">T7</text><text x="186" y="146" text-anchor="middle">T8</text><text x="232" y="146" text-anchor="middle">T9</text><text x="278" y="146" text-anchor="middle">T10</text>
+              </svg>
+            </div>
+            <div class="card card--dense" style="gap:0;padding-block:4px">
+              <div class="rows">
+                <div class="row"><span class="tile"><svg class="i"><use href="#heart"/></svg></span><div class="row__txt"><b>Khám sức khỏe định kỳ</b><span class="num">05/10/2026</span></div><svg class="i row__chev"><use href="#right"/></svg></div>
+                <div class="row"><span class="tile"><svg class="i"><use href="#heart"/></svg></span><div class="row__txt"><b>Khám sức khỏe định kỳ</b><span class="num">12/05/2026</span></div><svg class="i row__chev"><use href="#right"/></svg></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <figcaption><b>Sức khỏe</b><span>Số lớn, một màu, không gắn nhãn “bình thường” hay “bất thường”. Biểu đồ chỉ nối các lần đo BE trả về, điểm mới nhất tô đậm.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Cập nhật phát triển</h3></div>
+          <div class="body" style="padding-top:16px;background:var(--bg)">
+            <span class="cap">Tháng 10</span>
+            <div class="card card--dense">
+              <div class="timeline">
+                <div class="tl"><i style="background:var(--brand)"></i><div style="display:grid;gap:4px"><b>Nhận xét tuần 28/9 – 2/10</b><span class="small muted">Cô Phạm Thị Hà · 03/10</span><span class="small" style="font-size:15px;color:var(--text-2)">An mạnh dạn hơn khi kể chuyện trước lớp, tự xếp được giày dép vào kệ. Cần nhắc bé rửa tay trước khi ăn.</span></div></div>
+                <div class="tl"><i style="background:var(--green)"></i><div style="display:grid;gap:4px"><b>Kết quả cân đo tháng 10</b><span class="small muted">Nhà trường · 05/10</span></div></div>
+              </div>
+            </div>
+            <span class="cap">Tháng 9</span>
+            <div class="card card--dense">
+              <div class="timeline">
+                <div class="tl"><i style="background:var(--brand)"></i><div style="display:grid;gap:4px"><b>Nhận xét tuần 21/9 – 25/9</b><span class="small muted">Cô Phạm Thị Hà · 26/09</span></div></div>
+                <div class="tl"><i style="background:var(--brand)"></i><div style="display:grid;gap:4px"><b>Nhận xét tuần 14/9 – 18/9</b><span class="small muted">Cô Phạm Thị Hà · 19/09</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <figcaption><b>Cập nhật phát triển</b><span>Dòng thời gian nhóm theo tháng, đoạn trích tối đa ba dòng, chạm vào để đọc đầy đủ. Chỉ hiện các mục nhà trường đã duyệt.</span></figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================= BÁO NGHỈ ================= -->
+  <section class="group" id="nghi">
+    <div class="group__head"><h2>Báo nghỉ</h2><p>Thông báo nghỉ không có bước duyệt, nên chỉ có hai trạng thái: Đã gửi và Đã hủy. Mỗi màn có đúng một nút chính, đặt dính ở đáy.</p></div>
+    <div class="frames">
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Thông báo nghỉ</h3></div>
+          <div class="body" style="padding-top:16px;background:var(--bg);padding-bottom:110px">
+            <div class="card card--dense" style="gap:0;padding-block:4px">
+              <div class="rows">
+                <div class="row"><span class="tile tile--orange"><svg class="i"><use href="#doc"/></svg></span><div class="row__txt"><b class="num">12/10 – 13/10 · 2 ngày</b><span>Việc gia đình</span></div><span class="badge b-blue">Đã gửi</span></div>
+                <div class="row"><span class="tile tile--orange"><svg class="i"><use href="#doc"/></svg></span><div class="row__txt"><b class="num">06/10 · 1 ngày</b><span>Ốm, sốt nhẹ</span></div><span class="badge b-blue">Đã gửi</span></div>
+                <div class="row"><span class="tile tile--gray"><svg class="i"><use href="#doc"/></svg></span><div class="row__txt"><b class="num">22/09 · 1 ngày</b><span>Khác</span></div><span class="badge b-gray">Đã hủy</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="dock"><button class="btn btn--primary" type="button"><svg class="i"><use href="#plus"/></svg>Báo nghỉ</button></div>
+        </div></div>
+        <figcaption><b>Danh sách thông báo nghỉ</b><span>Badge xanh “Đã gửi” và xám “Đã hủy”. Không có màu vàng “chờ duyệt”. Ngày 06/10 khớp với chấm cam trong lịch điểm danh.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Báo nghỉ</h3></div>
+          <div class="body" style="padding-top:16px;gap:18px;padding-bottom:110px">
+            <div class="field"><label>Bé</label><span class="kid" style="justify-self:start"><span class="av av--32 av--blue">A</span>Nguyễn Minh An<svg class="i"><use href="#down"/></svg></span></div>
+            <div class="two">
+              <div class="field"><label for="f1">Từ ngày</label><div class="input num" id="f1">12/10/2026</div></div>
+              <div class="field"><label for="f2">Đến ngày</label><div class="input num" id="f2">13/10/2026</div></div>
+            </div>
+            <div class="field"><label>Lý do</label><div class="chips"><span class="chip">Ốm</span><span class="chip on"><svg class="i i--14"><use href="#check"/></svg>Việc gia đình</span><span class="chip">Khác</span></div></div>
+            <div class="field"><label for="f3">Ghi chú thêm</label><div class="textarea" id="f3">Bé về quê dự đám cưới, chiều thứ Ba gia đình đón bé về.</div><span class="help">Không bắt buộc</span></div>
+          </div>
+          <div class="dock"><button class="btn btn--primary" type="button">Gửi</button></div>
+        </div></div>
+        <figcaption><b>Form báo nghỉ</b><span>Nhãn nằm trên ô nhập. Lý do chọn nhanh bằng chip, có ô ghi chú để viết thêm. App không tự khóa ngày theo giờ máy; giới hạn ngày do BE kiểm tra.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Báo nghỉ</h3></div>
+          <div class="body" style="padding-top:16px;gap:18px">
+            <div class="field"><label>Bé</label><span class="kid" style="justify-self:start"><span class="av av--32 av--blue">A</span>Nguyễn Minh An</span></div>
+            <div class="two"><div class="field"><label>Từ ngày</label><div class="input num">12/10/2026</div></div><div class="field"><label>Đến ngày</label><div class="input num">13/10/2026</div></div></div>
+          </div>
+          <div class="submit"><div class="dots"><i></i><i></i><i></i></div><b style="font-size:17px">Đang gửi…</b><span class="small muted">Vui lòng giữ màn hình này</span></div>
+        </div></div>
+        <figcaption><b>Đang gửi</b><span>Lớp phủ trắng che form, hiện ba chấm màu logo. Gửi xong đổi thành dấu ✓; nếu lỗi, form vẫn giữ nguyên dữ liệu đã nhập.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="toast"><span class="toast__ic"><svg class="i"><use href="#check"/></svg></span>Đã gửi thông báo nghỉ</div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Thông báo nghỉ</h3></div>
+          <div class="body" style="padding-top:16px;background:var(--bg);padding-bottom:110px">
+            <div class="card card--dense">
+              <div class="card__head"><h4>Bé An nghỉ 2 ngày</h4><span class="badge b-blue">Đã gửi</span></div>
+              <dl class="info"><div><dt>Thời gian</dt><dd class="num">Thứ Hai 12/10 – Thứ Ba 13/10</dd></div><div><dt>Lý do</dt><dd>Việc gia đình</dd></div><div><dt>Ghi chú</dt><dd>Bé về quê dự đám cưới, chiều thứ Ba gia đình đón bé về.</dd></div><div><dt>Gửi lúc</dt><dd class="num">16:52, 09/10/2026</dd></div></dl>
+            </div>
+            <div class="banner banner--blue"><svg class="i"><use href="#info"/></svg><span>Nhà trường đã nhận thông báo nghỉ của bé.</span></div>
+          </div>
+          <div class="dock"><button class="btn btn--danger" type="button">Hủy thông báo nghỉ</button></div>
+        </div></div>
+        <figcaption><b>Gửi xong</b><span>Toast nền xanh lá trồi từ mép trên, thanh dưới đáy toast chạy lùi để đếm thời gian. Banner bên dưới hiện câu trả lời do BE gửi về.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Thông báo nghỉ</h3></div>
+          <div class="body" style="padding-top:16px;background:var(--bg)">
+            <div class="card card--dense"><div class="card__head"><h4>Bé An nghỉ 2 ngày</h4><span class="badge b-blue">Đã gửi</span></div><dl class="info"><div><dt>Thời gian</dt><dd class="num">Thứ Hai 12/10 – Thứ Ba 13/10</dd></div></dl></div>
+          </div>
+          <div class="scrim"></div>
+          <div class="dialog" role="dialog" aria-label="Hủy thông báo nghỉ">
+            <span class="big"><svg class="i" style="width:32px;height:32px"><use href="#doc"/></svg></span>
+            <h4>Hủy thông báo nghỉ?</h4>
+            <p>Thông báo nghỉ ngày 12/10 – 13/10 sẽ bị hủy. Nếu bé vẫn nghỉ, bạn cần gửi lại.</p>
+            <button class="btn btn--danger" type="button">Hủy thông báo nghỉ</button>
+            <button class="btn btn--secondary" type="button">Quay lại</button>
+          </div>
+        </div></div>
+        <figcaption><b>Xác nhận hủy</b><span>Icon lớn đặt giữa, hai nút xếp dọc. Nút trên ghi đúng việc sẽ làm, không dùng chữ “OK”. Nền phía sau phủ xanh đậm trong suốt, không làm mờ.</span></figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================= TRẠNG THÁI ================= -->
+  <section class="group" id="trangthai">
+    <div class="group__head"><h2>Trạng thái</h2><p>Mỗi màn cần đủ các trạng thái: chọn con khi có nhiều con, đang tải lần đầu, chưa có dữ liệu, mất mạng.</p></div>
+    <div class="frames">
+
+      <figure>
+        <div class="phone"><div class="screen">
+          <div class="sb" data-sb></div>
+          <div class="hero"><img src="img/san-choi.webp" alt=""></div>
+          <div class="glass"><span class="cap">Thứ Sáu, 9/10</span><h3>Chào buổi chiều</h3></div>
+          <div class="nav" data-nav="0"></div>
+          <div class="scrim"></div>
+          <div class="sheet">
+            <span class="sheet__grab"></span>
+            <div class="sheet__head"><h4>Chọn bé</h4><span class="iconbtn"><svg class="i i--24"><use href="#x"/></svg></span></div>
+            <div class="pick on"><span class="av av--40 av--blue">A</span><div class="row__txt"><b>Nguyễn Minh An</b><span class="small muted">Mầm 2 · Điểm trường 1</span></div><svg class="i ok"><use href="#check"/></svg></div>
+            <div class="pick"><span class="av av--40 av--mint">K</span><div class="row__txt"><b>Nguyễn Minh Khôi</b><span class="small muted">Nhà trẻ 1 · Điểm trường 2</span></div></div>
+          </div>
+        </div></div>
+        <figcaption><b>Chọn con</b><span>Bottom sheet bo 28, có tay nắm ở đầu. Bé đang chọn có nền xanh nhạt và dấu ✓, lựa chọn áp dụng cho cả app.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen">
+          <div class="sb" data-sb></div>
+          <div class="hero"><img src="img/san-choi.webp" alt=""></div>
+          <div class="glass"><span class="cap">Thứ Sáu, 9/10</span><h3>Chào buổi chiều</h3><div class="sk" style="height:36px;width:150px;border-radius:999px"></div></div>
+          <div class="body body--nav" style="padding-top:12px">
+            <div class="card card--dense"><div class="card__head"><span class="sk" style="width:40px;height:40px;border-radius:20px"></span><span class="sk" style="height:18px;width:110px"></span></div><span class="sk" style="height:28px;width:140px;border-radius:999px"></span></div>
+            <div class="card card--dense"><div class="card__head"><span class="sk" style="width:40px;height:40px;border-radius:20px"></span><span class="sk" style="height:18px;width:150px"></span></div><span class="sk" style="height:16px;width:90%"></span><span class="sk" style="height:16px;width:70%"></span></div>
+          </div>
+          <div class="nav" data-nav="0"></div>
+        </div></div>
+        <figcaption><b>Đang tải lần đầu</b><span>Khung chờ có đúng hình các card sắp hiện và nhấp nháy nhẹ. Không đặt spinner giữa màn.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Cập nhật phát triển</h3></div>
+          <div class="state" style="background:var(--bg)">
+            <img src="img/vuon-rau.webp" alt="">
+            <h4>Chưa có cập nhật nào</h4>
+            <p>Khi cô giáo gửi nhận xét về bé Khôi, bạn sẽ thấy ở đây.</p>
+          </div>
+        </div></div>
+        <figcaption><b>Chưa có dữ liệu</b><span>Tranh sáp màu nhỏ bo 20, kèm một câu nói khi nào nội dung sẽ xuất hiện. Không có nút vì phụ huynh không cần làm gì.</span></figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone"><div class="screen" style="background:var(--surface)">
+          <div class="sb" data-sb></div>
+          <div class="appbar"><span class="iconbtn"><svg class="i i--24"><use href="#back"/></svg></span><h3>Thực đơn</h3></div>
+          <div class="state" style="background:var(--bg)">
+            <span class="big"><svg class="i" style="width:34px;height:34px"><use href="#wifi"/></svg></span>
+            <h4>Không có kết nối mạng</h4>
+            <p>Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại.</p>
+            <button class="btn btn--secondary btn--sm" type="button"><svg class="i"><use href="#refresh"/></svg>Thử lại</button>
+          </div>
+        </div></div>
+        <figcaption><b>Mất mạng</b><span>Màn lỗi dùng icon, không dùng tranh. Câu chữ nói rõ chuyện gì xảy ra và cần làm gì, kèm nút Thử lại.</span></figcaption>
+      </figure>
+
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  // Thanh trạng thái giả và thanh điều hướng đáy dùng chung cho mọi khung
+  var sb = '<span class="num">16:52</span><span class="sb__icons"><s></s><i></i></span>';
+  document.querySelectorAll('[data-sb]').forEach(function (el) { el.innerHTML = sb; });
+
+  var tabs = [['sun', 'Hôm nay'], ['kid', 'Bé'], ['bell', 'Thông báo', 2], ['user', 'Tài khoản']];
+  document.querySelectorAll('[data-nav]').forEach(function (el) {
+    var on = Number(el.getAttribute('data-nav'));
+    el.innerHTML = tabs.map(function (t, i) {
+      var badge = t[2] ? '<em>' + t[2] + '</em>' : '';
+      return '<a class="' + (i === on ? 'on' : '') + '"' + (i === on ? ' aria-current="page"' : '') + '><span class="pill"><svg class="i i--24"><use href="#' + t[0] + '"/></svg></span>' + t[1] + badge + '</a>';
+    }).join('');
+  });
+
+  // Lịch tháng 10/2026: ngày 1 là thứ Năm; chấm theo dữ liệu giả (6 ngày đến lớp, 06/10 nghỉ có báo)
+  var cal = document.getElementById('cal');
+  if (cal) {
+    var html = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(function (d) { return '<span class="wd">' + d + '</span>'; }).join('');
+    for (var b = 0; b < 3; b++) html += '<span></span>';
+    var present = [1, 2, 5, 7, 8, 9];
+    for (var d = 1; d <= 31; d++) {
+      var dow = (d + 2) % 7; // 0 = T2
+      var cls = 'd';
+      if (dow >= 5) cls += ' we';
+      if (present.indexOf(d) > -1) cls += ' g';
+      if (d === 6) cls += ' o';
+      if (d === 9) cls += ' today';
+      if (d > 9 && dow < 5) cls += ' fut';
+      html += '<span class="' + cls + '">' + d + '<i></i></span>';
+    }
+    cal.innerHTML = html;
+  }
+})();
+</script>
+</body></html>

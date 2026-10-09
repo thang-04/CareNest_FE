@@ -14,6 +14,8 @@ Nghiệp vụ, rule, contract, kiến trúc hệ thống **không nằm ở đâ
 | | `architecture/STATE_MANAGEMENT.md` | Nguyên tắc server state / UI state | SKELETON + nguyên tắc |
 | | `architecture/FRONTEND_ARCHITECTURE.md` | Kiến trúc client | SKELETON + ràng buộc đã biết |
 | | `architecture/FOLDER_STRUCTURE.md` | Cấu trúc thư mục `src/` | SKELETON |
+| | `architecture/CODING_GUIDE.md` | Chạy dự án, thư mục, CSS, luồng dữ liệu, thêm module, quy tắc chung, checklist PR | FULL |
+| design | `../DESIGN.md` (gốc repo) | Design system chung web + app: token, component, bố cục, câu chữ, tự kiểm | FULL (PROPOSED) |
 | features | `features/README.md` | Feature nghiệp vụ → màn hình Web → BE card/flow; template doc feature | FULL |
 | integration | `integration/BACKEND_INTEGRATION.md` | Envelope, lỗi, 403/404, phân quyền phía client | FULL (theo BE hiện tại) |
 | | `integration/AUTH_FLOW.md` | Đăng nhập, token, phiên | SKELETON |

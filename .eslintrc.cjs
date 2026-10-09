@@ -1,6 +1,6 @@
 /**
  * Team lint rules. Run `npm run lint` before pushing.
- * Architecture rules (see DESIGN.md):
+ * Architecture rules (see docs/architecture/CODING_GUIDE.md):
  *  - pages / components never touch localStorage or the mock database directly;
  *  - they call a service facade (src/services/<module>/*Service.js or src/services/*Service.js).
  */

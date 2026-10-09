@@ -7,7 +7,7 @@ import {
   PREP_STATUS_LABELS,
 } from '@/models/kitchen/kitchenConstants';
 
-/* Tones follow DESIGN.md §6: orange = waiting for someone else, blue = in progress, purple = waiting for approval, green = done. */
+/* Tones follow DESIGN.md §3.2: orange = waiting for someone else, blue = in progress, purple = waiting for approval, green = done. */
 export const PrepStatusBadge = createStatusBadge(
   {
     NOT_STARTED: ['gray', FileQuestion],

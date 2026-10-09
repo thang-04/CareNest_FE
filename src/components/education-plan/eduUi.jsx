@@ -46,7 +46,7 @@ export function PageHead({ crumbs, title, desc, actions }) {
   );
 }
 
-// DESIGN.md §6: waiting for approval = purple, done = green, returned = red, draft = gray.
+// DESIGN.md §3.2: waiting for approval = purple, done = green, returned = red, draft = gray.
 export const EduStatusBadge = createStatusBadge(
   {
     DRAFT: ['gray', FileEdit],

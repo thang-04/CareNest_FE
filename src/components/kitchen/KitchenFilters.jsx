@@ -1,7 +1,7 @@
 import { useMasterData } from '@/hooks/useMasterData';
 import { MEAL_SESSIONS, MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
 
-/* Small filter controls shared by the kitchen pages (all labelled, DESIGN.md §13). */
+/* Small filter controls shared by the kitchen pages (all labelled, DESIGN.md §10). */
 
 export function KbDateFilter({ value, onChange, label = 'Ngày' }) {
   return (

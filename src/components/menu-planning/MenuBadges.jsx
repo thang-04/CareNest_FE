@@ -27,7 +27,7 @@ export const NormStatusChip = ({ status }) => (
   <span className={`chip chip--${NORM_TONES[status] || 'gray'}`}>{NORM_STATUS_LABELS[status]}</span>
 );
 
-/** Allergens are a "needs attention" label (red), see DESIGN.md §6. */
+/** Allergens are a "needs attention" label (red), see DESIGN.md §3.2. */
 export function AllergenChips({ allergens, empty = '—' }) {
   if (!allergens?.length) return <span className="muted">{empty}</span>;
   return (

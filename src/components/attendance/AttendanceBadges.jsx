@@ -14,7 +14,7 @@ import {
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { ATTENDANCE_STATUS_LABELS, HANDOVER_STATUS_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 
-/* Tones follow DESIGN.md §6 */
+/* Tones follow DESIGN.md §3.2 */
 export const AttendanceStatusBadge = createStatusBadge(
   { PRESENT: ['green', UserCheck], EXCUSED: ['orange', UserMinus], UNEXCUSED: ['red', UserX] },
   ATTENDANCE_STATUS_LABELS,

@@ -402,3 +402,12 @@ Repo chưa có framework test; kiểm chứng = `node scripts/verify.mjs` (lint 
 - User: tranh vẽ phía sau mờ hơn. `--scene-veil` 82%→66% đổi thành 93%→86% (lớp phủ trắng trên tranh nền của `.app-shell`); tranh ở dải đầu trang không đổi.
 - Ghi nhận: `tokens.css` đã được sửa ngoài phiên (14:40) — `--purple*` trỏ sang vàng chờ duyệt (`--tone-approval`, `--gold-*`); có chủ đích, không đụng.
 - Kiểm: ảnh CDP `/approvals` 1440. Verify: xem dòng VERIFY.
+
+### 2026-10-09 — Phase 5: `DESIGN.md` thành design system chung web + app (chờ review)
+
+- Commit: chưa commit
+- User: một `DESIGN.md` duy nhất cho cả web và app; chỉ sửa FE lúc này; phần hướng dẫn code tách file riêng.
+- Đã làm: thay toàn bộ `DESIGN.md` (v1) bằng design system v3.1 (token hai cột tên CSS/Dart, bảng giống/khác web–app, tông trạng thái, component tương đương, công thức màn, câu chữ, lệnh tự kiểm); phần code của bản cũ (mục 1–2, 9–12, 15–17) chuyển nguyên sang `docs/architecture/CODING_GUIDE.md`; `.claude/rules/ui-style.md` mới; cập nhật `AGENTS.md`, `README.md`, `docs/INDEX.md`, `vite.config.js`, `.eslintrc.cjs` và comment dẫn số mục trong `src/` (§6 → §3.2, §13 → §10, §14 → §9, CSS §9 → `CODING_GUIDE.md` §3).
+- Nợ đo được ghi ở `DESIGN.md` mục 14 (71 mã màu ngoài token, 452 `style={{`, 48 radius px, 4 chỗ `font-weight: 800`).
+- APP chưa nối (cần user cho phép sửa `CareNest_APP`).
+- Verify: xem dòng VERIFY.

@@ -3,7 +3,7 @@ import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { CHILD_STATUS_LABELS } from '@/models/School';
 import { NUTRITION_STATUS_LABELS, PARENT_ACCOUNT_STATUS_LABELS } from '@/models/children/childrenConstants';
 
-/* Tones follow DESIGN.md §6. */
+/* Tones follow DESIGN.md §3.2. */
 export const ChildStatusBadge = createStatusBadge(
   {
     ACTIVE: ['green', CheckCircle2],
