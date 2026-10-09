@@ -1,4 +1,4 @@
-import { Lock } from 'lucide-react';
+import { Lock } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/States';
 
 /** Shown when the signed-in role may not use a configuration screen (DESIGN.md §14). */

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CircleCheck, CircleX, Send } from 'lucide-react';
+import { CircleCheck, CircleX, Send } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import {
   Card,

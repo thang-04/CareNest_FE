@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Save, Send, Plus, Trash2, ListPlus, Info, Lock, ArrowLeft } from 'lucide-react';
+import { Save, Send, Plus, Trash2, ListPlus, Info, Lock, ArrowLeft } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';

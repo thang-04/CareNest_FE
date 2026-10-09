@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, UserMinus, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock, UserMinus, XCircle } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { PICKUP_OUTCOME_LABELS, PICKUP_STATUS_LABELS } from '@/models/pickup/pickupConstants';
 

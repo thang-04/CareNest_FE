@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, MoreHorizontal, Plus, Star, Trash2, Images, Upload } from 'lucide-react';
+import { CheckCircle2, MoreHorizontal, Plus, Star, Trash2, Images, Upload } from '@/components/ui/icons';
 import { useSignatures } from '@/hooks/useSignatures';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';

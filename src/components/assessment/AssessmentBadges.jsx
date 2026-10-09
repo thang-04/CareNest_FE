@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, FileEdit, AlertTriangle, XCircle, Sparkles, Undo2, Award } from 'lucide-react';
+import { CheckCircle2, Clock, FileEdit, AlertTriangle, XCircle, Sparkles, Undo2, Award } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { AI_DRAFT_LABEL, EVAL_STATUS_LABELS, REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
 

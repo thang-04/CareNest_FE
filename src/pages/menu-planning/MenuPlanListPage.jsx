@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, RotateCcw, CalendarRange, RefreshCw } from 'lucide-react';
+import { Eye, RotateCcw, CalendarRange, RefreshCw } from '@/components/ui/icons';
 import { useMenuCatalog, useMenuPlans } from '@/hooks/menu-planning/useMenuPlanning';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';

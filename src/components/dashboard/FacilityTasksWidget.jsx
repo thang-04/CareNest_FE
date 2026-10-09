@@ -1,4 +1,4 @@
-import { Repeat, ClipboardCheck, Building2 } from 'lucide-react';
+import { Repeat, ClipboardCheck, Building2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransfers } from '@/hooks/facility-transfer/useTransfers';
 import { useInspections } from '@/hooks/inventory-inspection/useInspections';

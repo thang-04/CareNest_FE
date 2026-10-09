@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { BarChart3, CheckCheck, Save, Utensils, MinusCircle, ClipboardList, UtensilsCrossed } from 'lucide-react';
+import { BarChart3, CheckCheck, Save, Utensils, MinusCircle, ClipboardList, UtensilsCrossed } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';

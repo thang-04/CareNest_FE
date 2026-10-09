@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Printer, FileDown, FileSpreadsheet } from 'lucide-react';
+import { Printer, FileDown, FileSpreadsheet } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { exportElementToPdf } from '@/utils/exportPdf';
 import { Spinner } from '@/components/ui/States';

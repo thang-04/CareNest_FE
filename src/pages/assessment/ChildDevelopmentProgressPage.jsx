@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { DevelopmentProfileView } from '@/components/assessment/DevelopmentProfileView';
 import { PERIOD_TYPE } from '@/models/assessment/assessmentConstants';

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ShieldAlert, Info } from 'lucide-react';
+import { ShieldAlert, Info } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 import { mealsAllergens, sameAllergen } from '@/utils/menu-planning/menuCalculations';
 import { MEAL_SESSION_LABELS, RECORD_STATUS } from '@/models/menu-planning/menuPlanningConstants';

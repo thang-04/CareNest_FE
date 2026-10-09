@@ -18,6 +18,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/account/ResetPasswordPage')
 const ProfilePage = lazy(() => import('@/pages/account/ProfilePage'));
 const ChangePasswordPage = lazy(() => import('@/pages/account/ChangePasswordPage'));
 const NotificationDetailPage = lazy(() => import('@/pages/account/NotificationDetailPage'));
+const AppearancePage = lazy(() => import('@/pages/settings/AppearancePage'));
 
 /** Public page for signed-out users only (login, password recovery). */
 const guest = (page) => (
@@ -403,6 +404,7 @@ export function AppRoutes() {
           <Route path="notifications/:id" element={<NotificationDetailPage />} />
           <Route path="account/profile" element={<ProfilePage />} />
           <Route path="account/password" element={<ChangePasswordPage />} />
+          <Route path="settings/appearance" element={<AppearancePage />} />
           <Route path="ui-kit" element={<UiKitPage />} />
           <Route path="coming-soon/:slug" element={<ComingSoonPage />} />
           <Route path="facility" element={<Navigate to="/facility/transfers" replace />} />

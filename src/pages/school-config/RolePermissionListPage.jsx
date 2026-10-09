@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Info, ShieldCheck, Pencil, RotateCcw, Users } from 'lucide-react';
+import { Search, Info, ShieldCheck, Pencil, RotateCcw, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRolePermissions } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, Printer, ClipboardCheck, RotateCcw, ClipboardList } from 'lucide-react';
+import { Plus, Search, Eye, Printer, ClipboardCheck, RotateCcw, ClipboardList } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useInspections } from '@/hooks/inventory-inspection/useInspections';
@@ -16,6 +16,7 @@ import { canManageRounds, canCountSheet, isVicePrincipal } from '@/utils/invento
 import { inspectionCrumbs } from '@/utils/inventory-inspection/breadcrumbs';
 import { describeScope } from '@/utils/inventory-inspection/inspectionScope';
 import '@/styles/modules/inventory-inspection.css';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const roundProgress = (r) => {
   const active = r.sheets.filter((s) => s.status !== SHEET_STATUS.CANCELLED);
@@ -64,7 +65,7 @@ function RoundList({ user, md }) {
           </div>
         </div>
       )}
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      <div className="stat-grid">
         {stats.map((s) => (
           <button
             key={s.key}
@@ -76,6 +77,7 @@ function RoundList({ user, md }) {
           >
             <div className="stat-card__value">{s.value}</div>
             <div className="stat-card__label">{s.label}</div>
+            <StatCardIcon tone={s.tone} />
           </button>
         ))}
       </div>
@@ -249,7 +251,7 @@ function MySheetList({ user, md }) {
         </div>
       </div>
       <div className="card">
-        <div className="tabs" style={{ padding: '6px 16px 0' }} role="tablist">
+        <div className="tabs" role="tablist">
           {STAFF_TABS.map((t) => (
             <button
               key={t.key}

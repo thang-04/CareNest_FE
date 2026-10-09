@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, CalendarRange, Pencil, Play, Archive, Trash2, Shapes, Clock4, Info } from 'lucide-react';
+import { Plus, CalendarRange, Pencil, Play, Archive, Trash2, Shapes, Clock4, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYears } from '@/hooks/school-config/useSchoolConfig';

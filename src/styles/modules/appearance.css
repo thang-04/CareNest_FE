@@ -1,0 +1,220 @@
+/* Màn Tùy chỉnh giao diện (tranh nền của trường). Prefix: ap- */
+
+.ap-head__meta {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.ap-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.ap-section__title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+.ap-section__head .ap-section__title {
+  margin: 0;
+}
+
+/* Ba chế độ dạng card chọn một */
+.ap-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+.ap-mode {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.ap-mode:hover {
+  border-color: var(--color-border-strong);
+}
+.ap-mode.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.ap-mode input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.ap-mode:has(input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.ap-mode:has(input:disabled) {
+  cursor: default;
+}
+.ap-mode__icon {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.ap-mode.is-active .ap-mode__icon {
+  background: var(--color-primary);
+  color: #fff;
+}
+.ap-mode__name {
+  font-weight: var(--fw-semibold);
+}
+.ap-mode__desc {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+}
+
+/* Lưới tranh */
+.ap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+.ap-scene {
+  overflow: hidden;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  transition:
+    border-color 0.15s,
+    opacity 0.15s;
+}
+.ap-scene.is-pinned {
+  border-color: var(--color-primary);
+}
+.ap-scene.is-off .ap-scene__thumb img {
+  filter: grayscale(0.85);
+  opacity: 0.55;
+}
+.ap-scene__thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--color-primary-soft);
+}
+.ap-scene__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ap-scene__today {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-sm);
+}
+.ap-scene__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+.ap-scene__name {
+  font-weight: var(--fw-semibold);
+}
+.ap-scene__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.ap-scene__tags .chip {
+  background: var(--color-primary-soft);
+  color: var(--color-text-secondary);
+}
+.ap-scene__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 32px;
+}
+
+/* Công tắc bật/tắt tranh */
+.ap-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.ap-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.ap-switch__track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong);
+  transition: background 0.15s;
+}
+.ap-switch__track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s;
+}
+.ap-switch input:checked + .ap-switch__track {
+  background: var(--color-primary);
+}
+.ap-switch input:checked + .ap-switch__track::after {
+  transform: translateX(16px);
+}
+.ap-switch input:focus-visible + .ap-switch__track {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.ap-switch:has(input:disabled) {
+  cursor: default;
+}
+
+.ap-updated {
+  margin: var(--space-4) 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ap-mode,
+  .ap-scene,
+  .ap-switch__track,
+  .ap-switch__track::after {
+    transition: none;
+  }
+}

@@ -1,4 +1,4 @@
-import { ShieldCheck, Clock } from 'lucide-react';
+import { ShieldCheck, Clock } from '@/components/ui/icons';
 import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS, NOTE_STATE_LABELS } from '@/models/children/childrenConstants';
 import { formatDateTime } from '@/utils/format';
 

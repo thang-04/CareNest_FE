@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Save, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Save, ShieldAlert, ShieldCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllergyContext, useAllergyMenu, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';

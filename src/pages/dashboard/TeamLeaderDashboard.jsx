@@ -1,4 +1,4 @@
-import { BookOpenCheck, Layers } from 'lucide-react';
+import { BadgeCheck, BookOpenCheck, Hourglass, Layers, NotebookPen, PencilLine } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWidget, usePendingApprovals } from '@/hooks/dashboard/useDashboard';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
@@ -37,14 +37,21 @@ export default function TeamLeaderDashboard() {
 
       <div className="stat-grid">
         <KpiCard
+          unit="giáo án"
+          action={!approvals.failed.length}
+          icon={NotebookPen}
           to="/education/reviews"
           tone="purple"
           label="Giáo án chờ bạn duyệt"
           value={approvals.total}
+          hint={approvals.failed.length ? `${approvals.failed.length} nhóm không tải được` : undefined}
           loading={approvals.loading && !approvals.groups.length}
           error={approvals.error}
         />
         <KpiCard
+          unit="kế hoạch"
+          action
+          icon={PencilLine}
           to="/education/themes"
           tone="red"
           label="Kế hoạch chủ đề cần hoàn thiện"
@@ -53,44 +60,58 @@ export default function TeamLeaderDashboard() {
           {...kpi}
         />
         <KpiCard
+          unit="kế hoạch"
+          icon={Hourglass}
           to="/education/themes"
           tone="orange"
           label="Kế hoạch chủ đề chờ PHT duyệt"
           value={count([EDU_STATUS.PENDING_VP])}
           {...kpi}
         />
-        <KpiCard to="/education/themes" tone="green" label="Kế hoạch chủ đề đã duyệt" value={count([EDU_STATUS.APPROVED])} {...kpi} />
+        <KpiCard
+          unit="kế hoạch"
+          icon={BadgeCheck}
+          to="/education/themes"
+          tone="green"
+          label="Kế hoạch chủ đề đã duyệt"
+          value={count([EDU_STATUS.APPROVED])}
+          {...kpi}
+        />
       </div>
 
-      <div className="db-grid">
-        <ApprovalsWidget approvals={approvals} />
-        <Widget
-          title="Kế hoạch chủ đề của nhóm tuổi"
-          icon={Layers}
-          to="/education/themes"
-          loading={kpi.loading}
-          error={themesQ.error}
-          onRetry={themesQ.reload}
-          empty={!toFix.length}
-          emptyTitle="Không có kế hoạch chủ đề cần hoàn thiện"
-          emptyText="Kế hoạch nháp hoặc bị Phó hiệu trưởng từ chối sẽ hiện ở đây."
-        >
-          <ShortList
-            rows={toFix.slice(0, 5).map((t) => ({
-              key: t.id,
-              to: `/education/themes/${t.id}`,
-              icon: BookOpenCheck,
-              code: t.code,
-              title: t.name,
-              meta: `${EDU_STATUS_LABELS[t.status]} · ${formatDate(t.startDate)} – ${formatDate(t.endDate)}`,
-            }))}
-          />
-        </Widget>
+      <div className="db-board">
+        <div className="db-board__main">
+          <ApprovalsWidget approvals={approvals} />
+        </div>
+        <div className="db-board__aside">
+          <Widget
+            title="Kế hoạch chủ đề của nhóm tuổi"
+            icon={Layers}
+            to="/education/themes"
+            loading={kpi.loading}
+            error={themesQ.error}
+            onRetry={themesQ.reload}
+            empty={!toFix.length}
+            emptyTitle="Không có kế hoạch chủ đề cần hoàn thiện"
+            emptyText="Kế hoạch nháp hoặc bị Phó hiệu trưởng từ chối sẽ hiện ở đây."
+          >
+            <ShortList
+              rows={toFix.slice(0, 5).map((t) => ({
+                key: t.id,
+                to: `/education/themes/${t.id}`,
+                icon: BookOpenCheck,
+                code: t.code,
+                title: t.name,
+                meta: `${EDU_STATUS_LABELS[t.status]} · ${formatDate(t.startDate)} – ${formatDate(t.endDate)}`,
+              }))}
+            />
+          </Widget>
+        </div>
       </div>
 
       <h2 className="section-title mt-24">Lớp của bạn</h2>
       <ClassTodayPanel />
-      <div className="db-grid mt-16">
+      <div className="db-board mt-16">
         <FacilityTasksWidget />
       </div>
     </div>

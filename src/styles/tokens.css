@@ -1,105 +1,176 @@
 /*
- * Design tokens
+ * Design tokens v2
  * Only place where raw colors / sizes are defined. Everything else uses var(--token). See DESIGN.md.
+ *
+ * Three layers:
+ *   1. Primitive  – raw palette and scales (--blue-700, --space-4, --radius-lg). Never used directly in components.
+ *   2. Semantic   – purpose aliases (--color-primary, --color-text-muted). Pages/components use these.
+ *   3. Component  – per-component knobs (--btn-height, --card-radius, --sidebar-width).
+ * Legacy names from v1 (--primary, --text-2, --radius …) are kept at the bottom as aliases so existing CSS keeps working.
+ *
+ * Visual direction: card-based dashboard (inspired by the Tasko/Donezo template), CareNest brand blue + mint accent.
  */
 
 :root {
-  /* Brand (sampled from logo) */
-  --brand-blue-700: #0269c5;
-  --brand-blue-600: #1675cf;
-  --brand-sky-400: #4fb0f5;
-  --brand-sky-300: #71c6fd;
-  --brand-mint-300: #94debd;
+  /* ===================== 1. PRIMITIVE ===================== */
 
-  /* Primary action color (kept from the mockups) */
-  --primary: #1565e0;
-  --primary-600: #0f55c4;
-  --primary-50: #eaf2fe;
-  --primary-100: #d6e6fd;
-  --text: #1b2433;
-  --text-2: #4a5568;
-  --text-3: #66728a; /* 4.8:1 on white (WCAG AA) */
-  --border: #e3e9f2;
-  --border-strong: #cdd6e3;
-  --bg: #f5f8fc;
-  --surface: #ffffff;
-  --sidebar-bg: #f3f7fd;
-  --success: #12a150;
-  --success-50: #e7f7ee;
-  --warning: #e8890c;
-  --warning-50: #fff4e3;
-  --danger: #e03131;
-  --danger-50: #fdecec;
-  --purple: #7048e8;
-  --purple-50: #f1edff;
-  --teal: #0c8599;
-  --teal-50: #e3f6f8;
-  --teal-700: #0a6e7f;
-  --gray-50: #f1f3f6;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --focus-ring: 0 0 0 3px var(--primary-100);
-  --shadow-md: 0 8px 24px rgba(16, 24, 40, 0.12);
-  --primary-25: #f3f8ff;
-  --primary-hover-bg: #e6eefb;
-  --primary-active-bg: #e2ecfc;
-  --info-bg: #eef5ff;
-  --info-border: #cfe1fb;
-  --success-25: #f6fcf8;
-  --success-border: #b5e5c8;
-  --warning-25: #fffaf0;
-  --warning-border: #f7d49c;
-  --danger-25: #fff5f5;
-  --danger-border: #f6b9b9;
-  --purple-25: #fbf9ff;
-  --purple-border: #d5c9fb;
-  --surface-soft: #f8fafc;
-  --surface-hover: #f7faff;
-  --line-muted: #d5dde8;
-  --border-dashed: #b9c6d8;
-  --text-inverse: #ffffff;
-  /* Dark text on light semantic backgrounds (chips, badges) */
-  --success-700: #0b7a3b;
-  --warning-700: #9a5100;
-  --danger-700: #c92a2a;
-  --warning-border-strong: #f7c879;
-  --warning-hover-bg: #ffe9c7;
-  --danger-hover-bg: #ffecec;
-  --success-border-soft: #c7ebd4;
-  --disabled: #adb5bd;
-  --danger-border-soft: #f2a5a5;
-  /* Text color inside alerts */
-  --info-700: #1d3f7a;
-  --warning-800: #8a4b00;
-  --danger-800: #9b1c1c;
-  --success-800: #0b5e2f;
-  --purple-700: #4d2db7;
-  --skeleton: #eef1f5;
-  --asset-icon: #5b7bb5;
-  --placeholder-avatar: #cbd5e1;
-  --neutral-avatar: #64748b;
-  /* File type colors (FileUploader) */
-  --file-pdf: var(--danger);
-  --file-archive: var(--warning);
-  --file-image: var(--teal);
-  --file-sheet: var(--success);
-  --file-other: var(--text-2);
-  --overlay: rgba(15, 23, 42, 0.45);
+  /* Brand blue (700 = logo blue) */
+  --blue-50: #ecf4fc;
+  --blue-100: #d5e7f8;
+  --blue-200: #aecff1;
+  --blue-300: #7fb3e8;
+  --blue-400: #4b93dc;
+  --blue-500: #1f7bd2;
+  --blue-600: #0a70cb;
+  --blue-700: #0269c5;
+  --blue-800: #0255a0;
+  --blue-900: #04437d;
 
-  /* Breakpoints (use the number in @media; CSS vars cannot be used there)
-     1280px: 2-3 column grids -> 1 column · 900px: auth page hides brand panel */
+  /* Tông chủ đạo XANH TRỜI (theo logo: sky-300 #71c6fd / sky-400 #4fb0f5).
+     Nền thương hiệu dùng sky-400 + chữ xanh đậm (#0e3f63, 4.6:1); link/chữ màu dùng sky-700 (#0b72bc, 5.1:1 trên trắng). */
+  --brand-sky-25: #f1f9fe;
+  --brand-sky-50: #e2f2fd;
+  --brand-sky-100: #c5e5fc;
+  --brand-sky-200: #95cff9;
+  --brand-sky-500: #2ba0f3;
+  --brand-sky-700: #0b72bc;
+  --brand-sky-800: #0a6aae;
+  --brand-sky-900: #0e3f63;
 
-  /* Spacing scale (4px) */
+  /* Màu gốc v1 của repo (chữ/viền/nền trung tính) */
+  --v1-primary: #1565e0;
+  --v1-primary-600: #0f55c4;
+  --v1-primary-700: #0c46a3;
+  --v1-primary-100: #d6e6fd;
+  --v1-primary-50: #eaf2fe;
+  --v1-primary-25: #f3f8ff;
+  --v1-text: #1b2433;
+  --v1-text-2: #4a5568;
+  --v1-text-3: #66728a; /* 4.8:1 on white (WCAG AA) */
+  --v1-border: #e3e9f2;
+  --v1-border-strong: #cdd6e3;
+  --v1-bg: #f5f8fc;
+  --v1-sidebar-bg: #f3f7fd;
+  --v1-gray-50: #f1f3f6;
+
+  /* Sky (logo "Nest" wordmark) */
+  --sky-300: #71c6fd;
+  --sky-400: #4fb0f5;
+
+  /* Mint accent (logo leaf) */
+  --mint-50: #eefaf4;
+  --mint-100: #d6f2e5;
+  --mint-300: #94debd;
+  --mint-500: #3fb98a;
+  --mint-700: #1f7a59;
+
+  /* Playful kindergarten accents (tranh vẽ, ô icon, thẻ KPI pastel) */
+  --sun-100: #fef3c7;
+  --sun-300: #fcd34d;
+  --sun-400: #fbbf24;
+  --sun-600: #b45309;
+  --coral-100: #ffe4e6;
+  --coral-300: #fda4af;
+  --coral-400: #fb7185;
+  --coral-600: #be123c;
+  --pink-100: #fce7f3;
+  --pink-400: #f472b6;
+  --pink-600: #be185d;
+  --lavender-100: #ede9fe;
+  --lavender-400: #a78bfa;
+  --lavender-600: #6d28d9;
+  --leaf-100: #dcfce7;
+  --leaf-400: #4ade80;
+  --leaf-500: #22c55e;
+  --leaf-600: #15803d;
+  --grass-300: #86efac;
+  --sky-100: #e0f2fe;
+  --sky-200: #bae6fd;
+  --wood-500: #a16207;
+  --skin-200: #fde3c8;
+
+  /* Neutral (slightly cool) */
+  --neutral-0: #ffffff;
+  --neutral-25: #fafbfc;
+  --neutral-50: #f5f7fa;
+  --neutral-100: #eef1f5;
+  --neutral-200: #e3e8ef;
+  --neutral-300: #cdd5e0;
+  --neutral-400: #a3aebd;
+  --neutral-500: #7b8798;
+  --neutral-600: #5f6b7d; /* 5.4:1 on white */
+  --neutral-700: #434d5c;
+  --neutral-800: #2b3442;
+  --neutral-900: #1b2433;
+
+  /* Status palettes (AA-checked fg on their 50 bg) */
+  --green-25: #f6fcf8;
+  --green-50: #e7f7ee;
+  --green-200: #b5e5c8;
+  --green-500: #12a150;
+  --green-700: #0b7a3b;
+  --green-800: #0b5e2f;
+
+  --amber-25: #fffaf0;
+  --amber-50: #fff4e3;
+  --amber-200: #f7d49c;
+  --amber-300: #f7c879;
+  --amber-500: #e8890c;
+  --amber-700: #9a5100;
+  --amber-800: #8a4b00;
+
+  --red-25: #fff5f5;
+  --red-50: #fdecec;
+  --red-200: #f6b9b9;
+  --red-300: #f2a5a5;
+  --red-500: #e03131;
+  --red-700: #c92a2a;
+  --red-800: #9b1c1c;
+
+  /* Vàng "chờ duyệt": việc quan trọng cần người duyệt, thay tông tím cũ lệch nền xanh. 700 đạt 5.7:1 trên 50 */
+  --gold-25: #fffbf2;
+  --gold-50: #fef8e6;
+  --gold-200: #fbe199;
+  --gold-500: #f5b400;
+  --gold-700: #835c00;
+
+  --teal-50-p: #e3f6f8;
+  --teal-500-p: #0c8599;
+  --teal-700-p: #0a6e7f;
+
+  /* Spacing (4px base; 2-5 / 3-5 absorb legacy 10px / 14px values) */
+  --space-0: 0;
   --space-1: 4px;
+  --space-1-5: 6px;
   --space-2: 8px;
+  --space-2-5: 10px;
   --space-3: 12px;
+  --space-3-5: 14px;
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
+  --space-7: 28px;
   --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radius (16px family) */
+  --radius-xs: 6px;
+  --radius-sm: 12px;
+  --radius-md: 14px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 32px;
+  --radius-full: 9999px;
 
   /* Typography */
+  --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Tiêu đề dùng chung font chữ thân (bộ thiết kế đã chốt: Be Vietnam Pro) */
+  --font-display: var(--font-sans);
+  --font-print: 'Tinos', 'Times New Roman', serif;
+  --fs-3xs: 10px;
   --fs-2xs: 11px;
   --fs-xs: 12px;
   --fs-sm: 13px;
@@ -107,7 +178,258 @@
   --fs-title-sm: 15px;
   --fs-lg: 16px;
   --fs-xl: 18px;
+  --fs-h3: 20px;
   --fs-h2: 24px;
   --fs-2xl: 28px;
-  --font: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fs-3xl: 30px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --lh-tight: 1.25;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.65;
+  --tracking-wide: 0.05em;
+
+  /* Elevation (two-layer, soft) */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-md: 0 4px 8px -2px rgba(16, 24, 40, 0.08), 0 2px 4px -2px rgba(16, 24, 40, 0.04);
+  --shadow-lg: 0 12px 24px -6px rgba(16, 24, 40, 0.12), 0 4px 8px -4px rgba(16, 24, 40, 0.05);
+  --shadow-xl: 0 20px 32px -8px rgba(16, 24, 40, 0.16), 0 8px 12px -6px rgba(16, 24, 40, 0.06);
+  /* Clay: viền sáng phía trên + bóng mềm màu xanh phía dưới */
+  --shadow-clay: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 10px 24px -12px rgba(79, 176, 245, 0.22), 0 2px 6px -2px rgba(16, 24, 40, 0.06);
+  --shadow-clay-hover: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 18px 32px -14px rgba(79, 176, 245, 0.3),
+    0 4px 10px -4px rgba(16, 24, 40, 0.08);
+  --shadow-float: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 30px 60px -24px rgba(79, 176, 245, 0.35), 0 8px 16px -8px rgba(16, 24, 40, 0.08);
+  --surface-glass: rgba(255, 255, 255, 0.85);
+  --frost-bg: rgba(255, 255, 255, 0.78); /* lớp kính mờ quanh chữ trên tranh nền */
+  --doodle-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3l3.6 7.6 8.4 1-6.2 5.8 1.6 8.3L16 21.6 8.6 25.7l1.6-8.3L4 11.6l8.4-1z' fill='%23fbbf24' stroke='%23f59e0b' stroke-width='1.5' stroke-linejoin='round'/%3E%3Ccircle cx='27' cy='5' r='2.2' fill='%23f472b6'/%3E%3Ccircle cx='4' cy='27' r='1.8' fill='%2394debd'/%3E%3C/svg%3E"); /* ngôi sao trang trí cạnh tiêu đề trang */
+  --on-primary-chip: rgba(255, 255, 255, 0.2); /* ô icon trên nền primary */ /* thẻ trắng mờ đặt trên tranh nền */
+  --shadow-clay-btn: inset 0 -3px 0 rgba(0, 0, 0, 0.14), 0 6px 14px -6px rgba(79, 176, 245, 0.45);
+
+  /* Motion */
+  --duration-fast: 150ms;
+  --duration-base: 300ms;
+  --duration-slow: 500ms;
+  /* Đường cong chuẩn Material (user chọn ở xưởng style) */
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-overlay: 180ms;
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Layers */
+  --z-base: 1;
+  --z-sticky: 50;
+  --z-header: 100;
+  --z-dropdown: 300;
+  --z-drawer: 900;
+  --z-modal: 1000;
+  --z-toast: 1100;
+
+  /* Breakpoints (use the number in @media; CSS vars cannot be used there)
+     768px tablet · 1024px drawer sidebar · 1280px 2-3 col grids -> fewer cols · 1366px target desktop */
+
+  /* ===================== 2. SEMANTIC ===================== */
+
+  --color-primary: var(--brand-sky-700); /* link, chữ màu, icon nhấn — 5.1:1 trên trắng */
+  --color-primary-hover: var(--brand-sky-800);
+  --color-primary-active: var(--brand-sky-900);
+  --color-primary-fg: var(--neutral-0);
+  /* Nền thương hiệu xanh trời (nút chính, menu đang chọn) + chữ trên nền đó */
+  --color-brand: var(--sky-400);
+  --color-brand-hover: var(--sky-300);
+  --color-brand-active: var(--brand-sky-200);
+  --color-on-brand: var(--brand-sky-900);
+  --color-primary-soft: var(--brand-sky-50); /* tinted bg: selected rows, icon chips */
+  --color-primary-soft-hover: var(--brand-sky-100);
+  --color-primary-border: var(--brand-sky-200);
+  --color-primary-shadow: rgba(79, 176, 245, 0.35);
+
+  --color-accent: var(--mint-300);
+  --color-accent-strong: var(--mint-500);
+  --color-accent-soft: var(--mint-50);
+  --color-accent-fg: var(--mint-700);
+
+  --color-bg: var(--brand-sky-25); /* nền app xanh trời rất nhạt */
+  --color-surface: var(--neutral-0); /* cards, popovers, sidebar */
+  --color-surface-muted: #f8fafc;
+  --color-surface-hover: #f7faff;
+  --color-secondary: var(--v1-gray-50); /* subtle fills, ghost hover */
+
+  --color-text: var(--v1-text);
+  --color-text-secondary: var(--v1-text-2);
+  --color-text-muted: var(--v1-text-3);
+  --color-text-disabled: var(--neutral-400);
+  --color-text-inverse: var(--neutral-0);
+
+  --color-border: var(--v1-border);
+  --color-border-strong: var(--v1-border-strong);
+  --color-border-dashed: #b9c6d8;
+
+  --color-focus: var(--brand-sky-700);
+  --color-focus-ring: var(--brand-sky-100);
+  --color-overlay: rgba(14, 63, 99, 0.32); /* nền sau hộp thoại: xanh đậm trong suốt, không làm mờ */
+
+  --color-success: var(--green-500);
+  --color-success-fg: var(--green-700);
+  --color-success-bg: var(--green-50);
+  --color-success-border: var(--green-200);
+  --color-warning: var(--amber-500);
+  --color-warning-fg: var(--amber-700);
+  --color-warning-bg: var(--amber-50);
+  --color-warning-border: var(--amber-200);
+  --color-danger: var(--red-500);
+  --color-danger-fg: var(--red-700);
+  --color-danger-bg: var(--red-50);
+  --color-danger-border: var(--red-200);
+  --color-info: var(--brand-sky-700);
+  --color-info-fg: var(--brand-sky-900);
+  --color-info-bg: var(--brand-sky-50);
+  --color-info-border: var(--brand-sky-200);
+
+  /* Tông trạng thái của badge, thẻ số liệu, thanh tiến trình (nghĩa xem StatusBadge). -fg đạt AA trên nền nhạt của chính tông */
+  --tone-blue: var(--brand-sky-500);
+  --tone-blue-fg: var(--brand-sky-900);
+  --tone-approval: var(--gold-500);
+  --tone-approval-fg: var(--gold-700);
+  --tone-orange: #f5820b;
+  --tone-orange-fg: #944f06;
+  --tone-red: #f0475a;
+  --tone-red-fg: #a63749;
+  --tone-green: #22b573;
+  --tone-green-fg: #176f51;
+  --tone-gray: #7b8aa0;
+  --tone-gray-fg: #556377;
+  --tone-teal: #13b5b1;
+  --tone-teal-fg: #0f6c71;
+
+  /* ===================== 3. COMPONENT ===================== */
+
+  --btn-height: 36px;
+  --btn-height-sm: 32px;
+  --btn-height-lg: 40px;
+  --btn-radius: var(--radius-full);
+  --btn-px: var(--space-4);
+
+  --input-height: 36px;
+  --input-radius: 22px; /* gần viên thuốc; textarea vẫn bo 22 */
+  --input-border: var(--color-border-strong);
+  --input-bg: var(--color-surface);
+
+  /* Card kính trên tranh nền */
+  --glass-bg: rgba(255, 255, 255, 0.72); /* kính trong, tranh nền nhìn rõ */
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --glass-blur: blur(20px) saturate(1.2);
+  /* Lớp phủ trắng trên tranh nền: tông trắng, tranh chỉ thoáng hiện ở đáy trang */
+  --scene-veil: linear-gradient(180deg, rgba(250, 252, 255, 0.93), rgba(248, 251, 255, 0.86));
+  /* Nền dải đầu trang: xanh rất nhạt pha trắng */
+  --band-bg: color-mix(in srgb, var(--color-primary-soft) 35%, var(--color-surface));
+  --card-radius: var(--radius-3xl);
+  --modal-radius: var(--radius-3xl);
+  --tile-radius: var(--radius-2xl); /* ô icon gần tròn */
+  --sidebar-radius: var(--radius-3xl);
+  --card-padding: var(--space-6);
+  --card-padding-dense: var(--space-4);
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 16px 40px -20px rgba(11, 114, 188, 0.25);
+  --card-shadow-hover: 0 1px 2px rgba(16, 24, 40, 0.04), 0 20px 40px -18px rgba(11, 114, 188, 0.35);
+
+  --table-header-bg: var(--color-surface-muted);
+  --table-row-hover: var(--color-primary-soft);
+  --table-stripe: rgba(226, 242, 253, 0.45); /* bảng sọc xen kẽ (R3) */
+
+  --badge-radius: var(--radius-full); /* badge viên thuốc có icon + viền (B) */
+
+  --sidebar-width: 256px;
+  --sidebar-width-collapsed: 72px;
+  --sidebar-bg-v2: var(--color-surface);
+  --sidebar-item-radius: var(--radius-sm);
+  --sidebar-item-active-bg: var(--color-primary-soft); /* mục menu đang chọn: nền xanh nhạt, chữ primary */
+  --sidebar-item-active-fg: var(--color-primary);
+
+  --header-height: 64px;
+  --page-padding: var(--space-5);
+
+  /* ===================== LEGACY ALIASES (v1 names) ===================== */
+  /* Keep: hundreds of rules reference these. New code should use the semantic names above. */
+
+  --brand-blue-700: var(--blue-700);
+  --brand-blue-600: var(--blue-600);
+  --brand-sky-400: var(--sky-400);
+  --brand-sky-300: var(--sky-300);
+  --brand-mint-300: var(--mint-300);
+
+  --primary: var(--color-primary);
+  --primary-600: var(--color-primary-hover);
+  --primary-50: var(--brand-sky-50);
+  --primary-100: var(--brand-sky-100);
+  --primary-25: var(--brand-sky-25);
+  --primary-hover-bg: var(--brand-sky-50);
+  --primary-active-bg: var(--brand-sky-100);
+  --text: var(--color-text);
+  --text-2: var(--color-text-secondary);
+  --text-3: var(--color-text-muted);
+  --border: var(--color-border);
+  --border-strong: var(--color-border-strong);
+  --bg: var(--color-bg);
+  --surface: var(--color-surface);
+  --sidebar-bg: var(--neutral-0);
+  --surface-soft: var(--color-surface-muted);
+  --surface-hover: var(--color-surface-hover);
+  --line-muted: #d5dde8;
+  --border-dashed: var(--color-border-dashed);
+  --text-inverse: var(--color-text-inverse);
+  --gray-50: var(--v1-gray-50);
+  --disabled: #adb5bd;
+  --skeleton: #eef1f5;
+  --overlay: var(--color-overlay);
+
+  --success: var(--green-500);
+  --success-25: var(--green-25);
+  --success-50: var(--green-50);
+  --success-700: var(--green-700);
+  --success-800: var(--green-800);
+  --success-border: var(--green-200);
+  --success-border-soft: #c7ebd4;
+  --warning: var(--amber-500);
+  --warning-25: var(--amber-25);
+  --warning-50: var(--amber-50);
+  --warning-700: var(--amber-700);
+  --warning-800: var(--amber-800);
+  --warning-border: var(--amber-200);
+  --warning-border-strong: var(--amber-300);
+  --warning-hover-bg: #ffe9c7;
+  --danger: var(--red-500);
+  --danger-25: var(--red-25);
+  --danger-50: var(--red-50);
+  --danger-700: var(--red-700);
+  --danger-800: var(--red-800);
+  --danger-border: var(--red-200);
+  --danger-border-soft: var(--red-300);
+  --danger-hover-bg: #ffecec;
+  /* Tên purple giữ cho CSS cũ; màu giờ là vàng chờ duyệt */
+  --purple: var(--tone-approval);
+  --purple-25: var(--gold-25);
+  --purple-50: var(--gold-50);
+  --purple-700: var(--tone-approval-fg);
+  --purple-border: var(--gold-200);
+  --teal: var(--teal-500-p);
+  --teal-50: var(--teal-50-p);
+  --teal-700: var(--teal-700-p);
+  --info-bg: var(--color-info-bg);
+  --info-border: var(--color-info-border);
+  --info-700: var(--color-info-fg);
+
+  --asset-icon: #5b7bb5;
+  --placeholder-avatar: #cbd5e1;
+  --neutral-avatar: #64748b;
+  --file-pdf: var(--danger);
+  --file-archive: var(--warning);
+  --file-image: var(--teal);
+  --file-sheet: var(--success);
+  --file-other: var(--text-2);
+
+  --radius: var(--radius-md);
+  /* --radius-lg is also a v2 primitive (16px); v1 used it for cards. */
+  --focus-ring: 0 0 0 3px var(--color-focus-ring);
+  --font: var(--font-sans);
 }

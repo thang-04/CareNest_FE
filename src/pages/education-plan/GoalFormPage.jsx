@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronsDownUp, ChevronsUpDown, Download, Plus, Save, Send, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  ChevronDown,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Download,
+  Plus,
+  Save,
+  Send,
+  Trash2,
+} from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';

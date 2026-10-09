@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, Info, KeyRound } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Info, KeyRound } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb, FormField, PasswordInput, Spinner } from '@/components';

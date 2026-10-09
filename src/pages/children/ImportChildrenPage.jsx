@@ -11,7 +11,7 @@ import {
   LayoutGrid,
   Info,
   Lock,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';

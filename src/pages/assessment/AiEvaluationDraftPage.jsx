@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { AlertOctagon, ArrowLeft, FileCheck2, Lock, PenLine, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertOctagon, ArrowLeft, FileCheck2, Lock, PenLine, RefreshCw, ShieldAlert } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useEvaluation } from '@/hooks/assessment/useAssessment';

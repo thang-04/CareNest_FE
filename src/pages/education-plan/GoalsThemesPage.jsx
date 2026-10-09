@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FilePlus2 } from 'lucide-react';
+import { FilePlus2 } from '@/components/ui/icons';
 import { ProgressBar } from '@/components';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EmptyState, PageHead, fmtDate } from '@/components/education-plan/eduUi';

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from '@/components/ui/icons';
 
 export const DEFAULT_PAGE_SIZE = 8;
 
@@ -16,7 +16,7 @@ export function Pagination({ page, total, onChange, pageSize = DEFAULT_PAGE_SIZE
       <span className="muted">
         Hiển thị {total ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, total)} / {total} {unit}
       </span>
-      <div className="row" style={{ gap: 4 }}>
+      <div className="row gap-1">
         <button className="icon-btn" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label="Trang trước">
           <ChevronLeft size={18} />
         </button>

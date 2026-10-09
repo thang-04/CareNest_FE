@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react';
+import { Bell } from '@/components/ui/icons';
 import { UserPicker } from '@/components/facility-transfer/UserPicker';
 
 /** Bước 3 – Chọn người thực hiện (LuanChuyen3 mockup). Handover + receiver are both required. */

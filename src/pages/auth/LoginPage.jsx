@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogIn, AlertCircle, Info, FlaskConical, CheckCircle2 } from 'lucide-react';
+import { LogIn, AlertCircle, Info, FlaskConical, CheckCircle2, ChevronDown } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { AuthLayout } from '@/layouts/AuthLayout';
@@ -18,36 +18,33 @@ const validate = ({ email, password }) => {
   return e;
 };
 
-/** Mock mode only: one click fills an account, so testers can try every role. */
+/** Mock mode only: gập thành một dòng; mở ra chọn một vai trò là điền sẵn tài khoản để thử. */
 function DemoAccounts({ onPick }) {
   const [accounts, setAccounts] = useState([]);
   useEffect(() => {
-    getDemoAccounts().then(setAccounts);
+    // Mỗi vai trò chỉ giữ tài khoản đầu tiên — đủ để thử từng role, danh sách gọn
+    getDemoAccounts().then((list) => setAccounts(list.filter((u, i, all) => all.findIndex((x) => x.role === u.role) === i)));
   }, []);
   if (!accounts.length) return null;
   return (
-    <div className="demo-accounts">
-      <div className="row" style={{ gap: 6 }}>
-        <FlaskConical size={16} className="text-primary" />
+    <details className="demo-switch">
+      <summary>
+        <FlaskConical size={16} className="text-primary" aria-hidden="true" />
         <b>Tài khoản demo</b>
-        <span className="muted text-sm">
-          · mật khẩu <code>{DEMO_LOGIN_PASSWORD}</code> · chỉ hiện khi VITE_USE_MOCK=true
+        <span className="demo-switch__hint muted text-xs">
+          {accounts.length} vai trò · mật khẩu {DEMO_LOGIN_PASSWORD}
         </span>
-      </div>
-      <div className="demo-accounts__list">
+        <ChevronDown size={16} className="demo-switch__caret" aria-hidden="true" />
+      </summary>
+      <div className="demo-switch__list">
         {accounts.map((u) => (
-          <button key={u.id} type="button" className="demo-account" onClick={() => onPick(u.email)}>
+          <button key={u.id} type="button" className="demo-chip" title={`${u.fullName} · ${u.email}`} onClick={() => onPick(u.email)}>
             <Avatar user={u} size="sm" />
-            <span>
-              <span className="fw-600" style={{ display: 'block' }}>
-                {u.fullName}
-              </span>
-              <span className="muted">{ROLE_LABELS[u.role]}</span>
-            </span>
+            {ROLE_LABELS[u.role]}
           </button>
         ))}
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -141,7 +138,7 @@ export default function LoginPage() {
         </FormField>
 
         <FormField label="Mật khẩu" required error={errors.password}>
-          <PasswordInput autoComplete="current-password" value={form.password} onChange={onPasswordChange} />
+          <PasswordInput autoComplete="current-password" placeholder="Nhập mật khẩu" value={form.password} onChange={onPasswordChange} />
         </FormField>
 
         <div className="auth-form__row">

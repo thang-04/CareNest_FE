@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Save, RotateCcw, Info, Scale, CopyPlus } from 'lucide-react';
+import { Save, RotateCcw, Info, Scale, CopyPlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllergyContext, useMenuAccess, useMenuCatalog, useWeeklyMenu, useWeeklyMenus } from '@/hooks/menu-planning/useMenuPlanning';

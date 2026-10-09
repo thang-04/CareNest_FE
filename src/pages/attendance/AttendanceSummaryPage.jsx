@@ -1,6 +1,7 @@
+import { DonutChart } from '@/components/charts/MiniCharts';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Download, BarChart3 } from 'lucide-react';
+import { Download, BarChart3 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/models/User';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -139,30 +140,43 @@ export default function AttendanceSummaryPage() {
           ) : (
             <>
               {summary && totals && (
-                <div className="dd-stats mb-16">
-                  <div className="dd-stat">
-                    <span className="dd-stat__value">{summary.size}</span>
-                    <span className="dd-stat__label">Sĩ số lớp</span>
+                <div className="dd-overview mb-16">
+                  <div className="card" style={{ padding: 20 }}>
+                    <DonutChart
+                      caption="Tỷ lệ lượt có mặt và vắng trong kỳ"
+                      center={totals.present}
+                      segments={[
+                        { key: 'present', label: 'Lượt có mặt', value: totals.present, color: 'var(--success)' },
+                        { key: 'excused', label: 'Vắng có phép', value: totals.excused, color: 'var(--warning)' },
+                        { key: 'unexcused', label: 'Vắng không phép', value: totals.unexcused, color: 'var(--danger)' },
+                      ]}
+                    />
                   </div>
-                  <div className="dd-stat">
-                    <span className="dd-stat__value">{summary.days.length}</span>
-                    <span className="dd-stat__label">Ngày học</span>
-                  </div>
-                  <div className="dd-stat dd-stat--green">
-                    <span className="dd-stat__value">{totals.present}</span>
-                    <span className="dd-stat__label">Lượt có mặt</span>
-                  </div>
-                  <div className="dd-stat dd-stat--orange">
-                    <span className="dd-stat__value">{totals.excused}</span>
-                    <span className="dd-stat__label">Vắng có phép</span>
-                  </div>
-                  <div className="dd-stat dd-stat--red">
-                    <span className="dd-stat__value">{totals.unexcused}</span>
-                    <span className="dd-stat__label">Vắng không phép</span>
-                  </div>
-                  <div className="dd-stat dd-stat--blue">
-                    <span className="dd-stat__value">{totals.meals}</span>
-                    <span className="dd-stat__label">Suất ăn</span>
+                  <div className="dd-stats">
+                    <div className="dd-stat">
+                      <span className="dd-stat__value">{summary.size}</span>
+                      <span className="dd-stat__label">Sĩ số lớp</span>
+                    </div>
+                    <div className="dd-stat">
+                      <span className="dd-stat__value">{summary.days.length}</span>
+                      <span className="dd-stat__label">Ngày học</span>
+                    </div>
+                    <div className="dd-stat dd-stat--green">
+                      <span className="dd-stat__value">{totals.present}</span>
+                      <span className="dd-stat__label">Lượt có mặt</span>
+                    </div>
+                    <div className="dd-stat dd-stat--orange">
+                      <span className="dd-stat__value">{totals.excused}</span>
+                      <span className="dd-stat__label">Vắng có phép</span>
+                    </div>
+                    <div className="dd-stat dd-stat--red">
+                      <span className="dd-stat__value">{totals.unexcused}</span>
+                      <span className="dd-stat__label">Vắng không phép</span>
+                    </div>
+                    <div className="dd-stat dd-stat--blue">
+                      <span className="dd-stat__value">{totals.meals}</span>
+                      <span className="dd-stat__label">Suất ăn</span>
+                    </div>
                   </div>
                 </div>
               )}

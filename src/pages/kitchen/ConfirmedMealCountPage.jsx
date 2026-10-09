@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, CookingPot, Lock, Users } from 'lucide-react';
+import { AlertTriangle, CookingPot, Lock, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmedMealCount, useKitchenCampus } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';

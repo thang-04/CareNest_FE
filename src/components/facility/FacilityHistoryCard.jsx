@@ -1,4 +1,4 @@
-import { History } from 'lucide-react';
+import { History } from '@/components/ui/icons';
 import { formatDateTime } from '@/utils/format';
 import { FACILITY_HISTORY } from '@/models/facility/facilityConstants';
 

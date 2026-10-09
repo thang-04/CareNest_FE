@@ -1,4 +1,4 @@
-import { Check, Circle } from 'lucide-react';
+import { Check, Circle } from '@/components/ui/icons';
 import { FormField, PasswordInput } from '@/components';
 import { passwordRules } from '@/utils/account/accountValidation';
 

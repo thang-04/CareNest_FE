@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, RotateCcw, Eye, ClipboardCheck, FileText, FilePlus2, Pencil } from 'lucide-react';
+import { Search, RotateCcw, Eye, ClipboardCheck, FileText, FilePlus2, Pencil } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProposals } from '@/hooks/facility/useFacility';
@@ -15,6 +15,7 @@ import { proposalCrumbs } from '@/utils/facility/breadcrumbs';
 import { formatMoney, proposalTotal } from '@/utils/facility/facilityFormat';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/facility.css';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const EMPTY = { status: 'ALL', keyword: '', campusId: '' };
 
@@ -62,7 +63,7 @@ export default function ProposalListPage() {
           </div>
         </div>
       )}
-      <div className="stat-grid" style={{ gridTemplateColumns: `repeat(${stats.length}, 1fr)` }}>
+      <div className="stat-grid">
         {stats.map((s) => (
           <button
             key={s.key}
@@ -72,6 +73,7 @@ export default function ProposalListPage() {
           >
             <div className="stat-card__value">{s.value}</div>
             <div className="stat-card__label">{s.label}</div>
+            <StatCardIcon tone={s.tone} />
           </button>
         ))}
       </div>

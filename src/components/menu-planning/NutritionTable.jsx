@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from '@/components/ui/icons';
 import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import { compareToNorm } from '@/utils/menu-planning/menuCalculations';
 import { NUTRIENT_LABELS, NUTRIENT_UNITS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';

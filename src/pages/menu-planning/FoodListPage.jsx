@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, RotateCcw, Eye, Pencil, Carrot } from 'lucide-react';
+import { Plus, Search, RotateCcw, Eye, Pencil, Carrot } from '@/components/ui/icons';
 import { useFoods, useMenuAccess } from '@/hooks/menu-planning/useMenuPlanning';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
@@ -10,6 +10,7 @@ import { hasNutrition } from '@/utils/menu-planning/menuCalculations';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { ALLERGENS, FOOD_GROUP_LABELS, RECORD_STATUS_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const n = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN') : '—');
 
@@ -61,7 +62,7 @@ export default function FoodListPage() {
           </Link>
         )}
       </div>
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      <div className="stat-grid">
         {stats.map((s) => (
           <button
             key={s.key}
@@ -73,6 +74,7 @@ export default function FoodListPage() {
           >
             <div className="stat-card__value">{all.filter(quickMatch[s.key]).length}</div>
             <div className="stat-card__label">{s.label}</div>
+            <StatCardIcon tone={s.tone} />
           </button>
         ))}
       </div>

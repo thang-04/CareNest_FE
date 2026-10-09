@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Lock, SearchX, ArrowLeft } from 'lucide-react';
+import { Lock, SearchX, ArrowLeft } from '@/components/ui/icons';
 import { EmptyState, ErrorState } from '@/components/ui/States';
 
 /** Load failure of a child page: 403 (MSG10), 404, or a retryable error (MSG30). */

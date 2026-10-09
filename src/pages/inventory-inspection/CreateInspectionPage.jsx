@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Play, Info, AlertTriangle, Lock, Eye, Search, MapPin, Boxes, Users } from 'lucide-react';
+import { Save, Play, Info, AlertTriangle, Lock, Eye, Search, MapPin, Boxes, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';

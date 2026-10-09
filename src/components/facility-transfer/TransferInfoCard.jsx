@@ -1,4 +1,4 @@
-import { FileText } from 'lucide-react';
+import { FileText } from '@/components/ui/icons';
 import { formatDate } from '@/utils/format';
 import { ROLE_LABELS } from '@/models/User';
 import { locationLabel } from '@/models/Location';

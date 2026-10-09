@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MinusCircle } from 'lucide-react';
+import { MinusCircle } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';

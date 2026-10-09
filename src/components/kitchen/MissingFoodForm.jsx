@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { PackageMinus } from 'lucide-react';
+import { PackageMinus } from '@/components/ui/icons';
 import { FormField, Modal, SearchSelect, Spinner } from '@/components';
 import { validateMissingFood } from '@/utils/kitchen/kitchenValidation';
 import { MEAL_SESSIONS, MEAL_SESSION_LABELS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';

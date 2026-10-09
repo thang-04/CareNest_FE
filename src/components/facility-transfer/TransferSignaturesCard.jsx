@@ -1,4 +1,4 @@
-import { PenLine, CheckCircle2, Clock, ShieldOff } from 'lucide-react';
+import { PenLine, CheckCircle2, Clock, ShieldOff } from '@/components/ui/icons';
 import { ROLE_LABELS } from '@/models/User';
 import { formatDateTime } from '@/utils/format';
 import { SIGNATURE_TYPES, SIGNATURE_TYPE_LABELS } from '@/models/facility-transfer/transferConstants';

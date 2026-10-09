@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Pencil, Info, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Pencil, Info, AlertTriangle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -150,85 +150,88 @@ export default function ProposalDetailPage() {
         </div>
       )}
 
-      <section className="card mt-16">
-        <div className="card__header">
-          <h2 className="card__title">Thông tin đề xuất</h2>
-        </div>
-        <div className="card__body">
-          <div className="grid-2">
-            <dl className="info-list info-list--wide">
-              <dt>Tên đề xuất:</dt>
-              <dd className="fw-600">{p.title}</dd>
-              <dt>Hình thức:</dt>
-              <dd>{PROPOSAL_ACTION_LABELS[p.action]}</dd>
-              <dt>Campus:</dt>
-              <dd>{md.campusById(p.campusId)?.shortName}</dd>
-            </dl>
-            <dl className="info-list info-list--wide">
-              <dt>Người lập:</dt>
-              <dd>{name(p.createdBy)} (Phó hiệu trưởng)</dd>
-              <dt>Lý do / căn cứ:</dt>
-              <dd style={{ whiteSpace: 'pre-line' }}>{p.reason || '—'}</dd>
-            </dl>
-          </div>
-        </div>
-      </section>
+      <div className="detail-layout mt-16">
+        <div className="detail-layout__main">
+          <section className="card">
+            <div className="card__header">
+              <h2 className="card__title">Thông tin đề xuất</h2>
+            </div>
+            <div className="card__body">
+              <div className="grid-2">
+                <dl className="info-list info-list--wide">
+                  <dt>Tên đề xuất:</dt>
+                  <dd className="fw-600">{p.title}</dd>
+                  <dt>Hình thức:</dt>
+                  <dd>{PROPOSAL_ACTION_LABELS[p.action]}</dd>
+                  <dt>Campus:</dt>
+                  <dd>{md.campusById(p.campusId)?.shortName}</dd>
+                </dl>
+                <dl className="info-list info-list--wide">
+                  <dt>Người lập:</dt>
+                  <dd>{name(p.createdBy)} (Phó hiệu trưởng)</dd>
+                  <dt>Lý do / căn cứ:</dt>
+                  <dd style={{ whiteSpace: 'pre-line' }}>{p.reason || '—'}</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
 
-      <section className="card mt-16">
-        <div className="card__header">
-          <h2 className="card__title">Tài sản đề xuất ({p.lines.length})</h2>
-        </div>
-        <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Nguồn</th>
-                <th>Tài sản</th>
-                <th>Lớp/phòng</th>
-                <th className="right">Số lượng</th>
-                <th className="right">Dự toán</th>
-                <th>Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody>
-              {p.lines.map((l, idx) => {
-                const link = sourceLink(l);
-                return (
-                  <tr key={l.id}>
-                    <td>{idx + 1}</td>
-                    <td className="nowrap">
-                      {link ? (
-                        <Link to={link} title={SOURCE_TYPE_LABELS[l.sourceType]} className="fw-600">
-                          {l.sourceCode}
-                        </Link>
-                      ) : (
-                        <span className="chip chip--gray">{SOURCE_TYPE_LABELS.MANUAL}</span>
-                      )}
-                    </td>
-                    <td className="bh-cell-wrap fw-600">{l.itemName}</td>
-                    <td>
-                      {l.locationId ? locationLabel(md.locationById(l.locationId)) : <span className="muted">Dùng chung campus</span>}
-                    </td>
-                    <td className="right nowrap">
-                      {l.quantity} <span className="muted">{l.unit}</span>
-                    </td>
-                    <td className="right nowrap">{formatMoney(l.estimatedCost)}</td>
-                    <td className="bh-cell-wrap text-sm">{l.note || '—'}</td>
+          <section className="card mt-16">
+            <div className="card__header">
+              <h2 className="card__title">Tài sản đề xuất ({p.lines.length})</h2>
+            </div>
+            <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Nguồn</th>
+                    <th>Tài sản</th>
+                    <th>Lớp/phòng</th>
+                    <th className="right">Số lượng</th>
+                    <th className="right">Dự toán</th>
+                    <th>Ghi chú</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {p.lines.map((l, idx) => {
+                    const link = sourceLink(l);
+                    return (
+                      <tr key={l.id}>
+                        <td>{idx + 1}</td>
+                        <td className="nowrap">
+                          {link ? (
+                            <Link to={link} title={SOURCE_TYPE_LABELS[l.sourceType]} className="fw-600">
+                              {l.sourceCode}
+                            </Link>
+                          ) : (
+                            <span className="chip chip--gray">{SOURCE_TYPE_LABELS.MANUAL}</span>
+                          )}
+                        </td>
+                        <td className="bh-cell-wrap fw-600">{l.itemName}</td>
+                        <td>
+                          {l.locationId ? locationLabel(md.locationById(l.locationId)) : <span className="muted">Dùng chung campus</span>}
+                        </td>
+                        <td className="right nowrap">
+                          {l.quantity} <span className="muted">{l.unit}</span>
+                        </td>
+                        <td className="right nowrap">{formatMoney(l.estimatedCost)}</td>
+                        <td className="bh-cell-wrap text-sm">{l.note || '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="bh-total">
+              <span>Tổng dự toán:</span>
+              <span>{formatMoney(total)}</span>
+            </div>
+          </section>
         </div>
-        <div className="bh-total">
-          <span>Tổng dự toán:</span>
-          <span>{formatMoney(total)}</span>
-        </div>
-      </section>
-
-      <div className="mt-16">
-        <FacilityHistoryCard history={p.history} userById={md.userById} />
+        <aside className="detail-layout__aside">
+          <FacilityHistoryCard history={p.history} userById={md.userById} />
+        </aside>
       </div>
 
       <div className="page-actions">

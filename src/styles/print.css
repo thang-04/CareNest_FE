@@ -9,6 +9,15 @@
     size: A4;
     margin: 12mm;
   }
+  .app-shell {
+    background: #fff;
+  }
+  .app-shell::before {
+    display: none;
+  }
+  .card {
+    backdrop-filter: none;
+  }
   body {
     background: #fff;
   }

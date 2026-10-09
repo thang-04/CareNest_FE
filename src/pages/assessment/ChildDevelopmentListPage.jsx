@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LineChart, Search, Users } from 'lucide-react';
+import { LineChart, Search, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChildren } from '@/hooks/useSchool';
 import { useAssessmentClasses } from '@/hooks/assessment/useAssessment';

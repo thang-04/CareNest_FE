@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, RotateCcw, Eye, Pencil, ClipboardList, Sparkles } from 'lucide-react';
+import { Plus, Search, RotateCcw, Eye, Pencil, ClipboardList, Sparkles } from '@/components/ui/icons';
 import { useMenuAccess, useMenuCatalog, useSampleMenus } from '@/hooks/menu-planning/useMenuPlanning';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
@@ -59,7 +59,7 @@ export default function MenuListPage() {
         </div>
       </div>
       <div className="card">
-        <div className="tabs" style={{ padding: '6px 16px 0' }} role="tablist">
+        <div className="tabs" role="tablist">
           {[{ id: '', shortName: 'Tất cả' }, ...AGE_GROUPS].map((g) => (
             <button
               key={g.id || 'all'}

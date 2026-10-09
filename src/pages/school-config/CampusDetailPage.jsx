@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Star, ChefHat, UserCog, Shapes, Users } from 'lucide-react';
+import { ArrowLeft, Pencil, Star, ChefHat, UserCog, Shapes, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';

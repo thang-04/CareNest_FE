@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { AlertOctagon, AlertTriangle, CheckCircle2, Clock, FileEdit, FileText, Info, Send, XCircle } from 'lucide-react';
+import { AlertOctagon, AlertTriangle, CheckCircle2, Clock, FileEdit, FileText, Info, Send, XCircle } from '@/components/ui/icons';
 import {
   Breadcrumb,
   EmptyState as SharedEmptyState,

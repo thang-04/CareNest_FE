@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, Checks } from '@/components/ui/icons';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { timeAgo } from '@/utils/format';
@@ -30,7 +30,7 @@ export function NotificationBell() {
           <div className="notif-panel__head">
             <span className="fw-600">Thông báo</span>
             <button className="link-btn row" style={{ gap: 4 }} onClick={markAllRead} disabled={!unreadCount}>
-              <CheckCheck size={15} /> Đánh dấu đã đọc
+              <Checks size={15} /> Đánh dấu đã đọc
             </button>
           </div>
           <div className="notif-panel__list">

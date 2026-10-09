@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { EmptyState } from '@/components/ui/States';
 

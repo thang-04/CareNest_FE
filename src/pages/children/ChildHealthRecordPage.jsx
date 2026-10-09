@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Plus, LineChart, Pencil, Send, History, ArrowLeft, Info, HeartPulse, RotateCcw } from 'lucide-react';
+import { Plus, LineChart, Pencil, Send, History, ArrowLeft, Info, HeartPulse, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';

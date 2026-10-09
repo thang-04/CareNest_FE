@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Scale } from 'lucide-react';
+import { Scale } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/States';
 import { ConditionBadge } from '@/components/asset/AssetVisuals';

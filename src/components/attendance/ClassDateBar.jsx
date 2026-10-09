@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { CalendarDays, School } from 'lucide-react';
+import { CalendarDays, School } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 
 /**

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search } from '@/components/ui/icons';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { normalizeText } from '@/utils/format';
 

@@ -1,4 +1,4 @@
-import { Scale, CheckCircle2 } from 'lucide-react';
+import { Scale, CheckCircle2 } from '@/components/ui/icons';
 import { formatDateTime } from '@/utils/format';
 import { DISCREPANCY_PARTS, DISCREPANCY_PART_LABELS, RESOLUTION_CHOICE_LABELS } from '@/models/facility-transfer/transferConstants';
 import { discrepancyParts } from '@/models/facility-transfer/FacilityTransferItem';

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { UploadCloud, X, FileText, FileArchive, FileImage, FileSpreadsheet, File } from 'lucide-react';
+import { UploadCloud, X, FileText, FileArchive, FileImage, FileSpreadsheet, File } from '@/components/ui/icons';
 import { formatFileSize } from '@/utils/format';
 import { compressImage, isImageFile } from '@/utils/file';
 import { uid } from '@/utils/id';

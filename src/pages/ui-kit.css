@@ -29,6 +29,43 @@
   border: 1px solid var(--border);
   margin-bottom: 4px;
 }
+.uikit-vi-sample p {
+  margin: var(--space-1) 0;
+}
+.uikit-vi-sample__lg {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+}
+.uikit-scale {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.uikit-scale__row {
+  display: grid;
+  grid-template-columns: 110px 1fr 60px;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--fs-xs);
+}
+.uikit-scale__bar {
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}
+.uikit-tile {
+  height: 64px;
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-primary-border);
+  margin-bottom: var(--space-1);
+}
+.uikit-tile--surface {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  border-radius: var(--radius-lg);
+}
 .uikit-code {
   margin: var(--space-4) 0 0;
   padding: var(--space-3) var(--space-4);
@@ -39,4 +76,29 @@
   line-height: 1.6;
   overflow-x: auto;
   white-space: pre;
+}
+
+/* Lưới icon: tên dùng trong code dưới mỗi icon để soi nghĩa */
+.uikit-icons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+  gap: var(--space-2);
+}
+.uikit-icons__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-3) var(--space-1);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+.uikit-icons__item span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-2xs);
+  color: var(--color-text-muted);
 }

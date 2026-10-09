@@ -3,6 +3,7 @@ import { pushNotification } from '@/mocks/notificationMockRepository';
 import { createPasswordToken, passwordMatches, setUserPassword } from '@/mocks/authMockRepository';
 import { uid } from '@/utils/id';
 import { ageGroupById } from '@/models/School';
+import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import {
   OTP_LENGTH,
   OTP_MAX_ATTEMPTS,
@@ -52,6 +53,26 @@ const activeRequest = (db, requestId) => {
 
 const userOf = (db, id) => db.users.find((u) => u.id === id);
 
+/* Phân công đang hiệu lực của năm học hiện tại, giống `assignments` của GET /accounts/me (BE chỉ trả phân công còn hiệu lực).
+   Mock kèm tên điểm trường/lớp để hiển thị; API thật trả id, cần tra tên. */
+const activeAssignments = (db, u) => {
+  const seed = buildSeedSchoolConfig();
+  const year = (db.schoolYears || seed.schoolYears).find((y) => y.status === 'ACTIVE');
+  if (!year) return [];
+  const inYear = (a) => !a.schoolYear || a.schoolYear === year.id;
+  const campusName = (id) => (db.campuses || []).find((c) => c.id === id)?.name || null;
+  const period = { validFrom: year.startDate, validTo: year.endDate };
+  const list = [];
+  (db.vpAssignments || seed.vpAssignments)
+    .filter((a) => a.userId === u.id && inYear(a))
+    .forEach((a) => list.push({ key: a.id, staffRole: 'VICE_PRINCIPAL', campusName: campusName(a.campusId), ...period }));
+  // staffRole theo enum StaffRole của BE (PRINCIPAL, VICE_PRINCIPAL, TEACHER, KITCHEN_STAFF)
+  (db.classes || [])
+    .filter((c) => inYear(c) && (c.homeroomTeacherId === u.id || (c.teacherIds || []).includes(u.id)))
+    .forEach((c) => list.push({ key: c.id, staffRole: 'TEACHER', campusName: campusName(c.campusId), className: c.name, ...period }));
+  return list;
+};
+
 const publicProfile = (db, u) => {
   const { password: _password, ...rest } = u; // carenest:allow-secret – tên field, không phải giá trị bí mật
   const campus = (db.campuses || []).find((c) => c.id === u.campusId);
@@ -64,6 +85,7 @@ const publicProfile = (db, u) => {
       className: cls?.name || null,
     },
     passwordChangedAt: db.authCredentials?.[u.id]?.changedAt || null,
+    assignments: activeAssignments(db, u),
   });
 };
 

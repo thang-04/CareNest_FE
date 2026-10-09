@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, AlertCircle, Info, List, UserRound, FileText, Lock, Scale, PackagePlus } from 'lucide-react';
+import { ArrowLeft, Check, AlertCircle, Info, List, UserRound, FileText, Lock, Scale, PackagePlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useTransfer } from '@/hooks/facility-transfer/useTransfers';

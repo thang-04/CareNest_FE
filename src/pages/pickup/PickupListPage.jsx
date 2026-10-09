@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarDays, ClipboardList, Search, ShieldCheck, School, UserCheck } from 'lucide-react';
+import { CalendarDays, ClipboardList, Search, ShieldCheck, School, UserCheck } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { PickupStatusBadge } from '@/components/pickup/PickupBadges';
@@ -96,7 +96,7 @@ export default function PickupListPage() {
                 <input placeholder="Tìm tên trẻ..." value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="Tìm tên trẻ" />
               </label>
             </div>
-            <div className="tabs dt-tabs" role="tablist">
+            <div className="tabs" role="tablist">
               {TABS.map((t) => (
                 <button
                   key={t.key}

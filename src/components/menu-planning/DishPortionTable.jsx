@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from '@/components/ui/icons';
 import { AGE_GROUPS } from '@/models/School';
 import { dishTotals } from '@/utils/menu-planning/menuCalculations';
 import { formatMoney, portionFactorOf } from '@/models/menu-planning/menuPlanningConstants';

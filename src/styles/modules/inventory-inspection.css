@@ -36,7 +36,7 @@
 
 .kk-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
 }
 .kk-stat {
@@ -119,6 +119,10 @@
   text-align: center;
   outline: none;
   font-weight: 600;
+}
+.kk-qty:focus-within {
+  border-color: var(--color-focus);
+  box-shadow: var(--focus-ring);
 }
 .kk-qty--error {
   border-color: var(--danger);

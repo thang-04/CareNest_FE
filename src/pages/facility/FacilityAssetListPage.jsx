@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, RotateCcw, AlertTriangle, PackagePlus, History, Info, Lock, Boxes, ClipboardList } from 'lucide-react';
+import { Search, RotateCcw, AlertTriangle, PackagePlus, History, Info, Lock, Boxes, ClipboardList } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useFacilityAssets, useFacilityLocations } from '@/hooks/facility/useFacility';
@@ -14,6 +14,7 @@ import { ASSET_CONDITION_LABELS } from '@/models/Asset';
 import { isPrincipal, isManager, canReportIssue, canCreateRequest } from '@/utils/facility/facilityPermissions';
 import { assetCrumbs } from '@/utils/facility/breadcrumbs';
 import '@/styles/modules/facility.css';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const EMPTY_FILTERS = { keyword: '', campusId: '', locationId: '', categoryId: '', condition: '' };
 
@@ -132,7 +133,7 @@ export default function FacilityAssetListPage() {
         </div>
       )}
 
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      <div className="stat-grid">
         {stats.map((s) => (
           <button
             key={s.key}
@@ -142,6 +143,7 @@ export default function FacilityAssetListPage() {
           >
             <div className="stat-card__value">{s.value}</div>
             <div className="stat-card__label">{s.label}</div>
+            <StatCardIcon tone={s.tone} />
           </button>
         ))}
       </div>

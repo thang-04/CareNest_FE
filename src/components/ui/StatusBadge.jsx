@@ -5,7 +5,7 @@
  *  gray    – draft, cancelled, inactive
  *  orange  – waiting for someone else (chờ bàn giao, chờ kiểm kê)
  *  blue    – in progress (đang kiểm kê, chờ xác nhận nhận)
- *  purple  – waiting for review / approval (chờ duyệt, chờ phê duyệt, chênh lệch)
+ *  purple  – waiting for review / approval (chờ duyệt, chờ phê duyệt, chênh lệch); tô màu vàng, tên giữ nguyên
  *  red     – needs action / rejected (cần điều chỉnh, yêu cầu kiểm lại)
  *  green   – done (hoàn thành, đã duyệt)
  *  teal    – informational role tag (người nhận)
@@ -16,7 +16,7 @@ export function StatusBadge({ tone = 'gray', icon: Icon, label, size = 'md' }) {
   const large = size === 'lg';
   return (
     <span className={`chip chip--${tone} ${large ? 'chip--lg' : ''}`}>
-      {Icon && <Icon size={large ? 17 : 14} />}
+      {Icon ? <Icon size={large ? 17 : 14} /> : tone === 'blue' && <i className="chip__live" aria-hidden="true" />}
       {label}
     </span>
   );

@@ -1,4 +1,4 @@
-import { ArrowRight, Boxes } from 'lucide-react';
+import { ArrowRight, Boxes } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import { getTransferStockSnapshot } from '@/services/facility-transfer/transferService';

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download } from '@/components/ui/icons';
 import { EmptyState, Modal } from '@/components/education-plan/eduUi';
 import { className, periodLabel, typeLabel } from '@/components/education-plan/lessonShared';
 

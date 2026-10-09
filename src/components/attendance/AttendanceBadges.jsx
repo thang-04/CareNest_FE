@@ -10,7 +10,7 @@ import {
   PackageCheck,
   RefreshCw,
   Unlock,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { ATTENDANCE_STATUS_LABELS, HANDOVER_STATUS_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Wallet } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wallet } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMealPrices, useMenuAccess } from '@/hooks/menu-planning/useMenuPlanning';
@@ -14,6 +14,7 @@ import { formatDate, todayInput } from '@/utils/format';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const stateOf = (p, today) =>
   p.effectiveFrom > today
@@ -57,7 +58,7 @@ export default function MealPriceListPage() {
           </Link>
         )}
       </div>
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      <div className="stat-grid">
         {AGE_GROUPS.map((g) => {
           const current = priceOn(items, g.id, today);
           return (
@@ -69,6 +70,7 @@ export default function MealPriceListPage() {
             >
               <div className="stat-card__value">{current ? formatMoney(current.price) : '—'}</div>
               <div className="stat-card__label">{g.shortName} – giá hiện hành</div>
+              <StatCardIcon tone="blue" />
             </button>
           );
         })}

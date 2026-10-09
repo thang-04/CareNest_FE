@@ -1,4 +1,4 @@
-import { Building } from 'lucide-react';
+import { Building } from '@/components/ui/icons';
 
 export function CampusPicker({ campuses, value, onChange, error, disabled, id, ariaLabel }) {
   return (

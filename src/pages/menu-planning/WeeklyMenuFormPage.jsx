@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Save, Sparkles, Info } from 'lucide-react';
+import { ArrowLeft, Save, Sparkles, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllergyContext, useMenuAccess, useMenuCatalog, useWeeklyMenu, useWeeklyMenus } from '@/hooks/menu-planning/useMenuPlanning';

@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 import { dayNormStatus } from '@/components/menu-planning/WeekDaysView';
 import {

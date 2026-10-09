@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { Card, EduStatusBadge, EmptyState, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -43,14 +44,17 @@ export default function GoalListPage() {
           <div className="stat-card stat-card--blue">
             <div className="stat-card__value">{scoped.length}</div>
             <div className="stat-card__label">Bộ mục tiêu trong năm học</div>
+            <StatCardIcon tone="blue" />
           </div>
           <div className="stat-card stat-card--green">
             <div className="stat-card__value">{sent}</div>
             <div className="stat-card__label">Đã gửi tổ trưởng</div>
+            <StatCardIcon tone="green" />
           </div>
           <div className="stat-card stat-card--orange">
             <div className="stat-card__value">{scoped.length - sent}</div>
             <div className="stat-card__label">Đang soạn (nháp)</div>
+            <StatCardIcon tone="orange" />
           </div>
         </div>
       )}

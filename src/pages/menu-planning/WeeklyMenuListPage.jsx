@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, RotateCcw, Eye, Pencil, CalendarRange, Sparkles } from 'lucide-react';
+import { Plus, Search, RotateCcw, Eye, Pencil, CalendarRange, Sparkles } from '@/components/ui/icons';
 import { useMenuAccess, useWeeklyMenus } from '@/hooks/menu-planning/useMenuPlanning';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
@@ -11,6 +11,7 @@ import { formatDateTime, todayInput } from '@/utils/format';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
 import { WEEKLY_STATUS, mondayOf, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 /** Screen #84 – weekly menus by week and age group, Draft or Published (UC 6.8). */
 export default function WeeklyMenuListPage() {
@@ -54,7 +55,7 @@ export default function WeeklyMenuListPage() {
           </div>
         )}
       </div>
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      <div className="stat-grid">
         {stats.map((s) => (
           <button
             key={s.key || 'all'}
@@ -66,6 +67,7 @@ export default function WeeklyMenuListPage() {
           >
             <div className="stat-card__value">{items.filter((w) => !s.key || w.status === s.key).length}</div>
             <div className="stat-card__label">{s.label}</div>
+            <StatCardIcon tone={s.tone} />
           </button>
         ))}
       </div>

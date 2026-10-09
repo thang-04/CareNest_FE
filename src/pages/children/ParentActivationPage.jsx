@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, KeyRound, Send, Info, X, Lock, AlertTriangle } from 'lucide-react';
+import { Search, KeyRound, Send, Info, X, Lock, AlertTriangle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useParentAccounts } from '@/hooks/children/useChildRecords';
@@ -116,7 +116,7 @@ export default function ParentActivationPage() {
       )}
 
       <div className="card">
-        <div className="tabs" style={{ padding: '6px 16px 0' }} role="tablist">
+        <div className="tabs" role="tablist">
           {TABS.map((t) => (
             <button
               key={t || 'all'}

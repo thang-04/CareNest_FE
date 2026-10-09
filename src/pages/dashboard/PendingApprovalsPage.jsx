@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, ListChecks, RotateCcw } from 'lucide-react';
+import { ArrowRight, ListChecks, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { usePendingApprovals } from '@/hooks/dashboard/useDashboard';
@@ -10,6 +10,7 @@ import { APPROVAL_TYPE_META } from '@/models/dashboard/dashboardConstants';
 import { approvalsCrumbs } from '@/utils/dashboard/breadcrumbs';
 import { formatWhen } from '@/utils/dashboard/dashboardFormat';
 import '@/styles/modules/dashboard.css';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const DESCRIPTIONS = {
   PRINCIPAL: 'Đề xuất khen thưởng cuối năm, đề xuất mua sắm – sửa chữa và đề nghị bổ sung CSVC đang chờ Hiệu trưởng quyết định.',
@@ -65,6 +66,7 @@ export default function PendingApprovalsPage() {
             >
               <div className="stat-card__value">{scoped.reduce((n, g) => n + g.items.length, 0)}</div>
               <div className="stat-card__label">Tất cả yêu cầu chờ bạn</div>
+              <StatCardIcon tone="purple" />
             </button>
             {scoped.map((g) => (
               <button
@@ -76,6 +78,7 @@ export default function PendingApprovalsPage() {
               >
                 <div className="stat-card__value">{g.error ? '—' : g.items.length}</div>
                 <div className="stat-card__label">{APPROVAL_TYPE_META[g.type].short}</div>
+                <StatCardIcon tone={APPROVAL_TYPE_META[g.type].tone} />
               </button>
             ))}
           </div>

@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { className, periodLabel, typeLabel } from '@/components/education-plan/lessonShared';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -116,6 +117,7 @@ export default function SchoolPlansPage() {
           >
             <div className="stat-card__value">{s.value}</div>
             <div className="stat-card__label">{s.label}</div>
+            <StatCardIcon tone={s.tone} />
           </button>
         ))}
       </div>

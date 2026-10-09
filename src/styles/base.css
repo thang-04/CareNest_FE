@@ -15,8 +15,9 @@ body {
   margin: 0;
   font-family: var(--font);
   font-size: var(--fs-md);
-  color: var(--text);
-  background: var(--bg);
+  line-height: var(--lh-normal);
+  color: var(--color-text);
+  background: var(--color-bg);
   -webkit-font-smoothing: antialiased;
 }
 a {
@@ -41,15 +42,77 @@ h4 {
 }
 
 :focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
 
+/* Entry motion (tắt tự động bởi prefers-reduced-motion bên dưới) */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Giảm chuyển động: tắt mọi hiệu ứng, trừ thanh đếm ngược của toast (mang thông tin thời gian, chỉ co ngang) */
 @media (prefers-reduced-motion: reduce) {
-  *,
+  *:not(.toast__timer),
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Thanh cuộn mảnh 8px, con trượt bo tròn; rãnh trong suốt để không đẩy nội dung */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-text) 20%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-text) 20%, transparent);
+  border: 2px solid transparent;
+  border-radius: var(--radius-full);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--color-text) 35%, transparent);
 }

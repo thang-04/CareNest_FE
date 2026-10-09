@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { ClipboardCheck, UtensilsCrossed, Baby, BookOpenCheck, Star, HeartPulse, Building2, CalendarCheck, School } from 'lucide-react';
+import {
+  ClipboardCheck,
+  UtensilsCrossed,
+  Baby,
+  BookOpenCheck,
+  Star,
+  HeartPulse,
+  Building2,
+  CalendarCheck,
+  School,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWidget } from '@/hooks/dashboard/useDashboard';
 import { Spinner } from '@/components/ui/States';
@@ -153,13 +163,13 @@ export function ClassTodayPanel() {
           tone={allergic ? 'red' : 'blue'}
           label="Trẻ có dị ứng thực phẩm"
           value={allergic}
-          hint={cls ? `Lớp ${cls.name}` : undefined}
+          hint={cls?.name}
           loading={childrenQ.loading && !childrenQ.data}
           error={childrenQ.error}
         />
       </div>
 
-      <Widget title={`Việc hôm nay của lớp ${cls?.name || ''}`} icon={CalendarCheck}>
+      <Widget title={`Việc hôm nay của ${cls?.name || 'lớp'}`} icon={CalendarCheck}>
         <ShortList
           rows={[
             {

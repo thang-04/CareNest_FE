@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Building2, Eye, Pencil, Star } from 'lucide-react';
+import { Plus, Building2, Eye, Pencil, Star } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useCampusList } from '@/hooks/school-config/useSchoolConfig';

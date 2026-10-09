@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Calculator, PackageMinus } from 'lucide-react';
+import { AlertTriangle, Calculator, PackageMinus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRequiredQuantity } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';

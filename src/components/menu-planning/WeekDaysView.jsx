@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Scale } from 'lucide-react';
+import { Scale } from '@/components/ui/icons';
 import { MealsView } from '@/components/menu-planning/MealsView';
 import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import { compareToNorm, mealsTotals } from '@/utils/menu-planning/menuCalculations';

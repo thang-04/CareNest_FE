@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, CalendarDays } from 'lucide-react';
+import { AlertTriangle, CalendarDays } from '@/components/ui/icons';
 import { usePublishedMenu } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { KbDateFilter, KbSessionFilter, fmtQty } from '@/components/kitchen/KitchenFilters';

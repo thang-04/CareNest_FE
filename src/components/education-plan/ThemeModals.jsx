@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Download, Plus } from 'lucide-react';
+import { Download, Plus } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAIN_SHORT } from '@/models/education-plan/educationPlanConstants';
 import { EmptyState, Modal } from '@/components/education-plan/eduUi';

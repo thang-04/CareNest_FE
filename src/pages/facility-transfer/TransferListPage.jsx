@@ -1,6 +1,18 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, Printer, Pencil, Scale, RotateCcw, ArrowRight, FileStack, PackageCheck, Handshake } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Eye,
+  Printer,
+  Pencil,
+  Scale,
+  RotateCcw,
+  ArrowRight,
+  FileStack,
+  PackageCheck,
+  Handshake,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransfers } from '@/hooks/facility-transfer/useTransfers';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -30,6 +42,7 @@ import {
 } from '@/utils/facility-transfer/transferPermissions';
 import { transferCrumbs } from '@/utils/facility-transfer/breadcrumbs';
 import '@/styles/modules/facility-transfer.css';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const EMPTY_FILTERS = { keyword: '', status: 'ALL', type: 'ALL', fromDate: '', toDate: '' };
 
@@ -100,6 +113,7 @@ function VicePrincipalList({ user, md }) {
           >
             <div className="stat-card__value">{s.value}</div>
             <div className="stat-card__label">{s.label}</div>
+            <StatCardIcon tone={s.tone} />
           </button>
         ))}
       </div>
@@ -324,7 +338,9 @@ function StaffList({ user, md }) {
 
   return (
     <>
-      <h1 className="page__title">Phiếu luân chuyển của tôi</h1>
+      <div className="page__head">
+        <h1 className="page__title">Phiếu luân chuyển của tôi</h1>
+      </div>
       {todo > 0 && (
         <div className="alert alert--info mb-16">
           Bạn có <b>{todo}</b> phiếu cần xử lý. Người bàn giao kiểm tra và ký bàn giao; người nhận chỉ xác nhận được sau khi người bàn giao
@@ -332,8 +348,8 @@ function StaffList({ user, md }) {
         </div>
       )}
       <div className="card">
-        <div className="row row--between" style={{ padding: '6px 16px 0', alignItems: 'flex-end' }}>
-          <div className="tabs" style={{ borderBottom: 'none' }} role="tablist">
+        <div className="row row--between" style={{ paddingRight: 16, alignItems: 'center' }}>
+          <div className="tabs" role="tablist">
             {STAFF_TABS.map((t) => (
               <button
                 key={t.key}

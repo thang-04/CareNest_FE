@@ -58,3 +58,6 @@ export const initials = (name) =>
     .map((w) => w[0])
     .join('')
     .toUpperCase();
+
+/** Chỉ số màu pastel 0–4 cố định theo tên (avatar chữ cái; chỉ trang trí). */
+export const avatarTone = (name) => [...String(name || '')].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 5;

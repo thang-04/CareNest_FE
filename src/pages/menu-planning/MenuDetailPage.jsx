@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Trash2, AlertTriangle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllergyContext, useMenuAccess, useMenuCatalog, useSampleMenu } from '@/hooks/menu-planning/useMenuPlanning';

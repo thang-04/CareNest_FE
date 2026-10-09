@@ -14,7 +14,7 @@ import {
   Send,
   Trash2,
   Wand2,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import {

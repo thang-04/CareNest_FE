@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardList, Save, ShieldCheck, ShieldAlert, UserX } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Save, ShieldCheck, ShieldAlert, UserX } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';

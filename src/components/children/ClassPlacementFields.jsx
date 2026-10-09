@@ -1,4 +1,4 @@
-import { Info } from 'lucide-react';
+import { Info } from '@/components/ui/icons';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
 
 /**

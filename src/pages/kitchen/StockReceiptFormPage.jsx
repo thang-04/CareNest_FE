@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Info, PackagePlus, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Info, PackagePlus, Plus, Trash2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useFoodCatalog } from '@/hooks/kitchen/useKitchen';

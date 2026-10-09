@@ -1,4 +1,4 @@
-import { CalendarClock, CalendarCheck2, Archive, ShieldCheck, ShieldHalf, ShieldOff } from 'lucide-react';
+import { CalendarClock, CalendarCheck2, Archive, ShieldCheck, ShieldHalf, ShieldOff } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { PERMISSION_LEVEL_LABELS, YEAR_STATUS_LABELS } from '@/models/school-config/schoolConfigConstants';
 

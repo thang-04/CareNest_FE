@@ -1,4 +1,4 @@
-import { Info, Phone, Mail, MapPin, Building, Home } from 'lucide-react';
+import { Info, Phone, Mail, MapPin, Building, Home } from '@/components/ui/icons';
 import { Avatar } from '@/components/ui/Avatar';
 import { ROLE_LABELS } from '@/models/User';
 import { MANAGER_LABELS, locationLabel } from '@/models/Location';

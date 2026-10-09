@@ -1,4 +1,4 @@
-import { Check, AlertTriangle, X } from 'lucide-react';
+import { Check, AlertTriangle, X } from '@/components/ui/icons';
 
 /**
  * Horizontal process timeline shown on every detail page

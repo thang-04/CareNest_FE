@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Info, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Info, RefreshCw } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useMenuCatalog, useWeeklyMenu } from '@/hooks/menu-planning/useMenuPlanning';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';

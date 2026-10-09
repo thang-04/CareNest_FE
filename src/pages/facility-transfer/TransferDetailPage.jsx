@@ -13,7 +13,7 @@ import {
   History,
   CheckCircle2,
   ShieldOff,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useTransfer } from '@/hooks/facility-transfer/useTransfers';
@@ -388,7 +388,7 @@ export default function TransferDetailPage() {
       )}
 
       <div className="card mt-16">
-        <div className="tabs" style={{ padding: '0 16px' }} role="tablist">
+        <div className="tabs" role="tablist">
           {TABS.map((x) => (
             <button
               key={x.key}

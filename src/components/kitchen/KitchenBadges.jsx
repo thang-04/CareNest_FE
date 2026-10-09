@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, CookingPot, FileQuestion, PackageCheck, Scale, Truck, UtensilsCrossed } from 'lucide-react';
+import { CheckCircle2, Clock, CookingPot, FileQuestion, PackageCheck, Scale, Truck, UtensilsCrossed } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import {
   ISSUE_STATUS_LABELS,

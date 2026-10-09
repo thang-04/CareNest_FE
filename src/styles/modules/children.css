@@ -154,6 +154,18 @@
   box-shadow: var(--focus-ring);
 }
 
+/* Lối tắt dạng danh sách trong card cột phải của hồ sơ */
+.tr-quicklinks--list {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+}
+.tr-quicklinks--list .tr-quicklink {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  padding: var(--space-2-5) var(--space-3);
+}
+
 /* Placement split view */
 .tr-split {
   align-items: start;

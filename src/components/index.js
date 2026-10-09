@@ -5,7 +5,7 @@
  */
 export { Modal } from './ui/Modal';
 export { ConfirmationModal } from './ui/ConfirmationModal';
-export { Spinner, LoadingState, SkeletonRows, EmptyState, ErrorState } from './ui/States';
+export { Spinner, LoadingState, SkeletonRows, EmptyState, ErrorState, SubmitOverlay } from './ui/States';
 export { Breadcrumb } from './ui/Breadcrumb';
 export { SearchSelect } from './ui/SearchSelect';
 export { Avatar } from './ui/Avatar';

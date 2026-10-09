@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, PackagePlus, Eye, Info, ClipboardList, RotateCcw, Link2 } from 'lucide-react';
+import { AlertTriangle, PackagePlus, Eye, Info, ClipboardList, RotateCcw, Link2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useMyReports } from '@/hooks/facility/useFacility';
@@ -83,7 +83,7 @@ export default function MyReportsPage() {
       </div>
 
       <div className="card">
-        <div className="tabs" style={{ padding: '6px 16px 0' }} role="tablist">
+        <div className="tabs" role="tablist">
           {TABS.map((t) => (
             <button
               key={t.key}

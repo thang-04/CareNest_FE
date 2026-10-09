@@ -1,4 +1,14 @@
-import { ChefHat, CookingPot, ListTodo, PackageCheck, UtensilsCrossed, AlertTriangle } from 'lucide-react';
+import {
+  AlertTriangle,
+  Carrot,
+  ChefHat,
+  CookingPot,
+  ListTodo,
+  PackageCheck,
+  School,
+  ShieldAlert,
+  UtensilsCrossed,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWidget } from '@/hooks/dashboard/useDashboard';
 import { Spinner } from '@/components/ui/States';
@@ -25,6 +35,18 @@ import '@/styles/modules/dashboard.css';
 const endOf = (q, count) =>
   q.loading && q.data == null ? <Spinner small /> : q.error ? <span className="muted">—</span> : <TaskCount value={count} />;
 const firstLoad = (q) => q.loading && q.data == null;
+
+// Gộp các nhóm tuổi có cùng loại thực đơn và cùng món thành một dòng, tránh lặp danh sách món
+const groupSameDishes = (menus) => {
+  const groups = new Map();
+  for (const m of menus) {
+    const key = `${m.type}|${m.dishes.map((d) => d.id).join(',')}`;
+    const name = ageGroupById(m.ageGroupId)?.shortName || 'Toàn trường';
+    if (groups.has(key)) groups.get(key).groupNames.push(name);
+    else groups.set(key, { ...m, groupNames: [name] });
+  }
+  return [...groups.values()];
+};
 
 /**
  * #14 Kitchen Dashboard: today's published menu, confirmed meal count, food quantities and meal status
@@ -68,6 +90,8 @@ export default function KitchenDashboard() {
 
       <div className="stat-grid">
         <KpiCard
+          unit="suất"
+          icon={UtensilsCrossed}
           to="/kitchen/meal-count"
           tone="blue"
           label="Suất ăn đã xác nhận"
@@ -77,6 +101,8 @@ export default function KitchenDashboard() {
           error={countQ.error}
         />
         <KpiCard
+          unit="suất"
+          icon={ShieldAlert}
           to="/kitchen/meal-count"
           tone="red"
           label="Suất ăn thay thế (dị ứng)"
@@ -85,6 +111,8 @@ export default function KitchenDashboard() {
           error={countQ.error}
         />
         <KpiCard
+          unit="loại"
+          icon={Carrot}
           to="/kitchen/required-quantity"
           tone="purple"
           label="Loại thực phẩm cần chuẩn bị"
@@ -93,6 +121,8 @@ export default function KitchenDashboard() {
           error={qtyQ.error}
         />
         <KpiCard
+          unit="bữa"
+          icon={PackageCheck}
           to="/kitchen/preparation/update"
           tone={prepTodo ? 'orange' : 'green'}
           label="Bữa sẵn sàng bàn giao"
@@ -101,6 +131,8 @@ export default function KitchenDashboard() {
           error={prepQ.error}
         />
         <KpiCard
+          unit="báo cáo"
+          icon={AlertTriangle}
           to="/kitchen/missing-food"
           tone="orange"
           label="Báo thiếu chờ PHT bổ sung"
@@ -109,6 +141,9 @@ export default function KitchenDashboard() {
           error={missingQ.error}
         />
         <KpiCard
+          unit="lớp"
+          action
+          icon={School}
           to="/attendance/meal-handover"
           tone={shortages ? 'red' : 'green'}
           label="Lớp báo thiếu suất"
@@ -118,115 +153,115 @@ export default function KitchenDashboard() {
         />
       </div>
 
-      <div className="db-grid">
-        <Widget
-          title="Thực đơn hôm nay"
-          icon={UtensilsCrossed}
-          to="/kitchen/published-menu"
-          linkLabel="Xem thực đơn đã công bố"
-          loading={firstLoad(menuQ)}
-          error={menuQ.error}
-          onRetry={menuQ.reload}
-          empty={!hasAnyMenu}
-          emptyTitle="Chưa có thực đơn công bố cho hôm nay"
-          emptyText="Thực đơn tuần do Phó hiệu trưởng công bố. Khi có thực đơn, món ăn của từng bữa sẽ hiện ở đây."
-        >
-          {sessionsMenu
-            .filter((s) => s.menus.length)
-            .map((s) => (
-              <div key={s.session} className="db-session">
-                <div className="subsection-title">{MEAL_SESSION_LABELS[s.session] || s.session}</div>
-                {s.menus.map((m) => (
-                  <div key={m.id} className="mt-8">
-                    <div className="text-sm text-2">
-                      {ageGroupById(m.ageGroupId)?.shortName || 'Toàn trường'}
-                      {m.type === MENU_TYPE.ALLERGY ? ' · Thực đơn thay thế (dị ứng)' : ''}
-                    </div>
-                    <div className="db-dishes mt-8">
-                      {m.dishes.map((d) => (
-                        <span key={d.id} className={`chip ${d.allergens.length ? 'chip--orange' : 'chip--gray'}`}>
-                          {d.name}
-                        </span>
-                      ))}
-                    </div>
+      <div className="db-board">
+        <div className="db-board__main">
+          <Widget title="Việc cần làm" icon={ListTodo}>
+            <ShortList
+              rows={[
+                {
+                  key: 'receive',
+                  to: '/kitchen/ingredient-receipts',
+                  icon: PackageCheck,
+                  title: 'Xác nhận nhận thực phẩm từ kho',
+                  meta: stockQ.error ? 'Không tải được phiếu xuất kho' : 'Phiếu xuất kho hôm nay đã được duyệt, chờ bếp xác nhận',
+                  end: endOf(stockQ, toReceive),
+                },
+                {
+                  key: 'prep',
+                  to: '/kitchen/preparation/update',
+                  icon: ChefHat,
+                  title: 'Cập nhật tình trạng chế biến',
+                  meta: prepQ.error ? 'Không tải được tình trạng chế biến' : 'Bữa đã có số suất, chưa sẵn sàng bàn giao',
+                  end: endOf(prepQ, prepTodo),
+                },
+                {
+                  key: 'shortage',
+                  to: '/attendance/meal-handover',
+                  icon: AlertTriangle,
+                  title: 'Bổ sung suất ăn cho lớp báo thiếu',
+                  meta: handoverQ.error ? 'Không tải được bàn giao suất ăn' : 'Lớp đã báo thiếu suất khi nhận',
+                  end: endOf(handoverQ, shortages),
+                },
+                {
+                  key: 'missing',
+                  to: '/kitchen/missing-food',
+                  icon: AlertTriangle,
+                  title: 'Báo thiếu thực phẩm',
+                  meta: missingQ.error ? 'Không tải được báo cáo thiếu' : 'Báo cáo của bếp đang chờ Phó hiệu trưởng bổ sung',
+                  end: endOf(missingQ, (missingQ.data || []).length),
+                },
+              ]}
+            />
+          </Widget>
+          <Widget
+            title="Tình trạng bữa ăn"
+            icon={CookingPot}
+            to="/kitchen/preparation/update"
+            linkLabel="Cập nhật chế biến"
+            loading={firstLoad(prepQ)}
+            error={prepQ.error}
+            onRetry={prepQ.reload}
+            empty={!preps.some((p) => p.hasMenu)}
+            emptyTitle="Hôm nay không có bữa ăn cần chế biến"
+          >
+            {preps
+              .filter((p) => p.hasMenu)
+              .map((p) => (
+                <div key={p.session} className="db-session">
+                  <div className="db-session__head">
+                    <span className="subsection-title">{MEAL_SESSION_LABELS[p.session] || p.session}</span>
+                    <PrepStatusBadge status={p.record?.status || 'NOT_STARTED'} />
                   </div>
-                ))}
-              </div>
-            ))}
-        </Widget>
-
-        <Widget
-          title="Tình trạng bữa ăn"
-          icon={CookingPot}
-          to="/kitchen/preparation/update"
-          linkLabel="Cập nhật chế biến"
-          loading={firstLoad(prepQ)}
-          error={prepQ.error}
-          onRetry={prepQ.reload}
-          empty={!preps.some((p) => p.hasMenu)}
-          emptyTitle="Hôm nay không có bữa ăn cần chế biến"
-        >
-          {preps
-            .filter((p) => p.hasMenu)
-            .map((p) => (
-              <div key={p.session} className="db-session">
-                <div className="db-session__head">
-                  <span className="subsection-title">{MEAL_SESSION_LABELS[p.session] || p.session}</span>
-                  <PrepStatusBadge status={p.record?.status || 'NOT_STARTED'} />
+                  <div className="row text-sm text-2">
+                    Số suất: <MealCountStatusBadge status={p.mealCountStatus || 'NONE'} />
+                    {p.totals && p.mealCountStatus === 'CONFIRMED' && (
+                      <span>
+                        {p.totals.normal} suất thường · {p.totals.substitute} suất thay thế
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="row text-sm text-2">
-                  Số suất: <MealCountStatusBadge status={p.mealCountStatus || 'NONE'} />
-                  {p.totals && p.mealCountStatus === 'CONFIRMED' && (
-                    <span>
-                      {p.totals.normal} suất thường · {p.totals.substitute} suất thay thế
-                    </span>
-                  )}
+              ))}
+          </Widget>
+        </div>
+        <div className="db-board__aside">
+          <Widget
+            title="Thực đơn hôm nay"
+            icon={UtensilsCrossed}
+            to="/kitchen/published-menu"
+            linkLabel="Xem thực đơn đã công bố"
+            loading={firstLoad(menuQ)}
+            error={menuQ.error}
+            onRetry={menuQ.reload}
+            empty={!hasAnyMenu}
+            emptyTitle="Chưa có thực đơn công bố cho hôm nay"
+            emptyText="Thực đơn tuần do Phó hiệu trưởng công bố. Khi có thực đơn, món ăn của từng bữa sẽ hiện ở đây."
+          >
+            {sessionsMenu
+              .filter((s) => s.menus.length)
+              .map((s) => (
+                <div key={s.session} className="db-session">
+                  <div className="subsection-title">{MEAL_SESSION_LABELS[s.session] || s.session}</div>
+                  {groupSameDishes(s.menus).map((m) => (
+                    <div key={m.id} className="mt-8">
+                      <div className="text-sm text-2">
+                        {m.groupNames.join(', ')}
+                        {m.type === MENU_TYPE.ALLERGY ? ' · Thực đơn thay thế (dị ứng)' : ''}
+                      </div>
+                      <div className="db-dishes mt-8">
+                        {m.dishes.map((d) => (
+                          <span key={d.id} className={`chip ${d.allergens.length ? 'chip--orange' : 'chip--gray'}`}>
+                            {d.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-        </Widget>
-      </div>
-
-      <div className="db-grid">
-        <Widget title="Việc cần làm" icon={ListTodo}>
-          <ShortList
-            rows={[
-              {
-                key: 'receive',
-                to: '/kitchen/ingredient-receipts',
-                icon: PackageCheck,
-                title: 'Xác nhận nhận thực phẩm từ kho',
-                meta: stockQ.error ? 'Không tải được phiếu xuất kho' : 'Phiếu xuất kho hôm nay đã được duyệt, chờ bếp xác nhận',
-                end: endOf(stockQ, toReceive),
-              },
-              {
-                key: 'prep',
-                to: '/kitchen/preparation/update',
-                icon: ChefHat,
-                title: 'Cập nhật tình trạng chế biến',
-                meta: prepQ.error ? 'Không tải được tình trạng chế biến' : 'Bữa đã có số suất, chưa sẵn sàng bàn giao',
-                end: endOf(prepQ, prepTodo),
-              },
-              {
-                key: 'shortage',
-                to: '/attendance/meal-handover',
-                icon: AlertTriangle,
-                title: 'Bổ sung suất ăn cho lớp báo thiếu',
-                meta: handoverQ.error ? 'Không tải được bàn giao suất ăn' : 'Lớp đã báo thiếu suất khi nhận',
-                end: endOf(handoverQ, shortages),
-              },
-              {
-                key: 'missing',
-                to: '/kitchen/missing-food',
-                icon: AlertTriangle,
-                title: 'Báo thiếu thực phẩm',
-                meta: missingQ.error ? 'Không tải được báo cáo thiếu' : 'Báo cáo của bếp đang chờ Phó hiệu trưởng bổ sung',
-                end: endOf(missingQ, (missingQ.data || []).length),
-              },
-            ]}
-          />
-        </Widget>
-        <FacilityTasksWidget />
+              ))}
+          </Widget>
+          <FacilityTasksWidget />
+        </div>
       </div>
     </div>
   );

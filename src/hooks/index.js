@@ -6,3 +6,4 @@ export { useMasterData } from './useMasterData';
 export { useSignatures } from './useSignatures';
 export { useLockedLocations } from './useLockedLocations';
 export { usePageTitle } from './usePageTitle';
+export { useMediaQuery } from './useMediaQuery';

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Camera, X } from 'lucide-react';
+import { Camera, X } from '@/components/ui/icons';
 import { compressImage, isImageFile } from '@/utils/file';
 import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';

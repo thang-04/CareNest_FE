@@ -1,5 +1,17 @@
 import { useState } from 'react';
-import { CalendarDays, UserRound, ListChecks, Building2, UtensilsCrossed, BookOpenCheck, School, ShieldAlert, Wrench } from 'lucide-react';
+import {
+  Baby,
+  BookOpenCheck,
+  Building2,
+  CalendarCheck,
+  CalendarDays,
+  ListChecks,
+  School,
+  ShieldAlert,
+  UserRound,
+  UtensilsCrossed,
+  Wrench,
+} from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useWidget, usePendingApprovals } from '@/hooks/dashboard/useDashboard';
@@ -97,8 +109,19 @@ export default function PrincipalDashboard() {
       <Shortcuts links={SHORTCUTS} />
 
       <div className="stat-grid">
-        <KpiCard to="/children" tone="blue" label="Trẻ đang học" value={active} loading={firstLoad(childrenQ)} error={childrenQ.error} />
         <KpiCard
+          unit="trẻ"
+          icon={Baby}
+          to="/children"
+          tone="blue"
+          label="Trẻ đang học"
+          value={active}
+          loading={firstLoad(childrenQ)}
+          error={childrenQ.error}
+        />
+        <KpiCard
+          unit="lớp"
+          icon={School}
           to="/school/classes"
           tone="blue"
           label="Lớp học"
@@ -107,6 +130,7 @@ export default function PrincipalDashboard() {
           error={campusesQ.error}
         />
         <KpiCard
+          icon={CalendarCheck}
           to="/attendance/summary"
           tone="green"
           label="Có mặt hôm nay"
@@ -116,6 +140,9 @@ export default function PrincipalDashboard() {
           error={countsQ.error}
         />
         <KpiCard
+          unit="yêu cầu"
+          action={!approvals.failed.length}
+          icon={ListChecks}
           to="/approvals"
           tone="purple"
           label="Chờ bạn phê duyệt"
@@ -125,6 +152,8 @@ export default function PrincipalDashboard() {
           error={approvals.error}
         />
         <KpiCard
+          unit="sự cố"
+          icon={Wrench}
           to="/facility/issues"
           tone="red"
           label="Sự cố CSVC chờ xử lý"
@@ -133,6 +162,9 @@ export default function PrincipalDashboard() {
           error={issuesQ.error}
         />
         <KpiCard
+          unit="trẻ"
+          action
+          icon={ShieldAlert}
           to="/children"
           tone="orange"
           label="Dị ứng chờ bạn xác nhận"
@@ -142,173 +174,169 @@ export default function PrincipalDashboard() {
         />
       </div>
 
-      <div className="db-grid db-grid--wide">
-        <Widget
-          title="Tổng quan điểm trường"
-          icon={School}
-          to="/school/campuses"
-          linkLabel="Danh sách điểm trường"
-          loading={firstLoad(campusesQ)}
-          error={campusesQ.error}
-          onRetry={campusesQ.reload}
-          empty={!campuses.length}
-          emptyTitle="Chưa có dữ liệu cho phạm vi đã chọn"
-          emptyText="Đổi năm học ở thanh trên cùng hoặc chọn điểm trường khác."
-        >
-          <div className="table-wrap">
-            <table className="table table--compact">
-              <caption className="sr-only">Số lớp, số trẻ và tỷ lệ có mặt hôm nay theo điểm trường</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Điểm trường</th>
-                  <th scope="col" className="right">
-                    Lớp
-                  </th>
-                  <th scope="col" className="right">
-                    Trẻ
-                  </th>
-                  <th scope="col">Có mặt hôm nay</th>
-                  <th scope="col">Phó hiệu trưởng</th>
-                </tr>
-              </thead>
-              <tbody>
-                {campuses.map((c) => {
-                  const a = attendanceOf(counts, c.id);
-                  return (
-                    <tr key={c.id}>
-                      <td className="fw-600">{c.shortName || c.name}</td>
-                      <td className="right">{c.classCount}</td>
-                      <td className="right">{c.childCount}</td>
-                      <td>
-                        {countsQ.error ? (
-                          <span className="muted">Không tải được</span>
-                        ) : a && a.total ? (
-                          <ProgressBar value={a.present} total={a.total} tone="green" />
-                        ) : (
-                          <span className="muted">Chưa có số liệu</span>
-                        )}
-                      </td>
-                      <td>{c.vicePrincipals.map((v) => v.fullName).join(', ') || <span className="muted">Chưa phân công</span>}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Widget>
-        <ApprovalsWidget approvals={approvals} campusId={campusId} />
-      </div>
-
-      <div className="db-grid">
-        <Widget
-          title="Sự cố cơ sở vật chất mới nhất"
-          icon={Wrench}
-          to="/facility/issues"
-          loading={firstLoad(issuesQ)}
-          error={issuesQ.error}
-          onRetry={issuesQ.reload}
-          empty={!issues.length}
-          emptyTitle="Chưa có báo cáo sự cố"
-          emptyText="Báo cáo của giáo viên và nhân viên bếp sẽ hiện ở đây."
-        >
-          <ShortList
-            rows={issues.slice(0, 5).map((i) => ({
-              key: i.id,
-              to: `/facility/issues/${i.id}`,
-              code: i.code,
-              title: `${ISSUE_TYPE_LABELS[i.type] || ''}: ${i.assetName}`,
-              meta: `${md.campusById(i.campusId)?.shortName || ''} · ${formatDateTime(i.createdAt)}`,
-              end: <IssueStatusBadge status={i.status} />,
-            }))}
-          />
-        </Widget>
-
-        <Widget
-          title={`Thực đơn hôm nay, ${formatDate(date)}`}
-          icon={UtensilsCrossed}
-          to="/menu/plans"
-          linkLabel="Xem kế hoạch thực đơn"
-          loading={firstLoad(menuQ)}
-          error={menuQ.error}
-          onRetry={menuQ.reload}
-          empty={!sessionsMenu.length}
-          emptyTitle="Chưa có thực đơn công bố cho hôm nay"
-        >
-          {sessionsMenu.map((s) => {
-            const normal = s.menus.filter((m) => m.type !== MENU_TYPE.ALLERGY);
-            const dishes = [...new Set(normal.flatMap((m) => m.dishes.map((d) => d.name)))];
-            const allergyMenus = s.menus.length - normal.length;
-            return (
-              <div key={s.session} className="db-session">
-                <div className="db-session__head">
-                  <span className="subsection-title">{MEAL_SESSION_LABELS[s.session] || s.session}</span>
-                  {allergyMenus > 0 && <span className="chip chip--orange">{allergyMenus} thực đơn thay thế</span>}
+      <div className="db-board">
+        <div className="db-board__main">
+          <ApprovalsWidget approvals={approvals} campusId={campusId} />
+          <Widget
+            title="Tổng quan điểm trường"
+            icon={School}
+            to="/school/campuses"
+            linkLabel="Danh sách điểm trường"
+            loading={firstLoad(campusesQ)}
+            error={campusesQ.error}
+            onRetry={campusesQ.reload}
+            empty={!campuses.length}
+            emptyTitle="Chưa có dữ liệu cho phạm vi đã chọn"
+            emptyText="Đổi năm học ở thanh trên cùng hoặc chọn điểm trường khác."
+          >
+            <div className="table-wrap">
+              <table className="table table--compact">
+                <caption className="sr-only">Số lớp, số trẻ và tỷ lệ có mặt hôm nay theo điểm trường</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Điểm trường</th>
+                    <th scope="col" className="right">
+                      Lớp
+                    </th>
+                    <th scope="col" className="right">
+                      Trẻ
+                    </th>
+                    <th scope="col">Có mặt hôm nay</th>
+                    <th scope="col">Phó hiệu trưởng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campuses.map((c) => {
+                    const a = attendanceOf(counts, c.id);
+                    return (
+                      <tr key={c.id}>
+                        <td className="fw-600">{c.shortName || c.name}</td>
+                        <td className="right">{c.classCount}</td>
+                        <td className="right">{c.childCount}</td>
+                        <td>
+                          {countsQ.error ? (
+                            <span className="muted">Không tải được</span>
+                          ) : a && a.total ? (
+                            <ProgressBar value={a.present} total={a.total} tone="green" />
+                          ) : (
+                            <span className="muted">Chưa có số liệu</span>
+                          )}
+                        </td>
+                        <td>{c.vicePrincipals.map((v) => v.fullName).join(', ') || <span className="muted">Chưa phân công</span>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Widget>
+          <Widget
+            title="Sự cố cơ sở vật chất mới nhất"
+            icon={Wrench}
+            to="/facility/issues"
+            loading={firstLoad(issuesQ)}
+            error={issuesQ.error}
+            onRetry={issuesQ.reload}
+            empty={!issues.length}
+            emptyTitle="Chưa có báo cáo sự cố"
+            emptyText="Báo cáo của giáo viên và nhân viên bếp sẽ hiện ở đây."
+          >
+            <ShortList
+              rows={issues.slice(0, 5).map((i) => ({
+                key: i.id,
+                to: `/facility/issues/${i.id}`,
+                code: i.code,
+                title: `${ISSUE_TYPE_LABELS[i.type] || ''}: ${i.assetName}`,
+                meta: `${md.campusById(i.campusId)?.shortName || ''} · ${formatDateTime(i.createdAt)}`,
+                end: <IssueStatusBadge status={i.status} />,
+              }))}
+            />
+          </Widget>
+        </div>
+        <div className="db-board__aside">
+          <Widget
+            title={`Thực đơn hôm nay, ${formatDate(date)}`}
+            icon={UtensilsCrossed}
+            to="/menu/plans"
+            linkLabel="Xem kế hoạch thực đơn"
+            loading={firstLoad(menuQ)}
+            error={menuQ.error}
+            onRetry={menuQ.reload}
+            empty={!sessionsMenu.length}
+            emptyTitle="Chưa có thực đơn công bố cho hôm nay"
+          >
+            {sessionsMenu.map((s) => {
+              const normal = s.menus.filter((m) => m.type !== MENU_TYPE.ALLERGY);
+              const dishes = [...new Set(normal.flatMap((m) => m.dishes.map((d) => d.name)))];
+              const allergyMenus = s.menus.length - normal.length;
+              return (
+                <div key={s.session} className="db-session">
+                  <div className="db-session__head">
+                    <span className="subsection-title">{MEAL_SESSION_LABELS[s.session] || s.session}</span>
+                    {allergyMenus > 0 && <span className="chip chip--orange">{allergyMenus} thực đơn thay thế</span>}
+                  </div>
+                  <div className="db-dishes">
+                    {dishes.map((name) => (
+                      <span key={name} className="chip chip--gray">
+                        {name}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="db-dishes">
-                  {dishes.map((name) => (
-                    <span key={name} className="chip chip--gray">
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </Widget>
-      </div>
-
-      <div className="db-grid">
-        <Widget
-          title="Kế hoạch giáo dục toàn trường"
-          icon={BookOpenCheck}
-          loading={firstLoad(eduQ)}
-          error={eduQ.error}
-          onRetry={eduQ.reload}
-          to="/education/school"
-          linkLabel="Xem kế hoạch"
-        >
-          <ShortList
-            rows={[
-              {
-                key: 'themes',
-                to: '/education/school',
-                title: 'Kế hoạch chủ đề đã duyệt',
-                meta: `${themes.filter((t) => t.status === EDU_STATUS.PENDING_VP).length} kế hoạch đang chờ Phó hiệu trưởng duyệt`,
-                end: <span className="db-count">{themes.filter((t) => t.status === EDU_STATUS.APPROVED).length}</span>,
-              },
-              {
-                key: 'lessons',
-                to: '/education/school',
-                title: 'Giáo án đã duyệt',
-                meta: `${lessons.filter((l) => [EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP].includes(l.status)).length} giáo án đang chờ duyệt`,
-                end: <span className="db-count">{lessons.filter((l) => l.status === EDU_STATUS.APPROVED).length}</span>,
-              },
-            ]}
-          />
-        </Widget>
-
-        <Widget
-          title="Khai báo dị ứng chờ xác nhận"
-          icon={ShieldAlert}
-          to="/children"
-          linkLabel="Danh sách trẻ"
-          loading={firstLoad(childrenQ)}
-          error={childrenQ.error}
-          onRetry={childrenQ.reload}
-          empty={!allergyPending.length}
-          emptyTitle="Không có khai báo dị ứng chờ xác nhận"
-          emptyText="Dị ứng thực phẩm do Hiệu trưởng xác nhận trước khi bếp áp dụng thực đơn thay thế."
-        >
-          <ShortList
-            rows={allergyPending.slice(0, 5).map((c) => ({
-              key: c.id,
-              to: `/children/${c.id}/health-declaration`,
-              code: c.code,
-              title: c.fullName,
-              meta: `${c.className || 'Chưa xếp lớp'} · ${md.campusById(c.campusId)?.shortName || ''}`,
-            }))}
-          />
-        </Widget>
+              );
+            })}
+          </Widget>
+          <Widget
+            title="Kế hoạch giáo dục toàn trường"
+            icon={BookOpenCheck}
+            loading={firstLoad(eduQ)}
+            error={eduQ.error}
+            onRetry={eduQ.reload}
+            to="/education/school"
+            linkLabel="Xem kế hoạch"
+          >
+            <ShortList
+              rows={[
+                {
+                  key: 'themes',
+                  to: '/education/school',
+                  title: 'Kế hoạch chủ đề đã duyệt',
+                  meta: `${themes.filter((t) => t.status === EDU_STATUS.PENDING_VP).length} kế hoạch đang chờ Phó hiệu trưởng duyệt`,
+                  end: <span className="db-count">{themes.filter((t) => t.status === EDU_STATUS.APPROVED).length}</span>,
+                },
+                {
+                  key: 'lessons',
+                  to: '/education/school',
+                  title: 'Giáo án đã duyệt',
+                  meta: `${lessons.filter((l) => [EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP].includes(l.status)).length} giáo án đang chờ duyệt`,
+                  end: <span className="db-count">{lessons.filter((l) => l.status === EDU_STATUS.APPROVED).length}</span>,
+                },
+              ]}
+            />
+          </Widget>
+          <Widget
+            title="Khai báo dị ứng chờ xác nhận"
+            icon={ShieldAlert}
+            to="/children"
+            linkLabel="Danh sách trẻ"
+            loading={firstLoad(childrenQ)}
+            error={childrenQ.error}
+            onRetry={childrenQ.reload}
+            empty={!allergyPending.length}
+            emptyTitle="Không có khai báo dị ứng chờ xác nhận"
+            emptyText="Dị ứng thực phẩm do Hiệu trưởng xác nhận trước khi bếp áp dụng thực đơn thay thế."
+          >
+            <ShortList
+              rows={allergyPending.slice(0, 5).map((c) => ({
+                key: c.id,
+                to: `/children/${c.id}/health-declaration`,
+                code: c.code,
+                title: c.fullName,
+                meta: `${c.className || 'Chưa xếp lớp'} · ${md.campusById(c.campusId)?.shortName || ''}`,
+              }))}
+            />
+          </Widget>
+        </div>
       </div>
     </div>
   );

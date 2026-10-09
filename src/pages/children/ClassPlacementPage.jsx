@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, LayoutGrid, Users, Lock, ArrowLeft } from 'lucide-react';
+import { Search, LayoutGrid, Users, Lock, ArrowLeft } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -106,7 +106,7 @@ export default function ClassPlacementPage() {
       <h1 className="page__title">Xếp lớp cho trẻ</h1>
       <div className="split-2 tr-split">
         <section className="card">
-          <div className="tabs" style={{ padding: '6px 16px 0' }} role="tablist">
+          <div className="tabs" role="tablist">
             {TABS.map((t) => (
               <button
                 key={t.key}

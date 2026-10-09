@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileSearch, Printer } from 'lucide-react';
+import { FileSearch, Printer } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { PrintPreview } from '@/components/facility-transfer/PrintPreview';
 import { buildPrintModel } from '@/utils/facility-transfer/printModel';

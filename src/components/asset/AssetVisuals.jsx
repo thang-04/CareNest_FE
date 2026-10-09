@@ -1,4 +1,4 @@
-import { Armchair, BookOpen, Monitor, Backpack, CookingPot, Package } from 'lucide-react';
+import { Armchair, BookOpen, Monitor, Backpack, CookingPot, Package } from '@/components/ui/icons';
 import { ASSET_CONDITION_LABELS, CONDITION_OPTIONS } from '@/models/Asset';
 
 const CATEGORY_ICONS = {

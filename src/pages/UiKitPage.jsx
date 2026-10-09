@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Plus, Save, Send, Trash2, Printer, Info, AlertTriangle, CheckCircle2, XCircle, Inbox } from 'lucide-react';
+import { Plus, Save, Send, Trash2, Printer, Info, AlertTriangle, CheckCircle2, XCircle, Inbox } from '@/components/ui/icons';
+import * as AppIcons from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import {
   Breadcrumb,
@@ -8,6 +9,7 @@ import {
   LoadingState,
   EmptyState,
   ErrorState,
+  SubmitOverlay,
   Spinner,
   SearchSelect,
   StatusBadge,
@@ -34,30 +36,102 @@ import './ui-kit.css';
 
 const COLOR_GROUPS = [
   {
-    title: 'Thương hiệu (lấy từ logo)',
-    tokens: ['--brand-blue-700', '--brand-blue-600', '--brand-sky-400', '--brand-sky-300', '--brand-mint-300'],
-  },
-  { title: 'Hành động chính', tokens: ['--primary', '--primary-600', '--primary-100', '--primary-50', '--primary-25'] },
-  {
-    title: 'Ngữ nghĩa',
+    title: 'Primitive — xanh thương hiệu (700 = logo)',
     tokens: [
-      '--success',
-      '--success-50',
-      '--warning',
-      '--warning-50',
-      '--danger',
-      '--danger-50',
-      '--purple',
-      '--purple-50',
-      '--teal',
-      '--teal-50',
+      '--blue-50',
+      '--blue-100',
+      '--blue-200',
+      '--blue-300',
+      '--blue-400',
+      '--blue-500',
+      '--blue-600',
+      '--blue-700',
+      '--blue-800',
+      '--blue-900',
     ],
   },
   {
-    title: 'Chữ, viền, nền',
-    tokens: ['--text', '--text-2', '--text-3', '--border', '--border-strong', '--bg', '--surface', '--surface-soft', '--sidebar-bg'],
+    title: 'Primitive — mint (accent) & sky',
+    tokens: ['--mint-50', '--mint-100', '--mint-300', '--mint-500', '--mint-700', '--sky-300', '--sky-400'],
+  },
+  {
+    title: 'Primitive — neutral',
+    tokens: [
+      '--neutral-0',
+      '--neutral-25',
+      '--neutral-50',
+      '--neutral-100',
+      '--neutral-200',
+      '--neutral-300',
+      '--neutral-400',
+      '--neutral-500',
+      '--neutral-600',
+      '--neutral-700',
+      '--neutral-800',
+      '--neutral-900',
+    ],
+  },
+  {
+    title: 'Semantic — hành động',
+    tokens: [
+      '--color-primary',
+      '--color-primary-hover',
+      '--color-primary-soft',
+      '--color-primary-border',
+      '--color-accent',
+      '--color-accent-strong',
+      '--color-accent-soft',
+    ],
+  },
+  {
+    title: 'Semantic — trạng thái',
+    tokens: [
+      '--color-success',
+      '--color-success-bg',
+      '--color-warning',
+      '--color-warning-bg',
+      '--color-danger',
+      '--color-danger-bg',
+      '--color-info',
+      '--color-info-bg',
+      '--purple',
+      '--teal',
+    ],
+  },
+  {
+    title: 'Semantic — chữ, viền, nền',
+    tokens: [
+      '--color-text',
+      '--color-text-secondary',
+      '--color-text-muted',
+      '--color-border',
+      '--color-border-strong',
+      '--color-bg',
+      '--color-surface',
+      '--color-surface-muted',
+      '--color-secondary',
+    ],
   },
 ];
+
+const RADIUS_TOKENS = ['--radius-xs', '--radius-sm', '--radius-md', '--radius-lg', '--radius-xl', '--radius-full'];
+const SHADOW_TOKENS = ['--shadow-xs', '--shadow-sm', '--shadow-md', '--shadow-lg', '--shadow-xl'];
+const SPACE_TOKENS = [
+  '--space-1',
+  '--space-2',
+  '--space-2-5',
+  '--space-3',
+  '--space-3-5',
+  '--space-4',
+  '--space-5',
+  '--space-6',
+  '--space-8',
+  '--space-10',
+  '--space-12',
+  '--space-16',
+];
+// Câu có đủ dấu tiếng Việt để kiểm tra font hiển thị đúng
+const VI_SAMPLE = 'Hiệu trưởng, Phó hiệu trưởng, Tổ trưởng — ỹ ữ ặ ộ ở ợ ẫ ễ ờ ự Ằ Ẵ Ổ Ữ';
 
 const TONE_MEANING = {
   gray: 'Nháp, đã hủy, không hoạt động',
@@ -95,6 +169,8 @@ function Section({ id, title, children, code }) {
 const NAV = [
   ['colors', 'Màu sắc'],
   ['typography', 'Chữ'],
+  ['scales', 'Khoảng cách, bo góc, đổ bóng'],
+  ['icons', 'Icon'],
   ['buttons', 'Nút'],
   ['forms', 'Form'],
   ['status', 'Trạng thái'],
@@ -180,6 +256,67 @@ export default function UiKitPage() {
           <p className="muted" style={{ margin: '4px 0' }}>
             Chữ mờ .muted
           </p>
+          <div className="subsection-title mt-16">Kiểm tra dấu tiếng Việt</div>
+          <div className="uikit-vi-sample">
+            {[400, 500, 600, 700].map((w) => (
+              <p key={w} style={{ fontWeight: w }}>
+                {w} · {VI_SAMPLE}
+              </p>
+            ))}
+            <p className="uikit-vi-sample__lg">{VI_SAMPLE}</p>
+          </div>
+        </Section>
+
+        <Section
+          id="scales"
+          title="Khoảng cách, bo góc, đổ bóng"
+          code={`.my-card { padding: var(--space-6); border-radius: var(--card-radius); box-shadow: var(--card-shadow); }\n.my-row { display: flex; gap: var(--space-3); }`}
+        >
+          <div className="subsection-title">Khoảng cách</div>
+          <div className="uikit-scale">
+            {SPACE_TOKENS.map((t) => (
+              <div key={t} className="uikit-scale__row">
+                <code>{t}</code>
+                <span className="uikit-scale__bar" style={{ width: `var(${t})` }} />
+                <span className="muted">{tokenValue(t)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="subsection-title mt-16">Bo góc</div>
+          <div className="uikit-swatches">
+            {RADIUS_TOKENS.map((t) => (
+              <div key={t} className="uikit-swatch">
+                <div className="uikit-tile" style={{ borderRadius: `var(${t})` }} />
+                <code>{t}</code>
+                <span className="muted">{tokenValue(t)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="subsection-title mt-16">Đổ bóng</div>
+          <div className="uikit-swatches">
+            {SHADOW_TOKENS.map((t) => (
+              <div key={t} className="uikit-swatch">
+                <div className="uikit-tile uikit-tile--surface" style={{ boxShadow: `var(${t})` }} />
+                <code>{t}</code>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section
+          id="icons"
+          title={`Icon (Tabler, ${Object.keys(AppIcons).length} icon)`}
+          code={`import { Save, Trash2 } from '@/components/ui/icons';
+<Save size={16} />   // icon mới: thêm một dòng ở src/components/ui/icons.js`}
+        >
+          <div className="uikit-icons">
+            {Object.entries(AppIcons).map(([name, Icon]) => (
+              <div key={name} className="uikit-icons__item" title={name}>
+                <Icon size={22} />
+                <span>{name}</span>
+              </div>
+            ))}
+          </div>
         </Section>
 
         <Section
@@ -335,7 +472,8 @@ export default function UiKitPage() {
           </div>
           <div className="mt-12" style={{ maxWidth: 320 }}>
             <ProgressBar value={7} total={10} />
-            <ProgressBar value={10} total={10} tone="green" />
+            <ProgressBar value={10} total={10} />
+            <ProgressBar value={0} total={0} />
           </div>
         </Section>
 
@@ -423,8 +561,12 @@ export default function UiKitPage() {
               </div>
             </div>
           </div>
-          <div className="stat-grid mt-16" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-            <div className="stat-card stat-card--blue">
+          <div className="stat-grid mt-16" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+            <div className="stat-card stat-card--primary">
+              <div className="stat-card__value">24</div>
+              <div className="stat-card__label">stat-card--primary (thẻ nổi bật)</div>
+            </div>
+            <div className="stat-card stat-card--blue stat-card--active">
               <div className="stat-card__value">12</div>
               <div className="stat-card__label">stat-card--blue</div>
             </div>
@@ -436,6 +578,13 @@ export default function UiKitPage() {
               <div className="stat-card__value">8</div>
               <div className="stat-card__label">stat-card--green</div>
             </div>
+          </div>
+          <div className="card mt-16">
+            <div className="card__header">
+              <div className="card__title">card + card__section</div>
+            </div>
+            <div className="card__body">Phần thân card</div>
+            <div className="card__section muted">Khối con ngăn bằng đường kẻ trên (thay inline borderTop)</div>
           </div>
         </Section>
 
@@ -459,6 +608,18 @@ export default function UiKitPage() {
             <div className="card">
               <ErrorState error={{ message: 'Không kết nối được máy chủ' }} onRetry={() => toast.info('Thử lại')} />
             </div>
+          </div>
+          <div className="grid-3 mt-12">
+            {['sending', 'done', 'error'].map((state) => (
+              <div key={state} className="card card__body" style={{ position: 'relative', minHeight: 180 }}>
+                <div className="field__label">Lý do từ chối</div>
+                <SubmitOverlay
+                  state={state}
+                  sub={state === 'done' ? 'Người đề xuất đã nhận thông báo' : state === 'error' ? 'Mất kết nối mạng' : undefined}
+                  onRetry={state === 'error' ? () => toast.info('Thử lại') : undefined}
+                />
+              </div>
+            ))}
           </div>
         </Section>
 

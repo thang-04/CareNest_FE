@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, RotateCcw, Eye, ClipboardCheck, PackagePlus } from 'lucide-react';
+import { Search, RotateCcw, Eye, ClipboardCheck, PackagePlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useRequests, useFacilityLocations } from '@/hooks/facility/useFacility';
@@ -15,6 +15,7 @@ import { isPrincipal, canReviewRequest, canPrincipalDecideRequest } from '@/util
 import { requestCrumbs } from '@/utils/facility/breadcrumbs';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/facility.css';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const EMPTY = { status: 'ALL', keyword: '', campusId: '', locationId: '' };
 
@@ -63,7 +64,7 @@ export default function RequestListPage() {
           </div>
         </div>
       )}
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+      <div className="stat-grid">
         {stats.map((s) => (
           <button
             key={s.key}
@@ -73,6 +74,7 @@ export default function RequestListPage() {
           >
             <div className="stat-card__value">{s.value}</div>
             <div className="stat-card__label">{s.label}</div>
+            <StatCardIcon tone={s.tone} />
           </button>
         ))}
       </div>

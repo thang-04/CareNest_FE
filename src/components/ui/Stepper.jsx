@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check } from '@/components/ui/icons';
 
 /**
  * Wizard header (Bước 1 → 2 → 3 → 4). Steps already reached are clickable.
@@ -19,7 +19,7 @@ export function Stepper({ steps, current, maxReached = current, onStepClick }) {
               disabled={!clickable}
               aria-current={i === current ? 'step' : undefined}
             >
-              <span className="stepper__dot">{state === 'done' && i < current ? <Check size={18} strokeWidth={2.5} /> : i + 1}</span>
+              <span className="stepper__dot">{state === 'done' && i < current ? <Check size={18} stroke={2.5} /> : i + 1}</span>
               <span className="stepper__label">{label}</span>
             </button>
           </li>

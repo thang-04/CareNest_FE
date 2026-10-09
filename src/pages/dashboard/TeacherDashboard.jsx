@@ -9,7 +9,7 @@ export default function TeacherDashboard() {
     <div className="page">
       <DashboardHeader subtitle="Việc cần làm hôm nay của lớp bạn phụ trách." />
       <ClassTodayPanel />
-      <div className="db-grid mt-16">
+      <div className="db-board mt-16">
         <FacilityTasksWidget />
       </div>
     </div>

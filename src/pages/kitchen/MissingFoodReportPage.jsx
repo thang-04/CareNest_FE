@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, PackageMinus } from 'lucide-react';
+import { CheckCircle2, PackageMinus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -131,7 +131,7 @@ export default function MissingFoodReportPage() {
           : 'Các báo thiếu thực phẩm của bếp điểm trường. Xác nhận khi đã bổ sung để bếp được thông báo.'}
       </p>
       <div className="card">
-        <div className="tabs" style={{ padding: '6px 16px 0' }} role="tablist">
+        <div className="tabs" role="tablist">
           {TABS.map((t) => (
             <button
               key={t.key}

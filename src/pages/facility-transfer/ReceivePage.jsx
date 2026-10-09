@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, Scale, Info, List, UserRound, Lock, Hourglass } from 'lucide-react';
+import { ArrowLeft, Check, Scale, Info, List, UserRound, Lock, Hourglass } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useTransfer } from '@/hooks/facility-transfer/useTransfers';

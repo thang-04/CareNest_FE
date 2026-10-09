@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from '@/components/ui/icons';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { AllergenChips } from '@/components/menu-planning/MenuBadges';
 import { dishAllergens, dishTotals } from '@/utils/menu-planning/menuCalculations';

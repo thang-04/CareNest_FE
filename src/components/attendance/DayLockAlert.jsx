@@ -1,4 +1,4 @@
-import { CalendarX, Info, Lock } from 'lucide-react';
+import { CalendarX, Info, Lock } from '@/components/ui/icons';
 import { formatDate } from '@/utils/format';
 
 /** Shows the cut-off state of the day (MSG22, MSG24). */

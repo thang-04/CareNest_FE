@@ -1,10 +1,22 @@
-import { UserCog, BookOpenCheck, ListChecks, Building2, ChefHat, CookingPot, UserRound } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  Baby,
+  BookOpenCheck,
+  Building2,
+  CalendarCheck,
+  ChefHat,
+  CookingPot,
+  KeyRound,
+  ListChecks,
+  UserCog,
+  UserPlus,
+  UserRound,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useWidget, usePendingApprovals } from '@/hooks/dashboard/useDashboard';
 import { Spinner } from '@/components/ui/States';
-import { ProgressBar } from '@/components/ui/ProgressBar';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, KpiCard, Shortcuts, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
@@ -15,7 +27,7 @@ import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getMealPreparations, getMissingFoodReports } from '@/services/kitchen/kitchenService';
 import { CHILD_STATUS } from '@/models/School';
 import { MEAL_SESSION_LABELS, MISSING_STATUS } from '@/models/kitchen/kitchenConstants';
-import { MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
+import { MEAL_COUNT_STATUS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 import { formatDate, todayInput } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
 
@@ -69,113 +81,188 @@ export default function VicePrincipalDashboard() {
       <DashboardHeader subtitle={campus ? campus.name : undefined} />
       <Shortcuts links={SHORTCUTS} />
 
-      <div className="stat-grid">
-        <KpiCard to="/children" tone="blue" label="Trẻ đang học" value={active} loading={firstLoad(childrenQ)} error={childrenQ.error} />
-        <KpiCard
-          to="/children/placement"
-          tone={pendingPlacement ? 'orange' : 'green'}
-          label="Trẻ chờ xếp lớp"
-          value={pendingPlacement}
-          loading={firstLoad(childrenQ)}
-          error={childrenQ.error}
-        />
-        <KpiCard
-          to="/attendance/summary"
-          tone="green"
-          label="Có mặt hôm nay"
-          value={att ? `${att.present}/${att.total}` : '—'}
-          hint={att ? (att.missing ? `${att.missing} trẻ chưa được điểm danh` : 'Đã điểm danh đủ') : 'Hôm nay không có số liệu điểm danh'}
-          loading={firstLoad(countsQ)}
-          error={countsQ.error}
-        />
-        <KpiCard
-          to="/approvals"
-          tone="purple"
-          label="Chờ bạn duyệt"
-          value={approvals.total}
-          hint={approvals.failed.length ? `${approvals.failed.length} nhóm không tải được` : undefined}
-          loading={approvals.loading && !approvals.groups.length}
-          error={approvals.error}
-        />
-        <KpiCard
-          to="/kitchen/missing-food"
-          tone="red"
-          label="Bếp báo thiếu thực phẩm"
-          value={(missingQ.data || []).length}
-          loading={firstLoad(missingQ)}
-          error={missingQ.error}
-        />
-        <KpiCard
-          to="/children/activation"
-          tone="orange"
-          label="Tài khoản phụ huynh chưa kích hoạt"
-          value={(parentsQ.data || []).length}
-          loading={firstLoad(parentsQ)}
-          error={parentsQ.error}
-        />
+      <div className="db-kpis">
+        <section className="db-kpis__group" aria-labelledby="kpi-today">
+          <div className="db-kpis__head">
+            <h2 id="kpi-today" className="db-kpis__title">
+              Hôm nay
+            </h2>
+          </div>
+          <div className="db-kpis__list">
+            <KpiCard
+              icon={Baby}
+              to="/children"
+              tone="blue"
+              label="Trẻ đang học"
+              value={active}
+              unit="trẻ"
+              loading={firstLoad(childrenQ)}
+              error={childrenQ.error}
+            />
+            <KpiCard
+              icon={CalendarCheck}
+              to="/attendance/summary"
+              tone="green"
+              label="Có mặt hôm nay"
+              value={att ? `${att.present}/${att.total}` : '—'}
+              unit={att ? 'trẻ' : undefined}
+              progress={att && att.total > 0 ? att.present / att.total : undefined}
+              hint={
+                att ? (att.missing ? `${att.missing} trẻ chưa được điểm danh` : 'Đã điểm danh đủ') : 'Hôm nay không có số liệu điểm danh'
+              }
+              loading={firstLoad(countsQ)}
+              error={countsQ.error}
+            />
+          </div>
+        </section>
+        <section className="db-kpis__group db-kpis__group--wide" aria-labelledby="kpi-todo">
+          <div className="db-kpis__head">
+            <h2 id="kpi-todo" className="db-kpis__title">
+              Cần bạn xử lý
+            </h2>
+            {/* Số nhóm việc đang có mục chờ — đếm từ chính các chỉ số bên dưới */}
+            {/* Chỉ đếm khi mọi nguồn đã tải xong, không lỗi — tránh báo "0 mục" sai khi đang tải/lỗi */}
+            {!approvals.loading &&
+              !approvals.error &&
+              !approvals.failed.length &&
+              [childrenQ, parentsQ, missingQ].every((q) => !firstLoad(q) && !q.error) && (
+                <span className="db-kpis__count">
+                  {
+                    [approvals.total, pendingPlacement, (parentsQ.data || []).length, (missingQ.data || []).length].filter((n) => n > 0)
+                      .length
+                  }{' '}
+                  mục đang có việc
+                </span>
+              )}
+            <span className="db-kpis__help">Bấm vào thẻ để mở danh sách</span>
+          </div>
+          <div className="db-kpis__list db-kpis__list--2">
+            <KpiCard
+              icon={ListChecks}
+              to="/approvals"
+              tone="purple"
+              action={!approvals.failed.length}
+              label="Chờ bạn duyệt"
+              value={approvals.total}
+              unit="yêu cầu"
+              hint={approvals.failed.length ? `${approvals.failed.length} nhóm không tải được` : undefined}
+              loading={approvals.loading && !approvals.groups.length}
+              error={approvals.error}
+            />
+            <KpiCard
+              icon={UserPlus}
+              to="/children/placement"
+              tone="orange"
+              action
+              label="Trẻ chờ xếp lớp"
+              value={pendingPlacement}
+              unit="trẻ"
+              loading={firstLoad(childrenQ)}
+              error={childrenQ.error}
+            />
+            <KpiCard
+              icon={KeyRound}
+              to="/children/activation"
+              tone="orange"
+              action
+              label="Tài khoản phụ huynh chưa kích hoạt"
+              value={(parentsQ.data || []).length}
+              unit="tài khoản"
+              loading={firstLoad(parentsQ)}
+              error={parentsQ.error}
+            />
+            <KpiCard
+              icon={ChefHat}
+              to="/kitchen/missing-food"
+              tone="red"
+              action
+              label="Bếp báo thiếu thực phẩm"
+              value={(missingQ.data || []).length}
+              unit="báo cáo"
+              loading={firstLoad(missingQ)}
+              error={missingQ.error}
+            />
+          </div>
+        </section>
       </div>
 
-      <div className="db-grid">
-        <ApprovalsWidget approvals={approvals} />
-        <Widget
-          title={`Bán trú hôm nay, ${formatDate(date)}`}
-          icon={CookingPot}
-          to="/kitchen/preparation"
-          linkLabel="Xem tình trạng chế biến"
-          loading={firstLoad(countsQ) || firstLoad(prepQ)}
-          error={countsQ.error && prepQ.error ? countsQ.error : null}
-          onRetry={() => {
-            countsQ.reload();
-            prepQ.reload();
-          }}
-          empty={!counts.length && !preps.length}
-          emptyTitle="Hôm nay không có bữa ăn bán trú"
-        >
-          <ShortList
-            rows={counts.map((c) => {
-              const prep = preps.find((p) => p.session === c.session);
-              const meals = c.totals.normal + c.totals.substitute;
-              return {
-                key: c.session,
-                to: `/attendance/meal-count?date=${date}`,
-                icon: ChefHat,
-                title: MEAL_SESSION_LABELS[c.session] || c.session,
-                meta: `${meals} suất (${c.totals.substitute} thay thế) · ${MEAL_COUNT_STATUS_LABELS[c.status] || c.status}`,
-                end: prep ? <PrepStatusBadge status={prep.record?.status || 'NOT_STARTED'} /> : null,
-              };
-            })}
-          />
-          {att && att.total > 0 && (
-            <div className="mt-16">
-              <div className="text-sm text-2 mb-8">Tỷ lệ trẻ có mặt</div>
-              <ProgressBar value={att.present} total={att.total} tone="green" />
+      <div className="db-board">
+        <div className="db-board__main">
+          <ApprovalsWidget approvals={approvals} />
+          <Widget title="Hồ sơ trẻ cần xử lý" icon={UserRound} to="/children" linkLabel="Danh sách trẻ">
+            <ShortList
+              rows={[
+                {
+                  key: 'placement',
+                  to: '/children/placement',
+                  title: 'Xếp lớp cho trẻ mới tiếp nhận',
+                  meta: childrenQ.error ? 'Không tải được danh sách trẻ' : 'Trẻ đã tiếp nhận nhưng chưa có lớp',
+                  end: endOf(childrenQ, pendingPlacement),
+                },
+                {
+                  key: 'activation',
+                  to: '/children/activation',
+                  title: 'Kích hoạt tài khoản phụ huynh',
+                  meta: parentsQ.error ? 'Không tải được tài khoản phụ huynh' : 'Phụ huynh chưa nhận được tài khoản đăng nhập',
+                  end: endOf(parentsQ, (parentsQ.data || []).length),
+                },
+              ]}
+            />
+          </Widget>
+        </div>
+        <div className="db-board__aside">
+          <Widget
+            title={`Bán trú hôm nay, ${formatDate(date)}`}
+            icon={CookingPot}
+            to="/kitchen/preparation"
+            linkLabel="Xem tình trạng chế biến"
+            loading={firstLoad(countsQ) || firstLoad(prepQ)}
+            error={countsQ.error && prepQ.error ? countsQ.error : null}
+            onRetry={() => {
+              countsQ.reload();
+              prepQ.reload();
+            }}
+            empty={!counts.length && !preps.length}
+            emptyTitle="Hôm nay không có bữa ăn bán trú"
+          >
+            <div className="db-meals">
+              {counts.map((c) => {
+                const prep = preps.find((p) => p.session === c.session);
+                const meals = c.totals.normal + c.totals.substitute;
+                return (
+                  <Link key={c.session} to={`/attendance/meal-count?date=${date}`} className="db-meal">
+                    <span className="db-meal__head">
+                      <span className="db-meal__icon" aria-hidden="true">
+                        <ChefHat size={20} />
+                      </span>
+                      <span className="db-meal__name">
+                        <b>{MEAL_SESSION_LABELS[c.session] || c.session}</b>
+                        <span>{c.totals.substitute} suất thay thế</span>
+                      </span>
+                      <span className="db-meal__count">
+                        {meals}
+                        <small>suất</small>
+                      </span>
+                    </span>
+                    <span className="db-meal__line">
+                      <span className="db-meal__key">Sĩ số suất ăn</span>
+                      <span className={`chip ${c.status === MEAL_COUNT_STATUS.CONFIRMED ? 'chip--green' : 'chip--purple'}`}>
+                        {MEAL_COUNT_STATUS_LABELS[c.status] || c.status}
+                      </span>
+                    </span>
+                    {prep && (
+                      <span className="db-meal__line">
+                        <span className="db-meal__key">Chế biến</span>
+                        <PrepStatusBadge status={prep.record?.status || 'NOT_STARTED'} />
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
-          )}
-        </Widget>
-      </div>
-
-      <div className="db-grid">
-        <FacilityTasksWidget />
-        <Widget title="Hồ sơ trẻ cần xử lý" icon={UserRound} to="/children" linkLabel="Danh sách trẻ">
-          <ShortList
-            rows={[
-              {
-                key: 'placement',
-                to: '/children/placement',
-                title: 'Xếp lớp cho trẻ mới tiếp nhận',
-                meta: childrenQ.error ? 'Không tải được danh sách trẻ' : 'Trẻ đã tiếp nhận nhưng chưa có lớp',
-                end: endOf(childrenQ, pendingPlacement),
-              },
-              {
-                key: 'activation',
-                to: '/children/activation',
-                title: 'Kích hoạt tài khoản phụ huynh',
-                meta: parentsQ.error ? 'Không tải được tài khoản phụ huynh' : 'Phụ huynh chưa nhận được tài khoản đăng nhập',
-                end: endOf(parentsQ, (parentsQ.data || []).length),
-              },
-            ]}
-          />
-        </Widget>
+          </Widget>
+          <FacilityTasksWidget />
+        </div>
       </div>
     </div>
   );

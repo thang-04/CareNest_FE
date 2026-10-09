@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ImagePlus, Info, Check } from 'lucide-react';
+import { ImagePlus, Info, Check } from '@/components/ui/icons';
 import { compressImage, isImageFile } from '@/utils/file';
 import { useToast } from '@/contexts/ToastContext';
 import { Spinner } from '@/components/ui/States';

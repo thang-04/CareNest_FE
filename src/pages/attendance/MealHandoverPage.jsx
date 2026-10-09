@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, ChefHat, PackageCheck, PackagePlus, UtensilsCrossed } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChefHat, PackageCheck, PackagePlus, UtensilsCrossed } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useClasses } from '@/hooks/useSchool';

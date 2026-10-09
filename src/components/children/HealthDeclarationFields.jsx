@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Info } from 'lucide-react';
+import { Plus, X, Info } from '@/components/ui/icons';
 import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS, NOTE_STATE_LABELS } from '@/models/children/childrenConstants';
 
 function StateRadios({ name, labels, value, onChange }) {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Sparkles, Wand2, XCircle, PencilLine, AlertOctagon, Info } from 'lucide-react';
+import { Sparkles, Wand2, XCircle, PencilLine, AlertOctagon, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllergyContext, useMenuAccess, useMenuCatalog, useWeeklyMenus } from '@/hooks/menu-planning/useMenuPlanning';

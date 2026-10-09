@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Send, Lock, CheckCircle2, Info, LineChart } from 'lucide-react';
+import { ArrowLeft, Save, Send, Lock, CheckCircle2, Info, LineChart } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';

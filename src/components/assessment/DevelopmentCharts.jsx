@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BarChart3, Table2 } from 'lucide-react';
+import { BarChart3, Table2 } from '@/components/ui/icons';
 import { formatDate } from '@/utils/format';
 
 /*

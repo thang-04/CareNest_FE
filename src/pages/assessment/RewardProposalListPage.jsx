@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Award, Eye, FileCheck2, Info, Pencil, Plus, Search } from 'lucide-react';
+import { Award, Eye, FileCheck2, Info, Pencil, Plus, Search } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useRewardProposals } from '@/hooks/assessment/useAssessment';
@@ -99,7 +99,7 @@ export default function RewardProposalListPage() {
         </div>
       </div>
       <div className="card">
-        <div className="tabs" style={{ padding: '6px 16px 0' }} role="tablist">
+        <div className="tabs" role="tablist">
           {tabs.map((t) => (
             <button
               key={t.key}

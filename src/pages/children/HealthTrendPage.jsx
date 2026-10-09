@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { LineChart, Sparkles, AlertTriangle, Info, RefreshCw, HeartPulse, ArrowLeft } from 'lucide-react';
+import { LineChart, Sparkles, AlertTriangle, Info, RefreshCw, HeartPulse, ArrowLeft } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
@@ -175,7 +175,7 @@ export default function HealthTrendPage() {
             </div>
           ) : (
             <section className="card">
-              <div className="tabs" style={{ padding: '6px 16px 0' }} role="tablist">
+              <div className="tabs" role="tablist">
                 <button
                   role="tab"
                   aria-selected={view === 'chart'}

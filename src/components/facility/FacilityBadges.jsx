@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, FileEdit, XCircle, Stamp, Send, Lock } from 'lucide-react';
+import { CheckCircle2, Clock, FileEdit, XCircle, Stamp, Send, Lock } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { ISSUE_STATUS_LABELS, ISSUE_TYPE_LABELS, REQUEST_STATUS_LABELS, PROPOSAL_STATUS_LABELS } from '@/models/facility/facilityConstants';
 

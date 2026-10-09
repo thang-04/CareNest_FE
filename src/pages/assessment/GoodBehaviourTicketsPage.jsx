@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BadgeCheck, CalendarRange, Info, Lock, Ticket } from 'lucide-react';
+import { BadgeCheck, CalendarRange, Info, Lock, Ticket } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAssessmentClasses, useTicketBoard } from '@/hooks/assessment/useAssessment';
@@ -84,7 +84,7 @@ export default function GoodBehaviourTicketsPage() {
         </div>
       ) : (
         <div className="card">
-          <div className="tabs" style={{ padding: '6px 16px 0' }} role="tablist">
+          <div className="tabs" role="tablist">
             {[TICKET_TYPE.WEEKLY, TICKET_TYPE.MONTHLY].map((t) => (
               <button
                 key={t}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, FilePlus2, Lock, Info, AlertTriangle, ArrowRight, Users } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, FilePlus2, Lock, Info, AlertTriangle, ArrowRight, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';

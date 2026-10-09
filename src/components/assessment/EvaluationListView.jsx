@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, FileCheck2, Info, RotateCcw, Search } from 'lucide-react';
+import { Eye, FileCheck2, Info, RotateCcw, Search } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAssessmentClasses, useEvaluations } from '@/hooks/assessment/useAssessment';
@@ -74,7 +74,7 @@ export function EvaluationListView({ kind }) {
       </div>
       <div className="card">
         {tabs.length > 0 && (
-          <div className="tabs" style={{ padding: '6px 16px 0' }} role="tablist">
+          <div className="tabs" role="tablist">
             {tabs.map((t) => (
               <button
                 key={t.key}

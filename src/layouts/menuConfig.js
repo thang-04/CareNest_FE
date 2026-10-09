@@ -1,17 +1,17 @@
 import {
-  Home,
-  UserRound,
-  CalendarDays,
-  Building2,
-  UtensilsCrossed,
+  House,
+  Baby,
+  CalendarDots,
+  Buildings,
+  ForkKnife,
   ChefHat,
-  Settings,
+  Gear,
   Bell,
-  BookOpenCheck,
-  ClipboardCheck,
+  BookOpenText,
+  ClipboardText,
   Star,
   ListChecks,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 
 /*
@@ -24,22 +24,22 @@ import { ROLES } from '@/models/User';
 
 /** Top-level links. */
 const LINKS = {
-  home: { label: 'Trang chủ', icon: Home, to: '/' },
+  home: { label: 'Trang chủ', icon: House, to: '/' },
   approvals: { label: 'Chờ duyệt', icon: ListChecks, to: '/approvals' },
   notifications: { label: 'Thông báo', icon: Bell, to: '/notifications' },
 };
 
 /** Groups: same label + icon for every role. */
 const GROUPS = {
-  school: { label: 'Cấu hình trường', icon: CalendarDays },
-  children: { label: 'Quản lý trẻ', icon: UserRound },
-  attendance: { label: 'Điểm danh & suất ăn', icon: ClipboardCheck },
-  education: { label: 'Kế hoạch giáo dục', icon: BookOpenCheck },
+  school: { label: 'Cấu hình trường', icon: CalendarDots },
+  children: { label: 'Quản lý trẻ', icon: Baby },
+  attendance: { label: 'Điểm danh & suất ăn', icon: ClipboardText },
+  education: { label: 'Kế hoạch giáo dục', icon: BookOpenText },
   assessment: { label: 'Đánh giá trẻ', icon: Star },
-  menu: { label: 'Thực đơn', icon: UtensilsCrossed },
+  menu: { label: 'Thực đơn', icon: ForkKnife },
   kitchen: { label: 'Bếp & kho', icon: ChefHat },
-  facility: { label: 'Cơ sở vật chất', icon: Building2 },
-  system: { label: 'Hệ thống', icon: Settings },
+  facility: { label: 'Cơ sở vật chất', icon: Buildings },
+  system: { label: 'Hệ thống', icon: Gear },
 };
 
 /** Sub-menu items. */

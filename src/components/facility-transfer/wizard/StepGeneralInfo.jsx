@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Info, Lock } from 'lucide-react';
+import { Info, Lock } from '@/components/ui/icons';
 import { useLockedLocations } from '@/hooks/useLockedLocations';
 import { TRANSFER_TYPES, TRANSFER_TYPE_LABELS, TRANSFER_TYPE_LOCATION_TYPES } from '@/models/facility-transfer/transferConstants';
 import { ROLE_LABELS } from '@/models/User';

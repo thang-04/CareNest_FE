@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, CalendarRange, ClipboardList, FileText, Flag, Lock, Ticket } from 'lucide-react';
+import { Award, CalendarRange, ClipboardList, FileText, Flag, Lock, Ticket } from '@/components/ui/icons';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useChildDevelopment } from '@/hooks/assessment/useAssessment';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';

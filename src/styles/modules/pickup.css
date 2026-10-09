@@ -20,9 +20,6 @@
 .dt-search {
   flex: 1;
 }
-.dt-tabs {
-  padding: var(--space-2) var(--space-4) 0;
-}
 .dt-table-wrap {
   border: none;
   border-radius: 0;

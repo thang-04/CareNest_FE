@@ -1,19 +1,17 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, RotateCcw, LogOut, Palette, Mail, Phone, Building2, UserRound, KeyRound } from 'lucide-react';
+import { CaretUpDown, ArrowCounterClockwise, SignOut, Palette, UserCircle, Key, PaintBrush } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { useMasterData } from '@/hooks/useMasterData';
 import { IS_DEMO_MODE, resetDemoData } from '@/services/authService';
 import { ROLE_LABELS } from '@/models/User';
 import { Avatar } from '@/components/ui/Avatar';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
-/** Account box in the header: profile info, own profile / password links, developer links, logout. */
-export function UserMenu() {
+/** Account box ở đáy sidebar: profile info, own profile / password links, developer links, logout. Menu mở lên trên. */
+export function UserMenu({ collapsed = false }) {
   const { user, logout } = useAuth();
-  const md = useMasterData();
   const toast = useToast();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -23,10 +21,17 @@ export function UserMenu() {
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(ref, close, open);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
   const onLogout = async () => {
     await logout();
     setConfirmLogout(false);
-    toast.info('Bạn đã đăng xuất');
+    toast.success('Bạn đã đăng xuất');
     navigate('/login', { replace: true });
   };
 
@@ -39,34 +44,27 @@ export function UserMenu() {
   };
 
   return (
-    <div className="dropdown" ref={ref}>
-      <button className="user-box" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open}>
-        <Avatar user={user} size="lg" />
+    <div className="dropdown user-menu" ref={ref}>
+      <button
+        className="user-box"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={collapsed ? `Tài khoản: ${user.fullName}` : undefined}
+        title={collapsed ? user.fullName : undefined}
+      >
+        <Avatar user={user} />
         <div className="user-box__text">
           <div className="user-box__name">{user.fullName}</div>
           <div className="user-box__role">{ROLE_LABELS[user.role]}</div>
         </div>
-        <ChevronDown size={18} />
+        <CaretUpDown size={16} className="user-box__caret" />
       </button>
       {open && (
         <div className="dropdown__panel user-panel" role="menu">
-          <div className="user-profile">
-            <Avatar user={user} size="lg" />
-            <div>
-              <div className="fw-600">{user.fullName}</div>
-              <div className="muted text-sm">{ROLE_LABELS[user.role]}</div>
-            </div>
-          </div>
-          <div className="user-profile__info">
-            <span>
-              <Mail size={14} /> {user.email}
-            </span>
-            <span>
-              <Phone size={14} /> {user.phone}
-            </span>
-            <span>
-              <Building2 size={14} /> {md.campusById(user.campusId)?.name || '—'}
-            </span>
+          {/* Tên, vai trò đã hiện ở hộp tài khoản; panel chỉ giữ email để biết đang đăng nhập tài khoản nào */}
+          <div className="user-panel__email" title={user.email}>
+            {user.email}
           </div>
 
           <button
@@ -77,7 +75,7 @@ export function UserMenu() {
               navigate('/account/profile');
             }}
           >
-            <UserRound size={16} /> Hồ sơ cá nhân
+            <UserCircle size={16} /> Hồ sơ cá nhân
           </button>
           <button
             className="user-option"
@@ -87,7 +85,17 @@ export function UserMenu() {
               navigate('/account/password');
             }}
           >
-            <KeyRound size={16} /> Đổi mật khẩu
+            <Key size={16} /> Đổi mật khẩu
+          </button>
+          <button
+            className="user-option"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              navigate('/settings/appearance');
+            }}
+          >
+            <PaintBrush size={16} /> Tùy chỉnh giao diện
           </button>
           {import.meta.env.DEV && (
             <button
@@ -110,7 +118,7 @@ export function UserMenu() {
                 setConfirmReset(true);
               }}
             >
-              <RotateCcw size={16} /> Khôi phục dữ liệu demo
+              <ArrowCounterClockwise size={16} /> Khôi phục dữ liệu demo
             </button>
           )}
           <button
@@ -121,7 +129,7 @@ export function UserMenu() {
               setConfirmLogout(true);
             }}
           >
-            <LogOut size={16} /> Đăng xuất
+            <SignOut size={16} /> Đăng xuất
           </button>
         </div>
       )}

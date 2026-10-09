@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertOctagon, ArrowLeft, Award, CheckCircle2, Copy, Flag, History, Lock, RefreshCw, Save, Sparkles } from 'lucide-react';
+import { AlertOctagon, ArrowLeft, Award, CheckCircle2, Copy, Flag, History, Lock, RefreshCw, Save, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';

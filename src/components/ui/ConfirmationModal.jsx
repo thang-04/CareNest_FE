@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { AlertTriangle, HelpCircle } from 'lucide-react';
+import { Question, Warning } from '@/components/ui/icons';
 import { Modal } from './Modal';
-import { Spinner } from './States';
+import { SubmitOverlay } from './States';
 
 /** Confirm dialog for important or destructive actions. `onConfirm` may be async. */
 export function ConfirmationModal({
@@ -24,11 +24,13 @@ export function ConfirmationModal({
       setBusy(false);
     }
   };
-  const Icon = danger ? AlertTriangle : HelpCircle;
+  const Icon = danger ? Warning : Question;
   return (
     <Modal
       open={open}
-      title={title}
+      label={title}
+      size="sm"
+      className="modal--confirm"
       onClose={busy ? undefined : onClose}
       footer={
         <>
@@ -36,22 +38,20 @@ export function ConfirmationModal({
             {cancelLabel}
           </button>
           <button className={`btn ${danger ? 'btn--danger' : 'btn--primary'}`} onClick={handleConfirm} disabled={busy}>
-            {busy && <Spinner small />} {confirmLabel}
+            {confirmLabel}
           </button>
         </>
       }
     >
-      <div className="row" style={{ alignItems: 'flex-start', gap: 14 }}>
-        <div
-          className={`state__icon ${danger ? 'confirm-icon--danger' : ''}`}
-          style={{ width: 44, height: 44, flexShrink: 0, ...(danger ? { background: 'var(--danger-50)', color: 'var(--danger)' } : {}) }}
-        >
-          <Icon size={22} />
-        </div>
-        <div style={{ lineHeight: 1.55, flex: 1 }}>
-          {message}
-          {children}
-        </div>
+      {/* Đang gửi: phủ cả hộp (một dấu hiệu duy nhất, nút không thêm spinner) */}
+      {busy && <SubmitOverlay state="sending" />}
+      <div className={`confirm__icon ${danger ? 'confirm__icon--danger' : ''}`} aria-hidden="true">
+        <Icon size={28} />
+      </div>
+      <div className="confirm__title">{title}</div>
+      <div className="confirm__msg">
+        {message}
+        {children}
       </div>
     </Modal>
   );

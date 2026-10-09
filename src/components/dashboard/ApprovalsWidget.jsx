@@ -1,5 +1,6 @@
-import { ListChecks, AlertTriangle } from 'lucide-react';
-import { Widget, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
+import { ListChecks } from '@/components/ui/icons';
+import { BarList } from '@/components/charts/MiniCharts';
+import { Widget, ShortList } from '@/components/dashboard/DashboardWidgets';
 import { APPROVAL_TYPE_META } from '@/models/dashboard/dashboardConstants';
 import { formatWhen, sortKey } from '@/utils/dashboard/dashboardFormat';
 
@@ -25,19 +26,46 @@ export function ApprovalsWidget({ approvals, campusId }) {
       error={error}
       onRetry={reload}
     >
-      <ShortList
-        rows={scoped.map((g) => ({
-          key: g.type,
-          to: `/approvals?type=${g.type}`,
-          icon: g.error ? AlertTriangle : undefined,
-          title: APPROVAL_TYPE_META[g.type].label,
-          meta: g.error ? 'Không tải được nhóm này – mở danh sách để thử lại' : undefined,
-          end: g.error ? <span className="muted">—</span> : <TaskCount value={g.items.length} />,
-        }))}
-      />
+      {(() => {
+        // Cùng dữ liệu/link như trước, chỉ sắp xếp nhiều → ít (nhóm lỗi xuống cuối) để đọc nhanh
+        const rows = scoped
+          .map((g) => ({
+            key: g.type,
+            to: `/approvals?type=${g.type}`,
+            label: APPROVAL_TYPE_META[g.type].label,
+            value: g.items.length,
+            color: 'var(--purple)',
+            error: !!g.error,
+            meta: g.error ? 'Không tải được nhóm này – mở danh sách để thử lại' : undefined,
+          }))
+          .sort((x, y) => Number(x.error) - Number(y.error) || y.value - x.value);
+        const total = rows.reduce((sum, r) => sum + (r.error ? 0 : r.value), 0);
+        const top = rows.find((r) => !r.error && r.value > 0);
+        const failedCount = rows.filter((r) => r.error).length;
+        return (
+          <>
+            <div className="db-appr-sum">
+              {/* Không nhóm nào tải được ⇒ chưa biết số lượng, không hiển thị 0 */}
+              <b className="db-appr-sum__num">{failedCount === rows.length ? '—' : total}</b>
+              <span className="db-appr-sum__text">
+                <span className="db-appr-sum__title">yêu cầu đang chờ bạn duyệt</span>
+                {top && (
+                  <span className="db-appr-sum__meta">
+                    Nhiều nhất: <b>{top.label}</b> ({top.value})
+                  </span>
+                )}
+                {failedCount > 0 && <span className="db-appr-sum__meta">{failedCount} nhóm không tải được – số trên có thể chưa đủ</span>}
+              </span>
+            </div>
+            <div className="db-approvals">
+              <BarList rows={rows} />
+            </div>
+          </>
+        );
+      })()}
       {oldest.length > 0 && (
         <>
-          <div className="subsection-title mt-16">Chờ lâu nhất</div>
+          <div className="db-eyebrow mt-16">Chờ lâu nhất</div>
           <ShortList
             rows={oldest.map((i) => ({
               key: i.key,

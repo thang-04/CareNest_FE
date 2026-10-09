@@ -1,4 +1,4 @@
-import { CheckCircle2, FileEdit, PauseCircle, Replace, Sparkles, Lock } from 'lucide-react';
+import { CheckCircle2, FileEdit, PauseCircle, Replace, Sparkles, Lock } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/States';
 import { useMasterData } from '@/hooks/useMasterData';

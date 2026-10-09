@@ -1,6 +1,18 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Printer, XCircle, Stamp, Eye, ClipboardCheck, History, Lock, PenLine, CheckCircle2, Boxes } from 'lucide-react';
+import {
+  ArrowLeft,
+  Printer,
+  XCircle,
+  Stamp,
+  Eye,
+  ClipboardCheck,
+  History,
+  Lock,
+  PenLine,
+  CheckCircle2,
+  Boxes,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';

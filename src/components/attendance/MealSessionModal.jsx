@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Utensils } from 'lucide-react';
+import { Utensils } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { MEAL_SESSIONS, MEAL_SESSION_LABELS, isAbsent } from '@/models/attendance/attendanceConstants';
 import { validateAttendanceEntry } from '@/utils/attendance/attendanceValidation';

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X } from '@/components/ui/icons';
 
 /** Accessible modal: Esc closes, focus moves inside and returns on close. */
-export function Modal({ open, title, onClose, children, footer, size = 'md', closeOnBackdrop = true, className = '' }) {
+export function Modal({ open, title, label, onClose, children, footer, size = 'md', closeOnBackdrop = true, className = '' }) {
   const ref = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -25,7 +25,14 @@ export function Modal({ open, title, onClose, children, footer, size = 'md', clo
   if (!open) return null;
   return createPortal(
     <div className="modal-backdrop no-print-backdrop" onMouseDown={(e) => closeOnBackdrop && e.target === e.currentTarget && onClose?.()}>
-      <div className={`modal modal--${size} ${className}`} role="dialog" aria-modal="true" aria-label={title} ref={ref} tabIndex={-1}>
+      <div
+        className={`modal modal--${size} ${className}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title || label}
+        ref={ref}
+        tabIndex={-1}
+      >
         {title && (
           <div className="modal__header no-print">
             <div className="modal__title">{title}</div>

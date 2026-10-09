@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, Send } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Send } from '@/components/ui/icons';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { FormField, Spinner } from '@/components';
 import { requestPasswordReset } from '@/services/account/accountService';

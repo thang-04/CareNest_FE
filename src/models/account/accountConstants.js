@@ -36,3 +36,11 @@ export const NOTIFICATION_GROUPS = [
 
 export const notificationGroupLabel = (type) =>
   NOTIFICATION_GROUPS.find((g) => String(type || '').startsWith(g.prefix))?.label || 'Thông báo hệ thống';
+
+/** Nhãn `staffRole` trong phân công (enum StaffRole của BE). */
+export const STAFF_ROLE_LABELS = {
+  PRINCIPAL: 'Hiệu trưởng',
+  VICE_PRINCIPAL: 'Phó hiệu trưởng phụ trách',
+  TEACHER: 'Giáo viên lớp',
+  KITCHEN_STAFF: 'Nhân viên bếp',
+};

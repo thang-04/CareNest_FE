@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ClipboardList, FilePlus2, PackagePlus, FileText } from 'lucide-react';
+import { ClipboardList, FilePlus2, PackagePlus, FileText } from '@/components/ui/icons';
 import { canCreateProposal } from '@/utils/facility/facilityPermissions';
 
 /** Navigation shared by the manager lists of the module (issues, requests, proposals). */

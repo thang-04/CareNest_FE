@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@/components/ui/icons';
 import { useTransfer } from '@/hooks/facility-transfer/useTransfers';
 import { useMasterData } from '@/hooks/useMasterData';
 import { LoadingState, ErrorState } from '@/components/ui/States';

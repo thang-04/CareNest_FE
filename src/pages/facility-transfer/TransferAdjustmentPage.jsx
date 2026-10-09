@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AlertTriangle, Lock } from 'lucide-react';
+import { AlertTriangle, Lock } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/States';
 import { useAuth } from '@/contexts/AuthContext';

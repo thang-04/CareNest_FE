@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
 import { GENDER_LABELS } from '@/models/School';
 import { GUARDIAN_RELATIONS } from '@/models/children/childrenConstants';

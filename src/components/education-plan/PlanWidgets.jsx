@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Plus, X } from 'lucide-react';
+import { Check, ChevronDown, Plus, X } from '@/components/ui/icons';
 import { DOMAIN_SHORT } from '@/models/education-plan/educationPlanConstants';
 
 /** Requirement codes (YCCĐ) as chips. */

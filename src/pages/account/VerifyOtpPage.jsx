@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, FlaskConical, MailCheck, RotateCw, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, FlaskConical, MailCheck, RotateCw, ShieldCheck } from '@/components/ui/icons';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { useToast } from '@/contexts/ToastContext';
 import { FormField, Spinner } from '@/components';

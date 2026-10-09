@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useInspection } from '@/hooks/inventory-inspection/useInspections';
 import { PrintHeader } from '@/components/print/PrintHeader';

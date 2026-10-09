@@ -2,6 +2,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { SchoolYearProvider } from '@/contexts/SchoolYearContext';
+import { AppearanceProvider } from '@/contexts/AppearanceContext';
 import { AppRoutes } from '@/routes/AppRoutes';
 
 export default function App() {
@@ -10,7 +11,9 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <SchoolYearProvider>
-            <AppRoutes />
+            <AppearanceProvider>
+              <AppRoutes />
+            </AppearanceProvider>
           </SchoolYearProvider>
         </AuthProvider>
       </ToastProvider>

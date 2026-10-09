@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, ImageOff, Phone, PhoneOff, ThumbsDown, ThumbsUp, UserX } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ImageOff, Phone, PhoneOff, ThumbsDown, ThumbsUp, UserX } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { PickupOutcomeBadge, PickupStatusBadge } from '@/components/pickup/PickupBadges';

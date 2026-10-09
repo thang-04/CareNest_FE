@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Bell, ExternalLink, Lock } from 'lucide-react';
+import { ArrowLeft, Bell, ExternalLink, Lock } from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { useNotificationDetail } from '@/hooks/account/useAccount';
 import { acCrumbs } from '@/utils/account/breadcrumbs';

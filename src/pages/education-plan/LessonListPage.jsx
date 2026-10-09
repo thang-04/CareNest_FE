@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarDays, CalendarRange, FilePlus2, Search } from 'lucide-react';
+import { CalendarDays, CalendarRange, FilePlus2, Search } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead } from '@/components/education-plan/eduUi';
 import { className, periodLabel, typeLabel } from '@/components/education-plan/lessonShared';

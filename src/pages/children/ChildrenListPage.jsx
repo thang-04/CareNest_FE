@@ -1,6 +1,18 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, RotateCcw, Eye, HeartPulse, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound, ShieldAlert } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  Plus,
+  Search,
+  RotateCcw,
+  Eye,
+  HeartPulse,
+  FileSpreadsheet,
+  Baby,
+  Info,
+  LayoutGrid,
+  KeyRound,
+  ShieldAlert,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -10,23 +22,25 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
+import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
-import { formatDate, normalizeText } from '@/utils/format';
+import { avatarTone, formatDate, initials, normalizeText } from '@/utils/format';
 import { canEnrollChild, isPrincipal, isTeacherRole, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 export default function ChildrenListPage() {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();
   const md = useMasterData();
-  const navigate = useNavigate();
   const [status, setStatus] = useState('');
   const [keyword, setKeyword] = useState('');
   const [campusId, setCampusId] = useState('');
   const [classId, setClassId] = useState('');
   const [page, setPage] = useState(1);
+  const [quickViewId, setQuickViewId] = useState(null);
 
   const { children: all, loading, error, reload } = useChildRecords({ schoolYear });
   const { classes } = useClasses(campusId ? { campusId } : {});
@@ -126,7 +140,7 @@ export default function ChildrenListPage() {
         </div>
       )}
 
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      <div className="stat-grid">
         {stats.map((s) => (
           <button
             key={s.key || 'all'}
@@ -139,6 +153,7 @@ export default function ChildrenListPage() {
           >
             <div className="stat-card__value">{s.value}</div>
             <div className="stat-card__label">{s.label}</div>
+            <StatCardIcon tone={s.tone} />
           </button>
         ))}
       </div>
@@ -252,9 +267,16 @@ export default function ChildrenListPage() {
                   pageRows.map((c) => {
                     const g = c.guardians[0];
                     return (
-                      <tr key={c.id} className="row-click" onClick={() => navigate(`/children/${c.id}`)}>
+                      <tr key={c.id} className="row-click" onClick={() => setQuickViewId(c.id)}>
                         <td className="fw-600 text-primary nowrap">{c.code}</td>
-                        <td className="fw-600">{c.fullName}</td>
+                        <td className="fw-600">
+                          <span className="row" style={{ gap: 10, flexWrap: 'nowrap' }}>
+                            <span className={`avatar avatar--sm avatar--tone-${avatarTone(c.fullName)}`} aria-hidden="true">
+                              {initials(c.fullName)}
+                            </span>
+                            {c.fullName}
+                          </span>
+                        </td>
                         <td className="nowrap">
                           <div>{formatDate(c.dateOfBirth)}</div>
                           <div className="muted text-xs">{ageLabel(c.dateOfBirth)}</div>
@@ -300,6 +322,7 @@ export default function ChildrenListPage() {
         )}
         {!loading && rows.length > 0 && <Pagination page={page} total={rows.length} onChange={setPage} unit="trẻ" />}
       </div>
+      <ChildQuickPanel childId={quickViewId} onClose={() => setQuickViewId(null)} />
     </div>
   );
 }

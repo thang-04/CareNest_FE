@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck } from '@/components/ui/icons';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState } from '@/components/ui/States';

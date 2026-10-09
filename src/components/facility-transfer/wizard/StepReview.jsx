@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Pencil, Home, Building2, Info } from 'lucide-react';
+import { Pencil, Home, Building2, Info } from '@/components/ui/icons';
 import { formatDate, formatFileSize } from '@/utils/format';
 import { ROLE_LABELS } from '@/models/User';
 import { locationLabel } from '@/models/Location';

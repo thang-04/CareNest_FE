@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, FileEdit, PackageCheck, AlertTriangle, XCircle, Scale } from 'lucide-react';
+import { CheckCircle2, Clock, FileEdit, PackageCheck, AlertTriangle, XCircle, Scale } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { TRANSFER_STATUS_LABELS } from '@/models/facility-transfer/transferConstants';
 

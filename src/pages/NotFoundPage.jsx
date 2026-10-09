@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { SearchX } from 'lucide-react';
+import { SearchX } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/States';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 

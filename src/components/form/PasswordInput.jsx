@@ -1,5 +1,5 @@
 import { forwardRef, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from '@/components/ui/icons';
 
 /** Password input with show / hide toggle. Accepts every <input> prop. */
 export const PasswordInput = forwardRef(function PasswordInput({ className = '', ...props }, ref) {

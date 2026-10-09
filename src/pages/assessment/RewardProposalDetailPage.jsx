@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, Check, CheckCircle2, FileText, History, Lock, Pencil, Send, Trash2, Undo2, XCircle } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  FileText,
+  History,
+  Lock,
+  Pencil,
+  Send,
+  Trash2,
+  Undo2,
+  XCircle,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';

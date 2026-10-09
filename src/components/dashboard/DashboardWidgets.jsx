@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, ChevronRight } from '@/components/ui/icons';
 import { Spinner, EmptyState, ErrorState } from '@/components/ui/States';
 
 /**
@@ -53,20 +53,60 @@ export function Widget({
 }
 
 /**
- * KPI tile (DESIGN stat-grid). The value always comes from a service call;
- * while loading it shows a spinner, on error a dash with a short hint.
+ * KPI tile ngang (nhìn lướt): icon · nhãn (+ trạng thái / thanh tỷ lệ) · số lớn + đơn vị · mũi tên.
+ * Số luôn lấy từ service; đang tải ⇒ spinner, lỗi ⇒ "—" + gợi ý ngắn.
+ * `action` = chỉ số "việc cần làm": hiện nhãn "Cần xử lý" / "Không có việc" (kèm icon, không chỉ dựa vào màu).
+ * `progress` (0..1) = tỷ lệ hiển thị thành thanh ngang dưới nhãn (vd. trẻ có mặt).
  */
-export function KpiCard({ to, tone = 'blue', label, value, hint, loading, error }) {
+export function KpiCard({ to, tone = 'blue', icon: Icon, label, value, unit, hint, progress, action, loading, error }) {
+  const ready = !loading && !error;
+  const hasWork = action && ready && Number(value) > 0;
+  const calm = action && ready && !hasWork;
+  const status = !action || !ready ? null : hasWork ? 'todo' : 'ok';
   const content = (
     <>
-      <div className="stat-card__value db-kpi__value">{loading ? <Spinner small /> : error ? '—' : value}</div>
-      <div className="stat-card__label">{label}</div>
-      {(hint || error) && <div className="db-kpi__hint">{error ? 'Không tải được số liệu' : hint}</div>}
+      {Icon && (
+        <span className="kpi-tile__icon" aria-hidden="true">
+          <Icon size={22} />
+        </span>
+      )}
+      <span className="kpi-tile__body">
+        <span className="kpi-tile__label">{label}</span>
+        {status && (
+          <span className={`kpi-tile__status kpi-tile__status--${status}`}>
+            {status === 'todo' ? <AlertCircle size={14} aria-hidden="true" /> : <CheckCircle2 size={14} aria-hidden="true" />}
+            {status === 'todo' ? 'Cần xử lý' : 'Không có việc'}
+          </span>
+        )}
+        {progress == null && (hint || error) && <span className="kpi-tile__hint">{error ? 'Không tải được số liệu' : hint}</span>}
+      </span>
+      <span className="kpi-tile__value">
+        {loading ? <Spinner small /> : error ? '—' : value}
+        {unit && ready && <small>{unit}</small>}
+      </span>
+      {to && <ChevronRight size={20} className="kpi-tile__chev" aria-hidden="true" />}
+      {/* Thẻ có tỷ lệ: thanh + gợi ý nằm hàng riêng, trải hết chiều rộng thẻ */}
+      {progress != null && (
+        <span className="kpi-tile__foot">
+          {ready && (
+            <span className="kpi-tile__bar" aria-hidden="true">
+              <span style={{ width: `${Math.round(Math.min(progress, 1) * 100)}%` }} />
+            </span>
+          )}
+          <span className="kpi-tile__hint">
+            {error ? 'Không tải được số liệu' : hint}
+            {ready && <b className="kpi-tile__pct">{Math.round(progress * 100)}% có mặt</b>}
+          </span>
+        </span>
+      )}
     </>
   );
-  if (!to) return <div className={`stat-card stat-card--${tone} db-kpi db-kpi--static`}>{content}</div>;
+  const count = ready ? Number(value) : NaN;
+  const alert = count > 0 && (action || tone === 'red' || tone === 'orange');
+  const cls = `kpi-tile kpi-tile--${calm ? 'calm' : tone}${alert ? ' kpi-tile--alert' : ''}${count === 0 ? ' kpi-tile--zero' : ''} db-kpi`;
+  if (!to) return <div className={`${cls} db-kpi--static`}>{content}</div>;
   return (
-    <Link to={to} className={`stat-card stat-card--${tone} db-kpi`}>
+    <Link to={to} className={cls}>
       {content}
     </Link>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Search, Trash2, LayoutGrid, Monitor, PlayCircle } from 'lucide-react';
+import { ArrowRight, Search, Trash2, LayoutGrid, Monitor, PlayCircle } from '@/components/ui/icons';
 import { useAvailableAssets } from '@/hooks/facility-transfer/useAvailableAssets';
 import { normalizeText } from '@/utils/format';
 import { locationLabel } from '@/models/Location';

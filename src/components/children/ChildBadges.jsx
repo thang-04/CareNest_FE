@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, UserX, AlertTriangle, MinusCircle, KeyRound, UserCheck, UserPlus } from 'lucide-react';
+import { CheckCircle2, Clock, UserX, AlertTriangle, MinusCircle, KeyRound, UserCheck, UserPlus } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { CHILD_STATUS_LABELS } from '@/models/School';
 import { NUTRITION_STATUS_LABELS, PARENT_ACCOUNT_STATUS_LABELS } from '@/models/children/childrenConstants';

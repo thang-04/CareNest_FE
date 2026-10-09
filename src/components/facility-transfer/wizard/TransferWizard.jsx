@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Save, Printer, Send, CheckCircle2, Eye, List } from 'lucide-react';
+import { ArrowRight, Save, Printer, Send, CheckCircle2, Eye, List } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useTransferWizard, WIZARD_STEPS } from '@/hooks/facility-transfer/useTransferWizard';

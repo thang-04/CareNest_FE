@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, FileEdit, XCircle, ClipboardList, RotateCcw, Send, Stamp } from 'lucide-react';
+import { CheckCircle2, Clock, FileEdit, XCircle, ClipboardList, RotateCcw, Send, Stamp } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { ROUND_STATUS_LABELS, SHEET_STATUS_LABELS } from '@/models/inventory-inspection/inspectionConstants';
 
