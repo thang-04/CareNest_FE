@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Download, Plus, Save, Send, Trash2 } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { AGE_GROUPS, DOMAIN_SHORT, EDU_STATUS, SCHOOL_SCOPE, allGoalItems, prefixOf } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS, SCHOOL_SCOPE, allGoalItems, goalRequirements } from '@/models/education-plan/educationPlanConstants';
 import { Card, EmptyState, Field, Modal, Notice, PageHead, SignatureBox, Stepper, fmtDate } from '@/components/education-plan/eduUi';
-import { Group, useCollapse } from '@/components/education-plan/PlanWidgets';
+import { DomainTitle, Group, useCollapse } from '@/components/education-plan/PlanWidgets';
 import { PickGoalsModal, ImportThemeRowsModal } from '@/components/education-plan/ThemeModals';
 import { ThemeTable, BranchList } from '@/components/education-plan/themeShared';
 
@@ -31,16 +31,6 @@ function buildBranches(start, end, old = []) {
     i++;
   }
   return out;
-}
-
-/** Requirement code: domain prefix + goal position within the domain + running number (e.g. TC1.2). */
-function makeCode(goal, goalCode, rows) {
-  const d = goal.domains.find((x) => x.items.some((i) => i.code === goalCode));
-  if (!d) return goalCode;
-  const idx = d.items.findIndex((i) => i.code === goalCode) + 1;
-  const base = `${prefixOf(d.name)}${idx}.`;
-  const used = rows.filter((r) => r.code.startsWith(base)).map((r) => Number(r.code.slice(base.length)) || 0);
-  return `${base}${(used.length ? Math.max(...used) : 0) + 1}`;
 }
 
 export default function ThemeFormPage() {
@@ -104,6 +94,9 @@ export default function ThemeFormPage() {
     );
 
   const goalItems = allGoalItems(goal);
+  // Mã YCCĐ cố định lấy từ mục tiêu năm học; kế hoạch chủ đề chỉ chọn, không tự sinh mã.
+  const catalog = goalRequirements(goal);
+  const inCatalog = (code) => catalog.find((c) => c.code === code);
   const domainsInGoal = goal.domains.map((d) => d.name);
   const rowsByDomain = domainsInGoal
     .map((d) => ({ domain: d, rows: form.rows.filter((r) => r.domain === d) }))
@@ -138,7 +131,10 @@ export default function ThemeFormPage() {
     }
     if (s === 1) {
       if (!form.rows.length) e.rows = 'Thêm ít nhất một mục tiêu cho chủ đề';
-      else if (form.rows.some((r) => !r.requirement.trim())) e.rows = 'Có mục tiêu chưa nhập “Yêu cầu cần đạt”.';
+      else {
+        const stale = form.rows.find((r) => !inCatalog(r.code));
+        if (stale) e.rows = `YCCĐ ${stale.code} không còn trong mục tiêu năm học. Xóa dòng này hoặc chọn YCCĐ khác.`;
+      }
     }
     if (s === 2 && !form.signature) e.signature = 'Ký xác nhận trước khi gửi Phó hiệu trưởng';
     setErrors(e);
@@ -199,17 +195,18 @@ export default function ThemeFormPage() {
     navigate(`/education/themes/${item.id}`);
   };
 
-  const addRowsFromGoals = (goalCodes) => {
+  const addRowsFromGoals = (codes) => {
     const rows = [...form.rows];
     let lastId = null;
-    goalCodes.forEach((gc) => {
-      const gi = goalItems.find((g) => g.code === gc);
+    codes.forEach((code) => {
+      const req = inCatalog(code);
+      if (!req || rows.some((x) => x.code === code)) return;
       const r = {
         id: uid(),
-        goalCode: gc,
-        code: makeCode(goal, gc, rows),
-        domain: gi.domain,
-        requirement: '',
+        goalCode: req.goalCode,
+        code,
+        domain: req.domain,
+        requirement: req.text,
         content: '',
         method: '',
         form: '',
@@ -224,31 +221,23 @@ export default function ThemeFormPage() {
     if (lastId) setJustAdded(lastId);
   };
 
-  const addSibling = (r) => {
-    const n = { ...r, id: uid(), code: makeCode(goal, r.goalCode, form.rows), requirement: '', content: '', adjust: '' };
-    const i = form.rows.findIndex((x) => x.id === r.id);
-    const rows = [...form.rows];
-    rows.splice(i + 1, 0, n);
-    set({ rows });
-    setJustAdded(n.id);
-  };
-
   const importRows = (srcRows, source) => {
     const rows = [...form.rows];
     let added = 0;
     srcRows.forEach((sr) => {
-      if (rows.some((r) => r.requirement.trim() === sr.requirement.trim())) return;
-      // Keep the source goal only if it exists in this age group's goals; otherwise attach to the first goal of the same domain.
-      const gc = goalItems.some((g) => g.code === sr.goalCode && g.domain === sr.domain)
-        ? sr.goalCode
-        : goalItems.find((g) => g.domain === sr.domain)?.code;
-      if (!gc) return;
-      rows.push({ ...sr, id: uid(), goalCode: gc, code: makeCode(goal, gc, rows), adjust: '' });
+      // Chỉ lấy dòng có mã YCCĐ thuộc mục tiêu năm học hiện tại; câu YCCĐ theo danh mục.
+      const req = inCatalog(sr.code);
+      if (!req || rows.some((r) => r.code === sr.code)) return;
+      rows.push({ ...sr, id: uid(), goalCode: req.goalCode, domain: req.domain, requirement: req.text, adjust: '' });
       added++;
     });
     set({ rows });
     setImporting(false);
-    toast(added ? `Đã thêm ${added} mục tiêu từ ${source.code}` : 'Các mục tiêu đã chọn đều đã có, không thêm mới');
+    toast(
+      added
+        ? `Đã thêm ${added} mục tiêu từ ${source.code}`
+        : 'Không có dòng nào thêm được: các YCCĐ đã có trong chủ đề hoặc không thuộc mục tiêu năm học hiện tại',
+    );
   };
 
   const updateRow = (rid, patch) => set({ rows: form.rows.map((r) => (r.id === rid ? { ...r, ...patch } : r)) });
@@ -403,7 +392,7 @@ export default function ThemeFormPage() {
             {form.rows.length === 0 && (
               <EmptyState
                 title="Chưa có mục tiêu nào"
-                desc="Chọn mục tiêu từ mục tiêu năm học, mỗi mục tiêu được cấp mã YCCĐ (ví dụ TC1.1) để giáo viên gắn vào kế hoạch tuần và ngày."
+                desc="Chọn YCCĐ có sẵn trong mục tiêu năm học (ví dụ TC1.1). Giáo viên gắn các mã này vào kế hoạch tuần, ngày và đánh giá trẻ."
                 action={
                   <button type="button" className="btn btn--outline-primary" onClick={() => setPicking(true)}>
                     <Plus size={16} aria-hidden /> Thêm mục tiêu
@@ -417,7 +406,7 @@ export default function ThemeFormPage() {
                 id={g.domain}
                 collapsed={col.isCollapsed(g.domain)}
                 onToggle={() => col.toggle(g.domain)}
-                title={<h3>{DOMAIN_SHORT[g.domain] || g.domain}</h3>}
+                title={<DomainTitle name={g.domain} short />}
                 meta={`${g.rows.length} mục tiêu`}
               >
                 {g.rows.map((r) => {
@@ -429,9 +418,6 @@ export default function ThemeFormPage() {
                         <span className="muted text-xs ga-plan-row__goal" title={gi?.text}>
                           Mục tiêu năm học {r.goalCode}: {gi?.text}
                         </span>
-                        <button type="button" className="btn btn--sm btn--ghost" onClick={() => addSibling(r)}>
-                          <Plus size={16} aria-hidden className="text-primary" /> Thêm yêu cầu cùng mục tiêu
-                        </button>
                         <button
                           type="button"
                           className="icon-btn"
@@ -442,14 +428,13 @@ export default function ThemeFormPage() {
                         </button>
                       </div>
                       <div className="ga-plan-grid">
-                        <Field label="Yêu cầu cần đạt" required htmlFor={`req-${r.id}`}>
+                        <Field label="Yêu cầu cần đạt (theo mục tiêu năm học)" htmlFor={`req-${r.id}`}>
                           <textarea
                             id={`req-${r.id}`}
-                            className={`textarea ${errors.rows && !r.requirement.trim() ? 'is-invalid' : ''}`}
+                            className={`textarea ${errors.rows && !inCatalog(r.code) ? 'is-invalid' : ''}`}
                             rows={2}
-                            placeholder="Trẻ …"
                             value={r.requirement}
-                            onChange={(e) => updateRow(r.id, { requirement: e.target.value })}
+                            readOnly
                           />
                         </Field>
                         <Field label="Nội dung giáo dục" htmlFor={`ct-${r.id}`}>

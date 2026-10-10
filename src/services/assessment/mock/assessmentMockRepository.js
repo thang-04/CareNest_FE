@@ -2,6 +2,8 @@ import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { buildAssessmentSeed } from '@/mocks/assessmentSeed';
+import { buildSeedEducationPlans } from '@/mocks/educationPlanSeed';
+import { EDU_STATUS, goalRequirements } from '@/models/education-plan/educationPlanConstants';
 import { ROLES } from '@/models/User';
 import {
   EVAL_KIND,
@@ -103,10 +105,50 @@ const usersWhere = (db, fn) => (db.users || []).filter(fn);
 const leadersOf = (db, campusId) =>
   usersWhere(db, (u) => u.role === ROLES.PRINCIPAL || (u.role === ROLES.VICE_PRINCIPAL && u.campusId === campusId));
 
+/* ---------------- YCCĐ của giáo án ngày (chốt 10/10: đánh giá theo mã YCCĐ của giáo án ngày đã duyệt) ---------------- */
+
+/** YCCĐ của mọi mục tiêu năm học, ở dạng tiêu chí để hiển thị tên/lĩnh vực cho đánh giá đã lưu. */
+const requirementCriteria = (db) => {
+  const seen = new Set();
+  return (db.eduGoals || [])
+    .flatMap((g) => goalRequirements(g))
+    .filter((r) => !seen.has(r.code) && seen.add(r.code))
+    .map((r) => ({ id: r.code, name: r.code, domain: r.domain, description: r.text, active: true, kind: 'YCCD' }));
+};
+
+/** Bộ tiêu chí cũ (đánh giá đã lưu trước khi chốt) + YCCĐ, dùng để tra tên khi hiển thị. */
+const allCriteria = (db) => [...db.assessmentCriteria, ...requirementCriteria(db)];
+
+// Mock: module giáo án dùng mã lớp riêng (c-choi1) nên nối qua giáo viên chủ nhiệm. BE thật phải dùng chung một mã lớp.
+const eduClassIdOf = (db, cls) => (db.users || []).find((u) => u.id === cls.homeroomTeacherId)?.classId || null;
+
+const approvedDayPlan = (db, cls, date) => {
+  const eduClassId = eduClassIdOf(db, cls);
+  return (
+    (db.eduLessons || []).find(
+      (l) => l.type === 'day' && l.classId === eduClassId && l.date === date && l.status === EDU_STATUS.APPROVED,
+    ) || null
+  );
+};
+
+/** Tiêu chí của một giờ sinh hoạt = các mã YCCĐ gắn ở giờ đó trong giáo án ngày đã duyệt. */
+const planCriteria = (db, plan, activity) => {
+  if (!plan) return [];
+  const slot = plan.slots.find((s) => s.name === activity);
+  const known = Object.fromEntries(requirementCriteria(db).map((c) => [c.id, c]));
+  const rows = (db.eduThemes || []).find((t) => t.id === plan.themeId)?.rows || [];
+  return (slot?.codes || []).map((code) => {
+    const row = rows.find((r) => r.code === code);
+    return (
+      known[code] || { id: code, name: code, domain: row?.domain || '', description: row?.requirement || '', active: true, kind: 'YCCD' }
+    );
+  });
+};
+
 /* ---------------- AI drafts & period jobs ---------------- */
 
 const draftFor = (db, ev, child) => {
-  const criteria = db.assessmentCriteria;
+  const criteria = allCriteria(db);
   const assessments = assessmentsOf(db, ev.childId, ev.periodStart, ev.periodEnd);
   const presentDays = countPresentDays(db, ev.childId, ev.periodStart, ev.periodEnd);
   const monthlyEvaluations =
@@ -299,6 +341,16 @@ const seedOnce = (db) => {
 const ensureReady = () => {
   ensureSchoolSeeded();
   let db = readDb();
+  // Đánh giá hằng ngày đọc giáo án ngày, nên cần dữ liệu kế hoạch giáo dục kể cả khi chưa mở module đó.
+  if (!db.eduGoals || !db.eduThemes || !db.eduLessons) {
+    const edu = buildSeedEducationPlans();
+    writeDb((d) => {
+      d.eduGoals ||= clone(edu.eduGoals);
+      d.eduThemes ||= clone(edu.eduThemes);
+      d.eduLessons ||= clone(edu.eduLessons);
+    });
+    db = readDb();
+  }
   if (!db.dailyAssessments || !db.periodicEvaluations || !db.rewardProposals) {
     writeDb(seedOnce);
     db = readDb();
@@ -385,6 +437,7 @@ export const assessmentMockRepository = {
     const activities = assessableActivities(cls.ageGroupId);
     const current = activities.includes(activity) ? activity : activities.find((a) => a === 'Hoạt động học') || activities[0];
     const att = attendanceIndex(db);
+    const plan = approvedDayPlan(db, cls, date);
     const rows = activeChildrenOf(db, classId).map((child) => {
       const attendanceStatus = att.get(`${date}|${child.id}`) || null;
       const assessment = db.dailyAssessments.find((a) => a.childId === child.id && a.date === date && a.activity === current) || null;
@@ -397,7 +450,10 @@ export const assessmentMockRepository = {
       activities,
       locked: isAssessmentLocked(date),
       attendanceTaken: rows.some((r) => r.attendanceStatus),
-      criteria: db.assessmentCriteria.filter((c) => c.active),
+      plan: plan ? { id: plan.id, code: plan.code, topic: plan.slots.find((x) => x.name === current)?.topic || '' } : null,
+      criteria: planCriteria(db, plan, current),
+      // Tiêu chí đã chấm trước đây (bộ cũ) vẫn hiện tên khi xem lại.
+      legacyCriteria: db.assessmentCriteria,
       rows,
     });
   },
@@ -438,11 +494,13 @@ export const assessmentMockRepository = {
       if (Object.keys(details).length) throw new ApiError(422, 'Một số dòng chưa hợp lệ. Kiểm tra các dòng được đánh dấu.', details);
 
       const at = nowIso();
+      const offered = planCriteria(db, approvedDayPlan(db, cls, date), activity).map((c) => c.id);
       entries.forEach((e) => {
         const values = {
           healthStatus: e.healthStatus,
           emotion: e.emotion,
-          criteriaMet: (e.criteriaMet || []).filter((id) => db.assessmentCriteria.some((c) => c.id === id)),
+          criteriaMet: (e.criteriaMet || []).filter((id) => offered.includes(id)),
+          criteriaOffered: offered,
           flag: !!e.flag,
           comment: (e.comment || '').trim(),
         };
@@ -494,7 +552,9 @@ export const assessmentMockRepository = {
             const list = assessmentsOf(db, childId, w, weekEnd(w));
             const stats = weekStats(db, childId, w, att);
             const met = list.reduce((s, a) => s + a.criteriaMet.length, 0);
-            const possible = list.length * db.assessmentCriteria.filter((c) => c.active).length;
+            // Đánh giá theo giáo án lưu số YCCĐ được chấm; đánh giá cũ dùng số tiêu chí của bộ cũ.
+            const legacyCount = db.assessmentCriteria.filter((c) => c.active).length;
+            const possible = list.reduce((sum, a) => sum + (a.criteriaOffered ? a.criteriaOffered.length : legacyCount), 0);
             return {
               weekStart: w,
               weekEnd: weekEnd(w),
@@ -508,16 +568,22 @@ export const assessmentMockRepository = {
           })
         : [];
     const domainStats = {};
-    db.assessmentCriteria.forEach((c) => {
-      domainStats[c.domain] ||= { domain: c.domain, met: 0, possible: 0 };
-      domainStats[c.domain].possible += daily.length;
-      domainStats[c.domain].met += daily.filter((a) => a.criteriaMet.includes(c.id)).length;
+    const byId = Object.fromEntries(allCriteria(db).map((c) => [c.id, c]));
+    daily.forEach((a) => {
+      const offered = a.criteriaOffered || db.assessmentCriteria.map((c) => c.id);
+      offered.forEach((id) => {
+        const domain = byId[id]?.domain;
+        if (!domain) return;
+        domainStats[domain] ||= { domain, met: 0, possible: 0 };
+        domainStats[domain].possible += 1;
+        if (a.criteriaMet.includes(id)) domainStats[domain].met += 1;
+      });
     });
     return clone({
       child,
       cls,
       range: { start, end: to },
-      criteria: db.assessmentCriteria,
+      criteria: allCriteria(db),
       dailyAssessments: daily,
       weeks,
       domainStats: Object.values(domainStats),
@@ -572,7 +638,7 @@ export const assessmentMockRepository = {
       evaluation: withNames(db, publicEvaluation(ev, cls, user)),
       child,
       cls,
-      criteria: db.assessmentCriteria,
+      criteria: allCriteria(db),
       // The year-end view lists the confirmed monthly evaluations instead of every daily record.
       assessments: ev.periodType === PERIOD_TYPE.YEAR ? [] : assessments,
       monthlyEvaluations: monthly,
