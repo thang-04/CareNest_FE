@@ -5,6 +5,7 @@ import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS, SCHOOL_SCOPE, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { Card, EduStatusBadge, EmptyState, Modal, Notice, PageHead, SignatureView, fmtDate } from '@/components/education-plan/eduUi';
+import { DomainTitle, GoalItemView } from '@/components/education-plan/PlanWidgets';
 
 export default function GoalDetailPage() {
   const { id } = useParams();
@@ -116,16 +117,13 @@ export default function GoalDetailPage() {
                 <div className="ga-domain__head">
                   <div className="row" style={{ gap: 10 }}>
                     <span className="ga-domain__bar" aria-hidden />
-                    <h3 className="subsection-title">{d.name}</h3>
+                    <DomainTitle name={d.name} />
                   </div>
                   <span className="muted text-xs">{d.items.length} mục tiêu</span>
                 </div>
                 <div className="ga-domain__body">
                   {d.items.map((it) => (
-                    <div key={it.id} className="ga-goal-row ga-goal-row--read">
-                      <span className="ga-goal-code">{it.code}</span>
-                      <span>{it.text}</span>
-                    </div>
+                    <GoalItemView key={it.id} item={it} />
                   ))}
                 </div>
               </div>

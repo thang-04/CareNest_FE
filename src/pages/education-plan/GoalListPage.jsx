@@ -53,7 +53,7 @@ export default function GoalListPage() {
           </div>
           <div className="stat-card stat-card--orange">
             <div className="stat-card__value">{scoped.length - sent}</div>
-            <div className="stat-card__label">Đang soạn (nháp)</div>
+            <div className="stat-card__label">Đang soạn</div>
             <StatCardIcon tone="orange" />
           </div>
         </div>

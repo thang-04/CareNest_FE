@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Plus, X } from '@/components/ui/icons';
-import { DOMAIN_SHORT } from '@/models/education-plan/educationPlanConstants';
+import { DOMAIN_PREFIX, DOMAIN_SHORT, domainLabel } from '@/models/education-plan/educationPlanConstants';
 
 /** Requirement codes (YCCĐ) as chips. */
 export function CodeChips({ codes, empty = '—' }) {
@@ -98,9 +98,14 @@ export function CodePicker({ options, value = [], onChange, label = 'Mã YCCĐ' 
 
 /** Collapsible group used by every step that edits many items. */
 export function Group({ id, collapsed, onToggle, title, meta, actions, children }) {
+  // Bấm vào bất kỳ chỗ nào trên dòng tiêu đề để thu gọn / mở rộng, trừ các ô nhập và nút bên trong.
+  const onHeadClick = (e) => {
+    if (e.target.closest('input, textarea, select, button, a, label')) return;
+    onToggle();
+  };
   return (
     <div className={`ga-domain ${collapsed ? 'ga-domain--collapsed' : ''}`} data-group={id}>
-      <div className="ga-domain__head">
+      <div className="ga-domain__head" onClick={onHeadClick}>
         <div className="row" style={{ flex: 1, minWidth: 0 }}>
           <button
             type="button"
@@ -140,4 +145,32 @@ export function useCollapse() {
     setAll: (ids) => setCollapsed(new Set(ids)),
     clear: () => setCollapsed(new Set()),
   };
+}
+
+/** Một mục tiêu năm học (chế độ xem) kèm danh sách YCCĐ có mã của nó. */
+export function GoalItemView({ item }) {
+  return (
+    <div>
+      <div className="ga-goal-row ga-goal-row--read">
+        <span className="ga-goal-code">{item.code}</span>
+        <span>{item.text}</span>
+      </div>
+      {(item.requirements || []).map((r) => (
+        <div key={r.id || r.code} className="ga-goal-row ga-goal-row--read ga-goal-check--child">
+          <span className="ga-goal-code">{r.code}</span>
+          <span className="text-sm">{r.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Tiêu đề lĩnh vực kèm mã viết tắt (ví dụ "Phát triển thể chất · Mã: TC"). */
+export function DomainTitle({ name, short = false }) {
+  return (
+    <>
+      <h3>{short ? DOMAIN_SHORT[name] || name : domainLabel(name)}</h3>
+      {DOMAIN_PREFIX[name] && <span className="chip chip--blue">Mã: {DOMAIN_PREFIX[name]}</span>}
+    </>
+  );
 }

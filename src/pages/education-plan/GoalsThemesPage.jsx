@@ -5,6 +5,7 @@ import { ProgressBar } from '@/components';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EmptyState, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
+import { DomainTitle, GoalItemView } from '@/components/education-plan/PlanWidgets';
 
 const today = new Date().toISOString().slice(0, 10);
 const STATE_CHIP = { 'Đang diễn ra': 'chip--blue', 'Đã kết thúc': 'chip--gray', 'Sắp diễn ra': 'chip--orange' };
@@ -112,17 +113,12 @@ export default function GoalsThemesPage() {
                     <div className="ga-domain__head">
                       <div className="row" style={{ gap: 10 }}>
                         <span className="ga-domain__bar" aria-hidden />
-                        <h3 className="subsection-title" style={{ margin: 0 }}>
-                          {d.name}
-                        </h3>
+                        <DomainTitle name={d.name} />
                       </div>
                     </div>
                     <div className="ga-domain__body">
                       {d.items.map((it) => (
-                        <div key={it.code} className="ga-goal-row" style={{ gridTemplateColumns: '56px 1fr' }}>
-                          <span className="ga-goal-code">{it.code}</span>
-                          <span>{it.text}</span>
-                        </div>
+                        <GoalItemView key={it.code} item={it} />
                       ))}
                     </div>
                   </div>
