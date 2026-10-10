@@ -70,8 +70,12 @@ export const DOMAIN_SHORT = {
   'Phát triển tình cảm và kỹ năng xã hội': 'Tình cảm – xã hội',
   'Phát triển ngôn ngữ': 'Ngôn ngữ',
   'Phát triển nhận thức': 'Nhận thức',
-  'Phát triển thẩm mỹ': 'Nghệ thuật',
+  'Phát triển thẩm mỹ': 'Thẩm mỹ (Nghệ thuật)',
 };
+/** Tên hiển thị đầy đủ: lĩnh vực thẩm mỹ được giáo án thật gọi là "Nghệ thuật" (mã NgT). */
+export const domainLabel = (domain) => (domain === 'Phát triển thẩm mỹ' ? 'Phát triển thẩm mỹ (Nghệ thuật)' : domain);
+/** 5 lĩnh vực của Chương trình GDMN được khoá cứng (chốt 10/10); lĩnh vực khác chỉ còn ở dữ liệu cũ. */
+export const isStandardDomain = (domain) => DOMAINS.includes(domain);
 export const prefixOf = (domain) =>
   DOMAIN_PREFIX[domain] ||
   (domain || 'MT')
@@ -112,6 +116,20 @@ export const STEP_TEMPLATE = [
   'Vận dụng – Luyện tập',
   'Khái quát – Đánh giá',
 ];
+
+/** YCCĐ có mã cố định của mục tiêu năm học (Phó HT lập, dùng cả năm; kế hoạch chủ đề chỉ chọn từ đây). */
+export function goalRequirements(goal) {
+  return allGoalItems(goal).flatMap((it) =>
+    (it.requirements || []).map((r) => ({ ...r, goalCode: it.code, goalText: it.text, domain: it.domain })),
+  );
+}
+
+/** Mã gợi ý cho YCCĐ mới: tiền tố lĩnh vực + vị trí mục tiêu trong lĩnh vực + số thứ tự (ví dụ TC1.2). */
+export function suggestRequirementCode(domain, goalIndex, requirements = []) {
+  const base = `${prefixOf(domain)}${goalIndex + 1}.`;
+  const used = requirements.filter((r) => (r.code || '').startsWith(base)).map((r) => Number(r.code.slice(base.length)) || 0);
+  return `${base}${(used.length ? Math.max(...used) : 0) + 1}`;
+}
 
 /** Danh sách mã YCCĐ của một kế hoạch chủ đề (dùng để gắn vào kế hoạch tuần / ngày) */
 export const themeCodes = (theme) =>

@@ -874,6 +874,21 @@ const SEED_LESSONS = [
   },
 ];
 
+// YCCĐ cố định thuộc mục tiêu năm học: gom từ các dòng kế hoạch chủ đề mẫu, rồi đồng bộ câu YCCĐ của các dòng theo danh mục.
+SEED_GOALS.forEach((goal) => {
+  const rows = SEED_THEMES.filter((t) => t.goalId === goal.id).flatMap((t) => t.rows);
+  goal.domains.forEach((d) =>
+    d.items.forEach((it) => {
+      const seen = new Set();
+      it.requirements = rows
+        .filter((r) => r.goalCode === it.code && !seen.has(r.code) && seen.add(r.code))
+        .map((r) => ({ id: `${goal.id}-${r.code}`, code: r.code, text: r.requirement }));
+    }),
+  );
+  const byCode = Object.fromEntries(goal.domains.flatMap((d) => d.items.flatMap((it) => it.requirements)).map((r) => [r.code, r.text]));
+  rows.forEach((r) => (r.requirement = byCode[r.code] || r.requirement));
+});
+
 export const buildSeedEducationPlans = () => ({
   eduGoals: SEED_GOALS,
   eduThemes: SEED_THEMES,

@@ -18,6 +18,23 @@ const ensureSeeded = (db) => {
   return db;
 };
 
+// Dữ liệu lưu trước khi có danh mục YCCĐ trong mục tiêu năm học: bổ sung từ dữ liệu mẫu (hoặc danh sách rỗng).
+const ensureRequirements = (db) => {
+  const seedGoals = buildSeedEducationPlans().eduGoals;
+  let changed = false;
+  (db.eduGoals || []).forEach((g) => {
+    const seedItems = seedGoals.find((x) => x.id === g.id)?.domains.flatMap((d) => d.items) || [];
+    g.domains.forEach((d) =>
+      d.items.forEach((it) => {
+        if (it.requirements) return;
+        it.requirements = clone(seedItems.find((x) => x.code === it.code)?.requirements || []);
+        changed = true;
+      }),
+    );
+  });
+  return changed;
+};
+
 const upsert = (list, item) => {
   const i = list.findIndex((x) => x.id === item.id);
   if (i === -1) list.unshift(item);
@@ -49,6 +66,7 @@ export const educationPlanMockRepository = {
     await delay();
     const db = readDb();
     if (!db.eduGoals || !db.eduThemes || !db.eduLessons) writeDb(ensureSeeded);
+    if (ensureRequirements(clone(readDb()))) writeDb(ensureRequirements);
     const fresh = readDb();
     return { goals: clone(fresh.eduGoals), themes: clone(fresh.eduThemes), lessons: clone(fresh.eduLessons) };
   },

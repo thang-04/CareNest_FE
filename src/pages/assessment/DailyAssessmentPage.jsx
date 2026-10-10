@@ -145,8 +145,8 @@ export default function DailyAssessmentPage() {
       <div className="alert alert--info mb-16">
         <Info size={18} />
         <div>
-          Sau mỗi hoạt động, chọn tiêu chí trẻ đạt và cắm cờ bé ngoan theo nhận định của bạn; nhận xét là tùy chọn. Chỉ đánh giá trẻ có mặt.
-          Bạn sửa được đánh giá của mình đến hết ngày học tiếp theo; sau đó cần ghi lý do điều chỉnh.
+          Sau mỗi hoạt động, chọn mã YCCĐ trẻ đạt (lấy từ giáo án ngày đã duyệt) và cắm cờ bé ngoan theo nhận định của bạn; nhận xét là tùy
+          chọn. Chỉ đánh giá trẻ có mặt. Bạn sửa được đánh giá của mình đến hết ngày học tiếp theo; sau đó cần ghi lý do điều chỉnh.
         </div>
       </div>
 
@@ -222,6 +222,35 @@ export default function DailyAssessmentPage() {
               <div>Đánh giá ngày {formatDate(date)} đã khóa. Bấm “Điều chỉnh” ở từng dòng và ghi lý do nếu cần sửa.</div>
             </div>
           )}
+          {sheet && !sheet.plan && (
+            <div className="alert alert--warning" style={{ margin: '0 16px 12px' }}>
+              <ClipboardCheck size={18} />
+              <div>
+                Ngày {formatDate(date)} lớp chưa có giáo án ngày được duyệt nên chưa có YCCĐ để chấm. Bạn vẫn ghi được sức khỏe, cảm xúc, cờ
+                bé ngoan và nhận xét.
+              </div>
+            </div>
+          )}
+          {sheet?.plan && (
+            <div className="alert alert--info" style={{ margin: '0 16px 12px' }}>
+              <Info size={18} />
+              <div>
+                <div>
+                  Theo giáo án <span className="fw-600">{sheet.plan.code}</span>
+                  {sheet.plan.topic && ` · ${sheet.plan.topic}`}
+                </div>
+                {sheet.criteria.length === 0 ? (
+                  <div className="text-sm">Giờ sinh hoạt này chưa gắn mã YCCĐ trong giáo án.</div>
+                ) : (
+                  sheet.criteria.map((c) => (
+                    <div key={c.id} className="text-sm">
+                      <span className="fw-600">{c.name}</span>: {c.description}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
           {sheet && !sheet.attendanceTaken && (
             <div className="alert alert--warning" style={{ margin: '0 16px 12px' }}>
               <UserX size={18} />
@@ -239,7 +268,7 @@ export default function DailyAssessmentPage() {
                     <th>Trẻ</th>
                     <th>Sức khỏe</th>
                     <th>Cảm xúc</th>
-                    <th>Tiêu chí đạt (cờ tiêu chí)</th>
+                    <th>YCCĐ đạt</th>
                     <th className="center">Cờ bé ngoan</th>
                     <th>Nhận xét</th>
                     <th>Trạng thái</th>
@@ -314,7 +343,8 @@ export default function DailyAssessmentPage() {
                                 {errs.emotion && <div className="field__error">{errs.emotion}</div>}
                               </td>
                               <td>
-                                <div className="dg-criteria" role="group" aria-label={`Tiêu chí đạt của ${r.child.fullName}`}>
+                                <div className="dg-criteria" role="group" aria-label={`YCCĐ đạt của ${r.child.fullName}`}>
+                                  {sheet.criteria.length === 0 && <span className="muted text-xs">Không có YCCĐ</span>}
                                   {sheet.criteria.map((c) => {
                                     const on = d.criteriaMet.includes(c.id);
                                     return (
@@ -401,7 +431,7 @@ export default function DailyAssessmentPage() {
           {sheet && sheet.rows.length > 0 && (
             <div className="dg-legend">
               <span className="text-sm text-2">
-                <span className="chip chip--green">Tiêu chí</span> đã chọn = trẻ đạt tiêu chí
+                <span className="chip chip--green">Mã YCCĐ</span> đã chọn = trẻ đạt yêu cầu
               </span>
               <span className="text-sm text-2 row" style={{ gap: 4 }}>
                 <Flag size={14} /> Cờ bé ngoan được tính cho phiếu bé ngoan tuần (≥ 4 ngày có mặt và ≥ 3 cờ)

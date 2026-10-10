@@ -4,15 +4,15 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAIN_SHORT } from '@/models/education-plan/educationPlanConstants';
 import { EmptyState, Modal } from '@/components/education-plan/eduUi';
 
-/** Picks yearly goals to add to a theme plan. */
+/** Picks fixed-code requirements (YCCĐ) of the yearly goals to add to a theme plan. */
 export function PickGoalsModal({ goal, rows, onClose, onPick }) {
   const [picked, setPicked] = useState([]);
-  const used = (code) => rows.filter((r) => r.goalCode === code).length;
+  const used = (code) => rows.some((r) => r.code === code);
   const toggle = (c) => setPicked((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c]));
 
   return (
     <Modal
-      title="Thêm mục tiêu từ mục tiêu năm học"
+      title="Chọn YCCĐ từ mục tiêu năm học"
       width={760}
       onClose={onClose}
       footer={
@@ -21,12 +21,12 @@ export function PickGoalsModal({ goal, rows, onClose, onPick }) {
             Hủy
           </button>
           <button type="button" className="btn btn--primary" disabled={!picked.length} onClick={() => onPick(picked)}>
-            <Plus size={16} aria-hidden /> Thêm {picked.length || ''} mục tiêu
+            <Plus size={16} aria-hidden /> Thêm {picked.length || ''} YCCĐ
           </button>
         </>
       }
     >
-      <p className="muted text-xs">Từ: {goal.title}. Mỗi mục tiêu được chọn tạo một dòng có mã YCCĐ riêng.</p>
+      <p className="muted text-xs">Từ: {goal.title}. Mỗi YCCĐ được chọn tạo một dòng, giữ nguyên mã của mục tiêu năm học.</p>
       <div className="ga-pick-list">
         {goal.domains.map((d) => (
           <div key={d.name} className="mb-8">
@@ -34,14 +34,32 @@ export function PickGoalsModal({ goal, rows, onClose, onPick }) {
               {DOMAIN_SHORT[d.name] || d.name}
             </div>
             {d.items.map((it) => (
-              <label key={it.code} className="ga-goal-check">
-                <input type="checkbox" checked={picked.includes(it.code)} onChange={() => toggle(it.code)} />
-                <span className="ga-goal-code">{it.code}</span>
-                <span className="text-sm">
-                  {it.text}
-                  {used(it.code) > 0 && <span className="muted text-xs"> · đã dùng {used(it.code)} lần</span>}
-                </span>
-              </label>
+              <div key={it.code}>
+                <div className="ga-goal-row ga-goal-row--read">
+                  <span className="ga-goal-code">{it.code}</span>
+                  <span className="text-sm">{it.text}</span>
+                </div>
+                {(it.requirements || []).length === 0 && (
+                  <p className="muted text-xs ga-goal-check--child">
+                    Mục tiêu này chưa có YCCĐ. Phó hiệu trưởng cần bổ sung trong mục tiêu năm học.
+                  </p>
+                )}
+                {(it.requirements || []).map((r) => (
+                  <label key={r.code} className="ga-goal-check ga-goal-check--child">
+                    <input
+                      type="checkbox"
+                      disabled={used(r.code)}
+                      checked={used(r.code) || picked.includes(r.code)}
+                      onChange={() => toggle(r.code)}
+                    />
+                    <span className="ga-goal-code">{r.code}</span>
+                    <span className="text-sm">
+                      {r.text}
+                      {used(r.code) && <span className="muted text-xs"> · đã có trong chủ đề</span>}
+                    </span>
+                  </label>
+                ))}
+              </div>
             ))}
           </div>
         ))}

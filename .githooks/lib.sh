@@ -15,8 +15,11 @@ cn_validate_msg() {
     "fixup! "* | "squash! "*) cn_warn "commit fixup/squash — nhớ squash trước khi push"; return ;;
   esac
 
-  if ! printf '%s' "$header" | grep -Eq '^(feat|fix|refactor|test|docs|chore|build|ci)(\([a-z0-9][a-z0-9._/-]*\))?!?: [^[:space:]]'; then
-    cn_err "dòng đầu phải dạng '<type>(<scope>): <subject>', type ∈ feat|fix|refactor|test|docs|chore|build|ci — đang là: $header"
+  # Quy ước nhóm SEP490-G94: "[<work-code>] <jira-key>: <mô tả>", ví dụ "[FE-FEAT-44] G94-181: complete lesson plan UI".
+  team=0
+  printf '%s' "$header" | grep -Eq '^\[(FE|BE)-(FEAT|FIX)-[0-9]+\] [A-Z][A-Z0-9]+-[0-9]+: [^[:space:]]' && team=1
+  if [ "$team" -eq 0 ] && ! printf '%s' "$header" | grep -Eq '^(feat|fix|refactor|test|docs|chore|build|ci)(\([a-z0-9][a-z0-9._/-]*\))?!?: [^[:space:]]'; then
+    cn_err "dòng đầu phải dạng '[FE-FEAT-44] G94-181: <mô tả>' hoặc '<type>(<scope>): <subject>' — đang là: $header"
   fi
   if printf '%s' "$header" | LC_ALL=C grep -q '[^ -~]'; then
     cn_err "dòng đầu phải tiếng Anh, chỉ ký tự ASCII"
@@ -33,7 +36,7 @@ cn_validate_msg() {
     cn_err "chỉ 1 dòng 'Refs: <KEY>' mỗi commit (nhiều task ⇒ tách commit)"
   elif [ "$refs" -eq 1 ]; then
     printf '%s\n' "$msg" | grep -Eq '^Refs: [A-Z][A-Z0-9]+-[0-9]+$' || cn_err "footer phải dạng 'Refs: CN-123'"
-  else
+  elif [ "$team" -eq 0 ]; then
     cn_warn "thiếu footer 'Refs: <Jira key>' — bỏ qua nếu user xác nhận không có task"
   fi
 

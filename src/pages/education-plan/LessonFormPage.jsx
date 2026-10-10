@@ -30,25 +30,18 @@ import { Card, EmptyState, Field, Modal, Notice, PageHead, SignatureBox, Stepper
 import { CodePicker, Group, useCollapse } from '@/components/education-plan/PlanWidgets';
 import { DayTable, LessonInfo, WeekMatrix, daysOf, typeLabel, weekdayLabel, weeksOf } from '@/components/education-plan/lessonShared';
 import ImportLessonModal from '@/components/education-plan/ImportLessonModal';
+import {
+  CORE_SLOT,
+  contentFromCodes,
+  daySlotsFor,
+  emptyDaySlot,
+  fromWeekPlan,
+  purposeFromCodes,
+} from '@/utils/education-plan/lessonDrafts';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 const emptyWeekSlot = (name = '', allWeek = false) => ({ id: uid(), name, allWeek, cells: {}, all: { text: '', codes: [] } });
-const emptyDaySlot = (name = '', duration = '') => ({
-  id: uid(),
-  name,
-  duration,
-  topic: '',
-  codes: [],
-  purpose: '',
-  skills: '',
-  qualities: [...QUALITIES],
-  competencies: [...COMPETENCIES],
-  prepTeacher: '',
-  prepChild: '',
-  steps: name === 'Hoạt động học' ? STEP_TEMPLATE.map((title) => ({ id: uid(), title, teacher: '', child: '' })) : [],
-});
-
 const isEmptyText = (s) => !s || !s.trim();
 
 export default function LessonFormPage() {
@@ -146,21 +139,12 @@ export default function LessonFormPage() {
     set({ weekStart: start, weekEnd: w?.end || '', weekIndex: w?.index || '', branch: w?.name || '', date: '' });
   };
 
-  const fromWeekPlan = (slots, wp, date) =>
-    slots.map((s) => {
-      const src = wp.slots.find((x) => x.name.trim().toLowerCase() === s.name.trim().toLowerCase());
-      if (!src) return s;
-      const cell = src.allWeek ? src.all : src.cells?.[date];
-      if (!cell || isEmptyText(cell.text) || !isEmptyText(s.topic)) return s;
-      return { ...s, topic: cell.text, codes: s.codes.length ? s.codes : cell.codes || [] };
-    });
-
   const initSlots = () => {
     if (form.slots.length) return form.slots;
     const base = slotsFor(user.ageGroupId);
     if (isWeek) return base.map((s) => emptyWeekSlot(s.name, !!s.allWeek));
-    let slots = base.filter((s) => s.name !== 'Trả trẻ').map((s) => emptyDaySlot(s.name, s.duration));
-    if (weekPlan) slots = fromWeekPlan(slots, weekPlan, form.date);
+    let slots = daySlotsFor(user.ageGroupId);
+    if (weekPlan) slots = fromWeekPlan(slots, weekPlan, form.date, theme);
     return slots;
   };
 
@@ -258,6 +242,11 @@ export default function LessonFormPage() {
   const updateSlot = (sid, patch) => set({ slots: form.slots.map((s) => (s.id === sid ? { ...s, ...patch } : s)) });
   const updateCell = (s, date, patch) =>
     updateSlot(s.id, { cells: { ...s.cells, [date]: { text: '', codes: [], ...s.cells?.[date], ...patch } } });
+  // Ô tuần còn trống thì gợi ý hoạt động từ "Nội dung giáo dục" của chủ đề theo mã vừa chọn.
+  const withSuggestion = (cell, codes) => {
+    const text = cell?.text || '';
+    return { ...cell, codes, text: isEmptyText(text) ? contentFromCodes(codes, theme) : text };
+  };
   const addSlot = () => {
     const ns = isWeek ? emptyWeekSlot('') : emptyDaySlot('');
     set({ slots: [...form.slots, ns] });
@@ -501,7 +490,7 @@ export default function LessonFormPage() {
                   type="button"
                   className="btn btn--sm btn--outline-primary"
                   onClick={() => {
-                    set({ slots: fromWeekPlan(form.slots, weekPlan, form.date) });
+                    set({ slots: fromWeekPlan(form.slots, weekPlan, form.date, theme) });
                     toast(`Đã điền các ô trống từ kế hoạch tuần ${weekPlan.code}`);
                   }}
                 >
@@ -582,7 +571,7 @@ export default function LessonFormPage() {
                       <CodePicker
                         options={codeOptions}
                         value={s.all?.codes || []}
-                        onChange={(codes) => updateSlot(s.id, { all: { ...s.all, codes } })}
+                        onChange={(codes) => updateSlot(s.id, { all: withSuggestion(s.all, codes) })}
                       />
                     </div>
                   ) : (
@@ -603,14 +592,14 @@ export default function LessonFormPage() {
                           <CodePicker
                             options={codeOptions}
                             value={s.cells?.[d.date]?.codes || []}
-                            onChange={(codes) => updateCell(s, d.date, { codes })}
+                            onChange={(codes) => updateCell(s, d.date, withSuggestion(s.cells?.[d.date], codes))}
                           />
                         </div>
                       ))}
                     </div>
                   )
                 ) : (
-                  <DaySlotEditor s={s} codeOptions={codeOptions} onChange={(patch) => updateSlot(s.id, patch)} />
+                  <DaySlotEditor s={s} theme={theme} codeOptions={codeOptions} onChange={(patch) => updateSlot(s.id, patch)} />
                 )}
               </Group>
             ))}
@@ -726,7 +715,15 @@ export default function LessonFormPage() {
 }
 
 /** One time slot of the daily plan, following the 5 columns of the real template. */
-function DaySlotEditor({ s, codeOptions, onChange }) {
+function DaySlotEditor({ s, theme, codeOptions, onChange }) {
+  // Chỉ Hoạt động học bắt buộc soạn chi tiết; giờ khác mở chi tiết khi cô cần hoặc đã có nội dung.
+  const hasDetail =
+    s.name === CORE_SLOT ||
+    s.detailed ||
+    [s.purpose, s.skills, s.prepTeacher, s.prepChild].some((t) => !isEmptyText(t)) ||
+    s.steps.some((x) => !isEmptyText(x.teacher) || !isEmptyText(x.child));
+  const pickCodes = (codes) =>
+    onChange(isEmptyText(s.purpose) && hasDetail ? { codes, purpose: purposeFromCodes(codes, theme) } : { codes });
   const toggleIn = (key, v) => onChange({ [key]: s[key].includes(v) ? s[key].filter((x) => x !== v) : [...s[key], v] });
   const updateStep = (stid, patch) => onChange({ steps: s.steps.map((x) => (x.id === stid ? { ...x, ...patch } : x)) });
   return (
@@ -743,146 +740,154 @@ function DaySlotEditor({ s, codeOptions, onChange }) {
         </Field>
         <div className="field">
           <span className="field__label">Mã YCCĐ</span>
-          <CodePicker options={codeOptions} value={s.codes} onChange={(codes) => onChange({ codes })} />
+          <CodePicker options={codeOptions} value={s.codes} onChange={pickCodes} />
         </div>
       </div>
 
-      <div className="ga-day-section-title">Mục đích – Yêu cầu</div>
-      <div className="ga-plan-grid">
-        <Field label="Năng lực theo lĩnh vực" htmlFor={`pu-${s.id}`}>
-          <textarea
-            id={`pu-${s.id}`}
-            className="textarea"
-            rows={2}
-            placeholder="Trẻ nhận biết, thực hiện được…"
-            value={s.purpose}
-            onChange={(e) => onChange({ purpose: e.target.value })}
-          />
-        </Field>
-        <Field label="Kỹ năng hỗ trợ" htmlFor={`sk-${s.id}`}>
-          <textarea
-            id={`sk-${s.id}`}
-            className="textarea"
-            rows={2}
-            placeholder="Quan sát, so sánh, diễn đạt…"
-            value={s.skills}
-            onChange={(e) => onChange({ skills: e.target.value })}
-          />
-        </Field>
-      </div>
-      <div className="ga-plan-grid">
-        <div className="field">
-          <span className="field__label">Phẩm chất</span>
-          <div className="ga-check-row">
-            {QUALITIES.map((q) => (
-              <label key={q} className="checkbox">
-                <input type="checkbox" checked={s.qualities.includes(q)} onChange={() => toggleIn('qualities', q)} /> {q}
-              </label>
-            ))}
+      {!hasDetail ? (
+        <button type="button" className="btn btn--sm btn--ghost mt-8" onClick={() => onChange({ detailed: true })}>
+          <Plus size={16} className="text-primary" aria-hidden /> Thêm mục đích, chuẩn bị, các bước
+        </button>
+      ) : (
+        <>
+          <div className="ga-day-section-title">Mục đích – Yêu cầu</div>
+          <div className="ga-plan-grid">
+            <Field label="Năng lực theo lĩnh vực" htmlFor={`pu-${s.id}`}>
+              <textarea
+                id={`pu-${s.id}`}
+                className="textarea"
+                rows={2}
+                placeholder="Trẻ nhận biết, thực hiện được…"
+                value={s.purpose}
+                onChange={(e) => onChange({ purpose: e.target.value })}
+              />
+            </Field>
+            <Field label="Kỹ năng hỗ trợ" htmlFor={`sk-${s.id}`}>
+              <textarea
+                id={`sk-${s.id}`}
+                className="textarea"
+                rows={2}
+                placeholder="Quan sát, so sánh, diễn đạt…"
+                value={s.skills}
+                onChange={(e) => onChange({ skills: e.target.value })}
+              />
+            </Field>
           </div>
-        </div>
-        <div className="field">
-          <span className="field__label">Năng lực nền tảng</span>
-          <div className="ga-check-row">
-            {COMPETENCIES.map((c) => (
-              <label key={c} className="checkbox">
-                <input type="checkbox" checked={s.competencies.includes(c)} onChange={() => toggleIn('competencies', c)} /> {c}
-              </label>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="ga-day-section-title">Chuẩn bị</div>
-      <div className="ga-plan-grid">
-        <Field label="Của cô" htmlFor={`pt-${s.id}`}>
-          <textarea
-            id={`pt-${s.id}`}
-            className="textarea"
-            rows={2}
-            placeholder="Đồ dùng, học liệu, không gian"
-            value={s.prepTeacher}
-            onChange={(e) => onChange({ prepTeacher: e.target.value })}
-          />
-        </Field>
-        <Field label="Của trẻ" htmlFor={`pc-${s.id}`}>
-          <textarea
-            id={`pc-${s.id}`}
-            className="textarea"
-            rows={2}
-            placeholder="Đồ dùng, tâm thế của trẻ"
-            value={s.prepChild}
-            onChange={(e) => onChange({ prepChild: e.target.value })}
-          />
-        </Field>
-      </div>
-
-      <div className="ga-day-section-title row row--between">
-        <span>Các bước tổ chức</span>
-        <div className="row">
-          {s.steps.length === 0 && (
-            <button
-              type="button"
-              className="btn btn--sm btn--ghost"
-              onClick={() => onChange({ steps: STEP_TEMPLATE.map((title) => ({ id: uid(), title, teacher: '', child: '' })) })}
-            >
-              <ListPlus size={16} className="text-primary" aria-hidden /> Dùng 5 bước gợi ý
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn--sm btn--ghost"
-            onClick={() => onChange({ steps: [...s.steps, { id: uid(), title: '', teacher: '', child: '' }] })}
-          >
-            <Plus size={16} className="text-primary" aria-hidden /> Thêm bước
-          </button>
-        </div>
-      </div>
-      {s.steps.length > 0 && (
-        <div className="ga-steps-table">
-          <div className="ga-steps-head">
-            <span>Bước</span>
-            <span>Hoạt động của cô</span>
-            <span>Hoạt động của trẻ</span>
-            <span />
-          </div>
-          {s.steps.map((st, i) => (
-            <div key={st.id} className="ga-steps-row">
-              <div>
-                <div className="fw-600 text-xs">Bước {i + 1}</div>
-                <input
-                  className="input"
-                  aria-label={`Tên bước ${i + 1}`}
-                  placeholder="Tên bước"
-                  value={st.title}
-                  onChange={(e) => updateStep(st.id, { title: e.target.value })}
-                />
+          <div className="ga-plan-grid">
+            <div className="field">
+              <span className="field__label">Phẩm chất</span>
+              <div className="ga-check-row">
+                {QUALITIES.map((q) => (
+                  <label key={q} className="checkbox">
+                    <input type="checkbox" checked={s.qualities.includes(q)} onChange={() => toggleIn('qualities', q)} /> {q}
+                  </label>
+                ))}
               </div>
+            </div>
+            <div className="field">
+              <span className="field__label">Năng lực nền tảng</span>
+              <div className="ga-check-row">
+                {COMPETENCIES.map((c) => (
+                  <label key={c} className="checkbox">
+                    <input type="checkbox" checked={s.competencies.includes(c)} onChange={() => toggleIn('competencies', c)} /> {c}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="ga-day-section-title">Chuẩn bị</div>
+          <div className="ga-plan-grid">
+            <Field label="Của cô" htmlFor={`pt-${s.id}`}>
               <textarea
+                id={`pt-${s.id}`}
                 className="textarea"
                 rows={2}
-                aria-label={`Hoạt động của cô bước ${i + 1}`}
-                value={st.teacher}
-                onChange={(e) => updateStep(st.id, { teacher: e.target.value })}
+                placeholder="Đồ dùng, học liệu, không gian"
+                value={s.prepTeacher}
+                onChange={(e) => onChange({ prepTeacher: e.target.value })}
               />
+            </Field>
+            <Field label="Của trẻ" htmlFor={`pc-${s.id}`}>
               <textarea
+                id={`pc-${s.id}`}
                 className="textarea"
                 rows={2}
-                aria-label={`Hoạt động của trẻ bước ${i + 1}`}
-                value={st.child}
-                onChange={(e) => updateStep(st.id, { child: e.target.value })}
+                placeholder="Đồ dùng, tâm thế của trẻ"
+                value={s.prepChild}
+                onChange={(e) => onChange({ prepChild: e.target.value })}
               />
+            </Field>
+          </div>
+
+          <div className="ga-day-section-title row row--between">
+            <span>Các bước tổ chức</span>
+            <div className="row">
+              {s.steps.length === 0 && (
+                <button
+                  type="button"
+                  className="btn btn--sm btn--ghost"
+                  onClick={() => onChange({ steps: STEP_TEMPLATE.map((title) => ({ id: uid(), title, teacher: '', child: '' })) })}
+                >
+                  <ListPlus size={16} className="text-primary" aria-hidden /> Dùng 5 bước gợi ý
+                </button>
+              )}
               <button
                 type="button"
-                className="icon-btn"
-                aria-label={`Xóa bước ${i + 1}`}
-                onClick={() => onChange({ steps: s.steps.filter((x) => x.id !== st.id) })}
+                className="btn btn--sm btn--ghost"
+                onClick={() => onChange({ steps: [...s.steps, { id: uid(), title: '', teacher: '', child: '' }] })}
               >
-                <Trash2 size={16} aria-hidden />
+                <Plus size={16} className="text-primary" aria-hidden /> Thêm bước
               </button>
             </div>
-          ))}
-        </div>
+          </div>
+          {s.steps.length > 0 && (
+            <div className="ga-steps-table">
+              <div className="ga-steps-head">
+                <span>Bước</span>
+                <span>Hoạt động của cô</span>
+                <span>Hoạt động của trẻ</span>
+                <span />
+              </div>
+              {s.steps.map((st, i) => (
+                <div key={st.id} className="ga-steps-row">
+                  <div>
+                    <div className="fw-600 text-xs">Bước {i + 1}</div>
+                    <input
+                      className="input"
+                      aria-label={`Tên bước ${i + 1}`}
+                      placeholder="Tên bước"
+                      value={st.title}
+                      onChange={(e) => updateStep(st.id, { title: e.target.value })}
+                    />
+                  </div>
+                  <textarea
+                    className="textarea"
+                    rows={2}
+                    aria-label={`Hoạt động của cô bước ${i + 1}`}
+                    value={st.teacher}
+                    onChange={(e) => updateStep(st.id, { teacher: e.target.value })}
+                  />
+                  <textarea
+                    className="textarea"
+                    rows={2}
+                    aria-label={`Hoạt động của trẻ bước ${i + 1}`}
+                    value={st.child}
+                    onChange={(e) => updateStep(st.id, { child: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={`Xóa bước ${i + 1}`}
+                    onClick={() => onChange({ steps: s.steps.filter((x) => x.id !== st.id) })}
+                  >
+                    <Trash2 size={16} aria-hidden />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
