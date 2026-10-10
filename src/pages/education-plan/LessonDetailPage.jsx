@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Pencil, Save, Send, Trash2 } from '@/components/ui/icons';
+import { CalendarDays, Pencil, Save, Send, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import {
@@ -17,6 +17,7 @@ import {
 } from '@/components/education-plan/eduUi';
 import { LessonBody, daysOf, typeLabel } from '@/components/education-plan/lessonShared';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { dayDraftsFromWeek } from '@/utils/education-plan/lessonDrafts';
 
 /** Notes written after teaching: always editable by the owner, even once the plan is approved. */
 function AfterTeaching({ l, editable, onSave }) {
@@ -133,6 +134,12 @@ export default function LessonDetailPage() {
   const isOwner = (role === ROLES.TEACHER || role === ROLES.TEAM_LEADER) && l.classId === user.classId;
   const editable = isOwner && (l.status === EDU_STATUS.DRAFT || l.status === EDU_STATUS.REJECTED);
   const lastReject = l.status === EDU_STATUS.REJECTED && [...l.history].reverse().find((h) => h.tone === 'err');
+  const dayDrafts = isOwner && l.type === 'week' && l.status !== EDU_STATUS.REJECTED ? dayDraftsFromWeek(l, theme, lessons, user.name) : [];
+  const createDayPlans = () => {
+    dayDrafts.forEach((d) => saveLesson(d));
+    toast(`Đã tạo ${dayDrafts.length} kế hoạch ngày nháp từ ${l.code}`);
+    navigate('/education/lessons');
+  };
 
   return (
     <div className="page">
@@ -153,6 +160,11 @@ export default function LessonDetailPage() {
         }
         actions={
           <>
+            {dayDrafts.length > 0 && (
+              <button className="btn btn--outline-primary" onClick={createDayPlans}>
+                <CalendarDays size={16} aria-hidden /> Tạo {dayDrafts.length} kế hoạch ngày
+              </button>
+            )}
             {isOwner && l.status === EDU_STATUS.DRAFT && (
               <button className="btn btn--outline-danger" onClick={() => setModal('delete')}>
                 <Trash2 size={16} aria-hidden /> Xóa
