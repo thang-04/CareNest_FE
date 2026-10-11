@@ -6,6 +6,7 @@ import { Card, EduStatusBadge, EmptyState, PageHead, fmtDate, fmtDateTime } from
 import { className, periodLabel, typeLabel } from '@/components/education-plan/lessonShared';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import EduProgress from '@/components/education-plan/EduProgress';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -107,6 +108,7 @@ export default function SchoolPlansPage() {
         title="Kế hoạch giáo dục toàn trường"
         desc={`Năm học ${schoolYear}: mục tiêu năm học, kế hoạch chủ đề và giáo án đã gửi của các nhóm tuổi (chỉ xem). Phó hiệu trưởng là người phê duyệt.`}
       />
+      <EduProgress />
       <div className="stat-grid">
         {stats.map((s) => (
           <button

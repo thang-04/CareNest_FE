@@ -4,6 +4,7 @@ import { Plus, Search } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { Card, EduStatusBadge, EmptyState, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import EduProgress from '@/components/education-plan/EduProgress';
 
 const TABS = [
   { key: '', label: 'Tất cả' },
@@ -37,6 +38,7 @@ export default function ThemeListPage() {
           </Link>
         }
       />
+      <EduProgress />
       <Card bodyClass={null}>
         <div className="tabs" role="tablist">
           {TABS.map((t) => (
