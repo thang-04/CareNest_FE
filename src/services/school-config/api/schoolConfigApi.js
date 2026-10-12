@@ -14,10 +14,13 @@ export const schoolConfigApi = {
 
   getStructure: (filters) => axiosClient.get('/school-structure', { params: filters }),
   getAgeGroups: () => axiosClient.get('/age-groups'),
+  // PENDING BE: nhóm tuổi gửi mealSessions (MORNING | LUNCH | AFTERNOON), mealsPerDay = số phần tử
   saveAgeGroup: (id, form) => (id ? axiosClient.put(`/age-groups/${id}`, form) : axiosClient.post('/age-groups', form)),
   deleteAgeGroup: (id) => axiosClient.delete(`/age-groups/${id}`),
   saveClass: (id, form) => (id ? axiosClient.put(`/classes/${id}`, form) : axiosClient.post('/classes', form)),
   deleteClass: (id) => axiosClient.delete(`/classes/${id}`),
+  // PENDING BE: sao chép lớp từ năm học khác (chỉ tên, nhóm tuổi, điểm trường, phòng, sĩ số)
+  copyClasses: (targetYearId, payload) => axiosClient.post(`/school-years/${targetYearId}/classes/copy`, payload),
 
   getCutoffSetting: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/cutoff`),
   saveCutoffSetting: (schoolYear, form) => axiosClient.put(`/school-years/${schoolYear}/cutoff`, form),
@@ -27,6 +30,11 @@ export const schoolConfigApi = {
   saveCampus: (id, form) => (id ? axiosClient.put(`/campuses/${id}`, form) : axiosClient.post('/campuses', form)),
   deleteCampus: (id) => axiosClient.delete(`/campuses/${id}`),
 
+  // PENDING BE: tài khoản nhân sự (đổi vai trò / điểm trường kết thúc phân công cũ ngay, giữ lịch sử)
+  getStaffAccounts: () => axiosClient.get('/users', { params: { staff: true } }),
+  getStaffImpact: (id, form) => axiosClient.get(`/users/${id}/role-change-impact`, { params: form }),
+  saveStaffAccount: (id, form) => (id ? axiosClient.put(`/users/${id}`, form) : axiosClient.post('/users', form)),
+  setStaffStatus: (id, status, reason) => axiosClient.patch(`/users/${id}/status`, { status, reason }),
   getViceAssignments: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/vice-principal-assignments`),
   saveViceAssignment: (schoolYear, userId, form) =>
     axiosClient.put(`/school-years/${schoolYear}/vice-principal-assignments/${userId}`, form),

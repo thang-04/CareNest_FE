@@ -7,6 +7,8 @@ repository: CareNest_FE
 role: client Web (System Admin, Principal, Vice Principal, Teacher) — consumer của API contract BE
 
 keywords:
+  "tiếp nhận trẻ|kiểm tra sáng|daily reception|daily health":
+    {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/daily-reception.md]}
   # từ khóa (VN|EN, regex-friendly) -> {be_module_card, fe_docs}
   "điểm danh|attendance|đi muộn|đến muộn|late arrival|vắng":
     {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
@@ -77,6 +79,7 @@ available:
            .claude/skills/fix-bug/SKILL.md, .claude/skills/implement-feature/SKILL.md, .claude/skills/review-code/SKILL.md, .claude/skills/integrate-api/SKILL.md, .claude/skills/update-knowledge/SKILL.md, .claude/skills/plan-change/SKILL.md]
   rules: [.claude/rules/typescript.md, .claude/rules/component.md, .claude/rules/state.md, .claude/rules/api-client.md]
   docs:
+    - docs/features/daily-reception.md
     - docs/context/REPOSITORY_CONTEXT.md
     - docs/context/CURRENT_STATE.md
     - docs/architecture/ROUTE_MAP.md

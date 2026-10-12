@@ -13,9 +13,13 @@
  * @property {string} id
  * @property {string} name
  * @property {string} shortName
- * @property {string} ageRange        e.g. '24–36 tháng'
- * @property {number} mealsPerDay     3 for nursery ages, 2 for kindergarten ages
+ * @property {number} ageFromMonths   0–72, lower bound included
+ * @property {number} ageToMonths     1–72, upper bound excluded (ranges of two groups do not overlap)
+ * @property {string[]} mealSessions   meals served to the group (MORNING | LUNCH | AFTERNOON), set by the Principal
+ * @property {number} mealsPerDay     = mealSessions.length (kept for modules that still read a number)
+ * @property {number} maxClassSize    1–50, upper limit of the capacity of its classes
  * @property {string} nutritionNote
+ * @property {{ action: string, userId: string, at: string, note?: string }[]} [history]
  *
  * @typedef {Object} CutoffSetting
  * @property {string} schoolYear
@@ -30,6 +34,8 @@
  * @property {Object<string, 'FULL'|'RESTRICTED'|'NONE'>} grants   permission code -> level
  * @property {{ userId: string, at: string, reason: string, changes: { code: string, from: string, to: string }[] }[]} history
  */
+
+import { MEAL_SESSION_LABELS, SESSION_ORDER } from '@/models/menu-planning/menuPlanningConstants';
 
 export const YEAR_STATUS = { PLANNED: 'PLANNED', ACTIVE: 'ACTIVE', CLOSED: 'CLOSED' };
 
@@ -46,14 +52,77 @@ export const YEAR_ACTION_LABELS = {
   CLOSED: 'Kết thúc năm học',
 };
 
+/*
+ * Bữa ăn của nhóm tuổi: dùng lại đúng mã bữa của module thực đơn (MORNING, LUNCH, AFTERNOON) để không có danh mục thứ hai.
+ * Điểm danh / suất ăn / bếp hiện chỉ có LUNCH, AFTERNOON (xem báo cáo, việc nối tiếp).
+ */
+export const MEAL_SESSION_OPTIONS = SESSION_ORDER;
+export const MEAL_SESSION_SHORT = { MORNING: 'Phụ sáng', LUNCH: 'Trưa', AFTERNOON: 'Chiều (xế)' };
+export { MEAL_SESSION_LABELS };
+export const mealSessionsLabel = (g) =>
+  (g?.mealSessions?.length ? SESSION_ORDER.filter((s) => g.mealSessions.includes(s)) : []).map((s) => MEAL_SESSION_SHORT[s]).join(' · ') ||
+  '—';
+
+export const ageRangeLabel = (g) => (g && g.ageFromMonths != null ? `${g.ageFromMonths}–${g.ageToMonths} tháng` : '—');
+
+/** Class fill shown on Age Groups & Classes: NEAR from 90% of the max size. Each class has 2 teachers (SRS 4.1.3). */
+export const CLASS_FILL = { OPEN: 'OPEN', NEAR: 'NEAR', FULL: 'FULL' };
+export const CLASS_FILL_LABELS = { OPEN: 'Còn chỗ', NEAR: 'Gần đủ', FULL: 'Đã đủ' };
+export const TEACHERS_PER_CLASS = 2;
+
+/** Quick filters of the class list (URL ?status=). */
+export const CLASS_FILTERS = {
+  OPEN: 'Còn chỗ',
+  NEAR: 'Gần đủ',
+  FULL: 'Đã đủ',
+  NO_TEACHER: 'Thiếu giáo viên',
+  NO_ROOM: 'Chưa có phòng',
+};
+
 export const CLASS_STATUS_LABELS = { ACTIVE: 'Đang hoạt động', CLOSED: 'Đã đóng' };
 
-export const PERMISSION_LEVEL = { FULL: 'FULL', RESTRICTED: 'RESTRICTED', NONE: 'NONE' };
+/*
+ * Mức quyền = quyền truy cập (Không có / Chỉ xem / Được sửa) × phạm vi (Toàn trường / Trong điểm trường).
+ * Lưu một chuỗi để tương thích dữ liệu cũ: FULL = sửa toàn trường, RESTRICTED = sửa trong điểm trường (giá trị F / R của SRS 4.4),
+ * VIEW_FULL / VIEW_RESTRICTED = chỉ xem (thêm 10/10/2026), NONE = không có.
+ */
+export const PERMISSION_LEVEL = {
+  FULL: 'FULL',
+  RESTRICTED: 'RESTRICTED',
+  VIEW_FULL: 'VIEW_FULL',
+  VIEW_RESTRICTED: 'VIEW_RESTRICTED',
+  NONE: 'NONE',
+};
 
 export const PERMISSION_LEVEL_LABELS = {
-  FULL: 'Toàn quyền',
-  RESTRICTED: 'Theo phạm vi',
-  NONE: 'Không',
+  FULL: 'Sửa · toàn trường',
+  RESTRICTED: 'Sửa · trong điểm trường',
+  VIEW_FULL: 'Chỉ xem · toàn trường',
+  VIEW_RESTRICTED: 'Chỉ xem · trong điểm trường',
+  NONE: 'Không có',
+};
+
+export const PERMISSION_ACCESS = { NONE: 'NONE', VIEW: 'VIEW', EDIT: 'EDIT' };
+export const PERMISSION_ACCESS_LABELS = { NONE: 'Không có', VIEW: 'Chỉ xem', EDIT: 'Được sửa' };
+export const PERMISSION_SCOPE = { ALL: 'ALL', CAMPUS: 'CAMPUS' };
+export const PERMISSION_SCOPE_LABELS = { ALL: 'Toàn trường', CAMPUS: 'Trong điểm trường' };
+
+/** 'VIEW_RESTRICTED' -> { access: 'VIEW', scope: 'CAMPUS' } */
+export const parseGrant = (level) => {
+  if (!level || level === PERMISSION_LEVEL.NONE) return { access: PERMISSION_ACCESS.NONE, scope: PERMISSION_SCOPE.CAMPUS };
+  const view = level.startsWith('VIEW_');
+  return {
+    access: view ? PERMISSION_ACCESS.VIEW : PERMISSION_ACCESS.EDIT,
+    scope: level.endsWith('FULL') ? PERMISSION_SCOPE.ALL : PERMISSION_SCOPE.CAMPUS,
+  };
+};
+
+/** { access, scope } -> stored level string */
+export const composeGrant = ({ access, scope }) => {
+  if (access === PERMISSION_ACCESS.NONE) return PERMISSION_LEVEL.NONE;
+  const all = scope === PERMISSION_SCOPE.ALL;
+  if (access === PERMISSION_ACCESS.VIEW) return all ? PERMISSION_LEVEL.VIEW_FULL : PERMISSION_LEVEL.VIEW_RESTRICTED;
+  return all ? PERMISSION_LEVEL.FULL : PERMISSION_LEVEL.RESTRICTED;
 };
 
 /** Web roles of the SRS 4.4 Permission Matrix. Parents use the mobile app and are not configured here. */
@@ -98,5 +167,26 @@ export const PERMISSION_MODULES = {
 };
 
 export const SHARED_SERVICE_LABEL = 'Phụ trách dịch vụ chung (bán trú toàn trường)';
+
+/*
+ * Quyền riêng của từng Phó hiệu trưởng theo mảng phụ trách (đề xuất 10/10/2026, ghi Decision Log), gắn vào phân công năm học.
+ * Giá trị dùng chung chuỗi mức quyền (NONE / VIEW_* / RESTRICTED / FULL). Mảng không đặt thì dùng mặc định theo vai trò.
+ * scopes: phạm vi chọn được; menu là dữ liệu toàn trường, CSVC hiện chỉ hỗ trợ trong điểm trường.
+ */
+export const VP_AREAS = [
+  { key: 'menu', label: 'Thực đơn & dịch vụ bán trú', scopes: ['ALL'] },
+  { key: 'teacherAssignment', label: 'Phân công giáo viên / tổ trưởng', scopes: ['CAMPUS', 'ALL'], code: 'permission.assignTeacher' },
+  { key: 'facility', label: 'Cơ sở vật chất (sự cố, yêu cầu, đề xuất, luân chuyển, kiểm kê)', scopes: ['CAMPUS'] },
+];
+
+/** Default areas of an assignment (same behaviour as before the per-person rights). */
+export const defaultVpAreas = (assignment, roleGrants = {}) => ({
+  menu: assignment?.sharedService ? PERMISSION_LEVEL.FULL : PERMISSION_LEVEL.VIEW_FULL,
+  teacherAssignment: roleGrants['permission.assignTeacher'] || PERMISSION_LEVEL.RESTRICTED,
+  facility: PERMISSION_LEVEL.RESTRICTED,
+});
+
+/** Areas of an assignment = saved values over the defaults. */
+export const vpAreasOf = (assignment, roleGrants) => ({ ...defaultVpAreas(assignment, roleGrants), ...(assignment?.areas || {}) });
 
 export const CUTOFF_DEFAULT_HINT = 'Giờ Việt Nam (Asia/Ho_Chi_Minh). Sau giờ này, điểm danh và đăng ký suất ăn trong ngày bị khóa.';

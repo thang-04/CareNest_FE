@@ -18,6 +18,8 @@ export const saveAgeGroup = (id, form, user) => repo.saveAgeGroup(id, form, user
 export const deleteAgeGroup = (id, user) => repo.deleteAgeGroup(id, user);
 export const saveClass = (id, form, user) => repo.saveClass(id, form, user);
 export const deleteClass = (id, user) => repo.deleteClass(id, user);
+/** payload: { sourceYearId, classIds? } -> { copied: string[], skipped: { name, reason }[] } */
+export const copyClasses = (targetYearId, payload, user) => repo.copyClasses(targetYearId, payload, user);
 
 /** Also for attendance / meal modules: the active cutoff of a school year. */
 export const getCutoffSetting = (schoolYear) => repo.getCutoffSetting(schoolYear);
@@ -27,6 +29,12 @@ export const getCampusesWithStats = (schoolYear, user) => repo.getCampuses(schoo
 export const getCampusDetail = (id, schoolYear, user) => repo.getCampusDetail(id, schoolYear, user);
 export const saveCampus = (id, form, user) => repo.saveCampus(id, form, user);
 export const deleteCampus = (id, user) => repo.deleteCampus(id, user);
+
+/** Staff accounts (PENDING BE: GET/POST /users, PUT /users/{id}, PATCH /users/{id}/role, PATCH /users/{id}/status). */
+export const getStaffAccounts = (user) => repo.getStaffAccounts(user);
+export const getStaffImpact = (id, form, user) => repo.getStaffImpact(id, form, user);
+export const saveStaffAccount = (id, form, user) => repo.saveStaffAccount(id, form, user);
+export const setStaffStatus = (id, status, reason, user) => repo.setStaffStatus(id, status, reason, user);
 
 export const getViceAssignments = (schoolYear, user) => repo.getViceAssignments(schoolYear, user);
 export const saveViceAssignment = (schoolYear, userId, form, user) => repo.saveViceAssignment(schoolYear, userId, form, user);

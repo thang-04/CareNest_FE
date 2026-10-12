@@ -15,9 +15,13 @@ import { saveRolePermissions } from '@/services/school-config/schoolConfigServic
 import {
   CONFIG_ROLE_LABELS,
   CONFIG_ROLES,
-  PERMISSION_LEVEL,
+  PERMISSION_ACCESS,
+  PERMISSION_ACCESS_LABELS,
   PERMISSION_LEVEL_LABELS,
   PERMISSION_MODULES,
+  PERMISSION_SCOPE_LABELS,
+  composeGrant,
+  parseGrant,
   ROLE_SCOPE_NOTES,
 } from '@/models/school-config/schoolConfigConstants';
 import { PERMISSION_CATALOG, defaultGrants, isLockedGrant, permissionByCode } from '@/models/school-config/permissionCatalog';
@@ -27,17 +31,37 @@ import { roleCrumbs } from '@/utils/school-config/breadcrumbs';
 import { formatDateTime } from '@/utils/format';
 import '@/styles/modules/school-config.css';
 
-const LEVELS = [PERMISSION_LEVEL.FULL, PERMISSION_LEVEL.RESTRICTED, PERMISSION_LEVEL.NONE];
-
-function LevelSwitch({ code, value, onChange, disabled, label }) {
+/** Quyền truy cập (Không có / Chỉ xem / Được sửa) + phạm vi (Toàn trường / Trong điểm trường) của một chức năng. */
+function LevelSwitch({ value, onChange, disabled, label }) {
+  const { access, scope } = parseGrant(value);
   return (
-    <div className="sc-level" role="radiogroup" aria-label={label}>
-      {LEVELS.map((lv) => (
-        <label key={lv} className={`sc-level__opt sc-level__opt--${lv.toLowerCase()} ${value === lv ? 'sc-level__opt--on' : ''}`}>
-          <input type="radio" name={`lv-${code}`} checked={value === lv} disabled={disabled} onChange={() => onChange(lv)} />
-          {PERMISSION_LEVEL_LABELS[lv]}
-        </label>
-      ))}
+    <div className="sc-access">
+      <select
+        className="select"
+        aria-label={`${label}: quyền`}
+        value={access}
+        disabled={disabled}
+        onChange={(e) => onChange(composeGrant({ access: e.target.value, scope }))}
+      >
+        {Object.entries(PERMISSION_ACCESS_LABELS).map(([k, l]) => (
+          <option key={k} value={k}>
+            {l}
+          </option>
+        ))}
+      </select>
+      <select
+        className="select"
+        aria-label={`${label}: phạm vi`}
+        value={scope}
+        disabled={disabled || access === PERMISSION_ACCESS.NONE}
+        onChange={(e) => onChange(composeGrant({ access, scope: e.target.value }))}
+      >
+        {Object.entries(PERMISSION_SCOPE_LABELS).map(([k, l]) => (
+          <option key={k} value={k}>
+            {l}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -45,7 +69,7 @@ function LevelSwitch({ code, value, onChange, disabled, label }) {
 /** #25 Role Permission Form (UC 2.4). Configuration display only: real route guards are not changed by it. */
 export default function RolePermissionFormPage() {
   const { role } = useParams();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const md = useMasterData();
@@ -104,6 +128,8 @@ export default function RolePermissionFormPage() {
   const save = async () => {
     try {
       await saveRolePermissions(role, { grants, reason }, user);
+      // Quyền của chính vai trò đang đăng nhập có hiệu lực ngay; vai trò khác áp dụng ở lần đăng nhập / tải trang tiếp theo
+      if (role === user.role) await refreshUser();
       toast.success('Đã lưu thay đổi.', title);
       setConfirmOpen(false);
       navigate('/school/roles');
@@ -135,7 +161,15 @@ export default function RolePermissionFormPage() {
           <div className="alert alert--info mb-16">
             <Info size={18} />
             <div>
-              <b>Theo phạm vi</b> với vai trò này: {ROLE_SCOPE_NOTES[role]} Thay đổi được ghi lại người sửa, thời điểm và giá trị cũ.
+              {role === 'PRINCIPAL' ? (
+                <>Hiệu trưởng có quyền cao nhất: luôn được sửa toàn trường ở mọi chức năng, không cần bật quyền. </>
+              ) : (
+                <>
+                  <b>Trong điểm trường</b> với vai trò này: {ROLE_SCOPE_NOTES[role]}{' '}
+                </>
+              )}
+              Hiện chỉ quyền "Phân công giáo viên / tổ trưởng" điều khiển trực tiếp màn hình; các quyền khác đang lưu để cấu hình. Thay đổi
+              được ghi lại người sửa, thời điểm và giá trị cũ.
             </div>
           </div>
 
@@ -178,9 +212,8 @@ export default function RolePermissionFormPage() {
                             </td>
                             <td>
                               <LevelSwitch
-                                code={p.code}
                                 value={grants[p.code]}
-                                disabled={locked}
+                                disabled={locked || role === 'PRINCIPAL'}
                                 label={`${p.entity} – ${p.action}`}
                                 onChange={(lv) => setLevel(p.code, lv)}
                               />

@@ -12,7 +12,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { IssueTypeChip } from '@/components/facility/FacilityBadges';
-import { locationLabel } from '@/models/Location';
+import { isActiveLocation, locationLabel } from '@/models/Location';
 import {
   PROPOSAL_ACTIONS,
   PROPOSAL_ACTION_LABELS,
@@ -106,7 +106,10 @@ export default function ProposalFormPage() {
 
   const usedSourceIds = useMemo(() => new Set(form.lines.map((l) => l.sourceId).filter(Boolean)), [form.lines]);
   const freeSources = sources.filter((s) => !usedSourceIds.has(s.sourceId));
-  const campusLocations = md.locations.filter((l) => l.campusId === user.campusId);
+  // Phòng ngừng sử dụng / đã xóa không chọn mới được; dòng cũ vẫn giữ phòng đã chọn
+  const campusLocations = md.locations.filter(
+    (l) => l.campusId === user.campusId && (isActiveLocation(l) || form.lines.some((x) => x.locationId === l.id)),
+  );
   const total = proposalTotal(form.lines);
 
   const set = (patch) => {

@@ -13,6 +13,7 @@ import {
   ListChecks,
 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
+import { areaAccess, canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
 
 /*
  * Sidebar menu – single source of truth.
@@ -46,6 +47,8 @@ const GROUPS = {
 const ITEMS = {
   schoolYears: { label: 'Năm học', to: '/school/years' },
   schoolClasses: { label: 'Nhóm tuổi & lớp', to: '/school/classes' },
+  schoolRooms: { label: 'Phòng học', to: '/school/rooms' },
+  schoolStaff: { label: 'Tài khoản nhân sự', to: '/school/staff' },
   schoolCutoff: { label: 'Giờ chốt điểm danh', to: '/school/cutoff' },
   schoolCampuses: { label: 'Điểm trường', to: '/school/campuses' },
   schoolVps: { label: 'Phân công Phó hiệu trưởng', to: '/school/vice-principals' },
@@ -120,7 +123,16 @@ const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('school', ['schoolYears', 'schoolClasses', 'schoolCutoff', 'schoolCampuses', 'schoolVps', 'schoolRoles']),
+    group('school', [
+      'schoolYears',
+      'schoolClasses',
+      'schoolRooms',
+      'schoolCutoff',
+      'schoolCampuses',
+      'schoolStaff',
+      'schoolVps',
+      'schoolRoles',
+    ]),
     group('children', ['childList', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'mealCount']),
     group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards']),
@@ -134,7 +146,7 @@ const MENUS = {
   [ROLES.VICE_PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('school', ['schoolYears', 'schoolClasses', 'schoolCampuses', 'schoolTeachers']),
+    group('school', ['schoolYears', 'schoolClasses', 'schoolRooms', 'schoolCampuses', 'schoolTeachers']),
     group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'mealCount']),
     group('education', ['eduGoals', 'eduApprovals']),
@@ -185,4 +197,26 @@ const MENUS = {
   ],
 };
 
-export const getMenuForRole = (role) => MENUS[role] || [link('home'), account, link('notifications')];
+/** "Phân công giáo viên" follows the permission of the Role & Permission screen; every other item stays role-based. */
+const withTeacherAssignment = (menu, user) => {
+  const allowed = canOpenTeacherAssignment(user);
+  const items = menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => c.key !== 'schoolTeachers') } : e));
+  if (!allowed) return items;
+  const entry = { ...ITEMS.schoolTeachers, key: 'schoolTeachers' };
+  const school = items.find((e) => e.key === 'school');
+  if (school) return items.map((e) => (e === school ? { ...e, children: [...e.children, entry] } : e));
+  return [items[0], ...items.slice(1, 2), { ...GROUPS.school, key: 'school', children: [entry] }, ...items.slice(2)];
+};
+
+/** Mảng phụ trách "Không có" của Phó hiệu trưởng: ẩn nhóm menu tương ứng (thực đơn, CSVC). */
+const AREA_GROUPS = { menu: ['menu'], facility: ['facility'] };
+const withVpAreas = (menu, user) => {
+  if (user?.role !== 'VICE_PRINCIPAL') return menu;
+  const hidden = Object.entries(AREA_GROUPS)
+    .filter(([area]) => areaAccess(user, area).access === 'NONE')
+    .flatMap(([, groups]) => groups);
+  return menu.filter((e) => !hidden.includes(e.key));
+};
+
+export const getMenuForRole = (role, user) =>
+  withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user);

@@ -6,6 +6,8 @@ File này **không chứa business rule**. Rule, flow, PENDING nằm ở BE modu
 
 ## Bảng map
 
+Demo tiếp nhận trẻ tại `/attendance`: xem `daily-reception.md` (điểm danh/báo ăn và ghi nhận sức khỏe nhiều lần/ngày; chưa có contract thật).
+
 | Feature V1 (BE) | Màn hình Web (screen group) | Module card | Flow | Rule nhóm |
 | --- | --- | --- | --- | --- |
 | Điểm danh + báo ăn | Teacher: Điểm danh + báo ăn | `BE:docs/modules/attendance.md` | `BE:docs/business/flows/attendance.md` | ATT |

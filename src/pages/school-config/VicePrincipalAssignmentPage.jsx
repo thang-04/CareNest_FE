@@ -12,10 +12,20 @@ import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { YearPicker } from '@/components/school-config/YearPicker';
-import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
+import { PermissionLevelBadge, YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { saveViceAssignment } from '@/services/school-config/schoolConfigService';
-import { SHARED_SERVICE_LABEL, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
+import {
+  PERMISSION_ACCESS,
+  PERMISSION_ACCESS_LABELS,
+  PERMISSION_SCOPE_LABELS,
+  SHARED_SERVICE_LABEL,
+  VP_AREAS,
+  YEAR_STATUS,
+  composeGrant,
+  parseGrant,
+  vpAreasOf,
+} from '@/models/school-config/schoolConfigConstants';
 import { canAssignVicePrincipal } from '@/utils/school-config/schoolConfigPermissions';
 import { validateVpAssignment, hasErrors } from '@/utils/school-config/schoolConfigValidation';
 import { vpCrumbs } from '@/utils/school-config/breadcrumbs';
@@ -27,12 +37,15 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
   const toast = useToast();
   const [form, setForm] = useState({
     campusId: row.assignment?.campusId || row.user.campusId || '',
-    sharedService: !!row.assignment?.sharedService,
+    areas: { ...vpAreasOf(row.assignment), ...(row.assignment?.areas || {}) },
     note: '',
   });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const movesShared = form.sharedService && sharedHolder && sharedHolder.id !== row.user.id;
+  const menuEdit = parseGrant(form.areas.menu).access === PERMISSION_ACCESS.EDIT;
+  const movesShared = menuEdit && sharedHolder && sharedHolder.id !== row.user.id;
+  const setArea = (key, patch) =>
+    setForm((f) => ({ ...f, areas: { ...f.areas, [key]: composeGrant({ ...parseGrant(f.areas[key]), ...patch }) } }));
 
   const submit = async () => {
     const e = validateVpAssignment(form);
@@ -80,24 +93,69 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
         </select>
       </FormField>
       <div className="mt-16">
-        <span className="field__label">Phạm vi trách nhiệm</span>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={form.sharedService}
-            onChange={(e) => setForm((f) => ({ ...f, sharedService: e.target.checked }))}
-          />
-          {SHARED_SERVICE_LABEL}
-        </label>
+        <span className="field__label">Quyền theo mảng phụ trách</span>
+        <div className="table-wrap sc-table-flat">
+          <table className="table table--compact">
+            <tbody>
+              {VP_AREAS.map((area) => {
+                const g = parseGrant(form.areas[area.key]);
+                return (
+                  <tr key={area.key}>
+                    <td className="text-sm">{area.label}</td>
+                    <td>
+                      <div className="sc-access">
+                        <select
+                          className="select"
+                          aria-label={`${area.label}: quyền`}
+                          value={g.access}
+                          onChange={(e) =>
+                            setArea(area.key, {
+                              access: e.target.value,
+                              scope: area.scopes.includes(g.scope) ? g.scope : area.scopes[0],
+                            })
+                          }
+                        >
+                          {Object.entries(PERMISSION_ACCESS_LABELS).map(([k, l]) => (
+                            <option key={k} value={k}>
+                              {l}
+                            </option>
+                          ))}
+                        </select>
+                        {area.scopes.length > 1 ? (
+                          <select
+                            className="select"
+                            aria-label={`${area.label}: phạm vi`}
+                            value={g.scope}
+                            disabled={g.access === PERMISSION_ACCESS.NONE}
+                            onChange={(e) => setArea(area.key, { scope: e.target.value })}
+                          >
+                            {area.scopes.map((sc) => (
+                              <option key={sc} value={sc}>
+                                {PERMISSION_SCOPE_LABELS[sc]}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-sm muted">{PERMISSION_SCOPE_LABELS[area.scopes[0]]}</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
         <div className="field__hint">
-          Quản lý giá suất ăn, thực phẩm, món ăn, thực đơn cho toàn trường và xem số suất ăn của cả hai điểm trường. Chỉ một Phó hiệu trưởng
-          giữ trách nhiệm này.
+          "Được sửa" Thực đơn = {SHARED_SERVICE_LABEL.toLowerCase()}: chỉ một Phó hiệu trưởng mỗi năm (GBR-GEN-10). Các mảng không chỉnh giữ
+          mặc định theo màn Vai trò &amp; quyền.
         </div>
         {movesShared && (
           <div className="alert alert--warning mt-8">
             <AlertTriangle size={18} />
             <div>
-              Trách nhiệm dịch vụ chung sẽ chuyển từ <b>{sharedHolder.fullName}</b> sang <b>{row.user.fullName}</b>.
+              Quyền sửa thực đơn (dịch vụ chung) sẽ chuyển từ <b>{sharedHolder.fullName}</b> sang <b>{row.user.fullName}</b>;{' '}
+              {sharedHolder.fullName} còn quyền xem.
             </div>
           </div>
         )}
@@ -186,7 +244,7 @@ export default function VicePrincipalAssignmentPage() {
                 <tr>
                   <th>Phó hiệu trưởng</th>
                   <th>Điểm trường phụ trách</th>
-                  <th>Trách nhiệm thêm</th>
+                  <th>Quyền theo mảng</th>
                   <th>Phân công lúc</th>
                   {!readOnly && <th className="right">Thao tác</th>}
                 </tr>
@@ -224,8 +282,15 @@ export default function VicePrincipalAssignmentPage() {
                         )}
                       </td>
                       <td>
-                        {r.assignment?.sharedService ? (
-                          <span className="chip chip--teal">Dịch vụ chung</span>
+                        {r.assignment ? (
+                          <div className="sc-area-chips">
+                            {VP_AREAS.map((area) => (
+                              <span key={area.key} className="text-xs">
+                                <span className="muted">{area.label.split(' (')[0]}:</span>{' '}
+                                <PermissionLevelBadge status={r.assignment.areas?.[area.key] || 'NONE'} />
+                              </span>
+                            ))}
+                          </div>
                         ) : (
                           <span className="muted">—</span>
                         )}

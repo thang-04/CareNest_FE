@@ -1,5 +1,6 @@
 import { ROLES } from '@/models/User';
 import { WEEKLY_STATUS } from '@/models/menu-planning/menuPlanningConstants';
+import { areaAccess } from '@/utils/school-config/schoolConfigPermissions';
 
 /*
  * SRS 4.4 Permission Matrix:
@@ -15,7 +16,8 @@ export const isVicePrincipal = (user) => user?.role === ROLES.VICE_PRINCIPAL;
 export const isPrincipal = (user) => user?.role === ROLES.PRINCIPAL;
 
 /** Read the planning data (foods, dishes, prices, sample and weekly menus). */
-export const canViewMenuData = (user) => isVicePrincipal(user);
+// Quyền riêng của Phó hiệu trưởng (mảng Thực đơn): Không có thì không xem dữ liệu thực đơn
+export const canViewMenuData = (user) => isVicePrincipal(user) && areaAccess(user, 'menu').access !== 'NONE';
 
 /** Create / edit / delete foods, dishes, prices, menus; request AI suggestions; balance nutrition. */
 export const canManageMenuData = (user, access) => isVicePrincipal(user) && !!access?.sharedService;

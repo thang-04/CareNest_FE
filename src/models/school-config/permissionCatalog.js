@@ -106,4 +106,13 @@ export const defaultGrants = (role) => Object.fromEntries(PERMISSION_CATALOG.map
 /** Principal must keep the right to manage permissions, otherwise nobody can fix the configuration. */
 export const LOCKED_GRANTS = { PRINCIPAL: ['permission.manage'] };
 
+/**
+ * Effective grants of a role: the saved entry of the Role & Permission screen, else the matrix defaults.
+ * The Principal has the highest authority: FULL on every permission whatever is saved (decision 10/10/2026).
+ */
+export const grantsOf = (rolePermissions, role) =>
+  role === 'PRINCIPAL'
+    ? Object.fromEntries(PERMISSION_CATALOG.map((p) => [p.code, 'FULL']))
+    : { ...defaultGrants(role), ...((rolePermissions || []).find((r) => r.role === role)?.grants || {}) };
+
 export const isLockedGrant = (role, code) => (LOCKED_GRANTS[role] || []).includes(code);

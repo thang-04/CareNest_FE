@@ -4,6 +4,262 @@
  */
 
 /* ---------- Filter bar (class + date) ---------- */
+/* ---------- Daily reception workbench ---------- */
+.dd-reception {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+.dd-reception__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.dd-reception > .card {
+  min-width: 0;
+}
+.dd-reception__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.dd-reception__filters .search-box {
+  flex: 1 1 calc(var(--space-16) * 3);
+  max-width: calc(var(--space-16) * 4);
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dd-reception__mark-all {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.dd-reception__table {
+  max-height: calc(var(--space-16) * 8);
+  overflow: auto;
+}
+.dd-reception__table .table {
+  min-width: calc(var(--space-16) * 7);
+}
+.dd-reception__table th {
+  white-space: nowrap;
+}
+.dd-reception__row {
+  cursor: pointer;
+}
+.dd-reception__table tr.dd-reception__row--selected td {
+  background: var(--color-primary-soft);
+}
+.dd-reception__child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  padding: var(--space-1) 0;
+  cursor: pointer;
+  font: inherit;
+}
+.dd-reception__child > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.dd-reception__child strong {
+  font-weight: var(--fw-semibold);
+}
+.dd-reception__status {
+  white-space: nowrap;
+}
+.dd-reception__status .dd-seg__item {
+  min-height: var(--input-height);
+  padding: var(--space-2);
+}
+.dd-reception__status label:focus-within {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.dd-reception__meal {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+}
+.dd-reception__meal .dd-check {
+  appearance: none;
+  position: relative;
+  width: var(--space-10);
+  height: var(--space-6);
+  margin: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-secondary);
+  cursor: pointer;
+}
+.dd-reception__meal .dd-check::after {
+  content: '';
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  width: var(--space-3-5);
+  height: var(--space-3-5);
+  border-radius: var(--radius-full);
+  background: var(--color-text-muted);
+}
+.dd-reception__meal .dd-check:checked {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-fg);
+}
+.dd-reception__meal .dd-check:checked::after {
+  left: var(--space-5);
+  background: var(--color-success-fg);
+}
+.dd-reception__meal .dd-check:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dd-reception__footer {
+  position: relative;
+  padding-top: var(--space-4);
+}
+.dd-reception__footer > p {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dd-health .card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dd-health__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+}
+.dd-health__name {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+.dd-health__form {
+  position: relative;
+}
+.dd-health__fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.dd-health__fields legend {
+  margin-bottom: var(--space-2);
+}
+.dd-health__observations {
+  display: grid;
+  gap: var(--space-2);
+}
+.dd-health__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.dd-health__option.is-selected {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-border);
+}
+.dd-health__option input {
+  accent-color: var(--color-primary);
+}
+.dd-health__symptoms,
+.dd-health__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.dd-health__history {
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+}
+.dd-health__contact {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-warning-bg);
+  overflow-wrap: anywhere;
+}
+.dd-health__contact-person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.dd-health__contact summary {
+  cursor: pointer;
+  font-weight: var(--fw-semibold);
+}
+.dd-health__contact .btn {
+  white-space: normal;
+  height: auto;
+  min-height: var(--btn-height);
+}
+.dd-health__actions .btn {
+  white-space: normal;
+  height: auto;
+  min-height: var(--btn-height);
+}
+.dd-health__timeline {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.dd-health__timeline li {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1100px) {
+  .dd-reception {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 768px) {
+  .dd-reception__filters {
+    align-items: stretch;
+  }
+  .dd-reception__filters .search-box {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .dd-health__actions .btn {
+    width: 100%;
+  }
+}
+
 .dd-bar {
   background: var(--surface);
   border: 1px solid var(--border);

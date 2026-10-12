@@ -262,6 +262,9 @@ export const attendanceMockRepository = {
     if (!canViewAttendance(cls, user)) throw forbidden();
     const plans = Object.fromEntries(db.childMealPlans.map((p) => [p.childId, p]));
     const count = db.mealCounts.find((m) => m.campusId === cls.campusId && m.date === date);
+    const children = activeChildrenOf(db, classId)
+      .map((ch) => ({ child: childView(ch), record: clone(recordOf(db, ch.id, date) || null), mealPlan: plans[ch.id] || null }))
+      .sort((a, b) => a.child.fullName.localeCompare(b.child.fullName, 'vi'));
     return {
       ...dayInfo(db, date),
       classId,
@@ -269,9 +272,13 @@ export const attendanceMockRepository = {
       campusId: cls.campusId,
       canRecord: canRecordAttendance(cls, user),
       mealCountStatus: count?.status || null,
-      children: activeChildrenOf(db, classId)
-        .map((ch) => ({ child: childView(ch), record: clone(recordOf(db, ch.id, date) || null), mealPlan: plans[ch.id] || null }))
-        .sort((a, b) => a.child.fullName.localeCompare(b.child.fullName, 'vi')),
+      children,
+      receptionStats: {
+        total: children.length,
+        present: children.filter(({ record }) => record?.status === ATTENDANCE_STATUS.PRESENT).length,
+        absent: children.filter(({ record }) => isAbsent(record?.status)).length,
+        missing: children.filter(({ record }) => !record).length,
+      },
     };
   },
 

@@ -25,11 +25,11 @@ export function useAttendanceClasses({ own = false } = {}) {
 /** `live: false` while the teacher is typing so a background change does not wipe the form. */
 export function useClassAttendance(classId, date, { live = true } = {}) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getClassAttendance(classId, date, user), [classId, date, user?.id], {
+  const { data, setData, loading, error, reload } = useAsync(() => getClassAttendance(classId, date, user), [classId, date, user?.id], {
     enabled: !!classId && !!date,
     refreshOnDataChange: live,
   });
-  return { sheet: data, loading: loading && !!classId, error, reload };
+  return { sheet: data, setSheet: setData, loading: loading && !!classId, error, reload };
 }
 
 export function useAttendanceSummary({ classId, from, to }) {

@@ -9,6 +9,7 @@ import HomePage from '@/pages/HomePage';
 import ComingSoonPage from '@/pages/ComingSoonPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import { canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
 
 const UiKitPage = lazy(() => import('@/pages/UiKitPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
@@ -71,6 +72,8 @@ const PickupResultPage = lazy(() => import('@/pages/pickup/PickupResultPage'));
 const SchoolYearListPage = lazy(() => import('@/pages/school-config/SchoolYearListPage'));
 const SchoolYearFormPage = lazy(() => import('@/pages/school-config/SchoolYearFormPage'));
 const AgeGroupsClassesPage = lazy(() => import('@/pages/school-config/AgeGroupsClassesPage'));
+const RoomListPage = lazy(() => import('@/pages/school-config/RoomListPage'));
+const StaffAccountsPage = lazy(() => import('@/pages/school-config/StaffAccountsPage'));
 const CutoffSettingPage = lazy(() => import('@/pages/school-config/CutoffSettingPage'));
 const CampusListPage = lazy(() => import('@/pages/school-config/CampusListPage'));
 const CampusFormPage = lazy(() => import('@/pages/school-config/CampusFormPage'));
@@ -284,6 +287,8 @@ export function AppRoutes() {
             <Route path="years/new" element={only([R.PRINCIPAL], <SchoolYearFormPage />)} />
             <Route path="years/:id/edit" element={only([R.PRINCIPAL], <SchoolYearFormPage />)} />
             <Route path="classes" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AgeGroupsClassesPage />)} />
+            <Route path="rooms" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <RoomListPage />)} />
+            <Route path="staff" element={only([R.PRINCIPAL], <StaffAccountsPage />)} />
             <Route path="cutoff" element={only([R.PRINCIPAL], <CutoffSettingPage />)} />
             <Route path="campuses" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <CampusListPage />)} />
             <Route path="campuses/new" element={only([R.PRINCIPAL], <CampusFormPage />)} />
@@ -292,7 +297,17 @@ export function AppRoutes() {
             <Route path="vice-principals" element={only([R.PRINCIPAL], <VicePrincipalAssignmentPage />)} />
             <Route path="roles" element={only([R.PRINCIPAL], <RolePermissionListPage />)} />
             <Route path="roles/:role" element={only([R.PRINCIPAL], <RolePermissionFormPage />)} />
-            <Route path="teachers" element={only([R.VICE_PRINCIPAL], <TeacherAssignmentPage />)} />
+            <Route
+              path="teachers"
+              element={
+                <RoleGuard
+                  allow={canOpenTeacherAssignment}
+                  description="Vai trò của bạn chưa được bật quyền phân công giáo viên / tổ trưởng."
+                >
+                  <TeacherAssignmentPage />
+                </RoleGuard>
+              }
+            />
           </Route>
           <Route path="children">
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />

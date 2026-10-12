@@ -4,6 +4,7 @@ import { CaretDown, SidebarCollapse, SidebarExpand, X } from '@/components/ui/ic
 import { Logo } from '@/components/brand/Logo';
 import { getMenuForRole } from './menuConfig';
 import { UserMenu } from './UserMenu';
+import { useAuth } from '@/contexts/AuthContext';
 
 const OPEN_GROUPS_KEY = 'carenest.sidebar.openGroups';
 
@@ -34,7 +35,8 @@ const readOpenGroups = () => {
  */
 export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, onExpand, onToggle }) {
   const { pathname } = useLocation();
-  const menu = getMenuForRole(role);
+  const { user } = useAuth();
+  const menu = getMenuForRole(role, user);
   const [open, setOpen] = useState(readOpenGroups);
 
   // Open the group that contains the current page when navigating.

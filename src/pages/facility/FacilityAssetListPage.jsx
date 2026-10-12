@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, RotateCcw, AlertTriangle, PackagePlus, History, Info, Lock, Boxes, ClipboardList } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -9,7 +9,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { AssetThumb, ConditionBadge } from '@/components/asset/AssetVisuals';
 import { LockChip } from '@/components/facility/FacilityBadges';
-import { locationLabel } from '@/models/Location';
+import { locationBaseLabel, locationLabel } from '@/models/Location';
 import { ASSET_CONDITION_LABELS } from '@/models/Asset';
 import { isPrincipal, isManager, canReportIssue, canCreateRequest } from '@/utils/facility/facilityPermissions';
 import { assetCrumbs } from '@/utils/facility/breadcrumbs';
@@ -23,7 +23,13 @@ export default function FacilityAssetListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const md = useMasterData();
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [params] = useSearchParams();
+  // ?location=<id>: mở từ màn Phòng học để xem tài sản còn trong phòng
+  const [filters, setFilters] = useState(() => {
+    const locationId = params.get('location') || '';
+    const loc = locationId && md.locationById(locationId);
+    return { ...EMPTY_FILTERS, locationId, campusId: loc?.campusId || '' };
+  });
   const [openOnly, setOpenOnly] = useState(false);
   const [page, setPage] = useState(1);
   const { assets, loading, error, reload } = useFacilityAssets(filters);
@@ -184,8 +190,8 @@ export default function FacilityAssetListPage() {
               <option value="">Tất cả lớp/phòng</option>
               {campusLocations.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {locationLabel(l)}
-                  {isPrincipal(user) ? ` – ${md.campusById(l.campusId)?.shortName || ''}` : ''}
+                  {/* Hiệu trưởng xem cả 2 campus: luôn kèm campus; Phó HT: campus chỉ thêm khi trùng tên */}
+                  {isPrincipal(user) ? `${locationBaseLabel(l)} – ${md.campusById(l.campusId)?.shortName || ''}` : locationLabel(l)}
                 </option>
               ))}
             </select>
@@ -274,7 +280,9 @@ export default function FacilityAssetListPage() {
                       </td>
                       <td className="text-sm">{md.categoryById(a.categoryId)?.name || '—'}</td>
                       <td className="bh-cell-wrap">
-                        <div>{locationLabel(md.locationById(a.locationId))}</div>
+                        <div>
+                          {manager ? locationBaseLabel(md.locationById(a.locationId)) : locationLabel(md.locationById(a.locationId))}
+                        </div>
                         {manager && <div className="muted text-xs">{md.campusById(a.campusId)?.shortName}</div>}
                         {a.lockedBy && (
                           <div className="mt-8">

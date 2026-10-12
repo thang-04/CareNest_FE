@@ -4,6 +4,7 @@ import { ChevronRight, Plus, Search } from '@/components/ui/icons';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { getMenuForRole } from './menuConfig';
 import { getQuickActionsForRole } from './quickActions';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Bỏ dấu tiếng Việt từng ký tự để chỉ số trong chuỗi gốc và chuỗi đã chuẩn hoá khớp nhau (dùng để tô chữ khớp)
 const fold = (s) =>
@@ -23,9 +24,9 @@ function Highlight({ text, query }) {
 }
 
 /** Danh sách mục tìm được: chức năng trong menu của vai trò + thao tác tạo nhanh. Không gọi BE. */
-function buildIndex(role) {
+function buildIndex(role, user) {
   const pages = [];
-  getMenuForRole(role).forEach((entry) => {
+  getMenuForRole(role, user).forEach((entry) => {
     if (entry.to) pages.push({ label: entry.label, to: entry.to, group: 'Trang chính', icon: entry.icon });
     (entry.children || []).forEach((c) => pages.push({ label: c.label, to: c.to, group: entry.label, icon: entry.icon }));
   });
@@ -45,7 +46,8 @@ export function HeaderSearch({ role }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
-  const index = useMemo(() => buildIndex(role), [role]);
+  const { user } = useAuth();
+  const index = useMemo(() => buildIndex(role, user), [role, user]);
 
   const results = useMemo(() => {
     const q = fold(query.trim());

@@ -66,6 +66,7 @@ export {
   IconCopy as Copy,
   IconCopyPlus as CopyPlus,
   IconCrown as Crown,
+  IconDoor as DoorOpen,
   IconDownload as Download,
   IconExternalLink as ExternalLink,
   IconEye as Eye,

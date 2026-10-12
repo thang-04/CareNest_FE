@@ -10,7 +10,9 @@ import {
   getStructure,
   getTeacherAssignments,
   getViceAssignments,
+  getStaffAccounts,
 } from '@/services/school-config/schoolConfigService';
+import { getRooms } from '@/services/masterDataService';
 
 /* Read hooks of the school-config module. Pass { live: false } on pages that hold a form being typed. */
 
@@ -86,4 +88,20 @@ export function useRolePermissions({ live = true } = {}) {
   const { user } = useAuth();
   const { data, loading, error, reload } = useAsync(() => getRolePermissions(user), [user?.id], { refreshOnDataChange: live });
   return { roles: data || [], loading, error, reload };
+}
+
+/** Rooms with their usage; classes shown are those of `schoolYear`. */
+export function useRooms(schoolYear) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getRooms({ schoolYear }, user), [schoolYear, user?.id], {
+    refreshOnDataChange: true,
+  });
+  return { rooms: data || [], loading, error, reload };
+}
+
+/** Staff accounts with their current assignments (Principal). */
+export function useStaffAccounts() {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getStaffAccounts(user), [user?.id], { refreshOnDataChange: true });
+  return { accounts: data || [], loading, error, reload };
 }

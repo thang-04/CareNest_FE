@@ -32,7 +32,7 @@ import {
   describeScope,
 } from '@/utils/inventory-inspection/inspectionScope';
 import { inspectionCrumbs } from '@/utils/inventory-inspection/breadcrumbs';
-import { LOCATION_TYPE_LABELS, locationLabel } from '@/models/Location';
+import { LOCATION_TYPE_LABELS, isActiveLocation, isRoomStaff, locationLabel } from '@/models/Location';
 import { ROLE_LABELS, ROLES } from '@/models/User';
 import { normalizeText } from '@/utils/format';
 import '@/styles/modules/inventory-inspection.css';
@@ -309,7 +309,7 @@ function RoundForm({ initial, roundId, md, user }) {
                 </div>
                 <div className="kk-pick-list">
                   {md.locations
-                    .filter((l) => form.campusIds.includes(l.campusId))
+                    .filter((l) => form.campusIds.includes(l.campusId) && isActiveLocation(l))
                     .map((l) => (
                       <label key={l.id} className="checkbox">
                         <input
@@ -319,7 +319,7 @@ function RoundForm({ initial, roundId, md, user }) {
                         />
                         {locationLabel(l)}{' '}
                         <span className="muted text-xs">
-                          · {LOCATION_TYPE_LABELS[l.type]}
+                          · {md.campusById(l.campusId)?.shortName} · {LOCATION_TYPE_LABELS[l.type]}
                           {form.campusIds.length > 1 ? ` · ${md.campusById(l.campusId)?.shortName}` : ''}
                         </span>
                       </label>
@@ -489,12 +489,15 @@ function RoundForm({ initial, roundId, md, user }) {
                               aria-label={`Người kiểm kê ${locationLabel(r.loc)}`}
                             >
                               <option value="">Chọn người kiểm kê...</option>
-                              {staff.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                  {u.fullName} – {ROLE_LABELS[u.role]}
-                                  {u.id === r.loc.managerUserId ? ' (phụ trách)' : ''}
-                                </option>
-                              ))}
+                              {/* Chỉ nhân sự đang hoạt động của điểm trường có phòng này */}
+                              {staff
+                                .filter((u) => isRoomStaff(u, r.loc.campusId))
+                                .map((u) => (
+                                  <option key={u.id} value={u.id}>
+                                    {u.fullName} – {ROLE_LABELS[u.role]}
+                                    {u.id === r.loc.managerUserId ? ' (phụ trách)' : ''}
+                                  </option>
+                                ))}
                             </select>
                             {err && <span className="field__error">{err}</span>}
                           </>

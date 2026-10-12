@@ -1,5 +1,12 @@
 import { ROLES } from '@/models/User';
-import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
+import {
+  PERMISSION_ACCESS,
+  PERMISSION_SCOPE,
+  VP_AREAS,
+  YEAR_STATUS,
+  defaultVpAreas,
+  parseGrant,
+} from '@/models/school-config/schoolConfigConstants';
 
 /*
  * Who may do what in school configuration – SRS 4.4 Permission Matrix + UC 2.1–2.7 (GBR-CFG-01).
@@ -26,6 +33,10 @@ export const canDeleteYear = (year, user) => isPrincipal(user) && year?.status =
 export const canManageClasses = (year, user) => isPrincipal(user) && !!year && year.status !== YEAR_STATUS.CLOSED;
 export const canManageAgeGroups = isPrincipal;
 
+/** Rooms (PROPOSED, outside SRS): Principal manages; a Vice Principal views the rooms of the assigned campus. */
+export const canManageRooms = isPrincipal;
+export const canViewRooms = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
+
 /** UC 2.7 / GBR-CFG-03. */
 export const canConfigureCutoff = isPrincipal;
 
@@ -38,8 +49,53 @@ export const canListCampuses = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PR
 /** "Permission – Assign to Vice Principal": Principal only. */
 export const canAssignVicePrincipal = isPrincipal;
 
-/** "Permission – Assign to Teacher / Team Leader": Vice Principal of that campus only (Principal: No). */
-export const canAssignTeachers = (campusId, user) => isVicePrincipal(user) && !!campusId && user.campusId === campusId;
+/**
+ * Level of one permission for the signed-in user. Principal always FULL; a Vice Principal's own area of responsibility
+ * (Vice Principal Assignment) wins over the role grant (Role & Permission screen).
+ */
+export const permissionLevel = (user, code) => {
+  if (!user) return 'NONE';
+  if (isPrincipal(user)) return 'FULL';
+  const area = VP_AREAS.find((a) => a.code === code);
+  if (area && user.areas?.[area.key]) return user.areas[area.key];
+  return user.permissions?.[code] || 'NONE';
+};
+
+/** { access, scope } of a Vice Principal's area (menu, teacherAssignment, facility). Principal: EDIT whole school. */
+export const areaAccess = (user, key) => {
+  if (isPrincipal(user)) return { access: PERMISSION_ACCESS.EDIT, scope: PERMISSION_SCOPE.ALL };
+  if (!isVicePrincipal(user)) return { access: PERMISSION_ACCESS.NONE, scope: PERMISSION_SCOPE.CAMPUS };
+  return parseGrant(user.areas?.[key] || defaultVpAreas({ sharedService: user.sharedService }, user.permissions)[key]);
+};
+/** Area usable on the campus: not NONE and the campus is in scope. */
+export const areaAllows = (user, key, campusId, needEdit = false) => {
+  const a = areaAccess(user, key);
+  if (a.access === PERMISSION_ACCESS.NONE || (needEdit && a.access !== PERMISSION_ACCESS.EDIT)) return false;
+  return a.scope === PERMISSION_SCOPE.ALL || !campusId || campusId === user?.campusId;
+};
+
+/** { access: NONE | VIEW | EDIT, scope: ALL | CAMPUS } of one permission for the signed-in user. */
+export const permissionAccess = (user, code) => parseGrant(permissionLevel(user, code));
+
+const inScope = ({ scope }, campusId, user) => !!campusId && (scope === PERMISSION_SCOPE.ALL || user.campusId === campusId);
+
+/**
+ * "Phân công giáo viên / tổ trưởng" follows the Role & Permission screen:
+ * NONE = no menu / page; VIEW = see assignments read only; EDIT = assign. Scope ALL = every campus, CAMPUS = own campus.
+ */
+export const ASSIGN_TEACHER = 'permission.assignTeacher';
+export const canOpenTeacherAssignment = (user) => permissionAccess(user, ASSIGN_TEACHER).access !== PERMISSION_ACCESS.NONE;
+export const canViewTeacherAssignments = (campusId, user) => {
+  const p = permissionAccess(user, ASSIGN_TEACHER);
+  return p.access !== PERMISSION_ACCESS.NONE && inScope(p, campusId, user);
+};
+export const canAssignTeachers = (campusId, user) => {
+  const p = permissionAccess(user, ASSIGN_TEACHER);
+  return p.access === PERMISSION_ACCESS.EDIT && inScope(p, campusId, user);
+};
+
+/** Staff accounts (SRS 4.4 "User account – Create / Edit / Deactivate", footnote 8: Principal, to confirm). */
+export const canManageStaff = isPrincipal;
 
 /** UC 2.4 Manage Permission: Principal only. */
 export const canManageRolePermissions = isPrincipal;
