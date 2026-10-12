@@ -16,6 +16,18 @@ Status: triển khai demo theo yêu cầu người dùng ngày 2026-10-12.
 
 ## Tương thích dữ liệu demo
 
+### Báo nghỉ từ phụ huynh — demo 2026-10-12
+
+Theo yêu cầu người dùng và flow `BE:docs/business/flows/leave-request.md` (ATT-04/05): chỉ đơn SUBMITTED đúng trẻ và khoảng ngày mới gắn nhãn Phụ huynh báo nghỉ; không có bước duyệt. Repository demo tạo một ví dụ giả cho trẻ chưa điểm danh mỗi lớp, một lần khi collection chưa tồn tại; không ghi đè lựa chọn cô đã lưu. Đơn đã hủy/ngày khác không gắn nhãn. Trẻ được tạo EXCUSED và tắt ăn trước tổng hợp sĩ số. Nhấn nhãn xem ngày/lý do trong modal nhỏ.
+
+Người dùng đồng ý triển khai phương án đổi Có mặt khi trẻ thực tế đến lớp: phải xác nhận riêng, lưu kèm confirmedLeaveRequestId trong demo, không hủy đơn gốc. Repository chặn chuyển EXCUSED sang PRESENT thiếu xác nhận; tải lại không tự đưa trẻ về Vắng. Đây là lựa chọn demo, không nâng phần GV chỉnh của ATT-04 thành rule BE đã chốt.
+
+Ví dụ dữ liệu giả ở lớp Chồi 1 khi khởi tạo ngày học còn trẻ chưa điểm danh: Đặng Tuấn Kiệt, lý do gia đình báo nghỉ trong ngày. Theo yêu cầu người dùng 2026-10-12, nhãn dưới tên hiện Vắng có phép · Phụ huynh báo nghỉ khi trạng thái là EXCUSED; nếu cô xác nhận trẻ đến lớp thì chỉ còn Phụ huynh báo nghỉ, không hiển thị nhãn Vắng sai trạng thái. Không ghi đè dữ liệu người dùng đã lưu hoặc reset storage để tạo ví dụ; sau tổng hợp suất ăn không tự tạo lại điểm danh demo.
+
+Có mặt tất cả chỉ đổi trẻ không có bản ghi, không có trạng thái nháp và không có đơn SUBMITTED. Không sửa trẻ vắng/có mặt đã có, không mở ăn cho trẻ báo nghỉ, không tạo sức khỏe tự động.
+
+Chưa triển khai gửi/hủy đơn trên App hoặc xử lý đơn tới sau sĩ số đã tổng hợp: repository demo không âm thầm tạo/chỉnh điểm danh khi đã có mealCounts ngày đó (ATT-05b/07 cần contract BE). Không sửa BE/APP; không tự đặt endpoint. Health vẫn chỉ ghi cho PRESENT đã lưu.
+
 Các trạng thái vắng cũ được giữ nguyên khi không đổi điểm danh. Chọn Vắng mới sử dụng trạng thái UNEXCUSED của repository hiện tại; giao diện màn tiếp nhận chỉ hiển thị Vắng. Cần BE chốt mã vắng chung trước khi tích hợp thật.
 
 Công tắc ăn bật các bữa theo đăng ký hiện có: trẻ một bữa dùng bữa mặc định; trẻ nhiều bữa dùng các bữa hiện có. Tắt công tắc hủy các bữa trong bản nháp. Không sửa số suất đã xác nhận ở client.
@@ -36,11 +48,17 @@ BE `docs/modules/attendance.md` và `docs/modules/health.md` chưa có API; sứ
 
 ## Trạng thái và lưu
 
+Theo yêu cầu người dùng 2026-10-12, nhắc màu cam chỉ hiện khi Có mặt đã được lưu và bản nháp vẫn Có mặt, không hiện ngay khi mới tích Có mặt: Chưa ghi nhận sức khỏe nếu chưa có bản ghi trong ngày, hoặc Chưa ghi thân nhiệt nếu đã có bản ghi nhưng mọi lần đều thiếu số đo. Nhấn nhãn chọn trẻ để nhập; panel giải thích thông tin còn thiếu. Repository demo trả healthSummary cho cả hai màn, không tự suy luận bệnh/ngưỡng hay gửi nhắc này cho phụ huynh. Chỉ bản ghi đã lưu mới xóa nhắc; một lần có thân nhiệt trong đúng ngày là đủ, lần theo dõi sau thiếu số đo không làm nhắc xuất hiện lại. Nhắc không chặn lưu điểm danh, thân nhiệt vẫn tùy chọn; sau khóa vẫn thêm lần ghi nhận cho trẻ Có mặt đã lưu. Lưu sức khỏe riêng hoặc lỗi thông báo sau khi sức khỏe đã lưu đều làm mới nhãn, giữ nguyên bản nháp điểm danh của các trẻ khác. Contract thật cho summary còn cần BE chốt; không đặt endpoint.
+
+Người dùng yêu cầu bỏ nhận/bàn giao suất ăn khỏi giao diện giáo viên: bỏ nút Nhận suất ăn dưới màn điểm danh, mục Bàn giao suất ăn trong menu TEACHER và KPI/việc nhận suất ăn trên trang chủ TEACHER, không tải widget bàn giao cho giáo viên. Giữ công tắc Tham gia ăn, giao diện bếp và menu/trang chủ tổ trưởng (quyền tổ trưởng chưa chốt thay đổi). Đây là thay đổi lối vào UI, không đổi route guard hoặc quyền repository/BE; đường dẫn trực tiếp vẫn theo quyền cũ. Màn ảnh bữa ăn đề xuất riêng còn chờ chốt phạm vi.
+
 Chọn lại trẻ qua dòng danh sách hoặc ô Có mặt/Vắng đã tích vẫn chuyển panel: radio đã checked không phát `change`, nên chọn trẻ không được chỉ dựa vào thay đổi điểm danh. Form đang nhập dở vẫn yêu cầu xác nhận bỏ trước khi đổi trẻ.
 
 Loading/empty/error/403/404 dùng component chung. Form lỗi giữ dữ liệu; khóa double-submit; không đổi trẻ/lớp/ngày khi form đang có thay đổi mà chưa xác nhận bỏ. Nhập sức khỏe được phép ngay khi chọn Có mặt; repository chỉ nhận lưu khi Có mặt đã được lưu cho ngày hôm nay và giáo viên được phân công, không kiểm giờ khóa điểm danh. Bản ghi không chẩn đoán hay tự gán nhãn dinh dưỡng.
 
 ## Kiểm chứng
+
+Nhắc sức khỏe: smoke repository PASS các trạng thái chưa có bản ghi → bản ghi thiếu thân nhiệt → có số đo đã lưu; lần ghi nhận sau thiếu số đo không khôi phục nhắc, kể cả sau khóa. Browser demo trước thay đổi thời điểm nhắc PASS lưu quan sát không thân nhiệt đổi nhãn, lưu sức khỏe riêng có thân nhiệt xóa nhắc trên cả danh sách/panel. Không kiểm BE/App thật; responsive của phần nhắc chưa kiểm lại trên mobile.
 
 Liên hệ/thông báo: smoke repository PASS cho recipient/entry linkage, idempotency, generic push, 403/422/409 và giữ health sau lỗi thông báo; test điều phối PASS thứ tự attendance → health → notification và lỗi notification trả healthSaved. Browser demo PASS hiện contact khi NOTED, lưu và xem trạng thái DEMO_QUEUED, xem nội dung gửi không có ghi chú nội bộ. Chưa gửi thật/kiểm App native. `node scripts/verify.mjs` PASS; AI layer 0 lỗi, 17 cảnh báo có sẵn.
 

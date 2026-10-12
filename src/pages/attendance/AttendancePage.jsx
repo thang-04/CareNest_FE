@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Save, Lock, HeartPulse, CheckCircle2, BarChart3, Utensils } from '@/components/ui/icons';
+import { Search, Save, Lock, HeartPulse, CheckCircle2, BarChart3 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, LoadingState, SubmitOverlay } from '@/components/ui/States';
 import { DailyHealthPanel } from '@/components/DailyHealthPanel';
 import { MealCorrectionModal } from '@/components/attendance/MealCorrectionModal';
@@ -17,7 +18,7 @@ import { getDayInfo, saveClassAttendance, correctMealAfterLock } from '@/service
 import { ATTENDANCE_STATUS, MEAL_SESSIONS, allMeals, isAbsent } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { initials, avatarTone, normalizeText } from '@/utils/format';
+import { initials, avatarTone, normalizeText, formatDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
 const toDraft = (sheet) =>
@@ -142,6 +143,8 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
   const [clock, setClock] = useState(null);
   const [correctFor, setCorrectFor] = useState(null);
   const [confirmAll, setConfirmAll] = useState(false);
+  const [leaveFor, setLeaveFor] = useState(null);
+  const [confirmArrival, setConfirmArrival] = useState(null);
   const initialized = useRef(false);
   const submitRef = useRef(false);
   const rows = useMemo(() => sheet?.children || [], [sheet]);
@@ -201,10 +204,24 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
     setRowErrors((current) => ({ ...current, [row.child.id]: null }));
     selectChild(row.child.id);
   };
-  const setStatus = (row, present) => {
+  const setStatus = (row, present, confirmed = false) => {
     const current = draft[row.child.id];
-    const status = present ? ATTENDANCE_STATUS.PRESENT : isAbsent(current?.status) ? current.status : ATTENDANCE_STATUS.UNEXCUSED;
-    update(row, { status, meals: present ? (current?.status === 'PRESENT' ? current.meals : mealsFor(row)) : allMeals(false) });
+    if (present && row.leaveRequest && current?.status !== 'PRESENT' && !confirmed) {
+      setConfirmArrival(row);
+      return;
+    }
+    const status = present
+      ? ATTENDANCE_STATUS.PRESENT
+      : row.leaveRequest
+        ? ATTENDANCE_STATUS.EXCUSED
+        : isAbsent(current?.status)
+          ? current.status
+          : ATTENDANCE_STATUS.UNEXCUSED;
+    update(row, {
+      status,
+      meals: present ? (current?.status === 'PRESENT' ? current.meals : mealsFor(row)) : allMeals(false),
+      confirmedLeaveRequestId: present && row.leaveRequest ? row.leaveRequest.id : null,
+    });
   };
   const markAllPresent = () => {
     setConfirmAll(false);
@@ -212,7 +229,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
     setDraft((current) => {
       const next = { ...current };
       rows.forEach((row) => {
-        if (current[row.child.id]?.status) return;
+        if (current[row.child.id]?.status || row.record || row.leaveRequest) return;
         next[row.child.id] = { childId: row.child.id, status: ATTENDANCE_STATUS.PRESENT, meals: mealsFor(row) };
       });
       return next;
@@ -258,6 +275,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
     if (needsAttendance && !editable) throw new Error('Điểm danh đã khóa. Bản nháp chưa lưu không thể ghi nhận sức khỏe.');
     submitRef.current = true;
     let attendanceSaved = false;
+    let healthSaved = false;
     setRowErrors({});
     try {
       const result = await saveReception(
@@ -268,9 +286,11 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
         user,
       );
       attendanceSaved = result.attendanceSaved;
+      healthSaved = true;
       return result.health;
     } catch (err) {
       attendanceSaved = !!err.attendanceSaved;
+      healthSaved = !!err.healthSaved;
       if (err.receptionStage === 'attendance') setRowErrors(err.details || {});
       throw err;
     } finally {
@@ -281,8 +301,10 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
           children: current.children.map((row) => (row.child.id === selectedId ? { ...row, record: { ...row.record, ...entry } } : row)),
         }));
         setDraft((current) => ({ ...current, [selectedId]: entry }));
+      }
+      if ((attendanceSaved && needsAttendance) || healthSaved) {
         const fresh = await reload({ silent: true });
-        if (fresh) setDraft((current) => ({ ...current, [selectedId]: toDraft(fresh)[selectedId] }));
+        if (fresh && attendanceSaved && needsAttendance) setDraft((current) => ({ ...current, [selectedId]: toDraft(fresh)[selectedId] }));
       }
       const info = await getDayInfo(date).catch(() => null);
       if (info) setClock(info);
@@ -356,7 +378,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                 className="btn dd-reception__mark-all"
                 type="button"
                 title="Chỉ chọn trẻ chưa điểm danh; giữ nguyên trẻ Vắng. Chưa tự lưu."
-                disabled={busy || !rows.some((row) => !draft[row.child.id]?.status)}
+                disabled={busy || !rows.some((row) => !draft[row.child.id]?.status && !row.record && !row.leaveRequest)}
                 onClick={() => setConfirmAll(true)}
               >
                 <CheckCircle2 size={16} /> Có mặt tất cả
@@ -411,6 +433,24 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                               </span>
                             </span>
                           </button>
+                          {entry.status === 'PRESENT' && row.record?.status === 'PRESENT' && row.healthSummary?.reminder && (
+                            <button
+                              className="btn btn--sm btn--ghost"
+                              type="button"
+                              disabled={busy}
+                              aria-label={`${row.healthSummary.reminder}: ${row.child.fullName}. Mở sức khỏe`}
+                              onClick={() => selectChild(row.child.id)}
+                            >
+                              <span className="chip chip--orange">
+                                <HeartPulse size={14} /> {row.healthSummary.reminder}
+                              </span>
+                            </button>
+                          )}
+                          {row.leaveRequest && (
+                            <button className="btn btn--sm btn--ghost" type="button" disabled={busy} onClick={() => setLeaveFor(row)}>
+                              {entry.status === 'EXCUSED' ? 'Vắng có phép · Phụ huynh báo nghỉ' : 'Phụ huynh báo nghỉ'}
+                            </button>
+                          )}
                         </td>
                         <td>
                           {editable ? (
@@ -519,11 +559,45 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
           </section>
         )}
       </div>
-      <div className="mt-16">
-        <Link className="btn" to="/attendance/meal-handover">
-          <Utensils size={16} /> Nhận suất ăn
-        </Link>
-      </div>
+      <Modal
+        open={!!leaveFor}
+        title="Thông tin báo nghỉ"
+        size="sm"
+        onClose={() => setLeaveFor(null)}
+        footer={
+          <button className="btn" type="button" onClick={() => setLeaveFor(null)}>
+            Đóng
+          </button>
+        }
+      >
+        {leaveFor && (
+          <>
+            <p>
+              <strong>{leaveFor.child.fullName}</strong>
+            </p>
+            <p>
+              {formatDate(leaveFor.leaveRequest.fromDate)} – {formatDate(leaveFor.leaveRequest.toDate)}
+            </p>
+            <p>{leaveFor.leaveRequest.reason || 'Không có ghi chú.'}</p>
+            <p className="muted text-sm">Báo nghỉ đã gửi, không cần duyệt.</p>
+          </>
+        )}
+      </Modal>
+      <ConfirmationModal
+        open={!!confirmArrival}
+        title="Trẻ vẫn đến lớp?"
+        message={
+          confirmArrival
+            ? `${confirmArrival.child.fullName} đã có báo nghỉ từ phụ huynh. Chỉ đổi sang Có mặt khi trẻ thực tế đến lớp. Tham gia ăn được bật theo đăng ký; kiểm tra lại trước khi lưu.`
+            : ''
+        }
+        confirmLabel="Xác nhận trẻ có mặt"
+        onClose={() => setConfirmArrival(null)}
+        onConfirm={() => {
+          if (confirmArrival) setStatus(confirmArrival, true, true);
+          setConfirmArrival(null);
+        }}
+      />
       <ConfirmationModal
         open={pendingId !== null}
         title="Chuyển sang trẻ khác?"

@@ -172,7 +172,7 @@ export const masterDataMockRepository = {
         type: form.type,
         // Phòng học: người phụ trách = giáo viên chủ nhiệm của lớp đang dùng phòng (không lưu)
         managerUserId: form.type === 'CLASS' ? null : form.managerUserId || null,
-        capacity: form.type === 'CLASS' && form.capacity !== '' && form.capacity != null ? Number(form.capacity) : null,
+        capacity: form.capacity !== '' && form.capacity != null ? Number(form.capacity) : null,
         note: (form.note || '').trim(),
       };
       if (current) {

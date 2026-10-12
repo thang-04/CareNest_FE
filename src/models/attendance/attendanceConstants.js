@@ -85,7 +85,5 @@ export const HANDOVER_STATUS_LABELS = {
   CONFIRMED: 'Đã nhận đủ',
 };
 
-export const SUMMARY_MAX_DAYS = 31;
-
 /** A child with a recorded allergy gets a substitute serving (GBR-MEAL-03, GBR-CP-02). */
 export const needsSubstitute = (child) => (child?.allergies || []).length > 0;

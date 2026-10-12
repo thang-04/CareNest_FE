@@ -7,13 +7,14 @@ import { ROLES } from '@/models/User';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
+import { DateInput } from '@/components/form/DateInput';
+import { paginate } from '@/components/ui/Pagination';
 import { useAttendanceClasses, useAttendanceSummary } from '@/hooks/attendance/useAttendance';
-import { MEAL_SESSIONS, MEAL_SESSION_LABELS, SUMMARY_MAX_DAYS } from '@/models/attendance/attendanceConstants';
 import { validateSummaryRange } from '@/utils/attendance/attendanceValidation';
 import { addDays, schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { downloadCsv } from '@/utils/exportCsv';
-import { formatDate } from '@/utils/format';
+import { formatDate, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
 const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -27,35 +28,30 @@ export default function AttendanceSummaryPage() {
   const { classes, loading: loadingClasses, error: classError, reload: reloadClasses } = useAttendanceClasses();
   const classId = params.get('classId') || classes[0]?.id || '';
   const [range, setRange] = useState({ from: params.get('from') || addDays(today, -13), to: params.get('to') || today });
-  const rangeErrors = validateSummaryRange(range, SUMMARY_MAX_DAYS);
+  const [pageSize, setPageSize] = useState(20);
+  const [pageState, setPageState] = useState({ key: '', value: 1 });
+  const rangeErrors = validateSummaryRange(range);
   const valid = Object.keys(rangeErrors).length === 0;
-  const { summary, loading, error, reload } = useAttendanceSummary(valid ? { classId, ...range } : {});
+  const { summary: loadedSummary, loading, error, reload } = useAttendanceSummary(valid ? { classId, ...range } : {});
+  const summary =
+    valid && !loading && !error && loadedSummary?.classId === classId && loadedSummary.from === range.from && loadedSummary.to === range.to
+      ? loadedSummary
+      : null;
+  const pageKey = `${classId}:${range.from}:${range.to}:${pageSize}`;
+  const pageCount = Math.max(1, Math.ceil((summary?.days.length || 0) / pageSize));
+  const page = Math.min(pageState.key === pageKey ? pageState.value : 1, pageCount);
+  const setPage = (value) => setPageState({ key: pageKey, value });
 
   const setRangeValue = (key, value) => {
     const next = { ...range, [key]: value };
     setRange(next);
-    setParams({ classId, ...next }, { replace: true });
+    if (isIsoDate(next.from) && isIsoDate(next.to)) setParams({ classId, ...next }, { replace: true });
   };
 
   const exportCsv = () => {
-    const head = [
-      'Ngày',
-      'Có mặt',
-      'Vắng có phép',
-      'Vắng không phép',
-      'Chưa điểm danh',
-      ...MEAL_SESSIONS.map((s) => `Suất ${MEAL_SESSION_LABELS[s]}`),
-      'Trong đó suất thay thế',
-    ];
-    const rows = summary.days.map((d) => [
-      formatDate(d.date),
-      d.present,
-      d.excused,
-      d.unexcused,
-      d.missing,
-      ...MEAL_SESSIONS.map((s) => d.meals[s]),
-      d.substitute,
-    ]);
+    if (!summary) return;
+    const head = ['Ngày', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Chưa điểm danh', 'Suất ăn', 'Trong đó suất thay thế'];
+    const rows = summary.days.map((d) => [formatDate(d.date), d.present, d.excused, d.unexcused, d.missing, d.mealTotal, d.substitute]);
     downloadCsv(
       [[`Tổng hợp điểm danh ${summary.className} ${formatDate(range.from)} – ${formatDate(range.to)}`], head, ...rows],
       `diem-danh-${summary.className}-${range.from}-${range.to}.csv`,
@@ -68,7 +64,7 @@ export default function AttendanceSummaryPage() {
       present: t.present + d.present,
       excused: t.excused + d.excused,
       unexcused: t.unexcused + d.unexcused,
-      meals: t.meals + MEAL_SESSIONS.reduce((x, s) => x + d.meals[s], 0),
+      meals: t.meals + d.mealTotal,
     }),
     { present: 0, excused: 0, unexcused: 0, meals: 0 },
   );
@@ -103,27 +99,28 @@ export default function AttendanceSummaryPage() {
               <label className="field__label" htmlFor="dd-from">
                 Từ ngày
               </label>
-              <input
+              <DateInput
                 id="dd-from"
-                type="date"
-                className="input"
+                className={rangeErrors.from ? 'is-invalid' : ''}
                 value={range.from}
                 max={today}
-                onChange={(e) => setRangeValue('from', e.target.value)}
+                onChange={(value) => setRangeValue('from', value)}
+                aria-invalid={!!rangeErrors.from}
+                aria-describedby={!valid ? 'dd-range-error' : undefined}
               />
             </div>
             <div className="dd-bar__field">
               <label className="field__label" htmlFor="dd-to">
                 Đến ngày
               </label>
-              <input
+              <DateInput
                 id="dd-to"
-                type="date"
-                className={`input ${rangeErrors.to || rangeErrors.from ? 'is-invalid' : ''}`}
+                className={rangeErrors.to ? 'is-invalid' : ''}
                 value={range.to}
                 max={today}
-                onChange={(e) => setRangeValue('to', e.target.value)}
-                aria-describedby="dd-range-error"
+                onChange={(value) => setRangeValue('to', value)}
+                aria-invalid={!!rangeErrors.to}
+                aria-describedby={!valid ? 'dd-range-error' : undefined}
               />
             </div>
             {!valid && (
@@ -133,7 +130,11 @@ export default function AttendanceSummaryPage() {
             )}
           </ClassDateBar>
 
-          {error ? (
+          {!valid ? (
+            <div className="card">
+              <EmptyState title="Chọn khoảng ngày hợp lệ" description="Nhập đủ ngày bắt đầu và kết thúc để xem tổng hợp." />
+            </div>
+          ) : error ? (
             <div className="card">
               <ErrorState error={error} onRetry={reload} />
             </div>
@@ -195,24 +196,20 @@ export default function AttendanceSummaryPage() {
                           <th className="right">Có phép</th>
                           <th className="right">Không phép</th>
                           <th className="right">Chưa ĐD</th>
-                          {MEAL_SESSIONS.map((s) => (
-                            <th key={s} className="right">
-                              {MEAL_SESSION_LABELS[s]}
-                            </th>
-                          ))}
+                          <th className="right">Suất ăn</th>
                         </tr>
                       </thead>
                       <tbody>
                         {loading || !summary ? (
-                          <SkeletonRows rows={5} cols={5 + MEAL_SESSIONS.length} />
+                          <SkeletonRows rows={5} cols={6} />
                         ) : summary.days.length === 0 ? (
                           <tr>
-                            <td colSpan={5 + MEAL_SESSIONS.length}>
+                            <td colSpan={6}>
                               <EmptyState title="Không có dữ liệu trong khoảng đã chọn" description="Chọn khoảng ngày khác có ngày học." />
                             </td>
                           </tr>
                         ) : (
-                          summary.days.map((d) => (
+                          paginate(summary.days, page, pageSize).map((d) => (
                             <tr key={d.date}>
                               <td className="nowrap">
                                 <span className="muted text-xs dd-weekday">{weekday(d.date)}</span> {formatDate(d.date)}
@@ -221,17 +218,46 @@ export default function AttendanceSummaryPage() {
                               <td className="right">{d.excused}</td>
                               <td className={`right ${d.unexcused ? 'text-danger' : ''}`}>{d.unexcused}</td>
                               <td className="right muted">{d.missing || '—'}</td>
-                              {MEAL_SESSIONS.map((s) => (
-                                <td key={s} className="right">
-                                  {d.meals[s]}
-                                </td>
-                              ))}
+                              <td className="right">{d.mealTotal}</td>
                             </tr>
                           ))
                         )}
                       </tbody>
                     </table>
                   </div>
+                  {summary?.days.length > 0 && (
+                    <div className="row row--between row--wrap pagination">
+                      <label className="row">
+                        <span>Số dòng</span>
+                        <select
+                          className="select"
+                          aria-label="Số ngày mỗi trang"
+                          value={pageSize}
+                          onChange={(event) => setPageSize(Number(event.target.value))}
+                        >
+                          {[10, 20, 50].map((size) => (
+                            <option key={size} value={size}>
+                              {size}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <span className="muted" aria-live="polite">
+                        {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, summary.days.length)} / {summary.days.length} ngày
+                      </span>
+                      <div className="row">
+                        <button className="btn btn--sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                          Trang trước
+                        </button>
+                        <span>
+                          Trang {page}/{pageCount}
+                        </span>
+                        <button className="btn btn--sm" disabled={page >= pageCount} onClick={() => setPage(page + 1)}>
+                          Trang sau
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="card">

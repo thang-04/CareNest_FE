@@ -47,7 +47,7 @@ const GROUPS = {
 const ITEMS = {
   schoolYears: { label: 'Năm học', to: '/school/years' },
   schoolClasses: { label: 'Nhóm tuổi & lớp', to: '/school/classes' },
-  schoolRooms: { label: 'Phòng học', to: '/school/rooms' },
+  schoolRooms: { label: 'Phòng ban', to: '/school/rooms' },
   schoolStaff: { label: 'Tài khoản nhân sự', to: '/school/staff' },
   schoolCutoff: { label: 'Giờ chốt điểm danh', to: '/school/cutoff' },
   schoolCampuses: { label: 'Điểm trường', to: '/school/campuses' },
@@ -180,7 +180,7 @@ const MENUS = {
   [ROLES.TEACHER]: [
     link('home'),
     group('children', ['childList', 'healthTrends']),
-    group('attendance', ['attendance', 'attendanceSummary', 'mealHandover', 'pickup']),
+    group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
     group('education', ['eduOverview', 'eduLessons']),
     group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
     group('facility', ['assets', 'myFacilityReports', 'transfers', 'inspections']),

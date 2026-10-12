@@ -9,9 +9,14 @@ risk: medium
 created: 2026-10-12
 updated: 2026-10-12
 ---
+
 # Điểm danh và ghi nhận sức khỏe demo
 
 ## Quyết định đã chốt
+
+### Bổ sung được người dùng yêu cầu lại ngày 2026-10-12
+
+Phạm vi triển khai: bỏ lối vào nhận/bàn giao trên màn điểm danh và menu/trang chủ TEACHER; giữ công tắc ăn, bếp và quyền hiện tại, không sửa guard/BE. Người dùng chốt nhắc sức khỏe chỉ hiện sau Có mặt đã lưu. Màn ảnh bữa ăn không thuộc phase này; quyền tổ trưởng chưa đổi. AC: TEACHER không thấy nút/menu/KPI/việc bàn giao; KITCHEN_STAFF giữ menu; nháp Có mặt mở form không nhắc, lưu điểm danh mới nhắc. Kiểm tra nguồn: AttendancePage.jsx, menuConfig.js, ClassTodayPanel.jsx, DailyHealthPanel.jsx; verify lint/build và UI demo. Đây là phase thu gọn theo yêu cầu bỏ nút đã được người dùng nhắc lại, không tự duyệt triển khai màn ảnh/phân quyền mới.
 
 Người dùng yêu cầu code vào CareNest_FE và trả lời “Triển khai FE bằng dữ liệu demo trước”. Phạm vi: hai cột Web, điểm danh Có mặt/Vắng, một công tắc ăn, sức khỏe nhiều lần/ngày không phụ thuộc khóa điểm danh. Không sửa BE/APP, dependency, branch, commit hay endpoint thật. Chi tiết: `docs/features/daily-reception.md`.
 
@@ -38,6 +43,12 @@ Tests: smoke test repository với storage và đồng hồ cách ly, Browser QA
 Mock không đại diện API thật; service mới từ chối chế độ không mock. Giữ nguyên data store và trạng thái điểm danh cũ. Giữ thay đổi của người dùng đang có, không reset worktree. Rollback chỉ diff của feature này; không xóa dữ liệu demo đã lưu.
 
 ## Progress log
+
+### 2026-10-12 — Báo nghỉ phụ huynh và điểm danh hàng loạt
+
+- User yêu cầu và cho triển khai demo: SUBMITTED đúng ngày tự Vắng/không ăn; nhãn mở chi tiết; chỉ trẻ chưa điểm danh được chọn Có mặt tất cả.
+- Đổi sang Có mặt cho trẻ báo nghỉ cần xác nhận thực tế đến lớp, giữ đơn gốc. Chỉ lựa chọn FE demo; contract thật và xử lý báo nghỉ sau tổng hợp còn chờ BE. Không commit/push tự động.
+- Kiểm thử repository demo PASS: Vắng có phép/không ăn, chặn thiếu xác nhận, đổi Có mặt giữ nguyên sau tải lại, bỏ qua đơn CANCELLED/ngày khác. Smoke sức khỏe/thông báo cũ vẫn PASS. Browser demo PASS: Có mặt tất cả chỉ đổi 5 trẻ chưa điểm danh và giữ một trẻ báo nghỉ Vắng/không ăn; xem chi tiết đơn; xác nhận đến lớp mở form sức khỏe ngay. Không kiểm App/API thật hoặc đơn đến sau khóa.
 
 ### 2026-10-12 — Thu gọn UI liên hệ theo review
 

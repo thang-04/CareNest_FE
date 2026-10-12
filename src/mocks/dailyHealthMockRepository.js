@@ -3,6 +3,7 @@ import { canRecordAttendance } from '@/utils/attendance/attendancePermissions';
 import { schoolNow } from '@/utils/attendance/attendanceTime';
 import { HEALTH_SYMPTOMS, validateDailyHealth } from '@/utils/dailyHealthValidation';
 import { uid } from '@/utils/id';
+import { dailyHealthSummary } from '@/mocks/dailyHealthSummary';
 
 const context = (db, { classId, childId, date }, user) => {
   const cls = db.classes?.find((item) => item.id === classId);
@@ -25,6 +26,7 @@ export const dailyHealthMockRepository = {
     return {
       ...query,
       canRecord,
+      healthSummary: dailyHealthSummary(entries),
       contacts: clone(child.guardians || []),
       entries: clone(
         entries.map((entry) => ({

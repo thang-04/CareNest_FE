@@ -10,7 +10,6 @@ import {
   MEAL_COUNT_STATUS,
   MEAL_SESSIONS,
   MEAL_SESSION_LABELS,
-  SUMMARY_MAX_DAYS,
   allMeals,
   isAbsent,
   needsSubstitute,
@@ -36,6 +35,7 @@ import {
 import { isDayLocked, isSchoolDay, isValidTime, schoolDaysBetween, schoolNow } from '@/utils/attendance/attendanceTime';
 import { formatDate } from '@/utils/format';
 import { uid } from '@/utils/id';
+import { dailyHealthSummary } from '@/mocks/dailyHealthSummary';
 
 /*
  * Fake backend for attendance, meal participation, meal counts and meal handover.
@@ -78,6 +78,57 @@ const findClass = (db, id) => {
   return cls;
 };
 const recordOf = (db, childId, date) => db.attendance.find((r) => r.childId === childId && r.date === date);
+const leaveOf = (db, childId, date) =>
+  (db.leaveRequests || []).find(
+    (leave) => leave.childId === childId && leave.status === 'SUBMITTED' && leave.fromDate <= date && leave.toDate >= date,
+  );
+
+const ensureLeaveDemo = (db) => {
+  const today = schoolNow().date;
+  if (!db.leaveRequests) {
+    // Ví dụ báo nghỉ giả lập một lần; không tạo lại đơn đã hủy hoặc ghi đè điểm danh của cô.
+    db.leaveRequests = db.classes.flatMap((cls) => {
+      if (db.mealCounts.some((count) => count.campusId === cls.campusId && count.date === today)) return [];
+      const child = activeChildrenOf(db, cls.id)
+        .filter((ch) => !recordOf(db, ch.id, today))
+        .at(-1);
+      return child
+        ? [
+            {
+              id: `leave-demo-${child.id}-${today}`,
+              childId: child.id,
+              fromDate: today,
+              toDate: today,
+              status: 'SUBMITTED',
+              reason: 'Gia đình báo nghỉ trong ngày (dữ liệu demo).',
+              submittedAt: `${today}T07:00:00+07:00`,
+            },
+          ]
+        : [];
+    });
+  }
+  db.leaveRequests.forEach((leave) => {
+    if (leave.status !== 'SUBMITTED' || leave.fromDate > today || leave.toDate < today || !isSchoolDay(today)) return;
+    const child = db.children.find((ch) => ch.id === leave.childId && ch.status === 'ACTIVE');
+    if (!child || recordOf(db, child.id, today)) return;
+    // Luồng sau khóa chưa có contract: không âm thầm sửa sĩ số đã tổng hợp.
+    if (db.mealCounts.some((count) => count.campusId === child.campusId && count.date === today)) return;
+    db.attendance.push({
+      id: uid('att'),
+      childId: child.id,
+      classId: child.classId,
+      campusId: child.campusId,
+      date: today,
+      status: ATTENDANCE_STATUS.EXCUSED,
+      meals: allMeals(false),
+      recordedBy: null,
+      recordedAt: leave.submittedAt,
+      leaveRequestId: leave.id,
+      history: [{ at: leave.submittedAt, userId: null, action: 'PARENT_LEAVE', leaveRequestId: leave.id }],
+    });
+  });
+  return db;
+};
 
 /** Totals of one class for a date and meal session, built from the attendance records. */
 const classLine = (db, cls, date, session) => {
@@ -213,6 +264,18 @@ const ready = () => {
   ensureSchoolSeeded();
   const db = readDb();
   if (!db.attendance || !db.childMealPlans || !db.mealCounts || !db.mealHandovers) writeDb(ensureSeeded);
+  const current = readDb();
+  if (
+    !current.leaveRequests ||
+    current.leaveRequests.some(
+      (leave) =>
+        leave.status === 'SUBMITTED' &&
+        leave.fromDate <= schoolNow().date &&
+        leave.toDate >= schoolNow().date &&
+        !recordOf(current, leave.childId, schoolNow().date),
+    )
+  )
+    writeDb(ensureLeaveDemo);
   return readDb();
 };
 
@@ -263,7 +326,15 @@ export const attendanceMockRepository = {
     const plans = Object.fromEntries(db.childMealPlans.map((p) => [p.childId, p]));
     const count = db.mealCounts.find((m) => m.campusId === cls.campusId && m.date === date);
     const children = activeChildrenOf(db, classId)
-      .map((ch) => ({ child: childView(ch), record: clone(recordOf(db, ch.id, date) || null), mealPlan: plans[ch.id] || null }))
+      .map((ch) => ({
+        child: childView(ch),
+        record: clone(recordOf(db, ch.id, date) || null),
+        mealPlan: plans[ch.id] || null,
+        leaveRequest: clone(leaveOf(db, ch.id, date) || null),
+        healthSummary: dailyHealthSummary(
+          (db.dailyHealthEntries || []).filter((entry) => entry.childId === ch.id && entry.classId === classId && entry.date === date),
+        ),
+      }))
       .sort((a, b) => a.child.fullName.localeCompare(b.child.fullName, 'vi'));
     return {
       ...dayInfo(db, date),
@@ -298,6 +369,16 @@ export const attendanceMockRepository = {
       const plans = Object.fromEntries(db.childMealPlans.map((p) => [p.childId, p]));
       const errors = validateClassAttendance(entries, plans);
       if (Object.keys(errors).length) throw new ApiError(422, 'Dữ liệu điểm danh chưa hợp lệ. Kiểm tra các dòng được đánh dấu.', errors);
+      entries.forEach((entry) => {
+        const leave = leaveOf(db, entry.childId, date);
+        if (
+          leave &&
+          entry.status === ATTENDANCE_STATUS.PRESENT &&
+          recordOf(db, entry.childId, date)?.status !== ATTENDANCE_STATUS.PRESENT &&
+          entry.confirmedLeaveRequestId !== leave.id
+        )
+          throw new ApiError(409, 'Trẻ đã có báo nghỉ. Xác nhận trẻ thực tế đến lớp trước khi chọn Có mặt.');
+      });
 
       const at = new Date().toISOString();
       entries.forEach((e) => {
@@ -385,17 +466,22 @@ export const attendanceMockRepository = {
     const db = ready();
     const cls = findClass(db, classId);
     if (!canViewAttendance(cls, user)) throw forbidden();
-    const errors = validateSummaryRange({ from, to }, SUMMARY_MAX_DAYS);
+    const errors = validateSummaryRange({ from, to });
     if (Object.keys(errors).length) throw new ApiError(422, Object.values(errors)[0], errors);
     const children = activeChildrenOf(db, classId);
     const days = schoolDaysBetween(from, to).filter((d) => d <= schoolNow().date);
     const perChild = Object.fromEntries(
       children.map((ch) => [ch.id, { child: childView(ch), present: 0, excused: 0, unexcused: 0, meals: 0 }]),
     );
+    const records = new Map(
+      db.attendance
+        .filter((record) => record.classId === classId && record.date >= from && record.date <= to)
+        .map((record) => [`${record.childId}:${record.date}`, record]),
+    );
     const rows = days.map((date) => {
-      const row = { date, present: 0, excused: 0, unexcused: 0, missing: 0, substitute: 0, meals: allMeals(0) };
+      const row = { date, present: 0, excused: 0, unexcused: 0, missing: 0, substitute: 0, mealTotal: 0, meals: allMeals(0) };
       children.forEach((ch) => {
-        const rec = recordOf(db, ch.id, date);
+        const rec = records.get(`${ch.id}:${date}`);
         if (!rec) {
           row.missing += 1;
           return;
@@ -404,11 +490,15 @@ export const attendanceMockRepository = {
           rec.status === ATTENDANCE_STATUS.PRESENT ? 'present' : rec.status === ATTENDANCE_STATUS.EXCUSED ? 'excused' : 'unexcused';
         row[key] += 1;
         perChild[ch.id][key] += 1;
+        const participates = rec.status === ATTENDANCE_STATUS.PRESENT && MEAL_SESSIONS.some((s) => !!rec.meals?.[s]);
+        if (participates) {
+          row.mealTotal += 1;
+          perChild[ch.id].meals += 1;
+          if (needsSubstitute(ch)) row.substitute += 1;
+        }
         MEAL_SESSIONS.forEach((s) => {
           if (!rec.meals?.[s]) return;
           row.meals[s] += 1;
-          perChild[ch.id].meals += 1;
-          if (needsSubstitute(ch)) row.substitute += 1;
         });
       });
       return row;

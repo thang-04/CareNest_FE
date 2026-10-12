@@ -167,10 +167,10 @@ export const validateRoom = (form, others = [], { minCapacity = 0 } = {}) => {
   // Cùng mã / tên được phép ở hai điểm trường khác nhau (Phòng 101 Campus 1 và Campus 2)
   else if (others.some((l) => l.campusId === form.campusId && same(l.name, name))) e.name = 'Điểm trường đã có phòng cùng tên';
   if (!form.type) e.type = 'Chọn loại phòng';
-  if (form.type === 'CLASS') {
+  if (form.type === 'CLASS' || (form.capacity !== '' && form.capacity != null)) {
     if (form.capacity === '' || form.capacity == null) e.capacity = 'Nhập sức chứa của phòng học';
     else if (!isInt(form.capacity, 1, Number.MAX_SAFE_INTEGER)) e.capacity = 'Sức chứa là số nguyên lớn hơn 0';
-    else if (Number(form.capacity) < minCapacity)
+    else if (form.type === 'CLASS' && Number(form.capacity) < minCapacity)
       e.capacity = `Lớp đang dùng phòng có sĩ số tối đa ${minCapacity}, sức chứa không được nhỏ hơn`;
   }
   if ((form.note || '').length > 500) e.note = 'Ghi chú tối đa 500 ký tự';

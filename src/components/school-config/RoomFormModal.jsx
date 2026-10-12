@@ -171,28 +171,28 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
             </select>
           </FormField>
         )}
-        {form.type === LOCATION_TYPES.CLASS && (
-          <FormField
-            label="Sức chứa"
-            required
-            error={errors.capacity}
-            hint={
-              minCapacity
-                ? `Số nguyên dương, không nhỏ hơn ${minCapacity} (sĩ số tối đa của lớp đang dùng phòng)`
-                : 'Số nguyên dương do Hiệu trưởng đặt; sĩ số tối đa của lớp không vượt sức chứa'
-            }
-          >
-            <input
-              className="input"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              value={form.capacity}
-              onChange={(e) => set({ capacity: e.target.value })}
-              onBlur={() => blurCheck('capacity')}
-            />
-          </FormField>
-        )}
+        <FormField
+          label="Sức chứa"
+          required={form.type === LOCATION_TYPES.CLASS}
+          error={errors.capacity}
+          hint={
+            minCapacity
+              ? `Số nguyên dương, không nhỏ hơn ${minCapacity} (sĩ số tối đa của lớp đang dùng phòng)`
+              : form.type === LOCATION_TYPES.CLASS
+                ? 'Số nguyên dương do Hiệu trưởng đặt; sĩ số tối đa của lớp không vượt sức chứa'
+                : 'Số người tối đa của phòng; nhập số nguyên dương hoặc để trống nếu chưa xác định'
+          }
+        >
+          <input
+            className="input"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={form.capacity}
+            onChange={(e) => set({ capacity: e.target.value })}
+            onBlur={() => blurCheck('capacity')}
+          />
+        </FormField>
       </div>
       <FormField label="Ghi chú" error={errors.note} className="mt-12">
         <textarea className="textarea" rows={2} maxLength={500} value={form.note} onChange={(e) => set({ note: e.target.value })} />

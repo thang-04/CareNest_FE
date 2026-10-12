@@ -7,7 +7,7 @@
  * @property {string} room            room code / number, unique within the campus (e.g. P.101)
  * @property {'CLASS'|'KITCHEN'|'FUNCTION_ROOM'|'DEPARTMENT'|'STORAGE'} type
  * @property {string|null} managerUserId
- * @property {number|null} [capacity]  children, classrooms only
+ * @property {number|null} [capacity]  sức chứa theo người; bắt buộc với phòng học, tùy chọn với loại khác trong demo
  * @property {'ACTIVE'|'INACTIVE'|'DELETED'} [status]  missing = ACTIVE
  * @property {string} [note]
  * @property {{ action: string, userId: string, at: string, note?: string }[]} [history]

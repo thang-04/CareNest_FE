@@ -146,6 +146,18 @@ export function DailyHealthPanel({
         <ErrorState error={error} onRetry={reload} />
       ) : (
         <>
+          {presentSaved && data?.healthSummary?.reminder && (
+            <div className="alert alert--warning mb-12" role="status">
+              <HeartPulse size={18} />
+              <div>
+                <strong>{data.healthSummary.reminder}.</strong>{' '}
+                {data.healthSummary.entryCount
+                  ? 'Các lần ghi nhận đã lưu chưa có thân nhiệt. Nếu đã đo, thêm một lần ghi nhận để lưu số đo.'
+                  : 'Trẻ đang được chọn Có mặt nhưng chưa có lần kiểm tra nào được lưu trong ngày đã chọn.'}
+                <div className="text-sm">Đây là nhắc nhở cho cô, không phải dấu hiệu bất thường. Điểm danh vẫn có thể lưu riêng.</div>
+              </div>
+            </div>
+          )}
           {!editable && (
             <div className="alert alert--info">
               <HeartPulse size={18} />

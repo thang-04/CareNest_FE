@@ -55,7 +55,7 @@ export default function RoomListPage() {
     return (
       <div className="page">
         <Breadcrumb items={roomCrumbs()} />
-        <h1 className="page__title">Phòng học</h1>
+        <h1 className="page__title">Phòng ban</h1>
         <ScNoAccess />
       </div>
     );
@@ -141,7 +141,7 @@ export default function RoomListPage() {
       <td className="fw-600 nowrap">{r.room || '—'}</td>
       <td>{r.name}</td>
       <td>{LOCATION_TYPE_LABELS[r.type]}</td>
-      <td className="center">{r.type === LOCATION_TYPES.CLASS && r.capacity ? r.capacity : <span className="muted">—</span>}</td>
+      <td className="center">{r.capacity ?? <span className="muted">—</span>}</td>
       <td>{r.yearClasses.length ? r.yearClasses.join(', ') : <span className="muted">—</span>}</td>
       <td>
         {md.userById(r.managerUserId)?.fullName || <span className="muted">—</span>}
@@ -233,7 +233,7 @@ export default function RoomListPage() {
     <div className="page">
       <Breadcrumb items={roomCrumbs()} />
       <div className="page__head">
-        <h1 className="page__title">Phòng học</h1>
+        <h1 className="page__title">Phòng ban</h1>
         {manage && (
           <button className="btn btn--primary btn--lg" onClick={() => setModal({ room: null })}>
             <Plus size={18} /> Thêm phòng

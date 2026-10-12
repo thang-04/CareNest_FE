@@ -1,4 +1,6 @@
 import { ATTENDANCE_STATUS, MEAL_SESSIONS, isAbsent } from '@/models/attendance/attendanceConstants';
+import { isIsoDate } from '@/utils/format';
+import { schoolToday } from '@/utils/attendance/attendanceTime';
 
 /**
  * One child's entry: { status, meals }. mealsPerDay = 1 for children who eat once a day (#65).
@@ -52,12 +54,15 @@ export const validateHandoverCheck = ({ normal, substitute, note } = {}, expecte
   return errors;
 };
 
-export const validateSummaryRange = ({ from, to }, maxDays) => {
+export const validateSummaryRange = ({ from, to }) => {
   const errors = {};
   if (!from) errors.from = 'Chọn ngày bắt đầu.';
   if (!to) errors.to = 'Chọn ngày kết thúc.';
-  if (from && to && from > to) errors.to = 'Ngày kết thúc phải sau ngày bắt đầu.';
-  if (from && to && from <= to && (new Date(to) - new Date(from)) / 86400000 >= maxDays)
-    errors.to = `Chỉ xem tối đa ${maxDays} ngày mỗi lần.`;
+  if (from && !isIsoDate(from)) errors.from = 'Nhập ngày bắt đầu hợp lệ theo dd/mm/yyyy.';
+  if (to && !isIsoDate(to)) errors.to = 'Nhập ngày kết thúc hợp lệ theo dd/mm/yyyy.';
+  if (!errors.from && !errors.to) {
+    if (from > to) errors.to = 'Ngày kết thúc phải từ ngày bắt đầu trở đi.';
+    else if (to > schoolToday()) errors.to = 'Không chọn ngày trong tương lai.';
+  }
   return errors;
 };

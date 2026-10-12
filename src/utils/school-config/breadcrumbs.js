@@ -4,7 +4,7 @@ const crumbs = (label, to) => (last) => [...ROOT, { label, to }, ...(last ? [{ l
 
 export const yearCrumbs = crumbs('Năm học', '/school/years');
 export const classCrumbs = crumbs('Nhóm tuổi & lớp', '/school/classes');
-export const roomCrumbs = crumbs('Phòng học', '/school/rooms');
+export const roomCrumbs = crumbs('Phòng ban', '/school/rooms');
 export const staffCrumbs = crumbs('Tài khoản nhân sự', '/school/staff');
 export const cutoffCrumbs = crumbs('Giờ chốt điểm danh', '/school/cutoff');
 export const campusCrumbs = crumbs('Điểm trường', '/school/campuses');
