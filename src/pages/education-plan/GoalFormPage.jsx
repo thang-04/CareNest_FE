@@ -38,7 +38,8 @@ const suggestTitle = (year, ageGroupId) => {
 const STEPS = ['Thông tin chung', 'Mục tiêu theo lĩnh vực', 'Xác nhận và ký'];
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-const emptyDomain = (name) => ({ id: uid(), name, items: [{ id: uid(), text: '', requirements: [] }] });
+// Lĩnh vực mới chưa có mục tiêu: chỉ hiện nút "Thêm mục tiêu"; mục tiêu có nội dung mới hiện "Thêm YCCĐ".
+const emptyDomain = (name) => ({ id: uid(), name, items: [] });
 // Luôn đủ 5 lĩnh vực chuẩn theo đúng thứ tự; lĩnh vực khác (dữ liệu cũ) xếp cuối để chuyển mục tiêu rồi xóa.
 const normalizeDomains = (domains) => [
   ...DOMAINS.map((name) => domains.find((d) => d.name === name) || emptyDomain(name)),
@@ -58,7 +59,7 @@ const emptyForm = (schoolYear) => ({
   ageGroupId: '',
   schoolYear,
   description: '',
-  domains: DOMAINS.map((name) => ({ id: uid(), name, items: [{ id: uid(), text: '', requirements: [] }] })),
+  domains: DOMAINS.map((name) => emptyDomain(name)),
   signature: null,
 });
 
@@ -307,7 +308,7 @@ export default function GoalFormPage() {
     setRemoveDomain(null);
   };
   const importGoals = (domains, source) => {
-    let merged = form.domains.map((d) => ({ ...d, items: [...d.items] }));
+    const merged = form.domains.map((d) => ({ ...d, items: [...d.items] }));
     let added = 0;
     let skipped = 0;
     domains.forEach((src) => {
@@ -325,7 +326,6 @@ export default function GoalFormPage() {
         }
       });
     });
-    merged = merged.map((d) => (d.items.length ? d : { ...d, items: [{ id: uid(), text: '', requirements: [] }] }));
     set({ domains: merged });
     setImporting(false);
     const skipNote = skipped ? `. Bỏ qua ${skipped} mục tiêu thuộc lĩnh vực ngoài chương trình` : '';
@@ -411,31 +411,36 @@ export default function GoalFormPage() {
                   </button>
                 </div>
                 <div className="ga-goal-check--child stack gap-2">
-                  <div>
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--ghost"
-                      aria-expanded={open}
-                      onClick={() => (reqCount || it.requirements.length ? toggleReqs(it.id) : addRequirement(di, ii))}
-                    >
-                      {open ? (
-                        <ChevronDown size={16} className="text-primary" aria-hidden />
-                      ) : (
-                        <ChevronRight size={16} className="text-primary" aria-hidden />
-                      )}
-                      {reqCount ? `${reqCount} YCCĐ` : 'Chưa có YCCĐ – thêm'}
-                      {!open && reqCount > 0 && (
-                        <span className="muted text-xs">
-                          {' '}
-                          ·{' '}
-                          {it.requirements
-                            .filter((r) => r.text.trim())
-                            .map((r) => r.code)
-                            .join(', ')}
-                        </span>
-                      )}
-                    </button>
-                  </div>
+                  {it.requirements.length === 0 ? (
+                    it.text.trim() && (
+                      <div>
+                        <button type="button" className="btn btn--sm btn--ghost" onClick={() => addRequirement(di, ii)}>
+                          <Plus size={16} className="text-primary" aria-hidden /> Thêm YCCĐ
+                        </button>
+                      </div>
+                    )
+                  ) : (
+                    <div>
+                      <button type="button" className="btn btn--sm btn--ghost" aria-expanded={open} onClick={() => toggleReqs(it.id)}>
+                        {open ? (
+                          <ChevronDown size={16} className="text-primary" aria-hidden />
+                        ) : (
+                          <ChevronRight size={16} className="text-primary" aria-hidden />
+                        )}
+                        {reqCount ? `${reqCount} YCCĐ` : 'YCCĐ đang nhập'}
+                        {!open && reqCount > 0 && (
+                          <span className="muted text-xs">
+                            {' '}
+                            ·{' '}
+                            {it.requirements
+                              .filter((r) => r.text.trim())
+                              .map((r) => r.code)
+                              .join(', ')}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  )}
                   {open &&
                     it.requirements.map((r, ri) => (
                       <div className="ga-goal-row" key={r.id}>
