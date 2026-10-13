@@ -126,8 +126,8 @@ export default function AgeGroupsClassesPage() {
           {year?.status === YEAR_STATUS.CLOSED
             ? `Năm học ${year.name} đã kết thúc: lớp và nhóm tuổi chỉ còn xem.`
             : principal
-              ? 'Giáo viên của lớp và tổ trưởng nhóm tuổi do Phó hiệu trưởng phân công ở màn Phân công giáo viên; màn này chỉ hiển thị.'
-              : 'Bạn đang xem các lớp trong phạm vi được phân công. Chỉ Hiệu trưởng được cấu hình nhóm tuổi và lớp.'}
+              ? 'Hiệu trưởng hoặc Phó hiệu trưởng được cấp quyền phân công giáo viên cho lớp và tổ trưởng nhóm tuổi (1 tổ trưởng cho cả trường), ngay tại đây hoặc ở màn Phân công giáo viên.'
+              : 'Bạn đang xem các lớp trong phạm vi được phân công. Chỉ Hiệu trưởng được cấu hình nhóm tuổi và lớp; phân công giáo viên, tổ trưởng theo quyền Hiệu trưởng cấp.'}
         </div>
       </div>
 
@@ -171,7 +171,7 @@ export default function AgeGroupsClassesPage() {
                         <td>
                           {teamLeaders
                             .filter((a) => a.ageGroupId === g.id)
-                            .map((a) => `${md.userById(a.userId)?.fullName} (${md.campusById(a.campusId)?.shortName})`)
+                            .map((a) => `${md.userById(a.userId)?.fullName} (${md.campusById(a.campusId)?.shortName || '—'})`)
                             .join(', ') || <span className="muted">—</span>}
                         </td>
                         <td className="center">{count}</td>

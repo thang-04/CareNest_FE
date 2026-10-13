@@ -13,6 +13,7 @@ import {
 } from '@/models/children/childrenConstants';
 import { normalizeText, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
+import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 import {
   hasErrors,
   normalizePhone,
@@ -162,7 +163,7 @@ const cleanDeclaration = (d) => ({
 const assertClassAvailable = (db, classId, user) => {
   const cls = db.classes.find((c) => c.id === classId);
   if (!cls || cls.status === 'INACTIVE') invalid({ classId: 'Lớp không tồn tại hoặc đã ngừng hoạt động' });
-  if (cls.campusId !== user.campusId) invalid({ classId: 'Chỉ xếp được vào lớp thuộc điểm trường của bạn' });
+  if (!areaAllows(user, 'children', cls.campusId, true)) invalid({ classId: 'Chỉ xếp được vào lớp thuộc điểm trường bạn được giao' });
   if (activeCount(db, cls.id) >= cls.capacity) invalid({ classId: `${cls.name} đã đủ ${cls.capacity} trẻ. Chọn lớp khác.` });
   return cls;
 };
@@ -207,7 +208,7 @@ const createChild = (db, { child, declaration }, { classId, user }) => {
     gender: child.gender,
     dateOfBirth: child.dateOfBirth,
     classId: classId || null,
-    campusId: user.campusId,
+    campusId: db.classes.find((c) => c.id === classId)?.campusId || user.campusId,
     status: classId ? CHILD_STATUS.ACTIVE : CHILD_STATUS.PENDING_PLACEMENT,
     enrolledAt: todayInput(),
     // Official allergy list stays empty until the Principal confirms the declaration (GBR-HLT-03).
@@ -296,7 +297,7 @@ export const childrenMockRepository = {
     const dup = isDuplicate(db, data, excludeId);
     if (!dup) return null;
     // Another campus: say it exists without exposing the record (GBR-GEN-01).
-    return dup.campusId === user.campusId
+    return areaAllows(user, 'children', dup.campusId)
       ? { id: dup.id, code: dup.code, fullName: dup.fullName, sameCampus: true }
       : { sameCampus: false };
   },
@@ -306,7 +307,7 @@ export const childrenMockRepository = {
     if (!isVicePrincipal(user) && !isPrincipal(user)) forbid();
     const db = ensureSeeded();
     return db.classes
-      .filter((c) => (isPrincipal(user) || c.campusId === user.campusId) && c.status !== 'INACTIVE')
+      .filter((c) => areaAllows(user, 'children', c.campusId, true) && c.status !== 'INACTIVE')
       .filter((c) => !schoolYear || c.schoolYear === schoolYear)
       .map((c) => ({ ...clone(c), enrolledCount: activeCount(db, c.id) }));
   },

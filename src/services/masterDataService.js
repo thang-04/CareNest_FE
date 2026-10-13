@@ -14,7 +14,6 @@ const api = {
   setRoomStatus: (id, status) => axiosClient.patch(`/locations/${id}/status`, { status }),
   // BE xóa mềm (status DELETED), giữ bản ghi cho lịch sử
   deleteRoom: (id) => axiosClient.delete(`/locations/${id}`),
-  requestRoomClearance: (id) => axiosClient.post(`/locations/${id}/clearance-requests`),
 };
 
 const repo = USE_MOCK ? masterDataMockRepository : api;
@@ -29,5 +28,3 @@ export const getRooms = (filters, user) => repo.getRooms(filters, user);
 export const saveRoom = (id, form, user) => repo.saveRoom(id, form, user);
 export const setRoomStatus = (id, status, user) => repo.setRoomStatus(id, status, user);
 export const deleteRoom = (id, user) => repo.deleteRoom(id, user);
-/** Notifies the campus Vice Principal to move the room's assets out with a transfer. */
-export const requestRoomClearance = (id, user) => repo.requestRoomClearance(id, user);

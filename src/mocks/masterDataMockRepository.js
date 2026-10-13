@@ -1,10 +1,8 @@
 import { readDb, writeDb, clone, delay, ApiError } from './mockDatabase';
-import { lockedLocationMap } from './inventoryLock';
-import { pushNotification } from './notificationMockRepository';
 import { seedLocations } from './seed';
 import { LOCATION_TYPE_LABELS, ROOM_STATUS, isRoomStaff, withCampusInfo } from '@/models/Location';
 import { uid } from '@/utils/id';
-import { canManageRooms, canViewRooms, isPrincipal } from '@/utils/school-config/schoolConfigPermissions';
+import { areaAllows, canManageRooms, canViewRooms } from '@/utils/school-config/schoolConfigPermissions';
 import { firstError, hasErrors, validateRoom } from '@/utils/school-config/schoolConfigValidation';
 import { withRoomManagers } from './roomManagers';
 
@@ -39,7 +37,6 @@ const invalid = (errors) => new ApiError(422, firstError(errors), errors);
 const now = () => new Date().toISOString();
 
 const LINK_FIELDS = ['locationId', 'fromLocationId', 'toLocationId'];
-const OPEN_TRANSFER = (t) => !['COMPLETED', 'CANCELLED'].includes(t.status);
 
 const refersTo = (record, id) =>
   LINK_FIELDS.some((f) => record?.[f] === id) ||
@@ -68,23 +65,11 @@ const largestClassIn = (db, id) => {
   );
 };
 
-/** Asset lines still in the room (quantity > 0). */
-const assetsIn = (db, id) => (db.assets || []).filter((a) => a.locationId === id && a.quantity > 0);
-
-/** Reasons that forbid deactivating or deleting the room (it still holds assets or running work). */
+/** Reasons that forbid deactivating or deleting the room: a class of an open year still uses it. */
 const blockersOf = (db, id) => {
-  const reasons = [];
-  const assets = assetsIn(db, id);
-  if (assets.length)
-    reasons.push(`còn ${assets.length} loại tài sản (${assets.reduce((s, a) => s + a.quantity, 0)} cái/bộ), cần luân chuyển ra trước`);
   const open = openYearIds(db);
   const classes = (db.classes || []).filter((c) => c.locationId === id && (open.size === 0 || open.has(c.schoolYear)));
-  if (classes.length) reasons.push(`đang là phòng của ${classes.map((c) => `${c.name} (${c.schoolYear})`).join(', ')}`);
-  const lock = lockedLocationMap(db)[id];
-  if (lock) reasons.push(`đang trong đợt kiểm kê ${lock}`);
-  const transfers = (db.transfers || []).filter((t) => OPEN_TRANSFER(t) && (t.fromLocationId === id || t.toLocationId === id));
-  if (transfers.length) reasons.push(`có ${transfers.length} phiếu luân chuyển chưa hoàn tất`);
-  return reasons;
+  return classes.length ? [`đang là phòng của ${classes.map((c) => `${c.name} (${c.schoolYear})`).join(', ')}`] : [];
 };
 
 const findRoom = (db, id) => {
@@ -93,8 +78,9 @@ const findRoom = (db, id) => {
   return room;
 };
 
-const assertScope = (user, room) => {
-  if (!isPrincipal(user) && room.campusId !== user.campusId) throw forbid();
+/** Quyền sửa phòng của điểm trường (Hiệu trưởng toàn quyền, PHT theo quyền "Quản lý phòng ban"). */
+const assertManage = (user, campusId, action) => {
+  if (!canManageRooms(user, campusId, action)) throw forbid();
 };
 
 export const masterDataMockRepository = {
@@ -117,33 +103,30 @@ export const masterDataMockRepository = {
     return clone(readDb().categories);
   },
 
-  /** Rooms with usage for the Room List: classes of `schoolYear`, asset count, links. */
+  /** Rooms with usage for the Room List: classes of `schoolYear`, blockers. */
   async getRooms({ schoolYear } = {}, user) {
     await delay(120);
     if (!canViewRooms(user)) throw forbid();
     const db = readRooms();
     return withRoomManagers(db)
-      .filter((l) => l.status !== ROOM_STATUS.DELETED && (isPrincipal(user) || l.campusId === user.campusId))
-      .map((l) => {
-        const assets = assetsIn(db, l.id);
-        return {
-          ...clone(l),
-          status: l.status || ROOM_STATUS.ACTIVE,
-          yearClasses: (db.classes || []).filter((c) => c.locationId === l.id && c.schoolYear === schoolYear).map((c) => c.name),
-          assets: assets.map((a) => ({ id: a.id, code: a.code, name: a.name, unit: a.unit, quantity: a.quantity })),
-          assetCount: assets.length,
-          usage: usageOf(db, l.id),
-          blockers: blockersOf(db, l.id),
-          minCapacity: largestClassIn(db, l.id),
-        };
-      });
+      .filter((l) => l.status !== ROOM_STATUS.DELETED && areaAllows(user, 'rooms', l.campusId))
+      .map((l) => ({
+        ...clone(l),
+        status: l.status || ROOM_STATUS.ACTIVE,
+        yearClasses: (db.classes || []).filter((c) => c.locationId === l.id && c.schoolYear === schoolYear).map((c) => c.name),
+        usage: usageOf(db, l.id),
+        blockers: blockersOf(db, l.id),
+        minCapacity: largestClassIn(db, l.id),
+      }));
   },
 
   async saveRoom(id, form, user) {
     await delay();
-    if (!canManageRooms(user)) throw forbid();
+    if (!canViewRooms(user)) throw forbid();
     return writeDb((db) => {
       const current = id ? findRoom(db, id) : null;
+      assertManage(user, form.campusId, current ? 'update' : 'create');
+      if (current) assertManage(user, current.campusId, 'update');
       if (current?.status === ROOM_STATUS.DELETED) throw notFound();
       const errors = validateRoom(
         form,
@@ -152,7 +135,7 @@ export const masterDataMockRepository = {
       );
       if (!db.campuses.some((c) => c.id === form.campusId)) errors.campusId = 'Điểm trường không tồn tại';
       if (current && current.campusId !== form.campusId && Object.keys(usageOf(db, id)).length)
-        errors.campusId = 'Phòng đã có lớp, tài sản hoặc phiếu liên quan, không chuyển sang điểm trường khác được';
+        errors.campusId = 'Phòng đang được dùng (lớp hoặc dữ liệu liên quan), không chuyển sang điểm trường khác được';
       if (
         form.type !== 'CLASS' &&
         form.managerUserId &&
@@ -189,10 +172,9 @@ export const masterDataMockRepository = {
 
   async setRoomStatus(id, status, user) {
     await delay();
-    if (!canManageRooms(user)) throw forbid();
     return writeDb((db) => {
       const room = findRoom(db, id);
-      assertScope(user, room);
+      assertManage(user, room.campusId, 'delete');
       if (room.status === ROOM_STATUS.DELETED || status === ROOM_STATUS.DELETED) throw notFound();
       if (status === ROOM_STATUS.INACTIVE) {
         const blockers = blockersOf(db, id);
@@ -206,9 +188,9 @@ export const masterDataMockRepository = {
 
   async deleteRoom(id, user) {
     await delay();
-    if (!canManageRooms(user)) throw forbid();
     writeDb((db) => {
       const room = findRoom(db, id);
+      assertManage(user, room.campusId, 'delete');
       if (room.status === ROOM_STATUS.DELETED) throw notFound();
       const blockers = blockersOf(db, id);
       if (blockers.length) throw new ApiError(409, `Không xóa được: phòng ${blockers.join('; ')}.`);
@@ -216,29 +198,6 @@ export const masterDataMockRepository = {
       room.status = ROOM_STATUS.DELETED;
       room.deletedAt = now();
       (room.history ||= []).push({ action: 'DELETED', userId: user.id, at: room.deletedAt });
-    });
-  },
-
-  /** Principal asks the campus Vice Principal(s) to move the assets out (transfers belong to the VP, GBR-FAC-06). */
-  async requestRoomClearance(id, user) {
-    await delay();
-    if (!canManageRooms(user)) throw forbid();
-    return writeDb((db) => {
-      const room = findRoom(db, id);
-      const assets = assetsIn(db, id);
-      if (!assets.length) throw new ApiError(409, 'Phòng không còn tài sản nào.');
-      const vps = db.users.filter((u) => u.role === 'VICE_PRINCIPAL' && u.campusId === room.campusId);
-      if (!vps.length) throw new ApiError(409, 'Điểm trường chưa có Phó hiệu trưởng phụ trách để nhận yêu cầu.');
-      vps.forEach((vp) =>
-        pushNotification(db, {
-          userId: vp.id,
-          type: 'FACILITY',
-          title: `Chuyển tài sản ra khỏi ${room.room} · ${room.name}`,
-          message: `Hiệu trưởng cần chuyển hết ${assets.length} loại tài sản ra khỏi phòng để ngừng sử dụng / xóa phòng.`,
-          link: `/facility/transfers/new?from=${room.id}`,
-        }),
-      );
-      return { notified: vps.map((u) => u.fullName) };
     });
   },
 };

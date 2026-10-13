@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { EmptyState, Spinner } from '@/components/ui/States';
 import { saveClassTeachers } from '@/services/school-config/schoolConfigService';
 import { validateClassTeachers, hasErrors } from '@/utils/school-config/schoolConfigValidation';
+import { TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
 
 /** Assign the teachers (and homeroom teacher) of one class. Used by Teacher Assignment and Age Groups & Classes. */
 export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
@@ -19,11 +20,20 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
     setErrors({});
     setForm((f) => {
       const teacherIds = f.teacherIds.includes(id) ? f.teacherIds.filter((x) => x !== id) : [...f.teacherIds, id];
-      // The homeroom teacher must stay one of the class teachers.
-      const homeroomTeacherId = teacherIds.includes(f.homeroomTeacherId) ? f.homeroomTeacherId : teacherIds[0] || '';
+      // Không tự chọn chủ nhiệm: bỏ tích người đang là chủ nhiệm thì xóa lựa chọn chủ nhiệm
+      const homeroomTeacherId = teacherIds.includes(f.homeroomTeacherId) ? f.homeroomTeacherId : '';
       return { teacherIds, homeroomTeacherId };
     });
   };
+
+  const full = form.teacherIds.length >= TEACHERS_PER_CLASS;
+  const valid = !hasErrors(validateClassTeachers(form));
+  const hint =
+    form.teacherIds.length < TEACHERS_PER_CLASS
+      ? `Tích chọn ${TEACHERS_PER_CLASS} giáo viên (đã chọn ${form.teacherIds.length}).`
+      : !form.homeroomTeacherId
+        ? 'Chọn 1 giáo viên làm chủ nhiệm ở cột Chủ nhiệm.'
+        : '';
 
   const submit = async () => {
     const e = validateClassTeachers(form);
@@ -52,7 +62,7 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
           <button className="btn" onClick={() => onClose(false)} disabled={saving}>
             Hủy
           </button>
-          <button className="btn btn--primary" onClick={submit} disabled={saving}>
+          <button className="btn btn--primary" onClick={submit} disabled={saving || !valid}>
             {saving ? <Spinner small /> : <Save size={16} />} Lưu phân công
           </button>
         </>
@@ -71,7 +81,7 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
               <tr>
                 <th>Phụ trách lớp</th>
                 <th>Giáo viên</th>
-                <th>Lớp khác đang phụ trách</th>
+                <th>Lớp phụ trách</th>
                 <th className="center">Chủ nhiệm</th>
               </tr>
             </thead>
@@ -83,7 +93,13 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
                   <tr key={t.id} className={checked ? 'row--selected' : ''}>
                     <td>
                       <label className="checkbox">
-                        <input type="checkbox" checked={checked} onChange={() => toggle(t.id)} aria-label={`Phân công ${t.fullName}`} />
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={!checked && full}
+                          onChange={() => toggle(t.id)}
+                          aria-label={`Phân công ${t.fullName}`}
+                        />
                       </label>
                     </td>
                     <td className="fw-600">{t.fullName}</td>
@@ -105,10 +121,12 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
           </table>
         </div>
       )}
-      {(errors.homeroomTeacherId || errors.teacherIds) && (
+      {errors.homeroomTeacherId || errors.teacherIds ? (
         <span className="field__error mt-8" role="alert">
           {errors.homeroomTeacherId || errors.teacherIds}
         </span>
+      ) : (
+        hint && <p className="muted text-sm mt-8">{hint}</p>
       )}
     </Modal>
   );

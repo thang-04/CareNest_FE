@@ -11,7 +11,7 @@ import { canViewAttendance, isClassTeacher } from '@/utils/attendance/attendance
  */
 export function useAttendanceClasses({ own = false } = {}) {
   const { user } = useAuth();
-  const { classes, loading, error, reload } = useClasses();
+  const { classes, loading, error, reload } = useClasses({ activeYear: true });
   const list = useMemo(
     () =>
       classes

@@ -19,6 +19,11 @@
 }
 .dd-reception > .card {
   min-width: 0;
+  /* Lề trong đều cho 2 khung (danh sách, sức khỏe): chữ và ô nhập không dính mép */
+  padding: 0 var(--space-6) var(--space-6);
+}
+.dd-reception > .card > .card__header {
+  padding: var(--space-6) 0 var(--space-4);
 }
 .dd-reception__filters {
   display: flex;
@@ -48,6 +53,18 @@
 }
 .dd-reception__table th {
   white-space: nowrap;
+}
+.dd-reception__sessions {
+  display: block;
+  font-weight: var(--fw-regular);
+  white-space: normal;
+}
+.dd-reception__mealcell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 .dd-reception__row {
   cursor: pointer;
@@ -344,6 +361,8 @@
 
 /* ---------- Attendance table ---------- */
 .dd-table-wrap {
+  /* Giữ phần tử sr-only trong khung cuộn, không làm cả trang cuộn ngang */
+  position: relative;
   border: none;
   border-top: 1px solid var(--border);
   border-radius: 0;
@@ -407,24 +426,6 @@
 .dd-seg__item--unexcused.is-on {
   background: var(--danger-50);
   color: var(--danger-700);
-}
-
-/* Meal session modal */
-.dd-sessions {
-  border: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: var(--space-2);
-}
-.dd-session {
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-.dd-session:has(input:checked) {
-  border-color: var(--primary);
-  background: var(--primary-25);
 }
 
 /* ---------- Summary ---------- */
@@ -511,5 +512,64 @@
   .dd-summary,
   .dd-count-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Sức khỏe đầu ngày (Ban giám hiệu) ---------- */
+.dd-hov__note {
+  min-width: calc(var(--space-16) * 3);
+  overflow-wrap: anywhere;
+}
+
+/* Liên hệ phụ huynh: web chỉ hiện SĐT bố mẹ từ hồ sơ nhập học (nút Gọi chỉ có trên App) */
+.dd-health__phone {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+}
+.dd-hov__row {
+  cursor: pointer;
+}
+.dd-hov__row:hover td {
+  background: var(--color-surface-hover);
+}
+
+/* Lịch sử đo trong ngày (HT/PHT): bảng gọn, dòng mới nhất tô nền */
+.dd-hist {
+  position: relative;
+  max-height: calc(var(--space-16) * 6);
+  overflow: auto;
+}
+.dd-hist tr.dd-hist__latest td {
+  background: var(--color-primary-soft);
+}
+.dd-hist__tag {
+  margin-left: var(--space-2);
+}
+.dd-hist__note {
+  min-width: calc(var(--space-16) * 2.5);
+  overflow-wrap: anywhere;
+}
+
+/* Sức khỏe đầu ngày: bộ lọc nhóm tuổi / lớp cùng hàng, ngay sau tiêu đề "Theo lớp" (căn trái), xuống dòng khi hẹp */
+.dd-hov__head {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  column-gap: var(--space-4);
+}
+.dd-hov__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dd-hov__filters .select {
+  width: auto;
+  min-width: 160px;
+}
+@media (max-width: 640px) {
+  .dd-hov__filters,
+  .dd-hov__filters .select {
+    width: 100%;
   }
 }

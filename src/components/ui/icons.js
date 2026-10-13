@@ -49,6 +49,7 @@ export {
   IconChecks as Checks,
   IconChefHat as ChefHat,
   IconChevronDown as ChevronDown,
+  IconChevronUp as ChevronUp,
   IconChevronLeft as ChevronLeft,
   IconChevronRight as ChevronRight,
   IconFold as ChevronsDownUp,

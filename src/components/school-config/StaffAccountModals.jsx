@@ -6,9 +6,10 @@ import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
-import { getStaffImpact, saveStaffAccount, setStaffStatus } from '@/services/school-config/schoolConfigService';
+import { getStaffImpact, saveStaffAccount, setStaffStatus, updateStaffProfile } from '@/services/school-config/schoolConfigService';
 import { ROLES, ROLE_LABELS } from '@/models/User';
-import { STAFF_ROLE_OPTIONS, validateStaffAccount, hasErrors } from '@/utils/school-config/schoolConfigValidation';
+import { STAFF_ROLE_OPTIONS, validateStaffAccount, validateStaffProfile, hasErrors } from '@/utils/school-config/schoolConfigValidation';
+import { DateInput } from '@/components/form/DateInput';
 
 const baseRole = (role) => (role === ROLES.TEAM_LEADER ? ROLES.TEACHER : role);
 const EMPTY = { fullName: '', email: '', phone: '', role: ROLES.TEACHER, campusId: '', reason: '' };
@@ -269,6 +270,91 @@ export function StaffStatusModal({ account, onClose }) {
             setError('');
           }}
         />
+      </FormField>
+    </Modal>
+  );
+}
+
+/** PHT được giao "Hồ sơ nhân sự · Được sửa": chỉ sửa thông tin hồ sơ, không đổi vai trò / điểm trường / trạng thái. */
+export function StaffProfileModal({ account, existing, onClose }) {
+  const { user } = useAuth();
+  const toast = useToast();
+  const [form, setForm] = useState(() => ({
+    fullName: account.fullName || '',
+    email: account.email || '',
+    phone: account.phone || '',
+    dateOfBirth: account.dateOfBirth || '',
+    qualification: account.qualification || '',
+    note: account.note || '',
+  }));
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const set = (patch) => {
+    setForm((f) => ({ ...f, ...patch }));
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch))));
+  };
+  const submit = async () => {
+    const e = validateStaffProfile(
+      form,
+      existing.filter((u) => u.id !== account.id),
+    );
+    setErrors(e);
+    if (hasErrors(e)) return;
+    setSaving(true);
+    try {
+      await updateStaffProfile(account.id, form, user);
+      toast.success('Đã lưu thông tin hồ sơ.', account.fullName);
+      onClose(true);
+    } catch (err) {
+      if (err.details) setErrors(err.details);
+      toast.error(err.message, 'Không lưu được thay đổi');
+      setSaving(false);
+    }
+  };
+  return (
+    <Modal
+      open
+      title={`Sửa hồ sơ – ${account.fullName}`}
+      onClose={saving ? undefined : () => onClose(false)}
+      footer={
+        <>
+          <button className="btn" onClick={() => onClose(false)} disabled={saving}>
+            Hủy
+          </button>
+          <button className="btn btn--primary" onClick={submit} disabled={saving}>
+            {saving ? <Spinner small /> : <Save size={16} />} Lưu hồ sơ
+          </button>
+        </>
+      }
+    >
+      <p className="text-sm text-2 mb-12">
+        {ROLE_LABELS[account.role]}. Vai trò, điểm trường và trạng thái tài khoản do Hiệu trưởng thay đổi.
+      </p>
+      <div className="grid-2">
+        <FormField label="Họ tên" required error={errors.fullName}>
+          <input className="input" maxLength={100} value={form.fullName} onChange={(e) => set({ fullName: e.target.value })} />
+        </FormField>
+        <FormField label="Email" required error={errors.email}>
+          <input className="input" type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} />
+        </FormField>
+        <FormField label="Số điện thoại" error={errors.phone}>
+          <input className="input" inputMode="tel" value={form.phone} onChange={(e) => set({ phone: e.target.value })} />
+        </FormField>
+        <FormField label="Ngày sinh" error={errors.dateOfBirth}>
+          <DateInput value={form.dateOfBirth} onChange={(v) => set({ dateOfBirth: v })} />
+        </FormField>
+      </div>
+      <FormField label="Trình độ chuyên môn" error={errors.qualification} className="mt-12">
+        <input
+          className="input"
+          maxLength={200}
+          placeholder="Ví dụ: Cao đẳng Sư phạm Mầm non"
+          value={form.qualification}
+          onChange={(e) => set({ qualification: e.target.value })}
+        />
+      </FormField>
+      <FormField label="Ghi chú" error={errors.note} className="mt-12">
+        <textarea className="textarea" rows={2} maxLength={500} value={form.note} onChange={(e) => set({ note: e.target.value })} />
       </FormField>
     </Modal>
   );

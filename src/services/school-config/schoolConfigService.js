@@ -8,7 +8,13 @@ const repo = USE_MOCK ? schoolConfigMockRepository : schoolConfigApi;
 export const getSchoolYears = (user) => repo.getSchoolYears(user);
 export const getSchoolYearById = (id, user) => repo.getSchoolYearById(id, user);
 export const saveSchoolYear = (id, form, user) => repo.saveSchoolYear(id, form, user);
-export const activateSchoolYear = (id, user) => repo.activateSchoolYear(id, user);
+/** payload: { confirmName } – năm học phải đủ các bước bắt buộc (getYearReadiness). */
+export const activateSchoolYear = (id, payload, user) => repo.activateSchoolYear(id, payload, user);
+export const getYearReadiness = (id, user) => repo.getYearReadiness(id, user);
+/** Xếp lớp năm học mới: items [{ childId, action, toClassId }]. */
+export const getPlacements = (yearId, user) => repo.getPlacements(yearId, user);
+export const savePlacements = (yearId, payload, user) => repo.savePlacements(yearId, payload, user);
+export const autoPlace = (yearId, user) => repo.autoPlace(yearId, user);
 export const closeSchoolYear = (id, user) => repo.closeSchoolYear(id, user);
 export const deleteSchoolYear = (id, user) => repo.deleteSchoolYear(id, user);
 
@@ -34,6 +40,8 @@ export const deleteCampus = (id, user) => repo.deleteCampus(id, user);
 export const getStaffAccounts = (user) => repo.getStaffAccounts(user);
 export const getStaffImpact = (id, form, user) => repo.getStaffImpact(id, form, user);
 export const saveStaffAccount = (id, form, user) => repo.saveStaffAccount(id, form, user);
+/** Sửa thông tin hồ sơ nhân sự (PHT được giao "Hồ sơ nhân sự · Được sửa"). */
+export const updateStaffProfile = (id, form, user) => repo.updateStaffProfile(id, form, user);
 export const setStaffStatus = (id, status, reason, user) => repo.setStaffStatus(id, status, reason, user);
 
 export const getViceAssignments = (schoolYear, user) => repo.getViceAssignments(schoolYear, user);
@@ -42,6 +50,8 @@ export const saveViceAssignment = (schoolYear, userId, form, user) => repo.saveV
 export const getTeacherAssignments = (filters, user) => repo.getTeacherAssignments(filters, user);
 export const saveClassTeachers = (classId, form, user) => repo.saveClassTeachers(classId, form, user);
 export const saveTeamLeader = (payload, user) => repo.saveTeamLeader(payload, user);
+/** Tổ trưởng nhóm tuổi toàn trường của năm học + giáo viên chọn được. */
+export const getTeamLeaders = (filters, user) => repo.getTeamLeaders(filters, user);
 
 export const getRolePermissions = (user) => repo.getRolePermissions(user);
 export const saveRolePermissions = (role, payload, user) => repo.saveRolePermissions(role, payload, user);

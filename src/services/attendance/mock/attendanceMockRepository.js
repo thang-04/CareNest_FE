@@ -2,6 +2,8 @@ import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { buildAttendanceSeed } from '@/mocks/attendanceSeed';
+import { AGE_GROUP_EXTRA } from '@/mocks/schoolConfigSeed';
+import { activeYearId } from '@/mocks/roomManagers';
 import { ROLES } from '@/models/User';
 import {
   ATTENDANCE_STATUS,
@@ -11,9 +13,13 @@ import {
   MEAL_SESSIONS,
   MEAL_SESSION_LABELS,
   allMeals,
+  eatsAny,
   isAbsent,
+  mealsIn,
   needsSubstitute,
+  orderSessions,
 } from '@/models/attendance/attendanceConstants';
+import { MEAL_SESSIONS as KITCHEN_SESSIONS } from '@/models/kitchen/kitchenConstants';
 import {
   canConfirmMealCount,
   canCorrectMealAfterLock,
@@ -41,6 +47,7 @@ import { dailyHealthSummary } from '@/mocks/dailyHealthSummary';
  * Fake backend for attendance, meal participation, meal counts and meal handover.
  * Business rules that the Spring Boot backend must re-implement live here:
  *  - lock at the configured cut-off (GBR-ATT-02/04/08), absent => no meal (GBR-ATT-03);
+ *  - present = eats every meal session of the class's age group (set by the Principal); "Tham gia ăn" off = no meal;
  *  - meal count aggregated per campus/date/session at the cut-off (GBR-ATT-07), confirmed by the VP only (GBR-ATT-06);
  *  - later corrections update the count and notify the kitchen without a new approval (UC 6.10 alt flow);
  *  - meal handover per class: confirm or report shortage, kitchen supplements (UC 6.26).
@@ -61,7 +68,8 @@ export const readCutoff = (db) => {
 
 /** Kitchen readiness comes from the meal preparation module (#98) when it exists. */
 const kitchenReady = (db, campusId, date, session) => {
-  if (!Array.isArray(db.mealPreparations)) return true;
+  // Bếp chưa theo dõi chế biến bữa phụ sáng: không chặn bàn giao bữa đó
+  if (!Array.isArray(db.mealPreparations) || !KITCHEN_SESSIONS.includes(session)) return true;
   return db.mealPreparations.some(
     (p) => p.campusId === campusId && p.date === date && p.session === session && ['READY_FOR_HANDOVER', 'READY'].includes(p.status),
   );
@@ -71,12 +79,21 @@ const usersOf = (db, role, campusId) => (db.users || []).filter((u) => u.role ==
 const notifyAll = (db, users, payload) => users.forEach((u) => pushNotification(db, { ...payload, userId: u.id }));
 
 const activeChildrenOf = (db, classId) => db.children.filter((ch) => ch.classId === classId && ch.status === 'ACTIVE');
-const campusIds = (db) => [...new Set(db.classes.map((c) => c.campusId))];
+// Chỉ lớp của năm học đang hoạt động được điểm danh và tính suất ăn (lớp năm cũ chỉ còn xem)
+const currentClasses = (db) => db.classes.filter((c) => c.schoolYear === activeYearId(db));
+const campusIds = (db) => [...new Set(currentClasses(db).map((c) => c.campusId))];
 const findClass = (db, id) => {
   const cls = db.classes.find((c) => c.id === id);
   if (!cls) throw new ApiError(404, 'Không tìm thấy lớp');
   return cls;
 };
+/** Meal sessions of a class = those the Principal configured for its age group. */
+const classSessions = (db, cls) => {
+  const group = (db.ageGroups || []).find((g) => g.id === cls?.ageGroupId) || AGE_GROUP_EXTRA[cls?.ageGroupId];
+  return orderSessions(group?.mealSessions);
+};
+const campusSessions = (db, campusId) =>
+  MEAL_SESSIONS.filter((s) => currentClasses(db).some((c) => c.campusId === campusId && classSessions(db, c).includes(s)));
 const recordOf = (db, childId, date) => db.attendance.find((r) => r.childId === childId && r.date === date);
 const leaveOf = (db, childId, date) =>
   (db.leaveRequests || []).find(
@@ -87,7 +104,7 @@ const ensureLeaveDemo = (db) => {
   const today = schoolNow().date;
   if (!db.leaveRequests) {
     // Ví dụ báo nghỉ giả lập một lần; không tạo lại đơn đã hủy hoặc ghi đè điểm danh của cô.
-    db.leaveRequests = db.classes.flatMap((cls) => {
+    db.leaveRequests = currentClasses(db).flatMap((cls) => {
       if (db.mealCounts.some((count) => count.campusId === cls.campusId && count.date === today)) return [];
       const child = activeChildrenOf(db, cls.id)
         .filter((ch) => !recordOf(db, ch.id, today))
@@ -146,7 +163,9 @@ const classLine = (db, cls, date, session) => {
 };
 
 const buildCount = (db, campusId, date, session) => {
-  const classes = db.classes.filter((c) => c.campusId === campusId).map((c) => classLine(db, c, date, session));
+  const classes = currentClasses(db)
+    .filter((c) => c.campusId === campusId && classSessions(db, c).includes(session))
+    .map((c) => classLine(db, c, date, session));
   return { campusId, date, session, classes };
 };
 
@@ -170,7 +189,7 @@ const materializeCounts = (db, date, { notify = true } = {}) => {
   if (!isSchoolDay(date) || !isDayLocked(date, cutoff)) return;
   campusIds(db).forEach((campusId) => {
     let created = false;
-    MEAL_SESSIONS.forEach((session) => {
+    campusSessions(db, campusId).forEach((session) => {
       if (db.mealCounts.some((m) => m.campusId === campusId && m.date === date && m.session === session)) return;
       const at = new Date().toISOString();
       db.mealCounts.push({
@@ -226,14 +245,20 @@ const confirmCountIn = (db, count, userId, at) => {
   createHandovers(db, count);
 };
 
+const HANDOVER_TIME = { MORNING: '08:50', LUNCH: '10:40', AFTERNOON: '14:40' };
+
 // Databases saved before this module existed get demo data once.
 const ensureSeeded = (db) => {
   db.mealCounts ||= [];
   db.mealHandovers ||= [];
-  if (db.attendance && db.childMealPlans) return db;
-  const seed = buildAttendanceSeed({ classes: db.classes, children: db.children, today: schoolNow().date });
+  if (db.attendance) return db;
+  const seed = buildAttendanceSeed({
+    classes: db.classes,
+    children: db.children,
+    today: schoolNow().date,
+    sessionsOf: (cls) => classSessions(db, cls),
+  });
   db.attendance ||= clone(seed.attendance);
-  db.childMealPlans ||= clone(seed.childMealPlans);
   // Past demo days are already confirmed by the VP and handed over to every class.
   seed.seededDays.forEach((date) => {
     materializeCounts(db, date, { notify: false });
@@ -247,7 +272,7 @@ const ensureSeeded = (db) => {
       .filter((h) => h.date === date && h.status === HANDOVER_STATUS.READY)
       .forEach((h) => {
         const cls = db.classes.find((c) => c.id === h.classId);
-        const at = new Date(`${date}T${h.session === 'LUNCH' ? '10:40' : '14:40'}:00+07:00`).toISOString();
+        const at = new Date(`${date}T${HANDOVER_TIME[h.session] || '14:40'}:00+07:00`).toISOString();
         Object.assign(h, {
           status: HANDOVER_STATUS.CONFIRMED,
           received: { ...h.expected },
@@ -263,7 +288,7 @@ const ensureSeeded = (db) => {
 const ready = () => {
   ensureSchoolSeeded();
   const db = readDb();
-  if (!db.attendance || !db.childMealPlans || !db.mealCounts || !db.mealHandovers) writeDb(ensureSeeded);
+  if (!db.attendance || !db.mealCounts || !db.mealHandovers) writeDb(ensureSeeded);
   const current = readDb();
   if (
     !current.leaveRequests ||
@@ -287,7 +312,7 @@ const readyFor = (date) => {
     isSchoolDay(date) &&
     isDayLocked(date, cutoff) &&
     campusIds(db).some((c) =>
-      MEAL_SESSIONS.some((s) => !db.mealCounts.some((m) => m.campusId === c && m.date === date && m.session === s)),
+      campusSessions(db, c).some((s) => !db.mealCounts.some((m) => m.campusId === c && m.date === date && m.session === s)),
     );
   if (missing) {
     writeDb((d) => materializeCounts(ensureSeeded(d), date));
@@ -323,13 +348,12 @@ export const attendanceMockRepository = {
     const db = readyFor(date);
     const cls = findClass(db, classId);
     if (!canViewAttendance(cls, user)) throw forbidden();
-    const plans = Object.fromEntries(db.childMealPlans.map((p) => [p.childId, p]));
+    const sessions = classSessions(db, cls);
     const count = db.mealCounts.find((m) => m.campusId === cls.campusId && m.date === date);
     const children = activeChildrenOf(db, classId)
       .map((ch) => ({
         child: childView(ch),
         record: clone(recordOf(db, ch.id, date) || null),
-        mealPlan: plans[ch.id] || null,
         leaveRequest: clone(leaveOf(db, ch.id, date) || null),
         healthSummary: dailyHealthSummary(
           (db.dailyHealthEntries || []).filter((entry) => entry.childId === ch.id && entry.classId === classId && entry.date === date),
@@ -341,7 +365,8 @@ export const attendanceMockRepository = {
       classId,
       className: cls.name,
       campusId: cls.campusId,
-      canRecord: canRecordAttendance(cls, user),
+      mealSessions: sessions,
+      canRecord: canRecordAttendance(cls, user) && cls.schoolYear === activeYearId(db),
       mealCountStatus: count?.status || null,
       children,
       receptionStats: {
@@ -360,14 +385,15 @@ export const attendanceMockRepository = {
       ensureSeeded(db);
       const cls = findClass(db, classId);
       if (!canRecordAttendance(cls, user)) throw forbidden();
+      if (cls.schoolYear !== activeYearId(db)) throw new ApiError(422, 'Lớp thuộc năm học đã kết thúc, chỉ xem được.');
       const info = dayInfo(db, date);
       if (!info.schoolDay) throw new ApiError(422, 'Ngày đã chọn không phải ngày học.');
       if (date !== info.today) throw new ApiError(422, 'Chỉ điểm danh được cho ngày hôm nay.');
       if (info.locked) throw lockedError(info.cutoff);
       const childIds = new Set(activeChildrenOf(db, classId).map((c) => c.id));
       if (!entries?.length || entries.some((e) => !childIds.has(e.childId))) throw new ApiError(422, 'Danh sách trẻ không hợp lệ.');
-      const plans = Object.fromEntries(db.childMealPlans.map((p) => [p.childId, p]));
-      const errors = validateClassAttendance(entries, plans);
+      const sessions = classSessions(db, cls);
+      const errors = validateClassAttendance(entries, { sessions });
       if (Object.keys(errors).length) throw new ApiError(422, 'Dữ liệu điểm danh chưa hợp lệ. Kiểm tra các dòng được đánh dấu.', errors);
       entries.forEach((entry) => {
         const leave = leaveOf(db, entry.childId, date);
@@ -382,10 +408,10 @@ export const attendanceMockRepository = {
 
       const at = new Date().toISOString();
       entries.forEach((e) => {
-        const meals = Object.fromEntries(MEAL_SESSIONS.map((s) => [s, !isAbsent(e.status) && !!e.meals?.[s]]));
+        const meals = Object.fromEntries(sessions.map((s) => [s, !isAbsent(e.status) && !!e.meals?.[s]]));
         const existing = recordOf(db, e.childId, date);
         if (existing) {
-          const changed = existing.status !== e.status || MEAL_SESSIONS.some((s) => !!existing.meals?.[s] !== meals[s]);
+          const changed = existing.status !== e.status || sessions.some((s) => !!existing.meals?.[s] !== meals[s]);
           if (!changed) return;
           Object.assign(existing, { status: e.status, meals, recordedBy: user.id, recordedAt: at });
           existing.history.push({ at, userId: user.id, action: 'UPDATED' });
@@ -469,6 +495,7 @@ export const attendanceMockRepository = {
     const errors = validateSummaryRange({ from, to });
     if (Object.keys(errors).length) throw new ApiError(422, Object.values(errors)[0], errors);
     const children = activeChildrenOf(db, classId);
+    const sessions = classSessions(db, cls);
     const days = schoolDaysBetween(from, to).filter((d) => d <= schoolNow().date);
     const perChild = Object.fromEntries(
       children.map((ch) => [ch.id, { child: childView(ch), present: 0, excused: 0, unexcused: 0, meals: 0 }]),
@@ -479,7 +506,7 @@ export const attendanceMockRepository = {
         .map((record) => [`${record.childId}:${record.date}`, record]),
     );
     const rows = days.map((date) => {
-      const row = { date, present: 0, excused: 0, unexcused: 0, missing: 0, substitute: 0, mealTotal: 0, meals: allMeals(0) };
+      const row = { date, present: 0, excused: 0, unexcused: 0, missing: 0, substitute: 0, mealTotal: 0, meals: allMeals(0, sessions) };
       children.forEach((ch) => {
         const rec = records.get(`${ch.id}:${date}`);
         if (!rec) {
@@ -490,15 +517,14 @@ export const attendanceMockRepository = {
           rec.status === ATTENDANCE_STATUS.PRESENT ? 'present' : rec.status === ATTENDANCE_STATUS.EXCUSED ? 'excused' : 'unexcused';
         row[key] += 1;
         perChild[ch.id][key] += 1;
-        const participates = rec.status === ATTENDANCE_STATUS.PRESENT && MEAL_SESSIONS.some((s) => !!rec.meals?.[s]);
+        const participates = rec.status === ATTENDANCE_STATUS.PRESENT && eatsAny(rec.meals, sessions);
         if (participates) {
           row.mealTotal += 1;
           perChild[ch.id].meals += 1;
           if (needsSubstitute(ch)) row.substitute += 1;
         }
-        MEAL_SESSIONS.forEach((s) => {
-          if (!rec.meals?.[s]) return;
-          row.meals[s] += 1;
+        Object.entries(mealsIn(rec.meals, sessions)).forEach(([s, eats]) => {
+          if (eats) row.meals[s] += 1;
         });
       });
       return row;
@@ -506,6 +532,7 @@ export const attendanceMockRepository = {
     return {
       classId,
       className: cls.name,
+      mealSessions: sessions,
       from,
       to,
       size: children.length,
@@ -523,7 +550,7 @@ export const attendanceMockRepository = {
     const campuses = user.role === ROLES.PRINCIPAL ? campusIds(db) : [user.campusId];
     const counts = [];
     campuses.forEach((campusId) =>
-      MEAL_SESSIONS.forEach((session) => {
+      campusSessions(db, campusId).forEach((session) => {
         const stored = db.mealCounts.find((m) => m.campusId === campusId && m.date === date && m.session === session);
         if (stored) {
           if (canViewMealCount(stored, user)) counts.push(withTotals(clone(stored)));

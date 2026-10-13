@@ -3,30 +3,26 @@ import { isIsoDate } from '@/utils/format';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 
 /**
- * One child's entry: { status, meals }. mealsPerDay = 1 for children who eat once a day (#65).
+ * One child's entry: { status, meals }. `sessions` = meal sessions of the class's age group.
  * Returns { field: message }.
  */
-export const validateAttendanceEntry = (entry, { mealsPerDay = MEAL_SESSIONS.length } = {}) => {
+export const validateAttendanceEntry = (entry, { sessions = MEAL_SESSIONS } = {}) => {
   const errors = {};
   if (!Object.values(ATTENDANCE_STATUS).includes(entry?.status)) {
     errors.status = 'Chọn trạng thái điểm danh.';
     return errors;
   }
-  const taken = MEAL_SESSIONS.filter((s) => entry.meals?.[s]);
-  const unknown = Object.keys(entry.meals || {}).filter((s) => !MEAL_SESSIONS.includes(s));
-  if (unknown.length) errors.meals = 'Bữa ăn không hợp lệ. Chọn lại bữa ăn.';
+  const taken = Object.keys(entry.meals || {}).filter((s) => entry.meals[s]);
+  if (taken.some((s) => !sessions.includes(s))) errors.meals = 'Bữa ăn không thuộc nhóm tuổi của lớp. Chọn lại bữa ăn.';
   // GBR-ATT-03 / MSG26: an absent child cannot take a meal.
   else if (isAbsent(entry.status) && taken.length) errors.meals = 'Trẻ vắng mặt không thể đăng ký suất ăn.';
-  else if (taken.length > mealsPerDay) errors.meals = `Trẻ chỉ ăn ${mealsPerDay} bữa/ngày. Chọn đúng ${mealsPerDay} bữa.`;
   return errors;
 };
 
 /** Validates every entry; returns { [childId]: { field: message } } for the invalid ones only. */
-export const validateClassAttendance = (entries, mealPlans = {}) =>
+export const validateClassAttendance = (entries, { sessions } = {}) =>
   Object.fromEntries(
-    entries
-      .map((e) => [e.childId, validateAttendanceEntry(e, { mealsPerDay: mealPlans[e.childId]?.mealsPerDay })])
-      .filter(([, errs]) => Object.keys(errs).length > 0),
+    entries.map((e) => [e.childId, validateAttendanceEntry(e, { sessions })]).filter(([, errs]) => Object.keys(errs).length > 0),
   );
 
 export const validateMealCorrection = ({ session, note } = {}) => {

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, Copy, Crown, DoorOpen, Pencil, Plus, RotateCcw, Search, Shapes, Trash2, UserCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { AssignClassTeachersDialog, AssignTeamLeaderDialog } from '@/components/school-config/AssignDialogs';
-import { canAssignTeachers } from '@/utils/school-config/schoolConfigPermissions';
+import { canAssignClass, teamLeaderActions } from '@/utils/school-config/schoolConfigPermissions';
 import { useMasterData } from '@/hooks/useMasterData';
 import { EmptyState, LoadingState } from '@/components/ui/States';
 import { ClassFillBadge } from '@/components/school-config/SchoolConfigBadges';
@@ -49,7 +49,8 @@ export function ClassListSection({
   const [assigning, setAssigning] = useState(null); // { kind: 'teachers', cls } | { kind: 'leader', group }
   // Phân công giáo viên / tổ trưởng ngay tại đây: Hiệu trưởng luôn được; Phó HT khi có quyền sửa "Phân công giáo viên" trong phạm vi
   const yearOpen = year && year.status !== 'CLOSED';
-  const assignCampuses = yearOpen ? campuses.filter((c) => canAssignTeachers(c.id, user)).map((c) => c.id) : [];
+  // Tổ trưởng toàn trường: nút hiện khi có quyền Thêm / Sửa / Xóa tổ trưởng
+  const leaderActs = teamLeaderActions(user);
   const closeAssign = (changed) => {
     setAssigning(null);
     if (changed) onChanged?.();
@@ -252,7 +253,7 @@ export function ClassListSection({
             const stats = groupStats?.[g.id];
             const leaders = (teamLeaders || [])
               .filter((a) => a.ageGroupId === g.id)
-              .map((a) => `${md.userById(a.userId)?.fullName}${principal ? ` (${md.campusById(a.campusId)?.shortName})` : ''}`);
+              .map((a) => `${md.userById(a.userId)?.fullName} (${md.campusById(a.campusId)?.shortName || '—'})`);
             const leader = leaders.join(', ');
             const open = isOpen(g.id);
             const bodyId = `sc-cgroup-${g.id}`;
@@ -278,6 +279,7 @@ export function ClassListSection({
                       <span className="chip chip--gray">
                         {stats?.classCount ?? rows.length} lớp
                         {stats?.capacity ? ` · ${stats.enrolled}/${stats.capacity} trẻ` : ''}
+                        {stats?.planned ? ` · ${stats.planned} dự kiến xếp` : ''}
                       </span>
                       <span className={`chip ${leader ? 'chip--teal' : 'chip--gray'}`}>
                         {leader ? `Tổ trưởng: ${leader}` : 'Chưa có tổ trưởng'}
@@ -285,7 +287,7 @@ export function ClassListSection({
                     </span>
                   </button>
                   <span className="row row--wrap sc-cgroup__actions">
-                    {assignCampuses.length > 0 && (
+                    {yearOpen && (leaders.length ? leaderActs.update || leaderActs.delete : leaderActs.create) && (
                       <button className="btn btn--sm" onClick={() => setAssigning({ kind: 'leader', group: g })}>
                         <Crown size={14} /> {leaders.length ? 'Đổi tổ trưởng' : 'Chọn tổ trưởng'}
                       </button>
@@ -331,22 +333,32 @@ export function ClassListSection({
                           {roomCell(c)}
                         </div>
                         {teacherCell(c)}
-                        {assignCampuses.includes(c.campusId) && (
+                        {yearOpen && canAssignClass(c, user) && (
                           <button className="link-btn text-sm sc-ccard__assign" onClick={() => setAssigning({ kind: 'teachers', cls: c })}>
                             <UserCheck size={14} /> {c.teacherIds.length ? 'Đổi giáo viên' : 'Phân công giáo viên'}
                           </button>
                         )}
                         <div className="sc-ccard__fill">
                           <div className="sc-ccard__fill-row">
-                            <span className="text-sm">
-                              <span className="fw-600">{c.childCount}</span> / {c.capacity} trẻ
-                            </span>
+                            {c.plannedCount != null ? (
+                              // Năm sắp diễn ra: trẻ đã xếp lớp chưa chuyển vào lớp cho tới khi kích hoạt năm học
+                              <span className="text-sm" title="Trẻ chuyển vào lớp khi kích hoạt năm học">
+                                <span className="fw-600">{c.childCount}</span> trẻ · <span className="fw-600">{c.plannedCount}</span> dự
+                                kiến xếp / {c.capacity}
+                              </span>
+                            ) : (
+                              <span className="text-sm">
+                                <span className="fw-600">{c.childCount}</span> / {c.capacity} trẻ
+                              </span>
+                            )}
                             <ClassFillBadge status={c.fill || CLASS_FILL.OPEN} />
                           </div>
                           <div className="sc-bar" aria-hidden="true">
                             <div
                               className={`sc-bar__fill sc-bar__fill--${(c.fill || CLASS_FILL.OPEN).toLowerCase()}`}
-                              style={{ width: `${Math.min(100, c.capacity ? Math.round((c.childCount / c.capacity) * 100) : 0)}%` }}
+                              style={{
+                                width: `${Math.min(100, c.capacity ? Math.round(((c.childCount + (c.plannedCount || 0)) / c.capacity) * 100) : 0)}%`,
+                              }}
                             />
                           </div>
                         </div>
@@ -360,9 +372,7 @@ export function ClassListSection({
         )}
       </div>
       {assigning?.kind === 'teachers' && <AssignClassTeachersDialog cls={assigning.cls} schoolYear={year?.id} onClose={closeAssign} />}
-      {assigning?.kind === 'leader' && (
-        <AssignTeamLeaderDialog group={assigning.group} campusIds={assignCampuses} schoolYear={year?.id} onClose={closeAssign} />
-      )}
+      {assigning?.kind === 'leader' && <AssignTeamLeaderDialog group={assigning.group} schoolYear={year?.id} onClose={closeAssign} />}
     </section>
   );
 }

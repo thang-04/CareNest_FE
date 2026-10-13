@@ -15,6 +15,7 @@ import {
   Wrench,
 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
+import { areaAccess } from '@/utils/school-config/schoolConfigPermissions';
 
 const R = ROLES;
 const VP_ONLY = [R.VICE_PRINCIPAL];
@@ -32,15 +33,33 @@ const QUICK_ACTIONS = [
   { label: 'Đề nghị bổ sung', to: '/facility/requests/new', group: 'Cơ sở vật chất', icon: PackagePlus, roles: REPORTERS },
   { label: 'Đề xuất khen thưởng', to: '/assessment/rewards/new', group: 'Đánh giá trẻ', icon: Award, roles: CLASS_STAFF },
   { label: 'Kế hoạch năm học', to: '/education/year-plans', group: 'Kế hoạch giáo dục', icon: PenLine, roles: [R.TEAM_LEADER] },
-  { label: 'Tiếp nhận trẻ', to: '/children/new', group: 'Quản lý trẻ', icon: Baby, roles: VP_ONLY },
-  { label: 'Đề xuất mua sắm, sửa chữa', to: '/facility/proposals/new', group: 'Cơ sở vật chất', icon: Wrench, roles: VP_ONLY },
-  { label: 'Thực đơn tuần', to: '/menu/weekly/new', group: 'Thực đơn', icon: CookingPot, roles: VP_ONLY },
+  { label: 'Tiếp nhận trẻ', to: '/children/new', group: 'Quản lý trẻ', icon: Baby, roles: VP_ONLY, area: 'children' },
+  {
+    label: 'Đề xuất mua sắm, sửa chữa',
+    to: '/facility/proposals/new',
+    group: 'Cơ sở vật chất',
+    icon: Wrench,
+    roles: VP_ONLY,
+    area: 'facility',
+  },
+  { label: 'Thực đơn tuần', to: '/menu/weekly/new', group: 'Thực đơn', icon: CookingPot, roles: VP_ONLY, area: 'menu' },
   { label: 'Phiếu nhập kho', to: '/kitchen/stock-receipts/new', group: 'Bếp & kho', icon: Truck, roles: VP_ONLY },
   { label: 'Kế hoạch năm học', to: '/education/year-plans', group: 'Kế hoạch giáo dục', icon: Target, roles: VP_ONLY },
-  { label: 'Phiếu luân chuyển tài sản', to: '/facility/transfers/new', group: 'Cơ sở vật chất', icon: ArrowLeftRight, roles: VP_ONLY },
-  { label: 'Đợt kiểm kê', to: '/facility/inspections/new', group: 'Cơ sở vật chất', icon: ClipboardList, roles: VP_ONLY },
+  {
+    label: 'Phiếu luân chuyển tài sản',
+    to: '/facility/transfers/new',
+    group: 'Cơ sở vật chất',
+    icon: ArrowLeftRight,
+    roles: VP_ONLY,
+    area: 'facility',
+  },
+  { label: 'Đợt kiểm kê', to: '/facility/inspections/new', group: 'Cơ sở vật chất', icon: ClipboardList, roles: VP_ONLY, area: 'facility' },
   { label: 'Năm học mới', to: '/school/years/new', group: 'Cấu hình trường', icon: CalendarDays, roles: [R.PRINCIPAL] },
   { label: 'Điểm trường', to: '/school/campuses/new', group: 'Cấu hình trường', icon: Building2, roles: [R.PRINCIPAL] },
 ];
 
-export const getQuickActionsForRole = (role) => QUICK_ACTIONS.filter((a) => a.roles.includes(role));
+// PHT: mục tạo mới của một mảng chỉ hiện khi Hiệu trưởng giao quyền Thêm ở mảng đó
+export const getQuickActionsForRole = (role, user) =>
+  QUICK_ACTIONS.filter(
+    (a) => a.roles.includes(role) && (!a.area || role !== R.VICE_PRINCIPAL || !!areaAccess(user, a.area).actions?.create),
+  );

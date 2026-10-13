@@ -4,7 +4,7 @@
  * Rules: Academic Year / Age Group / Class / Campus entities (SRS 3.2), UC 2.1–2.7, screens 4.1.2–4.1.5, GBR-CFG-02, MSG19/MSG20.
  */
 import { formatDate, isIsoDate, normalizeText } from '@/utils/format';
-import { MEAL_SESSION_OPTIONS } from '@/models/school-config/schoolConfigConstants';
+import { MEAL_SESSION_OPTIONS, TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
 
 const same = (a, b) => normalizeText((a || '').trim()) === normalizeText((b || '').trim());
 const YEAR_NAME = /^(\d{4})-(\d{4})$/;
@@ -135,8 +135,10 @@ export const validateVpAssignment = (form) => {
   return e;
 };
 
+/** Mỗi lớp đúng 2 giáo viên, chủ nhiệm do người phân công tự chọn trong 2 người đó. */
 export const validateClassTeachers = (form) => {
   const e = {};
+  if ((form.teacherIds?.length || 0) !== TEACHERS_PER_CLASS) e.teacherIds = `Chọn đủ ${TEACHERS_PER_CLASS} giáo viên cho lớp`;
   if (form.teacherIds?.length && !form.homeroomTeacherId) e.homeroomTeacherId = 'Chọn giáo viên chủ nhiệm';
   if (form.homeroomTeacherId && !form.teacherIds?.includes(form.homeroomTeacherId))
     e.homeroomTeacherId = 'Giáo viên chủ nhiệm phải nằm trong danh sách giáo viên của lớp';
@@ -191,5 +193,21 @@ export const validateStaffAccount = (form, others = []) => {
   if (form.phone && !PHONE.test(form.phone.trim())) e.phone = 'Số điện thoại chỉ gồm chữ số, dài 8–20 ký tự';
   if (!STAFF_ROLE_OPTIONS.includes(form.role)) e.role = 'Chọn vai trò';
   if (form.role !== 'VICE_PRINCIPAL' && !form.campusId) e.campusId = 'Chọn điểm trường';
+  return e;
+};
+
+/** Hồ sơ nhân sự (PHT được sửa): họ tên, email, SĐT, ngày sinh, trình độ, ghi chú. */
+export const validateStaffProfile = (form, others = []) => {
+  const e = {};
+  if (!form.fullName?.trim()) e.fullName = 'Nhập họ tên';
+  else if (form.fullName.trim().length > 100) e.fullName = 'Họ tên tối đa 100 ký tự';
+  const email = (form.email || '').trim().toLowerCase();
+  if (!email) e.email = 'Nhập email';
+  else if (!EMAIL.test(email)) e.email = 'Email không hợp lệ';
+  else if (others.some((u) => (u.email || '').toLowerCase() === email)) e.email = 'Email đã được dùng cho tài khoản khác';
+  if (form.phone && !PHONE.test(form.phone.trim())) e.phone = 'Số điện thoại chỉ gồm chữ số, dài 8–20 ký tự';
+  if (form.dateOfBirth && !isIsoDate(form.dateOfBirth)) e.dateOfBirth = 'Ngày sinh không hợp lệ, nhập dạng dd/mm/yyyy';
+  if ((form.qualification || '').length > 200) e.qualification = 'Trình độ tối đa 200 ký tự';
+  if ((form.note || '').length > 500) e.note = 'Ghi chú tối đa 500 ký tự';
   return e;
 };

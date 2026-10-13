@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, DoorOpen, Info, Search, PauseCircle, RotateCcw, ArrowLeftRight, ChevronDown } from '@/components/ui/icons';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Pencil, Trash2, DoorOpen, Info, Search, PauseCircle, RotateCcw, ChevronDown } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -15,8 +15,7 @@ import { RoomFormModal } from '@/components/school-config/RoomFormModal';
 import { RoomBlockedModal } from '@/components/school-config/RoomBlockedModal';
 import { deleteRoom, setRoomStatus } from '@/services/masterDataService';
 import { LOCATION_TYPE_LABELS, LOCATION_TYPES, ROOM_STATUS, ROOM_STATUS_LABELS } from '@/models/Location';
-import { canManageRooms, canViewRooms, isPrincipal } from '@/utils/school-config/schoolConfigPermissions';
-import { canCreateTransfer } from '@/utils/facility-transfer/transferPermissions';
+import { canManageRooms, canViewRooms, roomCampusIds } from '@/utils/school-config/schoolConfigPermissions';
 import { roomCrumbs } from '@/utils/school-config/breadcrumbs';
 import { normalizeText } from '@/utils/format';
 import '@/styles/modules/school-config.css';
@@ -36,10 +35,13 @@ export default function RoomListPage() {
   const [modal, setModal] = useState(null); // { room }
   const [pending, setPending] = useState(null); // { kind: 'delete' | 'deactivate' | 'activate', room }
   const [blocked, setBlocked] = useState(null); // { room, actionLabel }
-  const manage = canManageRooms(user);
-  // Phó HT không sửa phòng nhưng là người lập phiếu luân chuyển để chuyển tài sản ra
-  const mover = !manage && canCreateTransfer(user);
-  const principal = isPrincipal(user);
+  // Điểm trường xem / sửa được theo quyền "Quản lý phòng ban" (Hiệu trưởng: tất cả)
+  const viewIds = roomCampusIds(user, md.campuses);
+  const editIds = roomCampusIds(user, md.campuses, true);
+  const manage = editIds.length > 0;
+  // Thêm phòng cần quyền Thêm; sửa phòng cần quyền Sửa (theo điểm trường)
+  const createIds = roomCampusIds(user, md.campuses, 'create');
+  const multiCampus = viewIds.length > 1;
 
   const shown = useMemo(() => {
     const kw = normalizeText(filters.keyword.trim());
@@ -79,8 +81,7 @@ export default function RoomListPage() {
           <b>
             {r.room} · {r.name}
           </b>
-          ? Phòng biến mất khỏi danh sách và mọi ô chọn phòng; phiếu, kiểm kê, lớp năm cũ vẫn hiện tên phòng. Không hoàn tác được trên giao
-          diện.
+          ? Phòng biến mất khỏi danh sách và mọi ô chọn phòng; lớp năm cũ vẫn hiện tên phòng. Không hoàn tác được trên giao diện.
         </>
       ),
     },
@@ -95,7 +96,7 @@ export default function RoomListPage() {
           <b>
             {r.room} · {r.name}
           </b>
-          ? Phòng không còn hiện trong danh sách chọn phòng (lớp, luân chuyển, kiểm kê) nhưng vẫn giữ trong lịch sử.
+          ? Phòng không còn hiện trong danh sách chọn phòng của lớp nhưng vẫn giữ trong lịch sử.
         </>
       ),
     },
@@ -129,12 +130,14 @@ export default function RoomListPage() {
     }
   };
 
-  // Còn tài sản / lớp năm đang chạy / kiểm kê / luân chuyển dở: chưa ngừng hay xóa được, hiện lý do và cách chuyển tài sản ra
+  // Còn lớp của năm học chưa kết thúc dùng phòng: chưa ngừng hay xóa được, hiện lý do
   const ask = (kind, label) => (r) => (r.blockers.length ? setBlocked({ room: r, actionLabel: label }) : setPending({ kind, room: r }));
   const askDelete = ask('delete', 'Xóa');
   const askDeactivate = ask('deactivate', 'Ngừng sử dụng');
 
-  const campuses = principal ? md.campuses : md.campuses.filter((c) => c.id === user?.campusId);
+  const campuses = md.campuses.filter((c) => viewIds.includes(c.id));
+  const formIds = modal?.room ? roomCampusIds(user, md.campuses, 'update') : createIds;
+  const editCampuses = md.campuses.filter((c) => formIds.includes(c.id));
   const campusShort = (r) => md.campusById(r.campusId)?.shortName || '';
   const renderRow = (r) => (
     <tr key={r.id} className={r.status === ROOM_STATUS.INACTIVE ? 'muted' : undefined}>
@@ -147,64 +150,47 @@ export default function RoomListPage() {
         {md.userById(r.managerUserId)?.fullName || <span className="muted">—</span>}
         {r.managerFromClass && r.managerUserId && <div className="text-xs muted">Chủ nhiệm lớp</div>}
       </td>
-      <td className="center">
-        {r.assetCount ? (
-          <Link className="link-btn" to={`/facility/assets?location=${r.id}`} title="Xem tài sản của phòng">
-            {r.assetCount}
-          </Link>
-        ) : (
-          <span className="muted">0</span>
-        )}
-      </td>
       <td>
         <RoomStatusBadge status={r.status} />
       </td>
-      {mover && (
-        <td className="right nowrap">
-          {r.assetCount > 0 && r.type !== LOCATION_TYPES.STORAGE && (
-            <Link
-              className="icon-btn"
-              title="Chuyển tài sản ra (lập phiếu luân chuyển)"
-              aria-label={`Chuyển tài sản ra khỏi phòng ${r.room} ${campusShort(r)}`}
-              to={`/facility/transfers/new?from=${r.id}`}
-            >
-              <ArrowLeftRight size={17} />
-            </Link>
-          )}
-        </td>
-      )}
       {manage && (
         <td className="right nowrap">
-          <button
-            className="icon-btn"
-            title="Sửa"
-            aria-label={`Sửa phòng ${r.room} ${campusShort(r)}`}
-            onClick={() => setModal({ room: r })}
-          >
-            <Pencil size={17} />
-          </button>
-          {r.status === ROOM_STATUS.ACTIVE ? (
+          {canManageRooms(user, r.campusId, 'update') && (
             <button
               className="icon-btn"
-              title={r.blockers.length ? `Chưa ngừng được: ${r.blockers.join('; ')}` : 'Ngừng sử dụng'}
-              aria-label={`Ngừng sử dụng phòng ${r.room} ${campusShort(r)}`}
-              onClick={() => askDeactivate(r)}
+              title="Sửa"
+              aria-label={`Sửa phòng ${r.room} ${campusShort(r)}`}
+              onClick={() => setModal({ room: r })}
             >
-              <PauseCircle size={17} />
-            </button>
-          ) : (
-            <button
-              className="icon-btn"
-              title="Dùng lại"
-              aria-label={`Dùng lại phòng ${r.room} ${campusShort(r)}`}
-              onClick={() => setPending({ kind: 'activate', room: r })}
-            >
-              <RotateCcw size={17} />
+              <Pencil size={17} />
             </button>
           )}
-          <button className="icon-btn" title="Xóa" aria-label={`Xóa phòng ${r.room} ${campusShort(r)}`} onClick={() => askDelete(r)}>
-            <Trash2 size={17} />
-          </button>
+          {canManageRooms(user, r.campusId, 'delete') && (
+            <>
+              {r.status === ROOM_STATUS.ACTIVE ? (
+                <button
+                  className="icon-btn"
+                  title={r.blockers.length ? `Chưa ngừng được: ${r.blockers.join('; ')}` : 'Ngừng sử dụng'}
+                  aria-label={`Ngừng sử dụng phòng ${r.room} ${campusShort(r)}`}
+                  onClick={() => askDeactivate(r)}
+                >
+                  <PauseCircle size={17} />
+                </button>
+              ) : (
+                <button
+                  className="icon-btn"
+                  title="Dùng lại"
+                  aria-label={`Dùng lại phòng ${r.room} ${campusShort(r)}`}
+                  onClick={() => setPending({ kind: 'activate', room: r })}
+                >
+                  <RotateCcw size={17} />
+                </button>
+              )}
+              <button className="icon-btn" title="Xóa" aria-label={`Xóa phòng ${r.room} ${campusShort(r)}`} onClick={() => askDelete(r)}>
+                <Trash2 size={17} />
+              </button>
+            </>
+          )}
         </td>
       )}
     </tr>
@@ -234,7 +220,7 @@ export default function RoomListPage() {
       <Breadcrumb items={roomCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Phòng ban</h1>
-        {manage && (
+        {createIds.length > 0 && (
           <button className="btn btn--primary btn--lg" onClick={() => setModal({ room: null })}>
             <Plus size={18} /> Thêm phòng
           </button>
@@ -245,8 +231,8 @@ export default function RoomListPage() {
         <Info size={18} />
         <div>
           {manage
-            ? 'Phòng còn tài sản, đang là phòng của lớp năm học chưa kết thúc, đang kiểm kê hoặc có phiếu luân chuyển chưa xong thì chưa ngừng sử dụng hay xóa được. Tài sản được chuyển ra bằng phiếu luân chuyển của Phó hiệu trưởng.'
-            : 'Bạn đang xem phòng của điểm trường được phân công. Chỉ Hiệu trưởng được thêm, sửa, xóa phòng.'}
+            ? 'Phòng đang là phòng của lớp năm học chưa kết thúc thì chưa ngừng sử dụng hay xóa được: đổi phòng cho lớp trước.'
+            : 'Bạn đang xem phòng của điểm trường được phân công (chỉ xem). Hiệu trưởng giao quyền sửa ở màn Phân công Phó hiệu trưởng.'}
         </div>
       </div>
 
@@ -262,7 +248,7 @@ export default function RoomListPage() {
               onChange={(e) => setFilter({ keyword: e.target.value })}
             />
           </label>
-          {principal && (
+          {multiCampus && (
             <select
               className="select sc-inline-select"
               aria-label="Điểm trường"
@@ -352,9 +338,8 @@ export default function RoomListPage() {
                             <th className="center">Sức chứa</th>
                             <th>Lớp ({schoolYear})</th>
                             <th>Người phụ trách</th>
-                            <th className="center">Tài sản</th>
                             <th>Trạng thái</th>
-                            {(manage || mover) && <th className="right">Thao tác</th>}
+                            {manage && <th className="right">Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>{list.map(renderRow)}</tbody>
@@ -372,8 +357,8 @@ export default function RoomListPage() {
         open={!!modal}
         onClose={closeModal}
         room={modal?.room}
-        defaultCampusId={filters.campusId || (principal ? '' : user?.campusId)}
-        campuses={campuses}
+        defaultCampusId={filters.campusId || (editCampuses.length === 1 ? editCampuses[0].id : '')}
+        campuses={editCampuses}
         users={md.users}
         existing={rooms}
       />

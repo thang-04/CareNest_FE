@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { HeartPulse, Save, ArrowRight, Clock, CheckCircle2 } from '@/components/ui/icons';
+import { HeartPulse, Save, ArrowRight, Clock, CheckCircle2, Phone, ChevronDown, ChevronUp } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
-import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, LoadingState, SubmitOverlay } from '@/components/ui/States';
 import { useAsync } from '@/hooks/useAsync';
 import { getDailyHealth, notifyDailyHealth } from '@/services/dailyHealthService';
@@ -32,7 +31,9 @@ export function DailyHealthPanel({
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
+  // Ô SĐT bố mẹ thu gọn mặc định; đổi trẻ thì thu lại
   const [contactOpen, setContactOpen] = useState(false);
+  useEffect(() => setContactOpen(false), [child.id]);
   const [saveError, setSaveError] = useState('');
   const submitRef = useRef(false);
   const requestId = useRef(crypto.randomUUID());
@@ -70,7 +71,7 @@ export function DailyHealthPanel({
       onDirty(false);
       toast.success(
         form.observation === 'NOTED'
-          ? 'Đã lưu sức khỏe và tạo thông báo phụ huynh (demo, chưa gửi App thật).'
+          ? 'Đã lưu sức khỏe và gửi thông báo phụ huynh (demo, chưa gửi App thật).'
           : attendanceDirty
             ? 'Đã lưu điểm danh và sức khỏe của trẻ.'
             : 'Đã thêm lần ghi nhận sức khỏe.',
@@ -259,11 +260,30 @@ export function DailyHealthPanel({
                     onChange={(event) => set('note', event.target.value)}
                   />
                 </FormField>
+                {/* Chỉ xem SĐT bố mẹ từ hồ sơ nhập học; nút Gọi chỉ có trên App */}
                 {form.observation === 'NOTED' && (
                   <div>
-                    <button className="btn" type="button" onClick={() => setContactOpen(true)}>
-                      Liên hệ phụ huynh
+                    {/* Một nút: bấm mở, bấm lần nữa thu lại */}
+                    <button
+                      className="btn btn--sm"
+                      type="button"
+                      aria-expanded={contactOpen}
+                      onClick={() => setContactOpen((open) => !open)}
+                    >
+                      <Phone size={16} /> Liên hệ phụ huynh {contactOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
+                    {contactOpen && (
+                      <div className="dd-health__contact mt-8" role="group" aria-label="Số điện thoại phụ huynh">
+                        {(data?.contacts || []).map((contact, index) => (
+                          <div className="dd-health__contact-person" key={`${contact.relation}:${index}`}>
+                            <span>
+                              {contact.relation} · {contact.fullName || 'Chưa có thông tin'}
+                            </span>
+                            <span className="dd-health__phone">{contact.phone || 'Chưa có số'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="dd-health__actions">
@@ -275,7 +295,7 @@ export function DailyHealthPanel({
                   </button>
                 </div>
                 {form.observation === 'NOTED' && (
-                  <span className="muted text-xs">Khi lưu sẽ tạo thông báo phụ huynh (demo, chưa gửi App thật).</span>
+                  <span className="muted text-xs">Khi lưu sẽ gửi thông báo cho phụ huynh (demo, chưa gửi App thật).</span>
                 )}
               </fieldset>
             </form>
@@ -304,7 +324,9 @@ export function DailyHealthPanel({
                     {entry.observation === 'NOTED' && (
                       <div className="dd-health__actions">
                         <span className={`chip ${entry.notificationStatus === 'DEMO_QUEUED' ? 'chip--blue' : 'chip--orange'}`}>
-                          {entry.notificationStatus === 'DEMO_QUEUED' ? 'Đã tạo thông báo (demo)' : 'Chưa tạo thông báo phụ huynh'}
+                          {entry.notificationStatus === 'DEMO_QUEUED'
+                            ? `Đã gửi thông báo phụ huynh${entry.parentNotifications?.[0] ? ` · ${formatDateTime(entry.parentNotifications[0].createdAt)}` : ''}`
+                            : 'Chưa gửi được thông báo phụ huynh'}
                         </span>
                         {entry.notificationStatus !== 'DEMO_QUEUED' && (
                           <button className="btn btn--sm" type="button" disabled={busy || parentBusy} onClick={() => resend(entry)}>
@@ -321,40 +343,6 @@ export function DailyHealthPanel({
           </section>
         </>
       )}
-      <Modal
-        open={contactOpen}
-        title="Liên hệ phụ huynh"
-        size="sm"
-        onClose={() => setContactOpen(false)}
-        footer={
-          <button className="btn" type="button" onClick={() => setContactOpen(false)}>
-            Đóng
-          </button>
-        }
-      >
-        <p className="muted text-sm">Phụ huynh của {child.fullName}</p>
-        {!data?.contacts?.length ? (
-          <p>Chưa có thông tin liên hệ phụ huynh trong hồ sơ trẻ.</p>
-        ) : (
-          <div className="dd-health__contact">
-            {data.contacts.map((contact, index) => (
-              <div className="dd-health__contact-person" key={`${contact.email || contact.phone}:${index}`}>
-                <div>
-                  <strong>{contact.fullName}</strong>
-                  <div className="muted text-sm">
-                    {contact.relation} · {contact.phone || 'Chưa có số điện thoại'}
-                  </div>
-                </div>
-                {contact.phone && (
-                  <a className="btn btn--sm" href={`tel:${contact.phone.replace(/[^+\d]/g, '')}`}>
-                    Gọi
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </Modal>
     </section>
   );
 }

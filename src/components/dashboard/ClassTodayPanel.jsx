@@ -43,7 +43,10 @@ export function ClassTodayPanel() {
   const { user } = useAuth();
   const date = todayInput();
   const showHandover = user.role !== 'TEACHER';
-  const classesQ = useWidget((u) => getClasses({}, u).then((list) => list.filter((c) => (c.teacherIds || []).includes(u.id))));
+  // Chỉ lớp của năm học đang hoạt động (năm cũ đã kết thúc vẫn còn teacherIds)
+  const classesQ = useWidget((u) =>
+    getClasses({ activeYear: true }, u).then((list) => list.filter((c) => (c.teacherIds || []).includes(u.id))),
+  );
   const classes = classesQ.data || [];
   const [picked, setPicked] = useState('');
   const classId = picked || classes[0]?.id || '';

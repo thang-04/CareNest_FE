@@ -54,10 +54,10 @@ const WeekPlanPage = lazy(() => import('@/pages/education-plan/WeekPlanPage'));
 const PlanReviewQueuePage = lazy(() => import('@/pages/education-plan/PlanReviewQueuePage'));
 
 const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'));
-const MealSessionPage = lazy(() => import('@/pages/attendance/MealSessionPage'));
 const AttendanceSummaryPage = lazy(() => import('@/pages/attendance/AttendanceSummaryPage'));
 const MealCountPage = lazy(() => import('@/pages/attendance/MealCountPage'));
 const MealHandoverPage = lazy(() => import('@/pages/attendance/MealHandoverPage'));
+const DailyHealthOverviewPage = lazy(() => import('@/pages/attendance/DailyHealthOverviewPage'));
 const PickupListPage = lazy(() => import('@/pages/pickup/PickupListPage'));
 const PickupVerifyPage = lazy(() => import('@/pages/pickup/PickupVerifyPage'));
 const PickupResultPage = lazy(() => import('@/pages/pickup/PickupResultPage'));
@@ -75,6 +75,7 @@ const VicePrincipalAssignmentPage = lazy(() => import('@/pages/school-config/Vic
 const RolePermissionListPage = lazy(() => import('@/pages/school-config/RolePermissionListPage'));
 const RolePermissionFormPage = lazy(() => import('@/pages/school-config/RolePermissionFormPage'));
 const TeacherAssignmentPage = lazy(() => import('@/pages/school-config/TeacherAssignmentPage'));
+const YearPlacementPage = lazy(() => import('@/pages/school-config/YearPlacementPage'));
 
 const ChildrenListPage = lazy(() => import('@/pages/children/ChildrenListPage'));
 const EnrollChildPage = lazy(() => import('@/pages/children/EnrollChildPage'));
@@ -269,7 +270,8 @@ export function AppRoutes() {
             <Route path="years/:id/edit" element={only([R.PRINCIPAL], <SchoolYearFormPage />)} />
             <Route path="classes" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AgeGroupsClassesPage />)} />
             <Route path="rooms" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <RoomListPage />)} />
-            <Route path="staff" element={only([R.PRINCIPAL], <StaffAccountsPage />)} />
+            <Route path="staff" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <StaffAccountsPage />)} />
+            <Route path="placement" element={only([R.PRINCIPAL], <YearPlacementPage />)} />
             <Route path="cutoff" element={only([R.PRINCIPAL], <CutoffSettingPage />)} />
             <Route path="campuses" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <CampusListPage />)} />
             <Route path="campuses/new" element={only([R.PRINCIPAL], <CampusFormPage />)} />
@@ -385,10 +387,10 @@ export function AppRoutes() {
           </Route>
           <Route path="attendance">
             <Route index element={only(CLASS_STAFF, <AttendancePage />)} />
-            <Route path="meals" element={only(CLASS_STAFF, <MealSessionPage />)} />
             <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
             <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MealCountPage />)} />
             <Route path="meal-handover" element={only([...CLASS_STAFF, R.KITCHEN_STAFF], <MealHandoverPage />)} />
+            <Route path="health" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <DailyHealthOverviewPage />)} />
           </Route>
           <Route path="pickup">
             <Route index element={only(CLASS_STAFF, <PickupListPage />)} />

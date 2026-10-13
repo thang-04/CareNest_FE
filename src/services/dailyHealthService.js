@@ -1,15 +1,12 @@
 import { USE_MOCK } from '@/config/env';
 import { dailyHealthMockRepository } from '@/mocks/dailyHealthMockRepository';
+import { dailyHealthApi } from '@/services/daily-health/api/dailyHealthApi';
 
-const repository = () => {
-  if (!USE_MOCK) {
-    const error = new Error('Ghi nhận sức khỏe trong ngày chưa được kết nối backend.');
-    error.status = 503;
-    throw error;
-  }
-  return dailyHealthMockRepository;
-};
+/** Facade: UI only calls these functions. `user` is used by the mock; the API reads it from the token. */
+const repo = USE_MOCK ? dailyHealthMockRepository : dailyHealthApi;
 
-export const getDailyHealth = async (query, user) => repository().getDailyHealth(query, user);
-export const addDailyHealth = async (payload, user) => repository().addDailyHealth(payload, user);
-export const notifyDailyHealth = async (entryId, user) => repository().notifyDailyHealth(entryId, user);
+export const getDailyHealth = async (query, user) => repo.getDailyHealth(query, user);
+export const addDailyHealth = async (payload, user) => repo.addDailyHealth(payload, user);
+export const notifyDailyHealth = async (entryId, user) => repo.notifyDailyHealth(entryId, user);
+export const getDailyHealthOverview = async (query, user) => repo.getDailyHealthOverview(query, user);
+export const getChildDailyHealthHistory = async (query, user) => repo.getChildDailyHealthHistory(query, user);

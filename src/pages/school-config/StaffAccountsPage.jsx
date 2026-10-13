@@ -9,9 +9,9 @@ import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { StaffStatusBadge } from '@/components/school-config/SchoolConfigBadges';
-import { StaffFormModal, StaffStatusModal } from '@/components/school-config/StaffAccountModals';
+import { StaffFormModal, StaffProfileModal, StaffStatusModal } from '@/components/school-config/StaffAccountModals';
 import { ROLES, ROLE_LABELS } from '@/models/User';
-import { canManageStaff } from '@/utils/school-config/schoolConfigPermissions';
+import { areaAllows, canEditStaffProfile, canManageStaff, canViewStaff } from '@/utils/school-config/schoolConfigPermissions';
 import { staffCrumbs } from '@/utils/school-config/breadcrumbs';
 import { normalizeText } from '@/utils/format';
 import '@/styles/modules/school-config.css';
@@ -30,6 +30,7 @@ export default function StaffAccountsPage() {
   const [filters, setFilters] = useState({ keyword: '', role: '', campusId: '', status: '' });
   const [editing, setEditing] = useState(null); // { account | null }
   const [statusOf, setStatusOf] = useState(null);
+  const [profileOf, setProfileOf] = useState(null);
 
   const shown = useMemo(() => {
     const kw = normalizeText(filters.keyword.trim());
@@ -40,7 +41,13 @@ export default function StaffAccountsPage() {
       .filter((u) => !filters.status || (u.status || 'ACTIVE') === filters.status);
   }, [accounts, filters]);
 
-  if (!canManageStaff(user))
+  // PHT theo quyền "Hồ sơ nhân sự": xem nhân sự trong phạm vi, có "Được sửa" thì sửa hồ sơ; tạo / khóa / đổi vai trò chỉ Hiệu trưởng
+  const manage = canManageStaff(user);
+  const scopeCampuses = manage ? md.campuses : md.campuses.filter((c) => areaAllows(user, 'staff', c.id));
+  const vpEdits = !manage && accounts.some((u) => canEditStaffProfile(u, user));
+  const cols = manage || vpEdits ? 7 : 6;
+  const title = manage ? 'Tài khoản nhân sự' : 'Nhân sự điểm trường';
+  if (!canViewStaff(user))
     return (
       <div className="page">
         <Breadcrumb items={staffCrumbs()} />
@@ -69,17 +76,20 @@ export default function StaffAccountsPage() {
     <div className="page">
       <Breadcrumb items={staffCrumbs()} />
       <div className="page__head">
-        <h1 className="page__title">Tài khoản nhân sự</h1>
-        <button className="btn btn--primary btn--lg" onClick={() => setEditing({ account: null })}>
-          <Plus size={18} /> Thêm tài khoản
-        </button>
+        <h1 className="page__title">{title}</h1>
+        {manage && (
+          <button className="btn btn--primary btn--lg" onClick={() => setEditing({ account: null })}>
+            <Plus size={18} /> Thêm tài khoản
+          </button>
+        )}
       </div>
 
       <div className="alert alert--info mb-16">
         <Info size={18} />
         <div>
-          Đổi vai trò (ví dụ Phó hiệu trưởng ↔ Giáo viên) hoặc đổi điểm trường sẽ kết thúc ngay các phân công cũ của năm học đang chạy
-          (lịch sử vẫn giữ) và có hiệu lực từ lần đăng nhập tiếp theo. Tài khoản chỉ vô hiệu hóa, không xóa.
+          {manage
+            ? 'Đổi vai trò (ví dụ Phó hiệu trưởng ↔ Giáo viên) hoặc đổi điểm trường sẽ kết thúc ngay các phân công cũ của năm học đang chạy (lịch sử vẫn giữ) và có hiệu lực từ lần đăng nhập tiếp theo. Tài khoản chỉ vô hiệu hóa, không xóa.'
+            : `Nhân sự của ${scopeCampuses.map((c) => c.shortName || c.name).join(', ') || 'điểm trường được giao'}${vpEdits ? '. Bạn được sửa thông tin hồ sơ giáo viên, tổ trưởng, nhân viên bếp' : ' (chỉ xem)'}. Tạo, khóa tài khoản, đổi vai trò hoặc điểm trường do Hiệu trưởng thực hiện.`}
         </div>
       </div>
 
@@ -108,19 +118,21 @@ export default function StaffAccountsPage() {
               </option>
             ))}
           </select>
-          <select
-            className="select sc-inline-select"
-            aria-label="Điểm trường"
-            value={filters.campusId}
-            onChange={(e) => setFilter({ campusId: e.target.value })}
-          >
-            <option value="">Tất cả điểm trường</option>
-            {md.campuses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.shortName || c.name}
-              </option>
-            ))}
-          </select>
+          {scopeCampuses.length > 1 && (
+            <select
+              className="select sc-inline-select"
+              aria-label="Điểm trường"
+              value={filters.campusId}
+              onChange={(e) => setFilter({ campusId: e.target.value })}
+            >
+              <option value="">Tất cả điểm trường</option>
+              {scopeCampuses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.shortName || c.name}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             className="select sc-inline-select"
             aria-label="Trạng thái"
@@ -146,16 +158,17 @@ export default function StaffAccountsPage() {
                   <th>Vai trò</th>
                   <th>Điểm trường</th>
                   <th>Đang phụ trách</th>
+                  <th>Số điện thoại</th>
                   <th>Trạng thái</th>
-                  <th className="right">Thao tác</th>
+                  {cols === 7 && <th className="right">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <SkeletonRows rows={6} cols={6} />
+                  <SkeletonRows rows={6} cols={cols} />
                 ) : shown.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={cols}>
                       <EmptyState icon={Users} title="Không có tài khoản phù hợp" description="Thử đổi từ khóa hoặc bộ lọc." />
                     </td>
                   </tr>
@@ -181,43 +194,60 @@ export default function StaffAccountsPage() {
                         </td>
                         <td>{md.campusById(u.campusId)?.shortName || <span className="muted">—</span>}</td>
                         <td className="text-sm sc-wrap">{list.length ? list.join(' · ') : <span className="muted">—</span>}</td>
+                        <td className="nowrap">{u.phone || <span className="muted">—</span>}</td>
                         <td>
                           <StaffStatusBadge status={u.status || 'ACTIVE'} />
                         </td>
-                        <td className="right nowrap">
-                          {principal ? (
-                            <span className="text-xs muted">Tài khoản Hiệu trưởng</span>
-                          ) : (
-                            <>
+                        {vpEdits && (
+                          <td className="right nowrap">
+                            {canEditStaffProfile(u, user) && (
                               <button
                                 className="icon-btn"
-                                title="Sửa / đổi vai trò"
-                                aria-label={`Sửa ${u.fullName}`}
-                                onClick={() => setEditing({ account: u })}
+                                title="Sửa hồ sơ"
+                                aria-label={`Sửa hồ sơ ${u.fullName}`}
+                                onClick={() => setProfileOf(u)}
                               >
                                 <Pencil size={17} />
                               </button>
-                              {u.role === ROLES.VICE_PRINCIPAL && (
-                                <Link
+                            )}
+                          </td>
+                        )}
+                        {manage && (
+                          <td className="right nowrap">
+                            {principal ? (
+                              <span className="text-xs muted">Tài khoản Hiệu trưởng</span>
+                            ) : (
+                              <>
+                                <button
                                   className="icon-btn"
-                                  to="/school/vice-principals"
-                                  title="Phân công Phó hiệu trưởng"
-                                  aria-label="Phân công Phó hiệu trưởng"
+                                  title="Sửa / đổi vai trò"
+                                  aria-label={`Sửa ${u.fullName}`}
+                                  onClick={() => setEditing({ account: u })}
                                 >
-                                  <UserCog size={17} />
-                                </Link>
-                              )}
-                              <button
-                                className="icon-btn"
-                                title={active ? 'Vô hiệu hóa' : 'Kích hoạt lại'}
-                                aria-label={`${active ? 'Vô hiệu hóa' : 'Kích hoạt lại'} ${u.fullName}`}
-                                onClick={() => setStatusOf(u)}
-                              >
-                                {active ? <PauseCircle size={17} /> : <RotateCcw size={17} />}
-                              </button>
-                            </>
-                          )}
-                        </td>
+                                  <Pencil size={17} />
+                                </button>
+                                {u.role === ROLES.VICE_PRINCIPAL && (
+                                  <Link
+                                    className="icon-btn"
+                                    to="/school/vice-principals"
+                                    title="Phân công Phó hiệu trưởng"
+                                    aria-label="Phân công Phó hiệu trưởng"
+                                  >
+                                    <UserCog size={17} />
+                                  </Link>
+                                )}
+                                <button
+                                  className="icon-btn"
+                                  title={active ? 'Vô hiệu hóa' : 'Kích hoạt lại'}
+                                  aria-label={`${active ? 'Vô hiệu hóa' : 'Kích hoạt lại'} ${u.fullName}`}
+                                  onClick={() => setStatusOf(u)}
+                                >
+                                  {active ? <PauseCircle size={17} /> : <RotateCcw size={17} />}
+                                </button>
+                              </>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })
@@ -230,6 +260,7 @@ export default function StaffAccountsPage() {
 
       {editing && <StaffFormModal account={editing.account} campuses={md.campuses} existing={accounts} onClose={close(setEditing)} />}
       {statusOf && <StaffStatusModal account={statusOf} onClose={close(setStatusOf)} />}
+      {profileOf && <StaffProfileModal account={profileOf} existing={accounts} onClose={close(setProfileOf)} />}
     </div>
   );
 }

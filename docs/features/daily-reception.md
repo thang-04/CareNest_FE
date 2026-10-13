@@ -30,7 +30,7 @@ Chưa triển khai gửi/hủy đơn trên App hoặc xử lý đơn tới sau s
 
 Các trạng thái vắng cũ được giữ nguyên khi không đổi điểm danh. Chọn Vắng mới sử dụng trạng thái UNEXCUSED của repository hiện tại; giao diện màn tiếp nhận chỉ hiển thị Vắng. Cần BE chốt mã vắng chung trước khi tích hợp thật.
 
-Công tắc ăn bật các bữa theo đăng ký hiện có: trẻ một bữa dùng bữa mặc định; trẻ nhiều bữa dùng các bữa hiện có. Tắt công tắc hủy các bữa trong bản nháp. Không sửa số suất đã xác nhận ở client.
+Bữa ăn theo nhóm tuổi (người dùng chốt 2026-10-13): Hiệu trưởng cấu hình nhóm tuổi ăn những bữa nào (`ageGroup.mealSessions`: MORNING/LUNCH/AFTERNOON). Trẻ Có mặt mặc định ăn đủ các bữa của nhóm tuổi của lớp; trẻ không ăn thì cô tắt công tắc "Tham gia ăn" (hủy mọi bữa trong bản nháp). Bỏ ngoại lệ "ăn 1 bữa/ngày" theo từng trẻ (`childMealPlans`, màn `/attendance/meals`). Sĩ số suất ăn, xác nhận, bàn giao bếp tạo theo từng bữa mà ít nhất một lớp của điểm trường có; bản ghi cũ có bữa ngoài nhóm tuổi bị bỏ qua. BE cần trả `mealSessions` của lớp kèm danh sách điểm danh (PENDING BE). Bếp (`kitchenConstants`) chưa lập chế biến cho bữa phụ sáng nên bàn giao bữa này không chờ trạng thái bếp. Không sửa số suất đã xác nhận ở client.
 
 ## Liên hệ và thông báo phụ huynh — demo 2026-10-12
 
@@ -65,3 +65,9 @@ Liên hệ/thông báo: smoke repository PASS cho recipient/entry linkage, idemp
 Lint, format, build: `VERIFY PASS full` sau chỉnh code cuối. Smoke repository PASS: lưu hai lần sau khóa, chống gửi trùng, chưa Có mặt/ngày quá khứ/format sai/403/404 bị từ chối, ghi nhận sức khỏe không sửa điểm danh, tổng đếm nhất quán.
 
 Browser mock: lưu Có mặt mở form sức khỏe, lưu hai lần giữ lịch sử, đổi trẻ hỏi bỏ thay đổi và Quay lại giữ dữ liệu; 1366px hai cột, 390px một cột không tràn trang. Backend thật/APP native và luồng chuyển trẻ kế tiếp chưa được kiểm browser. Chi tiết tại `docs/plans/active/2026-10-12-daily-reception.md`.
+
+## Tổng hợp sức khỏe đầu ngày cho HT/PHT — PROPOSED 2026-10-13
+
+Màn `/attendance/health` (chỉ xem): Hiệu trưởng toàn trường hoặc chọn điểm trường, Phó hiệu trưởng chỉ điểm trường của mình (mock trả 403 nếu xin campus khác), giáo viên không vào. Có số có mặt / đã kiểm tra / có dấu hiệu / đã báo phụ huynh, bảng theo lớp, danh sách "Trẻ cần chú ý" (lần ghi nhận mới nhất là NOTED) và lịch sử trong ngày của từng trẻ. Thân nhiệt hiển thị đúng số đã nhập, không tô màu hay gắn nhãn theo ngưỡng (chưa chốt ngưỡng). Chỉ tính lớp của năm học đang hoạt động. PENDING BE: `GET /daily-health/overview`, `GET /daily-health/history` (xem `src/services/daily-health/api/dailyHealthApi.js`).
+
+**Liên hệ phụ huynh (người dùng chốt 2026-10-13):** web chỉ hiện tên + SĐT bố/mẹ lấy từ hồ sơ nhập học ("Chưa có số" nếu thiếu); không có nút Gọi (chỉ trên App), không ghi kết quả gọi. Lưu lần ghi nhận "Có dấu hiệu cần lưu ý" luôn gửi thông báo tới tài khoản phụ huynh; HT/PHT thấy trạng thái "Đã gửi thông báo phụ huynh" + giờ, bấm cả dòng trẻ để xem chi tiết kèm SĐT bố mẹ.

@@ -30,7 +30,7 @@ function buildIndex(role, user) {
     if (entry.to) pages.push({ label: entry.label, to: entry.to, group: 'Trang chính', icon: entry.icon });
     (entry.children || []).forEach((c) => pages.push({ label: c.label, to: c.to, group: entry.label, icon: entry.icon }));
   });
-  const actions = getQuickActionsForRole(role).map((a) => ({ ...a, action: true }));
+  const actions = getQuickActionsForRole(role, user).map((a) => ({ ...a, action: true }));
   return { pages, actions };
 }
 

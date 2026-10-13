@@ -3,6 +3,7 @@ const ROOT = [{ label: 'Trang chủ', to: '/' }, { label: 'Cấu hình trường
 const crumbs = (label, to) => (last) => [...ROOT, { label, to }, ...(last ? [{ label: last }] : [])];
 
 export const yearCrumbs = crumbs('Năm học', '/school/years');
+export const placementCrumbs = crumbs('Xếp lớp năm học mới', '/school/placement');
 export const classCrumbs = crumbs('Nhóm tuổi & lớp', '/school/classes');
 export const roomCrumbs = crumbs('Phòng ban', '/school/rooms');
 export const staffCrumbs = crumbs('Tài khoản nhân sự', '/school/staff');

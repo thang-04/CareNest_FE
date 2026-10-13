@@ -32,6 +32,9 @@ export function RoleGuard({ roles = [], allow, children, description = DEFAULT_D
 const AREA_PREFIXES = [
   ['/menu', 'menu'],
   ['/facility', 'facility'],
+  ['/children', 'children'],
+  ['/school/rooms', 'rooms'],
+  ['/school/staff', 'staff'],
 ];
 
 export function AreaGate({ path, children }) {
