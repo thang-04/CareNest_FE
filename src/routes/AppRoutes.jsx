@@ -45,20 +45,13 @@ const InspectionPrintPage = lazy(() => import('@/pages/inventory-inspection/Insp
 
 const EducationPlanLayout = lazy(() => import('@/components/education-plan/EducationPlanLayout'));
 const EducationHomeRedirect = lazy(() => import('@/pages/education-plan/EducationHomeRedirect'));
-const GoalListPage = lazy(() => import('@/pages/education-plan/GoalListPage'));
-const GoalFormPage = lazy(() => import('@/pages/education-plan/GoalFormPage'));
-const GoalDetailPage = lazy(() => import('@/pages/education-plan/GoalDetailPage'));
-const ThemeListPage = lazy(() => import('@/pages/education-plan/ThemeListPage'));
-const ThemeFormPage = lazy(() => import('@/pages/education-plan/ThemeFormPage'));
-const ThemeDetailPage = lazy(() => import('@/pages/education-plan/ThemeDetailPage'));
-const GoalsThemesPage = lazy(() => import('@/pages/education-plan/GoalsThemesPage'));
-const LessonListPage = lazy(() => import('@/pages/education-plan/LessonListPage'));
-const LessonFormPage = lazy(() => import('@/pages/education-plan/LessonFormPage'));
-const LessonDetailPage = lazy(() => import('@/pages/education-plan/LessonDetailPage'));
-const ReviewListPage = lazy(() => import('@/pages/education-plan/ReviewListPage'));
-const PlanReviewPage = lazy(() => import('@/pages/education-plan/PlanReviewPage'));
-const ApprovalListPage = lazy(() => import('@/pages/education-plan/ApprovalListPage'));
-const SchoolPlansPage = lazy(() => import('@/pages/education-plan/SchoolPlansPage'));
+const YearPlanListPage = lazy(() => import('@/pages/education-plan/YearPlanListPage'));
+const YearPlanPage = lazy(() => import('@/pages/education-plan/YearPlanPage'));
+const ClassPlanPage = lazy(() => import('@/pages/education-plan/ClassPlanPage'));
+const ClassPlanRedirect = lazy(() => import('@/pages/education-plan/ClassPlanPage').then((m) => ({ default: m.ClassPlanRedirect })));
+const ClassThemePlanPage = lazy(() => import('@/pages/education-plan/ClassThemePlanPage'));
+const WeekPlanPage = lazy(() => import('@/pages/education-plan/WeekPlanPage'));
+const PlanReviewQueuePage = lazy(() => import('@/pages/education-plan/PlanReviewQueuePage'));
 
 const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'));
 const MealSessionPage = lazy(() => import('@/pages/attendance/MealSessionPage'));
@@ -170,8 +163,6 @@ const only = (roles, page) => (
   </RoleGuard>
 );
 const EDU_VP_TL = [ROLES.VICE_PRINCIPAL, ROLES.TEAM_LEADER];
-const EDU_TL = [ROLES.TEAM_LEADER];
-const EDU_CLASS = [ROLES.TEAM_LEADER, ROLES.TEACHER];
 const EDU_ALL = [ROLES.VICE_PRINCIPAL, ROLES.TEAM_LEADER, ROLES.TEACHER];
 // Hiệu trưởng: xem toàn bộ (SRS 4.4 – Lesson plan View: Full), không sửa/duyệt.
 const EDU_VIEW = [ROLES.PRINCIPAL, ...EDU_ALL];
@@ -263,24 +254,14 @@ export function AppRoutes() {
           </Route>
           <Route path="education" element={<EducationPlanLayout />}>
             <Route index element={edu(EDU_VIEW, <EducationHomeRedirect />)} />
-            <Route path="school" element={edu([ROLES.PRINCIPAL], <SchoolPlansPage />)} />
-            <Route path="goals" element={edu(EDU_VP_TL, <GoalListPage />)} />
-            <Route path="goals/new" element={edu(VP_ONLY, <GoalFormPage />)} />
-            <Route path="goals/:id" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <GoalDetailPage />)} />
-            <Route path="goals/:id/edit" element={edu(VP_ONLY, <GoalFormPage />)} />
-            <Route path="themes" element={edu(EDU_TL, <ThemeListPage />)} />
-            <Route path="themes/new" element={edu(EDU_TL, <ThemeFormPage />)} />
-            <Route path="themes/:id" element={edu(EDU_VIEW, <ThemeDetailPage />)} />
-            <Route path="themes/:id/edit" element={edu(EDU_TL, <ThemeFormPage />)} />
-            <Route path="overview" element={edu(EDU_CLASS, <GoalsThemesPage />)} />
-            <Route path="lessons" element={edu(EDU_CLASS, <LessonListPage />)} />
-            <Route path="lessons/new" element={edu(EDU_CLASS, <LessonFormPage />)} />
-            <Route path="lessons/:id" element={edu(EDU_VIEW, <LessonDetailPage />)} />
-            <Route path="lessons/:id/edit" element={edu(EDU_CLASS, <LessonFormPage />)} />
-            <Route path="reviews" element={edu(EDU_TL, <ReviewListPage />)} />
-            <Route path="reviews/:id" element={edu(EDU_TL, <PlanReviewPage stage="tl" />)} />
-            <Route path="approvals" element={edu(VP_ONLY, <ApprovalListPage />)} />
-            <Route path="approvals/:kind/:id" element={edu(VP_ONLY, <PlanReviewPage stage="vp" />)} />
+            {/* Mẫu Trường MN Thái Dương: kế hoạch năm theo khối, tài liệu của lớp, duyệt theo tuần */}
+            <Route path="year-plans" element={edu(EDU_VIEW, <YearPlanListPage />)} />
+            <Route path="year-plans/:id" element={edu(EDU_VIEW, <YearPlanPage />)} />
+            <Route path="class" element={edu(EDU_VIEW, <ClassPlanRedirect />)} />
+            <Route path="class/:classId" element={edu(EDU_VIEW, <ClassPlanPage />)} />
+            <Route path="class/:classId/themes/:themeId" element={edu(EDU_VIEW, <ClassThemePlanPage />)} />
+            <Route path="class/:classId/weeks/:weekStart" element={edu(EDU_VIEW, <WeekPlanPage />)} />
+            <Route path="plan-reviews" element={edu(EDU_VP_TL, <PlanReviewQueuePage />)} />
           </Route>
           <Route path="school">
             <Route path="years" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <SchoolYearListPage />)} />

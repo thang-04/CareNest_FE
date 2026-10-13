@@ -14,7 +14,8 @@ export const seedClasses = [
     ageGroupId: 'ag-3',
     locationId: 'loc_c1_m1',
     homeroomTeacherId: 'u_an',
-    teacherIds: ['u_an'],
+    // 2 giáo viên, một người là tổ trưởng khối 3–4 tuổi (giáo án đi thẳng Phó HT)
+    teacherIds: ['u_an', 'u_ha'],
   },
   {
     id: 'cls_c1_c1',
@@ -32,7 +33,7 @@ export const seedClasses = [
     ageGroupId: 'ag-4',
     locationId: 'loc_c1_c2',
     homeroomTeacherId: 'u_mai',
-    teacherIds: ['u_mai', 'u_ha'],
+    teacherIds: ['u_mai'],
   },
   {
     id: 'cls_c1_l1',

@@ -13,3 +13,13 @@ export const educationPlanApi = {
   saveLesson: (item) => axiosClient.put(`/education-plans/lessons/${item.id}`, item),
   deleteLesson: (id) => axiosClient.delete(`/education-plans/lessons/${id}`),
 };
+
+/** PROPOSED: kế hoạch năm theo khối và tài liệu của lớp (mẫu Trường MN Thái Dương). kind: year | branch | theme | week. */
+export const classPlanApi = {
+  getAll: () => axiosClient.get('/education/plans'),
+  saveDoc: (kind, doc) => axiosClient.put(`/education/plans/${kind}/${doc.id}`, doc),
+  deleteYearPlan: (id) => axiosClient.delete(`/education/plans/year/${id}`),
+  act: (kind, id, body) => axiosClient.post(`/education/plans/${kind}/${id}/actions`, body),
+  getReviewQueue: () => axiosClient.get('/education/plans/review-queue'),
+  generateDraft: (type, context) => axiosClient.post('/education/ai/drafts', { type, context }),
+};

@@ -208,7 +208,7 @@ export function ClassTodayPanel() {
             },
             {
               key: 'lessons',
-              to: '/education/lessons',
+              to: '/education/class',
               icon: BookOpenCheck,
               title: 'Giáo án của lớp',
               meta: metaOf(lessonsQ, `Nháp hoặc bị từ chối cần hoàn thiện · ${lessonsWaiting} giáo án đang chờ duyệt`),
