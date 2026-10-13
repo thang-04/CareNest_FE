@@ -33,37 +33,39 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 
 React + TypeScript: **PROPOSED** (Next.js cũng chỉ PROPOSED). Chưa có source. Router, state/cache, UI kit, cách lưu token: chưa chốt ⇒ hỏi trước khi chọn. Đọc source thực tế trước khi áp rule framework.
 
-Giao diện: theo `DESIGN.md` (design system chung web + app; luật cứng mục 2, tự kiểm mục 13.1). Code (thư mục, luồng dữ liệu, thêm module): `docs/architecture/CODING_GUIDE.md`. Lệch ⇒ nói rõ trong báo cáo.
-
 ## Quy tắc chung CareNest (bắt buộc)
 
-Khối này là quy tắc chung cho `CareNest_BE`, `CareNest_FE`, `CareNest_APP`; chỉ mục "Hỏi trước khi làm" và "Phạm vi" khác theo repo. Đồng bộ sang repo khác chỉ khi user cho phép rõ. Quy tắc Git/Jira dưới đây được user chốt ngày 2026-10-12 (CONFIRMED), thay thế mẫu branch/Conventional Commits cũ; hiện được cập nhật tại FE, chưa xác nhận đồng bộ BE/APP.
+Khối này giống nhau ở cả ba repo `CareNest_BE`, `CareNest_FE`, `CareNest_APP`; chỉ mục "Hỏi trước khi làm" và "Phạm vi" khác theo repo. Sửa ở một repo thì đồng bộ sang hai repo còn lại.
 
-### Git — commit, push, pull request
+### Git — nhánh và mã công việc
 
-- KHÔNG tự `git commit` / `git push` / tạo-merge-đóng PR / tạo branch khi user chưa cho phép rõ **trong tin nhắn hiện tại** (được phép một lần ≠ lần sau). Yêu cầu tạo rule không phải quyền thực hiện các thao tác Git này.
-- Source code lưu trong GitHub repository private; chỉ contributors được ủy quyền có quyền truy cập. Không tự đổi visibility, quyền truy cập hoặc branch protection.
-- `main`: release đã duyệt; `dev`: tích hợp; `release/*`: kiểm thử release và sửa lỗi release. Cấm push trực tiếp vào `main`. PR công việc vào `dev`; chỉ nhánh `release/*` được merge vào `main`.
-- Mỗi công việc phải có Jira task với **Jira key** (vd. `G94-181`) và **work code** trong summary (vd. `FE-FEAT-44`). Loại hợp lệ: `FE-FEAT` (feature Web/App), `BE-FEAT`, `FE-FIX`, `BE-FIX`. Số tăng theo từng loại, không tái sử dụng. Không tự đoán/cấp số; thiếu key/code ⇒ hỏi user hoặc kiểm tra task qua công cụ được phép trước khi tạo branch/commit/PR.
-- Một working branch cho mỗi Jira task, tạo từ `dev`: `<prefix>/<jira-key>-<work-code>-<flow-name>`. `feature` cho `FE-FEAT`/`BE-FEAT`, `fix` cho `FE-FIX`/`BE-FIX`; flow-name ngắn, chữ thường, phân cách bằng hyphen, do developer chọn. Không dùng dấu ngoặc vuông trong branch name. Ví dụ: `feature/G94-181-FE-FEAT-44-lesson-plan`, `fix/G94-190-BE-FIX-03-meal-count-validation`.
-- Trước khi tạo nhánh, kiểm tra branch hiện tại và worktree; giữ nguyên thay đổi đang có, không âm thầm chuyển chúng sang task khác. Không tạo working branch từ `main` hoặc nhánh hiện tại thay cho `dev`; nếu cần fetch/chuyển trạng thái ngoài quyền được cấp hoặc có thay đổi chồng lấn ⇒ hỏi user.
-- PR title cùng format commit bên dưới; tham chiếu Jira task, mô tả thay đổi và kiểm thử đã chạy. Cần ít nhất một reviewer khác tác giả, mandatory checks đạt và blocking comments được xử lý trước khi merge.
-- Team phải kiểm tra branch protection thực tế và ghi nhận các giới hạn đang được enforce. Không coi tài liệu này là bằng chứng GitHub đã bật protection; chưa kiểm tra thì báo chưa kiểm chứng.
-- KHÔNG lệnh git phá hủy khi chưa hỏi (`reset --hard`, `push --force`, `rebase`, `branch -D`, `clean -fd`, `checkout -- .`, `restore .`, `stash drop`); KHÔNG `--no-verify`/bỏ qua hook.
+- Repo GitHub riêng tư, chỉ thành viên được cấp quyền. Nhánh: `main` = bản phát hành đã duyệt; `dev` = tích hợp; `release/*` = kiểm thử bản phát hành và sửa lỗi; nhánh làm việc (tính năng, sửa lỗi) tạo từ `dev`.
+- **Mã Jira và mã công việc:** mỗi việc là 1 task Jira có mã Jira riêng (vd. `G94-181`). Các task liên quan thuộc cùng 1 luồng phát triển, đánh dấu bằng mã công việc (vd. `FE-FEAT-44`); mã công việc = cả luồng, mã Jira = từng task trong luồng. Loại: `FE-FEAT` (tính năng giao diện web/app), `BE-FEAT` (tính năng back-end), `FE-FIX`, `BE-FIX` (sửa lỗi). `CareNest_BE` dùng `BE-*`; `CareNest_FE`, `CareNest_APP` dùng `FE-*`.
+- **Tên nhánh:** `<tiền-tố>/<mã-jira>-<mã-công-việc>-<tên-luồng>`; tiền tố `feature` cho tính năng mới, `fix` cho sửa lỗi; tên luồng = mô tả ngắn, chữ thường, nối bằng `-`. Vd. `feature/G94-181-FE-FEAT-44-lesson-plan`, `fix/G94-190-BE-FIX-03-meal-count-validation`. Mã Jira trên nhánh = task chính/khởi đầu của luồng; 1 nhánh được chứa commit của nhiều task Jira cùng luồng. Không dùng `[` `]` trong tên nhánh (Git không chấp nhận).
+- KHÔNG tự `git commit` / `git push` / tạo-merge-đóng PR / tạo branch khi user chưa cho phép rõ **trong tin nhắn hiện tại** (được phép một lần ≠ lần sau). Cần commit mà đang ở `main`/`dev`/`release/*` hoặc nhánh sai định dạng ⇒ hỏi user dùng nhánh nào, không tự tạo.
+- Cấm push trực tiếp lên `main`. KHÔNG lệnh git phá hủy khi chưa hỏi (`reset --hard`, `push --force`, `rebase`, `branch -D`, `clean -fd`, `checkout -- .`, `restore .`, `stash drop`); KHÔNG `--no-verify`/bỏ qua hook.
 
 ### Commit message
 
-- Mọi commit phải bắt đầu bằng `[<work-code>] <jira-key>: <short-description>`. Description ngắn, tiếng Anh, nêu thay đổi thực tế. Body tùy chọn mô tả lý do/tác động; không thay header bắt buộc bằng Conventional Commits hoặc chỉ footer `Refs`.
-- Một commit thuộc đúng một Jira task; không gom nhiều task. Thiếu Jira key hoặc work code ⇒ hỏi "Task này có Jira key và work code nào (vd. G94-181 / FE-FEAT-44)?"; không có ngoại lệ commit không key.
-- Không dùng mã task cha `[Module-NN]` trong commit; dùng work code của sub-task `FE-FEAT`/`BE-FEAT`, hoặc `FE-FIX`/`BE-FIX` của task sửa lỗi tương ứng.
+- Dòng đầu: `<mã-jira>: <mô tả ngắn>` — mô tả tiếng Anh, bắt đầu bằng động từ (vd. `Implement`, `Add`, `Fix`), không dấu chấm cuối; cả dòng ≤72 ký tự. KHÔNG ghi mã công việc (`FE-FEAT-44`...) — đã có ở tên nhánh. Body tùy chọn (cách 1 dòng trống) ≤~5 gạch đầu dòng nói lý do/tác động (không liệt kê file, không kể quá trình). 1 commit = 1 thay đổi logic.
+- Mỗi commit ứng với đúng 1 task Jira cụ thể; nhiều task ⇒ tách commit (các task cùng luồng được commit chung 1 nhánh, mỗi commit mang mã Jira của task nó thuộc về).
+- **User bảo commit/tạo PR:** (1) việc thuộc task chính ⇒ dùng mã Jira trên tên nhánh (hook đầu phiên nêu sẵn); (2) việc thuộc task khác cùng luồng, hoặc nhánh không có mã, mà user chưa nêu ⇒ hỏi "Thay đổi này thuộc task Jira nào (vd. `G94-182`)?" rồi dừng chờ trả lời. Không đoán/bịa mã; việc chưa có task ⇒ đề nghị tạo task trước khi commit. Claude hook chặn commit/PR sai định dạng hoặc PR không vào `dev`; git hook chặn message sai định dạng và push thẳng lên `main`.
 - KHÔNG ghi tên model/công cụ AI, `Co-Authored-By` AI, "Generated with ..." trong commit, PR hay comment code (ghi đè attribution mặc định của công cụ).
 
 ```text
-[FE-FEAT-44] G94-181: complete half of the lesson plan UI
-[BE-FIX-03] G94-190: correct meal-count validation
+G94-181: Implement lesson plan UI
+G94-182: Add lesson plan validation
 ```
 
-- Không commit thông tin nhạy cảm (credentials, token, dữ liệu cá nhân/sức khỏe). Repo chỉ chứa ví dụ cấu hình không nhạy cảm; credentials thật quản lý bằng environment configuration được kiểm soát truy cập hoặc secret storage. Kiểm tra staged diff trước commit, không in secret vào log.
+### Pull request
+
+- Tiêu đề PR cùng định dạng commit: `<mã-jira>: <mô tả ngắn>` (mã Jira của task chính). Mô tả PR gồm: link các task Jira liên quan, các thay đổi, phần kiểm thử đã làm (lệnh + kết quả thật; chưa chạy ⇒ ghi rõ).
+- PR của nhánh task gộp vào `dev`. Chỉ nhánh `release/*` được gộp vào `main`. Nhóm kiểm tra cài đặt bảo vệ nhánh và ghi lại giới hạn thực tế nếu có.
+- Điều kiện gộp: ≥1 thành viên khác tác giả duyệt, mọi kiểm tra bắt buộc đạt, mọi góp ý chặn đã xử lý.
+
+### Thông tin nhạy cảm
+
+- KHÔNG commit thông tin nhạy cảm (secret, token, mật khẩu, khóa, thông tin xác thực, dữ liệu thật). Repo chỉ chứa mẫu cấu hình không nhạy cảm (vd. `.env.example`); thông tin xác thực thật quản lý qua cấu hình môi trường có kiểm soát truy cập hoặc dịch vụ lưu trữ bí mật.
 
 ### Comment trong code
 
