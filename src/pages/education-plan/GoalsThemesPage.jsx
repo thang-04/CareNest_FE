@@ -6,6 +6,7 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EmptyState, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { DomainTitle, GoalItemView } from '@/components/education-plan/PlanWidgets';
+import EduProgress from '@/components/education-plan/EduProgress';
 
 const today = new Date().toISOString().slice(0, 10);
 const STATE_CHIP = { 'Đang diễn ra': 'chip--blue', 'Đã kết thúc': 'chip--gray', 'Sắp diễn ra': 'chip--orange' };
@@ -32,6 +33,7 @@ export default function GoalsThemesPage() {
           </Link>
         }
       />
+      <EduProgress />
       <Card bodyClass={null}>
         <div className="tabs" role="tablist">
           <button

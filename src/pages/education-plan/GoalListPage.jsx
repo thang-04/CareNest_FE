@@ -6,6 +6,7 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { Card, EduStatusBadge, EmptyState, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import EduProgress from '@/components/education-plan/EduProgress';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -38,6 +39,7 @@ export default function GoalListPage() {
           )
         }
       />
+      <EduProgress />
 
       {isVP && (
         <div className="stat-grid">

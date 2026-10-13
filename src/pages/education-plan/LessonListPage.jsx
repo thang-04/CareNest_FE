@@ -5,6 +5,8 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead } from '@/components/education-plan/eduUi';
 import { className, periodLabel, typeLabel } from '@/components/education-plan/lessonShared';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import EduProgress from '@/components/education-plan/EduProgress';
+import ClassWeekBoard from '@/components/education-plan/ClassWeekBoard';
 
 const TABS = [
   { key: '', label: 'Tất cả' },
@@ -45,6 +47,12 @@ export default function LessonListPage() {
           </Link>
         }
       />
+      <EduProgress />
+      {user.classId && (
+        <div className="mb-16">
+          <ClassWeekBoard />
+        </div>
+      )}
       <Card bodyClass={null}>
         <div className="tabs" role="tablist">
           {TABS.map((t) => (

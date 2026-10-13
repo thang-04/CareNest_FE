@@ -30,6 +30,7 @@ import { Card, EmptyState, Field, Modal, Notice, PageHead, SignatureBox, Stepper
 import { CodePicker, Group, useCollapse } from '@/components/education-plan/PlanWidgets';
 import { DayTable, LessonInfo, WeekMatrix, daysOf, typeLabel, weekdayLabel, weeksOf } from '@/components/education-plan/lessonShared';
 import ImportLessonModal from '@/components/education-plan/ImportLessonModal';
+import WeekReference from '@/components/education-plan/WeekReference';
 import {
   CORE_SLOT,
   contentFromCodes,
@@ -58,14 +59,18 @@ export default function LessonFormPage() {
 
   const [form, setForm] = useState(() => {
     if (existing) return { ...existing, signature: null };
-    const themeId = approvedThemes.find((t) => t.id === params.get('chu-de'))?.id || approvedThemes.at(-1)?.id || '';
+    // ?tuan=yyyy-mm-dd (thứ 2 của tuần) điền sẵn chủ đề và tuần, dùng cho lối tắt từ lịch tuần của lớp.
+    const wantWeek = params.get('tuan');
+    const weekTheme = wantWeek && approvedThemes.find((t) => weeksOf(t).some((x) => x.start === wantWeek));
+    const w = weekTheme ? weeksOf(weekTheme).find((x) => x.start === wantWeek) : null;
+    const themeId = weekTheme?.id || approvedThemes.find((t) => t.id === params.get('chu-de'))?.id || approvedThemes.at(-1)?.id || '';
     return {
       type: params.get('loai') === 'ngay' ? 'day' : 'week',
       themeId,
-      weekIndex: '',
-      weekStart: '',
-      weekEnd: '',
-      branch: '',
+      weekIndex: w?.index || '',
+      weekStart: w?.start || '',
+      weekEnd: w?.end || '',
+      branch: w?.name || '',
       date: '',
       slots: [],
       dayNotes: {},
@@ -322,7 +327,7 @@ export default function LessonFormPage() {
   const preview = { ...build(form.status || EDU_STATUS.DRAFT), weekIndex: form.weekIndex };
 
   return (
-    <div className={step === 1 ? 'page ga-page-fill' : 'page'}>
+    <div className={step === 1 && !isWeek ? 'page ga-page-fill' : 'page'}>
       <PageHead
         crumbs={[
           { label: 'Kế hoạch giáo dục' },
@@ -465,146 +470,149 @@ export default function LessonFormPage() {
       )}
 
       {step === 1 && (
-        <Card
-          title={STEPS[1]}
-          num="2"
-          className="ga-card-fill"
-          bodyClass={null}
-          actions={
-            <div className="row row--wrap">
-              <span className="muted text-xs" style={{ marginRight: 8 }}>
-                {form.slots.length} giờ sinh hoạt
-              </span>
-              {groupIds.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn--sm btn--ghost"
-                  onClick={() => (allCollapsed ? col.clear() : col.setAll(groupIds))}
-                >
-                  {allCollapsed ? <ChevronsUpDown size={16} aria-hidden /> : <ChevronsDownUp size={16} aria-hidden />}
-                  {allCollapsed ? 'Mở rộng tất cả' : 'Thu gọn tất cả'}
-                </button>
-              )}
-              {!isWeek && weekPlan && (
-                <button
-                  type="button"
-                  className="btn btn--sm btn--outline-primary"
-                  onClick={() => {
-                    set({ slots: fromWeekPlan(form.slots, weekPlan, form.date, theme) });
-                    toast(`Đã điền các ô trống từ kế hoạch tuần ${weekPlan.code}`);
-                  }}
-                >
-                  <Wand2 size={16} aria-hidden /> Lấy từ kế hoạch tuần
-                </button>
-              )}
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
-                <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
-              </button>
-              <button type="button" className="btn btn--sm btn--primary" onClick={addSlot}>
-                <Plus size={16} aria-hidden /> {isWeek ? 'Thêm giờ sinh hoạt' : 'Thêm thời điểm'}
-              </button>
-            </div>
-          }
-        >
-          <div className="card__body ga-card-scroll" ref={listRef}>
-            {errors.slots && (
-              <div className="mb-16">
-                <Notice tone="err">{errors.slots}</Notice>
-              </div>
-            )}
-            {form.slots.map((s, si) => (
-              <Group
-                key={s.id}
-                id={s.id}
-                collapsed={col.isCollapsed(s.id)}
-                onToggle={() => col.toggle(s.id)}
-                title={
-                  <div className="row" style={{ gap: 8, flex: 1, minWidth: 0 }}>
-                    <input
-                      className="input ga-domain__name"
-                      aria-label={`Tên giờ sinh hoạt ${si + 1}`}
-                      placeholder="Tên giờ sinh hoạt"
-                      value={s.name}
-                      onChange={(e) => updateSlot(s.id, { name: e.target.value })}
-                    />
-                    {!isWeek && (
-                      <input
-                        className="input ga-domain__name ga-slot-duration"
-                        aria-label={`Thời lượng ${si + 1}`}
-                        placeholder="Thời lượng"
-                        value={s.duration}
-                        onChange={(e) => updateSlot(s.id, { duration: e.target.value })}
-                      />
-                    )}
-                  </div>
-                }
-                actions={
-                  <>
-                    {isWeek && (
-                      <label className="checkbox text-xs">
-                        <input type="checkbox" checked={s.allWeek} onChange={(e) => updateSlot(s.id, { allWeek: e.target.checked })} />
-                        Áp dụng cả tuần
-                      </label>
-                    )}
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      aria-label={`Xóa ${s.name || 'giờ sinh hoạt'}`}
-                      onClick={() => (slotHasContent(s) ? setRemoveSlot(s) : deleteSlot(s.id))}
-                    >
-                      <Trash2 size={16} aria-hidden />
-                    </button>
-                  </>
-                }
-              >
-                {isWeek ? (
-                  s.allWeek ? (
-                    <div className="ga-week-cell">
-                      <textarea
-                        className="textarea"
-                        rows={2}
-                        aria-label={`${s.name} – cả tuần`}
-                        placeholder="Nội dung áp dụng cho cả tuần"
-                        value={s.all?.text || ''}
-                        onChange={(e) => updateSlot(s.id, { all: { ...s.all, text: e.target.value } })}
-                      />
-                      <CodePicker
-                        options={codeOptions}
-                        value={s.all?.codes || []}
-                        onChange={(codes) => updateSlot(s.id, { all: withSuggestion(s.all, codes) })}
-                      />
-                    </div>
-                  ) : (
-                    <div className="ga-week-cells">
-                      {days.map((d) => (
-                        <div key={d.date} className="ga-week-cell">
-                          <div className="text-xs fw-600">
-                            {d.label} · {fmtDate(d.date).slice(0, 5)}
-                          </div>
-                          <textarea
-                            className="textarea"
-                            rows={3}
-                            aria-label={`${s.name} – ${d.label}`}
-                            placeholder="Nội dung"
-                            value={s.cells?.[d.date]?.text || ''}
-                            onChange={(e) => updateCell(s, d.date, { text: e.target.value })}
-                          />
-                          <CodePicker
-                            options={codeOptions}
-                            value={s.cells?.[d.date]?.codes || []}
-                            onChange={(codes) => updateCell(s, d.date, withSuggestion(s.cells?.[d.date], codes))}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )
-                ) : (
-                  <DaySlotEditor s={s} theme={theme} codeOptions={codeOptions} onChange={(patch) => updateSlot(s.id, patch)} />
+        <div className={isWeek ? 'ga-split ga-split--wide' : ''}>
+          <Card
+            title={STEPS[1]}
+            num="2"
+            className={isWeek ? '' : 'ga-card-fill'}
+            bodyClass={null}
+            actions={
+              <div className="row row--wrap">
+                <span className="muted text-xs" style={{ marginRight: 8 }}>
+                  {form.slots.length} giờ sinh hoạt
+                </span>
+                {groupIds.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--ghost"
+                    onClick={() => (allCollapsed ? col.clear() : col.setAll(groupIds))}
+                  >
+                    {allCollapsed ? <ChevronsUpDown size={16} aria-hidden /> : <ChevronsDownUp size={16} aria-hidden />}
+                    {allCollapsed ? 'Mở rộng tất cả' : 'Thu gọn tất cả'}
+                  </button>
                 )}
-              </Group>
-            ))}
-          </div>
-        </Card>
+                {!isWeek && weekPlan && (
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--outline-primary"
+                    onClick={() => {
+                      set({ slots: fromWeekPlan(form.slots, weekPlan, form.date, theme) });
+                      toast(`Đã điền các ô trống từ kế hoạch tuần ${weekPlan.code}`);
+                    }}
+                  >
+                    <Wand2 size={16} aria-hidden /> Lấy từ kế hoạch tuần
+                  </button>
+                )}
+                <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
+                  <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
+                </button>
+                <button type="button" className="btn btn--sm btn--primary" onClick={addSlot}>
+                  <Plus size={16} aria-hidden /> {isWeek ? 'Thêm giờ sinh hoạt' : 'Thêm thời điểm'}
+                </button>
+              </div>
+            }
+          >
+            <div className="card__body ga-card-scroll" ref={listRef}>
+              {errors.slots && (
+                <div className="mb-16">
+                  <Notice tone="err">{errors.slots}</Notice>
+                </div>
+              )}
+              {form.slots.map((s, si) => (
+                <Group
+                  key={s.id}
+                  id={s.id}
+                  collapsed={col.isCollapsed(s.id)}
+                  onToggle={() => col.toggle(s.id)}
+                  title={
+                    <div className="row" style={{ gap: 8, flex: 1, minWidth: 0 }}>
+                      <input
+                        className="input ga-domain__name"
+                        aria-label={`Tên giờ sinh hoạt ${si + 1}`}
+                        placeholder="Tên giờ sinh hoạt"
+                        value={s.name}
+                        onChange={(e) => updateSlot(s.id, { name: e.target.value })}
+                      />
+                      {!isWeek && (
+                        <input
+                          className="input ga-domain__name ga-slot-duration"
+                          aria-label={`Thời lượng ${si + 1}`}
+                          placeholder="Thời lượng"
+                          value={s.duration}
+                          onChange={(e) => updateSlot(s.id, { duration: e.target.value })}
+                        />
+                      )}
+                    </div>
+                  }
+                  actions={
+                    <>
+                      {isWeek && (
+                        <label className="checkbox text-xs">
+                          <input type="checkbox" checked={s.allWeek} onChange={(e) => updateSlot(s.id, { allWeek: e.target.checked })} />
+                          Áp dụng cả tuần
+                        </label>
+                      )}
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={`Xóa ${s.name || 'giờ sinh hoạt'}`}
+                        onClick={() => (slotHasContent(s) ? setRemoveSlot(s) : deleteSlot(s.id))}
+                      >
+                        <Trash2 size={16} aria-hidden />
+                      </button>
+                    </>
+                  }
+                >
+                  {isWeek ? (
+                    s.allWeek ? (
+                      <div className="ga-week-cell">
+                        <textarea
+                          className="textarea"
+                          rows={2}
+                          aria-label={`${s.name} – cả tuần`}
+                          placeholder="Nội dung áp dụng cho cả tuần"
+                          value={s.all?.text || ''}
+                          onChange={(e) => updateSlot(s.id, { all: { ...s.all, text: e.target.value } })}
+                        />
+                        <CodePicker
+                          options={codeOptions}
+                          value={s.all?.codes || []}
+                          onChange={(codes) => updateSlot(s.id, { all: withSuggestion(s.all, codes) })}
+                        />
+                      </div>
+                    ) : (
+                      <div className="ga-week-cells">
+                        {days.map((d) => (
+                          <div key={d.date} className="ga-week-cell">
+                            <div className="text-xs fw-600">
+                              {d.label} · {fmtDate(d.date).slice(0, 5)}
+                            </div>
+                            <textarea
+                              className="textarea"
+                              rows={3}
+                              aria-label={`${s.name} – ${d.label}`}
+                              placeholder="Nội dung"
+                              value={s.cells?.[d.date]?.text || ''}
+                              onChange={(e) => updateCell(s, d.date, { text: e.target.value })}
+                            />
+                            <CodePicker
+                              options={codeOptions}
+                              value={s.cells?.[d.date]?.codes || []}
+                              onChange={(codes) => updateCell(s, d.date, withSuggestion(s.cells?.[d.date], codes))}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    <DaySlotEditor s={s} theme={theme} codeOptions={codeOptions} onChange={(patch) => updateSlot(s.id, patch)} />
+                  )}
+                </Group>
+              ))}
+            </div>
+          </Card>
+          {isWeek && <WeekReference theme={theme} slots={form.slots} />}
+        </div>
       )}
 
       {step === 2 && (
