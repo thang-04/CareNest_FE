@@ -15,11 +15,11 @@ cn_validate_msg() {
     "fixup! "* | "squash! "*) cn_warn "commit fixup/squash — nhớ squash trước khi push"; return ;;
   esac
 
-  # Quy ước nhóm SEP490-G94: "[<work-code>] <jira-key>: <mô tả>", ví dụ "[FE-FEAT-44] G94-181: complete lesson plan UI".
+  # Quy ước nhóm SEP490-G94: "<jira-key>: <mô tả>", ví dụ "G94-181: complete lesson plan UI"; vẫn nhận dạng cũ "[FE-FEAT-44] G94-181: ...".
   team=0
-  printf '%s' "$header" | grep -Eq '^\[(FE|BE)-(FEAT|FIX)-[0-9]+\] [A-Z][A-Z0-9]+-[0-9]+: [^[:space:]]' && team=1
+  printf '%s' "$header" | grep -Eq '^(\[(FE|BE)-(FEAT|FIX)-[0-9]+\] )?[A-Z][A-Z0-9]+-[0-9]+: [^[:space:]]' && team=1
   if [ "$team" -eq 0 ] && ! printf '%s' "$header" | grep -Eq '^(feat|fix|refactor|test|docs|chore|build|ci)(\([a-z0-9][a-z0-9._/-]*\))?!?: [^[:space:]]'; then
-    cn_err "dòng đầu phải dạng '[FE-FEAT-44] G94-181: <mô tả>' hoặc '<type>(<scope>): <subject>' — đang là: $header"
+    cn_err "dòng đầu phải dạng 'G94-181: <mô tả>' hoặc '<type>(<scope>): <subject>' — đang là: $header"
   fi
   if printf '%s' "$header" | LC_ALL=C grep -q '[^ -~]'; then
     cn_err "dòng đầu phải tiếng Anh, chỉ ký tự ASCII"
