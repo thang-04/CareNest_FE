@@ -44,7 +44,7 @@ const attendanceOf = (counts = []) => {
 
 const SHORTCUTS = [
   { to: '/school/teachers', label: 'Phân công giáo viên', icon: UserCog },
-  { to: '/education/approvals', label: 'Kế hoạch giáo dục', icon: BookOpenCheck },
+  { to: '/education/plan-reviews', label: 'Kế hoạch giáo dục', icon: BookOpenCheck },
   { to: '/approvals', label: 'Chờ duyệt', icon: ListChecks },
   { to: '/facility/issues', label: 'Vận hành điểm trường', icon: Building2 },
   { to: '/kitchen/preparation', label: 'Dịch vụ bán trú', icon: ChefHat },

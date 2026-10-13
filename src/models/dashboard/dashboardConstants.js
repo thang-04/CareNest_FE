@@ -35,9 +35,9 @@ export const APPROVAL_TYPE = {
 
 /** label: group title · tone: stat-card tone · listTo: the owning module's own list (link "Xem tất cả"). */
 export const APPROVAL_TYPE_META = {
-  LESSON_REVIEW: { label: 'Giáo án chờ tổ trưởng duyệt', short: 'Giáo án', tone: 'orange', listTo: '/education/reviews' },
-  THEME_PLAN: { label: 'Kế hoạch chủ đề chờ duyệt', short: 'Kế hoạch chủ đề', tone: 'blue', listTo: '/education/approvals' },
-  LESSON_PLAN: { label: 'Giáo án chờ Phó hiệu trưởng duyệt', short: 'Giáo án', tone: 'orange', listTo: '/education/approvals' },
+  LESSON_REVIEW: { label: 'Giáo án chờ tổ trưởng duyệt', short: 'Giáo án', tone: 'orange', listTo: '/education/plan-reviews' },
+  THEME_PLAN: { label: 'Kế hoạch chủ đề chờ duyệt', short: 'Kế hoạch chủ đề', tone: 'blue', listTo: '/education/plan-reviews' },
+  LESSON_PLAN: { label: 'Giáo án chờ Phó hiệu trưởng duyệt', short: 'Giáo án', tone: 'orange', listTo: '/education/plan-reviews' },
   REWARD_REVIEW: { label: 'Đề xuất khen thưởng chờ xem xét', short: 'Khen thưởng', tone: 'green', listTo: '/assessment/rewards' },
   REWARD_DECISION: { label: 'Đề xuất khen thưởng chờ phê duyệt', short: 'Khen thưởng', tone: 'green', listTo: '/assessment/rewards' },
   FACILITY_ISSUE: { label: 'Báo cáo sự cố chờ duyệt', short: 'Sự cố CSVC', tone: 'red', listTo: '/facility/issues' },

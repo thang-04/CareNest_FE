@@ -64,13 +64,6 @@ const ITEMS = {
   mealHandover: { label: 'Bàn giao suất ăn', to: '/attendance/meal-handover' },
   pickup: { label: 'Đón trẻ', to: '/pickup' },
 
-  eduSchool: { label: 'Kế hoạch toàn trường', to: '/education/school' },
-  eduGoals: { label: 'Mục tiêu năm học', to: '/education/goals' },
-  eduThemes: { label: 'Kế hoạch chủ đề', to: '/education/themes' },
-  eduOverview: { label: 'Mục tiêu & chủ đề', to: '/education/overview' },
-  eduLessons: { label: 'Giáo án của lớp', to: '/education/lessons' },
-  eduReviews: { label: 'Duyệt giáo án', to: '/education/reviews' },
-  eduApprovals: { label: 'Phê duyệt kế hoạch', to: '/education/approvals' },
   eduYearPlans: { label: 'Kế hoạch năm học', to: '/education/year-plans' },
   eduClassPlans: { label: 'Kế hoạch, giáo án lớp', to: '/education/class' },
   eduPlanReviews: { label: 'Duyệt kế hoạch, giáo án', to: '/education/plan-reviews' },
