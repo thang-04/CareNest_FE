@@ -1,19 +1,27 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Download, Plus } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { AGE_GROUPS, DOMAIN_SHORT } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
 import { EmptyState, Modal } from '@/components/education-plan/eduUi';
+import { DomainTitle } from '@/components/education-plan/PlanWidgets';
 
-/** Picks fixed-code requirements (YCCĐ) of the yearly goals to add to a theme plan. */
+/** Picks fixed-code requirements (YCCĐ) of the yearly goals to add to a theme plan: same table as the yearly-goal form, plus a tick column. */
 export function PickGoalsModal({ goal, rows, onClose, onPick }) {
   const [picked, setPicked] = useState([]);
   const used = (code) => rows.some((r) => r.code === code);
   const toggle = (c) => setPicked((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c]));
+  // Tick nhiều YCCĐ cùng lúc (cả bảng hoặc cả lĩnh vực); YCCĐ đã có trong chủ đề bị khóa.
+  const free = (domains) =>
+    domains.flatMap((d) => d.items.flatMap((it) => (it.requirements || []).map((r) => r.code))).filter((c) => !used(c));
+  const allPicked = (codes) => codes.length > 0 && codes.every((c) => picked.includes(c));
+  const toggleMany = (codes) => setPicked((p) => (allPicked(codes) ? p.filter((c) => !codes.includes(c)) : [...new Set([...p, ...codes])]));
+  const allCodes = free(goal.domains);
 
   return (
     <Modal
       title="Chọn YCCĐ từ mục tiêu năm học"
-      width={760}
+      width={960}
+      className="ga-modal-full"
       onClose={onClose}
       footer={
         <>
@@ -26,43 +34,120 @@ export function PickGoalsModal({ goal, rows, onClose, onPick }) {
         </>
       }
     >
-      <p className="muted text-xs">Từ: {goal.title}. Mỗi YCCĐ được chọn tạo một dòng, giữ nguyên mã của mục tiêu năm học.</p>
-      <div className="ga-pick-list">
-        {goal.domains.map((d) => (
-          <div key={d.name} className="mb-8">
-            <div className="fw-600" style={{ padding: '4px 8px' }}>
-              {DOMAIN_SHORT[d.name] || d.name}
-            </div>
-            {d.items.map((it) => (
-              <div key={it.code}>
-                <div className="ga-goal-row ga-goal-row--read">
-                  <span className="ga-goal-code">{it.code}</span>
-                  <span className="text-sm">{it.text}</span>
-                </div>
-                {(it.requirements || []).length === 0 && (
-                  <p className="muted text-xs ga-goal-check--child">
-                    Mục tiêu này chưa có YCCĐ. Phó hiệu trưởng cần bổ sung trong mục tiêu năm học.
-                  </p>
-                )}
-                {(it.requirements || []).map((r) => (
-                  <label key={r.code} className="ga-goal-check ga-goal-check--child">
-                    <input
-                      type="checkbox"
-                      disabled={used(r.code)}
-                      checked={used(r.code) || picked.includes(r.code)}
-                      onChange={() => toggle(r.code)}
-                    />
-                    <span className="ga-goal-code">{r.code}</span>
-                    <span className="text-sm">
-                      {r.text}
-                      {used(r.code) && <span className="muted text-xs"> · đã có trong chủ đề</span>}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            ))}
-          </div>
-        ))}
+      <p className="muted text-xs">Từ: {goal.title}. Mỗi YCCĐ được tick tạo một dòng, giữ nguyên mã của mục tiêu năm học.</p>
+      <div className="table-wrap ga-pick-table">
+        <table className="table ga-plan-table ga-goal-table">
+          <colgroup>
+            <col className="ga-goal-table__code" />
+            <col className="ga-goal-table__goal" />
+            <col className="ga-goal-table__code" />
+            <col />
+            <col className="ga-goal-table__del" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Mã MT</th>
+              <th>Mục tiêu</th>
+              <th>Mã YCCĐ</th>
+              <th>Yêu cầu cần đạt</th>
+              <th className="center">
+                <input
+                  type="checkbox"
+                  aria-label="Chọn tất cả YCCĐ"
+                  disabled={!allCodes.length}
+                  checked={allPicked(allCodes)}
+                  onChange={() => toggleMany(allCodes)}
+                />
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {goal.domains.map((d) => {
+              const domainCodes = free([d]);
+              return (
+                <Fragment key={d.name}>
+                  <tr>
+                    <td colSpan={4} className="ga-goal-table__domain">
+                      <div className="ga-goal-table__pad row gap-2">
+                        <DomainTitle name={d.name} />
+                        <span className="muted text-xs">{d.items.length} mục tiêu</span>
+                      </div>
+                    </td>
+                    <td className="ga-goal-table__domain center">
+                      <div className="ga-goal-table__pad">
+                        <input
+                          type="checkbox"
+                          aria-label={`Chọn tất cả YCCĐ lĩnh vực ${d.name}`}
+                          disabled={!domainCodes.length}
+                          checked={allPicked(domainCodes)}
+                          onChange={() => toggleMany(domainCodes)}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                  {d.items.map((it) => {
+                    const reqs = it.requirements || [];
+                    const span = Math.max(reqs.length, 1);
+                    const goalCells = (
+                      <>
+                        <td rowSpan={span}>
+                          <div className="ga-goal-table__pad">
+                            <span className="ga-goal-code">{it.code}</span>
+                          </div>
+                        </td>
+                        <td rowSpan={span}>
+                          <div className="ga-goal-table__pad">{it.text}</div>
+                        </td>
+                      </>
+                    );
+                    if (!reqs.length)
+                      return (
+                        <tr key={it.code}>
+                          {goalCells}
+                          <td>
+                            <div className="ga-goal-table__pad muted">—</div>
+                          </td>
+                          <td colSpan={2}>
+                            <div className="ga-goal-table__pad muted text-xs">
+                              Mục tiêu này chưa có YCCĐ. Phó hiệu trưởng cần bổ sung trong mục tiêu năm học.
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    return reqs.map((r, ri) => (
+                      <tr key={r.code}>
+                        {ri === 0 && goalCells}
+                        <td>
+                          <div className="ga-goal-table__pad">
+                            <span className="ga-goal-code">{r.code}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <label className="ga-goal-table__pad ga-pick-table__label" htmlFor={`pick-${r.code}`}>
+                            {r.text}
+                            {used(r.code) && <span className="muted text-xs"> · đã có trong chủ đề</span>}
+                          </label>
+                        </td>
+                        <td className="center">
+                          <div className="ga-goal-table__pad">
+                            <input
+                              id={`pick-${r.code}`}
+                              type="checkbox"
+                              aria-label={`Chọn YCCĐ ${r.code}`}
+                              disabled={used(r.code)}
+                              checked={used(r.code) || picked.includes(r.code)}
+                              onChange={() => toggle(r.code)}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ));
+                  })}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </Modal>
   );

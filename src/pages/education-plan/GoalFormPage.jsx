@@ -1,35 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  ChevronDown,
-  ChevronRight,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  Download,
-  FileDown,
-  Pencil,
-  ListPlus,
-  Save,
-  Send,
-  Target,
-  Trash2,
-  Upload,
-} from '@/components/ui/icons';
+import { AlertTriangle, ArrowLeft, ArrowRight, Download, FileDown, Pencil, Save, Send, Trash2, Upload } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import {
   AGE_GROUPS,
   DOMAINS,
   EDU_STATUS,
   SCHOOL_SCOPE,
-  domainLabel,
   isStandardDomain,
   prefixOf,
   suggestRequirementCode,
 } from '@/models/education-plan/educationPlanConstants';
-import { DomainTitle, Group } from '@/components/education-plan/PlanWidgets';
+import { DomainTitle } from '@/components/education-plan/PlanWidgets';
 import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
 import { Card, Field, Modal, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
@@ -58,6 +40,13 @@ const pastedLines = (e) =>
     .split(/\r?\n/)
     .map((l) => l.replace(/^[\s\-•*+]+/, '').trim())
     .filter(Boolean);
+
+// Ô nhập trong bảng tự cao theo nội dung để đọc đủ câu dài, không cần cuộn trong ô.
+const fitHeight = (el) => {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+};
 
 const emptyForm = (schoolYear) => ({
   title: '',
@@ -96,10 +85,6 @@ export default function GoalFormPage() {
   const [confirm, setConfirm] = useState(false);
   const [importing, setImporting] = useState(false);
   const [removeDomain, setRemoveDomain] = useState(null);
-  // Bước 2 xem theo tab: 'all' hoặc id của một lĩnh vực.
-  const [tab, setTab] = useState(null);
-  // Mục tiêu đang mở danh sách YCCĐ; mặc định thu gọn để nhìn được nhiều mục tiêu.
-  const [openReqs, setOpenReqs] = useState(() => new Set());
   const [focusId, setFocusId] = useState(null);
 
   const set = (patch) => {
@@ -115,9 +100,9 @@ export default function GoalFormPage() {
   let counter = 0;
   const numbered = form.domains.map((d) => ({
     ...d,
-    items: d.items.map((it) => ({ ...it, code: it.text.trim() ? `MT${++counter}` : '' })),
+    items: d.items.map((it) => ({ ...it, code: `MT${++counter}` })),
   }));
-  const totalGoals = counter;
+  const totalGoals = form.domains.reduce((n, d) => n + d.items.filter((i) => i.text.trim()).length, 0);
 
   const validate = (s) => {
     const e = {};
@@ -128,7 +113,10 @@ export default function GoalFormPage() {
       if (form.ageGroupId && dup) e.ageGroupId = 'Nhóm tuổi này đã có mục tiêu năm học. Mở bộ mục tiêu đã có để chỉnh sửa.';
     }
     if (s === 1) {
+      const blankWithReqs = numbered.flatMap((d) => d.items).find((i) => !i.text.trim() && i.requirements.some((r) => r.text.trim()));
       if (totalGoals === 0) e.domains = 'Nhập ít nhất một mục tiêu';
+      else if (blankWithReqs)
+        e.domains = `${blankWithReqs.code} chưa có nội dung mục tiêu nhưng đã có YCCĐ. Nhập mục tiêu hoặc xóa hàng bằng nút thùng rác.`;
       else if (form.domains.some((d) => !isStandardDomain(d.name) && d.items.some((i) => i.text.trim())))
         e.domains = 'Có lĩnh vực không thuộc 5 lĩnh vực của chương trình. Chuyển mục tiêu sang lĩnh vực phù hợp rồi xóa lĩnh vực đó.';
       else {
@@ -169,6 +157,7 @@ export default function GoalFormPage() {
       .join('')
       .slice(0, 3)
       .toUpperCase();
+    let saved = 0;
     return {
       id: form.id || `g-${uid()}`,
       code: form.code || `MTNH-${form.schoolYear.slice(2, 4)}${form.schoolYear.slice(-2)}-${agCode}`,
@@ -182,14 +171,15 @@ export default function GoalFormPage() {
       createdBy: user.name,
       file: form.file || null,
       signature: form.signature,
+      // Mục tiêu trống không được lưu; đánh lại số MT liên tục cho các mục tiêu còn lại.
       domains: numbered
         .map((d) => ({
           name: d.name,
           items: d.items
             .filter((i) => i.text.trim())
-            .map(({ id: itemId, code, text, requirements }) => ({
+            .map(({ id: itemId, text, requirements }) => ({
               id: itemId,
-              code,
+              code: `MT${++saved}`,
               text: text.trim(),
               requirements: requirements.filter((r) => r.text.trim()).map((r) => ({ id: r.id, code: r.code.trim(), text: r.text.trim() })),
             })),
@@ -228,18 +218,9 @@ export default function GoalFormPage() {
         i !== di ? d : { ...d, items: d.items.map((it, j) => (j === ii ? { ...it, requirements: fn(it.requirements) } : it)) },
       ),
     });
-  const addRequirement = (di, ii) => insertRequirementsAfter(di, ii, null);
   const updateRequirement = (di, ii, rid, patch) =>
     setRequirements(di, ii, (list) => list.map((r) => (r.id === rid ? { ...r, ...patch } : r)));
   const removeRequirement = (di, ii, rid) => setRequirements(di, ii, (list) => list.filter((r) => r.id !== rid));
-  const toggleReqs = (itemId) =>
-    setOpenReqs((s0) => {
-      const n = new Set(s0);
-      if (n.has(itemId)) n.delete(itemId);
-      else n.add(itemId);
-      return n;
-    });
-  const openReq = (itemId) => setOpenReqs((s0) => new Set(s0).add(itemId));
 
   // Enter ở ô mục tiêu: thêm mục tiêu mới ngay bên dưới.
   // replaceCurrent: dòng đầu ghi vào chính mục tiêu đang trống, các dòng sau chèn tiếp (một lần cập nhật).
@@ -277,7 +258,6 @@ export default function GoalFormPage() {
       next.splice(at, 0, ...fresh);
       return next;
     });
-    openReq(form.domains[di].items[ii].id);
     if (fresh.length) setFocusId(fresh[fresh.length - 1].id);
   };
   const onItemPaste = (di, ii, e) => {
@@ -294,22 +274,22 @@ export default function GoalFormPage() {
   };
   useEffect(() => {
     if (!focusId) return;
-    document.querySelector(`[data-focus="${focusId}"]`)?.focus();
+    const el = document.querySelector(`[data-focus="${focusId}"]`);
+    el?.focus();
+    // Đặt con trỏ cuối ô để gõ tiếp khi dòng mới vừa được tạo từ ô trống.
+    el?.setSelectionRange?.(el.value.length, el.value.length);
     setFocusId(null);
   }, [focusId]);
+  // Ô nhập trong bảng đo lại chiều cao sau mỗi lần vẽ và khi đổi cỡ cửa sổ (cột co giãn làm câu xuống dòng khác).
+  useEffect(() => {
+    const fitAll = () => document.querySelectorAll('.ga-cell-input').forEach(fitHeight);
+    fitAll();
+    window.addEventListener('resize', fitAll);
+    return () => window.removeEventListener('resize', fitAll);
+  });
 
   const removeItem = (di, ii) =>
     set({ domains: form.domains.map((d, i) => (i !== di ? d : { ...d, items: d.items.filter((_, j) => j !== ii) })) });
-  const listRef = useRef(null);
-  const [collapsed, setCollapsed] = useState(() => new Set());
-  const toggleDomain = (domainId) =>
-    setCollapsed((c) => {
-      const n = new Set(c);
-      if (n.has(domainId)) n.delete(domainId);
-      else n.add(domainId);
-      return n;
-    });
-  const allCollapsed = form.domains.length > 0 && form.domains.every((d) => collapsed.has(d.id));
   const deleteDomain = (di) => {
     set({ domains: form.domains.filter((_, i) => i !== di) });
     setRemoveDomain(null);
@@ -383,205 +363,250 @@ export default function GoalFormPage() {
     );
   };
 
-  const filledDomains = numbered.filter((d) => d.items.some((i) => i.text.trim()));
   const allCodes = form.domains.flatMap((d) =>
     d.items.flatMap((i) => i.requirements.filter((r) => r.text.trim()).map((r) => r.code.trim())),
   );
-  // Lĩnh vực có YCCĐ thiếu mã hoặc trùng mã: đánh dấu trên tab để biết cần sửa ở đâu.
+  // Lĩnh vực có YCCĐ thiếu mã hoặc trùng mã: đánh dấu trên dòng lĩnh vực để biết cần sửa ở đâu.
   const domainHasProblem = (d) =>
     !isStandardDomain(d.name)
       ? d.items.some((i) => i.text.trim())
       : d.items.some((i) =>
           i.requirements.some((r) => r.text.trim() && (!r.code.trim() || allCodes.filter((c) => c === r.code.trim()).length > 1)),
         );
-  const filledCount = (d) => d.items.filter((i) => i.text.trim()).length;
-  // Tab cuối "Tất cả" hiện mọi lĩnh vực ngay trên trang, sửa được như từng tab.
-  const activeTab = tab === 'all' || numbered.some((d) => d.id === tab) ? tab : numbered[0]?.id;
-  const shownDomains = activeTab === 'all' ? numbered : numbered.filter((d) => d.id === activeTab);
+  // Từ bước duyệt lại: về bảng và cuộn tới dòng của lĩnh vực cần sửa.
   const editDomain = (domainId) => {
-    setTab(domainId);
-    setCollapsed(new Set());
     setStep(1);
-    window.scrollTo({ top: 0 });
+    setTimeout(() => document.getElementById(`goal-domain-${domainId}`)?.scrollIntoView({ block: 'center' }));
   };
-  const renderGroups = (list) =>
-    list.map((d) => {
-      const di = numbered.indexOf(d);
-      return (
-        <Group
-          key={d.id}
-          id={d.id}
-          collapsed={collapsed.has(d.id)}
-          onToggle={() => toggleDomain(d.id)}
-          title={<DomainTitle name={d.name} />}
-          meta={`${filledCount(d)} mục tiêu`}
-          actions={
-            !isStandardDomain(d.name) && (
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label={`Xóa lĩnh vực ${d.name}`}
-                onClick={() => (d.items.some((i) => i.text.trim()) ? setRemoveDomain(di) : deleteDomain(di))}
-              >
-                <Trash2 size={16} aria-hidden />
-              </button>
-            )
-          }
-        >
-          {!isStandardDomain(d.name) && (
-            <Notice tone="warn">
-              Lĩnh vực này không thuộc 5 lĩnh vực của Chương trình GDMN. Chuyển các mục tiêu sang lĩnh vực phù hợp rồi xóa lĩnh vực này.
-            </Notice>
-          )}
-          {d.items.map((it, ii) => {
-            const reqCount0 = it.requirements.filter((r) => r.text.trim()).length;
-            // YCCĐ đang nhập dở (chưa có câu nào) luôn mở sẵn, không hiện dòng thu gọn.
-            const open = openReqs.has(it.id) || reqCount0 === 0;
-            const reqCount = it.requirements.filter((r) => r.text.trim()).length;
+  // Bảng mục tiêu kiểu Word: ô mục tiêu gộp theo số YCCĐ, mỗi YCCĐ một hàng (mã tự cấp). Chỉ nút thùng rác mới xóa hàng.
+  // readOnly dùng cho bước duyệt lại.
+  const enterKey = (e) => e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing;
+  const addFirstGoal = (di, lines) => {
+    const fresh = lines.map((text) => ({ id: uid(), text, requirements: [] }));
+    set({ domains: form.domains.map((d, i) => (i !== di ? d : { ...d, items: fresh })) });
+    setFocusId(fresh.at(-1).id);
+  };
+  const cellInput = (props) => (
+    <textarea className="ga-cell-input" rows={1} ref={(el) => fitHeight(el)} onInput={(e) => fitHeight(e.target)} {...props} />
+  );
+
+  const renderTable = (list, readOnly = false) => (
+    <div className="table-wrap">
+      <table className="table ga-plan-table ga-goal-table">
+        <colgroup>
+          <col className="ga-goal-table__code" />
+          <col className="ga-goal-table__goal" />
+          <col className="ga-goal-table__code" />
+          <col />
+          {!readOnly && <col className="ga-goal-table__del" />}
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Mã MT</th>
+            <th>Mục tiêu</th>
+            <th>Mã YCCĐ</th>
+            <th>Yêu cầu cần đạt</th>
+            {!readOnly && <th className="center">Xóa</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((d) => {
+            const di = numbered.indexOf(d);
+            const cols = readOnly ? 4 : 5;
+            const items = readOnly ? d.items.filter((i) => i.text.trim()) : d.items;
             return (
-              <div key={it.id} className="stack gap-2">
-                <div className="ga-goal-row">
-                  <span className="ga-goal-code">{it.code || '—'}</span>
-                  <input
-                    className="input"
-                    data-focus={it.id}
-                    aria-label={`Mục tiêu ${ii + 1} lĩnh vực ${d.name}`}
-                    placeholder="Nhập nội dung mục tiêu (Enter: thêm mục tiêu mới · Shift+Enter: xuống dòng · dán nhiều dòng để thêm nhiều mục tiêu)"
-                    value={it.text}
-                    onChange={(e) => updateItem(di, ii, e.target.value)}
-                    onPaste={(e) => onItemPaste(di, ii, e)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                        e.preventDefault();
-                        insertItemAfter(di, ii);
-                      }
-                    }}
-                  />
-                  <button type="button" className="icon-btn" onClick={() => removeItem(di, ii)} aria-label="Xóa mục tiêu">
-                    <Trash2 size={16} aria-hidden />
-                  </button>
-                </div>
-                <div className="ga-goal-check--child stack gap-2">
-                  {reqCount0 === 0 ? (
-                    it.text.trim() &&
-                    it.requirements.length === 0 && (
-                      <div>
-                        <button type="button" className="btn btn--sm btn--ghost" onClick={() => addRequirement(di, ii)}>
-                          <ListPlus size={16} className="text-primary" aria-hidden /> Thêm YCCĐ
-                        </button>
+              <Fragment key={d.id}>
+                <tr id={readOnly ? undefined : `goal-domain-${d.id}`}>
+                  <td colSpan={cols} className="ga-goal-table__domain">
+                    <div className="ga-goal-table__pad row row--between">
+                      <div className="row gap-2">
+                        <DomainTitle name={d.name} />
+                        {domainHasProblem(d) && <AlertTriangle size={16} className="text-danger" aria-label="Có lỗi cần sửa" />}
                       </div>
-                    )
-                  ) : (
-                    <div>
-                      <button type="button" className="btn btn--sm btn--ghost" aria-expanded={open} onClick={() => toggleReqs(it.id)}>
-                        {open ? (
-                          <ChevronDown size={16} className="text-primary" aria-hidden />
-                        ) : (
-                          <ChevronRight size={16} className="text-primary" aria-hidden />
-                        )}
-                        {reqCount} YCCĐ
-                        {!open && reqCount > 0 && (
-                          <span className="muted text-xs">
-                            {' '}
-                            ·{' '}
-                            {it.requirements
-                              .filter((r) => r.text.trim())
-                              .map((r) => r.code)
-                              .join(', ')}
-                          </span>
-                        )}
-                      </button>
+                      {readOnly ? (
+                        <button type="button" className="btn btn--sm btn--ghost" onClick={() => editDomain(d.id)}>
+                          <Pencil size={16} className="text-primary" aria-hidden /> Sửa lĩnh vực này
+                        </button>
+                      ) : (
+                        !isStandardDomain(d.name) && (
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            aria-label={`Xóa lĩnh vực ${d.name}`}
+                            onClick={() => (d.items.some((i) => i.text.trim()) ? setRemoveDomain(di) : deleteDomain(di))}
+                          >
+                            <Trash2 size={16} aria-hidden />
+                          </button>
+                        )
+                      )}
                     </div>
-                  )}
-                  {open &&
-                    it.requirements.map((r, ri) => (
-                      <div className="ga-goal-row" key={r.id}>
-                        <span className="ga-goal-code" aria-label={`Mã YCCĐ ${ri + 1} của ${it.code || 'mục tiêu'}`}>
-                          {r.code}
-                        </span>
-                        <input
-                          className="input"
-                          data-focus={r.id}
-                          aria-label={`Yêu cầu cần đạt ${ri + 1} của ${it.code || 'mục tiêu'}`}
-                          placeholder="Yêu cầu cần đạt (Enter: thêm YCCĐ mới · Shift+Enter: xuống dòng · dán được nhiều dòng)"
-                          value={r.text}
-                          onChange={(e) => updateRequirement(di, ii, r.id, { text: e.target.value })}
-                          onPaste={(e) => onRequirementPaste(di, ii, r, e)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                              e.preventDefault();
-                              insertRequirementsAfter(di, ii, r.id);
-                            }
-                          }}
-                        />
+                    {!readOnly && !isStandardDomain(d.name) && (
+                      <div className="ga-goal-table__pad">
+                        <Notice tone="warn">
+                          Lĩnh vực này không thuộc 5 lĩnh vực của Chương trình GDMN. Chuyển các mục tiêu sang lĩnh vực phù hợp rồi xóa lĩnh
+                          vực này.
+                        </Notice>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+                {items.length === 0 && (
+                  <tr>
+                    <td>
+                      <div className="ga-goal-table__pad muted">—</div>
+                    </td>
+                    <td>
+                      {readOnly ? (
+                        <div className="ga-goal-table__pad muted">Chưa có mục tiêu.</div>
+                      ) : (
+                        cellInput({
+                          'aria-label': `Mục tiêu đầu tiên lĩnh vực ${d.name}`,
+                          placeholder: 'Nhập mục tiêu',
+                          value: '',
+                          onChange: (e) => addFirstGoal(di, [e.target.value]),
+                          onKeyDown: (e) => enterKey(e) && e.preventDefault(),
+                          onPaste: (e) => {
+                            const lines = pastedLines(e);
+                            if (!lines.length) return;
+                            e.preventDefault();
+                            addFirstGoal(di, lines);
+                          },
+                        })
+                      )}
+                    </td>
+                    <td />
+                    <td />
+                    {!readOnly && <td />}
+                  </tr>
+                )}
+                {items.map((it) => {
+                  const ii = d.items.indexOf(it);
+                  const reqs = readOnly ? it.requirements.filter((r) => r.text.trim()) : it.requirements;
+                  const span = Math.max(reqs.length, 1);
+                  const goalCode = (
+                    <td rowSpan={span}>
+                      <div className="ga-goal-table__pad">
+                        <span className="ga-goal-code">{it.code}</span>
+                      </div>
+                    </td>
+                  );
+                  const goalText = (
+                    <td rowSpan={span}>
+                      {readOnly ? (
+                        <div className="ga-goal-table__pad">{it.text}</div>
+                      ) : (
+                        cellInput({
+                          'data-focus': it.id,
+                          'aria-label': `Mục tiêu ${it.code} lĩnh vực ${d.name}`,
+                          placeholder: 'Nhập mục tiêu',
+                          value: it.text,
+                          onChange: (e) => updateItem(di, ii, e.target.value),
+                          onPaste: (e) => onItemPaste(di, ii, e),
+                          onKeyDown: (e) => {
+                            if (!enterKey(e)) return;
+                            e.preventDefault();
+                            // Chỉ tạo mục tiêu mới khi mục tiêu hiện tại đã có nội dung.
+                            if (it.text.trim()) insertItemAfter(di, ii);
+                          },
+                        })
+                      )}
+                    </td>
+                  );
+                  const goalDelete = !readOnly && (
+                    <td rowSpan={span} className="center">
+                      <div className="ga-goal-table__pad">
                         <button
                           type="button"
                           className="icon-btn"
-                          onClick={() => removeRequirement(di, ii, r.id)}
-                          aria-label={`Xóa YCCĐ ${r.code}`}
+                          onClick={() => removeItem(di, ii)}
+                          aria-label={`Xóa mục tiêu ${it.code}`}
                         >
                           <Trash2 size={16} aria-hidden />
                         </button>
                       </div>
-                    ))}
-                  {open && it.requirements.length > 0 && (
-                    <div>
-                      <button type="button" className="btn btn--sm btn--ghost" onClick={() => addRequirement(di, ii)}>
-                        <ListPlus size={16} className="text-primary" aria-hidden /> Thêm YCCĐ
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+                    </td>
+                  );
+                  if (reqs.length === 0)
+                    return (
+                      <tr key={it.id}>
+                        {goalCode}
+                        {goalText}
+                        <td>
+                          <div className="ga-goal-table__pad muted">—</div>
+                        </td>
+                        <td>
+                          {readOnly ? (
+                            <div className="ga-goal-table__pad muted text-sm">Chưa có YCCĐ</div>
+                          ) : (
+                            it.text.trim() &&
+                            cellInput({
+                              'aria-label': `Yêu cầu cần đạt đầu tiên của ${it.code}`,
+                              placeholder: 'Nhập YCCĐ, Enter để xuống dòng YCCĐ mới (dán được nhiều dòng)',
+                              value: '',
+                              onChange: (e) => insertRequirementsAfter(di, ii, null, [e.target.value]),
+                              onKeyDown: (e) => enterKey(e) && e.preventDefault(),
+                              onPaste: (e) => {
+                                const lines = pastedLines(e);
+                                if (!lines.length) return;
+                                e.preventDefault();
+                                insertRequirementsAfter(di, ii, null, lines);
+                              },
+                            })
+                          )}
+                        </td>
+                        {goalDelete}
+                      </tr>
+                    );
+                  return reqs.map((r, ri) => (
+                    <tr key={r.id}>
+                      {ri === 0 && goalCode}
+                      {ri === 0 && goalText}
+                      <td>
+                        <div className="ga-goal-table__pad">
+                          <span className="ga-goal-code">{r.code}</span>
+                        </div>
+                      </td>
+                      <td>
+                        {readOnly ? (
+                          <div className="ga-goal-table__pad">{r.text}</div>
+                        ) : (
+                          <div className="ga-goal-line__text">
+                            {cellInput({
+                              'data-focus': r.id,
+                              'aria-label': `Yêu cầu cần đạt ${r.code}`,
+                              placeholder: 'Nhập YCCĐ',
+                              value: r.text,
+                              onChange: (e) => updateRequirement(di, ii, r.id, { text: e.target.value }),
+                              onPaste: (e) => onRequirementPaste(di, ii, r, e),
+                              onKeyDown: (e) => {
+                                if (!enterKey(e)) return;
+                                e.preventDefault();
+                                // Chỉ xuống dòng YCCĐ mới khi YCCĐ hiện tại đã có nội dung.
+                                if (r.text.trim()) insertRequirementsAfter(di, ii, r.id);
+                              },
+                            })}
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => removeRequirement(di, ii, r.id)}
+                              aria-label={`Xóa YCCĐ ${r.code}`}
+                            >
+                              <Trash2 size={16} aria-hidden />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      {ri === 0 && goalDelete}
+                    </tr>
+                  ));
+                })}
+              </Fragment>
             );
           })}
-          {isStandardDomain(d.name) && (
-            <div>
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => insertItemAfter(di, d.items.length - 1)}>
-                <Target size={16} aria-hidden /> Thêm mục tiêu
-              </button>
-            </div>
-          )}
-        </Group>
-      );
-    });
-  // Toàn bộ lĩnh vực ở dạng xem cho bước duyệt lại.
-  const overviewBlocks = numbered.map((d) => (
-    <div key={d.id} className="mb-16">
-      <div className="row row--between">
-        <div className="row gap-2">
-          <span className="section-title">{domainLabel(d.name)}</span>
-          {isStandardDomain(d.name) && <span className="chip chip--blue">Mã: {prefixOf(d.name)}</span>}
-          {domainHasProblem(d) && <AlertTriangle size={16} className="text-danger" aria-label="Có lỗi cần sửa" />}
-        </div>
-        <button type="button" className="btn btn--sm btn--ghost" onClick={() => editDomain(d.id)}>
-          <Pencil size={16} className="text-primary" aria-hidden /> Sửa lĩnh vực này
-        </button>
-      </div>
-      {filledCount(d) === 0 && <p className="muted text-sm">Chưa có mục tiêu.</p>}
-      {d.items
-        .filter((i) => i.text.trim())
-        .map((i) => (
-          <div key={i.id}>
-            <div className="ga-goal-row ga-goal-row--read">
-              <span className="ga-goal-code">{i.code}</span>
-              <span>{i.text}</span>
-            </div>
-            {i.requirements.filter((r) => r.text.trim()).length === 0 && (
-              <p className="muted text-xs ga-goal-check--child">Chưa có YCCĐ – tổ trưởng chưa chọn được mục tiêu này khi lập chủ đề.</p>
-            )}
-            {i.requirements
-              .filter((r) => r.text.trim())
-              .map((r) => (
-                <div key={r.id} className="ga-goal-row ga-goal-row--read ga-goal-check--child">
-                  <span className="ga-goal-code">{r.code}</span>
-                  <span className="text-sm">{r.text}</span>
-                </div>
-              ))}
-          </div>
-        ))}
+        </tbody>
+      </table>
     </div>
-  ));
+  );
 
   return (
     <div className="page">
@@ -602,17 +627,9 @@ export default function GoalFormPage() {
             bodyClass={null}
             actions={
               <div className="row">
-                <span className="muted text-xs" style={{ marginRight: 8 }}>
+                <span className="muted text-xs nowrap" style={{ marginRight: 8 }}>
                   {totalGoals} mục tiêu
                 </span>
-                <button
-                  type="button"
-                  className="btn btn--sm btn--ghost"
-                  onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(form.domains.map((d) => d.id)))}
-                >
-                  {allCollapsed ? <ChevronsUpDown size={16} aria-hidden /> : <ChevronsDownUp size={16} aria-hidden />}
-                  {allCollapsed ? 'Mở rộng tất cả' : 'Thu gọn tất cả'}
-                </button>
                 <button
                   type="button"
                   className="btn btn--sm btn--ghost"
@@ -636,42 +653,8 @@ export default function GoalFormPage() {
                 </button>
               </div>
             }
-            className="mt-16"
-          >
-            <div className="tabs" role="tablist" aria-label="Lĩnh vực">
-              {numbered.map((d) => (
-                <button
-                  key={d.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === d.id}
-                  title={domainLabel(d.name)}
-                  className={`tab ${activeTab === d.id ? 'tab--active' : ''}`}
-                  onClick={() => {
-                    setTab(d.id);
-                    setCollapsed((c) => {
-                      const n = new Set(c);
-                      n.delete(d.id);
-                      return n;
-                    });
-                  }}
-                >
-                  {domainHasProblem(d) && <AlertTriangle size={14} className="text-danger" aria-label="Có lỗi cần sửa" />}
-                  {isStandardDomain(d.name) ? prefixOf(d.name) : d.name} <span className="tab__count">{filledCount(d)}</span>
-                </button>
-              ))}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'all'}
-                className={`tab ${activeTab === 'all' ? 'tab--active' : ''}`}
-                onClick={() => setTab('all')}
-              >
-                {numbered.some(domainHasProblem) && <AlertTriangle size={14} className="text-danger" aria-label="Có lỗi cần sửa" />}
-                Tất cả <span className="tab__count">{totalGoals}</span>
-              </button>
-            </div>
-          </Card>
+            className="ga-sticky-bar"
+          />
         )}
       </div>
 
@@ -736,13 +719,13 @@ export default function GoalFormPage() {
 
       {step === 1 && (
         <Card bodyClass={null}>
-          <div className="card__body" ref={listRef}>
+          <div className="card__body">
             {errors.domains && (
               <div className="mb-16">
                 <Notice tone="err">{errors.domains}</Notice>
               </div>
             )}
-            {renderGroups(shownDomains)}
+            {renderTable(numbered)}
           </div>
         </Card>
       )}
@@ -789,17 +772,11 @@ export default function GoalFormPage() {
               <dd>{form.schoolYear}</dd>
               <dt>Nhóm tuổi áp dụng</dt>
               <dd>{ageName}</dd>
-              <dt>Phạm vi</dt>
-              <dd>{SCHOOL_SCOPE}</dd>
-              <dt>Số mục tiêu</dt>
-              <dd>
-                {totalGoals} mục tiêu trong {filledDomains.length} lĩnh vực
-              </dd>
               <dt>Ngày lập</dt>
               <dd>{fmtDate(new Date().toISOString())}</dd>
             </dl>
             <div className="ga-divider" />
-            {overviewBlocks}
+            {renderTable(numbered, true)}
           </Card>
           <div className="mt-16">
             <Card title="Ký xác nhận">

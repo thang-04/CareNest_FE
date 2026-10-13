@@ -58,6 +58,13 @@ const ReviewListPage = lazy(() => import('@/pages/education-plan/ReviewListPage'
 const PlanReviewPage = lazy(() => import('@/pages/education-plan/PlanReviewPage'));
 const ApprovalListPage = lazy(() => import('@/pages/education-plan/ApprovalListPage'));
 const SchoolPlansPage = lazy(() => import('@/pages/education-plan/SchoolPlansPage'));
+const YearPlanListPage = lazy(() => import('@/pages/education-plan/YearPlanListPage'));
+const YearPlanPage = lazy(() => import('@/pages/education-plan/YearPlanPage'));
+const ClassPlanPage = lazy(() => import('@/pages/education-plan/ClassPlanPage'));
+const ClassPlanRedirect = lazy(() => import('@/pages/education-plan/ClassPlanPage').then((m) => ({ default: m.ClassPlanRedirect })));
+const ClassThemePlanPage = lazy(() => import('@/pages/education-plan/ClassThemePlanPage'));
+const WeekPlanPage = lazy(() => import('@/pages/education-plan/WeekPlanPage'));
+const PlanReviewQueuePage = lazy(() => import('@/pages/education-plan/PlanReviewQueuePage'));
 
 const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'));
 const MealSessionPage = lazy(() => import('@/pages/attendance/MealSessionPage'));
@@ -261,6 +268,14 @@ export function AppRoutes() {
           <Route path="education" element={<EducationPlanLayout />}>
             <Route index element={edu(EDU_VIEW, <EducationHomeRedirect />)} />
             <Route path="school" element={edu([ROLES.PRINCIPAL], <SchoolPlansPage />)} />
+            {/* Mẫu Trường MN Thái Dương: kế hoạch năm theo khối, tài liệu của lớp, duyệt theo tuần */}
+            <Route path="year-plans" element={edu(EDU_VIEW, <YearPlanListPage />)} />
+            <Route path="year-plans/:id" element={edu(EDU_VIEW, <YearPlanPage />)} />
+            <Route path="class" element={edu(EDU_VIEW, <ClassPlanRedirect />)} />
+            <Route path="class/:classId" element={edu(EDU_VIEW, <ClassPlanPage />)} />
+            <Route path="class/:classId/themes/:themeId" element={edu(EDU_VIEW, <ClassThemePlanPage />)} />
+            <Route path="class/:classId/weeks/:weekStart" element={edu(EDU_VIEW, <WeekPlanPage />)} />
+            <Route path="plan-reviews" element={edu(EDU_VP_TL, <PlanReviewQueuePage />)} />
             <Route path="goals" element={edu(EDU_VP_TL, <GoalListPage />)} />
             <Route path="goals/new" element={edu(VP_ONLY, <GoalFormPage />)} />
             <Route path="goals/:id" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <GoalDetailPage />)} />

@@ -52,6 +52,13 @@ export function EducationPlanProvider({ children }) {
   const toastApi = useToast();
   const { schoolYear: yearId, setSchoolYear, schoolYears } = useSchoolYear();
   const { data, setData, loading, error, reload } = useAsync(() => service.getEducationPlans(), [], { refreshOnDataChange: true });
+  const {
+    data: plans,
+    setData: setPlans,
+    loading: plansLoading,
+    error: plansError,
+    reload: reloadPlans,
+  } = useAsync(() => service.getClassPlans(), [], { refreshOnDataChange: true });
 
   const toast = useCallback((message, tone = 'ok') => toastApi[TOAST_TYPES[tone] || 'success'](message), [toastApi]);
 
@@ -79,6 +86,8 @@ export function EducationPlanProvider({ children }) {
       }
     };
     const saveIn = (key, call) => write(key, call, upsert);
+    const PLAN_KEYS = { year: 'yearPlans', branch: 'branchPlans', theme: 'themePlans', week: 'weekPlans' };
+    const putPlan = (kind, doc) => setPlans((prev) => (prev ? { ...prev, [PLAN_KEYS[kind]]: upsert(prev[PLAN_KEYS[kind]], doc) } : prev));
     const deleteIn = (key, call) => write(key, call, (list, id) => list.filter((x) => x.id !== id));
 
     return {
@@ -98,11 +107,52 @@ export function EducationPlanProvider({ children }) {
       deleteTheme: deleteIn('themes', service.deleteTheme),
       saveLesson: saveIn('lessons', service.saveLesson),
       deleteLesson: deleteIn('lessons', service.deleteLesson),
-    };
-  }, [data, setData, reload, user, toast, toastApi, yearId, schoolYears, setSchoolYear]);
 
-  if (loading && !data) return <LoadingState />;
+      // Kế hoạch năm theo khối và tài liệu của lớp (mẫu Trường MN Thái Dương)
+      yearId,
+      yearPlans: plans?.yearPlans || [],
+      branchPlans: plans?.branchPlans || [],
+      themePlans: plans?.themePlans || [],
+      weekPlans: plans?.weekPlans || [],
+      /** Lưu nội dung; trả về bản đã lưu hoặc null khi lỗi (đã báo lỗi). */
+      savePlanDoc: async (kind, doc) => {
+        try {
+          const saved = await service.savePlanDoc(kind, doc, authUser);
+          putPlan(kind, saved);
+          return saved;
+        } catch (err) {
+          toastApi.error(err.message, 'Không lưu được');
+          return null;
+        }
+      },
+      /** Gửi duyệt / duyệt / trả lại / ban hành; trạng thái mới do service quyết định. */
+      actOnPlanDoc: async (kind, id, body) => {
+        try {
+          const saved = await service.actOnPlanDoc(kind, id, body, authUser);
+          putPlan(kind, saved);
+          return saved;
+        } catch (err) {
+          toastApi.error(err.message, 'Không thực hiện được');
+          return null;
+        }
+      },
+      deleteYearPlan: async (id) => {
+        try {
+          await service.deleteYearPlan(id, authUser);
+          setPlans((prev) => (prev ? { ...prev, yearPlans: prev.yearPlans.filter((x) => x.id !== id) } : prev));
+          return true;
+        } catch (err) {
+          toastApi.error(err.message, 'Không xóa được');
+          return false;
+        }
+      },
+      authUser,
+    };
+  }, [data, setData, reload, user, toast, toastApi, yearId, schoolYears, setSchoolYear, plans, setPlans, authUser]);
+
+  if ((loading && !data) || (plansLoading && !plans)) return <LoadingState />;
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
+  if (plansError && !plans) return <ErrorState error={plansError} onRetry={reloadPlans} />;
   return <EducationPlanContext.Provider value={value}>{children}</EducationPlanContext.Provider>;
 }
 

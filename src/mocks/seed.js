@@ -64,7 +64,7 @@ export const seedUsers = [
     campusId: 'c1',
     locationIds: [],
     avatarColor: '#0c8599',
-    ageGroupId: 'ag-4',
+    ageGroupId: 'ag-3',
     classId: 'c-choi2',
   },
   {

@@ -79,7 +79,7 @@ export const buildSeedSchoolConfig = () => ({
       id: 'tla_1',
       schoolYear: '2026-2027',
       campusId: 'c1',
-      ageGroupId: 'ag-4',
+      ageGroupId: 'ag-3',
       userId: 'u_ha',
       assignedBy: 'u_lan',
       assignedAt: at('2026-08-28'),

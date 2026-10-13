@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Download, Plus, 
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS, SCHOOL_SCOPE, allGoalItems, goalRequirements } from '@/models/education-plan/educationPlanConstants';
 import { Card, EmptyState, Field, Modal, Notice, PageHead, SignatureBox, Stepper, fmtDate } from '@/components/education-plan/eduUi';
+import { suggestionMonth, themeSuggestionsFor } from '@/models/education-plan/themeSuggestions';
 import { DomainTitle, Group, useCollapse } from '@/components/education-plan/PlanWidgets';
 import { PickGoalsModal, ImportThemeRowsModal } from '@/components/education-plan/ThemeModals';
 import { ThemeTable, BranchList } from '@/components/education-plan/themeShared';
@@ -32,6 +33,19 @@ function buildBranches(start, end, old = []) {
   }
   return out;
 }
+
+// Chủ đề chọn theo tháng: tuần thuộc tháng có thứ 2 của tuần đó.
+// Bắt đầu = thứ 2 đầu tiên của tháng bắt đầu; kết thúc = thứ 6 trước thứ 2 đầu tiên của tháng sau tháng kết thúc.
+const firstMonday = (ym) => {
+  const iso = `${ym}-01`;
+  const wd = (toDate(iso).getUTCDay() + 6) % 7;
+  return wd === 0 ? iso : addDays(iso, 7 - wd);
+};
+const nextMonth = (ym) => {
+  const [y, m] = ym.split('-').map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+};
+const monthRange = (fromYm, toYm) => ({ startDate: firstMonday(fromYm), endDate: addDays(firstMonday(nextMonth(toYm)), -3) });
 
 export default function ThemeFormPage() {
   const { id } = useParams();
@@ -103,6 +117,10 @@ export default function ThemeFormPage() {
     .concat([{ domain: 'Khác', rows: form.rows.filter((r) => !domainsInGoal.includes(r.domain)) }])
     .filter((g) => g.rows.length);
 
+  // Tháng của ngày bắt đầu/kết thúc (thứ 2 của tuần cuối quyết định tháng kết thúc).
+  const suggestions = themeSuggestionsFor(user.ageGroupId);
+  const fromMonth = form.startDate ? form.startDate.slice(0, 7) : '';
+  const toMonth = form.endDate ? addDays(form.endDate, -4).slice(0, 7) : '';
   const setDates = (patch) => {
     const startDate = patch.startDate ?? form.startDate;
     const endDate = patch.endDate ?? form.endDate;
@@ -113,8 +131,8 @@ export default function ThemeFormPage() {
     const e = {};
     if (s === 0) {
       if (!form.name.trim()) e.name = 'Nhập tên chủ đề';
-      if (!form.startDate) e.startDate = 'Chọn ngày bắt đầu';
-      if (!form.endDate) e.endDate = 'Chọn ngày kết thúc';
+      if (!form.startDate) e.startDate = 'Chọn tháng bắt đầu';
+      if (!form.endDate) e.endDate = 'Chọn tháng kết thúc';
       if (form.startDate && form.endDate && form.endDate < form.startDate) e.endDate = 'Ngày kết thúc phải sau ngày bắt đầu';
       const overlap = themes.find(
         (t) =>
@@ -246,23 +264,56 @@ export default function ThemeFormPage() {
   const lastReject = existing?.status === EDU_STATUS.REJECTED && [...(existing.history || [])].reverse().find((h) => h.tone === 'err');
 
   return (
-    <div className={`page ${step === 1 ? 'ga-page-fill' : ''}`}>
-      <PageHead
-        crumbs={[
-          { label: 'Kế hoạch giáo dục' },
-          { label: 'Kế hoạch chủ đề', to: '/education/themes' },
-          { label: existing ? 'Chỉnh sửa' : 'Tạo kế hoạch' },
-        ]}
-        title={existing ? 'Chỉnh sửa kế hoạch chủ đề' : 'Tạo kế hoạch chủ đề'}
-      />
-      {lastReject && step !== 1 && (
-        <div className="mb-16">
-          <Notice tone="err">
-            <span className="fw-600">Phó hiệu trưởng đã từ chối:</span> {lastReject.note}
-          </Notice>
-        </div>
-      )}
-      <Stepper steps={STEPS} current={step} maxReached={maxReached} onStep={(i) => i <= maxReached && setStep(i)} />
+    <div className="page">
+      <div className="ga-sticky-head">
+        <PageHead
+          crumbs={[
+            { label: 'Kế hoạch giáo dục' },
+            { label: 'Kế hoạch chủ đề', to: '/education/themes' },
+            { label: existing ? 'Chỉnh sửa' : 'Tạo kế hoạch' },
+          ]}
+          title={existing ? 'Chỉnh sửa kế hoạch chủ đề' : 'Tạo kế hoạch chủ đề'}
+        />
+        {lastReject && step !== 1 && (
+          <div className="mb-16">
+            <Notice tone="err">
+              <span className="fw-600">Phó hiệu trưởng đã từ chối:</span> {lastReject.note}
+            </Notice>
+          </div>
+        )}
+        <Stepper steps={STEPS} current={step} maxReached={maxReached} onStep={(i) => i <= maxReached && setStep(i)} />
+        {step === 1 && (
+          <Card
+            title="Mục tiêu và nội dung giáo dục"
+            num="2"
+            className="mt-16"
+            bodyClass={null}
+            actions={
+              <div className="row">
+                <span className="muted text-xs" style={{ marginRight: 8 }}>
+                  {form.rows.length} mục tiêu
+                </span>
+                {groupIds.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--ghost"
+                    onClick={() => (allCollapsed ? col.clear() : col.setAll(groupIds))}
+                  >
+                    {allCollapsed ? <ChevronsUpDown size={16} aria-hidden /> : <ChevronsDownUp size={16} aria-hidden />}
+                    {allCollapsed ? 'Mở rộng tất cả' : 'Thu gọn tất cả'}
+                  </button>
+                )}
+                <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
+                  <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
+                </button>
+                <button type="button" className="btn btn--sm btn--primary" onClick={() => setPicking(true)}>
+                  <Plus size={16} aria-hidden /> Thêm mục tiêu
+                </button>
+              </div>
+            }
+          ></Card>
+        )}
+      </div>
 
       {step === 0 && (
         <Card title="Thông tin chung" num="1">
@@ -279,27 +330,68 @@ export default function ThemeFormPage() {
             <Field label="Người lập" inline>
               <input className="input" value={`${user.name} (${user.title})`} readOnly />
             </Field>
-            <Field label="Ngày bắt đầu" required inline error={errors.startDate} htmlFor="sd">
+            <Field label="Tháng bắt đầu" required inline top error={errors.startDate} htmlFor="sm">
               <input
-                id="sd"
-                type="date"
+                id="sm"
+                type="month"
                 className={`input ${errors.startDate ? 'is-invalid' : ''}`}
-                value={form.startDate}
-                onChange={(e) => setDates({ startDate: e.target.value })}
+                value={fromMonth}
+                onChange={(e) => {
+                  const from = e.target.value;
+                  if (!from) return;
+                  const to = toMonth && toMonth >= from ? toMonth : from;
+                  setDates(monthRange(from, to));
+                }}
               />
             </Field>
-            <Field label="Ngày kết thúc" required inline error={errors.endDate} htmlFor="ed">
+            <Field
+              label="Tháng kết thúc"
+              required
+              inline
+              top
+              error={errors.endDate}
+              htmlFor="em"
+              hint={
+                form.startDate && form.endDate
+                  ? `Hệ thống tính: ${fmtDate(form.startDate)} – ${fmtDate(form.endDate)} (${form.branches.length} tuần)`
+                  : undefined
+              }
+            >
               <input
-                id="ed"
-                type="date"
+                id="em"
+                type="month"
                 className={`input ${errors.endDate ? 'is-invalid' : ''}`}
-                value={form.endDate}
-                onChange={(e) => setDates({ endDate: e.target.value })}
+                value={toMonth}
+                min={fromMonth || undefined}
+                disabled={!fromMonth}
+                onChange={(e) => e.target.value && setDates(monthRange(fromMonth, e.target.value))}
               />
             </Field>
           </div>
           <div className="stack mt-16">
-            <Field label="Tên chủ đề" required inline error={errors.name} htmlFor="name" counter={`${form.name.length}/100`}>
+            <Field label="Chủ đề gợi ý" inline htmlFor="suggest" hint="Chọn để điền sẵn tên, tháng và chủ đề nhánh; sửa lại được.">
+              <select
+                id="suggest"
+                className="select"
+                value=""
+                onChange={(e) => {
+                  const sg = suggestions.find((x) => x.name === e.target.value);
+                  if (!sg) return;
+                  const ym = suggestionMonth(schoolYear, sg.month);
+                  const range = monthRange(ym, ym);
+                  const branches = buildBranches(range.startDate, range.endDate).map((b, i) => ({ ...b, name: sg.branches[i] || '' }));
+                  set({ name: sg.name, ...range, branches });
+                }}
+              >
+                <option value="">Chọn chủ đề gợi ý…</option>
+                {suggestions.map((sg) => (
+                  <option key={sg.name} value={sg.name}>
+                    {sg.name} (tháng {sg.month})
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Tên chủ đề" required inline top error={errors.name} htmlFor="name" counter={`${form.name.length}/100`}>
               <input
                 id="name"
                 className={`input ${errors.name ? 'is-invalid' : ''}`}
@@ -314,7 +406,7 @@ export default function ThemeFormPage() {
               <div className="form-row__control">
                 {form.branches.length === 0 ? (
                   <p className="muted text-xs" style={{ paddingTop: 9 }}>
-                    Chọn ngày bắt đầu và kết thúc để chia tuần.
+                    Chọn tháng bắt đầu và kết thúc để chia tuần.
                   </p>
                 ) : (
                   <div className="ga-branch-list">
@@ -354,36 +446,8 @@ export default function ThemeFormPage() {
       )}
 
       {step === 1 && (
-        <Card
-          title="Mục tiêu và nội dung giáo dục"
-          num="2"
-          className="ga-card-fill"
-          bodyClass={null}
-          actions={
-            <div className="row">
-              <span className="muted text-xs" style={{ marginRight: 8 }}>
-                {form.rows.length} mục tiêu
-              </span>
-              {groupIds.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn--sm btn--ghost"
-                  onClick={() => (allCollapsed ? col.clear() : col.setAll(groupIds))}
-                >
-                  {allCollapsed ? <ChevronsUpDown size={16} aria-hidden /> : <ChevronsDownUp size={16} aria-hidden />}
-                  {allCollapsed ? 'Mở rộng tất cả' : 'Thu gọn tất cả'}
-                </button>
-              )}
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
-                <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
-              </button>
-              <button type="button" className="btn btn--sm btn--primary" onClick={() => setPicking(true)}>
-                <Plus size={16} aria-hidden /> Thêm mục tiêu
-              </button>
-            </div>
-          }
-        >
-          <div className="card__body ga-card-scroll" ref={listRef}>
+        <Card bodyClass={null}>
+          <div className="card__body" ref={listRef}>
             {errors.rows && (
               <div className="mb-16">
                 <Notice tone="err">{errors.rows}</Notice>

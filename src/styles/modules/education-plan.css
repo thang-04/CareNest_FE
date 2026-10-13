@@ -591,3 +591,164 @@
   z-index: var(--z-sticky);
   background: var(--color-bg);
 }
+/* Phần dính trên form kế hoạch: stepper và thanh công cụ gọn để nhường chỗ cho nội dung */
+.ga-sticky-head .stepper-card {
+  padding: var(--space-2) var(--space-6);
+  margin-bottom: var(--space-2);
+}
+.ga-sticky-head .stepper__btn {
+  gap: var(--space-1);
+}
+.ga-sticky-head .stepper__dot {
+  width: 26px;
+  height: 26px;
+  font-size: var(--fs-xs);
+}
+.ga-sticky-head .stepper__item:not(:last-child)::after {
+  top: 12px;
+  left: calc(50% + 17px);
+  right: calc(-50% + 17px);
+}
+.ga-sticky-head .stepper__label {
+  font-size: var(--fs-xs);
+}
+.ga-sticky-head .ga-sticky-bar {
+  margin-bottom: var(--space-2);
+}
+.ga-sticky-bar .card__header {
+  padding: var(--space-2) var(--space-4);
+}
+.ga-sticky-bar .card__title {
+  font-size: var(--fs-md);
+}
+
+/* Bảng mục tiêu năm học kiểu Word: kẻ đủ hàng/cột, độ rộng cột cố định, ô nhập không viền */
+.table.ga-goal-table {
+  table-layout: fixed;
+}
+/* Tiêu đề cột cùng lề với ô bên dưới để ô tick, mã thẳng hàng */
+.table.ga-goal-table th,
+.table.ga-goal-table th:first-child,
+.table.ga-goal-table th:last-child {
+  padding: var(--space-2) var(--space-3);
+}
+.table.ga-goal-table input[type='checkbox'] {
+  display: block;
+  margin: 0 auto;
+}
+.table.ga-goal-table th,
+.table.ga-goal-table td {
+  border: 1px solid var(--color-border-strong);
+}
+.table.ga-goal-table td,
+.table.ga-goal-table td:first-child,
+.table.ga-goal-table td:last-child {
+  padding: 0;
+  vertical-align: top;
+}
+.ga-goal-table__code {
+  width: 96px;
+}
+.ga-goal-table__goal {
+  width: 34%;
+}
+.ga-goal-table__del {
+  width: 64px;
+}
+.ga-goal-table__pad {
+  padding: var(--space-2) var(--space-3);
+}
+.ga-cell-input {
+  display: block;
+  width: 100%;
+  min-height: var(--input-height);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: var(--lh-normal);
+  resize: none;
+  overflow: hidden;
+}
+.ga-cell-input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.ga-cell-input::placeholder {
+  color: var(--color-text-disabled);
+}
+.ga-goal-line__text {
+  display: flex;
+  align-items: flex-start;
+}
+.ga-goal-line__text .icon-btn {
+  margin: var(--space-1);
+  flex-shrink: 0;
+}
+/* Bảng mục tiêu một màu nền, không đổi màu khi rê chuột (ô mục tiêu gộp nhiều hàng YCCĐ nên bỏ nền xen kẽ) */
+.table.ga-goal-table tbody tr td,
+.table.ga-goal-table tbody tr:hover td,
+.table.ga-goal-table tbody tr:nth-child(even) td,
+.table.ga-goal-table tbody tr:nth-child(even):hover td {
+  background: var(--color-surface);
+}
+/* Dòng tiêu đề lĩnh vực trong bảng mục tiêu: dải xanh đậm, chữ trắng nhỏ */
+.table.ga-goal-table tbody tr td.ga-goal-table__domain,
+.table.ga-goal-table tbody tr:hover td.ga-goal-table__domain,
+.table.ga-goal-table tbody tr:nth-child(even) td.ga-goal-table__domain,
+.table.ga-goal-table tbody tr:nth-child(even):hover td.ga-goal-table__domain {
+  background: var(--color-primary);
+  color: var(--text-inverse);
+}
+.ga-goal-table__domain .ga-goal-table__pad {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+.ga-goal-table__domain h3,
+.ga-goal-table__domain .muted,
+.ga-goal-table__domain .btn,
+.ga-goal-table__domain .icon-btn,
+.ga-goal-table__domain .btn svg {
+  color: var(--text-inverse);
+}
+.ga-goal-table__domain h3 {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+}
+.ga-goal-table__domain .chip {
+  font-size: var(--fs-2xs);
+}
+/* Bảng chọn YCCĐ của tổ trưởng: modal gần toàn màn hình, bảng cuộn bên trong với tiêu đề cột dính trên cùng */
+.modal.ga-modal-full {
+  max-width: none;
+  height: 100%;
+  max-height: none;
+}
+.ga-modal-full .modal__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ga-modal-full .modal__body > .stack {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ga-pick-table {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.ga-pick-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.ga-pick-table__label {
+  display: block;
+  cursor: pointer;
+}
