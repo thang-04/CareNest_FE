@@ -1,6 +1,8 @@
 import { makeSignatureSvg } from './signatureArt';
 import { buildSeedInspections, seedInspectionNotifications } from './inspectionSeed';
 import { EDU_SEED_VERSION, buildSeedEducationPlans } from './educationPlanSeed';
+import { buildExtraTeachers } from './teacherSeed';
+import { buildExtraClassData } from './classSeed';
 import { buildSeedSchool } from './schoolSeed';
 
 /* ---------- Master data ---------- */
@@ -762,17 +764,24 @@ export const seedNotifications = [
   },
 ];
 
-export const buildSeedDatabase = () => ({
-  campuses: seedCampuses,
-  users: seedUsers,
-  locations: seedLocations,
-  categories: seedCategories,
-  assets: seedAssets,
-  signatures: seedSignatures,
-  transfers: seedTransfers,
-  notifications: [...seedNotifications, ...seedInspectionNotifications],
-  inspections: buildSeedInspections(seedAssets),
-  ...buildSeedEducationPlans(),
-  eduSeedVersion: EDU_SEED_VERSION,
-  ...buildSeedSchool(),
-});
+export const buildSeedDatabase = () => {
+  const extraTeachers = buildExtraTeachers(seedUsers);
+  const school = buildSeedSchool();
+  const extra = buildExtraClassData(extraTeachers);
+  return {
+    campuses: seedCampuses,
+    users: [...seedUsers, ...extraTeachers],
+    locations: [...seedLocations, ...extra.rooms],
+    categories: seedCategories,
+    assets: seedAssets,
+    signatures: seedSignatures,
+    transfers: seedTransfers,
+    notifications: [...seedNotifications, ...seedInspectionNotifications],
+    inspections: buildSeedInspections(seedAssets),
+    ...buildSeedEducationPlans(),
+    eduSeedVersion: EDU_SEED_VERSION,
+    ...school,
+    classes: [...school.classes, ...extra.classes],
+    children: [...school.children, ...extra.children],
+  };
+};

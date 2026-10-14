@@ -1,5 +1,7 @@
 import { readDb, writeDb, clone, delay, ApiError } from './mockDatabase';
 import { buildSeedSchool, buildM1ExtraChildren } from './schoolSeed';
+import { buildExtraTeachers } from './teacherSeed';
+import { buildExtraClassData } from './classSeed';
 import { ROLES } from '@/models/User';
 import { activeYearId } from './roomManagers';
 import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
@@ -13,6 +15,28 @@ export const ensureSchoolSeeded = () => {
       const ids = new Set(d.children.map((ch) => ch.id));
       d.children.push(...clone(buildM1ExtraChildren()).filter((ch) => !ids.has(ch.id)));
       d.m1Children25 = true;
+    });
+  }
+  // Dữ liệu demo cũ: bổ sung giáo viên cho đủ 30 người mỗi điểm trường (một lần, theo id)
+  if (db.users && !db.teachers30) {
+    writeDb((d) => {
+      const ids = new Set(d.users.map((u) => u.id));
+      d.users.push(...buildExtraTeachers(d.users).filter((u) => !ids.has(u.id)));
+      d.teachers30 = true;
+    });
+  }
+  // Dữ liệu demo cũ: thêm lớp, phòng, trẻ cho đủ 12 lớp mỗi điểm trường (một lần, theo id)
+  if (readDb().classes && !readDb().classes24) {
+    writeDb((d) => {
+      const extra = buildExtraClassData(d.users.filter((u) => u.id.startsWith('u_gv')));
+      const add = (list, items) => {
+        const ids = new Set(list.map((x) => x.id));
+        list.push(...clone(items).filter((x) => !ids.has(x.id)));
+      };
+      add((d.locations ||= []), extra.rooms);
+      add(d.classes, extra.classes);
+      add(d.children, extra.children);
+      d.classes24 = true;
     });
   }
   if (db.classes && db.children) return readDb();
