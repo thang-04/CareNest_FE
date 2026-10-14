@@ -591,3 +591,363 @@
   z-index: var(--z-sticky);
   background: var(--color-bg);
 }
+/* Phần dính trên form kế hoạch: stepper và thanh công cụ gọn để nhường chỗ cho nội dung */
+.ga-sticky-head .stepper-card {
+  padding: var(--space-2) var(--space-6);
+  margin-bottom: var(--space-2);
+}
+.ga-sticky-head .stepper__btn {
+  gap: var(--space-1);
+}
+.ga-sticky-head .stepper__dot {
+  width: 26px;
+  height: 26px;
+  font-size: var(--fs-xs);
+}
+.ga-sticky-head .stepper__item:not(:last-child)::after {
+  top: 12px;
+  left: calc(50% + 17px);
+  right: calc(-50% + 17px);
+}
+.ga-sticky-head .stepper__label {
+  font-size: var(--fs-xs);
+}
+.ga-sticky-head .ga-sticky-bar {
+  margin-bottom: var(--space-2);
+}
+.ga-sticky-bar .card__header {
+  padding: var(--space-2) var(--space-4);
+}
+.ga-sticky-bar .card__title {
+  font-size: var(--fs-md);
+}
+
+/* Bảng mục tiêu năm học kiểu Word: kẻ đủ hàng/cột, độ rộng cột cố định, ô nhập không viền */
+.table.ga-goal-table {
+  table-layout: fixed;
+}
+/* Tiêu đề cột cùng lề với ô bên dưới để ô tick, mã thẳng hàng */
+.table.ga-goal-table th,
+.table.ga-goal-table th:first-child,
+.table.ga-goal-table th:last-child {
+  padding: var(--space-2) var(--space-3);
+}
+.table.ga-goal-table input[type='checkbox'] {
+  display: block;
+  margin: 0 auto;
+}
+.table.ga-goal-table th,
+.table.ga-goal-table td {
+  border: 1px solid var(--color-border-strong);
+}
+.table.ga-goal-table td,
+.table.ga-goal-table td:first-child,
+.table.ga-goal-table td:last-child {
+  padding: 0;
+  vertical-align: top;
+}
+.ga-goal-table__code {
+  width: 96px;
+}
+.ga-goal-table__goal {
+  width: 34%;
+}
+.ga-goal-table__del {
+  width: 64px;
+}
+.ga-goal-table__pad {
+  padding: var(--space-2) var(--space-3);
+}
+.ga-cell-input {
+  display: block;
+  width: 100%;
+  min-height: var(--input-height);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: var(--lh-normal);
+  resize: none;
+  overflow: hidden;
+}
+.ga-cell-input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.ga-cell-input::placeholder {
+  color: var(--color-text-disabled);
+}
+.ga-goal-line__text {
+  display: flex;
+  align-items: flex-start;
+}
+.ga-goal-line__text .icon-btn {
+  margin: var(--space-1);
+  flex-shrink: 0;
+}
+/* Bảng mục tiêu một màu nền, không đổi màu khi rê chuột (ô mục tiêu gộp nhiều hàng YCCĐ nên bỏ nền xen kẽ) */
+.table.ga-goal-table tbody tr td,
+.table.ga-goal-table tbody tr:hover td,
+.table.ga-goal-table tbody tr:nth-child(even) td,
+.table.ga-goal-table tbody tr:nth-child(even):hover td {
+  background: var(--color-surface);
+}
+/* Dòng tiêu đề lĩnh vực trong bảng mục tiêu: dải xanh đậm, chữ trắng nhỏ */
+.table.ga-goal-table tbody tr td.ga-goal-table__domain,
+.table.ga-goal-table tbody tr:hover td.ga-goal-table__domain,
+.table.ga-goal-table tbody tr:nth-child(even) td.ga-goal-table__domain,
+.table.ga-goal-table tbody tr:nth-child(even):hover td.ga-goal-table__domain {
+  background: var(--color-primary);
+  color: var(--text-inverse);
+}
+.ga-goal-table__domain .ga-goal-table__pad {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+.ga-goal-table__domain h3,
+.ga-goal-table__domain .muted,
+.ga-goal-table__domain .btn,
+.ga-goal-table__domain .icon-btn,
+.ga-goal-table__domain .btn svg {
+  color: var(--text-inverse);
+}
+.ga-goal-table__domain h3 {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+}
+.ga-goal-table__domain .chip {
+  font-size: var(--fs-2xs);
+}
+/* Bảng chọn YCCĐ của tổ trưởng: modal gần toàn màn hình, bảng cuộn bên trong với tiêu đề cột dính trên cùng */
+.modal.ga-modal-full {
+  max-width: none;
+  height: 100%;
+  max-height: none;
+}
+.ga-modal-full .modal__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ga-modal-full .modal__body > .stack {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ga-pick-table {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.ga-pick-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.ga-pick-table__label {
+  display: block;
+  cursor: pointer;
+}
+/* Bảng mục tiêu năm có các cột tích chủ đề (lấy từ phần B): cột chủ đề hẹp, bảng cuộn ngang khi màn hình hẹp */
+.table.ga-goal-table--themes {
+  min-width: 1500px;
+}
+.ga-goal-table__theme {
+  width: var(--space-12);
+}
+/* Bảng mục tiêu chia tầng: cột nhóm kết quả mong đợi và mục tiêu có độ rộng cố định, cột nội dung lấy phần còn lại */
+.ga-goal-table__group {
+  width: 190px;
+}
+.ga-goal-table__goaltext {
+  width: 240px;
+}
+/* Dòng lĩnh vực con (1., 2.…) trong bảng mục tiêu: dải vàng chói như bút highlight của Word, trải hết hàng,
+   cao vừa dòng chữ, chữ đen đậm. Hệ thống chưa có token vàng này nên khai báo biến riêng cho module (Tiền chọn màu 14/10). */
+.ga-goal-table {
+  --ga-highlight: #ffff00;
+}
+.ga-goal-table__subname {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  background: var(--ga-highlight);
+  color: var(--color-text);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-normal);
+}
+.ga-goal-table__subname input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+}
+.ga-goal-table__subname input:focus {
+  outline: none;
+}
+.ga-goal-table__subname:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.ga-goal-table__subname .icon-btn {
+  width: auto;
+  height: auto;
+  padding: 0 var(--space-1);
+}
+/* Gợi ý kết quả mong đợi trong ô bảng mục tiêu: danh sách rộng hơn cột để đọc đủ câu */
+.ga-goal-table .search-select__panel {
+  min-width: 420px;
+}
+/* Cột cố định, không nhập (STT, mục tiêu tự tính của chủ đề): nền xám cả tiêu đề và ô, không đổi khi rê chuột (Tiền duyệt 14/10) */
+.table.ga-goal-table th.ga-goal-table__fixed,
+.table.ga-goal-table tbody tr td.ga-goal-table__fixed,
+.table.ga-goal-table tbody tr:hover td.ga-goal-table__fixed,
+.table.ga-goal-table tbody tr:nth-child(even) td.ga-goal-table__fixed,
+.table.ga-goal-table tbody tr:nth-child(even):hover td.ga-goal-table__fixed {
+  background: var(--color-secondary);
+  color: var(--color-text);
+  cursor: not-allowed;
+}
+/* Lịch chọn ngày ở bảng chủ đề / đợt nghỉ (Tiền duyệt 14/10): đỏ = ngày đã thuộc chủ đề / đợt nghỉ khác,
+   xanh lá = ngày đang chọn và khoảng của chính dòng đang sửa, trắng = ngày còn trống */
+/* Cột Từ ngày / Đến ngày đủ rộng cho dd/mm/yyyy và biểu tượng lịch, không xuống dòng */
+.ga-cal__col {
+  width: calc(var(--space-16) * 2);
+}
+.ga-cal__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ga-cal {
+  padding: var(--space-3);
+}
+.ga-cal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+.ga-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+}
+.ga-cal__dow {
+  text-align: center;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-muted);
+}
+.ga-cal__day {
+  height: var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.ga-cal__day:hover {
+  border-color: var(--color-primary);
+}
+.ga-cal__day:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+.ga-cal__day--out {
+  color: var(--color-text-disabled);
+}
+.ga-cal__day--taken {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  color: var(--color-danger-fg);
+  font-weight: var(--fw-semibold);
+}
+.ga-cal__day--range {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success-fg);
+}
+.ga-cal__day--selected {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-text-inverse);
+  font-weight: var(--fw-bold);
+}
+.ga-cal__legend {
+  display: flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  font-size: var(--fs-2xs);
+  color: var(--color-text-muted);
+}
+/* Nút "Xóa ngày" dồn về cuối dòng chú thích */
+.ga-cal__legend .btn {
+  margin-left: auto;
+}
+.ga-cal__swatch {
+  display: inline-block;
+  width: var(--space-3);
+  height: var(--space-3);
+  margin-right: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  vertical-align: middle;
+}
+/* Bảng kế hoạch năm (mục tiêu, chủ đề, đợt nghỉ) kiểu Word: góc vuông, viền đậm hơn, tiêu đề cột chữ đậm to hơn (Tiền yêu cầu 14/10) */
+.table-wrap:has(> .table.ga-goal-table) {
+  border-color: var(--color-text-disabled);
+  border-radius: 0;
+}
+.table.ga-goal-table th,
+.table.ga-goal-table td {
+  border-color: var(--color-text-disabled);
+}
+.table.ga-goal-table th {
+  white-space: normal;
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+}
+/* Hàng tiêu đề thứ 2 (tên viết tắt chủ đề, cột hẹp): giữ chữ nhỏ, lề hẹp để vừa cột */
+.table.ga-goal-table thead tr + tr th {
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+  font-size: var(--fs-2xs);
+}
+/* Cột Viết tắt của bảng chủ đề: chữ trong ô nhập canh giữa như tiêu đề cột */
+.ga-goal-table__center .ga-cell-input {
+  text-align: center;
+}
+/* Ô đang nhập: khung xanh trùng đúng viền ô bảng như bảng tính (cả khi hàng cao hơn ô nhập), không hở khoảng trắng (Tiền 14/10) */
+.table.ga-goal-table td:not(.ga-goal-table__subband):focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.table.ga-goal-table td .ga-cell-input:focus {
+  outline: none;
+}
+.table.ga-goal-table td:has(.ga-cell-input) {
+  cursor: text;
+}

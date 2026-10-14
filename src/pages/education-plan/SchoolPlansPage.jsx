@@ -6,7 +6,6 @@ import { Card, EduStatusBadge, EmptyState, PageHead, fmtDate, fmtDateTime } from
 import { className, periodLabel, typeLabel } from '@/components/education-plan/lessonShared';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
-import EduProgress from '@/components/education-plan/EduProgress';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -51,7 +50,7 @@ export default function SchoolPlansPage() {
         })),
       themes: yearThemes.map((t) => ({
         id: t.id,
-        to: `/education/themes/${t.id}`,
+        to: '/education/plan-reviews',
         title: `Chủ đề: ${t.name}`,
         code: t.code,
         scope: ageName(t.ageGroupId),
@@ -65,7 +64,7 @@ export default function SchoolPlansPage() {
         .filter((l) => themeIds.has(l.themeId) && isShared(l.status))
         .map((l) => ({
           id: l.id,
-          to: `/education/lessons/${l.id}`,
+          to: '/education/plan-reviews',
           title: `${typeLabel(l.type)} · Tuần ${l.weekIndex}: ${l.branch}`,
           code: l.code,
           scope: `Lớp ${className(l.classId)}`,
@@ -108,7 +107,6 @@ export default function SchoolPlansPage() {
         title="Kế hoạch giáo dục toàn trường"
         desc={`Năm học ${schoolYear}: mục tiêu năm học, kế hoạch chủ đề và giáo án đã gửi của các nhóm tuổi (chỉ xem). Phó hiệu trưởng là người phê duyệt.`}
       />
-      <EduProgress />
       <div className="stat-grid">
         {stats.map((s) => (
           <button

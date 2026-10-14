@@ -7,6 +7,6 @@ export default function EducationHomeRedirect() {
   const { role } = useEducationPlan();
   if (role === ROLES.PRINCIPAL) return <Navigate to="/education/school" replace />;
   if (role === ROLES.VICE_PRINCIPAL) return <Navigate to="/education/goals" replace />;
-  if (role === ROLES.TEAM_LEADER) return <Navigate to="/education/themes" replace />;
-  return <Navigate to="/education/lessons" replace />;
+  if (role === ROLES.TEAM_LEADER) return <Navigate to="/education/goals" replace />;
+  return <Navigate to="/education/class" replace />;
 }

@@ -12,6 +12,8 @@ export {
   IconArrowLeft as ArrowLeft,
   IconArrowsExchange as ArrowLeftRight,
   IconArrowRight as ArrowRight,
+  IconArrowUp as ArrowUp,
+  IconArrowDown as ArrowDown,
   IconExternalLink as ArrowSquareOut,
   IconAward as Award,
   IconAt as AtSign,

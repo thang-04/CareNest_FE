@@ -29,19 +29,23 @@ export const fmtDateTime = (s) => {
   return `${fmtDate(date)}${time ? ` ${time}` : ''}`;
 };
 
-/** Breadcrumb (always starting at Trang chủ) + h1.page__title + actions on the right. */
+/**
+ * Breadcrumb (always starting at Trang chủ) + mô tả/actions; tiêu đề h1 chỉ cho trình đọc màn hình.
+ * Module kế hoạch giáo dục không dùng thẻ đầu trang có hình minh hoạ (Tiền chốt 12/10) để dành chỗ cho nội dung.
+ */
 export function PageHead({ crumbs, title, desc, actions }) {
   const items = crumbs?.length ? (crumbs[0].to === '/' ? crumbs : [HOME, ...crumbs]) : [HOME, { label: title }];
   return (
     <>
       <Breadcrumb items={items} />
-      <div className="page__head ga-page-head">
-        <div>
-          <h1 className="page__title">{title}</h1>
-          {desc && <p className="muted mt-8">{desc}</p>}
+      {/* Tiêu đề chỉ để trình đọc màn hình: đường dẫn đã hiện tên trang (Tiền chốt 12/10). */}
+      <h1 className="sr-only">{title}</h1>
+      {(desc || actions) && (
+        <div className="row row--between row--wrap gap-3 ga-page-head">
+          {desc ? <p className="muted text-sm">{desc}</p> : <span />}
+          {actions && <div className="row row--wrap">{actions}</div>}
         </div>
-        {actions && <div className="row row--wrap">{actions}</div>}
-      </div>
+      )}
     </>
   );
 }
@@ -53,10 +57,25 @@ export const EduStatusBadge = createStatusBadge(
     SENT: ['green', Send],
     PENDING_TL: ['purple', Clock],
     PENDING_VP: ['purple', Clock],
+    PENDING_HT: ['purple', Clock],
     APPROVED: ['green', CheckCircle2],
     REJECTED: ['red', XCircle],
   },
   EDU_STATUS_LABELS,
+);
+
+/** Trạng thái kế hoạch năm: hai người xây dựng (Tổ trưởng, Phó HT) cùng ký, gửi Phó HT, Phó HT ban hành. */
+export const YearPlanStatusBadge = createStatusBadge(
+  {
+    DRAFT: ['gray', FileEdit],
+    SENT: ['green', Send],
+    PENDING_TL: ['purple', Clock],
+    PENDING_VP: ['purple', Clock],
+    PENDING_HT: ['purple', Clock],
+    APPROVED: ['green', CheckCircle2],
+    REJECTED: ['red', XCircle],
+  },
+  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành' },
 );
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */
@@ -196,10 +215,10 @@ export function SignatureView({ sig, name }) {
 }
 
 /** Always-open modal: the page decides when to render it. */
-export function Modal({ title, children, onClose, footer, width }) {
+export function Modal({ title, children, onClose, footer, width, className }) {
   const size = width > 760 ? 'xl' : width > 560 ? 'lg' : 'md';
   return (
-    <SharedModal open title={title} onClose={onClose} footer={footer} size={size}>
+    <SharedModal open title={title} onClose={onClose} footer={footer} size={size} className={className}>
       <div className="stack">{children}</div>
     </SharedModal>
   );

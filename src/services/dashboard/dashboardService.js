@@ -54,7 +54,7 @@ const SOURCES = {
         at: lastAt(l.history),
         campusId: null,
         statusLabel: STATUS_EDU.PENDING_TL,
-        to: `/education/reviews/${l.id}`,
+        to: '/education/plan-reviews',
       }));
   },
 
@@ -70,7 +70,7 @@ const SOURCES = {
         at: lastAt(t.history),
         campusId: null,
         statusLabel: STATUS_EDU.PENDING_VP,
-        to: `/education/approvals/chu-de/${t.id}`,
+        to: '/education/plan-reviews',
       }));
   },
 
@@ -86,7 +86,7 @@ const SOURCES = {
         at: lastAt(l.history),
         campusId: null,
         statusLabel: STATUS_EDU.PENDING_VP,
-        to: `/education/approvals/giao-an/${l.id}`,
+        to: '/education/plan-reviews',
       }));
   },
 
