@@ -101,7 +101,7 @@ export default function SchoolPlansPage() {
   };
 
   return (
-    <div className="page">
+    <div className="page ga-page">
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch toàn trường' }]}
         title="Kế hoạch giáo dục toàn trường"

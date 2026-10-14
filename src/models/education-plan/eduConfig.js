@@ -13,8 +13,11 @@ export const PENDING_OF = { TEAM_LEADER: 'PENDING_TL', VICE_PRINCIPAL: 'PENDING_
 export const SIGN_DOCS = [
   { key: 'year', label: 'Kế hoạch năm học', hint: 'Người xây dựng cùng ký; đủ chữ ký thì Tổ trưởng gửi, Phó HT ban hành.' },
   { key: 'branch', label: 'Chủ đề nhánh và thời gian', hint: 'Giáo viên soạn, ký; người duyệt theo thứ tự.' },
-  { key: 'theme', label: 'Kế hoạch chủ đề', hint: 'Giáo viên soạn, ký; người duyệt theo thứ tự.' },
-  { key: 'week', label: 'Giáo án tuần (kế hoạch tuần + 5 ngày)', hint: 'Giáo viên soạn, ký; người duyệt theo thứ tự.' },
+  {
+    key: 'week',
+    label: 'Hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh)',
+    hint: 'Giáo viên gửi cả hồ sơ một lần (không ký); mỗi tuần duyệt riêng, người duyệt ký khung duyệt của tuần đó; kế hoạch chủ đề duyệt cùng tuần 1.',
+  },
 ];
 
 export const DEFAULT_WEEK_ROWS = [
@@ -35,7 +38,7 @@ export const DEFAULT_EDU_CONFIG = {
   signers: {
     year: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
     branch: ['VICE_PRINCIPAL'],
-    theme: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
+    // Tiền chốt 15/10: giáo án tuần (tuần đầu kèm kế hoạch chủ đề) Tổ trưởng duyệt rồi Phó HT duyệt
     week: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
   },
   weekRows: DEFAULT_WEEK_ROWS,

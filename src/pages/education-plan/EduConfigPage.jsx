@@ -60,7 +60,7 @@ export default function EduConfigPage() {
   };
 
   return (
-    <div className="page">
+    <div className="page ga-page">
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Cấu hình' }]}
         title="Cấu hình kế hoạch giáo dục"

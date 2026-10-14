@@ -48,7 +48,7 @@ export default function GoalListPage() {
   const pending = scoped.filter((g) => g.status === EDU_STATUS.PENDING_VP).length;
 
   return (
-    <div className="page">
+    <div className="page ga-page">
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Mục tiêu năm học' }]}
         title="Mục tiêu năm học"
