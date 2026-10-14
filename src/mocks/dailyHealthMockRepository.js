@@ -175,6 +175,8 @@ const ensureDemoHealth = async () => {
 export const dailyHealthMockRepository = {
   async getDailyHealth(query, user) {
     await delay(120);
+    // Màn điểm danh mở khung sức khỏe trước màn tổng hợp: gieo demo tại đây để danh sách lớp có thẻ sức khỏe
+    await ensureDemoHealth();
     const db = readDb();
     const { canRecord, child } = context(db, query, user);
     const entries = (db.dailyHealthEntries || [])

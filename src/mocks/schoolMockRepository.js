@@ -1,5 +1,5 @@
 import { readDb, writeDb, clone, delay, ApiError } from './mockDatabase';
-import { buildSeedSchool } from './schoolSeed';
+import { buildSeedSchool, buildM1ExtraChildren } from './schoolSeed';
 import { ROLES } from '@/models/User';
 import { activeYearId } from './roomManagers';
 import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
@@ -7,7 +7,15 @@ import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 /** Databases saved before the school structure existed get the seed once. */
 export const ensureSchoolSeeded = () => {
   const db = readDb();
-  if (db.classes && db.children) return db;
+  // Dữ liệu demo cũ: bổ sung trẻ Lớp Mầm 1 cho đủ 25 (một lần, theo id)
+  if (db.children && !db.m1Children25) {
+    writeDb((d) => {
+      const ids = new Set(d.children.map((ch) => ch.id));
+      d.children.push(...clone(buildM1ExtraChildren()).filter((ch) => !ids.has(ch.id)));
+      d.m1Children25 = true;
+    });
+  }
+  if (db.classes && db.children) return readDb();
   writeDb((d) => {
     const seed = buildSeedSchool();
     d.classes ||= clone(seed.classes);
