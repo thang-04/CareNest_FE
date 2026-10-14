@@ -84,6 +84,11 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+/* Phần tử cha giữ ô ẩn trong khung: thiếu dòng này, ô ẩn trong bảng có thanh cuộn thoát khỏi khung cắt
+   và kéo dài trang (khoảng trắng dưới footer). :where = độ ưu tiên 0, position khác (sticky...) vẫn thắng */
+:where(*:has(> .sr-only)) {
+  position: relative;
+}
 
 /* Font size helpers (use instead of style={{ fontSize }}) */
 .text-2xs {

@@ -56,9 +56,6 @@
   /* Cao theo phần màn hình còn lại khi cuộn tới khung (trừ thanh trên, tiêu đề, hàng lọc, nút Lưu) */
   max-height: clamp(calc(var(--space-16) * 4), calc(100vh - var(--header-height) - var(--space-16) * 3.5), calc(var(--space-16) * 12));
   overflow: auto;
-  /* Ô chọn ẩn (.sr-only, position: absolute) của các hàng đã cuộn khuất phải bị cắt trong khung;
-     thiếu dòng này chúng kéo dài trang, cuối trang thừa khoảng trắng */
-  position: relative;
 }
 /* Dòng tiêu đề Trẻ | Điểm danh | Tham gia ăn đứng yên khi cuộn */
 .dd-reception__table thead th {

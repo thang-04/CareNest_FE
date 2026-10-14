@@ -1,7 +1,7 @@
 ---
 id: FE-BUG-261014-attendance-blank-page-bottom
 type: bug
-screens: [attendance-entry]
+screens: [attendance-entry, year-placement]
 be_modules: []
 rules: []
 status: fixed
@@ -33,11 +33,13 @@ Lớp 25 trẻ, viewport 1280×800, bảng có `max-height` và `overflow: auto`
 
 ## Fix
 
-Thêm `position: relative` cho `.dd-reception__table` trong `src/styles/modules/attendance.css`.
+Lần 1 chỉ sửa màn điểm danh (`position: relative` cho `.dd-reception__table`). Sau đó màn Xếp lớp năm học mới (`/school/placement`) gặp đúng lỗi này, vì nút Lên lớp/Ở lại/Nghỉ học cũng dùng radio `.sr-only` trong bảng có thanh cuộn. Khi tắt cách sửa, trang dài thêm 725px.
+
+Sửa tận gốc trong `src/styles/utilities.css`: `:where(*:has(> .sr-only)) { position: relative; }`. Phần tử cha trực tiếp của mọi ô `.sr-only` thành khối chứa nên ô ẩn luôn nằm trong khung cắt. `:where` có độ ưu tiên 0 nên `position` riêng (vd. `sticky` của tiêu đề bảng) vẫn thắng. Đã bỏ cách sửa riêng ở màn điểm danh.
 
 ## Regression test
 
-Kiểm tra trên trình duyệt ở 1280×800 và 1920×1080, lớp 25 trẻ: cuộn hết trang thì `document.scrollHeight` bằng mép dưới footer.
+Kiểm tra trên trình duyệt ở 1280×800 và 1920×1080, lớp 25 trẻ, cuộn hết trang thì `document.scrollHeight` bằng mép dưới footer: điểm danh, xếp lớp năm học mới, và lần lượt mọi mục menu của Hiệu trưởng và giáo viên.
 
 ## Ảnh hưởng và Lesson
 
