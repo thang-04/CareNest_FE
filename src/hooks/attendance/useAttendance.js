@@ -32,17 +32,16 @@ export function useClassAttendance(classId, date, { live = true } = {}) {
   return { sheet: data, setSheet: setData, loading: loading && !!classId, error, reload };
 }
 
-export function useAttendanceSummary({ classId, from, to }) {
+/** Một lớp (classId) hoặc nhiều lớp trong phạm vi (multi: campusId tùy chọn, rỗng = toàn trường). */
+export function useAttendanceSummary({ classId, campusId, multi = false, from, to }) {
   const { user } = useAuth();
+  const enabled = (!!classId || multi) && !!from && !!to && from <= to;
   const { data, loading, error, reload } = useAsync(
-    () => getAttendanceSummary({ classId, from, to }, user),
-    [classId, from, to, user?.id],
-    {
-      enabled: !!classId && !!from && !!to && from <= to,
-      refreshOnDataChange: true,
-    },
+    () => getAttendanceSummary({ classId: classId || undefined, campusId: campusId || undefined, from, to }, user),
+    [classId, campusId, multi, from, to, user?.id],
+    { enabled, refreshOnDataChange: true },
   );
-  return { summary: data, loading: loading && !!classId, error, reload };
+  return { summary: data, loading: loading && enabled, error, reload };
 }
 
 export function useMealCounts(date) {

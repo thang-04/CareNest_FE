@@ -329,6 +329,56 @@ const dayInfo = (db, date) => {
 
 const childView = (ch) => ({ id: ch.id, code: ch.code, fullName: ch.fullName, gender: ch.gender, allergies: ch.allergies || [] });
 
+/** Tổng hợp một lớp trong khoảng ngày (dùng cho #66 một lớp và cộng nhiều lớp). */
+const classSummary = (db, cls, from, to) => {
+  const classId = cls.id;
+  const children = activeChildrenOf(db, classId);
+  const sessions = classSessions(db, cls);
+  const days = schoolDaysBetween(from, to).filter((d) => d <= schoolNow().date);
+  const perChild = Object.fromEntries(
+    children.map((ch) => [ch.id, { child: childView(ch), present: 0, excused: 0, unexcused: 0, meals: 0 }]),
+  );
+  const records = new Map(
+    db.attendance
+      .filter((record) => record.classId === classId && record.date >= from && record.date <= to)
+      .map((record) => [`${record.childId}:${record.date}`, record]),
+  );
+  const rows = days.map((date) => {
+    const row = { date, present: 0, excused: 0, unexcused: 0, missing: 0, substitute: 0, mealTotal: 0, meals: allMeals(0, sessions) };
+    children.forEach((ch) => {
+      const rec = records.get(`${ch.id}:${date}`);
+      if (!rec) {
+        row.missing += 1;
+        return;
+      }
+      const key = rec.status === ATTENDANCE_STATUS.PRESENT ? 'present' : rec.status === ATTENDANCE_STATUS.EXCUSED ? 'excused' : 'unexcused';
+      row[key] += 1;
+      perChild[ch.id][key] += 1;
+      const participates = rec.status === ATTENDANCE_STATUS.PRESENT && eatsAny(rec.meals, sessions);
+      if (participates) {
+        row.mealTotal += 1;
+        perChild[ch.id].meals += 1;
+        if (needsSubstitute(ch)) row.substitute += 1;
+      }
+      Object.entries(mealsIn(rec.meals, sessions)).forEach(([s, eats]) => {
+        if (eats) row.meals[s] += 1;
+      });
+    });
+    return row;
+  });
+  return {
+    classId,
+    className: cls.name,
+    campusId: cls.campusId,
+    mealSessions: sessions,
+    from,
+    to,
+    size: children.length,
+    days: rows,
+    children: Object.values(perChild).sort((a, b) => a.child.fullName.localeCompare(b.child.fullName, 'vi')),
+  };
+};
+
 const decorateHandover = (db, h) => {
   const status =
     h.status === HANDOVER_STATUS.READY && !kitchenReady(db, h.campusId, h.date, h.session) ? HANDOVER_STATUS.WAITING_KITCHEN : h.status;
@@ -487,57 +537,54 @@ export const attendanceMockRepository = {
   },
 
   /** #66: per-day and per-child totals of a class over a period. */
-  async getAttendanceSummary({ classId, from, to }, user) {
+  /**
+   * #66: tổng hợp điểm danh theo khoảng ngày. Có classId: một lớp (theo ngày + theo trẻ).
+   * Không có classId (Ban giám hiệu): mọi lớp năm đang hoạt động trong phạm vi, lọc thêm campusId; cộng theo ngày + theo lớp.
+   */
+  async getAttendanceSummary({ classId, campusId, from, to }, user) {
     await delay(200);
     const db = ready();
-    const cls = findClass(db, classId);
-    if (!canViewAttendance(cls, user)) throw forbidden();
     const errors = validateSummaryRange({ from, to });
+    if (classId) {
+      const cls = findClass(db, classId);
+      if (!canViewAttendance(cls, user)) throw forbidden();
+      if (Object.keys(errors).length) throw new ApiError(422, Object.values(errors)[0], errors);
+      return { scope: 'CLASS', ...classSummary(db, cls, from, to) };
+    }
+    if (![ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL].includes(user?.role)) throw forbidden();
     if (Object.keys(errors).length) throw new ApiError(422, Object.values(errors)[0], errors);
-    const children = activeChildrenOf(db, classId);
-    const sessions = classSessions(db, cls);
-    const days = schoolDaysBetween(from, to).filter((d) => d <= schoolNow().date);
-    const perChild = Object.fromEntries(
-      children.map((ch) => [ch.id, { child: childView(ch), present: 0, excused: 0, unexcused: 0, meals: 0 }]),
-    );
-    const records = new Map(
-      db.attendance
-        .filter((record) => record.classId === classId && record.date >= from && record.date <= to)
-        .map((record) => [`${record.childId}:${record.date}`, record]),
-    );
-    const rows = days.map((date) => {
-      const row = { date, present: 0, excused: 0, unexcused: 0, missing: 0, substitute: 0, mealTotal: 0, meals: allMeals(0, sessions) };
-      children.forEach((ch) => {
-        const rec = records.get(`${ch.id}:${date}`);
-        if (!rec) {
-          row.missing += 1;
-          return;
-        }
-        const key =
-          rec.status === ATTENDANCE_STATUS.PRESENT ? 'present' : rec.status === ATTENDANCE_STATUS.EXCUSED ? 'excused' : 'unexcused';
-        row[key] += 1;
-        perChild[ch.id][key] += 1;
-        const participates = rec.status === ATTENDANCE_STATUS.PRESENT && eatsAny(rec.meals, sessions);
-        if (participates) {
-          row.mealTotal += 1;
-          perChild[ch.id].meals += 1;
-          if (needsSubstitute(ch)) row.substitute += 1;
-        }
-        Object.entries(mealsIn(rec.meals, sessions)).forEach(([s, eats]) => {
-          if (eats) row.meals[s] += 1;
+    const classes = currentClasses(db)
+      .filter((c) => canViewAttendance(c, user) && (!campusId || c.campusId === campusId))
+      .sort((a, b) => a.campusId.localeCompare(b.campusId) || a.name.localeCompare(b.name, 'vi'));
+    const parts = classes.map((cls) => classSummary(db, cls, from, to));
+    const days = schoolDaysBetween(from, to)
+      .filter((d) => d <= schoolNow().date)
+      .map((date) => {
+        const row = { date, present: 0, excused: 0, unexcused: 0, missing: 0, substitute: 0, mealTotal: 0 };
+        parts.forEach((part) => {
+          const d = part.days.find((x) => x.date === date);
+          if (d) ['present', 'excused', 'unexcused', 'missing', 'substitute', 'mealTotal'].forEach((k) => (row[k] += d[k]));
         });
+        return row;
       });
-      return row;
-    });
+    const sum = (list, key) => list.reduce((t, x) => t + x[key], 0);
     return {
-      classId,
-      className: cls.name,
-      mealSessions: sessions,
+      scope: 'MULTI',
+      campusId: campusId || null,
       from,
       to,
-      size: children.length,
-      days: rows,
-      children: Object.values(perChild).sort((a, b) => a.child.fullName.localeCompare(b.child.fullName, 'vi')),
+      size: sum(parts, 'size'),
+      days,
+      classes: parts.map((part) => ({
+        classId: part.classId,
+        className: part.className,
+        campusId: part.campusId,
+        size: part.size,
+        present: sum(part.days, 'present'),
+        excused: sum(part.days, 'excused'),
+        unexcused: sum(part.days, 'unexcused'),
+        meals: sum(part.days, 'mealTotal'),
+      })),
     };
   },
 
