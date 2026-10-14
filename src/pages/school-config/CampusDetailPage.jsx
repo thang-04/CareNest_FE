@@ -158,9 +158,14 @@ export default function CampusDetailPage() {
               <h2 className="card__title row" style={{ gap: 8 }}>
                 <Shapes size={18} /> Lớp năm học {schoolYear}
               </h2>
-              <Link className="link-btn" to={`/school/classes?year=${schoolYear}`}>
-                Xem nhóm tuổi & lớp
-              </Link>
+              <span className="row" style={{ gap: 12 }}>
+                <Link className="link-btn" to={`/school/rooms?campus=${campus.id}`}>
+                  Xem phòng học
+                </Link>
+                <Link className="link-btn" to={`/school/classes?year=${schoolYear}`}>
+                  Xem nhóm tuổi & lớp
+                </Link>
+              </span>
             </div>
             <div className="table-wrap sc-table-flat">
               <table className="table">

@@ -14,7 +14,7 @@ import { IssueStatusBadge, IssueTypeChip, LockChip, ProposalStatusBadge } from '
 import { FacilityHistoryCard } from '@/components/facility/FacilityHistoryCard';
 import { DecisionModal } from '@/components/facility/DecisionModal';
 import { PhotoGallery } from '@/components/facility/PhotoGallery';
-import { locationLabel } from '@/models/Location';
+import { locationBaseLabel } from '@/models/Location';
 import { ASSET_CONDITION_LABELS } from '@/models/Asset';
 import { ISSUE_STATUS, ISSUE_TYPES } from '@/models/facility/facilityConstants';
 import { canDecideIssue, canAddToProposal, isManager } from '@/utils/facility/facilityPermissions';
@@ -72,7 +72,7 @@ export default function IssueDetailPage() {
   const decide = canDecideIssue(i, user);
   const blockedByLock = decide && i.lockedBy && i.type !== ISSUE_TYPES.INSUFFICIENT;
   const decided = i.status !== ISSUE_STATUS.SUBMITTED;
-  const loc = locationLabel(md.locationById(i.locationId));
+  const loc = locationBaseLabel(md.locationById(i.locationId));
   const backTo = isManager(user) ? '/facility/issues' : '/facility/my-reports';
 
   const steps = [

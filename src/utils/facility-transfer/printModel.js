@@ -1,5 +1,5 @@
 import { ROLE_LABELS } from '@/models/User';
-import { locationLabel } from '@/models/Location';
+import { locationBaseLabel } from '@/models/Location';
 import {
   TRANSFER_TYPE_LABELS,
   SIGNATURE_TYPES,
@@ -66,7 +66,7 @@ export const buildPrintModel = (transfer, md, previewCreator) => {
       receivedQuantity: completed ? expectedReceiveQuantity(i) : i.receivedQuantity,
     }));
 
-  const placeLabel = (loc, campus) => (loc ? `${locationLabel(loc)} - ${campus?.shortName || ''}` : '—');
+  const placeLabel = (loc, campus) => (loc ? `${locationBaseLabel(loc)} - ${campus?.shortName || ''}` : '—');
 
   return {
     code: transfer.code || '(Tự động sinh)',

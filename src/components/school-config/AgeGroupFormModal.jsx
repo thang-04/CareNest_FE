@@ -1,17 +1,26 @@
 import { useEffect, useState } from 'react';
-import { Save } from '@/components/ui/icons';
+import { Info, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { saveAgeGroup } from '@/services/school-config/schoolConfigService';
+import { MEAL_SESSION_LABELS, MEAL_SESSION_OPTIONS } from '@/models/school-config/schoolConfigConstants';
 import { validateAgeGroup, hasErrors } from '@/utils/school-config/schoolConfigValidation';
 
-const EMPTY = { name: '', shortName: '', ageRange: '', mealsPerDay: 2, nutritionNote: '' };
+const EMPTY = {
+  name: '',
+  shortName: '',
+  ageFromMonths: '',
+  ageToMonths: '',
+  mealSessions: ['LUNCH', 'AFTERNOON'],
+  maxClassSize: 25,
+  nutritionNote: '',
+};
 
-/** Age group information (Age Group entity: name, age range, meals per day, nutrition requirement). */
-export function AgeGroupFormModal({ open, onClose, group, existing }) {
+/** Age Group Form (SRS 4.1.4). The team leader is assigned on the Teacher Assignment screen, not here. */
+export function AgeGroupFormModal({ open, onClose, group, existing, classes = [], yearName }) {
   const { user } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState(EMPTY);
@@ -24,6 +33,9 @@ export function AgeGroupFormModal({ open, onClose, group, existing }) {
     setErrors({});
   }, [open, group]);
 
+  const used = group ? classes.filter((c) => c.ageGroupId === group.id) : [];
+  const usedCampuses = new Set(used.map((c) => c.campusId)).size;
+
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
     setErrors((e) => {
@@ -33,13 +45,19 @@ export function AgeGroupFormModal({ open, onClose, group, existing }) {
     });
   };
   const others = existing.filter((g) => g.id !== group?.id);
+  const toggleMeal = (s) =>
+    set({ mealSessions: form.mealSessions.includes(s) ? form.mealSessions.filter((x) => x !== s) : [...form.mealSessions, s] });
+  // Đổi bữa của nhóm đang có lớp: cảnh báo áp dụng từ nay, dữ liệu cũ giữ nguyên
+  const mealsChanged = !!group && [...(group.mealSessions || [])].sort().join(',') !== [...form.mealSessions].sort().join(',');
+  // Màn hình biết lớp của năm đang chọn; mock/BE kiểm tra lại trên mọi năm chưa kết thúc
+  const check = () => validateAgeGroup(form, others, { blockingClasses: used });
   const blurCheck = (field) => {
-    const e = validateAgeGroup(form, others);
+    const e = check();
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
   };
 
   const submit = async () => {
-    const e = validateAgeGroup(form, others);
+    const e = check();
     setErrors(e);
     if (hasErrors(e)) return;
     setSaving(true);
@@ -54,6 +72,21 @@ export function AgeGroupFormModal({ open, onClose, group, existing }) {
       setSaving(false);
     }
   };
+
+  const numberField = (field, label, { min, max, hint } = {}) => (
+    <FormField label={label} required error={errors[field]} hint={hint}>
+      <input
+        className="input"
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        value={form[field]}
+        onChange={(e) => set({ [field]: e.target.value })}
+        onBlur={() => blurCheck(field)}
+      />
+    </FormField>
+  );
 
   return (
     <Modal
@@ -72,42 +105,72 @@ export function AgeGroupFormModal({ open, onClose, group, existing }) {
       }
     >
       <div className="grid-2">
-        <FormField label="Tên nhóm tuổi" required error={errors.name}>
+        <FormField label="Tên nhóm tuổi" required error={errors.name} hint="Ví dụ Nhà trẻ, Mầm, Chồi, Lá">
           <input
             className="input"
             value={form.name}
-            maxLength={80}
+            maxLength={50}
             onChange={(e) => set({ name: e.target.value })}
             onBlur={() => blurCheck('name')}
           />
         </FormField>
-        <FormField label="Tên ngắn" required error={errors.shortName} hint="Hiển thị trong bảng, ví dụ Mẫu giáo bé">
+        <FormField label="Tên ngắn" required error={errors.shortName} hint="Hiển thị ở thực đơn, phân công, bảng biểu">
           <input className="input" value={form.shortName} maxLength={40} onChange={(e) => set({ shortName: e.target.value })} />
         </FormField>
-        <FormField label="Độ tuổi" required error={errors.ageRange}>
-          <input className="input" value={form.ageRange} placeholder="3–4 tuổi" onChange={(e) => set({ ageRange: e.target.value })} />
-        </FormField>
-        <FormField label="Số bữa mỗi ngày" required error={errors.mealsPerDay} hint="Nhà trẻ 3 bữa, mẫu giáo 2 bữa">
-          <input
-            className="input"
-            type="number"
-            min={1}
-            max={5}
-            value={form.mealsPerDay}
-            onChange={(e) => set({ mealsPerDay: e.target.value })}
-            onBlur={() => blurCheck('mealsPerDay')}
-          />
-        </FormField>
+        {numberField('ageFromMonths', 'Độ tuổi từ (tháng)', { min: 0, max: 72 })}
+        {numberField('ageToMonths', 'Độ tuổi đến (tháng)', { min: 1, max: 72, hint: 'Lớn hơn độ tuổi từ, không trùng nhóm khác' })}
+        <fieldset className="field sc-meals">
+          <legend className="field__label">
+            Bữa ăn trong ngày<span className="req">*</span>
+          </legend>
+          <div className="sc-meals__options">
+            {MEAL_SESSION_OPTIONS.map((s) => (
+              <label key={s} className={`sc-meal ${form.mealSessions.includes(s) ? 'sc-meal--on' : ''}`}>
+                <input type="checkbox" checked={form.mealSessions.includes(s)} onChange={() => toggleMeal(s)} />
+                {MEAL_SESSION_LABELS[s]}
+              </label>
+            ))}
+          </div>
+          {errors.mealSessions ? (
+            <span className="field__error" role="alert">
+              {errors.mealSessions}
+            </span>
+          ) : (
+            <span className="field__hint">= {form.mealSessions.length} bữa/ngày · dùng cho thực đơn và suất ăn của nhóm</span>
+          )}
+        </fieldset>
+        {numberField('maxClassSize', 'Sĩ số tối đa / lớp', {
+          min: 1,
+          hint: 'Tham khảo theo Điều lệ trường mầm non của Bộ Giáo dục và Đào tạo.',
+        })}
       </div>
       <FormField label="Yêu cầu dinh dưỡng" className="mt-12">
         <textarea
           className="textarea"
-          rows={3}
+          rows={2}
           maxLength={500}
           value={form.nutritionNote}
           onChange={(e) => set({ nutritionNote: e.target.value })}
         />
       </FormField>
+      {mealsChanged && used.length > 0 && (
+        <div className="alert alert--warning mt-12">
+          <Info size={18} />
+          <div>
+            Nhóm đang có {used.length} lớp trong năm học {yearName}. Thực đơn và suất ăn từ hôm nay sẽ theo danh sách bữa mới; dữ liệu đã
+            ghi trước đó giữ nguyên.
+          </div>
+        </div>
+      )}
+      {group && (
+        <p className="text-sm text-2 mt-12">
+          Đang dùng trong năm học {yearName}: <b>{used.length} lớp</b> · {usedCampuses} điểm trường
+        </p>
+      )}
+      <div className="alert alert--info mt-12">
+        <Info size={18} />
+        <div>Tổ trưởng của nhóm tuổi được phân công ở màn Phân công giáo viên, không chọn ở đây.</div>
+      </div>
     </Modal>
   );
 }

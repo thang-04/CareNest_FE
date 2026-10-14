@@ -9,7 +9,8 @@ import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
-import { activateSchoolYear, closeSchoolYear, deleteSchoolYear } from '@/services/school-config/schoolConfigService';
+import { closeSchoolYear, deleteSchoolYear } from '@/services/school-config/schoolConfigService';
+import { ActivateYearModal, YearReadinessCard } from '@/components/school-config/YearReadiness';
 import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import {
   canActivateYear,
@@ -29,6 +30,7 @@ export default function SchoolYearListPage() {
   const toast = useToast();
   const { years, loading, error, reload } = useSchoolYears();
   const [pending, setPending] = useState(null); // { kind, year }
+  const [activating, setActivating] = useState(null);
 
   if (!canViewSchoolStructure(user))
     return (
@@ -41,23 +43,6 @@ export default function SchoolYearListPage() {
 
   const active = years.find((y) => y.status === YEAR_STATUS.ACTIVE);
   const ACTIONS = {
-    activate: {
-      title: 'Kích hoạt năm học',
-      label: 'Kích hoạt năm học',
-      run: activateSchoolYear,
-      done: 'Đã kích hoạt năm học',
-      message: (y) => (
-        <>
-          Kích hoạt năm học <b>{y.name}</b>?
-          {active && (
-            <div className="mt-8">
-              Năm học đang hoạt động <b>{active.name}</b> sẽ <b>kết thúc</b> và các lớp của năm đó chuyển sang chỉ xem. Phân công Phó hiệu
-              trưởng, giáo viên và tổ trưởng của năm {y.name} sẽ được áp dụng.
-            </div>
-          )}
-        </>
-      ),
-    },
     close: {
       title: 'Kết thúc năm học',
       label: 'Kết thúc năm học',
@@ -123,6 +108,11 @@ export default function SchoolYearListPage() {
           <div>Bạn đang xem danh sách năm học. Chỉ Hiệu trưởng được tạo và cấu hình năm học.</div>
         </div>
       )}
+
+      {canConfigureSchool(user) &&
+        years
+          .filter((y) => y.status === YEAR_STATUS.PLANNED)
+          .map((y) => <YearReadinessCard key={y.id} year={y} onActivate={setActivating} />)}
 
       <div className="card">
         {error ? (
@@ -205,7 +195,7 @@ export default function SchoolYearListPage() {
                           </button>
                         )}
                         {canActivateYear(y, user) && (
-                          <button className="btn btn--sm btn--primary sc-row-btn" onClick={() => setPending({ kind: 'activate', year: y })}>
+                          <button className="btn btn--sm btn--primary sc-row-btn" onClick={() => setActivating(y)}>
                             <Play size={15} /> Kích hoạt
                           </button>
                         )}
@@ -224,6 +214,15 @@ export default function SchoolYearListPage() {
         )}
       </div>
 
+      <ActivateYearModal
+        year={activating}
+        activeYear={active}
+        onClose={() => setActivating(null)}
+        onDone={() => {
+          setActivating(null);
+          reload({ silent: true });
+        }}
+      />
       <ConfirmationModal
         open={!!pending}
         title={action?.title}

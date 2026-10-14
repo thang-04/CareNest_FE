@@ -21,7 +21,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { TransferStatusBadge } from '@/components/facility-transfer/TransferStatusBadge';
 import { formatDate } from '@/utils/format';
-import { locationLabel } from '@/models/Location';
+import { locationLabel, locationBaseLabel } from '@/models/Location';
 import {
   TRANSFER_STATUS,
   TRANSFER_STATUS_LABELS,
@@ -50,7 +50,7 @@ const placeText = (md, locationId, campusId, showCampus) => {
   const loc = md.locationById(locationId);
   return (
     <>
-      <div>{locationLabel(loc)}</div>
+      <div>{showCampus ? locationBaseLabel(loc) : locationLabel(loc)}</div>
       {showCampus && <div className="muted text-xs">{md.campusById(campusId)?.shortName}</div>}
     </>
   );

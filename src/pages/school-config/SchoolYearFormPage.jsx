@@ -8,9 +8,11 @@ import { useSchoolYearItem, useSchoolYears } from '@/hooks/school-config/useScho
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
+import { DateInput } from '@/components/form/DateInput';
 import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
-import { saveSchoolYear } from '@/services/school-config/schoolConfigService';
+import { copyClasses, saveSchoolYear } from '@/services/school-config/schoolConfigService';
+import { copyResultMessage, copySourcesFor } from '@/components/school-config/CopyClassesModal';
 import { YEAR_ACTION_LABELS, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { canConfigureSchool, canEditYear } from '@/utils/school-config/schoolConfigPermissions';
 import { validateSchoolYear, hasErrors } from '@/utils/school-config/schoolConfigValidation';
@@ -37,6 +39,12 @@ function YearForm({ year, years, user }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(null);
   const nameLocked = !!year && year.status !== YEAR_STATUS.PLANNED;
+  // Tùy chọn sau khi tạo (SRS 4.1.2): sao chép lớp từ năm học bất kỳ, mặc định năm liền trước
+  const sources = year ? [] : copySourcesFor(years, { id: null, startDate: form.startDate });
+  const [copyFrom, setCopyFrom] = useState(() => (year ? '' : sources[0]?.id || ''));
+  const [copyOn, setCopyOn] = useState(() => !year && sources.length > 0);
+  const [openVp, setOpenVp] = useState(false);
+  const copySource = sources.find((y) => y.id === copyFrom) || sources[0];
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -59,8 +67,18 @@ function YearForm({ year, years, user }) {
     try {
       const result = await saveSchoolYear(year?.id || null, form, user);
       toast.success('Đã lưu thay đổi.', `Năm học ${result.name}`);
-      if (year) navigate('/school/years');
-      else setSaved(result);
+      if (year) return navigate('/school/years');
+      let copyNote = '';
+      if (copyOn && copySource) {
+        try {
+          copyNote = copyResultMessage(await copyClasses(result.id, { sourceYearId: copySource.id }, user));
+        } catch (err) {
+          // Năm học đã lưu; chỉ báo lỗi sao chép để Hiệu trưởng thử lại ở màn Nhóm tuổi & lớp
+          toast.error(err.message, 'Không sao chép được lớp');
+        }
+      }
+      if (openVp) return navigate(`/school/vice-principals?year=${result.id}`);
+      setSaved({ ...result, copyNote });
     } catch (err) {
       if (err.details) setErrors(err.details);
       toast.error(err.message, 'Không lưu được thay đổi');
@@ -74,6 +92,7 @@ function YearForm({ year, years, user }) {
       <section className="card wizard-card">
         <h2 className="section-title">Đã tạo năm học {saved.name}</h2>
         <p className="text-2">Năm học ở trạng thái Sắp diễn ra. Bạn có thể cấu hình tiếp ngay hoặc quay lại sau:</p>
+        {saved.copyNote && <p className="text-2">{saved.copyNote}</p>}
         <div className="row row--wrap mt-12">
           <Link className="btn" to={`/school/classes?year=${saved.id}`}>
             <Shapes size={16} /> Cấu hình nhóm tuổi & lớp
@@ -109,15 +128,13 @@ function YearForm({ year, years, user }) {
             />
           </FormField>
           <FormField label="Ngày bắt đầu" required error={errors.startDate}>
-            <input className="input" type="date" value={form.startDate} onChange={(e) => set({ startDate: e.target.value })} />
+            <DateInput value={form.startDate} onChange={(v) => set({ startDate: v })} onBlur={() => blurCheck('startDate')} />
           </FormField>
           <FormField label="Ngày kết thúc" required error={errors.endDate}>
-            <input
-              className="input"
-              type="date"
+            <DateInput
               min={form.startDate}
               value={form.endDate}
-              onChange={(e) => set({ endDate: e.target.value })}
+              onChange={(v) => set({ endDate: v })}
               onBlur={() => blurCheck('endDate')}
             />
           </FormField>
@@ -129,6 +146,46 @@ function YearForm({ year, years, user }) {
           </div>
         )}
       </section>
+
+      {!year && (
+        <section className="card wizard-card">
+          <h2 className="section-title">Sau khi lưu năm học (tùy chọn)</h2>
+          {sources.length > 0 ? (
+            <div className="row row--wrap">
+              <label className="checkbox">
+                <input type="checkbox" checked={copyOn} onChange={(e) => setCopyOn(e.target.checked)} />
+                Sao chép nhóm tuổi và lớp từ năm học
+              </label>
+              <select
+                className="select sc-inline-select"
+                aria-label="Năm học nguồn để sao chép lớp"
+                value={copySource?.id || ''}
+                disabled={!copyOn}
+                onChange={(e) => setCopyFrom(e.target.value)}
+              >
+                {sources.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name} · {y.classCount} lớp
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <p className="text-2">Chưa có năm học nào để sao chép lớp.</p>
+          )}
+          <label className="checkbox mt-12">
+            <input type="checkbox" checked={openVp} onChange={(e) => setOpenVp(e.target.checked)} />
+            Mở màn Phân công Phó hiệu trưởng sau khi lưu
+          </label>
+          <div className="alert alert--info mt-12">
+            <Info size={18} />
+            <div>
+              Chỉ sao chép tên lớp, nhóm tuổi, điểm trường, phòng học và sĩ số; không sao chép giáo viên và trẻ. Phân công Phó hiệu trưởng,
+              giáo viên và tổ trưởng chỉ có hiệu lực trong một năm học: năm học mới cần phân công lại.
+            </div>
+          </div>
+        </section>
+      )}
 
       {year?.history?.length > 0 && (
         <section className="card wizard-card">

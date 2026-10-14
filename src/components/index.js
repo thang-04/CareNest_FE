@@ -24,3 +24,4 @@ export { PrintHeader } from './print/PrintHeader';
 export { PrintToolbar } from './print/PrintToolbar';
 export { FormField } from './form/FormField';
 export { PasswordInput } from './form/PasswordInput';
+export { DateInput } from './form/DateInput';

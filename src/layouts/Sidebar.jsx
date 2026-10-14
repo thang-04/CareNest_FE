@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { CaretDown, SidebarCollapse, SidebarExpand, X } from '@/components/ui/icons';
 import { Logo } from '@/components/brand/Logo';
 import { getMenuForRole } from './menuConfig';
 import { UserMenu } from './UserMenu';
+import { useAuth } from '@/contexts/AuthContext';
 
 const OPEN_GROUPS_KEY = 'carenest.sidebar.openGroups';
 
@@ -34,7 +35,10 @@ const readOpenGroups = () => {
  */
 export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, onExpand, onToggle }) {
   const { pathname } = useLocation();
-  const menu = getMenuForRole(role);
+  const { user } = useAuth();
+  // Menu tính theo quyền nên mỗi lần gọi là mảng mới: giữ cố định theo vai trò / người dùng,
+  // nếu không effect bên dưới chạy lại mỗi lần render và đóng nhóm vừa mở
+  const menu = useMemo(() => getMenuForRole(role, user), [role, user]);
   const [open, setOpen] = useState(readOpenGroups);
 
   // Open the group that contains the current page when navigating.

@@ -1154,6 +1154,11 @@
   font-size: var(--fs-sm);
   flex-shrink: 0;
 }
+/* Ảnh thật (vd. ảnh hồ sơ trẻ) trong khung tròn của avatar */
+.avatar--photo {
+  object-fit: cover;
+  background: var(--color-surface-muted);
+}
 .avatar--lg {
   width: 40px;
   height: 40px;
@@ -2318,6 +2323,18 @@ button.stat-card .stat-card__label::after {
 .input-group__action {
   position: absolute;
   right: 4px;
+}
+/* Native date input kept only to open the browser calendar; DateInput shows the dd/mm/yyyy text box. */
+.date-input__picker {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ---------- Home quick cards ---------- */

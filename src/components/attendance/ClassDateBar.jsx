@@ -1,6 +1,8 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { CalendarDays, School } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
+import { DateInput } from '@/components/form/DateInput';
+import { isIsoDate } from '@/utils/format';
 
 /**
  * Filter bar shared by the attendance screens: class (optional) + date.
@@ -8,6 +10,7 @@ import { useMasterData } from '@/hooks/useMasterData';
  */
 export function ClassDateBar({ classes, classId, onClassChange, date, onDateChange, maxDate, dateLabel = 'Ngày', children }) {
   const id = useId();
+  const [dateError, setDateError] = useState('');
   const md = useMasterData();
   const multiCampus = new Set((classes || []).map((c) => c.campusId)).size > 1;
   return (
@@ -33,14 +36,30 @@ export function ClassDateBar({ classes, classId, onClassChange, date, onDateChan
           <label className="field__label" htmlFor={`${id}-date`}>
             <CalendarDays size={15} /> {dateLabel}
           </label>
-          <input
+          <DateInput
             id={`${id}-date`}
-            type="date"
-            className="input"
             value={date}
             max={maxDate}
-            onChange={(e) => e.target.value && onDateChange(e.target.value)}
+            aria-invalid={!!dateError}
+            aria-describedby={dateError ? `${id}-date-error` : undefined}
+            onChange={(value) => {
+              if (!isIsoDate(value)) {
+                setDateError('Nhập ngày hợp lệ theo dd/mm/yyyy.');
+                return;
+              }
+              if (maxDate && value > maxDate) {
+                setDateError('Không chọn ngày trong tương lai.');
+                return;
+              }
+              setDateError('');
+              onDateChange(value);
+            }}
           />
+          {dateError && (
+            <span id={`${id}-date-error`} className="field__error" role="alert">
+              {dateError}
+            </span>
+          )}
         </div>
       )}
       {children}

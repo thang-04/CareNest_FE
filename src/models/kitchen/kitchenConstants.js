@@ -38,7 +38,8 @@
 
 /* Same codes as the attendance module (meal counts); the SRS does not name the sessions. */
 export const MEAL_SESSIONS = ['LUNCH', 'AFTERNOON'];
-export const MEAL_SESSION_LABELS = { LUNCH: 'Bữa trưa', AFTERNOON: 'Bữa chiều' };
+// MORNING: nhãn cho sĩ số suất ăn của nhóm nhà trẻ; bếp chưa lập kế hoạch chế biến cho bữa này
+export const MEAL_SESSION_LABELS = { MORNING: 'Bữa phụ sáng', LUNCH: 'Bữa trưa', AFTERNOON: 'Bữa chiều' };
 
 export const MENU_TYPE = { NORMAL: 'NORMAL', ALLERGY: 'ALLERGY' };
 export const MENU_TYPE_LABELS = { NORMAL: 'Thực đơn thường', ALLERGY: 'Thực đơn thay thế (dị ứng)' };

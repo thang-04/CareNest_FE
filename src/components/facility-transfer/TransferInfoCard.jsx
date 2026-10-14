@@ -1,7 +1,7 @@
 import { FileText } from '@/components/ui/icons';
 import { formatDate } from '@/utils/format';
 import { ROLE_LABELS } from '@/models/User';
-import { locationLabel } from '@/models/Location';
+import { locationBaseLabel } from '@/models/Location';
 import { TRANSFER_TYPE_LABELS, MY_TRANSFER_ROLE_LABELS, TRANSFER_TYPES } from '@/models/facility-transfer/transferConstants';
 
 /** "Thông tin phiếu" block of the staff pages (LuanChuyenTeacher1 mockup). */
@@ -10,7 +10,7 @@ export function TransferInfoCard({ transfer, md, myRole }) {
   const to = md.locationById(transfer.toLocationId);
   const creator = md.userById(transfer.createdBy);
   const inter = transfer.type === TRANSFER_TYPES.INTER_CAMPUS;
-  const place = (loc, campusId) => `${locationLabel(loc)}${inter ? ` - ${md.campusById(campusId)?.shortName}` : ''}`;
+  const place = (loc, campusId) => `${locationBaseLabel(loc)}${inter ? ` - ${md.campusById(campusId)?.shortName}` : ''}`;
   return (
     <div className="card card--soft-header">
       <div className="card__header">

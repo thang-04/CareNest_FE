@@ -26,7 +26,7 @@ import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { avatarTone, formatDate, initials, normalizeText } from '@/utils/format';
-import { canEnrollChild, isPrincipal, isTeacherRole, isVicePrincipal } from '@/utils/children/childrenPermissions';
+import { canEnrollChild, isPrincipal, isTeacherRole, isVicePrincipal, seesAllCampusChildren } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
@@ -43,7 +43,9 @@ export default function ChildrenListPage() {
   const [quickViewId, setQuickViewId] = useState(null);
 
   const { children: all, loading, error, reload } = useChildRecords({ schoolYear });
-  const { classes } = useClasses(campusId ? { campusId } : {});
+  // PHT được giao "Hồ sơ trẻ" toàn trường: bộ lọc lớp gồm lớp của cả 2 điểm trường
+  const allCampuses = isVicePrincipal(user) && seesAllCampusChildren(user);
+  const { classes } = useClasses({ ...(campusId ? { campusId } : {}), ...(allCampuses ? { all: true } : {}) });
   const yearClasses = classes.filter((c) => c.schoolYear === schoolYear);
 
   const rows = useMemo(() => {
@@ -81,7 +83,7 @@ export default function ChildrenListPage() {
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
   const allergyPending = all.filter((c) => c.allergyPending).length;
-  const showCampus = isPrincipal(user);
+  const showCampus = seesAllCampusChildren(user);
   const cols = showCampus ? 9 : 8;
 
   return (

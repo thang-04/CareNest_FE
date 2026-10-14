@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingState } from '@/components/ui/States';
+import { AreaGate } from '@/routes/RoleGuard';
 import { useMediaQuery } from '@/hooks';
 import './layout.css';
 
@@ -68,7 +69,9 @@ export function MainLayout() {
               </div>
             }
           >
-            <Outlet />
+            <AreaGate path={pathname}>
+              <Outlet />
+            </AreaGate>
           </Suspense>
         </main>
         <Footer />
