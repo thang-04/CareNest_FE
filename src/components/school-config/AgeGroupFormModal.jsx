@@ -105,7 +105,7 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
       }
     >
       <div className="grid-2">
-        <FormField label="Tên nhóm tuổi" required error={errors.name} hint="Ví dụ Nhà trẻ, Mầm, Chồi, Lá">
+        <FormField label="Tên nhóm tuổi" required error={errors.name}>
           <input
             className="input"
             value={form.name}
@@ -114,11 +114,11 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
             onBlur={() => blurCheck('name')}
           />
         </FormField>
-        <FormField label="Tên ngắn" required error={errors.shortName} hint="Hiển thị ở thực đơn, phân công, bảng biểu">
+        <FormField label="Tên ngắn" required error={errors.shortName}>
           <input className="input" value={form.shortName} maxLength={40} onChange={(e) => set({ shortName: e.target.value })} />
         </FormField>
         {numberField('ageFromMonths', 'Độ tuổi từ (tháng)', { min: 0, max: 72 })}
-        {numberField('ageToMonths', 'Độ tuổi đến (tháng)', { min: 1, max: 72, hint: 'Lớn hơn độ tuổi từ, không trùng nhóm khác' })}
+        {numberField('ageToMonths', 'Độ tuổi đến (tháng)', { min: 1, max: 72 })}
         <fieldset className="field sc-meals">
           <legend className="field__label">
             Bữa ăn trong ngày<span className="req">*</span>
@@ -135,14 +135,9 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
             <span className="field__error" role="alert">
               {errors.mealSessions}
             </span>
-          ) : (
-            <span className="field__hint">= {form.mealSessions.length} bữa/ngày · dùng cho thực đơn và suất ăn của nhóm</span>
-          )}
+          ) : null}
         </fieldset>
-        {numberField('maxClassSize', 'Sĩ số tối đa / lớp', {
-          min: 1,
-          hint: 'Tham khảo theo Điều lệ trường mầm non của Bộ Giáo dục và Đào tạo.',
-        })}
+        {numberField('maxClassSize', 'Sĩ số tối đa / lớp', { min: 1 })}
       </div>
       <FormField label="Yêu cầu dinh dưỡng" className="mt-12">
         <textarea
@@ -167,10 +162,6 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
           Đang dùng trong năm học {yearName}: <b>{used.length} lớp</b> · {usedCampuses} điểm trường
         </p>
       )}
-      <div className="alert alert--info mt-12">
-        <Info size={18} />
-        <div>Tổ trưởng của nhóm tuổi được phân công ở màn Phân công giáo viên, không chọn ở đây.</div>
-      </div>
     </Modal>
   );
 }

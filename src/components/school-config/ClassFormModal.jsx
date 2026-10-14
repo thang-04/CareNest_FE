@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Info, Save } from '@/components/ui/icons';
+import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useMasterData } from '@/hooks/useMasterData';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
@@ -26,7 +25,6 @@ const empty = (schoolYear, campusId, ageGroup) => ({
 export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defaults, campuses, ageGroups, locations, existing }) {
   const { user } = useAuth();
   const toast = useToast();
-  const md = useMasterData();
   const [form, setForm] = useState(() => empty(schoolYear));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -88,10 +86,6 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
   const rooms = locations.filter(
     (l) => l.campusId === form.campusId && l.type === LOCATION_TYPES.CLASS && (isActiveLocation(l) || l.id === cls?.locationId),
   );
-  const teachers = (cls?.teacherIds || []).map((id) => {
-    const name = md.userById(id)?.fullName || id;
-    return id === cls.homeroomTeacherId ? `${name} (chủ nhiệm)` : name;
-  });
 
   const submit = async () => {
     const e = check();
@@ -111,7 +105,7 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
   };
 
   const from = `Từ ${Math.max(1, enrolled)}${enrolled ? ' (số trẻ đang học)' : ''}`;
-  const capacityHint = limit.reason ? `${from} đến ${limit.max} (${limit.reason})` : `${from}; chọn nhóm tuổi và phòng để biết mức tối đa`;
+  const capacityHint = limit.reason ? `${from} đến ${limit.max} (${limit.reason})` : undefined;
 
   return (
     <Modal
@@ -130,7 +124,7 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
       }
     >
       <div className="grid-2">
-        <FormField label="Tên lớp" required error={errors.name} hint="Không trùng tên lớp khác của điểm trường trong năm học">
+        <FormField label="Tên lớp" required error={errors.name}>
           <input
             className="input"
             value={form.name}
@@ -139,7 +133,7 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
             onBlur={() => blurCheck('name')}
           />
         </FormField>
-        <FormField label="Năm học" hint="Lớp tồn tại trong năm học này và đóng cùng năm học">
+        <FormField label="Năm học">
           <input className="input" value={yearName || schoolYear} disabled />
         </FormField>
         <FormField
@@ -213,17 +207,6 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
             onBlur={() => blurCheck('capacity')}
           />
         </FormField>
-      </div>
-      <div className="alert alert--info mt-12">
-        <Info size={18} />
-        <div>
-          {cls && (
-            <div>
-              Giáo viên: <b>{teachers.length ? teachers.join(', ') : 'chưa phân công'}</b>
-            </div>
-          )}
-          Giáo viên của lớp do Phó hiệu trưởng điểm trường phân công ở màn Phân công giáo viên. Lưu lớp không xếp hay chuyển trẻ.
-        </div>
       </div>
     </Modal>
   );

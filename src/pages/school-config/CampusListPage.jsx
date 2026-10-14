@@ -44,7 +44,7 @@ export default function CampusListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap sc-table-flat">
-            <table className="table">
+            <table className="table table--compact">
               <thead>
                 <tr>
                   <th>Mã</th>

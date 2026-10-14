@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Search, Info, UserCog, Users, PauseCircle, RotateCcw } from '@/components/ui/icons';
+import { Plus, Pencil, Info, UserCog, Users, PauseCircle, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useStaffAccounts } from '@/hooks/school-config/useSchoolConfig';
@@ -14,6 +14,10 @@ import { ROLES, ROLE_LABELS } from '@/models/User';
 import { areaAllows, canEditStaffProfile, canManageStaff, canViewStaff } from '@/utils/school-config/schoolConfigPermissions';
 import { staffCrumbs } from '@/utils/school-config/breadcrumbs';
 import { normalizeText } from '@/utils/format';
+import { Pagination, paginate } from '@/components/ui/Pagination';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+
+const STAFF_PAGE_SIZE = 10;
 import '@/styles/modules/school-config.css';
 
 const ROLE_FILTERS = [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.TEACHER, ROLES.KITCHEN_STAFF];
@@ -28,6 +32,7 @@ export default function StaffAccountsPage() {
   const md = useMasterData();
   const { accounts, loading, error, reload } = useStaffAccounts();
   const [filters, setFilters] = useState({ keyword: '', role: '', campusId: '', status: '' });
+  const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null); // { account | null }
   const [statusOf, setStatusOf] = useState(null);
   const [profileOf, setProfileOf] = useState(null);
@@ -56,7 +61,12 @@ export default function StaffAccountsPage() {
       </div>
     );
 
-  const setFilter = (patch) => setFilters((f) => ({ ...f, ...patch }));
+  // Đổi tìm kiếm / bộ lọc thì về trang 1
+  const setFilter = (patch) => {
+    setFilters((f) => ({ ...f, ...patch }));
+    setPage(1);
+  };
+  const pageRows = paginate(shown, page, STAFF_PAGE_SIZE);
   const close = (setter) => (changed) => {
     setter(null);
     if (changed) reload({ silent: true });
@@ -95,16 +105,13 @@ export default function StaffAccountsPage() {
 
       <div className="card mb-16">
         <div className="filter-bar">
-          <label className="search-box sc-search">
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm họ tên, email..."
-              aria-label="Tìm họ tên hoặc email"
-              value={filters.keyword}
-              maxLength={60}
-              onChange={(e) => setFilter({ keyword: e.target.value })}
-            />
-          </label>
+          <SearchSubmit
+            className="sc-search"
+            value={filters.keyword}
+            placeholder="Tìm họ tên, email"
+            label="Tìm họ tên hoặc email"
+            onSearch={(text) => setFilter({ keyword: text })}
+          />
           <select
             className="select sc-inline-select"
             aria-label="Vai trò"
@@ -151,7 +158,7 @@ export default function StaffAccountsPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap sc-table-flat">
-            <table className="table">
+            <table className="table table--compact">
               <thead>
                 <tr>
                   <th>Nhân sự</th>
@@ -173,7 +180,7 @@ export default function StaffAccountsPage() {
                     </td>
                   </tr>
                 ) : (
-                  shown.map((u) => {
+                  pageRows.map((u) => {
                     const principal = u.role === ROLES.PRINCIPAL;
                     const active = (u.status || 'ACTIVE') === 'ACTIVE';
                     const list = duties(u);
@@ -255,6 +262,9 @@ export default function StaffAccountsPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {shown.length > STAFF_PAGE_SIZE && (
+          <Pagination page={page} total={shown.length} pageSize={STAFF_PAGE_SIZE} onChange={setPage} unit="người" />
         )}
       </div>
 

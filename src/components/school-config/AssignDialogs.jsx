@@ -1,15 +1,7 @@
-import { useState } from 'react';
-import { Save } from '@/components/ui/icons';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToastContext';
-import { useMasterData } from '@/hooks/useMasterData';
-import { useTeacherAssignments, useTeamLeaders } from '@/hooks/school-config/useSchoolConfig';
+import { useTeacherAssignments } from '@/hooks/school-config/useSchoolConfig';
 import { Modal } from '@/components/ui/Modal';
-import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
-import { FormField } from '@/components/form/FormField';
+import { ErrorState, LoadingState } from '@/components/ui/States';
 import { ClassTeachersModal } from '@/components/school-config/ClassTeachersModal';
-import { saveTeamLeader } from '@/services/school-config/schoolConfigService';
-import { leaderOptionAllowed, teamLeaderActions } from '@/utils/school-config/schoolConfigPermissions';
 
 /** Class teachers from the Age Groups & Classes screen: loads the teachers of the class campus, then reuses ClassTeachersModal. */
 export function AssignClassTeachersDialog({ cls, schoolYear, onClose }) {
@@ -29,69 +21,5 @@ export function AssignClassTeachersDialog({ cls, schoolYear, onClose }) {
       classesOf={(teacherId) => classes.filter((c) => c.teacherIds.includes(teacherId))}
       onClose={onClose}
     />
-  );
-}
-
-/** Tổ trưởng của một nhóm tuổi cho cả trường (1 người / nhóm tuổi / năm học; một giáo viên làm tổ trưởng tối đa 1 nhóm). */
-export function AssignTeamLeaderDialog({ group, schoolYear, onClose }) {
-  const { user } = useAuth();
-  const toast = useToast();
-  const md = useMasterData();
-  const { data, loading, error } = useTeamLeaders(schoolYear);
-  const current = (data?.teamLeaders || []).find((a) => a.ageGroupId === group.id)?.userId || '';
-  const [picked, setPicked] = useState(null);
-  const value = picked ?? current;
-  const acts = teamLeaderActions(user);
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await saveTeamLeader({ schoolYear, ageGroupId: group.id, userId: value || null }, user);
-      toast.success(value ? 'Đã lưu thay đổi. Tổ trưởng đã nhận thông báo.' : 'Đã bỏ phân công tổ trưởng.', group.name);
-      onClose(true);
-    } catch (err) {
-      toast.error(err.message, 'Không lưu được thay đổi');
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal
-      open
-      title={`Tổ trưởng ${group.shortName}`}
-      onClose={saving ? undefined : () => onClose(false)}
-      footer={
-        <>
-          <button className="btn" onClick={() => onClose(false)} disabled={saving}>
-            Hủy
-          </button>
-          <button className="btn btn--primary" onClick={save} disabled={saving || loading || value === current}>
-            {saving ? <Spinner small /> : <Save size={16} />} Lưu tổ trưởng
-          </button>
-        </>
-      }
-    >
-      <p className="text-sm muted mb-12">Tổ trưởng phụ trách nhóm tuổi cho cả trường; chọn được giáo viên ở bất kỳ điểm trường nào.</p>
-      {error ? (
-        <ErrorState error={error} />
-      ) : loading ? (
-        <LoadingState />
-      ) : (
-        <FormField label="Tổ trưởng" hint="Mỗi giáo viên làm tổ trưởng tối đa một nhóm tuổi trong năm học">
-          <select className="select" value={value} onChange={(e) => setPicked(e.target.value)}>
-            <option value="" disabled={!leaderOptionAllowed(acts, current, '')}>
-              Chưa phân công
-            </option>
-            {(data?.leaderCandidates || []).map((t) => (
-              <option key={t.id} value={t.id} disabled={!leaderOptionAllowed(acts, current, t.id)}>
-                {t.fullName} · {md.campusById(t.campusId)?.shortName || '—'}
-                {t.leadsGroup && t.leadsAgeGroupId !== group.id ? ` · đang tổ trưởng ${t.leadsGroup} (sẽ chuyển)` : ''}
-              </option>
-            ))}
-          </select>
-        </FormField>
-      )}
-    </Modal>
   );
 }

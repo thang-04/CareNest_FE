@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarRange, Info, Users, Wand2 } from '@/components/ui/icons';
+import { AlertTriangle, CalendarRange, Info, Users, Wand2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -55,6 +55,12 @@ export default function YearPlacementPage() {
   const all = classes.flatMap((c) => c.children);
   const count = (action) => all.filter((ch) => ch.placement?.action === action).length;
   const unplaced = all.filter((ch) => !ch.placement).length;
+  // Một thông báo chung thay cho dòng cảnh báo lặp ở từng thẻ lớp
+  const missingTargets = [
+    ...new Set(
+      classes.filter((c) => !c.graduating && !c.suggestedTargetId).map((c) => `${groupName(c.nextAgeGroupId)} (${campusName(c.campusId)})`),
+    ),
+  ];
   const onDirty = useCallback((value) => setDirty(value), []);
 
   const setParam = (key, value) => {
@@ -103,22 +109,41 @@ export default function YearPlacementPage() {
     );
 
   return (
-    <div className="page">
+    <div className="page sc-plc-page">
       <Breadcrumb items={placementCrumbs()} />
       <div className="page__head">
         <div>
           <h1 className="page__title">Xếp lớp năm học mới</h1>
           {plan?.sourceYear && (
-            <p className="muted">
-              Từ năm {plan.sourceYear.name} sang năm {plan.year.name} · đã xếp {all.length - unplaced}/{all.length} trẻ
-            </p>
+            <div className="sc-plc__sub">
+              <span className="muted">
+                {plan.sourceYear.name} → {plan.year.name}
+              </span>
+              {/* Tiến độ gọn: đã xếp / chưa xếp; từng kết quả chỉ hiện khi có trẻ */}
+              <div className="sc-plc__totals" aria-label="Kết quả xếp lớp theo bộ lọc">
+                <span className={`chip ${unplaced ? 'chip--blue' : 'chip--green'}`}>
+                  Đã xếp {all.length - unplaced}/{all.length}
+                </span>
+                {unplaced > 0 && <span className="chip chip--red">Chưa xếp {unplaced}</span>}
+                {Object.values(PLACEMENT_ACTION)
+                  .filter((a) => count(a) > 0)
+                  .map((a) => (
+                    <span key={a} className={`chip chip--${TONE[a]}`}>
+                      {PLACEMENT_ACTION_SHORT[a]}: {count(a)}
+                    </span>
+                  ))}
+                <span
+                  className="sc-plc__note"
+                  tabIndex={0}
+                  title={`Bản xếp lớp chỉ là dự kiến: trẻ vẫn học lớp cũ tới khi kích hoạt năm học ${plan.year.name}. Lớp năm mới không vượt sĩ số tối đa (theo nhóm tuổi và sức chứa phòng). Dùng phím ↑ ↓ để chuyển lớp.`}
+                  aria-label="Ghi chú về bản xếp lớp dự kiến"
+                >
+                  <Info size={14} />
+                </span>
+              </div>
+            </div>
           )}
         </div>
-        {plan?.editable && (
-          <button className="btn btn--primary" onClick={() => setConfirmAuto(true)}>
-            <Wand2 size={16} /> {autoLabel}
-          </button>
-        )}
       </div>
 
       {!planned.length && !params.get('year') ? (
@@ -137,18 +162,20 @@ export default function YearPlacementPage() {
       ) : (
         <>
           <div className="card sc-plc__filters">
-            <div className="sc-inline-field">
-              <label className="field__label" htmlFor="plc-year">
-                Năm học mới
-              </label>
-              <select id="plc-year" className="select" value={yearId} onChange={(e) => setParam('year', e.target.value)}>
-                {planned.map((y) => (
-                  <option key={y.id} value={y.id}>
-                    {y.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {planned.length > 1 && (
+              <div className="sc-inline-field">
+                <label className="field__label" htmlFor="plc-year">
+                  Năm học mới
+                </label>
+                <select id="plc-year" className="select" value={yearId} onChange={(e) => setParam('year', e.target.value)}>
+                  {planned.map((y) => (
+                    <option key={y.id} value={y.id}>
+                      {y.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="sc-inline-field">
               <label className="field__label" htmlFor="plc-campus">
                 Điểm trường
@@ -175,14 +202,12 @@ export default function YearPlacementPage() {
                 ))}
               </select>
             </div>
-            <div className="sc-plc__totals">
-              {Object.values(PLACEMENT_ACTION).map((a) => (
-                <span key={a} className={`chip chip--${TONE[a]}`}>
-                  {PLACEMENT_ACTION_SHORT[a]}: {count(a)}
-                </span>
-              ))}
-              <span className={`chip ${unplaced ? 'chip--red' : 'chip--green'}`}>Chưa xếp: {unplaced}</span>
-            </div>
+            {/* Nút xếp tự động ở cuối hàng lọc: áp dụng đúng phạm vi đang lọc */}
+            {plan?.editable && (
+              <button className="btn btn--primary sc-plc__auto" onClick={() => setConfirmAuto(true)}>
+                <Wand2 size={16} /> {autoLabel}
+              </button>
+            )}
           </div>
 
           {error ? (
@@ -210,6 +235,11 @@ export default function YearPlacementPage() {
           ) : (
             <div className="sc-plc">
               <nav className="card sc-plc__list" aria-label="Lớp năm học cũ" onKeyDown={onListKey}>
+                {missingTargets.length > 0 && (
+                  <p className="sc-plc__missing text-xs" role="note">
+                    <AlertTriangle size={14} /> Năm {plan.year.name} chưa có lớp: {missingTargets.join(', ')}
+                  </p>
+                )}
                 {classes.map((c) => {
                   const done = placedOf(c);
                   const complete = done === c.children.length;
@@ -223,14 +253,20 @@ export default function YearPlacementPage() {
                       onClick={() => pick(c.id)}
                     >
                       <span className="sc-plc__class-name">{c.name}</span>
-                      <span className="muted text-xs">
+                      <span className="muted text-xs sc-plc__class-meta">
                         {groupName(c.ageGroupId)} · {campusName(c.campusId)}
                       </span>
-                      <span className={`chip ${complete ? 'chip--green' : done ? 'chip--orange' : 'chip--red'}`}>
+                      <span className={`chip sc-plc__class-chip ${complete ? 'chip--green' : done ? 'chip--orange' : 'chip--red'}`}>
                         {complete ? `Đã xếp ${done}/${c.children.length}` : `Chưa xếp ${c.children.length - done}`}
                       </span>
                       {!c.graduating && !c.suggestedTargetId && (
-                        <span className="text-xs sc-plc__warn">Năm mới chưa có lớp {groupName(c.nextAgeGroupId)}</span>
+                        <span
+                          className="sc-plc__warn-icon"
+                          title={`Năm mới chưa có lớp ${groupName(c.nextAgeGroupId)} ở ${campusName(c.campusId)}`}
+                          aria-label={`Năm mới chưa có lớp ${groupName(c.nextAgeGroupId)}`}
+                        >
+                          <AlertTriangle size={14} />
+                        </span>
                       )}
                     </button>
                   );
@@ -239,16 +275,25 @@ export default function YearPlacementPage() {
               <section className="card sc-plc__main" aria-label={selected ? `Trẻ lớp ${selected.name}` : 'Trẻ của lớp'}>
                 {selected && (
                   <>
-                    <div className="sc-plc__head">
-                      <h2 className="section-title">
-                        {selected.name} · {campusName(selected.campusId)}
-                      </h2>
-                      <span className="muted text-sm">
-                        {groupName(selected.ageGroupId)} · {selected.children.length} trẻ
-                      </span>
-                    </div>
+                    {!selected.children.length && (
+                      <div className="sc-plc__head">
+                        <h2 className="section-title">
+                          {selected.name} · {campusName(selected.campusId)}
+                        </h2>
+                      </div>
+                    )}
                     {selected.children.length ? (
                       <PlacementClassPanel
+                        heading={
+                          <span className="sc-plc__title">
+                            <b>
+                              {selected.name} · {campusName(selected.campusId)}
+                            </b>
+                            <span className="muted text-sm" title={groupName(selected.ageGroupId)}>
+                              {selected.children.length} trẻ
+                            </span>
+                          </span>
+                        }
                         key={`${selected.id}:${selected.children.map((ch) => ch.placement?.updatedAt || '').join()}`}
                         yearId={yearId}
                         from={selected}
@@ -266,11 +311,6 @@ export default function YearPlacementPage() {
               </section>
             </div>
           )}
-
-          <p className="muted text-sm mt-12">
-            <Info size={14} /> Bản xếp lớp chỉ là dự kiến: trẻ vẫn học lớp cũ tới khi kích hoạt năm học {plan?.year.name}. Lớp năm mới không
-            vượt sĩ số tối đa (theo nhóm tuổi và sức chứa phòng). Dùng phím ↑ ↓ để chuyển lớp.
-          </p>
         </>
       )}
 

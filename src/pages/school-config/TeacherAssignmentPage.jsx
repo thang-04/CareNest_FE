@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Users, Info, Save, UserCheck, Crown } from '@/components/ui/icons';
+import { Users, Info, Save, UserCheck, Crown, Search } from '@/components/ui/icons';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { Pagination, paginate } from '@/components/ui/Pagination';
+import { normalizeText } from '@/utils/format';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -12,7 +15,7 @@ import { YearPicker } from '@/components/school-config/YearPicker';
 import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { saveTeamLeader } from '@/services/school-config/schoolConfigService';
-import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
+import { TEACHERS_PER_CLASS, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { ROLES } from '@/models/User';
 import {
   ASSIGN_TEACHER,
@@ -29,6 +32,7 @@ import { ClassTeachersModal } from '@/components/school-config/ClassTeachersModa
 import '@/styles/modules/school-config.css';
 
 const CAMPUS_ALL = 'all';
+const CLASS_PAGE_SIZE = 10;
 
 function TeamLeaderRow({ group, classCount, current, teachers, campusName, readOnly, acts, onSave }) {
   const [value, setValue] = useState(current?.userId || '');
@@ -102,6 +106,11 @@ export default function TeacherAssignmentPage() {
   const { years } = useSchoolYears();
   const { data, loading, error, reload } = useTeacherAssignments(allowed ? yearId : null, campusId);
   const leaders = useTeamLeaders(leaderAllowed ? yearId : null);
+  // Mở từ nút "Phân công tổ trưởng" (#to-truong): cuộn tới phần tổ trưởng khi dữ liệu đã có
+  const leadersReady = !!leaders.data;
+  useEffect(() => {
+    if (leadersReady && window.location.hash === '#to-truong') document.getElementById('to-truong')?.scrollIntoView({ block: 'start' });
+  }, [leadersReady]);
   const [editing, setEditing] = useState(null);
 
   const classes = useMemo(() => data?.classes || [], [data]);
@@ -109,9 +118,23 @@ export default function TeacherAssignmentPage() {
   const groupFilter = params.get('group') || '';
   const classFilter = params.get('class') || '';
   const classOptions = groupFilter ? classes.filter((c) => c.ageGroupId === groupFilter) : classes;
-  const shownClasses = classOptions.filter((c) => !classFilter || c.id === classFilter);
+  // Tìm theo tên lớp hoặc tên giáo viên (không dấu); lọc tình trạng phân công; phân trang 10 lớp (?page=)
+  const query = params.get('q') || '';
+  const statusFilter = params.get('status') || '';
+  const page = Math.max(1, Number(params.get('page')) || 1);
+  const kw = normalizeText(query.trim());
+  const shownClasses = classOptions.filter(
+    (c) =>
+      (!classFilter || c.id === classFilter) &&
+      (!kw ||
+        normalizeText(c.name).includes(kw) ||
+        c.teacherIds.some((id) => normalizeText(md.userById(id)?.fullName || '').includes(kw))) &&
+      (!statusFilter || (statusFilter === 'MISSING' ? c.teacherIds.length < TEACHERS_PER_CLASS : !c.homeroomTeacherId)),
+  );
+  const pageRows = paginate(shownClasses, page, CLASS_PAGE_SIZE);
+  // Đổi bộ lọc thì về trang 1
   const setFilter = (patch) =>
-    setParams((prev) => Object.fromEntries(Object.entries({ ...Object.fromEntries(prev), ...patch }).filter(([, v]) => v)));
+    setParams((prev) => Object.fromEntries(Object.entries({ ...Object.fromEntries(prev), page: '', ...patch }).filter(([, v]) => v)));
   const classesOf = (teacherId) => classes.filter((c) => c.teacherIds.includes(teacherId));
 
   if (!allowed && !leaderAllowed)
@@ -180,7 +203,7 @@ export default function TeacherAssignmentPage() {
         ) : leaders.loading && !leaders.data ? (
           <LoadingState />
         ) : (
-          <section className="card mb-16">
+          <section id="to-truong" className="card mb-16 sc-anchor">
             <div className="card__header">
               <h2 className="card__title row" style={{ gap: 8 }}>
                 <Crown size={18} /> Tổ trưởng nhóm tuổi
@@ -192,7 +215,7 @@ export default function TeacherAssignmentPage() {
               {leaderReadOnly && !closed && ' Bạn chỉ xem; quyền phân công tổ trưởng do Hiệu trưởng giao.'}
             </p>
             <div className="table-wrap sc-table-flat">
-              <table className="table">
+              <table className="table table--compact">
                 <thead>
                   <tr>
                     <th>Nhóm tuổi</th>
@@ -283,11 +306,27 @@ export default function TeacherAssignmentPage() {
                     </option>
                   ))}
                 </select>
-                {(groupFilter || classFilter || (fullScope && campusId !== CAMPUS_ALL)) && (
+                <select
+                  className="select"
+                  aria-label="Tình trạng phân công"
+                  value={statusFilter}
+                  onChange={(e) => setFilter({ status: e.target.value })}
+                >
+                  <option value="">Mọi tình trạng</option>
+                  <option value="MISSING">Chưa đủ {TEACHERS_PER_CLASS} giáo viên</option>
+                  <option value="NO_HOMEROOM">Chưa có chủ nhiệm</option>
+                </select>
+                <SearchSubmit
+                  className="sc-head-search"
+                  value={query}
+                  placeholder="Tìm lớp, giáo viên"
+                  onSearch={(text) => setFilter({ q: text })}
+                />
+                {(groupFilter || classFilter || query || statusFilter || (fullScope && campusId !== CAMPUS_ALL)) && (
                   <button
                     className="btn btn--sm"
                     type="button"
-                    onClick={() => setFilter({ campus: fullScope ? CAMPUS_ALL : '', group: '', class: '' })}
+                    onClick={() => setFilter({ campus: fullScope ? CAMPUS_ALL : '', group: '', class: '', q: '', status: '' })}
                   >
                     Bỏ lọc
                   </button>
@@ -296,7 +335,7 @@ export default function TeacherAssignmentPage() {
               {unassigned > 0 && <span className="chip chip--orange sc-head-filters__end">{unassigned} lớp chưa có giáo viên</span>}
             </div>
             <div className="table-wrap sc-table-flat">
-              <table className="table">
+              <table className="table table--compact">
                 <thead>
                   <tr>
                     <th>Lớp</th>
@@ -312,15 +351,19 @@ export default function TeacherAssignmentPage() {
                   {shownClasses.length === 0 ? (
                     <tr>
                       <td colSpan={allCampuses ? 7 : 6}>
-                        <EmptyState
-                          icon={Users}
-                          title="Chưa có lớp để phân công"
-                          description="Hiệu trưởng cần tạo lớp của điểm trường trong năm học này trước."
-                        />
+                        {classes.length ? (
+                          <EmptyState icon={Search} title="Không có lớp phù hợp" description="Thử đổi từ khóa hoặc bộ lọc." />
+                        ) : (
+                          <EmptyState
+                            icon={Users}
+                            title="Chưa có lớp để phân công"
+                            description="Hiệu trưởng cần tạo lớp của điểm trường trong năm học này trước."
+                          />
+                        )}
                       </td>
                     </tr>
                   ) : (
-                    shownClasses.map((c) => (
+                    pageRows.map((c) => (
                       <tr key={c.id}>
                         <td className="fw-600">{c.name}</td>
                         {allCampuses && <td>{campusName(c.campusId)}</td>}
@@ -350,6 +393,15 @@ export default function TeacherAssignmentPage() {
                 </tbody>
               </table>
             </div>
+            {shownClasses.length > CLASS_PAGE_SIZE && (
+              <Pagination
+                page={Math.min(page, Math.ceil(shownClasses.length / CLASS_PAGE_SIZE))}
+                total={shownClasses.length}
+                pageSize={CLASS_PAGE_SIZE}
+                onChange={(p) => setParams((prev) => ({ ...Object.fromEntries(prev), page: String(p) }), { replace: true })}
+                unit="lớp"
+              />
+            )}
           </section>
         ))}
 

@@ -342,6 +342,7 @@ Bộ 20 tranh sáp màu ở `src/assets/illustrations/scenes/` + `login-scene.we
 | --- | --- | --- |
 | Nền toàn app | Tranh mờ dưới lớp phủ trắng `--scene-veil` | Không; nền `background` trơn |
 | Đầu trang | Dải `.page__head` cao 140, tranh bên phải mờ dần về phía chữ | Không |
+| Ngoại lệ: Xếp lớp năm học mới | Dải đầu trang thấp, không tranh (bàn làm việc vừa khung, cần chỗ dọc cho bảng trẻ) — chỉ màn này | — |
 | Dashboard / Hôm nay | Dải chào có `hero-scene` | Hero cao 224, đáy mờ về nền, khối chào kính |
 | Đăng nhập | Tranh + khối giới thiệu kính, form kính | Tranh 42% trên, sheet trắng bo 32 |
 | Màn trống | Tranh nhỏ ngẫu nhiên trong bộ đang bật | Tranh 168×124 bo 20 |
@@ -393,7 +394,7 @@ Web: `src/components/ui/`, import `@/components`; CSS `src/styles/components.css
 | Thanh tiến trình | Chuyển sắc cùng họ + sọc chạy; xong ⇒ xanh lá "Hoàn thành"; tổng 0 ⇒ "—" | `<ProgressBar value total tone>` | `AppProgressBar` *mới* |
 | Avatar | Tròn, chữ cái đầu tên, nền pastel theo tên (6.2) | `<Avatar>` | `AppAvatar` *mới* |
 | Nhãn – giá trị | Nhãn chữ mờ, giá trị chữ chính; trống ⇒ "Chưa cập nhật" | `dl.info-list`, `.info-columns` | `AppInfoList` *mới* (một cột) |
-| Danh sách nhiều bản ghi | Trong card, sọc / kẻ nhạt, cả dòng bấm được | `.table-wrap` > `table.table` + `<Pagination>` | `AppListRow` *mới* + tải thêm |
+| Danh sách nhiều bản ghi | Trong card, sọc / kẻ nhạt, cả dòng bấm được; màn cấu hình dùng mật độ gọn (`table--compact`) | `.table-wrap` > `table.table` + `<Pagination>` (nhiều trang: 1 … quanh trang hiện tại … cuối) | `AppListRow` *mới* + tải thêm |
 | Bước | Bước ngang, bước hiện tại `primary` | `<Stepper>` (wizard), `<ProgressSteps>` (tiến trình chứng từ) | `AppStepper` *mới* |
 | Logo | Mục 4.1 | `<Logo>`, `<LogoMark>`, `<Wordmark>` | `AppWordmark` |
 
@@ -419,7 +420,7 @@ Tông = tổng mã ký tự của tên mod 5 (web `avatarTone` trong `src/utils/
 | Ô nhập HTML thuần | `.field` > `.field__label` + `.input/.select/.textarea` + `.field__hint` `.field__error`; lỗi thêm `.input--error`; bắt buộc `<span className="req">*</span>` |
 | Form nhãn ngang | `.form-row` > `.form-row__label` + `.form-row__control` |
 | Chọn có tìm kiếm | `<SearchSelect options value onChange />` |
-| Bộ lọc | `.filter-bar` + `.search-box` |
+| Bộ lọc | `.filter-bar` + `<SearchSubmit>` (gõ rồi bấm Tìm / Enter, × xóa); ô cao bằng ô chọn. Ô tìm trong hộp chọn nhanh vẫn lọc khi gõ |
 | Bố cục | `.detail-layout` (`__main` 2/3, `__aside` 1/3), `.split-2`, `.grid-2`, `.grid-3` |
 | Nút cuối trang | `.page-actions` (trái: Quay lại; phải: nút chính **cuối cùng bên phải**); có nút chính thì thành thanh kính dính đáy |
 | Biểu đồ nhỏ | `@/components/charts/MiniCharts` (`RingChart`, `BarList`, `DonutChart`) — chỉ vẽ số BE trả |

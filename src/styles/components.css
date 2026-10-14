@@ -1993,6 +1993,8 @@ button.stat-card .stat-card__label::after {
 }
 .filter-bar .search-box {
   min-width: 260px;
+  /* Hàng lọc: ô tìm cao bằng ô chọn */
+  height: var(--input-height);
 }
 .date-filter {
   display: flex;
@@ -2416,4 +2418,36 @@ button.stat-card .stat-card__label::after {
   font-size: var(--fs-xs);
   color: var(--text-2);
   max-width: 220px;
+}
+
+/* Ô tìm kiếm có nút "Tìm" (SearchSubmit): một viền duy nhất, nút cao bằng ô */
+.search-submit {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.search-submit .search-box {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.search-submit .btn {
+  height: auto;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+.search-submit__clear {
+  display: inline-flex;
+  padding: var(--space-1);
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.search-submit__clear:hover {
+  background: var(--color-surface-hover);
+}
+.search-submit__clear:focus-visible {
+  outline: 2px solid var(--color-focus);
 }

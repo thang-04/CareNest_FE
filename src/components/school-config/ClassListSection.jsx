@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronDown, Copy, Crown, DoorOpen, Pencil, Plus, RotateCcw, Search, Shapes, Trash2, UserCheck } from '@/components/ui/icons';
+import { ChevronDown, Copy, DoorOpen, Pencil, Plus, RotateCcw, Search, Shapes, Trash2, UserCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { AssignClassTeachersDialog, AssignTeamLeaderDialog } from '@/components/school-config/AssignDialogs';
-import { canAssignClass, teamLeaderActions } from '@/utils/school-config/schoolConfigPermissions';
+import { AssignClassTeachersDialog } from '@/components/school-config/AssignDialogs';
+import { canAssignClass } from '@/utils/school-config/schoolConfigPermissions';
 import { useMasterData } from '@/hooks/useMasterData';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { EmptyState, LoadingState } from '@/components/ui/States';
 import { ClassFillBadge } from '@/components/school-config/SchoolConfigBadges';
 import {
@@ -33,7 +34,6 @@ export function ClassListSection({
   ageGroups,
   classes,
   groupStats,
-  teamLeaders,
   loading,
   editable,
   principal,
@@ -46,11 +46,9 @@ export function ClassListSection({
 }) {
   const md = useMasterData();
   const { user } = useAuth();
-  const [assigning, setAssigning] = useState(null); // { kind: 'teachers', cls } | { kind: 'leader', group }
-  // Phân công giáo viên / tổ trưởng ngay tại đây: Hiệu trưởng luôn được; Phó HT khi có quyền sửa "Phân công giáo viên" trong phạm vi
+  const [assigning, setAssigning] = useState(null); // { kind: 'teachers', cls }
+  // Phân công giáo viên ngay tại đây (tổ trưởng chọn ở form nhóm tuổi): Hiệu trưởng luôn được; Phó HT khi có quyền sửa "Phân công giáo viên" trong phạm vi
   const yearOpen = year && year.status !== 'CLOSED';
-  // Tổ trưởng toàn trường: nút hiện khi có quyền Thêm / Sửa / Xóa tổ trưởng
-  const leaderActs = teamLeaderActions(user);
   const closeAssign = (changed) => {
     setAssigning(null);
     if (changed) onChanged?.();
@@ -62,38 +60,53 @@ export function ClassListSection({
   // Điểm trường lọc cả bảng nhóm tuổi phía trên (repository trả lớp theo điểm trường)
   const campus = params.get('campus') || '';
   const filtered = !!(q || group || status || campus);
-  // Nhóm đang thu gọn nằm trên URL (?collapsed=ag-2,ag-3) như bộ lọc, tải lại trang vẫn giữ
-  const collapsed = new Set((params.get('collapsed') || '').split(',').filter(Boolean));
-  const updateCollapsed = (next) => setFilter('collapsed', [...next].join(','));
-  // Chevron luôn thu / mở nhóm, kể cả khi đang lọc; mở lại mọi nhóm chỉ lúc vừa đổi bộ lọc (setFilter)
-  const isOpen = (id) => !collapsed.has(id);
+  // Nhóm đang mở nằm trên URL (?expanded=ag-3,ag-4): mở trang mới thì mọi nhóm thu gọn, chỉ nhóm mở mới vẽ thẻ lớp;
+  // tải lại / gửi link vẫn giữ nhóm đang mở
+  const expanded = new Set((params.get('expanded') || '').split(',').filter(Boolean));
+  const setExpanded = (ids) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (ids.size) next.set('expanded', [...ids].join(','));
+        else next.delete('expanded');
+        return next;
+      },
+      { replace: true },
+    );
+  const isOpen = (id) => expanded.has(id);
   const toggleGroup = (id) => {
-    const next = new Set(collapsed);
+    const next = new Set(expanded);
     if (next.has(id)) next.delete(id);
     else next.add(id);
-    updateCollapsed(next);
+    setExpanded(next);
   };
+  // Vừa đổi bộ lọc: mở các nhóm có lớp khớp (chỉ lúc đổi; sau đó chevron của người dùng quyết định).
+  // Đổi điểm trường thì chờ danh sách lớp mới tải về rồi mới mở.
+  const autoExpand = useRef(null);
 
-  const setFilter = (key, value) =>
+  const setFilter = (key, value) => {
+    autoExpand.current = { waitFor: key === 'campus' ? classes : null };
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
         if (value) next.set(key, value);
         else next.delete(key);
-        if (key !== 'collapsed') next.delete('collapsed');
         return next;
       },
       { replace: true },
     );
-  const reset = () =>
+  };
+  const reset = () => {
+    autoExpand.current = null;
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        ['q', 'group', 'status', 'campus', 'collapsed'].forEach((k) => next.delete(k));
+        ['q', 'group', 'status', 'campus', 'expanded'].forEach((k) => next.delete(k));
         return next;
       },
       { replace: true },
     );
+  };
 
   const shown = useMemo(() => {
     const kw = normalizeText(q.trim());
@@ -103,9 +116,20 @@ export function ClassListSection({
   }, [classes, q, group, status]);
 
   // Không lọc: người cấu hình thấy cả nhóm chưa có lớp để thêm lớp; đang lọc: chỉ nhóm có kết quả
+  // Lọc điểm trường vẫn hiện đủ nhóm tuổi (nhóm tuổi dùng chung cả trường, để thêm lớp cho điểm trường đó);
+  // tìm tên / tình trạng chỉ hiện nhóm có kết quả; lọc nhóm tuổi thì hiện đúng nhóm đó
+  const narrowed = !!(q || status);
   const groups = ageGroups.filter((g) =>
-    filtered ? shown.some((c) => c.ageGroupId === g.id) : editable || classes.some((c) => c.ageGroupId === g.id),
+    group ? g.id === group : narrowed ? shown.some((c) => c.ageGroupId === g.id) : editable || classes.some((c) => c.ageGroupId === g.id),
   );
+
+  useEffect(() => {
+    const pending = autoExpand.current;
+    if (!pending || (pending.waitFor && pending.waitFor === classes)) return;
+    autoExpand.current = null;
+    setExpanded(new Set(filtered ? groups.filter((g) => g.id === group || shown.some((c) => c.ageGroupId === g.id)).map((g) => g.id) : []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, group, status, campus, classes]);
 
   const roomCell = (c) => {
     const l = c.locationId && md.locationById(c.locationId);
@@ -154,10 +178,10 @@ export function ClassListSection({
           </span>
           {groups.length > 0 && (
             <>
-              <button className="link-btn text-sm" onClick={() => updateCollapsed(new Set())}>
+              <button className="link-btn text-sm" onClick={() => setExpanded(new Set(groups.map((g) => g.id)))}>
                 Mở rộng tất cả
               </button>
-              <button className="link-btn text-sm" onClick={() => updateCollapsed(new Set(groups.map((g) => g.id)))}>
+              <button className="link-btn text-sm" onClick={() => setExpanded(new Set())}>
                 Thu gọn tất cả
               </button>
             </>
@@ -166,16 +190,14 @@ export function ClassListSection({
       </div>
 
       <div className="filter-bar sc-class-filters">
-        <label className="search-box sc-search">
-          <Search size={17} className="muted" />
-          <input
-            placeholder="Tìm tên lớp..."
-            aria-label="Tìm tên lớp"
-            value={q}
-            maxLength={50}
-            onChange={(e) => setFilter('q', e.target.value)}
-          />
-        </label>
+        <SearchSubmit
+          className="sc-search"
+          value={q}
+          placeholder="Tìm tên lớp"
+          label="Tìm tên lớp"
+          maxLength={50}
+          onSearch={(text) => setFilter('q', text)}
+        />
         <select className="select" aria-label="Lọc theo điểm trường" value={campus} onChange={(e) => setFilter('campus', e.target.value)}>
           <option value="">{principal ? 'Tất cả điểm trường' : 'Điểm trường của tôi'}</option>
           {campuses.map((c) => (
@@ -215,7 +237,7 @@ export function ClassListSection({
       <div className="sc-classes">
         {loading ? (
           <LoadingState />
-        ) : classes.length === 0 ? (
+        ) : classes.length === 0 && !campus ? (
           <EmptyState
             icon={Shapes}
             title="Chưa có lớp trong năm học này"
@@ -237,7 +259,7 @@ export function ClassListSection({
               )
             }
           />
-        ) : shown.length === 0 ? (
+        ) : groups.length === 0 ? (
           <EmptyState
             icon={Search}
             title="Không có lớp phù hợp"
@@ -252,10 +274,6 @@ export function ClassListSection({
           groups.map((g) => {
             const rows = shown.filter((c) => c.ageGroupId === g.id);
             const stats = groupStats?.[g.id];
-            const leaders = (teamLeaders || [])
-              .filter((a) => a.ageGroupId === g.id)
-              .map((a) => `${md.userById(a.userId)?.fullName} (${md.campusById(a.campusId)?.shortName || '—'})`);
-            const leader = leaders.join(', ');
             const open = isOpen(g.id);
             const bodyId = `sc-cgroup-${g.id}`;
             return (
@@ -282,19 +300,18 @@ export function ClassListSection({
                         {stats?.capacity ? ` · ${stats.enrolled}/${stats.capacity} trẻ` : ''}
                         {stats?.planned ? ` · ${stats.planned} dự kiến xếp` : ''}
                       </span>
-                      <span className={`chip ${leader ? 'chip--teal' : 'chip--gray'}`}>
-                        {leader ? `Tổ trưởng: ${leader}` : 'Chưa có tổ trưởng'}
-                      </span>
                     </span>
                   </button>
                   <span className="row row--wrap sc-cgroup__actions">
-                    {yearOpen && (leaders.length ? leaderActs.update || leaderActs.delete : leaderActs.create) && (
-                      <button className="btn btn--sm" onClick={() => setAssigning({ kind: 'leader', group: g })}>
-                        <Crown size={14} /> {leaders.length ? 'Đổi tổ trưởng' : 'Chọn tổ trưởng'}
-                      </button>
-                    )}
                     {editable && (
-                      <button className="btn btn--sm" onClick={() => onAdd(g.id)}>
+                      <button
+                        className="btn btn--sm"
+                        onClick={() => {
+                          // Mở nhóm để thấy lớp vừa thêm
+                          if (!open) toggleGroup(g.id);
+                          onAdd(g.id);
+                        }}
+                      >
                         <Plus size={14} /> Thêm lớp {g.shortName}
                       </button>
                     )}
@@ -303,7 +320,10 @@ export function ClassListSection({
 
                 {!open ? null : rows.length === 0 ? (
                   <div id={bodyId} className="sc-cgroup__empty">
-                    <span className="muted text-sm">Chưa có lớp {g.shortName} trong năm học này.</span>
+                    <span className="muted text-sm">
+                      Chưa có lớp {g.shortName}
+                      {campus ? ` ở ${md.campusById(campus)?.shortName || ''}` : ''} trong năm học này.
+                    </span>
                     {editable && (
                       <button className="link-btn" onClick={() => onAdd(g.id)}>
                         <Plus size={14} /> Thêm lớp
@@ -373,7 +393,6 @@ export function ClassListSection({
         )}
       </div>
       {assigning?.kind === 'teachers' && <AssignClassTeachersDialog cls={assigning.cls} schoolYear={year?.id} onClose={closeAssign} />}
-      {assigning?.kind === 'leader' && <AssignTeamLeaderDialog group={assigning.group} schoolYear={year?.id} onClose={closeAssign} />}
     </section>
   );
 }

@@ -38,7 +38,7 @@ const initialRows = (from, targets) => {
  * Xếp lớp năm mới cho các trẻ của một lớp cũ (bản dự kiến, áp dụng khi kích hoạt năm học).
  * Một dòng điều khiển "Cả lớp lên", chọn nhiều trẻ để đổi kết quả cùng lúc, thanh lưu luôn hiện ở cuối.
  */
-export function PlacementClassPanel({ yearId, from, targets, campusName, editable, onDirty, onSaved }) {
+export function PlacementClassPanel({ yearId, from, targets, campusName, editable, onDirty, onSaved, heading }) {
   const { user } = useAuth();
   const toast = useToast();
   const [rows, setRows] = useState(() => initialRows(from, targets));
@@ -125,7 +125,9 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
 
   return (
     <div className="sc-plc__panel">
+      {/* Tên lớp và "Cả lớp lên" chung một hàng để bảng trẻ có nhiều chỗ hơn */}
       <div className="sc-plc__toolbar">
+        {heading}
         {from.graduating ? (
           <span className="chip chip--blue">Nhóm tuổi lớn nhất: mặc định ra trường</span>
         ) : (
@@ -151,8 +153,11 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
               Áp dụng
             </button>
             {target && (
-              <span className={`chip ${seats[target.id] > target.capacity ? 'chip--red' : 'chip--gray'}`}>
-                {target.name}: {seats[target.id] || 0}/{target.capacity} trẻ
+              <span
+                className={`chip ${seats[target.id] > target.capacity ? 'chip--red' : 'chip--gray'}`}
+                title={`Sĩ số dự kiến của ${target.name}`}
+              >
+                Sĩ số {seats[target.id] || 0}/{target.capacity}
               </span>
             )}
           </>
@@ -218,12 +223,12 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
                       onChange={() => togglePick(ch.id)}
                     />
                   </td>
-                  <td className="nowrap">
-                    <div className="fw-600">{ch.fullName}</div>
-                    <div className="muted text-xs">
+                  <td className="nowrap sc-plc__child">
+                    <span className="fw-600">{ch.fullName}</span>
+                    <span className="muted text-xs">
                       {ch.code}
                       {!ch.placement && <span className="sc-plc__new"> · chưa lưu</span>}
-                    </div>
+                    </span>
                   </td>
                   <td>
                     <div className="sc-seg" role="radiogroup" aria-label={`Kết quả của ${ch.fullName}`}>

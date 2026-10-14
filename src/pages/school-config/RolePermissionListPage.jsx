@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Info, ShieldCheck, Pencil, RotateCcw, Users } from '@/components/ui/icons';
+import { Info, ShieldCheck, Pencil, RotateCcw, Users } from '@/components/ui/icons';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRolePermissions } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -86,10 +87,7 @@ export default function RolePermissionListPage() {
 
           <section className="card">
             <div className="filter-bar">
-              <label className="search-box" style={{ flex: 1 }}>
-                <Search size={17} className="muted" />
-                <input placeholder="Tìm quyền..." value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="Tìm quyền" />
-              </label>
+              <SearchSubmit className="sc-search" value={keyword} placeholder="Tìm quyền" onSearch={setKeyword} />
               <select className="select" value={module} onChange={(e) => setModule(e.target.value)} aria-label="Nhóm chức năng">
                 <option value="">Tất cả nhóm chức năng</option>
                 {Object.entries(PERMISSION_MODULES).map(([k, v]) => (

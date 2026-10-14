@@ -344,7 +344,7 @@ export default function VicePrincipalAssignmentPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap sc-table-flat">
-            <table className="table">
+            <table className="table table--compact">
               <thead>
                 <tr>
                   <th>Phó hiệu trưởng</th>

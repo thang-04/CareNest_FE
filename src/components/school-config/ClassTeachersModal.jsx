@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Users, Save } from '@/components/ui/icons';
+import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
-import { EmptyState, Spinner } from '@/components/ui/States';
+import { Spinner } from '@/components/ui/States';
 import { saveClassTeachers } from '@/services/school-config/schoolConfigService';
 import { validateClassTeachers, hasErrors } from '@/utils/school-config/schoolConfigValidation';
-import { TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
+import { ClassTeachersPicker, teachersHint, toggleTeacher } from '@/components/school-config/ClassTeachersPicker';
 
 /** Assign the teachers (and homeroom teacher) of one class. Used by Teacher Assignment and Age Groups & Classes. */
 export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
@@ -18,22 +18,11 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
 
   const toggle = (id) => {
     setErrors({});
-    setForm((f) => {
-      const teacherIds = f.teacherIds.includes(id) ? f.teacherIds.filter((x) => x !== id) : [...f.teacherIds, id];
-      // Không tự chọn chủ nhiệm: bỏ tích người đang là chủ nhiệm thì xóa lựa chọn chủ nhiệm
-      const homeroomTeacherId = teacherIds.includes(f.homeroomTeacherId) ? f.homeroomTeacherId : '';
-      return { teacherIds, homeroomTeacherId };
-    });
+    setForm((f) => toggleTeacher(f, id));
   };
 
-  const full = form.teacherIds.length >= TEACHERS_PER_CLASS;
   const valid = !hasErrors(validateClassTeachers(form));
-  const hint =
-    form.teacherIds.length < TEACHERS_PER_CLASS
-      ? `Tích chọn ${TEACHERS_PER_CLASS} giáo viên (đã chọn ${form.teacherIds.length}).`
-      : !form.homeroomTeacherId
-        ? 'Chọn 1 giáo viên làm chủ nhiệm ở cột Chủ nhiệm.'
-        : '';
+  const hint = teachersHint(form);
 
   const submit = async () => {
     const e = validateClassTeachers(form);
@@ -68,66 +57,16 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
         </>
       }
     >
-      {teachers.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title="Điểm trường chưa có giáo viên"
-          description="Cần có tài khoản giáo viên thuộc điểm trường để phân công."
-        />
-      ) : (
-        <div className="table-wrap">
-          <table className="table table--compact">
-            <thead>
-              <tr>
-                <th>Phụ trách lớp</th>
-                <th>Giáo viên</th>
-                <th>Lớp phụ trách</th>
-                <th className="center">Chủ nhiệm</th>
-              </tr>
-            </thead>
-            <tbody>
-              {teachers.map((t) => {
-                const checked = form.teacherIds.includes(t.id);
-                const others = classesOf(t.id).filter((c) => c.id !== cls.id);
-                return (
-                  <tr key={t.id} className={checked ? 'row--selected' : ''}>
-                    <td>
-                      <label className="checkbox">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={!checked && full}
-                          onChange={() => toggle(t.id)}
-                          aria-label={`Phân công ${t.fullName}`}
-                        />
-                      </label>
-                    </td>
-                    <td className="fw-600">{t.fullName}</td>
-                    <td className="text-sm">{others.length ? others.map((c) => c.name).join(', ') : <span className="muted">—</span>}</td>
-                    <td className="center">
-                      <input
-                        type="radio"
-                        name="sc-homeroom"
-                        checked={form.homeroomTeacherId === t.id}
-                        disabled={!checked}
-                        onChange={() => setForm((f) => ({ ...f, homeroomTeacherId: t.id }))}
-                        aria-label={`Chọn ${t.fullName} làm chủ nhiệm`}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {errors.homeroomTeacherId || errors.teacherIds ? (
-        <span className="field__error mt-8" role="alert">
-          {errors.homeroomTeacherId || errors.teacherIds}
-        </span>
-      ) : (
-        hint && <p className="muted text-sm mt-8">{hint}</p>
-      )}
+      <ClassTeachersPicker
+        teachers={teachers}
+        classesOf={classesOf}
+        classId={cls.id}
+        form={form}
+        onToggle={toggle}
+        onHomeroom={(id) => setForm((f) => ({ ...f, homeroomTeacherId: id }))}
+        errors={errors}
+        hint={hint}
+      />
     </Modal>
   );
 }

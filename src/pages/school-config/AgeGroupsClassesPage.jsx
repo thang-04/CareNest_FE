@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Info, Copy } from '@/components/ui/icons';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Info, Copy, Crown, UserCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -17,9 +17,16 @@ import { AgeGroupFormModal } from '@/components/school-config/AgeGroupFormModal'
 import { CopyClassesModal, copySourcesFor } from '@/components/school-config/CopyClassesModal';
 import { ClassListSection } from '@/components/school-config/ClassListSection';
 import { deleteAgeGroup, deleteClass } from '@/services/school-config/schoolConfigService';
-import { canManageClasses, canViewSchoolStructure, isPrincipal } from '@/utils/school-config/schoolConfigPermissions';
+import {
+  ASSIGN_TEACHER,
+  canManageClasses,
+  canViewSchoolStructure,
+  canViewTeamLeaders,
+  isPrincipal,
+  permissionAccess,
+} from '@/utils/school-config/schoolConfigPermissions';
 import { classCrumbs } from '@/utils/school-config/breadcrumbs';
-import { YEAR_STATUS, ageRangeLabel, mealSessionsLabel } from '@/models/school-config/schoolConfigConstants';
+import { PERMISSION_ACCESS, YEAR_STATUS, ageRangeLabel, mealSessionsLabel } from '@/models/school-config/schoolConfigConstants';
 import '@/styles/modules/school-config.css';
 
 /**
@@ -48,6 +55,10 @@ export default function AgeGroupsClassesPage() {
   const teamLeaders = useMemo(() => structure?.teamLeaders || [], [structure]);
   // Năm học đã kết thúc: chỉ xem, ẩn Thêm / Sửa / Xóa / Sao chép (SRS 4.1.3)
   const editable = canManageClasses(year, user);
+  // Nút sang màn Phân công giáo viên: theo từng quyền (phân công giáo viên / phân công tổ trưởng)
+  const canAssignTeacherArea = permissionAccess(user, ASSIGN_TEACHER).access !== PERMISSION_ACCESS.NONE;
+  const canLeaders = canViewTeamLeaders(user);
+  const assignUrl = (hash = '') => `/school/teachers${yearId ? `?year=${yearId}` : ''}${hash}`;
   const principal = isPrincipal(user);
   const canCopy = editable && copySourcesFor(years, year).length > 0;
   // Principal sees both campuses; other roles only the campus of their scope (GBR-GEN-01).
@@ -118,18 +129,15 @@ export default function AgeGroupsClassesPage() {
       {year && (
         <p className="sc-summary text-2">
           Năm học <b>{year.name}</b> · {ageGroups.length} nhóm tuổi · {classes.length} lớp
+          {campusId ? ` ở ${md.campusById(campusId)?.shortName || ''}` : ''}
         </p>
       )}
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          {year?.status === YEAR_STATUS.CLOSED
-            ? `Năm học ${year.name} đã kết thúc: lớp và nhóm tuổi chỉ còn xem.`
-            : principal
-              ? 'Hiệu trưởng hoặc Phó hiệu trưởng được cấp quyền phân công giáo viên cho lớp và tổ trưởng nhóm tuổi (1 tổ trưởng cho cả trường), ngay tại đây hoặc ở màn Phân công giáo viên.'
-              : 'Bạn đang xem các lớp trong phạm vi được phân công. Chỉ Hiệu trưởng được cấu hình nhóm tuổi và lớp; phân công giáo viên, tổ trưởng theo quyền Hiệu trưởng cấp.'}
+      {year?.status === YEAR_STATUS.CLOSED && (
+        <div className="alert alert--info mb-16">
+          <Info size={18} />
+          <div>Năm học {year.name} đã kết thúc: lớp và nhóm tuổi chỉ còn xem.</div>
         </div>
-      </div>
+      )}
 
       {error ? (
         <ErrorState error={error} onRetry={reload} />
@@ -140,14 +148,27 @@ export default function AgeGroupsClassesPage() {
           <section className="card mb-16">
             <div className="card__header">
               <h2 className="card__title">Nhóm tuổi</h2>
-              {editable && (
-                <button className="btn btn--sm" onClick={() => setGroupModal({ group: null })}>
-                  <Plus size={15} /> Thêm nhóm tuổi
-                </button>
-              )}
+              <div className="row row--wrap">
+                {/* Giáo viên và tổ trưởng phân công ở màn Phân công giáo viên; mỗi nút theo quyền riêng */}
+                {canAssignTeacherArea && (
+                  <Link className="btn btn--sm" to={assignUrl()}>
+                    <UserCheck size={15} /> Phân công giáo viên
+                  </Link>
+                )}
+                {canLeaders && (
+                  <Link className="btn btn--sm" to={assignUrl('#to-truong')}>
+                    <Crown size={15} /> Phân công tổ trưởng
+                  </Link>
+                )}
+                {editable && (
+                  <button className="btn btn--sm" onClick={() => setGroupModal({ group: null })}>
+                    <Plus size={15} /> Thêm nhóm tuổi
+                  </button>
+                )}
+              </div>
             </div>
             <div className="table-wrap sc-table-flat">
-              <table className="table">
+              <table className="table table--compact">
                 <thead>
                   <tr>
                     <th>Nhóm tuổi</th>
@@ -219,7 +240,6 @@ export default function AgeGroupsClassesPage() {
             ageGroups={ageGroups}
             classes={classes}
             groupStats={structure?.groupStats}
-            teamLeaders={teamLeaders}
             loading={loading}
             editable={editable}
             principal={principal}
