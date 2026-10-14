@@ -65,8 +65,8 @@ export function ClassListSection({
   // Nhóm đang thu gọn nằm trên URL (?collapsed=ag-2,ag-3) như bộ lọc, tải lại trang vẫn giữ
   const collapsed = new Set((params.get('collapsed') || '').split(',').filter(Boolean));
   const updateCollapsed = (next) => setFilter('collapsed', [...next].join(','));
-  // Đang tìm / lọc thì mở mọi nhóm có kết quả
-  const isOpen = (id) => filtered || !collapsed.has(id);
+  // Chevron luôn thu / mở nhóm, kể cả khi đang lọc; mở lại mọi nhóm chỉ lúc vừa đổi bộ lọc (setFilter)
+  const isOpen = (id) => !collapsed.has(id);
   const toggleGroup = (id) => {
     const next = new Set(collapsed);
     if (next.has(id)) next.delete(id);
@@ -80,6 +80,7 @@ export function ClassListSection({
         const next = new URLSearchParams(prev);
         if (value) next.set(key, value);
         else next.delete(key);
+        if (key !== 'collapsed') next.delete('collapsed');
         return next;
       },
       { replace: true },
@@ -88,7 +89,7 @@ export function ClassListSection({
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        ['q', 'group', 'status', 'campus'].forEach((k) => next.delete(k));
+        ['q', 'group', 'status', 'campus', 'collapsed'].forEach((k) => next.delete(k));
         return next;
       },
       { replace: true },
@@ -151,7 +152,7 @@ export function ClassListSection({
             {q || group || status ? `Hiển thị ${shown.length}/${classes.length} lớp` : `${classes.length} lớp`}
             {campus ? ` · ${md.campusById(campus)?.shortName || ''}` : ''}
           </span>
-          {!filtered && groups.length > 0 && (
+          {groups.length > 0 && (
             <>
               <button className="link-btn text-sm" onClick={() => updateCollapsed(new Set())}>
                 Mở rộng tất cả
