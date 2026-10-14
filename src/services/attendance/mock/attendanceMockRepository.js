@@ -42,6 +42,7 @@ import { isDayLocked, isSchoolDay, isValidTime, schoolDaysBetween, schoolNow } f
 import { formatDate } from '@/utils/format';
 import { uid } from '@/utils/id';
 import { dailyHealthSummary } from '@/mocks/dailyHealthSummary';
+import { kidAvatar } from '@/mocks/kidAvatars';
 
 /*
  * Fake backend for attendance, meal participation, meal counts and meal handover.
@@ -327,7 +328,15 @@ const dayInfo = (db, date) => {
   return { date, today: now.date, now: now.time, cutoff, schoolDay: isSchoolDay(date), locked: isDayLocked(date, cutoff, now) };
 };
 
-const childView = (ch) => ({ id: ch.id, code: ch.code, fullName: ch.fullName, gender: ch.gender, allergies: ch.allergies || [] });
+// photoUrl: ảnh hồ sơ trẻ (demo dùng ảnh minh họa, không dùng ảnh thật)
+const childView = (ch) => ({
+  id: ch.id,
+  code: ch.code,
+  fullName: ch.fullName,
+  gender: ch.gender,
+  allergies: ch.allergies || [],
+  photoUrl: ch.photoUrl || kidAvatar(ch),
+});
 
 /** Tổng hợp một lớp trong khoảng ngày (dùng cho #66 một lớp và cộng nhiều lớp). */
 const classSummary = (db, cls, from, to) => {
@@ -424,6 +433,7 @@ export const attendanceMockRepository = {
         present: children.filter(({ record }) => record?.status === ATTENDANCE_STATUS.PRESENT).length,
         absent: children.filter(({ record }) => isAbsent(record?.status)).length,
         missing: children.filter(({ record }) => !record).length,
+        noted: children.filter(({ healthSummary }) => healthSummary.flagged).length,
       },
     };
   },

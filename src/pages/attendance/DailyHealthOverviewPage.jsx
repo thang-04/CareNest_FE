@@ -7,11 +7,12 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DailyHealthHistoryModal } from '@/components/attendance/DailyHealthHistoryModal';
+import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
 import { useChildDailyHealthHistory, useDailyHealthOverview } from '@/hooks/attendance/useDailyHealthOverview';
 import { ROLES } from '@/models/User';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { formatTemperature, symptomLabels } from '@/utils/dailyHealthValidation';
+import { symptomLabels } from '@/utils/dailyHealthValidation';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -136,7 +137,7 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                   </td>
                   <td className="nowrap">{item.className}</td>
                   <td className="right nowrap">
-                    {formatTemperature(item.temperature)}
+                    <TemperatureBadge value={item.temperature} />
                     {item.readingCount > 1 && (
                       <div className="muted text-xs">
                         {item.readingCount} lần (

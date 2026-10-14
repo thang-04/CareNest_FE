@@ -1154,6 +1154,11 @@
   font-size: var(--fs-sm);
   flex-shrink: 0;
 }
+/* Ảnh thật (vd. ảnh hồ sơ trẻ) trong khung tròn của avatar */
+.avatar--photo {
+  object-fit: cover;
+  background: var(--color-surface-muted);
+}
 .avatar--lg {
   width: 40px;
   height: 40px;

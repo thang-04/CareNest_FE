@@ -1,4 +1,5 @@
-export const HEALTH_SYMPTOMS = { COUGH: 'Ho', RUNNY_NOSE: 'Sổ mũi', TIRED: 'Mệt mỏi', OTHER: 'Khác' };
+// Biểu hiện giáo viên tự chọn (không suy ra từ nhiệt độ); thứ tự hiển thị trên form
+export const HEALTH_SYMPTOMS = { FEVER: 'Sốt', COUGH: 'Ho', RUNNY_NOSE: 'Sổ mũi', FLU: 'Cảm cúm', TIRED: 'Mệt mỏi', OTHER: 'Khác' };
 
 export const validateDailyHealth = ({ temperature, observation, symptoms = [], note = '' }) => {
   const errors = {};

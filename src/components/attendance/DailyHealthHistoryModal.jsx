@@ -1,9 +1,10 @@
 import { Phone } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
-import { formatTemperature, symptomLabels } from '@/utils/dailyHealthValidation';
+import { symptomLabels } from '@/utils/dailyHealthValidation';
 import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/attendance.css';
+import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
 
 const NOTIFICATION_CHIPS = {
   PENDING: { tone: 'chip--orange', label: 'Chưa gửi được thông báo phụ huynh' },
@@ -96,7 +97,9 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
                       {timeOf(entry.recordedAt)}
                       {index === 0 && history.entries.length > 1 && <span className="chip chip--blue dd-hist__tag">Mới nhất</span>}
                     </td>
-                    <td className="right nowrap">{formatTemperature(entry.temperature)}</td>
+                    <td className="right nowrap">
+                      <TemperatureBadge value={entry.temperature} />
+                    </td>
                     <td>
                       {entry.observation === 'NOTED' ? 'Có dấu hiệu' : 'Bình thường'}
                       {entry.symptoms?.length ? <div className="muted text-xs">{symptomLabels(entry.symptoms)}</div> : null}

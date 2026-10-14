@@ -11,6 +11,7 @@ export const dailyHealthApi = {
   addDailyHealth: (payload) => axiosClient.post('/daily-health-entries', payload),
   notifyDailyHealth: (entryId) => axiosClient.post(`/daily-health-entries/${entryId}/parent-notifications`),
 
+  // PENDING BE: mỗi lần ghi nhận nên trả kèm mức thân nhiệt (level: LOW/NORMAL/WATCH/HIGH/VERY_HIGH, ngưỡng ở utils/attendance/temperatureLevels.js)
   // PENDING BE: tổng hợp sức khỏe đầu ngày cho Ban giám hiệu; BE tự giới hạn điểm trường theo người gọi,
   // campusId / ageGroupId / classId chỉ là bộ lọc; trả kèm options (nhóm tuổi, lớp trong phạm vi)
   getDailyHealthOverview: ({ date, campusId, ageGroupId, classId }) =>

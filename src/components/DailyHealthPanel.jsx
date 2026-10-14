@@ -5,7 +5,10 @@ import { EmptyState, ErrorState, LoadingState, SubmitOverlay } from '@/component
 import { useAsync } from '@/hooks/useAsync';
 import { getDailyHealth, notifyDailyHealth } from '@/services/dailyHealthService';
 import { HEALTH_SYMPTOMS, validateDailyHealth } from '@/utils/dailyHealthValidation';
-import { formatDateTime, initials, avatarTone } from '@/utils/format';
+import { temperatureLevel } from '@/utils/attendance/temperatureLevels';
+import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
+import { formatDateTime } from '@/utils/format';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { useToast } from '@/contexts/ToastContext';
 
 const blank = () => ({ temperature: '', observation: '', symptoms: [], note: '' });
@@ -28,6 +31,10 @@ export function DailyHealthPanel({
 }) {
   const toast = useToast();
   const [form, setForm] = useState(blank);
+  // Lần mới nhất hiện đầy đủ; các lần cũ mở từng lần một (accordion), quá 3 lần cũ thì ẩn bớt
+  const [expanded, setExpanded] = useState(null);
+  const [showAll, setShowAll] = useState(false);
+  const toggleEntry = (id) => setExpanded((cur) => (cur === id ? null : id));
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -131,9 +138,7 @@ export function DailyHealthPanel({
         </span>
       </div>
       <div className="dd-health__identity">
-        <span className={`avatar avatar--lg avatar--tone-${avatarTone(child.fullName)}`} aria-hidden="true">
-          {initials(child.fullName)}
-        </span>
+        <ChildAvatar child={child} size="lg" />
         <div>
           <h3 className="dd-health__name">{child.fullName}</h3>
           <div className="muted text-sm">
@@ -201,6 +206,12 @@ export function DailyHealthPanel({
                     onChange={(event) => set('temperature', event.target.value)}
                   />
                 </FormField>
+                {temperatureLevel(form.temperature)?.chip && (
+                  // Gợi ý mức theo khoảng đo; cô vẫn tự chọn quan sát và biểu hiện
+                  <p className="text-sm" role="status">
+                    <TemperatureBadge value={Number(form.temperature.trim().replace(',', '.'))} />
+                  </p>
+                )}
                 <fieldset className="dd-health__fields" aria-describedby={errors.observation ? 'health-observation-error' : undefined}>
                   <legend className="field__label">
                     Quan sát ban đầu <span className="req">*</span>
@@ -305,40 +316,106 @@ export function DailyHealthPanel({
               Các lần ghi nhận trong ngày đã chọn
             </h3>
             <p className="muted text-sm">Mỗi lần ghi nhận được lưu riêng, kể cả sau giờ khóa điểm danh.</p>
+            {data?.entries.filter((e) => Number.isFinite(e.temperature)).length > 1 && (
+              <p className="text-sm">
+                Thân nhiệt hôm nay:{' '}
+                {data.entries
+                  .filter((e) => Number.isFinite(e.temperature))
+                  .map((e) => e.temperature.toLocaleString('vi-VN'))
+                  .reverse()
+                  .join(' → ')}{' '}
+                °C
+              </p>
+            )}
             {!data?.entries.length ? (
               <EmptyState title="Chưa có lần ghi nhận" description="Lần kiểm tra đã lưu sẽ hiển thị tại đây." />
             ) : (
-              <ol className="dd-health__timeline">
-                {data.entries.map((entry) => (
-                  <li key={entry.id}>
-                    <div className="row row--wrap">
-                      <CheckCircle2 size={16} />
-                      <strong>{formatDateTime(entry.recordedAt)}</strong>
-                      <span>{entry.temperature === null ? 'Chưa đo thân nhiệt' : `${entry.temperature.toLocaleString('vi-VN')} °C`}</span>
-                    </div>
-                    <p>
-                      {entry.observation === 'NO_CONCERN' ? 'Không ghi nhận bất thường' : 'Có dấu hiệu cần lưu ý'}
-                      {entry.symptoms.length ? ` · ${entry.symptoms.map((item) => HEALTH_SYMPTOMS[item]).join(', ')}` : ''}
-                    </p>
-                    {entry.note && <p>{entry.note}</p>}
-                    {entry.observation === 'NOTED' && (
-                      <div className="dd-health__actions">
-                        <span className={`chip ${entry.notificationStatus === 'DEMO_QUEUED' ? 'chip--blue' : 'chip--orange'}`}>
-                          {entry.notificationStatus === 'DEMO_QUEUED'
-                            ? `Đã gửi thông báo phụ huynh${entry.parentNotifications?.[0] ? ` · ${formatDateTime(entry.parentNotifications[0].createdAt)}` : ''}`
-                            : 'Chưa gửi được thông báo phụ huynh'}
-                        </span>
-                        {entry.notificationStatus !== 'DEMO_QUEUED' && (
-                          <button className="btn btn--sm" type="button" disabled={busy || parentBusy} onClick={() => resend(entry)}>
-                            Gửi lại thông báo
+              <>
+                <ol className="dd-health__timeline">
+                  {/* Lần mới nhất hiện đầy đủ; các lần trước gọn 1 dòng, bấm để mở — danh sách không kéo dài */}
+                  {data.entries.slice(0, showAll ? undefined : 4).map((entry, index) =>
+                    index === 0 || expanded === entry.id ? (
+                      <li key={entry.id}>
+                        {index === 0 ? (
+                          <div className="row row--wrap">
+                            <CheckCircle2 size={16} />
+                            <strong>{formatDateTime(entry.recordedAt)}</strong>
+                            {entry.temperature === null ? <span>Chưa đo thân nhiệt</span> : <TemperatureBadge value={entry.temperature} />}
+                          </div>
+                        ) : (
+                          // Lần cũ đang mở: bấm lại đầu dòng để thu gọn
+                          <button
+                            type="button"
+                            className="dd-health__compact-btn dd-health__compact-btn--open"
+                            aria-expanded
+                            onClick={() => toggleEntry(entry.id)}
+                            title="Bấm để thu gọn"
+                          >
+                            <strong className="nowrap">{formatDateTime(entry.recordedAt)}</strong>
+                            {entry.temperature === null ? (
+                              <span className="muted">Chưa đo thân nhiệt</span>
+                            ) : (
+                              <TemperatureBadge value={entry.temperature} />
+                            )}
+                            <span className="dd-health__compact-text" />
+                            <ChevronUp size={16} aria-hidden="true" />
                           </button>
                         )}
-                      </div>
-                    )}
-                    <div className="muted text-sm">Ghi nhận bởi {entry.recordedByName}</div>
-                  </li>
-                ))}
-              </ol>
+                        <p>
+                          {entry.observation === 'NO_CONCERN' ? 'Không ghi nhận bất thường' : 'Có dấu hiệu cần lưu ý'}
+                          {entry.symptoms.length ? ` · ${entry.symptoms.map((item) => HEALTH_SYMPTOMS[item]).join(', ')}` : ''}
+                        </p>
+                        {entry.note && <p>{entry.note}</p>}
+                        {entry.observation === 'NOTED' && (
+                          <div className="dd-health__actions">
+                            <span className={`chip ${entry.notificationStatus === 'DEMO_QUEUED' ? 'chip--blue' : 'chip--orange'}`}>
+                              {entry.notificationStatus === 'DEMO_QUEUED'
+                                ? `Đã gửi thông báo phụ huynh${entry.parentNotifications?.[0] ? ` · ${formatDateTime(entry.parentNotifications[0].createdAt)}` : ''}`
+                                : 'Chưa gửi được thông báo phụ huynh'}
+                            </span>
+                            {entry.notificationStatus !== 'DEMO_QUEUED' && (
+                              <button className="btn btn--sm" type="button" disabled={busy || parentBusy} onClick={() => resend(entry)}>
+                                Gửi lại thông báo
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        <div className="muted text-sm">Ghi nhận bởi {entry.recordedByName}</div>
+                      </li>
+                    ) : (
+                      <li key={entry.id} className="dd-health__compact">
+                        <button
+                          type="button"
+                          className="dd-health__compact-btn"
+                          aria-expanded={false}
+                          onClick={() => toggleEntry(entry.id)}
+                          title="Xem chi tiết lần ghi nhận"
+                        >
+                          <span className="nowrap">{formatDateTime(entry.recordedAt).split(' ')[1]}</span>
+                          {entry.temperature === null ? (
+                            <span className="muted">Chưa đo</span>
+                          ) : (
+                            <TemperatureBadge value={entry.temperature} showLabel={false} />
+                          )}
+                          <span className="dd-health__compact-text">
+                            {entry.observation === 'NO_CONCERN' ? 'Bình thường' : 'Có dấu hiệu'}
+                            {entry.symptoms.length ? ` · ${entry.symptoms.map((item) => HEALTH_SYMPTOMS[item]).join(', ')}` : ''}
+                          </span>
+                          {entry.observation === 'NOTED' && entry.notificationStatus !== 'DEMO_QUEUED' && (
+                            <span className="chip chip--orange">Chưa gửi PH</span>
+                          )}
+                          <ChevronDown size={16} aria-hidden="true" />
+                        </button>
+                      </li>
+                    ),
+                  )}
+                </ol>
+                {data.entries.length > 4 && (
+                  <button className="btn btn--sm btn--ghost" type="button" onClick={() => setShowAll((v) => !v)}>
+                    {showAll ? 'Ẩn bớt' : `Xem thêm ${data.entries.length - 4} lần`}
+                  </button>
+                )}
+              </>
             )}
           </section>
         </>

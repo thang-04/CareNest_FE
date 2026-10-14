@@ -15,18 +15,13 @@ import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DayLockAlert } from '@/components/attendance/DayLockAlert';
 import { useAttendanceClasses, useClassAttendance } from '@/hooks/attendance/useAttendance';
 import { getDayInfo, saveClassAttendance, correctMealAfterLock } from '@/services/attendance/attendanceService';
-import {
-  ATTENDANCE_STATUS,
-  DEFAULT_MEAL_SESSIONS,
-  MEAL_SESSION_LABELS,
-  allMeals,
-  eatsAny,
-  isAbsent,
-  mealsIn,
-} from '@/models/attendance/attendanceConstants';
+import { ATTENDANCE_STATUS, DEFAULT_MEAL_SESSIONS, allMeals, eatsAny, isAbsent, mealsIn } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { initials, avatarTone, normalizeText, formatDate } from '@/utils/format';
+import { normalizeText, formatDate } from '@/utils/format';
+import { ChildAvatar } from '@/components/ChildAvatar';
+import { formatTemperature, symptomLabels } from '@/utils/dailyHealthValidation';
+import { temperatureLevel } from '@/utils/attendance/temperatureLevels';
 import '@/styles/modules/attendance.css';
 
 // Bữa của lớp = bữa Hiệu trưởng cấu hình cho nhóm tuổi; Có mặt mặc định ăn đủ các bữa đó
@@ -41,6 +36,32 @@ const toDraft = (sheet) =>
 const changed = (entry, record, sessions) =>
   !!entry?.status &&
   (entry.status !== (record?.status || '') || sessions.some((session) => !!entry.meals[session] !== !!record?.meals?.[session]));
+
+/**
+ * Thẻ trên dòng trẻ (một thẻ ngắn): "38 °C · Cần chú ý" / "Cần chú ý" / "38 °C"; không có lần ghi nhận thì không hiện.
+ * full = nội dung đầy đủ cho tooltip (mức, biểu hiện, ghi chú); chi tiết xem ở khung sức khỏe bên phải.
+ */
+const healthFlag = (latest, full = false) => {
+  if (!latest) return '';
+  const noted = latest.observation === 'NOTED';
+  const level = temperatureLevel(latest.temperature);
+  const temp = Number.isFinite(latest.temperature) ? formatTemperature(latest.temperature) : '';
+  if (!full) return [temp, noted ? 'Cần chú ý' : ''].filter(Boolean).join(' · ');
+  const parts = noted ? ['Cần chú ý'] : [];
+  if (temp) parts.push(`${temp}${level?.chip ? ` ${level.label}` : ''}`);
+  const signs = symptomLabels(latest.symptoms);
+  if (signs) parts.push(signs);
+  if (latest.note) parts.push(latest.note);
+  return parts.join(' · ');
+};
+
+/** Màu thẻ: theo mức thân nhiệt; có dấu hiệu mà thân nhiệt bình thường / thấp / chưa đo thì đỏ; không dấu hiệu, bình thường thì xám. */
+const flagChip = (latest) => {
+  const level = temperatureLevel(latest?.temperature);
+  if (level?.chip && level.key !== 'LOW') return level.chip;
+  if (latest?.observation === 'NOTED') return 'chip--red';
+  return level?.chip || 'chip--gray';
+};
 
 export default function AttendancePage() {
   const { user } = useAuth();
@@ -139,6 +160,11 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
   const { sheet, setSheet, loading, error, reload } = useClassAttendance(classId, date, { live: false });
   const [draft, setDraft] = useState({});
   const [selectedId, setSelectedId] = useState('');
+  // Lớp đông: trẻ đang chọn (vd. sau "Lưu & trẻ tiếp theo") luôn nằm trong khung nhìn của bảng
+  useEffect(() => {
+    if (!selectedId) return;
+    document.querySelector(`.dd-reception__table tr[data-child="${selectedId}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [selectedId]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('ALL');
   const [saving, setSaving] = useState(false);
@@ -199,7 +225,13 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
     return (
       normalizeText(`${row.child.fullName} ${row.child.code}`).includes(normalizeText(query)) &&
       (filter === 'ALL' ||
-        (filter === 'MISSING' ? !entry?.status : filter === 'PRESENT' ? entry?.status === 'PRESENT' : isAbsent(entry?.status)))
+        (filter === 'NOTED'
+          ? row.healthSummary?.flagged
+          : filter === 'MISSING'
+            ? !entry?.status
+            : filter === 'PRESENT'
+              ? entry?.status === 'PRESENT'
+              : isAbsent(entry?.status)))
     );
   });
   const selectChild = (id) => {
@@ -349,12 +381,27 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
           </button>
         </div>
       )}
-      <DayLockAlert sheet={{ ...sheet, ...day }} />
+      {/* Ngày đang mở: giờ khóa hiện ở chip "Đang mở" của bảng; chỉ báo khi không phải ngày học hoặc đã khóa */}
+      {(!sheet.schoolDay || day.locked) && <DayLockAlert sheet={{ ...sheet, ...day }} />}
       <div className="dd-reception__summary" aria-live="polite">
         <span className="chip chip--blue">Sĩ số: {sheet.receptionStats?.total ?? rows.length}</span>
         <span className="chip chip--green">Có mặt đã lưu: {sheet.receptionStats?.present ?? '—'}</span>
         <span className="chip chip--gray">Vắng đã lưu: {sheet.receptionStats?.absent ?? '—'}</span>
-        <span className="chip chip--gray">Chưa điểm danh: {sheet.receptionStats?.missing ?? '—'}</span>
+        {sheet.receptionStats?.missing ? (
+          // Bấm để lọc nhanh trẻ chưa điểm danh (lớp đông)
+          <button className="btn btn--sm btn--ghost" type="button" onClick={() => setFilter('MISSING')}>
+            <span className="chip chip--gray">Chưa điểm danh: {sheet.receptionStats.missing}</span>
+          </button>
+        ) : (
+          <span className="chip chip--gray">Chưa điểm danh: {sheet.receptionStats?.missing ?? '—'}</span>
+        )}
+        {!!sheet.receptionStats?.noted && (
+          <button className="btn btn--sm btn--ghost" type="button" onClick={() => setFilter('NOTED')}>
+            <span className="chip chip--red">
+              <HeartPulse size={14} /> Có dấu hiệu cần lưu ý: {sheet.receptionStats.noted}
+            </span>
+          </button>
+        )}
         {!!dirtyRows.length && <span className="chip chip--orange">{dirtyRows.length} trẻ có thay đổi chưa lưu</span>}
       </div>
       <div className="dd-reception">
@@ -363,8 +410,16 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
             <h2 className="card__title" id="attendance-list-heading">
               Điểm danh & báo ăn
             </h2>
-            <span className={`chip ${day.locked ? 'chip--gray' : 'chip--blue'}`}>
-              {day.locked ? <Lock size={14} /> : <ClockIcon />} {day.locked ? 'Đã khóa' : 'Đang mở'}
+            <span
+              className={`chip ${day.locked ? 'chip--gray' : 'chip--blue'}`}
+              title={
+                day.locked
+                  ? undefined
+                  : `Điểm danh và báo ăn trước ${day.cutoff || sheet.cutoff} hôm nay. Sau giờ này dữ liệu bị khóa và sĩ số suất ăn được gửi Phó hiệu trưởng xác nhận.`
+              }
+            >
+              {day.locked ? <Lock size={14} /> : <ClockIcon />}{' '}
+              {day.locked ? 'Đã khóa' : `Đang mở (khóa lúc ${day.cutoff || sheet.cutoff})`}
             </span>
           </div>
           <div className="dd-reception__filters">
@@ -380,6 +435,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                 <option value="MISSING">Chưa điểm danh</option>
                 <option value="PRESENT">Có mặt</option>
                 <option value="ABSENT">Vắng</option>
+                <option value="NOTED">Có dấu hiệu cần lưu ý</option>
               </select>
             </label>
             {editable && (
@@ -399,13 +455,8 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
               <thead>
                 <tr>
                   <th>Trẻ</th>
-                  <th>Điểm danh</th>
-                  <th className="center">
-                    Tham gia ăn
-                    <span className="muted text-xs dd-reception__sessions">
-                      {sessions.length} bữa: {sessions.map((s) => MEAL_SESSION_LABELS[s].replace(/^Bữa /, '')).join(', ')}
-                    </span>
-                  </th>
+                  <th className="dd-reception__col-status">Điểm danh</th>
+                  <th className="center dd-reception__col-meal">Tham gia ăn</th>
                 </tr>
               </thead>
               <tbody>
@@ -425,46 +476,64 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                     return (
                       <tr
                         key={row.child.id}
+                        data-child={row.child.id}
                         className={`dd-reception__row ${selectedId === row.child.id ? 'dd-reception__row--selected' : ''}`}
                         onClick={() => selectChild(row.child.id)}
                       >
                         <td>
-                          <button
-                            className="dd-reception__child"
-                            type="button"
-                            disabled={busy}
-                            aria-pressed={selectedId === row.child.id}
-                            onClick={() => selectChild(row.child.id)}
-                          >
-                            <span className={`avatar avatar--sm avatar--tone-${avatarTone(row.child.fullName)}`} aria-hidden="true">
-                              {initials(row.child.fullName)}
-                            </span>
-                            <span>
-                              <strong>{row.child.fullName}</strong>
-                              <span className="muted text-xs">{row.child.code}</span>
-                              <span className="text-xs">
-                                {changed(entry, row.record, sessions) ? 'Chưa lưu' : row.record ? 'Đã lưu' : 'Chưa điểm danh'}
-                              </span>
-                            </span>
-                          </button>
-                          {entry.status === 'PRESENT' && row.record?.status === 'PRESENT' && row.healthSummary?.reminder && (
+                          {/* Ảnh | tên trên, mã · trạng thái lưu và thẻ sức khỏe cùng một dòng dưới — hàng thấp, lớp đông vẫn thấy nhiều trẻ */}
+                          <div className="dd-reception__who">
+                            <ChildAvatar child={row.child} />
                             <button
-                              className="btn btn--sm btn--ghost"
+                              className="dd-reception__child"
                               type="button"
                               disabled={busy}
-                              aria-label={`${row.healthSummary.reminder}: ${row.child.fullName}. Mở sức khỏe`}
+                              aria-pressed={selectedId === row.child.id}
                               onClick={() => selectChild(row.child.id)}
                             >
-                              <span className="chip chip--orange">
-                                <HeartPulse size={14} /> {row.healthSummary.reminder}
+                              <strong>{row.child.fullName}</strong>
+                            </button>
+                            <div className="dd-reception__tags">
+                              <span className="muted text-xs nowrap">
+                                {row.child.code} ·{' '}
+                                {changed(entry, row.record, sessions) ? 'Chưa lưu' : row.record ? 'Đã lưu' : 'Chưa điểm danh'}
                               </span>
-                            </button>
-                          )}
-                          {row.leaveRequest && (
-                            <button className="btn btn--sm btn--ghost" type="button" disabled={busy} onClick={() => setLeaveFor(row)}>
-                              {entry.status === 'EXCUSED' ? 'Vắng có phép · Phụ huynh báo nghỉ' : 'Phụ huynh báo nghỉ'}
-                            </button>
-                          )}
+                              {healthFlag(row.healthSummary?.latest) && (
+                                // Thẻ ngắn: thân nhiệt (màu theo mức) và/hoặc "Cần chú ý"; chi tiết ở tooltip và khung sức khỏe
+                                <button
+                                  className="btn btn--sm btn--ghost dd-reception__flag"
+                                  type="button"
+                                  disabled={busy}
+                                  title={healthFlag(row.healthSummary.latest, true)}
+                                  aria-label={`${healthFlag(row.healthSummary.latest, true)}: ${row.child.fullName}. Mở sức khỏe`}
+                                  onClick={() => selectChild(row.child.id)}
+                                >
+                                  <span className={`chip ${flagChip(row.healthSummary.latest)}`}>
+                                    {healthFlag(row.healthSummary.latest)}
+                                  </span>
+                                </button>
+                              )}
+                              {entry.status === 'PRESENT' && row.record?.status === 'PRESENT' && row.healthSummary?.reminder && (
+                                <button
+                                  className="btn btn--sm btn--ghost dd-reception__flag"
+                                  type="button"
+                                  disabled={busy}
+                                  title={row.healthSummary.reminder}
+                                  aria-label={`${row.healthSummary.reminder}: ${row.child.fullName}. Mở sức khỏe`}
+                                  onClick={() => selectChild(row.child.id)}
+                                >
+                                  <span className="chip chip--orange">
+                                    <HeartPulse size={14} /> {row.healthSummary.reminder}
+                                  </span>
+                                </button>
+                              )}
+                              {row.leaveRequest && (
+                                <button className="btn btn--sm btn--ghost" type="button" disabled={busy} onClick={() => setLeaveFor(row)}>
+                                  {entry.status === 'EXCUSED' ? 'Vắng có phép · Phụ huynh báo nghỉ' : 'Phụ huynh báo nghỉ'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </td>
                         <td>
                           {editable ? (
@@ -531,9 +600,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
             </table>
           </div>
           <div className="dd-reception__footer">
-            <p className="muted text-sm">
-              <HeartPulse size={16} /> Chọn trẻ để kiểm tra sức khỏe bên phải.
-            </p>
             {editable && (
               <div className="dd-health__actions">
                 <button
