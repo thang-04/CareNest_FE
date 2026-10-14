@@ -22,13 +22,23 @@ export const CLASSES = [
   { id: 'c-choi2', name: 'Chồi 2', room: 'Phòng 202', ageGroupId: 'ag-4' },
 ];
 
-export const DOMAINS = [
+/** 5 lĩnh vực theo Chương trình Giáo dục mầm non hiện hành. */
+export const STANDARD_DOMAINS = [
   'Phát triển thể chất',
   'Phát triển nhận thức',
   'Phát triển ngôn ngữ',
   'Phát triển tình cảm và kỹ năng xã hội',
   'Phát triển thẩm mỹ',
 ];
+
+/**
+ * Lĩnh vực đang dùng = 5 lĩnh vực chuẩn + lĩnh vực trường thêm ở trang Cấu hình (khi Bộ bổ sung).
+ * Một danh sách dùng chung: cấu hình nạp xong thì cập nhật tại chỗ để mọi bảng, file xuất đọc cùng thứ tự.
+ */
+export const DOMAINS = [...STANDARD_DOMAINS];
+export const setDomains = (names) => {
+  DOMAINS.splice(0, DOMAINS.length, ...names);
+};
 
 export const WEEKDAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
 
@@ -37,6 +47,7 @@ export const EDU_STATUS = {
   SENT: 'SENT',
   PENDING_TL: 'PENDING_TL',
   PENDING_VP: 'PENDING_VP',
+  PENDING_HT: 'PENDING_HT',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
 };
@@ -46,6 +57,7 @@ export const EDU_STATUS_LABELS = {
   SENT: 'Đã gửi tổ trưởng',
   PENDING_TL: 'Chờ tổ trưởng duyệt',
   PENDING_VP: 'Chờ Phó HT duyệt',
+  PENDING_HT: 'Chờ Hiệu trưởng duyệt',
   APPROVED: 'Đã duyệt',
   REJECTED: 'Bị từ chối',
 };
@@ -73,8 +85,13 @@ export const DOMAIN_SHORT = {
   'Phát triển thẩm mỹ': 'Thẩm mỹ (Nghệ thuật)',
 };
 /** Tên hiển thị đầy đủ: lĩnh vực thẩm mỹ được giáo án thật gọi là "Nghệ thuật" (mã NgT). */
-export const domainLabel = (domain) => (domain === 'Phát triển thẩm mỹ' ? 'Phát triển thẩm mỹ (Nghệ thuật)' : domain);
-/** 5 lĩnh vực của Chương trình GDMN được khoá cứng (chốt 10/10); lĩnh vực khác chỉ còn ở dữ liệu cũ. */
+// Tên hiển thị của lĩnh vực theo cấu hình của trường (trang Cấu hình kế hoạch giáo dục); mặc định là tên theo Chương trình
+let domainLabelOverrides = { 'Phát triển thẩm mỹ': 'Phát triển thẩm mỹ (Nghệ thuật)' };
+export const setDomainLabelOverrides = (map) => {
+  domainLabelOverrides = map || {};
+};
+export const domainLabel = (domain) => domainLabelOverrides[domain] || domain;
+/** Lĩnh vực đang dùng (chuẩn hoặc trường đã thêm); lĩnh vực khác chỉ còn ở dữ liệu cũ. */
 export const isStandardDomain = (domain) => DOMAINS.includes(domain);
 export const prefixOf = (domain) =>
   DOMAIN_PREFIX[domain] ||

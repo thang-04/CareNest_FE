@@ -1,40 +1,66 @@
 import { useNavigate } from 'react-router-dom';
-import { Card, EduStatusBadge, EmptyState, PageHead, fmtDateTime } from '@/components/education-plan/eduUi';
-import { ErrorState, LoadingState } from '@/components/ui/States';
-import { useAsync } from '@/hooks/useAsync';
+import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
+import { LoadingState } from '@/components/ui/States';
 import { useClasses } from '@/hooks/useSchool';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { getPlanReviewQueue } from '@/services/education-plan/educationPlanService';
 import { ROLES } from '@/models/User';
-import { AGE_GROUPS } from '@/models/School';
-import { PLAN_KIND, PLAN_KIND_LABELS, addDays, ddmm } from '@/models/education-plan/yearPlanModel';
+import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { CLASS_DOC_LABELS, addDays, ddmm } from '@/models/education-plan/classPlan';
+import { PENDING_OF } from '@/models/education-plan/eduConfig';
 
-const linkOf = (it) =>
-  ({
-    [PLAN_KIND.YEAR]: `/education/year-plans/${it.id}`,
-    [PLAN_KIND.BRANCH]: `/education/class/${it.classId}`,
-    [PLAN_KIND.THEME]: `/education/class/${it.classId}/themes/${it.doc.themeId}`,
-    [PLAN_KIND.WEEK]: `/education/class/${it.classId}/weeks/${it.doc.weekStart}`,
-  })[it.kind];
-
-/** Hàng chờ duyệt: tổ trưởng duyệt trước, Phó hiệu trưởng duyệt sau (danh sách do service trả theo vai trò). */
+/**
+ * Hộp duyệt: tổ trưởng thấy kế hoạch chủ đề, giáo án tuần của các lớp trong khối đang chờ tổ trưởng;
+ * Phó HT thấy tài liệu chờ Phó HT và kế hoạch năm chờ ký ban hành. Danh sách chỉ để mở nhanh; quyền duyệt do service kiểm.
+ */
 export default function PlanReviewQueuePage() {
-  const { authUser, yearPlans, role } = useEducationPlan();
+  const { user, goals, branchPlans, classThemePlans, weekPlans } = useEducationPlan();
   const navigate = useNavigate();
-  const { classes } = useClasses({ all: true });
-  const { data, loading, error, reload } = useAsync(() => getPlanReviewQueue(authUser), [authUser.id], { refreshOnDataChange: true });
+  const { classes, loading } = useClasses();
+  if (loading) return <LoadingState />;
 
-  const className = (id) => classes.find((c) => c.id === id)?.name || '—';
-  const themeName = (doc) => yearPlans.find((p) => p.id === doc.yearPlanId)?.themes.find((t) => t.id === doc.themeId)?.name || '—';
-  const describe = (it) => {
-    const d = it.doc;
-    if (it.kind === PLAN_KIND.YEAR) return `Khối ${AGE_GROUPS.find((g) => g.id === d.ageGroupId)?.shortName}, năm học ${d.schoolYear}`;
-    if (it.kind === PLAN_KIND.THEME) return `Chủ đề ${themeName(d)}`;
-    if (it.kind === PLAN_KIND.WEEK)
-      return `Tuần ${d.weekNo}: ${d.branchName || themeName(d)} (${ddmm(d.weekStart)} → ${ddmm(addDays(d.weekStart, 4))})`;
-    return 'Cả năm học';
+  const isVp = user.role === ROLES.VICE_PRINCIPAL;
+  // Trạng thái chờ đúng vai trò người dùng (thứ tự duyệt theo cấu hình của trường)
+  const waiting = PENDING_OF[user.role];
+  const classOf = (id) => classes.find((c) => c.id === id);
+  const mine = (doc) => {
+    const cls = classOf(doc.classId);
+    return !!cls && doc.status === waiting && (user.role !== ROLES.TEAM_LEADER || cls.ageGroupId === user.ageGroupId);
   };
-  const sentAt = (it) => [...(it.doc.history || [])].reverse().find((h) => !h.tone);
+  const themeName = (doc) => goals.find((g) => g.id === doc.yearPlanId)?.themes?.find((t) => t.id === doc.themeId)?.name || '—';
+  const sentAt = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
+  const items = [
+    ...(isVp
+      ? goals
+          .filter((g) => g.status === EDU_STATUS.PENDING_VP)
+          .map((g) => ({
+            key: `y-${g.id}`,
+            kind: 'year',
+            doc: g,
+            cls: '—',
+            what: `Khối ${AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name || ''}, năm học ${g.schoolYear}`,
+            to: `/education/goals/${g.id}`,
+            // Người gửi: người bấm "Gửi Phó HT ban hành" (tổ trưởng), không phải người ký sau cùng
+            by: [...(g.history || [])].reverse().find((h) => h.action?.startsWith('Gửi'))?.by,
+            at: g.sentAt,
+          }))
+      : []),
+    ...branchPlans.filter(mine).map((d) => ({ kind: 'branch', doc: d, what: 'Cả năm học', to: `/education/class/${d.classId}` })),
+    ...classThemePlans
+      .filter(mine)
+      .map((d) => ({ kind: 'theme', doc: d, what: `Chủ đề ${themeName(d)}`, to: `/education/class/${d.classId}/themes/${d.themeId}` })),
+    ...weekPlans.filter(mine).map((d) => ({
+      kind: 'week',
+      doc: d,
+      what: `Tuần ${d.weekNo} (${ddmm(d.weekStart)} → ${ddmm(addDays(d.weekStart, 4))}) · ${themeName(d)}`,
+      to: `/education/class/${d.classId}/weeks/${d.weekStart}`,
+    })),
+  ].map((it) => ({
+    key: `${it.kind}-${it.doc.id}`,
+    cls: classOf(it.doc.classId)?.name || '—',
+    by: sentAt(it.doc)?.by,
+    at: sentAt(it.doc)?.at,
+    ...it,
+  }));
 
   return (
     <div className="page">
@@ -42,18 +68,16 @@ export default function PlanReviewQueuePage() {
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Duyệt kế hoạch, giáo án' }]}
         title="Duyệt kế hoạch, giáo án"
         desc={
-          role === ROLES.TEAM_LEADER
-            ? 'Tài liệu của các lớp trong khối chờ tổ trưởng xem trước. Tài liệu bạn duyệt chuyển tiếp tới Phó hiệu trưởng.'
-            : 'Tài liệu đã qua tổ trưởng (hoặc không cần tổ trưởng) chờ Phó hiệu trưởng duyệt, và kế hoạch năm chờ ban hành.'
+          isVp
+            ? 'Tài liệu của các lớp đang chờ Phó hiệu trưởng duyệt, và kế hoạch năm chờ ban hành.'
+            : user.role === ROLES.PRINCIPAL
+              ? 'Tài liệu của các lớp đang chờ Hiệu trưởng duyệt (theo cấu hình người ký).'
+              : 'Kế hoạch chủ đề và giáo án tuần của các lớp trong khối chờ tổ trưởng duyệt. Tài liệu bạn duyệt chuyển tiếp tới người duyệt sau.'
         }
       />
       <Card bodyClass={null}>
-        {loading && !data ? (
-          <LoadingState />
-        ) : error ? (
-          <ErrorState error={error} onRetry={reload} />
-        ) : !data?.length ? (
-          <EmptyState title="Không có tài liệu chờ duyệt" desc="Khi giáo viên gửi giáo án hoặc kế hoạch, tài liệu sẽ hiện ở đây." />
+        {items.length === 0 ? (
+          <EmptyState title="Không có tài liệu chờ duyệt" desc="Khi giáo viên gửi kế hoạch hoặc giáo án, tài liệu sẽ hiện ở đây." />
         ) : (
           <div className="table-wrap">
             <table className="table">
@@ -68,21 +92,24 @@ export default function PlanReviewQueuePage() {
                 </tr>
               </thead>
               <tbody>
-                {data.map((it) => {
-                  const s = sentAt(it);
-                  return (
-                    <tr key={`${it.kind}-${it.id}`} className="row-click" onClick={() => navigate(linkOf(it))}>
-                      <td className="ga-cell-title">{PLAN_KIND_LABELS[it.kind]}</td>
-                      <td>{it.classId ? className(it.classId) : '—'}</td>
-                      <td>{describe(it)}</td>
-                      <td>{s?.by || '—'}</td>
-                      <td>{s ? fmtDateTime(s.at) : '—'}</td>
-                      <td>
-                        <EduStatusBadge status={it.status} />
-                      </td>
-                    </tr>
-                  );
-                })}
+                {items.map((it) => (
+                  <tr
+                    key={it.key}
+                    className="row-click"
+                    tabIndex={0}
+                    onClick={() => navigate(it.to)}
+                    onKeyDown={(e) => e.key === 'Enter' && navigate(it.to)}
+                  >
+                    <td className="fw-600">{CLASS_DOC_LABELS[it.kind]}</td>
+                    <td>{it.cls}</td>
+                    <td>{it.what}</td>
+                    <td>{it.by || '—'}</td>
+                    <td>{it.at ? fmtDateTime(it.at) : '—'}</td>
+                    <td>
+                      {it.kind === 'year' ? <YearPlanStatusBadge status={it.doc.status} /> : <EduStatusBadge status={it.doc.status} />}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

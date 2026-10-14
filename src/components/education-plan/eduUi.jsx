@@ -57,10 +57,25 @@ export const EduStatusBadge = createStatusBadge(
     SENT: ['green', Send],
     PENDING_TL: ['purple', Clock],
     PENDING_VP: ['purple', Clock],
+    PENDING_HT: ['purple', Clock],
     APPROVED: ['green', CheckCircle2],
     REJECTED: ['red', XCircle],
   },
   EDU_STATUS_LABELS,
+);
+
+/** Trạng thái kế hoạch năm: hai người xây dựng (Tổ trưởng, Phó HT) cùng ký, gửi Phó HT, Phó HT ban hành. */
+export const YearPlanStatusBadge = createStatusBadge(
+  {
+    DRAFT: ['gray', FileEdit],
+    SENT: ['green', Send],
+    PENDING_TL: ['purple', Clock],
+    PENDING_VP: ['purple', Clock],
+    PENDING_HT: ['purple', Clock],
+    APPROVED: ['green', CheckCircle2],
+    REJECTED: ['red', XCircle],
+  },
+  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành' },
 );
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */

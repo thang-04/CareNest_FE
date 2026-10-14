@@ -42,7 +42,7 @@ Nội dung thông báo demo vẫn được tạo từ quan sát, thân nhiệt, 
 
 ## API cần thống nhất
 
-BE `docs/modules/attendance.md` và `docs/modules/health.md` chưa có API; sức khỏe nhiều lần/ngày là yêu cầu bổ sung, không phải số đo định kỳ. Service mới chỉ dùng mock; ở chế độ API thật trả lỗi chưa hỗ trợ, không phát request tới endpoint tự đặt.
+`BE:docs/modules/attendance.md` và `BE:docs/modules/health.md` chưa có API; sức khỏe nhiều lần/ngày là yêu cầu bổ sung, không phải số đo định kỳ. Service mới chỉ dùng mock; ở chế độ API thật trả lỗi chưa hỗ trợ, không phát request tới endpoint tự đặt.
 
 Đề xuất BE thống nhất hai nhóm: điểm danh/báo ăn lớp-ngày và danh sách/thêm ghi nhận sức khỏe trẻ-ngày. Ghi nhận cần thời gian, thân nhiệt tùy chọn, quan sát, biểu hiện, ghi chú, người ghi, khóa chống gửi trùng và quyền ghi trả từ backend. Cần chốt quyền xem trên APP phụ huynh riêng trước khi công bố dữ liệu.
 

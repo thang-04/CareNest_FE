@@ -1,33 +1,35 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Save } from '@/components/ui/icons';
+import { FileDown, Printer, Save } from '@/components/ui/icons';
 import { Card, EmptyState, Notice, PageHead } from '@/components/education-plan/eduUi';
-import { AiButton, AiDraftPanel, CellInput, ReviewBar, getPath, setPath, useClassPlanContext } from '@/components/education-plan/planUi';
+import { Cell, DocSignatures, ReviewBar, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { ddmm, emptyThemePlan, isEditableStatus, themeGoals, yearWeeks } from '@/models/education-plan/yearPlanModel';
+import { EDU_STATUS, domainLabel } from '@/models/education-plan/educationPlanConstants';
+import { domainRoman, numberGoals } from '@/models/education-plan/goalTable';
+import { ddmm, emptyThemePlan, isEditableStatus, themeGoalBlocks, yearWeeks } from '@/models/education-plan/classPlan';
+import { exportThemePlan } from '@/utils/education-plan/classPlanDoc';
+
+const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 
 /**
- * Kế hoạch giáo dục chủ đề của lớp: bảng Mục tiêu (giữ số MT của kế hoạch năm) | Nội dung | Hoạt động giáo dục,
- * rồi Môi trường giáo dục trong lớp / ngoài lớp. Mục tiêu lấy từ các nội dung đã tích vào chủ đề ở kế hoạch năm.
+ * Kế hoạch giáo dục chủ đề của lớp theo mẫu MN Thái Dương: TT | Mục tiêu (giữ số MT năm) | Nội dung | Hoạt động giáo dục,
+ * nhóm theo lĩnh vực / lĩnh vực con; II. Môi trường giáo dục. Mục tiêu và nội dung lấy sẵn từ phần đã tích cho chủ đề ở kế hoạch năm.
  */
 export default function ClassThemePlanPage() {
   const { classId, themeId } = useParams();
-  // Đổi lớp/tuần thì dựng lại trang để bỏ bản sửa dở của trang trước
-  return <ClassThemePlanPageInner key={`${classId}/${themeId}`} />;
+  return <ThemePlanInner key={`${classId}/${themeId}`} />;
 }
 
-function ClassThemePlanPageInner() {
+function ThemePlanInner() {
   const { classId, themeId } = useParams();
-  const { themePlans, branchPlans, savePlanDoc, actOnPlanDoc, toast } = useEducationPlan();
+  const { user, classThemePlans, branchPlans, saveClassDoc, actOnClassDoc, toast } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
-  const { cls, yearPlan, isClassTeacher } = ctx;
+  const { cls, yearPlan, teachers, isClassTeacher } = ctx;
   const theme = yearPlan?.themes.find((t) => t.id === themeId);
-  const saved = themePlans.find((t) => t.classId === classId && t.themeId === themeId) || null;
+  const saved = classThemePlans.find((t) => t.classId === classId && t.themeId === themeId) || null;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
-  const [ai, setAi] = useState(false);
 
   useEffect(() => {
     if (!dirty && yearPlan) setDraft(saved || emptyThemePlan({ classId, yearPlanId: yearPlan.id, themeId }));
@@ -35,33 +37,37 @@ function ClassThemePlanPageInner() {
   }, [saved?.id, saved?.status, saved?.history?.length, yearPlan?.id, classId, themeId]);
 
   if (ctx.loading) return <LoadingState />;
-  if (!cls || !yearPlan || !theme) return <EmptyState title="Không tìm thấy chủ đề của lớp" />;
+  if (!cls || !yearPlan || !theme) return <EmptyState title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;
   const editable = isClassTeacher && isEditableStatus(status);
-  const goals = themeGoals(yearPlan, themeId);
+  const numbers = numberGoals(yearPlan.domains);
+  const blocks = themeGoalBlocks(yearPlan.domains, numbers, themeId);
+  const goals = blocks.flatMap((b) => b.goals);
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const weeks = yearWeeks(yearPlan).filter((w) => w.type === 'week' && w.theme.id === themeId);
-  // Nội dung mặc định = các nội dung đã tích vào chủ đề ở kế hoạch năm; lớp được viết lại cho cụ thể.
-  const rowOf = (g) => draft.rows[g.id] || { contents: g.contents.map((c) => c.text).join('\n'), activities: '' };
-  const patch = (path, value) => {
-    setDraft((d) => setPath(d, path, value));
+  // Nội dung mặc định = các nội dung đã tích cho chủ đề ở kế hoạch năm; lớp được viết lại cho cụ thể
+  const rowOf = (g) => draft.rows[g.id] || { contents: g.contents.map((c) => `- ${c}`).join('\n'), activities: '' };
+  const setRow = (g, field, value) => {
+    setDraft((d) => ({ ...d, rows: { ...d.rows, [g.id]: { ...rowOf(g), [field]: value } } }));
     setDirty(true);
   };
-  const setRow = (g, field, value) => patch(`rows.${g.id}`, { ...rowOf(g), [field]: value });
+  const setField = (field, value) => {
+    setDraft((d) => ({ ...d, [field]: value }));
+    setDirty(true);
+  };
   const save = async () => {
-    // Lưu cả các dòng chưa sửa để bảng đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
-    const rows = Object.fromEntries(goals.map((g) => [g.id, rowOf(g)]));
-    const res = await savePlanDoc('theme', { ...draft, rows });
+    // Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
+    const res = await saveClassDoc('theme', { ...draft, rows: Object.fromEntries(goals.map((g) => [g.id, rowOf(g)])) });
     if (res) {
       setDirty(false);
       setDraft(res);
       toast('Đã lưu kế hoạch chủ đề');
     }
   };
+  const exportArgs = { doc: draft, theme, cls, weeks, branchNames: branch?.names || {}, blocks, rowOf, teachers };
 
-  let lastDomain = null;
   return (
     <div className="page">
       <PageHead
@@ -71,141 +77,166 @@ function ClassThemePlanPageInner() {
           { label: theme.name },
         ]}
         title={`Kế hoạch giáo dục chủ đề: ${theme.name}`}
-        desc={`${cls.name} · ${weeks.length} tuần, ${ddmm(theme.startDate)} → ${ddmm(theme.endDate)} · Nhánh: ${weeks.map((w) => branch?.names?.[w.start] || `Tuần ${w.no}`).join('; ')}`}
+        desc={`${cls.name} · ${weeks.length} tuần, ${ddmm(theme.start)} → ${ddmm(theme.end)}`}
         actions={
-          editable && (
-            <>
-              <AiButton onClick={() => setAi(true)}>Tạo nháp hoạt động bằng AI</AiButton>
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => exportThemePlan(exportArgs, 'doc')}>
+              <FileDown size={16} aria-hidden /> Xuất Word
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => exportThemePlan(exportArgs, 'print') || toast(POPUP_BLOCKED, 'warn')}
+            >
+              <Printer size={16} aria-hidden /> In / Lưu PDF
+            </button>
+            {editable && (
               <button type="button" className="btn btn--primary" disabled={!dirty && !!saved} onClick={save}>
-                <Save size={16} /> {dirty || !saved ? 'Lưu' : 'Đã lưu'}
+                <Save size={16} aria-hidden /> {dirty || !saved ? 'Lưu' : 'Đã lưu'}
               </button>
-            </>
-          )
+            )}
+          </>
         }
       />
       <ReviewBar
+        kind="theme"
         title="Duyệt kế hoạch chủ đề"
         doc={saved}
         dirty={dirty}
-        {...ctx}
-        onAct={async (action, body) => {
-          const res = await actOnPlanDoc('theme', draft.id, { action, ...body });
-          if (res) toast('Đã cập nhật trạng thái');
-          return res;
-        }}
+        ctx={ctx}
+        user={user}
+        onAct={(action, body) => actOnClassDoc('theme', draft.id, { action, ...body })}
       />
+      <Card title="Chủ đề nhánh" bodyClass={null}>
+        <div className="card__body">
+          {weeks.length ? (
+            <ul className="stack">
+              {weeks.map((w) => (
+                <li key={w.start}>
+                  <Link to={`/education/class/${classId}/weeks/${w.start}`}>
+                    Tuần {w.no} ({ddmm(w.start)} → {ddmm(w.end)}): {branch?.names?.[w.start] || 'chưa đặt tên nhánh'}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <span className="muted">Chủ đề chưa có tuần học.</span>
+          )}
+        </div>
+      </Card>
       {goals.length === 0 && <Notice tone="warn">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</Notice>}
-      <Card title="I. Mục tiêu, nội dung và hoạt động giáo dục" num={null} bodyClass={null}>
-        <div className="table-wrap">
-          <table className="table ga-plan-table">
-            <thead>
-              <tr>
-                <th>TT</th>
-                <th>Mục tiêu giáo dục</th>
-                <th>Nội dung giáo dục</th>
-                <th>Hoạt động giáo dục</th>
-              </tr>
-            </thead>
-            <tbody>
-              {goals.map((g) => {
-                const showDomain = g.domainId !== lastDomain;
-                lastDomain = g.domainId;
-                const row = rowOf(g);
-                return (
-                  <Fragment key={g.id}>
-                    {showDomain && (
+      <Card title="I. Mục tiêu, nội dung và hoạt động giáo dục" bodyClass={null}>
+        <div className="card__body">
+          <div className="table-wrap">
+            <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+              <colgroup>
+                <col className="ga-goal-table__del" />
+                <col className="ga-goal-table__goaltext" />
+                <col />
+                <col />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="ga-goal-table__fixed">TT</th>
+                  <th className="ga-goal-table__fixed">Mục tiêu giáo dục</th>
+                  <th>Nội dung giáo dục</th>
+                  <th>Hoạt động giáo dục</th>
+                </tr>
+              </thead>
+              <tbody>
+                {blocks.map((b, i) => (
+                  <Fragment key={`${b.domain}-${b.sub}-${i}`}>
+                    {(i === 0 || blocks[i - 1].domain !== b.domain) && (
                       <tr>
-                        <td colSpan={4} className="fw-600">
-                          {g.domain.roman}. {g.domain.name.toUpperCase()}
+                        <td colSpan={4} className="ga-goal-table__domain">
+                          <div className="ga-goal-table__pad">
+                            <h3>
+                              {domainRoman(b.domain)}. {domainLabel(b.domain).toUpperCase()}
+                            </h3>
+                          </div>
                         </td>
                       </tr>
                     )}
-                    <tr>
-                      <td className="fw-600">{g.no}</td>
-                      <td>
-                        {g.no}. {g.text}
-                      </td>
-                      <td>
-                        <CellInput
-                          editable={editable}
-                          value={row.contents}
-                          rows={4}
-                          label={`Nội dung của MT ${g.no}`}
-                          onChange={(v) => setRow(g, 'contents', v)}
-                        />
-                      </td>
-                      <td>
-                        <CellInput
-                          editable={editable}
-                          value={row.activities}
-                          rows={4}
-                          placeholder="Chơi, học, lao động, ăn, ngủ, vệ sinh… ghi theo loại giờ: TDS, HĐ học, ngoài trời, góc, buổi chiều"
-                          label={`Hoạt động giáo dục của MT ${g.no}`}
-                          onChange={(v) => setRow(g, 'activities', v)}
-                        />
-                      </td>
-                    </tr>
+                    {b.sub && (
+                      <tr>
+                        <td colSpan={4} className="ga-goal-table__subband">
+                          <div className="ga-goal-table__subname">{b.sub}</div>
+                        </td>
+                      </tr>
+                    )}
+                    {b.goals.map((g) => (
+                      <tr key={g.id}>
+                        <td className="ga-goal-table__fixed">
+                          <div className="ga-goal-table__pad">
+                            <span className="ga-goal-code">MT {g.no}</span>
+                          </div>
+                        </td>
+                        <td className="ga-goal-table__fixed">
+                          <div className="ga-goal-table__pad">{g.text}</div>
+                        </td>
+                        <td>
+                          <Cell
+                            editable={editable}
+                            value={rowOf(g).contents}
+                            label={`Nội dung của MT ${g.no}`}
+                            onChange={(v) => setRow(g, 'contents', v)}
+                          />
+                        </td>
+                        <td>
+                          <Cell
+                            editable={editable}
+                            value={rowOf(g).activities}
+                            label={`Hoạt động giáo dục của MT ${g.no}`}
+                            placeholder="Ghi theo loại giờ: TDS, HĐ học, Chơi HĐ ngoài trời, Chơi ở các góc, Chơi buổi chiều…"
+                            onChange={(v) => setRow(g, 'activities', v)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
                   </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-      <Card title="II. Môi trường giáo dục">
-        <div className="ga-plan-grid">
-          <div className="stack">
-            <div className="fw-600">1. Trong lớp</div>
-            <CellInput editable={editable} value={draft.envIn} rows={6} label="Môi trường trong lớp" onChange={(v) => patch('envIn', v)} />
-          </div>
-          <div className="stack">
-            <div className="fw-600">2. Ngoài lớp</div>
-            <CellInput
-              editable={editable}
-              value={draft.envOut}
-              rows={6}
-              label="Môi trường ngoài lớp"
-              onChange={(v) => patch('envOut', v)}
-            />
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </Card>
-      <p className="muted text-sm">
-        Giáo án từng tuần của chủ đề:{' '}
-        {weeks.map((w, i) => (
-          <Fragment key={w.start}>
-            {i > 0 && ' · '}
-            <Link to={`/education/class/${classId}/weeks/${w.start}`}>
-              Tuần {w.no}: {branch?.names?.[w.start] || ddmm(w.start)}
-            </Link>
-          </Fragment>
-        ))}
-      </p>
-      <AiDraftPanel
-        open={ai}
-        title={`Nháp hoạt động: ${theme.name}`}
-        type="theme-activities"
-        context={{
-          themeName: theme.name,
-          rows: goals.map((g) => ({ goalId: g.id, no: g.no, text: g.text, domainKey: g.domain.key, contents: rowOf(g).contents })),
-        }}
-        isFilled={(key) =>
-          !!(key.startsWith('rows.') ? rowOf({ id: key.split('.')[1], contents: [] }).activities : getPath(draft, key))?.trim()
-        }
-        onClose={() => setAi(false)}
-        onApply={(items) => {
-          setDraft((d) =>
-            items.reduce((acc, it) => {
-              if (!it.key.startsWith('rows.')) return setPath(acc, it.key, it.value);
-              const g = goals.find((x) => x.id === it.key.split('.')[1]);
-              const cur = acc.rows[g.id] || { contents: g.contents.map((c) => c.text).join('\n'), activities: '' };
-              return setPath(acc, `rows.${g.id}`, { ...cur, activities: it.value });
-            }, d),
-          );
-          setDirty(true);
-          toast(`Đã đưa ${items.length} mục nháp AI vào bảng, nhớ kiểm tra rồi lưu`, 'info');
-        }}
-      />
+      <Card title="II. Môi trường giáo dục" bodyClass={null}>
+        <div className="card__body">
+          <div className="table-wrap">
+            <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+              <thead>
+                <tr>
+                  <th>1. Trong lớp</th>
+                  <th>2. Ngoài lớp</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <Cell
+                      editable={editable}
+                      value={draft.envIn}
+                      label="Môi trường trong lớp"
+                      placeholder="Trang trí, góc chơi, đồ dùng…"
+                      onChange={(v) => setField('envIn', v)}
+                    />
+                  </td>
+                  <td>
+                    <Cell
+                      editable={editable}
+                      value={draft.envOut}
+                      label="Môi trường ngoài lớp"
+                      placeholder="Sân chơi, khu vực ngoài lớp…"
+                      onChange={(v) => setField('envOut', v)}
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Card>
+      <DocSignatures doc={saved} teachers={teachers} />
     </div>
   );
 }

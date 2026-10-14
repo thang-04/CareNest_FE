@@ -1,14 +1,13 @@
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Save } from '@/components/ui/icons';
-import { Card, EduStatusBadge, EmptyState, Notice, PageHead } from '@/components/education-plan/eduUi';
-import { AiButton, AiDraftPanel, ReviewBar, setPath, useClassPlanContext } from '@/components/education-plan/planUi';
+import { Card, EduStatusBadge, EmptyState, Notice, PageHead, YearPlanStatusBadge } from '@/components/education-plan/eduUi';
+import { Cell, DocSignatures, ReviewBar, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
 import { useClasses } from '@/hooks/useSchool';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { ageGroupById } from '@/models/School';
-import { ddmm, emptyBranchPlan, isEditableStatus, mondayOf, monthOf, todayIso, yearWeeks } from '@/models/education-plan/yearPlanModel';
+import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { ddmm, emptyBranchPlan, isEditableStatus, mondayOf, monthOf, todayIso, yearWeeks } from '@/models/education-plan/classPlan';
 
 /** /education/class: mở lớp đầu tiên người dùng được xem (lớp mình dạy trước). */
 export function ClassPlanRedirect() {
@@ -21,26 +20,24 @@ export function ClassPlanRedirect() {
 }
 
 /**
- * Trang lớp: bảng dự kiến chủ đề nhánh và thời gian (35 tuần), mỗi dòng mở giáo án tuần,
- * mỗi chủ đề mở kế hoạch chủ đề. Theo file "Dự kiến chủ đề nhánh" của Trường MN Thái Dương.
+ * Trang lớp: "Dự kiến chủ đề nhánh và thời gian thực hiện" theo mẫu MN Thái Dương.
+ * Tháng | Chủ đề (gộp dòng) | Chủ đề nhánh (giáo viên gõ) | Tuần (đánh số cả năm, dòng nghỉ) | Ghi chú | Giáo án tuần.
  */
 export default function ClassPlanPage() {
   const { classId } = useParams();
-  // Đổi lớp/tuần thì dựng lại trang để bỏ bản sửa dở của trang trước
-  return <ClassPlanPageInner key={classId} />;
+  // Đổi lớp thì dựng lại trang để bỏ bản sửa dở của lớp trước
+  return <ClassPlanInner key={classId} />;
 }
 
-function ClassPlanPageInner() {
+function ClassPlanInner() {
   const { classId } = useParams();
   const navigate = useNavigate();
-  const { branchPlans, themePlans, weekPlans, savePlanDoc, actOnPlanDoc, toast } = useEducationPlan();
+  const { user, branchPlans, classThemePlans, weekPlans, saveClassDoc, actOnClassDoc, toast } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
-  const { classes: visible } = useClasses();
-  const { cls, yearPlan, teachers, isClassTeacher } = ctx;
-  const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) : null;
+  const { cls, classes, yearPlan, pendingYearPlan, teachers, isClassTeacher } = ctx;
+  const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null : null;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
-  const [ai, setAi] = useState(false);
 
   useEffect(() => {
     if (!dirty) setDraft(saved || (yearPlan ? emptyBranchPlan({ classId, yearPlanId: yearPlan.id }) : null));
@@ -50,33 +47,51 @@ function ClassPlanPageInner() {
   if (ctx.loading) return <LoadingState />;
   if (!cls) return <EmptyState title="Không tìm thấy lớp hoặc bạn không có quyền xem" />;
 
-  const group = ageGroupById(cls.ageGroupId);
+  const group = AGE_GROUPS.find((a) => a.id === cls.ageGroupId);
   const head = (
     <PageHead
       crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}` }]}
       title={`Kế hoạch giáo dục ${cls.name}`}
       desc={`${group?.name || ''} · Giáo viên: ${teachers.map((t) => t.fullName).join(', ') || 'chưa phân công'}`}
       actions={
-        visible.length > 1 && (
-          <select className="select" aria-label="Chọn lớp" value={classId} onChange={(e) => navigate(`/education/class/${e.target.value}`)}>
-            {visible.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({ageGroupById(c.ageGroupId)?.shortName})
-              </option>
-            ))}
-          </select>
-        )
+        <>
+          {yearPlan && (
+            <Link className="btn btn--ghost" to={`/education/goals/${yearPlan.id}`}>
+              Kế hoạch năm học
+            </Link>
+          )}
+          {classes.length > 1 && (
+            <select
+              className="select"
+              aria-label="Chọn lớp"
+              value={classId}
+              onChange={(e) => navigate(`/education/class/${e.target.value}`)}
+            >
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </>
       }
     />
   );
 
-  if (!yearPlan || yearPlan.status !== EDU_STATUS.APPROVED) {
+  if (!yearPlan) {
     return (
       <div className="page">
         {head}
         <Notice tone="warn">
-          Kế hoạch giáo dục năm học của khối {group?.shortName} chưa được ban hành nên lớp chưa lập được chủ đề nhánh và giáo án.{' '}
-          {yearPlan && <Link to={`/education/year-plans/${yearPlan.id}`}>Xem kế hoạch năm</Link>}
+          Kế hoạch giáo dục năm học của khối {group?.name} chưa được ban hành (cần chữ ký của Tổ trưởng và Phó hiệu trưởng), nên lớp chưa
+          lập được chủ đề nhánh và giáo án.
+          {pendingYearPlan && (
+            <>
+              {' '}
+              Trạng thái hiện tại: <YearPlanStatusBadge status={pendingYearPlan.status} />
+            </>
+          )}
         </Notice>
       </div>
     );
@@ -86,130 +101,138 @@ function ClassPlanPageInner() {
   const status = saved?.status || EDU_STATUS.DRAFT;
   const editable = isClassTeacher && isEditableStatus(status);
   const rows = yearWeeks(yearPlan);
-  const weeksOf = (themeId) => rows.filter((r) => r.type === 'week' && r.theme.id === themeId);
   const thisWeek = mondayOf(todayIso());
   const empty = rows.filter((r) => r.type === 'week' && !draft.names[r.start]?.trim()).length;
-
+  const set = (field, key, value) => {
+    setDraft((d) => ({ ...d, [field]: { ...d[field], [key]: value } }));
+    setDirty(true);
+  };
   const save = async () => {
-    const res = await savePlanDoc('branch', draft);
+    const res = await saveClassDoc('branch', draft);
     if (res) {
       setDirty(false);
       setDraft(res);
       toast('Đã lưu chủ đề nhánh');
     }
   };
-  const setName = (start, name) => {
-    setDraft((d) => ({ ...d, names: { ...d.names, [start]: name } }));
-    setDirty(true);
+  // Ô tháng và ô chủ đề gộp các dòng liên tiếp cùng tháng / cùng chủ đề như bảng của trường
+  const spanFrom = (i, same) => {
+    let n = 1;
+    while (i + n < rows.length && same(rows[i + n], rows[i])) n += 1;
+    return n;
   };
-
-  // Ô chủ đề gộp các dòng tuần (và dòng nghỉ) của chủ đề đó, như bảng của trường.
-  const spanOf = (themeId) => rows.filter((r) => r.theme.id === themeId).length;
-  let lastMonth = null;
+  const sameMonth = (a, b) => monthOf(a.start) === monthOf(b.start);
+  const sameTheme = (a, b) => a.theme.id === b.theme.id;
 
   return (
     <div className="page">
       {head}
       <ReviewBar
+        kind="branch"
         title="Dự kiến chủ đề nhánh và thời gian thực hiện"
         doc={saved}
         dirty={dirty}
-        {...ctx}
-        onAct={async (action, body) => {
-          const res = await actOnPlanDoc('branch', draft.id, { action, ...body });
-          if (res) toast('Đã cập nhật trạng thái');
-          return res;
-        }}
+        ctx={ctx}
+        user={user}
+        onAct={(action, body) => actOnClassDoc('branch', draft.id, { action, ...body })}
       />
       <Card
         title="Chủ đề nhánh từng tuần"
         bodyClass={null}
         actions={
           editable && (
-            <div className="row row--wrap">
-              <AiButton onClick={() => setAi(true)}>Gợi ý tên nhánh bằng AI</AiButton>
-              <button type="button" className="btn btn--primary btn--sm" disabled={!dirty} onClick={save}>
-                <Save size={16} /> {dirty ? 'Lưu' : 'Đã lưu'}
-              </button>
-            </div>
+            <button type="button" className="btn btn--primary btn--sm" disabled={!dirty && !!saved} onClick={save}>
+              <Save size={16} aria-hidden /> {dirty || !saved ? 'Lưu' : 'Đã lưu'}
+            </button>
           )
         }
       >
-        {editable && empty > 0 && (
-          <div className="card__body">
-            <Notice>Còn {empty} tuần chưa đặt tên chủ đề nhánh. Lưu bản nháp rồi gửi duyệt khi đủ.</Notice>
-          </div>
-        )}
-        <div className="table-wrap">
-          <table className="table ga-plan-table table--compact">
-            <thead>
-              <tr>
-                <th>Tháng</th>
-                <th>Chủ đề</th>
-                <th>Chủ đề nhánh</th>
-                <th>Tuần</th>
-                <th>Thời gian</th>
-                <th>Giáo án tuần</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => {
-                const month = monthOf(r.start);
-                const showMonth = month !== lastMonth;
-                lastMonth = month;
-                const firstOfTheme = rows.find((x) => x.theme.id === r.theme.id) === r;
-                const tp = themePlans.find((t) => t.classId === classId && t.themeId === r.theme.id);
-                const themeCell = firstOfTheme && (
-                  <td rowSpan={spanOf(r.theme.id)}>
-                    <div className="ga-cell-title">{r.theme.name}</div>
-                    <div className="ga-cell-sub">
-                      {weeksOf(r.theme.id).length} tuần · {ddmm(r.theme.startDate)} → {ddmm(r.theme.endDate)}
-                    </div>
-                    <div className="row row--wrap mt-8">
-                      {tp ? <EduStatusBadge status={tp.status} /> : <span className="chip chip--gray">Chưa lập</span>}
-                      <Link className="btn btn--ghost btn--sm" to={`/education/class/${classId}/themes/${r.theme.id}`}>
-                        Kế hoạch chủ đề
-                      </Link>
-                    </div>
-                  </td>
-                );
-                if (r.type === 'break') {
-                  return (
-                    <tr key={`b-${r.start}`}>
-                      <td>{showMonth ? `Tháng ${month}` : ''}</td>
-                      {themeCell}
-                      <td colSpan={4} className="muted">
-                        {r.label} ({ddmm(r.start)} → {ddmm(r.end)})
-                      </td>
-                    </tr>
+        <div className="card__body stack">
+          {editable && empty > 0 && <Notice>Còn {empty} tuần chưa đặt tên chủ đề nhánh.</Notice>}
+          <div className="table-wrap">
+            <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+              <colgroup>
+                <col className="ga-goal-table__del" />
+                <col className="ga-goal-table__group" />
+                <col />
+                <col className="ga-goal-table__group" />
+                <col />
+                <col className="ga-goal-table__code" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="ga-goal-table__fixed">Tháng</th>
+                  <th className="ga-goal-table__fixed">Chủ đề</th>
+                  <th>Chủ đề nhánh</th>
+                  <th className="ga-goal-table__fixed">Tuần</th>
+                  <th>Ghi chú</th>
+                  <th className="center">Giáo án tuần</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => {
+                  const monthCell = (i === 0 || !sameMonth(rows[i - 1], r)) && (
+                    <td className="ga-goal-table__fixed" rowSpan={spanFrom(i, sameMonth)}>
+                      <div className="ga-goal-table__pad">Tháng {monthOf(r.start)}</div>
+                    </td>
                   );
-                }
-                const wp = weekPlans.find((w) => w.classId === classId && w.weekStart === r.start);
-                return (
-                  <Fragment key={r.start}>
-                    <tr>
-                      <td>{showMonth ? `Tháng ${month}` : ''}</td>
+                  const tp = classThemePlans.find((t) => t.classId === classId && t.themeId === r.theme.id);
+                  const themeCell = (i === 0 || !sameTheme(rows[i - 1], r)) && (
+                    <td className="ga-goal-table__fixed" rowSpan={spanFrom(i, sameTheme)}>
+                      <div className="ga-goal-table__pad stack">
+                        <span className="fw-600">{r.theme.name}</span>
+                        <span className="text-xs">
+                          {ddmm(r.theme.start)} → {ddmm(r.theme.end)}
+                        </span>
+                        <span>{tp ? <EduStatusBadge status={tp.status} /> : <span className="chip chip--gray">Chưa lập</span>}</span>
+                        <Link className="btn btn--ghost btn--sm" to={`/education/class/${classId}/themes/${r.theme.id}`}>
+                          Kế hoạch chủ đề
+                        </Link>
+                      </div>
+                    </td>
+                  );
+                  if (r.type === 'break')
+                    return (
+                      <tr key={`b-${r.start}`}>
+                        {monthCell}
+                        {themeCell}
+                        <td colSpan={4} className="ga-goal-table__fixed">
+                          <div className="ga-goal-table__pad">
+                            Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  const wp = weekPlans.find((w) => w.classId === classId && w.weekStart === r.start);
+                  return (
+                    <tr key={r.start}>
+                      {monthCell}
                       {themeCell}
                       <td>
-                        {editable ? (
-                          <input
-                            className="input"
-                            value={draft.names[r.start] || ''}
-                            aria-label={`Chủ đề nhánh tuần ${r.no}`}
-                            onChange={(e) => setName(r.start, e.target.value)}
-                          />
-                        ) : (
-                          draft.names[r.start] || <span className="muted">Chưa đặt tên</span>
-                        )}
+                        <Cell
+                          editable={editable}
+                          value={draft.names[r.start]}
+                          label={`Chủ đề nhánh tuần ${r.no}`}
+                          placeholder="Nhập tên chủ đề nhánh"
+                          onChange={(v) => set('names', r.start, v)}
+                        />
+                      </td>
+                      <td className="ga-goal-table__fixed">
+                        <div className="ga-goal-table__pad">
+                          Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
+                          {r.start === thisWeek && <span className="chip chip--blue"> Tuần này</span>}
+                        </div>
                       </td>
                       <td>
-                        Tuần {r.no} {r.start === thisWeek && <span className="chip chip--blue">Tuần này</span>}
+                        <Cell
+                          editable={editable}
+                          value={draft.notes?.[r.start]}
+                          label={`Ghi chú tuần ${r.no}`}
+                          onChange={(v) => set('notes', r.start, v)}
+                        />
                       </td>
-                      <td>
-                        {ddmm(r.start)} → {ddmm(r.end)}
-                      </td>
-                      <td>
-                        <div className="row row--wrap">
+                      <td className="center">
+                        <div className="ga-goal-table__pad stack">
                           {wp ? <EduStatusBadge status={wp.status} /> : <span className="chip chip--gray">Chưa soạn</span>}
                           <Link className="btn btn--ghost btn--sm" to={`/education/class/${classId}/weeks/${r.start}`}>
                             Mở
@@ -217,26 +240,21 @@ function ClassPlanPageInner() {
                         </div>
                       </td>
                     </tr>
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                  );
+                })}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={6}>
+                      <div className="ga-goal-table__pad muted">Kế hoạch năm chưa có chủ đề nào có ngày bắt đầu và kết thúc.</div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </Card>
-      <AiDraftPanel
-        open={ai}
-        title="Gợi ý tên chủ đề nhánh"
-        type="branch-names"
-        context={{ themes: yearPlan.themes.map((t) => ({ abbr: t.abbr, name: t.name, weeks: weeksOf(t.id) })) }}
-        isFilled={(key) => !!draft.names[key.slice('names.'.length)]?.trim()}
-        onClose={() => setAi(false)}
-        onApply={(items) => {
-          setDraft((d) => items.reduce((acc, it) => setPath(acc, it.key, it.value), d));
-          setDirty(true);
-          toast(`Đã đưa ${items.length} tên nhánh vào bảng (nháp AI, nhớ kiểm tra rồi lưu)`, 'info');
-        }}
-      />
+      <DocSignatures doc={saved} teachers={teachers} />
     </div>
   );
 }

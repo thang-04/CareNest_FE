@@ -7,6 +7,7 @@ import { LoadingState, ErrorState } from '@/components/ui/States';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import * as service from '@/services/education-plan/educationPlanService';
 import { AGE_GROUPS, CLASSES, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
+import { applyEduConfig, withDefaults } from '@/models/education-plan/eduConfig';
 
 const EducationPlanContext = createContext(null);
 
@@ -51,14 +52,17 @@ export function EducationPlanProvider({ children }) {
   const { user: authUser } = useAuth();
   const toastApi = useToast();
   const { schoolYear: yearId, setSchoolYear, schoolYears } = useSchoolYear();
-  const { data, setData, loading, error, reload } = useAsync(() => service.getEducationPlans(), [], { refreshOnDataChange: true });
-  const {
-    data: plans,
-    setData: setPlans,
-    loading: plansLoading,
-    error: plansError,
-    reload: reloadPlans,
-  } = useAsync(() => service.getClassPlans(), [], { refreshOnDataChange: true });
+  // Kế hoạch năm, chủ đề, giáo án cũ và tài liệu của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần) tải một lần
+  const { data, setData, loading, error, reload } = useAsync(
+    () =>
+      Promise.all([service.getEducationPlans(), service.getClassPlans(), service.getEduConfig()]).then(([plans, classDocs, eduConfig]) => {
+        // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
+        applyEduConfig(eduConfig);
+        return { ...plans, ...classDocs, eduConfig };
+      }),
+    [],
+    { refreshOnDataChange: true },
+  );
 
   const toast = useCallback((message, tone = 'ok') => toastApi[TOAST_TYPES[tone] || 'success'](message), [toastApi]);
 
@@ -86,14 +90,44 @@ export function EducationPlanProvider({ children }) {
       }
     };
     const saveIn = (key, call) => write(key, call, upsert);
-    const PLAN_KEYS = { year: 'yearPlans', branch: 'branchPlans', theme: 'themePlans', week: 'weekPlans' };
-    const putPlan = (kind, doc) => setPlans((prev) => (prev ? { ...prev, [PLAN_KEYS[kind]]: upsert(prev[PLAN_KEYS[kind]], doc) } : prev));
+    // Tài liệu của lớp: chờ kết quả từ service (quyền, trạng thái do service quyết định) rồi mới cập nhật màn hình
+    const CLASS_KEY = { branch: 'branchPlans', theme: 'classThemePlans', week: 'weekPlans' };
+    const actor = { id: user.id, fullName: user.name, role: user.role, ageGroupId: user.ageGroupId };
+    const classCall =
+      (call) =>
+      async (kind, ...args) => {
+        try {
+          const saved = await call(kind, ...args, actor);
+          setData((prev) => (prev ? { ...prev, [CLASS_KEY[kind]]: upsert(prev[CLASS_KEY[kind]] || [], saved) } : prev));
+          return saved;
+        } catch (err) {
+          toastApi.error(err.message, 'Không thực hiện được');
+          return null;
+        }
+      };
     const deleteIn = (key, call) => write(key, call, (list, id) => list.filter((x) => x.id !== id));
 
     return {
       goals: data?.goals || [],
       themes: data?.themes || [],
       lessons: data?.lessons || [],
+      branchPlans: data?.branchPlans || [],
+      classThemePlans: data?.classThemePlans || [],
+      weekPlans: data?.weekPlans || [],
+      eduConfig: withDefaults(data?.eduConfig),
+      saveEduConfig: async (cfg) => {
+        try {
+          const saved = await service.saveEduConfig(cfg, actor);
+          applyEduConfig(saved);
+          setData((prev) => (prev ? { ...prev, eduConfig: saved } : prev));
+          return saved;
+        } catch (err) {
+          toastApi.error(err.message, 'Không lưu được cấu hình');
+          return null;
+        }
+      },
+      saveClassDoc: classCall(service.saveClassDoc),
+      actOnClassDoc: classCall(service.actOnClassDoc),
       role: user.role,
       user,
       toast,
@@ -107,52 +141,11 @@ export function EducationPlanProvider({ children }) {
       deleteTheme: deleteIn('themes', service.deleteTheme),
       saveLesson: saveIn('lessons', service.saveLesson),
       deleteLesson: deleteIn('lessons', service.deleteLesson),
-
-      // Kế hoạch năm theo khối và tài liệu của lớp (mẫu Trường MN Thái Dương)
-      yearId,
-      yearPlans: plans?.yearPlans || [],
-      branchPlans: plans?.branchPlans || [],
-      themePlans: plans?.themePlans || [],
-      weekPlans: plans?.weekPlans || [],
-      /** Lưu nội dung; trả về bản đã lưu hoặc null khi lỗi (đã báo lỗi). */
-      savePlanDoc: async (kind, doc) => {
-        try {
-          const saved = await service.savePlanDoc(kind, doc, authUser);
-          putPlan(kind, saved);
-          return saved;
-        } catch (err) {
-          toastApi.error(err.message, 'Không lưu được');
-          return null;
-        }
-      },
-      /** Gửi duyệt / duyệt / trả lại / ban hành; trạng thái mới do service quyết định. */
-      actOnPlanDoc: async (kind, id, body) => {
-        try {
-          const saved = await service.actOnPlanDoc(kind, id, body, authUser);
-          putPlan(kind, saved);
-          return saved;
-        } catch (err) {
-          toastApi.error(err.message, 'Không thực hiện được');
-          return null;
-        }
-      },
-      deleteYearPlan: async (id) => {
-        try {
-          await service.deleteYearPlan(id, authUser);
-          setPlans((prev) => (prev ? { ...prev, yearPlans: prev.yearPlans.filter((x) => x.id !== id) } : prev));
-          return true;
-        } catch (err) {
-          toastApi.error(err.message, 'Không xóa được');
-          return false;
-        }
-      },
-      authUser,
     };
-  }, [data, setData, reload, user, toast, toastApi, yearId, schoolYears, setSchoolYear, plans, setPlans, authUser]);
+  }, [data, setData, reload, user, toast, toastApi, yearId, schoolYears, setSchoolYear]);
 
-  if ((loading && !data) || (plansLoading && !plans)) return <LoadingState />;
+  if (loading && !data) return <LoadingState />;
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
-  if (plansError && !plans) return <ErrorState error={plansError} onRetry={reloadPlans} />;
   return <EducationPlanContext.Provider value={value}>{children}</EducationPlanContext.Provider>;
 }
 

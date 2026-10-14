@@ -1,6 +1,6 @@
 import { makeSignatureSvg } from './signatureArt';
 import { buildSeedInspections, seedInspectionNotifications } from './inspectionSeed';
-import { buildSeedEducationPlans } from './educationPlanSeed';
+import { EDU_SEED_VERSION, buildSeedEducationPlans } from './educationPlanSeed';
 import { buildSeedSchool } from './schoolSeed';
 
 /* ---------- Master data ---------- */
@@ -64,7 +64,7 @@ export const seedUsers = [
     campusId: 'c1',
     locationIds: [],
     avatarColor: '#0c8599',
-    ageGroupId: 'ag-3',
+    ageGroupId: 'ag-4',
     classId: 'c-choi2',
   },
   {
@@ -773,5 +773,6 @@ export const buildSeedDatabase = () => ({
   notifications: [...seedNotifications, ...seedInspectionNotifications],
   inspections: buildSeedInspections(seedAssets),
   ...buildSeedEducationPlans(),
+  eduSeedVersion: EDU_SEED_VERSION,
   ...buildSeedSchool(),
 });
