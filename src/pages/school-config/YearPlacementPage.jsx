@@ -30,6 +30,8 @@ export default function YearPlacementPage() {
   const planned = years.filter((y) => y.status === YEAR_STATUS.PLANNED);
   const yearId = params.get('year') || planned[0]?.id || '';
   const campusId = params.get('campus') || '';
+  const groupId = params.get('group') || '';
+  const filtered = !!(campusId || groupId);
   const { plan, loading, error, reload } = usePlacements(yearId, { live: false });
   const [selectedId, setSelectedId] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -38,7 +40,17 @@ export default function YearPlacementPage() {
 
   const campusName = (id) => plan?.campuses.find((c) => c.id === id)?.name || id;
   const groupName = (id) => plan?.ageGroups.find((g) => g.id === id)?.shortName || '—';
-  const classes = useMemo(() => (plan?.classes || []).filter((c) => !campusId || c.campusId === campusId), [plan, campusId]);
+  // Lọc theo điểm trường và nhóm tuổi; xếp theo nhóm tuổi (nhỏ đến lớn, đúng thứ tự cấu hình) rồi đến điểm trường
+  const classes = useMemo(() => {
+    const order = (id) => (plan?.ageGroups || []).findIndex((g) => g.id === id);
+    return (plan?.classes || [])
+      .filter((c) => (!campusId || c.campusId === campusId) && (!groupId || c.ageGroupId === groupId))
+      .sort(
+        (a, b) => order(a.ageGroupId) - order(b.ageGroupId) || a.campusId.localeCompare(b.campusId) || a.name.localeCompare(b.name, 'vi'),
+      );
+  }, [plan, campusId, groupId]);
+  const groupOptions = (plan?.ageGroups || []).filter((g) => (plan?.classes || []).some((c) => c.ageGroupId === g.id));
+  const autoLabel = filtered ? 'Xếp tự động các lớp đang lọc' : 'Xếp tự động tất cả lớp';
   const selected = classes.find((c) => c.id === selectedId) || classes[0];
   const all = classes.flatMap((c) => c.children);
   const count = (action) => all.filter((ch) => ch.placement?.action === action).length;
@@ -69,12 +81,12 @@ export default function YearPlacementPage() {
   const runAuto = async () => {
     setConfirmAuto(false);
     try {
-      const r = await autoPlace(yearId, user);
+      const r = await autoPlace(yearId, user, { campusId: campusId || undefined, ageGroupId: groupId || undefined });
       const left = r.unplaced.map((u) => `${u.className}: ${u.count} trẻ`).join(', ');
       toast.success(`${r.promoted} trẻ lên lớp, ${r.graduated} trẻ ra trường.${left ? ` Chưa đủ chỗ: ${left}.` : ''}`, 'Đã xếp tự động');
       const fresh = await reload({ silent: true });
       // Mở ngay lớp còn trẻ chưa xếp để Hiệu trưởng xử lý tiếp
-      const todo = (fresh?.classes || []).find((c) => (!campusId || c.campusId === campusId) && placedOf(c) < c.children.length);
+      const todo = classes.map((c) => fresh?.classes.find((x) => x.id === c.id)).find((c) => c && placedOf(c) < c.children.length);
       if (todo) setSelectedId(todo.id);
     } catch (err) {
       toast.error(err.message, 'Không xếp tự động được');
@@ -104,7 +116,7 @@ export default function YearPlacementPage() {
         </div>
         {plan?.editable && (
           <button className="btn btn--primary" onClick={() => setConfirmAuto(true)}>
-            <Wand2 size={16} /> Xếp tự động tất cả lớp
+            <Wand2 size={16} /> {autoLabel}
           </button>
         )}
       </div>
@@ -150,6 +162,19 @@ export default function YearPlacementPage() {
                 ))}
               </select>
             </div>
+            <div className="sc-inline-field">
+              <label className="field__label" htmlFor="plc-group">
+                Nhóm tuổi
+              </label>
+              <select id="plc-group" className="select" value={groupId} onChange={(e) => setParam('group', e.target.value)}>
+                <option value="">Tất cả nhóm tuổi</option>
+                {groupOptions.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.shortName}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="sc-plc__totals">
               {Object.values(PLACEMENT_ACTION).map((a) => (
                 <span key={a} className={`chip chip--${TONE[a]}`}>
@@ -172,7 +197,15 @@ export default function YearPlacementPage() {
             </div>
           ) : !classes.length ? (
             <div className="card card__body">
-              <EmptyState icon={Users} title="Không có lớp" description="Điểm trường này chưa có lớp trong năm học đang hoạt động." />
+              <EmptyState
+                icon={Users}
+                title="Không có lớp"
+                description={
+                  groupId
+                    ? 'Không có lớp nào của nhóm tuổi này trong phạm vi đang lọc.'
+                    : 'Điểm trường này chưa có lớp trong năm học đang hoạt động.'
+                }
+              />
             </div>
           ) : (
             <div className="sc-plc">
@@ -256,8 +289,8 @@ export default function YearPlacementPage() {
       />
       <ConfirmationModal
         open={confirmAuto}
-        title="Xếp tự động tất cả lớp?"
-        message="Trẻ chưa xếp được chuyển cả lớp lên nhóm tuổi kế tiếp (lớp cùng điểm trường còn nhiều chỗ nhất); nhóm tuổi lớn nhất ra trường. Trẻ đã xếp giữ nguyên. Lớp mới hết chỗ thì trẻ còn lại để chưa xếp."
+        title={`${autoLabel}?`}
+        message={`${filtered ? `Chỉ các lớp đang hiện theo bộ lọc (${classes.length} lớp). ` : ''}Trẻ chưa xếp được chuyển cả lớp lên nhóm tuổi kế tiếp (lớp cùng điểm trường còn nhiều chỗ nhất); nhóm tuổi lớn nhất ra trường. Trẻ đã xếp giữ nguyên. Lớp mới hết chỗ thì trẻ còn lại để chưa xếp.`}
         confirmLabel="Xếp tự động"
         onConfirm={runAuto}
         onClose={() => setConfirmAuto(false)}

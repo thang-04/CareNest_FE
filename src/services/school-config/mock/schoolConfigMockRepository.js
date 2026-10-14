@@ -696,7 +696,7 @@ export const schoolConfigMockRepository = {
   },
 
   /** Xếp tự động trẻ chưa xếp: cả lớp lên nhóm tuổi kế tiếp (lớp còn nhiều chỗ nhất), nhóm lớn nhất ra trường. */
-  async autoPlace(yearId, user) {
+  async autoPlace(yearId, user, { campusId, ageGroupId } = {}) {
     await delay();
     if (!canConfigureSchool(user)) throw forbid();
     seeded();
@@ -709,38 +709,42 @@ export const schoolConfigMockRepository = {
       const done = new Set(placementsOf(db, target.id).map((p) => p.childId));
       const at = now();
       const result = { promoted: 0, graduated: 0, unplaced: [] };
-      yearClasses(db, source.id).forEach((from) => {
-        const next = nextGroupId(db, from.ageGroupId);
-        let left = 0;
-        // Giữ cả lớp cùng một lớp mới; lớp đó hết chỗ mới chuyển sang lớp còn nhiều chỗ nhất
-        let toClassId = next ? suggestTarget(db, target, from.campusId, next) : null;
-        sourceChildren(db, source)
-          .filter((ch) => ch.classId === from.id && !done.has(ch.id))
-          .forEach((ch) => {
-            const full = (id) => {
-              const c = db.classes.find((x) => x.id === id);
-              return !c || seatsTaken(db, target.id, c.id) >= c.capacity;
-            };
-            if (next && full(toClassId)) toClassId = suggestTarget(db, target, from.campusId, next);
-            const to = db.classes.find((c) => c.id === toClassId);
-            if (next && (!to || seatsTaken(db, target.id, to.id) >= to.capacity)) {
-              left += 1;
-              return;
-            }
-            db.classPlacements.push({
-              id: uid('plc'),
-              schoolYear: target.id,
-              childId: ch.id,
-              fromClassId: from.id,
-              action: next ? PLACEMENT_ACTION.PROMOTE : PLACEMENT_ACTION.GRADUATE,
-              toClassId: next ? toClassId : null,
-              updatedBy: user.id,
-              updatedAt: at,
+      // Có phạm vi (đang lọc trên màn hình) thì chỉ xếp các lớp năm cũ trong phạm vi đó
+      const inScope = (c) => (!campusId || c.campusId === campusId) && (!ageGroupId || c.ageGroupId === ageGroupId);
+      yearClasses(db, source.id)
+        .filter(inScope)
+        .forEach((from) => {
+          const next = nextGroupId(db, from.ageGroupId);
+          let left = 0;
+          // Giữ cả lớp cùng một lớp mới; lớp đó hết chỗ mới chuyển sang lớp còn nhiều chỗ nhất
+          let toClassId = next ? suggestTarget(db, target, from.campusId, next) : null;
+          sourceChildren(db, source)
+            .filter((ch) => ch.classId === from.id && !done.has(ch.id))
+            .forEach((ch) => {
+              const full = (id) => {
+                const c = db.classes.find((x) => x.id === id);
+                return !c || seatsTaken(db, target.id, c.id) >= c.capacity;
+              };
+              if (next && full(toClassId)) toClassId = suggestTarget(db, target, from.campusId, next);
+              const to = db.classes.find((c) => c.id === toClassId);
+              if (next && (!to || seatsTaken(db, target.id, to.id) >= to.capacity)) {
+                left += 1;
+                return;
+              }
+              db.classPlacements.push({
+                id: uid('plc'),
+                schoolYear: target.id,
+                childId: ch.id,
+                fromClassId: from.id,
+                action: next ? PLACEMENT_ACTION.PROMOTE : PLACEMENT_ACTION.GRADUATE,
+                toClassId: next ? toClassId : null,
+                updatedBy: user.id,
+                updatedAt: at,
+              });
+              result[next ? 'promoted' : 'graduated'] += 1;
             });
-            result[next ? 'promoted' : 'graduated'] += 1;
-          });
-        if (left) result.unplaced.push({ className: from.name, count: left });
-      });
+          if (left) result.unplaced.push({ className: from.name, count: left });
+        });
       return result;
     });
   },

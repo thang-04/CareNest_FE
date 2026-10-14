@@ -15,7 +15,8 @@ export const schoolConfigApi = {
   // PENDING BE: xếp lớp năm học mới (lên lớp / ở lại / nghỉ / ra trường)
   getPlacements: (yearId) => axiosClient.get(`/school-years/${yearId}/placements`),
   savePlacements: (yearId, payload) => axiosClient.put(`/school-years/${yearId}/placements`, payload),
-  autoPlace: (yearId) => axiosClient.post(`/school-years/${yearId}/placements/auto`),
+  // PENDING BE: phạm vi tùy chọn { campusId, ageGroupId } = chỉ xếp các lớp năm cũ đang lọc trên màn hình
+  autoPlace: (yearId, _user, scope = {}) => axiosClient.post(`/school-years/${yearId}/placements/auto`, scope),
   closeSchoolYear: (id) => axiosClient.post(`/school-years/${id}/close`),
   deleteSchoolYear: (id) => axiosClient.delete(`/school-years/${id}`),
 

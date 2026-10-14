@@ -14,7 +14,7 @@ export const getYearReadiness = (id, user) => repo.getYearReadiness(id, user);
 /** Xếp lớp năm học mới: items [{ childId, action, toClassId }]. */
 export const getPlacements = (yearId, user) => repo.getPlacements(yearId, user);
 export const savePlacements = (yearId, payload, user) => repo.savePlacements(yearId, payload, user);
-export const autoPlace = (yearId, user) => repo.autoPlace(yearId, user);
+export const autoPlace = (yearId, user, scope) => repo.autoPlace(yearId, user, scope);
 export const closeSchoolYear = (id, user) => repo.closeSchoolYear(id, user);
 export const deleteSchoolYear = (id, user) => repo.deleteSchoolYear(id, user);
 
