@@ -34,6 +34,13 @@ const readOpenGroups = () => {
  * the sidebar, and hovering shows the sub-menu as a flyout.
  */
 export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, onExpand, onToggle }) {
+  // Menu thu gọn vẫn cuộn được (màn thấp, zoom); flyout dùng vị trí cố định theo nút để không bị khung cuộn cắt
+  const placeFlyout = (event) => {
+    const r = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty('--fly-top', `${Math.round(r.top)}px`);
+    const edge = event.currentTarget.closest('.sidebar')?.getBoundingClientRect().right ?? r.right;
+    event.currentTarget.style.setProperty('--fly-left', `${Math.round(edge + 8)}px`);
+  };
   const { pathname } = useLocation();
   const { user } = useAuth();
   // Menu tính theo quyền nên mỗi lần gọi là mảng mới: giữ cố định theo vai trò / người dùng,
@@ -86,7 +93,12 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
     const expanded = !!open[item.label] && !collapsed;
     const subId = `nav-sub-${item.label}`;
     return (
-      <div key={item.label} className="nav-group">
+      <div
+        key={item.label}
+        className="nav-group"
+        onMouseEnter={collapsed ? placeFlyout : undefined}
+        onFocus={collapsed ? placeFlyout : undefined}
+      >
         <button
           type="button"
           className={`nav-item ${groupActive ? 'nav-item--group-active' : ''}`}
