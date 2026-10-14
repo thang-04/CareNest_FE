@@ -10,6 +10,7 @@ import ComingSoonPage from '@/pages/ComingSoonPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
+const ErrorPage = lazy(() => import('@/pages/ErrorPage'));
 const UiKitPage = lazy(() => import('@/pages/UiKitPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/account/ForgotPasswordPage'));
@@ -406,6 +407,7 @@ export function AppRoutes() {
           <Route path="account/password" element={<ChangePasswordPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
           <Route path="ui-kit" element={<UiKitPage />} />
+          <Route path="error" element={<ErrorPage />} />
           <Route path="coming-soon/:slug" element={<ComingSoonPage />} />
           <Route path="facility" element={<Navigate to="/facility/transfers" replace />} />
           <Route path="*" element={<NotFoundPage />} />

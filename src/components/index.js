@@ -24,3 +24,5 @@ export { PrintHeader } from './print/PrintHeader';
 export { PrintToolbar } from './print/PrintToolbar';
 export { FormField } from './form/FormField';
 export { PasswordInput } from './form/PasswordInput';
+export { ErrorScreen } from './ui/ErrorScreen';
+export { ErrorBoundary } from './common/ErrorBoundary';

@@ -26,6 +26,7 @@ import {
   ProgressSteps,
   Stepper,
   Pagination,
+  ErrorScreen,
 } from '@/components';
 import { TransferStatusBadge } from '@/components/facility-transfer/TransferStatusBadge';
 import { RoundStatusBadge, SheetStatusBadge } from '@/components/inventory-inspection/InspectionBadges';
@@ -177,6 +178,7 @@ const NAV = [
   ['alerts', 'Thông báo'],
   ['table', 'Bảng & thẻ'],
   ['states', 'Loading / Empty / Error'],
+  ['error-screens', 'Màn hình lỗi & 404'],
   ['flow', 'Tiến trình & phân trang'],
   ['overlays', 'Modal & Toast'],
   ['domain', 'Chữ ký, upload, tài sản'],
@@ -195,6 +197,7 @@ export default function UiKitPage() {
   const [images, setImages] = useState([]);
   const [step, setStep] = useState(1);
   const [page, setPage] = useState(1);
+  const [errorPreviewType, setErrorPreviewType] = useState('404');
   const onSignature = useCallback(({ url }) => setSignature(url), []);
 
   return (
@@ -620,6 +623,57 @@ export default function UiKitPage() {
                 />
               </div>
             ))}
+          </div>
+        </Section>
+
+        <Section
+          id="error-screens"
+          title="Màn hình lỗi & 404 (CareNest Design System)"
+          code={`<ErrorScreen type="404" />\n<ErrorScreen type="500" error={err} onRetry={retryFn} />\n<ErrorScreen type="403" />\n<ErrorScreen type="offline" />`}
+        >
+          <div className="alert alert--info mb-12 text-sm">
+            <Info size={16} />
+            <div>
+              Màn hình thông báo lỗi và 404 dùng chung cho toàn web CareNest: Thiết kế tinh gọn, sử dụng thẻ card chuẩn mực, icon tròn nhận
+              diện rõ ràng, câu chữ đúng chuẩn mực sư phạm và cụm nút hành động nhất quán. Tự động tích hợp trong <code>ErrorBoundary</code>{' '}
+              và <code>NotFoundPage</code>.
+            </div>
+          </div>
+          <div className="row mb-16" style={{ gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {[
+              ['404', '404 - Không tìm thấy'],
+              ['500', '500 - Lỗi hệ thống'],
+              ['403', '403 - Giới hạn quyền'],
+              ['offline', 'Mất kết nối mạng'],
+            ].map(([t, label]) => (
+              <button
+                key={t}
+                type="button"
+                className={`btn btn--sm ${errorPreviewType === t ? 'btn--primary' : 'btn--outline-primary'}`}
+                onClick={() => setErrorPreviewType(t)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div
+            style={{
+              background: 'var(--color-bg)',
+              padding: 'var(--space-6)',
+              borderRadius: 'var(--radius-2xl)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
+            <ErrorScreen
+              key={errorPreviewType}
+              type={errorPreviewType}
+              error={
+                errorPreviewType === '500'
+                  ? new Error('Lỗi TypeError: Cannot read properties of undefined (reading "map") tại ChildRecordsTable.jsx:42')
+                  : null
+              }
+              onRetry={() => toast.info(`Đã kích hoạt thử lại cho kiểu: ${errorPreviewType}`)}
+            />
           </div>
         </Section>
 

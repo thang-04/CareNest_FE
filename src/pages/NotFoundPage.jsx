@@ -1,25 +1,15 @@
-import { Link } from 'react-router-dom';
-import { SearchX } from '@/components/ui/icons';
-import { EmptyState } from '@/components/ui/States';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { ErrorScreen } from '@/components/ui/ErrorScreen';
 
+/**
+ * Trang 404 — Không tìm thấy đường dẫn hoặc trang không tồn tại.
+ * Thiết kế đơn giản, tinh tế, đồng bộ với CareNest Design System v3.1.
+ */
 export default function NotFoundPage() {
   return (
     <div className="page">
       <Breadcrumb items={[{ label: 'Trang chủ', to: '/' }, { label: 'Không tìm thấy trang' }]} />
-      <h1 className="page__title">Không tìm thấy trang</h1>
-      <div className="card">
-        <EmptyState
-          icon={SearchX}
-          title="Không tìm thấy trang"
-          description="Đường dẫn không tồn tại hoặc đã bị thay đổi."
-          action={
-            <Link className="btn btn--primary" to="/">
-              Về trang chủ
-            </Link>
-          }
-        />
-      </div>
+      <ErrorScreen type="404" />
     </div>
   );
 }
