@@ -122,6 +122,12 @@ const ensure = (db) => {
       );
       a.areaActions = true;
     }
+    // Quyền tổ trưởng tách riêng: giữ cho PHT điểm trường chính đang có quyền sửa phân công; PHT khác do Hiệu trưởng mở thêm
+    if (!a.teamLeaderArea) {
+      const mainId = (db.campuses || []).find((c) => c.isMain)?.id || 'c1';
+      if (a.campusId === mainId && grantWrites(a.areas?.teacherAssignment, a.campusId)) a.areas.teamLeaders = 'VCUD@ALL';
+      a.teamLeaderArea = true;
+    }
   });
   // Tổ trưởng theo điểm trường -> 1 tổ trưởng / nhóm tuổi / năm học cho cả trường: giữ Campus 1, không có thì người được giao gần nhất
   if (db.teamLeaderAssignments?.some((a) => a.campusId !== undefined)) {
@@ -151,7 +157,7 @@ const ensure = (db) => {
 const needsMigration = (db) =>
   db.teamLeaderAssignments?.some((a) => a.campusId !== undefined) ||
   db.ageGroups?.some((g) => g.ageFromMonths == null || !g.history || !g.mealSessions) ||
-  db.vpAssignments?.some((a) => !a.areasV2 || !a.staffArea || !a.areaActions);
+  db.vpAssignments?.some((a) => !a.areasV2 || !a.staffArea || !a.areaActions || !a.teamLeaderArea);
 
 const seeded = () => {
   ensureSchoolSeeded();
@@ -365,8 +371,8 @@ const noAssignRight = (db, user, campusId, action) =>
   new ApiError(
     403,
     canViewTeacherAssignments(campusId, actor(db, user))
-      ? `Bạn chưa được giao quyền ${ACTION_VERB[action] || 'sửa phân công'} giáo viên / tổ trưởng ở điểm trường này. Liên hệ Hiệu trưởng.`
-      : 'Vai trò của bạn chưa được bật quyền "Phân công giáo viên / tổ trưởng" cho điểm trường này. Liên hệ Hiệu trưởng.',
+      ? `Bạn chưa được giao quyền ${ACTION_VERB[action] || 'sửa phân công'} giáo viên ở điểm trường này. Liên hệ Hiệu trưởng.`
+      : 'Vai trò của bạn chưa được bật quyền "Phân công giáo viên" cho điểm trường này. Liên hệ Hiệu trưởng.',
   );
 
 /** Tổ trưởng của năm (kèm điểm trường của giáo viên để hiển thị), nhóm tuổi có lớp, giáo viên chọn được ở mọi điểm trường. */
@@ -1325,6 +1331,8 @@ export const schoolConfigMockRepository = {
         g.actions = Object.fromEntries(
           AREA_ACTIONS.map((k) => [k, k === 'view' || (area.actions.includes(k) && (area.linked ? writes : g.actions[k]))]),
         );
+        // Mảng chỉ có phạm vi toàn trường (thực đơn, tổ trưởng nhóm tuổi)
+        if (!area.scopes.includes('CAMPUS')) g.campusId = null;
         if (g.campusId && !db.campuses.some((c) => c.id === g.campusId))
           throw invalid({ areas: `${area.label}: điểm trường không tồn tại` });
         areas[key] = composeAreaGrant(g);
@@ -1353,6 +1361,7 @@ export const schoolConfigMockRepository = {
         areasV2: true,
         staffArea: true,
         areaActions: true,
+        teamLeaderArea: true,
         assignedBy: user.id,
         assignedAt: now(),
       });
@@ -1384,7 +1393,6 @@ export const schoolConfigMockRepository = {
         .map((c) => ({ ...c, childCount: childCountOf(db, c.id) }))
         .sort((a, b) => a.campusId.localeCompare(b.campusId) || a.name.localeCompare(b.name, 'vi')),
       teachers: db.users.filter((u) => TEACHING_ROLES.includes(u.role) && (campusId === 'all' || u.campusId === campusId)),
-      ...teamLeaderData(db, schoolYear),
     });
   },
 
@@ -1438,7 +1446,7 @@ export const schoolConfigMockRepository = {
       if (!teamLeaderActions(actor(db, user))[action])
         throw new ApiError(
           403,
-          `Bạn chưa được giao quyền ${ACTION_VERB[action]} tổ trưởng nhóm tuổi. Liên hệ Hiệu trưởng (quyền "Phân công giáo viên / tổ trưởng").`,
+          `Bạn chưa được giao quyền ${ACTION_VERB[action]} tổ trưởng nhóm tuổi. Liên hệ Hiệu trưởng (quyền "Phân công tổ trưởng nhóm tuổi").`,
         );
       const year = findYear(db, schoolYear);
       assertOpenYear(year);

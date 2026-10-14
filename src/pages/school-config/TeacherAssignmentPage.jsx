@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useSchoolYears, useTeacherAssignments } from '@/hooks/school-config/useSchoolConfig';
+import { useSchoolYears, useTeacherAssignments, useTeamLeaders } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { YearPicker } from '@/components/school-config/YearPicker';
@@ -20,6 +20,7 @@ import {
   canAssignTeachers,
   leaderOptionAllowed,
   canViewTeacherAssignments,
+  canViewTeamLeaders,
   permissionAccess,
   teamLeaderActions,
 } from '@/utils/school-config/schoolConfigPermissions';
@@ -73,7 +74,7 @@ function TeamLeaderRow({ group, classCount, current, teachers, campusName, readO
 }
 
 /**
- * #26 Teacher Assignment (UC 2.6). Follows the permission "Phân công giáo viên / tổ trưởng" (Role & Permission screen):
+ * #26 Teacher Assignment (UC 2.6). Teacher part follows "Phân công giáo viên"; team leaders follow the separate VP area "Phân công tổ trưởng nhóm tuổi":
  * FULL (always the Principal) chooses any campus, RESTRICTED works on the own campus.
  */
 export default function TeacherAssignmentPage() {
@@ -91,13 +92,16 @@ export default function TeacherAssignmentPage() {
     ? params.get('campus') || (user?.role === ROLES.PRINCIPAL ? CAMPUS_ALL : user?.campusId || md.campuses[0]?.id)
     : access.campusId || user?.campusId || '';
   const allCampuses = campusId === CAMPUS_ALL;
+  // Hai quyền riêng (chốt 14/10/2026): "Phân công giáo viên" theo điểm trường, "Phân công tổ trưởng nhóm tuổi" toàn trường
   const allowed = canViewTeacherAssignments(campusId, user);
+  const leaderAllowed = canViewTeamLeaders(user);
   // Chỉ xem: mở được màn hình nhưng ẩn mọi nút phân công
   const canEdit = canAssignTeachers(campusId, user);
   // Tổ trưởng là của cả trường: quyền theo ô Thêm / Sửa / Xóa, không theo điểm trường
   const leaderActs = teamLeaderActions(user);
   const { years } = useSchoolYears();
   const { data, loading, error, reload } = useTeacherAssignments(allowed ? yearId : null, campusId);
+  const leaders = useTeamLeaders(leaderAllowed ? yearId : null);
   const [editing, setEditing] = useState(null);
 
   const classes = useMemo(() => data?.classes || [], [data]);
@@ -110,25 +114,25 @@ export default function TeacherAssignmentPage() {
     setParams((prev) => Object.fromEntries(Object.entries({ ...Object.fromEntries(prev), ...patch }).filter(([, v]) => v)));
   const classesOf = (teacherId) => classes.filter((c) => c.teacherIds.includes(teacherId));
 
-  if (!allowed)
+  if (!allowed && !leaderAllowed)
     return (
       <div className="page">
         <Breadcrumb items={teacherCrumbs()} />
         <h1 className="page__title">Phân công giáo viên</h1>
         <ScNoAccess
           description={
-            md.loading ? 'Đang tải…' : 'Vai trò của bạn chưa được bật quyền "Phân công giáo viên / tổ trưởng" cho điểm trường này.'
+            md.loading ? 'Đang tải…' : 'Bạn chưa được Hiệu trưởng giao quyền "Phân công giáo viên" hoặc "Phân công tổ trưởng nhóm tuổi".'
           }
         />
       </div>
     );
 
-  const year = data?.year;
+  const year = data?.year || years.find((y) => y.id === yearId);
   const closed = year?.status === YEAR_STATUS.CLOSED;
   const readOnly = closed || !canEdit;
   const leaderReadOnly = closed || !Object.values(leaderActs).some(Boolean);
   const teachers = data?.teachers || [];
-  const groups = data?.leaderGroups || [];
+  const groups = leaders.data?.leaderGroups || [];
   const unassigned = classes.filter((c) => !c.teacherIds.length).length;
   const campusName = (id) => md.campusById(id)?.shortName || '—';
 
@@ -136,7 +140,7 @@ export default function TeacherAssignmentPage() {
     try {
       await saveTeamLeader({ schoolYear: yearId, ageGroupId: group.id, userId }, user);
       toast.success(userId ? 'Đã lưu thay đổi. Tổ trưởng đã nhận thông báo.' : 'Đã bỏ phân công tổ trưởng.', group.name);
-      reload({ silent: true });
+      leaders.reload({ silent: true });
     } catch (err) {
       toast.error(err.message, 'Không lưu được thay đổi');
     }
@@ -156,10 +160,10 @@ export default function TeacherAssignmentPage() {
         </div>
       </div>
 
-      {!canEdit && (
+      {allowed && !canEdit && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
-          <div>Bạn chỉ có quyền xem phân công giáo viên / tổ trưởng. Muốn thay đổi, liên hệ Hiệu trưởng để được bật quyền sửa.</div>
+          <div>Bạn chỉ có quyền xem phân công giáo viên. Muốn thay đổi, liên hệ Hiệu trưởng để được bật quyền sửa.</div>
         </div>
       )}
       <div className="alert alert--info mb-16">
@@ -170,12 +174,12 @@ export default function TeacherAssignmentPage() {
         </div>
       </div>
 
-      {error ? (
-        <ErrorState error={error} onRetry={reload} />
-      ) : loading && !data ? (
-        <LoadingState />
-      ) : (
-        <>
+      {leaderAllowed &&
+        (leaders.error ? (
+          <ErrorState error={leaders.error} onRetry={leaders.reload} />
+        ) : leaders.loading && !leaders.data ? (
+          <LoadingState />
+        ) : (
           <section className="card mb-16">
             <div className="card__header">
               <h2 className="card__title row" style={{ gap: 8 }}>
@@ -185,6 +189,7 @@ export default function TeacherAssignmentPage() {
             <p className="text-sm muted sc-leader-note">
               Mỗi nhóm tuổi có 1 tổ trưởng cho cả trường (mọi điểm trường), không phụ thuộc bộ lọc điểm trường. Chọn được giáo viên ở bất kỳ
               điểm trường nào.
+              {leaderReadOnly && !closed && ' Bạn chỉ xem; quyền phân công tổ trưởng do Hiệu trưởng giao.'}
             </p>
             <div className="table-wrap sc-table-flat">
               <table className="table">
@@ -205,14 +210,14 @@ export default function TeacherAssignmentPage() {
                     </tr>
                   ) : (
                     groups.map((g) => {
-                      const current = data.teamLeaders.find((a) => a.ageGroupId === g.id);
+                      const current = leaders.data.teamLeaders.find((a) => a.ageGroupId === g.id);
                       return (
                         <TeamLeaderRow
                           key={`${g.id}-${current?.userId || ''}`}
                           group={g}
                           classCount={g.classCount}
                           current={current}
-                          teachers={data.leaderCandidates || []}
+                          teachers={leaders.data.leaderCandidates || []}
                           campusName={campusName}
                           readOnly={leaderReadOnly}
                           acts={leaderActs}
@@ -225,7 +230,14 @@ export default function TeacherAssignmentPage() {
               </table>
             </div>
           </section>
+        ))}
 
+      {allowed &&
+        (error ? (
+          <ErrorState error={error} onRetry={reload} />
+        ) : loading && !data ? (
+          <LoadingState />
+        ) : (
           <section className="card">
             <div className="card__header sc-head-row">
               <h2 className="card__title row" style={{ gap: 8 }}>
@@ -339,8 +351,7 @@ export default function TeacherAssignmentPage() {
               </table>
             </div>
           </section>
-        </>
-      )}
+        ))}
 
       {editing && (
         <ClassTeachersModal

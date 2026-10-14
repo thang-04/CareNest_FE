@@ -168,8 +168,8 @@ export default function RolePermissionFormPage() {
                   <b>Trong điểm trường</b> với vai trò này: {ROLE_SCOPE_NOTES[role]}{' '}
                 </>
               )}
-              Hiện chỉ quyền "Phân công giáo viên / tổ trưởng" điều khiển trực tiếp màn hình; các quyền khác đang lưu để cấu hình. Thay đổi
-              được ghi lại người sửa, thời điểm và giá trị cũ.
+              Hiện chỉ quyền "Phân công giáo viên" điều khiển trực tiếp màn hình; các quyền khác đang lưu để cấu hình. Thay đổi được ghi lại
+              người sửa, thời điểm và giá trị cũ.
             </div>
           </div>
 

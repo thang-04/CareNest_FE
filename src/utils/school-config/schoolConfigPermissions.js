@@ -99,11 +99,13 @@ const inScope = ({ scope, campusId: granted }, campusId, user) =>
   !!campusId && (scope === PERMISSION_SCOPE.ALL || (granted || user.campusId) === campusId);
 
 /**
- * "Phân công giáo viên / tổ trưởng" follows the Role & Permission screen:
+ * "Phân công giáo viên" follows the Role & Permission screen (tổ trưởng: quyền riêng bên dưới):
  * NONE = no menu / page; VIEW = see assignments read only; EDIT = assign. Scope ALL = every campus, CAMPUS = own campus.
  */
 export const ASSIGN_TEACHER = 'permission.assignTeacher';
-export const canOpenTeacherAssignment = (user) => permissionAccess(user, ASSIGN_TEACHER).access !== PERMISSION_ACCESS.NONE;
+/** Màn "Phân công giáo viên" mở khi có quyền phân công giáo viên hoặc phân công tổ trưởng (mỗi phần hiện theo quyền riêng). */
+export const canOpenTeacherAssignment = (user) =>
+  permissionAccess(user, ASSIGN_TEACHER).access !== PERMISSION_ACCESS.NONE || canViewTeamLeaders(user);
 export const canViewTeacherAssignments = (campusId, user) => {
   const p = permissionAccess(user, ASSIGN_TEACHER);
   return p.access !== PERMISSION_ACCESS.NONE && inScope(p, campusId, user);
@@ -117,11 +119,13 @@ export const canAssignTeachers = (campusId, user, action = true) => {
 
 /**
  * Tổ trưởng nhóm tuổi: 1 người cho cả trường mỗi năm học (người dùng chốt 14/10/2026).
- * Hiệu trưởng luôn được; PHT có quyền "Phân công giáo viên / tổ trưởng" làm được bất kể phạm vi điểm trường.
+ * Hiệu trưởng luôn được; PHT theo quyền riêng "Phân công tổ trưởng nhóm tuổi" (tách khỏi phân công giáo viên, chốt 14/10/2026).
  */
-export const canViewTeamLeaders = (user) => permissionAccess(user, ASSIGN_TEACHER).access !== PERMISSION_ACCESS.NONE;
+export function canViewTeamLeaders(user) {
+  return areaAccess(user, 'teamLeaders').access !== PERMISSION_ACCESS.NONE;
+}
 export const teamLeaderActions = (user) => {
-  const p = permissionAccess(user, ASSIGN_TEACHER);
+  const p = areaAccess(user, 'teamLeaders');
   return Object.fromEntries(['create', 'update', 'delete'].map((k) => [k, !!p.actions?.[k]]));
 };
 

@@ -285,7 +285,7 @@ export function AppRoutes() {
               element={
                 <RoleGuard
                   allow={canOpenTeacherAssignment}
-                  description="Vai trò của bạn chưa được bật quyền phân công giáo viên / tổ trưởng."
+                  description="Bạn chưa được giao quyền phân công giáo viên hoặc phân công tổ trưởng nhóm tuổi."
                 >
                   <TeacherAssignmentPage />
                 </RoleGuard>

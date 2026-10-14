@@ -240,14 +240,24 @@ export const VP_AREAS = [
   },
   {
     key: 'teacherAssignment',
-    label: 'Phân công giáo viên / tổ trưởng',
-    hint: 'Xếp giáo viên vào lớp, chọn tổ trưởng nhóm tuổi',
+    label: 'Phân công giáo viên',
+    hint: 'Xếp giáo viên vào lớp, chọn chủ nhiệm',
     scopes: ['CAMPUS', 'ALL'],
     code: 'permission.assignTeacher',
+    actions: ['view', 'create', 'update'],
+    actionHints: { create: 'Phân công lớp chưa có giáo viên', update: 'Đổi giáo viên, chủ nhiệm' },
+  },
+  {
+    // Tách khỏi "Phân công giáo viên" (người dùng chốt 14/10/2026): Hiệu trưởng mở cho PHT nào thì PHT đó phân công tổ trưởng.
+    // Tổ trưởng là 1 người / nhóm tuổi cho cả trường nên phạm vi luôn là toàn trường.
+    key: 'teamLeaders',
+    label: 'Phân công tổ trưởng nhóm tuổi',
+    hint: 'Chọn 1 tổ trưởng cho mỗi nhóm tuổi (toàn trường)',
+    scopes: ['ALL'],
     actions: AREA_ACTIONS,
     actionHints: {
-      create: 'Phân công lớp chưa có giáo viên, tổ trưởng nhóm chưa có người',
-      update: 'Đổi giáo viên, chủ nhiệm, tổ trưởng',
+      create: 'Chọn tổ trưởng cho nhóm chưa có người',
+      update: 'Đổi tổ trưởng',
       delete: 'Gỡ tổ trưởng nhóm tuổi',
     },
   },
@@ -289,6 +299,7 @@ export const VP_AREAS = [
 export const defaultVpAreas = (assignment, roleGrants = {}) => ({
   menu: assignment?.sharedService ? PERMISSION_LEVEL.FULL : PERMISSION_LEVEL.VIEW_FULL,
   teacherAssignment: roleGrants['permission.assignTeacher'] || PERMISSION_LEVEL.RESTRICTED,
+  teamLeaders: PERMISSION_LEVEL.NONE,
   facility: PERMISSION_LEVEL.RESTRICTED,
   rooms: PERMISSION_LEVEL.VIEW_RESTRICTED,
   children: PERMISSION_LEVEL.RESTRICTED,
