@@ -3,7 +3,14 @@ import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { CLASS_DOC, dossierWeekDocs, firstWeekOfTheme, isEditableStatus, submitBlocker } from '@/models/education-plan/classPlan';
+import {
+  CLASS_DOC,
+  createBlocker,
+  dossierWeekDocs,
+  firstWeekOfTheme,
+  isEditableStatus,
+  submitBlocker,
+} from '@/models/education-plan/classPlan';
 import { PENDING_OF, SIGN_ROLES, withDefaults } from '@/models/education-plan/eduConfig';
 
 /*
@@ -74,6 +81,10 @@ export const classPlanMockRepository = {
       const i = list.findIndex((x) => x.id === doc.id);
       const current = i === -1 ? null : list[i];
       if (!teachesClass(classOf(db, doc.classId), user)) throw new ApiError(403, 'Chỉ giáo viên của lớp sửa được tài liệu này');
+      if (!current) {
+        const blocker = createBlocker(kind, doc, { branchPlans: db.eduClassBranch, classThemePlans: db.eduClassTheme });
+        if (blocker) throw new ApiError(409, `Chưa thể bắt đầu: ${blocker.message}`);
+      }
       if (current && !isEditableStatus(current.status)) {
         if (kind !== CLASS_DOC.WEEK) throw new ApiError(409, 'Tài liệu đã gửi duyệt, không sửa được');
         // Sau khi gửi / duyệt chỉ ghi đánh giá trẻ trong ngày và kế hoạch điều chỉnh
@@ -133,7 +144,7 @@ export const classPlanMockRepository = {
       const sent = chain[0] ? `Gửi ${SIGN_ROLES[chain[0]]} duyệt` : 'Gửi (không cần duyệt)';
       const lists = { branchPlans: db.eduClassBranch, weekPlans: db.eduClassWeek, classThemePlans: db.eduClassTheme, yearPlan };
       const teacherOnly = () => {
-        if (!teachesClass(cls, user)) fail('Chỉ giáo viên của lớp gửi được', 403);
+        if (!teachesClass(cls, user)) fail('Chỉ giáo viên được phân công vào lớp mới ký / gửi được', 403);
       };
       const push = (d, e) => {
         d.history = [...(d.history || []), e];
@@ -192,6 +203,12 @@ export const classPlanMockRepository = {
           push(doc, entry(user, 'Ký người xây dựng'));
           return clone(doc);
         }
+        // Chủ đề nhánh: đủ chữ ký của mọi giáo viên được phân công vào lớp (thường 2 người) mới gửi được
+        const missing = (cls.teacherIds || []).filter((tid) => !doc.builders.some((b) => b.userId === tid));
+        if (missing.length)
+          fail(
+            `Còn thiếu chữ ký người xây dựng của: ${missing.map((tid) => (db.users || []).find((x) => x.id === tid)?.fullName || tid).join(', ')}`,
+          );
         const blocker = submitBlocker(kind, doc, lists);
         if (blocker) fail(blocker);
         doc.status = toStep(chain[0]);

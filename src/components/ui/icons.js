@@ -27,6 +27,7 @@ export {
   IconBook as BookOpenText,
   IconPackages as Boxes,
   IconBriefcase as Briefcase,
+  IconBulb as Lightbulb,
   IconBuilding as Building,
   IconBuilding as Building2,
   IconBuildings as Buildings,

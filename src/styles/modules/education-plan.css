@@ -964,6 +964,11 @@
 .ga-goal-table__center .ga-cell-input {
   text-align: center;
 }
+/* Ô tên chủ đề nhánh do AI điền, chờ giáo viên giữ / bỏ: viền xanh đậm trùng viền ô (Tiền 15/10) */
+.table.ga-goal-table td.ga-cell--ai {
+  outline: 2px solid var(--tone-green);
+  outline-offset: -2px;
+}
 /* Ô đang nhập: khung xanh trùng đúng viền ô bảng như bảng tính (cả khi hàng cao hơn ô nhập), không hở khoảng trắng (Tiền 14/10) */
 .table.ga-goal-table td:not(.ga-goal-table__subband):focus-within {
   outline: 2px solid var(--color-primary);

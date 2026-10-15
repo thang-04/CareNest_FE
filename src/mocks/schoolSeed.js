@@ -23,7 +23,7 @@ export const seedClasses = [
     ageGroupId: 'ag-4',
     locationId: null,
     homeroomTeacherId: 'u_minhanh',
-    teacherIds: ['u_minhanh'],
+    teacherIds: ['u_minhanh', 'u_huong'],
   },
   {
     id: 'cls_c1_c2',

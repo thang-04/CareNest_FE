@@ -44,7 +44,7 @@ export default function PlanReviewQueuePage() {
             at: g.sentAt,
           }))
       : []),
-    ...branchPlans.filter(mine).map((d) => ({ kind: 'branch', doc: d, what: 'Cả năm học', to: `/education/class/${d.classId}/branches` })),
+    ...branchPlans.filter(mine).map((d) => ({ kind: 'branch', doc: d, what: 'Cả năm học', to: `/education/branches/${d.classId}` })),
     // Hồ sơ chủ đề gửi một lần nhưng duyệt riêng từng tuần (khung tuần 1 duyệt luôn kế hoạch chủ đề)
     ...weekPlans.filter(mine).map((d) => {
       const plan = goals.find((g) => g.id === d.yearPlanId);

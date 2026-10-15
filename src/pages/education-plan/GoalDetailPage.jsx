@@ -17,7 +17,6 @@ import {
   Notice,
   PageHead,
   SignatureBox,
-  SignatureView,
   fmtDate,
 } from '@/components/education-plan/eduUi';
 
@@ -204,56 +203,26 @@ export default function GoalDetailPage() {
         </div>
       )}
 
-      <div className="ga-split">
-        <Card title="Thông tin chung">
-          <dl className="info-list">
-            <dt>Năm học</dt>
-            <dd>{g.schoolYear}</dd>
-            <dt>Nhóm tuổi áp dụng</dt>
-            <dd>{ageName}</dd>
-            <dt>Phạm vi</dt>
-            <dd>{SCHOOL_SCOPE}</dd>
-            <dt>Số mục tiêu</dt>
-            <dd>
-              {Object.keys(numbers).length} mục tiêu · {themes.length} chủ đề
-            </dd>
-            <dt>Ngày lập</dt>
-            <dd>{fmtDate(g.createdAt)}</dd>
-            <dt>Ngày gửi</dt>
-            <dd>{fmtDate(g.sentAt)}</dd>
-            <dt>Mô tả</dt>
-            <dd>{g.description || '—'}</dd>
-          </dl>
-        </Card>
-        <Card title="Người xây dựng và ban hành">
-          <div className="stack">
-            {builders.length === 0 && !g.issued && <p className="muted">Chưa có chữ ký.</p>}
-            {builders.map((b) => (
-              <div key={b.userId} className="ga-summary-row">
-                <span>
-                  <div className="fw-600">{b.name}</div>
-                  <div className="muted text-xs">
-                    {b.role} · ký ngày {fmtDate(b.at)}
-                  </div>
-                </span>
-                <SignatureView sig={b.sig} name={b.name} />
-              </div>
-            ))}
-            {g.issued && (
-              <div className="ga-summary-row">
-                <span>
-                  <div className="fw-600">Ban hành: {g.issued.name}</div>
-                  <div className="muted text-xs">
-                    {g.issued.role} · {fmtDate(g.issued.at)}
-                  </div>
-                </span>
-                <SignatureView sig={g.issued.sig} name={g.issued.name} />
-              </div>
-            )}
-            {usedBy.length > 0 && <p className="muted text-xs">{usedBy.length} kế hoạch chủ đề đang dùng kế hoạch này.</p>}
-          </div>
-        </Card>
-      </div>
+      <Card title="Thông tin chung">
+        <dl className="info-list">
+          <dt>Năm học</dt>
+          <dd>{g.schoolYear}</dd>
+          <dt>Nhóm tuổi áp dụng</dt>
+          <dd>{ageName}</dd>
+          <dt>Phạm vi</dt>
+          <dd>{SCHOOL_SCOPE}</dd>
+          <dt>Số mục tiêu</dt>
+          <dd>
+            {Object.keys(numbers).length} mục tiêu · {themes.length} chủ đề
+          </dd>
+          <dt>Ngày lập</dt>
+          <dd>{fmtDate(g.createdAt)}</dd>
+          <dt>Ngày gửi</dt>
+          <dd>{fmtDate(g.sentAt)}</dd>
+          <dt>Mô tả</dt>
+          <dd>{g.description || '—'}</dd>
+        </dl>
+      </Card>
 
       <Card className="mt-16" bodyClass={null}>
         <PlanTabs tab={tab} onTab={setTab} counts={{ themes: themes.length, goals: Object.keys(numbers).length }} />

@@ -17,4 +17,6 @@ export const educationPlanApi = {
   saveEduConfig: (cfg) => axiosClient.put('/education-plans/config', cfg),
   saveClassDoc: (kind, doc) => axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, doc),
   actOnClassDoc: (kind, id, body) => axiosClient.post(`/education-plans/class-docs/${kind}/${id}/actions`, body),
+  suggestBranchNames: (input) => axiosClient.post('/education-plans/ai/branch-names', input),
+  rewriteBranchName: (input) => axiosClient.post('/education-plans/ai/branch-names/rewrite', input),
 };

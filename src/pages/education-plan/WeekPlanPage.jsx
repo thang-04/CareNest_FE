@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, FileDown, Printer, Save } from '@/components/ui/icons';
 import { Card, EmptyState, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
-import { DocStatusStrip, SignPanel, WeekApproval, useClassPlanContext } from '@/components/education-plan/planUi';
+import { DocStatusStrip, SignPanel, WeekApproval, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { LoadingState } from '@/components/ui/States';
@@ -11,6 +11,7 @@ import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
   WEEKDAY_LABELS,
   branchNumber,
+  createBlocker,
   dayGoalsOf,
   ddmm,
   emptyWeekPlan,
@@ -76,6 +77,21 @@ function WeekPlanInner() {
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const branchName = branch?.names?.[weekStart] || '';
   const themeDoc = classThemePlans.find((t) => t.classId === classId && t.themeId === week.theme.id) || null;
+  const crumbs = [{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}`, to: base }, { label: `Tuần ${week.no}` }];
+  // Mở thẳng đường dẫn khi chưa tới bước này: không hiện biểu mẫu, chỉ ra bước còn thiếu
+  const lock =
+    !saved && createBlocker('week', { classId, yearPlanId: yearPlan.id, themeId: week.theme.id }, { branchPlans, classThemePlans });
+  if (lock) {
+    const target = lockTarget(lock, base, week.theme.id);
+    return (
+      <div className="page ga-page">
+        <PageHead crumbs={crumbs} title={`Giáo án tuần ${week.no}`} desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`} />
+        <Notice tone="warn">
+          Chưa thể bắt đầu: {lock.message} <Link to={target.to}>{target.label}</Link>
+        </Notice>
+      </div>
+    );
+  }
   const update = (fn) => {
     setDraft((d) => fn(structuredClone(d)));
     setDirty(true);
@@ -101,7 +117,7 @@ function WeekPlanInner() {
   return (
     <div className="page ga-page">
       <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}`, to: base }, { label: `Tuần ${week.no}` }]}
+        crumbs={crumbs}
         title={`Giáo án tuần ${week.no}`}
         desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`}
         actions={
@@ -145,7 +161,7 @@ function WeekPlanInner() {
           {!branchName && isClassTeacher && (
             <>
               {' · '}
-              <Link to={`${base}/branches`}>Đặt tên chủ đề nhánh</Link>
+              <Link to={`/education/branches/${classId}`}>Đặt tên chủ đề nhánh</Link>
             </>
           )}
         </div>

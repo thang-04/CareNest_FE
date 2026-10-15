@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FileDown, Printer, Save } from '@/components/ui/icons';
-import { Card, EmptyState, PageHead } from '@/components/education-plan/eduUi';
-import { DocStatusStrip, useClassPlanContext } from '@/components/education-plan/planUi';
+import { Card, EmptyState, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals } from '@/models/education-plan/goalTable';
-import { ddmm, emptyThemePlan, isEditableStatus, themeNumber, themeGoalBlocks, yearWeeks } from '@/models/education-plan/classPlan';
+import {
+  createBlocker,
+  ddmm,
+  emptyThemePlan,
+  isEditableStatus,
+  themeNumber,
+  themeGoalBlocks,
+  yearWeeks,
+} from '@/models/education-plan/classPlan';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
 import { ThemePlanBody, themeRowOf } from '@/components/education-plan/ThemePlanBody';
 
@@ -45,6 +53,20 @@ function ThemePlanInner() {
   const status = saved?.status || EDU_STATUS.DRAFT;
   const editable = isClassTeacher && isEditableStatus(status);
   const base = `/education/class/${classId}`;
+  const crumbs = [{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}`, to: base }, { label: theme.name }];
+  // Mở thẳng đường dẫn khi chưa tới bước này: không hiện biểu mẫu, chỉ ra bước còn thiếu
+  const lock = !saved && createBlocker('theme', { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
+  if (lock) {
+    const target = lockTarget(lock, base, themeId);
+    return (
+      <div className="page ga-page">
+        <PageHead crumbs={crumbs} title={`Kế hoạch giáo dục chủ đề: ${theme.name}`} desc={cls.name} />
+        <Notice tone="warn">
+          Chưa thể bắt đầu: {lock.message} <Link to={target.to}>{target.label}</Link>
+        </Notice>
+      </div>
+    );
+  }
   const numbers = numberGoals(yearPlan.domains);
   const blocks = themeGoalBlocks(yearPlan.domains, numbers, themeId);
   const goals = blocks.flatMap((b) => b.goals);
@@ -91,7 +113,7 @@ function ThemePlanInner() {
   return (
     <div className="page ga-page">
       <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}`, to: base }, { label: theme.name }]}
+        crumbs={crumbs}
         title={`Kế hoạch giáo dục chủ đề: ${theme.name}`}
         desc={`${cls.name} · ${weeks.length} tuần, ${ddmm(theme.start)} → ${ddmm(theme.end)}`}
         actions={

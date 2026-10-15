@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Check, Send, Undo2 } from '@/components/ui/icons';
+import { Check, PenLine, Send, Undo2 } from '@/components/ui/icons';
 import {
   Card,
   EduStatusBadge,
@@ -20,6 +20,12 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { toRows } from '@/models/education-plan/goalTable';
 import { submitBlocker } from '@/models/education-plan/classPlan';
 import { PENDING_OF, SIGN_ROLES, getEduConfig } from '@/models/education-plan/eduConfig';
+
+/** Bước còn thiếu khi tài liệu chưa thể bắt đầu (lock = kết quả createBlocker). */
+export const lockTarget = (lock, base, themeId) =>
+  lock.need === 'branch'
+    ? { to: base.replace('/class/', '/branches/'), label: 'Mở Chủ đề nhánh' }
+    : { to: `${base}/themes/${themeId}`, label: 'Mở kế hoạch chủ đề' };
 
 /* ---------- Ô nhập trong bảng (cùng kiểu ô của bảng mục tiêu năm) ---------- */
 
@@ -91,6 +97,8 @@ export function useClassPlanContext(classId) {
   const teachers = cls ? (cls.teacherIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) : [];
   const leaders = cls ? users.filter((u) => u.role === ROLES.TEAM_LEADER && u.ageGroupId === cls.ageGroupId) : [];
   const isClassTeacher = !!cls && (cls.teacherIds || []).includes(user.id);
+  // Mỗi giáo viên chỉ được xếp một lớp: người có lớp chỉ làm việc với lớp đó, không có ô chọn lớp
+  const canPickClass = classes.length > 1 && !classes.some((c) => (c.teacherIds || []).includes(user.id));
   const isGroupLeader = user.role === ROLES.TEAM_LEADER && !!cls && user.ageGroupId === cls.ageGroupId;
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   // Chỉ để hiển thị chuỗi duyệt dự kiến; bước thật do service quyết định khi gửi
@@ -104,6 +112,7 @@ export function useClassPlanContext(classId) {
     teachers,
     users,
     isClassTeacher,
+    canPickClass,
     isGroupLeader,
     isVp,
     skipLeader,
@@ -146,6 +155,9 @@ export function SignPanel({ kind, doc, ctx, user, dirty, onAct, title = 'Ký, g�
   const { branchPlans, weekPlans, classThemePlans } = useEducationPlan();
   const [note, setNote] = useState('');
   const [signature, setSignature] = useState(null);
+  // Người duyệt phải bấm "Ký" (xác nhận chữ ký) trước, rồi mới bấm "Duyệt" được; đổi chữ ký thì phải ký lại
+  const [signedSig, setSignedSig] = useState(null);
+  const reviewerSigned = !!signature && signedSig === signature;
   const [tried, setTried] = useState(null);
   const [busy, setBusy] = useState(false);
   const status = doc?.status || EDU_STATUS.DRAFT;
@@ -157,13 +169,19 @@ export function SignPanel({ kind, doc, ctx, user, dirty, onAct, title = 'Ký, g�
     !!doc &&
     (kind === 'branch' ? isOpen(doc) : kind === 'theme' ? status === EDU_STATUS.DRAFT : status === EDU_STATUS.REJECTED);
   const builderSigns = kind === 'branch';
+  const signedByMe = (doc?.builders || []).some((b) => b.userId === user.id);
+  // Chủ đề nhánh: mọi giáo viên của lớp phải ký; người gửi ký luôn khi bấm gửi, nên chỉ xét những người còn lại
+  const missingOthers =
+    builderSigns && canSend
+      ? (ctx.teachers || []).filter((t) => t.id !== user.id && !(doc?.builders || []).some((b) => b.userId === t.id))
+      : [];
   const lastReject = [...(doc?.history || [])].reverse().find((h) => h.tone === 'err');
   const orderBlock = canSend ? submitBlocker(kind, doc, { branchPlans, weekPlans, classThemePlans, yearPlan: ctx.yearPlan }) : null;
   const blocked = dirty || !doc?.id;
   const run = async (action) => {
     setTried(action);
     if (action === 'reject' && !note.trim()) return;
-    const needSig = action === 'approve' || (action === 'submit' && builderSigns);
+    const needSig = action === 'approve' || action === 'sign' || (action === 'submit' && builderSigns);
     if (needSig && !signature) return;
     setBusy(true);
     const res = await onAct(action, { note: note.trim() || undefined, signature: needSig ? signature : undefined });
@@ -171,6 +189,7 @@ export function SignPanel({ kind, doc, ctx, user, dirty, onAct, title = 'Ký, g�
     if (res) {
       setNote('');
       setSignature(null);
+      setSignedSig(null);
       setTried(null);
     }
   };
@@ -190,6 +209,11 @@ export function SignPanel({ kind, doc, ctx, user, dirty, onAct, title = 'Ký, g�
           </Notice>
         )}
         {orderBlock && <Notice tone="warn">{orderBlock}</Notice>}
+        {missingOthers.length > 0 && (
+          <Notice tone="warn">
+            Cần đủ chữ ký của các giáo viên lớp. Còn chờ: {missingOthers.map((t) => t.fullName).join(', ')} bấm "Chỉ ký (chưa gửi)".
+          </Notice>
+        )}
         {(canSend || canReview) && (
           <>
             <Field
@@ -204,17 +228,43 @@ export function SignPanel({ kind, doc, ctx, user, dirty, onAct, title = 'Ký, g�
                   <div className="subsection-title">
                     {canReview ? `Chữ ký người duyệt (${SIGN_ROLES[user.role] || ''})` : 'Chữ ký người xây dựng (giáo viên)'}
                   </div>
-                  <SignatureBox value={signature} onChange={setSignature} invalid={!!tried && tried !== 'reject' && !signature} />
+                  {canReview && reviewerSigned ? (
+                    <div className="stack">
+                      <SignatureView sig={signature} name={user.fullName} />
+                      <div className="row row--wrap gap-2">
+                        <span className="chip chip--green">Đã ký</span>
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSignedSig(null)}>
+                          Ký lại
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <SignatureBox value={signature} onChange={setSignature} invalid={!!tried && tried !== 'reject' && !signature} />
+                  )}
                 </div>
               </div>
             )}
             <div className="row row--wrap gap-2">
+              {/* Chủ đề nhánh: mọi giáo viên được phân công vào lớp đều ký người xây dựng được trước khi gửi */}
+              {canSend && builderSigns && !signedByMe && (
+                <button
+                  type="button"
+                  className="btn btn--outline-primary"
+                  disabled={busy || blocked || !signature}
+                  title={blocked ? 'Lưu trước khi ký' : signature ? undefined : 'Chọn chữ ký trước'}
+                  onClick={() => run('sign')}
+                >
+                  <PenLine size={16} aria-hidden /> Chỉ ký (chưa gửi)
+                </button>
+              )}
               {canSend && (
                 <button
                   type="button"
                   className="btn btn--warning"
-                  disabled={busy || blocked || !!orderBlock}
-                  title={orderBlock || (blocked ? 'Lưu trước khi gửi' : undefined)}
+                  disabled={busy || blocked || !!orderBlock || missingOthers.length > 0 || (builderSigns && !signature)}
+                  title={
+                    orderBlock || (missingOthers.length ? 'Chờ đủ chữ ký của các giáo viên lớp' : blocked ? 'Lưu trước khi gửi' : undefined)
+                  }
                   onClick={() => run('submit')}
                 >
                   <Send size={16} aria-hidden /> {sendLabel}
@@ -225,8 +275,26 @@ export function SignPanel({ kind, doc, ctx, user, dirty, onAct, title = 'Ký, g�
                   <button type="button" className="btn btn--outline-danger" disabled={busy} onClick={() => run('reject')}>
                     <Undo2 size={16} aria-hidden /> Trả lại
                   </button>
-                  <button type="button" className="btn btn--success" disabled={busy} onClick={() => run('approve')}>
-                    <Check size={16} aria-hidden /> Duyệt và ký
+                  {!reviewerSigned && (
+                    <button
+                      type="button"
+                      className="btn btn--outline-primary"
+                      disabled={busy || !signature}
+                      title={signature ? undefined : 'Chọn chữ ký trước'}
+                      onClick={() => setSignedSig(signature)}
+                    >
+                      <PenLine size={16} aria-hidden /> Ký
+                    </button>
+                  )}
+                  {/* Ký xong (bấm "Ký") mới bấm duyệt được */}
+                  <button
+                    type="button"
+                    className="btn btn--success"
+                    disabled={busy || !reviewerSigned}
+                    title={reviewerSigned ? undefined : 'Ký trước rồi mới duyệt'}
+                    onClick={() => run('approve')}
+                  >
+                    <Check size={16} aria-hidden /> Duyệt
                   </button>
                 </>
               )}
@@ -341,7 +409,7 @@ export function WeekApproval({ doc, week, ctx }) {
 }
 
 /** Khung chữ ký cuối tài liệu: Người xây dựng (giáo viên của lớp) và Người duyệt (tổ trưởng, Phó HT). */
-export function DocSignatures({ doc, teachers, approveTitle = 'Người duyệt' }) {
+export function DocSignatures({ doc, teachers, approveTitle = 'Người duyệt', approverRoles = [] }) {
   const builders = doc?.builders || [];
   const approvals = doc?.approvals || [];
   const person = (key, title, s, name) => (
@@ -372,7 +440,18 @@ export function DocSignatures({ doc, teachers, approveTitle = 'Người duyệt'
         <div className="stack">
           <div className="section-title center">{approveTitle}</div>
           <div className="grid-2">
-            {approvals.length ? approvals.map((a, i) => person(i, a.role, a)) : person('none', 'Chưa duyệt', null)}
+            {/* Mỗi người duyệt theo cấu hình một ô (chưa ký thì để trống); đã có chữ ký thì hiện theo thứ tự đã ký */}
+            {approverRoles.length
+              ? approverRoles.map((r) =>
+                  person(
+                    r,
+                    SIGN_ROLES[r],
+                    approvals.find((a) => a.roleKey === r),
+                  ),
+                )
+              : approvals.length
+                ? approvals.map((a, i) => person(i, a.role, a))
+                : person('none', 'Chưa duyệt', null)}
           </div>
         </div>
       </div>

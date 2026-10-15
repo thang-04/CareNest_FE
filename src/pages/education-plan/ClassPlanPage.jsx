@@ -8,8 +8,9 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
 import { useClasses } from '@/hooks/useSchool';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
+  createBlocker,
   ddmm,
   dossierSummary,
   dueState,
@@ -20,19 +21,19 @@ import {
   yearWeeks,
 } from '@/models/education-plan/classPlan';
 
-/** /education/class: mở lớp đầu tiên người dùng được xem (lớp mình dạy trước). */
-export function ClassPlanRedirect() {
+/** /education/class, /education/branches: mở lớp đầu tiên người dùng được xem (lớp mình dạy trước). */
+export function ClassPlanRedirect({ toOf = (id) => `/education/class/${id}` }) {
   const { user } = useEducationPlan();
   const { classes, loading } = useClasses();
   if (loading) return <LoadingState />;
   const own = classes.find((c) => (c.teacherIds || []).includes(user.id)) || classes[0];
   if (!own) return <EmptyState title="Bạn chưa được phân công lớp nào" />;
-  return <Navigate to={`/education/class/${own.id}`} replace />;
+  return <Navigate to={toOf(own.id)} replace />;
 }
 
 /**
- * Trang đầu của lớp: chọn việc cần làm. Mỗi tài liệu (chủ đề nhánh cả năm, kế hoạch từng chủ đề, giáo án từng tuần)
- * có trang soạn riêng và trang ký / duyệt riêng.
+ * Mục "Kế hoạch chủ đề" trên sidebar: kế hoạch từng chủ đề + giáo án các tuần nhánh của lớp.
+ * Chỉ lập được khi chủ đề nhánh cả năm (mục "Chủ đề nhánh") đã được duyệt.
  */
 export default function ClassPlanPage() {
   const { classId } = useParams();
@@ -48,8 +49,8 @@ export default function ClassPlanPage() {
   const group = AGE_GROUPS.find((a) => a.id === cls.ageGroupId);
   const head = (
     <PageHead
-      crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}` }]}
-      title={`Kế hoạch giáo dục ${cls.name}`}
+      crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch chủ đề' }]}
+      title={`Kế hoạch chủ đề ${cls.name}`}
       desc={`${group?.name || ''} · Giáo viên: ${teachers.map((t) => t.fullName).join(', ') || 'chưa phân công'}`}
       actions={
         <>
@@ -58,7 +59,7 @@ export default function ClassPlanPage() {
               <BookOpen size={16} aria-hidden /> Xem kế hoạch năm học của khối
             </Link>
           )}
-          {classes.length > 1 && (
+          {ctx.canPickClass && (
             <select
               className="select"
               aria-label="Chọn lớp"
@@ -96,10 +97,8 @@ export default function ClassPlanPage() {
   }
 
   const rows = yearWeeks(yearPlan);
-  const weeks = rows.filter((r) => r.type === 'week');
   const thisWeek = mondayOf(todayIso());
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null;
-  const named = weeks.filter((w) => branch?.names?.[w.start]?.trim()).length;
   const themes = [...yearPlan.themes].filter((t) => t.start && t.end).sort((a, b) => a.start.localeCompare(b.start));
   const numbers = numberGoals(yearPlan.domains);
   // Xuất cả hồ sơ chủ đề (kế hoạch chủ đề + các tuần đã soạn) đúng thứ tự file của trường
@@ -138,6 +137,17 @@ export default function ClassPlanPage() {
     );
   };
   const status = (doc, none) => (doc ? <EduStatusBadge status={doc.status} /> : <span className="chip chip--gray">{none}</span>);
+  const branchApproved = branch?.status === EDU_STATUS.APPROVED;
+  // Giáo án tuần chỉ tạo được khi đã lưu kế hoạch chủ đề; dòng chưa tới lượt hiện lý do, không có nút tạo
+  const lockOf = (kind, themeId) => createBlocker(kind, { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
+  const lockedStatus = (lock) => (
+    <div className="stack">
+      <span>
+        <span className="chip chip--gray">Chưa thể bắt đầu</span>
+      </span>
+      <span className="text-xs muted">{lock.message}</span>
+    </div>
+  );
   /*
    * Một nút cho mỗi tài liệu, theo việc người dùng cần làm (gửi / ký / duyệt nằm cuối trang của tài liệu):
    * đến lượt duyệt → Duyệt; giáo viên còn sửa được → Sửa / Tạo; còn lại → Xem.
@@ -157,8 +167,8 @@ export default function ClassPlanPage() {
       );
     if (!doc) return <span className="muted text-sm">Chưa lập</span>;
     return (
-      <Link className="btn btn--outline-primary btn--sm" to={to}>
-        <Eye size={16} aria-hidden /> Xem
+      <Link className="icon-btn" to={to} title="Xem" aria-label="Xem">
+        <Eye size={16} aria-hidden />
       </Link>
     );
   };
@@ -166,158 +176,156 @@ export default function ClassPlanPage() {
   return (
     <div className="page ga-page">
       {head}
-      <Card title="1. Dự kiến chủ đề nhánh và thời gian thực hiện">
-        <div className="row row--between row--wrap gap-3">
-          <div className="row row--wrap gap-2">
-            {status(branch, 'Chưa lập')}
-            <span className="muted text-sm">
-              Đã đặt tên {named}/{weeks.length} tuần · Lập một lần cho cả năm. Cần được duyệt trước khi gửi hồ sơ chủ đề.
-            </span>
-          </div>
-          {action(branch, `${base}/branches`, 'Lập')}
-        </div>
-      </Card>
+      {!branchApproved && (
+        <Notice tone="warn">
+          Cần duyệt chủ đề nhánh trước. Kế hoạch chủ đề và giáo án tuần dùng tên chủ đề nhánh đã duyệt.{' '}
+          <Link to={`/education/branches/${classId}`}>Mở Chủ đề nhánh</Link>
+        </Notice>
+      )}
 
       {/* Mỗi chủ đề là một hồ sơ như file của trường: gửi cả hồ sơ một lần, duyệt riêng từng tuần (kế hoạch chủ đề cùng tuần 1) */}
-      {themes.map((t, ti) => {
-        const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
-        const themeRows = rows.filter((r) => r.theme.id === t.id);
-        const themeWeeks = themeRows.filter((r) => r.type === 'week');
-        const wdocs = themeWeeks.map((r) => ({ doc: weekPlans.find((w) => w.classId === classId && w.weekStart === r.start) || null }));
-        const sum = dossierSummary(doc, wdocs);
-        const myTurn = wdocs.filter((w) => isMyReviewTurn(w.doc, ctx, user)).length;
-        const to = `${base}/themes/${t.id}/review`;
-        return (
-          <Card
-            key={t.id}
-            title={`Chủ đề ${ti + 1}: ${t.name}`}
-            bodyClass={null}
-            actions={
-              <>
-                <span className="muted text-sm">
-                  {ddmm(t.start)} → {ddmm(t.end)} · {themeWeeks.length} tuần
-                </span>
-                <button
-                  type="button"
-                  className="btn btn--outline-primary btn--sm"
-                  onClick={() => exportTheme(t, ti + 1, doc, themeWeeks, 'doc')}
-                >
-                  <FileDown size={16} aria-hidden /> Xuất hồ sơ chủ đề
-                </button>
-              </>
-            }
-          >
-            <div className="card__body stack">
-              <div className="row row--between row--wrap gap-3">
-                <div className="row row--wrap gap-2">
-                  {/* Gửi hồ sơ và duyệt từng tuần ở trang hồ sơ chủ đề */}
-                  <Link className="fw-600" to={to}>
-                    Hồ sơ chủ đề:
-                  </Link>
-                  {sum.sent ? (
-                    <>
-                      <span className="chip chip--green">
-                        Đã duyệt {sum.approved}/{sum.total} tuần
-                      </span>
-                      {sum.pending > 0 && <span className="chip chip--purple">Chờ duyệt {sum.pending} tuần</span>}
-                      {sum.rejected > 0 && <span className="chip chip--red">Bị trả lại {sum.rejected} tuần</span>}
-                    </>
-                  ) : (
-                    <>
-                      <span className="chip chip--gray">Chưa gửi</span>
-                      <span className="muted text-sm">{due(doc, t.start)}</span>
-                    </>
-                  )}
-                  {myTurn > 0 && (
-                    <Link className="chip chip--purple" to={to}>
-                      Chờ bạn duyệt {myTurn} tuần
+      {branchApproved &&
+        themes.map((t, ti) => {
+          const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
+          const themeRows = rows.filter((r) => r.theme.id === t.id);
+          const themeWeeks = themeRows.filter((r) => r.type === 'week');
+          const wdocs = themeWeeks.map((r) => ({ doc: weekPlans.find((w) => w.classId === classId && w.weekStart === r.start) || null }));
+          const sum = dossierSummary(doc, wdocs);
+          const myTurn = wdocs.filter((w) => isMyReviewTurn(w.doc, ctx, user)).length;
+          const to = `${base}/themes/${t.id}/review`;
+          const weekLock = lockOf('week', t.id);
+          return (
+            <Card
+              key={t.id}
+              title={`Chủ đề ${ti + 1}: ${t.name}`}
+              bodyClass={null}
+              actions={
+                <>
+                  <span className="muted text-sm">
+                    {ddmm(t.start)} → {ddmm(t.end)} · {themeWeeks.length} tuần
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn--outline-primary btn--sm"
+                    onClick={() => exportTheme(t, ti + 1, doc, themeWeeks, 'doc')}
+                  >
+                    <FileDown size={16} aria-hidden /> Xuất hồ sơ chủ đề
+                  </button>
+                </>
+              }
+            >
+              <div className="card__body stack">
+                <div className="row row--between row--wrap gap-3">
+                  <div className="row row--wrap gap-2">
+                    {/* Gửi hồ sơ và duyệt từng tuần ở trang hồ sơ chủ đề */}
+                    <Link className="fw-600" to={to}>
+                      Hồ sơ chủ đề:
                     </Link>
-                  )}
+                    {sum.sent ? (
+                      <>
+                        <span className="chip chip--green">
+                          Đã duyệt {sum.approved}/{sum.total} tuần
+                        </span>
+                        {sum.pending > 0 && <span className="chip chip--purple">Chờ duyệt {sum.pending} tuần</span>}
+                        {sum.rejected > 0 && <span className="chip chip--red">Bị trả lại {sum.rejected} tuần</span>}
+                      </>
+                    ) : (
+                      <>
+                        <span className="chip chip--gray">Chưa gửi</span>
+                        <span className="muted text-sm">{due(doc, t.start)}</span>
+                      </>
+                    )}
+                    {myTurn > 0 && (
+                      <Link className="chip chip--purple" to={to}>
+                        Chờ bạn duyệt {myTurn} tuần
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="table-wrap">
-                <table className="table ga-plan-table ga-goal-table">
-                  <colgroup>
-                    <col />
-                    <col className="ga-goal-table__group" />
-                    <col className="ga-goal-table__group" />
-                    <col className="ga-goal-table__code" />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>Nội dung</th>
-                      <th className="ga-goal-table__fixed">Thời gian</th>
-                      <th>Trạng thái</th>
-                      <th className="center">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>
-                        <div className="ga-goal-table__pad">
-                          <div className="fw-600">Kế hoạch giáo dục chủ đề</div>
-                          <span className="text-xs muted">Duyệt cùng khung tuần 1</span>
-                        </div>
-                      </td>
-                      <td className="ga-goal-table__fixed">
-                        <div className="ga-goal-table__pad">
-                          {ddmm(t.start)} → {ddmm(t.end)}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="ga-goal-table__pad">{status(doc, 'Chưa lập')}</div>
-                      </td>
-                      <td className="center">
-                        <div className="ga-goal-table__pad">{action(doc, `${base}/themes/${t.id}`, 'Lập', to)}</div>
-                      </td>
-                    </tr>
-                    {themeRows.map((r) => {
-                      if (r.type === 'break')
+                <div className="table-wrap">
+                  <table className="table ga-plan-table ga-goal-table">
+                    <colgroup>
+                      <col />
+                      <col className="ga-goal-table__group" />
+                      <col className="ga-goal-table__group" />
+                      <col className="ga-goal-table__code" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>Nội dung</th>
+                        <th className="ga-goal-table__fixed">Thời gian</th>
+                        <th>Trạng thái</th>
+                        <th className="center">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <div className="ga-goal-table__pad">
+                            <div className="fw-600">Kế hoạch giáo dục chủ đề</div>
+                            <span className="text-xs muted">Duyệt cùng khung tuần 1</span>
+                          </div>
+                        </td>
+                        <td className="ga-goal-table__fixed">
+                          <div className="ga-goal-table__pad">
+                            {ddmm(t.start)} → {ddmm(t.end)}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="ga-goal-table__pad">{status(doc, 'Chưa lập')}</div>
+                        </td>
+                        <td className="center">
+                          <div className="ga-goal-table__pad">{action(doc, `${base}/themes/${t.id}`, 'Lập', to)}</div>
+                        </td>
+                      </tr>
+                      {themeRows.map((r) => {
+                        if (r.type === 'break')
+                          return (
+                            <tr key={`b-${r.start}`}>
+                              <td colSpan={4} className="ga-goal-table__fixed">
+                                <div className="ga-goal-table__pad">
+                                  Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        const wdoc = weekPlans.find((w) => w.classId === classId && w.weekStart === r.start) || null;
+                        const name = branch?.names?.[r.start]?.trim();
+                        const lock = !wdoc && weekLock;
                         return (
-                          <tr key={`b-${r.start}`}>
-                            <td colSpan={4} className="ga-goal-table__fixed">
+                          <tr key={r.start}>
+                            <td>
                               <div className="ga-goal-table__pad">
-                                Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
+                                <div className={name ? 'fw-600' : 'muted'}>
+                                  Chủ đề nhánh {themeWeeks.indexOf(r) + 1}: {name || 'chưa đặt tên'}
+                                </div>
+                                <span className="text-xs muted">Kế hoạch tuần + 5 kế hoạch ngày</span>
+                              </div>
+                            </td>
+                            <td className="ga-goal-table__fixed">
+                              <div className="ga-goal-table__pad">
+                                Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
+                                {r.start === thisWeek && <span className="chip chip--blue"> Tuần này</span>}
+                              </div>
+                            </td>
+                            <td>
+                              <div className="ga-goal-table__pad">{lock ? lockedStatus(lock) : status(wdoc, 'Chưa soạn')}</div>
+                            </td>
+                            <td className="center">
+                              <div className="ga-goal-table__pad">
+                                {!lock && action(wdoc, `${base}/weeks/${r.start}`, 'Tạo', `${to}?week=${r.start}`)}
                               </div>
                             </td>
                           </tr>
                         );
-                      const wdoc = weekPlans.find((w) => w.classId === classId && w.weekStart === r.start) || null;
-                      const name = branch?.names?.[r.start]?.trim();
-                      return (
-                        <tr key={r.start}>
-                          <td>
-                            <div className="ga-goal-table__pad">
-                              <div className={name ? 'fw-600' : 'muted'}>
-                                Chủ đề nhánh {themeWeeks.indexOf(r) + 1}: {name || 'chưa đặt tên'}
-                              </div>
-                              <span className="text-xs muted">Kế hoạch tuần + 5 kế hoạch ngày</span>
-                            </div>
-                          </td>
-                          <td className="ga-goal-table__fixed">
-                            <div className="ga-goal-table__pad">
-                              Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
-                              {r.start === thisWeek && <span className="chip chip--blue"> Tuần này</span>}
-                            </div>
-                          </td>
-                          <td>
-                            <div className="ga-goal-table__pad">{status(wdoc, 'Chưa soạn')}</div>
-                          </td>
-                          <td className="center">
-                            <div className="ga-goal-table__pad">
-                              {action(wdoc, `${base}/weeks/${r.start}`, 'Tạo', `${to}?week=${r.start}`)}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          </Card>
-        );
-      })}
+            </Card>
+          );
+        })}
     </div>
   );
 }

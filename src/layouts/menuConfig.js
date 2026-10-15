@@ -72,7 +72,8 @@ const ITEMS = {
 
   eduSchool: { label: 'Kế hoạch toàn trường', to: '/education/school' },
   eduGoals: { label: 'Mục tiêu năm học', to: '/education/goals' },
-  eduClass: { label: 'Kế hoạch của lớp', to: '/education/class' },
+  eduBranch: { label: 'Chủ đề nhánh', to: '/education/branches' },
+  eduClass: { label: 'Kế hoạch chủ đề', to: '/education/class' },
   eduPlanReviews: { label: 'Duyệt kế hoạch, giáo án', to: '/education/plan-reviews' },
   eduSettings: { label: 'Cấu hình kế hoạch', to: '/education/settings' },
 
@@ -173,7 +174,7 @@ const MENUS = {
     link('approvals'),
     group('children', ['childList', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'mealHandover', 'pickup']),
-    group('education', ['eduGoals', 'eduClass', 'eduPlanReviews']),
+    group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews']),
     group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
     group('facility', ['assets', 'myFacilityReports', 'transfers', 'inspections']),
     account,
@@ -183,7 +184,7 @@ const MENUS = {
     link('home'),
     group('children', ['childList', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
-    group('education', ['eduClass']),
+    group('education', ['eduGoals', 'eduBranch', 'eduClass']),
     group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
     group('facility', ['assets', 'myFacilityReports', 'transfers', 'inspections']),
     account,

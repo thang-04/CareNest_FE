@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Plus, Search } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
@@ -7,6 +7,8 @@ import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/ed
 import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/components/education-plan/eduUi';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 import { yearSigners } from '@/utils/education-plan/yearPlanDoc';
+import { useClasses } from '@/hooks/useSchool';
+import { LoadingState } from '@/components/ui/States';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -19,6 +21,29 @@ function SignState({ plan }) {
           {title}: {sign ? `đã ký (${sign.name})` : 'chưa ký'}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Mục "Mục tiêu năm học": giáo viên chỉ xem kế hoạch năm đã ban hành của khối lớp mình dạy; vai trò khác thấy danh sách. */
+export function GoalsEntry() {
+  const { user } = useEducationPlan();
+  return user.role === ROLES.TEACHER ? <TeacherYearGoals /> : <GoalListPage />;
+}
+
+function TeacherYearGoals() {
+  const { user, goals, schoolYear } = useEducationPlan();
+  const { classes, loading } = useClasses();
+  if (loading) return <LoadingState />;
+  const groups = classes.filter((c) => (c.teacherIds || []).includes(user.id)).map((c) => c.ageGroupId);
+  const issued = goals.find((g) => groups.includes(g.ageGroupId) && g.schoolYear === schoolYear && g.status === EDU_STATUS.APPROVED);
+  if (issued) return <Navigate to={`/education/goals/${issued.id}`} replace />;
+  return (
+    <div className="page ga-page">
+      <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Mục tiêu năm học' }]} title="Mục tiêu năm học" />
+      <Card>
+        <EmptyState title="Kế hoạch giáo dục năm học của khối chưa được ban hành" />
+      </Card>
     </div>
   );
 }

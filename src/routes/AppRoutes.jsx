@@ -45,12 +45,15 @@ const InspectionPrintPage = lazy(() => import('@/pages/inventory-inspection/Insp
 
 const EducationPlanLayout = lazy(() => import('@/components/education-plan/EducationPlanLayout'));
 const EducationHomeRedirect = lazy(() => import('@/pages/education-plan/EducationHomeRedirect'));
-const GoalListPage = lazy(() => import('@/pages/education-plan/GoalListPage'));
+const GoalsEntry = lazy(() => import('@/pages/education-plan/GoalListPage').then((m) => ({ default: m.GoalsEntry })));
 const GoalFormPage = lazy(() => import('@/pages/education-plan/GoalFormPage'));
 const GoalDetailPage = lazy(() => import('@/pages/education-plan/GoalDetailPage'));
 const ClassPlanPage = lazy(() => import('@/pages/education-plan/ClassPlanPage'));
 const ClassPlanRedirect = lazy(() => import('@/pages/education-plan/ClassPlanPage').then((m) => ({ default: m.ClassPlanRedirect })));
 const BranchPlanPage = lazy(() => import('@/pages/education-plan/BranchPlanPage'));
+const BranchPlanLegacyRedirect = lazy(() =>
+  import('@/pages/education-plan/BranchPlanPage').then((m) => ({ default: m.BranchPlanLegacyRedirect })),
+);
 const ClassThemePlanPage = lazy(() => import('@/pages/education-plan/ClassThemePlanPage'));
 const ThemeDossierPage = lazy(() => import('@/pages/education-plan/ThemeDossierPage'));
 const WeekPlanPage = lazy(() => import('@/pages/education-plan/WeekPlanPage'));
@@ -261,14 +264,19 @@ export function AppRoutes() {
           <Route path="education" element={<EducationPlanLayout />}>
             <Route index element={edu(EDU_VIEW, <EducationHomeRedirect />)} />
             <Route path="school" element={edu([ROLES.PRINCIPAL], <SchoolPlansPage />)} />
-            <Route path="goals" element={edu(EDU_VP_TL, <GoalListPage />)} />
+            <Route path="goals" element={edu(EDU_ALL, <GoalsEntry />)} />
             <Route path="goals/new" element={edu(EDU_VP_TL, <GoalFormPage />)} />
             <Route path="goals/:id" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalDetailPage />)} />
             <Route path="goals/:id/edit" element={edu(EDU_VP_TL, <GoalFormPage />)} />
             <Route path="class" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect />)} />
             <Route path="class/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanPage />)} />
-            <Route path="class/:classId/branches" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanPage />)} />
-            <Route path="class/:classId/branches/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanPage />)} />
+            <Route
+              path="branches"
+              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect toOf={(id) => `/education/branches/${id}`} />)}
+            />
+            <Route path="branches/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanPage />)} />
+            <Route path="class/:classId/branches" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
+            <Route path="class/:classId/branches/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
             <Route path="class/:classId/themes/:themeId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassThemePlanPage />)} />
             <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeDossierPage />)} />
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
