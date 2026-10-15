@@ -1,8 +1,8 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, Notice, PageHead, YearPlanStatusBadge } from '@/components/education-plan/eduUi';
-import { isMyReviewTurn, useClassPlanContext } from '@/components/education-plan/planUi';
+import { isMyReviewTurn, reviewLabel, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
-import { BookOpen, Check, Eye, FileDown, PenLine, Plus } from '@/components/ui/icons';
+import { Check, Eye, FileDown, PenLine, Plus } from '@/components/ui/icons';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
@@ -12,7 +12,6 @@ import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanCon
 import {
   createBlocker,
   ddmm,
-  dossierSummary,
   dueState,
   isEditableStatus,
   themeGoalBlocks,
@@ -54,11 +53,6 @@ export default function ClassPlanPage() {
       desc={`${group?.name || ''} · Giáo viên: ${teachers.map((t) => t.fullName).join(', ') || 'chưa phân công'}`}
       actions={
         <>
-          {yearPlan && (
-            <Link className="btn btn--outline-primary" to={`/education/goals/${yearPlan.id}`}>
-              <BookOpen size={16} aria-hidden /> Xem kế hoạch năm học của khối
-            </Link>
-          )}
           {ctx.canPickClass && (
             <select
               className="select"
@@ -83,8 +77,8 @@ export default function ClassPlanPage() {
       <div className="page ga-page">
         {head}
         <Notice tone="warn">
-          Kế hoạch giáo dục năm học của khối {group?.name} chưa được ban hành (cần chữ ký của Tổ trưởng và Phó hiệu trưởng), nên lớp chưa
-          lập được chủ đề nhánh và giáo án.
+          Kế hoạch giáo dục năm học của khối {group?.name} chưa được ban hành (Phó hiệu trưởng cần duyệt ban hành), nên lớp chưa lập được
+          chủ đề nhánh và giáo án.
           {pendingYearPlan && (
             <>
               {' '}
@@ -140,16 +134,14 @@ export default function ClassPlanPage() {
   const branchApproved = branch?.status === EDU_STATUS.APPROVED;
   // Giáo án tuần chỉ tạo được khi đã lưu kế hoạch chủ đề; dòng chưa tới lượt hiện lý do, không có nút tạo
   const lockOf = (kind, themeId) => createBlocker(kind, { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
+  // Lý do để ở tooltip, không hiện thêm dòng chữ trong bảng
   const lockedStatus = (lock) => (
-    <div className="stack">
-      <span>
-        <span className="chip chip--gray">Chưa thể bắt đầu</span>
-      </span>
-      <span className="text-xs muted">{lock.message}</span>
-    </div>
+    <span className="chip chip--gray" title={lock.message}>
+      Chưa thể bắt đầu
+    </span>
   );
   /*
-   * Một nút cho mỗi tài liệu, theo việc người dùng cần làm (gửi / ký / duyệt nằm cuối trang của tài liệu):
+   * Một nút cho mỗi tài liệu, theo việc người dùng cần làm (gửi / duyệt nằm cuối trang của tài liệu):
    * đến lượt duyệt → Duyệt; giáo viên còn sửa được → Sửa / Tạo; còn lại → Xem.
    */
   const action = (doc, to, create, reviewTo = to) => {
@@ -183,15 +175,13 @@ export default function ClassPlanPage() {
         </Notice>
       )}
 
-      {/* Mỗi chủ đề là một hồ sơ như file của trường: gửi cả hồ sơ một lần, duyệt riêng từng tuần (kế hoạch chủ đề cùng tuần 1) */}
+      {/* Mỗi chủ đề là một hồ sơ như file của trường: gửi, duyệt cả hồ sơ một lần; đã duyệt thì xuất để in, ký tay */}
       {branchApproved &&
         themes.map((t, ti) => {
           const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
           const themeRows = rows.filter((r) => r.theme.id === t.id);
           const themeWeeks = themeRows.filter((r) => r.type === 'week');
-          const wdocs = themeWeeks.map((r) => ({ doc: weekPlans.find((w) => w.classId === classId && w.weekStart === r.start) || null }));
-          const sum = dossierSummary(doc, wdocs);
-          const myTurn = wdocs.filter((w) => isMyReviewTurn(w.doc, ctx, user)).length;
+          const sent = !!doc && doc.status !== EDU_STATUS.DRAFT;
           const to = `${base}/themes/${t.id}/review`;
           const weekLock = lockOf('week', t.id);
           return (
@@ -209,7 +199,7 @@ export default function ClassPlanPage() {
                     className="btn btn--outline-primary btn--sm"
                     onClick={() => exportTheme(t, ti + 1, doc, themeWeeks, 'doc')}
                   >
-                    <FileDown size={16} aria-hidden /> Xuất hồ sơ chủ đề
+                    <FileDown size={16} aria-hidden /> Xuất Word
                   </button>
                 </>
               }
@@ -217,30 +207,17 @@ export default function ClassPlanPage() {
               <div className="card__body stack">
                 <div className="row row--between row--wrap gap-3">
                   <div className="row row--wrap gap-2">
-                    {/* Gửi hồ sơ và duyệt từng tuần ở trang hồ sơ chủ đề */}
-                    <Link className="fw-600" to={to}>
-                      Hồ sơ chủ đề:
-                    </Link>
-                    {sum.sent ? (
-                      <>
-                        <span className="chip chip--green">
-                          Đã duyệt {sum.approved}/{sum.total} tuần
-                        </span>
-                        {sum.pending > 0 && <span className="chip chip--purple">Chờ duyệt {sum.pending} tuần</span>}
-                        {sum.rejected > 0 && <span className="chip chip--red">Bị trả lại {sum.rejected} tuần</span>}
-                      </>
-                    ) : (
-                      <>
-                        <span className="chip chip--gray">Chưa gửi</span>
-                        <span className="muted text-sm">{due(doc, t.start)}</span>
-                      </>
-                    )}
-                    {myTurn > 0 && (
-                      <Link className="chip chip--purple" to={to}>
-                        Chờ bạn duyệt {myTurn} tuần
-                      </Link>
-                    )}
+                    {sent ? <EduStatusBadge status={doc.status} /> : <span className="muted text-sm">{due(doc, t.start)}</span>}
                   </div>
+                  {/* Gửi và duyệt ở cuối trang xem cả tập; nút nói rõ việc cần làm */}
+                  {doc && (
+                    <Link
+                      className={`btn btn--sm ${reviewLabel(doc, ctx, user, 'theme') === 'Xem cả kế hoạch chủ đề' ? 'btn--outline-primary' : 'btn--primary'}`}
+                      to={to}
+                    >
+                      {reviewLabel(doc, ctx, user, 'theme')}
+                    </Link>
+                  )}
                 </div>
                 <div className="table-wrap">
                   <table className="table ga-plan-table ga-goal-table">
@@ -263,7 +240,6 @@ export default function ClassPlanPage() {
                         <td>
                           <div className="ga-goal-table__pad">
                             <div className="fw-600">Kế hoạch giáo dục chủ đề</div>
-                            <span className="text-xs muted">Duyệt cùng khung tuần 1</span>
                           </div>
                         </td>
                         <td className="ga-goal-table__fixed">
@@ -299,7 +275,6 @@ export default function ClassPlanPage() {
                                 <div className={name ? 'fw-600' : 'muted'}>
                                   Chủ đề nhánh {themeWeeks.indexOf(r) + 1}: {name || 'chưa đặt tên'}
                                 </div>
-                                <span className="text-xs muted">Kế hoạch tuần + 5 kế hoạch ngày</span>
                               </div>
                             </td>
                             <td className="ga-goal-table__fixed">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FileDown, Printer, Save } from '@/components/ui/icons';
-import { Card, EmptyState, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { Card, EduStatusBadge, EmptyState, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
@@ -72,7 +72,7 @@ function ThemePlanInner() {
   const goals = blocks.flatMap((b) => b.goals);
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const weeks = yearWeeks(yearPlan).filter((w) => w.type === 'week' && w.theme.id === themeId);
-  // Nội dung mặc định = các nội dung đã tích cho chủ đề ở kế hoạch năm; lớp được viết lại cho cụ thể
+  // Nội dung lấy nguyên từ kế hoạch năm (không sửa); giáo viên viết hoạt động giáo dục
   const rowOf = (g) => themeRowOf(draft, g);
   const setRow = (g, field, value) => {
     setDraft((d) => ({ ...d, rows: { ...d.rows, [g.id]: { ...rowOf(g), [field]: value } } }));
@@ -115,11 +115,11 @@ function ThemePlanInner() {
       <PageHead
         crumbs={crumbs}
         title={`Kế hoạch giáo dục chủ đề: ${theme.name}`}
-        desc={`${cls.name} · ${weeks.length} tuần, ${ddmm(theme.start)} → ${ddmm(theme.end)}`}
+        desc={<EduStatusBadge status={status} size="lg" />}
         actions={
           <>
             <button type="button" className="btn btn--ghost" onClick={() => exportThemeFile(exportArgs, 'doc')}>
-              <FileDown size={16} aria-hidden /> Xuất Word hồ sơ chủ đề
+              <FileDown size={16} aria-hidden /> Xuất Word
             </button>
             <button
               type="button"

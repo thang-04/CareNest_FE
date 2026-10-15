@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, FileDown, Printer, Save } from '@/components/ui/icons';
 import { Card, EmptyState, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
-import { DocStatusStrip, SignPanel, WeekApproval, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
+import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { LoadingState } from '@/components/ui/States';
@@ -27,8 +27,8 @@ const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ
 
 /**
  * Giáo án một tuần của lớp = kế hoạch tuần (mục đích, chuẩn bị, bảng hoạt động × Thứ 2–6) + 5 kế hoạch ngày.
- * Không gửi riêng: gửi và duyệt trong hồ sơ chủ đề (kế hoạch chủ đề + giáo án tất cả các nhánh), người duyệt ký
- * khung "Duyệt giáo án từ ngày … đến ngày …" của từng tuần. review = đường dẫn duyệt cũ, chuyển sang hồ sơ chủ đề.
+ * Không gửi riêng: gửi và duyệt trong hồ sơ chủ đề (kế hoạch chủ đề + giáo án tất cả các nhánh); bản in có khung
+ * "Duyệt giáo án từ ngày … đến ngày …" để ký tay. review = đường dẫn duyệt cũ, chuyển sang hồ sơ chủ đề.
  */
 export default function WeekPlanPage({ review = false }) {
   const { classId, weekStart } = useParams();
@@ -48,7 +48,7 @@ function WeekReviewRedirect() {
 function WeekPlanInner() {
   const { classId, weekStart } = useParams();
   const navigate = useNavigate();
-  const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, actOnClassDoc, toast } = useEducationPlan();
+  const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, toast } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, isClassTeacher } = ctx;
   const saved = weekPlans.find((w) => w.classId === classId && w.weekStart === weekStart) || null;
@@ -122,16 +122,7 @@ function WeekPlanInner() {
         desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`}
         actions={
           <>
-            {prev && (
-              <Link className="btn btn--ghost btn--sm" to={`${base}/weeks/${prev.start}`}>
-                <ArrowLeft size={16} aria-hidden /> Tuần {prev.no}
-              </Link>
-            )}
-            {next && (
-              <Link className="btn btn--ghost btn--sm" to={`${base}/weeks/${next.start}`}>
-                Tuần {next.no} <ArrowRight size={16} aria-hidden />
-              </Link>
-            )}
+            {/* In giáo án tuần ở mọi bước (đã duyệt thì in để dạy hằng ngày) */}
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => exportWeekPlan(exportArgs, 'doc')}>
               <FileDown size={16} aria-hidden /> Xuất Word
             </button>
@@ -173,7 +164,27 @@ function WeekPlanInner() {
           Giáo án đã duyệt. Sau mỗi buổi dạy, ghi "Đánh giá trẻ trong ngày" và "Kế hoạch điều chỉnh" ở thẻ của ngày đó rồi bấm Lưu.
         </Notice>
       )}
-      <Card bodyClass={null}>
+      <Card
+        bodyClass={null}
+        foot={
+          // Chuyển tuần ở cuối trang, dồn sang bên phải (giữ kiểu nút cũ)
+          <>
+            <span />
+            <span className="row gap-2">
+              {prev && (
+                <Link className="btn btn--ghost btn--sm" to={`${base}/weeks/${prev.start}`}>
+                  <ArrowLeft size={16} aria-hidden /> Về tuần {prev.no}
+                </Link>
+              )}
+              {next && (
+                <Link className="btn btn--ghost btn--sm" to={`${base}/weeks/${next.start}`}>
+                  Sang tuần {next.no} <ArrowRight size={16} aria-hidden />
+                </Link>
+              )}
+            </span>
+          </>
+        }
+      >
         <div className="tabs" role="tablist">
           <button
             type="button"
@@ -205,19 +216,6 @@ function WeekPlanInner() {
           )}
         </div>
       </Card>
-      {saved && status !== EDU_STATUS.DRAFT && <WeekApproval doc={saved} week={week} ctx={ctx} />}
-      {/* Tuần bị trả lại: sửa rồi gửi lại ngay tại đây; người đến lượt duyệt ký ngay tại đây */}
-      {saved && status !== EDU_STATUS.DRAFT && (
-        <SignPanel
-          kind="week"
-          doc={saved}
-          ctx={ctx}
-          user={user}
-          dirty={dirty}
-          title={`Duyệt giáo án từ ngày ${fmtDate(week.start)} đến ngày ${fmtDate(week.end)}`}
-          onAct={(action, body) => actOnClassDoc('week', saved.id, { action, ...body })}
-        />
-      )}
     </div>
   );
 }

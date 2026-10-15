@@ -5,15 +5,15 @@ import { useClasses } from '@/hooks/useSchool';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { CLASS_DOC_LABELS, addDays, ddmm, themeNumber, themeWeeksOf } from '@/models/education-plan/classPlan';
+import { CLASS_DOC_LABELS, themeNumber, themeWeeksOf } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
 
 /**
- * Hộp duyệt: tổ trưởng thấy kế hoạch chủ đề, giáo án tuần của các lớp trong khối đang chờ tổ trưởng;
- * Phó HT thấy tài liệu chờ Phó HT và kế hoạch năm chờ ký ban hành. Danh sách chỉ để mở nhanh; quyền duyệt do service kiểm.
+ * Hộp duyệt: tổ trưởng thấy chủ đề nhánh, hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ tổ trưởng;
+ * Phó HT thấy chủ đề nhánh, hồ sơ chủ đề chờ Phó HT và kế hoạch năm chờ ban hành. Danh sách chỉ để mở nhanh; quyền duyệt do service kiểm.
  */
 export default function PlanReviewQueuePage() {
-  const { user, goals, branchPlans, weekPlans } = useEducationPlan();
+  const { user, goals, branchPlans, classThemePlans } = useEducationPlan();
   const navigate = useNavigate();
   const { classes, loading } = useClasses();
   if (loading) return <LoadingState />;
@@ -39,22 +39,19 @@ export default function PlanReviewQueuePage() {
             cls: '—',
             what: `Khối ${AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name || ''}, năm học ${g.schoolYear}`,
             to: `/education/goals/${g.id}`,
-            // Người gửi: người bấm "Gửi Phó HT ban hành" (tổ trưởng), không phải người ký sau cùng
-            by: [...(g.history || [])].reverse().find((h) => h.action?.startsWith('Gửi'))?.by,
+            by: g.sentBy?.name || [...(g.history || [])].reverse().find((h) => h.action?.startsWith('Gửi'))?.by,
             at: g.sentAt,
           }))
       : []),
     ...branchPlans.filter(mine).map((d) => ({ kind: 'branch', doc: d, what: 'Cả năm học', to: `/education/branches/${d.classId}` })),
-    // Hồ sơ chủ đề gửi một lần nhưng duyệt riêng từng tuần (khung tuần 1 duyệt luôn kế hoạch chủ đề)
-    ...weekPlans.filter(mine).map((d) => {
+    // Hồ sơ chủ đề gửi và duyệt một lần (kế hoạch chủ đề + giáo án các nhánh)
+    ...classThemePlans.filter(mine).map((d) => {
       const plan = goals.find((g) => g.id === d.yearPlanId);
-      const weeks = themeWeeksOf(plan, d.themeId);
-      const k = weeks.findIndex((w) => w.start === d.weekStart) + 1;
       return {
-        kind: 'week',
+        kind: 'theme',
         doc: d,
-        what: `Chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · nhánh ${k}/${weeks.length}, tuần ${d.weekNo} (${ddmm(d.weekStart)} → ${ddmm(addDays(d.weekStart, 4))})${k === 1 ? ' · kèm kế hoạch chủ đề' : ''}`,
-        to: `/education/class/${d.classId}/themes/${d.themeId}/review?week=${d.weekStart}`,
+        what: `Kế hoạch giáo dục chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · ${themeWeeksOf(plan, d.themeId).length} nhánh`,
+        to: `/education/class/${d.classId}/themes/${d.themeId}/review`,
       };
     }),
   ].map((it) => ({
@@ -75,7 +72,7 @@ export default function PlanReviewQueuePage() {
             ? 'Tài liệu của các lớp đang chờ Phó hiệu trưởng duyệt, và kế hoạch năm chờ ban hành.'
             : user.role === ROLES.PRINCIPAL
               ? 'Tài liệu của các lớp đang chờ Hiệu trưởng duyệt (theo cấu hình người ký).'
-              : 'Giáo án từng tuần trong hồ sơ chủ đề (tuần 1 kèm kế hoạch chủ đề) của các lớp trong khối chờ tổ trưởng duyệt. Tài liệu bạn duyệt chuyển tiếp tới người duyệt sau.'
+              : 'Chủ đề nhánh và kế hoạch giáo dục chủ đề của các lớp trong khối chờ tổ trưởng duyệt. Tài liệu bạn duyệt chuyển tiếp tới Phó hiệu trưởng.'
         }
       />
       <Card bodyClass={null}>

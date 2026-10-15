@@ -8,10 +8,9 @@
  * Nội dung tự soạn cho demo; không có dữ liệu trẻ hay tên người thật (tên là tài khoản demo).
  */
 import { emptyBranchPlan, emptyThemePlan, emptyWeekPlan, yearWeeks } from '@/models/education-plan/classPlan';
-import { makeSignatureSvg } from '@/mocks/signatureArt';
 
 /** Đổi giá trị này khi thay bộ dữ liệu demo: trình duyệt đang giữ dữ liệu cũ sẽ tự nạp bộ mới. */
-export const EDU_SEED_VERSION = 'thai-duong-demo-2026-10-15-ai2';
+export const EDU_SEED_VERSION = 'thai-duong-demo-2026-10-16-branch-tl';
 
 const YEAR = '2026 – 2027';
 const PLAN_ID = 'g-mgn-2627';
@@ -149,12 +148,9 @@ const rowsOf = (domain) =>
       : { id, ...r };
   });
 
-/* ---------- Chữ ký demo (ảnh nét ký vẽ bằng SVG, không phải chữ ký thật) ---------- */
-const demoSig = (name) => {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="280" height="112" viewBox="0 0 280 112"><path d="M14 74 C 44 22, 66 104, 96 58 S 146 34, 170 70 S 222 92, 262 40" fill="none" stroke="#1e3a8a" stroke-width="3" stroke-linecap="round"/><text x="140" y="104" font-family="serif" font-style="italic" font-size="16" fill="#1e3a8a" text-anchor="middle">${name}</text></svg>`;
-  return { type: 'saved', data: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` };
-};
-const signer = (userId, name, role, roleKey, at) => ({ userId, name, role, roleKey, at, sig: demoSig(name) });
+/* ---------- Người soạn / gửi / duyệt demo (không còn chữ ký trong hệ thống: duyệt xong in ra ký tay) ---------- */
+const person = (userId, name, role, title, at) => ({ userId, name, role, title, at });
+const approval = (userId, name, role, roleKey, at) => ({ userId, name, role, roleKey, at, note: '' });
 const log = (action, by, role, at, tone = '', note) => ({ action, by, role, at, tone, ...(note ? { note } : {}) });
 
 const buildYearPlan = () => {
@@ -174,7 +170,7 @@ const buildYearPlan = () => {
     schoolYear: YEAR,
     ageGroupId: 'ag-4',
     title: 'Kế hoạch giáo dục năm học 2026 – 2027 khối Mẫu giáo nhỡ',
-    description: 'Dữ liệu demo: Tổ trưởng và Phó hiệu trưởng đã ký, Phó hiệu trưởng đã ban hành để lớp lập chủ đề nhánh.',
+    description: 'Dữ liệu demo: Tổ trưởng soạn và gửi, Phó hiệu trưởng đã duyệt ban hành để lớp lập chủ đề nhánh.',
     status: 'APPROVED',
     createdAt: '2026-08-20',
     createdBy: 'Trần Thu Hà',
@@ -183,16 +179,12 @@ const buildYearPlan = () => {
     domains,
     themes: THEMES,
     breaks: BREAKS,
-    // Đã ban hành để demo phần ký ở cấp lớp (chủ đề nhánh, hồ sơ chủ đề)
-    builders: [
-      signer('u_ha', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', 'TEAM_LEADER', '2026-08-24 16:00'),
-      signer('u_lan', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', 'VICE_PRINCIPAL', '2026-08-25 08:30'),
-    ],
-    issued: signer('u_lan', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', 'VICE_PRINCIPAL', '2026-08-26 10:00'),
+    // Tổ trưởng soạn và gửi, Phó HT ban hành; bản in để trống chỗ ký tay
+    owner: person('u_ha', 'Trần Thu Hà', 'TEAM_LEADER', 'Tổ trưởng nhóm tuổi', '2026-08-20'),
+    sentBy: person('u_ha', 'Trần Thu Hà', 'TEAM_LEADER', 'Tổ trưởng nhóm tuổi', '2026-08-25'),
+    issued: person('u_lan', 'Nguyễn Thị Lan', 'VICE_PRINCIPAL', 'Phó hiệu trưởng', '2026-08-26'),
     history: [
-      log('Ký người xây dựng', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-08-24 16:00'),
-      log('Ký người xây dựng', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', '2026-08-25 08:30'),
-      log('Gửi Phó HT ban hành', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-08-25 09:00'),
+      log('Gửi Phó hiệu trưởng duyệt', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-08-25 09:00'),
       log('Ban hành', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', '2026-08-26 10:00', 'ok'),
     ],
   };
@@ -245,25 +237,22 @@ const buildClassDocs = (plan) => {
     ...emptyBranchPlan({ classId: CLASS_ID, yearPlanId: PLAN_ID }),
     names,
     status: 'APPROVED',
-    builders: [
-      signer('u_huong', 'Phạm Thu Hương', 'Giáo viên', 'TEACHER', '2026-09-01 10:00'),
-      signer('u_minhanh', 'Lê Minh Anh', 'Giáo viên', 'TEACHER', '2026-09-01 15:00'),
+    approvals: [
+      approval('u_ha', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', 'TEAM_LEADER', '2026-09-01 17:00'),
+      approval('u_lan', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', 'VICE_PRINCIPAL', '2026-09-02 08:30'),
     ],
-    approvals: [{ ...signer('u_lan', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', 'VICE_PRINCIPAL', '2026-09-02 08:30'), note: '' }],
     history: [
-      log('Ký người xây dựng', 'Phạm Thu Hương', 'Giáo viên', '2026-09-01 10:00'),
-      log('Gửi Phó Hiệu trưởng duyệt', 'Lê Minh Anh', 'Giáo viên', '2026-09-01 15:00'),
+      log('Gửi Tổ trưởng duyệt', 'Lê Minh Anh', 'Giáo viên', '2026-09-01 15:00'),
+      log('Tổ trưởng duyệt, chuyển Phó Hiệu trưởng', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-09-01 17:00', 'ok'),
       log('Phó hiệu trưởng duyệt', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', '2026-09-02 08:30', 'ok'),
     ],
   };
-  // Chồi 2 (demo AI + ký + duyệt): mới đặt tên 4 chủ đề đầu, các tuần sau còn trống; cô Mai đã ký, chờ cô Hà
-  // (đăng nhập Trần Thu Hà) dùng AI gợi ý, lưu, ký và gửi; Phó HT (Nguyễn Thị Lan) duyệt thì mở Kế hoạch chủ đề
+  // Chồi 2 (demo AI + gửi + duyệt): mới đặt tên 4 chủ đề đầu, các tuần sau còn trống; cô Hà (đăng nhập Trần Thu Hà)
+  // dùng AI gợi ý rồi gửi; Phó HT (Nguyễn Thị Lan) duyệt thì mở Kế hoạch chủ đề và xuất file để in, ký tay
   const firstThemes = new Set(plan.themes.slice(0, 4).map((t) => t.id));
   const branch2 = {
     ...emptyBranchPlan({ classId: 'cls_c1_c2', yearPlanId: PLAN_ID }),
     names: Object.fromEntries(weeks.map((w, i) => [w.start, firstThemes.has(w.theme.id) ? BRANCH_NAMES[i] || '' : ''])),
-    builders: [signer('u_mai', 'Trần Thị Mai', 'Giáo viên', 'TEACHER', '2026-09-02 09:30')],
-    history: [log('Ký người xây dựng', 'Trần Thị Mai', 'Giáo viên', '2026-09-02 09:30')],
   };
 
   const theme = emptyThemePlan({ classId: CLASS_ID, yearPlanId: PLAN_ID, themeId: 't-tmn' });
@@ -371,25 +360,13 @@ export const buildSeedEducationPlans = () => {
 /** Nạp bộ demo mới khi dữ liệu trong trình duyệt là bộ cũ. Trả true nếu đã thay. */
 export const ensureEduDemo = (db) => {
   if (db.eduSeedVersion === EDU_SEED_VERSION) return false;
-  // Dữ liệu trường đã lưu trong trình duyệt từ trước: bổ sung giáo viên thứ hai của Chồi 1 (mặc định 2 giáo viên ký)
+  // Dữ liệu trường đã lưu trong trình duyệt từ trước: bổ sung giáo viên thứ hai của Chồi 1
   const c1 = (db.classes || []).find((c) => c.id === 'cls_c1_c1');
   if (c1 && !c1.teacherIds.includes('u_huong')) c1.teacherIds = [...c1.teacherIds, 'u_huong'];
-  // Chữ ký đã lưu cho giáo viên khối Mẫu giáo nhỡ để demo "Chọn chữ ký đã lưu" khi ký chủ đề nhánh
-  db.signatures = db.signatures || [];
-  [
-    ['u_ha', 'Trần Thu Hà'],
-    ['u_minhanh', 'Lê Minh Anh'],
-    ['u_huong', 'Phạm Thu Hương'],
-  ].forEach(([userId, name]) => {
-    if (db.signatures.some((x) => x.userId === userId)) return;
-    db.signatures.push({
-      id: `sig_${userId}`,
-      userId,
-      imageUrl: makeSignatureSvg(name, 0),
-      isDefault: true,
-      createdAt: '2026-09-01T08:00:00.000Z',
-    });
-  });
+  // Cấu hình cũ chỉ có Phó HT duyệt chủ đề nhánh: thêm bước Tổ trưởng theo chốt 16/10
+  if (db.eduConfig?.signers?.branch?.join() === 'VICE_PRINCIPAL') db.eduConfig.signers.branch = ['TEAM_LEADER', 'VICE_PRINCIPAL'];
+  // Bỏ chữ ký đã lưu từng thêm cho demo ký chủ đề nhánh (hệ thống không còn ký ảnh)
+  db.signatures = (db.signatures || []).filter((x) => !['sig_u_ha', 'sig_u_minhanh', 'sig_u_huong'].includes(x.id));
   Object.assign(db, buildSeedEducationPlans(), { eduSeedVersion: EDU_SEED_VERSION });
   return true;
 };

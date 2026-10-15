@@ -6,15 +6,10 @@
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
 import { AGE_GROUPS, DOMAINS, domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, themeAbbr, themeGoalIds, weekCount } from '@/models/education-plan/goalTable';
-import { SIGN_ROLES, getEduConfig, roleOfSigner } from '@/models/education-plan/eduConfig';
+import { SIGN_ROLES, getEduConfig } from '@/models/education-plan/eduConfig';
 
 export const esc = (s = '') => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 export const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
-const pad = (n) => String(n).padStart(2, '0');
-const todayIso = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
 // Tên xã của trường lấy từ địa chỉ mẫu in ("…, xã Thượng Hồng, …") cho dòng cơ quan chủ quản và nơi ký
 export const commune = (DEFAULT_PRINT_TEMPLATE.address.match(/xã ([^,]+)/i) || [])[1] || '';
 
@@ -53,29 +48,14 @@ export const docHeader = () => `<table class="plain"><tr>
 </tr></table>`;
 
 /**
- * Người xây dựng phải ký của kế hoạch năm theo cấu hình (mặc định Tổ trưởng, Phó HT):
- * [{ role, title, sign }] — sign là chữ ký đã có (Phó HT: ký người xây dựng, hoặc chữ ký ban hành ở dữ liệu cũ).
+ * Người xây dựng kế hoạch năm theo cấu hình (mặc định Phó HT, Tổ trưởng) để in họ tên dưới chỗ ký tay:
+ * [{ role, title, name }]. Tên lấy từ người soạn, người gửi và người ban hành; chưa có thì để trống cho viết tay.
  */
 export const yearSigners = (plan) =>
-  getEduConfig().signers.year.map((role) => ({
-    role,
-    title: SIGN_ROLES[role],
-    sign: (plan.builders || []).find((b) => roleOfSigner(b) === role) || (role === 'VICE_PRINCIPAL' ? plan.issued : null) || null,
-  }));
-
-/** Tổ trưởng và Phó HT (dùng ở những chỗ chỉ cần 2 người này). */
-export const planSigners = (plan) => {
-  const list = yearSigners(plan);
-  return {
-    leader: list.find((x) => x.role === 'TEAM_LEADER')?.sign || null,
-    vice: list.find((x) => x.role === 'VICE_PRINCIPAL')?.sign || null,
-  };
-};
-
-export const sigImg = (s) =>
-  s?.sig?.data && /^(data:|blob:|https?:|\/)/.test(s.sig.data)
-    ? `<img src="${esc(s.sig.data)}" alt="" width="140" height="56" style="width:140px;height:56px;object-fit:contain" />`
-    : '';
+  getEduConfig().signers.year.map((role) => {
+    const people = [plan.owner, plan.sentBy, plan.issued].filter(Boolean);
+    return { role, title: SIGN_ROLES[role], name: people.find((p) => p.role === role)?.name || '' };
+  });
 
 const domainTitle = (name) => `${domainRoman(name)}. Giáo dục ${domainLabel(name).replace(/^P/, 'p')}`;
 
@@ -146,14 +126,13 @@ const partB = (domains, themes, breaks, numbers) => {
 <tbody>${rows.join('')}</tbody></table>`;
 };
 
+// Chỗ ký tay: ngày ban hành (chưa có thì để trống), chức danh, khoảng trống ký, họ tên
 const signBlock = (plan) => {
   const list = yearSigners(plan);
-  const first = list.find((x) => x.sign)?.sign;
-  const date = first?.at || todayIso();
-  const [y, m, d] = date.slice(0, 10).split('-');
+  const date = plan.issued?.at;
+  const [y, m, d] = date ? date.slice(0, 10).split('-') : ['……', '……', '……'];
   const width = Math.floor(100 / Math.max(list.length, 1));
-  const col = (x) =>
-    `<td class="c" style="width:${width}%"><b>${esc(x.title)}</b><br/><div class="sign">${sigImg(x.sign)}</div><b>${esc(x.sign?.name || '')}</b></td>`;
+  const col = (x) => `<td class="c" style="width:${width}%"><b>${esc(x.title)}</b><br/><div class="sign"></div><b>${esc(x.name)}</b></td>`;
   return `<table class="plain sign-block"><tr><td style="width:30%"></td><td style="width:70%" class="c">
 <i>${esc(commune)}, ngày ${d} tháng ${m} năm ${y}</i><br/><b>Người xây dựng kế hoạch</b>
 <table class="plain"><tr>${list.map(col).join('')}</tr></table>
@@ -161,7 +140,7 @@ const signBlock = (plan) => {
 };
 
 /**
- * HTML đầy đủ của kế hoạch năm học. plan: { schoolYear, ageGroupId, domains (dạng hàng), themes, breaks, builders, issued };
+ * HTML đầy đủ của kế hoạch năm học. plan: { schoolYear, ageGroupId, domains (dạng hàng), themes, breaks, owner, sentBy, issued };
  * numbers: số MT theo id mục tiêu.
  */
 export const yearPlanHtml = (plan, numbers) => {
@@ -190,11 +169,18 @@ export const asciiName = (text) =>
     .replace(/Đ/g, 'D')
     .replace(/[^\w-]+/g, '_');
 
-/** Tên file không dấu: Ke_hoach_giao_duc_nam_hoc_2026-2027_Mau_giao_be. */
+/** Tên file theo bộ file mẫu MN Thái Dương: "1. KẾ HOẠCH GIÁO DỤC NĂM HỌC 2026 - 2027 KHỐI MẪU GIÁO NHỠ". */
 export const yearPlanFileName = (plan) => {
   const age = (AGE_GROUPS.find((a) => a.id === plan.ageGroupId)?.name || '').split(' (')[0];
-  return asciiName(`Ke_hoach_giao_duc_nam_hoc_${(plan.schoolYear || '').replace(/\s/g, '')}_${age}`);
+  return fileTitle(`1. KẾ HOẠCH GIÁO DỤC NĂM HỌC ${(plan.schoolYear || '').replace(/\s*[-–]\s*/, ' - ')} KHỐI ${age.toUpperCase()}`);
 };
+
+/** Tên file có dấu như file của trường, bỏ ký tự hệ điều hành không cho dùng. */
+export const fileTitle = (text) =>
+  text
+    .replace(/[\\/:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 /** Tải file .doc (HTML Word mở được, không cần thư viện). */
 export const downloadDoc = (html, baseName) => {

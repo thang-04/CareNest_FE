@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Download, FileDown, Printer, Save, Send, Upload } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Check, Download, FileDown, Printer, Save, Send, Upload } from '@/components/ui/icons';
+import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE, isStandardDomain } from '@/models/education-plan/educationPlanConstants';
@@ -17,16 +18,13 @@ import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-pla
 import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
 import { Card, Field, Modal, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
-import { SignaturePicker } from '@/components/signature/SignaturePicker';
-import PlanSignatures from '@/components/education-plan/PlanSignatures';
-import { downloadYearPlanDoc, printYearPlan, yearSigners } from '@/utils/education-plan/yearPlanDoc';
 
 const suggestTitle = (year, ageGroupId) => {
   const ag = AGE_GROUPS.find((a) => a.id === ageGroupId);
   return ag ? `Kế hoạch giáo dục năm học ${year} nhóm tuổi ${ag.name.split(' (')[0]}` : '';
 };
 
-const STEPS = ['Thông tin chung', 'Mục tiêu, nội dung và chủ đề', 'Xác nhận và ký'];
+const STEPS = ['Thông tin chung', 'Mục tiêu, nội dung và chủ đề', 'Xác nhận'];
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 const emptyDomain = (name) => ({ id: uid(), name, rows: [] });
@@ -46,8 +44,6 @@ const emptyForm = (schoolYear, ageGroupId = '') => ({
   domains: DOMAINS.map((name) => emptyDomain(name)),
   themes: [],
   breaks: [],
-  builders: [],
-  signature: null,
 });
 
 const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
@@ -75,8 +71,6 @@ export default function GoalFormPage() {
             (existing.themes || []).map((t) => ({ ...t, abbr: t.abbr || initialsOf(t.name) })),
           ),
           breaks: existing.breaks || [],
-          builders: existing.builders || [],
-          signature: null,
         }
       : emptyForm(schoolYear, isLeader ? user.ageGroupId : ''),
   );
@@ -98,8 +92,12 @@ export default function GoalFormPage() {
     });
   };
   const ageName = AGE_GROUPS.find((a) => a.id === form.ageGroupId)?.name;
-  // Tổ trưởng chỉ soạn kế hoạch của khối mình; bản đã gửi / đã ban hành không sửa được
-  const canEdit = editableStatus(existing?.status) && (isVp || (isLeader && form.ageGroupId === user.ageGroupId));
+  // Người tạo (tổ trưởng hoặc Phó HT) là người duy nhất sửa khi còn nháp; đang chờ duyệt thì Phó HT được tự sửa chỗ nhỏ
+  const owner = existing?.owner || null;
+  const isOwner = !owner || owner.userId === user.id;
+  const pendingEdit = isVp && existing?.status === EDU_STATUS.PENDING_VP;
+  const canEdit =
+    pendingEdit || (editableStatus(existing?.status) && isOwner && (isVp || (isLeader && form.ageGroupId === user.ageGroupId)));
 
   // Dòng chủ đề / đợt nghỉ còn trống (vừa Enter thêm) không tính vào kiểm tra, cột tích và bản lưu
   const themes = form.themes.filter((t) => !isBlankTheme(t));
@@ -127,7 +125,6 @@ export default function GoalFormPage() {
       if (e.themes) setTab('themes');
       else if (e.domains) setTab('goals');
     }
-    if (s === 2 && !form.signature) e.signature = 'Ký xác nhận phần bạn xây dựng';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -140,8 +137,10 @@ export default function GoalFormPage() {
     window.scrollTo({ top: 0 });
   };
 
-  const build = (status) => {
-    const today = new Date().toISOString().slice(0, 10);
+  const today = () => new Date().toISOString().slice(0, 10);
+  const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: today() };
+  const log = (action, note) => [...(form.history || []), { at: today(), by: user.name, action, ...(note ? { note } : {}) }];
+  const build = (status, extra = {}) => {
     const ag = AGE_GROUPS.find((a) => a.id === form.ageGroupId);
     const agCode = (ag?.name.split(' (')[0] || 'X')
       .split(' ')
@@ -160,9 +159,6 @@ export default function GoalFormPage() {
       ),
     }));
     const nos = numberGoals(domains);
-    const sig = form.signature
-      ? { userId: user.id, name: user.name, role: user.title, roleKey: user.role, at: today, sig: form.signature }
-      : null;
     return {
       id: form.id || `g-${uid()}`,
       code: form.code || `KHNH-${form.schoolYear.slice(2, 4)}${form.schoolYear.slice(-2)}-${agCode}`,
@@ -171,14 +167,16 @@ export default function GoalFormPage() {
       title: form.title.trim(),
       description: form.description.trim(),
       status,
-      createdAt: form.createdAt || today,
-      sentAt: status === EDU_STATUS.PENDING_VP ? today : form.sentAt || null,
+      createdAt: form.createdAt || today(),
+      sentAt: form.sentAt || null,
       createdBy: form.createdBy || user.name,
+      owner: form.owner || me,
+      sentBy: form.sentBy || null,
+      issued: form.issued || null,
+      history: form.history || [],
       file: form.file || null,
       themes: themes.map((t) => ({ ...t, name: t.name.trim(), abbr: t.abbr.trim() })),
       breaks,
-      builders: sig ? [...form.builders.filter((b) => b.userId !== user.id), sig] : form.builders,
-      signature: sig ? sig.sig : existing?.signature || null,
       // items: danh sách mục tiêu (số MT, câu mục tiêu, nội dung) để các màn đọc mục tiêu năm vẫn dùng được
       domains: domains.map((d) => ({
         ...d,
@@ -186,11 +184,9 @@ export default function GoalFormPage() {
           .filter((r) => r.kind === 'goal')
           .map((r) => ({ id: r.id, code: `MT${nos[r.id]}`, text: r.text, contents: r.contents, requirements: [] })),
       })),
+      ...extra,
     };
   };
-
-  // Bản xem trước / xuất file ở bước ký: dữ liệu như khi lưu, kèm chữ ký đang chọn và chữ ký ban hành (nếu có)
-  const reviewPlan = step === 2 ? { ...build(existing?.status || EDU_STATUS.DRAFT), issued: existing?.issued || null } : null;
 
   const saveDraft = () => {
     if (!form.title.trim() || !form.ageGroupId) {
@@ -198,17 +194,22 @@ export default function GoalFormPage() {
       validate(0);
       return;
     }
-    const item = build(EDU_STATUS.DRAFT);
+    // Phó HT tự sửa bản đang chờ duyệt: giữ trạng thái chờ, ghi lại lần sửa
+    const item = pendingEdit ? build(EDU_STATUS.PENDING_VP, { history: log('Phó hiệu trưởng chỉnh sửa') }) : build(EDU_STATUS.DRAFT);
     saveGoal(item);
-    toast('Đã lưu nháp kế hoạch năm học');
+    toast(pendingEdit ? 'Đã lưu chỉnh sửa' : 'Đã lưu nháp kế hoạch năm học');
     navigate(`/education/goals/${item.id}`);
   };
 
+  // send: tổ trưởng gửi Phó HT duyệt; issue: Phó HT duyệt ban hành (bản mình soạn hoặc bản đang chờ)
   const submit = () => {
-    const item = build(EDU_STATUS.PENDING_VP);
+    const item =
+      confirm === 'send'
+        ? build(EDU_STATUS.PENDING_VP, { sentAt: today(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt') })
+        : build(EDU_STATUS.APPROVED, { issued: me, history: log(pendingEdit ? 'Phó hiệu trưởng chỉnh sửa và ban hành' : 'Ban hành') });
     saveGoal(item);
     setConfirm(false);
-    toast('Đã gửi Phó hiệu trưởng ký ban hành');
+    toast(confirm === 'send' ? 'Đã gửi Phó hiệu trưởng duyệt' : 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
     navigate(`/education/goals/${item.id}`);
   };
 
@@ -290,9 +291,13 @@ export default function GoalFormPage() {
           title="Kế hoạch năm học"
         />
         <Notice tone="warn">
-          {existing && !editableStatus(existing.status)
-            ? 'Kế hoạch đã gửi hoặc đã ban hành nên không sửa được.'
-            : 'Bạn chỉ lập, sửa được kế hoạch năm học của nhóm tuổi mình phụ trách.'}
+          {existing?.status === EDU_STATUS.APPROVED
+            ? 'Kế hoạch đã ban hành nên không sửa được.'
+            : existing?.status === EDU_STATUS.PENDING_VP
+              ? 'Kế hoạch đang chờ Phó hiệu trưởng duyệt nên không sửa được.'
+              : existing && !isOwner
+                ? `Kế hoạch do ${owner.name} soạn. Khi còn là bản nháp, chỉ người soạn được sửa.`
+                : 'Bạn chỉ lập, sửa được kế hoạch năm học của nhóm tuổi mình phụ trách.'}
         </Notice>
       </div>
     );
@@ -455,13 +460,17 @@ export default function GoalFormPage() {
             num="4"
             actions={
               <div className="row">
-                <button type="button" className="btn btn--sm btn--ghost" onClick={() => downloadYearPlanDoc(reviewPlan, numbers)}>
+                <button
+                  type="button"
+                  className="btn btn--sm btn--ghost"
+                  onClick={() => downloadYearPlanDoc(build(existing?.status || EDU_STATUS.DRAFT), numbers)}
+                >
                   <FileDown size={16} aria-hidden /> Xuất Word
                 </button>
                 <button
                   type="button"
                   className="btn btn--sm btn--ghost"
-                  onClick={() => printYearPlan(reviewPlan, numbers) || toast(POPUP_BLOCKED, 'warn')}
+                  onClick={() => printYearPlan(build(existing?.status || EDU_STATUS.DRAFT), numbers) || toast(POPUP_BLOCKED, 'warn')}
                 >
                   <Printer size={16} aria-hidden /> In / Lưu PDF
                 </button>
@@ -489,21 +498,6 @@ export default function GoalFormPage() {
               )}
             </div>
           </Card>
-          <PlanSignatures plan={reviewPlan} className="mt-16" />
-          <div className="mt-16">
-            <Card title="Ký xác nhận">
-              <div className="review-sign">
-                <div style={{ flex: 1 }}>
-                  <div className="subsection-title">Chữ ký người xây dựng ({user.title})</div>
-                  <SignaturePicker
-                    value={form.signature?.data || null}
-                    onChange={({ url }) => set({ signature: url ? { type: 'saved', data: url } : null })}
-                    error={errors.signature}
-                  />
-                </div>
-              </div>
-            </Card>
-          </div>
         </>
       )}
 
@@ -513,7 +507,7 @@ export default function GoalFormPage() {
         </button>
         <div className="row">
           <button type="button" className="btn" onClick={saveDraft}>
-            <Save size={16} aria-hidden /> Lưu nháp
+            <Save size={16} aria-hidden /> {pendingEdit ? 'Lưu chỉnh sửa' : 'Lưu nháp'}
           </button>
           {step > 0 && (
             <button type="button" className="btn" onClick={() => setStep(step - 1)}>
@@ -526,27 +520,15 @@ export default function GoalFormPage() {
             </button>
           ) : (
             <>
-              <button type="button" className={`btn ${isLeader ? '' : 'btn--primary'}`} onClick={() => validate(2) && saveDraft()}>
-                <Save size={16} aria-hidden /> Ký và lưu
-              </button>
-              {isLeader && (
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={() =>
-                    validate(2) &&
-                    (yearSigners(reviewPlan).every((x) => x.sign)
-                      ? setConfirm(true)
-                      : toast(
-                          `Còn thiếu chữ ký: ${yearSigners(reviewPlan)
-                            .filter((x) => !x.sign)
-                            .map((x) => x.title)
-                            .join(', ')}. Ký và lưu, chờ đủ chữ ký rồi gửi ban hành.`,
-                          'warn',
-                        ))
-                  }
-                >
-                  <Send size={16} aria-hidden /> Gửi Phó HT ban hành
+              {/* Tổ trưởng soạn thì gửi Phó HT duyệt; Phó HT (bản mình soạn hoặc bản đang chờ) duyệt ban hành luôn */}
+              {isLeader && !pendingEdit && (
+                <button type="button" className="btn btn--primary" onClick={() => setConfirm('send')}>
+                  <Send size={16} aria-hidden /> Gửi Phó HT duyệt
+                </button>
+              )}
+              {isVp && (
+                <button type="button" className="btn btn--primary" onClick={() => setConfirm('issue')}>
+                  <Check size={16} aria-hidden /> {pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
                 </button>
               )}
             </>
@@ -556,7 +538,7 @@ export default function GoalFormPage() {
 
       {confirm && (
         <Modal
-          title="Gửi Phó hiệu trưởng ban hành"
+          title={confirm === 'send' ? 'Gửi Phó hiệu trưởng duyệt' : 'Ban hành kế hoạch năm học'}
           onClose={() => setConfirm(false)}
           footer={
             <>
@@ -564,12 +546,17 @@ export default function GoalFormPage() {
                 Quay lại kiểm tra
               </button>
               <button className="btn btn--primary" onClick={submit}>
-                <Send size={16} aria-hidden /> Gửi
+                {confirm === 'send' ? <Send size={16} aria-hidden /> : <Check size={16} aria-hidden />}{' '}
+                {confirm === 'send' ? 'Gửi' : 'Ban hành'}
               </button>
             </>
           }
         >
-          <p>{`Gửi "${form.title}" cho Phó hiệu trưởng ký ban hành? Kế hoạch bị khóa cho tới khi được ban hành hoặc bị trả lại.`}</p>
+          <p>
+            {confirm === 'send'
+              ? `Gửi "${form.title}" cho Phó hiệu trưởng duyệt? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`
+              : `Ban hành "${form.title}"? Giáo viên trong khối sẽ thấy kế hoạch này. Sau đó xuất file để in và ký.`}
+          </p>
         </Modal>
       )}
     </div>

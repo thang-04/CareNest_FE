@@ -11,11 +11,15 @@ export const SIGN_ROLES = { TEAM_LEADER: 'Tổ trưởng', VICE_PRINCIPAL: 'Phó
 export const PENDING_OF = { TEAM_LEADER: 'PENDING_TL', VICE_PRINCIPAL: 'PENDING_VP', PRINCIPAL: 'PENDING_HT' };
 
 export const SIGN_DOCS = [
-  { key: 'year', label: 'Kế hoạch năm học', hint: 'Người xây dựng cùng ký; đủ chữ ký thì Tổ trưởng gửi, Phó HT ban hành.' },
-  { key: 'branch', label: 'Chủ đề nhánh và thời gian', hint: 'Giáo viên soạn, ký; người duyệt theo thứ tự.' },
+  {
+    key: 'year',
+    label: 'Kế hoạch năm học',
+    hint: 'Tổ trưởng hoặc Phó HT soạn; Tổ trưởng gửi, Phó HT duyệt ban hành; bản in có chỗ ký tay của những người này.',
+  },
+  { key: 'branch', label: 'Chủ đề nhánh và thời gian', hint: 'Giáo viên soạn, gửi; người duyệt theo thứ tự rồi in ra ký tay.' },
   {
     key: 'week',
-    label: 'Hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh)',
+    label: 'Kế hoạch giáo dục chủ đề (kế hoạch chủ đề + giáo án các nhánh)',
     hint: 'Giáo viên gửi cả hồ sơ một lần (không ký); mỗi tuần duyệt riêng, người duyệt ký khung duyệt của tuần đó; kế hoạch chủ đề duyệt cùng tuần 1.',
   },
 ];
@@ -37,7 +41,8 @@ export const DEFAULT_EDU_CONFIG = {
   extraDomains: [],
   signers: {
     year: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
-    branch: ['VICE_PRINCIPAL'],
+    // Tiền chốt 16/10: chủ đề nhánh cũng Tổ trưởng duyệt rồi Phó HT (bỏ Tổ trưởng khi Tổ trưởng dạy lớp đó)
+    branch: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
     // Tiền chốt 15/10: giáo án tuần (tuần đầu kèm kế hoạch chủ đề) Tổ trưởng duyệt rồi Phó HT duyệt
     week: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
   },

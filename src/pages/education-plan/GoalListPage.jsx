@@ -6,21 +6,18 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/components/education-plan/eduUi';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
-import { yearSigners } from '@/utils/education-plan/yearPlanDoc';
 import { useClasses } from '@/hooks/useSchool';
 import { LoadingState } from '@/components/ui/States';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
-/** Trạng thái 2 chữ ký cần để ban hành: Tổ trưởng (ký khi gửi) và Phó HT (ký ban hành). */
-function SignState({ plan }) {
+/** Người soạn kế hoạch (chỉ người này sửa khi còn nháp) và người gửi Phó HT duyệt. */
+function Owner({ plan }) {
+  const o = plan.owner || (plan.createdBy ? { name: plan.createdBy } : null);
   return (
     <div className="text-xs">
-      {yearSigners(plan).map(({ role, title, sign }) => (
-        <div key={role} className={sign ? '' : 'muted'}>
-          {title}: {sign ? `đã ký (${sign.name})` : 'chưa ký'}
-        </div>
-      ))}
+      <div>{o ? `${o.name}${o.title ? ` (${o.title})` : ''}` : '—'}</div>
+      {plan.sentBy && plan.sentBy.userId !== o?.userId && <div className="muted">Gửi: {plan.sentBy.name}</div>}
     </div>
   );
 }
@@ -79,7 +76,7 @@ export default function GoalListPage() {
         title="Mục tiêu năm học"
         desc={
           isVP || isLeader
-            ? 'Mỗi nhóm tuổi một kế hoạch: Phó hiệu trưởng và tổ trưởng cùng soạn, tổ trưởng gửi, Phó hiệu trưởng ký ban hành.'
+            ? 'Mỗi nhóm tuổi một kế hoạch do tổ trưởng hoặc Phó hiệu trưởng soạn. Tổ trưởng gửi, Phó hiệu trưởng duyệt ban hành rồi in ra ký.'
             : `Kế hoạch năm học ${schoolYear} đã ban hành cho nhóm tuổi của bạn (chỉ xem).`
         }
         actions={
@@ -153,7 +150,7 @@ export default function GoalListPage() {
                   <th>Nhóm tuổi áp dụng</th>
                   <th>Số mục tiêu</th>
                   <th>Ngày gửi</th>
-                  <th>Chữ ký người xây dựng</th>
+                  <th>Người soạn</th>
                   <th>Trạng thái</th>
                 </tr>
               </thead>
@@ -170,7 +167,7 @@ export default function GoalListPage() {
                     </td>
                     <td>{fmtDate(g.sentAt)}</td>
                     <td>
-                      <SignState plan={g} />
+                      <Owner plan={g} />
                     </td>
                     <td>
                       <YearPlanStatusBadge status={g.status} />

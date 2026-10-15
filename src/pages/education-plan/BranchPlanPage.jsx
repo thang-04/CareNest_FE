@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Check, Lightbulb, Wand2, X } from '@/components/ui/icons';
+import { Check, FileDown, Lightbulb, Printer, Wand2, X } from '@/components/ui/icons';
+import { exportBranchFile } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
-import { Card, EmptyState, PageHead } from '@/components/education-plan/eduUi';
-import { Cell, DocSignatures, SignPanel, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import { Card, EduStatusBadge, EmptyState, PageHead } from '@/components/education-plan/eduUi';
+import { Cell, SignPanel, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { getEduConfig } from '@/models/education-plan/eduConfig';
 import { ddmm, emptyBranchPlan, isEditableStatus, monthOf, yearWeeks } from '@/models/education-plan/classPlan';
 
 /**
  * "Dự kiến chủ đề nhánh và thời gian thực hiện" theo mẫu MN Thái Dương.
  * Tháng | Chủ đề (gộp dòng) | Chủ đề nhánh (giáo viên gõ) | Tuần (đánh số cả năm, dòng nghỉ) | Ghi chú.
- * Mục "Chủ đề nhánh" trên sidebar, lập một lần cho cả năm; ký người xây dựng, gửi duyệt và duyệt ở cuối trang.
+ * Mục "Chủ đề nhánh" trên sidebar, lập một lần cho cả năm; gửi duyệt và duyệt ở cuối trang, đã duyệt thì in ra ký tay.
  */
 export default function BranchPlanPage() {
   const { classId } = useParams();
@@ -23,6 +23,7 @@ export default function BranchPlanPage() {
 }
 
 const AUTOSAVE_MS = 1200;
+const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 // Bản gửi đi khi tự lưu: ô AI chưa ✓ / ✗ vẫn lưu tên trước đó, chỉ lưu khi giáo viên đã giữ
 const payloadOf = (draft, pending) =>
   draft && { ...draft, names: { ...draft.names, ...Object.fromEntries(Object.entries(pending).map(([w, p]) => [w, p.prev])) } };
@@ -209,6 +210,7 @@ function BranchPlanInner({ classId }) {
     setPending({});
   };
   const aiBusy = !!aiTheme || !!rewriting;
+  const printArgs = { doc: saved || draft, cls, yearPlan, teachers };
   // Hỏi trước khi chạy AI; kết quả là bản nháp để giáo viên giữ / bỏ
   const confirmSuggest = (theme) => {
     const n = rows.filter((r) => r.type === 'week' && (!theme || r.theme.id === theme.id) && !draft.names[r.start]?.trim()).length;
@@ -236,10 +238,10 @@ function BranchPlanInner({ classId }) {
       confirmLabel: 'Dùng AI viết lại',
       run: () => rewrite(r),
     });
-  // Chỉ nhắc khi ký / gửi (thông báo nhỏ ở góc), không hiện sẵn trên trang
+  // Chỉ nhắc khi gửi (thông báo nhỏ ở góc), không hiện sẵn trên trang
   const act = (action, body) => {
-    if ((action === 'sign' || action === 'submit') && pendingWeeks.length) {
-      toast(`Còn ${pendingWeeks.length} tên do AI điền chưa giữ hoặc bỏ. Bấm ✓ / ✗ hoặc "Giữ tất cả" trước khi ký.`, 'warn');
+    if (action === 'submit' && pendingWeeks.length) {
+      toast(`Còn ${pendingWeeks.length} tên do AI điền chưa giữ hoặc bỏ. Bấm ✓ / ✗ hoặc "Giữ tất cả" trước khi gửi.`, 'warn');
       return null;
     }
     if (action === 'submit' && empty > 0) {
@@ -262,8 +264,20 @@ function BranchPlanInner({ classId }) {
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Chủ đề nhánh' }]}
         title={`Chủ đề nhánh ${cls.name}`}
+        desc={<EduStatusBadge status={status} size="lg" />}
         actions={
           <>
+            {/* Xuất / in ở mọi bước; đã duyệt thì Phó HT in ra ký, giáo viên in để dùng hằng ngày */}
+            <button type="button" className="btn btn--ghost" onClick={() => exportBranchFile(printArgs, 'doc')}>
+              <FileDown size={16} aria-hidden /> Xuất Word
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => exportBranchFile(printArgs, 'print') || toast(POPUP_BLOCKED, 'warn')}
+            >
+              <Printer size={16} aria-hidden /> In / Lưu PDF
+            </button>
             {ctx.canPickClass && (
               <select
                 className="select"
@@ -483,7 +497,6 @@ function BranchPlanInner({ classId }) {
         }}
         onClose={() => setConfirm(null)}
       />
-      <DocSignatures doc={saved} teachers={teachers} approverRoles={getEduConfig().signers.branch} />
       {/* Ký, gửi, duyệt ngay cuối trang như trang mục tiêu năm; không mở hộp thoại */}
       <SignPanel kind="branch" doc={saved} ctx={ctx} user={user} dirty={unsaved || saveState.phase === 'saving'} onAct={act} />
     </div>
