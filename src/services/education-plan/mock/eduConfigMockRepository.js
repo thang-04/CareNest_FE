@@ -17,8 +17,7 @@ export const eduConfigMockRepository = {
     const next = withDefaults(cfg);
     // Kế hoạch năm do Phó HT ban hành nên Phó HT luôn là một người ký; tài liệu của lớp cần ít nhất một người duyệt
     if (!next.signers.year.includes(ROLES.VICE_PRINCIPAL)) throw new ApiError(400, 'Kế hoạch năm phải có Phó hiệu trưởng ký');
-    if (['branch', 'theme', 'week'].some((k) => !next.signers[k].length))
-      throw new ApiError(400, 'Mỗi loại tài liệu cần ít nhất một người duyệt');
+    if (['branch', 'week'].some((k) => !next.signers[k].length)) throw new ApiError(400, 'Mỗi loại tài liệu cần ít nhất một người duyệt');
     if (!next.weekRows.some((r) => r.key === 'hoc')) throw new ApiError(400, 'Không bỏ được dòng Hoạt động học');
     if (next.weekRows.some((r) => !r.label.trim())) throw new ApiError(400, 'Dòng hoạt động cần có tên');
     const names = next.extraDomains.map((d) => d.trim().toLowerCase());

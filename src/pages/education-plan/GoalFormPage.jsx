@@ -284,7 +284,7 @@ export default function GoalFormPage() {
 
   if (!canEdit)
     return (
-      <div className="page">
+      <div className="page ga-page">
         <PageHead
           crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Mục tiêu năm học', to: '/education/goals' }]}
           title="Kế hoạch năm học"
@@ -298,7 +298,7 @@ export default function GoalFormPage() {
     );
 
   return (
-    <div className="page">
+    <div className="page ga-page">
       <div className="ga-sticky-head">
         <PageHead
           crumbs={[

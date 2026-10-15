@@ -1,11 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Check, PenLine, Send, Undo2 } from '@/components/ui/icons';
+import { Check, Send, Undo2 } from '@/components/ui/icons';
 import {
   Card,
   EduStatusBadge,
   Field,
   History,
-  Modal,
   Notice,
   SignatureBox,
   SignatureView,
@@ -19,6 +18,7 @@ import { ROLES } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { toRows } from '@/models/education-plan/goalTable';
+import { submitBlocker } from '@/models/education-plan/classPlan';
 import { PENDING_OF, SIGN_ROLES, getEduConfig } from '@/models/education-plan/eduConfig';
 
 /* ---------- Ô nhập trong bảng (cùng kiểu ô của bảng mục tiêu năm) ---------- */
@@ -112,95 +112,126 @@ export function useClassPlanContext(classId) {
 
 /* ---------- Ký, gửi, duyệt ---------- */
 
+// Chủ đề nhánh duyệt theo signers.branch; hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) theo signers.week
+const signerKey = (kind) => (kind === 'branch' ? 'branch' : 'week');
+
 /** Chuỗi duyệt theo cấu hình của trường (bỏ bước tổ trưởng khi tổ trưởng dạy lớp đó); chỉ để hiển thị, service quyết định thật. */
-const chainOf = (kind, skipLeader) => {
-  const roles = getEduConfig().signers[kind].filter((r) => r !== ROLES.TEAM_LEADER || !skipLeader);
-  return `Giáo viên soạn, ký → ${roles.length ? roles.map((r) => `${SIGN_ROLES[r]} duyệt và ký`).join(' → ') : 'không cần duyệt'}`;
+export const chainOf = (kind, skipLeader) => {
+  const roles = getEduConfig().signers[signerKey(kind)].filter((r) => r !== ROLES.TEAM_LEADER || !skipLeader);
+  // Mẫu trường: chủ đề nhánh có chữ ký người xây dựng; hồ sơ chủ đề chỉ có chữ ký người duyệt ở từng tuần
+  return `Giáo viên soạn, ${kind === 'branch' ? 'ký' : 'gửi'} → ${roles.length ? roles.map((r) => `${SIGN_ROLES[r]} duyệt và ký`).join(' → ') : 'không cần duyệt'}`;
 };
 
+/** Đến lượt người dùng duyệt tài liệu: trạng thái chờ đúng vai trò; tổ trưởng phải là tổ trưởng của khối (chỉ là UX). */
+export const isMyReviewTurn = (doc, ctx, user) =>
+  !!doc && doc.status === PENDING_OF[user.role] && (user.role !== ROLES.TEAM_LEADER || ctx.isGroupLeader);
+
+const isOpen = (doc) => !doc?.status || doc.status === EDU_STATUS.DRAFT || doc.status === EDU_STATUS.REJECTED;
+
+/** Nhãn nút sang trang gửi / duyệt theo việc người dùng cần làm. */
+export function reviewLabel(doc, ctx, user, kind = 'branch') {
+  const noun = kind === 'branch' ? '' : ' hồ sơ chủ đề';
+  if (isMyReviewTurn(doc, ctx, user)) return `Duyệt${noun}`;
+  if (ctx.isClassTeacher && isOpen(doc)) return kind === 'branch' ? 'Ký, gửi duyệt' : `Gửi duyệt${noun}`;
+  return kind === 'branch' ? 'Xem duyệt, chữ ký' : `Xem${noun}`;
+}
+
 /**
- * Trạng thái + nút theo vai trò cho tài liệu của lớp: giáo viên ký người xây dựng / gửi duyệt,
- * tổ trưởng / Phó HT duyệt (ký) hoặc trả lại (bắt buộc lý do). onAct(action, body) trả tài liệu mới hoặc null.
+ * Phần ký / gửi / duyệt ở CUỐI trang (như trang mục tiêu năm của Phó HT), không mở hộp thoại:
+ * - giáo viên: chủ đề nhánh ký người xây dựng rồi gửi; hồ sơ chủ đề gửi một lần (không ký); tuần bị trả lại gửi lại;
+ * - người đến lượt duyệt: nhận xét + chữ ký rồi "Duyệt và ký", hoặc ghi lý do rồi "Trả lại".
+ * kind: branch | theme (hồ sơ chủ đề) | week. onAct(action, body) trả tài liệu mới hoặc null.
  */
-export function ReviewBar({ kind, doc, title, ctx, onAct, dirty, user }) {
-  const { isClassTeacher, isGroupLeader, skipLeader } = ctx;
-  const [modal, setModal] = useState(null);
+export function SignPanel({ kind, doc, ctx, user, dirty, onAct, title = 'Ký, gửi duyệt và duyệt', note: hint }) {
+  const { branchPlans, weekPlans, classThemePlans } = useEducationPlan();
   const [note, setNote] = useState('');
   const [signature, setSignature] = useState(null);
-  const [tried, setTried] = useState(false);
+  const [tried, setTried] = useState(null);
+  const [busy, setBusy] = useState(false);
   const status = doc?.status || EDU_STATUS.DRAFT;
-  const editable = status === EDU_STATUS.DRAFT || status === EDU_STATUS.REJECTED;
-  const signed = (doc?.builders || []).some((b) => b.userId === user.id);
-  const canTeacherAct = isClassTeacher && editable;
-  // Đến lượt người dùng duyệt: trạng thái chờ đúng vai trò; tổ trưởng phải là tổ trưởng của khối
-  const canReview = status === PENDING_OF[user.role] && (user.role !== ROLES.TEAM_LEADER || isGroupLeader);
+  // Hồ sơ chủ đề không duyệt chung: duyệt ở khung từng tuần
+  const canReview = kind !== 'theme' && isMyReviewTurn(doc, ctx, user);
+  // Giáo viên gửi: chủ đề nhánh (Nháp / Bị trả lại), hồ sơ chủ đề (Nháp), tuần bị trả lại (gửi lại riêng)
+  const canSend =
+    ctx.isClassTeacher &&
+    !!doc &&
+    (kind === 'branch' ? isOpen(doc) : kind === 'theme' ? status === EDU_STATUS.DRAFT : status === EDU_STATUS.REJECTED);
+  const builderSigns = kind === 'branch';
   const lastReject = [...(doc?.history || [])].reverse().find((h) => h.tone === 'err');
-  const needSig = modal === 'sign' || modal === 'submit' || modal === 'approve';
-
-  const open = (m) => {
-    setNote('');
-    setSignature(null);
-    setTried(false);
-    setModal(m);
-  };
-  const confirm = async () => {
-    setTried(true);
-    if (modal === 'reject' && !note.trim()) return;
-    if (needSig && !signature) return;
-    const res = await onAct(modal, { note: note.trim() || undefined, signature: needSig ? signature : undefined });
-    if (res) setModal(null);
-  };
+  const orderBlock = canSend ? submitBlocker(kind, doc, { branchPlans, weekPlans, classThemePlans, yearPlan: ctx.yearPlan }) : null;
   const blocked = dirty || !doc?.id;
+  const run = async (action) => {
+    setTried(action);
+    if (action === 'reject' && !note.trim()) return;
+    const needSig = action === 'approve' || (action === 'submit' && builderSigns);
+    if (needSig && !signature) return;
+    setBusy(true);
+    const res = await onAct(action, { note: note.trim() || undefined, signature: needSig ? signature : undefined });
+    setBusy(false);
+    if (res) {
+      setNote('');
+      setSignature(null);
+      setTried(null);
+    }
+  };
+  const sendLabel = kind === 'branch' ? 'Ký và gửi duyệt' : kind === 'theme' ? 'Gửi duyệt hồ sơ chủ đề' : 'Gửi lại tuần này';
 
   return (
-    <Card
-      title={title}
-      actions={
-        <div className="row row--wrap">
-          {canTeacherAct && !signed && (
-            <button
-              type="button"
-              className="btn btn--outline-primary btn--sm"
-              disabled={blocked}
-              title={blocked ? 'Lưu trước khi ký' : undefined}
-              onClick={() => open('sign')}
-            >
-              <PenLine size={16} aria-hidden /> Ký người xây dựng
-            </button>
-          )}
-          {canTeacherAct && (
-            <button
-              type="button"
-              className="btn btn--primary btn--sm"
-              disabled={blocked}
-              title={blocked ? 'Lưu trước khi gửi' : undefined}
-              onClick={() => open('submit')}
-            >
-              <Send size={16} aria-hidden /> Ký và gửi duyệt
-            </button>
-          )}
-          {canReview && (
-            <>
-              <button type="button" className="btn btn--outline-primary btn--sm" onClick={() => open('reject')}>
-                <Undo2 size={16} aria-hidden /> Trả lại
-              </button>
-              <button type="button" className="btn btn--primary btn--sm" onClick={() => open('approve')}>
-                <Check size={16} aria-hidden /> Duyệt và ký
-              </button>
-            </>
-          )}
-        </div>
-      }
-    >
+    <Card title={title}>
       <div className="stack">
-        <div className="row row--wrap">
+        <div className="row row--wrap gap-2">
           <EduStatusBadge status={status} />
-          <span className="muted text-sm">{chainOf(kind, skipLeader)}</span>
+          <span className="muted text-sm">{chainOf(kind, ctx.skipLeader)}</span>
         </div>
+        {hint && <span className="muted text-sm">{hint}</span>}
         {status === EDU_STATUS.REJECTED && lastReject?.note && (
           <Notice tone="err">
             Bị trả lại bởi {lastReject.by} ({fmtDateTime(lastReject.at)}): {lastReject.note}
           </Notice>
+        )}
+        {orderBlock && <Notice tone="warn">{orderBlock}</Notice>}
+        {(canSend || canReview) && (
+          <>
+            <Field
+              label={canReview ? 'Nhận xét (bắt buộc khi trả lại)' : 'Ghi chú gửi kèm'}
+              error={tried === 'reject' && !note.trim() ? 'Vui lòng ghi lý do trả lại' : undefined}
+            >
+              <textarea className="textarea" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+            </Field>
+            {(canReview || builderSigns) && (
+              <div className="review-sign">
+                <div style={{ flex: 1 }}>
+                  <div className="subsection-title">
+                    {canReview ? `Chữ ký người duyệt (${SIGN_ROLES[user.role] || ''})` : 'Chữ ký người xây dựng (giáo viên)'}
+                  </div>
+                  <SignatureBox value={signature} onChange={setSignature} invalid={!!tried && tried !== 'reject' && !signature} />
+                </div>
+              </div>
+            )}
+            <div className="row row--wrap gap-2">
+              {canSend && (
+                <button
+                  type="button"
+                  className="btn btn--warning"
+                  disabled={busy || blocked || !!orderBlock}
+                  title={orderBlock || (blocked ? 'Lưu trước khi gửi' : undefined)}
+                  onClick={() => run('submit')}
+                >
+                  <Send size={16} aria-hidden /> {sendLabel}
+                </button>
+              )}
+              {canReview && (
+                <>
+                  <button type="button" className="btn btn--outline-danger" disabled={busy} onClick={() => run('reject')}>
+                    <Undo2 size={16} aria-hidden /> Trả lại
+                  </button>
+                  <button type="button" className="btn btn--success" disabled={busy} onClick={() => run('approve')}>
+                    <Check size={16} aria-hidden /> Duyệt và ký
+                  </button>
+                </>
+              )}
+            </div>
+          </>
         )}
         <details>
           <summary className="muted text-sm">Lịch sử xử lý ({doc?.history?.length || 0})</summary>
@@ -209,38 +240,102 @@ export function ReviewBar({ kind, doc, title, ctx, onAct, dirty, user }) {
           </div>
         </details>
       </div>
-      {modal && (
-        <Modal
-          title={{ sign: 'Ký người xây dựng', submit: 'Ký và gửi duyệt', approve: 'Duyệt và ký', reject: 'Trả lại để sửa' }[modal]}
-          onClose={() => setModal(null)}
-          footer={
-            <>
-              <button type="button" className="btn btn--ghost" onClick={() => setModal(null)}>
-                Hủy
-              </button>
-              <button type="button" className="btn btn--primary" onClick={confirm}>
-                Xác nhận
-              </button>
-            </>
-          }
-        >
-          {modal === 'submit' && <p>Sau khi gửi, nội dung bị khóa cho tới khi được duyệt hoặc bị trả lại. {chainOf(kind, skipLeader)}.</p>}
-          {modal !== 'sign' && (
-            <Field
-              label={modal === 'reject' ? 'Lý do trả lại' : 'Nhận xét'}
-              required={modal === 'reject'}
-              error={tried && modal === 'reject' && !note.trim() ? 'Vui lòng ghi lý do' : undefined}
-            >
-              <textarea className="textarea" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
-            </Field>
-          )}
-          {needSig && (
-            <Field label="Chữ ký" required>
-              <SignatureBox value={signature} onChange={setSignature} invalid={tried && !signature} />
-            </Field>
-          )}
-        </Modal>
-      )}
+    </Card>
+  );
+}
+
+/**
+ * Dòng trạng thái ở trang soạn: trạng thái, lý do bị trả lại và nút sang trang gửi / duyệt.
+ * Giáo án tuần và kế hoạch chủ đề đi theo hồ sơ chủ đề (dossier = bản ghi kế hoạch chủ đề).
+ * Phải lưu trước khi sang trang khác để không mất phần đang sửa.
+ */
+export function DocStatusStrip({ kind, doc, dossier, ctx, user, reviewTo, dirty, onGo }) {
+  const { branchPlans, weekPlans, classThemePlans } = useEducationPlan();
+  const holder = kind === 'branch' ? doc : kind === 'theme' ? doc : dossier;
+  const status = doc?.status || EDU_STATUS.DRAFT;
+  const teacherOpen = ctx.isClassTeacher && isOpen(holder);
+  const orderBlock =
+    teacherOpen && kind !== 'week'
+      ? submitBlocker(kind, holder, { branchPlans, weekPlans, classThemePlans, yearPlan: ctx.yearPlan })
+      : null;
+  const lastReject = [...(holder?.history || [])].reverse().find((h) => h.tone === 'err');
+  // Tuần duyệt riêng: đến lượt mình duyệt tuần này / tuần bị trả lại thì gửi lại riêng (ở trang hồ sơ chủ đề)
+  const rejected = ctx.isClassTeacher && doc?.status === EDU_STATUS.REJECTED;
+  const label =
+    kind === 'branch'
+      ? reviewLabel(doc, ctx, user, 'branch')
+      : kind === 'week' && isMyReviewTurn(doc, ctx, user)
+        ? 'Duyệt tuần này'
+        : rejected && kind === 'week'
+          ? 'Gửi lại tuần này'
+          : rejected && kind === 'theme'
+            ? 'Gửi lại cùng tuần 1'
+            : reviewLabel(holder, ctx, user, 'theme');
+  const blocked = dirty || (kind !== 'week' && !doc?.id);
+  return (
+    <Card>
+      <div className="stack">
+        <div className="row row--between row--wrap gap-3">
+          <div className="row row--wrap gap-2">
+            <span className="muted text-sm">Trạng thái:</span>
+            <EduStatusBadge status={status} />
+          </div>
+          <button
+            type="button"
+            className="btn btn--outline-primary btn--sm"
+            disabled={blocked}
+            title={blocked ? 'Lưu trước khi sang trang khác' : undefined}
+            onClick={() => onGo(reviewTo)}
+          >
+            {label.startsWith('Duyệt') ? <Check size={16} aria-hidden /> : <Send size={16} aria-hidden />} {label}
+          </button>
+        </div>
+        {holder?.status === EDU_STATUS.REJECTED && lastReject?.note && (
+          <Notice tone="err">
+            Bị trả lại bởi {lastReject.by} ({fmtDateTime(lastReject.at)}): {lastReject.note}
+          </Notice>
+        )}
+        {kind !== 'branch' && teacherOpen && (
+          <Notice>
+            Hồ sơ chủ đề gồm kế hoạch chủ đề và giáo án tất cả các nhánh, gửi duyệt một lần ở cuối trang hồ sơ chủ đề. Mỗi tuần duyệt riêng
+            (kế hoạch chủ đề duyệt cùng tuần 1); tuần bị trả lại thì sửa và gửi lại ngay ở cuối trang giáo án tuần đó.
+          </Notice>
+        )}
+        {orderBlock && <Notice tone="warn">{orderBlock} Vẫn soạn và lưu được.</Notice>}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Khung duyệt cuối giáo án tuần theo mẫu MN Thái Dương: "Duyệt giáo án từ ngày … đến ngày …", ngày ký, Người duyệt.
+ * Không có chữ ký người xây dựng.
+ */
+export function WeekApproval({ doc, week, ctx }) {
+  const approvals = doc?.approvals || [];
+  // Ô chưa ký theo chuỗi duyệt (bỏ tổ trưởng khi tổ trưởng dạy lớp đó)
+  const chain = getEduConfig().signers.week.filter((r) => r !== ROLES.TEAM_LEADER || !ctx?.skipLeader);
+  const slots =
+    doc?.status === EDU_STATUS.APPROVED || !chain.length
+      ? approvals
+      : chain.map((r) => approvals.find((a) => a.roleKey === r) || { pending: SIGN_ROLES[r] });
+  return (
+    <Card title={`Duyệt giáo án từ ngày ${fmtDate(week.start)} đến ngày ${fmtDate(week.end)}`}>
+      <div className="row row--wrap gap-3">
+        {(slots.length ? slots : [{ pending: '' }]).map((a, i) => (
+          <div key={i} className="stack center">
+            <div className="muted text-sm">
+              {a?.at
+                ? `Ngày ${Number(a.at.slice(8, 10))} tháng ${Number(a.at.slice(5, 7))} năm ${a.at.slice(0, 4)}`
+                : 'Ngày … tháng … năm …'}
+            </div>
+            <div className="fw-600">Người duyệt{a.role || a.pending ? ` (${a.role || a.pending})` : ''}</div>
+            {a.sig ? <SignatureView sig={a.sig} name={a.name} /> : <span className="muted">Chưa duyệt</span>}
+            <div className="fw-600">{a?.name || ''}</div>
+            {a?.note && <div className="muted text-xs">Nhận xét: {a.note}</div>}
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }

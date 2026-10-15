@@ -12,7 +12,7 @@ export const CLASS_DOC_LABELS = {
   year: 'Kế hoạch năm học',
   branch: 'Chủ đề nhánh và thời gian',
   theme: 'Kế hoạch chủ đề',
-  week: 'Giáo án tuần',
+  week: 'Giáo án tuần (hồ sơ chủ đề)',
 };
 
 /** Các dòng của bảng tổ chức hoạt động trong tuần theo cấu hình của trường; canMerge = được gộp một ô cả tuần, allWeek = mặc định gộp. */
@@ -54,8 +54,9 @@ export const todayIso = () => {
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
-/** "Thứ 2, ngày 07 tháng 9 năm 2026". */
-export const longDay = (iso, i) => `${WEEKDAY_LABELS[i]}, ngày ${iso.slice(8, 10)} tháng ${Number(iso.slice(5, 7))} năm ${iso.slice(0, 4)}`;
+/** "Thứ hai, ngày 07 tháng 9 năm 2026" như đầu kế hoạch ngày của trường. */
+const WEEKDAY_LONG = ['Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu'];
+export const longDay = (iso, i) => `${WEEKDAY_LONG[i]}, ngày ${iso.slice(8, 10)} tháng ${Number(iso.slice(5, 7))} năm ${iso.slice(0, 4)}`;
 
 /* ---------- Đọc kế hoạch năm (dạng hàng của bảng mục tiêu) ---------- */
 
@@ -184,3 +185,140 @@ export const emptyWeekPlan = ({ classId, yearPlanId, weekStart, weekNo, themeId 
 
 /** Còn sửa được nội dung (đánh giá cuối ngày vẫn ghi được sau khi duyệt). */
 export const isEditableStatus = (status) => !status || status === 'DRAFT' || status === 'REJECTED';
+
+/** Các tuần học (chủ đề nhánh) của một chủ đề theo thứ tự. */
+export const themeWeeksOf = (plan, themeId) => yearWeeks(plan).filter((w) => w.type === 'week' && w.theme.id === themeId);
+
+/** Tuần học đầu tiên của chủ đề. */
+export const firstWeekOfTheme = (plan, themeId) => themeWeeksOf(plan, themeId)[0] || null;
+
+/** Giáo án các tuần của hồ sơ chủ đề (tuần chưa soạn là null). */
+export const dossierWeekDocs = (themeDoc, plan, weekPlans = []) =>
+  themeWeeksOf(plan, themeDoc.themeId).map((w) => ({
+    week: w,
+    doc: weekPlans.find((x) => x.classId === themeDoc.classId && x.yearPlanId === themeDoc.yearPlanId && x.weekStart === w.start) || null,
+  }));
+
+/*
+ * Hồ sơ chủ đề theo file MN Thái Dương: giáo viên soạn kế hoạch chủ đề + giáo án tất cả các nhánh rồi gửi MỘT lần.
+ * Mỗi tuần được duyệt riêng (ký khung "Duyệt giáo án từ ngày … đến ngày …"); kế hoạch chủ đề đi cùng khung tuần 1.
+ * Tuần bị trả lại thì giáo viên sửa và gửi lại riêng tuần đó. Chủ đề nhánh (cả năm) phải được duyệt trước.
+ * Dùng chung cho màn hình (UX) và mock service (BE thật phải tự kiểm).
+ */
+export function submitBlocker(kind, doc, { branchPlans = [], weekPlans = [], classThemePlans = [], yearPlan }) {
+  if (!doc || kind === CLASS_DOC.BRANCH) return null;
+  const branch = branchPlans.find((b) => b.classId === doc.classId && b.yearPlanId === doc.yearPlanId);
+  if (branch?.status !== 'APPROVED') return 'Dự kiến chủ đề nhánh của lớp chưa được duyệt, nên chưa gửi được.';
+  if (kind === CLASS_DOC.WEEK) {
+    const theme = classThemePlans.find((t) => t.classId === doc.classId && t.yearPlanId === doc.yearPlanId && t.themeId === doc.themeId);
+    if (!theme || theme.status === 'DRAFT') return 'Giáo án tuần gửi lần đầu trong hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh).';
+    return null;
+  }
+  const missing = dossierWeekDocs(doc, yearPlan, weekPlans)
+    .map((x, i) => (x.doc ? null : `nhánh ${i + 1}`))
+    .filter(Boolean);
+  if (missing.length) return `Còn thiếu giáo án ${missing.join(', ')}. Soạn và lưu đủ giáo án các nhánh rồi mới gửi hồ sơ chủ đề.`;
+  return null;
+}
+
+/**
+ * Tình trạng cả hồ sơ chủ đề để hiển thị: chưa gửi / số tuần đã duyệt, đang chờ, bị trả lại.
+ * weeks: [{ doc }] theo dossierWeekDocs.
+ */
+export const dossierSummary = (themeDoc, weeks) => {
+  const docs = weeks.map((w) => w.doc).filter(Boolean);
+  const count = (st) => docs.filter((d) => d.status === st).length;
+  return {
+    sent: !!themeDoc && themeDoc.status !== 'DRAFT',
+    total: weeks.length,
+    approved: count('APPROVED'),
+    rejected: count('REJECTED'),
+    pending: docs.filter((d) => String(d.status).startsWith('PENDING')).length,
+  };
+};
+
+/**
+ * Nhắc hạn gửi (chỉ nhắc, không chặn): hồ sơ chủ đề trước ngày bắt đầu chủ đề.
+ * Trả null khi đã gửi / đã duyệt hoặc còn xa hạn.
+ */
+export function dueState(doc, dueIso, today = todayIso()) {
+  if (doc && !isEditableStatus(doc.status)) return null;
+  if (today >= dueIso) return 'late';
+  return today >= addDays(dueIso, -7) ? 'soon' : null;
+}
+
+/** Số thứ tự chủ đề trong năm ("Chủ đề 1") theo ngày bắt đầu. */
+export const themeNumber = (plan, themeId) =>
+  [...(plan?.themes || [])]
+    .filter((t) => t.start && t.end)
+    .sort((a, b) => a.start.localeCompare(b.start))
+    .findIndex((t) => t.id === themeId) + 1;
+
+/** Số thứ tự chủ đề nhánh trong chủ đề ("Chủ đề nhánh 1") của một tuần. */
+export const branchNumber = (plan, weekStart) => {
+  const weeks = yearWeeks(plan).filter((w) => w.type === 'week');
+  const week = weeks.find((w) => w.start === weekStart);
+  return week ? weeks.filter((w) => w.theme.id === week.theme.id).findIndex((w) => w.start === weekStart) + 1 : 0;
+};
+
+/*
+ * Gợi ý hoạt động cho kế hoạch tuần lấy từ cột "Hoạt động giáo dục" của kế hoạch chủ đề: mỗi dòng (gạch đầu dòng) là
+ * một hoạt động gắn MT; loại giờ đọc từ phần đầu dòng ("Trò chuyện: …", "Chơi, HĐ ngoài trời: …"). Dòng không rõ loại giờ
+ * thì gợi ý ở mọi dòng của kế hoạch tuần.
+ */
+const SLOT_WORDS = [
+  ['don', /đón trẻ/i],
+  ['tro_chuyen', /trò chuyện/i],
+  ['the_duc', /thể dục sáng|\btds\b/i],
+  ['hoc', /hđ học|hoạt động học|giờ học|\bhđh\b/i],
+  ['ngoai_troi', /ngoài trời/i],
+  ['goc', /góc/i],
+  ['chieu', /chiều|theo ý thích/i],
+  ['tra_tre', /trả trẻ|nêu gương/i],
+];
+
+/** Tách các hoạt động của kế hoạch chủ đề: [{ id, goalId, goalNo, slots, text }]. rowOf(goal) → { activities }. */
+export function themeActivities(blocks, rowOf) {
+  return blocks
+    .flatMap((b) => b.goals)
+    .flatMap((g) =>
+      String(rowOf(g)?.activities || '')
+        .split('\n')
+        .map((line) => line.replace(/^[\s\-–•+*]+/, '').trim())
+        .filter(Boolean)
+        .map((text, i) => {
+          const head = text.includes(':') ? text.slice(0, text.indexOf(':')) : text;
+          return {
+            id: `${g.id}#${i}`,
+            goalId: g.id,
+            goalNo: g.no,
+            slots: SLOT_WORDS.filter(([, re]) => re.test(head)).map(([k]) => k),
+            text,
+          };
+        }),
+    );
+}
+
+/** Gợi ý cho một dòng của kế hoạch tuần: hoạt động đúng loại giờ trước, hoạt động chưa rõ loại giờ sau. */
+export const activitiesForRow = (activities, rowKey) => [
+  ...activities.filter((a) => a.slots.includes(rowKey)),
+  ...activities.filter((a) => !a.slots.length),
+];
+
+/** Khóa ô của kế hoạch tuần để nhớ hoạt động đã chọn: dòng + ngày (0–4) hoặc "all" khi gộp cả tuần. */
+export const cellKey = (rowKey, day) => `${rowKey}.${day}`;
+
+/** MT dạy trong từng ngày (0–4) từ các hoạt động đã chọn; ô gộp cả tuần tính cho mọi ngày. */
+export const dayGoalsOf = (doc) =>
+  [0, 1, 2, 3, 4].map((i) => {
+    const ids = Object.entries(doc.picks || {})
+      .filter(([k]) => {
+        const [key, day] = k.split('.');
+        const r = weekRows().find((x) => x.key === key);
+        // Dòng đang gộp cả tuần thì dùng hoạt động của ô gộp, ngược lại dùng ô của từng ngày
+        const merged = !!r?.canMerge && rowCell(doc, r).allWeek;
+        return merged ? day === 'all' : day === String(i);
+      })
+      .flatMap(([, list]) => list.map((p) => p.goalId));
+    return [...new Set(ids)];
+  });

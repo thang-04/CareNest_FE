@@ -43,7 +43,7 @@ export default function GoalDetailPage() {
 
   if (!g)
     return (
-      <div className="page">
+      <div className="page ga-page">
         <PageHead
           crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Mục tiêu năm học', to: '/education/goals' }]}
           title="Kế hoạch năm học"
@@ -117,7 +117,7 @@ export default function GoalDetailPage() {
   const mustSign = signers.some((x) => x.role === user.role) && (user.role !== ROLES.TEAM_LEADER || isLeader);
 
   return (
-    <div className="page">
+    <div className="page ga-page">
       <PageHead
         crumbs={[
           { label: 'Kế hoạch giáo dục' },

@@ -1,46 +1,55 @@
-import { Fragment, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, FileDown, Printer, Save } from '@/components/ui/icons';
 import { Card, EmptyState, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
-import { Cell, DocSignatures, ReviewBar, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import { DocStatusStrip, SignPanel, WeekApproval, useClassPlanContext } from '@/components/education-plan/planUi';
+import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
+import { numberGoals } from '@/models/education-plan/goalTable';
 import { LoadingState } from '@/components/ui/States';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
-  DAY_SECTIONS,
   WEEKDAY_LABELS,
-  addDays,
+  branchNumber,
+  dayGoalsOf,
   ddmm,
   emptyWeekPlan,
   isEditableStatus,
-  longDay,
-  rowCell,
-  weekRows,
+  themeActivities,
+  themeGoalBlocks,
   yearWeeks,
 } from '@/models/education-plan/classPlan';
 import { exportWeekPlan } from '@/utils/education-plan/classPlanDoc';
+import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
 
 const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
-const AIMS = [
-  { key: 'knowledge', label: '1. Kiến thức' },
-  { key: 'skills', label: '2. Kỹ năng' },
-  { key: 'attitude', label: '3. Thái độ' },
-];
 
 /**
- * Giáo án một tuần của lớp = kế hoạch tuần (mục đích, chuẩn bị, bảng 8 hoạt động × Thứ 2–6) + 5 kế hoạch ngày.
- * Gửi duyệt và duyệt cả tuần một lần ("Duyệt giáo án từ ngày … đến ngày …").
+ * Giáo án một tuần của lớp = kế hoạch tuần (mục đích, chuẩn bị, bảng hoạt động × Thứ 2–6) + 5 kế hoạch ngày.
+ * Không gửi riêng: gửi và duyệt trong hồ sơ chủ đề (kế hoạch chủ đề + giáo án tất cả các nhánh), người duyệt ký
+ * khung "Duyệt giáo án từ ngày … đến ngày …" của từng tuần. review = đường dẫn duyệt cũ, chuyển sang hồ sơ chủ đề.
  */
-export default function WeekPlanPage() {
+export default function WeekPlanPage({ review = false }) {
   const { classId, weekStart } = useParams();
+  if (review) return <WeekReviewRedirect />;
   return <WeekPlanInner key={`${classId}/${weekStart}`} />;
+}
+
+function WeekReviewRedirect() {
+  const { classId, weekStart } = useParams();
+  const ctx = useClassPlanContext(classId);
+  if (ctx.loading) return <LoadingState />;
+  const week = ctx.yearPlan ? yearWeeks(ctx.yearPlan).find((w) => w.type === 'week' && w.start === weekStart) : null;
+  if (!week) return <EmptyState title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;
+  return <Navigate to={`/education/class/${classId}/themes/${week.theme.id}/review?week=${weekStart}`} replace />;
 }
 
 function WeekPlanInner() {
   const { classId, weekStart } = useParams();
-  const { user, weekPlans, branchPlans, saveClassDoc, actOnClassDoc, toast } = useEducationPlan();
+  const navigate = useNavigate();
+  const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, actOnClassDoc, toast } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
-  const { cls, yearPlan, teachers, isClassTeacher } = ctx;
+  const { cls, yearPlan, isClassTeacher } = ctx;
   const saved = weekPlans.find((w) => w.classId === classId && w.weekStart === weekStart) || null;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
@@ -62,14 +71,21 @@ function WeekPlanInner() {
 
   const status = saved?.status || EDU_STATUS.DRAFT;
   const editable = isClassTeacher && isEditableStatus(status);
+  const base = `/education/class/${classId}`;
+  const dossierTo = `${base}/themes/${week.theme.id}/review?week=${weekStart}`;
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const branchName = branch?.names?.[weekStart] || '';
+  const themeDoc = classThemePlans.find((t) => t.classId === classId && t.themeId === week.theme.id) || null;
   const update = (fn) => {
     setDraft((d) => fn(structuredClone(d)));
     setDirty(true);
   };
+  // Gợi ý hoạt động lấy từ cột Hoạt động giáo dục của kế hoạch chủ đề; MT của từng ngày lưu kèm để đánh giá trẻ sau này
+  const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), week.theme.id);
+  const goals = blocks.flatMap((b) => b.goals);
+  const activities = themeActivities(blocks, (g) => themeRowOf(themeDoc, g));
   const save = async () => {
-    const res = await saveClassDoc('week', draft);
+    const res = await saveClassDoc('week', { ...draft, dayGoals: dayGoalsOf(draft) });
     if (res) {
       setDirty(false);
       setDraft(res);
@@ -79,27 +95,24 @@ function WeekPlanInner() {
   const prev = weeks[idx - 1];
   const next = weeks[idx + 1];
   const day = tab === 'week' ? -1 : Number(tab);
-  const exportArgs = { doc: draft, week, cls, theme: week.theme, branchName, teachers };
+  const branchNo = branchNumber(yearPlan, weekStart);
+  const exportArgs = { doc: draft, week, cls, branchNo, branchName };
 
   return (
-    <div className="page">
+    <div className="page ga-page">
       <PageHead
-        crumbs={[
-          { label: 'Kế hoạch giáo dục' },
-          { label: `Kế hoạch ${cls.name}`, to: `/education/class/${classId}` },
-          { label: `Tuần ${week.no}` },
-        ]}
-        title={`Tuần ${week.no}: ${branchName || 'chưa đặt tên nhánh'}`}
-        desc={`${cls.name} · Chủ đề ${week.theme.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`}
+        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}`, to: base }, { label: `Tuần ${week.no}` }]}
+        title={`Giáo án tuần ${week.no}`}
+        desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`}
         actions={
           <>
             {prev && (
-              <Link className="btn btn--ghost btn--sm" to={`/education/class/${classId}/weeks/${prev.start}`}>
+              <Link className="btn btn--ghost btn--sm" to={`${base}/weeks/${prev.start}`}>
                 <ArrowLeft size={16} aria-hidden /> Tuần {prev.no}
               </Link>
             )}
             {next && (
-              <Link className="btn btn--ghost btn--sm" to={`/education/class/${classId}/weeks/${next.start}`}>
+              <Link className="btn btn--ghost btn--sm" to={`${base}/weeks/${next.start}`}>
                 Tuần {next.no} <ArrowRight size={16} aria-hidden />
               </Link>
             )}
@@ -121,15 +134,24 @@ function WeekPlanInner() {
           </>
         }
       />
-      <ReviewBar
-        kind="week"
-        title={`Duyệt giáo án từ ngày ${fmtDate(week.start)} đến ngày ${fmtDate(week.end)}`}
-        doc={saved}
-        dirty={dirty}
-        ctx={ctx}
-        user={user}
-        onAct={(action, body) => actOnClassDoc('week', draft.id, { action, ...body })}
-      />
+      {/* Tên chủ đề nhánh đặt ở trang chủ đề nhánh của lớp; đưa lên đầu để soạn đúng nhánh */}
+      <div className="ga-week-hero">
+        <div className="ga-week-hero__label">
+          Chủ đề nhánh {branchNo} · Tuần {week.no} của năm học
+        </div>
+        <div className={`ga-week-hero__name ${branchName ? '' : 'muted'}`}>{branchName || 'Chưa đặt tên chủ đề nhánh'}</div>
+        <div className="ga-week-hero__meta">
+          Chủ đề: {week.theme.name} · {fmtDate(week.start)} → {fmtDate(week.end)}
+          {!branchName && isClassTeacher && (
+            <>
+              {' · '}
+              <Link to={`${base}/branches`}>Đặt tên chủ đề nhánh</Link>
+            </>
+          )}
+        </div>
+      </div>
+      {/* Trạng thái theo hồ sơ chủ đề; gửi / duyệt ở trang hồ sơ chủ đề */}
+      <DocStatusStrip kind="week" doc={saved} dossier={themeDoc} ctx={ctx} user={user} dirty={dirty} reviewTo={dossierTo} onGo={navigate} />
       {!editable && isClassTeacher && status === EDU_STATUS.APPROVED && (
         <Notice tone="ok">
           Giáo án đã duyệt. Sau mỗi buổi dạy, ghi "Đánh giá trẻ trong ngày" và "Kế hoạch điều chỉnh" ở thẻ của ngày đó rồi bấm Lưu.
@@ -161,274 +183,25 @@ function WeekPlanInner() {
         </div>
         <div className="card__body stack">
           {day < 0 ? (
-            <WeekTab draft={draft} week={week} editable={editable} update={update} />
+            <WeekTab draft={draft} week={week} editable={editable} update={update} activities={activities} />
           ) : (
-            <DayTab draft={draft} index={day} editable={editable} canEvaluate={isClassTeacher} update={update} />
+            <DayTab draft={draft} index={day} editable={editable} canEvaluate={isClassTeacher} update={update} goals={goals} />
           )}
         </div>
       </Card>
-      <DocSignatures doc={saved} teachers={teachers} />
+      {saved && status !== EDU_STATUS.DRAFT && <WeekApproval doc={saved} week={week} ctx={ctx} />}
+      {/* Tuần bị trả lại: sửa rồi gửi lại ngay tại đây; người đến lượt duyệt ký ngay tại đây */}
+      {saved && status !== EDU_STATUS.DRAFT && (
+        <SignPanel
+          kind="week"
+          doc={saved}
+          ctx={ctx}
+          user={user}
+          dirty={dirty}
+          title={`Duyệt giáo án từ ngày ${fmtDate(week.start)} đến ngày ${fmtDate(week.end)}`}
+          onAct={(action, body) => actOnClassDoc('week', saved.id, { action, ...body })}
+        />
+      )}
     </div>
-  );
-}
-
-/** Bảng nhãn | nội dung dùng cho Mục đích yêu cầu, Chuẩn bị. */
-function LabelTable({ rows }) {
-  return (
-    <div className="table-wrap">
-      <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
-        <colgroup>
-          <col className="ga-goal-table__group" />
-          <col />
-        </colgroup>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.label}>
-              <td className="ga-goal-table__fixed">
-                <div className="ga-goal-table__pad fw-600">{r.label}</div>
-              </td>
-              <td>{r.cell}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function WeekTab({ draft, week, editable, update }) {
-  return (
-    <>
-      <div className="section-title">I. Mục đích yêu cầu</div>
-      <LabelTable
-        rows={AIMS.map((a) => ({
-          label: a.label,
-          cell: (
-            <Cell editable={editable} value={draft.aims[a.key]} label={a.label} onChange={(v) => update((d) => ((d.aims[a.key] = v), d))} />
-          ),
-        }))}
-      />
-      <div className="section-title">II. Chuẩn bị</div>
-      <LabelTable
-        rows={[
-          {
-            label: 'Chuẩn bị',
-            cell: <Cell editable={editable} value={draft.prep} label="Chuẩn bị" onChange={(v) => update((d) => ((d.prep = v), d))} />,
-          },
-        ]}
-      />
-      <div className="section-title">III. Tổ chức hoạt động</div>
-      <div className="table-wrap">
-        <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
-          <colgroup>
-            <col className="ga-goal-table__group" />
-            {WEEKDAY_LABELS.map((l) => (
-              <col key={l} />
-            ))}
-          </colgroup>
-          <thead>
-            <tr>
-              <th className="ga-goal-table__fixed">Tên hoạt động</th>
-              {WEEKDAY_LABELS.map((l, i) => (
-                <th key={l} className="center">
-                  {l} · {ddmm(addDays(week.start, i))}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {weekRows().map((r) => {
-              const g = rowCell(draft, r);
-              const merged = r.canMerge && g.allWeek;
-              return (
-                <tr key={r.key}>
-                  <td className="ga-goal-table__fixed">
-                    <div className="ga-goal-table__pad stack">
-                      <span className="fw-600">{r.label}</span>
-                      {r.canMerge && editable && (
-                        <label className="row gap-2 text-xs">
-                          <input
-                            type="checkbox"
-                            checked={g.allWeek}
-                            onChange={(e) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).allWeek = e.target.checked), d))}
-                          />
-                          Cả tuần
-                        </label>
-                      )}
-                    </div>
-                  </td>
-                  {merged ? (
-                    <td colSpan={5}>
-                      <Cell
-                        editable={editable}
-                        value={g.common}
-                        label={`${r.label} cả tuần`}
-                        onChange={(v) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).common = v), d))}
-                      />
-                    </td>
-                  ) : (
-                    g.days.map((v, i) => (
-                      <td key={i}>
-                        {r.key === 'hoc' ? (
-                          <>
-                            <Cell
-                              editable={editable}
-                              value={v.subject}
-                              label={`Môn ${WEEKDAY_LABELS[i]}`}
-                              placeholder="Môn / lĩnh vực"
-                              onChange={(x) => update((d) => ((d.grid.hoc.days[i].subject = x), d))}
-                            />
-                            <Cell
-                              editable={editable}
-                              value={v.topic}
-                              label={`Đề tài ${WEEKDAY_LABELS[i]}`}
-                              placeholder="Đề tài"
-                              onChange={(x) => update((d) => ((d.grid.hoc.days[i].topic = x), d))}
-                            />
-                          </>
-                        ) : (
-                          <Cell
-                            editable={editable}
-                            value={v}
-                            label={`${r.label} ${WEEKDAY_LABELS[i]}`}
-                            onChange={(x) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).days[i] = x), d))}
-                          />
-                        )}
-                      </td>
-                    ))
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
-
-function DayTab({ draft, index, editable, canEvaluate, update }) {
-  const d = draft.days[index];
-  const hoc = draft.grid.hoc.days[index] || {};
-  const setDay = (field, v) => update((x) => ((x.days[index][field] = v), x));
-  const setStep = (key, field, v) => update((x) => ((x.days[index].steps[key][field] = v), x));
-  return (
-    <>
-      <div className="section-title center">{longDay(d.date, index)}</div>
-      <div className="section-title">I. Mục đích yêu cầu</div>
-      <LabelTable
-        rows={[
-          {
-            label: 'Mục đích yêu cầu',
-            cell: <Cell editable={editable} value={d.aims} label="Mục đích yêu cầu" onChange={(v) => setDay('aims', v)} />,
-          },
-        ]}
-      />
-      <div className="section-title">II. Chuẩn bị</div>
-      <LabelTable
-        rows={[
-          {
-            label: 'Chuẩn bị',
-            cell: <Cell editable={editable} value={d.prep} label="Chuẩn bị của ngày" onChange={(v) => setDay('prep', v)} />,
-          },
-        ]}
-      />
-      <div className="section-title">III. Tiến trình hoạt động</div>
-      <div className="table-wrap">
-        <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
-          <colgroup>
-            <col />
-            <col />
-            <col className="ga-goal-table__group" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Hoạt động của cô</th>
-              <th>Hoạt động của trẻ</th>
-              <th>Ghi chú</th>
-            </tr>
-          </thead>
-          <tbody>
-            {DAY_SECTIONS.map((s) => (
-              <Fragment key={s.key}>
-                <tr>
-                  <td colSpan={3} className="ga-goal-table__fixed">
-                    <div className="ga-goal-table__pad fw-600">
-                      {s.label}
-                      {s.key === 'hoc' && (hoc.subject || hoc.topic) ? `: ${[hoc.subject, hoc.topic].filter(Boolean).join(' – ')}` : ''}
-                    </div>
-                  </td>
-                </tr>
-                {s.parts.map((p) => {
-                  const key = `${s.key}.${p.key}`;
-                  const st = d.steps[key];
-                  return (
-                    <Fragment key={key}>
-                      {p.label && (
-                        <tr>
-                          <td colSpan={3}>
-                            <div className="ga-goal-table__pad">
-                              <i>{p.label}</i>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                      <tr>
-                        <td>
-                          <Cell
-                            editable={editable}
-                            value={st.teacher}
-                            label={`${s.label} ${p.label} – hoạt động của cô`}
-                            onChange={(v) => setStep(key, 'teacher', v)}
-                          />
-                        </td>
-                        <td>
-                          <Cell
-                            editable={editable}
-                            value={st.child}
-                            label={`${s.label} ${p.label} – hoạt động của trẻ`}
-                            onChange={(v) => setStep(key, 'child', v)}
-                          />
-                        </td>
-                        <td>
-                          <Cell
-                            editable={editable}
-                            value={st.note}
-                            label={`${s.label} ${p.label} – ghi chú`}
-                            onChange={(v) => setStep(key, 'note', v)}
-                          />
-                        </td>
-                      </tr>
-                    </Fragment>
-                  );
-                })}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="section-title">Sau buổi dạy</div>
-      <LabelTable
-        rows={[
-          {
-            label: 'Đánh giá trẻ trong ngày',
-            cell: (
-              <Cell editable={canEvaluate} value={d.evaluation} label="Đánh giá trẻ trong ngày" onChange={(v) => setDay('evaluation', v)} />
-            ),
-          },
-          {
-            label: 'Kế hoạch điều chỉnh và bổ sung',
-            cell: (
-              <Cell
-                editable={canEvaluate}
-                value={d.adjustment}
-                label="Kế hoạch điều chỉnh và bổ sung"
-                onChange={(v) => setDay('adjustment', v)}
-              />
-            ),
-          },
-        ]}
-      />
-    </>
   );
 }
