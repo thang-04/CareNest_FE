@@ -28,6 +28,7 @@ Admin và dữ liệu trẻ: AUTH-06 (PENDING P-16).
 | --- | --- | --- | --- | --- |
 | Dashboard báo cáo | Xem theo lớp / campus / toàn trường | `report:view` | `BE:docs/modules/reporting.md` | Scope: AUTH-02, AUTH-08 |
 | Duyệt thực đơn | Xem MealPlan (thực đơn) DRAFT (kể cả AI gợi ý), duyệt | `menu:approve` | `BE:docs/modules/nutrition.md` | Gán role: cấu hình |
+| Luồng dinh dưỡng (PHT) | Quy trình `/menu/flow` → Thiết lập → Thực phẩm `/menu/foods` → Món ăn `/menu/dishes` → Thực đơn mẫu `/menu/menus` → Thực đơn tuần `/menu/weekly` → Khẩu phần & đi chợ `/kitchen/required-quantity` | chưa có (mock) | `BE:docs/modules/nutrition.md` | Đang làm theo `docs/plans/completed/2026-10-14-nutrition-flow-redesign.md`; màn cũ gỡ dần khi màn thay thế xong |
 | Summary & hồ sơ phát triển | Xem summary đã GV duyệt, hồ sơ phát triển trẻ | `report:view` (PROPOSED) | `BE:docs/modules/learning-observation.md` | |
 | Tổng quan sức khỏe | Xem measurement/trend, duyệt diễn giải AI | `health-interpretation:approve` (duyệt) | `BE:docs/modules/health.md` | Không hiển thị nhãn chẩn đoán |
 | Sự cố CSVC | Danh sách theo campus/trạng thái, cập nhật trạng thái | `facility-issue:manage` | `BE:docs/modules/facility-issue.md` | Chỉ sự cố, không tài sản |
