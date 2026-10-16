@@ -38,7 +38,9 @@ export function WeekChecks({ wm, catalog, previousDays = [], allergyRows = [] })
   const cost = perDay.reduce((s, x) => s + x.result.cost, 0);
   const budget = price ? price * school.length : null;
   const offNorm = perDay.filter(
-    (x) => x.day.meals?.length && dayNormStatus(compareToNorm(x.result.totals, wm.ageGroupId, x.result.missing.length > 0)) !== 'OK',
+    (x) =>
+      x.day.meals?.length &&
+      dayNormStatus(compareToNorm(x.result.totals, wm.ageGroupId, x.result.missing.length > 0, catalog.norms)) !== 'OK',
   );
 
   const allergyIssues = [];

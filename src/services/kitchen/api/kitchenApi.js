@@ -14,8 +14,7 @@ export const kitchenApi = {
   confirmIngredientReceipt: ({ campusId, date, items }) => axiosClient.post('/kitchen/ingredient-receipts', { campusId, date, items }),
   getPublishedMenu: ({ date, view }) => axiosClient.get('/kitchen/published-menus', { params: { date, view } }),
   getConfirmedMealCount: ({ campusId, date }) => axiosClient.get('/kitchen/meal-counts', { params: { campusId, date } }),
-  getRequiredQuantity: ({ campusId, date, session }) =>
-    axiosClient.get('/kitchen/required-quantities', { params: { campusId, date, session } }),
+  getRequiredQuantity: ({ campusId, date }) => axiosClient.get('/kitchen/required-quantities', { params: { campusId, date } }),
   getMissingFoodReports: ({ campusId, status }) => axiosClient.get('/kitchen/missing-food-reports', { params: { campusId, status } }),
   submitMissingFoodReport: (payload) => axiosClient.post('/kitchen/missing-food-reports', payload),
   markMissingFoodSupplied: (id, note) => axiosClient.post(`/kitchen/missing-food-reports/${id}/supply`, { note }),

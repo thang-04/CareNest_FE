@@ -17,6 +17,7 @@ import { validateWeeklyMenu, hasErrors } from '@/utils/menu-planning/menuPlannin
 import { weeklyCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
 import { AGE_GROUPS } from '@/models/School';
+import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { RECORD_STATUS, WEEKDAY_LABELS, WEEKLY_STATUS, addDays, mondayOf, weekDates } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
@@ -177,7 +178,7 @@ export default function WeeklyMenuFormPage() {
             <FormField label="Nhóm tuổi" required error={show('ageGroupId')}>
               <select className="select" value={form.ageGroupId} onChange={(e) => changeAgeGroup(e.target.value)} disabled={locked}>
                 <option value="">Chọn nhóm tuổi</option>
-                {AGE_GROUPS.map((g) => (
+                {AGE_GROUPS.filter((g) => g.id === form.ageGroupId || activeAgeGroups(catalog.nutritionSetups).includes(g)).map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
                   </option>
@@ -235,7 +236,7 @@ export default function WeeklyMenuFormPage() {
                         {show(`day_${i}`) && <span className="field__error">{errors[`day_${i}`]}</span>}
                         {d.meals?.length > 0 && (
                           <div className="mt-8">
-                            <MealsView meals={d.meals} catalog={catalog} compact />
+                            <MealsView meals={d.meals} catalog={catalog} ageGroupId={form.ageGroupId} compact />
                           </div>
                         )}
                       </>

@@ -9,6 +9,8 @@ import {
   buildSeedReceipts,
   isSchoolDay,
 } from '@/mocks/kitchenSeed';
+import { buildSeedMenuPlanning, topUpRecentWeeklyMenus } from '@/mocks/menuPlanningSeed';
+import { computeMarket, countedSession } from '@/services/kitchen/mock/marketList';
 import { todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import { ROLES } from '@/models/User';
@@ -141,6 +143,36 @@ const dishIdsOf = (node) =>
  * Published menus of menu-planning (db.weeklyMenus, shape unknown when written): walks every PUBLISHED weekly menu
  * and collects nodes that carry a date (own or inherited), a meal session and dish ids. GBR-MEAL-01: drafts are ignored.
  */
+const menusFromDays = (db, w, date) => {
+  const day = w.days.find((d) => d.date === date && !d.holiday);
+  if (!day) return [];
+  const replacements = (db.allergyMenus || []).filter((a) => a.baseMenuId === day.menuId).flatMap((a) => a.replacements || []);
+  const merged = {};
+  (day.meals || []).forEach((meal) => {
+    // Bữa phụ sáng, bữa thêm gộp vào bữa có số suất chốt (theo "Tính suất theo" ở Thiết lập)
+    const session = countedSession(db.nutritionSetups, w.ageGroupId, meal.session);
+    const ids = (meal.items || []).map((i) => i.dishId).filter(Boolean);
+    const subIds = ids.flatMap((id) => {
+      const rep = replacements.find((x) => x.session === meal.session && x.originalDishId === id);
+      return rep ? (rep.replacementDishId ? [rep.replacementDishId] : []) : [id];
+    });
+    [[MENU_TYPE.NORMAL, ids], ...(replacements.length ? [[MENU_TYPE.ALLERGY, subIds]] : [])].forEach(([type, list]) => {
+      const key = `${session}|${type}`;
+      merged[key] ||= {
+        id: `${w.id}_${date}_${session}_${type}`,
+        date,
+        session,
+        ageGroupId: w.ageGroupId,
+        type,
+        dishIds: [],
+        note: day.note || '',
+      };
+      merged[key].dishIds.push(...list);
+    });
+  });
+  return Object.values(merged).filter((m) => m.dishIds.length);
+};
+
 const menusFromWeeklyMenus = (db, date) => {
   const out = [];
   const visit = (node, ctx) => {
@@ -169,7 +201,12 @@ const menusFromWeeklyMenus = (db, date) => {
     }
     Object.values(node).forEach((v) => visit(v, here));
   };
-  (db.weeklyMenus || []).filter((w) => String(w?.status || '').toUpperCase() === 'PUBLISHED').forEach((w) => visit(w, {}));
+  (db.weeklyMenus || [])
+    .filter((w) => String(w?.status || '').toUpperCase() === 'PUBLISHED')
+    .forEach((w) => {
+      if (Array.isArray(w.days) && w.days.some((d) => Array.isArray(d.meals))) out.push(...menusFromDays(db, w, date));
+      else visit(w, {});
+    });
   return out;
 };
 
@@ -295,9 +332,28 @@ const computeSession = (db, cat, campusId, date, session) => {
 };
 
 /** Every session of a day plus the day total used by the stock issue slip. */
+const marketOf = (db, campusId, date) =>
+  computeMarket(db, {
+    date,
+    counts: Object.fromEntries(MEAL_SESSIONS.map((s) => [s, getMealCount(db, campusId, date, s)])),
+    classById: classesOf(db),
+  });
+
 const computeDay = (db, cat, campusId, date) => {
   const sessions = MEAL_SESSIONS.map((s) => computeSession(db, cat, campusId, date, s));
   const withMenu = sessions.filter((s) => s.hasMenu);
+  if (cat.external) {
+    const market = marketOf(db, campusId, date);
+    return {
+      sessions,
+      hasMenu: withMenu.length > 0,
+      allConfirmed: withMenu.length > 0 && withMenu.every((s) => s.mealCountStatus === 'CONFIRMED'),
+      foods: market.foods
+        .filter((f) => f.buyUnits > 0)
+        .map((f) => ({ foodId: f.foodId, name: f.name, unit: f.purchaseUnit, requiredQty: f.buyUnits })),
+      market,
+    };
+  }
   const merged = {};
   withMenu.forEach((s) =>
     s.foods.forEach((f) => {
@@ -433,8 +489,19 @@ const seedHistory = (db, cat, campusIds) => {
   }
 };
 
+const MENU_COLLECTIONS = ['foods', 'dishes', 'mealPrices', 'nutritionSetups', 'menus', 'allergyMenus', 'weeklyMenus', 'menuAiDrafts'];
+const hasAll = (db) => [...MENU_COLLECTIONS, ...COLLECTIONS].every((k) => Array.isArray(db[k]));
+
 // Databases created before this module existed have no kitchen collections yet.
 const ensureSeeded = (db) => {
+  if (hasAll(db)) return db;
+  // Danh mục và thực đơn thuộc module thực đơn; bếp chạy trước thì dựng sẵn dữ liệu mẫu của module đó
+  if (MENU_COLLECTIONS.some((k) => !Array.isArray(db[k]))) {
+    const seed = buildSeedMenuPlanning();
+    MENU_COLLECTIONS.forEach((k) => {
+      db[k] ||= clone(seed[k]);
+    });
+  }
   if (COLLECTIONS.every((k) => Array.isArray(db[k]))) return db;
   const cat = getCatalog(db);
   const campusIds = (db.campuses || []).map((c) => c.id);
@@ -454,7 +521,8 @@ const ensureSeeded = (db) => {
 /** Read access: seeds once (write), then returns the snapshot. */
 const readSeeded = () => {
   const db = readDb();
-  if (!COLLECTIONS.every((k) => Array.isArray(db[k]))) writeDb(ensureSeeded);
+  if (!hasAll(db)) writeDb(ensureSeeded);
+  if (topUpRecentWeeklyMenus(clone(readDb()), todayInput())) writeDb((d) => topUpRecentWeeklyMenus(d, todayInput()));
   return readDb();
 };
 
@@ -810,26 +878,22 @@ export const kitchenMockRepository = {
   },
 
   /* ---- #95 Required Food Quantity (UC 6.18) ---- */
-  async getRequiredQuantity({ campusId, date, session }, user) {
+  async getRequiredQuantity({ campusId, date }, user) {
     await delay();
     guard(canViewRequiredQuantity(user));
     guardCampus(user, campusId);
     const db = readSeeded();
-    const cat = getCatalog(db);
-    const view = issueView(db, cat, campusId, date);
-    const pick = session === 'ALL' ? view.day.sessions : view.day.sessions.filter((s) => s.session === session);
-    const foods = session === 'ALL' ? view.day.foods : pick[0]?.foods || [];
+    const view = issueView(db, getCatalog(db), campusId, date);
     return clone({
-      sessions: pick.map((s) => ({
+      ...(view.day.market || marketOf(db, campusId, date)),
+      // Trạng thái chốt số suất từng bữa (trưa, chiều) để trang nói rõ bữa nào chưa tính
+      sessions: view.day.sessions.map((s) => ({
         session: s.session,
         hasMenu: s.hasMenu,
         mealCountStatus: s.mealCountStatus,
+        confirmedAt: s.confirmedAt,
         totals: s.totals,
-        dishes: s.dishes,
-        classes: s.classes.filter((c) => c.substitute > 0),
-        warnings: s.warnings,
       })),
-      foods: foods.map(({ raw: _raw, ...f }) => f),
       issue: view.issue && view.issue.id ? view.issue : null,
       issueState: view.state,
     });

@@ -18,14 +18,8 @@ import { canEditWeeklyMenu, canReplaceWeeklyMenu } from '@/utils/menu-planning/m
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
-import {
-  MEAL_SESSION_LABELS,
-  WEEKDAY_LABELS,
-  WEEKLY_STATUS,
-  mondayOf,
-  sessionsOf,
-  weekLabel,
-} from '@/models/menu-planning/menuPlanningConstants';
+import { WEEKDAY_LABELS, WEEKLY_STATUS, mondayOf, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
+import { mealCodesOf, mealLabel, mealsOf } from '@/utils/menu-planning/nutritionSetup';
 import '@/styles/modules/menu-planning.css';
 
 const clone = (v) => JSON.parse(JSON.stringify(v || []));
@@ -89,10 +83,16 @@ export default function NutritionBalancePage() {
   const savedDay = wm?.days.find((d) => d.date === date);
   const dirty =
     savedDay &&
-    JSON.stringify(normalizeMeals(meals, sessionsOf(wm.ageGroupId))) !==
-      JSON.stringify(normalizeMeals(savedDay.meals, sessionsOf(wm.ageGroupId)));
+    JSON.stringify(normalizeMeals(meals, mealCodesOf(catalog.nutritionSetups, wm.ageGroupId))) !==
+      JSON.stringify(normalizeMeals(savedDay.meals, mealCodesOf(catalog.nutritionSetups, wm.ageGroupId)));
   const result = wm && savedDay ? mealsTotals(meals, catalog.dishById, catalog.foodById, wm.ageGroupId) : null;
-  const errors = wm ? validateMenu({ name: 'x', ageGroupId: wm.ageGroupId, meals: normalizeMeals(meals, sessionsOf(wm.ageGroupId)) }) : {};
+  const errors = wm
+    ? validateMenu(
+        { name: 'x', ageGroupId: wm.ageGroupId, meals: normalizeMeals(meals, mealCodesOf(catalog.nutritionSetups, wm.ageGroupId)) },
+        [],
+        mealsOf(catalog.nutritionSetups, wm.ageGroupId),
+      )
+    : {};
 
   const save = async () => {
     setBusy(true);
@@ -180,7 +180,7 @@ export default function NutritionBalancePage() {
               const r = d.holiday
                 ? null
                 : mealsTotals(d.date === date ? meals : d.meals, catalog.dishById, catalog.foodById, wm.ageGroupId);
-              const status = r ? dayNormStatus(compareToNorm(r.totals, wm.ageGroupId, r.missing.length > 0)) : null;
+              const status = r ? dayNormStatus(compareToNorm(r.totals, wm.ageGroupId, r.missing.length > 0, catalog.norms)) : null;
               return (
                 <button
                   key={d.date}
@@ -243,7 +243,7 @@ export default function NutritionBalancePage() {
                 <div className="card__body">
                   <MealEditor
                     meals={meals}
-                    sessions={sessionsOf(wm.ageGroupId)}
+                    sessions={mealCodesOf(catalog.nutritionSetups, wm.ageGroupId)}
                     onChange={setMeals}
                     catalog={catalog}
                     ageGroupId={wm.ageGroupId}
@@ -258,10 +258,11 @@ export default function NutritionBalancePage() {
                   {dirty && <span className="chip chip--orange">Chưa lưu</span>}
                 </div>
                 <div className="card__body">
-                  <AllergenWarnings meals={meals} catalog={catalog} contextRows={allergyRows} />
+                  <AllergenWarnings meals={meals} catalog={catalog} ageGroupId={wm.ageGroupId} contextRows={allergyRows} />
                   <NutritionTable
                     result={result}
                     ageGroupId={wm.ageGroupId}
+                    norms={catalog.norms}
                     price={priceOn(catalog.mealPrices, wm.ageGroupId, date)?.price}
                   />
                   <div className="table-wrap mt-12">
@@ -276,7 +277,7 @@ export default function NutritionBalancePage() {
                       <tbody>
                         {Object.entries(result.bySession).map(([s, t]) => (
                           <tr key={s}>
-                            <td>{MEAL_SESSION_LABELS[s]}</td>
+                            <td>{mealLabel(catalog.nutritionSetups, wm.ageGroupId, s)}</td>
                             <td className="right">{num(t.kcal)} kcal</td>
                             <td className="right">
                               {num(t.protein)} / {num(t.lipid)} / {num(t.glucid)}

@@ -128,3 +128,91 @@
   background: var(--gray-50);
   color: var(--text-3);
 }
+
+/* Khẩu phần & đi chợ (bố cục 7): bảng gộp theo thực phẩm + cột phải thu/chi và kiểm tra */
+.kb-market {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.kb-market > * {
+  min-width: 0;
+}
+
+.kb-market__table {
+  margin: var(--space-4);
+}
+
+.kb-market__table .table {
+  min-width: 760px;
+}
+
+.kb-market__aside {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.kb-market__aside .card {
+  margin: 0;
+}
+
+.kb-money {
+  font-size: var(--fs-2xl);
+}
+
+.kb-stat-hint {
+  order: 3;
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+
+.kb-storage {
+  display: block;
+}
+
+.kb-row--warn {
+  background: color-mix(in srgb, var(--tone-orange) 8%, var(--color-surface));
+}
+
+.kb-issue {
+  margin-top: var(--space-4);
+}
+
+.kb-issue__table {
+  margin: 0 var(--space-4) var(--space-4);
+}
+
+.kb-print-sign {
+  margin-top: var(--space-6);
+}
+
+@media (max-width: 1100px) {
+  .kb-market {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kb-market__aside {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
+/* In từ modal xem trước: bỏ định vị của modal để phiếu bắt đầu ở đầu trang giấy */
+@media print {
+  .modal-backdrop:has(.kb-print-modal) {
+    position: absolute;
+    inset: 0 auto auto 0;
+    display: block;
+    width: 100%;
+    padding: 0;
+    background: none;
+  }
+
+  .kb-print-modal,
+  .kb-print-modal .modal__body {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}

@@ -33,6 +33,9 @@ export const validateFood = (form, others = []) => {
   if (!isNum(form.purchaseUnitSize) || Number(form.purchaseUnitSize) <= 0) e.purchaseUnitSize = 'Nhập số lớn hơn 0.';
   if (form.unitPrice !== '' && form.unitPrice != null && (!isNum(form.unitPrice) || Number(form.unitPrice) < 0))
     e.unitPrice = 'Nhập giá hợp lệ (không âm).';
+  if (form.storage && !['FRESH', 'DRY'].includes(form.storage)) e.storage = 'Chọn Tươi hoặc Khô.';
+  if (form.wastePct !== '' && form.wastePct != null && (!isNum(form.wastePct) || Number(form.wastePct) < 0 || Number(form.wastePct) > 90))
+    e.wastePct = 'Nhập từ 0 đến 90%.';
   ['kcal', 'protein', 'lipid', 'glucid'].forEach((k) => {
     const v = form.nutrition?.[k];
     if (v === '' || v === null || v === undefined) return;
@@ -51,15 +54,56 @@ export const validateDish = (form, others = []) => {
   if (!DISH_TYPE_LABELS[form.type]) e.type = REQUIRED;
   const rows = form.ingredients || [];
   if (!rows.length) e.ingredients = 'Thêm ít nhất một thực phẩm cho món.';
+  const badQty = (v) => !isNum(v) || Number(v) <= 0 || Number(v) > 1000;
   rows.forEach((r, i) => {
     if (!r.foodId) e[`ing_${i}`] = 'Chọn thực phẩm.';
-    else if (!isNum(r.quantity) || Number(r.quantity) <= 0 || Number(r.quantity) > 1000) e[`ing_${i}`] = 'Định lượng từ 0 đến 1000.';
     else if (rows.findIndex((x) => x.foodId === r.foodId) !== i) e[`ing_${i}`] = 'Thực phẩm bị lặp, hãy gộp định lượng.';
+    if (r.portions) {
+      // Ô trống = nhóm tuổi chưa có định lượng (cảnh báo, không chặn lưu); ô đã nhập phải hợp lệ
+      const filled = Object.entries(r.portions).filter(([, v]) => v !== '' && v != null);
+      filled.forEach(([ag, v]) => badQty(v) && (e[`ing_${i}_${ag}`] = 'Từ 0 đến 1000.'));
+      if (!filled.length && !e[`ing_${i}`]) e[`ing_${i}`] = 'Nhập định lượng cho ít nhất một nhóm tuổi.';
+    } else if (r.foodId && badQty(r.quantity)) e[`ing_${i}`] = 'Định lượng từ 0 đến 1000.';
   });
   return e;
 };
 
 const overlaps = (a, b) => a.effectiveFrom <= (b.effectiveTo || '9999-12-31') && b.effectiveFrom <= (a.effectiveTo || '9999-12-31');
+
+const PERCENT_KEYS = ['protein', 'lipid', 'glucid'];
+
+/**
+ * Thiết lập dinh dưỡng (hỗ trợ nhập liệu; BE kiểm tra lại). Khóa lỗi: effectiveFrom,
+ * `${ageGroupId}.price`, `${ageGroupId}.meals`, `${ageGroupId}.meals.${i}.name|countAs`, `${ageGroupId}.norms.${key}`.
+ */
+export const validateNutritionSetup = (form, today) => {
+  const e = {};
+  if (!form.effectiveFrom) e.effectiveFrom = REQUIRED;
+  else if (form.effectiveFrom < today) e.effectiveFrom = 'Giá chỉ áp dụng từ hôm nay trở đi.';
+  (form.groups || []).forEach((g) => {
+    const key = g.ageGroupId;
+    const meals = g.meals || [];
+    const base = sessionsOf(key);
+    if (!isNum(g.price) || Number(g.price) <= 0 || !Number.isInteger(Number(g.price)))
+      e[`${key}.price`] = 'Nhập giá suất ăn một ngày (số tiền lớn hơn 0).';
+    if (base.some((code) => !meals.some((m) => m.code === code))) e[`${key}.meals`] = 'Không bỏ được bữa gốc của nhóm tuổi.';
+    meals.forEach((m, i) => {
+      const name = String(m.name || '').trim();
+      if (!name) e[`${key}.meals.${i}.name`] = REQUIRED;
+      else if (name.length > 50) e[`${key}.meals.${i}.name`] = 'Tối đa 50 ký tự.';
+      else if (meals.some((o, j) => j < i && sameName(o.name, name))) e[`${key}.meals.${i}.name`] = 'Trùng tên bữa khác.';
+      if (!base.includes(m.code) && !base.includes(m.countAs)) e[`${key}.meals.${i}.countAs`] = 'Chọn bữa dùng để tính số suất.';
+    });
+    Object.entries(g.norms || {}).forEach(([k, range]) => {
+      const [min, max] = range || [];
+      if (!isNum(min) || !isNum(max)) e[`${key}.norms.${k}`] = 'Nhập đủ hai số.';
+      else if (Number(min) < 0 || Number(min) > Number(max)) e[`${key}.norms.${k}`] = 'Số đầu phải nhỏ hơn hoặc bằng số sau.';
+      else if (PERCENT_KEYS.includes(k) && Number(max) > 100) e[`${key}.norms.${k}`] = 'Tỷ lệ tối đa 100%.';
+      else if (k === 'kcal' && Number(min) === 0) e[`${key}.norms.${k}`] = 'Năng lượng phải lớn hơn 0.';
+    });
+  });
+  return e;
+};
 
 export const validateMealPrice = (form, others = []) => {
   const e = {};
@@ -76,20 +120,20 @@ export const validateMealPrice = (form, others = []) => {
   return e;
 };
 
-/** Sample daily menu: every session of the age group has at least one dish. */
-export const validateMenu = (form, others = []) => {
+/** Sample daily menu: every meal of the age group (Thiết lập) has at least one dish. meals = [{ code, name }]. */
+export const validateMenu = (form, others = [], meals) => {
   const e = {};
   if (!form.name?.trim()) e.name = REQUIRED;
   else if (others.some((m) => m.id !== form.id && m.ageGroupId === form.ageGroupId && sameName(m.name, form.name)))
     e.name = 'Nhóm tuổi này đã có thực đơn cùng tên.';
   if (!form.ageGroupId) e.ageGroupId = REQUIRED;
   else
-    sessionsOf(form.ageGroupId).forEach((s) => {
+    (meals || sessionsOf(form.ageGroupId).map((code) => ({ code, name: MEAL_SESSION_LABELS[code] }))).forEach(({ code: s, name }) => {
       const items = (form.meals || []).find((m) => m.session === s)?.items || [];
-      if (!items.filter((i) => i.dishId).length) e[`meal_${s}`] = `${MEAL_SESSION_LABELS[s]}: chọn ít nhất một món.`;
+      if (!items.filter((i) => i.dishId).length) e[`meal_${s}`] = `${name}: chọn ít nhất một món.`;
       items.forEach((i) => {
         if (i.dishId && (!isNum(i.portion) || Number(i.portion) < 0.1 || Number(i.portion) > 3))
-          e[`meal_${s}`] = `${MEAL_SESSION_LABELS[s]}: hệ số khẩu phần từ 0,1 đến 3.`;
+          e[`meal_${s}`] = `${name}: hệ số khẩu phần từ 0,1 đến 3.`;
       });
     });
   return e;

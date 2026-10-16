@@ -4,7 +4,6 @@ import {
   NUTRITION_NORMS,
   REPEAT_WINDOW_DAYS,
   DISH_TYPE,
-  SESSION_ORDER,
   addDays,
   portionFactorOf,
 } from '@/models/menu-planning/menuPlanningConstants';
@@ -37,16 +36,38 @@ export const dishAllergens = (dish, foodById) => {
 };
 
 /**
- * Nutrition and cost of one dish for `multiplier` standard portions.
- * missing = names of ingredients without nutrition values (the total is then incomplete).
+ * Định lượng một trẻ của nhóm tuổi: số đã nhập theo nhóm (null = chưa nhập);
+ * món cũ chỉ có khẩu phần chuẩn thì nhân hệ số khẩu phần của nhóm.
  */
-export const dishTotals = (dish, foodById, multiplier = 1) => {
+export const ingredientQty = (ing, ageGroupId) => {
+  if (ing?.portions && ageGroupId in ing.portions) {
+    const v = ing.portions[ageGroupId];
+    return v === '' || v == null ? null : Number(v);
+  }
+  return (Number(ing?.quantity) || 0) * portionFactorOf(ageGroupId);
+};
+
+/** Nhóm tuổi mà món còn thành phần chưa nhập định lượng. */
+export const missingPortionGroups = (dish, ageGroupIds) =>
+  ageGroupIds.filter((ag) => (dish?.ingredients || []).some((ing) => ingredientQty(ing, ag) == null));
+
+/**
+ * Nutrition and cost of one dish for `multiplier` portions — of the age group when given, else of the standard portion.
+ * missing = names of ingredients without nutrition values; noQuantity = có thành phần chưa nhập định lượng của nhóm.
+ */
+export const dishTotals = (dish, foodById, multiplier = 1, ageGroupId) => {
   const totals = zero();
   const missing = [];
   let cost = 0;
+  let noQuantity = false;
   (dish?.ingredients || []).forEach((ing) => {
     const food = foodById[ing.foodId];
-    const qty = (Number(ing.quantity) || 0) * multiplier;
+    const base = ageGroupId ? ingredientQty(ing, ageGroupId) : Number(ing.quantity) || 0;
+    if (base == null) {
+      noQuantity = true;
+      return;
+    }
+    const qty = base * multiplier;
     if (!food) {
       missing.push('Thực phẩm đã xóa');
       return;
@@ -56,12 +77,42 @@ export const dishTotals = (dish, foodById, multiplier = 1) => {
     if (food.unitPrice && food.purchaseUnitSize) cost += (food.unitPrice / food.purchaseUnitSize) * qty;
   });
   NUTRIENTS.forEach((k) => (totals[k] = round1(totals[k])));
-  return { totals, missing, cost: Math.round(cost) };
+  return { totals, missing, noQuantity, cost: Math.round(cost) };
+};
+
+/**
+ * Hàm lượng từng thành phần của một món cho một trẻ của nhóm tuổi (cùng công thức với dishTotals để không lệch số).
+ * Trả { rows: [{ foodId, food, qty, kcal, protein, lipid, glucid, cost, noNutrition }], total: { qty, kcal, protein, lipid, glucid, cost } };
+ * qty = null khi chưa nhập định lượng; total chỉ cộng các dòng đã có định lượng.
+ */
+export const ingredientBreakdown = (dish, foodById, ageGroupId) => {
+  const total = { qty: 0, ...zero(), cost: 0 };
+  const rows = (dish?.ingredients || []).map((ing) => {
+    const food = foodById[ing.foodId] || null;
+    const qty = ingredientQty(ing, ageGroupId);
+    const row = { foodId: ing.foodId, food, qty, ...zero(), cost: 0, noNutrition: !hasNutrition(food) };
+    if (qty == null || !food) return row;
+    if (!row.noNutrition) NUTRIENTS.forEach((k) => (row[k] = (food.nutrition[k] * qty) / 100));
+    if (food.unitPrice && food.purchaseUnitSize) row.cost = (food.unitPrice / food.purchaseUnitSize) * qty;
+    total.qty += qty;
+    NUTRIENTS.forEach((k) => (total[k] += row[k]));
+    total.cost += row.cost;
+    return row;
+  });
+  NUTRIENTS.forEach((k) => (total[k] = round1(total[k])));
+  total.qty = round1(total.qty);
+  total.cost = Math.round(total.cost);
+  return { rows, total };
+};
+
+/** Tỷ lệ năng lượng từ đạm, béo, bột (%), làm tròn; tổng năng lượng bằng 0 thì trả 0. */
+export const energyShares = ({ protein = 0, lipid = 0, glucid = 0 }) => {
+  const e = protein * 4 + lipid * 9 + glucid * 4;
+  return e ? [protein * 4, lipid * 9, glucid * 4].map((x) => Math.round((x * 100) / e)) : [0, 0, 0];
 };
 
 /** Totals of a day (list of meals) for one child of the age group. */
 export const mealsTotals = (meals, dishById, foodById, ageGroupId) => {
-  const factor = portionFactorOf(ageGroupId);
   const totals = zero();
   const missing = [];
   const bySession = {};
@@ -74,9 +125,10 @@ export const mealsTotals = (meals, dishById, foodById, ageGroupId) => {
         if (!missing.includes('Món đã xóa')) missing.push('Món đã xóa');
         return;
       }
-      const r = dishTotals(dish, foodById, (Number(item.portion) || 0) * factor);
+      const r = dishTotals(dish, foodById, Number(item.portion) || 0, ageGroupId);
       NUTRIENTS.forEach((k) => (s[k] += r.totals[k]));
       r.missing.forEach((m) => !missing.includes(m) && missing.push(m));
+      if (r.noQuantity && !missing.includes(`Định lượng ${dish.name}`)) missing.push(`Định lượng ${dish.name}`);
       cost += r.cost;
     });
     NUTRIENTS.forEach((k) => {
@@ -92,9 +144,10 @@ export const mealsTotals = (meals, dishById, foodById, ageGroupId) => {
 /**
  * Compares day totals with the age-group reference (energy in kcal, other nutrients as % of energy).
  * Returns one row per nutrient: { key, value, percent, min, max, status }.
+ * norms = định mức đã lưu ở Thiết lập (catalog.norms); thiếu nhóm nào thì dùng giá trị mặc định.
  */
-export const compareToNorm = (totals, ageGroupId, incomplete = false) => {
-  const norm = NUTRITION_NORMS[ageGroupId];
+export const compareToNorm = (totals, ageGroupId, incomplete = false, norms) => {
+  const norm = norms?.[ageGroupId] || NUTRITION_NORMS[ageGroupId];
   const kcal = totals?.kcal || 0;
   return NUTRIENTS.map((key) => {
     const value = totals?.[key] || 0;
@@ -171,9 +224,9 @@ export const repeatedMainDishes = (days, dishById) => {
   return repeats;
 };
 
-/** Sorts meals by session order and drops empty sessions not in `sessions`. */
+/** Xếp bữa theo danh sách mã bữa của nhóm tuổi (thứ tự ở Thiết lập); bữa không còn trong danh sách bị bỏ. */
 export const normalizeMeals = (meals, sessions) =>
-  SESSION_ORDER.filter((s) => sessions.includes(s)).map((session) => ({
+  sessions.map((session) => ({
     session,
     items: ((meals || []).find((m) => m.session === session)?.items || [])
       .filter((i) => i.dishId)

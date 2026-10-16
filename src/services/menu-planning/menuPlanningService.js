@@ -10,7 +10,7 @@ const repo = USE_MOCK ? mock : api;
 
 /** { sharedService } – whether the Vice Principal holds the shared school-service assignment (GBR-GEN-10). */
 export const getMenuAccess = (user) => repo.getAccess(user);
-/** { foods, dishes, menus, allergyMenus, mealPrices } for live calculations. */
+/** { foods, dishes, menus, allergyMenus, mealPrices, nutritionSetups, norms } for live calculations. */
 export const getMenuCatalog = (user) => repo.getCatalog(user);
 /** [{ allergen, childCount, classes: [{ classId, className, campusId, ageGroupId, count }] }] – counts only. */
 export const getAllergyContext = (ageGroupId, user) => repo.getAllergyContext(ageGroupId, user);
@@ -19,6 +19,9 @@ export const getAllergyContext = (ageGroupId, user) => repo.getAllergyContext(ag
 export const getFoods = (filters, user) => repo.listFoods(filters, user);
 export const getFoodById = (id, user) => repo.getFood(id, user);
 export const saveFood = (id, payload, user) => repo.saveFood(id, payload, user);
+/** Lưu nhiều thực phẩm một lần: [{ key, id?, data }] → { created, updated }; lỗi 422 theo `${key}.${field}`, không ghi dòng nào. */
+export const saveFoodsBulk = (items, user) => repo.saveFoodsBulk(items, user);
+export const setFoodFavorite = (id, favorite, user) => repo.setFoodFavorite(id, favorite, user);
 export const deleteFood = (id, user) => repo.deleteFood(id, user);
 
 /* Dishes. filters: { keyword, type, status, allergen } */
@@ -34,6 +37,16 @@ export const saveMealPrice = (id, payload, user) => repo.saveMealPrice(id, paylo
 export const deleteMealPrice = (id, user) => repo.deleteMealPrice(id, user);
 
 /* Sample daily menus. filters: { keyword, ageGroupId, status } */
+/** [{ ageGroupId, enabled, basis, meals: [{ code, name, unitPrice, countAs }], norms, prices }] – một bản ghi mỗi nhóm tuổi. */
+export const getNutritionSetups = (user) => repo.listNutritionSetups(user);
+/** { effectiveFrom, reason, basis, groups } – giá mới áp dụng từ effectiveFrom, định mức áp dụng ngay. */
+export const saveNutritionSetups = (payload, user) => repo.saveNutritionSetups(payload, user);
+
+/** Thư viện món tham khảo (chỉ đọc): [{ id, name, type, ingredients: [{ foodName, unit, portions, inCatalog }], kcal, allergens, inCatalog }]. */
+export const getReferenceDishes = (filters, user) => repo.listReferenceDishes(filters, user);
+/** Chép một món tham khảo về danh mục của trường; thực phẩm còn thiếu được thêm. → { dish, addedFoods } */
+export const copyReferenceDish = (id, user) => repo.copyReferenceDish(id, user);
+
 export const getSampleMenus = (filters, user) => repo.listMenus(filters, user);
 export const getSampleMenuById = (id, user) => repo.getMenu(id, user);
 export const saveSampleMenu = (id, payload, user) => repo.saveMenu(id, payload, user);
@@ -57,6 +70,8 @@ export const deleteWeeklyMenu = (id, user) => repo.deleteWeeklyMenu(id, user);
 /* AI suggestion: params { kind: 'WEEKLY'|'DAILY', ageGroupId, weekStart?, avoidAllergens? } → draft for human review. */
 export const generateAiSuggestion = (params, user) => repo.generateAiSuggestion(params, user);
 export const getAiDraft = (id, user) => repo.getAiDraft(id, user);
+/** Áp dụng đề xuất AI sửa một ngày (kind DAY_FIX) vào bản nháp thực đơn tuần. */
+export const applyDayFix = (id, weeklyMenuId, user) => repo.applyDayFix(id, weeklyMenuId, user);
 export const dismissAiDraft = (id, user) => repo.dismissAiDraft(id, user);
 
 /*

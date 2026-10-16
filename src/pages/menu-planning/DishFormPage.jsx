@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Save, Sparkles, Trash2 } from '@/components/ui/icons';
+import { ChevronDown, Plus, Save, Trash2, X } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDish, useDishes, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
@@ -9,17 +9,32 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
-import { AllergenChips, NoManageAccess } from '@/components/menu-planning/MenuBadges';
-import { DishPortionTable } from '@/components/menu-planning/DishPortionTable';
-import { dishAllergens, dishTotals } from '@/utils/menu-planning/menuCalculations';
+import { NoManageAccess } from '@/components/menu-planning/MenuBadges';
+import { EditHead } from '@/components/ui/EditHead';
+import { AutoChecks } from '@/components/menu-planning/AutoChecks';
+import { dishAllergens, dishTotals, hasNutrition, ingredientQty } from '@/utils/menu-planning/menuCalculations';
+import { activeAgeGroups, ageAbbr } from '@/utils/menu-planning/nutritionSetup';
 import { validateDish, hasErrors } from '@/utils/menu-planning/menuPlanningValidation';
 import { dishCrumbs } from '@/utils/menu-planning/breadcrumbs';
-import { DISH_TYPE_LABELS, FOOD_GROUP_LABELS, RECORD_STATUS, RECORD_STATUS_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { AGE_GROUPS } from '@/models/School';
+import {
+  DISH_TYPE_LABELS,
+  FOOD_GROUP_LABELS,
+  RECORD_STATUS,
+  RECORD_STATUS_LABELS,
+  formatMoney,
+} from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
-const EMPTY = { name: '', type: '', description: '', status: 'ACTIVE', ingredients: [{ foodId: '', quantity: '' }] };
+const emptyRow = () => ({ isNew: true, foodId: '', portions: Object.fromEntries(AGE_GROUPS.map((a) => [a.id, ''])) });
+const EMPTY = { name: '', type: '', description: '', status: 'ACTIVE', ingredients: [emptyRow()] };
+const toRow = (ing) => ({
+  foodId: ing.foodId,
+  portions: Object.fromEntries(AGE_GROUPS.map((a) => [a.id, ingredientQty(ing, a.id) == null ? '' : String(ingredientQty(ing, a.id))])),
+});
+const g = (v) => v.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 
-/** Screen #73 – the Vice Principal (shared services) creates or edits a dish and its recipe quantities (UC 6.5). */
+/** Bước 2 luồng dinh dưỡng – trang sửa món: định lượng từng nhóm tuổi, cột phải là dinh dưỡng 1 suất và kiểm tra tự động. */
 export default function DishFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -37,9 +52,17 @@ export default function DishFormPage() {
 
   useEffect(() => {
     if (item)
-      setForm({ name: item.name, type: item.type, description: item.description, status: item.status, ingredients: item.ingredients });
-  }, [item]);
+      setForm({
+        name: item.name,
+        type: item.type,
+        description: item.description,
+        status: item.status,
+        ingredients: item.ingredients.map(toRow),
+      });
+    else if (!id) setForm(EMPTY);
+  }, [item, id]);
 
+  const groups = activeAgeGroups(catalog.nutritionSetups);
   const foodOptions = useMemo(
     () =>
       catalog.foods
@@ -60,19 +83,47 @@ export default function DishFormPage() {
       'ingredients',
       form.ingredients.map((r, j) => (j === i ? { ...r, ...patch } : r)),
     );
-  const preview = {
-    ingredients: form.ingredients.filter((r) => r.foodId).map((r) => ({ foodId: r.foodId, quantity: Number(r.quantity) || 0 })),
-  };
+  const setQty = (i, ag, v) => setRow(i, { portions: { ...form.ingredients[i].portions, [ag]: v } });
+  const preview = { name: form.name, ingredients: form.ingredients.filter((r) => r.foodId) };
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const usedFoods = preview.ingredients.map((r) => catalog.foodById[r.foodId]).filter(Boolean);
+  const noQtyGroups = groups.filter((a) => dishTotals(preview, catalog.foodById, 1, a.id).noQuantity);
+  const noNutrition = usedFoods.filter((f) => !hasNutrition(f)).map((f) => f.name);
+  const noPrice = usedFoods.filter((f) => !f.unitPrice).map((f) => f.name);
+  const allergens = dishAllergens(preview, catalog.foodById);
+  const appliedGroups = preview.ingredients.length ? groups.filter((a) => !noQtyGroups.includes(a)) : [];
+  const g1 = (v) => v.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+  const portionItems = groups.map((a) => {
+    const t = dishTotals(preview, catalog.foodById, 1, a.id);
+    return t.noQuantity || !preview.ingredients.length
+      ? { tone: 'bad', text: `${ageAbbr(a.id)}: chưa có định lượng` }
+      : {
+          tone: 'ok',
+          text: `${ageAbbr(a.id)}: ${g1(t.totals.kcal)} kcal · đạm ${g1(t.totals.protein)} g · béo ${g1(t.totals.lipid)} g · bột ${g1(t.totals.glucid)} g · ${formatMoney(t.cost)}`,
+        };
+  });
+  const checks = [
+    ...noQtyGroups.map((a) => ({ tone: 'bad', text: `Cột ${ageAbbr(a.id)} chưa có định lượng: món chưa dùng được cho ${ageAbbr(a.id)}.` })),
+    ...(noNutrition.length ? [{ tone: 'warn', text: `Thiếu số liệu dinh dưỡng: ${noNutrition.join(', ')}.` }] : []),
+    ...(noPrice.length ? [{ tone: 'warn', text: `Chưa có đơn giá: ${noPrice.join(', ')}.` }] : []),
+  ];
+  if (!checks.length && preview.ingredients.length)
+    checks.push({ tone: 'ok', text: `Đủ định lượng và số liệu cho ${groups.length} nhóm tuổi.` });
+
+  const submit = async (e, again = false) => {
+    e?.preventDefault();
     setSubmitted(true);
     if (hasErrors(Object.fromEntries(Object.entries(errors).filter(([, v]) => v)))) return;
     setBusy(true);
     try {
-      const saved = await saveDish(id, form, user);
+      await saveDish(id, form, user);
       toast.success('Lưu thay đổi thành công.');
-      navigate(`/menu/dishes/${saved.id}`);
+      if (again) {
+        setForm(EMPTY);
+        setSubmitted(false);
+        setTouched({});
+        navigate('/menu/dishes/new');
+      } else navigate('/menu/dishes');
     } catch (err) {
       if (err.details) setServerErrors(err.details);
       toast.error(err.message, 'Không lưu được thay đổi');
@@ -101,17 +152,31 @@ export default function DishFormPage() {
   return (
     <div className="page">
       <Breadcrumb items={dishCrumbs(title)} />
-      <div className="page__head">
-        <h1 className="page__title">{id ? `Sửa món ${item?.code || ''}` : title}</h1>
-        <Link className="btn btn--outline-primary" to="/menu/ai-suggestion?kind=DAILY">
-          <Sparkles size={16} /> Gợi ý kết hợp món bằng AI
-        </Link>
-      </div>
       <form onSubmit={submit} noValidate>
-        <div className="card wizard-card">
-          <div className="card__header">
-            <div className="card__title">Thông tin món</div>
-          </div>
+        <EditHead
+          backTo="/menu/dishes"
+          backLabel="Quay lại Món ăn"
+          title={form.name.trim() || title}
+          meta={
+            [DISH_TYPE_LABELS[form.type], allergens.length ? `có ${allergens.join(', ').toLowerCase()}` : ''].filter(Boolean).join(' · ') ||
+            null
+          }
+          actions={
+            <>
+              <Link className="btn" to="/menu/dishes">
+                <X size={16} /> Hủy
+              </Link>
+              <button type="button" className="btn" disabled={busy} onClick={() => submit(null, true)}>
+                <Save size={16} /> Lưu & thêm mới
+              </button>
+              <button type="submit" className="btn btn--primary" disabled={busy}>
+                {busy ? <Spinner small /> : <Save size={16} />} Lưu
+              </button>
+            </>
+          }
+        />
+
+        <section className="card">
           <div className="card__body td-form-grid">
             <FormField label="Tên món" required error={show('name')}>
               <input
@@ -137,39 +202,66 @@ export default function DishFormPage() {
                 ))}
               </select>
             </FormField>
-            <FormField label="Trạng thái" required>
-              <select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
-                {Object.entries(RECORD_STATUS_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            <FormField label="Mô tả, cách chế biến" className="td-span-all">
-              <textarea className="textarea" rows={2} value={form.description} onChange={(e) => set('description', e.target.value)} />
-            </FormField>
+            <div className="field">
+              <span className="field__label">
+                Nhóm trẻ áp dụng<span className="req">*</span>
+              </span>
+              <div className="td-tags" title="Tính từ các cột đã nhập đủ định lượng">
+                {appliedGroups.length ? (
+                  appliedGroups.map((g) => (
+                    <span key={g.id} className="chip chip--blue">
+                      {ageAbbr(g.id)}
+                    </span>
+                  ))
+                ) : (
+                  <span className="muted text-sm">Chưa đủ định lượng nhóm nào</span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+          {/* Trạng thái và mô tả ít khi sửa: thu gọn để thẻ thông tin gọn như wireframe */}
+          <details className="td-more-info">
+            <summary className="link-btn">
+              <ChevronDown size={16} /> Mô tả, trạng thái
+            </summary>
+            <div className="td-form-grid">
+              <FormField label="Trạng thái" required>
+                <select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
+                  {Object.entries(RECORD_STATUS_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Mô tả, cách chế biến" className="td-span-2">
+                <textarea className="textarea" rows={2} value={form.description} onChange={(e) => set('description', e.target.value)} />
+              </FormField>
+            </div>
+          </details>
+        </section>
 
-        <div className="card wizard-card mt-16">
-          <div className="card__header">
-            <div className="card__title">Thực phẩm và định lượng cho một khẩu phần chuẩn</div>
-          </div>
-          <div className="card__body">
-            <div className="table-wrap">
-              <table className="table table--compact">
+        <div className="td-split-aside">
+          <section className="card">
+            <div className="card__header">
+              <h2 className="card__title">Thành phần và định lượng một trẻ</h2>
+              <span className="text-sm muted">Để trống ô của nhóm chưa dùng món này</span>
+            </div>
+            <div className="table-wrap td-recipe-wrap">
+              <table className="table table--compact td-recipe">
                 <thead>
                   <tr>
-                    <th style={{ minWidth: 240 }}>
-                      Thực phẩm <span className="req">*</span>
+                    <th className="right">#</th>
+                    <th>
+                      Thành phần <span className="req">*</span>
                     </th>
-                    <th style={{ width: 140 }}>
-                      Định lượng <span className="req">*</span>
-                    </th>
-                    <th className="right">Năng lượng</th>
-                    <th>Chứa</th>
-                    <th className="center" style={{ width: 56 }}>
+                    <th>ĐVT</th>
+                    {groups.map((a) => (
+                      <th key={a.id} className="center">
+                        {ageAbbr(a.id)}
+                      </th>
+                    ))}
+                    <th className="center">
                       <span className="sr-only">Xóa</span>
                     </th>
                   </tr>
@@ -177,49 +269,48 @@ export default function DishFormPage() {
                 <tbody>
                   {form.ingredients.map((r, i) => {
                     const food = catalog.foodById[r.foodId];
-                    const kcal = food
-                      ? dishTotals({ ingredients: [{ foodId: r.foodId, quantity: Number(r.quantity) || 0 }] }, catalog.foodById)
-                      : null;
-                    const err = submitted ? errors[`ing_${i}`] : undefined;
+                    const qtyErr = groups.map((a) => errors[`ing_${i}_${a.id}`]).find(Boolean);
+                    const err = submitted ? errors[`ing_${i}`] || (qtyErr && `Định lượng ${qtyErr.toLowerCase()}`) : undefined;
                     return (
                       <tr key={i}>
-                        <td>
-                          <SearchSelect
-                            options={foodOptions.filter((o) => o.value === r.foodId || !form.ingredients.some((x) => x.foodId === o.value))}
-                            value={r.foodId}
-                            onChange={(v) => setRow(i, { foodId: v })}
-                            placeholder="Chọn thực phẩm..."
-                            ariaLabel={`Thực phẩm ${i + 1}`}
-                            error={!!err}
-                          />
+                        <td className="right muted">{i + 1}</td>
+                        <td className="td-recipe__food">
+                          {r.isNew ? (
+                            <SearchSelect
+                              options={foodOptions.filter(
+                                (o) => o.value === r.foodId || !form.ingredients.some((x) => x.foodId === o.value),
+                              )}
+                              value={r.foodId}
+                              onChange={(v) => setRow(i, { foodId: v })}
+                              placeholder="Chọn thực phẩm..."
+                              ariaLabel={`Thực phẩm ${i + 1}`}
+                              error={!!err}
+                            />
+                          ) : (
+                            <b>{food?.name || 'Thực phẩm đã xóa'}</b>
+                          )}
                           {err && <span className="field__error">{err}</span>}
                         </td>
-                        <td>
-                          <div className="row" style={{ gap: 6 }}>
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              className="input"
-                              value={r.quantity}
-                              onChange={(e) => setRow(i, { quantity: e.target.value })}
-                              aria-label={`Định lượng thực phẩm ${i + 1}`}
-                            />
-                            <span className="muted">{food?.unit || 'g'}</span>
-                          </div>
-                        </td>
-                        <td className="right nowrap">
-                          {kcal ? (
-                            kcal.missing.length ? (
-                              <span className="td-warn text-sm">Thiếu số liệu</span>
-                            ) : (
-                              `${kcal.totals.kcal.toLocaleString('vi-VN')} kcal`
-                            )
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td>{food ? <AllergenChips allergens={food.allergens} /> : '—'}</td>
+                        <td className="muted">{food?.unit || 'g'}</td>
+                        {groups.map((a) => {
+                          const v = r.portions[a.id];
+                          const bad = submitted && errors[`ing_${i}_${a.id}`];
+                          return (
+                            <td key={a.id} className="center">
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                className={`input td-qty ${v === '' ? 'td-qty--empty' : ''} ${bad ? 'is-invalid' : ''}`}
+                                value={v}
+                                placeholder="Nhập"
+                                title={bad || undefined}
+                                onChange={(e) => setQty(i, a.id, e.target.value)}
+                                aria-label={`Định lượng ${food?.name || `thực phẩm ${i + 1}`} cho ${a.name}`}
+                              />
+                            </td>
+                          );
+                        })}
                         <td className="center">
                           <button
                             type="button"
@@ -240,36 +331,35 @@ export default function DishFormPage() {
                     );
                   })}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td />
+                    <td colSpan={2}>Năng lượng một suất</td>
+                    {groups.map((a) => {
+                      const t = dishTotals(preview, catalog.foodById, 1, a.id);
+                      return (
+                        <td key={a.id} className="center nowrap">
+                          {t.noQuantity ? <span className="td-warn">Thiếu</span> : `${g(t.totals.kcal)} kcal`}
+                        </td>
+                      );
+                    })}
+                    <td />
+                  </tr>
+                </tfoot>
               </table>
             </div>
-            {submitted && errors.ingredients && <span className="field__error">{errors.ingredients}</span>}
-            <button
-              type="button"
-              className="btn btn--sm btn--ghost mt-8"
-              onClick={() => set('ingredients', [...form.ingredients, { foodId: '', quantity: '' }])}
-            >
-              <Plus size={15} /> Thêm thực phẩm
-            </button>
-          </div>
-        </div>
+            {submitted && errors.ingredients && <span className="field__error td-card-error">{errors.ingredients}</span>}
+            <div className="td-add-meal">
+              <button type="button" className="link-btn" onClick={() => set('ingredients', [...form.ingredients, emptyRow()])}>
+                <Plus size={16} /> Thêm thành phần
+              </button>
+            </div>
+          </section>
 
-        <div className="card mt-16">
-          <div className="card__header">
-            <div className="card__title">Dinh dưỡng và chi phí (tự tính)</div>
-            <AllergenChips allergens={dishAllergens(preview, catalog.foodById)} empty="Không chứa chất gây dị ứng đã khai báo" />
+          <div className="td-aside-stack">
+            <AutoChecks title="Dinh dưỡng 1 suất" items={portionItems} />
+            {checks.length > 0 && <AutoChecks items={checks} />}
           </div>
-          <div className="card__body">
-            <DishPortionTable dish={preview} foodById={catalog.foodById} />
-          </div>
-        </div>
-
-        <div className="page-actions">
-          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/dishes/${id}` : '/menu/dishes')}>
-            <ArrowLeft size={16} /> Hủy
-          </button>
-          <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? <Spinner small /> : <Save size={16} />} Lưu món ăn
-          </button>
         </div>
       </form>
     </div>

@@ -92,6 +92,10 @@ export const FOOD_GROUP_LABELS = {
 };
 
 export const FOOD_UNIT_LABELS = { g: 'gam (g)', ml: 'mililít (ml)' };
+/** Cách bảo quản: tươi (giao trong ngày) hay khô (lấy từ kho); dùng khi tách phiếu đi chợ. */
+export const FOOD_STORAGE = { FRESH: 'FRESH', DRY: 'DRY' };
+export const FOOD_STORAGE_LABELS = { FRESH: 'Tươi', DRY: 'Khô' };
+export const defaultStorageOf = (group) => (['GRAIN', 'LEGUME', 'FAT_SUGAR', 'OTHER'].includes(group) ? 'DRY' : 'FRESH');
 
 /** Allergen labels; children allergies in school data use the same words (matched without accents). */
 export const ALLERGENS = ['Tôm', 'Cua', 'Cá', 'Trứng', 'Sữa bò', 'Đậu phộng', 'Đậu nành', 'Lúa mì', 'Mè (vừng)'];
@@ -164,7 +168,7 @@ export const HISTORY_LABELS = {
 /** A main dish should not repeat within this many days (GBR-MENU-04: allowed but flagged). */
 export const REPEAT_WINDOW_DAYS = 7;
 
-export const AI_DRAFT_KIND = { WEEKLY: 'WEEKLY', DAILY: 'DAILY' };
+export const AI_DRAFT_KIND = { WEEKLY: 'WEEKLY', DAILY: 'DAILY', DAY_FIX: 'DAY_FIX' };
 export const AI_DRAFT_STATUS = { PENDING_REVIEW: 'PENDING_REVIEW', APPLIED: 'APPLIED', DISMISSED: 'DISMISSED' };
 export const AI_DRAFT_STATUS_LABELS = { PENDING_REVIEW: 'Chờ người duyệt', APPLIED: 'Đã dùng', DISMISSED: 'Đã bỏ qua' };
 export const AI_LABEL = 'Bản nháp AI – cần người duyệt';

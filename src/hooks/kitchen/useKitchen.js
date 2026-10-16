@@ -58,8 +58,8 @@ export const useConfirmedMealCount = (campusId, date) => {
   return { sessions: data || [], ...rest };
 };
 
-export const useRequiredQuantity = (campusId, date, session) =>
-  useKitchenQuery((user) => getRequiredQuantity({ campusId, date, session }, user), [campusId, date, session], {
+export const useRequiredQuantity = (campusId, date) =>
+  useKitchenQuery((user) => getRequiredQuantity({ campusId, date }, user), [campusId, date], {
     enabled: !!campusId && !!date,
   });
 

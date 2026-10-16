@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, AlertTriangle } from '@/components/ui/icons';
+import { AlertTriangle, ArrowLeft, Bowl, Pencil, Trash2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDish, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
@@ -9,13 +9,19 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
-import { DishPortionTable } from '@/components/menu-planning/DishPortionTable';
-import { dishAllergens } from '@/utils/menu-planning/menuCalculations';
+import { NutrientBars } from '@/components/menu-planning/NutrientBars';
+import { dishAllergens, ingredientBreakdown, ingredientQty } from '@/utils/menu-planning/menuCalculations';
+import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { dishCrumbs } from '@/utils/menu-planning/breadcrumbs';
-import { DISH_TYPE_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { DISH_TYPE_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
-/** Screen #74 – one dish with its recipe and nutrition. */
+const n1 = (v) => (Math.round(v * 10) / 10).toLocaleString('vi-VN');
+
+/**
+ * Chi tiết món ăn (bố cục "hồ sơ bên trái cố định"): hồ sơ món + dinh dưỡng một suất bên trái;
+ * bảng hàm lượng từng thành phần theo nhóm tuổi đang chọn, dùng trong, lịch sử bên phải.
+ */
 export default function DishDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -26,6 +32,7 @@ export default function DishDetailPage() {
   const { item: d, loading, error, reload } = useDish(id);
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [picked, setPicked] = useState('');
 
   if (loading || catLoading) return <LoadingState />;
   if (error || !d)
@@ -47,107 +54,189 @@ export default function DishDetailPage() {
     }
   };
 
+  const groups = activeAgeGroups(catalog.nutritionSetups);
+  const ag = groups.find((g) => g.id === picked) || groups.find((g) => g.id === 'ag-4') || groups[0];
+  const { rows, total } = ingredientBreakdown(d, catalog.foodById, ag?.id);
+  const noData = rows.some((r) => r.qty != null && r.noNutrition);
+  // Thành phần chưa nhập định lượng ở nhóm tuổi đang áp dụng
+  const gaps = d.ingredients
+    .map((ing) => ({
+      name: catalog.foodById[ing.foodId]?.name || 'Thực phẩm đã xóa',
+      groups: groups.filter((g) => ingredientQty(ing, g.id) == null).map((g) => g.shortName),
+    }))
+    .filter((x) => x.groups.length);
+
   return (
     <div className="page">
       <Breadcrumb items={dishCrumbs(d.name)} />
-      <div className="page__head">
-        <div className="row" style={{ gap: 12 }}>
-          <h1 className="page__title">{d.name}</h1>
-          <RecordStatusBadge status={d.status} size="lg" />
-        </div>
-        {canManage && (
-          <div className="row row--wrap td-actions">
-            <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
-              <Trash2 size={16} /> Xóa
-            </button>
-            <Link className="btn btn--primary" to={`/menu/dishes/${id}/edit`}>
-              <Pencil size={16} /> Sửa món ăn
-            </Link>
-          </div>
-        )}
-      </div>
       {deleteError && (
         <div className="alert alert--danger mb-16">
           <AlertTriangle size={18} />
           <div>{deleteError}</div>
         </div>
       )}
-      <div className="td-split">
-        <div className="card">
-          <div className="card__header">
-            <div className="card__title">Thông tin món</div>
-          </div>
-          <div className="card__body">
+      <div className="td-profile">
+        <aside className="card td-profile__side">
+          <div className="card__body td-profile__body">
+            <span className="td-profile__icon" aria-hidden="true">
+              <Bowl size={22} />
+            </span>
+            <h1 className="td-profile__name">{d.name}</h1>
+            <RecordStatusBadge status={d.status} />
             <dl className="info-list">
-              <dt>Mã:</dt>
+              <dt>Mã</dt>
               <dd className="fw-600">{d.code}</dd>
-              <dt>Loại món:</dt>
+              <dt>Loại</dt>
               <dd>{DISH_TYPE_LABELS[d.type]}</dd>
-              <dt>Mô tả:</dt>
-              <dd>{d.description || '—'}</dd>
-              <dt>Chứa:</dt>
+              <dt>Chứa</dt>
               <dd>
-                <AllergenChips allergens={dishAllergens(d, catalog.foodById)} empty="Không có chất gây dị ứng đã khai báo" />
-              </dd>
-              <dt>Dùng trong:</dt>
-              <dd>
-                {d.usedInMenus.length === 0 ? (
-                  <span className="muted">Chưa có thực đơn mẫu nào</span>
-                ) : (
-                  <span className="td-chips">
-                    {d.usedInMenus.map((m) => (
-                      <Link key={m.id} to={`/menu/menus/${m.id}`} className="chip chip--blue">
-                        {m.name}
-                      </Link>
-                    ))}
-                  </span>
-                )}
+                <AllergenChips allergens={dishAllergens(d, catalog.foodById)} empty="Không có chất gây dị ứng" />
               </dd>
             </dl>
+            {d.description && <p className="text-sm muted td-flat">{d.description}</p>}
+            {ag && (
+              <>
+                <NutrientBars values={total} title={`Một suất ${ag.shortName}`} missing={noData} />
+                <div className="td-profile__cost">
+                  <span className="muted">Chi phí một suất</span>
+                  <b>{formatMoney(total.cost)}</b>
+                </div>
+              </>
+            )}
+            {canManage && (
+              <div className="td-profile__acts">
+                <Link className="btn btn--primary" to={`/menu/dishes/${id}/edit`}>
+                  <Pencil size={16} /> Sửa món ăn
+                </Link>
+                <button type="button" className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
+                  <Trash2 size={16} /> Xóa
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-        <div className="card">
-          <div className="card__header">
-            <div className="card__title">Công thức (một khẩu phần chuẩn)</div>
-          </div>
-          <div className="table-wrap" style={{ border: 'none' }}>
-            <table className="table table--compact">
-              <thead>
-                <tr>
-                  <th>Thực phẩm</th>
-                  <th className="right">Định lượng</th>
-                  <th>Chứa</th>
-                </tr>
-              </thead>
-              <tbody>
-                {d.ingredients.map((r) => {
-                  const f = catalog.foodById[r.foodId];
-                  return (
+        </aside>
+
+        <div className="td-stack">
+          {gaps.length > 0 && (
+            <div className="alert alert--warning">
+              <AlertTriangle size={18} />
+              <div>
+                {gaps.map((g) => `${g.name} chưa nhập định lượng cho ${g.groups.join(', ')}`).join('; ')}. Thực đơn của nhóm đó dùng món này
+                sẽ tính thiếu.
+              </div>
+            </div>
+          )}
+          <section className="card">
+            <div className="card__header td-wrap-head">
+              <h2 className="card__title">Hàm lượng từng thành phần</h2>
+              <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
+                {groups.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={g.id === ag?.id}
+                    className={`tab ${g.id === ag?.id ? 'tab--active' : ''}`}
+                    onClick={() => setPicked(g.id)}
+                  >
+                    {g.shortName}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="table-wrap td-card-table">
+              <table className="table td-hl">
+                <thead>
+                  <tr>
+                    <th>Thành phần</th>
+                    <th>ĐVT</th>
+                    <th className="right">Đơn giá</th>
+                    <th className="right">Thải bỏ</th>
+                    <th className="right">Lượng ăn 1 trẻ</th>
+                    <th className="right">kcal</th>
+                    <th className="right">Đạm (g)</th>
+                    <th className="right">Béo (g)</th>
+                    <th className="right">Bột (g)</th>
+                    <th className="right">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="td-hl__total">
+                    <td>Tổng</td>
+                    <td colSpan={3} />
+                    <td className="right nowrap">{n1(total.qty)}</td>
+                    <td className="right">{n1(total.kcal)}</td>
+                    <td className="right">{n1(total.protein)}</td>
+                    <td className="right">{n1(total.lipid)}</td>
+                    <td className="right">{n1(total.glucid)}</td>
+                    <td className="right nowrap">{formatMoney(total.cost)}</td>
+                  </tr>
+                  {rows.map((r) => (
                     <tr key={r.foodId}>
-                      <td>{f ? <Link to={`/menu/foods/${f.id}`}>{f.name}</Link> : 'Thực phẩm đã xóa'}</td>
-                      <td className="right nowrap">
-                        {r.quantity.toLocaleString('vi-VN')} {f?.unit || 'g'}
-                      </td>
                       <td>
-                        <AllergenChips allergens={f?.allergens} />
+                        {r.food ? <Link to={`/menu/foods/${r.food.id}`}>{r.food.name}</Link> : 'Thực phẩm đã xóa'}{' '}
+                        <AllergenChips allergens={r.food?.allergens} empty="" />
                       </td>
+                      <td className="text-sm">{r.food?.purchaseUnit || '—'}</td>
+                      <td className="right nowrap">{r.food?.unitPrice == null ? '—' : formatMoney(r.food.unitPrice)}</td>
+                      <td className="right">{r.food ? `${r.food.wastePct ?? 0}%` : '—'}</td>
+                      {r.qty == null ? (
+                        <>
+                          <td className="right">
+                            <span className="td-warn">Chưa nhập</span>
+                          </td>
+                          <td colSpan={5} className="muted text-sm">
+                            Chưa tính được
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="right nowrap">
+                            {n1(r.qty)} {r.food?.unit || 'g'}
+                          </td>
+                          {r.noNutrition ? (
+                            <td colSpan={4} className="td-warn text-sm">
+                              Chưa có số liệu dinh dưỡng
+                            </td>
+                          ) : (
+                            <>
+                              <td className="right">{n1(r.kcal)}</td>
+                              <td className="right">{n1(r.protein)}</td>
+                              <td className="right">{n1(r.lipid)}</td>
+                              <td className="right">{n1(r.glucid)}</td>
+                            </>
+                          )}
+                          <td className="right nowrap">{formatMoney(Math.round(r.cost))}</td>
+                        </>
+                      )}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section className="card">
+            <div className="card__header">
+              <h2 className="card__title">Dùng trong thực đơn mẫu</h2>
+              <span className="chip chip--gray">{d.usedInMenus.length}</span>
+            </div>
+            <div className="card__body">
+              {d.usedInMenus.length === 0 ? (
+                <span className="muted">Chưa có thực đơn mẫu nào.</span>
+              ) : (
+                <span className="td-chips">
+                  {d.usedInMenus.map((m) => (
+                    <Link key={m.id} to={`/menu/menus/${m.id}`} className="chip chip--blue">
+                      {m.name}
+                    </Link>
+                  ))}
+                </span>
+              )}
+            </div>
+          </section>
+          <HistoryCard history={d.history} />
         </div>
       </div>
-      <div className="card mt-16">
-        <div className="card__header">
-          <div className="card__title">Dinh dưỡng và chi phí theo nhóm tuổi</div>
-        </div>
-        <div className="card__body">
-          <DishPortionTable dish={d} foodById={catalog.foodById} />
-        </div>
-      </div>
-      <HistoryCard history={d.history} />
       <div className="page-actions">
         <Link className="btn" to="/menu/dishes">
           <ArrowLeft size={16} /> Quay lại danh sách

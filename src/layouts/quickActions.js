@@ -34,7 +34,7 @@ const QUICK_ACTIONS = [
   { label: 'Kế hoạch chủ đề', to: '/education/themes/new', group: 'Kế hoạch giáo dục', icon: PenLine, roles: [R.TEAM_LEADER] },
   { label: 'Tiếp nhận trẻ', to: '/children/new', group: 'Quản lý trẻ', icon: Baby, roles: VP_ONLY },
   { label: 'Đề xuất mua sắm, sửa chữa', to: '/facility/proposals/new', group: 'Cơ sở vật chất', icon: Wrench, roles: VP_ONLY },
-  { label: 'Thực đơn tuần', to: '/menu/weekly/new', group: 'Thực đơn', icon: CookingPot, roles: VP_ONLY },
+  { label: 'Thực đơn tuần', to: '/menu/weekly', group: 'Thực đơn', icon: CookingPot, roles: VP_ONLY },
   { label: 'Phiếu nhập kho', to: '/kitchen/stock-receipts/new', group: 'Bếp & kho', icon: Truck, roles: VP_ONLY },
   { label: 'Bộ mục tiêu năm học', to: '/education/goals/new', group: 'Kế hoạch giáo dục', icon: Target, roles: VP_ONLY },
   { label: 'Phiếu luân chuyển tài sản', to: '/facility/transfers/new', group: 'Cơ sở vật chất', icon: ArrowLeftRight, roles: VP_ONLY },

@@ -16,6 +16,8 @@ import {
   getMenuAccess,
   getMenuCatalog,
   getMenuPlans,
+  getNutritionSetups,
+  getReferenceDishes,
   getSampleMenuById,
   getSampleMenus,
   getWeeklyMenuById,
@@ -45,6 +47,8 @@ export const useDishes = listHook(getDishes);
 export const useDish = itemHook(getDishById);
 export const useMealPrices = listHook(getMealPrices);
 export const useMealPrice = itemHook(getMealPriceById);
+export const useReferenceDishes = listHook(getReferenceDishes);
+export const useNutritionSetups = listHook((_, user) => getNutritionSetups(user));
 export const useSampleMenus = listHook(getSampleMenus);
 export const useSampleMenu = itemHook(getSampleMenuById);
 export const useAllergyMenus = listHook(getAllergyMenus);
@@ -65,7 +69,7 @@ export function useMenuCatalog({ live = true } = {}) {
   const { user } = useAuth();
   const { data, loading, error, reload } = useAsync(() => getMenuCatalog(user), [user?.id], { refreshOnDataChange: live });
   const catalog = useMemo(() => {
-    const c = data || { foods: [], dishes: [], menus: [], allergyMenus: [], mealPrices: [] };
+    const c = data || { foods: [], dishes: [], menus: [], allergyMenus: [], mealPrices: [], nutritionSetups: [], norms: {} };
     return { ...c, foodById: byId(c.foods), dishById: byId(c.dishes), menuById: byId(c.menus) };
   }, [data]);
   return { catalog, loading, error, reload };

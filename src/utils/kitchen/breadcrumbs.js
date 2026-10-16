@@ -11,7 +11,7 @@ export const KITCHEN_PAGES = {
   preparation: { label: 'Tình trạng chế biến', to: '/kitchen/preparation' },
   publishedMenu: { label: 'Thực đơn đã công bố', to: '/kitchen/published-menu' },
   mealCount: { label: 'Số suất ăn đã xác nhận', to: '/kitchen/meal-count' },
-  requiredQuantity: { label: 'Định lượng thực phẩm', to: '/kitchen/required-quantity' },
+  requiredQuantity: { label: 'Khẩu phần & đi chợ', to: '/kitchen/required-quantity' },
   ingredientReceipts: { label: 'Nhận thực phẩm từ kho', to: '/kitchen/ingredient-receipts' },
   missingFood: { label: 'Báo thiếu thực phẩm', to: '/kitchen/missing-food' },
   preparationUpdate: { label: 'Cập nhật chế biến', to: '/kitchen/preparation/update' },

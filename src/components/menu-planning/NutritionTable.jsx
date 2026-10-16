@@ -9,9 +9,9 @@ const fmt = (n) => (typeof n === 'number' ? n.toLocaleString('vi-VN', { maximumF
  * Day totals against the age-group reference (GBR-MENU-02). Values only, no health wording.
  * result = mealsTotals(...) → { totals, missing, cost }.
  */
-export function NutritionTable({ result, ageGroupId, price }) {
+export function NutritionTable({ result, ageGroupId, norms, price }) {
   const incomplete = (result?.missing || []).length > 0;
-  const rows = compareToNorm(result?.totals, ageGroupId, incomplete);
+  const rows = compareToNorm(result?.totals, ageGroupId, incomplete, norms);
   return (
     <>
       {incomplete && (

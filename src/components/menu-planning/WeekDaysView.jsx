@@ -33,7 +33,7 @@ export function WeekDaysView({ wm, catalog, linkMenus = false, balanceLink = fal
         <tbody>
           {wm.days.map((day, i) => {
             const result = day.holiday ? null : mealsTotals(day.meals, catalog.dishById, catalog.foodById, wm.ageGroupId);
-            const rows = result ? compareToNorm(result.totals, wm.ageGroupId, result.missing.length > 0) : [];
+            const rows = result ? compareToNorm(result.totals, wm.ageGroupId, result.missing.length > 0, catalog.norms) : [];
             const menu = catalog.menuById[day.menuId];
             return (
               <tr key={day.date}>
@@ -60,7 +60,7 @@ export function WeekDaysView({ wm, catalog, linkMenus = false, balanceLink = fal
                           )}
                         </div>
                       )}
-                      <MealsView meals={day.meals} catalog={catalog} compact />
+                      <MealsView meals={day.meals} catalog={catalog} ageGroupId={wm.ageGroupId} compact />
                     </>
                   )}
                 </td>

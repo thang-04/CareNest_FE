@@ -48,7 +48,7 @@ const SHORTCUTS = [
   { to: '/children', label: 'Quản lý trẻ', icon: UserRound },
   { to: '/approvals', label: 'Chờ duyệt', icon: ListChecks },
   { to: '/facility/issues', label: 'Giám sát cơ sở vật chất', icon: Building2 },
-  { to: '/menu/plans', label: 'Kế hoạch thực đơn', icon: UtensilsCrossed },
+  { to: '/menu/weekly', label: 'Thực đơn tuần', icon: UtensilsCrossed },
 ];
 
 /**
@@ -257,8 +257,8 @@ export default function PrincipalDashboard() {
           <Widget
             title={`Thực đơn hôm nay, ${formatDate(date)}`}
             icon={UtensilsCrossed}
-            to="/menu/plans"
-            linkLabel="Xem kế hoạch thực đơn"
+            to="/menu/weekly"
+            linkLabel="Xem thực đơn tuần"
             loading={firstLoad(menuQ)}
             error={menuQ.error}
             onRetry={menuQ.reload}

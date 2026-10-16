@@ -14,6 +14,7 @@ export const approveStockIssue = (filters, user) => repo.approveStockIssue(filte
 export const confirmIngredientReceipt = (payload, user) => repo.confirmIngredientReceipt(payload, user);
 export const getPublishedMenu = (filters, user) => repo.getPublishedMenu(filters, user);
 export const getConfirmedMealCount = (filters, user) => repo.getConfirmedMealCount(filters, user);
+/** Khẩu phần & đi chợ cả ngày: { status, foods, revenue, cost, balance, substitutes, meals, checks, sessions, issue, issueState }. */
 export const getRequiredQuantity = (filters, user) => repo.getRequiredQuantity(filters, user);
 export const getMissingFoodReports = (filters, user) => repo.getMissingFoodReports(filters, user);
 export const submitMissingFoodReport = (payload, user) => repo.submitMissingFoodReport(payload, user);

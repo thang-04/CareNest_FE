@@ -1,9 +1,22 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { MainLayout } from '@/layouts/MainLayout';
 import { RoleGuard } from './RoleGuard';
 import { ProtectedRoute, GuestRoute } from './ProtectedRoute';
 import { LoadingState } from '@/components/ui/States';
+
+/** Màn gợi ý AI cũ: gợi ý ngày → AI soạn mẫu; gợi ý tuần → trang thực đơn tuần. */
+function LegacyAiRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={new URLSearchParams(search).get('kind') === 'DAILY' ? '/menu/menus/new?ai=1' : '/menu/weekly'} replace />;
+}
+
+/** Đường dẫn cũ của thực đơn tuần (/menu/weekly/:id, /menu/plans/:id, ?aiDraftId=) chuyển về trang một màn. */
+function LegacyWeeklyRedirect() {
+  const { id } = useParams();
+  const { search } = useLocation();
+  return <Navigate to={id ? `/menu/weekly?id=${id}` : `/menu/weekly${search}`} replace />;
+}
 import { ROLES } from '@/models/User';
 import HomePage from '@/pages/HomePage';
 import ComingSoonPage from '@/pages/ComingSoonPage';
@@ -131,27 +144,18 @@ const RewardProposalDetailPage = lazy(() => import('@/pages/assessment/RewardPro
 
 const PendingApprovalsPage = lazy(() => import('@/pages/dashboard/PendingApprovalsPage'));
 
+const NutritionFlowPage = lazy(() => import('@/pages/menu-planning/NutritionFlowPage'));
 const FoodListPage = lazy(() => import('@/pages/menu-planning/FoodListPage'));
 const FoodDetailPage = lazy(() => import('@/pages/menu-planning/FoodDetailPage'));
 const FoodFormPage = lazy(() => import('@/pages/menu-planning/FoodFormPage'));
 const DishListPage = lazy(() => import('@/pages/menu-planning/DishListPage'));
 const DishDetailPage = lazy(() => import('@/pages/menu-planning/DishDetailPage'));
 const DishFormPage = lazy(() => import('@/pages/menu-planning/DishFormPage'));
-const MealPriceListPage = lazy(() => import('@/pages/menu-planning/MealPriceListPage'));
-const MealPriceFormPage = lazy(() => import('@/pages/menu-planning/MealPriceFormPage'));
+const WeeklyMenuPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuPage'));
+const NutritionSetupPage = lazy(() => import('@/pages/menu-planning/NutritionSetupPage'));
 const MenuListPage = lazy(() => import('@/pages/menu-planning/MenuListPage'));
 const MenuDetailPage = lazy(() => import('@/pages/menu-planning/MenuDetailPage'));
 const MenuFormPage = lazy(() => import('@/pages/menu-planning/MenuFormPage'));
-const AllergyMenuListPage = lazy(() => import('@/pages/menu-planning/AllergyMenuListPage'));
-const AllergyMenuDetailPage = lazy(() => import('@/pages/menu-planning/AllergyMenuDetailPage'));
-const AllergyMenuFormPage = lazy(() => import('@/pages/menu-planning/AllergyMenuFormPage'));
-const AiMenuSuggestionPage = lazy(() => import('@/pages/menu-planning/AiMenuSuggestionPage'));
-const WeeklyMenuListPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuListPage'));
-const WeeklyMenuDetailPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuDetailPage'));
-const WeeklyMenuFormPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuFormPage'));
-const NutritionBalancePage = lazy(() => import('@/pages/menu-planning/NutritionBalancePage'));
-const MenuPlanListPage = lazy(() => import('@/pages/menu-planning/MenuPlanListPage'));
-const MenuPlanDetailPage = lazy(() => import('@/pages/menu-planning/MenuPlanDetailPage'));
 
 const VP_ONLY = [ROLES.VICE_PRINCIPAL];
 const R = ROLES;
@@ -331,6 +335,7 @@ export function AppRoutes() {
             <Route path=":id/edit" element={only(VP_ONLY, <ProposalFormPage />)} />
           </Route>
           <Route path="menu">
+            <Route path="flow" element={only(VP_ONLY, <NutritionFlowPage />)} />
             <Route path="foods" element={only(VP_ONLY, <FoodListPage />)} />
             <Route path="foods/new" element={only(VP_ONLY, <FoodFormPage />)} />
             <Route path="foods/:id" element={only(VP_ONLY, <FoodDetailPage />)} />
@@ -339,25 +344,24 @@ export function AppRoutes() {
             <Route path="dishes/new" element={only(VP_ONLY, <DishFormPage />)} />
             <Route path="dishes/:id" element={only(VP_ONLY, <DishDetailPage />)} />
             <Route path="dishes/:id/edit" element={only(VP_ONLY, <DishFormPage />)} />
-            <Route path="prices" element={only(VP_ONLY, <MealPriceListPage />)} />
-            <Route path="prices/new" element={only(VP_ONLY, <MealPriceFormPage />)} />
-            <Route path="prices/:id/edit" element={only(VP_ONLY, <MealPriceFormPage />)} />
+            <Route path="setup" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <NutritionSetupPage />)} />
+            {/* Giá suất ăn đã gộp vào Thiết lập dinh dưỡng */}
+            <Route path="prices/*" element={<Navigate to="/menu/setup" replace />} />
             <Route path="menus" element={only(VP_ONLY, <MenuListPage />)} />
             <Route path="menus/new" element={only(VP_ONLY, <MenuFormPage />)} />
             <Route path="menus/:id" element={only(VP_ONLY, <MenuDetailPage />)} />
             <Route path="menus/:id/edit" element={only(VP_ONLY, <MenuFormPage />)} />
-            <Route path="allergy-menus" element={only(VP_ONLY, <AllergyMenuListPage />)} />
-            <Route path="allergy-menus/new" element={only(VP_ONLY, <AllergyMenuFormPage />)} />
-            <Route path="allergy-menus/:id" element={only(VP_ONLY, <AllergyMenuDetailPage />)} />
-            <Route path="allergy-menus/:id/edit" element={only(VP_ONLY, <AllergyMenuFormPage />)} />
-            <Route path="ai-suggestion" element={only(VP_ONLY, <AiMenuSuggestionPage />)} />
-            <Route path="weekly" element={only(VP_ONLY, <WeeklyMenuListPage />)} />
-            <Route path="weekly/new" element={only(VP_ONLY, <WeeklyMenuFormPage />)} />
-            <Route path="weekly/:id" element={only(VP_ONLY, <WeeklyMenuDetailPage />)} />
-            <Route path="weekly/:id/edit" element={only(VP_ONLY, <WeeklyMenuFormPage />)} />
-            <Route path="nutrition" element={only(VP_ONLY, <NutritionBalancePage />)} />
-            <Route path="plans" element={only([R.PRINCIPAL], <MenuPlanListPage />)} />
-            <Route path="plans/:id" element={only([R.PRINCIPAL], <MenuPlanDetailPage />)} />
+            {/* Thực đơn thay thế đã gộp vào trang sửa thực đơn mẫu (suất thay thế dị ứng) */}
+            <Route path="allergy-menus/*" element={<Navigate to="/menu/menus" replace />} />
+            {/* Gợi ý thực đơn AI đã gộp vào thực đơn mẫu (AI soạn mẫu) và thực đơn tuần (AI soạn tuần) */}
+            <Route path="ai-suggestion" element={<LegacyAiRedirect />} />
+            <Route path="weekly" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <WeeklyMenuPage />)} />
+            {/* Danh sách/form/chi tiết tuần, cân đối dinh dưỡng và kế hoạch thực đơn (HT) gộp vào trang thực đơn tuần */}
+            <Route path="weekly/new" element={<LegacyWeeklyRedirect />} />
+            <Route path="weekly/:id/*" element={<LegacyWeeklyRedirect />} />
+            <Route path="nutrition" element={<Navigate to="/menu/weekly" replace />} />
+            <Route path="plans" element={<Navigate to="/menu/weekly" replace />} />
+            <Route path="plans/:id" element={<LegacyWeeklyRedirect />} />
           </Route>
           <Route path="kitchen">
             <Route path="stock-receipts" element={only(VP_ONLY, <StockReceiptListPage />)} />

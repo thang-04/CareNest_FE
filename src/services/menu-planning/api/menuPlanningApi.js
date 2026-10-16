@@ -14,6 +14,8 @@ export const menuPlanningApi = {
   listFoods: (filters) => axiosClient.get('/menu/foods', { params: filters }),
   getFood: (id) => axiosClient.get(`/menu/foods/${id}`),
   saveFood: (id, payload) => save('/menu/foods', id, payload),
+  saveFoodsBulk: (items) => axiosClient.put('/menu/foods/bulk', { items }),
+  setFoodFavorite: (id, favorite) => axiosClient.put(`/menu/foods/${id}/favorite`, { favorite }),
   deleteFood: (id) => axiosClient.delete(`/menu/foods/${id}`),
 
   listDishes: (filters) => axiosClient.get('/menu/dishes', { params: filters }),
@@ -25,6 +27,12 @@ export const menuPlanningApi = {
   getMealPrice: (id) => axiosClient.get(`/menu/meal-prices/${id}`),
   saveMealPrice: (id, payload) => save('/menu/meal-prices', id, payload),
   deleteMealPrice: (id) => axiosClient.delete(`/menu/meal-prices/${id}`),
+
+  listNutritionSetups: () => axiosClient.get('/menu/nutrition-setups'),
+  saveNutritionSetups: (payload) => axiosClient.put('/menu/nutrition-setups', payload),
+
+  listReferenceDishes: (filters) => axiosClient.get('/menu/reference-dishes', { params: filters }),
+  copyReferenceDish: (id) => axiosClient.post(`/menu/reference-dishes/${id}/copy`),
 
   listMenus: (filters) => axiosClient.get('/menu/sample-menus', { params: filters }),
   getMenu: (id) => axiosClient.get(`/menu/sample-menus/${id}`),
@@ -46,6 +54,7 @@ export const menuPlanningApi = {
 
   generateAiSuggestion: (params) => axiosClient.post('/menu/ai-suggestions', params),
   getAiDraft: (id) => axiosClient.get(`/menu/ai-suggestions/${id}`),
+  applyDayFix: (id, weeklyMenuId) => axiosClient.post(`/menu/ai-suggestions/${id}/apply`, { weeklyMenuId }),
   dismissAiDraft: (id) => axiosClient.post(`/menu/ai-suggestions/${id}/dismiss`),
 
   getPublishedWeeklyMenu: (campusId, date) => axiosClient.get('/menu/published/weekly', { params: { campusId, date } }),

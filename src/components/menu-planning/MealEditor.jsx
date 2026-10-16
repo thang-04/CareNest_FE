@@ -3,14 +3,14 @@ import { Plus, Trash2 } from '@/components/ui/icons';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { AllergenChips } from '@/components/menu-planning/MenuBadges';
 import { dishAllergens, dishTotals } from '@/utils/menu-planning/menuCalculations';
-import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, RECORD_STATUS, portionFactorOf } from '@/models/menu-planning/menuPlanningConstants';
+import { DISH_TYPE_LABELS, RECORD_STATUS } from '@/models/menu-planning/menuPlanningConstants';
+import { mealLabel } from '@/utils/menu-planning/nutritionSetup';
 
 /**
  * Edits the dishes and portion multipliers of each session.
  * meals: [{ session, items: [{ dishId, portion }] }]; errors: { meal_<SESSION>: message }.
  */
 export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, errors = {}, disabled = false }) {
-  const factor = portionFactorOf(ageGroupId);
   const options = useMemo(
     () =>
       catalog.dishes
@@ -31,7 +31,7 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
         const err = errors[`meal_${session}`];
         return (
           <div key={session} className={`td-session td-session--edit ${err ? 'td-session--error' : ''}`}>
-            <div className="td-session__title">{MEAL_SESSION_LABELS[session]}</div>
+            <div className="td-session__title">{mealLabel(catalog.nutritionSetups, ageGroupId, session)}</div>
             {meal.items.length > 0 && (
               <div className="table-wrap">
                 <table className="table table--compact">
@@ -49,7 +49,7 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
                   <tbody>
                     {meal.items.map((item, idx) => {
                       const dish = catalog.dishById[item.dishId];
-                      const kcal = dish ? dishTotals(dish, catalog.foodById, (Number(item.portion) || 0) * factor).totals.kcal : null;
+                      const kcal = dish ? dishTotals(dish, catalog.foodById, Number(item.portion) || 0, ageGroupId).totals.kcal : null;
                       const taken = meal.items.filter((_, j) => j !== idx).map((i) => i.dishId);
                       const opts = options.filter((o) => !taken.includes(o.value));
                       // An inactive dish already on the menu stays selectable so the row still shows its name.
@@ -62,7 +62,7 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
                               options={opts}
                               value={item.dishId}
                               placeholder="Chọn món..."
-                              ariaLabel={`${MEAL_SESSION_LABELS[session]}: món ${idx + 1}`}
+                              ariaLabel={`${mealLabel(catalog.nutritionSetups, ageGroupId, session)}: món ${idx + 1}`}
                               disabled={disabled}
                               onChange={(v) =>
                                 update(
@@ -81,7 +81,7 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
                               step="0.1"
                               value={item.portion}
                               disabled={disabled}
-                              aria-label={`Hệ số khẩu phần món ${idx + 1} – ${MEAL_SESSION_LABELS[session]}`}
+                              aria-label={`Hệ số khẩu phần món ${idx + 1} – ${mealLabel(catalog.nutritionSetups, ageGroupId, session)}`}
                               onChange={(e) =>
                                 update(
                                   session,
@@ -133,9 +133,7 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
           </div>
         );
       })}
-      <p className="text-xs muted">
-        Hệ số 1 = một khẩu phần chuẩn của món; năng lượng đã nhân hệ số khẩu phần của nhóm tuổi ({String(factor).replace('.', ',')}).
-      </p>
+      <p className="text-xs muted">Hệ số 1 = một suất của nhóm tuổi theo định lượng đã nhập ở món ăn.</p>
     </div>
   );
 }
