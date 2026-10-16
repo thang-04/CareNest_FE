@@ -113,3 +113,8 @@
   background: var(--surface-soft);
   border-radius: var(--radius);
 }
+
+/* Ghi chú trong hộp xác nhận "Phụ huynh không đồng ý": hộp căn giữa chữ, form căn trái */
+.dt-modal-form {
+  text-align: left;
+}

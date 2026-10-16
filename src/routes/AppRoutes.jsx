@@ -91,6 +91,11 @@ const HealthDeclarationPage = lazy(() => import('@/pages/children/HealthDeclarat
 const ChildHealthRecordPage = lazy(() => import('@/pages/children/ChildHealthRecordPage'));
 const HealthMeasurementFormPage = lazy(() => import('@/pages/children/HealthMeasurementFormPage'));
 const HealthTrendPage = lazy(() => import('@/pages/children/HealthTrendPage'));
+const HealthCheckListPage = lazy(() => import('@/pages/children/HealthCheckListPage'));
+const HealthCheckFormPage = lazy(() => import('@/pages/children/HealthCheckFormPage'));
+const HealthCheckDetailPage = lazy(() => import('@/pages/children/HealthCheckDetailPage'));
+const HealthFollowUpListPage = lazy(() => import('@/pages/children/HealthFollowUpListPage'));
+const HealthFollowUpDetailPage = lazy(() => import('@/pages/children/HealthFollowUpDetailPage'));
 
 const FacilityAssetListPage = lazy(() => import('@/pages/facility/FacilityAssetListPage'));
 const IssueReportPage = lazy(() => import('@/pages/facility/IssueReportPage'));
@@ -301,8 +306,20 @@ export function AppRoutes() {
             <Route path="placement" element={only(VP_ONLY, <ClassPlacementPage />)} />
             <Route path="activation" element={only(VP_ONLY, <ParentActivationPage />)} />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
+            <Route path="health-checks" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckListPage />)} />
+            <Route path="health-checks/new" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />
+            <Route
+              path="health-checks/:campaignId"
+              element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckDetailPage />)}
+            />
+            <Route path="health-checks/:campaignId/edit" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />
+            <Route path="health-follow-ups" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthFollowUpListPage />)} />
+            <Route
+              path="health-follow-ups/:followUpId"
+              element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthFollowUpDetailPage />)}
+            />
             <Route path=":id" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildProfilePage />)} />
-            <Route path=":id/edit" element={only(VP_ONLY, <EditChildPage />)} />
+            <Route path=":id/edit" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <EditChildPage />)} />
             <Route
               path=":id/health-declaration"
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthDeclarationPage />)}

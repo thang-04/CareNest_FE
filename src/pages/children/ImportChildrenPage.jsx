@@ -119,8 +119,7 @@ export default function ImportChildrenPage() {
             </div>
             <div className="state__title">Đã nhập {imported.created} hồ sơ trẻ</div>
             <div className="muted" style={{ maxWidth: 480 }}>
-              Các trẻ đang ở trạng thái <b>Chờ xếp lớp</b>. Việc tiếp nhận hoàn tất sau khi bạn xếp lớp cho từng trẻ, rồi kích hoạt tài
-              khoản phụ huynh.
+              Hồ sơ đã được tiếp nhận. Các trẻ đang ở trạng thái <b>Chờ xếp lớp</b>; xếp lớp cho từng trẻ tại màn Xếp lớp.
             </div>
             <div className="row mt-12" style={{ gap: 8 }}>
               <Link className="btn" to="/children">

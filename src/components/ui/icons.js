@@ -164,6 +164,7 @@ export {
   IconSparkles as Sparkles,
   IconRubberStamp as Stamp,
   IconStar as Star,
+  IconStethoscope as Stethoscope,
   IconSun as Sun,
   IconTarget as Target,
   IconTable as Table2,

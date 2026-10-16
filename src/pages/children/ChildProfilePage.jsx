@@ -1,6 +1,18 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, LayoutGrid, HeartPulse, LineChart, ClipboardList, KeyRound, AlertTriangle } from '@/components/ui/icons';
+import {
+  ArrowLeft,
+  Pencil,
+  LayoutGrid,
+  HeartPulse,
+  LineChart,
+  KeyRound,
+  AlertTriangle,
+  ChevronRight,
+  Info,
+  Plus,
+  ShieldAlert,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
@@ -8,21 +20,70 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState } from '@/components/ui/States';
 import { ChildStatusBadge, ParentAccountBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
-import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
-import { SMS_STATUS } from '@/models/children/childrenConstants';
+import {
+  ALLERGY_STATE_LABELS,
+  DECLARATION_STATE,
+  DIET_STATE_LABELS,
+  NOTE_STATE_LABELS,
+  SMS_STATUS,
+} from '@/models/children/childrenConstants';
 import { avatarTone, formatDate, formatDateTime, initials } from '@/utils/format';
 import {
   canActivateParent,
   canDeclareHealth,
   canEditChild,
   canPlaceChild,
+  canRecordMeasurement,
   canViewParentAccounts,
 } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
-const missing = <span className="muted">Chưa có thông tin</span>;
+const missing = <span className="muted">Chưa cập nhật</span>;
+
+/** Khung dị ứng: màu theo trạng thái khai báo; "chưa cung cấp" không bao giờ hiện như "không có". */
+function AllergyBox({ declaration }) {
+  const a = declaration?.allergies;
+  if (!a)
+    return (
+      <div className="alert alert--warning">
+        <AlertTriangle size={18} />
+        <div>Chưa có khai báo sức khỏe khi tiếp nhận.</div>
+      </div>
+    );
+  if (a.state === DECLARATION_STATE.REPORTED)
+    return (
+      <div className="alert alert--danger">
+        <ShieldAlert size={18} />
+        <div className="stack gap-1-5">
+          <b>Có dị ứng thực phẩm</b>
+          <span className="row row--wrap gap-1-5">
+            {a.items.map((x) => (
+              <span key={x} className="chip chip--red">
+                {x}
+              </span>
+            ))}
+          </span>
+        </div>
+      </div>
+    );
+  if (a.state === DECLARATION_STATE.NOT_PROVIDED)
+    return (
+      <div className="alert alert--warning">
+        <AlertTriangle size={18} />
+        <div>
+          <b>Dị ứng: chưa cung cấp.</b> Không coi là không có dị ứng.
+        </div>
+      </div>
+    );
+  return (
+    <div className="alert alert--success">
+      <Info size={18} />
+      <div>{ALLERGY_STATE_LABELS[a.state]}</div>
+    </div>
+  );
+}
 
 // Tổng quan hiện đủ thông tin bằng card; tab chỉ tách phần lịch sử
 const TABS = [
@@ -72,8 +133,7 @@ export default function ChildProfilePage() {
               <ChildStatusBadge status={child.status} size="lg" />
             </div>
             <span className="muted">
-              {child.code}
-              {cls?.name ? ` · ${cls.name}` : ''}
+              {child.code} · {cls?.name || 'Chưa xếp lớp'} · {md.campusById(child.campusId)?.name || '—'} · {ageLabel(child.dateOfBirth)}
             </span>
           </div>
         </div>
@@ -94,7 +154,19 @@ export default function ChildProfilePage() {
       {child.status === CHILD_STATUS.PENDING_PLACEMENT && (
         <div className="alert alert--warning mb-16">
           <AlertTriangle size={18} />
-          <div>Trẻ chưa được xếp lớp nên việc tiếp nhận chưa hoàn tất.</div>
+          <div>
+            Trẻ đang chờ xếp lớp.{' '}
+            {canPlaceChild(child, user) ? 'Bấm "Xếp lớp" ở đầu trang để chọn lớp.' : 'Phó hiệu trưởng sẽ xếp lớp cho trẻ.'}
+          </div>
+        </div>
+      )}
+      {child.status === CHILD_STATUS.LEFT && (
+        <div className="alert alert--info mb-16">
+          <Info size={18} />
+          <div>
+            Trẻ đã nghỉ học{child.leftAt ? ` từ ngày ${formatDate(child.leftAt)}` : ''}
+            {child.leftReason ? ` · Lý do: ${child.leftReason}` : ''}. Hồ sơ chỉ để tra cứu.
+          </div>
         </div>
       )}
 
@@ -118,10 +190,10 @@ export default function ChildProfilePage() {
           <div className="detail-layout__main">
             <section className="card">
               <div className="card__header">
-                <h2 className="card__title">Thông tin của trẻ</h2>
+                <h2 className="card__title">Thông tin chung</h2>
               </div>
-              <div className="card__body">
-                <dl className="info-list info-list--wide">
+              <div className="card__body tr-profile-info">
+                <dl className="info-list">
                   <dt>Mã trẻ</dt>
                   <dd className="fw-600 text-primary">{child.code}</dd>
                   <dt>Ngày sinh</dt>
@@ -138,20 +210,19 @@ export default function ChildProfilePage() {
                   <dd>{GENDER_LABELS[child.gender] || missing}</dd>
                   <dt>Ngày tiếp nhận</dt>
                   <dd>{child.enrolledAt ? formatDate(child.enrolledAt) : missing}</dd>
-                  <dt>Dị ứng đã xác nhận</dt>
-                  <dd>
-                    {child.allergies?.length ? (
-                      <span className="row row--wrap" style={{ gap: 6 }}>
-                        {child.allergies.map((a) => (
-                          <span key={a} className="chip chip--red">
-                            {a}
-                          </span>
-                        ))}
-                      </span>
-                    ) : (
-                      <span className="muted">Không có</span>
-                    )}
+                </dl>
+                <dl className="info-list">
+                  <dt>Điểm trường</dt>
+                  <dd>{md.campusById(child.campusId)?.name || missing}</dd>
+                  <dt>Năm học</dt>
+                  <dd>{cls?.schoolYear || missing}</dd>
+                  <dt>Lớp</dt>
+                  <dd className="fw-600">
+                    {cls?.name || <span className="muted">Chưa xếp lớp</span>}
+                    {cls?.ageGroupId && <span className="muted tr-profile-info__sub"> · {ageGroupById(cls.ageGroupId)?.name}</span>}
                   </dd>
+                  <dt>Giáo viên chủ nhiệm</dt>
+                  <dd>{md.userById(cls?.homeroomTeacherId)?.fullName || missing}</dd>
                 </dl>
               </div>
             </section>
@@ -159,7 +230,7 @@ export default function ChildProfilePage() {
               <div className="card__header row row--between">
                 <h2 className="card__title">Phụ huynh / người giám hộ</h2>
                 {canActivateParent(child, user) && hasPendingParent && (
-                  <Link className="btn btn--sm" to={`/children/activation?childId=${child.id}`}>
+                  <Link className="btn btn--sm btn--outline-primary" to={`/children/activation?childId=${child.id}`}>
                     <KeyRound size={15} /> Kích hoạt tài khoản
                   </Link>
                 )}
@@ -183,7 +254,15 @@ export default function ChildProfilePage() {
                         <tr key={`${g.phone}${g.fullName}`}>
                           <td className="fw-600">{g.fullName}</td>
                           <td>{g.relation}</td>
-                          <td className="nowrap">{g.phone || missing}</td>
+                          <td className="nowrap">
+                            {g.phone ? (
+                              <a className="text-primary" href={`tel:${g.phone.replace(/\s/g, '')}`}>
+                                {g.phone}
+                              </a>
+                            ) : (
+                              missing
+                            )}
+                          </td>
                           <td>{g.email || missing}</td>
                           {showAccounts && (
                             <td>
@@ -200,70 +279,82 @@ export default function ChildProfilePage() {
                 </div>
               )}
             </section>
-            <section className="card">
-              <div className="card__header row row--between">
-                <h2 className="card__title">Sức khỏe khi tiếp nhận</h2>
-                {canDeclareHealth(child, user) && (
-                  <Link className="btn btn--sm" to={`/children/${child.id}/health-declaration`}>
-                    <Pencil size={15} /> Cập nhật khai báo
-                  </Link>
-                )}
-              </div>
-              <div className="card__body">
-                <DeclarationSummary
-                  declaration={declaration}
-                  confirmedAllergies={child.allergies}
-                  confirmedByName={declaration?.confirmedByName}
-                />
-              </div>
-            </section>
           </div>
+
           <aside className="detail-layout__aside">
             <section className="card">
               <div className="card__header">
-                <h2 className="card__title">Lớp & năm học</h2>
+                <h2 className="card__title row gap-2">
+                  <HeartPulse size={20} className="text-primary" /> Sức khỏe
+                </h2>
               </div>
-              <div className="card__body">
-                <dl className="info-list info-list--wide">
-                  <dt>Điểm trường</dt>
-                  <dd>{md.campusById(child.campusId)?.name || missing}</dd>
-                  <dt>Năm học</dt>
-                  <dd>{cls?.schoolYear || missing}</dd>
-                  <dt>Nhóm tuổi</dt>
-                  <dd>{ageGroupById(cls?.ageGroupId)?.name || missing}</dd>
-                  <dt>Lớp</dt>
-                  <dd className="fw-600">{cls?.name || <span className="muted">Chưa xếp lớp</span>}</dd>
-                  <dt>Giáo viên chủ nhiệm</dt>
-                  <dd>{md.userById(cls?.homeroomTeacherId)?.fullName || missing}</dd>
-                </dl>
-              </div>
-            </section>
-            <section className="card">
-              <div className="card__header">
-                <h2 className="card__title">Sức khỏe & theo dõi</h2>
-              </div>
-              <div className="card__body tr-quicklinks tr-quicklinks--list">
-                <Link className="tr-quicklink" to={`/children/${child.id}/health`}>
-                  <HeartPulse size={20} />
-                  <span>
-                    <span className="fw-600">Sổ sức khỏe</span>
-                    <span className="muted text-sm">Chiều cao, cân nặng, tình trạng dinh dưỡng</span>
-                  </span>
-                </Link>
-                <Link className="tr-quicklink" to={`/children/health-trends?childId=${child.id}`}>
-                  <LineChart size={20} />
-                  <span>
-                    <span className="fw-600">Xu hướng sức khỏe</span>
-                    <span className="muted text-sm">Biểu đồ tăng trưởng và nhận định AI</span>
-                  </span>
-                </Link>
-                <Link className="tr-quicklink" to={`/children/${child.id}/health-declaration`}>
-                  <ClipboardList size={20} />
-                  <span>
-                    <span className="fw-600">Khai báo sức khỏe</span>
-                    <span className="muted text-sm">Dị ứng, chế độ ăn khi tiếp nhận</span>
-                  </span>
-                </Link>
+              <div className="card__body stack gap-4">
+                <div className="stack gap-3">
+                  <div className="row row--between gap-2">
+                    <h3 className="subsection-title">Dị ứng & chế độ ăn</h3>
+                    {canDeclareHealth(child, user) && (
+                      <Link className="btn btn--sm btn--outline-primary" to={`/children/${child.id}/health-declaration?mode=edit`}>
+                        <Pencil size={15} /> Cập nhật khai báo
+                      </Link>
+                    )}
+                  </div>
+                  <AllergyBox declaration={declaration} />
+                  {declaration && (
+                    <dl className="info-list">
+                      <dt>Chế độ ăn</dt>
+                      <dd>
+                        {declaration.diet.state === DECLARATION_STATE.REPORTED
+                          ? declaration.diet.text
+                          : DIET_STATE_LABELS[declaration.diet.state]}
+                      </dd>
+                      <dt>Thông tin khác</dt>
+                      <dd>
+                        {declaration.otherNotes?.state === DECLARATION_STATE.REPORTED
+                          ? declaration.otherNotes.text
+                          : NOTE_STATE_LABELS[declaration.otherNotes?.state || DECLARATION_STATE.NOT_PROVIDED]}
+                      </dd>
+                    </dl>
+                  )}
+                  {declaration?.declaredAt && (
+                    <span className="muted text-xs">
+                      Chốt bởi {declaration.declaredByName || '—'} · {formatDateTime(declaration.declaredAt)}
+                    </span>
+                  )}
+                  <Link className="tr-quicklink" to={`/children/${child.id}/health-declaration`}>
+                    <span>
+                      <span className="fw-600">Chi tiết khai báo</span>
+                      <span className="muted text-sm">Toàn bộ khai báo và lịch sử thay đổi</span>
+                    </span>
+                    <ChevronRight size={18} className="tr-quicklink__go" />
+                  </Link>
+                </div>
+
+                <div className="stack gap-3 tr-health-divider">
+                  <div className="row row--between gap-2">
+                    <h3 className="subsection-title">Theo dõi sức khỏe</h3>
+                    {canRecordMeasurement(child, user, cls) && (
+                      <Link className="btn btn--sm btn--outline-primary" to={`/children/${child.id}/health/new`}>
+                        <Plus size={15} /> Nhập kết quả khám
+                      </Link>
+                    )}
+                  </div>
+                  <Link className="tr-quicklink" to={`/children/${child.id}/health`}>
+                    <HeartPulse size={20} />
+                    <span>
+                      <span className="fw-600">Sổ sức khỏe</span>
+                      <span className="muted text-sm">Số đo, đánh giá vận động, mức theo dõi</span>
+                    </span>
+                    <ChevronRight size={18} className="tr-quicklink__go" />
+                  </Link>
+                  <Link className="tr-quicklink" to={`/children/health-trends?childId=${child.id}`}>
+                    <LineChart size={20} />
+                    <span>
+                      <span className="fw-600">Xu hướng sức khỏe</span>
+                      <span className="muted text-sm">Biểu đồ tăng trưởng và nhận định AI</span>
+                    </span>
+                    <ChevronRight size={18} className="tr-quicklink__go" />
+                  </Link>
+                </div>
               </div>
             </section>
           </aside>

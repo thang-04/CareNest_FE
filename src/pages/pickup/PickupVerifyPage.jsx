@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, ImageOff, Phone, PhoneOff, ThumbsDown, ThumbsUp, UserX } from '@/components/ui/icons';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { FormField } from '@/components/form/FormField';
+import { recordPickupResult } from '@/services/pickup/pickupService';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { PickupOutcomeBadge, PickupStatusBadge } from '@/components/pickup/PickupBadges';
 import { usePickupChild } from '@/hooks/pickup/usePickups';
@@ -28,6 +33,33 @@ export default function PickupVerifyPage() {
   const navigate = useNavigate();
   const { context, loading, error, reload } = usePickupChild(childId);
   const [mismatch, setMismatch] = useState(false);
+  const { user } = useAuth();
+  const toast = useToast();
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineNote, setDeclineNote] = useState('');
+
+  // Phụ huynh không đồng ý: ghi nhận không trả trẻ ngay, không cần nhập thông tin người đón
+  const recordDeclined = async () => {
+    try {
+      await recordPickupResult(
+        {
+          childId,
+          verification: VERIFICATION.PHONE_DECLINED,
+          pickupPersonName: '',
+          pickupPersonRelation: '',
+          pickupPersonPhone: '',
+          handoverTime: '',
+          note: declineNote.trim(),
+        },
+        user,
+      );
+      toast.success('Đã ghi nhận không trả trẻ và thông báo cho phụ huynh.', 'Ghi nhận thành công');
+      navigate(`/pickup?classId=${context.classId}`);
+    } catch (err) {
+      setDeclineOpen(false);
+      toast.error(err.message, 'Không ghi nhận được kết quả');
+    }
+  };
 
   const goResult = (verification, guardianIndex) => {
     const q = new URLSearchParams({ childId, verification });
@@ -161,7 +193,7 @@ export default function PickupVerifyPage() {
                   <button className="btn btn--outline-danger" onClick={() => goResult(VERIFICATION.PHONE_UNREACHABLE)}>
                     <PhoneOff size={16} /> Không liên lạc được
                   </button>
-                  <button className="btn btn--danger" onClick={() => goResult(VERIFICATION.PHONE_DECLINED)}>
+                  <button className="btn btn--danger" onClick={() => setDeclineOpen(true)}>
                     <ThumbsDown size={16} /> Phụ huynh không đồng ý
                   </button>
                   <button className="btn btn--primary" onClick={() => goResult(VERIFICATION.PHONE_CONFIRMED)}>
@@ -178,6 +210,28 @@ export default function PickupVerifyPage() {
           <ArrowLeft size={16} /> Quay lại danh sách
         </Link>
       </div>
+      <ConfirmationModal
+        open={declineOpen}
+        danger
+        title="Ghi nhận không trả trẻ?"
+        message={`Phụ huynh không đồng ý cho người này đón ${context.child.fullName}. Trẻ ở lại lớp; phụ huynh sẽ nhận thông báo.`}
+        confirmLabel="Ghi nhận không trả trẻ"
+        onConfirm={recordDeclined}
+        onClose={() => setDeclineOpen(false)}
+      >
+        <div className="dt-modal-form mt-12">
+          <FormField label="Ghi chú" hint="Không bắt buộc">
+            <textarea
+              className="textarea"
+              rows={2}
+              maxLength={500}
+              value={declineNote}
+              onChange={(e) => setDeclineNote(e.target.value)}
+              placeholder="Ví dụ: Mẹ cho biết không nhờ ai đón hôm nay"
+            />
+          </FormField>
+        </div>
+      </ConfirmationModal>
     </div>
   );
 }

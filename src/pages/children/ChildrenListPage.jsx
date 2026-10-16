@@ -1,18 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Plus,
-  Search,
-  RotateCcw,
-  Eye,
-  HeartPulse,
-  FileSpreadsheet,
-  Baby,
-  Info,
-  LayoutGrid,
-  KeyRound,
-  ShieldAlert,
-} from '@/components/ui/icons';
+import { Plus, Search, RotateCcw, Eye, Pencil, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -23,10 +11,18 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
+import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { avatarTone, formatDate, initials, normalizeText } from '@/utils/format';
-import { canEnrollChild, isPrincipal, isTeacherRole, isVicePrincipal } from '@/utils/children/childrenPermissions';
+import {
+  canEditChild,
+  canEnrollChild,
+  canWithdrawChild,
+  isPrincipal,
+  isTeacherRole,
+  isVicePrincipal,
+} from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
@@ -41,10 +37,14 @@ export default function ChildrenListPage() {
   const [classId, setClassId] = useState('');
   const [page, setPage] = useState(1);
   const [quickViewId, setQuickViewId] = useState(null);
+  const [withdrawing, setWithdrawing] = useState(null);
 
   const { children: all, loading, error, reload } = useChildRecords({ schoolYear });
   const { classes } = useClasses(campusId ? { campusId } : {});
-  const yearClasses = classes.filter((c) => c.schoolYear === schoolYear);
+  // Điểm trường trong phạm vi lấy từ danh sách BE trả về (Phó hiệu trưởng có thể được giao 1 hoặc 2 điểm trường).
+  const scopeCampusIds = useMemo(() => new Set(all.map((c) => c.campusId).filter(Boolean)), [all]);
+  const campusOptions = md.campuses.filter((c) => scopeCampusIds.has(c.id));
+  const yearClasses = classes.filter((c) => c.schoolYear === schoolYear && scopeCampusIds.has(c.campusId));
 
   const rows = useMemo(() => {
     const kw = normalizeText(keyword).trim();
@@ -80,8 +80,8 @@ export default function ChildrenListPage() {
   const notActivated = all.filter(
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
-  const allergyPending = all.filter((c) => c.allergyPending).length;
-  const showCampus = isPrincipal(user);
+  // Hiệu trưởng và Phó hiệu trưởng dùng cùng bộ lọc điểm trường + lớp.
+  const showCampus = isPrincipal(user) || isVicePrincipal(user);
   const cols = showCampus ? 9 : 8;
 
   return (
@@ -130,15 +130,6 @@ export default function ChildrenListPage() {
           </div>
         </div>
       )}
-      {isPrincipal(user) && allergyPending > 0 && (
-        <div className="alert alert--purple mb-16">
-          <ShieldAlert size={18} />
-          <div>
-            Có <b>{allergyPending}</b> hồ sơ khai báo dị ứng thực phẩm chờ bạn xác nhận. Mở hồ sơ trẻ → <i>Khai báo sức khỏe</i> để xác
-            nhận.
-          </div>
-        </div>
-      )}
 
       <div className="stat-grid">
         {stats.map((s) => (
@@ -184,7 +175,7 @@ export default function ChildrenListPage() {
               }}
             >
               <option value="">Tất cả điểm trường</option>
-              {md.campuses.map((c) => (
+              {campusOptions.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
@@ -204,7 +195,7 @@ export default function ChildrenListPage() {
             {yearClasses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
-                {showCampus && !campusId ? ` – ${md.campusById(c.campusId)?.name?.split(' - ')[0] || ''}` : ''}
+                {showCampus && !campusId && campusOptions.length > 1 ? ` – ${md.campusById(c.campusId)?.name?.split(' - ')[0] || ''}` : ''}
               </option>
             ))}
           </select>
@@ -267,14 +258,23 @@ export default function ChildrenListPage() {
                   pageRows.map((c) => {
                     const g = c.guardians[0];
                     return (
-                      <tr key={c.id} className="row-click" onClick={() => setQuickViewId(c.id)}>
+                      <tr key={c.id}>
                         <td className="fw-600 text-primary nowrap">{c.code}</td>
                         <td className="fw-600">
                           <span className="row" style={{ gap: 10, flexWrap: 'nowrap' }}>
                             <span className={`avatar avatar--sm avatar--tone-${avatarTone(c.fullName)}`} aria-hidden="true">
                               {initials(c.fullName)}
                             </span>
-                            {c.fullName}
+                            {/* Bấm tên: xem nhanh trong panel; nút Xem ở cột thao tác mở trang hồ sơ đầy đủ */}
+                            <button
+                              type="button"
+                              className="link-btn fw-600 tr-name-btn"
+                              title="Xem nhanh"
+                              aria-label={`Xem nhanh hồ sơ ${c.fullName}`}
+                              onClick={() => setQuickViewId(c.id)}
+                            >
+                              {c.fullName}
+                            </button>
                           </span>
                         </td>
                         <td className="nowrap">
@@ -299,18 +299,31 @@ export default function ChildrenListPage() {
                         <td>
                           <ChildStatusBadge status={c.status} />
                         </td>
-                        <td className="center nowrap" onClick={(e) => e.stopPropagation()}>
+                        <td className="center nowrap">
                           <Link className="icon-btn" to={`/children/${c.id}`} title="Xem hồ sơ" aria-label={`Xem hồ sơ ${c.fullName}`}>
                             <Eye size={17} />
                           </Link>
-                          <Link
-                            className="icon-btn"
-                            to={`/children/${c.id}/health`}
-                            title="Sổ sức khỏe"
-                            aria-label={`Sổ sức khỏe của ${c.fullName}`}
-                          >
-                            <HeartPulse size={17} />
-                          </Link>
+                          {canEditChild(c, user) && (
+                            <Link
+                              className="icon-btn"
+                              to={`/children/${c.id}/edit`}
+                              title="Sửa hồ sơ"
+                              aria-label={`Sửa hồ sơ ${c.fullName}`}
+                            >
+                              <Pencil size={17} />
+                            </Link>
+                          )}
+                          {canWithdrawChild(c, user) && (
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              title="Cho nghỉ học"
+                              aria-label={`Cho ${c.fullName} nghỉ học`}
+                              onClick={() => setWithdrawing(c)}
+                            >
+                              <UserMinus size={17} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -323,6 +336,14 @@ export default function ChildrenListPage() {
         {!loading && rows.length > 0 && <Pagination page={page} total={rows.length} onChange={setPage} unit="trẻ" />}
       </div>
       <ChildQuickPanel childId={quickViewId} onClose={() => setQuickViewId(null)} />
+      {withdrawing && (
+        <WithdrawChildModal
+          key={withdrawing.id}
+          child={withdrawing}
+          onClose={() => setWithdrawing(null)}
+          onDone={() => reload({ silent: true })}
+        />
+      )}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { buildSeedChildRecords } from '@/mocks/childrenSeed';
+import { buildSeedFollowUps, buildSeedHealthChecks } from '@/mocks/healthCheckSeed';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { CHILD_STATUS } from '@/models/School';
-import { ROLES } from '@/models/User';
 import {
   AI_TREND_STATUS,
   DECLARATION_STATE,
@@ -11,7 +11,8 @@ import {
   PARENT_ACCOUNT_STATUS,
   SMS_STATUS,
 } from '@/models/children/childrenConstants';
-import { normalizeText, todayInput } from '@/utils/format';
+import { CAMPAIGN_STATUS, FOLLOW_UP_STATUS } from '@/models/children/healthCheckConstants';
+import { formatDate, normalizeText, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import {
   hasErrors,
@@ -19,15 +20,14 @@ import {
   validateChildInfo,
   validateDeclaration,
   validateMeasurement,
-  validatePlacement,
 } from '@/utils/children/childrenValidation';
 import {
   canActivateParent,
-  canConfirmAllergies,
   canDeclareHealth,
   canEditChild,
   canEnrollChild,
   canPlaceChild,
+  canWithdrawChild,
   canRecordMeasurement,
   canViewChild,
   canViewChildren,
@@ -36,15 +36,16 @@ import {
   isPrincipal,
   isVicePrincipal,
 } from '@/utils/children/childrenPermissions';
-import { classifyMeasurement } from './nutritionRule';
+import { headCircumferenceUntil, screenMeasurement } from './healthScreeningRule';
+import { campaignStatusOf, isOpenForEntry, trackFollowUp } from './healthCheckRule';
 import { readEnrollmentCsv } from './enrollmentImport';
 
 /*
  * Fake backend of child records & child health. Owns: scope checks (GBR-GEN-01, GBR-GEN-09), enrollment and
  * placement (GBR-CP-01), declarations (GBR-CP-02), allergy confirmation (GBR-HLT-03), parent accounts (UC 3.9),
- * measurements with the rule-based nutrition status and edit log (GBR-HLT-01..03), and the AI trend draft (GBR-AI-*).
+ * measurements with the rule-based screening (BMI, follow-up level) and edit log (GBR-HLT-01..03), and the AI trend draft (GBR-AI-*).
  * Collections: reads/writes db.children; owns db.healthMeasurements, db.healthDeclarations, db.parentAccounts,
- * db.childPlacements, db.healthTrendDrafts.
+ * db.childPlacements, db.healthTrendDrafts; reads db.healthCheckCampaigns and opens db.healthFollowUps (healthCheckMockRepository).
  */
 
 const FORBIDDEN = 'Bạn không có quyền thực hiện thao tác này.';
@@ -52,21 +53,72 @@ const MAX_IMPORT_ROWS = 500;
 
 const nowIso = () => new Date().toISOString();
 
-const ensureSeeded = () => {
+// v3: đợt khám tháng 3, dữ liệu đầy đủ cho các đợt đã đóng, cân đo tại lớp tháng 12/2025, phiếu theo dõi đợt cũ.
+const HEALTH_SEED_VERSION = 3;
+const SEED_MANAGED_FIELDS = ['headCircumferenceCm', 'grossMotor', 'fineMotor', 'campaignId', 'note'];
+
+// Dữ liệu demo lưu bằng seed cũ: cập nhật bản ghi seed chưa bị sửa, thêm bản ghi seed còn thiếu; không xóa gì.
+const upgradeSeedMeasurements = (d, seedMeasurements) => {
+  const byId = new Map(d.healthMeasurements.map((m) => [m.id, m]));
+  const has = new Set(d.healthMeasurements.map((m) => `${m.childId}|${m.date}`));
+  seedMeasurements.forEach((s) => {
+    const m = byId.get(s.id);
+    if (m) {
+      if (!(m.edits || []).length && m.date === s.date) SEED_MANAGED_FIELDS.forEach((f) => (m[f] = s[f] ?? null));
+    } else if (!has.has(`${s.childId}|${s.date}`) && d.children.some((c) => c.id === s.childId)) d.healthMeasurements.push(s);
+  });
+};
+
+// Đợt seed còn thiếu được thêm; đợt seed đã đóng mà người dùng chưa sửa/mở lại thì nhận thông tin seed mới.
+const upgradeSeedCampaigns = (d, seedCampaigns) => {
+  seedCampaigns.forEach((s) => {
+    const cur = d.healthCheckCampaigns.find((c) => c.id === s.id);
+    if (!cur) d.healthCheckCampaigns.push(s);
+    else if (cur.closedAt && s.closedAt && !(cur.history || []).some((h) => ['UPDATED', 'REOPENED'].includes(h.action)))
+      Object.assign(cur, { examiner: s.examiner, note: s.note, absentChildIds: s.absentChildIds });
+  });
+};
+
+const upgradeSeedFollowUps = (d, seedFollowUps) => {
+  const ids = new Set(d.healthFollowUps.map((f) => f.id));
+  seedFollowUps.filter((f) => !ids.has(f.id)).forEach((f) => d.healthFollowUps.push(f));
+};
+
+/** Seed mọi collection sức khỏe (đo, khai báo, đợt khám, phiếu theo dõi). Dùng chung cho repository đợt khám. */
+export const ensureChildRecordsSeeded = () => {
   ensureSchoolSeeded();
   const db = readDb();
-  if (db.healthMeasurements && db.healthDeclarations && db.parentAccounts && db.childPlacements && db.healthTrendDrafts) return db;
+  const ready =
+    db.healthMeasurements &&
+    db.healthDeclarations &&
+    db.parentAccounts &&
+    db.childPlacements &&
+    db.healthTrendDrafts &&
+    db.healthCheckCampaigns &&
+    db.healthFollowUps;
+  if (ready && db.healthSeedVersion === HEALTH_SEED_VERSION) return db;
   writeDb((d) => {
     const seed = buildSeedChildRecords({ children: d.children, classes: d.classes });
-    const childById = Object.fromEntries(d.children.map((c) => [c.id, c]));
-    d.healthMeasurements ||= seed.healthMeasurements.map((m) => ({ ...m, ...classifyMeasurement(m, childById[m.childId].dateOfBirth) }));
+    const upgrading = d.healthSeedVersion !== HEALTH_SEED_VERSION;
+    if (d.healthMeasurements && upgrading) upgradeSeedMeasurements(d, seed.healthMeasurements);
+    d.healthMeasurements ||= seed.healthMeasurements;
+    // Vắng khám của đợt seed tính trên kết quả đang có trong DB (sau khi nâng cấp).
+    const seedCampaigns = buildSeedHealthChecks({ measurements: d.healthMeasurements, children: d.children });
+    const seedFollowUps = buildSeedFollowUps(d.healthMeasurements);
+    if (d.healthCheckCampaigns && upgrading) upgradeSeedCampaigns(d, seedCampaigns);
+    if (d.healthFollowUps && upgrading) upgradeSeedFollowUps(d, seedFollowUps);
+    d.healthSeedVersion = HEALTH_SEED_VERSION;
     d.healthDeclarations ||= seed.healthDeclarations;
     d.parentAccounts ||= seed.parentAccounts;
     d.childPlacements ||= seed.childPlacements;
     d.healthTrendDrafts ||= [];
+    d.healthCheckCampaigns ||= seedCampaigns;
+    d.healthFollowUps ||= seedFollowUps;
   });
   return readDb();
 };
+
+const ensureSeeded = ensureChildRecordsSeeded;
 
 const forbid = () => {
   throw new ApiError(403, FORBIDDEN);
@@ -102,7 +154,6 @@ const toView = (db, child, user) => {
     ageGroupId: cls?.ageGroupId || '',
     schoolYear: cls?.schoolYear || '',
     hasDeclaration: !!decl,
-    allergyPending: !!decl && decl.allergies.state === DECLARATION_STATE.REPORTED && !decl.allergyConfirmation,
   };
 };
 
@@ -178,19 +229,6 @@ const notifyClassTeachers = (db, cls, child) =>
     }),
   );
 
-const notifyAllergyToConfirm = (db, child) =>
-  db.users
-    .filter((u) => u.role === ROLES.PRINCIPAL)
-    .forEach((u) =>
-      pushNotification(db, {
-        userId: u.id,
-        type: 'ALLERGY_TO_CONFIRM',
-        title: 'Cần xác nhận dị ứng thực phẩm',
-        message: `Hồ sơ ${child.fullName} (${child.code}) có khai báo dị ứng chờ Hiệu trưởng xác nhận.`,
-        link: `/children/${child.id}/health-declaration`,
-      }),
-    );
-
 const validateEnrollment = (db, { child, declaration }, excludeId) => {
   const errors = { ...validateChildInfo(child), ...prefix('declaration', validateDeclaration(declaration)) };
   const dup = !errors.fullName && !errors.dateOfBirth ? isDuplicate(db, child, excludeId) : null;
@@ -200,6 +238,7 @@ const validateEnrollment = (db, { child, declaration }, excludeId) => {
 const prefix = (p, errors) => Object.fromEntries(Object.entries(errors).map(([k, v]) => [`${p}.${k}`, v]));
 
 const createChild = (db, { child, declaration }, { classId, user }) => {
+  const decl = cleanDeclaration(declaration);
   const record = {
     id: uid('ch'),
     code: nextCode(db),
@@ -210,24 +249,40 @@ const createChild = (db, { child, declaration }, { classId, user }) => {
     campusId: user.campusId,
     status: classId ? CHILD_STATUS.ACTIVE : CHILD_STATUS.PENDING_PLACEMENT,
     enrolledAt: todayInput(),
-    // Official allergy list stays empty until the Principal confirms the declaration (GBR-HLT-03).
-    allergies: [],
+    // Phó hiệu trưởng chốt dị ứng ngay khi tiếp nhận, không chờ Hiệu trưởng (quyết định user 2026-10-14).
+    allergies: [...decl.allergies.items],
     guardians: cleanGuardians(child.guardians),
     history: [{ action: 'ENROLLED', userId: user.id, at: nowIso() }],
   };
   db.children.push(record);
   db.healthDeclarations.push({
     childId: record.id,
-    ...cleanDeclaration(declaration),
-    allergyConfirmation: null,
+    ...decl,
     declaredBy: user.id,
     declaredAt: nowIso(),
     history: [{ action: 'DECLARED', userId: user.id, at: nowIso() }],
   });
   if (classId)
     db.childPlacements.push({ id: uid('pl'), childId: record.id, fromClassId: null, toClassId: classId, userId: user.id, at: nowIso() });
-  if (declaration.allergies.state === DECLARATION_STATE.REPORTED) notifyAllergyToConfirm(db, record);
   return record;
+};
+
+/** Parent accounts having at least one current child in the user's campus, with those children only. */
+const campusAccounts = (db, user) => {
+  const inCampus = db.children.filter((c) => c.campusId === user.campusId && c.status !== CHILD_STATUS.LEFT);
+  return db.parentAccounts
+    .map((a) => ({ ...a, children: inCampus.filter((c) => a.childIds.includes(c.id)) }))
+    .filter((a) => a.children.length > 0)
+    .map((a) => ({
+      id: a.id,
+      fullName: a.fullName,
+      phone: a.phone,
+      email: a.email || '',
+      status: a.status,
+      // Quan hệ ghi trên hồ sơ anh/chị, chỉ để gợi ý mặc định khi liên kết trẻ mới.
+      relation: a.children.flatMap((c) => c.guardians || []).find((g) => normalizePhone(g.phone) === a.phone)?.relation || '',
+      children: a.children.map((c) => ({ id: c.id, code: c.code, fullName: c.fullName, className: classOf(db, c)?.name || '' })),
+    }));
 };
 
 const smsWouldFail = (account) => /99$/.test(account.phone) && account.sms.length === 0;
@@ -239,11 +294,29 @@ const sendCredentials = (account) => {
   return status;
 };
 
-const toMeasurementView = (db, m) => ({
-  ...clone(m),
-  measuredByName: userName(db, m.measuredBy),
-  edits: (m.edits || []).map((e) => ({ ...e, userName: userName(db, e.userId) })),
-});
+// Kết quả sàng lọc tính lại mỗi lần đọc (như BE trả giá trị dẫn xuất) nên dữ liệu demo cũ vẫn theo rule mới.
+const toMeasurementView = (db, m) => {
+  const { nutritionStatus: _legacyStatus, ...stored } = clone(m);
+  const child = db.children.find((c) => c.id === m.childId);
+  const fields = {
+    ...stored,
+    campaignId: stored.campaignId ?? null,
+    headCircumferenceCm: stored.headCircumferenceCm ?? null,
+    grossMotor: stored.grossMotor ?? null,
+    fineMotor: stored.fineMotor ?? null,
+  };
+  const campaign = fields.campaignId ? (db.healthCheckCampaigns || []).find((c) => c.id === fields.campaignId) : null;
+  return {
+    ...fields,
+    ...screenMeasurement(fields, child.dateOfBirth),
+    campaignName: campaign?.name || null,
+    followUpId: (db.healthFollowUps || []).find((f) => f.measurementIds.includes(m.id))?.id || null,
+    // Kết quả của đợt đã đóng/hủy bị khóa tới khi Hiệu trưởng mở lại đợt.
+    locked: !!campaign && !isOpenForEntry(campaign),
+    measuredByName: userName(db, m.measuredBy),
+    edits: (m.edits || []).map((e) => ({ ...e, userName: userName(db, e.userId) })),
+  };
+};
 
 export const childrenMockRepository = {
   /* ------------------------------ #27 Children list ------------------------------ */
@@ -281,9 +354,7 @@ export const childrenMockRepository = {
     return {
       child: toView(db, child, user),
       cls: clone(classOf(db, child)),
-      declaration: decl
-        ? { ...clone(decl), declaredByName: userName(db, decl.declaredBy), confirmedByName: userName(db, decl.allergyConfirmation?.by) }
-        : null,
+      declaration: decl ? { ...clone(decl), declaredByName: userName(db, decl.declaredBy) } : null,
       placements,
     };
   },
@@ -315,14 +386,37 @@ export const childrenMockRepository = {
     await delay();
     if (!canEnrollChild(user)) forbid();
     const db = ensureSeeded();
-    const { errors, dup } = validateEnrollment(db, payload);
-    Object.assign(errors, validatePlacement(payload));
+    // Phụ huynh chọn từ tài khoản có sẵn: lấy họ tên/SĐT/email từ tài khoản, không tin dữ liệu client gửi lên.
+    const options = campusAccounts(db, user);
+    const accountErrors = {};
+    const guardians = (payload.child?.guardians || []).map((g, i) => {
+      if (!g.accountId) return g;
+      const acc = options.find((a) => a.id === g.accountId);
+      if (!acc) {
+        accountErrors[`guardians.${i}.accountId`] = 'Tài khoản phụ huynh không tồn tại hoặc không thuộc điểm trường của bạn';
+        return g;
+      }
+      return { accountId: acc.id, relation: g.relation, fullName: acc.fullName, phone: acc.phone, email: acc.email || '' };
+    });
+    const accountIds = guardians.map((g) => g.accountId).filter(Boolean);
+    if (new Set(accountIds).size !== accountIds.length) accountErrors.guardians = 'Mỗi tài khoản phụ huynh chỉ chọn một lần';
+    const resolved = { ...payload, child: { ...payload.child, guardians } };
+    const { errors, dup } = validateEnrollment(db, resolved);
+    Object.assign(errors, accountErrors);
     if (hasErrors(errors)) invalid(errors);
     if (dup) throw new ApiError(409, 'Hồ sơ trẻ này đã tồn tại (trùng họ tên và ngày sinh). Xem lại hồ sơ đã có.');
     return writeDb((d) => {
-      const cls = assertClassAvailable(d, payload.classId, user);
-      const record = createChild(d, payload, { classId: cls.id, user });
-      notifyClassTeachers(d, cls, record);
+      // Lớp không bắt buộc khi tiếp nhận; có lớp thì vẫn kiểm sức chứa và campus.
+      const cls = payload.classId ? assertClassAvailable(d, payload.classId, user) : null;
+      const record = createChild(d, resolved, { classId: cls?.id || null, user });
+      // Tài khoản có sẵn: liên kết ngay khi lưu, không tạo tài khoản mới, không gửi mật khẩu (UC 3.9 nhánh đã có tài khoản).
+      guardians.forEach((g, i) => {
+        const acc = g.accountId && d.parentAccounts.find((a) => a.id === g.accountId);
+        if (!acc) return;
+        if (!acc.childIds.includes(record.id)) acc.childIds.push(record.id);
+        record.guardians[i].accountStatus = acc.status;
+      });
+      if (cls) notifyClassTeachers(d, cls, record);
       return toView(d, record, user);
     });
   },
@@ -435,6 +529,39 @@ export const childrenMockRepository = {
     });
   },
 
+  /** Cho nghỉ học: không xóa dữ liệu, chỉ chuyển trạng thái Đã nghỉ và giữ lớp cuối cùng để tra lịch sử. */
+  async withdrawChild(childId, { leftAt, reason }, user) {
+    await delay();
+    const db = ensureSeeded();
+    const child = findChild(db, childId);
+    if (!canWithdrawChild(child, user)) forbid();
+    const errors = {};
+    if (!leftAt || !/^\d{4}-\d{2}-\d{2}$/.test(leftAt)) errors.leftAt = 'Chọn ngày nghỉ học';
+    else if (leftAt > todayInput()) errors.leftAt = 'Ngày nghỉ học không được ở tương lai';
+    else if (child.enrolledAt && leftAt < child.enrolledAt) errors.leftAt = 'Ngày nghỉ học không được trước ngày tiếp nhận';
+    if (!reason?.trim()) errors.reason = 'Nhập lý do cho trẻ nghỉ học';
+    else if (reason.trim().length > 300) errors.reason = 'Lý do tối đa 300 ký tự';
+    if (hasErrors(errors)) invalid(errors);
+    return writeDb((d) => {
+      const target = findChild(d, childId);
+      target.status = CHILD_STATUS.LEFT;
+      target.leftAt = leftAt;
+      target.leftReason = reason.trim();
+      target.history = [...(target.history || []), { action: 'WITHDRAWN', userId: user.id, at: nowIso(), note: reason.trim() }];
+      const cls = classOf(d, target);
+      (cls?.teacherIds || []).forEach((teacherId) =>
+        pushNotification(d, {
+          userId: teacherId,
+          type: 'CHILD_WITHDRAWN',
+          title: 'Trẻ nghỉ học',
+          message: `${target.fullName} nghỉ học từ ngày ${formatDate(leftAt)}.`,
+          link: `/children/${target.id}`,
+        }),
+      );
+      return toView(d, target, user);
+    });
+  },
+
   /* ------------------------------ #30 Health declaration ------------------------------ */
   async saveDeclaration(childId, { declaration, reason }, user) {
     await delay();
@@ -443,46 +570,41 @@ export const childrenMockRepository = {
     if (!canDeclareHealth(child, user)) forbid();
     const errors = validateDeclaration(declaration);
     const current = declarationOf(db, childId);
-    if (current?.allergyConfirmation && !reason?.trim()) errors.reason = 'Nhập lý do thay đổi khai báo đã được xác nhận';
+    if (current && !reason?.trim()) errors.reason = 'Nhập lý do thay đổi khai báo';
     if (hasErrors(errors)) invalid(errors);
     return writeDb((d) => {
       const clean = cleanDeclaration(declaration);
       let decl = declarationOf(d, childId);
       if (!decl) {
-        decl = { childId, allergyConfirmation: null, history: [] };
+        decl = { childId, history: [] };
         d.healthDeclarations.push(decl);
       }
       const allergyChanged = JSON.stringify(decl.allergies) !== JSON.stringify(clean.allergies);
+      const entry = { action: 'UPDATED', userId: user.id, at: nowIso(), note: reason?.trim() || '' };
+      if (allergyChanged) entry.allergyChange = { from: decl.allergies ? clone(decl.allergies) : null, to: clone(clean.allergies) };
       Object.assign(decl, clean, { declaredBy: user.id, declaredAt: nowIso() });
-      decl.history.push({ action: 'UPDATED', userId: user.id, at: nowIso(), note: reason?.trim() || '' });
-      // Changed allergy data needs a new Principal confirmation before kitchen warnings use it (GBR-CP-02).
-      if (allergyChanged) {
-        decl.allergyConfirmation = null;
-        if (clean.allergies.state === DECLARATION_STATE.REPORTED) notifyAllergyToConfirm(d, findChild(d, childId));
-      }
+      decl.history.push(entry);
+      // Khai báo của Phó hiệu trưởng có hiệu lực ngay: bếp và điểm danh đọc danh sách mới.
+      findChild(d, childId).allergies = [...clean.allergies.items];
       return clone(decl);
     });
   },
 
-  async confirmAllergies(childId, user) {
-    await delay();
+  /* ------------------------------ #31 Parent account activation ------------------------------ */
+  /** #28: existing parent accounts the VP can link a new child to (campus scope), filtered by phone / email. */
+  async listParentAccountOptions({ keyword } = {}, user) {
+    await delay(150);
+    if (!canEnrollChild(user)) forbid();
     const db = ensureSeeded();
-    const child = findChild(db, childId);
-    if (!canConfirmAllergies(child, user)) forbid();
-    const decl = declarationOf(db, childId);
-    if (!decl || decl.allergies.state === DECLARATION_STATE.NOT_PROVIDED)
-      throw new ApiError(422, 'Chưa có thông tin dị ứng do phụ huynh cung cấp để xác nhận.');
-    return writeDb((d) => {
-      const target = findChild(d, childId);
-      const dd = declarationOf(d, childId);
-      target.allergies = [...dd.allergies.items];
-      dd.allergyConfirmation = { by: user.id, at: nowIso() };
-      dd.history.push({ action: 'ALLERGY_CONFIRMED', userId: user.id, at: nowIso() });
-      return clone(dd);
-    });
+    const kw = String(keyword || '')
+      .trim()
+      .toLowerCase();
+    const phoneKw = normalizePhone(kw);
+    return campusAccounts(db, user)
+      .filter((a) => !kw || (phoneKw && a.phone.includes(phoneKw)) || a.email.toLowerCase().includes(kw))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi'));
   },
 
-  /* ------------------------------ #31 Parent account activation ------------------------------ */
   async listParentAccounts(filters = {}, user) {
     await delay(150);
     if (!canViewParentAccounts(user)) forbid();
@@ -587,7 +709,25 @@ export const childrenMockRepository = {
       .sort((a, b) => b.date.localeCompare(a.date))
       .map((m) => toMeasurementView(db, m));
     const decl = declarationOf(db, childId);
-    return { child: toView(db, child, user), cls: clone(classOf(db, child)), declaration: clone(decl), measurements };
+    const open = db.healthCheckCampaigns.find((c) => c.campusId === child.campusId && isOpenForEntry(c));
+    const followUp = db.healthFollowUps.find((f) => f.childId === childId && f.status !== FOLLOW_UP_STATUS.CLOSED);
+    return {
+      child: toView(db, child, user),
+      cls: clone(classOf(db, child)),
+      declaration: clone(decl),
+      measurements,
+      rules: { headCircumferenceUntil: headCircumferenceUntil(child.dateOfBirth) },
+      openCampaign: open
+        ? {
+            id: open.id,
+            name: open.name,
+            startDate: open.startDate,
+            endDate: open.endDate,
+            resultMeasurementId: measurements.find((m) => m.campaignId === open.id)?.id || null,
+          }
+        : null,
+      openFollowUp: followUp ? { id: followUp.id, status: followUp.status, openedAt: followUp.openedAt } : null,
+    };
   },
 
   /* ------------------------------ #34 Health measurement form ------------------------------ */
@@ -598,25 +738,50 @@ export const childrenMockRepository = {
     if (!canRecordMeasurement(child, user, classOf(db, child))) forbid();
     const existing = measurementId ? db.healthMeasurements.find((m) => m.id === measurementId && m.childId === childId) : null;
     if (measurementId && !existing) throw new ApiError(404, 'Không tìm thấy lần đo này.');
+    // Kết quả trong đợt khám: đợt đang diễn ra, cùng điểm trường, mỗi trẻ 1 kết quả/đợt (user chốt 2026-10-15).
+    const campaignId = existing ? (existing.campaignId ?? null) : payload.campaignId || null;
+    const campaign = campaignId ? db.healthCheckCampaigns.find((c) => c.id === campaignId) : null;
+    if (campaignId && !campaign) throw new ApiError(404, 'Không tìm thấy đợt khám.');
+    if (campaign && campaign.campusId !== child.campusId) forbid();
+    if (campaign && !isOpenForEntry(campaign))
+      throw new ApiError(
+        409,
+        campaignStatusOf(campaign) === CAMPAIGN_STATUS.CLOSED
+          ? 'Đợt khám đã đóng. Hiệu trưởng mở lại đợt nếu cần sửa kết quả.'
+          : 'Đợt khám chưa bắt đầu hoặc đã hủy, chưa nhập được kết quả.',
+      );
+    const until = headCircumferenceUntil(child.dateOfBirth);
     // GBR-GEN-06: a published (confirmed) result needs a reason to change.
-    const errors = validateMeasurement(payload, { dateOfBirth: child.dateOfBirth, requireReason: !!existing?.published });
+    const errors = validateMeasurement(payload, {
+      dateOfBirth: child.dateOfBirth,
+      requireReason: !!existing?.published,
+      headCircumferenceUntil: until,
+      legacy: !!existing && existing.grossMotor == null,
+      campaign: campaign ? { startDate: campaign.startDate, endDate: campaign.endDate } : undefined,
+    });
     if (hasErrors(errors)) invalid(errors);
+    if (campaign && db.healthMeasurements.some((m) => m.childId === childId && m.campaignId === campaignId && m.id !== measurementId))
+      invalid({ date: 'Trẻ đã có kết quả trong đợt này. Sửa kết quả đã có thay vì nhập mới.' });
     if (db.healthMeasurements.some((m) => m.childId === childId && m.date === payload.date && m.id !== measurementId))
       invalid({ date: 'Ngày này đã có kết quả đo. Sửa lần đo đã có thay vì tạo mới.' });
     return writeDb((d) => {
+      const round1 = (v) => Math.round(Number(v) * 10) / 10;
+      const hasHead = payload.date <= until && payload.headCircumferenceCm !== '' && payload.headCircumferenceCm != null;
       const values = {
         date: payload.date,
-        heightCm: Math.round(Number(payload.heightCm) * 10) / 10,
-        weightKg: Math.round(Number(payload.weightKg) * 10) / 10,
+        heightCm: round1(payload.heightCm),
+        weightKg: round1(payload.weightKg),
+        headCircumferenceCm: hasHead ? round1(payload.headCircumferenceCm) : null,
+        grossMotor: payload.grossMotor || null,
+        fineMotor: payload.fineMotor || null,
         note: (payload.note || '').trim(),
       };
-      const computed = classifyMeasurement(values, child.dateOfBirth);
       if (!existing) {
         const created = {
           id: uid('hm'),
           childId,
           ...values,
-          ...computed,
+          campaignId,
           measuredBy: user.id,
           published: false,
           publishedAt: null,
@@ -624,16 +789,18 @@ export const childrenMockRepository = {
           edits: [],
         };
         d.healthMeasurements.push(created);
+        trackFollowUp(d, child, created, toMeasurementView(d, created).followUpLevel, user);
         return toMeasurementView(d, created);
       }
       const target = d.healthMeasurements.find((m) => m.id === measurementId);
       const changes = Object.keys(values)
-        .filter((k) => target[k] !== values[k])
-        .map((k) => ({ field: k, label: MEASUREMENT_FIELD_LABELS[k], from: target[k], to: values[k] }));
+        .filter((k) => (target[k] ?? null) !== values[k])
+        .map((k) => ({ field: k, label: MEASUREMENT_FIELD_LABELS[k], from: target[k] ?? null, to: values[k] }));
       if (changes.length === 0) return toMeasurementView(d, target);
       // GBR-HLT-03: keep who, when, old and new value. Teacher review precedes a new publication.
       target.edits = [...(target.edits || []), { at: nowIso(), userId: user.id, reason: (payload.reason || '').trim(), changes }];
-      Object.assign(target, values, computed, { published: false, publishedAt: null });
+      Object.assign(target, values, { published: false, publishedAt: null });
+      trackFollowUp(d, child, target, toMeasurementView(d, target).followUpLevel, user);
       return toMeasurementView(d, target);
     });
   },
@@ -660,15 +827,24 @@ export const childrenMockRepository = {
     await delay(900);
     const db = ensureSeeded();
     const child = assertView(db, childId, user, canViewHealth);
-    const history = db.healthMeasurements.filter((m) => m.childId === childId).sort((a, b) => a.date.localeCompare(b.date));
+    const history = db.healthMeasurements
+      .filter((m) => m.childId === childId)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((m) => toMeasurementView(db, m));
     if (history.length < 2) return { status: AI_TREND_STATUS.NOT_ENOUGH_DATA, warnings: [], summary: '' };
     // Demo: children whose code ends in 5 simulate an AI outage (MSG30 path).
-    if (/5$/.test(child.code)) throw new ApiError(503, 'Không dùng được trợ lý AI. Bạn vẫn xem được số đo và tình trạng dinh dưỡng.');
-    // GBR-AI-05: only the internal code and numbers leave the system, never names or contacts.
+    if (/5$/.test(child.code)) throw new ApiError(503, 'Không dùng được trợ lý AI. Bạn vẫn xem được số đo và kết quả phân loại.');
+    // GBR-AI-05: chỉ gửi mã nội bộ và số đo, không gửi tên/liên hệ; không gửi đánh giá vận động để AI không viết lời chẩn đoán phát triển.
     const aiInput = {
       ref: child.code,
       sex: child.gender,
-      points: history.map(({ date, heightCm, weightKg, nutritionStatus }) => ({ date, heightCm, weightKg, nutritionStatus })),
+      points: history.map(({ date, heightCm, weightKg, headCircumferenceCm, bmiStatus }) => ({
+        date,
+        heightCm,
+        weightKg,
+        headCircumferenceCm,
+        bmiStatus,
+      })),
     };
     const result = fakeTrendModel(aiInput);
     writeDb((d) => {
@@ -702,12 +878,14 @@ const fakeTrendModel = ({ points }) => {
   else if (dw / months < 0.1)
     warnings.push({ level: 'warning', text: `Cân nặng tăng chậm: +${num(dw)} kg trong ${months} tháng. Nên tiếp tục theo dõi.` });
   if (dh <= 0) warnings.push({ level: 'info', text: 'Chiều cao không thay đổi so với lần đo trước. Có thể kiểm tra lại cách đo.' });
-  if (last.nutritionStatus !== prev.nutritionStatus)
-    warnings.push({ level: 'info', text: 'Tình trạng dinh dưỡng theo quy tắc đã thay đổi so với lần đo trước.' });
-  else if (['MALNOURISHED', 'OBESE'].includes(last.nutritionStatus))
+  if (last.headCircumferenceCm != null && prev.headCircumferenceCm != null && last.headCircumferenceCm < prev.headCircumferenceCm)
+    warnings.push({ level: 'info', text: 'Vòng đầu nhỏ hơn lần đo trước. Có thể kiểm tra lại cách đo ở lần khám tiếp theo.' });
+  if (last.bmiStatus !== prev.bmiStatus)
+    warnings.push({ level: 'info', text: 'Phân loại BMI theo quy tắc đã thay đổi so với lần đo trước.' });
+  else if (['LOW', 'HIGH'].includes(last.bmiStatus))
     warnings.push({
       level: 'info',
-      text: 'Các lần đo gần đây vẫn được quy tắc của hệ thống xếp ngoài mức bình thường. Nên tiếp tục theo dõi và trao đổi với phụ huynh.',
+      text: 'Các lần đo gần đây vẫn có BMI ngoài khoảng bình thường theo quy tắc của hệ thống. Nên tiếp tục theo dõi và trao đổi với phụ huynh.',
     });
   const summary =
     warnings.length === 0

@@ -426,7 +426,7 @@ const buildAllergyMenus = () => {
           replacementDishId,
           portion: 1,
         })),
-        note: 'Áp dụng cho trẻ có dị ứng đã được Hiệu trưởng xác nhận.',
+        note: 'Áp dụng cho trẻ có dị ứng đã được Phó hiệu trưởng chốt.',
         status: 'ACTIVE',
         createdBy: VP,
         createdAt: at('2026-08-29'),

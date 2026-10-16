@@ -35,8 +35,8 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
       <div className="alert alert--info">
         <Info size={18} />
         <div>
-          Ghi đúng thông tin phụ huynh cung cấp. Nếu phụ huynh chưa cho biết, chọn <b>Chưa cung cấp</b> – không mặc định là không có. Dị ứng
-          thực phẩm chỉ được bếp dùng sau khi Hiệu trưởng xác nhận.
+          Ghi đúng thông tin phụ huynh cung cấp. Nếu phụ huynh chưa cho biết, chọn <b>Chưa cung cấp</b> – không mặc định là không có. Thông
+          tin dị ứng có hiệu lực ngay khi lưu: bếp và điểm danh dùng danh sách này.
         </div>
       </div>
 

@@ -24,8 +24,8 @@ keywords:
     {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md]}
   "trẻ|child|hồ sơ trẻ|ghi danh|enrollment|guardian":
     {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
-  "sức khỏe|health|chiều cao|cân nặng|measurement|tăng trưởng|trend|biểu đồ":
-    {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}   # người nhập PENDING
+  "sức khỏe|health|chiều cao|cân nặng|vòng đầu|vận động|đợt khám|phiếu theo dõi|measurement|tăng trưởng|trend|biểu đồ":
+    {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}   # người nhập PENDING ở BE; user chốt GV phụ trách lớp, đợt khám (PROPOSED)
   "quan sát|observation|tiêu chí|criteria|nhận xét|summary|đánh giá|assessment|phát triển|development profile":
     {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
   "hoạt động|activity|giáo án|gokids":

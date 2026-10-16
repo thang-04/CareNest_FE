@@ -98,12 +98,15 @@ function ResultForm({ childId, verification, guardianIndex }) {
   useEffect(() => {
     if (!context || form) return;
     const g = guardianIndex != null ? context.guardians.find((x) => x.index === guardianIndex) : null;
+    // Phụ huynh gọi lại đồng ý: điền sẵn người đón đã ghi ở lần "không liên lạc được" gần nhất hôm nay
+    const waiting = [...(context.attempts || [])].reverse().find((a) => a.verification === VERIFICATION.PHONE_UNREACHABLE);
+    const prior = verification === VERIFICATION.PHONE_CONFIRMED ? waiting : null;
     setForm({
       childId,
       verification,
-      pickupPersonName: g?.fullName || '',
-      pickupPersonRelation: g?.relation || '',
-      pickupPersonPhone: '',
+      pickupPersonName: g?.fullName || prior?.pickupPersonName || '',
+      pickupPersonRelation: g?.relation || prior?.pickupPersonRelation || '',
+      pickupPersonPhone: prior?.pickupPersonPhone || '',
       handoverTime: nowTime(),
       note: '',
     });
@@ -123,6 +126,8 @@ function ResultForm({ childId, verification, guardianIndex }) {
 
   const handedOver = outcomeOf(verification) === PICKUP_OUTCOME.HANDED_OVER;
   const fromPhoto = verification === VERIFICATION.PHOTO_MATCH;
+  const unreachable = verification === VERIFICATION.PHONE_UNREACHABLE;
+  const selfDeclared = unreachable ? ' (theo lời người đón)' : '';
   const set = (k) => (e) => {
     setForm({ ...form, [k]: e.target.value });
     if (errors[k]) setErrors({ ...errors, [k]: undefined });
@@ -169,7 +174,11 @@ function ResultForm({ childId, verification, guardianIndex }) {
         {handedOver ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
         <div>
           <b>{VERIFICATION_LABELS[verification]}.</b>{' '}
-          {handedOver ? 'Trẻ được trả cho người đón.' : 'Không trả trẻ. Trẻ ở lại lớp; ghi rõ lý do để phụ huynh nắm thông tin.'}
+          {handedOver
+            ? 'Trẻ được trả cho người đón.'
+            : unreachable
+              ? 'Chưa trả trẻ. Người đón có thể chờ; khi phụ huynh gọi lại đồng ý, bấm "Xác minh lại" ở danh sách đón để trả trẻ.'
+              : 'Không trả trẻ. Trẻ ở lại lớp.'}
         </div>
       </div>
       <div className="card wizard-card">
@@ -181,7 +190,12 @@ function ResultForm({ childId, verification, guardianIndex }) {
         </div>
         <div className="card__body">
           <div className="grid-2">
-            <FormField label="Họ tên người đón" required error={errors.pickupPersonName}>
+            <FormField
+              label={`Họ tên người đón${selfDeclared}`}
+              required={handedOver}
+              error={errors.pickupPersonName}
+              hint={unreachable ? 'Không bắt buộc' : undefined}
+            >
               <input
                 className="input"
                 value={form.pickupPersonName}
@@ -190,7 +204,12 @@ function ResultForm({ childId, verification, guardianIndex }) {
                 maxLength={100}
               />
             </FormField>
-            <FormField label="Quan hệ với trẻ" required error={errors.pickupPersonRelation}>
+            <FormField
+              label={`Quan hệ với trẻ${selfDeclared}`}
+              required={handedOver}
+              error={errors.pickupPersonRelation}
+              hint={unreachable ? 'Không bắt buộc' : undefined}
+            >
               {fromPhoto ? (
                 <input className="input" value={form.pickupPersonRelation} readOnly />
               ) : (
@@ -225,14 +244,14 @@ function ResultForm({ childId, verification, guardianIndex }) {
             <span className="text-sm text-2">Xác nhận qua điện thoại:</span>{' '}
             <b>{verification === VERIFICATION.PHONE_CONFIRMED ? 'Có – phụ huynh đồng ý' : fromPhoto ? 'Không cần (khớp ảnh)' : 'Không'}</b>
           </div>
-          <FormField label="Ghi chú" required={!handedOver} error={errors.note} className="mt-12">
+          <FormField label="Ghi chú" error={errors.note} className="mt-12" hint={unreachable ? 'Không bắt buộc' : undefined}>
             <textarea
               className="textarea"
               rows={3}
               maxLength={500}
               value={form.note}
               onChange={set('note')}
-              placeholder={handedOver ? '' : 'Ví dụ: Người đón không có trong danh sách, phụ huynh không nghe máy'}
+              placeholder={unreachable ? 'Ví dụ: Đã gọi mẹ 2 lần lúc 16:40, không nghe máy; người đón chờ ở phòng bảo vệ' : ''}
             />
           </FormField>
         </div>
@@ -251,7 +270,7 @@ function ResultForm({ childId, verification, guardianIndex }) {
         message={
           handedOver
             ? `Trả ${context.child.fullName} cho ${form.pickupPersonName} (${form.pickupPersonRelation}) lúc ${form.handoverTime}? Phụ huynh sẽ nhận thông báo.`
-            : `Ghi nhận không trả ${context.child.fullName} cho ${form.pickupPersonName}? Phụ huynh sẽ nhận thông báo.`
+            : `Ghi nhận chưa trả ${context.child.fullName}${form.pickupPersonName.trim() ? ` cho ${form.pickupPersonName.trim()}` : ''} vì chưa liên lạc được phụ huynh? Phụ huynh sẽ nhận thông báo.`
         }
         confirmLabel={handedOver ? 'Ghi nhận trả trẻ' : 'Ghi nhận không trả trẻ'}
         danger={!handedOver}

@@ -37,13 +37,15 @@ export const canEnrollChild = (user) => isVicePrincipal(user);
 
 const vpOfCampus = (child, user) => isVicePrincipal(user) && !!child && child.campusId === user.campusId;
 
-export const canEditChild = (child, user) => vpOfCampus(child, user) && child.status !== CHILD_STATUS.LEFT;
-export const canPlaceChild = canEditChild;
-export const canDeclareHealth = canEditChild;
-export const canActivateParent = canEditChild;
+const vpEditable = (child, user) => vpOfCampus(child, user) && child.status !== CHILD_STATUS.LEFT;
 
-/** Food allergies are confirmed only by the Principal (GBR-HLT-03, data rule "Allergies are confirmed by the Principal"). */
-export const canConfirmAllergies = (child, user) => isPrincipal(user) && !!child && child.status !== CHILD_STATUS.LEFT;
+// Sửa hồ sơ và cho nghỉ học: Phó hiệu trưởng điểm trường của trẻ hoặc Hiệu trưởng (quyết định user 2026-10-14).
+export const canEditChild = (child, user) =>
+  !!child && child.status !== CHILD_STATUS.LEFT && (vpOfCampus(child, user) || isPrincipal(user));
+export const canWithdrawChild = canEditChild;
+export const canPlaceChild = vpEditable;
+export const canDeclareHealth = vpEditable;
+export const canActivateParent = vpEditable;
 
 /* ---- Class teacher (UC 5.3; Principal and VP have "No" for Record / Edit in the matrix) ---- */
 export const canRecordMeasurement = (child, user, cls) =>
@@ -51,3 +53,12 @@ export const canRecordMeasurement = (child, user, cls) =>
 
 export const canEditMeasurement = canRecordMeasurement;
 export const canPublishMeasurement = canRecordMeasurement;
+
+/* ---- Đợt khám sức khỏe (user chốt 2026-10-15, PROPOSED): Hiệu trưởng quản lý; PHT, giáo viên xem theo điểm trường ---- */
+export const canManageHealthCheck = (user) => isPrincipal(user);
+
+export const canViewHealthChecks = (user) => isPrincipal(user) || isVicePrincipal(user) || isTeacherRole(user);
+
+/** Phiếu theo dõi: giáo viên phụ trách lớp hiện tại của trẻ cập nhật; BGH chỉ xem (user chốt 2026-10-15). */
+export const canUpdateFollowUp = (child, user, cls) =>
+  !!child && child.status !== CHILD_STATUS.LEFT && child.classId === cls?.id && teachesClass(cls, user);
