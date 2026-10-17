@@ -20,8 +20,9 @@ import {
   isVicePrincipal,
   teachesClass,
 } from '@/utils/children/childrenPermissions';
-import { ensureChildRecordsSeeded } from './childrenMockRepository';
-import { campaignStatusOf, isOpenForEntry, unclosedCampaignOf } from './healthCheckRule';
+import { CONCLUSION_CATEGORY, EXAM_STATUS } from '@/models/children/healthExamForm';
+import { ensureChildRecordsSeeded, isExamDraft } from './childrenMockRepository';
+import { campaignStatusOf, followUpBrief, followUpState, isOpenForEntry, latestExternalOf, unclosedCampaignOf } from './healthCheckRule';
 import { screenMeasurement } from './healthScreeningRule';
 
 /*
@@ -66,8 +67,30 @@ const findCampaign = (db, id, user) => {
 
 const latestBefore = (db, childId, date, excludeId) =>
   db.healthMeasurements
-    .filter((m) => m.childId === childId && m.id !== excludeId && m.date < date)
+    .filter((m) => m.childId === childId && m.id !== excludeId && m.date < date && !isExamDraft(m))
     .sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+
+/** Kết luận bác sĩ rút gọn (phiếu Phụ lục II) cho danh sách, phiếu theo dõi, đợt sau. */
+export const conclusionBrief = (m) => {
+  const c = m?.examStatus === EXAM_STATUS.CONCLUDED ? m.exam?.conclusion : null;
+  return c
+    ? {
+        doctorName: c.doctorName,
+        issueText: c.issueText || '',
+        tbRisk: !!c.tbRisk,
+        action: c.action,
+        adviceText: c.adviceText || '',
+        specialty: c.specialty || '',
+      }
+    : null;
+};
+
+const resultStatusOf = (m, campaignStatus) => {
+  if (!m) return campaignStatus === CAMPAIGN_STATUS.CLOSED ? CHILD_RESULT_STATUS.ABSENT : CHILD_RESULT_STATUS.NOT_RECORDED;
+  if (isExamDraft(m))
+    return campaignStatus === CAMPAIGN_STATUS.CLOSED ? CHILD_RESULT_STATUS.NOT_CONCLUDED : CHILD_RESULT_STATUS.IN_PROGRESS;
+  return CHILD_RESULT_STATUS.RECORDED;
+};
 
 const openFollowUpOf = (db, childId) =>
   (db.healthFollowUps || []).find((f) => f.childId === childId && f.status !== FOLLOW_UP_STATUS.CLOSED) || null;
@@ -86,7 +109,8 @@ const rosterOf = (db, campaign, cls) => {
     .sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi'))
     .map((ch) => {
       const m = resultByChild[ch.id];
-      const screen = m ? screenMeasurement(m, ch.dateOfBirth) : null;
+      const draft = !!m && isExamDraft(m);
+      const screen = m && !draft ? screenMeasurement(m, ch.dateOfBirth) : null;
       const prev = latestBefore(db, ch.id, m?.date || campaign.startDate, m?.id);
       const prevCampaign = prev?.campaignId ? db.healthCheckCampaigns.find((c) => c.id === prev.campaignId) : null;
       const followUp = openFollowUpOf(db, ch.id);
@@ -97,15 +121,15 @@ const rosterOf = (db, campaign, cls) => {
         dateOfBirth: ch.dateOfBirth,
         classId: cls.id,
         className: cls.name,
-        result: m
-          ? CHILD_RESULT_STATUS.RECORDED
-          : status === CAMPAIGN_STATUS.CLOSED
-            ? CHILD_RESULT_STATUS.ABSENT
-            : CHILD_RESULT_STATUS.NOT_RECORDED,
+        result: resultStatusOf(m, status),
         measurementId: m?.id || null,
         date: m?.date || null,
-        bmiStatus: screen?.bmiStatus || null,
+        examStatus: m?.examStatus || null,
+        // Kết quả nhập theo mẫu cũ trong đợt (trước phiếu Phụ lục II): xem ở Sổ sức khỏe, không mở trang phiếu.
+        source: screen?.source || (draft ? 'EXAM' : null),
         followUpLevel: screen?.followUpLevel || null,
+        conclusionCategory: screen?.conclusionCategory || null,
+        conclusion: conclusionBrief(m),
         criteria: screen?.criteria || [],
         published: !!m?.published,
         previous: prev
@@ -113,9 +137,10 @@ const rosterOf = (db, campaign, cls) => {
               date: prev.date,
               campaignName: prevCampaign?.name || null,
               followUpLevel: screenMeasurement(prev, ch.dateOfBirth).followUpLevel,
+              conclusion: conclusionBrief(prev),
             }
           : null,
-        followUp: followUp ? { id: followUp.id, status: followUp.status } : null,
+        followUp: followUp ? followUpBrief(followUp) : null,
       };
     });
 };
@@ -124,14 +149,20 @@ const summarize = (rows) => ({
   total: rows.length,
   recorded: rows.filter((r) => r.result === CHILD_RESULT_STATUS.RECORDED).length,
   notRecorded: rows.filter((r) => r.result === CHILD_RESULT_STATUS.NOT_RECORDED).length,
+  inProgress: rows.filter((r) => r.result === CHILD_RESULT_STATUS.IN_PROGRESS).length,
+  notConcluded: rows.filter((r) => r.result === CHILD_RESULT_STATUS.NOT_CONCLUDED).length,
   absent: rows.filter((r) => r.result === CHILD_RESULT_STATUS.ABSENT).length,
   watch: rows.filter((r) => r.followUpLevel === FOLLOW_UP_LEVEL.WATCH).length,
   closeWatch: rows.filter((r) => r.followUpLevel === FOLLOW_UP_LEVEL.CLOSE_WATCH).length,
+  byConclusion: Object.fromEntries(
+    Object.values(CONCLUSION_CATEGORY).map((k) => [k, rows.filter((r) => r.conclusionCategory === k).length]),
+  ),
 });
 
 const toCampaignView = (db, c, user) => {
   const rows = scopedClasses(db, user, c.campusId).flatMap((cls) => rosterOf(db, c, cls));
   const { absentChildIds: _absent, ...rest } = clone(c);
+  const waiting = rows.filter((r) => r.followUp?.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT);
   return {
     ...rest,
     campusName: campusName(db, c.campusId),
@@ -140,9 +171,8 @@ const toCampaignView = (db, c, user) => {
     closedByName: userName(db, c.closedBy),
     hasResults: db.healthMeasurements.some((m) => m.campaignId === c.id),
     progress: summarize(rows),
-    waitingFollowUpCount: (db.healthFollowUps || []).filter(
-      (f) => f.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT && rows.some((r) => r.childId === f.childId),
-    ).length,
+    waitingFollowUpCount: waiting.length,
+    overdueFollowUpCount: waiting.filter((r) => r.followUp.overdueDays > 0).length,
     history: (c.history || []).map((h) => ({ ...h, userName: userName(db, h.userId) })),
   };
 };
@@ -193,17 +223,37 @@ const canSeeFollowUp = (db, user, f) => {
 
 const toFollowUpView = (db, f, user, { full = false } = {}) => {
   const { child, cls } = followUpContext(db, f);
+  const { status, round, roundStarts } = followUpState(f);
   const measurements = f.measurementIds
     .map((id) => db.healthMeasurements.find((m) => m.id === id))
-    .filter(Boolean)
+    .filter((m) => m && !isExamDraft(m))
     .sort((a, b) => a.date.localeCompare(b.date));
   const campaignName = (m) => db.healthCheckCampaigns.find((c) => c.id === m.campaignId)?.name || null;
   const screened = measurements.map((m) => ({ m, sc: screenMeasurement(m, child.dateOfBirth) }));
   const last = screened[screened.length - 1];
-  const entry = (x) => (x ? { on: x.on, note: x.note, byName: userName(db, x.by), at: x.at } : null);
+  const ext = latestExternalOf(f);
+  const canUpdate = !f.closedAt && canUpdateFollowUp(child, user, cls);
+  // Lần khám gần nhất của trẻ ở mọi mức, để giáo viên thấy diễn biến sau các kết quả trong phiếu.
+  const newest = db.healthMeasurements
+    .filter((m) => m.childId === child.id && !isExamDraft(m))
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const brief = (m) => {
+    const sc = screenMeasurement(m, child.dateOfBirth);
+    return {
+      id: m.id,
+      date: m.date,
+      campaignName: campaignName(m),
+      followUpLevel: sc.followUpLevel,
+      criteria: sc.criteria,
+      source: sc.source,
+      conclusion: conclusionBrief(m),
+    };
+  };
+  // Kết luận bác sĩ của kết quả mới nhất có phiếu Phụ lục II trong phiếu theo dõi (chuyên khoa được chuyển, lời dặn).
+  const lastExam = [...measurements].reverse().find((m) => conclusionBrief(m));
   return {
     id: f.id,
-    status: f.status,
+    status,
     openedAt: f.openedAt,
     updatedAt: f.updatedAt,
     closedAt: f.closedAt,
@@ -225,13 +275,37 @@ const toFollowUpView = (db, f, user, { full = false } = {}) => {
           campaignName: campaignName(last.m),
           followUpLevel: last.sc.followUpLevel,
           criteria: last.sc.criteria,
+          source: last.sc.source,
         }
       : null,
-    contact: entry(f.contact),
-    externalResult: entry(f.externalResult),
-    canUpdate: f.status !== FOLLOW_UP_STATUS.CLOSED && canUpdateFollowUp(child, user, cls),
+    tbRisk: measurements.some((m) => conclusionBrief(m)?.tbRisk),
+    referral: lastExam ? { date: lastExam.date, measurementId: lastExam.id, ...conclusionBrief(lastExam) } : null,
+    currentRound: round
+      ? {
+          startedAt: round.startedAt,
+          contactFrom: round.contactFrom,
+          dueOn: round.dueOn,
+          contacted: round.contacted,
+          overdueDays: round.overdueDays,
+        }
+      : null,
+    latestExternalResult: ext
+      ? { on: ext.on, note: ext.note, facility: ext.facility || '', nextVisitOn: ext.nextVisitOn || null, byName: userName(db, ext.userId) }
+      : null,
+    canUpdate,
+    canRecordExternal: canUpdate && !!round?.contacted,
     ...(full
       ? {
+          latestMeasurement: newest ? brief(newest) : null,
+          timeline: (f.history || []).map((e) => {
+            const m = e.measurementId ? db.healthMeasurements.find((x) => x.id === e.measurementId) : null;
+            return {
+              ...e,
+              userName: userName(db, e.userId),
+              ...(m ? { measurement: brief(m) } : {}),
+              ...(e.action === 'MEASUREMENT_ADDED' ? { newRound: roundStarts.includes(e.at) } : {}),
+            };
+          }),
           measurements: screened.map(({ m, sc }) => ({
             id: m.id,
             date: m.date,
@@ -242,9 +316,9 @@ const toFollowUpView = (db, f, user, { full = false } = {}) => {
             grossMotor: m.grossMotor ?? null,
             fineMotor: m.fineMotor ?? null,
             note: m.note || '',
+            conclusion: conclusionBrief(m),
             ...sc,
           })),
-          history: (f.history || []).map((h) => ({ ...h, userName: userName(db, h.userId) })),
         }
       : {}),
   };
@@ -259,7 +333,7 @@ const findFollowUp = (db, id, user) => {
 const assertUpdate = (db, f, user) => {
   const { child, cls } = followUpContext(db, f);
   if (!canUpdateFollowUp(child, user, cls)) forbid();
-  if (f.status === FOLLOW_UP_STATUS.CLOSED) throw new ApiError(409, 'Phiếu theo dõi đã đóng.');
+  if (f.closedAt) throw new ApiError(409, 'Phiếu theo dõi đã đóng.');
 };
 
 const updateFollowUp = (id, user, mutate) =>
@@ -267,9 +341,12 @@ const updateFollowUp = (id, user, mutate) =>
     const target = d.healthFollowUps.find((x) => x.id === id);
     const at = nowIso();
     mutate(target, at);
+    target.status = followUpState(target).status;
     target.updatedAt = at;
     return toFollowUpView(d, target, user, { full: true });
   });
+
+const isOverdueFilter = (v) => v === true || v === 'true';
 
 export const healthCheckMockRepository = {
   async listHealthChecks(filters = {}, user) {
@@ -410,15 +487,19 @@ export const healthCheckMockRepository = {
       const target = d.healthCheckCampaigns.find((x) => x.id === id);
       const rows = d.classes.filter((cls) => cls.campusId === target.campusId).flatMap((cls) => rosterOf(d, target, cls));
       const view = summarize(rows);
-      const waitingFollowUpCount = (d.healthFollowUps || []).filter(
-        (f) => f.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT && rows.some((r) => r.childId === f.childId),
-      ).length;
+      const waitingFollowUpCount = rows.filter((r) => r.followUp?.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT).length;
       // Trẻ chưa có kết quả khi đóng đợt ⇒ "Vắng khám"; kết quả của đợt bị khóa tới khi mở lại.
       target.absentChildIds = rows.filter((r) => r.result === CHILD_RESULT_STATUS.NOT_RECORDED).map((r) => r.childId);
       target.closedAt = nowIso();
       target.closedBy = user.id;
       target.history = [...(target.history || []), { at: nowIso(), userId: user.id, action: 'CLOSED' }];
-      return { absentCount: view.notRecorded, waitingFollowUpCount, campaign: toCampaignView(d, target, user) };
+      // Phiếu còn nháp giữ nguyên, hiện "Chưa kết luận", không tính vắng khám (user chốt 2026-10-17).
+      return {
+        absentCount: view.notRecorded,
+        notConcludedCount: view.inProgress,
+        waitingFollowUpCount,
+        campaign: toCampaignView(d, target, user),
+      };
     });
   },
 
@@ -454,10 +535,18 @@ export const healthCheckMockRepository = {
       .map((f) => toFollowUpView(db, f, user))
       .filter((f) => !filters.campusId || f.child.campusId === filters.campusId);
     // Số đếm theo trạng thái tính trên phạm vi + điểm trường, trước khi lọc trạng thái.
+    const overdue = (f) => (f.currentRound?.overdueDays || 0) > 0;
     const counts = Object.fromEntries(FOLLOW_UP_ORDER.map((st) => [st, inScope.filter((f) => f.status === st).length]));
+    counts.OVERDUE = inScope.filter(overdue).length;
     const items = inScope
       .filter((f) => !filters.status || f.status === filters.status)
-      .sort((a, b) => FOLLOW_UP_ORDER.indexOf(a.status) - FOLLOW_UP_ORDER.indexOf(b.status) || b.updatedAt.localeCompare(a.updatedAt));
+      .filter((f) => !isOverdueFilter(filters.overdue) || overdue(f))
+      .sort(
+        (a, b) =>
+          FOLLOW_UP_ORDER.indexOf(a.status) - FOLLOW_UP_ORDER.indexOf(b.status) ||
+          (b.currentRound?.overdueDays || 0) - (a.currentRound?.overdueDays || 0) ||
+          b.updatedAt.localeCompare(a.updatedAt),
+      );
     return { items, counts };
   },
 
@@ -467,41 +556,44 @@ export const healthCheckMockRepository = {
     return toFollowUpView(db, findFollowUp(db, id, user), user, { full: true });
   },
 
+  // Phiếu dài hạn: ghi trao đổi nhiều lần, ở mọi trạng thái chưa đóng (user chốt 2026-10-16).
   async recordFollowUpContact(id, body, user) {
     await delay();
     const db = ensureChildRecordsSeeded();
     const f = findFollowUp(db, id, user);
     assertUpdate(db, f, user);
-    if (f.status !== FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT) throw new ApiError(409, 'Phiếu đã ghi trao đổi với phụ huynh.');
-    const errors = validateFollowUpAction('contact', body);
+    const errors = validateFollowUpAction('contact', body, { contactFrom: followUpState(f).round.contactFrom });
     if (hasErrors(errors)) invalid(errors);
     const note = body.note.trim().slice(0, FOLLOW_UP_FIELD_LIMITS.note);
     return updateFollowUp(id, user, (t, at) => {
-      t.contact = { on: body.contactedOn, note, by: user.id, at };
-      t.status = FOLLOW_UP_STATUS.PARENT_CONTACTED;
-      t.history.push({ at, userId: user.id, action: 'PARENT_CONTACTED', note });
+      t.history.push({ at, userId: user.id, action: 'PARENT_CONTACTED', on: body.contactedOn, note });
     });
   },
 
+  // Kết quả khám bên ngoài ghi nhiều lần được, sau khi vòng hiện tại đã trao đổi với phụ huynh.
   async recordFollowUpExternalResult(id, body, user) {
     await delay();
     const db = ensureChildRecordsSeeded();
     const f = findFollowUp(db, id, user);
     assertUpdate(db, f, user);
-    if (f.status !== FOLLOW_UP_STATUS.PARENT_CONTACTED)
-      throw new ApiError(
-        409,
-        f.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT
-          ? 'Ghi trao đổi với phụ huynh trước khi ghi kết quả khám bên ngoài.'
-          : 'Phiếu đã có kết quả khám bên ngoài.',
-      );
+    if (!followUpState(f).round.contacted)
+      throw new ApiError(409, 'Ghi trao đổi với phụ huynh về kết quả khám mới nhất trước khi ghi kết quả khám bên ngoài.');
     const errors = validateFollowUpAction('external', body);
     if (hasErrors(errors)) invalid(errors);
     const note = body.note.trim().slice(0, FOLLOW_UP_FIELD_LIMITS.note);
+    const facility = body.facility.trim().slice(0, FOLLOW_UP_FIELD_LIMITS.facility);
+    const images = (body.images || []).filter((x) => typeof x === 'string').slice(0, FOLLOW_UP_FIELD_LIMITS.images);
     return updateFollowUp(id, user, (t, at) => {
-      t.externalResult = { on: body.resultOn, note, by: user.id, at };
-      t.status = FOLLOW_UP_STATUS.EXTERNAL_RESULT_RECORDED;
-      t.history.push({ at, userId: user.id, action: 'EXTERNAL_RESULT', note });
+      t.history.push({
+        at,
+        userId: user.id,
+        action: 'EXTERNAL_RESULT',
+        on: body.resultOn,
+        note,
+        facility,
+        images,
+        nextVisitOn: body.nextVisitOn || null,
+      });
     });
   },
 
@@ -514,7 +606,6 @@ export const healthCheckMockRepository = {
     if (hasErrors(errors)) invalid(errors);
     const reason = body.reason.trim().slice(0, FOLLOW_UP_FIELD_LIMITS.reason);
     return updateFollowUp(id, user, (t, at) => {
-      t.status = FOLLOW_UP_STATUS.CLOSED;
       t.closeReason = reason;
       t.closedAt = at;
       t.closedBy = user.id;

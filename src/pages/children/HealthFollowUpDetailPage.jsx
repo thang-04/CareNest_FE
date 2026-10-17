@@ -1,19 +1,33 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, HeartPulse, Info, Handshake, FileCheck2, CircleX, Save } from '@/components/ui/icons';
+import { ArrowLeft, HeartPulse, Info, Handshake, FileCheck2, CircleX, Save, AlertTriangle, ShieldAlert } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthFollowUp } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
-import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
-import { FollowUpLevelShortBadge, FollowUpStatusBadge, MotorResultBadge } from '@/components/children/ChildBadges';
+import {
+  ConclusionCategoryBadge,
+  FollowUpDueBadge,
+  FollowUpLevelShortBadge,
+  FollowUpStatusBadge,
+  MotorResultBadge,
+} from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { ImageUploader } from '@/components/upload/ImageUploader';
 import { closeFollowUp, recordFollowUpContact, recordFollowUpExternalResult } from '@/services/children/healthCheckService';
-import { SCREENING_CRITERIA_LABELS } from '@/models/children/childrenConstants';
-import { FOLLOW_UP_ACTION_LABELS, FOLLOW_UP_STATUS } from '@/models/children/healthCheckConstants';
+import { MEASUREMENT_SOURCE, SCREENING_CRITERIA_LABELS } from '@/models/children/childrenConstants';
+import {
+  EXTERNAL_RESULT_DUE_DAYS,
+  FOLLOW_UP_ACTION_LABELS,
+  FOLLOW_UP_CLOSE_MEANING,
+  FOLLOW_UP_FIELD_LIMITS,
+  FOLLOW_UP_STATUS,
+} from '@/models/children/healthCheckConstants';
+import { CONCLUSION_ACTION_LABELS } from '@/models/children/healthExamForm';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import { formatNumber } from '@/utils/children/childrenHelpers';
 import { hasErrors, validateFollowUpAction } from '@/utils/children/childrenValidation';
@@ -30,75 +44,214 @@ const ACCESS_TEXT = {
 };
 
 const S = FOLLOW_UP_STATUS;
-const ORDER = [S.WAITING_PARENT_CONTACT, S.PARENT_CONTACTED, S.EXTERNAL_RESULT_RECORDED, S.CLOSED];
 
-/** Khối ghi nhận đã có (trao đổi phụ huynh / kết quả khám bên ngoài). */
-function EntryView({ entry, dateLabel }) {
+const flaggedText = (criteria = []) =>
+  criteria
+    .filter((c) => c.flagged)
+    .map((c) => SCREENING_CRITERIA_LABELS[c.key])
+    .join(' · ');
+
+// Màu chấm theo loại sự kiện: kết quả khám = cần để ý, nhắc của hệ thống = cần xử lý, đóng phiếu = hoàn tất.
+const DOT_CLASS = {
+  OPENED: 'tr-dot--warning',
+  MEASUREMENT_ADDED: 'tr-dot--warning',
+  OVERDUE_REMINDED: 'tr-dot--danger',
+  NEXT_VISIT_REMINDED: 'tr-dot--danger',
+  EXTERNAL_RESULT_REMINDED: 'tr-dot--danger',
+  CLOSED: 'tr-dot--done',
+};
+
+/** Kết quả trong phiếu: phiếu khám có kết luận bác sĩ; mẫu cũ có tiêu chí sàng lọc. */
+function MeasurementOutcome({ m }) {
+  if (m.source === MEASUREMENT_SOURCE.EXAM && m.conclusion)
+    return (
+      <span className="row row--wrap gap-2">
+        <FollowUpLevelShortBadge status={m.followUpLevel} />
+        <span className="muted text-xs">
+          {m.conclusion.specialty ? `Chuyển khám: ${m.conclusion.specialty}` : m.conclusion.issueText} — {m.conclusion.doctorName}
+        </span>
+      </span>
+    );
   return (
-    <dl className="info-list">
-      <dt>{dateLabel}</dt>
-      <dd>{formatDate(entry.on)}</dd>
-      <dt>Nội dung</dt>
-      <dd className="tr-pre-line">{entry.note}</dd>
-      <dt>Người ghi</dt>
-      <dd>
-        {entry.byName || '—'} · {formatDateTime(entry.at)}
-      </dd>
-    </dl>
+    <span className="row row--wrap gap-2">
+      <FollowUpLevelShortBadge status={m.followUpLevel} />
+      <span className="muted text-xs">{flaggedText(m.criteria)}</span>
+    </span>
   );
 }
 
-/** Form ghi nhận một bước của phiếu. kind: 'contact' | 'external'. */
-function EntryForm({ kind, busy, onSubmit }) {
-  const dateField = kind === 'contact' ? 'contactedOn' : 'resultOn';
-  const [form, setForm] = useState({ [dateField]: todayInput(), note: '' });
+const KIND_TEXT = {
+  contact: {
+    title: 'Ghi trao đổi với phụ huynh',
+    dateField: 'contactedOn',
+    dateLabel: 'Ngày trao đổi',
+    noteLabel: 'Nội dung đã trao đổi',
+    hint: 'Ví dụ: đã gọi điện cho mẹ của trẻ, gửi kết quả khám và đề nghị đưa trẻ đi khám chuyên khoa.',
+    submit: 'Ghi trao đổi',
+    success: 'Đã ghi trao đổi với phụ huynh.',
+  },
+  external: {
+    title: 'Ghi kết quả khám chuyên khoa',
+    dateField: 'resultOn',
+    dateLabel: 'Ngày khám',
+    noteLabel: 'Kết luận bác sĩ chuyên khoa (phụ huynh báo lại)',
+    hint: 'Ghi đúng lời bác sĩ phụ huynh báo lại; không tự kết luận hay ghi chẩn đoán thay bác sĩ.',
+    submit: 'Ghi kết quả khám',
+    success: 'Đã ghi kết quả khám chuyên khoa.',
+  },
+};
+
+/** Hộp ghi một lần trao đổi hoặc một kết quả khám bên ngoài. Mount lại mỗi lần mở để form trống. */
+function EntryModal({ kind, contactFrom, busy, onClose, onSubmit }) {
+  const text = KIND_TEXT[kind];
+  const [form, setForm] = useState({ [text.dateField]: todayInput(), note: '', nextVisitOn: '', facility: '', images: [] });
   const [errors, setErrors] = useState({});
+  const rules = { contactFrom };
   const set = (field, value) => {
     const next = { ...form, [field]: value };
     setForm(next);
-    const nextErrors = validateFollowUpAction(kind, next);
+    const nextErrors = validateFollowUpAction(kind, next, rules);
     setErrors((prev) => Object.fromEntries(Object.entries(prev).filter(([k]) => nextErrors[k])));
   };
   const submit = async () => {
-    const errs = validateFollowUpAction(kind, form);
+    const errs = validateFollowUpAction(kind, form, rules);
     setErrors(errs);
     if (hasErrors(errs)) return;
-    const details = await onSubmit(form);
+    const body = kind === 'contact' ? { contactedOn: form.contactedOn, note: form.note } : form;
+    const details = await onSubmit(body, text.success);
     if (details) setErrors(details);
   };
   return (
-    <>
+    <Modal
+      open
+      title={text.title}
+      onClose={busy ? undefined : onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Quay lại
+          </button>
+          <button className="btn btn--primary" onClick={submit} disabled={busy}>
+            {busy ? <Spinner small /> : <Save size={16} />} {text.submit}
+          </button>
+        </>
+      }
+    >
       <div className="grid-2">
-        <FormField label={kind === 'contact' ? 'Ngày trao đổi' : 'Ngày khám'} required error={errors[dateField]}>
+        <FormField label={text.dateLabel} required error={errors[text.dateField]}>
           <input
             type="date"
             className="input"
-            value={form[dateField]}
+            value={form[text.dateField]}
+            min={kind === 'contact' ? contactFrom : undefined}
             max={todayInput()}
-            onChange={(e) => set(dateField, e.target.value)}
+            onChange={(e) => set(text.dateField, e.target.value)}
           />
         </FormField>
+        {kind === 'external' && (
+          <FormField
+            label="Ngày hẹn khám lại"
+            error={errors.nextVisitOn}
+            hint="Không bắt buộc. Tới ngày này hệ thống nhắc bạn hỏi phụ huynh."
+          >
+            <input
+              type="date"
+              className="input"
+              value={form.nextVisitOn}
+              min={form.resultOn || undefined}
+              onChange={(e) => set('nextVisitOn', e.target.value)}
+            />
+          </FormField>
+        )}
       </div>
-      <FormField
-        label={kind === 'contact' ? 'Nội dung đã trao đổi' : 'Kết quả bác sĩ chuyên khoa báo lại'}
-        required
-        error={errors.note}
-        hint={
-          kind === 'contact'
-            ? 'Ví dụ: đã gọi điện cho mẹ của trẻ, gửi kết quả khám và đề nghị đưa trẻ đi khám chuyên khoa.'
-            : 'Ghi đúng lời bác sĩ phụ huynh báo lại; không tự kết luận hay ghi chẩn đoán thay bác sĩ.'
-        }
-        className="mt-12"
-      >
+      {kind === 'external' && (
+        <FormField
+          label="Chuyên khoa / nơi khám"
+          required
+          error={errors.facility}
+          hint="Ví dụ: Mắt — Bệnh viện Nhi Hải Phòng. Không có form chỉ số vì mỗi nơi khám làm xét nghiệm khác nhau."
+          className="mt-12"
+        >
+          <input
+            className="input"
+            maxLength={FOLLOW_UP_FIELD_LIMITS.facility}
+            value={form.facility}
+            onChange={(e) => set('facility', e.target.value)}
+          />
+        </FormField>
+      )}
+      <FormField label={text.noteLabel} required error={errors.note} hint={text.hint} className="mt-12">
         <textarea className="textarea" rows={3} maxLength={500} value={form.note} onChange={(e) => set('note', e.target.value)} />
       </FormField>
-      <div className="row mt-12 tr-actions-end">
-        <button className="btn btn--primary" onClick={submit} disabled={busy}>
-          {busy ? <Spinner small /> : <Save size={16} />} {kind === 'contact' ? 'Ghi trao đổi' : 'Ghi kết quả khám'}
-        </button>
-      </div>
-    </>
+      {kind === 'external' && (
+        <div className="field mt-12">
+          <span className="field__label">Ảnh giấy kết quả (không bắt buộc, tối đa {FOLLOW_UP_FIELD_LIMITS.images} ảnh)</span>
+          <ImageUploader images={form.images} onChange={(images) => set('images', images)} max={FOLLOW_UP_FIELD_LIMITS.images} />
+          {errors.images && (
+            <span className="field__error" role="alert">
+              {errors.images}
+            </span>
+          )}
+        </div>
+      )}
+    </Modal>
   );
+}
+
+/** Nội dung của một sự kiện trên dòng thời gian (dữ liệu BE trả). */
+function TimelineBody({ event: e }) {
+  if (e.measurement)
+    return (
+      <div className="tr-cell-stack text-sm mt-8">
+        <span>
+          Kết quả khám ngày {formatDate(e.measurement.date)} · {e.measurement.campaignName || 'Ngoài đợt khám'}
+        </span>
+        <MeasurementOutcome m={e.measurement} />
+      </div>
+    );
+  if (e.action === 'PARENT_CONTACTED')
+    return (
+      <div className="text-sm mt-8">
+        <div className="muted">
+          {e.atExam
+            ? `Trao đổi tại buổi khám, ngày ${formatDate(e.on)} (hệ thống ghi khi lưu kết luận)`
+            : `Ngày trao đổi ${formatDate(e.on)}`}
+        </div>
+        <div className="tr-pre-line">{e.note}</div>
+      </div>
+    );
+  if (e.action === 'EXTERNAL_RESULT')
+    return (
+      <div className="text-sm mt-8">
+        <div className="muted">
+          Ngày khám {formatDate(e.on)}
+          {e.facility ? ` · ${e.facility}` : ''}
+        </div>
+        <div className="tr-pre-line">{e.note}</div>
+        {e.nextVisitOn && <div className="muted">Hẹn khám lại ngày {formatDate(e.nextVisitOn)}</div>}
+        {e.images?.length > 0 && (
+          <div className="mt-8">
+            <ImageUploader images={e.images} disabled />
+          </div>
+        )}
+      </div>
+    );
+  if (e.action === 'OVERDUE_REMINDED') return <div className="muted text-sm">Hạn trao đổi là ngày {formatDate(e.dueOn)}.</div>;
+  if (e.action === 'NEXT_VISIT_REMINDED') return <div className="muted text-sm">Ngày hẹn khám lại {formatDate(e.nextVisitOn)}.</div>;
+  if (e.action === 'EXTERNAL_RESULT_REMINDED')
+    return (
+      <div className="muted text-sm">
+        Đã {EXTERNAL_RESULT_DUE_DAYS} ngày từ lần trao đổi ngày {formatDate(e.contactedOn)}; hỏi phụ huynh kết quả khám chuyên khoa.
+      </div>
+    );
+  if (e.action === 'CLOSED')
+    return (
+      <div className="text-sm mt-8">
+        {e.auto === 'CHILD_WITHDRAWN' && <div className="muted">Tự đóng khi cho trẻ nghỉ học.</div>}
+        <div className="tr-pre-line">Lý do: {e.note}</div>
+      </div>
+    );
+  return null;
 }
 
 export default function HealthFollowUpDetailPage() {
@@ -107,6 +260,7 @@ export default function HealthFollowUpDetailPage() {
   const toast = useToast();
   const { followUp: f, loading, error, reload } = useHealthFollowUp(followUpId);
   const [busy, setBusy] = useState(false);
+  const [entry, setEntry] = useState(null);
   const [closing, setClosing] = useState(null);
 
   const crumbs = childrenCrumbs(
@@ -129,14 +283,9 @@ export default function HealthFollowUpDetailPage() {
       </div>
     );
 
-  const step = ORDER.indexOf(f.status);
   const closed = f.status === S.CLOSED;
-  const steps = [
-    { label: 'Mở phiếu', sub: formatDate(f.openedAt.slice(0, 10)), done: true },
-    { label: 'Trao đổi phụ huynh', sub: f.contact ? formatDate(f.contact.on) : undefined, done: !!f.contact },
-    { label: 'Kết quả khám bên ngoài', sub: f.externalResult ? formatDate(f.externalResult.on) : undefined, done: !!f.externalResult },
-    { label: 'Đóng phiếu', sub: f.closedAt ? formatDate(f.closedAt.slice(0, 10)) : undefined, done: closed },
-  ];
+  const round = f.currentRound;
+  const overdue = (round?.overdueDays || 0) > 0;
 
   // Trả về lỗi trường từ BE để form hiển thị; null khi thành công
   const submit = async (action, body, success) => {
@@ -147,10 +296,16 @@ export default function HealthFollowUpDetailPage() {
       return null;
     } catch (err) {
       toast.error(err.message, 'Không lưu được phiếu theo dõi');
-      return err.details || null;
+      return err.details || {};
     } finally {
       setBusy(false);
     }
+  };
+
+  const saveEntry = async (body, success) => {
+    const details = await submit(entry === 'contact' ? recordFollowUpContact : recordFollowUpExternalResult, body, success);
+    if (!details) setEntry(null);
+    return details;
   };
 
   const doClose = async () => {
@@ -167,11 +322,11 @@ export default function HealthFollowUpDetailPage() {
   const todo =
     f.canUpdate &&
     (f.status === S.WAITING_PARENT_CONTACT
-      ? 'Trao đổi với phụ huynh về kết quả khám, đề nghị đưa trẻ đi khám chuyên khoa, rồi ghi lại bên dưới.'
+      ? `Trao đổi với phụ huynh về kết quả khám mới nhất trước ngày ${formatDate(round.dueOn)}, rồi ghi lại. Kết quả ở mức Cần theo dõi sát chỉ công bố được cho phụ huynh sau khi bạn ghi trao đổi.`
       : f.status === S.PARENT_CONTACTED
-        ? 'Khi phụ huynh báo kết quả khám chuyên khoa, ghi lại đúng lời bác sĩ bên dưới. Đóng phiếu khi không cần theo dõi thêm.'
+        ? `Bạn đã công bố được kết quả khám cho phụ huynh. Khi phụ huynh báo kết quả khám chuyên khoa, ghi lại đúng lời bác sĩ; sau ${EXTERNAL_RESULT_DUE_DAYS} ngày chưa có kết quả, hệ thống nhắc bạn hỏi phụ huynh.`
         : f.status === S.EXTERNAL_RESULT_RECORDED
-          ? 'Đã có kết quả khám bên ngoài. Đóng phiếu khi nhà trường không cần theo dõi thêm, hoặc để mở tới đợt khám sau.'
+          ? 'Đã có kết quả khám bên ngoài. Phiếu tiếp tục mở để theo dõi ở các đợt khám sau. Đóng phiếu khi nhà trường đã xong việc theo dõi, ghi rõ lý do.'
           : '');
 
   return (
@@ -181,20 +336,21 @@ export default function HealthFollowUpDetailPage() {
         <div className="row row--wrap gap-2">
           <h1 className="page__title">Phiếu theo dõi: {f.child.fullName}</h1>
           <FollowUpStatusBadge status={f.status} size="lg" />
+          {round && <FollowUpDueBadge dueOn={round.dueOn} overdueDays={round.overdueDays} hideOnTime />}
+          {f.tbRisk && <StatusBadge tone="red" icon={ShieldAlert} label="Nguy cơ mắc lao (tiền sử tiếp xúc)" />}
         </div>
         <Link className="btn" to={`/children/${f.child.id}/health`}>
           <HeartPulse size={16} /> Mở sổ sức khỏe
         </Link>
       </div>
 
-      <section className="card mb-16">
-        <ProgressSteps steps={steps} />
-      </section>
-
       {todo && (
-        <div className="alert alert--warning mb-16">
-          <Info size={18} />
-          <div>{todo}</div>
+        <div className={`alert ${overdue ? 'alert--danger' : 'alert--warning'} mb-16`}>
+          {overdue ? <AlertTriangle size={18} /> : <Info size={18} />}
+          <div>
+            {overdue && <b>Đã quá hạn trao đổi {round.overdueDays} ngày. </b>}
+            {todo}
+          </div>
         </div>
       )}
       {!f.canUpdate && !closed && (
@@ -206,21 +362,53 @@ export default function HealthFollowUpDetailPage() {
 
       <div className="detail-layout">
         <div className="detail-layout__main">
+          {f.canUpdate && (
+            <section className="card mb-16">
+              <div className="card__body row row--wrap gap-2">
+                <button className="btn btn--primary" onClick={() => setEntry('contact')}>
+                  <Handshake size={16} /> Ghi trao đổi với phụ huynh
+                </button>
+                <button
+                  className="btn"
+                  onClick={() => setEntry('external')}
+                  disabled={!f.canRecordExternal}
+                  title={f.canRecordExternal ? undefined : 'Ghi trao đổi về kết quả khám mới nhất trước'}
+                >
+                  <FileCheck2 size={16} /> Ghi kết quả khám chuyên khoa
+                </button>
+                {!f.canRecordExternal && <span className="muted text-sm">Ghi trao đổi về kết quả khám mới nhất trước.</span>}
+              </div>
+            </section>
+          )}
+
           <section className="card">
             <div className="card__header">
-              <h2 className="card__title">Kết quả khám liên quan</h2>
+              <h2 className="card__title">Dòng thời gian</h2>
             </div>
             <div className="card__body">
-              <dl className="info-list mb-12">
-                <dt>Trẻ</dt>
-                <dd>
-                  {f.child.fullName} <span className="muted">({f.child.code})</span>
-                </dd>
-                <dt>Lớp</dt>
-                <dd>
-                  {f.child.className || 'Chưa xếp lớp'} · {f.child.campusName}
-                </dd>
-              </dl>
+              <ul className="history-list">
+                {[...f.timeline].reverse().map((e, i) => (
+                  <li key={`${e.at}${i}`}>
+                    <span className={`history-list__dot ${DOT_CLASS[e.action] || ''}`} />
+                    <div>
+                      <div className="fw-600">
+                        {FOLLOW_UP_ACTION_LABELS[e.action] || e.action}
+                        {e.newRound && ' – bắt đầu vòng theo dõi mới'}
+                      </div>
+                      <div className="muted text-xs">
+                        {e.userName || 'Hệ thống'} · {formatDateTime(e.at)}
+                      </div>
+                      <TimelineBody event={e} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+
+          <section className="card mt-16">
+            <div className="card__header">
+              <h2 className="card__title">Kết quả khám trong phiếu</h2>
             </div>
             <div className="table-wrap tr-table-flat">
               <table className="table">
@@ -228,7 +416,7 @@ export default function HealthFollowUpDetailPage() {
                   <tr>
                     <th>Ngày đo</th>
                     <th className="right">Vòng đầu (cm)</th>
-                    <th>Vận động</th>
+                    <th>Kết luận / vận động</th>
                     <th>Mức theo dõi</th>
                   </tr>
                 </thead>
@@ -241,20 +429,24 @@ export default function HealthFollowUpDetailPage() {
                       </td>
                       <td className="right">{formatNumber(m.headCircumferenceCm)}</td>
                       <td>
-                        <div className="tr-cell-stack text-sm">
-                          <span>Thô: {m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : '—'}</span>
-                          <span>Tinh: {m.fineMotor ? <MotorResultBadge status={m.fineMotor} /> : '—'}</span>
-                        </div>
+                        {m.source === MEASUREMENT_SOURCE.EXAM && m.conclusion ? (
+                          <div className="tr-cell-stack text-sm">
+                            <ConclusionCategoryBadge status={m.conclusionCategory} />
+                            <span className="muted text-xs tr-note">
+                              {m.conclusion.specialty ? `Chuyển khám: ${m.conclusion.specialty}` : m.conclusion.issueText}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="tr-cell-stack text-sm">
+                            <span>Thô: {m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : '—'}</span>
+                            <span>Tinh: {m.fineMotor ? <MotorResultBadge status={m.fineMotor} /> : '—'}</span>
+                          </div>
+                        )}
                       </td>
                       <td>
                         <div className="tr-cell-stack">
                           <FollowUpLevelShortBadge status={m.followUpLevel} />
-                          <span className="muted text-xs">
-                            {m.criteria
-                              .filter((c) => c.flagged)
-                              .map((c) => SCREENING_CRITERIA_LABELS[c.key])
-                              .join(' · ')}
-                          </span>
+                          {m.source !== MEASUREMENT_SOURCE.EXAM && <span className="muted text-xs">{flaggedText(m.criteria)}</span>}
                         </div>
                       </td>
                     </tr>
@@ -264,49 +456,92 @@ export default function HealthFollowUpDetailPage() {
             </div>
             <div className="alert alert--info tr-alert-flat">
               <Info size={18} />
-              <div>Mức theo dõi là kết quả sàng lọc theo ngưỡng tham chiếu tạm, không phải chẩn đoán.</div>
+              <div>
+                Phiếu khám trong đợt: mức theo dõi theo kết luận của bác sĩ. Kết quả mẫu cũ: sàng lọc theo ngưỡng tham chiếu tạm, không phải
+                chẩn đoán.
+              </div>
             </div>
           </section>
+        </div>
 
-          <section className="card mt-16">
-            <div className="card__header row gap-2">
-              <Handshake size={18} />
-              <h2 className="card__title">Trao đổi với phụ huynh</h2>
+        <aside className="detail-layout__aside">
+          <section className="card">
+            <div className="card__header">
+              <h2 className="card__title">Tình hình hiện tại</h2>
             </div>
             <div className="card__body">
-              {f.contact ? (
-                <EntryView entry={f.contact} dateLabel="Ngày trao đổi" />
-              ) : f.canUpdate && step === 0 ? (
-                <EntryForm
-                  kind="contact"
-                  busy={busy}
-                  onSubmit={(body) => submit(recordFollowUpContact, body, 'Đã ghi trao đổi với phụ huynh.')}
-                />
-              ) : (
-                <p className="muted m-0">Chưa ghi trao đổi với phụ huynh.</p>
-              )}
-            </div>
-          </section>
-
-          <section className="card mt-16">
-            <div className="card__header row gap-2">
-              <FileCheck2 size={18} />
-              <h2 className="card__title">Kết quả khám bên ngoài</h2>
-            </div>
-            <div className="card__body">
-              {f.externalResult ? (
-                <EntryView entry={f.externalResult} dateLabel="Ngày khám" />
-              ) : f.canUpdate && step === 1 ? (
-                <EntryForm
-                  kind="external"
-                  busy={busy}
-                  onSubmit={(body) => submit(recordFollowUpExternalResult, body, 'Đã ghi kết quả khám bên ngoài.')}
-                />
-              ) : (
-                <p className="muted m-0">
-                  {step === 0 && !closed ? 'Ghi trao đổi với phụ huynh trước.' : 'Chưa có kết quả khám bên ngoài.'}
-                </p>
-              )}
+              <dl className="info-list">
+                <dt>Trẻ</dt>
+                <dd>
+                  {f.child.fullName} <span className="muted">({f.child.code})</span>
+                </dd>
+                <dt>Lớp</dt>
+                <dd>
+                  {f.child.className || 'Chưa xếp lớp'} · {f.child.campusName}
+                </dd>
+                <dt>Mở phiếu</dt>
+                <dd>{formatDate(f.openedAt.slice(0, 10))}</dd>
+                {f.referral && (
+                  <>
+                    <dt>Bác sĩ đề nghị</dt>
+                    <dd>
+                      <div className="tr-cell-stack">
+                        <span>
+                          {CONCLUSION_ACTION_LABELS[f.referral.action]}
+                          {f.referral.specialty ? `: ${f.referral.specialty}` : ''}
+                        </span>
+                        {f.referral.adviceText && <span className="text-sm">Lời dặn: {f.referral.adviceText}</span>}
+                        <span className="muted text-xs">
+                          {f.referral.doctorName} · khám ngày {formatDate(f.referral.date)}
+                        </span>
+                      </div>
+                    </dd>
+                  </>
+                )}
+                {round && (
+                  <>
+                    <dt>Hạn trao đổi</dt>
+                    <dd>
+                      {round.contacted ? (
+                        'Đã trao đổi về kết quả mới nhất'
+                      ) : (
+                        <div className="tr-cell-stack">
+                          <span>{formatDate(round.dueOn)}</span>
+                          <FollowUpDueBadge dueOn={round.dueOn} overdueDays={round.overdueDays} hideOnTime />
+                        </div>
+                      )}
+                    </dd>
+                  </>
+                )}
+                <dt>Khám chuyên khoa gần nhất</dt>
+                <dd>
+                  {f.latestExternalResult ? (
+                    <div className="tr-cell-stack">
+                      <span className="tr-pre-line">{f.latestExternalResult.note}</span>
+                      <span className="muted text-xs">
+                        Ngày khám {formatDate(f.latestExternalResult.on)}
+                        {f.latestExternalResult.facility && ` · ${f.latestExternalResult.facility}`}
+                        {f.latestExternalResult.nextVisitOn && ` · hẹn khám lại ${formatDate(f.latestExternalResult.nextVisitOn)}`}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="muted">Chưa có</span>
+                  )}
+                </dd>
+                <dt>Lần khám gần nhất của trẻ</dt>
+                <dd>
+                  {f.latestMeasurement ? (
+                    <div className="tr-cell-stack">
+                      <span className="muted text-xs">
+                        {formatDate(f.latestMeasurement.date)} · {f.latestMeasurement.campaignName || 'Ngoài đợt khám'}
+                      </span>
+                      <FollowUpLevelShortBadge status={f.latestMeasurement.followUpLevel} />
+                    </div>
+                  ) : (
+                    '—'
+                  )}
+                </dd>
+              </dl>
             </div>
           </section>
 
@@ -321,34 +556,13 @@ export default function HealthFollowUpDetailPage() {
                   <dd className="tr-pre-line">{f.closeReason}</dd>
                   <dt>Người đóng</dt>
                   <dd>
-                    {f.closedByName || '—'} · {formatDateTime(f.closedAt)}
+                    {f.closedByName || 'Hệ thống'} · {formatDateTime(f.closedAt)}
                   </dd>
                 </dl>
+                <div className="muted text-sm mt-12">{FOLLOW_UP_CLOSE_MEANING}</div>
               </div>
             </section>
           )}
-        </div>
-        <aside className="detail-layout__aside">
-          <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Lịch sử</h2>
-            </div>
-            <div className="card__body">
-              <ul className="history-list">
-                {[...f.history].reverse().map((h, i) => (
-                  <li key={`${h.at}${i}`}>
-                    <span className="history-list__dot" />
-                    <div>
-                      <div className="fw-600">{FOLLOW_UP_ACTION_LABELS[h.action] || h.action}</div>
-                      <div className="muted text-sm">
-                        {h.userName || '—'} · {formatDateTime(h.at)}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
         </aside>
       </div>
 
@@ -356,12 +570,16 @@ export default function HealthFollowUpDetailPage() {
         <Link className="btn" to="/children/health-follow-ups">
           <ArrowLeft size={16} /> Về danh sách phiếu
         </Link>
-        {f.canUpdate && !closed && (
+        {f.canUpdate && (
           <button className="btn btn--outline-danger" onClick={() => setClosing({ reason: '', error: '' })}>
             <CircleX size={16} /> Đóng phiếu
           </button>
         )}
       </div>
+
+      {entry && (
+        <EntryModal kind={entry} contactFrom={round?.contactFrom} busy={busy} onClose={() => setEntry(null)} onSubmit={saveEntry} />
+      )}
 
       <Modal
         open={!!closing}
@@ -380,7 +598,8 @@ export default function HealthFollowUpDetailPage() {
       >
         {closing && (
           <>
-            <p className="mb-12">
+            <p className="mb-12">{FOLLOW_UP_CLOSE_MEANING}</p>
+            <p className="muted text-sm mb-12">
               Phiếu đã đóng không cập nhật được nữa. Nếu lần khám sau trẻ vẫn ở mức Cần theo dõi sát, hệ thống mở phiếu mới.
             </p>
             <FormField label="Lý do đóng phiếu" required error={closing.error}>
@@ -388,6 +607,7 @@ export default function HealthFollowUpDetailPage() {
                 className="textarea"
                 rows={3}
                 maxLength={300}
+                placeholder="Ví dụ: đã báo phụ huynh, phụ huynh đã cho trẻ khám chuyên khoa; nhà trường theo dõi tiếp ở các đợt khám sau."
                 value={closing.reason}
                 onChange={(e) => setClosing({ reason: e.target.value, error: '' })}
               />

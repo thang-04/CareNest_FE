@@ -30,7 +30,7 @@ Admin và dữ liệu trẻ: AUTH-06 (PENDING P-16).
 | Duyệt thực đơn | Xem MealPlan (thực đơn) DRAFT (kể cả AI gợi ý), duyệt | `menu:approve` | `BE:docs/modules/nutrition.md` | Gán role: cấu hình |
 | Summary & hồ sơ phát triển | Xem summary đã GV duyệt, hồ sơ phát triển trẻ | `report:view` (PROPOSED) | `BE:docs/modules/learning-observation.md` | |
 | Tổng quan sức khỏe | Xem measurement/trend, duyệt diễn giải AI | `health-interpretation:approve` (duyệt) | `BE:docs/modules/health.md` | Không hiển thị nhãn chẩn đoán |
-| Đợt khám sức khỏe | Principal: tạo theo điểm trường, sửa, hủy, đóng, mở lại · VP: xem tiến độ, danh sách theo dõi của campus | `health-check:manage` / `health-check:view` (PROPOSED) | `BE:docs/modules/health.md` | Route: `/children/health-checks`, `/children/health-checks/new`, `/children/health-checks/:campaignId` (+ `/edit`). User chốt 2026-10-15, chờ BE; plan `docs/plans/completed/2026-10-15-health-check-campaign-assessment.md` |
+| Đợt khám sức khỏe | Principal: tạo theo điểm trường, sửa, hủy, đóng, mở lại · VP: xem tiến độ, danh sách theo dõi của campus | `health-check:manage` / `health-check:view` (PROPOSED) | `BE:docs/modules/health.md` | Route: `/children/health-checks`, `/children/health-checks/new`, `/children/health-checks/:campaignId` (+ `/edit`), phiếu khám Phụ lục II `/children/health-checks/:campaignId/exam/:childId` (`?classId=` để khám trẻ tiếp theo). User chốt 2026-10-15, 2026-10-17, chờ BE; plan `docs/plans/completed/2026-10-15-health-check-campaign-assessment.md`, `docs/plans/completed/2026-10-17-health-exam-form-doctor-conclusion.md` |
 | Sự cố CSVC | Danh sách theo campus/trạng thái, cập nhật trạng thái | `facility-issue:manage` | `BE:docs/modules/facility-issue.md` | Chỉ sự cố, không tài sản |
 | Báo nghỉ của campus | Xem báo nghỉ phụ huynh đã gửi (chỉ xem, **không duyệt**) | theo scope (không có permission duyệt) | `BE:docs/modules/attendance.md` | ATT-05; flow `BE:docs/business/flows/leave-request.md` |
 
@@ -49,7 +49,7 @@ Admin và dữ liệu trẻ: AUTH-06 (PENDING P-16).
 | Screen group | Hành động chính | Permission (BE) | BE card | Ghi chú |
 | --- | --- | --- | --- | --- |
 | Xác nhận số suất ăn | Xem số suất theo ngày, xác nhận | `meal-count:confirm` | `BE:docs/modules/nutrition.md` | NUT-02; actor PENDING P-05 |
-| Nhập đo sức khỏe | Nhập kết quả khám theo lớp/đợt hoặc ngoài đợt; cập nhật phiếu theo dõi | `health:record`, `health-follow-up:update` (PROPOSED) | `BE:docs/modules/health.md` | Người nhập PENDING ở BE (HLT-01); user chốt GV phụ trách lớp (2026-10-14, PROPOSED). Route: `/children/:id/health/new` (`?campaignId=&classId=` khi nhập trong đợt), `/children/health-follow-ups`, `/children/health-follow-ups/:followUpId` |
+| Nhập đo sức khỏe | Phiếu khám trong đợt (Phụ lục II, kết luận bác sĩ); cân đo ngoài đợt (không kết luận); cập nhật phiếu theo dõi | `health:record`, `health-follow-up:update` (PROPOSED) | `BE:docs/modules/health.md` | Người nhập PENDING ở BE (HLT-01); user chốt GV phụ trách lớp (2026-10-14, PROPOSED). Route: `/children/:id/health/new` (cân đo ngoài đợt, từ 2026-10-17 không nhận `campaignId`), `/children/health-follow-ups`, `/children/health-follow-ups/:followUpId` |
 
 ## Chung
 

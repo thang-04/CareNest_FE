@@ -9,12 +9,19 @@ import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecor
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
-import { BmiStatusBadge, FollowUpLevelShortBadge, MotorResultBadge } from '@/components/children/ChildBadges';
+import { ConclusionCategoryBadge, FollowUpLevelShortBadge, MotorResultBadge } from '@/components/children/ChildBadges';
 import { GrowthChart } from '@/components/children/GrowthChart';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { analyzeHealthTrend } from '@/services/children/childrenService';
 import { CHILD_STATUS, ageGroupById } from '@/models/School';
-import { AI_TREND_STATUS, BMI_STATUS_LABELS, HEAD_CIRCUMFERENCE_STATUS_LABELS, growthAxesFor } from '@/models/children/childrenConstants';
+import {
+  AI_TREND_STATUS,
+  HEAD_CIRCUMFERENCE_STATUS_LABELS,
+  MEASUREMENT_SOURCE,
+  MEASUREMENT_SOURCE_LABELS,
+  growthAxesFor,
+} from '@/models/children/childrenConstants';
+import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/children/healthExamForm';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { formatNumber, screeningTone, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
@@ -141,7 +148,16 @@ export default function HealthTrendPage() {
   // Thang biểu đồ theo nhóm tuổi của lớp hiện tại; trẻ chưa xếp lớp thì theo năm sinh
   const ageGroupId = record?.cls?.ageGroupId || child?.ageGroupId || suggestAgeGroupId(child?.dateOfBirth, schoolYear);
   const axes = growthAxesFor(ageGroupId);
-  const bmiPoint = (m, value) => ({ date: m.date, value, tone: screeningTone(m.bmiStatus), statusLabel: BMI_STATUS_LABELS[m.bmiStatus] });
+  // Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám (không còn phân loại BMI, user chốt 2026-10-17).
+  const nutritionPoint = (m, value) => {
+    const statuses = m.exam?.nutrition?.statuses || [];
+    return {
+      date: m.date,
+      value,
+      tone: statuses.length === 0 ? 'unavailable' : statuses.includes(NUTRITION_STATUS.NORMAL) ? 'normal' : 'alert',
+      statusLabel: statuses.length ? statuses.map((s) => labelOf(NUTRITION_STATUS_OPTIONS, s)).join(', ') : 'Chưa có đánh giá của bác sĩ',
+    };
+  };
   // Lần đo không có vòng đầu (dữ liệu cũ, trẻ trên 60 tháng) thì biểu đồ bỏ qua điểm đó
   const headPoints = points
     .filter((m) => m.headCircumferenceCm != null)
@@ -281,23 +297,23 @@ export default function HealthTrendPage() {
             ) : view === 'chart' ? (
               <div className="card__body">
                 <div className="grid-2">
-                  <GrowthChart title="Chiều cao" unit="cm" axis={axes.height} points={points.map((m) => bmiPoint(m, m.heightCm))} />
-                  <GrowthChart title="Cân nặng" unit="kg" axis={axes.weight} points={points.map((m) => bmiPoint(m, m.weightKg))} />
+                  <GrowthChart title="Chiều cao" unit="cm" axis={axes.height} points={points.map((m) => nutritionPoint(m, m.heightCm))} />
+                  <GrowthChart title="Cân nặng" unit="kg" axis={axes.weight} points={points.map((m) => nutritionPoint(m, m.weightKg))} />
                   {headPoints.length > 0 && <GrowthChart title="Vòng đầu" unit="cm" axis={axes.head} points={headPoints} />}
                 </div>
                 <div className="tr-legend text-sm">
                   <span>
-                    <i className="tr-legend__dot tr-legend__dot--normal" /> Trong khoảng bình thường
+                    <i className="tr-legend__dot tr-legend__dot--normal" /> Bình thường
                   </span>
                   <span>
-                    <i className="tr-legend__dot tr-legend__dot--alert" /> Ngoài khoảng bình thường
+                    <i className="tr-legend__dot tr-legend__dot--alert" /> Có điểm cần chú ý
                   </span>
                   <span>
-                    <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa phân loại được
+                    <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa có đánh giá
                   </span>
                   <span className="muted">
-                    Chiều cao, cân nặng tô màu theo phân loại BMI; vòng đầu theo chuẩn vòng đầu. Hệ thống tính theo ngưỡng tham chiếu tạm,
-                    không phải chẩn đoán.
+                    Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám; vòng đầu theo lựa chọn ở phiếu khám (kết
+                    quả mẫu cũ: theo ngưỡng tham chiếu tạm, không phải chẩn đoán).
                   </span>
                   {ageGroupById(ageGroupId) && (
                     <span className="muted">Thang đo dùng chung cho nhóm {ageGroupById(ageGroupId).shortName}.</span>
@@ -314,8 +330,8 @@ export default function HealthTrendPage() {
                       <th className="right">Chiều cao (cm)</th>
                       <th className="right">Cân nặng (kg)</th>
                       <th className="right">Vòng đầu (cm)</th>
-                      <th>BMI</th>
-                      <th>Vận động</th>
+                      <th className="right">BMI</th>
+                      <th>Kết luận</th>
                       <th>Mức theo dõi</th>
                     </tr>
                   </thead>
@@ -326,20 +342,18 @@ export default function HealthTrendPage() {
                         <td className="right">{formatNumber(m.heightCm)}</td>
                         <td className="right">{formatNumber(m.weightKg)}</td>
                         <td className="right">{formatNumber(m.headCircumferenceCm)}</td>
+                        <td className="right">{formatNumber(m.bmi)}</td>
                         <td>
-                          <div className="tr-cell-stack">
-                            <span>{formatNumber(m.bmi)}</span>
-                            <BmiStatusBadge status={m.bmiStatus} />
-                          </div>
-                        </td>
-                        <td>
-                          {m.grossMotor || m.fineMotor ? (
+                          {m.source === MEASUREMENT_SOURCE.EXAM ? (
+                            <ConclusionCategoryBadge status={m.conclusionCategory} />
+                          ) : m.source === MEASUREMENT_SOURCE.LEGACY ? (
                             <div className="tr-cell-stack text-sm">
+                              <span className="muted text-xs">{MEASUREMENT_SOURCE_LABELS.LEGACY}</span>
                               <span>Thô: {m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : '—'}</span>
                               <span>Tinh: {m.fineMotor ? <MotorResultBadge status={m.fineMotor} /> : '—'}</span>
                             </div>
                           ) : (
-                            <span className="muted">—</span>
+                            <span className="muted text-xs tr-note">{MEASUREMENT_SOURCE_LABELS.MEASUREMENT_ONLY}</span>
                           )}
                         </td>
                         <td>

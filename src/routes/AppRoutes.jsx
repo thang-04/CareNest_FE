@@ -94,6 +94,7 @@ const HealthTrendPage = lazy(() => import('@/pages/children/HealthTrendPage'));
 const HealthCheckListPage = lazy(() => import('@/pages/children/HealthCheckListPage'));
 const HealthCheckFormPage = lazy(() => import('@/pages/children/HealthCheckFormPage'));
 const HealthCheckDetailPage = lazy(() => import('@/pages/children/HealthCheckDetailPage'));
+const HealthExamFormPage = lazy(() => import('@/pages/children/HealthExamFormPage'));
 const HealthFollowUpListPage = lazy(() => import('@/pages/children/HealthFollowUpListPage'));
 const HealthFollowUpDetailPage = lazy(() => import('@/pages/children/HealthFollowUpDetailPage'));
 
@@ -313,6 +314,10 @@ export function AppRoutes() {
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckDetailPage />)}
             />
             <Route path="health-checks/:campaignId/edit" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />
+            <Route
+              path="health-checks/:campaignId/exam/:childId"
+              element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthExamFormPage />)}
+            />
             <Route path="health-follow-ups" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthFollowUpListPage />)} />
             <Route
               path="health-follow-ups/:followUpId"

@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FormField } from '@/components/form/FormField';
+import { Info } from '@/components/ui/icons';
 import { withdrawChild } from '@/services/children/childrenService';
 import { todayInput } from '@/utils/format';
 
@@ -52,6 +53,14 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
       onClose={onClose}
     >
       <div className="stack gap-3 mt-12 tr-withdraw-form">
+        {child?.openFollowUpId && (
+          <div className="alert alert--warning">
+            <Info size={18} />
+            <div>
+              Trẻ đang có phiếu theo dõi sức khỏe. Khi cho nghỉ học, phiếu tự đóng với lý do “Trẻ nghỉ học: &lt;lý do bạn nhập&gt;”.
+            </div>
+          </div>
+        )}
         <FormField label="Ngày nghỉ học" required error={errors.leftAt}>
           <input
             type="date"

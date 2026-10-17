@@ -12,6 +12,8 @@ updated: 2026-10-15
 ---
 # Sức khỏe — đợt khám, chỉ số đánh giá và phiếu theo dõi
 
+> 2026-10-17: quyết định 2, 4, 5–7, 11 và AC-13 được thay bởi [plan phiếu khám Phụ lục II](2026-10-17-health-exam-form-doctor-conclusion.md) (bảng "Đổi quyết định đã chốt"). Cách tính 3 tiêu chí chỉ còn cho dữ liệu mẫu cũ.
+
 Plan chỉ phần client. BE chưa có API health. User quyết định FE dẫn nghiệp vụ, BE làm theo sau (2026-10-15). Contract đề xuất ở mục "Đề xuất cho BE". Tài liệu BE đọc ở bản local `D:/project_capstone/project/be/CareNest_BE` (không có `../CareNest_BE`).
 
 Plan này thay plan nháp cùng ngày `docs/plans/completed/2026-10-15-health-head-arm-circumference.md` (vòng đầu + vòng cánh tay + cờ trung tính). Plan nháp chưa được duyệt và chưa code. User đã bỏ vòng cánh tay và đổi quyết định phụ huynh xem gì.
@@ -168,7 +170,7 @@ Sau Phase 3: cập nhật `docs/architecture/ROUTE_MAP.md` (cột route thực t
   - HLT-01 (sửa): chỉ số gồm chiều cao, cân nặng, vòng đầu (chỉ trẻ ≤60 tháng tại ngày đo), vận động thô và vận động tinh ("Không ghi nhận bất thường" / "Có bất thường"), ghi chú khám. Nhập theo đợt khám hoặc ngoài đợt. Giáo viên phụ trách lớp nhập, sửa, công bố.
   - HLT-07 (mới) đợt khám: Hiệu trưởng tạo theo điểm trường; 1 đợt chưa đóng mỗi điểm trường; sửa khi chưa đóng; hủy khi chưa có kết quả; đóng ⇒ trẻ chưa có kết quả là "Vắng khám", khóa kết quả; Hiệu trưởng mở lại có lý do. Phó hiệu trưởng điểm trường xem.
   - HLT-08 (mới) phân loại: BMI theo tuổi WHO ⇒ thấp hơn chuẩn / bình thường / cao hơn chuẩn. Mức theo dõi theo 3 tiêu chí (vòng đầu theo tuổi WHO, vận động thô, vận động tinh): 0 / 1 / ≥2 ⇒ Không ghi nhận bất thường / Cần theo dõi / Cần theo dõi sát – đề nghị khám chuyên khoa; trẻ >60 tháng xét 2 tiêu chí vận động. BMI không tính vào mức theo dõi. Ngưỡng đề xuất: ngoài −2 SD / +2 SD (z-score WHO) — BE chốt.
-  - HLT-09 (mới) phiếu theo dõi: tự mở ở mức "Cần theo dõi sát"; 1 phiếu mở/trẻ; trạng thái và actor như quyết định 7.
+  - HLT-09 (mới) phiếu theo dõi: tự mở ở mức "Cần theo dõi sát"; 1 phiếu mở/trẻ; trạng thái và actor như quyết định 7. **Đã thay bằng bản phiếu dài hạn** ở `docs/plans/completed/2026-10-16-health-follow-up-long-lived.md` (user chốt 2026-10-16).
 - P-13 → WHO (user, 2026-10-15). Ngưỡng SD còn chờ BE xác nhận.
 - P-13b → phụ huynh xem tất cả của bản đã công bố (user, 2026-10-15). APP ghi "Kết quả sàng lọc, không phải chẩn đoán".
 - Exclusions: mức theo dõi là sàng lọc theo ngưỡng; "kết quả khám bên ngoài" là ghi nhận lời bác sĩ; hệ thống không chẩn đoán.
@@ -178,7 +180,7 @@ Sau Phase 3: cập nhật `docs/architecture/ROUTE_MAP.md` (cột route thực t
 - Contract PROPOSED:
   - Đợt khám: `GET /health-checks?campusId&status` · `POST /health-checks` `{ name, campusId, startDate, endDate, examiner, note }` · `PUT /health-checks/{id}` · `POST /health-checks/{id}/cancel` · `POST /health-checks/{id}/close` → `{ absentCount, waitingFollowUpCount }` · `POST /health-checks/{id}/reopen` `{ reason }` · `GET /health-checks/{id}` → đợt + `classes: [{ classId, className, total, recorded, absent, watch, closeWatch }]` · `GET /health-checks/{id}/classes/{classId}/children` → `[{ childId, code, fullName, ageMonths, result: 'NOT_RECORDED'|'RECORDED'|'ABSENT', measurementId, followUpLevel, published }]` · `GET /health-checks/{id}/watch-list` → trẻ `WATCH`/`CLOSE_WATCH` kèm `previous: { date, followUpLevel }`. Đợt trả `status: 'UPCOMING'|'IN_PROGRESS'|'CLOSED'|'CANCELLED'`.
   - Measurement: body `POST /children/{childId}/health/measurements`, `PUT …/{measurementId}`: `{ campaignId|null, date, heightCm, weightKg, headCircumferenceCm|null, grossMotor: 'NO_ABNORMALITY'|'ABNORMAL', fineMotor, note?, reason? }`. Trả thêm: `campaignId`, `campaignName`, `headCircumferenceCm`, `grossMotor`, `fineMotor`, `bmi`, `bmiStatus`, `headCircumferenceStatus`, `criteria: [{ key: 'HEAD_CIRCUMFERENCE'|'GROSS_MOTOR'|'FINE_MOTOR', flagged }]`, `followUpLevel`, `followUpId|null`, `reference: { code, label }`; bỏ `nutritionStatus`. Lỗi: 409 đợt đã đóng/hủy; 422 ngày ngoài khoảng đợt, thiếu vòng đầu khi ≤60 tháng.
-  - Phiếu: `GET /health-follow-ups?campusId&classId&status` · `GET /health-follow-ups/{id}` → `{ id, child, status, criteria, measurements: [{ id, date, campaignName, followUpLevel }], history: [{ at, userName, action, note }] }` · `POST /health-follow-ups/{id}/parent-contact` `{ contactedOn, note }` · `POST /health-follow-ups/{id}/external-result` `{ resultOn, note }` · `POST /health-follow-ups/{id}/close` `{ reason }`. 409 khi sai trạng thái.
+  - Phiếu: contract mới ở `docs/plans/completed/2026-10-16-health-follow-up-long-lived.md` (tài nguyên `parent-contacts`, `external-results`, `timeline[]`, lọc `overdue`).
 - `BE:docs/modules/ai-assistance.md`: input `interpretHealthTrend` thêm vòng đầu, phân loại BMI; không gửi đánh giá vận động.
 
 ## Test matrix
@@ -253,3 +255,9 @@ Repo chưa có framework unit test (`package.json` chỉ có `dev`, `build`, `pr
 - Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`
 - Nội dung: thêm đợt tháng 3/2026 cho 2 điểm trường; đợt 3, 6, 9 có vòng đầu, vận động, ghi chú khám, trẻ "Cần theo dõi"/"Cần theo dõi sát", trẻ vắng khám; phiếu theo dõi đã đóng của đợt 3 và 6; cân đo tại lớp 12/2025 (dữ liệu cũ). Seed lên `HEALTH_SEED_VERSION = 3`: localStorage cũ được cập nhật bản ghi seed chưa sửa và thêm phần thiếu, không xóa gì.
 - Kiểm thêm: DB mới và DB v2 giả lập cho cùng số liệu đợt đã đóng; kịch bản backend giả 44/44; nâng cấp DB v1 đạt.
+
+### 2026-10-16 — Sửa lỗi phiếu trùng khi sửa kết quả (phát hiện khi rà luồng phiếu với user)
+- Commit: chưa commit
+- Verify: xem dòng VERIFY trong báo cáo của lượt này
+- Nội dung: sửa kết quả đã thuộc phiếu đã đóng không còn mở phiếu mới (`FE-BUG-261016-health-follow-up-duplicate-on-edit`). Mở `FE-CASE-261016-health-follow-up-child-withdrawn`: trẻ nghỉ học khi phiếu còn mở thì không ai đóng được phiếu; chờ user chọn cách xử lý. Mở `FE-CASE-261016-health-follow-up-repeat-close-watch`: phiếu đã qua bước trao đổi mà lần khám sau lại "Cần theo dõi sát" thì kết quả mới không có bước trao đổi nào; chờ user chọn cách xử lý.
+- Kiểm thêm: kịch bản tái hiện (sửa ghi chú không mở phiếu, lần khám sau vẫn mở phiếu mới); kịch bản backend giả 44/44; nâng cấp DB cũ đạt; số liệu các đợt đã đóng không đổi.

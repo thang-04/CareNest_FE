@@ -10,23 +10,38 @@ import { Modal } from '@/components/ui/Modal';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
-import { CampaignStatusBadge, FollowUpLevelShortBadge, FollowUpStatusBadge } from '@/components/children/ChildBadges';
+import {
+  CampaignStatusBadge,
+  ConclusionCategoryBadge,
+  FollowUpDueBadge,
+  FollowUpLevelShortBadge,
+  FollowUpStatusBadge,
+} from '@/components/children/ChildBadges';
 import { ChildAccessState, HEALTH_CHECK_ACCESS_TEXT } from '@/components/children/ChildAccessState';
 import { HealthCheckClassRoster } from '@/components/children/HealthCheckClassRoster';
 import { cancelHealthCheck, closeHealthCheck, reopenHealthCheck } from '@/services/children/healthCheckService';
 import { SCREENING_CRITERIA_LABELS } from '@/models/children/childrenConstants';
 import { CAMPAIGN_ACTION_LABELS, CAMPAIGN_STATUS } from '@/models/children/healthCheckConstants';
+import { CONCLUSION_CATEGORY, CONCLUSION_CATEGORY_LABELS } from '@/models/children/healthExamForm';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { canManageHealthCheck, isTeacherRole } from '@/utils/children/childrenPermissions';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
 const STAT_TONES = [
-  { key: 'recorded', label: 'Đã nhập kết quả', tone: 'green' },
-  { key: 'notRecorded', label: 'Chưa nhập', tone: 'blue' },
+  { key: 'recorded', label: 'Đã có kết luận', tone: 'green' },
+  { key: 'inProgress', label: 'Đang khám', tone: 'blue' },
+  { key: 'notRecorded', label: 'Chưa khám', tone: 'gray' },
   { key: 'absent', label: 'Vắng khám', tone: 'gray' },
-  { key: 'watch', label: 'Cần theo dõi', tone: 'orange' },
-  { key: 'closeWatch', label: 'Cần theo dõi sát', tone: 'red' },
+  { key: 'notConcluded', label: 'Chưa kết luận', tone: 'orange', hideZero: true },
+];
+
+// Thống kê theo kết luận bác sĩ (BE đếm theo nhóm kết luận; nguy cơ lao không tính vào chuyển khám).
+const CONCLUSION_TONES = [
+  { key: CONCLUSION_CATEGORY.NORMAL, tone: 'green' },
+  { key: CONCLUSION_CATEGORY.ISSUE, tone: 'orange' },
+  { key: CONCLUSION_CATEGORY.REFERRAL, tone: 'red' },
+  { key: CONCLUSION_CATEGORY.TB_RISK, tone: 'red' },
 ];
 
 function StatusBanner({ campaign, teacher }) {
@@ -34,7 +49,10 @@ function StatusBanner({ campaign, teacher }) {
     return teacher ? (
       <div className="alert alert--info mb-16">
         <Info size={18} />
-        <div>Chọn lớp để nhập kết quả từng trẻ. Phụ huynh chỉ xem được kết quả sau khi bạn công bố.</div>
+        <div>
+          Chọn lớp, bấm <b>Khám</b> cạnh tên trẻ để nhập phiếu theo mẫu Phụ lục II cùng bác sĩ. Phụ huynh chỉ xem được phiếu sau khi bạn
+          công bố.
+        </div>
       </div>
     ) : null;
   if (campaign.status === CAMPAIGN_STATUS.UPCOMING)
@@ -49,8 +67,9 @@ function StatusBanner({ campaign, teacher }) {
       <div className="alert alert--info mb-16">
         <Lock size={18} />
         <div>
-          Đợt khám đã đóng, kết quả đã khóa. Hiệu trưởng mở lại đợt nếu cần nhập hoặc sửa kết quả.
+          Đợt khám đã đóng, phiếu khám đã khóa. Hiệu trưởng mở lại đợt nếu cần nhập hoặc sửa phiếu.
           {campaign.progress.absent > 0 && ` ${campaign.progress.absent} trẻ vắng khám.`}
+          {campaign.progress.notConcluded > 0 && ` ${campaign.progress.notConcluded} phiếu chưa kết luận.`}
         </div>
       </div>
     );
@@ -113,7 +132,10 @@ export default function HealthCheckDetailPage() {
   const doClose = () =>
     run(
       () => closeHealthCheck(campaign.id, user),
-      (r) => `Đã đóng đợt khám${r.absentCount ? `; ${r.absentCount} trẻ ghi vắng khám` : ''}.`,
+      (r) =>
+        `Đã đóng đợt khám${r.absentCount ? `; ${r.absentCount} trẻ ghi vắng khám` : ''}${
+          r.notConcludedCount ? `; ${r.notConcludedCount} phiếu chưa kết luận` : ''
+        }.`,
     ).then(() => setConfirm(null));
   const doCancel = () => run(() => cancelHealthCheck(campaign.id, user), 'Đã hủy đợt khám.').then(() => setConfirm(null));
   const doReopen = async () => {
@@ -196,10 +218,19 @@ export default function HealthCheckDetailPage() {
             </div>
           </section>
           <div className="stat-grid mt-16">
-            {STAT_TONES.map((s) => (
+            {STAT_TONES.filter((s) => !s.hideZero || campaign.progress[s.key] > 0).map((s) => (
               <div key={s.key} className={`stat-card stat-card--${s.tone}`}>
                 <div className="stat-card__value">{campaign.progress[s.key]}</div>
                 <div className="stat-card__label">{s.label}</div>
+              </div>
+            ))}
+          </div>
+          <h2 className="subsection-title mt-16">Theo kết luận của bác sĩ</h2>
+          <div className="stat-grid">
+            {CONCLUSION_TONES.map((s) => (
+              <div key={s.key} className={`stat-card stat-card--${s.tone}`}>
+                <div className="stat-card__value">{campaign.progress.byConclusion?.[s.key] ?? 0}</div>
+                <div className="stat-card__label">{CONCLUSION_CATEGORY_LABELS[s.key]}</div>
               </div>
             ))}
           </div>
@@ -259,7 +290,7 @@ export default function HealthCheckDetailPage() {
                 <thead>
                   <tr>
                     <th>Lớp</th>
-                    <th>Đã nhập kết quả</th>
+                    <th>Đã có kết luận</th>
                     <th className="right">Vắng khám</th>
                     <th className="right">Cần theo dõi</th>
                     <th className="right">Cần theo dõi sát</th>
@@ -283,7 +314,7 @@ export default function HealthCheckDetailPage() {
                           aria-pressed={classId === c.classId}
                           onClick={() => selectClass(classId === c.classId ? '' : c.classId)}
                         >
-                          {c.canRecord ? 'Nhập kết quả' : 'Xem danh sách trẻ'}
+                          {c.canRecord ? 'Khám trẻ của lớp' : 'Xem danh sách trẻ'}
                         </button>
                       </td>
                     </tr>
@@ -320,15 +351,24 @@ export default function HealthCheckDetailPage() {
                     </td>
                     <td className="nowrap">{r.className}</td>
                     <td>
-                      <div className="tr-cell-stack">
-                        <FollowUpLevelShortBadge status={r.followUpLevel} />
-                        <span className="muted text-xs">
-                          {r.criteria
-                            .filter((c) => c.flagged)
-                            .map((c) => SCREENING_CRITERIA_LABELS[c.key])
-                            .join(' · ')}
-                        </span>
-                      </div>
+                      {r.conclusionCategory ? (
+                        <div className="tr-cell-stack">
+                          <ConclusionCategoryBadge status={r.conclusionCategory} />
+                          <span className="muted text-xs tr-note">
+                            {r.conclusion?.specialty ? `Chuyển khám: ${r.conclusion.specialty}` : r.conclusion?.issueText}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="tr-cell-stack">
+                          <FollowUpLevelShortBadge status={r.followUpLevel} />
+                          <span className="muted text-xs">
+                            {r.criteria
+                              .filter((c) => c.flagged)
+                              .map((c) => SCREENING_CRITERIA_LABELS[c.key])
+                              .join(' · ')}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="text-sm">
                       {r.previous ? (
@@ -345,9 +385,17 @@ export default function HealthCheckDetailPage() {
                     </td>
                     <td>
                       {r.followUp ? (
-                        <Link to={`/children/health-follow-ups/${r.followUp.id}`} aria-label={`Mở phiếu theo dõi của ${r.fullName}`}>
-                          <FollowUpStatusBadge status={r.followUp.status} />
-                        </Link>
+                        <div className="tr-cell-stack">
+                          <Link to={`/children/health-follow-ups/${r.followUp.id}`} aria-label={`Mở phiếu theo dõi của ${r.fullName}`}>
+                            <FollowUpStatusBadge status={r.followUp.status} />
+                          </Link>
+                          <FollowUpDueBadge dueOn={r.followUp.dueOn} overdueDays={r.followUp.overdueDays} hideOnTime />
+                          {r.followUp.latestExternalResult && (
+                            <span className="muted text-xs tr-note">
+                              Bác sĩ chuyên khoa ({formatDate(r.followUp.latestExternalResult.on)}): {r.followUp.latestExternalResult.note}
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span className="muted">—</span>
                       )}
@@ -383,13 +431,19 @@ export default function HealthCheckDetailPage() {
       <ConfirmationModal
         open={confirm === 'close'}
         title="Đóng đợt khám?"
-        message={`Kết quả của đợt sẽ bị khóa. ${
+        message={`Phiếu khám của đợt sẽ bị khóa. ${
           campaign.progress.notRecorded
-            ? `${campaign.progress.notRecorded} trẻ chưa có kết quả sẽ ghi Vắng khám.`
-            : 'Tất cả trẻ đã có kết quả.'
+            ? `${campaign.progress.notRecorded} trẻ chưa khám sẽ ghi Vắng khám.`
+            : 'Tất cả trẻ đã có phiếu khám.'
+        }${
+          campaign.progress.inProgress
+            ? ` ${campaign.progress.inProgress} phiếu đang khám chưa có kết luận sẽ giữ nguyên, hiện "Chưa kết luận".`
+            : ''
         }${
           campaign.waitingFollowUpCount
-            ? ` Còn ${campaign.waitingFollowUpCount} phiếu theo dõi chờ trao đổi với phụ huynh; phiếu vẫn mở sau khi đóng đợt.`
+            ? ` Còn ${campaign.waitingFollowUpCount} phiếu theo dõi chờ trao đổi với phụ huynh${
+                campaign.overdueFollowUpCount ? ` (${campaign.overdueFollowUpCount} phiếu đã quá hạn)` : ''
+              }; phiếu vẫn mở sau khi đóng đợt.`
             : ''
         } Bạn mở lại được đợt nếu cần sửa.`}
         confirmLabel="Đóng đợt khám"
@@ -423,7 +477,7 @@ export default function HealthCheckDetailPage() {
         {reopen && (
           <>
             <p className="mb-12">
-              Giáo viên nhập hoặc sửa được kết quả của đợt cho tới khi bạn đóng lại. Trẻ đã ghi vắng khám sẽ thành Chưa nhập.
+              Giáo viên nhập hoặc sửa được phiếu khám của đợt cho tới khi bạn đóng lại. Trẻ đã ghi vắng khám sẽ thành Chưa khám.
             </p>
             <FormField label="Lý do mở lại" required error={reopen.error}>
               <textarea

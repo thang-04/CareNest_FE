@@ -8,42 +8,57 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
-import { FollowUpStatusBadge } from '@/components/children/ChildBadges';
+import { FollowUpDueBadge, FollowUpStatusBadge } from '@/components/children/ChildBadges';
 import { SCREENING_CRITERIA_LABELS } from '@/models/children/childrenConstants';
-import { FOLLOW_UP_STATUS, FOLLOW_UP_STATUS_LABELS } from '@/models/children/healthCheckConstants';
+import { FOLLOW_UP_CLOSE_MEANING, FOLLOW_UP_STATUS, FOLLOW_UP_STATUS_LABELS } from '@/models/children/healthCheckConstants';
 import { formatDate, formatDateTime, normalizeText } from '@/utils/format';
 import { isPrincipal, isTeacherRole } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
 const COLS = 6;
+// OVERDUE: phiếu chờ trao đổi đã quá hạn (BE đếm), lọc riêng, không phải một trạng thái.
 const STATS = [
+  { key: 'OVERDUE', tone: 'red', label: 'Quá hạn trao đổi' },
   { key: FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT, tone: 'orange' },
   { key: FOLLOW_UP_STATUS.PARENT_CONTACTED, tone: 'blue' },
   { key: FOLLOW_UP_STATUS.EXTERNAL_RESULT_RECORDED, tone: 'teal' },
   { key: FOLLOW_UP_STATUS.CLOSED, tone: 'green' },
 ];
 
-/** Phiếu theo dõi trẻ ở mức "Cần theo dõi sát" (user chốt 2026-10-15, PROPOSED). */
+/** Phiếu theo dõi dài hạn của trẻ ở mức "Cần theo dõi sát" (user chốt 2026-10-15, 2026-10-16, PROPOSED). */
 export default function HealthFollowUpListPage() {
   const { user } = useAuth();
   const md = useMasterData();
   const [campusId, setCampusId] = useState('');
   const [status, setStatus] = useState('');
+  const [overdue, setOverdue] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
-  const { followUps, counts, loading, error, reload } = useHealthFollowUps({ campusId, status });
+  const { followUps, counts, loading, error, reload } = useHealthFollowUps({ campusId, status, overdue });
   const rows = useMemo(() => {
     const kw = normalizeText(keyword).trim();
     return followUps.filter((f) => !kw || normalizeText(`${f.child.fullName} ${f.child.code}`).includes(kw));
   }, [followUps, keyword]);
-  const filtered = !!(campusId || status || keyword);
+  const filtered = !!(campusId || status || overdue || keyword);
   const resetFilters = () => {
     setCampusId('');
     setStatus('');
+    setOverdue(false);
     setKeyword('');
     setPage(1);
   };
+  const toggleStat = (key) => {
+    if (key === 'OVERDUE') {
+      setOverdue(!overdue);
+      setStatus('');
+    } else {
+      setStatus(status === key ? '' : key);
+      setOverdue(false);
+    }
+    setPage(1);
+  };
+  const statActive = (key) => (key === 'OVERDUE' ? overdue : status === key);
 
   return (
     <div className="page">
@@ -53,11 +68,12 @@ export default function HealthFollowUpListPage() {
       <div className="alert alert--info mb-16">
         <Info size={18} />
         <div>
-          Phiếu tự mở khi kết quả khám ở mức <b>Cần theo dõi sát – đề nghị khám chuyên khoa</b>.{' '}
+          Mỗi trẻ có 1 phiếu theo dõi dài hạn, tự mở khi kết quả khám ở mức <b>Cần theo dõi sát – đề nghị khám chuyên khoa</b>. Kết quả mới
+          ở mức này đưa phiếu về "Chờ trao đổi phụ huynh", hạn trao đổi 7 ngày.{' '}
           {isTeacherRole(user)
-            ? 'Bạn ghi lại việc trao đổi với phụ huynh và kết quả bác sĩ chuyên khoa báo lại.'
+            ? 'Bạn ghi lại các lần trao đổi với phụ huynh và kết quả bác sĩ chuyên khoa báo lại.'
             : 'Giáo viên phụ trách lớp cập nhật phiếu; Ban giám hiệu theo dõi tiến độ.'}{' '}
-          Hệ thống chỉ sàng lọc, không chẩn đoán.
+          {FOLLOW_UP_CLOSE_MEANING} Hệ thống chỉ sàng lọc, không chẩn đoán.
         </div>
       </div>
 
@@ -65,15 +81,12 @@ export default function HealthFollowUpListPage() {
         {STATS.map((s) => (
           <button
             key={s.key}
-            className={`stat-card stat-card--${s.tone} ${status === s.key ? 'stat-card--active' : ''}`}
-            aria-pressed={status === s.key}
-            onClick={() => {
-              setStatus(status === s.key ? '' : s.key);
-              setPage(1);
-            }}
+            className={`stat-card stat-card--${s.tone} ${statActive(s.key) ? 'stat-card--active' : ''}`}
+            aria-pressed={statActive(s.key)}
+            onClick={() => toggleStat(s.key)}
           >
             <div className="stat-card__value">{counts[s.key] ?? 0}</div>
-            <div className="stat-card__label">{FOLLOW_UP_STATUS_LABELS[s.key]}</div>
+            <div className="stat-card__label">{s.label || FOLLOW_UP_STATUS_LABELS[s.key]}</div>
             <StatCardIcon tone={s.tone} />
           </button>
         ))}
@@ -117,6 +130,7 @@ export default function HealthFollowUpListPage() {
             aria-label="Trạng thái"
             onChange={(e) => {
               setStatus(e.target.value);
+              setOverdue(false);
               setPage(1);
             }}
           >
@@ -189,11 +203,17 @@ export default function HealthFollowUpListPage() {
                         {f.latest ? (
                           <>
                             <div>
-                              {f.latest.criteria
-                                .filter((c) => c.flagged)
-                                .map((c) => SCREENING_CRITERIA_LABELS[c.key])
-                                .join(' · ') || '—'}
+                              {/* Phiếu khám: lý do là đề nghị của bác sĩ; mẫu cũ: tiêu chí sàng lọc. */}
+                              {f.referral && f.referral.measurementId === f.latest.measurementId
+                                ? f.referral.specialty
+                                  ? `Bác sĩ đề nghị khám chuyên khoa: ${f.referral.specialty}`
+                                  : f.referral.issueText || '—'
+                                : f.latest.criteria
+                                    .filter((c) => c.flagged)
+                                    .map((c) => SCREENING_CRITERIA_LABELS[c.key])
+                                    .join(' · ') || '—'}
                             </div>
+                            {f.tbRisk && <span className="chip chip--red mt-8">Nguy cơ mắc lao (tiền sử tiếp xúc)</span>}
                             <div className="muted text-xs">
                               {formatDate(f.latest.date)}
                               {f.latest.campaignName ? ` · ${f.latest.campaignName}` : ' · Ngoài đợt khám'}
@@ -204,7 +224,12 @@ export default function HealthFollowUpListPage() {
                         )}
                       </td>
                       <td>
-                        <FollowUpStatusBadge status={f.status} />
+                        <div className="tr-cell-stack">
+                          <FollowUpStatusBadge status={f.status} />
+                          {f.currentRound && !f.currentRound.contacted && (
+                            <FollowUpDueBadge dueOn={f.currentRound.dueOn} overdueDays={f.currentRound.overdueDays} />
+                          )}
+                        </div>
                       </td>
                       <td className="nowrap text-sm">{formatDateTime(f.updatedAt)}</td>
                       <td className="center nowrap">

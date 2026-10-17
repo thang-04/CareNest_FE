@@ -334,7 +334,7 @@ export default function ChildProfilePage() {
                     <h3 className="subsection-title">Theo dõi sức khỏe</h3>
                     {canRecordMeasurement(child, user, cls) && (
                       <Link className="btn btn--sm btn--outline-primary" to={`/children/${child.id}/health/new`}>
-                        <Plus size={15} /> Nhập kết quả khám
+                        <Plus size={15} /> Nhập cân đo ngoài đợt
                       </Link>
                     )}
                   </div>

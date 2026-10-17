@@ -18,26 +18,37 @@
  * @property {number} heightCm
  * @property {number} weightKg
  * @property {number|null} headCircumferenceCm  null when not measured (over 60 months) or recorded before the field existed
- * @property {MotorResult|null} grossMotor
- * @property {MotorResult|null} fineMotor
+ * @property {MotorResult|null} grossMotor   mẫu cũ (trước phiếu Phụ lục II)
+ * @property {MotorResult|null} fineMotor    mẫu cũ
  * @property {string} note               examination information, free text
+ * @property {import('./healthExamForm').HealthExam|null} exam   phiếu Phụ lục II (kết quả trong đợt khám từ 2026-10-17)
+ * @property {'DRAFT'|'CONCLUDED'|null} examStatus   phiếu nháp không hiện ở Sổ sức khỏe, xu hướng
+ * @property {MeasurementSource} source  computed by the service
  * @property {number} ageMonths          computed by the service
- * @property {number|null} bmi           computed by the service
- * @property {BmiStatus} bmiStatus       computed by the service (screening rule owned by the backend)
+ * @property {number|null} bmi           computed by the service; không còn nhãn phân loại BMI (user chốt 2026-10-17)
  * @property {HeadCircumferenceStatus|null} headCircumferenceStatus
- * @property {{ key: ScreeningCriterion, flagged: boolean }[]} criteria
- * @property {FollowUpLevel} followUpLevel
+ * @property {{ key: ScreeningCriterion, flagged: boolean }[]} criteria   chỉ mẫu cũ
+ * @property {FollowUpLevel} followUpLevel   phiếu: theo kết luận bác sĩ; mẫu cũ: theo 3 tiêu chí
+ * @property {'NORMAL'|'ISSUE'|'REFERRAL'|'TB_RISK'|null} conclusionCategory
  * @property {{ code: string, label: string }} reference   reference standard used for the screening
  * @property {boolean} published         visible to linked parents (GBR-HLT-05)
  * @property {string} measuredBy / measuredByName
  * @property {{ at, userId, userName, reason, changes: { field, from, to }[] }[]} edits  (GBR-HLT-03)
  *
  * @typedef {'NO_ABNORMALITY'|'ABNORMAL'} MotorResult
- * @typedef {'LOW'|'NORMAL'|'HIGH'|'UNAVAILABLE'} BmiStatus
  * @typedef {'NORMAL'|'SMALL'|'LARGE'|'NOT_MEASURED'} HeadCircumferenceStatus
  * @typedef {'HEAD_CIRCUMFERENCE'|'GROSS_MOTOR'|'FINE_MOTOR'} ScreeningCriterion
  * @typedef {'NONE'|'WATCH'|'CLOSE_WATCH'|'UNAVAILABLE'} FollowUpLevel
+ * @typedef {'EXAM'|'LEGACY'|'MEASUREMENT_ONLY'} MeasurementSource
  */
+
+export const MEASUREMENT_SOURCE = { EXAM: 'EXAM', LEGACY: 'LEGACY', MEASUREMENT_ONLY: 'MEASUREMENT_ONLY' };
+
+export const MEASUREMENT_SOURCE_LABELS = {
+  EXAM: 'Phiếu khám',
+  LEGACY: 'Mẫu cũ',
+  MEASUREMENT_ONLY: 'Cân đo, chưa có kết luận bác sĩ',
+};
 
 export const DECLARATION_STATE = {
   REPORTED: 'REPORTED',
@@ -67,16 +78,8 @@ export const MOTOR_RESULT = { NO_ABNORMALITY: 'NO_ABNORMALITY', ABNORMAL: 'ABNOR
 
 export const MOTOR_RESULT_LABELS = { NO_ABNORMALITY: 'Không ghi nhận bất thường', ABNORMAL: 'Có bất thường' };
 
-// Kết quả sàng lọc do BE tính (user chốt 2026-10-15, PROPOSED); nhãn trung tính, không phải chẩn đoán.
-export const BMI_STATUS = { LOW: 'LOW', NORMAL: 'NORMAL', HIGH: 'HIGH', UNAVAILABLE: 'UNAVAILABLE' };
-
-export const BMI_STATUS_LABELS = {
-  LOW: 'BMI thấp hơn chuẩn',
-  NORMAL: 'BMI bình thường',
-  HIGH: 'BMI cao hơn chuẩn',
-  UNAVAILABLE: 'Chưa phân loại được',
-};
-
+// Kết quả sàng lọc mẫu cũ do BE tính (user chốt 2026-10-15, PROPOSED); nhãn trung tính, không phải chẩn đoán.
+// Bỏ nhãn phân loại BMI (user chốt 2026-10-17): chỉ còn số BMI.
 export const HEAD_CIRCUMFERENCE_STATUS = { NORMAL: 'NORMAL', SMALL: 'SMALL', LARGE: 'LARGE', NOT_MEASURED: 'NOT_MEASURED' };
 
 export const HEAD_CIRCUMFERENCE_STATUS_LABELS = {
@@ -98,14 +101,15 @@ export const FOLLOW_UP_LEVEL_LABELS = {
   NONE: 'Không ghi nhận bất thường',
   WATCH: 'Cần theo dõi',
   CLOSE_WATCH: 'Cần theo dõi sát – đề nghị khám chuyên khoa',
-  UNAVAILABLE: 'Chưa đủ dữ liệu',
+  UNAVAILABLE: 'Chưa có kết luận bác sĩ',
 };
 
 /** Nhãn ngắn cho ô bảng. */
 export const FOLLOW_UP_LEVEL_SHORT_LABELS = { ...FOLLOW_UP_LEVEL_LABELS, CLOSE_WATCH: 'Cần theo dõi sát' };
 
-// Phụ huynh xem tất cả của bản đã công bố (P-13b, user chốt 2026-10-15, chờ BE ghi).
-export const PARENT_VISIBLE_HEALTH_TEXT = 'số đo, biểu đồ, đánh giá vận động, phân loại BMI, mức theo dõi và ghi chú khám';
+// Phụ huynh xem toàn bộ phiếu đã công bố (user chốt 2026-10-15, giữ 2026-10-17; chờ BE ghi).
+export const PARENT_VISIBLE_HEALTH_TEXT =
+  'toàn bộ phiếu khám (số đo, các phần khám, kết luận, lời tư vấn, chuyển khám), biểu đồ và ghi chú khám';
 
 /** Parent account state as stored on child.guardians[i].accountStatus. */
 export const PARENT_ACCOUNT_STATUS = {

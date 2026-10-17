@@ -424,6 +424,16 @@
 .tr-actions-end {
   justify-content: flex-end;
 }
+/* Dòng thời gian phiếu: kết quả khám = cần để ý, nhắc của hệ thống = cần xử lý, đóng phiếu = hoàn tất */
+.history-list__dot.tr-dot--warning {
+  background: var(--warning);
+}
+.history-list__dot.tr-dot--danger {
+  background: var(--danger);
+}
+.history-list__dot.tr-dot--done {
+  background: var(--success);
+}
 .tr-search-grow {
   flex: 1;
   min-width: 220px;
@@ -555,6 +565,53 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .tr-quicklinks {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Phiếu khám Phụ lục II: câu đang chọn lựa chọn bất thường có viền cảnh báo bên trái */
+.tr-exam-choice {
+  padding-left: var(--space-3);
+  border-left: 3px solid transparent;
+}
+.tr-exam-choice--flag {
+  border-left-color: var(--color-warning);
+}
+.tr-exam-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+.tr-exam-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+.tr-exam-group + .tr-exam-group {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.tr-exam-group {
+  margin-bottom: var(--space-4);
+}
+.tr-review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.tr-review__list {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+.tr-exam-section + .tr-exam-section {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .tr-exam-pair {
     grid-template-columns: 1fr;
   }
 }

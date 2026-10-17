@@ -1,4 +1,5 @@
-import { DECLARATION_STATE, MOTOR_RESULT } from '@/models/children/childrenConstants';
+import { DECLARATION_STATE } from '@/models/children/childrenConstants';
+import { formatDate, todayInput } from '@/utils/format';
 
 /*
  * Input checks shared by the forms (instant feedback) and the mock repository (422).
@@ -15,7 +16,8 @@ export const isValidPhone = (phone) => PHONE_RE.test(normalizePhone(phone));
 
 export const isValidEmail = (email) => EMAIL_RE.test(String(email || '').trim());
 
-const today = () => new Date().toISOString().slice(0, 10);
+// Ngày theo giờ máy (như ô chọn ngày); ngày UTC lệch 1 ngày từ 0h tới 7h sáng giờ Việt Nam.
+const today = todayInput;
 
 /** Child + guardians block of the enrollment form. */
 export const validateChildInfo = (data) => {
@@ -59,16 +61,14 @@ export const validateDeclaration = (d) => {
 const isBlank = (v) => v === '' || v == null;
 
 /**
- * Kết quả khám (GBR-HLT-01). headCircumferenceUntil: ngày cuối còn đo vòng đầu, BE trả trong sổ sức khỏe.
- * legacy: sửa lần đo cũ chưa có vòng đầu/vận động ⇒ các ô mới không bắt buộc. campaign: { startDate, endDate } của đợt khám.
+ * Cân đo ngoài đợt khám (GBR-HLT-01; user chốt 2026-10-17: chỉ chiều cao, cân nặng, vòng đầu, ghi chú; không kết luận).
+ * headCircumferenceUntil: ngày cuối còn đo vòng đầu, BE trả trong sổ sức khỏe. Vòng đầu không bắt buộc khi cân đo tại lớp.
  */
-export const validateMeasurement = (m, { dateOfBirth, requireReason, headCircumferenceUntil, legacy, campaign } = {}) => {
+export const validateMeasurement = (m, { dateOfBirth, requireReason, headCircumferenceUntil } = {}) => {
   const errors = {};
   if (!m.date || !DATE_RE.test(m.date)) errors.date = 'Chọn ngày đo';
   else if (m.date > today()) errors.date = 'Ngày đo không được ở tương lai';
   else if (dateOfBirth && m.date < dateOfBirth) errors.date = 'Ngày đo không được trước ngày sinh của trẻ';
-  else if (campaign && (m.date < campaign.startDate || m.date > campaign.endDate))
-    errors.date = 'Chọn ngày đo trong khoảng ngày khám của đợt';
   const h = Number(m.heightCm);
   if (isBlank(m.heightCm) || Number.isNaN(h)) errors.heightCm = 'Nhập chiều cao (cm)';
   else if (h < 40 || h > 150) errors.heightCm = 'Nhập chiều cao từ 40 đến 150 cm';
@@ -77,16 +77,8 @@ export const validateMeasurement = (m, { dateOfBirth, requireReason, headCircumf
   else if (w < 3 || w > 60) errors.weightKg = 'Nhập cân nặng từ 3 đến 60 kg';
   const headApplies = !headCircumferenceUntil || !m.date || m.date <= headCircumferenceUntil;
   const hc = Number(m.headCircumferenceCm);
-  if (headApplies) {
-    if (isBlank(m.headCircumferenceCm)) {
-      if (!legacy) errors.headCircumferenceCm = 'Nhập vòng đầu (cm)';
-    } else if (Number.isNaN(hc) || hc < 30 || hc > 60) errors.headCircumferenceCm = 'Nhập vòng đầu từ 30 đến 60 cm';
-  }
-  ['grossMotor', 'fineMotor'].forEach((field) => {
-    if (isBlank(m[field])) {
-      if (!legacy) errors[field] = field === 'grossMotor' ? 'Chọn kết quả vận động thô' : 'Chọn kết quả vận động tinh';
-    } else if (!Object.values(MOTOR_RESULT).includes(m[field])) errors[field] = 'Chọn một trong hai kết quả';
-  });
+  if (headApplies && !isBlank(m.headCircumferenceCm) && (Number.isNaN(hc) || hc < 30 || hc > 60))
+    errors.headCircumferenceCm = 'Nhập vòng đầu từ 30 đến 60 cm';
   if ((m.note || '').length > 500) errors.note = 'Ghi chú tối đa 500 ký tự';
   if (requireReason && !m.reason?.trim()) errors.reason = 'Nhập lý do sửa kết quả đã công bố';
   return errors;
@@ -109,7 +101,8 @@ export const validateHealthCheck = (c) => {
 };
 
 /** Cập nhật phiếu theo dõi. kind: 'contact' | 'external' | 'close'. */
-export const validateFollowUpAction = (kind, b = {}) => {
+/** kind: 'contact' | 'external' | 'close'. contactFrom: ngày khám của kết quả mở vòng theo dõi (BE trả). */
+export const validateFollowUpAction = (kind, b = {}, { contactFrom } = {}) => {
   const errors = {};
   if (kind === 'close') {
     if (!b.reason?.trim()) errors.reason = 'Nhập lý do đóng phiếu';
@@ -119,8 +112,20 @@ export const validateFollowUpAction = (kind, b = {}) => {
   const dateField = kind === 'contact' ? 'contactedOn' : 'resultOn';
   if (!b[dateField] || !DATE_RE.test(b[dateField])) errors[dateField] = kind === 'contact' ? 'Chọn ngày trao đổi' : 'Chọn ngày khám';
   else if (b[dateField] > today()) errors[dateField] = 'Ngày không được ở tương lai';
+  else if (kind === 'contact' && contactFrom && b.contactedOn < contactFrom)
+    errors.contactedOn = `Ngày trao đổi không được trước ngày khám ${formatDate(contactFrom)}`;
   if (!b.note?.trim())
     errors.note = kind === 'contact' ? 'Nhập nội dung đã trao đổi với phụ huynh' : 'Nhập kết quả bác sĩ chuyên khoa đã báo lại';
   else if (b.note.trim().length > 500) errors.note = 'Nội dung tối đa 500 ký tự';
+  // Kết quả chuyên khoa ghi chữ tự do, kèm chuyên khoa / nơi khám và ảnh giấy kết quả (user chốt 2026-10-17).
+  if (kind === 'external') {
+    if (!b.facility?.trim()) errors.facility = 'Nhập chuyên khoa / nơi khám, ví dụ Mắt — Bệnh viện Nhi';
+    else if (b.facility.trim().length > 150) errors.facility = 'Tối đa 150 ký tự';
+    if ((b.images || []).length > 3) errors.images = 'Tối đa 3 ảnh';
+  }
+  if (kind === 'external' && b.nextVisitOn) {
+    if (!DATE_RE.test(b.nextVisitOn)) errors.nextVisitOn = 'Chọn ngày hẹn khám lại hợp lệ';
+    else if (DATE_RE.test(b.resultOn || '') && b.nextVisitOn <= b.resultOn) errors.nextVisitOn = 'Ngày hẹn khám lại phải sau ngày khám';
+  }
   return errors;
 };
