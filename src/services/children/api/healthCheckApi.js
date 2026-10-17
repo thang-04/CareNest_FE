@@ -19,6 +19,8 @@ export const healthCheckApi = {
   reopenHealthCheck: (id, body) => axiosClient.post(`/health-checks/${id}/reopen`, body),
   getHealthExam: (campaignId, childId) => axiosClient.get(`/health-checks/${campaignId}/children/${childId}/exam`),
   saveHealthExam: (campaignId, childId, payload) => axiosClient.put(`/health-checks/${campaignId}/children/${childId}/exam`, payload),
+  previewHealthExamReview: (campaignId, childId, payload) =>
+    axiosClient.post(`/health-checks/${campaignId}/children/${childId}/exam/review-preview`, payload),
   listHealthFollowUps: (filters) => axiosClient.get('/health-follow-ups', { params: filters }),
   getHealthFollowUp: (id) => axiosClient.get(`/health-follow-ups/${id}`),
   recordFollowUpContact: (id, body) => axiosClient.post(`/health-follow-ups/${id}/parent-contacts`, body),

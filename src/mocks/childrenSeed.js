@@ -54,11 +54,12 @@ const DOCTOR_C2 = 'BS. Đặng Quốc Việt';
  * Phiếu Phụ lục II dựng sẵn để thử mọi trường hợp (dữ liệu giả). Mỗi trẻ 1 trường hợp, ghi ở `case`.
  * campaign: 'open' = đợt đang diễn ra ở điểm trường c1; C2_OCT_CAMPAIGN.id = đợt đã đóng đầu tháng 10 ở c2.
  * draft: phiếu nháp dừng ở bước đó (0–4); các bước trước đã nhập đủ. legacy: kết quả mẫu cũ nhập trong đợt.
+ * Phiếu đã kết luận có người đi cùng là đã công bố; không có người đi cùng thì chưa công bố (chờ trao đổi).
  * Số định danh giả bắt đầu bằng 999 (không có mã tỉnh này). Lớp Chồi 1 để trống: khám từ đầu.
  */
 const EXAM_CASES = {
   /* ---------- Lớp Mầm 1 (c1, cô An) ---------- */
-  ch_001: { case: 'Bình thường, có người đi cùng, đã công bố', published: true },
+  ch_001: { case: 'Bình thường, có người đi cùng: tự công bố khi lưu kết luận' },
   ch_002: {
     case: 'Có vấn đề, tư vấn; trẻ 35 tháng (nhóm 12–35 tháng) thở nhanh; phiếu đã sửa có lý do',
     headOffset: 0.4,
@@ -208,7 +209,7 @@ const EXAM_CASES = {
       adviceText: 'Tiếp tục khám theo hẹn của bác sĩ chuyên khoa; báo lại nhà trường kết quả.',
     },
   },
-  ch_020: { case: 'Bình thường, trẻ trên 60 tháng (không đo vòng đầu), đã công bố', published: true },
+  ch_020: { case: 'Bình thường, trẻ trên 60 tháng (không đo vòng đầu)' },
   ch_021: {
     case: 'Chuyển khám, không có người đi cùng; gợi ý kết hợp 2 dấu hiệu phát triển (cân nhắc chuyển khám)',
     noCompanion: true,
@@ -238,11 +239,10 @@ const EXAM_CASES = {
     },
   },
   ch_026: { case: 'Đợt đóng khi phiếu còn nháp: "Chưa kết luận"', campaign: 'c2_oct', draft: 2, headOffset: 0 },
-  ch_028: { case: 'Đợt đã đóng: bình thường, đã công bố', campaign: 'c2_oct', published: true, headOffset: -0.1 },
+  ch_028: { case: 'Đợt đã đóng: bình thường', campaign: 'c2_oct', headOffset: -0.1 },
   ch_029: {
-    case: 'Đợt đã đóng: có vấn đề, tư vấn, đã công bố',
+    case: 'Đợt đã đóng: có vấn đề, tư vấn',
     campaign: 'c2_oct',
-    published: true,
     headOffset: 0.4,
     clinical: { runnyNose: 'YES', nasalCongestion: 'YES' },
     conclusion: {
@@ -446,8 +446,10 @@ const buildMeasurements = (children, classes) => {
           concludedAt: concluded ? `${date}T09:30:00.000Z` : null,
           campaignId: campaign.id,
           measuredBy: teacherId,
-          published: !!spec.published,
-          publishedAt: spec.published ? `${date}T11:00:00.000Z` : null,
+          // Phiếu đã kết luận có người đi cùng tự công bố khi lưu (user chốt 2026-10-17).
+          published: concluded && !spec.noCompanion,
+          publishedAt: concluded && !spec.noCompanion ? `${date}T09:30:00.000Z` : null,
+          autoPublished: concluded && !spec.noCompanion,
           createdAt: `${date}T08:30:00.000Z`,
           // Phiếu đã sửa sau khi kết luận: lịch sử có lý do, giá trị cũ và mới.
           edits: spec.edited

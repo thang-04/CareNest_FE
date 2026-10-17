@@ -28,11 +28,20 @@ import { ExamAdminStep } from '@/components/children/exam/ExamAdminStep';
 import { ExamMeasureStep } from '@/components/children/exam/ExamMeasureStep';
 import { ExamDevelopmentStep } from '@/components/children/exam/ExamDevelopmentStep';
 import { ExamClinicalStep } from '@/components/children/exam/ExamClinicalStep';
-import { ExamConclusionStep, ExamReviewPoints } from '@/components/children/exam/ExamConclusionStep';
+import { ExamConclusionStep, ExamReviewPoints, reviewPointTexts } from '@/components/children/exam/ExamConclusionStep';
 import { ExamSummary } from '@/components/children/exam/ExamSummary';
 import { publishMeasurement } from '@/services/children/childrenService';
-import { saveHealthExam } from '@/services/children/healthCheckService';
-import { CONCLUSION_ACTION_LABELS, CONCLUSION_CATEGORY, EXAM_STATUS, EXAM_STEPS, stepOfField } from '@/models/children/healthExamForm';
+import { previewHealthExamReview, saveHealthExam } from '@/services/children/healthCheckService';
+import {
+  CONCLUSION_ACTION,
+  CONCLUSION_ACTION_LABELS,
+  CONCLUSION_CATEGORY,
+  CONCLUSION_FLAGS,
+  EXAM_STATUS,
+  EXAM_STEPS,
+  YES_NO,
+  stepOfField,
+} from '@/models/children/healthExamForm';
 import { PARENT_VISIBLE_HEALTH_TEXT } from '@/models/children/childrenConstants';
 import { CHILD_RESULT_STATUS, PUBLISH_BLOCKED_TEXT } from '@/models/children/healthCheckConstants';
 import { ageLabel } from '@/models/School';
@@ -128,6 +137,9 @@ export default function HealthExamFormPage() {
   const [saved, setSaved] = useState(false);
   const [reviewStale, setReviewStale] = useState(false);
   const [confirmPublish, setConfirmPublish] = useState(false);
+  // Sửa phiếu đã kết luận không lưu nháp: điểm cần xem lại lấy theo dữ liệu đang nhập (BE tính, không lưu).
+  const [previewPoints, setPreviewPoints] = useState(null);
+  const [confirmConclude, setConfirmConclude] = useState(null);
 
   // Sang trẻ khác ("khám trẻ tiếp theo") thì bắt đầu phiếu mới.
   useEffect(() => {
@@ -137,6 +149,8 @@ export default function HealthExamFormPage() {
     setSaved(false);
     setReviewStale(false);
     setConfirmPublish(false);
+    setPreviewPoints(null);
+    setConfirmConclude(null);
   }, [campaignId, childId]);
 
   useEffect(() => {
@@ -281,8 +295,19 @@ export default function HealthExamFormPage() {
     }
   };
 
+  const refreshPreview = async () => {
+    try {
+      const res = await previewHealthExamReview(campaignId, childId, payloadOf({ exam: form.exam }), user);
+      setPreviewPoints(res.reviewPoints);
+      setReviewStale(false);
+    } catch {
+      // Không lấy được thì giữ danh sách của lần lưu gần nhất (có ghi chú).
+    }
+  };
+
   const goTo = async (i) => {
     await saveDraft(i);
+    if (concluded && i === 4) await refreshPreview();
     setStep(i);
     setMaxReached((x) => Math.max(x, i));
     window.scrollTo({ top: 0 });
@@ -299,7 +324,9 @@ export default function HealthExamFormPage() {
   };
   const examLink = (id) => `/children/health-checks/${campaignId}/exam/${id}${classIdParam ? `?classId=${classIdParam}` : ''}`;
 
-  const conclude = async (andNext = false) => {
+  const reviewPoints = (concluded ? previewPoints : null) || m?.reviewPoints || null;
+
+  const conclude = async (andNext = false, confirmed = false) => {
     const payload = payloadOf({ exam: { ...form.exam, step: 4 }, conclude: true });
     const errs = validateHealthExam(payload, {
       dateOfBirth: child.dateOfBirth,
@@ -313,6 +340,13 @@ export default function HealthExamFormPage() {
       toast.error('Phiếu còn thiếu thông tin. Kiểm tra các ô được đánh dấu.', 'Chưa lưu được kết luận');
       return;
     }
+    // Bác sĩ không chuyển khám mà vẫn còn điểm cần xem lại ⇒ hỏi lại 1 lần, không chặn (user chốt 2026-10-17).
+    const c = form.exam.conclusion;
+    const lines = reviewPointTexts(reviewPoints);
+    if (!confirmed && lines.length > 0 && !c.tbRisk && c.action !== CONCLUSION_ACTION.REFERRAL) {
+      setConfirmConclude({ andNext, lines });
+      return;
+    }
     setBusy(true);
     try {
       const res = await saveHealthExam(campaignId, childId, payload, user);
@@ -322,7 +356,7 @@ export default function HealthExamFormPage() {
       setErrors({});
       setReviewStale(false);
       if (andNext) {
-        toast.success(`Đã lưu kết luận của ${child.fullName}.`);
+        toast.success(`Đã lưu kết luận của ${child.fullName}${res.measurement.autoPublished ? ' và công bố cho phụ huynh' : ''}.`);
         const next = nextChildId();
         if (next) navigate(examLink(next));
         else {
@@ -332,7 +366,7 @@ export default function HealthExamFormPage() {
         return;
       }
       setSaved(true);
-      toast.success('Đã lưu kết luận phiếu khám.');
+      toast.success(res.measurement.autoPublished ? 'Đã lưu kết luận và công bố cho phụ huynh.' : 'Đã lưu kết luận phiếu khám.');
     } catch (err) {
       if (err.details) {
         setErrors(err.details);
@@ -399,6 +433,12 @@ export default function HealthExamFormPage() {
             {m.exam.conclusion.specialty ? `: ${m.exam.conclusion.specialty}` : ''}
             {m.exam.conclusion.adviceText ? `. Lời dặn: ${m.exam.conclusion.adviceText}` : ''} — {m.exam.conclusion.doctorName}
           </p>
+          {m.published && m.autoPublished && (
+            <div className="alert alert--success mt-16">
+              <Send size={18} />
+              <div>Đã công bố cho phụ huynh khi lưu kết luận (có người đi cùng trẻ). Phụ huynh nhận thông báo trên ứng dụng.</div>
+            </div>
+          )}
           {m.conclusionCategory === CONCLUSION_CATEGORY.TB_RISK && (
             <div className="alert alert--danger mt-16">
               <ShieldAlert size={18} />
@@ -474,7 +514,9 @@ export default function HealthExamFormPage() {
           <div className="row row--wrap gap-2 mb-16">
             <ConclusionCategoryBadge status={m.conclusionCategory} size="lg" />
             <FollowUpLevelBadge status={m.followUpLevel} />
-            <span className={`chip ${m.published ? 'chip--green' : 'chip--gray'}`}>{m.published ? 'Đã công bố' : 'Chưa công bố'}</span>
+            <span className={`chip ${m.published ? 'chip--green' : 'chip--gray'}`}>
+              {m.published ? (m.autoPublished ? 'Đã công bố khi lưu kết luận' : 'Đã công bố') : 'Chưa công bố'}
+            </span>
             {m.followUpId && (
               <Link className="text-primary text-sm" to={`/children/health-follow-ups/${m.followUpId}`}>
                 Mở phiếu theo dõi
@@ -526,6 +568,7 @@ export default function HealthExamFormPage() {
                 className="btn"
                 onClick={() => {
                   setEditing(true);
+                  setPreviewPoints(null);
                   setStep(0);
                   setMaxReached(4);
                 }}
@@ -547,7 +590,10 @@ export default function HealthExamFormPage() {
       {editing && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
-          <div>Bạn đang sửa phiếu đã có kết luận. Lưu lại kết luận cần ghi lý do; phiếu đã công bố cần công bố lại.</div>
+          <div>
+            Bạn đang sửa phiếu đã có kết luận. Lưu lại kết luận cần ghi lý do. Có người đi cùng thì phiếu tự công bố lại khi lưu; không có
+            người đi cùng thì bạn cần công bố lại.
+          </div>
         </div>
       )}
       <PreviousNotes view={view} />
@@ -560,12 +606,32 @@ export default function HealthExamFormPage() {
         {step === 4 && (
           <ExamConclusionStep
             {...stepProps}
-            reviewPoints={m?.reviewPoints || null}
+            reviewPoints={reviewPoints}
             reviewStale={reviewStale}
             doctorNames={view.doctorNames}
             requireReason={concluded}
           />
         )}
+        {step === 4 &&
+          (form.exam.admin.hasCompanion === YES_NO.YES ? (
+            <div className="alert alert--info mt-16">
+              <Send size={18} />
+              <div>
+                Có người đi cùng trẻ: khi lưu kết luận, phiếu được <b>công bố cho phụ huynh ngay</b>. Phụ huynh xem được{' '}
+                {PARENT_VISIBLE_HEALTH_TEXT} trên ứng dụng.
+              </div>
+            </div>
+          ) : (
+            form.exam.admin.hasCompanion === YES_NO.NO && (
+              <div className="alert alert--warning mt-16">
+                <Info size={18} />
+                <div>
+                  Không có người đi cùng: lưu kết luận chưa công bố cho phụ huynh. Bạn công bố sau, khi đã trao đổi với phụ huynh nếu bác sĩ
+                  đề nghị khám chuyên khoa.
+                </div>
+              </div>
+            )
+          ))}
       </div>
       <div className="page-actions">
         {step > 0 ? (
@@ -611,6 +677,38 @@ export default function HealthExamFormPage() {
           )}
         </div>
       </div>
+      <ConfirmationModal
+        open={!!confirmConclude}
+        title="Bác sĩ vẫn kết luận như vậy?"
+        message={confirmConclude ? `Còn ${confirmConclude.lines.length} điểm cần bác sĩ xem lại:` : ''}
+        confirmLabel="Lưu theo bác sĩ"
+        cancelLabel="Quay lại xem"
+        onConfirm={async () => {
+          const { andNext } = confirmConclude;
+          setConfirmConclude(null);
+          await conclude(andNext, true);
+        }}
+        onClose={() => setConfirmConclude(null)}
+      >
+        {confirmConclude && (
+          <>
+            <ul className="tr-review__list mt-8">
+              {confirmConclude.lines.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+            <p className="mt-8 m-0">
+              Kết luận đang chọn:{' '}
+              <b>
+                {CONCLUSION_FLAGS.filter((f) => form.exam.conclusion[f.key])
+                  .map((f) => f.label)
+                  .join(', ')}
+              </b>{' '}
+              · {CONCLUSION_ACTION_LABELS[form.exam.conclusion.action]}. Gợi ý không phải kết luận; bác sĩ quyết định.
+            </p>
+          </>
+        )}
+      </ConfirmationModal>
     </div>
   );
 }

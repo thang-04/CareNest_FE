@@ -3,6 +3,8 @@ import { axiosClient } from '@/services/http/axiosClient';
 /**
  * PROPOSED Spring Boot contract for child records & child health (not agreed with CareNest_BE yet).
  * Same names and shapes as the mock repository; the backend reads the user's scope from the JWT.
+ * Mỗi trẻ trả thêm latestHealth { date, followUpLevel, campaignName } của lần khám gần nhất có xếp mức (bỏ phiếu nháp,
+ * cân đo ngoài đợt) để danh sách lọc trẻ "Cần theo dõi" qua mọi đợt (2026-10-17).
  */
 export const childrenApi = {
   listChildren: (filters) => axiosClient.get('/children', { params: filters }),

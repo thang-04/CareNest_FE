@@ -7,11 +7,23 @@ import { ExamCheckGroup, ExamChoiceField, ExamTextField } from './ExamFields';
 const ACTION_OPTIONS = Object.values(CONCLUSION_ACTION).map((value) => ({ value, label: CONCLUSION_ACTION_LABELS[value] }));
 const FLAG_OPTIONS = CONCLUSION_FLAGS.map((f) => ({ value: f.key, label: f.label }));
 
-/** "Điểm cần bác sĩ xem lại" BE trả: sinh tồn theo tuổi, gợi ý kết hợp vòng đầu + phát triển, các mục khác. Chỉ là gợi ý. */
+/** Các dòng của "Điểm cần bác sĩ xem lại" (BE trả), dùng cho hộp hỏi lại trước khi lưu kết luận. */
+export const reviewPointTexts = (points) =>
+  points
+    ? [
+        ...points.vitals.map((p) => p.text),
+        ...(points.vitalsHint?.level === 'ALERT' ? [points.vitalsHint.text] : []),
+        ...(points.combined.level !== 'NONE' ? [`${points.combined.text}: ${points.combined.signs.join('; ')}`] : []),
+        ...points.others.map((p) => p.text),
+      ]
+    : [];
+
+/** "Điểm cần bác sĩ xem lại" BE trả: sinh tồn theo tuổi (từng chỉ số, gợi ý gộp), gợi ý kết hợp vòng đầu + phát triển, mục khác. */
 export function ExamReviewPoints({ points, stale }) {
   if (!points)
     return <p className="muted text-sm m-0">Chuyển qua các bước trước để hệ thống lưu nháp và lập danh sách điểm cần xem lại.</p>;
   const empty = points.vitals.length === 0 && points.combined.level === 'NONE' && points.others.length === 0;
+  const vitalsHint = points.vitalsHint;
   return (
     <div className="tr-review">
       {empty ? (
@@ -29,6 +41,14 @@ export function ExamReviewPoints({ points, stale }) {
                   <li key={p.key}>{p.text}</li>
                 ))}
               </ul>
+            </div>
+          )}
+          {vitalsHint && vitalsHint.level !== 'NONE' && (
+            <div className={`alert ${vitalsHint.level === 'ALERT' ? 'alert--danger' : 'alert--warning'} tr-alert-flat`}>
+              <AlertTriangle size={18} />
+              <div>
+                <b>{vitalsHint.text}</b> — {vitalsHint.count}/{vitalsHint.total} dấu hiệu sinh tồn ngoài khoảng tham khảo.
+              </div>
             </div>
           )}
           {points.combined.level !== 'NONE' && (
@@ -168,7 +188,7 @@ export function ExamConclusionStep({ form, set, setMany, errors, reviewPoints, r
             value={form.reason}
             onChange={(v) => set('reason', v)}
             error={errors.reason}
-            hint="Lịch sử sửa lưu người sửa, thời điểm, giá trị cũ và mới. Phiếu đã công bố cần công bố lại."
+            hint="Lịch sử sửa lưu người sửa, thời điểm, giá trị cũ và mới."
             disabled={disabled}
           />
         )}

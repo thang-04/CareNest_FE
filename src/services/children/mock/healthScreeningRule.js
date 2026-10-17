@@ -141,12 +141,26 @@ const otherPoints = (exam, ref) => {
   return out.map((text) => ({ text }));
 };
 
-/** "Điểm cần bác sĩ xem lại" của phiếu: sinh tồn theo tuổi, gợi ý kết hợp, các mục khác đã ghi bất thường. */
+// Gợi ý gộp phần II (user chốt 2026-10-17): 1/3 chỉ số ngoài khoảng ⇒ cần theo dõi; từ 2/3 ⇒ bác sĩ xem lại trước khi kết luận.
+const vitalsHint = (points) => {
+  const count = points.length;
+  const level = count >= 2 ? 'ALERT' : count === 1 ? 'WATCH' : 'NONE';
+  const text = {
+    NONE: '',
+    WATCH: 'Gợi ý: cần theo dõi',
+    ALERT: 'Gợi ý: nhiều dấu hiệu sinh tồn bất thường, bác sĩ xem lại trước khi kết luận',
+  }[level];
+  return { count, total: VITAL_ITEMS.length, level, text };
+};
+
+/** "Điểm cần bác sĩ xem lại" của phiếu: sinh tồn theo tuổi (từng chỉ số và gợi ý gộp), gợi ý kết hợp, các mục khác. */
 export const examReviewPoints = (m, dateOfBirth) => {
   const ref = examReferenceFor(dateOfBirth, m.date);
   const exam = m.exam || {};
+  const vitals = vitalPoints(exam.vitals, ref);
   return {
-    vitals: vitalPoints(exam.vitals, ref),
+    vitals,
+    vitalsHint: vitalsHint(vitals),
     combined: combinedHint(exam, ref.headApplies),
     others: otherPoints(exam, ref),
     reference: VITAL_REFERENCE.label,

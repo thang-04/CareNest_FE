@@ -457,3 +457,23 @@ Repo chưa có framework unit test. Thêm framework là thêm dependency, phải
 - Nội dung: seed v6 (`HEALTH_SEED_VERSION = 6`). Bảng `EXAM_CASES` trong `src/mocks/childrenSeed.js` ghi trường hợp của từng trẻ: đợt đang diễn ra ở c1 có đủ kết luận (bình thường, tư vấn, chuyển khám có/không người đi cùng, nguy cơ lao, lao + vấn đề), phiếu nháp ở bước 1, 2, 4, 5, phiếu đã sửa, kết quả mẫu cũ trong đợt, trẻ 27 tháng có câu nguy cơ tự kỷ (thêm trẻ `ch_037` vào `src/mocks/schoolSeed.js`), cảnh báo sinh tồn đủ loại; Lớp Chồi 1 để trống để khám từ đầu; cân đo ngoài đợt sau 17/10. Thêm đợt đã đóng `hc_c2_2610` ở c2 (phiếu chưa kết luận, đã công bố, phiếu theo dõi có kết quả chuyên khoa kèm ảnh mẫu SVG, phiếu quá hạn). Phiếu theo dõi seed: nhắc 30 ngày (`fu_ch_027`), nhắc ngày hẹn và vòng mới có trao đổi tại buổi khám (`fu_ch_019`).
 - Kiểm thêm: kịch bản phủ dữ liệu 34/34 (DB mới), kịch bản backend giả 60/60, render thử 31/31.
 - Lưu ý: trẻ mới `ch_037` chỉ có sau "Khôi phục dữ liệu demo" (seed trường không tự nâng cấp DB cũ).
+
+### 2026-10-17 — Lọc trẻ "Cần theo dõi" ở danh sách trẻ (user yêu cầu sau khi đóng plan)
+- Commit: chưa commit
+- Verify: xem dòng VERIFY trong báo cáo của lượt này
+- Nội dung: danh sách trẻ có bộ lọc và cột "Theo dõi sức khỏe" theo mức của lần khám gần nhất có xếp mức (phiếu đã kết luận hoặc kết quả mẫu cũ); phiếu nháp và cân đo ngoài đợt không tính, trẻ giữ mức tới lần khám sau. Backend giả trả `latestHealth { date, followUpLevel, campaignName }` ở mỗi trẻ (đề xuất contract `GET /children`).
+- Kiểm thêm: kịch bản 8/8 (bỏ phiếu nháp, bỏ cân đo ngoài đợt, trẻ chưa có kết quả); bộ cũ 60/60, 34/34, 64/64.
+
+### 2026-10-17 — Tự công bố khi có người đi cùng (user yêu cầu sau khi đóng plan)
+- Commit: chưa commit
+- Verify: xem dòng VERIFY trong báo cáo của lượt này
+- Quyết định (user, 2026-10-17, đổi D17 và quyết định 10 của plan 2026-10-15): phiếu khám có người đi cùng thì lưu kết luận là công bố cho phụ huynh ngay, kể cả khi lưu lại sau sửa. Không có người đi cùng: giữ cách cũ (ghi trao đổi rồi giáo viên công bố). Chỗ tự chọn: không thêm hộp xác nhận, chỉ báo trước ở bước Kết luận.
+- Nội dung: backend giả gán `published`, `autoPublished` khi lưu kết luận; seed v7 (phiếu seed có người đi cùng đã công bố); trang phiếu báo trước ở bước 5, thông báo sau khi lưu, nhãn "Đã công bố khi lưu kết luận".
+- Kiểm thêm: kịch bản 63/63, 34/34, 67/67, 8/8; render thử 31/31.
+
+### 2026-10-17 — Gợi ý gộp sinh tồn và hỏi lại trước khi lưu (user chốt 1a, 2a, câu chữ đề xuất)
+- Commit: chưa commit
+- Verify: xem dòng VERIFY trong báo cáo của lượt này
+- Quyết định (user, 2026-10-17): (1a) gợi ý gộp phần II: 1/3 chỉ số ngoài khoảng ⇒ "Gợi ý: cần theo dõi"; từ 2/3 ⇒ "Gợi ý: nhiều dấu hiệu sinh tồn bất thường, bác sĩ xem lại trước khi kết luận". (2a) bác sĩ không chuyển khám, không nguy cơ lao mà còn điểm cần xem lại ⇒ hộp "Bác sĩ vẫn kết luận như vậy?" (Quay lại xem / Lưu theo bác sĩ), không chặn. Việc (b) "lần trước cần theo dõi" chưa làm (user chưa chọn).
+- Nội dung: `examReviewPoints` trả `vitalsHint`; API mới `previewHealthExamReview` (`POST /health-checks/{id}/children/{childId}/exam/review-preview`) tính điểm cần xem lại theo dữ liệu đang sửa mà không lưu, nên khi sửa phiếu đã kết luận danh sách không còn cũ.
+- Kiểm thêm: kịch bản 71/71, 63/63, 34/34, 8/8; render thử 31/31.

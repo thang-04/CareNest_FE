@@ -9,11 +9,11 @@ import { useChildRecords } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
-import { ChildStatusBadge } from '@/components/children/ChildBadges';
+import { ChildStatusBadge, FollowUpLevelShortBadge } from '@/components/children/ChildBadges';
 import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
-import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
+import { FOLLOW_UP_LEVEL, FOLLOW_UP_LEVEL_SHORT_LABELS, PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { avatarTone, formatDate, initials, normalizeText } from '@/utils/format';
 import {
   canEditChild,
@@ -27,6 +27,13 @@ import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
+// Lọc theo mức của lần khám gần nhất có xếp mức (BE trả latestHealth); NO_RESULT: chưa có lần khám nào được xếp mức.
+const NO_RESULT = 'NO_RESULT';
+const HEALTH_LEVEL_OPTIONS = [FOLLOW_UP_LEVEL.WATCH, FOLLOW_UP_LEVEL.CLOSE_WATCH, FOLLOW_UP_LEVEL.NONE].map((value) => ({
+  value,
+  label: FOLLOW_UP_LEVEL_SHORT_LABELS[value],
+}));
+
 export default function ChildrenListPage() {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();
@@ -35,6 +42,7 @@ export default function ChildrenListPage() {
   const [keyword, setKeyword] = useState('');
   const [campusId, setCampusId] = useState('');
   const [classId, setClassId] = useState('');
+  const [healthLevel, setHealthLevel] = useState('');
   const [page, setPage] = useState(1);
   const [quickViewId, setQuickViewId] = useState(null);
   const [withdrawing, setWithdrawing] = useState(null);
@@ -52,15 +60,17 @@ export default function ChildrenListPage() {
       .filter((c) => !status || c.status === status)
       .filter((c) => !campusId || c.campusId === campusId)
       .filter((c) => !classId || c.classId === classId)
+      .filter((c) => !healthLevel || (healthLevel === NO_RESULT ? !c.latestHealth : c.latestHealth?.followUpLevel === healthLevel))
       .filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw));
-  }, [all, status, campusId, classId, keyword]);
+  }, [all, status, campusId, classId, healthLevel, keyword]);
   const pageRows = paginate(rows, page);
-  const filtered = !!(status || keyword || campusId || classId);
+  const filtered = !!(status || keyword || campusId || classId || healthLevel);
   const resetFilters = () => {
     setStatus('');
     setKeyword('');
     setCampusId('');
     setClassId('');
+    setHealthLevel('');
     setPage(1);
   };
 
@@ -82,7 +92,7 @@ export default function ChildrenListPage() {
   ).length;
   // Hiệu trưởng và Phó hiệu trưởng dùng cùng bộ lọc điểm trường + lớp.
   const showCampus = isPrincipal(user) || isVicePrincipal(user);
-  const cols = showCampus ? 9 : 8;
+  const cols = showCampus ? 10 : 9;
 
   return (
     <div className="page">
@@ -199,10 +209,37 @@ export default function ChildrenListPage() {
               </option>
             ))}
           </select>
+          <select
+            className="select"
+            value={healthLevel}
+            aria-label="Mức theo dõi sức khỏe"
+            title="Theo lần khám gần nhất có kết luận; cân đo ngoài đợt không tính"
+            onChange={(e) => {
+              setHealthLevel(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Tất cả mức theo dõi</option>
+            {HEALTH_LEVEL_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+            <option value={NO_RESULT}>Chưa có kết quả khám</option>
+          </select>
           <button className="btn" onClick={resetFilters} disabled={!filtered}>
             <RotateCcw size={15} /> Đặt lại
           </button>
         </div>
+        {healthLevel && (
+          <div className="alert alert--info tr-alert-flat">
+            <Info size={18} />
+            <div>
+              Mức theo dõi theo lần khám gần nhất có kết luận của bác sĩ (hoặc kết quả mẫu cũ). Cân đo ngoài đợt không đánh giá lại nên
+              không tính; trẻ giữ mức tới lần khám sau.
+            </div>
+          </div>
+        )}
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
@@ -217,6 +254,7 @@ export default function ChildrenListPage() {
                   <th>Lớp</th>
                   {showCampus && <th>Điểm trường</th>}
                   <th>Phụ huynh</th>
+                  <th>Theo dõi sức khỏe</th>
                   <th>Trạng thái</th>
                   <th className="center">Thao tác</th>
                 </tr>
@@ -294,6 +332,18 @@ export default function ChildrenListPage() {
                             </>
                           ) : (
                             <span className="muted">Chưa có</span>
+                          )}
+                        </td>
+                        <td>
+                          {c.latestHealth ? (
+                            <div className="tr-cell-stack">
+                              <FollowUpLevelShortBadge status={c.latestHealth.followUpLevel} />
+                              <Link className="text-primary text-xs" to={`/children/${c.id}/health`}>
+                                Khám {formatDate(c.latestHealth.date)}
+                              </Link>
+                            </div>
+                          ) : (
+                            <span className="muted text-sm">Chưa có</span>
                           )}
                         </td>
                         <td>

@@ -314,6 +314,16 @@ export const healthExamMockRepository = {
     return toExamView(db, contextOf(db, campaignId, childId, user), user);
   },
 
+  /** "Điểm cần bác sĩ xem lại" theo dữ liệu đang nhập, không lưu (dùng khi sửa phiếu đã kết luận). payload như saveHealthExam. */
+  async previewHealthExamReview(campaignId, childId, payload, user) {
+    await delay(80);
+    const db = ensureChildRecordsSeeded();
+    const { campaign, child } = contextOf(db, campaignId, childId, user);
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(payload?.date || '') ? payload.date : clampDate(campaign);
+    const exam = cleanExam(payload?.exam, examReferenceFor(child.dateOfBirth, date), { concluded: false });
+    return { reviewPoints: examReviewPoints({ date, exam }, child.dateOfBirth) };
+  },
+
   /**
    * payload: { date, heightCm, weightKg, headCircumferenceCm, exam, conclude, reason }.
    * conclude=false: lưu nháp (không bắt buộc ô nào). conclude=true: kiểm đủ, khóa phiếu; sửa phiếu đã kết luận cần lý do (D12).
@@ -382,11 +392,15 @@ export const healthExamMockRepository = {
         if (changes.length === 0) return toExamView(d, { campaign, child: freshChild, cls, m: target }, user);
         // GBR-HLT-03: lưu ai sửa, lúc nào, giá trị cũ và mới; phiếu đã công bố cần công bố lại.
         target.edits = [...(target.edits || []), { at: nowIso(), userId: user.id, reason: str(payload.reason), changes }];
-        Object.assign(target, values, { published: false, publishedAt: null });
+        Object.assign(target, values, { published: false, publishedAt: null, autoPublished: false });
       } else Object.assign(target, values);
       if (payload.conclude) {
         if (!concluded) target.concludedAt = nowIso();
         trackFollowUp(d, freshChild, target, toMeasurementView(d, target).followUpLevel, user);
+        // Có người đi cùng: phụ huynh đã nghe bác sĩ tại buổi khám ⇒ lưu kết luận là công bố luôn, kể cả khi lưu lại sau sửa
+        // (user chốt 2026-10-17). Không có người đi cùng: giáo viên ghi trao đổi rồi tự công bố như cũ.
+        if (exam.admin.hasCompanion === YES_NO.YES && exam.admin.companion.fullName)
+          Object.assign(target, { published: true, publishedAt: nowIso(), publishedBy: user.id, autoPublished: true });
       }
       return toExamView(d, { campaign, child: freshChild, cls, m: target }, user);
     });

@@ -7,6 +7,7 @@ import { CHILD_STATUS } from '@/models/School';
 import {
   AI_TREND_STATUS,
   DECLARATION_STATE,
+  FOLLOW_UP_LEVEL,
   MEASUREMENT_FIELD_LABELS,
   PARENT_ACCOUNT_STATUS,
   SMS_STATUS,
@@ -69,7 +70,8 @@ const nowIso = () => new Date().toISOString();
 // v4: phiếu theo dõi dài hạn (dòng thời gian), kết quả "Cần theo dõi sát" chưa trao đổi thì chưa công bố.
 // v5: kết quả của đợt đang diễn ra theo phiếu Phụ lục II (kết luận bác sĩ, phiếu nháp, trao đổi tại buổi khám).
 // v6: đủ trường hợp thử phiếu khám (mọi lớp c1, đợt đã đóng tháng 10 ở c2, phiếu theo dõi nhắc 30 ngày, quá hạn, gộp vòng).
-const HEALTH_SEED_VERSION = 6;
+// v7: phiếu khám có người đi cùng tự công bố khi lưu kết luận.
+const HEALTH_SEED_VERSION = 7;
 const SEED_MANAGED_FIELDS = ['headCircumferenceCm', 'grossMotor', 'fineMotor', 'campaignId', 'note', 'exam', 'examStatus'];
 
 // Dữ liệu demo lưu bằng seed cũ: cập nhật bản ghi seed chưa bị sửa, thêm bản ghi seed còn thiếu; không xóa gì.
@@ -83,6 +85,8 @@ const upgradeSeedMeasurements = (d, seedMeasurements) => {
       const sameSeedRecord = m.date === s.date || (s.campaignId === OPEN_CAMPAIGN.id && m.campaignId === OPEN_CAMPAIGN.id);
       if (!(m.edits || []).length && sameSeedRecord) {
         SEED_MANAGED_FIELDS.forEach((f) => (m[f] = s[f] ?? null));
+        // Phiếu seed có người đi cùng đã tự công bố (v7).
+        if (s.exam) Object.assign(m, { published: s.published, publishedAt: s.publishedAt, autoPublished: !!s.autoPublished });
         if (s.examStatus === EXAM_STATUS.DRAFT)
           Object.assign(m, { heightCm: s.heightCm, weightKg: s.weightKg, headCircumferenceCm: s.headCircumferenceCm });
         // Seed cũ công bố sẵn (giờ cố định) mà seed mới chưa công bố thì theo seed mới; bản do người dùng công bố thì giữ.
@@ -182,6 +186,21 @@ const findChild = (db, id) => {
   return child;
 };
 
+/**
+ * Mức theo dõi hiện tại của trẻ = mức của lần khám gần nhất có xếp mức (phiếu đã kết luận hoặc kết quả mẫu cũ).
+ * Phiếu nháp và cân đo ngoài đợt không đánh giá lại nên bỏ qua: trẻ "Cần theo dõi" giữ mức tới lần khám sau.
+ */
+const latestHealthOf = (db, child) => {
+  const latest = (db.healthMeasurements || [])
+    .filter((m) => m.childId === child.id && !isExamDraft(m))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((m) => ({ m, sc: screenMeasurement(m, child.dateOfBirth) }))
+    .find(({ sc }) => sc.followUpLevel !== FOLLOW_UP_LEVEL.UNAVAILABLE);
+  if (!latest) return null;
+  const campaign = latest.m.campaignId ? (db.healthCheckCampaigns || []).find((c) => c.id === latest.m.campaignId) : null;
+  return { date: latest.m.date, followUpLevel: latest.sc.followUpLevel, campaignName: campaign?.name || null };
+};
+
 /** Child as returned to the UI: account internals only for Principal / VP. */
 const toView = (db, child, user) => {
   const cls = classOf(db, child);
@@ -199,6 +218,8 @@ const toView = (db, child, user) => {
     hasDeclaration: !!decl,
     // Hộp xác nhận cho nghỉ học báo trước việc tự đóng phiếu theo dõi.
     openFollowUpId: (db.healthFollowUps || []).find((f) => f.childId === child.id && !f.closedAt)?.id || null,
+    // Danh sách trẻ lọc được trẻ "Cần theo dõi" qua mọi đợt khám (user chốt 2026-10-17).
+    latestHealth: latestHealthOf(db, child),
   };
 };
 

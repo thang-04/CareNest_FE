@@ -17,6 +17,8 @@ export const closeHealthCheck = (id, user) => repo.closeHealthCheck(id, user);
 export const reopenHealthCheck = (id, body, user) => repo.reopenHealthCheck(id, body, user);
 export const getHealthExam = (campaignId, childId, user) => examRepo.getHealthExam(campaignId, childId, user);
 export const saveHealthExam = (campaignId, childId, payload, user) => examRepo.saveHealthExam(campaignId, childId, payload, user);
+export const previewHealthExamReview = (campaignId, childId, payload, user) =>
+  examRepo.previewHealthExamReview(campaignId, childId, payload, user);
 export const getHealthFollowUps = (filters, user) => repo.listHealthFollowUps(filters, user);
 export const getHealthFollowUp = (id, user) => repo.getHealthFollowUp(id, user);
 export const recordFollowUpContact = (id, body, user) => repo.recordFollowUpContact(id, body, user);
