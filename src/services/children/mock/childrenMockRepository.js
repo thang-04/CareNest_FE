@@ -1,6 +1,6 @@
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
-import { buildSeedChildRecords } from '@/mocks/childrenSeed';
+import { SEED_CHILD_PROFILES, buildSeedChildRecords } from '@/mocks/childrenSeed';
 import { OPEN_CAMPAIGN, buildSeedFollowUps, buildSeedHealthChecks } from '@/mocks/healthCheckSeed';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { CHILD_STATUS } from '@/models/School';
@@ -14,6 +14,13 @@ import {
 } from '@/models/children/childrenConstants';
 import { CAMPAIGN_STATUS } from '@/models/children/healthCheckConstants';
 import { EXAM_STATUS } from '@/models/children/healthExamForm';
+import {
+  PROFILE_FIELDS,
+  PROFILE_FIELD_LABELS,
+  emptyChildProfile,
+  emptyMedicalHistory,
+  formatAddress,
+} from '@/models/children/childProfile';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import {
@@ -71,7 +78,8 @@ const nowIso = () => new Date().toISOString();
 // v5: kết quả của đợt đang diễn ra theo phiếu Phụ lục II (kết luận bác sĩ, phiếu nháp, trao đổi tại buổi khám).
 // v6: đủ trường hợp thử phiếu khám (mọi lớp c1, đợt đã đóng tháng 10 ở c2, phiếu theo dõi nhắc 30 ngày, quá hạn, gộp vòng).
 // v7: phiếu khám có người đi cùng tự công bố khi lưu kết luận.
-const HEALTH_SEED_VERSION = 7;
+// v8: hành chính, tiền sử hỏi khi tiếp nhận (vài trẻ demo có sẵn).
+const HEALTH_SEED_VERSION = 8;
 const SEED_MANAGED_FIELDS = ['headCircumferenceCm', 'grossMotor', 'fineMotor', 'campaignId', 'note', 'exam', 'examStatus'];
 
 // Dữ liệu demo lưu bằng seed cũ: cập nhật bản ghi seed chưa bị sửa, thêm bản ghi seed còn thiếu; không xóa gì.
@@ -123,6 +131,19 @@ const upgradeSeedFollowUps = (d, seedFollowUps) => {
     .forEach((c) => closeFollowUpsOfWithdrawnChild(d, c, c.leftReason || 'không ghi lý do', null));
 };
 
+// Hồ sơ trẻ thuộc seed trường: chỉ điền khi chưa có (trẻ người dùng đã sửa giữ nguyên).
+const seedChildProfiles = (d) =>
+  Object.entries(SEED_CHILD_PROFILES).forEach(([id, s]) => {
+    const child = d.children.find((c) => c.id === id);
+    if (child && child.profile === undefined) child.profile = cleanProfile(s.profile);
+  });
+
+const upgradeSeedProfiles = (d) =>
+  Object.entries(SEED_CHILD_PROFILES).forEach(([id, s]) => {
+    const decl = d.healthDeclarations.find((x) => x.childId === id);
+    if (decl && decl.medicalHistory === undefined) decl.medicalHistory = clone(s.medicalHistory);
+  });
+
 /**
  * Seed mọi collection sức khỏe (đo, khai báo, đợt khám, phiếu theo dõi). Dùng chung cho repository đợt khám.
  * Mock thay job hằng ngày của BE: mỗi lần đọc tạo nhắc quá hạn trao đổi / tới ngày hẹn khám lại còn thiếu.
@@ -149,6 +170,7 @@ export const ensureChildRecordsSeeded = () => {
       const seedFollowUps = buildSeedFollowUps(d.healthMeasurements).map(normalizeFollowUp);
       if (d.healthCheckCampaigns && upgrading) upgradeSeedCampaigns(d, seedCampaigns);
       if (d.healthFollowUps && upgrading) upgradeSeedFollowUps(d, seedFollowUps);
+      if (d.healthDeclarations && upgrading) upgradeSeedProfiles(d);
       d.healthSeedVersion = HEALTH_SEED_VERSION;
       d.healthDeclarations ||= seed.healthDeclarations;
       d.parentAccounts ||= seed.parentAccounts;
@@ -156,6 +178,7 @@ export const ensureChildRecordsSeeded = () => {
       d.healthTrendDrafts ||= [];
       d.healthCheckCampaigns ||= seedCampaigns;
       d.healthFollowUps ||= seedFollowUps;
+      seedChildProfiles(d);
     });
     db = readDb();
   }
@@ -208,6 +231,7 @@ const toView = (db, child, user) => {
   const showAccounts = canViewParentAccounts(user);
   return {
     ...clone(child),
+    profile: child.profile ? clone(child.profile) : emptyChildProfile(),
     guardians: (child.guardians || []).map((g) => {
       const { smsStatus, smsAt, ...rest } = g;
       return showAccounts ? { ...rest, smsStatus, smsAt } : { fullName: g.fullName, relation: g.relation, phone: g.phone, email: g.email };
@@ -263,6 +287,14 @@ const cleanGuardians = (guardians, previous = []) =>
     };
   });
 
+const cleanMedicalHistory = (mh) => {
+  const item = (v) => ({
+    state: v?.state || DECLARATION_STATE.NOT_PROVIDED,
+    text: v?.state === DECLARATION_STATE.REPORTED ? String(v.text || '').trim() : '',
+  });
+  return { self: item(mh?.self), family: item(mh?.family), tbContact: { state: mh?.tbContact?.state || DECLARATION_STATE.NOT_PROVIDED } };
+};
+
 const cleanDeclaration = (d) => ({
   allergies: {
     state: d.allergies.state,
@@ -273,7 +305,67 @@ const cleanDeclaration = (d) => ({
     state: d.otherNotes?.state || DECLARATION_STATE.NOT_PROVIDED,
     text: d.otherNotes?.state === DECLARATION_STATE.REPORTED ? d.otherNotes.text.trim() : '',
   },
+  medicalHistory: cleanMedicalHistory(d.medicalHistory),
 });
+
+/** Hành chính hỏi khi tiếp nhận (dùng cho phiếu khám); ô trống giữ chuỗi rỗng, tuần thai là số. */
+export const cleanProfile = (p) => {
+  const s = (v, max = 100) =>
+    String(v ?? '')
+      .trim()
+      .slice(0, max);
+  const w = p?.gestationWeeks;
+  return {
+    idNumber: s(p?.idNumber, 20).replace(/\s/g, ''),
+    premature: ['YES', 'NO'].includes(p?.premature) ? p.premature : '',
+    gestationWeeks: w === '' || w == null || Number.isNaN(Number(w)) ? null : Math.round(Number(w)),
+    ethnicity: s(p?.ethnicity),
+    beneficiary: s(p?.beneficiary),
+    paymentSource: s(p?.paymentSource),
+    bloodType: s(p?.bloodType),
+    address: { province: s(p?.address?.province), ward: s(p?.address?.ward), street: s(p?.address?.street, 300) },
+  };
+};
+
+const maskId = (v) => (v ? `••••${String(v).slice(-3)}` : '');
+
+/** Thay đổi hành chính theo từng ô cho lịch sử; số định danh chỉ hiện 3 số cuối. */
+export const profileChanges = (from, to) => {
+  const a = { ...emptyChildProfile(), ...from };
+  const display = (p, k) => (k === 'address' ? formatAddress(p.address) : k === 'idNumber' ? maskId(p.idNumber) : (p[k] ?? ''));
+  return PROFILE_FIELDS.filter((k) => String(display(a, k)) !== String(display(to, k))).map((k) => ({
+    field: `profile.${k}`,
+    label: PROFILE_FIELD_LABELS[k],
+    from: display(a, k),
+    to: display(to, k),
+  }));
+};
+
+/**
+ * Khai "Có tiếp xúc với người bệnh lao" ⇒ báo Hiệu trưởng, Phó hiệu trưởng điểm trường, giáo viên lớp, trừ người lưu
+ * (user chốt 2026-10-17). Câu trung tính; không mở phiếu theo dõi.
+ */
+export const notifyTbContactReported = (d, child, actorId) => {
+  const cls = child.classId ? d.classes.find((c) => c.id === child.classId) : null;
+  const ids = new Set([
+    ...(d.users || [])
+      .filter((u) => u.role === 'PRINCIPAL' || (u.role === 'VICE_PRINCIPAL' && u.campusId === child.campusId))
+      .map((u) => u.id),
+    ...(cls?.teacherIds || []),
+  ]);
+  ids.delete(actorId);
+  ids.forEach((userId) =>
+    pushNotification(d, {
+      userId,
+      type: 'CHILD_TB_CONTACT',
+      title: 'Trẻ có tiền sử tiếp xúc với người bệnh lao',
+      message: `Phụ huynh khai ${child.fullName} có tiền sử tiếp xúc với người bệnh lao. Nhà trường trao đổi với phụ huynh về việc đưa trẻ đi khám sàng lọc; bác sĩ xem lại ở đợt khám tới.`,
+      link: `/children/${child.id}/health-declaration`,
+    }),
+  );
+};
+
+const tbReported = (mh) => mh?.tbContact?.state === DECLARATION_STATE.REPORTED;
 
 /** Placement checks (UC 3.10 step 4): class of the VP's campus, active, not full. */
 const assertClassAvailable = (db, classId, user) => {
@@ -318,6 +410,7 @@ const createChild = (db, { child, declaration }, { classId, user }) => {
     // Phó hiệu trưởng chốt dị ứng ngay khi tiếp nhận, không chờ Hiệu trưởng (quyết định user 2026-10-14).
     allergies: [...decl.allergies.items],
     guardians: cleanGuardians(child.guardians),
+    profile: cleanProfile(child.profile),
     history: [{ action: 'ENROLLED', userId: user.id, at: nowIso() }],
   };
   db.children.push(record);
@@ -330,6 +423,7 @@ const createChild = (db, { child, declaration }, { classId, user }) => {
   });
   if (classId)
     db.childPlacements.push({ id: uid('pl'), childId: record.id, fromClassId: null, toClassId: classId, userId: user.id, at: nowIso() });
+  if (tbReported(decl.medicalHistory)) notifyTbContactReported(db, record, user.id);
   return record;
 };
 
@@ -400,7 +494,11 @@ export const childrenMockRepository = {
     const kw = normalizeText(filters.keyword).trim();
     const list = db.children
       .filter((c) => canViewChild(c, user, classOf(db, c)))
-      .map((c) => toView(db, c, user))
+      // Danh sách không trả phần hành chính (có số định danh); xem ở hồ sơ trẻ.
+      .map((c) => {
+        const { profile: _profile, ...rest } = toView(db, c, user);
+        return rest;
+      })
       .filter((c) => !filters.schoolYear || !c.classId || c.schoolYear === filters.schoolYear)
       .filter((c) => !filters.campusId || c.campusId === filters.campusId)
       .filter((c) => !filters.classId || c.classId === filters.classId)
@@ -427,7 +525,13 @@ export const childrenMockRepository = {
     return {
       child: toView(db, child, user),
       cls: clone(classOf(db, child)),
-      declaration: decl ? { ...clone(decl), declaredByName: userName(db, decl.declaredBy) } : null,
+      declaration: decl
+        ? {
+            ...clone(decl),
+            medicalHistory: decl.medicalHistory ? clone(decl.medicalHistory) : emptyMedicalHistory(),
+            declaredByName: userName(db, decl.declaredBy),
+          }
+        : null,
       placements,
     };
   },
@@ -514,6 +618,11 @@ export const childrenMockRepository = {
       set('dateOfBirth', child.dateOfBirth);
       set('gender', child.gender);
       set('guardians', cleanGuardians(child.guardians, target.guardians));
+      if (child.profile) {
+        const next = cleanProfile(child.profile);
+        changes.push(...profileChanges(target.profile, next));
+        target.profile = next;
+      }
       target.history = [...(target.history || []), { action: 'UPDATED', userId: user.id, at: nowIso(), note: reason.trim(), changes }];
       return toView(d, target, user);
     });
@@ -658,8 +767,14 @@ export const childrenMockRepository = {
       const allergyChanged = JSON.stringify(decl.allergies) !== JSON.stringify(clean.allergies);
       const entry = { action: 'UPDATED', userId: user.id, at: nowIso(), note: reason?.trim() || '' };
       if (allergyChanged) entry.allergyChange = { from: decl.allergies ? clone(decl.allergies) : null, to: clone(clean.allergies) };
+      const before = decl.medicalHistory || emptyMedicalHistory();
+      if (JSON.stringify(before) !== JSON.stringify(clean.medicalHistory))
+        entry.historyChange = { from: clone(before), to: clone(clean.medicalHistory) };
+      // Chỉ báo khi chuyển sang "Có tiếp xúc", không báo lại khi lưu lại.
+      const newTbContact = !tbReported(before) && tbReported(clean.medicalHistory);
       Object.assign(decl, clean, { declaredBy: user.id, declaredAt: nowIso() });
       decl.history.push(entry);
+      if (newTbContact) notifyTbContactReported(d, findChild(d, childId), user.id);
       // Khai báo của Phó hiệu trưởng có hiệu lực ngay: bếp và điểm danh đọc danh sách mới.
       findChild(d, childId).allergies = [...clean.allergies.items];
       return clone(decl);

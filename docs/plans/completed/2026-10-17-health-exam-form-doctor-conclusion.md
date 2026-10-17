@@ -21,7 +21,7 @@ Mã trong ngoặc (D1, D2…) trỏ tới mục "Mặc định đề xuất" bê
 1. **Mở phiếu** (D1, D3). Giáo viên vào đợt khám đang diễn ra, mở danh sách lớp mình, bấm "Khám" cạnh tên trẻ. Mỗi trẻ có 1 phiếu trong 1 đợt.
    - Phần I điền sẵn: họ tên, ngày sinh, giới, tên trường, ngày khám, cơ sở khám (lấy từ đơn vị khám của đợt).
    - Dân tộc, đối tượng, nguồn chi trả, nhóm máu, sinh non, tuần thai, nơi ở: lấy từ phiếu lần trước của trẻ. Lần đầu khám thì giáo viên hỏi phụ huynh rồi nhập.
-   - Các ô này chỉ lưu trên phiếu, không sửa hồ sơ trẻ.
+   - Các ô này chỉ lưu trên phiếu, không sửa hồ sơ trẻ. **Đã thay (user chốt 2026-10-17, 2b):** lấy từ hồ sơ trẻ, lưu kết luận thì cập nhật ngược, xem [plan hồ sơ hành chính, tiền sử](2026-10-17-enrollment-admin-medical-history.md).
 2. **Chọn người đi cùng** (D3, D4). Giáo viên chọn từ danh sách phụ huynh của trẻ; tên, quan hệ, SĐT tự điền.
    - Người đi cùng không có trong danh sách (ví dụ bà, cô) thì giáo viên nhập tên, quan hệ, SĐT.
    - Ô CCCD/mã định danh của trẻ và của người đi cùng: nhập được, không bắt buộc; lần sau điền sẵn từ phiếu trước (D4).
@@ -137,7 +137,7 @@ Nguồn: user, 2026-10-17, CONFIRMED. Không đảo khi chưa hỏi user.
 
   Chuyển bước thì hệ thống tự lưu nháp. Bản nháp không bắt buộc ô nào.
 - **D3.** Phần I điền sẵn họ tên, ngày sinh, giới, tên trường, ngày khám và cơ sở khám (lấy từ đơn vị khám của đợt).
-  - Các ô dân tộc, đối tượng, nguồn chi trả, nhóm máu, sinh non, tuần thai, nơi ở: lấy từ phiếu gần nhất của trẻ, sửa được. Hệ thống không ghi ngược các ô này vào hồ sơ trẻ.
+  - Các ô dân tộc, đối tượng, nguồn chi trả, nhóm máu, sinh non, tuần thai, nơi ở: lấy từ phiếu gần nhất của trẻ, sửa được. Hệ thống không ghi ngược các ô này vào hồ sơ trẻ. **Đã thay (2b):** lấy từ hồ sơ trẻ (ô trống lấy phiếu gần nhất), lưu kết luận thì cập nhật ngược, xem [plan hồ sơ hành chính, tiền sử](2026-10-17-enrollment-admin-medical-history.md).
   - Người đi cùng: chọn từ danh sách phụ huynh của trẻ (tên, quan hệ, SĐT tự điền), hoặc nhập người khác.
 - **D4.** (User đổi 2026-10-17: có lưu CCCD.) Phiếu lưu số CC/CCCD/hộ chiếu/mã định danh của trẻ (ô 2) và của người đi cùng (ô 16), không bắt buộc. Số của trẻ lấy từ phiếu gần nhất; số của người đi cùng lấy từ phiếu gần nhất có cùng người đi cùng. Validation chỉ hỗ trợ nhập: 12 chữ số, hoặc hộ chiếu (chữ và số, 6–12 ký tự). Số chỉ hiện trong phiếu (người xem được Sổ sức khỏe và phụ huynh của trẻ); không hiện ở danh sách, thông báo, AI. Seed dùng số giả bắt đầu bằng `999` (không có mã tỉnh này). Nhóm máu được lưu khi phụ huynh biết (mẫu ghi "nếu có").
 - **D5.** Mặc định chọn sẵn:

@@ -19,9 +19,37 @@ export const isValidEmail = (email) => EMAIL_RE.test(String(email || '').trim())
 // Ngày theo giờ máy (như ô chọn ngày); ngày UTC lệch 1 ngày từ 0h tới 7h sáng giờ Việt Nam.
 const today = todayInput;
 
-/** Child + guardians block of the enrollment form. */
-export const validateChildInfo = (data) => {
+/** Số CC/CCCD/mã định danh: 12 chữ số; số hộ chiếu: chữ và số, 6–12 ký tự (user chốt có lưu 2026-10-17). */
+export const isValidIdNumber = (v) => {
+  const s = String(v ?? '')
+    .trim()
+    .replace(/\s/g, '');
+  return /^\d+$/.test(s) ? s.length === 12 : /^[A-Za-z0-9]{6,12}$/.test(s);
+};
+
+export const ID_NUMBER_MESSAGE = 'Nhập 12 chữ số (CCCD/mã định danh) hoặc số hộ chiếu 6–12 ký tự';
+
+/** Phần hành chính hỏi khi tiếp nhận: không bắt buộc, chỉ kiểm định dạng (user chốt 2026-10-17). Khóa lỗi 'profile.x'. */
+export const validateChildProfile = (p = {}) => {
   const errors = {};
+  const tooLong = (v, max) => String(v ?? '').trim().length > max;
+  if (String(p.idNumber ?? '').trim() && !isValidIdNumber(p.idNumber)) errors['profile.idNumber'] = ID_NUMBER_MESSAGE;
+  if (!['', 'YES', 'NO', undefined, null].includes(p.premature)) errors['profile.premature'] = 'Sinh non chọn Có hoặc Không';
+  const w = p.gestationWeeks;
+  if (w !== '' && w != null && (Number.isNaN(Number(w)) || Number(w) < 20 || Number(w) > 42))
+    errors['profile.gestationWeeks'] = 'Nhập tuần thai từ 20 đến 42';
+  ['ethnicity', 'beneficiary', 'paymentSource', 'bloodType'].forEach((k) => {
+    if (tooLong(p[k], 100)) errors[`profile.${k}`] = 'Tối đa 100 ký tự';
+  });
+  if (tooLong(p.address?.province, 100)) errors['profile.address.province'] = 'Tối đa 100 ký tự';
+  if (tooLong(p.address?.ward, 100)) errors['profile.address.ward'] = 'Tối đa 100 ký tự';
+  if (tooLong(p.address?.street, 300)) errors['profile.address.street'] = 'Tối đa 300 ký tự';
+  return errors;
+};
+
+/** Child + guardians block of the enrollment form (kèm phần hành chính). */
+export const validateChildInfo = (data) => {
+  const errors = { ...validateChildProfile(data.profile) };
   if (!data.fullName?.trim()) errors.fullName = 'Nhập họ tên trẻ';
   else if (data.fullName.trim().length > 100) errors.fullName = 'Họ tên tối đa 100 ký tự';
   if (!data.dateOfBirth || !DATE_RE.test(data.dateOfBirth)) errors.dateOfBirth = 'Chọn ngày sinh của trẻ';
@@ -55,6 +83,18 @@ export const validateDeclaration = (d) => {
   else if (d.diet.state === DECLARATION_STATE.REPORTED && !d.diet.text?.trim()) errors.diet = 'Mô tả chế độ ăn riêng của trẻ';
   if (d.otherNotes?.state === DECLARATION_STATE.REPORTED && !d.otherNotes.text?.trim()) errors.otherNotes = 'Nhập thông tin sức khỏe khác';
   if ((d.diet?.text || '').length > 500 || (d.otherNotes?.text || '').length > 500) errors.otherNotes = 'Nội dung tối đa 500 ký tự';
+  // Tiền sử (user chốt 2026-10-17): không bắt buộc ("Chưa cung cấp"); "Có" thì ghi rõ tên bệnh.
+  const mh = d.medicalHistory;
+  if (mh) {
+    const states = Object.values(DECLARATION_STATE);
+    ['self', 'family'].forEach((k) => {
+      if (!states.includes(mh[k]?.state)) errors[`medicalHistory.${k}`] = 'Chọn Có, Không hoặc Chưa cung cấp';
+      else if (mh[k].state === DECLARATION_STATE.REPORTED && !mh[k].text?.trim()) errors[`medicalHistory.${k}`] = 'Ghi rõ tên bệnh';
+      else if ((mh[k].text || '').length > 300) errors[`medicalHistory.${k}`] = 'Tối đa 300 ký tự';
+    });
+    if (!states.includes(mh.tbContact?.state))
+      errors['medicalHistory.tbContact'] = 'Tiếp xúc người bệnh lao chọn Có, Không hoặc Chưa cung cấp';
+  }
   return errors;
 };
 

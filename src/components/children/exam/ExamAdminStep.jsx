@@ -1,4 +1,4 @@
-import { UserCheck } from '@/components/ui/icons';
+import { Info, UserCheck } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
 import { GENDER_LABELS } from '@/models/School';
 import {
@@ -12,7 +12,7 @@ import {
 import { formatDate } from '@/utils/format';
 import { ExamChoiceField, ExamNumberField, ExamTextField } from './ExamFields';
 
-/** Bước 1 — Phần I: thông tin hành chính, người đi cùng trẻ, tiền sử. Thông tin trẻ lấy từ hồ sơ, không sửa ở đây. */
+/** Bước 1 — Phần I: thông tin hành chính, người đi cùng trẻ, tiền sử. Họ tên, ngày sinh, giới lấy từ hồ sơ, không sửa ở đây. */
 export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, disabled }) {
   const a = form.exam.admin;
   const h = form.exam.history;
@@ -29,6 +29,15 @@ export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, d
     <>
       <section className="card wizard-card">
         <h2 className="card__title mb-12">I. Thông tin hành chính</h2>
+        {!disabled && (
+          <div className="alert alert--info mb-16">
+            <Info size={18} />
+            <div>
+              Hành chính và tiền sử điền sẵn từ hồ sơ trẻ; ô hồ sơ còn trống lấy từ phiếu khám gần nhất. Hỏi lại người đi cùng trẻ. Khi lưu
+              kết luận, thay đổi ở hai phần này được cập nhật vào hồ sơ trẻ.
+            </div>
+          </div>
+        )}
         <dl className="info-list mb-16">
           <dt>Họ và tên</dt>
           <dd className="fw-600">{child.fullName.toUpperCase()}</dd>

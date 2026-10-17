@@ -468,6 +468,57 @@ const buildMeasurements = (children, classes) => {
   return list;
 };
 
+/*
+ * Hành chính, tiền sử hỏi khi tiếp nhận (dữ liệu giả). Trẻ khác để "Chưa cung cấp" như trẻ tiếp nhận từ trước (quyết định 5).
+ * ch_007: đủ hồ sơ, chưa khám đợt này ⇒ phiếu điền sẵn từ hồ sơ. ch_009: hồ sơ thiếu, khai có tiếp xúc người bệnh lao.
+ * ch_new_1: chờ xếp lớp, khai đủ.
+ */
+const address = (street, ward) => ({ province: 'Hải Phòng', ward, street });
+export const SEED_CHILD_PROFILES = {
+  ch_007: {
+    profile: {
+      idNumber: '031222009007',
+      premature: 'YES',
+      gestationWeeks: 35,
+      ethnicity: 'Kinh',
+      beneficiary: 'Trẻ em dưới 6 tuổi',
+      paymentSource: 'BHYT',
+      bloodType: 'A',
+      address: address('Số 12 ngõ 5', 'Phường Thượng Hồng'),
+    },
+    medicalHistory: {
+      self: { state: 'REPORTED', text: 'Hen phế quản' },
+      family: { state: 'NONE_REPORTED', text: '' },
+      tbContact: { state: 'NONE_REPORTED' },
+    },
+  },
+  ch_009: {
+    profile: { ethnicity: 'Kinh', bloodType: 'O' },
+    medicalHistory: {
+      self: { state: 'NONE_REPORTED', text: '' },
+      family: { state: 'NOT_PROVIDED', text: '' },
+      tbContact: { state: 'REPORTED' },
+    },
+  },
+  ch_new_1: {
+    profile: {
+      idNumber: '031222009901',
+      premature: 'NO',
+      gestationWeeks: null,
+      ethnicity: 'Kinh',
+      beneficiary: 'Trẻ em dưới 6 tuổi',
+      paymentSource: 'BHYT',
+      bloodType: 'B',
+      address: address('Thôn Đông', 'Xã Hồng Phong'),
+    },
+    medicalHistory: {
+      self: { state: 'NONE_REPORTED', text: '' },
+      family: { state: 'NONE_REPORTED', text: '' },
+      tbContact: { state: 'NONE_REPORTED' },
+    },
+  },
+};
+
 const buildDeclarations = (children) =>
   children.map((ch, i) => ({
     childId: ch.id,
@@ -477,6 +528,7 @@ const buildDeclarations = (children) =>
         ? { state: 'REPORTED', text: 'Ăn cháo/cơm nát, không ăn đồ cay.' }
         : { state: i % 3 === 0 ? 'NOT_PROVIDED' : 'NONE_REPORTED', text: '' },
     otherNotes: { state: 'NOT_PROVIDED', text: '' },
+    ...(SEED_CHILD_PROFILES[ch.id] && { medicalHistory: SEED_CHILD_PROFILES[ch.id].medicalHistory }),
     declaredBy: 'u_lan',
     declaredAt: ch.enrolledAt ? `${ch.enrolledAt}T02:00:00.000Z` : null,
     history: [],

@@ -20,6 +20,8 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState } from '@/components/ui/States';
 import { ChildStatusBadge, ParentAccountBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
+import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
+import { MEDICAL_HISTORY_ITEMS, historyItemText } from '@/models/children/childProfile';
 import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import {
   ALLERGY_STATE_LABELS,
@@ -118,6 +120,10 @@ export default function ChildProfilePage() {
   const { cls, declaration, placements } = detail;
   const showAccounts = canViewParentAccounts(user);
   const hasPendingParent = child.guardians.some((g) => g.accountStatus === 'NOT_ACTIVATED');
+  // Lần gần nhất phần hành chính đổi: sửa hồ sơ hoặc cập nhật ngược từ phiếu khám.
+  const profileUpdate = [...(child.history || [])]
+    .reverse()
+    .find((h) => h.action === 'UPDATED_FROM_EXAM' || (h.changes || []).some((c) => String(c.field).startsWith('profile.')));
 
   return (
     <div className="page">
@@ -228,6 +234,25 @@ export default function ChildProfilePage() {
             </section>
             <section className="card">
               <div className="card__header row row--between">
+                <h2 className="card__title">Thông tin hành chính</h2>
+                {canEditChild(child, user) && (
+                  <Link className="btn btn--sm btn--outline-primary" to={`/children/${child.id}/edit`}>
+                    <Pencil size={15} /> Sửa
+                  </Link>
+                )}
+              </div>
+              <div className="card__body">
+                <ChildProfileSummary profile={child.profile} />
+                {profileUpdate && (
+                  <p className="muted text-xs mt-8">
+                    Cập nhật gần nhất: {profileUpdate.action === 'UPDATED_FROM_EXAM' ? profileUpdate.note : 'Sửa hồ sơ'} ·{' '}
+                    {md.userById(profileUpdate.userId)?.fullName || '—'} · {formatDateTime(profileUpdate.at)}
+                  </p>
+                )}
+              </div>
+            </section>
+            <section className="card">
+              <div className="card__header row row--between">
                 <h2 className="card__title">Phụ huynh / người giám hộ</h2>
                 {canActivateParent(child, user) && hasPendingParent && (
                   <Link className="btn btn--sm btn--outline-primary" to={`/children/activation?childId=${child.id}`}>
@@ -313,6 +338,12 @@ export default function ChildProfilePage() {
                           ? declaration.otherNotes.text
                           : NOTE_STATE_LABELS[declaration.otherNotes?.state || DECLARATION_STATE.NOT_PROVIDED]}
                       </dd>
+                      {MEDICAL_HISTORY_ITEMS.map((it) => (
+                        <div key={it.key} className="tr-dl-pair">
+                          <dt>{it.label}</dt>
+                          <dd>{historyItemText(it, declaration.medicalHistory)}</dd>
+                        </div>
+                      ))}
                     </dl>
                   )}
                   {declaration?.declaredAt && (

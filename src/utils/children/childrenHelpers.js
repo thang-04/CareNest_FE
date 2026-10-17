@@ -1,5 +1,6 @@
 import { AGE_GROUPS } from '@/models/School';
 import { MOTOR_RESULT_LABELS } from '@/models/children/childrenConstants';
+import { emptyChildProfile, emptyMedicalHistory } from '@/models/children/childProfile';
 import { formatDate } from '@/utils/format';
 
 /**
@@ -26,10 +27,20 @@ export const formatNumber = (value, digits = 1) =>
 
 export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', email: '' });
 
+/** Bước 1 của form tiếp nhận: thông tin trẻ, phụ huynh và phần hành chính (dùng cho phiếu khám). */
+export const emptyChildInfo = () => ({
+  fullName: '',
+  dateOfBirth: '',
+  gender: '',
+  guardians: [emptyGuardian()],
+  profile: emptyChildProfile(),
+});
+
 export const emptyDeclaration = () => ({
   allergies: { state: 'NOT_PROVIDED', items: [] },
   diet: { state: 'NOT_PROVIDED', text: '' },
   otherNotes: { state: 'NOT_PROVIDED', text: '' },
+  medicalHistory: emptyMedicalHistory(),
 });
 
 /** Tông điểm biểu đồ theo kết quả BE trả (chỉ ánh xạ hiển thị, không tính lại). */

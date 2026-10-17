@@ -11,6 +11,8 @@ import { Stepper } from '@/components/ui/Stepper';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, Spinner } from '@/components/ui/States';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
+import { ChildProfileFields } from '@/components/children/ChildProfileFields';
+import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { ExistingGuardianPicker } from '@/components/children/ExistingGuardianPicker';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
@@ -21,7 +23,7 @@ import { formatDate } from '@/utils/format';
 import { hasErrors, normalizePhone, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { canEnrollChild } from '@/utils/children/childrenPermissions';
-import { emptyDeclaration, emptyGuardian, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
+import { emptyChildInfo, emptyDeclaration, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -55,7 +57,7 @@ export default function EnrollChildPage() {
 
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
-  const [info, setInfo] = useState({ fullName: '', dateOfBirth: '', gender: '', guardians: [emptyGuardian()] });
+  const [info, setInfo] = useState(emptyChildInfo);
   const [guardianMode, setGuardianMode] = useState(GUARDIAN_MODE.NEW);
   const [linked, setLinked] = useState([]);
   const [ageGroupId, setAgeGroupId] = useState('');
@@ -234,7 +236,7 @@ export default function EnrollChildPage() {
                 className="btn"
                 onClick={() => {
                   setSaved(null);
-                  setInfo({ fullName: '', dateOfBirth: '', gender: '', guardians: [emptyGuardian()] });
+                  setInfo(emptyChildInfo());
                   setGuardianMode(GUARDIAN_MODE.NEW);
                   setLinked([]);
                   setClassId('');
@@ -345,6 +347,11 @@ export default function EnrollChildPage() {
           )}
         </section>
       )}
+      {step === 0 && (
+        <section className="card wizard-card">
+          <ChildProfileFields value={info.profile} onChange={(profile) => changeInfo({ ...info, profile })} errors={errors.info} />
+        </section>
+      )}
 
       {step === 1 && (
         <section className="card wizard-card">
@@ -416,6 +423,8 @@ export default function EnrollChildPage() {
                 </div>
               ))}
             </dl>
+            <h3 className="subsection-title mt-16">Thông tin hành chính</h3>
+            <ChildProfileSummary profile={info.profile} />
           </section>
           <section className="card wizard-card">
             <div className="row row--between mb-12">

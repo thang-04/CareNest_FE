@@ -143,6 +143,20 @@ export const IMPORT_COLUMNS = [
   { key: 'email', label: 'Email', required: false },
   { key: 'allergies', label: 'Dị ứng (để trống = chưa cung cấp, "Không" = không có)', required: false },
   { key: 'diet', label: 'Chế độ ăn (để trống = chưa cung cấp, "Không" = không có)', required: false },
+  // Hành chính và tiền sử dùng cho phiếu khám (user chốt 2026-10-17): đều không bắt buộc.
+  { key: 'idNumber', label: 'Số CCCD/mã định danh của trẻ', required: false },
+  { key: 'premature', label: 'Sinh non (Có/Không)', required: false },
+  { key: 'gestationWeeks', label: 'Tuần thai khi sinh', required: false },
+  { key: 'ethnicity', label: 'Dân tộc', required: false },
+  { key: 'beneficiary', label: 'Đối tượng', required: false },
+  { key: 'paymentSource', label: 'Nguồn chi trả', required: false },
+  { key: 'bloodType', label: 'Nhóm máu', required: false },
+  { key: 'province', label: 'Nơi ở - Tỉnh/thành', required: false },
+  { key: 'ward', label: 'Nơi ở - Phường/xã', required: false },
+  { key: 'street', label: 'Nơi ở - Số nhà/thôn/xóm', required: false },
+  { key: 'selfHistory', label: 'Tiền sử bản thân (để trống = chưa cung cấp, "Không" = không có)', required: false },
+  { key: 'familyHistory', label: 'Tiền sử gia đình (để trống = chưa cung cấp, "Không" = không có)', required: false },
+  { key: 'tbContact', label: 'Tiếp xúc người bệnh lao (Có/Không, để trống = chưa cung cấp)', required: false },
 ];
 
 export const MEASUREMENT_FIELD_LABELS = {

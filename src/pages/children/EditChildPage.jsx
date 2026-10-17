@@ -8,9 +8,11 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
+import { ChildProfileFields } from '@/components/children/ChildProfileFields';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { updateChild } from '@/services/children/childrenService';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
+import { emptyChildProfile } from '@/models/children/childProfile';
 import { hasErrors, validateChildInfo } from '@/utils/children/childrenValidation';
 import { canEditChild } from '@/utils/children/childrenPermissions';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
@@ -35,6 +37,7 @@ export default function EditChildPage() {
         dateOfBirth: c.dateOfBirth,
         gender: c.gender,
         guardians: c.guardians.map((g) => ({ fullName: g.fullName, relation: g.relation, phone: g.phone, email: g.email || '' })),
+        profile: { ...emptyChildProfile(), ...c.profile, gestationWeeks: c.profile?.gestationWeeks ?? '' },
       });
     }
   }, [detail]);
@@ -93,21 +96,21 @@ export default function EditChildPage() {
     }
   };
 
+  const change = (v) => {
+    setForm(v);
+    const now = validateChildInfo(v);
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k === 'reason' || now[k])));
+  };
+
   return (
     <div className="page">
       <Breadcrumb items={crumbs} />
       <h1 className="page__title">Sửa hồ sơ: {child.fullName}</h1>
       <section className="card wizard-card">
-        <ChildInfoFields
-          value={form}
-          onChange={(v) => {
-            setForm(v);
-            const now = validateChildInfo(v);
-            setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k === 'reason' || now[k])));
-          }}
-          errors={errors}
-          lockedGuardianPhones={lockedPhones}
-        />
+        <ChildInfoFields value={form} onChange={change} errors={errors} lockedGuardianPhones={lockedPhones} />
+      </section>
+      <section className="card wizard-card">
+        <ChildProfileFields value={form.profile} onChange={(profile) => change({ ...form, profile })} errors={errors} />
       </section>
       <section className="card wizard-card">
         <FormField label="Lý do chỉnh sửa" required error={errors.reason} hint="Được lưu vào lịch sử thay đổi của hồ sơ">

@@ -14,7 +14,7 @@ import {
   YES_NO,
 } from '@/models/children/healthExamForm';
 import { todayInput } from '@/utils/format';
-import { isValidPhone } from './childrenValidation';
+import { ID_NUMBER_MESSAGE, isValidIdNumber, isValidPhone } from './childrenValidation';
 
 /*
  * Kiểm tra nhập liệu của phiếu Phụ lục II khi lưu kết luận (form báo ngay, backend giả trả 422 cùng khóa).
@@ -27,13 +27,9 @@ const YES_NO_VALUES = Object.values(YES_NO);
 const isBlank = (v) => v === '' || v == null;
 const text = (v) => String(v ?? '').trim();
 
-/** Số CC/CCCD/mã định danh: 12 chữ số; số hộ chiếu: chữ và số, 6–12 ký tự (user chốt có lưu 2026-10-17). */
-export const isValidIdNumber = (v) => {
-  const s = text(v).replace(/\s/g, '');
-  return /^\d+$/.test(s) ? s.length === 12 : /^[A-Za-z0-9]{6,12}$/.test(s);
-};
-
-const ID_MESSAGE = 'Nhập 12 chữ số (CCCD/mã định danh) hoặc số hộ chiếu 6–12 ký tự';
+// Dùng chung định dạng số định danh với hồ sơ trẻ.
+export { isValidIdNumber };
+const ID_MESSAGE = ID_NUMBER_MESSAGE;
 
 const checkNumber = (errors, key, value, { min, max, required, label, unit }) => {
   if (isBlank(value)) {

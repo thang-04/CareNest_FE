@@ -22,7 +22,7 @@ keywords:
     {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: []}   # OPEN — ADR-0009, dừng và hỏi
   "dị ứng|allergy":
     {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md]}
-  "trẻ|child|hồ sơ trẻ|ghi danh|enrollment|guardian":
+  "trẻ|child|hồ sơ trẻ|ghi danh|tiếp nhận|enrollment|guardian|hành chính|tiền sử|cccd|mã định danh|tiếp xúc lao":
     {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
   "sức khỏe|health|chiều cao|cân nặng|vòng đầu|vận động|đợt khám|phiếu theo dõi|quá hạn trao đổi|hẹn khám lại|khám chuyên khoa|measurement|tăng trưởng|trend|biểu đồ|phiếu khám|phụ lục ii|kết luận bác sĩ|sinh tồn|mạch|nhịp thở|nhiệt độ|nguy cơ lao|cân đo":
     {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}   # người nhập PENDING ở BE; user chốt GV phụ trách lớp, đợt khám (PROPOSED)

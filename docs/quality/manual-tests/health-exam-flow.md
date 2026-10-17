@@ -250,3 +250,25 @@ Danh sách đầy đủ: bảng `EXAM_CASES` trong `src/mocks/childrenSeed.js`.
 | H2 | Hiệu trưởng | Đổi bộ lọc sang **Cần theo dõi sát** | Có T3, T4, T5, T9 và trẻ có phiếu theo dõi từ đợt trước |
 | H3 | Cô Ngọc | Sau bước F (cân đo ngoài đợt cho Đỗ Gia Bảo) xem cột Theo dõi sức khỏe | Mức vẫn theo lần khám có kết luận trước đó: cân đo ngoài đợt và phiếu nháp không tính |
 | H4 | Hiệu trưởng | Bộ lọc **Chưa có kết quả khám** | Trẻ chưa có lần khám nào được xếp mức, ví dụ trẻ mới tiếp nhận Lý Gia Phúc |
+
+## I. Hành chính, tiền sử hỏi khi tiếp nhận (Campus 1)
+
+Nghiệp vụ: [plan hồ sơ hành chính, tiền sử](../../plans/completed/2026-10-17-enrollment-admin-medical-history.md). Làm sau bước 0 (khôi phục dữ liệu demo). Tài khoản thêm: Phó hiệu trưởng Campus 1 `lan.nguyen@carenest.edu.vn`, giáo viên Lớp Chồi 1 `minhanh.le@carenest.edu.vn`.
+
+| Bước | Ai | Thao tác | Kết quả mong đợi |
+| --- | --- | --- | --- |
+| I1 | Phó hiệu trưởng Campus 1 | **Hồ sơ trẻ → Tiếp nhận trẻ**. Bước 1 nhập tên, ngày sinh, giới, phụ huynh; để trống khối **Thông tin hành chính**, bấm **Tiếp tục** | Qua bước được (không bắt buộc). Khối hành chính có 10 ô, Sinh non mặc định **Chưa cung cấp** |
+| I2 | Phó hiệu trưởng Campus 1 | Quay lại bước 1: số định danh `123`, tuần thai `50`, bấm **Tiếp tục** | *Nhập 12 chữ số (CCCD/mã định danh) hoặc số hộ chiếu 6–12 ký tự* và *Nhập tuần thai từ 20 đến 42*. Sửa thành `031222000888`, sinh non Có, `35` tuần, nhóm máu `O` |
+| I3 | Phó hiệu trưởng Campus 1 | Bước Xếp lớp chọn **Lớp Chồi 1**. Bước Khai báo sức khỏe, phần **Tiền sử**: bản thân chọn Có, để trống, bấm **Tiếp tục** | Ba mục mặc định **Chưa cung cấp**. Lỗi *Ghi rõ tên bệnh*. Nhập `Viêm phổi lúc 1 tuổi` |
+| I4 | Phó hiệu trưởng Campus 1 | Tiếp xúc với người bệnh lao chọn **Có** | Hiện ghi chú: khi lưu, hệ thống báo Hiệu trưởng, Phó hiệu trưởng điểm trường và giáo viên lớp |
+| I5 | Phó hiệu trưởng Campus 1 | Bước Xem lại, rồi **Lưu hồ sơ tiếp nhận** | Thẻ Thông tin trẻ có mục Thông tin hành chính (số định danh, *Có · 35 tuần*, nhóm máu O). Thẻ Khai báo sức khỏe có 3 dòng tiền sử, ví dụ *Có — Viêm phổi lúc 1 tuổi* |
+| I6 | Hiệu trưởng, cô Minh Anh | Mở chuông thông báo | Có *Trẻ có tiền sử tiếp xúc với người bệnh lao*: *Phụ huynh khai … có tiền sử tiếp xúc với người bệnh lao. Nhà trường trao đổi với phụ huynh về việc đưa trẻ đi khám sàng lọc; bác sĩ xem lại ở đợt khám tới.* Phó hiệu trưởng Campus 1 (người lưu) và Phó hiệu trưởng Campus 2 không nhận |
+| I7 | Hiệu trưởng | **Danh sách trẻ**, xem nhanh trẻ vừa nhận | Không có số định danh hay tiền sử tiếp xúc lao trong danh sách |
+| I8 | Hiệu trưởng | Mở hồ sơ trẻ vừa nhận | Thẻ **Thông tin hành chính**; cột Sức khỏe có 3 dòng tiền sử |
+| I9 | Phó hiệu trưởng Campus 1 | **Khai báo sức khỏe → Sửa khai báo**: tiếp xúc lao Không, lưu (lý do); rồi sửa lại Có, lưu; rồi chỉ đổi Thông tin khác, lưu | Lần chuyển sang Có báo lại Hiệu trưởng và cô Minh Anh; lần lưu khi vẫn Có không báo. Lịch sử thay đổi ghi *Tiền sử tiếp xúc với người bệnh lao: Không → Có* |
+| I10 | Phó hiệu trưởng Campus 1 | **Nhập từ Excel → Tải file mẫu** | File có thêm 13 cột hành chính, tiền sử. Thêm 1 dòng có số định danh `12ab`, Sinh non `Chắc chắn`: xem trước báo lỗi đúng dòng. File mẫu cũ (9 cột) vẫn nhập được |
+| I11 | Cô Minh Anh | Đợt khám Campus 1 → Lớp Chồi 1 → **Khám** Trần Khánh An | Bước 1 có ghi chú *điền sẵn từ hồ sơ trẻ*. Số định danh `031222009007`, sinh non Có 35 tuần, nhóm máu A, nơi ở Số 12 ngõ 5; tiền sử bản thân Có *Hen phế quản*, gia đình Không, tiếp xúc lao Không |
+| I12 | Cô Minh Anh | **Khám** Bùi Bảo Ngọc | Hồ sơ thiếu: dân tộc Kinh, nhóm máu O; số định danh trống; tiền sử gia đình trống (Chưa cung cấp); tiếp xúc lao **Có** |
+| I13 | Cô Minh Anh | Trần Khánh An: đổi nhóm máu `AB`, bấm **Lưu nháp** | Hồ sơ trẻ vẫn nhóm máu A (phiếu nháp không cập nhật) |
+| I14 | Cô Minh Anh | Tiền sử gia đình Có `Tăng huyết áp (bà ngoại)`, điền đủ phiếu, **Lưu kết luận** | Hồ sơ trẻ: nhóm máu AB, dòng *Cập nhật gần nhất: Cập nhật từ phiếu khám ngày …*. Khai báo sức khỏe: lịch sử *Cập nhật tiền sử từ phiếu khám*, *Tiền sử gia đình: Không → Có — Tăng huyết áp (bà ngoại)*. Không có thông báo tiếp xúc lao mới |
+| I15 | Hiệu trưởng | Mở hồ sơ Nguyễn Hoàng Nam (trẻ tiếp nhận từ trước) | Thông tin hành chính *Chưa cung cấp*; tiền sử *Chưa cung cấp*. Ở mục B, T1 vẫn điền sẵn từ phiếu 6/10 vì hồ sơ trống |

@@ -18,12 +18,13 @@ import {
   buildEmptyExam,
   labelOf,
 } from '@/models/children/healthExamForm';
-import { todayInput } from '@/utils/format';
+import { examAdminToProfile, examToHistory, historyToExam, profileToExamAdmin } from '@/models/children/childProfile';
+import { formatDate, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import { hasErrors } from '@/utils/children/childrenValidation';
 import { validateHealthExam } from '@/utils/children/healthExamValidation';
 import { canRecordMeasurement, canViewHealth } from '@/utils/children/childrenPermissions';
-import { ensureChildRecordsSeeded, isExamDraft, toMeasurementView } from './childrenMockRepository';
+import { cleanProfile, ensureChildRecordsSeeded, isExamDraft, profileChanges, toMeasurementView } from './childrenMockRepository';
 import { conclusionBrief } from './healthCheckMockRepository';
 import { campaignStatusOf, isOpenForEntry, trackFollowUp } from './healthCheckRule';
 import { examReferenceFor, examReviewPoints, screenMeasurement } from './healthScreeningRule';
@@ -31,7 +32,8 @@ import { examReferenceFor, examReviewPoints, screenMeasurement } from './healthS
 /*
  * Backend giả của phiếu kiểm tra sức khỏe Phụ lục II trong đợt khám (user chốt 2026-10-17, PROPOSED — chờ BE).
  * Phiếu là measurement có exam + examStatus (DRAFT/CONCLUDED); mỗi trẻ 1 phiếu mỗi đợt. Giáo viên phụ trách lớp nhập;
- * bác sĩ, nhân viên y tế không có tài khoản. Lưu kết luận ⇒ khóa phiếu, mức theo dõi theo kết luận, mở phiếu theo dõi.
+ * bác sĩ, nhân viên y tế không có tài khoản. Lưu kết luận ⇒ khóa phiếu, mức theo dõi theo kết luận, mở phiếu theo dõi,
+ * cập nhật ngược hành chính và tiền sử vào hồ sơ trẻ.
  * Phạm vi xem như Sổ sức khỏe. CCCD chỉ trả trong phiếu, không vào danh sách, thông báo, AI.
  */
 
@@ -67,16 +69,31 @@ const latestConcludedExam = (db, childId, excludeId) =>
     .filter((x) => x.childId === childId && x.id !== excludeId && x.exam && x.examStatus === EXAM_STATUS.CONCLUDED)
     .sort((a, b) => b.date.localeCompare(a.date))[0] || null;
 
-/** Phiếu mới: hành chính, tiền sử lấy từ phiếu gần nhất; người đi cùng mặc định là phụ huynh đầu tiên trong hồ sơ (D3). */
+const blankValue = (v) => v === '' || v == null || (typeof v === 'object' && !Object.values(v).some((x) => String(x || '').trim()));
+
+/**
+ * Hành chính, tiền sử luôn lấy từ hồ sơ trẻ và khai báo sức khỏe (user chốt 2026-10-17, 2b).
+ * Ô hồ sơ còn trống (trẻ tiếp nhận từ trước) thì lấy từ phiếu khám gần nhất.
+ */
 const prefillExam = (db, child) => {
   const exam = buildEmptyExam();
   const last = latestConcludedExam(db, child.id);
   const guardian = child.guardians?.[0];
-  if (last) {
-    const { hasCompanion: _h, companion: _c, ...admin } = last.exam.admin;
-    Object.assign(exam.admin, clone(admin));
-    Object.assign(exam.history, clone(last.exam.history));
-  }
+  const fromProfile = profileToExamAdmin(child.profile || undefined);
+  Object.keys(fromProfile).forEach((k) => {
+    exam.admin[k] = blankValue(fromProfile[k]) && last ? clone(last.exam.admin[k]) : clone(fromProfile[k]);
+  });
+  const decl = db.healthDeclarations.find((x) => x.childId === child.id);
+  const fromDecl = historyToExam(decl?.medicalHistory || undefined);
+  [
+    ['self', 'selfText'],
+    ['family', 'familyText'],
+    ['tbContact', null],
+  ].forEach(([k, textKey]) => {
+    const useLast = !fromDecl[k] && last;
+    exam.history[k] = useLast ? last.exam.history[k] : fromDecl[k];
+    if (textKey) exam.history[textKey] = useLast ? last.exam.history[textKey] : fromDecl[textKey];
+  });
   if (guardian) {
     const prev = last?.exam.admin.companion;
     const same = prev && prev.fullName === guardian.fullName;
@@ -90,6 +107,47 @@ const prefillExam = (db, child) => {
     };
   }
   return exam;
+};
+
+/**
+ * Lưu kết luận ⇒ cập nhật ngược hành chính vào hồ sơ trẻ, tiền sử vào khai báo sức khỏe (user chốt 2026-10-17, 2b).
+ * Ghi lịch sử ở cả hai nơi; không gửi thông báo tiếp xúc lao (bác sĩ đã kết luận nguy cơ lao trên phiếu).
+ */
+const writeBackProfile = (db, child, m, user) => {
+  const note = `Cập nhật từ phiếu khám ngày ${formatDate(m.date)}`;
+  const at = nowIso();
+  const nextProfile = cleanProfile(examAdminToProfile(m.exam.admin));
+  const changes = profileChanges(child.profile, nextProfile);
+  if (changes.length) {
+    child.profile = nextProfile;
+    child.history = [...(child.history || []), { action: 'UPDATED_FROM_EXAM', userId: user.id, at, note, measurementId: m.id, changes }];
+  }
+  const nextHistory = examToHistory(m.exam.history);
+  let decl = db.healthDeclarations.find((x) => x.childId === child.id);
+  const before = decl?.medicalHistory || null;
+  if (JSON.stringify(before ? historyToExam(before) : historyToExam()) === JSON.stringify(historyToExam(nextHistory))) return;
+  if (!decl) {
+    // Trẻ chưa có khai báo: chỉ tạo phần tiền sử, dị ứng và chế độ ăn để Chưa cung cấp.
+    decl = {
+      childId: child.id,
+      allergies: { state: 'NOT_PROVIDED', items: [] },
+      diet: { state: 'NOT_PROVIDED', text: '' },
+      otherNotes: { state: 'NOT_PROVIDED', text: '' },
+      history: [],
+    };
+    db.healthDeclarations.push(decl);
+  }
+  decl.medicalHistory = nextHistory;
+  decl.history = [
+    ...(decl.history || []),
+    {
+      action: 'UPDATED_FROM_EXAM',
+      userId: user.id,
+      at,
+      note,
+      historyChange: { from: before ? clone(before) : null, to: clone(nextHistory) },
+    },
+  ];
 };
 
 /* ---------- Làm sạch phiếu: chỉ giữ ô có trong mẫu ---------- */
@@ -397,6 +455,7 @@ export const healthExamMockRepository = {
       if (payload.conclude) {
         if (!concluded) target.concludedAt = nowIso();
         trackFollowUp(d, freshChild, target, toMeasurementView(d, target).followUpLevel, user);
+        writeBackProfile(d, freshChild, target, user);
         // Có người đi cùng: phụ huynh đã nghe bác sĩ tại buổi khám ⇒ lưu kết luận là công bố luôn, kể cả khi lưu lại sau sửa
         // (user chốt 2026-10-17). Không có người đi cùng: giáo viên ghi trao đổi rồi tự công bố như cũ.
         if (exam.admin.hasCompanion === YES_NO.YES && exam.admin.companion.fullName)

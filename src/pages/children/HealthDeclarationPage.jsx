@@ -17,6 +17,7 @@ import { formatDateTime } from '@/utils/format';
 import { hasErrors, validateDeclaration } from '@/utils/children/childrenValidation';
 import { canDeclareHealth } from '@/utils/children/childrenPermissions';
 import { emptyDeclaration } from '@/utils/children/childrenHelpers';
+import { MEDICAL_HISTORY_ITEMS, emptyMedicalHistory, historyItemText } from '@/models/children/childProfile';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -24,7 +25,12 @@ const HISTORY_LABELS = {
   DECLARED: 'Khai báo khi tiếp nhận',
   UPDATED: 'Cập nhật khai báo',
   ALLERGY_CONFIRMED: 'Hiệu trưởng xác nhận dị ứng',
+  UPDATED_FROM_EXAM: 'Cập nhật tiền sử từ phiếu khám',
 };
+
+// Chỉ liệt kê mục tiền sử có thay đổi.
+const historyChangeLines = (c) =>
+  MEDICAL_HISTORY_ITEMS.map((it) => [it.label, historyItemText(it, c.from), historyItemText(it, c.to)]).filter(([, a, b]) => a !== b);
 
 const allergyText = (a) =>
   !a ? 'Chưa có khai báo' : a.state === DECLARATION_STATE.REPORTED ? a.items.join(', ') : ALLERGY_STATE_LABELS[a.state];
@@ -54,6 +60,7 @@ export default function HealthDeclarationPage() {
       allergies: { ...d.allergies, items: [...d.allergies.items] },
       diet: { ...d.diet },
       otherNotes: { ...(d.otherNotes || emptyDeclaration().otherNotes) },
+      medicalHistory: JSON.parse(JSON.stringify(d.medicalHistory || emptyMedicalHistory())),
     });
     setReason('');
     setErrors({});
@@ -193,8 +200,14 @@ export default function HealthDeclarationPage() {
                         <div>{HISTORY_LABELS[h.action] || h.action}</div>
                         <div className="muted text-sm">
                           {md.userById(h.userId)?.fullName || '—'} · {formatDateTime(h.at)}
-                          {h.note ? ` · Lý do: ${h.note}` : ''}
+                          {h.note ? (h.action === 'UPDATED_FROM_EXAM' ? ` · ${h.note}` : ` · Lý do: ${h.note}`) : ''}
                         </div>
+                        {h.historyChange &&
+                          historyChangeLines(h.historyChange).map(([label, from, to]) => (
+                            <div key={label} className="muted text-sm">
+                              {label}: {from} → {to}
+                            </div>
+                          ))}
                         {h.allergyChange && (
                           <div className="muted text-sm">
                             Dị ứng: {allergyText(h.allergyChange.from)} → {allergyText(h.allergyChange.to)}
