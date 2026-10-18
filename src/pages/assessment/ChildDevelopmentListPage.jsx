@@ -81,7 +81,7 @@ export default function ChildDevelopmentListPage() {
           <ErrorState error={error || classesError} onRetry={reload} />
         ) : (
           <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã trẻ</th>

@@ -78,6 +78,7 @@ const ITEMS = {
   eduSettings: { label: 'Cấu hình kế hoạch', to: '/education/settings' },
 
   assessDaily: { label: 'Đánh giá hằng ngày', to: '/assessment/daily' },
+  assessDayUnlocks: { label: 'Mở lại ngày đánh giá', to: '/assessment/day-unlocks' },
   assessProfiles: { label: 'Hồ sơ phát triển', to: '/assessment/children' },
   assessProgress: { label: 'Tiến độ phát triển', to: '/assessment/children' },
   assessPeriodic: { label: 'Đánh giá tuần / tháng', to: '/assessment/periodic' },
@@ -138,7 +139,7 @@ const MENUS = {
     ]),
     group('children', ['childList', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'mealCount', 'dailyHealthOverview']),
-    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards']),
+    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards', 'assessDayUnlocks']),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings']),
     group('menu', ['menuPlans']),
     group('kitchen', ['publishedMenu', 'confirmedMealCount']),
@@ -153,7 +154,7 @@ const MENUS = {
     group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'mealCount', 'dailyHealthOverview']),
     group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings']),
-    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards']),
+    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards', 'assessDayUnlocks']),
     group('menu', ['foods', 'dishes', 'mealPrices', 'menus', 'allergyMenus', 'weeklyMenus', 'aiMenu', 'nutrition']),
     group('kitchen', [
       'stockReceipts',

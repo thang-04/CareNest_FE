@@ -8,6 +8,7 @@ import { regenerateEvaluationDraft } from '@/services/assessment/assessmentServi
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
 import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
 import { periodLabel } from '@/utils/assessment/assessmentPeriods';
@@ -126,12 +127,12 @@ export default function AiEvaluationDraftPage() {
               <dl className="info-list info-columns">
                 <dt>Số ngày có mặt:</dt>
                 <dd>{src.presentDays}</dd>
-                <dt>Lượt đánh giá hằng ngày:</dt>
-                <dd>{src.assessmentCount}</dd>
-                <dt>Cờ bé ngoan:</dt>
-                <dd>{src.flagCount}</dd>
-                <dt>Hoạt động:</dt>
-                <dd>{src.activities.join(', ') || '—'}</dd>
+                {kind !== EVAL_KIND.YEAR_END && (
+                  <>
+                    <dt>Ngày có đánh giá hằng ngày:</dt>
+                    <dd>{src.structured?.observedDays || new Set(detail.assessments.map((a) => a.date)).size}</dd>
+                  </>
+                )}
                 {kind === EVAL_KIND.YEAR_END && (
                   <>
                     <dt>Đánh giá tháng đã xác nhận:</dt>
@@ -139,27 +140,30 @@ export default function AiEvaluationDraftPage() {
                   </>
                 )}
               </dl>
-              <div className="table-wrap mt-12">
-                <table className="table table--compact">
-                  <thead>
-                    <tr>
-                      <th>Tiêu chí</th>
-                      <th className="right">Số lượt đạt</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(src.criteriaCounts).map(([cid, n]) => (
-                      <tr key={cid}>
-                        <td>{critName[cid] || cid}</td>
-                        <td className="right">{n}</td>
+              {!src.structured?.observedDays && (
+                <div className="table-wrap mt-12">
+                  <table className="table table--grid table--compact">
+                    <thead>
+                      <tr>
+                        <th>Tiêu chí</th>
+                        <th className="right">Số lượt đạt</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {Object.entries(src.criteriaCounts).map(([cid, n]) => (
+                        <tr key={cid}>
+                          <td>{critName[cid] || cid}</td>
+                          <td className="right">{n}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
+        {src?.structured?.observedDays > 0 && <PeriodSummaryTable data={src.structured} />}
 
         <div className="page-actions">
           <Link className="btn" to={`${base}/${id}`}>

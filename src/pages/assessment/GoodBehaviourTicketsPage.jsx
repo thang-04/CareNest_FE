@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BadgeCheck, CalendarRange, Info, Lock, Ticket } from '@/components/ui/icons';
+import { BadgeCheck, CalendarRange, ChevronLeft, ChevronRight, Flag, Lock, Ticket } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAssessmentClasses, useTicketBoard } from '@/hooks/assessment/useAssessment';
@@ -7,9 +7,28 @@ import { issueTickets } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { TICKET_TYPE, TICKET_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
 import { periodLabel } from '@/utils/assessment/assessmentPeriods';
+
+// Tuần ghi như giáo án (Tuần N của năm học), tháng ghi Tháng mm/yyyy
+const periodText = (pType, p) =>
+  p.weekNo ? `Tuần ${p.weekNo} (${periodLabel(pType, p.start, p.end).replace(/^Tuần /, '')})` : periodLabel(pType, p.start, p.end);
+
+/** Lý do chưa đủ điều kiện, nói rõ còn thiếu bao nhiêu (thay cho khung giải thích quy tắc). */
+const missingText = (r, rules, weekly) => {
+  if (!weekly) return `Thiếu ${rules.MONTH_MIN_WEEKLY_TICKETS - r.weeklyTickets} phiếu tuần`;
+  const parts = [
+    r.presentDays < rules.WEEK_MIN_PRESENT_DAYS && `thiếu ${rules.WEEK_MIN_PRESENT_DAYS - r.presentDays} ngày có mặt`,
+    r.flagCount < rules.WEEK_MIN_FLAGS && `thiếu ${rules.WEEK_MIN_FLAGS - r.flagCount} cờ`,
+  ].filter(Boolean);
+  const text = parts.join(', ');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+// Đủ điều kiện chưa phát lên đầu, rồi đã phát, cuối cùng chưa đủ điều kiện
+const rank = (r) => (r.ticket ? 1 : r.eligible ? 0 : 2);
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 
@@ -30,7 +49,11 @@ export default function GoodBehaviourTicketsPage() {
   );
   const { board, loading, error, reload } = useTicketBoard(params);
 
-  const rows = board?.rows || [];
+  const rows = [...(board?.rows || [])].sort((a, b) => rank(a) - rank(b) || a.child.fullName.localeCompare(b.child.fullName, 'vi'));
+  const periods = board?.periods || [];
+  const periodIndex = periods.findIndex((p) => p.start === board?.period?.start);
+  // Giáo viên dạy một lớp: không cần chọn lớp
+  const cls = classes.find((c) => c.id === currentClassId);
   const issuable = rows.filter((r) => r.eligible && !r.ticket);
   const issued = rows.filter((r) => r.ticket).length;
   const weekly = type === TICKET_TYPE.WEEKLY;
@@ -67,15 +90,6 @@ export default function GoodBehaviourTicketsPage() {
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.tickets)} />
       <h1 className="page__title">Phiếu bé ngoan</h1>
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          Phiếu tuần: trẻ có mặt ít nhất <b>4 ngày</b> và có ít nhất <b>3 cờ bé ngoan</b> trong tuần. Phiếu tháng: trẻ có ít nhất{' '}
-          <b>3 phiếu tuần</b> trong tháng (tuần tính vào tháng chứa ngày thứ Hai). Hệ thống tính điều kiện từ điểm danh và cờ bạn đã ghi;
-          nếu thấy sai, hãy sửa điểm danh hoặc đánh giá hằng ngày.
-        </div>
-      </div>
-
       {classesError ? (
         <ErrorState error={classesError} />
       ) : !classesLoading && classes.length === 0 ? (
@@ -102,14 +116,11 @@ export default function GoodBehaviourTicketsPage() {
               </button>
             ))}
           </div>
-          <div className="filter-bar" style={{ flexWrap: 'wrap' }}>
-            <div className="field" style={{ margin: 0 }}>
-              <label className="field__label" htmlFor="dg-t-class">
-                Lớp
-              </label>
+          <div className="filter-bar dg-ticket-bar">
+            {classes.length > 1 ? (
               <select
-                id="dg-t-class"
                 className="select"
+                aria-label="Lớp"
                 value={currentClassId}
                 onChange={(e) =>
                   changeFilter(() => {
@@ -124,29 +135,53 @@ export default function GoodBehaviourTicketsPage() {
                   </option>
                 ))}
               </select>
-            </div>
-            <div className="field" style={{ margin: 0, minWidth: 220 }}>
-              <label className="field__label" htmlFor="dg-t-period">
-                {weekly ? 'Tuần đã kết thúc' : 'Tháng đã kết thúc'}
-              </label>
+            ) : (
+              cls && <span className="fw-600">{cls.name}</span>
+            )}
+            <div className="dg-period-nav">
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={weekly ? 'Tuần trước' : 'Tháng trước'}
+                title={weekly ? 'Tuần trước' : 'Tháng trước'}
+                disabled={periodIndex < 0 || periodIndex >= periods.length - 1}
+                onClick={() => changeFilter(() => setPeriodStart(periods[periodIndex + 1].start))}
+              >
+                <ChevronLeft size={16} />
+              </button>
               <select
-                id="dg-t-period"
                 className="select"
+                aria-label={weekly ? 'Tuần đã kết thúc' : 'Tháng đã kết thúc'}
                 value={board?.period?.start || ''}
                 onChange={(e) => changeFilter(() => setPeriodStart(e.target.value))}
-                disabled={!board?.periods.length}
+                disabled={!periods.length}
               >
-                {(board?.periods || []).map((p) => (
+                {periods.map((p) => (
                   <option key={p.start} value={p.start}>
-                    {periodLabel(pType, p.start, p.end)}
+                    {periodText(pType, p)}
+                    {p.themeName ? ` · ${p.themeName}` : ''}
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={weekly ? 'Tuần sau' : 'Tháng sau'}
+                title={weekly ? 'Tuần sau' : 'Tháng sau'}
+                disabled={periodIndex <= 0}
+                onClick={() => changeFilter(() => setPeriodStart(periods[periodIndex - 1].start))}
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
             <div className="spacer" />
             {board?.period && (
-              <div className="text-sm text-2" style={{ alignSelf: 'center' }}>
-                Đủ điều kiện <b>{rows.filter((r) => r.eligible).length}</b>/{rows.length} · Đã phát <b>{issued}</b>
+              <div className="dg-ticket-stats">
+                <span className="chip chip--green">
+                  Đủ điều kiện {rows.filter((r) => r.eligible).length}/{rows.length}
+                </span>
+                <span className="chip chip--teal">Đã phát {issued}</span>
+                {issuable.length > 0 && <span className="chip chip--orange">Chờ phát {issuable.length}</span>}
               </div>
             )}
           </div>
@@ -160,7 +195,7 @@ export default function GoodBehaviourTicketsPage() {
             />
           ) : (
             <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-              <table className="table">
+              <table className="table table--grid">
                 <thead>
                   <tr>
                     <th className="center" style={{ width: 48 }}>
@@ -175,11 +210,17 @@ export default function GoodBehaviourTicketsPage() {
                     <th>Trẻ</th>
                     {weekly ? (
                       <>
-                        <th className="right">Ngày có mặt</th>
-                        <th className="right">Cờ bé ngoan</th>
+                        <th className="center" title={`Cần ít nhất ${board?.rules?.WEEK_MIN_PRESENT_DAYS ?? 4} ngày`}>
+                          Ngày có mặt <span className="muted">(cần {board?.rules?.WEEK_MIN_PRESENT_DAYS ?? 4})</span>
+                        </th>
+                        <th className="center" title={`Cần ít nhất ${board?.rules?.WEEK_MIN_FLAGS ?? 3} cờ`}>
+                          Cờ bé ngoan <span className="muted">(cần {board?.rules?.WEEK_MIN_FLAGS ?? 3})</span>
+                        </th>
                       </>
                     ) : (
-                      <th className="right">Phiếu tuần trong tháng</th>
+                      <th className="center" title={`Cần ít nhất ${board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3} phiếu tuần`}>
+                        Phiếu tuần trong tháng <span className="muted">(cần {board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3})</span>
+                      </th>
                     )}
                     <th>Điều kiện</th>
                     <th>Phiếu</th>
@@ -207,18 +248,27 @@ export default function GoodBehaviourTicketsPage() {
                           />
                         </td>
                         <td>
-                          <div className="fw-600">{r.child.fullName}</div>
-                          <div className="muted text-xs">{r.child.code}</div>
+                          <div className="dg-ticket-child">
+                            <ChildAvatar child={r.child} size="sm" />
+                            <div>
+                              <div className="fw-600">{r.child.fullName}</div>
+                              <div className="muted text-xs">{r.child.code}</div>
+                            </div>
+                          </div>
                         </td>
                         {weekly ? (
                           <>
-                            <td className={`right ${r.presentDays < board.rules.WEEK_MIN_PRESENT_DAYS ? 'text-danger' : ''}`}>
+                            <td className={`center ${r.presentDays < board.rules.WEEK_MIN_PRESENT_DAYS ? 'text-danger' : ''}`}>
                               {r.presentDays}/5
                             </td>
-                            <td className={`right ${r.flagCount < board.rules.WEEK_MIN_FLAGS ? 'text-danger' : ''}`}>{r.flagCount}</td>
+                            <td className={`center ${r.flagCount < board.rules.WEEK_MIN_FLAGS ? 'text-danger' : ''}`}>
+                              <span className="dg-flag-count">
+                                <Flag size={14} aria-hidden="true" /> {r.flagCount}
+                              </span>
+                            </td>
                           </>
                         ) : (
-                          <td className={`right ${r.weeklyTickets < board.rules.MONTH_MIN_WEEKLY_TICKETS ? 'text-danger' : ''}`}>
+                          <td className={`center ${r.weeklyTickets < board.rules.MONTH_MIN_WEEKLY_TICKETS ? 'text-danger' : ''}`}>
                             {r.weeklyTickets}
                           </td>
                         )}
@@ -226,7 +276,7 @@ export default function GoodBehaviourTicketsPage() {
                           {r.eligible ? (
                             <span className="chip chip--green">Đủ điều kiện</span>
                           ) : (
-                            <span className="chip chip--gray">Chưa đủ điều kiện</span>
+                            <span className="text-sm muted">{missingText(r, board.rules, weekly)}</span>
                           )}
                         </td>
                         <td className="text-sm">
@@ -251,16 +301,25 @@ export default function GoodBehaviourTicketsPage() {
       {board?.period && (
         <div className="page-actions">
           <span className="muted text-sm">Đã chọn {selected.size} trẻ</span>
-          <button className="btn btn--primary" disabled={!selected.size} onClick={() => setConfirmOpen(true)}>
-            <Ticket size={16} /> Phát phiếu ({selected.size})
-          </button>
+          <div className="row" style={{ gap: 8 }}>
+            <button
+              className="btn"
+              disabled={!issuable.length || allSelected}
+              onClick={() => setSelected(new Set(issuable.map((r) => r.child.id)))}
+            >
+              Chọn tất cả trẻ đủ điều kiện ({issuable.length})
+            </button>
+            <button className="btn btn--primary" disabled={!selected.size} onClick={() => setConfirmOpen(true)}>
+              <Ticket size={16} /> Phát phiếu ({selected.size})
+            </button>
+          </div>
         </div>
       )}
 
       <ConfirmationModal
         open={confirmOpen}
         title={`Phát ${TICKET_TYPE_LABELS[type].toLowerCase()}?`}
-        message={`Phát phiếu cho ${selected.size} trẻ – ${board?.period ? periodLabel(pType, board.period.start, board.period.end) : ''}. Kết quả được công bố cho phụ huynh và không thu hồi được.`}
+        message={`Phát phiếu cho ${selected.size} trẻ – ${board?.period ? periodText(pType, board.period) : ''}. Kết quả được công bố cho phụ huynh và không thu hồi được.`}
         confirmLabel="Phát phiếu"
         onConfirm={doIssue}
         onClose={() => setConfirmOpen(false)}

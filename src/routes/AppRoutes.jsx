@@ -120,6 +120,7 @@ const MissingFoodReportPage = lazy(() => import('@/pages/kitchen/MissingFoodRepo
 const MealPreparationUpdatePage = lazy(() => import('@/pages/kitchen/MealPreparationUpdatePage'));
 
 const DailyAssessmentPage = lazy(() => import('@/pages/assessment/DailyAssessmentPage'));
+const AssessmentDayUnlockPage = lazy(() => import('@/pages/assessment/AssessmentDayUnlockPage'));
 const ChildDevelopmentListPage = lazy(() => import('@/pages/assessment/ChildDevelopmentListPage'));
 const ChildDevelopmentProfilePage = lazy(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
 const ChildDevelopmentProgressPage = lazy(() => import('@/pages/assessment/ChildDevelopmentProgressPage'));
@@ -390,6 +391,7 @@ export function AppRoutes() {
           </Route>
           <Route path="assessment">
             <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
+            <Route path="day-unlocks" element={only(LEADERS, <AssessmentDayUnlockPage />)} />
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />
