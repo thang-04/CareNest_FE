@@ -8,11 +8,39 @@ import { defaultGrants } from '@/models/school-config/permissionCatalog';
  * The repository seeds them lazily (db.x ||= clone(seed.x)).
  */
 
-const AGE_GROUP_EXTRA = {
-  'ag-2': { ageRange: '24–36 tháng', mealsPerDay: 3, nutritionNote: 'Bữa chính, bữa phụ chiều và bữa phụ sáng; cháo/cơm nát.' },
-  'ag-3': { ageRange: '3–4 tuổi', mealsPerDay: 2, nutritionNote: 'Bữa trưa và bữa phụ chiều.' },
-  'ag-4': { ageRange: '4–5 tuổi', mealsPerDay: 2, nutritionNote: 'Bữa trưa và bữa phụ chiều.' },
-  'ag-5': { ageRange: '5–6 tuổi', mealsPerDay: 2, nutritionNote: 'Bữa trưa và bữa phụ chiều.' },
+export const AGE_GROUP_EXTRA = {
+  'ag-2': {
+    ageFromMonths: 24,
+    ageToMonths: 36,
+    mealSessions: ['MORNING', 'LUNCH', 'AFTERNOON'],
+    mealsPerDay: 3,
+    maxClassSize: 25,
+    nutritionNote: 'Bữa chính, bữa phụ chiều và bữa phụ sáng; cháo/cơm nát.',
+  },
+  'ag-3': {
+    ageFromMonths: 36,
+    ageToMonths: 48,
+    mealSessions: ['LUNCH', 'AFTERNOON'],
+    mealsPerDay: 2,
+    maxClassSize: 25,
+    nutritionNote: 'Bữa trưa và bữa phụ chiều.',
+  },
+  'ag-4': {
+    ageFromMonths: 48,
+    ageToMonths: 60,
+    mealSessions: ['LUNCH', 'AFTERNOON'],
+    mealsPerDay: 2,
+    maxClassSize: 30,
+    nutritionNote: 'Bữa trưa và bữa phụ chiều.',
+  },
+  'ag-5': {
+    ageFromMonths: 60,
+    ageToMonths: 72,
+    mealSessions: ['LUNCH', 'AFTERNOON'],
+    mealsPerDay: 2,
+    maxClassSize: 35,
+    nutritionNote: 'Bữa trưa và bữa phụ chiều.',
+  },
 };
 
 const at = (date) => `${date}T08:00:00.000Z`;
@@ -43,7 +71,7 @@ export const buildSeedSchoolConfig = () => ({
       ],
     },
   ],
-  ageGroups: AGE_GROUPS.map((g) => ({ ...g, ...AGE_GROUP_EXTRA[g.id] })),
+  ageGroups: AGE_GROUPS.map((g) => ({ ...g, ...AGE_GROUP_EXTRA[g.id], history: [] })),
   cutoffSettings: [
     {
       schoolYear: '2026-2027',
@@ -78,7 +106,6 @@ export const buildSeedSchoolConfig = () => ({
     {
       id: 'tla_1',
       schoolYear: '2026-2027',
-      campusId: 'c1',
       ageGroupId: 'ag-4',
       userId: 'u_ha',
       assignedBy: 'u_lan',

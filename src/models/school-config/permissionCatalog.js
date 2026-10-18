@@ -17,7 +17,7 @@ const ROWS = [
   ],
   ['account', 'permission.manage', 'Quyền theo vai trò', 'Quản lý', 'FNNNNN', [], 'UC 2.4'],
   ['account', 'permission.assignVicePrincipal', 'Phân quyền', 'Phân công Phó hiệu trưởng', 'FNNNNN', []],
-  ['account', 'permission.assignTeacher', 'Phân quyền', 'Phân công giáo viên / tổ trưởng', 'NRNNNN', []],
+  ['account', 'permission.assignTeacher', 'Phân quyền', 'Phân công giáo viên', 'NRNNNN', []],
   ['account', 'profile.manage', 'Hồ sơ cá nhân & mật khẩu', 'Xem / đổi', 'FFFFFF', []],
   ['account', 'notification.receive', 'Thông báo', 'Nhận', 'FFFFFF', []],
   ['schoolConfig', 'campus.manage', 'Điểm trường', 'Tạo / sửa', 'FNNNNN', []],
@@ -105,5 +105,14 @@ export const defaultGrants = (role) => Object.fromEntries(PERMISSION_CATALOG.map
 
 /** Principal must keep the right to manage permissions, otherwise nobody can fix the configuration. */
 export const LOCKED_GRANTS = { PRINCIPAL: ['permission.manage'] };
+
+/**
+ * Effective grants of a role: the saved entry of the Role & Permission screen, else the matrix defaults.
+ * The Principal has the highest authority: FULL on every permission whatever is saved (decision 10/10/2026).
+ */
+export const grantsOf = (rolePermissions, role) =>
+  role === 'PRINCIPAL'
+    ? Object.fromEntries(PERMISSION_CATALOG.map((p) => [p.code, 'FULL']))
+    : { ...defaultGrants(role), ...((rolePermissions || []).find((r) => r.role === role)?.grants || {}) };
 
 export const isLockedGrant = (role, code) => (LOCKED_GRANTS[role] || []).includes(code);

@@ -12,7 +12,7 @@ import { LoadingState, ErrorState } from '@/components/ui/States';
 import { RequestStatusBadge, ProposalStatusBadge } from '@/components/facility/FacilityBadges';
 import { FacilityHistoryCard } from '@/components/facility/FacilityHistoryCard';
 import { DecisionModal } from '@/components/facility/DecisionModal';
-import { locationLabel } from '@/models/Location';
+import { locationBaseLabel } from '@/models/Location';
 import { ROLES } from '@/models/User';
 import { REQUEST_STATUS, REQUEST_ITEM_MODES } from '@/models/facility/facilityConstants';
 import { canReviewRequest, canPrincipalDecideRequest, canAddToProposal, isManager } from '@/utils/facility/facilityPermissions';
@@ -52,7 +52,7 @@ export default function RequestDetailPage() {
   const principalDecide = canPrincipalDecideRequest(r, user);
   const decided = [REQUEST_STATUS.APPROVED, REQUEST_STATUS.REJECTED].includes(r.status);
   const forwarded = !!r.forwardedAt;
-  const loc = locationLabel(md.locationById(r.locationId));
+  const loc = locationBaseLabel(md.locationById(r.locationId));
   const backTo = isManager(user) ? '/facility/requests' : '/facility/my-reports?tab=requests';
   const what = `${r.quantity} ${r.unit.toLowerCase()} ${r.itemName}`;
 

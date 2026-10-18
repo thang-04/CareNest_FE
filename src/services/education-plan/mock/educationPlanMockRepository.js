@@ -1,5 +1,5 @@
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
-import { buildSeedEducationPlans } from '@/mocks/educationPlanSeed';
+import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 
 /*
@@ -9,30 +9,10 @@ import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
  */
 const COLLECTIONS = { goals: 'eduGoals', themes: 'eduThemes', lessons: 'eduLessons' };
 
-// Databases saved before this module existed have no education-plan data yet.
+// Trình duyệt còn bộ dữ liệu demo cũ (hoặc chưa có): nạp bộ demo kế hoạch giáo dục hiện hành
 const ensureSeeded = (db) => {
-  const seed = buildSeedEducationPlans();
-  Object.values(COLLECTIONS).forEach((key) => {
-    db[key] ||= clone(seed[key]);
-  });
+  ensureEduDemo(db);
   return db;
-};
-
-// Dữ liệu lưu trước khi có danh mục YCCĐ trong mục tiêu năm học: bổ sung từ dữ liệu mẫu (hoặc danh sách rỗng).
-const ensureRequirements = (db) => {
-  const seedGoals = buildSeedEducationPlans().eduGoals;
-  let changed = false;
-  (db.eduGoals || []).forEach((g) => {
-    const seedItems = seedGoals.find((x) => x.id === g.id)?.domains.flatMap((d) => d.items) || [];
-    g.domains.forEach((d) =>
-      d.items.forEach((it) => {
-        if (it.requirements) return;
-        it.requirements = clone(seedItems.find((x) => x.code === it.code)?.requirements || []);
-        changed = true;
-      }),
-    );
-  });
-  return changed;
 };
 
 const upsert = (list, item) => {
@@ -65,8 +45,7 @@ export const educationPlanMockRepository = {
   async getAll() {
     await delay();
     const db = readDb();
-    if (!db.eduGoals || !db.eduThemes || !db.eduLessons) writeDb(ensureSeeded);
-    if (ensureRequirements(clone(readDb()))) writeDb(ensureRequirements);
+    if (db.eduSeedVersion !== EDU_SEED_VERSION) writeDb(ensureSeeded);
     const fresh = readDb();
     return { goals: clone(fresh.eduGoals), themes: clone(fresh.eduThemes), lessons: clone(fresh.eduLessons) };
   },

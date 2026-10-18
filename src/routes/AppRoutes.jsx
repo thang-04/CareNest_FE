@@ -9,6 +9,7 @@ import HomePage from '@/pages/HomePage';
 import ComingSoonPage from '@/pages/ComingSoonPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import { canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
 
 const UiKitPage = lazy(() => import('@/pages/UiKitPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
@@ -44,26 +45,27 @@ const InspectionPrintPage = lazy(() => import('@/pages/inventory-inspection/Insp
 
 const EducationPlanLayout = lazy(() => import('@/components/education-plan/EducationPlanLayout'));
 const EducationHomeRedirect = lazy(() => import('@/pages/education-plan/EducationHomeRedirect'));
-const GoalListPage = lazy(() => import('@/pages/education-plan/GoalListPage'));
+const GoalsEntry = lazy(() => import('@/pages/education-plan/GoalListPage').then((m) => ({ default: m.GoalsEntry })));
 const GoalFormPage = lazy(() => import('@/pages/education-plan/GoalFormPage'));
 const GoalDetailPage = lazy(() => import('@/pages/education-plan/GoalDetailPage'));
-const ThemeListPage = lazy(() => import('@/pages/education-plan/ThemeListPage'));
-const ThemeFormPage = lazy(() => import('@/pages/education-plan/ThemeFormPage'));
-const ThemeDetailPage = lazy(() => import('@/pages/education-plan/ThemeDetailPage'));
-const GoalsThemesPage = lazy(() => import('@/pages/education-plan/GoalsThemesPage'));
-const LessonListPage = lazy(() => import('@/pages/education-plan/LessonListPage'));
-const LessonFormPage = lazy(() => import('@/pages/education-plan/LessonFormPage'));
-const LessonDetailPage = lazy(() => import('@/pages/education-plan/LessonDetailPage'));
-const ReviewListPage = lazy(() => import('@/pages/education-plan/ReviewListPage'));
-const PlanReviewPage = lazy(() => import('@/pages/education-plan/PlanReviewPage'));
-const ApprovalListPage = lazy(() => import('@/pages/education-plan/ApprovalListPage'));
+const ClassPlanPage = lazy(() => import('@/pages/education-plan/ClassPlanPage'));
+const ClassPlanRedirect = lazy(() => import('@/pages/education-plan/ClassPlanPage').then((m) => ({ default: m.ClassPlanRedirect })));
+const BranchPlanPage = lazy(() => import('@/pages/education-plan/BranchPlanPage'));
+const BranchPlanLegacyRedirect = lazy(() =>
+  import('@/pages/education-plan/BranchPlanPage').then((m) => ({ default: m.BranchPlanLegacyRedirect })),
+);
+const ClassThemePlanPage = lazy(() => import('@/pages/education-plan/ClassThemePlanPage'));
+const ThemeDossierPage = lazy(() => import('@/pages/education-plan/ThemeDossierPage'));
+const WeekPlanPage = lazy(() => import('@/pages/education-plan/WeekPlanPage'));
+const PlanReviewQueuePage = lazy(() => import('@/pages/education-plan/PlanReviewQueuePage'));
+const EduConfigPage = lazy(() => import('@/pages/education-plan/EduConfigPage'));
 const SchoolPlansPage = lazy(() => import('@/pages/education-plan/SchoolPlansPage'));
 
 const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'));
-const MealSessionPage = lazy(() => import('@/pages/attendance/MealSessionPage'));
 const AttendanceSummaryPage = lazy(() => import('@/pages/attendance/AttendanceSummaryPage'));
 const MealCountPage = lazy(() => import('@/pages/attendance/MealCountPage'));
 const MealHandoverPage = lazy(() => import('@/pages/attendance/MealHandoverPage'));
+const DailyHealthOverviewPage = lazy(() => import('@/pages/attendance/DailyHealthOverviewPage'));
 const PickupListPage = lazy(() => import('@/pages/pickup/PickupListPage'));
 const PickupVerifyPage = lazy(() => import('@/pages/pickup/PickupVerifyPage'));
 const PickupResultPage = lazy(() => import('@/pages/pickup/PickupResultPage'));
@@ -71,6 +73,8 @@ const PickupResultPage = lazy(() => import('@/pages/pickup/PickupResultPage'));
 const SchoolYearListPage = lazy(() => import('@/pages/school-config/SchoolYearListPage'));
 const SchoolYearFormPage = lazy(() => import('@/pages/school-config/SchoolYearFormPage'));
 const AgeGroupsClassesPage = lazy(() => import('@/pages/school-config/AgeGroupsClassesPage'));
+const RoomListPage = lazy(() => import('@/pages/school-config/RoomListPage'));
+const StaffAccountsPage = lazy(() => import('@/pages/school-config/StaffAccountsPage'));
 const CutoffSettingPage = lazy(() => import('@/pages/school-config/CutoffSettingPage'));
 const CampusListPage = lazy(() => import('@/pages/school-config/CampusListPage'));
 const CampusFormPage = lazy(() => import('@/pages/school-config/CampusFormPage'));
@@ -79,6 +83,7 @@ const VicePrincipalAssignmentPage = lazy(() => import('@/pages/school-config/Vic
 const RolePermissionListPage = lazy(() => import('@/pages/school-config/RolePermissionListPage'));
 const RolePermissionFormPage = lazy(() => import('@/pages/school-config/RolePermissionFormPage'));
 const TeacherAssignmentPage = lazy(() => import('@/pages/school-config/TeacherAssignmentPage'));
+const YearPlacementPage = lazy(() => import('@/pages/school-config/YearPlacementPage'));
 
 const ChildrenListPage = lazy(() => import('@/pages/children/ChildrenListPage'));
 const EnrollChildPage = lazy(() => import('@/pages/children/EnrollChildPage'));
@@ -115,6 +120,7 @@ const MissingFoodReportPage = lazy(() => import('@/pages/kitchen/MissingFoodRepo
 const MealPreparationUpdatePage = lazy(() => import('@/pages/kitchen/MealPreparationUpdatePage'));
 
 const DailyAssessmentPage = lazy(() => import('@/pages/assessment/DailyAssessmentPage'));
+const AssessmentDayUnlockPage = lazy(() => import('@/pages/assessment/AssessmentDayUnlockPage'));
 const ChildDevelopmentListPage = lazy(() => import('@/pages/assessment/ChildDevelopmentListPage'));
 const ChildDevelopmentProfilePage = lazy(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
 const ChildDevelopmentProgressPage = lazy(() => import('@/pages/assessment/ChildDevelopmentProgressPage'));
@@ -167,8 +173,6 @@ const only = (roles, page) => (
   </RoleGuard>
 );
 const EDU_VP_TL = [ROLES.VICE_PRINCIPAL, ROLES.TEAM_LEADER];
-const EDU_TL = [ROLES.TEAM_LEADER];
-const EDU_CLASS = [ROLES.TEAM_LEADER, ROLES.TEACHER];
 const EDU_ALL = [ROLES.VICE_PRINCIPAL, ROLES.TEAM_LEADER, ROLES.TEACHER];
 // Hiệu trưởng: xem toàn bộ (SRS 4.4 – Lesson plan View: Full), không sửa/duyệt.
 const EDU_VIEW = [ROLES.PRINCIPAL, ...EDU_ALL];
@@ -261,29 +265,34 @@ export function AppRoutes() {
           <Route path="education" element={<EducationPlanLayout />}>
             <Route index element={edu(EDU_VIEW, <EducationHomeRedirect />)} />
             <Route path="school" element={edu([ROLES.PRINCIPAL], <SchoolPlansPage />)} />
-            <Route path="goals" element={edu(EDU_VP_TL, <GoalListPage />)} />
-            <Route path="goals/new" element={edu(VP_ONLY, <GoalFormPage />)} />
-            <Route path="goals/:id" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <GoalDetailPage />)} />
-            <Route path="goals/:id/edit" element={edu(VP_ONLY, <GoalFormPage />)} />
-            <Route path="themes" element={edu(EDU_TL, <ThemeListPage />)} />
-            <Route path="themes/new" element={edu(EDU_TL, <ThemeFormPage />)} />
-            <Route path="themes/:id" element={edu(EDU_VIEW, <ThemeDetailPage />)} />
-            <Route path="themes/:id/edit" element={edu(EDU_TL, <ThemeFormPage />)} />
-            <Route path="overview" element={edu(EDU_CLASS, <GoalsThemesPage />)} />
-            <Route path="lessons" element={edu(EDU_CLASS, <LessonListPage />)} />
-            <Route path="lessons/new" element={edu(EDU_CLASS, <LessonFormPage />)} />
-            <Route path="lessons/:id" element={edu(EDU_VIEW, <LessonDetailPage />)} />
-            <Route path="lessons/:id/edit" element={edu(EDU_CLASS, <LessonFormPage />)} />
-            <Route path="reviews" element={edu(EDU_TL, <ReviewListPage />)} />
-            <Route path="reviews/:id" element={edu(EDU_TL, <PlanReviewPage stage="tl" />)} />
-            <Route path="approvals" element={edu(VP_ONLY, <ApprovalListPage />)} />
-            <Route path="approvals/:kind/:id" element={edu(VP_ONLY, <PlanReviewPage stage="vp" />)} />
+            <Route path="goals" element={edu(EDU_ALL, <GoalsEntry />)} />
+            <Route path="goals/new" element={edu(EDU_VP_TL, <GoalFormPage />)} />
+            <Route path="goals/:id" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalDetailPage />)} />
+            <Route path="goals/:id/edit" element={edu(EDU_VP_TL, <GoalFormPage />)} />
+            <Route path="class" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect />)} />
+            <Route path="class/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanPage />)} />
+            <Route
+              path="branches"
+              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect toOf={(id) => `/education/branches/${id}`} />)}
+            />
+            <Route path="branches/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanPage />)} />
+            <Route path="class/:classId/branches" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
+            <Route path="class/:classId/branches/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
+            <Route path="class/:classId/themes/:themeId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassThemePlanPage />)} />
+            <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeDossierPage />)} />
+            <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
+            <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />
+            <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />
+            <Route path="settings" element={edu([ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL], <EduConfigPage />)} />
           </Route>
           <Route path="school">
             <Route path="years" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <SchoolYearListPage />)} />
             <Route path="years/new" element={only([R.PRINCIPAL], <SchoolYearFormPage />)} />
             <Route path="years/:id/edit" element={only([R.PRINCIPAL], <SchoolYearFormPage />)} />
             <Route path="classes" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AgeGroupsClassesPage />)} />
+            <Route path="rooms" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <RoomListPage />)} />
+            <Route path="staff" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <StaffAccountsPage />)} />
+            <Route path="placement" element={only([R.PRINCIPAL], <YearPlacementPage />)} />
             <Route path="cutoff" element={only([R.PRINCIPAL], <CutoffSettingPage />)} />
             <Route path="campuses" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <CampusListPage />)} />
             <Route path="campuses/new" element={only([R.PRINCIPAL], <CampusFormPage />)} />
@@ -292,7 +301,17 @@ export function AppRoutes() {
             <Route path="vice-principals" element={only([R.PRINCIPAL], <VicePrincipalAssignmentPage />)} />
             <Route path="roles" element={only([R.PRINCIPAL], <RolePermissionListPage />)} />
             <Route path="roles/:role" element={only([R.PRINCIPAL], <RolePermissionFormPage />)} />
-            <Route path="teachers" element={only([R.VICE_PRINCIPAL], <TeacherAssignmentPage />)} />
+            <Route
+              path="teachers"
+              element={
+                <RoleGuard
+                  allow={canOpenTeacherAssignment}
+                  description="Bạn chưa được giao quyền phân công giáo viên hoặc phân công tổ trưởng nhóm tuổi."
+                >
+                  <TeacherAssignmentPage />
+                </RoleGuard>
+              }
+            />
           </Route>
           <Route path="children">
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />
@@ -372,6 +391,7 @@ export function AppRoutes() {
           </Route>
           <Route path="assessment">
             <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
+            <Route path="day-unlocks" element={only(LEADERS, <AssessmentDayUnlockPage />)} />
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />
@@ -389,10 +409,10 @@ export function AppRoutes() {
           </Route>
           <Route path="attendance">
             <Route index element={only(CLASS_STAFF, <AttendancePage />)} />
-            <Route path="meals" element={only(CLASS_STAFF, <MealSessionPage />)} />
             <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
             <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MealCountPage />)} />
             <Route path="meal-handover" element={only([...CLASS_STAFF, R.KITCHEN_STAFF], <MealHandoverPage />)} />
+            <Route path="health" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <DailyHealthOverviewPage />)} />
           </Route>
           <Route path="pickup">
             <Route index element={only(CLASS_STAFF, <PickupListPage />)} />

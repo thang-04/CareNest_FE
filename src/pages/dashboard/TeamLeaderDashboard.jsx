@@ -40,7 +40,7 @@ export default function TeamLeaderDashboard() {
           unit="giáo án"
           action={!approvals.failed.length}
           icon={NotebookPen}
-          to="/education/reviews"
+          to="/education/plan-reviews"
           tone="purple"
           label="Giáo án chờ bạn duyệt"
           value={approvals.total}
@@ -52,7 +52,7 @@ export default function TeamLeaderDashboard() {
           unit="kế hoạch"
           action
           icon={PencilLine}
-          to="/education/themes"
+          to="/education/class"
           tone="red"
           label="Kế hoạch chủ đề cần hoàn thiện"
           value={count(TO_FIX)}
@@ -62,7 +62,7 @@ export default function TeamLeaderDashboard() {
         <KpiCard
           unit="kế hoạch"
           icon={Hourglass}
-          to="/education/themes"
+          to="/education/class"
           tone="orange"
           label="Kế hoạch chủ đề chờ PHT duyệt"
           value={count([EDU_STATUS.PENDING_VP])}
@@ -71,7 +71,7 @@ export default function TeamLeaderDashboard() {
         <KpiCard
           unit="kế hoạch"
           icon={BadgeCheck}
-          to="/education/themes"
+          to="/education/class"
           tone="green"
           label="Kế hoạch chủ đề đã duyệt"
           value={count([EDU_STATUS.APPROVED])}
@@ -87,7 +87,7 @@ export default function TeamLeaderDashboard() {
           <Widget
             title="Kế hoạch chủ đề của nhóm tuổi"
             icon={Layers}
-            to="/education/themes"
+            to="/education/class"
             loading={kpi.loading}
             error={themesQ.error}
             onRetry={themesQ.reload}
@@ -98,7 +98,7 @@ export default function TeamLeaderDashboard() {
             <ShortList
               rows={toFix.slice(0, 5).map((t) => ({
                 key: t.id,
-                to: `/education/themes/${t.id}`,
+                to: '/education/class',
                 icon: BookOpenCheck,
                 code: t.code,
                 title: t.name,

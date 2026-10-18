@@ -497,6 +497,37 @@
 .table tr:last-child td {
   border-bottom: none;
 }
+/* Bảng kẻ ô theo bảng Mục tiêu năm học (Kế hoạch giáo dục): kẻ đủ mọi ô màu --color-text-disabled, tiêu đề chữ đậm */
+.table.table--grid th + th,
+.table.table--grid td + td {
+  border-left: 1px solid var(--color-text-disabled);
+}
+.table.table--grid th,
+.table.table--grid td {
+  border-bottom-color: var(--color-text-disabled);
+}
+.table.table--grid th {
+  color: var(--text);
+  font-weight: var(--fw-bold);
+}
+/* Khung ngoài đủ 4 cạnh cùng màu vạch trong; khung bọc bỏ viền riêng để không thành 2 lớp */
+.table.table--grid {
+  border: 1px solid var(--color-text-disabled);
+}
+.table-wrap:has(> .table--grid) {
+  border-color: transparent;
+  border-radius: 0;
+}
+/* Theo bảng Kế hoạch giáo dục (kiểu Word): mọi ô cùng lề 8px 12px, chữ 13px */
+.table.table--grid th,
+.table.table--grid td,
+.table.table--grid th:first-child,
+.table.table--grid td:first-child,
+.table.table--grid th:last-child,
+.table.table--grid td:last-child {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+}
 .table tbody tr td {
   transition: background var(--duration-fast) ease;
 }
@@ -505,6 +536,11 @@
 }
 .table tbody tr:hover td {
   background: var(--table-row-hover);
+}
+/* Bảng kẻ ô: nền trắng, không tô sọc, không đổi màu khi rê chuột (như bảng Kế hoạch giáo dục) */
+.table.table--grid tbody tr td,
+.table.table--grid tbody tr:hover td {
+  background: var(--color-surface);
 }
 .table .center {
   text-align: center;
@@ -1153,6 +1189,11 @@
   font-weight: var(--fw-semibold);
   font-size: var(--fs-sm);
   flex-shrink: 0;
+}
+/* Ảnh thật (vd. ảnh hồ sơ trẻ) trong khung tròn của avatar */
+.avatar--photo {
+  object-fit: cover;
+  background: var(--color-surface-muted);
 }
 .avatar--lg {
   width: 40px;
@@ -1988,6 +2029,8 @@ button.stat-card .stat-card__label::after {
 }
 .filter-bar .search-box {
   min-width: 260px;
+  /* Hàng lọc: ô tìm cao bằng ô chọn */
+  height: var(--input-height);
 }
 .date-filter {
   display: flex;
@@ -2319,6 +2362,18 @@ button.stat-card .stat-card__label::after {
   position: absolute;
   right: 4px;
 }
+/* Native date input kept only to open the browser calendar; DateInput shows the dd/mm/yyyy text box. */
+.date-input__picker {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
 
 /* ---------- Home quick cards ---------- */
 .home-card {
@@ -2399,4 +2454,36 @@ button.stat-card .stat-card__label::after {
   font-size: var(--fs-xs);
   color: var(--text-2);
   max-width: 220px;
+}
+
+/* Ô tìm kiếm có nút "Tìm" (SearchSubmit): một viền duy nhất, nút cao bằng ô */
+.search-submit {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.search-submit .search-box {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.search-submit .btn {
+  height: auto;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+.search-submit__clear {
+  display: inline-flex;
+  padding: var(--space-1);
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.search-submit__clear:hover {
+  background: var(--color-surface-hover);
+}
+.search-submit__clear:focus-visible {
+  outline: 2px solid var(--color-focus);
 }

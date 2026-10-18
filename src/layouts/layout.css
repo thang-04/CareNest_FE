@@ -225,13 +225,27 @@
   font-weight: var(--fw-semibold);
 }
 
-/* Collapsed sidebar: icons only, sub-menu shown as a hover flyout. */
+/* Collapsed sidebar: icons only, sub-menu shown as a hover flyout.
+   Danh sách icon vẫn cuộn trong sidebar: để tràn (overflow: visible) thì màn thấp bị kéo dài trang,
+   thừa khoảng trắng dưới footer (FE-BUG-261015). Flyout dùng position: fixed nên không bị cắt. */
 .sidebar--collapsed {
   width: var(--sidebar-width-collapsed);
   overflow: visible;
 }
 .sidebar--collapsed .sidebar__scroll {
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.sidebar--collapsed .nav-flyout {
+  position: fixed;
+  top: var(--fly-top, 0);
+  left: var(--fly-left, 0);
+}
+/* Cầu nối vô hình từ icon sang flyout để rê chuột qua khoảng trống không bị tắt menu */
+.sidebar--collapsed .nav-flyout::before {
+  left: calc(-1 * var(--space-6));
+  width: var(--space-6);
 }
 .sidebar--collapsed .user-box {
   justify-content: center;

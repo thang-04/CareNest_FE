@@ -3,7 +3,7 @@ import { pushNotification } from '@/mocks/notificationMockRepository';
 import { findInventoryLock } from '@/mocks/inventoryLock';
 import { uid } from '@/utils/id';
 import { normalizeText } from '@/utils/format';
-import { locationLabel } from '@/models/Location';
+import { locationLabel, withCampusInfo } from '@/models/Location';
 import {
   TRANSFER_STATUS,
   TRANSFER_TYPES,
@@ -30,6 +30,7 @@ import {
   canCreateTransfer,
   isSupplementMode,
 } from '@/utils/facility-transfer/transferPermissions';
+import { findRoom } from '@/mocks/roomManagers';
 
 /*
  * Fake Spring Boot backend for the facility transfer module.
@@ -46,7 +47,8 @@ const fail = (status, message, details) => {
 const findTransfer = (db, id) => db.transfers.find((t) => t.id === id) || fail(404, 'Không tìm thấy phiếu luân chuyển');
 const findUser = (db, id) => db.users.find((u) => u.id === id);
 const userName = (db, id) => findUser(db, id)?.fullName || '';
-const locName = (db, id) => locationLabel(db.locations.find((l) => l.id === id));
+// Nhãn có campus khi trùng mã / tên với phòng của campus khác
+const locName = (db, id) => locationLabel(withCampusInfo(db.locations, db.campuses).find((l) => l.id === id));
 
 const addHistory = (t, action, user, note = '') => {
   t.history.push({ id: uid('h'), action, userId: user.id, at: now(), note, version: t.version });
@@ -242,8 +244,9 @@ const assertValidDocument = (db, data, excludeTransferId) => {
   const errors = validateWholeTransfer(data, available);
   if (hasErrors(errors)) fail(422, firstError(errors), errors);
 
-  const from = db.locations.find((l) => l.id === data.fromLocationId);
-  const to = db.locations.find((l) => l.id === data.toLocationId);
+  // Người phụ trách phòng học lấy theo giáo viên chủ nhiệm của lớp (roomManagers)
+  const from = findRoom(db, data.fromLocationId);
+  const to = findRoom(db, data.toLocationId);
   if (!from || !to) fail(422, 'Nơi đi hoặc nơi đến không tồn tại');
   if (from.campusId !== data.fromCampusId || to.campusId !== data.toCampusId) fail(422, 'Lớp/phòng không thuộc campus đã chọn');
   const allowed = TRANSFER_TYPE_LOCATION_TYPES[data.type];

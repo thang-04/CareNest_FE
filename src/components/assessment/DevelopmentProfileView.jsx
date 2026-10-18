@@ -277,7 +277,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                   <span className="muted text-sm">{daily.length} lượt</span>
                 </div>
                 <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-                  <table className="table table--compact">
+                  <table className="table table--grid table--compact">
                     <thead>
                       <tr>
                         <th>Ngày</th>
@@ -294,7 +294,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                         <tr key={a.id}>
                           <td className="nowrap">{formatDate(a.date)}</td>
                           <td>{a.activity}</td>
-                          <td>{HEALTH_STATUS_LABELS[a.healthStatus]}</td>
+                          <td>{HEALTH_STATUS_LABELS[a.healthStatus] || '—'}</td>
                           <td>{EMOTION_LABELS[a.emotion]}</td>
                           <td className="text-sm" style={{ whiteSpace: 'normal', minWidth: 200 }}>
                             {a.criteriaMet

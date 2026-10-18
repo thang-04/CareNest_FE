@@ -50,7 +50,7 @@ export default function SchoolPlansPage() {
         })),
       themes: yearThemes.map((t) => ({
         id: t.id,
-        to: `/education/themes/${t.id}`,
+        to: '/education/plan-reviews',
         title: `Chủ đề: ${t.name}`,
         code: t.code,
         scope: ageName(t.ageGroupId),
@@ -64,7 +64,7 @@ export default function SchoolPlansPage() {
         .filter((l) => themeIds.has(l.themeId) && isShared(l.status))
         .map((l) => ({
           id: l.id,
-          to: `/education/lessons/${l.id}`,
+          to: '/education/plan-reviews',
           title: `${typeLabel(l.type)} · Tuần ${l.weekIndex}: ${l.branch}`,
           code: l.code,
           scope: `Lớp ${className(l.classId)}`,
@@ -101,7 +101,7 @@ export default function SchoolPlansPage() {
   };
 
   return (
-    <div className="page">
+    <div className="page ga-page">
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch toàn trường' }]}
         title="Kế hoạch giáo dục toàn trường"

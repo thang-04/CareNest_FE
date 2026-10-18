@@ -2,11 +2,13 @@ import { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Plus } from '@/components/ui/icons';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useAuth } from '@/contexts/AuthContext';
 import { getQuickActionsForRole } from './quickActions';
 
 /** Nút "Tạo nhanh" ở header: các trang tạo mới mà vai trò được vào. Vai trò không có mục nào thì ẩn nút. */
 export function QuickCreateMenu({ role }) {
-  const actions = getQuickActionsForRole(role);
+  const { user } = useAuth();
+  const actions = getQuickActionsForRole(role, user);
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const close = useCallback(() => setOpen(false), []);

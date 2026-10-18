@@ -60,7 +60,7 @@ function CountCard({ count, user, md, onConfirm }) {
           </div>
         </div>
         <div className="table-wrap mt-12">
-          <table className="table table--compact">
+          <table className="table table--grid table--compact">
             <thead>
               <tr>
                 <th>Lớp</th>
@@ -183,16 +183,6 @@ export default function MealCountPage() {
           </Link>
         )}
       </ClassDateBar>
-      {data && data.schoolDay && (
-        <div className="alert alert--info mb-16">
-          <Info size={18} />
-          <div>
-            Sĩ số được tự động tổng hợp từ điểm danh và báo ăn đã khóa lúc <b>{data.cutoff}</b>. Suất thay thế dành cho trẻ có ghi nhận dị
-            ứng.
-            {kitchen ? ' Bếp chỉ xem, không sửa được sĩ số.' : ''}
-          </div>
-        </div>
-      )}
       {error ? (
         <div className="card">
           <ErrorState error={error} onRetry={reload} />

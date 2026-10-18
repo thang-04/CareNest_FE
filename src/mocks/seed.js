@@ -1,6 +1,8 @@
 import { makeSignatureSvg } from './signatureArt';
 import { buildSeedInspections, seedInspectionNotifications } from './inspectionSeed';
-import { buildSeedEducationPlans } from './educationPlanSeed';
+import { EDU_SEED_VERSION, buildSeedEducationPlans } from './educationPlanSeed';
+import { buildExtraTeachers } from './teacherSeed';
+import { buildExtraClassData } from './classSeed';
 import { buildSeedSchool } from './schoolSeed';
 
 /* ---------- Master data ---------- */
@@ -182,17 +184,17 @@ export const seedUsers = [
 ];
 
 export const seedLocations = [
-  { id: 'loc_c1_m1', campusId: 'c1', name: 'Lớp Mầm 1', room: 'Phòng 101', type: 'CLASS', managerUserId: 'u_an' },
-  { id: 'loc_c1_c2', campusId: 'c1', name: 'Lớp Chồi 2', room: 'Phòng 205', type: 'CLASS', managerUserId: 'u_mai' },
-  { id: 'loc_c1_l1', campusId: 'c1', name: 'Lớp Lá 1', room: 'Phòng 301', type: 'CLASS', managerUserId: 'u_hoa' },
-  { id: 'loc_c1_music', campusId: 'c1', name: 'Phòng Âm nhạc', room: 'Phòng 102', type: 'FUNCTION_ROOM', managerUserId: 'u_huong' },
-  { id: 'loc_c1_kitchen', campusId: 'c1', name: 'Bếp ăn Campus 1', room: '', type: 'KITCHEN', managerUserId: 'u_binh' },
-  { id: 'loc_c1_office', campusId: 'c1', name: 'Văn phòng nhà trường', room: 'Phòng 001', type: 'DEPARTMENT', managerUserId: 'u_yen' },
-  { id: 'loc_c1_medical', campusId: 'c1', name: 'Phòng Y tế', room: 'Phòng 002', type: 'DEPARTMENT', managerUserId: 'u_thu' },
-  { id: 'loc_c1_store', campusId: 'c1', name: 'Kho tổng Campus 1', room: '', type: 'STORAGE', managerUserId: 'u_yen' },
-  { id: 'loc_c2_a', campusId: 'c2', name: 'Phòng học A', room: 'Phòng 101', type: 'CLASS', managerUserId: 'u_ngoc' },
-  { id: 'loc_c2_m1', campusId: 'c2', name: 'Lớp Mầm 1', room: 'Phòng 201', type: 'CLASS', managerUserId: 'u_tuan' },
-  { id: 'loc_c2_kitchen', campusId: 'c2', name: 'Bếp ăn Campus 2', room: '', type: 'KITCHEN', managerUserId: 'u_cuong' },
+  { id: 'loc_c1_m1', campusId: 'c1', name: 'Phòng học 101', room: 'P.101', type: 'CLASS', capacity: 25, managerUserId: 'u_an' },
+  { id: 'loc_c1_c2', campusId: 'c1', name: 'Phòng học 205', room: 'P.205', type: 'CLASS', capacity: 30, managerUserId: 'u_mai' },
+  { id: 'loc_c1_l1', campusId: 'c1', name: 'Phòng học 301', room: 'P.301', type: 'CLASS', capacity: 35, managerUserId: 'u_hoa' },
+  { id: 'loc_c1_music', campusId: 'c1', name: 'Phòng Âm nhạc', room: 'P.102', type: 'FUNCTION_ROOM', managerUserId: 'u_huong' },
+  { id: 'loc_c1_kitchen', campusId: 'c1', name: 'Bếp ăn Campus 1', room: 'BEP-1', type: 'KITCHEN', managerUserId: 'u_binh' },
+  { id: 'loc_c1_office', campusId: 'c1', name: 'Văn phòng nhà trường', room: 'P.001', type: 'DEPARTMENT', managerUserId: 'u_yen' },
+  { id: 'loc_c1_medical', campusId: 'c1', name: 'Phòng Y tế', room: 'P.002', type: 'DEPARTMENT', managerUserId: 'u_thu' },
+  { id: 'loc_c1_store', campusId: 'c1', name: 'Kho tổng Campus 1', room: 'KHO-1', type: 'STORAGE', managerUserId: 'u_yen' },
+  { id: 'loc_c2_a', campusId: 'c2', name: 'Phòng học 101', room: 'P.101', type: 'CLASS', capacity: 35, managerUserId: 'u_ngoc' },
+  { id: 'loc_c2_m1', campusId: 'c2', name: 'Phòng học 201', room: 'P.201', type: 'CLASS', capacity: 25, managerUserId: 'u_tuan' },
+  { id: 'loc_c2_kitchen', campusId: 'c2', name: 'Bếp ăn Campus 2', room: 'BEP-2', type: 'KITCHEN', managerUserId: 'u_cuong' },
 ];
 
 export const seedCategories = [
@@ -762,16 +764,24 @@ export const seedNotifications = [
   },
 ];
 
-export const buildSeedDatabase = () => ({
-  campuses: seedCampuses,
-  users: seedUsers,
-  locations: seedLocations,
-  categories: seedCategories,
-  assets: seedAssets,
-  signatures: seedSignatures,
-  transfers: seedTransfers,
-  notifications: [...seedNotifications, ...seedInspectionNotifications],
-  inspections: buildSeedInspections(seedAssets),
-  ...buildSeedEducationPlans(),
-  ...buildSeedSchool(),
-});
+export const buildSeedDatabase = () => {
+  const extraTeachers = buildExtraTeachers(seedUsers);
+  const school = buildSeedSchool();
+  const extra = buildExtraClassData(extraTeachers);
+  return {
+    campuses: seedCampuses,
+    users: [...seedUsers, ...extraTeachers],
+    locations: [...seedLocations, ...extra.rooms],
+    categories: seedCategories,
+    assets: seedAssets,
+    signatures: seedSignatures,
+    transfers: seedTransfers,
+    notifications: [...seedNotifications, ...seedInspectionNotifications],
+    inspections: buildSeedInspections(seedAssets),
+    ...buildSeedEducationPlans(),
+    eduSeedVersion: EDU_SEED_VERSION,
+    ...school,
+    classes: [...school.classes, ...extra.classes],
+    children: [...school.children, ...extra.children],
+  };
+};

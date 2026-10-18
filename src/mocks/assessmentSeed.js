@@ -81,7 +81,7 @@ const buildRewardProposals = (classes, children, schoolYear) => {
   const specs = [
     { classId: 'cls_c1_c2', i: 0, title: 'Bé ngoan toàn diện', status: REWARD_STATUS.APPROVED, by: 'u_mai' },
     { classId: 'cls_c1_c2', i: 1, title: 'Bé chăm ngoan, học giỏi', status: REWARD_STATUS.PENDING_PRINCIPAL, by: 'u_mai' },
-    { classId: 'cls_c1_c2', i: 2, title: 'Bé tích cực tham gia hoạt động', status: REWARD_STATUS.PENDING_VP, by: 'u_ha' },
+    { classId: 'cls_c1_c2', i: 2, title: 'Bé tích cực tham gia hoạt động', status: REWARD_STATUS.PENDING_VP, by: 'u_mai' },
     { classId: 'cls_c1_c2', i: 3, title: 'Bé lễ phép, hòa đồng', status: REWARD_STATUS.RETURNED, by: 'u_mai' },
     { classId: 'cls_c1_c2', i: 4, title: 'Bé có năng khiếu nghệ thuật', status: REWARD_STATUS.DRAFT, by: 'u_mai' },
     { classId: 'cls_c1_m1', i: 0, title: 'Bé ngoan toàn diện', status: REWARD_STATUS.PENDING_VP, by: 'u_an' },

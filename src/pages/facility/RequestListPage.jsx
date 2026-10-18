@@ -9,7 +9,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RequestStatusBadge } from '@/components/facility/FacilityBadges';
 import { ManagerLinks } from '@/components/facility/ManagerLinks';
-import { locationLabel } from '@/models/Location';
+import { locationLabel, locationLabelIn, locationBaseLabel } from '@/models/Location';
 import { REQUEST_STATUS, REQUEST_STATUS_LABELS, REQUEST_ITEM_MODES } from '@/models/facility/facilityConstants';
 import { isPrincipal, canReviewRequest, canPrincipalDecideRequest } from '@/utils/facility/facilityPermissions';
 import { requestCrumbs } from '@/utils/facility/breadcrumbs';
@@ -113,7 +113,7 @@ export default function RequestListPage() {
             <option value="">Tất cả lớp/phòng</option>
             {campusLocations.map((l) => (
               <option key={l.id} value={l.id}>
-                {locationLabel(l)}
+                {locationLabelIn(l, filters.campusId ? '' : md.campusById(l.campusId)?.shortName)}
                 {principal ? ` – ${md.campusById(l.campusId)?.shortName || ''}` : ''}
               </option>
             ))}
@@ -187,7 +187,7 @@ export default function RequestListPage() {
                           )}
                         </td>
                         <td className="bh-cell-wrap">
-                          <div>{locationLabel(md.locationById(r.locationId))}</div>
+                          <div>{(principal ? locationBaseLabel : locationLabel)(md.locationById(r.locationId))}</div>
                           {principal && <div className="muted text-xs">{md.campusById(r.campusId)?.shortName}</div>}
                         </td>
                         <td className="right nowrap">

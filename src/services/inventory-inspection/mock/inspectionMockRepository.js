@@ -3,7 +3,7 @@ import { pushNotification } from '@/mocks/notificationMockRepository';
 import { lockedLocationMap } from '@/mocks/inventoryLock';
 import { uid } from '@/utils/id';
 import { normalizeText } from '@/utils/format';
-import { locationLabel } from '@/models/Location';
+import { locationLabel, withCampusInfo } from '@/models/Location';
 import { ROUND_STATUS, SHEET_STATUS } from '@/models/inventory-inspection/inspectionConstants';
 import { validateRound, validateSheet, hasErrors, firstError } from '@/utils/inventory-inspection/inspectionValidation';
 import { candidateLocations, matchesAssetScope, scopeCampusIds } from '@/utils/inventory-inspection/inspectionScope';
@@ -32,7 +32,8 @@ const rounds = (db) => {
 };
 const findRound = (db, id) => rounds(db).find((r) => r.id === id) || fail(404, 'Không tìm thấy đợt kiểm kê');
 const findSheet = (round, sheetId) => round.sheets.find((s) => s.id === sheetId) || fail(404, 'Không tìm thấy phiếu kiểm kê');
-const locName = (db, id) => locationLabel(db.locations.find((l) => l.id === id));
+// Nhãn có campus khi trùng mã / tên với phòng của campus khác
+const locName = (db, id) => locationLabel(withCampusInfo(db.locations, db.campuses).find((l) => l.id === id));
 const requireUser = (user) => user || fail(401, 'Bạn chưa đăng nhập');
 
 const addHistory = (r, action, user, note = '') => r.history.push({ id: uid('h'), action, userId: user.id, at: now(), note });

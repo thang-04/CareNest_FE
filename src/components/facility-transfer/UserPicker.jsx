@@ -1,7 +1,7 @@
 import { Info, Phone, Mail, MapPin, Building, Home } from '@/components/ui/icons';
 import { Avatar } from '@/components/ui/Avatar';
 import { ROLE_LABELS } from '@/models/User';
-import { MANAGER_LABELS, locationLabel } from '@/models/Location';
+import { MANAGER_LABELS, locationLabel, locationBaseLabel } from '@/models/Location';
 
 const UserLine = ({ user }) => (
   <span className="row" style={{ gap: 10 }}>
@@ -44,7 +44,7 @@ export function UserPicker({ title, location, campus, users, locations, campuses
         </span>
         <div>
           <div className="fw-600">{tone === 'from' ? 'Nơi đi' : 'Nơi đến'}</div>
-          <div className="text-2">{location ? `${locationLabel(location)} - ${campus?.shortName || ''}` : 'Chưa chọn'}</div>
+          <div className="text-2">{location ? `${locationBaseLabel(location)} - ${campus?.shortName || ''}` : 'Chưa chọn'}</div>
         </div>
       </div>
 

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { CaretDown, SidebarCollapse, SidebarExpand, X } from '@/components/ui/icons';
 import { Logo } from '@/components/brand/Logo';
 import { getMenuForRole } from './menuConfig';
 import { UserMenu } from './UserMenu';
+import { useAuth } from '@/contexts/AuthContext';
 
 const OPEN_GROUPS_KEY = 'carenest.sidebar.openGroups';
 
@@ -33,8 +34,18 @@ const readOpenGroups = () => {
  * the sidebar, and hovering shows the sub-menu as a flyout.
  */
 export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, onExpand, onToggle }) {
+  // Menu thu gọn vẫn cuộn được (màn thấp, zoom); flyout dùng vị trí cố định theo nút để không bị khung cuộn cắt
+  const placeFlyout = (event) => {
+    const r = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty('--fly-top', `${Math.round(r.top)}px`);
+    const edge = event.currentTarget.closest('.sidebar')?.getBoundingClientRect().right ?? r.right;
+    event.currentTarget.style.setProperty('--fly-left', `${Math.round(edge + 8)}px`);
+  };
   const { pathname } = useLocation();
-  const menu = getMenuForRole(role);
+  const { user } = useAuth();
+  // Menu tính theo quyền nên mỗi lần gọi là mảng mới: giữ cố định theo vai trò / người dùng,
+  // nếu không effect bên dưới chạy lại mỗi lần render và đóng nhóm vừa mở
+  const menu = useMemo(() => getMenuForRole(role, user), [role, user]);
   const [open, setOpen] = useState(readOpenGroups);
 
   // Open the group that contains the current page when navigating.
@@ -82,7 +93,12 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
     const expanded = !!open[item.label] && !collapsed;
     const subId = `nav-sub-${item.label}`;
     return (
-      <div key={item.label} className="nav-group">
+      <div
+        key={item.label}
+        className="nav-group"
+        onMouseEnter={collapsed ? placeFlyout : undefined}
+        onFocus={collapsed ? placeFlyout : undefined}
+      >
         <button
           type="button"
           className={`nav-item ${groupActive ? 'nav-item--group-active' : ''}`}

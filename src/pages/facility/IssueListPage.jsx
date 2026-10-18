@@ -9,7 +9,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { IssueStatusBadge, IssueTypeChip, LockChip } from '@/components/facility/FacilityBadges';
 import { ManagerLinks } from '@/components/facility/ManagerLinks';
-import { locationLabel } from '@/models/Location';
+import { locationLabel, locationLabelIn, locationBaseLabel } from '@/models/Location';
 import { ISSUE_STATUS, ISSUE_STATUS_LABELS, ISSUE_TYPE_LABELS, ISSUE_TYPES } from '@/models/facility/facilityConstants';
 import { isPrincipal, canDecideIssue } from '@/utils/facility/facilityPermissions';
 import { issueCrumbs } from '@/utils/facility/breadcrumbs';
@@ -114,7 +114,7 @@ export default function IssueListPage() {
             <option value="">Tất cả lớp/phòng</option>
             {campusLocations.map((l) => (
               <option key={l.id} value={l.id}>
-                {locationLabel(l)}
+                {locationLabelIn(l, filters.campusId ? '' : md.campusById(l.campusId)?.shortName)}
                 {principal ? ` – ${md.campusById(l.campusId)?.shortName || ''}` : ''}
               </option>
             ))}
@@ -192,7 +192,7 @@ export default function IssueListPage() {
                           {i.assetName} <span className="muted text-xs">· {i.assetCode}</span>
                         </td>
                         <td className="bh-cell-wrap">
-                          <div>{locationLabel(md.locationById(i.locationId))}</div>
+                          <div>{(principal ? locationBaseLabel : locationLabel)(md.locationById(i.locationId))}</div>
                           {principal && <div className="muted text-xs">{md.campusById(i.campusId)?.shortName}</div>}
                           {i.lockedBy && i.status === ISSUE_STATUS.SUBMITTED && (
                             <div className="mt-8">

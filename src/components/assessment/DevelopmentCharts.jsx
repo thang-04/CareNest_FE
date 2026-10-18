@@ -140,7 +140,7 @@ export function DevelopmentCharts({ weeks }) {
           </div>
         ) : (
           <div className="table-wrap">
-            <table className="table table--compact">
+            <table className="table table--grid table--compact">
               <thead>
                 <tr>
                   <th>Tuần</th>

@@ -191,7 +191,7 @@ export default function CutoffSettingPage() {
               <h2 className="card__title">Lịch sử thay đổi</h2>
             </div>
             <div className="table-wrap sc-table-flat">
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th>Thời điểm</th>

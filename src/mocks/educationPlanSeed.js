@@ -1,896 +1,372 @@
-import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
+/*
+ * Dữ liệu demo kế hoạch giáo dục (thay toàn bộ dữ liệu mẫu cũ kiểu Yên Định, 14/10/2026).
+ * Một luồng liền mạch cho khối Mẫu giáo nhỡ (4–5 tuổi), năm học 2026 – 2027, trường mẫu Thượng Hồng:
+ *   1. Kế hoạch năm (mục tiêu, nội dung, 9 chủ đề, 2 đợt nghỉ) ở trạng thái Nháp, chưa ai ký
+ *      → Tổ trưởng ký, Phó HT ký, Tổ trưởng gửi, Phó HT ban hành.
+ *   2. Sau khi ban hành, lớp Chồi 1 có sẵn bản nháp chủ đề nhánh, kế hoạch chủ đề "Trường mầm non" và giáo án tuần 1
+ *      để giáo viên chỉ cần xem, ký, gửi duyệt (Tổ trưởng → Phó HT). Lớp Chồi 2 để trống để lập từ đầu.
+ * Nội dung tự soạn cho demo; không có dữ liệu trẻ hay tên người thật (tên là tài khoản demo).
+ */
+import { emptyBranchPlan, emptyThemePlan, emptyWeekPlan, yearWeeks } from '@/models/education-plan/classPlan';
 
-/* Seed data for the education-plan module (goals, theme plans, lesson plans). */
+/** Đổi giá trị này khi thay bộ dữ liệu demo: trình duyệt đang giữ dữ liệu cũ sẽ tự nạp bộ mới. */
+export const EDU_SEED_VERSION = 'thai-duong-demo-2026-10-16-branch-tl';
 
-const CURRENT_YEAR = '2026 – 2027';
+const YEAR = '2026 – 2027';
+const PLAN_ID = 'g-mgn-2627';
 
-const goalItems = (prefix, list) => list.map((text, i) => ({ id: `${prefix}-${i + 1}`, code: '', text }));
-
-function numberGoals(domains) {
-  let n = 0;
-  return domains.map((d) => ({
-    ...d,
-    items: d.items.map((it) => ({ ...it, code: `MT${++n}` })),
-  }));
-}
-
-const SEED_GOALS = [
+const THEMES = [
   {
-    id: 'g-1',
-    code: 'MTNH-2627-MGN',
-    schoolYear: CURRENT_YEAR,
-    ageGroupId: 'ag-4',
-    title: 'Mục tiêu giáo dục năm học 2026 – 2027 nhóm tuổi Mẫu giáo nhỡ',
-    description: 'Mục tiêu năm học xây dựng theo Chương trình Giáo dục mầm non, áp dụng cho trẻ 4–5 tuổi tại tất cả cơ sở của trường.',
-    status: 'SENT',
-    createdAt: '2026-08-20',
-    sentAt: '2026-08-22',
-    createdBy: 'Nguyễn Thị Lan',
-    file: { name: 'Muc_tieu_nam_hoc_MGN_2026-2027_da_ky.pdf', size: '1.4 MB' },
-    domains: numberGoals([
-      {
-        name: DOMAINS[0],
-        items: goalItems('g1-tc', [
-          'Trẻ chủ động, kiên trì tham gia các vận động và trò chơi vận động.',
-          'Trẻ thực hiện đúng, đầy đủ các động tác trong bài tập thể dục theo hiệu lệnh.',
-          'Trẻ giữ thăng bằng và phối hợp vận động khi đi, chạy, bật, ném.',
-          'Trẻ phối hợp cử động bàn tay, ngón tay trong hoạt động tự phục vụ.',
-          'Trẻ có thói quen ăn uống đủ chất, hành vi văn minh trong ăn uống.',
-          'Trẻ có thói quen vệ sinh cá nhân và biết giữ an toàn.',
-        ]),
-      },
-      {
-        name: DOMAINS[1],
-        items: goalItems('g1-nt', [
-          'Trẻ tò mò, quan sát và khám phá sự vật, hiện tượng gần gũi.',
-          'Trẻ nhận biết đặc điểm, công dụng của đồ dùng, đồ chơi quen thuộc.',
-          'Trẻ nói được tên trường, lớp, cô giáo và các khu vực trong trường.',
-          'Trẻ nhận biết, gọi tên và phân biệt các hình hình học cơ bản.',
-          'Trẻ đếm, nhận biết số lượng trong phạm vi 5.',
-          'Trẻ xác định vị trí của đồ vật so với bản thân.',
-        ]),
-      },
-      {
-        name: DOMAINS[2],
-        items: goalItems('g1-nn', [
-          'Trẻ nghe hiểu và thực hiện được yêu cầu bằng lời nói; nghe hiểu thơ, truyện.',
-          'Trẻ sử dụng lời nói rõ ràng để giao tiếp, đề nghị, nêu ý kiến.',
-          'Trẻ hứng thú với sách, tranh và làm quen với chữ viết.',
-        ]),
-      },
-      {
-        name: DOMAINS[3],
-        items: goalItems('g1-tx', [
-          'Trẻ biết thể hiện nhu cầu, sở thích của bản thân.',
-          'Trẻ nhận biết và thể hiện cảm xúc phù hợp.',
-          'Trẻ thực hiện nề nếp, nhiệm vụ của mình trong sinh hoạt ở lớp.',
-          'Trẻ giao tiếp lễ phép, hợp tác và chia sẻ với bạn bè, người lớn.',
-        ]),
-      },
-      {
-        name: DOMAINS[4],
-        items: goalItems('g1-ngt', [
-          'Trẻ cảm nhận và thể hiện cảm xúc trước vẻ đẹp của trường lớp, thiên nhiên.',
-          'Trẻ hát đúng giai điệu, vận động theo nhạc các bài hát quen thuộc.',
-          'Trẻ sử dụng nguyên vật liệu, kỹ năng tạo hình để tạo ra sản phẩm.',
-        ]),
-      },
+    id: 't-tmn',
+    name: 'Trường mầm non',
+    abbr: 'TMN',
+    start: '2026-09-07',
+    end: '2026-09-25',
+    festivals: 'Ngày hội đến trường, Tết Trung thu',
+  },
+  { id: 't-bt', name: 'Bản thân', abbr: 'BT', start: '2026-09-28', end: '2026-10-16', festivals: 'Ngày Phụ nữ Việt Nam 20/10' },
+  { id: 't-gd', name: 'Gia đình', abbr: 'GĐ', start: '2026-10-19', end: '2026-11-13', festivals: '' },
+  { id: 't-nn', name: 'Nghề nghiệp', abbr: 'NN', start: '2026-11-16', end: '2026-12-11', festivals: 'Ngày Nhà giáo Việt Nam 20/11' },
+  { id: 't-tv', name: 'Thế giới thực vật', abbr: 'TV', start: '2026-12-14', end: '2027-01-15', festivals: '' },
+  { id: 't-tmx', name: 'Tết và mùa xuân', abbr: 'TMX', start: '2027-01-18', end: '2027-02-26', festivals: 'Tết Nguyên đán' },
+  { id: 't-dv', name: 'Thế giới động vật', abbr: 'ĐV', start: '2027-03-01', end: '2027-03-26', festivals: 'Ngày Quốc tế Phụ nữ 8/3' },
+  { id: 't-gt', name: 'Phương tiện và luật giao thông', abbr: 'GT', start: '2027-03-29', end: '2027-04-16', festivals: '' },
+  {
+    id: 't-qh',
+    name: 'Quê hương – Đất nước – Bác Hồ',
+    abbr: 'QH',
+    start: '2027-04-19',
+    end: '2027-05-14',
+    festivals: 'Ngày Giải phóng miền Nam 30/4, Sinh nhật Bác 19/5',
+  },
+].map((t) => ({ ...t, note: '' }));
+
+const BREAKS = [
+  { id: 'b-ontap', label: 'Ôn tập, đánh giá cuối học kỳ I', start: '2027-01-04', end: '2027-01-08' },
+  { id: 'b-tet', label: 'Nghỉ Tết Nguyên đán', start: '2027-02-08', end: '2027-02-19' },
+];
+
+const ALL = THEMES.map((t) => t.id);
+const T = (...abbrs) => abbrs.map((a) => THEMES.find((t) => t.abbr === a).id);
+
+/* Hàng của bảng mục tiêu theo lĩnh vực: sub = lĩnh vực con, group = nhóm kết quả mong đợi, goal = mục tiêu + nội dung (tích chủ đề). */
+const sub = (text) => ({ kind: 'sub', text });
+const group = (text) => ({ kind: 'group', text });
+const goal = (text, contents) => ({ kind: 'goal', text, contents: contents.map(([c, themes]) => ({ text: c, themes })) });
+
+const DOMAIN_ROWS = {
+  'Phát triển thể chất': [
+    sub('Phát triển vận động'),
+    group('Thực hiện được các động tác phát triển các nhóm cơ và hô hấp'),
+    goal('Trẻ thực hiện đúng, đầy đủ, nhịp nhàng các động tác trong bài thể dục theo hiệu lệnh.', [
+      ['Hô hấp, tay, lưng – bụng – lườn, chân trong giờ thể dục sáng và bài tập phát triển chung.', ALL],
     ]),
-  },
-  {
-    id: 'g-2',
-    code: 'MTNH-2627-MGL',
-    schoolYear: CURRENT_YEAR,
-    ageGroupId: 'ag-5',
-    title: 'Mục tiêu giáo dục năm học 2026 – 2027 nhóm tuổi Mẫu giáo lớn',
-    description: 'Mục tiêu năm học cho trẻ 5–6 tuổi, chú trọng chuẩn bị vào lớp 1.',
-    status: 'SENT',
-    createdAt: '2026-08-21',
-    sentAt: '2026-08-22',
-    createdBy: 'Nguyễn Thị Lan',
-    file: { name: 'Muc_tieu_nam_hoc_MGL_2026-2027_da_ky.pdf', size: '1.2 MB' },
-    domains: numberGoals([
-      {
-        name: DOMAINS[0],
-        items: goalItems('g2-d1', ['Trẻ bật xa tối thiểu 50 cm.', 'Trẻ tự cài, cởi cúc áo, buộc dây giày.']),
-      },
-      {
-        name: DOMAINS[2],
-        items: goalItems('g2-d3', ['Trẻ nhận biết và phát âm đúng các chữ cái đã học.']),
-      },
+    group('Thể hiện kỹ năng vận động cơ bản và các tố chất trong vận động'),
+    goal('Trẻ giữ được thăng bằng cơ thể khi thực hiện vận động.', [
+      ['Đi trên ghế thể dục, đầu đội túi cát.', T('TMN', 'GĐ')],
+      ['Đi, chạy thay đổi tốc độ, hướng theo hiệu lệnh.', T('BT', 'GT')],
     ]),
-  },
-  {
-    id: 'g-3',
-    code: 'MTNH-2627-MGB',
-    schoolYear: CURRENT_YEAR,
-    ageGroupId: 'ag-3',
-    title: 'Mục tiêu giáo dục năm học 2026 – 2027 nhóm tuổi Mẫu giáo bé',
-    description: '',
-    status: 'DRAFT',
-    createdAt: '2026-10-02',
-    sentAt: null,
-    createdBy: 'Nguyễn Thị Lan',
-    file: null,
-    domains: numberGoals([{ name: DOMAINS[0], items: goalItems('g3-d1', ['Trẻ đi, chạy thay đổi tốc độ theo hiệu lệnh.']) }]),
-  },
-  // Năm học trước – dùng để sao chép mục tiêu
-  {
-    id: 'g-old-4',
-    code: 'MTNH-2526-MGN',
-    schoolYear: '2025 – 2026',
-    ageGroupId: 'ag-4',
-    title: 'Mục tiêu giáo dục năm học 2025 – 2026 nhóm tuổi Mẫu giáo nhỡ',
-    description: '',
-    status: 'SENT',
-    createdAt: '2025-08-18',
-    sentAt: '2025-08-20',
-    createdBy: 'Nguyễn Thị Lan',
-    file: { name: 'Muc_tieu_nam_hoc_MGN_2025-2026_da_ky.pdf', size: '1.3 MB' },
-    domains: numberGoals([
-      {
-        name: DOMAINS[0],
-        items: goalItems('go4-d1', [
-          'Trẻ thực hiện đúng, đầy đủ các động tác trong bài tập thể dục theo hiệu lệnh.',
-          'Trẻ biết tự cầm thìa xúc ăn gọn gàng, không rơi vãi.',
-          'Trẻ chạy liên tục 15 m trong khoảng 10 giây.',
-        ]),
-      },
-      {
-        name: DOMAINS[1],
-        items: goalItems('go4-d2', [
-          'Trẻ nhận biết được hình vuông, hình tròn, hình tam giác, hình chữ nhật.',
-          'Trẻ phân biệt được hôm qua, hôm nay, ngày mai.',
-        ]),
-      },
-      {
-        name: DOMAINS[2],
-        items: goalItems('go4-d3', ['Trẻ đọc thuộc bài thơ, ca dao, đồng dao phù hợp độ tuổi.']),
-      },
-      {
-        name: 'Giáo dục an toàn giao thông',
-        items: goalItems('go4-d6', [
-          'Trẻ biết đi bộ trên vỉa hè, nắm tay người lớn khi qua đường.',
-          'Trẻ nhận biết đèn tín hiệu giao thông xanh, đỏ, vàng.',
-        ]),
-      },
+    goal('Trẻ phối hợp tay – mắt trong vận động tung, ném, bắt.', [
+      ['Tung, bắt bóng với người đối diện khoảng cách 3 m.', T('TMN', 'NN')],
+      ['Ném xa bằng một tay, ném trúng đích nằm ngang.', T('ĐV', 'TV')],
     ]),
-  },
-  {
-    id: 'g-old-2',
-    code: 'MTNH-2526-NT',
-    schoolYear: '2025 – 2026',
-    ageGroupId: 'ag-2',
-    title: 'Mục tiêu giáo dục năm học 2025 – 2026 nhóm tuổi Nhà trẻ',
-    description: '',
-    status: 'SENT',
-    createdAt: '2025-08-18',
-    sentAt: '2025-08-20',
-    createdBy: 'Nguyễn Thị Lan',
-    file: { name: 'Muc_tieu_nam_hoc_NT_2025-2026_da_ky.pdf', size: '980 KB' },
-    domains: numberGoals([
-      {
-        name: DOMAINS[0],
-        items: goalItems('go2-d1', ['Trẻ đi được theo đường thẳng, đường hẹp.', 'Trẻ biết xúc cơm, uống nước bằng cốc.']),
-      },
-      {
-        name: DOMAINS[2],
-        items: goalItems('go2-d3', ['Trẻ nói được câu đơn 3–4 từ.']),
-      },
+    sub('Giáo dục dinh dưỡng và sức khỏe'),
+    group('Biết một số món ăn, thực phẩm thông thường và ích lợi của chúng'),
+    goal('Trẻ kể được tên một số thức ăn cần có trong bữa ăn hằng ngày.', [
+      ['Nhận biết, phân loại một số thực phẩm theo 4 nhóm.', T('BT', 'GĐ')],
+      ['Làm quen với một số món ăn ngày Tết.', T('TMX')],
     ]),
-  },
-];
+    group('Có một số hành vi, thói quen tốt trong sinh hoạt và giữ gìn sức khỏe'),
+    goal('Trẻ biết rửa tay bằng xà phòng trước khi ăn, sau khi đi vệ sinh.', [
+      ['Tập rửa tay, lau mặt, đánh răng đúng cách.', T('TMN', 'BT', 'GĐ')],
+    ]),
+  ],
+  'Phát triển nhận thức': [
+    sub('Khám phá khoa học'),
+    goal('Trẻ phân loại được các đối tượng theo một hoặc hai dấu hiệu.', [
+      ['Phân loại đồ dùng, đồ chơi theo chất liệu, công dụng.', T('TMN', 'GĐ')],
+      ['Phân loại con vật theo môi trường sống.', T('ĐV')],
+      ['Phân loại cây, hoa, quả theo đặc điểm.', T('TV')],
+    ]),
+    goal('Trẻ nhận xét được mối quan hệ đơn giản của sự vật, hiện tượng.', [
+      ['Quá trình phát triển của cây; điều kiện sống của cây.', T('TV')],
+      ['Một số hiện tượng thời tiết theo mùa.', T('TMX', 'QH')],
+    ]),
+    sub('Làm quen với một số khái niệm sơ đẳng về toán'),
+    goal('Trẻ đếm trên đối tượng trong phạm vi 10 và đếm theo khả năng.', [
+      ['Đếm đến 5, nhận biết các nhóm có 5 đối tượng, nhận biết số 5.', T('BT', 'GĐ')],
+      ['Đếm đến 8, so sánh thêm bớt trong phạm vi 8.', T('NN', 'ĐV')],
+    ]),
+    goal('Trẻ sử dụng đúng từ chỉ vị trí của đồ vật so với bản thân.', [
+      ['Xác định phía trên – dưới, trước – sau, phải – trái của bản thân.', T('BT', 'GT')],
+    ]),
+    sub('Khám phá xã hội'),
+    goal('Trẻ nói được tên, địa chỉ trường, lớp, tên cô giáo và bạn trong lớp.', [
+      ['Trò chuyện về trường, lớp, cô giáo, các bạn.', T('TMN')],
+    ]),
+    goal('Trẻ kể được tên, công việc, dụng cụ của một số nghề phổ biến.', [
+      ['Tìm hiểu nghề nông, nghề xây dựng, nghề giáo viên, bác sĩ.', T('NN')],
+    ]),
+  ],
+  'Phát triển ngôn ngữ': [
+    group('Nghe hiểu lời nói'),
+    goal('Trẻ thực hiện được 2–3 yêu cầu liên tiếp.', [['Nghe hiểu và làm theo yêu cầu của cô trong các hoạt động.', ALL]]),
+    goal('Trẻ nghe hiểu nội dung truyện kể, thơ, đồng dao phù hợp độ tuổi.', [
+      ['Truyện "Đôi bạn tốt", thơ "Bàn tay cô giáo".', T('TMN', 'NN')],
+      ['Thơ "Hoa kết trái", truyện "Sự tích bánh chưng".', T('TV', 'TMX')],
+    ]),
+    group('Sử dụng lời nói trong cuộc sống hằng ngày'),
+    goal('Trẻ kể lại sự việc theo trình tự, đọc thuộc bài thơ, đồng dao.', [
+      ['Kể lại truyện đã nghe; đọc thơ diễn cảm.', T('BT', 'GĐ', 'ĐV', 'QH')],
+    ]),
+    group('Làm quen với việc đọc – viết'),
+    goal('Trẻ nhận dạng được một số chữ cái.', [['Làm quen chữ cái o, ô, ơ; a, ă, â; e, ê.', T('GĐ', 'NN', 'TV')]]),
+  ],
+  'Phát triển tình cảm và kỹ năng xã hội': [
+    goal('Trẻ nói được điều bé thích, không thích, những việc bé làm được.', [['Trò chuyện về sở thích, khả năng của bản thân.', T('BT')]]),
+    goal('Trẻ biết chào hỏi, cảm ơn, xin lỗi phù hợp tình huống.', [['Thực hành lễ giáo: chào hỏi, cảm ơn, xin lỗi.', ALL]]),
+    goal('Trẻ biết giữ gìn, bảo vệ môi trường xanh – sạch – đẹp.', [['Nhặt lá, tưới cây, bỏ rác đúng nơi quy định.', T('TV', 'QH')]]),
+  ],
+  'Phát triển thẩm mỹ': [
+    goal('Trẻ hát đúng giai điệu, lời ca và thể hiện sắc thái bài hát.', [
+      ['Hát "Trường chúng cháu là trường mầm non", "Cô giáo".', T('TMN', 'NN')],
+      ['Hát "Sắp đến Tết rồi", "Mùa xuân".', T('TMX')],
+    ]),
+    goal('Trẻ phối hợp các kỹ năng vẽ, nặn, cắt, dán để tạo ra sản phẩm.', [
+      ['Vẽ, tô màu chân dung bạn; nặn đồ dùng gia đình.', T('BT', 'GĐ')],
+      ['Cắt, dán hoa, lá, con vật từ giấy màu.', T('TV', 'ĐV')],
+    ]),
+  ],
+};
 
-/* ───────────── Dữ liệu mẫu ───────────── */
-
-const row = (id, goalCode, code, domain, requirement, content, method, form, environment) => ({
-  id,
-  goalCode,
-  code,
-  domain,
-  requirement,
-  content,
-  method,
-  form,
-  environment,
-  adjust: '',
-});
-
-const TC = 'Phát triển thể chất';
-const NT = 'Phát triển nhận thức';
-const NN = 'Phát triển ngôn ngữ';
-const TX = 'Phát triển tình cảm và kỹ năng xã hội';
-const NGT = 'Phát triển thẩm mỹ';
-
-const PP_VD = [
-  'Trực quan làm mẫu; luyện tập – thực hành; trò chơi vận động',
-  'Cá nhân, nhóm, cả lớp',
-  'Sân bằng phẳng, dụng cụ vận động phù hợp, bảo đảm an toàn',
-];
-const PP_TX = [
-  'Trò chuyện, nêu gương, đóng vai, xử lý tình huống',
-  'Hợp tác nhóm; tích hợp trong mọi hoạt động',
-  'Môi trường thân thiện, có bảng quy ước và góc cảm xúc',
-];
-const PP_NN = [
-  'Đàm thoại gợi mở; đọc diễn cảm, kể chuyện; đóng kịch',
-  'Cá nhân – nhóm – cả lớp',
-  'Sách tranh, rối, tranh truyện, góc thư viện',
-];
-const PP_NT = ['Quan sát, so sánh, phân loại; trò chơi học tập', 'Nhóm nhỏ, cả lớp', 'Đồ dùng, đồ chơi thật; thẻ hình; màn hình tương tác'];
-const PP_NGT = ['Nghe – hát – vận động; thực hành tạo hình', 'Cá nhân, nhóm', 'Nhạc cụ, giấy, màu, đất nặn, nguyên liệu tái chế'];
-
-const THEME_1_ROWS = [
-  row(
-    'r1',
-    'MT1',
-    'TC1.1',
-    TC,
-    'Trẻ lựa chọn và tham gia các trò chơi vận động trong giờ hoạt động thể chất, không chờ cô nhắc.',
-    'Rèn các vận động đi, chạy, bật, giữ thăng bằng; trò chơi gắn với trường, lớp, cô giáo, bạn bè.',
-    ...PP_VD,
-  ),
-  row(
-    'r2',
-    'MT1',
-    'TC1.2',
-    TC,
-    'Trẻ thực hiện lại vận động khi chưa đạt yêu cầu, cố gắng đến khi hoàn thành.',
-    'Ném chưa trúng thì thử lại; bật chạm vật cản thì điều chỉnh; đi mất thăng bằng thì làm lại.',
-    ...PP_VD,
-  ),
-  row(
-    'r3',
-    'MT3',
-    'TC3.1',
-    TC,
-    'Trẻ đi, chạy qua đường hẹp hoặc có chướng ngại vật, giữ thăng bằng theo yêu cầu.',
-    'Đi trong đường hẹp theo hiệu lệnh; trò chơi dân gian Mèo đuổi chuột.',
-    ...PP_VD,
-  ),
-  row(
-    'r4',
-    'MT4',
-    'TC4.2',
-    TC,
-    'Trẻ cài, mở cúc áo hoặc kéo khóa trong hoạt động tự phục vụ, thực hiện độc lập.',
-    'Cài/mở cúc áo; kéo khóa; tự mặc/cởi trang phục đơn giản và cất đồ dùng cá nhân.',
-    'Trò chuyện gợi mở; thực hành trải nghiệm; nêu gương',
-    'Cá nhân',
-    'Đồ dùng cá nhân có ký hiệu',
-  ),
-  row(
-    'r5',
-    'MT6',
-    'TC6.1',
-    TC,
-    'Trẻ rửa tay bằng xà phòng trước khi ăn và sau khi đi vệ sinh, thực hiện đủ các bước.',
-    'Thực hành vệ sinh cá nhân, ăn uống hợp lý, tự phục vụ và quy tắc an toàn trong trường.',
-    'Trò chuyện; thực hành trải nghiệm; xử lý tình huống',
-    'Trong giờ ăn, vệ sinh và sinh hoạt hằng ngày',
-    'Tranh quy trình rửa tay, xà phòng, khăn',
-  ),
-  row(
-    'r6',
-    'MT7',
-    'NT1.3',
-    NT,
-    'Trẻ quan sát và nói được đặc điểm nổi bật của đồ dùng, đồ chơi trong lớp.',
-    'Khám phá đồ dùng, đồ chơi và nội quy lớp học.',
-    ...PP_NT,
-  ),
-  row(
-    'r7',
-    'MT8',
-    'NT2.1',
-    NT,
-    'Trẻ nói được công dụng của một số đồ dùng, đồ chơi quen thuộc.',
-    'Trò chuyện, phân loại đồ dùng theo công dụng.',
-    ...PP_NT,
-  ),
-  row(
-    'r8',
-    'MT10',
-    'NT4.2',
-    NT,
-    'Trẻ nhận biết, gọi đúng tên hình vuông, tròn, tam giác, chữ nhật.',
-    'Ôn nhận biết, phân biệt các hình quanh lớp.',
-    ...PP_NT,
-  ),
-  row(
-    'r9',
-    'MT11',
-    'NT5.1',
-    NT,
-    'Trẻ đếm và nhận biết số lượng trong phạm vi 5.',
-    'Đếm đồ chơi, bạn trong nhóm trong phạm vi 5.',
-    ...PP_NT,
-  ),
-  row(
-    'r10',
-    'MT13',
-    'NN1.1',
-    NN,
-    'Trẻ nhắc lại câu nói gồm 5–7 tiếng sau khi nghe cô nói.',
-    'Thơ, truyện về ngày đến trường, cô giáo và tình bạn.',
-    ...PP_NN,
-  ),
-  row(
-    'r11',
-    'MT13',
-    'NN1.3',
-    NN,
-    'Trẻ thực hiện liên tiếp 2 yêu cầu bằng lời nói trong hoạt động hằng ngày.',
-    'Nghe và thực hiện liên tiếp 2 yêu cầu; trao đổi với cô, bạn.',
-    ...PP_NN,
-  ),
-  row(
-    'r12',
-    'MT14',
-    'NN2.2',
-    NN,
-    'Trẻ dùng từ chỉ người, vật, hoạt động và câu hỏi, câu kể khi trò chuyện.',
-    'Mở rộng từ theo chủ đề; nói câu rõ ý; kể chuyện theo tranh.',
-    ...PP_NN,
-  ),
-  row(
-    'r13',
-    'MT14',
-    'NN2.5',
-    NN,
-    'Trẻ dùng lời chào, cảm ơn, xin lỗi hoặc xin phép trong giao tiếp hằng ngày.',
-    'Thực hành lời nói lễ phép trong các tình huống ở trường.',
-    ...PP_NN,
-  ),
-  row(
-    'r14',
-    'MT16',
-    'TX1.2',
-    TX,
-    'Trẻ nói hoặc dùng cử chỉ để đề nghị nhu cầu của mình trong hoạt động hằng ngày.',
-    'Trò chuyện, trải nghiệm tình huống gần gũi để trẻ nói về nhu cầu, sở thích.',
-    ...PP_TX,
-  ),
-  row(
-    'r15',
-    'MT16',
-    'TX1.3',
-    TX,
-    'Trẻ nói điều mình thích hoặc không thích khi lựa chọn đồ chơi, hoạt động.',
-    'Trẻ chọn và chia sẻ lý do lựa chọn đồ chơi, món ăn, hoạt động.',
-    ...PP_TX,
-  ),
-  row(
-    'r16',
-    'MT18',
-    'TX3.1',
-    TX,
-    'Trẻ thực hiện nhiệm vụ như cất đồ dùng, xếp hàng, chào hỏi trong sinh hoạt ở lớp.',
-    'Thực hiện nề nếp và trách nhiệm trong lớp học.',
-    ...PP_TX,
-  ),
-  row(
-    'r17',
-    'MT19',
-    'TX4.1',
-    TX,
-    'Trẻ chủ động chào hỏi và mời bạn tham gia chơi cùng trong hoạt động góc.',
-    'Góc cô giáo – học sinh, bán hàng đồ dùng học tập; thỏa thuận vai.',
-    'Chơi đóng vai, hợp tác nhóm',
-    'Nhóm nhỏ',
-    'Góc mở, đồ chơi mô phỏng, kí hiệu vai chơi',
-  ),
-  row(
-    'r18',
-    'MT21',
-    'NgT2.1',
-    NGT,
-    'Trẻ hát đúng giai điệu và vận động theo nhạc các bài hát về trường mầm non.',
-    'Hát, vận động: Trường chúng cháu là trường mầm non; Cháu đi mẫu giáo.',
-    ...PP_NGT,
-  ),
-  row(
-    'r19',
-    'MT22',
-    'NgT3.2',
-    NGT,
-    'Trẻ vẽ, xé dán, nặn tạo sản phẩm về trường lớp, đồ chơi.',
-    'Vẽ trường mầm non; làm khung ảnh tình bạn từ bìa và hột hạt.',
-    ...PP_NGT,
-  ),
-];
-
-const THEME_2_ROWS = [
-  row(
-    's1',
-    'MT2',
-    'TC2.1',
-    TC,
-    'Trẻ tập đủ, đúng các động tác thể dục theo nhạc bài “Cái mũi”.',
-    'Bài tập phát triển chung; vận động cơ bản bò, bật.',
-    ...PP_VD,
-  ),
-  row(
-    's2',
-    'MT6',
-    'TC6.2',
-    TC,
-    'Trẻ biết giữ vệ sinh răng miệng, đánh răng đúng cách.',
-    'Thực hành đánh răng, rửa tay, lau mặt.',
-    'Thực hành',
-    'Cá nhân',
-    'Bàn chải, cốc, mô hình răng',
-  ),
-  row('s3', 'MT7', 'NT1.4', NT, 'Trẻ nói được tên và chức năng các bộ phận trên cơ thể.', 'Khám phá cơ thể bé và các giác quan.', ...PP_NT),
-  row(
-    's4',
-    'MT14',
-    'NN2.3',
-    NN,
-    'Trẻ giới thiệu được họ tên, tuổi, sở thích của bản thân.',
-    'Trò chuyện “Bé là ai”; thơ “Đôi mắt của em”.',
-    ...PP_NN,
-  ),
-  row(
-    's5',
-    'MT17',
-    'TX2.1',
-    TX,
-    'Trẻ nhận biết và gọi tên cảm xúc vui, buồn, ngạc nhiên, sợ hãi.',
-    'Trò chơi “Khuôn mặt cảm xúc”.',
-    ...PP_TX,
-  ),
-  row('s6', 'MT21', 'NgT2.2', NGT, 'Trẻ hát và vận động minh họa bài “Cái mũi”.', 'Dạy hát, vận động minh họa; nghe hát.', ...PP_NGT),
-];
-
-const THEME_3_ROWS = [
-  row(
-    'u1',
-    'MT19',
-    'TX4.3',
-    TX,
-    'Trẻ biết quan tâm, giúp đỡ người thân trong gia đình.',
-    'Trò chuyện về các thành viên và công việc trong gia đình.',
-    ...PP_TX,
-  ),
-  row('u2', 'MT9', 'NT3.2', NT, 'Trẻ kể được tên, công việc của các thành viên trong gia đình.', 'Khám phá: Gia đình bé.', ...PP_NT),
-  row('u3', 'MT14', 'NN2.6', NN, 'Trẻ kể lại truyện “Ba cô gái” theo trình tự.', 'Kể chuyện, đóng kịch.', ...PP_NN),
-];
-
-const branches = (start, names) =>
-  names.map((name, i) => {
-    const d = new Date(start + 'T00:00:00Z');
-    d.setUTCDate(d.getUTCDate() + i * 7);
-    const e = new Date(d);
-    e.setUTCDate(e.getUTCDate() + 4);
-    return { index: i + 1, start: d.toISOString().slice(0, 10), end: e.toISOString().slice(0, 10), name };
+let rowSeq = 0;
+const rowsOf = (domain) =>
+  DOMAIN_ROWS[domain].map((r) => {
+    const id = `${PLAN_ID}-r${(rowSeq += 1)}`;
+    return r.kind === 'goal'
+      ? { id, kind: 'goal', text: r.text, contents: r.contents.map((c, k) => ({ ...c, id: `${id}-c${k + 1}` })) }
+      : { id, ...r };
   });
 
-const SEED_THEMES = [
-  {
-    id: 't-1',
-    code: 'CD-MGN-01',
-    schoolYear: '2026 – 2027',
+/* ---------- Người soạn / gửi / duyệt demo (không còn chữ ký trong hệ thống: duyệt xong in ra ký tay) ---------- */
+const person = (userId, name, role, title, at) => ({ userId, name, role, title, at });
+const approval = (userId, name, role, roleKey, at) => ({ userId, name, role, roleKey, at, note: '' });
+const log = (action, by, role, at, tone = '', note) => ({ action, by, role, at, tone, ...(note ? { note } : {}) });
+
+const buildYearPlan = () => {
+  rowSeq = 0;
+  let no = 0;
+  const domains = Object.keys(DOMAIN_ROWS).map((name, i) => {
+    const rows = rowsOf(name);
+    // items: danh sách mục tiêu (số MT) để các màn đọc mục tiêu năm kiểu cũ vẫn dùng được
+    const items = rows
+      .filter((r) => r.kind === 'goal')
+      .map((r) => ({ id: r.id, code: `MT${(no += 1)}`, text: r.text, contents: r.contents, requirements: [] }));
+    return { id: `${PLAN_ID}-d${i + 1}`, name, rows, items };
+  });
+  return {
+    id: PLAN_ID,
+    code: 'KHNH-2627-MGN',
+    schoolYear: YEAR,
     ageGroupId: 'ag-4',
-    goalId: 'g-1',
-    name: 'Bé vui đến trường',
-    startDate: '2026-09-07',
-    endDate: '2026-09-25',
-    weeks: 3,
-    branches: branches('2026-09-07', ['Trường mầm non thân yêu', 'Lớp học của bé', 'Cô giáo và các bạn']),
-    rows: THEME_1_ROWS,
-    note: '',
+    title: 'Kế hoạch giáo dục năm học 2026 – 2027 khối Mẫu giáo nhỡ',
+    description: 'Dữ liệu demo: Tổ trưởng soạn và gửi, Phó hiệu trưởng đã duyệt ban hành để lớp lập chủ đề nhánh.',
     status: 'APPROVED',
+    createdAt: '2026-08-20',
     createdBy: 'Trần Thu Hà',
+    sentAt: '2026-08-25 09:00',
+    file: null,
+    domains,
+    themes: THEMES,
+    breaks: BREAKS,
+    // Tổ trưởng soạn và gửi, Phó HT ban hành; bản in để trống chỗ ký tay
+    owner: person('u_ha', 'Trần Thu Hà', 'TEAM_LEADER', 'Tổ trưởng nhóm tuổi', '2026-08-20'),
+    sentBy: person('u_ha', 'Trần Thu Hà', 'TEAM_LEADER', 'Tổ trưởng nhóm tuổi', '2026-08-25'),
+    issued: person('u_lan', 'Nguyễn Thị Lan', 'VICE_PRINCIPAL', 'Phó hiệu trưởng', '2026-08-26'),
     history: [
-      { action: 'Tạo và gửi duyệt', by: 'Trần Thu Hà', role: 'Tổ trưởng nhóm tuổi', at: '2026-08-28 09:12', tone: '' },
-      { action: 'Phó HT phê duyệt', by: 'Nguyễn Thị Lan', role: 'Phó hiệu trưởng', at: '2026-08-30 14:05', tone: 'ok' },
+      log('Gửi Phó hiệu trưởng duyệt', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-08-25 09:00'),
+      log('Ban hành', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', '2026-08-26 10:00', 'ok'),
     ],
-  },
-  {
-    id: 't-2',
-    code: 'CD-MGN-02',
-    schoolYear: '2026 – 2027',
-    ageGroupId: 'ag-4',
-    goalId: 'g-1',
-    name: 'Bản thân bé',
-    startDate: '2026-09-28',
-    endDate: '2026-10-23',
-    weeks: 4,
-    branches: branches('2026-09-28', ['Bé là ai', 'Cơ thể bé', 'Bé cần gì để lớn lên khỏe mạnh', 'Cảm xúc của bé']),
-    rows: THEME_2_ROWS,
-    note: '',
+  };
+};
+
+/* ---------- Bản nháp của lớp Chồi 1 (hiện ra sau khi kế hoạch năm được ban hành) ---------- */
+
+const CLASS_ID = 'cls_c1_c1';
+const BRANCH_NAMES = [
+  'Lớp học của bé',
+  'Cô giáo và các bạn',
+  'Vui Tết Trung thu',
+  'Bé là ai',
+  'Cơ thể của bé',
+  'Bé cần gì để lớn lên',
+  'Gia đình thân yêu',
+  'Ngôi nhà của bé',
+  'Đồ dùng gia đình',
+  'Ngày hội của bà, của mẹ',
+  'Nghề nông',
+  'Nghề xây dựng',
+  'Cô giáo của em',
+  'Bác sĩ của bé',
+  'Cây xanh quanh bé',
+  'Hoa đẹp quanh bé',
+  'Rau, củ, quả',
+  'Cây lương thực',
+  'Bé đón Tết',
+  'Mùa xuân của bé',
+  'Hoa ngày Tết',
+  'Lễ hội mùa xuân',
+  'Con vật nuôi trong gia đình',
+  'Con vật sống dưới nước',
+  'Con vật sống trong rừng',
+  'Côn trùng',
+  'Phương tiện giao thông đường bộ',
+  'Phương tiện giao thông đường thủy',
+  'Bé đi đường an toàn',
+  'Quê hương của bé',
+  'Thủ đô Hà Nội',
+  'Bác Hồ kính yêu',
+  'Bé chuẩn bị vào lớp Lá',
+];
+
+const buildClassDocs = (plan) => {
+  const weeks = yearWeeks(plan).filter((w) => w.type === 'week');
+  const names = Object.fromEntries(weeks.map((w, i) => [w.start, BRANCH_NAMES[i] || '']));
+  // Chồi 1 (2 giáo viên): chủ đề nhánh đã được Phó HT duyệt nên lớp đã lập kế hoạch chủ đề và giáo án tuần 1
+  const branch = {
+    ...emptyBranchPlan({ classId: CLASS_ID, yearPlanId: PLAN_ID }),
+    names,
     status: 'APPROVED',
-    createdBy: 'Trần Thu Hà',
+    approvals: [
+      approval('u_ha', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', 'TEAM_LEADER', '2026-09-01 17:00'),
+      approval('u_lan', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', 'VICE_PRINCIPAL', '2026-09-02 08:30'),
+    ],
     history: [
-      { action: 'Tạo và gửi duyệt', by: 'Trần Thu Hà', role: 'Tổ trưởng nhóm tuổi', at: '2026-09-15 10:30', tone: '' },
-      { action: 'Phó HT phê duyệt', by: 'Nguyễn Thị Lan', role: 'Phó hiệu trưởng', at: '2026-09-17 08:45', tone: 'ok' },
+      log('Gửi Tổ trưởng duyệt', 'Lê Minh Anh', 'Giáo viên', '2026-09-01 15:00'),
+      log('Tổ trưởng duyệt, chuyển Phó Hiệu trưởng', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-09-01 17:00', 'ok'),
+      log('Phó hiệu trưởng duyệt', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', '2026-09-02 08:30', 'ok'),
     ],
-  },
-  {
-    id: 't-3',
-    code: 'CD-MGN-03',
-    schoolYear: '2026 – 2027',
-    ageGroupId: 'ag-4',
-    goalId: 'g-1',
-    name: 'Gia đình thân yêu',
-    startDate: '2026-10-26',
-    endDate: '2026-11-20',
-    weeks: 4,
-    branches: branches('2026-10-26', ['Gia đình bé', 'Ngôi nhà của bé', 'Đồ dùng trong gia đình', 'Nhu cầu của gia đình']),
-    rows: THEME_3_ROWS,
-    note: '',
-    status: 'PENDING_VP',
-    createdBy: 'Trần Thu Hà',
-    history: [{ action: 'Tạo và gửi duyệt', by: 'Trần Thu Hà', role: 'Tổ trưởng nhóm tuổi', at: '2026-10-05 16:20', tone: '' }],
-  },
-];
+  };
+  // Chồi 2 (demo AI + gửi + duyệt): mới đặt tên 4 chủ đề đầu, các tuần sau còn trống; cô Hà (đăng nhập Trần Thu Hà)
+  // dùng AI gợi ý rồi gửi; Phó HT (Nguyễn Thị Lan) duyệt thì mở Kế hoạch chủ đề và xuất file để in, ký tay
+  const firstThemes = new Set(plan.themes.slice(0, 4).map((t) => t.id));
+  const branch2 = {
+    ...emptyBranchPlan({ classId: 'cls_c1_c2', yearPlanId: PLAN_ID }),
+    names: Object.fromEntries(weeks.map((w, i) => [w.start, firstThemes.has(w.theme.id) ? BRANCH_NAMES[i] || '' : ''])),
+  };
 
-/* Kế hoạch tuần: slots = giờ sinh hoạt; mỗi ô theo ngày có nội dung + mã YCCĐ, hoặc 1 ô chung cả tuần */
-const wk = ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11'];
-const cells = (list) => Object.fromEntries(wk.map((d, i) => [d, { text: list[i][0], codes: list[i][1] }]));
-const slot = (id, name, data) =>
-  Array.isArray(data)
-    ? { id, name, allWeek: false, cells: cells(data), all: { text: '', codes: [] } }
-    : { id, name, allWeek: true, cells: {}, all: data };
-
-const WEEK_1_SLOTS = [
-  slot('w1', 'Đón trẻ – Trò chuyện sáng', [
-    ['Trò chuyện về “Trường mầm non thân yêu”; nhắc trẻ cất đồ đúng ngăn tủ.', ['TX1.2', 'TX3.1', 'NN2.5']],
-    ['Quan sát tranh về trường mầm non; trò chuyện về việc đến trường.', ['TX1.2', 'TX3.1', 'NN2.5']],
-    ['Trò chuyện về tên trường, các khu vực trong trường, công việc của các cô.', ['TX1.2', 'TX3.1', 'NN2.5']],
-    ['Trò chuyện “Bé đến trường”; hướng dẫn trẻ chào cô, chào bố mẹ.', ['TX1.2', 'TX3.1', 'NN2.5']],
-    ['Trẻ chia sẻ cảm xúc về trường mầm non.', ['TX1.2', 'TX3.1', 'NN2.5']],
-  ]),
-  slot('w2', 'Thể dục sáng', {
-    text: 'Tập theo nhạc bài “Trường chúng cháu là trường mầm non”: hô hấp – tay – bụng – chân – bật, mỗi động tác 2 x 4 nhịp.',
-    codes: ['TC1.1'],
-  }),
-  slot('w3', 'Hoạt động học', [
-    ['Thể dục: Đi trong đường hẹp theo hiệu lệnh. TC dân gian: Mèo đuổi chuột.', ['TC1.1', 'TC1.2', 'TC3.1']],
-    ['Khám phá khoa học: Lớp học vui vẻ của bé.', ['NT1.3', 'NT2.1', 'NN2.2']],
-    ['Văn học: Thơ “Bé tới trường”.', ['NN1.1', 'NN1.3', 'NN2.2', 'NN2.5']],
-    ['Toán: Ôn nhận biết, phân biệt hình vuông, tròn, tam giác, chữ nhật quanh lớp.', ['NT4.2', 'NT5.1', 'NN2.2']],
-    ['Tạo hình: Làm khung ảnh tình bạn từ bìa carton và hột hạt.', ['NgT3.2']],
-  ]),
-  slot('w4', 'Hoạt động ngoài trời', [
-    ['Quan sát đồ chơi trong trường. TCVĐ: Thỏ nghe hát nhảy vào chuồng.', ['TC1.1', 'TC3.1', 'NT1.3']],
-    ['Quan sát cây cối trong trường. TC dân gian: Lộn cầu vồng.', ['TC1.1', 'NT1.3']],
-    ['Quan sát đồ chơi trong trường. TCVĐ: Gieo hạt nảy mầm.', ['TC1.1', 'NT2.1']],
-    ['Quan sát và trao đổi về khu vực trẻ thích. TCVĐ: Mèo đuổi chuột.', ['TC1.1', 'NT1.3']],
-    ['TCVĐ: Bịt mắt bắt dê. Chơi tự chọn: Ném vòng.', ['TC1.1', 'TX1.3']],
-  ]),
-  slot('w5', 'Hoạt động vui chơi trong lớp', [
-    ['Góc phân vai: Cô giáo – học sinh. Góc xây dựng: Bé đến trường.', ['TX4.1', 'NN2.2']],
-    ['Góc phân vai: Cô giáo – học sinh. Góc thiên nhiên: Chăm sóc cây con.', ['TX4.1', 'NN2.2']],
-    ['Góc học tập: Ghép tranh các khu vực trong trường.', ['NT1.3', 'TX4.1']],
-    ['Góc nghệ thuật: Hát các bài hát về trường.', ['TX4.1', 'NgT2.1']],
-    ['Góc nghệ thuật: Hát các bài hát về trường. Góc xây dựng: Bé đến trường.', ['TX4.1', 'NgT2.1']],
-  ]),
-  slot('w6', 'Ăn – Ngủ – Vệ sinh', {
-    text: 'Thực hành rửa tay đúng quy trình; ăn văn minh, ngồi đúng tư thế; tự lấy, cất đồ dùng cá nhân; ngủ đúng giờ.',
-    codes: ['TC4.2', 'TC6.1', 'TX3.1'],
-  }),
-  slot('w7', 'Sinh hoạt chiều', [
-    ['Ôn vận động: Đi trong đường hẹp. Lau dọn, sắp xếp đồ chơi.', ['TC1.2', 'TX3.1']],
-    ['Ôn: Lớp học vui vẻ của bé. Cất đồ dùng đúng nơi quy định.', ['NT1.3', 'TX3.1']],
-    ['Ôn thơ “Bé tới trường”.', ['NN1.1', 'TX3.1']],
-    ['Ôn toán; dạy trẻ kỹ năng chào hỏi lễ phép.', ['NT5.1', 'TX3.1']],
-    ['Ôn tạo hình: vẽ trường mầm non. Nêu gương cuối tuần.', ['TC1.2', 'TX3.1']],
-  ]),
-  slot('w8', 'Trả trẻ', { text: 'Trẻ chào cô, chào bạn; cô trao đổi với phụ huynh về tình hình của trẻ trong ngày.', codes: ['NN2.5'] }),
-];
-
-const daySlot = (id, name, duration, topic, codes, extra = {}) => ({
-  id,
-  name,
-  duration,
-  topic,
-  codes,
-  purpose: '',
-  skills: '',
-  qualities: ['Yêu thương', 'Tôn trọng', 'Trách nhiệm', 'Trung thực'],
-  competencies: ['Giao tiếp', 'Hợp tác', 'Giải quyết vấn đề', 'Tự lực', 'Thích ứng'],
-  prepTeacher: '',
-  prepChild: '',
-  steps: [],
-  ...extra,
-});
-
-const DAY_1009_SLOTS = [
-  daySlot('d1', 'Đón trẻ – Trò chuyện sáng', '', 'Trò chuyện “Bé đến trường”; tập thể dục sáng theo nhạc', ['TX1.2', 'TX3.1', 'NN2.5'], {
-    purpose: 'Trẻ thực hiện nề nếp đến lớp; biết nội dung trò chuyện trong ngày.',
-    skills: 'Chào hỏi, cất đồ cá nhân; nói câu đủ ý; tập đúng các động tác theo nhạc.',
-    prepTeacher: 'Lớp sạch, tranh ảnh trường lớp; nhạc vui đến trường.',
-    prepChild: 'Trang phục gọn gàng; đồ cá nhân có ký hiệu.',
-    steps: [
-      {
-        id: 'd1s1',
-        title: 'Đón trẻ – chơi',
-        teacher: 'Cô đón trẻ thân thiện, nhắc trẻ chào cô, tự cất ba lô, dép đúng ký hiệu. Gợi hỏi: “Hôm nay con đến trường với ai?”',
-        child: 'Trẻ chào hỏi, tự cất đồ, trò chuyện và chơi theo lựa chọn.',
-      },
-      {
-        id: 'd1s2',
-        title: 'Thể dục sáng',
-        teacher: 'Khởi động đi – chạy nhẹ; tập hô hấp – tay – bụng – chân – bật, mỗi động tác 2 x 4 nhịp.',
-        child: 'Trẻ tập các động tác cùng cô, giữ khoảng cách và thả lỏng cuối bài.',
-      },
-    ],
-  }),
-  daySlot(
-    'd2',
-    'Hoạt động học',
-    '25–30 phút',
-    'Toán: Ôn nhận biết, phân biệt hình vuông, hình tròn, hình tam giác, hình chữ nhật quanh lớp',
-    ['NT4.2', 'NT5.1', 'NN2.2'],
-    {
-      purpose: 'Trẻ nhận biết và gọi đúng tên 4 hình; tìm được đồ vật có dạng các hình quanh lớp.',
-      skills: 'Quan sát, so sánh, phân loại hình; diễn đạt kết quả bằng câu ngắn rõ ý.',
-      prepTeacher: 'Bộ 4 hình cỡ lớn; thẻ hình; đồ vật trong lớp có dạng tương ứng; 4 “ngôi nhà hình”.',
-      prepChild: 'Mỗi trẻ một rổ 4 hình; tâm thế thoải mái.',
-      steps: [
-        {
-          id: 'd2s1',
-          title: 'Gây hứng thú – Kết nối',
-          teacher: 'Chơi “Chiếc túi kỳ lạ”: trẻ sờ, chọn hình. Hỏi: “Con đoán hình gì?”',
-          child: 'Trẻ sờ, chọn hình, đoán và liên hệ đồ vật.',
-        },
-        {
-          id: 'd2s2',
-          title: 'Quan sát – Trải nghiệm',
-          teacher: 'Cô yêu cầu trẻ giơ hình tròn, vuông, tam giác, chữ nhật; hỏi đặc điểm nổi bật.',
-          child: 'Trẻ giơ đúng hình, gọi tên, trả lời về đặc điểm.',
-        },
-        {
-          id: 'd2s3',
-          title: 'Chia sẻ',
-          teacher: 'Trẻ ghép thẻ hình với đồ vật: mặt đồng hồ, ô cửa, lá cờ…',
-          child: 'Trẻ ghép hình với đồ vật, diễn đạt kết quả.',
-        },
-        {
-          id: 'd2s4',
-          title: 'Vận dụng – Luyện tập',
-          teacher: 'Trò chơi “Về đúng nhà”: khi nhạc dừng, trẻ chạy về ngôi nhà cùng hình.',
-          child: 'Trẻ chơi “Về đúng nhà”, phân loại thẻ theo nhóm.',
-        },
-        {
-          id: 'd2s5',
-          title: 'Khái quát – Đánh giá',
-          teacher: 'Mời trẻ gọi tên 4 hình và nêu ví dụ; cô nhận xét, củng cố.',
-          child: 'Trẻ gọi tên 4 hình, nêu ví dụ và tự kiểm tra kết quả.',
-        },
-      ],
-    },
-  ),
-  daySlot(
-    'd3',
-    'Hoạt động ngoài trời',
-    '40–45 phút',
-    'Quan sát khu vực trẻ thích ở trường. TCVĐ: Mèo đuổi chuột. Chơi tự do',
-    ['TC1.1', 'NT1.3'],
-    {
-      purpose: 'Trẻ quan sát, trao đổi về khu vực trẻ thích; biết cách chơi Mèo đuổi chuột và quy tắc an toàn.',
-      skills: 'Quan sát, trao đổi, vận động theo hiệu lệnh.',
-      prepTeacher: 'Sân sạch, khu vực quan sát an toàn; đồ chơi ngoài trời; nước uống.',
-      steps: [
-        {
-          id: 'd3s1',
-          title: 'Quan sát có mục đích',
-          teacher: 'Gợi hỏi: “Con nhìn thấy gì?”, “Khu vực này dùng để làm gì?”',
-          child: 'Trẻ quan sát, trả lời, trao đổi với bạn.',
-        },
-        {
-          id: 'd3s2',
-          title: 'Trò chơi vận động',
-          teacher: 'Giới thiệu cách chơi, luật chơi Mèo đuổi chuột; tổ chức 2–3 lượt.',
-          child: 'Trẻ chơi 2–3 lượt, chờ lượt và phối hợp.',
-        },
-      ],
-    },
-  ),
-  daySlot(
-    'd4',
-    'Hoạt động vui chơi trong lớp',
-    '35–40 phút',
-    'Góc phân vai: Cô giáo – học sinh; Góc nghệ thuật: hát các bài về trường',
-    ['TX4.1', 'NgT2.1'],
-    {
-      purpose: 'Trẻ biết nội dung các góc chơi; thỏa thuận vai và giao tiếp trong vai.',
-      prepTeacher: 'Đồ chơi phân vai; khối xây dựng; nhạc cụ; giấy, bút màu.',
-    },
-  ),
-  daySlot('d5', 'Ăn – Ngủ – Vệ sinh', '', 'Ăn văn minh: ngồi đúng tư thế, nhai kỹ', ['TC6.1'], {
-    qualities: ['Trách nhiệm'],
-    competencies: ['Tự lực'],
-  }),
-  daySlot('d6', 'Sinh hoạt chiều', '', 'Ôn toán; dạy trẻ kỹ năng chào hỏi lễ phép', ['NT5.1', 'TX3.1'], {
-    qualities: ['Tôn trọng'],
-    competencies: ['Giao tiếp'],
-  }),
-];
-
-const hist = (...rows) => rows.map(([action, by, role, at, tone, note]) => ({ action, by, role, at, tone, ...(note ? { note } : {}) }));
-
-const SEED_LESSONS = [
-  {
-    id: 'l-1',
-    code: 'KHT-CHOI1-0907',
-    type: 'week',
-    classId: 'c-choi1',
-    ageGroupId: 'ag-4',
-    themeId: 't-1',
-    weekIndex: 1,
-    branch: 'Trường mầm non thân yêu',
-    weekStart: '2026-09-07',
-    weekEnd: '2026-09-11',
-    date: null,
-    slots: WEEK_1_SLOTS,
-    dayNotes: { '2026-09-07': 'Trẻ hào hứng, 2 trẻ còn khóc khi bố mẹ về.', '2026-09-08': 'Cả lớp nhớ tên cô, tên bạn.' },
-    weekReview: 'Tăng thời gian làm quen cho nhóm trẻ mới; tuần sau bổ sung trò chơi “Tìm bạn thân”.',
-    status: 'APPROVED',
-    createdBy: 'Lê Minh Anh',
-    history: hist(
-      ['Gửi tổ trưởng', 'Lê Minh Anh', 'Giáo viên', '2026-09-03 15:10', ''],
-      ['Tổ trưởng duyệt, chuyển Phó HT', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-09-04 09:00', 'ok'],
-      ['Phó HT phê duyệt', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', '2026-09-04 14:30', 'ok'],
+  const theme = emptyThemePlan({ classId: CLASS_ID, yearPlanId: PLAN_ID, themeId: 't-tmn' });
+  theme.envIn =
+    '- Trang trí lớp theo chủ đề "Trường mầm non": tranh ảnh về trường, lớp, cô và bạn.\n- Góc phân vai: bán hàng, bác sĩ; góc xây dựng: xây trường mầm non.';
+  theme.envOut = '- Sân trường sạch, an toàn; đồ chơi ngoài trời được kiểm tra.\n- Khu vườn cổ tích, góc thiên nhiên cho trẻ chăm sóc cây.';
+  // Hoạt động giáo dục của các mục tiêu đã tích cho chủ đề TMN (nội dung lấy từ kế hoạch năm khi mở trang)
+  const ACT = {
+    'Trẻ thực hiện đúng, đầy đủ, nhịp nhàng các động tác trong bài thể dục theo hiệu lệnh.':
+      'TDS: tập theo nhạc bài "Trường chúng cháu là trường mầm non".\nHĐ học: bài tập phát triển chung đầu giờ thể chất.',
+    'Trẻ giữ được thăng bằng cơ thể khi thực hiện vận động.':
+      'HĐ học: Đi trên ghế thể dục, đầu đội túi cát.\nChơi ngoài trời: trò chơi "Ai đi giỏi".',
+    'Trẻ nói được tên, địa chỉ trường, lớp, tên cô giáo và bạn trong lớp.':
+      'HĐ học: Trò chuyện về trường mầm non của bé.\nĐón trẻ: trò chuyện về lớp, cô, bạn.',
+  };
+  theme.rows = Object.fromEntries(
+    plan.domains.flatMap((d) =>
+      d.rows
+        .filter((r) => r.kind === 'goal' && r.contents.some((c) => c.themes.includes('t-tmn')))
+        .map((r) => [
+          r.id,
+          {
+            contents: r.contents
+              .filter((c) => c.themes.includes('t-tmn'))
+              .map((c) => `- ${c.text}`)
+              .join('\n'),
+            activities: ACT[r.text] || '',
+          },
+        ]),
     ),
-  },
-  {
-    id: 'l-2',
-    code: 'GAN-CHOI1-0910',
-    type: 'day',
-    classId: 'c-choi1',
-    ageGroupId: 'ag-4',
-    themeId: 't-1',
-    weekIndex: 1,
-    branch: 'Trường mầm non thân yêu',
-    weekStart: '2026-09-07',
-    weekEnd: '2026-09-11',
-    date: '2026-09-10',
-    slots: DAY_1009_SLOTS,
-    dayReview: 'Trẻ hứng thú với trò chơi “Về đúng nhà”; 3 trẻ còn nhầm hình vuông và hình chữ nhật.',
-    adjust: 'Ôn lại hình chữ nhật cho bé An, bé Minh vào giờ chơi chiều.',
-    status: 'APPROVED',
-    createdBy: 'Lê Minh Anh',
-    history: hist(
-      ['Gửi tổ trưởng', 'Lê Minh Anh', 'Giáo viên', '2026-09-08 16:00', ''],
-      ['Tổ trưởng duyệt, chuyển Phó HT', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-09-09 08:10', 'ok'],
-      ['Phó HT phê duyệt', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', '2026-09-09 10:20', 'ok'],
-    ),
-  },
-  {
-    id: 'l-3',
-    code: 'KHT-CHOI1-1005',
-    type: 'week',
-    classId: 'c-choi1',
-    ageGroupId: 'ag-4',
-    themeId: 't-2',
-    weekIndex: 2,
-    branch: 'Cơ thể bé',
-    weekStart: '2026-10-05',
-    weekEnd: '2026-10-09',
-    date: null,
-    slots: [
-      {
-        id: 'x1',
-        name: 'Hoạt động học',
-        allWeek: false,
-        all: { text: '', codes: [] },
-        cells: {
-          '2026-10-05': { text: 'Khám phá: Các bộ phận trên cơ thể bé.', codes: ['NT1.4'] },
-          '2026-10-06': { text: 'Âm nhạc: Hát và vận động “Cái mũi”.', codes: ['NgT2.2'] },
-        },
-      },
-      { id: 'x2', name: 'Thể dục sáng', allWeek: true, cells: {}, all: { text: 'Tập theo nhạc bài “Cái mũi”.', codes: ['TC2.1'] } },
-    ],
-    dayNotes: {},
-    weekReview: '',
-    status: 'PENDING_TL',
-    createdBy: 'Lê Minh Anh',
-    history: hist(['Gửi tổ trưởng', 'Lê Minh Anh', 'Giáo viên', '2026-10-02 16:45', '']),
-  },
-  {
-    id: 'l-4',
-    code: 'GAN-CHOI1-1001',
-    type: 'day',
-    classId: 'c-choi1',
-    ageGroupId: 'ag-4',
-    themeId: 't-2',
-    weekIndex: 1,
-    branch: 'Bé là ai',
-    weekStart: '2026-09-28',
-    weekEnd: '2026-10-02',
-    date: '2026-10-01',
-    slots: [
-      daySlot('y1', 'Hoạt động học', '25–30 phút', 'Âm nhạc: Hát “Cái mũi”', ['NgT2.2'], {
-        purpose: 'Trẻ hát đúng giai điệu, vận động minh họa theo bài hát.',
-      }),
-    ],
-    dayReview: '',
-    adjust: '',
-    status: 'REJECTED',
-    createdBy: 'Lê Minh Anh',
-    history: hist(
-      ['Gửi tổ trưởng', 'Lê Minh Anh', 'Giáo viên', '2026-09-29 14:00', ''],
-      [
-        'Tổ trưởng từ chối',
-        'Trần Thu Hà',
-        'Tổ trưởng nhóm tuổi',
-        '2026-09-30 08:20',
-        'err',
-        'Bổ sung phần chuẩn bị đồ dùng và các bước tổ chức trò chơi cuối giờ.',
-      ],
-    ),
-  },
-  {
-    id: 'l-5',
-    code: 'KHT-CHOI2-1005',
-    type: 'week',
-    classId: 'c-choi2',
-    ageGroupId: 'ag-4',
-    themeId: 't-2',
-    weekIndex: 2,
-    branch: 'Cơ thể bé',
-    weekStart: '2026-10-05',
-    weekEnd: '2026-10-09',
-    date: null,
-    slots: [
-      {
-        id: 'z1',
-        name: 'Hoạt động học',
-        allWeek: false,
-        all: { text: '', codes: [] },
-        cells: { '2026-10-05': { text: 'Bé tập rửa tay 6 bước.', codes: ['TC6.2'] } },
-      },
-    ],
-    dayNotes: {},
-    weekReview: '',
-    status: 'PENDING_VP',
-    createdBy: 'Trần Thu Hà',
-    history: hist(
-      ['Gửi tổ trưởng', 'Trần Thu Hà', 'Giáo viên', '2026-10-02 10:10', ''],
-      ['Tổ trưởng duyệt, chuyển Phó HT', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-10-02 10:40', 'ok'],
-    ),
-  },
-  {
-    id: 'l-6',
-    code: 'GAN-CHOI1-1007',
-    type: 'day',
-    classId: 'c-choi1',
-    ageGroupId: 'ag-4',
-    themeId: 't-2',
-    weekIndex: 2,
-    branch: 'Cơ thể bé',
-    weekStart: '2026-10-05',
-    weekEnd: '2026-10-09',
-    date: '2026-10-07',
-    slots: [daySlot('v1', 'Hoạt động học', '25–30 phút', 'Văn học: Truyện “Gấu con bị đau răng”', ['NN2.3'])],
-    dayReview: '',
-    adjust: '',
-    status: 'DRAFT',
-    createdBy: 'Lê Minh Anh',
-    history: [],
-  },
-];
-
-// YCCĐ cố định thuộc mục tiêu năm học: gom từ các dòng kế hoạch chủ đề mẫu, rồi đồng bộ câu YCCĐ của các dòng theo danh mục.
-SEED_GOALS.forEach((goal) => {
-  const rows = SEED_THEMES.filter((t) => t.goalId === goal.id).flatMap((t) => t.rows);
-  goal.domains.forEach((d) =>
-    d.items.forEach((it) => {
-      const seen = new Set();
-      it.requirements = rows
-        .filter((r) => r.goalCode === it.code && !seen.has(r.code) && seen.add(r.code))
-        .map((r) => ({ id: `${goal.id}-${r.code}`, code: r.code, text: r.requirement }));
-    }),
   );
-  const byCode = Object.fromEntries(goal.domains.flatMap((d) => d.items.flatMap((it) => it.requirements)).map((r) => [r.code, r.text]));
-  rows.forEach((r) => (r.requirement = byCode[r.code] || r.requirement));
-});
 
-export const buildSeedEducationPlans = () => ({
-  eduGoals: SEED_GOALS,
-  eduThemes: SEED_THEMES,
-  eduLessons: SEED_LESSONS,
-});
+  const w1 = weeks[0];
+  const week = emptyWeekPlan({ classId: CLASS_ID, yearPlanId: PLAN_ID, weekStart: w1.start, weekNo: w1.no, themeId: w1.theme.id });
+  week.aims = {
+    knowledge:
+      '- Trẻ biết tên lớp, tên cô giáo, tên một số bạn trong lớp.\n- Trẻ biết các khu vực trong lớp và công dụng của đồ dùng, đồ chơi.',
+    skills: '- Trẻ chào hỏi lễ phép; cất dọn đồ chơi đúng nơi quy định.\n- Trẻ đi trên ghế thể dục giữ được thăng bằng.',
+    attitude: '- Trẻ vui vẻ đến lớp, yêu quý cô giáo và các bạn.',
+  };
+  week.prep = '- Tranh ảnh về lớp học, đồ dùng đồ chơi trong lớp.\n- Ghế thể dục, túi cát; nhạc bài hát về trường mầm non.';
+  week.grid.don.common = 'Cô đón trẻ, nhắc trẻ chào cô, chào bố mẹ, cất đồ dùng đúng nơi quy định.';
+  week.grid.tro_chuyen.common = 'Trò chuyện về lớp học của bé: tên lớp, tên cô, các góc chơi trong lớp.';
+  week.grid.the_duc.common = 'Hô hấp, tay, bụng, chân theo nhạc bài "Trường chúng cháu là trường mầm non".';
+  week.grid.hoc.days = [
+    { subject: 'Phát triển thể chất', topic: 'Đi trên ghế thể dục đầu đội túi cát' },
+    { subject: 'Khám phá xã hội', topic: 'Lớp học của bé' },
+    { subject: 'Làm quen chữ viết', topic: 'Thơ "Bàn tay cô giáo"' },
+    { subject: 'Toán', topic: 'Ôn số lượng trong phạm vi 4' },
+    { subject: 'Âm nhạc', topic: 'Hát "Trường chúng cháu là trường mầm non"' },
+  ];
+  week.grid.ngoai_troi.days = [
+    'Quan sát sân trường; TC "Ai đi giỏi"',
+    'Nhặt lá vàng; TC "Mèo đuổi chuột"',
+    'Vẽ phấn trên sân',
+    'Quan sát vườn trường',
+    'Chơi tự do với đồ chơi ngoài trời',
+  ];
+  week.grid.goc.common = 'Góc phân vai: cô giáo, bán hàng. Góc xây dựng: xây trường mầm non. Góc nghệ thuật: tô màu tranh lớp học.';
+  week.grid.chieu.days = [
+    'Làm quen bài thơ mới',
+    'Chơi ở các góc theo ý thích',
+    'Rèn kỹ năng rửa tay',
+    'Ôn bài hát trong tuần',
+    'Nêu gương cuối tuần',
+  ];
+  week.grid.tra_tre.common = 'Vệ sinh cá nhân, trao đổi với phụ huynh về tình hình của trẻ trong ngày.';
+  const d1 = week.days[0];
+  d1.aims = '- Trẻ biết đi trên ghế thể dục, đầu đội túi cát, giữ được thăng bằng.\n- Trẻ hứng thú tham gia vận động.';
+  d1.prep = '- 2 ghế thể dục, túi cát đủ cho trẻ; sân tập sạch, an toàn.';
+  d1.steps['hoc.a'] = {
+    teacher: 'Cô cho trẻ hát "Trường chúng cháu là trường mầm non", trò chuyện về giờ thể dục.',
+    child: 'Trẻ hát cùng cô, trả lời câu hỏi.',
+    note: '',
+  };
+  d1.steps['hoc.b'] = {
+    teacher: 'Khởi động; trọng động: cô làm mẫu 2 lần, phân tích động tác; cho trẻ thực hiện 2–3 lần; TCVĐ "Kéo co".',
+    child: 'Trẻ quan sát, thực hiện bài tập, tham gia trò chơi.',
+    note: 'Chú ý trẻ yếu',
+  };
+  d1.steps['hoc.c'] = { teacher: 'Hồi tĩnh nhẹ nhàng, nhận xét, tuyên dương trẻ.', child: 'Trẻ đi nhẹ nhàng 1–2 vòng.', note: '' };
+  d1.steps['ngoai_troi.x'] = {
+    teacher: 'Cho trẻ quan sát sân trường, chơi "Ai đi giỏi".',
+    child: 'Trẻ quan sát, chơi theo hướng dẫn.',
+    note: '',
+  };
+  d1.steps['chieu.x'] = { teacher: 'Cho trẻ làm quen bài thơ "Bàn tay cô giáo".', child: 'Trẻ đọc theo cô.', note: '' };
+  return { branch, branch2, theme, week };
+};
+
+export const buildSeedEducationPlans = () => {
+  const plan = buildYearPlan();
+  const { branch, branch2, theme, week } = buildClassDocs(plan);
+  return {
+    eduGoals: [plan],
+    // Dữ liệu kế hoạch chủ đề / giáo án kiểu cũ: bỏ hẳn (màn mới dùng eduClass*)
+    eduThemes: [],
+    eduLessons: [],
+    eduClassBranch: [branch, branch2],
+    eduClassTheme: [theme],
+    eduClassWeek: [week],
+  };
+};
+
+/** Nạp bộ demo mới khi dữ liệu trong trình duyệt là bộ cũ. Trả true nếu đã thay. */
+export const ensureEduDemo = (db) => {
+  if (db.eduSeedVersion === EDU_SEED_VERSION) return false;
+  // Dữ liệu trường đã lưu trong trình duyệt từ trước: bổ sung giáo viên thứ hai của Chồi 1
+  const c1 = (db.classes || []).find((c) => c.id === 'cls_c1_c1');
+  if (c1 && !c1.teacherIds.includes('u_huong')) c1.teacherIds = [...c1.teacherIds, 'u_huong'];
+  // Cấu hình cũ chỉ có Phó HT duyệt chủ đề nhánh: thêm bước Tổ trưởng theo chốt 16/10
+  if (db.eduConfig?.signers?.branch?.join() === 'VICE_PRINCIPAL') db.eduConfig.signers.branch = ['TEAM_LEADER', 'VICE_PRINCIPAL'];
+  // Bỏ chữ ký đã lưu từng thêm cho demo ký chủ đề nhánh (hệ thống không còn ký ảnh)
+  db.signatures = (db.signatures || []).filter((x) => !['sig_u_ha', 'sig_u_minhanh', 'sig_u_huong'].includes(x.id));
+  Object.assign(db, buildSeedEducationPlans(), { eduSeedVersion: EDU_SEED_VERSION });
+  return true;
+};

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Info, ShieldCheck, Pencil, RotateCcw, Users } from '@/components/ui/icons';
+import { ShieldCheck, Pencil, RotateCcw, Users } from '@/components/ui/icons';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRolePermissions } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -46,13 +47,6 @@ export default function RolePermissionListPage() {
     <div className="page">
       <Breadcrumb items={roleCrumbs()} />
       <h1 className="page__title">Vai trò & quyền</h1>
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          Ma trận quyền theo SRS 4.4: <b>Toàn quyền</b> – không giới hạn; <b>Theo phạm vi</b> – chỉ dữ liệu được phân công (điểm trường,
-          lớp, nhóm tuổi); <b>Không</b> – không được dùng. Phụ huynh dùng ứng dụng di động nên không cấu hình ở đây.
-        </div>
-      </div>
 
       {error ? (
         <ErrorState error={error} onRetry={reload} />
@@ -86,10 +80,7 @@ export default function RolePermissionListPage() {
 
           <section className="card">
             <div className="filter-bar">
-              <label className="search-box" style={{ flex: 1 }}>
-                <Search size={17} className="muted" />
-                <input placeholder="Tìm quyền..." value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="Tìm quyền" />
-              </label>
+              <SearchSubmit className="sc-search" value={keyword} placeholder="Tìm quyền" onSearch={setKeyword} />
               <select className="select" value={module} onChange={(e) => setModule(e.target.value)} aria-label="Nhóm chức năng">
                 <option value="">Tất cả nhóm chức năng</option>
                 {Object.entries(PERMISSION_MODULES).map(([k, v]) => (
@@ -128,7 +119,7 @@ export default function RolePermissionListPage() {
               />
             ) : (
               <div className="table-wrap sc-table-flat">
-                <table className="table table--compact sc-matrix">
+                <table className="table table--grid table--compact sc-matrix">
                   <thead>
                     <tr>
                       <th className="sc-matrix__name">Chức năng / thao tác</th>

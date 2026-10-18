@@ -17,6 +17,8 @@ Nghiệp vụ, rule, contract, kiến trúc hệ thống **không nằm ở đâ
 | | `architecture/CODING_GUIDE.md` | Chạy dự án, thư mục, CSS, luồng dữ liệu, thêm module, quy tắc chung, checklist PR | FULL |
 | design | `../DESIGN.md` (gốc repo) | Design system chung web + app: token, component, bố cục, câu chữ, tự kiểm | FULL (PROPOSED) |
 | features | `features/README.md` | Feature nghiệp vụ → màn hình Web → BE card/flow; template doc feature | FULL |
+| | `features/daily-reception.md` | Demo tiếp nhận trẻ, sức khỏe nhiều lần/ngày, giới hạn tích hợp | FULL |
+| | `features/daily-assessment.md` | Đánh giá hằng ngày 3 nhóm, ô tích, giáo án tuần, tổng hợp cho AI | FULL |
 | integration | `integration/BACKEND_INTEGRATION.md` | Envelope, lỗi, 403/404, phân quyền phía client | FULL (theo BE hiện tại) |
 | | `integration/AUTH_FLOW.md` | Đăng nhập, token, phiên | SKELETON |
 | knowledge | `knowledge/ISSUE_INDEX.md` | **Search đầu tiên khi debug** (bug UI/client, kể cả bug đang `open`) | FULL (chưa có issue) |

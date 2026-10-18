@@ -77,6 +77,12 @@ export const periodLabel = (type, start, end) => {
   return `Năm học ${start.slice(0, 4)} – ${end.slice(0, 4)}`;
 };
 
+/** Kỳ của một đánh giá; tuần có số tuần theo kế hoạch năm thì ghi như giáo án: "Tuần 6 (12/10 – 16/10/2026)". */
+export const evaluationPeriodLabel = (e) =>
+  e.periodType === PERIOD_TYPE.WEEK && e.weekNo
+    ? `Tuần ${e.weekNo} (${dm(e.periodStart)} – ${dm(e.periodEnd)}/${e.periodEnd.slice(0, 4)})`
+    : periodLabel(e.periodType, e.periodStart, e.periodEnd);
+
 /**
  * Week -> month assignment for the monthly ticket: the month that holds the Monday.
  * Assumption – GBR-REW-02 leaves the cross-month rule open.
@@ -84,13 +90,17 @@ export const periodLabel = (type, start, end) => {
 export const monthOfWeek = (monday) => monthStart(monday);
 
 /**
- * GBR-OBS-03: the teacher may edit until the end of the next school day, then the record is locked.
+ * Đánh giá ngày khóa sau 23:59:59 của chính ngày đó (Cần chốt 15/10/2026, thay GBR-OBS-03 "hết ngày học tiếp theo").
+ * Quên đánh giá thì PHT điểm trường / Hiệu trưởng mở lại ngày đó cho lớp (assessmentDayUnlocks).
  */
-export const isAssessmentLocked = (date, today = todayIso()) => {
-  let next = addDays(date, 1);
-  while (!isSchoolDay(next)) next = addDays(next, 1);
-  return today > next;
-};
+export const isAssessmentLocked = (date, today = todayIso()) => today > date;
+
+// Hạn mở lại dài nhất người mở được chọn (PROPOSED, chờ Cần chốt)
+export const UNLOCK_MAX_DAYS = 7;
+
+/** Hạn của lần mở lại (người mở chọn ngày giờ); bản cũ chỉ lưu ngày thì hết lúc 23:59:59 ngày đó. */
+export const unlockDeadline = (validUntil) => new Date(/^\d{4}-\d{2}-\d{2}$/.test(validUntil) ? `${validUntil}T23:59:59` : validUntil);
+export const isUnlockActive = (unlock, now = new Date()) => !!unlock && unlockDeadline(unlock.validUntil) > now;
 
 /** Timetable activities that can be assessed for the class age group (from the education-plan day slots). */
 export const assessableActivities = (ageGroupId) =>

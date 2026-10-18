@@ -42,14 +42,18 @@ const metaOf = (q, text) => (q.error ? 'Không tải được – mở chức n�
 export function ClassTodayPanel() {
   const { user } = useAuth();
   const date = todayInput();
-  const classesQ = useWidget((u) => getClasses({}, u).then((list) => list.filter((c) => (c.teacherIds || []).includes(u.id))));
+  const showHandover = user.role !== 'TEACHER';
+  // Chỉ lớp của năm học đang hoạt động (năm cũ đã kết thúc vẫn còn teacherIds)
+  const classesQ = useWidget((u) =>
+    getClasses({ activeYear: true }, u).then((list) => list.filter((c) => (c.teacherIds || []).includes(u.id))),
+  );
   const classes = classesQ.data || [];
   const [picked, setPicked] = useState('');
   const classId = picked || classes[0]?.id || '';
   const cls = classes.find((c) => c.id === classId);
 
   const attendanceQ = useWidget((u) => getClassAttendance(classId, date, u), [classId, date], { enabled: !!classId });
-  const handoverQ = useWidget((u) => getMealHandovers({ date }, u), [date], { enabled: !!classId });
+  const handoverQ = useWidget((u) => getMealHandovers({ date }, u), [date], { enabled: !!classId && showHandover });
   const pickupQ = useWidget((u) => getPickupBoard({ classId, date }, u), [classId, date], { enabled: !!classId });
   const childrenQ = useWidget((u) => getChildren({ classId, status: 'ACTIVE' }, u), [classId], { enabled: !!classId });
   const lessonsQ = useWidget(() => getEducationPlans().then((d) => d.lessons.filter((l) => l.classId === user.classId)), [user.classId]);
@@ -142,14 +146,16 @@ export function ClassTodayPanel() {
           loading={attendanceQ.loading && !sheet}
           error={attendanceQ.error}
         />
-        <KpiCard
-          to="/attendance/meal-handover"
-          tone={toReceive ? 'orange' : 'green'}
-          label="Suất ăn chờ lớp nhận"
-          value={toReceive}
-          loading={handoverQ.loading && !handoverQ.data}
-          error={handoverQ.error}
-        />
+        {showHandover && (
+          <KpiCard
+            to="/attendance/meal-handover"
+            tone={toReceive ? 'orange' : 'green'}
+            label="Suất ăn chờ lớp nhận"
+            value={toReceive}
+            loading={handoverQ.loading && !handoverQ.data}
+            error={handoverQ.error}
+          />
+        )}
         <KpiCard
           to={`/pickup?classId=${classId}`}
           tone={waitingPickup ? 'purple' : 'green'}
@@ -183,14 +189,18 @@ export function ClassTodayPanel() {
               ),
               end: endOf(attendanceQ, Math.max(rows.length - recorded, 0)),
             },
-            {
-              key: 'handover',
-              to: '/attendance/meal-handover',
-              icon: UtensilsCrossed,
-              title: 'Nhận suất ăn từ bếp',
-              meta: metaOf(handoverQ, 'Bữa ăn bếp đã sẵn sàng, chờ lớp xác nhận nhận'),
-              end: endOf(handoverQ, toReceive),
-            },
+            ...(showHandover
+              ? [
+                  {
+                    key: 'handover',
+                    to: '/attendance/meal-handover',
+                    icon: UtensilsCrossed,
+                    title: 'Nhận suất ăn từ bếp',
+                    meta: metaOf(handoverQ, 'Bữa ăn bếp đã sẵn sàng, chờ lớp xác nhận nhận'),
+                    end: endOf(handoverQ, toReceive),
+                  },
+                ]
+              : []),
             {
               key: 'pickup',
               to: `/pickup?classId=${classId}`,
@@ -201,7 +211,7 @@ export function ClassTodayPanel() {
             },
             {
               key: 'lessons',
-              to: '/education/lessons',
+              to: '/education/class',
               icon: BookOpenCheck,
               title: 'Giáo án của lớp',
               meta: metaOf(lessonsQ, `Nháp hoặc bị từ chối cần hoàn thiện · ${lessonsWaiting} giáo án đang chờ duyệt`),

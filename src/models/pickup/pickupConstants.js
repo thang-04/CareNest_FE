@@ -38,6 +38,13 @@ export const VERIFICATION_LABELS = {
   PHONE_UNREACHABLE: 'Không liên lạc được phụ huynh',
 };
 
+/**
+ * Lý do trả trẻ khác giờ thường: cô đã báo phụ huynh đón về sớm ở Sức khỏe trong ngày. Trẻ hiện "Chờ đón sớm" ở Đón trẻ;
+ * giờ đón là lúc cô thực sự trả trẻ (vẫn xác minh như thường, GBR-CP-03).
+ */
+export const PICKUP_REASON = { HEALTH_EARLY: 'HEALTH_EARLY' };
+export const PICKUP_REASON_LABELS = { HEALTH_EARLY: 'Về sớm do sức khỏe' };
+
 /** Only these verifications allow the child to leave (GBR-CP-03). */
 export const outcomeOf = (verification) =>
   [VERIFICATION.PHOTO_MATCH, VERIFICATION.PHONE_CONFIRMED].includes(verification)
