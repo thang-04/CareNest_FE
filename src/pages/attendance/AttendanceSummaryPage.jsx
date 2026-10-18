@@ -261,7 +261,7 @@ export default function AttendanceSummaryPage() {
                     <div className="card__title">Theo ngày</div>
                   </div>
                   <div className="table-wrap dd-table-wrap">
-                    <table className="table table--compact">
+                    <table className="table table--grid table--compact">
                       <thead>
                         <tr>
                           <th>Ngày</th>
@@ -339,7 +339,7 @@ export default function AttendanceSummaryPage() {
                       <div className="card__title">Theo lớp</div>
                     </div>
                     <div className="table-wrap dd-table-wrap">
-                      <table className="table table--compact">
+                      <table className="table table--grid table--compact">
                         <thead>
                           <tr>
                             <th>Lớp</th>
@@ -399,7 +399,7 @@ export default function AttendanceSummaryPage() {
                       <div className="card__title">Theo trẻ</div>
                     </div>
                     <div className="table-wrap dd-table-wrap">
-                      <table className="table table--compact">
+                      <table className="table table--grid table--compact">
                         <thead>
                           <tr>
                             <th>Trẻ</th>
