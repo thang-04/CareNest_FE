@@ -18,8 +18,8 @@ Nền tảng Web + Mobile hỗ trợ vận hành và quản lý thông tin trẻ
 
 | Actor | Ghi chú | Chi tiết quyền |
 | --- | --- | --- |
-| System Admin | Tài khoản, role, phân công, cấu hình. Mặc định không xem dữ liệu trẻ (AUTH-06, PENDING P-16) | `../CareNest_BE/docs/business/USER_ROLES.md` |
-| Principal | Tổng hợp 2 campus, xác nhận/duyệt trong quyền | như trên |
+| System Admin | Kỹ thuật: tạo tài khoản Hiệu trưởng, khóa/mở, cấu hình. Mặc định không xem dữ liệu trẻ (AUTH-06, PENDING P-16) | `../CareNest_BE/docs/business/USER_ROLES.md` |
+| Principal | Tổng hợp 2 campus, xác nhận/duyệt trong quyền; phân quyền và cấp tài khoản nghiệp vụ (AUTH-06, AUTH-10) | như trên |
 | Vice Principal | Như Principal nhưng **trong campus được phân công** (AUTH-02) | như trên |
 | Teacher | Lớp được phân công (Web + App) | như trên |
 

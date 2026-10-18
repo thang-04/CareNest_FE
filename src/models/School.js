@@ -22,7 +22,7 @@
  * @property {'ACTIVE'|'PENDING_PLACEMENT'|'LEFT'} status
  * @property {string} enrolledAt
  * @property {string[]} allergies
- * @property {{ fullName: string, relation: string, phone: string, email: string, accountStatus: 'NOT_ACTIVATED'|'ACTIVE' }[]} guardians
+ * @property {{ fullName: string, relation: string, phone: string, email: string }[]} guardians
  */
 
 export const AGE_GROUPS = [
