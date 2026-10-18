@@ -1,5 +1,6 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration } from '@/mocks/mockDatabase';
 import { pushNotification } from '@/mocks/notificationMockRepository';
+import { buildSeedInspections } from '@/mocks/inspectionSeed';
 import { lockedLocationMap } from '@/mocks/inventoryLock';
 import { uid } from '@/utils/id';
 import { normalizeText } from '@/utils/format';
@@ -27,7 +28,7 @@ const fail = (status, message, details) => {
   throw new ApiError(status, message, details);
 };
 const rounds = (db) => {
-  if (!db.inspections) db.inspections = [];
+  applyMockSeedMigration(db, 'inventory-inspections', 1, { inspections: buildSeedInspections(db.assets || []) });
   return db.inspections;
 };
 const findRound = (db, id) => rounds(db).find((r) => r.id === id) || fail(404, 'Không tìm thấy đợt kiểm kê');

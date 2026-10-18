@@ -1,4 +1,4 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { buildAssessmentSeed } from '@/mocks/assessmentSeed';
@@ -271,12 +271,24 @@ const runPeriodJobs = (db, { notify = true } = {}) => {
 const seedOnce = (db) => {
   const today = todayIso();
   const seed = buildAssessmentSeed({ classes: db.classes, children: db.children, today });
-  db.assessmentCriteria ||= clone(seed.assessmentCriteria);
-  db.dailyAssessments ||= clone(seed.dailyAssessments);
-  db.periodicEvaluations ||= [];
-  db.yearEndEvaluations ||= [];
-  db.behaviourTickets ||= [];
-  db.rewardProposals ||= clone(seed.rewardProposals);
+  const collections = [
+    'assessmentCriteria',
+    'dailyAssessments',
+    'periodicEvaluations',
+    'yearEndEvaluations',
+    'behaviourTickets',
+    'rewardProposals',
+  ];
+  const migrate = needsMockSeedMigration(db, 'assessment', 1, collections);
+  applyMockSeedMigration(db, 'assessment', 1, {
+    assessmentCriteria: seed.assessmentCriteria,
+    dailyAssessments: seed.dailyAssessments,
+    periodicEvaluations: [],
+    yearEndEvaluations: [],
+    behaviourTickets: [],
+    rewardProposals: seed.rewardProposals,
+  });
+  if (!migrate) return db;
   runPeriodJobs(db, { notify: false });
 
   const recent = addDays(today, -10);
@@ -301,6 +313,7 @@ const seedOnce = (db) => {
   });
 
   // Weekly tickets of older weeks were already issued by the teachers.
+  const existingTickets = new Set(db.behaviourTickets.map((ticket) => `${ticket.childId}|${ticket.type}|${ticket.periodStart}`));
   db.classes.forEach((cls) => {
     const weeks = [...new Set(db.dailyAssessments.filter((a) => a.classId === cls.id).map((a) => weekStart(a.date)))];
     weeks
@@ -308,8 +321,11 @@ const seedOnce = (db) => {
       .forEach((w) =>
         activeChildrenOf(db, cls.id).forEach((child) => {
           const stats = weekStats(db, child.id, w);
-          if (stats.eligible)
+          const key = `${child.id}|${TICKET_TYPE.WEEKLY}|${w}`;
+          if (stats.eligible && !existingTickets.has(key)) {
             db.behaviourTickets.push(makeTicket(cls, child, TICKET_TYPE.WEEKLY, w, weekEnd(w), cls.homeroomTeacherId, stats));
+            existingTickets.add(key);
+          }
         }),
       );
   });
@@ -317,6 +333,7 @@ const seedOnce = (db) => {
   // Year-end drafts for the classes that simulate the end of the year.
   const { start, end } = schoolYearRange(seed.schoolYear);
   seed.yearEndShells.forEach((shell) => {
+    if (db.yearEndEvaluations.some((evaluation) => evaluation.id === shell.id)) return;
     const cls = classOf(db, shell.classId);
     const child = childOf(db, shell.childId);
     if (!cls || !child) return;
@@ -342,16 +359,21 @@ const ensureReady = () => {
   ensureSchoolSeeded();
   let db = readDb();
   // Đánh giá hằng ngày đọc giáo án ngày, nên cần dữ liệu kế hoạch giáo dục kể cả khi chưa mở module đó.
-  if (!db.eduGoals || !db.eduThemes || !db.eduLessons) {
+  if (needsMockSeedMigration(db, 'education-plan', 1, ['eduGoals', 'eduThemes', 'eduLessons'])) {
     const edu = buildSeedEducationPlans();
-    writeDb((d) => {
-      d.eduGoals ||= clone(edu.eduGoals);
-      d.eduThemes ||= clone(edu.eduThemes);
-      d.eduLessons ||= clone(edu.eduLessons);
-    });
+    writeDb((d) => applyMockSeedMigration(d, 'education-plan', 1, edu));
     db = readDb();
   }
-  if (!db.dailyAssessments || !db.periodicEvaluations || !db.rewardProposals) {
+  if (
+    needsMockSeedMigration(db, 'assessment', 1, [
+      'assessmentCriteria',
+      'dailyAssessments',
+      'periodicEvaluations',
+      'yearEndEvaluations',
+      'behaviourTickets',
+      'rewardProposals',
+    ])
+  ) {
     writeDb(seedOnce);
     db = readDb();
   }

@@ -1,4 +1,4 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from '@/mocks/mockDatabase';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { lockedLocationMap } from '@/mocks/inventoryLock';
 import { buildSeedFacility } from '@/mocks/facilitySeed';
@@ -56,14 +56,11 @@ const COLLECTIONS = ['facilityIssues', 'facilityRequests', 'facilityProposals'];
 // Databases saved before this module existed have no facility data yet.
 const ensureSeeded = (db) => {
   const seed = buildSeedFacility();
-  COLLECTIONS.forEach((key) => {
-    db[key] ||= clone(seed[key]);
-  });
-  return db;
+  return applyMockSeedMigration(db, 'facility', 1, Object.fromEntries(COLLECTIONS.map((key) => [key, seed[key]])));
 };
 
 const readSeeded = () => {
-  if (COLLECTIONS.some((key) => !readDb()[key])) writeDb(ensureSeeded);
+  if (needsMockSeedMigration(readDb(), 'facility', 1, COLLECTIONS)) writeDb(ensureSeeded);
   return readDb();
 };
 

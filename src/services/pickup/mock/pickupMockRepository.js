@@ -1,4 +1,4 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { buildPickupSeed } from '@/mocks/pickupSeed';
 import { PICKUP_OUTCOME, PICKUP_STATUS, outcomeOf } from '@/models/pickup/pickupConstants';
@@ -21,19 +21,17 @@ const forbidden = () => new ApiError(403, 'Bạn không có quyền thực hiệ
 const ABSENT = ['EXCUSED', 'UNEXCUSED'];
 
 const ensureSeeded = (db) => {
-  if (db.pickups) return db;
   // Wait for attendance demo data so pickup history only covers present children.
-  if (!db.attendance) return db;
-  db.pickups = clone(
-    buildPickupSeed({ attendance: db.attendance, children: db.children, classes: db.classes, today: todayInput() }).pickups,
-  );
-  return db;
+  if (!Array.isArray(db.attendance)) return db;
+  return applyMockSeedMigration(db, 'pickup', 1, {
+    pickups: buildPickupSeed({ attendance: db.attendance, children: db.children, classes: db.classes, today: todayInput() }).pickups,
+  });
 };
 
 const ready = () => {
   ensureSchoolSeeded();
   const db = readDb();
-  if (!db.pickups && db.attendance) writeDb(ensureSeeded);
+  if (needsMockSeedMigration(db, 'pickup', 1, ['pickups']) && Array.isArray(db.attendance)) writeDb(ensureSeeded);
   return readDb();
 };
 

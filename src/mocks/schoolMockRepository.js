@@ -1,16 +1,12 @@
-import { readDb, writeDb, clone, delay, ApiError } from './mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from './mockDatabase';
 import { buildSeedSchool } from './schoolSeed';
 import { ROLES } from '@/models/User';
 
 /** Databases saved before the school structure existed get the seed once. */
 export const ensureSchoolSeeded = () => {
   const db = readDb();
-  if (db.classes && db.children) return db;
-  writeDb((d) => {
-    const seed = buildSeedSchool();
-    d.classes ||= clone(seed.classes);
-    d.children ||= clone(seed.children);
-  });
+  const keys = ['classes', 'children'];
+  if (needsMockSeedMigration(db, 'school', 1, keys)) writeDb((d) => applyMockSeedMigration(d, 'school', 1, buildSeedSchool()));
   return readDb();
 };
 
