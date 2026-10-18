@@ -187,23 +187,17 @@
 }
 
 /* ---------- Meal count ---------- */
-.dd-count-grid,
-.dd-handover-grid {
+.dd-count-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
 }
-.dd-handover-grid {
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-}
-.dd-count__totals,
-.dd-handover__nums {
+.dd-count__totals {
   display: flex;
   gap: var(--space-6);
   flex-wrap: wrap;
 }
-.dd-count__totals > div,
-.dd-handover__nums > div {
+.dd-count__totals > div {
   display: flex;
   flex-direction: column;
 }
@@ -231,24 +225,6 @@
   grid-template-columns: 120px 1fr;
   gap: var(--space-2);
   overflow-wrap: anywhere;
-}
-
-/* ---------- Meal handover ---------- */
-.dd-handover {
-  border-top: 4px solid var(--border-strong);
-}
-.dd-handover--ready,
-.dd-handover--supplemented {
-  border-top-color: var(--primary);
-}
-.dd-handover--shortage_reported {
-  border-top-color: var(--danger);
-}
-.dd-handover--waiting_kitchen {
-  border-top-color: var(--warning);
-}
-.dd-handover--confirmed {
-  border-top-color: var(--success);
 }
 
 @media (max-width: 1280px) {
