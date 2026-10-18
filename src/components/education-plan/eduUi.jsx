@@ -64,7 +64,7 @@ export const EduStatusBadge = createStatusBadge(
   EDU_STATUS_LABELS,
 );
 
-/** Trạng thái kế hoạch năm: hai người xây dựng (Tổ trưởng, Phó HT) cùng ký, gửi Phó HT, Phó HT ban hành. */
+/** Trạng thái kế hoạch năm: Tổ trưởng gửi Phó HT, Phó HT duyệt ban hành (ký tay trên bản in). */
 export const YearPlanStatusBadge = createStatusBadge(
   {
     DRAFT: ['gray', FileEdit],

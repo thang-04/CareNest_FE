@@ -1,28 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check, FileDown, PenLine, Pencil, Printer, Send, Trash2, Undo2 } from '@/components/ui/icons';
+import { Check, FileDown, Pencil, Printer, Send, Trash2, Undo2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
 import { goalIdsToTicks, numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
-import PlanSignatures from '@/components/education-plan/PlanSignatures';
-import { downloadYearPlanDoc, planSigners, printYearPlan, yearSigners } from '@/utils/education-plan/yearPlanDoc';
-import {
-  Card,
-  YearPlanStatusBadge,
-  EmptyState,
-  Field,
-  Modal,
-  Notice,
-  PageHead,
-  SignatureBox,
-  SignatureView,
-  fmtDate,
-} from '@/components/education-plan/eduUi';
+import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
+import { Card, YearPlanStatusBadge, EmptyState, Field, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const ISSUE_NOTE = 'Sau khi ban hành, các lớp trong nhóm tuổi dùng kế hoạch này để lập kế hoạch chủ đề và giáo án.';
+const ISSUE_NOTE =
+  'Sau khi ban hành, các lớp trong nhóm tuổi dùng kế hoạch này để lập kế hoạch chủ đề và giáo án. Xuất file để in và ký tay.';
 const editable = (s) => s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED;
 
 /** Kế hoạch giáo dục năm học của một nhóm tuổi: bảng mục tiêu (A), chủ đề, sự kiện (B), người xây dựng và ban hành. */
@@ -34,11 +23,10 @@ export default function GoalDetailPage() {
   const navigate = useNavigate();
   const [modal, setModal] = useState(null);
   const [note, setNote] = useState('');
-  const [signature, setSignature] = useState(null);
   const [tried, setTried] = useState(false);
   const [tab, setTab] = useState('goals');
   const found = goals.find((x) => x.id === id);
-  // Giáo viên chỉ xem kế hoạch năm đã ban hành (đủ chữ ký Tổ trưởng và Phó HT)
+  // Giáo viên chỉ xem kế hoạch năm đã ban hành
   const g = user.role === ROLES.TEACHER && found?.status !== EDU_STATUS.APPROVED ? null : found;
 
   if (!g)
@@ -76,14 +64,20 @@ export default function GoalDetailPage() {
   );
   const numbers = numberGoals(domains);
   const plan = { ...g, domains, themes };
-  const builders = g.builders || [];
   const history = g.history || [];
   const now = () => new Date().toISOString().slice(0, 10);
   const log = (action, extra) => [...history, { at: now(), by: user.name, action, note: extra || undefined }];
+  const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: now() };
+  // Người tạo là người duy nhất sửa / gửi khi còn nháp; Phó HT duyệt, trả lại hoặc tự sửa khi đang chờ
+  const isOwner = !g.owner || g.owner.userId === user.id;
+  const draftLike = editable(g.status);
+  const pending = g.status === EDU_STATUS.PENDING_VP;
+  const canEditNow = (draftLike && isOwner && (isVp || isLeader)) || (pending && isVp);
+  const canSend = draftLike && isOwner && isLeader;
+  const canIssue = isVp && (pending || (draftLike && isOwner));
 
   const open = (kind) => {
     setNote('');
-    setSignature(null);
     setTried(false);
     setModal(kind);
   };
@@ -94,27 +88,14 @@ export default function GoalDetailPage() {
       saveGoal({ ...g, status: EDU_STATUS.REJECTED, history: log('Trả lại để sửa', note.trim()) });
       toast('Đã trả lại kế hoạch cho tổ trưởng');
     } else if (modal === 'issue') {
-      // Phó HT đã ký người xây dựng trước khi gửi; ban hành dùng lại chữ ký đó, ghi ngày ban hành
-      saveGoal({ ...g, status: EDU_STATUS.APPROVED, issued: { ...vice, at: now() }, history: log('Ban hành', note.trim()) });
-      toast('Đã ban hành kế hoạch năm học');
-    } else if (modal === 'sign') {
-      // Người ký không soạn nội dung (vd. Hiệu trưởng khi cấu hình thêm) ký người xây dựng ngay trên trang chi tiết
-      if (!signature) return;
-      const sig = { userId: user.id, name: user.name, role: user.title, roleKey: user.role, at: now(), sig: signature };
-      saveGoal({ ...g, builders: [...builders.filter((b) => b.userId !== user.id), sig], history: log('Ký người xây dựng') });
-      toast('Đã ký người xây dựng');
+      saveGoal({ ...g, status: EDU_STATUS.APPROVED, issued: me, history: log('Ban hành', note.trim()) });
+      toast('Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
     } else if (modal === 'send') {
-      saveGoal({ ...g, status: EDU_STATUS.PENDING_VP, sentAt: now(), history: log('Gửi Phó hiệu trưởng ban hành', note.trim()) });
-      toast('Đã gửi Phó hiệu trưởng ký ban hành');
+      saveGoal({ ...g, status: EDU_STATUS.PENDING_VP, sentAt: now(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt', note.trim()) });
+      toast('Đã gửi Phó hiệu trưởng duyệt');
     }
     setModal(null);
   };
-  const signedByMe = builders.some((b) => b.userId === user.id);
-  // Gửi ban hành khi đủ chữ ký của mọi người xây dựng theo cấu hình (mặc định Tổ trưởng và Phó HT)
-  const signers = yearSigners(g);
-  const { vice } = planSigners(g);
-  const bothSigned = signers.every((x) => x.sign);
-  const mustSign = signers.some((x) => x.role === user.role) && (user.role !== ROLES.TEAM_LEADER || isLeader);
 
   return (
     <div className="page ga-page">
@@ -125,59 +106,40 @@ export default function GoalDetailPage() {
           { label: g.code },
         ]}
         title={g.title}
-        desc={
-          <span className="row" style={{ gap: 12 }}>
-            <YearPlanStatusBadge status={g.status} size="lg" />
-            <span>{g.title}</span>
-          </span>
-        }
+        desc={<YearPlanStatusBadge status={g.status} size="lg" />}
         actions={
           <>
+            {/* Xuất / in ở mọi bước; bản đã ban hành thì Phó HT in ra ký, giáo viên in để dùng */}
             <button className="btn btn--ghost" onClick={() => downloadYearPlanDoc(plan, numbers)}>
               <FileDown size={16} aria-hidden /> Xuất Word
             </button>
             <button className="btn btn--ghost" onClick={() => printYearPlan(plan, numbers) || toast(POPUP_BLOCKED, 'warn')}>
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
-            {isVp && g.status === EDU_STATUS.DRAFT && (
+            {isOwner && (isVp || isLeader) && g.status === EDU_STATUS.DRAFT && (
               <button className="btn btn--outline-danger" onClick={() => setModal('delete')}>
                 <Trash2 size={16} aria-hidden /> Xóa
               </button>
             )}
-            {(isVp || isLeader) && editable(g.status) && (
+            {canEditNow && (
               <Link className="btn btn--outline-primary" to={`/education/goals/${g.id}/edit`}>
-                <Pencil size={16} aria-hidden /> Chỉnh sửa
+                <Pencil size={16} aria-hidden /> {pending ? 'Sửa trước khi duyệt' : 'Chỉnh sửa'}
               </Link>
             )}
-            {mustSign && editable(g.status) && !signedByMe && (isVp || isLeader) && (
-              <Link className="btn btn--outline-primary" to={`/education/goals/${g.id}/edit?buoc=ky`}>
-                <PenLine size={16} aria-hidden /> Ký người xây dựng
-              </Link>
-            )}
-            {mustSign && editable(g.status) && !signedByMe && !isVp && !isLeader && (
-              <button className="btn btn--outline-primary" onClick={() => open('sign')}>
-                <PenLine size={16} aria-hidden /> Ký người xây dựng
+            {canSend && (
+              <button className="btn btn--primary" onClick={() => open('send')}>
+                <Send size={16} aria-hidden /> Gửi Phó HT duyệt
               </button>
             )}
-            {isLeader && editable(g.status) && (
-              <button
-                className="btn btn--primary"
-                disabled={!bothSigned}
-                title={bothSigned ? undefined : 'Cần đủ chữ ký của người xây dựng'}
-                onClick={() => open('send')}
-              >
-                <Send size={16} aria-hidden /> Gửi Phó HT ban hành
+            {isVp && pending && (
+              <button className="btn btn--outline-primary" onClick={() => open('reject')}>
+                <Undo2 size={16} aria-hidden /> Trả lại
               </button>
             )}
-            {isVp && g.status === EDU_STATUS.PENDING_VP && (
-              <>
-                <button className="btn btn--outline-primary" onClick={() => open('reject')}>
-                  <Undo2 size={16} aria-hidden /> Trả lại
-                </button>
-                <button className="btn btn--primary" onClick={() => open('issue')}>
-                  <Check size={16} aria-hidden /> Ban hành
-                </button>
-              </>
+            {canIssue && (
+              <button className="btn btn--primary" onClick={() => open('issue')}>
+                <Check size={16} aria-hidden /> Ban hành
+              </button>
             )}
           </>
         }
@@ -190,70 +152,37 @@ export default function GoalDetailPage() {
           </Notice>
         </div>
       )}
-      {editable(g.status) && (isVp || isLeader || mustSign) && !bothSigned && (
+      {draftLike && !isOwner && (isVp || isLeader) && (
         <div className="mb-16">
-          <Notice>
-            Cần đủ chữ ký của người xây dựng trước khi gửi ban hành:{' '}
-            {signers.map((x) => `${x.title} ${x.sign ? `đã ký (${x.sign.name})` : 'chưa ký'}`).join(', ')}.
-          </Notice>
+          <Notice>Kế hoạch do {g.owner.name} soạn. Khi còn là bản nháp, chỉ người soạn được sửa và gửi.</Notice>
         </div>
       )}
       {g.status === EDU_STATUS.PENDING_VP && !isVp && (
         <div className="mb-16">
-          <Notice>Đã đủ chữ ký và gửi Phó hiệu trưởng ban hành. Kế hoạch bị khóa cho tới khi được ban hành hoặc bị trả lại.</Notice>
+          <Notice>Đã gửi Phó hiệu trưởng duyệt. Kế hoạch bị khóa cho tới khi được ban hành hoặc bị trả lại.</Notice>
         </div>
       )}
 
-      <div className="ga-split">
-        <Card title="Thông tin chung">
-          <dl className="info-list">
-            <dt>Năm học</dt>
-            <dd>{g.schoolYear}</dd>
-            <dt>Nhóm tuổi áp dụng</dt>
-            <dd>{ageName}</dd>
-            <dt>Phạm vi</dt>
-            <dd>{SCHOOL_SCOPE}</dd>
-            <dt>Số mục tiêu</dt>
-            <dd>
-              {Object.keys(numbers).length} mục tiêu · {themes.length} chủ đề
-            </dd>
-            <dt>Ngày lập</dt>
-            <dd>{fmtDate(g.createdAt)}</dd>
-            <dt>Ngày gửi</dt>
-            <dd>{fmtDate(g.sentAt)}</dd>
-            <dt>Mô tả</dt>
-            <dd>{g.description || '—'}</dd>
-          </dl>
-        </Card>
-        <Card title="Người xây dựng và ban hành">
-          <div className="stack">
-            {builders.length === 0 && !g.issued && <p className="muted">Chưa có chữ ký.</p>}
-            {builders.map((b) => (
-              <div key={b.userId} className="ga-summary-row">
-                <span>
-                  <div className="fw-600">{b.name}</div>
-                  <div className="muted text-xs">
-                    {b.role} · ký ngày {fmtDate(b.at)}
-                  </div>
-                </span>
-                <SignatureView sig={b.sig} name={b.name} />
-              </div>
-            ))}
-            {g.issued && (
-              <div className="ga-summary-row">
-                <span>
-                  <div className="fw-600">Ban hành: {g.issued.name}</div>
-                  <div className="muted text-xs">
-                    {g.issued.role} · {fmtDate(g.issued.at)}
-                  </div>
-                </span>
-                <SignatureView sig={g.issued.sig} name={g.issued.name} />
-              </div>
-            )}
-            {usedBy.length > 0 && <p className="muted text-xs">{usedBy.length} kế hoạch chủ đề đang dùng kế hoạch này.</p>}
-          </div>
-        </Card>
-      </div>
+      <Card title="Thông tin chung">
+        <dl className="info-list">
+          <dt>Năm học</dt>
+          <dd>{g.schoolYear}</dd>
+          <dt>Nhóm tuổi áp dụng</dt>
+          <dd>{ageName}</dd>
+          <dt>Phạm vi</dt>
+          <dd>{SCHOOL_SCOPE}</dd>
+          <dt>Số mục tiêu</dt>
+          <dd>
+            {Object.keys(numbers).length} mục tiêu · {themes.length} chủ đề
+          </dd>
+          <dt>Ngày lập</dt>
+          <dd>{fmtDate(g.createdAt)}</dd>
+          <dt>Ngày gửi</dt>
+          <dd>{fmtDate(g.sentAt)}</dd>
+          <dt>Mô tả</dt>
+          <dd>{g.description || '—'}</dd>
+        </dl>
+      </Card>
 
       <Card className="mt-16" bodyClass={null}>
         <PlanTabs tab={tab} onTab={setTab} counts={{ themes: themes.length, goals: Object.keys(numbers).length }} />
@@ -265,16 +194,14 @@ export default function GoalDetailPage() {
           )}
         </div>
       </Card>
-      <PlanSignatures plan={plan} className="mt-16" />
 
-      {(modal === 'send' || modal === 'reject' || modal === 'issue' || modal === 'sign') && (
+      {(modal === 'send' || modal === 'reject' || modal === 'issue') && (
         <Modal
           title={
             {
-              send: 'Gửi Phó hiệu trưởng ban hành',
+              send: 'Gửi Phó hiệu trưởng duyệt',
               reject: 'Trả lại kế hoạch',
               issue: 'Ban hành kế hoạch năm học',
-              sign: 'Ký người xây dựng',
             }[modal]
           }
           onClose={() => setModal(null)}
@@ -289,7 +216,7 @@ export default function GoalDetailPage() {
             </>
           }
         >
-          {modal === 'send' && <p>Kế hoạch đã đủ chữ ký người xây dựng, sẽ bị khóa cho tới khi Phó hiệu trưởng ban hành hoặc trả lại.</p>}
+          {modal === 'send' && <p>Kế hoạch sẽ bị khóa cho tới khi Phó hiệu trưởng ban hành hoặc trả lại.</p>}
           {modal === 'issue' && <p>{`Kế hoạch có ${Object.keys(numbers).length} mục tiêu, ${themes.length} chủ đề. ${ISSUE_NOTE}`}</p>}
           <Field
             label={modal === 'reject' ? 'Lý do trả lại' : 'Ghi chú'}
@@ -298,11 +225,6 @@ export default function GoalDetailPage() {
           >
             <textarea className="textarea" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
-          {modal === 'sign' && (
-            <Field label="Chữ ký" required>
-              <SignatureBox value={signature} onChange={setSignature} invalid={tried && !signature} />
-            </Field>
-          )}
         </Modal>
       )}
 

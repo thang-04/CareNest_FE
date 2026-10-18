@@ -12,7 +12,7 @@ export const CLASS_DOC_LABELS = {
   year: 'Kế hoạch năm học',
   branch: 'Chủ đề nhánh và thời gian',
   theme: 'Kế hoạch chủ đề',
-  week: 'Giáo án tuần (hồ sơ chủ đề)',
+  week: 'Giáo án tuần (kế hoạch chủ đề)',
 };
 
 /** Các dòng của bảng tổ chức hoạt động trong tuần theo cấu hình của trường; canMerge = được gộp một ô cả tuần, allWeek = mặc định gộp. */
@@ -115,7 +115,6 @@ export const emptyBranchPlan = ({ classId, yearPlanId }) => ({
   names: {},
   notes: {},
   status: 'DRAFT',
-  builders: [],
   approvals: [],
   history: [],
 });
@@ -130,7 +129,6 @@ export const emptyThemePlan = ({ classId, yearPlanId, themeId }) => ({
   envIn: '',
   envOut: '',
   status: 'DRAFT',
-  builders: [],
   approvals: [],
   history: [],
 });
@@ -178,7 +176,6 @@ export const emptyWeekPlan = ({ classId, yearPlanId, weekStart, weekNo, themeId 
   grid: emptyGrid(),
   days: [0, 1, 2, 3, 4].map((i) => emptyDay(addDays(weekStart, i))),
   status: 'DRAFT',
-  builders: [],
   approvals: [],
   history: [],
 });
@@ -200,9 +197,8 @@ export const dossierWeekDocs = (themeDoc, plan, weekPlans = []) =>
   }));
 
 /*
- * Hồ sơ chủ đề theo file MN Thái Dương: giáo viên soạn kế hoạch chủ đề + giáo án tất cả các nhánh rồi gửi MỘT lần.
- * Mỗi tuần được duyệt riêng (ký khung "Duyệt giáo án từ ngày … đến ngày …"); kế hoạch chủ đề đi cùng khung tuần 1.
- * Tuần bị trả lại thì giáo viên sửa và gửi lại riêng tuần đó. Chủ đề nhánh (cả năm) phải được duyệt trước.
+ * Hồ sơ chủ đề theo file MN Thái Dương: giáo viên soạn kế hoạch chủ đề + giáo án tất cả các nhánh rồi gửi MỘT lần;
+ * duyệt / trả lại cả hồ sơ. Chủ đề nhánh (cả năm) phải được duyệt trước.
  * Dùng chung cho màn hình (UX) và mock service (BE thật phải tự kiểm).
  */
 export function submitBlocker(kind, doc, { branchPlans = [], weekPlans = [], classThemePlans = [], yearPlan }) {
@@ -211,31 +207,28 @@ export function submitBlocker(kind, doc, { branchPlans = [], weekPlans = [], cla
   if (branch?.status !== 'APPROVED') return 'Dự kiến chủ đề nhánh của lớp chưa được duyệt, nên chưa gửi được.';
   if (kind === CLASS_DOC.WEEK) {
     const theme = classThemePlans.find((t) => t.classId === doc.classId && t.yearPlanId === doc.yearPlanId && t.themeId === doc.themeId);
-    if (!theme || theme.status === 'DRAFT') return 'Giáo án tuần gửi lần đầu trong hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh).';
+    if (!theme || theme.status === 'DRAFT') return 'Giáo án tuần được gửi cùng kế hoạch chủ đề.';
     return null;
   }
   const missing = dossierWeekDocs(doc, yearPlan, weekPlans)
     .map((x, i) => (x.doc ? null : `nhánh ${i + 1}`))
     .filter(Boolean);
-  if (missing.length) return `Còn thiếu giáo án ${missing.join(', ')}. Soạn và lưu đủ giáo án các nhánh rồi mới gửi hồ sơ chủ đề.`;
+  if (missing.length) return `Còn thiếu giáo án ${missing.join(', ')}. Soạn và lưu đủ giáo án các nhánh rồi mới gửi duyệt kế hoạch chủ đề.`;
   return null;
 }
 
 /**
- * Tình trạng cả hồ sơ chủ đề để hiển thị: chưa gửi / số tuần đã duyệt, đang chờ, bị trả lại.
- * weeks: [{ doc }] theo dossierWeekDocs.
+ * Trình tự lập kế hoạch lớp: chủ đề nhánh cả năm được duyệt → kế hoạch chủ đề → giáo án các tuần nhánh của chủ đề đó.
+ * Chỉ chặn tạo mới; các nhánh trong một chủ đề soạn song song. Trả { need: 'branch' | 'theme', message } hoặc null.
  */
-export const dossierSummary = (themeDoc, weeks) => {
-  const docs = weeks.map((w) => w.doc).filter(Boolean);
-  const count = (st) => docs.filter((d) => d.status === st).length;
-  return {
-    sent: !!themeDoc && themeDoc.status !== 'DRAFT',
-    total: weeks.length,
-    approved: count('APPROVED'),
-    rejected: count('REJECTED'),
-    pending: docs.filter((d) => String(d.status).startsWith('PENDING')).length,
-  };
-};
+export function createBlocker(kind, { classId, yearPlanId, themeId }, { branchPlans = [], classThemePlans = [] }) {
+  if (kind === CLASS_DOC.BRANCH) return null;
+  const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlanId);
+  if (branch?.status !== 'APPROVED') return { need: 'branch', message: 'Dự kiến chủ đề nhánh của lớp cần được duyệt trước.' };
+  const theme = classThemePlans.some((t) => t.classId === classId && t.yearPlanId === yearPlanId && t.themeId === themeId);
+  if (kind === CLASS_DOC.WEEK && !theme) return { need: 'theme', message: 'Cần lưu kế hoạch giáo dục chủ đề trước.' };
+  return null;
+}
 
 /**
  * Nhắc hạn gửi (chỉ nhắc, không chặn): hồ sơ chủ đề trước ngày bắt đầu chủ đề.

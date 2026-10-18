@@ -1,40 +1,30 @@
 /*
- * Xuất kế hoạch chủ đề và giáo án tuần (kế hoạch tuần + 5 kế hoạch ngày) theo bố cục văn bản của MN Thái Dương.
+ * Xuất dự kiến chủ đề nhánh, kế hoạch chủ đề và giáo án tuần (kế hoạch tuần + 5 kế hoạch ngày) theo bố cục văn bản
+ * của MN Thái Dương. Không có chữ ký trong hệ thống: bản in để trống chỗ ký tay, in sẵn họ tên người soạn / người duyệt.
  * Dùng chung khung tài liệu với kế hoạch năm (yearPlanDoc).
  */
-import { asciiName, docShell, downloadDoc, esc, fmt, printDoc, sigImg } from '@/utils/education-plan/yearPlanDoc';
+import { commune, docShell, downloadDoc, esc, fileTitle, fmt, printDoc } from '@/utils/education-plan/yearPlanDoc';
 import { domainRoman } from '@/models/education-plan/goalTable';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { SIGN_ROLES, getEduConfig } from '@/models/education-plan/eduConfig';
-import { DAY_SECTIONS, WEEKDAY_LABELS, addDays, longDay, rowCell, weekRows } from '@/models/education-plan/classPlan';
+import { DAY_SECTIONS, WEEKDAY_LABELS, addDays, longDay, monthOf, rowCell, weekRows, yearWeeks } from '@/models/education-plan/classPlan';
 
 const text = (s) => (s?.trim() ? esc(s).replace(/\n/g, '<br/>') : '');
 const domainTitle = (name) => `${domainRoman(name)}. Giáo dục ${domainLabel(name).replace(/^P/, 'p')}`;
 
-// "Ngày … tháng … năm …" của lần ký; chưa ký thì để chấm như mẫu in
-const signDate = (iso, fallbackIso) => {
-  const d = iso ? iso.slice(0, 10) : '';
-  if (!d) return `Ngày……tháng ${Number(fallbackIso.slice(5, 7))} năm ${fallbackIso.slice(0, 4)}`;
-  return `Ngày ${Number(d.slice(8, 10))} tháng ${Number(d.slice(5, 7))} năm ${d.slice(0, 4)}`;
-};
+const BLANK_DATE = 'Ngày……tháng……năm……';
 
-/** Khung duyệt cuối mỗi tuần theo mẫu Thái Dương: "Duyệt giáo án từ ngày … đến ngày …", ngày ký, Người duyệt. */
+/**
+ * Khung duyệt cuối mỗi tuần theo mẫu Thái Dương: "Duyệt giáo án từ ngày … đến ngày …", ngày ký, Người duyệt.
+ * Một ô cho mỗi người duyệt (đã duyệt thì in sẵn họ tên); ngày và chữ ký để trống cho ký tay.
+ */
 const approvalBox = (doc, week) => {
-  // Chưa duyệt: để ô trống theo chuỗi người duyệt của trường (Tổ trưởng → Phó HT)
-  const chain = getEduConfig().signers.week;
   const approvals = doc.approvals || [];
-  const people =
-    doc.status === 'APPROVED' || !chain.length
-      ? approvals.length
-        ? approvals
-        : [null]
-      : chain.map((r) => approvals.find((a) => a.roleKey === r) || { role: SIGN_ROLES[r] });
-  const cells = people
+  const people = approvals.length ? approvals : getEduConfig().signers.week.map((r) => ({ role: SIGN_ROLES[r] }));
+  const cells = (people.length ? people : [{}])
     .map(
       (a) =>
-        `<td class="c"><i>${esc(signDate(a?.at, week.start))}</i><br/><b>Người duyệt${a?.role ? ` (${esc(a.role)})` : ''}</b><br/><div class="sign">${sigImg(a)}</div><b>${esc(
-          a?.name || '',
-        )}</b>${a?.note ? `<br/><i>${esc(a.note)}</i>` : ''}</td>`,
+        `<td class="c"><i>${BLANK_DATE}</i><br/><b>Người duyệt${a.role ? ` (${esc(a.role)})` : ''}</b><br/><div class="sign"></div><b>${esc(a.name || '')}</b></td>`,
     )
     .join('');
   return `<p>&nbsp;</p><p><b>Duyệt giáo án từ ngày ${fmt(week.start)} đến ngày ${fmt(week.end)}</b></p>
@@ -46,6 +36,8 @@ const approvalBox = (doc, week) => {
  * kế hoạch chủ đề được duyệt cùng giáo án tuần đầu. blocks: themeGoalBlocks(…); rowOf(goal) → { contents, activities }.
  */
 const themeSection = ({ doc, theme, themeNo, weeks, blocks, rowOf }) => {
+  // TT đánh số liên tục trong chủ đề; câu mục tiêu giữ số MT của kế hoạch năm (như file mẫu)
+  let tt = 0;
   const rows = blocks
     .map((b, i) => {
       const band =
@@ -54,7 +46,7 @@ const themeSection = ({ doc, theme, themeNo, weeks, blocks, rowOf }) => {
       const goals = b.goals
         .map((g) => {
           const r = rowOf(g);
-          return `<tr><td class="c">${g.no}</td><td>${g.no}. ${esc(g.text)}</td><td>${text(r.contents)}</td><td>${text(r.activities)}</td></tr>`;
+          return `<tr><td class="c">${(tt += 1)}</td><td>${g.no}. ${esc(g.text)}</td><td>${text(r.contents)}</td><td>${text(r.activities)}</td></tr>`;
         })
         .join('');
       return band + sub + goals;
@@ -126,7 +118,7 @@ ${approvalBox(doc, week)}`;
 
 /**
  * Hồ sơ chủ đề đúng thứ tự file của trường: kế hoạch giáo dục chủ đề → từng tuần nhánh (kế hoạch tuần, 5 kế hoạch ngày,
- * khung "Duyệt giáo án từ ngày … đến ngày …"). weekDocs: [{ week, branchNo, branchName, doc }] (tuần chưa soạn bỏ qua).
+ * khung "Duyệt giáo án từ ngày … đến ngày …" để ký tay). weekDocs: [{ week, branchNo, branchName, doc }] (tuần chưa soạn bỏ qua).
  */
 export const themeFileHtml = ({ themeDoc, theme, themeNo, cls, weeks, blocks, rowOf, weekDocs }) =>
   docShell(
@@ -140,9 +132,59 @@ ${weekDocs.map((w) => weekSection(w)).join('')}
 export const weekFileHtml = ({ cls, ...w }) =>
   docShell(`Giáo án tuần ${w.week.no} ${cls.name}`, `${weekSection(w).replace('<div style="page-break-before:always"></div>', '')}`);
 
-const output = (html, name, mode) => (mode === 'print' ? printDoc(html) : (downloadDoc(html, asciiName(name)), true));
+/**
+ * "Dự kiến các chủ đề nhánh và thời gian thực hiện" theo mẫu Thái Dương: Tháng | Chủ đề | Chủ đề nhánh | Số tuần | Ghi chú,
+ * tháng và chủ đề gộp theo chủ đề, dòng nghỉ riêng; cuối trang Người duyệt kế hoạch (Phó HT) và Người xây dựng (giáo viên).
+ */
+export const branchFileHtml = ({ doc, cls, yearPlan, teachers }) => {
+  const rows = yearWeeks(yearPlan);
+  const weeks = rows.filter((r) => r.type === 'week');
+  const year = (yearPlan.schoolYear || '').replace(/\s*[-–]\s*/, ' - ');
+  const span = (i) => {
+    let n = 1;
+    while (i + n < rows.length && rows[i + n].theme.id === rows[i].theme.id) n += 1;
+    return n;
+  };
+  const months = (t) => {
+    const a = monthOf(t.start);
+    const b = monthOf(t.end);
+    return a === b ? `${a}` : `${a} - ${b}`;
+  };
+  const body = rows
+    .map((r, i) => {
+      const head =
+        i === 0 || rows[i - 1].theme.id !== r.theme.id
+          ? `<td class="c" rowspan="${span(i)}">${months(r.theme)}</td><td class="c" rowspan="${span(i)}"><b>${esc(r.theme.name.toUpperCase())}</b></td>`
+          : '';
+      if (r.type === 'break')
+        return `<tr>${head}<td colspan="3"><i>Nghỉ ${esc(r.label || '')} từ ngày ${fmt(r.start)} đến hết ngày ${fmt(r.end)}</i></td></tr>`;
+      const no = rows.slice(0, i + 1).filter((x) => x.type === 'week' && x.theme.id === r.theme.id).length;
+      return `<tr>${head}<td>- Nhánh ${no}: ${esc(doc.names?.[r.start] || '')}</td><td>Tuần ${r.no}: ${fmt(r.start)}<br/>${fmt(r.end)}</td><td>${esc(doc.notes?.[r.start] || '')}</td></tr>`;
+    })
+    .join('');
+  const approver = (doc.approvals || []).at(-1);
+  const people = teachers.length ? teachers : [{ fullName: '' }];
+  return docShell(
+    `Dự kiến các chủ đề nhánh ${cls.name}`,
+    `<h1>DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH VÀ THỜI GIAN THỰC HIỆN NĂM HỌC ${esc(year)} - ${esc(cls.name.toUpperCase())}</h1>
+<p class="c">Thời gian thực hiện: ${weeks.length} tuần, từ ngày ${fmt(weeks[0]?.start)}, kết thúc ngày ${fmt(weeks.at(-1)?.end)}</p>
+<table class="grid"><colgroup><col style="width:9%"/><col style="width:19%"/><col style="width:38%"/><col style="width:18%"/><col style="width:16%"/></colgroup>
+<thead><tr><th>Tháng</th><th>Chủ đề</th><th>Chủ đề nhánh</th><th>Số tuần</th><th>Ghi chú</th></tr></thead><tbody>${body}</tbody></table>
+<table class="plain sign-block"><tr>
+<td class="c" style="width:40%"><br/><b>Người duyệt kế hoạch</b><br/><div class="sign"></div><b>${esc(approver?.name || '')}</b></td>
+<td class="c" style="width:60%"><i>${esc(commune)}, ngày …… tháng …… năm ……</i><br/><b>Người xây dựng kế hoạch</b>
+<table class="plain"><tr>${people.map((t) => `<td class="c"><b>Giáo viên</b><br/><div class="sign"></div><b>${esc(t.fullName || '')}</b></td>`).join('')}</tr></table></td>
+</tr></table>`,
+  );
+};
+
+const output = (html, name, mode) => (mode === 'print' ? printDoc(html) : (downloadDoc(html, fileTitle(name)), true));
+
+// Tên file theo bộ file mẫu của trường: "2. DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH…", "3. KHGD CĐ n …"
+export const exportBranchFile = (args, mode) =>
+  output(branchFileHtml(args), `2. DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH VÀ THỜI GIAN THỰC HIỆN - ${args.cls.name}`, mode);
 
 export const exportThemeFile = (args, mode) =>
-  output(themeFileHtml(args), `KHGD_chu_de_${args.themeNo}_${args.theme.name}_${args.cls.name}`, mode);
+  output(themeFileHtml(args), `3. KHGD CĐ ${args.themeNo} ${args.theme.name} - ${args.cls.name}`, mode);
 
-export const exportWeekPlan = (args, mode) => output(weekFileHtml(args), `Giao_an_tuan_${args.week.no}_${args.cls.name}`, mode);
+export const exportWeekPlan = (args, mode) => output(weekFileHtml(args), `Giáo án tuần ${args.week.no} - ${args.cls.name}`, mode);

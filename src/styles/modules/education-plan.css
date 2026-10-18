@@ -964,6 +964,11 @@
 .ga-goal-table__center .ga-cell-input {
   text-align: center;
 }
+/* Ô tên chủ đề nhánh do AI điền, chờ giáo viên giữ / bỏ: viền xanh đậm trùng viền ô (Tiền 15/10) */
+.table.ga-goal-table td.ga-cell--ai {
+  outline: 2px solid var(--tone-green);
+  outline-offset: -2px;
+}
 /* Ô đang nhập: khung xanh trùng đúng viền ô bảng như bảng tính (cả khi hàng cao hơn ô nhập), không hở khoảng trắng (Tiền 14/10) */
 .table.ga-goal-table td:not(.ga-goal-table__subband):focus-within {
   outline: 2px solid var(--color-primary);
@@ -974,4 +979,14 @@
 }
 .table.ga-goal-table td:has(.ga-cell-input) {
   cursor: text;
+}
+
+/* Hồ sơ chủ đề (Tiền 16/10): thẻ chỉ có tiêu đề thì cách đều trên dưới; kế hoạch ngày thụt vào trong tuần, có vạch dọc */
+.ga-card--heading > .card__header {
+  padding-bottom: var(--space-6);
+}
+.ga-dossier-day {
+  margin-left: var(--space-4);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--color-border);
 }

@@ -3,6 +3,7 @@ import { educationPlanMockRepository } from '@/services/education-plan/mock/educ
 import { educationPlanApi } from '@/services/education-plan/api/educationPlanApi';
 import { classPlanMockRepository } from '@/services/education-plan/mock/classPlanMockRepository';
 import { eduConfigMockRepository } from '@/services/education-plan/mock/eduConfigMockRepository';
+import { branchAiMock } from '@/services/education-plan/mock/branchAiMock';
 
 /** Facade: UI only calls these functions. */
 const repo = USE_MOCK ? educationPlanMockRepository : educationPlanApi;
@@ -25,3 +26,8 @@ export const actOnClassDoc = (kind, id, body, user) =>
 // Cấu hình kế hoạch giáo dục của trường (lĩnh vực, người ký, dòng hoạt động tuần)
 export const getEduConfig = () => (USE_MOCK ? eduConfigMockRepository.get() : educationPlanApi.getEduConfig());
 export const saveEduConfig = (cfg, user) => (USE_MOCK ? eduConfigMockRepository.save(cfg, user) : educationPlanApi.saveEduConfig(cfg));
+
+// AI gợi ý tên chủ đề nhánh (bản nháp; giáo viên chọn Dùng / Bỏ rồi vẫn ký, gửi duyệt như thường)
+export const suggestBranchNames = (input) =>
+  USE_MOCK ? branchAiMock.suggestBranchNames(input) : educationPlanApi.suggestBranchNames(input);
+export const rewriteBranchName = (input) => (USE_MOCK ? branchAiMock.rewriteBranchName(input) : educationPlanApi.rewriteBranchName(input));
