@@ -1,6 +1,21 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Plus, LineChart, Pencil, Send, History, ArrowLeft, Info, HeartPulse, RotateCcw } from '@/components/ui/icons';
+import {
+  Plus,
+  LineChart,
+  Pencil,
+  Send,
+  History,
+  ArrowLeft,
+  Info,
+  HeartPulse,
+  RotateCcw,
+  Lock,
+  Stethoscope,
+  ClipboardCheck,
+  Handshake,
+  FileText,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
@@ -8,12 +23,28 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, LoadingState } from '@/components/ui/States';
-import { NutritionBadge } from '@/components/children/ChildBadges';
+import {
+  ConclusionCategoryBadge,
+  FollowUpDueBadge,
+  FollowUpLevelShortBadge,
+  FollowUpStatusBadge,
+  MotorResultBadge,
+} from '@/components/children/ChildBadges';
+import { MeasurementSummary } from '@/components/children/MeasurementSummary';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
+import { ImageUploader } from '@/components/upload/ImageUploader';
 import { publishMeasurement } from '@/services/children/childrenService';
-import { DECLARATION_STATE, ALLERGY_STATE_LABELS } from '@/models/children/childrenConstants';
+import {
+  DECLARATION_STATE,
+  ALLERGY_STATE_LABELS,
+  MEASUREMENT_SOURCE,
+  MEASUREMENT_SOURCE_LABELS,
+  PARENT_VISIBLE_HEALTH_TEXT,
+} from '@/models/children/childrenConstants';
+import { EXAM_STATUS } from '@/models/children/healthExamForm';
+import { FOLLOW_UP_STATUS, PUBLISH_BLOCKED_TEXT } from '@/models/children/healthCheckConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { formatNumber } from '@/utils/children/childrenHelpers';
+import { formatMeasurementChange, formatNumber } from '@/utils/children/childrenHelpers';
 import { canEditMeasurement, canPublishMeasurement, canRecordMeasurement } from '@/utils/children/childrenPermissions';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
@@ -81,12 +112,47 @@ export default function ChildHealthRecordPage() {
             <LineChart size={16} /> Xem xu hướng
           </Link>
           {canRecord && (
-            <Link className="btn btn--primary" to={`/children/${child.id}/health/new`}>
-              <Plus size={16} /> Nhập số đo
+            <Link className="btn" to={`/children/${child.id}/health/new`}>
+              <Plus size={16} /> Nhập cân đo ngoài đợt
             </Link>
           )}
         </div>
       </div>
+
+      {canRecord &&
+        record.openCampaign &&
+        record.openCampaign.resultStatus !== EXAM_STATUS.CONCLUDED &&
+        record.openCampaign.resultStatus !== 'LEGACY' && (
+          <div className="alert alert--info mb-16">
+            <Stethoscope size={18} />
+            <div>
+              Đợt <b>{record.openCampaign.name}</b> đang diễn ra ({formatDate(record.openCampaign.startDate)} –{' '}
+              {formatDate(record.openCampaign.endDate)}).{' '}
+              <Link
+                className="text-primary fw-600"
+                to={`/children/health-checks/${record.openCampaign.id}/exam/${child.id}?classId=${child.classId}`}
+              >
+                {record.openCampaign.resultStatus === EXAM_STATUS.DRAFT ? 'Tiếp tục phiếu khám' : 'Khám trong đợt (phiếu Phụ lục II)'}
+              </Link>
+            </div>
+          </div>
+        )}
+
+      {record.openFollowUp && (
+        <div className={`alert ${record.openFollowUp.overdueDays > 0 ? 'alert--danger' : 'alert--warning'} mb-16`}>
+          <ClipboardCheck size={18} />
+          <div className="row row--wrap gap-2">
+            <span>Trẻ đang có phiếu theo dõi sức khỏe từ ngày {formatDate(record.openFollowUp.openedAt.slice(0, 10))}:</span>
+            <FollowUpStatusBadge status={record.openFollowUp.status} />
+            {record.openFollowUp.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT && (
+              <FollowUpDueBadge dueOn={record.openFollowUp.dueOn} overdueDays={record.openFollowUp.overdueDays} />
+            )}
+            <Link className="text-primary fw-600" to={`/children/health-follow-ups/${record.openFollowUp.id}`}>
+              Mở phiếu theo dõi
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="grid-2">
         <section className="card">
@@ -96,26 +162,10 @@ export default function ChildHealthRecordPage() {
           <div className="card__body">
             {latest ? (
               <>
-                <div className="tr-metrics">
-                  <div>
-                    <div className="tr-metric__value">{formatNumber(latest.heightCm)}</div>
-                    <div className="muted text-sm">Chiều cao (cm)</div>
-                  </div>
-                  <div>
-                    <div className="tr-metric__value">{formatNumber(latest.weightKg)}</div>
-                    <div className="muted text-sm">Cân nặng (kg)</div>
-                  </div>
-                  <div>
-                    <div className="tr-metric__value">{formatNumber(latest.bmi)}</div>
-                    <div className="muted text-sm">BMI</div>
-                  </div>
-                </div>
-                <div className="row row--wrap mt-12" style={{ gap: 8 }}>
-                  <NutritionBadge status={latest.nutritionStatus} />
-                  <span className="muted text-sm">
-                    Ngày đo {formatDate(latest.date)} · {ageText(latest.ageMonths)}
-                  </span>
-                </div>
+                <p className="muted text-sm mb-12">
+                  Ngày đo {formatDate(latest.date)} · {ageText(latest.ageMonths)}
+                </p>
+                <MeasurementSummary measurement={latest} />
               </>
             ) : (
               <p className="muted">Chưa có lần đo nào.</p>
@@ -160,6 +210,43 @@ export default function ChildHealthRecordPage() {
         </section>
       </div>
 
+      {(record.externalResults || []).length > 0 && (
+        <section className="card mt-16">
+          <div className="card__header">
+            <h2 className="card__title">Kết quả khám chuyên khoa (phụ huynh báo lại)</h2>
+          </div>
+          <div className="card__body">
+            <ul className="history-list">
+              {record.externalResults.map((x) => (
+                <li key={x.at}>
+                  <span className="history-list__dot" />
+                  <div>
+                    <div className="fw-600">
+                      Ngày khám {formatDate(x.on)}
+                      {x.facility ? ` · ${x.facility}` : ''}
+                    </div>
+                    <div className="tr-pre-line text-sm">{x.note}</div>
+                    {x.images?.length > 0 && (
+                      <div className="mt-8">
+                        <ImageUploader images={x.images} disabled />
+                      </div>
+                    )}
+                    <div className="muted text-xs">
+                      {x.nextVisitOn && `Hẹn khám lại ngày ${formatDate(x.nextVisitOn)} · `}
+                      Ghi bởi {x.byName || '—'} ·{' '}
+                      <Link className="text-primary" to={`/children/health-follow-ups/${x.followUpId}`}>
+                        Mở phiếu theo dõi
+                      </Link>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="muted text-xs">Giáo viên ghi đúng lời bác sĩ chuyên khoa mà phụ huynh báo lại; hệ thống không kết luận.</div>
+          </div>
+        </section>
+      )}
+
       <section className="card mt-16">
         <div className="card__header">
           <h2 className="card__title">Các lần đo</h2>
@@ -187,14 +274,17 @@ export default function ChildHealthRecordPage() {
         <div className="alert alert--info tr-alert-flat">
           <Info size={18} />
           <div>
-            Tình trạng dinh dưỡng do hệ thống tính theo quy tắc cố định từ chiều cao, cân nặng và tuổi – không phải chẩn đoán y khoa.
+            Phiếu khám trong đợt: mức theo dõi theo kết luận của bác sĩ. Kết quả mẫu cũ: mức theo dõi do hệ thống xếp theo ngưỡng tham chiếu
+            tạm, là kết quả sàng lọc, không phải chẩn đoán. BMI chỉ là số hệ thống tính từ chiều cao, cân nặng.
           </div>
         </div>
         {measurements.length === 0 ? (
           <EmptyState
             icon={HeartPulse}
-            title={filtered ? 'Không có lần đo trong khoảng thời gian này' : 'Chưa có số đo sức khỏe'}
-            description={filtered ? 'Chọn khoảng thời gian khác.' : 'Giáo viên chủ nhiệm nhập chiều cao, cân nặng ở mỗi lần khám định kỳ.'}
+            title={filtered ? 'Không có lần đo trong khoảng thời gian này' : 'Chưa có kết quả khám'}
+            description={
+              filtered ? 'Chọn khoảng thời gian khác.' : 'Giáo viên phụ trách lớp nhập kết quả ở mỗi đợt khám hoặc khi cân đo tại lớp.'
+            }
             action={
               filtered ? (
                 <button
@@ -209,7 +299,7 @@ export default function ChildHealthRecordPage() {
               ) : (
                 canRecord && (
                   <Link className="btn btn--primary" to={`/children/${child.id}/health/new`}>
-                    <Plus size={16} /> Nhập số đo
+                    <Plus size={16} /> Nhập cân đo ngoài đợt
                   </Link>
                 )
               )
@@ -221,12 +311,13 @@ export default function ChildHealthRecordPage() {
               <thead>
                 <tr>
                   <th>Ngày đo</th>
-                  <th>Tuổi</th>
                   <th className="right">Chiều cao (cm)</th>
                   <th className="right">Cân nặng (kg)</th>
+                  <th className="right">Vòng đầu (cm)</th>
                   <th className="right">BMI</th>
-                  <th>Tình trạng dinh dưỡng</th>
-                  <th>Người đo</th>
+                  <th>Kết luận</th>
+                  <th>Mức theo dõi</th>
+                  <th>Người nhập</th>
                   <th>Phụ huynh</th>
                   <th className="center">Thao tác</th>
                 </tr>
@@ -234,16 +325,45 @@ export default function ChildHealthRecordPage() {
               <tbody>
                 {measurements.map((m) => (
                   <tr key={m.id}>
-                    <td className="nowrap fw-600">
-                      {formatDate(m.date)}
+                    <td className="nowrap">
+                      <div className="fw-600">{formatDate(m.date)}</div>
+                      <div className="muted text-xs">{ageText(m.ageMonths)}</div>
+                      <div className="muted text-xs tr-note">{m.campaignName || 'Ngoài đợt khám'}</div>
                       {m.note && <div className="muted text-xs tr-note">{m.note}</div>}
                     </td>
-                    <td className="nowrap">{ageText(m.ageMonths)}</td>
                     <td className="right">{formatNumber(m.heightCm)}</td>
                     <td className="right">{formatNumber(m.weightKg)}</td>
+                    <td className="right">{formatNumber(m.headCircumferenceCm)}</td>
                     <td className="right">{formatNumber(m.bmi)}</td>
                     <td>
-                      <NutritionBadge status={m.nutritionStatus} />
+                      {m.source === MEASUREMENT_SOURCE.EXAM ? (
+                        <div className="tr-cell-stack">
+                          <ConclusionCategoryBadge status={m.conclusionCategory} />
+                          <span className="muted text-xs tr-note">
+                            {m.exam.conclusion.specialty
+                              ? `Chuyển khám: ${m.exam.conclusion.specialty}`
+                              : m.exam.conclusion.issueText || m.exam.conclusion.adviceText}
+                          </span>
+                        </div>
+                      ) : m.source === MEASUREMENT_SOURCE.LEGACY ? (
+                        <div className="tr-cell-stack text-sm">
+                          <span className="muted text-xs">{MEASUREMENT_SOURCE_LABELS.LEGACY}</span>
+                          <span>Thô: {m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : '—'}</span>
+                          <span>Tinh: {m.fineMotor ? <MotorResultBadge status={m.fineMotor} /> : '—'}</span>
+                        </div>
+                      ) : (
+                        <span className="muted text-xs tr-note">{MEASUREMENT_SOURCE_LABELS.MEASUREMENT_ONLY}</span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="tr-cell-stack">
+                        <FollowUpLevelShortBadge status={m.followUpLevel} />
+                        {m.followUpId && (
+                          <Link className="text-primary text-xs" to={`/children/health-follow-ups/${m.followUpId}`}>
+                            Phiếu theo dõi
+                          </Link>
+                        )}
+                      </div>
                     </td>
                     <td className="text-sm">{m.measuredByName || '—'}</td>
                     <td>
@@ -264,7 +384,27 @@ export default function ChildHealthRecordPage() {
                           <History size={17} />
                         </button>
                       )}
-                      {canEdit && (
+                      {canEdit && m.locked && (
+                        <span
+                          className="icon-btn"
+                          title="Đợt khám đã đóng, kết quả bị khóa"
+                          role="img"
+                          aria-label="Kết quả bị khóa vì đợt khám đã đóng"
+                        >
+                          <Lock size={17} />
+                        </span>
+                      )}
+                      {m.source === MEASUREMENT_SOURCE.EXAM && (
+                        <Link
+                          className="icon-btn"
+                          to={`/children/health-checks/${m.campaignId}/exam/${child.id}`}
+                          title="Xem phiếu khám"
+                          aria-label={`Xem phiếu khám ngày ${formatDate(m.date)}`}
+                        >
+                          <FileText size={17} />
+                        </Link>
+                      )}
+                      {canEdit && !m.locked && m.source !== MEASUREMENT_SOURCE.EXAM && (
                         <Link
                           className="icon-btn"
                           to={`/children/${child.id}/health/${m.id}/edit`}
@@ -274,11 +414,22 @@ export default function ChildHealthRecordPage() {
                           <Pencil size={17} />
                         </Link>
                       )}
-                      {canPublish && !m.published && (
-                        <button className="btn btn--sm" onClick={() => setPublishing(m)}>
-                          <Send size={14} /> Công bố
-                        </button>
-                      )}
+                      {canPublish &&
+                        !m.published &&
+                        (m.publishBlockedReason ? (
+                          <Link
+                            className="btn btn--sm"
+                            to={`/children/health-follow-ups/${m.followUpId}`}
+                            title={PUBLISH_BLOCKED_TEXT[m.publishBlockedReason]}
+                            aria-label={`${PUBLISH_BLOCKED_TEXT[m.publishBlockedReason]} Mở phiếu theo dõi.`}
+                          >
+                            <Handshake size={14} /> Ghi trao đổi để công bố
+                          </Link>
+                        ) : (
+                          <button className="btn btn--sm" onClick={() => setPublishing(m)}>
+                            <Send size={14} /> Công bố
+                          </button>
+                        ))}
                     </td>
                   </tr>
                 ))}
@@ -312,9 +463,8 @@ export default function ChildHealthRecordPage() {
                   <ul className="tr-change-list">
                     {e.changes.map((c) => (
                       <li key={c.field}>
-                        {c.label || c.field}:{' '}
-                        <s className="muted">{c.field === 'date' ? formatDate(c.from) : String(c.from ?? '') || '(trống)'}</s> →{' '}
-                        <b>{c.field === 'date' ? formatDate(c.to) : String(c.to ?? '') || '(trống)'}</b>
+                        {c.label || c.field}: <s className="muted">{formatMeasurementChange(c.field, c.from)}</s> →{' '}
+                        <b>{formatMeasurementChange(c.field, c.to)}</b>
                       </li>
                     ))}
                   </ul>
@@ -331,7 +481,7 @@ export default function ChildHealthRecordPage() {
         title="Công bố kết quả cho phụ huynh?"
         message={
           publishing
-            ? `Phụ huynh của ${child.fullName} sẽ xem được kết quả đo ngày ${formatDate(publishing.date)} và nhận thông báo trên ứng dụng.`
+            ? `Phụ huynh của ${child.fullName} sẽ xem được ${PARENT_VISIBLE_HEALTH_TEXT} của ngày ${formatDate(publishing.date)} và nhận thông báo trên ứng dụng.`
             : ''
         }
         confirmLabel="Công bố kết quả"

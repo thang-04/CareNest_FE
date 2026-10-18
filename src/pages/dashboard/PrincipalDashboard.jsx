@@ -7,7 +7,6 @@ import {
   CalendarDays,
   ListChecks,
   School,
-  ShieldAlert,
   UserRound,
   UtensilsCrossed,
   Wrench,
@@ -72,7 +71,6 @@ export default function PrincipalDashboard() {
 
   const children = childrenQ.data || [];
   const active = children.filter((c) => c.status === CHILD_STATUS.ACTIVE).length;
-  const allergyPending = children.filter((c) => c.allergyPending);
   const campuses = (campusesQ.data || []).filter((c) => !campusId || c.id === campusId);
   const classCount = campuses.reduce((n, c) => n + c.classCount, 0);
   const counts = countsQ.data?.counts || [];
@@ -160,17 +158,6 @@ export default function PrincipalDashboard() {
           value={openIssues}
           loading={firstLoad(issuesQ)}
           error={issuesQ.error}
-        />
-        <KpiCard
-          unit="trẻ"
-          action
-          icon={ShieldAlert}
-          to="/children"
-          tone="orange"
-          label="Dị ứng chờ bạn xác nhận"
-          value={allergyPending.length}
-          loading={firstLoad(childrenQ)}
-          error={childrenQ.error}
         />
       </div>
 
@@ -312,28 +299,6 @@ export default function PrincipalDashboard() {
                   end: <span className="db-count">{lessons.filter((l) => l.status === EDU_STATUS.APPROVED).length}</span>,
                 },
               ]}
-            />
-          </Widget>
-          <Widget
-            title="Khai báo dị ứng chờ xác nhận"
-            icon={ShieldAlert}
-            to="/children"
-            linkLabel="Danh sách trẻ"
-            loading={firstLoad(childrenQ)}
-            error={childrenQ.error}
-            onRetry={childrenQ.reload}
-            empty={!allergyPending.length}
-            emptyTitle="Không có khai báo dị ứng chờ xác nhận"
-            emptyText="Dị ứng thực phẩm do Hiệu trưởng xác nhận trước khi bếp áp dụng thực đơn thay thế."
-          >
-            <ShortList
-              rows={allergyPending.slice(0, 5).map((c) => ({
-                key: c.id,
-                to: `/children/${c.id}/health-declaration`,
-                code: c.code,
-                title: c.fullName,
-                meta: `${c.className || 'Chưa xếp lớp'} · ${md.campusById(c.campusId)?.shortName || ''}`,
-              }))}
             />
           </Widget>
         </div>

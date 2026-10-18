@@ -1787,9 +1787,14 @@ a.file-row__name:hover {
   flex: 1;
   min-width: 0;
 }
+/* .card có backdrop-filter nên tạo stacking context: nâng card khi panel mở để không bị .page-actions (sticky) che */
+.card:has(.search-select__panel) {
+  position: relative;
+  z-index: calc(var(--z-sticky) + 1); /* trên thanh dính đáy, dưới header */
+}
 .search-select__panel {
   position: absolute;
-  z-index: 50;
+  z-index: var(--z-dropdown);
   left: 0;
   right: 0;
   top: calc(100% + 4px);

@@ -24,6 +24,74 @@
   display: contents;
 }
 
+/* Trang hồ sơ trẻ: thông tin chung 2 cột, cụm sức khỏe ở cột phải */
+.tr-profile-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-8);
+}
+.tr-health-divider {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.tr-profile-info__sub {
+  font-weight: var(--fw-regular);
+}
+/* Ô điều hướng (xem) có mũi tên; hành động dùng nút viền để dễ phân biệt */
+.tr-quicklink > .tr-quicklink__go {
+  margin-left: auto;
+  margin-top: 0;
+  align-self: center;
+  color: var(--color-text-muted);
+}
+.tr-quicklink:hover > .tr-quicklink__go {
+  color: var(--color-primary);
+}
+
+/* Tên trẻ trong danh sách: nút mở panel xem nhanh */
+.tr-name-btn {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+/* Panel xem nhanh hồ sơ trẻ (danh sách trẻ) */
+.tr-quick__head {
+  flex-wrap: nowrap;
+}
+.tr-quick__guardian {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.tr-quick__guardian:last-child {
+  border-bottom: none;
+}
+
+/* Form trong hộp xác nhận Cho nghỉ học: hộp căn giữa chữ, form căn trái */
+.tr-withdraw-form {
+  text-align: left;
+}
+
+/* Tiếp nhận bước 1: thông tin trẻ bên trái, phụ huynh bên phải */
+.tr-info-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+.tr-info-split__guardians {
+  min-width: 0;
+  padding-left: var(--space-6);
+  border-left: 1px solid var(--border);
+}
+.tr-info-split .tr-guardian__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 /* Guardians block in the enrollment form */
 .tr-guardian {
   border: 1px solid var(--border);
@@ -42,6 +110,107 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
+}
+
+/* Segmented "Đã có / Chưa có tài khoản" trong card tiếp nhận: bỏ lề mặc định của .card .tabs */
+.card .tabs.tr-guardian-mode {
+  margin: 0 0 var(--space-3);
+}
+
+/* Phụ huynh đã có tài khoản (tiếp nhận): thẻ đã chọn + ô thêm */
+.tr-linked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.tr-linked__info {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+.tr-linked__relation {
+  flex: 0 1 220px;
+  min-width: 0;
+}
+.tr-linked-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+.tr-linked-add {
+  max-width: 560px;
+}
+/* Khung chờ đúng hình: ô tìm + một thẻ */
+.tr-skel-input {
+  max-width: 560px;
+  height: var(--input-height);
+  border-radius: var(--radius-sm);
+}
+.tr-skel-card {
+  height: calc(var(--input-height) * 2);
+  border-radius: var(--radius);
+}
+.tr-linked-add .search-box {
+  min-width: 0;
+}
+/* Kết quả tìm nằm trong luồng trang (không nổi) nên không bị thanh nút dính đáy che */
+.tr-account-results {
+  margin-top: var(--space-2);
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.tr-account-results__empty {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+}
+.tr-account-result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.tr-account-result:last-child {
+  border-bottom: none;
+}
+.tr-account-result:hover,
+.tr-account-result:focus-visible {
+  background: var(--surface-hover);
+}
+.tr-account-result:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+.tr-account-result__action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+.tr-account-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+  overflow-wrap: anywhere;
 }
 
 /* Class choice cards */
@@ -181,6 +350,9 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4);
 }
+.tr-metrics--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 .tr-metric__value {
   font-size: var(--fs-h2);
   font-weight: 700;
@@ -194,6 +366,77 @@
 .tr-change-list {
   margin: var(--space-1) 0;
   padding-left: var(--space-4);
+}
+
+/* Xu hướng sức khỏe: ô chọn trẻ theo tên chiếm phần còn lại của thanh lọc */
+.tr-child-picker {
+  flex: 1;
+  min-width: 260px;
+  max-width: 420px;
+}
+
+/* Xu hướng sức khỏe: cách xem (trái) + khoảng thời gian (phải) trên cùng card số đo */
+.tr-chart-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+}
+.card .tr-chart-toolbar .tabs {
+  margin: 0;
+}
+
+/* Đánh giá vận động: 2 lựa chọn radio trên một hàng, xuống dòng khi hẹp */
+.tr-radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  min-height: var(--input-height);
+  align-items: center;
+}
+
+/* Ô bảng sức khỏe: nhiều dòng nhỏ (vận động thô/tinh, BMI + phân loại) */
+.tr-cell-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+/* Đợt khám: ô chiếm cả hàng lưới, thanh tiến độ trong bảng, lớp đang mở danh sách trẻ */
+.tr-span-2 {
+  grid-column: 1 / -1;
+}
+.tr-progress-cell {
+  min-width: 160px;
+}
+.tr-row-selected td {
+  background: var(--color-primary-soft);
+}
+
+/* Phiếu theo dõi: nội dung nhiều dòng, nút ghi nằm bên phải, ô tìm kiếm giãn hết thanh lọc */
+.tr-pre-line {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.tr-actions-end {
+  justify-content: flex-end;
+}
+/* Dòng thời gian phiếu: kết quả khám = cần để ý, nhắc của hệ thống = cần xử lý, đóng phiếu = hoàn tất */
+.history-list__dot.tr-dot--warning {
+  background: var(--warning);
+}
+.history-list__dot.tr-dot--danger {
+  background: var(--danger);
+}
+.history-list__dot.tr-dot--done {
+  background: var(--success);
+}
+.tr-search-grow {
+  flex: 1;
+  min-width: 220px;
 }
 
 /* SVG growth chart */
@@ -215,6 +458,9 @@
   font-size: var(--fs-xs);
   font-family: var(--font);
 }
+.tr-chart__unit {
+  font-weight: var(--fw-semibold);
+}
 .tr-chart__line {
   fill: none;
   stroke: var(--primary);
@@ -226,9 +472,8 @@
   stroke-width: 2;
   fill: var(--success);
 }
-.tr-chart__pt--malnourished,
-.tr-chart__pt--obese {
-  fill: var(--danger);
+.tr-chart__pt--alert {
+  fill: var(--warning);
 }
 .tr-chart__pt--unavailable {
   fill: var(--disabled);
@@ -255,7 +500,7 @@
   background: var(--success);
 }
 .tr-legend__dot--alert {
-  background: var(--danger);
+  background: var(--warning);
 }
 .tr-legend__dot--unavailable {
   background: var(--disabled);
@@ -296,11 +541,77 @@
   color: var(--info-700);
 }
 
+@media (max-width: 1100px) {
+  .tr-info-split {
+    grid-template-columns: 1fr;
+  }
+  .tr-info-split__guardians {
+    padding-left: 0;
+    border-left: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .tr-metrics--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tr-profile-info {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1280px) {
   .tr-guardian__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .tr-quicklinks {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Phiếu khám Phụ lục II: câu đang chọn lựa chọn bất thường có viền cảnh báo bên trái */
+.tr-exam-choice {
+  padding-left: var(--space-3);
+  border-left: 3px solid transparent;
+}
+.tr-exam-choice--flag {
+  border-left-color: var(--color-warning);
+}
+.tr-exam-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+.tr-exam-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+.tr-exam-group + .tr-exam-group {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.tr-exam-group {
+  margin-bottom: var(--space-4);
+}
+.tr-review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.tr-review__list {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+.tr-exam-section + .tr-exam-section {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .tr-exam-pair {
     grid-template-columns: 1fr;
   }
 }

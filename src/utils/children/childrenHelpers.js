@@ -1,4 +1,7 @@
 import { AGE_GROUPS } from '@/models/School';
+import { MOTOR_RESULT_LABELS } from '@/models/children/childrenConstants';
+import { emptyChildProfile, emptyMedicalHistory } from '@/models/children/childProfile';
+import { formatDate } from '@/utils/format';
 
 /**
  * Display hint only: the age group a child normally joins in a school year (by birth year).
@@ -24,8 +27,31 @@ export const formatNumber = (value, digits = 1) =>
 
 export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', email: '' });
 
+/** Bước 1 của form tiếp nhận: thông tin trẻ, phụ huynh và phần hành chính (dùng cho phiếu khám). */
+export const emptyChildInfo = () => ({
+  fullName: '',
+  dateOfBirth: '',
+  gender: '',
+  guardians: [emptyGuardian()],
+  profile: emptyChildProfile(),
+});
+
 export const emptyDeclaration = () => ({
   allergies: { state: 'NOT_PROVIDED', items: [] },
   diet: { state: 'NOT_PROVIDED', text: '' },
   otherNotes: { state: 'NOT_PROVIDED', text: '' },
+  medicalHistory: emptyMedicalHistory(),
 });
+
+/** Tông điểm biểu đồ theo kết quả BE trả (chỉ ánh xạ hiển thị, không tính lại). */
+export const screeningTone = (status) =>
+  status === 'NORMAL' ? 'normal' : !status || status === 'UNAVAILABLE' || status === 'NOT_MEASURED' ? 'unavailable' : 'alert';
+
+/** Giá trị cũ/mới trong lịch sử sửa số đo. */
+export const formatMeasurementChange = (field, value) => {
+  if (value == null || value === '') return '(trống)';
+  if (field === 'date') return formatDate(value);
+  if (field === 'grossMotor' || field === 'fineMotor') return MOTOR_RESULT_LABELS[value] || String(value);
+  if (typeof value === 'number') return formatNumber(value);
+  return String(value);
+};
