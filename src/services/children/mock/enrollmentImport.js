@@ -66,8 +66,33 @@ const toGender = (value) => {
 };
 
 const isNone = (value) => ['khong', 'khong co', 'none', 'no'].includes(normalizeText(value).trim());
+const isYes = (value) => ['co', 'yes', 'x'].includes(normalizeText(value).trim());
 
-const toDeclaration = (allergies, diet) => {
+// Ô Có/Không: để trống ⇒ chưa cung cấp; giá trị khác giữ nguyên để kiểm tra báo lỗi đúng dòng.
+const toYesNo = (value) => {
+  const v = String(value || '').trim();
+  if (!v) return '';
+  if (isYes(v)) return 'YES';
+  if (isNone(v)) return 'NO';
+  return v;
+};
+
+const toHistoryItem = (value) => {
+  const v = String(value || '').trim();
+  if (!v) return { state: DECLARATION_STATE.NOT_PROVIDED, text: '' };
+  if (isNone(v)) return { state: DECLARATION_STATE.NONE_REPORTED, text: '' };
+  return { state: DECLARATION_STATE.REPORTED, text: isYes(v) ? '' : v };
+};
+
+const toTbState = (value) => {
+  const v = toYesNo(value);
+  if (v === '') return DECLARATION_STATE.NOT_PROVIDED;
+  if (v === 'YES') return DECLARATION_STATE.REPORTED;
+  if (v === 'NO') return DECLARATION_STATE.NONE_REPORTED;
+  return v;
+};
+
+const toDeclaration = (allergies, diet, raw = {}) => {
   const a = String(allergies || '').trim();
   const d = String(diet || '').trim();
   return {
@@ -88,6 +113,11 @@ const toDeclaration = (allergies, diet) => {
         ? { state: DECLARATION_STATE.NONE_REPORTED, text: '' }
         : { state: DECLARATION_STATE.REPORTED, text: d },
     otherNotes: { state: DECLARATION_STATE.NOT_PROVIDED, text: '' },
+    medicalHistory: {
+      self: toHistoryItem(raw.selfHistory),
+      family: toHistoryItem(raw.familyHistory),
+      tbContact: { state: toTbState(raw.tbContact) },
+    },
   };
 };
 
@@ -111,8 +141,18 @@ export const readEnrollmentCsv = (text) => {
           dateOfBirth: toIsoDate(raw.dateOfBirth),
           gender: toGender(raw.gender),
           guardians: [{ fullName: raw.guardianName || '', relation: raw.relation || '', phone: raw.phone || '', email: raw.email || '' }],
+          profile: {
+            idNumber: raw.idNumber || '',
+            premature: toYesNo(raw.premature),
+            gestationWeeks: raw.gestationWeeks || '',
+            ethnicity: raw.ethnicity || '',
+            beneficiary: raw.beneficiary || '',
+            paymentSource: raw.paymentSource || '',
+            bloodType: raw.bloodType || '',
+            address: { province: raw.province || '', ward: raw.ward || '', street: raw.street || '' },
+          },
         },
-        declaration: toDeclaration(raw.allergies, raw.diet),
+        declaration: toDeclaration(raw.allergies, raw.diet, raw),
       },
     };
   });

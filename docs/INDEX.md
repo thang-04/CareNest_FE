@@ -28,6 +28,7 @@ Nghiệp vụ, rule, contract, kiến trúc hệ thống **không nằm ở đâ
 | | `knowledge/PATTERNS.md` | Bài học tổng quát hóa | FULL |
 | quality | `quality/DEFINITION_OF_DONE.md` | Tiêu chí hoàn thành FE + memory checklist | FULL |
 | | `quality/VERIFICATION.md` | Bằng chứng trước khi báo xong (Iron Law, theo làn) | FULL |
+| | `quality/manual-tests/health-exam-flow.md` | Kịch bản thử tay đợt khám + phiếu Phụ lục II (tạo đợt → nhập phiếu → đóng), bộ số đủ trường hợp | FULL |
 | plans | `plans/_TEMPLATE.md`, `plans/active/`, `plans/completed/` | Plan làn L (`.ai/workflows/plan-change.md`) | FULL |
 
 ## Đọc ở BE (thường dùng)

@@ -33,7 +33,11 @@ const downloadTemplate = () =>
   downloadCsv(
     [
       IMPORT_COLUMNS.map((c) => c.label),
-      ['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', 'phuhuynh.mau@example.com', 'Không', ''],
+      // Dòng mẫu: cột hành chính và tiền sử không bắt buộc, để trống là chưa cung cấp.
+      [
+        ...['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', 'phuhuynh.mau@example.com', 'Không', ''],
+        ...['', 'Không', '', 'Kinh', '', 'BHYT', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu', 'Không', '', ''],
+      ],
     ],
     'mau-tiep-nhan-tre.csv',
   );
@@ -119,8 +123,7 @@ export default function ImportChildrenPage() {
             </div>
             <div className="state__title">Đã nhập {imported.created} hồ sơ trẻ</div>
             <div className="muted" style={{ maxWidth: 480 }}>
-              Các trẻ đang ở trạng thái <b>Chờ xếp lớp</b>. Việc tiếp nhận hoàn tất sau khi bạn xếp lớp cho từng trẻ, rồi kích hoạt tài
-              khoản phụ huynh.
+              Hồ sơ đã được tiếp nhận. Các trẻ đang ở trạng thái <b>Chờ xếp lớp</b>; xếp lớp cho từng trẻ tại màn Xếp lớp.
             </div>
             <div className="row mt-12" style={{ gap: 8 }}>
               <Link className="btn" to="/children">
@@ -148,7 +151,9 @@ export default function ImportChildrenPage() {
         <Info size={18} />
         <div>
           Dùng file theo mẫu của trường (.xlsx hoặc .csv), mỗi dòng một trẻ. Hệ thống kiểm tra từng dòng: thông tin bắt buộc, số điện thoại,
-          email và hồ sơ trùng. Sửa các dòng lỗi trong file rồi tải lên lại. Sau khi nhập, trẻ cần được xếp lớp để hoàn tất tiếp nhận.
+          email và hồ sơ trùng. Sửa các dòng lỗi trong file rồi tải lên lại. Sau khi nhập, trẻ cần được xếp lớp để hoàn tất tiếp nhận. Các
+          cột hành chính và tiền sử (dùng cho phiếu khám sức khỏe) không bắt buộc; để trống là chưa cung cấp. Trẻ khai có tiếp xúc với người
+          bệnh lao thì hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.
         </div>
       </div>
 

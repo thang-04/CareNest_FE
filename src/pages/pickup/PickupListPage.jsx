@@ -5,7 +5,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { PickupStatusBadge } from '@/components/pickup/PickupBadges';
 import { usePickupBoard, usePickupClasses } from '@/hooks/pickup/usePickups';
-import { PICKUP_REASON_LABELS, PICKUP_STATUS, VERIFICATION_LABELS } from '@/models/pickup/pickupConstants';
+import { PICKUP_REASON_LABELS, PICKUP_STATUS, VERIFICATION, VERIFICATION_LABELS } from '@/models/pickup/pickupConstants';
 import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
 import '@/styles/modules/pickup.css';
@@ -133,6 +133,9 @@ export default function PickupListPage() {
                     ) : (
                       visible.map((r) => {
                         const failed = r.attempts.filter((a) => a.outcome !== 'HANDED_OVER').length;
+                        // Lần gần nhất là "không liên lạc được": người đón đang chờ phụ huynh gọi lại
+                        const last = r.attempts[r.attempts.length - 1];
+                        const awaitingCall = r.status === PICKUP_STATUS.WAITING && last?.verification === VERIFICATION.PHONE_UNREACHABLE;
                         return (
                           <tr key={r.child.id}>
                             <td>
@@ -187,7 +190,7 @@ export default function PickupListPage() {
                             <td className="center">
                               {isToday && r.status === PICKUP_STATUS.WAITING && (
                                 <Link className="btn btn--sm btn--primary" to={`/pickup/${r.child.id}/verify`}>
-                                  <UserCheck size={15} /> Trả trẻ
+                                  <UserCheck size={15} /> {awaitingCall ? 'Xác minh lại' : 'Trả trẻ'}
                                 </Link>
                               )}
                             </td>

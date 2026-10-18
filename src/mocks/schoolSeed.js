@@ -186,5 +186,27 @@ export const buildSeedSchool = () => ({
         },
       ],
     },
+    // Trẻ nhỏ tuổi học ghép Lớp Mầm 1 (27 tháng): để phiếu khám có câu "nguy cơ tự kỷ" (chỉ hỏi trẻ 16–30 tháng).
+    {
+      id: 'ch_037',
+      code: 'HS26037',
+      fullName: 'Phạm Gia Khánh',
+      gender: 'MALE',
+      dateOfBirth: '2024-07-10',
+      classId: 'cls_c1_m1',
+      campusId: 'c1',
+      status: 'ACTIVE',
+      enrolledAt: '2026-09-01',
+      allergies: [],
+      guardians: [
+        {
+          fullName: 'Phạm Thị Lan',
+          relation: 'Mẹ',
+          phone: '0987 012 037',
+          email: 'phuhuynh037@example.com',
+          accountStatus: 'ACTIVE',
+        },
+      ],
+    },
   ],
 });
