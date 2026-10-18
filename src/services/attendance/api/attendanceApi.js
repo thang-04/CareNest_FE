@@ -12,9 +12,5 @@ export const attendanceApi = {
     axiosClient.post(`/attendance/meal-corrections`, { childId, date, session, note }),
   getAttendanceSummary: ({ classId, from, to }) => axiosClient.get(`/classes/${classId}/attendance/summary`, { params: { from, to } }),
   getMealCounts: ({ date }) => axiosClient.get('/meal-counts', { params: { date } }),
-  confirmMealCount: (id) => axiosClient.post(`/meal-counts/${id}/confirm`),
-  getMealHandovers: ({ date }) => axiosClient.get('/meal-handovers', { params: { date } }),
-  confirmHandover: (id, body) => axiosClient.post(`/meal-handovers/${id}/confirm`, body),
-  reportHandoverShortage: (id, body) => axiosClient.post(`/meal-handovers/${id}/shortage`, body),
-  supplementHandover: (id, body) => axiosClient.post(`/meal-handovers/${id}/supplement`, body),
+  confirmMealCountDay: ({ campusId, date }) => axiosClient.post('/meal-counts/confirm-day', { campusId, date }),
 };

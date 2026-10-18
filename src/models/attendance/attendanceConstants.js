@@ -21,10 +21,6 @@
  * @property {'PENDING_CONFIRMATION'|'CONFIRMED'} status
  * @property {{ classId: string, className: string, present: number, absent: number, missing: number, normal: number, substitute: number }[]} classes
  * @property {{ at: string, userId: string, classId: string, childId: string, normal: number, substitute: number, note: string }[]} adjustments
- *
- * @typedef {Object} MealHandover        one per class, date and meal session (UC 6.26)
- * @property {string} id
- * @property {'READY'|'SHORTAGE_REPORTED'|'SUPPLEMENTED'|'CONFIRMED'} status
  */
 
 export const ATTENDANCE_STATUS = {
@@ -67,22 +63,6 @@ export const MEAL_COUNT_STATUS_LABELS = {
   OPEN: 'Đang nhận báo ăn',
   PENDING_CONFIRMATION: 'Chờ Phó hiệu trưởng xác nhận',
   CONFIRMED: 'Đã xác nhận',
-};
-
-export const HANDOVER_STATUS = {
-  WAITING_KITCHEN: 'WAITING_KITCHEN',
-  READY: 'READY',
-  SHORTAGE_REPORTED: 'SHORTAGE_REPORTED',
-  SUPPLEMENTED: 'SUPPLEMENTED',
-  CONFIRMED: 'CONFIRMED',
-};
-
-export const HANDOVER_STATUS_LABELS = {
-  WAITING_KITCHEN: 'Chờ bếp chuẩn bị',
-  READY: 'Chờ lớp nhận suất',
-  SHORTAGE_REPORTED: 'Thiếu suất – chờ bếp bổ sung',
-  SUPPLEMENTED: 'Bếp đã bổ sung – chờ kiểm lại',
-  CONFIRMED: 'Đã nhận đủ',
 };
 
 export const SUMMARY_MAX_DAYS = 31;

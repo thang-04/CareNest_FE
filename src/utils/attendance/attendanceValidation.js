@@ -34,24 +34,6 @@ export const validateMealCorrection = ({ session, note } = {}) => {
   return errors;
 };
 
-const isCount = (v) => Number.isInteger(Number(v)) && Number(v) >= 0 && String(v).trim() !== '';
-
-/** Teacher's check of servings received from the kitchen (UC 6.26). */
-export const validateHandoverCheck = ({ normal, substitute, note } = {}, expected = {}, { shortage = false } = {}) => {
-  const errors = {};
-  if (!isCount(normal)) errors.normal = 'Nhập số suất thường đã nhận (số nguyên ≥ 0).';
-  if (!isCount(substitute)) errors.substitute = 'Nhập số suất thay thế đã nhận (số nguyên ≥ 0).';
-  if (Object.keys(errors).length) return errors;
-  const short = Number(normal) < expected.normal || Number(substitute) < expected.substitute;
-  if (shortage) {
-    if (!short) errors.normal = 'Số suất nhận đủ – hãy xác nhận nhận suất thay vì báo thiếu.';
-    if (!String(note || '').trim()) errors.note = 'Nhập ghi chú về số suất bị thiếu.';
-  } else if (short) {
-    errors.normal = 'Số suất nhận ít hơn số cần nhận. Hãy báo thiếu suất để bếp bổ sung.';
-  }
-  return errors;
-};
-
 export const validateSummaryRange = ({ from, to }, maxDays) => {
   const errors = {};
   if (!from) errors.from = 'Chọn ngày bắt đầu.';

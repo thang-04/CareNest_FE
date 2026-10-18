@@ -11,8 +11,5 @@ export const saveClassAttendance = (payload, user) => repo.saveClassAttendance(p
 export const correctMealAfterLock = (payload, user) => repo.correctMealAfterLock(payload, user);
 export const getAttendanceSummary = (query, user) => repo.getAttendanceSummary(query, user);
 export const getMealCounts = (query, user) => repo.getMealCounts(query, user);
-export const confirmMealCount = (id, user) => repo.confirmMealCount(id, user);
-export const getMealHandovers = (query, user) => repo.getMealHandovers(query, user);
-export const confirmHandover = (id, body, user) => repo.confirmHandover(id, body, user);
-export const reportHandoverShortage = (id, body, user) => repo.reportHandoverShortage(id, body, user);
-export const supplementHandover = (id, body, user) => repo.supplementHandover(id, body, user);
+/** Chốt suất cả ngày của một cơ sở (mọi bữa một lần). */
+export const confirmMealCountDay = (payload, user) => repo.confirmMealCountDay(payload, user);

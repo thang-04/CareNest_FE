@@ -361,6 +361,62 @@
   font-weight: var(--fw-regular);
 }
 
+.td-overview {
+  min-width: 0;
+}
+.td-overview__head {
+  margin-bottom: var(--card-padding-dense);
+}
+.td-overview__head h2 {
+  margin: 0;
+  font-size: var(--fs-xl);
+}
+.td-overview__head p {
+  margin: var(--space-1) 0 0;
+}
+.td-overview__table td {
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.td-overview__age,
+.td-overview__price {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.td-overview__meals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.td-overview__meal {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--btn-height-sm);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--badge-radius);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+}
+.td-overview__norms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--color-text-secondary);
+}
+.td-overview__norms b {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.td-overview__table .btn {
+  white-space: nowrap;
+}
+
 .td-card-tools {
   flex-wrap: wrap;
   gap: var(--space-4);

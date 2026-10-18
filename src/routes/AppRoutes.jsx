@@ -77,7 +77,6 @@ const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'));
 const MealSessionPage = lazy(() => import('@/pages/attendance/MealSessionPage'));
 const AttendanceSummaryPage = lazy(() => import('@/pages/attendance/AttendanceSummaryPage'));
 const MealCountPage = lazy(() => import('@/pages/attendance/MealCountPage'));
-const MealHandoverPage = lazy(() => import('@/pages/attendance/MealHandoverPage'));
 const PickupListPage = lazy(() => import('@/pages/pickup/PickupListPage'));
 const PickupVerifyPage = lazy(() => import('@/pages/pickup/PickupVerifyPage'));
 const PickupResultPage = lazy(() => import('@/pages/pickup/PickupResultPage'));
@@ -117,16 +116,16 @@ const RequestDetailPage = lazy(() => import('@/pages/facility/RequestDetailPage'
 const ProposalListPage = lazy(() => import('@/pages/facility/ProposalListPage'));
 const ProposalFormPage = lazy(() => import('@/pages/facility/ProposalFormPage'));
 const ProposalDetailPage = lazy(() => import('@/pages/facility/ProposalDetailPage'));
-const StockReceiptListPage = lazy(() => import('@/pages/kitchen/StockReceiptListPage'));
+const KitchenFlowPage = lazy(() => import('@/pages/kitchen/KitchenFlowPage'));
+const DryStockPage = lazy(() => import('@/pages/kitchen/DryStockPage'));
+const StockCountPage = lazy(() => import('@/pages/kitchen/StockCountPage'));
 const StockReceiptFormPage = lazy(() => import('@/pages/kitchen/StockReceiptFormPage'));
-const StockIssueApprovalPage = lazy(() => import('@/pages/kitchen/StockIssueApprovalPage'));
-const MealPreparationStatusPage = lazy(() => import('@/pages/kitchen/MealPreparationStatusPage'));
+const StockIssuePage = lazy(() => import('@/pages/kitchen/StockIssuePage'));
 const PublishedMenuPage = lazy(() => import('@/pages/kitchen/PublishedMenuPage'));
 const ConfirmedMealCountPage = lazy(() => import('@/pages/kitchen/ConfirmedMealCountPage'));
-const RequiredFoodQuantityPage = lazy(() => import('@/pages/kitchen/RequiredFoodQuantityPage'));
-const IngredientReceiptPage = lazy(() => import('@/pages/kitchen/IngredientReceiptPage'));
-const MissingFoodReportPage = lazy(() => import('@/pages/kitchen/MissingFoodReportPage'));
-const MealPreparationUpdatePage = lazy(() => import('@/pages/kitchen/MealPreparationUpdatePage'));
+const WeeklyForecastPage = lazy(() => import('@/pages/kitchen/WeeklyForecastPage'));
+const FreshReceiptPage = lazy(() => import('@/pages/kitchen/FreshReceiptPage'));
+const FoodSampleLogPage = lazy(() => import('@/pages/kitchen/FoodSampleLogPage'));
 
 const DailyAssessmentPage = lazy(() => import('@/pages/assessment/DailyAssessmentPage'));
 const ChildDevelopmentListPage = lazy(() => import('@/pages/assessment/ChildDevelopmentListPage'));
@@ -364,16 +363,26 @@ export function AppRoutes() {
             <Route path="plans/:id" element={<LegacyWeeklyRedirect />} />
           </Route>
           <Route path="kitchen">
-            <Route path="stock-receipts" element={only(VP_ONLY, <StockReceiptListPage />)} />
+            <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <KitchenFlowPage />)} />
+            <Route path="dry-stock" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <DryStockPage />)} />
+            <Route path="stock-counts" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <StockCountPage />)} />
+            {/* Danh sách phiếu nhập gộp vào Kho khô (giao dịch, panel lô) */}
+            <Route path="stock-receipts" element={<Navigate to="/kitchen/dry-stock" replace />} />
             <Route path="stock-receipts/new" element={only(VP_ONLY, <StockReceiptFormPage />)} />
-            <Route path="stock-issues" element={only(VP_ONLY, <StockIssueApprovalPage />)} />
-            <Route path="preparation" element={only(VP_ONLY, <MealPreparationStatusPage />)} />
-            <Route path="preparation/update" element={only([R.KITCHEN_STAFF], <MealPreparationUpdatePage />)} />
+            <Route path="stock-issues" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <StockIssuePage />)} />
+            {/* Chế biến và bàn giao suất ăn đã bỏ (16/10/2026): link cũ về trang chủ */}
+            <Route path="preparation/*" element={<Navigate to="/" replace />} />
             <Route path="published-menu" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <PublishedMenuPage />)} />
             <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <ConfirmedMealCountPage />)} />
-            <Route path="required-quantity" element={only([R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <RequiredFoodQuantityPage />)} />
-            <Route path="ingredient-receipts" element={only([R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <IngredientReceiptPage />)} />
-            <Route path="missing-food" element={only([R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MissingFoodReportPage />)} />
+            <Route path="forecast" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <WeeklyForecastPage />)} />
+            {/* Khẩu phần & đi chợ theo ngày thay bằng dự trù tuần (khảo sát 18/10/2026) */}
+            <Route path="required-quantity" element={<Navigate to="/kitchen/forecast" replace />} />
+            {/* Bếp không còn bước nhận từ kho: phiếu xuất tự sinh khi chốt suất (khảo sát 18/10/2026) */}
+            <Route path="ingredient-receipts" element={<Navigate to="/kitchen/stock-issues" replace />} />
+            <Route path="food-samples" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <FoodSampleLogPage />)} />
+            <Route path="fresh-receipts" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <FreshReceiptPage />)} />
+            {/* Báo thiếu gộp vào kiểm nhận hàng tươi (khảo sát 18/10/2026) */}
+            <Route path="missing-food" element={<Navigate to="/kitchen/fresh-receipts" replace />} />
           </Route>
           <Route path="assessment">
             <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
@@ -397,7 +406,7 @@ export function AppRoutes() {
             <Route path="meals" element={only(CLASS_STAFF, <MealSessionPage />)} />
             <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
             <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MealCountPage />)} />
-            <Route path="meal-handover" element={only([...CLASS_STAFF, R.KITCHEN_STAFF], <MealHandoverPage />)} />
+            <Route path="meal-handover" element={<Navigate to="/" replace />} />
           </Route>
           <Route path="pickup">
             <Route index element={only(CLASS_STAFF, <PickupListPage />)} />

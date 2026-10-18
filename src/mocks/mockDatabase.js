@@ -18,12 +18,23 @@ window.addEventListener('storage', (event) => {
 
 const load = () => {
   if (cache) return cache;
+  const seed = buildSeedDatabase();
   try {
     const raw = localStorage.getItem(DB_KEY);
     // Clone: writes must never mutate the seed objects, or "Khôi phục dữ liệu demo" would restore edited data.
-    cache = raw ? JSON.parse(raw) : clone(buildSeedDatabase());
+    const parsed = raw ? JSON.parse(raw) : null;
+    cache = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : clone(seed);
   } catch {
-    cache = clone(buildSeedDatabase());
+    cache = clone(seed);
+  }
+  const keys = Object.keys(seed);
+  if (needsMockSeedMigration(cache, 'base', 1, keys)) {
+    applyMockSeedMigration(cache, 'base', 1, seed);
+    try {
+      localStorage.setItem(DB_KEY, JSON.stringify(cache));
+    } catch {
+      // Dữ liệu đã được bù trong bộ nhớ; lần ghi kế tiếp sẽ thử lưu lại.
+    }
   }
   return cache;
 };
@@ -45,6 +56,20 @@ export class ApiError extends Error {
 }
 
 export const clone = (value) => JSON.parse(JSON.stringify(value));
+
+export const needsMockSeedMigration = (db, module, version, keys) =>
+  Number(db.mockSeedVersions?.[module] || 0) < version || keys.some((key) => !Array.isArray(db[key]));
+
+export const applyMockSeedMigration = (db, module, version, seeds) => {
+  const versions =
+    db.mockSeedVersions && typeof db.mockSeedVersions === 'object' && !Array.isArray(db.mockSeedVersions) ? db.mockSeedVersions : {};
+  const current = Number(versions[module] || 0);
+  Object.entries(seeds).forEach(([key, rows]) => {
+    if (!Array.isArray(db[key]) || (current < version && db[key].length === 0)) db[key] = clone(rows);
+  });
+  db.mockSeedVersions = { ...versions, [module]: Math.max(current, version) };
+  return db;
+};
 
 export const delay = (ms = MOCK_LATENCY_MS) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -69,6 +94,7 @@ export const writeDb = (mutator) => {
 
 export const resetDb = () => {
   cache = clone(buildSeedDatabase());
+  cache.mockSeedVersions = { base: 1 };
   persist();
   window.dispatchEvent(new CustomEvent(DB_CHANGED_EVENT));
 };

@@ -197,6 +197,12 @@ export const mondayOf = (iso) => {
   return toIso(d);
 };
 
+/** Tuần học đang chạy: thứ Bảy, Chủ nhật tính sang tuần sắp tới (thực đơn và dự trù tuần đó đã lập trước). */
+export const schoolWeekStart = (iso) => {
+  const day = parse(iso).getDay();
+  return mondayOf(day === 0 || day === 6 ? addDays(iso, 2) : iso);
+};
+
 export const isMonday = (iso) => /^\d{4}-\d{2}-\d{2}$/.test(iso || '') && parse(iso).getDay() === 1;
 
 /** Monday to Friday dates of a week. */

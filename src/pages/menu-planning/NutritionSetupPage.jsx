@@ -5,6 +5,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useMenuAccess, useNutritionSetups } from '@/hooks/menu-planning/useMenuPlanning';
 import { saveNutritionSetups } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { Switch } from '@/components/ui/Switch';
@@ -19,10 +20,12 @@ import { formatDate, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
 
 const TABS = [
+  { key: 'overview', label: 'Tổng quan' },
   { key: 'groups', label: 'Nhóm độ tuổi' },
-  { key: 'meals', label: 'Bữa ăn' },
+  { key: 'meals', label: 'Bữa ăn & định mức' },
 ];
 const NORM_TONE = { protein: 'td-col-p', lipid: 'td-col-l', glucid: 'td-col-g' };
+const NORM_SHORT_LABELS = { kcal: 'Kcal', protein: 'Đạm', lipid: 'Béo', glucid: 'Bột' };
 const DESC = 'Bữa ăn, giá suất ăn một ngày và khoảng định mức một ngày cho mỗi nhóm tuổi. Nhập đúng theo văn bản quy định, không dùng AI.';
 // Tên ngắn và độ tuổi tách từ tên nhóm "Nhà trẻ (24–36 tháng)"
 const groupInfo = (ageGroupId) => {
@@ -31,6 +34,8 @@ const groupInfo = (ageGroupId) => {
 };
 const money = (v) => (v === '' || Number.isNaN(Number(v)) ? v : Number(v).toLocaleString('vi-VN'));
 const digits = (v) => v.replace(/\D/g, '');
+const rangeLabel = (values, suffix = '') =>
+  values?.[0] !== '' && values?.[0] != null && values?.[1] !== '' && values?.[1] != null ? `${values[0]}–${values[1]}${suffix}` : '—';
 
 function RangeInput({ value, onChange, readOnly, label, invalid }) {
   if (readOnly)
@@ -65,7 +70,7 @@ export default function NutritionSetupPage() {
   const access = useMenuAccess();
   const { items, loading, error, reload } = useNutritionSetups();
   const today = todayInput();
-  const [tab, setTab] = useState('meals');
+  const [tab, setTab] = useState('overview');
   const [form, setForm] = useState(null);
   const [dirty, setDirty] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -90,7 +95,9 @@ export default function NutritionSetupPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Thiết lập dinh dưỡng</h1>
-          <p className="page__desc">{DESC}</p>
+          <p className="page__desc">
+            {tab === 'overview' ? 'Xem nhanh bữa ăn, giá suất và định mức của tất cả nhóm tuổi; mở chi tiết khi cần.' : DESC}
+          </p>
         </div>
         {form &&
           (canEdit ? (
@@ -223,7 +230,97 @@ export default function NutritionSetupPage() {
         </button>
       </div>
 
-      {tab === 'groups' ? (
+      {tab === 'overview' ? (
+        <section className="card td-overview">
+          <div className="td-overview__head">
+            <div>
+              <h2>Tổng quan theo nhóm tuổi</h2>
+              <p className="text-sm text-2">Bữa ăn, giá suất và định mức đang lưu cho từng nhóm.</p>
+            </div>
+          </div>
+          <div className="table-wrap">
+            <table className="table td-overview__table">
+              <thead>
+                <tr>
+                  <th>Nhóm tuổi</th>
+                  <th>Bữa ăn</th>
+                  <th>Giá suất / trẻ / ngày</th>
+                  <th>Định mức / ngày</th>
+                  <th>Trạng thái</th>
+                  <th className="text-right">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody>
+                {form.groups.map((g) => {
+                  const info = groupInfo(g.ageGroupId);
+                  const childCount = childCountOf(g.ageGroupId);
+                  const { upcoming } = priceStatus(items.find((s) => s.ageGroupId === g.ageGroupId)?.prices, g.ageGroupId, today);
+                  return (
+                    <tr key={g.ageGroupId}>
+                      <td>
+                        <div className="td-overview__age">
+                          <strong>{info.short}</strong>
+                          <span className="text-sm text-2">
+                            {info.range ? `${info.range} · ` : ''}
+                            {childCount == null ? '—' : `${childCount} trẻ`}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="td-overview__meals">
+                          {g.meals.length ? (
+                            g.meals.map((meal, index) => (
+                              <span className="td-overview__meal" key={`${g.ageGroupId}-${meal.code || index}`}>
+                                {meal.name || MEAL_SESSION_LABELS[meal.code] || 'Chưa đặt tên'}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-sm text-2">Chưa thiết lập</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="td-overview__price">
+                          <strong>{g.price ? formatMoney(Number(g.price)) : 'Chưa thiết lập'}</strong>
+                          {upcoming && (
+                            <span className="text-xs text-2">
+                              Giá mới {formatMoney(upcoming.price)} từ {formatDate(upcoming.effectiveFrom)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="td-overview__norms">
+                          {NORM_COLUMNS.map(({ key }) => (
+                            <span key={key}>
+                              <b>{NORM_SHORT_LABELS[key]}</b> {rangeLabel(g.norms[key], key === 'kcal' ? '' : '%')}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <StatusBadge tone={g.enabled ? 'green' : 'gray'} label={g.enabled ? 'Đang áp dụng' : 'Không áp dụng'} />
+                      </td>
+                      <td className="text-right">
+                        <button
+                          className="btn btn--sm"
+                          type="button"
+                          onClick={() => {
+                            setExpanded([g.ageGroupId]);
+                            setTab('meals');
+                          }}
+                        >
+                          {canEdit ? 'Chỉnh sửa' : 'Xem chi tiết'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : tab === 'groups' ? (
         <section className="card">
           <div className="table-wrap">
             <table className="table">

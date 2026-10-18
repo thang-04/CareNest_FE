@@ -1,7 +1,7 @@
 /*
  * Fictional attendance and meal data for the attendance module (no real child data).
  * Built relative to "today" so the demo always has a few past school days.
- * Collections: db.attendance, db.childMealPlans (db.mealCounts / db.mealHandovers are derived by the repository).
+ * Collections: db.attendance, db.childMealPlans (db.mealCounts is derived by the repository).
  */
 
 const SESSIONS = ['LUNCH', 'AFTERNOON'];

@@ -6,13 +6,13 @@ export const kitchenCrumbs = (page, sub) => [
 ];
 
 export const KITCHEN_PAGES = {
-  stockReceipts: { label: 'Nhập kho thực phẩm', to: '/kitchen/stock-receipts' },
-  stockIssues: { label: 'Duyệt xuất kho', to: '/kitchen/stock-issues' },
-  preparation: { label: 'Tình trạng chế biến', to: '/kitchen/preparation' },
+  kitchenDay: { label: 'Quy trình bếp hôm nay', to: '/kitchen' },
+  dryStock: { label: 'Kho khô', to: '/kitchen/dry-stock' },
+  stockCounts: { label: 'Kiểm kê kho khô', to: '/kitchen/stock-counts' },
+  stockIssues: { label: 'Phiếu xuất kho', to: '/kitchen/stock-issues' },
   publishedMenu: { label: 'Thực đơn đã công bố', to: '/kitchen/published-menu' },
   mealCount: { label: 'Số suất ăn đã xác nhận', to: '/kitchen/meal-count' },
-  requiredQuantity: { label: 'Khẩu phần & đi chợ', to: '/kitchen/required-quantity' },
-  ingredientReceipts: { label: 'Nhận thực phẩm từ kho', to: '/kitchen/ingredient-receipts' },
-  missingFood: { label: 'Báo thiếu thực phẩm', to: '/kitchen/missing-food' },
-  preparationUpdate: { label: 'Cập nhật chế biến', to: '/kitchen/preparation/update' },
+  forecast: { label: 'Dự trù & đi chợ', to: '/kitchen/forecast' },
+  freshReceipts: { label: 'Kiểm nhận hàng tươi', to: '/kitchen/fresh-receipts' },
+  foodSamples: { label: 'Sổ lưu mẫu thức ăn', to: '/kitchen/food-samples' },
 };

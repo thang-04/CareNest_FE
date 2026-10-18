@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareNest — Quản Lý Dinh Dưỡng Mầm Non (MISA EMIS + AI Gợi Ý)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand-sky: #4fb0f5;
+      --brand-sky-light: #eaf6fe;
+      --brand-sky-hover: #3ca0e8;
+      --brand-on-sky: #0e3f63;
+      --brand-sky-dark: #0b72bc;
+      --mint-accent: #3fb98a;
+      --mint-light: #eefaf4;
+      --mint-dark: #1f7a59;
+
+      --tone-approval-bg: #fef3c7; --tone-approval-text: #b45309; --tone-approval-border: #fcd34d;
+      --tone-success-bg: #dcfce7; --tone-success-text: #15803d; --tone-success-border: #86efac;
+      --tone-danger-bg: #ffe4e6; --tone-danger-text: #be123c; --tone-danger-border: #fda4af;
+
+      /* AI dùng chung tông brand-sky, không dùng tím */
+      --tone-ai-bg: #f0f9ff;
+      --tone-ai-text: #0b72bc;
+      --tone-ai-border: #bae6fd;
+
+      --neutral-0: #ffffff; --neutral-50: #f8fafc; --neutral-100: #f1f5f9;
+      --neutral-200: #e2e8f0; --neutral-300: #cbd5e1; --neutral-500: #64748b;
+      --neutral-700: #334155; --neutral-900: #0f172a;
+
+      --bg-page: #f0f7fd;
+      --bg-glass: rgba(255,255,255,0.88);
+      --bg-glass-card: rgba(255,255,255,0.94);
+      --border-glass: rgba(255,255,255,0.75);
+      --border-subtle: rgba(226,232,240,0.9);
+
+      --shadow-sm: 0 2px 8px rgba(14,63,99,0.04);
+      --shadow-card: 0 8px 24px -4px rgba(14,63,99,0.07), 0 2px 6px -1px rgba(14,63,99,0.03);
+      --shadow-lg: 0 20px 40px -10px rgba(14,63,99,0.15);
+
+      --radius-sm: 10px; --radius-md: 16px; --radius-lg: 24px; --radius-pill: 9999px;
+      --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-page);
+      background-image: radial-gradient(at 0% 0%, rgba(79,176,245,0.12) 0px, transparent 50%),
+                         radial-gradient(at 100% 100%, rgba(63,185,138,0.08) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--neutral-900); font-size: 13.5px; line-height: 1.5;
+      min-height: 100vh; display: flex;
+    }
+
+    /* === SIDEBAR === */
+    .app-sidebar {
+      width: 260px; background: var(--bg-glass); backdrop-filter: blur(20px);
+      border-right: 1px solid var(--border-subtle); padding: 24px 16px;
+      display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; z-index: 50;
+    }
+    .brand-logo { display: flex; align-items: center; gap: 12px; padding: 0 12px 20px 12px; border-bottom: 1px solid var(--neutral-200); margin-bottom: 18px; }
+    .brand-logo svg { width: 36px; height: 36px; color: var(--brand-sky-dark); }
+    .brand-title { font-size: 17.5px; font-weight: 700; color: var(--brand-on-sky); letter-spacing: -0.3px; }
+    .brand-subtitle { font-size: 11px; color: var(--neutral-500); font-weight: 500; }
+
+    .nav-section { margin-bottom: 20px; }
+    .nav-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--neutral-500); padding: 0 12px 8px 12px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px; padding: 9.5px 14px;
+      border-radius: var(--radius-pill); color: var(--neutral-700); text-decoration: none;
+      font-weight: 500; font-size: 13px; transition: all 0.2s; cursor: pointer; margin-bottom: 4px;
+    }
+    .nav-item:hover { background: var(--neutral-100); color: var(--neutral-900); }
+    .nav-item.active { background: var(--brand-sky-light); color: var(--brand-sky-dark); font-weight: 600; }
+    .nav-item svg { width: 17px; height: 17px; stroke-width: 2; }
+
+    /* === MAIN === */
+    .app-main { margin-left: 260px; flex: 1; padding: 22px 32px 64px 32px; max-width: 1600px; min-width: 0; }
+
+    .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
+    .top-bar-left h1 { font-size: 22px; font-weight: 700; color: var(--brand-on-sky); display: flex; align-items: center; gap: 10px; }
+    .top-bar-left p { font-size: 13px; color: var(--neutral-500); margin-top: 2px; }
+
+    .user-pill {
+      display: flex; align-items: center; gap: 10px; background: var(--neutral-0);
+      padding: 5px 14px 5px 8px; border-radius: var(--radius-pill);
+      border: 1px solid var(--neutral-200); box-shadow: var(--shadow-sm);
+    }
+    .user-avatar {
+      width: 32px; height: 32px; border-radius: 50%; background: var(--brand-sky-light);
+      color: var(--brand-sky-dark); display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px;
+    }
+
+    /* === BUTTONS & BADGES === */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 38px; padding: 0 16px; border-radius: var(--radius-pill);
+      font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+      border: 1px solid transparent; transition: all 0.2s; text-decoration: none; white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--brand-sky); color: var(--brand-on-sky); box-shadow: 0 4px 12px rgba(79,176,245,0.35); }
+    .btn-primary:hover { background: var(--brand-sky-hover); }
+    .btn-secondary { background: var(--neutral-0); color: var(--neutral-700); border-color: var(--neutral-300); }
+    .btn-secondary:hover { background: var(--neutral-100); color: var(--neutral-900); }
+    /* AI buttons = brand-sky outline, no purple */
+    .btn-ai { background: var(--tone-ai-bg); color: var(--tone-ai-text); border: 1px solid var(--tone-ai-border); }
+    .btn-ai:hover { background: #e0f2fe; }
+    .btn-sm { height: 32px; padding: 0 12px; font-size: 12px; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px; padding: 3.5px 10px;
+      border-radius: var(--radius-pill); font-size: 11.5px; font-weight: 600; line-height: 1;
+    }
+    .badge-approval { background: var(--tone-approval-bg); color: var(--tone-approval-text); border: 1px solid var(--tone-approval-border); }
+    .badge-success { background: var(--tone-success-bg); color: var(--tone-success-text); border: 1px solid var(--tone-success-border); }
+    .badge-danger { background: var(--tone-danger-bg); color: var(--tone-danger-text); border: 1px solid var(--tone-danger-border); }
+    .badge-ai { background: var(--tone-ai-bg); color: var(--tone-ai-text); border: 1px solid var(--tone-ai-border); }
+    .badge-neutral { background: var(--neutral-100); color: var(--neutral-700); border: 1px solid var(--neutral-200); }
+
+    /* === SWITCH === */
+    .switch-ui { position: relative; display: inline-block; width: 38px; height: 22px; }
+    .switch-ui input { opacity: 0; width: 0; height: 0; }
+    .switch-slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--neutral-300); transition: .25s; border-radius: 34px;
+    }
+    .switch-slider:before {
+      position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+      background-color: white; transition: .25s; border-radius: 50%;
+    }
+    input:checked + .switch-slider { background-color: var(--mint-accent); }
+    input:checked + .switch-slider:before { transform: translateX(16px); }
+
+    /* === PROCESS PIPELINE BAR === */
+    .emis-process-banner {
+      background: var(--bg-glass-card); backdrop-filter: blur(16px); padding: 12px 18px;
+      border-radius: var(--radius-pill); border: 1px solid var(--border-subtle);
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px; box-shadow: var(--shadow-sm); overflow-x: auto; gap: 12px;
+    }
+    .process-step-btn {
+      display: flex; align-items: center; gap: 10px; background: transparent; border: none;
+      padding: 8px 16px; border-radius: var(--radius-pill); cursor: pointer; font-family: inherit;
+      color: var(--neutral-500); transition: all 0.2s; white-space: nowrap;
+    }
+    .process-step-btn:hover { background: var(--neutral-100); color: var(--neutral-900); }
+    .process-step-btn.active { background: var(--brand-sky-light); color: var(--brand-sky-dark); font-weight: 700; }
+    .step-number {
+      width: 24px; height: 24px; border-radius: 50%; background: var(--neutral-200); color: var(--neutral-700);
+      display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+    }
+    .process-step-btn.active .step-number { background: var(--brand-sky); color: var(--brand-on-sky); }
+    .step-arrow { color: var(--neutral-300); font-size: 14px; }
+
+    /* === SUB-TABS === */
+    .sub-tabs-bar { display: inline-flex; background: var(--neutral-100); padding: 4px; border-radius: var(--radius-pill); gap: 4px; margin-bottom: 20px; }
+    .sub-tab-btn {
+      padding: 6px 16px; border-radius: var(--radius-pill); border: none; background: transparent;
+      font-size: 12.5px; font-weight: 600; color: var(--neutral-500); cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .sub-tab-btn.active { background: var(--neutral-0); color: var(--brand-on-sky); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+
+    /* === CARDS === */
+    .card {
+      background: var(--bg-glass-card); backdrop-filter: blur(20px); border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-card); position: relative;
+    }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
+    .card-title { font-size: 16px; font-weight: 700; color: var(--neutral-900); display: flex; align-items: center; gap: 8px; }
+
+    .controls-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+      margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--neutral-200);
+    }
+    .controls-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    .select-pill, .input-pill {
+      height: 36px; padding: 0 14px; border-radius: var(--radius-pill);
+      border: 1px solid var(--neutral-300); background: var(--neutral-0);
+      font-size: 13px; font-family: inherit; font-weight: 500; color: var(--neutral-700); outline: none;
+    }
+    .select-pill:focus, .input-pill:focus { border-color: var(--brand-sky); box-shadow: 0 0 0 3px rgba(79,176,245,0.2); }
+
+    .table-custom {
+      width: 100%; border-collapse: collapse; font-size: 13px; background: var(--neutral-0);
+      border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--neutral-200);
+    }
+    .table-custom th { background: var(--neutral-50); padding: 12px 14px; text-align: left; font-weight: 600; color: var(--neutral-700); border-bottom: 1px solid var(--neutral-200); }
+    .table-custom td { padding: 12px 14px; border-bottom: 1px solid var(--neutral-200); color: var(--neutral-900); vertical-align: middle; }
+    .table-custom tr:last-child td { border-bottom: none; }
+
+    .ratio-bar-wrap { display: flex; height: 12px; border-radius: var(--radius-pill); overflow: hidden; margin-top: 8px; }
+    .ratio-segment { height: 100%; transition: width 0.3s; }
+
+    /* === MATRIX === */
+    .matrix-layout { display: grid; grid-template-columns: 1fr 350px; gap: 24px; align-items: start; }
+    .dish-card {
+      background: var(--neutral-50); border: 1px solid var(--neutral-200); border-radius: var(--radius-sm);
+      padding: 8px 10px; margin-bottom: 6px; cursor: pointer; transition: all 0.18s; position: relative;
+    }
+    .dish-card:hover { border-color: var(--brand-sky); background: #fff; box-shadow: 0 4px 10px rgba(79,176,245,0.15); transform: translateY(-1px); }
+    .dish-card.ai-suggested { border-color: var(--tone-ai-border); background: var(--tone-ai-bg); }
+    .dish-card.has-allergen { border-left: 3px solid #f43f5e; }
+    .dish-title { font-weight: 600; font-size: 12.5px; color: var(--neutral-900); margin-bottom: 2px; }
+    .dish-meta { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--neutral-500); }
+
+    /* === MASTER-DETAIL === */
+    .master-split-layout { display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start; }
+    .dish-list-wrap { background: var(--neutral-0); border: 1px solid var(--neutral-200); border-radius: var(--radius-md); padding: 16px; max-height: 600px; overflow-y: auto; }
+    .dish-list-item { padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid transparent; cursor: pointer; margin-bottom: 6px; transition: all 0.15s; }
+    .dish-list-item:hover { background: var(--neutral-50); }
+    .dish-list-item.selected { background: var(--brand-sky-light); border-color: var(--brand-sky); }
+
+    /* ==========================================================================
+       COMPACT CENTER MODAL (thay Drawer)
+       ========================================================================== */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.35); backdrop-filter: blur(3px);
+      z-index: 110; display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      width: 520px; max-width: 92vw; max-height: 85vh; overflow-y: auto;
+      background: #fff; border-radius: var(--radius-lg); padding: 24px 28px;
+      box-shadow: var(--shadow-lg);
+      animation: popIn 0.2s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 14px; border-bottom: 1px solid var(--neutral-200); margin-bottom: 18px;
+    }
+    .modal-title-group { display: flex; align-items: center; gap: 10px; }
+    .modal-icon {
+      width: 34px; height: 34px; border-radius: 50%; background: var(--brand-sky-light);
+      color: var(--brand-sky-dark); display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700;
+    }
+    .modal-close {
+      background: none; border: none; font-size: 20px; cursor: pointer; color: var(--neutral-500);
+      width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .modal-close:hover { background: var(--neutral-100); }
+
+    /* AI hint inline card (nhỏ gọn, xanh trời nhạt) */
+    .ai-hint-card {
+      background: var(--tone-ai-bg); border: 1px solid var(--tone-ai-border);
+      border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px;
+    }
+    .ai-hint-label {
+      font-size: 12px; font-weight: 700; color: var(--tone-ai-text);
+      display: flex; align-items: center; gap: 5px; margin-bottom: 3px;
+    }
+
+    /* Option card inside modal */
+    .option-card {
+      background: var(--neutral-0); border: 1.5px solid var(--neutral-200); border-radius: var(--radius-sm);
+      padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: all 0.15s;
+    }
+    .option-card:hover { border-color: var(--brand-sky); background: var(--brand-sky-light); }
+    .option-card.selected { border-color: var(--brand-sky); background: var(--brand-sky-light); box-shadow: 0 0 0 2px rgba(79,176,245,0.2); }
+    .option-card-title { font-weight: 700; font-size: 12.5px; display: flex; justify-content: space-between; }
+    .option-card-desc { font-size: 11.5px; color: var(--neutral-500); margin-top: 3px; }
+
+    /* Toast */
+    .toast-container { position: fixed; top: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
+    .toast {
+      background: var(--neutral-900); color: #fff; padding: 12px 20px; border-radius: var(--radius-pill);
+      font-size: 13.5px; font-weight: 500; box-shadow: var(--shadow-lg); animation: fadeIn 0.2s;
+    }
+    .toast.toast-success { background: var(--mint-dark); }
+
+    @media print {
+      .app-sidebar, .emis-process-banner, .top-bar-right, .btn, .controls-bar, .sub-tabs-bar { display: none !important; }
+      .app-main { margin: 0 !important; padding: 0 !important; }
+      body { background: #fff !important; }
+      .card { border: none !important; box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="app-sidebar">
+    <div class="brand-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z" stroke-width="1.8"/><path d="M12 7v5l3 3" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="#4fb0f5"/></svg>
+      <div>
+        <div class="brand-title">CareNest Web</div>
+        <div class="brand-subtitle">MN Thượng Hồng — CS1 & CS2</div>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Quy Trình Dinh Dưỡng</div>
+      <a class="nav-item active" onclick="switchStep(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>1. Thiết Lập Dinh Dưỡng</span></a>
+      <a class="nav-item" onclick="switchStep(2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>2. Món Ăn & Thực Phẩm</span></a>
+      <a class="nav-item" onclick="switchStep(3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>3. Lập Thực Đơn & Cân Đối</span></a>
+      <a class="nav-item" onclick="switchStep(4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><span>4. Khẩu Phần & Đi Chợ</span></a>
+    </div>
+    <div style="margin-top:auto; padding-top:16px; border-top:1px solid var(--neutral-200);">
+      <div style="font-size:11.5px; color:var(--neutral-500); line-height:1.4;">Quy trình: <strong>MISA EMIS</strong><br>Hỗ trợ: <strong>CareNest AI</strong></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="app-main">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <h1 id="page-heading"><span>Quy Trình Quản Lý Dinh Dưỡng Mầm Non</span></h1>
+        <p id="page-subtext">Thiết lập → Quản lý món → Lập thực đơn → Tính khẩu phần theo sĩ số điểm danh</p>
+      </div>
+      <div class="top-bar-right">
+        <div class="user-pill">
+          <div class="user-avatar">HT</div>
+          <div><div style="font-size:12.5px; font-weight:600;">Cô Trần Thu Hà</div><div style="font-size:11px; color:var(--neutral-500);">Phó Hiệu Trưởng (BGH)</div></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Pipeline -->
+    <nav class="emis-process-banner">
+      <button class="process-step-btn active" id="pstep-1" onclick="switchStep(1)"><span class="step-number">1</span><span>Thiết Lập Dinh Dưỡng</span></button>
+      <span class="step-arrow">➔</span>
+      <button class="process-step-btn" id="pstep-2" onclick="switchStep(2)"><span class="step-number">2</span><span>Món & Thực Phẩm</span></button>
+      <span class="step-arrow">➔</span>
+      <button class="process-step-btn" id="pstep-3" onclick="switchStep(3)"><span class="step-number">3</span><span>Lập Thực Đơn</span></button>
+      <span class="step-arrow">➔</span>
+      <button class="process-step-btn" id="pstep-4" onclick="switchStep(4)"><span class="step-number">4</span><span>Khẩu Phần & Đi Chợ</span></button>
+    </nav>
+
+    <!-- ============ BƯỚC 1 ============ -->
+    <div id="sec-1" class="process-section">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Bước 1: Thiết Lập Thông Tin Dinh Dưỡng</div>
+            <div style="font-size:12.5px; color:var(--neutral-500);">Nhóm tuổi, bữa ăn, đơn giá/trẻ, định mức Kcal & % P-L-G theo Bộ GD&ĐT</div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-ai btn-sm" onclick="openModal(1)">✦ Gợi Ý Định Mức Chuẩn</button>
+            <button class="btn btn-primary btn-sm" onclick="showToast('Đã lưu cấu hình!')">Lưu Thiết Lập</button>
+          </div>
+        </div>
+
+        <div class="sub-tabs-bar">
+          <button class="sub-tab-btn active" id="s1t1" onclick="s1Tab('ages')">1.1 Nhóm Độ Tuổi</button>
+          <button class="sub-tab-btn" id="s1t2" onclick="s1Tab('meals')">1.2 Bữa Ăn & Định Mức</button>
+        </div>
+
+        <!-- 1.1 -->
+        <div id="s1v-ages">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <p style="font-size:12.5px; color:var(--neutral-500);">Nhóm trẻ bán trú đang áp dụng:</p>
+            <button class="btn btn-secondary btn-sm">+ Thêm Nhóm Trẻ</button>
+          </div>
+          <table class="table-custom">
+            <thead><tr><th>Mã</th><th>Tên Nhóm</th><th>Độ Tuổi</th><th>Ghi Chú</th><th>Áp Dụng</th><th style="text-align:right;">Thao Tác</th></tr></thead>
+            <tbody>
+              <tr><td><strong>NT</strong></td><td><strong>Nhà Trẻ</strong></td><td>0 — 36 tháng</td><td>Cháo, súp xay nhuyễn</td><td><label class="switch-ui"><input type="checkbox" checked><span class="switch-slider"></span></label><span style="font-size:12px; color:var(--mint-dark); font-weight:600; margin-left:6px;">Đang áp dụng</span></td><td style="text-align:right;"><button class="btn btn-secondary btn-sm">Sửa</button></td></tr>
+              <tr><td><strong>MG</strong></td><td><strong>Mẫu Giáo</strong></td><td>36 — 72 tháng</td><td>Mầm (3T), Chồi (4T), Lá (5T)</td><td><label class="switch-ui"><input type="checkbox" checked><span class="switch-slider"></span></label><span style="font-size:12px; color:var(--mint-dark); font-weight:600; margin-left:6px;">Đang áp dụng</span></td><td style="text-align:right;"><button class="btn btn-secondary btn-sm">Sửa</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 1.2 -->
+        <div id="s1v-meals" style="display:none;">
+          <div class="controls-bar" style="margin-bottom:16px;">
+            <div class="controls-group">
+              <span style="font-weight:600;">Nhóm tuổi:</span>
+              <select class="select-pill" id="cfgAge" onchange="cfgAgeChange(this.value)"><option value="MG">Mẫu Giáo (36–72 tháng)</option><option value="NT">Nhà Trẻ (0–36 tháng)</option></select>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 380px; gap:24px; align-items:start;">
+            <div>
+              <h4 style="font-weight:700; font-size:13.5px; margin-bottom:10px;">Bữa Ăn Trong Ngày</h4>
+              <table class="table-custom">
+                <thead><tr><th>Bữa Ăn</th><th>Thời Gian</th><th>Đơn Giá / Trẻ</th><th>Bật</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Bữa Sáng</strong></td><td>07:30 — 08:15</td><td><input class="input-pill" style="width:100px; height:30px;" value="10.000 đ"></td><td><label class="switch-ui"><input type="checkbox" checked><span class="switch-slider"></span></label></td></tr>
+                  <tr><td><strong>Phụ Sáng</strong></td><td>09:15 — 09:30</td><td><input class="input-pill" style="width:100px; height:30px;" value="5.000 đ"></td><td><label class="switch-ui"><input type="checkbox" checked><span class="switch-slider"></span></label></td></tr>
+                  <tr><td><strong>Bữa Trưa</strong></td><td>10:30 — 11:30</td><td><input class="input-pill" style="width:100px; height:30px;" value="15.000 đ"></td><td><label class="switch-ui"><input type="checkbox" checked><span class="switch-slider"></span></label></td></tr>
+                  <tr><td><strong>Bữa Chiều / Xế</strong></td><td>14:15 — 14:45</td><td><input class="input-pill" style="width:100px; height:30px;" value="5.000 đ"></td><td><label class="switch-ui"><input type="checkbox" checked><span class="switch-slider"></span></label></td></tr>
+                </tbody>
+              </table>
+              <button class="btn btn-secondary btn-sm" style="margin-top:10px;">+ Thêm Bữa Ăn</button>
+            </div>
+            <div style="background:var(--neutral-50); border:1px solid var(--neutral-200); border-radius:var(--radius-md); padding:20px;">
+              <h4 style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--brand-on-sky);">Định Mức Dinh Dưỡng (1 Trẻ / Ngày)</h4>
+              <div style="margin-bottom:14px;"><div style="font-size:12px; font-weight:600; margin-bottom:4px;">Tổng Đơn Giá:</div><div style="font-size:20px; font-weight:700; color:var(--brand-on-sky);" id="cfgCost">35.000 đ / ngày</div></div>
+              <div style="margin-bottom:16px;"><div style="font-size:12px; font-weight:600; margin-bottom:4px;">Năng Lượng Chuẩn:</div><input class="input-pill" id="cfgKcal" style="width:100%; font-weight:700;" value="800 — 900 Kcal"><small style="font-size:11px; color:var(--neutral-500); display:block; margin-top:2px;">(50–55% nhu cầu ngày)</small></div>
+              <div style="margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:4px;"><span>Tỉ Lệ P : L : G:</span><span style="color:var(--mint-dark); font-weight:700;">100%</span></div>
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
+                  <div><label style="font-size:11px; color:#3b82f6; font-weight:600;">Đạm (P):</label><input type="number" class="input-pill" id="cfgP" style="width:100%; height:32px; font-size:12px;" value="14"></div>
+                  <div><label style="font-size:11px; color:#f59e0b; font-weight:600;">Béo (L):</label><input type="number" class="input-pill" id="cfgL" style="width:100%; height:32px; font-size:12px;" value="26"></div>
+                  <div><label style="font-size:11px; color:#10b981; font-weight:600;">Đường (G):</label><input type="number" class="input-pill" id="cfgG" style="width:100%; height:32px; font-size:12px;" value="60"></div>
+                </div>
+                <div class="ratio-bar-wrap"><div class="ratio-segment" id="barP" style="width:14%; background:#3b82f6;"></div><div class="ratio-segment" id="barL" style="width:26%; background:#f59e0b;"></div><div class="ratio-segment" id="barG" style="width:60%; background:#10b981;"></div></div>
+                <div style="font-size:11px; color:var(--neutral-500); margin-top:6px; display:flex; justify-content:space-between;"><span>P: 13–15%</span><span>L: 25–28%</span><span>G: 58–62%</span></div>
+              </div>
+              <div style="background:var(--mint-light); border:1px solid var(--mint-accent); border-radius:var(--radius-sm); padding:10px; font-size:11.5px; color:var(--mint-dark);">✓ Dữ liệu này làm chuẩn đối chiếu ở Bước 3.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ BƯỚC 2 ============ -->
+    <div id="sec-2" class="process-section" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Bước 2: Quản Lý Món Ăn & Thực Phẩm</div>
+            <div style="font-size:12.5px; color:var(--neutral-500);">Định lượng gram nguyên liệu riêng cho Nhà trẻ / Mẫu giáo</div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-ai btn-sm" onclick="openModal(2)">✦ Sinh Công Thức Món Mới</button>
+            <button class="btn btn-secondary btn-sm">📥 Thư Viện Mẫu</button>
+            <button class="btn btn-primary btn-sm">+ Thêm Món</button>
+          </div>
+        </div>
+
+        <div class="sub-tabs-bar">
+          <button class="sub-tab-btn active" id="s2t1" onclick="s2Tab('dishes')">2.1 Món Ăn & Công Thức</button>
+          <button class="sub-tab-btn" id="s2t2" onclick="s2Tab('foods')">2.2 Kho Thực Phẩm Thô</button>
+        </div>
+
+        <!-- 2.1 -->
+        <div id="s2v-dishes" class="master-split-layout">
+          <div class="dish-list-wrap">
+            <input type="text" placeholder="Tìm món ăn..." style="width:100%; height:34px; padding:0 12px; border:1px solid var(--neutral-300); border-radius:var(--radius-pill); margin-bottom:12px; font-family:inherit; font-size:12px;">
+            <div class="dish-list-item selected"><div style="font-weight:700; font-size:13px;">Tôm Rim Thịt Nạc</div><div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--neutral-500); margin-top:2px;"><span>Món mặn trưa</span><span class="badge badge-danger" style="font-size:9.5px;">Dị ứng tôm</span></div></div>
+            <div class="dish-list-item"><div style="font-weight:700; font-size:13px;">Canh Cải Cúc Thịt Băm</div><div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--neutral-500); margin-top:2px;"><span>Canh trưa</span><span>65 Kcal</span></div></div>
+            <div class="dish-list-item"><div style="font-weight:700; font-size:13px;">Cháo Thịt Bò Bí Đỏ</div><div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--neutral-500); margin-top:2px;"><span>Bữa sáng</span><span>180 Kcal</span></div></div>
+          </div>
+          <div style="background:var(--neutral-0); border:1px solid var(--neutral-200); border-radius:var(--radius-md); padding:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+              <div><span class="badge badge-neutral">Món Mặn Trưa</span><h3 style="font-size:18px; font-weight:700; margin-top:4px;" id="dishTitle">Tôm Rim Thịt Nạc</h3></div>
+              <div style="display:flex; align-items:center; gap:8px;"><span style="font-size:12px; font-weight:600; color:var(--neutral-500);">Xem theo:</span><div class="sub-tabs-bar" style="margin-bottom:0;"><button class="sub-tab-btn active" id="ageM" onclick="ageSwitch('MG')">Mẫu Giáo</button><button class="sub-tab-btn" id="ageN" onclick="ageSwitch('NT')">Nhà Trẻ</button></div></div>
+            </div>
+            <h4 style="font-size:13px; font-weight:700; margin-bottom:10px;">Nguyên Liệu 1 Suất — <span id="ageLabel" style="color:var(--brand-sky-dark);">Mẫu Giáo</span></h4>
+            <table class="table-custom" style="margin-bottom:16px;">
+              <thead><tr><th>Nguyên Liệu</th><th>Loại</th><th>Định Lượng</th><th>Kcal</th><th>P (g)</th><th>L (g)</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Tôm Sú Bóc Vỏ</strong></td><td><span class="badge badge-success">Fresh</span></td><td><strong id="wTom">35 gram</strong></td><td>32</td><td>7.2</td><td>0.3</td></tr>
+                <tr><td><strong>Thịt Nạc Mông</strong></td><td><span class="badge badge-success">Fresh</span></td><td><strong id="wThit">45 gram</strong></td><td>64</td><td>8.5</td><td>3.2</td></tr>
+                <tr><td><strong>Dầu Ăn & Gia Vị</strong></td><td><span class="badge badge-neutral">Stored</span></td><td><strong>5 gram</strong></td><td>45</td><td>0.1</td><td>5.0</td></tr>
+              </tbody>
+            </table>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--neutral-50); padding:12px 16px; border-radius:var(--radius-sm); border:1px solid var(--neutral-200);">
+              <div><span style="font-size:11.5px; color:var(--neutral-500);">Dị Ứng:</span><span style="font-size:12.5px; font-weight:700; color:#be123c; margin-left:6px;">Tôm Sú (Hải Sản)</span></div>
+              <div><span style="font-size:11.5px; color:var(--neutral-500);">Tổng Kcal:</span><span style="font-size:16px; font-weight:700; color:var(--brand-on-sky); margin-left:6px;">180 Kcal</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2.2 -->
+        <div id="s2v-foods" style="display:none;">
+          <table class="table-custom">
+            <thead><tr><th>Mã</th><th>Tên</th><th>Nhóm</th><th>Kcal/100g</th><th>P</th><th>L</th><th>G</th><th>Canxi</th><th>Loại</th></tr></thead>
+            <tbody>
+              <tr><td>TP01</td><td><strong>Thịt Lợn Nạc</strong></td><td>Thịt/Cá</td><td>145</td><td>19.0</td><td>7.0</td><td>0</td><td>7</td><td><span class="badge badge-success">Fresh</span></td></tr>
+              <tr><td>TP02</td><td><strong>Tôm Sú</strong></td><td>Thịt/Cá</td><td>90</td><td>18.4</td><td>1.8</td><td>0</td><td>1120</td><td><span class="badge badge-success">Fresh</span></td></tr>
+              <tr><td>TP03</td><td><strong>Gạo Tẻ</strong></td><td>Lương thực</td><td>344</td><td>7.6</td><td>1.0</td><td>76.2</td><td>30</td><td><span class="badge badge-neutral">Stored</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ BƯỚC 3 ============ -->
+    <div id="sec-3" class="process-section" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Bước 3: Lập Thực Đơn & Cân Đối Dinh Dưỡng</div>
+            <div style="font-size:12.5px; color:var(--neutral-500);">Đối chiếu realtime với Định Mức Bước 1</div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-ai btn-sm" onclick="openModal(3)">✦ Tạo Thực Đơn Tuần</button>
+            <button class="btn btn-primary btn-sm" onclick="showToast('Đã gửi thực đơn tới BGH duyệt!')">Gửi BGH Duyệt</button>
+          </div>
+        </div>
+        <div class="controls-bar">
+          <div class="controls-group">
+            <select class="select-pill"><option>Mẫu Giáo (3–5T)</option><option>Nhà Trẻ (0–36T)</option></select>
+            <select class="select-pill"><option>Tuần 42 (13/10 — 17/10)</option><option>Tuần 43 (20/10 — 24/10)</option></select>
+            <select class="select-pill"><option>Điểm trường 1</option><option>Điểm trường 2</option></select>
+          </div>
+          <span class="badge badge-approval">DRAFT</span>
+        </div>
+        <div class="matrix-layout">
+          <div style="overflow-x:auto;">
+            <table class="table-custom" style="text-align:left;">
+              <thead><tr><th style="width:120px;">Bữa</th><th>Thứ 2</th><th>Thứ 3</th><th>Thứ 4</th><th>Thứ 5</th><th>Thứ 6</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td style="font-weight:700; background:var(--neutral-50);">Sáng</td>
+                  <td><div class="dish-card"><div class="dish-title">Cháo Bò Bí Đỏ</div><div class="dish-meta"><span>180 Kcal</span></div></div></td>
+                  <td><div class="dish-card"><div class="dish-title">Súp Gà Ngô Non</div><div class="dish-meta"><span>175 Kcal</span></div></div></td>
+                  <td><div class="dish-card ai-suggested" onclick="openModal(31)"><div class="dish-title">Bún Mọc Rau Củ ✦</div><div class="dish-meta"><span>190 Kcal</span><span class="badge badge-ai" style="font-size:9px;">Gợi ý</span></div></div></td>
+                  <td><div class="dish-card"><div class="dish-title">Cháo Lươn Nghệ</div><div class="dish-meta"><span>185 Kcal</span></div></div></td>
+                  <td><div class="dish-card"><div class="dish-title">Bánh Cuốn Nóng</div><div class="dish-meta"><span>195 Kcal</span></div></div></td>
+                </tr>
+                <tr>
+                  <td style="font-weight:700; background:var(--neutral-50);">Trưa</td>
+                  <td>
+                    <div class="dish-card"><div class="dish-title">Cơm Tám</div><div class="dish-meta"><span>150</span></div></div>
+                    <div class="dish-card has-allergen" onclick="openModal(31)"><div class="dish-title">Tôm Rim Thịt ⚠️</div><div class="dish-meta"><span>180</span><span class="badge badge-danger" style="font-size:9px;">Dị ứng</span></div></div>
+                    <div class="dish-card"><div class="dish-title">Canh Cải Cúc</div><div class="dish-meta"><span>65</span></div></div>
+                  </td>
+                  <td>
+                    <div class="dish-card"><div class="dish-title">Cơm Tám</div><div class="dish-meta"><span>150</span></div></div>
+                    <div class="dish-card"><div class="dish-title">Cá Hồi Xốt Cam</div><div class="dish-meta"><span>190</span></div></div>
+                    <div class="dish-card"><div class="dish-title">Canh Bí Sườn</div><div class="dish-meta"><span>70</span></div></div>
+                  </td>
+                  <td>
+                    <div class="dish-card"><div class="dish-title">Cơm Tám</div><div class="dish-meta"><span>150</span></div></div>
+                    <div class="dish-card ai-suggested" onclick="openModal(31)"><div class="dish-title">Thịt Viên Sốt Cà ✦</div><div class="dish-meta"><span>175</span><span class="badge badge-ai" style="font-size:9px;">Gợi ý</span></div></div>
+                    <div class="dish-card"><div class="dish-title">Canh Rau Ngót</div><div class="dish-meta"><span>60</span></div></div>
+                  </td>
+                  <td>
+                    <div class="dish-card"><div class="dish-title">Cơm Tám</div><div class="dish-meta"><span>150</span></div></div>
+                    <div class="dish-card"><div class="dish-title">Gà Xào Nấm</div><div class="dish-meta"><span>170</span></div></div>
+                    <div class="dish-card"><div class="dish-title">Canh Mướp Lạc</div><div class="dish-meta"><span>65</span></div></div>
+                  </td>
+                  <td>
+                    <div class="dish-card"><div class="dish-title">Cơm Tám</div><div class="dish-meta"><span>150</span></div></div>
+                    <div class="dish-card"><div class="dish-title">Trứng Đúc Hấp</div><div class="dish-meta"><span>160</span></div></div>
+                    <div class="dish-card"><div class="dish-title">Canh Cải Bẹ</div><div class="dish-meta"><span>65</span></div></div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Inspector -->
+          <aside style="background:var(--neutral-0); border:1px solid var(--neutral-200); border-radius:var(--radius-md); padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--neutral-200);"><h4 style="font-size:14px; font-weight:700; color:var(--brand-on-sky);">Đối Chiếu Bước 1</h4><span class="badge badge-success">Đạt</span></div>
+
+            <div class="ai-hint-card">
+              <div class="ai-hint-label">✦ Nhận Xét Nhanh</div>
+              <p style="font-size:11.5px; color:var(--tone-ai-text); line-height:1.4;">Tuần 42 đạt 845 Kcal/ngày, P:L:G cân đối. Đã gán món thay thế cho 3 trẻ dị ứng tôm.</p>
+            </div>
+
+            <div style="margin-bottom:14px;">
+              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span>Năng Lượng TB:</span><span style="font-weight:700; color:var(--brand-on-sky);">845 Kcal</span></div>
+              <div style="height:8px; background:var(--neutral-100); border-radius:var(--radius-pill); overflow:hidden;"><div style="width:98%; height:100%; background:var(--brand-sky);"></div></div>
+              <div style="font-size:11px; color:var(--neutral-500); margin-top:3px; display:flex; justify-content:space-between;"><span>Mục tiêu: 800–900</span><span style="color:var(--mint-dark); font-weight:600;">✓</span></div>
+            </div>
+            <div style="margin-bottom:14px;">
+              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span>P : L : G:</span><span style="font-weight:700;">14% : 26% : 60%</span></div>
+              <div class="ratio-bar-wrap"><div class="ratio-segment" style="width:14%; background:#3b82f6;"></div><div class="ratio-segment" style="width:26%; background:#f59e0b;"></div><div class="ratio-segment" style="width:60%; background:#10b981;"></div></div>
+              <div style="font-size:11px; color:var(--neutral-500); margin-top:3px; display:flex; justify-content:space-between;"><span>Chuẩn: 14:26:60</span><span style="color:var(--mint-dark); font-weight:600;">✓</span></div>
+            </div>
+            <div style="margin-bottom:14px;"><div style="display:flex; justify-content:space-between; font-size:12px;"><span>Chi Phí:</span><span style="font-weight:700; color:var(--brand-on-sky);">34.800 đ</span></div><div style="font-size:11px; color:var(--neutral-500); display:flex; justify-content:space-between;"><span>Hạn mức: 35.000 đ</span><span style="color:var(--mint-dark); font-weight:600;">✓</span></div></div>
+            <div style="background:var(--tone-danger-bg); border:1px solid var(--tone-danger-border); border-radius:var(--radius-sm); padding:10px; font-size:11.5px; color:#be123c;">⚠️ 3 trẻ dị ứng tôm lớp Chồi 1 — Đã gán món thay.</div>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ BƯỚC 4 ============ -->
+    <div id="sec-4" class="process-section" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Bước 4: Tính Khẩu Phần & Phiếu Đi Chợ</div>
+            <div style="font-size:12.5px; color:var(--neutral-500);">NT × định lượng NT + MG × định lượng MG = Tổng Kg cần mua</div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-ai btn-sm" onclick="openModal(4)">✦ Bù Trừ Khi Thiếu Hàng</button>
+            <button class="btn btn-secondary btn-sm" onclick="showToast('Đã tải lại điểm danh!')">🔄 Cập Nhật</button>
+            <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ In Phiếu A4</button>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px;">
+          <div style="background:var(--neutral-0); border:1px solid var(--neutral-200); border-radius:var(--radius-md); padding:16px;"><div style="font-size:11.5px; color:var(--neutral-500);">Nhà Trẻ (NT)</div><div style="font-size:24px; font-weight:700; color:var(--brand-on-sky); margin-top:2px;">45 Trẻ</div></div>
+          <div style="background:var(--neutral-0); border:1px solid var(--neutral-200); border-radius:var(--radius-md); padding:16px;"><div style="font-size:11.5px; color:var(--neutral-500);">Mẫu Giáo (MG)</div><div style="font-size:24px; font-weight:700; color:var(--brand-on-sky); margin-top:2px;">140 Trẻ</div></div>
+          <div style="background:var(--mint-light); border:1px solid var(--mint-accent); border-radius:var(--radius-md); padding:16px;"><div style="font-size:11.5px; color:var(--mint-dark); font-weight:600;">Tổng Suất</div><div style="font-size:24px; font-weight:700; color:var(--mint-dark); margin-top:2px;">185 Trẻ</div><div style="font-size:11px; color:var(--mint-dark);">Chốt 08:30 — 13/10</div></div>
+        </div>
+        <table class="table-custom" id="purchTbl">
+          <thead><tr><th>Thực Phẩm</th><th>Loại</th><th>Công Thức</th><th>Tổng Kg</th><th>Đơn Giá</th><th>Thành Tiền</th><th>Trạng Thái</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Thịt Nạc Mông</strong></td><td><span class="badge badge-success">Fresh</span></td><td>(45×35g)+(140×45g)</td><td><strong>7.88 kg</strong></td><td>140.000đ/kg</td><td>1.103.200 đ</td><td><span class="badge badge-success">Đã nhận</span></td></tr>
+            <tr id="rowTom"><td id="cellTomName"><strong>Tôm Sú Tươi</strong></td><td><span class="badge badge-success">Fresh</span></td><td>(45×25g)+(137×35g)*</td><td id="cellTomKg"><strong>5.92 kg</strong></td><td>220.000đ/kg</td><td id="cellTomTien">1.302.400 đ</td><td><span class="badge badge-approval" id="badgeTom">Chờ nhận</span></td></tr>
+            <tr><td><strong>Gạo Tẻ Tám</strong></td><td><span class="badge badge-neutral">Stored</span></td><td>(45×50g)+(140×70g)</td><td><strong>12.05 kg</strong></td><td>25.000đ/kg</td><td>301.250 đ</td><td><span class="badge badge-success">Đã xuất kho</span></td></tr>
+            <tr><td><strong>Rau Cải Cúc</strong></td><td><span class="badge badge-success">Fresh</span></td><td>(45×40g)+(140×50g)</td><td><strong>8.80 kg</strong></td><td>30.000đ/kg</td><td>264.000 đ</td><td><span class="badge badge-success">Đã nhận</span></td></tr>
+          </tbody>
+          <tfoot><tr style="background:var(--neutral-50); font-weight:700;"><td colspan="3" style="text-align:right;">TỔNG:</td><td colspan="2"><span style="color:var(--brand-on-sky); font-size:15px;" id="totalCost">2.970.850 đ</span></td><td colspan="2"></td></tr></tfoot>
+        </table>
+        <small style="font-size:11.5px; color:var(--neutral-500); margin-top:8px; display:block;">* Tôm đã trừ 3 suất dị ứng Chồi 1 và bù thêm 105g thịt.</small>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ========================================================================
+       AI COMPACT CENTER MODALS (thay Drawer)
+       ======================================================================== -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal-box" id="modalBox" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon">✦</div>
+          <div><h3 style="font-size:15px; font-weight:700;" id="mTitle">AI Gợi Ý</h3><div style="font-size:11.5px; color:var(--neutral-500);" id="mSub"></div></div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div id="mBody"><!-- injected --></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastC"></div>
+
+  <!-- ========================================================================
+       JS
+       ======================================================================== -->
+  <script>
+    let currentStep = 1;
+
+    function switchStep(n) {
+      currentStep = n;
+      document.querySelectorAll('.process-section').forEach(e => e.style.display = 'none');
+      document.querySelectorAll('.process-step-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('sec-' + n).style.display = 'block';
+      document.getElementById('pstep-' + n).classList.add('active');
+    }
+
+    function s1Tab(t) {
+      document.getElementById('s1t1').classList.toggle('active', t==='ages');
+      document.getElementById('s1t2').classList.toggle('active', t==='meals');
+      document.getElementById('s1v-ages').style.display = t==='ages' ? 'block' : 'none';
+      document.getElementById('s1v-meals').style.display = t==='meals' ? 'block' : 'none';
+    }
+
+    function cfgAgeChange(v) {
+      if (v==='NT') {
+        document.getElementById('cfgKcal').value = '600 — 700 Kcal (Nhà trẻ)';
+        document.getElementById('cfgCost').textContent = '30.000 đ / ngày';
+        document.getElementById('cfgP').value = 15; document.getElementById('cfgL').value = 28; document.getElementById('cfgG').value = 57;
+        document.getElementById('barP').style.width = '15%'; document.getElementById('barL').style.width = '28%'; document.getElementById('barG').style.width = '57%';
+      } else {
+        document.getElementById('cfgKcal').value = '800 — 900 Kcal (Mẫu giáo)';
+        document.getElementById('cfgCost').textContent = '35.000 đ / ngày';
+        document.getElementById('cfgP').value = 14; document.getElementById('cfgL').value = 26; document.getElementById('cfgG').value = 60;
+        document.getElementById('barP').style.width = '14%'; document.getElementById('barL').style.width = '26%'; document.getElementById('barG').style.width = '60%';
+      }
+    }
+
+    function s2Tab(t) {
+      document.getElementById('s2t1').classList.toggle('active', t==='dishes');
+      document.getElementById('s2t2').classList.toggle('active', t==='foods');
+      document.getElementById('s2v-dishes').style.display = t==='dishes' ? 'grid' : 'none';
+      document.getElementById('s2v-foods').style.display = t==='foods' ? 'block' : 'none';
+    }
+
+    function ageSwitch(a) {
+      document.getElementById('ageM').classList.toggle('active', a==='MG');
+      document.getElementById('ageN').classList.toggle('active', a==='NT');
+      document.getElementById('ageLabel').textContent = a==='MG' ? 'Mẫu Giáo' : 'Nhà Trẻ';
+      document.getElementById('wTom').textContent = a==='MG' ? '35 gram' : '25 gram (băm)';
+      document.getElementById('wThit').textContent = a==='MG' ? '45 gram' : '35 gram (xay)';
+    }
+
+    // ============ MODALS (compact, no purple) ============
+
+    function openModal(step) {
+      const o = document.getElementById('modalOverlay');
+      const t = document.getElementById('mTitle');
+      const s = document.getElementById('mSub');
+      const b = document.getElementById('mBody');
+      o.classList.add('open');
+
+      if (step === 1) {
+        t.textContent = 'Gợi Ý Định Mức Dinh Dưỡng';
+        s.textContent = 'Khuyến nghị theo Thông tư 28/TT-BGDĐT';
+        b.innerHTML = `
+          <div class="ai-hint-card"><div class="ai-hint-label">✦ Cơ sở phân tích</div><p style="font-size:12px; color:var(--tone-ai-text); line-height:1.4;">Đặc thù Hải Phòng, mùa Thu mát. Trẻ cần tỷ lệ đạm cân đối từ thịt lợn và hải sản tươi.</p></div>
+          <div class="option-card selected" onclick="selectOpt(this)">
+            <div class="option-card-title"><span>Mẫu Giáo: 800–900 Kcal, P14:L26:G60</span><span style="color:var(--mint-dark);">✓ Chuẩn</span></div>
+            <div class="option-card-desc">Đơn giá đề xuất: 35.000 đ / trẻ / ngày</div>
+          </div>
+          <div class="option-card" onclick="selectOpt(this)">
+            <div class="option-card-title"><span>Nhà Trẻ: 600–700 Kcal, P15:L28:G57</span><span style="color:var(--mint-dark);">✓ Chuẩn</span></div>
+            <div class="option-card-desc">Đơn giá đề xuất: 30.000 đ / trẻ / ngày (tăng nhẹ chất béo cho não bộ)</div>
+          </div>
+          <button class="btn btn-primary" style="width:100%; margin-top:12px; height:40px;" onclick="closeModal(); showToast('Đã áp dụng định mức chuẩn!')">Áp Dụng Vào Bước 1</button>
+        `;
+      } else if (step === 2) {
+        t.textContent = 'Sinh Công Thức Món Ăn Mới';
+        s.textContent = 'Nhập tên món → AI tính định lượng 2 độ tuổi';
+        b.innerHTML = `
+          <div style="margin-bottom:14px;"><label style="font-weight:600; font-size:12.5px; display:block; margin-bottom:4px;">Tên món:</label><input class="input-pill" id="aiDishName" style="width:100%;" value="Thịt bò sốt vang khoai tây"></div>
+          <button class="btn btn-primary" style="width:100%; height:38px; margin-bottom:14px;" onclick="document.getElementById('aiRecipeResult').style.display='block'; showToast('Đã tính toán xong!')">Phân Tích & Sinh Công Thức</button>
+          <div id="aiRecipeResult" style="display:none;">
+            <div class="ai-hint-card"><div class="ai-hint-label">✦ Kết quả</div><p style="font-size:12px; color:var(--tone-ai-text);">Giàu Sắt & Kẽm, phù hợp mùa mát. Đã chia riêng: Nhà trẻ (xay nhuyễn), Mẫu giáo (thái miếng).</p></div>
+            <table class="table-custom" style="font-size:12px; margin-bottom:14px;"><thead><tr><th>Nguyên Liệu</th><th>Mẫu Giáo</th><th>Nhà Trẻ</th><th>Kcal</th></tr></thead><tbody><tr><td>Thịt Bò</td><td><strong>40g</strong></td><td><strong>30g (xay)</strong></td><td>75</td></tr><tr><td>Khoai Tây</td><td><strong>50g</strong></td><td><strong>40g (nghiền)</strong></td><td>45</td></tr><tr><td>Cà Rốt & Gia Vị</td><td><strong>25g</strong></td><td><strong>20g</strong></td><td>20</td></tr></tbody></table>
+            <div style="background:var(--neutral-50); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--neutral-200); font-size:12px; margin-bottom:14px;">Tổng: <strong>185 Kcal</strong> — Dị ứng: <strong>Không</strong></div>
+            <button class="btn btn-primary" style="width:100%; height:38px;" onclick="closeModal(); showToast('Đã lưu món Thịt Bò Sốt Vang vào danh mục!')">Lưu Vào Kho Món Ăn</button>
+          </div>
+        `;
+      } else if (step === 3) {
+        t.textContent = 'Tạo Thực Đơn Tuần Tự Động';
+        s.textContent = 'Tối ưu calo, P:L:G, ngân sách & hạn chế dị ứng';
+        b.innerHTML = `
+          <div style="margin-bottom:14px;">
+            <label style="font-weight:600; font-size:12px; margin-bottom:4px; display:block;">Mùa & thực phẩm:</label>
+            <select class="select-pill" style="width:100%; margin-bottom:10px;"><option>Mùa Thu (Mát — Canh ấm, súp bổ)</option><option>Mùa Hè (Nóng — Thanh mát)</option></select>
+            <label style="font-weight:600; font-size:12px; margin-bottom:4px; display:block;">Ngân sách:</label>
+            <select class="select-pill" style="width:100%; margin-bottom:10px;"><option>35.000 đ/ngày (Chuẩn Bước 1)</option><option>30.000 đ/ngày</option></select>
+            <div style="font-size:12px;"><input type="checkbox" checked style="margin-right:6px;">Tự động né dị ứng (3 trẻ dị ứng tôm)</div>
+          </div>
+          <button class="btn btn-primary" style="width:100%; height:38px; margin-bottom:14px;" onclick="document.getElementById('aiWeekR').style.display='block'; showToast('Bản nháp tuần đã sẵn sàng!')">Khởi Chạy</button>
+          <div id="aiWeekR" style="display:none;">
+            <div class="ai-hint-card"><div class="ai-hint-label">✦ Kết quả</div><p style="font-size:12px; color:var(--tone-ai-text); line-height:1.4;">5 ngày thực đơn đã sinh. TB 845 Kcal. P:L:G đạt 14:26:60. Đã thêm: Bún mọc rau củ, Thịt viên sốt cà.</p></div>
+            <button class="btn btn-primary" style="width:100%; height:38px;" onclick="closeModal(); showToast('Đã nạp thực đơn AI vào lưới tuần!')">Áp Dụng Vào Lưới Tuần</button>
+          </div>
+        `;
+      } else if (step === 31) {
+        /* Quick Swap modal khi click vào món AI trên lưới */
+        t.textContent = 'Đổi Món Tương Đương';
+        s.textContent = 'Chọn món thay thế giữ nguyên calo & nhóm chất';
+        b.innerHTML = `
+          <div class="ai-hint-card"><div class="ai-hint-label">✦ Phân tích</div><p style="font-size:12px; color:var(--tone-ai-text);">3 món cùng mức năng lượng và cân bằng P:L:G tương đương, có sẵn trong kho.</p></div>
+          <div class="option-card selected" onclick="selectOpt(this)"><div class="option-card-title"><span>Cá Quả Sốt Cà Chua</span><span style="color:var(--mint-dark);">178 Kcal</span></div><div class="option-card-desc">Đạm tương đương, không dị ứng phổ biến</div></div>
+          <div class="option-card" onclick="selectOpt(this)"><div class="option-card-title"><span>Thịt Đúc Trứng Hấp</span><span>165 Kcal</span></div><div class="option-card-desc">Món nhẹ, giàu đạm trứng</div></div>
+          <div class="option-card" onclick="selectOpt(this)"><div class="option-card-title"><span>Bò Xào Rau Củ</span><span>172 Kcal</span></div><div class="option-card-desc">Giàu sắt, bổ máu tốt cho trẻ</div></div>
+          <button class="btn btn-primary" style="width:100%; margin-top:12px; height:38px;" onclick="closeModal(); showToast('Đã đổi món thành công!')">Xác Nhận Đổi Món</button>
+        `;
+      } else if (step === 4) {
+        t.textContent = 'Bù Trừ Nguyên Liệu Thiếu Hàng';
+        s.textContent = 'Thay thế sao cho Đạm & Năng lượng không giảm';
+        b.innerHTML = `
+          <div class="ai-hint-card"><div class="ai-hint-label">⚠️ Tình huống hôm nay</div><p style="font-size:12px; color:var(--tone-ai-text);">NCC báo thiếu <strong>5.92 kg Tôm sú tươi</strong>. Cần thay bằng thực phẩm tương đương Đạm & Năng lượng.</p></div>
+          <div class="option-card selected" onclick="selectOpt(this)"><div class="option-card-title"><span>Cá Ba Sa Phi Lê — 6.10 kg</span><span style="color:var(--mint-dark);">Khớp 99% Đạm</span></div><div class="option-card-desc">Đổi món thành: Cá Ba Sa rim nước dừa. Giá 150.000đ/kg.</div></div>
+          <div class="option-card" onclick="selectOpt(this)"><div class="option-card-title"><span>Thịt Gà Lườn Nạc — 5.80 kg</span><span>Khớp 95% Đạm</span></div><div class="option-card-desc">Đổi món thành: Thịt gà rim nấm. Giá 110.000đ/kg.</div></div>
+          <button class="btn btn-primary" style="width:100%; margin-top:12px; height:38px;" onclick="applySwap()">Xác Nhận Thay Thế & Cập Nhật Phiếu</button>
+        `;
+      }
+    }
+
+    function closeModal(e) { document.getElementById('modalOverlay').classList.remove('open'); }
+
+    function selectOpt(el) {
+      el.parentElement.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function applySwap() {
+      closeModal();
+      document.getElementById('cellTomName').innerHTML = '<strong>Cá Ba Sa Phi Lê</strong> <span class="badge badge-ai">Thay tôm ✦</span>';
+      document.getElementById('cellTomKg').innerHTML = '<strong>6.10 kg</strong>';
+      document.getElementById('cellTomTien').textContent = '915.000 đ';
+      document.getElementById('badgeTom').className = 'badge badge-success';
+      document.getElementById('badgeTom').textContent = 'Đã đổi & đặt';
+      document.getElementById('totalCost').textContent = '2.583.450 đ';
+      showToast('Đã cập nhật phiếu đi chợ: Thay tôm → Cá Ba Sa!');
+    }
+
+    function showToast(msg) {
+      const c = document.getElementById('toastC');
+      const t = document.createElement('div');
+      t.className = 'toast toast-success';
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3200);
+    }
+  </script>
+</body>
+</html>

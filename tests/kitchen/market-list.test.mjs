@@ -171,21 +171,12 @@ test('bước làm tròn theo đơn vị mua', () => {
   assert.equal(purchaseStep('hộp 180 ml'), 1);
 });
 
-test('bếp đọc được thực đơn tuần đã xuất bản của luồng mới; phiếu xuất kho cùng số với phiếu đi chợ', async () => {
-  const q = await repo.getRequiredQuantity({ campusId: 'c1', date: SEED_DATE }, VP);
-  assert.equal(q.status, 'READY');
-  assert.ok(q.foods.length > 0);
-  assert.ok(q.meals.length > 0);
-  assert.ok(q.revenue.total > 0);
-  assert.ok(
-    q.sessions.some((s) => s.hasMenu),
-    'trạng thái bữa có thực đơn',
-  );
-  const slip = await repo.getStockIssue({ campusId: 'c1', date: SEED_DATE }, VP);
-  if (slip.issue && !slip.issue.id) {
-    const buy = Object.fromEntries(q.foods.map((f) => [f.foodId, f.buyUnits]));
-    slip.issue.items.forEach((it) => assert.equal(it.requiredQty, buy[it.foodId], it.name));
-  }
+test('dự trù tuần đọc được thực đơn tuần đã xuất bản của luồng mới', async () => {
+  const { mondayOf } = await import('@/models/menu-planning/menuPlanningConstants');
+  const week = await repo.getWeeklyForecast({ campusId: 'c1', weekStart: mondayOf(SEED_DATE) }, VP);
+  assert.equal(week.status, 'READY');
+  assert.ok(week.fresh.length > 0);
+  assert.ok(week.days.find((d) => d.date === SEED_DATE).hasMenu);
 });
 
 test('dữ liệu đã lưu kiểu cũ (chỉ có tuần cố định) được bổ sung tuần trước + tuần này đã xuất bản, bỏ bản nháp mẫu cũ', async () => {
@@ -210,13 +201,13 @@ test('dữ liệu đã lưu kiểu cũ (chỉ có tuần cố định) được 
   assert.equal(buildRecentWeeklyMenus(today).filter((w) => w.status === 'DRAFT').length, 1);
 });
 
-test('ngày học gần nhất đã qua có phiếu đi chợ, kể cả Nhà trẻ', async () => {
+test('ngày học gần nhất đã qua có thực đơn trong dự trù tuần, kể cả Nhà trẻ', async () => {
   const { todayInput } = await import('@/utils/format');
-  const { addDays } = await import('@/models/menu-planning/menuPlanningConstants');
+  const { addDays, mondayOf } = await import('@/models/menu-planning/menuPlanningConstants');
   let d = addDays(todayInput(), -1);
   while ([0, 6].includes(new Date(`${d}T00:00:00`).getDay())) d = addDays(d, -1);
-  const q = await repo.getRequiredQuantity({ campusId: 'c1', date: d }, VP);
-  assert.equal(q.status, 'READY', d);
-  assert.ok(q.foods.length > 0);
-  assert.ok(!q.checks.some((c) => c.text.startsWith('Chưa có thực đơn tuần đã xuất bản')), JSON.stringify(q.checks));
+  const week = await repo.getWeeklyForecast({ campusId: 'c1', weekStart: mondayOf(d) }, VP);
+  assert.equal(week.status, 'READY', d);
+  assert.ok(week.days.find((x) => x.date === d).hasMenu, d);
+  assert.ok(week.fresh.some((f) => f.days.some((x) => x.date === d && x.qty > 0)));
 });

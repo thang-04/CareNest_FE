@@ -5,19 +5,31 @@ import { axiosClient } from '@/services/http/axiosClient';
  * Same function names and arguments as the mock repository. The user comes from the JWT on the server.
  */
 export const kitchenApi = {
+  getKitchenDay: ({ campusId, date }) => axiosClient.get('/kitchen/day', { params: { campusId, date } }),
+  getFoodSampleLog: ({ campusId, date }) => axiosClient.get('/kitchen/food-samples', { params: { campusId, date } }),
+  saveFoodSample: ({ campusId, date, session, takenAt, dishes }) =>
+    axiosClient.put(`/kitchen/food-samples/${campusId}/${date}/${session}`, { takenAt, dishes }),
+  destroyFoodSample: ({ campusId, date, session }) => axiosClient.post(`/kitchen/food-samples/${campusId}/${date}/${session}/destroy`),
   getFoodCatalog: () => axiosClient.get('/kitchen/foods'),
-  getStock: ({ campusId }) => axiosClient.get('/kitchen/stock', { params: { campusId } }),
-  getStockReceipts: ({ campusId }) => axiosClient.get('/kitchen/stock-receipts', { params: { campusId } }),
+  getDryStock: () => axiosClient.get('/kitchen/dry-stock'),
+  getDryStockItem: ({ foodId }) => axiosClient.get(`/kitchen/dry-stock/${foodId}`),
+  getStockCounts: ({ campusId }) => axiosClient.get('/kitchen/stock-counts', { params: { campusId } }),
+  createStockCount: ({ campusId }) => axiosClient.post('/kitchen/stock-counts', { campusId }),
+  saveStockCount: ({ id, lines, finalize }) => axiosClient.put(`/kitchen/stock-counts/${id}`, { lines, finalize }),
   createStockReceipt: (payload) => axiosClient.post('/kitchen/stock-receipts', payload),
-  getStockIssue: ({ campusId, date }) => axiosClient.get('/kitchen/stock-issues/daily', { params: { campusId, date } }),
-  approveStockIssue: ({ campusId, date }) => axiosClient.post('/kitchen/stock-issues/daily/approve', { campusId, date }),
-  confirmIngredientReceipt: ({ campusId, date, items }) => axiosClient.post('/kitchen/ingredient-receipts', { campusId, date, items }),
+  getStockIssues: ({ campusId, from, to }) => axiosClient.get('/kitchen/stock-issues', { params: { campusId, from, to } }),
   getPublishedMenu: ({ date, view }) => axiosClient.get('/kitchen/published-menus', { params: { date, view } }),
   getConfirmedMealCount: ({ campusId, date }) => axiosClient.get('/kitchen/meal-counts', { params: { campusId, date } }),
-  getRequiredQuantity: ({ campusId, date }) => axiosClient.get('/kitchen/required-quantities', { params: { campusId, date } }),
-  getMissingFoodReports: ({ campusId, status }) => axiosClient.get('/kitchen/missing-food-reports', { params: { campusId, status } }),
-  submitMissingFoodReport: (payload) => axiosClient.post('/kitchen/missing-food-reports', payload),
-  markMissingFoodSupplied: (id, note) => axiosClient.post(`/kitchen/missing-food-reports/${id}/supply`, { note }),
-  getMealPreparations: ({ campusId, date }) => axiosClient.get('/kitchen/meal-preparations', { params: { campusId, date } }),
-  updateMealPreparation: (payload) => axiosClient.put('/kitchen/meal-preparations', payload),
+  getWeeklyForecast: ({ campusId, weekStart }) => axiosClient.get('/kitchen/weekly-forecasts', { params: { campusId, weekStart } }),
+  saveWeeklyForecast: ({ campusId, weekStart, cells }) => axiosClient.put('/kitchen/weekly-forecasts', { campusId, weekStart, cells }),
+  markWeeklyOrderSent: ({ campusId, weekStart }) => axiosClient.post('/kitchen/weekly-forecasts/sent', { campusId, weekStart }),
+  setSupplierNotified: ({ campusId, weekStart, date, foodId, notified }) =>
+    axiosClient.put('/kitchen/supplier-changes', { campusId, weekStart, date, foodId, notified }),
+  getFreshReceipt: ({ campusId, date }) => axiosClient.get('/kitchen/fresh-receipts', { params: { campusId, date } }),
+  saveFreshReceipt: ({ campusId, date, header, lines, submit }) =>
+    axiosClient.put('/kitchen/fresh-receipts', { campusId, date, header, lines, submit }),
+  reviewFreshReceipt: ({ campusId, date, approve, note }) =>
+    axiosClient.post('/kitchen/fresh-receipts/review', { campusId, date, approve, note }),
+  setFreshSupplierNotified: ({ campusId, date, foodId, notified }) =>
+    axiosClient.put('/kitchen/fresh-receipts/supplier-notified', { campusId, date, foodId, notified }),
 };

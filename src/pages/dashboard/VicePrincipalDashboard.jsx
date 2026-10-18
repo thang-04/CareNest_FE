@@ -21,12 +21,11 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, KpiCard, Shortcuts, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
-import { PrepStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { getChildren, getParentAccounts } from '@/services/children/childrenService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
-import { getMealPreparations, getMissingFoodReports } from '@/services/kitchen/kitchenService';
+import { getFreshReceipt } from '@/services/kitchen/kitchenService';
 import { CHILD_STATUS } from '@/models/School';
-import { MEAL_SESSION_LABELS, MISSING_STATUS } from '@/models/kitchen/kitchenConstants';
+import { MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
 import { MEAL_COUNT_STATUS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 import { formatDate, todayInput } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
@@ -47,7 +46,7 @@ const SHORTCUTS = [
   { to: '/education/approvals', label: 'Kế hoạch giáo dục', icon: BookOpenCheck },
   { to: '/approvals', label: 'Chờ duyệt', icon: ListChecks },
   { to: '/facility/issues', label: 'Vận hành điểm trường', icon: Building2 },
-  { to: '/kitchen/preparation', label: 'Dịch vụ bán trú', icon: ChefHat },
+  { to: '/kitchen', label: 'Dịch vụ bán trú', icon: ChefHat },
 ];
 
 /**
@@ -65,15 +64,14 @@ export default function VicePrincipalDashboard() {
   const childrenQ = useWidget((u) => getChildren({ schoolYear }, u), [schoolYear]);
   const parentsQ = useWidget((u) => getParentAccounts({ status: 'NOT_ACTIVATED' }, u));
   const countsQ = useWidget((u) => getMealCounts({ date }, u), [date]);
-  const prepQ = useWidget((u) => getMealPreparations({ campusId, date }, u), [campusId, date]);
-  const missingQ = useWidget((u) => getMissingFoodReports({ campusId, status: MISSING_STATUS.SUBMITTED }, u), [campusId]);
+  const freshQ = useWidget((u) => getFreshReceipt({ campusId, date }, u), [campusId, date]);
+  const freshOdd = freshQ.data ? freshQ.data.lines.length - freshQ.data.counts.OK : 0;
 
   const children = childrenQ.data || [];
   const active = children.filter((c) => c.status === CHILD_STATUS.ACTIVE).length;
   const pendingPlacement = children.filter((c) => c.status === CHILD_STATUS.PENDING_PLACEMENT).length;
   const counts = countsQ.data?.counts || [];
   const att = attendanceOf(counts);
-  const preps = (prepQ.data || []).filter((p) => p.hasMenu);
   const campus = md.campusById(campusId);
 
   return (
@@ -125,13 +123,9 @@ export default function VicePrincipalDashboard() {
             {!approvals.loading &&
               !approvals.error &&
               !approvals.failed.length &&
-              [childrenQ, parentsQ, missingQ].every((q) => !firstLoad(q) && !q.error) && (
+              [childrenQ, parentsQ, freshQ].every((q) => !firstLoad(q) && !q.error) && (
                 <span className="db-kpis__count">
-                  {
-                    [approvals.total, pendingPlacement, (parentsQ.data || []).length, (missingQ.data || []).length].filter((n) => n > 0)
-                      .length
-                  }{' '}
-                  mục đang có việc
+                  {[approvals.total, pendingPlacement, (parentsQ.data || []).length, freshOdd].filter((n) => n > 0).length} mục đang có việc
                 </span>
               )}
             <span className="db-kpis__help">Bấm vào thẻ để mở danh sách</span>
@@ -173,14 +167,14 @@ export default function VicePrincipalDashboard() {
             />
             <KpiCard
               icon={ChefHat}
-              to="/kitchen/missing-food"
+              to="/kitchen/fresh-receipts"
               tone="red"
               action
-              label="Bếp báo thiếu thực phẩm"
-              value={(missingQ.data || []).length}
-              unit="báo cáo"
-              loading={firstLoad(missingQ)}
-              error={missingQ.error}
+              label="Hàng tươi thiếu hoặc trả lại hôm nay"
+              value={freshOdd}
+              unit="dòng"
+              loading={firstLoad(freshQ)}
+              error={freshQ.error}
             />
           </div>
         </section>
@@ -214,20 +208,16 @@ export default function VicePrincipalDashboard() {
           <Widget
             title={`Bán trú hôm nay, ${formatDate(date)}`}
             icon={CookingPot}
-            to="/kitchen/preparation"
-            linkLabel="Xem tình trạng chế biến"
-            loading={firstLoad(countsQ) || firstLoad(prepQ)}
-            error={countsQ.error && prepQ.error ? countsQ.error : null}
-            onRetry={() => {
-              countsQ.reload();
-              prepQ.reload();
-            }}
-            empty={!counts.length && !preps.length}
+            to={`/attendance/meal-count?date=${date}`}
+            linkLabel="Xem sĩ số suất ăn"
+            loading={firstLoad(countsQ)}
+            error={countsQ.error}
+            onRetry={countsQ.reload}
+            empty={!counts.length}
             emptyTitle="Hôm nay không có bữa ăn bán trú"
           >
             <div className="db-meals">
               {counts.map((c) => {
-                const prep = preps.find((p) => p.session === c.session);
                 const meals = c.totals.normal + c.totals.substitute;
                 return (
                   <Link key={c.session} to={`/attendance/meal-count?date=${date}`} className="db-meal">
@@ -250,12 +240,6 @@ export default function VicePrincipalDashboard() {
                         {MEAL_COUNT_STATUS_LABELS[c.status] || c.status}
                       </span>
                     </span>
-                    {prep && (
-                      <span className="db-meal__line">
-                        <span className="db-meal__key">Chế biến</span>
-                        <PrepStatusBadge status={prep.record?.status || 'NOT_STARTED'} />
-                      </span>
-                    )}
                   </Link>
                 );
               })}

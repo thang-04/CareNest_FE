@@ -1,26 +1,16 @@
 import { useState } from 'react';
-import {
-  ClipboardCheck,
-  UtensilsCrossed,
-  Baby,
-  BookOpenCheck,
-  Star,
-  HeartPulse,
-  Building2,
-  CalendarCheck,
-  School,
-} from '@/components/ui/icons';
+import { ClipboardCheck, Baby, BookOpenCheck, Star, HeartPulse, Building2, CalendarCheck, School } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWidget } from '@/hooks/dashboard/useDashboard';
 import { Spinner } from '@/components/ui/States';
 import { Widget, KpiCard, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
 import { getClasses, getChildren } from '@/services/schoolService';
-import { getClassAttendance, getMealHandovers } from '@/services/attendance/attendanceService';
+import { getClassAttendance } from '@/services/attendance/attendanceService';
 import { getPickupBoard } from '@/services/pickup/pickupService';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
 import { getEvaluations } from '@/services/assessment/assessmentService';
 import { getMyReports } from '@/services/facility/facilityService';
-import { ATTENDANCE_STATUS, HANDOVER_STATUS } from '@/models/attendance/attendanceConstants';
+import { ATTENDANCE_STATUS } from '@/models/attendance/attendanceConstants';
 import { PICKUP_STATUS } from '@/models/pickup/pickupConstants';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { EVAL_KIND, EVAL_STATUS } from '@/models/assessment/assessmentConstants';
@@ -36,7 +26,7 @@ const metaOf = (q, text) => (q.error ? 'Không tải được – mở chức n�
 
 /**
  * Today's class tasks of a Teacher (#12) and of a Team Leader for their own class (#13):
- * attendance & meals, meal handover, pickup, lesson plans, evaluations, health, facilities.
+ * attendance & meals, pickup, lesson plans, evaluations, health, facilities.
  * Only classes the user teaches (SRS 4.4 footnote ²); each figure comes from its own service call.
  */
 export function ClassTodayPanel() {
@@ -49,7 +39,6 @@ export function ClassTodayPanel() {
   const cls = classes.find((c) => c.id === classId);
 
   const attendanceQ = useWidget((u) => getClassAttendance(classId, date, u), [classId, date], { enabled: !!classId });
-  const handoverQ = useWidget((u) => getMealHandovers({ date }, u), [date], { enabled: !!classId });
   const pickupQ = useWidget((u) => getPickupBoard({ classId, date }, u), [classId, date], { enabled: !!classId });
   const childrenQ = useWidget((u) => getChildren({ classId, status: 'ACTIVE' }, u), [classId], { enabled: !!classId });
   const lessonsQ = useWidget(() => getEducationPlans().then((d) => d.lessons.filter((l) => l.classId === user.classId)), [user.classId]);
@@ -85,9 +74,6 @@ export function ClassTodayPanel() {
   const rows = sheet?.children || [];
   const recorded = rows.filter((r) => r.record).length;
   const present = rows.filter((r) => r.record?.status === ATTENDANCE_STATUS.PRESENT).length;
-  const toReceive = (handoverQ.data?.handovers || []).filter(
-    (h) => h.classId === classId && [HANDOVER_STATUS.READY, HANDOVER_STATUS.SUPPLEMENTED].includes(h.status),
-  ).length;
   const waitingPickup = (pickupQ.data?.rows || []).filter((r) => r.status === PICKUP_STATUS.WAITING).length;
   const lessons = lessonsQ.data || [];
   const lessonsToFix = lessons.filter((l) => [EDU_STATUS.DRAFT, EDU_STATUS.REJECTED].includes(l.status)).length;
@@ -143,14 +129,6 @@ export function ClassTodayPanel() {
           error={attendanceQ.error}
         />
         <KpiCard
-          to="/attendance/meal-handover"
-          tone={toReceive ? 'orange' : 'green'}
-          label="Suất ăn chờ lớp nhận"
-          value={toReceive}
-          loading={handoverQ.loading && !handoverQ.data}
-          error={handoverQ.error}
-        />
-        <KpiCard
           to={`/pickup?classId=${classId}`}
           tone={waitingPickup ? 'purple' : 'green'}
           label="Trẻ chờ đón"
@@ -182,14 +160,6 @@ export function ClassTodayPanel() {
                 schoolDay ? `Còn ${Math.max(rows.length - recorded, 0)} trẻ chưa điểm danh` : 'Hôm nay không phải ngày học',
               ),
               end: endOf(attendanceQ, Math.max(rows.length - recorded, 0)),
-            },
-            {
-              key: 'handover',
-              to: '/attendance/meal-handover',
-              icon: UtensilsCrossed,
-              title: 'Nhận suất ăn từ bếp',
-              meta: metaOf(handoverQ, 'Bữa ăn bếp đã sẵn sàng, chờ lớp xác nhận nhận'),
-              end: endOf(handoverQ, toReceive),
             },
             {
               key: 'pickup',

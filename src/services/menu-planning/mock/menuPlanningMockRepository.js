@@ -1,4 +1,4 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from '@/mocks/mockDatabase';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { buildSeedMenuPlanning, topUpRecentWeeklyMenus } from '@/mocks/menuPlanningSeed';
 import { buildReferenceLibrary } from '@/mocks/menuReferenceSeed';
@@ -69,16 +69,13 @@ const MSG = {
 
 const ensure = (db) => {
   const seed = buildSeedMenuPlanning();
-  COLLECTIONS.forEach((key) => {
-    db[key] ||= clone(seed[key]);
-  });
-  return db;
+  return applyMockSeedMigration(db, 'menu-planning', 1, Object.fromEntries(COLLECTIONS.map((key) => [key, seed[key]])));
 };
 
 /** Databases saved before this module existed get the demo data once. */
 const seeded = () => {
   const db = readDb();
-  if (COLLECTIONS.some((k) => !db[k])) writeDb(ensure);
+  if (needsMockSeedMigration(db, 'menu-planning', 1, COLLECTIONS)) writeDb(ensure);
   // Bổ sung thực đơn tuần mẫu của những tuần gần đây (một lần mỗi tuần, khi còn thiếu)
   if (topUpRecentWeeklyMenus(clone(readDb()), todayInput())) writeDb((d) => topUpRecentWeeklyMenus(d, todayInput()));
   return readDb();

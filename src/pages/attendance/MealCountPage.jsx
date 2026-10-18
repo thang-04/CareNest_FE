@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Download, Info, UtensilsCrossed, History } from '@/components/ui/icons';
+import { useSearchParams } from 'react-router-dom';
+import { AlertTriangle, CheckCircle2, Download, Info, History } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -10,7 +10,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { MealCountStatusBadge } from '@/components/attendance/AttendanceBadges';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { useMealCounts } from '@/hooks/attendance/useAttendance';
-import { confirmMealCount } from '@/services/attendance/attendanceService';
+import { confirmMealCountDay } from '@/services/attendance/attendanceService';
 import { ROLES } from '@/models/User';
 import { MEAL_COUNT_STATUS, MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
 import { canConfirmMealCount } from '@/utils/attendance/attendancePermissions';
@@ -20,9 +20,8 @@ import { downloadCsv } from '@/utils/exportCsv';
 import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
-function CountCard({ count, user, md, onConfirm }) {
+function CountCard({ count, md }) {
   const t = count.totals;
-  const confirmable = count.id && canConfirmMealCount(count, user);
   const classById = Object.fromEntries(count.classes.map((l) => [l.classId, l.className]));
   return (
     <div className="card dd-count">
@@ -108,14 +107,21 @@ function CountCard({ count, user, md, onConfirm }) {
             Xác nhận bởi {md.userById?.(count.confirmedBy)?.fullName || 'Phó hiệu trưởng'} lúc {formatDateTime(count.confirmedAt)}
           </div>
         )}
-        {confirmable && (
-          <div className="row mt-12 dd-count__actions">
-            <button className="btn btn--primary" onClick={() => onConfirm(count)}>
-              <CheckCircle2 size={16} /> Xác nhận sĩ số {MEAL_SESSION_LABELS[count.session].toLowerCase()}
-            </button>
-          </div>
-        )}
       </div>
+    </div>
+  );
+}
+
+/** Một nút chốt suất cả ngày cho mỗi cơ sở (khảo sát 18/10/2026, S2), hiện khi mọi bữa đã khóa và chờ xác nhận. */
+function DayConfirmBar({ counts, user, onConfirm }) {
+  const ready = counts.length > 0 && counts.every((c) => c.id && c.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION);
+  if (!ready || !counts.every((c) => canConfirmMealCount(c, user))) return null;
+  const parts = counts.map((c) => `${MEAL_SESSION_LABELS[c.session]} ${c.totals.normal + c.totals.substitute} suất`).join(', ');
+  return (
+    <div className="row mt-12 dd-count__actions">
+      <button className="btn btn--primary" onClick={() => onConfirm({ campusId: counts[0].campusId, parts })}>
+        <CheckCircle2 size={16} /> Chốt suất cả ngày
+      </button>
     </div>
   );
 }
@@ -134,8 +140,8 @@ export default function MealCountPage() {
 
   const doConfirm = async () => {
     try {
-      await confirmMealCount(confirming.id, user);
-      toast.success('Đã xác nhận sĩ số suất ăn. Bếp đã nhận được số liệu.', 'Xác nhận thành công');
+      await confirmMealCountDay({ campusId: confirming.campusId, date }, user);
+      toast.success('Đã chốt suất cả ngày. Bếp đã nhận số liệu, đồ khô đã xuất kho.', 'Chốt suất thành công');
       setConfirming(null);
       reload({ silent: true });
     } catch (err) {
@@ -177,11 +183,6 @@ export default function MealCountPage() {
       </div>
       <ClassDateBar date={date} maxDate={today} onDateChange={(v) => setParams({ date: v }, { replace: true })}>
         <div className="spacer" />
-        {kitchen && (
-          <Link className="btn" to={`/attendance/meal-handover?date=${date}`}>
-            <UtensilsCrossed size={16} /> Bàn giao suất ăn
-          </Link>
-        )}
       </ClassDateBar>
       {data && data.schoolDay && (
         <div className="alert alert--info mb-16">
@@ -218,21 +219,22 @@ export default function MealCountPage() {
               {data.counts
                 .filter((c) => c.campusId === campusId)
                 .map((c) => (
-                  <CountCard key={`${c.campusId}-${c.session}`} count={c} user={user} md={md} onConfirm={setConfirming} />
+                  <CountCard key={`${c.campusId}-${c.session}`} count={c} md={md} />
                 ))}
             </div>
+            <DayConfirmBar counts={data.counts.filter((c) => c.campusId === campusId)} user={user} onConfirm={setConfirming} />
           </section>
         ))
       )}
       <ConfirmationModal
         open={!!confirming}
-        title="Xác nhận sĩ số suất ăn"
+        title="Chốt suất cả ngày"
         message={
           confirming
-            ? `${MEAL_SESSION_LABELS[confirming.session]} ngày ${formatDate(confirming.date)}: ${confirming.totals.normal} suất thường, ${confirming.totals.substitute} suất thay thế. Sau khi xác nhận, bếp dùng số liệu này để chuẩn bị.`
+            ? `Ngày ${formatDate(date)}: ${confirming.parts}. Chốt một lần cho mọi bữa; trẻ đến sau giờ chốt không thêm suất. Đồ khô được xuất kho theo số này.`
             : ''
         }
-        confirmLabel="Xác nhận sĩ số"
+        confirmLabel="Chốt suất cả ngày"
         onConfirm={doConfirm}
         onClose={() => setConfirming(null)}
       />

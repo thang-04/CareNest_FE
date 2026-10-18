@@ -1,4 +1,4 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { buildAttendanceSeed } from '@/mocks/attendanceSeed';
@@ -6,7 +6,6 @@ import { ROLES } from '@/models/User';
 import {
   ATTENDANCE_STATUS,
   DEFAULT_CUTOFF_TIME,
-  HANDOVER_STATUS,
   MEAL_COUNT_STATUS,
   MEAL_SESSIONS,
   MEAL_SESSION_LABELS,
@@ -19,31 +18,21 @@ import {
   canConfirmMealCount,
   canCorrectMealAfterLock,
   canRecordAttendance,
-  canReceiveHandover,
-  canSupplementHandover,
   canViewAttendance,
-  canViewHandover,
   canViewMealCount,
   canViewMealCounts,
-  canOpenMealHandover,
 } from '@/utils/attendance/attendancePermissions';
-import {
-  validateClassAttendance,
-  validateHandoverCheck,
-  validateMealCorrection,
-  validateSummaryRange,
-} from '@/utils/attendance/attendanceValidation';
+import { validateClassAttendance, validateMealCorrection, validateSummaryRange } from '@/utils/attendance/attendanceValidation';
 import { isDayLocked, isSchoolDay, isValidTime, schoolDaysBetween, schoolNow } from '@/utils/attendance/attendanceTime';
 import { formatDate } from '@/utils/format';
 import { uid } from '@/utils/id';
 
 /*
- * Fake backend for attendance, meal participation, meal counts and meal handover.
+ * Fake backend for attendance, meal participation and meal counts. Meal handover is not tracked (user decision 16/10/2026).
  * Business rules that the Spring Boot backend must re-implement live here:
  *  - lock at the configured cut-off (GBR-ATT-02/04/08), absent => no meal (GBR-ATT-03);
  *  - meal count aggregated per campus/date/session at the cut-off (GBR-ATT-07), confirmed by the VP only (GBR-ATT-06);
  *  - later corrections update the count and notify the kitchen without a new approval (UC 6.10 alt flow);
- *  - meal handover per class: confirm or report shortage, kitchen supplements (UC 6.26).
  * The "scheduled job" at the cut-off is emulated lazily: counts are built the first time a locked day is read.
  */
 
@@ -57,14 +46,6 @@ export const readCutoff = (db) => {
     ? [...s].reverse().map((x) => x?.time || x?.cutoffTime)
     : [s?.time, s?.cutoffTime, s?.attendanceCutoff, typeof s === 'string' ? s : null];
   return candidates.find(isValidTime) || DEFAULT_CUTOFF_TIME;
-};
-
-/** Kitchen readiness comes from the meal preparation module (#98) when it exists. */
-const kitchenReady = (db, campusId, date, session) => {
-  if (!Array.isArray(db.mealPreparations)) return true;
-  return db.mealPreparations.some(
-    (p) => p.campusId === campusId && p.date === date && p.session === session && ['READY_FOR_HANDOVER', 'READY'].includes(p.status),
-  );
 };
 
 const usersOf = (db, role, campusId) => (db.users || []).filter((u) => u.role === role && u.campusId === campusId);
@@ -145,45 +126,21 @@ const materializeCounts = (db, date, { notify = true } = {}) => {
   });
 };
 
-const createHandovers = (db, count) => {
-  count.classes.forEach((line) => {
-    if (db.mealHandovers.some((h) => h.classId === line.classId && h.date === count.date && h.session === count.session)) return;
-    db.mealHandovers.push({
-      id: uid('mh'),
-      date: count.date,
-      session: count.session,
-      classId: line.classId,
-      className: line.className,
-      campusId: count.campusId,
-      mealCountId: count.id,
-      expected: { normal: line.normal, substitute: line.substitute },
-      received: null,
-      shortage: null,
-      status: HANDOVER_STATUS.READY,
-      confirmedBy: null,
-      confirmedAt: null,
-      history: [],
-    });
-  });
-};
-
 const confirmCountIn = (db, count, userId, at) => {
   count.status = MEAL_COUNT_STATUS.CONFIRMED;
   count.confirmedBy = userId;
   count.confirmedAt = at;
   count.history.push({ at, userId, action: 'CONFIRMED' });
-  createHandovers(db, count);
 };
 
 // Databases saved before this module existed get demo data once.
 const ensureSeeded = (db) => {
-  db.mealCounts ||= [];
-  db.mealHandovers ||= [];
-  if (db.attendance && db.childMealPlans) return db;
   const seed = buildAttendanceSeed({ classes: db.classes, children: db.children, today: schoolNow().date });
-  db.attendance ||= clone(seed.attendance);
-  db.childMealPlans ||= clone(seed.childMealPlans);
-  // Past demo days are already confirmed by the VP and handed over to every class.
+  const keys = ['attendance', 'childMealPlans', 'mealCounts'];
+  const migrate = needsMockSeedMigration(db, 'attendance', 1, keys);
+  applyMockSeedMigration(db, 'attendance', 1, { attendance: seed.attendance, childMealPlans: seed.childMealPlans, mealCounts: [] });
+  if (!migrate) return db;
+  // Past demo days are already confirmed by the VP.
   seed.seededDays.forEach((date) => {
     materializeCounts(db, date, { notify: false });
     db.mealCounts
@@ -192,19 +149,6 @@ const ensureSeeded = (db) => {
         const vp = usersOf(db, ROLES.VICE_PRINCIPAL, m.campusId)[0];
         confirmCountIn(db, m, vp?.id || null, new Date(`${date}T09:05:00+07:00`).toISOString());
       });
-    db.mealHandovers
-      .filter((h) => h.date === date && h.status === HANDOVER_STATUS.READY)
-      .forEach((h) => {
-        const cls = db.classes.find((c) => c.id === h.classId);
-        const at = new Date(`${date}T${h.session === 'LUNCH' ? '10:40' : '14:40'}:00+07:00`).toISOString();
-        Object.assign(h, {
-          status: HANDOVER_STATUS.CONFIRMED,
-          received: { ...h.expected },
-          confirmedBy: cls?.homeroomTeacherId,
-          confirmedAt: at,
-        });
-        h.history.push({ at, userId: cls?.homeroomTeacherId, action: 'CONFIRMED' });
-      });
   });
   return db;
 };
@@ -212,7 +156,7 @@ const ensureSeeded = (db) => {
 const ready = () => {
   ensureSchoolSeeded();
   const db = readDb();
-  if (!db.attendance || !db.childMealPlans || !db.mealCounts || !db.mealHandovers) writeDb(ensureSeeded);
+  if (needsMockSeedMigration(db, 'attendance', 1, ['attendance', 'childMealPlans', 'mealCounts'])) writeDb(ensureSeeded);
   return readDb();
 };
 
@@ -240,12 +184,6 @@ const dayInfo = (db, date) => {
 };
 
 const childView = (ch) => ({ id: ch.id, code: ch.code, fullName: ch.fullName, gender: ch.gender, allergies: ch.allergies || [] });
-
-const decorateHandover = (db, h) => {
-  const status =
-    h.status === HANDOVER_STATUS.READY && !kitchenReady(db, h.campusId, h.date, h.session) ? HANDOVER_STATUS.WAITING_KITCHEN : h.status;
-  return { ...clone(h), status };
-};
 
 export const attendanceMockRepository = {
   async getDayInfo(date) {
@@ -357,8 +295,6 @@ export const attendanceMockRepository = {
         substitute: kind === 'substitute' ? -1 : 0,
         note: note.trim(),
       });
-      const handover = db.mealHandovers.find((h) => h.classId === cls.id && h.date === date && h.session === session);
-      if (handover && handover.status !== HANDOVER_STATUS.CONFIRMED) handover.expected[kind] = Math.max(0, handover.expected[kind] - 1);
 
       if (count?.status === MEAL_COUNT_STATUS.CONFIRMED) {
         notifyAll(db, usersOf(db, ROLES.KITCHEN_STAFF, cls.campusId), {
@@ -438,123 +374,28 @@ export const attendanceMockRepository = {
     return { ...info, counts };
   },
 
-  async confirmMealCount(id, user) {
+  /** Chốt suất cả ngày (S2): một lần xác nhận mọi bữa của cơ sở trong ngày; bếp nhận một thông báo. */
+  async confirmMealCountDay({ campusId, date }, user) {
     await delay();
     return writeDb((db) => {
       ensureSeeded(db);
-      const count = db.mealCounts.find((m) => m.id === id);
-      if (!count) throw new ApiError(404, 'Không tìm thấy sĩ số suất ăn');
-      if (count.status === MEAL_COUNT_STATUS.CONFIRMED) throw new ApiError(409, 'Sĩ số suất ăn này đã được xác nhận.');
-      if (!canConfirmMealCount(count, user)) throw forbidden();
-      confirmCountIn(db, count, user.id, new Date().toISOString());
-      const total = count.classes.reduce((t, l) => t + l.normal + l.substitute, 0);
-      notifyAll(db, usersOf(db, ROLES.KITCHEN_STAFF, count.campusId), {
-        type: 'MEAL_COUNT',
-        title: 'Sĩ số suất ăn đã xác nhận',
-        message: `${MEAL_SESSION_LABELS[count.session]} ngày ${formatDate(count.date)}: ${total} suất. Xem chi tiết theo lớp.`,
-        link: `/attendance/meal-count?date=${count.date}`,
-      });
-      return withTotals(clone(count));
-    });
-  },
-
-  /** #68: handovers of the teacher's classes, or of the campus for Kitchen Staff. */
-  async getMealHandovers({ date }, user) {
-    await delay(180);
-    if (!canOpenMealHandover(user)) throw forbidden();
-    const db = readyFor(date);
-    const list = db.mealHandovers
-      .filter((h) => h.date === date)
-      .filter((h) =>
-        canViewHandover(
-          h,
-          db.classes.find((c) => c.id === h.classId),
-          user,
-        ),
-      )
-      .map((h) => decorateHandover(db, h))
-      .sort((a, b) => a.className.localeCompare(b.className, 'vi') || MEAL_SESSIONS.indexOf(a.session) - MEAL_SESSIONS.indexOf(b.session));
-    return { ...dayInfo(db, date), handovers: list };
-  },
-
-  async confirmHandover(id, { normal, substitute, note }, user) {
-    await delay();
-    return writeDb((db) => {
-      ensureSeeded(db);
-      const h = db.mealHandovers.find((x) => x.id === id);
-      if (!h) throw new ApiError(404, 'Không tìm thấy phiếu nhận suất ăn');
-      const cls = findClass(db, h.classId);
-      if (!kitchenReady(db, h.campusId, h.date, h.session)) throw new ApiError(409, 'Bếp chưa chuyển trạng thái "Sẵn sàng bàn giao".');
-      if (!canReceiveHandover(h, cls, user)) throw forbidden();
-      const errors = validateHandoverCheck({ normal, substitute }, h.expected);
-      if (Object.keys(errors).length) throw new ApiError(422, Object.values(errors)[0], errors);
+      const counts = db.mealCounts.filter((m) => m.campusId === campusId && m.date === date);
+      if (!counts.length) throw new ApiError(404, 'Chưa có sĩ số suất ăn của ngày này.');
+      if (counts.every((c) => c.status === MEAL_COUNT_STATUS.CONFIRMED)) throw new ApiError(409, 'Suất ăn ngày này đã được chốt.');
+      const pending = counts.filter((c) => c.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION);
+      if (!pending.length || !pending.every((c) => canConfirmMealCount(c, user))) throw forbidden();
       const at = new Date().toISOString();
-      Object.assign(h, {
-        status: HANDOVER_STATUS.CONFIRMED,
-        received: { normal: Number(normal), substitute: Number(substitute) },
-        confirmedBy: user.id,
-        confirmedAt: at,
-      });
-      h.history.push({ at, userId: user.id, action: 'CONFIRMED', note: note?.trim() || undefined });
-      return decorateHandover(db, h);
-    });
-  },
-
-  async reportHandoverShortage(id, { normal, substitute, note }, user) {
-    await delay();
-    return writeDb((db) => {
-      ensureSeeded(db);
-      const h = db.mealHandovers.find((x) => x.id === id);
-      if (!h) throw new ApiError(404, 'Không tìm thấy phiếu nhận suất ăn');
-      const cls = findClass(db, h.classId);
-      if (!canReceiveHandover(h, cls, user)) throw forbidden();
-      const errors = validateHandoverCheck({ normal, substitute, note }, h.expected, { shortage: true });
-      if (Object.keys(errors).length) throw new ApiError(422, Object.values(errors)[0], errors);
-      const at = new Date().toISOString();
-      const missing = {
-        normal: Math.max(0, h.expected.normal - Number(normal)),
-        substitute: Math.max(0, h.expected.substitute - Number(substitute)),
-      };
-      h.status = HANDOVER_STATUS.SHORTAGE_REPORTED;
-      h.shortage = {
-        received: { normal: Number(normal), substitute: Number(substitute) },
-        missing,
-        note: note.trim(),
-        reportedBy: user.id,
-        reportedAt: at,
-      };
-      h.history.push({ at, userId: user.id, action: 'SHORTAGE_REPORTED', note: note.trim() });
-      notifyAll(db, usersOf(db, ROLES.KITCHEN_STAFF, h.campusId), {
-        type: 'MEAL_HANDOVER',
-        title: 'Lớp báo thiếu suất ăn',
-        message: `${cls.name} – ${MEAL_SESSION_LABELS[h.session].toLowerCase()}: thiếu ${missing.normal} suất thường, ${missing.substitute} suất thay thế.`,
-        link: `/attendance/meal-handover?date=${h.date}`,
-      });
-      return decorateHandover(db, h);
-    });
-  },
-
-  async supplementHandover(id, { note } = {}, user) {
-    await delay();
-    return writeDb((db) => {
-      ensureSeeded(db);
-      const h = db.mealHandovers.find((x) => x.id === id);
-      if (!h) throw new ApiError(404, 'Không tìm thấy phiếu nhận suất ăn');
-      if (!canSupplementHandover(h, user)) throw forbidden();
-      const at = new Date().toISOString();
-      h.status = HANDOVER_STATUS.SUPPLEMENTED;
-      h.history.push({ at, userId: user.id, action: 'SUPPLEMENTED', note: note?.trim() || undefined });
-      const cls = db.classes.find((c) => c.id === h.classId);
-      (cls?.teacherIds || []).forEach((userId) =>
-        pushNotification(db, {
-          userId,
-          type: 'MEAL_HANDOVER',
-          title: 'Bếp đã bổ sung suất ăn',
-          message: `${cls.name} – ${MEAL_SESSION_LABELS[h.session].toLowerCase()}: kiểm lại số suất và xác nhận đã nhận.`,
-          link: `/attendance/meal-handover?date=${h.date}`,
-        }),
+      pending.forEach((c) => confirmCountIn(db, c, user.id, at));
+      const parts = counts.map(
+        (c) => `${MEAL_SESSION_LABELS[c.session]} ${c.classes.reduce((t, l) => t + l.normal + l.substitute, 0)} suất`,
       );
-      return decorateHandover(db, h);
+      notifyAll(db, usersOf(db, ROLES.KITCHEN_STAFF, campusId), {
+        type: 'MEAL_COUNT',
+        title: 'Đã chốt suất ăn cả ngày',
+        message: `Ngày ${formatDate(date)}: ${parts.join(', ')}. Đồ khô đã xuất kho theo số chốt.`,
+        link: `/kitchen/meal-count?date=${date}`,
+      });
+      return counts.map((c) => withTotals(clone(c)));
     });
   },
 };

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useClasses } from '@/hooks/useSchool';
-import { getAttendanceSummary, getClassAttendance, getMealCounts, getMealHandovers } from '@/services/attendance/attendanceService';
+import { getAttendanceSummary, getClassAttendance, getMealCounts } from '@/services/attendance/attendanceService';
 import { canViewAttendance, isClassTeacher } from '@/utils/attendance/attendancePermissions';
 
 /**
@@ -48,15 +48,6 @@ export function useAttendanceSummary({ classId, from, to }) {
 export function useMealCounts(date) {
   const { user } = useAuth();
   const { data, loading, error, reload } = useAsync(() => getMealCounts({ date }, user), [date, user?.id], {
-    enabled: !!date,
-    refreshOnDataChange: true,
-  });
-  return { data, loading, error, reload };
-}
-
-export function useMealHandovers(date) {
-  const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getMealHandovers({ date }, user), [date, user?.id], {
     enabled: !!date,
     refreshOnDataChange: true,
   });

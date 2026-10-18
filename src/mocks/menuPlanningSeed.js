@@ -11,7 +11,7 @@ import {
   NUTRITION_NORMS,
   PORTION_FACTORS,
   defaultStorageOf,
-  mondayOf,
+  schoolWeekStart,
   sessionsOf,
 } from '@/models/menu-planning/menuPlanningConstants';
 
@@ -542,7 +542,7 @@ const buildWeeklyMenus = () => {
  * (Mẫu giáo nhỡ), để số suất điểm danh của những ngày gần đây luôn có thực đơn khớp ở bếp và phiếu đi chợ.
  */
 export const buildRecentWeeklyMenus = (today) => {
-  const current = mondayOf(today);
+  const current = schoolWeekStart(today);
   const ymd = (d) => d.replace(/-/g, '');
   const list = [addDays(current, -7), current].flatMap((week, w) =>
     Object.keys(GROUP_CODE).map((ag, g) =>

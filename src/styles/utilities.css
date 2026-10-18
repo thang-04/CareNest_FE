@@ -36,6 +36,9 @@
 .text-2 {
   color: var(--text-2);
 }
+.text-right {
+  text-align: right;
+}
 .fw-600 {
   font-weight: var(--fw-semibold);
 }
