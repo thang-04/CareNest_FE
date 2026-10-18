@@ -1,10 +1,8 @@
 import { AGE_GROUPS } from '@/models/School';
-import { CONFIG_ROLES } from '@/models/school-config/schoolConfigConstants';
-import { defaultGrants } from '@/models/school-config/permissionCatalog';
 
 /*
  * Demo data of the school-config module (fictional). Collections:
- * schoolYears, ageGroups, cutoffSettings, vpAssignments, teamLeaderAssignments, rolePermissions.
+ * schoolYears, ageGroups, cutoffSettings, vpAssignments, teamLeaderAssignments.
  * The repository seeds them lazily (db.x ||= clone(seed.x)).
  */
 
@@ -85,5 +83,4 @@ export const buildSeedSchoolConfig = () => ({
       assignedAt: at('2026-08-28'),
     },
   ],
-  rolePermissions: CONFIG_ROLES.map((role) => ({ role, grants: defaultGrants(role), history: [] })),
 });

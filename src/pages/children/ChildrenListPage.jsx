@@ -1,18 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Plus,
-  Search,
-  RotateCcw,
-  Eye,
-  HeartPulse,
-  FileSpreadsheet,
-  Baby,
-  Info,
-  LayoutGrid,
-  KeyRound,
-  ShieldAlert,
-} from '@/components/ui/icons';
+import { Plus, Search, RotateCcw, Eye, HeartPulse, FileSpreadsheet, Baby, Info, LayoutGrid, ShieldAlert } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -23,8 +11,8 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
+import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
-import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { avatarTone, formatDate, initials, normalizeText } from '@/utils/format';
 import { canEnrollChild, isPrincipal, isTeacherRole, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
@@ -77,9 +65,6 @@ export default function ChildrenListPage() {
     { key: CHILD_STATUS.LEFT, label: CHILD_STATUS_LABELS.LEFT, value: count(CHILD_STATUS.LEFT), tone: 'purple' },
   ];
   const pendingPlacement = count(CHILD_STATUS.PENDING_PLACEMENT);
-  const notActivated = all.filter(
-    (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
-  ).length;
   const allergyPending = all.filter((c) => c.allergyPending).length;
   const showCampus = isPrincipal(user);
   const cols = showCampus ? 9 : 8;
@@ -107,7 +92,7 @@ export default function ChildrenListPage() {
           <div>Danh sách chỉ gồm trẻ của lớp bạn đang được phân công.</div>
         </div>
       )}
-      {isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
+      {isVicePrincipal(user) && pendingPlacement > 0 && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
           <div className="stack" style={{ gap: 4 }}>
@@ -116,14 +101,6 @@ export default function ChildrenListPage() {
                 <b>{pendingPlacement}</b> trẻ chưa được xếp lớp.{' '}
                 <Link to="/children/placement" className="text-primary">
                   <LayoutGrid size={14} /> Xếp lớp
-                </Link>
-              </span>
-            )}
-            {notActivated > 0 && (
-              <span>
-                <b>{notActivated}</b> trẻ có phụ huynh chưa được kích hoạt tài khoản.{' '}
-                <Link to="/children/activation" className="text-primary">
-                  <KeyRound size={14} /> Kích hoạt tài khoản
                 </Link>
               </span>
             )}
@@ -158,7 +135,8 @@ export default function ChildrenListPage() {
         ))}
       </div>
 
-      <div className="card">
+      <div className="card people-list-workspace">
+        <PeopleTabs embedded />
         <div className="filter-bar">
           <label className="search-box" style={{ flex: 1, minWidth: 220 }}>
             <Search size={17} className="muted" />
@@ -300,17 +278,19 @@ export default function ChildrenListPage() {
                           <ChildStatusBadge status={c.status} />
                         </td>
                         <td className="center nowrap" onClick={(e) => e.stopPropagation()}>
-                          <Link className="icon-btn" to={`/children/${c.id}`} title="Xem hồ sơ" aria-label={`Xem hồ sơ ${c.fullName}`}>
-                            <Eye size={17} />
-                          </Link>
-                          <Link
-                            className="icon-btn"
-                            to={`/children/${c.id}/health`}
-                            title="Sổ sức khỏe"
-                            aria-label={`Sổ sức khỏe của ${c.fullName}`}
-                          >
-                            <HeartPulse size={17} />
-                          </Link>
+                          <div className="tr-row-actions">
+                            <Link className="icon-btn" to={`/children/${c.id}`} title="Xem hồ sơ" aria-label={`Xem hồ sơ ${c.fullName}`}>
+                              <Eye size={17} />
+                            </Link>
+                            <Link
+                              className="icon-btn"
+                              to={`/children/${c.id}/health`}
+                              title="Sổ sức khỏe"
+                              aria-label={`Sổ sức khỏe của ${c.fullName}`}
+                            >
+                              <HeartPulse size={17} />
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );

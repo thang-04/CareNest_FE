@@ -42,4 +42,3 @@ export const canAssignVicePrincipal = isPrincipal;
 export const canAssignTeachers = (campusId, user) => isVicePrincipal(user) && !!campusId && user.campusId === campusId;
 
 /** UC 2.4 Manage Permission: Principal only. */
-export const canManageRolePermissions = isPrincipal;

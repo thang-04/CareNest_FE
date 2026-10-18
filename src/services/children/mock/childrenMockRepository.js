@@ -1,28 +1,20 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { buildSeedChildRecords } from '@/mocks/childrenSeed';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { CHILD_STATUS } from '@/models/School';
 import { ROLES } from '@/models/User';
-import {
-  AI_TREND_STATUS,
-  DECLARATION_STATE,
-  MEASUREMENT_FIELD_LABELS,
-  PARENT_ACCOUNT_STATUS,
-  SMS_STATUS,
-} from '@/models/children/childrenConstants';
+import { AI_TREND_STATUS, DECLARATION_STATE, MEASUREMENT_FIELD_LABELS } from '@/models/children/childrenConstants';
 import { normalizeText, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import {
   hasErrors,
-  normalizePhone,
   validateChildInfo,
   validateDeclaration,
   validateMeasurement,
   validatePlacement,
 } from '@/utils/children/childrenValidation';
 import {
-  canActivateParent,
   canConfirmAllergies,
   canDeclareHealth,
   canEditChild,
@@ -32,7 +24,6 @@ import {
   canViewChild,
   canViewChildren,
   canViewHealth,
-  canViewParentAccounts,
   isPrincipal,
   isVicePrincipal,
 } from '@/utils/children/childrenPermissions';
@@ -41,9 +32,9 @@ import { readEnrollmentCsv } from './enrollmentImport';
 
 /*
  * Fake backend of child records & child health. Owns: scope checks (GBR-GEN-01, GBR-GEN-09), enrollment and
- * placement (GBR-CP-01), declarations (GBR-CP-02), allergy confirmation (GBR-HLT-03), parent accounts (UC 3.9),
+ * placement (GBR-CP-01), declarations (GBR-CP-02), allergy confirmation (GBR-HLT-03),
  * measurements with the rule-based nutrition status and edit log (GBR-HLT-01..03), and the AI trend draft (GBR-AI-*).
- * Collections: reads/writes db.children; owns db.healthMeasurements, db.healthDeclarations, db.parentAccounts,
+ * Collections: reads/writes db.children; owns db.healthMeasurements, db.healthDeclarations,
  * db.childPlacements, db.healthTrendDrafts.
  */
 
@@ -55,16 +46,18 @@ const nowIso = () => new Date().toISOString();
 const ensureSeeded = () => {
   ensureSchoolSeeded();
   const db = readDb();
-  if (db.healthMeasurements && db.healthDeclarations && db.parentAccounts && db.childPlacements && db.healthTrendDrafts) return db;
-  writeDb((d) => {
-    const seed = buildSeedChildRecords({ children: d.children, classes: d.classes });
-    const childById = Object.fromEntries(d.children.map((c) => [c.id, c]));
-    d.healthMeasurements ||= seed.healthMeasurements.map((m) => ({ ...m, ...classifyMeasurement(m, childById[m.childId].dateOfBirth) }));
-    d.healthDeclarations ||= seed.healthDeclarations;
-    d.parentAccounts ||= seed.parentAccounts;
-    d.childPlacements ||= seed.childPlacements;
-    d.healthTrendDrafts ||= [];
-  });
+  const keys = ['healthMeasurements', 'healthDeclarations'];
+  if (needsMockSeedMigration(db, 'children-health', 1, keys))
+    writeDb((d) => {
+      const seed = buildSeedChildRecords({ children: d.children, classes: d.classes });
+      const childById = Object.fromEntries(d.children.map((c) => [c.id, c]));
+      applyMockSeedMigration(d, 'children-health', 1, {
+        healthMeasurements: seed.healthMeasurements.map((m) => ({ ...m, ...classifyMeasurement(m, childById[m.childId].dateOfBirth) })),
+        healthDeclarations: seed.healthDeclarations,
+      });
+      d.childPlacements ||= seed.childPlacements;
+      d.healthTrendDrafts ||= [];
+    });
   return readDb();
 };
 
@@ -87,17 +80,13 @@ const findChild = (db, id) => {
   return child;
 };
 
-/** Child as returned to the UI: account internals only for Principal / VP. */
-const toView = (db, child, user) => {
+/** Child as returned to the UI; guardians = contact info only (accounts live in services/account). */
+const toView = (db, child) => {
   const cls = classOf(db, child);
   const decl = declarationOf(db, child.id);
-  const showAccounts = canViewParentAccounts(user);
   return {
     ...clone(child),
-    guardians: (child.guardians || []).map((g) => {
-      const { smsStatus, smsAt, ...rest } = g;
-      return showAccounts ? { ...rest, smsStatus, smsAt } : { fullName: g.fullName, relation: g.relation, phone: g.phone, email: g.email };
-    }),
+    guardians: (child.guardians || []).map((g) => ({ fullName: g.fullName, relation: g.relation, phone: g.phone, email: g.email })),
     className: cls?.name || '',
     ageGroupId: cls?.ageGroupId || '',
     schoolYear: cls?.schoolYear || '',
@@ -133,18 +122,13 @@ const nextCode = (db) => {
   return `${prefix}${String(n).padStart(3, '0')}`;
 };
 
-const cleanGuardians = (guardians, previous = []) =>
-  guardians.map((g) => {
-    const old = previous.find((p) => normalizePhone(p.phone) === normalizePhone(g.phone));
-    return {
-      fullName: g.fullName.trim(),
-      relation: g.relation,
-      phone: g.phone.trim(),
-      email: (g.email || '').trim(),
-      accountStatus: old?.accountStatus || PARENT_ACCOUNT_STATUS.NOT_ACTIVATED,
-      ...(old?.smsStatus ? { smsStatus: old.smsStatus, smsAt: old.smsAt } : {}),
-    };
-  });
+const cleanGuardians = (guardians) =>
+  guardians.map((g) => ({
+    fullName: g.fullName.trim(),
+    relation: g.relation,
+    phone: g.phone.trim(),
+    email: (g.email || '').trim(),
+  }));
 
 const cleanDeclaration = (d) => ({
   allergies: {
@@ -230,15 +214,6 @@ const createChild = (db, { child, declaration }, { classId, user }) => {
   return record;
 };
 
-const smsWouldFail = (account) => /99$/.test(account.phone) && account.sms.length === 0;
-
-const sendCredentials = (account) => {
-  // Demo SMS gateway: numbers ending in 99 fail on the first attempt so the resend path can be tried.
-  const status = smsWouldFail(account) ? SMS_STATUS.FAILED : SMS_STATUS.SENT;
-  account.sms.push({ at: nowIso(), status });
-  return status;
-};
-
 const toMeasurementView = (db, m) => ({
   ...clone(m),
   measuredByName: userName(db, m.measuredBy),
@@ -254,7 +229,7 @@ export const childrenMockRepository = {
     const kw = normalizeText(filters.keyword).trim();
     const list = db.children
       .filter((c) => canViewChild(c, user, classOf(db, c)))
-      .map((c) => toView(db, c, user))
+      .map((c) => toView(db, c))
       .filter((c) => !filters.schoolYear || !c.classId || c.schoolYear === filters.schoolYear)
       .filter((c) => !filters.campusId || c.campusId === filters.campusId)
       .filter((c) => !filters.classId || c.classId === filters.classId)
@@ -279,7 +254,7 @@ export const childrenMockRepository = {
       .reverse();
     const decl = declarationOf(db, id);
     return {
-      child: toView(db, child, user),
+      child: toView(db, child),
       cls: clone(classOf(db, child)),
       declaration: decl
         ? { ...clone(decl), declaredByName: userName(db, decl.declaredBy), confirmedByName: userName(db, decl.allergyConfirmation?.by) }
@@ -323,7 +298,7 @@ export const childrenMockRepository = {
       const cls = assertClassAvailable(d, payload.classId, user);
       const record = createChild(d, payload, { classId: cls.id, user });
       notifyClassTeachers(d, cls, record);
-      return toView(d, record, user);
+      return toView(d, record);
     });
   },
 
@@ -346,9 +321,9 @@ export const childrenMockRepository = {
       set('fullName', child.fullName.trim());
       set('dateOfBirth', child.dateOfBirth);
       set('gender', child.gender);
-      set('guardians', cleanGuardians(child.guardians, target.guardians));
+      set('guardians', cleanGuardians(child.guardians));
       target.history = [...(target.history || []), { action: 'UPDATED', userId: user.id, at: nowIso(), note: reason.trim(), changes }];
-      return toView(d, target, user);
+      return toView(d, target);
     });
   },
 
@@ -431,7 +406,7 @@ export const childrenMockRepository = {
       target.classId = cls.id;
       target.status = CHILD_STATUS.ACTIVE;
       notifyClassTeachers(d, cls, target);
-      return toView(d, target, user);
+      return toView(d, target);
     });
   },
 
@@ -482,101 +457,6 @@ export const childrenMockRepository = {
     });
   },
 
-  /* ------------------------------ #31 Parent account activation ------------------------------ */
-  async listParentAccounts(filters = {}, user) {
-    await delay(150);
-    if (!canViewParentAccounts(user)) forbid();
-    const db = ensureSeeded();
-    const kw = normalizeText(filters.keyword).trim();
-    return db.children
-      .filter((c) => c.status !== CHILD_STATUS.LEFT && canViewChild(c, user, classOf(db, c)))
-      .flatMap((c) =>
-        (c.guardians || []).map((g, index) => ({
-          key: `${c.id}_${index}`,
-          childId: c.id,
-          childCode: c.code,
-          childName: c.fullName,
-          campusId: c.campusId,
-          className: classOf(db, c)?.name || '',
-          guardianIndex: index,
-          guardian: clone(g),
-          username: db.parentAccounts.find((a) => a.phone === normalizePhone(g.phone))?.username || '',
-        })),
-      )
-      .filter((r) => !filters.status || r.guardian.accountStatus === filters.status)
-      .filter((r) => !kw || normalizeText(`${r.childName} ${r.childCode} ${r.guardian.fullName} ${r.guardian.phone}`).includes(kw));
-  },
-
-  async activateParentAccount(childId, guardianIndex, user) {
-    await delay(400);
-    const db = ensureSeeded();
-    const child = findChild(db, childId);
-    if (!canActivateParent(child, user)) forbid();
-    const guardian = child.guardians?.[guardianIndex];
-    if (!guardian) throw new ApiError(404, 'Không tìm thấy phụ huynh.');
-    if (guardian.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED)
-      throw new ApiError(409, 'Phụ huynh này đã có tài khoản liên kết với trẻ.');
-    const phone = normalizePhone(guardian.phone);
-    const email = (guardian.email || '').trim().toLowerCase();
-    const byPhone = db.parentAccounts.find((a) => a.phone === phone);
-    const byEmail = email ? db.parentAccounts.find((a) => a.email.toLowerCase() === email) : null;
-    if (byPhone && byEmail && byPhone.id !== byEmail.id)
-      throw new ApiError(409, 'Số điện thoại và email thuộc hai tài khoản phụ huynh khác nhau. Kiểm tra lại thông tin liên hệ.');
-    // Sign-in phone / email are unique across every account, staff included (data rule).
-    const staffClash = db.users.some((u) => normalizePhone(u.phone) === phone || (email && u.email?.toLowerCase() === email));
-    if (staffClash)
-      throw new ApiError(409, 'Số điện thoại hoặc email đã được dùng cho tài khoản nhân viên. Không tạo được tài khoản phụ huynh.');
-    return writeDb((d) => {
-      const target = findChild(d, childId).guardians[guardianIndex];
-      const existing = d.parentAccounts.find((a) => a.id === (byPhone || byEmail)?.id);
-      if (existing) {
-        // Existing account: link only, no new password (UC 3.9 alt flow step 2).
-        if (!existing.childIds.includes(childId)) existing.childIds.push(childId);
-        target.accountStatus = existing.status;
-        return { mode: 'LINKED', username: existing.username, accountStatus: existing.status };
-      }
-      const account = {
-        id: uid('pa'),
-        username: phone,
-        phone,
-        email,
-        fullName: target.fullName,
-        status: PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION,
-        childIds: [childId],
-        createdAt: nowIso(),
-        mustChangePassword: true,
-        sms: [],
-      };
-      d.parentAccounts.push(account);
-      // The issued password goes only to the SMS gateway; it is never returned to the web client.
-      const smsStatus = sendCredentials(account);
-      target.accountStatus = PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION;
-      target.smsStatus = smsStatus;
-      target.smsAt = nowIso();
-      return { mode: 'CREATED', username: account.username, accountStatus: account.status, smsStatus };
-    });
-  },
-
-  async resendParentSms(childId, guardianIndex, user) {
-    await delay(400);
-    const db = ensureSeeded();
-    const child = findChild(db, childId);
-    if (!canActivateParent(child, user)) forbid();
-    const guardian = child.guardians?.[guardianIndex];
-    if (!guardian) throw new ApiError(404, 'Không tìm thấy phụ huynh.');
-    if (guardian.accountStatus !== PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION)
-      throw new ApiError(409, 'Chỉ gửi lại được cho tài khoản chưa đổi mật khẩu lần đầu.');
-    return writeDb((d) => {
-      const target = findChild(d, childId).guardians[guardianIndex];
-      const account = d.parentAccounts.find((a) => a.phone === normalizePhone(target.phone));
-      if (!account) throw new ApiError(404, 'Không tìm thấy tài khoản phụ huynh.');
-      const smsStatus = sendCredentials(account);
-      target.smsStatus = smsStatus;
-      target.smsAt = nowIso();
-      return { smsStatus };
-    });
-  },
-
   /* ------------------------------ #33 Child health record ------------------------------ */
   async getHealthRecord(childId, user) {
     await delay(150);
@@ -587,7 +467,7 @@ export const childrenMockRepository = {
       .sort((a, b) => b.date.localeCompare(a.date))
       .map((m) => toMeasurementView(db, m));
     const decl = declarationOf(db, childId);
-    return { child: toView(db, child, user), cls: clone(classOf(db, child)), declaration: clone(decl), measurements };
+    return { child: toView(db, child), cls: clone(classOf(db, child)), declaration: clone(decl), measurements };
   },
 
   /* ------------------------------ #34 Health measurement form ------------------------------ */

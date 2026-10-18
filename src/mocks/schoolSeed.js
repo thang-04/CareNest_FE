@@ -98,7 +98,6 @@ const buildChildren = () => {
             relation: 'Bố',
             phone: `09${pad((n * 37) % 100)} ${pad((n * 53) % 1000, 3)} ${pad((n * 71) % 1000, 3)}`,
             email: `phuhuynh${pad(n, 3)}@example.com`,
-            accountStatus: n % 4 === 0 ? 'NOT_ACTIVATED' : 'ACTIVE',
           },
         ],
       };
@@ -127,7 +126,6 @@ export const buildSeedSchool = () => ({
           relation: 'Mẹ',
           phone: '0987 001 122',
           email: 'phuhuynh901@example.com',
-          accountStatus: 'NOT_ACTIVATED',
         },
       ],
     },

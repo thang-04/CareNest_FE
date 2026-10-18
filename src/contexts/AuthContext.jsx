@@ -66,6 +66,7 @@ export function AuthProvider({ children }) {
       logout,
       refreshUser,
       hasRole: (...roles) => !!user && roles.includes(user.role),
+      hasPermission: (...codes) => !!user && codes.some((code) => (user.permissions || []).includes(code)),
     }),
     [user, status, sessionMessage, login, logout, refreshUser],
   );

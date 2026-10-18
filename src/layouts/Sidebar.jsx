@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { CaretDown, SidebarCollapse, SidebarExpand, X } from '@/components/ui/icons';
 import { Logo } from '@/components/brand/Logo';
+import { useAuth } from '@/contexts/AuthContext';
 import { getMenuForRole } from './menuConfig';
+import { getActiveMenuChild } from './sidebarSelection';
 import { UserMenu } from './UserMenu';
 
 const OPEN_GROUPS_KEY = 'carenest.sidebar.openGroups';
@@ -16,8 +18,6 @@ const iconChip = (item) => {
     </span>
   );
 };
-
-const isActivePath = (pathname, to) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
 
 const readOpenGroups = () => {
   try {
@@ -34,14 +34,16 @@ const readOpenGroups = () => {
  */
 export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, onExpand, onToggle }) {
   const { pathname } = useLocation();
-  const menu = getMenuForRole(role);
+  const { hasPermission } = useAuth();
+  const menu = getMenuForRole(role, hasPermission);
+  const activeChild = getActiveMenuChild(menu, pathname);
+  const activeGroupLabel = menu.find((item) => item.key === activeChild?.groupKey)?.label;
   const [open, setOpen] = useState(readOpenGroups);
 
   // Open the group that contains the current page when navigating.
   useEffect(() => {
-    const group = menu.find((m) => m.children?.some((c) => isActivePath(pathname, c.to)));
-    if (group) setOpen((o) => (o[group.label] ? o : { [group.label]: true }));
-  }, [pathname, menu]);
+    if (activeGroupLabel) setOpen((o) => (o[activeGroupLabel] ? o : { [activeGroupLabel]: true }));
+  }, [pathname, activeGroupLabel]);
 
   useEffect(() => {
     try {
@@ -78,7 +80,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
         </NavLink>
       );
     }
-    const groupActive = item.children.some((c) => isActivePath(pathname, c.to));
+    const groupActive = item.key === activeChild?.groupKey;
     const expanded = !!open[item.label] && !collapsed;
     const subId = `nav-sub-${item.label}`;
     return (
@@ -98,13 +100,14 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
         <div id={subId} className={`nav-sub-wrap ${expanded ? 'nav-sub-wrap--open' : ''}`}>
           <div className="nav-sub" inert={expanded ? undefined : ''}>
             {item.children.map((child) => (
-              <NavLink
+              <Link
                 key={child.label}
                 to={child.to}
-                className={() => `nav-sub__item ${isActivePath(pathname, child.to) ? 'nav-sub__item--active' : ''}`}
+                aria-current={groupActive && child.key === activeChild?.childKey ? 'page' : undefined}
+                className={`nav-sub__item ${groupActive && child.key === activeChild?.childKey ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
-              </NavLink>
+              </Link>
             ))}
           </div>
         </div>
@@ -113,14 +116,15 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
           <div className="nav-flyout" role="menu" aria-label={item.label}>
             <div className="nav-flyout__title">{item.label}</div>
             {item.children.map((child) => (
-              <NavLink
+              <Link
                 key={child.label}
                 to={child.to}
                 role="menuitem"
-                className={() => `nav-sub__item ${isActivePath(pathname, child.to) ? 'nav-sub__item--active' : ''}`}
+                aria-current={groupActive && child.key === activeChild?.childKey ? 'page' : undefined}
+                className={`nav-sub__item ${groupActive && child.key === activeChild?.childKey ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
-              </NavLink>
+              </Link>
             ))}
           </div>
         )}

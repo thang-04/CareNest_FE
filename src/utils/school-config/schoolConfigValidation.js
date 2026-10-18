@@ -91,9 +91,3 @@ export const validateClassTeachers = (form) => {
     e.homeroomTeacherId = 'Giáo viên chủ nhiệm phải nằm trong danh sách giáo viên của lớp';
   return e;
 };
-
-export const validatePermissionChange = (form) => {
-  const e = {};
-  if (!form.reason?.trim()) e.reason = 'Nhập lý do thay đổi quyền';
-  return e;
-};

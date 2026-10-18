@@ -11,6 +11,7 @@ import {
   ClipboardText,
   Star,
   ListChecks,
+  Users,
 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 
@@ -32,6 +33,7 @@ const LINKS = {
 /** Groups: same label + icon for every role. */
 const GROUPS = {
   school: { label: 'Cấu hình trường', icon: CalendarDots },
+  people: { label: 'Con người', icon: Users },
   children: { label: 'Quản lý trẻ', icon: Baby },
   attendance: { label: 'Điểm danh & suất ăn', icon: ClipboardText },
   education: { label: 'Kế hoạch giáo dục', icon: BookOpenText },
@@ -50,12 +52,14 @@ const ITEMS = {
   schoolCampuses: { label: 'Điểm trường', to: '/school/campuses' },
   schoolVps: { label: 'Phân công Phó hiệu trưởng', to: '/school/vice-principals' },
   schoolTeachers: { label: 'Phân công giáo viên', to: '/school/teachers' },
-  schoolRoles: { label: 'Vai trò & quyền', to: '/school/roles' },
+  // permission: mục chỉ hiện khi /accounts/me có một trong các quyền này (BE ADR-0017)
+  peopleHub: { label: 'Nhân sự, phụ huynh & trẻ', to: '/people' },
+  permissions: { label: 'Phân quyền', to: '/permissions', permission: 'PERMISSION_MANAGE' },
 
   childList: { label: 'Danh sách trẻ', to: '/children' },
   childEnroll: { label: 'Tiếp nhận trẻ', to: '/children/new' },
   childPlacement: { label: 'Xếp lớp', to: '/children/placement' },
-  parentActivation: { label: 'Tài khoản phụ huynh', to: '/children/activation' },
+  parentActivation: { label: 'Tài khoản phụ huynh', to: '/children/activation', permission: 'PARENT_ACCOUNT_MANAGE' },
   healthTrends: { label: 'Xu hướng sức khỏe', to: '/children/health-trends' },
 
   attendance: { label: 'Điểm danh & báo ăn', to: '/attendance' },
@@ -86,10 +90,10 @@ const ITEMS = {
   menus: { label: 'Thực đơn mẫu', to: '/menu/menus' },
   weeklyMenus: { label: 'Thực đơn tuần', to: '/menu/weekly' },
 
+  kitchenDay: { label: 'Quy trình bếp hôm nay', to: '/kitchen' },
   publishedMenu: { label: 'Thực đơn đã công bố', to: '/kitchen/published-menu' },
   confirmedMealCount: { label: 'Số suất ăn đã xác nhận', to: '/kitchen/meal-count' },
   forecast: { label: 'Dự trù & đi chợ', to: '/kitchen/forecast' },
-  kitchenDay: { label: 'Quy trình bếp hôm nay', to: '/kitchen' },
   freshReceipts: { label: 'Kiểm nhận hàng tươi', to: '/kitchen/fresh-receipts' },
   foodSamples: { label: 'Sổ lưu mẫu', to: '/kitchen/food-samples' },
   dryStock: { label: 'Kho khô', to: '/kitchen/dry-stock' },
@@ -116,8 +120,9 @@ const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('school', ['schoolYears', 'schoolClasses', 'schoolCutoff', 'schoolCampuses', 'schoolVps', 'schoolRoles']),
-    group('children', ['childList', 'healthTrends']),
+    group('school', ['schoolYears', 'schoolClasses', 'schoolCutoff', 'schoolCampuses']),
+    group('people', ['peopleHub', 'permissions']),
+    group('children', ['healthTrends']),
     group('attendance', ['attendanceSummary', 'mealCount']),
     group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards']),
     group('education', ['eduSchool']),
@@ -140,13 +145,15 @@ const MENUS = {
   [ROLES.VICE_PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('school', ['schoolYears', 'schoolClasses', 'schoolCampuses', 'schoolTeachers']),
-    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthTrends']),
+    group('school', ['schoolYears', 'schoolClasses', 'schoolCampuses']),
+    group('people', ['peopleHub']),
+    group('children', ['childEnroll', 'childPlacement', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'mealCount']),
     group('education', ['eduGoals', 'eduApprovals']),
     group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards']),
     // Thứ tự theo các bước của trang Quy trình
     group('menu', ['menuFlow', 'nutritionSetup', 'foods', 'dishes', 'menus', 'weeklyMenus']),
+    // Thứ tự theo các mốc của trang Quy trình bếp hôm nay
     group('kitchen', [
       'kitchenDay',
       'confirmedMealCount',
@@ -162,7 +169,6 @@ const MENUS = {
     account,
     link('notifications'),
   ],
-  // Thứ tự theo các mốc của trang Quy trình bếp hôm nay
   [ROLES.TEAM_LEADER]: [
     link('home'),
     link('approvals'),
@@ -193,4 +199,12 @@ const MENUS = {
   ],
 };
 
-export const getMenuForRole = (role) => MENUS[role] || [link('home'), account, link('notifications')];
+// permission: một mã hoặc danh sách (có một trong số đó là đủ)
+const allowed = (entry, can) => !entry.permission || [].concat(entry.permission).some((code) => can(code));
+
+/** Menu of a role; items that need a permission are dropped when `can(permission)` is false. */
+export const getMenuForRole = (role, can = () => true) =>
+  (MENUS[role] || [link('home'), account, link('notifications')])
+    .filter((entry) => allowed(entry, can))
+    .map((entry) => (entry.children ? { ...entry, children: entry.children.filter((c) => allowed(c, can)) } : entry))
+    .filter((entry) => !entry.children || entry.children.length > 0);

@@ -66,23 +66,6 @@ export const NUTRITION_STATUS_LABELS = {
   UNAVAILABLE: 'Chưa phân loại được',
 };
 
-/** Parent account state as stored on child.guardians[i].accountStatus. */
-export const PARENT_ACCOUNT_STATUS = {
-  NOT_ACTIVATED: 'NOT_ACTIVATED',
-  PENDING_ACTIVATION: 'PENDING_ACTIVATION',
-  ACTIVE: 'ACTIVE',
-};
-
-export const PARENT_ACCOUNT_STATUS_LABELS = {
-  NOT_ACTIVATED: 'Chưa kích hoạt',
-  PENDING_ACTIVATION: 'Chờ phụ huynh đổi mật khẩu',
-  ACTIVE: 'Đang hoạt động',
-};
-
-export const SMS_STATUS = { SENT: 'SENT', FAILED: 'FAILED' };
-
-export const SMS_STATUS_LABELS = { SENT: 'Đã gửi SMS', FAILED: 'Gửi SMS lỗi' };
-
 export const GUARDIAN_RELATIONS = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Anh/chị', 'Người giám hộ'];
 
 export const AI_TREND_STATUS = { OK: 'OK', NOT_ENOUGH_DATA: 'NOT_ENOUGH_DATA', FAILED: 'FAILED' };

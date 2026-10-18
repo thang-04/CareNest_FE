@@ -21,9 +21,6 @@ export const childrenApi = {
   placeChild: (childId, body) => axiosClient.post(`/children/${childId}/placement`, body),
   saveDeclaration: (childId, body) => axiosClient.put(`/children/${childId}/health-declaration`, body),
   confirmAllergies: (childId) => axiosClient.post(`/children/${childId}/health-declaration/confirm-allergies`),
-  listParentAccounts: (filters) => axiosClient.get('/children/parent-accounts', { params: filters }),
-  activateParentAccount: (childId, guardianIndex) => axiosClient.post(`/children/${childId}/guardians/${guardianIndex}/activate`),
-  resendParentSms: (childId, guardianIndex) => axiosClient.post(`/children/${childId}/guardians/${guardianIndex}/resend-sms`),
   getHealthRecord: (childId) => axiosClient.get(`/children/${childId}/health`),
   saveMeasurement: (childId, measurementId, payload) =>
     measurementId

@@ -6,7 +6,6 @@ import {
   CalendarCheck,
   ChefHat,
   CookingPot,
-  KeyRound,
   ListChecks,
   UserCog,
   UserPlus,
@@ -21,7 +20,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, KpiCard, Shortcuts, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
-import { getChildren, getParentAccounts } from '@/services/children/childrenService';
+import { getChildren } from '@/services/children/childrenService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getFreshReceipt } from '@/services/kitchen/kitchenService';
 import { CHILD_STATUS } from '@/models/School';
@@ -42,7 +41,7 @@ const attendanceOf = (counts = []) => {
 };
 
 const SHORTCUTS = [
-  { to: '/school/teachers', label: 'Phân công giáo viên', icon: UserCog },
+  { to: '/school/staff/assignments', label: 'Phân công theo nơi', icon: UserCog },
   { to: '/education/approvals', label: 'Kế hoạch giáo dục', icon: BookOpenCheck },
   { to: '/approvals', label: 'Chờ duyệt', icon: ListChecks },
   { to: '/facility/issues', label: 'Vận hành điểm trường', icon: Building2 },
@@ -62,7 +61,6 @@ export default function VicePrincipalDashboard() {
   const approvals = usePendingApprovals();
 
   const childrenQ = useWidget((u) => getChildren({ schoolYear }, u), [schoolYear]);
-  const parentsQ = useWidget((u) => getParentAccounts({ status: 'NOT_ACTIVATED' }, u));
   const countsQ = useWidget((u) => getMealCounts({ date }, u), [date]);
   const freshQ = useWidget((u) => getFreshReceipt({ campusId, date }, u), [campusId, date]);
   const freshOdd = freshQ.data ? freshQ.data.lines.length - freshQ.data.counts.OK : 0;
@@ -123,9 +121,9 @@ export default function VicePrincipalDashboard() {
             {!approvals.loading &&
               !approvals.error &&
               !approvals.failed.length &&
-              [childrenQ, parentsQ, freshQ].every((q) => !firstLoad(q) && !q.error) && (
+              [childrenQ, freshQ].every((q) => !firstLoad(q) && !q.error) && (
                 <span className="db-kpis__count">
-                  {[approvals.total, pendingPlacement, (parentsQ.data || []).length, freshOdd].filter((n) => n > 0).length} mục đang có việc
+                  {[approvals.total, pendingPlacement, freshOdd].filter((n) => n > 0).length} mục đang có việc
                 </span>
               )}
             <span className="db-kpis__help">Bấm vào thẻ để mở danh sách</span>
@@ -155,17 +153,6 @@ export default function VicePrincipalDashboard() {
               error={childrenQ.error}
             />
             <KpiCard
-              icon={KeyRound}
-              to="/children/activation"
-              tone="orange"
-              action
-              label="Tài khoản phụ huynh chưa kích hoạt"
-              value={(parentsQ.data || []).length}
-              unit="tài khoản"
-              loading={firstLoad(parentsQ)}
-              error={parentsQ.error}
-            />
-            <KpiCard
               icon={ChefHat}
               to="/kitchen/fresh-receipts"
               tone="red"
@@ -192,13 +179,6 @@ export default function VicePrincipalDashboard() {
                   title: 'Xếp lớp cho trẻ mới tiếp nhận',
                   meta: childrenQ.error ? 'Không tải được danh sách trẻ' : 'Trẻ đã tiếp nhận nhưng chưa có lớp',
                   end: endOf(childrenQ, pendingPlacement),
-                },
-                {
-                  key: 'activation',
-                  to: '/children/activation',
-                  title: 'Kích hoạt tài khoản phụ huynh',
-                  meta: parentsQ.error ? 'Không tải được tài khoản phụ huynh' : 'Phụ huynh chưa nhận được tài khoản đăng nhập',
-                  end: endOf(parentsQ, (parentsQ.data || []).length),
                 },
               ]}
             />

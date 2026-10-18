@@ -7,5 +7,10 @@ export const classCrumbs = crumbs('Nhóm tuổi & lớp', '/school/classes');
 export const cutoffCrumbs = crumbs('Giờ chốt điểm danh', '/school/cutoff');
 export const campusCrumbs = crumbs('Điểm trường', '/school/campuses');
 export const vpCrumbs = crumbs('Phân công Phó hiệu trưởng', '/school/vice-principals');
-export const roleCrumbs = crumbs('Vai trò & quyền', '/school/roles');
+export const staffCrumbs = crumbs('Nhân sự', '/school/staff');
 export const teacherCrumbs = crumbs('Phân công giáo viên', '/school/teachers');
+export const permissionCrumbs = (last) => [
+  { label: 'Trang chủ', to: '/' },
+  { label: 'Phân quyền', to: '/permissions' },
+  ...(last ? [{ label: last }] : []),
+];

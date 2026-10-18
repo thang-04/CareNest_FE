@@ -563,6 +563,10 @@
 .table .right {
   text-align: right;
 }
+.table th.text-right,
+.table td.text-right {
+  text-align: right;
+}
 .table--compact td {
   padding: var(--space-2) var(--space-3);
 }

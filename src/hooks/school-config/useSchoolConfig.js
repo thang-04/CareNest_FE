@@ -4,7 +4,6 @@ import {
   getCampusDetail,
   getCampusesWithStats,
   getCutoffSetting,
-  getRolePermissions,
   getSchoolYearById,
   getSchoolYears,
   getStructure,
@@ -80,10 +79,4 @@ export function useTeacherAssignments(schoolYear, campusId) {
     { refreshOnDataChange: true, enabled: !!schoolYear && !!campusId },
   );
   return { data, loading, error, reload };
-}
-
-export function useRolePermissions({ live = true } = {}) {
-  const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getRolePermissions(user), [user?.id], { refreshOnDataChange: live });
-  return { roles: data || [], loading, error, reload };
 }

@@ -34,6 +34,3 @@ export const saveViceAssignment = (schoolYear, userId, form, user) => repo.saveV
 export const getTeacherAssignments = (filters, user) => repo.getTeacherAssignments(filters, user);
 export const saveClassTeachers = (classId, form, user) => repo.saveClassTeachers(classId, form, user);
 export const saveTeamLeader = (payload, user) => repo.saveTeamLeader(payload, user);
-
-export const getRolePermissions = (user) => repo.getRolePermissions(user);
-export const saveRolePermissions = (role, payload, user) => repo.saveRolePermissions(role, payload, user);

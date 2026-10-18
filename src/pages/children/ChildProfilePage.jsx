@@ -6,19 +6,13 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState } from '@/components/ui/States';
-import { ChildStatusBadge, ParentAccountBadge } from '@/components/children/ChildBadges';
+import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
-import { SMS_STATUS } from '@/models/children/childrenConstants';
 import { avatarTone, formatDate, formatDateTime, initials } from '@/utils/format';
-import {
-  canActivateParent,
-  canDeclareHealth,
-  canEditChild,
-  canPlaceChild,
-  canViewParentAccounts,
-} from '@/utils/children/childrenPermissions';
+import { canDeclareHealth, canEditChild, canPlaceChild } from '@/utils/children/childrenPermissions';
+import { PERMISSIONS } from '@/models/account/permissionConstants';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -32,7 +26,7 @@ const TABS = [
 
 export default function ChildProfilePage() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const md = useMasterData();
   const { detail, loading, error, reload } = useChildDetail(id);
   const child = detail?.child;
@@ -55,8 +49,6 @@ export default function ChildProfilePage() {
     );
 
   const { cls, declaration, placements } = detail;
-  const showAccounts = canViewParentAccounts(user);
-  const hasPendingParent = child.guardians.some((g) => g.accountStatus === 'NOT_ACTIVATED');
 
   return (
     <div className="page">
@@ -158,9 +150,9 @@ export default function ChildProfilePage() {
             <section className="card">
               <div className="card__header row row--between">
                 <h2 className="card__title">Phụ huynh / người giám hộ</h2>
-                {canActivateParent(child, user) && hasPendingParent && (
-                  <Link className="btn btn--sm" to={`/children/activation?childId=${child.id}`}>
-                    <KeyRound size={15} /> Kích hoạt tài khoản
+                {hasPermission(PERMISSIONS.PARENT_ACCOUNT_MANAGE) && (
+                  <Link className="btn btn--sm" to="/children/activation">
+                    <KeyRound size={15} /> Tài khoản phụ huynh
                   </Link>
                 )}
               </div>
@@ -175,7 +167,6 @@ export default function ChildProfilePage() {
                         <th>Quan hệ</th>
                         <th>Số điện thoại</th>
                         <th>Email</th>
-                        {showAccounts && <th>Tài khoản ứng dụng</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -185,14 +176,6 @@ export default function ChildProfilePage() {
                           <td>{g.relation}</td>
                           <td className="nowrap">{g.phone || missing}</td>
                           <td>{g.email || missing}</td>
-                          {showAccounts && (
-                            <td>
-                              <ParentAccountBadge status={g.accountStatus} />
-                              {g.smsStatus === SMS_STATUS.FAILED && (
-                                <div className="text-danger text-xs mt-8">Gửi SMS lỗi – cần gửi lại</div>
-                              )}
-                            </td>
-                          )}
                         </tr>
                       ))}
                     </tbody>

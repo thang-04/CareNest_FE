@@ -1,0 +1,257 @@
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { History, Pencil, Plus, RotateCcw, Search, ShieldCheck } from '@/components/ui/icons';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { PermissionTabs } from '@/components/permissions/PermissionTabs';
+import { OverrideWizardModal } from '@/components/permissions/OverrideWizardModal';
+import { ReasonModal } from '@/components/account/StaffDialogs';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useAccountsWithOverrides } from '@/hooks/account/usePermissions';
+import { updatePermissionOverrides } from '@/services/account/permissionService';
+import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
+import { permissionCrumbs } from '@/utils/school-config/breadcrumbs';
+import { avatarTone, formatDate, initials } from '@/utils/format';
+import '@/styles/modules/staff-hub.css';
+import '@/styles/modules/permissions.css';
+
+const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER'];
+
+export default function UserOverridesPage() {
+  const { user } = useAuth();
+  const toast = useToast();
+
+  const { data: accounts, loading, error, reload } = useAccountsWithOverrides();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [wizardStaff, setWizardStaff] = useState(null); // null = đóng, {} = chọn người mới, staff = sửa người này
+  const [resetStaff, setResetStaff] = useState(null);
+  const [savingReset, setSavingReset] = useState(false);
+
+  const filteredAccounts = useMemo(() => {
+    const list = accounts || [];
+    return list.filter((acc) => {
+      const matchesRole = !roleFilter || acc.role === roleFilter;
+      const matchesSearch =
+        !searchQuery || acc.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) || acc.phone?.includes(searchQuery);
+      return matchesRole && matchesSearch;
+    });
+  }, [accounts, roleFilter, searchQuery]);
+
+  const handleResetConfirm = async (reason) => {
+    if (!resetStaff) return;
+    setSavingReset(true);
+    try {
+      await updatePermissionOverrides(
+        resetStaff.userId,
+        {
+          overrides: [],
+          reason: reason.trim(),
+        },
+        user,
+      );
+      toast.success(`Đã khôi phục toàn bộ quyền của ${resetStaff.fullName} về mặc định vai trò.`);
+      setResetStaff(null);
+      reload({ silent: true });
+    } catch (err) {
+      toast.error(err.message || 'Không thể khôi phục quyền', 'Lỗi khôi phục quyền');
+    } finally {
+      setSavingReset(false);
+    }
+  };
+
+  return (
+    <div className="page">
+      <Breadcrumb items={permissionCrumbs('Quyền ngoại lệ từng người')} />
+      <PermissionTabs />
+
+      <div className="sh-head permission-page-head">
+        <div>
+          <h1>Quyền ngoại lệ từng người</h1>
+          <p className="text-sm text-2">Danh sách nhân sự được cấp thêm (+) hoặc thu hồi (-) quyền đặc thù so với vai trò chuẩn.</p>
+        </div>
+        <div className="sh-head__actions permission-header-actions">
+          <button className="btn btn--primary" type="button" onClick={() => setWizardStaff({})}>
+            <Plus size={16} /> Thêm ngoại lệ cho nhân sự
+          </button>
+          <Link className="btn" to="/permissions/history">
+            <History size={16} /> Lịch sử thay đổi
+          </Link>
+        </div>
+      </div>
+
+      <section className="card">
+        <div className="filter-bar">
+          <div className="search-input-wrap permission-search">
+            <Search size={16} className="search-icon" />
+            <input
+              className="input"
+              type="search"
+              placeholder="Tìm theo họ tên hoặc SĐT nhân sự..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Tìm kiếm nhân sự"
+            />
+          </div>
+          <select className="select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} aria-label="Lọc theo vai trò">
+            <option value="">Tất cả vai trò</option>
+            {CONFIGURABLE_ROLES.map((r) => (
+              <option key={r} value={r}>
+                {PERMISSION_ROLE_LABELS[r]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {error ? (
+          <ErrorState error={error} onRetry={reload} />
+        ) : loading ? (
+          <LoadingState />
+        ) : filteredAccounts.length === 0 ? (
+          <EmptyState
+            icon={ShieldCheck}
+            title={accounts?.length === 0 ? 'Chưa có nhân sự nào có quyền ngoại lệ' : 'Không tìm thấy kết quả phù hợp'}
+            description={
+              accounts?.length === 0
+                ? 'Tất cả nhân sự trong trường đang sử dụng quyền mặc định theo vai trò. Bấm “Thêm ngoại lệ cho nhân sự” để thiết lập quyền riêng.'
+                : 'Thử thay đổi từ khóa tìm kiếm hoặc bỏ bớt bộ lọc.'
+            }
+          />
+        ) : (
+          <div className="table-wrap">
+            <table className="table sh-permission-table">
+              <thead>
+                <tr>
+                  <th>Nhân sự</th>
+                  <th>Vai trò & Nơi làm</th>
+                  <th>Quyền cấp thêm (+)</th>
+                  <th>Quyền thu hồi (-)</th>
+                  <th>Ghi chú / Lý do</th>
+                  <th className="text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAccounts.map((item) => {
+                  const grantOverrides = item.overrides.filter((o) => o.effect === 'GRANT');
+                  const revokeOverrides = item.overrides.filter((o) => o.effect === 'REVOKE');
+                  const campusText = item.campusName || item.assignments?.[0]?.campusName || 'Chưa phân công';
+
+                  return (
+                    <tr key={item.userId}>
+                      <td>
+                        <div className="d-flex align-items-center gap-2">
+                          <span className={`avatar avatar--tone-${avatarTone(item.fullName)}`}>{initials(item.fullName)}</span>
+                          <div>
+                            <strong>{item.fullName}</strong>
+                            {item.phone && <div className="text-xs text-muted">{item.phone}</div>}
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        <StatusBadge tone="teal" label={PERMISSION_ROLE_LABELS[item.role] || item.role} />
+                        <div className="text-xs text-muted mt-1">{campusText}</div>
+                      </td>
+
+                      <td>
+                        {grantOverrides.length > 0 ? (
+                          <div className="permission-override-tags">
+                            {grantOverrides.map((o) => {
+                              const label = PERMISSION_TASKS[o.permission]?.label || o.permission;
+                              return (
+                                <span key={o.permission} title={label}>
+                                  <StatusBadge tone="green" label={`+ ${label}`} />
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-muted text-xs">—</span>
+                        )}
+                      </td>
+
+                      <td>
+                        {revokeOverrides.length > 0 ? (
+                          <div className="permission-override-tags">
+                            {revokeOverrides.map((o) => {
+                              const label = PERMISSION_TASKS[o.permission]?.label || o.permission;
+                              return (
+                                <span key={o.permission} title={label}>
+                                  <StatusBadge tone="orange" label={`− ${label}`} />
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-muted text-xs">—</span>
+                        )}
+                      </td>
+
+                      <td>
+                        <div className="text-sm">{item.overrides[0]?.reason || 'Không có ghi chú'}</div>
+                        {item.overrides[0]?.updatedAt && (
+                          <div className="text-xs text-muted">Cập nhật: {formatDate(item.overrides[0].updatedAt)}</div>
+                        )}
+                      </td>
+
+                      <td className="text-right">
+                        <div className="permission-row-actions">
+                          <button
+                            className="btn btn--sm"
+                            type="button"
+                            onClick={() => setWizardStaff(item)}
+                            title="Chỉnh sửa quyền ngoại lệ"
+                          >
+                            <Pencil size={14} /> Sửa
+                          </button>
+                          <button
+                            className="btn btn--sm btn--subtle"
+                            type="button"
+                            onClick={() => setResetStaff(item)}
+                            title="Khôi phục quyền mặc định theo vai trò"
+                          >
+                            <RotateCcw size={14} /> Đặt lại
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Modal Wizard: Tạo mới hoặc chỉnh sửa ngoại lệ */}
+      {wizardStaff && (
+        <OverrideWizardModal
+          open
+          initialStaff={wizardStaff.userId ? wizardStaff : null}
+          onClose={() => setWizardStaff(null)}
+          onSaved={() => {
+            setWizardStaff(null);
+            reload({ silent: true });
+          }}
+        />
+      )}
+
+      {/* Modal xác nhận đặt lại về mặc định */}
+      {resetStaff && (
+        <ReasonModal
+          title={`Đặt lại quyền theo vai trò cho ${resetStaff.fullName}?`}
+          changes={resetStaff.overrides.map((o) => {
+            const task = PERMISSION_TASKS[o.permission];
+            return `Khôi phục “${task?.label || o.permission}” về mặc định theo vai trò`;
+          })}
+          saving={savingReset}
+          onClose={() => setResetStaff(null)}
+          onSubmit={handleResetConfirm}
+        />
+      )}
+    </div>
+  );
+}

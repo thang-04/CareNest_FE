@@ -1,10 +1,9 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded, visibleClasses } from '@/mocks/schoolMockRepository';
 import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { ROLES } from '@/models/User';
-import { YEAR_STATUS, CONFIG_ROLES, PERMISSION_LEVEL, CONFIG_ROLE_LABELS } from '@/models/school-config/schoolConfigConstants';
-import { PERMISSION_CATALOG, defaultGrants, isLockedGrant } from '@/models/school-config/permissionCatalog';
+import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { uid } from '@/utils/id';
 import {
   canAssignTeachers,
@@ -13,7 +12,6 @@ import {
   canConfigureSchool,
   canListCampuses,
   canManageCampus,
-  canManageRolePermissions,
   canViewCampus,
   canViewSchoolStructure,
   isPrincipal,
@@ -26,7 +24,6 @@ import {
   validateClass,
   validateClassTeachers,
   validateCutoff,
-  validatePermissionChange,
   validateSchoolYear,
   validateVpAssignment,
 } from '@/utils/school-config/schoolConfigValidation';
@@ -37,10 +34,10 @@ import {
  * - class names unique per year + campus; records in use are never deleted (MSG53);
  * - exactly one main campus; VP / teacher / team-leader assignments are per school year (GBR-GEN-03);
  * - one VP holds the shared-service responsibility (GBR-GEN-10);
- * - cutoff and permission changes keep editor, time and previous value (GBR-CFG-03, GBR-GEN-06).
+ * - cutoff changes keep editor, time and previous value (GBR-CFG-03, GBR-GEN-06).
  */
 
-const COLLECTIONS = ['schoolYears', 'ageGroups', 'cutoffSettings', 'vpAssignments', 'teamLeaderAssignments', 'rolePermissions'];
+const COLLECTIONS = ['schoolYears', 'ageGroups', 'cutoffSettings', 'vpAssignments', 'teamLeaderAssignments'];
 const TEACHING_ROLES = [ROLES.TEACHER, ROLES.TEAM_LEADER];
 
 const forbid = () => new ApiError(403, 'Bạn không có quyền thực hiện thao tác này');
@@ -51,9 +48,7 @@ const now = () => new Date().toISOString();
 
 const ensure = (db) => {
   const seed = buildSeedSchoolConfig();
-  COLLECTIONS.forEach((key) => {
-    db[key] ||= clone(seed[key]);
-  });
+  applyMockSeedMigration(db, 'school-config', 1, Object.fromEntries(COLLECTIONS.map((key) => [key, seed[key]])));
   // Seed campuses have no main flag yet: the first campus is the main campus.
   if (db.campuses?.length && !db.campuses.some((c) => c.isMain)) db.campuses[0].isMain = true;
   return db;
@@ -62,7 +57,8 @@ const ensure = (db) => {
 const seeded = () => {
   ensureSchoolSeeded();
   const db = readDb();
-  if (COLLECTIONS.some((k) => !db[k]) || (db.campuses?.length && !db.campuses.some((c) => c.isMain))) writeDb(ensure);
+  if (needsMockSeedMigration(db, 'school-config', 1, COLLECTIONS) || (db.campuses?.length && !db.campuses.some((c) => c.isMain)))
+    writeDb(ensure);
   return readDb();
 };
 
@@ -78,7 +74,6 @@ const assertOpenYear = (year) => {
 
 const sortYears = (list) => [...list].sort((a, b) => b.startDate.localeCompare(a.startDate));
 const childCountOf = (db, classId) => (db.children || []).filter((ch) => ch.classId === classId && ch.status !== 'LEFT').length;
-const userName = (db, id) => db.users.find((u) => u.id === id)?.fullName || '';
 
 /** Apply the assignments of the active year to the user accounts (what the system "grants"). */
 const syncAssignments = (db, yearId) => {
@@ -583,49 +578,6 @@ export const schoolConfigMockRepository = {
       }
       syncAssignments(db, schoolYear);
       return clone(created);
-    });
-  },
-
-  /* ---------------- Roles & permissions (#24, #25) ---------------- */
-  async getRolePermissions(user) {
-    await delay(100);
-    if (!canManageRolePermissions(user)) throw forbid();
-    const db = seeded();
-    return clone(
-      CONFIG_ROLES.map((role) => {
-        const entry = db.rolePermissions.find((r) => r.role === role) || { role, grants: defaultGrants(role), history: [] };
-        const userCount = db.users.filter((u) => u.role === role).length;
-        return { ...entry, userCount, history: entry.history.map((h) => ({ ...h, userName: userName(db, h.userId) })) };
-      }),
-    );
-  },
-
-  async saveRolePermissions(role, { grants, reason }, user) {
-    await delay();
-    if (!canManageRolePermissions(user)) throw forbid();
-    if (!CONFIG_ROLES.includes(role)) throw notFound('vai trò');
-    seeded();
-    return writeDb((db) => {
-      const errors = validatePermissionChange({ reason });
-      if (hasErrors(errors)) throw invalid(errors);
-      let entry = db.rolePermissions.find((r) => r.role === role);
-      if (!entry) {
-        entry = { role, grants: defaultGrants(role), history: [] };
-        db.rolePermissions.push(entry);
-      }
-      const levels = Object.values(PERMISSION_LEVEL);
-      const changes = PERMISSION_CATALOG.filter((p) => grants[p.code] && grants[p.code] !== entry.grants[p.code]).map((p) => ({
-        code: p.code,
-        from: entry.grants[p.code] || PERMISSION_LEVEL.NONE,
-        to: grants[p.code],
-      }));
-      if (changes.some((c) => !levels.includes(c.to))) throw new ApiError(422, 'Mức quyền không hợp lệ');
-      if (changes.some((c) => isLockedGrant(role, c.code)))
-        throw new ApiError(422, `${CONFIG_ROLE_LABELS[role]} phải giữ quyền quản lý phân quyền`);
-      if (!changes.length) throw new ApiError(422, 'Chưa có thay đổi nào để lưu');
-      changes.forEach((c) => (entry.grants[c.code] = c.to));
-      entry.history.unshift({ userId: user.id, at: now(), reason: reason.trim(), changes });
-      return clone(entry);
     });
   },
 };

@@ -1,23 +1,20 @@
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowSquareOut, Heartbeat } from '@/components/ui/icons';
-import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { LoadingState } from '@/components/ui/States';
-import { ChildStatusBadge, ParentAccountBadge } from '@/components/children/ChildBadges';
+import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
-import { canViewParentAccounts } from '@/utils/children/childrenPermissions';
 import { avatarTone, formatDate, formatDateTime, initials } from '@/utils/format';
 
 const missing = <span className="muted">Chưa có thông tin</span>;
 
 /** Xem nhanh đầy đủ hồ sơ trẻ từ danh sách (đọc cùng API với trang hồ sơ); sửa / chuyển lớp vẫn ở trang riêng. */
 export function ChildQuickPanel({ childId: current, onClose }) {
-  const { user } = useAuth();
   const md = useMasterData();
   // Giữ mã trẻ vừa xem để panel còn nội dung trong lúc trượt ra
   const last = useRef(current);
@@ -123,11 +120,6 @@ export function ChildQuickPanel({ childId: current, onClose }) {
                     {g.phone || missing}
                     {g.email ? ` · ${g.email}` : ''}
                   </span>
-                  {canViewParentAccounts(user) && (
-                    <span>
-                      <ParentAccountBadge status={g.accountStatus} />
-                    </span>
-                  )}
                 </div>
               ))
             )}

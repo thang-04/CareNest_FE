@@ -11,7 +11,7 @@ const MAX_GUARDIANS = 3;
  * Child identity + parents / guardians block (enrollment step 1 and profile edit).
  * value: { fullName, dateOfBirth, gender, guardians[] }; errors keyed like 'guardians.0.phone'.
  */
-export function ChildInfoFields({ value, onChange, errors = {}, onBlurField, lockedGuardianPhones = [] }) {
+export function ChildInfoFields({ value, onChange, errors = {}, onBlurField }) {
   const set = (field, v) => onChange({ ...value, [field]: v });
   const setGuardian = (i, field, v) =>
     set(
@@ -78,12 +78,11 @@ export function ChildInfoFields({ value, onChange, errors = {}, onBlurField, loc
       )}
       <div className="stack" style={{ gap: 12 }}>
         {value.guardians.map((g, i) => {
-          const locked = lockedGuardianPhones.includes(g.phone);
           return (
             <div key={i} className="tr-guardian">
               <div className="tr-guardian__head">
                 <span className="fw-600">Phụ huynh {i + 1}</span>
-                {value.guardians.length > 1 && !locked && (
+                {value.guardians.length > 1 && (
                   <button
                     type="button"
                     className="icon-btn"
@@ -123,14 +122,13 @@ export function ChildInfoFields({ value, onChange, errors = {}, onBlurField, loc
                   label="Số điện thoại"
                   required
                   error={errors[`guardians.${i}.phone`]}
-                  hint={locked ? 'Đã có tài khoản – không đổi được số đăng nhập' : 'Dùng làm tên đăng nhập, nhận mật khẩu qua SMS'}
+                  hint="Số liên lạc. Tài khoản ứng dụng cấp ở màn Tài khoản phụ huynh"
                 >
                   <input
                     className="input"
                     inputMode="tel"
                     placeholder="0912 345 678"
                     value={g.phone}
-                    disabled={locked}
                     onChange={(e) => setGuardian(i, 'phone', e.target.value)}
                     onBlur={() => onBlurField?.(`guardians.${i}.phone`)}
                   />

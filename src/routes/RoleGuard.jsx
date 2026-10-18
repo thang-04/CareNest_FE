@@ -7,8 +7,8 @@ const DEFAULT_DESCRIPTION = 'Chức năng này chỉ dành cho Phó hiệu trư�
 
 /** Renders children only for allowed roles. */
 export function RoleGuard({ roles, children, description = DEFAULT_DESCRIPTION }) {
-  const { user } = useAuth();
-  if (roles.includes(user.role)) return children;
+  const { hasRole } = useAuth();
+  if (hasRole(...roles)) return children;
   return (
     <div className="page">
       <div className="card mt-24">

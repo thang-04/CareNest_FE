@@ -34,7 +34,4 @@ export const schoolConfigApi = {
   getTeacherAssignments: (filters) => axiosClient.get('/teacher-assignments', { params: filters }),
   saveClassTeachers: (classId, form) => axiosClient.put(`/classes/${classId}/teachers`, form),
   saveTeamLeader: (payload) => axiosClient.put('/team-leader-assignments', payload),
-
-  getRolePermissions: () => axiosClient.get('/role-permissions'),
-  saveRolePermissions: (role, payload) => axiosClient.put(`/role-permissions/${role}`, payload),
 };

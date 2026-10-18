@@ -65,34 +65,8 @@ const buildDeclarations = (children) =>
     history: [],
   }));
 
-const buildParentAccounts = (children) => {
-  const accounts = [];
-  children.forEach((ch) =>
-    (ch.guardians || []).forEach((g) => {
-      if (g.accountStatus !== 'ACTIVE') return;
-      const phone = g.phone.replace(/\s/g, '');
-      const existing = accounts.find((a) => a.phone === phone);
-      if (existing) existing.childIds.push(ch.id);
-      else
-        accounts.push({
-          id: `pa_${ch.id}`,
-          username: phone,
-          phone,
-          email: g.email || '',
-          fullName: g.fullName,
-          status: 'ACTIVE',
-          childIds: [ch.id],
-          createdAt: '2026-08-16T02:00:00.000Z',
-          sms: [{ at: '2026-08-16T02:00:00.000Z', status: 'SENT' }],
-        });
-    }),
-  );
-  return accounts;
-};
-
 export const buildSeedChildRecords = ({ children = [], classes = [] }) => ({
   healthMeasurements: buildMeasurements(children, classes),
   healthDeclarations: buildDeclarations(children),
-  parentAccounts: buildParentAccounts(children),
   childPlacements: [],
 });

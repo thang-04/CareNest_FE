@@ -37,9 +37,9 @@ keywords:
   "đăng nhập|login|logout|token|session|refresh":
     {be_module_card: ../CareNest_BE/docs/modules/identity-access.md, fe_docs: [docs/integration/AUTH_FLOW.md, docs/integration/BACKEND_INTEGRATION.md]}
   "role|permission|phân quyền|scope|403|ẩn nút|guard|tài khoản|account":
-    {be_module_card: ../CareNest_BE/docs/modules/identity-access.md, fe_docs: [docs/integration/BACKEND_INTEGRATION.md, docs/architecture/ROUTE_MAP.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/identity-access.md, fe_docs: [docs/features/people-management.md, docs/integration/BACKEND_INTEGRATION.md, docs/architecture/ROUTE_MAP.md]}
   "điểm trường|campus|lớp|classroom|năm học|phân công|assignment|hiệu phó|hiệu trưởng":
-    {be_module_card: ../CareNest_BE/docs/modules/school-structure.md, fe_docs: [docs/architecture/ROUTE_MAP.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/school-structure.md, fe_docs: [docs/features/people-management.md, docs/architecture/ROUTE_MAP.md]}
   "thông báo|notification":
     {be_module_card: ../CareNest_BE/docs/modules/notification.md, fe_docs: [docs/features/README.md]}
   "audit|nhật ký|lịch sử thay đổi":
@@ -51,7 +51,7 @@ keywords:
   "api|endpoint|error code|lỗi api|pagination|problem detail|fetch|request|swagger|openapi":
     {be_module_card: null, fe_docs: [docs/integration/BACKEND_INTEGRATION.md, ../CareNest_BE/docs/contracts/API_CONVENTIONS.md, ../CareNest_BE/docs/contracts/ERROR_CONTRACT.md]}
   "phụ huynh|parent":
-    {be_module_card: null, fe_docs: []}   # màn hình thuộc CareNest_APP, không thuộc Web
+    {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/people-management.md, docs/architecture/ROUTE_MAP.md]}   # Web quản lý tài khoản gắn trẻ; APP là client phụ huynh
   "bếp|kitchen staff":
     {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/architecture/ROUTE_MAP.md]}   # Kitchen trên Web: chỉ khi được yêu cầu (../CareNest_BE/docs/business/USER_ROLES.md)
 
@@ -82,6 +82,7 @@ available:
     - docs/architecture/ROUTE_MAP.md
     - docs/features/README.md
     - docs/integration/BACKEND_INTEGRATION.md
+    - docs/features/people-management.md
     - docs/knowledge/ISSUE_INDEX.md
     - docs/knowledge/KNOWN_ISSUES.md
     - docs/knowledge/TROUBLESHOOTING.md

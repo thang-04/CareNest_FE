@@ -2,8 +2,11 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { MainLayout } from '@/layouts/MainLayout';
 import { RoleGuard } from './RoleGuard';
+import { PermissionGuard } from './PermissionGuard';
 import { ProtectedRoute, GuestRoute } from './ProtectedRoute';
 import { LoadingState } from '@/components/ui/States';
+import { useAuth } from '@/contexts/AuthContext';
+import { peopleLandingPath } from '@/utils/account/peopleNavigation';
 
 /** Màn gợi ý AI cũ: gợi ý ngày → AI soạn mẫu; gợi ý tuần → trang thực đơn tuần. */
 function LegacyAiRedirect() {
@@ -17,7 +20,19 @@ function LegacyWeeklyRedirect() {
   const { search } = useLocation();
   return <Navigate to={id ? `/menu/weekly?id=${id}` : `/menu/weekly${search}`} replace />;
 }
+
+/** Ngoại lệ quyền theo người giờ nằm trong tờ của người đó ở Nhân sự & quyền. */
+function StaffRedirect() {
+  const { userId } = useParams();
+  return <Navigate to={`/school/staff/${userId}`} replace />;
+}
+
+function PeopleRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={peopleLandingPath(user)} replace />;
+}
 import { ROLES } from '@/models/User';
+import { PERMISSIONS, STAFF_MANAGEMENT_PERMISSIONS } from '@/models/account/permissionConstants';
 import HomePage from '@/pages/HomePage';
 import ComingSoonPage from '@/pages/ComingSoonPage';
 import NotificationsPage from '@/pages/NotificationsPage';
@@ -89,8 +104,12 @@ const CampusListPage = lazy(() => import('@/pages/school-config/CampusListPage')
 const CampusFormPage = lazy(() => import('@/pages/school-config/CampusFormPage'));
 const CampusDetailPage = lazy(() => import('@/pages/school-config/CampusDetailPage'));
 const VicePrincipalAssignmentPage = lazy(() => import('@/pages/school-config/VicePrincipalAssignmentPage'));
-const RolePermissionListPage = lazy(() => import('@/pages/school-config/RolePermissionListPage'));
-const RolePermissionFormPage = lazy(() => import('@/pages/school-config/RolePermissionFormPage'));
+const RoleDefaultsPage = lazy(() => import('@/pages/school-config/RoleDefaultsPage'));
+const PermissionHistoryPage = lazy(() => import('@/pages/school-config/PermissionHistoryPage'));
+const UserOverridesPage = lazy(() => import('@/pages/permissions/UserOverridesPage'));
+const StaffHubPage = lazy(() => import('@/pages/school-config/StaffHubPage'));
+const StaffRosterPage = lazy(() => import('@/pages/school-config/StaffRosterPage'));
+const StaffFormPage = lazy(() => import('@/pages/school-config/StaffFormPage'));
 const TeacherAssignmentPage = lazy(() => import('@/pages/school-config/TeacherAssignmentPage'));
 
 const ChildrenListPage = lazy(() => import('@/pages/children/ChildrenListPage'));
@@ -170,6 +189,14 @@ const only = (roles, page) => (
     {page}
   </RoleGuard>
 );
+/** Phân quyền: theo quyền PERMISSION_MANAGE BE trả về (chỉ Hiệu trưởng — BE AUTH-11), không theo role. */
+const manage = (page) => (
+  <PermissionGuard permissions={[PERMISSIONS.PERMISSION_MANAGE]} description="Chỉ Hiệu trưởng được xem và thay đổi phân quyền.">
+    {page}
+  </PermissionGuard>
+);
+/** Nhân sự: theo quyền quản lý tài khoản/phân công (BE AUTH-15..17). */
+const staff = (page, permissions = STAFF_MANAGEMENT_PERMISSIONS) => <PermissionGuard permissions={permissions}>{page}</PermissionGuard>;
 const EDU_VP_TL = [ROLES.VICE_PRINCIPAL, ROLES.TEAM_LEADER];
 const EDU_TL = [ROLES.TEAM_LEADER];
 const EDU_CLASS = [ROLES.TEAM_LEADER, ROLES.TEACHER];
@@ -209,6 +236,13 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route index element={<HomePage />} />
+          <Route path="people" element={<PeopleRedirect />} />
+          <Route path="permissions">
+            <Route index element={manage(<RoleDefaultsPage />)} />
+            <Route path="roles" element={<Navigate to="/permissions" replace />} />
+            <Route path="overrides" element={manage(<UserOverridesPage />)} />
+            <Route path="history" element={manage(<PermissionHistoryPage />)} />
+          </Route>
           <Route path="facility/transfers">
             <Route index element={<TransferListPage />} />
             <Route
@@ -294,8 +328,15 @@ export function AppRoutes() {
             <Route path="campuses/:id" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <CampusDetailPage />)} />
             <Route path="campuses/:id/edit" element={only([R.PRINCIPAL], <CampusFormPage />)} />
             <Route path="vice-principals" element={only([R.PRINCIPAL], <VicePrincipalAssignmentPage />)} />
-            <Route path="roles" element={only([R.PRINCIPAL], <RolePermissionListPage />)} />
-            <Route path="roles/:role" element={only([R.PRINCIPAL], <RolePermissionFormPage />)} />
+            <Route path="staff" element={staff(<StaffHubPage />)} />
+            <Route path="staff/assignments" element={staff(<StaffRosterPage />, [PERMISSIONS.STAFF_ASSIGNMENT_MANAGE])} />
+            <Route path="staff/new" element={staff(<StaffFormPage />, [PERMISSIONS.ACCOUNT_MANAGE])} />
+            <Route path="staff/:userId" element={staff(<StaffHubPage />)} />
+            <Route path="roles" element={<Navigate to="/permissions" replace />} />
+            <Route path="roles/history" element={<Navigate to="/permissions/history" replace />} />
+            <Route path="roles/users" element={<Navigate to="/permissions/overrides" replace />} />
+            <Route path="roles/users/:userId" element={<StaffRedirect />} />
+            <Route path="roles/:role" element={<Navigate to="/permissions" replace />} />
             <Route path="teachers" element={only([R.VICE_PRINCIPAL], <TeacherAssignmentPage />)} />
           </Route>
           <Route path="children">
@@ -303,7 +344,7 @@ export function AppRoutes() {
             <Route path="new" element={only(VP_ONLY, <EnrollChildPage />)} />
             <Route path="import" element={only(VP_ONLY, <ImportChildrenPage />)} />
             <Route path="placement" element={only(VP_ONLY, <ClassPlacementPage />)} />
-            <Route path="activation" element={only(VP_ONLY, <ParentActivationPage />)} />
+            <Route path="activation" element={staff(<ParentActivationPage />, [PERMISSIONS.PARENT_ACCOUNT_MANAGE])} />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
             <Route path=":id" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildProfilePage />)} />
             <Route path=":id/edit" element={only(VP_ONLY, <EditChildPage />)} />

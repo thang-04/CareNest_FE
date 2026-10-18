@@ -10,7 +10,6 @@ import { FormField } from '@/components/form/FormField';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { updateChild } from '@/services/children/childrenService';
-import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { hasErrors, validateChildInfo } from '@/utils/children/childrenValidation';
 import { canEditChild } from '@/utils/children/childrenPermissions';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
@@ -71,10 +70,6 @@ export default function EditChildPage() {
       </div>
     );
 
-  const lockedPhones = child.guardians
-    .filter((g) => g.accountStatus && g.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED)
-    .map((g) => g.phone);
-
   const save = async () => {
     const errs = validateChildInfo(form);
     if (!reason.trim()) errs.reason = 'Nhập lý do chỉnh sửa hồ sơ';
@@ -106,7 +101,6 @@ export default function EditChildPage() {
             setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k === 'reason' || now[k])));
           }}
           errors={errors}
-          lockedGuardianPhones={lockedPhones}
         />
       </section>
       <section className="card wizard-card">

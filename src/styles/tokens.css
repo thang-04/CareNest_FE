@@ -348,6 +348,19 @@
 
   --header-height: 64px;
   --page-padding: var(--space-5);
+  --people-tabs-gap: var(--space-2);
+  --people-tabs-padding-block: var(--space-3);
+  --people-tabs-padding-inline: var(--space-4);
+  --people-tabs-margin-bottom: var(--space-5);
+  --people-tabs-indicator-width: 3px;
+  --staff-directory-gap: var(--space-2);
+  --staff-search-min-width: 220px;
+  --staff-filter-min-width: 160px;
+  --staff-table-min-width: 720px;
+  --staff-permission-table-min-width: 880px;
+  --role-permission-matrix-min-width: 760px;
+  --role-permission-save-min-width: 280px;
+  --staff-roster-table-min-width: 650px;
 
   /* ===================== LEGACY ALIASES (v1 names) ===================== */
   /* Keep: hundreds of rules reference these. New code should use the semantic names above. */

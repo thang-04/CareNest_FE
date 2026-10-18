@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Plus, Search } from '@/components/ui/icons';
+import { useAuth } from '@/contexts/AuthContext';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { getMenuForRole } from './menuConfig';
 import { getQuickActionsForRole } from './quickActions';
@@ -23,9 +24,9 @@ function Highlight({ text, query }) {
 }
 
 /** Danh sách mục tìm được: chức năng trong menu của vai trò + thao tác tạo nhanh. Không gọi BE. */
-function buildIndex(role) {
+function buildIndex(role, can) {
   const pages = [];
-  getMenuForRole(role).forEach((entry) => {
+  getMenuForRole(role, can).forEach((entry) => {
     if (entry.to) pages.push({ label: entry.label, to: entry.to, group: 'Trang chính', icon: entry.icon });
     (entry.children || []).forEach((c) => pages.push({ label: c.label, to: c.to, group: entry.label, icon: entry.icon }));
   });
@@ -45,7 +46,8 @@ export function HeaderSearch({ role }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
-  const index = useMemo(() => buildIndex(role), [role]);
+  const { hasPermission } = useAuth();
+  const index = useMemo(() => buildIndex(role, hasPermission), [role, hasPermission]);
 
   const results = useMemo(() => {
     const q = fold(query.trim());

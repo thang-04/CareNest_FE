@@ -162,7 +162,7 @@ export default function EnrollChildPage() {
               Đã tiếp nhận {saved.fullName} vào {saved.className}
             </div>
             <div className="muted" style={{ maxWidth: 480 }}>
-              Mã trẻ <b>{saved.code}</b>. Bước tiếp theo: kích hoạt tài khoản để phụ huynh nhận tên đăng nhập và mật khẩu qua SMS.
+              Mã trẻ <b>{saved.code}</b>. Bước tiếp theo: cấp tài khoản phụ huynh và in phiếu mật khẩu tạm giao cho phụ huynh.
             </div>
             <div className="row row--wrap mt-12" style={{ gap: 8, justifyContent: 'center' }}>
               <button
@@ -182,8 +182,8 @@ export default function EnrollChildPage() {
               <Link className="btn" to={`/children/${saved.id}`}>
                 <Eye size={16} /> Xem hồ sơ
               </Link>
-              <Link className="btn btn--primary" to={`/children/activation?childId=${saved.id}`}>
-                <KeyRound size={16} /> Kích hoạt tài khoản phụ huynh
+              <Link className="btn btn--primary" to="/children/activation">
+                <KeyRound size={16} /> Cấp tài khoản phụ huynh
               </Link>
             </div>
           </div>

@@ -29,9 +29,6 @@ export const canViewChild = (child, user, cls) => {
 
 export const canViewHealth = canViewChild;
 
-/** Account details (username, SMS) are only for the enrolling management roles. */
-export const canViewParentAccounts = (user) => isPrincipal(user) || isVicePrincipal(user);
-
 /* ---- Vice Principal of the child's campus (UC 3.8, 3.9, 3.10, 5.2) ---- */
 export const canEnrollChild = (user) => isVicePrincipal(user);
 
@@ -40,7 +37,6 @@ const vpOfCampus = (child, user) => isVicePrincipal(user) && !!child && child.ca
 export const canEditChild = (child, user) => vpOfCampus(child, user) && child.status !== CHILD_STATUS.LEFT;
 export const canPlaceChild = canEditChild;
 export const canDeclareHealth = canEditChild;
-export const canActivateParent = canEditChild;
 
 /** Food allergies are confirmed only by the Principal (GBR-HLT-03, data rule "Allergies are confirmed by the Principal"). */
 export const canConfirmAllergies = (child, user) => isPrincipal(user) && !!child && child.status !== CHILD_STATUS.LEFT;

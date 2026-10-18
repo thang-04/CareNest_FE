@@ -1,5 +1,6 @@
 import { readDb, writeDb, clone, delay, ApiError } from './mockDatabase';
 import { uid } from '@/utils/id';
+import { effectivePermissionsOf } from '@/services/account/mock/permissionMockRepository';
 
 /*
  * Fake auth server. Behaves like the Spring Boot endpoints:
@@ -33,7 +34,8 @@ const issueToken = (user, remember) => {
 
 const publicUser = (u) => {
   const { password: _password, ...rest } = u; // carenest:allow-secret – tên field, không phải giá trị bí mật
-  return clone(rest);
+  // Giống /accounts/me: kèm quyền hiệu lực để menu/route ẩn hiện theo quyền
+  return clone({ ...rest, permissions: effectivePermissionsOf(readDb(), u) });
 };
 
 const pad = (n) => String(n).padStart(2, '0');

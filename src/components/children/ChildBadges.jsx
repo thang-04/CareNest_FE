@@ -1,7 +1,7 @@
-import { CheckCircle2, Clock, UserX, AlertTriangle, MinusCircle, KeyRound, UserCheck, UserPlus } from '@/components/ui/icons';
+import { CheckCircle2, Clock, UserX, AlertTriangle, MinusCircle } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { CHILD_STATUS_LABELS } from '@/models/School';
-import { NUTRITION_STATUS_LABELS, PARENT_ACCOUNT_STATUS_LABELS } from '@/models/children/childrenConstants';
+import { NUTRITION_STATUS_LABELS } from '@/models/children/childrenConstants';
 
 /* Tones follow DESIGN.md §3.2. */
 export const ChildStatusBadge = createStatusBadge(
@@ -22,13 +22,4 @@ export const NutritionBadge = createStatusBadge(
     UNAVAILABLE: ['gray', MinusCircle],
   },
   NUTRITION_STATUS_LABELS,
-);
-
-export const ParentAccountBadge = createStatusBadge(
-  {
-    NOT_ACTIVATED: ['gray', UserPlus],
-    PENDING_ACTIVATION: ['orange', KeyRound],
-    ACTIVE: ['green', UserCheck],
-  },
-  PARENT_ACCOUNT_STATUS_LABELS,
 );

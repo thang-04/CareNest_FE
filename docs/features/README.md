@@ -16,7 +16,7 @@ File này **không chứa business rule**. Rule, flow, PENDING nằm ở BE modu
 | Quan sát hằng ngày; summary; hồ sơ phát triển | Teacher: Quan sát, Review summary · BGH: Summary & hồ sơ phát triển | `BE:docs/modules/learning-observation.md` | `BE:docs/business/flows/child-observation.md` | OBS, AI |
 | Báo & theo dõi sự cố CSVC | Teacher: Báo sự cố · BGH: Theo dõi sự cố | `BE:docs/modules/facility-issue.md` | `BE:docs/business/flows/facility-issue.md` | FAC |
 | Báo cáo lớp/campus/trường | BGH: Dashboard báo cáo | `BE:docs/modules/reporting.md` | — | AUTH-08 |
-| Tài khoản, phân quyền, phân công | Admin: Tài khoản, Role, Phân công | `BE:docs/modules/identity-access.md`, `BE:docs/modules/school-structure.md` | — | AUTH |
+| Tài khoản, phân quyền, phân công | HT/PHT: [Nhân sự, Phụ huynh, Trẻ](people-management.md) theo quyền BE; Admin quản trị kỹ thuật riêng | `BE:docs/modules/identity-access.md`, `BE:docs/modules/school-structure.md`, `BE:docs/modules/child.md` | — | AUTH |
 | Hồ sơ trẻ, ghi danh, dị ứng | (màn hình Web chưa xác định — hỏi) | `BE:docs/modules/child.md` | — | AUTH-04, HLT-06 |
 | Ngữ cảnh hoạt động/học tập | **Không làm** — OPEN (ADR-0006) | `BE:docs/modules/learning-observation.md` | — | OBS-07 |
 
