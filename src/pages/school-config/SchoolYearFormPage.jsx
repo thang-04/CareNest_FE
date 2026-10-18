@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Info, Shapes, UserCog } from '@/components/ui/icons';
+import { ArrowLeft, Save, Shapes, UserCog } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -139,12 +139,6 @@ function YearForm({ year, years, user }) {
             />
           </FormField>
         </div>
-        {!year && (
-          <div className="alert alert--info mt-16">
-            <Info size={18} />
-            <div>Năm học mới được lưu ở trạng thái Sắp diễn ra. Kích hoạt ở danh sách năm học khi bắt đầu năm học.</div>
-          </div>
-        )}
       </section>
 
       {!year && (
@@ -177,13 +171,6 @@ function YearForm({ year, years, user }) {
             <input type="checkbox" checked={openVp} onChange={(e) => setOpenVp(e.target.checked)} />
             Mở màn Phân công Phó hiệu trưởng sau khi lưu
           </label>
-          <div className="alert alert--info mt-12">
-            <Info size={18} />
-            <div>
-              Chỉ sao chép tên lớp, nhóm tuổi, điểm trường, phòng học và sĩ số; không sao chép giáo viên và trẻ. Phân công Phó hiệu trưởng,
-              giáo viên và tổ trưởng chỉ có hiệu lực trong một năm học: năm học mới cần phân công lại.
-            </div>
-          </div>
         </section>
       )}
 

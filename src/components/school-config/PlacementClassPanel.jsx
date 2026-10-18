@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -191,7 +192,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
       )}
 
       <div className="sc-plc__table">
-        <table className="table table--compact">
+        <table className="table table--grid table--compact">
           <thead>
             <tr>
               <th className="sc-plc__check">
@@ -224,6 +225,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
                     />
                   </td>
                   <td className="nowrap sc-plc__child">
+                    <ChildAvatar child={ch} size="sm" />
                     <span className="fw-600">{ch.fullName}</span>
                     <span className="muted text-xs">
                       {ch.code}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { UserCog, Info, AlertTriangle, Save, Utensils, Plus, X } from '@/components/ui/icons';
+import { UserCog, AlertTriangle, Save, Utensils, Plus, X } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -319,13 +319,6 @@ export default function VicePrincipalAssignmentPage() {
         </div>
       </div>
 
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          Phân công có hiệu lực trong một năm học. Khi lưu, hệ thống cấp quyền theo điểm trường cho Phó hiệu trưởng và gửi thông báo cho
-          người được phân công.
-        </div>
-      </div>
       {!loading && year && !readOnly && uncovered.length > 0 && (
         <div className="alert alert--warning mb-16">
           <AlertTriangle size={18} />
@@ -344,7 +337,7 @@ export default function VicePrincipalAssignmentPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap sc-table-flat">
-            <table className="table table--compact">
+            <table className="table table--grid table--compact">
               <thead>
                 <tr>
                   <th>Phó hiệu trưởng</th>

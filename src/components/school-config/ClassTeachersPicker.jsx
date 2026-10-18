@@ -72,7 +72,7 @@ export function ClassTeachersPicker({ teachers, classesOf, classId, form, onTogg
         </span>
       </div>
       <div className="table-wrap sc-tpick__table">
-        <table className="table table--compact">
+        <table className="table table--grid table--compact">
           <thead>
             <tr>
               <th>Phụ trách lớp</th>
@@ -113,8 +113,10 @@ export function ClassTeachersPicker({ teachers, classesOf, classId, form, onTogg
                         name={`sc-homeroom-${classId || 'new'}`}
                         checked={form.homeroomTeacherId === t.id}
                         disabled={!checked}
-                        onChange={() => onHomeroom(t.id)}
-                        aria-label={`Chọn ${t.fullName} làm chủ nhiệm`}
+                        // Bấm lại vào nút đang chọn thì bỏ chọn chủ nhiệm
+                        onChange={() => {}}
+                        onClick={() => onHomeroom(form.homeroomTeacherId === t.id ? '' : t.id)}
+                        aria-label={`${form.homeroomTeacherId === t.id ? 'Bỏ chọn' : 'Chọn'} ${t.fullName} làm chủ nhiệm`}
                       />
                     </td>
                   </tr>

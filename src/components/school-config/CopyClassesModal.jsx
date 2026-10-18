@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, Info } from '@/components/ui/icons';
+import { Copy } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -125,13 +125,6 @@ export function CopyClassesModal({ open, onClose, target, years }) {
               ))}
             </select>
           </FormField>
-          <div className="alert alert--info mt-12">
-            <Info size={18} />
-            <div>
-              Chỉ sao chép tên lớp, nhóm tuổi, điểm trường, phòng học và sĩ số tối đa. Không sao chép giáo viên và trẻ: năm học mới cần phân
-              công và xếp lớp lại.
-            </div>
-          </div>
           {source.error || current.error ? (
             <ErrorState error={source.error || current.error} onRetry={source.reload} />
           ) : loading && !rows.length ? (
@@ -140,7 +133,7 @@ export function CopyClassesModal({ open, onClose, target, years }) {
             <p className="text-2 mt-12">Năm học này chưa có lớp.</p>
           ) : (
             <div className="table-wrap sc-table-flat mt-12">
-              <table className="table">
+              <table className="table table--grid">
                 <thead>
                   <tr>
                     <th className="sc-check-col">

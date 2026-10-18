@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Info, UserCog, Users, PauseCircle, RotateCcw } from '@/components/ui/icons';
+import { Plus, Pencil, UserCog, Users, PauseCircle, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useStaffAccounts } from '@/hooks/school-config/useSchoolConfig';
@@ -94,15 +94,6 @@ export default function StaffAccountsPage() {
         )}
       </div>
 
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          {manage
-            ? 'Đổi vai trò (ví dụ Phó hiệu trưởng ↔ Giáo viên) hoặc đổi điểm trường sẽ kết thúc ngay các phân công cũ của năm học đang chạy (lịch sử vẫn giữ) và có hiệu lực từ lần đăng nhập tiếp theo. Tài khoản chỉ vô hiệu hóa, không xóa.'
-            : `Nhân sự của ${scopeCampuses.map((c) => c.shortName || c.name).join(', ') || 'điểm trường được giao'}${vpEdits ? '. Bạn được sửa thông tin hồ sơ giáo viên, tổ trưởng, nhân viên bếp' : ' (chỉ xem)'}. Tạo, khóa tài khoản, đổi vai trò hoặc điểm trường do Hiệu trưởng thực hiện.`}
-        </div>
-      </div>
-
       <div className="card mb-16">
         <div className="filter-bar">
           <SearchSubmit
@@ -158,7 +149,7 @@ export default function StaffAccountsPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap sc-table-flat">
-            <table className="table table--compact">
+            <table className="table table--grid table--compact">
               <thead>
                 <tr>
                   <th>Nhân sự</th>

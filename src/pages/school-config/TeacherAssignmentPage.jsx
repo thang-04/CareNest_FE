@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Users, Info, Save, UserCheck, Crown, Search } from '@/components/ui/icons';
+import { Users, Info, UserCheck, Crown, Search } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { normalizeText } from '@/utils/format';
@@ -10,7 +10,7 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYears, useTeacherAssignments, useTeamLeaders } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { YearPicker } from '@/components/school-config/YearPicker';
 import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
@@ -21,7 +21,6 @@ import {
   ASSIGN_TEACHER,
   canAssignClass,
   canAssignTeachers,
-  leaderOptionAllowed,
   canViewTeacherAssignments,
   canViewTeamLeaders,
   permissionAccess,
@@ -29,48 +28,36 @@ import {
 } from '@/utils/school-config/schoolConfigPermissions';
 import { teacherCrumbs } from '@/utils/school-config/breadcrumbs';
 import { ClassTeachersModal } from '@/components/school-config/ClassTeachersModal';
+import { TeamLeaderModal } from '@/components/school-config/TeamLeaderModal';
 import '@/styles/modules/school-config.css';
 
 const CAMPUS_ALL = 'all';
 const CLASS_PAGE_SIZE = 10;
 
-function TeamLeaderRow({ group, classCount, current, teachers, campusName, readOnly, acts, onSave }) {
-  const [value, setValue] = useState(current?.userId || '');
-  const [saving, setSaving] = useState(false);
-  const changed = value !== (current?.userId || '');
-  const save = async () => {
-    setSaving(true);
-    await onSave(group, value || null);
-    setSaving(false);
-  };
+/** Một dòng nhóm tuổi: tổ trưởng hiện tại và nút mở hộp chọn (cùng kiểu Phân công giáo viên). */
+function TeamLeaderRow({ group, classCount, current, campusName, readOnly, acts, onOpen }) {
+  const canEdit = !readOnly && (current ? acts.update || acts.delete : acts.create);
   return (
     <tr>
       <td className="fw-600">{group.name}</td>
       <td className="center">{classCount}</td>
       <td>
-        <select
-          className="select"
-          value={value}
-          disabled={readOnly || saving || !(current ? acts.update || acts.delete : acts.create)}
-          onChange={(e) => setValue(e.target.value)}
-          aria-label={`Tổ trưởng ${group.shortName}`}
-        >
-          <option value="" disabled={!leaderOptionAllowed(acts, current?.userId, '')}>
-            Chưa phân công
-          </option>
-          {teachers.map((t) => (
-            <option key={t.id} value={t.id} disabled={!leaderOptionAllowed(acts, current?.userId, t.id)}>
-              {t.fullName} · {campusName(t.campusId)}
-              {t.leadsGroup && t.leadsAgeGroupId !== group.id ? ` · đang tổ trưởng ${t.leadsGroup} (sẽ chuyển)` : ''}
-            </option>
-          ))}
-        </select>
+        {current ? (
+          <>
+            <span className="fw-600">{current.fullName}</span>
+            <span className="muted text-sm"> · {campusName(current.campusId)}</span>
+          </>
+        ) : (
+          <span className="muted">Chưa phân công</span>
+        )}
       </td>
       {!readOnly && (
         <td className="right">
-          <button className="btn btn--sm" onClick={save} disabled={!changed || saving}>
-            {saving ? <Spinner small /> : <Save size={15} />} Lưu tổ trưởng
-          </button>
+          {canEdit && (
+            <button className="btn btn--sm" onClick={() => onOpen(group)}>
+              <Crown size={15} /> {current ? 'Đổi tổ trưởng' : 'Phân công'}
+            </button>
+          )}
         </td>
       )}
     </tr>
@@ -112,6 +99,7 @@ export default function TeacherAssignmentPage() {
     if (leadersReady && window.location.hash === '#to-truong') document.getElementById('to-truong')?.scrollIntoView({ block: 'start' });
   }, [leadersReady]);
   const [editing, setEditing] = useState(null);
+  const [leaderGroup, setLeaderGroup] = useState(null);
 
   const classes = useMemo(() => data?.classes || [], [data]);
   // Lọc lớp ngay ở đầu bảng "Giáo viên theo lớp" (?class=); đổi điểm trường thì bỏ lọc lớp
@@ -164,8 +152,10 @@ export default function TeacherAssignmentPage() {
       await saveTeamLeader({ schoolYear: yearId, ageGroupId: group.id, userId }, user);
       toast.success(userId ? 'Đã lưu thay đổi. Tổ trưởng đã nhận thông báo.' : 'Đã bỏ phân công tổ trưởng.', group.name);
       leaders.reload({ silent: true });
+      return true;
     } catch (err) {
       toast.error(err.message, 'Không lưu được thay đổi');
+      return false;
     }
   };
 
@@ -189,13 +179,6 @@ export default function TeacherAssignmentPage() {
           <div>Bạn chỉ có quyền xem phân công giáo viên. Muốn thay đổi, liên hệ Hiệu trưởng để được bật quyền sửa.</div>
         </div>
       )}
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          Phân công có hiệu lực trong năm học đã chọn. Giáo viên chỉ ghi nhận dữ liệu cho lớp được phân công; tổ trưởng điều phối kế hoạch
-          của nhóm tuổi. Người được phân công sẽ nhận thông báo.
-        </div>
-      </div>
 
       {leaderAllowed &&
         (leaders.error ? (
@@ -215,7 +198,7 @@ export default function TeacherAssignmentPage() {
               {leaderReadOnly && !closed && ' Bạn chỉ xem; quyền phân công tổ trưởng do Hiệu trưởng giao.'}
             </p>
             <div className="table-wrap sc-table-flat">
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th>Nhóm tuổi</th>
@@ -234,17 +217,17 @@ export default function TeacherAssignmentPage() {
                   ) : (
                     groups.map((g) => {
                       const current = leaders.data.teamLeaders.find((a) => a.ageGroupId === g.id);
+                      const person = current && (leaders.data.leaderCandidates || []).find((t) => t.id === current.userId);
                       return (
                         <TeamLeaderRow
                           key={`${g.id}-${current?.userId || ''}`}
                           group={g}
                           classCount={g.classCount}
-                          current={current}
-                          teachers={leaders.data.leaderCandidates || []}
+                          current={current && { ...current, fullName: person?.fullName || '—' }}
                           campusName={campusName}
                           readOnly={leaderReadOnly}
                           acts={leaderActs}
-                          onSave={onSaveLeader}
+                          onOpen={setLeaderGroup}
                         />
                       );
                     })
@@ -335,7 +318,7 @@ export default function TeacherAssignmentPage() {
               {unassigned > 0 && <span className="chip chip--orange sc-head-filters__end">{unassigned} lớp chưa có giáo viên</span>}
             </div>
             <div className="table-wrap sc-table-flat">
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th>Lớp</th>
@@ -405,6 +388,18 @@ export default function TeacherAssignmentPage() {
           </section>
         ))}
 
+      {leaderGroup && (
+        <TeamLeaderModal
+          group={leaderGroup}
+          current={leaders.data?.teamLeaders.find((x) => x.ageGroupId === leaderGroup.id)}
+          teachers={leaders.data?.leaderCandidates || []}
+          campuses={md.campuses}
+          campusName={campusName}
+          acts={leaderActs}
+          onSave={onSaveLeader}
+          onClose={() => setLeaderGroup(null)}
+        />
+      )}
       {editing && (
         <ClassTeachersModal
           cls={editing}

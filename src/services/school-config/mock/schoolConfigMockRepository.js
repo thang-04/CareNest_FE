@@ -620,6 +620,7 @@ export const schoolConfigMockRepository = {
                   id: ch.id,
                   code: ch.code,
                   fullName: ch.fullName,
+                  photoUrl: ch.photoUrl || null,
                   birthDate: ch.birthDate,
                   placement: clone(saved.get(ch.id) || null),
                 })),

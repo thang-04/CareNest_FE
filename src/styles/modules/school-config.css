@@ -643,6 +643,11 @@
 .sc-plc__child > .muted {
   margin-left: var(--space-2);
 }
+/* Ảnh đại diện nhỏ trước tên trẻ, dòng vẫn một hàng */
+.sc-plc__child .avatar {
+  margin-right: var(--space-2);
+  vertical-align: middle;
+}
 .sc-plc__title {
   display: inline-flex;
   align-items: baseline;
@@ -1059,4 +1064,9 @@
 .sc-head-search {
   flex: 1 1 calc(var(--space-16) * 3.5);
   max-width: calc(var(--space-16) * 5);
+}
+
+/* Hộp chọn tổ trưởng: ô lọc điểm trường cùng hàng với ô tìm */
+.sc-tpick__tools .sc-leader-campus {
+  width: auto;
 }

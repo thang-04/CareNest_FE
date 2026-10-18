@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, DoorOpen, Info, PauseCircle, RotateCcw, ChevronDown } from '@/components/ui/icons';
+import { Plus, Pencil, Trash2, DoorOpen, PauseCircle, RotateCcw, ChevronDown } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -256,15 +256,6 @@ export default function RoomListPage() {
         )}
       </div>
 
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          {manage
-            ? 'Phòng đang là phòng của lớp năm học chưa kết thúc thì chưa ngừng sử dụng hay xóa được: đổi phòng cho lớp trước.'
-            : 'Bạn đang xem phòng của điểm trường được phân công (chỉ xem). Hiệu trưởng giao quyền sửa ở màn Phân công Phó hiệu trưởng.'}
-        </div>
-      </div>
-
       <div className="card mb-16">
         <div className="filter-bar">
           <SearchSubmit
@@ -356,7 +347,7 @@ export default function RoomListPage() {
                   </header>
                   {open && (
                     <div id={`rooms-${campus.id}`} className="table-wrap sc-table-flat">
-                      <table className="table table--compact">
+                      <table className="table table--grid table--compact">
                         <thead>
                           <tr>
                             <th>Mã phòng</th>

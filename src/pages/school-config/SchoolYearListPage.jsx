@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, CalendarRange, Pencil, Play, Archive, Trash2, Shapes, Clock4, Info } from '@/components/ui/icons';
+import { Plus, CalendarRange, Pencil, Play, Archive, Trash2, Shapes, Clock4 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
@@ -94,21 +94,6 @@ export default function SchoolYearListPage() {
         )}
       </div>
 
-      {canConfigureSchool(user) ? (
-        <div className="alert alert--info mb-16">
-          <Info size={18} />
-          <div>
-            Mỗi thời điểm chỉ có <b>một năm học đang hoạt động</b>. Phân công Phó hiệu trưởng, giáo viên và tổ trưởng có hiệu lực trong một
-            năm học; năm học mới cần phân công lại.
-          </div>
-        </div>
-      ) : (
-        <div className="alert alert--info mb-16">
-          <Info size={18} />
-          <div>Bạn đang xem danh sách năm học. Chỉ Hiệu trưởng được tạo và cấu hình năm học.</div>
-        </div>
-      )}
-
       {canConfigureSchool(user) &&
         years
           .filter((y) => y.status === YEAR_STATUS.PLANNED)
@@ -119,7 +104,7 @@ export default function SchoolYearListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap sc-table-flat">
-            <table className="table table--compact">
+            <table className="table table--grid table--compact">
               <thead>
                 <tr>
                   <th>Năm học</th>

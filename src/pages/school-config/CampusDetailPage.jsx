@@ -168,7 +168,7 @@ export default function CampusDetailPage() {
               </span>
             </div>
             <div className="table-wrap sc-table-flat">
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th>Lớp</th>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, RotateCcw, Info, Lock } from '@/components/ui/icons';
+import { ArrowLeft, Save, RotateCcw, Lock } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -22,7 +22,6 @@ import {
   PERMISSION_SCOPE_LABELS,
   composeGrant,
   parseGrant,
-  ROLE_SCOPE_NOTES,
 } from '@/models/school-config/schoolConfigConstants';
 import { PERMISSION_CATALOG, defaultGrants, isLockedGrant, permissionByCode } from '@/models/school-config/permissionCatalog';
 import { canManageRolePermissions } from '@/utils/school-config/schoolConfigPermissions';
@@ -158,21 +157,6 @@ export default function RolePermissionFormPage() {
         <LoadingState />
       ) : (
         <>
-          <div className="alert alert--info mb-16">
-            <Info size={18} />
-            <div>
-              {role === 'PRINCIPAL' ? (
-                <>Hiệu trưởng có quyền cao nhất: luôn được sửa toàn trường ở mọi chức năng, không cần bật quyền. </>
-              ) : (
-                <>
-                  <b>Trong điểm trường</b> với vai trò này: {ROLE_SCOPE_NOTES[role]}{' '}
-                </>
-              )}
-              Hiện chỉ quyền "Phân công giáo viên" điều khiển trực tiếp màn hình; các quyền khác đang lưu để cấu hình. Thay đổi được ghi lại
-              người sửa, thời điểm và giá trị cũ.
-            </div>
-          </div>
-
           {Object.entries(PERMISSION_MODULES).map(([m, label]) => {
             const items = PERMISSION_CATALOG.filter((p) => p.module === m);
             if (!items.length) return null;
@@ -182,7 +166,7 @@ export default function RolePermissionFormPage() {
                   <h2 className="card__title">{label}</h2>
                 </div>
                 <div className="table-wrap sc-table-flat">
-                  <table className="table table--compact">
+                  <table className="table table--grid table--compact">
                     <thead>
                       <tr>
                         <th>Chức năng / thao tác</th>
