@@ -1,14 +1,11 @@
 ---
 paths:
-  - "src/**/api/**/*.ts"
-  - "src/**/*api*.ts"
-  - "src/**/*client*.ts"
-  - "src/**/services/**/*.ts"
+  - "src/services/**/*.js"
 ---
 
 # API client rules
 
-> Contract: `../CareNest_BE` là owner. Quy ước tích hợp: `docs/integration/BACKEND_INTEGRATION.md`. Thư viện HTTP: chưa chốt (hỏi trước khi thêm dependency).
+> Contract: `../CareNest_BE` là owner. Quy ước tích hợp: `docs/integration/BACKEND_INTEGRATION.md`. Thư viện HTTP hiện có: Axios (`package.json`, `src/services/http/axiosClient.js`); hỏi trước khi thêm/đổi dependency.
 
 - Một HTTP client dùng chung: base URL + API prefix lấy từ config/env (BE prefix cấu hình được, mặc định `/api`); không hard-code host/prefix trong từng call.
 - Client chuẩn hóa envelope `{ code, desc, data }`: thành công trả `data`; lỗi ném một error type thống nhất chứa `status` (= `code`), `desc`, và field errors (khi 400). Component không đọc raw response.

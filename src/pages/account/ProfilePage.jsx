@@ -156,9 +156,11 @@ export default function ProfilePage() {
           </ul>
           {!editing && (
             <div className="ac-side__actions">
-              <button type="button" className="btn btn--primary" onClick={startEdit}>
-                <Pencil size={16} /> Cập nhật hồ sơ
-              </button>
+              {profile.profileEditable !== false && (
+                <button type="button" className="btn btn--primary" onClick={startEdit}>
+                  <Pencil size={16} /> Cập nhật hồ sơ
+                </button>
+              )}
               <Link to="/account/password" state={{ from: '/account/profile' }} className="btn">
                 <KeyRound size={16} /> Đổi mật khẩu
               </Link>
@@ -361,7 +363,7 @@ export default function ProfilePage() {
                     {profile.passwordChangedAt ? (
                       formatDateTime(profile.passwordChangedAt)
                     ) : (
-                      <span className="ac-empty">Chưa đổi lần nào</span>
+                      <span className="ac-empty">{profile.profileEditable === false ? 'Chưa có thông tin' : 'Chưa đổi lần nào'}</span>
                     )}
                   </dd>
                 </div>

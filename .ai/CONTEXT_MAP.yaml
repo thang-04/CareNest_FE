@@ -76,13 +76,15 @@ available:
   skills: [.agents/skills/fix-bug/SKILL.md, .agents/skills/implement-feature/SKILL.md, .agents/skills/review-code/SKILL.md, .agents/skills/integrate-api/SKILL.md, .agents/skills/update-knowledge/SKILL.md, .agents/skills/plan-change/SKILL.md,
            .claude/skills/fix-bug/SKILL.md, .claude/skills/implement-feature/SKILL.md, .claude/skills/review-code/SKILL.md, .claude/skills/integrate-api/SKILL.md, .claude/skills/update-knowledge/SKILL.md, .claude/skills/plan-change/SKILL.md]
   rules: [.claude/rules/typescript.md, .claude/rules/component.md, .claude/rules/state.md, .claude/rules/api-client.md]
+  source: [src/, README.md]
   docs:
     - docs/context/REPOSITORY_CONTEXT.md
     - docs/context/CURRENT_STATE.md
     - docs/architecture/ROUTE_MAP.md
     - docs/features/README.md
-    - docs/integration/BACKEND_INTEGRATION.md
     - docs/features/people-management.md
+    - docs/integration/BACKEND_INTEGRATION.md
+    - docs/integration/AUTH_FLOW.md
     - docs/knowledge/ISSUE_INDEX.md
     - docs/knowledge/KNOWN_ISSUES.md
     - docs/knowledge/TROUBLESHOOTING.md
@@ -94,11 +96,9 @@ skeleton_only:   # tồn tại nhưng chưa có nội dung — không dùng làm
   - docs/architecture/FRONTEND_ARCHITECTURE.md   # mục "Ràng buộc đã biết" dùng được
   - docs/architecture/STATE_MANAGEMENT.md        # mục "Nguyên tắc" dùng được
   - docs/architecture/FOLDER_STRUCTURE.md
-  - docs/integration/AUTH_FLOW.md
 
 planned:
-  - src/                                  # chưa có source; framework PROPOSED
-  - README.md                             # setup/build/run khi có source
+  - src/components/illustrations/KidsArt.jsx  # old UI plan reference, not present in current source
   - docs/features/<feature>.md            # tạo theo template trong docs/features/README.md khi bắt đầu màn hình
 
 related_repositories:

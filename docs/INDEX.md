@@ -20,7 +20,7 @@ Nghiệp vụ, rule, contract, kiến trúc hệ thống **không nằm ở đâ
 | | `features/people-management.md` | Quyết định UX khu Nhân sự, Phụ huynh, Trẻ và giới hạn BE hiện tại | FULL |
 | integration | `integration/BACKEND_INTEGRATION.md` | Envelope, lỗi, 403/404, phân quyền phía client | FULL (theo BE hiện tại) |
 | | `integration/STAFF_ROSTER_CONTRACT_PROPOSAL.md` | Đề xuất hai contract BE cho khu Con người; chưa có trên BE thật | PROPOSED |
-| | `integration/AUTH_FLOW.md` | Đăng nhập, token, phiên | SKELETON |
+| | `integration/AUTH_FLOW.md` | Đăng nhập, token, phiên | FULL (Phase 3, UI browser pending) |
 | knowledge | `knowledge/ISSUE_INDEX.md` | **Search đầu tiên khi debug** (bug UI/client, kể cả bug đang `open`) | FULL (chưa có issue) |
 | | `knowledge/incidents/_TEMPLATE.md` | Mẫu incident (có Attempts) | FULL |
 | | `knowledge/KNOWN_ISSUES.md` | Known Limitations: giới hạn cố ý/chưa làm (không phải bug) | FULL |

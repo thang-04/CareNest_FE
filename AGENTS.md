@@ -31,7 +31,7 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 
 ## Stack
 
-React + TypeScript: **PROPOSED** (Next.js cũng chỉ PROPOSED). Chưa có source. Router, state/cache, UI kit, cách lưu token: chưa chốt ⇒ hỏi trước khi chọn. Đọc source thực tế trước khi áp rule framework.
+Source hiện có: React 18/JSX, Vite 8, React Router 7, Axios và React Context (`package.json`, `src/`). Auth gateway opt-in theo `docs/integration/AUTH_FLOW.md`: token thật trong memory; mock auth dùng cờ riêng. Không tự thêm/đổi thư viện hoặc đổi cách lưu token ngoài plan đã duyệt.
 
 Giao diện: theo `DESIGN.md` (design system chung web + app; luật cứng mục 2, tự kiểm mục 13.1). Code (thư mục, luồng dữ liệu, thêm module): `docs/architecture/CODING_GUIDE.md`. Lệch ⇒ nói rõ trong báo cáo.
 

@@ -1,30 +1,43 @@
-/**
- * Single place that stores the access token.
- * "Ghi nhớ đăng nhập" -> localStorage (survives browser restart), otherwise sessionStorage.
- */
-const KEY = 'carenest.accessToken';
+import { AUTH_USE_MOCK } from '@/config/env';
+
+const LEGACY_KEY = 'carenest.accessToken';
+const MOCK_KEY = 'carenest.mock.accessToken';
+let accessToken = null;
+let generation = 0;
 
 const safe = (fn, fallback = null) => {
   try {
     return fn();
   } catch {
-    return fallback; // storage blocked (private mode, policy)
+    return fallback;
   }
 };
+const erase = (key) => {
+  safe(() => localStorage.removeItem(key));
+  safe(() => sessionStorage.removeItem(key));
+};
+// Token thật của phiên cũ không được tồn tại trong browser storage.
+erase(LEGACY_KEY);
 
 export const tokenStorage = {
-  get: () => safe(() => localStorage.getItem(KEY) || sessionStorage.getItem(KEY)),
-  set: (token, remember) =>
+  get: () => (AUTH_USE_MOCK ? safe(() => localStorage.getItem(MOCK_KEY) || sessionStorage.getItem(MOCK_KEY)) : accessToken),
+  set: (token, remember = false) => {
+    if (!AUTH_USE_MOCK) {
+      accessToken = token;
+      return;
+    }
     safe(() => {
-      (remember ? localStorage : sessionStorage).setItem(KEY, token);
-      (remember ? sessionStorage : localStorage).removeItem(KEY);
-    }),
-  clear: () =>
-    safe(() => {
-      localStorage.removeItem(KEY);
-      sessionStorage.removeItem(KEY);
-    }),
+      (remember ? localStorage : sessionStorage).setItem(MOCK_KEY, token);
+      (remember ? sessionStorage : localStorage).removeItem(MOCK_KEY);
+    });
+  },
+  clear: () => {
+    generation += 1;
+    accessToken = null;
+    erase(LEGACY_KEY);
+    erase(MOCK_KEY);
+  },
+  getGeneration: () => generation,
 };
 
-/** Fired when the API answers 401: AuthContext logs the user out. */
 export const UNAUTHORIZED_EVENT = 'carenest:unauthorized';
