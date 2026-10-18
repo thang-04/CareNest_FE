@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Buildings, Eye, HeartPulse, Info } from '@/components/ui/icons';
+import { ChevronDown, ChevronRight, Eye, HeartPulse, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DailyHealthHistoryModal } from '@/components/attendance/DailyHealthHistoryModal';
@@ -33,23 +34,43 @@ function StatTiles({ totals }) {
         <span className="dd-stat__value">{totals.noted}</span>
         <span className="dd-stat__label">Có dấu hiệu cần lưu ý</span>
       </div>
-      <div className="dd-stat dd-stat--gray">
-        <span className="dd-stat__value">{totals.notified}</span>
-        <span className="dd-stat__label">Đã báo phụ huynh</span>
-      </div>
     </div>
   );
 }
 
-function ClassTable({ rows, loading, showCampus, campusName, filters }) {
+/** Bảng theo lớp, nhóm theo nhóm tuổi; bấm tên nhóm để thu / mở (mặc định thu gọn, dòng nhóm vẫn có số tổng). */
+function ClassTable({ rows, loading, showCampus, campusName, filters, groupOf }) {
+  const [open, setOpen] = useState(() => new Set());
+  const groups = [];
+  rows.forEach((row) => {
+    const g = groupOf(row);
+    let group = groups.find((x) => x.id === g.id);
+    if (!group) groups.push((group = { ...g, rows: [] }));
+    group.rows.push(row);
+  });
+  groups.sort((a, b) => a.order - b.order);
+  const sum = (list, key) => list.reduce((n, r) => n + (r[key] || 0), 0);
+  const toggle = (id) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const allOpen = groups.length > 0 && groups.every((g) => open.has(g.id));
   return (
     <div className="card mb-16">
       <div className="card__header dd-hov__head">
         <h2 className="card__title">Theo lớp</h2>
         {filters}
+        {groups.length > 1 && (
+          <button className="btn btn--sm" type="button" onClick={() => setOpen(allOpen ? new Set() : new Set(groups.map((g) => g.id)))}>
+            {allOpen ? 'Thu gọn tất cả' : 'Mở tất cả'}
+          </button>
+        )}
       </div>
       <div className="table-wrap dd-table-wrap">
-        <table className="table table--compact">
+        <table className="table table--grid table--compact">
           <thead>
             <tr>
               <th>Lớp</th>
@@ -63,20 +84,50 @@ function ClassTable({ rows, loading, showCampus, campusName, filters }) {
             {loading ? (
               <SkeletonRows rows={4} cols={5} />
             ) : (
-              rows.map((row) => (
-                <tr key={row.classId}>
-                  <td>
-                    <div className="fw-600">{row.className}</div>
-                    {showCampus && <div className="muted text-xs">{campusName(row.campusId)}</div>}
-                  </td>
-                  <td className="right">{row.size}</td>
-                  <td className="right">{row.present}</td>
-                  <td className="right nowrap">
-                    {row.checked}/{row.present}
-                  </td>
-                  <td className="right fw-600">{row.noted || '—'}</td>
-                </tr>
-              ))
+              groups.map((g) => {
+                const expanded = open.has(g.id) || groups.length === 1;
+                const noted = sum(g.rows, 'noted');
+                return (
+                  <Fragment key={g.id}>
+                    <tr className="dd-hov__group">
+                      <td>
+                        <button
+                          type="button"
+                          className="dd-hov__toggle"
+                          aria-expanded={expanded}
+                          onClick={() => toggle(g.id)}
+                          disabled={groups.length === 1}
+                        >
+                          {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          {g.name}
+                          <span className="muted text-xs">· {g.rows.length} lớp</span>
+                        </button>
+                      </td>
+                      <td className="right">{sum(g.rows, 'size')}</td>
+                      <td className="right">{sum(g.rows, 'present')}</td>
+                      <td className="right nowrap">
+                        {sum(g.rows, 'checked')}/{sum(g.rows, 'present')}
+                      </td>
+                      <td className="right fw-600">{noted || '—'}</td>
+                    </tr>
+                    {expanded &&
+                      g.rows.map((row) => (
+                        <tr key={row.classId}>
+                          <td className="dd-hov__class">
+                            <div className="fw-600">{row.className}</div>
+                            {showCampus && <div className="muted text-xs">{campusName(row.campusId)}</div>}
+                          </td>
+                          <td className="right">{row.size}</td>
+                          <td className="right">{row.present}</td>
+                          <td className="right nowrap">
+                            {row.checked}/{row.present}
+                          </td>
+                          <td className="right fw-600">{row.noted || '—'}</td>
+                        </tr>
+                      ))}
+                  </Fragment>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -111,7 +162,7 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
         )
       ) : (
         <div className="table-wrap dd-table-wrap">
-          <table className="table table--compact">
+          <table className="table table--grid table--compact">
             <thead>
               <tr>
                 <th>Trẻ</th>
@@ -119,9 +170,8 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                 <th className="right">Thân nhiệt</th>
                 <th>Biểu hiện</th>
                 <th>Ghi chú</th>
-                <th>Thông báo phụ huynh</th>
-                <th>Giáo viên</th>
-                <th>Giờ</th>
+                <th>Xử trí</th>
+                <th>Người ghi</th>
                 <th className="right">
                   <span className="sr-only">Thao tác</span>
                 </th>
@@ -132,8 +182,13 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                 // Bấm cả dòng để xem chi tiết; nút cuối dòng giữ cho bàn phím
                 <tr key={item.childId} className="dd-hov__row" onClick={() => onOpen(item)}>
                   <td className="nowrap">
-                    <div className="fw-600">{item.childName}</div>
-                    {item.childCode && <div className="muted text-xs">{item.childCode}</div>}
+                    <div className="dd-hov__child">
+                      <ChildAvatar child={{ fullName: item.childName, photoUrl: item.photoUrl }} size="sm" />
+                      <div>
+                        <div className="fw-600">{item.childName}</div>
+                        {item.childCode && <div className="muted text-xs">{item.childCode}</div>}
+                      </div>
+                    </div>
                   </td>
                   <td className="nowrap">{item.className}</td>
                   <td className="right nowrap">
@@ -148,14 +203,23 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                   <td>{symptomLabels(item.symptoms) || '—'}</td>
                   <td className="dd-hov__note">{item.note || '—'}</td>
                   <td>
-                    {item.notificationStatus === 'DEMO_QUEUED' ? (
-                      <span className="chip chip--blue">Đã gửi{item.notifiedAt ? ` · ${timeOf(item.notifiedAt)}` : ''}</span>
+                    {/* Mỗi xử trí một chip, không xuống dòng giữa chữ */}
+                    {item.actionsText ? (
+                      <div className="dd-hov__actions">
+                        {item.actionsText.split(' · ').map((a) => (
+                          <span key={a} className="chip chip--gray">
+                            {a}
+                          </span>
+                        ))}
+                      </div>
                     ) : (
-                      <span className="chip chip--orange">Chưa gửi được</span>
+                      '—'
                     )}
                   </td>
-                  <td className="nowrap">{item.recordedByName}</td>
-                  <td className="nowrap">{timeOf(item.recordedAt)}</td>
+                  <td className="nowrap">
+                    {item.recordedByName}
+                    <div className="muted text-xs">{timeOf(item.recordedAt)}</div>
+                  </td>
                   <td className="right">
                     <button
                       className="icon-btn"
@@ -207,15 +271,37 @@ export default function DailyHealthOverviewPage() {
     setParams(Object.fromEntries(Object.entries({ date, campusId, ageGroupId, classId, ...next }).filter(([, v]) => v)), {
       replace: true,
     });
-  const filtered = !!(ageGroupId || classId);
-  const clearFilters = () => update({ ageGroupId: '', classId: '' });
+  const filtered = !!(campusId || ageGroupId || classId);
+  const clearFilters = () => update({ campusId: '', ageGroupId: '', classId: '' });
+  // Nhóm tuổi của từng lớp (lấy từ danh sách lựa chọn BE trả về) để nhóm bảng "Theo lớp"
+  const groupOf = (row) => {
+    const ageGroupIdOf = options.classes.find((c) => c.id === row.classId)?.ageGroupId;
+    const order = options.ageGroups.findIndex((x) => x.id === ageGroupIdOf);
+    const g = options.ageGroups[order];
+    return { id: g?.id || 'other', name: g?.name || 'Khác', order: order < 0 ? 99 : order };
+  };
 
   const campusName = (id) => md.campusById?.(id)?.name || id;
   const forbidden = error?.status === 403;
 
   // Lọc nhóm tuổi / lớp đặt ngay đầu bảng "Theo lớp" (gần dữ liệu, đỡ cuộn); áp cho số tổng, bảng lớp và trẻ cần chú ý
   const filterBar = (
-    <div className="dd-hov__filters" role="group" aria-label="Lọc theo nhóm tuổi và lớp">
+    <div className="dd-hov__filters" role="group" aria-label="Lọc theo điểm trường, nhóm tuổi và lớp">
+      {isPrincipal && (
+        <select
+          className="select"
+          aria-label="Điểm trường"
+          value={campusId}
+          onChange={(e) => update({ campusId: e.target.value, ageGroupId: '', classId: '' })}
+        >
+          <option value="">Toàn trường</option>
+          {md.campuses.map((campus) => (
+            <option key={campus.id} value={campus.id}>
+              {campus.name}
+            </option>
+          ))}
+        </select>
+      )}
       <select
         className="select"
         aria-label="Nhóm tuổi"
@@ -252,32 +338,7 @@ export default function DailyHealthOverviewPage() {
       <div className="page__head">
         <h1 className="page__title">Sức khỏe đầu ngày</h1>
       </div>
-      <ClassDateBar date={date} maxDate={today} onDateChange={(value) => update({ date: value })}>
-        {isPrincipal && (
-          <div className="dd-bar__field">
-            <label className="field__label" htmlFor="dh-campus">
-              <Buildings size={15} /> Điểm trường
-            </label>
-            <select
-              id="dh-campus"
-              className="select"
-              value={campusId}
-              onChange={(event) => update({ campusId: event.target.value, ageGroupId: '', classId: '' })}
-            >
-              <option value="">Toàn trường</option>
-              {md.campuses.map((campus) => (
-                <option key={campus.id} value={campus.id}>
-                  {campus.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </ClassDateBar>
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>Chỉ xem. Giáo viên lớp ghi nhận ở màn Điểm danh &amp; sức khỏe.</div>
-      </div>
+      <ClassDateBar date={date} maxDate={today} onDateChange={(value) => update({ date: value })}></ClassDateBar>
 
       {forbidden ? (
         <div className="card">
@@ -332,6 +393,7 @@ export default function DailyHealthOverviewPage() {
             showCampus={!overview?.campusId && isPrincipal}
             campusName={campusName}
             filters={filterBar}
+            groupOf={groupOf}
           />
           {overview && <AttentionTable items={overview.attention} filtered={filtered} onClearFilter={clearFilters} onOpen={setDetail} />}
         </>

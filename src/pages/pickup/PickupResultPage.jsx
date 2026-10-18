@@ -31,7 +31,7 @@ function ResultList() {
         <ErrorState error={error} onRetry={reload} />
       ) : (
         <div className="table-wrap dt-table-wrap">
-          <table className="table">
+          <table className="table table--grid">
             <thead>
               <tr>
                 <th>Trẻ</th>

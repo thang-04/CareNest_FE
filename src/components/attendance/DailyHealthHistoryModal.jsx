@@ -1,7 +1,7 @@
 import { Phone } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
-import { symptomLabels } from '@/utils/dailyHealthValidation';
+import { actionSummary, symptomLabels } from '@/utils/dailyHealthValidation';
 import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
@@ -13,10 +13,10 @@ const NOTIFICATION_CHIPS = {
 
 const timeOf = (iso) => formatDateTime(iso).split(' ')[1] || '—';
 
-/** Một dòng trạng thái thông báo phụ huynh của lần có dấu hiệu gần nhất. */
+/** Một dòng trạng thái thông báo phụ huynh của lần ghi nhận gần nhất (mọi lần cập nhật đều báo phụ huynh). */
 function NotificationLine({ entries }) {
-  const noted = entries.find((entry) => entry.observation === 'NOTED');
-  if (!noted) return <p className="muted text-sm mb-8">Không có lần ghi nhận cần báo phụ huynh.</p>;
+  const noted = entries.find((entry) => entry.notificationStatus !== 'NOT_REQUIRED');
+  if (!noted) return <p className="muted text-sm mb-8">Chưa có thông báo phụ huynh.</p>;
   const chip = NOTIFICATION_CHIPS[noted.notificationStatus] || NOTIFICATION_CHIPS.PENDING;
   const notice = noted.parentNotifications?.[0];
   return (
@@ -80,13 +80,14 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
           <NotificationLine entries={history.entries} />
           {/* Mỗi lần đo 1 dòng, mới nhất ở trên; 5–6 lần vẫn vừa một màn */}
           <div className="table-wrap dd-hist">
-            <table className="table table--compact">
+            <table className="table table--grid table--compact">
               <thead>
                 <tr>
                   <th>Giờ</th>
                   <th className="right">Thân nhiệt</th>
                   <th>Quan sát / biểu hiện</th>
                   <th>Ghi chú</th>
+                  <th>Xử trí</th>
                   <th>Giáo viên</th>
                 </tr>
               </thead>
@@ -105,6 +106,15 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
                       {entry.symptoms?.length ? <div className="muted text-xs">{symptomLabels(entry.symptoms)}</div> : null}
                     </td>
                     <td className="dd-hist__note">{entry.note || '—'}</td>
+                    <td>
+                      {actionSummary([entry]) || '—'}
+                      {entry.earlyPickup && (
+                        <div className="muted text-xs">
+                          {entry.earlyPickup.relation} {entry.earlyPickup.fullName} đã đón lúc {entry.earlyPickup.time}
+                        </div>
+                      )}
+                      {entry.referral && <div className="muted text-xs">{entry.referral.place}</div>}
+                    </td>
                     <td className="nowrap">{entry.recordedByName}</td>
                   </tr>
                 ))}

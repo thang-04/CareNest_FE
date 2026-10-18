@@ -9,7 +9,6 @@ import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, LoadingState, SubmitOverlay } from '@/components/ui/States';
 import { DailyHealthPanel } from '@/components/DailyHealthPanel';
 import { MealCorrectionModal } from '@/components/attendance/MealCorrectionModal';
-import { USE_MOCK } from '@/config/env';
 import { saveReception } from '@/services/receptionService';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DayLockAlert } from '@/components/attendance/DayLockAlert';
@@ -101,12 +100,6 @@ export default function AttendancePage() {
         <h1 className="page__title">Điểm danh & sức khỏe</h1>
         <p className="muted">Tiếp nhận từng trẻ và theo dõi sức khỏe trong ngày.</p>
       </div>
-      {USE_MOCK && (
-        <div className="alert alert--info mb-12">
-          <HeartPulse size={18} />
-          <div>Dữ liệu demo · Điểm danh và sức khỏe lưu riêng trên trình duyệt, chưa kết nối backend.</div>
-        </div>
-      )}
       {loading ? (
         <LoadingState />
       ) : error ? (
@@ -156,6 +149,7 @@ export default function AttendancePage() {
 }
 
 function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
+  const [search] = useSearchParams();
   const toast = useToast();
   const { sheet, setSheet, loading, error, reload } = useClassAttendance(classId, date, { live: false });
   const [draft, setDraft] = useState({});
@@ -198,8 +192,10 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
     if (!sheet || initialized.current) return;
     initialized.current = true;
     setDraft(toDraft(sheet));
-    setSelectedId(sheet.children[0]?.child.id || '');
-  }, [sheet]);
+    // Mở từ màn khác (vd. Đón trẻ → "Xem sức khỏe") thì chọn sẵn trẻ đó
+    const wanted = search.get('childId');
+    setSelectedId(sheet.children.find((c) => c.child.id === wanted)?.child.id || sheet.children[0]?.child.id || '');
+  }, [sheet, search]);
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
@@ -451,7 +447,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
             )}
           </div>
           <div className="table-wrap dd-reception__table">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Trẻ</th>
@@ -483,7 +479,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                         <td>
                           {/* Ảnh | tên trên, mã · trạng thái lưu và thẻ sức khỏe cùng một dòng dưới — hàng thấp, lớp đông vẫn thấy nhiều trẻ */}
                           <div className="dd-reception__who">
-                            <ChildAvatar child={row.child} />
+                            <ChildAvatar child={row.child} size="sm" />
                             <button
                               className="dd-reception__child"
                               type="button"

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarDays, ClipboardList, Search, ShieldCheck, School, UserCheck } from '@/components/ui/icons';
+import { CalendarDays, ClipboardList, Search, School, UserCheck } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { PickupStatusBadge } from '@/components/pickup/PickupBadges';
 import { usePickupBoard, usePickupClasses } from '@/hooks/pickup/usePickups';
-import { PICKUP_STATUS, VERIFICATION_LABELS } from '@/models/pickup/pickupConstants';
+import { PICKUP_REASON_LABELS, PICKUP_STATUS, VERIFICATION_LABELS } from '@/models/pickup/pickupConstants';
 import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
 import '@/styles/modules/pickup.css';
@@ -57,13 +57,6 @@ export default function PickupListPage() {
         </div>
       ) : (
         <>
-          <div className="alert alert--info mb-16">
-            <ShieldCheck size={18} />
-            <div>
-              So sánh người đón với <b>ảnh phụ huynh đã đăng ký</b>. Nếu không khớp, gọi điện cho phụ huynh và chỉ trả trẻ khi phụ huynh
-              đồng ý. Kết quả được gửi thông báo cho phụ huynh.
-            </div>
-          </div>
           <div className="card">
             <div className="filter-bar dt-bar">
               <div className="dt-field">
@@ -113,7 +106,7 @@ export default function PickupListPage() {
               <ErrorState error={error} onRetry={reload} />
             ) : (
               <div className="table-wrap dt-table-wrap">
-                <table className="table">
+                <table className="table table--grid">
                   <thead>
                     <tr>
                       <th>Trẻ</th>
@@ -151,6 +144,18 @@ export default function PickupListPage() {
                             </td>
                             <td>
                               <PickupStatusBadge status={r.status} />
+                              {/* Cô đã báo phụ huynh đón về sớm ở Sức khỏe trong ngày: trả trẻ khi phụ huynh đến, giờ ghi lúc trả */}
+                              {r.earlyRequest && r.status === PICKUP_STATUS.WAITING && (
+                                <div className="mt-8">
+                                  <Link
+                                    className="chip chip--orange"
+                                    to={`/attendance?classId=${classId}&date=${date}&childId=${r.child.id}`}
+                                    title="Xem sức khỏe trong ngày của trẻ"
+                                  >
+                                    Chờ đón sớm · sức khỏe
+                                  </Link>
+                                </div>
+                              )}
                               {failed > 0 && r.status === PICKUP_STATUS.WAITING && (
                                 <div className="text-xs text-danger mt-8">{failed} lần không trả trẻ</div>
                               )}
@@ -168,6 +173,16 @@ export default function PickupListPage() {
                             <td className="nowrap">{timeOf(r.pickup?.handedOverAt)}</td>
                             <td className="text-sm">
                               {r.pickup ? VERIFICATION_LABELS[r.pickup.verification] : <span className="muted">—</span>}
+                              {r.pickup?.reason && (
+                                <div className="text-xs">
+                                  <Link
+                                    to={`/attendance?classId=${classId}&date=${date}&childId=${r.child.id}`}
+                                    title="Xem sức khỏe trong ngày của trẻ"
+                                  >
+                                    {PICKUP_REASON_LABELS[r.pickup.reason]}
+                                  </Link>
+                                </div>
+                              )}
                             </td>
                             <td className="center">
                               {isToday && r.status === PICKUP_STATUS.WAITING && (

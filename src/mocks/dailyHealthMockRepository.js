@@ -3,7 +3,8 @@ import { canRecordAttendance, canViewAttendance } from '@/utils/attendance/atten
 import { isSchoolDay, schoolNow } from '@/utils/attendance/attendanceTime';
 import { ROLES } from '@/models/User';
 import { formatDate, isIsoDate } from '@/utils/format';
-import { HEALTH_SYMPTOMS, validateDailyHealth } from '@/utils/dailyHealthValidation';
+import { HEALTH_ACTIONS, HEALTH_SYMPTOMS, actionSummary, validateDailyHealth } from '@/utils/dailyHealthValidation';
+import { PICKUP_OUTCOME } from '@/models/pickup/pickupConstants';
 import { uid } from '@/utils/id';
 import { dailyHealthSummary } from '@/mocks/dailyHealthSummary';
 import { attendanceMockRepository } from '@/services/attendance/mock/attendanceMockRepository';
@@ -26,6 +27,23 @@ const parentContacts = (child) => {
   const parents = ['Bố', 'Mẹ'].map((relation) => list.find((g) => g.relation === relation) || { fullName: '', relation, phone: '' });
   return [...parents, ...list.filter((g) => !['Bố', 'Mẹ'].includes(g.relation))];
 };
+/**
+ * Báo phụ huynh đón về sớm: giờ đón không nhập trước mà lấy từ lần cô trả trẻ ở màn Đón trẻ (cùng ngày), để truy vết đúng.
+ * Gắn khi đọc, không ghi ngược vào lần ghi nhận sức khỏe.
+ */
+export const withEarlyPickup = (db, entry) => {
+  if (!(entry.actions || []).includes('EARLY_PICKUP')) return { ...entry, earlyPickup: null };
+  const p = (db.pickups || []).find(
+    (x) =>
+      x.childId === entry.childId &&
+      x.date === entry.date &&
+      x.outcome === PICKUP_OUTCOME.HANDED_OVER &&
+      x.handedOverAt >= entry.recordedAt,
+  );
+  const time = p ? new Date(new Date(p.handedOverAt).getTime() + 7 * 3600000).toISOString().slice(11, 16) : null;
+  return { ...entry, earlyPickup: p ? { fullName: p.pickupPersonName, relation: p.pickupPersonRelation, time, pickupId: p.id } : null };
+};
+
 const notificationsOf = (db, entryId) => (db.parentHealthNotifications || []).filter((item) => item.healthEntryId === entryId);
 
 // Chỉ đếm lớp của năm học đang hoạt động; thiếu dữ liệu năm học thì lấy mọi lớp chưa đóng.
@@ -190,7 +208,7 @@ export const dailyHealthMockRepository = {
       contacts: parentContacts(child),
       entries: clone(
         entries.map((entry) => ({
-          ...entry,
+          ...withEarlyPickup(db, entry),
           parentNotifications: (db.parentHealthNotifications || []).filter((notification) => notification.healthEntryId === entry.id),
         })),
       ),
@@ -212,6 +230,8 @@ export const dailyHealthMockRepository = {
         .trim()
         .replace(',', '.');
       const at = new Date().toISOString();
+      const noted = payload.observation === 'NOTED';
+      const actions = noted ? Object.keys(HEALTH_ACTIONS).filter((a) => (payload.actions || []).includes(a)) : [];
       const entry = {
         id: uid('daily-health'),
         requestId: payload.requestId,
@@ -222,7 +242,12 @@ export const dailyHealthMockRepository = {
         observation: payload.observation,
         symptoms: payload.observation === 'NOTED' ? [...new Set(payload.symptoms || [])] : [],
         note: (payload.note || '').trim(),
-        notificationStatus: payload.observation === 'NOTED' ? 'PENDING' : 'NOT_REQUIRED',
+        // Mọi lần cập nhật sức khỏe đều báo phụ huynh, kể cả "Không ghi nhận bất thường" (Cần chốt 16/10/2026)
+        notificationStatus: 'PENDING',
+        actions,
+        referral: actions.includes('REFERRAL')
+          ? { place: payload.referral.place.trim(), time: payload.referral.time, escort: (payload.referral.escort || '').trim() }
+          : null,
         recordedBy: user.id,
         recordedByName: user.fullName,
         recordedAt: at,
@@ -237,17 +262,26 @@ export const dailyHealthMockRepository = {
       const entry = db.dailyHealthEntries?.find((item) => item.id === entryId);
       if (!entry) throw new ApiError(404, 'Không tìm thấy lần ghi nhận sức khỏe.');
       const { child } = context(db, entry, user);
-      if (entry.observation !== 'NOTED') throw new ApiError(422, 'Lần ghi nhận không có dấu hiệu cần lưu ý.');
       // Email chỉ là khóa người nhận trong demo; App thật phải dùng GuardianChildLink do BE xác nhận.
       const recipients = (child.guardians || []).filter((guardian) => guardian.accountStatus === 'ACTIVE' && guardian.email);
       if (!recipients.length) throw new ApiError(409, 'Chưa có tài khoản phụ huynh demo đang hoạt động. Kiểm tra hồ sơ liên hệ của trẻ.');
       db.parentHealthNotifications ||= [];
       const message = [
-        `Nhà trường ghi nhận ${child.fullName} có dấu hiệu cần lưu ý ngày ${entry.date}.`,
+        `${formatDate(entry.date)} lúc ${new Date(new Date(entry.recordedAt).getTime() + 7 * 3600000).toISOString().slice(11, 16)}: nhà trường ${
+          entry.observation === 'NOTED'
+            ? `ghi nhận ${child.fullName} có dấu hiệu cần lưu ý`
+            : `cập nhật sức khỏe của ${child.fullName}: không ghi nhận bất thường`
+        }.`,
         entry.temperature === null ? '' : `Thân nhiệt ghi nhận: ${entry.temperature.toLocaleString('vi-VN')} °C.`,
         entry.symptoms.length ? `Biểu hiện: ${entry.symptoms.map((symptom) => HEALTH_SYMPTOMS[symptom]).join(', ')}.` : '',
         entry.note,
-        'Phụ huynh vui lòng liên hệ giáo viên để trao đổi thêm.',
+        entry.actions?.length ? `Xử trí: ${entry.actions.map((a) => HEALTH_ACTIONS[a]).join(', ')}.` : '',
+        entry.referral ? `Chuyển đến ${entry.referral.place} lúc ${entry.referral.time}.` : '',
+        entry.observation !== 'NOTED'
+          ? ''
+          : entry.actions?.includes('EARLY_PICKUP')
+            ? 'Phụ huynh vui lòng đến trường đón bé sớm.'
+            : 'Phụ huynh vui lòng liên hệ giáo viên để trao đổi thêm.',
       ]
         .filter(Boolean)
         .join(' ');
@@ -312,11 +346,15 @@ export const dailyHealthMockRepository = {
         if (entry.notificationStatus === 'DEMO_QUEUED') totals.notified += 1;
         const child = db.children?.find((item) => item.id === childId);
         // Các lần đo trong ngày theo thứ tự thời gian, để hiện "n lần (36,7 → 37,8)"
-        const readings = dayEntries.filter((item) => item.classId === cls.id && item.childId === childId).reverse();
+        const readings = dayEntries
+          .filter((item) => item.classId === cls.id && item.childId === childId)
+          .reverse()
+          .map((item) => withEarlyPickup(db, item));
         attention.push({
           childId,
           childName: child?.fullName || 'Trẻ',
           childCode: child?.code || '',
+          photoUrl: child?.photoUrl || null,
           classId: cls.id,
           className: cls.name,
           campusId: cls.campusId,
@@ -330,6 +368,8 @@ export const dailyHealthMockRepository = {
           notifiedAt: notificationsOf(db, entry.id)[0]?.createdAt || null,
           readingCount: readings.length,
           temperatureTrail: readings.map((item) => item.temperature),
+          // Xử trí trong ngày theo thứ tự thời gian, vd. "Phòng y tế · Gọi PH · Về sớm 10:15"
+          actionsText: actionSummary(readings),
         });
       });
       totals.present += presentIds.size;
@@ -367,7 +407,7 @@ export const dailyHealthMockRepository = {
       className: cls.name,
       date,
       contacts: parentContacts(child),
-      entries: entries.map((entry) => ({ ...entry, parentNotifications: notificationsOf(db, entry.id) })),
+      entries: entries.map((entry) => ({ ...withEarlyPickup(db, entry), parentNotifications: notificationsOf(db, entry.id) })),
     });
   },
 };

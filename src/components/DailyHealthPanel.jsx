@@ -1,17 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { HeartPulse, Save, ArrowRight, Clock, CheckCircle2, Phone, ChevronDown, ChevronUp } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
 import { EmptyState, ErrorState, LoadingState, SubmitOverlay } from '@/components/ui/States';
 import { useAsync } from '@/hooks/useAsync';
 import { getDailyHealth, notifyDailyHealth } from '@/services/dailyHealthService';
-import { HEALTH_SYMPTOMS, validateDailyHealth } from '@/utils/dailyHealthValidation';
+import { HEALTH_ACTIONS, HEALTH_SYMPTOMS, actionSummary, validateDailyHealth } from '@/utils/dailyHealthValidation';
 import { temperatureLevel } from '@/utils/attendance/temperatureLevels';
 import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
 import { formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { useToast } from '@/contexts/ToastContext';
 
-const blank = () => ({ temperature: '', observation: '', symptoms: [], note: '' });
+const blank = () => ({
+  temperature: '',
+  observation: '',
+  symptoms: [],
+  note: '',
+  actions: [],
+  referral: { place: '', time: '', escort: '' },
+});
+// Giờ hiện tại hh:mm (giờ máy) để điền sẵn giờ đón / giờ chuyển
+const nowTime = () => new Date().toTimeString().slice(0, 5);
 
 export function DailyHealthPanel({
   child,
@@ -48,7 +58,7 @@ export function DailyHealthPanel({
     () => getDailyHealth({ classId, childId: child.id, date }, user),
     [classId, child.id, date, user.id, presentSaved],
   );
-  const dirty = !!(form.temperature || form.observation || form.symptoms.length || form.note);
+  const dirty = !!(form.temperature || form.observation || form.symptoms.length || form.note || form.actions.length);
   useEffect(() => {
     onDirty(dirty);
     return () => onDirty(false);
@@ -56,8 +66,18 @@ export function DailyHealthPanel({
 
   const set = (key, value) => {
     requestId.current = crypto.randomUUID();
-    setForm((current) => ({ ...current, [key]: value, ...(key === 'observation' && value === 'NO_CONCERN' ? { symptoms: [] } : {}) }));
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === 'observation' && value === 'NO_CONCERN' ? { symptoms: [], actions: [] } : {}),
+    }));
     setErrors({});
+  };
+  const toggleAction = (value, checked) => {
+    const actions = checked ? [...form.actions, value] : form.actions.filter((a) => a !== value);
+    set('actions', actions);
+    // Tích đón về sớm / chuyển cơ sở y tế thì điền sẵn giờ hiện tại
+    if (checked && value === 'REFERRAL' && !form.referral.time) set('referral', { ...form.referral, time: nowTime() });
   };
   const editable = presentDraft && ((canDraft && !error) || (presentSaved && data?.canRecord)) && !loading && !error;
   const showForm = editable && (adding || dirty || !data?.entries.length || attendanceDirty);
@@ -77,11 +97,7 @@ export function DailyHealthPanel({
       requestId.current = crypto.randomUUID();
       onDirty(false);
       toast.success(
-        form.observation === 'NOTED'
-          ? 'Đã lưu sức khỏe và gửi thông báo phụ huynh (demo, chưa gửi App thật).'
-          : attendanceDirty
-            ? 'Đã lưu điểm danh và sức khỏe của trẻ.'
-            : 'Đã thêm lần ghi nhận sức khỏe.',
+        attendanceDirty ? 'Đã lưu điểm danh, sức khỏe và gửi thông báo phụ huynh.' : 'Đã lưu lần ghi nhận và gửi thông báo phụ huynh.',
       );
       await reload({ silent: true });
       if (next) onNext();
@@ -152,18 +168,6 @@ export function DailyHealthPanel({
         <ErrorState error={error} onRetry={reload} />
       ) : (
         <>
-          {presentSaved && data?.healthSummary?.reminder && (
-            <div className="alert alert--warning mb-12" role="status">
-              <HeartPulse size={18} />
-              <div>
-                <strong>{data.healthSummary.reminder}.</strong>{' '}
-                {data.healthSummary.entryCount
-                  ? 'Các lần ghi nhận đã lưu chưa có thân nhiệt. Nếu đã đo, thêm một lần ghi nhận để lưu số đo.'
-                  : 'Trẻ đang được chọn Có mặt nhưng chưa có lần kiểm tra nào được lưu trong ngày đã chọn.'}
-                <div className="text-sm">Đây là nhắc nhở cho cô, không phải dấu hiệu bất thường. Điểm danh vẫn có thể lưu riêng.</div>
-              </div>
-            </div>
-          )}
           {!editable && (
             <div className="alert alert--info">
               <HeartPulse size={18} />
@@ -197,7 +201,7 @@ export function DailyHealthPanel({
                 {attendanceDirty && (
                   <p className="muted text-sm">Chưa lưu điểm danh của trẻ. Nút bên dưới sẽ lưu điểm danh trước, rồi lưu sức khỏe.</p>
                 )}
-                <FormField label="Thân nhiệt (°C)" hint="Không bắt buộc · để trống nếu chưa đo" error={errors.temperature}>
+                <FormField label="Thân nhiệt (°C)" error={errors.temperature}>
                   <input
                     className="input"
                     inputMode="decimal"
@@ -261,7 +265,54 @@ export function DailyHealthPanel({
                     </div>
                   </fieldset>
                 )}
-                <FormField label="Ghi chú" error={errors.note} hint="Ghi nhận quan sát và việc đã thực hiện; không tự chẩn đoán.">
+                {form.observation === 'NOTED' && (
+                  <fieldset className="dd-health__fields">
+                    <legend className="field__label">Xử trí</legend>
+                    <div className="dd-health__symptoms">
+                      {Object.entries(HEALTH_ACTIONS).map(([value, label]) => (
+                        <label className={`dd-health__option ${form.actions.includes(value) ? 'is-selected' : ''}`} key={value}>
+                          <input
+                            type="checkbox"
+                            checked={form.actions.includes(value)}
+                            onChange={(event) => toggleAction(value, event.target.checked)}
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    {errors.actions && <div className="field__error">{errors.actions}</div>}
+                    {form.actions.includes('REFERRAL') && (
+                      <div className="dd-health__sub">
+                        <FormField label="Nơi chuyển đến" required error={errors.referral}>
+                          <input
+                            className="input"
+                            maxLength={150}
+                            value={form.referral.place}
+                            placeholder="Ví dụ: Trạm y tế phường"
+                            onChange={(e) => set('referral', { ...form.referral, place: e.target.value })}
+                          />
+                        </FormField>
+                        <FormField label="Giờ" required>
+                          <input
+                            type="time"
+                            className="input"
+                            value={form.referral.time}
+                            onChange={(e) => set('referral', { ...form.referral, time: e.target.value })}
+                          />
+                        </FormField>
+                        <FormField label="Người đi cùng">
+                          <input
+                            className="input"
+                            maxLength={100}
+                            value={form.referral.escort}
+                            onChange={(e) => set('referral', { ...form.referral, escort: e.target.value })}
+                          />
+                        </FormField>
+                      </div>
+                    )}
+                  </fieldset>
+                )}
+                <FormField label="Ghi chú" error={errors.note}>
                   <textarea
                     className="textarea"
                     rows={3}
@@ -305,9 +356,6 @@ export function DailyHealthPanel({
                     Lưu & trẻ tiếp theo <ArrowRight size={16} />
                   </button>
                 </div>
-                {form.observation === 'NOTED' && (
-                  <span className="muted text-xs">Khi lưu sẽ gửi thông báo cho phụ huynh (demo, chưa gửi App thật).</span>
-                )}
               </fieldset>
             </form>
           )}
@@ -315,7 +363,6 @@ export function DailyHealthPanel({
             <h3 id="health-history-heading" className="dd-health__name">
               Các lần ghi nhận trong ngày đã chọn
             </h3>
-            <p className="muted text-sm">Mỗi lần ghi nhận được lưu riêng, kể cả sau giờ khóa điểm danh.</p>
             {data?.entries.filter((e) => Number.isFinite(e.temperature)).length > 1 && (
               <p className="text-sm">
                 Thân nhiệt hôm nay:{' '}
@@ -366,7 +413,23 @@ export function DailyHealthPanel({
                           {entry.symptoms.length ? ` · ${entry.symptoms.map((item) => HEALTH_SYMPTOMS[item]).join(', ')}` : ''}
                         </p>
                         {entry.note && <p>{entry.note}</p>}
-                        {entry.observation === 'NOTED' && (
+                        {entry.actions?.length > 0 && (
+                          <p className="dd-health__action-line">
+                            Xử trí: {entry.actions.map((a) => HEALTH_ACTIONS[a]).join(', ')}
+                            {entry.actions.includes('EARLY_PICKUP') &&
+                              (entry.earlyPickup
+                                ? ` · ${entry.earlyPickup.relation} ${entry.earlyPickup.fullName} đã đón lúc ${entry.earlyPickup.time}`
+                                : ' · chờ phụ huynh đến đón')}{' '}
+                            {entry.actions.includes('EARLY_PICKUP') && (
+                              <Link to={`/pickup?classId=${classId}&date=${date}`} className="text-sm">
+                                {entry.earlyPickup ? 'Xem ở Đón trẻ' : 'Trả trẻ ở Đón trẻ'}
+                              </Link>
+                            )}
+                            {entry.referral &&
+                              ` · chuyển ${entry.referral.place} lúc ${entry.referral.time}${entry.referral.escort ? `, đi cùng ${entry.referral.escort}` : ''}`}
+                          </p>
+                        )}
+                        {entry.notificationStatus !== 'NOT_REQUIRED' && (
                           <div className="dd-health__actions">
                             <span className={`chip ${entry.notificationStatus === 'DEMO_QUEUED' ? 'chip--blue' : 'chip--orange'}`}>
                               {entry.notificationStatus === 'DEMO_QUEUED'
@@ -380,7 +443,6 @@ export function DailyHealthPanel({
                             )}
                           </div>
                         )}
-                        <div className="muted text-sm">Ghi nhận bởi {entry.recordedByName}</div>
                       </li>
                     ) : (
                       <li key={entry.id} className="dd-health__compact">
@@ -400,8 +462,9 @@ export function DailyHealthPanel({
                           <span className="dd-health__compact-text">
                             {entry.observation === 'NO_CONCERN' ? 'Bình thường' : 'Có dấu hiệu'}
                             {entry.symptoms.length ? ` · ${entry.symptoms.map((item) => HEALTH_SYMPTOMS[item]).join(', ')}` : ''}
+                            {entry.actions?.length ? ` · ${actionSummary([entry])}` : ''}
                           </span>
-                          {entry.observation === 'NOTED' && entry.notificationStatus !== 'DEMO_QUEUED' && (
+                          {!['DEMO_QUEUED', 'NOT_REQUIRED'].includes(entry.notificationStatus) && (
                             <span className="chip chip--orange">Chưa gửi PH</span>
                           )}
                           <ChevronDown size={16} aria-hidden="true" />

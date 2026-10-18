@@ -10,7 +10,8 @@ export async function saveReception({ attendance, health }, user) {
       attendanceSaved = true;
     }
     savedHealth = await addDailyHealth(health, user);
-    if (savedHealth.observation === 'NOTED') await notifyDailyHealth(savedHealth.id, user);
+    // Mỗi lần cập nhật sức khỏe đều gửi thông báo phụ huynh
+    await notifyDailyHealth(savedHealth.id, user);
     return { health: savedHealth, attendanceSaved };
   } catch (error) {
     // Hai request độc lập: báo đúng phần đã lưu, không giả lập rollback phía client.

@@ -105,8 +105,12 @@
 .dd-reception__row {
   cursor: pointer;
 }
+/* Trẻ đang chọn: nền trắng như các dòng khác, đánh dấu bằng vạch màu bên trái */
 .dd-reception__table tr.dd-reception__row--selected td {
-  background: var(--color-primary-soft);
+  background: var(--color-surface);
+}
+.dd-reception__table tr.dd-reception__row--selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-primary);
 }
 .dd-reception__child {
   display: flex;
@@ -631,6 +635,61 @@
 .dd-hov__filters .select {
   width: auto;
   min-width: 160px;
+}
+/* Xử trí: ô phụ khi tích Đón về sớm / Chuyển cơ sở y tế */
+.dd-health__sub {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+.dd-health__sub .field {
+  margin: 0;
+}
+.dd-health__action-line {
+  color: var(--warning-700);
+  font-weight: var(--fw-semibold);
+}
+/* Trẻ cần chú ý: cột Xử trí dạng chip, mỗi chip một dòng chữ */
+.dd-hov__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-width: 120px;
+}
+.dd-hov__actions .chip {
+  white-space: nowrap;
+}
+/* Trẻ cần chú ý: ảnh đại diện + tên, mã */
+.dd-hov__child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* Dòng nhóm tuổi của bảng "Theo lớp": bấm để thu / mở các lớp */
+.dd-hov__group td {
+  background: var(--surface-soft);
+  font-weight: var(--fw-semibold);
+}
+.dd-hov__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.dd-hov__toggle:disabled {
+  cursor: default;
+}
+.table td.dd-hov__class {
+  padding-left: var(--space-8);
 }
 @media (max-width: 640px) {
   .dd-hov__filters,
