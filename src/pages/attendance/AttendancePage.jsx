@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { BarChart3, CheckCheck, Save, Utensils, MinusCircle, ClipboardList, UtensilsCrossed } from '@/components/ui/icons';
+import { BarChart3, CheckCheck, Save, Utensils, MinusCircle, ClipboardList } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -367,9 +367,6 @@ export default function AttendancePage() {
           </div>
 
           <div className="page-actions">
-            <Link className="btn" to="/attendance/meal-handover">
-              <UtensilsCrossed size={16} /> Nhận suất ăn
-            </Link>
             {editable && (
               <button className="btn btn--primary btn--lg" onClick={save} disabled={saving || !dirty}>
                 {saving ? <Spinner small /> : <Save size={18} />} Lưu điểm danh
