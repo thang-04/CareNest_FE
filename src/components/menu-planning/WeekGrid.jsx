@@ -70,7 +70,7 @@ export function WeekGrid({
 
   return (
     <div className="table-wrap td-week-wrap">
-      <table className="table td-week">
+      <table className="table table--grid td-week">
         <thead>
           <tr>
             <th className="td-week__label">Món</th>

@@ -145,7 +145,7 @@ export default function DishDetailPage() {
               </div>
             </div>
             <div className="table-wrap td-card-table">
-              <table className="table td-hl">
+              <table className="table table--grid td-hl">
                 <thead>
                   <tr>
                     <th>Thành phần</th>

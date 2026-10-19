@@ -198,7 +198,7 @@ export default function FreshReceiptPage() {
         )}
         <section className="card kb-fr">
           <div className="table-wrap">
-            <table className="table kb-fc">
+            <table className="table table--grid kb-fc">
               <thead>
                 <tr>
                   <th>Thực phẩm</th>

@@ -28,6 +28,8 @@ Chưa có contract xác nhận để nối màn này. Service gọi mock khi USE
 
 Loading/error/retry/empty qua component hiện có; guard từ chối role khác. Lưu khóa nút/công tắc, giữ lựa chọn lỗi. Dữ liệu truy vấn scoped theo user/filter; bỏ response cũ khi chuyển truy vấn/unmount. Form giữ state riêng, refetch sau mutation; không sửa shared auth cache.
 
+Ba route dùng `page__head`, tab segmented, `table--grid table--compact`, `Avatar`, `Modal`, `FormField` và các state dùng chung. CSS `permissions.css` chỉ giữ ma trận, wizard, cột bảng và responsive đặc thù; không còn stylesheet `staff-hub.css` song song.
+
 ## Known pitfalls
 
 Wizard phải hydrate draft sau 2→3→2, cả draft rỗng; lịch sử không dựa riêng vào danh sách còn ngoại lệ. Xem [incident và regression](../knowledge/incidents/FE-BUG-261019-permission-wizard-draft-history.md).

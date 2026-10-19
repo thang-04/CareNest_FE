@@ -34,7 +34,7 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
             <div className="td-session__title">{mealLabel(catalog.nutritionSetups, ageGroupId, session)}</div>
             {meal.items.length > 0 && (
               <div className="table-wrap">
-                <table className="table table--compact">
+                <table className="table table--grid table--compact">
                   <thead>
                     <tr>
                       <th style={{ minWidth: 220 }}>Món</th>

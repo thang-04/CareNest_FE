@@ -152,6 +152,7 @@ Quy tắc:
 5. Module thấy một mẫu dùng ở ≥ 2 chỗ → chuyển lên `components.css` + component trong `src/components`.
 6. File CSS của module đặt trong `styles/modules/`, tên đúng tên module: `styles/modules/facility-transfer.css`. Import ở trang/component của module: `import '@/styles/modules/facility-transfer.css';`.
 7. Class trong CSS module **mới** phải có tiền tố 2–3 chữ của module để không trùng (`kk-` = kiểm kê, ví dụ module Báo hỏng dùng `bh-`). Module Luân chuyển viết trước quy tắc này nên class chưa có tiền tố (tên đã đủ riêng: `campus-card`, `route-banner`…) – không đặt class mới trùng các tên đó.
+8. Bảng danh sách/cấu hình cần kẻ đủ ô dùng `.table-wrap > .table.table--grid`; thêm `table--compact` khi cần mật độ gọn. CSS module chỉ đặt độ rộng/căn chỉnh đặc thù, không viết lại viền, padding, màu header hoặc hover của `.table`.
 
 ---
 

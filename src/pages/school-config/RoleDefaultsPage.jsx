@@ -18,7 +18,6 @@ import {
 } from '@/models/account/permissionConstants';
 import { permissionMatrixRows, PERMISSION_MATRIX_ROLES } from '@/utils/account/permissionMatrix';
 import { permissionCrumbs } from '@/utils/school-config/breadcrumbs';
-import '@/styles/modules/staff-hub.css';
 import '@/styles/modules/permissions.css';
 
 export default function RoleDefaultsPage() {
@@ -101,15 +100,15 @@ export default function RoleDefaultsPage() {
       <Breadcrumb items={permissionCrumbs('Quyền theo vai trò')} />
       <PermissionTabs />
 
-      <div className="sh-head permission-page-head">
+      <div className="page__head permission-page-head">
         <div>
-          <h1>Quyền theo vai trò</h1>
+          <h1 className="page__title">Quyền theo vai trò</h1>
           <p className="text-sm text-2">
             Cấu hình quyền mặc định áp dụng chung cho Phó hiệu trưởng và Giáo viên toàn trường. Ngoại lệ cho từng cá nhân được quản lý ở tab
             “Quyền ngoại lệ từng người”.
           </p>
         </div>
-        <div className="sh-head__actions">
+        <div className="row row--wrap">
           <Link className="btn" to="/permissions/history">
             <History size={16} /> Lịch sử thay đổi
           </Link>
@@ -122,79 +121,81 @@ export default function RoleDefaultsPage() {
         <LoadingState />
       ) : (
         <>
-          <div className="card table-wrap permission-matrix-wrap">
-            <table className="perm-matrix-v2 permission-matrix">
-              <thead>
-                <tr>
-                  <th>Nghiệp vụ / Quyền được thực hiện</th>
-                  {PERMISSION_MATRIX_ROLES.map((role) => (
-                    <th key={role} className="perm-col-role">
-                      {PERMISSION_ROLE_LABELS[role]}
-                    </th>
+          <section className="card permission-matrix-card">
+            <div className="table-wrap permission-matrix-wrap">
+              <table className="table table--grid table--compact permission-matrix">
+                <thead>
+                  <tr>
+                    <th>Nghiệp vụ / Quyền được thực hiện</th>
+                    {PERMISSION_MATRIX_ROLES.map((role) => (
+                      <th key={role} className="perm-col-role">
+                        {PERMISSION_ROLE_LABELS[role]}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupedRows.map((group) => (
+                    <Fragment key={group.key}>
+                      <tr className="perm-group-row">
+                        <td colSpan={PERMISSION_MATRIX_ROLES.length + 1}>{group.label}</td>
+                      </tr>
+                      {group.items.map((row) => {
+                        const task = PERMISSION_TASKS[row.code];
+                        return (
+                          <tr key={row.code}>
+                            <td>
+                              <strong>{task?.label || row.description}</strong>
+                              {task?.hint && <small className="text-muted d-block mt-1">{task.hint}</small>}
+                            </td>
+                            {PERMISSION_MATRIX_ROLES.map((role) => {
+                              const cell = row.cells[role];
+                              const rolePermission = roleEntry(role);
+                              const changed = isChanged(role, row.code);
+                              const currentVal = valueOf(role, row.code);
+                              return (
+                                <td key={role} className="perm-col-role">
+                                  <div className={`perm-cell-content ${changed ? 'perm-cell--changed' : ''}`}>
+                                    {cell.configurable ? (
+                                      <Switch
+                                        checked={currentVal}
+                                        disabled={saving}
+                                        label={`${labelOf(row.code)} cho ${PERMISSION_ROLE_LABELS[role]}`}
+                                        onChange={(next) =>
+                                          setValues((current) => ({
+                                            ...current,
+                                            [role]: { ...current[role], [row.code]: next },
+                                          }))
+                                        }
+                                      />
+                                    ) : (
+                                      <span className="permission-lock">
+                                        <Lock size={14} />{' '}
+                                        {rolePermission?.permissions?.includes(row.code) ? 'Cố định theo quy định' : 'Không cấu hình'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {groupedRows.map((group) => (
-                  <Fragment key={group.key}>
-                    <tr className="perm-group-row">
-                      <td colSpan={PERMISSION_MATRIX_ROLES.length + 1}>{group.label}</td>
-                    </tr>
-                    {group.items.map((row) => {
-                      const task = PERMISSION_TASKS[row.code];
-                      return (
-                        <tr key={row.code}>
-                          <td>
-                            <strong>{task?.label || row.description}</strong>
-                            {task?.hint && <small className="text-muted d-block mt-1">{task.hint}</small>}
-                          </td>
-                          {PERMISSION_MATRIX_ROLES.map((role) => {
-                            const cell = row.cells[role];
-                            const rolePermission = roleEntry(role);
-                            const changed = isChanged(role, row.code);
-                            const currentVal = valueOf(role, row.code);
-                            return (
-                              <td key={role} className="perm-col-role">
-                                <div className={`perm-cell-content ${changed ? 'perm-cell--changed' : ''}`}>
-                                  {cell.configurable ? (
-                                    <Switch
-                                      checked={currentVal}
-                                      disabled={saving}
-                                      label={`${labelOf(row.code)} cho ${PERMISSION_ROLE_LABELS[role]}`}
-                                      onChange={(next) =>
-                                        setValues((current) => ({
-                                          ...current,
-                                          [role]: { ...current[role], [row.code]: next },
-                                        }))
-                                      }
-                                    />
-                                  ) : (
-                                    <span className="sh-lock">
-                                      <Lock size={14} />{' '}
-                                      {rolePermission?.permissions?.includes(row.code) ? 'Cố định theo quy định' : 'Không cấu hình'}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          </section>
 
           {allChanges.length > 0 && (
-            <div className="perm-floating-bar" role="region" aria-label="Thao tác lưu thay đổi">
-              <div className="perm-floating-bar__info">
+            <div className="page-actions permission-save-bar" role="region" aria-label="Thao tác lưu thay đổi">
+              <div className="permission-save-bar__info">
                 <span>
                   Bạn có <strong>{allChanges.length}</strong> thay đổi phân quyền chưa lưu.
                 </span>
               </div>
-              <div className="perm-floating-bar__actions">
+              <div className="row row--wrap permission-save-bar__actions">
                 <button className="btn" type="button" disabled={saving} onClick={handleReset}>
                   Hủy thay đổi
                 </button>

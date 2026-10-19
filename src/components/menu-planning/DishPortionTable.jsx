@@ -23,7 +23,7 @@ export function DishPortionTable({ dish, foodById }) {
         </div>
       )}
       <div className="table-wrap">
-        <table className="table table--compact">
+        <table className="table table--grid table--compact">
           <thead>
             <tr>
               <th>Khẩu phần</th>

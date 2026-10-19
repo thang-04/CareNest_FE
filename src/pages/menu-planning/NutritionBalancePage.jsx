@@ -266,7 +266,7 @@ export default function NutritionBalancePage() {
                     price={priceOn(catalog.mealPrices, wm.ageGroupId, date)?.price}
                   />
                   <div className="table-wrap mt-12">
-                    <table className="table table--compact">
+                    <table className="table table--grid table--compact">
                       <thead>
                         <tr>
                           <th>Bữa</th>

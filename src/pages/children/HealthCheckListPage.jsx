@@ -99,7 +99,7 @@ export default function HealthCheckListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap tr-table-flat">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Đợt khám</th>

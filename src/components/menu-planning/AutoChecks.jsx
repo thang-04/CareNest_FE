@@ -37,7 +37,7 @@ export function AutoChecks({
             <summary className="link-btn">
               <ChevronDown size={16} /> Xem số liệu
             </summary>
-            <table className="table td-ai-meals">
+            <table className="table table--grid td-ai-meals">
               <thead>
                 <tr>
                   <th />

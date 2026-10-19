@@ -30,7 +30,7 @@ export function WeekBalanceTable({ wm, catalog }) {
         </span>
       </div>
       <div className="table-wrap">
-        <table className="table td-balance">
+        <table className="table table--grid td-balance">
           <thead>
             <tr>
               <th rowSpan={2}>Ngày</th>

@@ -187,7 +187,7 @@ export function AllergySubstitutes({ menu, catalog, allergyRows, canManage }) {
             <div className="field">
               <span className="field__label">Món cần đổi</span>
               {conflicts.length ? (
-                <table className="table table--compact">
+                <table className="table table--grid table--compact">
                   <thead>
                     <tr>
                       <th>Bữa</th>

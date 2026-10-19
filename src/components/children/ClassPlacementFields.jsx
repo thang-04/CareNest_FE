@@ -22,8 +22,8 @@ export function ClassPlacementFields({
   const req = required && <span className="req">*</span>;
 
   return (
-    <div className="stack" style={{ gap: 14 }}>
-      <div className="field" style={{ maxWidth: 360 }}>
+    <div className="stack gap-3-5">
+      <div className="field tr-field-narrow">
         <label className="field__label" htmlFor="tr-age-group">
           Nhóm tuổi{req}
         </label>

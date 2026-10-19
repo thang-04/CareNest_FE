@@ -41,7 +41,7 @@ export function PreparationCard({ item, md, classId = 'ALL', showHistory = true 
             </dl>
             {classes.length > 0 && (
               <div className="table-wrap">
-                <table className="table table--compact">
+                <table className="table table--grid table--compact">
                   <thead>
                     <tr>
                       <th>Lớp</th>

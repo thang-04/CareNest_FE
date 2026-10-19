@@ -122,10 +122,10 @@ export default function ImportChildrenPage() {
               <CheckCircle2 size={26} />
             </div>
             <div className="state__title">Đã nhập {imported.created} hồ sơ trẻ</div>
-            <div className="muted" style={{ maxWidth: 480 }}>
+            <div className="muted tr-state-text">
               Hồ sơ đã được tiếp nhận. Các trẻ đang ở trạng thái <b>Chờ xếp lớp</b>; xếp lớp cho từng trẻ tại màn Xếp lớp.
             </div>
-            <div className="row mt-12" style={{ gap: 8 }}>
+            <div className="row mt-12 gap-2">
               <Link className="btn" to="/children">
                 Về danh sách trẻ
               </Link>
@@ -195,7 +195,7 @@ export default function ImportChildrenPage() {
         {file && (
           <div className="file-row mt-12">
             <FileSpreadsheet size={26} color="var(--file-sheet)" />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div className="file-row__name">{file.name}</div>
               <div className="muted text-sm">{formatFileSize(file.size)}</div>
             </div>
@@ -217,8 +217,8 @@ export default function ImportChildrenPage() {
 
       {preview?.supported && (
         <section className="card">
-          <div className="card__header row row--between row--wrap" style={{ gap: 12 }}>
-            <div className="row row--wrap" style={{ gap: 8 }}>
+          <div className="card__header row row--between row--wrap gap-3">
+            <div className="row row--wrap gap-2">
               <h2 className="card__title">Kết quả kiểm tra</h2>
               <span className="chip chip--blue">{rows.length} dòng</span>
               <span className="chip chip--green">{validRows.length} hợp lệ</span>
@@ -238,7 +238,7 @@ export default function ImportChildrenPage() {
             </div>
           )}
           <div className="table-wrap tr-table-flat">
-            <table className="table table--compact">
+            <table className="table table--grid table--compact">
               <thead>
                 <tr>
                   <th className="center">Dòng</th>
@@ -248,7 +248,7 @@ export default function ImportChildrenPage() {
                   <th>Phụ huynh</th>
                   <th>Số điện thoại</th>
                   <th>Dị ứng</th>
-                  <th style={{ minWidth: 220 }}>Kết quả</th>
+                  <th className="tr-col-result">Kết quả</th>
                 </tr>
               </thead>
               <tbody>
@@ -273,7 +273,7 @@ export default function ImportChildrenPage() {
                       </td>
                       <td>
                         {r.errors.length === 0 ? (
-                          <span className="text-success row" style={{ gap: 4 }}>
+                          <span className="text-success row gap-1">
                             <CheckCircle2 size={15} /> Hợp lệ
                           </span>
                         ) : (

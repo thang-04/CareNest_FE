@@ -125,7 +125,7 @@ export default function HealthDeclarationPage() {
       <div className="page__head">
         <h1 className="page__title">Khai báo sức khỏe: {child.fullName}</h1>
         {!editing && (
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row gap-2">
             {canEdit && (
               <button className="btn btn--primary" onClick={startEdit}>
                 <Pencil size={16} /> {declaration ? 'Sửa khai báo' : 'Khai báo sức khỏe'}

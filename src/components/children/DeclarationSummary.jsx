@@ -13,7 +13,7 @@ export function DeclarationSummary({ declaration }) {
       <dd>
         <div>{ALLERGY_STATE_LABELS[allergies.state]}</div>
         {reported && (
-          <div className="row row--wrap mt-8" style={{ gap: 6 }}>
+          <div className="row row--wrap mt-8 gap-1-5">
             {allergies.items.map((x) => (
               <span key={x} className="chip chip--red">
                 {x}

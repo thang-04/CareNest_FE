@@ -93,7 +93,7 @@ export default function AllergyMenuListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã</th>

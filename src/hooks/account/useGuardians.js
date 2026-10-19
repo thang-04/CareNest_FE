@@ -14,5 +14,11 @@ export function useGuardianStructure() {
   const query = useGuardianQuery(() => getGuardianStructure(user), []);
   const campuses = query.data?.campuses || [];
   const classrooms = query.data?.classrooms || [];
-  return { ...query, campuses, classrooms, campusName: (id) => campuses.find((row) => row.id === id)?.name || '', classroomName: (id) => classrooms.find((row) => row.id === id)?.name || '' };
+  return {
+    ...query,
+    campuses,
+    classrooms,
+    campusName: (id) => campuses.find((row) => row.id === id)?.name || '',
+    classroomName: (id) => classrooms.find((row) => row.id === id)?.name || '',
+  };
 }

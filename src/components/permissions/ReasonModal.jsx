@@ -30,7 +30,7 @@ export function ReasonModal({ title = 'Vì sao thay đổi?', changes, saving, o
       }
     >
       <p className="text-sm text-2">Lý do được lưu vào lịch sử demo, không thay quyền đang chạy.</p>
-      <ul className="sh-reason-list">
+      <ul className="permission-reason-list">
         {changes.map((change, index) => (
           <li key={index}>{change}</li>
         ))}

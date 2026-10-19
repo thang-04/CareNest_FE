@@ -124,7 +124,7 @@ export default function StockCountPage() {
             </span>
           </div>
           <div className="table-wrap">
-            <table className="table kb-fc">
+            <table className="table table--grid kb-fc">
               <thead>
                 <tr>
                   <th>Thực phẩm</th>

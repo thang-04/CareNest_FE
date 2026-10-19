@@ -152,7 +152,7 @@ export default function AllergyMenuDetailPage() {
           <div className="card__title">Món được thay</div>
         </div>
         <div className="table-wrap" style={{ border: 'none' }}>
-          <table className="table table--compact">
+          <table className="table table--grid table--compact">
             <thead>
               <tr>
                 <th>Bữa</th>

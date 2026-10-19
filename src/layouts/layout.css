@@ -748,14 +748,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.user-panel__section {
-  padding: var(--space-2) var(--space-2-5);
-  color: var(--color-text-secondary);
-}
-.user-panel__list {
-  max-height: 380px;
-  overflow-y: auto;
-}
 .user-option {
   display: flex;
   align-items: center;

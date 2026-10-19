@@ -14,7 +14,7 @@ export const dayNormStatus = (rows) =>
 export function WeekDaysView({ wm, catalog, linkMenus = false, balanceLink = false }) {
   return (
     <div className="table-wrap">
-      <table className="table">
+      <table className="table table--grid">
         <thead>
           <tr>
             <th style={{ width: 130 }}>Ngày</th>

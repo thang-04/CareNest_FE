@@ -286,7 +286,7 @@ export default function HealthCheckDetailPage() {
             <EmptyState icon={Users} title="Không có lớp trong phạm vi của bạn" description="Đợt khám này không có lớp bạn phụ trách." />
           ) : (
             <div className="table-wrap tr-table-flat">
-              <table className="table">
+              <table className="table table--grid">
                 <thead>
                   <tr>
                     <th>Lớp</th>
@@ -331,7 +331,7 @@ export default function HealthCheckDetailPage() {
           />
         ) : (
           <div className="table-wrap tr-table-flat">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Trẻ</th>

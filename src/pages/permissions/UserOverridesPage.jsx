@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { History, Pencil, Plus, RotateCcw, Search, ShieldCheck } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { Avatar } from '@/components/ui/Avatar';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { PermissionTabs } from '@/components/permissions/PermissionTabs';
@@ -13,8 +14,7 @@ import { useAccountsWithOverrides, usePermissionStaff } from '@/hooks/account/us
 import { updatePermissionOverrides } from '@/services/account/permissionService';
 import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import { permissionCrumbs } from '@/utils/school-config/breadcrumbs';
-import { avatarTone, formatDate, initials } from '@/utils/format';
-import '@/styles/modules/staff-hub.css';
+import { formatDate } from '@/utils/format';
 import '@/styles/modules/permissions.css';
 
 const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER'];
@@ -72,12 +72,12 @@ export default function UserOverridesPage() {
       <Breadcrumb items={permissionCrumbs('Quyền ngoại lệ từng người')} />
       <PermissionTabs />
 
-      <div className="sh-head permission-page-head">
+      <div className="page__head permission-page-head">
         <div>
-          <h1>Quyền ngoại lệ từng người</h1>
+          <h1 className="page__title">Quyền ngoại lệ từng người</h1>
           <p className="text-sm text-2">Danh sách nhân sự được cấp thêm (+) hoặc thu hồi (-) quyền đặc thù so với vai trò chuẩn.</p>
         </div>
-        <div className="sh-head__actions permission-header-actions">
+        <div className="row row--wrap permission-header-actions">
           <button className="btn btn--primary" type="button" onClick={() => setWizardStaff({})}>
             <Plus size={16} /> Thêm ngoại lệ cho nhân sự
           </button>
@@ -109,17 +109,17 @@ export default function UserOverridesPage() {
       )}
       <section className="card">
         <div className="filter-bar">
-          <div className="search-input-wrap permission-search">
-            <Search size={16} className="search-icon" />
+          <label className="search-box permission-search">
+            <Search size={16} className="muted" aria-hidden="true" />
+            <span className="sr-only">Tìm kiếm nhân sự</span>
             <input
-              className="input"
               type="search"
               placeholder="Tìm theo họ tên hoặc SĐT nhân sự..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Tìm kiếm nhân sự"
             />
-          </div>
+          </label>
           <select className="select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} aria-label="Lọc theo vai trò">
             <option value="">Tất cả vai trò</option>
             {CONFIGURABLE_ROLES.map((r) => (
@@ -146,7 +146,7 @@ export default function UserOverridesPage() {
           />
         ) : (
           <div className="table-wrap">
-            <table className="table sh-permission-table">
+            <table className="table table--grid table--compact permission-overrides-table">
               <thead>
                 <tr>
                   <th>Nhân sự</th>
@@ -167,7 +167,7 @@ export default function UserOverridesPage() {
                     <tr key={item.userId}>
                       <td>
                         <div className="permission-person">
-                          <span className={`avatar avatar--tone-${avatarTone(item.fullName)}`}>{initials(item.fullName)}</span>
+                          <Avatar user={item} size="sm" />
                           <div>
                             <strong>{item.fullName}</strong>
                             {item.phone && <div className="text-xs text-muted">{item.phone}</div>}

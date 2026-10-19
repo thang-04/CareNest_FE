@@ -26,6 +26,7 @@
 .page__head {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
@@ -89,6 +90,7 @@
 }
 .page-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
@@ -1161,6 +1163,11 @@
 .detail-layout__main {
   container-type: inline-size;
 }
+/* Card con là grid item: không có min-width 0 thì bảng bên trong đẩy cả cột tràn ra ngoài màn hẹp */
+.detail-layout__main > *,
+.detail-layout__aside > * {
+  min-width: 0;
+}
 /* Cột phải hẹp: thu cột nhãn để giá trị không bị bẻ nhiều dòng */
 .detail-layout__aside .info-list {
   grid-template-columns: minmax(96px, auto) minmax(0, 1fr);
@@ -1860,6 +1867,18 @@ a.file-row__name:hover {
 }
 .info-list--wide {
   grid-template-columns: 190px 1fr;
+}
+/* Điện thoại: nhãn trên, giá trị dưới; 2 cột làm giá trị (chip, badge) bị ép hẹp và tràn trang */
+@media (max-width: 640px) {
+  .info-list,
+  .info-list--wide,
+  .detail-layout__aside .info-list {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--space-1);
+  }
+  .info-list dd + dt {
+    margin-top: var(--space-2);
+  }
 }
 .review-sign {
   display: flex;

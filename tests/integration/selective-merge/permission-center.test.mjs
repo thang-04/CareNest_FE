@@ -192,3 +192,27 @@ test('wizard 2→3→2→3 giữ payload và giữ được draft reset rỗng',
   assert.equal(reset.find((row) => row.code === 'A').on, true);
   assert.deepEqual(overridesFromSwitches(reset, { A: true, B: false }), []);
 });
+
+test('ba màn phân quyền dùng header, bảng và CSS chung của repo', () => {
+  const roles = readFileSync(new URL('../../../src/pages/school-config/RoleDefaultsPage.jsx', import.meta.url), 'utf8');
+  const overrides = readFileSync(new URL('../../../src/pages/permissions/UserOverridesPage.jsx', import.meta.url), 'utf8');
+  const history = readFileSync(new URL('../../../src/pages/school-config/PermissionHistoryPage.jsx', import.meta.url), 'utf8');
+  const tabs = readFileSync(new URL('../../../src/components/permissions/PermissionTabs.jsx', import.meta.url), 'utf8');
+  const wizard = readFileSync(new URL('../../../src/components/permissions/OverrideWizardModal.jsx', import.meta.url), 'utf8');
+
+  for (const source of [roles, overrides, history]) {
+    assert.match(source, /className="page__head permission-page-head"/);
+    assert.match(source, /className="page__title"/);
+    assert.doesNotMatch(source, /staff-hub\.css|\bsh-head\b/);
+  }
+
+  assert.match(roles, /className="table table--grid table--compact permission-matrix"/);
+  assert.match(overrides, /className="table table--grid table--compact permission-overrides-table"/);
+  assert.match(history, /className="table table--grid table--compact permission-history-table"/);
+  assert.match(tabs, /className="tabs permission-tabs"/);
+  assert.match(tabs, /`tab \$\{active \? 'tab--active' : ''\}`/);
+
+  for (const source of [roles, overrides, wizard]) {
+    assert.doesNotMatch(source, /\b(?:mb-3|mb-2|mb-1|p-3|pl-3|py-4|text-base|text-warning|font-bold|bg-surface-subtle)\b/);
+  }
+});

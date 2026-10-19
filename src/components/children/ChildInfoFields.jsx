@@ -59,7 +59,7 @@ export function ChildInfoFields({
           <legend className="field__label">
             Giới tính<span className="req">*</span>
           </legend>
-          <div className="row" style={{ gap: 20, minHeight: 40 }}>
+          <div className="row gap-5 tr-field-row">
             {Object.entries(GENDER_LABELS).map(([k, label]) => (
               <label key={k} className="radio">
                 <input type="radio" name="tr-gender" value={k} checked={value.gender === k} onChange={() => set('gender', k)} />
@@ -95,7 +95,7 @@ export function ChildInfoFields({
         </div>
       )}
       {!guardiansOverride && (
-        <div className="stack" style={{ gap: 12 }}>
+        <div className="stack gap-3">
           {value.guardians.map((g, i) => {
             const locked = lockedGuardianPhones.includes(g.phone);
             return (

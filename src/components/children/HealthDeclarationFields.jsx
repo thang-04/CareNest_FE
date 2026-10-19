@@ -5,7 +5,7 @@ import { MEDICAL_HISTORY_ITEMS, MEDICAL_HISTORY_STATE_LABELS, emptyMedicalHistor
 
 function StateRadios({ name, labels, value, onChange }) {
   return (
-    <div className="row row--wrap" style={{ gap: 20 }}>
+    <div className="row row--wrap gap-5">
       {Object.values(DECLARATION_STATE).map((s) => (
         <label key={s} className="radio">
           <input type="radio" name={name} checked={value === s} onChange={() => onChange(s)} />
@@ -35,7 +35,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
   };
 
   return (
-    <div className="stack" style={{ gap: 18 }}>
+    <div className="stack gap-4">
       <div className="alert alert--info">
         <Info size={18} />
         <div>
@@ -59,7 +59,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
             <label className="field__label" htmlFor="tr-allergy-item">
               Chất gây dị ứng
             </label>
-            <div className="row" style={{ gap: 8, maxWidth: 480 }}>
+            <div className="row gap-2 tr-state-text">
               <input
                 id="tr-allergy-item"
                 className="input"
@@ -78,7 +78,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
                 <Plus size={15} /> Thêm
               </button>
             </div>
-            <div className="row row--wrap mt-8" style={{ gap: 8 }}>
+            <div className="row row--wrap mt-8 gap-2">
               {value.allergies.items.map((x) => (
                 <span key={x} className="chip chip--red">
                   {x}

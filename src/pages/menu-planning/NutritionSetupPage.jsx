@@ -239,7 +239,7 @@ export default function NutritionSetupPage() {
             </div>
           </div>
           <div className="table-wrap">
-            <table className="table td-overview__table">
+            <table className="table table--grid td-overview__table">
               <thead>
                 <tr>
                   <th>Nhóm tuổi</th>
@@ -323,7 +323,7 @@ export default function NutritionSetupPage() {
       ) : tab === 'groups' ? (
         <section className="card">
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th className="td-num-col" aria-label="Số thứ tự" />
@@ -423,7 +423,7 @@ export default function NutritionSetupPage() {
                         )}
                       </div>
                       <div className="table-wrap">
-                        <table className="table td-norm">
+                        <table className="table table--grid td-norm">
                           <thead>
                             <tr>
                               <th rowSpan={2}>Bữa ăn</th>

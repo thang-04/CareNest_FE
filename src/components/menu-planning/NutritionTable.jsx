@@ -23,7 +23,7 @@ export function NutritionTable({ result, ageGroupId, norms, price }) {
         </div>
       )}
       <div className="table-wrap">
-        <table className="table table--compact">
+        <table className="table table--grid table--compact">
           <thead>
             <tr>
               <th>Chất dinh dưỡng</th>

@@ -161,7 +161,7 @@ export default function StockReceiptFormPage() {
               </div>
             )}
             <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-              <table className="table">
+              <table className="table table--grid">
                 <thead>
                   <tr>
                     <th style={{ minWidth: 220 }}>

@@ -24,34 +24,11 @@
   display: contents;
 }
 
-/* Trang hồ sơ trẻ: thông tin chung 2 cột, cụm sức khỏe ở cột phải */
-.tr-profile-info {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4) var(--space-8);
-}
-.tr-health-divider {
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
-}
-.tr-profile-info__sub {
-  font-weight: var(--fw-regular);
-}
-/* Ô điều hướng (xem) có mũi tên; hành động dùng nút viền để dễ phân biệt */
-.tr-quicklink > .tr-quicklink__go {
-  margin-left: auto;
-  margin-top: 0;
-  align-self: center;
-  color: var(--color-text-muted);
-}
-.tr-quicklink:hover > .tr-quicklink__go {
-  color: var(--color-primary);
-}
-
 /* Tên trẻ trong danh sách: nút mở panel xem nhanh */
+/* Tên trẻ giữ một dòng: overflow-wrap anywhere làm bảng ép cột tên còn mỗi chữ một dòng */
 .tr-name-btn {
   text-align: left;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 /* Panel xem nhanh hồ sơ trẻ (danh sách trẻ) */
@@ -242,7 +219,7 @@
 }
 .tr-class-option--disabled {
   cursor: not-allowed;
-  background: var(--gray-50);
+  background: var(--color-surface-muted);
 }
 .tr-class-option__body {
   display: flex;
@@ -266,16 +243,36 @@
 }
 .tr-chip-remove:focus-visible {
   outline: 2px solid var(--primary);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
 }
 
 .tr-state-success {
-  background: var(--success-50);
-  color: var(--success-700);
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+/* Màn kết quả tiếp nhận/nhập Excel: đoạn mô tả hẹp vừa đọc, nút căn giữa theo khối trạng thái */
+.tr-state-text {
+  max-width: 480px;
+}
+.tr-state-actions {
+  justify-content: center;
+}
+.tr-search-wide {
+  min-width: 220px;
+}
+/* Hàng lựa chọn (giới tính…) giữ chiều cao cũ 40px để không xô lệch lưới form */
+.tr-field-row {
+  min-height: var(--btn-height-lg);
+}
+.tr-field-narrow {
+  max-width: 360px;
+}
+.tr-col-result {
+  min-width: 220px;
 }
 
-/* Import preview */
-.tr-row-error td {
+/* Import preview — bảng kẻ ô ép nền trắng nên dòng lỗi cần selector mạnh hơn */
+.table.table--grid .tr-row-error td {
   background: var(--danger-25);
 }
 .tr-error-list {
@@ -412,7 +409,7 @@
 .tr-progress-cell {
   min-width: 160px;
 }
-.tr-row-selected td {
+.table.table--grid .tr-row-selected td {
   background: var(--color-primary-soft);
 }
 
@@ -420,9 +417,6 @@
 .tr-pre-line {
   white-space: pre-line;
   overflow-wrap: anywhere;
-}
-.tr-actions-end {
-  justify-content: flex-end;
 }
 /* Dòng thời gian phiếu: kết quả khám = cần để ý, nhắc của hệ thống = cần xử lý, đóng phiếu = hoàn tất */
 .history-list__dot.tr-dot--warning {
@@ -554,9 +548,6 @@
 @media (max-width: 900px) {
   .tr-metrics--4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .tr-profile-info {
-    grid-template-columns: 1fr;
   }
 }
 

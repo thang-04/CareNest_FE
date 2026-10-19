@@ -103,7 +103,7 @@ export function ReferenceLibraryPanel({ open, onClose, groups, canCopy }) {
               </div>
               {openIds.includes(d.id) && (
                 <div className="table-wrap">
-                  <table className="table table--compact">
+                  <table className="table table--grid table--compact">
                     <thead>
                       <tr>
                         <th>Thành phần</th>

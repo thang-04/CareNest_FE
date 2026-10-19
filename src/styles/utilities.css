@@ -25,6 +25,12 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
 }
+/* Điện thoại: 2 cột ô nhập/khối thông tin quá chật và đẩy trang tràn ngang */
+@media (max-width: 640px) {
+  .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .grid-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

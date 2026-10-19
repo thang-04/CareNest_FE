@@ -45,8 +45,8 @@ function AiTrendPanel({ childId, user }) {
   const { data, loading, error, reload } = useAsync(() => analyzeHealthTrend(childId, user), [childId, user?.id], { enabled: !!childId });
   return (
     <section className="card mt-16 tr-ai">
-      <div className="card__header row row--between row--wrap" style={{ gap: 8 }}>
-        <div className="row" style={{ gap: 8 }}>
+      <div className="card__header row row--between row--wrap gap-2">
+        <div className="row gap-2">
           <Sparkles size={18} className="tr-ai__icon" />
           <h2 className="card__title">Nhận định xu hướng</h2>
           <span className="chip chip--purple">Bản nháp AI – chỉ để tham khảo</span>
@@ -57,7 +57,7 @@ function AiTrendPanel({ childId, user }) {
       </div>
       <div className="card__body">
         {loading ? (
-          <div className="row muted" style={{ gap: 8 }}>
+          <div className="row muted gap-2">
             <Spinner small /> Đang phân tích xu hướng các lần đo...
           </div>
         ) : error ? (
@@ -243,7 +243,7 @@ export default function HealthTrendPage() {
         </div>
       ) : (
         <>
-          <div className="row row--between row--wrap mt-16 mb-12" style={{ gap: 8 }}>
+          <div className="row row--between row--wrap mt-16 mb-12 gap-2">
             <h2 className="section-title">
               {child.fullName}{' '}
               <span className="muted text-sm">
@@ -322,7 +322,7 @@ export default function HealthTrendPage() {
               </div>
             ) : (
               <div className="table-wrap tr-table-flat">
-                <table className="table">
+                <table className="table table--grid">
                   <caption className="sr-only">Số đo của {child.fullName} theo thời gian</caption>
                   <thead>
                     <tr>

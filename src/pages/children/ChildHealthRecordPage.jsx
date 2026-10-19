@@ -107,7 +107,7 @@ export default function ChildHealthRecordPage() {
       <Breadcrumb items={crumbs} />
       <div className="page__head">
         <h1 className="page__title">Sổ sức khỏe: {child.fullName}</h1>
-        <div className="row" style={{ gap: 8 }}>
+        <div className="row gap-2">
           <Link className="btn" to={`/children/health-trends?childId=${child.id}`}>
             <LineChart size={16} /> Xem xu hướng
           </Link>
@@ -186,7 +186,7 @@ export default function ChildHealthRecordPage() {
               <dt>Dị ứng đã xác nhận</dt>
               <dd>
                 {child.allergies?.length ? (
-                  <span className="row row--wrap" style={{ gap: 6 }}>
+                  <span className="row row--wrap gap-1-5">
                     {child.allergies.map((a) => (
                       <span key={a} className="chip chip--red">
                         {a}
@@ -252,11 +252,11 @@ export default function ChildHealthRecordPage() {
           <h2 className="card__title">Các lần đo</h2>
         </div>
         <div className="filter-bar">
-          <label className="row" style={{ gap: 8 }}>
+          <label className="row gap-2">
             <span className="text-sm text-2">Từ ngày</span>
             <input type="date" className="input" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
           </label>
-          <label className="row" style={{ gap: 8 }}>
+          <label className="row gap-2">
             <span className="text-sm text-2">Đến ngày</span>
             <input type="date" className="input" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
           </label>
@@ -307,7 +307,7 @@ export default function ChildHealthRecordPage() {
           />
         ) : (
           <div className="table-wrap tr-table-flat">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Ngày đo</th>

@@ -9,30 +9,6 @@
   display: grid;
   gap: 8px;
 }
-.kk-scope-row {
-  display: grid;
-  grid-template-columns: 28px 1.4fr 110px 1.4fr;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-}
-.kk-scope-row--on {
-  border-color: var(--primary);
-  background: var(--surface-hover);
-}
-.kk-scope-row--locked {
-  opacity: 0.6;
-  background: var(--surface-soft);
-}
-.kk-scope-group {
-  font-weight: 600;
-  color: var(--text-2);
-  font-size: var(--fs-sm);
-  margin: 10px 0 2px;
-}
 
 .kk-stats {
   display: grid;
@@ -160,9 +136,6 @@
 @media (max-width: 1280px) {
   .kk-stats {
     grid-template-columns: repeat(2, 1fr);
-  }
-  .kk-scope-row {
-    grid-template-columns: 28px 1fr;
   }
 }
 

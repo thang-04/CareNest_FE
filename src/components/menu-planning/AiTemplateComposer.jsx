@@ -139,7 +139,7 @@ export function AiTemplateComposer({
           <span className="chip chip--purple td-self-start">
             <Sparkles size={13} /> {AI_LABEL}
           </span>
-          <table className="table td-ai-meals">
+          <table className="table table--grid td-ai-meals">
             <tbody>
               {mealList.map((m) => (
                 <tr key={m.code}>

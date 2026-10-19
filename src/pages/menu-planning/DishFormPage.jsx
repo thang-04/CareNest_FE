@@ -248,7 +248,7 @@ export default function DishFormPage() {
               <span className="text-sm muted">Để trống ô của nhóm chưa dùng món này</span>
             </div>
             <div className="table-wrap td-recipe-wrap">
-              <table className="table table--compact td-recipe">
+              <table className="table table--grid table--compact td-recipe">
                 <thead>
                   <tr>
                     <th className="right">#</th>

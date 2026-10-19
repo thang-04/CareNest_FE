@@ -411,7 +411,7 @@ export default function HealthFollowUpDetailPage() {
               <h2 className="card__title">Kết quả khám trong phiếu</h2>
             </div>
             <div className="table-wrap tr-table-flat">
-              <table className="table">
+              <table className="table table--grid">
                 <thead>
                   <tr>
                     <th>Ngày đo</th>

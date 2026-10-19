@@ -265,7 +265,7 @@ export default function DryStockPage() {
             <div className="kb-stack">
               <section className="card">
                 <div className="table-wrap">
-                  <table className="table table--compact kb-fc">
+                  <table className="table table--grid table--compact kb-fc">
                     <thead>
                       <tr>
                         <th>Thực phẩm</th>

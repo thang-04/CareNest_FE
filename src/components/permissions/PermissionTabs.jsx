@@ -18,16 +18,11 @@ export function PermissionTabs() {
         <strong>Phân quyền demo độc lập.</strong> Các thay đổi ở đây chỉ lưu để duyệt UI, chưa tác động đăng nhập, quyền truy cập hoặc phân
         công đang chạy. Tổ trưởng giữ nguyên vai trò và quyền hiện tại.
       </div>
-      <nav className="permission-tabs" aria-label="Trung tâm phân quyền">
+      <nav className="tabs permission-tabs" aria-label="Trung tâm phân quyền">
         {tabs.map((tab) => {
           const active = tab.key === 'roles' ? isRolesActive : pathname === tab.to;
           return (
-            <NavLink
-              key={tab.key}
-              to={tab.to}
-              aria-current={active ? 'page' : undefined}
-              className={`permission-tabs__link ${active ? 'permission-tabs__link--active' : ''}`}
-            >
+            <NavLink key={tab.key} to={tab.to} aria-current={active ? 'page' : undefined} className={`tab ${active ? 'tab--active' : ''}`}>
               {tab.label}
             </NavLink>
           );

@@ -71,6 +71,8 @@ Nguồn: người dùng trực tiếp trong chat ngày 2026-10-18. Đây là l�
 - **AC-6** (AUTH-07, AUTH-08): đăng nhập/token/HTTP client chung, menu và Git giữ nguyên; route cần thiết bổ sung/ánh xạ tại router hoặc trang hiện có, không sửa sidebar để vượt quyền.
 - **AC-7** (AUTH-02, AUTH-03, AUTH-08): health-check, health-follow-up, pickup, assessment, education, campus/năm học và phòng ban không bị loại route/menu hoặc mất dữ liệu; mọi stash giữ nguyên.
 - **AC-8**: dependency chỉ thêm phiên bản đã duyệt; verify đầy đủ và kiểm tra AI layer có output thật sau lần sửa cuối; browser và API thật chưa thử thì ghi rõ, không báo đạt thay.
+- **AC-9**: ba màn phân quyền dùng header, tab, bảng, avatar, modal/form/state chung; không còn CSS `staff-hub` hoặc utility không tồn tại; desktop và 375px không tràn trang.
+- **AC-10**: UI dinh dưỡng/bếp dùng component/class chung cho các khối thông thường; bố cục lịch, nhập liệu, sticky, print và style động vẫn giữ hành vi.
 
 ## Key decisions
 
@@ -82,6 +84,7 @@ Nguồn: người dùng trực tiếp trong chat ngày 2026-10-18. Đây là l�
 | Menu cũ, màn mới      | Giữ sidebar, gắn màn mới vào route/tab/entry hiện có                      | Chuyển sang People Hub menu    | User giữ menu                                                    |
 | Dữ liệu phụ huynh     | Migration idempotent có cầu nối cho health/pickup                         | Reset hoặc seed lại toàn bộ    | Không được mất thông báo và liên kết cũ                          |
 | Phạm vi nhiều file    | Ba phase có cổng review; đề xuất tách commit theo task sau khi chọn nhánh | Một lần merge mù toàn bộ       | Dễ kiểm tra và phát hiện hồi quy từng vùng; chưa có quyền commit |
+| UI sau merge          | Bảng nhân sự và component/class chung của repo làm chuẩn                 | Giữ CSS riêng từ hai nhánh       | User duyệt ngày 2026-10-19; giảm style trùng và lệch giữa module      |
 
 ## Phases
 
@@ -112,6 +115,21 @@ Nguồn: người dùng trực tiếp trong chat ngày 2026-10-18. Đây là l�
 - Exit: `node scripts/verify.mjs` → `VERIFY PASS full`; `node scripts/check-ai-layer.mjs` → exit 0. Browser/API thật chưa thử phải ghi rõ; không kết luận toàn bộ pass từ build đơn thuần.
 - **Dừng chờ user review và chọn nhánh làm việc trước commit.**
 
+### Phase 4 — Đồng bộ UI phân quyền sau merge
+
+- Files: M ba page quyền, `src/components/permissions/`, `src/styles/modules/permissions.css`; D `src/styles/modules/staff-hub.css`; M test/docs liên quan.
+- Dùng `page__head`, tab segmented, `table--grid table--compact`, Avatar/FormField/Modal/state chung; giữ link route và toàn bộ handler/state/mock hiện tại.
+- Hợp nhất ma trận, thanh lưu và wizard vào `permissions.css`; loại selector trùng, utility không tồn tại, màu/kích thước viết cứng.
+- Tests: regression UI contract, test merge; browser desktop + 375px, tab active, modal và draft 2→3→2.
+- Exit: `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs`; **dừng review trước Phase 5.**
+
+### Phase 5 — Đồng bộ UI dinh dưỡng/bếp và dọn CSS
+
+- Files: M page/component dinh dưỡng-bếp, `menu-planning.css`, `kitchen.css`, test/docs liên quan.
+- Áp dụng component/class chung cho header, bảng, filter, form, badge, modal và state; giữ lịch tuần, ma trận, sticky, print và giá trị style động.
+- Xóa selector chỉ sau khi kiểm tra consumer tĩnh, class động, responsive và print.
+- Exit: các test menu/kitchen, browser desktop/tablet/375px, `node scripts/verify.mjs`, `node scripts/check-ai-layer.mjs`.
+
 ## Test matrix
 
 | AC   | Rule                    | Test dự kiến                                                                        | Phase | Kết quả hiện tại        |
@@ -124,6 +142,8 @@ Nguồn: người dùng trực tiếp trong chat ngày 2026-10-18. Đây là l�
 | AC-6 | AUTH-07/08              | Protected diff, route entry và menu/browser từng role                               | 1–3   | Chưa chạy               |
 | AC-7 | AUTH-02/03/08           | Health/pickup/assessment/education + bảo toàn stash                                 | 3     | Chưa chạy               |
 | AC-8 | Cổng kỹ thuật repo      | verify + check-ai-layer; dependency diff                                            | 1–3   | Chưa có source tích hợp |
+| AC-9 | UI contract chung        | Regression source + browser desktop/375px, tab/modal/draft                          | 4     | Đã chạy               |
+| AC-10 | UI contract chung       | Regression menu/kitchen + browser desktop/tablet/375px và print                 | 5     | Chưa chạy               |
 
 ## Rủi ro & rollback
 
@@ -145,6 +165,45 @@ Nguồn: người dùng trực tiếp trong chat ngày 2026-10-18. Đây là l�
 - [x] Người dùng đã duyệt triển khai ngày 2026-10-18; chỉ bắt đầu source sau sự đồng ý này.
 
 ## Progress log
+
+### 2026-10-19 — Tiếp tục tinh chỉnh thực đơn dị ứng
+
+- Nguồn: user chọn cả Theo ngày, Theo tuần và Quy trình bếp, sau đó yêu cầu "triển khai đi". Tiếp tục phần UI bếp của Phase 5; không commit/push/PR.
+- Thiết kế triển khai: phương án A đã đề xuất — chỉ ghi "Thay món X bằng món Y" (hoặc "Bỏ món X"), lý do dị ứng và nút mắt. Modal tên trẻ/lớp/chất dị ứng, không link hồ sơ; mỗi phương án dị ứng giữ riêng, không trộn món thay thế.
+- Tham chiếu: BE `docs/business/BUSINESS_RULES.md` AUTH-05/AUTH-07/NUT-08/NUT-09; cards `nutrition.md`, `child.md`. API nutrition chưa có: đây là read model mock đề xuất, không phải contract BE đã thống nhất; không sửa BE/APP hay cơ chế quyền, tính suất/định lượng.
+- AC: ba nơi hiển thị cùng thông tin; không lặp món giữ nguyên; giữ trường hợp bỏ món/nhiều phương án; mock trả trẻ ACTIVE đúng nhóm tuổi/campus được phép, chỉ tên/lớp/dị ứng liên quan; đổi bộ lọc không giữ modal cũ.
+- Thực hiện: test repository trước (mapping và scope), bổ sung read model và hook theo campus, component dùng chung + tích hợp hai trang/CSS, ghi feature/verification. Kiểm tra test mới fail/pass, `node scripts/verify.mjs`, `node scripts/check-ai-layer.mjs`, browser nếu môi trường cho phép. Phần này vượt 8 file cả tài liệu nên ghi tiến độ trong plan L hiện tại.
+- Kết quả phần triển khai: component `AllergyMenuChanges` dùng chung ba view; read model giữ từng phương án và bỏ món; hook hủy response cũ, xóa dữ liệu khi đổi key/người dùng/campus; không sửa shared useAsync. Không thay tính suất, mua hàng, route hoặc dependency.
+- Focused test 4/4; review phát hiện fallback seed/legacy mất tên món, test fail trước/pass sau và review lại sạch lỗi quan trọng. Incident/index: FE-BUG-261019-published-allergy-legacy. Feature doc ghi rõ dữ liệu demo, contract còn đề xuất và giới hạn lịch sử enrollment.
+- Browser Chrome mock PHT: ba view đều có thay món + lý do + modal tên/lớp/dị ứng; Escape/Đóng và đổi nhóm tuổi hoạt động. Responsive 375/768px đã kiểm ở Quy trình bếp, 375px ở trang công bố; viewport reset. Chi tiết tại `docs/quality/VERIFICATION.md`. Full verify đạt sau fix legacy (121 test), AI layer 0 lỗi/18 cảnh báo; chạy lại sau lần cập nhật docs cuối trước bàn giao. Chưa kiểm UI role khác/BE thật. Chưa commit/push/PR.
+
+### 2026-10-19 — User duyệt Phase 4, bắt đầu Phase 5
+
+- Nguồn: user "duyệt" sau báo cáo Phase 4. Bắt đầu đồng bộ UI dinh dưỡng/bếp theo cùng chuẩn; chưa commit/push/PR.
+- Đối chiếu: header các màn đã dùng `page__head` hoặc `h1.page__title` (DESIGN mục 7 cho phép cả hai) ⇒ không đổi. Lệch chính là bảng: 36 bảng thường chuyển sang `table table--grid` (giữ `table--compact`/class riêng). Giữ nguyên lịch tuần `td-week`, ma trận `td-ai-meals`/`td-balance` và bản in `ps-table`.
+- `.table--grid` ép nền trắng ô thân bảng (0,2,3) ⇒ nâng selector màu dòng/cột (`td-row--*`, `td-grp-row`, `td-hl__total`, `kb-tr--*`, `td.kb-col-today`) lên `.table.table--grid …`. Bỏ lề ô `td-hl`, padding-right `td-norm td.right`, đậm tfoot trùng `.table tfoot`, viền trái `td-norm__range` trùng grid, `.td-range` khai báo 2 lần; `999px` → `--radius-full`. Không đổi token, service, mock, route, quyền.
+- TDD: `tests/menu/ui-table-standard.test.mjs` chạy trên source HEAD 0/2, sau sửa 2/2; test:menu 44/44, test:kitchen 33/33.
+- Browser mock 5196, PHT: chụp trước/sau 14 route; bảng kẻ ô giống màn nhân sự, cột hôm nay của dự trù giữ màu, bảng định mức rowSpan và đầu cột Đạm/Béo/Bột đúng. 375px/768px: 11 route không tràn body, trừ `/menu/nutrition` 430px ở 375px — do khối `td-kv`/chip ngoài bảng, bản HEAD cũng 430px ⇒ lỗi có sẵn, chưa sửa. `meal-count` không có bảng vì chưa có dữ liệu xác nhận. Chưa kiểm print, role bếp/HT, API thật.
+- Cổng: `node scripts/verify.mjs` → `VERIFY PASS full` (lần đầu FAIL do script sửa CSS ghi CRLF, đã chuẩn hóa LF); `check-ai-layer` 0 lỗi/18 cảnh báo baseline. Chưa commit/push/PR. Dừng review Phase 5.
+- User "có" (sửa tràn + DESIGN) và báo "các màn thực đơn tuần chưa fix": bỏ ngoại lệ, `td-week`, `td-balance`, `td-ai-meals` cũng dùng `table--grid`; ô thấp/cao định mức nâng thành `.table.table--grid.td-balance .td-low/.td-high`. Test bỏ danh sách ngoại lệ (chỉ `ps-table` bản in ngoài phạm vi).
+- Tràn 375px `/menu/nutrition`: nguyên nhân gốc là `.page-actions` chung thiếu `flex-wrap` (2 nút dài), cộng 3 thẻ ngày/hàng. Thêm `flex-wrap: wrap` ở `components.css` và 2 cột thẻ ngày ≤640px. Kiểm 375/768/1440: nutrition, weekly, weekly/new, menus, foods/new, stock-receipts/new, staff, attendance, children không tràn.
+- DESIGN.md cột Web: "bảng sọc" → bảng kẻ ô `table--grid` (mục 2, 6, 8.1). App không sửa (chỉ được phép FE).
+- User "thực đơn đã công bố cũng chưa fix": tab Theo tuần đổi từ thẻ xếp chồng (~4.900px) sang bảng `table--grid` hàng = bữa × nhóm tuổi/loại, cột = ngày (~1.820px); thực đơn dị ứng tô `--warning-25`. User báo tiếp "vẫn thế" (tab mặc định Theo ngày): đổi nốt sang bảng Bữa | Nhóm tuổi | Món ăn | Định lượng / suất, mỗi món một dòng, ô bữa/nhóm gộp hàng có viền phải; bỏ `MenuCard`, `.kb-week`, `.kb-menu-grid` (giữ `.kb-menu` cho IssueBlocks).
+- User yêu cầu rà cột thao tác lệch tiêu đề toàn app (kèm /ui-ux-pro-max:ui-styling; skill dựa shadcn/Tailwind nên chỉ áp nguyên tắc, không thêm dependency). Script đo mép chữ tiêu đề so với nội dung ô trên mọi route sidebar PHT/HT/GV. Lệch padding pill/nút (≤9px "Trạng thái", ≤13px "Thao tác") coi là chuẩn. Lệch thật đã sửa: Tài khoản phụ huynh (tách cột Phụ huynh/Tài khoản/Thao tác, dòng con cùng chiều cao, `table--grid`); Dự trù (chấm "đã sửa" chiếm 12px ⇒ đè góc ô nhập). Báo nhầm ở nhóm Đánh giá do skeleton lúc tải.
+- Token không tồn tại: `--staff-directory-gap` (17 chỗ, gap = 0 ⇒ "BốTài khoản") ⇒ `--space-3`; `--fs-base` ⇒ `--fs-sm` (giữ cỡ 13px đang kế thừa).
+- Thực đơn đã công bố: user yêu cầu tách mỗi nhóm tuổi một bảng; cả tab ngày/tuần render một card + bảng cho từng nhóm (cột "Thực đơn" = thường/thay thế dị ứng), bộ lọc rỗng ⇒ EmptyState.
+- Chi tiết thực phẩm: user yêu cầu "Thông tin chung lên trên, lịch sử chỗ khác". Bố cục theo trang chi tiết món: trái = Thông tin chung (gộp dải tóm tắt + Quy đổi & đơn giá, hết lặp) rồi Định lượng trong món; phải = Dinh dưỡng rồi Lịch sử. Bỏ `td-strip`, `td-two`, `td-gap-section`; thêm `min-width: 0` cho `td-aside-stack` (bảng đẩy card tràn 375px).
+- Quy trình bếp (`/kitchen/preparation`): user báo thực đơn dài kéo trang. "Thực đơn trong ngày" rời cột phải thành bảng full-width nhóm tuổi × bữa, món nối "A · B"; trang 2.016px → 1.403px, 375/768 không tràn. Skill `ui-ux-pro-max:design` thiên brand/logo/banner nên chỉ áp nguyên tắc.
+- Phát hiện ngoài phạm vi: seed module Đánh giá ~7M ký tự vượt quota localStorage ⇒ màn Đánh giá báo "Bộ nhớ trình duyệt đã đầy"; có từ G94-179. Ghi `../../knowledge/incidents/FE-BUG-261019-assessment-seed-quota.md`, chưa sửa.
+
+### 2026-10-19 — Phase 4: đồng bộ UI phân quyền (chờ review)
+
+- User duyệt bảng nhân sự làm mẫu và yêu cầu dùng rule/component hiện có. Ba route quyền đã chuyển sang `page__head`, tab segmented và `table--grid table--compact`; wizard dùng `Avatar`, `FormField`, `Modal` và class/token chung.
+- Hợp nhất CSS ma trận, wizard và thanh lưu vào `permissions.css`; xóa `staff-hub.css` 305 dòng, các selector `sh-*`, `perm-matrix-v2`, `perm-floating-bar`, mã màu fallback và utility không tồn tại. Không đổi token, service, mock, route hoặc permission.
+- TDD: test UI contract thất bại đúng trước sửa, sau đó `npm.cmd run test:merge` đạt 38/38. Cổng full phát hiện test menu cũ chưa cập nhật `attendanceDayUnlocks` đã được user duyệt trong Progress log; đã sửa expectation và format 10 file của source merge để khôi phục cổng Prettier.
+- Browser mock trên server local đang chạy: desktop hiển thị bảng kẻ ô; 375px không tràn body, bảng cuộn trong `.table-wrap`; tab active đúng route; modal không tràn; wizard 2→3→2 giữ giá trị switch. History rỗng hiển thị EmptyState. Không ghi dữ liệu demo khi kiểm tra.
+- Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`. Chưa commit/push/PR; không sửa BE/App. Tiếp: user review Phase 4 trước Phase 5.
+- Tiếp nối phiên (Claude Code): `check-ai-layer` báo E4 do incident reopen-handover-snapshot (commit 58e3b0a) chỉ có gạch đầu dòng, chưa có dòng bảng ISSUE_INDEX; đã chuyển thành dòng bảng → 0 lỗi/18 cảnh báo baseline. Chạy lại verify sau sửa.
 
 ### 2026-10-19 — User duyệt Phase 3 và ghép lại WIP mở điểm danh
 

@@ -52,18 +52,22 @@ export default function ChildProfilePage() {
     );
 
   const { cls, declaration, placements } = detail;
-  const profileUpdate = [...(child.history || [])].reverse().find((item) => item.action === 'UPDATED_FROM_EXAM' || (item.changes || []).some((change) => String(change.field).startsWith('profile.')));
+  const profileUpdate = [...(child.history || [])]
+    .reverse()
+    .find(
+      (item) => item.action === 'UPDATED_FROM_EXAM' || (item.changes || []).some((change) => String(change.field).startsWith('profile.')),
+    );
 
   return (
     <div className="page">
       <Breadcrumb items={crumbs} />
       <div className="page__head">
-        <div className="row" style={{ gap: 16, flexWrap: 'nowrap' }}>
+        <div className="row gap-4">
           <span className={`avatar avatar--xl avatar--tone-${avatarTone(child.fullName)}`} aria-hidden="true">
             {initials(child.fullName)}
           </span>
-          <div className="stack" style={{ gap: 4 }}>
-            <div className="row row--wrap" style={{ gap: 12 }}>
+          <div className="stack gap-1">
+            <div className="row row--wrap gap-3">
               <h1 className="page__title">{child.fullName}</h1>
               <ChildStatusBadge status={child.status} size="lg" />
             </div>
@@ -73,7 +77,7 @@ export default function ChildProfilePage() {
             </span>
           </div>
         </div>
-        <div className="row row--wrap" style={{ gap: 8 }}>
+        <div className="row row--wrap gap-2">
           {canPlaceChild(child, user) && (
             <Link className="btn" to={`/children/placement?childId=${child.id}`}>
               <LayoutGrid size={16} /> {child.classId ? 'Chuyển lớp' : 'Xếp lớp'}
@@ -93,7 +97,12 @@ export default function ChildProfilePage() {
           <div>Trẻ chưa được xếp lớp nên việc tiếp nhận chưa hoàn tất.</div>
         </div>
       )}
-      {child.status === CHILD_STATUS.LEFT && <div className="alert alert--warning mb-16">Trẻ đã nghỉ học{child.leftAt ? ` từ ${formatDate(child.leftAt)}` : ''}{child.leftReason ? ` · ${child.leftReason}` : ''}. Hồ sơ được giữ để tra cứu, không chỉnh sửa.</div>}
+      {child.status === CHILD_STATUS.LEFT && (
+        <div className="alert alert--warning mb-16">
+          Trẻ đã nghỉ học{child.leftAt ? ` từ ${formatDate(child.leftAt)}` : ''}
+          {child.leftReason ? ` · ${child.leftReason}` : ''}. Hồ sơ được giữ để tra cứu, không chỉnh sửa.
+        </div>
+      )}
 
       <div className="tabs mb-16" role="tablist" aria-label="Phần hồ sơ">
         {TABS.map((t) => (
@@ -138,7 +147,7 @@ export default function ChildProfilePage() {
                   <dt>Dị ứng đã xác nhận</dt>
                   <dd>
                     {child.allergies?.length ? (
-                      <span className="row row--wrap" style={{ gap: 6 }}>
+                      <span className="row row--wrap gap-1-5">
                         {child.allergies.map((a) => (
                           <span key={a} className="chip chip--red">
                             {a}
@@ -152,7 +161,20 @@ export default function ChildProfilePage() {
                 </dl>
               </div>
             </section>
-            <section className="card"><div className="card__header"><h2 className="card__title">Thông tin hành chính</h2></div><div className="card__body"><ChildProfileSummary profile={child.profile} />{profileUpdate && <p className="muted text-xs mt-8">Cập nhật gần nhất: {profileUpdate.action === 'UPDATED_FROM_EXAM' ? profileUpdate.note : 'Sửa hồ sơ'} · {md.userById(profileUpdate.userId)?.fullName || '—'} · {formatDateTime(profileUpdate.at)}</p>}</div></section>
+            <section className="card">
+              <div className="card__header">
+                <h2 className="card__title">Thông tin hành chính</h2>
+              </div>
+              <div className="card__body">
+                <ChildProfileSummary profile={child.profile} />
+                {profileUpdate && (
+                  <p className="muted text-xs mt-8">
+                    Cập nhật gần nhất: {profileUpdate.action === 'UPDATED_FROM_EXAM' ? profileUpdate.note : 'Sửa hồ sơ'} ·{' '}
+                    {md.userById(profileUpdate.userId)?.fullName || '—'} · {formatDateTime(profileUpdate.at)}
+                  </p>
+                )}
+              </div>
+            </section>
             <section className="card">
               <div className="card__header row row--between">
                 <h2 className="card__title">Phụ huynh / người giám hộ</h2>
@@ -166,13 +188,14 @@ export default function ChildProfilePage() {
                 <div className="card__body muted">Chưa có thông tin phụ huynh.</div>
               ) : (
                 <div className="table-wrap tr-table-flat">
-                  <table className="table">
+                  <table className="table table--grid">
                     <thead>
                       <tr>
                         <th>Họ và tên</th>
                         <th>Quan hệ</th>
                         <th>Số điện thoại</th>
-                        <th>Email</th>{canViewParentAccounts(user) && <th>Tài khoản</th>}
+                        <th>Email</th>
+                        {canViewParentAccounts(user) && <th>Tài khoản</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -181,7 +204,13 @@ export default function ChildProfilePage() {
                           <td className="fw-600">{g.fullName}</td>
                           <td>{g.relation}</td>
                           <td className="nowrap">{g.phone ? <a href={`tel:${g.phone}`}>{g.phone}</a> : missing}</td>
-                          <td>{g.email || missing}</td>{canViewParentAccounts(user) && <td><ParentAccountBadge status={g.accountStatus} />{g.smsStatus === 'FAILED' && <div className="text-danger text-xs mt-8">Gửi SMS lỗi – cần gửi lại</div>}</td>}
+                          <td>{g.email || missing}</td>
+                          {canViewParentAccounts(user) && (
+                            <td>
+                              <ParentAccountBadge status={g.accountStatus} />
+                              {g.smsStatus === 'FAILED' && <div className="text-danger text-xs mt-8">Gửi SMS lỗi – cần gửi lại</div>}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -229,7 +258,12 @@ export default function ChildProfilePage() {
             </section>
             <section className="card">
               <div className="card__header">
-                <h2 className="card__title">Sức khỏe & theo dõi</h2>{canRecordMeasurement(child, user, cls) && <Link className="btn btn--sm" to={`/children/${child.id}/health/new`}>Nhập cân đo ngoài đợt</Link>}
+                <h2 className="card__title">Sức khỏe & theo dõi</h2>
+                {canRecordMeasurement(child, user, cls) && (
+                  <Link className="btn btn--sm" to={`/children/${child.id}/health/new`}>
+                    Nhập cân đo ngoài đợt
+                  </Link>
+                )}
               </div>
               <div className="card__body tr-quicklinks tr-quicklinks--list">
                 <Link className="tr-quicklink" to={`/children/${child.id}/health`}>

@@ -388,52 +388,6 @@
   display: grid;
   gap: var(--space-1);
 }
-.sc-level {
-  display: inline-flex;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.sc-level__opt {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  color: var(--text-2);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.sc-level__opt + .sc-level__opt {
-  border-left: 1px solid var(--border-strong);
-}
-.sc-level__opt input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-.sc-level__opt:focus-within {
-  box-shadow: inset var(--focus-ring);
-}
-.sc-level__opt--on.sc-level__opt--full {
-  background: var(--success-50);
-  color: var(--success-700);
-}
-.sc-level__opt--on.sc-level__opt--restricted {
-  background: var(--primary-50);
-  color: var(--primary-600);
-}
-.sc-level__opt--on.sc-level__opt--none {
-  background: var(--gray-50);
-  color: var(--text);
-}
-.sc-level:has(input:disabled) {
-  opacity: 0.6;
-}
-.sc-level:has(input:disabled) .sc-level__opt {
-  cursor: not-allowed;
-}
 
 .sc-change-list {
   margin: var(--space-2) 0 0;

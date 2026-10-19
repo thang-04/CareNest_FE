@@ -225,13 +225,13 @@ export default function EnrollChildPage() {
               Đã tiếp nhận {saved.fullName}
               {saved.className ? ` vào ${saved.className}` : ' – chờ xếp lớp'}
             </div>
-            <div className="muted" style={{ maxWidth: 480 }}>
+            <div className="muted tr-state-text">
               Mã trẻ <b>{saved.code}</b>.{' '}
               {needsActivation
                 ? 'Bước tiếp theo: kích hoạt tài khoản cho phụ huynh chưa có tài khoản để nhận tên đăng nhập và mật khẩu qua SMS.'
                 : 'Trẻ đã được liên kết vào tài khoản phụ huynh có sẵn; phụ huynh xem được trẻ trên ứng dụng, không cần mật khẩu mới.'}
             </div>
-            <div className="row row--wrap mt-12" style={{ gap: 8, justifyContent: 'center' }}>
+            <div className="row row--wrap mt-12 gap-2 tr-state-actions">
               <button
                 className="btn"
                 onClick={() => {

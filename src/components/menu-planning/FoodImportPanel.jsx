@@ -104,7 +104,7 @@ export function FoodImportPanel({ open, onClose, foods }) {
           {result.errors.length > 0 && (
             <section>
               <h3>Dòng lỗi (không ghi)</h3>
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th className="td-num-col">Dòng</th>
@@ -127,7 +127,7 @@ export function FoodImportPanel({ open, onClose, foods }) {
           {result.creates.length > 0 && (
             <section>
               <h3>Thêm mới</h3>
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th className="td-num-col">Dòng</th>
@@ -152,7 +152,7 @@ export function FoodImportPanel({ open, onClose, foods }) {
           {result.updates.length > 0 && (
             <section>
               <h3>Cập nhật</h3>
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th className="td-num-col">Dòng</th>

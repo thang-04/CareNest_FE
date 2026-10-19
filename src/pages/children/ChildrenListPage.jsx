@@ -93,7 +93,7 @@ export default function ChildrenListPage() {
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
   const showCampus = seesAllCampusChildren(user);
-  const cols = showCampus ? 10 : 9;
+  const cols = showCampus ? 8 : 7;
 
   return (
     <div className="page">
@@ -101,7 +101,7 @@ export default function ChildrenListPage() {
       <div className="page__head">
         <h1 className="page__title">Danh sách trẻ</h1>
         {canEnrollChild(user) && (
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row gap-2">
             <Link to="/children/import" className="btn">
               <FileSpreadsheet size={16} /> Nhập từ Excel
             </Link>
@@ -121,7 +121,7 @@ export default function ChildrenListPage() {
       {isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
-          <div className="stack" style={{ gap: 4 }}>
+          <div className="stack gap-1">
             {pendingPlacement > 0 && (
               <span>
                 <b>{pendingPlacement}</b> trẻ chưa được xếp lớp.{' '}
@@ -163,7 +163,7 @@ export default function ChildrenListPage() {
       <div className="card">
         <PeopleTabs embedded />
         <div className="filter-bar">
-          <label className="search-box" style={{ flex: 1, minWidth: 220 }}>
+          <label className="search-box flex-1 tr-search-wide">
             <Search size={17} className="muted" />
             <input
               placeholder="Tìm theo họ tên hoặc mã trẻ..."
@@ -246,13 +246,11 @@ export default function ChildrenListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap tr-table-flat">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
-                  <th>Mã trẻ</th>
                   <th>Họ và tên</th>
                   <th>Ngày sinh</th>
-                  <th>Giới tính</th>
                   <th>Lớp</th>
                   {showCampus && <th>Điểm trường</th>}
                   <th>Phụ huynh</th>
@@ -299,29 +297,33 @@ export default function ChildrenListPage() {
                     const g = c.guardians[0];
                     return (
                       <tr key={c.id}>
-                        <td className="fw-600 text-primary nowrap">{c.code}</td>
-                        <td className="fw-600">
-                          <span className="row" style={{ gap: 10, flexWrap: 'nowrap' }}>
+                        <td>
+                          {/* Mã trẻ đặt dưới tên như màn Nhân sự (email dưới tên) để bảng vừa khung 1440px */}
+                          <span className="row gap-2-5">
                             <span className={`avatar avatar--sm avatar--tone-${avatarTone(c.fullName)}`} aria-hidden="true">
                               {initials(c.fullName)}
                             </span>
-                            {/* Bấm tên: xem nhanh trong panel; nút Xem ở cột thao tác mở trang hồ sơ đầy đủ */}
-                            <button
-                              type="button"
-                              className="link-btn fw-600 tr-name-btn"
-                              title="Xem nhanh"
-                              aria-label={`Xem nhanh hồ sơ ${c.fullName}`}
-                              onClick={() => setQuickViewId(c.id)}
-                            >
-                              {c.fullName}
-                            </button>
+                            <span className="stack gap-0">
+                              {/* Bấm tên: xem nhanh trong panel; nút Xem ở cột thao tác mở trang hồ sơ đầy đủ */}
+                              <button
+                                type="button"
+                                className="link-btn fw-600 tr-name-btn"
+                                title="Xem nhanh"
+                                aria-label={`Xem nhanh hồ sơ ${c.fullName}`}
+                                onClick={() => setQuickViewId(c.id)}
+                              >
+                                {c.fullName}
+                              </button>
+                              <span className="text-xs muted">{c.code}</span>
+                            </span>
                           </span>
                         </td>
                         <td className="nowrap">
                           <div>{formatDate(c.dateOfBirth)}</div>
-                          <div className="muted text-xs">{ageLabel(c.dateOfBirth)}</div>
+                          <div className="muted text-xs">
+                            {ageLabel(c.dateOfBirth)} · {GENDER_LABELS[c.gender]}
+                          </div>
                         </td>
-                        <td>{GENDER_LABELS[c.gender]}</td>
                         <td className="nowrap">{c.className || <span className="muted">Chưa xếp lớp</span>}</td>
                         {showCampus && <td className="text-sm">{md.campusById(c.campusId)?.name?.split(' - ')[0] || '—'}</td>}
                         <td className="text-sm">
@@ -330,7 +332,7 @@ export default function ChildrenListPage() {
                               <div>
                                 {g.fullName} <span className="muted">({g.relation})</span>
                               </div>
-                              <div className="muted">{g.phone}</div>
+                              <div className="muted nowrap">{g.phone}</div>
                             </>
                           ) : (
                             <span className="muted">Chưa có</span>

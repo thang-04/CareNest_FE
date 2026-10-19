@@ -149,7 +149,7 @@ export default function HealthFollowUpListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap tr-table-flat">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Trẻ</th>

@@ -34,7 +34,7 @@ export function WeekForecastGrid({ data, today, draft, errors, editable, onChang
     }, 0);
   return (
     <div className="table-wrap">
-      <table className="table kb-fc">
+      <table className="table table--grid kb-fc">
         <thead>
           <tr>
             <th>Lớp</th>
@@ -111,7 +111,7 @@ export function FreshOrderTable({ data, today }) {
   if (!data.fresh.length) return <p className="muted text-sm">Tuần này không có thực phẩm tươi cần đặt.</p>;
   return (
     <div className="table-wrap">
-      <table className="table table--compact kb-fc">
+      <table className="table table--grid table--compact kb-fc">
         <thead>
           <tr>
             <th>Thực phẩm tươi</th>
@@ -153,7 +153,7 @@ export function DryOrderTable({ data }) {
   if (!data.dry.length) return <p className="muted text-sm">Thực đơn các ngày còn lại không dùng đồ khô.</p>;
   return (
     <div className="table-wrap">
-      <table className="table table--compact">
+      <table className="table table--grid table--compact">
         <thead>
           <tr>
             <th>Đồ khô</th>
@@ -204,7 +204,7 @@ export function SupplierChangeCard({ group, total, today, canEdit, busyKey, onTo
         </span>
       </div>
       <div className="table-wrap">
-        <table className="table table--compact">
+        <table className="table table--grid table--compact">
           <thead>
             <tr>
               <th>Thực phẩm</th>

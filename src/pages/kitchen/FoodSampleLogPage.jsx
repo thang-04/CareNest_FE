@@ -114,7 +114,7 @@ function MealCard({ meal, date, campusId, canEdit, onSaved }) {
           )}
         </div>
         <div className="table-wrap">
-          <table className="table table--compact kb-fc">
+          <table className="table table--grid table--compact kb-fc">
             <thead>
               <tr>
                 <th>Món</th>

@@ -15,6 +15,29 @@ Lệnh chuẩn: `node scripts/verify.mjs` — chưa có code (`package.json`) �
 | AI layer nhất quán | `node scripts/check-ai-layer.mjs` exit 0 |
 
 ## Báo cáo cuối task
+
+### Dọn CSS không dùng — Phase 1, 2026-10-19
+
+- Kế hoạch user duyệt: `docs/plans/active/2026-10-19-css-cleanup.md`; chỉ dọn kỹ thuật, giữ giao diện và dirty work. Xóa 95 rule, giảm 499 dòng ở 12 stylesheet; không xóa file hoặc đổi JSX/token/dependency.
+- Kiểm chứng cấu trúc: AST giữ nguyên mọi rule/declaration/thứ tự ngoài danh sách xóa; hash tracked file ngoài phạm vi giữ nguyên. Reviewer độc lập không tìm thấy consumer bị bỏ sót, kể cả template class và selector ghép.
+- Chrome mock riêng, 23 màn ở 1440/768 và ba trạng thái tương tác: 49/49 ca giữ nguyên computed style/hình học; không có selector đã xóa khớp DOM hoặc runtime exception. Modal/Escape, bốn loại toast và focus bàn phím hoạt động.
+- PNG: 5/49 ảnh trùng pixel tuyệt đối; 49/49 ảnh không lệch quá 2/255 mỗi kênh RGB, tối đa 145 pixel/ảnh (0,0112%) khác do raster chữ. Đã bỏ nhiễu từ full-page screenshot/scrollbar, loading và HMR bằng kiểm lại viewport trên cùng DOM ổn định; không gọi toàn bộ ảnh là trùng tuyệt đối.
+- Suite ghi nhận trong `verify.log`: menu 46, kitchen 37, merge 38 đều đạt, 0 fail/skip; lint/format/build đạt. `check-ai-layer`: 0 lỗi/18 cảnh báo hiện hữu. Cổng đầy đủ được chạy lại sau khi ghi log này; xem output bàn giao cuối.
+- Bằng chứng ảnh/JSON/snapshot ở thư mục tạm `carenest-css-cleanup-9c9b06d931ea4fecb3080c1e89578396`; ma trận, thống kê và giới hạn trong Progress log của plan. Không kiểm BE thật hoặc triển khai; Phase 2 chờ review.
+
+### Khoảng cách card Quy trình bếp — 2026-10-19
+
+- User báo khối Thực đơn trong ngày dính card phía trên tại `/kitchen/preparation`. Chrome mock đo gap trước sửa: 0px.
+- Sửa hẹp `KitchenFlowPage.jsx`: dùng utility `mb-16` có sẵn (`--space-4`) ở hàng `.db-board`; không đổi CSS dùng chung, dữ liệu hoặc hành vi. Kiểm lại khoảng cách bằng bounding rect trên Chrome, cổng đầy đủ `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs`; kết quả cuối trong báo cáo bàn giao/`verify.log`.
+
+### Bằng chứng thực đơn dị ứng — 2026-10-19
+
+- Mock repository: `tests/kitchen/published-allergy-menu.test.mjs` ban đầu 0/3, bổ sung read model đạt 3/3; thêm ca legacy tái hiện 3/4 rồi fix đạt 4/4. Bao phủ đổi/bỏ món, nhiều phương án, bữa không đổi, dữ liệu legacy, scope campus/nhóm tuổi, 403 và trường dữ liệu tối thiểu.
+- `node scripts/verify.mjs` sau bổ sung fallback legacy: `VERIFY PASS full`, menu 46 + kitchen 37 + merge 38 = 121 test; lint/format/build đạt. Chạy lại sau chỉnh docs cuối, output tại `verify.log` và báo cáo bàn giao.
+- Chrome `localhost:5173`, mock, PHT campus 1, ngày 21/10/2026: Theo ngày, Theo tuần và `/kitchen/preparation` đều có dòng thay món + lý do; nút mắt mở bảng tên/lớp/dị ứng đúng nhóm. Escape và nút Đóng đóng modal; đổi nhóm tuổi về Nhà trẻ không còn modal/dòng dị ứng của Mẫu giáo lớn.
+- Quy trình bếp 375px: body 365px, modal khoảng 317px; 768px: body 758px. Theo ngày/tuần 375px: bảng cuộn trong khung, body không vượt viewport sau khi layout ổn định. Viewport đã reset. Không reset DB/session demo của user.
+- Review độc lập phát hiện thiếu tên món legacy, đã sửa và review lại không còn lỗi quan trọng. Chưa kiểm UI Principal/bếp, BE thật hoặc scope enrollment lịch sử. `check-ai-layer`: lần đầu thiếu dòng incident đúng định dạng bảng, đã sửa index và đạt 0 lỗi/18 cảnh báo; chạy lại sau docs cuối.
+
 ```text
 Làn S (≤3 dòng):  Đã làm: … · Verify: <dòng VERIFY | chưa chạy — lý do> · Memory: <chỉ khi có trigger>
 Làn M (≤8 dòng):  Đã làm · Rule/AC · Verify · Chưa kiểm chứng (trình duyệt, BE thật) · Chờ BE · Memory

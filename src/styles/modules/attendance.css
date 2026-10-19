@@ -436,13 +436,6 @@
   border-top: 1px solid var(--border);
   border-radius: 0;
 }
-.dd-row--error td {
-  background: var(--danger-25);
-}
-.dd-tags {
-  gap: var(--space-1);
-  margin-top: 2px;
-}
 .dd-check {
   width: 18px;
   height: 18px;

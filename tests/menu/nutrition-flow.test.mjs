@@ -25,13 +25,13 @@ test('HT có thiết lập dinh dưỡng và thực đơn tuần theo guard đan
   assert.deepEqual(keys, ['nutritionSetup', 'weeklyMenus']);
 });
 
-test('vẫn ẩn Thực đơn khi PHT chưa được giao mảng; không đổi nhóm điểm danh', () => {
+test('vẫn ẩn Thực đơn khi PHT chưa được giao mảng; giữ nhóm điểm danh đã duyệt', () => {
   const user = { role: ROLES.VICE_PRINCIPAL, campusId: 'c1', areas: { menu: 'NONE' } };
   const entries = getMenuForRole(user.role, user);
   assert.ok(!entries.some((entry) => entry.key === 'menu'));
   assert.deepEqual(
     entries.find((entry) => entry.key === 'attendance').children.map((entry) => entry.key),
-    ['attendanceSummary', 'mealCount', 'dailyHealthOverview'],
+    ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview'],
   );
 });
 

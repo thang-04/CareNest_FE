@@ -42,7 +42,7 @@ export default function PermissionHistoryPage() {
     <div className="page permission-center">
       <Breadcrumb items={permissionCrumbs('Lịch sử thay đổi')} />
       <PermissionTabs />
-      <div className="permission-page-head">
+      <div className="page__head permission-page-head">
         <div>
           <h1 className="page__title">Lịch sử thay đổi quyền</h1>
           <p className="text-sm text-2">Theo dõi các lần điều chỉnh quyền theo vai trò và từng nhân sự.</p>
@@ -75,7 +75,7 @@ export default function PermissionHistoryPage() {
         ) : (
           <>
             <div className="table-wrap sc-table-flat permission-history-table-wrap">
-              <table className="table table--compact permission-history-table">
+              <table className="table table--grid table--compact permission-history-table">
                 <thead>
                   <tr>
                     <th>Thời điểm</th>

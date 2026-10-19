@@ -219,7 +219,7 @@ export default function AllergyMenuFormPage() {
             </div>
             <div className="card__body">
               <div className="table-wrap">
-                <table className="table table--compact">
+                <table className="table table--grid table--compact">
                   <thead>
                     <tr>
                       <th>Bữa</th>

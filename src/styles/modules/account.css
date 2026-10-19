@@ -68,11 +68,6 @@
   margin-top: 0;
   border-top: 1px solid var(--border);
 }
-.ac-head-actions {
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  flex-wrap: wrap;
-}
 
 /* Hồ sơ cá nhân: cột hồ sơ trái + các nhóm thông tin bên phải */
 .ac-profile {
@@ -311,12 +306,6 @@
   line-height: 1.6;
   white-space: pre-line;
   overflow-wrap: anywhere;
-}
-
-@media (max-width: 900px) {
-  .grid-2.ac-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 640px) {

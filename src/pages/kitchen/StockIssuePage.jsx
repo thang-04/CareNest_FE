@@ -98,7 +98,7 @@ export default function StockIssuePage() {
     body = (
       <section className="card">
         <div className="table-wrap">
-          <table className="table">
+          <table className="table table--grid">
             <thead>
               <tr>
                 <th>Ngày</th>
@@ -196,7 +196,7 @@ export default function StockIssuePage() {
               </div>
             )}
             <div className="table-wrap">
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th>Thực phẩm</th>

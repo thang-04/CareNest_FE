@@ -306,7 +306,7 @@ export default function MenuFormPage() {
                     </div>
                     {show(`meal_${m.code}`) && <p className="field__error td-card-error">{show(`meal_${m.code}`)}</p>}
                     <div className="table-wrap">
-                      <table className="table td-meal-table">
+                      <table className="table table--grid td-meal-table">
                         <thead>
                           <tr>
                             <th>Món ăn</th>

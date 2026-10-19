@@ -9,6 +9,7 @@ import { buildWeeklyForecast, knownOrderOf, sentSnapshot, storageOf } from '@/se
 import { addDays as addIsoDays, mondayOf, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
 import { todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
+import { sameAllergen } from '@/utils/menu-planning/menuCalculations';
 import { ROLES } from '@/models/User';
 import {
   ISSUE_STATUS,
@@ -226,6 +227,81 @@ const getPublishedMenus = (db, date) => {
     if (list.length) return list;
   }
   return seedMenusForDate(date);
+};
+
+// Read model demo cho AUTH-05; không dùng danh sách trẻ này để tính lại số suất đã chốt.
+const publishedAllergyChanges = (db, cat, menu, date, campusId, published) => {
+  if (menu.type !== MENU_TYPE.NORMAL) return [];
+  const week = (db.weeklyMenus || []).find(
+    (w) => w.status === 'PUBLISHED' && menu.id === `${w.id}_${date}_${menu.session}_${MENU_TYPE.NORMAL}`,
+  );
+  const day = week?.days.find((d) => d.date === date && !d.holiday);
+  const namedDish = (id) => (id ? { id, name: cat.dishById[id]?.name || id } : null);
+  if (!day) {
+    return published
+      .filter((m) => m.type === MENU_TYPE.ALLERGY && m.session === menu.session && m.ageGroupId === menu.ageGroupId)
+      .flatMap((m) => {
+        const removedDishes = menu.dishIds.filter((id) => !m.dishIds.includes(id)).map(namedDish);
+        const addedDishes = m.dishIds.filter((id) => !menu.dishIds.includes(id)).map(namedDish);
+        return removedDishes.length || addedDishes.length
+          ? [
+              {
+                id: m.id,
+                note: m.note,
+                restrictions: [],
+                replacements: [],
+                removedDishes,
+                addedDishes,
+                childrenAvailable: false,
+                children: [],
+              },
+            ]
+          : [];
+      });
+  }
+  const classes = (db.classes || []).filter(
+    (c) => campusId && c.campusId === campusId && (!menu.ageGroupId || c.ageGroupId === menu.ageGroupId),
+  );
+  const classById = Object.fromEntries(classes.map((c) => [c.id, c]));
+  return (db.allergyMenus || [])
+    .filter((a) => a.baseMenuId === day.menuId && (!a.status || a.status === 'ACTIVE'))
+    .flatMap((a) => {
+      const replacements = (a.replacements || [])
+        .filter(
+          (r) =>
+            r.originalDishId !== r.replacementDishId &&
+            day.meals.some(
+              (meal) =>
+                meal.session === r.session &&
+                countedSession(db.nutritionSetups, menu.ageGroupId, meal.session) === menu.session &&
+                meal.items.some((i) => i.dishId === r.originalDishId),
+            ),
+        )
+        .map((r) => ({ originalDish: namedDish(r.originalDishId), replacementDish: namedDish(r.replacementDishId) }));
+      if (!replacements.length) return [];
+      const restrictions = a.restrictions || [];
+      const children = (db.children || [])
+        .filter((c) => c.status === 'ACTIVE' && classById[c.classId])
+        .map((c) => ({
+          id: c.id,
+          fullName: c.fullName,
+          className: classById[c.classId].name,
+          allergies: (c.allergies || []).filter((allergen) => restrictions.some((r) => sameAllergen(r, allergen))),
+        }))
+        .filter((c) => c.allergies.length);
+      return [
+        {
+          id: a.id,
+          note: a.note || '',
+          restrictions,
+          replacements,
+          childrenAvailable: !!campusId,
+          children,
+          childCount: children.length,
+          classCount: new Set((db.children || []).filter((c) => children.some((ch) => ch.id === c.id)).map((c) => c.classId)).size,
+        },
+      ];
+    });
 };
 
 const menuFor = (menus, session, ageGroupId, type) =>
@@ -1490,9 +1566,11 @@ const kitchenRepository = {
   },
 
   /* ---- #93 Published Menu (UC 6.20) ---- */
-  async getPublishedMenu({ date, view }, user) {
+  async getPublishedMenu({ date, view, campusId }, user) {
     await delay();
     guard(canViewPublishedMenu(user));
+    const selectedCampusId = campusId || user.campusId || null;
+    if (selectedCampusId) guardCampus(user, selectedCampusId);
     const db = readSeeded();
     const cat = getCatalog(db);
     const dates = view === 'week' ? weekDates(date) : [date];
@@ -1510,6 +1588,7 @@ const kitchenRepository = {
                 ageGroupId: m.ageGroupId,
                 type: m.type,
                 note: m.note,
+                allergyChanges: publishedAllergyChanges(db, cat, m, d, selectedCampusId, menus),
                 dishes: m.dishIds.map((id) => {
                   const dish = cat.dishById[id];
                   return {

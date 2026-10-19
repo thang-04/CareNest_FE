@@ -121,7 +121,7 @@ export default function ClassPlacementPage() {
             ))}
           </div>
           <div className="filter-bar">
-            <label className="search-box" style={{ flex: 1 }}>
+            <label className="search-box flex-1">
               <Search size={17} className="muted" />
               <input
                 placeholder="Tìm theo họ tên hoặc mã trẻ..."
@@ -135,7 +135,7 @@ export default function ClassPlacementPage() {
             <ErrorState error={error} onRetry={reload} />
           ) : (
             <div className="table-wrap tr-table-flat tr-scroll-list">
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th>Trẻ</th>

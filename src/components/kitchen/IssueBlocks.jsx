@@ -52,7 +52,7 @@ export function ReceiptReconciliation({ receipt, md }) {
         )}
       </div>
       <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-        <table className="table table--compact">
+        <table className="table table--grid table--compact">
           <thead>
             <tr>
               <th>Thực phẩm</th>

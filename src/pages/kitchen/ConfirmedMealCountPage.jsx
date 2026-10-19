@@ -91,7 +91,7 @@ export default function ConfirmedMealCountPage() {
                       <span className="muted text-sm">Xác nhận lúc {formatDateTime(s.confirmedAt)}</span>
                     </div>
                     <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-                      <table className="table">
+                      <table className="table table--grid">
                         <thead>
                           <tr>
                             <th>Lớp</th>

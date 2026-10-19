@@ -205,53 +205,6 @@
   margin-top: 6px;
 }
 
-.disc-row--action {
-  cursor: pointer;
-}
-.disc-row--action td {
-  background: var(--danger-25);
-}
-.disc-row--action:hover td {
-  background: var(--danger-hover-bg);
-}
-.resp-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  align-items: center;
-  padding: 12px 14px;
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.resp-options {
-  display: grid;
-  gap: 8px;
-}
-.resp-option {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  padding: 10px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  cursor: pointer;
-}
-.resp-option input {
-  margin-top: 3px;
-  accent-color: var(--primary);
-  width: 17px;
-  height: 17px;
-}
-.resp-option--active {
-  border-color: var(--primary);
-  background: var(--primary-50);
-}
-.resp-form {
-  display: grid;
-  gap: 12px;
-}
-
 /* ---------- Stock movement ---------- */
 .stock-flow {
   display: inline-flex;

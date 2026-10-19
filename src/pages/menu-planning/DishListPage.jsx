@@ -124,7 +124,7 @@ export default function DishListPage() {
             <ErrorState error={error} onRetry={reload} />
           ) : (
             <div className="table-wrap">
-              <table className="table td-dish-table">
+              <table className="table table--grid td-dish-table">
                 <thead>
                   <tr>
                     <th className="td-num-col">#</th>

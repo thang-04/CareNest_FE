@@ -21,9 +21,10 @@ import { Widget, ShortList, TaskCount } from '@/components/dashboard/DashboardWi
 import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
 import { FreshReceiptStatusBadge, IssueStatusBadge, MealCountStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
+import { AllergyMenuChanges } from '@/components/kitchen/AllergyMenuChanges';
 import { useKitchenCampus, useKitchenDay, usePublishedMenu } from '@/hooks/kitchen/useKitchen';
 import { ISSUE_STATUS, KITCHEN_DAY_TIMES, MEAL_SESSION_LABELS, MENU_TYPE } from '@/models/kitchen/kitchenConstants';
-import { ageGroupById } from '@/models/School';
+import { AGE_GROUPS, ageGroupById } from '@/models/School';
 import { ROLES } from '@/models/User';
 import { KITCHEN_ROUTE_ROLES, isKitchenStaff, isVicePrincipal } from '@/utils/kitchen/kitchenPermissions';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
@@ -33,16 +34,24 @@ import '@/styles/modules/kitchen.css';
 
 const firstLoad = (q) => q.loading && q.data == null;
 
-// Gộp các nhóm tuổi có cùng loại thực đơn và cùng món thành một dòng, tránh lặp danh sách món
-const groupSameDishes = (menus) => {
-  const groups = new Map();
-  for (const m of menus) {
-    const key = `${m.type}|${m.dishes.map((d) => d.id).join(',')}`;
-    const name = ageGroupById(m.ageGroupId)?.shortName || 'Toàn trường';
-    if (groups.has(key)) groups.get(key).groupNames.push(name);
-    else groups.set(key, { ...m, groupNames: [name] });
+const groupOrder = (id) => (id ? AGE_GROUPS.findIndex((a) => a.id === id) : -1);
+
+// Hàng theo nhóm tuổi, chỉ ghi phần thay món ngay trong bữa liên quan.
+const buildMenuGrid = (sessionsMenu) => {
+  const sessions = sessionsMenu.filter((s) => s.menus.length).map((s) => s.session);
+  const rows = new Map();
+  for (const s of sessionsMenu) {
+    for (const m of s.menus) {
+      if (m.type !== MENU_TYPE.NORMAL) continue;
+      const key = `${m.ageGroupId || ''}_${m.type}`;
+      if (!rows.has(key)) rows.set(key, { key, ageGroupId: m.ageGroupId, type: m.type, bySession: {} });
+      rows.get(key).bySession[s.session] = m;
+    }
   }
-  return [...groups.values()];
+  const sorted = [...rows.values()].sort(
+    (a, b) => groupOrder(a.ageGroupId) - groupOrder(b.ageGroupId) || (a.type === MENU_TYPE.ALLERGY) - (b.type === MENU_TYPE.ALLERGY),
+  );
+  return { sessions, rows: sorted };
 };
 
 const mealCountStatusOf = ({ sessions, confirmed }) => {
@@ -208,9 +217,9 @@ export default function KitchenFlowPage({ asHome = false }) {
   const date = params.get('date') || today;
   const { campusId, setCampusId, canPick } = useKitchenCampus(md.campuses[0]?.id);
   const dayQ = useKitchenDay(campusId, date);
-  const menuQ = usePublishedMenu(date, 'day');
+  const menuQ = usePublishedMenu(date, 'day', campusId);
   const day = dayQ.data;
-  const sessionsMenu = menuQ.days?.[0]?.sessions || [];
+  const menuGrid = buildMenuGrid(menuQ.days?.[0]?.sessions || []);
   const showTodo = isVicePrincipal(user) || isKitchenStaff(user);
 
   return (
@@ -246,7 +255,7 @@ export default function KitchenFlowPage({ asHome = false }) {
           </Link>
         </div>
       )}
-      <div className="db-board">
+      <div className="db-board mb-16">
         <div className="db-board__main">
           <Widget
             title="Dòng thời gian"
@@ -289,43 +298,69 @@ export default function KitchenFlowPage({ asHome = false }) {
               {day && <ShortList rows={todoRows(day, user)} />}
             </Widget>
           )}
-          <Widget
-            title="Thực đơn trong ngày"
-            icon={UtensilsCrossed}
-            to={`/kitchen/published-menu?date=${date}`}
-            linkLabel="Xem thực đơn đã công bố"
-            loading={firstLoad(menuQ)}
-            error={menuQ.error}
-            onRetry={menuQ.reload}
-            empty={!sessionsMenu.some((s) => s.menus.length)}
-            emptyTitle="Chưa có thực đơn công bố cho ngày này"
-          >
-            {sessionsMenu
-              .filter((s) => s.menus.length)
-              .map((s) => (
-                <div key={s.session} className="db-session">
-                  <div className="subsection-title">{MEAL_SESSION_LABELS[s.session] || s.session}</div>
-                  {groupSameDishes(s.menus).map((m) => (
-                    <div key={m.id} className="mt-8">
-                      <div className="text-sm text-2">
-                        {m.groupNames.join(', ')}
-                        {m.type === MENU_TYPE.ALLERGY ? ' · Thực đơn thay thế (dị ứng)' : ''}
-                      </div>
-                      <div className="db-dishes mt-8">
-                        {m.dishes.map((d) => (
-                          <span key={d.id} className={`chip ${d.allergens.length ? 'chip--orange' : 'chip--gray'}`}>
-                            {d.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-          </Widget>
           {asHome && user.role === ROLES.KITCHEN_STAFF && <FacilityTasksWidget />}
         </div>
       </div>
+      <Widget
+        title="Thực đơn trong ngày"
+        icon={UtensilsCrossed}
+        to={`/kitchen/published-menu?date=${date}`}
+        linkLabel="Xem thực đơn đã công bố"
+        loading={firstLoad(menuQ)}
+        error={menuQ.error}
+        onRetry={menuQ.reload}
+        empty={!menuGrid.rows.length}
+        emptyTitle="Chưa có thực đơn công bố cho ngày này"
+      >
+        {/* Bảng ngang nhóm tuổi × bữa thay cho danh sách chip dọc: cả ngày gói trong một màn hình */}
+        <div className="table-wrap" key={`${campusId}_${date}`}>
+          <table className="table table--grid table--compact kb-day-menu">
+            <thead>
+              <tr>
+                <th className="kb-day-menu__group">Nhóm tuổi</th>
+                {menuGrid.sessions.map((s) => (
+                  <th key={s}>{MEAL_SESSION_LABELS[s] || s}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {menuGrid.rows.map((r) => (
+                <tr key={r.key} className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
+                  <td>
+                    <div className="fw-600">{ageGroupById(r.ageGroupId)?.shortName || 'Toàn trường'}</div>
+                    {r.type === MENU_TYPE.ALLERGY && <div className="text-xs muted">Thực đơn thay thế (dị ứng)</div>}
+                  </td>
+                  {menuGrid.sessions.map((s) => {
+                    const m = r.bySession[s];
+                    return (
+                      <td key={s}>
+                        {m ? (
+                          <>
+                            <ul className="kb-dishes text-sm">
+                              {m.dishes.map((d) => (
+                                <li key={d.id} className={d.allergens.length ? 'kb-day-menu__allergen' : undefined}>
+                                  {d.name}
+                                </li>
+                              ))}
+                            </ul>
+                            <AllergyMenuChanges
+                              changes={m.allergyChanges}
+                              date={date}
+                              context={`${ageGroupById(r.ageGroupId)?.shortName || 'Toàn trường'} · ${MEAL_SESSION_LABELS[s]}`}
+                            />
+                          </>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Widget>
     </div>
   );
 }

@@ -87,10 +87,6 @@
 }
 
 /* Decision / result box on detail pages */
-.bh-result {
-  display: grid;
-  gap: var(--space-2);
-}
 .bh-change {
   display: inline-flex;
   align-items: center;

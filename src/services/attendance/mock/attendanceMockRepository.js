@@ -466,7 +466,8 @@ export const attendanceMockRepository = {
       const until = typeof validUntil === 'string' ? Date.parse(validUntil) : NaN;
       if (!Number.isFinite(until) || until <= Date.now() || until - Date.now() > ATTENDANCE_UNLOCK_MAX_DAYS * 86400000)
         throw new ApiError(422, 'Chọn hạn mở lại trong tương lai, tối đa 7 ngày.');
-      if (typeof reason !== 'string' || !reason.trim() || reason.trim().length > 300) throw new ApiError(422, 'Nhập lý do mở lại, tối đa 300 ký tự.');
+      if (typeof reason !== 'string' || !reason.trim() || reason.trim().length > 300)
+        throw new ApiError(422, 'Nhập lý do mở lại, tối đa 300 ký tự.');
       if (activeUnlockOf(db, classId, date)) throw new ApiError(409, 'Lớp/ngày này đang có lần mở lại còn hiệu lực.');
       materializeCounts(db, date);
       const unlock = {
@@ -760,10 +761,17 @@ export const attendanceMockRepository = {
         delete count.pendingClasses;
         count.needsReconfirmation = false;
         count.classes.forEach((line) => {
-          const handover = db.mealHandovers.find((row) => row.classId === line.classId && row.date === count.date && row.session === count.session);
+          const handover = db.mealHandovers.find(
+            (row) => row.classId === line.classId && row.date === count.date && row.session === count.session,
+          );
           if (!handover || handover.status !== HANDOVER_STATUS.READY) return;
           if (handover.expected.normal === line.normal && handover.expected.substitute === line.substitute) return;
-          handover.history.push({ at: new Date().toISOString(), userId: user.id, action: 'EXPECTED_RECONFIRMED', previousExpected: clone(handover.expected) });
+          handover.history.push({
+            at: new Date().toISOString(),
+            userId: user.id,
+            action: 'EXPECTED_RECONFIRMED',
+            previousExpected: clone(handover.expected),
+          });
           handover.expected = { normal: line.normal, substitute: line.substitute };
         });
       }

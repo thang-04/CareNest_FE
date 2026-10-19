@@ -175,6 +175,7 @@
 
 .td-kv {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-2);
   font-size: var(--fs-sm);
@@ -222,7 +223,7 @@
   align-items: center;
   gap: var(--space-1);
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   padding: var(--space-1) var(--space-3);
   cursor: pointer;
   font-size: var(--fs-sm);
@@ -257,7 +258,18 @@
   }
 }
 
-.td-row--danger td {
+/* Điện thoại: 3 thẻ ngày/hàng làm số liệu tràn ngang trang; thông tin thực phẩm về 1 cột */
+@media (max-width: 640px) {
+  .td-week-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .td-food-info {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Bảng kẻ ô ép nền trắng cho ô thân bảng; dòng/ô cảnh báo cần selector mạnh hơn để giữ màu */
+.table.table--grid .td-row--danger td {
   background: var(--danger-25);
 }
 
@@ -430,7 +442,7 @@
   width: 44px;
 }
 
-.td-grp-row td {
+.table.table--grid .td-grp-row td {
   background: var(--table-header-bg);
   font-weight: var(--fw-semibold);
 }
@@ -493,18 +505,8 @@
   height: var(--btn-height-sm);
 }
 
-/* Ô giá có lúc là ô cuối hàng (hàng 2+), giữ cùng lề phải để các ô thẳng cột */
-.td-norm tbody td.right {
-  padding-right: var(--space-4);
-}
-
 .td-norm .td-norm__range {
   vertical-align: middle;
-  border-left: 1px solid var(--color-border);
-}
-
-.td-norm tfoot td {
-  font-weight: var(--fw-semibold);
 }
 
 .td-meal-cell {
@@ -540,10 +542,6 @@
 .td-range {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-}
-
-.td-range {
   gap: var(--space-1-5);
 }
 
@@ -635,7 +633,7 @@
   min-width: 980px;
 }
 
-.td-row--warn td {
+.table.table--grid .td-row--warn td {
   background: var(--warning-25);
 }
 
@@ -666,6 +664,11 @@
   gap: var(--space-4);
 }
 
+/* Bảng rộng trong card không đẩy cột ra ngoài; bảng tự cuộn trong table-wrap */
+.td-aside-stack > * {
+  min-width: 0;
+}
+
 .td-recipe-wrap {
   /* Giữ chữ sr-only ở đầu cột Xóa trong khung cuộn, không làm trang tràn ngang */
   position: relative;
@@ -678,10 +681,6 @@
 
 .td-recipe__food {
   min-width: 220px;
-}
-
-.td-recipe tfoot td {
-  font-weight: var(--fw-semibold);
 }
 
 .td-qty {
@@ -697,19 +696,6 @@
 .td-checkbox-field {
   align-self: end;
   min-height: 44px;
-}
-
-.td-portion-list {
-  display: grid;
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.td-portion-list li {
-  display: grid;
-  gap: 2px;
 }
 
 @media (max-width: 1200px) {
@@ -1059,10 +1045,6 @@
   gap: 2px;
 }
 
-.td-ai-bar {
-  align-items: center;
-}
-
 .td-ai-reasons {
   margin: var(--space-1) 0 0;
   padding-left: var(--space-5);
@@ -1242,20 +1224,20 @@
 
 .td-review__day b {
   min-width: 110px;
-  font-size: var(--fs-base);
+  font-size: var(--fs-sm);
 }
 
 .td-balance {
   min-width: 900px;
 }
 
-.td-balance .td-low {
+.table.table--grid.td-balance .td-low {
   background: color-mix(in srgb, var(--tone-blue) 14%, var(--color-surface));
   color: var(--tone-blue-fg);
   font-weight: var(--fw-semibold);
 }
 
-.td-balance .td-high {
+.table.table--grid.td-balance .td-high {
   background: color-mix(in srgb, var(--tone-orange) 14%, var(--color-surface));
   color: var(--tone-orange-fg);
   font-weight: var(--fw-semibold);
@@ -1456,13 +1438,7 @@
   min-width: 760px;
 }
 
-.td-hl th,
-.td-hl td {
-  padding-left: var(--space-2-5);
-  padding-right: var(--space-2-5);
-}
-
-.td-hl__total td {
+.table.table--grid .td-hl__total td {
   background: var(--table-header-bg);
   font-weight: var(--fw-bold);
 }
@@ -1540,36 +1516,27 @@
   gap: var(--space-3);
 }
 
-.td-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4) var(--space-8);
-  padding: var(--space-4) var(--card-padding);
-}
-
-.td-strip > div {
-  display: grid;
-  gap: 2px;
-}
-
-.td-gap-section {
-  margin-top: var(--space-6);
-}
-
-.td-two {
+/* Thông tin chung thực phẩm: 2 cột nhãn–giá trị, dị ứng/ghi chú trải hết chiều ngang */
+.td-food-info {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-5);
   align-items: start;
+  gap: var(--space-3) var(--space-8);
 }
 
-.td-two > .card {
-  margin: 0;
+/* Cùng độ rộng cột nhãn ở cả 3 khối để giá trị thẳng hàng */
+.td-food-info .info-list {
+  grid-template-columns: 140px minmax(0, 1fr);
+}
+
+.td-food-info__full {
+  grid-column: 1 / -1;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
 }
 
 @media (max-width: 1100px) {
-  .td-profile,
-  .td-two {
+  .td-profile {
     grid-template-columns: minmax(0, 1fr);
   }
 

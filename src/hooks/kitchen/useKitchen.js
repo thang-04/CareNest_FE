@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import { isPrincipal } from '@/utils/kitchen/kitchenPermissions';
 import { resolveKitchenCampusId } from '@/utils/kitchen/kitchenCampus';
+import { DB_CHANGED_EVENT } from '@/mocks/mockDatabase';
 import {
   getConfirmedMealCount,
   getFoodCatalog,
@@ -54,9 +55,43 @@ export const useStockCounts = (campusId) =>
 export const useStockIssues = (campusId) =>
   useKitchenQuery((user) => getStockIssues({ campusId }, user), [campusId], { enabled: !!campusId });
 
-export const usePublishedMenu = (date, view) => {
-  const { data, ...rest } = useKitchenQuery((user) => getPublishedMenu({ date, view }, user), [date, view], { enabled: !!date });
-  return { days: data || [], ...rest };
+export const usePublishedMenu = (date, view, campusId) => {
+  const { user } = useAuth();
+  const [version, setVersion] = useState(0);
+  const [result, setResult] = useState({ key: '', days: [], loading: true, error: null });
+  const reload = useCallback(() => setVersion((v) => v + 1), []);
+  const key = `${user?.id}|${user?.role}|${user?.campusId}|${campusId}|${date}|${view}`;
+  const enabled = !!user && !!date && !!campusId;
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let cancelled = false;
+    setResult({ key, days: [], loading: true, error: null });
+    getPublishedMenu({ date, view, campusId }, user).then(
+      (days) => !cancelled && setResult({ key, days, loading: false, error: null }),
+      (error) => !cancelled && setResult({ key, days: [], loading: false, error }),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [date, view, campusId, user, version, key, enabled]);
+
+  useEffect(() => {
+    window.addEventListener(DB_CHANGED_EVENT, reload);
+    window.addEventListener('storage', reload);
+    return () => {
+      window.removeEventListener(DB_CHANGED_EVENT, reload);
+      window.removeEventListener('storage', reload);
+    };
+  }, [reload]);
+
+  // Không để response cũ đưa danh sách trẻ của campus trước trở lại màn hình.
+  return {
+    days: enabled && result.key === key ? result.days : [],
+    loading: enabled && (result.key !== key || result.loading),
+    error: enabled && result.key === key ? result.error : null,
+    reload,
+  };
 };
 
 export const useConfirmedMealCount = (campusId, date) => {

@@ -20,6 +20,16 @@ Nguồn: người dùng trực tiếp trong chat, CONFIRMED cho phạm vi tích 
 - Đã duyệt kế hoạch; ngày 2026-10-19 Phase 1 dinh dưỡng/bếp và Phase 2 phân quyền demo độc lập có trong working tree, chưa commit/push. Phụ huynh/hồ sơ trẻ Phase 3 chưa triển khai, chờ review. Bằng chứng kiểm tra: [kế hoạch ghép chọn lọc](../plans/active/2026-10-18-selective-nutrition-permission-merge.md). Không coi đây là đã merge toàn bộ hai nhánh.
 - Bếp mới đọc snapshot số suất từng bữa của attendance hiện tại, không thay cơ chế xác nhận suất hay menu bên trái. Giữ tương thích dữ liệu chế biến lịch sử và không trừ tồn lại khi nâng cấp mock; xem [bẫy ghép bếp](../knowledge/incidents/FE-BUG-261019-selective-kitchen-merge-compat.md). API mới chỉ demo, chưa xác nhận contract BE.
 
+## Thực đơn dị ứng trong màn bếp — 2026-10-19
+
+Nguồn: user chọn cả Theo ngày, Theo tuần và Quy trình bếp, sau đó yêu cầu triển khai. Dùng phương án A đã đề xuất: dòng vàng chỉ ghi món đổi "Thay X bằng Y" hoặc "Bỏ món X", lý do dị ứng và nút mắt. Mỗi thực đơn dị ứng là một phương án riêng, không trộn các phương án. Modal hiện tên trẻ, lớp, chất dị ứng liên quan; không liên kết hồ sơ.
+
+Read model **mock đề xuất**, tham chiếu BE `docs/modules/nutrition.md`, `docs/modules/child.md` và AUTH-05/AUTH-07/NUT-08/NUT-09. Hook truyền điểm trường đang xem; mock kiểm scope trước khi trả trẻ ACTIVE trong nhóm tuổi/campus đó. Hiệu trưởng chọn điểm trường; PHT/bếp dùng điểm trường được phân công. Danh sách dị ứng không xác định số trẻ tham gia ăn và không sửa MealCount đã chốt. Mock hiện dùng lớp đang gắn trên trẻ, chưa có enrollment lịch sử để chứng minh scope theo ngày quá khứ.
+
+API thật cần BE thống nhất dữ liệu cặp món gốc/món thay thế hoặc bỏ món, lý do, các phương án và danh sách tối thiểu tên/lớp/dị ứng trong scope người gọi theo ngày. Không tạo hoặc sửa endpoint thật trong đợt này, không coi mock là phân quyền BE đã thực thi. Không thay APP.
+
+Known pitfall: dữ liệu cũ chỉ có hai danh sách món thì hiển thị riêng món bỏ/món thêm và ghi rõ chưa có cặp thay món; không đoán lý do hay tên trẻ. Xem [fallback legacy](../knowledge/incidents/FE-BUG-261019-published-allergy-legacy.md).
+
 ## Bảng map
 
 Ngày 2026-10-12, người dùng làm rõ báo cáo giáo viên: một cột Suất ăn thay bữa trưa/chiều, theo tích Có/Không tham gia ăn bên điểm danh. Demo trả `mealTotal` theo lượt trẻ tham gia ăn/ngày, không cộng lặp một trẻ vì có nhiều bữa; UI, tổng Theo trẻ và CSV dùng cùng đơn vị. Không lấy riêng số Có mặt thay MealParticipation (tham chiếu NUT-01), không thay MealCount của bếp. Contract summary thật chưa có; đề xuất BE trả số lượt trẻ/ngày cho báo cáo này, phân biệt số suất theo từng bữa ở nutrition. Excel hai sheet vẫn đang chờ Phase 2.

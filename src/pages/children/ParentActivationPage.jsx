@@ -50,12 +50,19 @@ export default function ParentActivationPage() {
   useEffect(() => {
     if (!targetId || handledTarget.current === targetId || structure.loading || structure.error) return;
     let cancelled = false;
-    getChildDetail(targetId, user).then((detail) => {
-      if (!cancelled) setCampusPick(detail.child.campusId);
-    }).catch((err) => {
-      if (!cancelled) { handledTarget.current = targetId; toast.error(err.message || 'Không thể mở hồ sơ phụ huynh.'); }
-    });
-    return () => { cancelled = true; };
+    getChildDetail(targetId, user)
+      .then((detail) => {
+        if (!cancelled) setCampusPick(detail.child.campusId);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          handledTarget.current = targetId;
+          toast.error(err.message || 'Không thể mở hồ sơ phụ huynh.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [targetId, user, structure.loading, structure.error, toast]);
   useEffect(() => {
     const child = children.find((row) => row.id === targetId);
@@ -167,7 +174,9 @@ export default function ParentActivationPage() {
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tài khoản phụ huynh')} />
-      <div className="alert alert--info">Bản demo Web: thao tác tài khoản chưa kết nối BE/App thật. Giữ phạm vi quản lý phụ huynh hiện tại của bạn.</div>
+      <div className="alert alert--info">
+        Bản demo Web: thao tác tài khoản chưa kết nối BE/App thật. Giữ phạm vi quản lý phụ huynh hiện tại của bạn.
+      </div>
       <div className="pa-head">
         <div className="pa-head__title">
           <h1 className="page__title">Tài khoản phụ huynh</h1>
@@ -315,97 +324,119 @@ export default function ParentActivationPage() {
                     />
                   ) : (
                     <div className="table-wrap">
-                      <table className="table pa-table">
+                      <table className="table table--grid table--compact pa-table">
                         <thead>
                           <tr>
                             <th>Bé</th>
                             {main.showClass && <th className="pa-col-class">Lớp</th>}
-                            <th>Phụ huynh & Tài khoản</th>
+                            <th>Phụ huynh</th>
+                            <th className="pa-col-status">Tài khoản</th>
+                            <th className="right pa-col-actions">Thao tác</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {rows.map((child) => (
-                            <tr
-                              key={child.id}
-                              tabIndex={0}
-                              aria-label={`Mở hồ sơ phụ huynh của bé ${child.fullName}`}
-                              onClick={(event) => handleChildRowClick(event, child)}
-                              onKeyDown={(event) => handleChildRowKeyDown(event, child)}
-                            >
-                              <td>
-                                <button type="button" className="pa-kid text-left" onClick={() => openChildProfile(child)}>
-                                  {child.fullName}
-                                </button>
-                                <div className="text-xs muted">{formatDate(child.dateOfBirth)}</div>
-                              </td>
-                              {main.showClass && (
-                                <td className="pa-col-class">{classOf(child) || <span className="muted">Chưa xếp lớp</span>}</td>
-                              )}
-                              <td>
-                                {child.guardians && child.guardians.length > 0 ? (
-                                  <div className="pa-guardian-list">
-                                    {child.guardians.map((g) => {
-                                      const active = g.status === 'ACTIVE';
-                                      const rel = GUARDIAN_RELATIONSHIP_LABELS[g.relationship] || 'Phụ huynh';
-                                      return (
-                                        <div key={g.userId} className="pa-guardian-item">
-                                          <div className="pa-guardian-info">
-                                            <button
-                                              type="button"
-                                              className="pa-guardian-name pa-guardian-name--button"
-                                              aria-label={`Mở hồ sơ của bé ${child.fullName}, phụ huynh ${g.fullName}`}
-                                              onClick={() => openChildProfile(child)}
-                                            >
-                                              {g.fullName}
-                                            </button>
-                                            <div className="pa-guardian-meta">
-                                              <span>{rel}</span>
-                                              <span>Tài khoản: {g.username}</span>
-                                            </div>
-                                          </div>
-                                          <AccountStatusBadge status={g.status} />
-                                          <div className="pa-guardian-actions">
-                                            <button
-                                              type="button"
-                                              className="btn btn--sm"
-                                              title="Cấp lại mật khẩu tạm"
-                                              disabled={!child.canManage}
-                                              onClick={() => setConfirmModal({ type: 'password', guardian: g, child })}
-                                            >
-                                              <KeyRound size={13} /> Cấp lại MK
-                                            </button>
-                                            <button
-                                              type="button"
-                                              className={`btn btn--sm ${active ? 'btn--outline-danger' : 'btn--outline-success'}`}
-                                              title={active ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                                              disabled={!child.canManage}
-                                              onClick={() => setConfirmModal({ type: 'status', guardian: g, child })}
-                                            >
-                                              {active ? <Lock size={13} /> : <Unlock size={13} />} {active ? 'Khóa' : 'Mở'}
-                                            </button>
+                          {rows.map((child) => {
+                            const guardians = child.guardians || [];
+                            return (
+                              <tr
+                                key={child.id}
+                                tabIndex={0}
+                                aria-label={`Mở hồ sơ phụ huynh của bé ${child.fullName}`}
+                                onClick={(event) => handleChildRowClick(event, child)}
+                                onKeyDown={(event) => handleChildRowKeyDown(event, child)}
+                              >
+                                <td>
+                                  <button type="button" className="pa-kid text-left" onClick={() => openChildProfile(child)}>
+                                    {child.fullName}
+                                  </button>
+                                  <div className="text-xs muted">{formatDate(child.dateOfBirth)}</div>
+                                </td>
+                                {main.showClass && (
+                                  <td className="pa-col-class">{classOf(child) || <span className="muted">Chưa xếp lớp</span>}</td>
+                                )}
+                                {/* Mỗi phụ huynh là một dòng con cùng chiều cao ở 3 cột để trạng thái và nút thẳng hàng */}
+                                <td>
+                                  {guardians.length > 0 ? (
+                                    guardians.map((g) => (
+                                      <div key={g.userId} className="pa-line">
+                                        <div className="pa-guardian-info">
+                                          <button
+                                            type="button"
+                                            className="pa-guardian-name pa-guardian-name--button"
+                                            aria-label={`Mở hồ sơ của bé ${child.fullName}, phụ huynh ${g.fullName}`}
+                                            onClick={() => openChildProfile(child)}
+                                          >
+                                            {g.fullName}
+                                          </button>
+                                          <div className="pa-guardian-meta">
+                                            <span>{GUARDIAN_RELATIONSHIP_LABELS[g.relationship] || 'Phụ huynh'}</span>
+                                            <span>Tài khoản: {g.username}</span>
                                           </div>
                                         </div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="pa-line muted">Chưa có phụ huynh</div>
+                                  )}
+                                </td>
+                                <td className="pa-col-status">
+                                  {guardians.length > 0 ? (
+                                    guardians.map((g) => (
+                                      <div key={g.userId} className="pa-line">
+                                        <AccountStatusBadge status={g.status} />
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="pa-line">
+                                      <span className="pa-status pa-status--missing">Chưa có tài khoản</span>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="right pa-col-actions">
+                                  {guardians.length > 0 ? (
+                                    guardians.map((g) => {
+                                      const active = g.status === 'ACTIVE';
+                                      return (
+                                        <div key={g.userId} className="pa-line pa-line--actions">
+                                          <button
+                                            type="button"
+                                            className="btn btn--sm"
+                                            title="Cấp lại mật khẩu tạm"
+                                            disabled={!child.canManage}
+                                            onClick={() => setConfirmModal({ type: 'password', guardian: g, child })}
+                                          >
+                                            <KeyRound size={13} /> Cấp lại MK
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className={`btn btn--sm ${active ? 'btn--outline-danger' : 'btn--outline-success'}`}
+                                            title={active ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                                            disabled={!child.canManage}
+                                            onClick={() => setConfirmModal({ type: 'status', guardian: g, child })}
+                                          >
+                                            {active ? <Lock size={13} /> : <Unlock size={13} />} {active ? 'Khóa' : 'Mở'}
+                                          </button>
+                                        </div>
                                       );
-                                    })}
-                                  </div>
-                                ) : (
-                                  <div className="pa-empty-actions">
-                                    <span className="pa-status pa-status--missing">Chưa có tài khoản</span>
-                                    <button
-                                      type="button"
-                                      className="btn btn--sm btn--primary"
-                                      disabled={!child.canManage}
-                                      onClick={() => {
-                                        openChildProfile(child, true);
-                                      }}
-                                    >
-                                      <Plus size={13} /> Thêm phụ huynh
-                                    </button>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                                    })
+                                  ) : (
+                                    <div className="pa-line pa-line--actions">
+                                      <button
+                                        type="button"
+                                        className="btn btn--sm btn--primary"
+                                        disabled={!child.canManage}
+                                        onClick={() => {
+                                          openChildProfile(child, true);
+                                        }}
+                                      >
+                                        <Plus size={13} /> Thêm phụ huynh
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -429,14 +460,16 @@ export default function ParentActivationPage() {
             setOpenWithAdd(false);
           }}
         >
-          <fieldset disabled={!openChild.canManage} className="pa-guard-fieldset"><GuardianPanel
-            key={openChild.id}
-            child={openChild}
-            classroomName={classOf(openChild)}
-            initialAdding={openWithAdd}
-            isModal
-            onChanged={() => reload({ silent: true })}
-          /></fieldset>
+          <fieldset disabled={!openChild.canManage} className="pa-guard-fieldset">
+            <GuardianPanel
+              key={openChild.id}
+              child={openChild}
+              classroomName={classOf(openChild)}
+              initialAdding={openWithAdd}
+              isModal
+              onChanged={() => reload({ silent: true })}
+            />
+          </fieldset>
         </Modal>
       )}
 

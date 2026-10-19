@@ -287,7 +287,8 @@ export const dailyHealthMockRepository = {
         .filter(Boolean)
         .join(' ');
       recipients.forEach((guardian) => {
-        if (db.parentHealthNotifications.some((item) => item.healthEntryId === entry.id && item.recipientKey === guardian.recipientKey)) return;
+        if (db.parentHealthNotifications.some((item) => item.healthEntryId === entry.id && item.recipientKey === guardian.recipientKey))
+          return;
         db.parentHealthNotifications.push({
           id: uid('parent-health'),
           healthEntryId: entry.id,

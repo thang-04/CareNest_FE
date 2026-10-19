@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Save, Search } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/form/FormField';
+import { Avatar } from '@/components/ui/Avatar';
 import { Switch } from '@/components/ui/Switch';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -19,7 +20,6 @@ import {
 } from '@/models/account/permissionConstants';
 import { overridesFromSwitches, permissionDraftRows } from '@/utils/account/personPermissions';
 import { validatePermissionChange } from '@/utils/account/permissionValidation';
-import { avatarTone, initials } from '@/utils/format';
 
 const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER'];
 
@@ -150,18 +150,18 @@ export function OverrideWizardModal({ open, initialStaff = null, onClose, onSave
 function StepSelectStaff({ loading, error, staffList, searchQuery, onSearchChange, filterRole, onFilterRoleChange, onSelect }) {
   return (
     <div className="perm-wizard-step">
-      <div className="filter-bar mb-3">
-        <div className="search-input-wrap" style={{ flex: 1 }}>
-          <Search size={16} className="search-icon" />
+      <div className="filter-bar mb-12">
+        <label className="search-box permission-search">
+          <Search size={16} className="muted" aria-hidden="true" />
+          <span className="sr-only">Tìm nhân sự để tạo ngoại lệ</span>
           <input
-            className="input"
             type="search"
             placeholder="Tìm theo họ tên, số điện thoại nhân sự..."
             aria-label="Tìm nhân sự để tạo ngoại lệ"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
           />
-        </div>
+        </label>
         <select className="select" value={filterRole} onChange={(e) => onFilterRoleChange(e.target.value)} aria-label="Lọc vai trò">
           <option value="">Tất cả chức danh</option>
           {CONFIGURABLE_ROLES.map((r) => (
@@ -177,7 +177,7 @@ function StepSelectStaff({ loading, error, staffList, searchQuery, onSearchChang
       ) : error ? (
         <ErrorState error={error} />
       ) : staffList.length === 0 ? (
-        <div className="empty-state py-4 text-center">
+        <div className="empty-state permission-empty">
           <p className="text-muted">Không tìm thấy nhân sự phù hợp.</p>
         </div>
       ) : (
@@ -187,7 +187,7 @@ function StepSelectStaff({ loading, error, staffList, searchQuery, onSearchChang
             const campusText = staff.campusName || staff.assignments?.[0]?.campusName || 'Chưa phân công';
             return (
               <button key={staff.userId || staff.id} type="button" className="perm-staff-pick-card" onClick={() => onSelect(staff)}>
-                <span className={`avatar avatar--tone-${avatarTone(staff.fullName)}`}>{initials(staff.fullName)}</span>
+                <Avatar user={staff} size="sm" />
                 <div className="perm-staff-pick-info">
                   <strong>{staff.fullName}</strong>
                   <div className="text-sm text-muted">
@@ -269,9 +269,9 @@ function StepConfigurePermissions({ staff, onBack, onNext }) {
     <div className="perm-wizard-step">
       {/* Banner tóm tắt nhân sự được chọn */}
       <div className="perm-staff-banner">
-        <span className={`avatar avatar--tone-${avatarTone(staff.fullName)}`}>{initials(staff.fullName)}</span>
+        <Avatar user={staff} size="sm" />
         <div className="perm-staff-banner__main">
-          <h3 className="m-0 text-base">{staff.fullName}</h3>
+          <h3 className="m-0 text-md">{staff.fullName}</h3>
           <p className="text-sm text-muted m-0">
             {roleLabel} · {staff.campusName || 'Cơ sở trực thuộc'}
           </p>
@@ -362,18 +362,19 @@ function StepConfirmAndReason({ staff, reason, reasonError, saving, onReasonChan
 
   return (
     <div className="perm-wizard-step">
-      <div className="card p-3 mb-3 bg-surface-subtle">
-        <h4 className="m-0 mb-2 text-base">Xác nhận thay đổi cho: {staff.fullName}</h4>
+      <div className="card permission-confirm-card mb-12">
+        <h4 className="m-0 mb-8 text-md">Xác nhận thay đổi cho: {staff.fullName}</h4>
         {changes.length === 0 ? (
           <p className="text-sm text-muted m-0">
             Tất cả các quyền đều khớp với mặc định vai trò. Các ngoại lệ trước đây (nếu có) sẽ được xóa bỏ để người này quay lại tuân thủ
             100% vai trò.
           </p>
         ) : (
-          <ul className="perm-change-summary-list m-0 pl-3">
+          <ul className="permission-change-summary-list m-0">
             {changes.map((c) => (
-              <li key={c.code} className="text-sm mb-1">
-                <span className={c.effect === 'GRANT' ? 'text-success font-bold' : 'text-warning font-bold'}>{c.typeText}:</span> {c.label}
+              <li key={c.code} className="text-sm">
+                <span className={`permission-change permission-change--${c.effect === 'GRANT' ? 'grant' : 'revoke'}`}>{c.typeText}:</span>{' '}
+                {c.label}
               </li>
             ))}
           </ul>
