@@ -62,6 +62,7 @@ const EduConfigPage = lazy(() => import('@/pages/education-plan/EduConfigPage'))
 const SchoolPlansPage = lazy(() => import('@/pages/education-plan/SchoolPlansPage'));
 
 const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'));
+const AttendanceDayUnlockPage = lazy(() => import('@/pages/attendance/AttendanceDayUnlockPage'));
 const AttendanceSummaryPage = lazy(() => import('@/pages/attendance/AttendanceSummaryPage'));
 const MealCountPage = lazy(() => import('@/pages/attendance/MealCountPage'));
 const MealHandoverPage = lazy(() => import('@/pages/attendance/MealHandoverPage'));
@@ -80,8 +81,9 @@ const CampusListPage = lazy(() => import('@/pages/school-config/CampusListPage')
 const CampusFormPage = lazy(() => import('@/pages/school-config/CampusFormPage'));
 const CampusDetailPage = lazy(() => import('@/pages/school-config/CampusDetailPage'));
 const VicePrincipalAssignmentPage = lazy(() => import('@/pages/school-config/VicePrincipalAssignmentPage'));
-const RolePermissionListPage = lazy(() => import('@/pages/school-config/RolePermissionListPage'));
-const RolePermissionFormPage = lazy(() => import('@/pages/school-config/RolePermissionFormPage'));
+const RoleDefaultsPage = lazy(() => import('@/pages/school-config/RoleDefaultsPage'));
+const UserOverridesPage = lazy(() => import('@/pages/permissions/UserOverridesPage'));
+const PermissionHistoryPage = lazy(() => import('@/pages/school-config/PermissionHistoryPage'));
 const TeacherAssignmentPage = lazy(() => import('@/pages/school-config/TeacherAssignmentPage'));
 const YearPlacementPage = lazy(() => import('@/pages/school-config/YearPlacementPage'));
 
@@ -116,6 +118,12 @@ const ProposalFormPage = lazy(() => import('@/pages/facility/ProposalFormPage'))
 const ProposalDetailPage = lazy(() => import('@/pages/facility/ProposalDetailPage'));
 const StockReceiptListPage = lazy(() => import('@/pages/kitchen/StockReceiptListPage'));
 const StockReceiptFormPage = lazy(() => import('@/pages/kitchen/StockReceiptFormPage'));
+const KitchenFlowPage = lazy(() => import('@/pages/kitchen/KitchenFlowPage'));
+const DryStockPage = lazy(() => import('@/pages/kitchen/DryStockPage'));
+const StockCountPage = lazy(() => import('@/pages/kitchen/StockCountPage'));
+const FoodSampleLogPage = lazy(() => import('@/pages/kitchen/FoodSampleLogPage'));
+const WeeklyForecastPage = lazy(() => import('@/pages/kitchen/WeeklyForecastPage'));
+const FreshReceiptPage = lazy(() => import('@/pages/kitchen/FreshReceiptPage'));
 const StockIssueApprovalPage = lazy(() => import('@/pages/kitchen/StockIssueApprovalPage'));
 const MealPreparationStatusPage = lazy(() => import('@/pages/kitchen/MealPreparationStatusPage'));
 const PublishedMenuPage = lazy(() => import('@/pages/kitchen/PublishedMenuPage'));
@@ -143,6 +151,8 @@ const RewardProposalDetailPage = lazy(() => import('@/pages/assessment/RewardPro
 const PendingApprovalsPage = lazy(() => import('@/pages/dashboard/PendingApprovalsPage'));
 
 const FoodListPage = lazy(() => import('@/pages/menu-planning/FoodListPage'));
+const NutritionFlowPage = lazy(() => import('@/pages/menu-planning/NutritionFlowPage'));
+const NutritionSetupPage = lazy(() => import('@/pages/menu-planning/NutritionSetupPage'));
 const FoodDetailPage = lazy(() => import('@/pages/menu-planning/FoodDetailPage'));
 const FoodFormPage = lazy(() => import('@/pages/menu-planning/FoodFormPage'));
 const DishListPage = lazy(() => import('@/pages/menu-planning/DishListPage'));
@@ -305,8 +315,8 @@ export function AppRoutes() {
             <Route path="campuses/:id" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <CampusDetailPage />)} />
             <Route path="campuses/:id/edit" element={only([R.PRINCIPAL], <CampusFormPage />)} />
             <Route path="vice-principals" element={only([R.PRINCIPAL], <VicePrincipalAssignmentPage />)} />
-            <Route path="roles" element={only([R.PRINCIPAL], <RolePermissionListPage />)} />
-            <Route path="roles/:role" element={only([R.PRINCIPAL], <RolePermissionFormPage />)} />
+            <Route path="roles" element={only([R.PRINCIPAL], <RoleDefaultsPage />)} />
+            <Route path="roles/:role" element={only([R.PRINCIPAL], <Navigate to="/school/roles" replace />)} />
             <Route
               path="teachers"
               element={
@@ -318,6 +328,12 @@ export function AppRoutes() {
                 </RoleGuard>
               }
             />
+          </Route>
+          <Route path="permissions">
+            <Route index element={only([R.PRINCIPAL], <RoleDefaultsPage />)} />
+            <Route path="roles" element={only([R.PRINCIPAL], <Navigate to="/school/roles" replace />)} />
+            <Route path="overrides" element={only([R.PRINCIPAL], <UserOverridesPage />)} />
+            <Route path="history" element={only([R.PRINCIPAL], <PermissionHistoryPage />)} />
           </Route>
           <Route path="children">
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />
@@ -371,6 +387,8 @@ export function AppRoutes() {
             <Route path=":id/edit" element={only(VP_ONLY, <ProposalFormPage />)} />
           </Route>
           <Route path="menu">
+            <Route path="flow" element={only(VP_ONLY, <NutritionFlowPage />)} />
+            <Route path="setup" element={only(LEADERS, <NutritionSetupPage />)} />
             <Route path="foods" element={only(VP_ONLY, <FoodListPage />)} />
             <Route path="foods/new" element={only(VP_ONLY, <FoodFormPage />)} />
             <Route path="foods/:id" element={only(VP_ONLY, <FoodDetailPage />)} />
@@ -391,7 +409,7 @@ export function AppRoutes() {
             <Route path="allergy-menus/:id" element={only(VP_ONLY, <AllergyMenuDetailPage />)} />
             <Route path="allergy-menus/:id/edit" element={only(VP_ONLY, <AllergyMenuFormPage />)} />
             <Route path="ai-suggestion" element={only(VP_ONLY, <AiMenuSuggestionPage />)} />
-            <Route path="weekly" element={only(VP_ONLY, <WeeklyMenuListPage />)} />
+            <Route path="weekly" element={only(LEADERS, <WeeklyMenuListPage />)} />
             <Route path="weekly/new" element={only(VP_ONLY, <WeeklyMenuFormPage />)} />
             <Route path="weekly/:id" element={only(VP_ONLY, <WeeklyMenuDetailPage />)} />
             <Route path="weekly/:id/edit" element={only(VP_ONLY, <WeeklyMenuFormPage />)} />
@@ -400,9 +418,15 @@ export function AppRoutes() {
             <Route path="plans/:id" element={only([R.PRINCIPAL], <MenuPlanDetailPage />)} />
           </Route>
           <Route path="kitchen">
+            <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <KitchenFlowPage />)} />
+            <Route path="dry-stock" element={only(LEADERS, <DryStockPage />)} />
+            <Route path="stock-counts" element={only(LEADERS, <StockCountPage />)} />
+            <Route path="food-samples" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <FoodSampleLogPage />)} />
+            <Route path="forecast" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <WeeklyForecastPage />)} />
+            <Route path="fresh-receipts" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <FreshReceiptPage />)} />
             <Route path="stock-receipts" element={only(VP_ONLY, <StockReceiptListPage />)} />
             <Route path="stock-receipts/new" element={only(VP_ONLY, <StockReceiptFormPage />)} />
-            <Route path="stock-issues" element={only(VP_ONLY, <StockIssueApprovalPage />)} />
+            <Route path="stock-issues" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <StockIssueApprovalPage />)} />
             <Route path="preparation" element={only(VP_ONLY, <MealPreparationStatusPage />)} />
             <Route path="preparation/update" element={only([R.KITCHEN_STAFF], <MealPreparationUpdatePage />)} />
             <Route path="published-menu" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <PublishedMenuPage />)} />
@@ -430,6 +454,7 @@ export function AppRoutes() {
             <Route path="rewards/:id/edit" element={only(CLASS_STAFF, <RewardProposalFormPage />)} />
           </Route>
           <Route path="attendance">
+            <Route path="day-unlocks" element={only(LEADERS, <AttendanceDayUnlockPage />)} />
             <Route index element={only(CLASS_STAFF, <AttendancePage />)} />
             <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
             <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MealCountPage />)} />

@@ -1,5 +1,4 @@
 import { ROLES } from '@/models/User';
-import { ISSUE_STATUS, MISSING_STATUS } from '@/models/kitchen/kitchenConstants';
 
 /*
  * Rights follow SRS 4.4 Permission Matrix (footnotes ¹ VP own campus, ⁵ Kitchen Staff own campus kitchen)
@@ -19,38 +18,38 @@ export const canAccessCampus = (user, campusId) => !!user && (isPrincipal(user) 
 export const canViewPublishedMenu = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
 export const canViewMealCount = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
 
-// "Required food quantity – View": VP ¹, Kitchen ⁵.
-export const canViewRequiredQuantity = (user) => is(user, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
+// Dự trù & đi chợ theo tuần (S1): HT, PHT, Bếp xem; chỉ PHT của cơ sở sửa dự trù, gửi NCC, đánh dấu đã báo.
+export const canViewForecast = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
+export const canEditForecast = (user, campusId) => isVicePrincipal(user) && canAccessCampus(user, campusId);
 
-// "Meal preparation status": Update Kitchen ⁵ only; View VP ¹ and Kitchen ⁵.
-export const canUpdatePreparation = (user) => isKitchenStaff(user);
-export const canViewPreparation = (user) => is(user, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
+// Trang Quy trình bếp hôm nay, Sổ lưu mẫu: HT xem mọi cơ sở, PHT và Bếp xem cơ sở mình. Chỉ Bếp của cơ sở ghi lưu mẫu, hủy mẫu.
+export const canViewKitchenDay = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
+export const canEditFoodSample = (user, campusId) => isKitchenStaff(user) && canAccessCampus(user, campusId);
 
-// "Missing food report – Submit": Kitchen ⁵ only. The campus VP receives and supplies it (UC 6.19, screen #97).
-export const canSubmitMissingFood = (user) => isKitchenStaff(user);
-export const canViewMissingFood = (user) => is(user, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
-export const canSupplyMissingFood = (report, user) =>
-  isVicePrincipal(user) && report?.status === MISSING_STATUS.SUBMITTED && canAccessCampus(user, report.campusId);
+// Kiểm nhận hàng tươi (S5–S6): bếp cơ sở kiểm và gửi, PHT cơ sở xác nhận; HT xem.
+export const canViewFreshReceipt = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
 
-// UC 6.23 / 6.24: the campus Vice Principal records receipts and approves the issue slip.
+// UC 6.23: the campus Vice Principal records receipts.
 export const canManageStock = (user) => isVicePrincipal(user);
-export const canApproveStockIssue = (issue, user) =>
-  isVicePrincipal(user) && issue?.status === ISSUE_STATUS.PENDING_APPROVAL && canAccessCampus(user, issue.campusId);
+// Kho khô xem chung hai cơ sở (S4): HT và PHT xem; PHT ghi (nhập, kiểm kê) cho cơ sở BE cho phép — mock: cả hai cơ sở.
+export const canViewDryStock = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
+export const canWriteStock = (user, campusId) => isVicePrincipal(user) && !!campusId;
+// Phiếu xuất kho tự sinh lúc chốt suất (S8): HT, PHT, Bếp chỉ xem và in.
+export const canViewStockIssue = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
 
-// UC 6.25: the campus Kitchen Staff confirm the ingredients received; the VP sees the reconciliation.
-export const canViewIngredientReceipt = (user) => is(user, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
-export const canConfirmIngredientReceipt = (issue, user) =>
-  isKitchenStaff(user) && issue?.status === ISSUE_STATUS.APPROVED && canAccessCampus(user, issue.campusId);
+// Widget chờ duyệt cũ không được bật lại luồng duyệt xuất đã thay bằng phiếu tự sinh.
+export const canApproveStockIssue = () => false;
 
 /** Roles per route, for the lead to register in AppRoutes. */
 export const KITCHEN_ROUTE_ROLES = {
+  kitchenDay: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
+  foodSamples: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
+  dryStock: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
   stockReceipts: [ROLES.VICE_PRINCIPAL],
-  stockIssues: [ROLES.VICE_PRINCIPAL],
-  preparation: [ROLES.VICE_PRINCIPAL],
+  stockCounts: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
+  stockIssues: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
   publishedMenu: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
   mealCount: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
-  requiredQuantity: [ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
-  ingredientReceipts: [ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
-  missingFood: [ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
-  preparationUpdate: [ROLES.KITCHEN_STAFF],
+  forecast: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
+  freshReceipts: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
 };

@@ -15,6 +15,9 @@ export const isClassTeacher = (cls, user) =>
 
 export const canRecordAttendance = (cls, user) => isClassTeacher(cls, user);
 
+export const canUnlockAttendanceDay = (cls, user) =>
+  !!cls && (user?.role === ROLES.PRINCIPAL || (user?.role === ROLES.VICE_PRINCIPAL && cls.campusId === user.campusId));
+
 export const canViewAttendance = (cls, user) => {
   if (!cls || !user) return false;
   if (user.role === ROLES.PRINCIPAL) return true;

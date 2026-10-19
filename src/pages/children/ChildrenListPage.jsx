@@ -7,6 +7,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useClasses } from '@/hooks/useSchool';
 import { useChildRecords } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ChildStatusBadge, FollowUpLevelShortBadge } from '@/components/children/ChildBadges';
@@ -160,6 +161,7 @@ export default function ChildrenListPage() {
       </div>
 
       <div className="card">
+        <PeopleTabs embedded />
         <div className="filter-bar">
           <label className="search-box" style={{ flex: 1, minWidth: 220 }}>
             <Search size={17} className="muted" />

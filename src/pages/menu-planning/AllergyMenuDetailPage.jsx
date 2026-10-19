@@ -16,7 +16,8 @@ import { applyReplacements, mealsTotals, priceOn, restrictedConflicts, sameAller
 import { allergyMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
 import { ageGroupById } from '@/models/School';
-import { ALLERGY_GROUP_LABELS, MEAL_SESSION_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { ALLERGY_GROUP_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { mealLabel } from '@/utils/menu-planning/nutritionSetup';
 import '@/styles/modules/menu-planning.css';
 
 /** Screen #82 – one alternative menu. */
@@ -171,7 +172,7 @@ export default function AllergyMenuDetailPage() {
               ) : (
                 a.replacements.map((r) => (
                   <tr key={`${r.session}_${r.originalDishId}`}>
-                    <td>{MEAL_SESSION_LABELS[r.session]}</td>
+                    <td>{mealLabel(catalog.nutritionSetups, a.ageGroupId, r.session)}</td>
                     <td>{catalog.dishById[r.originalDishId]?.name || 'Món đã xóa'}</td>
                     <td>
                       <ArrowRight size={15} className="muted" />
@@ -202,6 +203,7 @@ export default function AllergyMenuDetailPage() {
             <NutritionTable
               result={result}
               ageGroupId={a.ageGroupId}
+              norms={catalog.norms}
               price={priceOn(catalog.mealPrices, a.ageGroupId, todayInput())?.price}
             />
           </div>

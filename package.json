@@ -12,7 +12,10 @@
     "format": "prettier --write \"src/**/*.{js,jsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx,css}\"",
     "check": "npm run lint && npm run format:check && npm run build",
-    "verify": "npm run check"
+    "verify": "npm run test:menu && npm run test:kitchen && npm run test:merge && npm run check",
+    "test:menu": "node --import ./scripts/register-auth-test-loader.mjs --test tests/menu/*.test.mjs",
+    "test:kitchen": "node --import ./scripts/register-auth-test-loader.mjs --test tests/kitchen/*.test.mjs",
+    "test:merge": "node --import ./scripts/register-auth-test-loader.mjs --test tests/integration/selective-merge/*.test.mjs"
   },
   "dependencies": {
     "@tabler/icons-react": "^3.49.0",
@@ -21,7 +24,8 @@
     "jspdf": "^4.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.18.4"
+    "react-router-dom": "^7.18.4",
+    "read-excel-file": "9.3.10"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

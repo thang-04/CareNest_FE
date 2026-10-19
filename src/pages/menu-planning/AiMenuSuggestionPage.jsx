@@ -17,7 +17,7 @@ import { WeekChecks } from '@/components/menu-planning/WeekChecks';
 import { mealsTotals, priceOn } from '@/utils/menu-planning/menuCalculations';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
-import { AGE_GROUPS } from '@/models/School';
+import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { AI_DRAFT_KIND, WEEKLY_STATUS, addDays, formatMoney, mondayOf } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
@@ -130,7 +130,7 @@ export default function AiMenuSuggestionPage() {
             <FormField label="Nhóm tuổi" required error={submitted && !ageGroupId ? 'Trường này là bắt buộc.' : undefined}>
               <select className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)}>
                 <option value="">Chọn nhóm tuổi</option>
-                {AGE_GROUPS.map((g) => (
+                {activeAgeGroups(catalog.nutritionSetups).map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
                   </option>
@@ -226,10 +226,10 @@ export default function AiMenuSuggestionPage() {
                     Đã tránh: <AllergenChips allergens={draft.restrictions} />
                   </p>
                 )}
-                <MealsView meals={draft.meals} catalog={catalog} linkDishes />
+                <MealsView meals={draft.meals} catalog={catalog} ageGroupId={draft.ageGroupId} linkDishes />
                 <div className="mt-16">
-                  <AllergenWarnings meals={draft.meals} catalog={catalog} contextRows={allergyRows} />
-                  <NutritionTable result={dayResult} ageGroupId={draft.ageGroupId} price={draft.mealPrice} />
+                  <AllergenWarnings meals={draft.meals} catalog={catalog} ageGroupId={draft.ageGroupId} contextRows={allergyRows} />
+                  <NutritionTable result={dayResult} ageGroupId={draft.ageGroupId} norms={catalog.norms} price={draft.mealPrice} />
                 </div>
               </>
             )}

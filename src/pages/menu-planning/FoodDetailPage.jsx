@@ -3,31 +3,43 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Pencil, Trash2, AlertTriangle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useFood, useMenuAccess } from '@/hooks/menu-planning/useMenuPlanning';
+import { useFood, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
 import { deleteFood } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
-import { hasNutrition } from '@/utils/menu-planning/menuCalculations';
+import { NutrientBars } from '@/components/menu-planning/NutrientBars';
+import { hasNutrition, ingredientQty } from '@/utils/menu-planning/menuCalculations';
+import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
-import { FOOD_GROUP_LABELS, FOOD_UNIT_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import {
+  DISH_TYPE_LABELS,
+  FOOD_GROUP_LABELS,
+  FOOD_STORAGE_LABELS,
+  FOOD_UNIT_LABELS,
+  formatMoney,
+} from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
-const n = (v, unit) => (typeof v === 'number' ? `${v.toLocaleString('vi-VN')} ${unit}` : 'Chưa có số liệu');
+const n1 = (v) => (Math.round(v * 10) / 10).toLocaleString('vi-VN');
 
-/** Screen #71 – one food item. */
+/**
+ * Chi tiết thực phẩm (bố cục "bảng món dùng là chính"): dải thông tin ngắn; bảng định lượng của thực phẩm trong từng món
+ * theo nhóm tuổi; bên cạnh là dinh dưỡng trong 100 g ăn được và quy đổi, đơn giá.
+ */
 export default function FoodDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const { canManage } = useMenuAccess();
+  const { catalog, loading: catLoading } = useMenuCatalog();
   const { item: f, loading, error, reload } = useFood(id);
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  if (loading) return <LoadingState />;
+  if (loading || catLoading) return <LoadingState />;
   if (error || !f)
     return (
       <div className="page">
@@ -47,11 +59,38 @@ export default function FoodDetailPage() {
     }
   };
 
+  const groups = activeAgeGroups(catalog.nutritionSetups);
+  const nut = f.nutrition;
+  // Định lượng của thực phẩm này trong từng món (một trẻ), theo công thức món
+  const used = f.usedInDishes.map((u) => {
+    const dish = catalog.dishById[u.id];
+    const ings = (dish?.ingredients || []).filter((i) => i.foodId === f.id);
+    return {
+      ...u,
+      type: DISH_TYPE_LABELS[dish?.type] || '—',
+      qty: groups.map((g) => {
+        const vals = ings.map((i) => ingredientQty(i, g.id));
+        return vals.some((v) => v == null) ? null : vals.reduce((s, v) => s + v, 0);
+      }),
+    };
+  });
+  const strip = [
+    ['Nhóm', FOOD_GROUP_LABELS[f.group]],
+    ['Đơn giá', f.unitPrice == null ? 'Chưa có' : `${formatMoney(f.unitPrice)} / ${f.purchaseUnit}`],
+    ['Thải bỏ', `${f.wastePct ?? 0}%`],
+    ['Bảo quản', FOOD_STORAGE_LABELS[f.storage] || '—'],
+    [
+      `Dinh dưỡng / 100 ${f.unit}`,
+      hasNutrition(f) ? `${n1(nut.kcal)} kcal · Đ ${n1(nut.protein)} · B ${n1(nut.lipid)} · Bột ${n1(nut.glucid)} g` : 'Chưa đủ số liệu',
+    ],
+    ['Dị ứng', f.allergens?.length ? f.allergens.join(', ') : 'Không'],
+  ];
+
   return (
     <div className="page">
       <Breadcrumb items={foodCrumbs(f.name)} />
       <div className="page__head">
-        <div className="row" style={{ gap: 12 }}>
+        <div className="row td-title-row">
           <h1 className="page__title">{f.name}</h1>
           <RecordStatusBadge status={f.status} size="lg" />
         </div>
@@ -78,71 +117,119 @@ export default function FoodDetailPage() {
           <div>Thực phẩm chưa đủ số liệu dinh dưỡng; các món và thực đơn dùng thực phẩm này sẽ được báo là tính toán chưa đầy đủ.</div>
         </div>
       )}
-      <div className="td-split">
-        <div className="card">
+      <section className="card td-strip">
+        {strip.map(([k, v]) => (
+          <div key={k}>
+            <span className="text-sm muted">{k}</span>
+            <b>{v}</b>
+          </div>
+        ))}
+      </section>
+
+      <div className="td-split-aside td-gap-section">
+        <section className="card">
           <div className="card__header">
-            <div className="card__title">Thông tin chung</div>
+            <h2 className="card__title">Định lượng trong từng món (một trẻ)</h2>
+            <span className="text-sm muted">{used.length} món · sửa định lượng ở trang món</span>
+          </div>
+          {used.length === 0 ? (
+            <div className="card__body muted">Chưa có món nào dùng thực phẩm này.</div>
+          ) : (
+            <div className="table-wrap td-card-table">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Món ăn</th>
+                    <th>Loại</th>
+                    {groups.map((g) => (
+                      <th key={g.id} className="right">
+                        {g.shortName}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {used.map((u) => (
+                    <tr key={u.id}>
+                      <td>
+                        <Link to={`/menu/dishes/${u.id}`}>{u.name}</Link>
+                      </td>
+                      <td className="text-sm">{u.type}</td>
+                      {u.qty.map((q, i) => (
+                        <td key={groups[i].id} className="right nowrap">
+                          {q == null ? <span className="td-warn">Chưa nhập</span> : `${n1(q)} ${f.unit}`}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+        <div className="td-aside-stack">
+          <section className="card">
+            <div className="card__header">
+              <h2 className="card__title">Dinh dưỡng</h2>
+            </div>
+            <div className="card__body">
+              {hasNutrition(f) ? (
+                <NutrientBars values={nut} title={`Trong 100 ${f.unit} ăn được`} />
+              ) : (
+                <span className="td-warn">Chưa đủ số liệu dinh dưỡng.</span>
+              )}
+            </div>
+          </section>
+          <section className="card">
+            <div className="card__header">
+              <h2 className="card__title">Quy đổi & đơn giá</h2>
+            </div>
+            <div className="card__body">
+              <dl className="info-list">
+                <dt>Đơn vị (ĐVT)</dt>
+                <dd>{f.purchaseUnit}</dd>
+                <dt>Quy đổi</dt>
+                <dd>
+                  {f.purchaseUnitSize.toLocaleString('vi-VN')} {f.unit} / {f.purchaseUnit}
+                </dd>
+                <dt>Tỷ lệ thải bỏ</dt>
+                <dd>{f.wastePct ?? 0}%</dd>
+                <dt>Đơn giá</dt>
+                <dd>{f.unitPrice == null ? '—' : `${formatMoney(f.unitPrice)} / ${f.purchaseUnit}`}</dd>
+              </dl>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div className="td-two td-gap-section">
+        <section className="card">
+          <div className="card__header">
+            <h2 className="card__title">Thông tin chung</h2>
           </div>
           <div className="card__body">
             <dl className="info-list">
-              <dt>Mã:</dt>
+              <dt>Mã</dt>
               <dd className="fw-600">{f.code}</dd>
-              <dt>Nhóm:</dt>
+              <dt>Nhóm</dt>
               <dd>{FOOD_GROUP_LABELS[f.group]}</dd>
-              <dt>Đơn vị định lượng:</dt>
+              <dt>Đơn vị định lượng</dt>
               <dd>{FOOD_UNIT_LABELS[f.unit]}</dd>
-              <dt>Đơn vị mua:</dt>
-              <dd>
-                {f.purchaseUnit} ({f.purchaseUnitSize.toLocaleString('vi-VN')} {f.unit})
-              </dd>
-              <dt>Đơn giá:</dt>
-              <dd>{f.unitPrice == null ? '—' : `${formatMoney(f.unitPrice)} / ${f.purchaseUnit}`}</dd>
-              <dt>Chất gây dị ứng:</dt>
+              <dt>Bảo quản</dt>
+              <dd>{FOOD_STORAGE_LABELS[f.storage] || '—'}</dd>
+              <dt>Hay dùng</dt>
+              <dd>{f.favorite ? 'Có' : 'Không'}</dd>
+              <dt>Chất gây dị ứng</dt>
               <dd>
                 <AllergenChips allergens={f.allergens} empty="Không có" />
               </dd>
-              <dt>Ghi chú:</dt>
+              <dt>Ghi chú</dt>
               <dd>{f.note || '—'}</dd>
             </dl>
           </div>
-        </div>
-        <div className="card">
-          <div className="card__header">
-            <div className="card__title">Dinh dưỡng trên 100 {f.unit}</div>
-          </div>
-          <div className="card__body">
-            <dl className="info-list">
-              <dt>Năng lượng:</dt>
-              <dd>{n(f.nutrition.kcal, 'kcal')}</dd>
-              <dt>Chất đạm:</dt>
-              <dd>{n(f.nutrition.protein, 'g')}</dd>
-              <dt>Chất béo:</dt>
-              <dd>{n(f.nutrition.lipid, 'g')}</dd>
-              <dt>Tinh bột:</dt>
-              <dd>{n(f.nutrition.glucid, 'g')}</dd>
-            </dl>
-          </div>
-        </div>
+        </section>
+        <HistoryCard history={f.history} />
       </div>
-      <div className="card mt-16">
-        <div className="card__header">
-          <div className="card__title">Món ăn dùng thực phẩm này ({f.usedInDishes.length})</div>
-        </div>
-        <div className="card__body">
-          {f.usedInDishes.length === 0 ? (
-            <span className="muted">Chưa có món nào.</span>
-          ) : (
-            <div className="td-chips">
-              {f.usedInDishes.map((d) => (
-                <Link key={d.id} to={`/menu/dishes/${d.id}`} className="chip chip--blue">
-                  {d.name}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      <HistoryCard history={f.history} />
       <div className="page-actions">
         <Link className="btn" to="/menu/foods">
           <ArrowLeft size={16} /> Quay lại danh sách

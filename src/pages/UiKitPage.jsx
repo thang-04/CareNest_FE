@@ -33,6 +33,7 @@ import { TRANSFER_STATUS } from '@/models/facility-transfer/transferConstants';
 import { ROUND_STATUS, SHEET_STATUS } from '@/models/inventory-inspection/inspectionConstants';
 import { CONDITION_OPTIONS } from '@/models/Asset';
 import './ui-kit.css';
+import { NutritionPrimitivesDemo } from '@/components/ui/NutritionPrimitivesDemo';
 
 const COLOR_GROUPS = [
   {
@@ -726,6 +727,16 @@ export default function UiKitPage() {
               <ImageUploader images={images} onChange={setImages} />
             </div>
           </div>
+        </Section>
+
+        <Section
+          id="nutrition-primitives"
+          title="Thao tác gọn và panel xem nhanh"
+          code={
+            '<Switch checked={checked} onChange={setChecked} label="Bật tùy chọn" />\n<FilterMore count={0}>...</FilterMore>\n<RowMenu label="Thao tác" items={items} />\n<EditHead backTo="/menu" title="Sửa" />\n<SidePanel wide open={open} onClose={close} title="Chi tiết">...</SidePanel>'
+          }
+        >
+          <NutritionPrimitivesDemo />
         </Section>
 
         <Section

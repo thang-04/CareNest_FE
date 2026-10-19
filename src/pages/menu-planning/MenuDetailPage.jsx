@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Plus, Trash2, AlertTriangle } from '@/components/ui/icons';
+import { ArrowLeft, Pencil, Trash2, AlertTriangle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllergyContext, useMenuAccess, useMenuCatalog, useSampleMenu } from '@/hooks/menu-planning/useMenuPlanning';
@@ -67,9 +67,6 @@ export default function MenuDetailPage() {
             <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
               <Trash2 size={16} /> Xóa
             </button>
-            <Link className="btn" to={`/menu/allergy-menus/new?baseMenuId=${id}`}>
-              <Plus size={16} /> Tạo thực đơn thay thế
-            </Link>
             <Link className="btn btn--primary" to={`/menu/menus/${id}/edit`}>
               <Pencil size={16} /> Sửa thực đơn
             </Link>
@@ -90,7 +87,7 @@ export default function MenuDetailPage() {
         </div>
         <div className="card__body">
           {m.note && <p className="mb-12">{m.note}</p>}
-          <MealsView meals={m.meals} catalog={catalog} linkDishes />
+          <MealsView meals={m.meals} catalog={catalog} ageGroupId={m.ageGroupId} linkDishes />
         </div>
       </div>
       <div className="card mt-16">
@@ -101,12 +98,13 @@ export default function MenuDetailPage() {
           <AllergenWarnings
             meals={m.meals}
             catalog={catalog}
+            ageGroupId={m.ageGroupId}
             contextRows={allergyRows}
             allergyMenus={m.allergyMenus}
             baseMenuId={m.id}
             canCreate={canManage}
           />
-          <NutritionTable result={result} ageGroupId={m.ageGroupId} price={price} />
+          <NutritionTable result={result} ageGroupId={m.ageGroupId} norms={catalog.norms} price={price} />
         </div>
       </div>
       <div className="td-split mt-16">
@@ -122,7 +120,7 @@ export default function MenuDetailPage() {
                 {m.allergyMenus.map((a) => (
                   <li key={a.id}>
                     <div>
-                      <Link to={`/menu/allergy-menus/${a.id}`} className="fw-600">
+                      <Link to={`/menu/menus/${id}/edit`} className="fw-600">
                         {a.code}
                       </Link>{' '}
                       · {a.name}

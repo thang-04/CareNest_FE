@@ -1,4 +1,5 @@
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { healthNotificationRecipients } from '@/services/account/mock/guardianCompatibility';
 import { canRecordAttendance, canViewAttendance } from '@/utils/attendance/attendancePermissions';
 import { isSchoolDay, schoolNow } from '@/utils/attendance/attendanceTime';
 import { ROLES } from '@/models/User';
@@ -262,8 +263,8 @@ export const dailyHealthMockRepository = {
       const entry = db.dailyHealthEntries?.find((item) => item.id === entryId);
       if (!entry) throw new ApiError(404, 'Không tìm thấy lần ghi nhận sức khỏe.');
       const { child } = context(db, entry, user);
-      // Email chỉ là khóa người nhận trong demo; App thật phải dùng GuardianChildLink do BE xác nhận.
-      const recipients = (child.guardians || []).filter((guardian) => guardian.accountStatus === 'ACTIVE' && guardian.email);
+      // Giữ khóa email cũ; tài khoản mới không email dùng ID demo, không coi là push App thật.
+      const recipients = healthNotificationRecipients(db, child);
       if (!recipients.length) throw new ApiError(409, 'Chưa có tài khoản phụ huynh demo đang hoạt động. Kiểm tra hồ sơ liên hệ của trẻ.');
       db.parentHealthNotifications ||= [];
       const message = [
@@ -286,12 +287,12 @@ export const dailyHealthMockRepository = {
         .filter(Boolean)
         .join(' ');
       recipients.forEach((guardian) => {
-        if (db.parentHealthNotifications.some((item) => item.healthEntryId === entry.id && item.recipientKey === guardian.email)) return;
+        if (db.parentHealthNotifications.some((item) => item.healthEntryId === entry.id && item.recipientKey === guardian.recipientKey)) return;
         db.parentHealthNotifications.push({
           id: uid('parent-health'),
           healthEntryId: entry.id,
           childId: entry.childId,
-          recipientKey: guardian.email,
+          recipientKey: guardian.recipientKey,
           recipientName: guardian.fullName,
           title: 'Thông tin sức khỏe của trẻ',
           pushMessage: 'Có cập nhật mới từ nhà trường. Vui lòng mở ứng dụng để xem.',

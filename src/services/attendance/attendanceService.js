@@ -5,7 +5,12 @@ import { attendanceApi } from '@/services/attendance/api/attendanceApi';
 /** Facade: UI only calls these functions. `user` is used by the mock; the API reads it from the token. */
 const repo = USE_MOCK ? attendanceMockRepository : attendanceApi;
 
-export const getDayInfo = (date) => repo.getDayInfo(date);
+export const getDayInfo = (date, classId, user) => repo.getDayInfo(date, classId, user);
+const unlockUnavailable = () =>
+  Promise.reject(Object.assign(new Error('Mở lại điểm danh hiện chỉ có trong demo; cần thống nhất API với backend.'), { status: 501 }));
+export const getAttendanceDayUnlocks = (user) => (USE_MOCK ? attendanceMockRepository.listAttendanceDayUnlocks(user) : unlockUnavailable());
+export const unlockAttendanceDay = (body, user) =>
+  USE_MOCK ? attendanceMockRepository.unlockAttendanceDay(body, user) : unlockUnavailable();
 export const getClassAttendance = (classId, date, user) => repo.getClassAttendance(classId, date, user);
 export const saveClassAttendance = (payload, user) => repo.saveClassAttendance(payload, user);
 export const correctMealAfterLock = (payload, user) => repo.correctMealAfterLock(payload, user);

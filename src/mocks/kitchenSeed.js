@@ -3,7 +3,7 @@
  * Foods, dishes and published menus are a stand-in for the menu-planning module and are used only while
  * db.foods / db.dishes are missing; meal counts are a stand-in for the attendance module (db.mealCounts).
  * Stored collections seeded lazily by the kitchen repository: db.foodStock, db.stockReceipts, db.stockTransactions,
- * db.stockIssues, db.ingredientReceipts, db.missingFoodReports, db.mealPreparations.
+ * db.stockIssues, db.freshReceipts.
  */
 
 export const seedFoods = [
@@ -196,28 +196,36 @@ export const buildOpeningStock = (campusIds, foods) =>
     }),
   );
 
-/** Two past deliveries per campus so the receipt list is not empty. */
-export const buildSeedReceipts = ({ campusIds, vpByCampus, dates }) =>
+/** Hai lần nhập đồ khô gần đây mỗi cơ sở (lô, hạn dùng, giá, NCC hư cấu) để kho có lô để xem. */
+export const buildSeedReceipts = ({ campusIds, vpByCampus, dates, foods }) =>
   campusIds.flatMap((campusId, ci) =>
-    dates.map((date, di) => ({
-      id: `ksr_${campusId}_${di}`,
-      code: `PN-${date.replace(/-/g, '')}-${ci + 1}`,
-      campusId,
-      date,
-      note: di === 0 ? 'Giao hàng định kỳ đầu tuần.' : '',
-      items: [
-        { foodId: 'kf_rice', receivedQty: 20, rejectedQty: 0, acceptedQty: 20, expiryDate: '', note: '' },
-        {
-          foodId: 'kf_pork',
-          receivedQty: 6,
-          rejectedQty: di === 1 ? 0.5 : 0,
-          acceptedQty: di === 1 ? 5.5 : 6,
-          expiryDate: '',
-          note: di === 1 ? 'Một túi thịt không đảm bảo nhiệt độ bảo quản.' : '',
-        },
-        { foodId: 'kf_greens', receivedQty: 5, rejectedQty: 0, acceptedQty: 5, expiryDate: '', note: '' },
-      ],
-      createdBy: vpByCampus[campusId] || null,
-      createdAt: new Date(`${date}T07:30:00+07:00`).toISOString(),
-    })),
+    dates.map((date, di) => {
+      const picked = foods.slice(di * 3, di * 3 + 3);
+      const ymd = date.replace(/-/g, '');
+      return {
+        id: `ksr_${campusId}_${di}`,
+        code: `PN-${ymd}-${ci + 1}`,
+        campusId,
+        date,
+        note: di === 0 ? 'Giao hàng định kỳ đầu tuần.' : '',
+        supplierName: di === 0 ? 'Đại lý thực phẩm khô mẫu' : 'Cửa hàng gạo mẫu',
+        items: picked.map((f, i) => {
+          const qty = (f.purchaseUnit || '').toLowerCase() === 'kg' ? 10 : 6;
+          const [y, m] = date.split('-').map(Number);
+          const exp = new Date(y, m - 1 + (i === 2 ? 0 : 8), 25);
+          return {
+            foodId: f.id,
+            receivedQty: qty,
+            rejectedQty: 0,
+            acceptedQty: qty,
+            lotNo: `L${ymd.slice(2, 6)}${ci}${di}${i}`,
+            expiryDate: `${exp.getFullYear()}-${String(exp.getMonth() + 1).padStart(2, '0')}-25`,
+            unitPrice: typeof f.unitPrice === 'number' ? f.unitPrice : 0,
+            note: '',
+          };
+        }),
+        createdBy: vpByCampus[campusId] || null,
+        createdAt: new Date(`${date}T07:30:00+07:00`).toISOString(),
+      };
+    }),
   );

@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Info, PackagePlus, Plus, Trash2 } from '@/components/ui/icons';
+import { ArrowLeft, PackagePlus, Plus, Trash2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useMasterData } from '@/hooks/useMasterData';
 import { useFoodCatalog } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, ConfirmationModal, ErrorState, FormField, LoadingState, SearchSelect, Spinner } from '@/components';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
@@ -18,11 +19,13 @@ const emptyLine = () => ({
   foodId: '',
   receivedQty: '',
   rejectedQty: '',
+  lotNo: '',
   expiryDate: '',
+  unitPrice: '',
   note: '',
 });
 
-/* "?items=foodId:qty,foodId:qty" – shortage lines handed over by the stock issue screen (UC 6.24 alternative flow). */
+/* "?foodId=…" mở từ panel lô của Kho khô; "?items=foodId:qty,…" điền sẵn nhiều dòng. */
 const linesFromQuery = (value) =>
   (value || '')
     .split(',')
@@ -30,18 +33,26 @@ const linesFromQuery = (value) =>
     .filter(([foodId]) => foodId)
     .map(([foodId, qty]) => ({ ...emptyLine(), foodId, receivedQty: qty || '' }));
 
-/** Screen #90 – record a delivery: quantity, unit and quality check of each food (UC 6.23). */
+/** Screen #90 – phiếu nhập kho khô (UC 6.23, khảo sát 18/10/2026 S7): NCC, từng dòng có lô, hạn dùng, đơn giá, kiểm tra chất lượng. */
 export default function StockReceiptFormPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const md = useMasterData();
   const [params] = useSearchParams();
-  const fromIssueDate = params.get('issueDate');
-  const backTo = fromIssueDate ? `/kitchen/stock-issues?date=${fromIssueDate}` : '/kitchen/stock-receipts';
-  const { foods, loading, error, reload } = useFoodCatalog();
+  const backTo = '/kitchen/dry-stock';
+  const { foods: allFoods, loading, error, reload } = useFoodCatalog();
+  // Kho chỉ giữ đồ khô; hàng tươi kiểm nhận ở bếp
+  const foods = useMemo(() => allFoods.filter((f) => f.storage === 'DRY'), [allFoods]);
   const [form, setForm] = useState(() => {
-    const prefilled = linesFromQuery(params.get('items'));
-    return { date: todayInput(), note: '', items: prefilled.length ? prefilled : [emptyLine()] };
+    const prefilled = linesFromQuery(params.get('items') || (params.get('foodId') ? `${params.get('foodId')}:` : ''));
+    return {
+      campusId: params.get('campusId') || user?.campusId || '',
+      date: todayInput(),
+      supplierName: '',
+      note: '',
+      items: prefilled.length ? prefilled : [emptyLine()],
+    };
   });
   const [errors, setErrors] = useState({});
   const [confirming, setConfirming] = useState(false);
@@ -78,7 +89,7 @@ export default function StockReceiptFormPage() {
     try {
       const receipt = await createStockReceipt(form, user);
       toast.success(`Đã lưu phiếu ${receipt.code} và cập nhật tồn kho.`);
-      navigate(fromIssueDate ? backTo : '/kitchen/stock-receipts');
+      navigate(backTo);
     } catch (err) {
       if (err.details) setErrors(err.details);
       toast.error(err.message || 'Không lưu được thay đổi. Vui lòng thử lại.', 'Không lưu được phiếu');
@@ -92,14 +103,8 @@ export default function StockReceiptFormPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.stockReceipts, 'Tạo phiếu nhập kho')} />
+      <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.dryStock, 'Tạo phiếu nhập kho')} />
       <h1 className="page__title">Tạo phiếu nhập kho</h1>
-      {fromIssueDate && (
-        <div className="alert alert--warning mb-16">
-          <Info size={18} />
-          <div>Các dòng bên dưới là phần tồn kho còn thiếu cho phiếu xuất kho. Lưu phiếu nhập rồi quay lại duyệt phiếu xuất.</div>
-        </div>
-      )}
       {loading ? (
         <LoadingState />
       ) : error ? (
@@ -111,6 +116,23 @@ export default function StockReceiptFormPage() {
               <div className="card__title">Thông tin phiếu</div>
             </div>
             <div className="card__body grid-2">
+              <FormField label="Điểm trường" required error={errors.campusId}>
+                <select className="select" value={form.campusId} onChange={(e) => setField('campusId', e.target.value)}>
+                  {md.campuses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.shortName || c.name}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Nhà cung cấp" required error={errors.supplierName}>
+                <input
+                  className="input"
+                  value={form.supplierName}
+                  maxLength={150}
+                  onChange={(e) => setField('supplierName', e.target.value)}
+                />
+              </FormField>
               <FormField label="Ngày nhập kho" required error={errors.date}>
                 <input
                   type="date"
@@ -150,7 +172,15 @@ export default function StockReceiptFormPage() {
                     </th>
                     <th>SL không đạt</th>
                     <th className="right">Nhập kho</th>
-                    <th>Hạn sử dụng</th>
+                    <th>
+                      Số lô <span className="req">*</span>
+                    </th>
+                    <th>
+                      Hạn sử dụng <span className="req">*</span>
+                    </th>
+                    <th>
+                      Đơn giá <span className="req">*</span>
+                    </th>
                     <th style={{ minWidth: 200 }}>Ghi chú kiểm tra</th>
                     <th className="center">
                       <span className="sr-only">Xóa dòng</span>
@@ -204,12 +234,36 @@ export default function StockReceiptFormPage() {
                         </td>
                         <td>
                           <input
+                            className={`input kb-lot-input ${err('lotNo') ? 'input--error' : ''}`}
+                            value={it.lotNo}
+                            maxLength={50}
+                            onChange={(e) => setLine(i, 'lotNo', e.target.value)}
+                            aria-label={`Số lô dòng ${i + 1}`}
+                          />
+                          {err('lotNo') && <div className="field__error">{err('lotNo')}</div>}
+                        </td>
+                        <td>
+                          <input
                             type="date"
                             className={`input ${err('expiryDate') ? 'input--error' : ''}`}
                             value={it.expiryDate}
                             onChange={(e) => setLine(i, 'expiryDate', e.target.value)}
                             aria-label={`Hạn sử dụng dòng ${i + 1}`}
                           />
+                          {err('expiryDate') && <div className="field__error">{err('expiryDate')}</div>}
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            className={`input kb-num ${err('unitPrice') ? 'input--error' : ''}`}
+                            value={it.unitPrice}
+                            onChange={(e) => setLine(i, 'unitPrice', e.target.value)}
+                            aria-label={`Đơn giá dòng ${i + 1}`}
+                          />
+                          <span className="muted text-xs"> đ/{unit}</span>
+                          {err('unitPrice') && <div className="field__error">{err('unitPrice')}</div>}
                         </td>
                         <td>
                           <input
@@ -254,7 +308,7 @@ export default function StockReceiptFormPage() {
       <ConfirmationModal
         open={confirming}
         title="Lưu phiếu nhập kho?"
-        message="Số lượng đạt chất lượng sẽ được cộng vào tồn kho của điểm trường. Phiếu đã lưu không sửa được."
+        message="Số lượng đạt chất lượng được cộng vào tồn kho của điểm trường đã chọn. Phiếu đã lưu không sửa được; nhập sai thì chỉnh qua kiểm kê."
         confirmLabel="Lưu phiếu nhập kho"
         onConfirm={save}
         onClose={() => setConfirming(false)}

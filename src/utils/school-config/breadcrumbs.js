@@ -11,4 +11,5 @@ export const cutoffCrumbs = crumbs('Giờ chốt điểm danh', '/school/cutoff'
 export const campusCrumbs = crumbs('Điểm trường', '/school/campuses');
 export const vpCrumbs = crumbs('Phân công Phó hiệu trưởng', '/school/vice-principals');
 export const roleCrumbs = crumbs('Vai trò & quyền', '/school/roles');
+export const permissionCrumbs = crumbs('Vai trò & quyền', '/school/roles');
 export const teacherCrumbs = crumbs('Phân công giáo viên', '/school/teachers');

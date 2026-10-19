@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useStaffAccounts } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
@@ -95,6 +96,7 @@ export default function StaffAccountsPage() {
       </div>
 
       <div className="card mb-16">
+        <PeopleTabs embedded />
         <div className="filter-bar">
           <SearchSubmit
             className="sc-search"

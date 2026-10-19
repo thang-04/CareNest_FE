@@ -1,9 +1,19 @@
 /*
  * Fictional menu-planning data (foods, dishes, meal prices, sample / alternative / weekly menus).
  * Nutrition values are rounded reference figures per 100 g (or 100 ml) for the demo only.
- * Collections: foods, dishes, mealPrices, menus, allergyMenus, weeklyMenus, menuAiDrafts –
+ * Collections: foods, dishes, mealPrices, nutritionSetups, menus, allergyMenus, weeklyMenus, menuAiDrafts –
  * the menu-planning repository seeds them lazily (db.x ||= clone(seed.x)).
  */
+import { AGE_GROUPS } from '@/models/School';
+import { todayInput } from '@/utils/format';
+import {
+  MEAL_SESSION_LABELS,
+  NUTRITION_NORMS,
+  PORTION_FACTORS,
+  defaultStorageOf,
+  schoolWeekStart,
+  sessionsOf,
+} from '@/models/menu-planning/menuPlanningConstants';
 
 const at = (date, time = '08:00') => `${date}T${time}:00.000Z`;
 const VP = 'u_lan';
@@ -47,6 +57,12 @@ const FOOD_ROWS = [
   ['f28', 'Nấm hương khô', 'OTHER', 'g', 'kg', 1000, 350000, null, null, null, null, []],
 ];
 
+// Tỷ lệ thải bỏ (%) khi sơ chế, số minh họa theo nhóm thực phẩm
+const WASTE_BY_GROUP = { GRAIN: 0, MEAT: 5, SEAFOOD: 20, EGG_DAIRY: 12, LEGUME: 2, VEGETABLE: 15, FRUIT: 25, FAT_SUGAR: 0, OTHER: 0 };
+const FAVORITE_FOODS = ['f01', 'f05', 'f07', 'f11'];
+// Đậu phụ, bún tươi thuộc nhóm khô theo mặc định nhưng phải mua tươi trong ngày
+const FRESH_EXCEPTIONS = ['f03', 'f14'];
+
 const buildFoods = () =>
   FOOD_ROWS.map(([id, name, group, unit, purchaseUnit, purchaseUnitSize, unitPrice, kcal, protein, lipid, glucid, allergens], i) => ({
     id,
@@ -58,6 +74,9 @@ const buildFoods = () =>
     purchaseUnitSize,
     unitPrice,
     nutrition: { kcal, protein, lipid, glucid },
+    wastePct: WASTE_BY_GROUP[group] ?? 0,
+    favorite: FAVORITE_FOODS.includes(id),
+    storage: FRESH_EXCEPTIONS.includes(id) ? 'FRESH' : defaultStorageOf(group),
     allergens,
     note: id === 'f28' ? 'Chưa có số liệu dinh dưỡng – cần bổ sung.' : '',
     status: 'ACTIVE',
@@ -303,7 +322,11 @@ const buildDishes = () =>
     name,
     type,
     description,
-    ingredients: rows.map(([foodId, quantity]) => ({ foodId, quantity })),
+    ingredients: rows.map(([foodId, quantity]) => ({
+      foodId,
+      quantity,
+      portions: Object.fromEntries(AGE_GROUPS.map(({ id: ag }) => [ag, Math.round(quantity * PORTION_FACTORS[ag] * 10) / 10])),
+    })),
     status: 'ACTIVE',
     createdBy: VP,
     createdAt: at('2026-08-26'),
@@ -426,7 +449,7 @@ const buildAllergyMenus = () => {
           replacementDishId,
           portion: 1,
         })),
-        note: 'Áp dụng cho trẻ có dị ứng đã được Phó hiệu trưởng chốt.',
+        note: 'Áp dụng cho trẻ có dị ứng đã được Hiệu trưởng xác nhận.',
         status: 'ACTIVE',
         createdBy: VP,
         createdAt: at('2026-08-29'),
@@ -506,22 +529,81 @@ const buildWeeklyMenus = () => {
         { id: 'h_wm_7_2', action: 'PUBLISHED', userId: VP, at: at('2026-10-05', '07:30'), note: '' },
       ],
     }),
-    buildWeek('wm_8', 'TT-2026-07', 'ag-4', '2026-10-12', [2, 3, 4, 5, 1], {
+  ];
+  // Tuần trước và tuần này theo ngày hiện tại (bỏ tuần trùng với tuần cố định ở trên)
+  const recent = buildRecentWeeklyMenus(todayInput()).filter(
+    (r) => !list.some((w) => w.ageGroupId === r.ageGroupId && w.weekStart === r.weekStart),
+  );
+  return [...list, ...recent];
+};
+
+/*
+ * Thực đơn tuần mẫu theo ngày hiện tại: tuần trước và tuần này đã xuất bản cho cả 4 nhóm tuổi, tuần sau là bản nháp
+ * (Mẫu giáo nhỡ), để số suất điểm danh của những ngày gần đây luôn có thực đơn khớp ở bếp và phiếu đi chợ.
+ */
+export const buildRecentWeeklyMenus = (today) => {
+  const current = schoolWeekStart(today);
+  const ymd = (d) => d.replace(/-/g, '');
+  const list = [addDays(current, -7), current].flatMap((week, w) =>
+    Object.keys(GROUP_CODE).map((ag, g) =>
+      buildWeek(
+        `wm_auto_${GROUP_CODE[ag].toLowerCase()}_${ymd(week)}`,
+        `TT-${ymd(week)}-${GROUP_CODE[ag]}`,
+        ag,
+        week,
+        [0, 1, 2, 3, 4].map((i) => i + w + g),
+      ),
+    ),
+  );
+  const next = addDays(current, 7);
+  list.push(
+    buildWeek(`wm_auto_draft_${ymd(next)}`, `TT-${ymd(next)}-MGN`, 'ag-4', next, [2, 3, 4, 5, 1], {
       status: 'DRAFT',
       publishedBy: null,
       publishedAt: null,
-      createdAt: at('2026-10-07'),
-      updatedAt: at('2026-10-07'),
-      history: [{ id: 'h_wm_8_1', action: 'CREATED', userId: VP, at: at('2026-10-07'), note: '' }],
+      history: [{ id: `h_wm_auto_draft_${ymd(next)}`, action: 'CREATED', userId: VP, at: at(addDays(next, -6)), note: '' }],
     }),
-  ];
+  );
   return list;
 };
+
+/**
+ * Dữ liệu đã lưu trước đây: thêm các tuần gần đây còn thiếu bản đã xuất bản và bỏ bản nháp mẫu cũ tuần 12/10 chưa ai sửa.
+ * Trả true khi có thay đổi.
+ */
+export const topUpRecentWeeklyMenus = (db, today) => {
+  if (!db.weeklyMenus?.length) return false;
+  const before = db.weeklyMenus.length;
+  const missing = buildRecentWeeklyMenus(today).filter((r) =>
+    r.status === 'DRAFT'
+      ? !db.weeklyMenus.some((w) => w.ageGroupId === r.ageGroupId && w.weekStart === r.weekStart)
+      : !db.weeklyMenus.some((w) => w.ageGroupId === r.ageGroupId && w.weekStart === r.weekStart && w.status !== 'DRAFT'),
+  );
+  db.weeklyMenus.push(...missing);
+  return missing.length > 0 || db.weeklyMenus.length !== before + missing.length;
+};
+
+/* ---------- nutrition setup: meals with unit price, daily reference ranges per age group ---------- */
+// Giá suất ăn một ngày, bằng mức năm học 2026-2027 ở buildMealPrices
+const DAY_PRICE = { 'ag-2': 32000, 'ag-3': 30000, 'ag-4': 30000, 'ag-5': 30000 };
+const buildNutritionSetups = () =>
+  AGE_GROUPS.map(({ id }) => ({
+    ageGroupId: id,
+    enabled: true,
+    basis: '',
+    price: DAY_PRICE[id],
+    meals: sessionsOf(id).map((code) => ({ code, name: MEAL_SESSION_LABELS[code], countAs: code })),
+    norms: JSON.parse(JSON.stringify(NUTRITION_NORMS[id])),
+    updatedBy: VP,
+    updatedAt: at('2026-08-20'),
+    history: [{ id: `h_ns_${id}`, action: 'CREATED', userId: VP, at: at('2026-08-20'), note: '' }],
+  }));
 
 export const buildSeedMenuPlanning = () => ({
   foods: buildFoods(),
   dishes: buildDishes(),
   mealPrices: buildMealPrices(),
+  nutritionSetups: buildNutritionSetups(),
   menus: buildMenus(),
   allergyMenus: buildAllergyMenus(),
   weeklyMenus: buildWeeklyMenus(),

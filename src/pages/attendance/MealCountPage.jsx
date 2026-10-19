@@ -31,6 +31,12 @@ function CountCard({ count, user, md, onConfirm }) {
         <MealCountStatusBadge status={count.status} />
       </div>
       <div className="card__body">
+        {count.needsReconfirmation && user?.role !== ROLES.KITCHEN_STAFF && (
+          <div className="alert alert--warning mb-12" role="status">
+            <AlertTriangle size={18} />
+            <div>Điểm danh đã thay đổi sau khi mở lại lớp. Số dưới đây cần được xác nhận lại; bếp vẫn dùng số đã xác nhận trước đó.</div>
+          </div>
+        )}
         {count.status === 'OPEN' && (
           <div className="alert alert--info mb-12">
             <Info size={18} />
@@ -111,7 +117,8 @@ function CountCard({ count, user, md, onConfirm }) {
         {confirmable && (
           <div className="row mt-12 dd-count__actions">
             <button className="btn btn--primary" onClick={() => onConfirm(count)}>
-              <CheckCircle2 size={16} /> Xác nhận sĩ số {MEAL_SESSION_LABELS[count.session].toLowerCase()}
+              <CheckCircle2 size={16} /> {count.needsReconfirmation ? 'Xác nhận lại sĩ số' : 'Xác nhận sĩ số'}{' '}
+              {MEAL_SESSION_LABELS[count.session].toLowerCase()}
             </button>
           </div>
         )}

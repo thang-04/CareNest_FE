@@ -202,3 +202,7 @@
 .anim-fade-in {
   animation: fadeIn 0.2s var(--ease-out) both;
 }
+
+.text-right {
+  text-align: right;
+}

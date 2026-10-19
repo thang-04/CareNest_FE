@@ -17,7 +17,7 @@ import { getDayInfo, saveClassAttendance, correctMealAfterLock } from '@/service
 import { ATTENDANCE_STATUS, DEFAULT_MEAL_SESSIONS, allMeals, eatsAny, isAbsent, mealsIn } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { normalizeText, formatDate } from '@/utils/format';
+import { normalizeText, formatDate, formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { formatTemperature, symptomLabels } from '@/utils/dailyHealthValidation';
 import { temperatureLevel } from '@/utils/attendance/temperatureLevels';
@@ -200,7 +200,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
     let cancelled = false;
     const refresh = async () => {
       try {
-        const info = await getDayInfo(date);
+        const info = await getDayInfo(date, classId, user);
         if (!cancelled) setClock(info);
       } catch {
         /* Repository chặn lưu nếu giờ khóa thay đổi khi đang nhập. */
@@ -212,8 +212,14 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [date]);
+  }, [date, classId, user]);
   const day = clock || sheet;
+  useEffect(() => {
+    if (!day?.unlock) return;
+    const remaining = Date.parse(day.unlock.validUntil) - Date.parse(day.serverTime);
+    const timer = setTimeout(() => setClock((current) => ({ ...(current || day), locked: true, unlock: null })), Math.max(0, remaining));
+    return () => clearTimeout(timer);
+  }, [day]);
   const editable = !!sheet?.canRecord && day?.schoolDay && !day.locked && date === day.today;
   const selected = rows.find((row) => row.child.id === selectedId);
   const visibleRows = rows.filter((row) => {
@@ -291,7 +297,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
     } catch (err) {
       setRowErrors(err.details || {});
       toast.error(err.message, 'Chưa lưu được điểm danh');
-      const info = await getDayInfo(date).catch(() => null);
+      const info = await getDayInfo(date, classId, user).catch(() => null);
       if (info) setClock(info);
     } finally {
       submitRef.current = false;
@@ -343,7 +349,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
         const fresh = await reload({ silent: true });
         if (fresh && attendanceSaved && needsAttendance) setDraft((current) => ({ ...current, [selectedId]: toDraft(fresh)[selectedId] }));
       }
-      const info = await getDayInfo(date).catch(() => null);
+      const info = await getDayInfo(date, classId, user).catch(() => null);
       if (info) setClock(info);
       submitRef.current = false;
     }
@@ -378,7 +384,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
         </div>
       )}
       {/* Ngày đang mở: giờ khóa hiện ở chip "Đang mở" của bảng; chỉ báo khi không phải ngày học hoặc đã khóa */}
-      {(!sheet.schoolDay || day.locked) && <DayLockAlert sheet={{ ...sheet, ...day }} />}
+      {(!sheet.schoolDay || day.locked || day.unlock) && <DayLockAlert sheet={{ ...sheet, ...day }} />}
       <div className="dd-reception__summary" aria-live="polite">
         <span className="chip chip--blue">Sĩ số: {sheet.receptionStats?.total ?? rows.length}</span>
         <span className="chip chip--green">Có mặt đã lưu: {sheet.receptionStats?.present ?? '—'}</span>
@@ -411,11 +417,17 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
               title={
                 day.locked
                   ? undefined
-                  : `Điểm danh và báo ăn trước ${day.cutoff || sheet.cutoff} hôm nay. Sau giờ này dữ liệu bị khóa và sĩ số suất ăn được gửi Phó hiệu trưởng xác nhận.`
+                  : day.unlock
+                    ? `Được ${day.unlock.unlockedByName} mở lại đến ${formatDateTime(day.unlock.validUntil)}`
+                    : `Điểm danh và báo ăn trước ${day.cutoff || sheet.cutoff} hôm nay. Sau giờ này dữ liệu bị khóa và sĩ số suất ăn được gửi Phó hiệu trưởng xác nhận.`
               }
             >
               {day.locked ? <Lock size={14} /> : <ClockIcon />}{' '}
-              {day.locked ? 'Đã khóa' : `Đang mở (khóa lúc ${day.cutoff || sheet.cutoff})`}
+              {day.locked
+                ? 'Đã khóa'
+                : day.unlock
+                  ? `Mở lại đến ${formatDateTime(day.unlock.validUntil)}`
+                  : `Đang mở (khóa lúc ${day.cutoff || sheet.cutoff})`}
             </span>
           </div>
           <div className="dd-reception__filters">

@@ -12,7 +12,14 @@ import { updateMealPreparation } from '@/services/kitchen/kitchenService';
 import { validatePreparationUpdate } from '@/utils/kitchen/kitchenValidation';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { todayInput } from '@/utils/format';
-import { MEAL_SESSION_LABELS, NOTE_MAX, PREP_STATUS, PREP_STATUS_LABELS, PREP_STATUS_ORDER } from '@/models/kitchen/kitchenConstants';
+import {
+  MEAL_SESSIONS,
+  MEAL_SESSION_LABELS,
+  NOTE_MAX,
+  PREP_STATUS,
+  PREP_STATUS_LABELS,
+  PREP_STATUS_ORDER,
+} from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/kitchen.css';
 
 const HINTS = {
@@ -81,7 +88,7 @@ export default function MealPreparationUpdatePage() {
       <h1 className="page__title">Cập nhật tình trạng chế biến</h1>
       <div className="kb-toolbar">
         <KbDateFilter value={date} onChange={(d) => setParams({ date: d }, { replace: true })} />
-        <KbSessionFilter value={session} onChange={setSession} />
+        <KbSessionFilter value={session} onChange={setSession} sessions={MEAL_SESSIONS} />
         <div className="kb-toolbar__end">
           <Link className="btn" to={`/kitchen/meal-count?date=${date}`}>
             Xem số suất ăn

@@ -4,6 +4,22 @@ File này **không chứa business rule**. Rule, flow, PENDING nằm ở BE modu
 
 `BE:<path>` = `../CareNest_BE/<path>` (xem `AGENTS.md`).
 
+## Quyết định ghép chọn lọc hai nhánh — 2026-10-18
+
+Ngoại lệ sidebar được user chốt lại 2026-10-19 sau ảnh menu mới: **nhóm Thực đơn lấy điều hướng mới của G94-191/G94-209**, không giữ nhóm cũ. PHT: Quy trình → Thiết lập dinh dưỡng → Thực phẩm → Món ăn → Thực đơn mẫu → Thực đơn tuần; Hiệu trưởng: Thiết lập dinh dưỡng, Thực đơn tuần (đúng guard đang có). Giữ các nhóm khác, bộ lọc mảng phụ trách của PHT và toàn bộ đường dẫn legacy; không nhận menu Con người hoặc thay quyền/phân công. AI/thay thế/cân đối dùng trong luồng màn mới, không cần mục sidebar riêng.
+
+Cập nhật 2026-10-19: user chọn phương án 1 cho Phase 2 — nhận UI phân quyền G94-209 nhưng cấu hình demo độc lập, không áp vào quyền/auth/phân công hiện tại. Đã đưa ba tab và wizard vào bản làm việc; xem [trung tâm phân quyền demo](permission-center-demo.md). Phụ huynh/hồ sơ trẻ Phase 3 chưa ghép; chưa commit/push.
+
+Nguồn: người dùng trực tiếp trong chat, CONFIRMED cho phạm vi tích hợp Web demo; không thay trạng thái rule/contract BE.
+
+- Giữ bản dev cho điểm danh, sức khỏe, suất ăn, đăng nhập/phiên, menu và quy tắc Git.
+- Lấy dinh dưỡng/bếp từ G94-191 và phần chung có ở G94-209; lấy màn phân quyền, phụ huynh/hồ sơ trẻ từ G94-209. User làm rõ: **UI bên trong màn phân quyền (tab, bảng, bộ lọc, hộp thoại) lấy G94-209**, không giữ layout quyền cũ; giữ menu chỉ là giữ sidebar và entry Vai trò & quyền hiện tại để mở màn mới.
+- **Phân công giáo viên giữ code dev**, không nhận roster/nguồn phân công mới. Quyền mới phải tương thích auth và scope hiện tại, không tự làm rộng quyền.
+- User đồng ý thêm `read-excel-file@9.3.10`. Không đổi BE/App, không coi thông báo demo là push thật; các stash và WIP unlock giữ nguyên.
+- UI hồ sơ trẻ có thể đổi theo nhánh nguồn nhưng dữ liệu cũ/liên kết sức khỏe, đón trẻ, đánh giá và giáo dục phải được bảo toàn bằng migration/adapter.
+- Đã duyệt kế hoạch; ngày 2026-10-19 Phase 1 dinh dưỡng/bếp và Phase 2 phân quyền demo độc lập có trong working tree, chưa commit/push. Phụ huynh/hồ sơ trẻ Phase 3 chưa triển khai, chờ review. Bằng chứng kiểm tra: [kế hoạch ghép chọn lọc](../plans/active/2026-10-18-selective-nutrition-permission-merge.md). Không coi đây là đã merge toàn bộ hai nhánh.
+- Bếp mới đọc snapshot số suất từng bữa của attendance hiện tại, không thay cơ chế xác nhận suất hay menu bên trái. Giữ tương thích dữ liệu chế biến lịch sử và không trừ tồn lại khi nâng cấp mock; xem [bẫy ghép bếp](../knowledge/incidents/FE-BUG-261019-selective-kitchen-merge-compat.md). API mới chỉ demo, chưa xác nhận contract BE.
+
 ## Bảng map
 
 Ngày 2026-10-12, người dùng làm rõ báo cáo giáo viên: một cột Suất ăn thay bữa trưa/chiều, theo tích Có/Không tham gia ăn bên điểm danh. Demo trả `mealTotal` theo lượt trẻ tham gia ăn/ngày, không cộng lặp một trẻ vì có nhiều bữa; UI, tổng Theo trẻ và CSV dùng cùng đơn vị. Không lấy riêng số Có mặt thay MealParticipation (tham chiếu NUT-01), không thay MealCount của bếp. Contract summary thật chưa có; đề xuất BE trả số lượt trẻ/ngày cho báo cáo này, phân biệt số suất theo từng bữa ở nutrition. Excel hai sheet vẫn đang chờ Phase 2.

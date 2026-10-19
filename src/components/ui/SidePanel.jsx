@@ -8,7 +8,7 @@ const EXIT_MS = 350;
  * Panel trượt từ phải để xem nhanh chi tiết mà không rời danh sách.
  * Esc / bấm nền mờ đóng; tiêu điểm vào khung panel và trả về chỗ cũ khi đóng.
  */
-export function SidePanel({ open, title, onClose, children, footer }) {
+export function SidePanel({ open, title, onClose, children, footer, wide = false }) {
   const ref = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -44,7 +44,14 @@ export function SidePanel({ open, title, onClose, children, footer }) {
   return createPortal(
     <div className={`side-panel-layer ${shown ? 'side-panel-layer--open' : ''}`}>
       <div className="side-panel-backdrop" onMouseDown={() => onClose?.()} />
-      <aside className="side-panel" role="dialog" aria-modal="true" aria-label={title} ref={ref} tabIndex={-1}>
+      <aside
+        className={`side-panel ${wide ? 'side-panel--wide' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        ref={ref}
+        tabIndex={-1}
+      >
         <div className="side-panel__header">
           <div className="side-panel__title">{title}</div>
           <button className="icon-btn" onClick={onClose} aria-label="Đóng">

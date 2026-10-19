@@ -11,7 +11,14 @@ import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { NoManageAccess } from '@/components/menu-planning/MenuBadges';
 import { validateFood, hasErrors } from '@/utils/menu-planning/menuPlanningValidation';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
-import { ALLERGENS, FOOD_GROUP_LABELS, FOOD_UNIT_LABELS, RECORD_STATUS_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import {
+  ALLERGENS,
+  FOOD_GROUP_LABELS,
+  FOOD_UNIT_LABELS,
+  RECORD_STATUS_LABELS,
+  FOOD_STORAGE_LABELS,
+  defaultStorageOf,
+} from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
 const EMPTY = {
@@ -21,6 +28,9 @@ const EMPTY = {
   purchaseUnit: 'kg',
   purchaseUnitSize: 1000,
   unitPrice: '',
+  wastePct: 0,
+  favorite: false,
+  storage: '',
   nutrition: { kcal: '', protein: '', lipid: '', glucid: '' },
   allergens: [],
   note: '',
@@ -180,6 +190,35 @@ export default function FoodFormPage() {
                 onBlur={blur('unitPrice')}
               />
             </FormField>
+            <FormField label="Tỷ lệ thải bỏ (%)" error={show('wastePct')} hint="Phần bỏ đi khi sơ chế; dùng tính lượng mua">
+              <input
+                type="number"
+                min="0"
+                max="90"
+                step="1"
+                className="input"
+                value={form.wastePct}
+                onChange={(e) => set('wastePct', e.target.value)}
+                onBlur={blur('wastePct')}
+              />
+            </FormField>
+            <FormField label="Bảo quản" error={show('storage')} hint="Tươi: giao trong ngày; khô: lấy từ kho">
+              <select
+                className="select"
+                value={form.storage || defaultStorageOf(form.group)}
+                onChange={(e) => set('storage', e.target.value)}
+              >
+                {Object.entries(FOOD_STORAGE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <label className="checkbox td-checkbox-field">
+              <input type="checkbox" checked={!!form.favorite} onChange={(e) => set('favorite', e.target.checked)} />
+              Hay dùng (lọc nhanh khi lập món)
+            </label>
           </div>
         </div>
 

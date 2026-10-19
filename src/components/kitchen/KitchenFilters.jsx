@@ -1,5 +1,7 @@
 import { useMasterData } from '@/hooks/useMasterData';
-import { MEAL_SESSIONS, MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
+import { ALL_MEAL_SESSIONS, MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
+import { DateInput } from '@/components/form/DateInput';
+import { isIsoDate } from '@/utils/format';
 
 /* Small filter controls shared by the kitchen pages (all labelled, DESIGN.md §10). */
 
@@ -7,18 +9,18 @@ export function KbDateFilter({ value, onChange, label = 'Ngày' }) {
   return (
     <label className="date-filter">
       {label}
-      <input type="date" className="input" value={value} onChange={(e) => e.target.value && onChange(e.target.value)} />
+      <DateInput value={value} onChange={(next) => isIsoDate(next) && onChange(next)} aria-label={label} />
     </label>
   );
 }
 
-export function KbSessionFilter({ value, onChange, withAll = false }) {
+export function KbSessionFilter({ value, onChange, withAll = false, sessions = ALL_MEAL_SESSIONS }) {
   return (
     <label className="date-filter">
       Bữa ăn
       <select className="select" value={value} onChange={(e) => onChange(e.target.value)}>
         {withAll && <option value="ALL">Cả ngày</option>}
-        {MEAL_SESSIONS.map((s) => (
+        {sessions.map((s) => (
           <option key={s} value={s}>
             {MEAL_SESSION_LABELS[s]}
           </option>

@@ -1,0 +1,294 @@
+.permission-center,
+.permission-center-modal {
+  --staff-directory-gap: var(--space-2);
+  --people-tabs-margin-bottom: var(--space-4);
+  --people-tabs-padding-block: var(--space-3);
+  --people-tabs-padding-inline: var(--space-4);
+  --people-tabs-indicator-width: 2px;
+}
+.permission-tabs {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  margin-bottom: var(--people-tabs-margin-bottom);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.permission-tabs__link {
+  flex: 0 0 auto;
+  padding: var(--people-tabs-padding-block) var(--people-tabs-padding-inline);
+  border-bottom: var(--people-tabs-indicator-width) solid transparent;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.permission-tabs__link:hover,
+.permission-tabs__link--active {
+  color: var(--color-primary);
+}
+
+.permission-tabs__link--active {
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+}
+
+.permission-tabs__link:focus-visible {
+  border-radius: var(--radius-xs);
+  box-shadow: var(--focus-ring);
+}
+
+.permission-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--card-padding-dense);
+  margin-bottom: var(--card-padding-dense);
+}
+
+.permission-page-head > div:first-child {
+  min-width: 0;
+}
+
+.permission-page-head h1,
+.permission-page-head .page__title {
+  margin: 0;
+}
+
+.permission-page-head p {
+  max-width: 76ch;
+  margin: var(--staff-directory-gap) 0 0;
+  line-height: 1.5;
+}
+
+.permission-header-actions {
+  gap: var(--space-3);
+}
+
+.permission-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.permission-override-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.permission-history-person {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.permission-matrix-wrap {
+  padding: 0;
+}
+
+.permission-matrix {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.permission-matrix th,
+.permission-matrix td {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.permission-matrix th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--card-padding-dense) var(--card-padding);
+  background: var(--table-header-bg);
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+
+.permission-matrix th:first-child {
+  min-width: 320px;
+}
+
+.permission-matrix td {
+  padding: var(--card-padding-dense) var(--card-padding);
+  vertical-align: middle;
+}
+
+.permission-matrix tr:last-child td {
+  border-bottom: 0;
+}
+
+.permission-matrix tbody tr:not(.perm-group-row):hover td {
+  background: var(--table-row-hover);
+}
+
+.permission-matrix .perm-group-row td {
+  padding-block: var(--staff-directory-gap);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.permission-matrix .perm-col-role {
+  width: 20%;
+  text-align: center;
+}
+
+.permission-matrix td:first-child strong {
+  display: block;
+  line-height: 1.45;
+}
+
+.permission-matrix td:first-child small {
+  max-width: 68ch;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.permission-matrix .perm-cell-content {
+  min-height: var(--btn-height);
+}
+
+.permission-matrix .perm-cell--changed {
+  outline: 1px solid var(--color-primary-border);
+  background: var(--color-primary-soft);
+}
+
+.permission-matrix .sh-lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--staff-directory-gap);
+  max-width: 24ch;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.perm-floating-bar {
+  flex-wrap: wrap;
+  border-color: var(--color-primary-border);
+  box-shadow: var(--shadow-md);
+}
+
+.perm-floating-bar__info {
+  min-width: 0;
+}
+
+.perm-floating-bar__actions {
+  flex-wrap: wrap;
+}
+
+.permission-search {
+  flex: 1 1 280px;
+  min-width: min(100%, 240px);
+}
+.permission-person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.permission-center .search-input-wrap,
+.permission-center-modal .search-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+.permission-center .search-input-wrap .search-icon,
+.permission-center-modal .search-input-wrap .search-icon {
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+.permission-center .search-input-wrap .input,
+.permission-center-modal .search-input-wrap .input {
+  width: 100%;
+  padding-left: var(--space-10);
+}
+.permission-center .sh-permission-table td:first-child {
+  min-width: 180px;
+}
+.permission-center .sh-permission-table td:nth-child(2) {
+  min-width: 180px;
+}
+
+.permission-filter-bar {
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--card-padding-dense);
+}
+
+.permission-history-card {
+  overflow: hidden;
+}
+
+.permission-history-table-wrap {
+  max-width: 100%;
+}
+
+.permission-history-table {
+  min-width: 920px;
+}
+
+.permission-history-table td {
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.permission-history-table td:first-child {
+  white-space: nowrap;
+}
+
+.permission-history-table td:nth-child(4),
+.permission-history-table td:last-child {
+  min-width: 160px;
+}
+
+@media (max-width: 767px) {
+  .permission-page-head {
+    flex-direction: column;
+  }
+
+  .permission-page-head .sh-head__actions {
+    width: 100%;
+    gap: var(--space-2);
+  }
+
+  .permission-page-head .sh-head__actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .permission-filter-bar > .select {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .permission-row-actions {
+    justify-content: flex-start;
+  }
+
+  .perm-floating-bar {
+    align-items: stretch;
+  }
+
+  .perm-floating-bar__actions {
+    width: 100%;
+  }
+
+  .perm-floating-bar__actions .btn {
+    flex: 1 1 auto;
+  }
+}

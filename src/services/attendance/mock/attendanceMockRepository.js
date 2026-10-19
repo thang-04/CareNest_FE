@@ -24,6 +24,7 @@ import {
   canConfirmMealCount,
   canCorrectMealAfterLock,
   canRecordAttendance,
+  canUnlockAttendanceDay,
   canReceiveHandover,
   canSupplementHandover,
   canViewAttendance,
@@ -39,7 +40,8 @@ import {
   validateSummaryRange,
 } from '@/utils/attendance/attendanceValidation';
 import { isDayLocked, isSchoolDay, isValidTime, schoolDaysBetween, schoolNow } from '@/utils/attendance/attendanceTime';
-import { formatDate } from '@/utils/format';
+import { formatDate, isIsoDate } from '@/utils/format';
+import { ATTENDANCE_UNLOCK_MAX_DAYS, isAttendanceUnlockActive } from '@/utils/attendance/attendanceUnlock';
 import { uid } from '@/utils/id';
 import { dailyHealthSummary } from '@/mocks/dailyHealthSummary';
 import { kidAvatar } from '@/mocks/kidAvatars';
@@ -184,6 +186,15 @@ const withTotals = (count) => ({
   ),
 });
 
+const mealCountForUser = (count, user) => {
+  const { pendingClasses, ...stored } = count;
+  const reviewing = pendingClasses && user?.role !== ROLES.KITCHEN_STAFF;
+  return withTotals({
+    ...stored,
+    ...(reviewing ? { classes: pendingClasses, status: MEAL_COUNT_STATUS.PENDING_CONFIRMATION } : {}),
+  });
+};
+
 /** Emulates the cut-off job: lock + aggregate, then ask the campus VP to confirm. */
 const materializeCounts = (db, date, { notify = true } = {}) => {
   const cutoff = readCutoff(db);
@@ -250,6 +261,7 @@ const HANDOVER_TIME = { MORNING: '08:50', LUNCH: '10:40', AFTERNOON: '14:40' };
 
 // Databases saved before this module existed get demo data once.
 const ensureSeeded = (db) => {
+  db.attendanceDayUnlocks ||= [];
   db.mealCounts ||= [];
   db.mealHandovers ||= [];
   if (db.attendance) return db;
@@ -322,10 +334,30 @@ const readyFor = (date) => {
   return db;
 };
 
-const dayInfo = (db, date) => {
+const unlockView = (db, unlock) => ({
+  ...unlock,
+  className: db.classes.find((cls) => cls.id === unlock.classId)?.name || '—',
+  unlockedByName: db.users.find((user) => user.id === unlock.unlockedBy)?.fullName || '—',
+});
+const activeUnlockOf = (db, classId, date) =>
+  (db.attendanceDayUnlocks || []).find((unlock) => unlock.classId === classId && unlock.date === date && isAttendanceUnlockActive(unlock));
+
+const dayInfo = (db, date, cls) => {
   const cutoff = readCutoff(db);
   const now = schoolNow();
-  return { date, today: now.date, now: now.time, cutoff, schoolDay: isSchoolDay(date), locked: isDayLocked(date, cutoff, now) };
+  const baseLocked = isDayLocked(date, cutoff, now);
+  const unlock = cls && baseLocked && cls.schoolYear === activeYearId(db) ? activeUnlockOf(db, cls.id, date) : null;
+  return {
+    date,
+    today: now.date,
+    now: now.time,
+    cutoff,
+    schoolDay: isSchoolDay(date),
+    baseLocked,
+    serverTime: new Date().toISOString(),
+    locked: baseLocked && !unlock,
+    unlock: unlock ? unlockView(db, unlock) : null,
+  };
 };
 
 // photoUrl: ảnh hồ sơ trẻ (demo dùng ảnh minh họa, không dùng ảnh thật)
@@ -395,10 +427,70 @@ const decorateHandover = (db, h) => {
 };
 
 export const attendanceMockRepository = {
-  async getDayInfo(date) {
+  async getDayInfo(date, classId, user) {
     await delay(60);
     const db = ready();
-    return dayInfo(db, date || schoolNow().date);
+    const cls = classId ? findClass(db, classId) : null;
+    if (cls && !canViewAttendance(cls, user)) throw forbidden();
+    return dayInfo(db, date || schoolNow().date, cls);
+  },
+
+  async listAttendanceDayUnlocks(user) {
+    await delay(120);
+    if (![ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL].includes(user?.role)) throw forbidden();
+    const db = ready();
+    return clone(
+      (db.attendanceDayUnlocks || [])
+        .filter((unlock) =>
+          canUnlockAttendanceDay(
+            db.classes.find((cls) => cls.id === unlock.classId),
+            user,
+          ),
+        )
+        .sort((a, b) => b.unlockedAt.localeCompare(a.unlockedAt))
+        .map((unlock) => unlockView(db, unlock)),
+    );
+  },
+
+  async unlockAttendanceDay({ classId, date, validUntil, reason = '' }, user) {
+    await delay();
+    ready();
+    return writeDb((db) => {
+      ensureSeeded(db);
+      const cls = findClass(db, classId);
+      if (!canUnlockAttendanceDay(cls, user)) throw forbidden();
+      if (cls.schoolYear !== activeYearId(db)) throw new ApiError(422, 'Chỉ mở lại lớp thuộc năm học đang hoạt động.');
+      const info = dayInfo(db, date);
+      if (!isIsoDate(date) || date !== info.today || !info.schoolDay) throw new ApiError(422, 'Chỉ mở lại ngày học hôm nay.');
+      if (!info.baseLocked) throw new ApiError(409, 'Chưa đến giờ khóa, giáo viên vẫn điểm danh được.');
+      const until = typeof validUntil === 'string' ? Date.parse(validUntil) : NaN;
+      if (!Number.isFinite(until) || until <= Date.now() || until - Date.now() > ATTENDANCE_UNLOCK_MAX_DAYS * 86400000)
+        throw new ApiError(422, 'Chọn hạn mở lại trong tương lai, tối đa 7 ngày.');
+      if (typeof reason !== 'string' || !reason.trim() || reason.trim().length > 300) throw new ApiError(422, 'Nhập lý do mở lại, tối đa 300 ký tự.');
+      if (activeUnlockOf(db, classId, date)) throw new ApiError(409, 'Lớp/ngày này đang có lần mở lại còn hiệu lực.');
+      materializeCounts(db, date);
+      const unlock = {
+        id: uid('att-unlock'),
+        classId,
+        campusId: cls.campusId,
+        date,
+        validUntil: new Date(until).toISOString(),
+        reason: reason.trim(),
+        unlockedBy: user.id,
+        unlockedAt: new Date().toISOString(),
+      };
+      db.attendanceDayUnlocks.push(unlock);
+      (cls.teacherIds || []).forEach((userId) =>
+        pushNotification(db, {
+          userId,
+          type: 'ATTENDANCE_DAY_UNLOCKED',
+          title: 'Đã mở lại điểm danh',
+          message: `${cls.name}: mở lại điểm danh ngày ${formatDate(date)}. Kiểm tra thời hạn trên màn điểm danh.`,
+          link: `/attendance?classId=${classId}&date=${date}`,
+        }),
+      );
+      return clone(unlockView(db, unlock));
+    });
   },
 
   /** #64: children of the class with their attendance and meal participation for a date. */
@@ -420,7 +512,7 @@ export const attendanceMockRepository = {
       }))
       .sort((a, b) => a.child.fullName.localeCompare(b.child.fullName, 'vi'));
     return {
-      ...dayInfo(db, date),
+      ...dayInfo(db, date, cls),
       classId,
       className: cls.name,
       campusId: cls.campusId,
@@ -446,10 +538,11 @@ export const attendanceMockRepository = {
       const cls = findClass(db, classId);
       if (!canRecordAttendance(cls, user)) throw forbidden();
       if (cls.schoolYear !== activeYearId(db)) throw new ApiError(422, 'Lớp thuộc năm học đã kết thúc, chỉ xem được.');
-      const info = dayInfo(db, date);
+      const info = dayInfo(db, date, cls);
       if (!info.schoolDay) throw new ApiError(422, 'Ngày đã chọn không phải ngày học.');
       if (date !== info.today) throw new ApiError(422, 'Chỉ điểm danh được cho ngày hôm nay.');
       if (info.locked) throw lockedError(info.cutoff);
+      if (info.baseLocked) materializeCounts(db, date);
       const childIds = new Set(activeChildrenOf(db, classId).map((c) => c.id));
       if (!entries?.length || entries.some((e) => !childIds.has(e.childId))) throw new ApiError(422, 'Danh sách trẻ không hợp lệ.');
       const sessions = classSessions(db, cls);
@@ -467,15 +560,18 @@ export const attendanceMockRepository = {
       });
 
       const at = new Date().toISOString();
+      let attendanceChanged = false;
       entries.forEach((e) => {
         const meals = Object.fromEntries(sessions.map((s) => [s, !isAbsent(e.status) && !!e.meals?.[s]]));
         const existing = recordOf(db, e.childId, date);
         if (existing) {
           const changed = existing.status !== e.status || sessions.some((s) => !!existing.meals?.[s] !== meals[s]);
           if (!changed) return;
+          attendanceChanged = true;
           Object.assign(existing, { status: e.status, meals, recordedBy: user.id, recordedAt: at });
-          existing.history.push({ at, userId: user.id, action: 'UPDATED' });
+          existing.history.push({ at, userId: user.id, action: 'UPDATED', ...(info.unlock ? { unlockId: info.unlock.id } : {}) });
         } else {
+          attendanceChanged = true;
           db.attendance.push({
             id: uid('att'),
             date,
@@ -486,10 +582,28 @@ export const attendanceMockRepository = {
             meals,
             recordedBy: user.id,
             recordedAt: at,
-            history: [{ at, userId: user.id, action: 'RECORDED' }],
+            history: [{ at, userId: user.id, action: 'RECORDED', ...(info.unlock ? { unlockId: info.unlock.id } : {}) }],
           });
         }
       });
+      if (attendanceChanged && info.unlock) {
+        db.mealCounts
+          .filter((count) => count.campusId === cls.campusId && count.date === date)
+          .forEach((count) => {
+            const pending = buildCount(db, count.campusId, date, count.session).classes;
+            const baseline = count.pendingClasses || count.classes;
+            if (JSON.stringify(pending) === JSON.stringify(baseline)) return;
+            count.pendingClasses = pending;
+            count.needsReconfirmation = true;
+            count.history.push({ at, userId: user.id, action: 'ATTENDANCE_REOPENED_CHANGED', classId, unlockId: info.unlock.id });
+          });
+        notifyAll(db, usersOf(db, ROLES.VICE_PRINCIPAL, cls.campusId), {
+          type: 'MEAL_COUNT',
+          title: 'Điểm danh thay đổi sau khi mở lại',
+          message: `${cls.name} đã lưu lại điểm danh ngày ${formatDate(date)}. Kiểm tra và xác nhận lại số suất nếu có thay đổi.`,
+          link: `/attendance/meal-count?date=${date}`,
+        });
+      }
       return { savedAt: at, count: entries.length };
     });
   },
@@ -506,6 +620,14 @@ export const attendanceMockRepository = {
       if (!rec) throw new ApiError(404, 'Trẻ chưa có dữ liệu điểm danh ngày này.');
       const cls = findClass(db, rec.classId);
       if (!canCorrectMealAfterLock(cls, user)) throw forbidden();
+      if (
+        activeUnlockOf(db, cls.id, date) ||
+        db.mealCounts.some((count) => count.campusId === cls.campusId && count.date === date && count.needsReconfirmation)
+      )
+        throw new ApiError(
+          409,
+          'Ngày đã mở lại hoặc số suất đang chờ xác nhận lại. Sửa tại điểm danh trong hạn mở hoặc liên hệ Phó hiệu trưởng.',
+        );
       const errors = validateMealCorrection({ session, note });
       if (Object.keys(errors).length) throw new ApiError(422, Object.values(errors)[0], errors);
       const info = dayInfo(db, date);
@@ -610,7 +732,7 @@ export const attendanceMockRepository = {
       campusSessions(db, campusId).forEach((session) => {
         const stored = db.mealCounts.find((m) => m.campusId === campusId && m.date === date && m.session === session);
         if (stored) {
-          if (canViewMealCount(stored, user)) counts.push(withTotals(clone(stored)));
+          if (canViewMealCount(stored, user)) counts.push(mealCountForUser(clone(stored), user));
         } else if (info.schoolDay && user.role !== ROLES.KITCHEN_STAFF) {
           counts.push(withTotals({ id: null, ...buildCount(db, campusId, date, session), status: 'OPEN', adjustments: [], history: [] }));
         }
@@ -625,8 +747,26 @@ export const attendanceMockRepository = {
       ensureSeeded(db);
       const count = db.mealCounts.find((m) => m.id === id);
       if (!count) throw new ApiError(404, 'Không tìm thấy sĩ số suất ăn');
-      if (count.status === MEAL_COUNT_STATUS.CONFIRMED) throw new ApiError(409, 'Sĩ số suất ăn này đã được xác nhận.');
-      if (!canConfirmMealCount(count, user)) throw forbidden();
+      if (!canViewMealCount(count, user)) throw forbidden();
+      if (count.status === MEAL_COUNT_STATUS.CONFIRMED && !count.needsReconfirmation)
+        throw new ApiError(409, 'Sĩ số suất ăn này đã được xác nhận.');
+      if (!canConfirmMealCount(mealCountForUser(count, user), user)) throw forbidden();
+      if (count.pendingClasses) {
+        if (count.confirmedAt) {
+          count.confirmedSnapshots ||= [];
+          count.confirmedSnapshots.push({ classes: clone(count.classes), confirmedAt: count.confirmedAt, confirmedBy: count.confirmedBy });
+        }
+        count.classes = clone(count.pendingClasses);
+        delete count.pendingClasses;
+        count.needsReconfirmation = false;
+        count.classes.forEach((line) => {
+          const handover = db.mealHandovers.find((row) => row.classId === line.classId && row.date === count.date && row.session === count.session);
+          if (!handover || handover.status !== HANDOVER_STATUS.READY) return;
+          if (handover.expected.normal === line.normal && handover.expected.substitute === line.substitute) return;
+          handover.history.push({ at: new Date().toISOString(), userId: user.id, action: 'EXPECTED_RECONFIRMED', previousExpected: clone(handover.expected) });
+          handover.expected = { normal: line.normal, substitute: line.substitute };
+        });
+      }
       confirmCountIn(db, count, user.id, new Date().toISOString());
       const total = count.classes.reduce((t, l) => t + l.normal + l.substitute, 0);
       notifyAll(db, usersOf(db, ROLES.KITCHEN_STAFF, count.campusId), {

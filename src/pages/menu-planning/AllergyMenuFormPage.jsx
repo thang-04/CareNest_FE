@@ -25,13 +25,8 @@ import { validateAllergyMenu, hasErrors } from '@/utils/menu-planning/menuPlanni
 import { allergyMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
 import { ageGroupById } from '@/models/School';
-import {
-  ALLERGENS,
-  ALLERGY_GROUP_LABELS,
-  MEAL_SESSION_LABELS,
-  RECORD_STATUS,
-  RECORD_STATUS_LABELS,
-} from '@/models/menu-planning/menuPlanningConstants';
+import { ALLERGENS, ALLERGY_GROUP_LABELS, RECORD_STATUS, RECORD_STATUS_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { mealLabel } from '@/utils/menu-planning/nutritionSetup';
 import '@/styles/modules/menu-planning.css';
 
 const REMOVE = '__REMOVE__';
@@ -244,7 +239,7 @@ export default function AllergyMenuFormPage() {
                         const value = rep ? rep.replacementDishId || REMOVE : '';
                         return (
                           <tr key={`${meal.session}_${it.dishId}`} className={needs && !rep ? 'td-row--danger' : ''}>
-                            <td className="nowrap">{MEAL_SESSION_LABELS[meal.session]}</td>
+                            <td className="nowrap">{mealLabel(catalog.nutritionSetups, base?.ageGroupId, meal.session)}</td>
                             <td>
                               {dish?.name || 'Món đã xóa'}
                               {needs && !rep && <div className="text-xs td-bad">Cần thay</div>}
@@ -319,6 +314,7 @@ export default function AllergyMenuFormPage() {
                 <NutritionTable
                   result={result}
                   ageGroupId={base.ageGroupId}
+                  norms={catalog.norms}
                   price={priceOn(catalog.mealPrices, base.ageGroupId, todayInput())?.price}
                 />
               </div>

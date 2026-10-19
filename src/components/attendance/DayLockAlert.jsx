@@ -1,5 +1,5 @@
-import { CalendarX, Info, Lock } from '@/components/ui/icons';
-import { formatDate } from '@/utils/format';
+import { CalendarX, Info, Lock, Unlock } from '@/components/ui/icons';
+import { formatDate, formatDateTime } from '@/utils/format';
 
 /** Shows the cut-off state of the day (MSG22, MSG24). */
 export function DayLockAlert({ sheet }) {
@@ -11,14 +11,24 @@ export function DayLockAlert({ sheet }) {
         <div>Ngày đã chọn không phải ngày học.</div>
       </div>
     );
+  if (sheet.unlock && !sheet.locked)
+    return (
+      <div className="alert alert--info mb-16" role="status">
+        <Unlock size={18} />
+        <div>
+          <b>{sheet.unlock.unlockedByName}</b> đã mở lại điểm danh lớp này đến <b>{formatDateTime(sheet.unlock.validUntil)}</b>.
+          <div>Thay đổi báo ăn sau giờ chốt cần được kiểm tra/xác nhận lại; không tự thay số suất bếp đã nhận.</div>
+        </div>
+      </div>
+    );
   if (sheet.locked)
     return (
       <div className="alert alert--warning mb-16">
         <Lock size={18} />
         <div>
           Điểm danh và báo ăn đã khóa sau <b>{sheet.cutoff}</b>
-          {sheet.date === sheet.today ? ' hôm nay' : ` ngày ${formatDate(sheet.date)}`}. Trẻ đến sau giờ khóa không được thêm vào sĩ số suất
-          ăn.
+          {sheet.date === sheet.today ? ' hôm nay' : ` ngày ${formatDate(sheet.date)}`}. Nếu cô quên, liên hệ Phó hiệu trưởng điểm trường
+          hoặc Hiệu trưởng để mở lại riêng lớp trong ngày.
         </div>
       </div>
     );

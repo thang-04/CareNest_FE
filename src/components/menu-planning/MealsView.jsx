@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { AllergenChips } from '@/components/menu-planning/MenuBadges';
 import { dishAllergens } from '@/utils/menu-planning/menuCalculations';
-import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { DISH_TYPE_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { mealLabel } from '@/utils/menu-planning/nutritionSetup';
 
 const portionText = (p) => (Number(p) === 1 ? '1 suất' : `${String(p).replace('.', ',')} suất`);
 
@@ -9,12 +10,12 @@ const portionText = (p) => (Number(p) === 1 ? '1 suất' : `${String(p).replace(
  * Read-only meals of a day, one block per session.
  * changedDishIds highlights replacement dishes on alternative menus.
  */
-export function MealsView({ meals, catalog, linkDishes = false, changedDishIds = [], compact = false }) {
+export function MealsView({ meals, catalog, ageGroupId, linkDishes = false, changedDishIds = [], compact = false }) {
   return (
     <div className={`td-meals ${compact ? 'td-meals--compact' : ''}`}>
       {(meals || []).map((meal) => (
         <div key={meal.session} className="td-session">
-          <div className="td-session__title">{MEAL_SESSION_LABELS[meal.session]}</div>
+          <div className="td-session__title">{mealLabel(catalog.nutritionSetups, ageGroupId, meal.session)}</div>
           {meal.items.length === 0 ? (
             <div className="muted text-sm">Chưa có món</div>
           ) : (

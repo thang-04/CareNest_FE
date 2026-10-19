@@ -46,6 +46,19 @@ export class ApiError extends Error {
 
 export const clone = (value) => JSON.parse(JSON.stringify(value));
 
+export const needsMockSeedMigration = (db, module, version, keys) =>
+  Number(db.mockSeedVersions?.[module] || 0) < version || keys.some((key) => !Array.isArray(db[key]));
+
+export const applyMockSeedMigration = (db, module, version, seeds) => {
+  const versions = db.mockSeedVersions && typeof db.mockSeedVersions === 'object' ? db.mockSeedVersions : {};
+  Object.entries(seeds).forEach(([key, rows]) => {
+    // Mảng rỗng có thể là dữ liệu đã xóa chủ động; chỉ bù collection chưa tồn tại.
+    if (!Array.isArray(db[key])) db[key] = clone(rows);
+  });
+  db.mockSeedVersions = { ...versions, [module]: Math.max(Number(versions[module] || 0), version) };
+  return db;
+};
+
 export const delay = (ms = MOCK_LATENCY_MS) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Read-only snapshot of the database. */
