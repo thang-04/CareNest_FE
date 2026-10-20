@@ -677,3 +677,32 @@
   gap: var(--space-1);
   margin: 0 var(--space-4) var(--space-3);
 }
+
+/* Cờ bé ngoan ở bảng đánh giá cả ngày (Tiền 20/10): chưa cắm màu nhạt; cắm thì cờ xanh lá "cắm xuống" (rơi từ trên, nảy nhẹ) */
+.dg-flag-pin {
+  display: inline-flex;
+  color: var(--color-text-muted);
+}
+.dg-flag-pin--on {
+  color: var(--color-success);
+  transform-origin: bottom left;
+  animation: dg-flag-plant var(--duration-slow) var(--ease-out);
+}
+@keyframes dg-flag-plant {
+  0% {
+    opacity: 0;
+    transform: translateY(-60%) rotate(-20deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(8%) rotate(6deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dg-flag-pin--on {
+    animation: none;
+  }
+}

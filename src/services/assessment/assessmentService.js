@@ -9,6 +9,9 @@ export const getAssessmentCriteria = () => repo.getCriteria();
 
 export const getDailySheet = (params, user) => repo.getDailySheet(params, user);
 export const saveDailyAssessments = (body, user) => repo.saveDailyAssessments(body, user);
+// Đánh giá cả ngày trên một bảng (PROPOSED API, cần thống nhất với BE)
+export const getDailyDaySheet = (params, user) => repo.getDailyDaySheet(params, user);
+export const saveDailyDay = (body, user) => repo.saveDailyDay(body, user);
 export const getAssessmentDayUnlocks = (user) => repo.listAssessmentDayUnlocks(user);
 export const unlockAssessmentDay = (body, user) => repo.unlockAssessmentDay(body, user);
 

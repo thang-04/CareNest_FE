@@ -4,6 +4,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useClasses } from '@/hooks/useSchool';
 import {
   getChildDevelopment,
+  getDailyDaySheet,
   getDailySheet,
   getEvaluation,
   getEvaluations,
@@ -31,6 +32,16 @@ export function useDailySheet(params, { live = false } = {}) {
   const key = JSON.stringify(params || {});
   const { data, loading, error, reload } = useAsync(() => getDailySheet(params, user), [key, user?.id], {
     refreshOnDataChange: live,
+    enabled: !!params?.classId && !!params?.date,
+  });
+  return { sheet: data, loading, error, reload };
+}
+
+/** Bảng đánh giá cả ngày của lớp (mọi giờ có MT trong kế hoạch ngày). */
+export function useDailyDaySheet(params) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getDailyDaySheet(params, user), [key, user?.id], {
     enabled: !!params?.classId && !!params?.date,
   });
   return { sheet: data, loading, error, reload };
