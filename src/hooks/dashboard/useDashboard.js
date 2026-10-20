@@ -1,7 +1,9 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
+import { useMasterData } from '@/hooks/useMasterData';
 import { getPendingApprovals } from '@/services/dashboard/dashboardService';
+import { getDashboardToday } from '@/services/dashboard/dashboardSummaryService';
 import { canViewPendingApprovals } from '@/utils/dashboard/dashboardPermissions';
 import { todayInput } from '@/utils/format';
 
@@ -36,4 +38,12 @@ export function usePendingApprovals() {
     error,
     reload,
   };
+}
+
+/** Số "Hôm nay", "Cần chú ý" và xếp hạng lớp của dashboard BGH; `campusId` = bộ lọc điểm trường của Hiệu trưởng. */
+export function useDashboardToday(campusId = '') {
+  const { schoolYear } = useSchoolYear();
+  const md = useMasterData();
+  const campusName = (id) => md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id;
+  return useWidget((u) => getDashboardToday(u, { schoolYear, campusId, campusName }), [schoolYear, campusId, md.campuses?.length]);
 }

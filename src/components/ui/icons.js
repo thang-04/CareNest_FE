@@ -173,6 +173,7 @@ export {
   IconSun as Sun,
   IconTarget as Target,
   IconTable as Table2,
+  IconTemperature as Thermometer,
   IconThumbDown as ThumbsDown,
   IconThumbUp as ThumbsUp,
   IconTicket as Ticket,

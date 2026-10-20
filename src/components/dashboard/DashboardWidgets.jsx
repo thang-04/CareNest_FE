@@ -56,9 +56,24 @@ export function Widget({
  * KPI tile ngang (nhìn lướt): icon · nhãn (+ trạng thái / thanh tỷ lệ) · số lớn + đơn vị · mũi tên.
  * Số luôn lấy từ service; đang tải ⇒ spinner, lỗi ⇒ "—" + gợi ý ngắn.
  * `action` = chỉ số "việc cần làm": hiện nhãn "Cần xử lý" / "Không có việc" (kèm icon, không chỉ dựa vào màu).
- * `progress` (0..1) = tỷ lệ hiển thị thành thanh ngang dưới nhãn (vd. trẻ có mặt).
+ * `progress` (0..1) = tỷ lệ hiển thị thành thanh ngang dưới nhãn (vd. trẻ có mặt), `progressLabel` = chữ sau %.
+ * `compare` = một dòng so sánh đã tính ở service (vd. "Thứ Ba tuần trước 88% · −4 điểm"); không có thì không hiện.
  */
-export function KpiCard({ to, tone = 'blue', icon: Icon, label, value, unit, hint, progress, action, loading, error }) {
+export function KpiCard({
+  to,
+  tone = 'blue',
+  icon: Icon,
+  label,
+  value,
+  unit,
+  hint,
+  progress,
+  progressLabel = 'có mặt',
+  compare,
+  action,
+  loading,
+  error,
+}) {
   const ready = !loading && !error;
   const hasWork = action && ready && Number(value) > 0;
   const calm = action && ready && !hasWork;
@@ -95,8 +110,13 @@ export function KpiCard({ to, tone = 'blue', icon: Icon, label, value, unit, hin
           )}
           <span className="kpi-tile__hint">
             {error ? 'Không tải được số liệu' : hint}
-            {ready && <b className="kpi-tile__pct">{Math.round(progress * 100)}% có mặt</b>}
+            {ready && (
+              <b className="kpi-tile__pct">
+                {Math.round(progress * 100)}% {progressLabel}
+              </b>
+            )}
           </span>
+          {ready && compare && <span className="kpi-tile__compare">{compare}</span>}
         </span>
       )}
     </>

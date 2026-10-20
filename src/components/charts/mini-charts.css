@@ -67,6 +67,82 @@ a.mc-bars__row:hover {
   }
 }
 
+/* Thanh xếp hạng theo tỷ lệ (RankBars.jsx) */
+.mc-rank__note {
+  margin: 0 0 var(--space-3);
+}
+.mc-rank__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.mc-rank__row {
+  display: grid;
+  grid-template-columns: minmax(96px, 9rem) minmax(0, 1fr) 6.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1-5) var(--space-3);
+  margin: 0 calc(var(--space-3) * -1);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+}
+a.mc-rank__row:hover {
+  background: var(--color-primary-soft);
+  text-decoration: none;
+}
+.mc-rank__label {
+  font-weight: var(--fw-semibold);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mc-rank__track {
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-secondary);
+  overflow: hidden;
+}
+.mc-rank__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--tone-green);
+}
+.mc-rank__end {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mc-rank__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.mc-rank__toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .mc-rank__row {
+    grid-template-columns: 5rem minmax(0, 1fr) 5.5rem;
+    gap: var(--space-2);
+  }
+}
+
 /* Biểu đồ vòng tỷ lệ */
 .mc-donut {
   display: flex;

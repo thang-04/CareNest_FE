@@ -386,6 +386,23 @@
 .db-kpis__list--2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+/* Dashboard BGH: mỗi nhóm thẻ một hàng trải hết chiều ngang, hai hàng chung lưới 4 cột để thẻ bằng nhau, thẳng cột */
+.db-kpis--rows {
+  grid-template-columns: minmax(0, 1fr);
+}
+.db-kpis--rows .db-kpis__list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1100px) {
+  .db-kpis--rows .db-kpis__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .db-kpis--rows .db-kpis__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 /* Dashboard khác vẫn dùng .stat-grid: 3 thẻ ngang mỗi hàng */
 .stat-grid:has(> .kpi-tile) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -727,4 +744,25 @@ a.kpi-tile:hover .kpi-tile__chev {
   .db-board {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* "Cần chú ý hôm nay": icon theo tông nghĩa (DESIGN 3.2), không xoay vòng màu như danh sách thường */
+.db-attention .db-list__item .db-attention__icon--orange {
+  background: color-mix(in srgb, var(--tone-orange) 16%, var(--color-surface));
+  color: var(--tone-orange-fg);
+}
+.db-attention .db-list__item .db-attention__icon--red {
+  background: color-mix(in srgb, var(--tone-red) 16%, var(--color-surface));
+  color: var(--tone-red-fg);
+}
+.db-attention .db-list__item .db-attention__icon--gray {
+  background: color-mix(in srgb, var(--tone-gray) 16%, var(--color-surface));
+  color: var(--tone-gray-fg);
+}
+
+/* Dòng so sánh dưới thẻ số (vd. với cùng thứ tuần trước) */
+.kpi-tile__compare {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
