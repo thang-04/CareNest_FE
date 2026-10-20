@@ -1,69 +1,79 @@
 # KHÔNG đọc cả file: grep -iE "<từ khóa>" .ai/CONTEXT_MAP.yaml rồi chỉ mở file được trỏ tới.
-# Bản đồ context CareNest_FE. Agent: grep `keywords` → đọc `be_module_card` (nghiệp vụ, rule ID) + `fe_docs` (màn hình, tích hợp).
+# Bản đồ context CareNest_FE. Agent: grep `keywords` → đọc `be_module_card` (nghiệp vụ, rule ID) + `fe_docs` (màn hình, tích hợp) + `fe_code` (code hiện có).
+# `fe_code` trỏ thư mục service của module; cùng tên module có ở mọi layer: src/{pages,components,hooks,services,models,utils}/<module>/ + src/styles/modules/<module>.css.
 # Đường dẫn `be_module_card` tương đối từ root FE (repo sibling ../CareNest_BE). Không có sibling ⇒ đọc trên related_repositories.CareNest_BE.
-# Chỉ đường dẫn trong `available` đã tồn tại ở FE; `skeleton_only` tồn tại nhưng không dùng làm nguồn; `planned` chưa tồn tại.
+# Chỉ đường dẫn trong `available` đã tồn tại ở FE; `planned` chưa tồn tại.
 version: 2
 repository: CareNest_FE
 role: client Web (System Admin, Principal, Vice Principal, Teacher) — consumer của API contract BE
 
 keywords:
+  "giao diện|design|ui|component|css|token|màu|badge|modal|bảng|table|nút|button|bộ lọc|filter|icon|responsive":
+    {be_module_card: null, fe_docs: [DESIGN.md, docs/architecture/CODING_GUIDE.md], fe_code: [src/components/ui/, src/styles/]}   # tra DESIGN §6.3 trước khi tạo component/class mới
+  "cấu trúc thư mục|module mới|thêm module|kiến trúc|layer|import|refactor":
+    {be_module_card: null, fe_docs: [docs/architecture/CODING_GUIDE.md, docs/architecture/FRONTEND_ARCHITECTURE.md], fe_code: [src/]}
   "tiếp nhận trẻ|kiểm tra sáng|daily reception|daily health":
-    {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/daily-reception.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/daily-reception.md], fe_code: [src/services/daily-health/, src/services/attendance/]}
   "đánh giá hằng ngày|đánh giá ngày|daily assessment|yccđ|mục tiêu giáo án":
-    {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: [docs/features/daily-assessment.md]}
-  # từ khóa (VN|EN, regex-friendly) -> {be_module_card, fe_docs}
+    {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: [docs/features/daily-assessment.md], fe_code: [src/services/assessment/]}
+  # từ khóa (VN|EN, regex-friendly) -> {be_module_card, fe_docs, fe_code}
   "điểm danh|attendance|đi muộn|đến muộn|late arrival|vắng":
-    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/attendance/]}
   "đơn nghỉ|báo nghỉ|xin nghỉ|leave":
-    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}   # phụ huynh gửi qua app, không duyệt (ATT-05); Web chỉ xem
+    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/attendance/]}   # phụ huynh gửi qua app, không duyệt (ATT-05); Web chỉ xem
   "báo ăn|tham gia ăn|meal participation":
-    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/attendance/]}
   "suất ăn|số suất|meal count|chốt suất|xác nhận suất|adjustment":
-    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}   # actor PENDING P-05
+    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md, docs/features/nutrition-inventory.md], fe_code: [src/services/attendance/, src/services/kitchen/]}   # actor PENDING P-05; UI sổ báo ăn theo BA 2026-10-20
   "thực đơn|menu|duyệt thực đơn|món|dish|dinh dưỡng|nutrient|định lượng":
-    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
-  "kho|nhà cung cấp|supplier|inventory|tồn kho":
-    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: []}   # OPEN — ADR-0009, dừng và hỏi
+    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md, docs/features/nutrition-inventory.md], fe_code: [src/services/menu-planning/]}
+  "kho|nhà cung cấp|supplier|inventory|tồn kho|nhập kho|xuất kho|lô|hàng tươi":
+    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/features/nutrition-inventory.md], fe_code: [src/services/kitchen/]}   # BE OPEN ADR-0009; UI FE theo BA (user chốt 2026-10-20), chỉ mock
   "dị ứng|allergy":
-    {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md], fe_code: [src/services/children/, src/services/menu-planning/]}
   "trẻ|child|hồ sơ trẻ|ghi danh|tiếp nhận|enrollment|guardian|hành chính|tiền sử|cccd|mã định danh|tiếp xúc lao":
-    {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/children/, src/services/account/]}
   "sức khỏe|health|chiều cao|cân nặng|vòng đầu|vận động|đợt khám|phiếu theo dõi|quá hạn trao đổi|hẹn khám lại|khám chuyên khoa|measurement|tăng trưởng|trend|biểu đồ|phiếu khám|phụ lục ii|kết luận bác sĩ|sinh tồn|mạch|nhịp thở|nhiệt độ|nguy cơ lao|cân đo":
-    {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}   # người nhập PENDING ở BE; user chốt GV phụ trách lớp, đợt khám (PROPOSED)
+    {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/children/]}   # người nhập PENDING ở BE; user chốt GV phụ trách lớp, đợt khám (PROPOSED)
   "quan sát|observation|tiêu chí|criteria|nhận xét|summary|đánh giá|assessment|phát triển|development profile":
-    {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/assessment/]}
+  "kế hoạch giáo dục|education plan|kế hoạch năm|kế hoạch chủ đề|kế hoạch tuần":
+    {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: [docs/architecture/ROUTE_MAP.md], fe_code: [src/services/education-plan/]}
   "hoạt động|activity|giáo án|gokids":
     {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: []}   # ADR-0006 OPEN — không làm màn hình
   "cơ sở vật chất|csvc|thiết bị|sự cố|facility|hỏng|thiếu":
-    {be_module_card: ../CareNest_BE/docs/modules/facility-issue.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md]}
-  "tài sản|asset|khấu hao|bảo trì|kiểm kê":
-    {be_module_card: ../CareNest_BE/docs/modules/facility-issue.md, fe_docs: []}   # ngoài V1 — FAC-03
+    {be_module_card: ../CareNest_BE/docs/modules/facility-issue.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/facility/]}   # màn CSVC đang ẩn sau feature flag
+  "tài sản|asset|khấu hao|bảo trì|kiểm kê|luân chuyển":
+    {be_module_card: ../CareNest_BE/docs/modules/facility-issue.md, fe_docs: [], fe_code: [src/services/inventory-inspection/, src/services/facility-transfer/]}   # ngoài V1 — FAC-03; code đã có, ẩn sau feature flag
+  "đón trẻ|pickup|người đón":
+    {be_module_card: null, fe_docs: [docs/architecture/ROUTE_MAP.md], fe_code: [src/services/pickup/]}   # BE chưa có module card đón trẻ ⇒ hỏi trước khi đổi nghiệp vụ
   "đăng nhập|login|logout|token|session|refresh":
-    {be_module_card: ../CareNest_BE/docs/modules/identity-access.md, fe_docs: [docs/integration/AUTH_FLOW.md, docs/integration/BACKEND_INTEGRATION.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/identity-access.md, fe_docs: [docs/integration/AUTH_FLOW.md, docs/integration/BACKEND_INTEGRATION.md], fe_code: [src/services/http/, src/contexts/AuthContext.jsx, src/routes/]}
   "role|permission|phân quyền|scope|403|ẩn nút|guard|tài khoản|account":
-    {be_module_card: ../CareNest_BE/docs/modules/identity-access.md, fe_docs: [docs/integration/BACKEND_INTEGRATION.md, docs/architecture/ROUTE_MAP.md]}
-  "điểm trường|campus|lớp|classroom|năm học|phân công|assignment|hiệu phó|hiệu trưởng":
-    {be_module_card: ../CareNest_BE/docs/modules/school-structure.md, fe_docs: [docs/architecture/ROUTE_MAP.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/identity-access.md, fe_docs: [docs/integration/BACKEND_INTEGRATION.md, docs/architecture/ROUTE_MAP.md, docs/features/permission-center-demo.md], fe_code: [src/services/account/, src/layouts/menuConfig.js, src/routes/RoleGuard.jsx]}
+  "điểm trường|campus|lớp|classroom|năm học|phân công|assignment|hiệu phó|hiệu trưởng|xếp lớp|chuyển năm":
+    {be_module_card: ../CareNest_BE/docs/modules/school-structure.md, fe_docs: [docs/architecture/ROUTE_MAP.md, docs/features/school-year-transition.md], fe_code: [src/services/school-config/]}
   "thông báo|notification":
-    {be_module_card: ../CareNest_BE/docs/modules/notification.md, fe_docs: [docs/features/README.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/notification.md, fe_docs: [docs/features/README.md], fe_code: [src/services/notificationService.js]}
   "audit|nhật ký|lịch sử thay đổi":
     {be_module_card: ../CareNest_BE/docs/modules/audit.md, fe_docs: []}
   "ai|gợi ý|draft|bản nháp|duyệt ai":
-    {be_module_card: ../CareNest_BE/docs/modules/ai-assistance.md, fe_docs: [docs/features/README.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/ai-assistance.md, fe_docs: [docs/features/README.md], fe_code: [src/hooks/useAiRun.js, src/components/ui/AiWorkingOverlay.jsx]}
   "báo cáo|report|thống kê|dashboard|tổng hợp":
-    {be_module_card: ../CareNest_BE/docs/modules/reporting.md, fe_docs: [docs/architecture/ROUTE_MAP.md, docs/features/README.md]}
+    {be_module_card: ../CareNest_BE/docs/modules/reporting.md, fe_docs: [docs/architecture/ROUTE_MAP.md, docs/features/README.md], fe_code: [src/services/dashboard/]}   # */dashboard/ KHÔNG được import nhiều module (user 2026-10-20); vi phạm cũ = nợ
   "api|endpoint|error code|lỗi api|pagination|problem detail|fetch|request|swagger|openapi":
-    {be_module_card: null, fe_docs: [docs/integration/BACKEND_INTEGRATION.md, ../CareNest_BE/docs/contracts/API_CONVENTIONS.md, ../CareNest_BE/docs/contracts/ERROR_CONTRACT.md]}
+    {be_module_card: null, fe_docs: [docs/integration/BACKEND_INTEGRATION.md, ../CareNest_BE/docs/contracts/API_CONVENTIONS.md, ../CareNest_BE/docs/contracts/ERROR_CONTRACT.md], fe_code: [src/services/http/]}
   "phụ huynh|parent":
-    {be_module_card: null, fe_docs: []}   # màn hình thuộc CareNest_APP, không thuộc Web
+    {be_module_card: null, fe_docs: []}   # màn hình thuộc CareNest_APP, không thuộc Web (trừ kích hoạt tài khoản phụ huynh: src/pages/children/ParentActivationPage.jsx)
   "bếp|kitchen staff":
-    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/architecture/ROUTE_MAP.md]}   # Kitchen trên Web: chỉ khi được yêu cầu (../CareNest_BE/docs/business/USER_ROLES.md)
+    {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/architecture/ROUTE_MAP.md], fe_code: [src/services/kitchen/]}   # Kitchen trên Web: chỉ khi được yêu cầu (../CareNest_BE/docs/business/USER_ROLES.md)
 
 topics:
   project:      [docs/context/REPOSITORY_CONTEXT.md, docs/context/CURRENT_STATE.md, ../CareNest_BE/docs/context/PROJECT_CONTEXT.md]
   business:     [../CareNest_BE/docs/business/BUSINESS_RULES.md, ../CareNest_BE/docs/business/USER_ROLES.md, ../CareNest_BE/docs/modules/README.md]
   screens:      [docs/architecture/ROUTE_MAP.md, docs/features/README.md]
-  architecture: [docs/architecture/FRONTEND_ARCHITECTURE.md, docs/architecture/FOLDER_STRUCTURE.md, docs/architecture/STATE_MANAGEMENT.md]
+  design:       [DESIGN.md]
+  architecture: [docs/architecture/CODING_GUIDE.md, docs/architecture/FRONTEND_ARCHITECTURE.md, docs/architecture/FOLDER_STRUCTURE.md, docs/architecture/STATE_MANAGEMENT.md]
   integration:  [docs/integration/BACKEND_INTEGRATION.md, docs/integration/AUTH_FLOW.md, ../CareNest_BE/docs/contracts/API_CONVENTIONS.md, ../CareNest_BE/docs/contracts/ERROR_CONTRACT.md]
   cross-repo:   [../CareNest_BE/docs/system/CROSS_REPO_MAP.md, ../CareNest_BE/docs/knowledge/CROSS_MODULE_ISSUES.md]
   memory:       [docs/knowledge/ISSUE_INDEX.md, docs/knowledge/KNOWN_ISSUES.md, docs/knowledge/PATTERNS.md, docs/knowledge/TROUBLESHOOTING.md, ../CareNest_BE/docs/knowledge/ISSUE_INDEX.md]
@@ -71,18 +81,28 @@ topics:
   coding-rules: [.claude/rules/]
 
 available:
-  entrypoints: [AGENTS.md, CLAUDE.md, docs/INDEX.md]
+  entrypoints: [AGENTS.md, CLAUDE.md, README.md, docs/INDEX.md]
+  source: [src/, tests/, package.json, .eslintrc.cjs]   # React 18 + Vite, JS/JSX
   hooks: [.claude/settings.json, .claude/hooks/session-orient.mjs, .claude/hooks/guard-edits.mjs, .claude/hooks/track-activity.mjs, .claude/hooks/stop-gate.mjs, .claude/hooks/lib/]   # Claude hooks (BE ADR-0012)
   routing: [.ai/ROUTER.md, .ai/ESCALATION.md, .ai/CONTEXT_MAP.yaml]
   profiles: [.ai/profiles/code.md, .ai/profiles/feature.md, .ai/profiles/architecture.md, .ai/profiles/cross-repo.md, .ai/profiles/full.md]
   workflows: [.ai/workflows/fix-bug.md, .ai/workflows/implement-feature.md, .ai/workflows/review-code.md, .ai/workflows/integrate-api.md, .ai/workflows/update-knowledge.md, .ai/workflows/clarify-business.md, .ai/workflows/plan-change.md]
-  harness: [docs/quality/VERIFICATION.md, docs/plans/_TEMPLATE.md, scripts/verify.mjs, scripts/check-ai-layer.mjs, scripts/ai-layer/, .githooks/, .claude/hooks/harness.config.json, .gitattributes, .editorconfig]   # quy trình làn S/M/L + cổng (BE ADR-0012)
+  harness: [docs/quality/VERIFICATION.md, docs/plans/_TEMPLATE.md, scripts/verify.mjs, scripts/check-ai-layer.mjs, scripts/check-design.mjs, scripts/ai-layer/, .githooks/, .claude/hooks/harness.config.json, .gitattributes, .editorconfig]   # quy trình làn S/M/L + cổng (BE ADR-0012)
   skills: [.agents/skills/fix-bug/SKILL.md, .agents/skills/implement-feature/SKILL.md, .agents/skills/review-code/SKILL.md, .agents/skills/integrate-api/SKILL.md, .agents/skills/update-knowledge/SKILL.md, .agents/skills/plan-change/SKILL.md,
            .claude/skills/fix-bug/SKILL.md, .claude/skills/implement-feature/SKILL.md, .claude/skills/review-code/SKILL.md, .claude/skills/integrate-api/SKILL.md, .claude/skills/update-knowledge/SKILL.md, .claude/skills/plan-change/SKILL.md]
-  rules: [.claude/rules/typescript.md, .claude/rules/component.md, .claude/rules/state.md, .claude/rules/api-client.md]
+  rules: [.claude/rules/architecture.md, .claude/rules/javascript.md, .claude/rules/component.md, .claude/rules/ui-style.md, .claude/rules/state.md, .claude/rules/api-client.md]
   docs:
+    - DESIGN.md
+    - docs/architecture/CODING_GUIDE.md
+    - docs/architecture/FRONTEND_ARCHITECTURE.md
+    - docs/architecture/FOLDER_STRUCTURE.md
+    - docs/architecture/STATE_MANAGEMENT.md
+    - docs/integration/AUTH_FLOW.md
     - docs/features/daily-reception.md
     - docs/features/daily-assessment.md
+    - docs/features/nutrition-inventory.md
+    - docs/features/permission-center-demo.md
+    - docs/features/school-year-transition.md
     - docs/context/REPOSITORY_CONTEXT.md
     - docs/context/CURRENT_STATE.md
     - docs/architecture/ROUTE_MAP.md
@@ -95,15 +115,7 @@ available:
     - docs/knowledge/incidents/_TEMPLATE.md
     - docs/quality/DEFINITION_OF_DONE.md
 
-skeleton_only:   # tồn tại nhưng chưa có nội dung — không dùng làm nguồn (trừ mục được header nêu rõ là dùng được)
-  - docs/architecture/FRONTEND_ARCHITECTURE.md   # mục "Ràng buộc đã biết" dùng được
-  - docs/architecture/STATE_MANAGEMENT.md        # mục "Nguyên tắc" dùng được
-  - docs/architecture/FOLDER_STRUCTURE.md
-  - docs/integration/AUTH_FLOW.md
-
 planned:
-  - src/                                  # chưa có source; framework PROPOSED
-  - README.md                             # setup/build/run khi có source
   - docs/features/<feature>.md            # tạo theo template trong docs/features/README.md khi bắt đầu màn hình
 
 related_repositories:

@@ -1,13 +1,18 @@
-> **Status: CHƯA CÓ NỘI DUNG — không dùng làm nguồn.** Cơ chế auth chưa quyết định (`BE:docs/contracts/AUTH_CONTRACT.md` cũng là SKELETON). Không tự chọn cách lưu token — hỏi trước.
-
 # Auth Flow (Web)
 
-Điền khi BE chốt auth contract:
+**Status: PROPOSED** — `BE:docs/contracts/AUTH_CONTRACT.md` chưa chốt. Mục "Hiện thực mock" mô tả code đang chạy; không coi là quyết định cuối. Đổi cách lưu token / cơ chế auth ⇒ làn L, hỏi trước.
 
-- Cơ chế (session cookie / JWT access + refresh / khác) và nơi lưu token phía Web.
-- Đăng nhập, đăng xuất, hết phiên (401), refresh.
-- Cách FE lấy thông tin user hiện tại: role, permission, scope (campus/lớp) để ẩn/hiện menu.
-- Xóa cache/state khi logout hoặc đổi user.
-- Bảo vệ CSRF/XSS tương ứng với cơ chế đã chọn.
+## Hiện thực mock (source 2026-10-20)
+
+- Endpoint đang giả định và luồng đăng nhập: `docs/architecture/CODING_GUIDE.md` §6.1.
+- Token chỉ do `src/services/http/tokenStorage.js` đọc/ghi ("Ghi nhớ đăng nhập" ⇒ localStorage, không ⇒ sessionStorage). Nơi khác không đụng token.
+- `src/services/http/axiosClient.js` gắn `Authorization: Bearer`; 401 ⇒ phát `UNAUTHORIZED_EVENT`, `AuthContext` đăng xuất và về `/login`.
+- User hiện tại: `useAuth()` (`src/contexts/AuthContext.jsx`); route: `ProtectedRoute`, `RoleGuard` (`src/routes/`).
+
+## Chờ BE chốt
+
+- Cơ chế (session cookie / JWT access + refresh) và nơi lưu token phía Web; refresh.
+- Permission/scope (campus/lớp) BE trả để ẩn/hiện menu, thay cho suy theo `user.role`.
+- Bảo vệ CSRF/XSS tương ứng cơ chế đã chọn.
 
 Ràng buộc đã biết: BE kiểm tra quyền thật; FE không tự quyết quyền (`docs/integration/BACKEND_INTEGRATION.md`).

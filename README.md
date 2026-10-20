@@ -77,3 +77,7 @@ Mỗi module có nhóm route riêng; vai trò được phép xem ở `src/routes
 
 `VITE_USE_MOCK=false`. Endpoint đề xuất trong `src/services/<module>/api/*.js` và `src/services/*Service.js`.
 Luật nghiệp vụ backend cần làm theo nằm ở `src/services/<module>/mock/*MockRepository.js`. Chi tiết: `docs/architecture/CODING_GUIDE.md` §8.
+
+## Deploy
+
+Merge vào `main` ⇒ GitHub Actions đẩy source lên VPS, VPS build Docker và chạy (`https://web.carenest.edu.vn`). Cài VPS, Caddy (HTTPS), secrets: `docs/integration/DEPLOYMENT.md`.
