@@ -88,6 +88,19 @@ export const areaAllows = (user, key, campusId, need = false) => {
   return a.scope === PERMISSION_SCOPE.ALL || !campusId || campusId === a.campusId;
 };
 
+/**
+ * Xếp lớp năm học mới: Hiệu trưởng toàn trường; PHT theo mảng "Xếp lớp năm học mới" Hiệu trưởng giao
+ * (1 điểm trường hoặc toàn trường; Xem hoặc Xem + Sửa).
+ */
+export const canViewYearPlacement = (user, campusId) => isPrincipal(user) || areaAllows(user, 'yearPlacement', campusId);
+export const canEditYearPlacement = (user, campusId) => isPrincipal(user) || areaAllows(user, 'yearPlacement', campusId, 'update');
+/** Điểm trường PHT được xếp (null = toàn trường). */
+export const yearPlacementCampus = (user) => {
+  if (isPrincipal(user)) return null;
+  const a = areaAccess(user, 'yearPlacement');
+  return a.scope === PERMISSION_SCOPE.ALL ? null : a.campusId || user?.campusId || null;
+};
+
 /** { access: NONE | VIEW | EDIT, scope: ALL | CAMPUS } of one permission for the signed-in user. */
 export const permissionAccess = (user, code) => {
   const area = VP_AREAS.find((a) => a.code === code);

@@ -38,6 +38,9 @@ import {
   canAssignVicePrincipal,
   canConfigureCutoff,
   canConfigureSchool,
+  canEditYearPlacement,
+  canViewYearPlacement,
+  yearPlacementCampus,
   canListCampuses,
   canManageCampus,
   canManageRolePermissions,
@@ -586,12 +589,16 @@ export const schoolConfigMockRepository = {
   /* ---------------- Xếp lớp năm học mới (PENDING BE: GET/PUT /school-years/{id}/placements) ---------------- */
   async getPlacements(yearId, user) {
     await delay(150);
-    if (!canConfigureSchool(user)) throw forbid();
+    if (!canViewYearPlacement(user)) throw forbid();
     const db = seeded();
+    // PHT chỉ thấy điểm trường được giao (toàn trường nếu Hiệu trưởng giao toàn trường)
+    const onlyCampus = yearPlacementCampus(user);
+    const mine = (c) => !onlyCampus || c.campusId === onlyCampus;
     const target = findYear(db, yearId);
     const source = placementSource(db, target);
     const saved = new Map(placementsOf(db, yearId).map((p) => [p.childId, p]));
     const targets = yearClasses(db, yearId)
+      .filter(mine)
       .map((c) => ({
         id: c.id,
         name: c.name,
@@ -603,6 +610,7 @@ export const schoolConfigMockRepository = {
       .sort((a, b) => a.campusId.localeCompare(b.campusId) || a.name.localeCompare(b.name, 'vi'));
     const classes = source
       ? yearClasses(db, source.id)
+          .filter(mine)
           .map((c) => {
             const next = nextGroupId(db, c.ageGroupId);
             return {
@@ -631,9 +639,11 @@ export const schoolConfigMockRepository = {
     return {
       year: clone(target),
       sourceYear: source ? { id: source.id, name: source.name } : null,
-      editable: target.status === YEAR_STATUS.PLANNED && !!source,
+      editable: target.status === YEAR_STATUS.PLANNED && !!source && canEditYearPlacement(user, onlyCampus || undefined),
       ageGroups: groupsByAge(db).map((g) => ({ id: g.id, shortName: g.shortName || g.name })),
-      campuses: activeCampuses(db).map((c) => ({ id: c.id, name: campusLabel(db, c.id) })),
+      campuses: activeCampuses(db)
+        .filter((c) => !onlyCampus || c.id === onlyCampus)
+        .map((c) => ({ id: c.id, name: campusLabel(db, c.id) })),
       classes,
       targets,
     };
@@ -642,7 +652,7 @@ export const schoolConfigMockRepository = {
   /** items: [{ childId, action, toClassId }] – ghi đè theo từng trẻ; trẻ không có trong items giữ nguyên. */
   async savePlacements(yearId, { items } = {}, user) {
     await delay();
-    if (!canConfigureSchool(user)) throw forbid();
+    if (!canEditYearPlacement(user, yearPlacementCampus(user) || undefined)) throw forbid();
     seeded();
     return writeDb((db) => {
       const target = findYear(db, yearId);
@@ -655,6 +665,7 @@ export const schoolConfigMockRepository = {
         const child = pool.get(it.childId);
         if (!child) return (errors[it.childId] = 'Trẻ không thuộc lớp của năm học đang hoạt động');
         const from = db.classes.find((c) => c.id === child.classId);
+        if (!canEditYearPlacement(user, from.campusId)) return (errors[it.childId] = 'Trẻ thuộc điểm trường bạn không được giao xếp lớp');
         const next = nextGroupId(db, from.ageGroupId);
         if (!PLACEMENT_ACTION_LABELS[it.action]) return (errors[it.childId] = 'Chọn kết quả xếp lớp');
         if (it.action === PLACEMENT_ACTION.GRADUATE && next) return (errors[it.childId] = 'Chỉ trẻ nhóm tuổi lớn nhất được ra trường');
@@ -697,9 +708,12 @@ export const schoolConfigMockRepository = {
   },
 
   /** Xếp tự động trẻ chưa xếp: cả lớp lên nhóm tuổi kế tiếp (lớp còn nhiều chỗ nhất), nhóm lớn nhất ra trường. */
-  async autoPlace(yearId, user, { campusId, ageGroupId } = {}) {
+  async autoPlace(yearId, user, { campusId: askedCampus, ageGroupId } = {}) {
     await delay();
-    if (!canConfigureSchool(user)) throw forbid();
+    const onlyCampus = yearPlacementCampus(user);
+    if (!canEditYearPlacement(user, onlyCampus || undefined)) throw forbid();
+    // PHT được giao 1 điểm trường: chỉ tự xếp trong điểm trường đó
+    const campusId = onlyCampus || askedCampus;
     seeded();
     return writeDb((db) => {
       const target = findYear(db, yearId);

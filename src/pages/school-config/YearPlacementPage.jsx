@@ -13,14 +13,15 @@ import { PlacementActionBadge } from '@/components/school-config/SchoolConfigBad
 import { usePlacements, useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
 import { autoPlace } from '@/services/school-config/schoolConfigService';
 import { PLACEMENT_ACTION, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
-import { canConfigureSchool } from '@/utils/school-config/schoolConfigPermissions';
+import { canConfigureSchool, canViewYearPlacement } from '@/utils/school-config/schoolConfigPermissions';
 import { placementCrumbs } from '@/utils/school-config/breadcrumbs';
 import '@/styles/modules/school-config.css';
 
 const placedOf = (c) => c.children.filter((ch) => ch.placement).length;
 
 /**
- * Xếp lớp năm học mới (Hiệu trưởng): trái là danh sách lớp năm cũ, phải là trẻ của lớp đang chọn.
+ * Xếp lớp năm học mới (Hiệu trưởng, hoặc PHT được Hiệu trưởng giao theo điểm trường / toàn trường):
+ * trái là danh sách lớp năm cũ, phải là trẻ của lớp đang chọn.
  * Bản dự kiến, áp dụng khi kích hoạt năm học.
  */
 export default function YearPlacementPage() {
@@ -100,7 +101,7 @@ export default function YearPlacementPage() {
     }
   };
 
-  if (!canConfigureSchool(user))
+  if (!canViewYearPlacement(user))
     return (
       <div className="page">
         <Breadcrumb items={placementCrumbs()} />
@@ -150,11 +151,17 @@ export default function YearPlacementPage() {
           <EmptyState
             icon={CalendarRange}
             title="Chưa có năm học sắp diễn ra"
-            description="Tạo năm học mới và sao chép lớp trước khi xếp trẻ lên lớp."
+            description={
+              canConfigureSchool(user)
+                ? 'Tạo năm học mới và sao chép lớp trước khi xếp trẻ lên lớp.'
+                : 'Hiệu trưởng tạo năm học mới và sao chép lớp; sau đó bạn xếp trẻ lên lớp.'
+            }
             action={
-              <Link className="btn btn--primary" to="/school/years/new">
-                Thêm năm học
-              </Link>
+              canConfigureSchool(user) && (
+                <Link className="btn btn--primary" to="/school/years/new">
+                  Thêm năm học
+                </Link>
+              )
             }
           />
         </div>
@@ -175,19 +182,22 @@ export default function YearPlacementPage() {
                 </select>
               </div>
             )}
-            <div className="sc-inline-field">
-              <label className="field__label" htmlFor="plc-campus">
-                Điểm trường
-              </label>
-              <select id="plc-campus" className="select" value={campusId} onChange={(e) => setParam('campus', e.target.value)}>
-                <option value="">Tất cả điểm trường</option>
-                {(plan?.campuses || []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* PHT được giao 1 điểm trường: không cần chọn điểm trường */}
+            {(plan?.campuses?.length || 0) > 1 && (
+              <div className="sc-inline-field">
+                <label className="field__label" htmlFor="plc-campus">
+                  Điểm trường
+                </label>
+                <select id="plc-campus" className="select" value={campusId} onChange={(e) => setParam('campus', e.target.value)}>
+                  <option value="">Tất cả điểm trường</option>
+                  {(plan?.campuses || []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="sc-inline-field">
               <label className="field__label" htmlFor="plc-group">
                 Nhóm tuổi
