@@ -24,7 +24,7 @@ Nguồn: người dùng trực tiếp trong chat, CONFIRMED cho phạm vi tích 
 
 Nguồn: user chọn cả Theo ngày, Theo tuần và Quy trình bếp, sau đó yêu cầu triển khai. Dùng phương án A đã đề xuất: dòng vàng chỉ ghi món đổi "Thay X bằng Y" hoặc "Bỏ món X", lý do dị ứng và nút mắt. Mỗi thực đơn dị ứng là một phương án riêng, không trộn các phương án. Modal hiện tên trẻ, lớp, chất dị ứng liên quan; không liên kết hồ sơ.
 
-Read model **mock đề xuất**, tham chiếu BE `docs/modules/nutrition.md`, `docs/modules/child.md` và AUTH-05/AUTH-07/NUT-08/NUT-09. Hook truyền điểm trường đang xem; mock kiểm scope trước khi trả trẻ ACTIVE trong nhóm tuổi/campus đó. Hiệu trưởng chọn điểm trường; PHT/bếp dùng điểm trường được phân công. Danh sách dị ứng không xác định số trẻ tham gia ăn và không sửa MealCount đã chốt. Mock hiện dùng lớp đang gắn trên trẻ, chưa có enrollment lịch sử để chứng minh scope theo ngày quá khứ.
+Read model **mock đề xuất**, tham chiếu `BE:docs/modules/nutrition.md`, `BE:docs/modules/child.md` và AUTH-05/AUTH-07/NUT-08/NUT-09. Hook truyền điểm trường đang xem; mock kiểm scope trước khi trả trẻ ACTIVE trong nhóm tuổi/campus đó. Hiệu trưởng chọn điểm trường; PHT/bếp dùng điểm trường được phân công. Danh sách dị ứng không xác định số trẻ tham gia ăn và không sửa MealCount đã chốt. Mock hiện dùng lớp đang gắn trên trẻ, chưa có enrollment lịch sử để chứng minh scope theo ngày quá khứ.
 
 API thật cần BE thống nhất dữ liệu cặp món gốc/món thay thế hoặc bỏ món, lý do, các phương án và danh sách tối thiểu tên/lớp/dị ứng trong scope người gọi theo ngày. Không tạo hoặc sửa endpoint thật trong đợt này, không coi mock là phân quyền BE đã thực thi. Không thay APP.
 

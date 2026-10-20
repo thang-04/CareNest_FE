@@ -26,13 +26,14 @@ const countBy = (list, key) =>
 
 const top = (counts) => Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
 
-export const summarizeSources = ({ assessments, presentDays, criteria, monthlyEvaluations = [] }) => {
+export const summarizeSources = ({ assessments, presentDays, criteria, monthlyEvaluations = [], flagCount }) => {
   const criteriaCounts = Object.fromEntries(criteria.map((c) => [c.id, 0]));
   assessments.forEach((a) => a.criteriaMet.forEach((id) => (criteriaCounts[id] = (criteriaCounts[id] || 0) + 1)));
   return {
     assessmentCount: assessments.length,
     presentDays,
-    flagCount: assessments.filter((a) => a.flag).length,
+    // Cờ đếm theo ngày (repository truyền vào); không có thì đếm như cũ
+    flagCount: flagCount ?? assessments.filter((a) => a.flag).length,
     criteriaCounts,
     activities: [...new Set(assessments.map((a) => a.activity))],
     monthlyCount: monthlyEvaluations.length,
@@ -140,8 +141,12 @@ export const generateEvaluationDraft = ({
   presentDays,
   criteria,
   monthlyEvaluations = [],
+  flagCount,
 }) => {
-  const source = { ...summarizeSources({ assessments, presentDays, criteria, monthlyEvaluations }), structured: structured || null };
+  const source = {
+    ...summarizeSources({ assessments, presentDays, criteria, monthlyEvaluations, flagCount }),
+    structured: structured || null,
+  };
   if (!assessments.length && !monthlyEvaluations.length) {
     throw new ApiError(422, 'Thiếu dữ liệu nguồn cho kỳ này. Hãy xem lại các đánh giá hằng ngày đã ghi nhận.', { source });
   }

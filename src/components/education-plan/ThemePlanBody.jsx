@@ -1,9 +1,9 @@
-import { Fragment } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { Card, Notice } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
-import { domainRoman, numberGoals } from '@/models/education-plan/goalTable';
-import { themeGoalBlocks } from '@/models/education-plan/classPlan';
+import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTable';
+import { themeGoalBlocks, weekRows } from '@/models/education-plan/classPlan';
 
 /**
  * Dòng của một mục tiêu. Nội dung giáo dục do Phó HT / Tổ trưởng lập ở kế hoạch năm (các nội dung đã tích cho chủ đề),
@@ -13,6 +13,49 @@ export const themeRowOf = (draft, g) => ({
   activities: draft?.rows?.[g.id]?.activities || '',
   contents: g.contents.map((c) => `- ${c}`).join('\n'),
 });
+
+// Nút loại giờ của hoạt động giáo dục = các dòng của kế hoạch tuần theo cấu hình của trường, để chữ trước ":" khớp đúng
+// dòng tuần nhận gợi ý (Tiền 16/10)
+const activityHeads = () => weekRows().map((r) => r.label);
+
+/** Ô hoạt động giáo dục: khi đang soạn hiện các đầu mục loại giờ, bấm để thêm dòng "Loại giờ: " rồi điền tiếp. */
+function ActivityCell({ value, onChange, editable, label }) {
+  const wrap = useRef(null);
+  const [open, setOpen] = useState(false);
+  const add = (head) => {
+    const lines = (value || '').split('\n').filter((l) => l.trim());
+    const next = [...lines, `${head}: `].join('\n');
+    onChange(next);
+    requestAnimationFrame(() => {
+      const input = wrap.current?.querySelector('.ga-cell-input');
+      input?.focus();
+      input?.setSelectionRange(next.length, next.length);
+    });
+  };
+  const used = (head) => (value || '').split('\n').some((l) => l.trim().startsWith(`${head}:`));
+  return (
+    <div ref={wrap} onFocus={() => setOpen(true)} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+      <Cell editable={editable} value={value} label={label} placeholder="Bấm để chọn loại giờ" onChange={onChange} />
+      {editable && open && (
+        <div className="row row--wrap gap-2 ga-goal-table__pad">
+          {activityHeads()
+            .filter((h) => !used(h))
+            .map((h) => (
+              <button
+                key={h}
+                type="button"
+                className="btn btn--outline-primary btn--sm"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => add(h)}
+              >
+                + {h}
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Nội dung kế hoạch chủ đề (I. mục tiêu, nội dung, hoạt động; II. môi trường). Dùng ở trang soạn và chỉ đọc ở trang
@@ -25,6 +68,13 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
   return (
     <>
       {goals.length === 0 && <Notice tone="warn">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</Notice>}
+      {/* MT chưa viết hoạt động thì kế hoạch tuần không có gợi ý, cuối chủ đề không phủ được MT đó */}
+      {editable && goals.some((g) => !rowOf(g).activities.trim()) && (
+        <Notice tone="warn">
+          {mtList(goals.filter((g) => !rowOf(g).activities.trim()).map((g) => g.no))} chưa có hoạt động giáo dục nên kế hoạch tuần sẽ không
+          có gợi ý cho các MT này.
+        </Notice>
+      )}
       <Card title="I. Mục tiêu, nội dung và hoạt động giáo dục" bodyClass={null}>
         <div className="card__body">
           <div className="table-wrap">
@@ -68,21 +118,20 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
                       <tr key={g.id}>
                         <td className="cell--fixed">
                           <div className="ga-goal-table__pad">
-                            <span className="ga-goal-code">MT {g.no}</span>
+                            <span className="ga-goal-code">MT{g.no}</span>
                           </div>
                         </td>
                         <td className="cell--fixed">
                           <div className="ga-goal-table__pad">{g.text}</div>
                         </td>
                         <td className="cell--fixed">
-                          <Cell editable={false} value={rowOf(g).contents} label={`Nội dung của MT ${g.no}`} />
+                          <Cell editable={false} value={rowOf(g).contents} label={`Nội dung của MT${g.no}`} />
                         </td>
                         <td>
-                          <Cell
+                          <ActivityCell
                             editable={editable}
                             value={rowOf(g).activities}
-                            label={`Hoạt động giáo dục của MT ${g.no}`}
-                            placeholder="Ghi theo loại giờ: TDS, HĐ học, Chơi HĐ ngoài trời, Chơi ở các góc, Chơi buổi chiều…"
+                            label={`Hoạt động giáo dục của MT${g.no}`}
                             onChange={(v) => setRow(g, 'activities', v)}
                           />
                         </td>

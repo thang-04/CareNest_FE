@@ -702,6 +702,31 @@
   border-left: 2px solid var(--color-border);
 }
 
+/* Ô kế hoạch tuần: nhãn MT / "Chưa gắn MT" là nút cùng kiểu, luôn ở góc trái dưới của ô dù hàng cao bao nhiêu (Tiền 20/10).
+   td height: 1px để khối con cao bằng cả ô (table cell không nhận height: 100% nếu không có chiều cao) */
+.table.ga-goal-table td:has(> .ga-act-cell) {
+  height: 1px;
+}
+.ga-act-cell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.ga-act-cell__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: auto;
+  padding: var(--space-2);
+}
+/* Cột Thứ 2–6 hẹp: nút được xuống dòng trong ô thay vì tràn sang ô bên */
+.ga-act-cell__foot .btn {
+  max-width: 100%;
+  height: auto;
+  min-height: var(--btn-height-sm);
+  padding: var(--space-1) var(--space-2);
+  white-space: normal;
+}
 /* Modal duyệt tên chủ đề nhánh AI điền: tuần · tên cũ gạch → tên AI · ✓ ✗ */
 .ga-ai-review {
   display: grid;

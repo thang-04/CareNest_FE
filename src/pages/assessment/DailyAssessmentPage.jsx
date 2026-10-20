@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { CheckCheck, ClipboardCheck, Flag, Info, Lock, Save, UserX } from '@/components/ui/icons';
+import { ClipboardCheck, Flag, Lock, Save, UserX } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useAssessmentClasses, useDailySheet } from '@/hooks/assessment/useAssessment';
+import { DailyModeSelect } from '@/components/assessment/DailyModeSelect';
 import { saveDailyAssessments } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { BehaviorsCell, CellPopover, GoalChips, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
+import { BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { EATING, NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { formatDate, formatDateTime } from '@/utils/format';
@@ -18,6 +19,9 @@ import { addDays, isSchoolDay, todayIso, unlockDeadline } from '@/utils/assessme
 import { validateDailyEntry, hasErrors } from '@/utils/assessment/assessmentValidation';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
+// Bảng cùng kiểu bảng mục tiêu năm / màn Kiến thức kỹ năng (Tiền 21/10)
+import '@/styles/modules/education-plan.css';
+import { Cell, focusCell } from '@/components/ui/TableCell';
 
 const lastSchoolDay = () => {
   let d = todayIso();
@@ -43,14 +47,13 @@ const fromRow = (r, mealSessions) => {
     participation: a?.participation || PARTICIPATION.BINH_THUONG,
     criteriaMet: a?.criteriaMet || [],
     criteriaNotMet: a?.criteriaNotMet || [],
-    flag: !!a?.flag,
+    // Cờ của ngày: cô đã quyết thì giữ, chưa thì theo gợi ý (đủ 4 tiêu chí)
+    flag: r.flag ?? !!r.flagSuggestion?.eligible,
     comment: a?.comment || '',
   };
 };
 
-const COLS = 10;
-// Ô khác giá trị mặc định được tô nhẹ để giáo viên thấy ngay ngoại lệ
-const tint = (tone) => (tone ? `dg-cell--${tone}` : '');
+const COLS = 9;
 
 /** #52 Daily Assessment (UC 4.4, GBR-OBS-01..05) – teacher / team leader of the class. */
 export default function DailyAssessmentPage() {
@@ -61,7 +64,8 @@ export default function DailyAssessmentPage() {
   const [search] = useSearchParams();
   const [classId, setClassId] = useState(search.get('classId') || '');
   const [date, setDate] = useState(() => search.get('date') || lastSchoolDay());
-  const [activity, setActivity] = useState('Hoạt động học');
+  // Hoạt động chung ghi theo giờ Hoạt động học; kiến thức kỹ năng từng giờ ở màn /assessment/daily/skills
+  const activity = 'Hoạt động học';
   const currentClassId = classId || classes[0]?.id || '';
   const params = useMemo(() => ({ classId: currentClassId, date, activity }), [currentClassId, date, activity]);
   const { sheet, loading, error, reload } = useDailySheet(params);
@@ -102,27 +106,6 @@ export default function DailyAssessmentPage() {
     });
   };
 
-  /** Đặt kết quả một mục tiêu cho nhiều trẻ (Cả lớp đạt, hoặc các trẻ đang chọn); trả số trẻ đã đặt. */
-  const setGoalFor = (ids, goalId, met) => {
-    const editable = ids.filter((childId) => rowState(sheet.rows.find((r) => r.child.id === childId)) === 'editable');
-    setDrafts((prev) => {
-      const next = { ...prev };
-      editable.forEach((childId) => {
-        const d = next[childId];
-        const criteriaMet = d.criteriaMet.filter((x) => x !== goalId);
-        const criteriaNotMet = d.criteriaNotMet.filter((x) => x !== goalId);
-        next[childId] = {
-          ...d,
-          criteriaMet: met ? [...criteriaMet, goalId] : criteriaMet,
-          criteriaNotMet: met ? criteriaNotMet : [...criteriaNotMet, goalId],
-        };
-      });
-      return next;
-    });
-    setDirty((prev) => new Set([...prev, ...editable]));
-    return editable.length;
-  };
-
   const markAllPresent = () => {
     const ids = sheet.rows.filter((r) => r.present && !r.assessment).map((r) => r.child.id);
     setDirty((prev) => new Set([...prev, ...ids]));
@@ -156,8 +139,6 @@ export default function DailyAssessmentPage() {
   const assessedCount = sheet?.rows.filter((r) => r.assessment).length || 0;
   const presentRows = sheet?.rows.filter((r) => r.present) || [];
   const presentCount = presentRows.length;
-  const presentIds = presentRows.map((r) => r.child.id);
-  const criteria = sheet?.criteria || [];
   const absentRows = sheet?.rows.filter((r) => r.attendanceStatus && !r.present) || [];
   const unmarkedRows = sheet?.attendanceTaken ? sheet.rows.filter((r) => !r.attendanceStatus) : [];
   // Chỉ có dòng vắng do phụ huynh báo nghỉ, chưa ai được điểm danh Có mặt: coi như lớp chưa điểm danh
@@ -172,9 +153,8 @@ export default function DailyAssessmentPage() {
   return (
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.daily)} />
-      <div className="page__head">
-        <h1 className="page__title">Đánh giá hằng ngày</h1>
-      </div>
+      {/* Cùng kiểu màn Kiến thức kỹ năng: không có khung tiêu đề lớn (Tiền 21/10) */}
+      <h1 className="sr-only">Đánh giá hằng ngày</h1>
 
       {classesError ? (
         <ErrorState error={classesError} />
@@ -216,18 +196,8 @@ export default function DailyAssessmentPage() {
                 onChange={(e) => e.target.value && setDate(e.target.value)}
               />
             </div>
-            <div className="field dg-field-activity">
-              <label className="field__label" htmlFor="dg-activity">
-                Hoạt động trong thời khóa biểu
-              </label>
-              <select id="dg-activity" className="select" value={sheet?.activity || activity} onChange={(e) => setActivity(e.target.value)}>
-                {(sheet?.activities || [activity]).map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Thay ô chọn hoạt động: Hoạt động chung (màn này) / Kiến thức kỹ năng (bảng Đạt / Chưa đạt theo giờ) */}
+            <DailyModeSelect mode="general" classId={currentClassId} date={date} />
             <div className="spacer" />
             {sheet && (
               <div className="text-sm text-2 dg-filter-count">
@@ -255,26 +225,6 @@ export default function DailyAssessmentPage() {
               </div>
             </div>
           )}
-          {sheet?.plan && attendanceTaken && (
-            <div className="alert alert--info dg-alert-inset">
-              <Info size={18} />
-              <div className="dg-plan">
-                <div>
-                  Theo giáo án <span className="fw-600">{sheet.plan.code}</span>
-                  {sheet.plan.topic && ` · ${sheet.plan.topic}`}
-                </div>
-                {criteria.length === 0 ? (
-                  <div className="text-sm">Giờ sinh hoạt này chưa chọn mục tiêu trong giáo án; chỉ ghi mức tham gia.</div>
-                ) : (
-                  criteria.map((c) => (
-                    <div key={c.id} className="text-sm">
-                      <span className="fw-600">{c.name}</span>: {c.description}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
           {/* Chỉ đánh giá trẻ đã điểm danh Có mặt: trẻ vắng / chưa điểm danh chỉ nêu tên ở một dòng */}
           {sheet && attendanceTaken && (absentRows.length > 0 || unmarkedRows.length > 0) && (
             <p className="muted text-sm dg-absent-line">
@@ -287,243 +237,207 @@ export default function DailyAssessmentPage() {
           {error ? (
             <ErrorState error={error} onRetry={reload} />
           ) : (
-            <div className="table-wrap dg-sheet-wrap">
-              <table className="table table--grid dg-sheet">
-                <thead>
-                  <tr className="dg-head-cols">
-                    <th className="dg-col-child dg-sticky-col cell--fixed">Trẻ</th>
-                    <th>Sức khỏe</th>
-                    <th>Ăn</th>
-                    <th>Ngủ trưa</th>
-                    <th>Cảm xúc</th>
-                    <th>Hành vi</th>
-                    <th>Tham gia</th>
-                    <th className="dg-col-goals">
-                      <span className="dg-head-goal">
-                        Kiến thức, kỹ năng
-                        {sheet?.plan && criteria.length > 0 && presentCount > 0 && (
-                          <CellPopover label="Cả lớp đạt" icon={<CheckCheck size={14} />} minWidth={260}>
-                            <div className="dg-pop__title">Đánh dấu mọi trẻ có mặt đạt (bấm Lưu để ghi nhận)</div>
-                            {criteria.map((c) => (
-                              <button
-                                key={c.id}
-                                type="button"
-                                className="btn btn--sm dg-pop__action"
-                                onClick={() => {
-                                  const n = setGoalFor(presentIds, c.id, true);
-                                  toast.success(`Đã đánh dấu ${n} trẻ đạt ${c.name}. Bấm Lưu để ghi nhận.`);
-                                }}
-                              >
-                                <CheckCheck size={14} /> {c.name} – cả lớp đạt
-                              </button>
-                            ))}
-                          </CellPopover>
-                        )}
-                      </span>
-                    </th>
-                    <th className="center">Cờ</th>
-                    <th className="dg-col-note">Nhận xét</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading || classesLoading || !sheet ? (
-                    <SkeletonRows rows={5} cols={COLS} />
-                  ) : sheet.rows.length === 0 ? (
+            <div className="card__body">
+              <div className="table-wrap">
+                <table className="table ga-plan-table ga-goal-table dg-day-table" onMouseDown={focusCell}>
+                  {/* Trẻ 190px, Cờ 64px, Nhận xét 96px (ngắn lại); 6 cột chọn chia đều phần còn lại */}
+                  <colgroup>
+                    <col className="ga-goal-table__group" />
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <col key={i} />
+                    ))}
+                    <col className="ga-goal-table__del" />
+                    <col className="ga-goal-table__code" />
+                  </colgroup>
+                  <thead>
                     <tr>
-                      <td colSpan={COLS}>
-                        <EmptyState title="Lớp chưa có trẻ" description="Trẻ được xếp vào lớp sẽ hiển thị tại đây." />
-                      </td>
+                      <th className="cell--fixed">Trẻ</th>
+                      <th>Sức khỏe</th>
+                      <th>Ăn</th>
+                      <th>Ngủ trưa</th>
+                      <th>Cảm xúc</th>
+                      <th>Hành vi</th>
+                      <th>Tham gia</th>
+                      <th className="center" title="Mỗi trẻ 1 cờ / ngày; tự gợi ý khi đủ tiêu chí, cô vẫn bỏ / cắm được">
+                        Cờ
+                      </th>
+                      <th>Nhận xét</th>
                     </tr>
-                  ) : !attendanceTaken ? (
-                    <tr>
-                      <td colSpan={COLS}>
-                        <EmptyState
-                          icon={UserX}
-                          title={`Lớp chưa điểm danh ngày ${formatDate(sheet.date)}`}
-                          description="Điểm danh trước, chỉ trẻ có mặt mới được đánh giá."
-                          action={
-                            <Link className="btn btn--primary" to={`/attendance?classId=${sheet.cls.id}&date=${sheet.date}`}>
-                              Điểm danh ngay
-                            </Link>
-                          }
-                        />
-                      </td>
-                    </tr>
-                  ) : presentRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={COLS}>
-                        <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng hoặc chưa điểm danh ngày này." />
-                      </td>
-                    </tr>
-                  ) : (
-                    presentRows.map((r) => {
-                      const id = r.child.id;
-                      const state = rowState(r);
-                      const d = drafts[id] || fromRow(r, sheet.mealSessions);
-                      const disabled = state !== 'editable';
-                      const errs = rowErrors[id] || {};
-                      const firstError = Object.values(errs)[0];
-                      const name = r.child.fullName;
-                      // Viền trái của dòng: lỗi / chưa lưu / đã ghi nhận / chưa đánh giá
-                      const status = rowErrors[id]
-                        ? ['error', 'Có lỗi, xem dòng chữ đỏ']
-                        : dirty.has(id)
-                          ? ['dirty', 'Đã thay đổi, chưa lưu']
-                          : r.assessment
-                            ? ['saved', `Đã ghi nhận ${formatDateTime(r.assessment.updatedAt || r.assessment.recordedAt)}`]
-                            : ['new', 'Chưa đánh giá'];
-                      return (
-                        <tr key={id} className={`dg-row dg-row--${status[0]}`} title={status[1]}>
-                          <td className="dg-col-child dg-sticky-col cell--fixed">
-                            <div className="dg-child">
-                              <ChildAvatar child={r.child} size="sm" />
-                              <div className="dg-child__info">
-                                <Link to={`/assessment/children/${id}`} className="fw-600">
-                                  {name}
-                                </Link>
-                                <div className="muted text-xs">
-                                  {r.child.code}
-                                  {r.assessment?.corrections?.length > 0 && ` · ${r.assessment.corrections.length} lần điều chỉnh`}
-                                </div>
-                                {state === 'other' && (
+                  </thead>
+                  <tbody>
+                    {loading || classesLoading || !sheet ? (
+                      <SkeletonRows rows={5} cols={COLS} />
+                    ) : sheet.rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={COLS}>
+                          <EmptyState title="Lớp chưa có trẻ" description="Trẻ được xếp vào lớp sẽ hiển thị tại đây." />
+                        </td>
+                      </tr>
+                    ) : !attendanceTaken ? (
+                      <tr>
+                        <td colSpan={COLS}>
+                          <EmptyState
+                            icon={UserX}
+                            title={`Lớp chưa điểm danh ngày ${formatDate(sheet.date)}`}
+                            description="Điểm danh trước, chỉ trẻ có mặt mới được đánh giá."
+                            action={
+                              <Link className="btn btn--primary" to={`/attendance?classId=${sheet.cls.id}&date=${sheet.date}`}>
+                                Điểm danh ngay
+                              </Link>
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ) : presentRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={COLS}>
+                          <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng hoặc chưa điểm danh ngày này." />
+                        </td>
+                      </tr>
+                    ) : (
+                      presentRows.map((r) => {
+                        const id = r.child.id;
+                        const state = rowState(r);
+                        const d = drafts[id] || fromRow(r, sheet.mealSessions);
+                        const disabled = state !== 'editable';
+                        const errs = rowErrors[id] || {};
+                        const firstError = Object.values(errs)[0];
+                        const name = r.child.fullName;
+                        // Viền trái của dòng: lỗi / chưa lưu / đã ghi nhận / chưa đánh giá
+                        const status = rowErrors[id]
+                          ? ['error', 'Có lỗi, xem dòng chữ đỏ']
+                          : dirty.has(id)
+                            ? ['dirty', 'Đã thay đổi, chưa lưu']
+                            : r.assessment
+                              ? ['saved', `Đã ghi nhận ${formatDateTime(r.assessment.updatedAt || r.assessment.recordedAt)}`]
+                              : ['new', 'Chưa đánh giá'];
+                        return (
+                          <tr key={id} title={status[1]}>
+                            <td className="cell--fixed">
+                              <div className="ga-goal-table__pad dg-child">
+                                <ChildAvatar child={r.child} size="sm" />
+                                <div className="dg-child__info">
+                                  <Link to={`/assessment/children/${id}`} className="fw-600">
+                                    {name}
+                                  </Link>
                                   <div className="muted text-xs">
-                                    Do {md.userById(r.assessment.recordedBy)?.fullName || 'giáo viên khác'} ghi nhận
+                                    {r.child.code}
+                                    {r.assessment?.corrections?.length > 0 && ` · ${r.assessment.corrections.length} lần điều chỉnh`}
                                   </div>
-                                )}
-                                {firstError && <div className="field__error">{firstError}</div>}
+                                  {state === 'other' && (
+                                    <div className="muted text-xs">
+                                      Do {md.userById(r.assessment.recordedBy)?.fullName || 'giáo viên khác'} ghi nhận
+                                    </div>
+                                  )}
+                                  {firstError && <div className="field__error">{firstError}</div>}
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className={`dg-col-health ${tint(d.healthSigns.length ? 'bad' : '')}`}>
-                            <HealthCell
-                              health={r.health}
-                              draft={d}
-                              name={name}
-                              disabled={disabled}
-                              onChange={(patch) => update(id, patch)}
-                            />
-                          </td>
-                          <td className="dg-col-meals">
-                            <MealsCell
-                              draft={d}
-                              row={r}
-                              sessions={sheet.mealSessions}
-                              name={name}
-                              disabled={disabled}
-                              onChange={(patch) => update(id, patch)}
-                            />
-                          </td>
-                          <td className={`dg-col-nap ${tint(d.nap === NAP.KHONG_NGU ? 'bad' : d.nap !== NAP.NGU_TOT ? 'warn' : '')}`}>
-                            <select
-                              className="select dg-select"
-                              value={d.nap}
-                              disabled={disabled}
-                              onChange={(e) => update(id, { nap: e.target.value })}
-                              aria-label={`Ngủ trưa của ${name}`}
-                            >
-                              {Object.entries(NAP_LABELS).map(([k, v]) => (
-                                <option key={k} value={k}>
-                                  {v}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className={`${tint(d.emotion === EMOTION.SAD || d.emotion === EMOTION.UPSET ? 'warn' : '')}`}>
-                            <select
-                              className="select dg-select"
-                              value={d.emotion}
-                              disabled={disabled}
-                              onChange={(e) => update(id, { emotion: e.target.value })}
-                              aria-label={`Cảm xúc của ${name}`}
-                            >
-                              {Object.entries(EMOTION_LABELS).map(([k, v]) => (
-                                <option key={k} value={k}>
-                                  {v}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td>
-                            <BehaviorsCell draft={d} name={name} disabled={disabled} onChange={(patch) => update(id, patch)} />
-                          </td>
-                          <td className={tint(sheet.plan && d.participation === PARTICIPATION.CHUA_TICH_CUC ? 'warn' : '')}>
-                            {sheet.plan ? (
-                              <select
-                                className="select dg-select"
-                                value={d.participation}
+                            </td>
+                            <td className="dg-day-cell">
+                              <HealthCell
+                                health={r.health}
+                                draft={d}
+                                name={name}
                                 disabled={disabled}
-                                onChange={(e) => update(id, { participation: e.target.value })}
-                                aria-label={`Mức tham gia hoạt động của ${name}`}
+                                onChange={(patch) => update(id, patch)}
+                              />
+                            </td>
+                            <td className="dg-day-cell">
+                              <MealsCell
+                                draft={d}
+                                row={r}
+                                sessions={sheet.mealSessions}
+                                name={name}
+                                disabled={disabled}
+                                onChange={(patch) => update(id, patch)}
+                              />
+                            </td>
+                            <td className="dg-day-cell">
+                              <select
+                                className="ga-cell-input"
+                                value={d.nap}
+                                disabled={disabled}
+                                onChange={(e) => update(id, { nap: e.target.value })}
+                                aria-label={`Ngủ trưa của ${name}`}
                               >
-                                {Object.entries(PARTICIPATION_LABELS).map(([k, v]) => (
+                                {Object.entries(NAP_LABELS).map(([k, v]) => (
                                   <option key={k} value={k}>
                                     {v}
                                   </option>
                                 ))}
                               </select>
-                            ) : (
-                              <span className="muted text-xs">—</span>
-                            )}
-                          </td>
-                          <td className="dg-col-goals">
-                            {!sheet.plan ? (
-                              <span className="muted text-xs dg-locked">
-                                <Lock size={12} /> Chưa có giáo án duyệt
-                              </span>
-                            ) : criteria.length === 0 ? (
-                              <span className="muted text-xs">Giờ này chưa có mục tiêu</span>
-                            ) : (
-                              <GoalChips
-                                criteria={criteria}
-                                draft={d}
+                            </td>
+                            <td className="dg-day-cell">
+                              <select
+                                className="ga-cell-input"
+                                value={d.emotion}
                                 disabled={disabled}
-                                name={name}
-                                onChange={(patch) => update(id, patch)}
+                                onChange={(e) => update(id, { emotion: e.target.value })}
+                                aria-label={`Cảm xúc của ${name}`}
+                              >
+                                {Object.entries(EMOTION_LABELS).map(([k, v]) => (
+                                  <option key={k} value={k}>
+                                    {v}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="dg-day-cell">
+                              <BehaviorsCell draft={d} name={name} disabled={disabled} onChange={(patch) => update(id, patch)} />
+                            </td>
+                            <td className="dg-day-cell">
+                              {sheet.plan ? (
+                                <select
+                                  className="ga-cell-input"
+                                  value={d.participation}
+                                  disabled={disabled}
+                                  onChange={(e) => update(id, { participation: e.target.value })}
+                                  aria-label={`Mức tham gia hoạt động của ${name}`}
+                                >
+                                  {Object.entries(PARTICIPATION_LABELS).map(([k, v]) => (
+                                    <option key={k} value={k}>
+                                      {v}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className="muted text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="dg-day-cell center">
+                              <button
+                                type="button"
+                                className={`dg-flag ${d.flag ? 'dg-flag--on' : ''}`}
+                                aria-pressed={d.flag}
+                                aria-label={`Cờ bé ngoan hôm nay cho ${name}`}
+                                title={
+                                  r.flagSuggestion?.eligible
+                                    ? `${d.flag ? 'Bỏ' : 'Cắm'} cờ bé ngoan (đủ tiêu chí gợi ý cờ)`
+                                    : `Chưa đủ tiêu chí gợi ý cờ: ${r.flagSuggestion?.reasons?.join('; ') || ''}. Cô vẫn ${d.flag ? 'bỏ' : 'cắm'} cờ được.`
+                                }
+                                disabled={disabled}
+                                onClick={() => update(id, { flag: !d.flag })}
+                              >
+                                <Flag size={16} />
+                              </button>
+                            </td>
+                            <td>
+                              {/* Ô chữ như màn Kiến thức kỹ năng */}
+                              <Cell
+                                editable={!disabled}
+                                value={d.comment}
+                                label={`Nhận xét trong ngày cho ${name}`}
+                                placeholder="Tùy chọn"
+                                onChange={(v) => update(id, { comment: v })}
                               />
-                            )}
-                          </td>
-                          <td className="center">
-                            <button
-                              type="button"
-                              className={`dg-flag ${d.flag ? 'dg-flag--on' : ''}`}
-                              aria-pressed={d.flag}
-                              aria-label={`Cờ bé ngoan cho ${name}`}
-                              title={d.flag ? 'Bỏ cờ bé ngoan' : 'Cắm cờ bé ngoan'}
-                              disabled={disabled}
-                              onClick={() => update(id, { flag: !d.flag })}
-                            >
-                              <Flag size={16} />
-                            </button>
-                          </td>
-                          <td className="dg-col-note">
-                            <input
-                              className={`input dg-input dg-note ${errs.comment ? 'input--error' : ''}`}
-                              value={d.comment}
-                              maxLength={500}
-                              disabled={disabled}
-                              placeholder="Tùy chọn"
-                              onChange={(e) => update(id, { comment: e.target.value })}
-                              aria-label={`Nhận xét hoạt động cho ${name}`}
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {sheet && presentCount > 0 && (
-            <div className="dg-legend text-xs text-2">
-              <span>
-                Mục tiêu: 1 lần <span className="chip chip--green">Đạt</span> · 2 lần <span className="chip chip--red">Chưa đạt</span> · 3
-                lần bỏ chọn
-              </span>
-              <span className="dg-child">
-                <Flag size={12} /> Phiếu bé ngoan tuần: ≥ 4 ngày có mặt, ≥ 3 cờ
-              </span>
-              <span>Ô vàng / đỏ: khác mặc định</span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

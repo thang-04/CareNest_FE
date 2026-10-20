@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, FileDown, Printer, Save } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, FileDown, Printer } from '@/components/ui/icons';
 import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
@@ -8,6 +8,7 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useAutosave } from '@/hooks/education-plan/useAutosave';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
   WEEKDAY_LABELS,
@@ -17,6 +18,9 @@ import {
   ddmm,
   emptyWeekPlan,
   isEditableStatus,
+  lessonReuseFor,
+  placedInOtherWeeks,
+  themeCoverage,
   themeActivities,
   themeGoalBlocks,
   yearWeeks,
@@ -61,9 +65,19 @@ function WeekPlanInner() {
   const idx = weeks.findIndex((w) => w.start === weekStart);
   const week = weeks[idx];
 
+  // Không còn nút Lưu: tự lưu như trang chủ đề nhánh
+  const autosave = useAutosave({
+    doc: draft,
+    enabled: isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT),
+    save: (doc) => saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) }),
+    onSaved: (same) => same && setDirty(false),
+  });
+
   useEffect(() => {
     if (dirty || !week) return;
-    setDraft(saved || emptyWeekPlan({ classId, yearPlanId: yearPlan.id, weekStart, weekNo: week.no, themeId: week.theme.id }));
+    const doc = saved || emptyWeekPlan({ classId, yearPlanId: yearPlan.id, weekStart, weekNo: week.no, themeId: week.theme.id });
+    setDraft(doc);
+    autosave.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.status, saved?.history?.length, week?.start, classId]);
 
@@ -101,14 +115,11 @@ function WeekPlanInner() {
   const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), week.theme.id);
   const goals = blocks.flatMap((b) => b.goals);
   const activities = themeActivities(blocks, (g) => themeRowOf(themeDoc, g));
-  const save = async () => {
-    const res = await saveClassDoc('week', { ...draft, dayGoals: dayGoalsOf(draft) });
-    if (res) {
-      setDirty(false);
-      setDraft(res);
-      toast(isEditableStatus(status) ? 'Đã lưu giáo án tuần' : 'Đã lưu đánh giá cuối ngày');
-    }
-  };
+  const themeWeekDocs = weekPlans.filter((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.themeId === week.theme.id);
+  const placedElsewhere = placedInOtherWeeks(themeWeekDocs, weekStart);
+  // Tiến độ cả chủ đề (bản đang soạn thay cho bản đã lưu của tuần này)
+  const coverage = themeCoverage(goals, activities, [...themeWeekDocs.filter((w) => w.weekStart !== weekStart), draft]);
+  const prevWeekDoc = weeks[idx - 1] ? weekPlans.find((w) => w.classId === classId && w.weekStart === weeks[idx - 1].start) || null : null;
   const prev = weeks[idx - 1];
   const next = weeks[idx + 1];
   const day = tab === 'week' ? -1 : Number(tab);
@@ -134,11 +145,14 @@ function WeekPlanInner() {
             >
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
-            {isClassTeacher && (
-              <button type="button" className="btn btn--primary" disabled={!dirty && !!saved} onClick={save}>
-                <Save size={16} aria-hidden /> {dirty || !saved ? 'Lưu' : 'Đã lưu'}
-              </button>
-            )}
+            {editable &&
+              (autosave.error ? (
+                <button type="button" className="btn btn--outline-primary" onClick={autosave.retry}>
+                  Chưa lưu được, thử lại
+                </button>
+              ) : (
+                <span className="muted text-sm">{autosave.label}</span>
+              ))}
           </>
         }
       />
@@ -159,12 +173,16 @@ function WeekPlanInner() {
         </div>
       </div>
       {/* Trạng thái theo hồ sơ chủ đề; gửi / duyệt ở trang hồ sơ chủ đề */}
-      <DocStatusStrip kind="week" doc={saved} dossier={themeDoc} ctx={ctx} user={user} dirty={dirty} reviewTo={dossierTo} onGo={navigate} />
-      {!editable && isClassTeacher && status === EDU_STATUS.APPROVED && (
-        <Notice tone="ok">
-          Giáo án đã duyệt. Sau mỗi buổi dạy, ghi "Đánh giá trẻ trong ngày" và "Kế hoạch điều chỉnh" ở thẻ của ngày đó rồi bấm Lưu.
-        </Notice>
-      )}
+      <DocStatusStrip
+        kind="week"
+        doc={saved}
+        dossier={themeDoc}
+        ctx={ctx}
+        user={user}
+        dirty={autosave.busy}
+        reviewTo={dossierTo}
+        onGo={navigate}
+      />
       <Card
         bodyClass={null}
         foot={
@@ -211,9 +229,27 @@ function WeekPlanInner() {
         </div>
         <div className="card__body stack">
           {day < 0 ? (
-            <WeekTab draft={draft} week={week} editable={editable} update={update} activities={activities} />
+            <WeekTab
+              draft={draft}
+              week={week}
+              editable={editable}
+              update={update}
+              activities={activities}
+              placedElsewhere={placedElsewhere}
+              prevWeek={prevWeekDoc}
+              coverage={coverage}
+              goals={goals}
+            />
           ) : (
-            <DayTab draft={draft} index={day} editable={editable} canEvaluate={isClassTeacher} update={update} goals={goals} />
+            <DayTab
+              draft={draft}
+              index={day}
+              editable={editable}
+              update={update}
+              goals={goals}
+              reuse={lessonReuseFor(weekPlans, draft, day)}
+              assessTo={status === EDU_STATUS.APPROVED ? `/assessment/daily/skills?classId=${classId}&date=${draft.days[day].date}` : null}
+            />
           )}
         </div>
       </Card>
