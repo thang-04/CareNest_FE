@@ -75,6 +75,18 @@ export default function PrincipalDashboard() {
   const lunchDishes = [...new Set(lunchNormal.flatMap((m) => m.dishes.map((d) => d.name)))];
   const allergyMenus = (lunchMenu?.menus.length || 0) - lunchNormal.length;
   const campusName = (id) => md.campusById(id)?.shortName || md.campusById(id)?.name || id;
+  const shortcuts = SHORTCUTS.map((s) =>
+    s.to === '/approvals' && approvalTotal > 0
+      ? {
+          ...s,
+          label: (
+            <>
+              {s.label} <span className="tab__count">{approvalTotal}</span>
+            </>
+          ),
+        }
+      : s,
+  );
 
   return (
     <div className="page">
@@ -93,7 +105,7 @@ export default function PrincipalDashboard() {
           </select>
         </div>
       </DashboardHeader>
-      <Shortcuts links={SHORTCUTS} />
+      <Shortcuts links={shortcuts} />
 
       <div className="db-kpis db-kpis--rows">
         <section className="db-kpis__group db-kpis__group--wide" aria-labelledby="kpi-today">

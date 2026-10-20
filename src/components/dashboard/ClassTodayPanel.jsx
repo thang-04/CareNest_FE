@@ -32,7 +32,7 @@ const OPEN_REPORT = [ISSUE_STATUS.SUBMITTED, REQUEST_STATUS.SUBMITTED, REQUEST_S
 
 /** Value at the end of a task row: spinner while loading, dash on error, else the count. */
 const endOf = (q, count) =>
-  q.loading && q.data == null ? <Spinner small /> : q.error ? <span className="muted">—</span> : <TaskCount value={count} />;
+  q.loading && q.data == null ? <Spinner small deferred /> : q.error ? <span className="muted">—</span> : <TaskCount value={count} />;
 const metaOf = (q, text) => (q.error ? 'Không tải được – mở chức năng để xem' : text);
 
 /**

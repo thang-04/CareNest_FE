@@ -67,11 +67,23 @@ export default function VicePrincipalDashboard() {
   const lunch = counts.find((c) => c.session === 'LUNCH');
   const preps = (prepQ.data || []).filter((p) => p.hasMenu);
   const campus = md.campusById(campusId);
+  const shortcuts = SHORTCUTS.map((s) =>
+    s.to === '/approvals' && approvals.total > 0
+      ? {
+          ...s,
+          label: (
+            <>
+              {s.label} <span className="tab__count">{approvals.total}</span>
+            </>
+          ),
+        }
+      : s,
+  );
 
   return (
     <div className="page">
       <DashboardHeader subtitle={campus ? campus.name : undefined} />
-      <Shortcuts links={SHORTCUTS} />
+      <Shortcuts links={shortcuts} />
 
       <div className="db-kpis db-kpis--rows">
         <section className="db-kpis__group db-kpis__group--wide" aria-labelledby="kpi-today">

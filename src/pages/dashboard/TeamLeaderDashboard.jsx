@@ -8,7 +8,8 @@ import { ClassTodayPanel } from '@/components/dashboard/ClassTodayPanel';
 import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
 import { FACILITY_ENABLED } from '@/config/app';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
-import { EDU_STATUS, EDU_STATUS_LABELS } from '@/models/education-plan/educationPlanConstants';
+import { EduStatusBadge } from '@/components/education-plan/eduUi';
+import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { ageGroupById } from '@/models/School';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
@@ -103,7 +104,12 @@ export default function TeamLeaderDashboard() {
                 icon: BookOpenCheck,
                 code: t.code,
                 title: t.name,
-                meta: `${EDU_STATUS_LABELS[t.status]} · ${formatDate(t.startDate)} – ${formatDate(t.endDate)}`,
+                // Badge ở dòng phụ: cột 1/3 hẹp, badge cuối dòng làm vỡ tiêu đề
+                meta: (
+                  <>
+                    <EduStatusBadge status={t.status} /> {formatDate(t.startDate)} – {formatDate(t.endDate)}
+                  </>
+                ),
               }))}
             />
           </Widget>

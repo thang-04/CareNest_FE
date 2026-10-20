@@ -44,9 +44,13 @@ export function ClassRankWidget({ q, limit, campusName }) {
       emptyTitle="Chưa có lớp trong phạm vi của bạn"
       emptyText="Lớp được phân công cho điểm trường sẽ hiện ở đây."
     >
-      <p className="muted text-sm mc-rank__note">Lớp chưa điểm danh và lớp có tỷ lệ thấp đứng đầu. Bấm một lớp để xem điểm danh của lớp.</p>
+      <p className="muted text-sm mc-rank__note">
+        Lớp chưa điểm danh và lớp có tỷ lệ thấp đứng bên trái. Mức chung tính trên các lớp đã điểm danh. Bấm một cột để xem điểm danh của
+        lớp.
+      </p>
       <RankBars
         caption={title}
+        average={q.data?.classAverage}
         rows={shown.map((c) => ({
           key: c.classId,
           label: shortClassName(c.className),

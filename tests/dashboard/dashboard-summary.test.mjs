@@ -67,6 +67,12 @@ test('AC-6: lớp chưa điểm danh đứng đầu, rồi tỷ lệ có mặt t
   assert.equal(classes[2].rate, 72);
 });
 
+test('mức chung của biểu đồ lớp chỉ tính lớp đã điểm danh', () => {
+  assert.equal(build().classAverage, 82);
+  const none = { classes: [cls('a', 'Lá 1', 'c1', 30, 0)] };
+  assert.equal(build({ today: none }).classAverage, null);
+});
+
 test('AC-1: thẻ có mặt có so sánh với cùng thứ tuần trước; không có số tuần trước thì không so sánh', () => {
   const withPrev = build().attendance;
   assert.equal(withPrev.present, 45);

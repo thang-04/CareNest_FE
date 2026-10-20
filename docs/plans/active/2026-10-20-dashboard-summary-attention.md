@@ -188,3 +188,16 @@ Gửi team BE (module reporting), mọi endpoint áp AUTH-08 theo người gọi
 - Lỗi user thấy (ảnh ~2000px): hai nhóm thẻ đặt cạnh nhau 1:2, mỗi nhóm tự chia cột ⇒ thẻ to nhỏ khác nhau, thẻ lẻ rớt hàng; dòng so sánh "tuần trước 0% · +89 điểm" khi tuần trước chưa điểm danh; "Lớp Lớp Chồi 1".
 - Sửa: `db-kpis--rows` — mỗi nhóm một hàng, hai hàng chung lưới 4 cột (≤1100: 2 cột, ≤560: 1 cột); tuần trước không có bản ghi điểm danh thì không so sánh; `shortClassName` bỏ chữ "Lớp" lặp. +2 test.
 - Kiểm tay (PHT): 1920 — mọi thẻ 392px, cao đều theo hàng; 1280 — 232px; 375 — 1 cột 351px, không tràn ngang.
+
+### 2026-10-20 — Commit Phase 1 + 2
+- Commit: `683865c` G94-214 trên `dev` (user chọn làm thẳng trên dev)
+- Chỉ gồm phần của plan này. Phần của session khác trong cùng file (cờ `FACILITY_ENABLED`, script `test:hardening`, skeleton/`Spinner deferred`, `GripVertical`, phần lớn `dashboard.css`) để lại trong working tree, chưa commit.
+- Bản commit đã kiểm riêng trên cây HEAD + thay đổi của plan: eslint sạch, prettier sạch, `npm run test:dashboard` 11/11 pass, `vite build` ok.
+- Tiếp: Phase 3 chờ plan 2026-10-12 merge vào `dev`.
+- Verify trên đúng nội dung `683865c` (cây tạm HEAD + phần plan): `node scripts/verify.mjs` → `VERIFY PASS full`. Working tree chung lúc 10:55 → `VERIFY FAIL full` do 2 test bếp (`repo.createStockCount is not a function`), lỗi từ `src/services/kitchen/*` đang được session khác sửa, không thuộc commit này.
+
+### 2026-10-20 — Card "Chuyên cần hôm nay theo lớp" đổi sang cột dọc (chờ review)
+- Commit: chưa commit
+- User xem 3 phương án (A thanh chồng 100% · B cột dọc + đường mức chung · C lưới ô màu), chê A/C "xấu", chọn **B**.
+- Sửa: `RankBars` vẽ cột dọc đáy 0%; cột dưới mức chung tô cam, còn lại xám; đường đứt = `classAverage` (service mới trả, chỉ tính lớp đã điểm danh); lớp chưa điểm danh = cột gạch chéo; vẫn có "Xem dạng bảng", bấm cột mở điểm danh lớp. Dùng chung cho HT (6 lớp thấp nhất + campus) và PHT. +1 test.
+- Kiểm tay: PHT 1280 — 12 cột vừa card, không cuộn; HT 1280 — 6 cột kèm campus; PHT 375 — cuộn ngang trong card, trang không tràn. `node scripts/verify.mjs` → `VERIFY PASS full`.

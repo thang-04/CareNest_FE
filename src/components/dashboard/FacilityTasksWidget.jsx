@@ -4,8 +4,8 @@ import { useTransfers } from '@/hooks/facility-transfer/useTransfers';
 import { useInspections } from '@/hooks/inventory-inspection/useInspections';
 import { Widget, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
 import { ROLES } from '@/models/User';
-import { TRANSFER_STATUS_LABELS } from '@/models/facility-transfer/transferConstants';
-import { SHEET_STATUS_LABELS } from '@/models/inventory-inspection/inspectionConstants';
+import { TransferStatusBadge } from '@/components/facility-transfer/TransferStatusBadge';
+import { SheetStatusBadge } from '@/components/inventory-inspection/InspectionBadges';
 import {
   canHandover,
   canReceive,
@@ -43,7 +43,8 @@ export function FacilityTasksWidget() {
       icon: Repeat,
       code: t.code,
       title: t.reason,
-      meta: TRANSFER_STATUS_LABELS[t.status],
+      // Badge ở dòng phụ, không ở cuối dòng: widget nằm cột 1/3 hẹp, badge cuối dòng làm vỡ tiêu đề
+      meta: <TransferStatusBadge status={t.status} />,
     }));
 
   const inspectionTasks = inspectionsQ.rounds.flatMap((r) => {
@@ -55,7 +56,7 @@ export function FacilityTasksWidget() {
         icon: ClipboardCheck,
         code: s.code,
         title: r.name,
-        meta: SHEET_STATUS_LABELS[s.status],
+        meta: <SheetStatusBadge status={s.status} />,
       }));
     const round =
       vp && canApproveRound(r, user)

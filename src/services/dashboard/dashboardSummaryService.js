@@ -133,6 +133,12 @@ export function buildDashboardToday({ date, now, today, lastWeek, health, cutoff
   }
 
   const healthTotals = health?.totals || null;
+  // Mức chung để so cột từng lớp: chỉ tính lớp đã điểm danh, lớp chưa điểm danh không kéo tỷ lệ xuống
+  const takenClasses = classes.filter((c) => c.taken);
+  const classAverage = rateOf(
+    takenClasses.reduce((t, c) => t + c.present, 0),
+    takenClasses.reduce((t, c) => t + c.size, 0),
+  );
   return {
     date,
     attendance: {
@@ -142,6 +148,7 @@ export function buildDashboardToday({ date, now, today, lastWeek, health, cutoff
     },
     health: healthTotals ? { present: healthTotals.present, checked: healthTotals.checked, noted: healthTotals.noted } : null,
     classes,
+    classAverage,
     attention,
   };
 }

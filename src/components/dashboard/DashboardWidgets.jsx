@@ -24,9 +24,9 @@ export function Widget({
   if (loading) {
     body = (
       <div className="db-skeleton" aria-busy="true" aria-label="Đang tải">
-        <div className="skeleton" style={{ width: '70%' }} />
-        <div className="skeleton" style={{ width: '90%' }} />
-        <div className="skeleton" style={{ width: '55%' }} />
+        <div className="skeleton" />
+        <div className="skeleton" />
+        <div className="skeleton" />
       </div>
     );
   } else if (error) {
@@ -96,7 +96,7 @@ export function KpiCard({
         {progress == null && (hint || error) && <span className="kpi-tile__hint">{error ? 'Không tải được số liệu' : hint}</span>}
       </span>
       <span className="kpi-tile__value">
-        {loading ? <Spinner small /> : error ? '—' : value}
+        {loading ? <Spinner small deferred /> : error ? '—' : value}
         {unit && ready && <small>{unit}</small>}
       </span>
       {to && <ChevronRight size={20} className="kpi-tile__chev" aria-hidden="true" />}
