@@ -290,7 +290,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
       <>
         <td rowSpan={span} className="cell--fixed">
           <div className="ga-goal-table__pad">
-            <span className="ga-goal-code">{no ? `MT ${no}` : '—'}</span>
+            <span className="ga-goal-code">{no ? `MT${no}` : '—'}</span>
           </div>
         </td>
         <td rowSpan={span}>
@@ -506,7 +506,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
               // Mục tiêu chưa thuộc nhóm nào: gõ vào đây để bổ sung nhóm kết quả cho các mục tiêu này
               <Suggest query="" options={suggestions()} label={SUGGEST_LABEL} onPick={(text) => addGroupBefore(di, gr.goals[0].id, text)}>
                 {cellInput({
-                  'aria-label': `Bổ sung kết quả mong đợi cho MT ${numbers[gr.goals[0].id] || ''}`,
+                  'aria-label': `Bổ sung kết quả mong đợi cho MT${numbers[gr.goals[0].id] || ''}`,
                   placeholder: GROUP_HINT,
                   value: '',
                   onChange: (e) => addGroupBefore(di, gr.goals[0].id, e.target.value),

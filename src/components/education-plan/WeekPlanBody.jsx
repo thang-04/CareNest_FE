@@ -24,6 +24,7 @@ import {
   rowCell,
   weekRows,
 } from '@/models/education-plan/classPlan';
+import { mtList } from '@/models/education-plan/goalTable';
 
 /**
  * Ô của kế hoạch tuần có gợi ý hoạt động từ kế hoạch chủ đề (lọc theo loại giờ của dòng). Chọn gợi ý thì ghi nội dung
@@ -61,14 +62,14 @@ function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, ch
                 type="button"
                 className="btn btn--outline-primary btn--sm"
                 title={`${p.text} (bấm để bỏ khỏi ô)`}
-                aria-label={`Bỏ MT ${p.goalNo} khỏi ô`}
+                aria-label={`Bỏ MT${p.goalNo} khỏi ô`}
                 onClick={() => onUnpick(p.id)}
               >
-                MT {p.goalNo} ×
+                MT{p.goalNo} ×
               </button>
             ) : (
               <span key={p.id} className="btn btn--outline-primary btn--sm" title={p.text}>
-                MT {p.goalNo}
+                MT{p.goalNo}
               </span>
             ),
           )}
@@ -101,7 +102,7 @@ function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, ch
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => onPick(a)}
                 >
-                  <span className="fw-600">MT {a.goalNo}</span> · {a.text}
+                  <span className="fw-600">MT{a.goalNo}</span> · {a.text}
                 </button>
               ))}
             </div>
@@ -237,7 +238,7 @@ export function WeekTab({
           {coverage && (
             <span className="muted text-sm">
               Cả chủ đề: đã xếp {coverage.placed}/{coverage.total} hoạt động, phủ {coverage.covered}/{coverage.goals} MT
-              {coverage.missingGoals.length > 0 && ` · còn thiếu ${coverage.missingGoals.map((g) => `MT ${g.no}`).join(', ')}`}
+              {coverage.missingGoals.length > 0 && ` · còn thiếu ${mtList(coverage.missingGoals.map((g) => g.no))}`}
             </span>
           )}
           {editable && prevWeek && (
@@ -513,7 +514,7 @@ export function DayTab({ draft, index, editable, update, goals = [], assessTo = 
                 {dayGoals.length ? (
                   dayGoals.map((g) => (
                     <div key={g.id}>
-                      <span className="ga-goal-code">MT {g.no}</span> {g.text}
+                      <span className="ga-goal-code">MT{g.no}</span> {g.text}
                     </div>
                   ))
                 ) : (

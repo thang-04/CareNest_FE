@@ -2,7 +2,7 @@ import { Fragment, useRef, useState } from 'react';
 import { Card, Notice } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
-import { domainRoman, numberGoals } from '@/models/education-plan/goalTable';
+import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTable';
 import { themeGoalBlocks, weekRows } from '@/models/education-plan/classPlan';
 
 /**
@@ -71,11 +71,8 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
       {/* MT chưa viết hoạt động thì kế hoạch tuần không có gợi ý, cuối chủ đề không phủ được MT đó */}
       {editable && goals.some((g) => !rowOf(g).activities.trim()) && (
         <Notice tone="warn">
-          {goals
-            .filter((g) => !rowOf(g).activities.trim())
-            .map((g) => `MT ${g.no}`)
-            .join(', ')}{' '}
-          chưa có hoạt động giáo dục nên kế hoạch tuần sẽ không có gợi ý cho các MT này.
+          {mtList(goals.filter((g) => !rowOf(g).activities.trim()).map((g) => g.no))} chưa có hoạt động giáo dục nên kế hoạch tuần sẽ không
+          có gợi ý cho các MT này.
         </Notice>
       )}
       <Card title="I. Mục tiêu, nội dung và hoạt động giáo dục" bodyClass={null}>
@@ -121,20 +118,20 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
                       <tr key={g.id}>
                         <td className="cell--fixed">
                           <div className="ga-goal-table__pad">
-                            <span className="ga-goal-code">MT {g.no}</span>
+                            <span className="ga-goal-code">MT{g.no}</span>
                           </div>
                         </td>
                         <td className="cell--fixed">
                           <div className="ga-goal-table__pad">{g.text}</div>
                         </td>
                         <td className="cell--fixed">
-                          <Cell editable={false} value={rowOf(g).contents} label={`Nội dung của MT ${g.no}`} />
+                          <Cell editable={false} value={rowOf(g).contents} label={`Nội dung của MT${g.no}`} />
                         </td>
                         <td>
                           <ActivityCell
                             editable={editable}
                             value={rowOf(g).activities}
-                            label={`Hoạt động giáo dục của MT ${g.no}`}
+                            label={`Hoạt động giáo dục của MT${g.no}`}
                             onChange={(v) => setRow(g, 'activities', v)}
                           />
                         </td>

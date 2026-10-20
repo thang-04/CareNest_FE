@@ -404,7 +404,7 @@ export function dayDraftFromWeek(doc, i, goals = []) {
   return {
     aims: used
       .map((p) => {
-        const mt = goalsOf(p.key).map((g) => `MT ${g.no}: ${g.text}`);
+        const mt = goalsOf(p.key).map((g) => `MT${g.no}: ${g.text}`);
         return `- ${p.name}${mt.length ? ` (${mt.join('; ')})` : ''}: `;
       })
       .join('\n'),
