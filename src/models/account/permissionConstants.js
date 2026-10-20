@@ -45,8 +45,8 @@ export const OVERRIDE_EFFECT_LABELS = {
 };
 
 export const PERMISSION_STATE_LABELS = {
-  ON: 'Bật',
-  OFF: 'Tắt',
+  ON: 'Có',
+  OFF: 'Không',
   GRANT: 'Cấp thêm',
   REVOKE: 'Thu hồi',
   INHERIT: 'Theo vai trò',
@@ -59,38 +59,59 @@ export const PERMISSION_GROUPS = {
   system: { key: 'system', label: 'Quản lý hệ thống' },
 };
 
-/** Quyền nói bằng nghiệp vụ trường mầm non gần gũi, ẩn mã kỹ thuật tiếng Anh. */
+/**
+ * Mỗi quyền = một việc cụ thể, viết bằng lời thường (một dòng bảng phân quyền).
+ * `label` theo endpoint BE đang kiểm (BE:docs/modules/identity-access.md); đổi guard BE thì sửa theo. `hint` hiện ở tooltip.
+ */
 export const PERMISSION_TASKS = {
   CHILD_PROFILE_VIEW: {
-    label: 'Xem hồ sơ sức khỏe & thông tin trẻ',
-    hint: 'Xem thông tin lý lịch, sức khỏe, dị ứng của trẻ trong phạm vi phân công',
+    label: 'Xem lý lịch, sức khỏe, dị ứng của trẻ',
+    hint: 'Chỉ trẻ trong lớp/điểm trường được phân công',
     group: 'child',
   },
+  STAFF_ACCOUNT_VIEW: {
+    label: 'Xem danh sách, chi tiết tài khoản nhân sự',
+    hint: 'Giáo viên, nhân viên bếp trong phạm vi phụ trách',
+    group: 'staff',
+  },
   ACCOUNT_MANAGE: {
-    label: 'Cấp tài khoản & mật khẩu nhân viên',
-    hint: 'Tạo tài khoản cho giáo viên, nhân viên bếp ở cơ sở; cấp lại mật khẩu tạm',
+    label: 'Tạo tài khoản, cấp lại mật khẩu tạm',
+    hint: 'Tạo tài khoản cho giáo viên, nhân viên bếp; cấp lại mật khẩu tạm',
     group: 'staff',
   },
   ACCOUNT_STATUS_MANAGE: {
-    label: 'Khóa / mở khóa tài khoản nhân viên',
-    hint: 'Tạm khóa hoặc mở khóa quyền đăng nhập khi nhân sự có thay đổi',
+    label: 'Khóa / mở tài khoản nhân sự',
+    hint: 'Tạm khóa hoặc mở lại quyền đăng nhập khi nhân sự thay đổi',
     group: 'staff',
   },
   STAFF_ASSIGNMENT_MANAGE: {
-    label: 'Xếp lớp & phân công nơi làm việc',
-    hint: 'Xếp giáo viên vào lớp học, nhân viên bếp vào điểm trường phụ trách',
+    label: 'Xếp lớp, phân công nơi làm việc',
+    hint: 'Xếp giáo viên vào lớp, nhân viên bếp vào điểm trường; kết thúc phân công',
     group: 'staff',
   },
+  PARENT_ACCOUNT_VIEW: {
+    label: 'Xem tài khoản phụ huynh, liên kết với trẻ',
+    hint: 'Phụ huynh của trẻ đang học trong phạm vi phụ trách',
+    group: 'parent',
+  },
   PARENT_ACCOUNT_MANAGE: {
-    label: 'Cấp & quản lý tài khoản phụ huynh',
-    hint: 'Kích hoạt tài khoản theo SĐT, gắn liên kết trẻ, khóa/mở tài khoản phụ huynh',
+    label: 'Kích hoạt, gắn/gỡ trẻ, khóa/mở tài khoản phụ huynh',
+    hint: 'Kích hoạt theo SĐT, gắn hoặc gỡ liên kết trẻ, khóa/mở, cấp mật khẩu tạm',
     group: 'parent',
   },
   PERMISSION_MANAGE: {
-    label: 'Quản lý phân quyền toàn trường',
-    hint: 'Thiết lập quyền vai trò và ngoại lệ cá nhân (chỉ Hiệu trưởng)',
+    label: 'Phân quyền toàn trường',
+    hint: 'Đặt quyền theo vai trò và ngoại lệ từng người; chỉ Hiệu trưởng',
     group: 'system',
   },
+};
+
+/** Nhóm dòng bảng = khóa `feature` của catalog BE. */
+export const PERMISSION_FEATURES = {
+  'child-profile': { label: 'Hồ sơ trẻ', group: 'child' },
+  staff: { label: 'Tài khoản & phân công nhân sự', group: 'staff' },
+  'parent-account': { label: 'Tài khoản phụ huynh', group: 'parent' },
+  permission: { label: 'Phân quyền', group: 'system' },
 };
 
 export const REASON_MAX_LENGTH = 500;

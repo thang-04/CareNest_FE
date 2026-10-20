@@ -1,84 +1,85 @@
-import { Fragment, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { History, Lock } from '@/components/ui/icons';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useRolePermissionMatrix } from '@/hooks/account/usePermissions';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ErrorState, LoadingState } from '@/components/ui/States';
-import { Switch } from '@/components/ui/Switch';
 import { ReasonModal } from '@/components/permissions/ReasonModal';
 import { PermissionTabs } from '@/components/permissions/PermissionTabs';
+import { PermissionCheckCell, PermissionFixedCell, PermissionTable } from '@/components/permissions/PermissionTable';
 import { updateRolePermissions } from '@/services/account/permissionService';
+import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import {
-  PERMISSION_GROUPS,
-  PERMISSION_MODULE_LABELS,
-  PERMISSION_ROLE_LABELS,
-  PERMISSION_TASKS,
-} from '@/models/account/permissionConstants';
-import { permissionMatrixRows, PERMISSION_MATRIX_ROLES } from '@/utils/account/permissionMatrix';
+  codeDiff,
+  configurableCheck,
+  permissionTableRows,
+  PERMISSION_MATRIX_ROLES,
+  toggleWithRequires,
+} from '@/utils/account/permissionMatrix';
 import { permissionCrumbs } from '@/utils/school-config/breadcrumbs';
 import '@/styles/modules/permissions.css';
+
+const sameCodes = (a, b) => a.length === b.length && a.every((code) => b.includes(code));
+const taskLabel = (code) => PERMISSION_TASKS[code]?.label || code;
 
 export default function RoleDefaultsPage() {
   const { user } = useAuth();
   const toast = useToast();
   const { catalog, roles, loading, error, reload } = useRolePermissionMatrix({ live: false });
-  const [values, setValues] = useState({});
+  const [drafts, setDrafts] = useState({});
+  const [notice, setNotice] = useState('');
   const [asking, setAsking] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const rows = permissionMatrixRows(catalog, roles);
+  const groups = useMemo(() => permissionTableRows(catalog), [catalog]);
   const roleEntry = (role) => roles.find((entry) => entry.role === role);
-  const valueOf = (role, code) => values[role]?.[code] ?? !!rows.find((row) => row.code === code)?.cells[role]?.checked;
-  const isChanged = (role, code) => {
-    const original = !!rows.find((row) => row.code === code)?.cells[role]?.checked;
-    return role in values && code in values[role] && values[role][code] !== original;
+  const originalOf = (role) => roleEntry(role)?.permissions || [];
+  const codesOf = (role) => drafts[role] ?? originalOf(role);
+
+  const toggle = (role, code, on) => {
+    const result = toggleWithRequires(catalog, codesOf(role), code, on, configurableCheck(roleEntry(role)));
+    setDrafts((current) => {
+      const copy = { ...current };
+      if (sameCodes(result.codes, originalOf(role))) delete copy[role];
+      else copy[role] = result.codes;
+      return copy;
+    });
+    // Báo việc tự tick/bỏ tick kèm theo để người dùng không bất ngờ
+    const roleName = PERMISSION_ROLE_LABELS[role];
+    if (result.added.length)
+      setNotice(`Đã tự tick “${result.added.map(taskLabel).join('”, “')}” cho ${roleName} vì “${taskLabel(code)}” cần quyền xem.`);
+    else if (result.removed.length)
+      setNotice(`Đã tự bỏ tick “${result.removed.map(taskLabel).join('”, “')}” cho ${roleName} vì cần quyền “${taskLabel(code)}”.`);
+    else setNotice('');
   };
 
-  const changesFor = (role) => rows.filter((row) => row.cells[role]?.configurable && valueOf(role, row.code) !== row.cells[role].checked);
-
-  const labelOf = (code) => PERMISSION_TASKS[code]?.label || catalog.find((permission) => permission.code === code)?.description || code;
-
-  const changedRoles = PERMISSION_MATRIX_ROLES.filter((role) => changesFor(role).length);
-  const allChanges = changedRoles.flatMap((role) =>
-    changesFor(role).map((row) => `${valueOf(role, row.code) ? 'Bật' : 'Tắt'} “${labelOf(row.code)}” cho ${PERMISSION_ROLE_LABELS[role]}`),
-  );
-
-  // Nhóm các quyền theo nhóm chức năng thân thiện
-  const groupedRows = useMemo(() => {
-    const groups = {};
-    rows.forEach((row) => {
-      const task = PERMISSION_TASKS[row.code];
-      const groupKey = task?.group || row.module || 'other';
-      if (!groups[groupKey]) {
-        groups[groupKey] = {
-          key: groupKey,
-          label: PERMISSION_GROUPS[groupKey]?.label || PERMISSION_MODULE_LABELS[groupKey] || 'Nghiệp vụ khác',
-          items: [],
-        };
-      }
-      groups[groupKey].items.push(row);
-    });
-    return Object.values(groups);
-  }, [rows]);
+  const changedRoles = PERMISSION_MATRIX_ROLES.filter((role) => role in drafts);
+  const allChanges = changedRoles.flatMap((role) => {
+    const { added, removed } = codeDiff(originalOf(role), codesOf(role));
+    const roleName = PERMISSION_ROLE_LABELS[role];
+    return [
+      ...added.map((code) => `Bật “${taskLabel(code)}” cho ${roleName}`),
+      ...removed.map((code) => `Tắt “${taskLabel(code)}” cho ${roleName}`),
+    ];
+  });
 
   const saveAll = async (reason) => {
     if (saving) return;
     setSaving(true);
     const results = await Promise.allSettled(
       changedRoles.map((role) => {
-        const permissions = roleEntry(role).configurablePermissions.filter((code) => valueOf(role, code));
+        const permissions = roleEntry(role).configurablePermissions.filter((code) => codesOf(role).includes(code));
         return updateRolePermissions(role, { permissions, reason }, user);
       }),
     );
     const savedRoles = changedRoles.filter((_, index) => results[index].status === 'fulfilled');
     const failedRoles = changedRoles.filter((_, index) => results[index].status === 'rejected');
-    setValues((current) => {
+    setDrafts((current) => {
       const next = { ...current };
       savedRoles.forEach((role) => delete next[role]);
       return next;
     });
+    setNotice('');
     setAsking(false);
     if (savedRoles.length) reload({ silent: true });
     if (failedRoles.length) {
@@ -91,29 +92,51 @@ export default function RoleDefaultsPage() {
     setSaving(false);
   };
 
-  const handleReset = () => {
-    setValues({});
-  };
+  const columns = PERMISSION_MATRIX_ROLES.map((role) => {
+    const entry = roleEntry(role);
+    const isConfigurable = configurableCheck(entry);
+    const fixed = entry?.editable === false;
+    return {
+      key: role,
+      header: PERMISSION_ROLE_LABELS[role],
+      note: fixed ? 'Cố định' : null,
+      fixed,
+      render: (code) => {
+        const checked = codesOf(role).includes(code);
+        if (!isConfigurable(code)) {
+          return (
+            <PermissionFixedCell
+              has={checked}
+              reason={fixed ? 'Quyền của vai trò này cố định, không chỉnh ở đây' : 'Chưa mở cấu hình việc này cho vai trò này'}
+            />
+          );
+        }
+        return (
+          <PermissionCheckCell
+            checked={checked}
+            disabled={saving}
+            changed={checked !== originalOf(role).includes(code)}
+            label={`${taskLabel(code)} — ${PERMISSION_ROLE_LABELS[role]}`}
+            onChange={(on) => toggle(role, code, on)}
+          />
+        );
+      },
+    };
+  });
 
   return (
     <div className="page permission-center">
       <Breadcrumb items={permissionCrumbs('Quyền theo vai trò')} />
-      <PermissionTabs />
-
       <div className="page__head permission-page-head">
         <div>
           <h1 className="page__title">Quyền theo vai trò</h1>
           <p className="text-sm text-2">
-            Cấu hình quyền mặc định áp dụng chung cho Phó hiệu trưởng và Giáo viên toàn trường. Ngoại lệ cho từng cá nhân được quản lý ở tab
-            “Quyền ngoại lệ từng người”.
+            Tick việc mà từng vai trò được làm. Áp dụng chung cho Phó hiệu trưởng, Giáo viên và Nhân viên bếp toàn trường; ngoại lệ cho từng
+            người ở tab “Quyền ngoại lệ từng người”.
           </p>
         </div>
-        <div className="row row--wrap">
-          <Link className="btn" to="/permissions/history">
-            <History size={16} /> Lịch sử thay đổi
-          </Link>
-        </div>
       </div>
+      <PermissionTabs />
 
       {error ? (
         <ErrorState error={error} onRetry={reload} />
@@ -121,71 +144,31 @@ export default function RoleDefaultsPage() {
         <LoadingState />
       ) : (
         <>
-          <section className="card permission-matrix-card">
-            <div className="table-wrap permission-matrix-wrap">
-              <table className="table table--grid table--compact permission-matrix">
-                <thead>
-                  <tr>
-                    <th>Nghiệp vụ / Quyền được thực hiện</th>
-                    {PERMISSION_MATRIX_ROLES.map((role) => (
-                      <th key={role} className="perm-col-role">
-                        {PERMISSION_ROLE_LABELS[role]}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {groupedRows.map((group) => (
-                    <Fragment key={group.key}>
-                      <tr className="perm-group-row">
-                        <td colSpan={PERMISSION_MATRIX_ROLES.length + 1}>{group.label}</td>
-                      </tr>
-                      {group.items.map((row) => {
-                        const task = PERMISSION_TASKS[row.code];
-                        return (
-                          <tr key={row.code}>
-                            <td>
-                              <strong>{task?.label || row.description}</strong>
-                              {task?.hint && <small className="text-muted d-block mt-1">{task.hint}</small>}
-                            </td>
-                            {PERMISSION_MATRIX_ROLES.map((role) => {
-                              const cell = row.cells[role];
-                              const rolePermission = roleEntry(role);
-                              const changed = isChanged(role, row.code);
-                              const currentVal = valueOf(role, row.code);
-                              return (
-                                <td key={role} className="perm-col-role">
-                                  <div className={`perm-cell-content ${changed ? 'perm-cell--changed' : ''}`}>
-                                    {cell.configurable ? (
-                                      <Switch
-                                        checked={currentVal}
-                                        disabled={saving}
-                                        label={`${labelOf(row.code)} cho ${PERMISSION_ROLE_LABELS[role]}`}
-                                        onChange={(next) =>
-                                          setValues((current) => ({
-                                            ...current,
-                                            [role]: { ...current[role], [row.code]: next },
-                                          }))
-                                        }
-                                      />
-                                    ) : (
-                                      <span className="permission-lock">
-                                        <Lock size={14} />{' '}
-                                        {rolePermission?.permissions?.includes(row.code) ? 'Cố định theo quy định' : 'Không cấu hình'}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <section className="card perm-table-card">
+            <ul className="perm-legend" aria-label="Chú thích">
+              <li>
+                <span className="perm-legend__box" aria-hidden="true" /> Ô tick: Hiệu trưởng chọn được
+              </li>
+              <li>
+                <PermissionFixedCell has /> Luôn có
+              </li>
+              <li>
+                <PermissionFixedCell has={false} /> Không có
+              </li>
+              <li>
+                <span className="perm-table__arrow" aria-hidden="true">
+                  ↳
+                </span>{' '}
+                Cần quyền xem ở dòng đầu nhóm (tự tick kèm)
+              </li>
+            </ul>
+            <p className="perm-notice" role="status" aria-live="polite">
+              {notice}
+            </p>
+            <PermissionTable groups={groups} catalog={catalog} columns={columns} caption="Việc được làm theo vai trò" />
+            <p className="perm-scope-note text-sm text-muted">
+              Quyền chỉ cho biết được làm việc đó hay không. Phạm vi dữ liệu (điểm trường, lớp) vẫn theo phân công công tác của từng người.
+            </p>
           </section>
 
           {allChanges.length > 0 && (
@@ -196,7 +179,15 @@ export default function RoleDefaultsPage() {
                 </span>
               </div>
               <div className="row row--wrap permission-save-bar__actions">
-                <button className="btn" type="button" disabled={saving} onClick={handleReset}>
+                <button
+                  className="btn"
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    setDrafts({});
+                    setNotice('');
+                  }}
+                >
                   Hủy thay đổi
                 </button>
                 <button className="btn btn--primary" type="button" disabled={saving} onClick={() => setAsking(true)}>

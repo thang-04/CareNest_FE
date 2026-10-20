@@ -1,4 +1,9 @@
-.permission-tabs {
+.permission-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
 
@@ -41,75 +46,172 @@
   text-decoration: none;
 }
 
-.permission-matrix-card,
 .permission-history-card {
   overflow: hidden;
 }
 
-.permission-matrix {
+/* Bảng việc × vai trò: mỗi dòng một việc bằng lời thường, việc cần quyền xem thụt vào với "↳" */
+.perm-table-card {
+  overflow: hidden;
+}
+
+.perm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: var(--card-padding-dense);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--fs-sm);
+  list-style: none;
+}
+
+.perm-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.perm-legend__box {
+  width: var(--space-4);
+  height: var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+/* Thông báo tự tick/bỏ tick; giữ chỗ trống khi rỗng để bảng không giật */
+.perm-notice {
+  min-height: var(--space-5);
+  margin: 0;
+  padding: var(--space-2) var(--card-padding-dense) 0;
+  color: var(--color-primary);
+  font-size: var(--fs-sm);
+}
+
+.perm-scope-note {
+  margin: 0;
+  padding: var(--space-3) var(--card-padding-dense);
+}
+
+.perm-table {
   min-width: 680px;
 }
 
-.permission-matrix th {
+.perm-table th.perm-table__task {
+  min-width: 260px;
+  font-weight: var(--fw-regular);
+  text-align: left;
+}
+
+.perm-table thead th.perm-table__task {
+  font-weight: var(--fw-semibold);
+}
+
+/* Cột "Việc được làm" ghim trái để khi cuộn ngang trên mobile vẫn biết đang ở dòng nào */
+.perm-table .perm-table__task {
   position: sticky;
-  top: 0;
+  left: 0;
   z-index: 1;
+  background: var(--color-surface);
 }
 
-.permission-matrix th:first-child {
-  min-width: 320px;
+.perm-table .perm-table__task.is-dependent {
+  padding-left: var(--space-8);
 }
 
-.table.table--grid.permission-matrix .perm-group-row td,
-.table.table--grid.permission-matrix .perm-group-row:hover td {
+.perm-table__arrow {
+  margin-right: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+.table.table--grid.perm-table .perm-table__group th,
+.table.table--grid.perm-table .perm-table__group:hover th {
   padding-block: var(--space-2);
   background: var(--color-surface-muted);
   color: var(--color-text-secondary);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
+  text-align: left;
 }
 
-.permission-matrix .perm-col-role {
-  width: 20%;
+.perm-table .perm-table__col {
+  width: 13%;
+  padding: 0;
   text-align: center;
 }
 
-.permission-matrix td:first-child strong {
+.perm-table th.perm-table__col {
+  padding: var(--space-2);
+}
+
+.table.table--grid.perm-table .perm-table__col--fixed {
+  background: var(--color-surface-muted);
+}
+
+.perm-table__note {
   display: block;
-  line-height: var(--lh-normal);
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 
-.permission-matrix td:first-child small {
-  max-width: 68ch;
-  line-height: var(--lh-normal);
-  overflow-wrap: anywhere;
-}
-
-.permission-matrix .perm-cell-content {
+/* Ô tick phủ cả ô bảng để dễ bấm */
+.perm-check-cell {
   display: flex;
   min-height: var(--btn-height);
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  cursor: pointer;
 }
 
-.permission-matrix .perm-cell--changed {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  outline: 1px solid var(--color-primary-border);
+.perm-check-cell:hover {
+  background: var(--color-surface-hover);
+}
+
+.perm-check-cell.is-changed {
   background: var(--color-primary-soft);
 }
 
-.permission-lock {
+.perm-check-cell input {
+  width: var(--space-5);
+  height: var(--space-5);
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.perm-check-cell:has(input:disabled) {
+  cursor: not-allowed;
+}
+
+.perm-fixed {
   display: inline-flex;
-  max-width: 24ch;
+  min-height: var(--btn-height);
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
   color: var(--color-text-muted);
-  font-size: var(--fs-sm);
-  line-height: var(--lh-normal);
-  overflow-wrap: anywhere;
+}
+
+.perm-fixed--on {
+  color: var(--color-success-fg);
+}
+
+.perm-legend .perm-fixed {
+  min-height: 0;
+}
+
+/* Trong wizard: bảng cuộn riêng để nút Tiếp tục luôn thấy */
+.perm-wizard-table {
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.permission-history-changes {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .permission-save-bar {
@@ -207,49 +309,12 @@
 }
 
 .perm-wizard-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.perm-wizard-steps {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
-}
-
-.perm-step-indicator {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-full);
-  background: var(--color-surface-muted);
-}
-
-.perm-step-indicator.is-active {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-weight: var(--fw-bold);
-}
-
-.perm-step-indicator.is-done {
-  color: var(--color-text);
-  font-weight: var(--fw-semibold);
-}
-
-.perm-step-divider {
-  color: var(--color-text-muted);
-}
-
-.perm-staff-pick-list,
-.perm-override-list,
-.perm-override-items {
-  display: flex;
-  flex-direction: column;
+  margin-bottom: var(--space-3);
 }
 
 .perm-staff-pick-list {
+  display: flex;
+  flex-direction: column;
   max-height: 60vh;
   gap: var(--space-2);
   overflow-y: auto;
@@ -278,8 +343,7 @@
 }
 
 .perm-staff-pick-info,
-.perm-staff-banner__main,
-.perm-override-item__info {
+.perm-staff-banner__main {
   flex: 1;
   min-width: 0;
 }
@@ -295,12 +359,8 @@
   background: var(--color-surface-muted);
 }
 
-.perm-status-summary,
-.perm-override-item__info {
-  display: grid;
-}
-
 .perm-status-summary {
+  display: grid;
   gap: var(--space-3);
   margin-bottom: var(--card-padding-dense);
 }
@@ -309,72 +369,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-
-.perm-override-list {
-  max-height: 60vh;
-  gap: var(--space-4);
-  padding-right: var(--space-1);
-  overflow-y: auto;
-}
-
-.perm-override-group__title {
-  margin: 0 0 var(--space-2);
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-}
-
-.perm-override-items {
-  gap: var(--space-3);
-}
-
-.perm-override-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-6);
-  padding: var(--card-padding-dense);
-  border: 1px solid var(--color-border);
-  border-radius: var(--input-radius);
-  background: var(--color-surface);
-}
-
-.perm-override-item.is-overridden {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-}
-
-.perm-override-item__info {
-  gap: var(--space-2);
-}
-
-.perm-override-item__info strong {
-  line-height: var(--lh-normal);
-}
-
-.perm-override-item__info small {
-  display: block;
-  line-height: var(--lh-normal);
-  overflow-wrap: anywhere;
-}
-
-.perm-override-item__role-default {
-  color: var(--color-text-muted);
-  font-size: var(--fs-xs);
-}
-
-.perm-override-item__control {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.perm-override-item__badge .chip {
-  white-space: nowrap;
 }
 
 .perm-wizard-step__footer {
@@ -422,15 +416,8 @@
     flex-wrap: wrap;
   }
 
-  .perm-override-item {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-
-  .perm-override-item__control {
-    width: 100%;
-    justify-content: space-between;
+  .perm-table th.perm-table__task {
+    min-width: 200px;
   }
 
   .perm-wizard-step__footer {

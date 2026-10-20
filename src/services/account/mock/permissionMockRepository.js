@@ -6,17 +6,35 @@ import { uid } from '@/utils/id';
 
 // Cấu hình demo độc lập của UI G94-209; không áp vào quyền hoặc phân công đang chạy.
 
+// `feature/action/requires` và 2 mã *_VIEW theo contract FE đề xuất, BE chưa duyệt
+// (docs/plans/active/2026-10-20-permission-view-edit-levels.md, mục "Đề xuất contract BE").
 const CATALOG = [
   {
     code: 'CHILD_PROFILE_VIEW',
     module: 'child',
+    feature: 'child-profile',
+    action: 'VIEW',
+    requires: [],
     description: 'Xem hồ sơ trẻ trong phạm vi',
     defaultRoles: ['PARENT', 'PRINCIPAL', 'TEACHER', 'VICE_PRINCIPAL'],
     configurableRoles: ['TEACHER', 'VICE_PRINCIPAL'],
   },
   {
+    code: 'STAFF_ACCOUNT_VIEW',
+    module: 'account',
+    feature: 'staff',
+    action: 'VIEW',
+    requires: [],
+    description: 'Xem danh sách, chi tiết tài khoản nhân sự',
+    defaultRoles: ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'],
+    configurableRoles: ['VICE_PRINCIPAL'],
+  },
+  {
     code: 'ACCOUNT_MANAGE',
     module: 'account',
+    feature: 'staff',
+    action: 'MANAGE',
+    requires: ['STAFF_ACCOUNT_VIEW'],
     description: 'Cấp tài khoản, cấp lại mật khẩu tạm',
     defaultRoles: ['ADMIN', 'PRINCIPAL'],
     configurableRoles: ['VICE_PRINCIPAL'],
@@ -24,6 +42,9 @@ const CATALOG = [
   {
     code: 'ACCOUNT_STATUS_MANAGE',
     module: 'account',
+    feature: 'staff',
+    action: 'MANAGE',
+    requires: ['STAFF_ACCOUNT_VIEW'],
     description: 'Khóa / mở tài khoản',
     defaultRoles: ['ADMIN', 'PRINCIPAL'],
     configurableRoles: ['VICE_PRINCIPAL'],
@@ -31,13 +52,29 @@ const CATALOG = [
   {
     code: 'STAFF_ASSIGNMENT_MANAGE',
     module: 'staff',
+    feature: 'staff',
+    action: 'MANAGE',
+    requires: ['STAFF_ACCOUNT_VIEW'],
     description: 'Phân công nhân sự (campus, lớp)',
+    defaultRoles: ['PRINCIPAL', 'VICE_PRINCIPAL'],
+    configurableRoles: ['VICE_PRINCIPAL'],
+  },
+  {
+    code: 'PARENT_ACCOUNT_VIEW',
+    module: 'child',
+    feature: 'parent-account',
+    action: 'VIEW',
+    requires: [],
+    description: 'Xem tài khoản phụ huynh và liên kết với trẻ',
     defaultRoles: ['PRINCIPAL', 'VICE_PRINCIPAL'],
     configurableRoles: ['VICE_PRINCIPAL'],
   },
   {
     code: 'PARENT_ACCOUNT_MANAGE',
     module: 'child',
+    feature: 'parent-account',
+    action: 'MANAGE',
+    requires: ['PARENT_ACCOUNT_VIEW'],
     description: 'Cấp, khóa/mở tài khoản phụ huynh và liên kết với trẻ',
     defaultRoles: ['PRINCIPAL', 'VICE_PRINCIPAL'],
     configurableRoles: ['VICE_PRINCIPAL'],
@@ -45,6 +82,9 @@ const CATALOG = [
   {
     code: 'PERMISSION_MANAGE',
     module: 'account',
+    feature: 'permission',
+    action: 'MANAGE',
+    requires: [],
     description: 'Quản lý phân quyền',
     defaultRoles: ['PRINCIPAL'],
     configurableRoles: [],
@@ -65,13 +105,44 @@ const configurableCodesOf = (role) => CATALOG.filter((p) => p.configurableRoles.
 // Giữ nguyên TEAM_LEADER của luồng hiện tại, không chuyển thành TEACHER.
 const rolesOf = (user) => [user.role].filter(Boolean);
 
+/** Thêm mã mà các mã đang có `requires`, chỉ khi mã đó cấu hình được cho role. */
+const withRequiredRows = (rows) => {
+  const result = [...rows];
+  rows.forEach(({ role, code }) =>
+    (byCode(code)?.requires || []).forEach((required) => {
+      if (isConfigurableFor(required, role) && !result.some((row) => row.role === role && row.code === required))
+        result.push({ role, code: required });
+    }),
+  );
+  return result;
+};
+
 const ensure = (db) => {
+  const seededVersion = Number(db.mockSeedVersions?.['permission-center-demo'] || 0);
   const permissionCenterRoleRows = CATALOG.flatMap((p) =>
     p.defaultRoles.filter((role) => CONFIGURABLE_ROLES.includes(role)).map((role) => ({ role, code: p.code })),
   );
-  applyMockSeedMigration(db, 'permission-center-demo', 1, { permissionCenterRoleRows });
+  applyMockSeedMigration(db, 'permission-center-demo', 2, { permissionCenterRoleRows });
+  // Bản 2 tách quyền xem: role đang có thao tác sửa giữ quyền xem trước đây đi kèm ngầm
+  if (seededVersion === 1 && Array.isArray(db.permissionCenterRoleRows)) {
+    db.permissionCenterRoleRows = withRequiredRows(db.permissionCenterRoleRows);
+  }
   if (!Array.isArray(db.permissionCenterOverrides)) db.permissionCenterOverrides = [];
   if (!Array.isArray(db.permissionCenterChangeLogs)) db.permissionCenterChangeLogs = [];
+  // Ngoại lệ cấp thêm mã sửa từ bản 1 thiếu mã xem ⇒ cấp thêm mã xem, tránh lần lưu sau bị 400 dù HT không đổi gì
+  if (seededVersion === 1) {
+    db.permissionCenterOverrides
+      .filter((o) => o.effect === OVERRIDE_EFFECT.GRANT)
+      .forEach((grant) => {
+        const target = db.users?.find((u) => u.id === grant.userId);
+        if (!target) return;
+        const roles = rolesOf(target);
+        const effective = resolve(db, roles, target.id);
+        (byCode(grant.code)?.requires || [])
+          .filter((required) => roles.some((role) => isConfigurableFor(required, role)) && !effective.includes(required))
+          .forEach((required) => db.permissionCenterOverrides.push({ ...grant, code: required }));
+      });
+  }
   return db;
 };
 
@@ -166,6 +237,12 @@ export const permissionMockRepository = {
       throw badRequest('Danh sách quyền không hợp lệ');
     const invalid = permissions.find((code) => !isConfigurableFor(code, role));
     if (invalid) throw badRequest(`Quyền ${invalid} không cấu hình được cho vai trò này`);
+    const missing = permissions.flatMap((code) =>
+      byCode(code)
+        .requires.filter((required) => isConfigurableFor(required, role) && !permissions.includes(required))
+        .map((required) => [code, required]),
+    )[0];
+    if (missing) throw badRequest(`Quyền ${missing[0]} cần bật kèm quyền xem ${missing[1]}`);
     return writeDb((db) => {
       ensure(db);
       const before = new Set(resolve(db, [role], null));
@@ -280,6 +357,14 @@ export const permissionMockRepository = {
           updatedAt: now(),
         })),
       ];
+      // Quyền hiệu lực sau ngoại lệ phải đủ mã `requires` (vd. thu hồi Xem khi còn Sửa) ⇒ 400, writeDb rollback
+      const effective = resolve(db, roles, userId);
+      const missing = effective.flatMap((code) =>
+        (byCode(code)?.requires || [])
+          .filter((required) => roles.some((role) => isConfigurableFor(required, role)) && !effective.includes(required))
+          .map((required) => [code, required]),
+      )[0];
+      if (missing) throw badRequest(`Quyền ${missing[0]} cần kèm quyền xem ${missing[1]}`);
       return clone(overridesView(db, target));
     });
   },

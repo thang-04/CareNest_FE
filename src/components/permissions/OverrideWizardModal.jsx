@@ -3,25 +3,23 @@ import { ArrowLeft, ArrowRight, Save, Search } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/form/FormField';
 import { Avatar } from '@/components/ui/Avatar';
-import { Switch } from '@/components/ui/Switch';
 import { ErrorState, LoadingState } from '@/components/ui/States';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Stepper } from '@/components/ui/Stepper';
+import { PermissionStateBadge } from '@/components/permissions/PermissionBadges';
+import { PermissionCheckCell, PermissionFixedCell, PermissionTable } from '@/components/permissions/PermissionTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { usePermissionStaff } from '@/hooks/account/usePermissions';
 import { usePermissionOverrides, useRolePermissionMatrix } from '@/hooks/account/usePermissions';
 import { updatePermissionOverrides } from '@/services/account/permissionService';
-import {
-  PERMISSION_GROUPS,
-  PERMISSION_MODULE_LABELS,
-  PERMISSION_ROLE_LABELS,
-  PERMISSION_TASKS,
-  REASON_MAX_LENGTH,
-} from '@/models/account/permissionConstants';
+import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS, REASON_MAX_LENGTH } from '@/models/account/permissionConstants';
 import { overridesFromSwitches, permissionDraftRows } from '@/utils/account/personPermissions';
+import { permissionTableRows, toggleWithRequires } from '@/utils/account/permissionMatrix';
 import { validatePermissionChange } from '@/utils/account/permissionValidation';
 
 const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER'];
+const taskLabel = (code) => PERMISSION_TASKS[code]?.label || code;
+const WIZARD_STEPS = ['Chọn người', 'Thiết lập quyền', 'Xác nhận & Lý do'];
 
 export function OverrideWizardModal({ open, initialStaff = null, onClose, onSaved }) {
   const { user } = useAuth();
@@ -66,14 +64,9 @@ export function OverrideWizardModal({ open, initialStaff = null, onClose, onSave
       title="Gán quyền ngoại lệ cho nhân sự"
       onClose={saving ? undefined : onClose}
     >
-      <div className="perm-wizard-header">
-        <div className="perm-wizard-steps" aria-label="Các bước thực hiện">
-          <span className={`perm-step-indicator ${step === 1 ? 'is-active' : step > 1 ? 'is-done' : ''}`}>1. Chọn người</span>
-          <span className="perm-step-divider">›</span>
-          <span className={`perm-step-indicator ${step === 2 ? 'is-active' : step > 2 ? 'is-done' : ''}`}>2. Thiết lập quyền</span>
-          <span className="perm-step-divider">›</span>
-          <span className={`perm-step-indicator ${step === 3 ? 'is-active' : ''}`}>3. Xác nhận & Lý do</span>
-        </div>
+      <div className="perm-wizard-header" aria-label="Các bước thực hiện">
+        {/* step đếm từ 1; Stepper đếm từ 0. Chuyển bước bằng nút Tiếp/Quay lại nên không cho bấm chấm */}
+        <Stepper steps={WIZARD_STEPS} current={step - 1} />
       </div>
       {step === 1 && (
         <StepSelectStaff
@@ -224,38 +217,38 @@ function StepConfigurePermissions({ staff, onBack, onNext }) {
     return Object.fromEntries(rows.map((r) => [r.code, r.code in values ? values[r.code] : r.on]));
   }, [rows, values]);
 
-  // Nhóm theo nhóm chức năng
-  const groupedRows = useMemo(() => {
-    const groups = {};
-    rows.forEach((row) => {
-      const task = PERMISSION_TASKS[row.code];
-      const groupKey = task?.group || 'other';
-      if (!groups[groupKey]) {
-        groups[groupKey] = {
-          key: groupKey,
-          label: PERMISSION_GROUPS[groupKey]?.label || PERMISSION_MODULE_LABELS[groupKey] || 'Nghiệp vụ khác',
-          items: [],
-        };
-      }
-      groups[groupKey].items.push(row);
-    });
-    return Object.values(groups);
-  }, [rows]);
+  const [notice, setNotice] = useState('');
+  const catalog = matrix.catalog;
+  const configurableCodes = rows.map((r) => r.code);
+  const isConfigurable = (code) => configurableCodes.includes(code);
+  const roleCodes = matrix.roles.find((r) => r.role === staff.role)?.permissions || [];
+  const personCodes = rows.filter((r) => currentValues[r.code]).map((r) => r.code);
+
+  // Chỉ nhóm có việc cấu hình được cho người này
+  const groups = useMemo(
+    () =>
+      permissionTableRows(catalog)
+        .map((group) => ({ ...group, rows: group.rows.filter((row) => rows.some((r) => r.code === row.code)) }))
+        .filter((group) => group.rows.length > 0),
+    [catalog, rows],
+  );
+
+  const toggle = (code, on) => {
+    const result = toggleWithRequires(catalog, personCodes, code, on, isConfigurable);
+    setValues(Object.fromEntries(configurableCodes.map((c) => [c, result.codes.includes(c)])));
+    if (result.added.length) setNotice(`Đã tự tick “${result.added.map(taskLabel).join('”, “')}” vì “${taskLabel(code)}” cần quyền xem.`);
+    else if (result.removed.length)
+      setNotice(`Đã tự bỏ tick “${result.removed.map(taskLabel).join('”, “')}” vì cần quyền “${taskLabel(code)}”.`);
+    else setNotice('');
+  };
 
   const handleContinue = () => {
     const payload = overridesFromSwitches(rows, currentValues);
-    const changesFormatted = rows
-      .filter((r) => currentValues[r.code] !== r.roleOn)
-      .map((r) => {
-        const task = PERMISSION_TASKS[r.code];
-        const isGrant = currentValues[r.code];
-        return {
-          code: r.code,
-          label: task?.label || r.code,
-          effect: isGrant ? 'GRANT' : 'REVOKE',
-          typeText: isGrant ? 'Cấp thêm (+)' : 'Thu hồi (-)',
-        };
-      });
+    const changesFormatted = payload.map((item) => ({
+      code: item.permission,
+      label: taskLabel(item.permission),
+      effect: item.effect,
+    }));
     onNext(payload, changesFormatted);
   };
 
@@ -264,6 +257,36 @@ function StepConfigurePermissions({ staff, onBack, onNext }) {
 
   const grantCount = rows.filter((r) => currentValues[r.code] && !r.roleOn).length;
   const revokeCount = rows.filter((r) => !currentValues[r.code] && r.roleOn).length;
+  const columns = [
+    {
+      key: 'role',
+      header: 'Theo vai trò',
+      note: roleLabel,
+      fixed: true,
+      render: (code) => <PermissionFixedCell has={roleCodes.includes(code)} reason={`Mặc định của ${roleLabel}`} />,
+    },
+    {
+      key: 'person',
+      header: 'Người này',
+      render: (code) => (
+        <PermissionCheckCell
+          checked={personCodes.includes(code)}
+          changed={personCodes.includes(code) !== roleCodes.includes(code)}
+          label={`${taskLabel(code)} — ${staff.fullName}`}
+          onChange={(on) => toggle(code, on)}
+        />
+      ),
+    },
+    {
+      key: 'diff',
+      header: 'Khác vai trò',
+      render: (code) => {
+        const on = personCodes.includes(code);
+        if (on === roleCodes.includes(code)) return <span className="text-muted text-sm">—</span>;
+        return <PermissionStateBadge state={on ? 'GRANT' : 'REVOKE'} signed />;
+      },
+    },
+  ];
 
   return (
     <div className="perm-wizard-step">
@@ -288,58 +311,17 @@ function StepConfigurePermissions({ staff, onBack, onNext }) {
           Thiết lập quyền riêng biệt cho cá nhân. Khác với mặc định của <strong>{roleLabel}</strong> sẽ được ghi nhận là ngoại lệ.
         </span>
         <div className="perm-status-summary__badges">
-          {grantCount > 0 && <StatusBadge tone="green" label={`+${grantCount} Cấp thêm`} />}
-          {revokeCount > 0 && <StatusBadge tone="orange" label={`−${revokeCount} Thu hồi`} />}
-          {grantCount === 0 && revokeCount === 0 && <StatusBadge tone="gray" label="Hiện đang hoàn toàn theo vai trò" />}
+          {grantCount > 0 && <PermissionStateBadge state="GRANT" label={`+${grantCount} Cấp thêm`} />}
+          {revokeCount > 0 && <PermissionStateBadge state="REVOKE" label={`−${revokeCount} Thu hồi`} />}
+          {grantCount === 0 && revokeCount === 0 && <PermissionStateBadge state="INHERIT" label="Hiện đang hoàn toàn theo vai trò" />}
         </div>
       </div>
 
-      <div className="perm-override-list">
-        {groupedRows.map((group) => (
-          <div key={group.key} className="perm-override-group">
-            <h4 className="perm-override-group__title">{group.label}</h4>
-            <div className="perm-override-items">
-              {group.items.map((row) => {
-                const task = PERMISSION_TASKS[row.code];
-                const active = currentValues[row.code];
-                const roleDefaultOn = row.roleOn;
-                const isOverridden = active !== roleDefaultOn;
-
-                return (
-                  <div key={row.code} className={`perm-override-item ${isOverridden ? 'is-overridden' : ''}`}>
-                    <div className="perm-override-item__info">
-                      <strong>{task?.label || row.code}</strong>
-                      {task?.hint && <small className="text-muted d-block">{task.hint}</small>}
-                      <div className="perm-override-item__role-default">
-                        Mặc định vai trò:{' '}
-                        {roleDefaultOn ? <span className="text-success">Bật</span> : <span className="text-muted">Tắt</span>}
-                      </div>
-                    </div>
-
-                    <div className="perm-override-item__control">
-                      <span className="perm-override-item__badge">
-                        {isOverridden ? (
-                          active ? (
-                            <StatusBadge tone="green" label="+ Cấp thêm" />
-                          ) : (
-                            <StatusBadge tone="orange" label="− Thu hồi" />
-                          )
-                        ) : (
-                          <StatusBadge tone="gray" label="Theo vai trò" />
-                        )}
-                      </span>
-                      <Switch
-                        checked={active}
-                        label={task?.label || row.code}
-                        onChange={(next) => setValues((curr) => ({ ...curr, [row.code]: next }))}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      <p className="perm-notice" role="status" aria-live="polite">
+        {notice}
+      </p>
+      <div className="perm-wizard-table">
+        <PermissionTable groups={groups} catalog={catalog} columns={columns} caption={`Việc được làm của ${staff.fullName}`} />
       </div>
 
       <div className="perm-wizard-step__footer">
@@ -373,7 +355,9 @@ function StepConfirmAndReason({ staff, reason, reasonError, saving, onReasonChan
           <ul className="permission-change-summary-list m-0">
             {changes.map((c) => (
               <li key={c.code} className="text-sm">
-                <span className={`permission-change permission-change--${c.effect === 'GRANT' ? 'grant' : 'revoke'}`}>{c.typeText}:</span>{' '}
+                <span className={`permission-change permission-change--${c.effect === 'GRANT' ? 'grant' : 'revoke'}`}>
+                  {c.effect === 'GRANT' ? 'Cấp thêm (+)' : 'Thu hồi (−)'}:
+                </span>{' '}
                 {c.label}
               </li>
             ))}

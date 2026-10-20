@@ -1,7 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import '@/styles/modules/permissions.css';
 
-export function PermissionTabs() {
+/** Thanh 3 tab phân quyền; `actions` (nút của trang) nằm cùng hàng, bên phải. */
+export function PermissionTabs({ actions }) {
   const { pathname } = useLocation();
 
   const tabs = [
@@ -13,11 +14,7 @@ export function PermissionTabs() {
   const isRolesActive = pathname === '/permissions' || pathname === '/permissions/roles' || pathname === '/school/roles';
 
   return (
-    <>
-      <div className="alert alert--info" role="note">
-        <strong>Phân quyền demo độc lập.</strong> Các thay đổi ở đây chỉ lưu để duyệt UI, chưa tác động đăng nhập, quyền truy cập hoặc phân
-        công đang chạy. Tổ trưởng giữ nguyên vai trò và quyền hiện tại.
-      </div>
+    <div className="permission-tabs-bar">
       <nav className="tabs permission-tabs" aria-label="Trung tâm phân quyền">
         {tabs.map((tab) => {
           const active = tab.key === 'roles' ? isRolesActive : pathname === tab.to;
@@ -28,6 +25,7 @@ export function PermissionTabs() {
           );
         })}
       </nav>
-    </>
+      {actions && <div className="permission-header-actions">{actions}</div>}
+    </div>
   );
 }
