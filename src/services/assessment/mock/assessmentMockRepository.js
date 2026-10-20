@@ -1,3 +1,4 @@
+import { activeYearEnd, activeYearStart } from '@/mocks/roomManagers';
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { pushNotification } from '@/mocks/notificationMockRepository';
@@ -35,7 +36,6 @@ import {
   weeksBetween,
   isUnlockActive,
   unlockDeadline,
-  UNLOCK_MAX_DAYS,
 } from '@/utils/assessment/assessmentPeriods';
 import {
   canCreateRewardProposal,
@@ -100,8 +100,18 @@ const attendanceIndex = (db) => {
   return map;
 };
 
-const assessmentsOf = (db, childId, start, end) =>
-  db.dailyAssessments.filter((a) => a.childId === childId && a.date >= start && a.date <= end);
+// Ngày điểm danh vắng không được đánh giá (xem saveDailyAssessments); bản ghi cũ trùng ngày vắng không đưa vào hồ sơ/tổng hợp
+const absentDaysOf = (db, childId, start, end) =>
+  new Set(
+    (db.attendance || [])
+      .filter((r) => r.childId === childId && r.date >= start && r.date <= end && r.status !== 'PRESENT')
+      .map((r) => r.date),
+  );
+
+const assessmentsOf = (db, childId, start, end) => {
+  const absent = absentDaysOf(db, childId, start, end);
+  return db.dailyAssessments.filter((a) => a.childId === childId && a.date >= start && a.date <= end && !absent.has(a.date));
+};
 
 /** Attendance wins when recorded; otherwise a day with an assessment counts as present (assumption for days without attendance data). */
 const countPresentDays = (db, childId, start, end, att = attendanceIndex(db)) => {
@@ -332,8 +342,9 @@ const themeNames = (db) => Object.fromEntries((db.eduGoals || []).flatMap((g) =>
 export const periodSummaryOf = (db, childId, start, end) => {
   const records = assessmentsOf(db, childId, start, end);
   const days = new Set(records.map((a) => a.date));
+  const absent = absentDaysOf(db, childId, start, end);
   (db.dailyObservations || []).forEach((o) => {
-    if (o.childId === childId && o.date >= start && o.date <= end) days.add(o.date);
+    if (o.childId === childId && o.date >= start && o.date <= end && !absent.has(o.date)) days.add(o.date);
   });
   const inc = (obj, key) => {
     if (key) obj[key] = (obj[key] || 0) + 1;
@@ -383,7 +394,7 @@ export const periodSummaryOf = (db, childId, start, end) => {
     inc(participation, a.participation);
     const theme = themes[a.themeId] || 'Chưa gắn chủ đề';
     const add = (bucket, key, field) => {
-      bucket[key] ||= { dat: 0, chuaDat: 0 };
+      bucket[key] ||= { dat: 0, canCoGang: 0, chuaDat: 0 };
       bucket[key][field] += 1;
     };
     const goalKey = (id) => (goals[id] ? (goals[id].description ? `${goals[id].name} – ${goals[id].description}` : goals[id].name) : id);
@@ -392,6 +403,11 @@ export const periodSummaryOf = (db, childId, start, end) => {
       add(byTheme, theme, 'dat');
       add(byGoal, goalKey(id), 'dat');
       add(byDomain, domainKey(id), 'dat');
+    });
+    (a.criteriaEffort || []).forEach((id) => {
+      add(byTheme, theme, 'canCoGang');
+      add(byGoal, goalKey(id), 'canCoGang');
+      add(byDomain, domainKey(id), 'canCoGang');
     });
     (a.criteriaNotMet || []).forEach((id) => {
       add(byTheme, theme, 'chuaDat');
@@ -422,8 +438,9 @@ const periodDaysOf = (db, ev) => {
   const goals = goalOfId(db);
   const goal = (id) => ({ id, name: goals[id]?.name || id, description: goals[id]?.description || '' });
   const dates = new Set(records.map((r) => r.date));
+  const absent = absentDaysOf(db, ev.childId, ev.periodStart, ev.periodEnd);
   (db.dailyObservations || []).forEach((o) => {
-    if (o.childId === ev.childId && o.date >= ev.periodStart && o.date <= ev.periodEnd) dates.add(o.date);
+    if (o.childId === ev.childId && o.date >= ev.periodStart && o.date <= ev.periodEnd && !absent.has(o.date)) dates.add(o.date);
   });
   return [...dates].sort().map((date) => {
     const obs = observationOf(db, ev.childId, date);
@@ -440,6 +457,7 @@ const periodDaysOf = (db, ev) => {
       behaviors: obs?.behaviors || [],
       behaviorNote: obs?.behaviorNote || '',
       met: met.map(goal),
+      effort: [...new Set(day.flatMap((r) => r.criteriaEffort || []))].filter((id) => !met.includes(id)).map(goal),
       notMet: [...new Set(day.flatMap((r) => r.criteriaNotMet || []))].filter((id) => !met.includes(id)).map(goal),
       comment:
         obs?.comment ??
@@ -457,7 +475,9 @@ const periodDaysOf = (db, ev) => {
 const draftFor = (db, ev, child) => {
   const assessments = assessmentsOf(db, ev.childId, ev.periodStart, ev.periodEnd);
   // Chỉ xét mục tiêu đã có trong giáo án các ngày của kỳ (MT / YCCĐ chưa dạy không phải "cần hỗ trợ"); bộ tiêu chí cũ giữ nguyên
-  const used = new Set(assessments.flatMap((a) => [...(a.criteriaOffered || []), ...a.criteriaMet, ...(a.criteriaNotMet || [])]));
+  const used = new Set(
+    assessments.flatMap((a) => [...(a.criteriaOffered || []), ...a.criteriaMet, ...(a.criteriaEffort || []), ...(a.criteriaNotMet || [])]),
+  );
   const criteria = allCriteria(db).filter((c) => !c.kind || used.has(c.id));
   const presentDays = countPresentDays(db, ev.childId, ev.periodStart, ev.periodEnd);
   const monthlyEvaluations =
@@ -748,8 +768,9 @@ const ensureReady = () => {
 const flagDaysOf = (db, childId, start, end) => {
   const days = new Set();
   const decided = new Set();
+  const absent = absentDaysOf(db, childId, start, end);
   (db.dailyObservations || []).forEach((o) => {
-    if (o.childId !== childId || o.date < start || o.date > end || o.flag === undefined) return;
+    if (o.childId !== childId || o.date < start || o.date > end || o.flag === undefined || absent.has(o.date)) return;
     decided.add(o.date);
     if (o.flag) days.add(o.date);
   });
@@ -824,6 +845,7 @@ const withNames = (db, row) => ({
   ...row,
   childName: childOf(db, row.childId)?.fullName || '—',
   childCode: childOf(db, row.childId)?.code || '',
+  childPhotoUrl: childOf(db, row.childId)?.photoUrl || null,
   className: classOf(db, row.classId)?.name || '—',
   ...(row.periodType === PERIOD_TYPE.WEEK ? planWeekOf(db, classOf(db, row.classId), row.schoolYear, row.periodStart) : {}),
 });
@@ -848,6 +870,7 @@ const unlockView = (db, u) => ({
   ...u,
   className: classOf(db, u.classId)?.name || '—',
   unlockedByName: (db.users || []).find((x) => x.id === u.unlockedBy)?.fullName || '—',
+  revokedByName: u.revokedBy ? (db.users || []).find((x) => x.id === u.revokedBy)?.fullName || '—' : null,
 });
 
 /* ---------------- repository ---------------- */
@@ -1054,6 +1077,10 @@ export const assessmentMockRepository = {
             participation: plan ? a.participation || 'BINH_THUONG' : null,
             criteriaMet: (a.criteriaMet || []).filter((id) => offered.includes(id)),
             criteriaNotMet: (a.criteriaNotMet || []).filter((id) => offered.includes(id) && !(a.criteriaMet || []).includes(id)),
+            // Cần cố gắng: mức giữa (PROPOSED, BE chốt)
+            criteriaEffort: (a.criteriaEffort || []).filter(
+              (id) => offered.includes(id) && !(a.criteriaMet || []).includes(id) && !(a.criteriaNotMet || []).includes(id),
+            ),
             criteriaOffered: offered,
             lessonPlanId: plan?.id || null,
             themeId: plan?.themeId || null,
@@ -1235,6 +1262,34 @@ export const assessmentMockRepository = {
     );
   },
 
+  /**
+   * Kết thúc sớm lần mở lại ngày đánh giá (mở nhầm, giáo viên đã đánh giá xong): hạn = bây giờ, ngày khóa lại,
+   * giữ lịch sử (không xóa), báo giáo viên lớp. PENDING BE: POST /assessment/day-unlocks/{id}/revoke.
+   */
+  async revokeAssessmentDayUnlock(id, user) {
+    await delay();
+    ensureReady();
+    return writeDb((db) => {
+      const u = (db.assessmentDayUnlocks || []).find((x) => x.id === id);
+      if (!u) throw new ApiError(404, 'Không tìm thấy lần mở lại.');
+      const cls = classOf(db, u.classId);
+      if (!canUnlockAssessmentDay(cls, user)) forbid();
+      if (!isUnlockActive(u)) throw new ApiError(409, 'Lần mở lại này đã hết hiệu lực.');
+      const at = nowIso();
+      Object.assign(u, { validUntil: at, revokedAt: at, revokedBy: user.id });
+      cls.teacherIds.forEach((userId) =>
+        pushNotification(db, {
+          userId,
+          type: 'ASSESSMENT_DAY_UNLOCK_REVOKED',
+          title: 'Đã kết thúc mở lại ngày đánh giá',
+          message: `${cls.name}: ngày ${u.date.split('-').reverse().join('/')} đã khóa lại.`,
+          link: `/assessment/daily?classId=${cls.id}&date=${u.date}`,
+        }),
+      );
+      return clone(unlockView(db, u));
+    });
+  },
+
   async unlockAssessmentDay({ classId, date, reason, validUntil }, user) {
     await delay();
     ensureReady();
@@ -1243,12 +1298,18 @@ export const assessmentMockRepository = {
       if (!cls) throw new ApiError(404, 'Không tìm thấy lớp.');
       if (!canUnlockAssessmentDay(cls, user)) forbid();
       if (!date || !isSchoolDay(date)) throw new ApiError(422, 'Chọn một ngày học.');
+      // Lùi được tới ngày bắt đầu năm học (Cần chốt 21/10/2026)
+      const yearStart = activeYearStart(db);
+      if (yearStart && date < yearStart) throw new ApiError(422, 'Chỉ mở lại ngày từ đầu năm học.');
       if (!isAssessmentLocked(date)) throw new ApiError(422, 'Ngày này chưa khóa, giáo viên vẫn đánh giá được.');
       if ((reason || '').length > 300) throw new ApiError(422, 'Lý do tối đa 300 ký tự.');
       const until = new Date(validUntil || '');
       if (Number.isNaN(until.getTime())) throw new ApiError(422, 'Chọn ngày giờ hết hạn mở lại.');
       if (until <= new Date()) throw new ApiError(422, 'Hạn mở lại phải sau thời điểm hiện tại.');
-      if (until - Date.now() > UNLOCK_MAX_DAYS * 86400000) throw new ApiError(422, `Chỉ mở lại tối đa ${UNLOCK_MAX_DAYS} ngày.`);
+      // Hạn do HT / PHT chọn, không quá hết ngày kết thúc năm học
+      const yearEnd = activeYearEnd(db);
+      if (yearEnd && until > new Date(`${yearEnd}T23:59:59+07:00`))
+        throw new ApiError(422, 'Hạn mở lại không được quá ngày kết thúc năm học.');
       const active = activeUnlockOf(db, classId, date);
       if (active) throw new ApiError(409, `Ngày này đã được mở lại cho lớp, còn hiệu lực đến ${fmtDeadline(active.validUntil)}.`);
       const at = nowIso();
@@ -1325,10 +1386,17 @@ export const assessmentMockRepository = {
         if (a.criteriaMet.includes(id)) domainStats[domain].met += 1;
       });
     });
+    // Hồ sơ theo dữ liệu 3 nhóm của đánh giá hằng ngày: bảng số liệu kỳ và từng ngày (như màn đánh giá tuần / tháng)
+    const days = to >= start ? periodDaysOf(db, { childId, periodStart: start, periodEnd: to }) : [];
     return clone({
       child,
       cls,
       range: { start, end: to },
+      presentDays: to >= start ? countPresentDays(db, childId, start, to, att) : 0,
+      flagCount: to >= start ? flagDaysOf(db, childId, start, to) : 0,
+      summary: to >= start ? periodSummaryOf(db, childId, start, to) : null,
+      days,
+      mealSessions: cls ? mealSessionsOf(db, cls) : [],
       criteria: allCriteria(db),
       dailyAssessments: daily,
       weeks,
@@ -1509,7 +1577,7 @@ export const assessmentMockRepository = {
           child: { id: child.id, code: child.code, fullName: child.fullName, photoUrl: child.photoUrl || null },
           weekly: weekly.length,
           monthly: mine.filter((t) => t.type === TICKET_TYPE.MONTHLY).length,
-          flags: assessmentsOf(db, child.id, from, to).filter((a) => a.flag).length,
+          flags: flagDaysOf(db, child.id, from, to),
         };
       })
       .sort((a, b) => b.weekly - a.weekly || b.monthly - a.monthly || a.child.fullName.localeCompare(b.child.fullName, 'vi'));

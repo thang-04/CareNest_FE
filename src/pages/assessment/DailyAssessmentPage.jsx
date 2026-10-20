@@ -19,9 +19,6 @@ import { addDays, isSchoolDay, todayIso, unlockDeadline } from '@/utils/assessme
 import { validateDailyEntry, hasErrors } from '@/utils/assessment/assessmentValidation';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
-// Bảng cùng kiểu bảng mục tiêu năm / màn Kiến thức kỹ năng (Tiền 21/10)
-import '@/styles/modules/education-plan.css';
-import { Cell, focusCell } from '@/components/ui/TableCell';
 
 const lastSchoolDay = () => {
   let d = todayIso();
@@ -47,13 +44,15 @@ const fromRow = (r, mealSessions) => {
     participation: a?.participation || PARTICIPATION.BINH_THUONG,
     criteriaMet: a?.criteriaMet || [],
     criteriaNotMet: a?.criteriaNotMet || [],
-    // Cờ của ngày: cô đã quyết thì giữ, chưa thì theo gợi ý (đủ 4 tiêu chí)
+    // Cờ của ngày (1 cờ / trẻ / ngày): cô đã quyết thì giữ, chưa thì theo gợi ý
     flag: r.flag ?? !!r.flagSuggestion?.eligible,
     comment: a?.comment || '',
   };
 };
 
 const COLS = 9;
+// Ô khác giá trị mặc định được tô nhẹ để giáo viên thấy ngay ngoại lệ
+const tint = (tone) => (tone ? `dg-cell--${tone}` : '');
 
 /** #52 Daily Assessment (UC 4.4, GBR-OBS-01..05) – teacher / team leader of the class. */
 export default function DailyAssessmentPage() {
@@ -153,8 +152,9 @@ export default function DailyAssessmentPage() {
   return (
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.daily)} />
-      {/* Cùng kiểu màn Kiến thức kỹ năng: không có khung tiêu đề lớn (Tiền 21/10) */}
-      <h1 className="sr-only">Đánh giá hằng ngày</h1>
+      <div className="page__head">
+        <h1 className="page__title">Đánh giá hằng ngày</h1>
+      </div>
 
       {classesError ? (
         <ErrorState error={classesError} />
@@ -196,7 +196,6 @@ export default function DailyAssessmentPage() {
                 onChange={(e) => e.target.value && setDate(e.target.value)}
               />
             </div>
-            {/* Thay ô chọn hoạt động: Hoạt động chung (màn này) / Kiến thức kỹ năng (bảng Đạt / Chưa đạt theo giờ) */}
             <DailyModeSelect mode="general" classId={currentClassId} date={date} />
             <div className="spacer" />
             {sheet && (
@@ -237,207 +236,195 @@ export default function DailyAssessmentPage() {
           {error ? (
             <ErrorState error={error} onRetry={reload} />
           ) : (
-            <div className="card__body">
-              <div className="table-wrap">
-                <table className="table ga-plan-table ga-goal-table dg-day-table" onMouseDown={focusCell}>
-                  {/* Trẻ 190px, Cờ 64px, Nhận xét 96px (ngắn lại); 6 cột chọn chia đều phần còn lại */}
-                  <colgroup>
-                    <col className="ga-goal-table__group" />
-                    {[0, 1, 2, 3, 4, 5].map((i) => (
-                      <col key={i} />
-                    ))}
-                    <col className="ga-goal-table__del" />
-                    <col className="ga-goal-table__code" />
-                  </colgroup>
-                  <thead>
+            <div className="table-wrap dg-sheet-wrap">
+              <table className="table table--grid dg-sheet">
+                <thead>
+                  <tr className="dg-head-cols">
+                    <th className="dg-col-child dg-sticky-col cell--fixed">Trẻ</th>
+                    <th>Sức khỏe</th>
+                    <th>Ăn</th>
+                    <th>Ngủ trưa</th>
+                    <th>Cảm xúc</th>
+                    <th>Hành vi</th>
+                    <th>Tham gia</th>
+                    <th className="center">Cờ</th>
+                    <th className="dg-col-note">Nhận xét</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading || classesLoading || !sheet ? (
+                    <SkeletonRows rows={5} cols={COLS} />
+                  ) : sheet.rows.length === 0 ? (
                     <tr>
-                      <th className="cell--fixed">Trẻ</th>
-                      <th>Sức khỏe</th>
-                      <th>Ăn</th>
-                      <th>Ngủ trưa</th>
-                      <th>Cảm xúc</th>
-                      <th>Hành vi</th>
-                      <th>Tham gia</th>
-                      <th className="center" title="Mỗi trẻ 1 cờ / ngày; tự gợi ý khi đủ tiêu chí, cô vẫn bỏ / cắm được">
-                        Cờ
-                      </th>
-                      <th>Nhận xét</th>
+                      <td colSpan={COLS}>
+                        <EmptyState title="Lớp chưa có trẻ" description="Trẻ được xếp vào lớp sẽ hiển thị tại đây." />
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {loading || classesLoading || !sheet ? (
-                      <SkeletonRows rows={5} cols={COLS} />
-                    ) : sheet.rows.length === 0 ? (
-                      <tr>
-                        <td colSpan={COLS}>
-                          <EmptyState title="Lớp chưa có trẻ" description="Trẻ được xếp vào lớp sẽ hiển thị tại đây." />
-                        </td>
-                      </tr>
-                    ) : !attendanceTaken ? (
-                      <tr>
-                        <td colSpan={COLS}>
-                          <EmptyState
-                            icon={UserX}
-                            title={`Lớp chưa điểm danh ngày ${formatDate(sheet.date)}`}
-                            description="Điểm danh trước, chỉ trẻ có mặt mới được đánh giá."
-                            action={
-                              <Link className="btn btn--primary" to={`/attendance?classId=${sheet.cls.id}&date=${sheet.date}`}>
-                                Điểm danh ngay
-                              </Link>
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ) : presentRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={COLS}>
-                          <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng hoặc chưa điểm danh ngày này." />
-                        </td>
-                      </tr>
-                    ) : (
-                      presentRows.map((r) => {
-                        const id = r.child.id;
-                        const state = rowState(r);
-                        const d = drafts[id] || fromRow(r, sheet.mealSessions);
-                        const disabled = state !== 'editable';
-                        const errs = rowErrors[id] || {};
-                        const firstError = Object.values(errs)[0];
-                        const name = r.child.fullName;
-                        // Viền trái của dòng: lỗi / chưa lưu / đã ghi nhận / chưa đánh giá
-                        const status = rowErrors[id]
-                          ? ['error', 'Có lỗi, xem dòng chữ đỏ']
-                          : dirty.has(id)
-                            ? ['dirty', 'Đã thay đổi, chưa lưu']
-                            : r.assessment
-                              ? ['saved', `Đã ghi nhận ${formatDateTime(r.assessment.updatedAt || r.assessment.recordedAt)}`]
-                              : ['new', 'Chưa đánh giá'];
-                        return (
-                          <tr key={id} title={status[1]}>
-                            <td className="cell--fixed">
-                              <div className="ga-goal-table__pad dg-child">
-                                <ChildAvatar child={r.child} size="sm" />
-                                <div className="dg-child__info">
-                                  <Link to={`/assessment/children/${id}`} className="fw-600">
-                                    {name}
-                                  </Link>
-                                  <div className="muted text-xs">
-                                    {r.child.code}
-                                    {r.assessment?.corrections?.length > 0 && ` · ${r.assessment.corrections.length} lần điều chỉnh`}
-                                  </div>
-                                  {state === 'other' && (
-                                    <div className="muted text-xs">
-                                      Do {md.userById(r.assessment.recordedBy)?.fullName || 'giáo viên khác'} ghi nhận
-                                    </div>
-                                  )}
-                                  {firstError && <div className="field__error">{firstError}</div>}
+                  ) : !attendanceTaken ? (
+                    <tr>
+                      <td colSpan={COLS}>
+                        <EmptyState
+                          icon={UserX}
+                          title={`Lớp chưa điểm danh ngày ${formatDate(sheet.date)}`}
+                          description="Điểm danh trước, chỉ trẻ có mặt mới được đánh giá."
+                          action={
+                            <Link className="btn btn--primary" to={`/attendance?classId=${sheet.cls.id}&date=${sheet.date}`}>
+                              Điểm danh ngay
+                            </Link>
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ) : presentRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={COLS}>
+                        <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng hoặc chưa điểm danh ngày này." />
+                      </td>
+                    </tr>
+                  ) : (
+                    presentRows.map((r) => {
+                      const id = r.child.id;
+                      const state = rowState(r);
+                      const d = drafts[id] || fromRow(r, sheet.mealSessions);
+                      const disabled = state !== 'editable';
+                      const errs = rowErrors[id] || {};
+                      const firstError = Object.values(errs)[0];
+                      const name = r.child.fullName;
+                      // Viền trái của dòng: lỗi / chưa lưu / đã ghi nhận / chưa đánh giá
+                      const status = rowErrors[id]
+                        ? ['error', 'Có lỗi, xem dòng chữ đỏ']
+                        : dirty.has(id)
+                          ? ['dirty', 'Đã thay đổi, chưa lưu']
+                          : r.assessment
+                            ? ['saved', `Đã ghi nhận ${formatDateTime(r.assessment.updatedAt || r.assessment.recordedAt)}`]
+                            : ['new', 'Chưa đánh giá'];
+                      return (
+                        <tr key={id} className={`dg-row dg-row--${status[0]}`} title={status[1]}>
+                          <td className="dg-col-child dg-sticky-col cell--fixed">
+                            <div className="dg-child">
+                              <ChildAvatar child={r.child} size="sm" />
+                              <div className="dg-child__info">
+                                <Link to={`/assessment/children/${id}`} className="fw-600">
+                                  {name}
+                                </Link>
+                                <div className="muted text-xs">
+                                  {r.child.code}
+                                  {r.assessment?.corrections?.length > 0 && ` · ${r.assessment.corrections.length} lần điều chỉnh`}
                                 </div>
+                                {state === 'other' && (
+                                  <div className="muted text-xs">
+                                    Do {md.userById(r.assessment.recordedBy)?.fullName || 'giáo viên khác'} ghi nhận
+                                  </div>
+                                )}
+                                {firstError && <div className="field__error">{firstError}</div>}
                               </div>
-                            </td>
-                            <td className="dg-day-cell">
-                              <HealthCell
-                                health={r.health}
-                                draft={d}
-                                name={name}
-                                disabled={disabled}
-                                onChange={(patch) => update(id, patch)}
-                              />
-                            </td>
-                            <td className="dg-day-cell">
-                              <MealsCell
-                                draft={d}
-                                row={r}
-                                sessions={sheet.mealSessions}
-                                name={name}
-                                disabled={disabled}
-                                onChange={(patch) => update(id, patch)}
-                              />
-                            </td>
-                            <td className="dg-day-cell">
+                            </div>
+                          </td>
+                          <td className={`dg-col-health ${tint(d.healthSigns.length ? 'bad' : '')}`}>
+                            <HealthCell
+                              health={r.health}
+                              draft={d}
+                              name={name}
+                              disabled={disabled}
+                              onChange={(patch) => update(id, patch)}
+                            />
+                          </td>
+                          <td className="dg-col-meals">
+                            <MealsCell
+                              draft={d}
+                              row={r}
+                              sessions={sheet.mealSessions}
+                              name={name}
+                              disabled={disabled}
+                              onChange={(patch) => update(id, patch)}
+                            />
+                          </td>
+                          <td className={`dg-col-nap ${tint(d.nap === NAP.KHONG_NGU ? 'bad' : d.nap !== NAP.NGU_TOT ? 'warn' : '')}`}>
+                            <select
+                              className="select dg-select"
+                              value={d.nap}
+                              disabled={disabled}
+                              onChange={(e) => update(id, { nap: e.target.value })}
+                              aria-label={`Ngủ trưa của ${name}`}
+                            >
+                              {Object.entries(NAP_LABELS).map(([k, v]) => (
+                                <option key={k} value={k}>
+                                  {v}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className={`${tint(d.emotion === EMOTION.SAD || d.emotion === EMOTION.UPSET ? 'warn' : '')}`}>
+                            <select
+                              className="select dg-select"
+                              value={d.emotion}
+                              disabled={disabled}
+                              onChange={(e) => update(id, { emotion: e.target.value })}
+                              aria-label={`Cảm xúc của ${name}`}
+                            >
+                              {Object.entries(EMOTION_LABELS).map(([k, v]) => (
+                                <option key={k} value={k}>
+                                  {v}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <BehaviorsCell draft={d} name={name} disabled={disabled} onChange={(patch) => update(id, patch)} />
+                          </td>
+                          <td className={tint(sheet.plan && d.participation === PARTICIPATION.CHUA_TICH_CUC ? 'warn' : '')}>
+                            {sheet.plan ? (
                               <select
-                                className="ga-cell-input"
-                                value={d.nap}
+                                className="select dg-select"
+                                value={d.participation}
                                 disabled={disabled}
-                                onChange={(e) => update(id, { nap: e.target.value })}
-                                aria-label={`Ngủ trưa của ${name}`}
+                                onChange={(e) => update(id, { participation: e.target.value })}
+                                aria-label={`Mức tham gia hoạt động của ${name}`}
                               >
-                                {Object.entries(NAP_LABELS).map(([k, v]) => (
+                                {Object.entries(PARTICIPATION_LABELS).map(([k, v]) => (
                                   <option key={k} value={k}>
                                     {v}
                                   </option>
                                 ))}
                               </select>
-                            </td>
-                            <td className="dg-day-cell">
-                              <select
-                                className="ga-cell-input"
-                                value={d.emotion}
-                                disabled={disabled}
-                                onChange={(e) => update(id, { emotion: e.target.value })}
-                                aria-label={`Cảm xúc của ${name}`}
-                              >
-                                {Object.entries(EMOTION_LABELS).map(([k, v]) => (
-                                  <option key={k} value={k}>
-                                    {v}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="dg-day-cell">
-                              <BehaviorsCell draft={d} name={name} disabled={disabled} onChange={(patch) => update(id, patch)} />
-                            </td>
-                            <td className="dg-day-cell">
-                              {sheet.plan ? (
-                                <select
-                                  className="ga-cell-input"
-                                  value={d.participation}
-                                  disabled={disabled}
-                                  onChange={(e) => update(id, { participation: e.target.value })}
-                                  aria-label={`Mức tham gia hoạt động của ${name}`}
-                                >
-                                  {Object.entries(PARTICIPATION_LABELS).map(([k, v]) => (
-                                    <option key={k} value={k}>
-                                      {v}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <span className="muted text-xs">—</span>
-                              )}
-                            </td>
-                            <td className="dg-day-cell center">
-                              <button
-                                type="button"
-                                className={`dg-flag ${d.flag ? 'dg-flag--on' : ''}`}
-                                aria-pressed={d.flag}
-                                aria-label={`Cờ bé ngoan hôm nay cho ${name}`}
-                                title={
-                                  r.flagSuggestion?.eligible
-                                    ? `${d.flag ? 'Bỏ' : 'Cắm'} cờ bé ngoan (đủ tiêu chí gợi ý cờ)`
-                                    : `Chưa đủ tiêu chí gợi ý cờ: ${r.flagSuggestion?.reasons?.join('; ') || ''}. Cô vẫn ${d.flag ? 'bỏ' : 'cắm'} cờ được.`
-                                }
-                                disabled={disabled}
-                                onClick={() => update(id, { flag: !d.flag })}
-                              >
-                                <Flag size={16} />
-                              </button>
-                            </td>
-                            <td>
-                              {/* Ô chữ như màn Kiến thức kỹ năng */}
-                              <Cell
-                                editable={!disabled}
-                                value={d.comment}
-                                label={`Nhận xét trong ngày cho ${name}`}
-                                placeholder="Tùy chọn"
-                                onChange={(v) => update(id, { comment: v })}
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                            ) : (
+                              <span className="muted text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="center">
+                            <button
+                              type="button"
+                              className={`dg-flag ${d.flag ? 'dg-flag--on' : ''}`}
+                              aria-pressed={d.flag}
+                              aria-label={`Cờ bé ngoan hôm nay cho ${name}`}
+                              title={
+                                r.flagSuggestion?.eligible
+                                  ? `${d.flag ? 'Bỏ' : 'Cắm'} cờ bé ngoan (đủ tiêu chí gợi ý cờ)`
+                                  : `Chưa đủ tiêu chí gợi ý cờ: ${r.flagSuggestion?.reasons?.join('; ') || ''}. Cô vẫn ${d.flag ? 'bỏ' : 'cắm'} cờ được.`
+                              }
+                              disabled={disabled}
+                              onClick={() => update(id, { flag: !d.flag })}
+                            >
+                              <Flag size={16} />
+                            </button>
+                          </td>
+                          <td className="dg-col-note">
+                            <input
+                              className={`input dg-input dg-note ${errs.comment ? 'input--error' : ''}`}
+                              value={d.comment}
+                              maxLength={500}
+                              disabled={disabled}
+                              placeholder="Tùy chọn"
+                              onChange={(e) => update(id, { comment: e.target.value })}
+                              aria-label={`Nhận xét trong ngày cho ${name}`}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

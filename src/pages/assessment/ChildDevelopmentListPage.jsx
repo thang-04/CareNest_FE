@@ -8,6 +8,7 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { RowActions } from '@/components/ui/RowActions';
+import { ChildNameCell } from '@/components/assessment/ChildNameCell';
 import { ageLabel, GENDER_LABELS } from '@/models/School';
 import { normalizeText } from '@/utils/format';
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
@@ -122,7 +123,9 @@ export default function ChildDevelopmentListPage() {
                   paginate(rows, page).map((ch) => (
                     <tr key={ch.id}>
                       <td className="fw-600 text-primary">{ch.code}</td>
-                      <td>{ch.fullName}</td>
+                      <td>
+                        <ChildNameCell child={ch} sub={null} />
+                      </td>
                       <td>{GENDER_LABELS[ch.gender]}</td>
                       <td className="nowrap">{ageLabel(ch.dateOfBirth)}</td>
                       <td>{className(ch.classId)}</td>

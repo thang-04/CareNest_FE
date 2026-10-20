@@ -14,6 +14,7 @@ export const getDailyDaySheet = (params, user) => repo.getDailyDaySheet(params, 
 export const saveDailyDay = (body, user) => repo.saveDailyDay(body, user);
 export const getAssessmentDayUnlocks = (user) => repo.listAssessmentDayUnlocks(user);
 export const unlockAssessmentDay = (body, user) => repo.unlockAssessmentDay(body, user);
+export const revokeAssessmentDayUnlock = (id, user) => repo.revokeAssessmentDayUnlock(id, user);
 
 export const getChildDevelopment = (childId, params, user) => repo.getChildDevelopment(childId, params, user);
 

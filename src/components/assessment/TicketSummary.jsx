@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Award, BadgeCheck, Download, Flag, Ticket } from '@/components/ui/icons';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
-import { ChildAvatar } from '@/components/ChildAvatar';
+import { ChildNameCell } from '@/components/assessment/ChildNameCell';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { useTicketSummary } from '@/hooks/assessment/useAssessment';
 import { periodLabel } from '@/utils/assessment/assessmentPeriods';
@@ -119,13 +119,7 @@ export function TicketSummary({ classId }) {
                   <tr key={r.child.id}>
                     <td className="center muted">{i + 1}</td>
                     <td>
-                      <div className="dg-ticket-child">
-                        <ChildAvatar child={r.child} size="sm" />
-                        <div>
-                          <div className="fw-600">{r.child.fullName}</div>
-                          <div className="muted text-xs">{r.child.code}</div>
-                        </div>
-                      </div>
+                      <ChildNameCell child={r.child} />
                     </td>
                     <td className={`num ${r.weekly ? 'fw-600' : 'muted'}`}>{r.weekly}</td>
                     <td className={`num ${r.monthly ? 'fw-600' : 'muted'}`}>{r.monthly}</td>

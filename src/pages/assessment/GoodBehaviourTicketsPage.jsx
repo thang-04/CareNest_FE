@@ -8,7 +8,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { ChildAvatar } from '@/components/ChildAvatar';
+import { ChildNameCell } from '@/components/assessment/ChildNameCell';
 import { TicketSummary } from '@/components/assessment/TicketSummary';
 import { Tabs } from '@/components/ui/Tabs';
 import { TicketOverview } from '@/components/assessment/TicketOverview';
@@ -273,13 +273,7 @@ function TeacherTicketsPage() {
                               />
                             </td>
                             <td>
-                              <div className="dg-ticket-child">
-                                <ChildAvatar child={r.child} size="sm" />
-                                <div>
-                                  <div className="fw-600">{r.child.fullName}</div>
-                                  <div className="muted text-xs">{r.child.code}</div>
-                                </div>
-                              </div>
+                              <ChildNameCell child={r.child} />
                             </td>
                             {weekly ? (
                               <>

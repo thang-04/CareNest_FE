@@ -8,6 +8,7 @@ import { useFilterParams } from '@/hooks/useFilterParams';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { RowActions } from '@/components/ui/RowActions';
+import { ChildNameCell, childOfRow } from '@/components/assessment/ChildNameCell';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { FilterMore } from '@/components/ui/FilterMore';
@@ -277,8 +278,7 @@ export function EvaluationListView({ kind }) {
                     return (
                       <tr key={e.id} className="row-click" onClick={() => navigate(link(e))}>
                         <td>
-                          <div className="fw-600">{e.childName}</div>
-                          <div className="muted text-xs">{e.childCode}</div>
+                          <ChildNameCell child={childOfRow(e)} />
                         </td>
                         {showClass && <td>{e.className}</td>}
                         <td className="nowrap">

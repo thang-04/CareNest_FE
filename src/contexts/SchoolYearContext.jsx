@@ -6,7 +6,13 @@ import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 
 const SchoolYearContext = createContext(null);
 
-const toOption = (y) => ({ id: y.id, label: (y.name || y.id).replace('-', ' - '), status: y.status });
+const toOption = (y) => ({
+  id: y.id,
+  label: (y.name || y.id).replace('-', ' - '),
+  status: y.status,
+  startDate: y.startDate || null,
+  endDate: y.endDate || null,
+});
 
 /**
  * Current school year chosen in the header, shared by every page.

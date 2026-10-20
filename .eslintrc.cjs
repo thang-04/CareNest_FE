@@ -43,7 +43,6 @@ const CROSS_MODULE_DEBT = {
   'src/models/attendance/attendanceConstants.js': ['menu-planning'],
   'src/models/kitchen/kitchenConstants.js': ['attendance'],
   'src/models/school-config/schoolConfigConstants.js': ['menu-planning'],
-  'src/pages/assessment/AssessmentDayUnlockPage.jsx': ['school-config'],
   'src/pages/children/ChildrenListPage.jsx': ['account'],
   'src/pages/children/ParentActivationPage.jsx': ['account'],
   'src/pages/dashboard/KitchenDashboard.jsx': ['kitchen'],

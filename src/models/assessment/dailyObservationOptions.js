@@ -37,5 +37,6 @@ export const PARTICIPATION = { TICH_CUC: 'TICH_CUC', BINH_THUONG: 'BINH_THUONG',
 export const PARTICIPATION_LABELS = { TICH_CUC: 'Tích cực', BINH_THUONG: 'Bình thường', CHUA_TICH_CUC: 'Chưa tích cực' };
 
 /** Kết quả từng mục tiêu: không chọn = chưa đánh giá (không tính là chưa đạt). */
-export const YCCD_RESULT = { DAT: 'DAT', CHUA_DAT: 'CHUA_DAT' };
-export const YCCD_RESULT_LABELS = { DAT: 'Đạt', CHUA_DAT: 'Chưa đạt' };
+// Cần cố gắng: mức giữa Đạt và Chưa đạt (Cần chốt 21/10/2026, PROPOSED với BE)
+export const YCCD_RESULT = { DAT: 'DAT', CAN_CO_GANG: 'CAN_CO_GANG', CHUA_DAT: 'CHUA_DAT' };
+export const YCCD_RESULT_LABELS = { DAT: 'Đạt', CAN_CO_GANG: 'Cần cố gắng', CHUA_DAT: 'Chưa đạt' };

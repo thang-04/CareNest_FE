@@ -14,6 +14,8 @@ export const assessmentApi = {
   // PENDING BE: mở lại ngày đánh giá đã khóa (PHT điểm trường / Hiệu trưởng), hiệu lực đến hết ngày mở
   listAssessmentDayUnlocks: () => axiosClient.get('/assessment/day-unlocks'),
   unlockAssessmentDay: (body) => axiosClient.post('/assessment/day-unlocks', body),
+  // PENDING BE: kết thúc sớm lần mở lại
+  revokeAssessmentDayUnlock: (id) => axiosClient.post(`/assessment/day-unlocks/${id}/revoke`),
 
   getChildDevelopment: (childId, params) => axiosClient.get(`/assessment/children/${childId}/development`, { params }),
 
