@@ -4,6 +4,7 @@ import { formatDate, formatDateTime } from '@/utils/format';
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
 import { exportPrintModelToCsv } from '@/utils/facility-transfer/exportTransfer';
 import { PrintToolbar } from '@/components/print/PrintToolbar';
+import '@/styles/modules/facility-transfer.css';
 
 /** The single A4 transfer template (PhieuIn mockup). */
 export const PrintSheet = forwardRef(function PrintSheet({ model, template = DEFAULT_PRINT_TEMPLATE }, ref) {
@@ -58,7 +59,7 @@ export const PrintSheet = forwardRef(function PrintSheet({ model, template = DEF
       <table className="ps-table">
         <thead>
           <tr>
-            <th style={{ width: 60 }}>STT</th>
+            <th className="ft-w-60">STT</th>
             <th>Mã tài sản</th>
             <th>Tên tài sản</th>
             <th>Đơn vị</th>

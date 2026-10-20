@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, Info, Lock } from '@/components/ui/icons';
+import { ArrowLeft, Save, Plus, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useHealthCheck } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
+import { LoadingState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { ChildAccessState, HEALTH_CHECK_ACCESS_TEXT } from '@/components/children/ChildAccessState';
 import { createHealthCheck, updateHealthCheck } from '@/services/children/healthCheckService';
@@ -60,18 +61,16 @@ export default function HealthCheckFormPage() {
       <div className="page">
         <Breadcrumb items={crumbs} />
         <h1 className="page__title">{title}</h1>
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Bạn không tạo hoặc sửa được đợt khám"
-            description="Chỉ Hiệu trưởng tạo, sửa, đóng đợt khám sức khỏe."
-            action={
-              <Link className="btn" to="/children/health-checks">
-                <ArrowLeft size={16} /> Về danh sách đợt khám
-              </Link>
-            }
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Bạn không tạo hoặc sửa được đợt khám"
+          description="Chỉ Hiệu trưởng tạo, sửa, đóng đợt khám sức khỏe."
+          action={
+            <Link className="btn" to="/children/health-checks">
+              <ArrowLeft size={16} /> Về danh sách đợt khám
+            </Link>
+          }
+        />
       </div>
     );
   if (editing && loading)
@@ -116,7 +115,7 @@ export default function HealthCheckFormPage() {
       navigate(`/children/health-checks/${saved.id}`);
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, editing ? 'Không lưu được đợt khám' : 'Không tạo được đợt khám');
+      toast.error(err, editing ? 'Không lưu được đợt khám' : 'Không tạo được đợt khám');
     } finally {
       setBusy(false);
     }

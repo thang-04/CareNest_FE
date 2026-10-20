@@ -7,6 +7,7 @@ import { formatDateTime } from '@/utils/format';
 import { TRANSFER_STATUS } from '@/models/facility-transfer/transferConstants';
 import { expectedReceiveQuantity } from '@/models/facility-transfer/FacilityTransferItem';
 import { Spinner } from '@/components/ui/States';
+import { StockStateBadge } from '@/components/facility-transfer/TransferStatusBadge';
 
 const Flow = ({ before, after, delta }) => (
   <span className="stock-flow">
@@ -75,13 +76,16 @@ export function StockMovementCard({ transfer: t, md }) {
         <div className="card__title">
           <Boxes size={20} /> Biến động tồn kho
         </div>
-        <span className={`chip ${completed ? 'chip--green' : cancelled ? 'chip--gray' : 'chip--orange'}`}>
-          {completed
-            ? `Đã cập nhật ${movedAt ? formatDateTime(movedAt) : ''}`
-            : cancelled
-              ? 'Không thay đổi'
-              : 'Dự kiến – cập nhật khi người nhận xác nhận'}
-        </span>
+        <StockStateBadge
+          state={completed ? 'UPDATED' : cancelled ? 'UNCHANGED' : 'EXPECTED'}
+          label={
+            completed
+              ? `Đã cập nhật ${movedAt ? formatDateTime(movedAt) : ''}`
+              : cancelled
+                ? 'Không thay đổi'
+                : 'Dự kiến – cập nhật khi người nhận xác nhận'
+          }
+        />
       </div>
       <div className="card__body">
         {cancelled ? (
@@ -95,11 +99,11 @@ export function StockMovementCard({ transfer: t, md }) {
         ) : (
           <>
             <div className="table-wrap">
-              <table className="table table--compact">
+              <table className="table table--compact table--grid">
                 <thead>
                   <tr>
                     <th>Tài sản</th>
-                    <th className="center">Số lượng luân chuyển</th>
+                    <th className="num">Số lượng luân chuyển</th>
                     <th>Nơi giao: {fromName}</th>
                     <th>Nơi nhận: {toName}</th>
                   </tr>
@@ -111,7 +115,7 @@ export function StockMovementCard({ transfer: t, md }) {
                         <div className="fw-600">{r.name}</div>
                         <div className="muted text-xs">{r.code}</div>
                       </td>
-                      <td className="center fw-600">
+                      <td className="num fw-600">
                         {r.qty} {r.unit}
                       </td>
                       <td>

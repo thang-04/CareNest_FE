@@ -3,9 +3,13 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Check, FileDown, Lightbulb, Printer, Wand2, X } from '@/components/ui/icons';
 import { exportBranchFile } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
-import { Card, EduStatusBadge, EmptyState, PageHead } from '@/components/education-plan/eduUi';
+import { Card, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
 import { Cell, SignPanel, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { Modal } from '@/components/ui/Modal';
+import { useAiRun } from '@/hooks/useAiRun';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
@@ -50,6 +54,8 @@ function BranchPlanInner({ classId }) {
   const [aiTheme, setAiTheme] = useState(null);
   // AI viết lại tên đã có: tuần đang chờ kết quả và số lần đã viết lại (mỗi lần một cách khác)
   const [rewriting, setRewriting] = useState(null);
+  const { run: runAi } = useAiRun();
+  const [showPending, setShowPending] = useState(false);
   const [tries, setTries] = useState({});
   // Hộp xác nhận trước mỗi lần dùng AI: { title, message, confirmLabel, run }
   const [confirm, setConfirm] = useState(null);
@@ -106,7 +112,7 @@ function BranchPlanInner({ classId }) {
   }, []);
 
   if (ctx.loading) return <LoadingState />;
-  if (!cls || !yearPlan) return <EmptyState title="Không tìm thấy lớp hoặc kế hoạch năm của lớp chưa được ban hành" />;
+  if (!cls || !yearPlan) return <StatusPage kind="404" title="Không tìm thấy lớp hoặc kế hoạch năm của lớp chưa được ban hành" />;
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;
@@ -138,12 +144,13 @@ function BranchPlanInner({ classId }) {
     }));
     setAiTheme(theme ? theme.id : 'all');
     try {
-      const res = await suggestBranchNames({ classId, ageGroupId: cls.ageGroupId, themes, taken });
+      const res = await runAi(() => suggestBranchNames({ classId, ageGroupId: cls.ageGroupId, themes, taken }));
       res.suggestions.forEach((x) => set('names', x.weekStart, x.name));
       setPending((p) => ({
         ...p,
         ...Object.fromEntries(res.suggestions.map((x) => [x.weekStart, { prev: draft.names[x.weekStart] || '', base: x.name }])),
       }));
+      if (res.suggestions.length) setShowPending(true);
     } catch {
       toast('Chưa lấy được gợi ý. Bạn vẫn có thể tự nhập tên chủ đề nhánh.', 'warn');
     } finally {
@@ -161,11 +168,12 @@ function BranchPlanInner({ classId }) {
     const current = p0?.base ?? (draft.names[r.start] || '');
     setRewriting(r.start);
     try {
-      const res = await rewriteBranchName({ classId, name: current, themeName: r.theme.name, attempt: tries[r.start] || 0 });
+      const res = await runAi(() => rewriteBranchName({ classId, name: current, themeName: r.theme.name, attempt: tries[r.start] || 0 }));
       setTries((t) => ({ ...t, [r.start]: (t[r.start] || 0) + 1 }));
       set('names', r.start, res.name);
       // ✗ trả về tên gốc của giáo viên
       setPending((p) => ({ ...p, [r.start]: { prev: p0 ? p0.prev : current, base: current } }));
+      setShowPending(true);
     } catch {
       toast('Chưa viết lại được. Bạn vẫn có thể tự sửa tên.', 'warn');
     } finally {
@@ -178,15 +186,17 @@ function BranchPlanInner({ classId }) {
     if (!named.length) return toast('Chưa có tên chủ đề nhánh nào để viết lại');
     setAiTheme('rewrite');
     try {
-      const results = await Promise.all(
-        named.map((r) => {
-          const base = pending[r.start]?.base ?? draft.names[r.start];
-          return rewriteBranchName({ classId, name: base, themeName: r.theme.name, attempt: tries[r.start] || 0 }).then((res) => ({
-            r,
-            base,
-            name: res.name,
-          }));
-        }),
+      const results = await runAi(() =>
+        Promise.all(
+          named.map((r) => {
+            const base = pending[r.start]?.base ?? draft.names[r.start];
+            return rewriteBranchName({ classId, name: base, themeName: r.theme.name, attempt: tries[r.start] || 0 }).then((res) => ({
+              r,
+              base,
+              name: res.name,
+            }));
+          }),
+        ),
       );
       results.forEach((x) => set('names', x.r.start, x.name));
       setTries((t) => ({ ...t, ...Object.fromEntries(named.map((r) => [r.start, (t[r.start] || 0) + 1])) }));
@@ -194,6 +204,7 @@ function BranchPlanInner({ classId }) {
         ...p,
         ...Object.fromEntries(results.map((x) => [x.r.start, { prev: p[x.r.start]?.prev ?? x.base, base: x.base }])),
       }));
+      setShowPending(true);
     } catch {
       toast('Chưa viết lại được. Bạn vẫn có thể tự sửa tên.', 'warn');
     } finally {
@@ -352,7 +363,7 @@ function BranchPlanInner({ classId }) {
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
               <colgroup>
-                <col className="ga-goal-table__del" />
+                <col className="ga-col-month" />
                 <col className="ga-goal-table__group" />
                 <col />
                 <col className="ga-goal-table__group" />
@@ -360,22 +371,22 @@ function BranchPlanInner({ classId }) {
               </colgroup>
               <thead>
                 <tr>
-                  <th className="ga-goal-table__fixed">Tháng</th>
-                  <th className="ga-goal-table__fixed">Chủ đề</th>
+                  <th className="cell--fixed">Tháng</th>
+                  <th className="cell--fixed">Chủ đề</th>
                   <th>Chủ đề nhánh</th>
-                  <th className="ga-goal-table__fixed">Tuần</th>
+                  <th className="cell--fixed">Tuần</th>
                   <th>Ghi chú</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
                   const monthCell = (i === 0 || !sameMonth(rows[i - 1], r)) && (
-                    <td className="ga-goal-table__fixed" rowSpan={spanFrom(i, sameMonth)}>
-                      <div className="ga-goal-table__pad">Tháng {monthOf(r.start)}</div>
+                    <td className="cell--fixed" rowSpan={spanFrom(i, sameMonth)}>
+                      <div className="ga-goal-table__pad nowrap">Tháng {monthOf(r.start)}</div>
                     </td>
                   );
                   const themeCell = (i === 0 || !sameTheme(rows[i - 1], r)) && (
-                    <td className="ga-goal-table__fixed" rowSpan={spanFrom(i, sameTheme)}>
+                    <td className="cell--fixed" rowSpan={spanFrom(i, sameTheme)}>
                       <div className="ga-goal-table__pad stack">
                         <span className="fw-600">{r.theme.name}</span>
                         <span className="text-xs">
@@ -401,7 +412,7 @@ function BranchPlanInner({ classId }) {
                       <tr key={`b-${r.start}`}>
                         {monthCell}
                         {themeCell}
-                        <td colSpan={3} className="ga-goal-table__fixed">
+                        <td colSpan={3} className="cell--fixed">
                           <div className="ga-goal-table__pad">
                             Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
                           </div>
@@ -458,7 +469,7 @@ function BranchPlanInner({ classId }) {
                           )}
                         </div>
                       </td>
-                      <td className="ga-goal-table__fixed">
+                      <td className="cell--fixed">
                         <div className="ga-goal-table__pad">
                           Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
                         </div>
@@ -491,14 +502,74 @@ function BranchPlanInner({ classId }) {
         title={confirm?.title}
         message={confirm?.message}
         confirmLabel={confirm?.confirmLabel}
-        onConfirm={async () => {
-          await confirm.run();
+        onConfirm={() => {
+          // Đóng hộp hỏi rồi mới chạy: lúc AI chạy chỉ còn lớp phủ AI, không chồng "Đang gửi…" của hộp xác nhận
+          const job = confirm.run;
           setConfirm(null);
+          job();
         }}
         onClose={() => setConfirm(null)}
       />
       {/* Ký, gửi, duyệt ngay cuối trang như trang mục tiêu năm; không mở hộp thoại */}
       <SignPanel kind="branch" doc={saved} ctx={ctx} user={user} dirty={unsaved || saveState.phase === 'saving'} onAct={act} />
+      {/* AI xong ⇒ tên AI điền mở trong modal để giữ/bỏ; đóng modal thì ✓/✗ cạnh từng ô vẫn còn (user chốt) */}
+      <Modal
+        open={showPending && editable && pendingWeeks.length > 0}
+        onClose={() => setShowPending(false)}
+        size="lg"
+        title={`Tên chủ đề nhánh AI điền (${pendingWeeks.length})`}
+        footer={
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => setShowPending(false)}>
+              Đóng, xử lý sau
+            </button>
+            <button type="button" className="btn" onClick={rejectAll}>
+              <X size={16} aria-hidden /> Bỏ tất cả
+            </button>
+            <button type="button" className="btn btn--success" onClick={() => setPending({})}>
+              <Check size={16} aria-hidden /> Giữ tất cả
+            </button>
+          </>
+        }
+      >
+        <p className="muted text-sm mb-12">Bản nháp AI: bấm ✓ để giữ, ✗ để trả về tên cũ. Đã giữ vẫn sửa được trong bảng.</p>
+        <ul className="ga-ai-review">
+          {rows
+            .filter((r) => r.type === 'week' && pending[r.start])
+            .map((r) => (
+              <li key={r.start} className="ga-ai-review__item">
+                <div className="ga-ai-review__week">
+                  <b>Tuần {r.no}</b> <span className="muted text-sm">· {r.theme.name}</span>
+                </div>
+                <div className="ga-ai-review__name">
+                  {pending[r.start].prev && <del className="muted">{pending[r.start].prev}</del>}
+                  <ins>{draft.names[r.start]}</ins>
+                </div>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  title="Giữ gợi ý"
+                  aria-label={`Giữ gợi ý tuần ${r.no}`}
+                  onClick={() => settle(r.start)}
+                >
+                  <Check size={16} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  title="Bỏ gợi ý"
+                  aria-label={`Bỏ gợi ý tuần ${r.no}`}
+                  onClick={() => rejectAi(r.start)}
+                >
+                  <X size={16} aria-hidden />
+                </button>
+              </li>
+            ))}
+        </ul>
+      </Modal>
+      {aiBusy && (
+        <AiWorkingOverlay text={aiTheme === 'rewrite' || rewriting ? 'Đang viết lại tên chủ đề nhánh…' : 'Đang gợi ý tên chủ đề nhánh…'} />
+      )}
     </div>
   );
 }

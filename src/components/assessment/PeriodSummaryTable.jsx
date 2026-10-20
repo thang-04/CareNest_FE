@@ -28,7 +28,7 @@ export function PeriodSummaryTable({ data }) {
         <h2 className="card__title">Số liệu từ đánh giá hằng ngày</h2>
         <span className="muted text-sm">{data.observedDays} ngày có ghi nhận</span>
       </div>
-      <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+      <div className="table-wrap">
         <table className="table table--grid">
           <tbody>
             <tr>

@@ -3,7 +3,6 @@ import { Link, useParams } from 'react-router-dom';
 import {
   Plus,
   LineChart,
-  Pencil,
   Send,
   History,
   ArrowLeft,
@@ -14,7 +13,6 @@ import {
   Stethoscope,
   ClipboardCheck,
   Handshake,
-  FileText,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -23,12 +21,15 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, LoadingState } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import {
+  AllergyStateBadge,
   ConclusionCategoryBadge,
   FollowUpDueBadge,
   FollowUpLevelShortBadge,
   FollowUpStatusBadge,
   MotorResultBadge,
+  PublishStatusBadge,
 } from '@/components/children/ChildBadges';
 import { MeasurementSummary } from '@/components/children/MeasurementSummary';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
@@ -36,7 +37,6 @@ import { ImageUploader } from '@/components/upload/ImageUploader';
 import { publishMeasurement } from '@/services/children/childrenService';
 import {
   DECLARATION_STATE,
-  ALLERGY_STATE_LABELS,
   MEASUREMENT_SOURCE,
   MEASUREMENT_SOURCE_LABELS,
   PARENT_VISIBLE_HEALTH_TEXT,
@@ -96,7 +96,7 @@ export default function ChildHealthRecordPage() {
       await publishMeasurement(child.id, publishing.id, user);
       toast.success(`Đã công bố kết quả ngày ${formatDate(publishing.date)} cho phụ huynh.`);
     } catch (err) {
-      toast.error(err.message, 'Không công bố được');
+      toast.error(err, 'Không công bố được');
     } finally {
       setPublishing(null);
     }
@@ -199,11 +199,15 @@ export default function ChildHealthRecordPage() {
               </dd>
               <dt>Khai báo dị ứng</dt>
               <dd>
-                {declaration
-                  ? declaration.allergies.state === DECLARATION_STATE.REPORTED
-                    ? declaration.allergies.items.join(', ')
-                    : ALLERGY_STATE_LABELS[declaration.allergies.state]
-                  : 'Chưa có khai báo'}
+                {declaration ? (
+                  declaration.allergies.state === DECLARATION_STATE.REPORTED ? (
+                    declaration.allergies.items.join(', ')
+                  ) : (
+                    <AllergyStateBadge status={declaration.allergies.state} />
+                  )
+                ) : (
+                  'Chưa có khai báo'
+                )}
               </dd>
             </dl>
           </div>
@@ -252,12 +256,12 @@ export default function ChildHealthRecordPage() {
           <h2 className="card__title">Các lần đo</h2>
         </div>
         <div className="filter-bar">
-          <label className="row gap-2">
-            <span className="text-sm text-2">Từ ngày</span>
+          <label className="date-filter">
+            Từ ngày
             <input type="date" className="input" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
           </label>
-          <label className="row gap-2">
-            <span className="text-sm text-2">Đến ngày</span>
+          <label className="date-filter">
+            Đến ngày
             <input type="date" className="input" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
           </label>
           <button
@@ -268,7 +272,7 @@ export default function ChildHealthRecordPage() {
               setTo('');
             }}
           >
-            <RotateCcw size={15} /> Đặt lại
+            <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
         <div className="alert alert--info tr-alert-flat">
@@ -311,15 +315,15 @@ export default function ChildHealthRecordPage() {
               <thead>
                 <tr>
                   <th>Ngày đo</th>
-                  <th className="right">Chiều cao (cm)</th>
-                  <th className="right">Cân nặng (kg)</th>
-                  <th className="right">Vòng đầu (cm)</th>
-                  <th className="right">BMI</th>
+                  <th className="num">Chiều cao (cm)</th>
+                  <th className="num">Cân nặng (kg)</th>
+                  <th className="num">Vòng đầu (cm)</th>
+                  <th className="num">BMI</th>
                   <th>Kết luận</th>
                   <th>Mức theo dõi</th>
                   <th>Người nhập</th>
                   <th>Phụ huynh</th>
-                  <th className="center">Thao tác</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -331,10 +335,10 @@ export default function ChildHealthRecordPage() {
                       <div className="muted text-xs tr-note">{m.campaignName || 'Ngoài đợt khám'}</div>
                       {m.note && <div className="muted text-xs tr-note">{m.note}</div>}
                     </td>
-                    <td className="right">{formatNumber(m.heightCm)}</td>
-                    <td className="right">{formatNumber(m.weightKg)}</td>
-                    <td className="right">{formatNumber(m.headCircumferenceCm)}</td>
-                    <td className="right">{formatNumber(m.bmi)}</td>
+                    <td className="num">{formatNumber(m.heightCm)}</td>
+                    <td className="num">{formatNumber(m.weightKg)}</td>
+                    <td className="num">{formatNumber(m.headCircumferenceCm)}</td>
+                    <td className="num">{formatNumber(m.bmi)}</td>
                     <td>
                       {m.source === MEASUREMENT_SOURCE.EXAM ? (
                         <div className="tr-cell-stack">
@@ -366,24 +370,10 @@ export default function ChildHealthRecordPage() {
                       </div>
                     </td>
                     <td className="text-sm">{m.measuredByName || '—'}</td>
-                    <td>
-                      {m.published ? (
-                        <span className="chip chip--green">Đã công bố</span>
-                      ) : (
-                        <span className="chip chip--gray">Chưa công bố</span>
-                      )}
+                    <td className="center">
+                      <PublishStatusBadge status={m.published ? 'PUBLISHED' : 'UNPUBLISHED'} />
                     </td>
-                    <td className="center nowrap">
-                      {m.edits.length > 0 && (
-                        <button
-                          className="icon-btn"
-                          title="Lịch sử chỉnh sửa"
-                          aria-label={`Lịch sử chỉnh sửa lần đo ${formatDate(m.date)}`}
-                          onClick={() => setHistoryOf(m)}
-                        >
-                          <History size={17} />
-                        </button>
-                      )}
+                    <td className="cell--actions">
                       {canEdit && m.locked && (
                         <span
                           className="icon-btn"
@@ -394,31 +384,11 @@ export default function ChildHealthRecordPage() {
                           <Lock size={17} />
                         </span>
                       )}
-                      {m.source === MEASUREMENT_SOURCE.EXAM && (
-                        <Link
-                          className="icon-btn"
-                          to={`/children/health-checks/${m.campaignId}/exam/${child.id}`}
-                          title="Xem phiếu khám"
-                          aria-label={`Xem phiếu khám ngày ${formatDate(m.date)}`}
-                        >
-                          <FileText size={17} />
-                        </Link>
-                      )}
-                      {canEdit && !m.locked && m.source !== MEASUREMENT_SOURCE.EXAM && (
-                        <Link
-                          className="icon-btn"
-                          to={`/children/${child.id}/health/${m.id}/edit`}
-                          title="Sửa số đo"
-                          aria-label={`Sửa lần đo ${formatDate(m.date)}`}
-                        >
-                          <Pencil size={17} />
-                        </Link>
-                      )}
                       {canPublish &&
                         !m.published &&
                         (m.publishBlockedReason ? (
                           <Link
-                            className="btn btn--sm"
+                            className="btn btn--primary btn--sm"
                             to={`/children/health-follow-ups/${m.followUpId}`}
                             title={PUBLISH_BLOCKED_TEXT[m.publishBlockedReason]}
                             aria-label={`${PUBLISH_BLOCKED_TEXT[m.publishBlockedReason]} Mở phiếu theo dõi.`}
@@ -426,10 +396,24 @@ export default function ChildHealthRecordPage() {
                             <Handshake size={14} /> Ghi trao đổi để công bố
                           </Link>
                         ) : (
-                          <button className="btn btn--sm" onClick={() => setPublishing(m)}>
+                          <button className="btn btn--primary btn--sm" onClick={() => setPublishing(m)}>
                             <Send size={14} /> Công bố
                           </button>
                         ))}
+                      <RowActions
+                        view={
+                          m.source === MEASUREMENT_SOURCE.EXAM
+                            ? { to: `/children/health-checks/${m.campaignId}/exam/${child.id}`, label: 'Xem phiếu khám' }
+                            : null
+                        }
+                        edit={
+                          canEdit && !m.locked && m.source !== MEASUREMENT_SOURCE.EXAM
+                            ? { to: `/children/${child.id}/health/${m.id}/edit`, label: 'Sửa số đo' }
+                            : null
+                        }
+                        name={`lần đo ${formatDate(m.date)}`}
+                        menu={m.edits.length > 0 ? [{ label: 'Lịch sử chỉnh sửa', icon: History, onClick: () => setHistoryOf(m) }] : []}
+                      />
                     </td>
                   </tr>
                 ))}

@@ -6,9 +6,9 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { LoadingState } from '@/components/ui/States';
-import { ChildStatusBadge, ParentAccountBadge } from '@/components/children/ChildBadges';
+import { AllergyStateBadge, ChildStatusBadge, DietStateBadge, ParentAccountBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
-import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS } from '@/models/children/childrenConstants';
+import { DECLARATION_STATE } from '@/models/children/childrenConstants';
 import { CHILD_STATUS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { canEditChild, canViewParentAccounts } from '@/utils/children/childrenPermissions';
 import { avatarTone, formatDate, initials } from '@/utils/format';
@@ -19,12 +19,7 @@ const missing = <span className="muted">Chưa cập nhật</span>;
 function AllergyValue({ declaration }) {
   const a = declaration?.allergies;
   if (!a) return <span className="muted">Chưa khai báo</span>;
-  if (a.state !== DECLARATION_STATE.REPORTED)
-    return a.state === DECLARATION_STATE.NOT_PROVIDED ? (
-      <span className="chip chip--orange">{ALLERGY_STATE_LABELS[a.state]}</span>
-    ) : (
-      <span>{ALLERGY_STATE_LABELS[a.state]}</span>
-    );
+  if (a.state !== DECLARATION_STATE.REPORTED) return <AllergyStateBadge status={a.state} />;
   return (
     <span className="row row--wrap gap-1-5">
       {a.items.map((x) => (
@@ -138,11 +133,13 @@ export function ChildQuickPanel({ childId: current, onClose }) {
               </dd>
               <dt>Chế độ ăn</dt>
               <dd>
-                {!declaration
-                  ? missing
-                  : declaration.diet.state === DECLARATION_STATE.REPORTED
-                    ? declaration.diet.text
-                    : DIET_STATE_LABELS[declaration.diet.state]}
+                {!declaration ? (
+                  missing
+                ) : declaration.diet.state === DECLARATION_STATE.REPORTED ? (
+                  declaration.diet.text
+                ) : (
+                  <DietStateBadge status={declaration.diet.state} />
+                )}
               </dd>
             </dl>
           </section>

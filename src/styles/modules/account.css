@@ -6,7 +6,7 @@
   gap: var(--space-1);
   color: var(--primary);
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   text-decoration: none;
   align-self: center;
 }
@@ -29,7 +29,7 @@
 
 .ac-demo-otp {
   font-size: var(--fs-lg);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   letter-spacing: 0.2em;
   color: var(--primary);
 }
@@ -64,9 +64,22 @@
 .stack.ac-form {
   gap: var(--space-4);
 }
-.page-actions.ac-actions {
+/* Form ngắn trong thẻ: thanh nút là chân thẻ, không thành thanh kính nổi như form dài.
+   account.css có thể nạp trước components.css (trang công khai import sớm) nên cần độ ưu tiên cao hơn .page-actions:has(.btn--primary) */
+.card .page-actions.ac-actions {
+  position: static;
+  padding: var(--space-4) 0 0;
   margin-top: 0;
+  border: 0;
   border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+/* Chân thẻ riêng (Đổi mật khẩu, Chi tiết thông báo): lề trái/phải bằng thân thẻ để nút thẳng hàng với ô nhập */
+.card > .card__body.page-actions.ac-actions {
+  padding: var(--space-4) var(--space-6) var(--space-5);
 }
 
 /* Hồ sơ cá nhân: cột hồ sơ trái + các nhóm thông tin bên phải */
@@ -123,6 +136,22 @@
   gap: var(--space-2);
   padding-top: var(--space-4);
   border-top: 1px solid var(--color-border);
+}
+/* Đổi mật khẩu: thông tin bảo mật ở chân thẻ tài khoản */
+.ac-side__security {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--fs-sm);
+}
+.ac-side__security dt {
+  color: var(--color-text-muted);
+}
+.ac-side__security dd {
+  margin: 0;
+  font-weight: var(--fw-semibold);
 }
 .ac-main {
   display: grid;
@@ -217,7 +246,7 @@
   grid-row: span 2;
   width: 10px;
   height: 10px;
-  margin-top: 6px;
+  margin-top: var(--space-1-5);
   border-radius: 50%;
   background: var(--tone-green);
 }
@@ -292,13 +321,21 @@
 }
 
 /* Notification detail */
+/* Danh sách thông báo: cắt nền hàng theo góc card; viền focus vẽ vào trong để không bị cắt */
+.ac-notif-list {
+  overflow: hidden;
+}
+.ac-notif-list .notif-item:focus-visible {
+  outline-offset: -2px;
+}
+
 .ac-notif__meta {
   gap: var(--space-2);
   flex-wrap: wrap;
 }
 .ac-notif__title {
   font-size: var(--fs-lg);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   margin: var(--space-3) 0 var(--space-2);
 }
 .ac-notif__message {

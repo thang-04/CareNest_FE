@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Info, Copy, Crown, UserCheck } from '@/components/ui/icons';
+import { Plus, Trash2, Info, Copy, Crown, UserCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -9,7 +9,7 @@ import { useSchoolStructure, useSchoolYears } from '@/hooks/school-config/useSch
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
+import { RowActions } from '@/components/ui/RowActions';
 import { YearPicker } from '@/components/school-config/YearPicker';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { ClassFormModal } from '@/components/school-config/ClassFormModal';
@@ -82,7 +82,7 @@ export default function AgeGroupsClassesPage() {
       reload({ silent: true });
     } catch (err) {
       setRemoving(null);
-      toast.error(err.message, 'Không xóa được');
+      toast.error(err, 'Không xóa được');
     }
   };
 
@@ -101,10 +101,7 @@ export default function AgeGroupsClassesPage() {
     <div className="page">
       <Breadcrumb items={classCrumbs()} />
       <div className="page__head">
-        <div className="row" style={{ gap: 12 }}>
-          <h1 className="page__title">Nhóm tuổi & lớp</h1>
-          {year && <YearStatusBadge status={year.status} />}
-        </div>
+        <h1 className="page__title">Nhóm tuổi & lớp</h1>
         {editable && (
           <div className="row row--wrap">
             {canCopy && (
@@ -174,10 +171,10 @@ export default function AgeGroupsClassesPage() {
                     <th>Nhóm tuổi</th>
                     <th>Độ tuổi</th>
                     <th>Bữa trong ngày</th>
-                    <th className="center">Sĩ số tối đa/lớp</th>
+                    <th className="num">Sĩ số tối đa/lớp</th>
                     <th>Tổ trưởng</th>
-                    <th className="center">Số lớp</th>
-                    {editable && <th className="right">Thao tác</th>}
+                    <th className="num">Số lớp</th>
+                    {editable && <th className="cell--actions">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -188,42 +185,33 @@ export default function AgeGroupsClassesPage() {
                         <td className="fw-600">{g.name}</td>
                         <td>{ageRangeLabel(g)}</td>
                         <td>{mealSessionsLabel(g)}</td>
-                        <td className="center">{g.maxClassSize ?? '—'}</td>
+                        <td className="num">{g.maxClassSize ?? '—'}</td>
                         <td>
                           {teamLeaders
                             .filter((a) => a.ageGroupId === g.id)
                             .map((a) => `${md.userById(a.userId)?.fullName} (${md.campusById(a.campusId)?.shortName || '—'})`)
                             .join(', ') || <span className="muted">—</span>}
                         </td>
-                        <td className="center">{count}</td>
+                        <td className="num">{count}</td>
                         {editable && (
-                          <td className="right nowrap">
-                            <button
-                              className="icon-btn"
-                              aria-label={`Thêm lớp ${g.shortName}`}
-                              title="Thêm lớp"
-                              onClick={() => addClass(g.id)}
-                            >
-                              <Plus size={17} />
-                            </button>
-                            <button
-                              className="icon-btn"
-                              aria-label={`Sửa nhóm tuổi ${g.shortName}`}
-                              title="Sửa"
-                              onClick={() => setGroupModal({ group: g })}
-                            >
-                              <Pencil size={17} />
-                            </button>
-                            {count === 0 && (
-                              <button
-                                className="icon-btn"
-                                aria-label={`Xóa nhóm tuổi ${g.shortName}`}
-                                title="Xóa"
-                                onClick={() => setRemoving({ kind: 'group', item: g })}
-                              >
-                                <Trash2 size={17} />
-                              </button>
-                            )}
+                          <td className="cell--actions">
+                            <RowActions
+                              edit={{ onClick: () => setGroupModal({ group: g }), label: 'Sửa nhóm tuổi' }}
+                              menu={[
+                                { label: 'Thêm lớp', icon: Plus, onClick: () => addClass(g.id) },
+                                ...(count === 0
+                                  ? [
+                                      {
+                                        label: 'Xóa nhóm tuổi',
+                                        icon: Trash2,
+                                        danger: true,
+                                        onClick: () => setRemoving({ kind: 'group', item: g }),
+                                      },
+                                    ]
+                                  : []),
+                              ]}
+                              name={g.shortName}
+                            />
                           </td>
                         )}
                       </tr>

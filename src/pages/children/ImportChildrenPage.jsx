@@ -10,16 +10,17 @@ import {
   Upload,
   LayoutGrid,
   Info,
-  Lock,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { EmptyState, Spinner } from '@/components/ui/States';
+import { Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { importChildren, previewEnrollmentImport } from '@/services/children/childrenService';
 import { GENDER_LABELS } from '@/models/School';
-import { ALLERGY_STATE_LABELS, DECLARATION_STATE, IMPORT_COLUMNS } from '@/models/children/childrenConstants';
+import { AllergyStateBadge, ImportRowResultBadge } from '@/components/children/ChildBadges';
+import { DECLARATION_STATE, IMPORT_COLUMNS } from '@/models/children/childrenConstants';
 import { downloadCsv } from '@/utils/exportCsv';
 import { formatDate, formatFileSize } from '@/utils/format';
 import { canEnrollChild } from '@/utils/children/childrenPermissions';
@@ -61,13 +62,11 @@ export default function ImportChildrenPage() {
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Nhập từ Excel')} />
         <h1 className="page__title">Nhập danh sách trẻ từ Excel</h1>
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Bạn không có quyền tiếp nhận trẻ"
-            description="Chỉ Phó hiệu trưởng phụ trách điểm trường được nhập danh sách trẻ."
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Bạn không có quyền tiếp nhận trẻ"
+          description="Chỉ Phó hiệu trưởng phụ trách điểm trường được nhập danh sách trẻ."
+        />
       </div>
     );
 
@@ -107,7 +106,7 @@ export default function ImportChildrenPage() {
       toast.success(`Đã nhập ${result.created} hồ sơ trẻ.`, 'Nhập danh sách thành công');
     } catch (err) {
       setConfirm(false);
-      toast.error(err.message, 'Không nhập được danh sách');
+      toast.error(err, 'Không nhập được danh sách');
     }
   };
 
@@ -269,20 +268,19 @@ export default function ImportChildrenPage() {
                       </td>
                       <td className="nowrap">{g.phone}</td>
                       <td className="text-sm">
-                        {a.state === DECLARATION_STATE.REPORTED ? a.items.join(', ') : ALLERGY_STATE_LABELS[a.state]}
+                        {a.state === DECLARATION_STATE.REPORTED ? a.items.join(', ') : <AllergyStateBadge status={a.state} />}
                       </td>
                       <td>
-                        {r.errors.length === 0 ? (
-                          <span className="text-success row gap-1">
-                            <CheckCircle2 size={15} /> Hợp lệ
-                          </span>
-                        ) : (
-                          <ul className="tr-error-list">
-                            {r.errors.map((e) => (
-                              <li key={e}>{e}</li>
-                            ))}
-                          </ul>
-                        )}
+                        <div className="stack gap-1-5">
+                          <ImportRowResultBadge errorCount={r.errors.length} />
+                          {r.errors.length > 0 && (
+                            <ul className="tr-error-list">
+                              {r.errors.map((e) => (
+                                <li key={e}>{e}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

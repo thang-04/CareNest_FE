@@ -114,6 +114,9 @@ export const validateCutoff = (form, year) => {
   if (!form.effectiveFrom) e.effectiveFrom = 'Chọn ngày áp dụng';
   else if (year && (form.effectiveFrom < year.startDate || form.effectiveFrom > year.endDate))
     e.effectiveFrom = `Ngày áp dụng phải nằm trong năm học ${year.name}`;
+  const reopen = String(form.reopenWindowMinutes ?? '').trim();
+  if (!reopen) e.reopenWindowMinutes = 'Nhập số phút được mở lại sau giờ chốt (0 = không cho mở lại)';
+  else if (!/^\d+$/.test(reopen) || Number(reopen) > 600) e.reopenWindowMinutes = 'Nhập số phút nguyên từ 0 đến 600';
   return e;
 };
 

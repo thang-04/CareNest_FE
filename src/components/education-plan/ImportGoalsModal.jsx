@@ -56,7 +56,7 @@ export default function ImportGoalsModal({ goals, excludeId, defaultAgeGroupId, 
         </>
       }
     >
-      <div className="grid-2" style={{ gap: 12 }}>
+      <div className="grid-2 gap-3">
         <div className="field">
           <label className="field__label" htmlFor="imp-year">
             Năm học

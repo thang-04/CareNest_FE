@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardList, Save, ShieldCheck, ShieldAlert, UserX } from '@/components/ui/icons';
+import { ArrowLeft, ClipboardList, Save, ShieldCheck, ShieldAlert } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
-import { PickupOutcomeBadge } from '@/components/pickup/PickupBadges';
+import { PickupOutcomeBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
 import { usePickupChild, usePickupResults } from '@/hooks/pickup/usePickups';
 import { recordPickupResult } from '@/services/pickup/pickupService';
 import { PICKUP_OUTCOME, PICKUP_STATUS, RELATIONS, VERIFICATION, VERIFICATION_LABELS, outcomeOf } from '@/models/pickup/pickupConstants';
@@ -69,8 +70,10 @@ function ResultList() {
                       <div>{r.pickupPersonName}</div>
                       <div className="text-xs muted">{r.pickupPersonRelation}</div>
                     </td>
-                    <td className="text-sm">{VERIFICATION_LABELS[r.verification]}</td>
-                    <td>
+                    <td className="center">
+                      <VerificationBadge status={r.verification} />
+                    </td>
+                    <td className="center">
                       <PickupOutcomeBadge status={r.outcome} />
                       {r.note && <div className="text-xs muted mt-8 dt-note">{r.note}</div>}
                     </td>
@@ -117,7 +120,7 @@ function ResultForm({ childId, verification, guardianIndex }) {
     return (
       <div className="card">
         {error.status === 404 || error.status === 403 ? (
-          <EmptyState icon={UserX} title="Không tìm thấy trẻ" description={error.message} />
+          <StatusPage bare kind={String(error.status)} title="Không tìm thấy trẻ" description={error.message} />
         ) : (
           <ErrorState error={error} onRetry={reload} />
         )}
@@ -164,7 +167,7 @@ function ResultForm({ childId, verification, guardianIndex }) {
     } catch (err) {
       setConfirmOpen(false);
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không ghi nhận được kết quả');
+      toast.error(err, 'Không ghi nhận được kết quả');
     }
   };
 

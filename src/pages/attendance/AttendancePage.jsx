@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Save, Lock, HeartPulse, CheckCircle2, BarChart3 } from '@/components/ui/icons';
+import { Save, Lock, HeartPulse, CheckCircle2, BarChart3 } from '@/components/ui/icons';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { AttendanceRowBadge } from '@/components/attendance/AttendanceBadges';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -55,11 +58,11 @@ const healthFlag = (latest, full = false) => {
 };
 
 /** Màu thẻ: theo mức thân nhiệt; có dấu hiệu mà thân nhiệt bình thường / thấp / chưa đo thì đỏ; không dấu hiệu, bình thường thì xám. */
-const flagChip = (latest) => {
+const flagTone = (latest) => {
   const level = temperatureLevel(latest?.temperature);
-  if (level?.chip && level.key !== 'LOW') return level.chip;
-  if (latest?.observation === 'NOTED') return 'chip--red';
-  return level?.chip || 'chip--gray';
+  if (level?.chip && level.key !== 'LOW') return level.chip.replace('chip--', '');
+  if (latest?.observation === 'NOTED') return 'red';
+  return level?.chip?.replace('chip--', '') || 'gray';
 };
 
 export default function AttendancePage() {
@@ -296,7 +299,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
       toast.success(singleId ? 'Đã lưu điểm danh của trẻ. Có thể ghi nhận sức khỏe bên phải.' : 'Đã lưu các thay đổi điểm danh và báo ăn.');
     } catch (err) {
       setRowErrors(err.details || {});
-      toast.error(err.message, 'Chưa lưu được điểm danh');
+      toast.error(err, 'Chưa lưu được điểm danh');
       const info = await getDayInfo(date, classId, user).catch(() => null);
       if (info) setClock(info);
     } finally {
@@ -363,7 +366,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
       setCorrectFor(null);
       toast.success('Đã hủy suất ăn và thông báo cho bếp.');
     } catch (err) {
-      toast.error(err.message, 'Không điều chỉnh được');
+      toast.error(err, 'Không điều chỉnh được');
       throw err;
     } finally {
       setSaving(false);
@@ -413,7 +416,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
               Điểm danh & báo ăn
             </h2>
             <span
-              className={`chip ${day.locked ? 'chip--gray' : 'chip--blue'}`}
               title={
                 day.locked
                   ? undefined
@@ -422,20 +424,21 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                     : `Điểm danh và báo ăn trước ${day.cutoff || sheet.cutoff} hôm nay. Sau giờ này dữ liệu bị khóa và sĩ số suất ăn được gửi Phó hiệu trưởng xác nhận.`
               }
             >
-              {day.locked ? <Lock size={14} /> : <ClockIcon />}{' '}
-              {day.locked
-                ? 'Đã khóa'
-                : day.unlock
-                  ? `Mở lại đến ${formatDateTime(day.unlock.validUntil)}`
-                  : `Đang mở (khóa lúc ${day.cutoff || sheet.cutoff})`}
+              <StatusBadge
+                tone={day.locked ? 'gray' : 'blue'}
+                icon={day.locked ? Lock : CheckCircle2}
+                label={
+                  day.locked
+                    ? 'Đã khóa'
+                    : day.unlock
+                      ? `Mở lại đến ${formatDateTime(day.unlock.validUntil)}`
+                      : `Đang mở (khóa lúc ${day.cutoff || sheet.cutoff})`
+                }
+              />
             </span>
           </div>
           <div className="dd-reception__filters">
-            <label className="search-box">
-              <Search size={16} />
-              <span className="sr-only">Tìm tên hoặc mã trẻ</span>
-              <input className="input" value={query} placeholder="Tìm tên hoặc mã trẻ" onChange={(event) => setQuery(event.target.value)} />
-            </label>
+            <SearchSubmit value={query} placeholder="Tìm tên hoặc mã trẻ" onSearch={setQuery} />
             <label>
               <span className="sr-only">Lọc điểm danh</span>
               <select className="select" value={filter} onChange={(event) => setFilter(event.target.value)}>
@@ -502,41 +505,47 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                               <strong>{row.child.fullName}</strong>
                             </button>
                             <div className="dd-reception__tags">
-                              <span className="muted text-xs nowrap">
-                                {row.child.code} ·{' '}
-                                {changed(entry, row.record, sessions) ? 'Chưa lưu' : row.record ? 'Đã lưu' : 'Chưa điểm danh'}
-                              </span>
+                              <span className="muted text-xs nowrap">{row.child.code}</span>
+                              {/* Chỉ báo dòng cần chú ý; dòng đã lưu không gắn badge để danh sách đỡ rối */}
+                              {(changed(entry, row.record, sessions) || !row.record) && (
+                                <AttendanceRowBadge status={changed(entry, row.record, sessions) ? 'UNSAVED' : 'NONE'} />
+                              )}
                               {healthFlag(row.healthSummary?.latest) && (
                                 // Thẻ ngắn: thân nhiệt (màu theo mức) và/hoặc "Cần chú ý"; chi tiết ở tooltip và khung sức khỏe
                                 <button
-                                  className="btn btn--sm btn--ghost dd-reception__flag"
+                                  className="dd-reception__flag"
                                   type="button"
                                   disabled={busy}
                                   title={healthFlag(row.healthSummary.latest, true)}
                                   aria-label={`${healthFlag(row.healthSummary.latest, true)}: ${row.child.fullName}. Mở sức khỏe`}
                                   onClick={() => selectChild(row.child.id)}
                                 >
-                                  <span className={`chip ${flagChip(row.healthSummary.latest)}`}>
-                                    {healthFlag(row.healthSummary.latest)}
-                                  </span>
+                                  <StatusBadge
+                                    tone={flagTone(row.healthSummary.latest)}
+                                    icon={HeartPulse}
+                                    label={healthFlag(row.healthSummary.latest)}
+                                  />
                                 </button>
                               )}
                               {entry.status === 'PRESENT' && row.record?.status === 'PRESENT' && row.healthSummary?.reminder && (
                                 <button
-                                  className="btn btn--sm btn--ghost dd-reception__flag"
+                                  className="dd-reception__flag"
                                   type="button"
                                   disabled={busy}
                                   title={row.healthSummary.reminder}
                                   aria-label={`${row.healthSummary.reminder}: ${row.child.fullName}. Mở sức khỏe`}
                                   onClick={() => selectChild(row.child.id)}
                                 >
-                                  <span className="chip chip--orange">
-                                    <HeartPulse size={14} /> {row.healthSummary.reminder}
-                                  </span>
+                                  <StatusBadge tone="orange" icon={HeartPulse} label={row.healthSummary.reminder} />
                                 </button>
                               )}
                               {row.leaveRequest && (
-                                <button className="btn btn--sm btn--ghost" type="button" disabled={busy} onClick={() => setLeaveFor(row)}>
+                                <button
+                                  className="dd-reception__flag dd-reception__flag--text"
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => setLeaveFor(row)}
+                                >
                                   {entry.status === 'EXCUSED' ? 'Vắng có phép · Phụ huynh báo nghỉ' : 'Phụ huynh báo nghỉ'}
                                 </button>
                               )}
@@ -564,9 +573,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                               ))}
                             </div>
                           ) : (
-                            <span className={`chip ${entry.status === 'PRESENT' ? 'chip--green' : 'chip--gray'}`}>
-                              {entry.status === 'PRESENT' ? 'Có mặt' : absent ? 'Vắng' : 'Chưa điểm danh'}
-                            </span>
+                            <AttendanceRowBadge status={entry.status === 'PRESENT' ? 'PRESENT' : absent ? 'ABSENT' : 'NONE'} />
                           )}
                           {rowErrors[row.child.id]?.status && <p className="field__error">{rowErrors[row.child.id].status}</p>}
                         </td>
@@ -720,8 +727,4 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
       />
     </>
   );
-}
-
-function ClockIcon() {
-  return <CheckCircle2 size={14} />;
 }

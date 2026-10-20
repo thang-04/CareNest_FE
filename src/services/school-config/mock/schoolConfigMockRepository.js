@@ -1027,16 +1027,31 @@ export const schoolConfigMockRepository = {
       if (hasErrors(errors)) throw invalid(errors);
       let setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
       const previousTime = setting?.time || null;
-      if (setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
-        throw invalid({ time: 'Giờ chốt và ngày áp dụng chưa thay đổi' });
+      const reopenWindowMinutes = Number(form.reopenWindowMinutes);
+      if (
+        setting &&
+        setting.time === form.time &&
+        setting.effectiveFrom === form.effectiveFrom &&
+        setting.reopenWindowMinutes === reopenWindowMinutes
+      )
+        throw invalid({ time: 'Giờ chốt, thời hạn mở lại và ngày áp dụng chưa thay đổi' });
       if (!setting) {
         setting = { schoolYear, history: [] };
         db.cutoffSettings.push(setting);
       }
-      Object.assign(setting, { time: form.time, effectiveFrom: form.effectiveFrom, updatedBy: user.id, updatedAt: now() });
+      const previousReopen = setting.reopenWindowMinutes ?? null;
+      Object.assign(setting, {
+        time: form.time,
+        effectiveFrom: form.effectiveFrom,
+        reopenWindowMinutes,
+        updatedBy: user.id,
+        updatedAt: now(),
+      });
       setting.history.unshift({
         time: form.time,
         effectiveFrom: form.effectiveFrom,
+        reopenWindowMinutes,
+        previousReopen,
         previousTime,
         userId: user.id,
         at: now(),

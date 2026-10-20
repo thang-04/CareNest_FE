@@ -14,8 +14,8 @@ import { avatarTone, formatDate, formatDateTime, initials } from '@/utils/format
 import { canDeclareHealth, canEditChild, canPlaceChild } from '@/utils/children/childrenPermissions';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { canActivateParent, canRecordMeasurement, canViewParentAccounts } from '@/utils/children/childrenPermissions';
-import { ALLERGY_STATE_LABELS } from '@/models/children/childrenConstants';
-import { ParentAccountBadge } from '@/components/children/ChildBadges';
+import { SMS_STATUS } from '@/models/children/childrenConstants';
+import { AllergyStateBadge, ParentAccountBadge, SmsStatusBadge } from '@/components/children/ChildBadges';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -154,8 +154,10 @@ export default function ChildProfilePage() {
                           </span>
                         ))}
                       </span>
+                    ) : declaration?.allergies?.state ? (
+                      <AllergyStateBadge status={declaration.allergies.state} />
                     ) : (
-                      <span className="muted">{ALLERGY_STATE_LABELS[declaration?.allergies?.state] || 'Chưa có khai báo'}</span>
+                      <span className="muted">Chưa có khai báo</span>
                     )}
                   </dd>
                 </dl>
@@ -206,9 +208,13 @@ export default function ChildProfilePage() {
                           <td className="nowrap">{g.phone ? <a href={`tel:${g.phone}`}>{g.phone}</a> : missing}</td>
                           <td>{g.email || missing}</td>
                           {canViewParentAccounts(user) && (
-                            <td>
+                            <td className="center">
                               <ParentAccountBadge status={g.accountStatus} />
-                              {g.smsStatus === 'FAILED' && <div className="text-danger text-xs mt-8">Gửi SMS lỗi – cần gửi lại</div>}
+                              {g.smsStatus === SMS_STATUS.FAILED && (
+                                <div className="mt-8">
+                                  <SmsStatusBadge status={SMS_STATUS.FAILED} />
+                                </div>
+                              )}
                             </td>
                           )}
                         </tr>

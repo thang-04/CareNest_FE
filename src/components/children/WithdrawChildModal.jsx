@@ -38,7 +38,7 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
       onClose();
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không cho nghỉ học được');
+      toast.error(err, 'Không cho nghỉ học được');
     }
   };
 

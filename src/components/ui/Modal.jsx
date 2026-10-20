@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@/components/ui/icons';
+import { focusableIn, modalStack, trapTabIndex } from './modalStack';
 
-/** Accessible modal: Esc closes, focus moves inside and returns on close. */
+/** Accessible modal: Esc closes the top modal only, Tab stays inside, focus returns on close. */
 export function Modal({ open, title, label, onClose, children, footer, size = 'md', closeOnBackdrop = true, className = '' }) {
   const ref = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -12,13 +13,30 @@ export function Modal({ open, title, label, onClose, children, footer, size = 'm
   useEffect(() => {
     if (!open) return undefined;
     const previous = document.activeElement;
-    const onKey = (e) => e.key === 'Escape' && onCloseRef.current?.();
+    const token = {};
+    modalStack.push(token);
+    const onKey = (e) => {
+      // Chỉ modal trên cùng xử lý; component bên trong đã tự xử lý Esc (preventDefault) thì bỏ qua.
+      if (!modalStack.isTop(token) || e.defaultPrevented) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCloseRef.current?.();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const items = focusableIn(ref.current);
+      const target = trapTabIndex(items.length, items.indexOf(document.activeElement), e.shiftKey);
+      if (target === null) return;
+      e.preventDefault();
+      (items[target] || ref.current)?.focus();
+    };
     document.addEventListener('keydown', onKey);
     const focusable = ref.current?.querySelector('textarea, input, select, button:not(.modal__close)');
     (focusable || ref.current)?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
-      previous?.focus?.();
+      modalStack.remove(token);
+      if (previous && document.contains(previous)) previous.focus?.();
     };
   }, [open]);
 

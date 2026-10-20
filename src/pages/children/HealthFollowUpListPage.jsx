@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, Info, RotateCcw, Search, ClipboardCheck } from '@/components/ui/icons';
+import { Info, RotateCcw, Search, ClipboardCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useHealthFollowUps } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { FollowUpDueBadge, FollowUpStatusBadge } from '@/components/children/ChildBadges';
 import { SCREENING_CRITERIA_LABELS } from '@/models/children/childrenConstants';
 import { FOLLOW_UP_CLOSE_MEANING, FOLLOW_UP_STATUS, FOLLOW_UP_STATUS_LABELS } from '@/models/children/healthCheckConstants';
@@ -59,6 +62,24 @@ export default function HealthFollowUpListPage() {
     setPage(1);
   };
   const statActive = (key) => (key === 'OVERDUE' ? overdue : status === key);
+  const clearFilter = (apply) => {
+    apply();
+    setPage(1);
+  };
+  const chips = [
+    keyword && { key: 'keyword', label: `Từ khóa: ${keyword}`, onRemove: () => clearFilter(() => setKeyword('')) },
+    campusId && {
+      key: 'campusId',
+      label: `Điểm trường: ${md.campusById(campusId)?.name?.split(' - ')[0] || 'đã chọn'}`,
+      onRemove: () => clearFilter(() => setCampusId('')),
+    },
+    status && {
+      key: 'status',
+      label: `Trạng thái: ${FOLLOW_UP_STATUS_LABELS[status] || status}`,
+      onRemove: () => clearFilter(() => setStatus('')),
+    },
+    overdue && { key: 'overdue', label: 'Quá hạn trao đổi', onRemove: () => clearFilter(() => setOverdue(false)) },
+  ].filter(Boolean);
 
   return (
     <div className="page">
@@ -94,18 +115,13 @@ export default function HealthFollowUpListPage() {
 
       <div className="card">
         <div className="filter-bar">
-          <label className="search-box tr-search-grow">
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm theo họ tên hoặc mã trẻ..."
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Tìm theo họ tên hoặc mã trẻ"
-            />
-          </label>
+          <SearchSubmit
+            className="tr-search-grow"
+            value={keyword}
+            placeholder="Tìm theo họ tên hoặc mã trẻ..."
+            label="Tìm theo họ tên hoặc mã trẻ"
+            onSearch={(text) => clearFilter(() => setKeyword(text))}
+          />
           {isPrincipal(user) && (
             <select
               className="select"
@@ -124,27 +140,11 @@ export default function HealthFollowUpListPage() {
               ))}
             </select>
           )}
-          <select
-            className="select"
-            value={status}
-            aria-label="Trạng thái"
-            onChange={(e) => {
-              setStatus(e.target.value);
-              setOverdue(false);
-              setPage(1);
-            }}
-          >
-            <option value="">Tất cả trạng thái</option>
-            {Object.entries(FOLLOW_UP_STATUS_LABELS).map(([k, label]) => (
-              <option key={k} value={k}>
-                {label}
-              </option>
-            ))}
-          </select>
           <button className="btn" onClick={resetFilters} disabled={!filtered}>
-            <RotateCcw size={15} /> Đặt lại
+            <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
+        <FilterChips count={loading ? null : rows.length} unit="phiếu" chips={chips} />
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
@@ -155,9 +155,9 @@ export default function HealthFollowUpListPage() {
                   <th>Trẻ</th>
                   <th>Lớp</th>
                   <th>Lý do theo dõi (lần khám gần nhất)</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                   <th>Cập nhật</th>
-                  <th className="center">Thao tác</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -232,20 +232,16 @@ export default function HealthFollowUpListPage() {
                         </div>
                       </td>
                       <td className="nowrap text-sm">{formatDateTime(f.updatedAt)}</td>
-                      <td className="center nowrap">
+                      <td className="cell--actions">
                         {f.canUpdate && f.status !== FOLLOW_UP_STATUS.CLOSED ? (
                           <Link className="btn btn--primary btn--sm" to={`/children/health-follow-ups/${f.id}`}>
                             Cập nhật phiếu
                           </Link>
                         ) : (
-                          <Link
-                            className="icon-btn"
-                            to={`/children/health-follow-ups/${f.id}`}
-                            title="Xem phiếu"
-                            aria-label={`Xem phiếu theo dõi của ${f.child.fullName}`}
-                          >
-                            <Eye size={17} />
-                          </Link>
+                          <RowActions
+                            view={{ to: `/children/health-follow-ups/${f.id}`, label: 'Xem phiếu' }}
+                            name={`theo dõi của ${f.child.fullName}`}
+                          />
                         )}
                       </td>
                     </tr>

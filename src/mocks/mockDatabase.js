@@ -1,5 +1,6 @@
 import { buildSeedDatabase } from './seed';
 import { MOCK_LATENCY_MS } from '@/config/env';
+import { DB_CHANGED_EVENT } from './dbEvents';
 
 /**
  * localStorage-backed fake backend. Only mock repositories may import this file.
@@ -7,7 +8,7 @@ import { MOCK_LATENCY_MS } from '@/config/env';
  */
 // v3: school structure (classes, children), Principal account.
 const DB_KEY = 'carenest.mockdb.v3';
-export const DB_CHANGED_EVENT = 'carenest:db-changed';
+export { DB_CHANGED_EVENT };
 
 let cache = null;
 

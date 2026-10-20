@@ -10,7 +10,7 @@ import { Check, AlertTriangle, X } from '@/components/ui/icons';
 export function ProgressSteps({ steps, cancelled = false }) {
   const currentIndex = steps.findIndex((s) => !s.done);
   return (
-    <div className="timeline" style={{ gridTemplateColumns: `repeat(${steps.length}, 1fr)` }}>
+    <div className="timeline" style={{ '--steps': steps.length }}>
       {steps.map((step, i) => {
         const state =
           cancelled && !step.done ? 'cancel' : step.done ? 'done' : step.warn ? 'warn' : i === currentIndex ? 'current' : 'todo';

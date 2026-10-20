@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Unlock } from '@/components/ui/icons';
+import { RotateCcw, Unlock } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
@@ -7,10 +7,12 @@ import { useClasses } from '@/hooks/useSchool';
 import { getAssessmentDayUnlocks, unlockAssessmentDay } from '@/services/assessment/assessmentService';
 import { getCampuses } from '@/services/masterDataService';
 import { getAgeGroups } from '@/services/school-config/schoolConfigService';
+import { UnlockWindowBadge } from '@/components/assessment/AssessmentBadges';
 import { ClassPicker } from '@/components/assessment/ClassPicker';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { FormField } from '@/components/form/FormField';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { FilterMore } from '@/components/ui/FilterMore';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { formatDate, formatDateTime, normalizeText } from '@/utils/format';
@@ -89,7 +91,7 @@ export default function AssessmentDayUnlockPage() {
       setForm((f) => ({ ...f, reason: '' }));
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message, 'Không mở lại được');
+      toast.error(err, 'Không mở lại được');
     } finally {
       setBusy(false);
     }
@@ -201,32 +203,36 @@ export default function AssessmentDayUnlockPage() {
             <option value="ACTIVE">Còn hiệu lực</option>
             <option value="EXPIRED">Đã hết</option>
           </select>
-          <input
-            type="date"
-            className="input"
-            aria-label="Ngày đánh giá từ"
-            value={filters.from}
-            max={filters.to || undefined}
-            onChange={(e) => setFilter({ from: e.target.value })}
-          />
-          <span className="muted">–</span>
-          <input
-            type="date"
-            className="input"
-            aria-label="Ngày đánh giá đến"
-            value={filters.to}
-            min={filters.from || undefined}
-            onChange={(e) => setFilter({ to: e.target.value })}
-          />
-          {filtered && (
-            <button
-              className="btn btn--sm"
-              type="button"
-              onClick={() => setFilter({ keyword: '', classId: '', status: '', from: '', to: '' })}
-            >
-              Bỏ lọc
-            </button>
-          )}
+          <FilterMore count={[filters.from, filters.to].filter(Boolean).length}>
+            <label className="field">
+              <span className="field__label">Ngày đánh giá từ</span>
+              <input
+                type="date"
+                className="input"
+                value={filters.from}
+                max={filters.to || undefined}
+                onChange={(e) => setFilter({ from: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field__label">Ngày đánh giá đến</span>
+              <input
+                type="date"
+                className="input"
+                value={filters.to}
+                min={filters.from || undefined}
+                onChange={(e) => setFilter({ to: e.target.value })}
+              />
+            </label>
+          </FilterMore>
+          <button
+            className="btn"
+            type="button"
+            disabled={!filtered}
+            onClick={() => setFilter({ keyword: '', classId: '', status: '', from: '', to: '' })}
+          >
+            <RotateCcw size={15} /> Đặt lại bộ lọc
+          </button>
         </div>
         {error ? (
           <ErrorState error={error} onRetry={reload} />
@@ -240,7 +246,7 @@ export default function AssessmentDayUnlockPage() {
                   <th>Người mở</th>
                   <th>Lúc mở</th>
                   <th>Lý do</th>
-                  <th>Hiệu lực</th>
+                  <th className="center">Hiệu lực</th>
                 </tr>
               </thead>
               <tbody>
@@ -266,12 +272,11 @@ export default function AssessmentDayUnlockPage() {
                       <td>{u.unlockedByName}</td>
                       <td>{formatDateTime(u.unlockedAt)}</td>
                       <td>{u.reason || '—'}</td>
-                      <td>
-                        {isUnlockActive(u) ? (
-                          <span className="chip chip--green">Đến {formatDateTime(unlockDeadline(u.validUntil))}</span>
-                        ) : (
-                          <span className="chip chip--gray">Đã hết · {formatDateTime(unlockDeadline(u.validUntil))}</span>
-                        )}
+                      <td className="center">
+                        <UnlockWindowBadge
+                          status={isUnlockActive(u) ? 'ACTIVE' : 'EXPIRED'}
+                          detail={formatDateTime(unlockDeadline(u.validUntil))}
+                        />
                       </td>
                     </tr>
                   ))

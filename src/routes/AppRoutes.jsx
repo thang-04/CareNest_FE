@@ -12,7 +12,8 @@ import NotificationsPage from '@/pages/NotificationsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import { canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
 
-const UiKitPage = lazy(() => import('@/pages/UiKitPage'));
+// Thư viện UI chỉ cho bản dev: bản build prod bỏ cả route lẫn chunk.
+const UiKitPage = import.meta.env.DEV ? lazy(() => import('@/pages/UiKitPage')) : null;
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/account/ForgotPasswordPage'));
 const VerifyOtpPage = lazy(() => import('@/pages/account/VerifyOtpPage'));
@@ -119,9 +120,11 @@ const ProposalFormPage = lazy(() => import('@/pages/facility/ProposalFormPage'))
 const ProposalDetailPage = lazy(() => import('@/pages/facility/ProposalDetailPage'));
 const StockReceiptListPage = lazy(() => import('@/pages/kitchen/StockReceiptListPage'));
 const StockReceiptFormPage = lazy(() => import('@/pages/kitchen/StockReceiptFormPage'));
+const SupplierListPage = lazy(() => import('@/pages/kitchen/SupplierListPage'));
+const SupplierDetailPage = lazy(() => import('@/pages/kitchen/SupplierDetailPage'));
+const SupplierFormPage = lazy(() => import('@/pages/kitchen/SupplierFormPage'));
 const KitchenFlowPage = lazy(() => import('@/pages/kitchen/KitchenFlowPage'));
 const DryStockPage = lazy(() => import('@/pages/kitchen/DryStockPage'));
-const StockCountPage = lazy(() => import('@/pages/kitchen/StockCountPage'));
 const FoodSampleLogPage = lazy(() => import('@/pages/kitchen/FoodSampleLogPage'));
 const WeeklyForecastPage = lazy(() => import('@/pages/kitchen/WeeklyForecastPage'));
 const FreshReceiptPage = lazy(() => import('@/pages/kitchen/FreshReceiptPage'));
@@ -429,12 +432,16 @@ export function AppRoutes() {
           <Route path="kitchen">
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <KitchenFlowPage />)} />
             <Route path="dry-stock" element={only(LEADERS, <DryStockPage />)} />
-            <Route path="stock-counts" element={only(LEADERS, <StockCountPage />)} />
             <Route path="food-samples" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <FoodSampleLogPage />)} />
             <Route path="forecast" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <WeeklyForecastPage />)} />
             <Route path="fresh-receipts" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <FreshReceiptPage />)} />
             <Route path="stock-receipts" element={only(VP_ONLY, <StockReceiptListPage />)} />
             <Route path="stock-receipts/new" element={only(VP_ONLY, <StockReceiptFormPage />)} />
+            <Route path="stock-receipts/:id/edit" element={only(VP_ONLY, <StockReceiptFormPage />)} />
+            <Route path="suppliers" element={only(LEADERS, <SupplierListPage />)} />
+            <Route path="suppliers/new" element={only([R.PRINCIPAL], <SupplierFormPage />)} />
+            <Route path="suppliers/:id" element={only(LEADERS, <SupplierDetailPage />)} />
+            <Route path="suppliers/:id/edit" element={only([R.PRINCIPAL], <SupplierFormPage />)} />
             <Route path="stock-issues" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <StockIssueApprovalPage />)} />
             <Route path="preparation" element={only(VP_ONLY, <MealPreparationStatusPage />)} />
             <Route path="preparation/update" element={only([R.KITCHEN_STAFF], <MealPreparationUpdatePage />)} />
@@ -463,7 +470,7 @@ export function AppRoutes() {
             <Route path="rewards/:id/edit" element={only(CLASS_STAFF, <RewardProposalFormPage />)} />
           </Route>
           <Route path="attendance">
-            <Route path="day-unlocks" element={only(LEADERS, <AttendanceDayUnlockPage />)} />
+            <Route path="day-unlocks" element={only(VP_ONLY, <AttendanceDayUnlockPage />)} />
             <Route index element={only(CLASS_STAFF, <AttendancePage />)} />
             <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
             <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MealCountPage />)} />
@@ -481,7 +488,7 @@ export function AppRoutes() {
           <Route path="account/profile" element={<ProfilePage />} />
           <Route path="account/password" element={<ChangePasswordPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
-          <Route path="ui-kit" element={<UiKitPage />} />
+          {UiKitPage && <Route path="ui-kit" element={<UiKitPage />} />}
           <Route path="coming-soon/:slug" element={<ComingSoonPage />} />
           {FACILITY_ENABLED && <Route path="facility" element={<Navigate to="/facility/transfers" replace />} />}
           <Route path="*" element={<NotFoundPage />} />

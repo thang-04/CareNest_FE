@@ -1,4 +1,5 @@
 import { Info } from '@/components/ui/icons';
+import { ClassFillBadge } from '@/components/school-config/SchoolConfigBadges';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
 
 /**
@@ -85,7 +86,11 @@ export function ClassPlacementFields({
                     <span className="muted text-sm">{ageGroupById(c.ageGroupId)?.shortName}</span>
                     <span className="text-sm">
                       Sĩ số: {c.enrolledCount}/{c.capacity}
-                      {full && <span className="chip chip--red tr-chip-gap">Đã đủ</span>}
+                      {full && (
+                        <span className="tr-chip-gap">
+                          <ClassFillBadge status="FULL" />
+                        </span>
+                      )}
                       {isCurrent && <span className="chip chip--teal tr-chip-gap">Lớp hiện tại</span>}
                     </span>
                     {c.homeroomTeacherId && <span className="muted text-xs">GVCN: {userById?.(c.homeroomTeacherId)?.fullName || '—'}</span>}

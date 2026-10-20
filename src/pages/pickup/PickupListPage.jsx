@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarDays, ClipboardList, Search, School, UserCheck } from '@/components/ui/icons';
+import { CalendarDays, ClipboardList, School, UserCheck } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
-import { PickupStatusBadge } from '@/components/pickup/PickupBadges';
+import { PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
 import { usePickupBoard, usePickupClasses } from '@/hooks/pickup/usePickups';
-import { PICKUP_REASON_LABELS, PICKUP_STATUS, VERIFICATION, VERIFICATION_LABELS } from '@/models/pickup/pickupConstants';
+import { PICKUP_REASON_LABELS, PICKUP_STATUS, VERIFICATION } from '@/models/pickup/pickupConstants';
 import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
 import '@/styles/modules/pickup.css';
@@ -84,10 +85,7 @@ export default function PickupListPage() {
                   onChange={(e) => e.target.value && setParam('date', e.target.value)}
                 />
               </div>
-              <label className="search-box dt-search">
-                <Search size={17} className="muted" />
-                <input placeholder="Tìm tên trẻ..." value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="Tìm tên trẻ" />
-              </label>
+              <SearchSubmit className="dt-search" value={keyword} placeholder="Tìm tên trẻ..." label="Tìm tên trẻ" onSearch={setKeyword} />
             </div>
             <div className="tabs" role="tablist">
               {TABS.map((t) => (
@@ -110,11 +108,11 @@ export default function PickupListPage() {
                   <thead>
                     <tr>
                       <th>Trẻ</th>
-                      <th>Trạng thái</th>
+                      <th className="center">Trạng thái</th>
                       <th>Người đón</th>
                       <th>Giờ trả</th>
                       <th>Xác minh</th>
-                      <th className="center">Thao tác</th>
+                      <th className="cell--actions">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -145,7 +143,7 @@ export default function PickupListPage() {
                                 {!r.attendanceStatus && r.status === PICKUP_STATUS.WAITING ? ' · chưa điểm danh' : ''}
                               </div>
                             </td>
-                            <td>
+                            <td className="center">
                               <PickupStatusBadge status={r.status} />
                               {/* Cô đã báo phụ huynh đón về sớm ở Sức khỏe trong ngày: trả trẻ khi phụ huynh đến, giờ ghi lúc trả */}
                               {r.earlyRequest && r.status === PICKUP_STATUS.WAITING && (
@@ -175,7 +173,7 @@ export default function PickupListPage() {
                             </td>
                             <td className="nowrap">{timeOf(r.pickup?.handedOverAt)}</td>
                             <td className="text-sm">
-                              {r.pickup ? VERIFICATION_LABELS[r.pickup.verification] : <span className="muted">—</span>}
+                              {r.pickup ? <VerificationBadge status={r.pickup.verification} /> : <span className="muted">—</span>}
                               {r.pickup?.reason && (
                                 <div className="text-xs">
                                   <Link
@@ -187,7 +185,7 @@ export default function PickupListPage() {
                                 </div>
                               )}
                             </td>
-                            <td className="center">
+                            <td className="cell--actions">
                               {isToday && r.status === PICKUP_STATUS.WAITING && (
                                 <Link className="btn btn--sm btn--primary" to={`/pickup/${r.child.id}/verify`}>
                                   <UserCheck size={15} /> {awaitingCall ? 'Xác minh lại' : 'Trả trẻ'}

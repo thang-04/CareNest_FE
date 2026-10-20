@@ -288,7 +288,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
     const no = numbers[r.id];
     const head = (
       <>
-        <td rowSpan={span} className="ga-goal-table__fixed">
+        <td rowSpan={span} className="cell--fixed">
           <div className="ga-goal-table__pad">
             <span className="ga-goal-code">{no ? `MT ${no}` : '—'}</span>
           </div>
@@ -528,7 +528,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
           out.push(
             <tr key={`new-goal-${bi}-${gi}`}>
               {lead()}
-              <td className="ga-goal-table__fixed">{dash}</td>
+              <td className="cell--fixed">{dash}</td>
               <td colSpan={restSpan - 1}>{newInput(di, 'goal', gr.last, `Thêm mục tiêu lĩnh vực ${d.name}`, NEW_GOAL_HINT)}</td>
               <td />
             </tr>,
@@ -555,7 +555,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
                 {newInput(di, 'group', b.last, `Thêm nhóm kết quả lĩnh vực ${d.name}`, GROUP_HINT)}
               </Suggest>
             </td>
-            <td className="ga-goal-table__fixed">{dash}</td>
+            <td className="cell--fixed">{dash}</td>
             <td colSpan={restSpan - 1}>
               {!b.groups.length && newInput(di, 'goal', b.last, `Thêm mục tiêu lĩnh vực ${d.name}`, NEW_GOAL_HINT)}
             </td>
@@ -602,7 +602,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
         <thead>
           <tr>
             <th rowSpan={headRows}>Nhóm kết quả mong đợi</th>
-            <th rowSpan={headRows} className="ga-goal-table__fixed">
+            <th rowSpan={headRows} className="cell--fixed">
               STT
             </th>
             <th rowSpan={headRows}>Mục tiêu giáo dục</th>
@@ -699,7 +699,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
   /** Dòng trống cuối bảng: gõ chữ đầu tiên là thành một dòng thật ở đúng chỗ đó. */
   const newRow = (span, label, placeholder, create) => (
     <tr key="new">
-      <td className="ga-goal-table__fixed" />
+      <td className="cell--fixed" />
       <td colSpan={span}>
         {cellInput({
           'aria-label': label,
@@ -745,14 +745,14 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
           </colgroup>
           <thead>
             <tr>
-              <th className="ga-goal-table__fixed">STT</th>
+              <th className="cell--fixed">STT</th>
               <th>Tên chủ đề</th>
               <th className="center">Viết tắt</th>
-              <th className="ga-goal-table__fixed">Mục tiêu giáo dục</th>
+              <th className="cell--fixed">Mục tiêu giáo dục</th>
               <th>Ngày lễ hội</th>
               <th>Từ ngày</th>
               <th>Đến ngày</th>
-              <th className="center ga-goal-table__fixed">Số tuần</th>
+              <th className="center cell--fixed">Số tuần</th>
               <th>Ghi chú</th>
               {!readOnly && <th className="center">Xóa</th>}
             </tr>
@@ -767,7 +767,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
             )}
             {themes.map((t, i) => (
               <tr key={t.id}>
-                <td className="ga-goal-table__fixed">
+                <td className="cell--fixed">
                   <div className="ga-goal-table__pad">{i + 1}</div>
                 </td>
                 <td>
@@ -785,7 +785,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                 <td className="center ga-goal-table__center">
                   {textCell(t.abbr, (abbr) => patchTheme(t.id, { abbr }), `Viết tắt chủ đề ${i + 1}`)}
                 </td>
-                <td className="ga-goal-table__fixed">
+                <td className="cell--fixed">
                   <div className="ga-goal-table__pad">{themeGoalLabel(domains, numbers, t) || 'Tích ở tab Mục tiêu'}</div>
                 </td>
                 <td>{textCell(t.festivals, (festivals) => patchTheme(t.id, { festivals }), `Ngày lễ hội chủ đề ${i + 1}`)}</td>
@@ -796,7 +796,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                     <div className="ga-goal-table__pad text-xs text-danger">Trùng thời gian với {overlapOf(t).join(', ')}</div>
                   )}
                 </td>
-                <td className="center ga-goal-table__fixed">
+                <td className="center cell--fixed">
                   <div className="ga-goal-table__pad">{weekCount(t, breaks) || '—'}</div>
                 </td>
                 <td>{textCell(t.note, (note) => patchTheme(t.id, { note }), `Ghi chú chủ đề ${i + 1}`)}</td>
@@ -830,7 +830,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
           </colgroup>
           <thead>
             <tr>
-              <th className="ga-goal-table__fixed">STT</th>
+              <th className="cell--fixed">STT</th>
               <th>Đợt nghỉ (Tết, ôn tập, nghỉ lễ…)</th>
               <th>Từ ngày</th>
               <th>Đến ngày</th>
@@ -847,7 +847,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
             )}
             {breaks.map((b, i) => (
               <tr key={b.id}>
-                <td className="ga-goal-table__fixed">
+                <td className="cell--fixed">
                   <div className="ga-goal-table__pad">{i + 1}</div>
                 </td>
                 <td>

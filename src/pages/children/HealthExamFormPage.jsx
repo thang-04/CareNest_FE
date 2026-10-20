@@ -23,7 +23,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Stepper } from '@/components/ui/Stepper';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { ChildAccessState, HEALTH_CHECK_ACCESS_TEXT } from '@/components/children/ChildAccessState';
-import { ChildResultBadge, ConclusionCategoryBadge, FollowUpLevelBadge } from '@/components/children/ChildBadges';
+import { ChildResultBadge, ConclusionCategoryBadge, FollowUpLevelBadge, PublishStatusBadge } from '@/components/children/ChildBadges';
 import { ExamAdminStep } from '@/components/children/exam/ExamAdminStep';
 import { ExamMeasureStep } from '@/components/children/exam/ExamMeasureStep';
 import { ExamDevelopmentStep } from '@/components/children/exam/ExamDevelopmentStep';
@@ -288,7 +288,7 @@ export default function HealthExamFormPage() {
       if (notify) toast.success('Đã lưu nháp phiếu khám.');
       return true;
     } catch (err) {
-      toast.error(err.message, 'Chưa lưu được nháp');
+      toast.error(err, 'Chưa lưu được nháp');
       return false;
     } finally {
       setBusy(false);
@@ -372,7 +372,7 @@ export default function HealthExamFormPage() {
         setErrors(err.details);
         setStep(Math.min(...Object.keys(err.details).map(stepOfField)));
       }
-      toast.error(err.message, 'Không lưu được kết luận');
+      toast.error(err, 'Không lưu được kết luận');
     } finally {
       setBusy(false);
     }
@@ -385,7 +385,7 @@ export default function HealthExamFormPage() {
       setConfirmPublish(false);
       reload();
     } catch (err) {
-      toast.error(err.message, 'Không công bố được');
+      toast.error(err, 'Không công bố được');
       setConfirmPublish(false);
     }
   };
@@ -514,9 +514,7 @@ export default function HealthExamFormPage() {
           <div className="row row--wrap gap-2 mb-16">
             <ConclusionCategoryBadge status={m.conclusionCategory} size="lg" />
             <FollowUpLevelBadge status={m.followUpLevel} />
-            <span className={`chip ${m.published ? 'chip--green' : 'chip--gray'}`}>
-              {m.published ? (m.autoPublished ? 'Đã công bố khi lưu kết luận' : 'Đã công bố') : 'Chưa công bố'}
-            </span>
+            <PublishStatusBadge status={m.published ? (m.autoPublished ? 'PUBLISHED_ON_SAVE' : 'PUBLISHED') : 'UNPUBLISHED'} />
             {m.followUpId && (
               <Link className="text-primary text-sm" to={`/children/health-follow-ups/${m.followUpId}`}>
                 Mở phiếu theo dõi
@@ -597,7 +595,9 @@ export default function HealthExamFormPage() {
         </div>
       )}
       <PreviousNotes view={view} />
-      <Stepper steps={STEP_LABELS} current={step} maxReached={maxReached} onStepClick={busy ? undefined : goTo} />
+      <div className="card stepper-card">
+        <Stepper steps={STEP_LABELS} current={step} maxReached={maxReached} onStepClick={busy ? undefined : goTo} />
+      </div>
       <div className="mt-16">
         {step === 0 && <ExamAdminStep {...stepProps} child={child} campaign={view.campaign} dateRange={dateRange} />}
         {step === 1 && <ExamMeasureStep {...stepProps} reference={view.reference} />}

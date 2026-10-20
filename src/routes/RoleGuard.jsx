@@ -1,7 +1,6 @@
-import { Link } from 'react-router-dom';
-import { ShieldAlert } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { EmptyState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { areaAccess } from '@/utils/school-config/schoolConfigPermissions';
 
 const DEFAULT_DESCRIPTION = 'Chức năng này chỉ dành cho Phó hiệu trưởng. Giáo viên / nhân viên chỉ xử lý phiếu được phân công cho mình.';
@@ -12,18 +11,9 @@ export function RoleGuard({ roles = [], allow, children, description = DEFAULT_D
   if (allow ? allow(user) : roles.includes(user.role)) return children;
   return (
     <div className="page">
-      <div className="card mt-24">
-        <EmptyState
-          icon={ShieldAlert}
-          title="Bạn không có quyền truy cập chức năng này"
-          description={description}
-          action={
-            <Link className="btn btn--primary" to="/">
-              Về trang chủ
-            </Link>
-          }
-        />
-      </div>
+      {/* Breadcrumb đặt tiêu đề tab; thiếu thì tab giữ tên trang trước */}
+      <Breadcrumb items={[{ label: 'Trang chủ', to: '/' }, { label: 'Không có quyền truy cập' }]} />
+      <StatusPage kind="403" title="Bạn không có quyền truy cập chức năng này" description={description} />
     </div>
   );
 }

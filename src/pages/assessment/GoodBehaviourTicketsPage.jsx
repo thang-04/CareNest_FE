@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BadgeCheck, CalendarRange, ChevronLeft, ChevronRight, Flag, Lock, Ticket } from '@/components/ui/icons';
+import { CalendarRange, ChevronLeft, ChevronRight, Flag, Ticket } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAssessmentClasses, useTicketBoard } from '@/hooks/assessment/useAssessment';
@@ -7,7 +7,9 @@ import { issueTickets } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { ChildAvatar } from '@/components/ChildAvatar';
+import { TicketBadge } from '@/components/assessment/AssessmentBadges';
 import { TICKET_TYPE, TICKET_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
 import { periodLabel } from '@/utils/assessment/assessmentPeriods';
@@ -80,7 +82,7 @@ export default function GoodBehaviourTicketsPage() {
       setConfirmOpen(false);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message, 'Chưa phát được phiếu');
+      toast.error(err, 'Chưa phát được phiếu');
       setConfirmOpen(false);
       reload({ silent: true });
     }
@@ -93,9 +95,7 @@ export default function GoodBehaviourTicketsPage() {
       {classesError ? (
         <ErrorState error={classesError} />
       ) : !classesLoading && classes.length === 0 ? (
-        <div className="card">
-          <EmptyState icon={Lock} title="Bạn chưa được phân công lớp" description="Chỉ giáo viên của lớp mới phát phiếu bé ngoan." />
-        </div>
+        <StatusPage kind="403" title="Bạn chưa được phân công lớp" description="Chỉ giáo viên của lớp mới phát phiếu bé ngoan." />
       ) : (
         <div className="card">
           <div className="tabs" role="tablist">
@@ -177,11 +177,9 @@ export default function GoodBehaviourTicketsPage() {
             <div className="spacer" />
             {board?.period && (
               <div className="dg-ticket-stats">
-                <span className="chip chip--green">
-                  Đủ điều kiện {rows.filter((r) => r.eligible).length}/{rows.length}
-                </span>
-                <span className="chip chip--teal">Đã phát {issued}</span>
-                {issuable.length > 0 && <span className="chip chip--orange">Chờ phát {issuable.length}</span>}
+                <TicketBadge status="ELIGIBLE" detail={`${rows.filter((r) => r.eligible).length}/${rows.length}`} />
+                <TicketBadge status="ISSUED" detail={issued} />
+                {issuable.length > 0 && <TicketBadge status="PENDING_ISSUE" detail={issuable.length} />}
               </div>
             )}
           </div>
@@ -194,11 +192,11 @@ export default function GoodBehaviourTicketsPage() {
               description="Phiếu chỉ được phát sau khi tuần hoặc tháng kết thúc."
             />
           ) : (
-            <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
+            <div className="table-wrap">
               <table className="table table--grid">
                 <thead>
                   <tr>
-                    <th className="center" style={{ width: 48 }}>
+                    <th className="center dg-col-check">
                       <input
                         type="checkbox"
                         aria-label="Chọn tất cả trẻ đủ điều kiện"
@@ -210,19 +208,19 @@ export default function GoodBehaviourTicketsPage() {
                     <th>Trẻ</th>
                     {weekly ? (
                       <>
-                        <th className="center" title={`Cần ít nhất ${board?.rules?.WEEK_MIN_PRESENT_DAYS ?? 4} ngày`}>
+                        <th className="num" title={`Cần ít nhất ${board?.rules?.WEEK_MIN_PRESENT_DAYS ?? 4} ngày`}>
                           Ngày có mặt <span className="muted">(cần {board?.rules?.WEEK_MIN_PRESENT_DAYS ?? 4})</span>
                         </th>
-                        <th className="center" title={`Cần ít nhất ${board?.rules?.WEEK_MIN_FLAGS ?? 3} cờ`}>
+                        <th className="num" title={`Cần ít nhất ${board?.rules?.WEEK_MIN_FLAGS ?? 3} cờ`}>
                           Cờ bé ngoan <span className="muted">(cần {board?.rules?.WEEK_MIN_FLAGS ?? 3})</span>
                         </th>
                       </>
                     ) : (
-                      <th className="center" title={`Cần ít nhất ${board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3} phiếu tuần`}>
+                      <th className="num" title={`Cần ít nhất ${board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3} phiếu tuần`}>
                         Phiếu tuần trong tháng <span className="muted">(cần {board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3})</span>
                       </th>
                     )}
-                    <th>Điều kiện</th>
+                    <th className="center">Điều kiện</th>
                     <th>Phiếu</th>
                   </tr>
                 </thead>
@@ -258,32 +256,30 @@ export default function GoodBehaviourTicketsPage() {
                         </td>
                         {weekly ? (
                           <>
-                            <td className={`center ${r.presentDays < board.rules.WEEK_MIN_PRESENT_DAYS ? 'text-danger' : ''}`}>
+                            <td className={`num ${r.presentDays < board.rules.WEEK_MIN_PRESENT_DAYS ? 'text-danger' : ''}`}>
                               {r.presentDays}/5
                             </td>
-                            <td className={`center ${r.flagCount < board.rules.WEEK_MIN_FLAGS ? 'text-danger' : ''}`}>
+                            <td className={`num ${r.flagCount < board.rules.WEEK_MIN_FLAGS ? 'text-danger' : ''}`}>
                               <span className="dg-flag-count">
                                 <Flag size={14} aria-hidden="true" /> {r.flagCount}
                               </span>
                             </td>
                           </>
                         ) : (
-                          <td className={`center ${r.weeklyTickets < board.rules.MONTH_MIN_WEEKLY_TICKETS ? 'text-danger' : ''}`}>
+                          <td className={`num ${r.weeklyTickets < board.rules.MONTH_MIN_WEEKLY_TICKETS ? 'text-danger' : ''}`}>
                             {r.weeklyTickets}
                           </td>
                         )}
                         <td>
                           {r.eligible ? (
-                            <span className="chip chip--green">Đủ điều kiện</span>
+                            <TicketBadge status="ELIGIBLE" />
                           ) : (
                             <span className="text-sm muted">{missingText(r, board.rules, weekly)}</span>
                           )}
                         </td>
                         <td className="text-sm">
                           {r.ticket ? (
-                            <span className="row" style={{ gap: 6 }}>
-                              <BadgeCheck size={16} className="text-success" /> Đã phát {formatDateTime(r.ticket.issuedAt)}
-                            </span>
+                            <TicketBadge status="ISSUED" detail={formatDateTime(r.ticket.issuedAt)} />
                           ) : (
                             <span className="muted">Chưa phát</span>
                           )}
@@ -301,7 +297,7 @@ export default function GoodBehaviourTicketsPage() {
       {board?.period && (
         <div className="page-actions">
           <span className="muted text-sm">Đã chọn {selected.size} trẻ</span>
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row gap-2">
             <button
               className="btn"
               disabled={!issuable.length || allSelected}

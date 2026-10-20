@@ -222,7 +222,7 @@ export const SHARED_SERVICE_LABEL = 'Phụ trách dịch vụ chung (bán trú t
  * Quyền riêng của từng Phó hiệu trưởng theo mảng phụ trách, gắn vào phân công năm học.
  * Mỗi mảng: phạm vi (1 điểm trường hoặc toàn trường) + các thao tác Xem · Thêm · Sửa · Xóa (người dùng chốt 13/10/2026).
  * actions: thao tác áp dụng cho mảng; actionHints: nghĩa của từng thao tác trong mảng.
- * linked: Thêm / Sửa / Xóa đi cùng nhau (thực đơn là dịch vụ chung 1 PHT phụ trách; CSVC làm sau).
+ * linked: Thêm / Sửa / Xóa đi cùng nhau (thực đơn là dịch vụ chung 1 PHT phụ trách; CSVC làm sau); manageHint: câu mô tả gộp cho mảng linked.
  * scopes: phạm vi chọn được; menu là dữ liệu toàn trường, CSVC hiện chỉ hỗ trợ trong điểm trường.
  */
 export const AREA_ACTIONS = ['view', 'create', 'update', 'delete'];
@@ -237,6 +237,7 @@ export const VP_AREAS = [
     scopes: ['ALL'],
     actions: AREA_ACTIONS,
     linked: true,
+    manageHint: 'Lập, sửa, xóa thực đơn, món ăn, giá suất ăn',
   },
   {
     key: 'teacherAssignment',
@@ -268,6 +269,7 @@ export const VP_AREAS = [
     scopes: ['CAMPUS'],
     actions: AREA_ACTIONS,
     linked: true,
+    manageHint: 'Xử lý sự cố, yêu cầu, đề xuất, luân chuyển, kiểm kê',
   },
   {
     key: 'rooms',

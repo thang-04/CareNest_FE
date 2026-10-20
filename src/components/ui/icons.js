@@ -93,6 +93,7 @@ export {
   IconArrowForwardUp as Forward,
   IconGenderBigender as Gender,
   IconSettings as Gear,
+  IconGripVertical as GripVertical,
   IconHeartHandshake as Handshake,
   IconHeartbeat as HeartPulse,
   IconHeartbeat as Heartbeat,

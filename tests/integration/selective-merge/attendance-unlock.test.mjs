@@ -30,15 +30,29 @@ beforeEach(async () => {
 afterEach(() => { globalThis.Date = RealDate; });
 const payload = (patch = {}) => ({ classId: cls.id, date, validUntil: new Date(clock + 3600000).toISOString(), reason: 'Lớp demo quên lưu điểm danh', ...patch });
 
-test('HT mọi campus, PHT chỉ campus mình và giáo viên không được mở', async () => {
-  assert.equal(canUnlockAttendanceDay({ campusId: 'c2' }, principal), true);
+test('chỉ PHT campus mình được mở; HT chỉ cấu hình, giáo viên không được mở', async () => {
+  assert.equal(canUnlockAttendanceDay({ campusId: 'c2' }, principal), false);
+  await assert.rejects(repo.unlockAttendanceDay(payload(), principal), rejectStatus(403));
+  await assert.rejects(repo.listAttendanceDayUnlocks(principal), rejectStatus(403));
   assert.equal(canUnlockAttendanceDay({ campusId: 'c2' }, vp), false);
   await assert.rejects(repo.unlockAttendanceDay(payload(), teacher), rejectStatus(403));
   await assert.rejects(repo.unlockAttendanceDay(payload(), { ...vp, campusId: 'c2' }), rejectStatus(403));
   const result = await repo.unlockAttendanceDay(payload(), vp);
   assert.equal(result.classId, cls.id);
-  assert.equal((await repo.listAttendanceDayUnlocks(vp)).length, 1);
-  assert.equal((await repo.listAttendanceDayUnlocks({ ...vp, campusId: 'c2' })).length, 0);
+  // Danh sách có sẵn lịch sử mở lại demo: chỉ xét lần mở lại vừa tạo
+  assert.equal((await repo.listAttendanceDayUnlocks(vp)).filter((row) => row.id === result.id).length, 1);
+  assert.equal((await repo.listAttendanceDayUnlocks({ ...vp, campusId: 'c2' })).filter((row) => row.id === result.id).length, 0);
+  await assert.rejects(repo.unlockAttendanceDay(payload(), vp), rejectStatus(409));
+});
+test('chỉ mở lại trong thời hạn phút sau giờ chốt do HT cấu hình; chưa cấu hình thì chặn', async () => {
+  // Seed: giờ chốt 08:45, mở lại 120 phút ⇒ hạn 10:45
+  assert.equal((await repo.getDayInfo(date)).reopenUntil, '10:45');
+  clock = RealDate.parse('2026-10-19T10:50:00+07:00');
+  assert.equal((await repo.getDayInfo(date)).reopenExpired, true);
+  await assert.rejects(repo.unlockAttendanceDay(payload(), vp), rejectStatus(409));
+  clock = RealDate.parse('2026-10-19T10:00:00+07:00');
+  writeDb((db) => { db.cutoffSettings = [{ schoolYear: '2026-2027', time: '08:45', effectiveFrom: '2026-09-05' }]; });
+  assert.equal((await repo.getDayInfo(date)).reopenUntil, null);
   await assert.rejects(repo.unlockAttendanceDay(payload(), vp), rejectStatus(409));
 });
 test('chặn lý do trống, thời hạn, ngày cũ và lớp năm học cũ', async () => {
@@ -54,6 +68,8 @@ test('hết hạn hoặc sang ngày mới tự khóa, dù validUntil ở ngày s
   assert.equal((await repo.getDayInfo(date, cls.id, teacher)).locked, true);
 });
 test('xác nhận lại đồng bộ phiếu chưa nhận, giữ phiếu đã nhận và snapshot chốt', async () => {
+  // Bỏ số suất demo xác nhận sẵn của hôm nay để đi theo luồng chốt giờ khóa → Phó HT xác nhận
+  writeDb((db) => { db.mealCounts = db.mealCounts.filter((row) => row.date !== date); db.mealHandovers = db.mealHandovers.filter((row) => row.date !== date); });
   const counts = (await repo.getMealCounts({ date, campusId: cls.campusId }, vp)).counts;
   const target = counts.find((count) => count.classes.some((line) => line.classId === cls.id));
   await repo.confirmMealCount(target.id, vp);

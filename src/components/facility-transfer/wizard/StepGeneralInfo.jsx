@@ -51,7 +51,7 @@ export function StepGeneralInfo({ wizard, md, user, lockedCode }) {
   const lockedPicked = [form.fromLocationId, form.toLocationId].filter((l) => l && locked[l]);
 
   const typeRadios = (
-    <div className="stack" style={{ gap: 10 }} role="radiogroup" aria-label="Loại luân chuyển">
+    <div className="stack gap-2-5" role="radiogroup" aria-label="Loại luân chuyển">
       {Object.values(TRANSFER_TYPES).map((t) => (
         <label key={t} className="radio">
           <input type="radio" name="transfer-type" checked={form.type === t} onChange={() => update({ type: t })} />
@@ -124,7 +124,7 @@ export function StepGeneralInfo({ wizard, md, user, lockedCode }) {
               </Field>
             </div>
             <div>
-              <Field label="Campus" required error={errors.fromCampusId} htmlFor="campus">
+              <Field label="Điểm trường" required error={errors.fromCampusId} htmlFor="campus">
                 <CampusPicker id="campus" campuses={ownCampuses} value={form.fromCampusId} onChange={(v) => update({ fromCampusId: v })} />
               </Field>
               <Field label="Từ (lớp/phòng)" required htmlFor="fromLoc">
@@ -176,7 +176,7 @@ export function StepGeneralInfo({ wizard, md, user, lockedCode }) {
               <div className="grid-2">
                 <div className="field">
                   <label className="field__label" htmlFor="fromCampus">
-                    Campus đi<span className="req">*</span>
+                    Điểm trường đi<span className="req">*</span>
                   </label>
                   <CampusPicker
                     id="fromCampus"
@@ -202,7 +202,7 @@ export function StepGeneralInfo({ wizard, md, user, lockedCode }) {
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="toCampus">
-                    Campus đến<span className="req">*</span>
+                    Điểm trường đến<span className="req">*</span>
                   </label>
                   <CampusPicker
                     id="toCampus"

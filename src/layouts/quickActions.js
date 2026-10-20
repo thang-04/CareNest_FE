@@ -43,8 +43,8 @@ const QUICK_ACTIONS = [
     roles: VP_ONLY,
     area: 'facility',
   },
-  { label: 'Thực đơn tuần', to: '/menu/weekly/new', group: 'Thực đơn', icon: CookingPot, roles: VP_ONLY, area: 'menu' },
-  { label: 'Phiếu nhập kho', to: '/kitchen/stock-receipts/new', group: 'Bếp & kho', icon: Truck, roles: VP_ONLY },
+  { label: 'Thực đơn tuần', to: '/menu/weekly', group: 'Dinh dưỡng', icon: CookingPot, roles: VP_ONLY, area: 'menu' },
+  { label: 'Phiếu nhập kho', to: '/kitchen/stock-receipts/new', group: 'Kho thực phẩm', icon: Truck, roles: VP_ONLY },
   { label: 'Kế hoạch năm học', to: '/education/goals', group: 'Kế hoạch giáo dục', icon: Target, roles: VP_ONLY },
   {
     label: 'Phiếu luân chuyển tài sản',

@@ -51,7 +51,7 @@ function CheckModal({ handover, onClose, onDone }) {
       onDone();
     } catch (err) {
       setErrors(err.details || {});
-      toast.error(err.message, 'Không lưu được');
+      toast.error(err, 'Không lưu được');
     } finally {
       setBusy('');
     }
@@ -120,7 +120,7 @@ export default function MealHandoverPage() {
       setSupplying(null);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message, 'Không lưu được');
+      toast.error(err, 'Không lưu được');
     }
   };
 

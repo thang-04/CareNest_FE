@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Lock } from '@/components/ui/icons';
+import { ArrowLeft, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
+import { LoadingState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { ChildProfileFields } from '@/components/children/ChildProfileFields';
@@ -64,13 +65,11 @@ export default function EditChildPage() {
       <div className="page">
         <Breadcrumb items={crumbs} />
         <h1 className="page__title">Sửa hồ sơ trẻ</h1>
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Bạn không có quyền sửa hồ sơ này"
-            description="Chỉ Phó hiệu trưởng của điểm trường được sửa hồ sơ trẻ."
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Bạn không có quyền sửa hồ sơ này"
+          description="Chỉ Phó hiệu trưởng của điểm trường được sửa hồ sơ trẻ."
+        />
       </div>
     );
 
@@ -90,7 +89,7 @@ export default function EditChildPage() {
       navigate(`/children/${id}`);
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được hồ sơ');
+      toast.error(err, 'Không lưu được hồ sơ');
     } finally {
       setBusy(false);
     }

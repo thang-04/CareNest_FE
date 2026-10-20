@@ -104,7 +104,7 @@ function LabelTable({ rows }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.label}>
-              <td className="ga-goal-table__fixed">
+              <td className="cell--fixed">
                 <div className="ga-goal-table__pad fw-600">{r.label}</div>
               </td>
               <td>{r.cell}</td>
@@ -175,7 +175,7 @@ export function WeekTab({ draft, week, editable, update, activities = [] }) {
           </colgroup>
           <thead>
             <tr>
-              <th className="ga-goal-table__fixed">Tên hoạt động</th>
+              <th className="cell--fixed">Tên hoạt động</th>
               {WEEKDAY_LABELS.map((l, i) => (
                 <th key={l} className="center">
                   {l} · {ddmm(addDays(week.start, i))}
@@ -189,7 +189,7 @@ export function WeekTab({ draft, week, editable, update, activities = [] }) {
               const merged = r.canMerge && g.allWeek;
               return (
                 <tr key={r.key}>
-                  <td className="ga-goal-table__fixed">
+                  <td className="cell--fixed">
                     <div className="ga-goal-table__pad stack">
                       <span className="fw-600">{r.label}</span>
                       {r.canMerge && editable && (
@@ -336,7 +336,7 @@ export function DayTab({ draft, index, editable, canEvaluate, update, goals = []
             {DAY_SECTIONS.map((s) => (
               <Fragment key={s.key}>
                 <tr>
-                  <td colSpan={3} className="ga-goal-table__fixed">
+                  <td colSpan={3} className="cell--fixed">
                     <div className="ga-goal-table__pad fw-600">
                       {s.label}
                       {s.key === 'hoc' && (hoc.subject || hoc.topic) ? `: ${[hoc.subject, hoc.topic].filter(Boolean).join(' – ')}` : ''}

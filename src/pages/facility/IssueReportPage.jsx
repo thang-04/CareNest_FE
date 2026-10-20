@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Send, AlertTriangle, Info, Lock, ArrowLeft } from '@/components/ui/icons';
+import { Send, AlertTriangle, Info, ArrowLeft } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -10,6 +10,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { ImageUploader } from '@/components/upload/ImageUploader';
 import { AssetThumb, ConditionBadge } from '@/components/asset/AssetVisuals';
@@ -108,7 +109,7 @@ export default function IssueReportPage() {
       }
       navigate('/facility/my-reports');
     } catch (err) {
-      toast.error(err.message, 'Không gửi được báo cáo');
+      toast.error(err, 'Không gửi được báo cáo');
       if (err.details) setErrors(err.details);
     } finally {
       setBusy(false);
@@ -119,8 +120,8 @@ export default function IssueReportPage() {
     return (
       <div className="page">
         <Breadcrumb items={myReportCrumbs('Báo sự cố')} />
-        <EmptyState
-          icon={Lock}
+        <StatusPage
+          kind="403"
           title="Bạn không có quyền báo sự cố"
           description="Chỉ giáo viên và nhân viên bếp báo sự cố cơ sở vật chất."
         />
@@ -201,7 +202,7 @@ export default function IssueReportPage() {
                   <div className="fw-600">
                     {asset.name} <span className="muted">· {asset.code}</span>
                   </div>
-                  <div className="row row--wrap text-sm" style={{ gap: 8, marginTop: 4 }}>
+                  <div className="row row--wrap text-sm gap-2 bh-mt-1">
                     <span>
                       Đang có: <b>{asset.quantity}</b> {asset.unit.toLowerCase()}
                     </span>
@@ -225,9 +226,7 @@ export default function IssueReportPage() {
                     <input type="radio" name="bh-type" checked={type === t} onChange={() => pickType(t)} />
                     <span>
                       <span className="bh-type-option__title">{ISSUE_TYPE_LABELS[t]}</span>
-                      <span className="bh-type-option__hint" style={{ display: 'block' }}>
-                        {ISSUE_TYPE_HINTS[t]}
-                      </span>
+                      <span className="bh-type-option__hint bh-block">{ISSUE_TYPE_HINTS[t]}</span>
                     </span>
                   </label>
                 ))}

@@ -86,7 +86,7 @@ export function DiscrepancyModal({ open, items, rows, onSubmit, onClose }) {
             phiếu hoàn thành ngay; yêu cầu giao thêm / trả lại thì bạn kiểm tra và xác nhận lại sau.
           </div>
           <div className="table-wrap mb-16">
-            <table className="table table--compact">
+            <table className="table table--compact table--grid">
               <thead>
                 <tr>
                   <th>Tài sản</th>

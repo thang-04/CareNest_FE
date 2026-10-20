@@ -477,7 +477,7 @@ const address = (street, ward) => ({ province: 'Hải Phòng', ward, street });
 export const SEED_CHILD_PROFILES = {
   ch_007: {
     profile: {
-      idNumber: '031222009007',
+      idNumber: '999222009007',
       premature: 'YES',
       gestationWeeks: 35,
       ethnicity: 'Kinh',
@@ -502,7 +502,7 @@ export const SEED_CHILD_PROFILES = {
   },
   ch_new_1: {
     profile: {
-      idNumber: '031222009901',
+      idNumber: '999222009901',
       premature: 'NO',
       gestationWeeks: null,
       ethnicity: 'Kinh',

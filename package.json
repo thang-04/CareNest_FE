@@ -11,11 +11,13 @@
     "lint:fix": "eslint \"src/**/*.{js,jsx}\" --fix",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx,css}\"",
-    "check": "npm run lint && npm run format:check && npm run build",
-    "verify": "npm run test:menu && npm run test:kitchen && npm run test:merge && npm run test:dashboard && npm run check",
+    "check:design": "node scripts/check-design.mjs",
+    "check": "npm run lint && npm run format:check && npm run check:design && npm run build",
+    "verify": "npm run test:menu && npm run test:kitchen && npm run test:merge && npm run test:hardening && npm run test:dashboard && npm run check",
     "test:menu": "node --import ./scripts/register-auth-test-loader.mjs --test tests/menu/*.test.mjs",
     "test:kitchen": "node --import ./scripts/register-auth-test-loader.mjs --test tests/kitchen/*.test.mjs",
     "test:merge": "node --import ./scripts/register-auth-test-loader.mjs --test tests/integration/selective-merge/*.test.mjs",
+    "test:hardening": "node --import ./scripts/register-auth-test-loader.mjs --test tests/hardening/*.test.mjs",
     "test:dashboard": "node --import ./scripts/register-auth-test-loader.mjs --test tests/dashboard/*.test.mjs"
   },
   "dependencies": {

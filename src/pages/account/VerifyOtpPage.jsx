@@ -23,7 +23,7 @@ function DemoOtpHint({ requestId, version }) {
   if (!code) return null;
   return (
     <div className="demo-accounts">
-      <div className="row" style={{ gap: 6 }}>
+      <div className="row gap-1-5">
         <FlaskConical size={16} className="text-primary" />
         <b>Mã OTP demo</b>
         <code className="ac-demo-otp">{code}</code>
@@ -83,7 +83,7 @@ export default function VerifyOtpPage() {
       toast.success(`Đã gửi mã mới tới ${next.maskedDestination}`);
     } catch (err) {
       if (err.status === 410) setGone(err.message);
-      else toast.error(err.message, 'Chưa gửi lại được mã');
+      else toast.error(err, 'Chưa gửi lại được mã');
     } finally {
       setResending(false);
     }

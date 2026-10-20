@@ -1,6 +1,6 @@
-import { CheckCircle2, Clock, UserMinus, XCircle } from '@/components/ui/icons';
+import { Camera, CheckCircle2, Clock, Phone, PhoneOff, UserMinus, XCircle } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
-import { PICKUP_OUTCOME_LABELS, PICKUP_STATUS_LABELS } from '@/models/pickup/pickupConstants';
+import { PICKUP_OUTCOME_LABELS, PICKUP_STATUS_LABELS, VERIFICATION_LABELS } from '@/models/pickup/pickupConstants';
 
 /* Tones follow DESIGN.md §3.2 */
 export const PickupStatusBadge = createStatusBadge(
@@ -11,4 +11,15 @@ export const PickupStatusBadge = createStatusBadge(
 export const PickupOutcomeBadge = createStatusBadge(
   { HANDED_OVER: ['green', CheckCircle2], NOT_HANDED_OVER: ['red', XCircle] },
   PICKUP_OUTCOME_LABELS,
+);
+
+/* Cách xác minh người đón là thông tin (teal); phụ huynh từ chối = red, chưa liên lạc được = chờ phụ huynh (orange). */
+export const VerificationBadge = createStatusBadge(
+  {
+    PHOTO_MATCH: ['teal', Camera],
+    PHONE_CONFIRMED: ['teal', Phone],
+    PHONE_DECLINED: ['red', XCircle],
+    PHONE_UNREACHABLE: ['orange', PhoneOff],
+  },
+  VERIFICATION_LABELS,
 );

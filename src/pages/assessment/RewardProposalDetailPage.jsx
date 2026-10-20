@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   FileText,
   History,
-  Lock,
   Pencil,
   Send,
   Trash2,
@@ -22,7 +21,8 @@ import { decideRewardProposal, deleteRewardProposal, reviewRewardProposal } from
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { ErrorState, LoadingState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { RewardStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { REWARD_HISTORY_LABELS, REWARD_STATUS as S } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
@@ -90,9 +90,11 @@ export default function RewardProposalDetailPage() {
       <div className="page">
         {crumbs}
         {[403, 404].includes(error.status) ? (
-          <div className="card">
-            <EmptyState icon={Lock} title="Không xem được đề xuất" description="Đề xuất không tồn tại hoặc nằm ngoài phạm vi của bạn." />
-          </div>
+          <StatusPage
+            kind={String(error.status)}
+            title="Không xem được đề xuất"
+            description="Đề xuất không tồn tại hoặc nằm ngoài phạm vi của bạn."
+          />
         ) : (
           <ErrorState error={error} onRetry={reload} />
         )}
@@ -142,7 +144,7 @@ export default function RewardProposalDetailPage() {
       setDecision(null);
       navigate('/assessment/rewards');
     } catch (err) {
-      toast.error(err.message, 'Chưa ghi nhận được quyết định');
+      toast.error(err, 'Chưa ghi nhận được quyết định');
       setDecision(null);
       reload({ silent: true });
     }
@@ -154,7 +156,7 @@ export default function RewardProposalDetailPage() {
       toast.success(`Đã xóa bản nháp ${p.code}.`);
       navigate('/assessment/rewards');
     } catch (err) {
-      toast.error(err.message, 'Không xóa được bản nháp');
+      toast.error(err, 'Không xóa được bản nháp');
       setDeleteOpen(false);
     }
   };
@@ -173,12 +175,10 @@ export default function RewardProposalDetailPage() {
       {crumbs}
       <div className="page__head">
         <div>
-          <h1 className="page__title" style={{ marginBottom: 6 }}>
-            Đề xuất khen thưởng – {p.code}
-          </h1>
+          <h1 className="page__title">Đề xuất khen thưởng – {p.code}</h1>
           <RewardStatusBadge status={p.status} size="lg" />
         </div>
-        <div className="row row--wrap" style={{ gap: 8, marginTop: 8 }}>
+        <div className="row row--wrap gap-2 mt-8">
           {canDeleteRewardProposal(p, user) && (
             <button className="btn btn--outline-danger" onClick={() => setDeleteOpen(true)}>
               <Trash2 size={16} /> Xóa bản nháp
@@ -193,7 +193,7 @@ export default function RewardProposalDetailPage() {
         </div>
       </div>
 
-      <div className="card mt-16" style={{ padding: '20px 24px' }}>
+      <div className="card mt-16 dg-card-steps">
         <ProgressSteps steps={steps} cancelled={p.status === S.REJECTED} />
       </div>
 
@@ -327,7 +327,7 @@ export default function RewardProposalDetailPage() {
           <ArrowLeft size={16} /> Về danh sách
         </button>
         {review && (
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row gap-2">
             <button className="btn btn--outline-danger" onClick={() => openDecision('RETURN')}>
               <Undo2 size={16} /> Trả lại
             </button>
@@ -337,7 +337,7 @@ export default function RewardProposalDetailPage() {
           </div>
         )}
         {decide && (
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row gap-2">
             <button className="btn btn--outline-danger" onClick={() => openDecision('REJECT')}>
               <XCircle size={16} /> Từ chối
             </button>

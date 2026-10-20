@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Send, Lock, CheckCircle2, Info, LineChart, FileCheck2, Stethoscope } from '@/components/ui/icons';
+import { ArrowLeft, Save, Send, CheckCircle2, Info, LineChart, FileCheck2, Stethoscope } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { MeasurementSummary } from '@/components/children/MeasurementSummary';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
@@ -88,14 +89,12 @@ export default function HealthMeasurementFormPage() {
       <div className="page">
         <Breadcrumb items={crumbs} />
         <h1 className="page__title">{title}</h1>
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Bạn không nhập được số đo cho trẻ này"
-            description="Chỉ giáo viên phụ trách lớp trẻ đang học được nhập hoặc sửa số đo."
-            action={backLink}
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Bạn không nhập được số đo cho trẻ này"
+          description="Chỉ giáo viên phụ trách lớp trẻ đang học được nhập hoặc sửa số đo."
+          action={backLink}
+        />
       </div>
     );
   if (measurementId && !existing)
@@ -129,14 +128,12 @@ export default function HealthMeasurementFormPage() {
       <div className="page">
         <Breadcrumb items={crumbs} />
         <h1 className="page__title">{title}</h1>
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Kết quả thuộc đợt khám đã đóng"
-            description="Kết quả của đợt khám đã đóng bị khóa. Hiệu trưởng mở lại đợt nếu cần sửa."
-            action={backLink}
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Kết quả thuộc đợt khám đã đóng"
+          description="Kết quả của đợt khám đã đóng bị khóa. Hiệu trưởng mở lại đợt nếu cần sửa."
+          action={backLink}
+        />
       </div>
     );
 
@@ -173,7 +170,7 @@ export default function HealthMeasurementFormPage() {
       toast.success('Đã lưu số đo.');
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được số đo');
+      toast.error(err, 'Không lưu được số đo');
     } finally {
       setBusy(false);
     }
@@ -185,7 +182,7 @@ export default function HealthMeasurementFormPage() {
       toast.success('Đã công bố số đo cho phụ huynh.');
       navigate(backTo);
     } catch (err) {
-      toast.error(err.message, 'Không công bố được');
+      toast.error(err, 'Không công bố được');
       setConfirmPublish(false);
     }
   };

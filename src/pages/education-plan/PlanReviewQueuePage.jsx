@@ -7,6 +7,7 @@ import { ROLES } from '@/models/User';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { CLASS_DOC_LABELS, themeNumber, themeWeeksOf } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
+import { clickableRowProps } from '@/utils/clickableRow';
 
 /**
  * Hộp duyệt: tổ trưởng thấy chủ đề nhánh, hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ tổ trưởng;
@@ -92,24 +93,18 @@ export default function PlanReviewQueuePage() {
                 </colgroup>
                 <thead>
                   <tr>
-                    <th className="ga-goal-table__fixed">Loại</th>
+                    <th className="cell--fixed">Loại</th>
                     <th>Lớp</th>
                     <th>Nội dung</th>
                     <th>Người gửi</th>
                     <th>Gửi lúc</th>
-                    <th>Trạng thái</th>
+                    <th className="center">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((it) => (
-                    <tr
-                      key={it.key}
-                      className="row-click"
-                      tabIndex={0}
-                      onClick={() => navigate(it.to)}
-                      onKeyDown={(e) => e.key === 'Enter' && navigate(it.to)}
-                    >
-                      <td className="ga-goal-table__fixed">
+                    <tr key={it.key} className="row-click" {...clickableRowProps(() => navigate(it.to))}>
+                      <td className="cell--fixed">
                         <div className="ga-goal-table__pad fw-600">{CLASS_DOC_LABELS[it.kind]}</div>
                       </td>
                       <td>

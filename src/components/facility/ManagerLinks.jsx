@@ -5,7 +5,7 @@ import { canCreateProposal } from '@/utils/facility/facilityPermissions';
 /** Navigation shared by the manager lists of the module (issues, requests, proposals). */
 export function ManagerLinks({ user, current }) {
   return (
-    <div className="row row--wrap" style={{ gap: 8, marginTop: 6, justifyContent: 'flex-end' }}>
+    <div className="row row--wrap gap-2 bh-head-actions bh-head-actions--tight">
       {current !== 'issues' && (
         <Link className="btn" to="/facility/issues">
           <ClipboardList size={16} /> Báo cáo sự cố

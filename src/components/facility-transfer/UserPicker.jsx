@@ -4,12 +4,10 @@ import { ROLE_LABELS } from '@/models/User';
 import { MANAGER_LABELS, locationLabel, locationBaseLabel } from '@/models/Location';
 
 const UserLine = ({ user }) => (
-  <span className="row" style={{ gap: 10 }}>
+  <span className="row gap-2-5">
     <Avatar user={user} size="sm" />
-    <span style={{ textAlign: 'left' }}>
-      <span className="fw-600" style={{ display: 'block' }}>
-        {user.fullName}
-      </span>
+    <span className="ft-text-left">
+      <span className="fw-600 ft-block">{user.fullName}</span>
       <span className="muted text-xs">{ROLE_LABELS[user.role]}</span>
     </span>
   </span>

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { CheckCircle2, AlertTriangle, Info, XCircle, X } from '@/components/ui/icons';
+import { toastContent, toastStatusText } from '@/utils/toastStatus';
 
 const ToastContext = createContext(null);
 
@@ -19,11 +20,14 @@ export function ToastProvider({ children }) {
     [remove],
   );
 
+  // message: chuỗi hoặc object lỗi (lấy mã từ err.status để ghi "Thất bại · Mã 403")
   const show = useCallback(
     (type, message, title) => {
       const id = `${Date.now()}${Math.random()}`;
       const duration = type === 'error' ? 6000 : 3500;
-      setToasts((list) => [...list.slice(-3), { id, type, message, title, duration }]);
+      const { text, code } = toastContent(message);
+      const status = toastStatusText(type, code);
+      setToasts((list) => [...list.slice(-3), { id, type, status, message: text, title, duration }]);
       setTimeout(() => dismiss(id), duration);
     },
     [dismiss],
@@ -51,8 +55,9 @@ export function ToastProvider({ children }) {
                 <Icon size={18} />
               </span>
               <div className="toast__body">
+                <div className="toast__status">{t.status}</div>
                 {t.title && <div className="toast__title">{t.title}</div>}
-                <div className="toast__msg">{t.message}</div>
+                <div className={`toast__msg ${t.title ? '' : 'toast__msg--lead'}`}>{t.message}</div>
               </div>
               <button className="icon-btn toast__close" onClick={() => dismiss(t.id)} aria-label="Đóng thông báo">
                 <X size={16} />

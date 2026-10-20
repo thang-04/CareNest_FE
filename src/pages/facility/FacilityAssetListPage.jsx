@@ -5,8 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useFacilityAssets, useFacilityLocations } from '@/hooks/facility/useFacility';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { FilterChips } from '@/components/ui/FilterChips';
+import { FilterMore } from '@/components/ui/FilterMore';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { AssetThumb, ConditionBadge } from '@/components/asset/AssetVisuals';
 import { LockChip } from '@/components/facility/FacilityBadges';
 import { locationBaseLabel, locationLabel } from '@/models/Location';
@@ -84,13 +88,44 @@ export default function FacilityAssetListPage() {
 
   const campusLocations = locations.filter((l) => !filters.campusId || l.campusId === filters.campusId);
   const colCount = reporter ? 8 : 7;
+  const chips = [
+    filters.keyword && { key: 'keyword', label: `Từ khóa: ${filters.keyword}`, onRemove: () => set({ keyword: '' }) },
+    filters.campusId && {
+      key: 'campusId',
+      label: `Điểm trường: ${md.campusById(filters.campusId)?.shortName || ''}`,
+      onRemove: () => set({ campusId: '' }),
+    },
+    filters.locationId && {
+      key: 'locationId',
+      label: `Lớp/phòng: ${locationLabel(md.locationById(filters.locationId))}`,
+      onRemove: () => set({ locationId: '' }),
+    },
+    filters.categoryId && {
+      key: 'categoryId',
+      label: `Nhóm: ${md.categoryById(filters.categoryId)?.name || ''}`,
+      onRemove: () => set({ categoryId: '' }),
+    },
+    filters.condition && {
+      key: 'condition',
+      label: `Tình trạng: ${ASSET_CONDITION_LABELS[filters.condition] || filters.condition}`,
+      onRemove: () => set({ condition: '' }),
+    },
+    openOnly && {
+      key: 'openOnly',
+      label: 'Có báo cáo chờ duyệt',
+      onRemove: () => {
+        setOpenOnly(false);
+        setPage(1);
+      },
+    },
+  ].filter(Boolean);
 
   return (
     <div className="page">
       <Breadcrumb items={assetCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">{reporter ? 'Tài sản lớp/phòng của tôi' : 'Danh sách tài sản'}</h1>
-        <div className="row row--wrap" style={{ gap: 8, marginTop: 6, justifyContent: 'flex-end' }}>
+        <div className="row row--wrap gap-2 bh-head-actions bh-head-actions--tight">
           {reporter && (
             <>
               <Link className="btn" to="/facility/my-reports">
@@ -156,23 +191,21 @@ export default function FacilityAssetListPage() {
 
       <div className="card">
         <div className="filter-bar">
-          <label className="search-box" style={{ flex: 1, minWidth: 200 }}>
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm mã hoặc tên tài sản..."
-              value={filters.keyword}
-              onChange={(e) => set({ keyword: e.target.value })}
-              aria-label="Tìm tài sản"
-            />
-          </label>
+          <SearchSubmit
+            className="flex-1"
+            value={filters.keyword}
+            placeholder="Tìm mã hoặc tên tài sản..."
+            label="Tìm tài sản"
+            onSearch={(text) => set({ keyword: text })}
+          />
           {isPrincipal(user) && (
             <select
               className="select"
               value={filters.campusId}
               onChange={(e) => set({ campusId: e.target.value, locationId: '' })}
-              aria-label="Campus"
+              aria-label="Điểm trường"
             >
-              <option value="">Tất cả campus</option>
+              <option value="">Tất cả điểm trường</option>
               {md.campuses.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.shortName}
@@ -196,46 +229,50 @@ export default function FacilityAssetListPage() {
               ))}
             </select>
           )}
-          <select
-            className="select"
-            value={filters.categoryId}
-            onChange={(e) => set({ categoryId: e.target.value })}
-            aria-label="Nhóm tài sản"
-          >
-            <option value="">Tất cả nhóm</option>
-            {md.categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <select className="select" value={filters.condition} onChange={(e) => set({ condition: e.target.value })} aria-label="Tình trạng">
-            <option value="">Tất cả tình trạng</option>
-            {Object.entries(ASSET_CONDITION_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <FilterMore count={[filters.categoryId, filters.condition].filter(Boolean).length}>
+            <label className="field">
+              <span className="field__label">Nhóm tài sản</span>
+              <select className="select" value={filters.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
+                <option value="">Tất cả nhóm</option>
+                {md.categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field__label">Tình trạng</span>
+              <select className="select" value={filters.condition} onChange={(e) => set({ condition: e.target.value })}>
+                <option value="">Tất cả tình trạng</option>
+                {Object.entries(ASSET_CONDITION_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </FilterMore>
           <button className="btn" onClick={reset} disabled={!filtered}>
-            <RotateCcw size={15} /> Đặt lại
+            <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
+        <FilterChips count={loading ? null : rows.length} unit="tài sản" chips={chips} />
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-wrap">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã</th>
                   <th>Tài sản</th>
                   <th>Nhóm</th>
                   <th>Lớp/phòng</th>
-                  <th className="right">Số lượng</th>
+                  <th className="num">Số lượng</th>
                   <th>Tình trạng</th>
                   <th>Báo cáo chờ duyệt</th>
-                  {reporter && <th className="center">Thao tác</th>}
+                  {reporter && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
@@ -273,7 +310,7 @@ export default function FacilityAssetListPage() {
                     <tr key={a.id}>
                       <td className="fw-600 text-primary nowrap">{a.code}</td>
                       <td>
-                        <div className="row" style={{ gap: 10 }}>
+                        <div className="row gap-2-5">
                           <AssetThumb asset={a} size="sm" />
                           <span>{a.name}</span>
                         </div>
@@ -290,10 +327,10 @@ export default function FacilityAssetListPage() {
                           </div>
                         )}
                       </td>
-                      <td className="right nowrap">
+                      <td className="num nowrap">
                         {a.quantity} <span className="muted">{a.unit}</span>
                       </td>
-                      <td>
+                      <td className="center">
                         <ConditionBadge value={a.condition} />
                       </td>
                       <td>
@@ -304,23 +341,20 @@ export default function FacilityAssetListPage() {
                         )}
                       </td>
                       {reporter && (
-                        <td className="center nowrap">
-                          <button
-                            className="icon-btn"
-                            title="Báo sự cố"
-                            aria-label={`Báo sự cố ${a.name}`}
-                            onClick={() => navigate(`/facility/issues/new?assetId=${a.id}`)}
-                          >
-                            <AlertTriangle size={17} />
-                          </button>
-                          <button
-                            className="icon-btn"
-                            title="Đề nghị bổ sung"
-                            aria-label={`Đề nghị bổ sung ${a.name}`}
-                            onClick={() => navigate(`/facility/requests/new?assetId=${a.id}`)}
-                          >
-                            <PackagePlus size={17} />
-                          </button>
+                        <td className="cell--actions">
+                          <div className="row gap-2">
+                            <button
+                              className="btn btn--primary btn--sm"
+                              aria-label={`Báo sự cố ${a.name}`}
+                              onClick={() => navigate(`/facility/issues/new?assetId=${a.id}`)}
+                            >
+                              <AlertTriangle size={15} /> Báo sự cố
+                            </button>
+                            <RowActions
+                              menu={[{ label: 'Đề nghị bổ sung', icon: PackagePlus, to: `/facility/requests/new?assetId=${a.id}` }]}
+                              name={a.name}
+                            />
+                          </div>
                         </td>
                       )}
                     </tr>

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { DEFAULT_SCHOOL_YEAR, SCHOOL_YEARS } from '@/config/app';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSchoolYears } from '@/services/school-config/schoolConfigService';
-import { DB_CHANGED_EVENT } from '@/mocks/mockDatabase';
+import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 
 const SchoolYearContext = createContext(null);
 

@@ -295,7 +295,7 @@ export default function HealthFollowUpDetailPage() {
       toast.success(success);
       return null;
     } catch (err) {
-      toast.error(err.message, 'Không lưu được phiếu theo dõi');
+      toast.error(err, 'Không lưu được phiếu theo dõi');
       return err.details || {};
     } finally {
       setBusy(false);
@@ -415,7 +415,7 @@ export default function HealthFollowUpDetailPage() {
                 <thead>
                   <tr>
                     <th>Ngày đo</th>
-                    <th className="right">Vòng đầu (cm)</th>
+                    <th className="num">Vòng đầu (cm)</th>
                     <th>Kết luận / vận động</th>
                     <th>Mức theo dõi</th>
                   </tr>
@@ -427,7 +427,7 @@ export default function HealthFollowUpDetailPage() {
                         <div className="fw-600">{formatDate(m.date)}</div>
                         <div className="muted text-xs tr-note">{m.campaignName || 'Ngoài đợt khám'}</div>
                       </td>
-                      <td className="right">{formatNumber(m.headCircumferenceCm)}</td>
+                      <td className="num">{formatNumber(m.headCircumferenceCm)}</td>
                       <td>
                         {m.source === MEASUREMENT_SOURCE.EXAM && m.conclusion ? (
                           <div className="tr-cell-stack text-sm">

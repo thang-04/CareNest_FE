@@ -3,29 +3,28 @@
 /* ---------- Daily assessment sheet ---------- */
 /* Bảng cuộn trong khung: tiêu đề 2 tầng và cột tên trẻ dính khi cuộn dọc / ngang */
 .dg-sheet-wrap,
-.card > .dg-sheet-wrap {
+.card > .dg-sheet-wrap,
+.table-wrap.dg-sheet-wrap:has(> .table--grid) {
   max-height: calc(100vh - 13rem);
   overflow: auto;
-  /* Khung ngoài đủ 4 cạnh, cùng màu vạch trong (giống table--grid) */
+  /* Khung ngoài đủ 4 cạnh, cùng màu vạch trong (giống table--grid); khung đứng yên khi bảng cuộn */
   border: 1px solid var(--color-text-disabled);
   border-radius: 0;
 }
-.dg-sheet th,
-.dg-sheet td {
+.dg-sheet-wrap > .table.table--grid {
+  border: 0;
+}
+/* Bảng nhập dày (nhiều ô chọn mỗi hàng): lề ô gọn hơn table--grid để cột tên trẻ, nhận xét không bị ép */
+.table.table--grid.dg-sheet th,
+.table.table--grid.dg-sheet td {
   padding: var(--space-1);
-  font-size: var(--fs-sm);
 }
-.dg-sheet th {
-  color: var(--text);
-  font-weight: var(--fw-bold);
-  white-space: nowrap;
-}
-.dg-sheet th:first-child,
-.dg-sheet td:first-child {
+.table.table--grid.dg-sheet th:first-child,
+.table.table--grid.dg-sheet td:first-child {
   padding-left: var(--space-3);
 }
-.dg-sheet th:last-child,
-.dg-sheet td:last-child {
+.table.table--grid.dg-sheet th:last-child,
+.table.table--grid.dg-sheet td:last-child {
   padding-right: var(--space-2);
 }
 .dg-sheet thead th {
@@ -41,15 +40,6 @@
   z-index: 2;
   left: 0;
   background: var(--surface);
-}
-/* Kẻ ô như bảng Mục tiêu năm học: vạch dọc, ngang cùng màu --color-text-disabled */
-.dg-sheet th + th,
-.dg-sheet td + td {
-  border-left: 1px solid var(--color-text-disabled);
-}
-.dg-sheet th,
-.dg-sheet td {
-  border-bottom-color: var(--color-text-disabled);
 }
 .dg-col-child {
   min-width: 124px;
@@ -73,7 +63,7 @@
   min-width: 0;
   height: var(--space-6);
   padding: 0;
-  color: var(--success-700);
+  color: var(--color-success-fg);
 }
 
 /* Trạng thái dòng: viền trái mỏng */
@@ -84,15 +74,10 @@
   box-shadow: inset 3px 0 0 var(--warning-border-strong);
 }
 .dg-row--saved td:first-child {
-  box-shadow: inset 3px 0 0 var(--success-border);
+  box-shadow: inset 3px 0 0 var(--color-success-border);
 }
 .dg-row--dirty td:first-child {
   box-shadow: inset 3px 0 0 var(--primary);
-}
-/* Nền trắng, không tô sọc; rê chuột xám nhạt */
-.dg-sheet tbody tr td,
-.dg-sheet tbody tr:hover td {
-  background: var(--color-surface);
 }
 .dg-sheet tbody tr.dg-row--error td {
   background: var(--danger-25);
@@ -114,7 +99,7 @@
 }
 .dg-hint {
   margin-top: 2px;
-  color: var(--warning-700);
+  color: var(--color-warning-fg);
   font-size: var(--fs-xs);
   line-height: 1.3;
 }
@@ -128,7 +113,7 @@
   cursor: pointer;
 }
 .dg-tick--bad {
-  color: var(--danger-700);
+  color: var(--color-danger-fg);
 }
 .dg-child {
   display: inline-flex;
@@ -196,16 +181,16 @@
   white-space: nowrap;
 }
 .dg-cell-btn--good {
-  border-color: var(--success-border);
-  color: var(--success-700);
+  border-color: var(--color-success-border);
+  color: var(--color-success-fg);
 }
 .dg-cell-btn--warn {
   border-color: var(--warning-border-strong);
-  color: var(--warning-700);
+  color: var(--color-warning-fg);
 }
 .dg-cell-btn--bad {
-  border-color: var(--danger-border);
-  color: var(--danger-700);
+  border-color: var(--color-danger-border);
+  color: var(--color-danger-fg);
 }
 .dg-cell-btn:disabled {
   cursor: not-allowed;
@@ -237,10 +222,10 @@
   cursor: pointer;
 }
 .dg-tick--good {
-  color: var(--success-700);
+  color: var(--color-success-fg);
 }
 .dg-tick--warn {
-  color: var(--warning-700);
+  color: var(--color-warning-fg);
 }
 .dg-pop__line {
   display: flex;
@@ -282,13 +267,13 @@
 }
 .dg-seg__opt--on.dg-seg__opt--warn {
   border-color: var(--warning-border-strong);
-  background: var(--warning-50);
-  color: var(--warning-700);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
 }
 .dg-seg__opt--on.dg-seg__opt--bad {
-  border-color: var(--danger-border);
-  background: var(--danger-50);
-  color: var(--danger-700);
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
 }
 .dg-seg__opt:disabled {
   cursor: not-allowed;
@@ -307,7 +292,7 @@
   gap: var(--space-1);
   padding: 2px var(--space-2);
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--surface);
   color: var(--text-2);
   font-size: var(--fs-xs);
@@ -317,14 +302,14 @@
   background: var(--surface-hover);
 }
 .dg-crit--on {
-  border-color: var(--success-border);
-  background: var(--success-50);
-  color: var(--success-700);
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
 }
 .dg-crit--bad {
-  border-color: var(--danger-border);
-  background: var(--danger-50);
-  color: var(--danger-700);
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
 }
 .dg-crit:disabled {
   cursor: not-allowed;
@@ -344,8 +329,8 @@
 }
 .dg-flag--on {
   border-color: var(--warning-border-strong);
-  background: var(--warning-50);
-  color: var(--warning-700);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
 }
 .dg-flag:disabled {
   cursor: not-allowed;
@@ -377,9 +362,6 @@
   align-items: flex-end;
   gap: var(--space-3);
   padding: var(--space-4);
-}
-.dg-unlock-form .field {
-  margin: 0;
 }
 .dg-unlock-form__class {
   min-width: 300px;
@@ -421,7 +403,6 @@
 }
 .class-picker__campus .chip {
   cursor: pointer;
-  border: none;
 }
 .class-picker__list {
   max-height: 300px;
@@ -431,7 +412,7 @@
 .class-picker__group {
   padding: var(--space-2) var(--space-3) var(--space-1);
   font-size: var(--fs-sm);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--color-text);
 }
 .class-picker__option {
@@ -445,11 +426,11 @@
   cursor: pointer;
 }
 .class-picker__option.is-active {
-  background: var(--gray-50);
+  background: var(--color-secondary);
 }
 .class-picker__option.is-selected {
-  background: var(--primary-50);
-  font-weight: 600;
+  background: var(--color-primary-soft);
+  font-weight: var(--fw-semibold);
 }
 .class-picker__empty {
   padding: var(--space-3);
@@ -492,10 +473,10 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .dg-flag-count svg {
-  color: var(--warning-700);
+  color: var(--color-warning-fg);
 }
 .dg-period-nav {
   display: flex;
@@ -565,7 +546,7 @@
 }
 .dg-kpi__value {
   font-size: var(--fs-h2);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
 }
 .dg-kpi__label {
   color: var(--text-2);
@@ -614,7 +595,7 @@
 .dg-chart__value {
   fill: var(--text-2);
   font-size: var(--fs-2xs);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 .dg-chart-grid {
   display: grid;
@@ -633,13 +614,13 @@
 }
 .dg-domain__bar {
   height: 10px;
-  border-radius: 999px;
-  background: var(--gray-50);
+  border-radius: var(--radius-full);
+  background: var(--color-secondary);
   overflow: hidden;
 }
 .dg-domain__fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--primary);
 }
 
@@ -651,11 +632,45 @@
   align-items: flex-end;
 }
 .dg-period-bar .field {
-  margin: 0;
   min-width: 160px;
 }
 .dg-pre {
   white-space: pre-line;
+}
+.dg-field-activity {
+  min-width: 240px;
+}
+.dg-filter-count {
+  align-self: center;
+}
+/* Cảnh báo nằm trong card, thụt vào cùng lề thanh lọc */
+.alert.dg-alert-inset {
+  margin: 0 var(--space-4) var(--space-3);
+}
+.card.dg-card-steps {
+  padding: var(--space-5) var(--space-6);
+}
+.card.dg-card-flat {
+  box-shadow: none;
+}
+/* Nút hành động cạnh tiêu đề ẩn của đầu trang */
+.dg-head-action {
+  margin-top: var(--space-1-5);
+}
+.dg-col-check {
+  width: var(--space-12);
+}
+.dg-plain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dg-bullets {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+.dg-cell-wrap {
+  white-space: normal;
 }
 
 @media (max-width: 1280px) {

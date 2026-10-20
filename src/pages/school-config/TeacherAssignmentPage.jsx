@@ -12,7 +12,7 @@ import { useSchoolYears, useTeacherAssignments, useTeamLeaders } from '@/hooks/s
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { YearPicker } from '@/components/school-config/YearPicker';
-import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
+import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { saveTeamLeader } from '@/services/school-config/schoolConfigService';
 import { TEACHERS_PER_CLASS, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
@@ -40,7 +40,7 @@ function TeamLeaderRow({ group, classCount, current, campusName, readOnly, acts,
   return (
     <tr>
       <td className="fw-600">{group.name}</td>
-      <td className="center">{classCount}</td>
+      <td className="num">{classCount}</td>
       <td>
         {current ? (
           <>
@@ -52,9 +52,9 @@ function TeamLeaderRow({ group, classCount, current, campusName, readOnly, acts,
         )}
       </td>
       {!readOnly && (
-        <td className="right">
+        <td className="cell--actions">
           {canEdit && (
-            <button className="btn btn--sm" onClick={() => onOpen(group)}>
+            <button className="btn btn--primary btn--sm" onClick={() => onOpen(group)}>
               <Crown size={15} /> {current ? 'Đổi tổ trưởng' : 'Phân công'}
             </button>
           )}
@@ -154,7 +154,7 @@ export default function TeacherAssignmentPage() {
       leaders.reload({ silent: true });
       return true;
     } catch (err) {
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
       return false;
     }
   };
@@ -162,10 +162,7 @@ export default function TeacherAssignmentPage() {
   return (
     <div className="page">
       <Breadcrumb items={teacherCrumbs()} />
-      <div className="row" style={{ gap: 12 }}>
-        <h1 className="page__title">Phân công giáo viên</h1>
-        {year && <YearStatusBadge status={year.status} />}
-      </div>
+      <h1 className="page__title">Phân công giáo viên</h1>
 
       <div className="card mb-16">
         <div className="filter-bar">
@@ -188,7 +185,7 @@ export default function TeacherAssignmentPage() {
         ) : (
           <section id="to-truong" className="card mb-16 sc-anchor">
             <div className="card__header">
-              <h2 className="card__title row" style={{ gap: 8 }}>
+              <h2 className="card__title row gap-2">
                 <Crown size={18} /> Tổ trưởng nhóm tuổi
               </h2>
             </div>
@@ -202,9 +199,9 @@ export default function TeacherAssignmentPage() {
                 <thead>
                   <tr>
                     <th>Nhóm tuổi</th>
-                    <th className="center">Số lớp</th>
-                    <th style={{ minWidth: 260 }}>Tổ trưởng</th>
-                    {!leaderReadOnly && <th className="right">Thao tác</th>}
+                    <th className="num">Số lớp</th>
+                    <th className="sc-col-leader">Tổ trưởng</th>
+                    {!leaderReadOnly && <th className="cell--actions">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -246,7 +243,7 @@ export default function TeacherAssignmentPage() {
         ) : (
           <section className="card">
             <div className="card__header sc-head-row">
-              <h2 className="card__title row" style={{ gap: 8 }}>
+              <h2 className="card__title row gap-2">
                 <Users size={18} /> Giáo viên theo lớp
               </h2>
               <div className="sc-head-filters" role="group" aria-label="Lọc theo điểm trường và lớp">
@@ -311,7 +308,7 @@ export default function TeacherAssignmentPage() {
                     type="button"
                     onClick={() => setFilter({ campus: fullScope ? CAMPUS_ALL : '', group: '', class: '', q: '', status: '' })}
                   >
-                    Bỏ lọc
+                    Đặt lại bộ lọc
                   </button>
                 )}
               </div>
@@ -324,10 +321,10 @@ export default function TeacherAssignmentPage() {
                     <th>Lớp</th>
                     {allCampuses && <th>Điểm trường</th>}
                     <th>Nhóm tuổi</th>
-                    <th className="center">Sĩ số</th>
+                    <th className="num">Sĩ số</th>
                     <th>Chủ nhiệm</th>
                     <th>Giáo viên</th>
-                    {!readOnly && <th className="right">Thao tác</th>}
+                    {!readOnly && <th className="cell--actions">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -351,10 +348,10 @@ export default function TeacherAssignmentPage() {
                         <td className="fw-600">{c.name}</td>
                         {allCampuses && <td>{campusName(c.campusId)}</td>}
                         <td>{data.ageGroups.find((g) => g.id === c.ageGroupId)?.shortName}</td>
-                        <td className="center">
+                        <td className="num">
                           {c.childCount}/{c.capacity}
                         </td>
-                        <td>{md.userById(c.homeroomTeacherId)?.fullName || <span className="chip chip--orange">Chưa có</span>}</td>
+                        <td>{md.userById(c.homeroomTeacherId)?.fullName || <UnassignedBadge label="Chưa có" />}</td>
                         <td className="text-sm sc-wrap">
                           {c.teacherIds
                             .map((id) => md.userById(id)?.fullName)
@@ -362,7 +359,7 @@ export default function TeacherAssignmentPage() {
                             .join(', ') || <span className="muted">—</span>}
                         </td>
                         {!readOnly && (
-                          <td className="right">
+                          <td className="cell--actions">
                             {canAssignClass(c, user) && (
                               <button className={`btn btn--sm ${c.teacherIds.length ? '' : 'btn--primary'}`} onClick={() => setEditing(c)}>
                                 <UserCheck size={15} /> {c.teacherIds.length ? 'Đổi giáo viên' : 'Phân công'}

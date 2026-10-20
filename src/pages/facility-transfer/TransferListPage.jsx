@@ -1,24 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  Plus,
-  Search,
-  Eye,
-  Printer,
-  Pencil,
-  Scale,
-  RotateCcw,
-  ArrowRight,
-  FileStack,
-  PackageCheck,
-  Handshake,
-} from '@/components/ui/icons';
+import { Plus, Printer, Scale, RotateCcw, ArrowRight, FileStack, PackageCheck, Handshake } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransfers } from '@/hooks/facility-transfer/useTransfers';
 import { useMasterData } from '@/hooks/useMasterData';
+import { useFilterParams } from '@/hooks/useFilterParams';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { FilterChips } from '@/components/ui/FilterChips';
+import { FilterMore } from '@/components/ui/FilterMore';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { TransferStatusBadge } from '@/components/facility-transfer/TransferStatusBadge';
 import { formatDate } from '@/utils/format';
 import { locationLabel, locationBaseLabel } from '@/models/Location';
@@ -59,7 +52,7 @@ const placeText = (md, locationId, campusId, showCampus) => {
 /* ---------------- PHT-01 ---------------- */
 function VicePrincipalList({ user, md }) {
   const navigate = useNavigate();
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [filters, setFilters, , activeKeys] = useFilterParams(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
   const { transfers, loading, error, reload } = useTransfers(filters);
   const { transfers: all } = useTransfers(EMPTY_FILTERS);
@@ -87,18 +80,33 @@ function VicePrincipalList({ user, md }) {
   }, [all]);
 
   const set = (patch) => {
-    setFilters((f) => ({ ...f, ...patch }));
+    setFilters(patch);
     setPage(1);
   };
-  const dirty = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
+  const dirty = activeKeys.length > 0;
   const rows = paginate(transfers, page);
+  const chips = [
+    filters.keyword && { key: 'keyword', label: `Từ khóa: ${filters.keyword}`, onRemove: () => set({ keyword: '' }) },
+    filters.status !== 'ALL' && {
+      key: 'status',
+      label: `Trạng thái: ${stats.find((s) => s.status === filters.status)?.label || TRANSFER_STATUS_LABELS[filters.status] || filters.status}`,
+      onRemove: () => set({ status: 'ALL' }),
+    },
+    filters.type !== 'ALL' && {
+      key: 'type',
+      label: `Loại: ${TRANSFER_TYPE_LABELS[filters.type] || filters.type}`,
+      onRemove: () => set({ type: 'ALL' }),
+    },
+    filters.fromDate && { key: 'fromDate', label: `Từ ngày: ${formatDate(filters.fromDate)}`, onRemove: () => set({ fromDate: '' }) },
+    filters.toDate && { key: 'toDate', label: `Đến ngày: ${formatDate(filters.toDate)}`, onRemove: () => set({ toDate: '' }) },
+  ].filter(Boolean);
 
   return (
     <>
       <div className="page__head">
         <h1 className="page__title">Luân chuyển tài sản</h1>
         {canCreateTransfer(user) && (
-          <Link to="/facility/transfers/new" className="btn btn--primary btn--lg" style={{ marginTop: 6 }}>
+          <Link to="/facility/transfers/new" className="btn btn--primary btn--lg ft-mt-1-5">
             <Plus size={18} /> Tạo phiếu luân chuyển
           </Link>
         )}
@@ -120,61 +128,57 @@ function VicePrincipalList({ user, md }) {
 
       <div className="card">
         <div className="filter-bar">
-          <label className="search-box" style={{ flex: 1.6 }}>
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm mã phiếu, lớp/phòng, tài sản, người thực hiện..."
-              value={filters.keyword}
-              onChange={(e) => set({ keyword: e.target.value })}
-              aria-label="Tìm kiếm"
-            />
-          </label>
-          <select className="select" value={filters.status} onChange={(e) => set({ status: e.target.value })} aria-label="Trạng thái">
-            <option value="ALL">Tất cả trạng thái</option>
-            {Object.entries(TRANSFER_STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <select className="select" value={filters.type} onChange={(e) => set({ type: e.target.value })} aria-label="Loại luân chuyển">
-            <option value="ALL">Tất cả loại luân chuyển</option>
-            {Object.values(TRANSFER_TYPES).map((t) => (
-              <option key={t} value={t}>
-                {TRANSFER_TYPE_LABELS[t]}
-              </option>
-            ))}
-          </select>
-          <label className="date-filter">
-            <span>Từ ngày</span>
-            <input
-              type="date"
-              className="input"
-              value={filters.fromDate}
-              max={filters.toDate || undefined}
-              onChange={(e) => set({ fromDate: e.target.value })}
-            />
-          </label>
-          <label className="date-filter">
-            <span>Đến ngày</span>
-            <input
-              type="date"
-              className="input"
-              value={filters.toDate}
-              min={filters.fromDate || undefined}
-              onChange={(e) => set({ toDate: e.target.value })}
-            />
-          </label>
+          <SearchSubmit
+            className="ft-search-grow"
+            value={filters.keyword}
+            placeholder="Tìm mã phiếu, lớp/phòng, tài sản, người thực hiện..."
+            label="Tìm kiếm phiếu luân chuyển"
+            onSearch={(text) => set({ keyword: text })}
+          />
+          <FilterMore count={[filters.type !== 'ALL', filters.fromDate, filters.toDate].filter(Boolean).length}>
+            <label className="field">
+              <span className="field__label">Loại luân chuyển</span>
+              <select className="select" value={filters.type} onChange={(e) => set({ type: e.target.value })}>
+                <option value="ALL">Tất cả loại luân chuyển</option>
+                {Object.values(TRANSFER_TYPES).map((t) => (
+                  <option key={t} value={t}>
+                    {TRANSFER_TYPE_LABELS[t]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field__label">Từ ngày</span>
+              <input
+                type="date"
+                className="input"
+                value={filters.fromDate}
+                max={filters.toDate || undefined}
+                onChange={(e) => set({ fromDate: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span className="field__label">Đến ngày</span>
+              <input
+                type="date"
+                className="input"
+                value={filters.toDate}
+                min={filters.fromDate || undefined}
+                onChange={(e) => set({ toDate: e.target.value })}
+              />
+            </label>
+          </FilterMore>
           <button className="btn" onClick={() => set(EMPTY_FILTERS)} disabled={!dirty}>
-            <RotateCcw size={15} /> Đặt lại
+            <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
+        <FilterChips count={loading ? null : transfers.length} unit="phiếu" chips={chips} />
 
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-wrap">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã phiếu</th>
@@ -183,8 +187,8 @@ function VicePrincipalList({ user, md }) {
                   <th>Từ → Đến</th>
                   <th>Bàn giao / Nhận</th>
                   <th className="center">Tài sản</th>
-                  <th>Trạng thái</th>
-                  <th className="center">Thao tác</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,6 +222,7 @@ function VicePrincipalList({ user, md }) {
                 ) : (
                   rows.map((t) => {
                     const inter = t.type === TRANSFER_TYPES.INTER_CAMPUS;
+                    const resolve = canResolveDiscrepancy(t, user);
                     return (
                       <tr key={t.id} className="row-click" onClick={() => navigate(`/facility/transfers/${t.id}`)}>
                         <td className="fw-600 text-primary">
@@ -245,43 +250,37 @@ function VicePrincipalList({ user, md }) {
                         <td className="center">
                           {t.items.length} loại · {t.items.reduce((s, i) => s + i.quantity, 0)}
                         </td>
-                        <td>
+                        <td className="center">
                           <TransferStatusBadge status={t.status} />
                         </td>
-                        <td className="center nowrap" onClick={(e) => e.stopPropagation()}>
-                          <Link className="icon-btn" to={`/facility/transfers/${t.id}`} title="Xem chi tiết" aria-label="Xem chi tiết">
-                            <Eye size={17} />
-                          </Link>
-                          {canEditTransfer(t, user) && (
-                            <Link
-                              className="icon-btn"
-                              to={`/facility/transfers/${t.id}/edit`}
-                              title={t.status === TRANSFER_STATUS.DRAFT ? 'Sửa nháp' : 'Điều chỉnh'}
-                              aria-label="Sửa"
-                            >
-                              <Pencil size={17} />
-                            </Link>
-                          )}
-                          {canResolveDiscrepancy(t, user) && (
-                            <Link
-                              className="icon-btn"
-                              to={`/facility/transfers/${t.id}/discrepancy`}
-                              title="Xử lý chênh lệch"
-                              aria-label="Xử lý chênh lệch"
-                            >
-                              <Scale size={17} />
-                            </Link>
-                          )}
-                          {t.status !== TRANSFER_STATUS.DRAFT && (
-                            <Link
-                              className="icon-btn"
-                              to={`/facility/transfers/${t.id}/print`}
-                              title="In / Xuất phiếu"
-                              aria-label="In phiếu"
-                            >
-                              <Printer size={17} />
-                            </Link>
-                          )}
+                        <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
+                          <div className="row gap-2">
+                            {resolve && (
+                              <button
+                                className="btn btn--primary btn--sm"
+                                onClick={() => navigate(`/facility/transfers/${t.id}/discrepancy`)}
+                              >
+                                <Scale size={15} /> Xử lý chênh lệch
+                              </button>
+                            )}
+                            <RowActions
+                              view={resolve ? null : { to: `/facility/transfers/${t.id}`, label: 'Xem chi tiết' }}
+                              edit={
+                                canEditTransfer(t, user)
+                                  ? {
+                                      to: `/facility/transfers/${t.id}/edit`,
+                                      label: t.status === TRANSFER_STATUS.DRAFT ? 'Sửa nháp' : 'Điều chỉnh',
+                                    }
+                                  : null
+                              }
+                              menu={
+                                t.status !== TRANSFER_STATUS.DRAFT
+                                  ? [{ label: 'In / Xuất phiếu', icon: Printer, to: `/facility/transfers/${t.id}/print` }]
+                                  : []
+                              }
+                              name={t.code}
+                            />
+                          </div>
                         </td>
                       </tr>
                     );
@@ -316,24 +315,21 @@ function StaffList({ user, md }) {
   const rows = tab === 'ALL' ? transfers : transfers.filter((t) => t.status === tab);
   const todo = transfers.filter((t) => canHandover(t, user) || canReceive(t, user)).length;
 
+  // Nút nghiệp vụ chính của dòng; không có thì dòng chỉ còn icon Xem
   const actionFor = (t) => {
     if (canHandover(t, user))
       return (
-        <button className="btn btn--sm btn--primary" onClick={() => navigate(staffTransferPath(t, user))}>
+        <button className="btn btn--primary btn--sm" onClick={() => navigate(staffTransferPath(t, user))}>
           <Handshake size={15} /> Bàn giao
         </button>
       );
     if (canReceive(t, user))
       return (
-        <button className="btn btn--sm btn--primary" onClick={() => navigate(staffTransferPath(t, user))}>
+        <button className="btn btn--primary btn--sm" onClick={() => navigate(staffTransferPath(t, user))}>
           <PackageCheck size={15} /> Xác nhận nhận
         </button>
       );
-    return (
-      <button className="btn btn--sm" onClick={() => navigate(staffTransferPath(t, user))}>
-        <Eye size={15} /> Xem
-      </button>
-    );
+    return null;
   };
 
   return (
@@ -348,7 +344,7 @@ function StaffList({ user, md }) {
         </div>
       )}
       <div className="card">
-        <div className="row row--between" style={{ paddingRight: 16, alignItems: 'center' }}>
+        <div className="row row--between ft-tabs-bar">
           <div className="tabs" role="tablist">
             {STAFF_TABS.map((t) => (
               <button
@@ -362,21 +358,19 @@ function StaffList({ user, md }) {
               </button>
             ))}
           </div>
-          <label className="search-box" style={{ width: 300, marginBottom: 8 }}>
-            <Search size={16} className="muted" />
-            <input
-              placeholder="Tìm mã phiếu, tài sản..."
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              aria-label="Tìm kiếm"
-            />
-          </label>
+          <SearchSubmit
+            className="ft-search-staff"
+            value={keyword}
+            placeholder="Tìm mã phiếu, tài sản..."
+            label="Tìm kiếm phiếu luân chuyển"
+            onSearch={setKeyword}
+          />
         </div>
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-wrap">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã phiếu</th>
@@ -384,9 +378,9 @@ function StaffList({ user, md }) {
                   <th>Nơi đi</th>
                   <th>Nơi đến</th>
                   <th>Vai trò của tôi</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                   <th>Ngày dự kiến</th>
-                  <th className="center">Thao tác</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -406,6 +400,7 @@ function StaffList({ user, md }) {
                   rows.map((t) => {
                     const role = getMyTransferRole(t, user);
                     const inter = t.type === TRANSFER_TYPES.INTER_CAMPUS;
+                    const action = actionFor(t);
                     return (
                       <tr key={t.id} className="row-click" onClick={() => navigate(staffTransferPath(t, user))}>
                         <td className="fw-600 text-primary">{t.code}</td>
@@ -415,21 +410,18 @@ function StaffList({ user, md }) {
                         <td>
                           <span className="chip chip--teal">{MY_TRANSFER_ROLE_LABELS[role]}</span>
                         </td>
-                        <td>
+                        <td className="center">
                           <TransferStatusBadge status={t.status} />
                         </td>
                         <td>{formatDate(t.expectedHandoverDate)}</td>
-                        <td className="center nowrap" onClick={(e) => e.stopPropagation()}>
-                          <span className="row" style={{ gap: 4, justifyContent: 'center' }}>
-                            {actionFor(t)}
-                            <Link
-                              className="icon-btn"
-                              to={`/facility/transfers/${t.id}/print`}
-                              title="In / Xuất phiếu"
-                              aria-label={`In phiếu ${t.code}`}
-                            >
-                              <Printer size={17} />
-                            </Link>
+                        <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
+                          <span className="row gap-1 ft-justify-center">
+                            {action}
+                            <RowActions
+                              view={action ? null : { to: staffTransferPath(t, user) }}
+                              menu={[{ label: 'In / Xuất phiếu', icon: Printer, to: `/facility/transfers/${t.id}/print` }]}
+                              name={t.code}
+                            />
                           </span>
                         </td>
                       </tr>

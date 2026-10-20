@@ -10,7 +10,7 @@ import { SignaturePicker } from '@/components/signature/SignaturePicker';
 import { FileUploader } from '@/components/upload/FileUploader';
 
 const EditBtn = ({ onClick }) => (
-  <button className="btn btn--sm btn--outline-primary" onClick={onClick}>
+  <button type="button" className="btn btn--sm btn--outline-primary" onClick={onClick}>
     <Pencil size={14} /> Chỉnh sửa
   </button>
 );
@@ -20,9 +20,9 @@ function PersonBlock({ title, user, location, campus, Icon }) {
     <div className="person-block">
       <div className="fw-600 mb-8">{title}</div>
       {user ? (
-        <div className="row" style={{ alignItems: 'flex-start', gap: 12 }}>
+        <div className="row ft-align-start gap-3">
           <Avatar user={user} size="lg" />
-          <div style={{ lineHeight: 1.55 }}>
+          <div className="ft-lh-relaxed">
             <div className="fw-600">{user.fullName}</div>
             <div className="text-2">{ROLE_LABELS[user.role]}</div>
             <div className="text-2">{user.phone}</div>
@@ -59,9 +59,7 @@ export function StepReview({ wizard, md, lockedCode, mode, changeNote, onChangeN
       <div className="review-grid">
         <div className="card review-card">
           <div className="row row--between mb-12">
-            <span className="subsection-title" style={{ margin: 0 }}>
-              Thông tin chung
-            </span>
+            <span className="subsection-title m-0">Thông tin chung</span>
             <EditBtn onClick={() => goTo(0)} />
           </div>
           <dl className="info-list info-list--wide">
@@ -96,12 +94,10 @@ export function StepReview({ wizard, md, lockedCode, mode, changeNote, onChangeN
             <dd>{form.note || '—'}</dd>
           </dl>
         </div>
-        <div className="stack" style={{ gap: 16 }}>
+        <div className="stack gap-4">
           <div className="card review-card">
             <div className="row row--between mb-12">
-              <span className="subsection-title" style={{ margin: 0 }}>
-                Người thực hiện
-              </span>
+              <span className="subsection-title m-0">Người thực hiện</span>
               <EditBtn onClick={() => goTo(2)} />
             </div>
             <div className="grid-2">
@@ -123,9 +119,7 @@ export function StepReview({ wizard, md, lockedCode, mode, changeNote, onChangeN
           </div>
           <div className="card review-card">
             <div className="row row--between mb-8">
-              <span className="subsection-title" style={{ margin: 0 }}>
-                Tài liệu đính kèm
-              </span>
+              <span className="subsection-title m-0">Tài liệu đính kèm</span>
               <EditBtn onClick={() => goTo(0)} />
             </div>
             {form.attachments.length ? (
@@ -140,20 +134,18 @@ export function StepReview({ wizard, md, lockedCode, mode, changeNote, onChangeN
 
       <div className="card review-card mt-16">
         <div className="row row--between mb-12">
-          <span className="subsection-title" style={{ margin: 0 }}>
-            Danh sách tài sản luân chuyển
-          </span>
+          <span className="subsection-title m-0">Danh sách tài sản luân chuyển</span>
           <EditBtn onClick={() => goTo(1)} />
         </div>
         <div className="table-wrap">
-          <table className="table table--compact">
+          <table className="table table--compact table--grid">
             <thead>
               <tr>
                 <th className="center">STT</th>
                 <th className="center">Mã tài sản</th>
                 <th>Tên tài sản</th>
                 <th className="center">Đơn vị</th>
-                <th className="center">Số lượng luân chuyển</th>
+                <th className="num">Số lượng luân chuyển</th>
                 <th className="center">Tình trạng</th>
                 <th className="center">Hình ảnh</th>
               </tr>
@@ -165,7 +157,7 @@ export function StepReview({ wizard, md, lockedCode, mode, changeNote, onChangeN
                   <td className="center">{i.assetCode}</td>
                   <td>{i.assetName}</td>
                   <td className="center">{i.unit}</td>
-                  <td className="center">{i.quantity}</td>
+                  <td className="num">{i.quantity}</td>
                   <td className="center">
                     <ConditionBadge value={i.condition} />
                   </td>
@@ -182,7 +174,7 @@ export function StepReview({ wizard, md, lockedCode, mode, changeNote, onChangeN
 
       {mode === 'revise' && (
         <div className="card review-card mt-16">
-          <label className="subsection-title" htmlFor="change-note" style={{ display: 'block' }}>
+          <label className="subsection-title ft-block" htmlFor="change-note">
             Nội dung điều chỉnh
           </label>
           <textarea
@@ -198,7 +190,7 @@ export function StepReview({ wizard, md, lockedCode, mode, changeNote, onChangeN
       )}
 
       <div className="review-sign mt-16">
-        <div style={{ flex: 1 }}>
+        <div className="flex-1">
           <div className="subsection-title">Chữ ký người tạo phiếu (Phó hiệu trưởng)</div>
           <SignaturePicker value={form.creatorSignatureUrl} onChange={onSignature} error={errors.creatorSignature} />
         </div>
@@ -206,7 +198,7 @@ export function StepReview({ wizard, md, lockedCode, mode, changeNote, onChangeN
           <Info size={18} />
           <div>
             <div className="fw-600 mb-8">Lưu ý</div>
-            <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+            <ul className="ft-note-list">
               <li>Đây là chữ ký của bạn (PHT) và sẽ được sử dụng cho các phiếu trong tương lai nếu bạn lưu vào tài khoản.</li>
               <li>Bạn có thể cập nhật chữ ký bất kỳ lúc nào trong thông tin cá nhân.</li>
               <li>

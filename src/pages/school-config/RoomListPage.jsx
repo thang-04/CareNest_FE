@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, DoorOpen, PauseCircle, RotateCcw, ChevronDown } from '@/components/ui/icons';
+import { Plus, Trash2, DoorOpen, PauseCircle, RotateCcw, ChevronDown } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -9,6 +9,7 @@ import { useRooms } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { RowActions } from '@/components/ui/RowActions';
 import { RoomStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { RoomFormModal } from '@/components/school-config/RoomFormModal';
@@ -154,7 +155,7 @@ export default function RoomListPage() {
       reload({ silent: true });
     } catch (err) {
       setPending(null);
-      toast.error(err.message, `Không ${action.label.toLowerCase()} được`);
+      toast.error(err, `Không ${action.label.toLowerCase()} được`);
     }
   };
 
@@ -178,47 +179,25 @@ export default function RoomListPage() {
         {md.userById(r.managerUserId)?.fullName || <span className="muted">—</span>}
         {r.managerFromClass && r.managerUserId && <div className="text-xs muted">Chủ nhiệm lớp</div>}
       </td>
-      <td>
+      <td className="center">
         <RoomStatusBadge status={r.status} />
       </td>
       {manage && (
-        <td className="right nowrap">
-          {canManageRooms(user, r.campusId, 'update') && (
-            <button
-              className="icon-btn"
-              title="Sửa"
-              aria-label={`Sửa phòng ${r.room} ${campusShort(r)}`}
-              onClick={() => setModal({ room: r })}
-            >
-              <Pencil size={17} />
-            </button>
-          )}
-          {canManageRooms(user, r.campusId, 'delete') && (
-            <>
-              {r.status === ROOM_STATUS.ACTIVE ? (
-                <button
-                  className="icon-btn"
-                  title={r.blockers.length ? `Chưa ngừng được: ${r.blockers.join('; ')}` : 'Ngừng sử dụng'}
-                  aria-label={`Ngừng sử dụng phòng ${r.room} ${campusShort(r)}`}
-                  onClick={() => askDeactivate(r)}
-                >
-                  <PauseCircle size={17} />
-                </button>
-              ) : (
-                <button
-                  className="icon-btn"
-                  title="Dùng lại"
-                  aria-label={`Dùng lại phòng ${r.room} ${campusShort(r)}`}
-                  onClick={() => setPending({ kind: 'activate', room: r })}
-                >
-                  <RotateCcw size={17} />
-                </button>
-              )}
-              <button className="icon-btn" title="Xóa" aria-label={`Xóa phòng ${r.room} ${campusShort(r)}`} onClick={() => askDelete(r)}>
-                <Trash2 size={17} />
-              </button>
-            </>
-          )}
+        <td className="cell--actions">
+          <RowActions
+            edit={canManageRooms(user, r.campusId, 'update') ? { onClick: () => setModal({ room: r }), label: 'Sửa phòng' } : null}
+            menu={
+              canManageRooms(user, r.campusId, 'delete')
+                ? [
+                    r.status === ROOM_STATUS.ACTIVE
+                      ? { label: 'Ngừng sử dụng', icon: PauseCircle, danger: true, onClick: () => askDeactivate(r) }
+                      : { label: 'Dùng lại', icon: RotateCcw, onClick: () => setPending({ kind: 'activate', room: r }) },
+                    { label: 'Xóa phòng', icon: Trash2, danger: true, onClick: () => askDelete(r) },
+                  ]
+                : []
+            }
+            name={`${r.room} ${campusShort(r)}`}
+          />
         </td>
       )}
     </tr>
@@ -356,8 +335,8 @@ export default function RoomListPage() {
                             <th className="center">Sức chứa</th>
                             <th>Lớp ({schoolYear})</th>
                             <th>Người phụ trách</th>
-                            <th>Trạng thái</th>
-                            {manage && <th className="right">Thao tác</th>}
+                            <th className="center">Trạng thái</th>
+                            {manage && <th className="cell--actions">Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>{paginate(list, page, ROOM_PAGE_SIZE).map(renderRow)}</tbody>

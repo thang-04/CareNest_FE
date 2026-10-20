@@ -1,18 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Printer,
-  XCircle,
-  Stamp,
-  Eye,
-  ClipboardCheck,
-  History,
-  Lock,
-  PenLine,
-  CheckCircle2,
-  Boxes,
-} from '@/components/ui/icons';
+import { ArrowLeft, Printer, XCircle, Stamp, ClipboardCheck, History, Lock, PenLine, CheckCircle2, Boxes } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -22,9 +10,12 @@ import { useInspection } from '@/hooks/inventory-inspection/useInspections';
 import { cancelInspection, completeInspection } from '@/services/inventory-inspection/inspectionService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
-import { LoadingState, ErrorState, EmptyState, Spinner } from '@/components/ui/States';
+import { LoadingState, ErrorState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
+import { RowActions } from '@/components/ui/RowActions';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Modal } from '@/components/ui/Modal';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { RoundStatusBadge, SheetStatusBadge, ProgressBar } from '@/components/inventory-inspection/InspectionBadges';
 import { ROUND_STATUS, SHEET_STATUS, ROUND_TYPE_LABELS, INSPECTION_HISTORY } from '@/models/inventory-inspection/inspectionConstants';
 import { sheetSummary } from '@/models/inventory-inspection/InspectionRound';
@@ -67,13 +58,7 @@ function RoundSignatures({ round, md }) {
       <div className="sig-slot__title">{title}</div>
       {extra && <div className="sig-slot__role">{extra}</div>}
       <div className="sig-slot__img">
-        {sig ? (
-          <img src={sig.signatureUrl} alt={`Chữ ký ${sig.signedByName}`} />
-        ) : (
-          <span className="muted" style={{ fontStyle: 'italic' }}>
-            Chưa ký
-          </span>
-        )}
+        {sig ? <img src={sig.signatureUrl} alt={`Chữ ký ${sig.signedByName}`} /> : <span className="muted kk-unsigned">Chưa ký</span>}
       </div>
       <div className="fw-600">{sig?.signedByName || fallbackName}</div>
       {sig && (
@@ -129,9 +114,10 @@ function VarianceCard({ round, md }) {
           <Boxes size={20} /> {round.status === ROUND_STATUS.COMPLETED ? 'Điều chỉnh sau kiểm kê' : 'Chênh lệch đã ghi nhận'}
         </div>
         {round.status === ROUND_STATUS.COMPLETED && (
-          <span className={`chip ${round.applyAdjustments ? 'chip--green' : 'chip--gray'}`}>
-            {round.applyAdjustments ? 'Đã cập nhật tồn kho & tình trạng' : 'Không cập nhật tồn kho'}
-          </span>
+          <StatusBadge
+            tone={round.applyAdjustments ? 'green' : 'gray'}
+            label={round.applyAdjustments ? 'Đã cập nhật tồn kho & tình trạng' : 'Không cập nhật tồn kho'}
+          />
         )}
       </div>
       <div className="card__body">
@@ -139,7 +125,7 @@ function VarianceCard({ round, md }) {
           <div className="muted">Không có chênh lệch giữa sổ sách và thực tế.</div>
         ) : (
           <div className="table-wrap">
-            <table className="table table--compact">
+            <table className="table table--compact table--grid">
               <thead>
                 <tr>
                   <th>Lớp/phòng</th>
@@ -221,7 +207,7 @@ export default function InspectionRoundDetailPage() {
   if (!canViewRound(r, user))
     return (
       <div className="page">
-        <EmptyState icon={Lock} title="Bạn không có quyền xem đợt kiểm kê này" />
+        <StatusPage kind="403" title="Bạn không có quyền xem đợt kiểm kê này" />
       </div>
     );
 
@@ -242,7 +228,7 @@ export default function InspectionRoundDetailPage() {
       setCancelOpen(false);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     }
   };
 
@@ -261,7 +247,7 @@ export default function InspectionRoundDetailPage() {
       setApproveOpen(false);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     } finally {
       setBusy(false);
     }
@@ -272,12 +258,12 @@ export default function InspectionRoundDetailPage() {
       <Breadcrumb items={inspectionCrumbs(`Đợt ${r.code}`)} />
       <div className="page__head">
         <div>
-          <h1 className="page__title" style={{ marginBottom: 6 }}>
+          <h1 className="page__title kk-title-tight">
             {r.code} – {r.name}
           </h1>
           <RoundStatusBadge status={r.status} size="lg" />
         </div>
-        <div className="row row--wrap" style={{ gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+        <div className="row row--wrap gap-2 mt-8 kk-head-actions">
           {canCancelRound(r, user) && (
             <button
               className="btn btn--outline-danger"
@@ -301,7 +287,7 @@ export default function InspectionRoundDetailPage() {
         </div>
       </div>
 
-      <div className="card mt-16" style={{ padding: '20px 24px' }}>
+      <div className="card mt-16 kk-steps-card">
         <Steps round={r} />
       </div>
 
@@ -359,18 +345,18 @@ export default function InspectionRoundDetailPage() {
         </div>
         <div className="card__body">
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã phiếu</th>
                   <th>Lớp/phòng</th>
                   <th>Người kiểm kê</th>
-                  <th style={{ minWidth: 150 }}>Đã kiểm</th>
+                  <th className="min-w-150">Đã kiểm</th>
                   <th className="center">Lệch</th>
                   <th className="center">Hư hỏng</th>
                   <th>Nộp lúc</th>
-                  <th>Trạng thái</th>
-                  <th className="center">Thao tác</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -397,18 +383,16 @@ export default function InspectionRoundDetailPage() {
                           '—'
                         )}
                       </td>
-                      <td>
+                      <td className="center">
                         <SheetStatusBadge status={s.status} />
                       </td>
-                      <td className="center" onClick={(e) => e.stopPropagation()}>
+                      <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
                         {canReviewSheet(r, s, user) ? (
-                          <button className="btn btn--sm btn--primary" onClick={() => navigate(link)}>
+                          <button className="btn btn--primary btn--sm" onClick={() => navigate(link)}>
                             <ClipboardCheck size={15} /> Duyệt
                           </button>
                         ) : (
-                          <button className="btn btn--sm" onClick={() => navigate(link)}>
-                            <Eye size={15} /> Xem
-                          </button>
+                          <RowActions view={{ to: link }} name={s.code} />
                         )}
                       </td>
                     </tr>
@@ -432,7 +416,7 @@ export default function InspectionRoundDetailPage() {
       {vp && (
         <div className="card mt-16">
           <div className="card__body">
-            <div className="subsection-title row" style={{ gap: 6 }}>
+            <div className="subsection-title row gap-1-5">
               <History size={16} /> Lịch sử
             </div>
             <ul className="history-list">

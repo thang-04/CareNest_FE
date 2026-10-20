@@ -9,6 +9,7 @@ import { useAssessmentClasses, useDailySheet } from '@/hooks/assessment/useAsses
 import { saveDailyAssessments } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { BehaviorsCell, CellPopover, GoalChips, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { EATING, NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
@@ -146,7 +147,7 @@ export default function DailyAssessmentPage() {
       reload({ silent: true });
     } catch (err) {
       if (err.details) setRowErrors(err.details);
-      toast.error(err.message, 'Không lưu được đánh giá');
+      toast.error(err, 'Không lưu được đánh giá');
     } finally {
       setSaving(false);
     }
@@ -178,17 +179,11 @@ export default function DailyAssessmentPage() {
       {classesError ? (
         <ErrorState error={classesError} />
       ) : !classesLoading && classes.length === 0 ? (
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Bạn chưa được phân công lớp"
-            description="Chỉ giáo viên của lớp mới ghi nhận đánh giá hằng ngày."
-          />
-        </div>
+        <StatusPage kind="403" title="Bạn chưa được phân công lớp" description="Chỉ giáo viên của lớp mới ghi nhận đánh giá hằng ngày." />
       ) : (
         <div className="card">
-          <div className="filter-bar" style={{ flexWrap: 'wrap' }}>
-            <div className="field" style={{ margin: 0 }}>
+          <div className="filter-bar">
+            <div className="field">
               <label className="field__label" htmlFor="dg-class">
                 Lớp
               </label>
@@ -208,7 +203,7 @@ export default function DailyAssessmentPage() {
                 ))}
               </select>
             </div>
-            <div className="field" style={{ margin: 0 }}>
+            <div className="field">
               <label className="field__label" htmlFor="dg-date">
                 Ngày
               </label>
@@ -221,7 +216,7 @@ export default function DailyAssessmentPage() {
                 onChange={(e) => e.target.value && setDate(e.target.value)}
               />
             </div>
-            <div className="field" style={{ margin: 0, minWidth: 240 }}>
+            <div className="field dg-field-activity">
               <label className="field__label" htmlFor="dg-activity">
                 Hoạt động trong thời khóa biểu
               </label>
@@ -235,7 +230,7 @@ export default function DailyAssessmentPage() {
             </div>
             <div className="spacer" />
             {sheet && (
-              <div className="text-sm text-2" style={{ alignSelf: 'center' }}>
+              <div className="text-sm text-2 dg-filter-count">
                 Đã đánh giá <b>{assessedCount}</b>/{presentCount} trẻ có mặt
               </div>
             )}
@@ -243,7 +238,7 @@ export default function DailyAssessmentPage() {
 
           {/* Khóa sau 23:59:59 của chính ngày đó; quên thì PHT điểm trường / Hiệu trưởng mở lại */}
           {sheet && sheet.locked && (
-            <div className="alert alert--warning" style={{ margin: '0 16px 12px' }}>
+            <div className="alert alert--warning dg-alert-inset">
               <Lock size={18} />
               <div>
                 Ngày {formatDate(date)} đã khóa. Nếu cần đánh giá bổ sung, gửi mail cho Phó hiệu trưởng điểm trường hoặc Hiệu trưởng để mở
@@ -252,7 +247,7 @@ export default function DailyAssessmentPage() {
             </div>
           )}
           {sheet?.unlock && (
-            <div className="alert alert--info" style={{ margin: '0 16px 12px' }}>
+            <div className="alert alert--info dg-alert-inset">
               <Lock size={18} />
               <div>
                 Ngày {formatDate(date)} đã được {sheet.unlock.unlockedByName} mở lại, đánh giá được đến{' '}
@@ -261,7 +256,7 @@ export default function DailyAssessmentPage() {
             </div>
           )}
           {sheet?.plan && attendanceTaken && (
-            <div className="alert alert--info" style={{ margin: '0 16px 12px' }}>
+            <div className="alert alert--info dg-alert-inset">
               <Info size={18} />
               <div className="dg-plan">
                 <div>
@@ -293,10 +288,10 @@ export default function DailyAssessmentPage() {
             <ErrorState error={error} onRetry={reload} />
           ) : (
             <div className="table-wrap dg-sheet-wrap">
-              <table className="table dg-sheet">
+              <table className="table table--grid dg-sheet">
                 <thead>
                   <tr className="dg-head-cols">
-                    <th className="dg-col-child dg-sticky-col">Trẻ</th>
+                    <th className="dg-col-child dg-sticky-col cell--fixed">Trẻ</th>
                     <th>Sức khỏe</th>
                     <th>Ăn</th>
                     <th>Ngủ trưa</th>
@@ -379,7 +374,7 @@ export default function DailyAssessmentPage() {
                             : ['new', 'Chưa đánh giá'];
                       return (
                         <tr key={id} className={`dg-row dg-row--${status[0]}`} title={status[1]}>
-                          <td className="dg-col-child dg-sticky-col">
+                          <td className="dg-col-child dg-sticky-col cell--fixed">
                             <div className="dg-child">
                               <ChildAvatar child={r.child} size="sm" />
                               <div className="dg-child__info">
@@ -539,7 +534,7 @@ export default function DailyAssessmentPage() {
           <button className="btn" onClick={markAllPresent} disabled={saving || presentCount === 0}>
             <ClipboardCheck size={16} /> Ghi nhận cả lớp với giá trị mặc định
           </button>
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row gap-2">
             {dirty.size > 0 && (
               <button className="btn" onClick={() => reload()} disabled={saving}>
                 Hủy thay đổi

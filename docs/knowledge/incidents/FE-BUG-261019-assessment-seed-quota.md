@@ -4,7 +4,7 @@ type: bug
 screens: [daily-assessment, periodic-evaluation, good-behaviour-tickets, year-end-evaluation]
 be_modules: [assessment]
 rules: []
-status: open
+status: fixed
 date: 2026-10-19
 keywords: [Bộ nhớ trình duyệt đã đầy, QuotaExceededError, 507, mock seed, localStorage, periodicEvaluations, dailyAssessments]
 similar_to: []
@@ -20,6 +20,7 @@ Mock mode, localStorage sạch, đăng nhập giáo viên demo, mở Đánh giá
 
 1. Đo setItem: DB lưu 1.440k ký tự; lần ghi đầu của module assessment là 8.626k ký tự ⇒ QuotaExceededError.
 2. So collection trước/sau: `periodicEvaluations` 0→4.411k, `dailyAssessments` 0→2.600k, `behaviourTickets` 0→118k.
+3. Đo trình duyệt 2026-10-20: mỗi lần gọi repository assessment chặn luồng chính ~3,4 giây (seed lại vì lần trước không lưu được) rồi 507 ⇒ Trang chủ HT/PHT/GV và `/approvals` kẹt spinner (dashboard gọi `getRewardProposals`).
 
 ## Root cause
 
@@ -27,4 +28,4 @@ Mock mode, localStorage sạch, đăng nhập giáo viên demo, mở Đánh giá
 
 ## Fix
 
-Chưa sửa — cần user chọn hướng (thu gọn seed: ít ngày/ít trẻ, bỏ trường lớn trong bản ghi, hoặc lưu module riêng/IndexedDB).
+User chọn (2026-10-20) chỉ seed cho 6 lớp có tài khoản giáo viên demo: `DEMO_CLASS_IDS` trong `src/mocks/assessmentSeed.js`; job kỳ chỉ tạo phiếu cho lớp có phiếu hằng ngày nên cũng gọn theo. Kết quả: 224 phiếu kỳ, lần gọi đầu ~220 ms; DB đủ mọi module ~3,37 triệu ký tự. Test `tests/menu/assessment-seed-size.test.mjs` (localStorage giả có quota). Plan `docs/plans/completed/2026-10-20-loading-jank-mock-data.md`.

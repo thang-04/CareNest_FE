@@ -1,8 +1,8 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError, needsMockSeedMigration } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { pushNotification } from '@/mocks/notificationMockRepository';
-import { buildAttendanceSeed } from '@/mocks/attendanceSeed';
-import { AGE_GROUP_EXTRA } from '@/mocks/schoolConfigSeed';
+import { buildAttendanceSeed, buildAttendanceUnlocks, buildDayAttendance } from '@/mocks/attendanceSeed';
+import { AGE_GROUP_EXTRA, buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import { activeYearId } from '@/mocks/roomManagers';
 import { ROLES } from '@/models/User';
 import {
@@ -67,6 +67,22 @@ export const readCutoff = (db) => {
     ? [...s].reverse().map((x) => x?.time || x?.cutoffTime)
     : [s?.time, s?.cutoffTime, s?.attendanceCutoff, typeof s === 'string' ? s : null];
   return candidates.find(isValidTime) || DEFAULT_CUTOFF_TIME;
+};
+
+/**
+ * Thời hạn mở lại (phút sau giờ chốt) do Hiệu trưởng cấu hình; đã có cấu hình mà thiếu số thì null (không tự áp số).
+ * Module cấu hình trường chưa khởi tạo dữ liệu demo thì đọc seed của module đó (như giờ chốt).
+ */
+export const readReopenWindow = (db) => {
+  const s = db.cutoffSettings ?? buildSeedSchoolConfig().cutoffSettings;
+  const latest = Array.isArray(s) ? [...s].reverse().find((x) => x?.reopenWindowMinutes != null) : s;
+  const minutes = Number(latest?.reopenWindowMinutes);
+  return latest?.reopenWindowMinutes != null && Number.isInteger(minutes) && minutes >= 0 ? minutes : null;
+};
+
+const addMinutes = (time, minutes) => {
+  const total = Math.min(23 * 60 + 59, Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)) + minutes);
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 };
 
 /** Kitchen readiness comes from the meal preparation module (#98) when it exists. */
@@ -196,9 +212,9 @@ const mealCountForUser = (count, user) => {
 };
 
 /** Emulates the cut-off job: lock + aggregate, then ask the campus VP to confirm. */
-const materializeCounts = (db, date, { notify = true } = {}) => {
+const materializeCounts = (db, date, { notify = true, force = false } = {}) => {
   const cutoff = readCutoff(db);
-  if (!isSchoolDay(date) || !isDayLocked(date, cutoff)) return;
+  if (!isSchoolDay(date) || (!force && !isDayLocked(date, cutoff))) return;
   campusIds(db).forEach((campusId) => {
     let created = false;
     campusSessions(db, campusId).forEach((session) => {
@@ -298,6 +314,29 @@ const ensureSeeded = (db) => {
   return db;
 };
 
+// Demo (user chốt 20/10/2026): số suất hôm nay được tổng hợp và Phó HT xác nhận ngay khi mở app, kể cả trước giờ khóa,
+// để màn bếp / bàn giao luôn có dữ liệu. Lệch luồng thật có chủ đích; lớp Chồi 1 của giáo viên demo để trống để tự điểm danh.
+const DEMO_OPEN_CLASSES = ['cls_c1_c1'];
+// Chạy một lần mỗi ngày (todayMealDemoDate): số suất bị xóa/làm lại sau đó đi theo luồng thật.
+const ensureDemoToday = (db) => {
+  const today = schoolNow().date;
+  db.todayMealDemoDate = today;
+  if (!isSchoolDay(today) || db.mealCounts.some((m) => m.date === today)) return db;
+  const missing = currentClasses(db)
+    .filter((cls) => !DEMO_OPEN_CLASSES.includes(cls.id))
+    .flatMap((cls) => activeChildrenOf(db, cls.id))
+    .filter((ch) => !recordOf(db, ch.id, today));
+  db.attendance.push(
+    ...buildDayAttendance({ classes: db.classes, children: missing, date: today, sessionsOf: (cls) => classSessions(db, cls) }),
+  );
+  materializeCounts(db, today, { notify: false, force: true });
+  const at = new Date().toISOString();
+  db.mealCounts
+    .filter((m) => m.date === today && m.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION)
+    .forEach((m) => confirmCountIn(db, m, usersOf(db, ROLES.VICE_PRINCIPAL, m.campusId)[0]?.id || null, at));
+  return db;
+};
+
 const ready = () => {
   ensureSchoolSeeded();
   const db = readDb();
@@ -314,6 +353,14 @@ const ready = () => {
     )
   )
     writeDb(ensureLeaveDemo);
+  if (needsMockSeedMigration(readDb(), 'attendanceUnlocks', 1, ['attendanceDayUnlocks']))
+    writeDb((d) => {
+      const has = new Set(d.attendanceDayUnlocks.map((u) => u.id));
+      d.attendanceDayUnlocks.push(...buildAttendanceUnlocks({ classes: d.classes, today: schoolNow().date }).filter((u) => !has.has(u.id)));
+      d.mockSeedVersions = { ...(d.mockSeedVersions || {}), attendanceUnlocks: 1 };
+    });
+  const today = schoolNow().date;
+  if (isSchoolDay(today) && readDb().todayMealDemoDate !== today) writeDb(ensureDemoToday);
   return readDb();
 };
 
@@ -347,11 +394,16 @@ const dayInfo = (db, date, cls) => {
   const now = schoolNow();
   const baseLocked = isDayLocked(date, cutoff, now);
   const unlock = cls && baseLocked && cls.schoolYear === activeYearId(db) ? activeUnlockOf(db, cls.id, date) : null;
+  const reopenWindow = readReopenWindow(db);
+  const reopenUntil = reopenWindow == null ? null : addMinutes(cutoff, reopenWindow);
   return {
     date,
     today: now.date,
     now: now.time,
     cutoff,
+    reopenWindow,
+    reopenUntil,
+    reopenExpired: reopenUntil != null && (date < now.date || (date === now.date && now.time > reopenUntil)),
     schoolDay: isSchoolDay(date),
     baseLocked,
     serverTime: new Date().toISOString(),
@@ -437,7 +489,7 @@ export const attendanceMockRepository = {
 
   async listAttendanceDayUnlocks(user) {
     await delay(120);
-    if (![ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL].includes(user?.role)) throw forbidden();
+    if (user?.role !== ROLES.VICE_PRINCIPAL) throw forbidden();
     const db = ready();
     return clone(
       (db.attendanceDayUnlocks || [])
@@ -463,6 +515,9 @@ export const attendanceMockRepository = {
       const info = dayInfo(db, date);
       if (!isIsoDate(date) || date !== info.today || !info.schoolDay) throw new ApiError(422, 'Chỉ mở lại ngày học hôm nay.');
       if (!info.baseLocked) throw new ApiError(409, 'Chưa đến giờ khóa, giáo viên vẫn điểm danh được.');
+      // BA: PHT chỉ mở lại trong thời hạn (phút sau giờ chốt) Hiệu trưởng cấu hình
+      if (info.reopenUntil == null) throw new ApiError(409, 'Hiệu trưởng chưa cấu hình thời hạn mở lại điểm danh.');
+      if (info.reopenExpired) throw new ApiError(409, `Đã quá thời hạn mở lại điểm danh hôm nay (đến ${info.reopenUntil}).`);
       const until = typeof validUntil === 'string' ? Date.parse(validUntil) : NaN;
       if (!Number.isFinite(until) || until <= Date.now() || until - Date.now() > ATTENDANCE_UNLOCK_MAX_DAYS * 86400000)
         throw new ApiError(422, 'Chọn hạn mở lại trong tương lai, tối đa 7 ngày.');

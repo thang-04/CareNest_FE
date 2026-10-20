@@ -57,7 +57,7 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
       else toast.success('Số điện thoại đã có tài khoản phụ huynh; đã liên kết thêm bé này, mật khẩu giữ nguyên.');
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không thêm được phụ huynh');
+      toast.error(err, 'Không thêm được phụ huynh');
     } finally {
       submitting.current = false;
       setSaving(false);
@@ -73,7 +73,7 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
       return result;
     } catch (err) {
       setConfirm(null);
-      toast.error(err.message, 'Không thực hiện được');
+      toast.error(err, 'Không thực hiện được');
       return null;
     }
   };
@@ -192,7 +192,7 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
               <FormField label="Email liên hệ" error={errors.email} hint="Không bắt buộc; giữ để liên hệ và thông báo demo.">
                 <input className="input" type="email" value={form.email} maxLength={150} onChange={(e) => set({ email: e.target.value })} />
               </FormField>
-              <div className="row" style={{ gap: 8 }}>
+              <div className="row gap-2">
                 {guardians.length > 0 && (
                   <button className="btn" type="button" onClick={() => setAdding(false)}>
                     Hủy
@@ -272,7 +272,7 @@ export function AccountSlip({ slip, child, classroomName, onClose }) {
               <tr>
                 <th>Mật khẩu tạm</th>
                 <td>
-                  <b style={{ fontFamily: 'monospace', fontSize: 18, letterSpacing: 1 }}>{slip.password}</b>
+                  <b className="pa-slip__password">{slip.password}</b>
                 </td>
               </tr>
             </tbody>

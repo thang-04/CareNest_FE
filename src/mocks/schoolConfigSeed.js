@@ -77,6 +77,8 @@ export const buildSeedSchoolConfig = () => ({
       schoolYear: '2026-2027',
       time: '08:45',
       effectiveFrom: '2026-09-05',
+      // Demo: Hiệu trưởng cho mở lại điểm danh trong 120 phút sau giờ chốt
+      reopenWindowMinutes: 120,
       updatedBy: 'u_hung',
       updatedAt: at('2026-08-25'),
       history: [{ time: '08:45', effectiveFrom: '2026-09-05', previousTime: null, userId: 'u_hung', at: at('2026-08-25') }],

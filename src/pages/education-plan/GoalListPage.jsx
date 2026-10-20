@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Plus, Search } from '@/components/ui/icons';
+import { Plus, RotateCcw } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
@@ -8,6 +8,8 @@ import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/comp
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 import { useClasses } from '@/hooks/useSchool';
 import { LoadingState } from '@/components/ui/States';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { clickableRowProps } from '@/utils/clickableRow';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -110,10 +112,7 @@ export default function GoalListPage() {
 
       <Card bodyClass={null}>
         <div className="filter-bar">
-          <label className="search-box">
-            <Search size={17} className="muted" />
-            <input placeholder="Tìm theo tên hoặc mã" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Tìm kiếm" />
-          </label>
+          <SearchSubmit value={q} placeholder="Tìm theo tên hoặc mã" label="Tìm kế hoạch" onSearch={setQ} />
           {isVP && (
             <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
               <option value="">Tất cả nhóm tuổi</option>
@@ -125,7 +124,23 @@ export default function GoalListPage() {
             </select>
           )}
         </div>
-        {rows.length === 0 ? (
+        {rows.length === 0 && scoped.length > 0 ? (
+          // Có kế hoạch nhưng bộ lọc loại hết: không báo "chưa có", cho đặt lại bộ lọc
+          <EmptyState
+            title="Không có kế hoạch phù hợp"
+            action={
+              <button
+                className="btn"
+                onClick={() => {
+                  setQ('');
+                  setAge('');
+                }}
+              >
+                <RotateCcw size={15} /> Đặt lại bộ lọc
+              </button>
+            }
+          />
+        ) : rows.length === 0 ? (
           <EmptyState
             title="Chưa có kế hoạch năm học"
             desc={
@@ -143,20 +158,20 @@ export default function GoalListPage() {
           />
         ) : (
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Kế hoạch</th>
                   <th>Nhóm tuổi áp dụng</th>
                   <th>Số mục tiêu</th>
                   <th>Ngày gửi</th>
-                  <th>Người soạn</th>
-                  <th>Trạng thái</th>
+                  <th className="min-w-200">Người soạn</th>
+                  <th className="center">Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((g) => (
-                  <tr key={g.id} className="row-click" onClick={() => navigate(`/education/goals/${g.id}`)}>
+                  <tr key={g.id} className="row-click" {...clickableRowProps(() => navigate(`/education/goals/${g.id}`))}>
                     <td>
                       <div className="ga-cell-title">{g.title}</div>
                       <div className="ga-cell-sub">{g.code}</div>
@@ -169,7 +184,7 @@ export default function GoalListPage() {
                     <td>
                       <Owner plan={g} />
                     </td>
-                    <td>
+                    <td className="center">
                       <YearPlanStatusBadge status={g.status} />
                     </td>
                   </tr>

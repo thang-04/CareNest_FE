@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, ImageOff, Phone, PhoneOff, ThumbsDown, ThumbsUp, UserX } from '@/components/ui/icons';
+import { ArrowLeft, CheckCircle2, ImageOff, Phone, PhoneOff, ThumbsDown, ThumbsUp } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -8,6 +8,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FormField } from '@/components/form/FormField';
 import { recordPickupResult } from '@/services/pickup/pickupService';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { PickupOutcomeBadge, PickupStatusBadge } from '@/components/pickup/PickupBadges';
 import { usePickupChild } from '@/hooks/pickup/usePickups';
 import { PICKUP_STATUS, VERIFICATION, VERIFICATION_LABELS } from '@/models/pickup/pickupConstants';
@@ -57,7 +58,7 @@ export default function PickupVerifyPage() {
       navigate(`/pickup?classId=${context.classId}`);
     } catch (err) {
       setDeclineOpen(false);
-      toast.error(err.message, 'Không ghi nhận được kết quả');
+      toast.error(err, 'Không ghi nhận được kết quả');
     }
   };
 
@@ -76,8 +77,9 @@ export default function PickupVerifyPage() {
         <h1 className="page__title">{title}</h1>
         <div className="card">
           {error.status === 404 || error.status === 403 ? (
-            <EmptyState
-              icon={UserX}
+            <StatusPage
+              bare
+              kind={String(error.status)}
               title="Không tìm thấy trẻ"
               description={error.message}
               action={

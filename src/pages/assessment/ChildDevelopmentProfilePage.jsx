@@ -15,7 +15,7 @@ export default function ChildDevelopmentProfilePage() {
       <Breadcrumb items={assessmentCrumbs(SECTIONS.children, 'Hồ sơ phát triển')} />
       <div className="page__head">
         <h1 className="page__title">Hồ sơ phát triển của trẻ</h1>
-        <button className="btn" onClick={() => navigate('/assessment/daily')} style={{ marginTop: 6 }}>
+        <button className="btn dg-head-action" onClick={() => navigate('/assessment/daily')}>
           <ClipboardCheck size={16} /> Đánh giá hằng ngày
         </button>
       </div>

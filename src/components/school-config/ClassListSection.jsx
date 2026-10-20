@@ -229,7 +229,7 @@ export function ClassListSection({
         </select>
         {filtered && (
           <button className="btn" onClick={reset}>
-            <RotateCcw size={16} /> Đặt lại
+            <RotateCcw size={16} /> Đặt lại bộ lọc
           </button>
         )}
       </div>

@@ -43,11 +43,7 @@ export function SearchSelect({ options, value, onChange, placeholder = 'Chọn..
             <input autoFocus placeholder="Tìm kiếm..." value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Tìm kiếm" />
           </div>
           <div className="search-select__list" role="listbox">
-            {filtered.length === 0 && (
-              <div className="muted" style={{ padding: 12 }}>
-                Không tìm thấy kết quả
-              </div>
-            )}
+            {filtered.length === 0 && <div className="muted search-select__empty">Không tìm thấy kết quả</div>}
             {filtered.map((o) => (
               <button
                 type="button"

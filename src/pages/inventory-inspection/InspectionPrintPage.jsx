@@ -16,8 +16,10 @@ import { sheetSummary } from '@/models/inventory-inspection/InspectionRound';
 import { inspectionCrumbs } from '@/utils/inventory-inspection/breadcrumbs';
 import { describeScope } from '@/utils/inventory-inspection/inspectionScope';
 import { formatDate, formatDateTime } from '@/utils/format';
+import '@/styles/modules/inventory-inspection.css';
 
-const STAMP_TONE = { DRAFT: 'gray', IN_PROGRESS: 'orange', PENDING_APPROVAL: 'purple', COMPLETED: 'green', CANCELLED: 'gray' };
+// Cùng tông với RoundStatusBadge (InspectionBadges.jsx) để bản in và màn hình không lệch màu
+const STAMP_TONE = { DRAFT: 'gray', IN_PROGRESS: 'blue', PENDING_APPROVAL: 'purple', COMPLETED: 'green', CANCELLED: 'gray' };
 
 /** Biên bản kiểm kê tài sản (A4) – same header style as the transfer form. */
 export default function InspectionPrintPage() {
@@ -113,7 +115,7 @@ export default function InspectionPrintPage() {
   return (
     <div className="page">
       <Breadcrumb items={inspectionCrumbs(`Biên bản ${r.code}`)} />
-      <div className="row row--between no-print" style={{ margin: '12px 0 16px' }}>
+      <div className="row row--between no-print mt-12 mb-16">
         <button className="btn" onClick={() => navigate(-1)}>
           <ArrowLeft size={16} /> Quay lại
         </button>
@@ -204,7 +206,7 @@ export default function InspectionPrintPage() {
 
           <div className="ps-section">3. Tài sản chênh lệch / hư hỏng</div>
           {variance.length === 0 ? (
-            <div style={{ padding: '4px 10px' }}>Không có chênh lệch giữa sổ sách và thực tế.</div>
+            <div className="kk-print-note">Không có chênh lệch giữa sổ sách và thực tế.</div>
           ) : (
             <table className="ps-table">
               <thead>
@@ -245,7 +247,7 @@ export default function InspectionPrintPage() {
               </tr>
             </tbody>
           </table>
-          <table className="ps-table ps-sign" style={{ marginTop: -1 }}>
+          <table className="ps-table ps-sign kk-sign-join">
             <tbody>
               {Array.from({ length: Math.ceil(sheets.length / 3) }).map((_, row) => (
                 <tr key={row}>

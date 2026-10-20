@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Pencil, Star, ChefHat, UserCog, Shapes, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +9,8 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
+import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
+import { StaffQuickPanel } from '@/components/school-config/StaffQuickPanel';
 import { canAssignVicePrincipal, canManageCampus } from '@/utils/school-config/schoolConfigPermissions';
 import { campusCrumbs } from '@/utils/school-config/breadcrumbs';
 import '@/styles/modules/school-config.css';
@@ -31,6 +34,7 @@ export default function CampusDetailPage() {
   const { schoolYear } = useSchoolYear();
   const md = useMasterData();
   const { detail, loading, error, reload } = useCampusDetail(id, schoolYear);
+  const [staffId, setStaffId] = useState(null);
 
   if (error?.status === 403)
     return (
@@ -54,7 +58,7 @@ export default function CampusDetailPage() {
       ) : (
         <>
           <div className="page__head">
-            <div className="row row--wrap" style={{ gap: 12 }}>
+            <div className="row row--wrap gap-3">
               <h1 className="page__title">{campus.shortName}</h1>
               {campus.isMain && (
                 <span className="chip chip--teal chip--lg">
@@ -94,10 +98,10 @@ export default function CampusDetailPage() {
               </div>
             </section>
 
-            <div className="stack" style={{ gap: 16 }}>
+            <div className="stack gap-4">
               <section className="card">
                 <div className="card__header">
-                  <h2 className="card__title row" style={{ gap: 8 }}>
+                  <h2 className="card__title row gap-2">
                     <UserCog size={18} /> Phó hiệu trưởng phụ trách
                   </h2>
                   {canAssignVicePrincipal(user) && (
@@ -114,14 +118,14 @@ export default function CampusDetailPage() {
                       ))}
                     </ul>
                   ) : (
-                    <span className="chip chip--orange">Chưa phân công Phó hiệu trưởng</span>
+                    <UnassignedBadge label="Chưa phân công Phó hiệu trưởng" />
                   )}
                 </div>
               </section>
 
               <section className="card">
                 <div className="card__header">
-                  <h2 className="card__title row" style={{ gap: 8 }}>
+                  <h2 className="card__title row gap-2">
                     <ChefHat size={18} /> Bếp ăn
                   </h2>
                 </div>
@@ -155,10 +159,10 @@ export default function CampusDetailPage() {
 
           <section className="card mt-16">
             <div className="card__header">
-              <h2 className="card__title row" style={{ gap: 8 }}>
+              <h2 className="card__title row gap-2">
                 <Shapes size={18} /> Lớp năm học {schoolYear}
               </h2>
-              <span className="row" style={{ gap: 12 }}>
+              <span className="row gap-3">
                 <Link className="link-btn" to={`/school/rooms?campus=${campus.id}`}>
                   Xem phòng học
                 </Link>
@@ -174,7 +178,7 @@ export default function CampusDetailPage() {
                     <th>Lớp</th>
                     <th>Nhóm tuổi</th>
                     <th>Phòng</th>
-                    <th className="center">Sĩ số</th>
+                    <th className="num">Sĩ số</th>
                     <th>Chủ nhiệm</th>
                   </tr>
                 </thead>
@@ -195,12 +199,21 @@ export default function CampusDetailPage() {
                         <td className="fw-600">{c.name}</td>
                         <td>{ageGroupName(c.ageGroupId) || c.ageGroupId}</td>
                         <td>{md.locationById(c.locationId)?.room || '—'}</td>
-                        <td className="center nowrap">
-                          <span className="row" style={{ gap: 4, justifyContent: 'center' }}>
+                        <td className="num nowrap">
+                          <span className="row row--center gap-1">
                             <Users size={14} className="muted" /> {c.childCount}/{c.capacity}
                           </span>
                         </td>
-                        <td>{md.userById(c.homeroomTeacherId)?.fullName || <span className="muted">Chưa phân công</span>}</td>
+                        <td>
+                          {/* Bấm tên giáo viên chủ nhiệm để xem nhanh thông tin, không rời trang */}
+                          {md.userById(c.homeroomTeacherId) ? (
+                            <button type="button" className="link-btn" onClick={() => setStaffId(c.homeroomTeacherId)}>
+                              {md.userById(c.homeroomTeacherId).fullName}
+                            </button>
+                          ) : (
+                            <span className="muted">Chưa phân công</span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   )}
@@ -214,6 +227,7 @@ export default function CampusDetailPage() {
               <ArrowLeft size={16} /> Quay lại
             </Link>
           </div>
+          <StaffQuickPanel userId={staffId} classes={detail.classes} onClose={() => setStaffId(null)} />
         </>
       )}
     </div>

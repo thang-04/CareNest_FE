@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, RotateCcw, Eye, ClipboardCheck, FileText, FilePlus2, Pencil } from '@/components/ui/icons';
+import { Search, RotateCcw, ClipboardCheck, FileText, FilePlus2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
+import { useFilterParams } from '@/hooks/useFilterParams';
 import { useProposals } from '@/hooks/facility/useFacility';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { ProposalStatusBadge } from '@/components/facility/FacilityBadges';
 import { ManagerLinks } from '@/components/facility/ManagerLinks';
 import { PROPOSAL_STATUS, PROPOSAL_STATUS_LABELS, PROPOSAL_ACTION_LABELS } from '@/models/facility/facilityConstants';
@@ -14,6 +18,7 @@ import { isPrincipal, canDecideProposal, canEditProposal, canCreateProposal } fr
 import { proposalCrumbs } from '@/utils/facility/breadcrumbs';
 import { formatMoney, proposalTotal } from '@/utils/facility/facilityFormat';
 import { formatDate } from '@/utils/format';
+import { activeFilterKeys } from '@/utils/filterParams';
 import '@/styles/modules/facility.css';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
@@ -25,16 +30,17 @@ export default function ProposalListPage() {
   const md = useMasterData();
   const navigate = useNavigate();
   const principal = isPrincipal(user);
-  const [filters, setFilters] = useState(principal ? { ...EMPTY, status: PROPOSAL_STATUS.SUBMITTED } : EMPTY);
+  const [filters, setFilters] = useFilterParams(principal ? { ...EMPTY, status: PROPOSAL_STATUS.SUBMITTED } : EMPTY);
   const [page, setPage] = useState(1);
   const { proposals, loading, error, reload } = useProposals(filters);
   const { proposals: all } = useProposals({});
 
   const set = (patch) => {
-    setFilters((f) => ({ ...f, ...patch }));
+    setFilters(patch);
     setPage(1);
   };
-  const filtered = filters.status !== 'ALL' || filters.keyword || filters.campusId;
+  // So với EMPTY (không phải mặc định theo vai trò) để "Chờ phê duyệt" của Hiệu trưởng vẫn hiện chip và đặt lại được
+  const filtered = activeFilterKeys(filters, EMPTY).length > 0;
   const count = (s) => all.filter((p) => p.status === s).length;
   const waiting = all.filter((p) => canDecideProposal(p, user)).length;
   const stats = [
@@ -44,7 +50,19 @@ export default function ProposalListPage() {
     { key: PROPOSAL_STATUS.APPROVED, label: 'Đã phê duyệt', value: count(PROPOSAL_STATUS.APPROVED), tone: 'green' },
     { key: PROPOSAL_STATUS.REJECTED, label: 'Bị từ chối', value: count(PROPOSAL_STATUS.REJECTED), tone: 'red' },
   ];
-  const statusOptions = Object.entries(PROPOSAL_STATUS_LABELS).filter(([k]) => !principal || k !== PROPOSAL_STATUS.DRAFT);
+  const chips = [
+    filters.keyword && { key: 'keyword', label: `Từ khóa: ${filters.keyword}`, onRemove: () => set({ keyword: '' }) },
+    filters.campusId && {
+      key: 'campusId',
+      label: `Điểm trường: ${md.campusById(filters.campusId)?.shortName || ''}`,
+      onRemove: () => set({ campusId: '' }),
+    },
+    filters.status !== 'ALL' && {
+      key: 'status',
+      label: `Trạng thái: ${stats.find((s) => s.key === filters.status)?.label || PROPOSAL_STATUS_LABELS[filters.status] || filters.status}`,
+      onRemove: () => set({ status: 'ALL' }),
+    },
+  ].filter(Boolean);
   const pageRows = paginate(proposals, page);
   const linkOf = (p) => (canEditProposal(p, user) ? `/facility/proposals/${p.id}/edit` : `/facility/proposals/${p.id}`);
 
@@ -79,18 +97,21 @@ export default function ProposalListPage() {
       </div>
       <div className="card">
         <div className="filter-bar">
-          <label className="search-box" style={{ flex: 1, minWidth: 200 }}>
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm mã hoặc tên đề xuất..."
-              value={filters.keyword}
-              onChange={(e) => set({ keyword: e.target.value })}
-              aria-label="Tìm kiếm"
-            />
-          </label>
+          <SearchSubmit
+            className="flex-1"
+            value={filters.keyword}
+            placeholder="Tìm mã hoặc tên đề xuất..."
+            label="Tìm kiếm đề xuất"
+            onSearch={(text) => set({ keyword: text })}
+          />
           {principal && (
-            <select className="select" value={filters.campusId} onChange={(e) => set({ campusId: e.target.value })} aria-label="Campus">
-              <option value="">Tất cả campus</option>
+            <select
+              className="select"
+              value={filters.campusId}
+              onChange={(e) => set({ campusId: e.target.value })}
+              aria-label="Điểm trường"
+            >
+              <option value="">Tất cả điểm trường</option>
               {md.campuses.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.shortName}
@@ -98,35 +119,28 @@ export default function ProposalListPage() {
               ))}
             </select>
           )}
-          <select className="select" value={filters.status} onChange={(e) => set({ status: e.target.value })} aria-label="Trạng thái">
-            <option value="ALL">Tất cả trạng thái</option>
-            {statusOptions.map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
           <button className="btn" onClick={() => set(EMPTY)} disabled={!filtered}>
-            <RotateCcw size={15} /> Đặt lại
+            <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
+        <FilterChips count={loading ? null : proposals.length} unit="đề xuất" chips={chips} />
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-wrap">
+            <table className="table table--grid table--wrap-head">
               <thead>
                 <tr>
                   <th>Mã</th>
                   <th>Tên đề xuất</th>
                   <th>Hình thức</th>
-                  {principal && <th>Campus</th>}
-                  <th className="right">Số tài sản</th>
-                  <th className="right">Dự toán</th>
+                  {principal && <th>Điểm trường</th>}
+                  <th className="num">Số tài sản</th>
+                  <th className="money">Dự toán</th>
                   <th>Người lập</th>
                   <th>Ngày gửi</th>
-                  <th>Trạng thái</th>
-                  <th className="center">Thao tác</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,27 +189,23 @@ export default function ProposalListPage() {
                         <td className="fw-600 text-primary nowrap">{p.code}</td>
                         <td className="bh-cell-wrap">{p.title}</td>
                         <td className="text-sm">{PROPOSAL_ACTION_LABELS[p.action]}</td>
-                        {principal && <td>{md.campusById(p.campusId)?.shortName}</td>}
-                        <td className="right">{p.lines.length}</td>
-                        <td className="right nowrap">{formatMoney(proposalTotal(p.lines))}</td>
+                        {principal && <td className="nowrap">{md.campusById(p.campusId)?.shortName}</td>}
+                        <td className="num">{p.lines.length}</td>
+                        <td className="money nowrap">{formatMoney(proposalTotal(p.lines))}</td>
                         <td>{md.userById(p.createdBy)?.fullName || '—'}</td>
                         <td className="nowrap">{p.submittedAt ? formatDate(p.submittedAt) : <span className="muted">Chưa gửi</span>}</td>
-                        <td>
+                        <td className="center">
                           <ProposalStatusBadge status={p.status} />
                         </td>
-                        <td className="center nowrap" onClick={(e) => e.stopPropagation()}>
+                        <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
                           {decide ? (
-                            <button className="btn btn--sm btn--primary" onClick={() => navigate(link)}>
+                            <button className="btn btn--primary btn--sm" onClick={() => navigate(link)}>
                               <ClipboardCheck size={15} /> Phê duyệt
                             </button>
                           ) : edit ? (
-                            <button className="btn btn--sm" onClick={() => navigate(link)}>
-                              <Pencil size={15} /> Tiếp tục soạn
-                            </button>
+                            <RowActions edit={{ to: link, label: 'Tiếp tục soạn' }} name={p.code} />
                           ) : (
-                            <button className="btn btn--sm" onClick={() => navigate(link)}>
-                              <Eye size={15} /> Xem
-                            </button>
+                            <RowActions view={{ to: link }} name={p.code} />
                           )}
                         </td>
                       </tr>
