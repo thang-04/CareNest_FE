@@ -7,7 +7,7 @@ export const NORM_COLUMNS = [
   { key: 'kcal', label: 'Năng lượng / ngày (kcal)' },
   { key: 'protein', label: 'Đạm' },
   { key: 'lipid', label: 'Béo' },
-  { key: 'glucid', label: 'Bột' },
+  { key: 'glucid', label: 'Tinh bột' },
 ];
 
 /** Tên viết tắt nhóm tuổi dùng trong bảng (Nhà trẻ, MG bé, MG nhỡ, MG lớn). */

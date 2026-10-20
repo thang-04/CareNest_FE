@@ -1,5 +1,7 @@
+import { Fragment } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
+  AlertTriangle,
   ArrowRight,
   CalendarClock,
   ClipboardCheck,
@@ -24,7 +26,7 @@ import { FreshReceiptStatusBadge, IssueStatusBadge, MealCountStatusBadge } from 
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { AllergyMenuChanges } from '@/components/kitchen/AllergyMenuChanges';
 import { useKitchenCampus, useKitchenDay, usePublishedMenu } from '@/hooks/kitchen/useKitchen';
-import { ISSUE_STATUS, KITCHEN_DAY_TIMES, MEAL_SESSION_LABELS, MENU_TYPE } from '@/models/kitchen/kitchenConstants';
+import { ISSUE_STATUS, KITCHEN_DAY_TIMES, MEAL_SESSION_LABELS, MENU_TYPE, isIssuePosted } from '@/models/kitchen/kitchenConstants';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
 import { ROLES } from '@/models/User';
 import { KITCHEN_ROUTE_ROLES, isKitchenStaff, isVicePrincipal } from '@/utils/kitchen/kitchenPermissions';
@@ -102,13 +104,22 @@ const buildSteps = (day, user, date) => {
       time: KITCHEN_DAY_TIMES.MEAL_COUNT,
       icon: Warehouse,
       title: 'Xuất kho đồ khô',
-      state: issue.state === ISSUE_STATUS.ISSUED ? 'done' : issue.state === 'NO_MENU' ? 'skip' : 'todo',
+      state: isIssuePosted(issue.state)
+        ? 'done'
+        : issue.state === 'NO_MENU'
+          ? 'skip'
+          : issue.state === ISSUE_STATUS.AWAITING_LOT_ALLOCATION
+            ? 'now'
+            : 'todo',
       badge: <IssueStatusBadge status={issue.state} />,
-      meta:
-        issue.state === ISSUE_STATUS.ISSUED
-          ? `${issue.code}${issue.shortage ? ` · ${issue.shortage} thực phẩm thiếu tồn` : ''}`
-          : 'Tự xuất khi các bữa đã được chốt',
-      to: issue.state === ISSUE_STATUS.ISSUED && canOpen('stockIssues') ? '/kitchen/stock-issues' : null,
+      meta: isIssuePosted(issue.state)
+        ? issue.code
+        : issue.state === ISSUE_STATUS.AWAITING_STOCK
+          ? `${issue.code} · thiếu ${issue.shortage} thực phẩm, chờ nhập bổ sung`
+          : issue.state === ISSUE_STATUS.AWAITING_LOT_ALLOCATION
+            ? `${issue.code} · đủ hàng, bếp chọn lô để ghi xuất`
+            : 'Tính nguyên liệu khi các bữa đã được chốt',
+      to: issue.code && canOpen('stockIssues') ? '/kitchen/stock-issues' : null,
       linkLabel: 'Xem phiếu xuất',
     },
     {
@@ -325,39 +336,59 @@ export default function KitchenFlowPage({ asHome = false }) {
               </tr>
             </thead>
             <tbody>
-              {menuGrid.rows.map((r) => (
-                <tr key={r.key} className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
-                  <td>
-                    <div className="fw-600">{ageGroupById(r.ageGroupId)?.shortName || 'Toàn trường'}</div>
-                    {r.type === MENU_TYPE.ALLERGY && <div className="text-xs muted">Thực đơn thay thế (dị ứng)</div>}
-                  </td>
-                  {menuGrid.sessions.map((s) => {
-                    const m = r.bySession[s];
-                    return (
-                      <td key={s}>
-                        {m ? (
-                          <>
-                            <ul className="kb-dishes text-sm">
-                              {m.dishes.map((d) => (
-                                <li key={d.id} className={d.allergens.length ? 'kb-day-menu__allergen' : undefined}>
-                                  {d.name}
-                                </li>
-                              ))}
-                            </ul>
-                            <AllergyMenuChanges
-                              changes={m.allergyChanges}
-                              date={date}
-                              context={`${ageGroupById(r.ageGroupId)?.shortName || 'Toàn trường'} · ${MEAL_SESSION_LABELS[s]}`}
-                            />
-                          </>
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
+              {menuGrid.rows.map((r) => {
+                const group = ageGroupById(r.ageGroupId)?.shortName || 'Toàn trường';
+                // Thay đổi dị ứng của nhóm tuổi: hàng riêng ngay dưới, ô món chỉ còn tên món
+                const hasChanges = menuGrid.sessions.some((s) => r.bySession[s]?.allergyChanges?.length);
+                return (
+                  <Fragment key={r.key}>
+                    <tr className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
+                      <td>
+                        <div className="fw-600">{group}</div>
+                        {r.type === MENU_TYPE.ALLERGY && <div className="text-xs muted">Thực đơn thay thế (dị ứng)</div>}
                       </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                      {menuGrid.sessions.map((s) => {
+                        const m = r.bySession[s];
+                        return (
+                          <td key={s}>
+                            {m ? (
+                              <ul className="kb-dishes text-sm">
+                                {m.dishes.map((d) => (
+                                  <li key={d.id} className={d.allergens.length ? 'kb-day-menu__allergen' : undefined}>
+                                    {d.name}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {hasChanges && (
+                      <tr className="kb-tr--allergy">
+                        <td>
+                          <div className="kb-menu-table__type kb-menu-table__type--change text-sm fw-600">
+                            <AlertTriangle size={14} aria-hidden="true" />
+                            Thay đổi cho trẻ dị ứng
+                          </div>
+                        </td>
+                        {menuGrid.sessions.map((s) => (
+                          <td key={s}>
+                            <AllergyMenuChanges
+                              compact
+                              changes={r.bySession[s]?.allergyChanges}
+                              date={date}
+                              context={`${group} · ${MEAL_SESSION_LABELS[s]}`}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

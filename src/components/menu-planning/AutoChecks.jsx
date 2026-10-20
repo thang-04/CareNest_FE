@@ -37,24 +37,26 @@ export function AutoChecks({
             <summary className="link-btn">
               <ChevronDown size={16} /> Xem số liệu
             </summary>
-            <table className="table table--grid td-ai-meals">
-              <thead>
-                <tr>
-                  <th />
-                  <th className="right">Thực đơn</th>
-                  <th className="right">Định mức</th>
-                </tr>
-              </thead>
-              <tbody>
-                {numbers.map((n) => (
-                  <tr key={n.label}>
-                    <th scope="row">{n.label}</th>
-                    <td className="right nowrap">{n.value}</td>
-                    <td className="right nowrap muted">{n.norm}</td>
+            <div className="table-wrap">
+              <table className="table table--grid td-ai-meals">
+                <thead>
+                  <tr>
+                    <th />
+                    <th className="num">Thực đơn</th>
+                    <th className="num">Định mức</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {numbers.map((n) => (
+                    <tr key={n.label}>
+                      <th scope="row">{n.label}</th>
+                      <td className="num nowrap">{n.value}</td>
+                      <td className="num nowrap muted">{n.norm}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </details>
         )}
       </div>

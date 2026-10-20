@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
+import { loadWithHold } from '@/hooks/loadingTiming';
 import { isPrincipal } from '@/utils/kitchen/kitchenPermissions';
 import { resolveKitchenCampusId } from '@/utils/kitchen/kitchenCampus';
-import { DB_CHANGED_EVENT } from '@/mocks/mockDatabase';
+import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 import {
   getConfirmedMealCount,
   getFoodCatalog,
@@ -13,8 +14,11 @@ import {
   getPublishedMenu,
   getDryStock,
   getDryStockItem,
+  getStockReceipt,
+  getStockReceipts,
   getStockIssues,
-  getStockCounts,
+  getSupplier,
+  getSuppliers,
   getWeeklyForecast,
   getMealPreparations,
 } from '@/services/kitchen/kitchenService';
@@ -49,8 +53,15 @@ export const useDryStock = () => useKitchenQuery((user) => getDryStock(user), []
 
 export const useDryStockItem = (foodId) => useKitchenQuery((user) => getDryStockItem({ foodId }, user), [foodId], { enabled: !!foodId });
 
-export const useStockCounts = (campusId) =>
-  useKitchenQuery((user) => getStockCounts({ campusId }, user), [campusId], { enabled: !!campusId, live: false });
+export const useStockReceipts = (campusId) => useKitchenQuery((user) => getStockReceipts({ campusId }, user), [campusId]);
+
+export const useStockReceipt = (id) => useKitchenQuery((user) => getStockReceipt({ id }, user), [id], { enabled: !!id, live: false });
+
+export const useSuppliers = ({ keyword = '', status = '' } = {}) =>
+  useKitchenQuery((user) => getSuppliers({ keyword, status }, user), [keyword, status]);
+
+export const useSupplier = (id, { live = true } = {}) =>
+  useKitchenQuery((user) => getSupplier({ id }, user), [id], { enabled: !!id, live });
 
 export const useStockIssues = (campusId) =>
   useKitchenQuery((user) => getStockIssues({ campusId }, user), [campusId], { enabled: !!campusId });
@@ -59,15 +70,24 @@ export const usePublishedMenu = (date, view, campusId) => {
   const { user } = useAuth();
   const [version, setVersion] = useState(0);
   const [result, setResult] = useState({ key: '', days: [], loading: true, error: null });
+  // Dữ liệu mock đổi ⇒ tải lại im lặng, giữ bảng cũ (không chớp khung chờ mỗi lần ghi DB)
+  const silentNext = useRef(false);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
+  const refresh = useCallback(() => {
+    silentNext.current = true;
+    setVersion((v) => v + 1);
+  }, []);
   const key = `${user?.id}|${user?.role}|${user?.campusId}|${campusId}|${date}|${view}`;
   const enabled = !!user && !!date && !!campusId;
 
   useEffect(() => {
     if (!enabled) return undefined;
     let cancelled = false;
-    setResult({ key, days: [], loading: true, error: null });
-    getPublishedMenu({ date, view, campusId }, user).then(
+    const silent = silentNext.current;
+    silentNext.current = false;
+    if (!silent) setResult({ key, days: [], loading: true, error: null });
+    const load = () => getPublishedMenu({ date, view, campusId }, user);
+    (silent ? load() : loadWithHold(load)).then(
       (days) => !cancelled && setResult({ key, days, loading: false, error: null }),
       (error) => !cancelled && setResult({ key, days: [], loading: false, error }),
     );
@@ -77,13 +97,13 @@ export const usePublishedMenu = (date, view, campusId) => {
   }, [date, view, campusId, user, version, key, enabled]);
 
   useEffect(() => {
-    window.addEventListener(DB_CHANGED_EVENT, reload);
-    window.addEventListener('storage', reload);
+    window.addEventListener(DB_CHANGED_EVENT, refresh);
+    window.addEventListener('storage', refresh);
     return () => {
-      window.removeEventListener(DB_CHANGED_EVENT, reload);
-      window.removeEventListener('storage', reload);
+      window.removeEventListener(DB_CHANGED_EVENT, refresh);
+      window.removeEventListener('storage', refresh);
     };
-  }, [reload]);
+  }, [refresh]);
 
   // Không để response cũ đưa danh sách trẻ của campus trước trở lại màn hình.
   return {

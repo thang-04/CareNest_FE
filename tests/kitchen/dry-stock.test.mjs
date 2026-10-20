@@ -55,10 +55,20 @@ test('phiếu nhập: bắt NCC, lô, hạn, giá; chỉ đồ khô; PHT nhập 
   const stock = await repo.getDryStock(VP);
   const food = stock.foods[0];
   const fresh = readDb().foods.find((f) => f.storage !== 'DRY');
-  const line = { foodId: food.foodId, receivedQty: 7, rejectedQty: 0, lotNo: 'L-TEST-1', expiryDate: '2027-06-30', unitPrice: 25000 };
-  const base = { campusId: 'c2', date: todayInput(), supplierName: 'NCC thử', note: '', items: [line] };
-  await rejects(repo.createStockReceipt({ ...base, supplierName: '' }, VP), 422);
+  const line = {
+    foodId: food.foodId,
+    receivedQty: 7,
+    rejectedQty: 0,
+    lotNo: 'L-TEST-1',
+    mfgDate: '2026-09-01',
+    expiryDate: '2027-06-30',
+    unitPrice: 25000,
+  };
+  const base = { campusId: 'c2', date: todayInput(), supplierId: 'sup_01', note: '', items: [line] };
+  await rejects(repo.createStockReceipt({ ...base, supplierId: '' }, VP), 422);
   await rejects(repo.createStockReceipt({ ...base, items: [{ ...line, lotNo: '' }] }, VP), 422);
+  await rejects(repo.createStockReceipt({ ...base, items: [{ ...line, mfgDate: '' }] }, VP), 422);
+  await rejects(repo.createStockReceipt({ ...base, items: [{ ...line, expiryDate: '2026-08-01' }] }, VP), 422);
   await rejects(repo.createStockReceipt({ ...base, items: [{ ...line, expiryDate: '' }] }, VP), 422);
   await rejects(repo.createStockReceipt({ ...base, items: [{ ...line, foodId: fresh.id }] }, VP), 422);
   await rejects(repo.createStockReceipt(base, PRINCIPAL), 403);
@@ -66,46 +76,66 @@ test('phiếu nhập: bắt NCC, lô, hạn, giá; chỉ đồ khô; PHT nhập 
   const before = stockOf('c2', food.foodId);
   const receipt = await repo.createStockReceipt(base, VP);
   assert.equal(receipt.campusId, 'c2');
-  assert.equal(receipt.supplierName, 'NCC thử');
+  assert.equal(receipt.supplierName, 'Đại lý thực phẩm khô mẫu', 'chụp tên NCC lên phiếu');
   assert.ok(Math.abs(stockOf('c2', food.foodId) - (before + 7)) < 1e-6);
 
   const item = await repo.getDryStockItem({ foodId: food.foodId }, VP);
   const lot = item.campuses.find((c) => c.id === 'c2').lots.find((l) => l.lotNo === 'L-TEST-1');
   assert.ok(lot, 'có lô vừa nhập');
   assert.equal(lot.unitPrice, 25000);
-  assert.equal(lot.supplierName, 'NCC thử');
+  assert.equal(lot.supplierName, 'Đại lý thực phẩm khô mẫu');
   assert.equal(lot.expiryDate, '2027-06-30');
   assert.ok(item.transactions.some((t) => t.type === 'IN' && t.code === receipt.code));
 });
 
-test('kiểm kê: một nháp mỗi cơ sở; lệch phải có lý do; chốt ⇒ tồn = số đếm, giao dịch ADJUST, khóa phiếu', async () => {
-  await rejects(repo.createStockCount({ campusId: 'c1' }, COOK_A), 403);
-  const count = await repo.createStockCount({ campusId: 'c1' }, VP);
-  assert.equal(count.status, 'DRAFT');
-  await rejects(repo.createStockCount({ campusId: 'c1' }, VP), 409);
-
-  const [first, ...rest] = count.lines;
-  const lines = [
-    { foodId: first.foodId, countedQty: first.systemQty + 2, reason: '' },
-    ...rest.map((l) => ({ foodId: l.foodId, countedQty: l.systemQty })),
-  ];
-  await rejects(repo.saveStockCount({ id: count.id, lines, finalize: true }, VP), 422);
-  await rejects(repo.saveStockCount({ id: count.id, lines: lines.slice(1), finalize: true }, VP), 422);
-  const saved = await repo.saveStockCount({ id: count.id, lines }, VP);
-  assert.equal(saved.status, 'DRAFT');
-  assert.equal(saved.lines[0].diff, 2);
-
-  const expected = first.systemQty + 2;
-  const done = await repo.saveStockCount(
-    { id: count.id, lines: [{ ...lines[0], reason: 'WRONG_ENTRY' }, ...lines.slice(1)], finalize: true },
+test('phiếu nhập nháp không cộng tồn; xác nhận cộng đúng một lần rồi khóa; có thành tiền và tổng phiếu', async () => {
+  const stock = await repo.getDryStock(VP);
+  const food = stock.foods[1];
+  const before = stockOf('c1', food.foodId);
+  // Nháp chỉ cần thực phẩm + số lượng, chưa cần NCC/lô/NSX/HSD/giá
+  const draft = await repo.saveStockReceipt(
+    { campusId: 'c1', date: todayInput(), supplierId: '', note: '', items: [{ foodId: food.foodId, receivedQty: 4, unitPrice: '' }] },
     VP,
   );
-  assert.equal(done.status, 'FINALIZED');
-  assert.ok(Math.abs(stockOf('c1', first.foodId) - expected) < 1e-6);
-  assert.ok(readDb().stockTransactions.some((t) => t.refId === count.id && t.type === 'ADJUST' && t.foodId === first.foodId));
-  await rejects(repo.saveStockCount({ id: count.id, lines }, VP), 409);
+  assert.equal(draft.status, 'DRAFT');
+  assert.equal(stockOf('c1', food.foodId), before, 'nháp không cộng tồn');
+  const listed = await repo.getStockReceipts({ campusId: 'c1' }, VP);
+  assert.ok(listed.some((r) => r.id === draft.id && r.status === 'DRAFT'));
+  const item = await repo.getDryStockItem({ foodId: food.foodId }, VP);
+  assert.ok(!item.transactions.some((t) => t.code === draft.code), 'nháp không có giao dịch kho');
 
-  const list = await repo.getStockCounts({ campusId: 'c1' }, PRINCIPAL);
-  assert.equal(list.canWrite, false);
-  assert.ok(list.counts.some((c) => c.id === count.id && c.status === 'FINALIZED'));
+  const full = {
+    id: draft.id,
+    campusId: 'c1',
+    date: todayInput(),
+    supplierId: 'sup_02',
+    note: '',
+    items: [
+      {
+        foodId: food.foodId,
+        receivedQty: 4,
+        rejectedQty: 1,
+        lotNo: 'L-DRAFT',
+        note: 'Một bao rách',
+        mfgDate: '2026-09-01',
+        expiryDate: '2027-01-31',
+        unitPrice: 12000,
+      },
+    ],
+  };
+  await rejects(repo.saveStockReceipt({ ...full, supplierId: '', confirm: true }, VP), 422);
+  const done = await repo.saveStockReceipt({ ...full, confirm: true }, VP);
+  assert.equal(done.status, 'CONFIRMED');
+  assert.equal(done.items[0].amount, 36000, 'thành tiền = lượng nhập kho × đơn giá');
+  assert.equal(done.totalAmount, 36000);
+  assert.ok(Math.abs(stockOf('c1', food.foodId) - (before + 3)) < 1e-6);
+  await rejects(repo.saveStockReceipt({ ...full, confirm: true }, VP), 409);
+  assert.ok(Math.abs(stockOf('c1', food.foodId) - (before + 3)) < 1e-6, 'xác nhận lại không cộng tồn lần nữa');
+  await rejects(repo.getStockReceipts({}, COOK_A), 403);
+});
+
+test('không còn nghiệp vụ kiểm kê kho thực phẩm (BA: không kiểm kê)', () => {
+  assert.equal(repo.getStockCounts, undefined);
+  assert.equal(repo.createStockCount, undefined);
+  assert.equal(repo.saveStockCount, undefined);
 });

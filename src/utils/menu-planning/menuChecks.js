@@ -1,5 +1,6 @@
 import {
   compareToNorm,
+  isNormConfigured,
   mealsAllergens,
   mealsTotals,
   priceOn,
@@ -37,7 +38,10 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
   const problems = [];
   const oks = [];
 
+  // BA: chưa nhập chuẩn tạm thì không đánh giá dinh dưỡng, không hiện "Đạt"
+  const normSet = isNormConfigured(catalog.norms?.[ageGroupId]);
   emptyMeals.forEach((m) => problems.push({ tone: 'bad', text: `${m.name} chưa có món` }));
+  if (!normSet) problems.push({ tone: 'warn', text: 'Chưa nhập chuẩn tạm của nhóm tuổi, chưa đánh giá được dinh dưỡng' });
   if (result.missing.length) problems.push({ tone: 'warn', text: `Chưa đủ số liệu dinh dưỡng của: ${result.missing.join(', ')}` });
 
   const kcal = byKey.kcal;
@@ -70,7 +74,7 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
 
   let status = { tone: 'green', label: 'Đủ chất' };
   if (emptyMeals.length) status = { tone: 'red', label: 'Thiếu bữa' };
-  else if (result.missing.length) status = { tone: 'gray', label: 'Thiếu số liệu' };
+  else if (result.missing.length || !normSet) status = { tone: 'gray', label: 'Chưa đủ dữ liệu đánh giá' };
   else if (kcal?.status === 'LOW') status = { tone: 'orange', label: 'Ít năng lượng' };
   else if (kcal?.status === 'HIGH') status = { tone: 'orange', label: 'Nhiều năng lượng' };
   else if (price != null && result.cost > price) status = { tone: 'orange', label: 'Vượt tiền ăn' };
@@ -105,6 +109,20 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
  * Các ngày cần xem lại của một tuần, viết bằng lời thường: ngày chưa chọn thực đơn, vấn đề của checkDayMenu,
  * món mặn lặp trong 7 ngày (tính cả tuần trước đã xuất bản, nêu ngày đã có). Trả [{ date, tone, text }].
  */
+/** Gom lưu ý trùng nội dung của cả tuần thành một dòng kèm các ngày bị ảnh hưởng; lỗi nặng ('bad') lên trước. */
+export function groupIssues(issues) {
+  const groups = [];
+  issues.forEach(({ date, tone, text }) => {
+    const g = groups.find((x) => x.text === text);
+    if (!g) groups.push({ tone, text, dates: [date] });
+    else {
+      if (!g.dates.includes(date)) g.dates.push(date);
+      if (tone === 'bad') g.tone = 'bad';
+    }
+  });
+  return groups.sort((a, b) => (a.tone === 'bad' ? 0 : 1) - (b.tone === 'bad' ? 0 : 1));
+}
+
 export function weekIssues({ wm, catalog, previousDays = [], allergyRows = [], allergyMenus = [] }) {
   const issues = [];
   const school = (wm?.days || []).filter((d) => !d.holiday);

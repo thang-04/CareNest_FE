@@ -22,7 +22,6 @@ test('database bếp cũ giữ collection rỗng đã lưu, không tạo lại l
     db.kitchenDemoSeedVersion = 0;
     db.foodStock = [];
     db.stockReceipts = [];
-    db.stockCounts = [];
     db.stockTransactions = [];
     db.stockIssues = [];
     db.freshReceipts = [];
@@ -30,12 +29,10 @@ test('database bếp cũ giữ collection rỗng đã lưu, không tạo lại l
     db.weeklyForecasts.push({ id: 'user-forecast', campusId: 'c1', weekStart: '2099-01-05', cells: {} });
   });
 
-  const counts = await kitchen.getStockCounts({ campusId: 'c1' }, VP);
   const stock = await kitchen.getDryStock(VP);
   const issues = await kitchen.getStockIssues({ campusId: 'c1' }, COOK);
   const db = readDb();
 
-  assert.equal(counts.counts.length, 0);
   assert.ok(stock.foods.length > 0, 'giữ danh mục thực phẩm, không suy diễn là đã nhập kho');
   assert.equal(stock.transactions.length, 0);
   assert.equal(issues.issues.length, 0);
@@ -48,10 +45,6 @@ test('database bếp cũ giữ collection rỗng đã lưu, không tạo lại l
     'giữ bản ghi người dùng đã có',
   );
   assert.equal(db.kitchenDemoSeedVersion, 1, 'đánh dấu migration đã chạy');
-  await kitchen.getStockCounts({ campusId: 'c1' }, VP);
-  assert.equal(
-    readDb().stockCounts.filter((count) => count.campusId === 'c1').length,
-    counts.counts.length,
-    'đọc lại không nhân đôi lịch sử',
-  );
+  await kitchen.getDryStock(VP);
+  assert.equal(readDb().stockTransactions.length, 0, 'đọc lại không nhân đôi lịch sử');
 });

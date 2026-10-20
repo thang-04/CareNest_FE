@@ -1,4 +1,5 @@
 import { AlertTriangle } from '@/components/ui/icons';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import { compareToNorm } from '@/utils/menu-planning/menuCalculations';
 import { NUTRIENT_LABELS, NUTRIENT_UNITS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
@@ -27,9 +28,9 @@ export function NutritionTable({ result, ageGroupId, norms, price }) {
           <thead>
             <tr>
               <th>Chất dinh dưỡng</th>
-              <th className="right">Giá trị / trẻ / ngày</th>
-              <th className="right">% năng lượng</th>
-              <th className="right">Định mức tham khảo</th>
+              <th className="money">Giá trị / trẻ / ngày</th>
+              <th className="num">% năng lượng</th>
+              <th className="num">Định mức tham khảo</th>
               <th>Đánh giá</th>
             </tr>
           </thead>
@@ -37,11 +38,11 @@ export function NutritionTable({ result, ageGroupId, norms, price }) {
             {rows.map((r) => (
               <tr key={r.key}>
                 <td>{NUTRIENT_LABELS[r.key]}</td>
-                <td className="right nowrap">
+                <td className="num nowrap">
                   {fmt(r.value)} {NUTRIENT_UNITS[r.key]}
                 </td>
-                <td className="right">{r.key === 'kcal' ? '—' : r.percent == null ? '—' : `${fmt(r.percent)}%`}</td>
-                <td className="right nowrap">{r.min == null ? '—' : r.key === 'kcal' ? `${r.min}–${r.max} kcal` : `${r.min}–${r.max}%`}</td>
+                <td className="num">{r.key === 'kcal' ? '—' : r.percent == null ? '—' : `${fmt(r.percent)}%`}</td>
+                <td className="num nowrap">{r.min == null ? '—' : r.key === 'kcal' ? `${r.min}–${r.max} kcal` : `${r.min}–${r.max}%`}</td>
                 <td>
                   <NormStatusChip status={r.status} />
                 </td>
@@ -50,16 +51,17 @@ export function NutritionTable({ result, ageGroupId, norms, price }) {
             {result && (
               <tr>
                 <td>Chi phí thực phẩm ước tính</td>
-                <td className="right nowrap">{formatMoney(result.cost)}</td>
+                <td className="money nowrap">{formatMoney(result.cost)}</td>
                 <td />
-                <td className="right nowrap">{price ? `Giá suất ăn ${formatMoney(price)}` : 'Chưa có giá suất ăn'}</td>
+                <td className="money nowrap">{price ? `Giá suất ăn ${formatMoney(price)}` : 'Chưa có giá suất ăn'}</td>
                 <td>
                   {price ? (
-                    <span className={`chip chip--${result.cost > price ? 'orange' : 'green'}`}>
-                      {result.cost > price ? 'Vượt giá suất ăn' : 'Trong giá suất ăn'}
-                    </span>
+                    <StatusBadge
+                      tone={result.cost > price ? 'orange' : 'green'}
+                      label={result.cost > price ? 'Vượt giá suất ăn' : 'Trong giá suất ăn'}
+                    />
                   ) : (
-                    <span className="chip chip--gray">Chưa đủ dữ liệu</span>
+                    <StatusBadge tone="gray" label="Chưa đủ dữ liệu" />
                   )}
                 </td>
               </tr>

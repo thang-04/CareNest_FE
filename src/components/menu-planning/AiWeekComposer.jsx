@@ -4,11 +4,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { dismissAiDraft, generateAiSuggestion } from '@/services/menu-planning/menuPlanningService';
 import { Modal } from '@/components/ui/Modal';
-import { Spinner } from '@/components/ui/States';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { useAiRun } from '@/hooks/useAiRun';
 import { WeekGrid } from '@/components/menu-planning/WeekGrid';
+import { AiDraftLabel } from '@/components/menu-planning/MenuBadges';
 import { checkDayMenu } from '@/utils/menu-planning/menuChecks';
 import { priceOn } from '@/utils/menu-planning/menuCalculations';
-import { AI_DRAFT_KIND, AI_LABEL, REPEAT_WINDOW_DAYS, formatMoney, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
+import { AI_DRAFT_KIND, REPEAT_WINDOW_DAYS, formatMoney, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
 
 const SEASONS = ['Xuân', 'Hạ', 'Thu', 'Đông'];
 
@@ -45,7 +47,7 @@ export function AiWeekComposer({
   const toast = useToast();
   const [season, setSeason] = useState('');
   const [wishes, setWishes] = useState('');
-  const [running, setRunning] = useState(false);
+  const { running, run: runAi } = useAiRun();
   const [draft, setDraft] = useState(null);
   const price = priceOn(catalog.mealPrices, ageGroupId, weekStart)?.price ?? null;
 
@@ -54,18 +56,17 @@ export function AiWeekComposer({
   }, [open]);
 
   const run = async () => {
-    setRunning(true);
     try {
       setDraft(
-        await generateAiSuggestion(
-          { kind: AI_DRAFT_KIND.WEEKLY, ageGroupId, weekStart, avoidAllergens: true, noRepeatDays: REPEAT_WINDOW_DAYS, season, wishes },
-          user,
+        await runAi(() =>
+          generateAiSuggestion(
+            { kind: AI_DRAFT_KIND.WEEKLY, ageGroupId, weekStart, avoidAllergens: true, noRepeatDays: REPEAT_WINDOW_DAYS, season, wishes },
+            user,
+          ),
         ),
       );
     } catch (err) {
       toast.error(`${err.message} Bạn vẫn có thể soạn tay.`, 'AI chưa soạn được');
-    } finally {
-      setRunning(false);
     }
   };
   const discard = async () => {
@@ -107,7 +108,7 @@ export function AiWeekComposer({
         Bỏ
       </button>
       <button type="button" className="btn" onClick={run} disabled={running || busy}>
-        {running ? <Spinner small /> : <RotateCcw size={15} />} Soạn lại
+        <RotateCcw size={15} /> Soạn lại
       </button>
       <button type="button" className="btn btn--primary" onClick={use} disabled={busy || running}>
         Dùng bản này
@@ -119,7 +120,7 @@ export function AiWeekComposer({
         Hủy
       </button>
       <button type="button" className="btn btn--primary" onClick={run} disabled={running || busy}>
-        {running ? <Spinner small /> : <Sparkles size={15} />} Soạn
+        <Sparkles size={15} /> Soạn
       </button>
     </>
   );
@@ -167,9 +168,7 @@ export function AiWeekComposer({
       ) : (
         <div className="td-ai-form">
           <div className="row td-chips">
-            <span className="chip chip--purple">
-              <Sparkles size={13} /> {AI_LABEL}
-            </span>
+            <AiDraftLabel />
             {current && <span className="text-sm muted">Ô tô xanh là món khác với bản đang soạn.</span>}
           </div>
           {draft.note && (
@@ -192,6 +191,7 @@ export function AiWeekComposer({
           </div>
         </div>
       )}
+      {running && <AiWorkingOverlay kind="cooking" text="Đang nấu thực đơn tuần…" />}
     </Modal>
   );
 }

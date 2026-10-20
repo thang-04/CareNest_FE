@@ -81,7 +81,7 @@ export function AllergySubstitutes({ menu, catalog, allergyRows, canManage }) {
       setEditing(null);
       reload();
     } catch (err) {
-      toast.error(err.message, 'Chưa lưu được');
+      toast.error(err, 'Chưa lưu được');
     } finally {
       setSaving(false);
     }
@@ -187,40 +187,42 @@ export function AllergySubstitutes({ menu, catalog, allergyRows, canManage }) {
             <div className="field">
               <span className="field__label">Món cần đổi</span>
               {conflicts.length ? (
-                <table className="table table--grid table--compact">
-                  <thead>
-                    <tr>
-                      <th>Bữa</th>
-                      <th>Món có chất cần tránh</th>
-                      <th>Đổi thành</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {conflicts.map((c) => {
-                      const k = `${c.session}|${c.dishId}`;
-                      return (
-                        <tr key={k}>
-                          <td>{label(c.session)}</td>
-                          <td>{c.name}</td>
-                          <td>
-                            <select
-                              className="select"
-                              value={editing.picks[k] || ''}
-                              onChange={(e) => setEditing((x) => ({ ...x, picks: { ...x.picks, [k]: e.target.value } }))}
-                            >
-                              <option value="">Bỏ món</option>
-                              {options(c).map((d) => (
-                                <option key={d.id} value={d.id}>
-                                  {d.name}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <div className="table-wrap">
+                  <table className="table table--grid table--compact">
+                    <thead>
+                      <tr>
+                        <th className="cell--fixed">Bữa</th>
+                        <th className="cell--fixed">Món có chất cần tránh</th>
+                        <th>Đổi thành</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {conflicts.map((c) => {
+                        const k = `${c.session}|${c.dishId}`;
+                        return (
+                          <tr key={k}>
+                            <td className="cell--fixed">{label(c.session)}</td>
+                            <td className="cell--fixed">{c.name}</td>
+                            <td>
+                              <select
+                                className="select"
+                                value={editing.picks[k] || ''}
+                                onChange={(e) => setEditing((x) => ({ ...x, picks: { ...x.picks, [k]: e.target.value } }))}
+                              >
+                                <option value="">Bỏ món</option>
+                                {options(c).map((d) => (
+                                  <option key={d.id} value={d.id}>
+                                    {d.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <p className="muted text-sm td-flat">
                   {editing.restrictions.length ? 'Thực đơn không có món chứa chất đã chọn.' : 'Chọn chất cần tránh để xem món cần đổi.'}

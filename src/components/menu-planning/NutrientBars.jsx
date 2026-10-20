@@ -4,7 +4,7 @@ const fmt = (v) => (Math.round((Number(v) || 0) * 10) / 10).toLocaleString('vi-V
 const ROWS = [
   ['protein', 'Đạm (Protein)', 'p'],
   ['lipid', 'Béo (Lipid)', 'l'],
-  ['glucid', 'Bột đường (Glucid)', 'g'],
+  ['glucid', 'Tinh bột (glucid)', 'g'],
 ];
 
 /**

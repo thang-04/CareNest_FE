@@ -58,7 +58,7 @@ export default function MenuDetailPage() {
     <div className="page">
       <Breadcrumb items={sampleMenuCrumbs(m.code)} />
       <div className="page__head">
-        <div className="row" style={{ gap: 12 }}>
+        <div className="row gap-3">
           <h1 className="page__title">{m.name}</h1>
           <RecordStatusBadge status={m.status} size="lg" />
         </div>

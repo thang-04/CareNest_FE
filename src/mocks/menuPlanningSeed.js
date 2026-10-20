@@ -6,14 +6,21 @@
  */
 import { AGE_GROUPS } from '@/models/School';
 import { todayInput } from '@/utils/format';
-import {
-  MEAL_SESSION_LABELS,
-  NUTRITION_NORMS,
-  PORTION_FACTORS,
-  defaultStorageOf,
-  schoolWeekStart,
-  sessionsOf,
-} from '@/models/menu-planning/menuPlanningConstants';
+import { MEAL_SESSION_LABELS, defaultStorageOf, schoolWeekStart, sessionsOf } from '@/models/menu-planning/menuPlanningConstants';
+
+/*
+ * Số liệu demo nhập tay (BA: chuẩn dinh dưỡng chưa chốt, không hard-code ở constants):
+ * hệ số khẩu phần chỉ dùng để sinh định lượng theo nhóm tuổi cho món mẫu; định mức là "chuẩn tạm".
+ * Nhóm 5–6 tuổi cố ý để trống định mức để demo trạng thái "Chưa đủ dữ liệu đánh giá".
+ */
+export const SEED_PORTION_FACTORS = { 'ag-2': 0.7, 'ag-3': 0.9, 'ag-4': 1, 'ag-5': 1.1 };
+const SEED_NORMS = {
+  'ag-2': { kcal: [600, 651], protein: [13, 20], lipid: [30, 40], glucid: [40, 57] },
+  'ag-3': { kcal: [615, 726], protein: [13, 20], lipid: [25, 35], glucid: [52, 60] },
+  'ag-4': { kcal: [615, 726], protein: [13, 20], lipid: [25, 35], glucid: [52, 60] },
+  'ag-5': {},
+};
+const SEED_NORM_BASIS = 'Chuẩn tạm nhập tay (demo), chờ trường chốt nguồn chuẩn dinh dưỡng';
 
 const at = (date, time = '08:00') => `${date}T${time}:00.000Z`;
 const VP = 'u_lan';
@@ -53,10 +60,12 @@ const FOOD_ROWS = [
   ['f24', 'Chuối tiêu', 'FRUIT', 'g', 'kg', 1000, 20000, 97, 1.5, 0.2, 22.2, []],
   ['f25', 'Dưa hấu', 'FRUIT', 'g', 'kg', 1000, 15000, 16, 1.2, 0.2, 2.3, []],
   ['f26', 'Dầu ăn', 'FAT_SUGAR', 'ml', 'lít', 1000, 45000, 897, 0, 99.7, 0, []],
-  ['f27', 'Đường kính', 'FAT_SUGAR', 'g', 'kg', 1000, 24000, 397, 0, 0, 99.3, []],
+  ['f27', 'Đường kính', 'FAT_SUGAR', 'g', 'bao 10 kg', 10000, 240000, 397, 0, 0, 99.3, []],
   ['f28', 'Nấm hương khô', 'OTHER', 'g', 'kg', 1000, 350000, null, null, null, null, []],
 ];
 
+// Đơn vị kho khác đơn vị mua (BA 02): bao 10 kg ⇒ tồn và xuất theo kg
+const STOCK_UNITS = { f27: { stockUnit: 'kg', purchaseToStock: 10, stockUnitSize: 1000 } };
 // Tỷ lệ thải bỏ (%) khi sơ chế, số minh họa theo nhóm thực phẩm
 const WASTE_BY_GROUP = { GRAIN: 0, MEAT: 5, SEAFOOD: 20, EGG_DAIRY: 12, LEGUME: 2, VEGETABLE: 15, FRUIT: 25, FAT_SUGAR: 0, OTHER: 0 };
 const FAVORITE_FOODS = ['f01', 'f05', 'f07', 'f11'];
@@ -72,6 +81,7 @@ const buildFoods = () =>
     unit,
     purchaseUnit,
     purchaseUnitSize,
+    ...(STOCK_UNITS[id] || { stockUnit: purchaseUnit, purchaseToStock: 1, stockUnitSize: purchaseUnitSize }),
     unitPrice,
     nutrition: { kcal, protein, lipid, glucid },
     wastePct: WASTE_BY_GROUP[group] ?? 0,
@@ -325,7 +335,7 @@ const buildDishes = () =>
     ingredients: rows.map(([foodId, quantity]) => ({
       foodId,
       quantity,
-      portions: Object.fromEntries(AGE_GROUPS.map(({ id: ag }) => [ag, Math.round(quantity * PORTION_FACTORS[ag] * 10) / 10])),
+      portions: Object.fromEntries(AGE_GROUPS.map(({ id: ag }) => [ag, Math.round(quantity * SEED_PORTION_FACTORS[ag] * 10) / 10])),
     })),
     status: 'ACTIVE',
     createdBy: VP,
@@ -590,10 +600,10 @@ const buildNutritionSetups = () =>
   AGE_GROUPS.map(({ id }) => ({
     ageGroupId: id,
     enabled: true,
-    basis: '',
+    basis: Object.keys(SEED_NORMS[id]).length ? SEED_NORM_BASIS : '',
     price: DAY_PRICE[id],
     meals: sessionsOf(id).map((code) => ({ code, name: MEAL_SESSION_LABELS[code], countAs: code })),
-    norms: JSON.parse(JSON.stringify(NUTRITION_NORMS[id])),
+    norms: JSON.parse(JSON.stringify(SEED_NORMS[id])),
     updatedBy: VP,
     updatedAt: at('2026-08-20'),
     history: [{ id: `h_ns_${id}`, action: 'CREATED', userId: VP, at: at('2026-08-20'), note: '' }],

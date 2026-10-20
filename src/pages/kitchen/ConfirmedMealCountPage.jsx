@@ -7,6 +7,7 @@ import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { MealCountStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter, KbSessionFilter } from '@/components/kitchen/KitchenFilters';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
+import { dayRegister } from '@/utils/attendance/mealRegister';
 import { formatDateTime, todayInput } from '@/utils/format';
 import { MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/kitchen.css';
@@ -27,12 +28,15 @@ export default function ConfirmedMealCountPage() {
     return [...map.entries()];
   }, [sessions]);
   const visible = sessions.filter((s) => (session === 'ALL' || s.session === session) && s.hasMenu);
+  // BA: một suất/ngày ("Ăn" = mọi bữa) ⇒ chỉ hiện số suất ngày khi mọi bữa đã xác nhận
+  const withMenu = sessions.filter((s) => s.hasMenu);
+  const day = withMenu.length && withMenu.every((s) => s.status === 'CONFIRMED') ? dayRegister(withMenu) : null;
 
   return (
     <div className="page">
       <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.mealCount)} />
       <div className="page__head">
-        <h1 className="page__title">Số suất ăn đã xác nhận</h1>
+        <h1 className="page__title">Sổ báo ăn đã xác nhận</h1>
       </div>
       <div className="alert alert--info mb-16">
         <Lock size={18} />
@@ -70,91 +74,102 @@ export default function ConfirmedMealCountPage() {
           />
         </div>
       ) : (
-        <div className="kb-sessions">
-          {visible.map((s) => {
-            const rows = classId === 'ALL' ? s.classes : s.classes.filter((c) => c.classId === classId);
-            return (
-              <div key={s.session} className="card">
-                <div className="card__header row row--between">
-                  <div className="card__title">{MEAL_SESSION_LABELS[s.session]}</div>
-                  <MealCountStatusBadge status={s.status} />
-                </div>
-                {s.status !== 'CONFIRMED' ? (
-                  <div className="card__body muted">
-                    Số suất ăn chưa được Phó hiệu trưởng xác nhận. Bếp sẽ được thông báo khi có số chính thức.
-                  </div>
-                ) : (
-                  <>
-                    <div className="card__body kb-totals">
-                      <span className="chip chip--blue chip--lg">{s.totals.normal} suất thường</span>
-                      <span className="chip chip--orange chip--lg">{s.totals.substitute} suất thay thế</span>
-                      <span className="muted text-sm">Xác nhận lúc {formatDateTime(s.confirmedAt)}</span>
-                    </div>
-                    <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-                      <table className="table table--grid">
-                        <thead>
-                          <tr>
-                            <th>Lớp</th>
-                            <th className="right">Suất thường</th>
-                            <th className="right">Suất thay thế</th>
-                            <th>Món cần thay thế</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rows.map((c) => (
-                            <tr key={c.classId}>
-                              <td className="fw-600">{c.className}</td>
-                              <td className="right">{c.normal}</td>
-                              <td className="right">{c.substitute}</td>
-                              <td className="kb-cell-wrap">
-                                {c.affectedDishes.length ? (
-                                  <span className="chip chip--red">
-                                    <AlertTriangle size={13} /> {c.affectedDishes.join(', ')}
-                                  </span>
-                                ) : (
-                                  <span className="muted">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {s.warnings.length > 0 && (
-                      <div className="card__body">
-                        <div className="alert alert--warning">
-                          <AlertTriangle size={18} />
-                          <div>{s.warnings.join(' ')}</div>
-                        </div>
-                      </div>
-                    )}
-                    {s.adjustments.length > 0 && (
-                      <div className="card__body">
-                        <div className="subsection-title mb-8">Điều chỉnh sau xác nhận</div>
-                        <ul className="history-list">
-                          {s.adjustments.map((a, i) => (
-                            <li key={`${a.at}-${i}`}>
-                              <div className="history-list__dot" />
-                              <div>
-                                <div>
-                                  {s.classes.find((c) => c.classId === a.classId)?.className || 'Lớp'}: {a.normal > 0 ? '+' : ''}
-                                  {a.normal ?? 0} suất thường, {a.substitute > 0 ? '+' : ''}
-                                  {a.substitute ?? 0} suất thay thế
-                                </div>
-                                {a.note && <div className="text-2">“{a.note}”</div>}
-                                <div className="muted text-xs">{formatDateTime(a.at)}</div>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                )}
+        <>
+          {day && (
+            <div className="card mb-16">
+              <div className="card__body kb-totals">
+                <span className="chip chip--blue chip--lg">{day.servings} suất / ngày</span>
+                <span className="chip chip--orange chip--lg">trong đó {day.substitute} suất thay thế</span>
+                <span className="muted text-sm">Chi tiết từng bữa bên dưới để chuẩn bị món thay thế.</span>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
+          <div className="kb-sessions">
+            {visible.map((s) => {
+              const rows = classId === 'ALL' ? s.classes : s.classes.filter((c) => c.classId === classId);
+              return (
+                <div key={s.session} className="card">
+                  <div className="card__header row row--between">
+                    <div className="card__title">{MEAL_SESSION_LABELS[s.session]}</div>
+                    <MealCountStatusBadge status={s.status} />
+                  </div>
+                  {s.status !== 'CONFIRMED' ? (
+                    <div className="card__body muted">
+                      Số suất ăn chưa được Phó hiệu trưởng xác nhận. Bếp sẽ được thông báo khi có số chính thức.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="card__body kb-totals">
+                        <span className="chip chip--blue chip--lg">{s.totals.normal} suất thường</span>
+                        <span className="chip chip--orange chip--lg">{s.totals.substitute} suất thay thế</span>
+                        <span className="muted text-sm">Xác nhận lúc {formatDateTime(s.confirmedAt)}</span>
+                      </div>
+                      <div className="table-wrap">
+                        <table className="table table--grid">
+                          <thead>
+                            <tr>
+                              <th>Lớp</th>
+                              <th className="num">Suất thường</th>
+                              <th className="num">Suất thay thế</th>
+                              <th>Món cần thay thế</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((c) => (
+                              <tr key={c.classId}>
+                                <td className="fw-600">{c.className}</td>
+                                <td className="num">{c.normal}</td>
+                                <td className="num">{c.substitute}</td>
+                                <td className="kb-cell-wrap">
+                                  {c.affectedDishes.length ? (
+                                    <span className="chip chip--red">
+                                      <AlertTriangle size={13} /> {c.affectedDishes.join(', ')}
+                                    </span>
+                                  ) : (
+                                    <span className="muted">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {s.warnings.length > 0 && (
+                        <div className="card__body">
+                          <div className="alert alert--warning">
+                            <AlertTriangle size={18} />
+                            <div>{s.warnings.join(' ')}</div>
+                          </div>
+                        </div>
+                      )}
+                      {s.adjustments.length > 0 && (
+                        <div className="card__body">
+                          <div className="subsection-title mb-8">Điều chỉnh sau xác nhận</div>
+                          <ul className="history-list">
+                            {s.adjustments.map((a, i) => (
+                              <li key={`${a.at}-${i}`}>
+                                <div className="history-list__dot" />
+                                <div>
+                                  <div>
+                                    {s.classes.find((c) => c.classId === a.classId)?.className || 'Lớp'}: {a.normal > 0 ? '+' : ''}
+                                    {a.normal ?? 0} suất thường, {a.substitute > 0 ? '+' : ''}
+                                    {a.substitute ?? 0} suất thay thế
+                                  </div>
+                                  {a.note && <div className="text-2">“{a.note}”</div>}
+                                  <div className="muted text-xs">{formatDateTime(a.at)}</div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
