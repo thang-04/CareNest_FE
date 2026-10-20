@@ -1,8 +1,19 @@
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Card, EduStatusBadge, EmptyState, Notice, PageHead, YearPlanStatusBadge } from '@/components/education-plan/eduUi';
+import {
+  Card,
+  DocAvailabilityBadge,
+  DueStateBadge,
+  EduStatusBadge,
+  EmptyState,
+  Notice,
+  PageHead,
+  YearPlanStatusBadge,
+} from '@/components/education-plan/eduUi';
 import { isMyReviewTurn, reviewLabel, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
-import { Check, Eye, FileDown, PenLine, Plus } from '@/components/ui/icons';
+import { StatusPage } from '@/components/ui/StatusPage';
+import { RowActions } from '@/components/ui/RowActions';
+import { Check, FileDown, Plus } from '@/components/ui/icons';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
@@ -33,7 +44,7 @@ export default function ClassPlanPage() {
   const { cls, classes, yearPlan, pendingYearPlan, teachers, isClassTeacher } = ctx;
 
   if (ctx.loading) return <LoadingState />;
-  if (!cls) return <EmptyState title="Không tìm thấy lớp hoặc bạn không có quyền xem" />;
+  if (!cls) return <StatusPage kind="404" title="Không tìm thấy lớp hoặc bạn không có quyền xem" />;
 
   const base = `/education/class/${classId}`;
   const group = AGE_GROUPS.find((a) => a.id === cls.ageGroupId);
@@ -115,46 +126,41 @@ export default function ClassPlanPage() {
     return (
       <span className="row row--wrap gap-2">
         <span>Hạn gửi: {ddmm(dueIso)}</span>
-        {st === 'late' && <span className="chip chip--red">Quá hạn</span>}
-        {st === 'soon' && <span className="chip chip--orange">Sắp đến hạn</span>}
+        {(st === 'late' || st === 'soon') && <DueStateBadge status={st} />}
       </span>
     );
   };
+  const status = (doc, noneStatus) => (doc ? <EduStatusBadge status={doc.status} /> : <DocAvailabilityBadge status={noneStatus} />);
   const branchApproved = branch?.status === EDU_STATUS.APPROVED;
   // Giáo án tuần chỉ tạo được khi đã lưu kế hoạch chủ đề; chưa tới lượt thì nút Tạo chỉ báo cần làm gì trước
   const lockOf = (kind, themeId) => createBlocker(kind, { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
-  const lockedCreate = (lock) => {
-    if (!isClassTeacher) return <span className="muted text-sm">Chưa lập</span>;
-    const guide = lock.need === 'theme' ? ' Bấm "Tạo" ở dòng Kế hoạch giáo dục chủ đề và lưu lại.' : '';
-    return (
-      <button type="button" className="btn btn--primary btn--sm" onClick={() => toast(lock.message + guide, 'warn')}>
-        <Plus size={16} aria-hidden /> Tạo
-      </button>
-    );
-  };
+  // Lý do để ở tooltip, không hiện thêm dòng chữ trong bảng
+  const lockedStatus = (lock) => (
+    <span title={lock.message}>
+      <DocAvailabilityBadge status="LOCKED" />
+    </span>
+  );
   /*
    * Một nút cho mỗi tài liệu, theo việc người dùng cần làm (gửi / duyệt nằm cuối trang của tài liệu):
    * đến lượt duyệt → Duyệt; giáo viên còn sửa được → Sửa / Tạo; còn lại → Xem.
    */
-  const action = (doc, to, create, reviewTo = to) => {
+  const action = (doc, to, create, reviewTo, name) => {
     if (isMyReviewTurn(doc, ctx, user))
       return (
-        <Link className="btn btn--success btn--sm" to={reviewTo}>
+        <Link className="btn btn--primary btn--sm" to={reviewTo}>
           <Check size={16} aria-hidden /> Duyệt
         </Link>
       );
     if (isClassTeacher && (!doc || isEditableStatus(doc.status)))
-      return (
-        <Link className={`btn btn--sm ${doc ? 'btn--outline-primary' : 'btn--primary'}`} to={to}>
-          {doc ? <PenLine size={16} aria-hidden /> : <Plus size={16} aria-hidden />} {doc ? 'Sửa' : create}
+      return doc ? (
+        <RowActions edit={{ to }} name={name} />
+      ) : (
+        <Link className="btn btn--primary btn--sm" to={to}>
+          <Plus size={16} aria-hidden /> {create}
         </Link>
       );
     if (!doc) return <span className="muted text-sm">Chưa lập</span>;
-    return (
-      <Link className="icon-btn" to={to} title="Xem" aria-label="Xem">
-        <Eye size={16} aria-hidden />
-      </Link>
-    );
+    return <RowActions view={{ to }} name={name} />;
   };
 
   return (
@@ -223,8 +229,9 @@ export default function ClassPlanPage() {
                     <thead>
                       <tr>
                         <th>Nội dung</th>
-                        <th className="ga-goal-table__fixed">Thời gian</th>
-                        <th className="center">Thao tác</th>
+                        <th className="cell--fixed">Thời gian</th>
+                        <th className="center">Trạng thái</th>
+                        <th className="cell--actions">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -234,20 +241,25 @@ export default function ClassPlanPage() {
                             <div className="fw-600">Kế hoạch giáo dục chủ đề</div>
                           </div>
                         </td>
-                        <td className="ga-goal-table__fixed">
+                        <td className="cell--fixed">
                           <div className="ga-goal-table__pad">
                             {ddmm(t.start)} → {ddmm(t.end)}
                           </div>
                         </td>
+                        <td>
+                          <div className="ga-goal-table__pad">{status(doc, 'NOT_PLANNED')}</div>
+                        </td>
                         <td className="center">
-                          <div className="ga-goal-table__pad">{action(doc, `${base}/themes/${t.id}`, 'Tạo', to)}</div>
+                          <div className="ga-goal-table__pad">
+                            {action(doc, `${base}/themes/${t.id}`, 'Lập', to, `kế hoạch chủ đề ${t.name}`)}
+                          </div>
                         </td>
                       </tr>
                       {themeRows.map((r) => {
                         if (r.type === 'break')
                           return (
                             <tr key={`b-${r.start}`}>
-                              <td colSpan={3} className="ga-goal-table__fixed">
+                              <td colSpan={4} className="cell--fixed">
                                 <div className="ga-goal-table__pad">
                                   Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
                                 </div>
@@ -266,14 +278,17 @@ export default function ClassPlanPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className="ga-goal-table__fixed">
+                            <td className="cell--fixed">
                               <div className="ga-goal-table__pad">
                                 Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
                               </div>
                             </td>
-                            <td className="center">
+                            <td>
+                              <div className="ga-goal-table__pad">{lock ? lockedStatus(lock) : status(wdoc, 'NOT_DRAFTED')}</div>
+                            </td>
+                            <td className="cell--actions">
                               <div className="ga-goal-table__pad">
-                                {lock ? lockedCreate(lock) : action(wdoc, `${base}/weeks/${r.start}`, 'Tạo', `${to}?week=${r.start}`)}
+                                {!lock && action(wdoc, `${base}/weeks/${r.start}`, 'Tạo', `${to}?week=${r.start}`, `giáo án tuần ${r.no}`)}
                               </div>
                             </td>
                           </tr>

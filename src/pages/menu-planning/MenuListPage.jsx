@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bowl, ChevronDown, Coin, Gear, Plus, Search, Sparkles } from '@/components/ui/icons';
+import { Bowl, ChevronDown, Coin, Gear, Plus, Sparkles } from '@/components/ui/icons';
 import { useMenuAccess, useMenuCatalog, useSampleMenus } from '@/hooks/menu-planning/useMenuPlanning';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { checkDayMenu } from '@/utils/menu-planning/menuChecks';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { sampleMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
@@ -72,10 +74,7 @@ export default function MenuListPage() {
     <div className="page">
       {head}
       <div className="filter-bar td-plain-filter">
-        <label className="search-box td-grow">
-          <Search size={17} className="muted" />
-          <input placeholder="Tìm tên thực đơn…" value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="Tìm thực đơn" />
-        </label>
+        <SearchSubmit className="td-grow" value={keyword} placeholder="Tìm tên thực đơn" label="Tìm thực đơn" onSearch={setKeyword} />
       </div>
       {groups.map((g) => {
         const list = menus
@@ -100,7 +99,7 @@ export default function MenuListPage() {
                     <Link key={m.id} className="card td-tpl-card" to={canManage ? `/menu/menus/${m.id}/edit` : `/menu/menus/${m.id}`}>
                       <span className="td-tpl-card__head">
                         <b>{m.name}</b>
-                        <span className={`chip chip--${c.status.tone}`}>{c.status.label}</span>
+                        <StatusBadge tone={c.status.tone} label={c.status.label} />
                       </span>
                       <span className="row td-chips">
                         <span className="chip chip--blue">

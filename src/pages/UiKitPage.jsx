@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Plus, Save, Send, Trash2, Printer, Info, AlertTriangle, CheckCircle2, XCircle, Inbox } from '@/components/ui/icons';
 import * as AppIcons from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
+import { useAiRun } from '@/hooks/useAiRun';
 import {
   Breadcrumb,
   Modal,
@@ -10,6 +11,7 @@ import {
   EmptyState,
   ErrorState,
   SubmitOverlay,
+  AiWorkingOverlay,
   Spinner,
   SearchSelect,
   StatusBadge,
@@ -26,6 +28,8 @@ import {
   ProgressSteps,
   Stepper,
   Pagination,
+  RowActions,
+  StatusPage,
 } from '@/components';
 import { TransferStatusBadge } from '@/components/facility-transfer/TransferStatusBadge';
 import { RoundStatusBadge, SheetStatusBadge } from '@/components/inventory-inspection/InspectionBadges';
@@ -187,6 +191,12 @@ const NAV = [
 /** Living style guide: every shared token / component with a copy-paste snippet. */
 export default function UiKitPage() {
   const toast = useToast();
+  const ai = useAiRun();
+  const [aiKind, setAiKind] = useState('sparkle');
+  const demoAi = (kind) => {
+    setAiKind(kind);
+    ai.run(() => new Promise((resolve) => setTimeout(resolve, 2400)));
+  };
   const [modal, setModal] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [select, setSelect] = useState(null);
@@ -432,24 +442,26 @@ export default function UiKitPage() {
           title="Trạng thái (StatusBadge)"
           code={`// 1 status = 1 tông màu theo quy ước bên dưới\nexport const MyStatusBadge = createStatusBadge(\n  { DRAFT: ['gray', FileEdit], PENDING: ['orange', Clock], DONE: ['green', CheckCircle2] },\n  MY_STATUS_LABELS,\n);\n<MyStatusBadge status={item.status} />`}
         >
-          <table className="table table--compact mb-16">
-            <thead>
-              <tr>
-                <th>Tông</th>
-                <th>Ý nghĩa (dùng thống nhất cho mọi module)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {STATUS_TONES.map((t) => (
-                <tr key={t}>
-                  <td>
-                    <StatusBadge tone={t} label={t} />
-                  </td>
-                  <td>{TONE_MEANING[t]}</td>
+          <div className="table-wrap mb-16">
+            <table className="table table--compact table--grid">
+              <thead>
+                <tr>
+                  <th>Tông</th>
+                  <th>Ý nghĩa (dùng thống nhất cho mọi module)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {STATUS_TONES.map((t) => (
+                  <tr key={t}>
+                    <td className="center">
+                      <StatusBadge tone={t} label={t} />
+                    </td>
+                    <td>{TONE_MEANING[t]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="subsection-title">Ví dụ đang dùng</div>
           <div className="row row--wrap mb-8">
             {Object.values(TRANSFER_STATUS).map((s) => (
@@ -520,7 +532,7 @@ export default function UiKitPage() {
         <Section
           id="table"
           title="Bảng & thẻ"
-          code={`<div className="card card--soft-header">\n  <div className="card__header"><div className="card__title">Tiêu đề</div></div>\n  <div className="card__body">\n    <div className="table-wrap"><table className="table">...</table></div>\n  </div>\n</div>`}
+          code={`<div className="card card--soft-header">\n  <div className="card__header"><div className="card__title">Tiêu đề</div></div>\n  <div className="card__body">\n    <div className="table-wrap"><table className="table table--grid">...</table></div>\n  </div>\n</div>\n\n/* Cột Thao tác: ≤2 icon + menu "…" (Xóa luôn vào menu, có hỏi lại) */\n<td className="cell--actions">\n  <RowActions view={{ to }} edit={{ to }} name={row.name}\n    menu={[{ label: 'Xóa', icon: Trash2, danger: true, onClick: remove,\n             confirm: { title: 'Xóa tài sản?', message: '...' } }]} />\n</td>`}
         >
           <div className="card card--soft-header">
             <div className="card__header">
@@ -528,7 +540,7 @@ export default function UiKitPage() {
             </div>
             <div className="card__body">
               <div className="table-wrap">
-                <table className="table">
+                <table className="table table--grid">
                   <thead>
                     <tr>
                       <th className="center">STT</th>
@@ -536,6 +548,7 @@ export default function UiKitPage() {
                       <th>Tên tài sản</th>
                       <th className="center">Số lượng</th>
                       <th className="center">Tình trạng</th>
+                      <th className="cell--actions">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -547,6 +560,23 @@ export default function UiKitPage() {
                       <td className="center">
                         <ConditionBadge value="GOOD" />
                       </td>
+                      <td className="cell--actions">
+                        <RowActions
+                          view={{ onClick: () => toast.info('Xem Bàn học mầm non') }}
+                          edit={{ onClick: () => toast.info('Sửa Bàn học mầm non') }}
+                          name="Bàn học mầm non"
+                          menu={[
+                            { label: 'In nhãn', icon: Printer, onClick: () => toast.info('In nhãn') },
+                            {
+                              label: 'Xóa',
+                              icon: Trash2,
+                              danger: true,
+                              onClick: () => toast.success('Đã xóa (minh họa)'),
+                              confirm: { title: 'Xóa tài sản?', message: 'Dữ liệu minh họa, không lưu.' },
+                            },
+                          ]}
+                        />
+                      </td>
                     </tr>
                     <tr>
                       <td className="center">2</td>
@@ -555,6 +585,23 @@ export default function UiKitPage() {
                       <td className="center">10</td>
                       <td className="center">
                         <ConditionBadge value="NEED_REPAIR" />
+                      </td>
+                      <td className="cell--actions">
+                        <RowActions
+                          view={{ onClick: () => toast.info('Xem Ghế nhựa') }}
+                          edit={{ onClick: () => toast.info('Sửa Ghế nhựa') }}
+                          name="Ghế nhựa"
+                          menu={[
+                            { label: 'In nhãn', icon: Printer, onClick: () => toast.info('In nhãn') },
+                            {
+                              label: 'Xóa',
+                              icon: Trash2,
+                              danger: true,
+                              onClick: () => toast.success('Đã xóa (minh họa)'),
+                              confirm: { title: 'Xóa tài sản?', message: 'Dữ liệu minh họa, không lưu.' },
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   </tbody>
@@ -592,7 +639,7 @@ export default function UiKitPage() {
         <Section
           id="states"
           title="Loading / Empty / Error"
-          code={`{loading ? <LoadingState /> : error ? <ErrorState error={error} onRetry={reload} /> : !items.length ? <EmptyState title="Chưa có dữ liệu" /> : ...}`}
+          code={`{loading ? <LoadingState /> : error ? <ErrorState error={error} onRetry={reload} /> : !items.length ? <EmptyState title="Chưa có dữ liệu" /> : ...}\n\n/* Trạng thái chặn (403/404/500/chunk/coming-soon): */\n<StatusPage kind="403" title="..." description="..." action={back} />  /* bare: đã ở trong card */`}
         >
           <div className="grid-3">
             <div className="card">
@@ -610,6 +657,14 @@ export default function UiKitPage() {
               <ErrorState error={{ message: 'Không kết nối được máy chủ' }} onRetry={() => toast.info('Thử lại')} />
             </div>
           </div>
+          {/* Trạng thái chặn: icon, không tranh; 403/404 không có "Thử lại" */}
+          <div className="grid-3 mt-12">
+            <div className="card">
+              <ErrorState error={{ status: 403, message: 'Dữ liệu nằm ngoài lớp bạn phụ trách.' }} onRetry={() => toast.info('Thử lại')} />
+            </div>
+            <StatusPage kind="404" />
+            <StatusPage kind="500" action={null} />
+          </div>
           <div className="grid-3 mt-12">
             {['sending', 'done', 'error'].map((state) => (
               <div key={state} className="card card__body" style={{ position: 'relative', minHeight: 180 }}>
@@ -622,6 +677,23 @@ export default function UiKitPage() {
               </div>
             ))}
           </div>
+          {/* Lớp phủ AI: cả màn khi bấm nút AI; `scoped` khi AI tự chạy trong một card */}
+          <div className="grid-3 mt-12">
+            {['cooking', 'sparkle'].map((kind) => (
+              <div key={kind} className="card card__body" style={{ position: 'relative', minHeight: 200 }}>
+                <AiWorkingOverlay scoped kind={kind} text={kind === 'cooking' ? 'Đang nấu thực đơn…' : 'Đang phân tích xu hướng…'} />
+              </div>
+            ))}
+            <div className="card card__body row row--center">
+              <button className="btn btn--sm" onClick={() => demoAi('cooking')} disabled={ai.running}>
+                Phủ cả màn: nấu
+              </button>
+              <button className="btn btn--sm" onClick={() => demoAi('sparkle')} disabled={ai.running}>
+                Phủ cả màn: lấp lánh
+              </button>
+            </div>
+          </div>
+          {ai.running && <AiWorkingOverlay kind={aiKind} text={aiKind === 'cooking' ? 'Đang nấu thực đơn…' : 'Đang soạn bản nháp…'} />}
         </Section>
 
         <Section
@@ -660,7 +732,7 @@ export default function UiKitPage() {
         <Section
           id="overlays"
           title="Modal, xác nhận, toast"
-          code={`const toast = useToast();\ntoast.success('Đã lưu');  toast.error(err.message, 'Không lưu được');\n\n<ConfirmationModal open={open} title="Hủy phiếu?" message="..." confirmLabel="Hủy phiếu" danger\n  onConfirm={doCancel} onClose={() => setOpen(false)} />`}
+          code={`const toast = useToast();\ntoast.success('Đã lưu');  toast.error(err, 'Không lưu được');\n\n<ConfirmationModal open={open} title="Hủy phiếu?" message="..." confirmLabel="Hủy phiếu" danger\n  onConfirm={doCancel} onClose={() => setOpen(false)} />`}
         >
           <div className="row row--wrap">
             <button className="btn" onClick={() => setModal(true)}>
@@ -669,10 +741,13 @@ export default function UiKitPage() {
             <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
               Mở ConfirmationModal (danger)
             </button>
-            <button className="btn" onClick={() => toast.success('Đã lưu nháp phiếu LC009', 'Thành công')}>
+            <button className="btn" onClick={() => toast.success('Phiếu LC009', 'Đã lưu nháp')}>
               Toast success
             </button>
-            <button className="btn" onClick={() => toast.error('Số lượng vượt tồn kho', 'Không gửi được')}>
+            <button
+              className="btn"
+              onClick={() => toast.error(Object.assign(new Error('Số lượng vượt tồn kho'), { status: 409 }), 'Không gửi được')}
+            >
               Toast error
             </button>
             <button className="btn" onClick={() => toast.warning('Phòng đang kiểm kê')}>

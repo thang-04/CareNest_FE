@@ -768,9 +768,11 @@ export const buildSeedDatabase = () => {
   const extraTeachers = buildExtraTeachers(seedUsers);
   const school = buildSeedSchool();
   const extra = buildExtraClassData(extraTeachers);
+  const classes = [...school.classes, ...extra.classes];
+  const users = [...seedUsers, ...extraTeachers];
   return {
     campuses: seedCampuses,
-    users: [...seedUsers, ...extraTeachers],
+    users,
     locations: [...seedLocations, ...extra.rooms],
     categories: seedCategories,
     assets: seedAssets,
@@ -778,10 +780,10 @@ export const buildSeedDatabase = () => {
     transfers: seedTransfers,
     notifications: [...seedNotifications, ...seedInspectionNotifications],
     inspections: buildSeedInspections(seedAssets),
-    ...buildSeedEducationPlans(),
+    ...buildSeedEducationPlans({ classes, users }),
     eduSeedVersion: EDU_SEED_VERSION,
     ...school,
-    classes: [...school.classes, ...extra.classes],
+    classes,
     children: [...school.children, ...extra.children],
   };
 };

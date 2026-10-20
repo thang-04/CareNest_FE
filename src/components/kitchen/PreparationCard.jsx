@@ -45,16 +45,16 @@ export function PreparationCard({ item, md, classId = 'ALL', showHistory = true 
                   <thead>
                     <tr>
                       <th>Lớp</th>
-                      <th className="right">Suất thường</th>
-                      <th className="right">Suất thay thế</th>
+                      <th className="num">Suất thường</th>
+                      <th className="num">Suất thay thế</th>
                     </tr>
                   </thead>
                   <tbody>
                     {classes.map((c) => (
                       <tr key={c.classId}>
                         <td>{c.className}</td>
-                        <td className="right">{c.normal}</td>
-                        <td className="right">{c.substitute}</td>
+                        <td className="num">{c.normal}</td>
+                        <td className="num">{c.substitute}</td>
                       </tr>
                     ))}
                   </tbody>

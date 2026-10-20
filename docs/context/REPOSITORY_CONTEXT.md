@@ -39,8 +39,8 @@ Màn hình, route/navigation, client state, tích hợp API, UX/accessibility, �
 
 ## Ngoài scope V1 (liên quan Web)
 
-Quản lý tài sản (khấu hao, bảo trì, kiểm kê) — CSVC chỉ **báo và theo dõi sự cố** · kho/NCC (OPEN — `BE:docs/decisions/ADR-0009-nutrition-inventory-scope.md`, chưa làm) · chat thay Zalo · giáo án · chẩn đoán y tế/tâm lý · payroll/kế toán. Ngữ cảnh hoạt động/học tập: OPEN (BE ADR-0006) — không làm màn hình cho tới khi chốt.
+Quản lý tài sản (khấu hao, bảo trì, kiểm kê) — CSVC chỉ **báo và theo dõi sự cố** · kho/NCC (OPEN — `BE:docs/decisions/ADR-0009-nutrition-inventory-scope.md`; FE chỉ UI mock theo BA, `docs/features/nutrition-inventory.md`; không kiểm kê kho thực phẩm) · chat thay Zalo · giáo án · chẩn đoán y tế/tâm lý · payroll/kế toán. Ngữ cảnh hoạt động/học tập: OPEN (BE ADR-0006) — không làm màn hình cho tới khi chốt.
 
 ## Stack Web
 
-React + TypeScript (Next.js) — **PROPOSED**, chưa chốt. Router, state/cache, UI kit, cách lưu token, auth flow: chưa quyết định ⇒ hỏi trước khi chọn.
+React 18 + Vite, JavaScript/JSX — đã có source. Bảng quyết định: `docs/architecture/FRONTEND_ARCHITECTURE.md`; code: `docs/architecture/CODING_GUIDE.md`; giao diện: `DESIGN.md`. Auth thật / lưu token: PROPOSED (`docs/integration/AUTH_FLOW.md`) ⇒ hỏi trước khi đổi.

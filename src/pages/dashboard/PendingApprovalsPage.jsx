@@ -1,21 +1,26 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, ListChecks, RotateCcw } from '@/components/ui/icons';
+import { ArrowRight, Clock, ListChecks, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { usePendingApprovals } from '@/hooks/dashboard/useDashboard';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ROLES } from '@/models/User';
 import { APPROVAL_TYPE_META } from '@/models/dashboard/dashboardConstants';
+import { FACILITY_ENABLED } from '@/config/app';
 import { approvalsCrumbs } from '@/utils/dashboard/breadcrumbs';
 import { formatWhen } from '@/utils/dashboard/dashboardFormat';
 import '@/styles/modules/dashboard.css';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
 const DESCRIPTIONS = {
-  PRINCIPAL: 'Đề xuất khen thưởng cuối năm, đề xuất mua sắm – sửa chữa và đề nghị bổ sung CSVC đang chờ Hiệu trưởng quyết định.',
-  VICE_PRINCIPAL:
-    'Kế hoạch chủ đề, giáo án, đề xuất khen thưởng, báo cáo sự cố, đề nghị bổ sung, kiểm kê, sĩ số suất ăn và phiếu xuất kho của điểm trường đang chờ bạn.',
+  PRINCIPAL: FACILITY_ENABLED
+    ? 'Đề xuất khen thưởng cuối năm, đề xuất mua sắm – sửa chữa và đề nghị bổ sung CSVC đang chờ Hiệu trưởng quyết định.'
+    : 'Đề xuất khen thưởng cuối năm đang chờ Hiệu trưởng quyết định.',
+  VICE_PRINCIPAL: FACILITY_ENABLED
+    ? 'Kế hoạch chủ đề, giáo án, đề xuất khen thưởng, báo cáo sự cố, đề nghị bổ sung, kiểm kê, sĩ số suất ăn và phiếu xuất kho của điểm trường đang chờ bạn.'
+    : 'Kế hoạch chủ đề, giáo án, đề xuất khen thưởng, sĩ số suất ăn và phiếu xuất kho của điểm trường đang chờ bạn.',
   TEAM_LEADER: 'Giáo án của giáo viên trong nhóm tuổi đang chờ tổ trưởng xem xét trước khi chuyển Phó hiệu trưởng.',
 };
 
@@ -176,7 +181,7 @@ function ApprovalGroup({ group, showCampus, campusName, onRetry }) {
       ) : (
         <div className="card__body">
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th scope="col">Mã</th>
@@ -184,8 +189,10 @@ function ApprovalGroup({ group, showCampus, campusName, onRetry }) {
                   <th scope="col">Người gửi</th>
                   {showCampus && <th scope="col">Điểm trường</th>}
                   <th scope="col">Chờ từ</th>
-                  <th scope="col">Trạng thái</th>
-                  <th scope="col" className="right">
+                  <th scope="col" className="center">
+                    Trạng thái
+                  </th>
+                  <th scope="col" className="cell--actions">
                     <span className="sr-only">Thao tác</span>
                   </th>
                 </tr>
@@ -198,10 +205,10 @@ function ApprovalGroup({ group, showCampus, campusName, onRetry }) {
                     <td>{i.by}</td>
                     {showCampus && <td>{(i.campusId && campusName(i.campusId)) || 'Toàn trường'}</td>}
                     <td className="nowrap">{formatWhen(i.at)}</td>
-                    <td>
-                      <span className="chip chip--purple">{i.statusLabel}</span>
+                    <td className="center">
+                      <StatusBadge tone="purple" icon={Clock} label={i.statusLabel} />
                     </td>
-                    <td className="right">
+                    <td className="cell--actions">
                       <Link to={i.to} className="btn btn--primary btn--sm nowrap" aria-label={`Xem và duyệt ${i.code}`}>
                         Xem và duyệt
                       </Link>

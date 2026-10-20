@@ -4,9 +4,6 @@
  */
 
 /* ---------- Page / card helpers ---------- */
-.ga-page-head {
-  margin-bottom: var(--space-4);
-}
 .ga-num {
   display: inline-flex;
   align-items: center;
@@ -14,10 +11,10 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--primary-50);
+  background: var(--color-primary-soft);
   color: var(--primary);
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   margin-right: var(--space-2);
 }
 .ga-card-foot {
@@ -106,7 +103,7 @@
 }
 .ga-signature-font {
   font-size: var(--fs-h2);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 /* ---------- Goal domains (collapsible groups) ---------- */
@@ -130,7 +127,7 @@
 .ga-domain__head h3 {
   margin: 0;
   font-size: var(--fs-title-sm);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .ga-domain__toggle {
   width: 30px;
@@ -178,7 +175,7 @@
   margin-left: var(--space-6);
 }
 .ga-goal-code {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   font-size: var(--fs-sm);
   color: var(--primary);
 }
@@ -192,7 +189,7 @@
   cursor: pointer;
 }
 .ga-goal-check:hover {
-  background: var(--primary-50);
+  background: var(--color-primary-soft);
 }
 .ga-goal-check input {
   margin-top: 3px;
@@ -210,7 +207,7 @@
 
 /* ---------- Requirement codes (YCCĐ) ---------- */
 .ga-code-chip {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .ga-chip-x {
   display: inline-flex;
@@ -226,7 +223,7 @@
   cursor: pointer;
 }
 .ga-chip-x:hover {
-  background: var(--primary-100);
+  background: var(--color-primary-soft-hover);
 }
 .ga-chip-x svg {
   width: 11px;
@@ -239,17 +236,17 @@
   height: 24px;
   padding: 0 var(--space-2);
   border: 1px dashed var(--border-dashed);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--surface);
   color: var(--primary);
   font: inherit;
   font-size: var(--fs-xs);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   cursor: pointer;
 }
 .ga-chip-add:hover {
   border-color: var(--primary);
-  background: var(--primary-50);
+  background: var(--color-primary-soft);
 }
 .ga-chip-add svg {
   width: 12px;
@@ -261,7 +258,7 @@
 .ga-code-pop {
   position: absolute;
   z-index: 40;
-  top: calc(100% + 6px);
+  top: calc(100% + var(--space-1-5));
   left: 0;
   width: 380px;
   max-width: 80vw;
@@ -278,7 +275,7 @@
 }
 .ga-code-pop__group {
   font-size: var(--fs-xs);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   color: var(--text-2);
   padding: var(--space-2) var(--space-2) 2px;
 }
@@ -300,7 +297,7 @@
 }
 .ga-code-opt:hover,
 .ga-code-opt--selected {
-  background: var(--primary-50);
+  background: var(--color-primary-soft);
 }
 .ga-code-check {
   width: 16px;
@@ -347,7 +344,13 @@
   min-width: 130px;
 }
 .ga-cell-title {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
+}
+.ga-day-date {
+  font-weight: var(--fw-regular);
+}
+.ga-col-prep {
+  width: 170px;
 }
 .ga-cell-sub {
   font-size: var(--fs-xs);
@@ -366,27 +369,7 @@
   z-index: var(--z-sticky);
   background: var(--color-bg);
 }
-/* Phần dính trên form kế hoạch: stepper và thanh công cụ gọn để nhường chỗ cho nội dung */
-.ga-sticky-head .stepper-card {
-  padding: var(--space-2) var(--space-6);
-  margin-bottom: var(--space-2);
-}
-.ga-sticky-head .stepper__btn {
-  gap: var(--space-1);
-}
-.ga-sticky-head .stepper__dot {
-  width: 26px;
-  height: 26px;
-  font-size: var(--fs-xs);
-}
-.ga-sticky-head .stepper__item:not(:last-child)::after {
-  top: 12px;
-  left: calc(50% + 17px);
-  right: calc(-50% + 17px);
-}
-.ga-sticky-head .stepper__label {
-  font-size: var(--fs-xs);
-}
+/* Phần dính trên form kế hoạch: thanh công cụ gọn để nhường chỗ cho nội dung (stepper gọn sẵn ở components.css) */
 .ga-sticky-head .ga-sticky-bar {
   margin-bottom: var(--space-2);
 }
@@ -429,6 +412,18 @@
 }
 .ga-goal-table__del {
   width: 64px;
+}
+/* Cột "Tháng" bảng chủ đề nhánh: đủ "Tháng 12" trên 1 dòng */
+.ga-col-month {
+  width: calc(var(--space-16) * 1.375);
+}
+/* Bảng có tay nắm: căn giữa theo chiều dọc để tay nắm, chữ, ô chọn, nút xóa cùng một hàng */
+.table.ga-goal-table.ga-sortable-table td {
+  vertical-align: middle;
+}
+/* Một người ký trong danh sách kéo-thả: bo góc để vạch thả và nền đang nhấc gọn trong ô */
+.ga-signer {
+  border-radius: var(--radius-xs);
 }
 .ga-goal-table__pad {
   padding: var(--space-2) var(--space-3);
@@ -549,15 +544,13 @@
 .ga-goal-table .search-select__panel {
   min-width: 420px;
 }
-/* Cột cố định, không nhập (STT, mục tiêu tự tính của chủ đề): nền xám cả tiêu đề và ô, không đổi khi rê chuột (Tiền duyệt 14/10) */
-.table.ga-goal-table th.ga-goal-table__fixed,
-.table.ga-goal-table tbody tr td.ga-goal-table__fixed,
-.table.ga-goal-table tbody tr:hover td.ga-goal-table__fixed,
-.table.ga-goal-table tbody tr:nth-child(even) td.ga-goal-table__fixed,
-.table.ga-goal-table tbody tr:nth-child(even):hover td.ga-goal-table__fixed {
+/* Ô cố định (class chung .cell--fixed): bảng mục tiêu tự đặt nền trắng ở selector mạnh hơn nên nhắc lại nền xám (Tiền duyệt 14/10) */
+.table.ga-goal-table th.cell--fixed,
+.table.ga-goal-table tbody tr td.cell--fixed,
+.table.ga-goal-table tbody tr:hover td.cell--fixed,
+.table.ga-goal-table tbody tr:nth-child(even) td.cell--fixed,
+.table.ga-goal-table tbody tr:nth-child(even):hover td.cell--fixed {
   background: var(--color-secondary);
-  color: var(--color-text);
-  cursor: not-allowed;
 }
 /* Lịch chọn ngày ở bảng chủ đề / đợt nghỉ (Tiền duyệt 14/10): đỏ = ngày đã thuộc chủ đề / đợt nghỉ khác,
    xanh lá = ngày đang chọn và khoảng của chính dòng đang sửa, trắng = ngày còn trống */
@@ -733,4 +726,39 @@
   min-height: var(--btn-height-sm);
   padding: var(--space-1) var(--space-2);
   white-space: normal;
+}
+/* Modal duyệt tên chủ đề nhánh AI điền: tuần · tên cũ gạch → tên AI · ✓ ✗ */
+.ga-ai-review {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ga-ai-review__item {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.ga-ai-review__name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ga-ai-review__name ins {
+  text-decoration: none;
+  font-weight: var(--fw-semibold);
+  color: var(--color-primary);
+}
+@media (max-width: 640px) {
+  .ga-ai-review__item {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .ga-ai-review__week {
+    grid-column: 1 / -1;
+  }
 }

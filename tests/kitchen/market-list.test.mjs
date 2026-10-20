@@ -214,3 +214,17 @@ test('ngày học gần nhất đã qua có thực đơn trong dự trù tuần,
   assert.ok(week.days.find((x) => x.date === d).hasMenu, d);
   assert.ok(week.fresh.some((f) => f.days.some((x) => x.date === d && x.qty > 0)));
 });
+
+test('BA 02: đơn vị mua khác đơn vị kho ⇒ đi chợ theo đơn vị mua, xuất kho theo đơn vị kho', () => {
+  const bag = { purchaseUnit: 'bao 10 kg', purchaseUnitSize: 10000, stockUnit: 'kg', purchaseToStock: 10, stockUnitSize: 1000 };
+  const m = computeMarket(
+    { ...db, foods: db.foods.map((f) => (f.id === 'f1' ? { ...f, ...bag, unitPrice: 180000 } : f)) },
+    { date: DATE, counts, classById },
+  );
+  const rice = byName(m, 'Gạo tẻ');
+  // 840 g: mua tròn lên 1 bao; xuất kho 0,9 kg
+  assert.deepEqual([rice.purchaseUnit, rice.buyUnits, rice.stockUnit, rice.stockUnits], ['bao 10 kg', 1, 'kg', 0.9]);
+  // Thực phẩm chưa khai đơn vị kho: xuất kho trùng lượng mua
+  const egg = byName(computeMarket(db, { date: DATE, counts, classById }), 'Gạo tẻ');
+  assert.deepEqual([egg.stockUnit, egg.stockUnits], [egg.purchaseUnit, egg.buyUnits]);
+});

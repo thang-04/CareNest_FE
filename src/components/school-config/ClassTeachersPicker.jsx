@@ -75,7 +75,7 @@ export function ClassTeachersPicker({ teachers, classesOf, classId, form, onTogg
         <table className="table table--grid table--compact">
           <thead>
             <tr>
-              <th>Phụ trách lớp</th>
+              <th className="center">Phụ trách lớp</th>
               <th>Giáo viên</th>
               <th>Lớp phụ trách</th>
               <th className="center">Chủ nhiệm</th>
@@ -94,7 +94,7 @@ export function ClassTeachersPicker({ teachers, classesOf, classId, form, onTogg
                 const others = othersOf(t.id);
                 return (
                   <tr key={t.id} className={checked ? 'row--selected' : ''}>
-                    <td>
+                    <td className="center">
                       <label className="checkbox">
                         <input
                           type="checkbox"

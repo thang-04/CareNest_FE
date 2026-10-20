@@ -87,7 +87,7 @@ export function CopyClassesModal({ open, onClose, target, years }) {
       toast.success(copyResultMessage(result), `Sao chép lớp vào năm học ${target.name}`);
       onClose(true);
     } catch (err) {
-      toast.error(err.message, 'Không sao chép được');
+      toast.error(err, 'Không sao chép được');
     } finally {
       setSaving(false);
     }
@@ -149,7 +149,7 @@ export function CopyClassesModal({ open, onClose, target, years }) {
                     <th>Nhóm tuổi</th>
                     <th>Điểm trường</th>
                     <th>Phòng</th>
-                    <th className="center">Sĩ số tối đa</th>
+                    <th className="num">Sĩ số tối đa</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -171,7 +171,7 @@ export function CopyClassesModal({ open, onClose, target, years }) {
                       <td>{groupName(c.ageGroupId)}</td>
                       <td>{md.campusById(c.campusId)?.shortName}</td>
                       <td>{roomOf(c)}</td>
-                      <td className="center">{c.capacity}</td>
+                      <td className="num">{c.capacity}</td>
                     </tr>
                   ))}
                 </tbody>

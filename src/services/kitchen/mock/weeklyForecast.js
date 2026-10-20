@@ -1,4 +1,5 @@
 import { computeMarket, purchaseStep } from '@/services/kitchen/mock/marketList';
+import { foodUnits } from '@/utils/menu-planning/foodUnits';
 import { addDays, defaultStorageOf } from '@/models/menu-planning/menuPlanningConstants';
 import { activeKitchenClasses, classMealSessions, mealSessionsForCampus } from './attendanceSource';
 
@@ -147,7 +148,8 @@ export function buildWeeklyForecast(db, { campusId, weekStart, record, ctx }) {
     .sort(byName)
     .map((f) => {
       const need = r3(days.filter((d) => !d.confirmed).reduce((n, d) => n + (f.byDate[d.date] || 0), 0));
-      const stock = r3(ctx.stockOf(f.foodId));
+      // Tồn lưu theo đơn vị kho; dự trù đi chợ theo đơn vị mua ⇒ đổi tồn sang đơn vị mua
+      const stock = r3(ctx.stockOf(f.foodId) / foodUnits(foodById[f.foodId]).purchaseToStock);
       const toBuy = need > stock ? roundUp(need - stock, purchaseStep(f.unit)) : 0;
       return { foodId: f.foodId, name: f.name, unit: f.unit, need, stock, toBuy };
     })

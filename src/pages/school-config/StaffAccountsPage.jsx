@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Pencil, UserCog, Users, PauseCircle, RotateCcw } from '@/components/ui/icons';
+import { Plus, UserCog, Users, PauseCircle, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useStaffAccounts } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { Avatar } from '@/components/ui/Avatar';
+import { RowActions } from '@/components/ui/RowActions';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { StaffStatusBadge } from '@/components/school-config/SchoolConfigBadges';
@@ -159,8 +159,8 @@ export default function StaffAccountsPage() {
                   <th>Điểm trường</th>
                   <th>Đang phụ trách</th>
                   <th>Số điện thoại</th>
-                  <th>Trạng thái</th>
-                  {cols === 7 && <th className="right">Thao tác</th>}
+                  <th className="center">Trạng thái</th>
+                  {cols === 7 && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
@@ -195,56 +195,33 @@ export default function StaffAccountsPage() {
                         <td>{md.campusById(u.campusId)?.shortName || <span className="muted">—</span>}</td>
                         <td className="text-sm sc-wrap">{list.length ? list.join(' · ') : <span className="muted">—</span>}</td>
                         <td className="nowrap">{u.phone || <span className="muted">—</span>}</td>
-                        <td>
+                        <td className="center">
                           <StaffStatusBadge status={u.status || 'ACTIVE'} />
                         </td>
                         {vpEdits && (
-                          <td className="right nowrap">
+                          <td className="cell--actions">
                             {canEditStaffProfile(u, user) && (
-                              <button
-                                className="icon-btn"
-                                title="Sửa hồ sơ"
-                                aria-label={`Sửa hồ sơ ${u.fullName}`}
-                                onClick={() => setProfileOf(u)}
-                              >
-                                <Pencil size={17} />
-                              </button>
+                              <RowActions edit={{ onClick: () => setProfileOf(u), label: 'Sửa hồ sơ' }} name={u.fullName} />
                             )}
                           </td>
                         )}
                         {manage && (
-                          <td className="right nowrap">
+                          <td className="cell--actions">
                             {principal ? (
                               <span className="text-xs muted">Tài khoản Hiệu trưởng</span>
                             ) : (
-                              <>
-                                <button
-                                  className="icon-btn"
-                                  title="Sửa / đổi vai trò"
-                                  aria-label={`Sửa ${u.fullName}`}
-                                  onClick={() => setEditing({ account: u })}
-                                >
-                                  <Pencil size={17} />
-                                </button>
-                                {u.role === ROLES.VICE_PRINCIPAL && (
-                                  <Link
-                                    className="icon-btn"
-                                    to="/school/vice-principals"
-                                    title="Phân công Phó hiệu trưởng"
-                                    aria-label="Phân công Phó hiệu trưởng"
-                                  >
-                                    <UserCog size={17} />
-                                  </Link>
-                                )}
-                                <button
-                                  className="icon-btn"
-                                  title={active ? 'Vô hiệu hóa' : 'Kích hoạt lại'}
-                                  aria-label={`${active ? 'Vô hiệu hóa' : 'Kích hoạt lại'} ${u.fullName}`}
-                                  onClick={() => setStatusOf(u)}
-                                >
-                                  {active ? <PauseCircle size={17} /> : <RotateCcw size={17} />}
-                                </button>
-                              </>
+                              <RowActions
+                                edit={{ onClick: () => setEditing({ account: u }), label: 'Sửa / đổi vai trò' }}
+                                menu={[
+                                  ...(u.role === ROLES.VICE_PRINCIPAL
+                                    ? [{ label: 'Phân công Phó hiệu trưởng', icon: UserCog, to: '/school/vice-principals' }]
+                                    : []),
+                                  active
+                                    ? { label: 'Vô hiệu hóa', icon: PauseCircle, danger: true, onClick: () => setStatusOf(u) }
+                                    : { label: 'Kích hoạt lại', icon: RotateCcw, onClick: () => setStatusOf(u) },
+                                ]}
+                                name={u.fullName}
+                              />
                             )}
                           </td>
                         )}

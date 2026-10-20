@@ -1,46 +1,37 @@
 import { useState } from 'react';
 import {
-  Baby,
   BookOpenCheck,
   Building2,
   CalendarCheck,
   CalendarDays,
   ListChecks,
-  School,
+  Stethoscope,
   UserRound,
+  Utensils,
   UtensilsCrossed,
   Wrench,
 } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { useWidget, usePendingApprovals } from '@/hooks/dashboard/useDashboard';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { useWidget, usePendingApprovals, useDashboardToday } from '@/hooks/dashboard/useDashboard';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { Widget, KpiCard, Shortcuts, ShortList } from '@/components/dashboard/DashboardWidgets';
+import { Widget, KpiCard, Shortcuts, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
-import { IssueStatusBadge } from '@/components/facility/FacilityBadges';
-import { getChildren } from '@/services/children/childrenService';
-import { getCampusesWithStats } from '@/services/school-config/schoolConfigService';
+import { AttentionWidget, ClassRankWidget } from '@/components/dashboard/TodayWidgets';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getIssues } from '@/services/facility/facilityService';
 import { getPublishedMenu } from '@/services/kitchen/kitchenService';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
-import { CHILD_STATUS } from '@/models/School';
-import { ISSUE_STATUS, ISSUE_TYPE_LABELS } from '@/models/facility/facilityConstants';
-import { MEAL_SESSION_LABELS, MENU_TYPE } from '@/models/kitchen/kitchenConstants';
+import { attendanceCompareText } from '@/services/dashboard/dashboardSummaryService';
+import { ISSUE_STATUS } from '@/models/facility/facilityConstants';
+import { MENU_TYPE } from '@/models/kitchen/kitchenConstants';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { formatDate, formatDateTime, todayInput } from '@/utils/format';
+import { todayInput } from '@/utils/format';
+import { FACILITY_ENABLED } from '@/config/app';
 import '@/styles/modules/dashboard.css';
 
 const firstLoad = (q) => q.loading && q.data == null;
-
-/** Present / total of one campus today, from the first meal session count (attendance is shared by both sessions). */
-const attendanceOf = (counts, campusId) => {
-  const first = counts.find((c) => c.campusId === campusId && c.session === 'LUNCH') || counts.find((c) => c.campusId === campusId);
-  if (!first) return null;
-  const t = first.totals;
-  return { present: t.present, total: t.present + t.absent + t.missing };
-};
+const RANK_LIMIT = 6;
 
 const SHORTCUTS = [
   { to: '/school/years', label: 'Cấu hình trường', icon: CalendarDays },
@@ -48,12 +39,11 @@ const SHORTCUTS = [
   { to: '/approvals', label: 'Chờ duyệt', icon: ListChecks },
   { to: '/facility/issues', label: 'Giám sát cơ sở vật chất', icon: Building2 },
   { to: '/menu/plans', label: 'Kế hoạch thực đơn', icon: UtensilsCrossed },
-];
+].filter((s) => FACILITY_ENABLED || !s.to.startsWith('/facility'));
 
 /**
- * #10 Principal Dashboard (UC 3.1 View School-wide Dashboard): school-wide indicators with a campus filter
- * (the school year is the one chosen in the header) and entries to children, menu plans, facility issues
- * and lesson plans. Read-only: nothing is changed from here.
+ * #10 Principal Dashboard (UC 3.1, wireframe A plan 2026-10-20): số toàn trường hôm nay có so sánh, lọc theo điểm trường,
+ * "Cần chú ý hôm nay" + 6 lớp có mặt thấp nhất, rồi chờ duyệt và số liệu khác. Chỉ đọc.
  */
 export default function PrincipalDashboard() {
   const md = useMasterData();
@@ -61,31 +51,42 @@ export default function PrincipalDashboard() {
   const [campusId, setCampusId] = useState('');
   const date = todayInput();
   const approvals = usePendingApprovals();
+  const todayQ = useDashboardToday(campusId);
 
-  const childrenQ = useWidget((u) => getChildren({ schoolYear, campusId }, u), [schoolYear, campusId]);
-  const campusesQ = useWidget((u) => getCampusesWithStats(schoolYear, u), [schoolYear]);
   const countsQ = useWidget((u) => getMealCounts({ date }, u), [date]);
-  const issuesQ = useWidget((u) => getIssues({ campusId }, u), [campusId]);
+  const issuesQ = useWidget((u) => getIssues({ campusId }, u), [campusId], { enabled: FACILITY_ENABLED });
   const menuQ = useWidget((u) => getPublishedMenu({ date, view: 'day' }, u), [date]);
   const eduQ = useWidget(() => getEducationPlans());
 
-  const children = childrenQ.data || [];
-  const active = children.filter((c) => c.status === CHILD_STATUS.ACTIVE).length;
-  const campuses = (campusesQ.data || []).filter((c) => !campusId || c.id === campusId);
-  const classCount = campuses.reduce((n, c) => n + c.classCount, 0);
-  const counts = countsQ.data?.counts || [];
-  const attendance = campuses.map((c) => attendanceOf(counts, c.id)).filter(Boolean);
-  const present = attendance.reduce((n, a) => n + a.present, 0);
-  const expected = attendance.reduce((n, a) => n + a.total, 0);
-  const issues = issuesQ.data || [];
-  const openIssues = issues.filter((i) => i.status === ISSUE_STATUS.SUBMITTED).length;
+  const att = todayQ.data?.attendance;
+  const health = todayQ.data?.health;
+  const lunches = (countsQ.data?.counts || []).filter((c) => c.session === 'LUNCH' && (!campusId || c.campusId === campusId));
+  const lunchMeals = lunches.reduce((n, c) => n + c.totals.normal + c.totals.substitute, 0);
+  const lunchConfirmed = lunches.filter((c) => c.status === 'CONFIRMED').length;
+  const openIssues = (issuesQ.data || []).filter((i) => i.status === ISSUE_STATUS.SUBMITTED).length;
   const approvalTotal = approvals.groups.reduce(
     (n, g) => n + g.items.filter((i) => !campusId || !i.campusId || i.campusId === campusId).length,
     0,
   );
   const lessons = eduQ.data?.lessons || [];
   const themes = eduQ.data?.themes || [];
-  const sessionsMenu = (menuQ.data?.[0]?.sessions || []).filter((s) => s.menus.length);
+  const lunchMenu = (menuQ.data?.[0]?.sessions || []).find((s) => s.session === 'LUNCH' && s.menus.length);
+  const lunchNormal = (lunchMenu?.menus || []).filter((m) => m.type !== MENU_TYPE.ALLERGY);
+  const lunchDishes = [...new Set(lunchNormal.flatMap((m) => m.dishes.map((d) => d.name)))];
+  const allergyMenus = (lunchMenu?.menus.length || 0) - lunchNormal.length;
+  const campusName = (id) => md.campusById(id)?.shortName || md.campusById(id)?.name || id;
+  const shortcuts = SHORTCUTS.map((s) =>
+    s.to === '/approvals' && approvalTotal > 0
+      ? {
+          ...s,
+          label: (
+            <>
+              {s.label} <span className="tab__count">{approvalTotal}</span>
+            </>
+          ),
+        }
+      : s,
+  );
 
   return (
     <div className="page">
@@ -104,199 +105,145 @@ export default function PrincipalDashboard() {
           </select>
         </div>
       </DashboardHeader>
-      <Shortcuts links={SHORTCUTS} />
+      <Shortcuts links={shortcuts} />
 
-      <div className="stat-grid">
-        <KpiCard
-          unit="trẻ"
-          icon={Baby}
-          to="/children"
-          tone="blue"
-          label="Trẻ đang học"
-          value={active}
-          loading={firstLoad(childrenQ)}
-          error={childrenQ.error}
-        />
-        <KpiCard
-          unit="lớp"
-          icon={School}
-          to="/school/classes"
-          tone="blue"
-          label="Lớp học"
-          value={classCount}
-          loading={firstLoad(campusesQ)}
-          error={campusesQ.error}
-        />
-        <KpiCard
-          icon={CalendarCheck}
-          to="/attendance/summary"
-          tone="green"
-          label="Có mặt hôm nay"
-          value={expected ? `${present}/${expected}` : '—'}
-          hint={expected ? undefined : 'Hôm nay chưa có số liệu điểm danh'}
-          loading={firstLoad(countsQ) || firstLoad(campusesQ)}
-          error={countsQ.error}
-        />
-        <KpiCard
-          unit="yêu cầu"
-          action={!approvals.failed.length}
-          icon={ListChecks}
-          to="/approvals"
-          tone="purple"
-          label="Chờ bạn phê duyệt"
-          value={approvalTotal}
-          hint={approvals.failed.length ? `${approvals.failed.length} nhóm không tải được` : undefined}
-          loading={approvals.loading && !approvals.groups.length}
-          error={approvals.error}
-        />
-        <KpiCard
-          unit="sự cố"
-          icon={Wrench}
-          to="/facility/issues"
-          tone="red"
-          label="Sự cố CSVC chờ xử lý"
-          value={openIssues}
-          loading={firstLoad(issuesQ)}
-          error={issuesQ.error}
-        />
+      <div className="db-kpis db-kpis--rows">
+        <section className="db-kpis__group db-kpis__group--wide" aria-labelledby="kpi-today">
+          <div className="db-kpis__head">
+            <h2 id="kpi-today" className="db-kpis__title">
+              Hôm nay
+            </h2>
+            <span className="db-kpis__help">So với cùng thứ tuần trước</span>
+          </div>
+          <div className="db-kpis__list">
+            <KpiCard
+              icon={CalendarCheck}
+              to="/attendance/summary"
+              tone="green"
+              label="Có mặt hôm nay"
+              value={att?.total ? `${att.present}/${att.total}` : '—'}
+              unit={att?.total ? 'trẻ' : undefined}
+              progress={att?.total ? att.present / att.total : undefined}
+              hint={
+                att?.total
+                  ? att.missing
+                    ? `${att.missing} trẻ chưa được điểm danh`
+                    : 'Đã điểm danh đủ'
+                  : 'Hôm nay chưa có số liệu điểm danh'
+              }
+              compare={attendanceCompareText(att)}
+              loading={firstLoad(todayQ)}
+              error={todayQ.error}
+            />
+            <KpiCard
+              icon={Stethoscope}
+              to="/attendance/health"
+              tone="teal"
+              label="Đã khám sức khỏe đầu ngày"
+              value={health?.present ? `${health.checked}/${health.present}` : '—'}
+              unit={health?.present ? 'trẻ' : undefined}
+              progress={health?.present ? health.checked / health.present : undefined}
+              progressLabel="đã khám"
+              hint={
+                health?.present
+                  ? health.noted
+                    ? `${health.noted} trẻ có dấu hiệu cần lưu ý`
+                    : 'Chưa có trẻ cần lưu ý'
+                  : 'Chưa có trẻ có mặt để khám'
+              }
+              loading={firstLoad(todayQ)}
+              error={todayQ.error}
+            />
+            <KpiCard
+              icon={Utensils}
+              to={`/attendance/meal-count?date=${date}`}
+              tone="blue"
+              label="Suất ăn trưa đã báo"
+              value={lunches.length ? lunchMeals : '—'}
+              unit={lunches.length ? 'suất' : undefined}
+              hint={
+                lunches.length ? `${lunchConfirmed}/${lunches.length} điểm trường đã xác nhận sĩ số` : 'Hôm nay không có bữa trưa bán trú'
+              }
+              loading={firstLoad(countsQ)}
+              error={countsQ.error}
+            />
+          </div>
+        </section>
+        <section className="db-kpis__group" aria-labelledby="kpi-todo">
+          <div className="db-kpis__head">
+            <h2 id="kpi-todo" className="db-kpis__title">
+              Cần bạn xử lý
+            </h2>
+          </div>
+          <div className="db-kpis__list">
+            <KpiCard
+              unit="yêu cầu"
+              action={!approvals.failed.length}
+              icon={ListChecks}
+              to="/approvals"
+              tone="purple"
+              label="Chờ bạn phê duyệt"
+              value={approvalTotal}
+              hint={approvals.failed.length ? `${approvals.failed.length} nhóm không tải được` : undefined}
+              loading={approvals.loading && !approvals.groups.length}
+              error={approvals.error}
+            />
+            {FACILITY_ENABLED && (
+              <KpiCard
+                unit="sự cố"
+                icon={Wrench}
+                to="/facility/issues"
+                tone="red"
+                action
+                label="Sự cố CSVC chờ xử lý"
+                value={openIssues}
+                loading={firstLoad(issuesQ)}
+                error={issuesQ.error}
+              />
+            )}
+          </div>
+        </section>
       </div>
 
       <div className="db-board">
         <div className="db-board__main">
-          <ApprovalsWidget approvals={approvals} campusId={campusId} />
-          <Widget
-            title="Tổng quan điểm trường"
-            icon={School}
-            to="/school/campuses"
-            linkLabel="Danh sách điểm trường"
-            loading={firstLoad(campusesQ)}
-            error={campusesQ.error}
-            onRetry={campusesQ.reload}
-            empty={!campuses.length}
-            emptyTitle="Chưa có dữ liệu cho phạm vi đã chọn"
-            emptyText="Đổi năm học ở thanh trên cùng hoặc chọn điểm trường khác."
-          >
-            <div className="table-wrap">
-              <table className="table table--compact">
-                <caption className="sr-only">Số lớp, số trẻ và tỷ lệ có mặt hôm nay theo điểm trường</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Điểm trường</th>
-                    <th scope="col" className="right">
-                      Lớp
-                    </th>
-                    <th scope="col" className="right">
-                      Trẻ
-                    </th>
-                    <th scope="col">Có mặt hôm nay</th>
-                    <th scope="col">Phó hiệu trưởng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {campuses.map((c) => {
-                    const a = attendanceOf(counts, c.id);
-                    return (
-                      <tr key={c.id}>
-                        <td className="fw-600">{c.shortName || c.name}</td>
-                        <td className="right">{c.classCount}</td>
-                        <td className="right">{c.childCount}</td>
-                        <td>
-                          {countsQ.error ? (
-                            <span className="muted">Không tải được</span>
-                          ) : a && a.total ? (
-                            <ProgressBar value={a.present} total={a.total} tone="green" />
-                          ) : (
-                            <span className="muted">Chưa có số liệu</span>
-                          )}
-                        </td>
-                        <td>{c.vicePrincipals.map((v) => v.fullName).join(', ') || <span className="muted">Chưa phân công</span>}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Widget>
-          <Widget
-            title="Sự cố cơ sở vật chất mới nhất"
-            icon={Wrench}
-            to="/facility/issues"
-            loading={firstLoad(issuesQ)}
-            error={issuesQ.error}
-            onRetry={issuesQ.reload}
-            empty={!issues.length}
-            emptyTitle="Chưa có báo cáo sự cố"
-            emptyText="Báo cáo của giáo viên và nhân viên bếp sẽ hiện ở đây."
-          >
-            <ShortList
-              rows={issues.slice(0, 5).map((i) => ({
-                key: i.id,
-                to: `/facility/issues/${i.id}`,
-                code: i.code,
-                title: `${ISSUE_TYPE_LABELS[i.type] || ''}: ${i.assetName}`,
-                meta: `${md.campusById(i.campusId)?.shortName || ''} · ${formatDateTime(i.createdAt)}`,
-                end: <IssueStatusBadge status={i.status} />,
-              }))}
-            />
-          </Widget>
+          <AttentionWidget q={todayQ} />
+          <ClassRankWidget q={todayQ} limit={RANK_LIMIT} campusName={campusId ? null : campusName} />
         </div>
         <div className="db-board__aside">
-          <Widget
-            title={`Thực đơn hôm nay, ${formatDate(date)}`}
-            icon={UtensilsCrossed}
-            to="/menu/plans"
-            linkLabel="Xem kế hoạch thực đơn"
-            loading={firstLoad(menuQ)}
-            error={menuQ.error}
-            onRetry={menuQ.reload}
-            empty={!sessionsMenu.length}
-            emptyTitle="Chưa có thực đơn công bố cho hôm nay"
-          >
-            {sessionsMenu.map((s) => {
-              const normal = s.menus.filter((m) => m.type !== MENU_TYPE.ALLERGY);
-              const dishes = [...new Set(normal.flatMap((m) => m.dishes.map((d) => d.name)))];
-              const allergyMenus = s.menus.length - normal.length;
-              return (
-                <div key={s.session} className="db-session">
-                  <div className="db-session__head">
-                    <span className="subsection-title">{MEAL_SESSION_LABELS[s.session] || s.session}</span>
-                    {allergyMenus > 0 && <span className="chip chip--orange">{allergyMenus} thực đơn thay thế</span>}
-                  </div>
-                  <div className="db-dishes">
-                    {dishes.map((name) => (
-                      <span key={name} className="chip chip--gray">
-                        {name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </Widget>
-          <Widget
-            title="Kế hoạch giáo dục toàn trường"
-            icon={BookOpenCheck}
-            loading={firstLoad(eduQ)}
-            error={eduQ.error}
-            onRetry={eduQ.reload}
-            to="/education/school"
-            linkLabel="Xem kế hoạch"
-          >
+          <ApprovalsWidget approvals={approvals} campusId={campusId} />
+          <Widget title="Số liệu khác" icon={BookOpenCheck}>
             <ShortList
               rows={[
                 {
+                  key: 'menu',
+                  to: '/menu/plans',
+                  icon: UtensilsCrossed,
+                  title: 'Thực đơn trưa hôm nay',
+                  meta: firstLoad(menuQ)
+                    ? 'Đang tải…'
+                    : menuQ.error
+                      ? 'Không tải được thực đơn'
+                      : lunchDishes.length
+                        ? lunchDishes.join(', ')
+                        : 'Chưa có thực đơn công bố cho hôm nay',
+                  end: allergyMenus > 0 ? <span className="chip chip--orange">{allergyMenus} thay thế</span> : null,
+                },
+                {
                   key: 'themes',
                   to: '/education/plan-reviews',
+                  icon: BookOpenCheck,
                   title: 'Kế hoạch chủ đề đã duyệt',
                   meta: `${themes.filter((t) => t.status === EDU_STATUS.PENDING_VP).length} kế hoạch đang chờ Phó hiệu trưởng duyệt`,
-                  end: <span className="db-count">{themes.filter((t) => t.status === EDU_STATUS.APPROVED).length}</span>,
+                  end: <TaskCount value={themes.filter((t) => t.status === EDU_STATUS.APPROVED).length} />,
                 },
                 {
                   key: 'lessons',
                   to: '/education/plan-reviews',
+                  icon: BookOpenCheck,
                   title: 'Giáo án đã duyệt',
                   meta: `${lessons.filter((l) => [EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP].includes(l.status)).length} giáo án đang chờ duyệt`,
-                  end: <span className="db-count">{lessons.filter((l) => l.status === EDU_STATUS.APPROVED).length}</span>,
+                  end: <TaskCount value={lessons.filter((l) => l.status === EDU_STATUS.APPROVED).length} />,
                 },
               ]}
             />

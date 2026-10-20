@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { AlertOctagon, AlertTriangle, CheckCircle2, Clock, FileEdit, FileText, Info, Send, XCircle } from '@/components/ui/icons';
+import { AlertOctagon, AlertTriangle, CheckCircle2, Clock, FileEdit, FileText, Info, Lock, Send, XCircle } from '@/components/ui/icons';
 import {
   Breadcrumb,
   EmptyState as SharedEmptyState,
@@ -38,14 +38,12 @@ export function PageHead({ crumbs, title, desc, actions }) {
   return (
     <>
       <Breadcrumb items={items} />
-      {/* Tiêu đề chỉ để trình đọc màn hình: đường dẫn đã hiện tên trang (Tiền chốt 12/10). */}
-      <h1 className="sr-only">{title}</h1>
-      {(desc || actions) && (
-        <div className="row row--between row--wrap gap-3 ga-page-head">
-          {desc ? <p className="muted text-sm">{desc}</p> : <span />}
-          {actions && <div className="row row--wrap">{actions}</div>}
-        </div>
-      )}
+      {/* Dùng đầu trang chung: h1 ẩn (đường dẫn đã hiện tên trang, Tiền chốt 12/10), mô tả dưới, nút lên hàng breadcrumb */}
+      <div className="page__head">
+        <h1 className="page__title">{title}</h1>
+        {desc && <p className="page__desc">{desc}</p>}
+        {actions && <div className="page__actions">{actions}</div>}
+      </div>
     </>
   );
 }
@@ -62,6 +60,18 @@ export const EduStatusBadge = createStatusBadge(
     REJECTED: ['red', XCircle],
   },
   EDU_STATUS_LABELS,
+);
+
+/** Hạn gửi hồ sơ chủ đề chỉ để nhắc, không chặn. */
+export const DueStateBadge = createStatusBadge(
+  { late: ['red', AlertTriangle], soon: ['orange', Clock] },
+  { late: 'Quá hạn', soon: 'Sắp đến hạn' },
+);
+
+/** Dòng chưa có hồ sơ: chưa lập / chưa soạn, hoặc chưa tới lượt (khóa). */
+export const DocAvailabilityBadge = createStatusBadge(
+  { NOT_PLANNED: ['gray', FileText], NOT_DRAFTED: ['gray', FileText], LOCKED: ['gray', Lock] },
+  { NOT_PLANNED: 'Chưa lập', NOT_DRAFTED: 'Chưa soạn', LOCKED: 'Chưa thể bắt đầu' },
 );
 
 /** Trạng thái kế hoạch năm: Tổ trưởng gửi Phó HT, Phó HT duyệt ban hành (ký tay trên bản in). */
@@ -167,7 +177,7 @@ export function FileItem({ file, onRemove }) {
   return (
     <div className="file-row">
       <FileText size={26} color="var(--file-pdf)" />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         {file.dataUrl ? (
           <a href={file.dataUrl} download={file.name} className="file-row__name">
             {file.name}

@@ -15,6 +15,7 @@ import {
   Wrench,
 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
+import { FACILITY_ENABLED } from '@/config/app';
 import { areaAccess } from '@/utils/school-config/schoolConfigPermissions';
 
 const R = ROLES;
@@ -42,8 +43,8 @@ const QUICK_ACTIONS = [
     roles: VP_ONLY,
     area: 'facility',
   },
-  { label: 'Thực đơn tuần', to: '/menu/weekly/new', group: 'Thực đơn', icon: CookingPot, roles: VP_ONLY, area: 'menu' },
-  { label: 'Phiếu nhập kho', to: '/kitchen/stock-receipts/new', group: 'Bếp & kho', icon: Truck, roles: VP_ONLY },
+  { label: 'Thực đơn tuần', to: '/menu/weekly', group: 'Dinh dưỡng', icon: CookingPot, roles: VP_ONLY, area: 'menu' },
+  { label: 'Phiếu nhập kho', to: '/kitchen/stock-receipts/new', group: 'Kho thực phẩm', icon: Truck, roles: VP_ONLY },
   { label: 'Kế hoạch năm học', to: '/education/goals', group: 'Kế hoạch giáo dục', icon: Target, roles: VP_ONLY },
   {
     label: 'Phiếu luân chuyển tài sản',
@@ -61,5 +62,8 @@ const QUICK_ACTIONS = [
 // PHT: mục tạo mới của một mảng chỉ hiện khi Hiệu trưởng giao quyền Thêm ở mảng đó
 export const getQuickActionsForRole = (role, user) =>
   QUICK_ACTIONS.filter(
-    (a) => a.roles.includes(role) && (!a.area || role !== R.VICE_PRINCIPAL || !!areaAccess(user, a.area).actions?.create),
+    (a) =>
+      a.roles.includes(role) &&
+      (FACILITY_ENABLED || !a.to.startsWith('/facility')) &&
+      (!a.area || role !== R.VICE_PRINCIPAL || !!areaAccess(user, a.area).actions?.create),
   );

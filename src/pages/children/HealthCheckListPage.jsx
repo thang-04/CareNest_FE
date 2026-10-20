@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, RotateCcw, Eye, Info, Stethoscope, Search } from '@/components/ui/icons';
+import { Plus, RotateCcw, Info, Stethoscope, Search } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useHealthChecks } from '@/hooks/children/useHealthChecks';
@@ -8,6 +8,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { CampaignStatusBadge } from '@/components/children/ChildBadges';
 import { CAMPAIGN_STATUS_LABELS } from '@/models/children/healthCheckConstants';
 import { formatDate } from '@/utils/format';
@@ -92,7 +93,7 @@ export default function HealthCheckListPage() {
             ))}
           </select>
           <button className="btn" onClick={resetFilters} disabled={!filtered}>
-            <RotateCcw size={15} /> Đặt lại
+            <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
         {error ? (
@@ -105,10 +106,10 @@ export default function HealthCheckListPage() {
                   <th>Đợt khám</th>
                   <th>Điểm trường</th>
                   <th>Ngày khám</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                   <th>Đã nhập kết quả</th>
                   <th>Cần theo dõi</th>
-                  <th className="center">Thao tác</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -161,7 +162,7 @@ export default function HealthCheckListPage() {
                       <td className="nowrap text-sm">
                         {formatDate(c.startDate)} – {formatDate(c.endDate)}
                       </td>
-                      <td>
+                      <td className="center">
                         <CampaignStatusBadge status={c.status} />
                       </td>
                       <td className="tr-progress-cell">
@@ -178,15 +179,8 @@ export default function HealthCheckListPage() {
                           </>
                         )}
                       </td>
-                      <td className="center nowrap">
-                        <Link
-                          className="icon-btn"
-                          to={`/children/health-checks/${c.id}`}
-                          title="Xem đợt khám"
-                          aria-label={`Xem đợt khám ${c.name}`}
-                        >
-                          <Eye size={17} />
-                        </Link>
+                      <td className="cell--actions">
+                        <RowActions view={{ to: `/children/health-checks/${c.id}`, label: 'Xem đợt khám' }} name={c.name} />
                       </td>
                     </tr>
                   ))

@@ -11,8 +11,8 @@ export function TransferPrintButtons({ transfer, md }) {
   const [preview, setPreview] = useState(false);
   if (transfer.status === TRANSFER_STATUS.DRAFT) return null;
   return (
-    <div className="row no-print" style={{ gap: 8 }}>
-      <button className="btn" onClick={() => setPreview(true)}>
+    <div className="row no-print gap-2">
+      <button type="button" className="btn" onClick={() => setPreview(true)}>
         <FileSearch size={16} /> Xem trước PDF
       </button>
       <Link className="btn" to={`/facility/transfers/${transfer.id}/print`}>

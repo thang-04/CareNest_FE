@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarPlus, CalendarRange, Check, ChevronLeft, ChevronRight, Printer, Send, ShoppingBasket, Users } from '@/components/ui/icons';
+import { CalendarPlus, Check, Printer, Send, ShoppingBasket, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useKitchenCampus, useWeeklyForecast } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { Modal } from '@/components/ui/Modal';
 import { PrintToolbar } from '@/components/print/PrintToolbar';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
+import { WeekPicker } from '@/components/form/WeekPicker';
 import { DryOrderTable, FreshOrderTable, SupplierChangeCard, WeekForecastGrid, weekLabel } from '@/components/kitchen/ForecastBlocks';
 import { WeeklyOrderPrint } from '@/components/kitchen/WeeklyOrderPrint';
 import { markWeeklyOrderSent, saveWeeklyForecast, setSupplierNotified } from '@/services/kitchen/kitchenService';
@@ -38,7 +39,7 @@ export default function WeeklyForecastPage() {
   const [saving, setSaving] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
   const [printing, setPrinting] = useState(false);
-  const [busyKey, setBusyKey] = useState(null);
+  const [notifiedOverride, setNotifiedOverride] = useState({});
   const sheetRef = useRef(null);
 
   // Đổi tuần hoặc cơ sở thì bỏ ô đang sửa
@@ -98,18 +99,39 @@ export default function WeeklyForecastPage() {
     }
   };
 
-  const toggleNotified = async (date, foodId, notified) => {
-    setBusyKey(`${date}|${foodId}`);
-    try {
-      await setSupplierNotified({ campusId, weekStart, date, foodId, notified }, user);
-      reload({ silent: true });
-    } catch (err) {
-      toast.error(err.message || 'Không lưu được. Vui lòng thử lại.');
-      reload({ silent: true });
-    } finally {
-      setBusyKey(null);
+  // Ô tích đổi ngay trên màn hình (giữ trong notifiedOverride tới khi dữ liệu tải lại khớp); API nhận từng dòng nên gửi song song
+  const setNotified = async (date, foodIds, notified) => {
+    if (!foodIds.length) return;
+    const keys = foodIds.map((id) => `${date}|${id}`);
+    setNotifiedOverride((o) => ({ ...o, ...Object.fromEntries(keys.map((k) => [k, notified])) }));
+    const results = await Promise.allSettled(
+      foodIds.map((foodId) => setSupplierNotified({ campusId, weekStart, date, foodId, notified }, user)),
+    );
+    const failed = keys.filter((_, i) => results[i].status === 'rejected');
+    if (failed.length) {
+      // Dòng lỗi trả về trạng thái đã lưu
+      setNotifiedOverride((o) => Object.fromEntries(Object.entries(o).filter(([k]) => !failed.includes(k))));
+      const reason = results.find((r) => r.status === 'rejected').reason;
+      toast.error(`${reason?.message || 'Không lưu được.'} ${failed.length}/${keys.length} dòng chưa lưu.`, 'Chưa lưu hết');
     }
+    reload({ silent: true });
   };
+  const toggleNotified = (date, foodId, notified) => setNotified(date, [foodId], notified);
+  const toggleAllNotified = (date, lines, notified) =>
+    setNotified(
+      date,
+      lines.filter((l) => (notifiedOverride[`${date}|${l.foodId}`] ?? l.notified) !== notified).map((l) => l.foodId),
+      notified,
+    );
+
+  // Dữ liệu tải lại đã khớp ô vừa tích thì bỏ giá trị tạm
+  useEffect(() => {
+    const saved = Object.fromEntries((data?.changes || []).flatMap((g) => g.lines.map((l) => [`${g.date}|${l.foodId}`, l.notified])));
+    setNotifiedOverride((o) => {
+      const left = Object.entries(o).filter(([k, v]) => k in saved && saved[k] !== v);
+      return left.length === Object.keys(o).length ? o : Object.fromEntries(left);
+    });
+  }, [data]);
 
   const totalOf = useMemo(() => Object.fromEntries((data?.days || []).map((d) => [d.date, d.total])), [data]);
 
@@ -130,28 +152,22 @@ export default function WeeklyForecastPage() {
   );
 
   const toolbar = (
-    <div className="kb-toolbar kb-toolbar--center">
-      <span className="kb-week-nav">
-        <button type="button" className="icon-btn" aria-label="Tuần trước" onClick={() => go({ week: addDays(weekStart, -7) })}>
-          <ChevronLeft size={18} />
-        </button>
-        <span className="chip chip--blue">
-          <CalendarRange size={14} /> Tuần {weekLabel(data?.days || [{ date: weekStart }, { date: addDays(weekStart, 4) }])}
+    // Căn đáy: mọi ô có nhãn phía trên, phần không nhãn cao bằng ô nhập để thẳng hàng
+    <div className="kb-toolbar">
+      <div className="date-filter">
+        Tuần
+        <span className="date-filter__static">
+          <WeekPicker value={weekStart} thisWeek={thisWeek} onChange={(week) => go({ week })} />
         </span>
-        <button type="button" className="icon-btn" aria-label="Tuần sau" onClick={() => go({ week: nextWeek })}>
-          <ChevronRight size={18} />
-        </button>
-      </span>
+      </div>
       <KbCampusFilter campusId={campusId} onChange={setCampusId} canPick={canPick} />
       {data && (
-        <span className={`chip ${menuPublished ? 'chip--green' : 'chip--gray'}`}>
-          {menuPublished ? 'Thực đơn tuần đã công bố' : 'Chưa có thực đơn tuần đã công bố'}
+        <span className="date-filter__static">
+          <StatusBadge
+            tone={menuPublished ? 'green' : 'gray'}
+            label={menuPublished ? 'Thực đơn tuần đã công bố' : 'Chưa có thực đơn tuần đã công bố'}
+          />
         </span>
-      )}
-      {weekStart !== thisWeek && (
-        <button type="button" className="btn btn--sm btn--ghost" onClick={() => go({ week: thisWeek })}>
-          Về tuần này
-        </button>
       )}
     </div>
   );
@@ -238,11 +254,9 @@ export default function WeeklyForecastPage() {
             </h2>
             <div className="kb-actions">
               {data.sent ? (
-                <span className="chip chip--green">
-                  <Check size={14} /> Đã gửi NCC {formatDateTime(data.sent.at)}
-                </span>
+                <StatusBadge tone="green" icon={Check} label={`Đã gửi NCC ${formatDateTime(data.sent.at)}`} />
               ) : (
-                <span className="chip chip--gray">Chưa gửi NCC</span>
+                <StatusBadge tone="gray" label="Chưa gửi NCC" />
               )}
               <button type="button" className="btn btn--sm" onClick={() => setPrinting(true)}>
                 <Printer size={16} /> In
@@ -282,14 +296,18 @@ export default function WeeklyForecastPage() {
           {orderTab === 'tuoi' ? (
             <>
               <FreshOrderTable data={data} today={today} />
-              {data.sent && <p className="card__body text-xs muted">Số gạch là số đã gửi NCC; phần đổi nằm ở tab Báo NCC thay đổi.</p>}
+              {data.sent && data.fresh.length > 0 && (
+                <p className="card__body text-xs muted">Số gạch là số đã gửi NCC; phần đổi nằm ở tab Báo NCC thay đổi.</p>
+              )}
             </>
           ) : (
             <>
               <DryOrderTable data={data} />
-              <p className="card__body text-xs muted">
-                Cần cho tuần tính theo dự trù các ngày chưa chốt. Kho chỉ trừ thật lúc chốt suất mỗi ngày.
-              </p>
+              {data.dry.length > 0 && (
+                <p className="card__body text-xs muted">
+                  Cần cho tuần tính theo dự trù các ngày chưa chốt. Kho chỉ trừ thật lúc chốt suất mỗi ngày.
+                </p>
+              )}
             </>
           )}
         </section>
@@ -315,8 +333,9 @@ export default function WeeklyForecastPage() {
             total={totalOf[g.date]}
             today={today}
             canEdit={canEdit}
-            busyKey={busyKey}
+            override={notifiedOverride}
             onToggle={toggleNotified}
+            onToggleAll={toggleAllNotified}
           />
         ))}
       </div>

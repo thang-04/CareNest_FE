@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { ClipboardCheck, Flag, Info, Lock, UserX } from '@/components/ui/icons';
+import { CheckCheck, ClipboardCheck, Flag, Info, Lock, Save, UserX } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useAssessmentClasses, useDailyDaySheet } from '@/hooks/assessment/useAssessment';
-import { saveDailyDay } from '@/services/assessment/assessmentService';
+import { useAssessmentClasses, useDailySheet } from '@/hooks/assessment/useAssessment';
+import { DailyModeSelect } from '@/components/assessment/DailyModeSelect';
+import { saveDailyAssessments } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { SidePanel } from '@/components/ui/SidePanel';
-import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
-import { BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
-import { Cell, focusCell } from '@/components/education-plan/planUi';
+import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
+import { BehaviorsCell, CellPopover, GoalChips, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { EATING, NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { formatDate, formatDateTime } from '@/utils/format';
@@ -19,62 +19,41 @@ import { addDays, isSchoolDay, todayIso, unlockDeadline } from '@/utils/assessme
 import { validateDailyEntry, hasErrors } from '@/utils/assessment/assessmentValidation';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
-// Bảng cùng kiểu bảng mục tiêu năm học / giáo án (Tiền 20/10)
-import '@/styles/modules/education-plan.css';
-
-const AUTOSAVE_MS = 1200;
 
 const lastSchoolDay = () => {
   let d = todayIso();
   while (!isSchoolDay(d)) d = addDays(d, -1);
   return d;
 };
-const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-/** Kết quả một giờ: mặc định Đạt mọi MT của giờ; "Chưa đạt" = mọi MT của giờ chưa đạt. */
-const resultOf = (ids, notMet) => (notMet ? { criteriaMet: [], criteriaNotMet: ids } : { criteriaMet: ids, criteriaNotMet: [] });
-
-/** Giá trị đang nhập của một trẻ cho cả ngày: nhóm ngày, cờ, nhận xét và kết quả từng giờ (chưa ghi thì mặc định Đạt). */
-const fromRow = (r, sheet) => {
+/** Giá trị đang nhập của một trẻ: nhóm ngày (sức khỏe, ăn ngủ, cảm xúc – hành vi) + hoạt động đang chọn. */
+const fromRow = (r, mealSessions) => {
   const o = r.observation;
+  const a = r.assessment;
   return {
     // Ô Sức khỏe: theo khám sức khỏe mới nhất khi cô chưa sửa (server tính sẵn)
     healthSigns: r.health?.signs || [],
     healthNote: r.health?.note || '',
     healthOverridden: !!r.health?.overridden,
     // Bữa cô đã tắt "Tham gia ăn" khi điểm danh luôn là Không ăn
-    meals: Object.fromEntries(
-      sheet.mealSessions.map((m) => [m, r.skippedMeals?.includes(m) ? EATING.KHONG_AN : o?.meals?.[m] || EATING.AN_HET]),
-    ),
+    meals: Object.fromEntries(mealSessions.map((m) => [m, r.skippedMeals?.includes(m) ? EATING.KHONG_AN : o?.meals?.[m] || EATING.AN_HET])),
     nap: o?.nap || NAP.NGU_TOT,
-    emotion: o?.emotion || EMOTION.HAPPY,
+    emotion: o?.emotion || a?.emotion || EMOTION.HAPPY,
     behaviors: o?.behaviors || [],
     behaviorNote: o?.behaviorNote || '',
-    flag: !!r.flag,
-    comment: r.comment || '',
-    activities: Object.fromEntries(
-      sheet.activities.map(({ activity, criteria }) => {
-        const a = r.assessments[activity];
-        const ids = criteria.map((c) => c.id);
-        return [
-          activity,
-          {
-            participation: a?.participation || PARTICIPATION.BINH_THUONG,
-            ...(a ? { criteriaMet: a.criteriaMet || [], criteriaNotMet: a.criteriaNotMet || [] } : resultOf(ids, false)),
-          },
-        ];
-      }),
-    ),
+    participation: a?.participation || PARTICIPATION.BINH_THUONG,
+    criteriaMet: a?.criteriaMet || [],
+    criteriaNotMet: a?.criteriaNotMet || [],
+    flag: !!a?.flag,
+    comment: a?.comment || '',
   };
 };
 
-const recordedOf = (r) => (r.observation?.recordedBy ? r.observation : Object.values(r.assessments).find(Boolean) || null);
+const COLS = 10;
+// Ô khác giá trị mặc định được tô nhẹ để giáo viên thấy ngay ngoại lệ
+const tint = (tone) => (tone ? `dg-cell--${tone}` : '');
 
-/**
- * #52 Đánh giá hằng ngày (UC 4.4, GBR-OBS-01..05): một bảng cho cả ngày, cùng kiểu bảng mục tiêu năm / giáo án (Tiền 20/10).
- * Mỗi giờ có MT trong kế hoạch ngày đã duyệt là một cột chỉ ghi Đạt / Chưa đạt, mặc định cả lớp Đạt: cô chỉ bấm trẻ chưa đạt.
- * Nhóm ngày, cờ (1 lần / ngày), nhận xét ghi một lần; bấm tên trẻ để ghi chi tiết cả ngày. Tự lưu sau khi ngừng sửa.
- */
+/** #52 Daily Assessment (UC 4.4, GBR-OBS-01..05) – teacher / team leader of the class. */
 export default function DailyAssessmentPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -83,219 +62,142 @@ export default function DailyAssessmentPage() {
   const [search] = useSearchParams();
   const [classId, setClassId] = useState(search.get('classId') || '');
   const [date, setDate] = useState(() => search.get('date') || lastSchoolDay());
+  // Hoạt động chung ghi theo giờ Hoạt động học; kiến thức kỹ năng từng giờ ở màn /assessment/daily/skills
+  const activity = 'Hoạt động học';
   const currentClassId = classId || classes[0]?.id || '';
-  const params = useMemo(() => ({ classId: currentClassId, date }), [currentClassId, date]);
-  const { sheet, loading, error, reload } = useDailyDaySheet(params);
+  const params = useMemo(() => ({ classId: currentClassId, date, activity }), [currentClassId, date, activity]);
+  const { sheet, loading, error, reload } = useDailySheet(params);
 
   const [drafts, setDrafts] = useState({});
   const [dirty, setDirty] = useState(new Set());
   const [rowErrors, setRowErrors] = useState({});
-  const [savedAt, setSavedAt] = useState({});
-  const [saveState, setSaveState] = useState({ phase: 'idle', at: null });
-  const [openChild, setOpenChild] = useState(null);
-  const inFlight = useRef(false);
-  const latest = useRef({});
+  const [saving, setSaving] = useState(false);
 
-  // Bảng mới (đổi lớp / ngày) thì nạp lại bản đang nhập
+  // A new sheet (class / date / activity changed or saved) resets the local edits.
   useEffect(() => {
     if (!sheet) return;
-    setDrafts(Object.fromEntries(sheet.rows.map((r) => [r.child.id, fromRow(r, sheet)])));
+    setDrafts(Object.fromEntries(sheet.rows.map((r) => [r.child.id, fromRow(r, sheet.mealSessions)])));
     setDirty(new Set());
     setRowErrors({});
-    setSavedAt({});
-    setSaveState({ phase: 'idle', at: null });
   }, [sheet]);
+
+  const resetEdits = () => {
+    setDirty(new Set());
+    setRowErrors({});
+  };
 
   const rowState = (r) => {
     if (!r.present) return 'absent';
-    const rec = recordedOf(r);
-    if (rec?.recordedBy && rec.recordedBy !== user.id) return 'other';
+    if (r.assessment && r.assessment.recordedBy !== user.id) return 'other';
     if (sheet.locked) return 'locked';
     return 'editable';
   };
 
-  const touch = (ids) => setDirty((prev) => new Set([...prev, ...ids]));
-  const clearError = (childId) =>
+  const update = (childId, patch) => {
+    setDrafts((prev) => ({ ...prev, [childId]: { ...prev[childId], ...patch } }));
+    setDirty((prev) => new Set(prev).add(childId));
     setRowErrors((prev) => {
       if (!prev[childId]) return prev;
       const next = { ...prev };
       delete next[childId];
       return next;
     });
-  const update = (childId, patch) => {
-    setDrafts((prev) => ({ ...prev, [childId]: { ...prev[childId], ...patch } }));
-    touch([childId]);
-    clearError(childId);
-  };
-  const updateActivity = (childId, activity, patch) => {
-    setDrafts((prev) => ({
-      ...prev,
-      [childId]: {
-        ...prev[childId],
-        activities: { ...prev[childId].activities, [activity]: { ...prev[childId].activities[activity], ...patch } },
-      },
-    }));
-    touch([childId]);
-    clearError(childId);
-  };
-  /** Bấm ô giờ: Đạt ↔ Chưa đạt (cho mọi MT của giờ). */
-  const toggleResult = (childId, a) => {
-    const notMet = drafts[childId].activities[a.activity].criteriaNotMet.length > 0;
-    updateActivity(
-      childId,
-      a.activity,
-      resultOf(
-        a.criteria.map((c) => c.id),
-        !notMet,
-      ),
-    );
   };
 
-  const editableRows = (sheet?.rows || []).filter((r) => r.present && rowState(r) === 'editable');
-  // Mặc định cả lớp Đạt: lần lưu nào cũng ghi kèm các trẻ chưa có bản ghi (với giá trị mặc định), để cô chỉ cần bấm trẻ chưa đạt
-  const pendingIds = (ids) => [
-    ...new Set([...ids, ...editableRows.filter((r) => !recordedOf(r) && !savedAt[r.child.id]).map((r) => r.child.id)]),
-  ];
-  const markAllPresent = () => touch(editableRows.map((r) => r.child.id));
-
-  const goalActs = sheet?.plan ? sheet.activities.filter((a) => a.criteria.length) : [];
-  const entriesOf = (ids) =>
-    ids.map((childId) => {
-      const d = drafts[childId];
-      // Gửi mọi giờ có MT (mặc định Đạt) và các giờ cô đã ghi mức tham gia ở khung chi tiết
-      const acts = sheet.activities.filter(
-        (a) => a.criteria.length || d.activities[a.activity].participation !== PARTICIPATION.BINH_THUONG,
-      );
-      return { childId, ...d, activities: Object.fromEntries(acts.map((a) => [a.activity, d.activities[a.activity]])) };
+  /** Đặt kết quả một mục tiêu cho nhiều trẻ (Cả lớp đạt, hoặc các trẻ đang chọn); trả số trẻ đã đặt. */
+  const setGoalFor = (ids, goalId, met) => {
+    const editable = ids.filter((childId) => rowState(sheet.rows.find((r) => r.child.id === childId)) === 'editable');
+    setDrafts((prev) => {
+      const next = { ...prev };
+      editable.forEach((childId) => {
+        const d = next[childId];
+        const criteriaMet = d.criteriaMet.filter((x) => x !== goalId);
+        const criteriaNotMet = d.criteriaNotMet.filter((x) => x !== goalId);
+        next[childId] = {
+          ...d,
+          criteriaMet: met ? [...criteriaMet, goalId] : criteriaMet,
+          criteriaNotMet: met ? criteriaNotMet : [...criteriaNotMet, goalId],
+        };
+      });
+      return next;
     });
-  const dirtyIds = [...dirty];
-  const key = sheet ? JSON.stringify(entriesOf(dirtyIds)) : '';
-  latest.current = { key, dirtyIds, entriesOf, pendingIds };
-  const flush = async () => {
-    const { dirtyIds: changed, entriesOf: build, key: k, pendingIds: pending } = latest.current;
-    if (!changed.length || inFlight.current) return;
-    const ids = pending(changed);
-    const entries = build(ids);
+    setDirty((prev) => new Set([...prev, ...editable]));
+    return editable.length;
+  };
+
+  const markAllPresent = () => {
+    const ids = sheet.rows.filter((r) => r.present && !r.assessment).map((r) => r.child.id);
+    setDirty((prev) => new Set([...prev, ...ids]));
+  };
+
+  const save = async () => {
+    const entries = [...dirty].map((childId) => ({ childId, ...drafts[childId] }));
     const local = {};
     entries.forEach((e) => {
-      const errs = validateDailyEntry(e);
-      Object.values(e.activities).forEach((a) => Object.assign(errs, validateDailyEntry({ ...e, ...a })));
-      if (hasErrors(errs)) local[e.childId] = errs;
+      const errors = validateDailyEntry(e);
+      if (hasErrors(errors)) local[e.childId] = errors;
     });
     if (hasErrors(local)) {
       setRowErrors(local);
-      setSaveState((s) => ({ ...s, phase: 'error' }));
+      toast.error('Một số dòng chưa hợp lệ. Kiểm tra các dòng được đánh dấu.', 'Chưa lưu được');
       return;
     }
-    inFlight.current = true;
-    setSaveState((s) => ({ ...s, phase: 'saving' }));
+    setSaving(true);
     try {
-      await saveDailyDay({ classId: currentClassId, date, entries }, user);
-      const at = new Date();
-      setSavedAt((prev) => ({ ...prev, ...Object.fromEntries(ids.map((id) => [id, at.toISOString()])) }));
-      // Không sửa thêm trong lúc lưu thì bỏ khỏi danh sách chờ lưu
-      if (latest.current.key === k) setDirty(new Set());
-      setSaveState({ phase: 'saved', at });
+      const res = await saveDailyAssessments({ classId: currentClassId, date, activity: sheet.activity, entries }, user);
+      toast.success(`Đã lưu ${res.saved} đánh giá. Phụ huynh của trẻ đã được thông báo.`);
+      reload({ silent: true });
     } catch (err) {
       if (err.details) setRowErrors(err.details);
-      setSaveState((s) => ({ ...s, phase: 'error' }));
-      toast.error(err.message, 'Không lưu được đánh giá');
+      toast.error(err, 'Không lưu được đánh giá');
     } finally {
-      inFlight.current = false;
+      setSaving(false);
     }
   };
-  useEffect(() => {
-    if (!dirtyIds.length || saveState.phase === 'error' || saveState.phase === 'saving') return undefined;
-    const t = setTimeout(flush, AUTOSAVE_MS);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, saveState.phase]);
-  // Rời trang khi còn thay đổi chưa kịp lưu: lưu nốt; đóng tab thì trình duyệt hỏi lại
-  useEffect(() => {
-    const warn = (e) => {
-      if (latest.current.dirtyIds.length) e.preventDefault();
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => {
-      window.removeEventListener('beforeunload', warn);
-      flush();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
+  const assessedCount = sheet?.rows.filter((r) => r.assessment).length || 0;
   const presentRows = sheet?.rows.filter((r) => r.present) || [];
   const presentCount = presentRows.length;
-  const assessedCount = presentRows.filter((r) => recordedOf(r) || savedAt[r.child.id]).length;
+  const presentIds = presentRows.map((r) => r.child.id);
+  const criteria = sheet?.criteria || [];
   const absentRows = sheet?.rows.filter((r) => r.attendanceStatus && !r.present) || [];
   const unmarkedRows = sheet?.attendanceTaken ? sheet.rows.filter((r) => !r.attendanceStatus) : [];
   // Chỉ có dòng vắng do phụ huynh báo nghỉ, chưa ai được điểm danh Có mặt: coi như lớp chưa điểm danh
   const attendanceTaken = !!sheet?.attendanceTaken && (presentCount > 0 || unmarkedRows.length === 0);
-  const cols = 3 + goalActs.length;
+  // Tên trẻ vắng gọn một dòng: 3 tên đầu rồi "+n"
   const namesOf = (list) =>
     list
       .slice(0, 3)
       .map((r) => r.child.fullName)
       .join(', ') + (list.length > 3 ? ` +${list.length - 3}` : '');
-  const panelRow = openChild && sheet?.rows.find((r) => r.child.id === openChild);
-  // Tên giờ học "Môn: nội dung"; giờ khác lấy các dòng của ô kế hoạch tuần (chỉ hiện khi rê chuột / ở khung chi tiết)
-  const HOC_HEAD = /^1\. Hoạt động học: /;
-  const actTitle = (a) =>
-    HOC_HEAD.test(a.dayPart?.title || '')
-      ? a.dayPart.title.replace(HOC_HEAD, '')
-      : String(a.topic || '')
-          .split('\n')
-          .filter(Boolean)
-          .join(' · ') || a.activity;
-  const resultCell = (r, a, d, disabled) => {
-    const notMet = d.activities[a.activity].criteriaNotMet.length > 0;
-    return (
-      <button
-        type="button"
-        className="ga-cell-input"
-        disabled={disabled}
-        title={`${a.activity}: ${actTitle(a)}\n${a.criteria.map((c) => `${c.name}: ${c.description}`).join('\n')}\nBấm để đổi Đạt / Chưa đạt`}
-        aria-label={`${a.activity} của ${r.child.fullName}: ${notMet ? 'chưa đạt' : 'đạt'}`}
-        aria-pressed={notMet}
-        onClick={() => toggleResult(r.child.id, a)}
-      >
-        <span className={notMet ? 'text-danger fw-600' : 'text-success'}>{notMet ? 'Chưa đạt' : 'Đạt'}</span>
-      </button>
-    );
-  };
-  const select = (value, options, onChange, label, disabled) => (
-    <select className="ga-cell-input" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-label={label}>
-      {Object.entries(options).map(([k, v]) => (
-        <option key={k} value={k}>
-          {v}
-        </option>
-      ))}
-    </select>
-  );
 
   return (
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.daily)} />
-      {/* Bỏ khung tiêu đề lớn trên cùng (Tiền 20/10); tiêu đề vẫn có cho trình đọc màn hình */}
-      <h1 className="sr-only">Đánh giá hằng ngày</h1>
+      <div className="page__head">
+        <h1 className="page__title">Đánh giá hằng ngày</h1>
+      </div>
 
       {classesError ? (
         <ErrorState error={classesError} />
       ) : !classesLoading && classes.length === 0 ? (
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Bạn chưa được phân công lớp"
-            description="Chỉ giáo viên của lớp mới ghi nhận đánh giá hằng ngày."
-          />
-        </div>
+        <StatusPage kind="403" title="Bạn chưa được phân công lớp" description="Chỉ giáo viên của lớp mới ghi nhận đánh giá hằng ngày." />
       ) : (
         <div className="card">
-          <div className="filter-bar" style={{ flexWrap: 'wrap' }}>
-            <div className="field" style={{ margin: 0 }}>
+          <div className="filter-bar">
+            <div className="field">
               <label className="field__label" htmlFor="dg-class">
                 Lớp
               </label>
-              <select id="dg-class" className="select" value={currentClassId} onChange={(e) => setClassId(e.target.value)}>
+              <select
+                id="dg-class"
+                className="select"
+                value={currentClassId}
+                onChange={(e) => {
+                  setClassId(e.target.value);
+                  resetEdits();
+                }}
+              >
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -303,7 +205,7 @@ export default function DailyAssessmentPage() {
                 ))}
               </select>
             </div>
-            <div className="field" style={{ margin: 0 }}>
+            <div className="field">
               <label className="field__label" htmlFor="dg-date">
                 Ngày
               </label>
@@ -316,37 +218,19 @@ export default function DailyAssessmentPage() {
                 onChange={(e) => e.target.value && setDate(e.target.value)}
               />
             </div>
+            {/* Thay ô chọn hoạt động: Hoạt động chung (màn này) / Kiến thức kỹ năng (bảng Đạt / Chưa đạt theo giờ) */}
+            <DailyModeSelect mode="general" classId={currentClassId} date={date} />
             <div className="spacer" />
             {sheet && (
-              <div className="text-sm text-2" style={{ alignSelf: 'center' }}>
-                Đã ghi nhận <b>{assessedCount}</b>/{presentCount} trẻ có mặt
-                {!sheet.locked && presentCount > 0 && (
-                  <>
-                    {' · '}
-                    {saveState.phase === 'error' ? (
-                      <button
-                        type="button"
-                        className="btn btn--outline-primary btn--sm"
-                        onClick={() => setSaveState((s) => ({ ...s, phase: 'idle' }))}
-                      >
-                        Chưa lưu được, thử lại
-                      </button>
-                    ) : saveState.phase === 'saving' || dirtyIds.length ? (
-                      'Đang lưu…'
-                    ) : saveState.at ? (
-                      `Đã tự lưu lúc ${hhmm(saveState.at)}`
-                    ) : (
-                      'Tự lưu khi bạn sửa'
-                    )}
-                  </>
-                )}
+              <div className="text-sm text-2 dg-filter-count">
+                Đã đánh giá <b>{assessedCount}</b>/{presentCount} trẻ có mặt
               </div>
             )}
           </div>
 
           {/* Khóa sau 23:59:59 của chính ngày đó; quên thì PHT điểm trường / Hiệu trưởng mở lại */}
           {sheet && sheet.locked && (
-            <div className="alert alert--warning" style={{ margin: '0 16px 12px' }}>
+            <div className="alert alert--warning dg-alert-inset">
               <Lock size={18} />
               <div>
                 Ngày {formatDate(date)} đã khóa. Nếu cần đánh giá bổ sung, gửi mail cho Phó hiệu trưởng điểm trường hoặc Hiệu trưởng để mở
@@ -355,7 +239,7 @@ export default function DailyAssessmentPage() {
             </div>
           )}
           {sheet?.unlock && (
-            <div className="alert alert--info" style={{ margin: '0 16px 12px' }}>
+            <div className="alert alert--info dg-alert-inset">
               <Lock size={18} />
               <div>
                 Ngày {formatDate(date)} đã được {sheet.unlock.unlockedByName} mở lại, đánh giá được đến{' '}
@@ -363,11 +247,24 @@ export default function DailyAssessmentPage() {
               </div>
             </div>
           )}
-          {/* Chỉ nhắc khi ngày chưa có giáo án duyệt (không có cột giờ để chấm) */}
-          {sheet && attendanceTaken && !sheet.plan && (
-            <div className="alert alert--info" style={{ margin: '0 16px 12px' }}>
+          {sheet?.plan && attendanceTaken && (
+            <div className="alert alert--info dg-alert-inset">
               <Info size={18} />
-              <div>Ngày này chưa có giáo án tuần đã duyệt nên chưa có giờ để chấm; vẫn ghi cờ, nhận xét và sức khỏe, ăn, ngủ.</div>
+              <div className="dg-plan">
+                <div>
+                  Theo giáo án <span className="fw-600">{sheet.plan.code}</span>
+                  {sheet.plan.topic && ` · ${sheet.plan.topic}`}
+                </div>
+                {criteria.length === 0 ? (
+                  <div className="text-sm">Giờ sinh hoạt này chưa chọn mục tiêu trong giáo án; chỉ ghi mức tham gia.</div>
+                ) : (
+                  criteria.map((c) => (
+                    <div key={c.id} className="text-sm">
+                      <span className="fw-600">{c.name}</span>: {c.description}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
           {/* Chỉ đánh giá trẻ đã điểm danh Có mặt: trẻ vắng / chưa điểm danh chỉ nêu tên ở một dòng */}
@@ -382,278 +279,265 @@ export default function DailyAssessmentPage() {
           {error ? (
             <ErrorState error={error} onRetry={reload} />
           ) : (
-            <div className="card__body">
-              <div className="table-wrap">
-                <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
-                  {/* Độ rộng cột dùng lại lớp của bảng mục tiêu năm: Trẻ 190px, mỗi giờ / nhóm ngày 96px, Cờ 64px */}
-                  <colgroup>
-                    <col className="ga-goal-table__group" />
-                    {goalActs.map((a) => (
-                      <col key={a.activity} className="ga-goal-table__code" />
-                    ))}
-                    <col className="ga-goal-table__del" />
-                    <col className="ga-goal-table__group" />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th className="ga-goal-table__fixed">Trẻ</th>
-                      {goalActs.map((a) => (
-                        <th key={a.activity} title={actTitle(a)}>
-                          {a.activity}
-                        </th>
-                      ))}
-                      <th title="Mỗi trẻ được 1 cờ bé ngoan một ngày">Cờ</th>
-                      <th>Nhận xét</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading || classesLoading || !sheet ? (
-                      <SkeletonRows rows={5} cols={cols} />
-                    ) : sheet.rows.length === 0 ? (
-                      <tr>
-                        <td colSpan={cols}>
-                          <EmptyState title="Lớp chưa có trẻ" description="Trẻ được xếp vào lớp sẽ hiển thị tại đây." />
-                        </td>
-                      </tr>
-                    ) : !attendanceTaken ? (
-                      <tr>
-                        <td colSpan={cols}>
-                          <EmptyState
-                            icon={UserX}
-                            title={`Lớp chưa điểm danh ngày ${formatDate(sheet.date)}`}
-                            description="Điểm danh trước, chỉ trẻ có mặt mới được đánh giá."
-                            action={
-                              <Link className="btn btn--primary" to={`/attendance?classId=${sheet.cls.id}&date=${sheet.date}`}>
-                                Điểm danh ngay
-                              </Link>
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ) : presentRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={cols}>
-                          <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng hoặc chưa điểm danh ngày này." />
-                        </td>
-                      </tr>
-                    ) : (
-                      presentRows.map((r) => {
-                        const id = r.child.id;
-                        const state = rowState(r);
-                        const d = drafts[id] || fromRow(r, sheet);
-                        const disabled = state !== 'editable';
-                        const errs = rowErrors[id] || {};
-                        const firstError = Object.values(errs)[0];
-                        const name = r.child.fullName;
-                        const rec = recordedOf(r);
-                        return (
-                          <tr
-                            key={id}
-                            title={
-                              savedAt[id] || rec
-                                ? `Đã ghi nhận ${formatDateTime(savedAt[id] || rec.updatedAt || rec.recordedAt)}`
-                                : 'Chưa ghi nhận'
-                            }
-                          >
-                            <td className="ga-goal-table__fixed">
-                              <div className="ga-goal-table__pad dg-child">
-                                <ChildAvatar child={r.child} size="sm" />
-                                <div className="dg-child__info">
-                                  <button type="button" className="dg-link-btn fw-600" onClick={() => setOpenChild(id)}>
-                                    {name}
-                                  </button>
-                                  <div className="muted text-xs">{r.child.code}</div>
-                                  {state === 'other' && (
-                                    <div className="muted text-xs">
-                                      Do {md.userById(rec.recordedBy)?.fullName || 'giáo viên khác'} ghi nhận
-                                    </div>
-                                  )}
-                                  {firstError && <div className="field__error">{firstError}</div>}
-                                </div>
-                              </div>
-                            </td>
-                            {goalActs.map((a) => (
-                              <td key={a.activity}>{resultCell(r, a, d, disabled)}</td>
-                            ))}
-                            <td>
+            <div className="table-wrap dg-sheet-wrap">
+              <table className="table table--grid dg-sheet">
+                <thead>
+                  <tr className="dg-head-cols">
+                    <th className="dg-col-child dg-sticky-col cell--fixed">Trẻ</th>
+                    <th>Sức khỏe</th>
+                    <th>Ăn</th>
+                    <th>Ngủ trưa</th>
+                    <th>Cảm xúc</th>
+                    <th>Hành vi</th>
+                    <th>Tham gia</th>
+                    <th className="dg-col-goals">
+                      <span className="dg-head-goal">
+                        Kiến thức, kỹ năng
+                        {sheet?.plan && criteria.length > 0 && presentCount > 0 && (
+                          <CellPopover label="Cả lớp đạt" icon={<CheckCheck size={14} />} minWidth={260}>
+                            <div className="dg-pop__title">Đánh dấu mọi trẻ có mặt đạt (bấm Lưu để ghi nhận)</div>
+                            {criteria.map((c) => (
                               <button
+                                key={c.id}
                                 type="button"
-                                className="ga-cell-input"
-                                aria-pressed={d.flag}
-                                aria-label={`Cờ bé ngoan hôm nay cho ${name}`}
-                                title={d.flag ? 'Bỏ cờ bé ngoan của ngày' : 'Cắm cờ bé ngoan (1 cờ / ngày)'}
-                                disabled={disabled}
-                                onClick={() => update(id, { flag: !d.flag })}
+                                className="btn btn--sm dg-pop__action"
+                                onClick={() => {
+                                  const n = setGoalFor(presentIds, c.id, true);
+                                  toast.success(`Đã đánh dấu ${n} trẻ đạt ${c.name}. Bấm Lưu để ghi nhận.`);
+                                }}
                               >
-                                {/* Cắm cờ: cờ xanh cắm xuống; đổi key để chạy lại hiệu ứng mỗi lần bấm */}
-                                <span key={d.flag ? 'on' : 'off'} className={`dg-flag-pin ${d.flag ? 'dg-flag-pin--on' : ''}`}>
-                                  <Flag size={16} />
-                                </span>
+                                <CheckCheck size={14} /> {c.name} – cả lớp đạt
                               </button>
-                            </td>
-                            <td>
-                              <Cell
-                                editable={!disabled}
-                                value={d.comment}
-                                label={`Nhận xét trong ngày cho ${name}`}
-                                placeholder="Tùy chọn"
-                                onChange={(v) => update(id, { comment: v })}
+                            ))}
+                          </CellPopover>
+                        )}
+                      </span>
+                    </th>
+                    <th className="center">Cờ</th>
+                    <th className="dg-col-note">Nhận xét</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading || classesLoading || !sheet ? (
+                    <SkeletonRows rows={5} cols={COLS} />
+                  ) : sheet.rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={COLS}>
+                        <EmptyState title="Lớp chưa có trẻ" description="Trẻ được xếp vào lớp sẽ hiển thị tại đây." />
+                      </td>
+                    </tr>
+                  ) : !attendanceTaken ? (
+                    <tr>
+                      <td colSpan={COLS}>
+                        <EmptyState
+                          icon={UserX}
+                          title={`Lớp chưa điểm danh ngày ${formatDate(sheet.date)}`}
+                          description="Điểm danh trước, chỉ trẻ có mặt mới được đánh giá."
+                          action={
+                            <Link className="btn btn--primary" to={`/attendance?classId=${sheet.cls.id}&date=${sheet.date}`}>
+                              Điểm danh ngay
+                            </Link>
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ) : presentRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={COLS}>
+                        <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng hoặc chưa điểm danh ngày này." />
+                      </td>
+                    </tr>
+                  ) : (
+                    presentRows.map((r) => {
+                      const id = r.child.id;
+                      const state = rowState(r);
+                      const d = drafts[id] || fromRow(r, sheet.mealSessions);
+                      const disabled = state !== 'editable';
+                      const errs = rowErrors[id] || {};
+                      const firstError = Object.values(errs)[0];
+                      const name = r.child.fullName;
+                      // Viền trái của dòng: lỗi / chưa lưu / đã ghi nhận / chưa đánh giá
+                      const status = rowErrors[id]
+                        ? ['error', 'Có lỗi, xem dòng chữ đỏ']
+                        : dirty.has(id)
+                          ? ['dirty', 'Đã thay đổi, chưa lưu']
+                          : r.assessment
+                            ? ['saved', `Đã ghi nhận ${formatDateTime(r.assessment.updatedAt || r.assessment.recordedAt)}`]
+                            : ['new', 'Chưa đánh giá'];
+                      return (
+                        <tr key={id} className={`dg-row dg-row--${status[0]}`} title={status[1]}>
+                          <td className="dg-col-child dg-sticky-col cell--fixed">
+                            <div className="dg-child">
+                              <ChildAvatar child={r.child} size="sm" />
+                              <div className="dg-child__info">
+                                <Link to={`/assessment/children/${id}`} className="fw-600">
+                                  {name}
+                                </Link>
+                                <div className="muted text-xs">
+                                  {r.child.code}
+                                  {r.assessment?.corrections?.length > 0 && ` · ${r.assessment.corrections.length} lần điều chỉnh`}
+                                </div>
+                                {state === 'other' && (
+                                  <div className="muted text-xs">
+                                    Do {md.userById(r.assessment.recordedBy)?.fullName || 'giáo viên khác'} ghi nhận
+                                  </div>
+                                )}
+                                {firstError && <div className="field__error">{firstError}</div>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className={`dg-col-health ${tint(d.healthSigns.length ? 'bad' : '')}`}>
+                            <HealthCell
+                              health={r.health}
+                              draft={d}
+                              name={name}
+                              disabled={disabled}
+                              onChange={(patch) => update(id, patch)}
+                            />
+                          </td>
+                          <td className="dg-col-meals">
+                            <MealsCell
+                              draft={d}
+                              row={r}
+                              sessions={sheet.mealSessions}
+                              name={name}
+                              disabled={disabled}
+                              onChange={(patch) => update(id, patch)}
+                            />
+                          </td>
+                          <td className={`dg-col-nap ${tint(d.nap === NAP.KHONG_NGU ? 'bad' : d.nap !== NAP.NGU_TOT ? 'warn' : '')}`}>
+                            <select
+                              className="select dg-select"
+                              value={d.nap}
+                              disabled={disabled}
+                              onChange={(e) => update(id, { nap: e.target.value })}
+                              aria-label={`Ngủ trưa của ${name}`}
+                            >
+                              {Object.entries(NAP_LABELS).map(([k, v]) => (
+                                <option key={k} value={k}>
+                                  {v}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className={`${tint(d.emotion === EMOTION.SAD || d.emotion === EMOTION.UPSET ? 'warn' : '')}`}>
+                            <select
+                              className="select dg-select"
+                              value={d.emotion}
+                              disabled={disabled}
+                              onChange={(e) => update(id, { emotion: e.target.value })}
+                              aria-label={`Cảm xúc của ${name}`}
+                            >
+                              {Object.entries(EMOTION_LABELS).map(([k, v]) => (
+                                <option key={k} value={k}>
+                                  {v}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <BehaviorsCell draft={d} name={name} disabled={disabled} onChange={(patch) => update(id, patch)} />
+                          </td>
+                          <td className={tint(sheet.plan && d.participation === PARTICIPATION.CHUA_TICH_CUC ? 'warn' : '')}>
+                            {sheet.plan ? (
+                              <select
+                                className="select dg-select"
+                                value={d.participation}
+                                disabled={disabled}
+                                onChange={(e) => update(id, { participation: e.target.value })}
+                                aria-label={`Mức tham gia hoạt động của ${name}`}
+                              >
+                                {Object.entries(PARTICIPATION_LABELS).map(([k, v]) => (
+                                  <option key={k} value={k}>
+                                    {v}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="muted text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="dg-col-goals">
+                            {!sheet.plan ? (
+                              <span className="muted text-xs dg-locked">
+                                <Lock size={12} /> Chưa có giáo án duyệt
+                              </span>
+                            ) : criteria.length === 0 ? (
+                              <span className="muted text-xs">Giờ này chưa có mục tiêu</span>
+                            ) : (
+                              <GoalChips
+                                criteria={criteria}
+                                draft={d}
+                                disabled={disabled}
+                                name={name}
+                                onChange={(patch) => update(id, patch)}
                               />
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                            )}
+                          </td>
+                          <td className="center">
+                            <button
+                              type="button"
+                              className={`dg-flag ${d.flag ? 'dg-flag--on' : ''}`}
+                              aria-pressed={d.flag}
+                              aria-label={`Cờ bé ngoan cho ${name}`}
+                              title={d.flag ? 'Bỏ cờ bé ngoan' : 'Cắm cờ bé ngoan'}
+                              disabled={disabled}
+                              onClick={() => update(id, { flag: !d.flag })}
+                            >
+                              <Flag size={16} />
+                            </button>
+                          </td>
+                          <td className="dg-col-note">
+                            <input
+                              className={`input dg-input dg-note ${errs.comment ? 'input--error' : ''}`}
+                              value={d.comment}
+                              maxLength={500}
+                              disabled={disabled}
+                              placeholder="Tùy chọn"
+                              onChange={(e) => update(id, { comment: e.target.value })}
+                              aria-label={`Nhận xét hoạt động cho ${name}`}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {sheet && presentCount > 0 && (
+            <div className="dg-legend text-xs text-2">
+              <span>
+                Mục tiêu: 1 lần <span className="chip chip--green">Đạt</span> · 2 lần <span className="chip chip--red">Chưa đạt</span> · 3
+                lần bỏ chọn
+              </span>
+              <span className="dg-child">
+                <Flag size={12} /> Phiếu bé ngoan tuần: ≥ 4 ngày có mặt, ≥ 3 cờ
+              </span>
+              <span>Ô vàng / đỏ: khác mặc định</span>
             </div>
           )}
         </div>
       )}
 
-      {sheet && presentCount > 0 && !sheet.locked && editableRows.some((r) => !recordedOf(r) && !savedAt[r.child.id]) && (
+      {sheet && presentCount > 0 && !sheet.locked && (
         <div className="page-actions">
-          <button className="btn" onClick={markAllPresent}>
-            <ClipboardCheck size={16} /> Ghi nhận cả lớp (mặc định Đạt)
+          <button className="btn" onClick={markAllPresent} disabled={saving || presentCount === 0}>
+            <ClipboardCheck size={16} /> Ghi nhận cả lớp với giá trị mặc định
           </button>
+          <div className="row gap-2">
+            {dirty.size > 0 && (
+              <button className="btn" onClick={() => reload()} disabled={saving}>
+                Hủy thay đổi
+              </button>
+            )}
+            <button className="btn btn--primary" onClick={save} disabled={saving || dirty.size === 0}>
+              {saving ? <Spinner small /> : <Save size={16} />} Lưu đánh giá{dirty.size ? ` (${dirty.size})` : ''}
+            </button>
+          </div>
         </div>
       )}
-
-      {/* Chi tiết cả ngày của một trẻ: mọi giờ (kể cả giờ chưa có MT), MT của giờ, mức tham gia, cờ, nhận xét */}
-      <SidePanel
-        open={!!panelRow}
-        title={panelRow ? `${panelRow.child.fullName} · ${formatDate(sheet.date)}` : ''}
-        onClose={() => setOpenChild(null)}
-      >
-        {panelRow &&
-          (() => {
-            const id = panelRow.child.id;
-            const d = drafts[id] || fromRow(panelRow, sheet);
-            const disabled = rowState(panelRow) !== 'editable';
-            return (
-              <div className="table-wrap">
-                <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
-                  <thead>
-                    <tr>
-                      <th className="ga-goal-table__fixed">Giờ</th>
-                      <th>Kết quả</th>
-                      <th>Tham gia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sheet.activities.map((a) => (
-                      <tr key={a.activity}>
-                        <td className="ga-goal-table__fixed">
-                          <div className="ga-goal-table__pad">
-                            <div className="fw-600">{a.activity}</div>
-                            {actTitle(a) !== a.activity && <div className="text-xs">{actTitle(a)}</div>}
-                            {a.criteria.map((c) => (
-                              <div key={c.id} className="text-xs muted">
-                                {c.name}: {c.description}
-                              </div>
-                            ))}
-                          </div>
-                        </td>
-                        <td>
-                          {a.criteria.length ? (
-                            resultCell(panelRow, a, d, disabled)
-                          ) : (
-                            <div className="ga-goal-table__pad muted text-xs">Chưa có MT</div>
-                          )}
-                        </td>
-                        <td>
-                          {sheet.plan ? (
-                            select(
-                              d.activities[a.activity].participation,
-                              PARTICIPATION_LABELS,
-                              (v) => updateActivity(id, a.activity, { participation: v }),
-                              `Mức tham gia ${a.activity} của ${panelRow.child.fullName}`,
-                              disabled,
-                            )
-                          ) : (
-                            <div className="ga-goal-table__pad muted">—</div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    {/* Nhóm ngày (điền sẵn mặc định), chỉ mở khi cần sửa */}
-                    {[
-                      [
-                        'Sức khỏe',
-                        <HealthCell
-                          key="h"
-                          health={panelRow.health}
-                          draft={d}
-                          name={panelRow.child.fullName}
-                          disabled={disabled}
-                          onChange={(patch) => update(id, patch)}
-                        />,
-                      ],
-                      [
-                        'Ăn',
-                        <MealsCell
-                          key="m"
-                          draft={d}
-                          row={panelRow}
-                          sessions={sheet.mealSessions}
-                          name={panelRow.child.fullName}
-                          disabled={disabled}
-                          onChange={(patch) => update(id, patch)}
-                        />,
-                      ],
-                      [
-                        'Ngủ trưa',
-                        select(d.nap, NAP_LABELS, (v) => update(id, { nap: v }), `Ngủ trưa của ${panelRow.child.fullName}`, disabled),
-                      ],
-                      [
-                        'Cảm xúc',
-                        select(
-                          d.emotion,
-                          EMOTION_LABELS,
-                          (v) => update(id, { emotion: v }),
-                          `Cảm xúc của ${panelRow.child.fullName}`,
-                          disabled,
-                        ),
-                      ],
-                      [
-                        'Hành vi',
-                        <BehaviorsCell
-                          key="b"
-                          draft={d}
-                          name={panelRow.child.fullName}
-                          disabled={disabled}
-                          onChange={(patch) => update(id, patch)}
-                        />,
-                      ],
-                    ].map(([label, el]) => (
-                      <tr key={label}>
-                        <td className="ga-goal-table__fixed">
-                          <div className="ga-goal-table__pad fw-600">{label}</div>
-                        </td>
-                        <td colSpan={2}>{el}</td>
-                      </tr>
-                    ))}
-                    <tr>
-                      <td className="ga-goal-table__fixed">
-                        <div className="ga-goal-table__pad fw-600">Nhận xét trong ngày</div>
-                      </td>
-                      <td colSpan={2}>
-                        <Cell
-                          editable={!disabled}
-                          value={d.comment}
-                          label={`Nhận xét trong ngày cho ${panelRow.child.fullName}`}
-                          placeholder="Tùy chọn"
-                          onChange={(v) => update(id, { comment: v })}
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            );
-          })()}
-      </SidePanel>
     </div>
   );
 }

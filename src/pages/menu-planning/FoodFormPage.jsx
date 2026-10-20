@@ -10,6 +10,7 @@ import { FormField } from '@/components/form/FormField';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { NoManageAccess } from '@/components/menu-planning/MenuBadges';
 import { validateFood, hasErrors } from '@/utils/menu-planning/menuPlanningValidation';
+import { foodUnits, purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import {
   ALLERGENS,
@@ -27,6 +28,9 @@ const EMPTY = {
   unit: 'g',
   purchaseUnit: 'kg',
   purchaseUnitSize: 1000,
+  stockUnit: 'kg',
+  purchaseToStock: 1,
+  stockUnitSize: 1000,
   unitPrice: '',
   wastePct: 0,
   favorite: false,
@@ -39,6 +43,8 @@ const EMPTY = {
 const toForm = (f) => ({
   ...EMPTY,
   ...f,
+  ...foodUnits(f),
+  unit: f.unit,
   unitPrice: f.unitPrice ?? '',
   nutrition: Object.fromEntries(Object.entries(f.nutrition || {}).map(([k, v]) => [k, v ?? ''])),
 });
@@ -63,11 +69,20 @@ export default function FoodFormPage() {
   }, [item]);
 
   const title = id ? 'Sửa thực phẩm' : 'Thêm thực phẩm';
-  const errors = { ...validateFood({ ...form, id }, others), ...serverErrors };
+  // Số g/ml trong 1 đơn vị mua suy ra từ hai tỷ lệ, không nhập riêng
+  const payload = { ...form, purchaseUnitSize: purchaseUnitSizeOf(form.purchaseToStock, form.stockUnitSize) };
+  const errors = { ...validateFood({ ...payload, id }, others), ...serverErrors };
+  const locked = !!item?.unitsLocked;
+  const num = (v) => Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+  const unitPreview =
+    Number(form.purchaseToStock) > 0 && Number(form.stockUnitSize) > 0 && form.stockUnit && form.purchaseUnit
+      ? `1 ${form.purchaseUnit} = ${num(form.purchaseToStock)} ${form.stockUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}`
+      : null;
   const show = (k) => (submitted || touched[k] ? errors[k] : undefined);
   const set = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
-    setServerErrors((e) => ({ ...e, [k]: undefined }));
+    // Xóa hẳn khóa: để `undefined` thì spread vào errors sẽ đè mất lỗi kiểm tra của ô
+    setServerErrors(({ [k]: _drop, ...rest }) => rest);
   };
   const setNut = (k, v) => setForm((f) => ({ ...f, nutrition: { ...f.nutrition, [k]: v } }));
   const blur = (k) => () => setTouched((t) => ({ ...t, [k]: true }));
@@ -81,12 +96,12 @@ export default function FoodFormPage() {
     if (hasErrors(clean)) return;
     setBusy(true);
     try {
-      const saved = await saveFood(id, form, user);
+      const saved = await saveFood(id, payload, user);
       toast.success('Lưu thay đổi thành công.');
       navigate(`/menu/foods/${saved.id}`);
     } catch (err) {
       if (err.details) setServerErrors(err.details);
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
     } finally {
       setBusy(false);
     }
@@ -138,7 +153,12 @@ export default function FoodFormPage() {
                 ))}
               </select>
             </FormField>
-            <FormField label="Đơn vị định lượng" required error={show('unit')} hint="Dùng khi nhập định lượng trong món ăn">
+            <FormField
+              label="Đơn vị công thức"
+              required
+              error={show('unit')}
+              hint="Khối lượng (g) hoặc thể tích (ml) khi nhập định lượng món; không tự đổi lít ↔ gam"
+            >
               <select className="select" value={form.unit} onChange={(e) => set('unit', e.target.value)}>
                 {Object.entries(FOOD_UNIT_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>
@@ -155,29 +175,6 @@ export default function FoodFormPage() {
                   </option>
                 ))}
               </select>
-            </FormField>
-            <FormField label="Đơn vị mua" required error={show('purchaseUnit')} hint="Ví dụ: kg, lít, quả, hộp 180 ml">
-              <input
-                className="input"
-                value={form.purchaseUnit}
-                onChange={(e) => set('purchaseUnit', e.target.value)}
-                onBlur={blur('purchaseUnit')}
-              />
-            </FormField>
-            <FormField
-              label={`Số ${form.unit} trong một đơn vị mua`}
-              required
-              error={show('purchaseUnitSize')}
-              hint="Dùng để làm tròn số lượng cần mua"
-            >
-              <input
-                type="number"
-                min="1"
-                className="input"
-                value={form.purchaseUnitSize}
-                onChange={(e) => set('purchaseUnitSize', e.target.value)}
-                onBlur={blur('purchaseUnitSize')}
-              />
             </FormField>
             <FormField label="Đơn giá (đồng / đơn vị mua)" error={show('unitPrice')} hint="Dùng ước tính chi phí suất ăn">
               <input
@@ -224,6 +221,72 @@ export default function FoodFormPage() {
 
         <div className="card wizard-card mt-16">
           <div className="card__header">
+            <div className="card__title">Đơn vị & quy đổi</div>
+            {unitPreview && <span className="text-sm muted">{unitPreview}</span>}
+          </div>
+          <div className="card__body td-form-grid">
+            <FormField
+              label="Đơn vị kho"
+              required
+              error={show('stockUnit')}
+              hint={locked ? 'Đã có lô tồn kho hoặc phiếu nhập: không đổi được' : 'Đơn vị tính tồn và xuất kho, ví dụ kg, hộp'}
+            >
+              <input
+                className="input"
+                value={form.stockUnit}
+                maxLength={30}
+                disabled={locked}
+                onChange={(e) => set('stockUnit', e.target.value)}
+                onBlur={blur('stockUnit')}
+              />
+            </FormField>
+            <FormField
+              label={`Số ${form.unit} trong 1 ${form.stockUnit || 'đơn vị kho'}`}
+              required
+              error={show('stockUnitSize')}
+              hint={locked ? 'Đã có lô tồn kho hoặc phiếu nhập: không đổi được' : 'Dùng đổi định lượng món sang lượng xuất kho'}
+            >
+              <input
+                type="number"
+                min="0"
+                step="any"
+                className="input"
+                value={form.stockUnitSize}
+                disabled={locked}
+                onChange={(e) => set('stockUnitSize', e.target.value)}
+                onBlur={blur('stockUnitSize')}
+              />
+            </FormField>
+            <FormField label="Đơn vị mua" required error={show('purchaseUnit')} hint="Ví dụ: kg, lít, thùng, bao 10 kg">
+              <input
+                className="input"
+                value={form.purchaseUnit}
+                maxLength={30}
+                onChange={(e) => set('purchaseUnit', e.target.value)}
+                onBlur={blur('purchaseUnit')}
+              />
+            </FormField>
+            <FormField
+              label={`Số ${form.stockUnit || 'đơn vị kho'} trong 1 ${form.purchaseUnit || 'đơn vị mua'}`}
+              required
+              error={show('purchaseToStock')}
+              hint="Cùng đơn vị thì nhập 1; dùng khi nhập kho theo đơn vị mua và làm tròn lượng cần mua"
+            >
+              <input
+                type="number"
+                min="0"
+                step="any"
+                className="input"
+                value={form.purchaseToStock}
+                onChange={(e) => set('purchaseToStock', e.target.value)}
+                onBlur={blur('purchaseToStock')}
+              />
+            </FormField>
+          </div>
+        </div>
+
+        <div className="card wizard-card mt-16">
+          <div className="card__header">
             <div className="card__title">Giá trị dinh dưỡng trên 100 {form.unit}</div>
           </div>
           <div className="card__body">
@@ -258,7 +321,7 @@ export default function FoodFormPage() {
             <div className="card__title">Chất gây dị ứng</div>
           </div>
           <div className="card__body">
-            <fieldset className="td-allergen-pick" style={{ border: 'none', padding: 0, margin: 0 }}>
+            <fieldset className="td-allergen-pick">
               <legend className="sr-only">Chọn chất gây dị ứng có trong thực phẩm</legend>
               {ALLERGENS.map((a) => (
                 <label key={a}>

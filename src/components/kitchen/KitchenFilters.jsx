@@ -35,7 +35,15 @@ export function KbCampusFilter({ campusId, onChange, canPick }) {
   const md = useMasterData();
   if (!canPick) {
     const campus = md.campusById(campusId);
-    return campus ? <span className="chip chip--teal">{campus.shortName || campus.name}</span> : null;
+    // Vẫn có nhãn như bản chọn được để chip thẳng hàng với các ô lọc khác
+    return campus ? (
+      <div className="date-filter">
+        Điểm trường
+        <span className="date-filter__static">
+          <span className="chip chip--teal">{campus.shortName || campus.name}</span>
+        </span>
+      </div>
+    ) : null;
   }
   return (
     <label className="date-filter">

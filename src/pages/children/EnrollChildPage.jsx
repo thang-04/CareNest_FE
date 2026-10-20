@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, Lock } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -9,7 +9,8 @@ import { useParentAccountOptions, usePlacementClasses } from '@/hooks/children/u
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Stepper } from '@/components/ui/Stepper';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { EmptyState, Spinner } from '@/components/ui/States';
+import { Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { ChildProfileFields } from '@/components/children/ChildProfileFields';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
@@ -74,13 +75,11 @@ export default function EnrollChildPage() {
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
         <h1 className="page__title">Tiếp nhận trẻ</h1>
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Bạn không có quyền tiếp nhận trẻ"
-            description="Chỉ Phó hiệu trưởng phụ trách điểm trường được tiếp nhận trẻ."
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Bạn không có quyền tiếp nhận trẻ"
+          description="Chỉ Phó hiệu trưởng phụ trách điểm trường được tiếp nhận trẻ."
+        />
       </div>
     );
   }
@@ -175,7 +174,7 @@ export default function EnrollChildPage() {
         setDuplicate(dup);
         if (dup) return;
       } catch (err) {
-        toast.error(err.message, 'Không kiểm tra được hồ sơ trùng');
+        toast.error(err, 'Không kiểm tra được hồ sơ trùng');
         return;
       } finally {
         setBusy(false);
@@ -203,7 +202,7 @@ export default function EnrollChildPage() {
         setErrors(splitServerErrors(err.details));
         goTo(Math.min(...Object.keys(err.details).map(stepOfField)));
       }
-      toast.error(err.message, 'Không lưu được hồ sơ');
+      toast.error(err, 'Không lưu được hồ sơ');
     } finally {
       setBusy(false);
     }
@@ -357,7 +356,7 @@ export default function EnrollChildPage() {
         <section className="card wizard-card">
           <h2 className="card__title mb-12">Xếp lớp năm học {schoolYear}</h2>
           {classesLoading ? (
-            <Spinner />
+            <Spinner deferred />
           ) : (
             <ClassPlacementFields
               classes={classes}

@@ -1,4 +1,5 @@
-import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS, NOTE_STATE_LABELS } from '@/models/children/childrenConstants';
+import { AllergyStateBadge, DietStateBadge, NoteStateBadge } from '@/components/children/ChildBadges';
+import { DECLARATION_STATE } from '@/models/children/childrenConstants';
 import { MEDICAL_HISTORY_ITEMS, historyItemText } from '@/models/children/childProfile';
 import { formatDateTime } from '@/utils/format';
 
@@ -11,7 +12,9 @@ export function DeclarationSummary({ declaration }) {
     <dl className="info-list info-list--wide">
       <dt>Dị ứng</dt>
       <dd>
-        <div>{ALLERGY_STATE_LABELS[allergies.state]}</div>
+        <div>
+          <AllergyStateBadge status={allergies.state} />
+        </div>
         {reported && (
           <div className="row row--wrap mt-8 gap-1-5">
             {allergies.items.map((x) => (
@@ -23,9 +26,15 @@ export function DeclarationSummary({ declaration }) {
         )}
       </dd>
       <dt>Chế độ ăn</dt>
-      <dd>{diet.state === DECLARATION_STATE.REPORTED ? diet.text : DIET_STATE_LABELS[diet.state]}</dd>
+      <dd>{diet.state === DECLARATION_STATE.REPORTED ? diet.text : <DietStateBadge status={diet.state} />}</dd>
       <dt>Thông tin khác</dt>
-      <dd>{otherNotes?.state === DECLARATION_STATE.REPORTED ? otherNotes.text : NOTE_STATE_LABELS[otherNotes?.state || 'NOT_PROVIDED']}</dd>
+      <dd>
+        {otherNotes?.state === DECLARATION_STATE.REPORTED ? (
+          otherNotes.text
+        ) : (
+          <NoteStateBadge status={otherNotes?.state || DECLARATION_STATE.NOT_PROVIDED} />
+        )}
+      </dd>
       {MEDICAL_HISTORY_ITEMS.map((it) => (
         <div key={it.key} className="tr-dl-pair">
           <dt>{it.label}</dt>

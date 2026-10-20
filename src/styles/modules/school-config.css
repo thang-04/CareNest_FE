@@ -39,6 +39,7 @@
 }
 .sc-check-col {
   width: var(--space-8);
+  text-align: center;
 }
 .sc-reasons {
   margin: var(--space-2) 0 0;
@@ -323,9 +324,20 @@
 }
 .sc-cutoff__time {
   font-size: var(--fs-2xl);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
   line-height: 1.2;
+}
+
+/* ---------- Căn chỉnh nhỏ (thay style inline) ---------- */
+.sc-center {
+  justify-content: center;
+}
+.sc-end {
+  justify-content: flex-end;
+}
+.sc-col-leader {
+  min-width: 260px;
 }
 
 /* ---------- People ---------- */
@@ -384,11 +396,6 @@
   width: auto;
   min-width: 150px;
 }
-.sc-area-chips {
-  display: grid;
-  gap: var(--space-1);
-}
-
 .sc-change-list {
   margin: var(--space-2) 0 0;
   padding-left: var(--space-5);
@@ -676,6 +683,7 @@
 }
 .sc-plc__check {
   width: var(--space-10);
+  text-align: center;
 }
 .sc-plc__new {
   color: var(--color-warning-fg);
@@ -708,11 +716,8 @@
   vertical-align: middle;
   cursor: help;
 }
-/* Xếp lớp năm học mới, mọi cỡ màn: dải tiêu đề thấp không ảnh, hàng lọc gọn, dòng trẻ một hàng (~41px) */
+/* Xếp lớp năm học mới, mọi cỡ màn: đầu trang sát, hàng lọc gọn, dòng trẻ một hàng (~41px) */
 .sc-plc-page .page__head {
-  min-height: 0;
-  padding-top: var(--space-3);
-  padding-bottom: var(--space-3);
   margin-bottom: var(--space-3);
 }
 .sc-plc-page .sc-plc__filters {
@@ -740,23 +745,13 @@
 .sc-plc-page .sc-plc__footer {
   padding: var(--space-2) 0;
 }
-/* Gọn cho màn 14 inch: dải tiêu đề không ảnh, chữ nhỏ hơn; ô chọn, nút trong bảng thấp hơn */
-.sc-plc-page .page__head::before {
-  display: none;
-}
-.sc-plc-page .page__title {
-  font-size: var(--fs-xl);
-}
+/* Gọn cho màn 14 inch: ô chọn, nút trong bảng thấp hơn */
 .sc-plc-page .page__head > div,
 .sc-plc-page .sc-plc__sub {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-3);
-}
-.sc-plc-page .page__head {
-  padding-top: var(--space-2);
-  padding-bottom: var(--space-2);
 }
 .sc-plc-page .sc-plc__totals .chip {
   padding-top: 0;
@@ -848,93 +843,105 @@
   margin: 0;
 }
 
-/* Phân công PHT: mỗi quyền 1 dòng (chức năng · phạm vi · mức · bỏ) */
-.sc-grants {
+/* Phân công PHT: mỗi PHT 1 thẻ; màn rộng 2 thẻ cạnh nhau, hẹp thì xếp dọc */
+.sc-vp-grid {
   display: grid;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr));
+  gap: var(--space-4);
 }
-.sc-grant {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto auto;
-  gap: var(--space-2);
-  align-items: center;
-}
-.sc-grants__add {
-  border-style: dashed;
-  width: 100%;
-  justify-content: center;
-}
-.sc-grant__name {
+.sc-vp-card {
   min-width: 0;
 }
-/* Ô tích thao tác của 1 quyền: Xem · Thêm · Sửa · Xóa */
-.sc-acts {
+.sc-vp-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-6) 0;
+}
+.sc-vp-card__tags {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6) 0;
 }
-.sc-act {
-  display: inline-flex;
-  align-items: center;
+.sc-vp-card__empty {
+  margin: 0;
+  padding: var(--space-4) var(--space-6) var(--space-6);
+}
+.sc-vp-table th:first-child {
+  width: 32%;
+}
+.sc-vp-table th:nth-child(2) {
+  width: 18%;
+}
+.sc-vp-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.sc-vp-table .chip {
+  margin-right: var(--space-1);
+}
+.sc-vp-table__off td {
+  color: var(--color-text-muted);
+}
+
+/* Modal phân công: đủ các việc, mỗi việc 1 hàng (tên · ở đâu · việc được làm) */
+.sc-vp-edit {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.sc-vp-edit__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(130px, 0.7fr) minmax(0, 1.6fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+}
+.sc-vp-edit__row + .sc-vp-edit__row {
+  border-top: 1px solid var(--color-border);
+}
+.sc-vp-edit__row.is-off .sc-vp-edit__name {
+  color: var(--color-text-muted);
+}
+.sc-vp-edit__name {
+  min-width: 0;
+}
+.sc-vp-edit__tasks {
+  display: grid;
   gap: var(--space-1);
+  min-width: 0;
+}
+.sc-vp-task {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
   font-size: var(--fs-sm);
   cursor: pointer;
-  white-space: nowrap;
 }
-.sc-act.is-off {
+.sc-vp-task input {
+  margin-top: var(--space-1);
+}
+.sc-vp-task.is-off {
   color: var(--color-text-disabled);
   cursor: not-allowed;
 }
-/* Bảng chọn chức năng khi bấm "Thêm quyền quản lý" */
-.sc-picker {
-  border: 1px solid var(--color-primary-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  padding: var(--space-3) var(--space-4);
-}
-.sc-picker__list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-.sc-picker__item {
+.sc-vp-edit__warn {
   display: flex;
-  gap: var(--space-2);
   align-items: flex-start;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-.sc-picker__item:hover {
-  background: var(--color-surface-hover);
-}
-.sc-picker__item.is-on {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-}
-.sc-picker__item input {
-  margin-top: 3px;
-}
-.sc-picker__hint {
-  display: block;
-}
-.sc-picker__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
+  gap: var(--space-1);
+  color: var(--color-warning-fg);
 }
 @media (max-width: 768px) {
-  .sc-grant {
-    grid-template-columns: 1fr 1fr;
+  .sc-vp-card__head,
+  .sc-vp-card__tags {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
   }
-  .sc-grant__name {
-    grid-column: 1 / -1;
-  }
-  .sc-picker__list {
+  .sc-vp-edit__row {
     grid-template-columns: 1fr;
+    gap: var(--space-2);
   }
 }
 

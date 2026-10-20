@@ -62,3 +62,27 @@ test('HT chỉ đọc được bản đã xuất bản của nhóm tuổi', asyn
   assert.ok(list.every((w) => w.status === 'PUBLISHED'));
   await assert.rejects(repo.saveWeeklyMenu(null, { ageGroupId: 'ag-4', weekStart: '2026-11-02', days: [] }, HT), (e) => e.status === 403);
 });
+
+test('tóm tắt đầu cột ngày khớp bảng cân đối: kcal, tiền ăn, đánh giá; ngày nghỉ hoặc chưa có món thì không có số', async () => {
+  const { daySummary } = await import('@/utils/menu-planning/daySummary');
+  const { mealsTotals, compareToNorm, priceOn } = await import('@/utils/menu-planning/menuCalculations');
+  const { checkDayMenu } = await import('@/utils/menu-planning/menuChecks');
+  const c = await repo.getCatalog(VP);
+  const catalog = { ...c, dishById: byId(c.dishes), foodById: byId(c.foods) };
+  const menu = catalog.menus.find((m) => m.ageGroupId === 'ag-4' && m.meals.length);
+  const wm = { ageGroupId: 'ag-4', weekStart: '2026-10-26' };
+  const day = { date: '2026-10-27', holiday: false, menuId: menu.id, meals: menu.meals };
+
+  const s = daySummary(day, wm, catalog);
+  const r = mealsTotals(day.meals, catalog.dishById, catalog.foodById, 'ag-4');
+  const kcal = compareToNorm(r.totals, 'ag-4', r.missing.length > 0, catalog.norms).find((x) => x.key === 'kcal');
+  const price = priceOn(catalog.mealPrices, 'ag-4', wm.weekStart)?.price ?? null;
+  assert.equal(s.nutrients.kcal.value, kcal.value);
+  assert.equal(s.nutrients.kcal.status, kcal.status);
+  assert.equal(s.cost, r.cost);
+  assert.equal(s.overPrice, price != null && r.cost > price);
+  assert.deepEqual(s.check, checkDayMenu({ meals: day.meals, ageGroupId: 'ag-4', catalog, date: day.date }).status);
+
+  assert.equal(daySummary({ ...day, holiday: true, note: 'Nghỉ lễ' }, wm, catalog), null);
+  assert.equal(daySummary({ ...day, menuId: null, meals: [] }, wm, catalog), null);
+});

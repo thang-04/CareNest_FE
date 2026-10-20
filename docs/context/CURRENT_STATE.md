@@ -1,6 +1,6 @@
 # Current State — CareNest_FE
 
-Cập nhật: 2026-10-04. Cập nhật file này khi một screen group bắt đầu có code hoặc hoàn thành.
+Cập nhật: 2026-10-20 (bảng screen group theo source; mọi màn chạy trên mock, chưa nối BE thật). Cập nhật file này khi một screen group bắt đầu có code hoặc hoàn thành.
 
 ## Cập nhật phạm vi 2026-10-19
 
@@ -21,30 +21,30 @@ Status: `—` chưa bắt đầu · `đang làm` · `xong`. Định nghĩa group
 
 | Screen group                               | Actor                                         | Module BE                         | Status        |
 | ------------------------------------------ | --------------------------------------------- | --------------------------------- | ------------- |
-| Đăng nhập / phiên                          | Tất cả                                        | identity-access                   | —             |
-| Quản trị tài khoản, role, phân công        | System Admin                                  | identity-access, school-structure | —             |
-| Cấu trúc trường: campus, lớp, năm học      | System Admin                                  | school-structure                  | —             |
-| Cấu hình hệ thống / master data            | System Admin                                  | nhiều                             | —             |
-| Hồ sơ trẻ / ghi danh                       | System Admin (màn hình Web chưa xác định)     | child                             | chưa xác định |
-| Dashboard báo cáo lớp/campus/trường        | Principal, Vice Principal                     | reporting                         | —             |
-| Xác nhận số suất ăn                        | PENDING (P-05)                                | nutrition                         | —             |
-| Duyệt thực đơn                             | Principal/VP (theo permission `menu:approve`) | nutrition                         | —             |
-| Xem summary / hồ sơ phát triển             | Principal, Vice Principal                     | learning-observation              | —             |
-| Tổng quan sức khỏe                         | Principal, Vice Principal                     | health                            | —             |
-| Theo dõi sự cố CSVC                        | Principal, Vice Principal                     | facility-issue                    | —             |
-| Báo nghỉ của campus (chỉ xem, không duyệt) | Principal, Vice Principal                     | attendance                        | —             |
-| Điểm danh + báo ăn                         | Teacher                                       | attendance                        | —             |
-| Quan sát hằng ngày                         | Teacher                                       | learning-observation              | —             |
-| Review/duyệt summary                       | Teacher                                       | learning-observation              | —             |
-| Nhập đo sức khỏe                           | PENDING (người nhập)                          | health                            | —             |
-| Báo sự cố CSVC                             | Teacher                                       | facility-issue                    | —             |
-| Báo nghỉ của lớp (chỉ xem, không duyệt)    | Teacher                                       | attendance                        | —             |
+| Đăng nhập / phiên                          | Tất cả                                        | identity-access                   | UI mock (`pages/auth`) |
+| Quản trị tài khoản, role, phân công        | System Admin                                  | identity-access, school-structure | UI mock (`school-config`, `account`, `permissions`) |
+| Cấu trúc trường: campus, lớp, năm học      | System Admin                                  | school-structure                  | UI mock (`school-config`) |
+| Cấu hình hệ thống / master data            | System Admin                                  | nhiều                             | một phần (`school-config`, `menu-planning`) |
+| Hồ sơ trẻ / ghi danh                       | System Admin (màn hình Web chưa xác định)     | child                             | UI mock (`children`) |
+| Dashboard báo cáo lớp/campus/trường        | Principal, Vice Principal                     | reporting                         | UI mock (`dashboard`) |
+| Xác nhận số suất ăn                        | PENDING (P-05)                                | nutrition                         | UI mock (`attendance`, `kitchen`) |
+| Xuất bản thực đơn tuần (BA: PHT công bố)   | Vice Principal (lệch NUT-08, xem features/nutrition-inventory.md) | nutrition                         | UI mock (`menu-planning`) |
+| Xem summary / hồ sơ phát triển             | Principal, Vice Principal                     | learning-observation              | UI mock (`assessment`) |
+| Tổng quan sức khỏe                         | Principal, Vice Principal                     | health                            | UI mock (`children`, `attendance`) |
+| Theo dõi sự cố CSVC                        | Principal, Vice Principal                     | facility-issue                    | UI mock, ẩn (`FACILITY_ENABLED=false`) |
+| Báo nghỉ của campus (chỉ xem, không duyệt) | Principal, Vice Principal                     | attendance                        | hiển thị trong điểm danh |
+| Điểm danh + báo ăn                         | Teacher                                       | attendance                        | UI mock (`attendance`) |
+| Quan sát hằng ngày                         | Teacher                                       | learning-observation              | UI mock (`assessment`) |
+| Review/duyệt summary                       | Teacher                                       | learning-observation              | UI mock (`assessment`) |
+| Nhập đo sức khỏe                           | PENDING (người nhập)                          | health                            | UI mock (`children`) |
+| Báo sự cố CSVC                             | Teacher                                       | facility-issue                    | UI mock, ẩn (`FACILITY_ENABLED=false`) |
+| Báo nghỉ của lớp (chỉ xem, không duyệt)    | Teacher                                       | attendance                        | hiển thị trong điểm danh |
 
 ## Quyết định đang chờ ảnh hưởng FE
 
 | Chủ đề                                 | Status               | Nguồn                                                                 |
 | -------------------------------------- | -------------------- | --------------------------------------------------------------------- |
-| Framework/router/state/UI kit          | PROPOSED / chưa chốt | `docs/architecture/FRONTEND_ARCHITECTURE.md`                          |
+| Framework/router/state/UI kit          | Đã chốt theo source (2026-10-20) | `docs/architecture/FRONTEND_ARCHITECTURE.md`                          |
 | Auth flow, lưu token                   | chưa chốt            | `docs/integration/AUTH_FLOW.md`, `BE:docs/contracts/AUTH_CONTRACT.md` |
 | Actor xác nhận suất ăn                 | PENDING P-05         | `BE:docs/business/BUSINESS_RULES.md`                                  |
 | Người nhập đo sức khỏe                 | PENDING              | `BE:docs/modules/health.md`                                           |

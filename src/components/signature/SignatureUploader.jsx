@@ -25,12 +25,12 @@ export function SignatureUploader({ onUse, busy }) {
     try {
       setPreview(await compressImage(file, { maxWidth: 600, maxHeight: 300, type: 'image/png' }));
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     }
   };
 
   return (
-    <div className="stack" style={{ gap: 10 }}>
+    <div className="stack gap-2-5">
       <div
         className={`dropzone dropzone--sm ${dragging ? 'dropzone--active' : ''}`}
         onClick={() => inputRef.current?.click()}

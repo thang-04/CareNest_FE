@@ -25,7 +25,8 @@ npm install
 npm run dev          # http://localhost:5173
 npm run lint         # ESLint (bắt buộc 0 lỗi)
 npm run format       # Prettier tự format
-npm run check        # lint + format:check + build  → chạy trước khi push
+npm run check        # lint (gồm ranh giới module, icon) + format:check + check:design + build → chạy trước khi push
+npm run check:design # đếm mã màu / px / style={{ theo file, so scripts/design-baseline.json (DESIGN.md §13.1)
 npm run build
 ```
 
@@ -68,15 +69,15 @@ src/
   assets/brand/          logo-mark.png, logo-full.png
   assets/illustrations/  tranh sáp màu (nền, dải đầu trang, màn trống)
   components/            UI – import phần dùng chung từ '@/components'
-    ui/                  Modal, ConfirmationModal, States, Breadcrumb, SearchSelect, Avatar, StatusBadge,
-                         ProgressBar, ProgressSteps, Stepper, Pagination, SidePanel, StatCardIcon, icons.js
+    ui/                  danh mục đầy đủ + cách dùng: DESIGN.md §6.3 (Modal, ConfirmationModal, States, SidePanel,
+                         SearchSelect, SearchSubmit, FilterMore, FilterChips, RowActions, RowMenu, StatusBadge, icons.js…)
     brand/               Logo, LogoMark, LogoFull, Wordmark
     charts/              MiniCharts (RingChart, BarList, DonutChart)
     signature/           SignaturePicker, SignatureUploader
     upload/              FileUploader, ImageUploader
     asset/               AssetThumb, ConditionBadge, ConditionSelect
     print/               PrintHeader, PrintToolbar
-    form/                FormField, PasswordInput
+    form/                FormField, PasswordInput, DateInput
     <module>/            component riêng của từng module
     index.js             barrel export phần dùng chung
   pages/                 các trang (export default), nhóm theo module
@@ -117,16 +118,17 @@ localStorage   Axios
 
 **Import:**
 
-- Luôn dùng alias `@/` (= `src/`), kể cả giữa các file cùng module.
+- Luôn dùng alias `@/` (= `src/`), kể cả giữa các file cùng module. Component chung import **thẳng theo đường dẫn file** (`@/components/ui/Modal`); barrel `@/components`, `@/hooks` giữ để tương thích, không bắt buộc (user chốt 20/10/2026).
   ```js
-  import { Modal, StatusBadge } from '@/components';
-  import { useMasterData } from '@/hooks';
+  import Modal from '@/components/ui/Modal';
+  import { useMasterData } from '@/hooks/useMasterData';
   import { formatDate } from '@/utils/format';
   import { createTransferItem } from '@/models/facility-transfer/FacilityTransferItem';
   import TransferAssetTable from '@/components/facility-transfer/TransferAssetTable';
   ```
 - Code của module A (`*/education-plan/`) **không import** code riêng của module B (`*/facility-transfer/`). Cần dùng chung → chuyển lên gốc layer: `src/components`, `src/hooks`, `src/services`, `src/models`, `src/utils`.
-  (Ngoại lệ duy nhất: trang tổng hợp ở gốc `src/pages`, ví dụ Trang chủ, được đọc hook/quyền của nhiều module.)
+  (Ngoại lệ duy nhất: trang ở **gốc** `src/pages` (vd. `HomePage.jsx`) được đọc nhiều module; `*/dashboard/` không phải ngoại lệ — user chốt 20/10/2026.) ESLint chặn vi phạm (`npm run lint`); vi phạm cũ nằm trong danh sách nợ `CROSS_MODULE_DEBT` ở `.eslintrc.cjs`, chỉ được xóa bớt, không thêm.
+- **Chung hay riêng:** trước khi viết component/class mới, tra `DESIGN.md` §6.3. Dùng ở 1 module ⇒ `components/<module>/`. Module thứ 2 cần ⇒ chuyển lên phần chung (`components/ui/` hoặc nhóm chung) **trong cùng PR**, thêm vào §6.3 và `/ui-kit`. Không bọc lại component chung chỉ để đổi tên prop. Hàm ngày/số dùng `utils/format.js`; chưa có thì thêm vào đó một lần, không viết lại trong module.
 
 ---
 
@@ -152,7 +154,7 @@ Quy tắc:
 5. Module thấy một mẫu dùng ở ≥ 2 chỗ → chuyển lên `components.css` + component trong `src/components`.
 6. File CSS của module đặt trong `styles/modules/`, tên đúng tên module: `styles/modules/facility-transfer.css`. Import ở trang/component của module: `import '@/styles/modules/facility-transfer.css';`.
 7. Class trong CSS module **mới** phải có tiền tố 2–3 chữ của module để không trùng (`kk-` = kiểm kê, ví dụ module Báo hỏng dùng `bh-`). Module Luân chuyển viết trước quy tắc này nên class chưa có tiền tố (tên đã đủ riêng: `campus-card`, `route-banner`…) – không đặt class mới trùng các tên đó.
-8. Bảng danh sách/cấu hình cần kẻ đủ ô dùng `.table-wrap > .table.table--grid`; thêm `table--compact` khi cần mật độ gọn. CSS module chỉ đặt độ rộng/căn chỉnh đặc thù, không viết lại viền, padding, màu header hoặc hover của `.table`.
+8. Bảng danh sách/cấu hình cần kẻ đủ ô dùng `.table-wrap > .table.table--grid`; thêm `table--compact` khi cần mật độ gọn. CSS module chỉ đặt độ rộng/căn chỉnh đặc thù, không viết lại viền, padding, màu header hoặc hover của `.table`. Bảng có ô nhập: cột cố định, không sửa được (STT, mã, ĐVT, số hệ thống, số tự tính) gắn `cell--fixed` ở cả `th` và `td` (nền xám). Ngoại lệ đã duyệt: bảng kiểu Word của Kế hoạch giáo dục (`ga-goal-table`, `ga-plan-table`) giữ CSS riêng nhưng vẫn dùng `cell--fixed`. Bảng nhiều cột số dễ tràn khung: thêm `table--wrap-head` (tiêu đề cột được xuống dòng) thay vì `min-width` cố định; mỗi thông tin một cột riêng, không gộp cột để cho vừa (user 20/10/2026). Card không tự có lề: nội dung đặt trong `.card__body`. Căn lề cột theo loại dữ liệu, `th` cùng class với ô: chữ/mã/ngày trái (mặc định), số `.num` (giữa), tiền `.money` (phải), trạng thái/ô tích/icon/nút `.center`; không dùng `.right` mới. Ngoại lệ mật độ (giữ để vừa một màn 1366px): màn Xếp lớp năm học mới (`.sc-plc-page` thu nhỏ nút, ô chọn, padding ô) và khối Tiếp nhận đầu ngày (`.dd-reception > .card` padding).
 
 ---
 
@@ -173,10 +175,11 @@ hooks (useAsync, useXxx)  ──►  services/<module>/<x>Service.js  (facade)
 Bắt buộc:
 
 - Page/component **không** import `@/mocks/*`, **không** dùng `localStorage` (ESLint tự báo lỗi). Các quy tắc còn lại dưới đây kiểm tra khi review PR.
-- Mọi luật nghiệp vụ (chuyển trạng thái, kiểm quyền, tính tồn kho) viết ở **repository mock** – coi như backend. Backend Spring Boot phải làm lại đúng các luật này.
-- Validation viết một lần trong `utils/<module>/<x>Validation.js`, dùng cho cả UI (báo lỗi ngay) và repository (chặn phía server).
-- Quyền ai làm gì viết trong `utils/<module>/<x>Permissions.js` (hàm `canXxx(entity, user)`), dùng cho cả ẩn/hiện nút và kiểm tra phía server.
-- Lỗi từ service có dạng `{ status, message }` → hiển thị `toast.error(err.message)`.
+- Mock repository là **BE giả**: luật nghiệp vụ demo (chuyển trạng thái, kiểm quyền, tính tồn kho) chỉ viết ở đây, mỗi luật dẫn rule ID BE; BE thật là nguồn đúng, lệch thì BE thắng (`AGENTS.md` invariant 2).
+- Tầng UI (page, component, hook, utils hiển thị) **không** tính số liệu nghiệp vụ (số suất, tổng hợp, chuyển trạng thái): gọi action của facade, hiển thị số service trả.
+- Validation `utils/<module>/<x>Validation.js` chỉ hỗ trợ nhập liệu (bắt buộc, định dạng) cho UI; mock repo có thể dùng lại để mô phỏng BE.
+- `utils/<module>/<x>Permissions.js` (`canXxx(entity, user)`) chỉ để ẩn/hiện nút; entity có cờ `can*` từ BE thì dùng cờ. Không so `user.role` trực tiếp trong page/component.
+- Lỗi từ service có dạng `{ status, message }` → hiển thị `toast.error(err, '<tiêu đề>')` (truyền cả object để toast ghi mã lỗi); không `toast.error(err.message)`.
 - Đọc dữ liệu: `useAsync(loader, deps, { refreshOnDataChange, enabled })`. Hook của module nhận thêm `{ live }` và truyền `refreshOnDataChange: live` (xem `useTransfer`); trang đang nhập liệu gọi `useXxx(id, { live: false })` để không bị tải lại mất dữ liệu đang gõ.
 - Ghi xong: `reload({ silent: true })` – không reload cả trang.
 

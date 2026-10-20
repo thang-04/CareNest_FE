@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Check, FileDown, Plus, Printer, Send, Undo2 } from '@/components/ui/icons';
-import { Card, EduStatusBadge, EmptyState, Field, Modal, Notice, PageHead, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
+import { Card, EduStatusBadge, Field, Modal, Notice, PageHead, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { isMyReviewTurn, useClassPlanContext } from '@/components/education-plan/planUi';
 import { ThemePlanBody, themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
 import { LoadingState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
@@ -101,7 +102,7 @@ function DossierInner({ classId, themeId }) {
   }, [ctx.loading]);
 
   if (ctx.loading) return <LoadingState />;
-  if (!cls || !yearPlan || !theme) return <EmptyState title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
+  if (!cls || !yearPlan || !theme) return <StatusPage kind="404" title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
 
   const base = `/education/class/${classId}`;
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
@@ -292,7 +293,9 @@ function DossierInner({ classId, themeId }) {
                         update={edit(w.week.start, w.doc)}
                         goals={goals}
                         reuse={lessonReuseFor(weekPlans, w.doc, i)}
-                        assessTo={w.doc.status === EDU_STATUS.APPROVED ? `/assessment/daily?classId=${classId}&date=${d.date}` : null}
+                        assessTo={
+                          w.doc.status === EDU_STATUS.APPROVED ? `/assessment/daily/skills?classId=${classId}&date=${d.date}` : null
+                        }
                       />
                     </div>
                   ))}

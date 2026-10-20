@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BarChart3, Table2 } from '@/components/ui/icons';
+import { WeekPublishBadge } from '@/components/assessment/AssessmentBadges';
 import { formatDate } from '@/utils/format';
 
 /*
@@ -144,10 +145,10 @@ export function DevelopmentCharts({ weeks }) {
               <thead>
                 <tr>
                   <th>Tuần</th>
-                  <th className="right">Ngày có mặt</th>
-                  <th className="right">Lượt đánh giá</th>
-                  <th className="right">Cờ bé ngoan</th>
-                  <th className="right">Tiêu chí đạt</th>
+                  <th className="num">Ngày có mặt</th>
+                  <th className="num">Lượt đánh giá</th>
+                  <th className="num">Cờ bé ngoan</th>
+                  <th className="num">Tiêu chí đạt</th>
                   <th>Đánh giá tuần</th>
                 </tr>
               </thead>
@@ -157,15 +158,15 @@ export function DevelopmentCharts({ weeks }) {
                     <td className="nowrap">
                       {formatDate(w.weekStart)} – {formatDate(w.weekEnd)}
                     </td>
-                    <td className="right">{w.presentDays}</td>
-                    <td className="right">{w.assessments}</td>
-                    <td className="right">{w.flags}</td>
-                    <td className="right">{w.criteriaRate == null ? '—' : `${w.criteriaRate}%`}</td>
+                    <td className="num">{w.presentDays}</td>
+                    <td className="num">{w.assessments}</td>
+                    <td className="num">{w.flags}</td>
+                    <td className="num">{w.criteriaRate == null ? '—' : `${w.criteriaRate}%`}</td>
                     <td>
                       {w.evaluationConfirmed ? (
-                        <span className="chip chip--green">Đã công bố</span>
+                        <WeekPublishBadge status="PUBLISHED" />
                       ) : w.finished ? (
-                        <span className="chip chip--gray">Chưa có đánh giá công bố</span>
+                        <WeekPublishBadge status="MISSING" />
                       ) : (
                         <span className="muted">Tuần đang diễn ra</span>
                       )}

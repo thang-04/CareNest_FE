@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Info, Users, HeartPulse, CheckCircle2 } from '@/components/ui/icons';
+import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Info, Users, CheckCircle2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheck } from '@/hooks/children/useHealthChecks';
@@ -9,6 +9,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Modal } from '@/components/ui/Modal';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { FormField } from '@/components/form/FormField';
 import {
   CampaignStatusBadge,
@@ -124,7 +125,7 @@ export default function HealthCheckDetailPage() {
       toast.success(typeof success === 'function' ? success(result) : success);
       return true;
     } catch (err) {
-      toast.error(err.message, 'Không thực hiện được');
+      toast.error(err, 'Không thực hiện được');
       return false;
     }
   };
@@ -150,7 +151,7 @@ export default function HealthCheckDetailPage() {
       setReopen(null);
     } catch (err) {
       if (err.details?.reason) setReopen({ ...reopen, error: err.details.reason });
-      else toast.error(err.message, 'Không mở lại được đợt khám');
+      else toast.error(err, 'Không mở lại được đợt khám');
     } finally {
       setBusy(false);
     }
@@ -291,10 +292,10 @@ export default function HealthCheckDetailPage() {
                   <tr>
                     <th>Lớp</th>
                     <th>Đã có kết luận</th>
-                    <th className="right">Vắng khám</th>
-                    <th className="right">Cần theo dõi</th>
-                    <th className="right">Cần theo dõi sát</th>
-                    <th className="center">Thao tác</th>
+                    <th className="num">Vắng khám</th>
+                    <th className="num">Cần theo dõi</th>
+                    <th className="num">Cần theo dõi sát</th>
+                    <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -304,10 +305,10 @@ export default function HealthCheckDetailPage() {
                       <td className="tr-progress-cell">
                         <ProgressBar value={c.recorded} total={c.total} />
                       </td>
-                      <td className="right">{c.absent || '—'}</td>
-                      <td className="right">{c.watch || '—'}</td>
-                      <td className="right">{c.closeWatch ? <span className="text-danger fw-600">{c.closeWatch}</span> : '—'}</td>
-                      <td className="center nowrap">
+                      <td className="num">{c.absent || '—'}</td>
+                      <td className="num">{c.watch || '—'}</td>
+                      <td className="num">{c.closeWatch ? <span className="text-danger fw-600">{c.closeWatch}</span> : '—'}</td>
+                      <td className="cell--actions">
                         <button
                           type="button"
                           className={`btn btn--sm ${c.canRecord ? 'btn--primary' : ''}`}
@@ -339,7 +340,7 @@ export default function HealthCheckDetailPage() {
                   <th>Đợt này</th>
                   <th>Lần khám trước</th>
                   <th>Phiếu theo dõi</th>
-                  <th className="center">Thao tác</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -400,15 +401,8 @@ export default function HealthCheckDetailPage() {
                         <span className="muted">—</span>
                       )}
                     </td>
-                    <td className="center nowrap">
-                      <Link
-                        className="icon-btn"
-                        to={`/children/${r.childId}/health`}
-                        title="Mở sổ sức khỏe"
-                        aria-label={`Mở sổ sức khỏe của ${r.fullName}`}
-                      >
-                        <HeartPulse size={17} />
-                      </Link>
+                    <td className="cell--actions">
+                      <RowActions view={{ to: `/children/${r.childId}/health`, label: 'Mở sổ sức khỏe' }} name={r.fullName} />
                     </td>
                   </tr>
                 ))}

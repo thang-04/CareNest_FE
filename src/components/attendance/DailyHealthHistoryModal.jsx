@@ -1,5 +1,6 @@
-import { Phone } from '@/components/ui/icons';
+import { Clock, Phone, Send } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { actionSummary, symptomLabels } from '@/utils/dailyHealthValidation';
 import { formatDate, formatDateTime } from '@/utils/format';
@@ -7,8 +8,8 @@ import '@/styles/modules/attendance.css';
 import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
 
 const NOTIFICATION_CHIPS = {
-  PENDING: { tone: 'chip--orange', label: 'Chưa gửi được thông báo phụ huynh' },
-  DEMO_QUEUED: { tone: 'chip--blue', label: 'Đã gửi thông báo phụ huynh' },
+  PENDING: { tone: 'orange', icon: Clock, label: 'Chưa gửi được thông báo phụ huynh' },
+  DEMO_QUEUED: { tone: 'blue', icon: Send, label: 'Đã gửi thông báo phụ huynh' },
 };
 
 const timeOf = (iso) => formatDateTime(iso).split(' ')[1] || '—';
@@ -21,10 +22,7 @@ function NotificationLine({ entries }) {
   const notice = noted.parentNotifications?.[0];
   return (
     <div className="dd-health__actions mb-8">
-      <span className={`chip ${chip.tone}`}>
-        {chip.label}
-        {notice ? ` · ${formatDateTime(notice.createdAt)}` : ''}
-      </span>
+      <StatusBadge tone={chip.tone} icon={chip.icon} label={`${chip.label}${notice ? ` · ${formatDateTime(notice.createdAt)}` : ''}`} />
       {notice && (
         <span className="muted text-sm">tới {[...new Set(noted.parentNotifications.map((n) => n.recipientName))].join(', ')}</span>
       )}
@@ -84,7 +82,7 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
               <thead>
                 <tr>
                   <th>Giờ</th>
-                  <th className="right">Thân nhiệt</th>
+                  <th className="num">Thân nhiệt</th>
                   <th>Quan sát / biểu hiện</th>
                   <th>Ghi chú</th>
                   <th>Xử trí</th>
@@ -98,7 +96,7 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
                       {timeOf(entry.recordedAt)}
                       {index === 0 && history.entries.length > 1 && <span className="chip chip--blue dd-hist__tag">Mới nhất</span>}
                     </td>
-                    <td className="right nowrap">
+                    <td className="num nowrap center">
                       <TemperatureBadge value={entry.temperature} />
                     </td>
                     <td>

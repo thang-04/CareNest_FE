@@ -1,7 +1,19 @@
 /* Màn Tùy chỉnh giao diện (tranh nền của trường). Prefix: ap- */
 
+.ap-head__preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.ap-head__thumb {
+  width: calc(var(--space-16) * 2);
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
 .ap-head__meta {
-  margin: var(--space-1) 0 0;
+  margin: 0;
   color: var(--color-text-secondary);
 }
 
@@ -74,7 +86,7 @@
 }
 .ap-mode.is-active .ap-mode__icon {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-primary-fg);
 }
 .ap-mode__name {
   font-weight: var(--fw-semibold);
@@ -146,10 +158,6 @@
   flex-wrap: wrap;
   gap: var(--space-1);
 }
-.ap-scene__tags .chip {
-  background: var(--color-primary-soft);
-  color: var(--color-text-secondary);
-}
 .ap-scene__actions {
   display: flex;
   align-items: center;
@@ -188,7 +196,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   transition: transform 0.15s;
 }

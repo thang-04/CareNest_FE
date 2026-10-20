@@ -16,12 +16,20 @@ export const getFoodCatalog = (user) => repo.getFoodCatalog(user);
 /** Kho khô hai cơ sở: { campuses, foods, kpis, transactions }. */
 export const getDryStock = (user) => repo.getDryStock(user);
 export const getDryStockItem = (filters, user) => repo.getDryStockItem(filters, user);
-export const getStockCounts = (filters, user) => repo.getStockCounts(filters, user);
-export const createStockCount = (payload, user) => repo.createStockCount(payload, user);
-export const saveStockCount = (payload, user) => repo.saveStockCount(payload, user);
 export const createStockReceipt = (payload, user) => repo.createStockReceipt(payload, user);
+/** Phiếu nhập: danh sách theo cơ sở, chi tiết, lưu nháp hoặc xác nhận nhập ({ id?, confirm, ...phiếu }). */
+export const getStockReceipts = (filters, user) => repo.getStockReceipts(filters, user);
+export const getStockReceipt = (filters, user) => repo.getStockReceipt(filters, user);
+export const saveStockReceipt = (payload, user) => repo.saveStockReceipt(payload, user);
+/** NCC: danh sách ({ keyword, status }), chi tiết kèm phiếu nhập liên kết, tạo/sửa ({ id?, ... }), xóa khi chưa có phiếu. */
+export const getSuppliers = (filters, user) => repo.getSuppliers(filters, user);
+export const getSupplier = (filters, user) => repo.getSupplier(filters, user);
+export const saveSupplier = (payload, user) => repo.saveSupplier(payload, user);
+export const deleteSupplier = (payload, user) => repo.deleteSupplier(payload, user);
 /** Phiếu xuất kho đồ khô của một cơ sở: { issues, today } (today = trạng thái hôm nay khi chưa có phiếu). */
 export const getStockIssues = (filters, user) => repo.getStockIssues(filters, user);
+/** Bếp chọn lô cho phiếu chờ chọn lô ({ id, allocations: { [foodId]: [{ lotId, qty }] } }) ⇒ hệ thống ghi xuất. */
+export const allocateIssueLots = (payload, user) => repo.allocateIssueLots(payload, user);
 export const getStockIssue = async ({ campusId, date }, user) => {
   const view = await getStockIssues({ campusId, from: date, to: date }, user);
   const issue = view.issues.find((row) => row.date === date) || null;

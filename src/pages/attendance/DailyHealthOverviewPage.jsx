@@ -1,11 +1,13 @@
 import { Fragment, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Eye, HeartPulse, Info } from '@/components/ui/icons';
+import { useSearchParams } from 'react-router-dom';
+import { ChevronDown, ChevronRight, HeartPulse, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
+import { RowActions } from '@/components/ui/RowActions';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DailyHealthHistoryModal } from '@/components/attendance/DailyHealthHistoryModal';
 import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
@@ -74,10 +76,10 @@ function ClassTable({ rows, loading, showCampus, campusName, filters, groupOf })
           <thead>
             <tr>
               <th>Lớp</th>
-              <th className="right">Sĩ số</th>
-              <th className="right">Có mặt</th>
-              <th className="right">Đã kiểm tra</th>
-              <th className="right">Có dấu hiệu</th>
+              <th className="num">Sĩ số</th>
+              <th className="num">Có mặt</th>
+              <th className="num">Đã kiểm tra</th>
+              <th className="num">Có dấu hiệu</th>
             </tr>
           </thead>
           <tbody>
@@ -103,12 +105,12 @@ function ClassTable({ rows, loading, showCampus, campusName, filters, groupOf })
                           <span className="muted text-xs">· {g.rows.length} lớp</span>
                         </button>
                       </td>
-                      <td className="right">{sum(g.rows, 'size')}</td>
-                      <td className="right">{sum(g.rows, 'present')}</td>
-                      <td className="right nowrap">
+                      <td className="num">{sum(g.rows, 'size')}</td>
+                      <td className="num">{sum(g.rows, 'present')}</td>
+                      <td className="num nowrap">
                         {sum(g.rows, 'checked')}/{sum(g.rows, 'present')}
                       </td>
-                      <td className="right fw-600">{noted || '—'}</td>
+                      <td className="num fw-600">{noted || '—'}</td>
                     </tr>
                     {expanded &&
                       g.rows.map((row) => (
@@ -117,12 +119,12 @@ function ClassTable({ rows, loading, showCampus, campusName, filters, groupOf })
                             <div className="fw-600">{row.className}</div>
                             {showCampus && <div className="muted text-xs">{campusName(row.campusId)}</div>}
                           </td>
-                          <td className="right">{row.size}</td>
-                          <td className="right">{row.present}</td>
-                          <td className="right nowrap">
+                          <td className="num">{row.size}</td>
+                          <td className="num">{row.present}</td>
+                          <td className="num nowrap">
                             {row.checked}/{row.present}
                           </td>
-                          <td className="right fw-600">{row.noted || '—'}</td>
+                          <td className="num fw-600">{row.noted || '—'}</td>
                         </tr>
                       ))}
                   </Fragment>
@@ -167,12 +169,12 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
               <tr>
                 <th>Trẻ</th>
                 <th>Lớp</th>
-                <th className="right">Thân nhiệt</th>
+                <th className="num">Thân nhiệt</th>
                 <th>Biểu hiện</th>
                 <th>Ghi chú</th>
                 <th>Xử trí</th>
                 <th>Người ghi</th>
-                <th className="right">
+                <th className="cell--actions">
                   <span className="sr-only">Thao tác</span>
                 </th>
               </tr>
@@ -191,7 +193,7 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                     </div>
                   </td>
                   <td className="nowrap">{item.className}</td>
-                  <td className="right nowrap">
+                  <td className="num nowrap center">
                     <TemperatureBadge value={item.temperature} />
                     {item.readingCount > 1 && (
                       <div className="muted text-xs">
@@ -220,19 +222,8 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                     {item.recordedByName}
                     <div className="muted text-xs">{timeOf(item.recordedAt)}</div>
                   </td>
-                  <td className="right">
-                    <button
-                      className="icon-btn"
-                      type="button"
-                      title="Xem chi tiết"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onOpen(item);
-                      }}
-                      aria-label={`Xem chi tiết sức khỏe của ${item.childName}`}
-                    >
-                      <Eye size={17} />
-                    </button>
+                  <td className="cell--actions">
+                    <RowActions view={{ onClick: () => onOpen(item), label: 'Xem chi tiết' }} name={`sức khỏe của ${item.childName}`} />
                   </td>
                 </tr>
               ))}
@@ -326,7 +317,7 @@ export default function DailyHealthOverviewPage() {
       </select>
       {filtered && (
         <button className="btn btn--sm" type="button" onClick={clearFilters}>
-          Bỏ lọc
+          Đặt lại bộ lọc
         </button>
       )}
     </div>
@@ -341,17 +332,7 @@ export default function DailyHealthOverviewPage() {
       <ClassDateBar date={date} maxDate={today} onDateChange={(value) => update({ date: value })}></ClassDateBar>
 
       {forbidden ? (
-        <div className="card">
-          <EmptyState
-            title="Bạn không có quyền xem nội dung này"
-            description={error.message}
-            action={
-              <Link className="btn btn--sm mt-8" to="/">
-                Về trang chủ
-              </Link>
-            }
-          />
-        </div>
+        <StatusPage kind="403" title="Bạn không có quyền xem nội dung này" description={error.message} />
       ) : error ? (
         <div className="card">
           <ErrorState error={error} onRetry={reload} />

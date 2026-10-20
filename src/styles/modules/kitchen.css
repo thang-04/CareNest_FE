@@ -41,11 +41,11 @@
 
 .kb-short {
   color: var(--danger-700);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .kb-over {
   color: var(--warning-700);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 .kb-row--short {
@@ -190,6 +190,24 @@
   white-space: normal;
   text-align: left;
 }
+/* Trong hàng thay đổi dị ứng riêng: hàng đã tô nền nên bỏ khung, giữ vạch ngăn khi một ô có nhiều thay đổi */
+.kb-menu-changes--compact {
+  margin-top: 0;
+  gap: var(--space-3);
+}
+.kb-menu-changes--compact .kb-menu-change {
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.kb-menu-changes--compact .kb-menu-change + .kb-menu-change {
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--warning-border);
+}
+.kb-menu-table__type--change {
+  color: var(--warning-700);
+}
 
 .kb-cell-wrap {
   white-space: normal;
@@ -283,7 +301,7 @@
   align-items: center;
   gap: var(--space-1);
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 /* Ô ký trên các phiếu in */
@@ -313,11 +331,6 @@
 /* Dự trù & đi chợ theo tuần */
 .kb-toolbar--center {
   align-items: center;
-}
-.kb-week-nav {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
 }
 .kb-stack {
   display: grid;
@@ -417,7 +430,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   gap: var(--space-4);
-  align-items: start;
 }
 
 /* Kiểm nhận hàng tươi */
@@ -745,4 +757,38 @@
 }
 .kb-lot-input {
   width: 110px;
+}
+
+/* Tiện ích nhỏ thay style inline */
+.kb-chip-after {
+  margin-left: var(--space-1-5);
+}
+.kb-block {
+  display: block;
+}
+.kb-card-error {
+  padding: 0 var(--space-4);
+}
+.page-actions.kb-actions--flush {
+  margin-top: 0;
+}
+
+/* Phiếu nhập: fieldset chỉ để khóa cả phiếu đã xác nhận, bỏ viền/lề mặc định */
+.kb-receipt-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/* Chọn lô cho phiếu xuất: mỗi thực phẩm một khối */
+.kb-alloc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Ô chiếm hết hàng trong form lưới 2 cột (địa chỉ NCC) */
+.kb-span-all {
+  grid-column: 1 / -1;
 }

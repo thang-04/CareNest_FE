@@ -13,7 +13,18 @@
  * @property {string} code
  * @property {string} campusId
  * @property {string} date
- * @property {string} supplierName       NCC (chữ tự do, chưa có danh mục NCC – P-09)
+ * @property {string|null} supplierId   NCC trong danh mục (BA 01); null ở phiếu cũ chưa liên kết
+ * @property {string} supplierName       tên NCC chụp lúc lưu phiếu, giữ trên chứng từ khi NCC đổi tên
+ *
+ * @typedef {Object} Supplier             nhà cung cấp, chỉ thông tin cơ bản (BA 01: HT quản lý, PHT xem và chọn khi nhập kho)
+ * @property {string} id
+ * @property {string} code                NCC001…, hệ thống sinh, không sửa
+ * @property {string} name
+ * @property {string} address
+ * @property {string} contactName
+ * @property {string} phone
+ * @property {string} taxCode             mã số thuế, không bắt buộc
+ * @property {'ACTIVE'|'INACTIVE'} status ngừng dùng ⇒ không chọn được cho phiếu mới
  * @property {{ foodId: string, receivedQty: number, rejectedQty: number, acceptedQty: number, lotNo: string, expiryDate: string, unitPrice: number, note?: string }[]} items
  * @property {string} note
  * @property {string} createdBy
@@ -50,18 +61,43 @@ export const MENU_TYPE_LABELS = { NORMAL: 'Thực đơn thường', ALLERGY: 'Th
 /* Giờ dự kiến của các mốc trên trang Quy trình bếp hôm nay: chỉ để hiển thị, không chặn thao tác (giờ chốt P-03 còn PENDING). */
 export const KITCHEN_DAY_TIMES = { FRESH_RECEIPT: '06:30', MEAL_COUNT: '08:30', FOOD_SAMPLE: '10:30', FORECAST: '15:00' };
 
-/* Phiếu xuất kho đồ khô tự sinh khi chốt suất cả ngày (S8); không còn bước duyệt và bước bếp xác nhận nhận. */
-export const ISSUE_STATUS = { ISSUED: 'ISSUED', PENDING_APPROVAL: 'PENDING_APPROVAL', APPROVED: 'APPROVED', RECEIVED: 'RECEIVED' };
+/*
+ * Xuất kho tự động theo BA: bản chốt suất ⇒ tính nguyên liệu ⇒ thiếu một dòng thì dừng cả phiếu (chờ nhập bổ sung)
+ * ⇒ đủ thì bếp chọn lô ⇒ hệ thống ghi xuất một lần. ISSUED và các trạng thái duyệt tay chỉ còn ở dữ liệu cũ.
+ */
+export const ISSUE_STATUS = {
+  AWAITING_STOCK: 'AWAITING_STOCK',
+  AWAITING_LOT_ALLOCATION: 'AWAITING_LOT_ALLOCATION',
+  PROCESSING: 'PROCESSING',
+  POSTED: 'POSTED',
+  FAILED: 'FAILED',
+  ISSUED: 'ISSUED',
+  PENDING_APPROVAL: 'PENDING_APPROVAL',
+  APPROVED: 'APPROVED',
+  RECEIVED: 'RECEIVED',
+};
+/** Phiếu đã trừ tồn (mới: POSTED; dữ liệu cũ: ISSUED). */
+export const isIssuePosted = (status) => status === ISSUE_STATUS.POSTED || status === ISSUE_STATUS.ISSUED;
 export const ISSUE_STATUS_LABELS = {
   NO_MENU: 'Không có thực đơn',
   WAITING_MEAL_COUNT: 'Chờ chốt suất',
-  ISSUED: 'Đã xuất kho',
+  AWAITING_STOCK: 'Thiếu hàng, chờ nhập bổ sung',
+  AWAITING_LOT_ALLOCATION: 'Chờ bếp chọn lô',
+  PROCESSING: 'Đang ghi xuất',
+  POSTED: 'Đã ghi xuất',
+  FAILED: 'Ghi xuất lỗi',
+  ISSUED: 'Đã xuất kho (dữ liệu cũ)',
   PENDING_APPROVAL: 'Phiếu cũ: chờ duyệt',
   APPROVED: 'Phiếu cũ: đã duyệt, chưa nhận',
   RECEIVED: 'Phiếu cũ: bếp đã nhận',
 };
 
 export const ISSUE_HISTORY_LABELS = {
+  CREATED: 'Tính nguyên liệu từ bản chốt suất',
+  BLOCKED: 'Thiếu hàng: dừng cả phiếu, chờ nhập bổ sung',
+  READY: 'Đủ hàng: chờ bếp chọn lô',
+  POSTED: 'Bếp chọn lô, hệ thống ghi xuất và trừ tồn',
+  NEED_CHANGED: 'Số suất chốt thay đổi sau khi đã ghi xuất (chỉ ghi chú, chưa điều chỉnh kho)',
   ISSUED: 'Xuất kho tự động khi chốt suất',
   ADJUSTED: 'Điều chỉnh theo số suất chốt lại',
   // Phiếu duyệt tay lập trước khảo sát 18/10/2026
@@ -88,17 +124,12 @@ export const MEAL_COUNT_STATUS_LABELS = {
   CONFIRMED: 'Đã xác nhận',
 };
 
-/*
- * GBR-MEAL-02: portions differ by age group. The SRS gives no figures, so dish quantities are for the
- * 4–5 year group and other groups use this factor (assumption, to be replaced by menu-planning data).
- */
-export const PORTION_FACTOR_BY_AGE_GROUP = { 'ag-2': 0.8, 'ag-3': 0.9, 'ag-4': 1, 'ag-5': 1.1 };
+/* Phiếu nhập kho (BA): nháp không cộng tồn; xác nhận tạo lô, cộng tồn đúng một lần và khóa sửa. */
+export const RECEIPT_STATUS = { DRAFT: 'DRAFT', CONFIRMED: 'CONFIRMED' };
+export const RECEIPT_STATUS_LABELS = { DRAFT: 'Nháp', CONFIRMED: 'Đã xác nhận nhập' };
 
-/* Kiểm kê kho khô theo tháng: nháp ⇒ chốt (tồn = số đếm); lệch phải chọn lý do. */
-export const STOCK_COUNT_STATUS = { DRAFT: 'DRAFT', FINALIZED: 'FINALIZED' };
-export const STOCK_COUNT_STATUS_LABELS = { DRAFT: 'Đang kiểm kê', FINALIZED: 'Đã chốt' };
-export const COUNT_DIFF_REASON = { LOSS: 'LOSS', DAMAGED: 'DAMAGED', EXPIRED: 'EXPIRED', WRONG_ENTRY: 'WRONG_ENTRY' };
-export const COUNT_DIFF_REASON_LABELS = { LOSS: 'Hao hụt', DAMAGED: 'Hỏng', EXPIRED: 'Hết hạn', WRONG_ENTRY: 'Nhập sai' };
+export const SUPPLIER_STATUS = { ACTIVE: 'ACTIVE', INACTIVE: 'INACTIVE' };
+export const SUPPLIER_STATUS_LABELS = { ACTIVE: 'Đang dùng', INACTIVE: 'Ngừng dùng' };
 
 export const NOTE_MAX = 500;
 

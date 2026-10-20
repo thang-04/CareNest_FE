@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { FileText, HeartPulse, Stethoscope, X, Users } from '@/components/ui/icons';
+import { HeartPulse, Stethoscope, X, Users } from '@/components/ui/icons';
 import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
-import { ChildResultBadge, ConclusionCategoryBadge, FollowUpDueBadge, FollowUpLevelShortBadge } from './ChildBadges';
+import { RowActions } from '@/components/ui/RowActions';
+import { ChildResultBadge, ConclusionCategoryBadge, FollowUpDueBadge, FollowUpLevelShortBadge, PublishStatusBadge } from './ChildBadges';
 import { CHILD_RESULT_STATUS } from '@/models/children/healthCheckConstants';
 import { MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children/childrenConstants';
 import { formatDate } from '@/utils/format';
@@ -43,7 +44,7 @@ export function HealthCheckClassRoster({ campaignId, classId, onClose }) {
                 <th>Kết luận</th>
                 <th>Lần khám trước</th>
                 <th>Phụ huynh</th>
-                <th className="center">Thao tác</th>
+                <th className="cell--actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -77,7 +78,7 @@ export function HealthCheckClassRoster({ campaignId, classId, onClose }) {
                           </div>
                         )}
                       </td>
-                      <td>
+                      <td className="center">
                         <ChildResultBadge status={r.result} />
                         {r.date && <div className="muted text-xs mt-8">Ngày khám {formatDate(r.date)}</div>}
                         {legacy && <div className="muted text-xs">{MEASUREMENT_SOURCE_LABELS.LEGACY}</div>}
@@ -110,41 +111,30 @@ export function HealthCheckClassRoster({ campaignId, classId, onClose }) {
                       <td>
                         {r.result !== CHILD_RESULT_STATUS.RECORDED ? (
                           <span className="muted">—</span>
-                        ) : r.published ? (
-                          <span className="chip chip--green">Đã công bố</span>
                         ) : (
-                          <span className="chip chip--gray">Chưa công bố</span>
+                          <PublishStatusBadge status={r.published ? 'PUBLISHED' : 'UNPUBLISHED'} />
                         )}
                       </td>
-                      <td className="center nowrap">
+                      <td className="cell--actions">
                         {roster.canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED && (
                           <Link className="btn btn--primary btn--sm" to={examLink(r.childId)}>
                             <Stethoscope size={14} /> Khám
                           </Link>
                         )}
                         {roster.canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS && (
-                          <Link className="btn btn--sm" to={examLink(r.childId)}>
+                          <Link className="btn btn--primary btn--sm" to={examLink(r.childId)}>
                             <Stethoscope size={14} /> Tiếp tục khám
                           </Link>
                         )}
-                        {hasExam && !(roster.canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS) && (
-                          <Link
-                            className="icon-btn"
-                            to={examLink(r.childId)}
-                            title="Xem phiếu khám"
-                            aria-label={`Xem phiếu khám của ${r.fullName}`}
-                          >
-                            <FileText size={17} />
-                          </Link>
-                        )}
-                        <Link
-                          className="icon-btn"
-                          to={`/children/${r.childId}/health`}
-                          title="Mở sổ sức khỏe"
-                          aria-label={`Mở sổ sức khỏe của ${r.fullName}`}
-                        >
-                          <HeartPulse size={17} />
-                        </Link>
+                        <RowActions
+                          view={
+                            hasExam && !(roster.canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS)
+                              ? { to: examLink(r.childId), label: 'Xem phiếu khám' }
+                              : null
+                          }
+                          name={r.fullName}
+                          menu={[{ label: 'Mở sổ sức khỏe', icon: HeartPulse, to: `/children/${r.childId}/health` }]}
+                        />
                       </td>
                     </tr>
                   );

@@ -135,7 +135,11 @@ function WeekTable({ days, menusOf, session, title }) {
   }
   if (groups.length === 0) return null;
   for (const g of groups) g.rows.sort(byType);
-  const cell = (d, g, r) => menusOf(d.sessions.find((s) => s.session === g.session)?.menus || []).find((m) => m.type === r.type);
+  const menusIn = (d, g) => menusOf(d.sessions.find((s) => s.session === g.session)?.menus || []);
+  const cell = (d, g, r) => menusIn(d, g).find((m) => m.type === r.type);
+  // Thay đổi dị ứng của cả bữa trong ngày: hiện ở hàng riêng dưới bữa, không chen vào ô món
+  const changesOf = (d, g) => menusIn(d, g).flatMap((m) => m.allergyChanges || []);
+  for (const g of groups) g.hasChanges = days.some((d) => changesOf(d, g).length > 0);
 
   return (
     <div className="card">
@@ -157,23 +161,23 @@ function WeekTable({ days, menusOf, session, title }) {
             </tr>
           </thead>
           <tbody>
-            {groups.map((g) =>
-              g.rows.map((r, i) => (
-                <tr key={`${g.session}_${r.type}`} className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
-                  {i === 0 && (
-                    <th scope="rowgroup" rowSpan={g.rows.length} className="kb-menu-table__session">
-                      {MEAL_SESSION_LABELS[g.session]}
-                    </th>
-                  )}
-                  <td>
-                    <TypeLabel type={r.type} />
-                  </td>
-                  {days.map((d) => {
-                    const m = cell(d, g, r);
-                    return (
-                      <td key={d.date}>
-                        {m ? (
-                          <>
+            {groups.map((g) => (
+              <Fragment key={g.session}>
+                {g.rows.map((r, i) => (
+                  <tr key={r.type} className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
+                    {i === 0 && (
+                      <th scope="rowgroup" rowSpan={g.rows.length + (g.hasChanges ? 1 : 0)} className="kb-menu-table__session">
+                        {MEAL_SESSION_LABELS[g.session]}
+                      </th>
+                    )}
+                    <td>
+                      <TypeLabel type={r.type} />
+                    </td>
+                    {days.map((d) => {
+                      const m = cell(d, g, r);
+                      return (
+                        <td key={d.date}>
+                          {m ? (
                             <ul className="kb-dishes text-sm">
                               {m.dishes.map((dish) => (
                                 <li key={dish.id}>
@@ -182,21 +186,36 @@ function WeekTable({ days, menusOf, session, title }) {
                                 </li>
                               ))}
                             </ul>
-                            <AllergyMenuChanges
-                              changes={m.allergyChanges}
-                              date={d.date}
-                              context={`${title} · ${MEAL_SESSION_LABELS[g.session]}`}
-                            />
-                          </>
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+                {g.hasChanges && (
+                  <tr className="kb-tr--allergy">
+                    <td>
+                      <div className="kb-menu-table__type kb-menu-table__type--change fw-600">
+                        <AlertTriangle size={14} aria-hidden="true" />
+                        Thay đổi cho trẻ dị ứng
+                      </div>
+                    </td>
+                    {days.map((d) => (
+                      <td key={d.date}>
+                        <AllergyMenuChanges
+                          compact
+                          changes={changesOf(d, g)}
+                          date={d.date}
+                          context={`${title} · ${MEAL_SESSION_LABELS[g.session]}`}
+                        />
                       </td>
-                    );
-                  })}
-                </tr>
-              )),
-            )}
+                    ))}
+                  </tr>
+                )}
+              </Fragment>
+            ))}
           </tbody>
         </table>
       </div>

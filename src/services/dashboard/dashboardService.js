@@ -23,6 +23,14 @@ import { canReviewSheet, canApproveRound } from '@/utils/inventory-inspection/in
 import { canConfirmMealCount } from '@/utils/attendance/attendancePermissions';
 import { canApproveStockIssue } from '@/utils/kitchen/kitchenPermissions';
 import { APPROVAL_TYPE, APPROVAL_TYPES_BY_ROLE } from '@/models/dashboard/dashboardConstants';
+import { FACILITY_ENABLED } from '@/config/app';
+
+const FACILITY_TYPES = [
+  APPROVAL_TYPE.FACILITY_ISSUE,
+  APPROVAL_TYPE.FACILITY_REQUEST,
+  APPROVAL_TYPE.FACILITY_PROPOSAL,
+  APPROVAL_TYPE.INSPECTION,
+];
 import { canViewPendingApprovals } from '@/utils/dashboard/dashboardPermissions';
 import { sortKey } from '@/utils/dashboard/dashboardFormat';
 
@@ -231,7 +239,7 @@ function rewardRow(p, users) {
  */
 export async function getPendingApprovals(user, { schoolYear, date }) {
   if (!canViewPendingApprovals(user)) return [];
-  const types = APPROVAL_TYPES_BY_ROLE[user.role] || [];
+  const types = (APPROVAL_TYPES_BY_ROLE[user.role] || []).filter((t) => FACILITY_ENABLED || !FACILITY_TYPES.includes(t));
   // Names only decorate the rows: the list still works when the user directory is unavailable.
   const users = await getUsers()
     .then((list) => Object.fromEntries(list.map((u) => [u.id, u.fullName])))

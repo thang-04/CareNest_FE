@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Info, Unlock } from '@/components/ui/icons';
+import { Info, Lock, RotateCcw, Unlock } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { FilterMore } from '@/components/ui/FilterMore';
 import { DateInput } from '@/components/form/DateInput';
 import { FormField } from '@/components/form/FormField';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,6 +51,8 @@ export default function AttendanceDayUnlockPage() {
   const classLabel = (cls) => `${cls.name}${multiCampus ? ` · ${campusLabel(cls.campusId)}` : ''}`;
   const active = (history.data || []).find((item) => item.classId === form.classId && isAttendanceUnlockActive(item, now));
   const ready = selected && day.data?.classId === form.classId && day.data?.date === today && !day.loading && !day.error;
+  // BA: chỉ mở lại trong thời hạn (phút sau giờ chốt) Hiệu trưởng cấu hình
+  const canReopen = !!day.data?.schoolDay && !!day.data?.baseLocked && !!day.data?.reopenUntil && !day.data?.reopenExpired;
   const filtered = Object.values(filters).some(Boolean);
   const invalidRange =
     (filters.from && !isIsoDate(filters.from)) ||
@@ -95,7 +99,7 @@ export default function AttendanceDayUnlockPage() {
       next.until = 'Hạn phải sau hiện tại, tối đa 7 ngày.';
     if (!form.reason.trim() || form.reason.trim().length > 300) next.reason = 'Nhập lý do mở lại, tối đa 300 ký tự.';
     setErrors(next);
-    if (Object.keys(next).length || !ready || !day.data.schoolDay || !day.data.baseLocked || active || history.error) return;
+    if (Object.keys(next).length || !ready || !canReopen || active || history.error) return;
     setConfirming({
       classId: selected.id,
       className: classLabel(selected),
@@ -147,7 +151,7 @@ export default function AttendanceDayUnlockPage() {
         </div>
       ) : (
         <form className="card" onSubmit={requestUnlock} noValidate aria-busy={busy}>
-          <fieldset disabled={busy} className="dd-unlock-fields">
+          <fieldset disabled={busy} className="card__body dd-unlock-fields">
             <div className="grid-2 dd-unlock-grid">
               <FormField label="Lớp cần mở lại" required error={errors.classId}>
                 <select className="select" value={form.classId} onChange={(event) => set({ classId: event.target.value })}>
@@ -200,7 +204,11 @@ export default function AttendanceDayUnlockPage() {
                       ? `Lớp đã mở lại đến ${formatDateTime(active.validUntil)}.`
                       : !day.data.baseLocked
                         ? `Chưa đến giờ chốt ${day.data.cutoff}; giáo viên vẫn điểm danh bình thường.`
-                        : `Đã qua giờ chốt ${day.data.cutoff}. Có thể mở lại riêng lớp ${selected.name}.`}
+                        : !day.data.reopenUntil
+                          ? 'Hiệu trưởng chưa cấu hình thời hạn mở lại điểm danh, chưa mở lại được.'
+                          : day.data.reopenExpired
+                            ? `Quá hạn mở lại: chỉ mở lại được đến ${day.data.reopenUntil} (giờ chốt ${day.data.cutoff}).`
+                            : `Đã qua giờ chốt ${day.data.cutoff}. Có thể mở lại riêng lớp ${selected.name} đến ${day.data.reopenUntil}.`}
                 </div>
               </div>
             )}
@@ -213,7 +221,7 @@ export default function AttendanceDayUnlockPage() {
               <button
                 className="btn btn--primary"
                 type="submit"
-                disabled={busy || !ready || !day.data?.schoolDay || !day.data?.baseLocked || !!active || history.loading || !!history.error}
+                disabled={busy || !ready || !canReopen || !!active || history.loading || !!history.error}
               >
                 {busy ? <Spinner small /> : <Unlock size={16} />} Mở lại điểm danh
               </button>
@@ -255,28 +263,35 @@ export default function AttendanceDayUnlockPage() {
             <option value="ACTIVE">Còn hiệu lực</option>
             <option value="EXPIRED">Đã hết</option>
           </select>
-          <DateInput
-            aria-label="Ngày điểm danh từ"
-            value={filters.from}
-            max={filters.to || today}
-            onChange={(from) => setFilter({ from })}
-          />
-          <DateInput
-            aria-label="Ngày điểm danh đến"
-            value={filters.to}
-            min={filters.from || undefined}
-            max={today}
-            onChange={(to) => setFilter({ to })}
-          />
-          {filtered && (
-            <button
-              className="btn btn--sm"
-              type="button"
-              onClick={() => setFilter({ keyword: '', classId: '', status: '', from: '', to: '' })}
-            >
-              Bỏ lọc
-            </button>
-          )}
+          <FilterMore count={[filters.from, filters.to].filter(Boolean).length}>
+            <div className="field">
+              <span className="field__label">Ngày điểm danh từ</span>
+              <DateInput
+                aria-label="Ngày điểm danh từ"
+                value={filters.from}
+                max={filters.to || today}
+                onChange={(from) => setFilter({ from })}
+              />
+            </div>
+            <div className="field">
+              <span className="field__label">Ngày điểm danh đến</span>
+              <DateInput
+                aria-label="Ngày điểm danh đến"
+                value={filters.to}
+                min={filters.from || undefined}
+                max={today}
+                onChange={(to) => setFilter({ to })}
+              />
+            </div>
+          </FilterMore>
+          <button
+            className="btn"
+            type="button"
+            disabled={!filtered}
+            onClick={() => setFilter({ keyword: '', classId: '', status: '', from: '', to: '' })}
+          >
+            <RotateCcw size={15} /> Đặt lại bộ lọc
+          </button>
         </div>
         {invalidRange && (
           <p className="field__error" role="alert">
@@ -295,7 +310,7 @@ export default function AttendanceDayUnlockPage() {
                   <th>Người mở</th>
                   <th>Lúc mở</th>
                   <th>Lý do</th>
-                  <th>Hiệu lực</th>
+                  <th className="center">Hiệu lực</th>
                 </tr>
               </thead>
               <tbody>
@@ -311,23 +326,28 @@ export default function AttendanceDayUnlockPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginate(shown, currentPage, 10).map((item) => (
-                    <tr key={item.id}>
-                      <td className="fw-600">
-                        {item.className}
-                        {multiCampus && <div className="text-sm muted">{campusLabel(item.campusId)}</div>}
-                      </td>
-                      <td className="nowrap">{formatDate(item.date)}</td>
-                      <td>{item.unlockedByName}</td>
-                      <td>{formatDateTime(item.unlockedAt)}</td>
-                      <td>{item.reason || '—'}</td>
-                      <td>
-                        <span className={`chip ${isAttendanceUnlockActive(item, now) ? 'chip--green' : 'chip--gray'}`}>
-                          {isAttendanceUnlockActive(item, now) ? 'Còn hiệu lực' : 'Đã hết'} · {formatDateTime(item.validUntil)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  paginate(shown, currentPage, 10).map((item) => {
+                    const active = isAttendanceUnlockActive(item, now);
+                    return (
+                      <tr key={item.id}>
+                        <td className="fw-600">
+                          {item.className}
+                          {multiCampus && <div className="text-sm muted">{campusLabel(item.campusId)}</div>}
+                        </td>
+                        <td className="nowrap">{formatDate(item.date)}</td>
+                        <td>{item.unlockedByName}</td>
+                        <td>{formatDateTime(item.unlockedAt)}</td>
+                        <td>{item.reason || '—'}</td>
+                        <td className="center">
+                          <StatusBadge
+                            tone={active ? 'green' : 'gray'}
+                            icon={active ? Unlock : Lock}
+                            label={`${active ? 'Còn hiệu lực' : 'Đã hết'} · ${formatDateTime(item.validUntil)}`}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AlertTriangle, Lock } from '@/components/ui/icons';
+import { AlertTriangle } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { LoadingState, ErrorState, EmptyState } from '@/components/ui/States';
+import { LoadingState, ErrorState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useTransfer } from '@/hooks/facility-transfer/useTransfers';
@@ -51,24 +52,22 @@ export default function TransferAdjustmentPage() {
   return (
     <div className="page">
       <Breadcrumb items={transferCrumbs(isRevise ? `Điều chỉnh phiếu ${transfer.code}` : `Sửa phiếu nháp ${transfer.code}`)} />
-      <div className="row" style={{ gap: 14, alignItems: 'center' }}>
+      <div className="row gap-3-5">
         <h1 className="page__title">{isRevise ? `Điều chỉnh phiếu ${transfer.code}` : `Phiếu nháp ${transfer.code}`}</h1>
         <TransferStatusBadge status={transfer.status} />
       </div>
 
       {!canEditTransfer(transfer, user) ? (
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Phiếu không thể chỉnh sửa"
-            description="Chỉ Phó hiệu trưởng được sửa phiếu nháp hoặc phiếu đang ở trạng thái “Cần điều chỉnh”. Phiếu hoàn thành/đã hủy bị khóa."
-            action={
-              <Link className="btn" to={`/facility/transfers/${transfer.id}`}>
-                Xem chi tiết phiếu
-              </Link>
-            }
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Phiếu không thể chỉnh sửa"
+          description="Chỉ Phó hiệu trưởng được sửa phiếu nháp hoặc phiếu đang ở trạng thái “Cần điều chỉnh”. Phiếu hoàn thành/đã hủy bị khóa."
+          action={
+            <Link className="btn" to={`/facility/transfers/${transfer.id}`}>
+              Xem chi tiết phiếu
+            </Link>
+          }
+        />
       ) : (
         <>
           {isRevise && openRequest && (

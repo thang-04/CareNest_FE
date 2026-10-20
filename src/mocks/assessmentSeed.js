@@ -2,7 +2,7 @@
  * Fictional assessment data (no real child data). Built relative to "today" so the demo always has
  * about three finished school weeks of daily assessments. Collections seeded lazily by
  * services/assessment/mock/assessmentMockRepository.js:
- *   db.assessmentCriteria, db.dailyAssessments, db.yearEndEvaluations (shells), db.rewardProposals.
+ *   db.assessmentCriteria, db.dailyAssessments, db.yearEndEvaluations (shells), db.rewardProposals, db.assessmentDayUnlocks.
  * Weekly / monthly evaluations and good behaviour tickets are produced by the repository's period jobs.
  */
 import { DEFAULT_CRITERIA, EMOTION, HEALTH_STATUS, REWARD_STATUS } from '@/models/assessment/assessmentConstants';
@@ -26,41 +26,48 @@ const YEAR_END_DEMO = {
   cls_c1_c2: ['CONFIRMED', 'CONFIRMED', 'CONFIRMED', 'CONFIRMED', 'CONFIRMED', 'AWAITING_REVIEW'],
   cls_c1_m1: ['CONFIRMED', 'CONFIRMED', 'CONFIRMED', 'AWAITING_REVIEW', 'AWAITING_REVIEW', 'AWAITING_REVIEW'],
   cls_c2_la: ['AWAITING_REVIEW', 'AWAITING_REVIEW', 'AWAITING_REVIEW', 'AWAITING_REVIEW', 'AI_FAILED', 'AWAITING_REVIEW'],
+  // Lớp của tài khoản giáo viên demo (Lê Minh Anh)
+  cls_c1_c1: ['CONFIRMED', 'CONFIRMED', 'AWAITING_REVIEW', 'AWAITING_REVIEW', 'AI_FAILED', 'AWAITING_REVIEW'],
 };
+
+// Chỉ các lớp có tài khoản giáo viên demo: seed cho cả 24 lớp (~410 trẻ) vượt hạn mức localStorage
+const DEMO_CLASS_IDS = new Set(['cls_c1_m1', 'cls_c1_c1', 'cls_c1_c2', 'cls_c1_l1', 'cls_c2_m1', 'cls_c2_la']);
 
 const buildDailyAssessments = (classes, children, today) => {
   const from = weekStart(addDays(today, -21));
   const days = schoolDaysBetween(from, addDays(today, -1));
   const records = [];
-  classes.forEach((cls) => {
-    const kids = children.filter((ch) => ch.classId === cls.id && ch.status === 'ACTIVE');
-    days.forEach((date, di) => {
-      kids.forEach((ch, ci) => {
-        if ((di * 7 + ci * 3) % 19 === 0) return; // absent that day
-        const k = di * 3 + ci * 5;
-        // The fifth child of each class earns fewer flags so the ticket list shows ineligible children too.
-        const flag = k % 10 < (ci === 4 ? 4 : 8);
-        records.push({
-          id: `da_${date.replace(/-/g, '')}_${ch.id}`,
-          date,
-          classId: cls.id,
-          campusId: cls.campusId,
-          childId: ch.id,
-          activity: ACTIVITY,
-          healthStatus: k % 13 === 0 ? HEALTH_STATUS.TIRED : HEALTH_STATUS.GOOD,
-          emotion: k % 11 === 0 ? EMOTION.SAD : k % 4 === 0 ? EMOTION.CALM : EMOTION.HAPPY,
-          criteriaMet: DEFAULT_CRITERIA.filter((_, j) => (di + ci + j * 3) % 4 !== 0).map((c) => c.id),
-          flag,
-          comment: COMMENTS[k % COMMENTS.length],
-          recordedBy: cls.homeroomTeacherId,
-          recordedAt: new Date(`${date}T10:30:00+07:00`).toISOString(),
-          updatedAt: null,
-          corrections: [],
-          parentNotifiedAt: new Date(`${date}T10:30:00+07:00`).toISOString(),
+  classes
+    .filter((cls) => DEMO_CLASS_IDS.has(cls.id))
+    .forEach((cls) => {
+      const kids = children.filter((ch) => ch.classId === cls.id && ch.status === 'ACTIVE');
+      days.forEach((date, di) => {
+        kids.forEach((ch, ci) => {
+          if ((di * 7 + ci * 3) % 19 === 0) return; // absent that day
+          const k = di * 3 + ci * 5;
+          // The fifth child of each class earns fewer flags so the ticket list shows ineligible children too.
+          const flag = k % 10 < (ci === 4 ? 4 : 8);
+          records.push({
+            id: `da_${date.replace(/-/g, '')}_${ch.id}`,
+            date,
+            classId: cls.id,
+            campusId: cls.campusId,
+            childId: ch.id,
+            activity: ACTIVITY,
+            healthStatus: k % 13 === 0 ? HEALTH_STATUS.TIRED : HEALTH_STATUS.GOOD,
+            emotion: k % 11 === 0 ? EMOTION.SAD : k % 4 === 0 ? EMOTION.CALM : EMOTION.HAPPY,
+            criteriaMet: DEFAULT_CRITERIA.filter((_, j) => (di + ci + j * 3) % 4 !== 0).map((c) => c.id),
+            flag,
+            comment: COMMENTS[k % COMMENTS.length],
+            recordedBy: cls.homeroomTeacherId,
+            recordedAt: new Date(`${date}T10:30:00+07:00`).toISOString(),
+            updatedAt: null,
+            corrections: [],
+            parentNotifiedAt: new Date(`${date}T10:30:00+07:00`).toISOString(),
+          });
         });
       });
     });
-  });
   return records;
 };
 
@@ -86,6 +93,8 @@ const buildRewardProposals = (classes, children, schoolYear) => {
     { classId: 'cls_c1_c2', i: 4, title: 'Bé có năng khiếu nghệ thuật', status: REWARD_STATUS.DRAFT, by: 'u_mai' },
     { classId: 'cls_c1_m1', i: 0, title: 'Bé ngoan toàn diện', status: REWARD_STATUS.PENDING_VP, by: 'u_an' },
     { classId: 'cls_c1_m1', i: 1, title: 'Bé khỏe – Bé đẹp', status: REWARD_STATUS.REJECTED, by: 'u_an' },
+    { classId: 'cls_c1_c1', i: 0, title: 'Bé chăm ngoan', status: REWARD_STATUS.PENDING_VP, by: 'u_minhanh' },
+    { classId: 'cls_c1_c1', i: 1, title: 'Bé tự tin, mạnh dạn', status: REWARD_STATUS.DRAFT, by: 'u_minhanh' },
   ];
   return specs
     .map((s, n) => {
@@ -148,6 +157,27 @@ const buildRewardProposals = (classes, children, schoolYear) => {
     .filter(Boolean);
 };
 
+// Lịch sử mở lại ngày đánh giá (đã hết hạn) để màn Mở lại ngày có dữ liệu xem
+const buildDayUnlocks = (classes, today) => {
+  const days = schoolDaysBetween(addDays(today, -14), addDays(today, -1));
+  const specs = [
+    { classId: 'cls_c1_c1', day: days[days.length - 3], by: 'u_lan', reason: 'Cô nghỉ ốm, bổ sung đánh giá hoạt động học của ngày.' },
+    { classId: 'cls_c2_la', day: days[2], by: 'u_duc', reason: 'Lớp đi dã ngoại, cô ghi đánh giá sau.' },
+  ];
+  return specs
+    .filter((s) => s.day && classes.some((c) => c.id === s.classId))
+    .map((s, n) => ({
+      id: `du_seed_${n + 1}`,
+      classId: s.classId,
+      campusId: classes.find((c) => c.id === s.classId).campusId,
+      date: s.day,
+      reason: s.reason,
+      unlockedBy: s.by,
+      unlockedAt: new Date(`${addDays(s.day, 1)}T08:00:00+07:00`).toISOString(),
+      validUntil: new Date(`${addDays(s.day, 1)}T17:00:00+07:00`).toISOString(),
+    }));
+};
+
 export const buildAssessmentSeed = ({ classes, children, today }) => {
   const schoolYear = schoolYearOf(today);
   return {
@@ -155,6 +185,7 @@ export const buildAssessmentSeed = ({ classes, children, today }) => {
     dailyAssessments: buildDailyAssessments(classes, children, today),
     yearEndShells: buildYearEndShells(classes, children, schoolYear),
     rewardProposals: buildRewardProposals(classes, children, schoolYear),
+    assessmentDayUnlocks: buildDayUnlocks(classes, today),
     schoolYear,
   };
 };

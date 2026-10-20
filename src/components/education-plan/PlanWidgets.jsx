@@ -106,7 +106,7 @@ export function Group({ id, collapsed, onToggle, title, meta, actions, children 
   return (
     <div className={`ga-domain ${collapsed ? 'ga-domain--collapsed' : ''}`} data-group={id}>
       <div className="ga-domain__head" onClick={onHeadClick}>
-        <div className="row" style={{ flex: 1, minWidth: 0 }}>
+        <div className="row flex-1 min-w-0">
           <button
             type="button"
             className="icon-btn ga-domain__toggle"

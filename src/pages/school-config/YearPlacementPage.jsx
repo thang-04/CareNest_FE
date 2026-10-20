@@ -1,21 +1,22 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, CalendarRange, Info, Users, Wand2 } from '@/components/ui/icons';
+import { AlertTriangle, CalendarRange, CircleCheck, Clock, Info, Users, Wand2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { PlacementClassPanel } from '@/components/school-config/PlacementClassPanel';
+import { PlacementActionBadge } from '@/components/school-config/SchoolConfigBadges';
 import { usePlacements, useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
 import { autoPlace } from '@/services/school-config/schoolConfigService';
-import { PLACEMENT_ACTION, PLACEMENT_ACTION_SHORT, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
+import { PLACEMENT_ACTION, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { canConfigureSchool } from '@/utils/school-config/schoolConfigPermissions';
 import { placementCrumbs } from '@/utils/school-config/breadcrumbs';
 import '@/styles/modules/school-config.css';
 
-const TONE = { PROMOTE: 'green', STAY: 'orange', LEAVE: 'gray', GRADUATE: 'blue' };
 const placedOf = (c) => c.children.filter((ch) => ch.placement).length;
 
 /**
@@ -95,7 +96,7 @@ export default function YearPlacementPage() {
       const todo = classes.map((c) => fresh?.classes.find((x) => x.id === c.id)).find((c) => c && placedOf(c) < c.children.length);
       if (todo) setSelectedId(todo.id);
     } catch (err) {
-      toast.error(err.message, 'Không xếp tự động được');
+      toast.error(err, 'Không xếp tự động được');
     }
   };
 
@@ -128,9 +129,7 @@ export default function YearPlacementPage() {
                 {Object.values(PLACEMENT_ACTION)
                   .filter((a) => count(a) > 0)
                   .map((a) => (
-                    <span key={a} className={`chip chip--${TONE[a]}`}>
-                      {PLACEMENT_ACTION_SHORT[a]}: {count(a)}
-                    </span>
+                    <PlacementActionBadge key={a} action={a} count={count(a)} />
                   ))}
                 <span
                   className="sc-plc__note"
@@ -256,8 +255,12 @@ export default function YearPlacementPage() {
                       <span className="muted text-xs sc-plc__class-meta">
                         {groupName(c.ageGroupId)} · {campusName(c.campusId)}
                       </span>
-                      <span className={`chip sc-plc__class-chip ${complete ? 'chip--green' : done ? 'chip--orange' : 'chip--red'}`}>
-                        {complete ? `Đã xếp ${done}/${c.children.length}` : `Chưa xếp ${c.children.length - done}`}
+                      <span className="sc-plc__class-chip">
+                        <StatusBadge
+                          tone={complete ? 'green' : done ? 'orange' : 'red'}
+                          icon={complete ? CircleCheck : done ? Clock : AlertTriangle}
+                          label={complete ? `Đã xếp ${done}/${c.children.length}` : `Chưa xếp ${c.children.length - done}`}
+                        />
                       </span>
                       {!c.graduating && !c.suggestedTargetId && (
                         <span

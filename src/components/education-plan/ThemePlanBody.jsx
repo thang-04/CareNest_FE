@@ -90,8 +90,8 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
               </colgroup>
               <thead>
                 <tr>
-                  <th className="ga-goal-table__fixed">TT</th>
-                  <th className="ga-goal-table__fixed">Mục tiêu giáo dục</th>
+                  <th className="cell--fixed">TT</th>
+                  <th className="cell--fixed">Mục tiêu giáo dục</th>
                   <th>Nội dung giáo dục</th>
                   <th>Hoạt động giáo dục</th>
                 </tr>
@@ -119,15 +119,15 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
                     )}
                     {b.goals.map((g) => (
                       <tr key={g.id}>
-                        <td className="ga-goal-table__fixed">
+                        <td className="cell--fixed">
                           <div className="ga-goal-table__pad">
                             <span className="ga-goal-code">MT {g.no}</span>
                           </div>
                         </td>
-                        <td className="ga-goal-table__fixed">
+                        <td className="cell--fixed">
                           <div className="ga-goal-table__pad">{g.text}</div>
                         </td>
-                        <td className="ga-goal-table__fixed">
+                        <td className="cell--fixed">
                           <Cell editable={false} value={rowOf(g).contents} label={`Nội dung của MT ${g.no}`} />
                         </td>
                         <td>

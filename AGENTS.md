@@ -21,7 +21,7 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 ## Nguyên tắc bất biến
 
 1. **BE sở hữu business rule, authorization, API contract.** FE chỉ hiển thị và gửi yêu cầu; BE quyết định hợp lệ.
-2. **Không sao chép business rule vào FE.** Cần rule ⇒ dẫn chiếu rule ID / module card BE bằng đường dẫn, không chép nội dung. Validation FE chỉ hỗ trợ nhập liệu (required, format), không thay validation BE.
+2. **Không sao chép business rule vào FE.** Cần rule ⇒ dẫn chiếu rule ID / module card BE bằng đường dẫn, không chép nội dung. Validation FE chỉ hỗ trợ nhập liệu (required, format), không thay validation BE. Ngoại lệ: mock repo (`src/services/<module>/mock/`) là **BE giả** để demo — được chứa luật, mỗi luật dẫn rule ID BE và sẽ thay bằng API thật. Tầng UI (pages, components, hooks, utils hiển thị) không tính nghiệp vụ (số suất, tổng hợp, chuyển trạng thái); `canXxx` chỉ để ẩn/hiện, có cờ `can*` từ BE thì dùng cờ đó.
 3. **Ẩn UI ≠ phân quyền.** Ẩn nút/menu theo dữ liệu quyền từ BE là UX; không lọc dữ liệu theo scope chỉ ở client. 403/404 từ BE là kết quả hợp lệ phải xử lý.
 4. **1 trường, 2 campus** — không phải multi-school/multi-tenant. Không tự suy luận scope (campus/lớp) ở client; dùng dữ liệu BE trả về.
 5. **Không dữ liệu trẻ thật / sức khỏe / tài khoản / secret** trong prompt, log, console, fixture, mock, screenshot, commit.
@@ -31,7 +31,10 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 
 ## Stack
 
-React + TypeScript: **PROPOSED** (Next.js cũng chỉ PROPOSED). Chưa có source. Router, state/cache, UI kit, cách lưu token: chưa chốt ⇒ hỏi trước khi chọn. Đọc source thực tế trước khi áp rule framework.
+Đã có source: React 18 + Vite, **JavaScript/JSX** (không TypeScript), `react-router-dom` v7, axios, CSS thuần + `src/styles/tokens.css`, icon Tabler qua `src/components/ui/icons.js`; dữ liệu qua service facade → mock (localStorage, `VITE_USE_MOCK=true`) hoặc API thật. Server state bằng `useAsync`, không thư viện cache; test `node:test` (`tests/`).
+- **Code** (thư mục, tầng, ranh giới module, thêm module 12 bước, CSS): `docs/architecture/CODING_GUIDE.md`.
+- **Giao diện** (token, danh mục component §6.3, công thức màn §8, trạng thái §9, tự kiểm §13): `DESIGN.md`. Không tự chế màu/nút/bảng/modal/badge — tra §6.3 trước, thiếu thì thêm vào phần dùng chung.
+- Đổi thư viện nền, cách lưu token/auth thật, thêm dependency ⇒ hỏi trước (làn L).
 
 ## Quy tắc chung CareNest (bắt buộc)
 

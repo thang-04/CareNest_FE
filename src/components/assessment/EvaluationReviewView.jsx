@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertOctagon, ArrowLeft, Award, CheckCircle2, Copy, History, Lock, RefreshCw, Save } from '@/components/ui/icons';
+import { AlertOctagon, ArrowLeft, Award, CheckCircle2, Copy, History, RefreshCw, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useEvaluation } from '@/hooks/assessment/useAssessment';
 import { confirmEvaluation, regenerateEvaluationDraft, saveEvaluationDraft } from '@/services/assessment/assessmentService';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { Modal } from '@/components/ui/Modal';
+import { useAiRun } from '@/hooks/useAiRun';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
 import { EMOTION_LABELS, EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
@@ -110,6 +114,8 @@ export function EvaluationReviewView({ kind, id }) {
   const [content, setContent] = useState('');
   const [contentError, setContentError] = useState('');
   const [busy, setBusy] = useState('');
+  const { run: runAi } = useAiRun();
+  const [fresh, setFresh] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const yearEnd = kind === EVAL_KIND.YEAR_END;
   const base = `/assessment/${yearEnd ? 'year-end' : 'periodic'}`;
@@ -124,7 +130,12 @@ export function EvaluationReviewView({ kind, id }) {
     if (error.status === 403 || error.status === 404)
       return (
         <div className="card">
-          <EmptyState icon={Lock} title="Không xem được đánh giá" description="Đánh giá không tồn tại hoặc nằm ngoài phạm vi của bạn." />
+          <StatusPage
+            bare
+            kind={String(error.status)}
+            title="Không xem được đánh giá"
+            description="Đánh giá không tồn tại hoặc nằm ngoài phạm vi của bạn."
+          />
         </div>
       );
     return <ErrorState error={error} onRetry={reload} />;
@@ -151,7 +162,7 @@ export function EvaluationReviewView({ kind, id }) {
       await reload({ silent: true });
       return res;
     } catch (err) {
-      toast.error(err.message, 'Không thực hiện được');
+      toast.error(err, 'Không thực hiện được');
       if (err.status === 409) reload({ silent: true });
       return null;
     } finally {
@@ -169,16 +180,18 @@ export function EvaluationReviewView({ kind, id }) {
 
   const redraft = async () => {
     setBusy('redraft');
+    let res = null;
     try {
-      const res = await regenerateEvaluationDraft(kind, ev.id, user);
+      res = await runAi(() => regenerateEvaluationDraft(kind, ev.id, user));
       if (res.status === EVAL_STATUS.AI_FAILED) toast.warning(res.aiError || MSG30, 'AI chưa tạo được bản nháp');
-      else toast.success('Bản nháp AI mới đã sẵn sàng để bạn xem xét.');
       await reload({ silent: true });
     } catch (err) {
       toast.error(err.message || MSG30, 'AI chưa tạo được bản nháp');
     } finally {
       setBusy('');
     }
+    // Mở modal sau khi lớp phủ tắt (trang tải lại xong) để lớp phủ không đè lên modal
+    if (res && res.status !== EVAL_STATUS.AI_FAILED) setFresh(res.aiDraft);
   };
 
   const doConfirm = async () => {
@@ -197,7 +210,7 @@ export function EvaluationReviewView({ kind, id }) {
         <div className="dg-eval-head">
           <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
           <div>
-            <h1 className="page__title" style={{ marginBottom: 6 }}>
+            <h1 className="page__title">
               Đánh giá {PERIOD_TYPE_LABELS[ev.periodType].toLowerCase()} – {ev.childName}
             </h1>
             <div className="dg-eval-meta">
@@ -225,12 +238,12 @@ export function EvaluationReviewView({ kind, id }) {
       {ev.status === EVAL_STATUS.AI_FAILED && canReview && (
         <div className="alert alert--danger mt-16">
           <AlertOctagon size={20} />
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <div className="fw-600">{MSG30}</div>
             <div className="mt-8 text-sm">{ev.aiError}</div>
           </div>
           <button className="btn" onClick={redraft} disabled={!!busy}>
-            {busy === 'redraft' ? <Spinner small /> : <RefreshCw size={16} />} Yêu cầu tạo lại bản nháp
+            <RefreshCw size={16} /> Yêu cầu tạo lại bản nháp
           </button>
         </div>
       )}
@@ -252,7 +265,7 @@ export function EvaluationReviewView({ kind, id }) {
                       : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày`}{' '}
                     · tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
                   </div>
-                  <div className="row row--wrap mt-12" style={{ gap: 8 }}>
+                  <div className="row row--wrap gap-2 mt-12">
                     <button
                       className="btn btn--sm"
                       onClick={() => setContent(ev.aiDraft.content)}
@@ -261,7 +274,7 @@ export function EvaluationReviewView({ kind, id }) {
                       <Copy size={14} /> Dùng bản nháp này
                     </button>
                     <button className="btn btn--sm" onClick={redraft} disabled={!!busy}>
-                      {busy === 'redraft' ? <Spinner small /> : <RefreshCw size={14} />} Tạo lại bản nháp
+                      <RefreshCw size={14} /> Tạo lại bản nháp
                     </button>
                     <Link className="btn btn--sm btn--ghost" to={`${base}/${ev.id}/ai-draft`}>
                       Dữ liệu AI đã dùng
@@ -380,7 +393,7 @@ export function EvaluationReviewView({ kind, id }) {
           <ArrowLeft size={16} /> Về danh sách
         </button>
         {canReview && (
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row gap-2">
             <button className="btn" onClick={save} disabled={!!busy}>
               {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
             </button>
@@ -403,6 +416,37 @@ export function EvaluationReviewView({ kind, id }) {
         onConfirm={doConfirm}
         onClose={() => setConfirmOpen(false)}
       />
+      {/* AI xong ⇒ bản nháp mới mở trong modal; đóng thì vẫn dùng được ở khung "Bản nháp AI" (user chốt) */}
+      <Modal
+        open={!!fresh}
+        onClose={() => setFresh(null)}
+        size="lg"
+        title="Bản nháp AI mới"
+        footer={
+          <>
+            <button type="button" className="btn" onClick={() => setFresh(null)}>
+              Đóng
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => {
+                setContent(fresh.content);
+                setFresh(null);
+              }}
+            >
+              <Copy size={16} /> Dùng bản nháp này
+            </button>
+          </>
+        }
+      >
+        <div className="row gap-2 mb-12">
+          <AiDraftTag />
+          {fresh && <span className="muted text-sm">Tạo lúc {formatDateTime(fresh.generatedAt)}</span>}
+        </div>
+        <div className="dg-ai-box text-sm">{fresh?.content}</div>
+      </Modal>
+      {busy === 'redraft' && <AiWorkingOverlay text="Đang soạn bản nháp đánh giá…" />}
     </>
   );
 }

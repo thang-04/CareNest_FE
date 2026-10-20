@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, CalendarRange, Pencil, Play, Archive, Trash2, Shapes, Clock4 } from '@/components/ui/icons';
+import { Plus, CalendarRange, Play, Archive, Trash2, Shapes, Clock4 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { RowActions } from '@/components/ui/RowActions';
 import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { closeSchoolYear, deleteSchoolYear } from '@/services/school-config/schoolConfigService';
@@ -78,7 +79,7 @@ export default function SchoolYearListPage() {
       reload({ silent: true });
     } catch (err) {
       setPending(null);
-      toast.error(err.message, `Không ${action.label.toLowerCase()} được`);
+      toast.error(err, `Không ${action.label.toLowerCase()} được`);
     }
   };
 
@@ -110,9 +111,9 @@ export default function SchoolYearListPage() {
                   <th>Năm học</th>
                   <th>Bắt đầu</th>
                   <th>Kết thúc</th>
-                  <th className="center">Số lớp</th>
-                  <th>Trạng thái</th>
-                  <th className="right">Thao tác</th>
+                  <th className="num">Số lớp</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,54 +142,48 @@ export default function SchoolYearListPage() {
                       <td className="fw-600 text-primary">{y.name}</td>
                       <td>{formatDate(y.startDate)}</td>
                       <td>{formatDate(y.endDate)}</td>
-                      <td className="center">{y.classCount}</td>
-                      <td>
+                      <td className="num">{y.classCount}</td>
+                      <td className="center">
                         <YearStatusBadge status={y.status} />
                       </td>
-                      <td className="right nowrap">
-                        <Link
-                          className="icon-btn"
-                          to={`/school/classes?year=${y.id}`}
-                          title="Nhóm tuổi & lớp"
-                          aria-label={`Nhóm tuổi và lớp năm ${y.name}`}
-                        >
-                          <Shapes size={17} />
-                        </Link>
-                        {canConfigureSchool(user) && y.status !== YEAR_STATUS.CLOSED && (
-                          <Link
-                            className="icon-btn"
-                            to={`/school/cutoff?year=${y.id}`}
-                            title="Giờ chốt điểm danh"
-                            aria-label={`Giờ chốt năm ${y.name}`}
-                          >
-                            <Clock4 size={17} />
-                          </Link>
-                        )}
-                        {canEditYear(y, user) && (
-                          <Link className="icon-btn" to={`/school/years/${y.id}/edit`} title="Sửa" aria-label={`Sửa năm học ${y.name}`}>
-                            <Pencil size={17} />
-                          </Link>
-                        )}
-                        {canDeleteYear(y, user) && (
-                          <button
-                            className="icon-btn"
-                            title="Xóa"
-                            aria-label={`Xóa năm học ${y.name}`}
-                            onClick={() => setPending({ kind: 'remove', year: y })}
-                          >
-                            <Trash2 size={17} />
-                          </button>
-                        )}
-                        {canActivateYear(y, user) && (
-                          <button className="btn btn--sm btn--primary sc-row-btn" onClick={() => setActivating(y)}>
-                            <Play size={15} /> Kích hoạt
-                          </button>
-                        )}
-                        {canCloseYear(y, user) && (
-                          <button className="btn btn--sm sc-row-btn" onClick={() => setPending({ kind: 'close', year: y })}>
-                            <Archive size={15} /> Kết thúc
-                          </button>
-                        )}
+                      <td className="cell--actions">
+                        <div className="row">
+                          {canActivateYear(y, user) && (
+                            <button className="btn btn--primary btn--sm" onClick={() => setActivating(y)}>
+                              <Play size={15} /> Kích hoạt
+                            </button>
+                          )}
+                          <RowActions
+                            edit={canEditYear(y, user) ? { to: `/school/years/${y.id}/edit`, label: 'Sửa năm học' } : null}
+                            menu={[
+                              { label: 'Nhóm tuổi & lớp', icon: Shapes, to: `/school/classes?year=${y.id}` },
+                              ...(canConfigureSchool(user) && y.status !== YEAR_STATUS.CLOSED
+                                ? [{ label: 'Giờ chốt điểm danh', icon: Clock4, to: `/school/cutoff?year=${y.id}` }]
+                                : []),
+                              ...(canCloseYear(y, user)
+                                ? [
+                                    {
+                                      label: 'Kết thúc năm học',
+                                      icon: Archive,
+                                      danger: true,
+                                      onClick: () => setPending({ kind: 'close', year: y }),
+                                    },
+                                  ]
+                                : []),
+                              ...(canDeleteYear(y, user)
+                                ? [
+                                    {
+                                      label: 'Xóa năm học',
+                                      icon: Trash2,
+                                      danger: true,
+                                      onClick: () => setPending({ kind: 'remove', year: y }),
+                                    },
+                                  ]
+                                : []),
+                            ]}
+                            name={y.name}
+                          />
+                        </div>
                       </td>
                     </tr>
                   ))

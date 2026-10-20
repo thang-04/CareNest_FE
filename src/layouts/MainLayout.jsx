@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingState } from '@/components/ui/States';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AreaGate } from '@/routes/RoleGuard';
 import { useMediaQuery } from '@/hooks';
 import './layout.css';
@@ -61,18 +62,20 @@ export function MainLayout() {
       <div className="app-main">
         <Header role={user.role} showMenuButton={isNarrow} menuOpen={drawerOpen} onToggleSidebar={toggleSidebar} />
         <main className="app-content">
-          {/* Lazy pages load inside the layout so sidebar/header never flash. */}
-          <Suspense
-            fallback={
-              <div className="page">
-                <LoadingState />
-              </div>
-            }
-          >
-            <AreaGate path={pathname}>
-              <Outlet />
-            </AreaGate>
-          </Suspense>
+          {/* Lazy pages load inside the layout so sidebar/header never flash. Lỗi trang chỉ thay vùng nội dung, đổi route thì tự xóa. */}
+          <ErrorBoundary resetKey={pathname} wrap>
+            <Suspense
+              fallback={
+                <div className="page">
+                  <LoadingState />
+                </div>
+              }
+            >
+              <AreaGate path={pathname}>
+                <Outlet />
+              </AreaGate>
+            </Suspense>
+          </ErrorBoundary>
         </main>
         <Footer />
       </div>

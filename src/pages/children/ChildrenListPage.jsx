@@ -1,15 +1,20 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, RotateCcw, Eye, Pencil, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound } from '@/components/ui/icons';
+import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useClasses } from '@/hooks/useSchool';
 import { useChildRecords } from '@/hooks/children/useChildRecords';
+import { useFilterParams } from '@/hooks/useFilterParams';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { FilterChips } from '@/components/ui/FilterChips';
+import { FilterMore } from '@/components/ui/FilterMore';
 import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { ChildStatusBadge, FollowUpLevelShortBadge } from '@/components/children/ChildBadges';
 import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
@@ -34,16 +39,16 @@ const HEALTH_LEVEL_OPTIONS = [FOLLOW_UP_LEVEL.WATCH, FOLLOW_UP_LEVEL.CLOSE_WATCH
   value,
   label: FOLLOW_UP_LEVEL_SHORT_LABELS[value],
 }));
+const healthLevelLabel = (value) =>
+  value === NO_RESULT ? 'Chưa có kết quả khám' : HEALTH_LEVEL_OPTIONS.find((o) => o.value === value)?.label || value;
+const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '', healthLevel: '' };
 
 export default function ChildrenListPage() {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();
   const md = useMasterData();
-  const [status, setStatus] = useState('');
-  const [keyword, setKeyword] = useState('');
-  const [campusId, setCampusId] = useState('');
-  const [classId, setClassId] = useState('');
-  const [healthLevel, setHealthLevel] = useState('');
+  const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
+  const { status, keyword, campusId, classId, healthLevel } = filters;
   const [page, setPage] = useState(1);
   const [quickViewId, setQuickViewId] = useState(null);
   const [withdrawing, setWithdrawing] = useState(null);
@@ -66,13 +71,13 @@ export default function ChildrenListPage() {
       .filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw));
   }, [all, status, campusId, classId, healthLevel, keyword]);
   const pageRows = paginate(rows, page);
-  const filtered = !!(status || keyword || campusId || classId || healthLevel);
+  const filtered = activeKeys.length > 0;
+  const setFilter = (patch) => {
+    setFilters(patch);
+    setPage(1);
+  };
   const resetFilters = () => {
-    setStatus('');
-    setKeyword('');
-    setCampusId('');
-    setClassId('');
-    setHealthLevel('');
+    resetFilterParams();
     setPage(1);
   };
 
@@ -94,6 +99,19 @@ export default function ChildrenListPage() {
   ).length;
   const showCampus = seesAllCampusChildren(user);
   const cols = showCampus ? 8 : 7;
+  const chipLabels = {
+    keyword: `Từ khóa: ${keyword}`,
+    status: `Trạng thái: ${CHILD_STATUS_LABELS[status] || status}`,
+    campusId: `Điểm trường: ${md.campusById(campusId)?.name?.split(' - ')[0] || 'đã chọn'}`,
+    classId: `Lớp: ${yearClasses.find((c) => c.id === classId)?.name || 'đã chọn'}`,
+    healthLevel: `Mức theo dõi: ${healthLevelLabel(healthLevel)}`,
+  };
+  // Bỏ điểm trường thì bỏ luôn lớp như khi đổi ô chọn điểm trường
+  const chips = activeKeys.map((key) => ({
+    key,
+    label: chipLabels[key],
+    onRemove: () => setFilter(key === 'campusId' ? { campusId: '', classId: '' } : { [key]: '' }),
+  }));
 
   return (
     <div className="page">
@@ -148,10 +166,7 @@ export default function ChildrenListPage() {
             key={s.key || 'all'}
             className={`stat-card stat-card--${s.tone} ${status === s.key ? 'stat-card--active' : ''}`}
             aria-pressed={status === s.key}
-            onClick={() => {
-              setStatus(s.key);
-              setPage(1);
-            }}
+            onClick={() => setFilter({ status: s.key })}
           >
             <div className="stat-card__value">{s.value}</div>
             <div className="stat-card__label">{s.label}</div>
@@ -163,28 +178,19 @@ export default function ChildrenListPage() {
       <div className="card">
         <PeopleTabs embedded />
         <div className="filter-bar">
-          <label className="search-box flex-1 tr-search-wide">
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm theo họ tên hoặc mã trẻ..."
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Tìm theo họ tên hoặc mã trẻ"
-            />
-          </label>
+          <SearchSubmit
+            className="flex-1 tr-search-wide"
+            value={keyword}
+            placeholder="Tìm theo họ tên hoặc mã trẻ..."
+            label="Tìm theo họ tên hoặc mã trẻ"
+            onSearch={(text) => setFilter({ keyword: text })}
+          />
           {showCampus && (
             <select
               className="select"
               value={campusId}
               aria-label="Điểm trường"
-              onChange={(e) => {
-                setCampusId(e.target.value);
-                setClassId('');
-                setPage(1);
-              }}
+              onChange={(e) => setFilter({ campusId: e.target.value, classId: '' })}
             >
               <option value="">Tất cả điểm trường</option>
               {campusOptions.map((c) => (
@@ -194,15 +200,7 @@ export default function ChildrenListPage() {
               ))}
             </select>
           )}
-          <select
-            className="select"
-            value={classId}
-            aria-label="Lớp"
-            onChange={(e) => {
-              setClassId(e.target.value);
-              setPage(1);
-            }}
-          >
+          <select className="select" value={classId} aria-label="Lớp" onChange={(e) => setFilter({ classId: e.target.value })}>
             <option value="">Tất cả lớp</option>
             {yearClasses.map((c) => (
               <option key={c.id} value={c.id}>
@@ -211,28 +209,30 @@ export default function ChildrenListPage() {
               </option>
             ))}
           </select>
-          <select
-            className="select"
-            value={healthLevel}
-            aria-label="Mức theo dõi sức khỏe"
-            title="Theo lần khám gần nhất có kết luận; cân đo ngoài đợt không tính"
-            onChange={(e) => {
-              setHealthLevel(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Tất cả mức theo dõi</option>
-            {HEALTH_LEVEL_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-            <option value={NO_RESULT}>Chưa có kết quả khám</option>
-          </select>
+          <FilterMore count={healthLevel ? 1 : 0}>
+            <label className="field">
+              <span className="field__label">Mức theo dõi sức khỏe</span>
+              <select
+                className="select"
+                value={healthLevel}
+                title="Theo lần khám gần nhất có kết luận; cân đo ngoài đợt không tính"
+                onChange={(e) => setFilter({ healthLevel: e.target.value })}
+              >
+                <option value="">Tất cả mức theo dõi</option>
+                {HEALTH_LEVEL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+                <option value={NO_RESULT}>Chưa có kết quả khám</option>
+              </select>
+            </label>
+          </FilterMore>
           <button className="btn" onClick={resetFilters} disabled={!filtered}>
-            <RotateCcw size={15} /> Đặt lại
+            <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
+        <FilterChips count={loading ? null : rows.length} unit="trẻ" chips={chips} />
         {healthLevel && (
           <div className="alert alert--info tr-alert-flat">
             <Info size={18} />
@@ -246,7 +246,7 @@ export default function ChildrenListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap tr-table-flat">
-            <table className="table table--grid">
+            <table className="table table--grid table--wrap-head">
               <thead>
                 <tr>
                   <th>Họ và tên</th>
@@ -255,8 +255,8 @@ export default function ChildrenListPage() {
                   {showCampus && <th>Điểm trường</th>}
                   <th>Phụ huynh</th>
                   <th>Theo dõi sức khỏe</th>
-                  <th>Trạng thái</th>
-                  <th className="center">Thao tác</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -350,34 +350,20 @@ export default function ChildrenListPage() {
                             <span className="muted text-sm">Chưa có</span>
                           )}
                         </td>
-                        <td>
+                        <td className="center">
                           <ChildStatusBadge status={c.status} />
                         </td>
-                        <td className="center nowrap">
-                          <Link className="icon-btn" to={`/children/${c.id}`} title="Xem hồ sơ" aria-label={`Xem hồ sơ ${c.fullName}`}>
-                            <Eye size={17} />
-                          </Link>
-                          {canEditChild(c, user) && (
-                            <Link
-                              className="icon-btn"
-                              to={`/children/${c.id}/edit`}
-                              title="Sửa hồ sơ"
-                              aria-label={`Sửa hồ sơ ${c.fullName}`}
-                            >
-                              <Pencil size={17} />
-                            </Link>
-                          )}
-                          {canWithdrawChild(c, user) && (
-                            <button
-                              type="button"
-                              className="icon-btn"
-                              title="Cho nghỉ học"
-                              aria-label={`Cho ${c.fullName} nghỉ học`}
-                              onClick={() => setWithdrawing(c)}
-                            >
-                              <UserMinus size={17} />
-                            </button>
-                          )}
+                        <td className="cell--actions">
+                          <RowActions
+                            view={{ to: `/children/${c.id}`, label: 'Xem hồ sơ' }}
+                            edit={canEditChild(c, user) ? { to: `/children/${c.id}/edit`, label: 'Sửa hồ sơ' } : null}
+                            menu={
+                              canWithdrawChild(c, user)
+                                ? [{ label: 'Cho nghỉ học', icon: UserMinus, danger: true, onClick: () => setWithdrawing(c) }]
+                                : []
+                            }
+                            name={c.fullName}
+                          />
                         </td>
                       </tr>
                     );

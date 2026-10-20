@@ -49,7 +49,7 @@ export function TransferWizard({ mode, initialForm, md, transferId, lockedCode }
       setCode(saved.code);
       toast.success(`Đã lưu nháp phiếu ${saved.code}`);
     } catch (err) {
-      toast.error(err.message, 'Không lưu được nháp');
+      toast.error(err, 'Không lưu được nháp');
     } finally {
       setSaving(false);
     }
@@ -83,7 +83,7 @@ export function TransferWizard({ mode, initialForm, md, transferId, lockedCode }
       );
     } catch (err) {
       setConfirmSend(false);
-      toast.error(err.message, 'Gửi phiếu thất bại');
+      toast.error(err, 'Gửi phiếu thất bại');
       if (err.details) setErrors(err.details);
     }
   };
@@ -126,7 +126,7 @@ export function TransferWizard({ mode, initialForm, md, transferId, lockedCode }
             Quay lại
           </button>
         )}
-        <div className="row" style={{ gap: 10 }}>
+        <div className="row gap-2-5">
           {canDraft && (
             <button className="btn" onClick={saveDraft} disabled={saving}>
               {saving ? <Spinner small /> : <Save size={16} />} Lưu nháp
@@ -191,7 +191,7 @@ export function TransferWizard({ mode, initialForm, md, transferId, lockedCode }
               Phiếu <b>{sent.code}</b> đang ở trạng thái <b>Chờ bàn giao</b>.<br />
               Đã gửi thông báo cho {md.userById(sent.handoverUserId)?.fullName}.
             </p>
-            <div className="row" style={{ justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div className="row row--wrap gap-2-5 ft-justify-center">
               <button className="btn" onClick={() => setPreview('sent')}>
                 <Printer size={16} /> In phiếu
               </button>

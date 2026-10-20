@@ -576,6 +576,7 @@ const seedOnce = (db) => {
   db.yearEndEvaluations ||= [];
   db.behaviourTickets ||= [];
   db.rewardProposals ||= clone(seed.rewardProposals);
+  db.assessmentDayUnlocks ||= clone(seed.assessmentDayUnlocks);
   runPeriodJobs(db, { notify: false });
 
   const recent = addDays(today, -10);

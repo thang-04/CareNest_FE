@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AiDraftTag } from '@/components/assessment/AssessmentBadges';
+import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { suggestLessonSteps } from '@/services/education-plan/educationPlanService';
 import FloatingPanel from '@/components/education-plan/FloatingPanel';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
@@ -132,7 +132,7 @@ function LabelTable({ rows }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.label}>
-              <td className="ga-goal-table__fixed">
+              <td className="cell--fixed">
                 <div className="ga-goal-table__pad fw-600">{r.label}</div>
               </td>
               <td>{r.cell}</td>
@@ -262,7 +262,7 @@ export function WeekTab({
           </colgroup>
           <thead>
             <tr>
-              <th className="ga-goal-table__fixed">Tên hoạt động</th>
+              <th className="cell--fixed">Tên hoạt động</th>
               {WEEKDAY_LABELS.map((l, i) => (
                 <th key={l} className="center">
                   {l} · {ddmm(addDays(week.start, i))}
@@ -277,7 +277,7 @@ export function WeekTab({
               return (
                 <Fragment key={r.key}>
                   <tr>
-                    <td className="ga-goal-table__fixed">
+                    <td className="cell--fixed">
                       <div className="ga-goal-table__pad stack">
                         <span className="fw-600">{r.label}</span>
                         {r.canMerge && editable && (
@@ -340,7 +340,7 @@ export function WeekTab({
                   {/* Phần chung cả tuần dưới 5 ô ngày (mẫu Thái Dương: Chơi tự do, Chơi tự chọn, Nêu gương cuối ngày) */}
                   {!merged && r.extraLabel && (editable || g.extra?.trim()) && (
                     <tr>
-                      <td className="ga-goal-table__fixed">
+                      <td className="cell--fixed">
                         <div className="ga-goal-table__pad text-sm">{r.label} (cả tuần)</div>
                       </td>
                       <td colSpan={5}>
@@ -561,7 +561,7 @@ export function DayTab({ draft, index, editable, update, goals = [], assessTo = 
             {DAY_SECTIONS.map((s) => (
               <Fragment key={s.key}>
                 <tr>
-                  <td colSpan={3} className="ga-goal-table__fixed">
+                  <td colSpan={3} className="cell--fixed">
                     <div className="ga-goal-table__pad fw-600">
                       {s.label}
                       {s.key === 'hoc' && topic ? `: ${topic}` : ''}

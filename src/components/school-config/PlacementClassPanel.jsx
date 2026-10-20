@@ -4,6 +4,7 @@ import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Spinner } from '@/components/ui/States';
+import { PlacementActionBadge } from '@/components/school-config/SchoolConfigBadges';
 import { savePlacements } from '@/services/school-config/schoolConfigService';
 import {
   PLACEMENT_ACTION,
@@ -118,7 +119,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
       onSaved();
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được xếp lớp');
+      toast.error(err, 'Không lưu được xếp lớp');
     } finally {
       setSaving(false);
     }
@@ -191,7 +192,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
         </div>
       )}
 
-      <div className="sc-plc__table">
+      <div className="table-wrap sc-plc__table">
         <table className="table table--grid table--compact">
           <thead>
             <tr>
@@ -279,13 +280,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
 
       <div className="sc-plc__footer">
         <div className="row row--wrap">
-          {[PROMOTE, STAY, LEAVE, GRADUATE].map((a) =>
-            count(a) ? (
-              <span key={a} className={`chip chip--${{ PROMOTE: 'green', STAY: 'orange', LEAVE: 'gray', GRADUATE: 'blue' }[a]}`}>
-                {PLACEMENT_ACTION_SHORT[a]}: {count(a)}
-              </span>
-            ) : null,
-          )}
+          {[PROMOTE, STAY, LEAVE, GRADUATE].map((a) => (count(a) ? <PlacementActionBadge key={a} action={a} count={count(a)} /> : null))}
           {dirty && <span className="chip chip--orange">Có thay đổi chưa lưu</span>}
         </div>
         <div className="row">

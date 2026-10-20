@@ -215,7 +215,7 @@ export default function AttendanceSummaryPage() {
             <>
               {summary && totals && (
                 <div className="dd-overview mb-16">
-                  <div className="card" style={{ padding: 20 }}>
+                  <div className="card dd-overview__chart">
                     <DonutChart
                       caption="Tỷ lệ lượt có mặt và vắng trong kỳ"
                       center={totals.present}
@@ -261,15 +261,15 @@ export default function AttendanceSummaryPage() {
                     <div className="card__title">Theo ngày</div>
                   </div>
                   <div className="table-wrap dd-table-wrap">
-                    <table className="table table--grid table--compact">
+                    <table className="table table--grid table--compact table--wrap-head">
                       <thead>
                         <tr>
                           <th>Ngày</th>
-                          <th className="right">Có mặt</th>
-                          <th className="right">Có phép</th>
-                          <th className="right">Không phép</th>
-                          <th className="right">Chưa ĐD</th>
-                          <th className="right">Suất ăn</th>
+                          <th className="num">Có mặt</th>
+                          <th className="num">Có phép</th>
+                          <th className="num">Không phép</th>
+                          <th className="num">Chưa ĐD</th>
+                          <th className="num">Suất ăn</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -287,11 +287,11 @@ export default function AttendanceSummaryPage() {
                               <td className="nowrap">
                                 <span className="muted text-xs dd-weekday">{weekday(d.date)}</span> {formatDate(d.date)}
                               </td>
-                              <td className="right fw-600">{d.present}</td>
-                              <td className="right">{d.excused}</td>
-                              <td className={`right ${d.unexcused ? 'text-danger' : ''}`}>{d.unexcused}</td>
-                              <td className="right muted">{d.missing || '—'}</td>
-                              <td className="right">{d.mealTotal}</td>
+                              <td className="num fw-600">{d.present}</td>
+                              <td className="num">{d.excused}</td>
+                              <td className={`num ${d.unexcused ? 'text-danger' : ''}`}>{d.unexcused}</td>
+                              <td className="num muted">{d.missing || '—'}</td>
+                              <td className="num">{d.mealTotal}</td>
                             </tr>
                           ))
                         )}
@@ -339,16 +339,16 @@ export default function AttendanceSummaryPage() {
                       <div className="card__title">Theo lớp</div>
                     </div>
                     <div className="table-wrap dd-table-wrap">
-                      <table className="table table--grid table--compact">
+                      <table className="table table--grid table--compact table--wrap-head">
                         <thead>
                           <tr>
                             <th>Lớp</th>
                             {!campusId && <th>Điểm trường</th>}
-                            <th className="right">Sĩ số</th>
-                            <th className="right">Có mặt</th>
-                            <th className="right">Có phép</th>
-                            <th className="right">Không phép</th>
-                            <th className="right">Suất ăn</th>
+                            <th className="num">Sĩ số</th>
+                            <th className="num">Có mặt</th>
+                            <th className="num">Có phép</th>
+                            <th className="num">Không phép</th>
+                            <th className="num">Suất ăn</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -381,11 +381,11 @@ export default function AttendanceSummaryPage() {
                                   </button>
                                 </td>
                                 {!campusId && <td className="nowrap">{campusName(c.campusId)}</td>}
-                                <td className="right">{c.size}</td>
-                                <td className="right fw-600">{c.present}</td>
-                                <td className="right">{c.excused}</td>
-                                <td className={`right ${c.unexcused ? 'text-danger' : ''}`}>{c.unexcused}</td>
-                                <td className="right">{c.meals}</td>
+                                <td className="num">{c.size}</td>
+                                <td className="num fw-600">{c.present}</td>
+                                <td className="num">{c.excused}</td>
+                                <td className={`num ${c.unexcused ? 'text-danger' : ''}`}>{c.unexcused}</td>
+                                <td className="num">{c.meals}</td>
                               </tr>
                             ))
                           )}
@@ -399,14 +399,14 @@ export default function AttendanceSummaryPage() {
                       <div className="card__title">Theo trẻ</div>
                     </div>
                     <div className="table-wrap dd-table-wrap">
-                      <table className="table table--grid table--compact">
+                      <table className="table table--grid table--compact table--wrap-head">
                         <thead>
                           <tr>
                             <th>Trẻ</th>
-                            <th className="right">Có mặt</th>
-                            <th className="right">Có phép</th>
-                            <th className="right">Không phép</th>
-                            <th className="right">Suất ăn</th>
+                            <th className="num">Có mặt</th>
+                            <th className="num">Có phép</th>
+                            <th className="num">Không phép</th>
+                            <th className="num">Suất ăn</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -422,10 +422,10 @@ export default function AttendanceSummaryPage() {
                             summary.children.map((c) => (
                               <tr key={c.child.id}>
                                 <td>{c.child.fullName}</td>
-                                <td className="right fw-600">{c.present}</td>
-                                <td className="right">{c.excused}</td>
-                                <td className={`right ${c.unexcused ? 'text-danger' : ''}`}>{c.unexcused}</td>
-                                <td className="right">{c.meals}</td>
+                                <td className="num fw-600">{c.present}</td>
+                                <td className="num">{c.excused}</td>
+                                <td className={`num ${c.unexcused ? 'text-danger' : ''}`}>{c.unexcused}</td>
+                                <td className="num">{c.meals}</td>
                               </tr>
                             ))
                           )}

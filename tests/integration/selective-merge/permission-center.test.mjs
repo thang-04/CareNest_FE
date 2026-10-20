@@ -13,7 +13,9 @@ const { readDb, writeDb, resetDb } = await import('@/mocks/mockDatabase');
 const { permissionMockRepository: repo, effectivePermissionsOf } = await import('@/services/account/mock/permissionMockRepository');
 const { authMockRepository: auth, DEMO_PASSWORD } = await import('@/mocks/authMockRepository');
 const { schoolConfigMockRepository: school } = await import('@/services/school-config/mock/schoolConfigMockRepository');
-const { permissionMatrixRows } = await import('@/utils/account/permissionMatrix');
+const { permissionMatrixRows, permissionTableRows, groupChangeLogs, codeDiff, configurableCheck, toggleWithRequires } = await import(
+  '@/utils/account/permissionMatrix'
+);
 const { personPermissionRows, permissionDraftRows, overridesFromSwitches } = await import('@/utils/account/personPermissions');
 
 let principal;
@@ -34,14 +36,116 @@ const protectedSnapshot = () =>
   );
 const rejectStatus = (status) => (error) => error.status === status;
 
-test('UI mới nhận catalog, sáu vai trò và ma trận hai cột cấu hình', async () => {
+test('UI mới nhận catalog, sáu vai trò; ma trận có cột HT đối chiếu và cột bếp', async () => {
   const catalog = await repo.getPermissionCatalog(principal);
   const roles = await repo.getRolePermissions(principal);
   assert.equal(roles.length, 6);
-  assert.equal(catalog.length, 6);
+  assert.equal(catalog.length, 8);
   const rows = permissionMatrixRows(catalog, roles);
-  assert.deepEqual(Object.keys(rows[0].cells), ['VICE_PRINCIPAL', 'TEACHER']);
-  assert.equal(rows.find((row) => row.code === 'PERMISSION_MANAGE').cells.TEACHER.configurable, false);
+  assert.deepEqual(Object.keys(rows[0].cells), ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF']);
+  const permissionManage = rows.find((row) => row.code === 'PERMISSION_MANAGE');
+  assert.equal(permissionManage.cells.TEACHER.configurable, false);
+  // HT cố định: có quyền nhưng không bật/tắt được trong ma trận
+  assert.deepEqual(permissionManage.cells.PRINCIPAL, { configurable: false, checked: true, fixedRole: true });
+  const childView = rows.find((row) => row.code === 'CHILD_PROFILE_VIEW');
+  assert.deepEqual(childView.cells.KITCHEN_STAFF, { configurable: false, checked: false, fixedRole: false });
+});
+
+test('AUTH-10: bảng nhóm theo nghiệp vụ, dòng xem đứng đầu, việc cần quyền xem đánh dấu thụt', async () => {
+  const catalog = await repo.getPermissionCatalog(principal);
+  const groups = permissionTableRows(catalog);
+  assert.deepEqual(
+    groups.map((g) => g.feature.key),
+    ['child-profile', 'staff', 'parent-account', 'permission'],
+  );
+  const staff = groups.find((g) => g.feature.key === 'staff');
+  assert.deepEqual(
+    staff.rows.map((r) => [r.code, r.dependent]),
+    [
+      ['STAFF_ACCOUNT_VIEW', false],
+      ['ACCOUNT_MANAGE', true],
+      ['ACCOUNT_STATUS_MANAGE', true],
+      ['STAFF_ASSIGNMENT_MANAGE', true],
+    ],
+  );
+});
+
+test('AUTH-10: tick việc cần quyền xem thì tự tick xem; bỏ tick xem thì tự bỏ các việc cần nó', async () => {
+  const catalog = await repo.getPermissionCatalog(principal);
+  const vpEntry = (await repo.getRolePermissions(principal)).find((r) => r.role === 'VICE_PRINCIPAL');
+  const isConfigurable = configurableCheck(vpEntry);
+
+  const on = toggleWithRequires(catalog, [], 'ACCOUNT_STATUS_MANAGE', true, isConfigurable);
+  assert.deepEqual(on.codes, ['ACCOUNT_STATUS_MANAGE', 'STAFF_ACCOUNT_VIEW']);
+  assert.deepEqual(on.added, ['STAFF_ACCOUNT_VIEW']);
+
+  const start = ['STAFF_ACCOUNT_VIEW', 'ACCOUNT_MANAGE', 'STAFF_ASSIGNMENT_MANAGE', 'CHILD_PROFILE_VIEW'];
+  const off = toggleWithRequires(catalog, start, 'STAFF_ACCOUNT_VIEW', false, isConfigurable);
+  assert.deepEqual(off.codes, ['CHILD_PROFILE_VIEW']);
+  assert.deepEqual(off.removed.sort(), ['ACCOUNT_MANAGE', 'STAFF_ASSIGNMENT_MANAGE']);
+
+  // Bỏ một việc sửa không kéo theo gì
+  const single = toggleWithRequires(catalog, start, 'ACCOUNT_MANAGE', false, isConfigurable);
+  assert.deepEqual(single, { codes: ['CHILD_PROFILE_VIEW', 'STAFF_ACCOUNT_VIEW', 'STAFF_ASSIGNMENT_MANAGE'], added: [], removed: [] });
+});
+
+test('AUTH-10: lưu thao tác sửa thiếu mã xem bị 400, giữ dữ liệu cũ', async () => {
+  const before = (await repo.getRolePermissions(principal)).find((r) => r.role === 'VICE_PRINCIPAL').permissions;
+  await assert.rejects(
+    repo.updateRolePermissions('VICE_PRINCIPAL', { permissions: ['PARENT_ACCOUNT_MANAGE'], reason: 'Thiếu quyền xem' }, principal),
+    rejectStatus(400),
+  );
+  const after = (await repo.getRolePermissions(principal)).find((r) => r.role === 'VICE_PRINCIPAL').permissions;
+  assert.deepEqual(after, before);
+});
+
+test('AUTH-10: ngoại lệ thu hồi việc sửa vẫn giữ xem; thu hồi xem khi còn việc sửa bị 400', async () => {
+  const reason = 'Chỉ cho xem tài khoản phụ huynh';
+  await assert.rejects(
+    repo.updatePermissionOverrides(vp.id, { overrides: [{ permission: 'PARENT_ACCOUNT_VIEW', effect: 'REVOKE' }], reason }, principal),
+    rejectStatus(400),
+  );
+  assert.deepEqual((await repo.getPermissionOverrides(vp.id, principal)).overrides, []);
+  const view = await repo.updatePermissionOverrides(
+    vp.id,
+    { overrides: [{ permission: 'PARENT_ACCOUNT_MANAGE', effect: 'REVOKE' }], reason },
+    principal,
+  );
+  assert.ok(view.effectivePermissions.includes('PARENT_ACCOUNT_VIEW'));
+  const roleCodes = (await repo.getRolePermissions(principal)).find((r) => r.role === 'VICE_PRINCIPAL').permissions;
+  assert.deepEqual(codeDiff(roleCodes, view.effectivePermissions), { added: [], removed: ['PARENT_ACCOUNT_MANAGE'] });
+});
+
+test('AUTH-14: lịch sử gom theo lần lưu và nghiệp vụ', async () => {
+  const catalog = await repo.getPermissionCatalog(principal);
+  await repo.updateRolePermissions('VICE_PRINCIPAL', { permissions: ['CHILD_PROFILE_VIEW'], reason: 'Thu gọn quyền PHT' }, principal);
+  const { items } = await repo.getPermissionChangeLogs({ targetRole: 'VICE_PRINCIPAL' }, principal);
+  const groups = groupChangeLogs(items, catalog);
+  assert.deepEqual(groups.map((g) => g.feature).sort(), ['parent-account', 'staff']);
+  assert.equal(groups.find((g) => g.feature === 'parent-account').logs.length, 2);
+});
+
+test('dữ liệu demo bản 1: ngoại lệ cấp thêm mã sửa được kèm mã xem, lần lưu sau không bị 400', async () => {
+  writeDb((db) => {
+    db.mockSeedVersions = { ...db.mockSeedVersions, 'permission-center-demo': 1 };
+    db.permissionCenterRoleRows = [];
+    db.permissionCenterOverrides = [
+      { userId: vp.id, code: 'PARENT_ACCOUNT_MANAGE', effect: 'GRANT', reason: 'Dữ liệu cũ', createdBy: principal.id, updatedAt: '' },
+    ];
+  });
+  const view = await repo.getPermissionOverrides(vp.id, principal);
+  assert.ok(view.effectivePermissions.includes('PARENT_ACCOUNT_VIEW'));
+  const overrides = view.overrides.map((o) => ({ permission: o.permission, effect: o.effect }));
+  await repo.updatePermissionOverrides(vp.id, { overrides, reason: 'Lưu lại không đổi gì' }, principal);
+});
+
+test('dữ liệu demo bản 1: role có thao tác sửa được thêm mã xem tương ứng', async () => {
+  writeDb((db) => {
+    db.mockSeedVersions = { ...db.mockSeedVersions, 'permission-center-demo': 1 };
+    db.permissionCenterRoleRows = [{ role: 'VICE_PRINCIPAL', code: 'PARENT_ACCOUNT_MANAGE' }];
+  });
+  const vpEntry = (await repo.getRolePermissions(principal)).find((r) => r.role === 'VICE_PRINCIPAL');
+  assert.deepEqual(vpEntry.permissions, ['PARENT_ACCOUNT_MANAGE', 'PARENT_ACCOUNT_VIEW']);
 });
 
 test('lưu mặc định mới, lý do và lịch sử riêng; không ghi catalog legacy', async () => {
@@ -206,7 +310,11 @@ test('ba màn phân quyền dùng header, bảng và CSS chung của repo', () =
     assert.doesNotMatch(source, /staff-hub\.css|\bsh-head\b/);
   }
 
-  assert.match(roles, /className="table table--grid table--compact permission-matrix"/);
+  // Màn vai trò và wizard dùng chung bảng việc × cột, dựng trên bảng chung của repo
+  const table = readFileSync(new URL('../../../src/components/permissions/PermissionTable.jsx', import.meta.url), 'utf8');
+  assert.match(table, /className="table table--grid table--compact perm-table"/);
+  assert.match(roles, /<PermissionTable/);
+  assert.match(wizard, /<PermissionTable/);
   assert.match(overrides, /className="table table--grid table--compact permission-overrides-table"/);
   assert.match(history, /className="table table--grid table--compact permission-history-table"/);
   assert.match(tabs, /className="tabs permission-tabs"/);

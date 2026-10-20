@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useFreshReceipt, useKitchenCampus } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, StatusBadge } from '@/components';
 import { FreshReceiptStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter, fmtQty } from '@/components/kitchen/KitchenFilters';
 import { reviewFreshReceipt, saveFreshReceipt, setFreshSupplierNotified } from '@/services/kitchen/kitchenService';
@@ -201,11 +201,11 @@ export default function FreshReceiptPage() {
             <table className="table table--grid kb-fc">
               <thead>
                 <tr>
-                  <th>Thực phẩm</th>
-                  <th>ĐVT</th>
-                  <th className="right">Đặt</th>
-                  <th className="right">Giao</th>
-                  <th className="right">Thực nhận</th>
+                  <th className="cell--fixed">Thực phẩm</th>
+                  <th className="cell--fixed">ĐVT</th>
+                  <th className="num cell--fixed">Đặt</th>
+                  <th className="num">Giao</th>
+                  <th className="num">Thực nhận</th>
                   <th>Kết quả</th>
                   <th>Lý do</th>
                   <th>NCC</th>
@@ -222,10 +222,10 @@ export default function FreshReceiptPage() {
                         f.result === FRESH_RESULT.SHORT ? 'kb-tr--warn' : f.result === FRESH_RESULT.RETURNED ? 'kb-tr--danger' : undefined
                       }
                     >
-                      <td>{l.name}</td>
-                      <td>{l.unit}</td>
-                      <td className="right">{fmtQty(l.ordered)}</td>
-                      <td className="right">
+                      <td className="cell--fixed">{l.name}</td>
+                      <td className="cell--fixed">{l.unit}</td>
+                      <td className="num cell--fixed">{fmtQty(l.ordered)}</td>
+                      <td className="num">
                         {editable ? (
                           <input
                             className={`input kb-fc__input ${itemError(errors, i, 'delivered') ? 'input--error' : ''}`}
@@ -238,7 +238,7 @@ export default function FreshReceiptPage() {
                           fmtQty(l.delivered)
                         )}
                       </td>
-                      <td className="right">
+                      <td className="num">
                         {editable ? (
                           <input
                             className={`input kb-fc__input ${itemError(errors, i, 'received') ? 'input--error' : ''}`}
@@ -277,7 +277,7 @@ export default function FreshReceiptPage() {
                       </td>
                       <td>
                         {l.result === FRESH_RESULT.OK ? null : l.supplierNotifiedAt && !data.canMarkNotified ? (
-                          <span className="chip chip--green">Đã báo NCC {hhmm(l.supplierNotifiedAt)}</span>
+                          <StatusBadge tone="green" label={`Đã báo NCC ${hhmm(l.supplierNotifiedAt)}`} />
                         ) : (
                           <label
                             className="checkbox"

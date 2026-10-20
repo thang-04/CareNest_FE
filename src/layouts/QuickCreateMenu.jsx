@@ -23,8 +23,10 @@ export function QuickCreateMenu({ role }) {
         aria-label="Tạo nhanh"
         aria-haspopup="menu"
         aria-expanded={open}
+        title="Tạo nhanh"
       >
-        <Plus size={17} /> <span className="header__create-label">Tạo nhanh</span> <ChevronDown size={15} />
+        <Plus size={17} /> <span className="header__create-label">Tạo nhanh</span>{' '}
+        <ChevronDown size={15} className="header__create-caret" />
       </button>
       {open && (
         <div className="dropdown__panel quick-menu" role="menu" aria-label="Tạo nhanh">

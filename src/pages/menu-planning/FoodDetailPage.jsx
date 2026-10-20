@@ -12,6 +12,7 @@ import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu
 import { NutrientBars } from '@/components/menu-planning/NutrientBars';
 import { hasNutrition, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
+import { foodUnits } from '@/utils/menu-planning/foodUnits';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import {
   DISH_TYPE_LABELS,
@@ -60,6 +61,7 @@ export default function FoodDetailPage() {
   };
 
   const groups = activeAgeGroups(catalog.nutritionSetups);
+  const units = foodUnits(f);
   const nut = f.nutrition;
   // Định lượng của thực phẩm này trong từng món (một trẻ), theo công thức món
   const used = f.usedInDishes.map((u) => {
@@ -127,11 +129,13 @@ export default function FoodDetailPage() {
                 <dd>{f.favorite ? 'Có' : 'Không'}</dd>
               </dl>
               <dl className="info-list">
-                <dt>Đơn vị mua (ĐVT)</dt>
-                <dd>{f.purchaseUnit}</dd>
-                <dt>Quy đổi</dt>
+                <dt>Đơn vị kho</dt>
                 <dd>
-                  {f.purchaseUnitSize.toLocaleString('vi-VN')} {f.unit} / {f.purchaseUnit}
+                  {units.stockUnit} · 1 {units.stockUnit} = {units.stockUnitSize.toLocaleString('vi-VN')} {f.unit}
+                </dd>
+                <dt>Đơn vị mua</dt>
+                <dd>
+                  {units.purchaseUnit} · 1 {units.purchaseUnit} = {units.purchaseToStock.toLocaleString('vi-VN')} {units.stockUnit}
                 </dd>
                 <dt>Tỷ lệ thải bỏ</dt>
                 <dd>{f.wastePct ?? 0}%</dd>
@@ -163,7 +167,7 @@ export default function FoodDetailPage() {
                       <th>Món ăn</th>
                       <th>Loại</th>
                       {groups.map((g) => (
-                        <th key={g.id} className="right">
+                        <th key={g.id} className="num">
                           {g.shortName}
                         </th>
                       ))}
@@ -177,7 +181,7 @@ export default function FoodDetailPage() {
                         </td>
                         <td className="text-sm">{u.type}</td>
                         {u.qty.map((q, i) => (
-                          <td key={groups[i].id} className="right nowrap">
+                          <td key={groups[i].id} className="num nowrap">
                             {q == null ? <span className="td-warn">Chưa nhập</span> : `${n1(q)} ${f.unit}`}
                           </td>
                         ))}

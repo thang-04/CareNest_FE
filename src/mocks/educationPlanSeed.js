@@ -23,7 +23,7 @@ import { DOMAIN_SHORT } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals } from '@/models/education-plan/goalTable';
 
 /** Đổi giá trị này khi thay bộ dữ liệu demo: trình duyệt đang giữ dữ liệu cũ sẽ tự nạp bộ mới. */
-export const EDU_SEED_VERSION = 'thai-duong-demo-2026-10-20-assess-today-2';
+export const EDU_SEED_VERSION = 'thai-duong-demo-2026-10-21-dev-merge';
 
 const YEAR = '2026 – 2027';
 const PLAN_ID = 'g-mgn-2627';
@@ -242,7 +242,7 @@ const BRANCH_NAMES = [
   'Bé chuẩn bị vào lớp Lá',
 ];
 
-const buildClassDocs = (plan) => {
+const buildClassDocs = (plan, { pendingTeacher } = {}) => {
   const weeks = yearWeeks(plan).filter((w) => w.type === 'week');
   const names = Object.fromEntries(weeks.map((w, i) => [w.start, BRANCH_NAMES[i] || '']));
   // Chồi 1 (2 giáo viên): chủ đề nhánh đã được Phó HT duyệt nên lớp đã lập kế hoạch chủ đề và giáo án tuần 1
@@ -266,6 +266,18 @@ const buildClassDocs = (plan) => {
   const branch2 = {
     ...emptyBranchPlan({ classId: 'cls_c1_c2', yearPlanId: PLAN_ID }),
     names: Object.fromEntries(weeks.map((w, i) => [w.start, firstThemes.has(w.theme.id) ? BRANCH_NAMES[i] || '' : ''])),
+  };
+
+  // Chồi 3: chủ đề nhánh đã qua Tổ trưởng, đang chờ Phó HT duyệt (hàng chờ duyệt của Phó HT có việc để xem)
+  const branch3 = {
+    ...emptyBranchPlan({ classId: PENDING_CLASS_ID, yearPlanId: PLAN_ID }),
+    names,
+    status: 'PENDING_VP',
+    approvals: [approval('u_ha', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', 'TEAM_LEADER', '2026-10-15 09:00')],
+    history: [
+      log('Gửi Tổ trưởng duyệt', pendingTeacher || 'Giáo viên lớp Chồi 3', 'Giáo viên', '2026-10-14 15:00'),
+      log('Tổ trưởng duyệt, chuyển Phó Hiệu trưởng', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-10-15 09:00', 'ok'),
+    ],
   };
 
   const theme = emptyThemePlan({ classId: CLASS_ID, yearPlanId: PLAN_ID, themeId: 't-tmn' });
@@ -353,7 +365,7 @@ const buildClassDocs = (plan) => {
     note: '',
   };
   d1.steps['chieu.x'] = { teacher: 'Cho trẻ làm quen bài thơ "Bàn tay cô giáo".', child: 'Trẻ đọc theo cô.', note: '' };
-  return { branch, branch2, theme, week, ...buildCurrentWeekDemo(plan, weeks) };
+  return { branch, branch2, branch3, theme, week, ...buildCurrentWeekDemo(plan, weeks) };
 };
 
 /*
@@ -462,15 +474,19 @@ const buildCurrentWeekDemo = (plan, weeks) => {
   return { curTheme, curWeek: week };
 };
 
-export const buildSeedEducationPlans = () => {
+const PENDING_CLASS_ID = 'cls_c1_x06';
+
+export const buildSeedEducationPlans = ({ classes = [], users = [] } = {}) => {
   const plan = buildYearPlan();
-  const { branch, branch2, theme, week, curTheme, curWeek } = buildClassDocs(plan);
+  const teacherId = classes.find((c) => c.id === PENDING_CLASS_ID)?.teacherIds?.[0];
+  const pendingTeacher = users.find((u) => u.id === teacherId)?.fullName;
+  const { branch, branch2, branch3, theme, week, curTheme, curWeek } = buildClassDocs(plan, { pendingTeacher });
   return {
     eduGoals: [plan],
     // Dữ liệu kế hoạch chủ đề / giáo án kiểu cũ: bỏ hẳn (màn mới dùng eduClass*)
     eduThemes: [],
     eduLessons: [],
-    eduClassBranch: [branch, branch2],
+    eduClassBranch: [branch, branch2, ...(classes.some((c) => c.id === PENDING_CLASS_ID) ? [branch3] : [])],
     eduClassTheme: [theme, curTheme].filter(Boolean),
     eduClassWeek: [week, curWeek].filter(Boolean),
   };
@@ -486,7 +502,7 @@ export const ensureEduDemo = (db) => {
   if (db.eduConfig?.signers?.branch?.join() === 'VICE_PRINCIPAL') db.eduConfig.signers.branch = ['TEAM_LEADER', 'VICE_PRINCIPAL'];
   // Bỏ chữ ký đã lưu từng thêm cho demo ký chủ đề nhánh (hệ thống không còn ký ảnh)
   db.signatures = (db.signatures || []).filter((x) => !['sig_u_ha', 'sig_u_minhanh', 'sig_u_huong'].includes(x.id));
-  Object.assign(db, buildSeedEducationPlans(), { eduSeedVersion: EDU_SEED_VERSION });
+  Object.assign(db, buildSeedEducationPlans({ classes: db.classes, users: db.users }), { eduSeedVersion: EDU_SEED_VERSION });
   seedTodayAttendance(db);
   return true;
 };

@@ -37,14 +37,14 @@ export function StepAssignUsers({ wizard, md }) {
 
       <h3 className="subsection-title mt-24 text-lg">Danh sách tài sản đã chọn</h3>
       <div className="table-wrap">
-        <table className="table table--compact">
+        <table className="table table--compact table--grid">
           <thead>
             <tr>
               <th className="center">STT</th>
               <th className="center">Mã tài sản</th>
               <th>Tên tài sản</th>
               <th className="center">Đơn vị</th>
-              <th className="center">Số lượng luân chuyển</th>
+              <th className="num">Số lượng luân chuyển</th>
             </tr>
           </thead>
           <tbody>
@@ -54,14 +54,14 @@ export function StepAssignUsers({ wizard, md }) {
                 <td className="center">{i.assetCode}</td>
                 <td>{i.assetName}</td>
                 <td className="center">{i.unit}</td>
-                <td className="center">{i.quantity}</td>
+                <td className="num">{i.quantity}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <div className="card mt-16" style={{ padding: 16 }}>
+      <div className="card ft-card-pad mt-16">
         <h3 className="subsection-title text-lg">Thông báo đến người thực hiện</h3>
         <div className="alert alert--info text-sm">
           <Bell size={17} />

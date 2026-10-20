@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { DB_CHANGED_EVENT } from '@/mocks/mockDatabase';
+import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
+import { loadWithHold } from '@/hooks/loadingTiming';
 import {
   getAccountsWithOverrides,
   getPermissionCatalog,
@@ -27,7 +28,7 @@ function usePermissionQuery(loader, deps, { live = true, enabled = true } = {}) 
       }
       setState((previous) => ({ key, data: silent && previous.key === key ? previous.data : null, loading: !silent, error: null }));
       try {
-        const data = await loaderRef.current();
+        const data = silent ? await loaderRef.current() : await loadWithHold(() => loaderRef.current());
         if (request === epoch.current) setState({ key, data, loading: false, error: null });
         return data;
       } catch (error) {

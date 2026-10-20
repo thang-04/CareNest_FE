@@ -12,8 +12,17 @@
 .row--between {
   justify-content: space-between;
 }
+.row--center {
+  justify-content: center;
+}
 .row--wrap {
   flex-wrap: wrap;
+}
+/* Điện thoại: hàng nút/nhãn quá dài thì xuống dòng thay vì đẩy trang tràn ngang */
+@media (max-width: 640px) {
+  .row {
+    flex-wrap: wrap;
+  }
 }
 .stack {
   display: flex;
@@ -35,6 +44,11 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-4);
+}
+@media (max-width: 640px) {
+  .grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .muted {
   color: var(--color-text-muted);

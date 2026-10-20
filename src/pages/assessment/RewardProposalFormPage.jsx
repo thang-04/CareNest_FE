@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, FileText, Lock, Save, Send, Undo2 } from '@/components/ui/icons';
+import { AlertTriangle, ArrowLeft, FileText, Save, Send, Undo2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -8,10 +8,11 @@ import { useRewardCandidates, useRewardProposal } from '@/hooks/assessment/useAs
 import { saveRewardProposal } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { RewardStatusBadge } from '@/components/assessment/AssessmentBadges';
-import { REWARD_STATUS, REWARD_STATUS_LABELS, REWARD_TITLES } from '@/models/assessment/assessmentConstants';
+import { REWARD_STATUS, REWARD_TITLES } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
 import { canCreateRewardProposal, canEditRewardProposal } from '@/utils/assessment/assessmentPermissions';
 import { validateRewardProposal, hasErrors } from '@/utils/assessment/assessmentValidation';
@@ -82,18 +83,16 @@ export default function RewardProposalFormPage() {
         {loadError && ![403, 404].includes(loadError.status) ? (
           <ErrorState error={loadError} onRetry={reload} />
         ) : (
-          <div className="card">
-            <EmptyState
-              icon={Lock}
-              title="Không sửa được đề xuất"
-              description="Chỉ giáo viên tạo đề xuất mới sửa được, và chỉ khi đề xuất đang là bản nháp hoặc bị trả lại."
-              action={
-                <Link className="btn" to={id ? `/assessment/rewards/${id}` : '/assessment/rewards'}>
-                  <ArrowLeft size={16} /> Quay lại
-                </Link>
-              }
-            />
-          </div>
+          <StatusPage
+            kind={loadError?.status === 404 ? '404' : '403'}
+            title="Không sửa được đề xuất"
+            description="Chỉ giáo viên tạo đề xuất mới sửa được, và chỉ khi đề xuất đang là bản nháp hoặc bị trả lại."
+            action={
+              <Link className="btn" to={id ? `/assessment/rewards/${id}` : '/assessment/rewards'}>
+                <ArrowLeft size={16} /> Quay lại
+              </Link>
+            }
+          />
         )}
       </div>
     );
@@ -114,7 +113,7 @@ export default function RewardProposalFormPage() {
       navigate(send ? `/assessment/rewards/${saved.id}` : `/assessment/rewards/${saved.id}/edit`, { replace: true });
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được đề xuất');
+      toast.error(err, 'Không lưu được đề xuất');
     } finally {
       setBusy('');
       setConfirmOpen(false);
@@ -127,9 +126,7 @@ export default function RewardProposalFormPage() {
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.rewards, id ? 'Sửa đề xuất' : 'Tạo đề xuất')} />
       <div className="page__head">
-        <h1 className="page__title" style={{ marginBottom: 6 }}>
-          {title}
-        </h1>
+        <h1 className="page__title">{title}</h1>
         {proposal && <RewardStatusBadge status={proposal.status} size="lg" />}
       </div>
 
@@ -241,10 +238,10 @@ export default function RewardProposalFormPage() {
             {otherProposals.length > 0 && (
               <div className="mt-16">
                 <div className="subsection-title">Đề xuất khác của trẻ trong năm học</div>
-                <ul className="stack" style={{ margin: 0, paddingLeft: 18 }}>
+                <ul className="stack dg-bullets">
                   {otherProposals.map((p) => (
                     <li key={p.id} className="text-sm">
-                      {p.rewardTitle} – {REWARD_STATUS_LABELS[p.status]}
+                      {p.rewardTitle} <RewardStatusBadge status={p.status} />
                     </li>
                   ))}
                 </ul>
@@ -258,7 +255,7 @@ export default function RewardProposalFormPage() {
         <button className="btn" onClick={() => navigate(id ? `/assessment/rewards/${id}` : '/assessment/rewards')} disabled={!!busy}>
           <ArrowLeft size={16} /> Hủy
         </button>
-        <div className="row" style={{ gap: 8 }}>
+        <div className="row gap-2">
           <button className="btn" onClick={() => submit(false)} disabled={!!busy || !groups.length}>
             {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu nháp
           </button>

@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, CalendarRange, ClipboardList, FileText, Flag, Lock, Ticket } from '@/components/ui/icons';
+import { Award, CalendarRange, ClipboardList, FileText, Flag, Ticket } from '@/components/ui/icons';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useChildDevelopment } from '@/hooks/assessment/useAssessment';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { DevelopmentCharts } from '@/components/assessment/DevelopmentCharts';
 import { formatDate } from '@/utils/format';
@@ -73,8 +74,9 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
   if (error) {
     if (error.status === 403 || error.status === 404)
       return (
-        <EmptyState
-          icon={Lock}
+        <StatusPage
+          bare
+          kind={String(error.status)}
           title="Không xem được hồ sơ"
           description="Bạn không có quyền xem hồ sơ của trẻ này hoặc trẻ không tồn tại."
         />
@@ -92,7 +94,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
       <div className="card mb-16">
         <div className="card__body dg-period-bar">
           {d && (
-            <div style={{ flex: 1, minWidth: 220 }}>
+            <div className="flex-1 min-w-220">
               <div className="fw-600 text-lg">{d.child.fullName}</div>
               <div className="text-2 text-sm">
                 {d.child.code} · {GENDER_LABELS[d.child.gender]} · {ageLabel(d.child.dateOfBirth)} · {d.cls?.name || 'Chưa xếp lớp'}
@@ -212,7 +214,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                     {d.tickets.length === 0 && d.rewards.length === 0 ? (
                       <div className="muted">Chưa có phiếu bé ngoan hoặc khen thưởng trong kỳ.</div>
                     ) : (
-                      <ul className="stack" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                      <ul className="stack dg-plain-list">
                         {d.rewards.map((r) => (
                           <li key={r.id} className="row">
                             <Award size={16} className="text-success" /> <b>{r.rewardTitle}</b>
@@ -247,7 +249,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                   ) : (
                     <div className="stack">
                       {[...d.yearEnd, ...d.evaluations].map((e) => (
-                        <div key={e.id} className="card" style={{ boxShadow: 'none' }}>
+                        <div key={e.id} className="card dg-card-flat">
                           <div className="card__body">
                             <div className="row row--between mb-8">
                               <div className="fw-600">
@@ -276,7 +278,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                   </div>
                   <span className="muted text-sm">{daily.length} lượt</span>
                 </div>
-                <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+                <div className="table-wrap">
                   <table className="table table--grid table--compact">
                     <thead>
                       <tr>
@@ -296,16 +298,14 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                           <td>{a.activity}</td>
                           <td>{HEALTH_STATUS_LABELS[a.healthStatus] || '—'}</td>
                           <td>{EMOTION_LABELS[a.emotion]}</td>
-                          <td className="text-sm" style={{ whiteSpace: 'normal', minWidth: 200 }}>
+                          <td className="text-sm dg-cell-wrap min-w-200">
                             {a.criteriaMet
                               .map((id) => crit[id])
                               .filter(Boolean)
                               .join(', ') || '—'}
                           </td>
                           <td className="center">{a.flag ? <Flag size={16} className="text-primary" aria-label="Có cờ" /> : '—'}</td>
-                          <td className="text-sm" style={{ whiteSpace: 'normal', minWidth: 180 }}>
-                            {a.comment || '—'}
-                          </td>
+                          <td className="text-sm dg-days__comment">{a.comment || '—'}</td>
                         </tr>
                       ))}
                     </tbody>

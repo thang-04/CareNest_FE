@@ -46,7 +46,7 @@ export function YearReadinessCard({ year, onActivate }) {
         </div>
       </div>
       {loading && !readiness ? (
-        <Spinner />
+        <Spinner deferred />
       ) : (
         <>
           <ProgressBar value={done} total={required.length} label={`${done}/${required.length} bước bắt buộc`} />
@@ -94,7 +94,7 @@ export function ActivateYearModal({ year, activeYear, onClose, onDone }) {
       toast.success(`Đã kích hoạt năm học ${year.name}`);
       onDone();
     } catch (err) {
-      toast.error(err.message, 'Không kích hoạt được năm học');
+      toast.error(err, 'Không kích hoạt được năm học');
     } finally {
       setBusy(false);
     }

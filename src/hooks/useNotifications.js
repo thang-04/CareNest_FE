@@ -5,7 +5,7 @@ import { getNotifications, markAllNotificationsRead, markNotificationRead } from
 
 export function useNotifications() {
   const { user } = useAuth();
-  const { data, loading, reload } = useAsync(() => getNotifications(user.id), [user?.id], {
+  const { data, loading, error, reload } = useAsync(() => getNotifications(user.id), [user?.id], {
     refreshOnDataChange: true,
     enabled: !!user,
   });
@@ -24,5 +24,5 @@ export function useNotifications() {
   }, [reload, user?.id]);
 
   const notifications = data || [];
-  return { notifications, unreadCount: notifications.filter((n) => !n.read).length, loading, markRead, markAllRead };
+  return { notifications, unreadCount: notifications.filter((n) => !n.read).length, loading, error, reload, markRead, markAllRead };
 }

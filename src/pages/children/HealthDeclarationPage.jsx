@@ -113,7 +113,7 @@ export default function HealthDeclarationPage() {
       leaveEditor();
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được khai báo');
+      toast.error(err, 'Không lưu được khai báo');
     } finally {
       setBusy(false);
     }

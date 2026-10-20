@@ -11,7 +11,8 @@ Giữ guard Principal hiện tại cho cả route và mock repository. Không l�
 - Sidebar Cấu hình trường → Vai trò & quyền giữ nguyên `/school/roles`, mở UI RoleDefaultsPage mới (không phải bảng cũ).
 - Ba tab: quyền theo vai trò; ngoại lệ từng người `/permissions/overrides`; lịch sử `/permissions/history`.
 - `/permissions` là alias; URL chỉnh role cũ chuyển về màn mới, không mở form quyền legacy.
-- Ma trận hai cột PHT/GV, nhóm nghiệp vụ, công tắc và thanh thay đổi chưa lưu. Lưu cần lý do; từng role báo lỗi riêng nếu lưu một phần.
+- Bảng việc × vai trò (user chọn 2026-10-20 sau khi thử bố cục thẻ Không/Xem/Sửa thấy khó hiểu): mỗi dòng một việc bằng lời thường, nhóm theo nghiệp vụ; cột HT (cố định) / PHT / GV / Bếp; ô tick phủ cả ô, ✓/— cho ô không chọn được. Việc cần quyền xem thụt "↳": tick thì tự tick dòng xem, bỏ tick dòng xem thì tự bỏ các dòng ↳, có dòng thông báo. Thanh thay đổi chưa lưu + lý do giữ nguyên; từng role báo lỗi riêng nếu lưu một phần.
+- Tách quyền xem khỏi quyền làm (mock theo contract FE đề xuất, BE chưa duyệt): mã `*_VIEW` + `feature/action/requires` trong catalog; quan hệ cần-có lấy từ `requires`, không viết cứng ở FE. Wizard ngoại lệ dùng cùng bảng (cột Theo vai trò | Người này | Khác vai trò); danh sách ngoại lệ theo từng việc; lịch sử gom theo lần lưu + nghiệp vụ. Plan [2026-10-20-permission-view-edit-levels](../plans/active/2026-10-20-permission-view-edit-levels.md).
 - Wizard ba bước: chọn nhân sự từ nguồn users hiện có (chỉ đọc field cần dùng) → chọn công tắc → xem lại và lý do. Sửa/đặt lại ngoại lệ ghi lịch sử. Link người từ lịch sử lọc đúng người, kể cả khi không còn ngoại lệ vẫn có đường thiết lập lại.
 
 ## Dữ liệu và giới hạn
@@ -29,6 +30,10 @@ Chưa có contract xác nhận để nối màn này. Service gọi mock khi USE
 Loading/error/retry/empty qua component hiện có; guard từ chối role khác. Lưu khóa nút/công tắc, giữ lựa chọn lỗi. Dữ liệu truy vấn scoped theo user/filter; bỏ response cũ khi chuyển truy vấn/unmount. Form giữ state riêng, refetch sau mutation; không sửa shared auth cache.
 
 Ba route dùng `page__head`, tab segmented, `table--grid table--compact`, `Avatar`, `Modal`, `FormField` và các state dùng chung. CSS `permissions.css` chỉ giữ ma trận, wizard, cột bảng và responsive đặc thù; không còn stylesheet `staff-hub.css` song song.
+
+## Nhu cầu sau này (PENDING)
+
+- User nêu 2026-10-20: cần luồng **giáo viên A làm thay giáo viên B** khi B có việc đột xuất. Chưa chốt actor tạo, thời hạn, A nhận toàn bộ hay một phần thao tác. Hướng đề xuất: đây là **phạm vi** (phân công tạm có `validFrom/validTo`, `BE:docs/modules/school-structure.md`), không phải mã quyền; chi tiết ở mục "Ngoài phạm vi" của plan mức Xem/Sửa.
 
 ## Known pitfalls
 

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FileDown, Printer } from '@/components/ui/icons';
-import { Card, EduStatusBadge, EmptyState, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { Card, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useAutosave } from '@/hooks/education-plan/useAutosave';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
@@ -63,7 +64,7 @@ function ThemePlanInner() {
   }, [saved?.id, saved?.status, saved?.history?.length, yearPlan?.id, classId, themeId]);
 
   if (ctx.loading) return <LoadingState />;
-  if (!cls || !yearPlan || !theme) return <EmptyState title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
+  if (!cls || !yearPlan || !theme) return <StatusPage kind="404" title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;

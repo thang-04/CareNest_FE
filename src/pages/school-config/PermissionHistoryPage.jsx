@@ -1,18 +1,15 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, History } from '@/components/ui/icons';
-import { usePermissionChangeLogs } from '@/hooks/account/usePermissions';
+import { usePermissionChangeLogs, useRolePermissionMatrix } from '@/hooks/account/usePermissions';
+import { groupChangeLogs } from '@/utils/account/permissionMatrix';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PermissionTabs } from '@/components/permissions/PermissionTabs';
-import {
-  CHANGE_LOG_PAGE_SIZE,
-  PERMISSION_ROLE_LABELS,
-  PERMISSION_STATE_LABELS,
-  PERMISSION_TASKS,
-} from '@/models/account/permissionConstants';
+import { PermissionStateBadge } from '@/components/permissions/PermissionBadges';
+import { CHANGE_LOG_PAGE_SIZE, PERMISSION_FEATURES, PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import { permissionCrumbs } from '@/utils/school-config/breadcrumbs';
 import { formatDateTime } from '@/utils/format';
 import '@/styles/modules/school-config.css';
@@ -32,6 +29,8 @@ export default function PermissionHistoryPage() {
     page: page - 1,
     size: CHANGE_LOG_PAGE_SIZE,
   });
+  // Catalog chỉ để biết mã thuộc nghiệp vụ nào; thiếu catalog thì mỗi mã một dòng
+  const { catalog } = useRolePermissionMatrix({ live: false });
 
   const filterRole = (role) => {
     setPage(1);
@@ -41,13 +40,13 @@ export default function PermissionHistoryPage() {
   return (
     <div className="page permission-center">
       <Breadcrumb items={permissionCrumbs('Lịch sử thay đổi')} />
-      <PermissionTabs />
       <div className="page__head permission-page-head">
         <div>
           <h1 className="page__title">Lịch sử thay đổi quyền</h1>
           <p className="text-sm text-2">Theo dõi các lần điều chỉnh quyền theo vai trò và từng nhân sự.</p>
         </div>
       </div>
+      <PermissionTabs />
 
       <section className="card permission-history-card">
         <div className="filter-bar permission-filter-bar">
@@ -87,8 +86,8 @@ export default function PermissionHistoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.items.map((log) => (
-                    <tr key={log.id}>
+                  {groupChangeLogs(data.items, catalog).map(({ key, feature, logs: [log, ...rest] }) => (
+                    <tr key={key}>
                       <td className="nowrap text-sm">{formatDateTime(log.changedAt)}</td>
                       <td>
                         <strong>{log.actorName || `Tài khoản #${log.actorUserId}`}</strong>
@@ -106,21 +105,21 @@ export default function PermissionHistoryPage() {
                         )}
                       </td>
                       <td>
-                        <strong>{PERMISSION_TASKS[log.permissionCode]?.label || log.permissionCode}</strong>
+                        <strong>
+                          {PERMISSION_FEATURES[feature]?.label || PERMISSION_TASKS[log.permissionCode]?.label || log.permissionCode}
+                        </strong>
                       </td>
-                      <td className="nowrap">
-                        <StatusBadge tone="gray" label={PERMISSION_STATE_LABELS[log.beforeState] || log.beforeState} />
-                        {' → '}
-                        <StatusBadge
-                          tone={
-                            log.afterState === 'GRANT' || log.afterState === 'ON'
-                              ? 'green'
-                              : log.afterState === 'REVOKE' || log.afterState === 'OFF'
-                                ? 'orange'
-                                : 'gray'
-                          }
-                          label={PERMISSION_STATE_LABELS[log.afterState] || log.afterState}
-                        />
+                      <td>
+                        <ul className="permission-history-changes">
+                          {[log, ...rest].map((item) => (
+                            <li key={item.id}>
+                              <span className="text-sm">{PERMISSION_TASKS[item.permissionCode]?.label || item.permissionCode}</span>{' '}
+                              <PermissionStateBadge state={item.beforeState} muted />
+                              {' → '}
+                              <PermissionStateBadge state={item.afterState} />
+                            </li>
+                          ))}
+                        </ul>
                       </td>
                       <td className="text-sm">{log.reason}</td>
                     </tr>

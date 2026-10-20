@@ -35,7 +35,7 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
       onClose(true);
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
       setSaving(false);
     }
   };

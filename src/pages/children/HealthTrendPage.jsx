@@ -8,7 +8,10 @@ import { useAsync } from '@/hooks/useAsync';
 import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSelect } from '@/components/ui/SearchSelect';
-import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState, LoadingState } from '@/components/ui/States';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { runWithAiHold } from '@/hooks/loadingTiming';
 import { ConclusionCategoryBadge, FollowUpLevelShortBadge, MotorResultBadge } from '@/components/children/ChildBadges';
 import { GrowthChart } from '@/components/children/GrowthChart';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
@@ -42,24 +45,26 @@ const monthsAgo = (n) => {
 
 /** AI panel: optional help, the page stays usable when it fails (GBR-AI-06, MSG30). */
 function AiTrendPanel({ childId, user }) {
-  const { data, loading, error, reload } = useAsync(() => analyzeHealthTrend(childId, user), [childId, user?.id], { enabled: !!childId });
+  // AI tự chạy khi mở trang ⇒ chỉ phủ card này (user chốt), giữ tối thiểu như mọi lớp phủ AI
+  const { data, loading, error, reload } = useAsync(() => runWithAiHold(() => analyzeHealthTrend(childId, user)), [childId, user?.id], {
+    enabled: !!childId,
+  });
   return (
     <section className="card mt-16 tr-ai">
       <div className="card__header row row--between row--wrap gap-2">
         <div className="row gap-2">
           <Sparkles size={18} className="tr-ai__icon" />
           <h2 className="card__title">Nhận định xu hướng</h2>
-          <span className="chip chip--purple">Bản nháp AI – chỉ để tham khảo</span>
+          {/* Không dùng AiDraftTag/AiDraftLabel: nhận định xu hướng chỉ tham khảo, không có bước duyệt */}
+          <StatusBadge tone="purple" label="Bản nháp AI – chỉ để tham khảo" />
         </div>
         <button className="btn btn--sm" onClick={() => reload()} disabled={loading}>
-          {loading ? <Spinner small /> : <RefreshCw size={14} />} Phân tích lại
+          <RefreshCw size={14} /> Phân tích lại
         </button>
       </div>
       <div className="card__body">
         {loading ? (
-          <div className="row muted gap-2">
-            <Spinner small /> Đang phân tích xu hướng các lần đo...
-          </div>
+          <div className="tr-ai__wait" />
         ) : error ? (
           <div className="alert alert--warning" role="status">
             <AlertTriangle size={18} />
@@ -92,6 +97,7 @@ function AiTrendPanel({ childId, user }) {
           </>
         ) : null}
       </div>
+      {loading && <AiWorkingOverlay scoped text="Đang phân tích xu hướng các lần đo…" />}
     </section>
   );
 }
@@ -327,10 +333,10 @@ export default function HealthTrendPage() {
                   <thead>
                     <tr>
                       <th>Ngày đo</th>
-                      <th className="right">Chiều cao (cm)</th>
-                      <th className="right">Cân nặng (kg)</th>
-                      <th className="right">Vòng đầu (cm)</th>
-                      <th className="right">BMI</th>
+                      <th className="num">Chiều cao (cm)</th>
+                      <th className="num">Cân nặng (kg)</th>
+                      <th className="num">Vòng đầu (cm)</th>
+                      <th className="num">BMI</th>
                       <th>Kết luận</th>
                       <th>Mức theo dõi</th>
                     </tr>
@@ -339,10 +345,10 @@ export default function HealthTrendPage() {
                     {points.map((m) => (
                       <tr key={m.id}>
                         <td>{formatDate(m.date)}</td>
-                        <td className="right">{formatNumber(m.heightCm)}</td>
-                        <td className="right">{formatNumber(m.weightKg)}</td>
-                        <td className="right">{formatNumber(m.headCircumferenceCm)}</td>
-                        <td className="right">{formatNumber(m.bmi)}</td>
+                        <td className="num">{formatNumber(m.heightCm)}</td>
+                        <td className="num">{formatNumber(m.weightKg)}</td>
+                        <td className="num">{formatNumber(m.headCircumferenceCm)}</td>
+                        <td className="num">{formatNumber(m.bmi)}</td>
                         <td>
                           {m.source === MEASUREMENT_SOURCE.EXAM ? (
                             <ConclusionCategoryBadge status={m.conclusionCategory} />
@@ -356,7 +362,7 @@ export default function HealthTrendPage() {
                             <span className="muted text-xs tr-note">{MEASUREMENT_SOURCE_LABELS.MEASUREMENT_ONLY}</span>
                           )}
                         </td>
-                        <td>
+                        <td className="center">
                           <FollowUpLevelShortBadge status={m.followUpLevel} />
                         </td>
                       </tr>

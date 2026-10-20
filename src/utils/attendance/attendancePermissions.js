@@ -15,8 +15,8 @@ export const isClassTeacher = (cls, user) =>
 
 export const canRecordAttendance = (cls, user) => isClassTeacher(cls, user);
 
-export const canUnlockAttendanceDay = (cls, user) =>
-  !!cls && (user?.role === ROLES.PRINCIPAL || (user?.role === ROLES.VICE_PRINCIPAL && cls.campusId === user.campusId));
+// BA: Hiệu trưởng cấu hình giờ chốt và thời hạn mở lại; chỉ Phó hiệu trưởng của campus thực hiện mở lại
+export const canUnlockAttendanceDay = (cls, user) => !!cls && user?.role === ROLES.VICE_PRINCIPAL && cls.campusId === user.campusId;
 
 export const canViewAttendance = (cls, user) => {
   if (!cls || !user) return false;

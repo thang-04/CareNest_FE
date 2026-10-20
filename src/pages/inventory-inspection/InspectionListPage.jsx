@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, Printer, ClipboardCheck, RotateCcw, ClipboardList } from '@/components/ui/icons';
+import { Plus, Search, Printer, ClipboardCheck, RotateCcw, ClipboardList } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useInspections } from '@/hooks/inventory-inspection/useInspections';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { RoundStatusBadge, SheetStatusBadge, ProgressBar } from '@/components/inventory-inspection/InspectionBadges';
 import { formatDate } from '@/utils/format';
 import { locationLabel } from '@/models/Location';
@@ -46,13 +49,27 @@ function RoundList({ user, md }) {
   const waitingReview = all.flatMap((r) =>
     r.status === ROUND_STATUS.IN_PROGRESS ? r.sheets.filter((s) => s.status === SHEET_STATUS.SUBMITTED) : [],
   ).length;
+  const filter = (next) => {
+    if (next.status !== undefined) setStatus(next.status);
+    if (next.keyword !== undefined) setKeyword(next.keyword);
+    setPage(1);
+  };
+  const filtered = status !== 'ALL' || Boolean(keyword);
+  const chips = [
+    keyword && { key: 'keyword', label: `Từ khóa: ${keyword}`, onRemove: () => filter({ keyword: '' }) },
+    status !== 'ALL' && {
+      key: 'status',
+      label: `Trạng thái: ${stats.find((s) => s.key === status)?.label || ROUND_STATUS_LABELS[status] || status}`,
+      onRemove: () => filter({ status: 'ALL' }),
+    },
+  ].filter(Boolean);
 
   return (
     <>
       <div className="page__head">
         <h1 className="page__title">Kiểm kê tài sản</h1>
         {canManageRounds(user) && (
-          <Link to="/facility/inspections/new" className="btn btn--primary btn--lg" style={{ marginTop: 6 }}>
+          <Link to="/facility/inspections/new" className="btn btn--primary btn--lg kk-head-action">
             <Plus size={18} /> Tạo đợt kiểm kê
           </Link>
         )}
@@ -69,11 +86,10 @@ function RoundList({ user, md }) {
         {stats.map((s) => (
           <button
             key={s.key}
+            type="button"
+            aria-pressed={status === s.key}
             className={`stat-card stat-card--${s.tone} ${status === s.key ? 'stat-card--active' : ''}`}
-            onClick={() => {
-              setStatus(s.key);
-              setPage(1);
-            }}
+            onClick={() => filter({ status: s.key })}
           >
             <div className="stat-card__value">{s.value}</div>
             <div className="stat-card__label">{s.label}</div>
@@ -83,39 +99,23 @@ function RoundList({ user, md }) {
       </div>
       <div className="card">
         <div className="filter-bar">
-          <label className="search-box" style={{ flex: 1 }}>
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm mã hoặc tên đợt kiểm kê..."
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              aria-label="Tìm kiếm"
-            />
-          </label>
-          <select className="select" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Trạng thái">
-            <option value="ALL">Tất cả trạng thái</option>
-            {Object.entries(ROUND_STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn"
-            onClick={() => {
-              setStatus('ALL');
-              setKeyword('');
-            }}
-            disabled={status === 'ALL' && !keyword}
-          >
-            <RotateCcw size={15} /> Đặt lại
+          <SearchSubmit
+            className="flex-1"
+            value={keyword}
+            placeholder="Tìm mã hoặc tên đợt kiểm kê..."
+            label="Tìm kiếm đợt kiểm kê"
+            onSearch={(text) => filter({ keyword: text })}
+          />
+          <button className="btn" onClick={() => filter({ status: 'ALL', keyword: '' })} disabled={!filtered}>
+            <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
+        <FilterChips count={loading ? null : rounds.length} unit="đợt" chips={chips} />
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-wrap">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã đợt</th>
@@ -123,9 +123,9 @@ function RoundList({ user, md }) {
                   <th>Loại</th>
                   <th>Phạm vi</th>
                   <th>Thời gian</th>
-                  <th style={{ minWidth: 170 }}>Tiến độ (phiếu đã duyệt)</th>
-                  <th>Trạng thái</th>
-                  <th className="center">Thao tác</th>
+                  <th className="kk-col-progress">Tiến độ (phiếu đã duyệt)</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -134,16 +134,28 @@ function RoundList({ user, md }) {
                 ) : rounds.length === 0 ? (
                   <tr>
                     <td colSpan={8}>
-                      <EmptyState
-                        icon={ClipboardList}
-                        title="Chưa có đợt kiểm kê"
-                        description="Tạo đợt kiểm kê để giao phiếu kiểm đếm cho từng lớp/phòng."
-                        action={
-                          <Link className="btn btn--primary" to="/facility/inspections/new">
-                            <Plus size={16} /> Tạo đợt kiểm kê
-                          </Link>
-                        }
-                      />
+                      {filtered ? (
+                        <EmptyState
+                          icon={Search}
+                          title="Không có đợt kiểm kê phù hợp"
+                          action={
+                            <button className="btn" onClick={() => filter({ status: 'ALL', keyword: '' })}>
+                              <RotateCcw size={15} /> Đặt lại bộ lọc
+                            </button>
+                          }
+                        />
+                      ) : (
+                        <EmptyState
+                          icon={ClipboardList}
+                          title="Chưa có đợt kiểm kê"
+                          description="Tạo đợt kiểm kê để giao phiếu kiểm đếm cho từng lớp/phòng."
+                          action={
+                            <Link className="btn btn--primary" to="/facility/inspections/new">
+                              <Plus size={16} /> Tạo đợt kiểm kê
+                            </Link>
+                          }
+                        />
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -158,9 +170,9 @@ function RoundList({ user, md }) {
                         }
                       >
                         <td className="fw-600 text-primary">{r.code}</td>
-                        <td style={{ maxWidth: 280, whiteSpace: 'normal' }}>{r.name}</td>
+                        <td className="kk-wrap kk-wrap--280">{r.name}</td>
                         <td className="text-sm">{ROUND_TYPE_LABELS[r.type]?.split(' (')[0]}</td>
-                        <td className="text-sm" style={{ maxWidth: 220, whiteSpace: 'normal' }}>
+                        <td className="text-sm kk-wrap kk-wrap--220">
                           {(() => {
                             const d = describeScope(r, md);
                             return (
@@ -181,27 +193,18 @@ function RoundList({ user, md }) {
                             <ProgressBar value={p.approved} total={p.total} tone={p.approved === p.total ? 'green' : 'primary'} />
                           )}
                         </td>
-                        <td>
+                        <td className="center">
                           <RoundStatusBadge status={r.status} />
                         </td>
-                        <td className="center nowrap" onClick={(e) => e.stopPropagation()}>
-                          <Link
-                            className="icon-btn"
-                            to={r.status === ROUND_STATUS.DRAFT ? `/facility/inspections/${r.id}/edit` : `/facility/inspections/${r.id}`}
-                            title="Xem"
-                            aria-label="Xem"
-                          >
-                            <Eye size={17} />
-                          </Link>
-                          {r.status !== ROUND_STATUS.DRAFT && (
-                            <Link
-                              className="icon-btn"
-                              to={`/facility/inspections/${r.id}/print`}
-                              title="In biên bản"
-                              aria-label="In biên bản"
-                            >
-                              <Printer size={17} />
-                            </Link>
+                        <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
+                          {r.status === ROUND_STATUS.DRAFT ? (
+                            <RowActions edit={{ to: `/facility/inspections/${r.id}/edit` }} name={r.code} />
+                          ) : (
+                            <RowActions
+                              view={{ to: `/facility/inspections/${r.id}` }}
+                              menu={[{ label: 'In biên bản', icon: Printer, to: `/facility/inspections/${r.id}/print` }]}
+                              name={r.code}
+                            />
                           )}
                         </td>
                       </tr>
@@ -270,17 +273,17 @@ function MySheetList({ user, md }) {
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-wrap">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã phiếu</th>
                   <th>Đợt kiểm kê</th>
                   <th>Lớp/phòng</th>
                   <th>Hạn hoàn thành</th>
-                  <th style={{ minWidth: 160 }}>Đã kiểm</th>
-                  <th>Trạng thái</th>
-                  <th className="center">Thao tác</th>
+                  <th className="kk-col-counted">Đã kiểm</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -304,18 +307,18 @@ function MySheetList({ user, md }) {
                     return (
                       <tr key={sheet.id} className="row-click" onClick={() => navigate(link)}>
                         <td className="fw-600 text-primary">{sheet.code}</td>
-                        <td style={{ maxWidth: 260, whiteSpace: 'normal' }}>{round.name}</td>
+                        <td className="kk-wrap kk-wrap--260">{round.name}</td>
                         <td>{locationLabel(md.locationById(sheet.locationId))}</td>
                         <td>{formatDate(round.deadline)}</td>
                         <td>
                           <ProgressBar value={sum.counted} total={sum.total} tone={sum.counted === sum.total ? 'green' : 'primary'} />
                         </td>
-                        <td>
+                        <td className="center">
                           <SheetStatusBadge status={sheet.status} />
                         </td>
-                        <td className="center" onClick={(e) => e.stopPropagation()}>
+                        <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
                           {todo ? (
-                            <button className="btn btn--sm btn--primary" onClick={() => navigate(link)}>
+                            <button className="btn btn--primary btn--sm" onClick={() => navigate(link)}>
                               <ClipboardCheck size={15} />{' '}
                               {sheet.status === SHEET_STATUS.RECOUNT_REQUESTED
                                 ? 'Kiểm lại'
@@ -324,9 +327,7 @@ function MySheetList({ user, md }) {
                                   : 'Kiểm kê'}
                             </button>
                           ) : (
-                            <button className="btn btn--sm" onClick={() => navigate(link)}>
-                              <Eye size={15} /> Xem
-                            </button>
+                            <RowActions view={{ to: link }} name={sheet.code} />
                           )}
                         </td>
                       </tr>

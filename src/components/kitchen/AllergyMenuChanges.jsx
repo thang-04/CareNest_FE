@@ -3,19 +3,22 @@ import { AlertTriangle, Eye } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { formatDate } from '@/utils/format';
 
-export function AllergyMenuChanges({ changes = [], date, context }) {
+/** compact: nằm trong hàng "Thay đổi cho trẻ dị ứng" của bảng tuần, nhãn đã có ở đầu hàng nên bỏ tiêu đề và khung. */
+export function AllergyMenuChanges({ changes = [], date, context, compact = false }) {
   const [selectedId, setSelectedId] = useState(null);
   const selected = changes.find((c) => c.id === selectedId);
   if (!changes.length) return null;
 
   return (
-    <div className="kb-menu-changes">
+    <div className={`kb-menu-changes ${compact ? 'kb-menu-changes--compact' : ''}`}>
       {changes.map((change) => (
         <div className="kb-menu-change" key={change.id}>
-          <div className="kb-menu-change__title">
-            <AlertTriangle size={16} aria-hidden="true" />
-            <span>Thay đổi cho trẻ dị ứng</span>
-          </div>
+          {!compact && (
+            <div className="kb-menu-change__title">
+              <AlertTriangle size={16} aria-hidden="true" />
+              <span>Thay đổi cho trẻ dị ứng</span>
+            </div>
+          )}
           {change.replacements.length ? (
             <ul className="kb-menu-change__dishes">
               {change.replacements.map((r, i) => (

@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertCircle, Filter, KeyRound, Lock, Plus, Search, Unlock, Users } from '@/components/ui/icons';
+import { AlertCircle, Filter, KeyRound, Lock, Plus, Unlock, Users } from '@/components/ui/icons';
 import { useCampusGuardianChildren } from '@/hooks/account/useGuardians';
 import { useGuardianStructure } from '@/hooks/account/useGuardians';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { AccountStatusBadge } from '@/components/account/AccountStatusBadge';
+import { ParentAccountBadge } from '@/components/children/ChildBadges';
 import { AccountSlip, GuardianPanel } from '@/components/account/GuardianPanel';
 import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
@@ -182,16 +185,14 @@ export default function ParentActivationPage() {
           <h1 className="page__title">Tài khoản phụ huynh</h1>
           <p className="text-sm text-2">Tra cứu theo lớp để xem và quản lý tài khoản phụ huynh của từng bé.</p>
         </div>
-        <label className="search-box pa-head__search">
-          <Search size={17} className="muted" />
-          <input
-            placeholder="Tìm bé theo tên"
-            value={keyword}
-            maxLength={100}
-            onChange={(e) => setKeyword(e.target.value)}
-            aria-label="Tìm bé theo tên"
-          />
-        </label>
+        <SearchSubmit
+          className="pa-head__search"
+          value={keyword}
+          maxLength={100}
+          placeholder="Tìm bé theo tên"
+          label="Tìm bé theo tên"
+          onSearch={setKeyword}
+        />
       </div>
 
       {!loading && !error && !structure.loading && !structure.error && (
@@ -210,7 +211,7 @@ export default function ParentActivationPage() {
         <div className="pa-todo" role="status">
           <AlertCircle size={18} />
           <b>Cần xử lý:</b>
-          <button type="button" aria-pressed={view === TODO && !searching} onClick={() => pickView(TODO)}>
+          <button type="button" className="pa-todo__link" aria-pressed={view === TODO && !searching} onClick={() => pickView(TODO)}>
             {missingTotal} bé chưa có tài khoản phụ huynh
           </button>
         </div>
@@ -243,6 +244,7 @@ export default function ParentActivationPage() {
                       <button
                         key={c.id}
                         type="button"
+                        className="pa-seg__item"
                         title={c.name}
                         aria-pressed={String(c.id) === String(campusId)}
                         onClick={() => pickCampus(c.id)}
@@ -331,7 +333,7 @@ export default function ParentActivationPage() {
                             {main.showClass && <th className="pa-col-class">Lớp</th>}
                             <th>Phụ huynh</th>
                             <th className="pa-col-status">Tài khoản</th>
-                            <th className="right pa-col-actions">Thao tác</th>
+                            <th className="cell--actions pa-col-actions">Thao tác</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -388,34 +390,36 @@ export default function ParentActivationPage() {
                                     ))
                                   ) : (
                                     <div className="pa-line">
-                                      <span className="pa-status pa-status--missing">Chưa có tài khoản</span>
+                                      <ParentAccountBadge status="NO_ACCOUNT" />
                                     </div>
                                   )}
                                 </td>
-                                <td className="right pa-col-actions">
+                                <td className="cell--actions pa-col-actions">
                                   {guardians.length > 0 ? (
                                     guardians.map((g) => {
                                       const active = g.status === 'ACTIVE';
                                       return (
                                         <div key={g.userId} className="pa-line pa-line--actions">
-                                          <button
-                                            type="button"
-                                            className="btn btn--sm"
-                                            title="Cấp lại mật khẩu tạm"
-                                            disabled={!child.canManage}
-                                            onClick={() => setConfirmModal({ type: 'password', guardian: g, child })}
-                                          >
-                                            <KeyRound size={13} /> Cấp lại MK
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className={`btn btn--sm ${active ? 'btn--outline-danger' : 'btn--outline-success'}`}
-                                            title={active ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                                            disabled={!child.canManage}
-                                            onClick={() => setConfirmModal({ type: 'status', guardian: g, child })}
-                                          >
-                                            {active ? <Lock size={13} /> : <Unlock size={13} />} {active ? 'Khóa' : 'Mở'}
-                                          </button>
+                                          <RowActions
+                                            name={g.fullName}
+                                            menu={
+                                              child.canManage
+                                                ? [
+                                                    {
+                                                      label: 'Cấp lại mật khẩu tạm',
+                                                      icon: KeyRound,
+                                                      onClick: () => setConfirmModal({ type: 'password', guardian: g, child }),
+                                                    },
+                                                    {
+                                                      label: active ? 'Khóa tài khoản' : 'Mở khóa tài khoản',
+                                                      icon: active ? Lock : Unlock,
+                                                      danger: active,
+                                                      onClick: () => setConfirmModal({ type: 'status', guardian: g, child }),
+                                                    },
+                                                  ]
+                                                : []
+                                            }
+                                          />
                                         </div>
                                       );
                                     })

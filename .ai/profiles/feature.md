@@ -9,6 +9,7 @@ Mức: L2. Bắt đầu từ actor và outcome của người dùng, không từ
 4. FE: `docs/architecture/ROUTE_MAP.md` (screen group) · `docs/features/README.md` (cách map feature → màn hình) · `docs/integration/BACKEND_INTEGRATION.md`.
 5. Contract: `../CareNest_BE/docs/contracts/API_CONVENTIONS.md`, `ERROR_CONTRACT.md` và source controller/DTO BE nếu đã có.
 6. `.claude/rules/` theo loại file.
+7. Code hiện có của module: `fe_code` trong `.ai/CONTEXT_MAP.yaml`; cách thêm module `docs/architecture/CODING_GUIDE.md` §5; công thức màn `DESIGN.md` §8 + danh mục §6.3.
 
 Kiểm tra trước khi code:
 - Actor của màn hình đã CONFIRMED? Nếu PENDING (vd. người xác nhận suất ăn, người nhập đo sức khỏe) ⇒ hiển thị theo permission BE trả về, không hard-code role; hỏi nếu cần quyết định.

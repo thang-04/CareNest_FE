@@ -1,18 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Save,
-  Send,
-  CheckCheck,
-  Search,
-  RotateCcw,
-  CheckCircle2,
-  Info,
-  Lock,
-  UserRound,
-  ListChecks,
-} from '@/components/ui/icons';
+import { ArrowLeft, Save, Send, CheckCheck, Search, RotateCcw, CheckCircle2, Info, UserRound, ListChecks } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -28,6 +16,7 @@ import {
 } from '@/services/inventory-inspection/inspectionService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState, ErrorState, EmptyState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Modal } from '@/components/ui/Modal';
 import { SheetStatusBadge, ProgressBar } from '@/components/inventory-inspection/InspectionBadges';
@@ -109,24 +98,24 @@ function SheetHeader({ round, sheet, md }) {
 function SummaryStats({ items }) {
   const s = sheetSummary({ items });
   return (
-    <div className="kk-stats mt-16">
-      <div className="kk-stat">
-        <div className="kk-stat__value">{s.total}</div>
-        <div className="kk-stat__label">Tài sản cần kiểm</div>
+    <div className="stat-grid mt-16">
+      <div className="stat-card stat-card--gray">
+        <div className="stat-card__label">Tài sản cần kiểm</div>
+        <div className="stat-card__value">{s.total}</div>
       </div>
-      <div className={`kk-stat ${s.counted === s.total ? 'kk-stat--ok' : ''}`}>
-        <div className="kk-stat__value">
+      <div className={`stat-card ${s.counted === s.total ? 'stat-card--green' : 'stat-card--blue'}`}>
+        <div className="stat-card__label">Đã kiểm</div>
+        <div className="stat-card__value">
           {s.counted}/{s.total}
         </div>
-        <div className="kk-stat__label">Đã kiểm</div>
       </div>
-      <div className={`kk-stat ${s.variance ? 'kk-stat--warn' : ''}`}>
-        <div className="kk-stat__value">{s.variance}</div>
-        <div className="kk-stat__label">Lệch sổ sách</div>
+      <div className={`stat-card ${s.variance ? 'stat-card--orange' : 'stat-card--gray'}`}>
+        <div className="stat-card__label">Lệch sổ sách</div>
+        <div className="stat-card__value">{s.variance}</div>
       </div>
-      <div className={`kk-stat ${s.damaged ? 'kk-stat--danger' : ''}`}>
-        <div className="kk-stat__value">{s.damaged}</div>
-        <div className="kk-stat__label">Hư hỏng / cần sửa</div>
+      <div className={`stat-card ${s.damaged ? 'stat-card--red' : 'stat-card--gray'}`}>
+        <div className="stat-card__label">Hư hỏng / cần sửa</div>
+        <div className="stat-card__value">{s.damaged}</div>
       </div>
     </div>
   );
@@ -182,7 +171,7 @@ function CountView({ round, sheet, md, reload }) {
       setDirty(false);
       toast.success('Đã lưu tạm phiếu kiểm kê');
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     } finally {
       setSaving(false);
     }
@@ -210,7 +199,7 @@ function CountView({ round, sheet, md, reload }) {
       reload();
     } catch (err) {
       setConfirmOpen(false);
-      toast.error(err.message, 'Không nộp được phiếu');
+      toast.error(err, 'Không nộp được phiếu');
     }
   };
 
@@ -240,15 +229,21 @@ function CountView({ round, sheet, md, reload }) {
       <div className="card mt-16">
         <div className="card__body">
           <div className="kk-toolbar">
-            <div className="kk-filters">
+            <div className="tabs tabs--pill" role="group" aria-label="Lọc tài sản">
               {FILTERS.filter((f) => f.key !== 'FLAGGED' || items.some((i) => i.flagged)).map((f) => (
-                <button key={f.key} className={`kk-filter ${filter === f.key ? 'kk-filter--active' : ''}`} onClick={() => setFilter(f.key)}>
-                  {f.label} ({items.filter(f.match).length})
+                <button
+                  key={f.key}
+                  type="button"
+                  className={`tab ${filter === f.key ? 'tab--active' : ''}`}
+                  aria-pressed={filter === f.key}
+                  onClick={() => setFilter(f.key)}
+                >
+                  {f.label} <span className="tab__count">{items.filter(f.match).length}</span>
                 </button>
               ))}
             </div>
-            <div className="row" style={{ gap: 8 }}>
-              <label className="search-box" style={{ minWidth: 220 }}>
+            <div className="row gap-2">
+              <label className="search-box min-w-220">
                 <Search size={16} className="muted" />
                 <input placeholder="Tìm tài sản..." value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="Tìm tài sản" />
               </label>
@@ -270,17 +265,17 @@ function CountView({ round, sheet, md, reload }) {
           />
 
           <div className="table-wrap mt-12">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
-                  <th className="center">STT</th>
-                  <th>Tài sản</th>
-                  <th className="center">ĐVT</th>
-                  <th className="center">SL sổ sách</th>
+                  <th className="center cell--fixed">STT</th>
+                  <th className="cell--fixed">Tài sản</th>
+                  <th className="center cell--fixed">ĐVT</th>
+                  <th className="num cell--fixed">SL sổ sách</th>
                   <th className="center">SL thực tế</th>
-                  <th className="center">Chênh lệch</th>
-                  <th style={{ width: 160 }}>Tình trạng</th>
-                  <th style={{ minWidth: 200 }}>Ghi chú</th>
+                  <th className="num cell--fixed">Chênh lệch</th>
+                  <th className="w-160">Tình trạng</th>
+                  <th className="min-w-200">Ghi chú</th>
                   <th className="center">Ảnh</th>
                 </tr>
               </thead>
@@ -304,9 +299,9 @@ function CountView({ round, sheet, md, reload }) {
                         key={i.assetId}
                         className={`${damaged ? 'kk-row--damaged' : variance ? 'kk-row--variance' : ''} ${i.flagged ? 'kk-row--flagged' : ''}`}
                       >
-                        <td className="center">{idx + 1}</td>
-                        <td>
-                          <div className="row" style={{ gap: 10 }}>
+                        <td className="center cell--fixed">{idx + 1}</td>
+                        <td className="cell--fixed">
+                          <div className="row gap-2-5">
                             <AssetThumb asset={i} size="sm" />
                             <div>
                               <div className="fw-600">{i.assetName}</div>
@@ -315,12 +310,13 @@ function CountView({ round, sheet, md, reload }) {
                           </div>
                           {err && <div className="kk-row-error">{err}</div>}
                         </td>
-                        <td className="center">{i.unit}</td>
-                        <td className="center fw-600">{i.bookQuantity}</td>
+                        <td className="center cell--fixed">{i.unit}</td>
+                        <td className="num fw-600 cell--fixed">{i.bookQuantity}</td>
                         <td className="center">
-                          <span className={`kk-qty ${err && !counted ? 'kk-qty--error' : ''}`}>
+                          <span className={`input-unit kk-qty ${err && !counted ? 'is-invalid' : ''}`}>
                             <button
                               type="button"
+                              className="icon-btn"
                               onClick={() => update(i.assetId, { actualQuantity: Math.max(0, (Number(q) || 0) - 1) })}
                               aria-label="Giảm"
                             >
@@ -336,6 +332,7 @@ function CountView({ round, sheet, md, reload }) {
                             />
                             <button
                               type="button"
+                              className="icon-btn"
                               onClick={() => update(i.assetId, { actualQuantity: (q === '' ? i.bookQuantity - 1 : Number(q)) + 1 })}
                               aria-label="Tăng"
                             >
@@ -343,7 +340,7 @@ function CountView({ round, sheet, md, reload }) {
                             </button>
                           </span>
                         </td>
-                        <td className="center">
+                        <td className="num cell--fixed">
                           <Diff item={i} />
                         </td>
                         <td>
@@ -388,10 +385,10 @@ function CountView({ round, sheet, md, reload }) {
               <Info size={20} /> Trước khi nộp
             </div>
           </div>
-          <div className="card__body stack text-sm" style={{ gap: 8 }}>
+          <div className="card__body stack text-sm gap-2">
             <div>
               {summary.counted === summary.total ? (
-                <span className="text-success row" style={{ gap: 4 }}>
+                <span className="text-success row gap-1">
                   <CheckCircle2 size={16} aria-hidden="true" /> Đã kiểm đủ {summary.total} tài sản
                 </span>
               ) : (
@@ -409,7 +406,7 @@ function CountView({ round, sheet, md, reload }) {
         <button className="btn btn--lg" onClick={() => navigate('/facility/inspections')}>
           <ArrowLeft size={17} /> Quay lại
         </button>
-        <div className="row" style={{ gap: 10 }}>
+        <div className="row gap-2-5">
           <button className="btn btn--lg" onClick={save} disabled={saving || !dirty}>
             {saving ? <Spinner small /> : <Save size={16} />} Lưu tạm
           </button>
@@ -472,7 +469,7 @@ function ReviewView({ round, sheet, md, reload }) {
       setApproveOpen(false);
       reload();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     }
   };
 
@@ -488,7 +485,7 @@ function ReviewView({ round, sheet, md, reload }) {
       setRecountOpen(false);
       reload();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     } finally {
       setBusy(false);
     }
@@ -541,24 +538,30 @@ function ReviewView({ round, sheet, md, reload }) {
       <div className="card mt-16">
         <div className="card__body">
           <div className="kk-toolbar">
-            <div className="kk-filters">
+            <div className="tabs tabs--pill" role="group" aria-label="Lọc tài sản">
               {FILTERS.filter((f) => f.key !== 'TODO' && (f.key !== 'FLAGGED' || sheet.items.some((i) => i.flagged))).map((f) => (
-                <button key={f.key} className={`kk-filter ${filter === f.key ? 'kk-filter--active' : ''}`} onClick={() => setFilter(f.key)}>
-                  {f.label} ({sheet.items.filter(f.match).length})
+                <button
+                  key={f.key}
+                  type="button"
+                  className={`tab ${filter === f.key ? 'tab--active' : ''}`}
+                  aria-pressed={filter === f.key}
+                  onClick={() => setFilter(f.key)}
+                >
+                  {f.label} <span className="tab__count">{sheet.items.filter(f.match).length}</span>
                 </button>
               ))}
             </div>
           </div>
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th className="center">STT</th>
                   <th>Tài sản</th>
                   <th className="center">ĐVT</th>
-                  <th className="center">SL sổ sách</th>
-                  <th className="center">SL thực tế</th>
-                  <th className="center">Chênh lệch</th>
+                  <th className="num">SL sổ sách</th>
+                  <th className="num">SL thực tế</th>
+                  <th className="num">Chênh lệch</th>
                   <th className="center">TT sổ sách</th>
                   <th className="center">TT thực tế</th>
                   <th>Ghi chú</th>
@@ -588,9 +591,9 @@ function ReviewView({ round, sheet, md, reload }) {
                           <div className="muted text-xs">{i.assetCode}</div>
                         </td>
                         <td className="center">{i.unit}</td>
-                        <td className="center">{i.bookQuantity}</td>
-                        <td className="center fw-600">{counted ? i.actualQuantity : '—'}</td>
-                        <td className="center">
+                        <td className="num">{i.bookQuantity}</td>
+                        <td className="num fw-600">{counted ? i.actualQuantity : '—'}</td>
+                        <td className="num">
                           <Diff item={i} />
                         </td>
                         <td className="center">
@@ -619,7 +622,7 @@ function ReviewView({ round, sheet, md, reload }) {
         </div>
         <div className="card__body">
           {sheet.inspectorSignature ? (
-            <div className="sig-box" style={{ maxWidth: 320 }}>
+            <div className="sig-box kk-sig-box">
               <img src={sheet.inspectorSignature.signatureUrl} alt="Chữ ký người kiểm kê" />
               <div className="fw-600">{sheet.inspectorSignature.signedByName}</div>
               <div className="text-success text-xs">
@@ -646,7 +649,7 @@ function ReviewView({ round, sheet, md, reload }) {
           <ArrowLeft size={17} /> Quay lại
         </button>
         {reviewable && (
-          <div className="row" style={{ gap: 10 }}>
+          <div className="row gap-2-5">
             <button className="btn btn--lg btn--warning" onClick={openRecount}>
               <RotateCcw size={16} /> Yêu cầu kiểm lại
             </button>
@@ -709,7 +712,7 @@ function ReviewView({ round, sheet, md, reload }) {
           {recountError && <span className="field__error">{recountError}</span>}
         </div>
         <div className="subsection-title mt-16">Tài sản cần đếm lại</div>
-        <div className="stack" style={{ gap: 6, maxHeight: 260, overflowY: 'auto' }}>
+        <div className="stack gap-1-5 kk-recount-list">
           {sheet.items.map((i) => (
             <label key={i.assetId} className="checkbox">
               <input
@@ -754,17 +757,15 @@ export default function InspectionSheetPage() {
   if (!sheet || !(isVicePrincipal(user) || isMySheet(sheet, user))) {
     return (
       <div className="page">
-        <div className="card mt-24">
-          <EmptyState
-            icon={Lock}
-            title="Bạn không có quyền xem phiếu kiểm kê này"
-            action={
-              <Link className="btn" to="/facility/inspections">
-                Về danh sách
-              </Link>
-            }
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Bạn không có quyền xem phiếu kiểm kê này"
+          action={
+            <Link className="btn" to="/facility/inspections">
+              Về danh sách
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -773,7 +774,7 @@ export default function InspectionSheetPage() {
   return (
     <div className="page">
       <Breadcrumb items={inspectionCrumbs(`Phiếu ${sheet.code}`)} />
-      <h1 className="page__title" style={{ marginBottom: 8 }}>
+      <h1 className="page__title mb-8">
         Phiếu kiểm kê {sheet.code} – {locationLabel(md.locationById(sheet.locationId))}
       </h1>
       <SheetStatusBadge status={sheet.status} size="lg" />

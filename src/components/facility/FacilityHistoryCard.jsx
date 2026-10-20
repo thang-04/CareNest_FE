@@ -7,7 +7,7 @@ export function FacilityHistoryCard({ history = [], userById }) {
   return (
     <section className="card">
       <div className="card__header">
-        <h2 className="card__title row" style={{ gap: 8 }}>
+        <h2 className="card__title row gap-2">
           <History size={17} /> Lịch sử xử lý
         </h2>
       </div>

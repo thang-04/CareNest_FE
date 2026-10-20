@@ -8,6 +8,7 @@ import { getDailyHealth, notifyDailyHealth } from '@/services/dailyHealthService
 import { HEALTH_ACTIONS, HEALTH_SYMPTOMS, actionSummary, validateDailyHealth } from '@/utils/dailyHealthValidation';
 import { temperatureLevel } from '@/utils/attendance/temperatureLevels';
 import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
+import { HealthObservationBadge, ParentNotifyBadge, ParentNotifyShortBadge } from '@/components/attendance/AttendanceBadges';
 import { formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { useToast } from '@/contexts/ToastContext';
@@ -116,7 +117,7 @@ export function DailyHealthPanel({
             ? `Điểm danh đã lưu. Sức khỏe chưa lưu: ${err.message} Thông tin đang nhập được giữ lại; hãy lưu lại sức khỏe.`
             : `Chưa lưu sức khỏe: ${err.message} Thông tin đang nhập được giữ lại.`,
       );
-      toast.error(err.message, err.healthSaved ? 'Chưa tạo được thông báo' : 'Chưa lưu được sức khỏe');
+      toast.error(err, err.healthSaved ? 'Chưa tạo được thông báo' : 'Chưa lưu được sức khỏe');
       await reload({ silent: true });
     } finally {
       submitRef.current = false;
@@ -431,11 +432,10 @@ export function DailyHealthPanel({
                         )}
                         {entry.notificationStatus !== 'NOT_REQUIRED' && (
                           <div className="dd-health__actions">
-                            <span className={`chip ${entry.notificationStatus === 'DEMO_QUEUED' ? 'chip--blue' : 'chip--orange'}`}>
-                              {entry.notificationStatus === 'DEMO_QUEUED'
-                                ? `Đã gửi thông báo phụ huynh${entry.parentNotifications?.[0] ? ` · ${formatDateTime(entry.parentNotifications[0].createdAt)}` : ''}`
-                                : 'Chưa gửi được thông báo phụ huynh'}
-                            </span>
+                            <ParentNotifyBadge status={entry.notificationStatus === 'DEMO_QUEUED' ? 'DEMO_QUEUED' : 'PENDING'} />
+                            {entry.notificationStatus === 'DEMO_QUEUED' && entry.parentNotifications?.[0] && (
+                              <span className="muted text-sm">{formatDateTime(entry.parentNotifications[0].createdAt)}</span>
+                            )}
                             {entry.notificationStatus !== 'DEMO_QUEUED' && (
                               <button className="btn btn--sm" type="button" disabled={busy || parentBusy} onClick={() => resend(entry)}>
                                 Gửi lại thông báo
@@ -459,13 +459,17 @@ export function DailyHealthPanel({
                           ) : (
                             <TemperatureBadge value={entry.temperature} showLabel={false} />
                           )}
+                          <HealthObservationBadge status={entry.observation === 'NO_CONCERN' ? 'NO_CONCERN' : 'NOTED'} />
                           <span className="dd-health__compact-text">
-                            {entry.observation === 'NO_CONCERN' ? 'Bình thường' : 'Có dấu hiệu'}
-                            {entry.symptoms.length ? ` · ${entry.symptoms.map((item) => HEALTH_SYMPTOMS[item]).join(', ')}` : ''}
-                            {entry.actions?.length ? ` · ${actionSummary([entry])}` : ''}
+                            {[
+                              entry.symptoms.map((item) => HEALTH_SYMPTOMS[item]).join(', '),
+                              entry.actions?.length ? actionSummary([entry]) : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
                           </span>
                           {!['DEMO_QUEUED', 'NOT_REQUIRED'].includes(entry.notificationStatus) && (
-                            <span className="chip chip--orange">Chưa gửi PH</span>
+                            <ParentNotifyShortBadge status="PENDING" />
                           )}
                           <ChevronDown size={16} aria-hidden="true" />
                         </button>

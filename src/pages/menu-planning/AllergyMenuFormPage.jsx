@@ -109,7 +109,7 @@ export default function AllergyMenuFormPage() {
       toast.success('Lưu thay đổi thành công.');
       navigate(`/menu/allergy-menus/${saved.id}`);
     } catch (err) {
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
     } finally {
       setBusy(false);
     }
@@ -222,11 +222,11 @@ export default function AllergyMenuFormPage() {
                 <table className="table table--grid table--compact">
                   <thead>
                     <tr>
-                      <th>Bữa</th>
-                      <th>Món gốc</th>
-                      <th>Chứa</th>
-                      <th style={{ minWidth: 240 }}>Thay bằng</th>
-                      <th style={{ width: 110 }}>Hệ số</th>
+                      <th className="cell--fixed">Bữa</th>
+                      <th className="cell--fixed">Món gốc</th>
+                      <th className="cell--fixed">Chứa</th>
+                      <th className="td-min-w-240">Thay bằng</th>
+                      <th className="w-110">Hệ số</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -239,12 +239,12 @@ export default function AllergyMenuFormPage() {
                         const value = rep ? rep.replacementDishId || REMOVE : '';
                         return (
                           <tr key={`${meal.session}_${it.dishId}`} className={needs && !rep ? 'td-row--danger' : ''}>
-                            <td className="nowrap">{mealLabel(catalog.nutritionSetups, base?.ageGroupId, meal.session)}</td>
-                            <td>
+                            <td className="nowrap cell--fixed">{mealLabel(catalog.nutritionSetups, base?.ageGroupId, meal.session)}</td>
+                            <td className="cell--fixed">
                               {dish?.name || 'Món đã xóa'}
                               {needs && !rep && <div className="text-xs td-bad">Cần thay</div>}
                             </td>
-                            <td>
+                            <td className="cell--fixed">
                               <AllergenChips allergens={allergens} />
                             </td>
                             <td>

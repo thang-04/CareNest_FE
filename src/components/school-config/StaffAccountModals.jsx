@@ -105,7 +105,7 @@ export function StaffFormModal({ account, campuses, existing, onClose }) {
       else onClose(true);
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
     } finally {
       setSaving(false);
     }
@@ -227,7 +227,7 @@ export function StaffStatusModal({ account, onClose }) {
       toast.success(deactivate ? 'Đã vô hiệu hóa tài khoản.' : 'Đã kích hoạt lại tài khoản.', account.fullName);
       onClose(true);
     } catch (err) {
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
       setSaving(false);
     }
     return undefined;
@@ -307,7 +307,7 @@ export function StaffProfileModal({ account, existing, onClose }) {
       onClose(true);
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
       setSaving(false);
     }
   };

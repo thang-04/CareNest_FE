@@ -74,14 +74,14 @@ function YearForm({ year, years, user }) {
           copyNote = copyResultMessage(await copyClasses(result.id, { sourceYearId: copySource.id }, user));
         } catch (err) {
           // Năm học đã lưu; chỉ báo lỗi sao chép để Hiệu trưởng thử lại ở màn Nhóm tuổi & lớp
-          toast.error(err.message, 'Không sao chép được lớp');
+          toast.error(err, 'Không sao chép được lớp');
         }
       }
       if (openVp) return navigate(`/school/vice-principals?year=${result.id}`);
       setSaved({ ...result, copyNote });
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
     } finally {
       setSaving(false);
     }
@@ -223,7 +223,7 @@ export default function SchoolYearFormPage() {
   return (
     <div className="page">
       <Breadcrumb items={yearCrumbs(id ? 'Sửa năm học' : 'Thêm năm học')} />
-      <div className="row" style={{ gap: 12 }}>
+      <div className="row gap-3">
         <h1 className="page__title">{title}</h1>
         {year && <YearStatusBadge status={year.status} size="lg" />}
       </div>

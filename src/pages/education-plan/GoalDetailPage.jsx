@@ -7,7 +7,8 @@ import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/educatio
 import { goalIdsToTicks, numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
-import { Card, YearPlanStatusBadge, EmptyState, Field, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, YearPlanStatusBadge, Field, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { StatusPage } from '@/components/ui/StatusPage';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const ISSUE_NOTE =
@@ -36,16 +37,15 @@ export default function GoalDetailPage() {
           crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Mục tiêu năm học', to: '/education/goals' }]}
           title="Kế hoạch năm học"
         />
-        <Card>
-          <EmptyState
-            title="Không tìm thấy kế hoạch năm học"
-            action={
-              <Link className="btn" to="/education/goals">
-                Về danh sách
-              </Link>
-            }
-          />
-        </Card>
+        <StatusPage
+          kind="404"
+          title="Không tìm thấy kế hoạch năm học"
+          action={
+            <Link className="btn" to="/education/goals">
+              Về danh sách
+            </Link>
+          }
+        />
       </div>
     );
 

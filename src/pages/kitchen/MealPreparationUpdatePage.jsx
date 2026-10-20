@@ -142,14 +142,8 @@ export default function MealPreparationUpdatePage() {
                           />
                           <span>
                             <span className="fw-600">{PREP_STATUS_LABELS[s]}</span>
-                            {i === currentIndex && (
-                              <span className="chip chip--teal" style={{ marginLeft: 6 }}>
-                                Hiện tại
-                              </span>
-                            )}
-                            <span className="muted text-xs" style={{ display: 'block' }}>
-                              {HINTS[s]}
-                            </span>
+                            {i === currentIndex && <span className="chip chip--teal kb-chip-after">Hiện tại</span>}
+                            <span className="muted text-xs kb-block">{HINTS[s]}</span>
                           </span>
                         </label>
                       );
@@ -160,7 +154,7 @@ export default function MealPreparationUpdatePage() {
                   <FormField label="Ghi chú vận hành" error={errors.note} hint={`Tối đa ${NOTE_MAX} ký tự`}>
                     <textarea className="textarea" rows={3} maxLength={NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} />
                   </FormField>
-                  <div className="page-actions" style={{ marginTop: 0 }}>
+                  <div className="page-actions kb-actions--flush">
                     <Link className="btn" to="/kitchen/meal-count">
                       <ArrowLeft size={16} /> Quay lại
                     </Link>

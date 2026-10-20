@@ -53,7 +53,7 @@ function CampusForm({ campus, others, user }) {
       navigate(`/school/campuses/${saved.id}`);
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
     } finally {
       setSaving(false);
     }
@@ -66,7 +66,7 @@ function CampusForm({ campus, others, user }) {
       navigate('/school/campuses');
     } catch (err) {
       setDeleting(false);
-      toast.error(err.message, 'Không xóa được');
+      toast.error(err, 'Không xóa được');
     }
   };
 

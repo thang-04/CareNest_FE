@@ -1,4 +1,5 @@
 import { byId, ingredientQty, priceOn } from '@/utils/menu-planning/menuCalculations';
+import { foodUnits } from '@/utils/menu-planning/foodUnits';
 import { mealsOf } from '@/utils/menu-planning/nutritionSetup';
 import { ageGroupById } from '@/models/School';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
@@ -129,6 +130,9 @@ export function computeMarket(db, { date, counts, classById }) {
       const buy = wastePct > 0 && wastePct < 100 ? qty / (1 - wastePct / 100) : qty;
       const purchaseUnit = f.purchaseUnit || f.unit || '';
       const buyUnits = roundUp(buy / (Number(f.purchaseUnitSize) || 1), purchaseStep(purchaseUnit));
+      // Xuất kho tính theo đơn vị kho (BA 02); thực phẩm cũ đơn vị kho = đơn vị mua nên trùng buyUnits
+      const { stockUnit, stockUnitSize } = foodUnits(f);
+      const stockUnits = roundUp(buy / stockUnitSize, purchaseStep(stockUnit));
       const unitPrice = typeof f.unitPrice === 'number' ? f.unitPrice : null;
       return {
         foodId,
@@ -140,6 +144,8 @@ export function computeMarket(db, { date, counts, classById }) {
         buyQty: r1(buy),
         purchaseUnit,
         buyUnits,
+        stockUnit,
+        stockUnits,
         unitPrice,
         amount: unitPrice == null ? null : Math.round(buyUnits * unitPrice),
       };

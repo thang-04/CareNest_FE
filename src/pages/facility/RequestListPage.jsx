@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, RotateCcw, Eye, ClipboardCheck, PackagePlus } from '@/components/ui/icons';
+import { Search, RotateCcw, ClipboardCheck, PackagePlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
+import { useFilterParams } from '@/hooks/useFilterParams';
 import { useRequests, useFacilityLocations } from '@/hooks/facility/useFacility';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { RequestStatusBadge } from '@/components/facility/FacilityBadges';
 import { ManagerLinks } from '@/components/facility/ManagerLinks';
 import { locationLabel, locationLabelIn, locationBaseLabel } from '@/models/Location';
@@ -14,6 +18,7 @@ import { REQUEST_STATUS, REQUEST_STATUS_LABELS, REQUEST_ITEM_MODES } from '@/mod
 import { isPrincipal, canReviewRequest, canPrincipalDecideRequest } from '@/utils/facility/facilityPermissions';
 import { requestCrumbs } from '@/utils/facility/breadcrumbs';
 import { formatDate } from '@/utils/format';
+import { activeFilterKeys } from '@/utils/filterParams';
 import '@/styles/modules/facility.css';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
@@ -25,17 +30,18 @@ export default function RequestListPage() {
   const md = useMasterData();
   const navigate = useNavigate();
   const principal = isPrincipal(user);
-  const [filters, setFilters] = useState(principal ? { ...EMPTY, status: REQUEST_STATUS.PENDING_PRINCIPAL } : EMPTY);
+  const [filters, setFilters] = useFilterParams(principal ? { ...EMPTY, status: REQUEST_STATUS.PENDING_PRINCIPAL } : EMPTY);
   const [page, setPage] = useState(1);
   const { requests, loading, error, reload } = useRequests(filters);
   const { requests: all } = useRequests({});
   const { locations } = useFacilityLocations();
 
   const set = (patch) => {
-    setFilters((f) => ({ ...f, ...patch }));
+    setFilters(patch);
     setPage(1);
   };
-  const filtered = filters.status !== 'ALL' || filters.keyword || filters.campusId || filters.locationId;
+  // So với EMPTY (không phải mặc định theo vai trò) để "Chờ Hiệu trưởng" của Hiệu trưởng vẫn hiện chip và đặt lại được
+  const filtered = activeFilterKeys(filters, EMPTY).length > 0;
   const count = (s) => all.filter((r) => r.status === s).length;
   const canAct = (r) => canReviewRequest(r, user) || canPrincipalDecideRequest(r, user);
   const waiting = all.filter(canAct).length;
@@ -48,6 +54,24 @@ export default function RequestListPage() {
   ];
   const pageRows = paginate(requests, page);
   const campusLocations = locations.filter((l) => !filters.campusId || l.campusId === filters.campusId);
+  const chips = [
+    filters.keyword && { key: 'keyword', label: `Từ khóa: ${filters.keyword}`, onRemove: () => set({ keyword: '' }) },
+    filters.campusId && {
+      key: 'campusId',
+      label: `Điểm trường: ${md.campusById(filters.campusId)?.shortName || ''}`,
+      onRemove: () => set({ campusId: '' }),
+    },
+    filters.locationId && {
+      key: 'locationId',
+      label: `Lớp/phòng: ${locationLabel(md.locationById(filters.locationId))}`,
+      onRemove: () => set({ locationId: '' }),
+    },
+    filters.status !== 'ALL' && {
+      key: 'status',
+      label: `Trạng thái: ${stats.find((s) => s.key === filters.status)?.label || REQUEST_STATUS_LABELS[filters.status] || filters.status}`,
+      onRemove: () => set({ status: 'ALL' }),
+    },
+  ].filter(Boolean);
 
   return (
     <div className="page">
@@ -80,23 +104,21 @@ export default function RequestListPage() {
       </div>
       <div className="card">
         <div className="filter-bar">
-          <label className="search-box" style={{ flex: 1, minWidth: 200 }}>
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm mã, tên tài sản, lý do..."
-              value={filters.keyword}
-              onChange={(e) => set({ keyword: e.target.value })}
-              aria-label="Tìm kiếm"
-            />
-          </label>
+          <SearchSubmit
+            className="flex-1"
+            value={filters.keyword}
+            placeholder="Tìm mã, tên tài sản, lý do..."
+            label="Tìm kiếm đề nghị bổ sung"
+            onSearch={(text) => set({ keyword: text })}
+          />
           {principal && (
             <select
               className="select"
               value={filters.campusId}
               onChange={(e) => set({ campusId: e.target.value, locationId: '' })}
-              aria-label="Campus"
+              aria-label="Điểm trường"
             >
-              <option value="">Tất cả campus</option>
+              <option value="">Tất cả điểm trường</option>
               {md.campuses.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.shortName}
@@ -118,33 +140,26 @@ export default function RequestListPage() {
               </option>
             ))}
           </select>
-          <select className="select" value={filters.status} onChange={(e) => set({ status: e.target.value })} aria-label="Trạng thái">
-            <option value="ALL">Tất cả trạng thái</option>
-            {Object.entries(REQUEST_STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
           <button className="btn" onClick={() => set(EMPTY)} disabled={!filtered}>
-            <RotateCcw size={15} /> Đặt lại
+            <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
+        <FilterChips count={loading ? null : requests.length} unit="đề nghị" chips={chips} />
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-wrap">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã</th>
                   <th>Tài sản đề nghị</th>
                   <th>Lớp/phòng</th>
-                  <th className="right">Số lượng</th>
+                  <th className="num">Số lượng</th>
                   <th>Người đề nghị</th>
                   <th>Ngày gửi</th>
-                  <th>Trạng thái</th>
-                  <th className="center">Thao tác</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,34 +195,28 @@ export default function RequestListPage() {
                         <td className="fw-600 text-primary nowrap">{r.code}</td>
                         <td className="bh-cell-wrap">
                           {r.itemName}
-                          {r.itemMode === REQUEST_ITEM_MODES.NEW && (
-                            <span className="chip chip--blue" style={{ marginLeft: 6 }}>
-                              Tài sản mới
-                            </span>
-                          )}
+                          {r.itemMode === REQUEST_ITEM_MODES.NEW && <span className="chip chip--blue bh-ml-1-5">Tài sản mới</span>}
                         </td>
                         <td className="bh-cell-wrap">
                           <div>{(principal ? locationBaseLabel : locationLabel)(md.locationById(r.locationId))}</div>
                           {principal && <div className="muted text-xs">{md.campusById(r.campusId)?.shortName}</div>}
                         </td>
-                        <td className="right nowrap">
+                        <td className="num nowrap">
                           {r.quantity} <span className="muted">{r.unit}</span>
                         </td>
                         <td>{md.userById(r.requesterId)?.fullName || '—'}</td>
                         <td className="nowrap">{formatDate(r.createdAt)}</td>
-                        <td>
+                        <td className="center">
                           <RequestStatusBadge status={r.status} />
                           {r.proposal && <div className="muted text-xs mt-8">Đề xuất {r.proposal.code}</div>}
                         </td>
-                        <td className="center nowrap" onClick={(e) => e.stopPropagation()}>
+                        <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
                           {canAct(r) ? (
-                            <button className="btn btn--sm btn--primary" onClick={() => navigate(link)}>
+                            <button className="btn btn--primary btn--sm" onClick={() => navigate(link)}>
                               <ClipboardCheck size={15} /> Xét duyệt
                             </button>
                           ) : (
-                            <button className="btn btn--sm" onClick={() => navigate(link)}>
-                              <Eye size={15} /> Xem
-                            </button>
+                            <RowActions view={{ to: link }} name={r.code} />
                           )}
                         </td>
                       </tr>

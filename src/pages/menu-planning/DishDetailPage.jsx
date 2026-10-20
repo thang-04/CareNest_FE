@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, Bowl, Pencil, Trash2 } from '@/components/ui/icons';
+import { AlertTriangle, ArrowLeft, Bowl, Copy, Pencil, Trash2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDish, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
@@ -8,7 +8,7 @@ import { deleteDish } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
-import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
+import { AllergenChips, DishStatusBadge, HistoryCard } from '@/components/menu-planning/MenuBadges';
 import { NutrientBars } from '@/components/menu-planning/NutrientBars';
 import { dishAllergens, ingredientBreakdown, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
@@ -82,7 +82,7 @@ export default function DishDetailPage() {
               <Bowl size={22} />
             </span>
             <h1 className="td-profile__name">{d.name}</h1>
-            <RecordStatusBadge status={d.status} />
+            <DishStatusBadge status={d.status} />
             <dl className="info-list">
               <dt>Mã</dt>
               <dd className="fw-600">{d.code}</dd>
@@ -107,6 +107,9 @@ export default function DishDetailPage() {
               <div className="td-profile__acts">
                 <Link className="btn btn--primary" to={`/menu/dishes/${id}/edit`}>
                   <Pencil size={16} /> Sửa món ăn
+                </Link>
+                <Link className="btn" to={`/menu/dishes/new?from=${id}`}>
+                  <Copy size={16} /> Nhân bản
                 </Link>
                 <button type="button" className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
                   <Trash2 size={16} /> Xóa
@@ -150,26 +153,26 @@ export default function DishDetailPage() {
                   <tr>
                     <th>Thành phần</th>
                     <th>ĐVT</th>
-                    <th className="right">Đơn giá</th>
-                    <th className="right">Thải bỏ</th>
-                    <th className="right">Lượng ăn 1 trẻ</th>
-                    <th className="right">kcal</th>
-                    <th className="right">Đạm (g)</th>
-                    <th className="right">Béo (g)</th>
-                    <th className="right">Bột (g)</th>
-                    <th className="right">Thành tiền</th>
+                    <th className="money">Đơn giá</th>
+                    <th className="num">Thải bỏ</th>
+                    <th className="num">Lượng ăn 1 trẻ</th>
+                    <th className="num">kcal</th>
+                    <th className="num">Đạm (g)</th>
+                    <th className="num">Béo (g)</th>
+                    <th className="num">Tinh bột (g)</th>
+                    <th className="money">Thành tiền</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="td-hl__total">
                     <td>Tổng</td>
                     <td colSpan={3} />
-                    <td className="right nowrap">{n1(total.qty)}</td>
-                    <td className="right">{n1(total.kcal)}</td>
-                    <td className="right">{n1(total.protein)}</td>
-                    <td className="right">{n1(total.lipid)}</td>
-                    <td className="right">{n1(total.glucid)}</td>
-                    <td className="right nowrap">{formatMoney(total.cost)}</td>
+                    <td className="num nowrap">{n1(total.qty)}</td>
+                    <td className="num">{n1(total.kcal)}</td>
+                    <td className="num">{n1(total.protein)}</td>
+                    <td className="num">{n1(total.lipid)}</td>
+                    <td className="num">{n1(total.glucid)}</td>
+                    <td className="money nowrap">{formatMoney(total.cost)}</td>
                   </tr>
                   {rows.map((r) => (
                     <tr key={r.foodId}>
@@ -178,11 +181,11 @@ export default function DishDetailPage() {
                         <AllergenChips allergens={r.food?.allergens} empty="" />
                       </td>
                       <td className="text-sm">{r.food?.purchaseUnit || '—'}</td>
-                      <td className="right nowrap">{r.food?.unitPrice == null ? '—' : formatMoney(r.food.unitPrice)}</td>
-                      <td className="right">{r.food ? `${r.food.wastePct ?? 0}%` : '—'}</td>
+                      <td className="money nowrap">{r.food?.unitPrice == null ? '—' : formatMoney(r.food.unitPrice)}</td>
+                      <td className="num">{r.food ? `${r.food.wastePct ?? 0}%` : '—'}</td>
                       {r.qty == null ? (
                         <>
-                          <td className="right">
+                          <td className="num">
                             <span className="td-warn">Chưa nhập</span>
                           </td>
                           <td colSpan={5} className="muted text-sm">
@@ -191,7 +194,7 @@ export default function DishDetailPage() {
                         </>
                       ) : (
                         <>
-                          <td className="right nowrap">
+                          <td className="num nowrap">
                             {n1(r.qty)} {r.food?.unit || 'g'}
                           </td>
                           {r.noNutrition ? (
@@ -200,13 +203,13 @@ export default function DishDetailPage() {
                             </td>
                           ) : (
                             <>
-                              <td className="right">{n1(r.kcal)}</td>
-                              <td className="right">{n1(r.protein)}</td>
-                              <td className="right">{n1(r.lipid)}</td>
-                              <td className="right">{n1(r.glucid)}</td>
+                              <td className="num">{n1(r.kcal)}</td>
+                              <td className="num">{n1(r.protein)}</td>
+                              <td className="num">{n1(r.lipid)}</td>
+                              <td className="num">{n1(r.glucid)}</td>
                             </>
                           )}
-                          <td className="right nowrap">{formatMoney(Math.round(r.cost))}</td>
+                          <td className="money nowrap">{formatMoney(Math.round(r.cost))}</td>
                         </>
                       )}
                     </tr>

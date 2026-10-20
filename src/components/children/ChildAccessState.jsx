@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Lock, SearchX, ArrowLeft } from '@/components/ui/icons';
-import { EmptyState, ErrorState } from '@/components/ui/States';
+import { ArrowLeft } from '@/components/ui/icons';
+import { ErrorState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 
 const CHILD_TEXT = {
   forbiddenTitle: 'Bạn không có quyền xem hồ sơ này',
@@ -19,18 +20,8 @@ export function ChildAccessState({ error, onRetry, text }) {
       <ArrowLeft size={16} /> {t.backLabel}
     </Link>
   );
-  if (error?.status === 403)
-    return (
-      <div className="card">
-        <EmptyState icon={Lock} title={t.forbiddenTitle} description={t.forbiddenDescription} action={back} />
-      </div>
-    );
-  if (error?.status === 404)
-    return (
-      <div className="card">
-        <EmptyState icon={SearchX} title={t.notFoundTitle} description={t.notFoundDescription} action={back} />
-      </div>
-    );
+  if (error?.status === 403) return <StatusPage kind="403" title={t.forbiddenTitle} description={t.forbiddenDescription} action={back} />;
+  if (error?.status === 404) return <StatusPage kind="404" title={t.notFoundTitle} description={t.notFoundDescription} action={back} />;
   return (
     <div className="card">
       <ErrorState error={error} onRetry={onRetry} />

@@ -55,13 +55,18 @@ export default function WeeklyMenuFormPage() {
   }, [item]);
 
   useEffect(() => {
-    if (id || !aiDraftId) return;
+    if (id || !aiDraftId) return undefined;
+    let ignore = false; // đổi bản nháp/rời trang ⇒ bỏ kết quả cũ
     getAiDraft(aiDraftId, user)
       .then((d) => {
+        if (ignore) return;
         setAiDraft(d);
         setForm((f) => ({ ...f, ageGroupId: d.ageGroupId, weekStart: d.weekStart, days: d.days }));
       })
-      .catch((err) => toast.error(err.message, 'Không mở được bản nháp AI'));
+      .catch((err) => !ignore && toast.error(err, 'Không mở được bản nháp AI'));
+    return () => {
+      ignore = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiDraftId, id]);
 
@@ -100,7 +105,7 @@ export default function WeeklyMenuFormPage() {
       toast.success('Lưu thay đổi thành công.');
       navigate(`/menu/weekly/${saved.id}`);
     } catch (err) {
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
       if (err.details?.existingId) navigate(`/menu/weekly/${err.details.existingId}`);
     } finally {
       setBusy(false);
@@ -138,7 +143,7 @@ export default function WeeklyMenuFormPage() {
     <div className="page">
       <Breadcrumb items={weeklyCrumbs(title)} />
       <div className="page__head">
-        <div className="row" style={{ gap: 12 }}>
+        <div className="row gap-3">
           <h1 className="page__title">
             {id ? `Sửa thực đơn tuần ${item?.code || ''}` : title}
             {item?.version > 1 ? ` – phiên bản ${item.version}` : ''}
@@ -213,7 +218,7 @@ export default function WeeklyMenuFormPage() {
                     <div className="fw-600">{WEEKDAY_LABELS[i]}</div>
                     <div className="text-sm muted">{formatDate(d.date)}</div>
                   </div>
-                  <div style={{ minWidth: 0 }}>
+                  <div className="min-w-0">
                     {d.holiday ? (
                       <FormField label="Lý do nghỉ" required error={show(`day_${i}`)}>
                         <input
@@ -242,7 +247,7 @@ export default function WeeklyMenuFormPage() {
                       </>
                     )}
                   </div>
-                  <label className="checkbox" style={{ paddingTop: 8 }}>
+                  <label className="checkbox td-pt-2">
                     <input
                       type="checkbox"
                       checked={d.holiday}

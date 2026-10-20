@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, FileDown, Printer } from '@/components/ui/icons';
-import { Card, EmptyState, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { LoadingState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useAutosave } from '@/hooks/education-plan/useAutosave';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
@@ -45,7 +46,7 @@ function WeekReviewRedirect() {
   const ctx = useClassPlanContext(classId);
   if (ctx.loading) return <LoadingState />;
   const week = ctx.yearPlan ? yearWeeks(ctx.yearPlan).find((w) => w.type === 'week' && w.start === weekStart) : null;
-  if (!week) return <EmptyState title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;
+  if (!week) return <StatusPage kind="404" title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;
   return <Navigate to={`/education/class/${classId}/themes/${week.theme.id}/review?week=${weekStart}`} replace />;
 }
 
@@ -81,7 +82,7 @@ function WeekPlanInner() {
   }, [saved?.id, saved?.status, saved?.history?.length, week?.start, classId]);
 
   if (ctx.loading) return <LoadingState />;
-  if (!cls || !yearPlan || !week) return <EmptyState title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;
+  if (!cls || !yearPlan || !week) return <StatusPage kind="404" title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;
@@ -247,7 +248,7 @@ function WeekPlanInner() {
               update={update}
               goals={goals}
               reuse={lessonReuseFor(weekPlans, draft, day)}
-              assessTo={status === EDU_STATUS.APPROVED ? `/assessment/daily?classId=${classId}&date=${draft.days[day].date}` : null}
+              assessTo={status === EDU_STATUS.APPROVED ? `/assessment/daily/skills?classId=${classId}&date=${draft.days[day].date}` : null}
             />
           )}
         </div>

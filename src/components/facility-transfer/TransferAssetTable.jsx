@@ -12,19 +12,17 @@ export function TransferAssetTable({ items, columns = ['document', 'condition', 
   const total = (fn) => visible.reduce((s, i) => s + (Number(fn(i)) || 0), 0);
   return (
     <div className="table-wrap">
-      <table className="table">
+      <table className="table table--grid">
         <thead>
           <tr>
-            <th className="center" style={{ width: 56 }}>
-              STT
-            </th>
+            <th className="center ft-w-56">STT</th>
             <th>Mã tài sản</th>
             <th>Tên tài sản</th>
             <th className="center">Đơn vị</th>
-            {has('document') && <th className="center">SL theo phiếu</th>}
-            {has('handover') && <th className="center">SL bàn giao</th>}
-            {has('received') && <th className="center">SL thực nhận</th>}
-            {has('final') && <th className="center">SL hoàn thành</th>}
+            {has('document') && <th className="num">SL theo phiếu</th>}
+            {has('handover') && <th className="num">SL bàn giao</th>}
+            {has('received') && <th className="num">SL thực nhận</th>}
+            {has('final') && <th className="num">SL hoàn thành</th>}
             {has('condition') && <th className="center">Tình trạng</th>}
             {has('note') && <th>Ghi chú</th>}
             {has('image') && <th className="center">Hình ảnh</th>}
@@ -43,10 +41,10 @@ export function TransferAssetTable({ items, columns = ['document', 'condition', 
                 )}
               </td>
               <td className="center">{item.unit}</td>
-              {has('document') && <td className="center fw-600">{item.quantity}</td>}
-              {has('handover') && <td className="center">{item.handoverQuantity ?? '—'}</td>}
-              {has('received') && <td className="center">{item.receivedQuantity ?? '—'}</td>}
-              {has('final') && <td className="center fw-600">{expectedReceiveQuantity(item)}</td>}
+              {has('document') && <td className="num fw-600">{item.quantity}</td>}
+              {has('handover') && <td className="num">{item.handoverQuantity ?? '—'}</td>}
+              {has('received') && <td className="num">{item.receivedQuantity ?? '—'}</td>}
+              {has('final') && <td className="num fw-600">{expectedReceiveQuantity(item)}</td>}
               {has('condition') && (
                 <td className="center">
                   <ConditionBadge value={item.receivedCondition || item.handoverCondition || item.condition} />
@@ -67,13 +65,13 @@ export function TransferAssetTable({ items, columns = ['document', 'condition', 
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={4} className="right">
+            <td colSpan={4} className="num">
               Tổng cộng
             </td>
-            {has('document') && <td className="center">{total((i) => i.quantity)}</td>}
-            {has('handover') && <td className="center">{total((i) => i.handoverQuantity)}</td>}
-            {has('received') && <td className="center">{total((i) => i.receivedQuantity)}</td>}
-            {has('final') && <td className="center">{total(expectedReceiveQuantity)}</td>}
+            {has('document') && <td className="num">{total((i) => i.quantity)}</td>}
+            {has('handover') && <td className="num">{total((i) => i.handoverQuantity)}</td>}
+            {has('received') && <td className="num">{total((i) => i.receivedQuantity)}</td>}
+            {has('final') && <td className="num">{total(expectedReceiveQuantity)}</td>}
             {has('condition') && <td />}
             {has('note') && <td />}
             {has('image') && <td />}

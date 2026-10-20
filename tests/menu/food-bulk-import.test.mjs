@@ -84,3 +84,10 @@ test('lưu hàng loạt: ghi cả thêm mới và cập nhật; một dòng lỗ
   const added = (await repo.listFoods({ keyword: 'Bí xanh' }, VP))[0];
   assert.equal(added.storage, 'FRESH');
 });
+
+test('cột tinh bột: file mẫu ghi "Tinh bột"; file tải trước đây (cột "Bột") vẫn nhận', async () => {
+  const rows = await readSheet(readFileSync('public/templates/thuc-pham-mau.xlsx'));
+  assert.ok(rows[0].includes('Tinh bột') && !rows[0].includes('Bột'));
+  const oldHeader = HEADER.map((label) => (label === 'Tinh bột' ? 'Bột' : label));
+  assert.deepEqual(matchFoodRows([oldHeader], []), { creates: [], updates: [], errors: [] });
+});

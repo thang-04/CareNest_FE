@@ -7,7 +7,10 @@ import { useAllergyContext, useMenuAccess, useMenuCatalog, useWeeklyMenus } from
 import { dismissAiDraft, generateAiSuggestion } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { FormField } from '@/components/form/FormField';
-import { LoadingState, Spinner } from '@/components/ui/States';
+import { LoadingState } from '@/components/ui/States';
+import { Modal } from '@/components/ui/Modal';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { useAiRun } from '@/hooks/useAiRun';
 import { AiDraftLabel, AllergenChips, NoManageAccess } from '@/components/menu-planning/MenuBadges';
 import { MealsView } from '@/components/menu-planning/MealsView';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
@@ -40,7 +43,8 @@ export default function AiMenuSuggestionPage() {
   const [avoidAllergens, setAvoidAllergens] = useState(true);
   const [draft, setDraft] = useState(null);
   const [failure, setFailure] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const { running: busy, run: runAi } = useAiRun();
+  const [showResult, setShowResult] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { rows: allergyRows } = useAllergyContext(ageGroupId);
   const { items: sameGroup } = useWeeklyMenus({ ageGroupId: ageGroupId || '__none__' });
@@ -49,17 +53,14 @@ export default function AiMenuSuggestionPage() {
     e.preventDefault();
     setSubmitted(true);
     if (!ageGroupId) return;
-    setBusy(true);
     setFailure(null);
     setDraft(null);
     try {
-      const d = await generateAiSuggestion({ kind, ageGroupId, weekStart, avoidAllergens }, user);
+      const d = await runAi(() => generateAiSuggestion({ kind, ageGroupId, weekStart, avoidAllergens }, user));
       setDraft(d);
-      toast.info('Bản nháp AI đã sẵn sàng để bạn xem xét.');
+      setShowResult(true);
     } catch (err) {
       setFailure(err);
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -91,6 +92,47 @@ export default function AiMenuSuggestionPage() {
     sameGroup.find((w) => w.weekStart === addDays(draft.weekStart, -7) && w.status === WEEKLY_STATUS.PUBLISHED);
   const dayResult =
     draft?.kind === AI_DRAFT_KIND.DAILY ? mealsTotals(draft.meals, catalog.dishById, catalog.foodById, draft.ageGroupId) : null;
+
+  const resultBody = draft && (
+    <>
+      {draft.generator === 'RULE_BASED_FALLBACK' && (
+        <p className="text-sm muted mb-12">
+          Gợi ý được tạo bằng quy tắc dự phòng đã duyệt (chưa phải mô hình AI đã được kiểm định), từ các{' '}
+          {draft.kind === AI_DRAFT_KIND.WEEKLY ? 'thực đơn mẫu' : 'món ăn'} đang sử dụng.
+        </p>
+      )}
+      {draft.kind === AI_DRAFT_KIND.WEEKLY ? (
+        <>
+          <WeekDaysView wm={draft} catalog={catalog} />
+          <div className="subsection-title mt-16 mb-8">Kiểm tra quy tắc tuần</div>
+          <WeekChecks wm={draft} catalog={catalog} previousDays={previous?.days || []} allergyRows={allergyRows} />
+        </>
+      ) : (
+        <>
+          {draft.restrictions?.length > 0 && (
+            <p className="text-sm mb-12">
+              Đã tránh: <AllergenChips allergens={draft.restrictions} />
+            </p>
+          )}
+          <MealsView meals={draft.meals} catalog={catalog} ageGroupId={draft.ageGroupId} linkDishes />
+          <div className="mt-16">
+            <AllergenWarnings meals={draft.meals} catalog={catalog} ageGroupId={draft.ageGroupId} contextRows={allergyRows} />
+            <NutritionTable result={dayResult} ageGroupId={draft.ageGroupId} norms={catalog.norms} price={draft.mealPrice} />
+          </div>
+        </>
+      )}
+    </>
+  );
+  const resultActions = (
+    <>
+      <button type="button" className="btn" onClick={dismiss}>
+        <XCircle size={16} /> Bỏ qua gợi ý
+      </button>
+      <button type="button" className="btn btn--primary" onClick={() => navigate(usePath)}>
+        <PencilLine size={16} /> Xem xét và chỉnh sửa trong biểu mẫu
+      </button>
+    </>
+  );
 
   return (
     <div className="page">
@@ -164,7 +206,7 @@ export default function AiMenuSuggestionPage() {
             )}
             <div className="field">
               <span className="field__label">Giá suất ăn áp dụng</span>
-              <span className="text-sm" style={{ paddingTop: 8 }}>
+              <span className="text-sm td-pt-2">
                 {ageGroupId
                   ? `${formatMoney(priceOn(catalog.mealPrices, ageGroupId, kind === AI_DRAFT_KIND.WEEKLY ? weekStart : todayInput())?.price ?? null)} / trẻ / ngày`
                   : '—'}
@@ -172,12 +214,12 @@ export default function AiMenuSuggestionPage() {
             </div>
           </div>
         </div>
-        <div className="card__body row row--between" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="card__body row row--between td-card-foot">
           <Link className="btn" to={manualPath}>
             <PencilLine size={16} /> Lập thủ công
           </Link>
           <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? <Spinner small /> : <Wand2 size={16} />} {busy ? 'Đang tạo gợi ý...' : 'Tạo gợi ý'}
+            <Wand2 size={16} /> Tạo gợi ý
           </button>
         </div>
       </form>
@@ -199,51 +241,31 @@ export default function AiMenuSuggestionPage() {
       {draft && (
         <div className="card mt-16">
           <div className="card__header">
-            <div className="row" style={{ gap: 12 }}>
+            <div className="row gap-3">
               <div className="card__title">
                 <Sparkles size={16} /> Kết quả gợi ý
               </div>
               <AiDraftLabel />
             </div>
           </div>
-          <div className="card__body">
-            {draft.generator === 'RULE_BASED_FALLBACK' && (
-              <p className="text-sm muted mb-12">
-                Gợi ý được tạo bằng quy tắc dự phòng đã duyệt (chưa phải mô hình AI đã được kiểm định), từ các{' '}
-                {draft.kind === AI_DRAFT_KIND.WEEKLY ? 'thực đơn mẫu' : 'món ăn'} đang sử dụng.
-              </p>
-            )}
-            {draft.kind === AI_DRAFT_KIND.WEEKLY ? (
-              <>
-                <WeekDaysView wm={draft} catalog={catalog} />
-                <div className="subsection-title mt-16 mb-8">Kiểm tra quy tắc tuần</div>
-                <WeekChecks wm={draft} catalog={catalog} previousDays={previous?.days || []} allergyRows={allergyRows} />
-              </>
-            ) : (
-              <>
-                {draft.restrictions?.length > 0 && (
-                  <p className="text-sm mb-12">
-                    Đã tránh: <AllergenChips allergens={draft.restrictions} />
-                  </p>
-                )}
-                <MealsView meals={draft.meals} catalog={catalog} ageGroupId={draft.ageGroupId} linkDishes />
-                <div className="mt-16">
-                  <AllergenWarnings meals={draft.meals} catalog={catalog} ageGroupId={draft.ageGroupId} contextRows={allergyRows} />
-                  <NutritionTable result={dayResult} ageGroupId={draft.ageGroupId} norms={catalog.norms} price={draft.mealPrice} />
-                </div>
-              </>
-            )}
-          </div>
-          <div className="card__body row row--between" style={{ borderTop: '1px solid var(--border)' }}>
-            <button type="button" className="btn" onClick={dismiss}>
-              <XCircle size={16} /> Bỏ qua gợi ý
-            </button>
-            <button type="button" className="btn btn--primary" onClick={() => navigate(usePath)}>
-              <PencilLine size={16} /> Xem xét và chỉnh sửa trong biểu mẫu
-            </button>
-          </div>
+          <div className="card__body">{resultBody}</div>
+          <div className="card__body row row--between td-card-foot">{resultActions}</div>
         </div>
       )}
+      {/* AI xong ⇒ mở kết quả trong modal; đóng modal thì khối kết quả trên trang vẫn còn để xử lý sau (user chốt) */}
+      <Modal
+        open={!!draft && showResult}
+        onClose={() => setShowResult(false)}
+        size="xl"
+        title="Kết quả gợi ý của AI"
+        footer={<div className="row row--between td-card-foot w-full">{resultActions}</div>}
+      >
+        <div className="row gap-3 mb-12">
+          <AiDraftLabel />
+        </div>
+        {resultBody}
+      </Modal>
+      {busy && <AiWorkingOverlay kind="cooking" text="Đang nấu gợi ý thực đơn…" />}
     </div>
   );
 }
