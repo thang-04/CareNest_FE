@@ -21,6 +21,8 @@ export const confirmEvaluation = (kind, id, content, user) => repo.confirmEvalua
 export const regenerateEvaluationDraft = (kind, id, user) => repo.regenerateEvaluationDraft(kind, id, user);
 
 export const getTicketBoard = (params, user) => repo.getTicketBoard(params, user);
+export const getTicketSummary = (params, user) => repo.getTicketSummary(params, user);
+export const getTicketOverview = (params, user) => repo.getTicketOverview(params, user);
 export const issueTickets = (body, user) => repo.issueTickets(body, user);
 
 export const getRewardProposals = (filters, user) => repo.listRewardProposals(filters, user);

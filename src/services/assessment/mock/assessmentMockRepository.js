@@ -727,6 +727,8 @@ const requireClassTeacher = (db, classId, user) => {
   return cls;
 };
 
+const campusName = (db, id) => (db.campuses || []).find((c) => c.id === id)?.name || id;
+
 const teacherClassIds = (db, user) => new Set((db.classes || []).filter((c) => isClassTeacher(c, user)).map((c) => c.id));
 
 // Kế hoạch giáo dục ghi năm học "2026 – 2027", đánh giá ghi "2026-2027"
@@ -1210,6 +1212,111 @@ export const assessmentMockRepository = {
   },
 
   /* ----- #60 Good behaviour tickets ----- */
+  /**
+   * Tổng hợp phiếu bé ngoan của lớp: mỗi trẻ số phiếu tuần, phiếu tháng, cờ bé ngoan trong năm học hoặc một tháng
+   * (phiếu tuần tính vào tháng chứa thứ Hai, như GBR-REW-02). PENDING BE: GET /assessment/behaviour-tickets/summary.
+   */
+  async getTicketSummary({ classId, month }, user) {
+    await delay();
+    const db = ensureReady();
+    const cls = classOf(db, classId);
+    if (!cls) throw new ApiError(404, 'Không tìm thấy lớp.');
+    // Giáo viên của lớp; PHT điểm trường / Hiệu trưởng xem được lớp trong phạm vi
+    if (!isClassTeacher(cls, user) && !inLeaderScope(cls.campusId, user)) forbid();
+    const today = todayIso();
+    const { start: yStart, end: yEnd } = schoolYearRange(schoolYearOf(today));
+    const from = month || yStart;
+    const to = month ? monthEnd(month) : yEnd;
+    const inRange = (t) =>
+      t.classId === classId &&
+      (month ? (t.type === TICKET_TYPE.WEEKLY ? monthOfWeek(t.periodStart) === month : t.periodStart === month) : t.periodStart >= yStart);
+    const tickets = db.behaviourTickets.filter(inRange);
+    const months = [
+      ...new Set(
+        db.behaviourTickets.filter((t) => t.classId === classId && t.periodStart >= yStart).map((t) => monthOfWeek(t.periodStart)),
+      ),
+    ]
+      .sort()
+      .reverse();
+    const rows = activeChildrenOf(db, classId)
+      .map((child) => {
+        const mine = tickets.filter((t) => t.childId === child.id);
+        const weekly = mine.filter((t) => t.type === TICKET_TYPE.WEEKLY).sort((a, b) => (a.periodStart < b.periodStart ? 1 : -1));
+        return {
+          child: { id: child.id, code: child.code, fullName: child.fullName, photoUrl: child.photoUrl || null },
+          weekly: weekly.length,
+          monthly: mine.filter((t) => t.type === TICKET_TYPE.MONTHLY).length,
+          flags: assessmentsOf(db, child.id, from, to).filter((a) => a.flag).length,
+        };
+      })
+      .sort((a, b) => b.weekly - a.weekly || b.monthly - a.monthly || a.child.fullName.localeCompare(b.child.fullName, 'vi'));
+    return clone({
+      cls: { id: cls.id, name: cls.name },
+      month: month || null,
+      months,
+      rows,
+      totals: {
+        weekly: tickets.filter((t) => t.type === TICKET_TYPE.WEEKLY).length,
+        monthly: tickets.filter((t) => t.type === TICKET_TYPE.MONTHLY).length,
+        children: rows.filter((r) => r.weekly || r.monthly).length,
+        total: rows.length,
+      },
+    });
+  },
+
+  /**
+   * Phiếu bé ngoan các lớp cho PHT (điểm trường mình) và Hiệu trưởng (toàn trường): mỗi lớp số phiếu tuần, phiếu tháng,
+   * số trẻ có phiếu trong năm học hoặc một tháng. PENDING BE: GET /assessment/behaviour-tickets/overview.
+   */
+  async getTicketOverview({ month, campusId }, user) {
+    await delay();
+    const db = ensureReady();
+    if (!isLeader(user)) forbid();
+    const today = todayIso();
+    const { start: yStart } = schoolYearRange(schoolYearOf(today));
+    const inRange = (t) =>
+      month ? (t.type === TICKET_TYPE.WEEKLY ? monthOfWeek(t.periodStart) === month : t.periodStart === month) : t.periodStart >= yStart;
+    const scoped = db.classes.filter((c) => inLeaderScope(c.campusId, user) && activeChildrenOf(db, c.id).length > 0);
+    const rows = scoped
+      .filter((c) => !campusId || c.campusId === campusId)
+      .map((c) => {
+        const tickets = db.behaviourTickets.filter((t) => t.classId === c.id && inRange(t));
+        return {
+          classId: c.id,
+          className: c.name,
+          campusId: c.campusId,
+          children: activeChildrenOf(db, c.id).length,
+          weekly: tickets.filter((t) => t.type === TICKET_TYPE.WEEKLY).length,
+          monthly: tickets.filter((t) => t.type === TICKET_TYPE.MONTHLY).length,
+          withTicket: new Set(tickets.map((t) => t.childId)).size,
+        };
+      })
+      .sort((a, b) => a.campusId.localeCompare(b.campusId) || a.className.localeCompare(b.className, 'vi'));
+    const sum = (k) => rows.reduce((n, r) => n + r[k], 0);
+    const months = [
+      ...new Set(
+        db.behaviourTickets
+          .filter((t) => scoped.some((c) => c.id === t.classId) && t.periodStart >= yStart)
+          .map((t) => monthOfWeek(t.periodStart)),
+      ),
+    ]
+      .sort()
+      .reverse();
+    return clone({
+      month: month || null,
+      months,
+      campuses: [...new Set(scoped.map((c) => c.campusId))].map((id) => ({ id, name: campusName(db, id) })),
+      rows,
+      totals: {
+        weekly: sum('weekly'),
+        monthly: sum('monthly'),
+        withTicket: sum('withTicket'),
+        children: sum('children'),
+        classes: rows.length,
+      },
+    });
+  },
+
   async getTicketBoard({ classId, type = TICKET_TYPE.WEEKLY, periodStart }, user) {
     await delay();
     const db = ensureReady();

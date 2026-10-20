@@ -462,6 +462,19 @@
   flex-wrap: wrap;
   gap: var(--space-1);
 }
+.dg-ticket-kpis {
+  padding: var(--space-4) var(--space-4) 0;
+  margin: 0;
+}
+.dg-ticket-table {
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+.dg-col-no {
+  width: 1%;
+  white-space: nowrap;
+}
 .dg-ticket-child {
   display: flex;
   align-items: center;

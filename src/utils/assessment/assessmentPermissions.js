@@ -40,6 +40,8 @@ export const isPrincipal = (user) => user?.role === ROLES.PRINCIPAL;
 export const isVicePrincipal = (user) => user?.role === ROLES.VICE_PRINCIPAL;
 
 /** Leader scope: Principal whole school, Vice Principal own campus. */
+/** PHT (điểm trường mình) và Hiệu trưởng xem phiếu bé ngoan các lớp; phát phiếu vẫn là giáo viên lớp. */
+export const canViewTicketOverview = (user) => isLeader(user);
 export const inLeaderScope = (campusId, user) => isPrincipal(user) || (isVicePrincipal(user) && user.campusId === campusId);
 
 /* ---------- Daily assessment / profile ---------- */

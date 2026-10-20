@@ -22,6 +22,9 @@ export const assessmentApi = {
   regenerateEvaluationDraft: (kind, id) => axiosClient.post(`/assessment/evaluations/${kind}/${id}/ai-draft`),
 
   getTicketBoard: (params) => axiosClient.get('/assessment/behaviour-tickets/board', { params }),
+  // PENDING BE: tổng hợp phiếu bé ngoan theo trẻ
+  getTicketSummary: (params) => axiosClient.get('/assessment/behaviour-tickets/summary', { params }),
+  getTicketOverview: (params) => axiosClient.get('/assessment/behaviour-tickets/overview', { params }),
   issueTickets: (body) => axiosClient.post('/assessment/behaviour-tickets', body),
 
   listRewardProposals: (params) => axiosClient.get('/assessment/reward-proposals', { params }),
