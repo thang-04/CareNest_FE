@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Download, FileDown, Printer, Save, Send, Upload } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Check, Download, FileDown, Printer, Send, Upload } from '@/components/ui/icons';
 import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useAutosave } from '@/hooks/education-plan/useAutosave';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE, isStandardDomain } from '@/models/education-plan/educationPlanConstants';
 import {
@@ -72,7 +73,8 @@ export default function GoalFormPage() {
           ),
           breaks: existing.breaks || [],
         }
-      : emptyForm(schoolYear, isLeader ? user.ageGroupId : ''),
+      : // Mã cố định ngay từ đầu để các lần tự lưu cùng ghi vào một kế hoạch
+        { ...emptyForm(schoolYear, isLeader ? user.ageGroupId : ''), id: `g-${uid()}` },
   );
   // Mục tiêu là tab đầu (Tiền chọn 14/10); cột "Chủ đề thực hiện" hiện khi đã thêm chủ đề ở tab sau
   const [tab, setTab] = useState('goals');
@@ -188,18 +190,33 @@ export default function GoalFormPage() {
     };
   };
 
-  const saveDraft = () => {
-    if (!form.title.trim() || !form.ageGroupId) {
-      setStep(0);
-      validate(0);
-      return;
-    }
-    // Phó HT tự sửa bản đang chờ duyệt: giữ trạng thái chờ, ghi lại lần sửa
-    const item = pendingEdit ? build(EDU_STATUS.PENDING_VP, { history: log('Phó hiệu trưởng chỉnh sửa') }) : build(EDU_STATUS.DRAFT);
-    saveGoal(item);
-    toast(pendingEdit ? 'Đã lưu chỉnh sửa' : 'Đã lưu nháp kế hoạch năm học');
-    navigate(`/education/goals/${item.id}`);
-  };
+  // Không còn nút Lưu nháp: tự lưu như trang chủ đề nhánh, khi đã có tên và nhóm tuổi (không trùng kế hoạch khác).
+  // Phó HT tự sửa bản đang chờ duyệt: giữ trạng thái chờ, ghi lịch sử "chỉnh sửa" một lần cho mỗi lần mở trang
+  const editLogged = useRef(false);
+  // Đã gửi / ban hành: lần lưu nốt khi rời trang không được ghi đè bản vừa gửi bằng bản nháp
+  const finished = useRef(false);
+  const dupGoal = goals.some((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
+  const autosave = useAutosave({
+    doc: form,
+    enabled: canEdit && !!form.title.trim() && !!form.ageGroupId && !dupGoal && !confirm,
+    save: async () => {
+      if (finished.current) return true;
+      const first = pendingEdit && !editLogged.current;
+      const item = pendingEdit
+        ? build(EDU_STATUS.PENDING_VP, first ? { history: log('Phó hiệu trưởng chỉnh sửa') } : {})
+        : build(EDU_STATUS.DRAFT);
+      await saveGoal(item);
+      if (first) {
+        editLogged.current = true;
+        setForm((f) => ({ ...f, history: item.history }));
+      }
+      return item;
+    },
+  });
+  useEffect(() => {
+    autosave.markClean(form);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // send: tổ trưởng gửi Phó HT duyệt; issue: Phó HT duyệt ban hành (bản mình soạn hoặc bản đang chờ)
   const submit = () => {
@@ -207,6 +224,7 @@ export default function GoalFormPage() {
       confirm === 'send'
         ? build(EDU_STATUS.PENDING_VP, { sentAt: today(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt') })
         : build(EDU_STATUS.APPROVED, { issued: me, history: log(pendingEdit ? 'Phó hiệu trưởng chỉnh sửa và ban hành' : 'Ban hành') });
+    finished.current = true;
     saveGoal(item);
     setConfirm(false);
     toast(confirm === 'send' ? 'Đã gửi Phó hiệu trưởng duyệt' : 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
@@ -312,6 +330,17 @@ export default function GoalFormPage() {
             { label: existing ? 'Chỉnh sửa' : 'Lập kế hoạch' },
           ]}
           title={existing ? 'Chỉnh sửa kế hoạch giáo dục năm học' : 'Lập kế hoạch giáo dục năm học'}
+          actions={
+            autosave.error ? (
+              <button type="button" className="btn btn--outline-primary" onClick={autosave.retry}>
+                Chưa lưu được, thử lại
+              </button>
+            ) : (
+              <span className="muted text-sm">
+                {!form.title.trim() || !form.ageGroupId || dupGoal ? 'Nhập tên và nhóm tuổi để tự lưu' : autosave.label}
+              </span>
+            )
+          }
         />
         <Stepper steps={STEPS} current={step} maxReached={maxReached} onStep={(i) => i <= maxReached && setStep(i)} />
         {step === 1 && (
@@ -502,13 +531,15 @@ export default function GoalFormPage() {
       )}
 
       <div className="page-actions">
-        <button type="button" className="btn" onClick={() => navigate(existing ? `/education/goals/${existing.id}` : '/education/goals')}>
-          Hủy
+        {/* Đã tự lưu nên không còn "Hủy": đóng trang, phần chưa kịp lưu được lưu nốt khi rời trang */}
+        <button
+          type="button"
+          className="btn"
+          onClick={() => navigate(goals.some((g) => g.id === form.id) ? `/education/goals/${form.id}` : '/education/goals')}
+        >
+          Đóng
         </button>
         <div className="row">
-          <button type="button" className="btn" onClick={saveDraft}>
-            <Save size={16} aria-hidden /> {pendingEdit ? 'Lưu chỉnh sửa' : 'Lưu nháp'}
-          </button>
           {step > 0 && (
             <button type="button" className="btn" onClick={() => setStep(step - 1)}>
               <ArrowLeft size={16} aria-hidden /> Quay lại

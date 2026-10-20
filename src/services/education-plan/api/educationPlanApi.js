@@ -19,4 +19,5 @@ export const educationPlanApi = {
   actOnClassDoc: (kind, id, body) => axiosClient.post(`/education-plans/class-docs/${kind}/${id}/actions`, body),
   suggestBranchNames: (input) => axiosClient.post('/education-plans/ai/branch-names', input),
   rewriteBranchName: (input) => axiosClient.post('/education-plans/ai/branch-names/rewrite', input),
+  suggestLessonSteps: (input) => axiosClient.post('/education-plans/ai/lesson-steps', input),
 };

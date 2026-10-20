@@ -18,10 +18,14 @@ import {
   emptyThemePlan,
   emptyWeekPlan,
   isEditableStatus,
+  lessonReuseFor,
+  placedInOtherWeeks,
+  themeCoverage,
   submitBlocker,
   themeActivities,
   themeGoalBlocks,
   themeNumber,
+  yearWeeks,
 } from '@/models/education-plan/classPlan';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
 
@@ -122,6 +126,22 @@ function DossierInner({ classId, themeId }) {
     ),
   );
   const unused = activities.filter((a) => !used.has(a.id));
+  const coverage = themeCoverage(
+    goals,
+    activities,
+    weeks.map((w) => w.doc),
+  );
+  // Tuần liền trước trong năm (tuần nhánh trước, hoặc tuần cuối chủ đề trước) để chép các dòng cả tuần
+  const allWeeks = yearWeeks(yearPlan).filter((x) => x.type === 'week');
+  const prevDocOf = (start) => {
+    const prev = allWeeks[allWeeks.findIndex((x) => x.start === start) - 1];
+    if (!prev) return null;
+    return (
+      weeks.find((w) => w.week.start === prev.start)?.doc ||
+      weekPlans.find((x) => x.classId === classId && x.weekStart === prev.start) ||
+      null
+    );
+  };
   const exportArgs = {
     themeDoc: themeDraft,
     theme,
@@ -185,6 +205,12 @@ function DossierInner({ classId, themeId }) {
           {due === 'late' ? ' (quá hạn)' : due === 'soon' ? ' (sắp đến hạn)' : ''}.
         </Notice>
       )}
+      {coverage.missingGoals.length > 0 && (
+        <Notice tone="warn">
+          {coverage.missingGoals.map((g) => `MT ${g.no}`).join(', ')} chưa có trong tuần nào của chủ đề (đã phủ {coverage.covered}/
+          {coverage.goals} MT). Vẫn gửi duyệt được.
+        </Notice>
+      )}
       {unused.length > 0 && (
         <Notice tone="warn">
           Còn {unused.length} hoạt động trong kế hoạch chủ đề chưa xếp vào tuần nào.
@@ -238,7 +264,20 @@ function DossierInner({ classId, themeId }) {
               {w.doc ? (
                 <>
                   <div className="section-title">KẾ HOẠCH TUẦN</div>
-                  <WeekTab draft={w.doc} week={w.week} editable={editable} update={edit(w.week.start, w.doc)} activities={activities} />
+                  <WeekTab
+                    draft={w.doc}
+                    week={w.week}
+                    editable={editable}
+                    update={edit(w.week.start, w.doc)}
+                    activities={activities}
+                    placedElsewhere={placedInOtherWeeks(
+                      weeks.map((x) => x.doc),
+                      w.week.start,
+                    )}
+                    prevWeek={prevDocOf(w.week.start)}
+                    coverage={coverage}
+                    goals={goals}
+                  />
                   <div className="section-title">KẾ HOẠCH NGÀY</div>
                   {w.doc.days.map((d, i) => (
                     <div key={d.date} id={anchor(`${w.week.start}-d${i}`)} className="ga-dossier-day">
@@ -250,9 +289,10 @@ function DossierInner({ classId, themeId }) {
                         draft={w.doc}
                         index={i}
                         editable={editable}
-                        canEvaluate={isClassTeacher}
                         update={edit(w.week.start, w.doc)}
                         goals={goals}
+                        reuse={lessonReuseFor(weekPlans, w.doc, i)}
+                        assessTo={w.doc.status === EDU_STATUS.APPROVED ? `/assessment/daily?classId=${classId}&date=${d.date}` : null}
                       />
                     </div>
                   ))}

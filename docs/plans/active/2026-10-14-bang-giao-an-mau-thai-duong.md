@@ -10,15 +10,18 @@ risk: high
 created: 2026-10-14
 updated: 2026-10-14
 ---
+
 # Giao diện bảng kiểu Yên Định, nội dung theo mẫu MN Thái Dương
 
 Làn L: đổi 4 màn (mục tiêu năm → kế hoạch chủ đề → tuần → ngày), đổi quyền và dữ liệu. Làm lần lượt từng màn, báo sau mỗi màn.
 
 ## Context
+
 - 14/10 Tiền gửi ảnh bảng "Mục tiêu theo lĩnh vực phát triển" (bảng `ga-goal-table` của GoalFormPage, có trong commit 3500878) và yêu cầu: giữ dạng bảng này, nội dung theo mẫu MN Thái Dương.
 - Nhánh đã reset về bản Yên Định `0735b40` + hook mới (`520242e`). Bảng `ga-goal-table` và CSS của nó lấy lại từ `3500878`.
 
 ## Quyết định đã chốt (Tiền, 14/10, qua coordinator)
+
 1. Cả 4 màn, làm lần lượt: mục tiêu năm → kế hoạch chủ đề → tuần → ngày.
 2. Quyền theo Thái Dương: Phó HT + tổ trưởng khối cùng soạn mục tiêu năm (chia lĩnh vực), tổ trưởng gửi, Phó HT ký ban hành / trả lại; kế hoạch chủ đề do giáo viên từng lớp; giáo án tuần + 5 ngày duyệt cả tuần, tổ trưởng rồi Phó HT.
 3. Bỏ mã YCCĐ; dùng số MT 1..n cả năm + tích nội dung vào chủ đề.
@@ -28,13 +31,15 @@ Làn L: đổi 4 màn (mục tiêu năm → kế hoạch chủ đề → tuần 
 7. Giữ kiểu bảng `ga-goal-table`, không đổi style chung; CSS mới chỉ khi bắt buộc và báo từng dòng.
 
 ## Màn 1 — Mục tiêu năm học
-- Bảng A chia tầng, mỗi tầng một cột gộp dọc: Lĩnh vực con | Nhóm kết quả mong đợi | STT (MT n) | Mục tiêu | Nội dung giáo dục | cột chủ đề (tích) | Xóa. Thêm bằng ô trống cuối mỗi tầng hoặc Enter cùng tầng; không có nút "+" và không gõ "* " / "- ". Lĩnh vực I–V.
+
+- Bảng A chia tầng, mỗi tầng một cột gộp dọc: Lĩnh vực con | Nhóm kết quả mong đợi | STT (MT n) | Mục tiêu | Nội dung giáo dục | cột chủ đề (tích) | Xóa. Thêm bằng ô trống cuối mỗi tầng hoặc Enter cùng tầng; không có nút "+" và không gõ "\* " / "- ". Lĩnh vực I–V.
 - Bảng B: STT | Tên chủ đề | Viết tắt | Mục tiêu giáo dục (tự tính) | Ngày lễ hội | Từ | Đến | Số tuần (tự tính) | Ghi chú; bảng đợt nghỉ.
 - Quyền: Phó HT và tổ trưởng khối cùng sửa mọi lĩnh vực (Tiền bỏ phần phân công lĩnh vực 14/10); tổ trưởng "Gửi Phó HT ban hành"; Phó HT "Ký ban hành" / "Trả lại".
 - Dữ liệu: `domains[].rows` (hàng của bảng) + `domains[].items` (mục tiêu, để các màn cũ còn đọc được), `themes`, `breaks`, `builders`, `issued`.
 - Files: C `src/models/education-plan/goalTable.js` · C `src/components/education-plan/GoalTables.jsx` · M `GoalFormPage.jsx`, `GoalDetailPage.jsx`, `GoalListPage.jsx`, `ImportGoalsModal.jsx`, `goalCsv.js`, `AppRoutes.jsx`, `eduUi.jsx` + `education-plan.css` (lấy lại từ 3500878).
 
 ## Màn 2–4 — Tổ trưởng và giáo viên (Tiền 14/10, chi tiết qua coordinator)
+
 - Kế hoạch năm: TL và Phó HT cùng soạn (đã có). TL ký + gửi → Phó HT ký ban hành; đủ 2 chữ ký mới "Đã ban hành" và giáo viên khối mới thấy (chỉ xem). Phó HT trả lại được (bắt buộc lý do).
 - Giáo viên (theo lớp, mọi giáo viên của lớp sửa được), bảng cùng kiểu `ga-goal-table`:
   1. Dự kiến chủ đề nhánh và thời gian: Tháng | Chủ đề (gộp dòng) | Chủ đề nhánh (gõ) | Tuần ("Tuần n: dd/mm → dd/mm", đánh số cả năm, dòng nghỉ) | Ghi chú. Người xây dựng: giáo viên lớp; Phó HT duyệt.
@@ -44,24 +49,28 @@ Làn L: đổi 4 màn (mục tiêu năm → kế hoạch chủ đề → tuần 
   5. Tuần + 5 ngày gửi duyệt một lần, khung "Duyệt giáo án từ ngày … đến ngày …" (nhận xét + chữ ký), TL rồi Phó HT; bỏ bước TL khi TL dạy lớp đó. Trả lại kèm lý do ở mỗi bước.
 - Điều hướng giáo viên: Lớp của tôi (bảng chủ đề nhánh) → kế hoạch năm (chỉ xem) → chủ đề → tuần → ngày. TL / Phó HT: hộp "Duyệt kế hoạch, giáo án".
 - Xuất Word / In PDF cho kế hoạch chủ đề và giáo án tuần (cách làm như `yearPlanDoc`).
-- Bỏ trang cũ khi màn mới thay xong: Theme*, GoalsThemes, Lesson*, Review*, PlanReview, ApprovalList và component chỉ chúng dùng. Giữ trang đánh giá trẻ hằng ngày chạy được.
+- Bỏ trang cũ khi màn mới thay xong: Theme*, GoalsThemes, Lesson*, Review\*, PlanReview, ApprovalList và component chỉ chúng dùng. Giữ trang đánh giá trẻ hằng ngày chạy được.
 - Dữ liệu (mock, BE phải sở hữu luồng duyệt): `eduClassBranch`, `eduClassTheme`, `eduClassWeek`; quy tắc duyệt trong `classPlanMockRepository`. Lấy ý tưởng từ nhánh `backup/G94-178-thai-duong` (đọc bằng git show).
 - Files dự kiến: C `models/education-plan/classPlan.js`, `services/education-plan/mock/classPlanMockRepository.js`, `components/education-plan/planUi.jsx`, `utils/education-plan/classPlanDoc.js`, `pages/education-plan/ClassPlanPage.jsx`, `ClassThemePlanPage.jsx`, `WeekPlanPage.jsx`, `PlanReviewQueuePage.jsx`; M `useEducationPlan.jsx`, `educationPlanService.js`, `educationPlanApi.js`, `yearPlanDoc.js`, `AppRoutes.jsx`, `menuConfig.js`, `EducationHomeRedirect.jsx`, `GoalDetailPage.jsx`; D các trang cũ.
 
 ## Chỗ sẽ vỡ khi bỏ mã YCCĐ (chưa sửa ở màn 1)
+
 - Kế hoạch chủ đề (ThemeFormPage, ThemeModals): chọn YCCĐ có mã từ mục tiêu năm → không còn mã để chọn.
 - Kế hoạch tuần/ngày (LessonFormPage, WeekReference): gắn mã YCCĐ vào ô.
 - Đánh giá trẻ hằng ngày (DailyAssessmentPage, assessmentMockRepository): chấm theo mã YCCĐ của giáo án ngày.
 - Màn chủ đề đang yêu cầu mục tiêu năm "Đã gửi" (SENT); luồng mới dùng "Đã duyệt" (APPROVED).
 
 ## Việc còn treo
+
 - [ ] Danh mục kết quả mong đợi (`src/models/education-plan/expectedResults.js`): mới có khối 3–4 tuổi (30 câu lấy từ kế hoạch năm thật MN Thái Dương). Cần bổ sung nhà trẻ (ag-2), 4–5 tuổi (ag-4), 5–6 tuổi (ag-5) từ văn bản Chương trình GDMN; không tự đặt câu. Sau này BE trả về danh mục.
 
 ## Progress log
+
 ### 2026-10-14 — Màn 1 xong (chờ Tiền xem)
+
 - Commit: chưa commit.
 - Verify: chưa chạy `node scripts/verify.mjs` (máy này không chạy được lint/npx); Vite biên dịch các file đổi không lỗi.
-- Đã thử trên localhost:5173: bộ cũ có YCCĐ hiện thành nội dung; Phó HT lập mới (bảng B thêm chủ đề, đợt nghỉ, số tuần trừ tuần nghỉ; bảng A gõ mục tiêu, Enter sang nội dung, Enter thêm nội dung, Enter ở nội dung trống sang mục tiêu mới, "* " thành lĩnh vực con; tích chủ đề → cột MT của chủ đề "1 (1 MT)"); lưu nháp và xem chi tiết; tổ trưởng thấy Chỉnh sửa / Gửi, gửi khi chưa ký bị chặn; Phó HT Trả lại (bắt buộc lý do) và Ký ban hành.
+- Đã thử trên localhost:5173: bộ cũ có YCCĐ hiện thành nội dung; Phó HT lập mới (bảng B thêm chủ đề, đợt nghỉ, số tuần trừ tuần nghỉ; bảng A gõ mục tiêu, Enter sang nội dung, Enter thêm nội dung, Enter ở nội dung trống sang mục tiêu mới, "\* " thành lĩnh vực con; tích chủ đề → cột MT của chủ đề "1 (1 MT)"); lưu nháp và xem chi tiết; tổ trưởng thấy Chỉnh sửa / Gửi, gửi khi chưa ký bị chặn; Phó HT Trả lại (bắt buộc lý do) và Ký ban hành.
 - Chưa thử: Nhập / Xuất file CSV, Lấy từ kế hoạch có sẵn, tổ trưởng ký và gửi trọn vẹn (tài khoản demo tổ trưởng chưa có chữ ký lưu sẵn).
 - Khác plan: thêm 2 luật CSS (`.ga-goal-table--themes`, `.ga-goal-table__theme`); sửa mã kế hoạch bị dính "(" từ tên nhóm tuổi.
 - 14/10: bỏ hẳn phần "Phụ trách" (phân công lĩnh vực) theo Tiền; Phó HT và tổ trưởng của khối sửa được mọi lĩnh vực khi Nháp / Bị trả lại.
@@ -82,14 +91,14 @@ Làn L: đổi 4 màn (mục tiêu năm → kế hoạch chủ đề → tuần 
 - 14/10 (Tiền): cột mục tiêu ở bảng chủ đề giữ tên "Mục tiêu giáo dục". Cột cố định không nhập (STT bảng mục tiêu, STT bảng chủ đề và đợt nghỉ, cột Mục tiêu giáo dục của chủ đề) nền xám cả tiêu đề và ô: thêm 1 luật CSS `.ga-goal-table__fixed` (nền `--color-secondary`, chữ `--color-text-muted`, `cursor: not-allowed`, không đổi nền khi rê chuột). Bảng chủ đề: cột Mục tiêu dùng độ rộng có sẵn `.ga-goal-table__group` (190px), cột Tên chủ đề bỏ 34% cố định để chia đều với Ngày lễ hội, Ghi chú (trước đó Ngày lễ hội bị ép gần 0). Đã thử ở 1366px; verify PASS.
 - 14/10 (Tiền): tab Chủ đề và sự kiện nhập như bảng mục tiêu: bỏ nút Thêm chủ đề / Thêm đợt nghỉ; mỗi bảng có 1 dòng trống cuối, gõ là thành dòng thật tại chỗ; Enter ở ô tên chèn dòng trống ngay dưới; Backspace ở dòng trống xóa dòng, con trỏ về dòng trên. Dòng còn trống (`isBlankTheme` / `isBlankBreak`) không kiểm tra, không thành cột tích, không lưu. Không thêm CSS. Đã thử: gõ tạo chủ đề/đợt nghỉ, Enter, Backspace, Tiếp theo khi còn dòng trống, lưu nháp → chi tiết đúng; verify PASS.
 - 14/10 (Tiền): mục tiêu chưa thuộc nhóm nào không còn ô "—" cố định ở cột kết quả mong đợi: trong form là ô "Nhập kết quả mong đợi" (có gợi ý), gõ vào thì thêm nhóm ngay trước mục tiêu đầu tiên đó (`addGroupBefore`), các mục tiêu chưa có nhóm bên dưới thuộc nhóm mới; số MT giữ nguyên. Bước xác nhận / chi tiết vẫn "—". Đã thử: gõ ô của MT 1 → nhóm mới gộp MT 1, con trỏ ở ô nhóm, không nhảy trang; danh sách gợi ý chưa thử lại được (khung trình duyệt test không giữ focus). verify PASS.
-- 14/10 (Tiền): ô Từ ngày / Đến ngày ở bảng chủ đề và đợt nghỉ dùng lịch riêng `DatePickerCell` (khung thả xuống tách ra `FloatingPanel.jsx` để dùng chung): tuần bắt đầu thứ 2, nhãn tiếng Việt, Esc / bấm ra ngoài đóng. Màu: đỏ = ngày đã thuộc chủ đề khác hoặc đợt nghỉ (đợt nghỉ chỉ so với đợt nghỉ khác), rê chuột thấy tên; vàng = thứ 2 còn trống; trắng = trống; xanh = ngày đang chọn và khoảng của chính dòng. Chọn ngày đỏ vẫn được, dòng chủ đề báo "Trùng thời gian với chủ đề …" (`text-danger`). CSS thêm nhóm luật `.ga-cal*` (chỉ token có sẵn: danger-*, warning-*, primary, surface, border). Đã thử: chọn ngày 2 chủ đề + 1 đợt nghỉ, lịch chủ đề 3 tô đúng, tooltip, Esc, cảnh báo trùng, số tuần 4/4; verify PASS.
+- 14/10 (Tiền): ô Từ ngày / Đến ngày ở bảng chủ đề và đợt nghỉ dùng lịch riêng `DatePickerCell` (khung thả xuống tách ra `FloatingPanel.jsx` để dùng chung): tuần bắt đầu thứ 2, nhãn tiếng Việt, Esc / bấm ra ngoài đóng. Màu: đỏ = ngày đã thuộc chủ đề khác hoặc đợt nghỉ (đợt nghỉ chỉ so với đợt nghỉ khác), rê chuột thấy tên; vàng = thứ 2 còn trống; trắng = trống; xanh = ngày đang chọn và khoảng của chính dòng. Chọn ngày đỏ vẫn được, dòng chủ đề báo "Trùng thời gian với chủ đề …" (`text-danger`). CSS thêm nhóm luật `.ga-cal*` (chỉ token có sẵn: danger-_, warning-_, primary, surface, border). Đã thử: chọn ngày 2 chủ đề + 1 đợt nghỉ, lịch chủ đề 3 tô đúng, tooltip, Esc, cảnh báo trùng, số tuần 4/4; verify PASS.
 - 14/10 (Tiền: ô ngày lệch, nhãn tiếng Việt): cột Từ/Đến ngày trước rộng 96px nên "07/10/2026" + biểu tượng tràn, xuống dòng → thêm `.ga-cal__col` (128px = 2 × `--space-16`) cho 2 bảng; ô ngày hiện chữ trái + biểu tượng lịch phải, không xuống dòng, ô trống ghi "Chọn ngày" (thay "dd/mm/yyyy"). Lịch: "Tháng 10 năm 2026", thứ "Thứ 2 … Thứ 7, CN", nút "Tháng trước / Tháng sau". Khi chọn Đến ngày, ngày bắt đầu của dòng được tô. Không còn ô `type=date`. verify PASS.
 - 14/10 (Tiền: bỏ vàng, chỉ xanh lá và đỏ): bỏ tô thứ 2 (`.ga-cal__day--monday` đã xóa). Ngày đang chọn: nền `--color-success`, chữ `--color-text-inverse`; khoảng của dòng: `--color-success-bg/-border/-fg`; đỏ giữ `--color-danger-*`; chú thích: Đã có chủ đề / đợt nghỉ · Đang chọn · Còn trống. Đã thử 1366px: chủ đề 1 05–16/10 đỏ trên lịch chủ đề 2, ngày bắt đầu 19/10 xanh lá; verify PASS.
 - 14/10 (Tiền: tạo đợt nghỉ sau chủ đề thì không thấy đỏ): lịch ở bảng đợt nghỉ trước chỉ tô đợt nghỉ khác → nay tô cả ngày của mọi chủ đề (vẫn chọn được, không báo trùng vì nghỉ trong chủ đề là bình thường). Tooltip ghi đủ các dòng giữ ngày đó (vd. chủ đề "Tết và mùa xuân", đợt nghỉ "Nghỉ Tết"). Lịch bảng chủ đề cập nhật ngay khi thêm đợt nghỉ (không có trạng thái cũ). Đã thử: chủ đề 01–26/02/2027, thêm đợt nghỉ 08–12/02 → lịch đợt nghỉ đỏ ngày chủ đề, lịch chủ đề 2 đỏ cả ngày nghỉ, Số tuần 4 → 3; verify PASS.
 - 14/10 (Tiền: lịch ở ô gần đáy bị che): `FloatingPanel` đo chiều cao khung (lần vẽ đầu ẩn để đo), dưới không đủ chỗ mà trên rộng hơn thì lật lên trên; thiếu cả hai phía thì `maxHeight` = phần trống và cuộn trong khung; canh trong màn hình cách mép 8px; tính lại khi cuộn / đổi cỡ / đổi nội dung. Dùng chung cho lịch và ô gợi ý kết quả mong đợi. Lịch chỉ vẽ đủ số tuần của tháng (4–6 hàng), rộng 360px, chú thích một dòng ("Đã có lịch · Đang chọn · Còn trống" + nút Xóa ngày dồn phải: thêm `flex-wrap: nowrap`, `white-space: nowrap`, `.ga-cal__legend .btn { margin-left: auto }`). Đã thử 1366×768: ô đợt nghỉ gần đáy (474) → lịch lật lên 178–469; ô chủ đề gần trên (đáy 366) → lịch mở xuống 370–661; tháng 10/2026 vẽ 5 hàng. Chưa thử được lật của ô gợi ý (khung trình duyệt test không giữ focus). verify PASS.
 - 14/10 (Tiền: viền vuông, đậm, tiêu đề đậm to): 3 bảng kế hoạch năm: khung `.table-wrap:has(> .table.ga-goal-table)` góc 0, viền `--color-text-disabled`; viền ô `--color-text-disabled`; tiêu đề cột `--fs-sm`, `--fw-bold`, `--color-text`, cho xuống dòng (`white-space: normal`); hàng tiêu đề viết tắt chủ đề `--fs-2xs`, lề `--space-1`; cột chủ đề `.ga-goal-table__theme` 44px → `--space-12`. Bảng chủ đề: Viết tắt, Số tuần dùng `.ga-goal-table__code` (96px), canh giữa (thêm `.ga-goal-table__center .ga-cell-input { text-align: center }`); cột Mục tiêu giáo dục bỏ 190px cố định để Tên chủ đề / Ngày lễ hội / Ghi chú rộng ~105px ở 1366px. Đo: không tiêu đề nào tràn ở 2 tab; verify PASS.
 - 14/10 (Tiền: ô nhập hở khoảng trắng so với khung xanh): nguyên nhân là hàng cao hơn ô nhập (ô khác trong hàng xuống dòng) nên dưới ô nhập còn trống. Không ép textarea cao 100% (sẽ làm hàng không co lại được); thay vào đó khung xanh vẽ trên cả ô: `td:focus-within` (trừ dải lĩnh vực con) `outline 2px var(--color-primary)`, `outline-offset: -2px`; bỏ outline riêng của ô nhập; ô có ô nhập `cursor: text`; bấm phần trống của ô thì con trỏ vào ô nhập (`focusCell` trên 3 bảng). Đã thử: bấm phần trống ô Viết tắt hàng cao 56px → focus ô nhập, khung xanh trùng viền ô; verify PASS.
-- 14/10 (Tiền: xem lại của Phó HT giống bước 2, xuất file như bản Thái Dương, chữ ký Tổ trưởng + Phó HT): thêm `utils/education-plan/yearPlanDoc.js` (`yearPlanHtml`: quốc hiệu 2 cột không viền, tên KH + khối, A. bảng STT | Mục tiêu năm | Nội dung năm | Chủ đề thực hiện (cột viết tắt, ô tích hiện viết tắt), dòng lĩnh vực đậm "I. Giáo dục …", lĩnh vực con đậm nghiêng "*…", nhóm kết quả đậm "- …", nội dung "- …"; B. STT | Tên chủ đề | Mục tiêu "1,2 (2MT)" | Ngày lễ hội "- …" | Thời gian (số tuần, từ–đến) | Ghi chú (đợt nghỉ trùng chủ đề ghi vào đây, đợt nghỉ ngoài chủ đề thành dòng riêng); khối ký "<xã>, ngày … tháng … năm …", "Người xây dựng kế hoạch", Phó Hiệu trưởng | Tổ Trưởng kèm ảnh chữ ký + họ tên; Times New Roman 13/12, A4 ngang). Nút "Xuất Word" (.doc HTML, không thêm thư viện) và "In / Lưu PDF" (cửa sổ in) ở bước Xác nhận và trang chi tiết; `PlanSignatures` hiện chữ ký trên màn hình (dùng `grid-2`, không thêm CSS). Tên trường / xã lấy từ `DEFAULT_PRINT_TEMPLATE` (trường mẫu). Người chưa ký: hiện "Chưa ký", chưa có họ tên vì FE chưa có danh sách tài khoản theo khối. Đã thử: xuất .doc (đúng tên file, cấu trúc), xem bản in, trang chi tiết; verify PASS.
+- 14/10 (Tiền: xem lại của Phó HT giống bước 2, xuất file như bản Thái Dương, chữ ký Tổ trưởng + Phó HT): thêm `utils/education-plan/yearPlanDoc.js` (`yearPlanHtml`: quốc hiệu 2 cột không viền, tên KH + khối, A. bảng STT | Mục tiêu năm | Nội dung năm | Chủ đề thực hiện (cột viết tắt, ô tích hiện viết tắt), dòng lĩnh vực đậm "I. Giáo dục …", lĩnh vực con đậm nghiêng "\*…", nhóm kết quả đậm "- …", nội dung "- …"; B. STT | Tên chủ đề | Mục tiêu "1,2 (2MT)" | Ngày lễ hội "- …" | Thời gian (số tuần, từ–đến) | Ghi chú (đợt nghỉ trùng chủ đề ghi vào đây, đợt nghỉ ngoài chủ đề thành dòng riêng); khối ký "<xã>, ngày … tháng … năm …", "Người xây dựng kế hoạch", Phó Hiệu trưởng | Tổ Trưởng kèm ảnh chữ ký + họ tên; Times New Roman 13/12, A4 ngang). Nút "Xuất Word" (.doc HTML, không thêm thư viện) và "In / Lưu PDF" (cửa sổ in) ở bước Xác nhận và trang chi tiết; `PlanSignatures` hiện chữ ký trên màn hình (dùng `grid-2`, không thêm CSS). Tên trường / xã lấy từ `DEFAULT_PRINT_TEMPLATE` (trường mẫu). Người chưa ký: hiện "Chưa ký", chưa có họ tên vì FE chưa có danh sách tài khoản theo khối. Đã thử: xuất .doc (đúng tên file, cấu trúc), xem bản in, trang chi tiết; verify PASS.
 - 14/10 — Màn 2–4 xong (TL + giáo viên): thêm classPlan.js, classPlanMockRepository.js (eduClassBranch / eduClassTheme / eduClassWeek; ký người xây dựng, gửi, duyệt ký, trả lại có lý do; chủ đề nhánh chỉ Phó HT duyệt; chủ đề và tuần TL → Phó HT, bỏ TL khi TL dạy lớp), planUi.jsx (Cell, ReviewBar, DocSignatures, useClassPlanContext), classPlanDoc.js (Xuất Word / In cho kế hoạch chủ đề và giáo án tuần + 5 ngày), trang ClassPlanPage, ClassThemePlanPage, WeekPlanPage, PlanReviewQueuePage; route /education/class, /class/:id, /themes/:themeId, /weeks/:weekStart, /plan-reviews; menu TL: Mục tiêu năm học, Kế hoạch của lớp, Duyệt; giáo viên: Kế hoạch của lớp; Phó HT: Mục tiêu năm học, Duyệt. Danh sách mục tiêu năm có cột chữ ký Tổ trưởng / Phó HT; giáo viên chỉ mở được kế hoạch năm đã ban hành. Xóa: ThemeList/Form/DetailPage, GoalsThemesPage, LessonList/Form/DetailPage, ReviewListPage, PlanReviewPage, ApprovalListPage, ThemeModals, WeekReference, themeShared, ClassWeekBoard, ImportLessonModal, lessonDrafts. Link cũ ở dashboard / tạo nhanh / EduProgress / SchoolPlansPage chuyển về /education/class hoặc /education/plan-reviews. Không thêm CSS. Thử hết luồng (TL ký gửi → Phó HT ký ban hành → GV Chồi 1: chủ đề nhánh, kế hoạch chủ đề, tuần 1 + ngày → TL duyệt → Phó HT trả lại chủ đề nhánh (lý do bắt buộc) và duyệt chủ đề + tuần → GV ghi đánh giá cuối ngày sau duyệt); trang đánh giá hằng ngày vẫn mở, không lỗi console; verify PASS.
 - 14/10 (Tiền: kế hoạch năm cả 2 người ký rồi gửi Phó HT ban hành): Tổ trưởng và Phó HT đều "Ký và lưu" ở bước Xác nhận và ký (nút "Ký người xây dựng" trên trang chi tiết khi mình chưa ký); "Gửi Phó HT ban hành" (Tổ trưởng) chỉ bấm được khi đủ 2 chữ ký, thiếu thì báo; Phó HT bấm "Ban hành" (không ký thêm, dùng lại chữ ký người xây dựng, ghi ngày ban hành) hoặc "Trả lại". Nhãn riêng `YearPlanStatusBadge`: "Chờ Phó HT ban hành", "Đã ban hành" (tài liệu lớp vẫn "Đã duyệt"). Danh sách: cột chữ ký Tổ trưởng / Phó HT theo người xây dựng; hộp duyệt ghi đúng người gửi. Đã thử đủ luồng; verify PASS.
 - 14/10 (Tiền: bỏ mock cũ, có luồng demo mới): viết lại `mocks/educationPlanSeed.js`: 1 kế hoạch năm khối Mẫu giáo nhỡ 2026 – 2027 (`g-mgn-2627`, Nháp, chưa ai ký; 5 lĩnh vực, 20 mục tiêu, 9 chủ đề 07/09/2026 → 14/05/2027, 2 đợt nghỉ: ôn tập HKI, Tết) + bản nháp lớp Chồi 1 (chủ đề nhánh 33 tuần, kế hoạch chủ đề Trường mầm non, giáo án tuần 1 + ngày Thứ 2). eduThemes / eduLessons cũ để rỗng. `EDU_SEED_VERSION` + `ensureEduDemo`: trình duyệt đang giữ bộ cũ tự nạp bộ mới (gọi trong educationPlanMockRepository, classPlanMockRepository; seed.js ghi version). Bỏ `ensureRequirements` (YCCĐ cũ). Đã thử: nạp bộ mới, danh sách 1 kế hoạch Nháp, sau ban hành giáo viên Chồi 1 thấy đủ bản nháp; verify PASS.
@@ -97,43 +106,62 @@ Làn L: đổi 4 màn (mục tiêu năm → kế hoạch chủ đề → tuần 
 - 14/10 (Tiền đổi chốt 10/10: lĩnh vực phải thêm được khi Bộ bổ sung): `STANDARD_DOMAINS` (5 lĩnh vực chuẩn, không xóa) + `extraDomains` trong cấu hình; `DOMAINS` là danh sách dùng chung cập nhật khi nạp cấu hình (`setDomains`), số La Mã tiếp theo (VI…). Trang cấu hình mục 1: dòng trống cuối bảng + Enter để thêm, chặn trùng tên, chỉ xóa được lĩnh vực trường thêm. Đã thử: thêm "Phát triển kỹ năng số" → form kế hoạch năm có dải VI; trùng tên bị chặn; 5 lĩnh vực chuẩn không xóa được; xóa lại để dữ liệu demo sạch. verify PASS.
 
 ### 2026-10-15 — Tách trang lớp: trang đầu, trang soạn, trang ký/duyệt
+
 - `/education/class/:id` thành trang đầu của lớp: 3 khối (chủ đề nhánh cả năm, kế hoạch từng chủ đề, giáo án từng tuần) với nút Lập/Tạo/Sửa/Xem và nút sang trang duyệt.
 - Bảng chủ đề nhánh chuyển sang `/branches` (BranchPlanPage). Mỗi tài liệu có trang ký/duyệt riêng `…/review` (nội dung chỉ đọc, ReviewBar, chữ ký); trang soạn chỉ còn dòng trạng thái (DocStatusStrip) và lý do bị trả lại. Hộp duyệt mở thẳng trang `/review`.
 - Giáo án tuần: khối nổi bật tên chủ đề nhánh ở đầu trang (`.ga-week-hero`).
 - CSS (education-plan.css, token sẵn có): `.ga-page > * + :is(.card, .alert, .ga-week-hero)` cách nhau `--space-4` để các khối không dính nhau (trang Cấu hình); `.ga-week-hero*`.
+
 ### 2026-10-15 — Thứ tự gửi duyệt và hạn gửi (Tiền chốt "làm theo Thái Dương")
+
 - Gửi lẻ từng tài liệu, theo thứ tự: chủ đề nhánh được duyệt → mới gửi được kế hoạch chủ đề → kế hoạch của chủ đề được duyệt → mới gửi được giáo án các tuần trong chủ đề. Vẫn soạn, lưu, ký người xây dựng trước được; chỉ chặn gửi.
 - `submitBlocker` / `dueState` ở `models/education-plan/classPlan.js`; mock service từ chối submit sai thứ tự (409). BE thật phải kiểm quy tắc này (NEEDS VERIFICATION: chưa có trong BE docs).
 - Trang đầu lớp: cột "Hạn gửi" (kế hoạch chủ đề: ngày bắt đầu chủ đề; giáo án tuần: thứ 2 của tuần), chip Sắp đến hạn (≤7 ngày) / Quá hạn; chỉ nhắc, không chặn.
+
 ### 2026-10-15 — Bỏ lượt duyệt riêng của kế hoạch chủ đề (Tiền chốt; SUPERSEDES mục thứ tự gửi ở trên)
+
 - Kế hoạch chủ đề không gửi / duyệt riêng: gửi kèm giáo án tuần đầu của chủ đề, duyệt chung một lượt theo chuỗi của giáo án tuần (Tổ trưởng → Phó HT); trả lại thì cả hai cùng bị trả. Các tuần sau gửi, duyệt từng tuần khi kế hoạch chủ đề đã duyệt. Chủ đề nhánh vẫn phải duyệt trước.
 - Mock `classPlanMockRepository.act`: từ chối submit/approve/reject trực tiếp kế hoạch chủ đề; gửi tuần đầu thì gắn `bundleWeek` và ghi cùng trạng thái, chữ ký, lịch sử. `submitBlocker` / `bundledTheme` / `firstWeekOfTheme` ở `classPlan.js`. Cấu hình người ký bỏ mục "Kế hoạch chủ đề".
 - Màn hình: route `themes/:id/review` chuyển sang trang duyệt giáo án tuần đầu; giáo án tuần đầu có thẻ "Kế hoạch chủ đề" (chỉ đọc, `ThemePlanBody`); hộp duyệt không còn dòng kế hoạch chủ đề, dòng tuần đầu ghi "kèm Kế hoạch chủ đề"; trang đầu lớp: cột "Gửi duyệt" của chủ đề = "Cùng giáo án tuần N" + hạn của tuần đó.
 - Đã thử bằng mock service: gửi riêng KH chủ đề bị từ chối; gửi tuần 1 → cả hai chờ TL; TL trả lại → cả hai bị trả; gửi lại, TL duyệt, Phó HT duyệt → cả hai đã duyệt; tuần 2 gửi được; tuần đầu chủ đề sau chưa có KH chủ đề và tuần 5 khi KH chủ đề chưa duyệt bị chặn.
+
 ### 2026-10-15 — Gọn nút ở trang đầu lớp
+
 - Mỗi dòng chỉ còn nút theo việc cần làm: giáo viên còn sửa được → Tạo/Sửa + Ký, gửi duyệt; đến lượt duyệt → Duyệt; còn lại → Xem (mở trang duyệt). Ngoại lệ: giáo viên mở giáo án tuần đã gửi/đã duyệt ở trang soạn để ghi đánh giá; trang soạn có nút "Xem duyệt, chữ ký". Kế hoạch chủ đề: Xem/Sửa + link giáo án tuần đầu.
+
 ### 2026-10-15 — Khớp file mẫu "3. KHGD CĐ 1.doc" của MN Thái Dương (Tiền: "giống 100% nghiệp vụ Thái Dương")
+
 - File = một hồ sơ cho mỗi chủ đề: KẾ HOẠCH GIÁO DỤC CHỦ ĐỀ n (I, II; không khung ký) → mỗi tuần: KẾ HOẠCH TUẦN "Chủ đề nhánh k", "Thời gian thực hiện: 1 tuần từ … → …", I–III, KẾ HOẠCH NGÀY "Thứ hai, ngày …", khung "Duyệt giáo án từ ngày … đến ngày …", "Ngày … tháng … năm …", "Người duyệt".
 - Đổi: giáo án tuần gửi không ký (chỉ chủ đề nhánh có chữ ký người xây dựng); mặc định một người duyệt mỗi tuần = Phó HT (NEEDS VERIFICATION chức vụ, cấu hình đổi được); bỏ khung ký ở kế hoạch chủ đề; khung duyệt tuần `WeekApproval`.
 - Trang đầu lớp gom theo chủ đề (mỗi chủ đề một khối: kế hoạch chủ đề + các chủ đề nhánh), nút "Xuất hồ sơ chủ đề"; xuất Word đúng thứ tự file (`themeFileHtml`), tuần lẻ `weekFileHtml`.- Cập nhật (Tiền 15/10): giáo án tuần và kế hoạch chủ đề đi kèm duyệt Tổ trưởng → Phó HT (mặc định `signers.week`); khung "Duyệt giáo án từ ngày … đến ngày …" có một ô "Người duyệt (chức vụ)" cho mỗi người trong chuỗi (bỏ tổ trưởng khi tổ trưởng dạy lớp đó).
+
 ### 2026-10-15 — Gửi duyệt cả hồ sơ chủ đề (Tiền chốt phương án B; SUPERSEDES "gửi kèm tuần đầu")
+
 - Giáo viên soạn kế hoạch chủ đề + giáo án tất cả các nhánh, gửi MỘT lần ở trang hồ sơ chủ đề (`themes/:id/review`, `ThemeDossierPage`). Thiếu nhánh nào thì chặn gửi. Chủ đề nhánh (cả năm) vẫn phải duyệt trước.
 - Duyệt Tổ trưởng → Phó HT (`signers.week`); mỗi người duyệt ký khung "Duyệt giáo án từ ngày … đến ngày …" của TỪNG tuần trong cùng lượt (modal nhiều ô chữ ký, body `signatures: { [weekStart]: sig }`). Trả lại thì cả hồ sơ về giáo viên.
 - Giáo án tuần không gửi riêng (mock từ chối); trang tuần chỉ soạn + nút sang hồ sơ; `weeks/:start/review` chuyển sang hồ sơ chủ đề. Trang đầu lớp: mỗi chủ đề một trạng thái hồ sơ + nút Gửi duyệt / Duyệt / Xem hồ sơ chủ đề, hạn gửi = ngày bắt đầu chủ đề. Hộp duyệt liệt kê hồ sơ chủ đề.
 - Đã thử (mock): gửi riêng tuần bị từ chối; thiếu nhánh 2, 3 bị chặn; gửi đủ 3 nhánh → cả hồ sơ chờ TL; TL thiếu chữ ký tuần 3 bị chặn; TL trả lại → cả hồ sơ bị trả; gửi lại, TL ký 3 tuần, Phó HT ký 3 tuần → đã duyệt, mỗi tuần 2 chữ ký.
+
 ### 2026-10-15 — Hồ sơ chủ đề: gửi một lần, duyệt riêng từng tuần (Tiền chốt B chi tiết; SUPERSEDES mục "Gửi duyệt cả hồ sơ chủ đề")
+
 - Giáo viên gửi một lần kế hoạch chủ đề + giáo án tất cả các nhánh (`act('theme', submit)`, chỉ khi hồ sơ còn Nháp, đủ nhánh, chủ đề nhánh đã duyệt).
 - Người duyệt (Tổ trưởng → Phó HT) duyệt và ký khung "Duyệt giáo án từ ngày … đến ngày …" của TỪNG tuần (`act('week', approve)`), có thể duyệt tuần 1 trước; kế hoạch chủ đề đi cùng khung tuần 1 (cùng trạng thái, chữ ký). Trả lại chỉ tuần đó (ghi lý do); giáo viên sửa và gửi lại riêng tuần đó (`act('week', submit)` khi tuần Bị trả lại). Hạn gửi hồ sơ = trước ngày bắt đầu chủ đề.
 - UI dạng bảng như bảng mục tiêu (`ga-goal-table`): trang hồ sơ chủ đề (bảng STT | Nội dung | Thời gian | Trạng thái, người duyệt | Thao tác, nút Duyệt và ký / Trả lại / Gửi lại theo từng dòng tuần), trang đầu lớp (mỗi chủ đề: tóm tắt Đã duyệt x/n, Chờ duyệt, Bị trả lại + bảng), hộp duyệt (từng tuần đang chờ, tuần 1 ghi "kèm kế hoạch chủ đề").
 - Đã thử (mock): gửi riêng tuần lần đầu bị chặn; gửi cả hồ sơ → mọi tuần + KHCĐ chờ TL; duyệt KHCĐ trực tiếp bị chặn; TL rồi Phó HT duyệt tuần 1 → tuần 1 + KHCĐ đã duyệt, tuần 2, 3 vẫn chờ; TL trả lại tuần 2 chỉ tuần 2 bị trả; gửi lại tuần 2, duyệt tiếp → cả 3 tuần đã duyệt, mỗi tuần 2 chữ ký.
+
 ### 2026-10-15 — Liên kết giáo án với kế hoạch chủ đề; ký cuối trang, không hộp thoại
+
 - Ô kế hoạch tuần gợi ý hoạt động từ cột "Hoạt động giáo dục" của kế hoạch chủ đề (`themeActivities`, lọc theo loại giờ của dòng; dòng không rõ loại giờ gợi ý ở mọi dòng). Chọn gợi ý thì ghi nội dung vào ô và nhớ MT (`picks[row.day]`); gõ tự do vẫn được.
 - Kế hoạch ngày hiện "Đề tài" lấy từ ô Hoạt động học của ngày và "Mục tiêu trong ngày"; lưu `dayGoals` (MT theo từng ngày) để đánh giá trẻ sau này.
 - Hồ sơ chủ đề: cảnh báo không chặn "Còn N hoạt động trong kế hoạch chủ đề chưa xếp vào tuần nào".
 - Bỏ hộp thoại ký/duyệt: `SignPanel` ở cuối trang (giống trang mục tiêu năm). Chủ đề nhánh chỉ còn một trang (`/branches/review` cùng trang). Trang đầu lớp mỗi dòng một nút (Duyệt / Sửa / Tạo / Xem) căn giữa ô; bỏ nút "Gửi duyệt hồ sơ chủ đề" ở trang đầu lớp (gửi ở cuối trang hồ sơ). Không đổi CSS.
+
 ### 2026-10-15 — CONFIRMED (Tiền): chủ đề nhánh
+
 - Mọi giáo viên được phân công (assign) vào lớp đều ký người xây dựng được; Phó HT duyệt (mặc định `signers.branch = [VICE_PRINCIPAL]`). SignPanel thêm nút "Chỉ ký (chưa gửi)" để giáo viên thứ hai ký trước khi một người bấm "Ký và gửi duyệt"; giáo viên lớp khác bị từ chối (403).- Tiền chốt thêm: mặc định 2 người ký (đủ giáo viên được phân công vào lớp) mới gửi được chủ đề nhánh; mock từ chối "Còn thiếu chữ ký người xây dựng của: …", SignPanel khóa nút gửi và báo tên người còn chờ. Lớp chỉ 1 giáo viên thì 1 chữ ký.- Tiền chốt: người duyệt (Phó HT, Tổ trưởng) phải ký xong mới bấm duyệt: SignPanel có bước "Ký" (xác nhận chữ ký, hiện "Đã ký" + "Ký lại") rồi nút "Duyệt" mới mở; đổi chữ ký thì phải ký lại. Áp dụng cho chủ đề nhánh và từng tuần của hồ sơ chủ đề.- Demo seed `thai-duong-demo-2026-10-15-sign` (để Tiền review phần ký): kế hoạch năm khối Mẫu giáo nhỡ ĐÃ BAN HÀNH (TL + Phó HT ký); Chồi 1 chủ đề nhánh chờ Phó HT (Lê Minh Anh đã ký); Chồi 2 chủ đề nhánh Nháp, cô Mai đã ký, chờ cô Hà ký và gửi. Chữ ký demo là ảnh SVG nét ký giả.
+
 ### 2026-10-15 — Trình tự 3 bước ở trang lớp (Tiền duyệt đề xuất)
+
 - Thứ tự: (1) chủ đề nhánh cả năm được duyệt → (2) lưu kế hoạch chủ đề → (3) giáo án tuần + 5 kế hoạch ngày của chủ đề đó. Bước 3 mở khi kế hoạch chủ đề ĐÃ LƯU (khớp hồ sơ Thái Dương); mọi nhánh trong chủ đề soạn song song.
 - `createBlocker` (cạnh `submitBlocker`) chỉ chặn TẠO MỚI; mock `saveDoc` từ chối 409 "Chưa thể bắt đầu: …". BE thật cần luật tương tự (đề xuất ghi CROSS_MODULE_ISSUES).
 - Trang lớp: `Stepper` có sẵn ở đầu trang (chỉ xem tiến độ, có đếm), thẻ chủ đề nhánh `num="1"` một dòng; dòng KHCĐ ghi "Bước 2", dòng tuần "Bước 3"; việc chưa tới lượt hiện chip "Chưa thể bắt đầu" + lý do, không nút. Trang soạn chủ đề/tuần mở thẳng khi bị khóa chỉ hiện lý do + link bước còn thiếu. Bỏ cột "Giáo án tuần" ở trang chủ đề nhánh (không có trong mẫu). Không đổi CSS.
@@ -151,6 +179,7 @@ Làn L: đổi 4 màn (mục tiêu năm → kế hoạch chủ đề → tuần 
 - Tiền: thẻ bảng đổi tên "Chủ đề nhánh"; "AI gợi ý cả năm" / "AI viết lại cả năm" chuyển vào góc thẻ (khi còn ô chờ thì thay bằng Bỏ tất cả / Giữ tất cả). Mọi thao tác AI (cả năm, từng chủ đề, từng dòng) đều hỏi trước bằng `ConfirmationModal` mô tả AI sẽ làm gì và nhắc kết quả là bản nháp để giữ / bỏ.
 
 ### 2026-10-16 — Bỏ chữ ký ảnh: duyệt trong hệ thống, in ra ký tay (Tiền chốt 1a 2a 3a; SUPERSEDES mọi mục về ký ảnh ở trên)
+
 - Không còn chọn / tải ảnh chữ ký ở mục tiêu năm, chủ đề nhánh, hồ sơ chủ đề. Duyệt xong thì xuất file đúng mẫu Thái Dương (chỗ ký để trống, in sẵn họ tên) để Phó HT in ra ký; giáo viên in để dạy. Chỉ xuất / in khi đã duyệt.
 - Mục tiêu năm: `owner` = người tạo (Tổ trưởng hoặc Phó HT), chỉ người này sửa / gửi khi Nháp / Bị trả lại. Tổ trưởng "Gửi Phó HT duyệt" (`sentBy`); Phó HT "Trả lại" (lý do), "Sửa trước khi duyệt" (giữ trạng thái chờ, ghi lịch sử) hoặc "Ban hành" (`issued`). Phó HT tự soạn thì bấm "Ban hành" luôn. Danh sách: cột "Người soạn" thay cột chữ ký. File: "1. KẾ HOẠCH GIÁO DỤC NĂM HỌC … KHỐI …".
 - Chủ đề nhánh: giáo viên của lớp gửi (đủ tên các tuần) → Phó HT duyệt / trả lại. File "2. DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH VÀ THỜI GIAN THỰC HIỆN - <lớp>" theo mẫu 2 (Tháng | Chủ đề | Chủ đề nhánh "- Nhánh k" | Số tuần "Tuần n: từ / đến" | Ghi chú; Người duyệt kế hoạch + Người xây dựng kế hoạch các giáo viên).
@@ -170,3 +199,22 @@ Làn L: đổi 4 màn (mục tiêu năm → kế hoạch chủ đề → tuần 
 - Tiền 16/10 (người mới không biết chỗ gửi): giáo viên còn sửa được thì nút dẫn sang trang cả tập ghi "Xem và gửi duyệt" (nút chính, ở mỗi thẻ chủ đề trên trang Kế hoạch chủ đề và ở trang soạn / giáo án tuần); đến lượt duyệt thì "Duyệt kế hoạch chủ đề"; còn lại "Xem cả kế hoạch chủ đề" (nút viền). Nút gửi thật vẫn chỉ ở cuối trang cả tập.
 - Sửa giật khi cuộn trang cả tập (Tiền 16/10): theo dõi cuộn chuyển vào thanh tab riêng `DossierNav` (chỉ thanh tab vẽ lại, đo vị trí tối đa mỗi 100 ms, listener passive); `Cell` chỉ đo lại chiều cao khi chữ hoặc chế độ sửa đổi (trước đo mọi lần vẽ lại → hàng trăm ô đo liên tục). Đã kiểm tra: 136 ô vẫn đủ chiều cao, cuộn 40 bước không có long task.
 - Tiền 16/10: trang cả tập bỏ dòng "Đang xem: …"; khung "Gửi duyệt và duyệt" thay bằng một dải dính đáy (`page-actions`) chỉ có nút: giáo viên "Gửi duyệt kế hoạch chủ đề"; người duyệt đến lượt "Trả lại" (hỏi lý do trong hộp thoại) và "Duyệt". Bỏ lịch sử xử lý và ô ghi chú; bị trả lại thì vẫn hiện lý do lần trả lại gần nhất (Notice đỏ).
+
+### 2026-10-20 — Chuỗi MT chủ đề → tuần → ngày → đánh giá (Tiền: code hiện tại là chuẩn)
+
+- Kế hoạch tuần: hoạt động đã xếp vào ô ngày thì ẩn khỏi gợi ý ở ô khác trong cả chủ đề (ô gộp cả tuần lặp được); ô gõ tay trùng nội dung hoạt động thì tự gắn MT (`linkTypedActivities`, bỏ × thì ghi `unlinked`); nhãn "Chưa gắn MT"; "Lấy dòng cả tuần từ tuần trước" (`copyMergedRows`); dòng tiến độ cả chủ đề (`themeCoverage`).
+- Kế hoạch ngày: nút "Lấy từ kế hoạch tuần" (`dayDraftFromWeek`, nhớ `pulled` để lấy lại khi tuần đổi, không ghi đè chữ cô sửa); bỏ "Sau buổi dạy" (đánh giá ở trang Đánh giá hằng ngày; bản in vẫn để trống 2 mục viết tay); link "Đánh giá trẻ ngày này" khi đã duyệt.
+- Kế hoạch chủ đề: nhắc MT chưa có hoạt động; hồ sơ chủ đề: cảnh báo MT chưa có trong tuần nào (không chặn).
+- Bỏ nút Lưu ở mục tiêu năm, kế hoạch chủ đề, giáo án tuần/ngày: tự lưu (`hooks/education-plan/useAutosave.js`) như chủ đề nhánh. Mock không cho sửa giáo án đã gửi.
+- Sửa lỗi "Maximum update depth" ở `FloatingPanel` (gọi setState mỗi lần vẽ).
+- Đánh giá hằng ngày: hiện phần kế hoạch ngày của giờ đang đánh giá (`plan.dayPart`).
+- PENDING BE (đề xuất ghi `BE:docs/knowledge/CROSS_MODULE_ISSUES.md`, repo BE không có ở máy này): trường `picks`, `unlinked`, `days[].pulled`, `dayGoals` của giáo án tuần; luật một hoạt động một ô ngày trong chủ đề; chặn sửa giáo án đã gửi; daily-sheet trả `plan.dayPart`; lưu từng phần (autosave) cho kế hoạch năm / chủ đề / tuần.
+- Verify: `node scripts/verify.mjs` PASS; thử tay localhost (giáo viên, Phó HT demo).
+
+### 2026-10-20 — Khớp cách viết của Thái Dương + cải thiện (Tiền duyệt)
+
+- Cột Hoạt động giáo dục: đầu mục rỗng ("- HĐ học:") + dòng "+" nhận loại giờ của đầu mục; thêm tên loại giờ TD sáng, HĐ chơi, HĐ tạo hình, LĐVS, lao động, nêu gương (→ buổi chiều).
+- Dòng tuần có phần chung cả tuần (`extraLabel`, ô `grid[row].extra`, khóa picks `row.extra`): ngoài trời "Chơi tự do", buổi chiều "Chơi tự chọn; nêu gương". In thành hàng gộp; kế hoạch ngày lấy thành hoạt động cuối; MT tính cho mọi ngày và vào tiêu chí đánh giá.
+- `hocTitle`: "Môn: nội dung chính (NDKH: …)" ở kế hoạch ngày, bản in, đánh giá hằng ngày.
+- Cải thiện: "Dùng lại bài đã soạn" (`lessonReuseFor`, cùng môn + nội dung chính), "AI gợi ý tiến trình giờ học" (mock `lessonAiMock`, PROPOSED `POST /education-plans/ai/lesson-steps`, nhãn Nháp AI, Giữ / Bỏ), "Gợi ý Kiến thức từ MT đã xếp trong tuần".
+- PENDING BE: trường `grid[row].extra`, `days[].aiSteps`, API AI lesson-steps.

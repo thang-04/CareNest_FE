@@ -9,16 +9,7 @@ import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
 import { useClasses } from '@/hooks/useSchool';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import {
-  createBlocker,
-  ddmm,
-  dueState,
-  isEditableStatus,
-  themeGoalBlocks,
-  mondayOf,
-  todayIso,
-  yearWeeks,
-} from '@/models/education-plan/classPlan';
+import { createBlocker, ddmm, dueState, isEditableStatus, themeGoalBlocks, yearWeeks } from '@/models/education-plan/classPlan';
 
 /** /education/class, /education/branches: mở lớp đầu tiên người dùng được xem (lớp mình dạy trước). */
 export function ClassPlanRedirect({ toOf = (id) => `/education/class/${id}` }) {
@@ -91,7 +82,6 @@ export default function ClassPlanPage() {
   }
 
   const rows = yearWeeks(yearPlan);
-  const thisWeek = mondayOf(todayIso());
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null;
   const themes = [...yearPlan.themes].filter((t) => t.start && t.end).sort((a, b) => a.start.localeCompare(b.start));
   const numbers = numberGoals(yearPlan.domains);
@@ -130,16 +120,18 @@ export default function ClassPlanPage() {
       </span>
     );
   };
-  const status = (doc, none) => (doc ? <EduStatusBadge status={doc.status} /> : <span className="chip chip--gray">{none}</span>);
   const branchApproved = branch?.status === EDU_STATUS.APPROVED;
-  // Giáo án tuần chỉ tạo được khi đã lưu kế hoạch chủ đề; dòng chưa tới lượt hiện lý do, không có nút tạo
+  // Giáo án tuần chỉ tạo được khi đã lưu kế hoạch chủ đề; chưa tới lượt thì nút Tạo chỉ báo cần làm gì trước
   const lockOf = (kind, themeId) => createBlocker(kind, { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
-  // Lý do để ở tooltip, không hiện thêm dòng chữ trong bảng
-  const lockedStatus = (lock) => (
-    <span className="chip chip--gray" title={lock.message}>
-      Chưa thể bắt đầu
-    </span>
-  );
+  const lockedCreate = (lock) => {
+    if (!isClassTeacher) return <span className="muted text-sm">Chưa lập</span>;
+    const guide = lock.need === 'theme' ? ' Bấm "Tạo" ở dòng Kế hoạch giáo dục chủ đề và lưu lại.' : '';
+    return (
+      <button type="button" className="btn btn--primary btn--sm" onClick={() => toast(lock.message + guide, 'warn')}>
+        <Plus size={16} aria-hidden /> Tạo
+      </button>
+    );
+  };
   /*
    * Một nút cho mỗi tài liệu, theo việc người dùng cần làm (gửi / duyệt nằm cuối trang của tài liệu):
    * đến lượt duyệt → Duyệt; giáo viên còn sửa được → Sửa / Tạo; còn lại → Xem.
@@ -207,7 +199,9 @@ export default function ClassPlanPage() {
               <div className="card__body stack">
                 <div className="row row--between row--wrap gap-3">
                   <div className="row row--wrap gap-2">
-                    {sent ? <EduStatusBadge status={doc.status} /> : <span className="muted text-sm">{due(doc, t.start)}</span>}
+                    {/* Kế hoạch chủ đề và giáo án các tuần cùng một trạng thái nên chỉ hiện ở đây */}
+                    {doc && <EduStatusBadge status={doc.status} />}
+                    {!sent && <span className="muted text-sm">{due(doc, t.start)}</span>}
                   </div>
                   {/* Gửi và duyệt ở cuối trang xem cả tập; nút nói rõ việc cần làm */}
                   {doc && (
@@ -224,14 +218,12 @@ export default function ClassPlanPage() {
                     <colgroup>
                       <col />
                       <col className="ga-goal-table__group" />
-                      <col className="ga-goal-table__group" />
                       <col className="ga-goal-table__code" />
                     </colgroup>
                     <thead>
                       <tr>
                         <th>Nội dung</th>
                         <th className="ga-goal-table__fixed">Thời gian</th>
-                        <th>Trạng thái</th>
                         <th className="center">Thao tác</th>
                       </tr>
                     </thead>
@@ -247,18 +239,15 @@ export default function ClassPlanPage() {
                             {ddmm(t.start)} → {ddmm(t.end)}
                           </div>
                         </td>
-                        <td>
-                          <div className="ga-goal-table__pad">{status(doc, 'Chưa lập')}</div>
-                        </td>
                         <td className="center">
-                          <div className="ga-goal-table__pad">{action(doc, `${base}/themes/${t.id}`, 'Lập', to)}</div>
+                          <div className="ga-goal-table__pad">{action(doc, `${base}/themes/${t.id}`, 'Tạo', to)}</div>
                         </td>
                       </tr>
                       {themeRows.map((r) => {
                         if (r.type === 'break')
                           return (
                             <tr key={`b-${r.start}`}>
-                              <td colSpan={4} className="ga-goal-table__fixed">
+                              <td colSpan={3} className="ga-goal-table__fixed">
                                 <div className="ga-goal-table__pad">
                                   Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
                                 </div>
@@ -280,15 +269,11 @@ export default function ClassPlanPage() {
                             <td className="ga-goal-table__fixed">
                               <div className="ga-goal-table__pad">
                                 Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
-                                {r.start === thisWeek && <span className="chip chip--blue"> Tuần này</span>}
                               </div>
-                            </td>
-                            <td>
-                              <div className="ga-goal-table__pad">{lock ? lockedStatus(lock) : status(wdoc, 'Chưa soạn')}</div>
                             </td>
                             <td className="center">
                               <div className="ga-goal-table__pad">
-                                {!lock && action(wdoc, `${base}/weeks/${r.start}`, 'Tạo', `${to}?week=${r.start}`)}
+                                {lock ? lockedCreate(lock) : action(wdoc, `${base}/weeks/${r.start}`, 'Tạo', `${to}?week=${r.start}`)}
                               </div>
                             </td>
                           </tr>

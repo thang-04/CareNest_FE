@@ -63,6 +63,9 @@ export default function GoalListPage() {
       ),
     [goals, schoolYear, isVP, isLeader, user],
   );
+  // Tổ trưởng chỉ có 1 kế hoạch của nhóm tuổi mình trong năm học: vào thẳng kế hoạch, chưa có thì vào trang tạo
+  const own = isLeader ? scoped.find((g) => g.ageGroupId === user.ageGroupId) : null;
+  if (isLeader) return <Navigate to={own ? `/education/goals/${own.id}` : '/education/goals/new'} replace />;
   const canCreate = isVP || (isLeader && !scoped.some((g) => g.ageGroupId === user.ageGroupId));
   const rows = scoped.filter((g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())));
 
