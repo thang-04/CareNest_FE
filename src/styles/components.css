@@ -1544,6 +1544,15 @@ tr.sortable-item--drop-after > td {
   padding: 1px var(--space-2);
   font-size: var(--fs-xs);
 }
+/* Ô chọn điểm trường dùng chung (ui/CampusFilter): nhãn trên, ô chọn dưới */
+.campus-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.campus-filter .select {
+  width: auto;
+}
 .tab--active .tab__count {
   background: var(--color-primary);
   color: var(--color-primary-fg);

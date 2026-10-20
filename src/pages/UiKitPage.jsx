@@ -38,6 +38,8 @@ import { ROUND_STATUS, SHEET_STATUS } from '@/models/inventory-inspection/inspec
 import { CONDITION_OPTIONS } from '@/models/Asset';
 import './ui-kit.css';
 import { NutritionPrimitivesDemo } from '@/components/ui/NutritionPrimitivesDemo';
+import { Tabs } from '@/components/ui/Tabs';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const COLOR_GROUPS = [
   {
@@ -182,6 +184,7 @@ const NAV = [
   ['alerts', 'Thông báo'],
   ['table', 'Bảng & thẻ'],
   ['states', 'Loading / Empty / Error'],
+  ['tabs', 'Tab & chọn điểm trường'],
   ['flow', 'Tiến trình & phân trang'],
   ['overlays', 'Modal & Toast'],
   ['domain', 'Chữ ký, upload, tài sản'],
@@ -198,6 +201,8 @@ export default function UiKitPage() {
     ai.run(() => new Promise((resolve) => setTimeout(resolve, 2400)));
   };
   const [modal, setModal] = useState(false);
+  const [demoTab, setDemoTab] = useState('week');
+  const [demoCampus, setDemoCampus] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [select, setSelect] = useState(null);
   const [condition, setCondition] = useState('GOOD');
@@ -694,6 +699,33 @@ export default function UiKitPage() {
             </div>
           </div>
           {ai.running && <AiWorkingOverlay kind={aiKind} text={aiKind === 'cooking' ? 'Đang nấu thực đơn…' : 'Đang soạn bản nháp…'} />}
+        </Section>
+
+        <Section
+          id="tabs"
+          title="Tab & chọn điểm trường"
+          code={`<Tabs items={[{ key: 'week', label: 'Phiếu tuần', count: 3 }]} value={tab} onChange={setTab} />\n<CampusFilter campuses={[{ id, name }]} value={campusId} onChange={setCampusId} />`}
+        >
+          <Tabs
+            ariaLabel="Mẫu tab"
+            items={[
+              { key: 'week', label: 'Phiếu tuần', count: 3 },
+              { key: 'month', label: 'Phiếu tháng' },
+              { key: 'sum', label: 'Tổng hợp' },
+            ]}
+            value={demoTab}
+            onChange={setDemoTab}
+          />
+          <div className="mt-12">
+            <CampusFilter
+              campuses={[
+                { id: 'c1', name: 'Campus 1' },
+                { id: 'c2', name: 'Campus 2' },
+              ]}
+              value={demoCampus}
+              onChange={setDemoCampus}
+            />
+          </div>
         </Section>
 
         <Section
