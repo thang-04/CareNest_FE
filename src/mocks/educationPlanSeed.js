@@ -7,10 +7,23 @@
  *      để giáo viên chỉ cần xem, ký, gửi duyệt (Tổ trưởng → Phó HT). Lớp Chồi 2 để trống để lập từ đầu.
  * Nội dung tự soạn cho demo; không có dữ liệu trẻ hay tên người thật (tên là tài khoản demo).
  */
-import { emptyBranchPlan, emptyThemePlan, emptyWeekPlan, yearWeeks } from '@/models/education-plan/classPlan';
+import {
+  cellKey,
+  dayDraftFromWeek,
+  dayGoalsOf,
+  emptyBranchPlan,
+  emptyThemePlan,
+  emptyWeekPlan,
+  themeActivities,
+  themeGoalBlocks,
+  todayIso,
+  yearWeeks,
+} from '@/models/education-plan/classPlan';
+import { DOMAIN_SHORT } from '@/models/education-plan/educationPlanConstants';
+import { numberGoals } from '@/models/education-plan/goalTable';
 
 /** Đổi giá trị này khi thay bộ dữ liệu demo: trình duyệt đang giữ dữ liệu cũ sẽ tự nạp bộ mới. */
-export const EDU_SEED_VERSION = 'thai-duong-demo-2026-10-16-branch-tl';
+export const EDU_SEED_VERSION = 'thai-duong-demo-2026-10-20-assess-today-2';
 
 const YEAR = '2026 – 2027';
 const PLAN_ID = 'g-mgn-2627';
@@ -340,20 +353,126 @@ const buildClassDocs = (plan) => {
     note: '',
   };
   d1.steps['chieu.x'] = { teacher: 'Cho trẻ làm quen bài thơ "Bàn tay cô giáo".', child: 'Trẻ đọc theo cô.', note: '' };
-  return { branch, branch2, theme, week };
+  return { branch, branch2, theme, week, ...buildCurrentWeekDemo(plan, weeks) };
+};
+
+/*
+ * Demo nối kế hoạch ngày với Đánh giá hằng ngày (Tiền 20/10): lớp Chồi 1, chủ đề của tuần hiện tại có kế hoạch chủ đề
+ * (viết kiểu Thái Dương: đầu mục "- HĐ học:" + dòng "+") và giáo án tuần ĐÃ DUYỆT, ô tuần đã chọn gợi ý nên có MT.
+ * Giáo viên điểm danh hôm nay rồi mở Đánh giá hằng ngày: mỗi giờ hiện phần kế hoạch ngày và chấm theo MT của hoạt động.
+ */
+const GD_ACT = {
+  'Trẻ thực hiện đúng, đầy đủ, nhịp nhàng các động tác trong bài thể dục theo hiệu lệnh.':
+    '- TD sáng: Tập theo nhạc bài "Cả nhà thương nhau"',
+  'Trẻ giữ được thăng bằng cơ thể khi thực hiện vận động.': '- HĐ học:\n+ VĐCB "Đi trên ghế thể dục, đầu đội túi cát"',
+  'Trẻ kể được tên một số thức ăn cần có trong bữa ăn hằng ngày.':
+    '- HĐ học:\n+ Bé biết gì về 4 nhóm thực phẩm\n- Chơi, HĐ ngoài trời: Quan sát vườn rau của trường',
+  'Trẻ biết rửa tay bằng xà phòng trước khi ăn, sau khi đi vệ sinh.': '- Chơi, HĐ theo ý thích buổi chiều: Thực hành rửa tay bằng xà phòng',
+  'Trẻ phân loại được các đối tượng theo một hoặc hai dấu hiệu.':
+    '- Chơi, HĐ ngoài trời: Trò chơi "Phân loại đồ dùng gia đình"\n- HĐ chơi: Góc phân vai "Gia đình"',
+  'Trẻ đếm trên đối tượng trong phạm vi 10 và đếm theo khả năng.': '- HĐ học:\n+ Đếm đến 5, nhận biết số 5',
+  'Trẻ kể lại sự việc theo trình tự, đọc thuộc bài thơ, đồng dao.':
+    '- HĐ học:\n+ Thơ "Thương ông"\n- Chơi, HĐ theo ý thích buổi chiều: Ôn thơ "Thương ông"',
+  'Trẻ nhận dạng được một số chữ cái.': '- Chơi, HĐ theo ý thích buổi chiều: Làm quen chữ cái o, ô, ơ qua tranh "Gia đình bé"',
+  'Trẻ phối hợp các kỹ năng vẽ, nặn, cắt, dán để tạo ra sản phẩm.': '- HĐ học:\n+ Nặn đồ dùng gia đình',
+};
+
+const buildCurrentWeekDemo = (plan, weeks) => {
+  const today = todayIso();
+  const cur = weeks.find((w) => w.start <= today && today <= w.end);
+  if (!cur || cur.theme.id === 't-tmn') return {};
+  const themeId = cur.theme.id;
+  const blocks = themeGoalBlocks(plan.domains, numberGoals(plan.domains), themeId);
+  const goals = blocks.flatMap((b) => b.goals);
+  const domainOf = Object.fromEntries(blocks.flatMap((b) => b.goals.map((g) => [g.id, b.domain])));
+  const approvedBy = [
+    approval('u_ha', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', 'TEAM_LEADER', `${cur.start} 07:30`),
+    approval('u_lan', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', 'VICE_PRINCIPAL', `${cur.start} 08:00`),
+  ];
+  const curTheme = {
+    ...emptyThemePlan({ classId: CLASS_ID, yearPlanId: PLAN_ID, themeId }),
+    envIn: '- Tranh ảnh về gia đình; góc phân vai "Gia đình" có đồ dùng nấu ăn, bàn ghế nhỏ.',
+    envOut: '- Vườn rau của trường; đồ chơi ngoài trời an toàn.',
+    status: 'APPROVED',
+    approvals: approvedBy,
+    rows: Object.fromEntries(
+      goals.map((g) => [g.id, { contents: g.contents.map((c) => `- ${c}`).join('\n'), activities: GD_ACT[g.text] || '' }]),
+    ),
+  };
+  const acts = themeActivities(blocks, (g) => curTheme.rows[g.id]);
+  const of = (slot) => acts.filter((a) => a.slots.includes(slot));
+  const body = (a) => a.text.slice(a.text.indexOf(':') + 1).trim();
+  const pick = (a) => ({ id: a.id, goalId: a.goalId, goalNo: a.goalNo, text: a.text });
+
+  const week = {
+    ...emptyWeekPlan({ classId: CLASS_ID, yearPlanId: PLAN_ID, weekStart: cur.start, weekNo: cur.no, themeId }),
+    status: 'APPROVED',
+    approvals: approvedBy,
+    picks: {},
+  };
+  week.aims = {
+    knowledge: '- Trẻ biết tên các thành viên, đồ dùng trong gia đình; biết 4 nhóm thực phẩm.\n- Trẻ đếm được đến 5, nhận biết số 5.',
+    skills: '- Trẻ đi trên ghế thể dục giữ thăng bằng; rửa tay đúng cách.\n- Trẻ đọc thuộc bài thơ "Thương ông".',
+    attitude: '- Trẻ yêu thương, lễ phép với ông bà, bố mẹ.',
+  };
+  week.prep = '- Tranh ảnh về gia đình, 4 nhóm thực phẩm; ghế thể dục, túi cát; đất nặn.';
+  week.grid.don.common = 'Cô đón trẻ, nhắc trẻ chào ông bà, bố mẹ; trao đổi với phụ huynh về tình hình của trẻ.';
+  week.grid.tro_chuyen.common = 'Trò chuyện về gia đình bé: có những ai, mọi người làm gì, bé yêu ai nhất.';
+  const tds = of('the_duc')[0];
+  week.grid.the_duc.common = tds ? body(tds) : 'Tập theo nhạc';
+  if (tds) week.picks[cellKey('the_duc', 'all')] = [pick(tds)];
+  const pg = of('goc')[0];
+  week.grid.goc.common = pg ? body(pg) : 'Góc phân vai "Gia đình"';
+  if (pg) week.picks[cellKey('goc', 'all')] = [pick(pg)];
+  week.grid.tra_tre.common = 'Vệ sinh cá nhân, trao đổi với phụ huynh.';
+  week.grid.ngoai_troi.extra = 'Chơi tự do với đồ chơi ngoài trời';
+  week.grid.chieu.extra = 'Chơi tự chọn; nêu gương cuối ngày, vệ sinh, trả trẻ';
+  // Mỗi ngày một giờ học, một hoạt động ngoài trời, một hoạt động chiều lấy từ kế hoạch chủ đề (chọn gợi ý nên có MT)
+  const [hoc, out, chieu] = ['hoc', 'ngoai_troi', 'chieu'].map(of);
+  [0, 1, 2, 3, 4].forEach((i) => {
+    const h = hoc[i % Math.max(hoc.length, 1)];
+    if (h) {
+      week.grid.hoc.days[i] = { subject: DOMAIN_SHORT[domainOf[h.goalId]] || '', topic: body(h) };
+      week.picks[cellKey('hoc', i)] = [pick(h)];
+    }
+    const o = out[i % Math.max(out.length, 1)];
+    if (o) {
+      week.grid.ngoai_troi.days[i] = `${body(o)}\nTCVĐ "Mèo đuổi chuột"`;
+      week.picks[cellKey('ngoai_troi', i)] = [pick(o)];
+    }
+    const c = chieu[i % Math.max(chieu.length, 1)];
+    if (c) {
+      week.grid.chieu.days[i] = `T/C "Nu na nu nống"\n${body(c)}`;
+      week.picks[cellKey('chieu', i)] = [pick(c)];
+    }
+    // Kế hoạch ngày điền khung như nút "Lấy từ kế hoạch tuần", kèm phần ổn định / kết thúc của giờ học
+    const draft = dayDraftFromWeek(week, i, goals);
+    const d = week.days[i];
+    d.aims = draft.aims.replace(/: $/gm, ': Trẻ hứng thú tham gia, thực hiện được theo hướng dẫn của cô.');
+    d.prep = draft.prep.replace(/: $/gm, ': Đồ dùng của cô và của trẻ đầy đủ.');
+    Object.entries(draft.steps).forEach(([k, v]) => (d.steps[k].teacher = v));
+    d.steps['hoc.a'] = {
+      teacher: 'Cô cho trẻ hát "Cả nhà thương nhau", trò chuyện về gia đình bé.',
+      child: 'Trẻ hát, trò chuyện cùng cô.',
+      note: '',
+    };
+    d.steps['hoc.c'] = { teacher: 'Cô nhận xét, tuyên dương trẻ; chuyển hoạt động.', child: 'Trẻ lắng nghe.', note: '' };
+  });
+  week.dayGoals = dayGoalsOf(week);
+  return { curTheme, curWeek: week };
 };
 
 export const buildSeedEducationPlans = () => {
   const plan = buildYearPlan();
-  const { branch, branch2, theme, week } = buildClassDocs(plan);
+  const { branch, branch2, theme, week, curTheme, curWeek } = buildClassDocs(plan);
   return {
     eduGoals: [plan],
     // Dữ liệu kế hoạch chủ đề / giáo án kiểu cũ: bỏ hẳn (màn mới dùng eduClass*)
     eduThemes: [],
     eduLessons: [],
     eduClassBranch: [branch, branch2],
-    eduClassTheme: [theme],
-    eduClassWeek: [week],
+    eduClassTheme: [theme, curTheme].filter(Boolean),
+    eduClassWeek: [week, curWeek].filter(Boolean),
   };
 };
 
@@ -368,5 +487,37 @@ export const ensureEduDemo = (db) => {
   // Bỏ chữ ký đã lưu từng thêm cho demo ký chủ đề nhánh (hệ thống không còn ký ảnh)
   db.signatures = (db.signatures || []).filter((x) => !['sig_u_ha', 'sig_u_minhanh', 'sig_u_huong'].includes(x.id));
   Object.assign(db, buildSeedEducationPlans(), { eduSeedVersion: EDU_SEED_VERSION });
+  seedTodayAttendance(db);
+  return true;
+};
+
+/*
+ * Demo đánh giá hằng ngày cần lớp Chồi 1 đã điểm danh hôm nay (giờ khóa điểm danh 08:45 nên giáo viên không tự điểm danh
+ * được khi thử buổi chiều). Chỉ thêm khi dữ liệu điểm danh đã có; dữ liệu mới thì attendanceSeed đã điểm danh sẵn lớp này.
+ */
+export const seedTodayAttendance = (db) => {
+  const today = todayIso();
+  if (!db.attendance || [0, 6].includes(new Date(`${today}T00:00:00`).getDay())) return false;
+  if (db.attendance.some((r) => r.classId === CLASS_ID && r.date === today)) return false;
+  const cls = (db.classes || []).find((c) => c.id === CLASS_ID);
+  const sessions = (db.ageGroups || []).find((g) => g.id === cls?.ageGroupId)?.mealSessions || [];
+  (db.children || [])
+    .filter((ch) => ch.classId === CLASS_ID && ch.status === 'ACTIVE')
+    .filter((ch) => !db.attendance.some((r) => r.childId === ch.id && r.date === today))
+    .forEach((ch) => {
+      const at = new Date(`${today}T07:50:00+07:00`).toISOString();
+      db.attendance.push({
+        id: `att_${today.replace(/-/g, '')}_${ch.id}`,
+        date: today,
+        childId: ch.id,
+        classId: CLASS_ID,
+        campusId: ch.campusId,
+        status: 'PRESENT',
+        meals: Object.fromEntries(sessions.map((x) => [x, true])),
+        recordedBy: cls?.homeroomTeacherId || null,
+        recordedAt: at,
+        history: [{ at, userId: cls?.homeroomTeacherId || null, action: 'RECORDED' }],
+      });
+    });
   return true;
 };

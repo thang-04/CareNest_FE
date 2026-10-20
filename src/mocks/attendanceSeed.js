@@ -7,7 +7,8 @@
 
 const PAST_DAYS = 5;
 // Classes whose teachers already took today's attendance (others are still to do).
-const TODAY_DONE_CLASSES = ['cls_c1_m1', 'cls_c1_l1', 'cls_c2_la'];
+// cls_c1_c1: demo Đánh giá hằng ngày theo kế hoạch ngày đã duyệt (20/10)
+const TODAY_DONE_CLASSES = ['cls_c1_m1', 'cls_c1_l1', 'cls_c2_la', 'cls_c1_c1'];
 
 const pad = (n) => String(n).padStart(2, '0');
 const addDays = (date, n) => {
