@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { ClipboardCheck, Flag, Info, Lock, UserX } from '@/components/ui/icons';
+import { ChevronDown, ClipboardCheck, Info, Lock, UserX } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -12,7 +12,7 @@ import { SidePanel } from '@/components/ui/SidePanel';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { DailyModeSelect } from '@/components/assessment/DailyModeSelect';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
-import { BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
+import { BehaviorsCell, CellPopover, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { Cell, focusCell } from '@/components/ui/TableCell';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { EATING, NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
@@ -52,7 +52,6 @@ const fromRow = (r, sheet) => {
     emotion: o?.emotion || EMOTION.HAPPY,
     behaviors: o?.behaviors || [],
     behaviorNote: o?.behaviorNote || '',
-    flag: !!r.flag,
     comment: r.comment || '',
     activities: Object.fromEntries(
       sheet.activities.map(({ activity, criteria }) => {
@@ -232,7 +231,7 @@ export default function DailyGoalAssessmentPage() {
   const unmarkedRows = sheet?.attendanceTaken ? sheet.rows.filter((r) => !r.attendanceStatus) : [];
   // Chỉ có dòng vắng do phụ huynh báo nghỉ, chưa ai được điểm danh Có mặt: coi như lớp chưa điểm danh
   const attendanceTaken = !!sheet?.attendanceTaken && (presentCount > 0 || unmarkedRows.length === 0);
-  const cols = 3 + goalActs.length;
+  const cols = 2 + goalActs.length;
   const namesOf = (list) =>
     list
       .slice(0, 3)
@@ -381,25 +380,34 @@ export default function DailyGoalAssessmentPage() {
           ) : (
             <div className="card__body">
               <div className="table-wrap">
-                <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
-                  {/* Độ rộng cột dùng lại lớp của bảng mục tiêu năm: Trẻ 190px, mỗi giờ / nhóm ngày 96px, Cờ 64px */}
+                <table className="table ga-plan-table ga-goal-table dg-day-table" onMouseDown={focusCell}>
+                  {/* Độ rộng cột dùng lại lớp của bảng mục tiêu năm: Trẻ 190px, Nhận xét 96px, các giờ chia đều; cờ cắm ở màn Hoạt động chung */}
                   <colgroup>
                     <col className="ga-goal-table__group" />
                     {goalActs.map((a) => (
-                      <col key={a.activity} className="ga-goal-table__code" />
+                      <col key={a.activity} />
                     ))}
-                    <col className="ga-goal-table__del" />
-                    <col className="ga-goal-table__group" />
+                    <col className="ga-goal-table__code" />
                   </colgroup>
                   <thead>
                     <tr>
                       <th className="cell--fixed">Trẻ</th>
                       {goalActs.map((a) => (
-                        <th key={a.activity} title={actTitle(a)}>
-                          {a.activity}
+                        <th key={a.activity}>
+                          {/* Sổ xuống xem nội dung giờ và các MT trong ngày của giờ đó (Tiền 21/10) */}
+                          <span className="dg-head-goal">
+                            {a.activity}
+                            <CellPopover label={`Xem mục tiêu trong ngày – ${a.activity}`} icon={<ChevronDown size={14} />} minWidth={280}>
+                              <div className="dg-pop__title">{actTitle(a)}</div>
+                              {a.criteria.map((c) => (
+                                <div key={c.id} className="text-sm">
+                                  <span className="fw-600">{c.name}</span>: {c.description}
+                                </div>
+                              ))}
+                            </CellPopover>
+                          </span>
                         </th>
                       ))}
-                      <th title="Mỗi trẻ được 1 cờ bé ngoan một ngày">Cờ</th>
                       <th>Nhận xét</th>
                     </tr>
                   </thead>
@@ -470,24 +478,10 @@ export default function DailyGoalAssessmentPage() {
                               </div>
                             </td>
                             {goalActs.map((a) => (
-                              <td key={a.activity}>{resultCell(r, a, d, disabled)}</td>
+                              <td key={a.activity} className="dg-day-cell">
+                                {resultCell(r, a, d, disabled)}
+                              </td>
                             ))}
-                            <td>
-                              <button
-                                type="button"
-                                className="ga-cell-input"
-                                aria-pressed={d.flag}
-                                aria-label={`Cờ bé ngoan hôm nay cho ${name}`}
-                                title={d.flag ? 'Bỏ cờ bé ngoan của ngày' : 'Cắm cờ bé ngoan (1 cờ / ngày)'}
-                                disabled={disabled}
-                                onClick={() => update(id, { flag: !d.flag })}
-                              >
-                                {/* Cắm cờ: cờ xanh cắm xuống; đổi key để chạy lại hiệu ứng mỗi lần bấm */}
-                                <span key={d.flag ? 'on' : 'off'} className={`dg-flag-pin ${d.flag ? 'dg-flag-pin--on' : ''}`}>
-                                  <Flag size={16} />
-                                </span>
-                              </button>
-                            </td>
                             <td>
                               <Cell
                                 editable={!disabled}

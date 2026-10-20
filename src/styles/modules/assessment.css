@@ -693,31 +693,33 @@
   margin: 0 var(--space-4) var(--space-3);
 }
 
-/* Cờ bé ngoan ở bảng đánh giá cả ngày (Tiền 20/10): chưa cắm màu nhạt; cắm thì cờ xanh lá "cắm xuống" (rơi từ trên, nảy nhẹ) */
-.dg-flag-pin {
-  display: inline-flex;
-  color: var(--color-text-muted);
+/* Bảng đánh giá hằng ngày (2 màn, Tiền 21/10): ô chọn / nút cách viền ô ít nhất 20px hai bên, rộng hết phần còn lại để
+   các cột đều nhau; cờ giữa ô */
+.table.ga-goal-table.dg-day-table td.dg-day-cell {
+  padding: var(--space-2) var(--space-5);
+  vertical-align: middle;
 }
-.dg-flag-pin--on {
-  color: var(--color-success);
-  transform-origin: bottom left;
-  animation: dg-flag-plant var(--duration-slow) var(--ease-out);
+.dg-day-table td.dg-day-cell .dg-cell-btn,
+.dg-day-table td.dg-day-cell .ga-cell-input {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
 }
-@keyframes dg-flag-plant {
-  0% {
-    opacity: 0;
-    transform: translateY(-60%) rotate(-20deg);
-  }
-  60% {
-    opacity: 1;
-    transform: translateY(8%) rotate(6deg);
-  }
-  100% {
-    transform: none;
-  }
+/* Ô đã cách viền 20px nên ô chọn không cần lề trong, để đủ chỗ cho chữ */
+.dg-day-table td.dg-day-cell select.ga-cell-input {
+  padding-inline: 0;
 }
-@media (prefers-reduced-motion: reduce) {
-  .dg-flag-pin--on {
-    animation: none;
-  }
+.table.ga-goal-table.dg-day-table td.dg-day-cell.center {
+  padding-inline: 0;
+  text-align: center;
+}
+.dg-day-table td.dg-day-cell.center .dg-flag {
+  margin: 0 auto;
+}
+/* Tiêu đề cột giờ ở màn Kiến thức kỹ năng: tên giờ xuống dòng được, nút sổ xuống MT giữ đủ cỡ */
+.dg-day-table .dg-head-goal {
+  flex-wrap: wrap;
+}
+.dg-day-table .dg-head-goal .dg-cell-btn--icon {
+  flex: none;
 }

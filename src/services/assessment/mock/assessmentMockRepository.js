@@ -230,6 +230,22 @@ const planCriteria = (db, plan, activity) => {
   return ids.map((id) => known[id]).filter(Boolean);
 };
 
+/*
+ * Gợi ý cờ bé ngoan của ngày (Tiền 21/10, phương án 1): trẻ được gợi ý cờ khi mọi giờ ở Kiến thức kỹ năng đều Đạt, mức tham
+ * gia không "Chưa tích cực", hành vi không có mục cần lưu ý và cảm xúc không Buồn / Quấy khóc. Cô vẫn bỏ / cắm được; mỗi trẻ
+ * 1 cờ / ngày. PROPOSED rule: BE phải sở hữu và chốt lại tiêu chí.
+ */
+const flagSuggestionOf = (db, childId, date) => {
+  const obs = observationOf(db, childId, date);
+  const records = db.dailyAssessments.filter((a) => a.childId === childId && a.date === date);
+  const reasons = [];
+  if (records.some((a) => (a.criteriaNotMet || []).length)) reasons.push('Có giờ chưa đạt ở Kiến thức kỹ năng');
+  if (records.some((a) => a.participation === 'CHUA_TICH_CUC')) reasons.push('Có giờ tham gia chưa tích cực');
+  if ((obs?.behaviors || []).some((b) => !POSITIVE_BEHAVIORS.includes(b))) reasons.push('Hành vi có mục cần lưu ý');
+  if (['SAD', 'UPSET'].includes(obs?.emotion)) reasons.push('Cảm xúc buồn hoặc quấy khóc');
+  return { eligible: reasons.length === 0, reasons };
+};
+
 /* ---------------- 3 nhóm đánh giá ngày: điền sẵn, tổng hợp theo kỳ ---------------- */
 
 const observationOf = (db, childId, date) => (db.dailyObservations || []).find((o) => o.childId === childId && o.date === date) || null;
@@ -865,6 +881,9 @@ export const assessmentMockRepository = {
         present: attendanceStatus === 'PRESENT',
         assessment,
         observation,
+        // Cờ của ngày (1 cờ / ngày); cô chưa quyết thì theo gợi ý
+        flag: observation?.flag ?? null,
+        flagSuggestion: flagSuggestionOf(db, child.id, date),
         health: dayHealthOf(db, child.id, date),
         skippedMeals: skippedMealsOf(db, child.id, date, mealSessions),
       };
@@ -1009,7 +1028,8 @@ export const assessmentMockRepository = {
           emotion: e.emotion,
           behaviors: [...new Set(e.behaviors || [])],
           behaviorNote: (e.behaviorNote || '').trim(),
-          flag: !!e.flag,
+          // Cờ chỉ cắm ở màn Hoạt động chung: giữ nguyên cờ đã có
+          ...(e.flag === undefined ? {} : { flag: !!e.flag }),
           comment: (e.comment || '').trim(),
         };
         if (prev) Object.assign(prev, dayValues, { updatedAt: at });
@@ -1137,6 +1157,8 @@ export const assessmentMockRepository = {
           emotion: e.emotion,
           behaviors: [...new Set(e.behaviors || [])],
           behaviorNote: (e.behaviorNote || '').trim(),
+          // Cờ bé ngoan: 1 cờ / ngày, chỉ cắm ở màn Hoạt động chung
+          flag: !!e.flag,
         };
         const obs = observationOf(db, e.childId, date);
         if (obs) Object.assign(obs, dayValues, { updatedAt: at });
@@ -1161,7 +1183,7 @@ export const assessmentMockRepository = {
           criteriaOffered: offered,
           lessonPlanId: plan?.id || null,
           themeId: plan?.themeId || null,
-          flag: !!e.flag,
+          flag: false,
           comment: (e.comment || '').trim(),
         };
         const existing = db.dailyAssessments.find((a) => a.childId === e.childId && a.date === date && a.activity === activity);
