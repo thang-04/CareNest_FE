@@ -8,6 +8,7 @@ Nguồn BA: "UI Business Flow Specification — Nutrition & Food Inventory" (fil
 - Không kiểm kê kho thực phẩm: gỡ `/kitchen/stock-counts`.
 - GĐ1 chỉnh màn đang có; màn thiếu làm ở GĐ2/GĐ3.
 - Thời hạn mở lại điểm danh = số phút sau giờ chốt (Principal cấu hình, VP mở lại).
+- Cần chốt 21/10/2026 (đổi luật BA, cần báo team và BE): VP chọn được ngày cần mở lại (mặc định hôm nay) từ ngày bắt đầu năm học đến hôm nay. Thời hạn mở lại chỉ áp cho ngày hôm nay; ngày cũ mở được bất kỳ lúc nào. Lần mở lại còn hiệu lực tới hạn "Mở đến" do HT / PHT chọn (không quá ngày kết thúc năm học), không tự khóa lúc sang ngày; giáo viên sửa điểm danh ngày cũ được khi lớp đang mở, sổ báo ăn ngày đó chuyển chờ xác nhận lại. Mở lại ngày đánh giá cũng lùi được tới ngày bắt đầu năm học.
 - Sổ báo ăn hiển thị số suất/ngày; dữ liệu mock vẫn theo bữa.
 - Phiếu nhập có Nháp ⇒ trang danh sách `/kitchen/stock-receipts`.
 

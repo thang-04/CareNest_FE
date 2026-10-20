@@ -223,7 +223,8 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
     const timer = setTimeout(() => setClock((current) => ({ ...(current || day), locked: true, unlock: null })), Math.max(0, remaining));
     return () => clearTimeout(timer);
   }, [day]);
-  const editable = !!sheet?.canRecord && day?.schoolDay && !day.locked && date === day.today;
+  // Ngày cũ sửa được khi PHT đã mở lại riêng lớp cho ngày đó
+  const editable = !!sheet?.canRecord && day?.schoolDay && !day.locked && (date === day.today || !!day.unlock);
   const selected = rows.find((row) => row.child.id === selectedId);
   const visibleRows = rows.filter((row) => {
     const entry = draft[row.child.id];

@@ -46,6 +46,9 @@ const leadsCampus = (campusId, user) =>
 export const canConfirmMealCount = (count, user) =>
   user?.role === ROLES.VICE_PRINCIPAL && count?.campusId === user.campusId && count?.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION;
 
+/** Cảnh báo "cần xác nhận lại" chỉ cho người duyệt; bếp chỉ thấy số đã xác nhận. */
+export const canSeeMealReconfirmNotice = (user) => !!user && user.role !== ROLES.KITCHEN_STAFF;
+
 /** Sửa số suất từng lớp để chốt (ghi lý do): sau giờ khóa, cả khi đã xác nhận (chuyển sang chờ xác nhận lại). */
 export const canAdjustMealCount = (count, user) =>
   !!count?.id &&

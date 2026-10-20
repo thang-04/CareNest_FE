@@ -11,6 +11,8 @@ const unlockUnavailable = () =>
 export const getAttendanceDayUnlocks = (user) => (USE_MOCK ? attendanceMockRepository.listAttendanceDayUnlocks(user) : unlockUnavailable());
 export const unlockAttendanceDay = (body, user) =>
   USE_MOCK ? attendanceMockRepository.unlockAttendanceDay(body, user) : unlockUnavailable();
+export const revokeAttendanceDayUnlock = (id, user) =>
+  USE_MOCK ? attendanceMockRepository.revokeAttendanceDayUnlock(id, user) : unlockUnavailable();
 export const getClassAttendance = (classId, date, user) => repo.getClassAttendance(classId, date, user);
 export const saveClassAttendance = (payload, user) => repo.saveClassAttendance(payload, user);
 export const correctMealAfterLock = (payload, user) => repo.correctMealAfterLock(payload, user);

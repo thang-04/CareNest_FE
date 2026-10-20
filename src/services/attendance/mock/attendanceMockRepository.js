@@ -3,7 +3,7 @@ import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { buildAttendanceSeed, buildAttendanceUnlocks, buildDayAttendance } from '@/mocks/attendanceSeed';
 import { AGE_GROUP_EXTRA, buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
-import { activeYearId } from '@/mocks/roomManagers';
+import { activeYearEnd, activeYearId, activeYearStart } from '@/mocks/roomManagers';
 import { ROLES } from '@/models/User';
 import {
   ATTENDANCE_STATUS,
@@ -42,7 +42,7 @@ import {
 } from '@/utils/attendance/attendanceValidation';
 import { isDayLocked, isSchoolDay, isValidTime, schoolDaysBetween, schoolNow } from '@/utils/attendance/attendanceTime';
 import { formatDate, isIsoDate } from '@/utils/format';
-import { ATTENDANCE_UNLOCK_MAX_DAYS, isAttendanceUnlockActive } from '@/utils/attendance/attendanceUnlock';
+import { isAttendanceUnlockActive } from '@/utils/attendance/attendanceUnlock';
 import { uid } from '@/utils/id';
 import { dailyHealthSummary } from '@/mocks/dailyHealthSummary';
 import { kidAvatar } from '@/mocks/kidAvatars';
@@ -357,10 +357,11 @@ const ensureSeeded = (db) => {
   return db;
 };
 
-// Demo (user chốt 20/10/2026): số suất hôm nay được tổng hợp và Phó HT xác nhận ngay khi mở app, kể cả trước giờ khóa,
-// để màn bếp / bàn giao luôn có dữ liệu. Lệch luồng thật có chủ đích; lớp Chồi 1 của giáo viên demo để trống để tự điểm danh.
+// Demo: hôm nay có sẵn điểm danh mẫu cho các lớp (trừ Chồi 1 của giáo viên demo để tự điểm danh). Số suất chạy như thật
+// (Cần chốt 21/10/2026, thay cách "xác nhận sẵn" ngày 20/10): trước giờ chốt là sổ tạm tính, tới giờ chốt mới tổng hợp,
+// PHT điểm trường bấm xác nhận thì bếp mới nhận số (NUT-02).
 const DEMO_OPEN_CLASSES = ['cls_c1_c1'];
-// Chạy một lần mỗi ngày (todayMealDemoDate): số suất bị xóa/làm lại sau đó đi theo luồng thật.
+// Chạy một lần mỗi ngày (todayMealDemoDate)
 const ensureDemoToday = (db) => {
   const today = schoolNow().date;
   db.todayMealDemoDate = today;
@@ -372,11 +373,6 @@ const ensureDemoToday = (db) => {
   db.attendance.push(
     ...buildDayAttendance({ classes: db.classes, children: missing, date: today, sessionsOf: (cls) => classSessions(db, cls) }),
   );
-  materializeCounts(db, today, { notify: false, force: true });
-  const at = new Date().toISOString();
-  db.mealCounts
-    .filter((m) => m.date === today && m.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION)
-    .forEach((m) => confirmCountIn(db, m, usersOf(db, ROLES.VICE_PRINCIPAL, m.campusId)[0]?.id || null, at));
   return db;
 };
 
@@ -401,6 +397,17 @@ const ready = () => {
       const has = new Set(d.attendanceDayUnlocks.map((u) => u.id));
       d.attendanceDayUnlocks.push(...buildAttendanceUnlocks({ classes: d.classes, today: schoolNow().date }).filter((u) => !has.has(u.id)));
       d.mockSeedVersions = { ...(d.mockSeedVersions || {}), attendanceUnlocks: 1 };
+    });
+  // Một lần: bỏ sổ hôm nay mà bản demo cũ đã tự tổng hợp + xác nhận trước giờ chốt, để hôm nay chạy như thật
+  if (needsMockSeedMigration(readDb(), 'todayMealReal', 1, ['mealCounts']))
+    writeDb((d) => {
+      const now = schoolNow();
+      if (!isDayLocked(now.date, readCutoff(d))) {
+        const forced = (d.mealCounts || []).filter((m) => m.date === now.date).map((m) => m.id);
+        d.mealCounts = (d.mealCounts || []).filter((m) => !forced.includes(m.id));
+        d.mealHandovers = (d.mealHandovers || []).filter((h) => !(h.date === now.date && h.status === HANDOVER_STATUS.READY));
+      }
+      d.mockSeedVersions = { ...(d.mockSeedVersions || {}), todayMealReal: 1 };
     });
   const today = schoolNow().date;
   if (isSchoolDay(today) && readDb().todayMealDemoDate !== today) writeDb(ensureDemoToday);
@@ -428,6 +435,7 @@ const unlockView = (db, unlock) => ({
   ...unlock,
   className: db.classes.find((cls) => cls.id === unlock.classId)?.name || '—',
   unlockedByName: db.users.find((user) => user.id === unlock.unlockedBy)?.fullName || '—',
+  revokedByName: unlock.revokedBy ? db.users.find((user) => user.id === unlock.revokedBy)?.fullName || '—' : null,
 });
 const activeUnlockOf = (db, classId, date) =>
   (db.attendanceDayUnlocks || []).find((unlock) => unlock.classId === classId && unlock.date === date && isAttendanceUnlockActive(unlock));
@@ -446,7 +454,10 @@ const dayInfo = (db, date, cls) => {
     cutoff,
     reopenWindow,
     reopenUntil,
-    reopenExpired: reopenUntil != null && (date < now.date || (date === now.date && now.time > reopenUntil)),
+    // Thời hạn mở lại HT cấu hình chỉ áp cho ngày hôm nay; ngày cũ trong năm học PHT mở lại được (Cần chốt 21/10/2026)
+    reopenExpired: reopenUntil != null && date === now.date && now.time > reopenUntil,
+    yearStart: activeYearStart(db),
+    yearEnd: activeYearEnd(db),
     schoolDay: isSchoolDay(date),
     baseLocked,
     serverTime: new Date().toISOString(),
@@ -556,14 +567,17 @@ export const attendanceMockRepository = {
       if (!canUnlockAttendanceDay(cls, user)) throw forbidden();
       if (cls.schoolYear !== activeYearId(db)) throw new ApiError(422, 'Chỉ mở lại lớp thuộc năm học đang hoạt động.');
       const info = dayInfo(db, date);
-      if (!isIsoDate(date) || date !== info.today || !info.schoolDay) throw new ApiError(422, 'Chỉ mở lại ngày học hôm nay.');
+      if (!isIsoDate(date) || date > info.today || (info.yearStart && date < info.yearStart) || !info.schoolDay)
+        throw new ApiError(422, 'Chọn một ngày học từ đầu năm học đến hôm nay.');
       if (!info.baseLocked) throw new ApiError(409, 'Chưa đến giờ khóa, giáo viên vẫn điểm danh được.');
-      // BA: PHT chỉ mở lại trong thời hạn (phút sau giờ chốt) Hiệu trưởng cấu hình
-      if (info.reopenUntil == null) throw new ApiError(409, 'Hiệu trưởng chưa cấu hình thời hạn mở lại điểm danh.');
+      // BA: hôm nay chỉ mở lại trong thời hạn (phút sau giờ chốt) Hiệu trưởng cấu hình; ngày cũ không theo thời hạn này
+      if (date === info.today && info.reopenUntil == null) throw new ApiError(409, 'Hiệu trưởng chưa cấu hình thời hạn mở lại điểm danh.');
       if (info.reopenExpired) throw new ApiError(409, `Đã quá thời hạn mở lại điểm danh hôm nay (đến ${info.reopenUntil}).`);
       const until = typeof validUntil === 'string' ? Date.parse(validUntil) : NaN;
-      if (!Number.isFinite(until) || until <= Date.now() || until - Date.now() > ATTENDANCE_UNLOCK_MAX_DAYS * 86400000)
-        throw new ApiError(422, 'Chọn hạn mở lại trong tương lai, tối đa 7 ngày.');
+      // Hạn do HT / PHT chọn, không quá hết ngày kết thúc năm học
+      const yearEndAt = info.yearEnd ? Date.parse(`${info.yearEnd}T23:59:59+07:00`) : Infinity;
+      if (!Number.isFinite(until) || until <= Date.now() || until > yearEndAt)
+        throw new ApiError(422, 'Chọn hạn mở lại sau thời điểm hiện tại và không quá ngày kết thúc năm học.');
       if (typeof reason !== 'string' || !reason.trim() || reason.trim().length > 300)
         throw new ApiError(422, 'Nhập lý do mở lại, tối đa 300 ký tự.');
       if (activeUnlockOf(db, classId, date)) throw new ApiError(409, 'Lớp/ngày này đang có lần mở lại còn hiệu lực.');
@@ -586,6 +600,35 @@ export const attendanceMockRepository = {
           title: 'Đã mở lại điểm danh',
           message: `${cls.name}: mở lại điểm danh ngày ${formatDate(date)}. Kiểm tra thời hạn trên màn điểm danh.`,
           link: `/attendance?classId=${classId}&date=${date}`,
+        }),
+      );
+      return clone(unlockView(db, unlock));
+    });
+  },
+
+  /**
+   * Kết thúc sớm lần mở lại (mở nhầm, giáo viên đã điểm danh xong): hạn = bây giờ, giữ lịch sử (không xóa), báo giáo viên lớp.
+   * PENDING BE: POST /attendance/day-unlocks/{id}/revoke.
+   */
+  async revokeAttendanceDayUnlock(id, user) {
+    await delay();
+    ready();
+    return writeDb((db) => {
+      ensureSeeded(db);
+      const unlock = (db.attendanceDayUnlocks || []).find((u) => u.id === id);
+      if (!unlock) throw new ApiError(404, 'Không tìm thấy lần mở lại.');
+      const cls = findClass(db, unlock.classId);
+      if (!canUnlockAttendanceDay(cls, user)) throw forbidden();
+      if (!isAttendanceUnlockActive(unlock)) throw new ApiError(409, 'Lần mở lại này đã hết hiệu lực.');
+      const at = new Date().toISOString();
+      Object.assign(unlock, { validUntil: at, revokedAt: at, revokedBy: user.id });
+      (cls.teacherIds || []).forEach((userId) =>
+        pushNotification(db, {
+          userId,
+          type: 'ATTENDANCE_DAY_UNLOCK_REVOKED',
+          title: 'Đã kết thúc mở lại điểm danh',
+          message: `${cls.name}: lần mở lại điểm danh ngày ${formatDate(unlock.date)} đã kết thúc.`,
+          link: `/attendance?classId=${cls.id}&date=${unlock.date}`,
         }),
       );
       return clone(unlockView(db, unlock));
@@ -639,7 +682,8 @@ export const attendanceMockRepository = {
       if (cls.schoolYear !== activeYearId(db)) throw new ApiError(422, 'Lớp thuộc năm học đã kết thúc, chỉ xem được.');
       const info = dayInfo(db, date, cls);
       if (!info.schoolDay) throw new ApiError(422, 'Ngày đã chọn không phải ngày học.');
-      if (date !== info.today) throw new ApiError(422, 'Chỉ điểm danh được cho ngày hôm nay.');
+      // Ngày cũ chỉ sửa được khi PHT đã mở lại riêng lớp cho ngày đó
+      if (date !== info.today && !info.unlock) throw new ApiError(422, 'Chỉ điểm danh được cho ngày hôm nay.');
       if (info.locked) throw lockedError(info.cutoff);
       if (info.baseLocked) materializeCounts(db, date);
       const childIds = new Set(activeChildrenOf(db, classId).map((c) => c.id));
@@ -685,7 +729,10 @@ export const attendanceMockRepository = {
           });
         }
       });
-      if (attendanceChanged && info.unlock) {
+      // Sổ đã tổng hợp (mở lại sau giờ chốt, hoặc sổ demo hôm nay xác nhận sẵn trước giờ chốt) mà điểm danh đổi:
+      // không sửa ngầm số đã xác nhận, đưa số mới vào chờ xác nhận lại (NUT-03, ADR-0005)
+      const aggregated = db.mealCounts.some((count) => count.campusId === cls.campusId && count.date === date);
+      if (attendanceChanged && (info.unlock || aggregated)) {
         db.mealCounts
           .filter((count) => count.campusId === cls.campusId && count.date === date)
           .forEach((count) => {
@@ -694,11 +741,17 @@ export const attendanceMockRepository = {
             if (JSON.stringify(pending) === JSON.stringify(baseline)) return;
             count.pendingClasses = pending;
             count.needsReconfirmation = true;
-            count.history.push({ at, userId: user.id, action: 'ATTENDANCE_REOPENED_CHANGED', classId, unlockId: info.unlock.id });
+            count.history.push({
+              at,
+              userId: user.id,
+              action: 'ATTENDANCE_REOPENED_CHANGED',
+              classId,
+              ...(info.unlock ? { unlockId: info.unlock.id } : {}),
+            });
           });
         notifyAll(db, usersOf(db, ROLES.VICE_PRINCIPAL, cls.campusId), {
           type: 'MEAL_COUNT',
-          title: 'Điểm danh thay đổi sau khi mở lại',
+          title: info.unlock ? 'Điểm danh thay đổi sau khi mở lại' : 'Điểm danh thay đổi sau khi đã tổng hợp số suất',
           message: `${cls.name} đã lưu lại điểm danh ngày ${formatDate(date)}. Kiểm tra và xác nhận lại số suất nếu có thay đổi.`,
           link: `/attendance/meal-count?date=${date}`,
         });
@@ -853,11 +906,12 @@ export const attendanceMockRepository = {
    * trong ngày vì báo ăn đánh dấu mọi bữa cùng lúc. Bữa đã xác nhận không sửa ngầm số bếp đang dùng, chuyển sang chờ
    * xác nhận lại (NUT-03, ADR-0005). PENDING BE: POST /meal-counts/adjustments.
    */
-  async adjustMealDay({ campusId, date, classId, normal, substitute, note }, user) {
+  async adjustMealDay({ campusId, date, session, classId, normal, substitute, note }, user) {
     await delay();
     return writeDb((db) => {
       ensureSeeded(db);
-      const counts = db.mealCounts.filter((m) => m.campusId === campusId && m.date === date);
+      // Có session: chỉ sửa bữa đó (tab theo bữa); không có: mọi bữa của lớp trong ngày
+      const counts = db.mealCounts.filter((m) => m.campusId === campusId && m.date === date && (!session || m.session === session));
       if (!counts.length) throw new ApiError(404, 'Không tìm thấy sổ báo ăn của ngày này');
       if (!counts.every((c) => canAdjustMealCount(c, user))) throw forbidden();
       const reason = String(note || '').trim();

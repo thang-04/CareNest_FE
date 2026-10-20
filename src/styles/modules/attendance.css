@@ -564,6 +564,17 @@
 .dd-count__num--sub {
   color: var(--danger-700);
 }
+/* Đầu tab một bữa: trạng thái, số lớp / suất, nút xác nhận bữa */
+.dd-meal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+}
+.dd-count .card__body > .tabs {
+  margin: var(--space-3) 0 0;
+}
 .dd-adjust-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -809,22 +820,5 @@
   .dd-reception > :last-child {
     position: sticky;
     top: calc(var(--header-height) + var(--space-3));
-  }
-}
-/* fieldset bỏ viền/lề mặc định; lề trong lấy từ .card__body */
-.dd-unlock-fields {
-  border: 0;
-  margin: 0;
-  min-width: 0;
-}
-.dd-unlock-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.dd-unlock-fields .field {
-  min-width: 0;
-}
-@media (max-width: 767px) {
-  .dd-unlock-grid {
-    grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -55,17 +55,24 @@ test('chỉ mở lại trong thời hạn phút sau giờ chốt do HT cấu hì
   assert.equal((await repo.getDayInfo(date)).reopenUntil, null);
   await assert.rejects(repo.unlockAttendanceDay(payload(), vp), rejectStatus(409));
 });
-test('chặn lý do trống, thời hạn, ngày cũ và lớp năm học cũ', async () => {
-  for (const patch of [{ reason: ' ' }, { validUntil: new Date(clock - 1).toISOString() }, { validUntil: new Date(clock + 8 * 86400000).toISOString() }, { date: '2026-10-16' }]) await assert.rejects(repo.unlockAttendanceDay(payload(patch), vp), rejectStatus(422));
+// Cần chốt 21/10/2026: chọn được ngày cũ từ đầu năm học đến hôm nay; chặn ngày tương lai và trước ngày bắt đầu năm học
+test('chặn lý do trống, thời hạn, ngày tương lai, ngày trước năm học và lớp năm học cũ', async () => {
+  for (const patch of [{ reason: ' ' }, { validUntil: new Date(clock - 1).toISOString() }, { validUntil: '2027-06-01T00:00:00+07:00' }, { date: '2026-10-20' }, { date: '2026-09-01' }]) await assert.rejects(repo.unlockAttendanceDay(payload(patch), vp), rejectStatus(422));
   writeDb((db) => { db.classes.find((row) => row.id === cls.id).schoolYear = 'old-year'; });
   await assert.rejects(repo.unlockAttendanceDay(payload(), vp), rejectStatus(422));
 });
-test('hết hạn hoặc sang ngày mới tự khóa, dù validUntil ở ngày sau', async () => {
-  const unlock = await repo.unlockAttendanceDay(payload({ validUntil: new Date(clock + 2 * 86400000).toISOString() }), vp);
-  assert.equal((await repo.getDayInfo(date, cls.id, teacher)).locked, false);
-  assert.equal(isAttendanceUnlockActive(unlock, new Date(clock + 86400000)), false);
+test('mở lại ngày cũ: không theo thời hạn của hôm nay, giáo viên sửa được tới hạn Mở đến rồi tự khóa', async () => {
+  // 10:50 đã quá thời hạn mở lại của hôm nay nhưng ngày 16/10 (đã qua) vẫn mở được
+  clock = RealDate.parse('2026-10-19T10:50:00+07:00');
+  const past = '2026-10-16';
+  const unlock = await repo.unlockAttendanceDay(payload({ date: past, validUntil: new Date(clock + 2 * 86400000).toISOString() }), vp);
+  assert.equal((await repo.getDayInfo(past, cls.id, teacher)).locked, false);
+  // Không tự khóa lúc sang ngày mới: còn hiệu lực tới hạn Mở đến
   clock += 86400000;
-  assert.equal((await repo.getDayInfo(date, cls.id, teacher)).locked, true);
+  assert.equal(isAttendanceUnlockActive(unlock, new Date(clock)), true);
+  assert.equal((await repo.getDayInfo(past, cls.id, teacher)).locked, false);
+  clock += 2 * 86400000;
+  assert.equal((await repo.getDayInfo(past, cls.id, teacher)).locked, true);
 });
 test('xác nhận lại đồng bộ phiếu chưa nhận, giữ phiếu đã nhận và snapshot chốt', async () => {
   // Bỏ số suất demo xác nhận sẵn của hôm nay để đi theo luồng chốt giờ khóa → Phó HT xác nhận
