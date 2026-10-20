@@ -1,5 +1,6 @@
 import { readDb, writeDb, clone, delay } from './mockDatabase';
 import { uid } from '@/utils/id';
+import { FACILITY_ENABLED } from '@/config/app';
 
 /** Server-side helper: called inside writeDb by other repositories. */
 export const pushNotification = (db, { userId, type, title, message, link }) => {
@@ -10,7 +11,7 @@ export const pushNotification = (db, { userId, type, title, message, link }) => 
 export const notificationMockRepository = {
   async list(userId) {
     await delay(80);
-    return clone(readDb().notifications.filter((n) => n.userId === userId));
+    return clone(readDb().notifications.filter((n) => n.userId === userId && (FACILITY_ENABLED || !n.link?.startsWith('/facility'))));
   },
   async markRead(id) {
     await delay(50);

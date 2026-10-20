@@ -19,6 +19,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
 import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
+import { FACILITY_ENABLED } from '@/config/app';
 import { FreshReceiptStatusBadge, IssueStatusBadge, MealCountStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { AllergyMenuChanges } from '@/components/kitchen/AllergyMenuChanges';
@@ -298,7 +299,7 @@ export default function KitchenFlowPage({ asHome = false }) {
               {day && <ShortList rows={todoRows(day, user)} />}
             </Widget>
           )}
-          {asHome && user.role === ROLES.KITCHEN_STAFF && <FacilityTasksWidget />}
+          {FACILITY_ENABLED && asHome && user.role === ROLES.KITCHEN_STAFF && <FacilityTasksWidget />}
         </div>
       </div>
       <Widget

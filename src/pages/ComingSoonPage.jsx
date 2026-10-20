@@ -13,10 +13,10 @@ export default function ComingSoonPage() {
         <EmptyState
           icon={Construction}
           title="Chức năng này chưa được triển khai"
-          description="Màn hình thuộc module khác của hệ thống, sẽ được bổ sung sau. Các module đang dùng được: Luân chuyển tài sản, Kiểm kê tài sản."
+          description="Màn hình thuộc module khác của hệ thống, sẽ được bổ sung sau."
           action={
-            <Link className="btn btn--primary" to="/facility/transfers">
-              Mở Luân chuyển tài sản
+            <Link className="btn btn--primary" to="/">
+              Về trang chủ
             </Link>
           }
         />

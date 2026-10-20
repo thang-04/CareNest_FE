@@ -20,6 +20,7 @@ import { Widget, KpiCard, Shortcuts, ShortList, TaskCount } from '@/components/d
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { AttentionWidget, ClassRankWidget } from '@/components/dashboard/TodayWidgets';
 import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
+import { FACILITY_ENABLED } from '@/config/app';
 import { getChildren, getParentAccounts } from '@/services/children/childrenService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getMealPreparations, getMissingFoodReports } from '@/services/kitchen/kitchenService';
@@ -38,7 +39,7 @@ const SHORTCUTS = [
   { to: '/approvals', label: 'Chờ duyệt', icon: ListChecks },
   { to: '/facility/issues', label: 'Vận hành điểm trường', icon: Building2 },
   { to: '/kitchen/preparation', label: 'Dịch vụ bán trú', icon: ChefHat },
-];
+].filter((s) => FACILITY_ENABLED || !s.to.startsWith('/facility'));
 
 /**
  * #11 Vice Principal Dashboard (wireframe A, plan 2026-10-20): số hôm nay có so sánh, việc cần xử lý,
@@ -231,7 +232,7 @@ export default function VicePrincipalDashboard() {
               })}
             />
           </Widget>
-          <FacilityTasksWidget />
+          {FACILITY_ENABLED && <FacilityTasksWidget />}
         </div>
       </div>
     </div>

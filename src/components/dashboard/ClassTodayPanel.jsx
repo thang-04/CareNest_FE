@@ -26,6 +26,7 @@ import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { EVAL_KIND, EVAL_STATUS } from '@/models/assessment/assessmentConstants';
 import { ISSUE_STATUS, REQUEST_STATUS } from '@/models/facility/facilityConstants';
 import { todayInput } from '@/utils/format';
+import { FACILITY_ENABLED } from '@/config/app';
 
 const OPEN_REPORT = [ISSUE_STATUS.SUBMITTED, REQUEST_STATUS.SUBMITTED, REQUEST_STATUS.PENDING_PRINCIPAL];
 
@@ -65,7 +66,7 @@ export function ClassTodayPanel() {
     [classId],
     { enabled: !!classId },
   );
-  const reportsQ = useWidget((u) => getMyReports(u));
+  const reportsQ = useWidget((u) => getMyReports(u), [], { enabled: FACILITY_ENABLED });
 
   if (classesQ.loading && !classesQ.data) {
     return <Widget title="Việc hôm nay của lớp" icon={School} loading />;
@@ -239,14 +240,18 @@ export function ClassTodayPanel() {
               title: 'Sức khỏe của trẻ',
               meta: 'Ghi số đo, theo dõi xu hướng cân nặng – chiều cao',
             },
-            {
-              key: 'facility',
-              to: '/facility/my-reports',
-              icon: Building2,
-              title: 'Báo sự cố & đề nghị CSVC',
-              meta: metaOf(reportsQ, 'Báo cáo, đề nghị của bạn đang chờ xử lý'),
-              end: endOf(reportsQ, openReports),
-            },
+            ...(FACILITY_ENABLED
+              ? [
+                  {
+                    key: 'facility',
+                    to: '/facility/my-reports',
+                    icon: Building2,
+                    title: 'Báo sự cố & đề nghị CSVC',
+                    meta: metaOf(reportsQ, 'Báo cáo, đề nghị của bạn đang chờ xử lý'),
+                    end: endOf(reportsQ, openReports),
+                  },
+                ]
+              : []),
           ]}
         />
       </Widget>

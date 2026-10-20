@@ -13,6 +13,7 @@ import {
   ListChecks,
 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
+import { FACILITY_ENABLED } from '@/config/app';
 import { areaAccess, canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
 
 /*
@@ -246,5 +247,7 @@ const withVpAreas = (menu, user) => {
     .map((e) => (e.children ? { ...e, children: e.children.filter((c) => !hiddenItems.includes(c.key)) } : e));
 };
 
+const withFacility = (menu) => (FACILITY_ENABLED ? menu : menu.filter((e) => e.key !== 'facility'));
+
 export const getMenuForRole = (role, user) =>
-  withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user);
+  withFacility(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user));

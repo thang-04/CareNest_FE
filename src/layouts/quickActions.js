@@ -15,6 +15,7 @@ import {
   Wrench,
 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
+import { FACILITY_ENABLED } from '@/config/app';
 import { areaAccess } from '@/utils/school-config/schoolConfigPermissions';
 
 const R = ROLES;
@@ -61,5 +62,8 @@ const QUICK_ACTIONS = [
 // PHT: mục tạo mới của một mảng chỉ hiện khi Hiệu trưởng giao quyền Thêm ở mảng đó
 export const getQuickActionsForRole = (role, user) =>
   QUICK_ACTIONS.filter(
-    (a) => a.roles.includes(role) && (!a.area || role !== R.VICE_PRINCIPAL || !!areaAccess(user, a.area).actions?.create),
+    (a) =>
+      a.roles.includes(role) &&
+      (FACILITY_ENABLED || !a.to.startsWith('/facility')) &&
+      (!a.area || role !== R.VICE_PRINCIPAL || !!areaAccess(user, a.area).actions?.create),
   );

@@ -1,6 +1,7 @@
 import { ClassTodayPanel } from '@/components/dashboard/ClassTodayPanel';
 import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { FACILITY_ENABLED } from '@/config/app';
 import '@/styles/modules/dashboard.css';
 
 /** #12 Teacher Dashboard: today's class tasks (attendance & meals, lesson plans, health, assessment, pickup, facilities). */
@@ -9,9 +10,11 @@ export default function TeacherDashboard() {
     <div className="page">
       <DashboardHeader subtitle="Việc cần làm hôm nay của lớp bạn phụ trách." />
       <ClassTodayPanel />
-      <div className="db-board mt-16">
-        <FacilityTasksWidget />
-      </div>
+      {FACILITY_ENABLED && (
+        <div className="db-board mt-16">
+          <FacilityTasksWidget />
+        </div>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { RoleGuard } from './RoleGuard';
 import { ProtectedRoute, GuestRoute } from './ProtectedRoute';
 import { LoadingState } from '@/components/ui/States';
 import { ROLES } from '@/models/User';
+import { FACILITY_ENABLED } from '@/config/app';
 import HomePage from '@/pages/HomePage';
 import ComingSoonPage from '@/pages/ComingSoonPage';
 import NotificationsPage from '@/pages/NotificationsPage';
@@ -225,59 +226,63 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route index element={<HomePage />} />
-          <Route path="facility/transfers">
-            <Route index element={<TransferListPage />} />
-            <Route
-              path="new"
-              element={
-                <RoleGuard roles={VP_ONLY}>
-                  <CreateTransferPage />
-                </RoleGuard>
-              }
-            />
-            <Route path=":id" element={<TransferDetailPage />} />
-            <Route
-              path=":id/edit"
-              element={
-                <RoleGuard roles={VP_ONLY}>
-                  <TransferAdjustmentPage />
-                </RoleGuard>
-              }
-            />
-            <Route
-              path=":id/discrepancy"
-              element={
-                <RoleGuard roles={VP_ONLY}>
-                  <TransferDiscrepancyPage />
-                </RoleGuard>
-              }
-            />
-            <Route path=":id/handover" element={<HandoverPage />} />
-            <Route path=":id/receive" element={<ReceivePage />} />
-            <Route path=":id/print" element={<TransferPrintPage />} />
-          </Route>
-          <Route path="facility/inspections">
-            <Route index element={<InspectionListPage />} />
-            <Route
-              path="new"
-              element={
-                <RoleGuard roles={VP_ONLY}>
-                  <CreateInspectionPage />
-                </RoleGuard>
-              }
-            />
-            <Route path=":id" element={<InspectionRoundDetailPage />} />
-            <Route
-              path=":id/edit"
-              element={
-                <RoleGuard roles={VP_ONLY}>
-                  <CreateInspectionPage />
-                </RoleGuard>
-              }
-            />
-            <Route path=":id/sheets/:sheetId" element={<InspectionSheetPage />} />
-            <Route path=":id/print" element={<InspectionPrintPage />} />
-          </Route>
+          {FACILITY_ENABLED && (
+            <>
+              <Route path="facility/transfers">
+                <Route index element={<TransferListPage />} />
+                <Route
+                  path="new"
+                  element={
+                    <RoleGuard roles={VP_ONLY}>
+                      <CreateTransferPage />
+                    </RoleGuard>
+                  }
+                />
+                <Route path=":id" element={<TransferDetailPage />} />
+                <Route
+                  path=":id/edit"
+                  element={
+                    <RoleGuard roles={VP_ONLY}>
+                      <TransferAdjustmentPage />
+                    </RoleGuard>
+                  }
+                />
+                <Route
+                  path=":id/discrepancy"
+                  element={
+                    <RoleGuard roles={VP_ONLY}>
+                      <TransferDiscrepancyPage />
+                    </RoleGuard>
+                  }
+                />
+                <Route path=":id/handover" element={<HandoverPage />} />
+                <Route path=":id/receive" element={<ReceivePage />} />
+                <Route path=":id/print" element={<TransferPrintPage />} />
+              </Route>
+              <Route path="facility/inspections">
+                <Route index element={<InspectionListPage />} />
+                <Route
+                  path="new"
+                  element={
+                    <RoleGuard roles={VP_ONLY}>
+                      <CreateInspectionPage />
+                    </RoleGuard>
+                  }
+                />
+                <Route path=":id" element={<InspectionRoundDetailPage />} />
+                <Route
+                  path=":id/edit"
+                  element={
+                    <RoleGuard roles={VP_ONLY}>
+                      <CreateInspectionPage />
+                    </RoleGuard>
+                  }
+                />
+                <Route path=":id/sheets/:sheetId" element={<InspectionSheetPage />} />
+                <Route path=":id/print" element={<InspectionPrintPage />} />
+              </Route>
+            </>
+          )}
           <Route path="education" element={<EducationPlanLayout />}>
             <Route index element={edu(EDU_VIEW, <EducationHomeRedirect />)} />
             <Route path="school" element={edu([ROLES.PRINCIPAL], <SchoolPlansPage />)} />
@@ -368,24 +373,28 @@ export function AppRoutes() {
             <Route path=":id/health/new" element={only(CLASS_STAFF, <HealthMeasurementFormPage />)} />
             <Route path=":id/health/:measurementId/edit" element={only(CLASS_STAFF, <HealthMeasurementFormPage />)} />
           </Route>
-          <Route path="facility/assets" element={only(ALL_STAFF, <FacilityAssetListPage />)} />
-          <Route path="facility/issues">
-            <Route index element={only(LEADERS, <IssueListPage />)} />
-            <Route path="new" element={only(REPORTERS, <IssueReportPage />)} />
-            <Route path=":id" element={only(ALL_STAFF, <IssueDetailPage />)} />
-          </Route>
-          <Route path="facility/requests">
-            <Route index element={only(LEADERS, <RequestListPage />)} />
-            <Route path="new" element={only(REPORTERS, <RequestFormPage />)} />
-            <Route path=":id" element={only(ALL_STAFF, <RequestDetailPage />)} />
-          </Route>
-          <Route path="facility/my-reports" element={only(REPORTERS, <MyReportsPage />)} />
-          <Route path="facility/proposals">
-            <Route index element={only(LEADERS, <ProposalListPage />)} />
-            <Route path="new" element={only(VP_ONLY, <ProposalFormPage />)} />
-            <Route path=":id" element={only(LEADERS, <ProposalDetailPage />)} />
-            <Route path=":id/edit" element={only(VP_ONLY, <ProposalFormPage />)} />
-          </Route>
+          {FACILITY_ENABLED && (
+            <>
+              <Route path="facility/assets" element={only(ALL_STAFF, <FacilityAssetListPage />)} />
+              <Route path="facility/issues">
+                <Route index element={only(LEADERS, <IssueListPage />)} />
+                <Route path="new" element={only(REPORTERS, <IssueReportPage />)} />
+                <Route path=":id" element={only(ALL_STAFF, <IssueDetailPage />)} />
+              </Route>
+              <Route path="facility/requests">
+                <Route index element={only(LEADERS, <RequestListPage />)} />
+                <Route path="new" element={only(REPORTERS, <RequestFormPage />)} />
+                <Route path=":id" element={only(ALL_STAFF, <RequestDetailPage />)} />
+              </Route>
+              <Route path="facility/my-reports" element={only(REPORTERS, <MyReportsPage />)} />
+              <Route path="facility/proposals">
+                <Route index element={only(LEADERS, <ProposalListPage />)} />
+                <Route path="new" element={only(VP_ONLY, <ProposalFormPage />)} />
+                <Route path=":id" element={only(LEADERS, <ProposalDetailPage />)} />
+                <Route path=":id/edit" element={only(VP_ONLY, <ProposalFormPage />)} />
+              </Route>
+            </>
+          )}
           <Route path="menu">
             <Route path="flow" element={only(VP_ONLY, <NutritionFlowPage />)} />
             <Route path="setup" element={only(LEADERS, <NutritionSetupPage />)} />
@@ -474,7 +483,7 @@ export function AppRoutes() {
           <Route path="settings/appearance" element={<AppearancePage />} />
           <Route path="ui-kit" element={<UiKitPage />} />
           <Route path="coming-soon/:slug" element={<ComingSoonPage />} />
-          <Route path="facility" element={<Navigate to="/facility/transfers" replace />} />
+          {FACILITY_ENABLED && <Route path="facility" element={<Navigate to="/facility/transfers" replace />} />}
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

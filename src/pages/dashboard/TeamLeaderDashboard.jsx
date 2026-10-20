@@ -6,6 +6,7 @@ import { Widget, KpiCard, ShortList } from '@/components/dashboard/DashboardWidg
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { ClassTodayPanel } from '@/components/dashboard/ClassTodayPanel';
 import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
+import { FACILITY_ENABLED } from '@/config/app';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
 import { EDU_STATUS, EDU_STATUS_LABELS } from '@/models/education-plan/educationPlanConstants';
 import { ageGroupById } from '@/models/School';
@@ -111,9 +112,11 @@ export default function TeamLeaderDashboard() {
 
       <h2 className="section-title mt-24">Lớp của bạn</h2>
       <ClassTodayPanel />
-      <div className="db-board mt-16">
-        <FacilityTasksWidget />
-      </div>
+      {FACILITY_ENABLED && (
+        <div className="db-board mt-16">
+          <FacilityTasksWidget />
+        </div>
+      )}
     </div>
   );
 }

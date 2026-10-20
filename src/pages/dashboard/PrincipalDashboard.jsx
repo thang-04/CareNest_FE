@@ -27,6 +27,7 @@ import { ISSUE_STATUS } from '@/models/facility/facilityConstants';
 import { MENU_TYPE } from '@/models/kitchen/kitchenConstants';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { todayInput } from '@/utils/format';
+import { FACILITY_ENABLED } from '@/config/app';
 import '@/styles/modules/dashboard.css';
 
 const firstLoad = (q) => q.loading && q.data == null;
@@ -38,7 +39,7 @@ const SHORTCUTS = [
   { to: '/approvals', label: 'Chờ duyệt', icon: ListChecks },
   { to: '/facility/issues', label: 'Giám sát cơ sở vật chất', icon: Building2 },
   { to: '/menu/plans', label: 'Kế hoạch thực đơn', icon: UtensilsCrossed },
-];
+].filter((s) => FACILITY_ENABLED || !s.to.startsWith('/facility'));
 
 /**
  * #10 Principal Dashboard (UC 3.1, wireframe A plan 2026-10-20): số toàn trường hôm nay có so sánh, lọc theo điểm trường,
@@ -53,7 +54,7 @@ export default function PrincipalDashboard() {
   const todayQ = useDashboardToday(campusId);
 
   const countsQ = useWidget((u) => getMealCounts({ date }, u), [date]);
-  const issuesQ = useWidget((u) => getIssues({ campusId }, u), [campusId]);
+  const issuesQ = useWidget((u) => getIssues({ campusId }, u), [campusId], { enabled: FACILITY_ENABLED });
   const menuQ = useWidget((u) => getPublishedMenu({ date, view: 'day' }, u), [date]);
   const eduQ = useWidget(() => getEducationPlans());
 
@@ -175,17 +176,19 @@ export default function PrincipalDashboard() {
               loading={approvals.loading && !approvals.groups.length}
               error={approvals.error}
             />
-            <KpiCard
-              unit="sự cố"
-              icon={Wrench}
-              to="/facility/issues"
-              tone="red"
-              action
-              label="Sự cố CSVC chờ xử lý"
-              value={openIssues}
-              loading={firstLoad(issuesQ)}
-              error={issuesQ.error}
-            />
+            {FACILITY_ENABLED && (
+              <KpiCard
+                unit="sự cố"
+                icon={Wrench}
+                to="/facility/issues"
+                tone="red"
+                action
+                label="Sự cố CSVC chờ xử lý"
+                value={openIssues}
+                loading={firstLoad(issuesQ)}
+                error={issuesQ.error}
+              />
+            )}
           </div>
         </section>
       </div>
