@@ -17,6 +17,7 @@ export const correctMealAfterLock = (payload, user) => repo.correctMealAfterLock
 export const getAttendanceSummary = (query, user) => repo.getAttendanceSummary(query, user);
 export const getMealCounts = (query, user) => repo.getMealCounts(query, user);
 export const confirmMealCount = (id, user) => repo.confirmMealCount(id, user);
+export const adjustMealDay = (payload, user) => repo.adjustMealDay(payload, user);
 export const getMealHandovers = (query, user) => repo.getMealHandovers(query, user);
 export const confirmHandover = (id, body, user) => repo.confirmHandover(id, body, user);
 export const reportHandoverShortage = (id, body, user) => repo.reportHandoverShortage(id, body, user);

@@ -6,7 +6,7 @@ import { MEAL_COUNT_STATUS, HANDOVER_STATUS } from '@/models/attendance/attendan
  *  - Attendance & meal participation, Record/Edit: Teacher and Team Leader acting as teacher, own class only, before the cut-off (²,⁶).
  *  - Attendance & meal participation, View: Principal full, Vice Principal own campus (¹), Teacher/Team Leader own class (²).
  *  - Meal count by class, View: Principal full, Vice Principal own campus, Kitchen Staff own campus read-only (⁵).
- *  - Confirm meal count: Vice Principal of the campus (UC 6.10, GBR-ATT-06).
+ *  - Confirm meal count: Vice Principal of the campus (UC 6.10, GBR-ATT-06). Adjust with reason: VP of the campus or Principal (PROPOSED 20/10/2026).
  *  - Meal handover: Teacher of the class confirms, Kitchen Staff of the campus supplements (UC 6.26).
  */
 
@@ -39,8 +39,18 @@ export const canViewMealCount = (count, user) => {
   return user.role !== ROLES.KITCHEN_STAFF || count.status === MEAL_COUNT_STATUS.CONFIRMED;
 };
 
+// Sửa số suất: PHT điểm trường hoặc Hiệu trưởng (Cần đề xuất 20/10/2026, PROPOSED); chốt vẫn chỉ PHT điểm trường
+const leadsCampus = (campusId, user) =>
+  user?.role === ROLES.PRINCIPAL || (user?.role === ROLES.VICE_PRINCIPAL && campusId === user.campusId);
+
 export const canConfirmMealCount = (count, user) =>
   user?.role === ROLES.VICE_PRINCIPAL && count?.campusId === user.campusId && count?.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION;
+
+/** Sửa số suất từng lớp để chốt (ghi lý do): sau giờ khóa, cả khi đã xác nhận (chuyển sang chờ xác nhận lại). */
+export const canAdjustMealCount = (count, user) =>
+  !!count?.id &&
+  leadsCampus(count.campusId, user) &&
+  [MEAL_COUNT_STATUS.PENDING_CONFIRMATION, MEAL_COUNT_STATUS.CONFIRMED].includes(count.status);
 
 /** After the lock, a teacher may only cancel a meal of today (child sent home); never add one (GBR-ATT-08). */
 export const canCorrectMealAfterLock = (cls, user) => isClassTeacher(cls, user);

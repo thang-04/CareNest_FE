@@ -538,6 +538,13 @@
 .dd-handover-grid {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
+/* Bảng sĩ số đủ rộng để tên lớp không xuống dòng; lọc còn 1 bữa thì thẻ chiếm cả hàng */
+.dd-count-grid {
+  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+}
+.dd-count td:first-child {
+  white-space: nowrap;
+}
 .dd-count__totals,
 .dd-handover__nums {
   display: flex;
@@ -556,6 +563,11 @@
 }
 .dd-count__num--sub {
   color: var(--danger-700);
+}
+.dd-adjust-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
 }
 .dd-count__actions {
   justify-content: flex-end;

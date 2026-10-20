@@ -21,6 +21,7 @@ import {
 } from '@/models/attendance/attendanceConstants';
 import { MEAL_SESSIONS as KITCHEN_SESSIONS } from '@/models/kitchen/kitchenConstants';
 import {
+  canAdjustMealCount,
   canConfirmMealCount,
   canCorrectMealAfterLock,
   canRecordAttendance,
@@ -274,6 +275,48 @@ const confirmCountIn = (db, count, userId, at) => {
 };
 
 const HANDOVER_TIME = { MORNING: '08:50', LUNCH: '10:40', AFTERNOON: '14:40' };
+
+/** Xác nhận một bữa (kể cả xác nhận lại sau khi số đổi) rồi báo bếp. */
+const confirmOneIn = (db, id, user) => {
+  const count = db.mealCounts.find((m) => m.id === id);
+  if (!count) throw new ApiError(404, 'Không tìm thấy sĩ số suất ăn');
+  if (!canViewMealCount(count, user)) throw forbidden();
+  if (count.status === MEAL_COUNT_STATUS.CONFIRMED && !count.needsReconfirmation)
+    throw new ApiError(409, 'Sĩ số suất ăn này đã được xác nhận.');
+  if (!canConfirmMealCount(mealCountForUser(count, user), user)) throw forbidden();
+  if (count.pendingClasses) {
+    if (count.confirmedAt) {
+      count.confirmedSnapshots ||= [];
+      count.confirmedSnapshots.push({ classes: clone(count.classes), confirmedAt: count.confirmedAt, confirmedBy: count.confirmedBy });
+    }
+    count.classes = clone(count.pendingClasses);
+    delete count.pendingClasses;
+    count.needsReconfirmation = false;
+    count.classes.forEach((line) => {
+      const handover = db.mealHandovers.find(
+        (row) => row.classId === line.classId && row.date === count.date && row.session === count.session,
+      );
+      if (!handover || handover.status !== HANDOVER_STATUS.READY) return;
+      if (handover.expected.normal === line.normal && handover.expected.substitute === line.substitute) return;
+      handover.history.push({
+        at: new Date().toISOString(),
+        userId: user.id,
+        action: 'EXPECTED_RECONFIRMED',
+        previousExpected: clone(handover.expected),
+      });
+      handover.expected = { normal: line.normal, substitute: line.substitute };
+    });
+  }
+  confirmCountIn(db, count, user.id, new Date().toISOString());
+  const total = count.classes.reduce((t, l) => t + l.normal + l.substitute, 0);
+  notifyAll(db, usersOf(db, ROLES.KITCHEN_STAFF, count.campusId), {
+    type: 'MEAL_COUNT',
+    title: 'Sĩ số suất ăn đã xác nhận',
+    message: `${MEAL_SESSION_LABELS[count.session]} ngày ${formatDate(count.date)}: ${total} suất. Xem chi tiết theo lớp.`,
+    link: `/attendance/meal-count?date=${count.date}`,
+  });
+  return count;
+};
 
 // Databases saved before this module existed get demo data once.
 const ensureSeeded = (db) => {
@@ -801,44 +844,52 @@ export const attendanceMockRepository = {
     await delay();
     return writeDb((db) => {
       ensureSeeded(db);
-      const count = db.mealCounts.find((m) => m.id === id);
-      if (!count) throw new ApiError(404, 'Không tìm thấy sĩ số suất ăn');
-      if (!canViewMealCount(count, user)) throw forbidden();
-      if (count.status === MEAL_COUNT_STATUS.CONFIRMED && !count.needsReconfirmation)
-        throw new ApiError(409, 'Sĩ số suất ăn này đã được xác nhận.');
-      if (!canConfirmMealCount(mealCountForUser(count, user), user)) throw forbidden();
-      if (count.pendingClasses) {
-        if (count.confirmedAt) {
-          count.confirmedSnapshots ||= [];
-          count.confirmedSnapshots.push({ classes: clone(count.classes), confirmedAt: count.confirmedAt, confirmedBy: count.confirmedBy });
-        }
-        count.classes = clone(count.pendingClasses);
-        delete count.pendingClasses;
-        count.needsReconfirmation = false;
-        count.classes.forEach((line) => {
-          const handover = db.mealHandovers.find(
-            (row) => row.classId === line.classId && row.date === count.date && row.session === count.session,
-          );
-          if (!handover || handover.status !== HANDOVER_STATUS.READY) return;
-          if (handover.expected.normal === line.normal && handover.expected.substitute === line.substitute) return;
-          handover.history.push({
-            at: new Date().toISOString(),
-            userId: user.id,
-            action: 'EXPECTED_RECONFIRMED',
-            previousExpected: clone(handover.expected),
-          });
-          handover.expected = { normal: line.normal, substitute: line.substitute };
-        });
-      }
-      confirmCountIn(db, count, user.id, new Date().toISOString());
-      const total = count.classes.reduce((t, l) => t + l.normal + l.substitute, 0);
-      notifyAll(db, usersOf(db, ROLES.KITCHEN_STAFF, count.campusId), {
-        type: 'MEAL_COUNT',
-        title: 'Sĩ số suất ăn đã xác nhận',
-        message: `${MEAL_SESSION_LABELS[count.session]} ngày ${formatDate(count.date)}: ${total} suất. Xem chi tiết theo lớp.`,
-        link: `/attendance/meal-count?date=${count.date}`,
+      return withTotals(clone(confirmOneIn(db, id, user)));
+    });
+  },
+
+  /**
+   * PHT điểm trường / Hiệu trưởng sửa số suất / ngày của một lớp (bắt buộc lý do, lưu lịch sử): áp cho mọi bữa của lớp
+   * trong ngày vì báo ăn đánh dấu mọi bữa cùng lúc. Bữa đã xác nhận không sửa ngầm số bếp đang dùng, chuyển sang chờ
+   * xác nhận lại (NUT-03, ADR-0005). PENDING BE: POST /meal-counts/adjustments.
+   */
+  async adjustMealDay({ campusId, date, classId, normal, substitute, note }, user) {
+    await delay();
+    return writeDb((db) => {
+      ensureSeeded(db);
+      const counts = db.mealCounts.filter((m) => m.campusId === campusId && m.date === date);
+      if (!counts.length) throw new ApiError(404, 'Không tìm thấy sổ báo ăn của ngày này');
+      if (!counts.every((c) => canAdjustMealCount(c, user))) throw forbidden();
+      const reason = String(note || '').trim();
+      const details = {};
+      if (!reason) details.note = 'Nhập lý do điều chỉnh.';
+      else if (reason.length > 200) details.note = 'Lý do tối đa 200 ký tự.';
+      [
+        ['normal', normal],
+        ['substitute', substitute],
+      ].forEach(([k, v]) => {
+        if (!Number.isInteger(v) || v < 0 || v > 200) details[k] = 'Nhập số nguyên từ 0 đến 200.';
       });
-      return withTotals(clone(count));
+      if (Object.keys(details).length) throw new ApiError(422, 'Dữ liệu điều chỉnh chưa hợp lệ.', details);
+      const at = new Date().toISOString();
+      let changed = 0;
+      counts.forEach((count) => {
+        const current = (count.pendingClasses || count.classes).find((l) => l.classId === classId);
+        if (!current || (current.normal === normal && current.substitute === substitute)) return;
+        if (count.status === MEAL_COUNT_STATUS.CONFIRMED && !count.pendingClasses) {
+          count.pendingClasses = clone(count.classes);
+          count.needsReconfirmation = true;
+        }
+        const line = count.pendingClasses ? count.pendingClasses.find((l) => l.classId === classId) : current;
+        const delta = { normal: normal - line.normal, substitute: substitute - line.substitute };
+        line.normal = normal;
+        line.substitute = substitute;
+        count.adjustments.push({ at, userId: user.id, classId, ...delta, note: reason, byLeader: true });
+        count.history.push({ at, userId: user.id, action: 'ADJUSTED', note: `${line.className}: ${reason}` });
+        changed += 1;
+      });
+      if (!changed) throw new ApiError(422, 'Số suất chưa thay đổi.', { normal: 'Số suất chưa thay đổi.' });
+      return counts.map((c) => mealCountForUser(clone(c), user));
     });
   },
 

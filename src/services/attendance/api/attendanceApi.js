@@ -17,6 +17,8 @@ export const attendanceApi = {
       : axiosClient.get('/attendance/summary', { params: { from, to, ...(campusId ? { campusId } : {}) } }),
   getMealCounts: ({ date }) => axiosClient.get('/meal-counts', { params: { date } }),
   confirmMealCount: (id) => axiosClient.post(`/meal-counts/${id}/confirm`),
+  // PENDING BE: sửa số suất / ngày của một lớp (kèm lý do), áp cho mọi bữa trong ngày
+  adjustMealDay: (body) => axiosClient.post('/meal-counts/adjustments', body),
   getMealHandovers: ({ date }) => axiosClient.get('/meal-handovers', { params: { date } }),
   confirmHandover: (id, body) => axiosClient.post(`/meal-handovers/${id}/confirm`, body),
   reportHandoverShortage: (id, body) => axiosClient.post(`/meal-handovers/${id}/shortage`, body),
