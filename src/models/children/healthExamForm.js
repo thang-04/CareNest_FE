@@ -8,7 +8,7 @@
  * @typedef {Object} HealthExam
  * @property {number} step                       bước xa nhất đã tới (0–4), để mở lại phiếu nháp đúng chỗ
  * @property {ExamAdmin} admin
- * @property {{ self: YesNo|'', selfText: string, family: YesNo|'', familyText: string, tbContact: YesNo|'' }} history
+ * @property {{ self: YesNo|'', selfText: string, family: YesNo|'', familyText: string, tbContact: YesNo|'', tbContactDate: string }} history
  * @property {{ temperatureC: string|number, temperatureStatus: string, pulse: string|number, pulseStatus: string,
  *   respiratoryRate: string|number, respiratoryStatus: string }} vitals
  * @property {{ lengthForAgeSd: string|number, weightForAgeSd: string|number, headStatus: string,
@@ -80,7 +80,14 @@ export const GUARDIAN_TO_COMPANION_RELATION = { Bố: 'Cha', Mẹ: 'Mẹ', Ông:
 export const HISTORY_ITEMS = [
   { key: 'self', label: 'Tiền sử bản thân', options: NO_YES, textKey: 'selfText', textLabel: 'Tên bệnh của trẻ' },
   { key: 'family', label: 'Tiền sử gia đình', options: NO_YES, textKey: 'familyText', textLabel: 'Tên bệnh trong gia đình' },
-  { key: 'tbContact', label: 'Tiền sử tiếp xúc với người bệnh lao', options: NO_YES },
+  // "Có" thì kèm ngày tiếp xúc gần nhất, điền sẵn từ khai báo (user chốt 2026-10-21).
+  {
+    key: 'tbContact',
+    label: 'Tiền sử tiếp xúc với người bệnh lao',
+    options: NO_YES,
+    dateKey: 'tbContactDate',
+    dateLabel: 'Ngày tiếp xúc gần nhất',
+  },
 ];
 
 export const VITAL_ITEMS = [
@@ -336,7 +343,7 @@ export const buildEmptyExam = () => ({
     hasCompanion: '',
     companion: { guardianIndex: null, fullName: '', relation: '', phone: '', idNumber: '' },
   },
-  history: { self: '', selfText: '', family: '', familyText: '', tbContact: '' },
+  history: { self: '', selfText: '', family: '', familyText: '', tbContact: '', tbContactDate: '' },
   vitals: { temperatureC: '', temperatureStatus: '', pulse: '', pulseStatus: '', respiratoryRate: '', respiratoryStatus: '' },
   nutrition: { lengthForAgeSd: '', weightForAgeSd: '', headStatus: '', armCircumferenceMm: '', statuses: [] },
   development: { mental: '', motor: '', autismRisk: '' },

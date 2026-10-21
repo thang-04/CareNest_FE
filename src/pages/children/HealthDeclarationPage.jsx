@@ -105,7 +105,7 @@ export default function HealthDeclarationPage() {
   const startEdit = () => openEditor(declaration || undefined);
 
   const save = async () => {
-    const errs = validateDeclaration(form);
+    const errs = validateDeclaration(form, { dateOfBirth: child.dateOfBirth });
     if (needsReason && !reason.trim()) errs.reason = 'Nhập lý do thay đổi khai báo';
     setErrors(errs);
     if (hasErrors(errs)) return;
@@ -151,6 +151,7 @@ export default function HealthDeclarationPage() {
         <>
           <section className="card wizard-card">
             <HealthDeclarationFields
+              dateOfBirth={child.dateOfBirth}
               value={form}
               onChange={(v) => {
                 setForm(v);

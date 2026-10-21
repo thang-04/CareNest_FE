@@ -50,6 +50,7 @@ import {
 } from '@/utils/children/childrenPermissions';
 import { headCircumferenceUntil, screenMeasurement } from './healthScreeningRule';
 import {
+  addDays,
   applyFollowUpReminders,
   campaignStatusOf,
   closeFollowUpsOfWithdrawnChild,
@@ -173,6 +174,36 @@ const backfillGuardianIds = (d) => {
   d.guardianIdVersion = GUARDIAN_ID_VERSION;
 };
 
+/**
+ * DB demo (một lần): khai "Có tiếp xúc người bệnh lao" và phiếu khám "Có" đều có ngày tiếp xúc gần nhất (user chốt 2026-10-21).
+ * Lấy ngày đã ghi ở phiếu khám/khai báo của cùng trẻ; không có thì 30 ngày trước ngày khai báo/ngày khám, không trước ngày sinh.
+ */
+const TB_CONTACT_DATE_VERSION = 1;
+const backfillTbContactDates = (d) => {
+  const childById = new Map((d.children || []).map((c) => [c.id, c]));
+  const fallback = (childId, date) => {
+    const dob = childById.get(childId)?.dateOfBirth || '';
+    const day = addDays(date, -30);
+    return day < dob ? dob : day;
+  };
+  const examDateOf = (childId) =>
+    (d.healthMeasurements || [])
+      .filter((m) => m.childId === childId && m.exam?.history?.tbContact === 'YES' && m.exam.history.tbContactDate)
+      .sort((a, b) => b.date.localeCompare(a.date))[0]?.exam.history.tbContactDate || '';
+  (d.healthDeclarations || []).forEach((decl) => {
+    const tb = decl.medicalHistory?.tbContact;
+    if (tb?.state !== DECLARATION_STATE.REPORTED || tb.contactDate) return;
+    tb.contactDate = examDateOf(decl.childId) || fallback(decl.childId, (decl.declaredAt || nowIso()).slice(0, 10));
+  });
+  (d.healthMeasurements || []).forEach((m) => {
+    const h = m.exam?.history;
+    if (!h || h.tbContact !== 'YES' || h.tbContactDate) return;
+    const declared = tbContactDateOf(declarationOf(d, m.childId)?.medicalHistory);
+    h.tbContactDate = declared && declared <= m.date ? declared : fallback(m.childId, m.date);
+  });
+  d.tbContactDateVersion = TB_CONTACT_DATE_VERSION;
+};
+
 const upgradeSeedProfiles = (d) =>
   Object.entries(SEED_CHILD_PROFILES).forEach(([id, s]) => {
     const decl = d.healthDeclarations.find((x) => x.childId === id);
@@ -219,6 +250,10 @@ export const ensureChildRecordsSeeded = () => {
   }
   if (db.guardianIdVersion !== GUARDIAN_ID_VERSION) {
     writeDb(backfillGuardianIds);
+    db = readDb();
+  }
+  if (db.tbContactDateVersion !== TB_CONTACT_DATE_VERSION) {
+    writeDb(backfillTbContactDates);
     db = readDb();
   }
   const due = dueFollowUpReminders(db);
@@ -434,7 +469,12 @@ const cleanMedicalHistory = (mh) => {
     state: v?.state || DECLARATION_STATE.NOT_PROVIDED,
     text: v?.state === DECLARATION_STATE.REPORTED ? String(v.text || '').trim() : '',
   });
-  return { self: item(mh?.self), family: item(mh?.family), tbContact: { state: mh?.tbContact?.state || DECLARATION_STATE.NOT_PROVIDED } };
+  const tbState = mh?.tbContact?.state || DECLARATION_STATE.NOT_PROVIDED;
+  return {
+    self: item(mh?.self),
+    family: item(mh?.family),
+    tbContact: { state: tbState, contactDate: tbState === DECLARATION_STATE.REPORTED ? mh.tbContact.contactDate || '' : '' },
+  };
 };
 
 const cleanDeclaration = (d) => ({
@@ -483,31 +523,50 @@ export const profileChanges = (from, to) => {
   }));
 };
 
+const schoolLeadersOf = (d, child) =>
+  (d.users || []).filter((u) => u.role === 'PRINCIPAL' || (u.role === 'VICE_PRINCIPAL' && u.campusId === child.campusId)).map((u) => u.id);
+
 /**
  * Khai "Có tiếp xúc với người bệnh lao" ⇒ báo Hiệu trưởng, Phó hiệu trưởng điểm trường, giáo viên lớp, trừ người lưu
- * (user chốt 2026-10-17). Câu trung tính; không mở phiếu theo dõi.
+ * (user chốt 2026-10-17); câu báo kèm ngày tiếp xúc gần nhất (2026-10-21). Câu trung tính; không mở phiếu theo dõi.
  */
-export const notifyTbContactReported = (d, child, actorId) => {
+export const notifyTbContactReported = (d, child, actorId, contactDate) => {
   const cls = child.classId ? d.classes.find((c) => c.id === child.classId) : null;
-  const ids = new Set([
-    ...(d.users || [])
-      .filter((u) => u.role === 'PRINCIPAL' || (u.role === 'VICE_PRINCIPAL' && u.campusId === child.campusId))
-      .map((u) => u.id),
-    ...(cls?.teacherIds || []),
-  ]);
+  const ids = new Set([...schoolLeadersOf(d, child), ...(cls?.teacherIds || [])]);
   ids.delete(actorId);
+  const when = contactDate ? ` (gần nhất ngày ${formatDate(contactDate)})` : '';
   ids.forEach((userId) =>
     pushNotification(d, {
       userId,
       type: 'CHILD_TB_CONTACT',
       title: 'Trẻ có tiền sử tiếp xúc với người bệnh lao',
-      message: `Phụ huynh khai ${child.fullName} có tiền sử tiếp xúc với người bệnh lao. Nhà trường trao đổi với phụ huynh về việc đưa trẻ đi khám sàng lọc; bác sĩ xem lại ở đợt khám tới.`,
+      message: `Phụ huynh khai ${child.fullName} có tiền sử tiếp xúc với người bệnh lao${when}. Nhà trường trao đổi với phụ huynh về việc đưa trẻ đi khám sàng lọc; bác sĩ xem lại ở đợt khám tới.`,
+      link: `/children/${child.id}/health-declaration`,
+    }),
+  );
+};
+
+/**
+ * Ngày tiếp xúc gần nhất đã có mà đổi sang ngày khác (sửa khai báo hoặc lưu kết luận phiếu khám) ⇒ báo Hiệu trưởng và
+ * Phó hiệu trưởng điểm trường, trừ người lưu; không báo giáo viên (user chốt 2026-10-21). source: nơi đổi.
+ */
+export const notifyTbContactDateChanged = (d, child, { from, to, source }, actorId) => {
+  if (!from || !to || from === to) return;
+  const ids = new Set(schoolLeadersOf(d, child));
+  ids.delete(actorId);
+  ids.forEach((userId) =>
+    pushNotification(d, {
+      userId,
+      type: 'CHILD_TB_CONTACT_DATE_CHANGED',
+      title: 'Đổi ngày tiếp xúc với người bệnh lao',
+      message: `Ngày tiếp xúc gần nhất với người bệnh lao của ${child.fullName} đổi từ ${formatDate(from)} sang ${formatDate(to)} (${source}).`,
       link: `/children/${child.id}/health-declaration`,
     }),
   );
 };
 
 const tbReported = (mh) => mh?.tbContact?.state === DECLARATION_STATE.REPORTED;
+const tbContactDateOf = (mh) => (tbReported(mh) ? mh.tbContact.contactDate || '' : '');
 
 /** Placement checks (UC 3.10 step 4): class of the VP's campus, active, not full. */
 const assertClassAvailable = (db, classId, user) => {
@@ -545,7 +604,10 @@ const throwConflicts = (conflicts) => {
 };
 
 const validateEnrollment = (db, { child, declaration }, excludeId) => {
-  const errors = { ...validateChildInfo(child), ...prefix('declaration', validateDeclaration(declaration)) };
+  const errors = {
+    ...validateChildInfo(child),
+    ...prefix('declaration', validateDeclaration(declaration, { dateOfBirth: child?.dateOfBirth })),
+  };
   const dup = !errors.fullName && !errors.dateOfBirth ? isDuplicate(db, child, excludeId) : null;
   return { errors, dup, conflicts: guardianConflicts(db, child?.guardians, errors, excludeId) };
 };
@@ -580,7 +642,7 @@ const createChild = (db, { child, declaration }, { classId, user }) => {
   });
   if (classId)
     db.childPlacements.push({ id: uid('pl'), childId: record.id, fromClassId: null, toClassId: classId, userId: user.id, at: nowIso() });
-  if (tbReported(decl.medicalHistory)) notifyTbContactReported(db, record, user.id);
+  if (tbReported(decl.medicalHistory)) notifyTbContactReported(db, record, user.id, tbContactDateOf(decl.medicalHistory));
   return record;
 };
 
@@ -940,7 +1002,7 @@ export const childrenMockRepository = {
     const db = ensureSeeded();
     const child = findChild(db, childId);
     if (!canDeclareHealth(child, user)) forbid();
-    const errors = validateDeclaration(declaration);
+    const errors = validateDeclaration(declaration, { dateOfBirth: child.dateOfBirth });
     const current = declarationOf(db, childId);
     if (current && !reason?.trim()) errors.reason = 'Nhập lý do thay đổi khai báo';
     if (hasErrors(errors)) invalid(errors);
@@ -957,11 +1019,14 @@ export const childrenMockRepository = {
       const before = decl.medicalHistory || emptyMedicalHistory();
       if (JSON.stringify(before) !== JSON.stringify(clean.medicalHistory))
         entry.historyChange = { from: clone(before), to: clone(clean.medicalHistory) };
-      // Chỉ báo khi chuyển sang "Có tiếp xúc", không báo lại khi lưu lại.
+      // Chỉ báo khi chuyển sang "Có tiếp xúc", không báo lại khi lưu lại; đã có ngày mà đổi ngày thì báo BGH (2026-10-21).
       const newTbContact = !tbReported(before) && tbReported(clean.medicalHistory);
+      const dateChange = { from: tbContactDateOf(before), to: tbContactDateOf(clean.medicalHistory), source: 'sửa khai báo sức khỏe' };
       Object.assign(decl, clean, { declaredBy: user.id, declaredAt: nowIso() });
       decl.history.push(entry);
-      if (newTbContact) notifyTbContactReported(d, findChild(d, childId), user.id);
+      const target = findChild(d, childId);
+      if (newTbContact) notifyTbContactReported(d, target, user.id, dateChange.to);
+      else notifyTbContactDateChanged(d, target, dateChange, user.id);
       // Khai báo của Phó hiệu trưởng có hiệu lực ngay: bếp và điểm danh đọc danh sách mới.
       findChild(d, childId).allergies = [...clean.allergies.items];
       return clone(decl);

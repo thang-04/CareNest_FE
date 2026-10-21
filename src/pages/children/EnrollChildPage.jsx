@@ -193,7 +193,7 @@ export default function EnrollChildPage() {
       // Lớp không bắt buộc khi tiếp nhận: bỏ trống thì trẻ ở trạng thái Chờ xếp lớp.
       goTo(2);
     } else if (step === 2) {
-      const errs = validateDeclaration(declaration);
+      const errs = validateDeclaration(declaration, { dateOfBirth: info.dateOfBirth });
       setErrors((e) => ({ ...e, declaration: errs }));
       if (!hasErrors(errs)) goTo(3);
     }
@@ -392,6 +392,7 @@ export default function EnrollChildPage() {
         <section className="card wizard-card">
           <h2 className="card__title mb-12">Khai báo sức khỏe khi tiếp nhận</h2>
           <HealthDeclarationFields
+            dateOfBirth={info.dateOfBirth}
             value={declaration}
             onChange={(v) => {
               setDeclaration(v);

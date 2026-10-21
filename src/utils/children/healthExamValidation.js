@@ -17,7 +17,7 @@ import {
   YES_NO,
 } from '@/models/children/healthExamForm';
 import { todayInput } from '@/utils/format';
-import { ID_NUMBER_MESSAGE, isValidIdNumber, isValidPhone } from './childrenValidation';
+import { ID_NUMBER_MESSAGE, isValidIdNumber, isValidPhone, tbContactDateError } from './childrenValidation';
 
 /*
  * Kiểm tra nhập liệu của phiếu Phụ lục II khi lưu kết luận (form báo ngay, backend giả trả 422 cùng khóa).
@@ -130,6 +130,10 @@ export const validateHealthExam = (payload, { dateOfBirth, campaign, reference, 
     checkChoice(errors, `exam.history.${item.key}`, v, item.options, `Chọn ${item.label.toLowerCase()}`);
     if (item.textKey && v === YES_NO.YES && !text(exam.history[item.textKey])) errors[`exam.history.${item.textKey}`] = 'Ghi rõ tên bệnh';
     if (item.textKey) checkLength(errors, `exam.history.${item.textKey}`, exam.history?.[item.textKey], L.text);
+    if (item.dateKey && v === YES_NO.YES) {
+      const dateError = tbContactDateError(exam.history[item.dateKey], { dateOfBirth, notAfter: payload.date });
+      if (dateError) errors[`exam.history.${item.dateKey}`] = dateError;
+    }
   });
 
   // II. Sinh tồn

@@ -116,7 +116,7 @@ const toDeclaration = (allergies, diet, raw = {}) => {
     medicalHistory: {
       self: toHistoryItem(raw.selfHistory),
       family: toHistoryItem(raw.familyHistory),
-      tbContact: { state: toTbState(raw.tbContact) },
+      tbContact: { state: toTbState(raw.tbContact), contactDate: toIsoDate(raw.tbContactDate) },
     },
   };
 };

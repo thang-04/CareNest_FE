@@ -38,7 +38,7 @@ const downloadTemplate = () =>
       [
         ...['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', '9999 1200 0111'],
         ...['phuhuynh.mau@example.com', 'Không', ''],
-        ...['', 'Không', '', 'Kinh', '', 'BHYT', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu', 'Không', '', ''],
+        ...['', 'Không', '', 'Kinh', '', 'BHYT', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu', 'Không', '', '', ''],
       ],
     ],
     'mau-tiep-nhan-tre.csv',
@@ -154,7 +154,8 @@ export default function ImportChildrenPage() {
           số CCCD phụ huynh (12 chữ số; để ô dạng chữ để Excel không bỏ số 0 đầu), email và hồ sơ trùng. File mẫu cũ chưa có cột &quot;Số
           CCCD phụ huynh&quot; thì tải lại file mẫu. Sửa các dòng lỗi trong file rồi tải lên lại. Sau khi nhập, trẻ cần được xếp lớp để hoàn
           tất tiếp nhận. Các cột hành chính và tiền sử (dùng cho phiếu khám sức khỏe) không bắt buộc; để trống là chưa cung cấp. Trẻ khai có
-          tiếp xúc với người bệnh lao thì hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.
+          tiếp xúc với người bệnh lao thì phải ghi ngày tiếp xúc gần nhất (dd/mm/yyyy); hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm
+          trường khi nhập.
         </div>
       </div>
 

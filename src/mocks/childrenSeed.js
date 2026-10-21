@@ -108,7 +108,7 @@ const EXAM_CASES = {
   ch_006: {
     case: 'Nguy cơ mắc lao (tiền sử tiếp xúc), có người đi cùng',
     headOffset: -0.2,
-    history: { tbContact: 'YES' },
+    history: { tbContact: 'YES', tbContactDate: '2026-09-05' },
     conclusion: {
       normal: false,
       tbRisk: true,
@@ -164,6 +164,7 @@ const EXAM_CASES = {
       family: 'YES',
       familyText: 'Ông nội từng điều trị lao',
       tbContact: 'YES',
+      tbContactDate: '2026-08-20',
     },
     nutrition: { statuses: ['MALNUTRITION', 'ANEMIA_SIGNS'], weightForAgeSd: -2.4, lengthForAgeSd: -1.1, armCircumferenceMm: 128 },
     immunization: { fullSchedule: 'NO' },
@@ -504,7 +505,7 @@ export const SEED_CHILD_PROFILES = {
     medicalHistory: {
       self: { state: 'NONE_REPORTED', text: '' },
       family: { state: 'NOT_PROVIDED', text: '' },
-      tbContact: { state: 'REPORTED' },
+      tbContact: { state: 'REPORTED', contactDate: '2026-07-28' },
     },
   },
   // Vấn đề đã biết: ch_023 khám đợt này chọn "đã biết"; ch_031 đóng phiếu với kết quả chuyên khoa xác định có vấn đề.

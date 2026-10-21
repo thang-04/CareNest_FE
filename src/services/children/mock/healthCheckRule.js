@@ -36,7 +36,7 @@ export const unclosedCampaignOf = (db, campusId, excludeId) =>
 export const FOLLOW_UP_CONTACT_DUE_DAYS = 7;
 const S = FOLLOW_UP_STATUS;
 
-const addDays = (date, n) => {
+export const addDays = (date, n) => {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);

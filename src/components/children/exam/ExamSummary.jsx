@@ -90,6 +90,7 @@ export function ExamSummary({ measurement: m, child, campaign }) {
             <dd>
               <Choice options={i.options} value={e.history[i.key]} />
               {i.textKey && e.history[i.textKey] ? ` — ${e.history[i.textKey]}` : ''}
+              {i.dateKey && e.history[i.dateKey] ? ` — gần nhất ngày ${formatDate(e.history[i.dateKey])}` : ''}
             </dd>
           </div>
         ))}

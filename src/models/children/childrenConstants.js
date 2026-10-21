@@ -167,6 +167,8 @@ export const IMPORT_COLUMNS = [
   { key: 'selfHistory', label: 'Tiền sử bản thân (để trống = chưa cung cấp, "Không" = không có)', required: false },
   { key: 'familyHistory', label: 'Tiền sử gia đình (để trống = chưa cung cấp, "Không" = không có)', required: false },
   { key: 'tbContact', label: 'Tiếp xúc người bệnh lao (Có/Không, để trống = chưa cung cấp)', required: false },
+  // Bắt buộc khi cột trên là "Có" (user chốt 2026-10-21); kiểm theo dòng.
+  { key: 'tbContactDate', label: 'Ngày tiếp xúc người bệnh lao gần nhất (dd/mm/yyyy)', required: false },
 ];
 
 export const MEASUREMENT_FIELD_LABELS = {

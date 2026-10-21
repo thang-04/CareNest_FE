@@ -1,7 +1,7 @@
 import { DECLARATION_STATE } from '@/models/children/childrenConstants';
 import { FOLLOW_UP_CLOSE_OUTCOME, FOLLOW_UP_FIELD_LIMITS } from '@/models/children/healthCheckConstants';
 import { citizenIdError, normalizeCitizenId } from '@/utils/citizenId';
-import { formatDate, todayInput } from '@/utils/format';
+import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 
 /*
  * Input checks shared by the forms (instant feedback) and the mock repository (422).
@@ -78,8 +78,20 @@ export const validateChildInfo = (data) => {
 
 export const validatePlacement = ({ classId }) => (classId ? {} : { classId: 'Chọn lớp cho trẻ' });
 
+/**
+ * Ngày tiếp xúc người bệnh lao gần nhất (user chốt 2026-10-21): bắt buộc khi khai "Có"; không ở tương lai, không trước ngày
+ * sinh; ở phiếu khám không sau ngày khám (notAfter). Trả câu lỗi hoặc null.
+ */
+export const tbContactDateError = (value, { dateOfBirth, notAfter } = {}) => {
+  if (!isIsoDate(value)) return 'Chọn ngày tiếp xúc gần nhất';
+  if (value > today()) return 'Ngày tiếp xúc không được ở tương lai';
+  if (notAfter && value > notAfter) return `Ngày tiếp xúc không được sau ngày khám ${formatDate(notAfter)}`;
+  if (dateOfBirth && value < dateOfBirth) return 'Ngày tiếp xúc không được trước ngày sinh của trẻ';
+  return null;
+};
+
 /** Declaration: "Reported" needs content; the other states record absence or "not provided" (UC 5.2). */
-export const validateDeclaration = (d) => {
+export const validateDeclaration = (d, { dateOfBirth } = {}) => {
   const errors = {};
   if (!d) return { allergies: 'Khai báo sức khỏe còn thiếu' };
   if (!Object.values(DECLARATION_STATE).includes(d.allergies?.state)) errors.allergies = 'Chọn tình trạng dị ứng';
@@ -100,6 +112,10 @@ export const validateDeclaration = (d) => {
     });
     if (!states.includes(mh.tbContact?.state))
       errors['medicalHistory.tbContact'] = 'Tiếp xúc người bệnh lao chọn Có, Không hoặc Chưa cung cấp';
+    else if (mh.tbContact.state === DECLARATION_STATE.REPORTED) {
+      const dateError = tbContactDateError(mh.tbContact.contactDate, { dateOfBirth });
+      if (dateError) errors['medicalHistory.tbContactDate'] = dateError;
+    }
   }
   return errors;
 };

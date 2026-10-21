@@ -34,6 +34,7 @@ import {
   ensureChildRecordsSeeded,
   ensureDeclarationOf,
   isExamDraft,
+  notifyTbContactDateChanged,
   profileChanges,
   toMeasurementView,
 } from './childrenMockRepository';
@@ -113,7 +114,7 @@ const prefillExam = (db, child) => {
   [
     ['self', 'selfText'],
     ['family', 'familyText'],
-    ['tbContact', null],
+    ['tbContact', 'tbContactDate'],
   ].forEach(([k, textKey]) => {
     const useLast = !fromDecl[k] && last;
     exam.history[k] = useLast ? last.exam.history[k] : fromDecl[k];
@@ -137,7 +138,7 @@ const prefillExam = (db, child) => {
 
 /**
  * Lưu kết luận ⇒ cập nhật ngược hành chính vào hồ sơ trẻ, tiền sử vào khai báo sức khỏe (user chốt 2026-10-17, 2b).
- * Ghi lịch sử ở cả hai nơi; không gửi thông báo tiếp xúc lao (bác sĩ đã kết luận nguy cơ lao trên phiếu).
+ * Ghi lịch sử ở cả hai nơi; không báo khai lần đầu tiếp xúc lao (3b), nhưng ngày tiếp xúc đã có mà đổi thì báo BGH (2026-10-21).
  */
 const writeBackProfile = (db, child, m, user) => {
   const note = `Cập nhật từ phiếu khám ngày ${formatDate(m.date)}`;
@@ -154,6 +155,12 @@ const writeBackProfile = (db, child, m, user) => {
   if (JSON.stringify(before ? historyToExam(before) : historyToExam()) === JSON.stringify(historyToExam(nextHistory))) return;
   const decl = ensureDeclarationOf(db, child.id);
   decl.medicalHistory = nextHistory;
+  const dateChange = {
+    from: before ? historyToExam(before).tbContactDate : '',
+    to: historyToExam(nextHistory).tbContactDate,
+    source: `phiếu khám ngày ${formatDate(m.date)}`,
+  };
+  notifyTbContactDateChanged(db, child, dateChange, user.id);
   decl.history = [
     ...(decl.history || []),
     {
@@ -299,6 +306,7 @@ const examEntries = (m) => {
     ...HISTORY_ITEMS.flatMap((i) => [
       [`exam.history.${i.key}`, i.label, yn(e.history[i.key])],
       ...(i.textKey ? [[`exam.history.${i.textKey}`, i.textLabel, e.history[i.textKey]]] : []),
+      ...(i.dateKey ? [[`exam.history.${i.dateKey}`, i.dateLabel, e.history[i.dateKey] ? formatDate(e.history[i.dateKey]) : '']] : []),
     ]),
     ...VITAL_ITEMS.flatMap((i) => [
       [`exam.vitals.${i.key}`, i.label, e.vitals[i.key]],

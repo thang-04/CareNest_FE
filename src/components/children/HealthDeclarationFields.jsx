@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Plus, X, Info } from '@/components/ui/icons';
+import { FormField } from '@/components/form/FormField';
 import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS, NOTE_STATE_LABELS } from '@/models/children/childrenConstants';
 import { MEDICAL_HISTORY_ITEMS, MEDICAL_HISTORY_STATE_LABELS, emptyMedicalHistory } from '@/models/children/childProfile';
+import { todayInput } from '@/utils/format';
 
 function StateRadios({ name, labels, value, onChange }) {
   return (
@@ -18,9 +20,9 @@ function StateRadios({ name, labels, value, onChange }) {
 
 /**
  * Enrollment health declaration (SRS #30, UC 5.2): what the parent reported, "none reported",
- * or "not provided" – never assumed and never a diagnosis.
+ * or "not provided" – never assumed and never a diagnosis. dateOfBirth: chặn ngày tiếp xúc trước ngày sinh.
  */
-export function HealthDeclarationFields({ value, onChange, errors = {} }) {
+export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBirth }) {
   const [item, setItem] = useState('');
   const set = (block, patch) => onChange({ ...value, [block]: { ...value[block], ...patch } });
   // Khai báo cũ chưa có tiền sử ⇒ coi như Chưa cung cấp.
@@ -179,12 +181,31 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
                 onChange={(e) => setHistory(it.key, { text: e.target.value })}
               />
             )}
+            {it.dateLabel && v.state === DECLARATION_STATE.REPORTED && (
+              <FormField
+                className="mt-12"
+                label={it.dateLabel}
+                required
+                error={errors[`medicalHistory.${it.key}Date`]}
+                hint="Theo lời phụ huynh; không nhớ chính xác thì ghi ngày ước lượng."
+              >
+                <input
+                  type="date"
+                  className="input"
+                  value={v.contactDate || ''}
+                  min={dateOfBirth || undefined}
+                  max={todayInput()}
+                  onChange={(e) => setHistory(it.key, { contactDate: e.target.value })}
+                />
+              </FormField>
+            )}
             {it.key === 'tbContact' && v.state === DECLARATION_STATE.REPORTED && (
               <div className="alert alert--info mt-12">
                 <Info size={18} />
                 <div>
                   Khi lưu, hệ thống báo Hiệu trưởng, Phó hiệu trưởng điểm trường và giáo viên lớp để trao đổi với phụ huynh về việc đưa trẻ
-                  đi khám sàng lọc. Bác sĩ xem lại ở đợt khám tới.
+                  đi khám sàng lọc. Bác sĩ xem lại ở đợt khám tới. Sau này đổi ngày tiếp xúc (ở đây hoặc ở phiếu khám) thì hệ thống báo Hiệu
+                  trưởng, Phó hiệu trưởng điểm trường.
                 </div>
               </div>
             )}

@@ -12,6 +12,8 @@ import { axiosClient } from '@/services/http/axiosClient';
  * Khai tiếp xúc người bệnh lao ⇒ BE gửi thông báo CHILD_TB_CONTACT. Lưu kết luận phiếu khám ⇒ BE cập nhật ngược 2 phần này.
  * CCCD phụ huynh (2026-10-21): guardians[].idNumber (12 chữ số, bắt buộc) trong POST enrollments, PUT /children/{id}, file nhập
  * (cột "Số CCCD phụ huynh") và mọi response có guardians; parent-account-options trả idNumber; trùng phụ huynh khác ⇒ 409 + details.
+ * Ngày tiếp xúc người bệnh lao (2026-10-21): medicalHistory.tbContact.contactDate bắt buộc khi REPORTED (PUT health-declaration,
+ * POST enrollments, file nhập); đổi ngày đã có ⇒ BE gửi CHILD_TB_CONTACT_DATE_CHANGED cho Hiệu trưởng, Phó hiệu trưởng điểm trường.
  */
 export const childrenApi = {
   listChildren: (filters) => axiosClient.get('/children', { params: filters }),

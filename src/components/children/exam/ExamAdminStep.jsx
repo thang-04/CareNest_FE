@@ -9,7 +9,7 @@ import {
   PREMATURE_OPTIONS,
   YES_NO,
 } from '@/models/children/healthExamForm';
-import { formatDate } from '@/utils/format';
+import { formatDate, todayInput } from '@/utils/format';
 import { ExamChoiceField, ExamNumberField, ExamTextField } from './ExamFields';
 
 /** Bước 1 — Phần I: thông tin hành chính, người đi cùng trẻ, tiền sử. Họ tên, ngày sinh, giới lấy từ hồ sơ, không sửa ở đây. */
@@ -248,6 +248,24 @@ export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, d
                   maxLength={300}
                   disabled={disabled}
                 />
+              )}
+              {item.dateKey && h[item.key] === YES_NO.YES && (
+                <FormField
+                  label={item.dateLabel}
+                  required
+                  error={errors[`exam.history.${item.dateKey}`]}
+                  hint="Điền sẵn từ khai báo sức khỏe; hỏi lại người đi cùng. Đổi ngày thì khi lưu kết luận hệ thống báo Hiệu trưởng, Phó hiệu trưởng điểm trường."
+                >
+                  <input
+                    type="date"
+                    className="input"
+                    value={h[item.dateKey] || ''}
+                    min={child.dateOfBirth}
+                    max={form.date && form.date < todayInput() ? form.date : todayInput()}
+                    disabled={disabled}
+                    onChange={(e) => set(`exam.history.${item.dateKey}`, e.target.value)}
+                  />
+                </FormField>
               )}
             </div>
           ))}
