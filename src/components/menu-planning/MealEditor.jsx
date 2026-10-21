@@ -34,14 +34,14 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
             <div className="td-session__title">{mealLabel(catalog.nutritionSetups, ageGroupId, session)}</div>
             {meal.items.length > 0 && (
               <div className="table-wrap">
-                <table className="table table--compact">
+                <table className="table table--grid table--compact">
                   <thead>
                     <tr>
-                      <th style={{ minWidth: 220 }}>Món</th>
-                      <th style={{ width: 120 }}>Hệ số khẩu phần</th>
-                      <th className="right">Năng lượng</th>
-                      <th>Chứa</th>
-                      <th className="center" style={{ width: 56 }}>
+                      <th className="min-w-220">Món</th>
+                      <th className="w-120">Hệ số khẩu phần</th>
+                      <th className="num cell--fixed">Năng lượng</th>
+                      <th className="cell--fixed">Chứa</th>
+                      <th className="center td-w-56">
                         <span className="sr-only">Xóa</span>
                       </th>
                     </tr>
@@ -90,8 +90,10 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
                               }
                             />
                           </td>
-                          <td className="right nowrap">{kcal == null ? '—' : `${kcal.toLocaleString('vi-VN')} kcal`}</td>
-                          <td>{dish ? <AllergenChips allergens={dishAllergens(dish, catalog.foodById)} /> : '—'}</td>
+                          <td className="num nowrap cell--fixed">{kcal == null ? '—' : `${kcal.toLocaleString('vi-VN')} kcal`}</td>
+                          <td className="cell--fixed">
+                            {dish ? <AllergenChips allergens={dishAllergens(dish, catalog.foodById)} /> : '—'}
+                          </td>
                           <td className="center">
                             <button
                               type="button"

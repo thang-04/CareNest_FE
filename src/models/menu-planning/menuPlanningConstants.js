@@ -15,7 +15,10 @@
  * @property {string} group             FOOD_GROUP
  * @property {'g'|'ml'} unit            recipe unit
  * @property {string} purchaseUnit      kg, lít, quả, hộp… (GBR-MEAL-05 rounds up to it)
- * @property {number} purchaseUnitSize  base units in one purchase unit (1000 for kg)
+ * @property {number} purchaseUnitSize  base units in one purchase unit (1000 for kg) = purchaseToStock × stockUnitSize
+ * @property {string} stockUnit         đơn vị tính tồn/xuất kho (BA 02); thiếu ⇒ bằng purchaseUnit
+ * @property {number} purchaseToStock   số đơn vị kho trong 1 đơn vị mua
+ * @property {number} stockUnitSize     số g/ml trong 1 đơn vị kho
  * @property {number} unitPrice         VND per purchase unit
  * @property {Nutrition} nutrition
  * @property {string[]} allergens       labels from ALLERGENS
@@ -32,7 +35,7 @@
  * @property {string} type              DISH_TYPE
  * @property {string} description
  * @property {DishIngredient[]} ingredients
- * @property {'ACTIVE'|'INACTIVE'} status
+ * @property {'DRAFT'|'ACTIVE'|'INACTIVE'} status  DRAFT: chưa dùng được cho thực đơn
  *
  * @typedef {Object} MealItem
  * @property {string} dishId
@@ -76,8 +79,13 @@
  * @property {string|null} replacesId
  */
 
+import { isNurseryAgeGroup } from '@/models/School';
+
 export const RECORD_STATUS = { ACTIVE: 'ACTIVE', INACTIVE: 'INACTIVE' };
 export const RECORD_STATUS_LABELS = { ACTIVE: 'Đang sử dụng', INACTIVE: 'Ngừng sử dụng' };
+// BA 03: món có thêm Nháp — chưa chọn được vào thực đơn; ACTIVE/INACTIVE trùng giá trị RECORD_STATUS
+export const DISH_STATUS = { DRAFT: 'DRAFT', ...RECORD_STATUS };
+export const DISH_STATUS_LABELS = { DRAFT: 'Nháp', ...RECORD_STATUS_LABELS };
 
 export const FOOD_GROUP_LABELS = {
   GRAIN: 'Lương thực',
@@ -115,29 +123,14 @@ export const MEAL_SESSION = { MORNING: 'MORNING', LUNCH: 'LUNCH', AFTERNOON: 'AF
 export const MEAL_SESSION_LABELS = { MORNING: 'Bữa phụ sáng', LUNCH: 'Bữa trưa', AFTERNOON: 'Bữa chiều' };
 export const SESSION_ORDER = [MEAL_SESSION.MORNING, MEAL_SESSION.LUNCH, MEAL_SESSION.AFTERNOON];
 
-/** Meals per day: 3 for nursery ages, 2 for kindergarten ages (SRS entity Age Group). */
+/**
+ * Bữa gốc mặc định khi nhóm tuổi chưa lưu Thiết lập: nhà trẻ 3 bữa, mẫu giáo 2 bữa (BA, theo cấp học, không theo mã nhóm).
+ * Tên/giờ bữa còn chờ chốt (OD-09) nên số bữa thực tế lấy từ Thiết lập dinh dưỡng.
+ */
 export const sessionsOf = (ageGroupId) =>
-  ageGroupId === 'ag-2' ? [MEAL_SESSION.MORNING, MEAL_SESSION.LUNCH, MEAL_SESSION.AFTERNOON] : [MEAL_SESSION.LUNCH, MEAL_SESSION.AFTERNOON];
-
-/**
- * Portion factor per age group: dish quantities are recorded for one standard portion (factor 1)
- * and scaled for each age group (GBR-MEAL-02 "portions differ between nursery and kindergarten ages").
- * Assumed values – the school must confirm them.
- */
-export const PORTION_FACTORS = { 'ag-2': 0.7, 'ag-3': 0.9, 'ag-4': 1, 'ag-5': 1.1 };
-export const portionFactorOf = (ageGroupId) => PORTION_FACTORS[ageGroupId] ?? 1;
-
-/**
- * Reference values of one school day per age group (GBR-MENU-02, GBR-KIT-02).
- * The SRS leaves the standard open ("to be confirmed"); these are configurable reference values,
- * energy in kcal and protein / lipid / glucid as a share of the energy (%).
- */
-export const NUTRITION_NORMS = {
-  'ag-2': { kcal: [600, 651], protein: [13, 20], lipid: [30, 40], glucid: [40, 57] },
-  'ag-3': { kcal: [615, 726], protein: [13, 20], lipid: [25, 35], glucid: [52, 60] },
-  'ag-4': { kcal: [615, 726], protein: [13, 20], lipid: [25, 35], glucid: [52, 60] },
-  'ag-5': { kcal: [615, 726], protein: [13, 20], lipid: [25, 35], glucid: [52, 60] },
-};
+  isNurseryAgeGroup(ageGroupId)
+    ? [MEAL_SESSION.MORNING, MEAL_SESSION.LUNCH, MEAL_SESSION.AFTERNOON]
+    : [MEAL_SESSION.LUNCH, MEAL_SESSION.AFTERNOON];
 
 export const NUTRIENT_LABELS = {
   kcal: 'Năng lượng',
@@ -148,7 +141,12 @@ export const NUTRIENT_LABELS = {
 export const NUTRIENT_UNITS = { kcal: 'kcal', protein: 'g', lipid: 'g', glucid: 'g' };
 
 export const NORM_STATUS = { LOW: 'LOW', OK: 'OK', HIGH: 'HIGH', NA: 'NA' };
-export const NORM_STATUS_LABELS = { LOW: 'Thấp hơn định mức', OK: 'Trong định mức', HIGH: 'Cao hơn định mức', NA: 'Chưa đủ dữ liệu' };
+export const NORM_STATUS_LABELS = {
+  LOW: 'Thấp hơn định mức',
+  OK: 'Trong định mức',
+  HIGH: 'Cao hơn định mức',
+  NA: 'Chưa đủ dữ liệu đánh giá',
+};
 
 export const ALLERGY_GROUP_LABELS = { ALLERGY: 'Dị ứng thực phẩm', DIET: 'Chế độ ăn đặc biệt' };
 

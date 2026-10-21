@@ -1,5 +1,7 @@
+import { Fragment } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
+  AlertTriangle,
   ArrowRight,
   CalendarClock,
   ClipboardCheck,
@@ -19,11 +21,13 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
 import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
+import { FACILITY_ENABLED } from '@/config/app';
 import { FreshReceiptStatusBadge, IssueStatusBadge, MealCountStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
+import { AllergyMenuChanges } from '@/components/kitchen/AllergyMenuChanges';
 import { useKitchenCampus, useKitchenDay, usePublishedMenu } from '@/hooks/kitchen/useKitchen';
-import { ISSUE_STATUS, KITCHEN_DAY_TIMES, MEAL_SESSION_LABELS, MENU_TYPE } from '@/models/kitchen/kitchenConstants';
-import { ageGroupById } from '@/models/School';
+import { ISSUE_STATUS, KITCHEN_DAY_TIMES, MEAL_SESSION_LABELS, MENU_TYPE, isIssuePosted } from '@/models/kitchen/kitchenConstants';
+import { AGE_GROUPS, ageGroupById } from '@/models/School';
 import { ROLES } from '@/models/User';
 import { KITCHEN_ROUTE_ROLES, isKitchenStaff, isVicePrincipal } from '@/utils/kitchen/kitchenPermissions';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
@@ -33,16 +37,24 @@ import '@/styles/modules/kitchen.css';
 
 const firstLoad = (q) => q.loading && q.data == null;
 
-// Gộp các nhóm tuổi có cùng loại thực đơn và cùng món thành một dòng, tránh lặp danh sách món
-const groupSameDishes = (menus) => {
-  const groups = new Map();
-  for (const m of menus) {
-    const key = `${m.type}|${m.dishes.map((d) => d.id).join(',')}`;
-    const name = ageGroupById(m.ageGroupId)?.shortName || 'Toàn trường';
-    if (groups.has(key)) groups.get(key).groupNames.push(name);
-    else groups.set(key, { ...m, groupNames: [name] });
+const groupOrder = (id) => (id ? AGE_GROUPS.findIndex((a) => a.id === id) : -1);
+
+// Hàng theo nhóm tuổi, chỉ ghi phần thay món ngay trong bữa liên quan.
+const buildMenuGrid = (sessionsMenu) => {
+  const sessions = sessionsMenu.filter((s) => s.menus.length).map((s) => s.session);
+  const rows = new Map();
+  for (const s of sessionsMenu) {
+    for (const m of s.menus) {
+      if (m.type !== MENU_TYPE.NORMAL) continue;
+      const key = `${m.ageGroupId || ''}_${m.type}`;
+      if (!rows.has(key)) rows.set(key, { key, ageGroupId: m.ageGroupId, type: m.type, bySession: {} });
+      rows.get(key).bySession[s.session] = m;
+    }
   }
-  return [...groups.values()];
+  const sorted = [...rows.values()].sort(
+    (a, b) => groupOrder(a.ageGroupId) - groupOrder(b.ageGroupId) || (a.type === MENU_TYPE.ALLERGY) - (b.type === MENU_TYPE.ALLERGY),
+  );
+  return { sessions, rows: sorted };
 };
 
 const mealCountStatusOf = ({ sessions, confirmed }) => {
@@ -52,7 +64,7 @@ const mealCountStatusOf = ({ sessions, confirmed }) => {
 };
 
 const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '');
-const SAMPLE_SHORT = { LUNCH: 'Trưa', AFTERNOON: 'Chiều' };
+const SAMPLE_SHORT = { MORNING: 'Sáng', LUNCH: 'Trưa', AFTERNOON: 'Chiều' };
 
 /** Các mốc trong ngày (khảo sát 18/10/2026); giờ là giờ dự kiến, chỉ để nhìn (KITCHEN_DAY_TIMES). */
 const buildSteps = (day, user, date) => {
@@ -78,7 +90,7 @@ const buildSteps = (day, user, date) => {
       key: 'count',
       time: KITCHEN_DAY_TIMES.MEAL_COUNT,
       icon: Users,
-      title: 'Chốt suất cả ngày',
+      title: 'Chốt suất theo bữa',
       state: countStatus === 'CONFIRMED' ? 'done' : mealCount.sessions.length ? 'now' : 'skip',
       badge: <MealCountStatusBadge status={countStatus} />,
       meta: mealCount.sessions.length
@@ -92,13 +104,22 @@ const buildSteps = (day, user, date) => {
       time: KITCHEN_DAY_TIMES.MEAL_COUNT,
       icon: Warehouse,
       title: 'Xuất kho đồ khô',
-      state: issue.state === ISSUE_STATUS.ISSUED ? 'done' : issue.state === 'NO_MENU' ? 'skip' : 'todo',
+      state: isIssuePosted(issue.state)
+        ? 'done'
+        : issue.state === 'NO_MENU'
+          ? 'skip'
+          : issue.state === ISSUE_STATUS.AWAITING_LOT_ALLOCATION
+            ? 'now'
+            : 'todo',
       badge: <IssueStatusBadge status={issue.state} />,
-      meta:
-        issue.state === ISSUE_STATUS.ISSUED
-          ? `${issue.code}${issue.shortage ? ` · ${issue.shortage} thực phẩm thiếu tồn` : ''}`
-          : 'Tự xuất khi chốt suất cả ngày',
-      to: issue.state === ISSUE_STATUS.ISSUED && canOpen('stockIssues') ? '/kitchen/stock-issues' : null,
+      meta: isIssuePosted(issue.state)
+        ? issue.code
+        : issue.state === ISSUE_STATUS.AWAITING_STOCK
+          ? `${issue.code} · thiếu ${issue.shortage} thực phẩm, chờ nhập bổ sung`
+          : issue.state === ISSUE_STATUS.AWAITING_LOT_ALLOCATION
+            ? `${issue.code} · đủ hàng, bếp chọn lô để ghi xuất`
+            : 'Tính nguyên liệu khi các bữa đã được chốt',
+      to: issue.code && canOpen('stockIssues') ? '/kitchen/stock-issues' : null,
       linkLabel: 'Xem phiếu xuất',
     },
     {
@@ -208,9 +229,9 @@ export default function KitchenFlowPage({ asHome = false }) {
   const date = params.get('date') || today;
   const { campusId, setCampusId, canPick } = useKitchenCampus(md.campuses[0]?.id);
   const dayQ = useKitchenDay(campusId, date);
-  const menuQ = usePublishedMenu(date, 'day');
+  const menuQ = usePublishedMenu(date, 'day', campusId);
   const day = dayQ.data;
-  const sessionsMenu = menuQ.days?.[0]?.sessions || [];
+  const menuGrid = buildMenuGrid(menuQ.days?.[0]?.sessions || []);
   const showTodo = isVicePrincipal(user) || isKitchenStaff(user);
 
   return (
@@ -231,9 +252,22 @@ export default function KitchenFlowPage({ asHome = false }) {
       <div className="kb-toolbar">
         <KbDateFilter value={date} onChange={(d) => setParams({ date: d }, { replace: true })} />
         <KbCampusFilter campusId={campusId} onChange={setCampusId} canPick={canPick} />
+        {KITCHEN_ROUTE_ROLES.dryStock.includes(user.role) && (
+          <Link className="btn" to="/kitchen/dry-stock">
+            Xem kho khô
+          </Link>
+        )}
       </div>
 
-      <div className="db-board">
+      {day?.legacyPreparation && isKitchenStaff(user) && (
+        <div className="alert alert--info">
+          <span>Dữ liệu cũ còn luồng chế biến để hoàn tất bàn giao đã có.</span>
+          <Link className="btn" to={`/kitchen/preparation/update?date=${date}`}>
+            Xử lý dữ liệu cũ
+          </Link>
+        </div>
+      )}
+      <div className="db-board mb-16">
         <div className="db-board__main">
           <Widget
             title="Dòng thời gian"
@@ -276,43 +310,89 @@ export default function KitchenFlowPage({ asHome = false }) {
               {day && <ShortList rows={todoRows(day, user)} />}
             </Widget>
           )}
-          <Widget
-            title="Thực đơn trong ngày"
-            icon={UtensilsCrossed}
-            to={`/kitchen/published-menu?date=${date}`}
-            linkLabel="Xem thực đơn đã công bố"
-            loading={firstLoad(menuQ)}
-            error={menuQ.error}
-            onRetry={menuQ.reload}
-            empty={!sessionsMenu.some((s) => s.menus.length)}
-            emptyTitle="Chưa có thực đơn công bố cho ngày này"
-          >
-            {sessionsMenu
-              .filter((s) => s.menus.length)
-              .map((s) => (
-                <div key={s.session} className="db-session">
-                  <div className="subsection-title">{MEAL_SESSION_LABELS[s.session] || s.session}</div>
-                  {groupSameDishes(s.menus).map((m) => (
-                    <div key={m.id} className="mt-8">
-                      <div className="text-sm text-2">
-                        {m.groupNames.join(', ')}
-                        {m.type === MENU_TYPE.ALLERGY ? ' · Thực đơn thay thế (dị ứng)' : ''}
-                      </div>
-                      <div className="db-dishes mt-8">
-                        {m.dishes.map((d) => (
-                          <span key={d.id} className={`chip ${d.allergens.length ? 'chip--orange' : 'chip--gray'}`}>
-                            {d.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-          </Widget>
-          {asHome && user.role === ROLES.KITCHEN_STAFF && <FacilityTasksWidget />}
+          {FACILITY_ENABLED && asHome && user.role === ROLES.KITCHEN_STAFF && <FacilityTasksWidget />}
         </div>
       </div>
+      <Widget
+        title="Thực đơn trong ngày"
+        icon={UtensilsCrossed}
+        to={`/kitchen/published-menu?date=${date}`}
+        linkLabel="Xem thực đơn đã công bố"
+        loading={firstLoad(menuQ)}
+        error={menuQ.error}
+        onRetry={menuQ.reload}
+        empty={!menuGrid.rows.length}
+        emptyTitle="Chưa có thực đơn công bố cho ngày này"
+      >
+        {/* Bảng ngang nhóm tuổi × bữa thay cho danh sách chip dọc: cả ngày gói trong một màn hình */}
+        <div className="table-wrap" key={`${campusId}_${date}`}>
+          <table className="table table--grid table--compact kb-day-menu">
+            <thead>
+              <tr>
+                <th className="kb-day-menu__group">Nhóm tuổi</th>
+                {menuGrid.sessions.map((s) => (
+                  <th key={s}>{MEAL_SESSION_LABELS[s] || s}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {menuGrid.rows.map((r) => {
+                const group = ageGroupById(r.ageGroupId)?.shortName || 'Toàn trường';
+                // Thay đổi dị ứng của nhóm tuổi: hàng riêng ngay dưới, ô món chỉ còn tên món
+                const hasChanges = menuGrid.sessions.some((s) => r.bySession[s]?.allergyChanges?.length);
+                return (
+                  <Fragment key={r.key}>
+                    <tr className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
+                      <td>
+                        <div className="fw-600">{group}</div>
+                        {r.type === MENU_TYPE.ALLERGY && <div className="text-xs muted">Thực đơn thay thế (dị ứng)</div>}
+                      </td>
+                      {menuGrid.sessions.map((s) => {
+                        const m = r.bySession[s];
+                        return (
+                          <td key={s}>
+                            {m ? (
+                              <ul className="kb-dishes text-sm">
+                                {m.dishes.map((d) => (
+                                  <li key={d.id} className={d.allergens.length ? 'kb-day-menu__allergen' : undefined}>
+                                    {d.name}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {hasChanges && (
+                      <tr className="kb-tr--allergy">
+                        <td>
+                          <div className="kb-menu-table__type kb-menu-table__type--change text-sm fw-600">
+                            <AlertTriangle size={14} aria-hidden="true" />
+                            Thay đổi cho trẻ dị ứng
+                          </div>
+                        </td>
+                        {menuGrid.sessions.map((s) => (
+                          <td key={s}>
+                            <AllergyMenuChanges
+                              compact
+                              changes={r.bySession[s]?.allergyChanges}
+                              date={date}
+                              context={`${group} · ${MEAL_SESSION_LABELS[s]}`}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Widget>
     </div>
   );
 }

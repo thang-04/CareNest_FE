@@ -23,8 +23,9 @@ axiosClient.interceptors.response.use(
     const normalized = new Error(message);
     normalized.status = status;
     normalized.details = error.response?.data?.errors;
-    // Expired / invalid token: let AuthContext log out (login itself handles its own 401).
-    if (status === 401 && !error.config?.url?.includes('/auth/login')) {
+    // Expired / invalid token: let AuthContext log out. Bỏ qua login (tự xử lý 401) và logout (tránh vòng lặp logout).
+    const url = error.config?.url ?? '';
+    if (status === 401 && !url.includes('/auth/login') && !url.includes('/auth/logout')) {
       window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
     }
     return Promise.reject(normalized);

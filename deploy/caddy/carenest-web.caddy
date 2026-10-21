@@ -1,0 +1,15 @@
+# VPS: /data/thangnd/CAPSTONE/caddy/carenest-web.caddy, được import từ /etc/caddy/Caddyfile.
+# Caddy (đang giữ cổng 80/443 của server) tự cấp và gia hạn HTTPS cho domain này.
+web.carenest.edu.vn {
+	encode gzip
+
+	# BE (chưa deploy): giữ nguyên prefix /api; FE chạy mock thì không gọi tới
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	# Container carenest-web (compose.yaml, mạng host)
+	handle {
+		reverse_proxy 127.0.0.1:18300
+	}
+}

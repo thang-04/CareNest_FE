@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, LayoutGrid, Users, Lock, ArrowLeft } from '@/components/ui/icons';
+import { LayoutGrid, Users, ArrowLeft } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildRecords, usePlacementClasses } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { placeChild } from '@/services/children/childrenService';
@@ -65,19 +67,17 @@ export default function ClassPlacementPage() {
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Xếp lớp')} />
         <h1 className="page__title">Xếp lớp cho trẻ</h1>
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Bạn không có quyền xếp lớp"
-            description="Chỉ Phó hiệu trưởng của điểm trường được xếp và chuyển lớp cho trẻ."
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Bạn không có quyền xếp lớp"
+          description="Chỉ Phó hiệu trưởng của điểm trường được xếp và chuyển lớp cho trẻ."
+        />
       </div>
     );
 
   const isTransfer = !!selected?.classId;
   const targetClass = classes.find((c) => c.id === classId);
-  const pendingCount = children.filter((c) => c.status === CHILD_STATUS.PENDING_PLACEMENT).length;
+  const tabCount = (status) => children.filter((c) => c.status === status).length;
 
   const submit = () => {
     const errs = {};
@@ -96,7 +96,7 @@ export default function ClassPlacementPage() {
     } catch (err) {
       setConfirm(false);
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không xếp được lớp');
+      toast.error(err, 'Không xếp được lớp');
     }
   };
 
@@ -116,26 +116,24 @@ export default function ClassPlacementPage() {
                 onClick={() => setTab(t.key)}
               >
                 {t.label}
-                {t.key === CHILD_STATUS.PENDING_PLACEMENT && <span className="tab__count">{pendingCount}</span>}
+                <span className="tab__count">{tabCount(t.key)}</span>
               </button>
             ))}
           </div>
           <div className="filter-bar">
-            <label className="search-box" style={{ flex: 1 }}>
-              <Search size={17} className="muted" />
-              <input
-                placeholder="Tìm theo họ tên hoặc mã trẻ..."
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                aria-label="Tìm trẻ"
-              />
-            </label>
+            <SearchSubmit
+              className="flex-1"
+              value={keyword}
+              placeholder="Tìm theo họ tên hoặc mã trẻ..."
+              label="Tìm trẻ"
+              onSearch={setKeyword}
+            />
           </div>
           {error ? (
             <ErrorState error={error} onRetry={reload} />
           ) : (
             <div className="table-wrap tr-table-flat tr-scroll-list">
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th>Trẻ</th>
@@ -195,10 +193,12 @@ export default function ClassPlacementPage() {
           {!selected ? (
             <EmptyState icon={LayoutGrid} title="Chọn một trẻ" description="Chọn trẻ ở danh sách bên trái để xếp hoặc chuyển lớp." />
           ) : !canPlaceChild(selected, user) ? (
-            <EmptyState
-              icon={Lock}
+            <StatusPage
+              bare
+              kind="403"
               title="Không xếp được lớp cho trẻ này"
               description="Trẻ không thuộc điểm trường của bạn hoặc đã nghỉ học."
+              action={null}
             />
           ) : (
             <>

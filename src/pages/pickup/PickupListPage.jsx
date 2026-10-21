@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarDays, ClipboardList, Search, ShieldCheck, School, UserCheck } from '@/components/ui/icons';
+import { CalendarDays, ClipboardList, School, UserCheck } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
-import { PickupStatusBadge } from '@/components/pickup/PickupBadges';
+import { PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
 import { usePickupBoard, usePickupClasses } from '@/hooks/pickup/usePickups';
-import { PICKUP_STATUS, VERIFICATION_LABELS } from '@/models/pickup/pickupConstants';
+import { PICKUP_REASON_LABELS, PICKUP_STATUS, VERIFICATION } from '@/models/pickup/pickupConstants';
 import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
 import '@/styles/modules/pickup.css';
@@ -57,13 +58,6 @@ export default function PickupListPage() {
         </div>
       ) : (
         <>
-          <div className="alert alert--info mb-16">
-            <ShieldCheck size={18} />
-            <div>
-              So sánh người đón với <b>ảnh phụ huynh đã đăng ký</b>. Nếu không khớp, gọi điện cho phụ huynh và chỉ trả trẻ khi phụ huynh
-              đồng ý. Kết quả được gửi thông báo cho phụ huynh.
-            </div>
-          </div>
           <div className="card">
             <div className="filter-bar dt-bar">
               <div className="dt-field">
@@ -91,10 +85,7 @@ export default function PickupListPage() {
                   onChange={(e) => e.target.value && setParam('date', e.target.value)}
                 />
               </div>
-              <label className="search-box dt-search">
-                <Search size={17} className="muted" />
-                <input placeholder="Tìm tên trẻ..." value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="Tìm tên trẻ" />
-              </label>
+              <SearchSubmit className="dt-search" value={keyword} placeholder="Tìm tên trẻ..." label="Tìm tên trẻ" onSearch={setKeyword} />
             </div>
             <div className="tabs" role="tablist">
               {TABS.map((t) => (
@@ -113,15 +104,15 @@ export default function PickupListPage() {
               <ErrorState error={error} onRetry={reload} />
             ) : (
               <div className="table-wrap dt-table-wrap">
-                <table className="table">
+                <table className="table table--grid">
                   <thead>
                     <tr>
                       <th>Trẻ</th>
-                      <th>Trạng thái</th>
+                      <th className="center">Trạng thái</th>
                       <th>Người đón</th>
                       <th>Giờ trả</th>
                       <th>Xác minh</th>
-                      <th className="center">Thao tác</th>
+                      <th className="cell--actions">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -140,6 +131,9 @@ export default function PickupListPage() {
                     ) : (
                       visible.map((r) => {
                         const failed = r.attempts.filter((a) => a.outcome !== 'HANDED_OVER').length;
+                        // Lần gần nhất là "không liên lạc được": người đón đang chờ phụ huynh gọi lại
+                        const last = r.attempts[r.attempts.length - 1];
+                        const awaitingCall = r.status === PICKUP_STATUS.WAITING && last?.verification === VERIFICATION.PHONE_UNREACHABLE;
                         return (
                           <tr key={r.child.id}>
                             <td>
@@ -149,8 +143,20 @@ export default function PickupListPage() {
                                 {!r.attendanceStatus && r.status === PICKUP_STATUS.WAITING ? ' · chưa điểm danh' : ''}
                               </div>
                             </td>
-                            <td>
+                            <td className="center">
                               <PickupStatusBadge status={r.status} />
+                              {/* Cô đã báo phụ huynh đón về sớm ở Sức khỏe trong ngày: trả trẻ khi phụ huynh đến, giờ ghi lúc trả */}
+                              {r.earlyRequest && r.status === PICKUP_STATUS.WAITING && (
+                                <div className="mt-8">
+                                  <Link
+                                    className="chip chip--orange"
+                                    to={`/attendance?classId=${classId}&date=${date}&childId=${r.child.id}`}
+                                    title="Xem sức khỏe trong ngày của trẻ"
+                                  >
+                                    Chờ đón sớm · sức khỏe
+                                  </Link>
+                                </div>
+                              )}
                               {failed > 0 && r.status === PICKUP_STATUS.WAITING && (
                                 <div className="text-xs text-danger mt-8">{failed} lần không trả trẻ</div>
                               )}
@@ -167,12 +173,22 @@ export default function PickupListPage() {
                             </td>
                             <td className="nowrap">{timeOf(r.pickup?.handedOverAt)}</td>
                             <td className="text-sm">
-                              {r.pickup ? VERIFICATION_LABELS[r.pickup.verification] : <span className="muted">—</span>}
+                              {r.pickup ? <VerificationBadge status={r.pickup.verification} /> : <span className="muted">—</span>}
+                              {r.pickup?.reason && (
+                                <div className="text-xs">
+                                  <Link
+                                    to={`/attendance?classId=${classId}&date=${date}&childId=${r.child.id}`}
+                                    title="Xem sức khỏe trong ngày của trẻ"
+                                  >
+                                    {PICKUP_REASON_LABELS[r.pickup.reason]}
+                                  </Link>
+                                </div>
+                              )}
                             </td>
-                            <td className="center">
+                            <td className="cell--actions">
                               {isToday && r.status === PICKUP_STATUS.WAITING && (
                                 <Link className="btn btn--sm btn--primary" to={`/pickup/${r.child.id}/verify`}>
-                                  <UserCheck size={15} /> Trả trẻ
+                                  <UserCheck size={15} /> {awaitingCall ? 'Xác minh lại' : 'Trả trẻ'}
                                 </Link>
                               )}
                             </td>

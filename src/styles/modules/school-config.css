@@ -33,33 +33,264 @@
   min-width: 140px;
 }
 
-/* ---------- Age groups ---------- */
-.sc-group-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: var(--space-3);
+/* ---------- Age groups & classes ---------- */
+.sc-summary {
+  margin: 0 0 var(--space-3);
 }
-.sc-group-card {
-  padding: var(--space-4);
+.sc-check-col {
+  width: var(--space-8);
+  text-align: center;
+}
+.sc-reasons {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+.sc-inline-select {
+  width: auto;
+  min-width: 180px;
+}
+/* Chọn bữa ăn của nhóm tuổi: các ô chọn dạng thẻ */
+.sc-meals {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0;
+  border: 0;
   min-width: 0;
 }
-.sc-group-card__meta {
+.sc-meals__options {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-2);
+  gap: var(--space-2);
 }
-.sc-group-card__note {
-  margin: var(--space-2) 0 0;
+.sc-meal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1-5) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--fs-sm);
+  cursor: pointer;
 }
+.sc-meal--on {
+  border-color: var(--color-brand);
+  background: color-mix(in srgb, var(--color-brand) 12%, var(--color-surface));
+  font-weight: var(--fw-semibold);
+}
+.sc-meal:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+/* Dòng tiêu đề nhóm trong bảng (Vai trò & quyền) */
 .sc-group-row td {
   background: var(--surface-soft);
 }
-.sc-group-row__add {
-  margin-left: var(--space-3);
+/* Danh sách lớp: thanh lọc nằm trong thẻ, ngăn cách với bảng */
+.sc-class-filters {
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+/* Ô tìm vừa đủ rộng để các bộ lọc đứng sát cạnh (danh sách lớp, phòng học) */
+.filter-bar .sc-search {
+  flex: 0 1 calc(var(--space-16) * 5);
+  min-width: 200px;
+}
+/* Danh sách lớp: mỗi nhóm tuổi một khối, lớp là thẻ trong lưới */
+.sc-classes {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+.sc-cgroup {
+  border: 1px solid var(--color-border);
+  border-radius: var(--card-radius);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.sc-cgroup__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-brand);
+}
+.sc-cgroup__title {
+  display: grid;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+/* Cả vùng tiêu đề là nút bấm thu gọn / mở rộng */
+.sc-cgroup__toggle {
+  flex: 1;
+  justify-items: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.sc-cgroup__toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.sc-cgroup__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+.sc-cgroup__chevron {
+  color: var(--color-text-muted);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.sc-cgroup--collapsed .sc-cgroup__chevron {
+  transform: rotate(-90deg);
+}
+.sc-cgroup--collapsed .sc-cgroup__head {
+  border-bottom: 0;
+}
+.sc-classes__tools {
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sc-cgroup__chevron {
+    transition: none;
+  }
+}
+.sc-cgroup__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+}
+.sc-cgroup__empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+.sc-clist {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-3);
+}
+.sc-ccard {
+  display: grid;
+  gap: var(--space-2-5);
+  min-width: 0;
+  padding: var(--space-3) var(--space-3-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.sc-ccard__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.sc-ccard__name {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-md);
+  overflow-wrap: anywhere;
+}
+.sc-cgroup__actions {
+  gap: var(--space-2);
+}
+.sc-ccard__assign {
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+}
+.sc-ccard__actions {
+  margin-left: auto;
+  display: inline-flex;
+}
+.sc-ccard__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sc-tslots {
+  display: grid;
+  gap: var(--space-1-5);
+}
+.sc-tslot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  font-size: var(--fs-sm);
+}
+.sc-tslot--empty {
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-muted);
+}
+.sc-tslot__label {
+  flex: none;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-muted);
+}
+.sc-tslot__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sc-tslot__tag {
+  padding: 0 var(--space-1-5);
+}
+.sc-ccard__fill {
+  display: grid;
+  gap: var(--space-1-5);
+}
+.sc-ccard__fill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+/* Thanh sĩ số theo nghĩa màu trạng thái: còn chỗ xanh lá, gần đủ cam, đã đủ đỏ (ProgressBar chung tô xanh khi đầy nên không dùng) */
+.sc-bar {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+.sc-bar__fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+}
+.sc-bar__fill--open {
+  background: var(--tone-green);
+}
+.sc-bar__fill--near {
+  background: var(--tone-orange);
+}
+.sc-bar__fill--full {
+  background: var(--tone-red);
 }
 
 /* ---------- History ---------- */
@@ -93,9 +324,20 @@
 }
 .sc-cutoff__time {
   font-size: var(--fs-2xl);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
   line-height: 1.2;
+}
+
+/* ---------- Căn chỉnh nhỏ (thay style inline) ---------- */
+.sc-center {
+  justify-content: center;
+}
+.sc-end {
+  justify-content: flex-end;
+}
+.sc-col-leader {
+  min-width: 260px;
 }
 
 /* ---------- People ---------- */
@@ -144,55 +386,648 @@
   color: inherit;
 }
 
-.sc-level {
-  display: inline-flex;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  overflow: hidden;
+/* Quyền + phạm vi của một chức năng (Vai trò & quyền) */
+.sc-access {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
-.sc-level__opt {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  color: var(--text-2);
-  cursor: pointer;
-  white-space: nowrap;
+.sc-access .select {
+  width: auto;
+  min-width: 150px;
 }
-.sc-level__opt + .sc-level__opt {
-  border-left: 1px solid var(--border-strong);
-}
-.sc-level__opt input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-.sc-level__opt:focus-within {
-  box-shadow: inset var(--focus-ring);
-}
-.sc-level__opt--on.sc-level__opt--full {
-  background: var(--success-50);
-  color: var(--success-700);
-}
-.sc-level__opt--on.sc-level__opt--restricted {
-  background: var(--primary-50);
-  color: var(--primary-600);
-}
-.sc-level__opt--on.sc-level__opt--none {
-  background: var(--gray-50);
-  color: var(--text);
-}
-.sc-level:has(input:disabled) {
-  opacity: 0.6;
-}
-.sc-level:has(input:disabled) .sc-level__opt {
-  cursor: not-allowed;
-}
-
 .sc-change-list {
   margin: var(--space-2) 0 0;
   padding-left: var(--space-5);
   font-size: var(--fs-sm);
+}
+
+/* ---------- Chuẩn bị năm học & xếp lớp năm mới ---------- */
+.sc-ready {
+  margin-bottom: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+}
+.sc-ready__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+.sc-ready__title {
+  display: grid;
+  gap: var(--space-1);
+}
+.sc-ready__activate {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-1);
+  max-width: calc(var(--space-16) * 5);
+  text-align: right;
+}
+.sc-ready__steps {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+/* Mỗi bước 1 dòng gọn: biểu tượng · tên · tóm tắt · nút cùng độ rộng */
+.sc-ready__step {
+  display: grid;
+  grid-template-columns: var(--space-6) minmax(calc(var(--space-16) * 3.5), 1.2fr) 2fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1-5) 0;
+  border-bottom: 1px dashed var(--color-border);
+}
+.sc-ready__step:last-child {
+  border-bottom: 0;
+}
+.sc-ready__detail {
+  min-width: 0;
+}
+.sc-ready__go {
+  min-width: calc(var(--space-16) * 1.5);
+  justify-content: center;
+}
+.sc-ready__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+}
+.sc-ready__dot--ok {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.sc-ready__dot--todo {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+}
+.sc-ready__dot--opt {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+@media (max-width: 768px) {
+  .sc-ready__step {
+    grid-template-columns: var(--space-6) 1fr auto;
+  }
+  .sc-ready__detail {
+    grid-column: 2 / 3;
+  }
+}
+.sc-ready__list {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+}
+.sc-seg {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--color-secondary);
+}
+.sc-seg__item {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sc-seg__item:focus-within {
+  box-shadow: inset var(--focus-ring);
+}
+.sc-seg__item.is-on {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-xs);
+}
+/* Ô chọn lớp năm mới đủ rộng để đọc hết "Lớp · điểm trường · sĩ số" */
+.sc-placement__select {
+  min-width: calc(var(--space-16) * 4);
+}
+
+/* ---------- Xếp lớp năm học mới: 2 cột, danh sách lớp bên trái, trẻ bên phải ---------- */
+.sc-plc__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+.sc-plc__sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+.sc-plc__sub > p {
+  margin: 0;
+}
+.sc-plc__totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.sc-plc__auto {
+  margin-left: auto;
+}
+.sc-plc {
+  display: grid;
+  grid-template-columns: minmax(calc(var(--space-16) * 3.5), 1fr) 3fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+.sc-plc__list {
+  position: sticky;
+  top: var(--space-4);
+  max-height: calc(100vh - var(--space-16) * 2);
+  overflow: auto;
+  padding: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+}
+.sc-plc__class {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  align-content: start;
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.sc-plc__class:hover {
+  background: var(--color-surface-hover);
+}
+.sc-plc__class.is-active {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-border);
+}
+.sc-plc__class:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.sc-plc__class-name {
+  font-weight: var(--fw-semibold);
+}
+/* Thẻ lớp gọn: dòng 1 tên + trạng thái xếp, dòng 2 nhóm tuổi · điểm trường */
+.sc-plc__class {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-2);
+  row-gap: 0;
+  padding: var(--space-2) var(--space-3);
+}
+.sc-plc__class-chip {
+  grid-column: 2;
+  grid-row: 1;
+}
+.sc-plc__class-meta {
+  grid-column: 1;
+}
+.sc-plc__warn {
+  grid-column: 1 / -1;
+}
+/* Dòng trẻ một hàng: tên rồi mã (và "chưa lưu") nhỏ, mờ */
+.sc-plc__child > .muted {
+  margin-left: var(--space-2);
+}
+/* Ảnh đại diện nhỏ trước tên trẻ, dòng vẫn một hàng */
+.sc-plc__child .avatar {
+  margin-right: var(--space-2);
+  vertical-align: middle;
+}
+.sc-plc__title {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin-right: auto;
+}
+.sc-plc__warn {
+  color: var(--color-warning-fg);
+}
+.sc-plc__warn-icon {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  display: inline-flex;
+  color: var(--color-warning-fg);
+}
+/* Thông báo chung đầu danh sách lớp: nhóm tuổi năm mới chưa có lớp */
+.sc-plc__missing {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: 0 0 var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.sc-plc__main {
+  padding: var(--space-5) var(--space-6) 0;
+  min-width: 0;
+}
+.sc-plc__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+.sc-plc__panel {
+  display: grid;
+  gap: var(--space-3);
+}
+.sc-plc__toolbar,
+.sc-plc__bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.sc-plc__bulk {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+}
+.sc-plc__table {
+  /* Màn thấp (trang cuộn): cuộn tới bảng thì bảng gần kín màn, thanh Lưu dính đáy */
+  max-height: calc(100vh - var(--header-height) - var(--space-16) * 2);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.sc-plc__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface-muted);
+}
+.sc-plc__table tr.is-picked td {
+  background: var(--color-primary-soft);
+}
+.sc-plc__check {
+  width: var(--space-10);
+  text-align: center;
+}
+.sc-plc__new {
+  color: var(--color-warning-fg);
+}
+.sc-plc__footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) 0 var(--space-5);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+@media (max-width: 1023px) {
+  .sc-plc {
+    grid-template-columns: 1fr;
+  }
+  .sc-plc__list {
+    position: static;
+    max-height: none;
+    grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-16) * 3), 1fr));
+  }
+}
+/* Màn rộng: bàn làm việc vừa khung, trang không cuộn; mỗi cột cuộn bên trong, thanh Lưu luôn ở đáy cột phải */
+.sc-plc__note {
+  display: inline-flex;
+  vertical-align: middle;
+  cursor: help;
+}
+/* Xếp lớp năm học mới, mọi cỡ màn: đầu trang sát, hàng lọc gọn, dòng trẻ một hàng (~41px) */
+.sc-plc-page .page__head {
+  margin-bottom: var(--space-3);
+}
+.sc-plc-page .sc-plc__filters {
+  margin-bottom: var(--space-3);
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+  align-items: center;
+}
+/* Nhãn bộ lọc nằm cạnh ô chọn để hàng lọc chỉ một dòng */
+.sc-plc-page .sc-plc__filters .sc-inline-field {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.sc-plc-page .sc-plc__filters .field__label {
+  white-space: nowrap;
+}
+.sc-plc-page .sc-plc__head {
+  margin-bottom: var(--space-2);
+}
+.sc-plc-page .sc-plc__panel {
+  gap: var(--space-2);
+}
+.sc-plc-page .sc-plc__footer {
+  padding: var(--space-2) 0;
+}
+/* Gọn cho màn 14 inch: ô chọn, nút trong bảng thấp hơn */
+.sc-plc-page .page__head > div,
+.sc-plc-page .sc-plc__sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+.sc-plc-page .sc-plc__totals .chip {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+/* "Cả lớp lên" đủ hẹp để tên lớp, ô chọn, nút Áp dụng và sĩ số vừa một hàng */
+.sc-plc-page .sc-plc__toolbar .sc-placement__select {
+  min-width: 0;
+  width: calc(var(--space-16) * 2.75);
+}
+.sc-plc-page .sc-plc__main {
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+.sc-plc-page .sc-plc__toolbar {
+  gap: var(--space-2);
+}
+.sc-plc-page .sc-plc__filters .select,
+.sc-plc-page .sc-plc__toolbar .select,
+.sc-plc-page .sc-plc__toolbar .btn,
+.sc-plc-page .sc-plc__footer .btn {
+  height: var(--btn-height-sm);
+}
+.sc-plc-page .sc-plc__table td {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+.sc-plc-page .sc-seg__item {
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: var(--btn-height-sm);
+}
+.sc-plc-page .sc-plc__table .sc-seg {
+  padding: 0;
+}
+/* Màn rộng và đủ cao: bàn làm việc vừa khung, mỗi cột cuộn bên trong */
+@media (min-width: 1024px) and (min-height: 560px) {
+  .sc-plc-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--header-height) - var(--space-16) * 0.95);
+    padding-bottom: var(--space-2);
+  }
+  .sc-plc-page > * {
+    flex-shrink: 0;
+  }
+  .sc-plc-page > .sc-plc {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .sc-plc-page .sc-plc__list {
+    position: static;
+    max-height: none;
+    align-content: start;
+  }
+  .sc-plc-page .sc-plc__main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .sc-plc-page .sc-plc__main > * {
+    flex-shrink: 0;
+  }
+  .sc-plc-page .sc-plc__main > .sc-plc__panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .sc-plc-page .sc-plc__panel > * {
+    flex-shrink: 0;
+  }
+  .sc-plc-page .sc-plc__panel > .sc-plc__table {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+  .sc-plc-page .sc-plc__main {
+    padding-top: var(--space-3);
+  }
+}
+.sc-plc__toolbar .select,
+.sc-plc__bulk .select {
+  width: auto;
+}
+.sc-plc__toolbar .field__label {
+  margin: 0;
+}
+
+/* Phân công PHT: mỗi PHT 1 thẻ; màn rộng 2 thẻ cạnh nhau, hẹp thì xếp dọc */
+.sc-vp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr));
+  gap: var(--space-4);
+}
+.sc-vp-card {
+  min-width: 0;
+}
+.sc-vp-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-6) 0;
+}
+.sc-vp-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6) 0;
+}
+.sc-vp-card__empty {
+  margin: 0;
+  padding: var(--space-4) var(--space-6) var(--space-6);
+}
+.sc-vp-table th:first-child {
+  width: 32%;
+}
+.sc-vp-table th:nth-child(2) {
+  width: 18%;
+}
+.sc-vp-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.sc-vp-table .chip {
+  margin-right: var(--space-1);
+}
+.sc-vp-table__off td {
+  color: var(--color-text-muted);
+}
+
+/* Modal phân công: đủ các việc, mỗi việc 1 hàng (tên · ở đâu · việc được làm) */
+.sc-vp-edit {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.sc-vp-edit__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(130px, 0.7fr) minmax(0, 1.6fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+}
+.sc-vp-edit__row + .sc-vp-edit__row {
+  border-top: 1px solid var(--color-border);
+}
+.sc-vp-edit__row.is-off .sc-vp-edit__name {
+  color: var(--color-text-muted);
+}
+.sc-vp-edit__name {
+  min-width: 0;
+}
+.sc-vp-edit__tasks {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.sc-vp-task {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.sc-vp-task input {
+  margin-top: var(--space-1);
+}
+.sc-vp-task.is-off {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+.sc-vp-edit__warn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  color: var(--color-warning-fg);
+}
+@media (max-width: 768px) {
+  .sc-vp-card__head,
+  .sc-vp-card__tags {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+  .sc-vp-edit__row {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}
+
+/* Phân công giáo viên: ghi chú tổ trưởng toàn trường dưới tiêu đề */
+.sc-leader-note {
+  margin: var(--space-2) var(--space-6) 0;
+}
+
+/* Phân công giáo viên: bộ lọc điểm trường / lớp ngay sau tiêu đề "Giáo viên theo lớp", xuống dòng khi hẹp */
+.sc-head-row {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  column-gap: var(--space-4);
+}
+.sc-head-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.sc-head-filters .select {
+  width: auto;
+  min-width: 150px;
+}
+.sc-head-filters__end {
+  margin-left: auto;
+}
+
+/* Bảng chọn giáo viên của lớp: thẻ người đã chọn, ô tìm / lọc, bảng cuộn trong khung (khoảng 6 dòng) */
+.sc-tpick__picked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--space-8);
+  margin-bottom: var(--space-2);
+}
+.sc-tpick__remove {
+  display: inline-flex;
+  margin-left: var(--space-1);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.sc-tpick__remove:focus-visible {
+  outline: 2px solid var(--color-focus);
+  border-radius: var(--radius-full);
+}
+.sc-tpick__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-2);
+}
+.sc-tpick__search {
+  flex: 1 1 calc(var(--space-16) * 3);
+  max-width: calc(var(--space-16) * 4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.sc-tpick__table {
+  max-height: calc(var(--space-16) * 4.5);
+  overflow: auto;
+}
+.sc-tpick__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Đích cuộn (#to-truong): chừa chỗ thanh trên cùng */
+.sc-anchor {
+  scroll-margin-top: calc(var(--header-height) + var(--space-4));
+}
+
+/* Ô tìm lớp / giáo viên trên hàng lọc "Giáo viên theo lớp" */
+.sc-head-search {
+  flex: 1 1 calc(var(--space-16) * 3.5);
+  max-width: calc(var(--space-16) * 5);
+}
+
+/* Hộp chọn tổ trưởng: ô lọc điểm trường cùng hàng với ô tìm */
+.sc-tpick__tools .sc-leader-campus {
+  width: auto;
 }

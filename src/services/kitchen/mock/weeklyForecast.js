@@ -1,6 +1,7 @@
 import { computeMarket, purchaseStep } from '@/services/kitchen/mock/marketList';
+import { foodUnits } from '@/utils/menu-planning/foodUnits';
 import { addDays, defaultStorageOf } from '@/models/menu-planning/menuPlanningConstants';
-import { MEAL_SESSIONS } from '@/models/kitchen/kitchenConstants';
+import { activeKitchenClasses, classMealSessions, mealSessionsForCampus } from './attendanceSource';
 
 /*
  * Dự trù tuần (khảo sát 18/10/2026, S1): số suất dự kiến từng lớp từng ngày × định lượng của thực đơn tuần đã xuất bản
@@ -15,44 +16,53 @@ const isAbsent = (status) => status === 'EXCUSED' || status === 'UNEXCUSED';
 export const storageOf = (food) => food?.storage || defaultStorageOf(food?.group);
 export const weekDays = (weekStart) => [0, 1, 2, 3, 4].map((i) => addDays(weekStart, i));
 
-const confirmedOf = (counts) => MEAL_SESSIONS.every((s) => counts[s]?.status === 'CONFIRMED');
+const confirmedOf = (counts, sessions) => sessions.length > 0 && sessions.every((s) => counts[s]?.status === 'CONFIRMED');
 
-/** Ô của lưới là suất bữa trưa; bữa chiều trừ trẻ chỉ đăng ký ăn một bữa (bữa trưa). */
-const forecastCounts = (classes, valueOf, lunchOnly) => ({
-  LUNCH: { status: 'CONFIRMED', classes: classes.map((c) => ({ classId: c.id, normal: valueOf(c.id), substitute: 0 })) },
-  AFTERNOON: {
-    status: 'CONFIRMED',
-    classes: classes.map((c) => ({ classId: c.id, normal: Math.max(0, valueOf(c.id) - (lunchOnly[c.id] || 0)), substitute: 0 })),
-  },
-});
+// Một cờ tham gia ăn áp dụng cho mọi bữa của nhóm tuổi, không đọc childMealPlans cũ.
+const forecastCounts = (db, classes, sessions, valueOf) =>
+  Object.fromEntries(
+    sessions.map((session) => [
+      session,
+      {
+        status: 'CONFIRMED',
+        classes: classes
+          .filter((cls) => classMealSessions(db, cls).includes(session))
+          .map((cls) => ({ classId: cls.id, normal: valueOf(cls.id), substitute: 0 })),
+      },
+    ]),
+  );
 
 /**
  * Dữ liệu tuần của một cơ sở. ctx: { today, isSchoolDay(date), mealCountOf(date, session), stockOf(foodId) }.
  * record: bản dự trù đã lưu `{ cells: {classId: {date: n}}, sentAt, sentBy, sentOrder: {date: {foodId: qty}}, sentTotals, notices }`.
  */
 export function buildWeeklyForecast(db, { campusId, weekStart, record, ctx }) {
-  const classes = (db.classes || []).filter((c) => c.campusId === campusId);
+  const classes = activeKitchenClasses(db, campusId);
+  const sessions = mealSessionsForCampus(db, campusId);
   const classById = Object.fromEntries((db.classes || []).map((c) => [c.id, c]));
   const foodById = Object.fromEntries((db.foods || []).map((f) => [f.id, f]));
   const active = (db.children || []).filter((ch) => ch.status === 'ACTIVE' && ch.classId);
   const registered = Object.fromEntries(classes.map((c) => [c.id, active.filter((ch) => ch.classId === c.id).length]));
-  const lunchOnlyIds = new Set((db.childMealPlans || []).filter((p) => p.mealsPerDay === 1).map((p) => p.childId));
-  const lunchOnly = Object.fromEntries(
-    classes.map((c) => [c.id, active.filter((ch) => ch.classId === c.id && lunchOnlyIds.has(ch.id)).length]),
-  );
   const cells = record?.cells || {};
 
   const days = weekDays(weekStart).map((date) => {
     const holiday = !ctx.isSchoolDay(date);
-    const counts = Object.fromEntries(MEAL_SESSIONS.map((s) => [s, holiday ? null : ctx.mealCountOf(date, s)]));
-    const confirmed = !holiday && confirmedOf(counts);
+    const counts = Object.fromEntries(sessions.map((s) => [s, holiday ? null : ctx.mealCountOf(date, s)]));
+    const confirmed = !holiday && confirmedOf(counts, sessions);
     const chot = Object.fromEntries(
-      (counts.LUNCH?.classes || []).map((row) => [row.classId, Number(row.normal || 0) + Number(row.substitute || 0)]),
+      classes.map((cls) => {
+        const meals = classMealSessions(db, cls);
+        const base = meals.includes('LUNCH') ? 'LUNCH' : meals[0];
+        const row = counts[base]?.classes?.find((line) => line.classId === cls.id);
+        return [cls.id, Number(row?.normal || 0) + Number(row?.substitute || 0)];
+      }),
     );
     // Nghỉ đã báo: bản ghi vắng đã có cho ngày đó (GV điểm danh hoặc báo trước)
     const absent = {};
     (db.attendance || []).forEach((a) => {
-      if (a.date === date && a.campusId === campusId && isAbsent(a.status)) absent[a.classId] = (absent[a.classId] || 0) + 1;
+      const cls = classes.find((item) => item.id === a.classId);
+      const noMeal = cls && a.meals && classMealSessions(db, cls).every((session) => !a.meals[session]);
+      if (a.date === date && a.campusId === campusId && (isAbsent(a.status) || noMeal)) absent[a.classId] = (absent[a.classId] || 0) + 1;
     });
     const suggested = (classId) => Math.max(0, (registered[classId] || 0) - (absent[classId] || 0));
     const valueOf = (classId) => {
@@ -63,13 +73,19 @@ export function buildWeeklyForecast(db, { campusId, weekStart, record, ctx }) {
     };
     const market = holiday
       ? null
-      : computeMarket(db, { date, counts: confirmed ? counts : forecastCounts(classes, valueOf, lunchOnly), classById });
+      : computeMarket(db, { date, counts: confirmed ? counts : forecastCounts(db, classes, sessions, valueOf), classById });
     return {
       date,
       holiday,
       hasMenu: !!market && market.status !== 'NO_MENU',
       confirmed,
-      confirmedAt: confirmed ? counts.LUNCH.confirmedAt || null : null,
+      confirmedAt: confirmed
+        ? sessions
+            .map((session) => counts[session]?.confirmedAt)
+            .filter(Boolean)
+            .sort()
+            .at(-1) || null
+        : null,
       editable: !holiday && !confirmed && date >= ctx.today,
       suggested,
       valueOf,
@@ -132,7 +148,8 @@ export function buildWeeklyForecast(db, { campusId, weekStart, record, ctx }) {
     .sort(byName)
     .map((f) => {
       const need = r3(days.filter((d) => !d.confirmed).reduce((n, d) => n + (f.byDate[d.date] || 0), 0));
-      const stock = r3(ctx.stockOf(f.foodId));
+      // Tồn lưu theo đơn vị kho; dự trù đi chợ theo đơn vị mua ⇒ đổi tồn sang đơn vị mua
+      const stock = r3(ctx.stockOf(f.foodId) / foodUnits(foodById[f.foodId]).purchaseToStock);
       const toBuy = need > stock ? roundUp(need - stock, purchaseStep(f.unit)) : 0;
       return { foodId: f.foodId, name: f.name, unit: f.unit, need, stock, toBuy };
     })

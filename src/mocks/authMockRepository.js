@@ -1,5 +1,8 @@
 import { readDb, writeDb, clone, delay, ApiError } from './mockDatabase';
 import { uid } from '@/utils/id';
+import { grantsOf } from '@/models/school-config/permissionCatalog';
+import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
+import { vpAreasOf } from '@/models/school-config/schoolConfigConstants';
 
 /*
  * Fake auth server. Behaves like the Spring Boot endpoints:
@@ -34,6 +37,17 @@ const issueToken = (user, remember) => {
 const publicUser = (u) => {
   const { password: _password, ...rest } = u; // carenest:allow-secret – tên field, không phải giá trị bí mật
   return clone(rest);
+};
+// Người đăng nhập mang theo quyền của vai trò (PENDING BE: GET /me trả permissions)
+const withPermissions = (u) => {
+  const db = readDb();
+  const permissions = grantsOf(db.rolePermissions, u.role);
+  if (u.role !== 'VICE_PRINCIPAL') return { ...publicUser(u), permissions };
+  // Mảng phụ trách của năm học đang hoạt động (phân công Phó hiệu trưởng)
+  const seed = buildSeedSchoolConfig();
+  const active = (db.schoolYears || seed.schoolYears).find((y) => y.status === 'ACTIVE');
+  const assignment = (db.vpAssignments || seed.vpAssignments).find((a) => a.userId === u.id && a.schoolYear === active?.id);
+  return { ...publicUser(u), permissions, sharedService: !!assignment?.sharedService, areas: vpAreasOf(assignment, permissions) };
 };
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -146,7 +160,7 @@ export const authMockRepository = {
     }
 
     const { token, exp } = issueToken(user, remember);
-    return { accessToken: token, expiresAt: new Date(exp).toISOString(), user: publicUser(user) };
+    return { accessToken: token, expiresAt: new Date(exp).toISOString(), user: withPermissions(user) };
   },
 
   async me(token) {
@@ -161,7 +175,9 @@ export const authMockRepository = {
     if (!payload.exp || payload.exp < Date.now()) throw new ApiError(401, 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
     const user = readDb().users.find((u) => u.id === payload.sub);
     if (!user) throw new ApiError(401, 'Tài khoản không còn tồn tại');
-    return publicUser(user);
+    // Tài khoản bị vô hiệu hóa: phiên đang mở cũng kết thúc
+    if (user.status === 'INACTIVE') throw new ApiError(401, 'Tài khoản này đã ngừng hoạt động. Vui lòng liên hệ văn phòng nhà trường.');
+    return withPermissions(user);
   },
 
   async logout() {

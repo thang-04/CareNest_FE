@@ -33,7 +33,7 @@ export function PrintToolbar({ sheetRef, fileBase, onCsv, printLabel = 'In', com
   };
 
   return (
-    <div className="row no-print" style={{ gap: 8 }}>
+    <div className="row gap-2 no-print">
       {onCsv && (
         <button className={`btn ${size}`} onClick={csv}>
           <FileSpreadsheet size={16} /> Xuất Excel

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Save, Send, Plus, Trash2, ListPlus, Info, Lock, ArrowLeft } from '@/components/ui/icons';
+import { Save, Send, Plus, Trash2, ListPlus, Info, ArrowLeft } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -10,9 +10,10 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { IssueTypeChip } from '@/components/facility/FacilityBadges';
-import { locationLabel } from '@/models/Location';
+import { isActiveLocation, locationLabel } from '@/models/Location';
 import {
   PROPOSAL_ACTIONS,
   PROPOSAL_ACTION_LABELS,
@@ -106,7 +107,10 @@ export default function ProposalFormPage() {
 
   const usedSourceIds = useMemo(() => new Set(form.lines.map((l) => l.sourceId).filter(Boolean)), [form.lines]);
   const freeSources = sources.filter((s) => !usedSourceIds.has(s.sourceId));
-  const campusLocations = md.locations.filter((l) => l.campusId === user.campusId);
+  // Phòng ngừng sử dụng / đã xóa không chọn mới được; dòng cũ vẫn giữ phòng đã chọn
+  const campusLocations = md.locations.filter(
+    (l) => l.campusId === user.campusId && (isActiveLocation(l) || form.lines.some((x) => x.locationId === l.id)),
+  );
   const total = proposalTotal(form.lines);
 
   const set = (patch) => {
@@ -154,7 +158,7 @@ export default function ProposalFormPage() {
       toast.success(`Đã lưu nháp đề xuất ${saved.code}.`);
       if (!id) navigate(`/facility/proposals/${saved.id}/edit`, { replace: true });
     } catch (err) {
-      toast.error(err.message, 'Không lưu được nháp');
+      toast.error(err, 'Không lưu được nháp');
     } finally {
       setBusy(null);
     }
@@ -178,7 +182,7 @@ export default function ProposalFormPage() {
       toast.success(`Đã gửi đề xuất ${sent.code} tới Hiệu trưởng.`, 'Gửi đề xuất thành công');
       navigate(`/facility/proposals/${sent.id}`);
     } catch (err) {
-      toast.error(err.message, 'Không gửi được đề xuất');
+      toast.error(err, 'Không gửi được đề xuất');
     } finally {
       setBusy(null);
     }
@@ -189,8 +193,8 @@ export default function ProposalFormPage() {
     return (
       <div className="page">
         <Breadcrumb items={proposalCrumbs(title)} />
-        <EmptyState
-          icon={Lock}
+        <StatusPage
+          kind="403"
           title="Không sửa được đề xuất này"
           description="Chỉ Phó hiệu trưởng lập đề xuất, và chỉ sửa được bản nháp của chính mình."
         />
@@ -244,7 +248,7 @@ export default function ProposalFormPage() {
             <span className="field__label" id="bh-action-label">
               Hình thức<span className="req">*</span>
             </span>
-            <div className="row row--wrap" style={{ gap: 16, minHeight: 38 }} role="radiogroup" aria-labelledby="bh-action-label">
+            <div className="row row--wrap gap-4 bh-radio-row" role="radiogroup" aria-labelledby="bh-action-label">
               {Object.values(PROPOSAL_ACTIONS).map((a) => (
                 <label key={a} className="radio">
                   <input type="radio" name="bh-action" checked={form.action === a} onChange={() => set({ action: a })} />{' '}
@@ -272,9 +276,9 @@ export default function ProposalFormPage() {
       </section>
 
       <section className="card wizard-card">
-        <div className="row row--between row--wrap" style={{ gap: 8 }}>
+        <div className="row row--between row--wrap gap-2">
           <h2 className="section-title">2.&nbsp; Tài sản đề xuất</h2>
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row gap-2">
             <button className="btn" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, manualLine()] }))}>
               <Plus size={16} /> Thêm dòng
             </button>
@@ -302,20 +306,20 @@ export default function ProposalFormPage() {
           />
         ) : (
           <div className="table-wrap mt-12">
-            <table className="table table--compact bh-lines">
+            <table className="table table--compact table--grid bh-lines">
               <thead>
                 <tr>
-                  <th>Nguồn</th>
-                  <th style={{ minWidth: 180 }}>
+                  <th className="cell--fixed">Nguồn</th>
+                  <th className="bh-min-w-180">
                     Tài sản<span className="req">*</span>
                   </th>
-                  <th style={{ minWidth: 170 }}>Lớp/phòng</th>
+                  <th className="bh-min-w-170">Lớp/phòng</th>
                   <th className="center">
                     SL<span className="req">*</span>
                   </th>
                   <th>ĐVT</th>
-                  <th className="right">Dự toán (đ)</th>
-                  <th style={{ minWidth: 150 }}>Ghi chú</th>
+                  <th className="money">Dự toán (đ)</th>
+                  <th className="min-w-150">Ghi chú</th>
                   <th className="center">
                     <span className="sr-only">Xóa</span>
                   </th>
@@ -327,7 +331,7 @@ export default function ProposalFormPage() {
                   const err = errors[`line_${l.id}`];
                   return (
                     <tr key={l.id}>
-                      <td className="nowrap">
+                      <td className="nowrap cell--fixed">
                         {manual ? (
                           <span className="chip chip--gray">{SOURCE_TYPE_LABELS.MANUAL}</span>
                         ) : (
@@ -384,7 +388,7 @@ export default function ProposalFormPage() {
                           onChange={(e) => setLine(l.id, { quantity: e.target.value })}
                         />
                       </td>
-                      <td>
+                      <td className={manual ? undefined : 'cell--fixed'}>
                         {manual ? (
                           <input
                             className="input bh-lines__qty"
@@ -397,7 +401,7 @@ export default function ProposalFormPage() {
                           l.unit
                         )}
                       </td>
-                      <td className="right">
+                      <td className="num">
                         <input
                           className="input bh-lines__cost"
                           type="number"
@@ -440,7 +444,7 @@ export default function ProposalFormPage() {
         <button className="btn btn--lg" onClick={() => navigate('/facility/proposals')}>
           <ArrowLeft size={16} /> Quay lại
         </button>
-        <div className="row" style={{ gap: 10 }}>
+        <div className="row gap-2-5">
           <button className="btn btn--lg" onClick={saveDraft} disabled={!!busy}>
             {busy === 'draft' ? <Spinner small /> : <Save size={16} />} Lưu nháp
           </button>
@@ -482,7 +486,7 @@ export default function ProposalFormPage() {
                   onChange={() => setPicked((p) => (on ? p.filter((x) => x !== s.sourceId) : [...p, s.sourceId]))}
                 />
                 <span className="bh-source__body">
-                  <span className="row row--wrap" style={{ gap: 8 }}>
+                  <span className="row row--wrap gap-2">
                     <b>{s.sourceCode}</b>
                     {s.issueType ? (
                       <IssueTypeChip type={s.issueType} />
@@ -493,12 +497,10 @@ export default function ProposalFormPage() {
                       {s.itemName} · {s.quantity} {s.unit.toLowerCase()}
                     </span>
                   </span>
-                  <span className="text-sm text-2" style={{ display: 'block' }}>
+                  <span className="text-sm text-2 bh-block">
                     {locationLabel(md.locationById(s.locationId))} · duyệt {formatDate(s.decidedAt)}
                   </span>
-                  <span className="text-sm muted" style={{ display: 'block' }}>
-                    {s.description}
-                  </span>
+                  <span className="text-sm muted bh-block">{s.description}</span>
                 </span>
               </label>
             );

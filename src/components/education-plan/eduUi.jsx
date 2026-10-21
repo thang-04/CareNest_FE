@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { AlertOctagon, AlertTriangle, CheckCircle2, Clock, FileEdit, FileText, Info, Send, XCircle } from '@/components/ui/icons';
+import { AlertOctagon, AlertTriangle, CheckCircle2, Clock, FileEdit, FileText, Info, Lock, Send, XCircle } from '@/components/ui/icons';
 import {
   Breadcrumb,
   EmptyState as SharedEmptyState,
@@ -29,18 +29,20 @@ export const fmtDateTime = (s) => {
   return `${fmtDate(date)}${time ? ` ${time}` : ''}`;
 };
 
-/** Breadcrumb (always starting at Trang chủ) + h1.page__title + actions on the right. */
+/**
+ * Breadcrumb (always starting at Trang chủ) + mô tả/actions; tiêu đề h1 chỉ cho trình đọc màn hình.
+ * Module kế hoạch giáo dục không dùng thẻ đầu trang có hình minh hoạ (Tiền chốt 12/10) để dành chỗ cho nội dung.
+ */
 export function PageHead({ crumbs, title, desc, actions }) {
   const items = crumbs?.length ? (crumbs[0].to === '/' ? crumbs : [HOME, ...crumbs]) : [HOME, { label: title }];
   return (
     <>
       <Breadcrumb items={items} />
-      <div className="page__head ga-page-head">
-        <div>
-          <h1 className="page__title">{title}</h1>
-          {desc && <p className="muted mt-8">{desc}</p>}
-        </div>
-        {actions && <div className="row row--wrap">{actions}</div>}
+      {/* Dùng đầu trang chung: h1 ẩn (đường dẫn đã hiện tên trang, Tiền chốt 12/10), mô tả dưới, nút lên hàng breadcrumb */}
+      <div className="page__head">
+        <h1 className="page__title">{title}</h1>
+        {desc && <p className="page__desc">{desc}</p>}
+        {actions && <div className="page__actions">{actions}</div>}
       </div>
     </>
   );
@@ -53,10 +55,37 @@ export const EduStatusBadge = createStatusBadge(
     SENT: ['green', Send],
     PENDING_TL: ['purple', Clock],
     PENDING_VP: ['purple', Clock],
+    PENDING_HT: ['purple', Clock],
     APPROVED: ['green', CheckCircle2],
     REJECTED: ['red', XCircle],
   },
   EDU_STATUS_LABELS,
+);
+
+/** Hạn gửi hồ sơ chủ đề chỉ để nhắc, không chặn. */
+export const DueStateBadge = createStatusBadge(
+  { late: ['red', AlertTriangle], soon: ['orange', Clock] },
+  { late: 'Quá hạn', soon: 'Sắp đến hạn' },
+);
+
+/** Dòng chưa có hồ sơ: chưa lập / chưa soạn, hoặc chưa tới lượt (khóa). */
+export const DocAvailabilityBadge = createStatusBadge(
+  { NOT_PLANNED: ['gray', FileText], NOT_DRAFTED: ['gray', FileText], LOCKED: ['gray', Lock] },
+  { NOT_PLANNED: 'Chưa lập', NOT_DRAFTED: 'Chưa soạn', LOCKED: 'Chưa thể bắt đầu' },
+);
+
+/** Trạng thái kế hoạch năm: Tổ trưởng gửi Phó HT, Phó HT duyệt ban hành (ký tay trên bản in). */
+export const YearPlanStatusBadge = createStatusBadge(
+  {
+    DRAFT: ['gray', FileEdit],
+    SENT: ['green', Send],
+    PENDING_TL: ['purple', Clock],
+    PENDING_VP: ['purple', Clock],
+    PENDING_HT: ['purple', Clock],
+    APPROVED: ['green', CheckCircle2],
+    REJECTED: ['red', XCircle],
+  },
+  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành' },
 );
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */
@@ -148,7 +177,7 @@ export function FileItem({ file, onRemove }) {
   return (
     <div className="file-row">
       <FileText size={26} color="var(--file-pdf)" />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         {file.dataUrl ? (
           <a href={file.dataUrl} download={file.name} className="file-row__name">
             {file.name}
@@ -196,10 +225,10 @@ export function SignatureView({ sig, name }) {
 }
 
 /** Always-open modal: the page decides when to render it. */
-export function Modal({ title, children, onClose, footer, width }) {
+export function Modal({ title, children, onClose, footer, width, className }) {
   const size = width > 760 ? 'xl' : width > 560 ? 'lg' : 'md';
   return (
-    <SharedModal open title={title} onClose={onClose} footer={footer} size={size}>
+    <SharedModal open title={title} onClose={onClose} footer={footer} size={size} className={className}>
       <div className="stack">{children}</div>
     </SharedModal>
   );

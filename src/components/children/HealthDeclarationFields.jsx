@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Plus, X, Info } from '@/components/ui/icons';
 import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS, NOTE_STATE_LABELS } from '@/models/children/childrenConstants';
+import { MEDICAL_HISTORY_ITEMS, MEDICAL_HISTORY_STATE_LABELS, emptyMedicalHistory } from '@/models/children/childProfile';
 
 function StateRadios({ name, labels, value, onChange }) {
   return (
-    <div className="row row--wrap" style={{ gap: 20 }}>
+    <div className="row row--wrap gap-5">
       {Object.values(DECLARATION_STATE).map((s) => (
         <label key={s} className="radio">
           <input type="radio" name={name} checked={value === s} onChange={() => onChange(s)} />
@@ -22,6 +23,9 @@ function StateRadios({ name, labels, value, onChange }) {
 export function HealthDeclarationFields({ value, onChange, errors = {} }) {
   const [item, setItem] = useState('');
   const set = (block, patch) => onChange({ ...value, [block]: { ...value[block], ...patch } });
+  // Khai báo cũ chưa có tiền sử ⇒ coi như Chưa cung cấp.
+  const history = value.medicalHistory || emptyMedicalHistory();
+  const setHistory = (key, patch) => onChange({ ...value, medicalHistory: { ...history, [key]: { ...history[key], ...patch } } });
   const addItem = () => {
     const text = item.trim();
     if (!text) return;
@@ -31,12 +35,12 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
   };
 
   return (
-    <div className="stack" style={{ gap: 18 }}>
+    <div className="stack gap-4">
       <div className="alert alert--info">
         <Info size={18} />
         <div>
-          Ghi đúng thông tin phụ huynh cung cấp. Nếu phụ huynh chưa cho biết, chọn <b>Chưa cung cấp</b> – không mặc định là không có. Dị ứng
-          thực phẩm chỉ được bếp dùng sau khi Hiệu trưởng xác nhận.
+          Ghi đúng thông tin phụ huynh cung cấp. Nếu phụ huynh chưa cho biết, chọn <b>Chưa cung cấp</b> – không mặc định là không có. Thông
+          tin dị ứng có hiệu lực ngay khi lưu: bếp và điểm danh dùng danh sách này.
         </div>
       </div>
 
@@ -55,7 +59,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
             <label className="field__label" htmlFor="tr-allergy-item">
               Chất gây dị ứng
             </label>
-            <div className="row" style={{ gap: 8, maxWidth: 480 }}>
+            <div className="row gap-2 tr-state-text">
               <input
                 id="tr-allergy-item"
                 className="input"
@@ -74,7 +78,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
                 <Plus size={15} /> Thêm
               </button>
             </div>
-            <div className="row row--wrap mt-8" style={{ gap: 8 }}>
+            <div className="row row--wrap mt-8 gap-2">
               {value.allergies.items.map((x) => (
                 <span key={x} className="chip chip--red">
                   {x}
@@ -146,6 +150,52 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
           </span>
         )}
       </fieldset>
+
+      <div>
+        <h3 className="subsection-title">Tiền sử</h3>
+        <p className="muted text-sm">
+          Như phần Tiền sử của phiếu khám sức khỏe; phiếu khám điền sẵn từ đây. Ghi đúng tên bệnh phụ huynh báo, không tự ghi chẩn đoán.
+        </p>
+      </div>
+      {MEDICAL_HISTORY_ITEMS.map((it) => {
+        const v = history[it.key];
+        const error = errors[`medicalHistory.${it.key}`];
+        return (
+          <fieldset key={it.key} className="tr-fieldset">
+            <legend className="field__label">{it.label}</legend>
+            <StateRadios
+              name={`tr-history-${it.key}`}
+              labels={MEDICAL_HISTORY_STATE_LABELS}
+              value={v.state}
+              onChange={(state) => setHistory(it.key, { state })}
+            />
+            {it.withText && v.state === DECLARATION_STATE.REPORTED && (
+              <input
+                className="input mt-12"
+                maxLength={300}
+                aria-label={it.textLabel}
+                placeholder={`${it.textLabel}, ví dụ: Hen phế quản`}
+                value={v.text}
+                onChange={(e) => setHistory(it.key, { text: e.target.value })}
+              />
+            )}
+            {it.key === 'tbContact' && v.state === DECLARATION_STATE.REPORTED && (
+              <div className="alert alert--info mt-12">
+                <Info size={18} />
+                <div>
+                  Khi lưu, hệ thống báo Hiệu trưởng, Phó hiệu trưởng điểm trường và giáo viên lớp để trao đổi với phụ huynh về việc đưa trẻ
+                  đi khám sàng lọc. Bác sĩ xem lại ở đợt khám tới.
+                </div>
+              </div>
+            )}
+            {error && (
+              <span className="field__error" role="alert">
+                {error}
+              </span>
+            )}
+          </fieldset>
+        );
+      })}
     </div>
   );
 }

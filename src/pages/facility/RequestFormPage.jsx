@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Send, Info, Lock, ArrowLeft } from '@/components/ui/icons';
+import { Send, Info, ArrowLeft } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -10,6 +10,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { AssetThumb, ConditionBadge } from '@/components/asset/AssetVisuals';
 import { locationLabel } from '@/models/Location';
@@ -84,7 +85,7 @@ export default function RequestFormPage() {
       toast.success(`Đã gửi đề nghị ${req.code} tới Phó hiệu trưởng.`, 'Gửi đề nghị thành công');
       navigate('/facility/my-reports?tab=requests');
     } catch (err) {
-      toast.error(err.message, 'Không gửi được đề nghị');
+      toast.error(err, 'Không gửi được đề nghị');
       if (err.details) setErrors(err.details);
     } finally {
       setBusy(false);
@@ -95,8 +96,8 @@ export default function RequestFormPage() {
     return (
       <div className="page">
         <Breadcrumb items={myReportCrumbs('Đề nghị bổ sung')} />
-        <EmptyState
-          icon={Lock}
+        <StatusPage
+          kind="403"
           title="Bạn không có quyền gửi đề nghị"
           description="Chỉ giáo viên và nhân viên bếp đề nghị bổ sung cơ sở vật chất."
         />
@@ -153,7 +154,7 @@ export default function RequestFormPage() {
                 <span className="field__label" id="bh-mode-label">
                   Loại đề nghị<span className="req">*</span>
                 </span>
-                <div className="row row--wrap" style={{ gap: 16, minHeight: 38 }} role="radiogroup" aria-labelledby="bh-mode-label">
+                <div className="row row--wrap gap-4 bh-radio-row" role="radiogroup" aria-labelledby="bh-mode-label">
                   <label className="radio">
                     <input
                       type="radio"
@@ -204,7 +205,7 @@ export default function RequestFormPage() {
                       <div className="fw-600">
                         {asset.name} <span className="muted">· {asset.code}</span>
                       </div>
-                      <div className="row row--wrap text-sm" style={{ gap: 8, marginTop: 4 }}>
+                      <div className="row row--wrap text-sm gap-2 bh-mt-1">
                         <span>
                           Đang có: <b>{asset.quantity}</b> {asset.unit.toLowerCase()}
                         </span>

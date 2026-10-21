@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DB_CHANGED_EVENT } from '@/mocks/mockDatabase';
-
-// Giữ skeleton/spinner tối thiểu để màn hình không chớp khi dữ liệu về quá nhanh.
-const MIN_LOADING_MS = 450;
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
+import { createLatestRequest } from './latestRequest';
+import { loadWithHold } from './loadingTiming';
 
 /**
  * Runs an async loader and tracks loading / error / data.
@@ -16,23 +14,35 @@ export function useAsync(loader, deps = [], { refreshOnDataChange = false, enabl
   const [error, setError] = useState(null);
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
+  const requests = useRef(null);
+  if (!requests.current) requests.current = createLatestRequest();
+
+  useEffect(() => {
+    const guard = requests.current;
+    guard.mount();
+    return () => guard.unmount();
+  }, []);
 
   const run = useCallback(
     async ({ silent = false } = {}) => {
-      if (!enabled) return;
+      const guard = requests.current;
+      if (!enabled) {
+        guard.cancel();
+        setLoading(false);
+        return;
+      }
+      const id = guard.begin();
       if (!silent) setLoading(true);
       setError(null);
-      const startedAt = Date.now();
       try {
-        const result = await loaderRef.current();
-        if (!silent) await wait(MIN_LOADING_MS - (Date.now() - startedAt));
-        setData(result);
+        const result = silent ? await loaderRef.current() : await loadWithHold(() => loaderRef.current());
+        if (guard.isLatest(id)) setData(result);
         return result;
       } catch (err) {
-        if (!silent) await wait(MIN_LOADING_MS - (Date.now() - startedAt));
-        setError(err);
+        if (guard.isLatest(id)) setError(err);
       } finally {
-        if (!silent) setLoading(false);
+        // Lần tải im lặng có thể thay lần tải thường đang chạy ⇒ lần mới nhất luôn tắt loading.
+        if (guard.isLatest(id)) setLoading(false);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -54,8 +54,14 @@ test('phiếu mới lấy cột Đặt từ phiếu đặt hàng tuần; bếp l
     reason: '',
   }));
   await rejects(repo.saveFreshReceipt({ campusId: 'c1', date, header: { deliveryNote: 'PGH-1' }, lines, submit: true }, COOK_A), 422);
-  await rejects(repo.saveFreshReceipt({ campusId: 'c1', date, header: {}, lines: lines.map((l) => ({ ...l, reason: 'Thiếu' })), submit: true }, COOK_A), 422);
-  const draft = await repo.saveFreshReceipt({ campusId: 'c1', date, header: {}, lines: lines.map((l) => ({ ...l, reason: 'Giao thiếu' })) }, COOK_A);
+  await rejects(
+    repo.saveFreshReceipt({ campusId: 'c1', date, header: {}, lines: lines.map((l) => ({ ...l, reason: 'Thiếu' })), submit: true }, COOK_A),
+    422,
+  );
+  const draft = await repo.saveFreshReceipt(
+    { campusId: 'c1', date, header: {}, lines: lines.map((l) => ({ ...l, reason: 'Giao thiếu' })) },
+    COOK_A,
+  );
   assert.equal(draft.status, 'DRAFT');
   assert.equal(draft.counts.SHORT, 1);
   await rejects(repo.saveFreshReceipt({ campusId: 'c1', date, header: {}, lines }, VP), 403);
@@ -100,5 +106,6 @@ test('gửi PHT ⇒ khóa bếp; PHT trả kiểm lại cần ghi chú; xác nh�
 });
 
 test('không còn API báo thiếu', () => {
-  for (const name of ['getMissingFoodReports', 'submitMissingFoodReport', 'markMissingFoodSupplied']) assert.equal(repo[name], undefined, name);
+  for (const name of ['getMissingFoodReports', 'submitMissingFoodReport', 'markMissingFoodSupplied'])
+    assert.equal(repo[name], undefined, name);
 });

@@ -29,13 +29,22 @@ export const canEditFoodSample = (user, campusId) => isKitchenStaff(user) && can
 // Kiểm nhận hàng tươi (S5–S6): bếp cơ sở kiểm và gửi, PHT cơ sở xác nhận; HT xem.
 export const canViewFreshReceipt = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
 
+// BA 01: chỉ HT quản lý danh mục NCC; PHT xem (read-only) và chọn NCC khi lập phiếu nhập.
+export const canManageSuppliers = (user) => isPrincipal(user);
+export const canViewSuppliers = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
+
 // UC 6.23: the campus Vice Principal records receipts.
 export const canManageStock = (user) => isVicePrincipal(user);
-// Kho khô xem chung hai cơ sở (S4): HT và PHT xem; PHT ghi (nhập, kiểm kê) cho cơ sở BE cho phép — mock: cả hai cơ sở.
+// Kho khô xem chung hai cơ sở (S4): HT và PHT xem; PHT ghi (nhập kho) cho cơ sở BE cho phép — mock: cả hai cơ sở.
 export const canViewDryStock = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
 export const canWriteStock = (user, campusId) => isVicePrincipal(user) && !!campusId;
-// Phiếu xuất kho tự sinh lúc chốt suất (S8): HT, PHT, Bếp chỉ xem và in.
+// Phiếu xuất kho tự sinh lúc chốt suất (S8): HT, PHT, Bếp xem và in.
 export const canViewStockIssue = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
+// BA: nhân viên bếp của cơ sở chọn lô cho phiếu xuất; hệ thống ghi xuất khi đủ điều kiện.
+export const canAllocateIssueLots = (user, campusId) => isKitchenStaff(user) && canAccessCampus(user, campusId);
+
+// Widget chờ duyệt cũ không được bật lại luồng duyệt xuất đã thay bằng phiếu tự sinh.
+export const canApproveStockIssue = () => false;
 
 /** Roles per route, for the lead to register in AppRoutes. */
 export const KITCHEN_ROUTE_ROLES = {
@@ -43,7 +52,8 @@ export const KITCHEN_ROUTE_ROLES = {
   foodSamples: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
   dryStock: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
   stockReceipts: [ROLES.VICE_PRINCIPAL],
-  stockCounts: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
+  suppliers: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
+  supplierForm: [ROLES.PRINCIPAL],
   stockIssues: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
   publishedMenu: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
   mealCount: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],

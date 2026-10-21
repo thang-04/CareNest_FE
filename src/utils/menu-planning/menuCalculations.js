@@ -1,12 +1,5 @@
 import { normalizeText } from '@/utils/format';
-import {
-  NORM_STATUS,
-  NUTRITION_NORMS,
-  REPEAT_WINDOW_DAYS,
-  DISH_TYPE,
-  addDays,
-  portionFactorOf,
-} from '@/models/menu-planning/menuPlanningConstants';
+import { NORM_STATUS, REPEAT_WINDOW_DAYS, DISH_TYPE, addDays } from '@/models/menu-planning/menuPlanningConstants';
 
 /*
  * Deterministic menu calculations (GBR-AI-04, GBR-MENU-02/03/04): nutrition totals, cost,
@@ -35,16 +28,10 @@ export const dishAllergens = (dish, foodById) => {
   return found;
 };
 
-/**
- * Định lượng một trẻ của nhóm tuổi: số đã nhập theo nhóm (null = chưa nhập);
- * món cũ chỉ có khẩu phần chuẩn thì nhân hệ số khẩu phần của nhóm.
- */
+/** Định lượng một trẻ của nhóm tuổi: chỉ lấy số đã nhập theo nhóm, chưa nhập = null (không suy từ hệ số giả định). */
 export const ingredientQty = (ing, ageGroupId) => {
-  if (ing?.portions && ageGroupId in ing.portions) {
-    const v = ing.portions[ageGroupId];
-    return v === '' || v == null ? null : Number(v);
-  }
-  return (Number(ing?.quantity) || 0) * portionFactorOf(ageGroupId);
+  const v = ing?.portions?.[ageGroupId];
+  return v === '' || v == null ? null : Number(v);
 };
 
 /** Nhóm tuổi mà món còn thành phần chưa nhập định lượng. */
@@ -144,10 +131,10 @@ export const mealsTotals = (meals, dishById, foodById, ageGroupId) => {
 /**
  * Compares day totals with the age-group reference (energy in kcal, other nutrients as % of energy).
  * Returns one row per nutrient: { key, value, percent, min, max, status }.
- * norms = định mức đã lưu ở Thiết lập (catalog.norms); thiếu nhóm nào thì dùng giá trị mặc định.
+ * norms = chuẩn tạm đã nhập ở Thiết lập (catalog.norms); chưa nhập thì mọi dòng NA (BA: không tự áp chuẩn).
  */
 export const compareToNorm = (totals, ageGroupId, incomplete = false, norms) => {
-  const norm = norms?.[ageGroupId] || NUTRITION_NORMS[ageGroupId];
+  const norm = isNormConfigured(norms?.[ageGroupId]) ? norms[ageGroupId] : null;
   const kcal = totals?.kcal || 0;
   return NUTRIENTS.map((key) => {
     const value = totals?.[key] || 0;
@@ -161,6 +148,12 @@ export const compareToNorm = (totals, ageGroupId, incomplete = false, norms) => 
     return { key, value, percent: energyShare, min, max, status };
   });
 };
+
+/** Đủ cả 4 khoảng định mức dạng số thì mới đánh giá được. */
+export const isNormConfigured = (norm) =>
+  NUTRIENTS.every(
+    (k) => Array.isArray(norm?.[k]) && norm[k].length === 2 && norm[k].every((v) => v !== '' && v != null && Number.isFinite(Number(v))),
+  );
 
 export const normIssues = (rows) => rows.filter((r) => r.status === 'LOW' || r.status === 'HIGH');
 

@@ -4,7 +4,7 @@ import { lockedLocationMap } from '@/mocks/inventoryLock';
 import { buildSeedFacility } from '@/mocks/facilitySeed';
 import { uid } from '@/utils/id';
 import { normalizeText } from '@/utils/format';
-import { locationLabel } from '@/models/Location';
+import { locationLabel, withCampusInfo } from '@/models/Location';
 import { ROLES } from '@/models/User';
 import { ASSET_CONDITION_LABELS } from '@/models/Asset';
 import {
@@ -45,6 +45,7 @@ import {
   canDecideProposal,
   canAddToProposal,
 } from '@/utils/facility/facilityPermissions';
+import { withRoomManagers } from '@/mocks/roomManagers';
 
 /*
  * Fake backend of the facility module (UC 7.2 Report Facility Issue, UC 7.3/7.4 Request / Review Facility Request,
@@ -76,8 +77,9 @@ const requireUser = (db, user) => {
   // Role and campus come from the account record, never from what the client sent.
   return db.users.find((u) => u.id === user.id) || user;
 };
-const scopeOf = (db, me) => facilityLocationIds(me, { locations: db.locations, classes: db.classes || [] });
-const locName = (db, id) => locationLabel(db.locations.find((l) => l.id === id));
+const scopeOf = (db, me) => facilityLocationIds(me, { locations: withRoomManagers(db), classes: db.classes || [] });
+// Nhãn có campus khi trùng mã / tên với phòng của campus khác
+const locName = (db, id) => locationLabel(withCampusInfo(db.locations, db.campuses).find((l) => l.id === id));
 const addHistory = (doc, action, me, note = '') => doc.history.push({ id: uid('fh'), action, userId: me.id, at: now(), note });
 
 const nextCode = (list, prefix) => {

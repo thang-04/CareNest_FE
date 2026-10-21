@@ -61,6 +61,8 @@ export function checkLinks(root, config, files, planned, report) {
   const { scanGlobs, scanExclude } = config.checkAiLayer;
   const targets = files.filter((f) => matchAny(scanGlobs, f) && !matchAny(scanExclude, f));
   for (const file of targets) {
+    // Plan liệt kê file sẽ tạo (C) hoặc đã xóa (D) ⇒ đường dẫn thiếu chỉ cảnh báo
+    const inPlan = file.startsWith("docs/plans/");
     let inFence = false;
     readText(root, file)
       .split("\n")
@@ -82,7 +84,8 @@ export function checkLinks(root, config, files, planned, report) {
           if (resolveToken(root, config, file, token) !== "missing") continue;
           const norm = token.replace(/\/$/, "");
           const isPlanned = planned.some((p) => norm === p || norm.startsWith(`${p}/`));
-          report(isPlanned ? "warn" : "error", file, index + 1, `${isPlanned ? "đường dẫn planned, chưa tồn tại" : "đường dẫn không tồn tại"}: ${token}`);
+          const label = isPlanned ? "đường dẫn planned, chưa tồn tại" : inPlan ? "đường dẫn trong plan chưa/không còn tồn tại" : "đường dẫn không tồn tại";
+          report(isPlanned || inPlan ? "warn" : "error", file, index + 1, `${label}: ${token}`);
         }
       });
   }
@@ -97,6 +100,8 @@ export function checkRules(root, files, report) {
       report("error", file, 1, "thiếu frontmatter `paths` (danh sách glob)");
       continue;
     }
+    const unmatched = [];
+    let checked = 0;
     for (const glob of paths) {
       let re;
       try {
@@ -107,7 +112,15 @@ export function checkRules(root, files, report) {
       }
       const base = glob.split(/[*?{]/)[0].replace(/\/[^/]*$/, "");
       const baseExists = base && existsSync(join(root, base)) && statSync(join(root, base)).isDirectory();
-      if (baseExists && !files.some((f) => re.test(f))) report("warn", file, 1, `glob không khớp file nào: ${glob}`);
+      if (!baseExists) continue;
+      checked++;
+      if (!files.some((f) => re.test(f))) unmatched.push(glob);
+    }
+    // Mọi glob đều trượt ⇒ rule không bao giờ được nạp (vd. glob *.ts trong repo JS)
+    if (checked > 0 && unmatched.length === checked) {
+      report("error", file, 1, `rule chết — không glob nào khớp file: ${unmatched.join(", ")}`);
+    } else {
+      for (const glob of unmatched) report("warn", file, 1, `glob không khớp file nào: ${glob}`);
     }
   }
 }

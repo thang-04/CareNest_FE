@@ -12,7 +12,7 @@ import { LoadingState, ErrorState } from '@/components/ui/States';
 import { RequestStatusBadge, ProposalStatusBadge } from '@/components/facility/FacilityBadges';
 import { FacilityHistoryCard } from '@/components/facility/FacilityHistoryCard';
 import { DecisionModal } from '@/components/facility/DecisionModal';
-import { locationLabel } from '@/models/Location';
+import { locationBaseLabel } from '@/models/Location';
 import { ROLES } from '@/models/User';
 import { REQUEST_STATUS, REQUEST_ITEM_MODES } from '@/models/facility/facilityConstants';
 import { canReviewRequest, canPrincipalDecideRequest, canAddToProposal, isManager } from '@/utils/facility/facilityPermissions';
@@ -52,7 +52,7 @@ export default function RequestDetailPage() {
   const principalDecide = canPrincipalDecideRequest(r, user);
   const decided = [REQUEST_STATUS.APPROVED, REQUEST_STATUS.REJECTED].includes(r.status);
   const forwarded = !!r.forwardedAt;
-  const loc = locationLabel(md.locationById(r.locationId));
+  const loc = locationBaseLabel(md.locationById(r.locationId));
   const backTo = isManager(user) ? '/facility/requests' : '/facility/my-reports?tab=requests';
   const what = `${r.quantity} ${r.unit.toLowerCase()} ${r.itemName}`;
 
@@ -86,7 +86,7 @@ export default function RequestDetailPage() {
       setModal(null);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message, 'Không thực hiện được');
+      toast.error(err, 'Không thực hiện được');
       throw err;
     }
   };
@@ -96,12 +96,10 @@ export default function RequestDetailPage() {
       <Breadcrumb items={crumbs(`Đề nghị ${r.code}`)} />
       <div className="page__head">
         <div>
-          <h1 className="page__title" style={{ marginBottom: 6 }}>
-            Đề nghị bổ sung {r.code}
-          </h1>
+          <h1 className="page__title">Đề nghị bổ sung {r.code}</h1>
           <RequestStatusBadge status={r.status} size="lg" />
         </div>
-        <div className="row row--wrap" style={{ gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+        <div className="row row--wrap gap-2 bh-head-actions">
           {(vpReview || principalDecide) && (
             <button className="btn btn--outline-danger" onClick={() => setModal('reject')}>
               <XCircle size={16} /> Từ chối
@@ -125,7 +123,7 @@ export default function RequestDetailPage() {
         </div>
       </div>
 
-      <div className="card mt-16" style={{ padding: '20px 24px' }}>
+      <div className="card card--timeline mt-16">
         <ProgressSteps steps={steps} cancelled={r.status === REQUEST_STATUS.REJECTED} />
       </div>
 
@@ -166,11 +164,7 @@ export default function RequestDetailPage() {
               <dt>Tài sản:</dt>
               <dd className="fw-600">
                 {r.itemName} {r.assetCode && <span className="muted">· {r.assetCode}</span>}
-                {r.itemMode === REQUEST_ITEM_MODES.NEW && (
-                  <span className="chip chip--blue" style={{ marginLeft: 6 }}>
-                    Tài sản mới
-                  </span>
-                )}
+                {r.itemMode === REQUEST_ITEM_MODES.NEW && <span className="chip chip--blue bh-ml-1-5">Tài sản mới</span>}
               </dd>
               <dt>Nhóm:</dt>
               <dd>{md.categoryById(r.categoryId)?.name || '—'}</dd>
@@ -189,7 +183,7 @@ export default function RequestDetailPage() {
               <dt>Thời gian gửi:</dt>
               <dd>{formatDateTime(r.createdAt)}</dd>
               <dt>Lý do:</dt>
-              <dd style={{ whiteSpace: 'pre-line' }}>{r.reason}</dd>
+              <dd className="bh-pre-line">{r.reason}</dd>
               {forwarded && (
                 <>
                   <dt>Chuyển Hiệu trưởng:</dt>
@@ -222,7 +216,7 @@ export default function RequestDetailPage() {
                   <dt>Đề xuất mua sắm:</dt>
                   <dd>
                     {r.proposal ? (
-                      <span className="row" style={{ gap: 8 }}>
+                      <span className="row gap-2">
                         {isManager(user) ? (
                           <Link to={`/facility/proposals/${r.proposal.id}`} className="fw-600">
                             {r.proposal.code}

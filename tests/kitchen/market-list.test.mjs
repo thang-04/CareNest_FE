@@ -179,7 +179,7 @@ test('dự trù tuần đọc được thực đơn tuần đã xuất bản c�
   assert.ok(week.days.find((d) => d.date === SEED_DATE).hasMenu);
 });
 
-test('dữ liệu đã lưu kiểu cũ (chỉ có tuần cố định) được bổ sung tuần trước + tuần này đã xuất bản, bỏ bản nháp mẫu cũ', async () => {
+test('dữ liệu đã lưu kiểu cũ được bổ sung tuần gần đây nhưng giữ nguyên bản nháp cũ', async () => {
   const { topUpRecentWeeklyMenus, buildRecentWeeklyMenus } = await import('@/mocks/menuPlanningSeed');
   const { mondayOf, addDays } = await import('@/models/menu-planning/menuPlanningConstants');
   const today = '2026-10-15';
@@ -190,7 +190,10 @@ test('dữ liệu đã lưu kiểu cũ (chỉ có tuần cố định) được 
     ],
   };
   assert.equal(topUpRecentWeeklyMenus(old, today), true);
-  assert.ok(!old.weeklyMenus.some((w) => w.id === 'wm_8'));
+  assert.ok(
+    old.weeklyMenus.some((w) => w.id === 'wm_8'),
+    'không xóa bản nháp người dùng có thể đang sửa',
+  );
   const published = (ag, week) => old.weeklyMenus.some((w) => w.ageGroupId === ag && w.weekStart === week && w.status === 'PUBLISHED');
   ['ag-2', 'ag-3', 'ag-4', 'ag-5'].forEach((ag) => {
     assert.ok(published(ag, mondayOf(today)), `${ag} tuần này`);
@@ -210,4 +213,18 @@ test('ngày học gần nhất đã qua có thực đơn trong dự trù tuần,
   assert.equal(week.status, 'READY', d);
   assert.ok(week.days.find((x) => x.date === d).hasMenu, d);
   assert.ok(week.fresh.some((f) => f.days.some((x) => x.date === d && x.qty > 0)));
+});
+
+test('BA 02: đơn vị mua khác đơn vị kho ⇒ đi chợ theo đơn vị mua, xuất kho theo đơn vị kho', () => {
+  const bag = { purchaseUnit: 'bao 10 kg', purchaseUnitSize: 10000, stockUnit: 'kg', purchaseToStock: 10, stockUnitSize: 1000 };
+  const m = computeMarket(
+    { ...db, foods: db.foods.map((f) => (f.id === 'f1' ? { ...f, ...bag, unitPrice: 180000 } : f)) },
+    { date: DATE, counts, classById },
+  );
+  const rice = byName(m, 'Gạo tẻ');
+  // 840 g: mua tròn lên 1 bao; xuất kho 0,9 kg
+  assert.deepEqual([rice.purchaseUnit, rice.buyUnits, rice.stockUnit, rice.stockUnits], ['bao 10 kg', 1, 'kg', 0.9]);
+  // Thực phẩm chưa khai đơn vị kho: xuất kho trùng lượng mua
+  const egg = byName(computeMarket(db, { date: DATE, counts, classById }), 'Gạo tẻ');
+  assert.deepEqual([egg.stockUnit, egg.stockUnits], [egg.purchaseUnit, egg.buyUnits]);
 });

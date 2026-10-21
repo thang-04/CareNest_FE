@@ -44,6 +44,8 @@ export const inLeaderScope = (campusId, user) => isPrincipal(user) || (isVicePri
 
 /* ---------- Daily assessment / profile ---------- */
 export const canRecordDailyAssessment = (cls, user) => isClassTeacher(cls, user);
+/** Mở lại ngày đánh giá đã khóa: Hiệu trưởng (cả trường) hoặc PHT của điểm trường có lớp. */
+export const canUnlockAssessmentDay = (cls, user) => !!cls && inLeaderScope(cls.campusId, user);
 export const canViewDevelopmentProfile = (cls, user) => isClassTeacher(cls, user);
 export const canViewDevelopmentProgress = (child, user) => !!child && inLeaderScope(child.campusId, user);
 

@@ -12,4 +12,11 @@ export const educationPlanApi = {
   deleteTheme: (id) => axiosClient.delete(`/education-plans/themes/${id}`),
   saveLesson: (item) => axiosClient.put(`/education-plans/lessons/${item.id}`, item),
   deleteLesson: (id) => axiosClient.delete(`/education-plans/lessons/${id}`),
+  getClassPlans: () => axiosClient.get('/education-plans/class-docs'),
+  getEduConfig: () => axiosClient.get('/education-plans/config'),
+  saveEduConfig: (cfg) => axiosClient.put('/education-plans/config', cfg),
+  saveClassDoc: (kind, doc) => axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, doc),
+  actOnClassDoc: (kind, id, body) => axiosClient.post(`/education-plans/class-docs/${kind}/${id}/actions`, body),
+  suggestBranchNames: (input) => axiosClient.post('/education-plans/ai/branch-names', input),
+  rewriteBranchName: (input) => axiosClient.post('/education-plans/ai/branch-names/rewrite', input),
 };

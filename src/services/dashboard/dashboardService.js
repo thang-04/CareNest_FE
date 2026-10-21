@@ -6,18 +6,31 @@ import { getIssues, getRequests, getProposals } from '@/services/facility/facili
 import { getRewardProposals } from '@/services/assessment/assessmentService';
 import { getInspections } from '@/services/inventory-inspection/inspectionService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
+import { getStockIssue } from '@/services/kitchen/kitchenService';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { REQUEST_STATUS, PROPOSAL_STATUS, ISSUE_STATUS, ISSUE_TYPE_LABELS } from '@/models/facility/facilityConstants';
 import { REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
 import { ROUND_STATUS_LABELS, SHEET_STATUS_LABELS } from '@/models/inventory-inspection/inspectionConstants';
 import { MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
-import { FRESH_RECEIPT_STATUS_LABELS, MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
-import { getFreshReceipt } from '@/services/kitchen/kitchenService';
+import {
+  MEAL_SESSION_LABELS,
+  ISSUE_STATUS as STOCK_ISSUE_STATUS,
+  ISSUE_STATUS_LABELS as STOCK_LABELS,
+} from '@/models/kitchen/kitchenConstants';
 import { canDecideIssue, canReviewRequest, canPrincipalDecideRequest, canDecideProposal } from '@/utils/facility/facilityPermissions';
 import { canReviewRewardProposal, canDecideRewardProposal } from '@/utils/assessment/assessmentPermissions';
 import { canReviewSheet, canApproveRound } from '@/utils/inventory-inspection/inspectionPermissions';
 import { canConfirmMealCount } from '@/utils/attendance/attendancePermissions';
+import { canApproveStockIssue } from '@/utils/kitchen/kitchenPermissions';
 import { APPROVAL_TYPE, APPROVAL_TYPES_BY_ROLE } from '@/models/dashboard/dashboardConstants';
+import { FACILITY_ENABLED } from '@/config/app';
+
+const FACILITY_TYPES = [
+  APPROVAL_TYPE.FACILITY_ISSUE,
+  APPROVAL_TYPE.FACILITY_REQUEST,
+  APPROVAL_TYPE.FACILITY_PROPOSAL,
+  APPROVAL_TYPE.INSPECTION,
+];
 import { canViewPendingApprovals } from '@/utils/dashboard/dashboardPermissions';
 import { sortKey } from '@/utils/dashboard/dashboardFormat';
 
@@ -49,7 +62,7 @@ const SOURCES = {
         at: lastAt(l.history),
         campusId: null,
         statusLabel: STATUS_EDU.PENDING_TL,
-        to: `/education/reviews/${l.id}`,
+        to: '/education/plan-reviews',
       }));
   },
 
@@ -65,7 +78,7 @@ const SOURCES = {
         at: lastAt(t.history),
         campusId: null,
         statusLabel: STATUS_EDU.PENDING_VP,
-        to: `/education/approvals/chu-de/${t.id}`,
+        to: '/education/plan-reviews',
       }));
   },
 
@@ -81,7 +94,7 @@ const SOURCES = {
         at: lastAt(l.history),
         campusId: null,
         statusLabel: STATUS_EDU.PENDING_VP,
-        to: `/education/approvals/giao-an/${l.id}`,
+        to: '/education/plan-reviews',
       }));
   },
 
@@ -187,20 +200,20 @@ const SOURCES = {
       }));
   },
 
-  [APPROVAL_TYPE.FRESH_RECEIPT]: async (user, { date }) => {
-    const r = await getFreshReceipt({ campusId: user.campusId, date }, user);
-    if (!r?.canReview) return [];
-    const odd = r.lines.length - r.counts.OK;
+  [APPROVAL_TYPE.STOCK_ISSUE]: async (user, { date }) => {
+    const view = await getStockIssue({ campusId: user.campusId, date }, user);
+    const issue = view?.issue;
+    if (view?.state !== STOCK_ISSUE_STATUS.PENDING_APPROVAL || !issue || !canApproveStockIssue(issue, user)) return [];
     return [
       {
-        id: `fresh-${r.campusId}-${r.date}`,
-        code: r.deliveryNote || 'Phiếu giao hàng',
-        title: `${r.lines.length} thực phẩm tươi${odd ? ` · ${odd} dòng thiếu hoặc trả lại` : ''}`,
-        by: r.submittedByName || 'Bếp',
-        at: r.submittedAt,
-        campusId: r.campusId,
-        statusLabel: FRESH_RECEIPT_STATUS_LABELS.SUBMITTED,
-        to: `/kitchen/fresh-receipts?date=${r.date}`,
+        id: issue.code,
+        code: issue.code,
+        title: `Xuất ${issue.items.length} loại thực phẩm cho bếp`,
+        by: 'Lập từ sĩ số suất ăn đã xác nhận',
+        at: date,
+        campusId: issue.campusId,
+        statusLabel: STOCK_LABELS.PENDING_APPROVAL,
+        to: '/kitchen/stock-issues',
       },
     ];
   },
@@ -226,7 +239,7 @@ function rewardRow(p, users) {
  */
 export async function getPendingApprovals(user, { schoolYear, date }) {
   if (!canViewPendingApprovals(user)) return [];
-  const types = APPROVAL_TYPES_BY_ROLE[user.role] || [];
+  const types = (APPROVAL_TYPES_BY_ROLE[user.role] || []).filter((t) => FACILITY_ENABLED || !FACILITY_TYPES.includes(t));
   // Names only decorate the rows: the list still works when the user directory is unavailable.
   const users = await getUsers()
     .then((list) => Object.fromEntries(list.map((u) => [u.id, u.fullName])))

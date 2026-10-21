@@ -2,11 +2,13 @@ import { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Plus } from '@/components/ui/icons';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useAuth } from '@/contexts/AuthContext';
 import { getQuickActionsForRole } from './quickActions';
 
 /** Nút "Tạo nhanh" ở header: các trang tạo mới mà vai trò được vào. Vai trò không có mục nào thì ẩn nút. */
 export function QuickCreateMenu({ role }) {
-  const actions = getQuickActionsForRole(role);
+  const { user } = useAuth();
+  const actions = getQuickActionsForRole(role, user);
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const close = useCallback(() => setOpen(false), []);
@@ -21,8 +23,10 @@ export function QuickCreateMenu({ role }) {
         aria-label="Tạo nhanh"
         aria-haspopup="menu"
         aria-expanded={open}
+        title="Tạo nhanh"
       >
-        <Plus size={17} /> <span className="header__create-label">Tạo nhanh</span> <ChevronDown size={15} />
+        <Plus size={17} /> <span className="header__create-label">Tạo nhanh</span>{' '}
+        <ChevronDown size={15} className="header__create-caret" />
       </button>
       {open && (
         <div className="dropdown__panel quick-menu" role="menu" aria-label="Tạo nhanh">

@@ -1,4 +1,4 @@
-import { LOCATION_TYPE_LABELS } from '@/models/Location';
+import { LOCATION_TYPE_LABELS, isActiveLocation } from '@/models/Location';
 
 /**
  * Scope of an inventory round on two axes (shared by UI and mock server):
@@ -40,7 +40,8 @@ export const scopeCampusIds = (round, campuses) =>
 /** Locations that match the WHERE axis (before excluding empty / locked ones). */
 export const candidateLocations = (round, locations, campuses) => {
   const campusIds = scopeCampusIds(round, campuses);
-  const inCampus = locations.filter((l) => campusIds.includes(l.campusId));
+  // Phòng ngừng sử dụng không đưa vào đợt kiểm kê mới
+  const inCampus = locations.filter((l) => campusIds.includes(l.campusId) && isActiveLocation(l));
   if (round.locationMode === LOCATION_MODES.LOCATION_TYPE) return inCampus.filter((l) => (round.locationTypes || []).includes(l.type));
   if (round.locationMode === LOCATION_MODES.CUSTOM) return inCampus.filter((l) => (round.locationIds || []).includes(l.id));
   return inCampus;

@@ -1,47 +1,104 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Layers, Pencil, Send, Trash2 } from '@/components/ui/icons';
+import { Check, FileDown, Pencil, Printer, Send, Trash2, Undo2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { AGE_GROUPS, EDU_STATUS, SCHOOL_SCOPE, allGoalItems } from '@/models/education-plan/educationPlanConstants';
-import { Card, EduStatusBadge, EmptyState, Modal, Notice, PageHead, SignatureView, fmtDate } from '@/components/education-plan/eduUi';
-import { DomainTitle, GoalItemView } from '@/components/education-plan/PlanWidgets';
+import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
+import { goalIdsToTicks, numberGoals, toRows } from '@/models/education-plan/goalTable';
+import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
+import { Card, YearPlanStatusBadge, Field, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { StatusPage } from '@/components/ui/StatusPage';
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+const ISSUE_NOTE =
+  'Sau khi ban hành, các lớp trong nhóm tuổi dùng kế hoạch này để lập kế hoạch chủ đề và giáo án. Xuất file để in và ký tay.';
+const editable = (s) => s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED;
+
+/** Kế hoạch giáo dục năm học của một nhóm tuổi: bảng mục tiêu (A), chủ đề, sự kiện (B), người xây dựng và ban hành. */
+const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 
 export default function GoalDetailPage() {
   const { id } = useParams();
-  const { goals, themes, role, saveGoal, deleteGoal, toast } = useEducationPlan();
+  const { goals, themes: themePlans, user, saveGoal, deleteGoal, toast } = useEducationPlan();
   const navigate = useNavigate();
   const [modal, setModal] = useState(null);
-  const g = goals.find((x) => x.id === id);
+  const [note, setNote] = useState('');
+  const [tried, setTried] = useState(false);
+  const [tab, setTab] = useState('goals');
+  const found = goals.find((x) => x.id === id);
+  // Giáo viên chỉ xem kế hoạch năm đã ban hành
+  const g = user.role === ROLES.TEACHER && found?.status !== EDU_STATUS.APPROVED ? null : found;
 
   if (!g)
     return (
-      <div className="page">
+      <div className="page ga-page">
         <PageHead
           crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Mục tiêu năm học', to: '/education/goals' }]}
-          title="Mục tiêu năm học"
+          title="Kế hoạch năm học"
         />
-        <Card>
-          <EmptyState
-            title="Không tìm thấy mục tiêu năm học"
-            action={
-              <Link className="btn" to="/education/goals">
-                Về danh sách
-              </Link>
-            }
-          />
-        </Card>
+        <StatusPage
+          kind="404"
+          title="Không tìm thấy kế hoạch năm học"
+          action={
+            <Link className="btn" to="/education/goals">
+              Về danh sách
+            </Link>
+          }
+        />
       </div>
     );
 
-  const isVP = role === ROLES.VICE_PRINCIPAL;
-  const isPrincipal = role === ROLES.PRINCIPAL;
-  const isDraft = g.status === EDU_STATUS.DRAFT;
+  const isVp = user.role === ROLES.VICE_PRINCIPAL;
+  const isLeader = user.role === ROLES.TEAM_LEADER && user.ageGroupId === g.ageGroupId;
+  const isPrincipal = user.role === ROLES.PRINCIPAL;
   const ageName = AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name;
-  const usedBy = themes.filter((t) => t.goalId === g.id);
+  const usedBy = themePlans.filter((t) => t.goalId === g.id);
+  const { domains, themes } = goalIdsToTicks(
+    DOMAINS.map((name) => g.domains.find((d) => d.name === name) || { name, rows: [] }).map((d) => ({
+      id: d.id || d.name,
+      name: d.name,
+      rows: toRows(d, uid),
+    })),
+    g.themes || [],
+  );
+  const numbers = numberGoals(domains);
+  const plan = { ...g, domains, themes };
+  const history = g.history || [];
+  const now = () => new Date().toISOString().slice(0, 10);
+  const log = (action, extra) => [...history, { at: now(), by: user.name, action, note: extra || undefined }];
+  const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: now() };
+  // Người tạo là người duy nhất sửa / gửi khi còn nháp; Phó HT duyệt, trả lại hoặc tự sửa khi đang chờ
+  const isOwner = !g.owner || g.owner.userId === user.id;
+  const draftLike = editable(g.status);
+  const pending = g.status === EDU_STATUS.PENDING_VP;
+  const canEditNow = (draftLike && isOwner && (isVp || isLeader)) || (pending && isVp);
+  const canSend = draftLike && isOwner && isLeader;
+  const canIssue = isVp && (pending || (draftLike && isOwner));
+
+  const open = (kind) => {
+    setNote('');
+    setTried(false);
+    setModal(kind);
+  };
+  const act = () => {
+    setTried(true);
+    if (modal === 'reject') {
+      if (!note.trim()) return;
+      saveGoal({ ...g, status: EDU_STATUS.REJECTED, history: log('Trả lại để sửa', note.trim()) });
+      toast('Đã trả lại kế hoạch cho tổ trưởng');
+    } else if (modal === 'issue') {
+      saveGoal({ ...g, status: EDU_STATUS.APPROVED, issued: me, history: log('Ban hành', note.trim()) });
+      toast('Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
+    } else if (modal === 'send') {
+      saveGoal({ ...g, status: EDU_STATUS.PENDING_VP, sentAt: now(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt', note.trim()) });
+      toast('Đã gửi Phó hiệu trưởng duyệt');
+    }
+    setModal(null);
+  };
 
   return (
-    <div className="page">
+    <div className="page ga-page">
       <PageHead
         crumbs={[
           { label: 'Kế hoạch giáo dục' },
@@ -49,137 +106,125 @@ export default function GoalDetailPage() {
           { label: g.code },
         ]}
         title={g.title}
-        desc={
-          <span className="row" style={{ gap: 12 }}>
-            <EduStatusBadge status={g.status} size="lg" />
-            <span>{g.code}</span>
-          </span>
-        }
+        desc={<YearPlanStatusBadge status={g.status} size="lg" />}
         actions={
-          isVP ? (
-            <>
-              {isDraft && (
-                <button className="btn btn--outline-danger" onClick={() => setModal('delete')}>
-                  <Trash2 size={16} aria-hidden /> Xóa
-                </button>
-              )}
+          <>
+            {/* Xuất / in ở mọi bước; bản đã ban hành thì Phó HT in ra ký, giáo viên in để dùng */}
+            <button className="btn btn--ghost" onClick={() => downloadYearPlanDoc(plan, numbers)}>
+              <FileDown size={16} aria-hidden /> Xuất Word
+            </button>
+            <button className="btn btn--ghost" onClick={() => printYearPlan(plan, numbers) || toast(POPUP_BLOCKED, 'warn')}>
+              <Printer size={16} aria-hidden /> In / Lưu PDF
+            </button>
+            {isOwner && (isVp || isLeader) && g.status === EDU_STATUS.DRAFT && (
+              <button className="btn btn--outline-danger" onClick={() => setModal('delete')}>
+                <Trash2 size={16} aria-hidden /> Xóa
+              </button>
+            )}
+            {canEditNow && (
               <Link className="btn btn--outline-primary" to={`/education/goals/${g.id}/edit`}>
-                <Pencil size={16} aria-hidden /> Chỉnh sửa
+                <Pencil size={16} aria-hidden /> {pending ? 'Sửa trước khi duyệt' : 'Chỉnh sửa'}
               </Link>
-              {isDraft && (
-                <button
-                  className="btn btn--primary"
-                  onClick={() => (g.signature ? setModal('send') : navigate(`/education/goals/${g.id}/edit?buoc=ky`))}
-                >
-                  <Send size={16} aria-hidden /> Gửi tổ trưởng
-                </button>
-              )}
-            </>
-          ) : (
-            role === ROLES.TEAM_LEADER && (
-              <Link className="btn btn--primary" to="/education/themes/new">
-                <Layers size={16} aria-hidden /> Lập kế hoạch chủ đề
-              </Link>
-            )
-          )
+            )}
+            {canSend && (
+              <button className="btn btn--primary" onClick={() => open('send')}>
+                <Send size={16} aria-hidden /> Gửi Phó HT duyệt
+              </button>
+            )}
+            {isVp && pending && (
+              <button className="btn btn--outline-primary" onClick={() => open('reject')}>
+                <Undo2 size={16} aria-hidden /> Trả lại
+              </button>
+            )}
+            {canIssue && (
+              <button className="btn btn--primary" onClick={() => open('issue')}>
+                <Check size={16} aria-hidden /> Ban hành
+              </button>
+            )}
+          </>
         }
       />
 
-      {isVP && isDraft && !g.signature && (
+      {g.status === EDU_STATUS.REJECTED && history.at(-1)?.note && (
         <div className="mb-16">
-          <Notice tone="warn">Bộ mục tiêu chưa được ký. Bấm “Gửi tổ trưởng” để duyệt lại nội dung và ký trước khi gửi.</Notice>
+          <Notice tone="err">
+            Bị trả lại ({history.at(-1).by}, {fmtDate(history.at(-1).at)}): {history.at(-1).note}
+          </Notice>
+        </div>
+      )}
+      {draftLike && !isOwner && (isVp || isLeader) && (
+        <div className="mb-16">
+          <Notice>Kế hoạch do {g.owner.name} soạn. Khi còn là bản nháp, chỉ người soạn được sửa và gửi.</Notice>
+        </div>
+      )}
+      {g.status === EDU_STATUS.PENDING_VP && !isVp && (
+        <div className="mb-16">
+          <Notice>Đã gửi Phó hiệu trưởng duyệt. Kế hoạch bị khóa cho tới khi được ban hành hoặc bị trả lại.</Notice>
         </div>
       )}
 
-      <div className="ga-split">
-        <div className="stack">
-          <Card title="Thông tin chung">
-            <dl className="info-list">
-              <dt>Năm học</dt>
-              <dd>{g.schoolYear}</dd>
-              <dt>Nhóm tuổi áp dụng</dt>
-              <dd>{ageName}</dd>
-              <dt>Phạm vi</dt>
-              <dd>{SCHOOL_SCOPE}</dd>
-              <dt>Người lập</dt>
-              <dd>{g.createdBy} · Phó hiệu trưởng</dd>
-              <dt>Ngày lập</dt>
-              <dd>{fmtDate(g.createdAt)}</dd>
-              <dt>Ngày gửi</dt>
-              <dd>{fmtDate(g.sentAt)}</dd>
-              <dt>Mô tả</dt>
-              <dd>{g.description || '—'}</dd>
-            </dl>
-          </Card>
-          <Card title="Mục tiêu theo lĩnh vực" actions={<span className="muted text-xs">{allGoalItems(g).length} mục tiêu</span>}>
-            {g.domains.map((d) => (
-              <div className="ga-domain" key={d.name}>
-                <div className="ga-domain__head">
-                  <div className="row" style={{ gap: 10 }}>
-                    <span className="ga-domain__bar" aria-hidden />
-                    <DomainTitle name={d.name} />
-                  </div>
-                  <span className="muted text-xs">{d.items.length} mục tiêu</span>
-                </div>
-                <div className="ga-domain__body">
-                  {d.items.map((it) => (
-                    <GoalItemView key={it.id} item={it} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </Card>
-        </div>
-        <div className="stack">
-          <Card title="Chữ ký người lập">
-            <SignatureView sig={g.signature || (g.status === EDU_STATUS.SENT ? { type: 'saved' } : null)} name={g.createdBy} />
-            <p className="muted text-xs mt-12">
-              {g.createdBy} · Phó hiệu trưởng{g.sentAt ? ` · ký ngày ${fmtDate(g.sentAt)}` : ''}
-            </p>
-          </Card>
-          <Card title="Kế hoạch chủ đề sử dụng">
-            {usedBy.length === 0 ? (
-              <p>Chưa có kế hoạch chủ đề nào dùng bộ mục tiêu này.</p>
-            ) : (
-              usedBy.map((t) => (
-                <div key={t.id} className="ga-summary-row">
-                  <span>
-                    <div className="fw-600">{t.name}</div>
-                    <div className="muted text-xs">
-                      {fmtDate(t.startDate)} – {fmtDate(t.endDate)}
-                    </div>
-                  </span>
-                  <EduStatusBadge status={t.status} />
-                </div>
-              ))
-            )}
-          </Card>
-        </div>
-      </div>
+      <Card title="Thông tin chung">
+        <dl className="info-list">
+          <dt>Năm học</dt>
+          <dd>{g.schoolYear}</dd>
+          <dt>Nhóm tuổi áp dụng</dt>
+          <dd>{ageName}</dd>
+          <dt>Phạm vi</dt>
+          <dd>{SCHOOL_SCOPE}</dd>
+          <dt>Số mục tiêu</dt>
+          <dd>
+            {Object.keys(numbers).length} mục tiêu · {themes.length} chủ đề
+          </dd>
+          <dt>Ngày lập</dt>
+          <dd>{fmtDate(g.createdAt)}</dd>
+          <dt>Ngày gửi</dt>
+          <dd>{fmtDate(g.sentAt)}</dd>
+          <dt>Mô tả</dt>
+          <dd>{g.description || '—'}</dd>
+        </dl>
+      </Card>
 
-      {modal === 'send' && (
+      <Card className="mt-16" bodyClass={null}>
+        <PlanTabs tab={tab} onTab={setTab} counts={{ themes: themes.length, goals: Object.keys(numbers).length }} />
+        <div className="card__body">
+          {tab === 'themes' ? (
+            <ThemeEventTable themes={themes} breaks={g.breaks || []} domains={domains} numbers={numbers} readOnly />
+          ) : (
+            <GoalTable domains={domains} themes={themes} numbers={numbers} readOnly />
+          )}
+        </div>
+      </Card>
+
+      {(modal === 'send' || modal === 'reject' || modal === 'issue') && (
         <Modal
-          title="Gửi mục tiêu năm học"
+          title={
+            {
+              send: 'Gửi Phó hiệu trưởng duyệt',
+              reject: 'Trả lại kế hoạch',
+              issue: 'Ban hành kế hoạch năm học',
+            }[modal]
+          }
           onClose={() => setModal(null)}
           footer={
             <>
               <button className="btn" onClick={() => setModal(null)}>
                 Hủy
               </button>
-              <button
-                className="btn btn--primary"
-                onClick={() => {
-                  saveGoal({ ...g, status: EDU_STATUS.SENT, sentAt: new Date().toISOString().slice(0, 10) });
-                  setModal(null);
-                  toast(`Đã gửi mục tiêu cho tổ trưởng ${ageName}`);
-                }}
-              >
-                <Send size={16} aria-hidden /> Gửi tổ trưởng
+              <button className="btn btn--primary" onClick={act}>
+                Xác nhận
               </button>
             </>
           }
         >
-          <p>Tổ trưởng {ageName} sẽ nhận thông báo và xem được bộ mục tiêu này.</p>
+          {modal === 'send' && <p>Kế hoạch sẽ bị khóa cho tới khi Phó hiệu trưởng ban hành hoặc trả lại.</p>}
+          {modal === 'issue' && <p>{`Kế hoạch có ${Object.keys(numbers).length} mục tiêu, ${themes.length} chủ đề. ${ISSUE_NOTE}`}</p>}
+          <Field
+            label={modal === 'reject' ? 'Lý do trả lại' : 'Ghi chú'}
+            required={modal === 'reject'}
+            error={tried && modal === 'reject' && !note.trim() ? 'Vui lòng ghi lý do' : undefined}
+          >
+            <textarea className="textarea" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
         </Modal>
       )}
 
@@ -197,19 +242,19 @@ export default function GoalDetailPage() {
                 disabled={usedBy.length > 0}
                 onClick={() => {
                   deleteGoal(g.id);
-                  toast('Đã xóa mục tiêu năm học');
+                  toast('Đã xóa kế hoạch năm học');
                   navigate('/education/goals');
                 }}
               >
-                <Trash2 size={16} aria-hidden /> Xóa mục tiêu
+                <Trash2 size={16} aria-hidden /> Xóa kế hoạch
               </button>
             </>
           }
         >
           {usedBy.length > 0 ? (
-            <Notice tone="err">Không xóa được vì đã có kế hoạch chủ đề sử dụng bộ mục tiêu này.</Notice>
+            <Notice tone="err">Không xóa được vì đã có kế hoạch chủ đề sử dụng kế hoạch này.</Notice>
           ) : (
-            <p>Bộ mục tiêu nháp sẽ bị xóa khỏi hệ thống và không khôi phục lại được.</p>
+            <p>Bản nháp sẽ bị xóa khỏi hệ thống và không khôi phục lại được.</p>
           )}
         </Modal>
       )}

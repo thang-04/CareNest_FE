@@ -1,0 +1,28 @@
+# Image nginx thay ${NGINX_LISTEN} khi khởi động (envsubst chỉ thay biến đã khai báo, $uri giữ nguyên)
+server {
+    listen ${NGINX_LISTEN};
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    server_tokens off;
+
+    gzip on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    # Tên file trong /assets có hash nên cache lâu được
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # index.html không cache để bản deploy mới có hiệu lực ngay
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    # BrowserRouter: route con trả về index.html để F5 không 404
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

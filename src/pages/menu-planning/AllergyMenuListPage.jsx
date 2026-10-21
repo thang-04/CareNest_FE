@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, RotateCcw, Eye, Pencil, ShieldCheck, ShieldAlert } from '@/components/ui/icons';
+import { Plus, RotateCcw, ShieldCheck, ShieldAlert } from '@/components/ui/icons';
 import { useAllergyContext, useAllergyMenus, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
+import { RowActions } from '@/components/ui/RowActions';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { AllergenChips, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { allergyMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
@@ -54,21 +56,22 @@ export default function AllergyMenuListPage() {
                 <b>{r.allergen}</b> ({r.childCount} trẻ, {r.classes.length} lớp)
               </span>
             ))}
-            . Chỉ dữ liệu dị ứng đã được Hiệu trưởng xác nhận mới được dùng để lập thực đơn thay thế.
+            . Danh sách lấy từ khai báo dị ứng Phó hiệu trưởng đã chốt khi tiếp nhận trẻ.
           </div>
         </div>
       )}
       <div className="card">
         <div className="filter-bar">
-          <label className="search-box" style={{ flex: 1 }}>
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm mã hoặc tên thực đơn..."
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              aria-label="Tìm kiếm"
-            />
-          </label>
+          <SearchSubmit
+            className="flex-1"
+            value={keyword}
+            placeholder="Tìm mã hoặc tên thực đơn"
+            label="Tìm thực đơn thay thế"
+            onSearch={(text) => {
+              setKeyword(text);
+              setPage(1);
+            }}
+          />
           <select className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)} aria-label="Nhóm tuổi">
             <option value="">Tất cả nhóm tuổi</option>
             {AGE_GROUPS.map((g) => (
@@ -86,14 +89,14 @@ export default function AllergyMenuListPage() {
             ))}
           </select>
           <button className="btn" onClick={reset} disabled={!filtered}>
-            <RotateCcw size={15} /> Đặt lại
+            <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-wrap">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã</th>
@@ -103,8 +106,8 @@ export default function AllergyMenuListPage() {
                   <th>Loại</th>
                   <th>Tránh</th>
                   <th>Trẻ cần dùng</th>
-                  <th>Trạng thái</th>
-                  <th className="center">Thao tác</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,7 +150,7 @@ export default function AllergyMenuListPage() {
                     return (
                       <tr key={a.id} className="row-click" onClick={() => navigate(`/menu/allergy-menus/${a.id}`)}>
                         <td className="fw-600 text-primary nowrap">{a.code}</td>
-                        <td style={{ maxWidth: 280, whiteSpace: 'normal' }}>{a.name}</td>
+                        <td className="td-cell-wrap">{a.name}</td>
                         <td className="text-sm">{base ? `${base.code}` : '—'}</td>
                         <td className="text-sm">{ageGroupById(a.ageGroupId)?.shortName}</td>
                         <td className="text-sm">{ALLERGY_GROUP_LABELS[a.groupType]}</td>
@@ -155,18 +158,15 @@ export default function AllergyMenuListPage() {
                           <AllergenChips allergens={a.restrictions} />
                         </td>
                         <td className="text-sm">{childCount ? `${childCount} lượt trẻ` : <span className="muted">Chưa có trẻ</span>}</td>
-                        <td>
+                        <td className="center">
                           <RecordStatusBadge status={a.status} />
                         </td>
-                        <td className="center nowrap" onClick={(e) => e.stopPropagation()}>
-                          <Link className="icon-btn" to={`/menu/allergy-menus/${a.id}`} title="Xem" aria-label={`Xem ${a.code}`}>
-                            <Eye size={17} />
-                          </Link>
-                          {canManage && (
-                            <Link className="icon-btn" to={`/menu/allergy-menus/${a.id}/edit`} title="Sửa" aria-label={`Sửa ${a.code}`}>
-                              <Pencil size={17} />
-                            </Link>
-                          )}
+                        <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
+                          <RowActions
+                            view={{ to: `/menu/allergy-menus/${a.id}` }}
+                            edit={canManage ? { to: `/menu/allergy-menus/${a.id}/edit` } : null}
+                            name={a.code}
+                          />
                         </td>
                       </tr>
                     );

@@ -68,7 +68,7 @@
 .dt-photo__initials {
   width: 72px;
   height: 72px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -112,4 +112,9 @@
   padding: var(--space-3);
   background: var(--surface-soft);
   border-radius: var(--radius);
+}
+
+/* Ghi chú trong hộp xác nhận "Phụ huynh không đồng ý": hộp căn giữa chữ, form căn trái */
+.dt-modal-form {
+  text-align: left;
 }

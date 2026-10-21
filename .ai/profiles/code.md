@@ -6,7 +6,8 @@ Mức: L1. Mục tiêu: tốn ít context nhất mà vẫn đúng.
 1. Source + test gần vị trí lỗi: component, hook, store/query, API client call; caller/callee trực tiếp; thay đổi gần đây (`git log -- <file>`).
 2. `docs/knowledge/ISSUE_INDEX.md` (FE) + `../CareNest_BE/docs/knowledge/ISSUE_INDEX.md`: grep chuỗi lỗi, tên màn hình, từ khóa VN/EN.
 3. BE module card (`.ai/CONTEXT_MAP.yaml` → `keywords`) — chỉ mục Rules, Known pitfalls — khi cần biết hành vi mong đợi.
-4. `.claude/rules/` theo loại file đang sửa.
+4. `.claude/rules/` theo loại file đang sửa (tự nạp theo glob).
+5. Sửa giao diện ⇒ `DESIGN.md` §2, §6.3 (component có sẵn), §13; sửa cấu trúc/tầng ⇒ `docs/architecture/CODING_GUIDE.md` §2, §4.
 
 Không đọc: PROJECT_CONTEXT, ADR, flow BE (trừ khi card trỏ tới).
 

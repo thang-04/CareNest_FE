@@ -24,14 +24,14 @@ export function ImageUploader({ images = [], onChange, disabled, max = 3 }) {
       try {
         next.push(await compressImage(file, { maxWidth: 640, maxHeight: 640, quality: 0.6 }));
       } catch (err) {
-        toast.error(err.message);
+        toast.error(err);
       }
     }
     onChange(next);
   };
 
   return (
-    <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+    <div className="row row--wrap gap-1-5">
       {images.map((src, i) => (
         <span key={i} className="evidence-thumb">
           <img src={src} alt={`Ảnh ${i + 1}`} onClick={() => setPreview(src)} />
@@ -60,7 +60,7 @@ export function ImageUploader({ images = [], onChange, disabled, max = 3 }) {
         }}
       />
       <Modal open={!!preview} title="Ảnh bằng chứng" onClose={() => setPreview(null)} size="lg">
-        {preview && <img src={preview} alt="Ảnh bằng chứng" style={{ width: '100%', borderRadius: 8 }} />}
+        {preview && <img src={preview} alt="Ảnh bằng chứng" className="upload-preview" />}
       </Modal>
     </div>
   );

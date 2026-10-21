@@ -11,6 +11,7 @@ Làn S (`AGENTS.md`) không cần đọc file này.
 | Task | Profile | Workflow | Skill | Mức đầu |
 | --- | --- | --- | --- | --- |
 | Bug UI, hiển thị sai, state lỗi, validation form, console error | `profiles/code.md` | `workflows/fix-bug.md` | fix-bug | L1 |
+| Sửa giao diện: màu, component, bảng, bộ lọc, bố cục, responsive | `profiles/code.md` + `DESIGN.md` (§2, §6.3, §8, §13) | `workflows/implement-feature.md` | implement-feature | L1 |
 | Refactor nhỏ, sửa cục bộ component/hook | `profiles/code.md` | `workflows/implement-feature.md` (rút gọn) | implement-feature | L1 |
 | Màn hình / chức năng Web mới, đổi luồng màn hình | `profiles/feature.md` | `workflows/implement-feature.md` | implement-feature | L2 |
 | Review code / PR | `profiles/code.md` | `workflows/review-code.md` | review-code | L1→L2 |

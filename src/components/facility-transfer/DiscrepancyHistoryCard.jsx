@@ -4,6 +4,7 @@ import { DISCREPANCY_PARTS, DISCREPANCY_PART_LABELS, RESOLUTION_CHOICE_LABELS } 
 import { discrepancyParts } from '@/models/facility-transfer/FacilityTransferItem';
 import { ConditionBadge } from '@/components/asset/AssetVisuals';
 import { ImageUploader } from '@/components/upload/ImageUploader';
+import { DiscrepancyStatusBadge } from '@/components/facility-transfer/TransferStatusBadge';
 
 const PART_CHIP = { shortage: 'chip--red', surplus: 'chip--orange', damaged: 'chip--red' };
 
@@ -11,7 +12,7 @@ const PART_CHIP = { shortage: 'chip--red', surplus: 'chip--orange', damaged: 'ch
 export function DiscrepancyParts({ line }) {
   const parts = discrepancyParts(line);
   return (
-    <span className="row row--wrap" style={{ gap: 4, justifyContent: 'center' }}>
+    <span className="row row--wrap gap-1 ft-justify-center">
       {DISCREPANCY_PARTS.filter((p) => parts[p] > 0).map((p) => (
         <span key={p} className={`chip ${PART_CHIP[p]}`}>
           {DISCREPANCY_PART_LABELS[p]} {parts[p]}
@@ -40,21 +41,21 @@ export function DiscrepancyHistoryCard({ transfer, md }) {
           <Scale size={20} /> Chênh lệch khi nhận ({list.length})
         </div>
       </div>
-      <div className="card__body stack" style={{ gap: 16 }}>
+      <div className="card__body stack gap-4">
         {list.map((d) => {
           const open = d.status === 'OPEN';
           return (
             <div key={d.id} className={`disc-block ${open ? 'disc-block--open' : ''}`}>
-              <div className="row row--between row--wrap" style={{ gap: 8 }}>
+              <div className="row row--between row--wrap gap-2">
                 <div>
                   <b>{md.userById(d.reportedBy)?.fullName}</b> (người nhận) báo lúc {formatDateTime(d.reportedAt)}
                 </div>
-                <span className={`chip ${open ? 'chip--purple' : 'chip--green'}`}>{open ? 'Chờ PHT xử lý' : 'Đã xử lý'}</span>
+                <DiscrepancyStatusBadge status={d.status} />
               </div>
               <div className="disc-block__desc">“{d.description}”</div>
 
               <div className="table-wrap mt-12">
-                <table className="table table--compact">
+                <table className="table table--compact table--grid">
                   <thead>
                     <tr>
                       <th>Tài sản</th>

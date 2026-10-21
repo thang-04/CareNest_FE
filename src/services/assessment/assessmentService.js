@@ -9,6 +9,8 @@ export const getAssessmentCriteria = () => repo.getCriteria();
 
 export const getDailySheet = (params, user) => repo.getDailySheet(params, user);
 export const saveDailyAssessments = (body, user) => repo.saveDailyAssessments(body, user);
+export const getAssessmentDayUnlocks = (user) => repo.listAssessmentDayUnlocks(user);
+export const unlockAssessmentDay = (body, user) => repo.unlockAssessmentDay(body, user);
 
 export const getChildDevelopment = (childId, params, user) => repo.getChildDevelopment(childId, params, user);
 

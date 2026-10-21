@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Bell, ExternalLink, Lock } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { ArrowLeft, ExternalLink } from '@/components/ui/icons';
+import { Breadcrumb, ErrorState, LoadingState } from '@/components';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { useNotificationDetail } from '@/hooks/account/useAccount';
 import { acCrumbs } from '@/utils/account/breadcrumbs';
 import { notificationGroupLabel } from '@/models/account/accountConstants';
@@ -24,8 +25,9 @@ export default function NotificationDetailPage() {
   if (loading && !n) body = <LoadingState />;
   else if (error?.status === 403 || error?.status === 404) {
     body = (
-      <EmptyState
-        icon={error.status === 403 ? Lock : Bell}
+      <StatusPage
+        bare
+        kind={String(error.status)}
         title={error.status === 403 ? 'Bạn không có quyền xem thông báo này' : 'Không tìm thấy thông báo'}
         description={error.message}
         action={back}

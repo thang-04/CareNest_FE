@@ -6,6 +6,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useFoodSampleLog, useKitchenCampus } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintToolbar } from '@/components';
+import { FoodSampleStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { SampleBookPrint, SampleLabelsPrint } from '@/components/kitchen/FoodSamplePrint';
 import { destroyFoodSample, saveFoodSample } from '@/services/kitchen/kitchenService';
@@ -16,14 +17,7 @@ import '@/styles/modules/kitchen.css';
 
 const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '');
 const dm = (iso) => (iso ? formatDate(iso.slice(0, 10)).slice(0, 5) : '');
-const statusChip = (m) =>
-  m.status === 'SAVED' ? (
-    <span className="chip chip--green">Đã lưu {hhmm(m.takenAt)}</span>
-  ) : m.status === 'DESTROYED' ? (
-    <span className="chip chip--gray">Đã hủy {hhmm(m.destroyedAt)}</span>
-  ) : (
-    <span className="chip chip--gray">Chưa lưu</span>
-  );
+const statusTime = (m) => hhmm(m.status === 'SAVED' ? m.takenAt : m.status === 'DESTROYED' ? m.destroyedAt : null);
 
 /** Một bữa: trạng thái, giờ lấy, người lưu và bảng món (Mẫu 5). Bếp nhập khi chưa lưu hoặc bấm Sửa. */
 function MealCard({ meal, date, campusId, canEdit, onSaved }) {
@@ -80,7 +74,7 @@ function MealCard({ meal, date, campusId, canEdit, onSaved }) {
             <Icon size={18} aria-hidden="true" /> {MEAL_SESSION_LABELS[meal.session]}
             {meal.servings != null ? ` · ${meal.servings} suất` : ''}
           </h3>
-          {statusChip(meal)}
+          <FoodSampleStatusBadge status={meal.status} time={statusTime(meal)} />
         </div>
         <div className="kb-kv">
           <span>
@@ -114,7 +108,7 @@ function MealCard({ meal, date, campusId, canEdit, onSaved }) {
           )}
         </div>
         <div className="table-wrap">
-          <table className="table table--compact kb-fc">
+          <table className="table table--grid table--compact kb-fc">
             <thead>
               <tr>
                 <th>Món</th>
@@ -270,7 +264,7 @@ export default function FoodSampleLogPage() {
                           Ghi hủy
                         </button>
                       ) : (
-                        <span className="chip chip--orange">Chờ ghi hủy</span>
+                        <FoodSampleStatusBadge status="PENDING_DESTROY" />
                       )}
                     </li>
                   ))}

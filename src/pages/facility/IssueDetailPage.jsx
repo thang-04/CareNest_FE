@@ -14,7 +14,7 @@ import { IssueStatusBadge, IssueTypeChip, LockChip, ProposalStatusBadge } from '
 import { FacilityHistoryCard } from '@/components/facility/FacilityHistoryCard';
 import { DecisionModal } from '@/components/facility/DecisionModal';
 import { PhotoGallery } from '@/components/facility/PhotoGallery';
-import { locationLabel } from '@/models/Location';
+import { locationBaseLabel } from '@/models/Location';
 import { ASSET_CONDITION_LABELS } from '@/models/Asset';
 import { ISSUE_STATUS, ISSUE_TYPES } from '@/models/facility/facilityConstants';
 import { canDecideIssue, canAddToProposal, isManager } from '@/utils/facility/facilityPermissions';
@@ -72,7 +72,7 @@ export default function IssueDetailPage() {
   const decide = canDecideIssue(i, user);
   const blockedByLock = decide && i.lockedBy && i.type !== ISSUE_TYPES.INSUFFICIENT;
   const decided = i.status !== ISSUE_STATUS.SUBMITTED;
-  const loc = locationLabel(md.locationById(i.locationId));
+  const loc = locationBaseLabel(md.locationById(i.locationId));
   const backTo = isManager(user) ? '/facility/issues' : '/facility/my-reports';
 
   const steps = [
@@ -96,7 +96,7 @@ export default function IssueDetailPage() {
       setModal(null);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message, 'Không thực hiện được');
+      toast.error(err, 'Không thực hiện được');
       throw err;
     }
   };
@@ -106,12 +106,10 @@ export default function IssueDetailPage() {
       <Breadcrumb items={crumbs(`Báo cáo ${i.code}`)} />
       <div className="page__head">
         <div>
-          <h1 className="page__title" style={{ marginBottom: 6 }}>
-            Báo cáo sự cố {i.code}
-          </h1>
+          <h1 className="page__title">Báo cáo sự cố {i.code}</h1>
           <IssueStatusBadge status={i.status} size="lg" />
         </div>
-        <div className="row row--wrap" style={{ gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+        <div className="row row--wrap gap-2 bh-head-actions">
           {decide && (
             <>
               <button className="btn btn--outline-danger" onClick={() => setModal('reject')}>
@@ -137,7 +135,7 @@ export default function IssueDetailPage() {
         </div>
       </div>
 
-      <div className="card mt-16" style={{ padding: '20px 24px' }}>
+      <div className="card card--timeline mt-16">
         <ProgressSteps steps={steps} cancelled={i.status === ISSUE_STATUS.REJECTED} />
       </div>
 
@@ -189,7 +187,7 @@ export default function IssueDetailPage() {
               <dd>
                 {loc} · {md.campusById(i.campusId)?.shortName}
                 {i.lockedBy && !decided && (
-                  <span style={{ marginLeft: 8 }}>
+                  <span className="bh-ml-2">
                     <LockChip code={i.lockedBy} />
                   </span>
                 )}
@@ -211,7 +209,7 @@ export default function IssueDetailPage() {
               <dt>Thời gian gửi:</dt>
               <dd>{formatDateTime(i.createdAt)}</dd>
               <dt>Mô tả:</dt>
-              <dd style={{ whiteSpace: 'pre-line' }}>{i.description}</dd>
+              <dd className="bh-pre-line">{i.description}</dd>
             </dl>
           </div>
           <div className="subsection-title mt-16 mb-8">Ảnh hiện trạng</div>
@@ -222,11 +220,11 @@ export default function IssueDetailPage() {
       {i.linkedReports.length > 0 && (
         <section className="card mt-16">
           <div className="card__header">
-            <h2 className="card__title row" style={{ gap: 8 }}>
+            <h2 className="card__title row gap-2">
               <Users size={17} /> Người báo trùng ({i.linkedReports.length})
             </h2>
           </div>
-          <div className="card__body stack" style={{ gap: 8 }}>
+          <div className="card__body stack gap-2">
             {i.linkedReports.map((r) => (
               <div key={`${r.userId}_${r.at}`}>
                 <b>{name(r.userId)}</b> <span className="muted text-xs">· {formatDateTime(r.at)}</span>
@@ -263,7 +261,7 @@ export default function IssueDetailPage() {
                   <dt>Đề xuất xử lý:</dt>
                   <dd>
                     {i.proposal ? (
-                      <span className="row" style={{ gap: 8 }}>
+                      <span className="row gap-2">
                         {isManager(user) ? (
                           <Link to={`/facility/proposals/${i.proposal.id}`} className="fw-600">
                             {i.proposal.code}
@@ -315,7 +313,7 @@ export default function IssueDetailPage() {
               Tình trạng mới của {i.quantity} {i.unit.toLowerCase()}
               <span className="req">*</span>
             </span>
-            <div className="row" style={{ gap: 16 }} role="radiogroup" aria-labelledby="bh-new-cond">
+            <div className="row gap-4" role="radiogroup" aria-labelledby="bh-new-cond">
               {DAMAGE_CONDITIONS.map((c) => (
                 <label key={c} className="radio">
                   <input type="radio" name="bh-new-cond" checked={newCondition === c} onChange={() => setNewCondition(c)} />{' '}

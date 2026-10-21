@@ -16,6 +16,7 @@ import {
 } from '@/services/inventory-inspection/inspectionService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Modal } from '@/components/ui/Modal';
 import { createEmptyRoundForm } from '@/models/inventory-inspection/InspectionRound';
@@ -32,7 +33,7 @@ import {
   describeScope,
 } from '@/utils/inventory-inspection/inspectionScope';
 import { inspectionCrumbs } from '@/utils/inventory-inspection/breadcrumbs';
-import { LOCATION_TYPE_LABELS, locationLabel } from '@/models/Location';
+import { LOCATION_TYPE_LABELS, isActiveLocation, isRoomStaff, locationLabel } from '@/models/Location';
 import { ROLE_LABELS, ROLES } from '@/models/User';
 import { normalizeText } from '@/utils/format';
 import '@/styles/modules/inventory-inspection.css';
@@ -130,7 +131,7 @@ function RoundForm({ initial, roundId, md, user }) {
       setDraftId(r.id);
       toast.success(`Đã lưu nháp đợt ${r.code}`);
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     } finally {
       setSaving(false);
     }
@@ -154,7 +155,7 @@ function RoundForm({ initial, roundId, md, user }) {
       navigate(`/facility/inspections/${r.id}`);
     } catch (err) {
       setConfirmOpen(false);
-      toast.error(err.message, 'Không bắt đầu được');
+      toast.error(err, 'Không bắt đầu được');
     }
   };
 
@@ -185,7 +186,7 @@ function RoundForm({ initial, roundId, md, user }) {
               <span className="form-row__label">
                 Loại kiểm kê<span className="req">*</span>
               </span>
-              <div className="form-row__control stack" style={{ gap: 8 }} role="radiogroup">
+              <div className="form-row__control stack gap-2" role="radiogroup">
                 {Object.values(ROUND_TYPES).map((t) => (
                   <label key={t} className="radio">
                     <input type="radio" name="kk-type" checked={form.type === t} onChange={() => set({ type: t })} /> {ROUND_TYPE_LABELS[t]}
@@ -253,7 +254,7 @@ function RoundForm({ initial, roundId, md, user }) {
             <div className="kk-axis__title">
               <MapPin size={18} /> Kiểm kê ở đâu?
             </div>
-            <div className="stack" style={{ gap: 8 }} role="radiogroup">
+            <div className="stack gap-2" role="radiogroup">
               {Object.values(LOCATION_MODES).map((m) => (
                 <label key={m} className="radio">
                   <input type="radio" name="kk-where" checked={form.locationMode === m} onChange={() => set({ locationMode: m })} />{' '}
@@ -309,7 +310,7 @@ function RoundForm({ initial, roundId, md, user }) {
                 </div>
                 <div className="kk-pick-list">
                   {md.locations
-                    .filter((l) => form.campusIds.includes(l.campusId))
+                    .filter((l) => form.campusIds.includes(l.campusId) && isActiveLocation(l))
                     .map((l) => (
                       <label key={l.id} className="checkbox">
                         <input
@@ -319,7 +320,7 @@ function RoundForm({ initial, roundId, md, user }) {
                         />
                         {locationLabel(l)}{' '}
                         <span className="muted text-xs">
-                          · {LOCATION_TYPE_LABELS[l.type]}
+                          · {md.campusById(l.campusId)?.shortName} · {LOCATION_TYPE_LABELS[l.type]}
                           {form.campusIds.length > 1 ? ` · ${md.campusById(l.campusId)?.shortName}` : ''}
                         </span>
                       </label>
@@ -335,7 +336,7 @@ function RoundForm({ initial, roundId, md, user }) {
             <div className="kk-axis__title">
               <Boxes size={18} /> Kiểm kê cơ sở vật chất gì?
             </div>
-            <div className="stack" style={{ gap: 8 }} role="radiogroup">
+            <div className="stack gap-2" role="radiogroup">
               {Object.values(ASSET_MODES).map((m) => (
                 <label key={m} className="radio">
                   <input type="radio" name="kk-what" checked={form.assetMode === m} onChange={() => set({ assetMode: m })} />{' '}
@@ -380,7 +381,7 @@ function RoundForm({ initial, roundId, md, user }) {
                     </button>
                   )}
                 </div>
-                <label className="search-box" style={{ minWidth: 0 }}>
+                <label className="search-box min-w-0">
                   <Search size={15} className="muted" />
                   <input
                     placeholder="Tìm mã, tên tài sản..."
@@ -416,9 +417,7 @@ function RoundForm({ initial, roundId, md, user }) {
 
       <section className="card wizard-card">
         <div className="row row--between mb-12">
-          <h2 className="section-title" style={{ margin: 0 }}>
-            3.&nbsp; Lớp/phòng sẽ kiểm kê và người thực hiện
-          </h2>
+          <h2 className="section-title m-0">3.&nbsp; Lớp/phòng sẽ kiểm kê và người thực hiện</h2>
           <button className="btn btn--sm btn--outline-primary" onClick={() => setPreviewOpen(true)} disabled={!included.length}>
             <Eye size={15} /> Xem trước danh sách tài sản
           </button>
@@ -437,17 +436,15 @@ function RoundForm({ initial, roundId, md, user }) {
           <EmptyState icon={MapPin} title="Chưa có lớp/phòng nào" description="Chọn campus / loại phòng / lớp phòng ở mục 2." />
         ) : (
           <div className="table-wrap">
-            <table className="table table--compact">
+            <table className="table table--compact table--grid">
               <thead>
                 <tr>
-                  <th className="center" style={{ width: 50 }}>
-                    Kiểm kê
-                  </th>
-                  {md.campuses.length > 1 && <th>Campus</th>}
-                  <th>Lớp/phòng</th>
-                  <th>Loại</th>
-                  <th className="center">Tài sản thuộc phạm vi</th>
-                  <th style={{ minWidth: 260 }}>Người kiểm kê</th>
+                  <th className="center kk-col-check">Kiểm kê</th>
+                  {md.campuses.length > 1 && <th className="cell--fixed">Campus</th>}
+                  <th className="cell--fixed">Lớp/phòng</th>
+                  <th className="cell--fixed">Loại</th>
+                  <th className="center cell--fixed">Tài sản thuộc phạm vi</th>
+                  <th className="kk-col-inspector">Người kiểm kê</th>
                 </tr>
               </thead>
               <tbody>
@@ -465,17 +462,17 @@ function RoundForm({ initial, roundId, md, user }) {
                           aria-label={`Kiểm kê ${locationLabel(r.loc)}`}
                         />
                       </td>
-                      {md.campuses.length > 1 && <td>{md.campusById(r.loc.campusId)?.shortName}</td>}
-                      <td>
+                      {md.campuses.length > 1 && <td className="cell--fixed">{md.campusById(r.loc.campusId)?.shortName}</td>}
+                      <td className="cell--fixed">
                         <div className="fw-600">{locationLabel(r.loc)}</div>
                         {r.reason && (
-                          <div className={`row text-xs ${locked[r.loc.id] ? 'text-danger' : 'muted'}`} style={{ gap: 4 }}>
+                          <div className={`row gap-1 text-xs ${locked[r.loc.id] ? 'text-danger' : 'muted'}`}>
                             {locked[r.loc.id] && <Lock size={12} />} {r.reason}
                           </div>
                         )}
                       </td>
-                      <td className="text-2">{LOCATION_TYPE_LABELS[r.loc.type]}</td>
-                      <td className="center">{r.items.length ? `${r.items.length} loại · ${r.units} cái` : '—'}</td>
+                      <td className="text-2 cell--fixed">{LOCATION_TYPE_LABELS[r.loc.type]}</td>
+                      <td className="center cell--fixed">{r.items.length ? `${r.items.length} loại · ${r.units} cái` : '—'}</td>
                       <td>
                         {r.included && (
                           <>
@@ -489,12 +486,15 @@ function RoundForm({ initial, roundId, md, user }) {
                               aria-label={`Người kiểm kê ${locationLabel(r.loc)}`}
                             >
                               <option value="">Chọn người kiểm kê...</option>
-                              {staff.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                  {u.fullName} – {ROLE_LABELS[u.role]}
-                                  {u.id === r.loc.managerUserId ? ' (phụ trách)' : ''}
-                                </option>
-                              ))}
+                              {/* Chỉ nhân sự đang hoạt động của điểm trường có phòng này */}
+                              {staff
+                                .filter((u) => isRoomStaff(u, r.loc.campusId))
+                                .map((u) => (
+                                  <option key={u.id} value={u.id}>
+                                    {u.fullName} – {ROLE_LABELS[u.role]}
+                                    {u.id === r.loc.managerUserId ? ' (phụ trách)' : ''}
+                                  </option>
+                                ))}
                             </select>
                             {err && <span className="field__error">{err}</span>}
                           </>
@@ -516,7 +516,7 @@ function RoundForm({ initial, roundId, md, user }) {
             </div>
           </div>
         )}
-        <div className="mt-12 text-2 row" style={{ gap: 6 }}>
+        <div className="mt-12 text-2 row gap-1-5">
           <Users size={15} /> Sẽ tạo <b>{included.length}</b> phiếu kiểm kê · <b>{totalUnits}</b> tài sản cần kiểm đếm
         </div>
       </section>
@@ -524,7 +524,7 @@ function RoundForm({ initial, roundId, md, user }) {
       <section className="card wizard-card">
         <h2 className="section-title">4.&nbsp; Người lập và chữ ký</h2>
         <div className="review-sign">
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <div className="text-2 mb-8">
               Người lập: <b>{user.fullName}</b> ({ROLE_LABELS[user.role]})
             </div>
@@ -544,7 +544,7 @@ function RoundForm({ initial, roundId, md, user }) {
         <button className="btn btn--lg" onClick={() => navigate('/facility/inspections')}>
           Quay lại
         </button>
-        <div className="row" style={{ gap: 10 }}>
+        <div className="row gap-2-5">
           <button className="btn btn--lg" onClick={saveDraft} disabled={saving}>
             <Save size={16} /> Lưu nháp
           </button>
@@ -562,7 +562,7 @@ function RoundForm({ initial, roundId, md, user }) {
         onConfirm={start}
         onClose={() => setConfirmOpen(false)}
       >
-        <ul className="text-sm" style={{ margin: '12px 0 0', paddingLeft: 18, maxHeight: 200, overflowY: 'auto' }}>
+        <ul className="text-sm kk-start-list">
           {included.map((r) => (
             <li key={r.loc.id}>
               {locationLabel(r.loc)} ({r.items.length} loại) → {md.userById(r.inspectorUserId)?.fullName || '—'}
@@ -575,23 +575,23 @@ function RoundForm({ initial, roundId, md, user }) {
         <div className="text-2 mb-12">
           {desc.where} · {desc.what} · {included.length} lớp/phòng · {totalUnits} tài sản
         </div>
-        <div className="stack" style={{ gap: 16 }}>
+        <div className="stack gap-4">
           {included.map((r) => (
             <div key={r.loc.id}>
               <div className="fw-600 mb-8">
                 {locationLabel(r.loc)}{' '}
-                <span className="muted" style={{ fontWeight: 400 }}>
+                <span className="muted kk-plain">
                   · {md.campusById(r.loc.campusId)?.shortName} · {md.userById(r.inspectorUserId)?.fullName || 'chưa chọn người kiểm kê'}
                 </span>
               </div>
               <div className="table-wrap">
-                <table className="table table--compact">
+                <table className="table table--compact table--grid">
                   <thead>
                     <tr>
                       <th>Mã</th>
                       <th>Tên tài sản</th>
                       <th>Nhóm</th>
-                      <th className="center">SL sổ sách</th>
+                      <th className="num">SL sổ sách</th>
                       <th className="center">Tình trạng</th>
                     </tr>
                   </thead>
@@ -601,7 +601,7 @@ function RoundForm({ initial, roundId, md, user }) {
                         <td>{a.code}</td>
                         <td>{a.name}</td>
                         <td className="text-2">{md.categoryById(a.categoryId)?.name}</td>
-                        <td className="center">
+                        <td className="num">
                           {a.quantity} {a.unit}
                         </td>
                         <td className="center">
@@ -646,9 +646,7 @@ export default function CreateInspectionPage() {
       ) : md.error || error ? (
         <ErrorState error={md.error || error} />
       ) : id && round?.status !== ROUND_STATUS.DRAFT ? (
-        <div className="card">
-          <EmptyState icon={Lock} title="Đợt kiểm kê đã bắt đầu, không thể sửa" />
-        </div>
+        <StatusPage kind="403" title="Đợt kiểm kê đã bắt đầu, không thể sửa" />
       ) : (
         <RoundForm key={id || 'new'} initial={initial} roundId={id} md={md} user={user} />
       )}

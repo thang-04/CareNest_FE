@@ -10,7 +10,15 @@ export const attendanceApi = {
   saveClassAttendance: ({ classId, date, entries }) => axiosClient.put(`/classes/${classId}/attendance`, { date, entries }),
   correctMealAfterLock: ({ childId, date, session, note }) =>
     axiosClient.post(`/attendance/meal-corrections`, { childId, date, session, note }),
-  getAttendanceSummary: ({ classId, from, to }) => axiosClient.get(`/classes/${classId}/attendance/summary`, { params: { from, to } }),
+  // PENDING BE: không có classId = tổng hợp nhiều lớp trong phạm vi người gọi (campusId tùy chọn, BE tự giới hạn phạm vi)
+  getAttendanceSummary: ({ classId, campusId, from, to }) =>
+    classId
+      ? axiosClient.get(`/classes/${classId}/attendance/summary`, { params: { from, to } })
+      : axiosClient.get('/attendance/summary', { params: { from, to, ...(campusId ? { campusId } : {}) } }),
   getMealCounts: ({ date }) => axiosClient.get('/meal-counts', { params: { date } }),
-  confirmMealCountDay: ({ campusId, date }) => axiosClient.post('/meal-counts/confirm-day', { campusId, date }),
+  confirmMealCount: (id) => axiosClient.post(`/meal-counts/${id}/confirm`),
+  getMealHandovers: ({ date }) => axiosClient.get('/meal-handovers', { params: { date } }),
+  confirmHandover: (id, body) => axiosClient.post(`/meal-handovers/${id}/confirm`, body),
+  reportHandoverShortage: (id, body) => axiosClient.post(`/meal-handovers/${id}/shortage`, body),
+  supplementHandover: (id, body) => axiosClient.post(`/meal-handovers/${id}/supplement`, body),
 };

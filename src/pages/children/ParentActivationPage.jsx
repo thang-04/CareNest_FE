@@ -1,255 +1,518 @@
-import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Search, KeyRound, Send, Info, X, Lock, AlertTriangle } from '@/components/ui/icons';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { AlertCircle, Filter, KeyRound, Lock, Plus, Unlock, Users } from '@/components/ui/icons';
+import { useCampusGuardianChildren } from '@/hooks/account/useGuardians';
+import { useGuardianStructure } from '@/hooks/account/useGuardians';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useParentAccounts } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { Pagination, paginate } from '@/components/ui/Pagination';
-import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
+import { AccountStatusBadge } from '@/components/account/AccountStatusBadge';
 import { ParentAccountBadge } from '@/components/children/ChildBadges';
-import { activateParentAccount, resendParentSms } from '@/services/children/childrenService';
-import { PARENT_ACCOUNT_STATUS, PARENT_ACCOUNT_STATUS_LABELS, SMS_STATUS, SMS_STATUS_LABELS } from '@/models/children/childrenConstants';
-import { formatDateTime, normalizeText } from '@/utils/format';
-import { canActivateParent, canViewParentAccounts } from '@/utils/children/childrenPermissions';
+import { AccountSlip, GuardianPanel } from '@/components/account/GuardianPanel';
+import { PeopleTabs } from '@/components/account/PeopleTabs';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
+import { getChildDetail } from '@/services/children/childrenService';
+import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
+import { groupChildrenByClass, missingAccount, NO_CLASS, sortMissingFirst } from '@/utils/account/guardianCoverage';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
-import '@/styles/modules/children.css';
+import { formatDate, normalizeText } from '@/utils/format';
+import '@/styles/modules/parent-accounts.css';
 
-const TABS = [PARENT_ACCOUNT_STATUS.NOT_ACTIVATED, PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION, PARENT_ACCOUNT_STATUS.ACTIVE, ''];
+const TODO = 'todo';
+// Ít lớp thì ô lọc lớp chỉ thêm rối
+const CLASS_FILTER_MIN = 8;
 
+// UI theo lớp từ G94-209, dữ liệu và phạm vi giữ nguồn legacy.
 export default function ParentActivationPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const [params, setParams] = useSearchParams();
-  const childId = params.get('childId') || '';
-  const [tab, setTab] = useState(childId ? '' : PARENT_ACCOUNT_STATUS.NOT_ACTIVATED);
+  const [params] = useSearchParams();
+  const targetId = params.get('childId');
+  const handledTarget = useRef('');
+  const structure = useGuardianStructure();
+  const [campusPick, setCampusPick] = useState('');
+  const campusId = campusPick || (structure.campuses[0]?.id ?? '');
+  const { data, loading, error, reload } = useCampusGuardianChildren(campusId, { enabled: !structure.loading });
+  const [viewPick, setViewPick] = useState('');
+  const [onlyMissing, setOnlyMissing] = useState(false);
   const [keyword, setKeyword] = useState('');
-  const [page, setPage] = useState(1);
-  const [pending, setPending] = useState(null);
-  const [rowBusy, setRowBusy] = useState('');
-  const { rows: all, loading, error, reload } = useParentAccounts({});
+  const [classFilter, setClassFilter] = useState('');
+  const [openChild, setOpenChild] = useState(null);
+  const [openWithAdd, setOpenWithAdd] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(null);
+  const [slipModal, setSlipModal] = useState(null);
 
-  const scoped = useMemo(() => all.filter((r) => !childId || r.childId === childId), [all, childId]);
-  const rows = useMemo(() => {
-    const kw = normalizeText(keyword).trim();
-    return scoped
-      .filter((r) => !tab || r.guardian.accountStatus === tab)
-      .filter((r) => !kw || normalizeText(`${r.childName} ${r.childCode} ${r.guardian.fullName} ${r.guardian.phone}`).includes(kw));
-  }, [scoped, tab, keyword]);
-  const pageRows = paginate(rows, page);
-
-  if (!canViewParentAccounts(user))
-    return (
-      <div className="page">
-        <Breadcrumb items={childrenCrumbs('Tài khoản phụ huynh')} />
-        <h1 className="page__title">Kích hoạt tài khoản phụ huynh</h1>
-        <div className="card">
-          <EmptyState icon={Lock} title="Bạn không có quyền xem tài khoản phụ huynh" />
-        </div>
-      </div>
-    );
-
-  const childOf = (r) => ({ id: r.childId, campusId: r.campusId, status: 'ACTIVE' });
-  const failedSms = scoped.filter(
-    (r) => r.guardian.smsStatus === SMS_STATUS.FAILED && r.guardian.accountStatus === PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION,
+  const children = useMemo(() => data || [], [data]);
+  useEffect(() => {
+    if (!targetId || handledTarget.current === targetId || structure.loading || structure.error) return;
+    let cancelled = false;
+    getChildDetail(targetId, user)
+      .then((detail) => {
+        if (!cancelled) setCampusPick(detail.child.campusId);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          handledTarget.current = targetId;
+          toast.error(err.message || 'Không thể mở hồ sơ phụ huynh.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [targetId, user, structure.loading, structure.error, toast]);
+  useEffect(() => {
+    const child = children.find((row) => row.id === targetId);
+    if (!child || handledTarget.current === targetId || loading) return;
+    handledTarget.current = targetId;
+    setViewPick(child.classroomId || NO_CLASS);
+    setOpenChild(child);
+  }, [children, targetId, loading]);
+  const groups = groupChildrenByClass(
+    children,
+    structure.classrooms.filter((c) => !campusId || String(c.campusId) === String(campusId)),
+    structure.classroomName,
   );
+  const missingTotal = children.filter(missingAccount).length;
+  const linkedTotal = children.length - missingTotal;
+  const stats = [
+    { label: 'Tổng số bé', value: children.length, tone: 'blue' },
+    { label: 'Đã có tài khoản', value: linkedTotal, tone: 'green' },
+    { label: 'Chưa có tài khoản', value: missingTotal, tone: 'orange' },
+    { label: 'Lớp có trẻ', value: groups.filter((group) => group.id !== NO_CLASS).length, tone: 'teal' },
+  ];
+  const view = viewPick === TODO || groups.some((g) => g.id === viewPick) ? viewPick : groups[0]?.id || '';
+  const current = groups.find((g) => g.id === view);
+  const classOf = (child) => (child.classroomId ? structure.classroomName(child.classroomId) : '');
+  const searching = !!keyword.trim();
 
-  const activate = async () => {
-    const r = pending;
-    try {
-      const result = await activateParentAccount(r.childId, r.guardianIndex, user);
-      if (result.mode === 'LINKED')
-        toast.success(
-          `Đã liên kết ${r.childName} với tài khoản có sẵn ${result.username}. Không gửi mật khẩu mới.`,
-          'Đã liên kết tài khoản',
-        );
-      else if (result.smsStatus === SMS_STATUS.SENT)
-        toast.success(
-          `Đã tạo tài khoản ${result.username} và gửi SMS mật khẩu tới ${r.guardian.phone}. Phụ huynh phải đổi mật khẩu khi đăng nhập lần đầu.`,
-          'Đã kích hoạt',
-        );
-      else
-        toast.warning(
-          'Đã tạo tài khoản nhưng gửi SMS không thành công. Phụ huynh chưa nhận được mật khẩu – hãy bấm Gửi lại SMS.',
-          'Gửi SMS lỗi',
-        );
-    } catch (err) {
-      toast.error(err.message, 'Không kích hoạt được tài khoản');
-    } finally {
-      setPending(null);
-    }
+  const main = searching
+    ? {
+        title: 'Kết quả tìm',
+        sub: `Trong ${campusId ? structure.campusName(campusId) : 'phạm vi của bạn'}`,
+        rows: children.filter((c) => normalizeText(c.fullName).includes(normalizeText(keyword.trim()))),
+        showClass: true,
+      }
+    : view === TODO
+      ? {
+          title: 'Bé chưa có tài khoản phụ huynh',
+          sub: 'Mở từng bé để nhập số điện thoại phụ huynh',
+          rows: children.filter(missingAccount),
+          showClass: true,
+        }
+      : current
+        ? { title: current.name, sub: `${current.total} bé`, rows: current.children, showClass: false, group: current }
+        : null;
+  const rows = main ? sortMissingFirst(main.rows.filter((c) => !onlyMissing || missingAccount(c))) : [];
+  const shownGroups = groups.filter((g) => !classFilter.trim() || normalizeText(g.name).includes(normalizeText(classFilter.trim())));
+
+  const pickView = (id) => {
+    setViewPick(id);
+    setOnlyMissing(false);
+    setKeyword('');
+  };
+  const pickCampus = (id) => {
+    setOpenChild(null);
+    setCampusPick(id);
+    setViewPick('');
+    setClassFilter('');
+  };
+  const openChildProfile = (child, addGuardian = false) => {
+    setOpenChild(child);
+    setOpenWithAdd(addGuardian);
+  };
+  const handleChildRowClick = (event, child) => {
+    if (event.target.closest('button, a, input, select, textarea')) return;
+    openChildProfile(child);
+  };
+  const handleChildRowKeyDown = (event, child) => {
+    if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
+    openChildProfile(child);
   };
 
-  const resend = async (r) => {
-    setRowBusy(r.key);
-    try {
-      const { smsStatus } = await resendParentSms(r.childId, r.guardianIndex, user);
-      if (smsStatus === SMS_STATUS.SENT) toast.success(`Đã gửi lại SMS tới ${r.guardian.phone}.`);
-      else toast.warning('Gửi SMS vẫn chưa thành công. Kiểm tra lại số điện thoại hoặc thử lại sau.', 'Gửi SMS lỗi');
-    } catch (err) {
-      toast.error(err.message, 'Không gửi lại được SMS');
-    } finally {
-      setRowBusy('');
+  const handleConfirmAction = async () => {
+    if (!confirmModal) return;
+    const { type, guardian, child } = confirmModal;
+    if (type === 'password') {
+      try {
+        const result = await resetParentPassword(guardian.userId, user);
+        setConfirmModal(null);
+        if (result) {
+          setSlipModal({
+            slip: { username: result.username, fullName: guardian.fullName, password: result.temporaryPassword }, // carenest:allow-secret
+            child,
+          });
+        }
+        reload({ silent: true });
+      } catch (err) {
+        setConfirmModal(null);
+        toast.error(err.message || 'Không thể cấp lại mật khẩu', 'Lỗi cấp lại mật khẩu');
+      }
+      return;
+    }
+    if (type === 'status') {
+      const active = guardian.status === 'ACTIVE';
+      const nextStatus = active ? 'INACTIVE' : 'ACTIVE';
+      try {
+        await updateParentStatus(guardian.userId, nextStatus, user);
+        toast.success(
+          active ? `Đã khóa tài khoản phụ huynh ${guardian.fullName}.` : `Đã mở khóa tài khoản cho phụ huynh ${guardian.fullName}.`,
+        );
+        setConfirmModal(null);
+        reload({ silent: true });
+      } catch (err) {
+        setConfirmModal(null);
+        toast.error(err.message || 'Không thể cập nhật trạng thái', 'Lỗi trạng thái tài khoản');
+      }
     }
   };
 
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tài khoản phụ huynh')} />
-      <h1 className="page__title">Kích hoạt tài khoản phụ huynh</h1>
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          Kích hoạt để liên kết phụ huynh với trẻ. Nếu số điện thoại hoặc email đã có tài khoản, hệ thống chỉ liên kết thêm trẻ, không tạo
-          tài khoản mới. Phụ huynh mới nhận tên đăng nhập (số điện thoại) và mật khẩu cấp qua SMS, và phải đổi mật khẩu khi đăng nhập ứng
-          dụng lần đầu.
-        </div>
+      <div className="alert alert--info">
+        Bản demo Web: thao tác tài khoản chưa kết nối BE/App thật. Giữ phạm vi quản lý phụ huynh hiện tại của bạn.
       </div>
-      {failedSms.length > 0 && (
-        <div className="alert alert--danger mb-16" role="alert">
-          <AlertTriangle size={18} />
-          <div>
-            <b>{failedSms.length}</b> phụ huynh chưa nhận được SMS do gửi lỗi. Bấm <b>Gửi lại SMS</b> ở dòng tương ứng.
-          </div>
+      <div className="pa-head">
+        <div className="pa-head__title">
+          <h1 className="page__title">Tài khoản phụ huynh</h1>
+          <p className="text-sm text-2">Tra cứu theo lớp để xem và quản lý tài khoản phụ huynh của từng bé.</p>
+        </div>
+        <SearchSubmit
+          className="pa-head__search"
+          value={keyword}
+          maxLength={100}
+          placeholder="Tìm bé theo tên"
+          label="Tìm bé theo tên"
+          onSearch={setKeyword}
+        />
+      </div>
+
+      {!loading && !error && !structure.loading && !structure.error && (
+        <div className="stat-grid people-stats" aria-label="Tổng quan tài khoản phụ huynh">
+          {stats.map((stat) => (
+            <div key={stat.label} className={`stat-card stat-card--${stat.tone}`}>
+              <span className="stat-card__value">{stat.value}</span>
+              <span className="stat-card__label">{stat.label}</span>
+              <StatCardIcon tone={stat.tone} />
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="card">
-        <div className="tabs" role="tablist">
-          {TABS.map((t) => (
-            <button
-              key={t || 'all'}
-              role="tab"
-              aria-selected={tab === t}
-              className={`tab ${tab === t ? 'tab--active' : ''}`}
-              onClick={() => {
-                setTab(t);
-                setPage(1);
-              }}
-            >
-              {t ? PARENT_ACCOUNT_STATUS_LABELS[t] : 'Tất cả'}{' '}
-              <span className="tab__count">{t ? scoped.filter((r) => r.guardian.accountStatus === t).length : scoped.length}</span>
-            </button>
-          ))}
+      {missingTotal > 0 && (
+        <div className="pa-todo" role="status">
+          <AlertCircle size={18} />
+          <b>Cần xử lý:</b>
+          <button type="button" className="pa-todo__link" aria-pressed={view === TODO && !searching} onClick={() => pickView(TODO)}>
+            {missingTotal} bé chưa có tài khoản phụ huynh
+          </button>
         </div>
-        <div className="filter-bar">
-          <label className="search-box" style={{ flex: 1 }}>
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm theo tên trẻ, mã trẻ, phụ huynh hoặc số điện thoại..."
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Tìm kiếm"
-            />
-          </label>
-          {childId && (
-            <span className="chip chip--blue">
-              Đang lọc theo 1 trẻ
-              <button type="button" className="tr-chip-remove" aria-label="Bỏ lọc theo trẻ" onClick={() => setParams({})}>
-                <X size={12} />
-              </button>
-            </span>
-          )}
-        </div>
-        {error ? (
-          <ErrorState error={error} onRetry={reload} />
-        ) : (
-          <div className="table-wrap tr-table-flat">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Trẻ</th>
-                  <th>Phụ huynh</th>
-                  <th>Liên hệ</th>
-                  <th>Tên đăng nhập</th>
-                  <th>Trạng thái</th>
-                  <th className="center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <SkeletonRows rows={5} cols={6} />
-                ) : rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={6}>
-                      <EmptyState
-                        icon={KeyRound}
-                        title={
-                          tab === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED ? 'Không còn phụ huynh chờ kích hoạt' : 'Không có phụ huynh phù hợp'
-                        }
-                        description="Phụ huynh của trẻ mới tiếp nhận sẽ hiện ở tab Chưa kích hoạt."
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((r) => {
-                    const g = r.guardian;
-                    const allowed = canActivateParent(childOf(r), user);
-                    return (
-                      <tr key={r.key}>
-                        <td>
-                          <Link to={`/children/${r.childId}`} className="fw-600">
-                            {r.childName}
-                          </Link>
-                          <div className="muted text-xs">
-                            {r.childCode} · {r.className || 'Chưa xếp lớp'}
-                          </div>
-                        </td>
-                        <td>
-                          {g.fullName} <span className="muted">({g.relation})</span>
-                        </td>
-                        <td className="text-sm">
-                          <div className="nowrap">{g.phone}</div>
-                          <div className="muted">{g.email || 'Chưa có email'}</div>
-                        </td>
-                        <td className="text-sm">{r.username || <span className="muted">—</span>}</td>
-                        <td>
-                          <ParentAccountBadge status={g.accountStatus} />
-                          {g.smsStatus && g.accountStatus === PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION && (
-                            <div className={`text-xs mt-8 ${g.smsStatus === SMS_STATUS.FAILED ? 'text-danger' : 'muted'}`}>
-                              {SMS_STATUS_LABELS[g.smsStatus]} · {formatDateTime(g.smsAt)}
-                            </div>
-                          )}
-                        </td>
-                        <td className="center nowrap">
-                          {allowed && g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED && (
-                            <button className="btn btn--sm btn--primary" onClick={() => setPending(r)}>
-                              <KeyRound size={15} /> Kích hoạt
-                            </button>
-                          )}
-                          {allowed && g.accountStatus === PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION && (
-                            <button className="btn btn--sm" onClick={() => resend(r)} disabled={rowBusy === r.key}>
-                              <Send size={15} /> Gửi lại SMS
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {!loading && rows.length > 0 && <Pagination page={page} total={rows.length} onChange={setPage} unit="phụ huynh" />}
-      </div>
+      )}
 
-      <ConfirmationModal
-        open={!!pending}
-        title="Kích hoạt tài khoản phụ huynh?"
-        message={
-          pending
-            ? `Liên kết ${pending.guardian.fullName} (${pending.guardian.phone}) với trẻ ${pending.childName}. Nếu chưa có tài khoản, hệ thống tạo tài khoản và gửi mật khẩu qua SMS.`
-            : ''
-        }
-        confirmLabel="Kích hoạt tài khoản"
-        onConfirm={activate}
-        onClose={() => setPending(null)}
-      />
+      {error || structure.error ? (
+        <section className="card pa-state-panel">
+          <PeopleTabs embedded />
+          <ErrorState error={error || structure.error} onRetry={error ? reload : structure.reload} />
+        </section>
+      ) : loading || structure.loading ? (
+        <section className="card pa-state-panel">
+          <PeopleTabs embedded />
+          <LoadingState />
+        </section>
+      ) : !groups.length ? (
+        <section className="card pa-state-panel">
+          <PeopleTabs embedded />
+          <EmptyState icon={Users} title="Chưa có bé nào" description="Chỉ hiện bé đang học trong phạm vi bạn phụ trách." />
+        </section>
+      ) : (
+        <section className="card people-list-workspace pa-workspace">
+          <PeopleTabs embedded />
+          <div className="pa-layout">
+            <section className="pa-classes" aria-label="Lớp">
+              <div className="pa-classes__toolbar">
+                {structure.campuses.length > 1 && (
+                  <div className="pa-seg" role="group" aria-label="Điểm trường">
+                    {structure.campuses.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="pa-seg__item"
+                        title={c.name}
+                        aria-pressed={String(c.id) === String(campusId)}
+                        onClick={() => pickCampus(c.id)}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {groups.length >= CLASS_FILTER_MIN && (
+                  <label className="search-box pa-classes__filter">
+                    <Filter size={16} className="muted" />
+                    <input
+                      placeholder="Lọc lớp"
+                      value={classFilter}
+                      maxLength={50}
+                      onChange={(e) => setClassFilter(e.target.value)}
+                      aria-label="Lọc lớp"
+                    />
+                  </label>
+                )}
+              </div>
+              <div className="pa-classlist">
+                {shownGroups.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    className="pa-class"
+                    aria-current={!searching && view === g.id}
+                    onClick={() => pickView(g.id)}
+                  >
+                    <span className="pa-class__top">
+                      <span className="pa-class__name">{g.name}</span>
+                      {g.missing > 0 && <span className="pa-dot" aria-label="Còn bé chưa có tài khoản" />}
+                      <span className="pa-class__count">{g.total} bé</span>
+                    </span>
+                    <span className="pa-bar" aria-hidden="true">
+                      <i style={{ width: `${Math.round((g.withAccount / g.total) * 100)}%` }} />
+                    </span>
+                    <span className="pa-class__sub">{g.missing ? `${g.missing} bé chưa có tài khoản` : 'Đủ tài khoản'}</span>
+                  </button>
+                ))}
+                {!shownGroups.length && <p className="text-sm text-2 pa-classes__none">Không có lớp khớp “{classFilter}”.</p>}
+              </div>
+            </section>
+
+            <section className="pa-main">
+              {main && (
+                <>
+                  <div className="pa-main__head">
+                    <div>
+                      <h2 className="pa-main__title">{main.title}</h2>
+                      <div className="text-sm text-2">{main.sub}</div>
+                    </div>
+                    {main.group && (
+                      <div className="pa-main__progress">
+                        <span className="text-sm text-2">Có tài khoản phụ huynh</span>
+                        <ProgressBar value={main.group.withAccount} total={main.group.total} />
+                      </div>
+                    )}
+                  </div>
+
+                  {main.group && main.group.missing > 0 && (
+                    <div className="pa-chips" role="group" aria-label="Lọc bé">
+                      <button type="button" className="pa-chip" aria-pressed={!onlyMissing} onClick={() => setOnlyMissing(false)}>
+                        Tất cả · {main.group.total}
+                      </button>
+                      <button type="button" className="pa-chip" aria-pressed={onlyMissing} onClick={() => setOnlyMissing(true)}>
+                        Chưa có tài khoản · {main.group.missing}
+                      </button>
+                    </div>
+                  )}
+
+                  {!rows.length ? (
+                    <EmptyState
+                      icon={Users}
+                      title={searching ? 'Không tìm thấy bé' : 'Không có bé nào'}
+                      description={searching ? 'Thử tên khác hoặc đổi điểm trường.' : ''}
+                    />
+                  ) : (
+                    <div className="table-wrap">
+                      <table className="table table--grid table--compact pa-table">
+                        <thead>
+                          <tr>
+                            <th>Bé</th>
+                            {main.showClass && <th className="pa-col-class">Lớp</th>}
+                            <th>Phụ huynh</th>
+                            <th className="pa-col-status">Tài khoản</th>
+                            <th className="cell--actions pa-col-actions">Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((child) => {
+                            const guardians = child.guardians || [];
+                            return (
+                              <tr
+                                key={child.id}
+                                tabIndex={0}
+                                aria-label={`Mở hồ sơ phụ huynh của bé ${child.fullName}`}
+                                onClick={(event) => handleChildRowClick(event, child)}
+                                onKeyDown={(event) => handleChildRowKeyDown(event, child)}
+                              >
+                                <td>
+                                  <button type="button" className="pa-kid text-left" onClick={() => openChildProfile(child)}>
+                                    {child.fullName}
+                                  </button>
+                                  <div className="text-xs muted">{formatDate(child.dateOfBirth)}</div>
+                                </td>
+                                {main.showClass && (
+                                  <td className="pa-col-class">{classOf(child) || <span className="muted">Chưa xếp lớp</span>}</td>
+                                )}
+                                {/* Mỗi phụ huynh là một dòng con cùng chiều cao ở 3 cột để trạng thái và nút thẳng hàng */}
+                                <td>
+                                  {guardians.length > 0 ? (
+                                    guardians.map((g) => (
+                                      <div key={g.userId} className="pa-line">
+                                        <div className="pa-guardian-info">
+                                          <button
+                                            type="button"
+                                            className="pa-guardian-name pa-guardian-name--button"
+                                            aria-label={`Mở hồ sơ của bé ${child.fullName}, phụ huynh ${g.fullName}`}
+                                            onClick={() => openChildProfile(child)}
+                                          >
+                                            {g.fullName}
+                                          </button>
+                                          <div className="pa-guardian-meta">
+                                            <span>{GUARDIAN_RELATIONSHIP_LABELS[g.relationship] || 'Phụ huynh'}</span>
+                                            <span>Tài khoản: {g.username}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="pa-line muted">Chưa có phụ huynh</div>
+                                  )}
+                                </td>
+                                <td className="pa-col-status">
+                                  {guardians.length > 0 ? (
+                                    guardians.map((g) => (
+                                      <div key={g.userId} className="pa-line">
+                                        <AccountStatusBadge status={g.status} />
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="pa-line">
+                                      <ParentAccountBadge status="NO_ACCOUNT" />
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="cell--actions pa-col-actions">
+                                  {guardians.length > 0 ? (
+                                    guardians.map((g) => {
+                                      const active = g.status === 'ACTIVE';
+                                      return (
+                                        <div key={g.userId} className="pa-line pa-line--actions">
+                                          <RowActions
+                                            name={g.fullName}
+                                            menu={
+                                              child.canManage
+                                                ? [
+                                                    {
+                                                      label: 'Cấp lại mật khẩu tạm',
+                                                      icon: KeyRound,
+                                                      onClick: () => setConfirmModal({ type: 'password', guardian: g, child }),
+                                                    },
+                                                    {
+                                                      label: active ? 'Khóa tài khoản' : 'Mở khóa tài khoản',
+                                                      icon: active ? Lock : Unlock,
+                                                      danger: active,
+                                                      onClick: () => setConfirmModal({ type: 'status', guardian: g, child }),
+                                                    },
+                                                  ]
+                                                : []
+                                            }
+                                          />
+                                        </div>
+                                      );
+                                    })
+                                  ) : (
+                                    <div className="pa-line pa-line--actions">
+                                      <button
+                                        type="button"
+                                        className="btn btn--sm btn--primary"
+                                        disabled={!child.canManage}
+                                        onClick={() => {
+                                          openChildProfile(child, true);
+                                        }}
+                                      >
+                                        <Plus size={13} /> Thêm phụ huynh
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
+          </div>
+        </section>
+      )}
+
+      {/* Modal chi tiết phụ huynh */}
+      {openChild && (
+        <Modal
+          open={!!openChild}
+          title={`Phụ huynh của bé ${openChild.fullName}`}
+          size="lg"
+          className="pa-guardian-modal"
+          onClose={() => {
+            setOpenChild(null);
+            setOpenWithAdd(false);
+          }}
+        >
+          <fieldset disabled={!openChild.canManage} className="pa-guard-fieldset">
+            <GuardianPanel
+              key={openChild.id}
+              child={openChild}
+              classroomName={classOf(openChild)}
+              initialAdding={openWithAdd}
+              isModal
+              onChanged={() => reload({ silent: true })}
+            />
+          </fieldset>
+        </Modal>
+      )}
+
+      {/* Modal xác nhận thao tác Cấp lại MK hoặc Khóa/Mở */}
+      {confirmModal && (
+        <ConfirmationModal
+          open={!!confirmModal}
+          title={
+            confirmModal.type === 'password'
+              ? `Cấp lại mật khẩu cho ${confirmModal.guardian.fullName}?`
+              : confirmModal.guardian.status === 'ACTIVE'
+                ? `Khóa tài khoản ${confirmModal.guardian.fullName}?`
+                : `Mở khóa tài khoản ${confirmModal.guardian.fullName}?`
+          }
+          message={
+            confirmModal.type === 'password'
+              ? `Hệ thống sẽ tạo một mật khẩu tạm ngẫu nhiên mới và vô hiệu mật khẩu cũ của phụ huynh ${confirmModal.guardian.fullName}. Bạn có thể in hoặc sao chép phiếu mật khẩu ngay sau thao tác.`
+              : confirmModal.guardian.status === 'ACTIVE'
+                ? `Khóa tài khoản phụ huynh ${confirmModal.guardian.fullName} trong dữ liệu demo? Chưa tác động App thật.`
+                : `Mở khóa tài khoản cho phụ huynh ${confirmModal.guardian.fullName} trong dữ liệu demo? Chưa tác động App thật.`
+          }
+          danger={confirmModal.type === 'status' && confirmModal.guardian.status === 'ACTIVE'}
+          confirmLabel={
+            confirmModal.type === 'password' ? 'Cấp lại mật khẩu' : confirmModal.guardian.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa'
+          }
+          onConfirm={handleConfirmAction}
+          onClose={() => setConfirmModal(null)}
+        />
+      )}
+
+      {/* Modal phiếu in mật khẩu tạm */}
+      {slipModal && (
+        <AccountSlip
+          slip={slipModal.slip}
+          child={slipModal.child}
+          classroomName={classOf(slipModal.child)}
+          onClose={() => setSlipModal(null)}
+        />
+      )}
     </div>
   );
 }

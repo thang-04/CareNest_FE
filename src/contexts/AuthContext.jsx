@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getCurrentUser, login as loginRequest, logout as logoutRequest } from '@/services/authService';
 import { UNAUTHORIZED_EVENT } from '@/services/http/tokenStorage';
+import { singleFlight } from '@/services/http/singleFlight';
 
 const AuthContext = createContext(null);
 
@@ -35,12 +36,17 @@ export function AuthProvider({ children }) {
     return u;
   }, []);
 
-  const logout = useCallback(async (message = null) => {
-    await logoutRequest();
-    setSessionMessage(message);
-    setUser(null);
-    setStatus('anonymous');
-  }, []);
+  // singleFlight: nhiều 401 song song chỉ gây 1 lần logout.
+  const logout = useMemo(
+    () =>
+      singleFlight(async (message = null) => {
+        await logoutRequest();
+        setSessionMessage(message);
+        setUser(null);
+        setStatus('anonymous');
+      }),
+    [],
+  );
 
   // Reload the signed-in user after a profile change so the header shows fresh data.
   const refreshUser = useCallback(async () => {

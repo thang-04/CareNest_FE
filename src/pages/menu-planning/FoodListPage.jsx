@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Carrot, Eye, FileImport, Heart, HeartFilled, Pencil, Plus, RotateCcw, Search, Table2 } from '@/components/ui/icons';
+import { Carrot, Eye, FileImport, Heart, HeartFilled, Pencil, Plus, RotateCcw, Table2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useFoods, useMenuAccess } from '@/hooks/menu-planning/useMenuPlanning';
+import { useFilterParams } from '@/hooks/useFilterParams';
 import { saveFoodsBulk, setFoodFavorite } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { FilterMore } from '@/components/ui/FilterMore';
+import { FilterChips } from '@/components/ui/FilterChips';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { RowMenu } from '@/components/ui/RowMenu';
-import { AllergenChips } from '@/components/menu-planning/MenuBadges';
+import { AllergenChips, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { CategoryNav } from '@/components/menu-planning/CategoryNav';
 import { FoodImportPanel } from '@/components/menu-planning/FoodImportPanel';
 import { hasNutrition } from '@/utils/menu-planning/menuCalculations';
+import { foodUnits } from '@/utils/menu-planning/foodUnits';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import {
   ALLERGENS,
@@ -32,6 +36,8 @@ const QUICK = {
   MISSING: needsData,
   ALLERGEN: (f) => f.allergens.length > 0,
 };
+const QUICK_LABELS = { MISSING: 'Thiếu đơn giá hoặc dinh dưỡng', ALLERGEN: 'Có chất gây dị ứng' };
+const FILTER_DEFAULTS = { group: '', keyword: '', favorite: '', quick: '', allergen: '', status: '' };
 // Ô sửa được ở chế độ sửa hàng loạt: [khóa, đọc giá trị hiện tại]
 const BULK_FIELDS = [
   ['unitPrice', (f) => f.unitPrice],
@@ -50,12 +56,10 @@ export default function FoodListPage() {
   const { user } = useAuth();
   const toast = useToast();
   const { canManage } = useMenuAccess();
-  const [keyword, setKeyword] = useState('');
-  const [group, setGroup] = useState('');
-  const [favoriteOnly, setFavoriteOnly] = useState(false);
-  const [quick, setQuick] = useState('');
-  const [allergen, setAllergen] = useState('');
-  const [status, setStatus] = useState('');
+  // Bộ lọc lưu trên URL: mở thực phẩm rồi Back vẫn giữ nhóm, từ khóa và bộ lọc phụ
+  const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
+  const { keyword, group, quick, allergen, status } = filters;
+  const favoriteOnly = filters.favorite === '1';
   const [page, setPage] = useState(1);
   const [bulk, setBulk] = useState(false);
   const [drafts, setDrafts] = useState({});
@@ -66,27 +70,31 @@ export default function FoodListPage() {
   const { items, loading, error, reload } = useFoods({ keyword, allergen, status });
   const { items: allFoods } = useFoods({});
   const rows = items.filter((f) => (!group || f.group === group) && (!favoriteOnly || f.favorite) && QUICK[quick](f));
-  const filtered = keyword || group || favoriteOnly || quick || allergen || status;
+  const filtered = activeKeys.length > 0;
   const safePage = Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE)));
   const changedCount = Object.values(drafts).reduce((sum, d) => sum + Object.keys(d).length, 0);
-  const change = (setter) => (v) => {
-    setter(v);
+  const change = (key) => (v) => {
+    setFilters({ [key]: v });
     setPage(1);
   };
   const reset = () => {
-    setKeyword('');
-    setGroup('');
-    setFavoriteOnly(false);
-    setQuick('');
-    setAllergen('');
-    setStatus('');
+    resetFilters();
     setPage(1);
   };
+  const chipLabels = {
+    keyword: `Từ khóa: ${keyword}`,
+    group: `Nhóm: ${FOOD_GROUP_LABELS[group] || group}`,
+    favorite: 'Chỉ hay dùng',
+    quick: QUICK_LABELS[quick] || quick,
+    allergen: `Dị ứng: ${allergen}`,
+    status: `Trạng thái: ${RECORD_STATUS_LABELS[status] || status}`,
+  };
+  const chips = activeKeys.map((k) => ({ key: k, label: chipLabels[k], onRemove: () => change(k)('') }));
   const toggleFavorite = async (f) => {
     try {
       await setFoodFavorite(f.id, !f.favorite, user);
     } catch (err) {
-      toast.error(err.message, 'Không cập nhật được');
+      toast.error(err, 'Không cập nhật được');
     }
   };
   const setDraft = (f, key, read, value) =>
@@ -119,7 +127,7 @@ export default function FoodListPage() {
       stopBulk();
     } catch (err) {
       if (err.details) setBulkErrors(err.details);
-      toast.error(err.message, 'Chưa lưu được');
+      toast.error(err, 'Chưa lưu được');
     } finally {
       setSaving(false);
     }
@@ -179,33 +187,32 @@ export default function FoodListPage() {
         </div>
       )}
       <section className="card td-split-nav">
-        <CategoryNav title="Nhóm thực phẩm" items={navItems} value={group} onChange={change(setGroup)} />
+        <CategoryNav title="Nhóm thực phẩm" items={navItems} value={group} onChange={change('group')} />
         <div className="td-split-nav__main">
           <div className="filter-bar">
-            <label className="search-box td-grow">
-              <Search size={17} className="muted" />
-              <input
-                placeholder="Tìm tên hoặc mã thực phẩm…"
-                value={keyword}
-                onChange={(e) => change(setKeyword)(e.target.value)}
-                aria-label="Tìm thực phẩm"
-              />
-            </label>
+            <SearchSubmit
+              className="td-grow"
+              value={keyword}
+              placeholder="Tìm tên hoặc mã thực phẩm"
+              label="Tìm thực phẩm"
+              onSearch={change('keyword')}
+            />
             <label className="checkbox text-sm">
-              <input type="checkbox" checked={favoriteOnly} onChange={(e) => change(setFavoriteOnly)(e.target.checked)} /> Chỉ hay dùng
+              <input type="checkbox" checked={favoriteOnly} onChange={(e) => change('favorite')(e.target.checked ? '1' : '')} /> Chỉ hay
+              dùng
             </label>
             <FilterMore count={[quick, allergen, status].filter(Boolean).length}>
               <label className="field">
                 <span className="field__label">Số liệu</span>
-                <select className="select" value={quick} onChange={(e) => change(setQuick)(e.target.value)}>
+                <select className="select" value={quick} onChange={(e) => change('quick')(e.target.value)}>
                   <option value="">Mọi số liệu</option>
-                  <option value="MISSING">Thiếu đơn giá hoặc dinh dưỡng</option>
-                  <option value="ALLERGEN">Có chất gây dị ứng</option>
+                  <option value="MISSING">{QUICK_LABELS.MISSING}</option>
+                  <option value="ALLERGEN">{QUICK_LABELS.ALLERGEN}</option>
                 </select>
               </label>
               <label className="field">
                 <span className="field__label">Chất gây dị ứng</span>
-                <select className="select" value={allergen} onChange={(e) => change(setAllergen)(e.target.value)}>
+                <select className="select" value={allergen} onChange={(e) => change('allergen')(e.target.value)}>
                   <option value="">Mọi chất gây dị ứng</option>
                   {ALLERGENS.map((a) => (
                     <option key={a} value={a}>
@@ -216,7 +223,7 @@ export default function FoodListPage() {
               </label>
               <label className="field">
                 <span className="field__label">Trạng thái</span>
-                <select className="select" value={status} onChange={(e) => change(setStatus)(e.target.value)}>
+                <select className="select" value={status} onChange={(e) => change('status')(e.target.value)}>
                   <option value="">Tất cả trạng thái</option>
                   {Object.entries(RECORD_STATUS_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>
@@ -225,38 +232,40 @@ export default function FoodListPage() {
                   ))}
                 </select>
               </label>
-              <button className="btn btn--sm" onClick={reset} disabled={!filtered}>
-                <RotateCcw size={14} /> Đặt lại bộ lọc
-              </button>
             </FilterMore>
+            <button type="button" className="btn" onClick={reset} disabled={!filtered}>
+              <RotateCcw size={15} /> Đặt lại bộ lọc
+            </button>
           </div>
+          <FilterChips count={loading ? null : rows.length} unit="thực phẩm" chips={chips} />
           {error ? (
             <ErrorState error={error} onRetry={reload} />
           ) : (
             <div className="table-wrap">
-              <table className="table td-food-table">
+              <table className="table table--grid table--wrap-head td-food-table">
                 <thead>
                   <tr>
                     <th>Mã TP</th>
                     <th>Tên thực phẩm</th>
-                    <th className="right">Đơn giá</th>
-                    <th>Đơn vị</th>
-                    <th className="right">Thải bỏ %</th>
-                    <th className="right">Kcal</th>
-                    <th className="right">Đạm</th>
-                    <th className="right">Béo</th>
-                    <th className="right">Bột</th>
+                    <th className="money">Đơn giá</th>
+                    <th>Đơn vị mua</th>
+                    <th>Đơn vị kho</th>
+                    <th className="num">Thải bỏ %</th>
+                    <th className="num">Kcal</th>
+                    <th className="num">Đạm</th>
+                    <th className="num">Béo</th>
+                    <th className="num">Tinh bột</th>
                     <th>Dị ứng</th>
                     <th className="center">Hay dùng</th>
-                    <th className="td-num-col" aria-label="Thao tác" />
+                    <th className="td-num-col cell--actions" aria-label="Thao tác" />
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <SkeletonRows rows={5} cols={12} />
+                    <SkeletonRows rows={5} cols={13} />
                   ) : rows.length === 0 ? (
                     <tr>
-                      <td colSpan={12}>
+                      <td colSpan={13}>
                         <EmptyState
                           icon={Carrot}
                           title={filtered ? 'Không có kết quả phù hợp' : 'Chưa có thực phẩm'}
@@ -291,10 +300,15 @@ export default function FoodListPage() {
                           <div className="fw-600">{f.name}</div>
                           <div className="text-xs muted">
                             {FOOD_GROUP_LABELS[f.group]} · {FOOD_STORAGE_LABELS[f.storage]?.toLowerCase() || '—'}
-                            {f.status === RECORD_STATUS.INACTIVE && ' · ngừng sử dụng'}
+                            {f.status === RECORD_STATUS.INACTIVE && (
+                              <>
+                                {' '}
+                                <RecordStatusBadge status={f.status} />
+                              </>
+                            )}
                           </div>
                         </td>
-                        <td className="right nowrap">
+                        <td className="money nowrap">
                           {bulk ? (
                             cell(f, ...BULK_FIELDS[0])
                           ) : f.unitPrice ? (
@@ -304,9 +318,10 @@ export default function FoodListPage() {
                           )}
                         </td>
                         <td>{f.unitPrice || bulk ? f.purchaseUnit : '—'}</td>
-                        <td className="right">{bulk ? cell(f, ...BULK_FIELDS[1]) : n(f.wastePct ?? 0)}</td>
+                        <td>{foodUnits(f).stockUnit}</td>
+                        <td className="num">{bulk ? cell(f, ...BULK_FIELDS[1]) : n(f.wastePct ?? 0)}</td>
                         {BULK_FIELDS.slice(2).map(([key, read]) => (
-                          <td key={key} className="right nowrap">
+                          <td key={key} className="num nowrap">
                             {bulk ? cell(f, key, read) : read(f) == null ? <span className="td-warn">—</span> : n(read(f))}
                           </td>
                         ))}
@@ -325,7 +340,7 @@ export default function FoodListPage() {
                             {f.favorite ? <HeartFilled size={17} /> : <Heart size={17} />}
                           </button>
                         </td>
-                        <td className="td-num-col">
+                        <td className="td-num-col cell--actions">
                           {!bulk && (
                             <RowMenu
                               label={`Thao tác ${f.name}`}

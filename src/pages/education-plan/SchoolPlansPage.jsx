@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search } from '@/components/ui/icons';
+import { RotateCcw } from '@/components/ui/icons';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { className, periodLabel, typeLabel } from '@/components/education-plan/lessonShared';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { clickableRowProps } from '@/utils/clickableRow';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -50,7 +52,7 @@ export default function SchoolPlansPage() {
         })),
       themes: yearThemes.map((t) => ({
         id: t.id,
-        to: `/education/themes/${t.id}`,
+        to: '/education/plan-reviews',
         title: `Chủ đề: ${t.name}`,
         code: t.code,
         scope: ageName(t.ageGroupId),
@@ -64,7 +66,7 @@ export default function SchoolPlansPage() {
         .filter((l) => themeIds.has(l.themeId) && isShared(l.status))
         .map((l) => ({
           id: l.id,
-          to: `/education/lessons/${l.id}`,
+          to: '/education/plan-reviews',
           title: `${typeLabel(l.type)} · Tuần ${l.weekIndex}: ${l.branch}`,
           code: l.code,
           scope: `Lớp ${className(l.classId)}`,
@@ -99,9 +101,15 @@ export default function SchoolPlansPage() {
     setTab(key);
     setStatus('');
   };
+  const filtered = !!(age || status || q);
+  const resetFilters = () => {
+    setAge('');
+    setStatus('');
+    setQ('');
+  };
 
   return (
-    <div className="page">
+    <div className="page ga-page">
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch toàn trường' }]}
         title="Kế hoạch giáo dục toàn trường"
@@ -137,10 +145,7 @@ export default function SchoolPlansPage() {
           ))}
         </div>
         <div className="filter-bar">
-          <label className="search-box">
-            <Search size={17} className="muted" aria-hidden />
-            <input placeholder="Tìm theo tên, mã hoặc người lập" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Tìm kiếm" />
-          </label>
+          <SearchSubmit value={q} placeholder="Tìm theo tên, mã hoặc người lập" label="Tìm kế hoạch" onSearch={setQ} />
           <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
             <option value="">Tất cả nhóm tuổi</option>
             {AGE_GROUPS.map((a) => (
@@ -157,6 +162,9 @@ export default function SchoolPlansPage() {
               </option>
             ))}
           </select>
+          <button className="btn" type="button" onClick={resetFilters} disabled={!filtered}>
+            <RotateCcw size={15} /> Đặt lại bộ lọc
+          </button>
         </div>
         {rows.length === 0 ? (
           <EmptyState
@@ -165,7 +173,7 @@ export default function SchoolPlansPage() {
           />
         ) : (
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>{TABS.find((t) => t.key === tab).label}</th>
@@ -173,18 +181,12 @@ export default function SchoolPlansPage() {
                   <th>{tab === 'goals' ? 'Nội dung' : 'Thời gian'}</th>
                   <th>Người lập</th>
                   <th>{tab === 'goals' ? 'Ngày gửi' : 'Cập nhật'}</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="row-click"
-                    tabIndex={0}
-                    onClick={() => navigate(r.to)}
-                    onKeyDown={(e) => e.key === 'Enter' && navigate(r.to)}
-                  >
+                  <tr key={r.id} className="row-click" {...clickableRowProps(() => navigate(r.to))}>
                     <td>
                       <div className="ga-cell-title">{r.title}</div>
                       <div className="ga-cell-sub">{r.code}</div>
@@ -193,7 +195,7 @@ export default function SchoolPlansPage() {
                     <td>{r.detail}</td>
                     <td>{r.by || '—'}</td>
                     <td>{r.at}</td>
-                    <td>
+                    <td className="center">
                       <EduStatusBadge status={r.status} />
                     </td>
                   </tr>

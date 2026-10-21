@@ -1,65 +1,101 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertOctagon, ArrowLeft, Award, CheckCircle2, Copy, Flag, History, Lock, RefreshCw, Save, Sparkles } from '@/components/ui/icons';
+import { AlertOctagon, ArrowLeft, Award, CheckCircle2, Copy, History, RefreshCw, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useEvaluation } from '@/hooks/assessment/useAssessment';
 import { confirmEvaluation, regenerateEvaluationDraft, saveEvaluationDraft } from '@/services/assessment/assessmentService';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { ProgressSteps } from '@/components/ui/ProgressSteps';
-import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { Modal } from '@/components/ui/Modal';
+import { useAiRun } from '@/hooks/useAiRun';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
-import {
-  EMOTION_LABELS,
-  EVAL_HISTORY_LABELS,
-  EVAL_KIND,
-  EVAL_STATUS,
-  HEALTH_STATUS_LABELS,
-  PERIOD_TYPE_LABELS,
-} from '@/models/assessment/assessmentConstants';
+import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
+import { EMOTION_LABELS, EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
+import { BEHAVIORS, NAP, NAP_LABELS } from '@/models/assessment/dailyObservationOptions';
+import { HEALTH_SYMPTOMS } from '@/utils/dailyHealthValidation';
+import { mealsText } from '@/components/assessment/DailyAssessmentCells';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { periodLabel } from '@/utils/assessment/assessmentPeriods';
+import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
 import { canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { validateEvaluationContent, hasErrors } from '@/utils/assessment/assessmentValidation';
 
 const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp tục viết đánh giá thủ công.';
 
-function SourceAssessments({ assessments, criteria }) {
-  const name = Object.fromEntries(criteria.map((c) => [c.id, c.name]));
-  if (!assessments.length) return <div className="muted">Không có đánh giá hằng ngày nào trong kỳ.</div>;
+const GoalChip = ({ goal, tone }) => (
+  <span className={`chip chip--${tone}`} title={goal.description || goal.name}>
+    {goal.name}
+  </span>
+);
+
+/** Đánh giá hằng ngày trong kỳ, mỗi ngày một dòng, cùng cột với màn Đánh giá hằng ngày (căn cứ của bản nháp AI). */
+function DayTable({ days, mealSessions, classId, linkDays }) {
+  if (!days.length) return <div className="muted">Không có đánh giá hằng ngày nào trong kỳ.</div>;
+  const dash = <span className="muted">—</span>;
   return (
     <div className="table-wrap">
-      <table className="table table--compact">
+      <table className="table table--grid dg-days">
         <thead>
           <tr>
             <th>Ngày</th>
-            <th>Hoạt động</th>
             <th>Sức khỏe</th>
+            <th>Ăn</th>
+            <th>Ngủ</th>
             <th>Cảm xúc</th>
-            <th>Tiêu chí đạt</th>
-            <th className="center">Cờ</th>
+            <th>Hành vi</th>
+            <th>Kiến thức, kỹ năng</th>
             <th>Nhận xét</th>
           </tr>
         </thead>
         <tbody>
-          {assessments.map((a) => (
-            <tr key={a.id}>
-              <td className="nowrap">{formatDate(a.date)}</td>
-              <td>{a.activity}</td>
-              <td>{HEALTH_STATUS_LABELS[a.healthStatus]}</td>
-              <td>{EMOTION_LABELS[a.emotion]}</td>
-              <td className="text-sm" style={{ whiteSpace: 'normal', minWidth: 200 }}>
-                {a.criteriaMet
-                  .map((id) => name[id])
-                  .filter(Boolean)
-                  .join(', ') || '—'}
+          {days.map((d) => (
+            <tr key={d.date}>
+              <td className="nowrap">
+                {linkDays ? (
+                  <Link to={`/assessment/daily?classId=${classId}&date=${d.date}`} title="Mở đánh giá hằng ngày của ngày này">
+                    {formatDate(d.date)}
+                  </Link>
+                ) : (
+                  formatDate(d.date)
+                )}
               </td>
-              <td className="center">{a.flag ? <Flag size={15} className="text-primary" aria-label="Có cờ" /> : '—'}</td>
-              <td className="text-sm" style={{ whiteSpace: 'normal', minWidth: 160 }}>
-                {a.comment || '—'}
+              <td className={d.health?.signs.length ? 'dg-cell--warn' : ''}>
+                {d.health ? (
+                  <>
+                    {d.health.signs.length ? d.health.signs.map((x) => HEALTH_SYMPTOMS[x] || x).join(', ') : 'Bình thường'}
+                    {d.health.note && <div className="muted text-xs">{d.health.note}</div>}
+                  </>
+                ) : (
+                  dash
+                )}
               </td>
+              <td>{d.meals ? mealsText(d.meals, mealSessions) : dash}</td>
+              <td className={d.nap && d.nap !== NAP.NGU_TOT ? 'dg-cell--warn' : ''}>{d.nap ? NAP_LABELS[d.nap] : dash}</td>
+              <td>{d.emotion ? EMOTION_LABELS[d.emotion] : dash}</td>
+              <td>
+                {d.behaviors.length ? d.behaviors.map((x) => BEHAVIORS[x] || x).join(', ') : dash}
+                {d.behaviorNote && <div className="muted text-xs">{d.behaviorNote}</div>}
+              </td>
+              <td>
+                {d.met.length || d.notMet.length ? (
+                  <div className="dg-days__goals">
+                    {d.met.map((g) => (
+                      <GoalChip key={g.id} goal={g} tone="green" />
+                    ))}
+                    {d.notMet.map((g) => (
+                      <GoalChip key={g.id} goal={g} tone="orange" />
+                    ))}
+                  </div>
+                ) : (
+                  dash
+                )}
+              </td>
+              <td className="dg-days__comment">{d.comment || dash}</td>
             </tr>
           ))}
         </tbody>
@@ -78,6 +114,8 @@ export function EvaluationReviewView({ kind, id }) {
   const [content, setContent] = useState('');
   const [contentError, setContentError] = useState('');
   const [busy, setBusy] = useState('');
+  const { run: runAi } = useAiRun();
+  const [fresh, setFresh] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const yearEnd = kind === EVAL_KIND.YEAR_END;
   const base = `/assessment/${yearEnd ? 'year-end' : 'periodic'}`;
@@ -92,7 +130,12 @@ export function EvaluationReviewView({ kind, id }) {
     if (error.status === 403 || error.status === 404)
       return (
         <div className="card">
-          <EmptyState icon={Lock} title="Không xem được đánh giá" description="Đánh giá không tồn tại hoặc nằm ngoài phạm vi của bạn." />
+          <StatusPage
+            bare
+            kind={String(error.status)}
+            title="Không xem được đánh giá"
+            description="Đánh giá không tồn tại hoặc nằm ngoài phạm vi của bạn."
+          />
         </div>
       );
     return <ErrorState error={error} onRetry={reload} />;
@@ -102,7 +145,7 @@ export function EvaluationReviewView({ kind, id }) {
   const canReview = canReviewEvaluation(ev, detail.cls, user);
   const showDraft = canViewAiDraft(ev, detail.cls, user);
   const confirmed = ev.status === EVAL_STATUS.CONFIRMED;
-  const label = periodLabel(ev.periodType, ev.periodStart, ev.periodEnd);
+  const label = evaluationPeriodLabel(ev);
   const name = (uid) => md.userById(uid)?.fullName || 'Hệ thống';
 
   const check = () => {
@@ -119,7 +162,7 @@ export function EvaluationReviewView({ kind, id }) {
       await reload({ silent: true });
       return res;
     } catch (err) {
-      toast.error(err.message, 'Không thực hiện được');
+      toast.error(err, 'Không thực hiện được');
       if (err.status === 409) reload({ silent: true });
       return null;
     } finally {
@@ -137,16 +180,18 @@ export function EvaluationReviewView({ kind, id }) {
 
   const redraft = async () => {
     setBusy('redraft');
+    let res = null;
     try {
-      const res = await regenerateEvaluationDraft(kind, ev.id, user);
+      res = await runAi(() => regenerateEvaluationDraft(kind, ev.id, user));
       if (res.status === EVAL_STATUS.AI_FAILED) toast.warning(res.aiError || MSG30, 'AI chưa tạo được bản nháp');
-      else toast.success('Bản nháp AI mới đã sẵn sàng để bạn xem xét.');
       await reload({ silent: true });
     } catch (err) {
       toast.error(err.message || MSG30, 'AI chưa tạo được bản nháp');
     } finally {
       setBusy('');
     }
+    // Mở modal sau khi lớp phủ tắt (trang tải lại xong) để lớp phủ không đè lên modal
+    if (res && res.status !== EVAL_STATUS.AI_FAILED) setFresh(res.aiDraft);
   };
 
   const doConfirm = async () => {
@@ -159,78 +204,46 @@ export function EvaluationReviewView({ kind, id }) {
     return res;
   };
 
-  const steps = [
-    {
-      label: 'AI tạo bản nháp',
-      sub: ev.aiDraft ? formatDateTime(ev.aiDraft.generatedAt) : ev.status === EVAL_STATUS.AI_FAILED ? 'Chưa tạo được' : '',
-      done: !!ev.aiDraft || confirmed,
-      warn: ev.status === EVAL_STATUS.AI_FAILED,
-    },
-    { label: 'Giáo viên xem xét, bổ sung', done: confirmed },
-    {
-      label: yearEnd ? 'Xác nhận – dùng cho khen thưởng' : 'Xác nhận và công bố',
-      sub: confirmed ? formatDateTime(ev.confirmedAt) : '',
-      done: confirmed,
-    },
-  ];
-
   return (
     <>
       <div className="page__head">
-        <div>
-          <h1 className="page__title" style={{ marginBottom: 6 }}>
-            Đánh giá {PERIOD_TYPE_LABELS[ev.periodType].toLowerCase()} – {ev.childName}
-          </h1>
-          <EvaluationStatusBadge status={ev.status} size="lg" />
+        <div className="dg-eval-head">
+          <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
+          <div>
+            <h1 className="page__title">
+              Đánh giá {PERIOD_TYPE_LABELS[ev.periodType].toLowerCase()} – {ev.childName}
+            </h1>
+            <div className="dg-eval-meta">
+              <EvaluationStatusBadge status={ev.status} />
+              <span>{ev.className}</span>
+              <span>{label}</span>
+              {ev.themeName && <span>Chủ đề: {ev.themeName}</span>}
+              <span>Có mặt {detail.summary.presentDays} ngày</span>
+              {!yearEnd && <span>Đánh giá hằng ngày {detail.summary.assessedDays} ngày</span>}
+              {confirmed && (
+                <span>
+                  Xác nhận bởi {name(ev.confirmedBy)} · {formatDateTime(ev.confirmedAt)}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="row row--wrap" style={{ gap: 8, marginTop: 8 }}>
-          {showDraft && (ev.aiDraft || ev.aiError) && (
-            <Link className="btn" to={`${base}/${ev.id}/ai-draft`}>
-              <Sparkles size={16} /> Xem bản nháp AI
-            </Link>
-          )}
-          {yearEnd && confirmed && isClassTeacher(detail.cls, user) && (
-            <Link className="btn btn--outline-primary" to={`/assessment/rewards/new?childId=${ev.childId}&classId=${ev.classId}`}>
-              <Award size={16} /> Đề xuất khen thưởng
-            </Link>
-          )}
-        </div>
-      </div>
-
-      <div className="card mt-16" style={{ padding: '20px 24px' }}>
-        <ProgressSteps steps={steps} />
-      </div>
-
-      <div className="card mt-16">
-        <div className="card__body">
-          <dl className="info-list info-columns">
-            <dt>Trẻ:</dt>
-            <dd className="fw-600">
-              {ev.childName} <span className="muted">· {ev.childCode}</span>
-            </dd>
-            <dt>Lớp:</dt>
-            <dd>{ev.className}</dd>
-            <dt>Kỳ đánh giá:</dt>
-            <dd>{label}</dd>
-            <dt>Số ngày có mặt:</dt>
-            <dd>{detail.summary.presentDays}</dd>
-            <dt>Lượt đánh giá hằng ngày:</dt>
-            <dd>{detail.summary.assessmentCount}</dd>
-            <dt>Cờ bé ngoan:</dt>
-            <dd>{detail.summary.flagCount}</dd>
-          </dl>
-        </div>
+        {yearEnd && confirmed && isClassTeacher(detail.cls, user) && (
+          <Link className="btn btn--outline-primary" to={`/assessment/rewards/new?childId=${ev.childId}&classId=${ev.classId}`}>
+            <Award size={16} /> Đề xuất khen thưởng
+          </Link>
+        )}
       </div>
 
       {ev.status === EVAL_STATUS.AI_FAILED && canReview && (
         <div className="alert alert--danger mt-16">
           <AlertOctagon size={20} />
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <div className="fw-600">{MSG30}</div>
             <div className="mt-8 text-sm">{ev.aiError}</div>
           </div>
           <button className="btn" onClick={redraft} disabled={!!busy}>
-            {busy === 'redraft' ? <Spinner small /> : <RefreshCw size={16} />} Yêu cầu tạo lại bản nháp
+            <RefreshCw size={16} /> Yêu cầu tạo lại bản nháp
           </button>
         </div>
       )}
@@ -239,7 +252,7 @@ export function EvaluationReviewView({ kind, id }) {
         <div className="split-2 mt-16">
           <div className="card">
             <div className="card__header">
-              <div className="card__title">Bản nháp do AI đề xuất</div>
+              <div className="card__title">Bản nháp AI</div>
               <AiDraftTag />
             </div>
             <div className="card__body">
@@ -247,19 +260,29 @@ export function EvaluationReviewView({ kind, id }) {
                 <>
                   <div className="dg-ai-box text-sm">{ev.aiDraft.content}</div>
                   <div className="muted text-xs mt-8">
-                    Tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}. Hãy đối chiếu với các đánh giá hằng ngày bên dưới.
+                    {yearEnd
+                      ? `Tổng hợp từ ${detail.monthlyEvaluations.length} đánh giá tháng đã xác nhận`
+                      : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày`}{' '}
+                    · tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
                   </div>
-                  <div className="row row--wrap mt-12" style={{ gap: 8 }}>
-                    <button className="btn btn--sm" onClick={() => setContent(ev.aiDraft.content)} disabled={!!busy}>
-                      <Copy size={14} /> Dùng lại nội dung bản nháp
+                  <div className="row row--wrap gap-2 mt-12">
+                    <button
+                      className="btn btn--sm"
+                      onClick={() => setContent(ev.aiDraft.content)}
+                      disabled={!!busy || content === ev.aiDraft.content}
+                    >
+                      <Copy size={14} /> Dùng bản nháp này
                     </button>
                     <button className="btn btn--sm" onClick={redraft} disabled={!!busy}>
-                      {busy === 'redraft' ? <Spinner small /> : <RefreshCw size={14} />} Yêu cầu tạo lại bản nháp
+                      <RefreshCw size={14} /> Tạo lại bản nháp
                     </button>
+                    <Link className="btn btn--sm btn--ghost" to={`${base}/${ev.id}/ai-draft`}>
+                      Dữ liệu AI đã dùng
+                    </Link>
                   </div>
                 </>
               ) : (
-                <div className="muted">Chưa có bản nháp AI. Bạn có thể tự viết đánh giá ở khung bên cạnh.</div>
+                <div className="muted">Chưa có bản nháp AI. Cô tự viết đánh giá ở khung bên cạnh.</div>
               )}
             </div>
           </div>
@@ -272,7 +295,7 @@ export function EvaluationReviewView({ kind, id }) {
                 label="Nội dung đánh giá"
                 required
                 error={contentError}
-                hint="Chỉnh sửa, bổ sung dựa trên quan sát thực tế. Không dùng thuật ngữ chẩn đoán."
+                hint="Sửa, bổ sung theo quan sát thực tế. Không dùng thuật ngữ chẩn đoán."
               >
                 <textarea
                   className="textarea dg-editor"
@@ -312,12 +335,12 @@ export function EvaluationReviewView({ kind, id }) {
         </div>
       )}
 
+      <PeriodSummaryTable data={detail.summary.structured} />
+
       <div className="card mt-16">
         <div className="card__header">
-          <div className="card__title">{yearEnd ? 'Đánh giá tháng đã xác nhận trong năm học' : 'Đánh giá hằng ngày làm căn cứ'}</div>
-          {!yearEnd && detail.summary.activities.length > 0 && (
-            <span className="muted text-sm">Hoạt động: {detail.summary.activities.join(', ')}</span>
-          )}
+          <div className="card__title">{yearEnd ? 'Đánh giá tháng đã xác nhận trong năm học' : 'Đánh giá hằng ngày trong kỳ'}</div>
+          {!yearEnd && <span className="muted text-sm">Xanh: đạt · Cam: chưa đạt</span>}
         </div>
         <div className="card__body">
           {yearEnd ? (
@@ -334,7 +357,7 @@ export function EvaluationReviewView({ kind, id }) {
               <div className="muted">Chưa có đánh giá tháng nào được xác nhận. Thiếu dữ liệu nguồn – hãy xem lại các hồ sơ hiện có.</div>
             )
           ) : (
-            <SourceAssessments assessments={detail.assessments} criteria={detail.criteria} />
+            <DayTable days={detail.days} mealSessions={detail.mealSessions} classId={ev.classId} linkDays={canReview} />
           )}
         </div>
       </div>
@@ -370,7 +393,7 @@ export function EvaluationReviewView({ kind, id }) {
           <ArrowLeft size={16} /> Về danh sách
         </button>
         {canReview && (
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row gap-2">
             <button className="btn" onClick={save} disabled={!!busy}>
               {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
             </button>
@@ -393,6 +416,37 @@ export function EvaluationReviewView({ kind, id }) {
         onConfirm={doConfirm}
         onClose={() => setConfirmOpen(false)}
       />
+      {/* AI xong ⇒ bản nháp mới mở trong modal; đóng thì vẫn dùng được ở khung "Bản nháp AI" (user chốt) */}
+      <Modal
+        open={!!fresh}
+        onClose={() => setFresh(null)}
+        size="lg"
+        title="Bản nháp AI mới"
+        footer={
+          <>
+            <button type="button" className="btn" onClick={() => setFresh(null)}>
+              Đóng
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => {
+                setContent(fresh.content);
+                setFresh(null);
+              }}
+            >
+              <Copy size={16} /> Dùng bản nháp này
+            </button>
+          </>
+        }
+      >
+        <div className="row gap-2 mb-12">
+          <AiDraftTag />
+          {fresh && <span className="muted text-sm">Tạo lúc {formatDateTime(fresh.generatedAt)}</span>}
+        </div>
+        <div className="dg-ai-box text-sm">{fresh?.content}</div>
+      </Modal>
+      {busy === 'redraft' && <AiWorkingOverlay text="Đang soạn bản nháp đánh giá…" />}
     </>
   );
 }

@@ -50,7 +50,7 @@ export function FoodImportPanel({ open, onClose, foods }) {
       toast.success(`Đã thêm ${created} và cập nhật ${updated} thực phẩm.`);
       close();
     } catch (err) {
-      toast.error(err.message, 'Không ghi được dữ liệu');
+      toast.error(err, 'Không ghi được dữ liệu');
     } finally {
       setSaving(false);
     }
@@ -104,74 +104,80 @@ export function FoodImportPanel({ open, onClose, foods }) {
           {result.errors.length > 0 && (
             <section>
               <h3>Dòng lỗi (không ghi)</h3>
-              <table className="table table--compact">
-                <thead>
-                  <tr>
-                    <th className="td-num-col">Dòng</th>
-                    <th>Thực phẩm</th>
-                    <th>Lý do</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.errors.map((e) => (
-                    <tr key={e.row}>
-                      <td className="td-num-col">{e.row}</td>
-                      <td>{e.name || '—'}</td>
-                      <td className="td-bad">{e.reason}</td>
+              <div className="table-wrap">
+                <table className="table table--grid table--compact">
+                  <thead>
+                    <tr>
+                      <th className="td-num-col">Dòng</th>
+                      <th>Thực phẩm</th>
+                      <th>Lý do</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {result.errors.map((e) => (
+                      <tr key={e.row}>
+                        <td className="td-num-col">{e.row}</td>
+                        <td>{e.name || '—'}</td>
+                        <td className="td-bad">{e.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           )}
           {result.creates.length > 0 && (
             <section>
               <h3>Thêm mới</h3>
-              <table className="table table--compact">
-                <thead>
-                  <tr>
-                    <th className="td-num-col">Dòng</th>
-                    <th>Tên thực phẩm</th>
-                    <th>Nhóm</th>
-                    <th className="right">Đơn giá</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.creates.map((c) => (
-                    <tr key={c.key}>
-                      <td className="td-num-col">{c.row}</td>
-                      <td>{c.name}</td>
-                      <td>{FOOD_GROUP_LABELS[c.data.group]}</td>
-                      <td className="right">{c.data.unitPrice ? formatMoney(c.data.unitPrice) : '—'}</td>
+              <div className="table-wrap">
+                <table className="table table--grid table--compact">
+                  <thead>
+                    <tr>
+                      <th className="td-num-col">Dòng</th>
+                      <th>Tên thực phẩm</th>
+                      <th>Nhóm</th>
+                      <th className="money">Đơn giá</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {result.creates.map((c) => (
+                      <tr key={c.key}>
+                        <td className="td-num-col">{c.row}</td>
+                        <td>{c.name}</td>
+                        <td>{FOOD_GROUP_LABELS[c.data.group]}</td>
+                        <td className="money">{c.data.unitPrice ? formatMoney(c.data.unitPrice) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           )}
           {result.updates.length > 0 && (
             <section>
               <h3>Cập nhật</h3>
-              <table className="table table--compact">
-                <thead>
-                  <tr>
-                    <th className="td-num-col">Dòng</th>
-                    <th>Mã</th>
-                    <th>Tên thực phẩm</th>
-                    <th>Trường thay đổi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.updates.map((u) => (
-                    <tr key={u.key}>
-                      <td className="td-num-col">{u.row}</td>
-                      <td className="text-primary fw-600">{u.code}</td>
-                      <td>{u.name}</td>
-                      <td className="text-sm">{u.changes.map(importFieldLabel).join(', ')}</td>
+              <div className="table-wrap">
+                <table className="table table--grid table--compact">
+                  <thead>
+                    <tr>
+                      <th className="td-num-col">Dòng</th>
+                      <th>Mã</th>
+                      <th>Tên thực phẩm</th>
+                      <th>Trường thay đổi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {result.updates.map((u) => (
+                      <tr key={u.key}>
+                        <td className="td-num-col">{u.row}</td>
+                        <td className="text-primary fw-600">{u.code}</td>
+                        <td>{u.name}</td>
+                        <td className="text-sm">{u.changes.map(importFieldLabel).join(', ')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           )}
         </div>

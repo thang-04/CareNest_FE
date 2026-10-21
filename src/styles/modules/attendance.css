@@ -4,6 +4,369 @@
  */
 
 /* ---------- Filter bar (class + date) ---------- */
+/* ---------- Daily reception workbench ---------- */
+.dd-reception {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+.dd-reception__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.dd-reception > .card {
+  min-width: 0;
+  /* Lề trong đều cho 2 khung (danh sách, sức khỏe): chữ và ô nhập không dính mép */
+  padding: 0 var(--space-6) var(--space-6);
+}
+.dd-reception > .card > .card__header {
+  padding: var(--space-6) 0 var(--space-4);
+}
+.dd-reception__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+/* Ô tìm là <SearchSubmit> (form): đặt kích thước cho form, ô bên trong tự giãn */
+.dd-reception__filters .search-submit {
+  flex: 1 1 calc(var(--space-16) * 2);
+  max-width: calc(var(--space-16) * 4);
+  min-width: 0;
+}
+/* Ô lọc gọn để tìm kiếm, lọc, "Có mặt tất cả" vừa một hàng ở laptop 13–14 inch */
+.dd-reception__filters .select {
+  width: calc(var(--space-16) * 2.625); /* đủ badge có icon "Chưa điểm danh" */
+}
+.dd-reception__mark-all {
+  margin-left: auto;
+  white-space: nowrap;
+}
+/* Card đã có lề trong: bảng rộng bằng hàng lọc (bỏ lề thêm của .card > .table-wrap) */
+.dd-reception > .card > .dd-reception__table {
+  margin: 0;
+}
+.dd-reception__table {
+  /* Cao theo phần màn hình còn lại khi cuộn tới khung (trừ thanh trên, tiêu đề, hàng lọc, nút Lưu) */
+  max-height: clamp(calc(var(--space-16) * 4), calc(100vh - var(--header-height) - var(--space-16) * 3.5), calc(var(--space-16) * 12));
+  overflow: auto;
+}
+/* Dòng tiêu đề Trẻ | Điểm danh | Tham gia ăn đứng yên khi cuộn */
+.dd-reception__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+}
+.dd-reception__table .table {
+  width: 100%;
+  min-width: calc(var(--space-16) * 6);
+  /* Cột cố định: thẻ dưới tên trẻ không được đẩy nút Điểm danh / Tham gia ăn ra ngoài */
+  table-layout: fixed;
+}
+.dd-reception__col-status {
+  width: calc(var(--space-16) * 2.625); /* đủ badge có icon "Chưa điểm danh" */
+}
+.dd-reception__col-meal {
+  width: calc(var(--space-16) * 1.625);
+}
+.dd-reception__table td:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Thẻ sức khỏe dưới tên: xuống dòng trong cột, không kéo rộng bảng */
+.dd-reception__flag {
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: var(--lh-tight);
+  white-space: normal;
+  text-align: left;
+  cursor: pointer;
+}
+.dd-reception__flag--text {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+}
+.dd-reception__flag:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+/* Khung .dd-reception__tags cắt phần tràn nên viền focus vẽ vào trong */
+.dd-reception__flag:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+.dd-reception__child:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.dd-reception__flag .chip {
+  max-width: 100%;
+  white-space: normal;
+  line-height: var(--lh-tight);
+}
+.dd-reception__table th {
+  white-space: nowrap;
+}
+.dd-reception__mealcell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.dd-reception__row {
+  cursor: pointer;
+}
+/* Trẻ đang chọn: nền trắng như các dòng khác, đánh dấu bằng vạch màu bên trái */
+.dd-reception__table tr.dd-reception__row--selected td {
+  background: var(--color-surface);
+}
+.dd-reception__table tr.dd-reception__row--selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+.dd-reception__child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  padding: var(--space-1) 0;
+  cursor: pointer;
+  font: inherit;
+}
+.dd-reception__child strong {
+  font-weight: var(--fw-semibold);
+}
+.dd-reception__status {
+  white-space: nowrap;
+}
+.dd-reception__status .dd-seg__item {
+  min-height: var(--input-height);
+  padding: var(--space-2);
+}
+.dd-reception__status label:focus-within {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.dd-reception__meal {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+}
+.dd-reception__meal .dd-check {
+  appearance: none;
+  position: relative;
+  width: var(--space-10);
+  height: var(--space-6);
+  margin: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-secondary);
+  cursor: pointer;
+}
+.dd-reception__meal .dd-check::after {
+  content: '';
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  width: var(--space-3-5);
+  height: var(--space-3-5);
+  border-radius: var(--radius-full);
+  background: var(--color-text-muted);
+}
+.dd-reception__meal .dd-check:checked {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-fg);
+}
+.dd-reception__meal .dd-check:checked::after {
+  left: var(--space-5);
+  background: var(--color-success-fg);
+}
+.dd-reception__meal .dd-check:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dd-reception__footer {
+  /* Dính đáy màn hình: lớp đông trẻ vẫn thấy nút Lưu mà không phải cuộn xuống */
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+  background: var(--color-surface);
+}
+.dd-health .card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dd-health__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+}
+.dd-health__name {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+.dd-health__form {
+  position: relative;
+}
+.dd-health__fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.dd-health__fields legend {
+  margin-bottom: var(--space-2);
+}
+.dd-health__observations {
+  display: grid;
+  gap: var(--space-2);
+}
+.dd-health__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.dd-health__option.is-selected {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-border);
+}
+.dd-health__option input {
+  accent-color: var(--color-primary);
+}
+.dd-health__symptoms,
+.dd-health__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.dd-health__history {
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+}
+.dd-health__contact {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-warning-bg);
+  overflow-wrap: anywhere;
+}
+.dd-health__contact-person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.dd-health__contact summary {
+  cursor: pointer;
+  font-weight: var(--fw-semibold);
+}
+.dd-health__contact .btn {
+  white-space: normal;
+  height: auto;
+  min-height: var(--btn-height);
+}
+.dd-health__actions .btn {
+  white-space: normal;
+  height: auto;
+  min-height: var(--btn-height);
+}
+.dd-health__timeline {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.dd-health__timeline li {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  overflow-wrap: anywhere;
+}
+/* Lần ghi nhận cũ: một dòng gọn, bấm để mở */
+.dd-health__timeline li.dd-health__compact {
+  padding: 0;
+}
+.dd-health__compact-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dd-health__compact-btn:hover {
+  background: var(--color-surface-hover);
+}
+.dd-health__compact-btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+.dd-health__compact-btn--open {
+  padding: 0 0 var(--space-2);
+}
+.dd-health__compact-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 1100px) {
+  .dd-reception {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 768px) {
+  .dd-reception__filters {
+    align-items: stretch;
+  }
+  .dd-reception__filters .search-submit {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .dd-health__actions .btn {
+    width: 100%;
+  }
+}
+
 .dd-bar {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -34,6 +397,9 @@
 }
 .dd-overview .dd-stats {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.dd-overview__chart {
+  padding: var(--space-5);
 }
 @media (max-width: 1100px) {
   .dd-overview {
@@ -68,16 +434,16 @@
   border-color: var(--danger-border);
 }
 .dd-stat--gray {
-  background: var(--gray-50);
+  background: var(--color-secondary);
   border-color: var(--border);
 }
 .dd-stat--blue {
-  background: var(--brand-sky-50);
-  border-color: var(--brand-sky-200);
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
 }
 .dd-stat__value {
   font-size: var(--fs-h2);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
   line-height: 1.2;
 }
@@ -88,16 +454,11 @@
 
 /* ---------- Attendance table ---------- */
 .dd-table-wrap {
+  /* Giữ phần tử sr-only trong khung cuộn, không làm cả trang cuộn ngang */
+  position: relative;
   border: none;
   border-top: 1px solid var(--border);
   border-radius: 0;
-}
-.dd-row--error td {
-  background: var(--danger-25);
-}
-.dd-tags {
-  gap: var(--space-1);
-  margin-top: 2px;
 }
 .dd-check {
   width: 18px;
@@ -120,10 +481,10 @@
 }
 /* Điểm danh (G1): rãnh xám, ô đang chọn tô màu theo trạng thái */
 .dd-seg__item {
-  padding: 6px var(--space-3);
-  border-radius: 10px;
+  padding: var(--space-1-5) var(--space-3);
+  border-radius: var(--radius-sm);
   font-size: var(--fs-sm);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   color: var(--text-2);
   cursor: pointer;
   white-space: nowrap;
@@ -137,7 +498,7 @@
 .dd-seg__item.is-on {
   background: var(--primary-50);
   color: var(--primary);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   box-shadow: var(--shadow-xs);
 }
 .dd-seg__item--present.is-on {
@@ -153,30 +514,11 @@
   color: var(--danger-700);
 }
 
-/* Meal session modal */
-.dd-sessions {
-  border: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: var(--space-2);
-}
-.dd-session {
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-.dd-session:has(input:checked) {
-  border-color: var(--primary);
-  background: var(--primary-25);
-}
-
 /* ---------- Summary ---------- */
 .dd-summary {
   display: grid;
-  grid-template-columns: 3fr 2fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
-  align-items: start;
 }
 .dd-summary > .card {
   min-width: 0;
@@ -187,23 +529,29 @@
 }
 
 /* ---------- Meal count ---------- */
-.dd-count-grid {
+.dd-count-grid,
+.dd-handover-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
 }
-.dd-count__totals {
+.dd-handover-grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+.dd-count__totals,
+.dd-handover__nums {
   display: flex;
   gap: var(--space-6);
   flex-wrap: wrap;
 }
-.dd-count__totals > div {
+.dd-count__totals > div,
+.dd-handover__nums > div {
   display: flex;
   flex-direction: column;
 }
 .dd-count__num {
   font-size: var(--fs-h2);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
 }
 .dd-count__num--sub {
@@ -227,9 +575,244 @@
   overflow-wrap: anywhere;
 }
 
+/* ---------- Meal handover ---------- */
+.dd-handover {
+  border-top: 4px solid var(--border-strong);
+}
+.dd-handover--ready,
+.dd-handover--supplemented {
+  border-top-color: var(--primary);
+}
+.dd-handover--shortage_reported {
+  border-top-color: var(--danger);
+}
+.dd-handover--waiting_kitchen {
+  border-top-color: var(--warning);
+}
+.dd-handover--confirmed {
+  border-top-color: var(--success);
+}
+
 @media (max-width: 1280px) {
   .dd-summary,
   .dd-count-grid {
-    grid-template-columns: 1fr;
+    /* minmax(0, …): không để chip/bảng trong thẻ kéo cột rộng hơn màn */
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Sức khỏe đầu ngày (Ban giám hiệu) ---------- */
+.dd-hov__note {
+  min-width: calc(var(--space-16) * 3);
+  overflow-wrap: anywhere;
+}
+
+/* Liên hệ phụ huynh: web chỉ hiện SĐT bố mẹ từ hồ sơ nhập học (nút Gọi chỉ có trên App) */
+.dd-health__phone {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+}
+.dd-hov__row {
+  cursor: pointer;
+}
+.dd-hov__row:hover td {
+  background: var(--color-surface-hover);
+}
+
+/* Lịch sử đo trong ngày (HT/PHT): bảng gọn, dòng mới nhất tô nền */
+.dd-hist {
+  position: relative;
+  max-height: calc(var(--space-16) * 6);
+  overflow: auto;
+}
+.dd-hist tr.dd-hist__latest td {
+  background: var(--color-primary-soft);
+}
+.dd-hist__tag {
+  margin-left: var(--space-2);
+}
+.dd-hist__note {
+  min-width: calc(var(--space-16) * 2.5);
+  overflow-wrap: anywhere;
+}
+
+/* Sức khỏe đầu ngày: bộ lọc nhóm tuổi / lớp cùng hàng, ngay sau tiêu đề "Theo lớp" (căn trái), xuống dòng khi hẹp */
+.dd-hov__head {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  column-gap: var(--space-4);
+}
+.dd-hov__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dd-hov__filters .select {
+  width: auto;
+  min-width: 160px;
+}
+/* Xử trí: ô phụ khi tích Đón về sớm / Chuyển cơ sở y tế */
+.dd-health__sub {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+.dd-health__sub .field {
+  margin: 0;
+}
+.dd-health__action-line {
+  color: var(--warning-700);
+  font-weight: var(--fw-semibold);
+}
+/* Trẻ cần chú ý: cột Xử trí dạng chip, mỗi chip một dòng chữ */
+.dd-hov__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-width: 120px;
+}
+/* Trẻ cần chú ý: ảnh đại diện + tên, mã */
+.dd-hov__child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* Dòng nhóm tuổi của bảng "Theo lớp": bấm để thu / mở các lớp */
+.dd-hov__group td {
+  background: var(--surface-soft);
+  font-weight: var(--fw-semibold);
+}
+.dd-hov__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.dd-hov__toggle:disabled {
+  cursor: default;
+}
+.dd-hov__toggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.table td.dd-hov__class {
+  padding-left: var(--space-8);
+}
+@media (max-width: 640px) {
+  .dd-hov__filters,
+  .dd-hov__filters .select {
+    width: 100%;
+  }
+}
+
+/* Bảng điểm danh: kẻ dọc giữa các cột, hàng thấp gọn */
+.dd-reception__table th + th,
+.dd-reception__table td + td {
+  border-left: 1px solid var(--color-border);
+}
+.dd-reception__table td {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+  vertical-align: middle;
+}
+.dd-reception__table th:nth-child(2),
+.dd-reception__table td:nth-child(2) {
+  text-align: center;
+}
+.dd-reception__table td:nth-child(2) .dd-reception__status {
+  display: inline-flex;
+}
+/* Hàng thấp (~56px): công tắc ăn và chữ Có/Không cùng dòng, nút Có mặt/Vắng thấp hơn ô nhập */
+.dd-reception__table td:last-child {
+  padding-right: var(--space-3);
+}
+.dd-reception__table .dd-reception__meal {
+  flex-direction: row;
+  white-space: nowrap;
+}
+.dd-reception__table .dd-reception__status .dd-seg__item {
+  min-height: var(--space-8);
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+/* Ô Trẻ: ảnh bên trái; tên ở dòng trên; mã · trạng thái lưu và thẻ sức khỏe chung dòng dưới */
+.dd-reception__who {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-2);
+  align-items: center;
+}
+.dd-reception__who > .avatar {
+  grid-row: 1 / span 2;
+}
+.dd-reception__child {
+  padding: 0;
+  min-width: 0;
+}
+.dd-reception__child strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Dòng dưới tên luôn một dòng (hàng thấp): cột hẹp thì mã · trạng thái co lại trước, thẻ sức khỏe giữ chỗ */
+.dd-reception__tags {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow: hidden;
+}
+.dd-reception__tags > * {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+.dd-reception__tags > .muted {
+  flex-shrink: 1000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dd-reception__tags .chip {
+  padding-top: 0;
+  padding-bottom: 0;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Khung sức khỏe bên phải đứng yên khi cuộn trang (lớp đông trẻ) */
+@media (min-width: 1101px) {
+  .dd-reception > :last-child {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-3));
+  }
+}
+/* fieldset bỏ viền/lề mặc định; lề trong lấy từ .card__body */
+.dd-unlock-fields {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+}
+.dd-unlock-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.dd-unlock-fields .field {
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .dd-unlock-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

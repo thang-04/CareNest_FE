@@ -38,7 +38,13 @@ test('sổ lưu mẫu: món lấy từ thực đơn đã công bố; bếp lưu 
   await rejects(repo.getFoodSampleLog({ campusId: 'c1', date: DATE }, COOK_B), 403);
 
   const payload = { campusId: 'c1', date: DATE, session: 'LUNCH', takenAt: '10:30' };
-  const dishes = meal.dishes.map((d) => ({ dishId: d.dishId, weight: '100 g', container: 'Hộp thủy tinh', temperature: '2–8 °C', note: '' }));
+  const dishes = meal.dishes.map((d) => ({
+    dishId: d.dishId,
+    weight: '100 g',
+    container: 'Hộp thủy tinh',
+    temperature: '2–8 °C',
+    note: '',
+  }));
   await rejects(repo.saveFoodSample({ ...payload, takenAt: '', dishes }, COOK_A), 422);
   await rejects(repo.saveFoodSample({ ...payload, dishes: dishes.map((d, i) => (i ? d : { ...d, weight: '' })) }, COOK_A), 422);
   await rejects(repo.saveFoodSample({ ...payload, dishes }, VP), 403);
@@ -67,7 +73,14 @@ test('hủy mẫu: chỉ khi đủ 24 giờ; đã hủy thì không sửa; mẫu
   // Mẫu vừa lấy chưa đủ 24 giờ
   const today = todayInput();
   writeDb((db) => {
-    db.foodSamples.push({ campusId: 'c1', date: today, session: 'AFTERNOON', takenAt: new Date().toISOString(), takenBy: COOK_A.id, dishes: [] });
+    db.foodSamples.push({
+      campusId: 'c1',
+      date: today,
+      session: 'AFTERNOON',
+      takenAt: new Date().toISOString(),
+      takenBy: COOK_A.id,
+      dishes: [],
+    });
   });
   await rejects(repo.destroyFoodSample({ campusId: 'c1', date: today, session: 'AFTERNOON' }, COOK_A), 409);
 });

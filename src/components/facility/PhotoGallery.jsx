@@ -15,7 +15,7 @@ export function PhotoGallery({ images = [], title = 'Ảnh hiện trạng' }) {
         ))}
       </div>
       <Modal open={!!preview} title={title} onClose={() => setPreview(null)} size="lg">
-        {preview && <img src={preview} alt={title} style={{ width: '100%', borderRadius: 8 }} />}
+        {preview && <img src={preview} alt={title} className="bh-photo-preview" />}
       </Modal>
     </>
   );

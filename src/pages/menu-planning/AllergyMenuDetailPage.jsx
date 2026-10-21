@@ -63,7 +63,7 @@ export default function AllergyMenuDetailPage() {
     <div className="page">
       <Breadcrumb items={allergyMenuCrumbs(a.code)} />
       <div className="page__head">
-        <div className="row" style={{ gap: 12 }}>
+        <div className="row gap-3">
           <h1 className="page__title">{a.name}</h1>
           <RecordStatusBadge status={a.status} size="lg" />
         </div>
@@ -151,15 +151,15 @@ export default function AllergyMenuDetailPage() {
         <div className="card__header">
           <div className="card__title">Món được thay</div>
         </div>
-        <div className="table-wrap" style={{ border: 'none' }}>
-          <table className="table table--compact">
+        <div className="table-wrap">
+          <table className="table table--grid table--compact">
             <thead>
               <tr>
                 <th>Bữa</th>
                 <th>Món gốc</th>
                 <th aria-hidden="true" />
                 <th>Món thay thế</th>
-                <th className="right">Hệ số</th>
+                <th className="num">Hệ số</th>
               </tr>
             </thead>
             <tbody>
@@ -180,7 +180,7 @@ export default function AllergyMenuDetailPage() {
                     <td className="fw-600">
                       {r.replacementDishId ? catalog.dishById[r.replacementDishId]?.name || 'Món đã xóa' : 'Bỏ món'}
                     </td>
-                    <td className="right">{r.replacementDishId ? String(r.portion).replace('.', ',') : '—'}</td>
+                    <td className="num">{r.replacementDishId ? String(r.portion).replace('.', ',') : '—'}</td>
                   </tr>
                 ))
               )}

@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { LineChart, Search, Users } from '@/components/ui/icons';
+import { LineChart, RotateCcw, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChildren } from '@/hooks/useSchool';
 import { useAssessmentClasses } from '@/hooks/assessment/useAssessment';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
+import { RowActions } from '@/components/ui/RowActions';
 import { ageLabel, GENDER_LABELS } from '@/models/School';
 import { normalizeText } from '@/utils/format';
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
@@ -48,18 +49,16 @@ export default function ChildDevelopmentListPage() {
       </div>
       <div className="card">
         <div className="filter-bar">
-          <label className="search-box" style={{ flex: 1 }}>
-            <Search size={17} className="muted" />
-            <input
-              placeholder="Tìm tên hoặc mã trẻ..."
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Tìm trẻ"
-            />
-          </label>
+          <SearchSubmit
+            className="flex-1"
+            value={keyword}
+            placeholder="Tìm tên hoặc mã trẻ..."
+            label="Tìm trẻ"
+            onSearch={(text) => {
+              setKeyword(text);
+              setPage(1);
+            }}
+          />
           <select
             className="select"
             value={classId}
@@ -80,8 +79,8 @@ export default function ChildDevelopmentListPage() {
         {error || classesError ? (
           <ErrorState error={error || classesError} onRetry={reload} />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-wrap">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã trẻ</th>
@@ -89,7 +88,7 @@ export default function ChildDevelopmentListPage() {
                   <th>Giới tính</th>
                   <th>Tuổi</th>
                   <th>Lớp</th>
-                  <th className="center">Thao tác</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -102,6 +101,20 @@ export default function ChildDevelopmentListPage() {
                         icon={Users}
                         title={classes.length ? 'Không tìm thấy trẻ' : 'Bạn chưa được phân công lớp'}
                         description={classes.length ? 'Thử đổi từ khóa hoặc lớp.' : 'Liên hệ Hiệu trưởng để được phân công lớp.'}
+                        action={
+                          classes.length > 0 &&
+                          (keyword || classId) && (
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setKeyword('');
+                                setClassId('');
+                              }}
+                            >
+                              <RotateCcw size={15} /> Đặt lại bộ lọc
+                            </button>
+                          )
+                        }
                       />
                     </td>
                   </tr>
@@ -113,10 +126,8 @@ export default function ChildDevelopmentListPage() {
                       <td>{GENDER_LABELS[ch.gender]}</td>
                       <td className="nowrap">{ageLabel(ch.dateOfBirth)}</td>
                       <td>{className(ch.classId)}</td>
-                      <td className="center">
-                        <Link className="btn btn--sm" to={link(ch)}>
-                          <LineChart size={15} /> {leader ? 'Xem tiến độ' : 'Xem hồ sơ'}
-                        </Link>
+                      <td className="cell--actions">
+                        <RowActions view={{ to: link(ch), label: leader ? 'Xem tiến độ' : 'Xem hồ sơ' }} name={ch.fullName} />
                       </td>
                     </tr>
                   ))
