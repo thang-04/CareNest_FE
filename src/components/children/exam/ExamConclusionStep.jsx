@@ -135,15 +135,22 @@ export function ExamReviewPoints({ points, stale }) {
 }
 
 /** Mẫu FOLLOW_UP: một câu so với vấn đề đang theo dõi thay cho 2 nhóm Kết luận, Hướng xử lý (user chốt 2026-10-21). */
-function FollowUpConclusionFields({ c, set, errors, disabled }) {
+function FollowUpConclusionFields({ c, set, setMany, errors, disabled }) {
   const finding = c.followUpFinding;
   const withIssue = finding === FOLLOW_UP_FINDING.ADVICE || finding === FOLLOW_UP_FINDING.NEW_FINDING;
+  // Nguy cơ lao tính như bất thường mới ⇒ khóa "Chưa ghi nhận thêm"; tích lao khi đang chọn ô đó thì bỏ chọn (user chốt 2026-10-21).
+  const findingOptions = FINDING_OPTIONS.map((o) => (o.value === FOLLOW_UP_FINDING.NO_NEW_FINDING ? { ...o, disabled: c.tbRisk } : o));
+  const toggleTb = () =>
+    setMany({
+      'exam.conclusion.tbRisk': !c.tbRisk,
+      ...(!c.tbRisk && finding === FOLLOW_UP_FINDING.NO_NEW_FINDING ? { 'exam.conclusion.followUpFinding': '' } : {}),
+    });
   return (
     <>
       <ExamChoiceField
         name="conclusion-follow-up"
         label="So với vấn đề đang theo dõi, bác sĩ kết luận"
-        options={FINDING_OPTIONS}
+        options={findingOptions}
         value={finding}
         onChange={(v) => set('exam.conclusion.followUpFinding', v)}
         error={errors['exam.conclusion.followUpFinding']}
@@ -155,9 +162,9 @@ function FollowUpConclusionFields({ c, set, errors, disabled }) {
           label="Nguy cơ lao"
           options={TB_OPTION}
           values={c.tbRisk ? ['tbRisk'] : []}
-          onToggle={() => set('exam.conclusion.tbRisk', !c.tbRisk)}
+          onToggle={toggleTb}
           required={false}
-          hint="Tích ô này thì phiếu theo dõi sang vòng mới như có bất thường mới."
+          hint={'Tích ô này thì phiếu theo dõi sang vòng mới như có bất thường mới; không chọn được "Chưa ghi nhận thêm bất thường".'}
           disabled={disabled}
         />
       </div>
@@ -204,7 +211,9 @@ function FollowUpConclusionFields({ c, set, errors, disabled }) {
 
 /** Mẫu thường (Phụ lục II): Kết luận và Hướng xử lý; có vấn đề không chuyển khám thì hỏi vấn đề mới hay đã biết. */
 function StandardConclusionFields({ c, set, setMany, errors, disabled }) {
-  // "Bình thường" không chọn cùng 2 kết luận còn lại.
+  // "Bình thường" không chọn cùng 2 kết luận còn lại: đã tích lao hoặc có vấn đề thì khóa "Bình thường", tích 2 ô này thì tự bỏ "Bình thường" (user chốt 2026-10-21).
+  const normalLocked = c.tbRisk || c.healthIssue;
+  const flagOptions = FLAG_OPTIONS.map((o) => (o.value === 'normal' ? { ...o, disabled: normalLocked } : o));
   const toggleFlag = (key) => {
     if (key === 'normal')
       setMany({ 'exam.conclusion.normal': !c.normal, 'exam.conclusion.tbRisk': false, 'exam.conclusion.healthIssue': false });
@@ -216,10 +225,11 @@ function StandardConclusionFields({ c, set, setMany, errors, disabled }) {
     <>
       <ExamCheckGroup
         label="Kết luận về sức khỏe"
-        options={FLAG_OPTIONS}
+        options={flagOptions}
         values={flags}
         onToggle={toggleFlag}
         error={errors['exam.conclusion.flags']}
+        hint={normalLocked ? 'Bỏ tích "Có nguy cơ mắc lao" và "Có vấn đề về sức khỏe" để chọn "Bình thường".' : undefined}
         disabled={disabled}
       />
       {c.healthIssue && (

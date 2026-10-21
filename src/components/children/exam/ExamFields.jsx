@@ -1,6 +1,6 @@
 import { FormField } from '@/components/form/FormField';
 
-/** Một câu của phiếu Phụ lục II: nhóm radio theo lựa chọn của mẫu. Lựa chọn bất thường đang chọn thì viền cảnh báo. */
+/** Một câu của phiếu Phụ lục II: nhóm radio theo lựa chọn của mẫu. Lựa chọn bất thường đang chọn thì viền cảnh báo; option.disabled khóa riêng lựa chọn đó. */
 export function ExamChoiceField({ name, label, options, value, onChange, error, hint, required = true, disabled }) {
   const flagged = options.find((o) => o.value === value)?.abnormal;
   return (
@@ -11,13 +11,13 @@ export function ExamChoiceField({ name, label, options, value, onChange, error, 
       </legend>
       <div className="tr-radio-row">
         {options.map((o) => (
-          <label key={o.value} className={`radio ${disabled ? 'radio--disabled' : ''}`}>
+          <label key={o.value} className={`radio ${disabled || o.disabled ? 'radio--disabled' : ''}`}>
             <input
               type="radio"
               name={name}
               value={o.value}
               checked={value === o.value}
-              disabled={disabled}
+              disabled={disabled || o.disabled}
               onChange={() => onChange(o.value)}
             />
             {o.label}
@@ -45,8 +45,13 @@ export function ExamCheckGroup({ label, options, values, onToggle, error, hint, 
       </legend>
       <div className="tr-radio-row">
         {options.map((o) => (
-          <label key={o.value} className={`checkbox ${disabled ? 'radio--disabled' : ''}`}>
-            <input type="checkbox" checked={values.includes(o.value)} disabled={disabled} onChange={() => onToggle(o.value)} />
+          <label key={o.value} className={`checkbox ${disabled || o.disabled ? 'radio--disabled' : ''}`}>
+            <input
+              type="checkbox"
+              checked={values.includes(o.value)}
+              disabled={disabled || o.disabled}
+              onChange={() => onToggle(o.value)}
+            />
             {o.label}
           </label>
         ))}

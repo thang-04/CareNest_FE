@@ -55,6 +55,9 @@ const checkLength = (errors, key, value, max) => {
 const validateFollowUpConclusion = (errors, c, L) => {
   if (!Object.values(FOLLOW_UP_FINDING).includes(c.followUpFinding))
     errors['exam.conclusion.followUpFinding'] = 'Chọn kết luận của bác sĩ so với vấn đề đang theo dõi';
+  // Nguy cơ lao tính như bất thường mới nên không đi cùng "Chưa ghi nhận thêm bất thường" (user chốt 2026-10-21).
+  else if (c.tbRisk && c.followUpFinding === FOLLOW_UP_FINDING.NO_NEW_FINDING)
+    errors['exam.conclusion.followUpFinding'] = 'Đã tích nguy cơ lao: chọn "Tư vấn" hoặc "Có thêm bất thường mới"';
   if (c.followUpFinding === FOLLOW_UP_FINDING.ADVICE) {
     if (!text(c.issueText)) errors['exam.conclusion.issueText'] = 'Ghi rõ vấn đề bác sĩ ghi nhận';
     if (!text(c.adviceText)) errors['exam.conclusion.adviceText'] = 'Ghi lời tư vấn của bác sĩ';

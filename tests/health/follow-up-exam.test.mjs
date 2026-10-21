@@ -199,7 +199,17 @@ test('AC-4: tích nguy cơ lao ở mẫu FOLLOW_UP xử lý như bất thường
   const campaign = await openC2Campaign();
   const f = followUpOf('ch_033');
   assert.equal(f.status, 'WAITING_PARENT_CONTACT');
-  const saved = await conclude(campaign.id, 'ch_033', NGOC, { followUpFinding: 'NO_NEW_FINDING', tbRisk: true });
+  // Nguy cơ lao không đi cùng "Chưa ghi nhận thêm bất thường".
+  const view = await exams.getHealthExam(campaign.id, 'ch_033', NGOC);
+  const noNew = filledPayload(view, { followUpFinding: 'NO_NEW_FINDING', tbRisk: true });
+  await rejects(exams.saveHealthExam(campaign.id, 'ch_033', noNew, NGOC), 422, 'exam.conclusion.followUpFinding');
+  // "Tư vấn" vốn giữ phiếu; tích lao thì vẫn sang vòng mới như bất thường mới.
+  const saved = await conclude(campaign.id, 'ch_033', NGOC, {
+    followUpFinding: 'ADVICE',
+    tbRisk: true,
+    issueText: 'Ho nhẹ (giả).',
+    adviceText: 'Đưa trẻ khám sàng lọc lao (giả).',
+  });
   assert.equal(saved.measurement.conclusionCategory, 'TB_RISK');
   const after = followUpOf('ch_033');
   assert.equal(after.status, 'PARENT_CONTACTED', 'có người đi cùng ⇒ trao đổi tại buổi khám');
@@ -210,6 +220,11 @@ test('AC-13: mẫu thường, có vấn đề không chuyển khám ⇒ hỏi m�
   const campaign = await openC2Campaign();
   const view = await exams.getHealthExam(campaign.id, 'ch_028', TUAN);
   assert.equal(view.conclusionMode, 'STANDARD');
+  // "Bình thường" không đi cùng nguy cơ lao hay có vấn đề.
+  for (const other of [{ tbRisk: true }, { healthIssue: true, issueText: 'Ho (giả).' }]) {
+    const mixed = filledPayload(view, { normal: true, action: 'NONE', ...other });
+    await rejects(exams.saveHealthExam(campaign.id, 'ch_028', mixed, TUAN), 422, 'exam.conclusion.flags');
+  }
   const issue = { healthIssue: true, issueText: 'Cận thị – đeo kính (giả).', action: 'NONE' };
   await rejects(exams.saveHealthExam(campaign.id, 'ch_028', filledPayload(view, issue), TUAN), 422, 'exam.conclusion.issueKind');
   const saved = await exams.saveHealthExam(campaign.id, 'ch_028', filledPayload(view, { ...issue, issueKind: 'KNOWN' }), TUAN);
