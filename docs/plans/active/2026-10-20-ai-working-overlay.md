@@ -2,7 +2,7 @@
 title: Lớp phủ mờ khi AI đang chạy
 status: in-progress
 owner: thangnd
-jira: chưa có — hỏi user trước khi commit
+jira: G94-191
 branch: dev
 modules: []
 rules: []
@@ -42,6 +42,9 @@ Hiện trạng: 10 chỗ gọi AI (mock) ở 4 nhóm màn. Tất cả chỉ hi�
 6. AI chạy xong ⇒ **kết quả hiện trong modal** ở mọi chỗ mà kết quả nằm trong trang (#3, #4, #5–7, #8–9); #1–2 đã là modal — user, 2026-10-20 (lý do: "nếu hiển thị bên dưới, người dùng sẽ không biết").
 7. **Đóng modal = giữ chờ xử lý**: gợi ý chưa chọn vẫn nằm trên trang như hiện nay (ô tên tuần có ✓/✗, khối "Gợi ý của AI", khối kết quả gợi ý thực đơn, khung bản nháp đánh giá) — user, 2026-10-20.
 8. Phân tích sức khỏe (#10) giữ kết quả trong card, không mở modal — user, 2026-10-20.
+9. Hiệu ứng thực đơn (#1–4) thay nồi CSS bằng Lottie `Prepare Food.json` (user cung cấp); chạy bằng **`lottie-web`** (thêm dependency, tải lazy khi lớp phủ hiện); lấp lánh ở #5–10 giữ nguyên — user, 2026-10-21.
+10. Lottie **vẫn chạy khi bật giảm chuyển động** (ngoại lệ có chủ đích, chỉ trong lúc AI chạy) — user, 2026-10-21.
+11. Đổi mốc giữ tối thiểu từ ~1,2 s (quyết định 3) thành **2 s** vì thấy "hơi nhanh" — user, 2026-10-21.
 
 ## Làm rõ nghiệp vụ
 
@@ -110,6 +113,13 @@ Không còn.
 - Steps: 1. Mỗi chỗ tách phần hiển thị kết quả thành biến JSX dùng chung cho khối trên trang và modal (không chép hai bản). 2. Mở modal khi AI xong và có kết quả; lỗi vẫn toast/alert như cũ. 3. Hành động trong modal gọi đúng hàm sẵn có (Bỏ qua/Dùng; Đổi món/Để sau; ✓/✗/Giữ tất cả/Bỏ tất cả; Dùng bản nháp này). 4. Hết việc chờ (áp dụng/bỏ hết) ⇒ modal tự đóng. 5. Đóng modal ⇒ không đổi dữ liệu.
 - Tests: AC-9, AC-10 (trình duyệt từng chỗ).
 - Exit: `node scripts/verify.mjs` → `VERIFY PASS full`.
+- **Dừng chờ user review.**
+
+### Phase 4 — Lottie "Prepare Food" cho lớp phủ thực đơn
+
+- Files: M `package.json` + lockfile (`lottie-web`) · C `src/assets/lottie/prepare-food.json` · M `src/components/ui/AiWorkingOverlay.jsx` · M `src/styles/components.css` (bỏ CSS hơi nồi, thêm khung Lottie) · M `DESIGN.md` · M `tests/menu/ai-run-timing.test.mjs`.
+- Steps: 1. Cài `lottie-web`. 2. `kind="cooking"` nạp `lottie-web` + JSON bằng `import()` trong effect, renderer SVG, lặp; hủy khi unmount; chưa nạp xong thì hiện icon tĩnh. 3. Bỏ CSS/keyframes hơi nồi không còn dùng. 4. Test: không import tĩnh `lottie-web` (giữ chunk riêng). 5. Đo trình duyệt 4 chỗ thực đơn + chế độ giảm chuyển động.
+- Exit: `node scripts/verify.mjs` → `VERIFY PASS full`; build tách chunk `lottie`.
 - **Dừng chờ user review.**
 
 ## Test matrix
@@ -185,3 +195,26 @@ Không còn.
   - Đánh giá: chi tiết phiếu 1469/1469 ms (sau sửa), "Dùng bản nháp này" điền ô nội dung (621 ký tự); trang bản nháp AI 1208/1208 ms.
 - Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`.
 - Tiếp: user review; commit cần mã Jira.
+
+### 2026-10-21 — Phase 4 (chờ review)
+
+- Nguồn duyệt: user chọn `lottie-web`, "Chỉ thực đơn", "Vẫn chạy" khi giảm chuyển động (2026-10-21).
+- Commit: chưa commit.
+- Dependency: `lottie-web` 5.13.0 (MIT, không có dependency con), cài `--save-exact --legacy-peer-deps` vì `package.json` đã có xung đột peer từ trước (`vite@8.3.3` vs `@vitejs/plugin-react@4.7.0` chỉ nhận ≤7); lockfile chỉ thêm đúng gói này.
+- Asset: `src/assets/lottie/prepare-food.json` (file user cung cấp, 27 KB). Soát expression: duy nhất `loopOut('cycle', 0)`. `lottie-web` chạy expression bằng `eval` (build cảnh báo `[EVAL]`) ⇒ chỉ nạp file Lottie đóng gói sẵn đã soát, không nạp Lottie từ nguồn ngoài.
+- Code: `CookingAnimation` trong `AiWorkingOverlay.jsx` `import()` `lottie-web` + JSON, renderer SVG, lặp, `destroy()` khi unmount, icon nồi tĩnh khi chưa tải/lỗi tải; bỏ CSS + keyframes hơi nồi; khung `.ai-veil__lottie` 168px (scoped 96px), tỉ lệ 5:6. `DESIGN.md` cập nhật mô tả.
+- Test: `tests/menu/ai-run-timing.test.mjs` thêm kiểm `lottie-web` không import tĩnh + JSON hợp lệ (6/6) — viết sau code, không có bước RED.
+- Đo trình duyệt (port 5173, `/ui-kit`, `prefers-reduced-motion: reduce`): scoped và phủ cả màn đều có SVG, phủ cả màn 168×202, khung hình đổi sau 400 ms (đang chạy); tài nguyên tải `lottie-web.js`, `prepare-food.json` chỉ khi lớp phủ hiện. Build: chunk `lottie` 306 KB (77,6 KB gzip), `prepare-food` 22 KB (4 KB gzip), tách khỏi `index`.
+- Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`; `check-ai-layer` 0 lỗi.
+- Bổ sung (2026-10-21): user thấy lớp phủ "hơi nhanh" ⇒ chọn giữ tối thiểu **2 s** (thay 1,2 s). `AI_MIN_VISIBLE_MS = 2000`; test `ai-run-timing` sửa trước (RED 1 fail) → GREEN; `DESIGN.md` 2 dòng "giữ tối thiểu 2 s".
+
+### 2026-10-21 — Phase 5 (chờ review): thêm Lottie cho AI soạn chữ, gửi xong, đọc file Excel
+
+- Nguồn: user đưa 4 file (`loading_clock`, `loading_document`, `Text generation loop`, `Checkmark`) và "tiếp 2 cái này" sau bảng đề xuất gán luồng.
+- Soát: cả 4 không expression, không ảnh/font nhúng (14–26 KB). `loading_clock` (đồng hồ cát cam) **chưa dùng** — không có chỗ hợp (nút xuất PDF quá nhỏ), không đưa vào repo.
+- Asset (`src/assets/lottie/`): `text-writing.json` (giữ màu), `checkmark.json` (xanh `#23b26d` → `--color-success` `#12a150`), `document-scan.json` (xám nhạt → xanh thương hiệu `#4fb0f5`/`#c5e5fc`/`#0b72bc`/`#a3aebd`, phát 0,6×).
+- Code: C `src/components/ui/LottiePlayer.jsx` (tải lazy `lottie-web` + JSON, fallback icon, `destroy` khi unmount) dùng chung; `AiWorkingOverlay` `kind` `cooking` | `writing` (mặc định, thay lấp lánh CSS — bỏ CSS/keyframes twinkle, breathe, fade-pulse); `SubmitOverlay` bước `done` = Lottie tick chạy một lần; `ImportChildrenPage` (ô kéo thả) và `FoodImportPanel` (cạnh "Đang đọc file…") = tài liệu quét. `/ui-kit` thêm mẫu đọc file. `DESIGN.md`: dòng AI, Gửi form, thêm dòng "Hoạt hình Lottie".
+- **Phát hiện:** chưa luồng thật nào dùng `SubmitOverlay state="done"` (hộp xác nhận, điểm danh, sức khỏe đầu ngày chỉ "sending" rồi toast) ⇒ tick chỉ thấy ở `/ui-kit` — hỏi user chỗ hiện tick thật.
+- Test: `tests/menu/ai-run-timing.test.mjs` 7/7 — thêm chốt mọi file `assets/lottie` chỉ chứa expression đã soát (`loopOut('cycle', 0)`), không import tĩnh Lottie. Viết sau code, không có bước RED.
+- Đo trình duyệt (5173, `/ui-kit`, giảm chuyển động bật): 4 khung có SVG — tick 96 px (chạy một lần rồi dừng), nấu 96×115, viết 128 px (scoped) / 200 px (cả màn), đọc file 160×40; 3 hoạt hình lặp đổi khung sau 350 ms.
+- Bổ sung: user chọn **A** — tick Lottie ở **icon toast thành công** (mọi `toast.success`, chạy một lần, không chờ thêm); toast lỗi/cảnh báo/thông tin giữ icon tĩnh. `ToastContext.jsx` dùng `LottiePlayer`; CSS `.toast__icon .toast__check` 60 px canh giữa ô 32 px (lần đầu lệch vì `.lottie-player { position: relative }` đứng sau đè `absolute` ⇒ tăng độ ưu tiên). Đo `/ui-kit`: tick có SVG, chạy lúc đầu, đứng yên sau ~1,4 s, lệch tâm 0/0 px; toast lỗi không có Lottie. Test lazy-import thêm `contexts/ToastContext.jsx` (7/7).

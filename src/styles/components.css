@@ -923,6 +923,7 @@ tr.sortable-item--drop-after > td {
   transform: scaleX(0);
 }
 .toast__icon {
+  position: relative;
   flex: none;
   display: grid;
   place-items: center;
@@ -931,6 +932,15 @@ tr.sortable-item--drop-after > td {
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--toast-c) 16%, var(--color-surface));
   color: var(--toast-fg);
+}
+/* Khung tick rộng hơn ô icon (file chừa chỗ cho pháo giấy), canh giữa ô; ghi đè position của .lottie-player */
+.toast__icon .toast__check {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 60px;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 .toast__body {
   flex: 1;
@@ -1363,24 +1373,6 @@ tr.sortable-item--drop-after > td {
   max-width: 320px;
   text-align: center;
 }
-.ai-veil__art {
-  position: relative;
-  width: 96px;
-  height: 96px;
-  margin-bottom: var(--space-2);
-  border-radius: var(--radius-full);
-  display: grid;
-  place-items: center;
-  color: var(--color-primary);
-  background: radial-gradient(circle at 50% 40%, var(--color-surface), var(--color-primary-soft));
-  box-shadow: var(--shadow-float);
-  animation: ai-art-breathe 2.4s ease-in-out infinite;
-}
-.ai-veil--scoped .ai-veil__art {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 0;
-}
 .ai-veil__title {
   font-weight: var(--fw-semibold);
   color: var(--color-text);
@@ -1390,107 +1382,48 @@ tr.sortable-item--drop-after > td {
   color: var(--color-text-muted);
   animation: fade var(--duration-base) var(--ease-out);
 }
-/* Nồi: ba vệt hơi bay lên lệch nhịp */
-.ai-veil__steam {
+/* Hoạt hình Lottie dùng chung (LottiePlayer): khung giữ chỗ, SVG phủ kín; chưa tải xong thì icon tĩnh ở giữa */
+.lottie-player {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--color-primary);
+}
+.lottie-player__canvas {
   position: absolute;
-  top: 14%;
-  left: 50%;
-  display: flex;
-  gap: 5px;
-  transform: translateX(-50%);
+  inset: 0;
 }
-.ai-veil__steam > i {
-  width: 4px;
-  height: 14px;
-  border-radius: var(--radius-full);
-  background: currentColor;
-  opacity: 0;
-  animation: ai-steam 1.8s ease-out infinite;
+/* Lớp phủ AI: "Prepare Food" khung 5:6, giấy đang viết khung vuông như file gốc */
+.ai-veil__lottie {
+  width: 168px;
+  aspect-ratio: 5 / 6;
 }
-.ai-veil__steam > i:nth-child(2) {
-  animation-delay: 0.6s;
+/* File giấy viết chừa lề rộng ⇒ khung lớn hơn để tờ giấy cỡ tương đương chảo */
+.ai-veil__lottie--writing {
+  width: 200px;
+  aspect-ratio: 1;
 }
-.ai-veil__steam > i:nth-child(3) {
-  animation-delay: 1.2s;
+.ai-veil__lottie--sm {
+  width: 96px;
 }
-.ai-veil__art--cooking > svg {
-  margin-top: 18%;
+.ai-veil__lottie--writing.ai-veil__lottie--sm {
+  width: 128px;
 }
-/* Lấp lánh: ba sao nhỏ màu logo nháy lần lượt quanh icon */
-.ai-veil__twinkle {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  background: var(--color-brand);
-  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
-  animation: ai-twinkle 1.6s ease-in-out infinite;
+/* Gửi xong: dấu tick vẽ nét (chạy một lần) thay ô icon tròn */
+.submit-veil__check {
+  width: 96px;
+  aspect-ratio: 1;
 }
-.ai-veil__twinkle:nth-of-type(1) {
-  top: 12%;
-  right: 14%;
+/* Đang đọc file Excel: kính lúp lướt qua tài liệu (khung 4:1 như file gốc) */
+.import-reading {
+  width: 160px;
+  aspect-ratio: 4 / 1;
 }
-.ai-veil__twinkle:nth-of-type(2) {
-  bottom: 16%;
-  left: 12%;
-  background: var(--color-accent-strong);
-  animation-delay: 0.53s;
+.import-reading--inline {
+  width: 96px;
 }
-.ai-veil__twinkle:nth-of-type(3) {
-  top: 22%;
-  left: 18%;
-  width: 8px;
-  height: 8px;
-  background: var(--sun-300);
-  animation-delay: 1.06s;
-}
-@keyframes ai-art-breathe {
-  50% {
-    transform: scale(1.05);
-  }
-}
-@keyframes ai-steam {
-  0% {
-    opacity: 0;
-    transform: translateY(6px) scaleY(0.6);
-  }
-  40% {
-    opacity: 0.55;
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-14px) scaleY(1);
-  }
-}
-@keyframes ai-twinkle {
-  0%,
-  100% {
-    opacity: 0.2;
-    transform: scale(0.5);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-@keyframes ai-fade-pulse {
-  0%,
-  100% {
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-/* Lớp phủ AI: giảm chuyển động — không dịch chuyển, hơi nồi và sao chỉ mờ–rõ tại chỗ; giữ nhịp thật thay vì 0.01ms */
+/* Lớp phủ AI: giảm chuyển động — lớp phủ và câu phụ vẫn mờ dần theo nhịp thật thay vì 0.01ms; Lottie vẫn chạy (user chốt) */
 @media (prefers-reduced-motion: reduce) {
-  .ai-veil__art {
-    animation-name: none;
-  }
-  .ai-veil__steam > i,
-  .ai-veil__twinkle {
-    animation-name: ai-fade-pulse;
-    animation-duration: 1.8s !important;
-  }
   .ai-veil,
   .ai-veil__step {
     animation-duration: var(--duration-overlay) !important;
