@@ -148,6 +148,8 @@ export const IMPORT_COLUMNS = [
   { key: 'guardianName', label: 'Họ tên phụ huynh', required: true },
   { key: 'relation', label: 'Quan hệ', required: true },
   { key: 'phone', label: 'Số điện thoại', required: true },
+  // CCCD phụ huynh bắt buộc cả khi nhập Excel (user chốt 2026-10-21); file mẫu cũ thiếu cột này không nhập được.
+  { key: 'guardianIdNumber', label: 'Số CCCD phụ huynh', required: true },
   { key: 'email', label: 'Email', required: false },
   { key: 'allergies', label: 'Dị ứng (để trống = chưa cung cấp, "Không" = không có)', required: false },
   { key: 'diet', label: 'Chế độ ăn (để trống = chưa cung cấp, "Không" = không có)', required: false },

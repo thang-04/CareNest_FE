@@ -196,6 +196,7 @@ export default function ChildProfilePage() {
                         <th>Họ và tên</th>
                         <th>Quan hệ</th>
                         <th>Số điện thoại</th>
+                        <th>Số CCCD</th>
                         <th>Email</th>
                         {canViewParentAccounts(user) && <th>Tài khoản</th>}
                       </tr>
@@ -206,6 +207,7 @@ export default function ChildProfilePage() {
                           <td className="fw-600">{g.fullName}</td>
                           <td>{g.relation}</td>
                           <td className="nowrap">{g.phone ? <a href={`tel:${g.phone}`}>{g.phone}</a> : missing}</td>
+                          <td className="nowrap">{g.idNumber || missing}</td>
                           <td>{g.email || missing}</td>
                           {canViewParentAccounts(user) && (
                             <td className="center">

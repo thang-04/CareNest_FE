@@ -10,6 +10,7 @@ const MAX_GUARDIANS = 3;
 /**
  * Child identity + parents / guardians block (enrollment step 1 and profile edit).
  * value: { fullName, dateOfBirth, gender, guardians[] }; errors keyed like 'guardians.0.phone'.
+ * lockedGuardianIdPhones: SĐT của phụ huynh có tài khoản đã có CCCD — ô CCCD khóa như SĐT đăng nhập.
  * Enrollment only: guardianTabs (segmented under the heading), guardiansOverride (replaces the guardian inputs),
  * guardianNotice(i) (hint under guardian i), split (child left, guardians right).
  */
@@ -19,6 +20,7 @@ export function ChildInfoFields({
   errors = {},
   onBlurField,
   lockedGuardianPhones = [],
+  lockedGuardianIdPhones = [],
   guardianTabs,
   guardiansOverride,
   guardianNotice,
@@ -98,6 +100,7 @@ export function ChildInfoFields({
         <div className="stack gap-3">
           {value.guardians.map((g, i) => {
             const locked = lockedGuardianPhones.includes(g.phone);
+            const idLocked = lockedGuardianIdPhones.includes(g.phone);
             return (
               <div key={i} className="tr-guardian">
                 <div className="tr-guardian__head">
@@ -152,6 +155,23 @@ export function ChildInfoFields({
                       disabled={locked}
                       onChange={(e) => setGuardian(i, 'phone', e.target.value)}
                       onBlur={() => onBlurField?.(`guardians.${i}.phone`)}
+                    />
+                  </FormField>
+                  <FormField
+                    label="Số CCCD"
+                    required
+                    error={errors[`guardians.${i}.idNumber`]}
+                    hint={idLocked ? 'Theo tài khoản phụ huynh – không sửa ở đây' : '12 chữ số trên căn cước'}
+                  >
+                    <input
+                      className="input"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={15}
+                      value={g.idNumber || ''}
+                      disabled={idLocked}
+                      onChange={(e) => setGuardian(i, 'idNumber', e.target.value)}
+                      onBlur={() => onBlurField?.(`guardians.${i}.idNumber`)}
                     />
                   </FormField>
                   <FormField label="Email" error={errors[`guardians.${i}.email`]}>

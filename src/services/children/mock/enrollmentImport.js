@@ -140,7 +140,15 @@ export const readEnrollmentCsv = (text) => {
           fullName: raw.fullName || '',
           dateOfBirth: toIsoDate(raw.dateOfBirth),
           gender: toGender(raw.gender),
-          guardians: [{ fullName: raw.guardianName || '', relation: raw.relation || '', phone: raw.phone || '', email: raw.email || '' }],
+          guardians: [
+            {
+              fullName: raw.guardianName || '',
+              relation: raw.relation || '',
+              phone: raw.phone || '',
+              idNumber: raw.guardianIdNumber || '',
+              email: raw.email || '',
+            },
+          ],
           profile: {
             idNumber: raw.idNumber || '',
             premature: toYesNo(raw.premature),

@@ -37,7 +37,13 @@ export default function EditChildPage() {
         fullName: c.fullName,
         dateOfBirth: c.dateOfBirth,
         gender: c.gender,
-        guardians: c.guardians.map((g) => ({ fullName: g.fullName, relation: g.relation, phone: g.phone, email: g.email || '' })),
+        guardians: c.guardians.map((g) => ({
+          fullName: g.fullName,
+          relation: g.relation,
+          phone: g.phone,
+          idNumber: g.idNumber || '',
+          email: g.email || '',
+        })),
         profile: { ...emptyChildProfile(), ...c.profile, gestationWeeks: c.profile?.gestationWeeks ?? '' },
       });
     }
@@ -73,9 +79,10 @@ export default function EditChildPage() {
       </div>
     );
 
-  const lockedPhones = child.guardians
-    .filter((g) => g.accountStatus && g.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED)
-    .map((g) => g.phone);
+  const withAccount = child.guardians.filter((g) => g.accountStatus && g.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED);
+  const lockedPhones = withAccount.map((g) => g.phone);
+  // Đã có tài khoản và đã có CCCD: CCCD theo tài khoản; chưa có thì nhập để bổ sung (user chốt 2026-10-21).
+  const lockedIdPhones = withAccount.filter((g) => g.idNumber).map((g) => g.phone);
 
   const save = async () => {
     const errs = validateChildInfo(form);
@@ -106,7 +113,13 @@ export default function EditChildPage() {
       <Breadcrumb items={crumbs} />
       <h1 className="page__title">Sửa hồ sơ: {child.fullName}</h1>
       <section className="card wizard-card">
-        <ChildInfoFields value={form} onChange={change} errors={errors} lockedGuardianPhones={lockedPhones} />
+        <ChildInfoFields
+          value={form}
+          onChange={change}
+          errors={errors}
+          lockedGuardianPhones={lockedPhones}
+          lockedGuardianIdPhones={lockedIdPhones}
+        />
       </section>
       <section className="card wizard-card">
         <ChildProfileFields value={form.profile} onChange={(profile) => change({ ...form, profile })} errors={errors} />

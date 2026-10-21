@@ -10,6 +10,8 @@ import { axiosClient } from '@/services/http/axiosClient';
  * Hành chính, tiền sử (2026-10-17, `models/children/childProfile.js`): child.profile trong GET profile, POST enrollments,
  * PUT /children/{id} (danh sách không trả); declaration.medicalHistory trong PUT health-declaration; file nhập thêm cột.
  * Khai tiếp xúc người bệnh lao ⇒ BE gửi thông báo CHILD_TB_CONTACT. Lưu kết luận phiếu khám ⇒ BE cập nhật ngược 2 phần này.
+ * CCCD phụ huynh (2026-10-21): guardians[].idNumber (12 chữ số, bắt buộc) trong POST enrollments, PUT /children/{id}, file nhập
+ * (cột "Số CCCD phụ huynh") và mọi response có guardians; parent-account-options trả idNumber; trùng phụ huynh khác ⇒ 409 + details.
  */
 export const childrenApi = {
   listChildren: (filters) => axiosClient.get('/children', { params: filters }),

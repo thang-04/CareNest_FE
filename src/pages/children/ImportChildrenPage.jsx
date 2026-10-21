@@ -36,7 +36,8 @@ const downloadTemplate = () =>
       IMPORT_COLUMNS.map((c) => c.label),
       // Dòng mẫu: cột hành chính và tiền sử không bắt buộc, để trống là chưa cung cấp.
       [
-        ...['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', 'phuhuynh.mau@example.com', 'Không', ''],
+        ...['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', '9999 1200 0111'],
+        ...['phuhuynh.mau@example.com', 'Không', ''],
         ...['', 'Không', '', 'Kinh', '', 'BHYT', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu', 'Không', '', ''],
       ],
     ],
@@ -150,9 +151,10 @@ export default function ImportChildrenPage() {
         <Info size={18} />
         <div>
           Dùng file theo mẫu của trường (.xlsx hoặc .csv), mỗi dòng một trẻ. Hệ thống kiểm tra từng dòng: thông tin bắt buộc, số điện thoại,
-          email và hồ sơ trùng. Sửa các dòng lỗi trong file rồi tải lên lại. Sau khi nhập, trẻ cần được xếp lớp để hoàn tất tiếp nhận. Các
-          cột hành chính và tiền sử (dùng cho phiếu khám sức khỏe) không bắt buộc; để trống là chưa cung cấp. Trẻ khai có tiếp xúc với người
-          bệnh lao thì hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.
+          số CCCD phụ huynh (12 chữ số; để ô dạng chữ để Excel không bỏ số 0 đầu), email và hồ sơ trùng. File mẫu cũ chưa có cột &quot;Số
+          CCCD phụ huynh&quot; thì tải lại file mẫu. Sửa các dòng lỗi trong file rồi tải lên lại. Sau khi nhập, trẻ cần được xếp lớp để hoàn
+          tất tiếp nhận. Các cột hành chính và tiền sử (dùng cho phiếu khám sức khỏe) không bắt buộc; để trống là chưa cung cấp. Trẻ khai có
+          tiếp xúc với người bệnh lao thì hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.
         </div>
       </div>
 
@@ -246,6 +248,7 @@ export default function ImportChildrenPage() {
                   <th>Giới tính</th>
                   <th>Phụ huynh</th>
                   <th>Số điện thoại</th>
+                  <th>CCCD phụ huynh</th>
                   <th>Dị ứng</th>
                   <th className="tr-col-result">Kết quả</th>
                 </tr>
@@ -267,6 +270,7 @@ export default function ImportChildrenPage() {
                         {g.fullName} {g.relation && <span className="muted">({g.relation})</span>}
                       </td>
                       <td className="nowrap">{g.phone}</td>
+                      <td className="nowrap">{g.idNumber || <span className="muted">(trống)</span>}</td>
                       <td className="text-sm">
                         {a.state === DECLARATION_STATE.REPORTED ? a.items.join(', ') : <AllergyStateBadge status={a.state} />}
                       </td>

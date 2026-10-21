@@ -23,6 +23,7 @@ export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, d
       fullName: g.fullName,
       relation: GUARDIAN_TO_COMPANION_RELATION[g.relation] || 'Khác',
       phone: g.phone,
+      idNumber: g.idNumber || '',
     });
 
   return (

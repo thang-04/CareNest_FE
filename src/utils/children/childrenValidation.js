@@ -1,5 +1,6 @@
 import { DECLARATION_STATE } from '@/models/children/childrenConstants';
 import { FOLLOW_UP_CLOSE_OUTCOME, FOLLOW_UP_FIELD_LIMITS } from '@/models/children/healthCheckConstants';
+import { citizenIdError, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, todayInput } from '@/utils/format';
 
 /*
@@ -65,9 +66,13 @@ export const validateChildInfo = (data) => {
     if (!g.phone?.trim()) errors[`guardians.${i}.phone`] = 'Nhập số điện thoại để gửi tài khoản';
     else if (!isValidPhone(g.phone)) errors[`guardians.${i}.phone`] = 'Nhập số điện thoại hợp lệ, ví dụ 0912 345 678';
     if (g.email?.trim() && !isValidEmail(g.email)) errors[`guardians.${i}.email`] = 'Nhập email hợp lệ, ví dụ ten@example.com';
+    const idError = citizenIdError(g.idNumber);
+    if (idError) errors[`guardians.${i}.idNumber`] = idError;
   });
   const phones = guardians.map((g) => normalizePhone(g.phone)).filter(Boolean);
   if (new Set(phones).size !== phones.length) errors.guardians = 'Hai phụ huynh không được dùng chung số điện thoại';
+  const ids = guardians.map((g) => normalizeCitizenId(g.idNumber)).filter(Boolean);
+  if (new Set(ids).size !== ids.length) errors.guardians = 'Hai phụ huynh không được dùng chung số CCCD';
   return errors;
 };
 

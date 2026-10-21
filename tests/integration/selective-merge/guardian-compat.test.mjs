@@ -9,7 +9,7 @@ const { migrateGuardianAccounts, healthNotificationRecipients } = await import('
 const { authMockRepository: auth, DEMO_PASSWORD } = await import('@/mocks/authMockRepository');
 let vp;
 let child;
-const form = (patch = {}) => ({ fullName: 'Liên hệ minh họa', phone: '0987654321', email: '', relationship: 'MOTHER', ...patch });
+const form = (patch = {}) => ({ fullName: 'Liên hệ minh họa', phone: '0987654321', email: '', relationship: 'MOTHER', idNumber: '999987654321', ...patch });
 const rejectStatus = (status) => (error) => error.status === status;
 beforeEach(async () => {
   resetDb();

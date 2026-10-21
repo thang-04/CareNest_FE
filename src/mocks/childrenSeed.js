@@ -302,7 +302,7 @@ const seedExam = (ch, n, spec, { headApplies, doctor }) => {
       fullName: g.fullName,
       relation: GUARDIAN_TO_COMPANION_RELATION[g.relation] || 'Khác',
       phone: g.phone,
-      idNumber: '',
+      idNumber: g.idNumber || '',
     };
   if (stop === 0) return e;
   Object.assign(e.history, { self: 'NO', family: 'NO', tbContact: 'NO' }, spec.history);
@@ -571,6 +571,7 @@ const buildParentAccounts = (children) => {
           phone,
           email: g.email || '',
           fullName: g.fullName,
+          idNumber: g.idNumber || '',
           status: 'ACTIVE',
           childIds: [ch.id],
           createdAt: '2026-08-16T02:00:00.000Z',

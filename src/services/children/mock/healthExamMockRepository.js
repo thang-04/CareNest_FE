@@ -128,7 +128,8 @@ const prefillExam = (db, child) => {
       fullName: guardian.fullName,
       relation: GUARDIAN_TO_COMPANION_RELATION[guardian.relation] || 'Khác',
       phone: guardian.phone,
-      idNumber: same ? prev.idNumber || '' : '',
+      // Phụ huynh có CCCD trên hồ sơ (user chốt 2026-10-21) ⇒ người đi cùng là phụ huynh dùng số đó.
+      idNumber: guardian.idNumber || (same ? prev.idNumber || '' : ''),
     };
   }
   return exam;
@@ -379,7 +380,12 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
       classId: child.classId,
       className: cls?.name || '',
       schoolName: SCHOOL_NAME,
-      guardians: (child.guardians || []).map((g) => ({ fullName: g.fullName, relation: g.relation, phone: g.phone })),
+      guardians: (child.guardians || []).map((g) => ({
+        fullName: g.fullName,
+        relation: g.relation,
+        phone: g.phone,
+        idNumber: g.idNumber || '',
+      })),
     },
     measurement: view
       ? { ...view, reviewPoints: examReviewPoints(m, child.dateOfBirth), measuredByName: userName(db, m.measuredBy) }

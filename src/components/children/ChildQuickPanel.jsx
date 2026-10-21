@@ -155,6 +155,7 @@ export function ChildQuickPanel({ childId: current, onClose }) {
                     <span className="fw-600">
                       {g.fullName} <span className="muted">({g.relation})</span>
                     </span>
+                    <span className="text-sm muted">{g.idNumber ? `CCCD ${g.idNumber}` : 'Chưa có CCCD'}</span>
                     <span className="text-sm muted">{g.email || 'Chưa có email'}</span>
                     {canViewParentAccounts(user) && (
                       <span>

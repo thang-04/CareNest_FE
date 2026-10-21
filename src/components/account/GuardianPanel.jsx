@@ -14,7 +14,7 @@ import { GUARDIAN_RELATIONSHIPS, GUARDIAN_RELATIONSHIP_LABELS } from '@/models/a
 import { validateGuardian } from '@/utils/account/guardianValidation';
 import { avatarTone, formatDate, initials } from '@/utils/format';
 
-const EMPTY_FORM = { phone: '', fullName: '', email: '', relationship: 'MOTHER' };
+const EMPTY_FORM = { phone: '', idNumber: '', fullName: '', email: '', relationship: 'MOTHER' };
 
 // Quản lý tài khoản demo qua adapter legacy; chưa nối hợp đồng BE/App.
 export function GuardianPanel({ child, classroomName, onChanged, initialAdding = false, _isModal = false }) {
@@ -143,7 +143,9 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
                     <strong className="pa-guardian__name">{g.fullName}</strong>
                     <span className="pa-guardian__relation">{GUARDIAN_RELATIONSHIP_LABELS[g.relationship]}</span>
                   </div>
-                  <div className="pa-guardian__username">Tài khoản: {g.username}</div>
+                  <div className="pa-guardian__username">
+                    Tài khoản: {g.username} · {g.idNumber ? `CCCD ${g.idNumber}` : 'Chưa có CCCD'}
+                  </div>
                 </div>
                 <AccountStatusBadge status={g.status} />
               </div>
@@ -179,6 +181,16 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
               </FormField>
               <FormField label="Họ tên phụ huynh" required error={errors.fullName}>
                 <input className="input" value={form.fullName} maxLength={150} onChange={(e) => set({ fullName: e.target.value })} />
+              </FormField>
+              <FormField label="Số CCCD" required error={errors.idNumber} hint="12 chữ số trên căn cước">
+                <input
+                  className="input"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={form.idNumber}
+                  maxLength={15}
+                  onChange={(e) => set({ idNumber: e.target.value })}
+                />
               </FormField>
               <FormField label="Quan hệ với bé" required error={errors.relationship}>
                 <select className="select" value={form.relationship} onChange={(e) => set({ relationship: e.target.value })}>

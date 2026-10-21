@@ -13,19 +13,25 @@ const MAX_GUARDIANS = 3;
 
 const childrenText = (a) => a.children.map((c) => `${c.fullName}${c.className ? ` (${c.className})` : ''}`).join(', ');
 
-/** SĐT so khớp sau khi bỏ dấu cách/chấm ("0912 345" vẫn ra 0912345678); email và họ tên so khớp không dấu. */
+/** SĐT, CCCD so khớp sau khi bỏ dấu cách/chấm ("0912 345" vẫn ra 0912345678); email và họ tên so khớp không dấu. */
 const matches = (a, query) => {
   const q = normalizeText(query).trim();
   if (!q) return true;
-  const phoneQ = normalizePhone(query);
-  return (/^\d+$/.test(phoneQ) && a.phone.includes(phoneQ)) || normalizeText(`${a.email} ${a.fullName}`).includes(q);
+  const digitsQ = normalizePhone(query);
+  return (
+    (/^\d+$/.test(digitsQ) && (a.phone.includes(digitsQ) || (a.idNumber || '').includes(digitsQ))) ||
+    normalizeText(`${a.email} ${a.fullName}`).includes(q)
+  );
 };
+
+const contactText = (a) => [a.phone, a.idNumber ? `CCCD ${a.idNumber}` : '', a.email].filter(Boolean).join(' · ');
 
 /**
  * Enrollment step 1, "Đã có tài khoản": search box with in-flow results (no floating panel, so nothing covers it),
  * then the selected accounts as cards with the relation inline.
- * accounts: [{ id, fullName, phone, email, status, relation?, children: [{ id, fullName, className }] }]
- * value: [{ accountId, relation }]; errors keyed like 'guardians.0.relation'.
+ * accounts: [{ id, fullName, phone, idNumber, email, status, relation?, children: [{ id, fullName, className }] }]
+ * value: [{ accountId, relation, idNumber? }] — idNumber chỉ khi tài khoản chưa có CCCD (bổ sung, user chốt 2026-10-21);
+ * errors keyed like 'guardians.0.relation'.
  */
 export function ExistingGuardianPicker({ accounts, loading, error, onRetry, value, onChange, errors = {} }) {
   const [query, setQuery] = useState('');
@@ -61,7 +67,7 @@ export function ExistingGuardianPicker({ accounts, loading, error, onRetry, valu
     setOpen(false);
   };
   const remove = (id) => onChange(value.filter((g) => g.accountId !== id));
-  const setRelation = (id, relation) => onChange(value.map((g) => (g.accountId === id ? { ...g, relation } : g)));
+  const patch = (id, change) => onChange(value.map((g) => (g.accountId === id ? { ...g, ...change } : g)));
 
   return (
     <div className="stack gap-3">
@@ -77,7 +83,7 @@ export function ExistingGuardianPicker({ accounts, loading, error, onRetry, valu
             <input
               id="tr-account-search"
               autoComplete="off"
-              placeholder={`Tìm theo SĐT, email hoặc họ tên – ${available.length} tài khoản của điểm trường`}
+              placeholder={`Tìm theo SĐT, CCCD, email hoặc họ tên – ${available.length} tài khoản của điểm trường`}
               value={query}
               aria-expanded={open}
               aria-controls="tr-account-results"
@@ -106,10 +112,7 @@ export function ExistingGuardianPicker({ accounts, loading, error, onRetry, valu
                   >
                     <span className="tr-account-option">
                       <span className="fw-600">{a.fullName}</span>
-                      <span className="text-sm">
-                        {a.phone}
-                        {a.email ? ` · ${a.email}` : ''}
-                      </span>
+                      <span className="text-sm">{contactText(a)}</span>
                       <span className="muted text-xs">Phụ huynh của: {childrenText(a)}</span>
                     </span>
                     <span className="tr-account-result__action">
@@ -128,7 +131,7 @@ export function ExistingGuardianPicker({ accounts, loading, error, onRetry, valu
       {value.length === 0 ? (
         <div className="tr-linked-empty">
           <UserCheck size={18} className="muted" />
-          <span className="muted text-sm">Chưa chọn phụ huynh nào. Tìm theo số điện thoại hoặc email ở ô phía trên để thêm.</span>
+          <span className="muted text-sm">Chưa chọn phụ huynh nào. Tìm theo số điện thoại, CCCD hoặc email ở ô phía trên để thêm.</span>
         </div>
       ) : (
         value.map((g, i) => {
@@ -143,22 +146,19 @@ export function ExistingGuardianPicker({ accounts, loading, error, onRetry, valu
                 </div>
                 {a && (
                   <>
-                    <span className="text-sm">
-                      {a.phone}
-                      {a.email ? ` · ${a.email}` : ''}
-                    </span>
+                    <span className="text-sm">{contactText(a)}</span>
                     <span className="muted text-xs">Phụ huynh của: {childrenText(a)}</span>
                   </>
                 )}
               </div>
-              <div className="tr-linked__relation">
+              <div className="tr-linked__relation stack gap-2">
                 <FormField
                   label="Quan hệ với trẻ"
                   required
                   error={errors[`guardians.${i}.relation`] || errors[`guardians.${i}.accountId`]}
                   hint={a?.relation && g.relation === a.relation ? 'Theo hồ sơ anh/chị, kiểm tra lại' : undefined}
                 >
-                  <select className="select" value={g.relation} onChange={(e) => setRelation(g.accountId, e.target.value)}>
+                  <select className="select" value={g.relation} onChange={(e) => patch(g.accountId, { relation: e.target.value })}>
                     <option value="">Chọn quan hệ</option>
                     {GUARDIAN_RELATIONS.map((r) => (
                       <option key={r} value={r}>
@@ -167,6 +167,23 @@ export function ExistingGuardianPicker({ accounts, loading, error, onRetry, valu
                     ))}
                   </select>
                 </FormField>
+                {a && !a.idNumber && (
+                  <FormField
+                    label="Số CCCD"
+                    required
+                    error={errors[`guardians.${i}.idNumber`]}
+                    hint="Tài khoản chưa có CCCD – nhập để bổ sung"
+                  >
+                    <input
+                      className="input"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={15}
+                      value={g.idNumber || ''}
+                      onChange={(e) => patch(g.accountId, { idNumber: e.target.value })}
+                    />
+                  </FormField>
+                )}
               </div>
               <button
                 type="button"

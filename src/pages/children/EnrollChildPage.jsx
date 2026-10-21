@@ -22,6 +22,7 @@ import { checkDuplicateChild, enrollChild } from '@/services/children/childrenSe
 import { GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import { formatDate } from '@/utils/format';
 import { hasErrors, normalizePhone, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
+import { normalizeCitizenId } from '@/utils/citizenId';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { canEnrollChild } from '@/utils/children/childrenPermissions';
 import { emptyChildInfo, emptyDeclaration, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
@@ -101,6 +102,8 @@ export default function EnrollChildPage() {
               relation: g.relation,
               fullName: acc?.fullName || '',
               phone: acc?.phone || '',
+              // Tài khoản chưa có CCCD thì dùng số người dùng bổ sung trên thẻ tài khoản.
+              idNumber: acc?.idNumber || g.idNumber || '',
               email: acc?.email || '',
             };
           }),
@@ -116,7 +119,12 @@ export default function EnrollChildPage() {
   const accountOfContact = (g) => {
     const phone = normalizePhone(g?.phone);
     const email = (g?.email || '').trim().toLowerCase();
-    return accountsQ.accounts.find((a) => (phone && a.phone === phone) || (email && a.email.toLowerCase() === email)) || null;
+    const idNumber = normalizeCitizenId(g?.idNumber);
+    return (
+      accountsQ.accounts.find(
+        (a) => (phone && a.phone === phone) || (email && a.email.toLowerCase() === email) || (idNumber && a.idNumber === idNumber),
+      ) || null
+    );
   };
 
   const switchMode = (mode) => {
@@ -198,7 +206,8 @@ export default function EnrollChildPage() {
       setSaved(child);
       toast.success(`Đã lưu hồ sơ ${child.fullName} (${child.code}).`, 'Tiếp nhận thành công');
     } catch (err) {
-      if (err.status === 422 && err.details) {
+      // 409 trùng CCCD/SĐT với phụ huynh khác cũng trả lỗi theo ô (details).
+      if ((err.status === 422 || err.status === 409) && err.details) {
         setErrors(splitServerErrors(err.details));
         goTo(Math.min(...Object.keys(err.details).map(stepOfField)));
       }
@@ -319,7 +328,7 @@ export default function EnrollChildPage() {
                   <div className="alert alert--warning mt-12">
                     <AlertTriangle size={18} />
                     <div>
-                      Số điện thoại hoặc email này đã có tài khoản phụ huynh <b>{acc.fullName}</b>.{' '}
+                      Số điện thoại, email hoặc số CCCD này đã có tài khoản phụ huynh <b>{acc.fullName}</b>.{' '}
                       <button type="button" className="btn btn--sm btn--ghost" onClick={() => pickSuggestedAccount(info.guardians[i])}>
                         Chọn tài khoản này
                       </button>
@@ -415,7 +424,7 @@ export default function EnrollChildPage() {
                 <div key={i} className="tr-dl-pair">
                   <dt>Phụ huynh {i + 1}</dt>
                   <dd>
-                    {g.fullName} ({g.relation}) · {g.phone}
+                    {g.fullName} ({g.relation}) · {g.phone} · CCCD {g.idNumber}
                     {g.email ? ` · ${g.email}` : ''}
                     {g.accountId && <span className="muted"> · tài khoản có sẵn, liên kết khi lưu</span>}
                   </dd>

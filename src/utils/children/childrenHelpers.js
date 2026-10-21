@@ -25,7 +25,7 @@ export const maskPhone = (phone) => {
 export const formatNumber = (value, digits = 1) =>
   value == null || Number.isNaN(Number(value)) ? '—' : Number(value).toLocaleString('vi-VN', { maximumFractionDigits: digits });
 
-export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', email: '' });
+export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', idNumber: '', email: '' });
 
 /** Bước 1 của form tiếp nhận: thông tin trẻ, phụ huynh và phần hành chính (dùng cho phiếu khám). */
 export const emptyChildInfo = () => ({

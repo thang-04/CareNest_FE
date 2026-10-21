@@ -4,6 +4,7 @@ import { EDU_SEED_VERSION, buildSeedEducationPlans } from './educationPlanSeed';
 import { buildExtraTeachers } from './teacherSeed';
 import { buildExtraClassData } from './classSeed';
 import { buildSeedSchool } from './schoolSeed';
+import { addSeedGuardianIds } from './guardianIdentity';
 
 /* ---------- Master data ---------- */
 
@@ -784,6 +785,6 @@ export const buildSeedDatabase = () => {
     eduSeedVersion: EDU_SEED_VERSION,
     ...school,
     classes,
-    children: [...school.children, ...extra.children],
+    children: addSeedGuardianIds([...school.children, ...extra.children]),
   };
 };

@@ -8,6 +8,8 @@ import { uid } from '@/utils/id';
 import { issuePassword } from '@/mocks/authMockRepository';
 import { migrateGuardianAccounts, parentAccountOf } from './guardianCompatibility';
 import { activeYearId } from '@/mocks/roomManagers';
+import { identityConflict } from '@/mocks/guardianIdentity';
+import { normalizeCitizenId } from '@/utils/citizenId';
 
 const relationOf = (value) =>
   Object.keys(GUARDIAN_RELATIONSHIP_LABELS).find((key) => GUARDIAN_RELATIONSHIP_LABELS[key] === value) || value || 'GUARDIAN';
@@ -38,6 +40,7 @@ const viewOf = (account, guardian) => ({
   userId: account.id,
   username: account.username || account.phone,
   fullName: guardian.fullName || account.fullName,
+  idNumber: guardian.idNumber || account.idNumber || '',
   relationship: relationOf(guardian.relation),
   status: account.status,
   linkedAt: guardian.linkedAt || account.createdAt,
@@ -128,6 +131,13 @@ export const guardianMockRepository = {
         throw new ApiError(409, 'Số điện thoại và email thuộc hai tài khoản phụ huynh khác nhau.');
       let account = byPhone || byEmail;
       if (account && (account.childIds || []).includes(childId)) throw new ApiError(409, 'Phụ huynh đã liên kết với trẻ.');
+      // CCCD bắt buộc; 1 người 1 tài khoản: lệch tài khoản/hồ sơ khác hoặc trùng phụ huynh khác của trẻ ⇒ 409 (user chốt 2026-10-21).
+      const idNumber = normalizeCitizenId(form.idNumber);
+      const conflict = identityConflict(db, { phone: account ? account.phone : phone, idNumber }, { excludeChildId: childId });
+      if (conflict) throw new ApiError(409, conflict, { idNumber: conflict });
+      const sibling = child.guardians.find((g) => normalizePhone(g.phone) !== phone && normalizeCitizenId(g.idNumber) === idNumber);
+      if (sibling)
+        throw new ApiError(409, 'Hai phụ huynh không được dùng chung số CCCD.', { idNumber: 'Trùng CCCD của phụ huynh khác của trẻ' });
       const newAccount = !account;
       const password = newAccount ? temporaryPassword() : null;
       if (!account) {
@@ -137,6 +147,7 @@ export const guardianMockRepository = {
           phone,
           fullName: form.fullName.trim(),
           email: (form.email || '').trim(),
+          idNumber,
           status: 'ACTIVE',
           childIds: [],
           createdAt: new Date().toISOString(),
@@ -146,12 +157,14 @@ export const guardianMockRepository = {
         db.parentAccounts.push(account);
       }
       (account.childIds ||= []).push(childId);
+      if (!account.idNumber) account.idNumber = idNumber;
       const old = child.guardians.find((guardian) => normalizePhone(guardian.phone) === phone);
       const guardian = {
         ...old,
         accountId: account.id,
         fullName: old?.fullName || account.fullName,
         phone: account.phone,
+        idNumber: account.idNumber,
         email: old?.email || account.email || '',
         relation: GUARDIAN_RELATIONSHIP_LABELS[form.relationship],
         accountStatus: account.status,
