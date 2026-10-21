@@ -1,5 +1,5 @@
-import { Fragment, useState } from 'react';
-import { AlertTriangle, Plus, X } from '@/components/ui/icons';
+import { Fragment } from 'react';
+import { AlertTriangle, X } from '@/components/ui/icons';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { LUNCH_TYPES, dayAllergyNotes, weekSections } from '@/utils/menu-planning/weekGridLayout';
 import { daySummary } from '@/utils/menu-planning/daySummary';
@@ -27,16 +27,6 @@ function DayResult({ day, wm, catalog, issues, onOpen }) {
   );
 }
 
-// Bấm "Thêm" xong mở luôn danh sách món, đỡ phải bấm lần hai; trình duyệt không hỗ trợ thì chỉ focus
-const openPicker = (el) => {
-  if (!el?.showPicker) return;
-  try {
-    el.showPicker();
-  } catch {
-    /* mất user activation hoặc trình duyệt chặn: người dùng bấm ô chọn như bình thường */
-  }
-};
-
 const inRow = (row, dish) => !row.type || (row.type === 'OTHER' ? !LUNCH_TYPES.includes(dish?.type) : dish?.type === row.type);
 
 /**
@@ -62,7 +52,6 @@ export function WeekGrid({
   dayNotes,
   isNew,
 }) {
-  const [adding, setAdding] = useState(null);
   const sections = weekSections(catalog.nutritionSetups, wm.ageGroupId, wm.days, catalog.dishById, { keepEmpty: !!editable });
   const notesOf = (day) => sections.flatMap((s) => dayAllergyNotes({ day, session: s.session, catalog, allergyRows, allergyMenus }));
   const hasNotes = wm.days.some((d) => notesOf(d).length > 0);
@@ -79,7 +68,6 @@ export function WeekGrid({
     const items = ((d.meals || []).find((m) => m.session === row.session)?.items || [])
       .map((it, idx) => ({ it, idx, dish: catalog.dishById[it.dishId] }))
       .filter(({ dish }) => inRow(row, dish));
-    const k = `${d.date}|${row.key}`;
     const options = catalog.dishes.filter(
       (x) => x.status === RECORD_STATUS.ACTIVE && (row.type && row.type !== 'OTHER' ? x.type === row.type : true),
     );
@@ -108,29 +96,21 @@ export function WeekGrid({
           !editable && <span className="muted">—</span>
         )}
         {editable &&
-          (adding === k && options.length === 0 ? (
+          (options.length === 0 ? (
             // Chỉ món "Đang sử dụng" chọn được vào thực đơn (món Nháp/Ngừng không hiện) — nói rõ thay vì danh sách rỗng
-            <span className="muted td-week__pick-empty" role="status">
-              Chưa có món {row.type ? DISH_TYPE_LABELS[row.type]?.toLowerCase() : ''} đang sử dụng.{' '}
-              <button type="button" className="td-week__add" onClick={() => setAdding(null)}>
-                Đóng
-              </button>
+            <span className="muted td-week__pick-empty">
+              Chưa có món {row.type ? DISH_TYPE_LABELS[row.type]?.toLowerCase() : ''} đang sử dụng.
             </span>
-          ) : adding === k ? (
+          ) : (
+            // "+ Thêm" là chính ô chọn gốc: một lần bấm mở danh sách của trình duyệt, không bị cắt trong bảng cuộn
             <select
-              className="select td-week__pick"
-              autoFocus
-              ref={openPicker}
-              defaultValue=""
-              onBlur={() => setAdding(null)}
-              onKeyDown={(e) => e.key === 'Escape' && setAdding(null)}
-              onChange={(e) => {
-                if (e.target.value) change(d, row.session, (list) => [...list, { dishId: e.target.value, portion: 1 }]);
-                setAdding(null);
-              }}
+              className="td-week__add td-week__add-select"
+              value=""
+              disabled={busy}
+              onChange={(e) => e.target.value && change(d, row.session, (list) => [...list, { dishId: e.target.value, portion: 1 }])}
               aria-label={`Thêm món ${row.label}`}
             >
-              <option value="">Chọn món…</option>
+              <option value="">+ Thêm</option>
               {options.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}
@@ -138,10 +118,6 @@ export function WeekGrid({
                 </option>
               ))}
             </select>
-          ) : (
-            <button type="button" className="td-week__add" disabled={busy} onClick={() => setAdding(k)}>
-              <Plus size={12} /> Thêm
-            </button>
           ))}
       </td>
     );
