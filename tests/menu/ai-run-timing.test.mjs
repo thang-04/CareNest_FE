@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { mock, test } from 'node:test';
 import { AI_MIN_VISIBLE_MS, aiHoldMs, runWithAiHold } from '../../src/hooks/loadingTiming.js';
 
@@ -10,14 +10,14 @@ const flush = async () => {
 };
 
 test('AI xong sớm thì lớp phủ giữ đủ thời gian tối thiểu tính từ lúc bấm', () => {
-  assert.equal(AI_MIN_VISIBLE_MS, 1200);
-  assert.equal(aiHoldMs(0), 1200);
-  assert.equal(aiHoldMs(300), 900);
+  assert.equal(AI_MIN_VISIBLE_MS, 2000);
+  assert.equal(aiHoldMs(0), 2000);
+  assert.equal(aiHoldMs(300), 1700);
 });
 
 test('AI chạy lâu hơn mốc tối thiểu thì không giữ thêm', () => {
-  assert.equal(aiHoldMs(1200), 0);
-  assert.equal(aiHoldMs(1500), 0);
+  assert.equal(aiHoldMs(2000), 0);
+  assert.equal(aiHoldMs(2500), 0);
 });
 
 test('runWithAiHold trả kết quả sau mốc tối thiểu', async () => {
@@ -67,4 +67,37 @@ test('lớp phủ AI: vòng lặp vô hạn có nhịp thật khi giảm chuyể
   const css = read('styles/components.css');
   const reduce = css.slice(css.indexOf('/* Lớp phủ AI: giảm chuyển động'));
   assert.match(reduce, /animation-duration: [^;]+!important/);
+});
+
+test('Lottie tải lazy (chunk riêng) và mọi file hoạt hình hợp lệ', () => {
+  const player = read('components/ui/LottiePlayer.jsx');
+  assert.match(player, /import\('lottie-web'\)/);
+  for (const file of [
+    'components/ui/LottiePlayer.jsx',
+    'components/ui/AiWorkingOverlay.jsx',
+    'components/ui/States.jsx',
+    'contexts/ToastContext.jsx',
+  ]) {
+    assert.doesNotMatch(read(file), /^import .*(lottie-web|assets\/lottie)/m, `${file} phải nạp Lottie bằng import()`);
+  }
+  for (const name of readdirSync(new URL('assets/lottie/', SRC))) {
+    const anim = JSON.parse(read(`assets/lottie/${name}`));
+    assert.ok(anim.op > anim.ip && anim.fr > 0 && anim.layers.length > 0, name);
+  }
+});
+
+test('file Lottie chỉ chứa expression đã soát (lottie-web chạy expression bằng eval)', () => {
+  const REVIEWED = new Set(["var $bm_rt;\n$bm_rt = loopOut('cycle', 0);"]);
+  for (const name of readdirSync(new URL('assets/lottie/', SRC))) {
+    const found = [];
+    (function walk(o) {
+      if (Array.isArray(o)) return o.forEach(walk);
+      if (o && typeof o === 'object')
+        for (const [k, v] of Object.entries(o)) {
+          if (k === 'x' && typeof v === 'string') found.push(v);
+          else walk(v);
+        }
+    })(JSON.parse(read(`assets/lottie/${name}`)));
+    for (const expr of found) assert.ok(REVIEWED.has(expr), `${name}: expression chưa soát: ${expr.slice(0, 80)}`);
+  }
 });
