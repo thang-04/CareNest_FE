@@ -4,7 +4,7 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
 import { EmptyState, Modal } from '@/components/education-plan/eduUi';
 
-/** Picks goals from another age group / school year into the goal set being edited. */
+/** Chọn mục tiêu (kèm nội dung, dấu tích chủ đề) từ kế hoạch năm học khác để thêm vào kế hoạch đang soạn. */
 export default function ImportGoalsModal({ goals, excludeId, defaultAgeGroupId, onClose, onImport }) {
   const { schoolYears } = useEducationPlan();
   // Default to the previous school year (list is newest first)
@@ -35,14 +35,14 @@ export default function ImportGoalsModal({ goals, excludeId, defaultAgeGroupId, 
 
   const confirm = () => {
     const domains = source.domains
-      .map((d, di) => ({ name: d.name, items: d.items.filter((_, ii) => picked[key(di, ii)]).map((it) => it.text) }))
+      .map((d, di) => ({ name: d.name, items: d.items.filter((_, ii) => picked[key(di, ii)]) }))
       .filter((d) => d.items.length);
     onImport(domains, source);
   };
 
   return (
     <Modal
-      title="Lấy mục tiêu từ bộ có sẵn"
+      title="Lấy mục tiêu từ kế hoạch có sẵn"
       width={760}
       onClose={onClose}
       footer={
@@ -56,7 +56,7 @@ export default function ImportGoalsModal({ goals, excludeId, defaultAgeGroupId, 
         </>
       }
     >
-      <div className="grid-2" style={{ gap: 12 }}>
+      <div className="grid-2 gap-3">
         <div className="field">
           <label className="field__label" htmlFor="imp-year">
             Năm học
@@ -154,8 +154,8 @@ export default function ImportGoalsModal({ goals, excludeId, defaultAgeGroupId, 
             })}
           </div>
           <p className="muted text-xs">
-            Mục tiêu được thêm vào cuối lĩnh vực cùng tên; lĩnh vực chưa có sẽ được tạo mới. Mục tiêu trùng nội dung sẽ bỏ qua. Bạn vẫn sửa
-            được sau khi thêm.
+            Mục tiêu được thêm vào cuối lĩnh vực cùng tên, kèm nội dung và dấu tích chủ đề (khớp theo tên viết tắt). Nếu kế hoạch đang soạn
+            chưa có chủ đề, bảng chủ đề và đợt nghỉ của kế hoạch nguồn được chép theo. Mục tiêu trùng nội dung sẽ bỏ qua.
           </p>
         </>
       )}

@@ -1,20 +1,24 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useAsync } from '@/hooks/useAsync';
-import { listAllChildrenForGuardians, listGuardians } from '@/services/account/guardianService';
-
-export function useChildGuardians(childId) {
+import { useGuardianQuery } from '@/hooks/account/useGuardianQuery';
+import { listAllChildrenForGuardians, listGuardians, getGuardianStructure } from '@/services/account/guardianService';
+export function useChildGuardians(id) {
   const { user } = useAuth();
-  return useAsync(() => listGuardians(childId, user), [childId, user?.id], {
-    refreshOnDataChange: true,
-    enabled: !!user && !!childId,
-  });
+  return useGuardianQuery(() => listGuardians(id, user), [id], { enabled: !!id && !!user });
 }
-
-/** Mọi trẻ trong phạm vi của một điểm trường (rỗng = mọi điểm trường mình phụ trách). */
 export function useCampusGuardianChildren(campusId, { enabled = true } = {}) {
   const { user } = useAuth();
-  return useAsync(() => listAllChildrenForGuardians(campusId || undefined, user), [campusId, user?.id], {
-    refreshOnDataChange: true,
-    enabled: !!user && enabled,
-  });
+  return useGuardianQuery(() => listAllChildrenForGuardians(campusId, user), [campusId], { enabled: !!user && enabled });
+}
+export function useGuardianStructure() {
+  const { user } = useAuth();
+  const query = useGuardianQuery(() => getGuardianStructure(user), []);
+  const campuses = query.data?.campuses || [];
+  const classrooms = query.data?.classrooms || [];
+  return {
+    ...query,
+    campuses,
+    classrooms,
+    campusName: (id) => campuses.find((row) => row.id === id)?.name || '',
+    classroomName: (id) => classrooms.find((row) => row.id === id)?.name || '',
+  };
 }

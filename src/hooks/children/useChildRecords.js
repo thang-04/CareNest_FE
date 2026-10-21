@@ -1,6 +1,13 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
-import { getChildDetail, getChildren, getHealthRecord, getPlacementClasses } from '@/services/children/childrenService';
+import {
+  getChildDetail,
+  getChildren,
+  getHealthRecord,
+  getParentAccountOptions,
+  getParentAccounts,
+  getPlacementClasses,
+} from '@/services/children/childrenService';
 
 /** Children in the user's scope. filters: { keyword, campusId, classId, status, schoolYear } */
 export function useChildRecords(filters = {}) {
@@ -27,6 +34,20 @@ export function usePlacementClasses(schoolYear) {
     refreshOnDataChange: true,
   });
   return { classes: data || [], loading, error, reload };
+}
+
+export function useParentAccounts(filters = {}) {
+  const { user } = useAuth();
+  const key = JSON.stringify(filters);
+  const { data, loading, error, reload } = useAsync(() => getParentAccounts(filters, user), [key, user?.id], { refreshOnDataChange: true });
+  return { rows: data || [], loading, error, reload };
+}
+
+/** Existing parent accounts of the VP's campus, for linking a new child at enrollment. */
+export function useParentAccountOptions({ enabled = true } = {}) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getParentAccountOptions({}, user), [user?.id], { enabled });
+  return { accounts: data || [], loading, error, reload };
 }
 
 /** Health record bundle { child, cls, declaration, measurements (newest first) }. */

@@ -1,4 +1,9 @@
 .people-tabs {
+  --people-tabs-gap: var(--space-4);
+  --people-tabs-margin-bottom: var(--space-4);
+  --people-tabs-padding-block: var(--space-3);
+  --people-tabs-padding-inline: var(--space-4);
+  --people-tabs-indicator-width: 2px;
   display: flex;
   gap: var(--people-tabs-gap);
   overflow-x: auto;

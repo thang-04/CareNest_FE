@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { CaretDown, SidebarCollapse, SidebarExpand, X } from '@/components/ui/icons';
 import { Logo } from '@/components/brand/Logo';
-import { useAuth } from '@/contexts/AuthContext';
 import { getMenuForRole } from './menuConfig';
-import { getActiveMenuChild } from './sidebarSelection';
 import { UserMenu } from './UserMenu';
+import { useAuth } from '@/contexts/AuthContext';
 
 const OPEN_GROUPS_KEY = 'carenest.sidebar.openGroups';
 
@@ -18,6 +17,8 @@ const iconChip = (item) => {
     </span>
   );
 };
+
+const isActivePath = (pathname, to, exact = false) => (to === '/' || exact ? pathname === to : pathname.startsWith(to));
 
 const readOpenGroups = () => {
   try {
@@ -33,17 +34,25 @@ const readOpenGroups = () => {
  * the sidebar, and hovering shows the sub-menu as a flyout.
  */
 export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, onExpand, onToggle }) {
+  // Menu thu gọn vẫn cuộn được (màn thấp, zoom); flyout dùng vị trí cố định theo nút để không bị khung cuộn cắt
+  const placeFlyout = (event) => {
+    const r = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty('--fly-top', `${Math.round(r.top)}px`);
+    const edge = event.currentTarget.closest('.sidebar')?.getBoundingClientRect().right ?? r.right;
+    event.currentTarget.style.setProperty('--fly-left', `${Math.round(edge + 8)}px`);
+  };
   const { pathname } = useLocation();
-  const { hasPermission } = useAuth();
-  const menu = getMenuForRole(role, hasPermission);
-  const activeChild = getActiveMenuChild(menu, pathname);
-  const activeGroupLabel = menu.find((item) => item.key === activeChild?.groupKey)?.label;
+  const { user } = useAuth();
+  // Menu tính theo quyền nên mỗi lần gọi là mảng mới: giữ cố định theo vai trò / người dùng,
+  // nếu không effect bên dưới chạy lại mỗi lần render và đóng nhóm vừa mở
+  const menu = useMemo(() => getMenuForRole(role, user), [role, user]);
   const [open, setOpen] = useState(readOpenGroups);
 
   // Open the group that contains the current page when navigating.
   useEffect(() => {
-    if (activeGroupLabel) setOpen((o) => (o[activeGroupLabel] ? o : { [activeGroupLabel]: true }));
-  }, [pathname, activeGroupLabel]);
+    const group = menu.find((m) => m.children?.some((c) => isActivePath(pathname, c.to, c.exact)));
+    if (group) setOpen((o) => (o[group.label] ? o : { [group.label]: true }));
+  }, [pathname, menu]);
 
   useEffect(() => {
     try {
@@ -80,11 +89,16 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
         </NavLink>
       );
     }
-    const groupActive = item.key === activeChild?.groupKey;
+    const groupActive = item.children.some((c) => isActivePath(pathname, c.to, c.exact));
     const expanded = !!open[item.label] && !collapsed;
     const subId = `nav-sub-${item.label}`;
     return (
-      <div key={item.label} className="nav-group">
+      <div
+        key={item.label}
+        className="nav-group"
+        onMouseEnter={collapsed ? placeFlyout : undefined}
+        onFocus={collapsed ? placeFlyout : undefined}
+      >
         <button
           type="button"
           className={`nav-item ${groupActive ? 'nav-item--group-active' : ''}`}
@@ -100,14 +114,14 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
         <div id={subId} className={`nav-sub-wrap ${expanded ? 'nav-sub-wrap--open' : ''}`}>
           <div className="nav-sub" inert={expanded ? undefined : ''}>
             {item.children.map((child) => (
-              <Link
+              <NavLink
                 key={child.label}
                 to={child.to}
-                aria-current={groupActive && child.key === activeChild?.childKey ? 'page' : undefined}
-                className={`nav-sub__item ${groupActive && child.key === activeChild?.childKey ? 'nav-sub__item--active' : ''}`}
+                end={!!child.exact}
+                className={() => `nav-sub__item ${isActivePath(pathname, child.to, child.exact) ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
-              </Link>
+              </NavLink>
             ))}
           </div>
         </div>
@@ -116,15 +130,15 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
           <div className="nav-flyout" role="menu" aria-label={item.label}>
             <div className="nav-flyout__title">{item.label}</div>
             {item.children.map((child) => (
-              <Link
+              <NavLink
                 key={child.label}
                 to={child.to}
+                end={!!child.exact}
                 role="menuitem"
-                aria-current={groupActive && child.key === activeChild?.childKey ? 'page' : undefined}
-                className={`nav-sub__item ${groupActive && child.key === activeChild?.childKey ? 'nav-sub__item--active' : ''}`}
+                className={() => `nav-sub__item ${isActivePath(pathname, child.to, child.exact) ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
-              </Link>
+              </NavLink>
             ))}
           </div>
         )}

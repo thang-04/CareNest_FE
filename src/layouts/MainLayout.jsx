@@ -4,9 +4,9 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { useAuth } from '@/contexts/AuthContext';
-import { AUTH_USE_MOCK, USE_MOCK } from '@/config/env';
 import { LoadingState } from '@/components/ui/States';
-import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { AreaGate } from '@/routes/RoleGuard';
 import { useMediaQuery } from '@/hooks';
 import './layout.css';
 
@@ -62,13 +62,8 @@ export function MainLayout() {
       <div className="app-main">
         <Header role={user.role} showMenuButton={isNarrow} menuOpen={drawerOpen} onToggleSidebar={toggleSidebar} />
         <main className="app-content">
-          {!AUTH_USE_MOCK && USE_MOCK && (
-            <div className="alert alert--info" role="status">
-              Dữ liệu nghiệp vụ đang dùng bản mẫu.
-            </div>
-          )}
-          {/* Lazy pages load inside the layout so sidebar/header never flash. */}
-          <ErrorBoundary key={pathname}>
+          {/* Lazy pages load inside the layout so sidebar/header never flash. Lỗi trang chỉ thay vùng nội dung, đổi route thì tự xóa. */}
+          <ErrorBoundary resetKey={pathname} wrap>
             <Suspense
               fallback={
                 <div className="page">
@@ -76,7 +71,9 @@ export function MainLayout() {
                 </div>
               }
             >
-              <Outlet />
+              <AreaGate path={pathname}>
+                <Outlet />
+              </AreaGate>
             </Suspense>
           </ErrorBoundary>
         </main>

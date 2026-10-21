@@ -8,7 +8,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--card-padding-dense);
-  margin: 4px 0 var(--card-padding-dense);
+  margin: var(--space-1) 0 var(--card-padding-dense);
 }
 .pa-head__title {
   min-width: 0;
@@ -17,7 +17,7 @@
   margin: 0;
 }
 .pa-head__title p {
-  margin: var(--staff-directory-gap) 0 0;
+  margin: var(--space-3) 0 0;
 }
 .pa-head__search {
   width: min(100%, 360px);
@@ -27,7 +27,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--staff-directory-gap) var(--card-padding-dense);
+  gap: var(--space-3) var(--card-padding-dense);
   margin-bottom: var(--card-padding-dense);
   padding: var(--card-padding-dense) var(--card-padding);
   border: 1px solid var(--color-warning-border);
@@ -35,13 +35,13 @@
   background: var(--color-warning-bg);
   color: var(--color-text);
 }
-.pa-todo button {
+.pa-todo__link {
   padding: 0;
   border: 0;
   background: none;
   color: var(--color-primary);
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   cursor: pointer;
 }
 .pa-layout {
@@ -67,7 +67,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--staff-directory-gap);
+  gap: var(--space-3);
 }
 .pa-classes__filter {
   display: flex;
@@ -81,18 +81,18 @@
 }
 .pa-classes__none {
   margin: 0;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
 }
 .pa-seg {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--staff-directory-gap);
+  gap: var(--space-3);
 }
 /* Tên điểm trường dài: xuống dòng thay vì cắt chữ */
-.pa-seg button {
+.pa-seg__item {
   min-height: var(--btn-height-sm);
   max-width: 100%;
-  padding: var(--staff-directory-gap) var(--card-padding-dense);
+  padding: var(--space-3) var(--card-padding-dense);
   border: 1px solid var(--color-border);
   border-radius: var(--btn-radius);
   background: var(--color-surface);
@@ -102,20 +102,20 @@
   cursor: pointer;
   overflow-wrap: anywhere;
 }
-.pa-seg button[aria-pressed='true'] {
+.pa-seg__item[aria-pressed='true'] {
   border-color: var(--color-primary-border);
   background: var(--color-primary-soft);
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .pa-classlist {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: var(--staff-directory-gap);
+  gap: var(--space-3);
 }
 .pa-class {
   display: grid;
-  gap: var(--staff-directory-gap);
+  gap: var(--space-3);
   width: 100%;
   min-height: 100%;
   padding: var(--card-padding-dense);
@@ -136,22 +136,22 @@
   background: var(--color-primary-soft);
 }
 .pa-class:focus-visible,
-.pa-seg button:focus-visible,
+.pa-seg__item:focus-visible,
 .pa-chip:focus-visible,
 .pa-kid:focus-visible,
-.pa-todo button:focus-visible {
+.pa-todo__link:focus-visible {
   box-shadow: var(--focus-ring);
 }
 .pa-class__top {
   display: flex;
   align-items: center;
-  gap: var(--staff-directory-gap);
+  gap: var(--space-3);
 }
 .pa-class__name {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -167,7 +167,7 @@
   flex-shrink: 0;
   width: 8px;
   height: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-full);
   background: var(--color-warning);
 }
 .pa-bar {
@@ -196,7 +196,7 @@
 .pa-main__title {
   margin: 0;
   font-size: var(--fs-h3);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
 }
 .pa-main__progress {
   display: grid;
@@ -206,14 +206,14 @@
 .pa-chips {
   display: flex;
   gap: var(--space-1);
-  margin-bottom: var(--staff-directory-gap);
+  margin-bottom: var(--space-3);
   overflow-x: auto;
   scrollbar-width: none;
 }
 .pa-chip {
   flex-shrink: 0;
   min-height: var(--btn-height-sm);
-  padding: var(--staff-directory-gap) var(--card-padding-dense);
+  padding: var(--space-3) var(--card-padding-dense);
   border: 1px solid var(--color-border);
   border-radius: var(--btn-radius);
   background: var(--color-surface);
@@ -226,7 +226,7 @@
   border-color: var(--color-primary-border);
   background: var(--color-primary-soft);
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .pa-table td,
 .pa-table th {
@@ -245,7 +245,7 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   text-align: left;
   cursor: pointer;
 }
@@ -258,15 +258,21 @@
   background: var(--color-success-bg);
   color: var(--color-success-fg);
   font-size: var(--fs-sm);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   white-space: nowrap;
 }
 .pa-status--missing {
   background: var(--color-warning-bg);
   color: var(--color-warning-fg);
 }
+/* Mật khẩu tạm trên phiếu: chữ đơn cách để dễ đọc từng ký tự */
+.pa-slip__password {
+  font-family: monospace;
+  font-size: var(--fs-xl);
+  letter-spacing: var(--tracking-wide);
+}
 .pa-panel__meta {
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-4);
 }
 .pa-guardian {
   padding: var(--card-padding-dense);
@@ -274,12 +280,12 @@
   border-radius: var(--input-radius);
 }
 .pa-guardian + .pa-guardian {
-  margin-top: var(--staff-directory-gap);
+  margin-top: var(--space-3);
 }
 .pa-guardian__row {
   display: flex;
   align-items: center;
-  gap: var(--staff-directory-gap);
+  gap: var(--space-3);
 }
 .pa-guardian__main {
   flex: 1;
@@ -288,24 +294,27 @@
 .pa-guardian__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--staff-directory-gap);
+  gap: var(--space-3);
   margin-top: var(--card-padding-dense);
 }
-.pa-guardian-list {
+.pa-col-status {
+  width: 150px;
+}
+.pa-col-actions {
+  width: 210px;
+}
+/* Dòng con của một phụ huynh: cùng chiều cao ở cột Phụ huynh, Tài khoản, Thao tác */
+.pa-line {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-.pa-guardian-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: var(--staff-directory-gap) var(--card-padding-dense);
-  padding: var(--staff-directory-gap) 0;
-  border-bottom: 1px solid var(--color-border);
+  min-height: var(--space-12);
 }
-.pa-guardian-item:last-child {
-  border-bottom: 0;
+.pa-line + .pa-line {
+  border-top: 1px dashed var(--color-border);
+}
+.pa-line--actions {
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 .pa-guardian-info {
   display: grid;
@@ -315,7 +324,7 @@
 .pa-guardian-name {
   color: var(--color-text);
   font-size: var(--fs-md);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -326,7 +335,7 @@
   background: transparent;
   font-family: inherit;
   font-size: var(--fs-md);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   line-height: 1.4;
   text-align: left;
   cursor: pointer;
@@ -342,22 +351,10 @@
 .pa-guardian-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--staff-directory-gap);
+  gap: var(--space-1) var(--space-3);
   color: var(--color-text-muted);
   font-size: var(--fs-xs);
   overflow-wrap: anywhere;
-}
-.pa-guardian-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-8);
-}
-.pa-empty-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-8);
 }
 .pa-guardian-modal .modal__body {
   max-height: 75vh;
@@ -367,12 +364,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--staff-directory-gap);
+  gap: var(--space-3);
 }
 .pa-guardian__name {
   color: var(--color-text);
   font-size: var(--fs-title-sm);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   overflow-wrap: anywhere;
 }
 .pa-guardian__relation,
@@ -398,28 +395,10 @@
   .pa-head__search {
     width: 100%;
   }
-  .pa-guardian-item {
-    align-items: flex-start;
-  }
-  .pa-guardian-actions {
-    width: 100%;
-  }
 }
-
-@media (max-width: 680px) {
-  .pa-guardian-item {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      'identity status'
-      'actions actions';
-  }
-  .pa-guardian-info {
-    grid-area: identity;
-  }
-  .pa-guardian-item > .chip {
-    grid-area: status;
-  }
-  .pa-guardian-actions {
-    grid-area: actions;
-  }
+.pa-guard-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
 }

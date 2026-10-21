@@ -22,10 +22,11 @@ const isoDaysAgo = (n) => {
   return d.toISOString().slice(0, 10);
 };
 
-test('Bếp không còn API chế biến, điểm danh không còn API bàn giao suất ăn', () => {
+test('Bếp mới không thêm API chế biến; giữ nguyên API điểm danh của dev', () => {
   for (const name of ['getMealPreparations', 'updateMealPreparation']) assert.equal(kitchen[name], undefined, name);
   for (const name of ['getMealHandovers', 'confirmHandover', 'reportHandoverShortage', 'supplementHandover'])
-    assert.equal(attendance[name], undefined, name);
+    assert.equal(typeof attendance[name], 'function', name);
+  assert.equal(attendance.confirmMealCountDay, undefined, 'không kéo theo API chốt ngày của incoming');
 });
 
 test('Dữ liệu mẫu của bếp không tạo bảng chế biến', async () => {
@@ -33,7 +34,7 @@ test('Dữ liệu mẫu của bếp không tạo bảng chế biến', async () 
   assert.equal(readDb().mealPreparations, undefined);
 });
 
-test('PHT chốt số suất không sinh bàn giao suất ăn', async () => {
+test('PHT tiếp tục chốt từng bữa qua API hiện tại; bếp không xóa dữ liệu bàn giao cũ', async () => {
   // Ngày đã khóa nhưng ngoài các ngày mẫu đã chốt sẵn ⇒ còn sĩ số chờ PHT xác nhận
   let pending = null;
   for (let n = 1; n <= 30 && !pending; n += 1) {
@@ -42,7 +43,9 @@ test('PHT chốt số suất không sinh bàn giao suất ăn', async () => {
   }
   assert.ok(pending, 'cần một sĩ số chờ xác nhận trong 30 ngày gần nhất');
 
-  const confirmed = await attendance.confirmMealCountDay({ campusId: pending.campusId, date: pending.date }, VP);
-  assert.ok(confirmed.every((c) => c.status === 'CONFIRMED'));
-  assert.equal(readDb().mealHandovers, undefined);
+  const before = structuredClone(readDb().mealHandovers);
+  const confirmed = await attendance.confirmMealCount(pending.id, VP);
+  assert.equal(confirmed.status, 'CONFIRMED');
+  await kitchen.getKitchenDay({ campusId: pending.campusId, date: pending.date }, VP);
+  for (const row of before) assert.ok(readDb().mealHandovers.some((item) => item.id === row.id));
 });

@@ -99,8 +99,14 @@ test('PHT sửa suất ngày chưa chốt: phiếu tính lại, ô có dấu đ�
     repo.saveWeeklyForecast({ campusId: 'c1', weekStart: FUTURE_WEEK, cells: { [cls.classId]: { [day.date]: cls.registered + 1 } } }, VP),
     422,
   );
-  await rejects(repo.saveWeeklyForecast({ campusId: 'c1', weekStart: FUTURE_WEEK, cells: { [cls.classId]: { [day.date]: 1.5 } } }, VP), 422);
-  await rejects(repo.saveWeeklyForecast({ campusId: 'c1', weekStart: FUTURE_WEEK, cells: { [cls.classId]: { [day.date]: 3 } } }, COOK_A), 403);
+  await rejects(
+    repo.saveWeeklyForecast({ campusId: 'c1', weekStart: FUTURE_WEEK, cells: { [cls.classId]: { [day.date]: 1.5 } } }, VP),
+    422,
+  );
+  await rejects(
+    repo.saveWeeklyForecast({ campusId: 'c1', weekStart: FUTURE_WEEK, cells: { [cls.classId]: { [day.date]: 3 } } }, COOK_A),
+    403,
+  );
 });
 
 test('gửi NCC rồi đổi suất ⇒ dòng báo NCC; đánh dấu đã báo; đổi lại về số cũ vẫn phải báo lại', async () => {
@@ -116,12 +122,18 @@ test('gửi NCC rồi đổi suất ⇒ dòng báo NCC; đánh dấu đã báo; 
   assert.ok(view.sent?.at);
   assert.equal(view.changes.length, 0, 'vừa gửi thì chưa có gì cần báo');
 
-  view = await repo.saveWeeklyForecast({ campusId: 'c1', weekStart: FUTURE_WEEK, cells: { [cls.classId]: { [date]: original - Math.min(3, original) } } }, VP);
+  view = await repo.saveWeeklyForecast(
+    { campusId: 'c1', weekStart: FUTURE_WEEK, cells: { [cls.classId]: { [date]: original - Math.min(3, original) } } },
+    VP,
+  );
   const group = view.changes.find((g) => g.date === date);
   assert.ok(group, 'có dòng báo NCC cho ngày đã đổi');
   assert.equal(group.kind, 'FORECAST_CHANGED');
   assert.ok(group.lines.every((l) => !l.notified && l.diff < 0 && Math.abs(l.needed - l.ordered - l.diff) < 1e-6));
-  assert.equal(view.pendingChanges, view.changes.reduce((n, g) => n + g.lines.length, 0));
+  assert.equal(
+    view.pendingChanges,
+    view.changes.reduce((n, g) => n + g.lines.length, 0),
+  );
 
   const line = group.lines[0];
   await repo.setSupplierNotified({ campusId: 'c1', weekStart: FUTURE_WEEK, date, foodId: line.foodId, notified: true }, VP);
@@ -129,7 +141,10 @@ test('gửi NCC rồi đổi suất ⇒ dòng báo NCC; đánh dấu đã báo; 
   const marked = view.changes.find((g) => g.date === date).lines.find((l) => l.foodId === line.foodId);
   assert.equal(marked.notified, true);
   assert.ok(marked.notifiedAt);
-  await rejects(repo.setSupplierNotified({ campusId: 'c1', weekStart: FUTURE_WEEK, date, foodId: line.foodId, notified: true }, COOK_A), 403);
+  await rejects(
+    repo.setSupplierNotified({ campusId: 'c1', weekStart: FUTURE_WEEK, date, foodId: line.foodId, notified: true }, COOK_A),
+    403,
+  );
 
   // Về lại số đã gửi: NCC đã được báo số giảm nên phải báo tăng lại
   view = await repo.saveWeeklyForecast({ campusId: 'c1', weekStart: FUTURE_WEEK, cells: { [cls.classId]: { [date]: original } } }, VP);

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Check } from '@/components/ui/icons';
 
 /**
@@ -5,8 +6,18 @@ import { Check } from '@/components/ui/icons';
  * <Stepper steps={['Thông tin chung', 'Chọn tài sản']} current={step} maxReached={max} onStepClick={goTo} />
  */
 export function Stepper({ steps, current, maxReached = current, onStepClick }) {
+  const ref = useRef(null);
+
+  // Điện thoại: thanh bước cuộn ngang; đưa bước hiện tại vào giữa khung (không cuộn trang)
+  useEffect(() => {
+    const list = ref.current;
+    const item = list?.querySelector('[aria-current="step"]')?.closest('li');
+    if (!list || !item || list.scrollWidth <= list.clientWidth) return;
+    list.scrollLeft = item.offsetLeft - (list.clientWidth - item.clientWidth) / 2;
+  }, [current]);
+
   return (
-    <ol className="stepper" style={{ gridTemplateColumns: `repeat(${steps.length}, 1fr)` }}>
+    <ol className="stepper" ref={ref} style={{ '--steps': steps.length }}>
       {steps.map((label, i) => {
         const state = i === current ? 'current' : i < current || i <= maxReached ? 'done' : 'todo';
         const clickable = i !== current && i <= maxReached && !!onStepClick;
@@ -19,7 +30,7 @@ export function Stepper({ steps, current, maxReached = current, onStepClick }) {
               disabled={!clickable}
               aria-current={i === current ? 'step' : undefined}
             >
-              <span className="stepper__dot">{state === 'done' && i < current ? <Check size={18} stroke={2.5} /> : i + 1}</span>
+              <span className="stepper__dot">{state === 'done' && i < current ? <Check size={14} stroke={2.5} /> : i + 1}</span>
               <span className="stepper__label">{label}</span>
             </button>
           </li>

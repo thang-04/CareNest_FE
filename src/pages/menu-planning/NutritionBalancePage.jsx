@@ -12,13 +12,14 @@ import { MealEditor } from '@/components/menu-planning/MealEditor';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
 import { AllergenWarnings } from '@/components/menu-planning/AllergenWarnings';
 import { dayNormStatus } from '@/components/menu-planning/WeekDaysView';
-import { compareToNorm, mealsTotals, normalizeMeals, priceOn } from '@/utils/menu-planning/menuCalculations';
+import { mealsTotals, normalizeMeals, priceOn } from '@/utils/menu-planning/menuCalculations';
+import { daySummary } from '@/utils/menu-planning/daySummary';
 import { validateMenu } from '@/utils/menu-planning/menuPlanningValidation';
 import { canEditWeeklyMenu, canReplaceWeeklyMenu } from '@/utils/menu-planning/menuPlanningPermissions';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
-import { WEEKDAY_LABELS, WEEKLY_STATUS, mondayOf, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
+import { WEEKDAY_LABELS, WEEKLY_STATUS, formatMoney, mondayOf, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
 import { mealCodesOf, mealLabel, mealsOf } from '@/utils/menu-planning/nutritionSetup';
 import '@/styles/modules/menu-planning.css';
 
@@ -114,27 +115,28 @@ export default function NutritionBalancePage() {
     <div className="page">
       <Breadcrumb items={menuCrumbs('Cân đối dinh dưỡng')} />
       <h1 className="page__title">Cân đối dinh dưỡng thực đơn ngày</h1>
-      <div className="card">
-        <div className="filter-bar">
+      {/* Thanh chọn cùng kiểu Thực đơn tuần: tab nhóm tuổi + chọn thực đơn tuần */}
+      <div className="td-week-toolbar">
+        <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
+          {[{ id: '', shortName: 'Tất cả' }, ...AGE_GROUPS].map((g) => (
+            <button
+              key={g.id || 'all'}
+              type="button"
+              role="tab"
+              aria-selected={g.id === ageGroupId}
+              className={`tab ${g.id === ageGroupId ? 'tab--active' : ''}`}
+              onClick={() => {
+                setAgeGroupId(g.id);
+                chooseWeek('');
+              }}
+            >
+              {g.shortName}
+            </button>
+          ))}
+        </div>
+        <div className="td-week-picker">
           <select
-            className="select"
-            value={ageGroupId}
-            onChange={(e) => {
-              setAgeGroupId(e.target.value);
-              chooseWeek('');
-            }}
-            aria-label="Nhóm tuổi"
-          >
-            <option value="">Tất cả nhóm tuổi</option>
-            {AGE_GROUPS.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select"
-            style={{ minWidth: 320 }}
+            className="select td-week-menu-select"
             value={weeklyMenuId}
             onChange={(e) => chooseWeek(e.target.value)}
             aria-label="Thực đơn tuần"
@@ -151,7 +153,7 @@ export default function NutritionBalancePage() {
       </div>
 
       {!weeklyMenuId ? (
-        <div className="card mt-16">
+        <div className="card">
           <EmptyState
             icon={Scale}
             title="Chọn một thực đơn tuần"
@@ -169,18 +171,20 @@ export default function NutritionBalancePage() {
         <ErrorState error={error} onRetry={reload} />
       ) : (
         <>
-          <div className="row mt-16 mb-12" style={{ gap: 12 }}>
-            <div className="section-title" style={{ margin: 0 }}>
-              <Link to={`/menu/weekly/${wm.id}`}>{wm.code}</Link> · {ageGroupById(wm.ageGroupId)?.name} · tuần {weekLabel(wm.weekStart)}
+          <div className="row td-week-bar">
+            <div className="row td-week-status">
+              <WeeklyStatusBadge status={wm.status} />
+              <span className="text-sm muted">
+                <Link to={`/menu/weekly/${wm.id}`}>{wm.code}</Link> · {ageGroupById(wm.ageGroupId)?.name} · tuần {weekLabel(wm.weekStart)}
+              </span>
             </div>
-            <WeeklyStatusBadge status={wm.status} />
           </div>
           <div className="td-week-cards" role="tablist" aria-label="Ngày trong tuần">
             {wm.days.map((d, i) => {
-              const r = d.holiday
-                ? null
-                : mealsTotals(d.date === date ? meals : d.meals, catalog.dishById, catalog.foodById, wm.ageGroupId);
-              const status = r ? dayNormStatus(compareToNorm(r.totals, wm.ageGroupId, r.missing.length > 0, catalog.norms)) : null;
+              // Ngày đang sửa tính theo món đang chỉnh (chưa lưu) để thẻ ngày đổi ngay
+              const sum = daySummary(d.date === date ? { ...d, meals } : d, wm, catalog);
+              const n = sum?.nutrients;
+              const status = n ? dayNormStatus(Object.values(n)) : null;
               return (
                 <button
                   key={d.date}
@@ -196,17 +200,23 @@ export default function NutritionBalancePage() {
                   </span>
                   {d.holiday ? (
                     <span className="muted text-sm">Nghỉ: {d.note}</span>
+                  ) : !n ? (
+                    <span className="muted text-sm">Chưa có thực đơn</span>
                   ) : (
                     <>
                       <span className="td-kv">
                         <span>Năng lượng</span>
-                        <b>{num(r.totals.kcal)} kcal</b>
+                        <b>{num(n.kcal.value)} kcal</b>
                       </span>
                       <span className="td-kv">
-                        <span>Đạm / Béo / Bột</span>
+                        <span>Đạm / Béo / Tinh bột</span>
                         <span>
-                          {num(r.totals.protein)} / {num(r.totals.lipid)} / {num(r.totals.glucid)} g
+                          {num(n.protein.value)} / {num(n.lipid.value)} / {num(n.glucid.value)} g
                         </span>
+                      </span>
+                      <span className="td-kv">
+                        <span>Tiền ăn</span>
+                        <span className={sum.overPrice ? 'td-week__sum--high' : undefined}>{formatMoney(sum.cost)}</span>
                       </span>
                       <NormStatusChip status={status} />
                     </>
@@ -266,20 +276,20 @@ export default function NutritionBalancePage() {
                     price={priceOn(catalog.mealPrices, wm.ageGroupId, date)?.price}
                   />
                   <div className="table-wrap mt-12">
-                    <table className="table table--compact">
+                    <table className="table table--grid table--compact">
                       <thead>
                         <tr>
                           <th>Bữa</th>
-                          <th className="right">Năng lượng</th>
-                          <th className="right">Đạm / Béo / Bột (g)</th>
+                          <th className="num">Năng lượng</th>
+                          <th className="num">Đạm / Béo / Tinh bột (g)</th>
                         </tr>
                       </thead>
                       <tbody>
                         {Object.entries(result.bySession).map(([s, t]) => (
                           <tr key={s}>
                             <td>{mealLabel(catalog.nutritionSetups, wm.ageGroupId, s)}</td>
-                            <td className="right">{num(t.kcal)} kcal</td>
-                            <td className="right">
+                            <td className="num">{num(t.kcal)} kcal</td>
+                            <td className="num">
                               {num(t.protein)} / {num(t.lipid)} / {num(t.glucid)}
                             </td>
                           </tr>

@@ -43,7 +43,7 @@ export function StepSelectAssets({ wizard, md, transferId }) {
   return (
     <section className="card wizard-card">
       <h2 className="section-title">Chọn tài sản luân chuyển</h2>
-      <div className="row row--between mb-16" style={{ alignItems: 'stretch' }}>
+      <div className="row row--between mb-16 ft-align-stretch">
         <div className="route-banner">
           <Monitor size={22} className="text-primary" />
           <div>
@@ -61,7 +61,7 @@ export function StepSelectAssets({ wizard, md, transferId }) {
             <div className="text-2">{md.campusById(form.toCampusId)?.name}</div>
           </div>
         </div>
-        <label className="search-box" style={{ alignSelf: 'center' }}>
+        <label className="search-box ft-self-center">
           <Search size={17} className="muted" />
           <input
             placeholder="Tìm kiếm tài sản (mã, tên, ...)"
@@ -75,7 +75,12 @@ export function StepSelectAssets({ wizard, md, transferId }) {
       <div className="asset-layout">
         <aside className="category-list">
           <div className="category-list__title">Danh mục tài sản</div>
-          <button className={`category-item ${category === 'ALL' ? 'category-item--active' : ''}`} onClick={() => setCategory('ALL')}>
+          <button
+            type="button"
+            className={`category-item ${category === 'ALL' ? 'category-item--active' : ''}`}
+            aria-pressed={category === 'ALL'}
+            onClick={() => setCategory('ALL')}
+          >
             <LayoutGrid size={18} /> Tất cả ({assets.length})
           </button>
           {md.categories
@@ -85,7 +90,9 @@ export function StepSelectAssets({ wizard, md, transferId }) {
               return (
                 <button
                   key={c.id}
+                  type="button"
                   className={`category-item ${category === c.id ? 'category-item--active' : ''}`}
+                  aria-pressed={category === c.id}
                   onClick={() => setCategory(c.id)}
                 >
                   <Icon size={18} /> {c.name} ({counts[c.id]})
@@ -94,15 +101,15 @@ export function StepSelectAssets({ wizard, md, transferId }) {
             })}
         </aside>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           {error ? (
             <ErrorState error={error} onRetry={reload} />
           ) : (
             <div className="table-wrap">
-              <table className="table asset-table">
+              <table className="table table--grid asset-table">
                 <thead>
                   <tr>
-                    <th className="center" style={{ width: 44 }}>
+                    <th className="center ft-w-44">
                       <input
                         type="checkbox"
                         className="cb"
@@ -111,16 +118,16 @@ export function StepSelectAssets({ wizard, md, transferId }) {
                         aria-label="Chọn tất cả"
                       />
                     </th>
-                    <th className="center">STT</th>
-                    <th>Mã tài sản</th>
-                    <th>Tên tài sản</th>
-                    <th className="center">Đơn vị</th>
-                    <th className="center" style={{ whiteSpace: 'normal', lineHeight: 1.3 }}>
+                    <th className="center cell--fixed">STT</th>
+                    <th className="cell--fixed">Mã tài sản</th>
+                    <th className="cell--fixed">Tên tài sản</th>
+                    <th className="center cell--fixed">Đơn vị</th>
+                    <th className="center cell--fixed ft-th-wrap">
                       Số lượng hiện tại
                       <br />
                       (tại nơi đi)
                     </th>
-                    <th className="center" style={{ whiteSpace: 'normal', lineHeight: 1.3 }}>
+                    <th className="center ft-th-wrap">
                       Số lượng
                       <br />
                       luân chuyển
@@ -159,15 +166,15 @@ export function StepSelectAssets({ wizard, md, transferId }) {
                               aria-label={`Chọn ${asset.name}`}
                             />
                           </td>
-                          <td className="center">{idx + 1}</td>
-                          <td>{asset.code}</td>
-                          <td>{asset.name}</td>
-                          <td className="center">{asset.unit}</td>
-                          <td className="center">
+                          <td className="center cell--fixed">{idx + 1}</td>
+                          <td className="cell--fixed">{asset.code}</td>
+                          <td className="cell--fixed">{asset.name}</td>
+                          <td className="center cell--fixed">{asset.unit}</td>
+                          <td className="center cell--fixed">
                             {asset.availableQuantity}
                             {reserved > 0 && <div className="muted text-xs">({reserved} đang ở phiếu khác)</div>}
                           </td>
-                          <td className="center" style={{ width: 130 }}>
+                          <td className="center w-130">
                             <input
                               type="number"
                               min={1}
@@ -180,7 +187,7 @@ export function StepSelectAssets({ wizard, md, transferId }) {
                             />
                             {err && <div className="field__error text-xs">{err}</div>}
                           </td>
-                          <td style={{ width: 150 }}>
+                          <td className="w-150">
                             <ConditionSelect
                               value={item ? item.condition : asset.condition}
                               disabled={!item}
@@ -209,7 +216,7 @@ export function StepSelectAssets({ wizard, md, transferId }) {
       {errors.items && <div className="alert alert--danger mt-12">{errors.items}</div>}
 
       <div className="row row--between mt-16">
-        <div className="row" style={{ gap: 20 }}>
+        <div className="row gap-5">
           <span>
             Đã chọn <b>{totals.count}</b> tài sản
           </span>
@@ -224,11 +231,11 @@ export function StepSelectAssets({ wizard, md, transferId }) {
 
       <Modal open={!!detail} title="Thông tin tài sản" onClose={() => setDetail(null)}>
         {detail && (
-          <div className="row" style={{ alignItems: 'flex-start', gap: 18 }}>
-            <span className="asset-thumb" style={{ width: 120, height: 90 }}>
+          <div className="row ft-align-start ft-gap-18">
+            <span className="asset-thumb ft-asset-thumb-lg">
               <AssetThumb asset={detail} />
             </span>
-            <dl className="info-list" style={{ flex: 1 }}>
+            <dl className="info-list flex-1">
               <dt>Mã tài sản:</dt>
               <dd>{detail.code}</dd>
               <dt>Tên tài sản:</dt>

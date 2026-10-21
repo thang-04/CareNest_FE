@@ -101,7 +101,7 @@ export function SignaturePicker({ value, onChange, variant = 'full', error, disa
       setTab('saved');
       setModal(null);
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     } finally {
       setBusy(false);
     }
@@ -113,7 +113,7 @@ export function SignaturePicker({ value, onChange, variant = 'full', error, disa
       if (value === toDelete.imageUrl) onChange({ url: null, id: null });
       toast.success('Đã xóa chữ ký');
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     }
     setToDelete(null);
   };
@@ -175,7 +175,7 @@ export function SignaturePicker({ value, onChange, variant = 'full', error, disa
           <div className="muted text-xs">{ROLE_LABELS[user.role]}</div>
         </div>
         {!disabled && (
-          <div className="stack" style={{ gap: 8, flex: 1 }}>
+          <div className="stack gap-2 flex-1">
             <button type="button" className="btn btn--outline-primary btn--block" onClick={() => setModal('saved')}>
               <Images size={17} /> Chọn chữ ký đã lưu
             </button>

@@ -47,7 +47,7 @@ export function FileUploader({ files, onChange, disabled }) {
   };
 
   return (
-    <div className="stack" style={{ gap: 10 }}>
+    <div className="stack gap-2-5">
       {!disabled && (
         <div
           className={`dropzone ${dragging ? 'dropzone--active' : ''}`}
@@ -89,7 +89,7 @@ export function FileUploader({ files, onChange, disabled }) {
         return (
           <div key={f.id} className="file-row">
             <Icon size={26} color={color} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               {f.dataUrl ? (
                 <a href={f.dataUrl} download={f.name} className="file-row__name">
                   {f.name}

@@ -6,7 +6,7 @@ import {
   DISH_TYPE_LABELS,
   FOOD_GROUP_LABELS,
 } from '@/models/menu-planning/menuPlanningConstants';
-import { applyReplacements, byId, restrictedConflicts } from '@/utils/menu-planning/menuCalculations';
+import { applyReplacements, byId, missingPortionGroups, restrictedConflicts } from '@/utils/menu-planning/menuCalculations';
 
 /*
  * Field checks shared by the forms (instant feedback) and the mock backend (422).
@@ -31,6 +31,12 @@ export const validateFood = (form, others = []) => {
   if (!['g', 'ml'].includes(form.unit)) e.unit = REQUIRED;
   if (!form.purchaseUnit?.trim()) e.purchaseUnit = REQUIRED;
   if (!isNum(form.purchaseUnitSize) || Number(form.purchaseUnitSize) <= 0) e.purchaseUnitSize = 'Nhập số lớn hơn 0.';
+  // BA 02: tỷ lệ quy đổi không được bằng 0 hoặc âm (chỉ kiểm khi form có khai đơn vị kho)
+  if (form.stockUnit !== undefined) {
+    if (!String(form.stockUnit || '').trim()) e.stockUnit = REQUIRED;
+    if (!isNum(form.purchaseToStock) || Number(form.purchaseToStock) <= 0) e.purchaseToStock = 'Nhập số lớn hơn 0.';
+    if (!isNum(form.stockUnitSize) || Number(form.stockUnitSize) <= 0) e.stockUnitSize = 'Nhập số lớn hơn 0.';
+  }
   if (form.unitPrice !== '' && form.unitPrice != null && (!isNum(form.unitPrice) || Number(form.unitPrice) < 0))
     e.unitPrice = 'Nhập giá hợp lệ (không âm).';
   if (form.storage && !['FRESH', 'DRY'].includes(form.storage)) e.storage = 'Chọn Tươi hoặc Khô.';
@@ -46,7 +52,11 @@ export const validateFood = (form, others = []) => {
   return e;
 };
 
-export const validateDish = (form, others = []) => {
+/**
+ * `requireGroups` [{ id, name }]: món chuyển từ Nháp (hoặc tạo mới) sang dùng cho thực đơn phải đủ định lượng
+ * mọi nhóm tuổi đang áp dụng (user chốt 20/10/2026); lưu nháp thì không truyền.
+ */
+export const validateDish = (form, others = [], { requireGroups = null } = {}) => {
   const e = {};
   if (!form.name?.trim()) e.name = REQUIRED;
   else if (form.name.trim().length > 100) e.name = 'Tên món tối đa 100 ký tự.';
@@ -65,6 +75,17 @@ export const validateDish = (form, others = []) => {
       if (!filled.length && !e[`ing_${i}`]) e[`ing_${i}`] = 'Nhập định lượng cho ít nhất một nhóm tuổi.';
     } else if (r.foodId && badQty(r.quantity)) e[`ing_${i}`] = 'Định lượng từ 0 đến 1000.';
   });
+  if (requireGroups && rows.length) {
+    const missing = missingPortionGroups(
+      form,
+      requireGroups.map((g) => g.id),
+    );
+    if (missing.length)
+      e.status = `Chưa đủ định lượng cho ${requireGroups
+        .filter((g) => missing.includes(g.id))
+        .map((g) => g.name)
+        .join(', ')}: nhập đủ hoặc lưu nháp.`;
+  }
   return e;
 };
 
@@ -94,7 +115,11 @@ export const validateNutritionSetup = (form, today) => {
       else if (meals.some((o, j) => j < i && sameName(o.name, name))) e[`${key}.meals.${i}.name`] = 'Trùng tên bữa khác.';
       if (!base.includes(m.code) && !base.includes(m.countAs)) e[`${key}.meals.${i}.countAs`] = 'Chọn bữa dùng để tính số suất.';
     });
-    Object.entries(g.norms || {}).forEach(([k, range]) => {
+    // Chuẩn tạm: để trống cả bốn = chưa nhập (chưa đánh giá); đã nhập thì phải đủ từng khoảng
+    const blank = (v) => v === '' || v == null;
+    const norms = Object.entries(g.norms || {});
+    if (norms.every(([, range]) => (range || []).every(blank))) return;
+    norms.forEach(([k, range]) => {
       const [min, max] = range || [];
       if (!isNum(min) || !isNum(max)) e[`${key}.norms.${k}`] = 'Nhập đủ hai số.';
       else if (Number(min) < 0 || Number(min) > Number(max)) e[`${key}.norms.${k}`] = 'Số đầu phải nhỏ hơn hoặc bằng số sau.';
@@ -120,8 +145,11 @@ export const validateMealPrice = (form, others = []) => {
   return e;
 };
 
-/** Sample daily menu: every meal of the age group (Thiết lập) has at least one dish. meals = [{ code, name }]. */
-export const validateMenu = (form, others = [], meals) => {
+/**
+ * Sample daily menu: every meal of the age group (Thiết lập) has at least one dish. meals = [{ code, name }].
+ * allowEmptyMeals: ngày của tuần nháp được để trống bữa (đủ món chỉ kiểm khi xuất bản tuần).
+ */
+export const validateMenu = (form, others = [], meals, { allowEmptyMeals = false } = {}) => {
   const e = {};
   if (!form.name?.trim()) e.name = REQUIRED;
   else if (others.some((m) => m.id !== form.id && m.ageGroupId === form.ageGroupId && sameName(m.name, form.name)))
@@ -130,7 +158,7 @@ export const validateMenu = (form, others = [], meals) => {
   else
     (meals || sessionsOf(form.ageGroupId).map((code) => ({ code, name: MEAL_SESSION_LABELS[code] }))).forEach(({ code: s, name }) => {
       const items = (form.meals || []).find((m) => m.session === s)?.items || [];
-      if (!items.filter((i) => i.dishId).length) e[`meal_${s}`] = `${name}: chọn ít nhất một món.`;
+      if (!allowEmptyMeals && !items.filter((i) => i.dishId).length) e[`meal_${s}`] = `${name}: chọn ít nhất một món.`;
       items.forEach((i) => {
         if (i.dishId && (!isNum(i.portion) || Number(i.portion) < 0.1 || Number(i.portion) > 3))
           e[`meal_${s}`] = `${name}: hệ số khẩu phần từ 0,1 đến 3.`;

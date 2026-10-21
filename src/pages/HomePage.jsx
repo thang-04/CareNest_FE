@@ -9,8 +9,7 @@ const DASHBOARDS = {
   [ROLES.VICE_PRINCIPAL]: lazy(() => import('@/pages/dashboard/VicePrincipalDashboard')),
   [ROLES.TEAM_LEADER]: lazy(() => import('@/pages/dashboard/TeamLeaderDashboard')),
   [ROLES.TEACHER]: lazy(() => import('@/pages/dashboard/TeacherDashboard')),
-  // Bếp: trang chủ là Quy trình bếp hôm nay
-  [ROLES.KITCHEN_STAFF]: lazy(() => import('@/pages/kitchen/KitchenFlowPage').then((m) => ({ default: () => <m.default asHome /> }))),
+  [ROLES.KITCHEN_STAFF]: lazy(() => import('@/pages/dashboard/KitchenDashboard')),
 };
 
 /** Home `/`: the dashboard of the signed-in role (SRS screens #10–#14). */

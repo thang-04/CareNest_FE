@@ -34,8 +34,8 @@ export default function TransferPrintPage() {
   return (
     <div className="page">
       <Breadcrumb items={transferCrumbs(`In phiếu ${transfer.code}`)} />
-      <div className="row row--between no-print" style={{ margin: '12px 0 16px' }}>
-        <button className="btn" onClick={() => navigate(-1)}>
+      <div className="row row--between no-print mt-12 mb-16">
+        <button type="button" className="btn" onClick={() => navigate(-1)}>
           <ArrowLeft size={16} /> Quay lại
         </button>
         <PrintActions model={model} sheetRef={sheetRef} />

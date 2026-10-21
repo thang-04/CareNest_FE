@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Scale, CheckCircle2, Lock, PackagePlus } from '@/components/ui/icons';
+import { ArrowLeft, Scale, CheckCircle2, PackagePlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useTransfer } from '@/hooks/facility-transfer/useTransfers';
 import { useMasterData } from '@/hooks/useMasterData';
 import { resolveDiscrepancy } from '@/services/facility-transfer/transferService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { LoadingState, ErrorState, EmptyState } from '@/components/ui/States';
+import { LoadingState, ErrorState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { TransferStatusBadge } from '@/components/facility-transfer/TransferStatusBadge';
 import { DiscrepancyParts } from '@/components/facility-transfer/DiscrepancyHistoryCard';
@@ -82,18 +83,16 @@ export default function TransferDiscrepancyPage() {
     return (
       <div className="page">
         <Breadcrumb items={transferCrumbs(`Xử lý chênh lệch ${t.code}`)} />
-        <div className="card mt-16">
-          <EmptyState
-            icon={Lock}
-            title="Không có chênh lệch cần xử lý"
-            description="Chỉ Phó hiệu trưởng campus gửi tài sản xử lý được, và chỉ khi phiếu ở trạng thái “Chờ xử lý chênh lệch”."
-            action={
-              <Link className="btn" to={`/facility/transfers/${t.id}`}>
-                Xem chi tiết phiếu
-              </Link>
-            }
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Không có chênh lệch cần xử lý"
+          description="Chỉ Phó hiệu trưởng campus gửi tài sản xử lý được, và chỉ khi phiếu ở trạng thái “Chờ xử lý chênh lệch”."
+          action={
+            <Link className="btn" to={`/facility/transfers/${t.id}`}>
+              Xem chi tiết phiếu
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -133,14 +132,14 @@ export default function TransferDiscrepancyPage() {
       navigate(`/facility/transfers/${t.id}`);
     } catch (err) {
       setConfirmOpen(false);
-      toast.error(err.message, 'Không xử lý được chênh lệch');
+      toast.error(err, 'Không xử lý được chênh lệch');
     }
   };
 
   return (
     <div className="page">
       <Breadcrumb items={transferCrumbs(`Xử lý chênh lệch ${t.code}`)} />
-      <div className="row" style={{ gap: 12 }}>
+      <div className="row gap-3">
         <h1 className="page__title">Xử lý chênh lệch - {t.code}</h1>
         <TransferStatusBadge status={t.status} />
       </div>
@@ -161,16 +160,16 @@ export default function TransferDiscrepancyPage() {
         </div>
         <div className="card__body">
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
-                  <th>Tài sản</th>
-                  <th className="center">Cần nhận</th>
-                  <th className="center">Thực nhận</th>
-                  <th className="center">Trong đó hỏng</th>
-                  <th className="center">Vấn đề</th>
-                  <th style={{ minWidth: 280 }}>Cách xử lý của PHT</th>
-                  <th className="center">Nơi nhận giữ</th>
+                  <th className="cell--fixed">Tài sản</th>
+                  <th className="center cell--fixed">Cần nhận</th>
+                  <th className="center cell--fixed">Thực nhận</th>
+                  <th className="center cell--fixed">Trong đó hỏng</th>
+                  <th className="center cell--fixed">Vấn đề</th>
+                  <th className="ft-min-w-280">Cách xử lý của PHT</th>
+                  <th className="center cell--fixed">Nơi nhận giữ</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,7 +179,7 @@ export default function TransferDiscrepancyPage() {
                   const d = decisions[l.itemId] || {};
                   return (
                     <tr key={l.itemId}>
-                      <td>
+                      <td className="cell--fixed">
                         <div className="fw-600">{item?.assetName}</div>
                         <div className="muted text-xs">{item?.assetCode}</div>
                         {l.note && <div className="text-2 text-xs mt-8">“{l.note}”</div>}
@@ -190,20 +189,20 @@ export default function TransferDiscrepancyPage() {
                           </div>
                         )}
                       </td>
-                      <td className="center">{l.expectedQuantity ?? l.handoverQuantity}</td>
-                      <td className="center fw-600">{l.receivedQuantity}</td>
-                      <td className="center">{parts.damaged}</td>
-                      <td className="center">
+                      <td className="center cell--fixed">{l.expectedQuantity ?? l.handoverQuantity}</td>
+                      <td className="center cell--fixed fw-600">{l.receivedQuantity}</td>
+                      <td className="center cell--fixed">{parts.damaged}</td>
+                      <td className="center cell--fixed">
                         <DiscrepancyParts line={l} />
                       </td>
                       <td>
-                        <div className="stack" style={{ gap: 12 }}>
+                        <div className="stack gap-3">
                           {DISCREPANCY_PARTS.filter((p) => parts[p] > 0).map((p) => (
                             <fieldset key={p} className="disc-choice">
                               <legend className="fw-600 text-sm">
                                 {DISCREPANCY_PART_LABELS[p]} {parts[p]}
                               </legend>
-                              <div className="row row--wrap" style={{ gap: 16 }}>
+                              <div className="row row--wrap gap-4">
                                 {PART_CHOICES[p].map((c) => (
                                   <label key={c} className="radio">
                                     <input
@@ -223,7 +222,7 @@ export default function TransferDiscrepancyPage() {
                           ))}
                         </div>
                       </td>
-                      <td className="center fw-600">{finalQuantity(l, d)}</td>
+                      <td className="center cell--fixed fw-600">{finalQuantity(l, d)}</td>
                     </tr>
                   );
                 })}

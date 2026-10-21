@@ -1,6 +1,7 @@
 import { USE_MOCK } from '@/config/env';
 import { kitchenMockRepository as mock } from '@/services/kitchen/mock/kitchenMockRepository';
 import { kitchenApi as api } from '@/services/kitchen/api/kitchenApi';
+import { readLegacyKitchenRows } from './mock/legacyDashboardRepository';
 
 /** Facade used by hooks/pages. VITE_USE_MOCK=false switches to Spring Boot. */
 const repo = USE_MOCK ? mock : api;
@@ -15,12 +16,25 @@ export const getFoodCatalog = (user) => repo.getFoodCatalog(user);
 /** Kho khô hai cơ sở: { campuses, foods, kpis, transactions }. */
 export const getDryStock = (user) => repo.getDryStock(user);
 export const getDryStockItem = (filters, user) => repo.getDryStockItem(filters, user);
-export const getStockCounts = (filters, user) => repo.getStockCounts(filters, user);
-export const createStockCount = (payload, user) => repo.createStockCount(payload, user);
-export const saveStockCount = (payload, user) => repo.saveStockCount(payload, user);
 export const createStockReceipt = (payload, user) => repo.createStockReceipt(payload, user);
+/** Phiếu nhập: danh sách theo cơ sở, chi tiết, lưu nháp hoặc xác nhận nhập ({ id?, confirm, ...phiếu }). */
+export const getStockReceipts = (filters, user) => repo.getStockReceipts(filters, user);
+export const getStockReceipt = (filters, user) => repo.getStockReceipt(filters, user);
+export const saveStockReceipt = (payload, user) => repo.saveStockReceipt(payload, user);
+/** NCC: danh sách ({ keyword, status }), chi tiết kèm phiếu nhập liên kết, tạo/sửa ({ id?, ... }), xóa khi chưa có phiếu. */
+export const getSuppliers = (filters, user) => repo.getSuppliers(filters, user);
+export const getSupplier = (filters, user) => repo.getSupplier(filters, user);
+export const saveSupplier = (payload, user) => repo.saveSupplier(payload, user);
+export const deleteSupplier = (payload, user) => repo.deleteSupplier(payload, user);
 /** Phiếu xuất kho đồ khô của một cơ sở: { issues, today } (today = trạng thái hôm nay khi chưa có phiếu). */
 export const getStockIssues = (filters, user) => repo.getStockIssues(filters, user);
+/** Bếp chọn lô cho phiếu chờ chọn lô ({ id, allocations: { [foodId]: [{ lotId, qty }] } }) ⇒ hệ thống ghi xuất. */
+export const allocateIssueLots = (payload, user) => repo.allocateIssueLots(payload, user);
+export const getStockIssue = async ({ campusId, date }, user) => {
+  const view = await getStockIssues({ campusId, from: date, to: date }, user);
+  const issue = view.issues.find((row) => row.date === date) || null;
+  return { state: issue?.status || view.today?.state || 'WAITING_MEAL_COUNT', issue };
+};
 export const getPublishedMenu = (filters, user) => repo.getPublishedMenu(filters, user);
 export const getConfirmedMealCount = (filters, user) => repo.getConfirmedMealCount(filters, user);
 /** Dự trù tuần: { status, days, classes, fresh, dry, changes, pendingChanges, sent, canEdit }. */
@@ -33,3 +47,12 @@ export const getFreshReceipt = (filters, user) => repo.getFreshReceipt(filters, 
 export const saveFreshReceipt = (payload, user) => repo.saveFreshReceipt(payload, user);
 export const reviewFreshReceipt = (payload, user) => repo.reviewFreshReceipt(payload, user);
 export const setFreshSupplierNotified = (payload, user) => repo.setFreshSupplierNotified(payload, user);
+
+export const getMealPreparations = (filters, user) =>
+  USE_MOCK ? mock.getLegacyMealPreparations(filters, user) : Promise.reject({ status: 501, message: 'Cần thống nhất contract bếp.' });
+export const updateMealPreparation = (payload, user) =>
+  USE_MOCK ? mock.updateLegacyMealPreparation(payload, user) : Promise.reject({ status: 501, message: 'Cần thống nhất contract bếp.' });
+export const getMissingFoodReports = (filters, user) =>
+  USE_MOCK
+    ? readLegacyKitchenRows('missingFoodReports', filters, user)
+    : Promise.reject({ status: 501, message: 'Cần thống nhất contract bếp.' });

@@ -6,6 +6,15 @@ Không nói "xong / pass / đã sửa" khi chưa có **output lệnh chạy tron
 Lệnh chuẩn: `node scripts/verify.mjs` — chưa có code (`package.json`) ⇒ in `VERIFY SKIP`; khi có code gọi `npm run verify` (team định nghĩa: lint + typecheck + test + build). Output tóm tắt, log ở `verify.log`.
 
 ## Bằng chứng
+
+### Nhịp ba chấm loading — 2026-10-20
+
+- Kiểm tiếp sau phản hồi "vẫn giật lắm": Chrome local mock `/ui-kit` bật giảm chuyển động. Trước sửa cả 9 chấm vẫn chạy `spinner-hop` infinite với duration `1e-05s` do rule `!important` toàn cục. Sau media rule riêng cho chấm: cả 9 có animation-name `none`, transform `none`, opacity `0.7`. Chế độ thường giữ source 1.6s, chưa giả lập lại; không đổi thời gian loading. Incident: `docs/knowledge/incidents/FE-BUG-261020-spinner-reduced-motion-loop.md`. Cổng verify và check-ai-layer chạy lại sau lần sửa cuối, xem output bàn giao.
+
+- User chốt chỉ làm ba chấm chạy chậm hơn. Làn S: `src/styles/components.css` giãn chu kỳ `spinner-hop` từ 1s lên 1.6s; độ trễ chấm 2/3 từ 0.15s/0.3s lên 0.24s/0.48s, giữ tỷ lệ lệch nhịp. Áp dụng cho Spinner thường và nhỏ, gồm nút AI gợi ý cách sửa.
+- Giữ nguyên timeout request, thời gian bật/tắt loading và cơ chế giảm chuyển động. Đây là điều chỉnh nhịp animation theo yêu cầu, không có incident mới; không thêm test riêng cho giá trị CSS.
+- Kiểm chứng source: chu kỳ 1600ms, độ trễ 240/480ms. Cổng `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs` chạy sau lần sửa cuối, kết quả trong output bàn giao. Chưa đánh giá trực quan trên trình duyệt hoặc kiểm API thật.
+
 | Claim | Bằng chứng |
 | --- | --- |
 | Xong (khi có code) | Dòng `VERIFY PASS …` trong lượt |
@@ -15,60 +24,36 @@ Lệnh chuẩn: `node scripts/verify.mjs` — chưa có code (`package.json`) �
 | AI layer nhất quán | `node scripts/check-ai-layer.mjs` exit 0 |
 
 ## Báo cáo cuối task
+
+### GitHub Actions chạy từ dev — 2026-10-20
+
+- Làn S: đổi bộ lọc push trong `.github/workflows/deploy.yml` từ `main` sang `dev`; giữ nguyên kích hoạt thủ công và các bước verify/deploy VPS.
+- Kiểm chứng local: chạy `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs` sau lần sửa cuối; kết quả trong output bàn giao và `verify.log`. Chưa commit/push, chưa chạy trên GitHub runner hoặc kiểm chứng deploy VPS.
+
+### Dọn CSS không dùng — Phase 1, 2026-10-19
+
+- Kế hoạch user duyệt: `docs/plans/active/2026-10-19-css-cleanup.md`; chỉ dọn kỹ thuật, giữ giao diện và dirty work. Xóa 95 rule, giảm 499 dòng ở 12 stylesheet; không xóa file hoặc đổi JSX/token/dependency.
+- Kiểm chứng cấu trúc: AST giữ nguyên mọi rule/declaration/thứ tự ngoài danh sách xóa; hash tracked file ngoài phạm vi giữ nguyên. Reviewer độc lập không tìm thấy consumer bị bỏ sót, kể cả template class và selector ghép.
+- Chrome mock riêng, 23 màn ở 1440/768 và ba trạng thái tương tác: 49/49 ca giữ nguyên computed style/hình học; không có selector đã xóa khớp DOM hoặc runtime exception. Modal/Escape, bốn loại toast và focus bàn phím hoạt động.
+- PNG: 5/49 ảnh trùng pixel tuyệt đối; 49/49 ảnh không lệch quá 2/255 mỗi kênh RGB, tối đa 145 pixel/ảnh (0,0112%) khác do raster chữ. Đã bỏ nhiễu từ full-page screenshot/scrollbar, loading và HMR bằng kiểm lại viewport trên cùng DOM ổn định; không gọi toàn bộ ảnh là trùng tuyệt đối.
+- Suite ghi nhận trong `verify.log`: menu 46, kitchen 37, merge 38 đều đạt, 0 fail/skip; lint/format/build đạt. `check-ai-layer`: 0 lỗi/18 cảnh báo hiện hữu. Cổng đầy đủ được chạy lại sau khi ghi log này; xem output bàn giao cuối.
+- Bằng chứng ảnh/JSON/snapshot ở thư mục tạm `carenest-css-cleanup-9c9b06d931ea4fecb3080c1e89578396`; ma trận, thống kê và giới hạn trong Progress log của plan. Không kiểm BE thật hoặc triển khai; Phase 2 chờ review.
+
+### Khoảng cách card Quy trình bếp — 2026-10-19
+
+- User báo khối Thực đơn trong ngày dính card phía trên tại `/kitchen/preparation`. Chrome mock đo gap trước sửa: 0px.
+- Sửa hẹp `KitchenFlowPage.jsx`: dùng utility `mb-16` có sẵn (`--space-4`) ở hàng `.db-board`; không đổi CSS dùng chung, dữ liệu hoặc hành vi. Kiểm lại khoảng cách bằng bounding rect trên Chrome, cổng đầy đủ `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs`; kết quả cuối trong báo cáo bàn giao/`verify.log`.
+
+### Bằng chứng thực đơn dị ứng — 2026-10-19
+
+- Mock repository: `tests/kitchen/published-allergy-menu.test.mjs` ban đầu 0/3, bổ sung read model đạt 3/3; thêm ca legacy tái hiện 3/4 rồi fix đạt 4/4. Bao phủ đổi/bỏ món, nhiều phương án, bữa không đổi, dữ liệu legacy, scope campus/nhóm tuổi, 403 và trường dữ liệu tối thiểu.
+- `node scripts/verify.mjs` sau bổ sung fallback legacy: `VERIFY PASS full`, menu 46 + kitchen 37 + merge 38 = 121 test; lint/format/build đạt. Chạy lại sau chỉnh docs cuối, output tại `verify.log` và báo cáo bàn giao.
+- Chrome `localhost:5173`, mock, PHT campus 1, ngày 21/10/2026: Theo ngày, Theo tuần và `/kitchen/preparation` đều có dòng thay món + lý do; nút mắt mở bảng tên/lớp/dị ứng đúng nhóm. Escape và nút Đóng đóng modal; đổi nhóm tuổi về Nhà trẻ không còn modal/dòng dị ứng của Mẫu giáo lớn.
+- Quy trình bếp 375px: body 365px, modal khoảng 317px; 768px: body 758px. Theo ngày/tuần 375px: bảng cuộn trong khung, body không vượt viewport sau khi layout ổn định. Viewport đã reset. Không reset DB/session demo của user.
+- Review độc lập phát hiện thiếu tên món legacy, đã sửa và review lại không còn lỗi quan trọng. Chưa kiểm UI Principal/bếp, BE thật hoặc scope enrollment lịch sử. `check-ai-layer`: lần đầu thiếu dòng incident đúng định dạng bảng, đã sửa index và đạt 0 lỗi/18 cảnh báo; chạy lại sau docs cuối.
+
 ```text
 Làn S (≤3 dòng):  Đã làm: … · Verify: <dòng VERIFY | chưa chạy — lý do> · Memory: <chỉ khi có trigger>
 Làn M (≤8 dòng):  Đã làm · Rule/AC · Verify · Chưa kiểm chứng (trình duyệt, BE thật) · Chờ BE · Memory
 Làn L:            ghi đủ vào Progress log của plan; chat chỉ tóm tắt + link plan
 ```
-
-## Auth gateway integration2026-10-12
-
-40 Node auth tests pass (0fail/skip); full FE verify pass test+lint+format+build. Isolated real HTTP auth9/9 pass, runtimecleaned. BrowserUI chưa kiểm chứng: CUA iab/chrome unavailable. Source/details/limits: [báo cáo](reports/2026-10-12-react-auth-integration.md).
-
-## Sidebar route selection 2026-10-18
-
-Regression `tests/menu/sidebar-selection.test.mjs`: fail trước fix (2/2) và pass sau fix (2/2). Chrome local mock: `/kitchen/meal-count` và `/children/new` mỗi trang chỉ có một mục active; click đóng nhóm Bếp giữ `aria-expanded=false`; lazy loading xuất hiện ngắn rồi biến mất. `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs`: xem output của lượt chạy cuối.
-
-## Khu Con người 2026-10-18
-
-`node scripts/verify.mjs` → `VERIFY PASS full`. `node scripts/check-ai-layer.mjs` → 0 lỗi, 4 cảnh báo có sẵn. Chrome mock: bốn tab, ma trận full catalog PHT/GV, modal thêm nhân sự và roster đã kiểm; viewport 375/768/1280, document width không vượt viewport. API thật với auth mock: `VITE_PEOPLE_CONTRACT_READY=false` hiện trạng thái chờ contract, không gọi endpoint mới. Chưa kiểm E2E BE thật: `GET /accounts?staffOnly=true` và `GET /staff-assignments/roster` chưa có trong BE.
-
-## Mock seed backfill 2026-10-18
-
-Legacy kitchen DB regression `tests/kitchen/mock-seed-backfill.test.mjs`: fail before fix on missing finalized stock-count history; pass after one-time seed migration. `npm.cmd run test:kitchen`: 31/31 pass. `node scripts/verify.mjs`: VERIFY PASS full. `node scripts/check-ai-layer.mjs`: 0 errors, 4 existing warnings.
-
-Chrome local mock: `/kitchen/forecast` showed weekly serving grid and order table; `/kitchen/stock-issues` showed dated issue rows; `/kitchen/stock-counts` showed a finalized sample count. The reported generic error message was not reproduced in this browser session; other routes were smoke-checked by role-visible navigation, not exhaustively exercised in every role.
-
-## Mock seed migrations across modules 2026-10-18
-
-`tests/mocks/mock-seed-migration.test.mjs`: 3/3 pass (legacy base lists, school classes/children, versioned empty-collection migration preserving non-empty data). `tests/kitchen/mock-seed-backfill.test.mjs`: 1/1 pass. `npm.cmd run test:kitchen`: 31/31 pass. Final `node scripts/verify.mjs`: VERIFY PASS full.
-
-Chrome local mock smoke: school class, menu week, facility inspection, assessment periodic, child health trend, kitchen forecast/count routes loaded without the reported generic error; loading was allowed to finish before observation. The exact error string was not reproduced in this browser session.
-
-## Principal kitchen campus fallback 2026-10-18
-
-Regression `tests/kitchen/kitchen-campus.test.mjs`: 2/2 pass. CUA with isolated mock Principal and `campusId=null`: `/kitchen/food-samples` selected Campus 1 and rendered its empty-state/history without ErrorBoundary; `/kitchen/forecast` also rendered after adding a guard for the first render while master data/query loads. No real browser profile data was reset.
-
-### People list workspace alignment 2026-10-18
-
-People tabs use one shared inline navigation style. Staff and child lists keep a single large list card; parent activation now groups the tabs, campus/class selection, and account table in one large card. Chrome local mock screenshots verified the staff and parent layouts. Focused Prettier and ESLint checks passed for the changed UI files. `node scripts/verify.mjs` was rerun and reported `VERIFY FAIL full`: repository format check stops on existing `src/pages/kitchen/KitchenFlowPage.jsx`; full build did not run.
-
-### People tab corner spacing 2026-10-18
-
-Added consistent 16px horizontal inset to the embedded tab labels. Staff and parent tab rails now extend to the card edges while retaining the same label inset as the child list. Browser mock comparison confirmed the tab rail bounds and label positions match across all three routes.
-
-### Shared people list card wrapper 2026-10-18
-
-Applied the same explicit `people-list-workspace` card class to staff, parent, and child list routes. The active workspace card contains the people tabs and list content; local Chrome mock verified the staff and parent wrappers render with the shared white surface, border, radius, and shadow. Checks for this correction are recorded after execution.
-
-Final correction result: `node scripts/verify.mjs` -> `VERIFY PASS full`; focused Prettier and ESLint checks passed; `node scripts/check-ai-layer.mjs` -> 0 errors, 4 existing warnings.
-
-2026-10-18 final card visibility adjustment: strengthened the shared workspace border to the design-system strong border token and used the existing elevated card shadow for all three people lists. Local mock screenshot confirmed the staff card on `/school/staff`; `node scripts/verify.mjs` -> `VERIFY PASS full`.
-
-### People summary cards 2026-10-18
-
-Added four large summary cards above the workspace on the Staff and Parent tabs, reusing the Child tab's card styling. Staff counts come from paginated `totalElements` queries; Parent counts come from the scoped child list and populated class groups. Chrome mock displayed the Staff cards (15 total, 15 active, 0 locked, 8 teachers) and Parent cards (24 children, 18 linked, 6 missing, 4 classes) at 1024 px. Campus-switch interaction and BE-live values were not verified in this browser pass.
-
-### Staff summary cards across routes 2026-10-18
-
-Chrome local mock, Principal: before fix, `/school/staff/assignments` loaded a roster without summary cards. After sharing the component, clicking `Danh sách nhân sự → Phân công theo nơi → Danh sách nhân sự → Phân công theo nơi` retained all four cards on both routes. In the roster, campus 1 showed 9 total/5 teachers and campus 2 showed 4 total/2 teachers after loading; changing campus briefly showed placeholders rather than stale counts. Live BE values were not tested.

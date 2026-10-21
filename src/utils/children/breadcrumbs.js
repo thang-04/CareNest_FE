@@ -6,3 +6,6 @@ export const childrenCrumbs = (...items) => [
 ];
 
 export const childCrumb = (child) => (child ? { label: child.fullName, to: `/children/${child.id}` } : null);
+
+/** Breadcrumb đợt khám: healthCheckCrumbs({ label, to }, 'Trang cuối'). */
+export const healthCheckCrumbs = (...items) => childrenCrumbs({ label: 'Đợt khám sức khỏe', to: '/children/health-checks' }, ...items);

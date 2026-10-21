@@ -41,22 +41,17 @@
 
 .kb-short {
   color: var(--danger-700);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .kb-over {
   color: var(--warning-700);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 .kb-row--short {
   background: var(--danger-25);
 }
 
-.kb-menu-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--space-3);
-}
 .kb-menu {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -86,9 +81,132 @@
   overflow-wrap: anywhere;
 }
 
-.kb-week {
+.kb-menu-table {
+  table-layout: fixed;
+}
+.kb-menu-table--week {
+  min-width: 960px;
+}
+.kb-menu-table--day {
+  min-width: 720px;
+}
+.kb-menu-table th,
+.kb-menu-table td {
+  vertical-align: top;
+}
+.kb-menu-table th small {
+  display: block;
+  font-weight: var(--fw-regular);
+  color: var(--color-text-secondary);
+}
+.kb-menu-table__session {
+  width: 110px;
+}
+.kb-menu-table__group {
+  width: 170px;
+}
+.kb-menu-table__dish {
+  width: 30%;
+}
+/* Ô gộp hàng ở cột trái: grid chỉ kẻ td + td nên các hàng sau thiếu vạch dọc bên cạnh */
+.kb-menu-table tbody .kb-menu-table__session,
+.kb-menu-table--day tbody .kb-menu-table__group {
+  border-right: 1px solid var(--color-text-disabled);
+}
+.kb-menu-table__type {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+.kb-menu-table__chip {
+  margin-left: var(--space-1);
+}
+.kb-day-menu {
+  min-width: 720px;
+  table-layout: fixed;
+}
+.kb-day-menu td {
+  vertical-align: top;
+}
+.kb-day-menu__group {
+  width: 190px;
+}
+/* Món trong ô nối thành dòng chữ "A · B · C" để bảng thấp, đọc lướt nhanh */
+.kb-day-menu .kb-dishes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-1);
+}
+.kb-day-menu .kb-dishes li + li::before {
+  content: '·';
+  margin-right: var(--space-1);
+  color: var(--color-text-muted);
+  font-weight: var(--fw-regular);
+}
+/* Món có chất gây dị ứng: chữ cam như chip cảnh báo cũ */
+.kb-day-menu__allergen {
+  color: var(--tone-orange-fg);
+  font-weight: var(--fw-semibold);
+}
+.table.table--grid .kb-tr--allergy td {
+  background: var(--warning-25);
+}
+
+.kb-menu-changes {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  white-space: normal;
+}
+.kb-menu-change {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius);
+  background: var(--warning-25);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+.kb-menu-change__title,
+.kb-menu-change__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.kb-menu-change__title {
+  color: var(--warning-700);
+  font-weight: var(--fw-semibold);
+}
+.kb-menu-change__dishes {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.kb-menu-change__dishes li + li {
+  margin-top: var(--space-1);
+}
+.kb-menu-change__meta .btn {
+  white-space: normal;
+  text-align: left;
+}
+/* Trong hàng thay đổi dị ứng riêng: hàng đã tô nền nên bỏ khung, giữ vạch ngăn khi một ô có nhiều thay đổi */
+.kb-menu-changes--compact {
+  margin-top: 0;
+  gap: var(--space-3);
+}
+.kb-menu-changes--compact .kb-menu-change {
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.kb-menu-changes--compact .kb-menu-change + .kb-menu-change {
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--warning-border);
+}
+.kb-menu-table__type--change {
+  color: var(--warning-700);
 }
 
 .kb-cell-wrap {
@@ -183,7 +301,7 @@
   align-items: center;
   gap: var(--space-1);
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 /* Ô ký trên các phiếu in */
@@ -213,11 +331,6 @@
 /* Dự trù & đi chợ theo tuần */
 .kb-toolbar--center {
   align-items: center;
-}
-.kb-week-nav {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
 }
 .kb-stack {
   display: grid;
@@ -253,18 +366,25 @@
   white-space: normal;
   min-width: 120px;
 }
-.kb-col-today {
+/* Bảng kẻ ô ép nền trắng cho ô thân bảng; cột hôm nay và dòng lệch cần selector mạnh hơn */
+.table.table--grid td.kb-col-today {
   background: var(--color-primary-soft);
 }
+/* Chấm "đã sửa" đè góc ô nhập, không chiếm chỗ để mép ô thẳng với tiêu đề cột căn phải */
 .kb-fc__cell {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
 }
 .kb-fc__input {
   width: 64px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+.kb-fc__cell .kb-fc__mark {
+  position: absolute;
+  top: calc(var(--space-1) * -0.5);
+  right: calc(var(--space-1) * -0.5);
 }
 .kb-fc__mark {
   display: inline-block;
@@ -310,7 +430,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   gap: var(--space-4);
-  align-items: start;
 }
 
 /* Kiểm nhận hàng tươi */
@@ -410,10 +529,10 @@
   color: var(--color-danger-fg);
   font-weight: var(--fw-semibold);
 }
-.kb-tr--warn td {
+.table.table--grid .kb-tr--warn td {
   background: var(--color-warning-bg);
 }
-.kb-tr--danger td {
+.table.table--grid .kb-tr--danger td {
   background: var(--color-danger-bg);
 }
 .kb-fr__reason {
@@ -638,4 +757,38 @@
 }
 .kb-lot-input {
   width: 110px;
+}
+
+/* Tiện ích nhỏ thay style inline */
+.kb-chip-after {
+  margin-left: var(--space-1-5);
+}
+.kb-block {
+  display: block;
+}
+.kb-card-error {
+  padding: 0 var(--space-4);
+}
+.page-actions.kb-actions--flush {
+  margin-top: 0;
+}
+
+/* Phiếu nhập: fieldset chỉ để khóa cả phiếu đã xác nhận, bỏ viền/lề mặc định */
+.kb-receipt-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/* Chọn lô cho phiếu xuất: mỗi thực phẩm một khối */
+.kb-alloc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Ô chiếm hết hàng trong form lưới 2 cột (địa chỉ NCC) */
+.kb-span-all {
+  grid-column: 1 / -1;
 }

@@ -11,13 +11,16 @@ globalThis.localStorage = {
 globalThis.window = new EventTarget();
 
 const { kitchenMockRepository: repo } = await import('@/services/kitchen/mock/kitchenMockRepository');
+const { attendanceMockRepository: attendance } = await import('@/services/attendance/mock/attendanceMockRepository');
+const { readDb } = await import('@/mocks/mockDatabase');
 
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL', campusId: 'c1' };
 const PRINCIPAL = { id: 'u_principal', role: 'PRINCIPAL', campusId: null };
 const COOK_A = { id: 'u_cook_a', role: 'KITCHEN_STAFF', campusId: 'c1' };
 const COOK_B = { id: 'u_cook_b', role: 'KITCHEN_STAFF', campusId: 'c2' };
 // Ngày học trong tuần đã xuất bản của dữ liệu mẫu, đã qua nên có số suất chốt (như market-list.test)
-const SEED_DATE = '2026-10-06';
+await attendance.getDayInfo(new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }));
+const SEED_DATE = readDb().mealCounts.find((count) => count.campusId === 'c1' && count.status === 'CONFIRMED').date;
 
 const rejects = (promise, status) => assert.rejects(promise, (err) => err.status === status);
 

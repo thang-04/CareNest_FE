@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Bowl, ChevronDown, Copy, Plus, Save, Sparkles, Trash2, X } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -74,13 +74,18 @@ export default function MenuFormPage() {
 
   // Mở từ màn gợi ý AI cũ (?aiDraftId=) vẫn nạp bản nháp vào trang này
   useEffect(() => {
-    if (id || !aiDraftId) return;
+    if (id || !aiDraftId) return undefined;
+    let ignore = false; // đổi bản nháp/rời trang ⇒ bỏ kết quả cũ
     getAiDraft(aiDraftId, user)
       .then((d) => {
+        if (ignore) return;
         setAiDraft(d);
         setForm((f) => ({ ...f, ageGroupId: d.ageGroupId, meals: d.meals, name: f.name || 'Thực đơn từ gợi ý AI' }));
       })
-      .catch((err) => toast.error(err.message, 'Không mở được bản nháp AI'));
+      .catch((err) => !ignore && toast.error(err, 'Không mở được bản nháp AI'));
+    return () => {
+      ignore = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiDraftId, id]);
 
@@ -146,7 +151,7 @@ export default function MenuFormPage() {
       navigate('/menu/menus');
     } catch (err) {
       if (err.details) setServerErrors(err.details);
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
     } finally {
       setBusy(false);
     }
@@ -169,7 +174,7 @@ export default function MenuFormPage() {
       </div>
     );
 
-  // Món chứa chất mà nhóm có trẻ dị ứng: hiện số trẻ ngay trong dòng món
+  // Món chứa chất mà nhóm có trẻ dị ứng: hiện số trẻ ở dòng phụ ngay dưới món
   const allergyNote = (dish, session) =>
     dishAllergens(dish, catalog.foodById)
       .map((a) => {
@@ -306,13 +311,13 @@ export default function MenuFormPage() {
                     </div>
                     {show(`meal_${m.code}`) && <p className="field__error td-card-error">{show(`meal_${m.code}`)}</p>}
                     <div className="table-wrap">
-                      <table className="table td-meal-table">
+                      <table className="table table--grid td-meal-table">
                         <thead>
                           <tr>
                             <th>Món ăn</th>
                             <th>Loại</th>
-                            <th className="right">Kcal</th>
-                            <th className="right">Thành tiền</th>
+                            <th className="num">Kcal</th>
+                            <th className="money">Thành tiền</th>
                             <th className="td-num-col" aria-label="Bỏ món" />
                           </tr>
                         </thead>
@@ -322,32 +327,40 @@ export default function MenuFormPage() {
                               const t = dish ? dishTotals(dish, catalog.foodById, it.portion, form.ageGroupId) : null;
                               const notes = dish ? allergyNote(dish, m.code) : [];
                               return (
-                                <tr key={`${it.dishId}-${i}`}>
-                                  <td>
-                                    <span className="fw-600">{dish?.name || 'Món đã xóa'}</span>
-                                    {notes.map((x) => (
-                                      <span key={x.a} className="text-xs td-bad td-dish-allergy">
-                                        <AlertTriangle size={12} /> {x.kids} trẻ dị ứng {x.a.toLowerCase()}
-                                        {x.swap && ` → ${x.swap}`}
-                                      </span>
-                                    ))}
-                                  </td>
-                                  <td className="text-sm">{DISH_TYPE_LABELS[dish?.type] || '—'}</td>
-                                  <td className="right nowrap">
-                                    {t ? t.noQuantity ? <span className="td-warn">Thiếu</span> : kcalOf(t) : '—'}
-                                  </td>
-                                  <td className="right nowrap">{t ? formatMoney(t.cost) : '—'}</td>
-                                  <td className="td-num-col">
-                                    <button
-                                      type="button"
-                                      className="icon-btn"
-                                      aria-label={`Bỏ ${dish?.name || 'món'}`}
-                                      onClick={() => setMealItems(m.code, (list) => list.filter((_, j) => j !== i))}
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
-                                  </td>
-                                </tr>
+                                <Fragment key={`${it.dishId}-${i}`}>
+                                  <tr>
+                                    <td>
+                                      <span className="fw-600">{dish?.name || 'Món đã xóa'}</span>
+                                    </td>
+                                    <td className="text-sm">{DISH_TYPE_LABELS[dish?.type] || '—'}</td>
+                                    <td className="num nowrap">
+                                      {t ? t.noQuantity ? <span className="td-warn">Thiếu</span> : kcalOf(t) : '—'}
+                                    </td>
+                                    <td className="money nowrap">{t ? formatMoney(t.cost) : '—'}</td>
+                                    <td className="td-num-col">
+                                      <button
+                                        type="button"
+                                        className="icon-btn"
+                                        aria-label={`Bỏ ${dish?.name || 'món'}`}
+                                        onClick={() => setMealItems(m.code, (list) => list.filter((_, j) => j !== i))}
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                  {notes.length > 0 && (
+                                    <tr className="td-meal-table__allergy">
+                                      <td colSpan={5}>
+                                        {notes.map((x) => (
+                                          <span key={x.a} className={`td-dish-allergy ${x.swap ? '' : 'td-dish-allergy--missing'}`}>
+                                            <AlertTriangle size={12} aria-hidden="true" /> {x.kids} trẻ dị ứng {x.a.toLowerCase()}
+                                            {x.swap ? ` → ${x.swap}` : ' · chưa có suất thay thế'}
+                                          </span>
+                                        ))}
+                                      </td>
+                                    </tr>
+                                  )}
+                                </Fragment>
                               );
                             })
                           ) : (

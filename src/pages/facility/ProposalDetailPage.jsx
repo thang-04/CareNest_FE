@@ -73,7 +73,7 @@ export default function ProposalDetailPage() {
       setModal(null);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message, 'Không thực hiện được');
+      toast.error(err, 'Không thực hiện được');
       throw err;
     }
   };
@@ -83,12 +83,10 @@ export default function ProposalDetailPage() {
       <Breadcrumb items={proposalCrumbs(`Đề xuất ${p.code}`)} />
       <div className="page__head">
         <div>
-          <h1 className="page__title" style={{ marginBottom: 6 }}>
-            Đề xuất {p.code}
-          </h1>
+          <h1 className="page__title">Đề xuất {p.code}</h1>
           <ProposalStatusBadge status={p.status} size="lg" />
         </div>
-        <div className="row row--wrap" style={{ gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+        <div className="row row--wrap gap-2 bh-head-actions">
           {canCancelProposal(p, user) && (
             <button className="btn btn--outline-danger" onClick={() => setModal('cancel')}>
               <XCircle size={16} /> Hủy đề xuất
@@ -112,7 +110,7 @@ export default function ProposalDetailPage() {
         </div>
       </div>
 
-      <div className="card mt-16" style={{ padding: '20px 24px' }}>
+      <div className="card card--timeline mt-16">
         <ProgressSteps steps={steps} cancelled={[PROPOSAL_STATUS.REJECTED, PROPOSAL_STATUS.CANCELLED].includes(p.status)} />
       </div>
 
@@ -170,7 +168,7 @@ export default function ProposalDetailPage() {
                   <dt>Người lập:</dt>
                   <dd>{name(p.createdBy)} (Phó hiệu trưởng)</dd>
                   <dt>Lý do / căn cứ:</dt>
-                  <dd style={{ whiteSpace: 'pre-line' }}>{p.reason || '—'}</dd>
+                  <dd className="bh-pre-line">{p.reason || '—'}</dd>
                 </dl>
               </div>
             </div>
@@ -180,16 +178,16 @@ export default function ProposalDetailPage() {
             <div className="card__header">
               <h2 className="card__title">Tài sản đề xuất ({p.lines.length})</h2>
             </div>
-            <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-              <table className="table">
+            <div className="table-wrap">
+              <table className="table table--grid">
                 <thead>
                   <tr>
                     <th>#</th>
                     <th>Nguồn</th>
                     <th>Tài sản</th>
                     <th>Lớp/phòng</th>
-                    <th className="right">Số lượng</th>
-                    <th className="right">Dự toán</th>
+                    <th className="num">Số lượng</th>
+                    <th className="money">Dự toán</th>
                     <th>Ghi chú</th>
                   </tr>
                 </thead>
@@ -212,10 +210,10 @@ export default function ProposalDetailPage() {
                         <td>
                           {l.locationId ? locationLabel(md.locationById(l.locationId)) : <span className="muted">Dùng chung campus</span>}
                         </td>
-                        <td className="right nowrap">
+                        <td className="num nowrap">
                           {l.quantity} <span className="muted">{l.unit}</span>
                         </td>
-                        <td className="right nowrap">{formatMoney(l.estimatedCost)}</td>
+                        <td className="money nowrap">{formatMoney(l.estimatedCost)}</td>
                         <td className="bh-cell-wrap text-sm">{l.note || '—'}</td>
                       </tr>
                     );

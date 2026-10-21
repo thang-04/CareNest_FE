@@ -40,7 +40,7 @@ export function ReferenceLibraryPanel({ open, onClose, groups, canCopy }) {
       onClose();
       navigate(`/menu/dishes/${dish.id}/edit`);
     } catch (err) {
-      toast.error(err.message, 'Không chép được món');
+      toast.error(err, 'Không chép được món');
       setPicked(null);
     }
   };
@@ -103,12 +103,12 @@ export function ReferenceLibraryPanel({ open, onClose, groups, canCopy }) {
               </div>
               {openIds.includes(d.id) && (
                 <div className="table-wrap">
-                  <table className="table table--compact">
+                  <table className="table table--grid table--compact">
                     <thead>
                       <tr>
                         <th>Thành phần</th>
                         {groups.map((g) => (
-                          <th key={g.id} className="right">
+                          <th key={g.id} className="num">
                             {ageAbbr(g.id)}
                           </th>
                         ))}
@@ -122,7 +122,7 @@ export function ReferenceLibraryPanel({ open, onClose, groups, canCopy }) {
                             {!i.inCatalog && <span className="chip chip--orange td-lib-new">Trường chưa có</span>}
                           </td>
                           {groups.map((g) => (
-                            <td key={g.id} className="right nowrap">
+                            <td key={g.id} className="num nowrap">
                               {i.portions[g.id]} {i.unit}
                             </td>
                           ))}
@@ -133,7 +133,7 @@ export function ReferenceLibraryPanel({ open, onClose, groups, canCopy }) {
                       <tr>
                         <td>Năng lượng 1 suất</td>
                         {groups.map((g) => (
-                          <td key={g.id} className="right nowrap">
+                          <td key={g.id} className="num nowrap">
                             {d.kcal[g.id]} kcal
                           </td>
                         ))}

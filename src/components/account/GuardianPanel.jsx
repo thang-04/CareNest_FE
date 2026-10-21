@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { KeyRound, Lock, Printer, Trash2, Unlock, UserPlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -14,12 +14,9 @@ import { GUARDIAN_RELATIONSHIPS, GUARDIAN_RELATIONSHIP_LABELS } from '@/models/a
 import { validateGuardian } from '@/utils/account/guardianValidation';
 import { avatarTone, formatDate, initials } from '@/utils/format';
 
-const EMPTY_FORM = { phone: '', fullName: '', relationship: 'MOTHER' };
+const EMPTY_FORM = { phone: '', fullName: '', email: '', relationship: 'MOTHER' };
 
-/**
- * Phụ huynh của một bé (BE AUTH-18, AUTH-19): xem, thêm (SĐT), gỡ, khóa/mở, cấp lại mật khẩu tạm.
- * Mật khẩu tạm chỉ hiện một lần trong phiếu in; không lưu ở đâu.
- */
+// Quản lý tài khoản demo qua adapter legacy; chưa nối hợp đồng BE/App.
 export function GuardianPanel({ child, classroomName, onChanged, initialAdding = false, _isModal = false }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -30,6 +27,7 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [slip, setSlip] = useState(null);
+  const submitting = useRef(false);
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -43,9 +41,11 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
 
   const add = async (e) => {
     e.preventDefault();
+    if (submitting.current) return;
     const found = validateGuardian(form);
     setErrors(found);
     if (Object.keys(found).length) return;
+    submitting.current = true;
     setSaving(true);
     try {
       const created = await addGuardian(child.id, form, user);
@@ -57,8 +57,9 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
       else toast.success('Số điện thoại đã có tài khoản phụ huynh; đã liên kết thêm bé này, mật khẩu giữ nguyên.');
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không thêm được phụ huynh');
+      toast.error(err, 'Không thêm được phụ huynh');
     } finally {
+      submitting.current = false;
       setSaving(false);
     }
   };
@@ -72,7 +73,7 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
       return result;
     } catch (err) {
       setConfirm(null);
-      toast.error(err.message, 'Không thực hiện được');
+      toast.error(err, 'Không thực hiện được');
       return null;
     }
   };
@@ -107,7 +108,7 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
       : confirm.type === 'password'
         ? {
             title: 'Cấp mật khẩu mới và in phiếu',
-            message: `Cấp mật khẩu tạm mới cho ${target.fullName}? Phiếu cũ hết hiệu lực, mọi phiên đăng nhập đang mở bị hủy.`,
+            message: `Cấp mật khẩu tạm demo mới cho ${target.fullName}? Chưa tác động phiên đăng nhập trên App thật.`,
           }
         : {
             title: target.status === 'ACTIVE' ? 'Khóa tài khoản phụ huynh' : 'Mở khóa tài khoản phụ huynh',
@@ -188,7 +189,10 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
                   ))}
                 </select>
               </FormField>
-              <div className="row" style={{ gap: 8 }}>
+              <FormField label="Email liên hệ" error={errors.email} hint="Không bắt buộc; giữ để liên hệ và thông báo demo.">
+                <input className="input" type="email" value={form.email} maxLength={150} onChange={(e) => set({ email: e.target.value })} />
+              </FormField>
+              <div className="row gap-2">
                 {guardians.length > 0 && (
                   <button className="btn" type="button" onClick={() => setAdding(false)}>
                     Hủy
@@ -221,7 +225,7 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
   );
 }
 
-/** Phiếu tài khoản để in giao phụ huynh; đóng là mất mật khẩu (không lưu ở đâu). */
+// Phiếu minh họa: không dùng thông tin thật, không xác nhận đăng nhập App.
 export function AccountSlip({ slip, child, classroomName, onClose }) {
   return (
     <Modal
@@ -268,15 +272,14 @@ export function AccountSlip({ slip, child, classroomName, onClose }) {
               <tr>
                 <th>Mật khẩu tạm</th>
                 <td>
-                  <b style={{ fontFamily: 'monospace', fontSize: 18, letterSpacing: 1 }}>{slip.password}</b>
+                  <b className="pa-slip__password">{slip.password}</b>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
         <div className="ps-section">
-          Hướng dẫn: mở ứng dụng CareNest, đăng nhập bằng số điện thoại và mật khẩu tạm ở trên; hệ thống sẽ yêu cầu đặt mật khẩu mới. Không
-          chia sẻ phiếu này cho người khác.
+          Phiếu minh họa giao diện Web, chưa kết nối đăng nhập ứng dụng CareNest. Chỉ sử dụng dữ liệu demo, không dùng mật khẩu thật.
         </div>
       </div>
     </Modal>

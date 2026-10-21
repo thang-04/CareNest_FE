@@ -140,3 +140,7 @@ Repo chưa có framework test ⇒ kiểm chứng = verify + Playwright + kiểm 
 - Kiểm Playwright: HT mở từ menu ⇒ chọn Cố định, ghim "Đi thăm sở thú", Lưu ⇒ toast + `--scene-bg` đổi sang so-thu; tắt hết tranh ⇒ báo "Cần bật ít nhất một tranh"; GV mở thẳng URL ⇒ chỉ xem (radio/công tắc khóa, không có nút Lưu); không lỗi console.
 - Verify: xem dòng VERIFY.
 - Còn lại: BE chưa có `GET/PUT /school/appearance` (đang PROPOSED, chạy mock).
+
+### 2026-10-20 — Khác plan (do plan `2026-10-20-ui-feedback-docx.md`)
+
+- Bỏ dải đầu trang có tranh trên mọi trang (góp ý docx, user duyệt). Tranh chọn vẫn làm nền app (`.app-shell`), dải chào dashboard, màn trống. Màn Tùy chỉnh giao diện xem trước tranh hôm nay bằng ảnh nhỏ thay dải.

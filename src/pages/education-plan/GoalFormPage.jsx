@@ -1,102 +1,87 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  ChevronDown,
-  ChevronRight,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  Download,
-  Pencil,
-  Plus,
-  Save,
-  Send,
-  Trash2,
-} from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Check, Download, FileDown, Printer, Save, Send, Upload } from '@/components/ui/icons';
+import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { ROLES } from '@/models/User';
+import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE, isStandardDomain } from '@/models/education-plan/educationPlanConstants';
 import {
-  AGE_GROUPS,
-  DOMAINS,
-  EDU_STATUS,
-  SCHOOL_SCOPE,
-  domainLabel,
-  isStandardDomain,
-  prefixOf,
-  suggestRequirementCode,
-} from '@/models/education-plan/educationPlanConstants';
-import { DomainTitle, Group } from '@/components/education-plan/PlanWidgets';
+  goalIdsToTicks,
+  initialsOf,
+  isBlankBreak,
+  isBlankTheme,
+  nestUnderFirstSub,
+  numberGoals,
+  toRows,
+} from '@/models/education-plan/goalTable';
+import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
-import { Card, Field, Modal, Notice, PageHead, SignatureBox, Stepper, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, Field, Modal, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
 
 const suggestTitle = (year, ageGroupId) => {
   const ag = AGE_GROUPS.find((a) => a.id === ageGroupId);
-  return ag ? `Mục tiêu giáo dục năm học ${year} nhóm tuổi ${ag.name.split(' (')[0]}` : '';
+  return ag ? `Kế hoạch giáo dục năm học ${year} nhóm tuổi ${ag.name.split(' (')[0]}` : '';
 };
 
-const STEPS = ['Thông tin chung', 'Mục tiêu theo lĩnh vực', 'Xác nhận và ký'];
+const STEPS = ['Thông tin chung', 'Mục tiêu, nội dung và chủ đề', 'Xác nhận'];
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-const emptyDomain = (name) => ({ id: uid(), name, items: [{ id: uid(), text: '', requirements: [] }] });
-// Luôn đủ 5 lĩnh vực chuẩn theo đúng thứ tự; lĩnh vực khác (dữ liệu cũ) xếp cuối để chuyển mục tiêu rồi xóa.
+const emptyDomain = (name) => ({ id: uid(), name, rows: [] });
+// Luôn đủ 5 lĩnh vực theo thứ tự I–V; lĩnh vực khác (dữ liệu cũ) xếp cuối.
 const normalizeDomains = (domains) => [
   ...DOMAINS.map((name) => domains.find((d) => d.name === name) || emptyDomain(name)),
   ...domains.filter((d) => !isStandardDomain(d.name)),
 ];
+const cleanContents = (cs) => cs.filter((c) => c.text.trim()).map((c) => ({ ...c, text: c.text.trim() }));
+const editableStatus = (s) => !s || s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED;
 
-// Một dòng dán từ Word có thể là "TC1.1: Trẻ …" hoặc "TC1.1. Trẻ …": tách mã và câu YCCĐ.
-const CODE_LINE = /^\s*([A-Za-zĐđ]{1,4}\s?\d+(?:\.\d+)*(?:-[\p{L}\d]+)?)\s*[:.\-–]\s+(.+)$/u;
-const pastedLines = (e) =>
-  (e.clipboardData?.getData('text') || '')
-    .split(/\r?\n/)
-    .map((l) => l.replace(/^[\s\-•*+]+/, '').trim())
-    .filter(Boolean);
-
-const emptyForm = (schoolYear) => ({
-  title: '',
-  ageGroupId: '',
+const emptyForm = (schoolYear, ageGroupId = '') => ({
+  title: suggestTitle(schoolYear, ageGroupId),
+  ageGroupId,
   schoolYear,
   description: '',
-  domains: DOMAINS.map((name) => ({ id: uid(), name, items: [{ id: uid(), text: '', requirements: [] }] })),
-  signature: null,
+  domains: DOMAINS.map((name) => emptyDomain(name)),
+  themes: [],
+  breaks: [],
 });
 
+const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
+const NO_THEME_NOTE = 'Chưa có chủ đề. Thêm chủ đề ở tab "Chủ đề và sự kiện" để có cột tích chủ đề trong bảng này.';
+
+/** Lập / sửa kế hoạch giáo dục năm học của một nhóm tuổi theo mẫu MN Thái Dương (Phó HT và tổ trưởng cùng soạn). */
 export default function GoalFormPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const { goals, schoolYear, saveGoal, toast, user } = useEducationPlan();
   const navigate = useNavigate();
   const existing = goals.find((g) => g.id === id);
+  const isVp = user.role === ROLES.VICE_PRINCIPAL;
+  const isLeader = user.role === ROLES.TEAM_LEADER;
 
   const [form, setForm] = useState(() =>
     existing
       ? {
+          ...emptyForm(existing.schoolYear),
           ...existing,
-          domains: normalizeDomains(
-            existing.domains.map((d) => ({
-              ...d,
-              id: d.id || uid(),
-              items: d.items.map((it) => ({ ...it, requirements: it.requirements || [] })),
-            })),
+          // Bản nháp từng chọn mục tiêu cho chủ đề được đổi sang dấu tích ở cột "Chủ đề thực hiện"
+          ...goalIdsToTicks(
+            normalizeDomains(existing.domains.map((d) => ({ id: d.id || uid(), name: d.name, rows: toRows(d, uid) }))),
+            // Chủ đề chưa có tên viết tắt thì lấy chữ cái đầu của tên
+            (existing.themes || []).map((t) => ({ ...t, abbr: t.abbr || initialsOf(t.name) })),
           ),
-          signature: existing.signature || null,
+          breaks: existing.breaks || [],
         }
-      : emptyForm(schoolYear),
+      : emptyForm(schoolYear, isLeader ? user.ageGroupId : ''),
   );
+  // Mục tiêu là tab đầu (Tiền chọn 14/10); cột "Chủ đề thực hiện" hiện khi đã thêm chủ đề ở tab sau
+  const [tab, setTab] = useState('goals');
   const [step, setStep] = useState(() => (params.get('buoc') === 'ky' ? 2 : 0));
   const [maxReached, setMaxReached] = useState(existing ? 2 : 0);
   const [errors, setErrors] = useState({});
   const [confirm, setConfirm] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [removeDomain, setRemoveDomain] = useState(null);
-  // Bước 2 xem theo tab: 'all' hoặc id của một lĩnh vực.
-  const [tab, setTab] = useState(null);
-  // Tab cuối "Tất cả": mở cửa sổ lớn chứa mọi lĩnh vực, sửa được như trong từng tab.
-  const [showAll, setShowAll] = useState(false);
-  // Mục tiêu đang mở danh sách YCCĐ; mặc định thu gọn để nhìn được nhiều mục tiêu.
-  const [openReqs, setOpenReqs] = useState(() => new Set());
-  const [focusId, setFocusId] = useState(null);
+  const fileRef = useRef(null);
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -107,36 +92,38 @@ export default function GoalFormPage() {
     });
   };
   const ageName = AGE_GROUPS.find((a) => a.id === form.ageGroupId)?.name;
+  // Người tạo (tổ trưởng hoặc Phó HT) là người duy nhất sửa khi còn nháp; đang chờ duyệt thì Phó HT được tự sửa chỗ nhỏ
+  const owner = existing?.owner || null;
+  const isOwner = !owner || owner.userId === user.id;
+  const pendingEdit = isVp && existing?.status === EDU_STATUS.PENDING_VP;
+  const canEdit =
+    pendingEdit || (editableStatus(existing?.status) && isOwner && (isVp || (isLeader && form.ageGroupId === user.ageGroupId)));
 
-  let counter = 0;
-  const numbered = form.domains.map((d) => ({
-    ...d,
-    items: d.items.map((it) => ({ ...it, code: it.text.trim() ? `MT${++counter}` : '' })),
-  }));
-  const totalGoals = counter;
+  // Dòng chủ đề / đợt nghỉ còn trống (vừa Enter thêm) không tính vào kiểm tra, cột tích và bản lưu
+  const themes = form.themes.filter((t) => !isBlankTheme(t));
+  const breaks = form.breaks.filter((b) => !isBlankBreak(b));
+  const numbers = numberGoals(form.domains);
+  const csvName = `ke-hoach-nam-hoc-${form.schoolYear.replace(/\s/g, '')}.csv`;
+  const totalGoals = Object.keys(numbers).length;
 
   const validate = (s) => {
     const e = {};
     if (s === 0) {
-      if (!form.title.trim()) e.title = 'Nhập tên bộ mục tiêu';
+      if (!form.title.trim()) e.title = 'Nhập tên kế hoạch';
       if (!form.ageGroupId) e.ageGroupId = 'Chọn nhóm tuổi áp dụng';
       const dup = goals.find((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
-      if (form.ageGroupId && dup) e.ageGroupId = 'Nhóm tuổi này đã có mục tiêu năm học. Mở bộ mục tiêu đã có để chỉnh sửa.';
+      if (form.ageGroupId && dup) e.ageGroupId = 'Nhóm tuổi này đã có kế hoạch năm học. Mở kế hoạch đã có để chỉnh sửa.';
     }
     if (s === 1) {
-      if (totalGoals === 0) e.domains = 'Nhập ít nhất một mục tiêu';
-      else if (form.domains.some((d) => !isStandardDomain(d.name) && d.items.some((i) => i.text.trim())))
-        e.domains = 'Có lĩnh vực không thuộc 5 lĩnh vực của chương trình. Chuyển mục tiêu sang lĩnh vực phù hợp rồi xóa lĩnh vực đó.';
-      else {
-        const reqs = form.domains.flatMap((d) => d.items.filter((i) => i.text.trim()).flatMap((i) => i.requirements));
-        const codes = reqs.filter((r) => r.text.trim()).map((r) => r.code.trim());
-        const dup = codes.find((c, i) => c && codes.indexOf(c) !== i);
-        if (reqs.some((r) => r.text.trim() && !r.code.trim())) e.domains = 'Có YCCĐ chưa nhập mã.';
-        else if (dup) e.domains = `Mã YCCĐ “${dup}” bị trùng. Mỗi YCCĐ cần một mã riêng.`;
-      }
-    }
-    if (s === 2) {
-      if (!form.signature) e.signature = 'Ký xác nhận trước khi gửi tổ trưởng';
+      const abbrs = themes.map((t) => t.abbr.trim().toLowerCase());
+      if (themes.some((t) => !t.name.trim() || !t.abbr.trim()))
+        e.themes = 'Mỗi chủ đề cần có tên và tên viết tắt (dùng làm cột "Chủ đề thực hiện" ở bảng mục tiêu).';
+      else if (abbrs.some((a, i) => abbrs.indexOf(a) !== i)) e.themes = 'Tên viết tắt của các chủ đề bị trùng.';
+      else if (themes.some((t) => t.start && t.end && t.end < t.start)) e.themes = 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.';
+      else if (totalGoals === 0) e.domains = 'Nhập ít nhất một mục tiêu';
+      // Mở đúng tab đang có lỗi
+      if (e.themes) setTab('themes');
+      else if (e.domains) setTab('goals');
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -150,41 +137,54 @@ export default function GoalFormPage() {
     window.scrollTo({ top: 0 });
   };
 
-  const build = (status) => {
-    const today = new Date().toISOString().slice(0, 10);
+  const today = () => new Date().toISOString().slice(0, 10);
+  const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: today() };
+  const log = (action, note) => [...(form.history || []), { at: today(), by: user.name, action, ...(note ? { note } : {}) }];
+  const build = (status, extra = {}) => {
     const ag = AGE_GROUPS.find((a) => a.id === form.ageGroupId);
-    const agCode = (ag?.name || 'X')
+    const agCode = (ag?.name.split(' (')[0] || 'X')
       .split(' ')
       .map((w) => w[0])
       .join('')
       .slice(0, 3)
       .toUpperCase();
+    // Hàng trống không được lưu; số MT đánh lại liên tục cho các mục tiêu còn lại.
+    const domains = form.domains.map((d) => ({
+      id: d.id,
+      name: d.name,
+      rows: nestUnderFirstSub(
+        d.rows
+          .filter((r) => r.text.trim() || (r.kind === 'goal' && r.contents.some((c) => c.text.trim())))
+          .map((r) => ({ ...r, text: r.text.trim(), ...(r.kind === 'goal' ? { contents: cleanContents(r.contents) } : {}) })),
+      ),
+    }));
+    const nos = numberGoals(domains);
     return {
       id: form.id || `g-${uid()}`,
-      code: form.code || `MTNH-${form.schoolYear.slice(2, 4)}${form.schoolYear.slice(-2)}-${agCode}`,
+      code: form.code || `KHNH-${form.schoolYear.slice(2, 4)}${form.schoolYear.slice(-2)}-${agCode}`,
       schoolYear: form.schoolYear,
       ageGroupId: form.ageGroupId,
       title: form.title.trim(),
       description: form.description.trim(),
       status,
-      createdAt: form.createdAt || today,
-      sentAt: status === EDU_STATUS.SENT ? today : null,
-      createdBy: user.name,
+      createdAt: form.createdAt || today(),
+      sentAt: form.sentAt || null,
+      createdBy: form.createdBy || user.name,
+      owner: form.owner || me,
+      sentBy: form.sentBy || null,
+      issued: form.issued || null,
+      history: form.history || [],
       file: form.file || null,
-      signature: form.signature,
-      domains: numbered
-        .map((d) => ({
-          name: d.name,
-          items: d.items
-            .filter((i) => i.text.trim())
-            .map(({ id: itemId, code, text, requirements }) => ({
-              id: itemId,
-              code,
-              text: text.trim(),
-              requirements: requirements.filter((r) => r.text.trim()).map((r) => ({ id: r.id, code: r.code.trim(), text: r.text.trim() })),
-            })),
-        }))
-        .filter((d) => d.items.length),
+      themes: themes.map((t) => ({ ...t, name: t.name.trim(), abbr: t.abbr.trim() })),
+      breaks,
+      // items: danh sách mục tiêu (số MT, câu mục tiêu, nội dung) để các màn đọc mục tiêu năm vẫn dùng được
+      domains: domains.map((d) => ({
+        ...d,
+        items: d.rows
+          .filter((r) => r.kind === 'goal')
+          .map((r) => ({ id: r.id, code: `MT${nos[r.id]}`, text: r.text, contents: r.contents, requirements: [] })),
+      })),
+      ...extra,
     };
   };
 
@@ -194,353 +194,163 @@ export default function GoalFormPage() {
       validate(0);
       return;
     }
-    const item = build(EDU_STATUS.DRAFT);
+    // Phó HT tự sửa bản đang chờ duyệt: giữ trạng thái chờ, ghi lại lần sửa
+    const item = pendingEdit ? build(EDU_STATUS.PENDING_VP, { history: log('Phó hiệu trưởng chỉnh sửa') }) : build(EDU_STATUS.DRAFT);
     saveGoal(item);
-    toast('Đã lưu nháp mục tiêu năm học');
+    toast(pendingEdit ? 'Đã lưu chỉnh sửa' : 'Đã lưu nháp kế hoạch năm học');
     navigate(`/education/goals/${item.id}`);
   };
 
+  // send: tổ trưởng gửi Phó HT duyệt; issue: Phó HT duyệt ban hành (bản mình soạn hoặc bản đang chờ)
   const submit = () => {
-    const item = build(EDU_STATUS.SENT);
+    const item =
+      confirm === 'send'
+        ? build(EDU_STATUS.PENDING_VP, { sentAt: today(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt') })
+        : build(EDU_STATUS.APPROVED, { issued: me, history: log(pendingEdit ? 'Phó hiệu trưởng chỉnh sửa và ban hành' : 'Ban hành') });
     saveGoal(item);
     setConfirm(false);
-    toast(`Đã gửi mục tiêu năm học cho tổ trưởng ${ageName}`);
+    toast(confirm === 'send' ? 'Đã gửi Phó hiệu trưởng duyệt' : 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
     navigate(`/education/goals/${item.id}`);
   };
 
-  const updateItem = (di, ii, text) =>
-    set({
-      domains: form.domains.map((d, i) => (i !== di ? d : { ...d, items: d.items.map((it, j) => (j === ii ? { ...it, text } : it)) })),
-    });
-  const setRequirements = (di, ii, fn) =>
-    set({
-      domains: form.domains.map((d, i) =>
-        i !== di ? d : { ...d, items: d.items.map((it, j) => (j === ii ? { ...it, requirements: fn(it.requirements) } : it)) },
-      ),
-    });
-  const addRequirement = (di, ii) => insertRequirementsAfter(di, ii, null);
-  const updateRequirement = (di, ii, rid, patch) =>
-    setRequirements(di, ii, (list) => list.map((r) => (r.id === rid ? { ...r, ...patch } : r)));
-  const removeRequirement = (di, ii, rid) => setRequirements(di, ii, (list) => list.filter((r) => r.id !== rid));
-  const toggleReqs = (itemId) =>
-    setOpenReqs((s0) => {
-      const n = new Set(s0);
-      if (n.has(itemId)) n.delete(itemId);
-      else n.add(itemId);
-      return n;
-    });
-  const openReq = (itemId) => setOpenReqs((s0) => new Set(s0).add(itemId));
+  /* ---------- Nhập dữ liệu ---------- */
 
-  // Enter ở ô mục tiêu: thêm mục tiêu mới ngay bên dưới.
-  // replaceCurrent: dòng đầu ghi vào chính mục tiêu đang trống, các dòng sau chèn tiếp (một lần cập nhật).
-  const insertItemAfter = (di, ii, texts = [''], replaceCurrent = false) => {
-    const rest = replaceCurrent ? texts.slice(1) : texts;
-    const fresh = rest.map((text) => ({ id: uid(), text, requirements: [] }));
-    set({
-      domains: form.domains.map((d, i) => {
-        if (i !== di) return d;
-        const items = [...d.items];
-        if (replaceCurrent) items[ii] = { ...items[ii], text: texts[0] };
-        items.splice(ii + 1, 0, ...fresh);
-        return { ...d, items };
-      }),
-    });
-    if (fresh.length) setFocusId(fresh[fresh.length - 1].id);
-  };
-  // Enter ở ô YCCĐ (hoặc dán nhiều dòng): thêm YCCĐ ngay sau, mã gợi ý nếu dòng không có mã.
-  // replaceAfter: dòng đầu ghi vào chính YCCĐ afterId (đang trống).
-  const insertRequirementsAfter = (di, ii, afterId, lines = [''], replaceAfter = false) => {
-    const all = form.domains.flatMap((d) => d.items.flatMap((x) => x.requirements));
-    const parsed = [];
-    lines.forEach((line) => {
-      const m = line.match(CODE_LINE);
-      const code = m ? m[1].replace(/\s/g, '') : suggestRequirementCode(form.domains[di].name, ii, [...all, ...parsed]);
-      parsed.push({ id: uid(), code, text: m ? m[2].trim() : line, hasCode: !!m });
-    });
-    const strip = ({ hasCode: _h, ...x }) => x;
-    const [head, ...tail] = parsed;
-    const fresh = (replaceAfter ? tail : parsed).map(strip);
-    setRequirements(di, ii, (list) => {
-      const base = replaceAfter
-        ? list.map((x) => (x.id !== afterId ? x : { ...x, text: head.text, code: head.hasCode ? head.code : x.code }))
-        : list;
-      const at = afterId ? base.findIndex((x) => x.id === afterId) + 1 : base.length;
-      const next = [...base];
-      next.splice(at, 0, ...fresh);
-      return next;
-    });
-    openReq(form.domains[di].items[ii].id);
-    if (fresh.length) setFocusId(fresh[fresh.length - 1].id);
-  };
-  const onItemPaste = (di, ii, e) => {
-    const lines = pastedLines(e);
-    if (lines.length < 2) return;
-    e.preventDefault();
-    insertItemAfter(di, ii, lines, !form.domains[di].items[ii].text.trim());
-  };
-  const onRequirementPaste = (di, ii, r, e) => {
-    const lines = pastedLines(e);
-    if (lines.length < 2) return;
-    e.preventDefault();
-    insertRequirementsAfter(di, ii, r.id, lines, !r.text.trim());
-  };
-  useEffect(() => {
-    if (!focusId) return;
-    document.querySelector(`[data-focus="${focusId}"]`)?.focus();
-    setFocusId(null);
-  }, [focusId]);
+  const abbrToId = (themes) => Object.fromEntries(themes.map((t) => [t.abbr.trim().toLowerCase(), t.id]));
 
-  const removeItem = (di, ii) =>
-    set({ domains: form.domains.map((d, i) => (i !== di ? d : { ...d, items: d.items.filter((_, j) => j !== ii) })) });
-  const listRef = useRef(null);
-  const [collapsed, setCollapsed] = useState(() => new Set());
-  const toggleDomain = (domainId) =>
-    setCollapsed((c) => {
-      const n = new Set(c);
-      if (n.has(domainId)) n.delete(domainId);
-      else n.add(domainId);
-      return n;
-    });
-  const allCollapsed = form.domains.length > 0 && form.domains.every((d) => collapsed.has(d.id));
-  const deleteDomain = (di) => {
-    set({ domains: form.domains.filter((_, i) => i !== di) });
-    setRemoveDomain(null);
-  };
-  const importGoals = (domains, source) => {
-    let merged = form.domains.map((d) => ({ ...d, items: [...d.items] }));
+  // Nhập file CSV (mẫu giống file xuất): thêm các hàng chưa có; cột chủ đề khớp theo tên viết tắt ở phần B.
+  const importCsv = async (file) => {
+    if (!file) return;
+    const { domains: parsed, skipped } = parseGoalsCsv(await file.text());
+    const ids = abbrToId(themes);
+    const toIds = (abbrs) => abbrs.map((a) => ids[a.toLowerCase()]).filter(Boolean);
     let added = 0;
-    let skipped = 0;
-    domains.forEach((src) => {
-      const target = merged.find((d) => d.name.trim().toLowerCase() === src.name.trim().toLowerCase());
-      // Lĩnh vực ngoài 5 lĩnh vực chuẩn không được thêm vào bộ mới.
-      if (!target || !isStandardDomain(target.name)) {
-        skipped += src.items.length;
-        return;
-      }
-      target.items = target.items.filter((i) => i.text.trim());
-      src.items.forEach((text) => {
-        if (!target.items.some((i) => i.text.trim() === text.trim())) {
-          target.items.push({ id: uid(), text, requirements: [] });
-          added++;
-        }
-      });
+    const nextDomains = form.domains.map((d) => {
+      const src = parsed.find((p) => p.domain === d.name);
+      if (!src) return d;
+      const fresh = src.rows
+        .filter((r) => !d.rows.some((x) => x.kind === r.kind && x.text.trim().toLowerCase() === r.text.toLowerCase()))
+        .map((r) =>
+          r.kind === 'goal'
+            ? {
+                id: uid(),
+                kind: 'goal',
+                text: r.text,
+                contents: r.contents.map((c) => ({ id: uid(), text: c.text, themes: toIds(c.themes) })),
+              }
+            : { id: uid(), kind: r.kind, text: r.text },
+        );
+      added += fresh.filter((r) => r.kind === 'goal').length;
+      const kept = d.rows.filter((r) => r.text.trim() || r.kind !== 'goal' || r.contents.length);
+      return { ...d, rows: nestUnderFirstSub([...kept, ...fresh]) };
     });
-    merged = merged.map((d) => (d.items.length ? d : { ...d, items: [{ id: uid(), text: '', requirements: [] }] }));
-    set({ domains: merged });
-    setImporting(false);
-    const skipNote = skipped ? `. Bỏ qua ${skipped} mục tiêu thuộc lĩnh vực ngoài chương trình` : '';
-    toast(
-      added ? `Đã thêm ${added} mục tiêu từ ${source.code}${skipNote}` : `Không có mục tiêu mới được thêm${skipNote}`,
-      skipped ? 'warn' : 'ok',
-    );
+    set({ domains: nextDomains });
+    if (fileRef.current) fileRef.current.value = '';
+    const skipNote = skipped ? `. Bỏ qua ${skipped} dòng không hợp lệ` : '';
+    toast(added ? `Đã nhập ${added} mục tiêu từ file${skipNote}` : 'File không có mục tiêu mới để thêm', skipped ? 'warn' : 'ok');
   };
 
-  const filledDomains = numbered.filter((d) => d.items.some((i) => i.text.trim()));
-  const allCodes = form.domains.flatMap((d) =>
-    d.items.flatMap((i) => i.requirements.filter((r) => r.text.trim()).map((r) => r.code.trim())),
-  );
-  // Lĩnh vực có YCCĐ thiếu mã hoặc trùng mã: đánh dấu trên tab để biết cần sửa ở đâu.
-  const domainHasProblem = (d) =>
-    !isStandardDomain(d.name)
-      ? d.items.some((i) => i.text.trim())
-      : d.items.some((i) =>
-          i.requirements.some((r) => r.text.trim() && (!r.code.trim() || allCodes.filter((c) => c === r.code.trim()).length > 1)),
-        );
-  const filledCount = (d) => d.items.filter((i) => i.text.trim()).length;
-  const activeTab = numbered.some((d) => d.id === tab) ? tab : numbered[0]?.id;
-  const shownDomains = numbered.filter((d) => d.id === activeTab);
-  const editDomain = (domainId) => {
-    setTab(domainId);
-    setCollapsed(new Set());
-    setStep(1);
-    window.scrollTo({ top: 0 });
-  };
-  const renderGroups = (list) =>
-    list.map((d) => {
-      const di = numbered.indexOf(d);
-      return (
-        <Group
-          key={d.id}
-          id={d.id}
-          collapsed={collapsed.has(d.id)}
-          onToggle={() => toggleDomain(d.id)}
-          title={<DomainTitle name={d.name} />}
-          meta={`${filledCount(d)} mục tiêu`}
-          actions={
-            !isStandardDomain(d.name) && (
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label={`Xóa lĩnh vực ${d.name}`}
-                onClick={() => (d.items.some((i) => i.text.trim()) ? setRemoveDomain(di) : deleteDomain(di))}
-              >
-                <Trash2 size={16} aria-hidden />
-              </button>
-            )
-          }
-        >
-          {!isStandardDomain(d.name) && (
-            <Notice tone="warn">
-              Lĩnh vực này không thuộc 5 lĩnh vực của Chương trình GDMN. Chuyển các mục tiêu sang lĩnh vực phù hợp rồi xóa lĩnh vực này.
-            </Notice>
-          )}
-          {d.items.map((it, ii) => {
-            const open = openReqs.has(it.id);
-            const reqCount = it.requirements.filter((r) => r.text.trim()).length;
-            return (
-              <div key={it.id} className="stack gap-2">
-                <div className="ga-goal-row">
-                  <span className="ga-goal-code">{it.code || '—'}</span>
-                  <input
-                    className="input"
-                    data-focus={it.id}
-                    aria-label={`Mục tiêu ${ii + 1} lĩnh vực ${d.name}`}
-                    placeholder="Nhập nội dung mục tiêu (Enter để thêm dòng, dán nhiều dòng để thêm nhiều mục tiêu)"
-                    value={it.text}
-                    onChange={(e) => updateItem(di, ii, e.target.value)}
-                    onPaste={(e) => onItemPaste(di, ii, e)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                        e.preventDefault();
-                        insertItemAfter(di, ii);
-                      }
-                    }}
-                  />
-                  <button type="button" className="icon-btn" onClick={() => removeItem(di, ii)} aria-label="Xóa mục tiêu">
-                    <Trash2 size={16} aria-hidden />
-                  </button>
-                </div>
-                <div className="ga-goal-check--child stack gap-2">
-                  <div>
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--ghost"
-                      aria-expanded={open}
-                      onClick={() => (reqCount || it.requirements.length ? toggleReqs(it.id) : addRequirement(di, ii))}
-                    >
-                      {open ? (
-                        <ChevronDown size={16} className="text-primary" aria-hidden />
-                      ) : (
-                        <ChevronRight size={16} className="text-primary" aria-hidden />
-                      )}
-                      {reqCount ? `${reqCount} YCCĐ` : 'Chưa có YCCĐ – thêm'}
-                      {!open && reqCount > 0 && (
-                        <span className="muted text-xs">
-                          {' '}
-                          ·{' '}
-                          {it.requirements
-                            .filter((r) => r.text.trim())
-                            .map((r) => r.code)
-                            .join(', ')}
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                  {open &&
-                    it.requirements.map((r, ri) => (
-                      <div className="ga-goal-row" key={r.id}>
-                        <input
-                          className="input"
-                          aria-label={`Mã YCCĐ ${ri + 1} của ${it.code || 'mục tiêu'}`}
-                          placeholder="Mã"
-                          value={r.code}
-                          onChange={(e) => updateRequirement(di, ii, r.id, { code: e.target.value })}
-                        />
-                        <input
-                          className="input"
-                          data-focus={r.id}
-                          aria-label={`Yêu cầu cần đạt ${ri + 1} của ${it.code || 'mục tiêu'}`}
-                          placeholder="Yêu cầu cần đạt (Enter để thêm YCCĐ, dán nhiều dòng dạng “TC1.1: Trẻ …”)"
-                          value={r.text}
-                          onChange={(e) => updateRequirement(di, ii, r.id, { text: e.target.value })}
-                          onPaste={(e) => onRequirementPaste(di, ii, r, e)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                              e.preventDefault();
-                              insertRequirementsAfter(di, ii, r.id);
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="icon-btn"
-                          onClick={() => removeRequirement(di, ii, r.id)}
-                          aria-label={`Xóa YCCĐ ${r.code}`}
-                        >
-                          <Trash2 size={16} aria-hidden />
-                        </button>
-                      </div>
-                    ))}
-                  {open && (
-                    <div>
-                      <button type="button" className="btn btn--sm btn--ghost" onClick={() => addRequirement(di, ii)}>
-                        <Plus size={16} className="text-primary" aria-hidden /> Thêm YCCĐ
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {isStandardDomain(d.name) && (
-            <div>
-              <button type="button" className="btn btn--sm btn--ghost" onClick={() => insertItemAfter(di, d.items.length - 1)}>
-                <Plus size={16} className="text-primary" aria-hidden /> Thêm mục tiêu
-              </button>
-            </div>
-          )}
-        </Group>
-      );
+  // Lấy từ kế hoạch có sẵn: chép mục tiêu và nội dung đã chọn; chưa có chủ đề thì chép luôn bảng chủ đề, đợt nghỉ của kế hoạch nguồn.
+  const importGoals = (picked, source) => {
+    let themes = form.themes;
+    let breaks = form.breaks;
+    if (!themes.length && source.themes?.length) {
+      themes = source.themes.map(({ goalIds, ...t }) => ({ ...t, id: uid() }));
+      breaks = (source.breaks || []).map((b) => ({ ...b, id: uid() }));
+    }
+    const srcAbbr = Object.fromEntries((source.themes || []).map((t) => [t.id, t.abbr.trim().toLowerCase()]));
+    const ids = abbrToId(themes);
+    let added = 0;
+    const merged = form.domains.map((d) => {
+      const src = picked.find((p) => p.name === d.name);
+      if (!src) return d;
+      const fresh = src.items
+        .filter((it) => !d.rows.some((r) => r.kind === 'goal' && r.text.trim() === it.text.trim()))
+        .map((it) => ({
+          id: uid(),
+          kind: 'goal',
+          text: it.text,
+          contents: (it.contents || (it.requirements || []).map((r) => ({ text: r.text, themes: [] }))).map((c) => ({
+            id: uid(),
+            text: c.text,
+            themes: (c.themes || []).map((t) => ids[srcAbbr[t]]).filter(Boolean),
+          })),
+        }));
+      added += fresh.length;
+      return { ...d, rows: nestUnderFirstSub([...d.rows, ...fresh]) };
     });
-  // Toàn bộ lĩnh vực ở dạng xem cho bước duyệt lại.
-  const overviewBlocks = numbered.map((d) => (
-    <div key={d.id} className="mb-16">
-      <div className="row row--between">
-        <div className="row gap-2">
-          <span className="section-title">{domainLabel(d.name)}</span>
-          {isStandardDomain(d.name) && <span className="chip chip--blue">Mã: {prefixOf(d.name)}</span>}
-          {domainHasProblem(d) && <AlertTriangle size={16} className="text-danger" aria-label="Có lỗi cần sửa" />}
-        </div>
-        <button type="button" className="btn btn--sm btn--ghost" onClick={() => editDomain(d.id)}>
-          <Pencil size={16} className="text-primary" aria-hidden /> Sửa lĩnh vực này
-        </button>
+    set({ domains: merged, themes, breaks });
+    setImporting(false);
+    toast(added ? `Đã thêm ${added} mục tiêu từ ${source.code}` : 'Không có mục tiêu mới được thêm');
+  };
+
+  if (!canEdit)
+    return (
+      <div className="page ga-page">
+        <PageHead
+          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Mục tiêu năm học', to: '/education/goals' }]}
+          title="Kế hoạch năm học"
+        />
+        <Notice tone="warn">
+          {existing?.status === EDU_STATUS.APPROVED
+            ? 'Kế hoạch đã ban hành nên không sửa được.'
+            : existing?.status === EDU_STATUS.PENDING_VP
+              ? 'Kế hoạch đang chờ Phó hiệu trưởng duyệt nên không sửa được.'
+              : existing && !isOwner
+                ? `Kế hoạch do ${owner.name} soạn. Khi còn là bản nháp, chỉ người soạn được sửa.`
+                : 'Bạn chỉ lập, sửa được kế hoạch năm học của nhóm tuổi mình phụ trách.'}
+        </Notice>
       </div>
-      {filledCount(d) === 0 && <p className="muted text-sm">Chưa có mục tiêu.</p>}
-      {d.items
-        .filter((i) => i.text.trim())
-        .map((i) => (
-          <div key={i.id}>
-            <div className="ga-goal-row ga-goal-row--read">
-              <span className="ga-goal-code">{i.code}</span>
-              <span>{i.text}</span>
-            </div>
-            {i.requirements.filter((r) => r.text.trim()).length === 0 && (
-              <p className="muted text-xs ga-goal-check--child">Chưa có YCCĐ – tổ trưởng chưa chọn được mục tiêu này khi lập chủ đề.</p>
-            )}
-            {i.requirements
-              .filter((r) => r.text.trim())
-              .map((r) => (
-                <div key={r.id} className="ga-goal-row ga-goal-row--read ga-goal-check--child">
-                  <span className="ga-goal-code">{r.code}</span>
-                  <span className="text-sm">{r.text}</span>
-                </div>
-              ))}
-          </div>
-        ))}
-    </div>
-  ));
+    );
 
   return (
-    <div className={step === 1 ? 'page ga-page-fill' : 'page'}>
-      <PageHead
-        crumbs={[
-          { label: 'Kế hoạch giáo dục' },
-          { label: 'Mục tiêu năm học', to: '/education/goals' },
-          { label: existing ? 'Chỉnh sửa' : 'Tạo mục tiêu' },
-        ]}
-        title={existing ? 'Chỉnh sửa mục tiêu năm học' : 'Tạo mục tiêu năm học'}
-      />
-      <Stepper steps={STEPS} current={step} maxReached={maxReached} onStep={(i) => i <= maxReached && setStep(i)} />
+    <div className="page ga-page">
+      <div className="ga-sticky-head">
+        <PageHead
+          crumbs={[
+            { label: 'Kế hoạch giáo dục' },
+            { label: 'Mục tiêu năm học', to: '/education/goals' },
+            { label: existing ? 'Chỉnh sửa' : 'Lập kế hoạch' },
+          ]}
+          title={existing ? 'Chỉnh sửa kế hoạch giáo dục năm học' : 'Lập kế hoạch giáo dục năm học'}
+        />
+        <Stepper steps={STEPS} current={step} maxReached={maxReached} onStep={(i) => i <= maxReached && setStep(i)} />
+        {step === 1 && (
+          <Card
+            title={tab === 'themes' ? 'Chủ đề, sự kiện trong năm' : 'Mục tiêu, nội dung giáo dục'}
+            num="2"
+            bodyClass={null}
+            actions={
+              tab === 'goals' && (
+                <div className="row">
+                  <span className="muted text-xs nowrap">{totalGoals} mục tiêu</span>
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--ghost"
+                    onClick={() => exportGoalsCsv(form.domains, numbers, themes, csvName)}
+                  >
+                    <FileDown size={16} aria-hidden /> Xuất file
+                  </button>
+                  <button type="button" className="btn btn--sm btn--ghost" onClick={() => fileRef.current?.click()}>
+                    <Upload size={16} aria-hidden /> Nhập file
+                  </button>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    hidden
+                    aria-label="Chọn file CSV kế hoạch năm học"
+                    onChange={(e) => importCsv(e.target.files?.[0])}
+                  />
+                  <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
+                    <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
+                  </button>
+                </div>
+              )
+            }
+            className="ga-sticky-bar"
+          />
+        )}
+      </div>
 
       {step === 0 && (
         <Card title="Thông tin chung" num="1">
@@ -556,9 +366,10 @@ export default function GoalFormPage() {
                 id="ag"
                 className={`select ${errors.ageGroupId ? 'is-invalid' : ''}`}
                 value={form.ageGroupId}
+                disabled={isLeader || !!existing}
                 onChange={(e) => {
                   const ageGroupId = e.target.value;
-                  // Suggest a title only while the user has not typed their own
+                  // Chỉ gợi ý tên khi người dùng chưa tự đặt tên
                   const keep = form.title.trim() && form.title !== suggestTitle(form.schoolYear, form.ageGroupId);
                   set(keep ? { ageGroupId } : { ageGroupId, title: suggestTitle(form.schoolYear, ageGroupId) });
                 }}
@@ -571,12 +382,12 @@ export default function GoalFormPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Người lập" inline>
+            <Field label="Người soạn" inline>
               <input className="input" value={`${user.name} (${user.title})`} readOnly />
             </Field>
           </div>
           <div className="stack mt-16">
-            <Field label="Tên bộ mục tiêu" required inline error={errors.title} htmlFor="title" counter={`${form.title.length}/150`}>
+            <Field label="Tên kế hoạch" required inline error={errors.title} htmlFor="title" counter={`${form.title.length}/150`}>
               <input
                 id="title"
                 className={`input ${errors.title ? 'is-invalid' : ''}`}
@@ -584,7 +395,6 @@ export default function GoalFormPage() {
                 placeholder="Chọn nhóm tuổi áp dụng để hệ thống đề xuất tên"
                 value={form.title}
                 onChange={(e) => set({ title: e.target.value })}
-                onBlur={() => form.title && setErrors((x) => ({ ...x, title: undefined }))}
               />
             </Field>
             <Field label="Mô tả" inline top htmlFor="desc" counter={`${form.description.length}/500`}>
@@ -602,88 +412,35 @@ export default function GoalFormPage() {
       )}
 
       {step === 1 && (
-        <Card
-          title="Mục tiêu theo lĩnh vực phát triển"
-          num="2"
-          className="ga-card-fill"
-          bodyClass={null}
-          actions={
-            <div className="row">
-              <span className="muted text-xs" style={{ marginRight: 8 }}>
-                {totalGoals} mục tiêu
-              </span>
-              <button
-                type="button"
-                className="btn btn--sm btn--ghost"
-                onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(form.domains.map((d) => d.id)))}
-              >
-                {allCollapsed ? <ChevronsUpDown size={16} aria-hidden /> : <ChevronsDownUp size={16} aria-hidden />}
-                {allCollapsed ? 'Mở rộng tất cả' : 'Thu gọn tất cả'}
-              </button>
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
-                <Download size={16} aria-hidden /> Lấy từ bộ mục tiêu có sẵn
-              </button>
-            </div>
-          }
-        >
-          <div className="tabs" role="tablist" aria-label="Lĩnh vực">
-            {numbered.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === d.id}
-                title={domainLabel(d.name)}
-                className={`tab ${activeTab === d.id ? 'tab--active' : ''}`}
-                onClick={() => {
-                  setTab(d.id);
-                  setCollapsed((c) => {
-                    const n = new Set(c);
-                    n.delete(d.id);
-                    return n;
-                  });
-                }}
-              >
-                {domainHasProblem(d) && <AlertTriangle size={14} className="text-danger" aria-label="Có lỗi cần sửa" />}
-                {isStandardDomain(d.name) ? prefixOf(d.name) : d.name} <span className="tab__count">{filledCount(d)}</span>
-              </button>
-            ))}
-            <button
-              type="button"
-              role="tab"
-              aria-selected={showAll}
-              className={`tab ${showAll ? 'tab--active' : ''}`}
-              onClick={() => setShowAll(true)}
-            >
-              {numbered.some(domainHasProblem) && <AlertTriangle size={14} className="text-danger" aria-label="Có lỗi cần sửa" />}
-              Tất cả <span className="tab__count">{totalGoals}</span>
-            </button>
-          </div>
-          <div className="card__body ga-card-scroll" ref={listRef}>
-            {errors.domains && (
-              <div className="mb-16">
-                <Notice tone="err">{errors.domains}</Notice>
-              </div>
+        <Card bodyClass={null}>
+          <PlanTabs tab={tab} onTab={setTab} counts={{ themes: themes.length, goals: totalGoals }} />
+          <div className="card__body stack">
+            {tab === 'themes' ? (
+              <>
+                {errors.themes && <Notice tone="err">{errors.themes}</Notice>}
+                <ThemeEventTable
+                  themes={form.themes}
+                  breaks={form.breaks}
+                  domains={form.domains}
+                  numbers={numbers}
+                  onChange={(patch) => set(patch)}
+                />
+              </>
+            ) : (
+              <>
+                {errors.domains && <Notice tone="err">{errors.domains}</Notice>}
+                {themes.length === 0 && <Notice>{NO_THEME_NOTE}</Notice>}
+                <GoalTable
+                  domains={form.domains}
+                  themes={themes}
+                  numbers={numbers}
+                  ageGroupId={form.ageGroupId}
+                  onChange={(domains) => set({ domains })}
+                />
+              </>
             )}
-            {renderGroups(shownDomains)}
           </div>
         </Card>
-      )}
-
-      {showAll && (
-        <Modal
-          title={`Tất cả mục tiêu · ${totalGoals} mục tiêu`}
-          width={1100}
-          onClose={() => setShowAll(false)}
-          footer={
-            <button type="button" className="btn btn--primary" onClick={() => setShowAll(false)}>
-              Xong
-            </button>
-          }
-        >
-          {errors.domains && <Notice tone="err">{errors.domains}</Notice>}
-          {renderGroups(numbered)}
-        </Modal>
       )}
 
       {importing && (
@@ -696,58 +453,52 @@ export default function GoalFormPage() {
         />
       )}
 
-      {removeDomain !== null && (
-        <Modal
-          title={`Xóa lĩnh vực “${form.domains[removeDomain]?.name || 'chưa đặt tên'}”?`}
-          onClose={() => setRemoveDomain(null)}
-          footer={
-            <>
-              <button className="btn" onClick={() => setRemoveDomain(null)}>
-                Giữ lại
-              </button>
-              <button className="btn btn--outline-danger" onClick={() => deleteDomain(removeDomain)}>
-                <Trash2 size={16} aria-hidden /> Xóa lĩnh vực
-              </button>
-            </>
-          }
-        >
-          <p>
-            Lĩnh vực này có {form.domains[removeDomain]?.items.filter((i) => i.text.trim()).length} mục tiêu. Tất cả mục tiêu bên trong sẽ
-            bị xóa khỏi bộ đang soạn.
-          </p>
-        </Modal>
-      )}
-
       {step === 2 && (
-        <div className="ga-split">
-          <Card title="Duyệt lại nội dung" num="3">
+        <>
+          <Card
+            title="Duyệt lại nội dung"
+            num="4"
+            actions={
+              <div className="row">
+                <button
+                  type="button"
+                  className="btn btn--sm btn--ghost"
+                  onClick={() => downloadYearPlanDoc(build(existing?.status || EDU_STATUS.DRAFT), numbers)}
+                >
+                  <FileDown size={16} aria-hidden /> Xuất Word
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--sm btn--ghost"
+                  onClick={() => printYearPlan(build(existing?.status || EDU_STATUS.DRAFT), numbers) || toast(POPUP_BLOCKED, 'warn')}
+                >
+                  <Printer size={16} aria-hidden /> In / Lưu PDF
+                </button>
+              </div>
+            }
+          >
             <dl className="info-list">
-              <dt>Tên bộ mục tiêu</dt>
+              <dt>Tên kế hoạch</dt>
               <dd className="fw-600">{form.title}</dd>
               <dt>Năm học</dt>
               <dd>{form.schoolYear}</dd>
               <dt>Nhóm tuổi áp dụng</dt>
               <dd>{ageName}</dd>
-              <dt>Phạm vi</dt>
-              <dd>{SCHOOL_SCOPE}</dd>
-              <dt>Số mục tiêu</dt>
-              <dd>
-                {totalGoals} mục tiêu trong {filledDomains.length} lĩnh vực
-              </dd>
               <dt>Ngày lập</dt>
-              <dd>{fmtDate(new Date().toISOString())}</dd>
+              <dd>{fmtDate(form.createdAt || new Date().toISOString())}</dd>
             </dl>
-            <div className="ga-divider" />
-            {overviewBlocks}
           </Card>
-          <div className="stack">
-            <Card title="Chữ ký người lập">
-              <SignatureBox value={form.signature} onChange={(signature) => set({ signature })} invalid={!!errors.signature} />
-              {errors.signature && <div className="field__error mt-8">{errors.signature}</div>}
-            </Card>
-            <Notice>Sau khi gửi, tổ trưởng {ageName} của toàn trường nhận thông báo và dùng mục tiêu này để lập kế hoạch chủ đề.</Notice>
-          </div>
-        </div>
+          <Card bodyClass={null} className="mt-16">
+            <PlanTabs tab={tab} onTab={setTab} counts={{ themes: themes.length, goals: totalGoals }} />
+            <div className="card__body">
+              {tab === 'themes' ? (
+                <ThemeEventTable themes={themes} breaks={breaks} domains={form.domains} numbers={numbers} readOnly />
+              ) : (
+                <GoalTable domains={form.domains} themes={themes} numbers={numbers} readOnly />
+              )}
+            </div>
+          </Card>
+        </>
       )}
 
       <div className="page-actions">
@@ -756,7 +507,7 @@ export default function GoalFormPage() {
         </button>
         <div className="row">
           <button type="button" className="btn" onClick={saveDraft}>
-            <Save size={16} aria-hidden /> Lưu nháp
+            <Save size={16} aria-hidden /> {pendingEdit ? 'Lưu chỉnh sửa' : 'Lưu nháp'}
           </button>
           {step > 0 && (
             <button type="button" className="btn" onClick={() => setStep(step - 1)}>
@@ -768,16 +519,26 @@ export default function GoalFormPage() {
               Tiếp theo <ArrowRight size={16} aria-hidden />
             </button>
           ) : (
-            <button type="button" className="btn btn--primary" onClick={() => validate(2) && setConfirm(true)}>
-              <Send size={16} aria-hidden /> Gửi tổ trưởng
-            </button>
+            <>
+              {/* Tổ trưởng soạn thì gửi Phó HT duyệt; Phó HT (bản mình soạn hoặc bản đang chờ) duyệt ban hành luôn */}
+              {isLeader && !pendingEdit && (
+                <button type="button" className="btn btn--primary" onClick={() => setConfirm('send')}>
+                  <Send size={16} aria-hidden /> Gửi Phó HT duyệt
+                </button>
+              )}
+              {isVp && (
+                <button type="button" className="btn btn--primary" onClick={() => setConfirm('issue')}>
+                  <Check size={16} aria-hidden /> {pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
 
       {confirm && (
         <Modal
-          title="Gửi mục tiêu năm học"
+          title={confirm === 'send' ? 'Gửi Phó hiệu trưởng duyệt' : 'Ban hành kế hoạch năm học'}
           onClose={() => setConfirm(false)}
           footer={
             <>
@@ -785,14 +546,16 @@ export default function GoalFormPage() {
                 Quay lại kiểm tra
               </button>
               <button className="btn btn--primary" onClick={submit}>
-                <Send size={16} aria-hidden /> Gửi tổ trưởng
+                {confirm === 'send' ? <Send size={16} aria-hidden /> : <Check size={16} aria-hidden />}{' '}
+                {confirm === 'send' ? 'Gửi' : 'Ban hành'}
               </button>
             </>
           }
         >
           <p>
-            Gửi <span className="fw-600">{form.title}</span> cho tổ trưởng {ageName}? Tổ trưởng sẽ nhận thông báo và xem được bộ mục tiêu
-            này.
+            {confirm === 'send'
+              ? `Gửi "${form.title}" cho Phó hiệu trưởng duyệt? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`
+              : `Ban hành "${form.title}"? Giáo viên trong khối sẽ thấy kế hoạch này. Sau đó xuất file để in và ký.`}
           </p>
         </Modal>
       )}

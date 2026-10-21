@@ -5,15 +5,18 @@ import {
   Buildings,
   ForkKnife,
   ChefHat,
+  Carrot,
+  Boxes,
   Gear,
   Bell,
   BookOpenText,
   ClipboardText,
   Star,
   ListChecks,
-  Users,
 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
+import { FACILITY_ENABLED } from '@/config/app';
+import { areaAccess, canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
 
 /*
  * Sidebar menu – single source of truth.
@@ -33,13 +36,15 @@ const LINKS = {
 /** Groups: same label + icon for every role. */
 const GROUPS = {
   school: { label: 'Cấu hình trường', icon: CalendarDots },
-  people: { label: 'Con người', icon: Users },
   children: { label: 'Quản lý trẻ', icon: Baby },
   attendance: { label: 'Điểm danh & suất ăn', icon: ClipboardText },
   education: { label: 'Kế hoạch giáo dục', icon: BookOpenText },
   assessment: { label: 'Đánh giá trẻ', icon: Star },
-  menu: { label: 'Thực đơn', icon: ForkKnife },
-  kitchen: { label: 'Bếp & kho', icon: ChefHat },
+  // Bốn nhóm dinh dưỡng – kho theo luồng BA (docs/features/nutrition-inventory.md)
+  catalog: { label: 'Danh mục thực phẩm', icon: Carrot },
+  nutrition: { label: 'Dinh dưỡng', icon: ForkKnife },
+  stock: { label: 'Kho thực phẩm', icon: Boxes },
+  foodReport: { label: 'Báo cáo bếp', icon: ChefHat },
   facility: { label: 'Cơ sở vật chất', icon: Buildings },
   system: { label: 'Hệ thống', icon: Gear },
 };
@@ -47,35 +52,41 @@ const GROUPS = {
 /** Sub-menu items. */
 const ITEMS = {
   schoolYears: { label: 'Năm học', to: '/school/years' },
+  schoolPlacement: { label: 'Xếp lớp năm học mới', to: '/school/placement' },
   schoolClasses: { label: 'Nhóm tuổi & lớp', to: '/school/classes' },
+  schoolRooms: { label: 'Phòng ban', to: '/school/rooms' },
+  schoolStaff: { label: 'Tài khoản nhân sự', to: '/school/staff' },
+  schoolStaffView: { label: 'Nhân sự điểm trường', to: '/school/staff' },
   schoolCutoff: { label: 'Giờ chốt điểm danh', to: '/school/cutoff' },
   schoolCampuses: { label: 'Điểm trường', to: '/school/campuses' },
   schoolVps: { label: 'Phân công Phó hiệu trưởng', to: '/school/vice-principals' },
   schoolTeachers: { label: 'Phân công giáo viên', to: '/school/teachers' },
-  // permission: mục chỉ hiện khi /accounts/me có một trong các quyền này (BE ADR-0017)
-  peopleHub: { label: 'Nhân sự, phụ huynh & trẻ', to: '/people' },
-  permissions: { label: 'Phân quyền', to: '/permissions', permission: 'PERMISSION_MANAGE' },
+  schoolRoles: { label: 'Vai trò & quyền', to: '/school/roles' },
 
   childList: { label: 'Danh sách trẻ', to: '/children' },
   childEnroll: { label: 'Tiếp nhận trẻ', to: '/children/new' },
   childPlacement: { label: 'Xếp lớp', to: '/children/placement' },
-  parentActivation: { label: 'Tài khoản phụ huynh', to: '/children/activation', permission: 'PARENT_ACCOUNT_MANAGE' },
+  parentActivation: { label: 'Tài khoản phụ huynh', to: '/children/activation' },
+  healthChecks: { label: 'Đợt khám sức khỏe', to: '/children/health-checks' },
+  healthFollowUps: { label: 'Phiếu theo dõi sức khỏe', to: '/children/health-follow-ups' },
   healthTrends: { label: 'Xu hướng sức khỏe', to: '/children/health-trends' },
 
   attendance: { label: 'Điểm danh & báo ăn', to: '/attendance' },
   attendanceSummary: { label: 'Tổng hợp điểm danh', to: '/attendance/summary' },
-  mealCount: { label: 'Xác nhận sĩ số suất ăn', to: '/attendance/meal-count' },
+  attendanceDayUnlocks: { label: 'Mở lại điểm danh', to: '/attendance/day-unlocks' },
+  mealCount: { label: 'Sổ báo ăn', to: '/attendance/meal-count' },
+  dailyHealthOverview: { label: 'Sức khỏe đầu ngày', to: '/attendance/health' },
   pickup: { label: 'Đón trẻ', to: '/pickup' },
 
   eduSchool: { label: 'Kế hoạch toàn trường', to: '/education/school' },
   eduGoals: { label: 'Mục tiêu năm học', to: '/education/goals' },
-  eduThemes: { label: 'Kế hoạch chủ đề', to: '/education/themes' },
-  eduOverview: { label: 'Mục tiêu & chủ đề', to: '/education/overview' },
-  eduLessons: { label: 'Giáo án của lớp', to: '/education/lessons' },
-  eduReviews: { label: 'Duyệt giáo án', to: '/education/reviews' },
-  eduApprovals: { label: 'Phê duyệt kế hoạch', to: '/education/approvals' },
+  eduBranch: { label: 'Chủ đề nhánh', to: '/education/branches' },
+  eduClass: { label: 'Kế hoạch chủ đề', to: '/education/class' },
+  eduPlanReviews: { label: 'Duyệt kế hoạch, giáo án', to: '/education/plan-reviews' },
+  eduSettings: { label: 'Cấu hình kế hoạch', to: '/education/settings' },
 
   assessDaily: { label: 'Đánh giá hằng ngày', to: '/assessment/daily' },
+  assessDayUnlocks: { label: 'Mở lại ngày đánh giá', to: '/assessment/day-unlocks' },
   assessProfiles: { label: 'Hồ sơ phát triển', to: '/assessment/children' },
   assessProgress: { label: 'Tiến độ phát triển', to: '/assessment/children' },
   assessPeriodic: { label: 'Đánh giá tuần / tháng', to: '/assessment/periodic' },
@@ -87,18 +98,22 @@ const ITEMS = {
   nutritionSetup: { label: 'Thiết lập dinh dưỡng', to: '/menu/setup' },
   foods: { label: 'Thực phẩm', to: '/menu/foods' },
   dishes: { label: 'Món ăn', to: '/menu/dishes' },
-  menus: { label: 'Thực đơn mẫu', to: '/menu/menus' },
+  mealPrices: { label: 'Giá suất ăn', to: '/menu/prices' },
+  menus: { label: 'Thực đơn mẫu (ngày)', to: '/menu/menus' },
   weeklyMenus: { label: 'Thực đơn tuần', to: '/menu/weekly' },
-
-  kitchenDay: { label: 'Quy trình bếp hôm nay', to: '/kitchen' },
+  nutrition: { label: 'Cân đối khẩu phần', to: '/menu/nutrition' },
   publishedMenu: { label: 'Thực đơn đã công bố', to: '/kitchen/published-menu' },
-  confirmedMealCount: { label: 'Số suất ăn đã xác nhận', to: '/kitchen/meal-count' },
-  forecast: { label: 'Dự trù & đi chợ', to: '/kitchen/forecast' },
-  freshReceipts: { label: 'Kiểm nhận hàng tươi', to: '/kitchen/fresh-receipts' },
-  foodSamples: { label: 'Sổ lưu mẫu', to: '/kitchen/food-samples' },
-  dryStock: { label: 'Kho khô', to: '/kitchen/dry-stock' },
-  stockCounts: { label: 'Kiểm kê', to: '/kitchen/stock-counts' },
-  stockIssues: { label: 'Phiếu xuất kho', to: '/kitchen/stock-issues' },
+  confirmedMealCount: { label: 'Sổ báo ăn', to: '/kitchen/meal-count' },
+
+  // `exact`: /kitchen là tiền tố của mọi trang kho, chỉ sáng khi đúng trang quy trình
+  kitchenDay: { label: 'Quy trình bếp hôm nay', to: '/kitchen', exact: true },
+  stockReceipts: { label: 'Nhập kho', to: '/kitchen/stock-receipts' },
+  suppliers: { label: 'Nhà cung cấp', to: '/kitchen/suppliers' },
+  dryStock: { label: 'Tồn kho', to: '/kitchen/dry-stock' },
+  stockIssues: { label: 'Xuất kho', to: '/kitchen/stock-issues' },
+  freshReceipts: { label: 'Hàng tươi', to: '/kitchen/fresh-receipts' },
+  foodSamples: { label: 'Lưu mẫu thực phẩm', to: '/kitchen/food-samples' },
+  forecast: { label: 'Dự trù thực phẩm', to: '/kitchen/forecast' },
 
   assets: { label: 'Danh sách tài sản', to: '/facility/assets' },
   myFacilityReports: { label: 'Báo sự cố & đề nghị', to: '/facility/my-reports' },
@@ -120,24 +135,25 @@ const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('school', ['schoolYears', 'schoolClasses', 'schoolCutoff', 'schoolCampuses']),
-    group('people', ['peopleHub', 'permissions']),
-    group('children', ['healthTrends']),
-    group('attendance', ['attendanceSummary', 'mealCount']),
-    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards']),
-    group('education', ['eduSchool']),
-    group('menu', ['nutritionSetup', 'weeklyMenus']),
-    group('kitchen', [
-      'kitchenDay',
-      'confirmedMealCount',
-      'forecast',
-      'freshReceipts',
-      'stockIssues',
-      'foodSamples',
-      'dryStock',
-      'stockCounts',
-      'publishedMenu',
+    group('school', [
+      'schoolYears',
+      'schoolPlacement',
+      'schoolClasses',
+      'schoolRooms',
+      'schoolCutoff',
+      'schoolCampuses',
+      'schoolStaff',
+      'schoolVps',
+      'schoolRoles',
     ]),
+    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
+    group('attendance', ['attendanceSummary', 'mealCount', 'dailyHealthOverview']),
+    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards', 'assessDayUnlocks']),
+    group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings']),
+    group('catalog', ['suppliers']),
+    group('nutrition', ['nutritionSetup', 'weeklyMenus', 'publishedMenu']),
+    group('stock', ['dryStock', 'stockIssues', 'freshReceipts']),
+    group('foodReport', ['foodSamples', 'forecast']),
     group('facility', ['assets', 'issues', 'requests', 'proposals', 'transfers', 'inspections']),
     account,
     link('notifications'),
@@ -145,26 +161,23 @@ const MENUS = {
   [ROLES.VICE_PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('school', ['schoolYears', 'schoolClasses', 'schoolCampuses']),
-    group('people', ['peopleHub']),
-    group('children', ['childEnroll', 'childPlacement', 'healthTrends']),
-    group('attendance', ['attendanceSummary', 'mealCount']),
-    group('education', ['eduGoals', 'eduApprovals']),
-    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards']),
-    // Thứ tự theo các bước của trang Quy trình
-    group('menu', ['menuFlow', 'nutritionSetup', 'foods', 'dishes', 'menus', 'weeklyMenus']),
-    // Thứ tự theo các mốc của trang Quy trình bếp hôm nay
-    group('kitchen', [
-      'kitchenDay',
-      'confirmedMealCount',
-      'forecast',
-      'freshReceipts',
-      'stockIssues',
-      'foodSamples',
-      'dryStock',
-      'stockCounts',
-      'publishedMenu',
+    group('school', ['schoolYears', 'schoolClasses', 'schoolRooms', 'schoolCampuses', 'schoolTeachers', 'schoolStaffView']),
+    group('children', [
+      'childList',
+      'childEnroll',
+      'childPlacement',
+      'parentActivation',
+      'healthChecks',
+      'healthFollowUps',
+      'healthTrends',
     ]),
+    group('attendance', ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings']),
+    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards', 'assessDayUnlocks']),
+    group('catalog', ['foods', 'dishes']),
+    group('nutrition', ['menuFlow', 'nutritionSetup', 'menus', 'weeklyMenus', 'nutrition']),
+    group('stock', ['kitchenDay', 'stockReceipts', 'suppliers', 'dryStock', 'stockIssues', 'freshReceipts']),
+    group('foodReport', ['foodSamples', 'forecast']),
     group('facility', ['assets', 'issues', 'requests', 'proposals', 'transfers', 'inspections']),
     account,
     link('notifications'),
@@ -172,9 +185,9 @@ const MENUS = {
   [ROLES.TEAM_LEADER]: [
     link('home'),
     link('approvals'),
-    group('children', ['childList', 'healthTrends']),
+    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
-    group('education', ['eduGoals', 'eduThemes', 'eduReviews', 'eduOverview', 'eduLessons']),
+    group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews']),
     group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
     group('facility', ['assets', 'myFacilityReports', 'transfers', 'inspections']),
     account,
@@ -182,9 +195,9 @@ const MENUS = {
   ],
   [ROLES.TEACHER]: [
     link('home'),
-    group('children', ['childList', 'healthTrends']),
+    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
-    group('education', ['eduOverview', 'eduLessons']),
+    group('education', ['eduGoals', 'eduBranch', 'eduClass']),
     group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
     group('facility', ['assets', 'myFacilityReports', 'transfers', 'inspections']),
     account,
@@ -192,19 +205,48 @@ const MENUS = {
   ],
   [ROLES.KITCHEN_STAFF]: [
     link('home'),
-    group('kitchen', ['kitchenDay', 'confirmedMealCount', 'forecast', 'freshReceipts', 'stockIssues', 'foodSamples', 'publishedMenu']),
+    group('nutrition', ['publishedMenu', 'confirmedMealCount']),
+    group('stock', ['kitchenDay', 'stockIssues', 'freshReceipts']),
+    group('foodReport', ['foodSamples', 'forecast']),
     group('facility', ['assets', 'myFacilityReports', 'transfers', 'inspections']),
     account,
     link('notifications'),
   ],
 };
 
-// permission: một mã hoặc danh sách (có một trong số đó là đủ)
-const allowed = (entry, can) => !entry.permission || [].concat(entry.permission).some((code) => can(code));
+/** "Phân công giáo viên" follows the permission of the Role & Permission screen; every other item stays role-based. */
+const withTeacherAssignment = (menu, user) => {
+  const allowed = canOpenTeacherAssignment(user);
+  const items = menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => c.key !== 'schoolTeachers') } : e));
+  if (!allowed) return items;
+  const entry = { ...ITEMS.schoolTeachers, key: 'schoolTeachers' };
+  const school = items.find((e) => e.key === 'school');
+  if (school) return items.map((e) => (e === school ? { ...e, children: [...e.children, entry] } : e));
+  return [items[0], ...items.slice(1, 2), { ...GROUPS.school, key: 'school', children: [entry] }, ...items.slice(2)];
+};
 
-/** Menu of a role; items that need a permission are dropped when `can(permission)` is false. */
-export const getMenuForRole = (role, can = () => true) =>
-  (MENUS[role] || [link('home'), account, link('notifications')])
-    .filter((entry) => allowed(entry, can))
-    .map((entry) => (entry.children ? { ...entry, children: entry.children.filter((c) => allowed(c, can)) } : entry))
-    .filter((entry) => !entry.children || entry.children.length > 0);
+/** Mảng chưa được thêm cho Phó hiệu trưởng (Không có): ẩn nhóm / mục menu tương ứng. */
+const AREA_GROUPS = { menu: ['catalog', 'nutrition'], facility: ['facility'], children: ['children'] };
+const AREA_ITEMS = { rooms: ['schoolRooms'], staff: ['schoolStaffView'] };
+const withVpAreas = (menu, user) => {
+  if (user?.role !== 'VICE_PRINCIPAL') return menu;
+  const none = (area) => areaAccess(user, area).access === 'NONE';
+  const hidden = Object.entries(AREA_GROUPS)
+    .filter(([area]) => none(area))
+    .flatMap(([, groups]) => groups);
+  const hiddenItems = Object.entries(AREA_ITEMS)
+    .filter(([area]) => none(area))
+    .flatMap(([, items]) => items);
+  // Mục tạo mới cần đúng quyền Thêm của mảng
+  const kids = areaAccess(user, 'children').actions || {};
+  if (!kids.create) hiddenItems.push('childEnroll');
+  if (!kids.update) hiddenItems.push('childPlacement', 'parentActivation');
+  return menu
+    .filter((e) => !hidden.includes(e.key))
+    .map((e) => (e.children ? { ...e, children: e.children.filter((c) => !hiddenItems.includes(c.key)) } : e));
+};
+
+const withFacility = (menu) => (FACILITY_ENABLED ? menu : menu.filter((e) => e.key !== 'facility'));
+
+export const getMenuForRole = (role, user) =>
+  withFacility(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user));

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, AlertCircle, Info, List, UserRound, FileText, Lock, Scale, PackagePlus } from '@/components/ui/icons';
+import { ArrowLeft, Check, AlertCircle, Info, List, UserRound, FileText, Scale, PackagePlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useTransfer } from '@/hooks/facility-transfer/useTransfers';
 import { useMasterData } from '@/hooks/useMasterData';
 import { confirmHandover, requestTransferRevision, confirmSupplement } from '@/services/facility-transfer/transferService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { LoadingState, ErrorState, EmptyState } from '@/components/ui/States';
+import { LoadingState, ErrorState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { TransferStatusBadge } from '@/components/facility-transfer/TransferStatusBadge';
 import { TransferInfoCard } from '@/components/facility-transfer/TransferInfoCard';
@@ -94,7 +95,7 @@ export default function HandoverPage() {
   if (!canViewTransfer(t, user))
     return (
       <div className="page">
-        <EmptyState icon={Lock} title="Bạn không có quyền xem phiếu này" />
+        <StatusPage kind="403" title="Bạn không có quyền xem phiếu này" />
       </div>
     );
 
@@ -166,7 +167,7 @@ export default function HandoverPage() {
           },
           user,
         );
-        toast.success('Đã ghi nhận giao thêm / lấy lại. Người nhận sẽ kiểm tra và xác nhận.', 'Thành công');
+        toast.success('Người nhận sẽ kiểm tra và xác nhận.', 'Đã ghi nhận giao thêm / lấy lại');
       } else {
         await confirmHandover(t.id, { items: t.items.map((i) => ({ itemId: i.id, ...rows[i.id] })), signatureUrl: signature, note }, user);
         toast.success(`Đã bàn giao phiếu ${t.code}. Người nhận đã được thông báo.`, 'Bàn giao thành công');
@@ -175,7 +176,7 @@ export default function HandoverPage() {
       reload({ silent: true });
     } catch (err) {
       setConfirmOpen(false);
-      toast.error(err.message, 'Không thể xác nhận');
+      toast.error(err, 'Không thể xác nhận');
     }
   };
 
@@ -186,7 +187,7 @@ export default function HandoverPage() {
       setAdjustOpen(false);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     }
   };
 
@@ -203,12 +204,10 @@ export default function HandoverPage() {
       <Breadcrumb items={transferCrumbs(`Bàn giao tài sản - ${t.code}`)} />
       <div className="page__head">
         <div>
-          <h1 className="page__title" style={{ marginBottom: 8 }}>
-            Bàn giao tài sản - {t.code}
-          </h1>
+          <h1 className="page__title">Bàn giao tài sản - {t.code}</h1>
           <TransferStatusBadge status={t.status} size="lg" />
         </div>
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-8">
           <TransferPrintButtons transfer={t} md={md} />
         </div>
       </div>
@@ -265,13 +264,13 @@ export default function HandoverPage() {
           </div>
           <div className="card__body">
             <div className="table-wrap">
-              <table className="table">
+              <table className="table table--grid">
                 <thead>
                   <tr>
-                    <th>Tài sản</th>
-                    <th className="center">Cần giao thêm</th>
+                    <th className="cell--fixed">Tài sản</th>
+                    <th className="num cell--fixed">Cần giao thêm</th>
                     <th className="center">Đã giao thêm</th>
-                    <th className="center">Cần lấy về (giao thừa)</th>
+                    <th className="num cell--fixed">Cần lấy về (giao thừa)</th>
                     <th className="center">Đã lấy về</th>
                     <th>Ghi chú</th>
                     <th className="center">Ảnh</th>
@@ -283,12 +282,12 @@ export default function HandoverPage() {
                     const err = rowErrors[i.id];
                     return (
                       <tr key={i.id}>
-                        <td>
+                        <td className="cell--fixed">
                           <div className="fw-600">{i.assetName}</div>
                           <div className="muted text-xs">{i.assetCode}</div>
                         </td>
-                        <td className="center fw-600 text-danger">{i.supplementRequired || '—'}</td>
-                        <td className="center" style={{ width: 120 }}>
+                        <td className="num cell--fixed fw-600 text-danger">{i.supplementRequired || '—'}</td>
+                        <td className="center w-120">
                           {i.supplementRequired > 0 ? (
                             <input
                               type="number"
@@ -303,8 +302,8 @@ export default function HandoverPage() {
                             '—'
                           )}
                         </td>
-                        <td className="center fw-600 text-danger">{i.returnRequired || '—'}</td>
-                        <td className="center" style={{ width: 120 }}>
+                        <td className="num cell--fixed fw-600 text-danger">{i.returnRequired || '—'}</td>
+                        <td className="center w-120">
                           {i.returnRequired > 0 ? (
                             <input
                               type="number"
@@ -320,7 +319,7 @@ export default function HandoverPage() {
                           )}
                           {err && <div className="field__error text-xs">{err}</div>}
                         </td>
-                        <td style={{ minWidth: 200 }}>
+                        <td className="min-w-200">
                           <input
                             className="input"
                             placeholder="Ghi chú..."
@@ -350,13 +349,13 @@ export default function HandoverPage() {
         </div>
         <div className="card__body">
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
-                  <th className="center">STT</th>
-                  <th>Mã tài sản</th>
-                  <th>Tên tài sản</th>
-                  <th className="center">Số lượng theo phiếu</th>
+                  <th className="center cell--fixed">STT</th>
+                  <th className="cell--fixed">Mã tài sản</th>
+                  <th className="cell--fixed">Tên tài sản</th>
+                  <th className="num cell--fixed">Số lượng theo phiếu</th>
                   <th className="center">Số lượng bàn giao</th>
                   <th className="center">Tình trạng</th>
                   <th>Ghi chú</th>
@@ -372,14 +371,14 @@ export default function HandoverPage() {
                     const supplied = (i.supplementHistory || []).reduce((s, x) => s + (x.quantity || 0), 0);
                     return (
                       <tr key={i.id}>
-                        <td className="center">{idx + 1}</td>
-                        <td>{i.assetCode}</td>
-                        <td>
+                        <td className="center cell--fixed">{idx + 1}</td>
+                        <td className="cell--fixed">{i.assetCode}</td>
+                        <td className="cell--fixed">
                           {i.assetName}
                           {supplied > 0 && <div className="text-primary text-xs">Đã giao thêm {supplied}</div>}
                         </td>
-                        <td className="center">{i.quantity}</td>
-                        <td className="center" style={{ width: 150 }}>
+                        <td className="num cell--fixed">{i.quantity}</td>
+                        <td className="center w-150">
                           {actionable ? (
                             <>
                               <input
@@ -397,14 +396,14 @@ export default function HandoverPage() {
                             (i.handoverQuantity ?? '—')
                           )}
                         </td>
-                        <td className="center" style={{ width: 160 }}>
+                        <td className="center w-160">
                           {actionable ? (
                             <ConditionSelect value={r.handoverCondition} onChange={(v) => setRow(i.id, { handoverCondition: v })} />
                           ) : (
                             <ConditionBadge value={i.handoverCondition || i.condition} />
                           )}
                         </td>
-                        <td style={{ minWidth: 180 }}>
+                        <td className="ft-min-w-180">
                           {actionable ? (
                             <input
                               className="input"
@@ -493,7 +492,7 @@ export default function HandoverPage() {
           <ArrowLeft size={17} /> Quay lại
         </button>
         {actionable && (
-          <div className="row" style={{ gap: 12 }}>
+          <div className="row gap-3">
             <button className="btn btn--lg btn--warning" onClick={() => setAdjustOpen(true)}>
               <AlertCircle size={18} /> Yêu cầu điều chỉnh
             </button>

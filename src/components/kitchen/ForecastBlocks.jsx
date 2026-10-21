@@ -1,3 +1,5 @@
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState } from '@/components/ui/States';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { formatDateTime } from '@/utils/format';
 
@@ -34,13 +36,13 @@ export function WeekForecastGrid({ data, today, draft, errors, editable, onChang
     }, 0);
   return (
     <div className="table-wrap">
-      <table className="table kb-fc">
+      <table className="table table--grid kb-fc">
         <thead>
           <tr>
-            <th>Lớp</th>
-            <th className="right">Đăng ký ăn</th>
+            <th className="cell--fixed">Lớp</th>
+            <th className="num cell--fixed">Đăng ký ăn</th>
             {data.days.map((d) => (
-              <th key={d.date} className={`right ${d.date === today ? 'kb-col-today' : ''}`}>
+              <th key={d.date} className={`num ${d.date === today ? 'kb-col-today' : ''}`}>
                 {dayShort(d.date)}
                 <small>{dayNote(d, today)}</small>
               </th>
@@ -50,8 +52,8 @@ export function WeekForecastGrid({ data, today, draft, errors, editable, onChang
         <tbody>
           {data.classes.map((c) => (
             <tr key={c.classId}>
-              <td>{c.className}</td>
-              <td className="right">{c.registered}</td>
+              <td className="cell--fixed">{c.className}</td>
+              <td className="num cell--fixed">{c.registered}</td>
               {c.cells.map((cell, i) => {
                 const day = data.days[i];
                 const key = `${c.classId}|${cell.date}`;
@@ -59,20 +61,20 @@ export function WeekForecastGrid({ data, today, draft, errors, editable, onChang
                 const today_ = day.date === today ? 'kb-col-today' : '';
                 if (day.holiday)
                   return (
-                    <td key={cell.date} className={`right muted ${today_}`}>
+                    <td key={cell.date} className={`num muted ${today_}`}>
                       —
                     </td>
                   );
                 if (!editable || !day.editable)
                   return (
-                    <td key={cell.date} className={`right ${today_}`}>
+                    <td key={cell.date} className={`num ${today_}`}>
                       {cell.value}
                     </td>
                   );
                 const value = cellValue(c.classId, cell);
                 const edited = String(cell.suggested) !== value;
                 return (
-                  <td key={cell.date} className={`right ${today_}`}>
+                  <td key={cell.date} className={`num ${today_}`}>
                     <span className="kb-fc__cell">
                       <input
                         className={`input kb-fc__input ${err ? 'input--error' : ''}`}
@@ -91,10 +93,10 @@ export function WeekForecastGrid({ data, today, draft, errors, editable, onChang
             </tr>
           ))}
           <tr className="kb-fc__total">
-            <td>Tổng</td>
-            <td className="right">{data.classes.reduce((n, c) => n + c.registered, 0)}</td>
+            <td className="cell--fixed">Tổng</td>
+            <td className="num cell--fixed">{data.classes.reduce((n, c) => n + c.registered, 0)}</td>
             {data.days.map((d, i) => (
-              <td key={d.date} className={`right ${d.date === today ? 'kb-col-today' : ''}`}>
+              <td key={d.date} className={`num cell--fixed ${d.date === today ? 'kb-col-today' : ''}`}>
                 {d.holiday ? '—' : total(i)}
                 {d.sentTotal != null && d.sentTotal !== total(i) && !d.holiday && <small>phiếu {d.sentTotal}</small>}
               </td>
@@ -108,20 +110,21 @@ export function WeekForecastGrid({ data, today, draft, errors, editable, onChang
 
 /** Phiếu đặt hàng tuần, hàng tươi: mỗi ngày giao một cột; số gạch là số đã gửi NCC trước khi đổi. */
 export function FreshOrderTable({ data, today }) {
-  if (!data.fresh.length) return <p className="muted text-sm">Tuần này không có thực phẩm tươi cần đặt.</p>;
+  if (!data.fresh.length)
+    return <EmptyState title="Tuần này không cần đặt hàng tươi" description="Thực đơn tuần không dùng thực phẩm tươi nào." />;
   return (
     <div className="table-wrap">
-      <table className="table table--compact kb-fc">
+      <table className="table table--grid table--compact kb-fc">
         <thead>
           <tr>
             <th>Thực phẩm tươi</th>
             <th>ĐVT</th>
             {data.days.map((d) => (
-              <th key={d.date} className={`right ${d.date === today ? 'kb-col-today' : ''}`}>
+              <th key={d.date} className={`num ${d.date === today ? 'kb-col-today' : ''}`}>
                 {dayShort(d.date)}
               </th>
             ))}
-            <th className="right">Cộng</th>
+            <th className="num">Cộng</th>
           </tr>
         </thead>
         <tbody>
@@ -130,7 +133,7 @@ export function FreshOrderTable({ data, today }) {
               <td>{f.name}</td>
               <td>{f.unit}</td>
               {f.days.map((x) => (
-                <td key={x.date} className={`right nowrap ${x.date === today ? 'kb-col-today' : ''}`}>
+                <td key={x.date} className={`num nowrap ${x.date === today ? 'kb-col-today' : ''}`}>
                   {x.sentQty != null && x.sentQty !== x.qty && <s className="muted">{fmtQty(x.sentQty)}</s>}{' '}
                   {x.qty ? (
                     <span className={x.sentQty != null && x.sentQty !== x.qty ? 'fw-600' : undefined}>{fmtQty(x.qty)}</span>
@@ -139,7 +142,7 @@ export function FreshOrderTable({ data, today }) {
                   )}
                 </td>
               ))}
-              <td className="right fw-600">{fmtQty(f.total)}</td>
+              <td className="num fw-600">{fmtQty(f.total)}</td>
             </tr>
           ))}
         </tbody>
@@ -150,17 +153,18 @@ export function FreshOrderTable({ data, today }) {
 
 /** Đồ khô cần cho các ngày chưa chốt của tuần so với tồn của cơ sở. */
 export function DryOrderTable({ data }) {
-  if (!data.dry.length) return <p className="muted text-sm">Thực đơn các ngày còn lại không dùng đồ khô.</p>;
+  if (!data.dry.length)
+    return <EmptyState title="Tuần này không cần mua đồ khô" description="Thực đơn các ngày chưa chốt không dùng đồ khô nào." />;
   return (
     <div className="table-wrap">
-      <table className="table table--compact">
+      <table className="table table--grid table--compact">
         <thead>
           <tr>
             <th>Đồ khô</th>
             <th>ĐVT</th>
-            <th className="right">Cần cho tuần</th>
-            <th className="right">Tồn kho</th>
-            <th className="right">Cần mua</th>
+            <th className="num">Cần cho tuần</th>
+            <th className="num">Tồn kho</th>
+            <th className="num">Cần mua</th>
           </tr>
         </thead>
         <tbody>
@@ -168,9 +172,9 @@ export function DryOrderTable({ data }) {
             <tr key={f.foodId}>
               <td>{f.name}</td>
               <td>{f.unit}</td>
-              <td className="right">{fmtQty(f.need)}</td>
-              <td className="right">{fmtQty(f.stock)}</td>
-              <td className="right">
+              <td className="num">{fmtQty(f.need)}</td>
+              <td className="num">{fmtQty(f.stock)}</td>
+              <td className="num">
                 {f.toBuy > 0 ? (
                   <span className="kb-buy">
                     <span className="kb-dot kb-dot--warn" aria-hidden="true" />
@@ -189,48 +193,61 @@ export function DryOrderTable({ data }) {
 }
 
 /** Một nhóm thay đổi cần báo NCC (một ngày): bảng Đã đặt / Cần / Chênh / Đã báo. */
-export function SupplierChangeCard({ group, total, today, canEdit, busyKey, onToggle }) {
+export function SupplierChangeCard({ group, total, today, canEdit, override = {}, onToggle, onToggleAll }) {
   const isAfterConfirm = group.kind === 'AFTER_CONFIRM';
   const when = group.date === today ? 'Hôm nay' : dayShort(group.date);
   const title = `${when} · ${isAfterConfirm ? 'sau chốt' : 'đổi so với phiếu tuần'}`;
-  const pending = group.lines.filter((l) => !l.notified).length;
+  // override: ô vừa tích, hiện ngay trong lúc chờ lưu
+  const isOn = (l) => override[`${group.date}|${l.foodId}`] ?? l.notified;
+  const pending = group.lines.filter((l) => !isOn(l)).length;
+  const allDone = pending === 0;
+  const totalChange = group.sentTotal != null && total != null && group.sentTotal !== total ? `${group.sentTotal} → ${total} suất · ` : '';
   return (
     <section className="card">
       <div className="card__header">
         <h2 className="card__title">{title}</h2>
-        <span className={`chip ${pending ? 'chip--orange' : 'chip--green'}`}>
-          {group.sentTotal != null && total != null && group.sentTotal !== total ? `${group.sentTotal} → ${total} suất · ` : ''}
-          {pending ? `${pending} chưa báo` : 'Đã báo hết'}
-        </span>
+        <StatusBadge tone={pending ? 'orange' : 'green'} label={`${totalChange}${pending ? `${pending} chưa báo` : 'Đã báo hết'}`} />
       </div>
       <div className="table-wrap">
-        <table className="table table--compact">
+        <table className="table table--grid table--compact">
           <thead>
             <tr>
-              <th>Thực phẩm</th>
-              <th className="right">Đã đặt</th>
-              <th className="right">Cần</th>
-              <th className="right">Chênh</th>
-              <th>Đã báo</th>
+              <th className="cell--fixed">Thực phẩm</th>
+              <th className="num cell--fixed">Đã đặt</th>
+              <th className="num cell--fixed">Cần</th>
+              <th className="num cell--fixed">Chênh</th>
+              <th className="center">
+                {/* Tích ở tiêu đề = đánh dấu / bỏ đánh dấu cả ngày; đang làm dở thì hiện gạch ngang */}
+                <label className="checkbox" title={allDone ? 'Bỏ đánh dấu cả ngày' : 'Đánh dấu đã báo NCC cả ngày'}>
+                  <input
+                    type="checkbox"
+                    checked={allDone}
+                    ref={(el) => el && (el.indeterminate = !allDone && pending < group.lines.length)}
+                    disabled={!canEdit}
+                    onChange={() => onToggleAll(group.date, group.lines, !allDone)}
+                    aria-label={`Đã báo NCC tất cả thực phẩm ${when}`}
+                  />
+                  Đã báo
+                </label>
+              </th>
             </tr>
           </thead>
           <tbody>
             {group.lines.map((l) => {
-              const key = `${group.date}|${l.foodId}`;
               return (
                 <tr key={l.foodId}>
-                  <td>
+                  <td className="cell--fixed">
                     {l.name} <span className="text-xs muted">{l.unit}</span>
                   </td>
-                  <td className="right">{fmtQty(l.ordered)}</td>
-                  <td className="right">{fmtQty(l.needed)}</td>
-                  <td className={`right fw-600 ${l.diff < 0 ? 'kb-short' : 'kb-over'}`}>{signed(l.diff)}</td>
-                  <td>
+                  <td className="num cell--fixed">{fmtQty(l.ordered)}</td>
+                  <td className="num cell--fixed">{fmtQty(l.needed)}</td>
+                  <td className={`num fw-600 cell--fixed ${l.diff < 0 ? 'kb-short' : 'kb-over'}`}>{signed(l.diff)}</td>
+                  <td className="center">
                     <label className="checkbox" title={l.notifiedAt ? `Đã báo lúc ${formatDateTime(l.notifiedAt)}` : undefined}>
                       <input
                         type="checkbox"
-                        checked={l.notified}
-                        disabled={!canEdit || busyKey === key}
+                        checked={isOn(l)}
+                        disabled={!canEdit}
                         onChange={(e) => onToggle(group.date, l.foodId, e.target.checked)}
                         aria-label={`Đã báo NCC ${l.name}`}
                       />

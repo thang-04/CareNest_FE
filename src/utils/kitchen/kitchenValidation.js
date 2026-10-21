@@ -1,4 +1,10 @@
-import { COUNT_DIFF_REASON, FRESH_RESULT, MEAL_SESSIONS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
+import {
+  FRESH_RESULT,
+  ALL_MEAL_SESSIONS as MEAL_SESSIONS,
+  MEAL_SESSIONS as LEGACY_PREP_SESSIONS,
+  PREP_STATUS_ORDER,
+  NOTE_MAX,
+} from '@/models/kitchen/kitchenConstants';
 
 /* Each validator returns { field: message }; empty object = valid. Used by forms and by the mock repository (422). */
 
@@ -6,14 +12,34 @@ const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
 const num = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v));
 const tooLong = (v, max = NOTE_MAX) => String(v || '').length > max;
 
-/** UC 6.23: each line needs a food, a received quantity and, when goods are rejected, a reason. */
-export const validateStockReceipt = (payload, today) => {
+const PHONE = /^(\+84|0)\d{9,10}$/;
+const TAX_CODE = /^\d{10}(-\d{3})?$/;
+
+/** NCC (BA 01): bắt buộc tên; SĐT, mã số thuế chỉ kiểm định dạng khi có nhập. Mã do hệ thống sinh nên không kiểm. */
+export const validateSupplier = (payload) => {
+  const errors = {};
+  const name = String(payload.name || '').trim();
+  if (!name) errors.name = 'Nhập tên nhà cung cấp.';
+  else if (name.length > 150) errors.name = 'Tối đa 150 ký tự.';
+  if (tooLong(payload.address, 255)) errors.address = 'Tối đa 255 ký tự.';
+  if (tooLong(payload.contactName, 100)) errors.contactName = 'Tối đa 100 ký tự.';
+  const phone = String(payload.phone || '').replace(/[\s.-]/g, '');
+  if (phone && !PHONE.test(phone)) errors.phone = 'Số điện thoại gồm 10–11 chữ số, bắt đầu bằng 0 hoặc +84.';
+  const taxCode = String(payload.taxCode || '').trim();
+  if (taxCode && !TAX_CODE.test(taxCode)) errors.taxCode = 'Mã số thuế gồm 10 chữ số, chi nhánh thêm "-" và 3 chữ số.';
+  return errors;
+};
+
+/**
+ * Phiếu nhập: nháp chỉ cần ngày, thực phẩm, số lượng; xác nhận (mặc định) bắt buộc NCC, lô, NSX, HSD, đơn giá theo BA.
+ * Dòng không đạt chất lượng phải có lý do. Khóa lỗi theo dòng `items.i.field`.
+ */
+export const validateStockReceipt = (payload, today, { confirm = true } = {}) => {
   const errors = {};
   if (!isDate(payload.date)) errors.date = 'Chọn ngày nhập kho.';
   else if (today && payload.date > today) errors.date = 'Ngày nhập kho không được sau hôm nay.';
   if (tooLong(payload.note)) errors.note = `Ghi chú tối đa ${NOTE_MAX} ký tự.`;
-  if (!String(payload.supplierName || '').trim()) errors.supplierName = 'Nhập nhà cung cấp.';
-  else if (tooLong(payload.supplierName, 150)) errors.supplierName = 'Tối đa 150 ký tự.';
+  if (confirm && !payload.supplierId) errors.supplierId = 'Chọn nhà cung cấp.';
   const items = payload.items || [];
   if (items.length === 0) errors.items = 'Thêm ít nhất một thực phẩm.';
   const seen = new Set();
@@ -27,10 +53,18 @@ export const validateStockReceipt = (payload, today) => {
     if (!(rejected >= 0)) errors[`items.${i}.rejectedQty`] = 'Số lượng không đạt phải từ 0 trở lên.';
     else if (received > 0 && rejected > received) errors[`items.${i}.rejectedQty`] = 'Không vượt quá số lượng nhận.';
     if (rejected > 0 && !String(it.note || '').trim()) errors[`items.${i}.note`] = 'Ghi lý do không đạt chất lượng.';
-    if (!String(it.lotNo || '').trim()) errors[`items.${i}.lotNo`] = 'Nhập số lô.';
-    else if (tooLong(it.lotNo, 50)) errors[`items.${i}.lotNo`] = 'Tối đa 50 ký tự.';
-    if (!isDate(it.expiryDate)) errors[`items.${i}.expiryDate`] = 'Nhập hạn sử dụng.';
-    if (!(num(it.unitPrice) >= 0)) errors[`items.${i}.unitPrice`] = 'Nhập đơn giá (từ 0).';
+    if (tooLong(it.lotNo, 50)) errors[`items.${i}.lotNo`] = 'Tối đa 50 ký tự.';
+    else if (confirm && !String(it.lotNo || '').trim()) errors[`items.${i}.lotNo`] = 'Nhập số lô.';
+    if (it.mfgDate && !isDate(it.mfgDate)) errors[`items.${i}.mfgDate`] = 'Ngày sản xuất không hợp lệ.';
+    else if (confirm && !isDate(it.mfgDate)) errors[`items.${i}.mfgDate`] = 'Nhập ngày sản xuất.';
+    else if (it.mfgDate && today && it.mfgDate > today) errors[`items.${i}.mfgDate`] = 'Ngày sản xuất không được sau hôm nay.';
+    if (it.expiryDate && !isDate(it.expiryDate)) errors[`items.${i}.expiryDate`] = 'Hạn sử dụng không hợp lệ.';
+    else if (confirm && !isDate(it.expiryDate)) errors[`items.${i}.expiryDate`] = 'Nhập hạn sử dụng.';
+    else if (isDate(it.mfgDate) && isDate(it.expiryDate) && it.expiryDate < it.mfgDate)
+      errors[`items.${i}.expiryDate`] = 'Hạn sử dụng phải sau ngày sản xuất.';
+    const price = num(it.unitPrice);
+    if (it.unitPrice !== '' && it.unitPrice != null && !(price >= 0)) errors[`items.${i}.unitPrice`] = 'Đơn giá từ 0 trở lên.';
+    else if (confirm && !(price >= 0)) errors[`items.${i}.unitPrice`] = 'Nhập đơn giá (từ 0).';
   });
   return errors;
 };
@@ -94,20 +128,20 @@ export const validateForecastCells = (cells) => {
   return errors;
 };
 
-/** Kiểm kê: số đếm từ 0; chốt thì mọi dòng phải có số đếm, lệch khác 0 phải chọn lý do. Khóa lỗi `lines.foodId`. */
-export const validateStockCount = (lines, { finalize = false } = {}) => {
-  const errors = {};
-  (lines || []).forEach((l) => {
-    if (l.countedQty == null) {
-      if (finalize) errors[`lines.${l.foodId}`] = 'Nhập số đếm.';
-      return;
-    }
-    if (!(Number(l.countedQty) >= 0)) errors[`lines.${l.foodId}`] = 'Số đếm từ 0.';
-    else if (finalize && Number(l.countedQty) !== Number(l.systemQty) && !Object.values(COUNT_DIFF_REASON).includes(l.reason))
-      errors[`lines.${l.foodId}`] = 'Chọn lý do lệch.';
-  });
-  return errors;
-};
-
 /** Index errors of item rows: errors['items.2.receivedQty'] → itemError(errors, 2, 'receivedQty'). */
 export const itemError = (errors, index, field) => errors?.[`items.${index}.${field}`];
+
+export const validatePreparationUpdate = (payload, currentStatus, today) => {
+  const errors = {};
+  if (!isDate(payload.date)) errors.date = 'Chọn ngày.';
+  else if (today && payload.date > today) errors.date = 'Không cập nhật cho ngày sau hôm nay.';
+  if (!LEGACY_PREP_SESSIONS.includes(payload.session)) errors.session = 'Chọn bữa ăn.';
+  const next = PREP_STATUS_ORDER.indexOf(payload.status);
+  if (next === -1) errors.status = 'Chọn trạng thái chế biến.';
+  else if (currentStatus && next < PREP_STATUS_ORDER.indexOf(currentStatus))
+    errors.status = 'Trạng thái chỉ được chuyển tiếp, không quay lại.';
+  else if (currentStatus === payload.status && !String(payload.note || '').trim())
+    errors.note = 'Trạng thái không đổi: nhập ghi chú cần cập nhật.';
+  if (tooLong(payload.note)) errors.note = `Ghi chú tối đa ${NOTE_MAX} ký tự.`;
+  return errors;
+};

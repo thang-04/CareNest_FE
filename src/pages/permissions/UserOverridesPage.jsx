@@ -1,20 +1,23 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { History, Pencil, Plus, RotateCcw, Search, ShieldCheck } from '@/components/ui/icons';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, RotateCcw, ShieldCheck } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { RowActions } from '@/components/ui/RowActions';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { Avatar } from '@/components/ui/Avatar';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { PermissionTabs } from '@/components/permissions/PermissionTabs';
 import { OverrideWizardModal } from '@/components/permissions/OverrideWizardModal';
-import { ReasonModal } from '@/components/account/StaffDialogs';
+import { PermissionStateBadge } from '@/components/permissions/PermissionBadges';
+import { ReasonModal } from '@/components/permissions/ReasonModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useAccountsWithOverrides } from '@/hooks/account/usePermissions';
+import { useAccountsWithOverrides, usePermissionStaff } from '@/hooks/account/usePermissions';
 import { updatePermissionOverrides } from '@/services/account/permissionService';
 import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import { permissionCrumbs } from '@/utils/school-config/breadcrumbs';
-import { avatarTone, formatDate, initials } from '@/utils/format';
-import '@/styles/modules/staff-hub.css';
+import { formatDate } from '@/utils/format';
 import '@/styles/modules/permissions.css';
 
 const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER'];
@@ -24,6 +27,10 @@ export default function UserOverridesPage() {
   const toast = useToast();
 
   const { data: accounts, loading, error, reload } = useAccountsWithOverrides();
+  const [params, setParams] = useSearchParams();
+  const targetId = params.get('userId');
+  const staffQuery = usePermissionStaff({ enabled: !!targetId });
+  const targetStaff = staffQuery.data?.items.find((row) => String(row.userId) === targetId);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -37,12 +44,12 @@ export default function UserOverridesPage() {
       const matchesRole = !roleFilter || acc.role === roleFilter;
       const matchesSearch =
         !searchQuery || acc.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) || acc.phone?.includes(searchQuery);
-      return matchesRole && matchesSearch;
+      return matchesRole && matchesSearch && (!targetId || String(acc.userId) === targetId);
     });
-  }, [accounts, roleFilter, searchQuery]);
+  }, [accounts, roleFilter, searchQuery, targetId]);
 
   const handleResetConfirm = async (reason) => {
-    if (!resetStaff) return;
+    if (!resetStaff || savingReset) return;
     setSavingReset(true);
     try {
       await updatePermissionOverrides(
@@ -64,38 +71,51 @@ export default function UserOverridesPage() {
   };
 
   return (
-    <div className="page">
+    <div className="page permission-center">
       <Breadcrumb items={permissionCrumbs('Quyền ngoại lệ từng người')} />
-      <PermissionTabs />
-
-      <div className="sh-head permission-page-head">
+      <div className="page__head permission-page-head">
         <div>
-          <h1>Quyền ngoại lệ từng người</h1>
+          <h1 className="page__title">Quyền ngoại lệ từng người</h1>
           <p className="text-sm text-2">Danh sách nhân sự được cấp thêm (+) hoặc thu hồi (-) quyền đặc thù so với vai trò chuẩn.</p>
         </div>
-        <div className="sh-head__actions permission-header-actions">
+      </div>
+      <PermissionTabs
+        actions={
           <button className="btn btn--primary" type="button" onClick={() => setWizardStaff({})}>
             <Plus size={16} /> Thêm ngoại lệ cho nhân sự
           </button>
-          <Link className="btn" to="/permissions/history">
-            <History size={16} /> Lịch sử thay đổi
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
+      {targetId && (
+        <div className="alert alert--info">
+          <span>
+            {staffQuery.loading
+              ? 'Đang tìm nhân sự…'
+              : targetStaff
+                ? `Đang xem: ${targetStaff.fullName}`
+                : 'Nhân sự này không còn nằm trong danh sách cấu hình demo.'}
+          </span>
+          {targetStaff && (
+            <button className="btn btn--sm" onClick={() => setWizardStaff(targetStaff)}>
+              Thiết lập ngoại lệ cho người này
+            </button>
+          )}
+          <button className="btn btn--sm" onClick={() => setParams({})}>
+            Xem tất cả nhân sự
+          </button>
+          {staffQuery.error && <ErrorState error={staffQuery.error} onRetry={staffQuery.reload} />}
+        </div>
+      )}
       <section className="card">
         <div className="filter-bar">
-          <div className="search-input-wrap permission-search">
-            <Search size={16} className="search-icon" />
-            <input
-              className="input"
-              type="search"
-              placeholder="Tìm theo họ tên hoặc SĐT nhân sự..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Tìm kiếm nhân sự"
-            />
-          </div>
+          <SearchSubmit
+            className="permission-search"
+            value={searchQuery}
+            placeholder="Tìm theo họ tên hoặc SĐT nhân sự"
+            label="Tìm kiếm nhân sự"
+            onSearch={setSearchQuery}
+          />
           <select className="select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} aria-label="Lọc theo vai trò">
             <option value="">Tất cả vai trò</option>
             {CONFIGURABLE_ROLES.map((r) => (
@@ -119,10 +139,23 @@ export default function UserOverridesPage() {
                 ? 'Tất cả nhân sự trong trường đang sử dụng quyền mặc định theo vai trò. Bấm “Thêm ngoại lệ cho nhân sự” để thiết lập quyền riêng.'
                 : 'Thử thay đổi từ khóa tìm kiếm hoặc bỏ bớt bộ lọc.'
             }
+            action={
+              accounts?.length > 0 && (
+                <button
+                  className="btn"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setRoleFilter('');
+                  }}
+                >
+                  <RotateCcw size={15} /> Đặt lại bộ lọc
+                </button>
+              )
+            }
           />
         ) : (
           <div className="table-wrap">
-            <table className="table sh-permission-table">
+            <table className="table table--grid table--compact permission-overrides-table">
               <thead>
                 <tr>
                   <th>Nhân sự</th>
@@ -130,7 +163,7 @@ export default function UserOverridesPage() {
                   <th>Quyền cấp thêm (+)</th>
                   <th>Quyền thu hồi (-)</th>
                   <th>Ghi chú / Lý do</th>
-                  <th className="text-right">Thao tác</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,8 +175,8 @@ export default function UserOverridesPage() {
                   return (
                     <tr key={item.userId}>
                       <td>
-                        <div className="d-flex align-items-center gap-2">
-                          <span className={`avatar avatar--tone-${avatarTone(item.fullName)}`}>{initials(item.fullName)}</span>
+                        <div className="permission-person">
+                          <Avatar user={item} size="sm" />
                           <div>
                             <strong>{item.fullName}</strong>
                             {item.phone && <div className="text-xs text-muted">{item.phone}</div>}
@@ -151,44 +184,32 @@ export default function UserOverridesPage() {
                         </div>
                       </td>
 
-                      <td>
+                      <td className="center">
                         <StatusBadge tone="teal" label={PERMISSION_ROLE_LABELS[item.role] || item.role} />
                         <div className="text-xs text-muted mt-1">{campusText}</div>
                       </td>
 
-                      <td>
-                        {grantOverrides.length > 0 ? (
-                          <div className="permission-override-tags">
-                            {grantOverrides.map((o) => {
-                              const label = PERMISSION_TASKS[o.permission]?.label || o.permission;
-                              return (
-                                <span key={o.permission} title={label}>
-                                  <StatusBadge tone="green" label={`+ ${label}`} />
-                                </span>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-muted text-xs">—</span>
-                        )}
-                      </td>
-
-                      <td>
-                        {revokeOverrides.length > 0 ? (
-                          <div className="permission-override-tags">
-                            {revokeOverrides.map((o) => {
-                              const label = PERMISSION_TASKS[o.permission]?.label || o.permission;
-                              return (
-                                <span key={o.permission} title={label}>
-                                  <StatusBadge tone="orange" label={`− ${label}`} />
-                                </span>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-muted text-xs">—</span>
-                        )}
-                      </td>
+                      {[
+                        ['GRANT', grantOverrides],
+                        ['REVOKE', revokeOverrides],
+                      ].map(([effect, list]) => (
+                        <td key={effect}>
+                          {list.length > 0 ? (
+                            <div className="permission-override-tags">
+                              {list.map((o) => {
+                                const label = PERMISSION_TASKS[o.permission]?.label || o.permission;
+                                return (
+                                  <span key={o.permission} title={label}>
+                                    <PermissionStateBadge state={effect} label={label} signed />
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-muted text-xs">—</span>
+                          )}
+                        </td>
+                      ))}
 
                       <td>
                         <div className="text-sm">{item.overrides[0]?.reason || 'Không có ghi chú'}</div>
@@ -197,25 +218,19 @@ export default function UserOverridesPage() {
                         )}
                       </td>
 
-                      <td className="text-right">
-                        <div className="permission-row-actions">
-                          <button
-                            className="btn btn--sm"
-                            type="button"
-                            onClick={() => setWizardStaff(item)}
-                            title="Chỉnh sửa quyền ngoại lệ"
-                          >
-                            <Pencil size={14} /> Sửa
-                          </button>
-                          <button
-                            className="btn btn--sm btn--subtle"
-                            type="button"
-                            onClick={() => setResetStaff(item)}
-                            title="Khôi phục quyền mặc định theo vai trò"
-                          >
-                            <RotateCcw size={14} /> Đặt lại
-                          </button>
-                        </div>
+                      <td className="cell--actions">
+                        <RowActions
+                          edit={{ onClick: () => setWizardStaff(item), label: 'Sửa quyền ngoại lệ' }}
+                          menu={[
+                            {
+                              label: 'Đặt lại quyền theo vai trò',
+                              icon: RotateCcw,
+                              danger: true,
+                              onClick: () => setResetStaff(item),
+                            },
+                          ]}
+                          name={item.fullName}
+                        />
                       </td>
                     </tr>
                   );
@@ -243,10 +258,9 @@ export default function UserOverridesPage() {
       {resetStaff && (
         <ReasonModal
           title={`Đặt lại quyền theo vai trò cho ${resetStaff.fullName}?`}
-          changes={resetStaff.overrides.map((o) => {
-            const task = PERMISSION_TASKS[o.permission];
-            return `Khôi phục “${task?.label || o.permission}” về mặc định theo vai trò`;
-          })}
+          changes={resetStaff.overrides.map(
+            (o) => `Khôi phục “${PERMISSION_TASKS[o.permission]?.label || o.permission}” về mặc định theo vai trò`,
+          )}
           saving={savingReset}
           onClose={() => setResetStaff(null)}
           onSubmit={handleResetConfirm}

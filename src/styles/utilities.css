@@ -12,8 +12,17 @@
 .row--between {
   justify-content: space-between;
 }
+.row--center {
+  justify-content: center;
+}
 .row--wrap {
   flex-wrap: wrap;
+}
+/* Điện thoại: hàng nút/nhãn quá dài thì xuống dòng thay vì đẩy trang tràn ngang */
+@media (max-width: 640px) {
+  .row {
+    flex-wrap: wrap;
+  }
 }
 .stack {
   display: flex;
@@ -25,19 +34,27 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
 }
+/* Điện thoại: 2 cột ô nhập/khối thông tin quá chật và đẩy trang tràn ngang */
+@media (max-width: 640px) {
+  .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .grid-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-4);
+}
+@media (max-width: 640px) {
+  .grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .muted {
   color: var(--color-text-muted);
 }
 .text-2 {
   color: var(--text-2);
-}
-.text-right {
-  text-align: right;
 }
 .fw-600 {
   font-weight: var(--fw-semibold);
@@ -86,6 +103,11 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+/* Phần tử cha giữ ô ẩn trong khung: thiếu dòng này, ô ẩn trong bảng có thanh cuộn thoát khỏi khung cắt
+   và kéo dài trang (khoảng trắng dưới footer). :where = độ ưu tiên 0, position khác (sticky...) vẫn thắng */
+:where(*:has(> .sr-only)) {
+  position: relative;
 }
 
 /* Font size helpers (use instead of style={{ fontSize }}) */
@@ -199,4 +221,8 @@
 }
 .anim-fade-in {
   animation: fadeIn 0.2s var(--ease-out) both;
+}
+
+.text-right {
+  text-align: right;
 }

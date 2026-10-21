@@ -11,7 +11,7 @@ import { SidePanel } from '@/components/ui/SidePanel';
 import { Switch } from '@/components/ui/Switch';
 import { FormField } from '@/components/form/FormField';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
-import { ageGroupById } from '@/models/School';
+import { ageGroupById, isNurseryAgeGroup } from '@/models/School';
 import { MEAL_SESSION_LABELS, formatMoney, sessionsOf } from '@/models/menu-planning/menuPlanningConstants';
 import { hasErrors, validateNutritionSetup } from '@/utils/menu-planning/menuPlanningValidation';
 import { NORM_COLUMNS, isBaseMeal, priceStatus, toSetupForm, toSetupPayload } from '@/utils/menu-planning/nutritionSetup';
@@ -22,11 +22,12 @@ import '@/styles/modules/menu-planning.css';
 const TABS = [
   { key: 'overview', label: 'Tổng quan' },
   { key: 'groups', label: 'Nhóm độ tuổi' },
-  { key: 'meals', label: 'Bữa ăn & định mức' },
+  { key: 'meals', label: 'Bữa ăn & chuẩn tạm' },
 ];
 const NORM_TONE = { protein: 'td-col-p', lipid: 'td-col-l', glucid: 'td-col-g' };
-const NORM_SHORT_LABELS = { kcal: 'Kcal', protein: 'Đạm', lipid: 'Béo', glucid: 'Bột' };
-const DESC = 'Bữa ăn, giá suất ăn một ngày và khoảng định mức một ngày cho mỗi nhóm tuổi. Nhập đúng theo văn bản quy định, không dùng AI.';
+const NORM_SHORT_LABELS = { kcal: 'Kcal', protein: 'Đạm', lipid: 'Béo', glucid: 'Tinh bột' };
+const DESC =
+  'Bữa ăn, giá suất ăn một ngày và chuẩn tạm (nhập tay) một ngày cho mỗi nhóm tuổi. Trường chưa chốt bộ chuẩn dinh dưỡng: để trống thì thực đơn hiện "Chưa đủ dữ liệu đánh giá". Không dùng AI.';
 // Tên ngắn và độ tuổi tách từ tên nhóm "Nhà trẻ (24–36 tháng)"
 const groupInfo = (ageGroupId) => {
   const g = ageGroupById(ageGroupId);
@@ -176,7 +177,7 @@ export default function NutritionSetupPage() {
       if (e.details) setServerErrors(e.details);
       // Lỗi ngày áp dụng / lý do sửa ngay trong hộp; lỗi khác đóng hộp để sửa trên bảng
       if (!e.details?.effectiveFrom && !e.details?.reason) setConfirm(false);
-      toast.error(e.message, 'Không lưu được thay đổi');
+      toast.error(e, 'Không lưu được thay đổi');
     }
   };
 
@@ -239,15 +240,15 @@ export default function NutritionSetupPage() {
             </div>
           </div>
           <div className="table-wrap">
-            <table className="table td-overview__table">
+            <table className="table table--grid td-overview__table">
               <thead>
                 <tr>
                   <th>Nhóm tuổi</th>
                   <th>Bữa ăn</th>
-                  <th>Giá suất / trẻ / ngày</th>
-                  <th>Định mức / ngày</th>
-                  <th>Trạng thái</th>
-                  <th className="text-right">Chi tiết</th>
+                  <th className="money">Giá suất / trẻ / ngày</th>
+                  <th>Chuẩn tạm / ngày</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="cell--actions">Chi tiết</th>
                 </tr>
               </thead>
               <tbody>
@@ -279,7 +280,7 @@ export default function NutritionSetupPage() {
                           )}
                         </div>
                       </td>
-                      <td>
+                      <td className="money">
                         <div className="td-overview__price">
                           <strong>{g.price ? formatMoney(Number(g.price)) : 'Chưa thiết lập'}</strong>
                           {upcoming && (
@@ -298,10 +299,10 @@ export default function NutritionSetupPage() {
                           ))}
                         </div>
                       </td>
-                      <td>
+                      <td className="center">
                         <StatusBadge tone={g.enabled ? 'green' : 'gray'} label={g.enabled ? 'Đang áp dụng' : 'Không áp dụng'} />
                       </td>
-                      <td className="text-right">
+                      <td className="cell--actions">
                         <button
                           className="btn btn--sm"
                           type="button"
@@ -323,23 +324,23 @@ export default function NutritionSetupPage() {
       ) : tab === 'groups' ? (
         <section className="card">
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th className="td-num-col" aria-label="Số thứ tự" />
                   <th>Nhóm trẻ tại trường</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="td-grp-row">
                   <td colSpan={3}>Nhà trẻ (24–36 tháng)</td>
                 </tr>
-                {groupRows(form.groups.filter((g) => g.ageGroupId === 'ag-2'))}
+                {groupRows(form.groups.filter((g) => isNurseryAgeGroup(g.ageGroupId)))}
                 <tr className="td-grp-row">
                   <td colSpan={3}>Mẫu giáo (3–6 tuổi)</td>
                 </tr>
-                {groupRows(form.groups.filter((g) => g.ageGroupId !== 'ag-2'))}
+                {groupRows(form.groups.filter((g) => !isNurseryAgeGroup(g.ageGroupId)))}
               </tbody>
             </table>
           </div>
@@ -370,7 +371,7 @@ export default function NutritionSetupPage() {
                   </span>
                   <span className="td-acc__summary">
                     {g.enabled
-                      ? `${g.meals.length} bữa · ${formatMoney(Number(g.price))} / ngày · ${g.norms.kcal[0]}–${g.norms.kcal[1]} kcal`
+                      ? `${g.meals.length} bữa · ${formatMoney(Number(g.price))} / ngày · ${rangeLabel(g.norms.kcal) === '—' ? 'chưa nhập chuẩn tạm' : `${rangeLabel(g.norms.kcal)} kcal`}`
                       : 'Không áp dụng'}
                   </span>
                 </button>
@@ -423,7 +424,7 @@ export default function NutritionSetupPage() {
                         )}
                       </div>
                       <div className="table-wrap">
-                        <table className="table td-norm">
+                        <table className="table table--grid td-norm">
                           <thead>
                             <tr>
                               <th rowSpan={2}>Bữa ăn</th>

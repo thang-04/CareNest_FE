@@ -1,15 +1,17 @@
 import { byId, ingredientQty, priceOn } from '@/utils/menu-planning/menuCalculations';
+import { foodUnits } from '@/utils/menu-planning/foodUnits';
 import { mealsOf } from '@/utils/menu-planning/nutritionSetup';
 import { ageGroupById } from '@/models/School';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { classMealSessions } from './attendanceSource';
 
 /*
  * Khẩu phần & đi chợ (NUT-07; công thức chi tiết chờ P-10): số suất đã chốt × định lượng theo nhóm tuổi của thực đơn
  * tuần đã xuất bản. Lượng mua = lượng ăn ÷ (1 − thải bỏ), làm tròn lên theo đơn vị mua. BE phải tính lại giống vậy.
  */
 
-const COUNTED = ['LUNCH', 'AFTERNOON'];
-const COUNTED_LABEL = { LUNCH: 'Bữa trưa', AFTERNOON: 'Bữa chiều' };
+const COUNTED = ['MORNING', 'LUNCH', 'AFTERNOON'];
+const COUNTED_LABEL = { MORNING: 'Bữa phụ sáng', LUNCH: 'Bữa trưa', AFTERNOON: 'Bữa chiều' };
 const r1 = (n) => Math.round(n * 10) / 10;
 const r3 = (n) => Math.round(n * 1000) / 1000;
 const roundUp = (qty, step) => r3(Math.ceil(Math.round((qty / step) * 1e6) / 1e6) * step);
@@ -44,6 +46,7 @@ const replacementOf = (allergyMenus, session, dishId) =>
  * counts: { LUNCH, AFTERNOON } số suất đã chuẩn hóa (`{ status, confirmedAt, classes: [{ classId, normal, substitute }] }`).
  */
 export function computeMarket(db, { date, counts, classById }) {
+  const applicable = COUNTED.filter((session) => Object.hasOwn(counts, session));
   const foodById = byId(db.foods);
   const dishById = byId(db.dishes);
   const confirmed = Object.fromEntries(COUNTED.map((s) => [s, counts[s]?.status === 'CONFIRMED' ? counts[s] : null]));
@@ -92,7 +95,9 @@ export function computeMarket(db, { date, counts, classById }) {
       let subsWithoutMenu = false;
       mealsOf(db.nutritionSetups, ag).forEach((meal) => {
         const items = (day.meals || []).find((m) => m.session === meal.code)?.items || [];
-        const base = countedSession(db.nutritionSetups, ag, meal.code);
+        // Số chốt riêng của bữa có ưu tiên; chỉ dùng countAs cho bữa bổ sung chưa có số chốt.
+        const mapped = countedSession(db.nutritionSetups, ag, meal.code);
+        const base = Object.hasOwn(counts, meal.code) ? meal.code : counts[mapped] ? mapped : 'LUNCH';
         const sv = servings[ag][base];
         if (!items.length || !sv) return;
         meals.push({ ageGroupId: ag, code: meal.code, name: meal.name, countAs: base, servings: sv.normal + sv.substitute });
@@ -125,6 +130,9 @@ export function computeMarket(db, { date, counts, classById }) {
       const buy = wastePct > 0 && wastePct < 100 ? qty / (1 - wastePct / 100) : qty;
       const purchaseUnit = f.purchaseUnit || f.unit || '';
       const buyUnits = roundUp(buy / (Number(f.purchaseUnitSize) || 1), purchaseStep(purchaseUnit));
+      // Xuất kho tính theo đơn vị kho (BA 02); thực phẩm cũ đơn vị kho = đơn vị mua nên trùng buyUnits
+      const { stockUnit, stockUnitSize } = foodUnits(f);
+      const stockUnits = roundUp(buy / stockUnitSize, purchaseStep(stockUnit));
       const unitPrice = typeof f.unitPrice === 'number' ? f.unitPrice : null;
       return {
         foodId,
@@ -136,18 +144,23 @@ export function computeMarket(db, { date, counts, classById }) {
         buyQty: r1(buy),
         purchaseUnit,
         buyUnits,
+        stockUnit,
+        stockUnits,
         unitPrice,
         amount: unitPrice == null ? null : Math.round(buyUnits * unitPrice),
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
 
-  // Tổng thu = suất Bữa trưa đã chốt × giá suất ăn ngày của từng nhóm tuổi
+  // Tính một lần/ngày; nhóm không có bữa trưa dùng bữa đầu có cấu hình.
   const noPrice = [];
   const parts = Object.keys(servings)
     .sort()
     .flatMap((ag) => {
-      const lunch = servings[ag].LUNCH;
+      const cls = Object.values(classById).find((row) => row.ageGroupId === ag);
+      const sessions = cls ? classMealSessions(db, cls) : Object.keys(servings[ag]);
+      const reference = sessions.includes('LUNCH') ? 'LUNCH' : sessions[0];
+      const lunch = servings[ag][reference];
       if (!lunch) return [];
       const price = priceOn(db.mealPrices, ag, date)?.price ?? null;
       if (price == null) {
@@ -161,7 +174,7 @@ export function computeMarket(db, { date, counts, classById }) {
   const missingPrice = foods.filter((f) => f.unitPrice == null).map((f) => f.name);
 
   const checks = [];
-  COUNTED.forEach((s) => {
+  applicable.forEach((s) => {
     const c = confirmed[s];
     if (c) {
       const n = c.classes.reduce((t, r) => t + r.normal + r.substitute, 0);

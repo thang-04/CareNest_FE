@@ -1,4 +1,5 @@
 import { Info } from '@/components/ui/icons';
+import { ClassFillBadge } from '@/components/school-config/SchoolConfigBadges';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
 
 /**
@@ -15,15 +16,17 @@ export function ClassPlacementFields({
   currentClassId,
   error,
   userById,
+  required = true,
 }) {
   const inGroup = classes.filter((c) => !ageGroupId || c.ageGroupId === ageGroupId);
   const mismatch = suggestedAgeGroupId && ageGroupId && suggestedAgeGroupId !== ageGroupId;
+  const req = required && <span className="req">*</span>;
 
   return (
-    <div className="stack" style={{ gap: 14 }}>
-      <div className="field" style={{ maxWidth: 360 }}>
+    <div className="stack gap-3-5">
+      <div className="field tr-field-narrow">
         <label className="field__label" htmlFor="tr-age-group">
-          Nhóm tuổi<span className="req">*</span>
+          Nhóm tuổi{req}
         </label>
         <select id="tr-age-group" className="select" value={ageGroupId} onChange={(e) => onAgeGroupChange(e.target.value)}>
           <option value="">Tất cả nhóm tuổi</option>
@@ -44,9 +47,17 @@ export function ClassPlacementFields({
         </div>
       )}
       <fieldset className="tr-fieldset">
-        <legend className="field__label">
-          Lớp<span className="req">*</span>
-        </legend>
+        <legend className="field__label">Lớp{req}</legend>
+        {!required && (
+          <div className="row row--wrap gap-2 mb-12">
+            <span className="muted text-sm">Có thể bỏ trống: trẻ ở trạng thái Chờ xếp lớp, xếp lớp sau tại màn Xếp lớp.</span>
+            {classId && (
+              <button type="button" className="btn btn--sm btn--ghost" onClick={() => onClassChange('')}>
+                Bỏ chọn lớp
+              </button>
+            )}
+          </div>
+        )}
         {inGroup.length === 0 ? (
           <div className="alert alert--warning">
             <Info size={18} />
@@ -75,7 +86,11 @@ export function ClassPlacementFields({
                     <span className="muted text-sm">{ageGroupById(c.ageGroupId)?.shortName}</span>
                     <span className="text-sm">
                       Sĩ số: {c.enrolledCount}/{c.capacity}
-                      {full && <span className="chip chip--red tr-chip-gap">Đã đủ</span>}
+                      {full && (
+                        <span className="tr-chip-gap">
+                          <ClassFillBadge status="FULL" />
+                        </span>
+                      )}
                       {isCurrent && <span className="chip chip--teal tr-chip-gap">Lớp hiện tại</span>}
                     </span>
                     {c.homeroomTeacherId && <span className="muted text-xs">GVCN: {userById?.(c.homeroomTeacherId)?.fullName || '—'}</span>}

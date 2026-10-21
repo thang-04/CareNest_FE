@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Copy, ListChecks, Lock, Pencil, Plus, Send, Sparkles } from '@/components/ui/icons';
+import { Copy, Lock, Pencil, Plus, Send, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import {
@@ -24,11 +24,18 @@ import {
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FormField } from '@/components/form/FormField';
-import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { WeekPicker } from '@/components/form/WeekPicker';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { Modal } from '@/components/ui/Modal';
+import { useAiRun } from '@/hooks/useAiRun';
+import { WeeklyStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { WeekGrid } from '@/components/menu-planning/WeekGrid';
 import { WeekBalanceTable } from '@/components/menu-planning/WeekBalanceTable';
 import { AiWeekComposer } from '@/components/menu-planning/AiWeekComposer';
-import { dayLabel, weekIssues } from '@/utils/menu-planning/menuChecks';
+import { DayNormDetail } from '@/components/menu-planning/DayNormDetail';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { dayLabel, groupIssues, weekIssues } from '@/utils/menu-planning/menuChecks';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { weeklyCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDateTime, todayInput } from '@/utils/format';
@@ -47,17 +54,19 @@ import {
 } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
-const STATUS_TONE = { DRAFT: 'orange', PUBLISHED: 'green', REPLACED: 'gray' };
 // Ngày trong tuần trước dời sang tuần này (giữ thực đơn mẫu và món đã sửa)
 const shiftDays = (days, weekStart) =>
   weekDates(weekStart).map((date, i) => {
     const d = days[i] || {};
     return { date, holiday: false, note: '', menuId: d.holiday ? null : d.menuId, meals: d.holiday ? [] : d.meals };
   });
+const SHORT_DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+const shortDay = (iso) => `${SHORT_DAYS[new Date(`${iso}T00:00:00`).getDay()]} ${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 /**
- * Bước 4 luồng dinh dưỡng – thực đơn tuần trên một trang: chọn nhóm tuổi + tuần; bảng cột là các thứ,
- * bữa trưa tách theo loại món; "Cần xem lại" và bảng cân đối chung ở cuối. PHT xuất bản; HT chỉ xem bản đã xuất bản.
+ * Bước 4 luồng dinh dưỡng – thực đơn tuần trên một trang: thanh chọn nhóm tuổi + tuần; bảng cột là các thứ, gom theo bữa
+ * (đầu cột có nhãn "Đạt"/"N lưu ý", bấm mở chi tiết so định mức); dưới bảng là lưu ý gom theo vấn đề và số liệu thu gọn.
+ * PHT xuất bản; HT chỉ xem bản đã xuất bản.
  */
 export default function WeeklyMenuPage() {
   const { user } = useAuth();
@@ -77,20 +86,27 @@ export default function WeeklyMenuPage() {
   const [reason, setReason] = useState('');
   const [aiDraft, setAiDraft] = useState(null);
   const [fixes, setFixes] = useState({});
-  const [fixing, setFixing] = useState(false);
+  const { running: fixing, run: runAi } = useAiRun();
+  const [showFixes, setShowFixes] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [openDay, setOpenDay] = useState(null);
   const canManage = access.canManage;
 
   // Mở từ màn gợi ý AI cũ (?aiDraftId=): nạp bản nháp tuần để dùng khi tuần chưa có thực đơn
   const aiDraftId = params.get('aiDraftId');
   useEffect(() => {
-    if (!aiDraftId) return;
+    if (!aiDraftId) return undefined;
+    let ignore = false; // đổi bản nháp/rời trang ⇒ bỏ kết quả cũ
     getAiDraft(aiDraftId, user)
       .then((d) => {
+        if (ignore) return;
         setAiDraft(d);
         setParams({ ag: d.ageGroupId, week: d.weekStart }, { replace: true });
       })
-      .catch((err) => toast.error(err.message, 'Không mở được bản nháp AI'));
+      .catch((err) => !ignore && toast.error(err, 'Không mở được bản nháp AI'));
+    return () => {
+      ignore = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiDraftId]);
 
@@ -113,7 +129,6 @@ export default function WeeklyMenuPage() {
   const previous = list.find((w) => w.weekStart === addDays(week, -7) && w.status === WEEKLY_STATUS.PUBLISHED);
   const editable = canManage && wm?.status === WEEKLY_STATUS.DRAFT;
   const menus = catalog.menus.filter((m) => m.ageGroupId === ag && m.status !== RECORD_STATUS.INACTIVE);
-  const weekOptions = [...new Set([...Array.from({ length: 10 }, (_, i) => addDays(mondayOf(today), (i - 3) * 7)), week])].sort();
   const go = (next) => setParams({ ag, week, ...next }, { replace: true });
 
   const run = async (fn, ok) => {
@@ -124,7 +139,7 @@ export default function WeeklyMenuPage() {
       reload();
       return out ?? true;
     } catch (err) {
-      toast.error(err.message, 'Chưa thực hiện được');
+      toast.error(err, 'Chưa thực hiện được');
       return null;
     } finally {
       setBusy(false);
@@ -161,8 +176,12 @@ export default function WeeklyMenuPage() {
   const changeMeals = (date, meals) => run(() => saveDayAdjustment(wm.id, date, meals, user));
   const dishName = (id) => catalog.dishById[id]?.name || 'Món đã xóa';
   // AI chỉ nhận món của từng ngày (không có dữ liệu trẻ); ngày AI không tìm được món thay thì người soạn sửa tay
+  // Cả lượt (tuần tự từng ngày) chạy trong một runAi ⇒ một lớp phủ liền mạch, không chớp giữa các ngày
   const askFixes = async (dates) => {
-    setFixing(true);
+    await runAi(() => suggestFixes(dates));
+    setShowFixes(true);
+  };
+  const suggestFixes = async (dates) => {
     const next = {};
     // Món mặn vừa gợi ý cho ngày trước cũng tính là đã dùng, để đổi hết các ngày không sinh ra món lặp mới
     const planned = [];
@@ -192,7 +211,6 @@ export default function WeeklyMenuPage() {
       }
     }
     setFixes(next);
-    setFixing(false);
   };
   const applyFix = async (date) => {
     const out = await run(() => applyDayFix(fixes[date].id, wm.id, user), 'Đã đổi món theo gợi ý.');
@@ -209,25 +227,55 @@ export default function WeeklyMenuPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Thực đơn tuần</h1>
-          <p className="page__desc">
-            {groups.find((g) => g.id === ag)?.shortName || ''} · {weekLabel(week)}. Mỗi ngày lấy từ một thực đơn mẫu, sửa thêm được.
-          </p>
+          <p className="page__desc">Mỗi ngày lấy từ một thực đơn mẫu, sửa thêm được.</p>
         </div>
-        <div className="page__actions">
-          <select className="select td-auto" value={ag} onChange={(e) => setParams({ ag: e.target.value, week })} aria-label="Nhóm tuổi">
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.shortName}
-              </option>
-            ))}
-          </select>
-          <select className="select td-auto" value={week} onChange={(e) => setParams({ ag, week: e.target.value })} aria-label="Tuần">
-            {weekOptions.map((w) => (
-              <option key={w} value={w}>
-                {weekLabel(w)}
-              </option>
-            ))}
-          </select>
+      </div>
+      {/* Chọn nhóm tuổi, tuần và nút thao tác ở hàng riêng để không chen vào hàng tiêu đề */}
+      <div className="td-week-toolbar">
+        <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
+          {groups.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              role="tab"
+              aria-selected={g.id === ag}
+              className={`tab ${g.id === ag ? 'tab--active' : ''}`}
+              onClick={() => setParams({ ag: g.id, week })}
+            >
+              {g.shortName}
+            </button>
+          ))}
+        </div>
+        <WeekPicker value={week} thisWeek={mondayOf(today)} onChange={(w) => setParams({ ag, week: w })} />
+      </div>
+      <div className="td-week-bar">
+        {wm && (
+          <div className="row td-week-status">
+            <WeeklyStatusBadge status={wm.status} />
+            <span className="text-sm muted">
+              {wm.code} · phiên bản {wm.version}
+              {wm.publishedAt && ` · xuất bản ${formatDateTime(wm.publishedAt)}`}
+            </span>
+            {/* Nhãn nguồn gốc, hiện cả khi đã xuất bản nên không dùng AiDraftLabel ("cần người duyệt") */}
+            {wm.aiDraftId && <StatusBadge tone="purple" icon={Sparkles} label="Soạn từ bản nháp AI" />}
+            {versions.length > 1 && (
+              <span className="row td-chips text-sm">
+                Phiên bản:
+                {versions.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    className={`link-btn ${v.id === wm.id ? 'fw-600' : ''}`}
+                    onClick={() => go({ id: v.id })}
+                  >
+                    v{v.version} ({WEEKLY_STATUS_LABELS[v.status]})
+                  </button>
+                ))}
+              </span>
+            )}
+          </div>
+        )}
+        <div className="row td-week-toolbar__actions">
           {!canManage && (
             <span className="chip chip--gray">
               <Lock size={14} /> Chỉ xem
@@ -283,6 +331,49 @@ export default function WeeklyMenuPage() {
 
   const issues = wm ? weekIssues({ wm, catalog, previousDays: previous?.days || [], allergyRows, allergyMenus }) : [];
   const issueDates = [...new Set(issues.map((x) => x.date))];
+  const grouped = groupIssues(issues);
+  const issuesByDate = Object.fromEntries((wm?.days || []).map((d) => [d.date, issues.filter((x) => x.date === d.date)]));
+
+  const fixList = (
+    <ul className="td-review">
+      {issueDates
+        .filter((date) => fixes[date])
+        .map((date) => {
+          const fix = fixes[date];
+          return (
+            <li key={date}>
+              <div className="td-review__day">
+                <b>{dayLabel(date)}</b>
+              </div>
+              {fix?.error && <p className="td-flat text-sm muted">{fix.error}</p>}
+              {fix?.proposal && (
+                <div className="td-fix">
+                  <span className="td-fix__ai">
+                    <Sparkles size={14} /> Gợi ý:{' '}
+                    {fix.proposal.fromDishId ? (
+                      <>
+                        đổi <del>{dishName(fix.proposal.fromDishId)}</del> → <ins>{dishName(fix.proposal.toDishId)}</ins>
+                      </>
+                    ) : (
+                      <>
+                        thêm <ins>{dishName(fix.proposal.toDishId)}</ins>
+                      </>
+                    )}
+                  </span>
+                  <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => applyFix(date)}>
+                    {fix.proposal.fromDishId ? 'Đổi món' : 'Thêm món'}
+                  </button>
+                  <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => skipFix(date)}>
+                    Để sau
+                  </button>
+                  <span className="text-xs muted td-fix__reason">{fix.reason}</span>
+                </div>
+              )}
+            </li>
+          );
+        })}
+    </ul>
+  );
 
   return (
     <div className="page td-sections">
@@ -329,33 +420,6 @@ export default function WeeklyMenuPage() {
         </>
       ) : (
         <>
-          <div className="row td-week-status">
-            <span className={`chip chip--${STATUS_TONE[wm.status]}`}>{WEEKLY_STATUS_LABELS[wm.status]}</span>
-            <span className="text-sm muted">
-              {wm.code} · phiên bản {wm.version}
-              {wm.publishedAt && ` · xuất bản ${formatDateTime(wm.publishedAt)}`}
-            </span>
-            {wm.aiDraftId && (
-              <span className="chip chip--purple">
-                <Sparkles size={13} /> Soạn từ bản nháp AI
-              </span>
-            )}
-            {versions.length > 1 && (
-              <span className="row td-chips text-sm">
-                Phiên bản:
-                {versions.map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    className={`link-btn ${v.id === wm.id ? 'fw-600' : ''}`}
-                    onClick={() => go({ id: v.id })}
-                  >
-                    v{v.version} ({WEEKLY_STATUS_LABELS[v.status]})
-                  </button>
-                ))}
-              </span>
-            )}
-          </div>
           {wm.status === WEEKLY_STATUS.DRAFT && wm.aiDraftId && (
             <div className="alert alert--info">
               <Sparkles size={18} />
@@ -376,13 +440,19 @@ export default function WeeklyMenuPage() {
               onPickMenu={pickMenu}
               onHoliday={setHoliday}
               onChangeMeals={changeMeals}
+              issuesByDate={issuesByDate}
+              onOpenDay={setOpenDay}
             />
           </section>
           <section className="card">
+            {/* Lưu ý gom theo nội dung (mỗi vấn đề một dòng + các ngày), không lặp lại theo từng ngày */}
             <div className="card__header">
-              <h2 className="card__title">
-                <ListChecks size={18} /> {issueDates.length ? `Cần xem lại (${issueDates.length} ngày)` : 'Cần xem lại'}
-              </h2>
+              <div>
+                <h2 className="card__title">{editable ? 'Cần sửa trước khi xuất bản' : 'Lưu ý trong tuần'}</h2>
+                <span className="text-sm muted">
+                  Hệ thống tự kiểm tra theo định mức, tiền ăn và dị ứng ở Thiết lập. Bấm vào ngày để xem số liệu.
+                </span>
+              </div>
               {editable && issueDates.length > 0 && (
                 <button
                   type="button"
@@ -390,62 +460,49 @@ export default function WeeklyMenuPage() {
                   disabled={busy || fixing}
                   onClick={() => askFixes(issueDates)}
                 >
-                  {fixing ? <Spinner small /> : <Sparkles size={14} />} AI gợi ý cách sửa
+                  <Sparkles size={14} /> AI gợi ý cách sửa
                 </button>
               )}
             </div>
-            {issueDates.length ? (
-              <>
-                <p className="td-card-note td-flat text-sm muted">Hệ thống tự kiểm tra theo định mức và tiền ăn ở Thiết lập.</p>
-                <ul className="td-review">
-                  {issueDates.map((date) => {
-                    const fix = fixes[date];
-                    return (
-                      <li key={date}>
-                        <div className="td-review__day">
-                          <b>{dayLabel(date)}</b>
-                          {issues
-                            .filter((x) => x.date === date)
-                            .map((x, i) => (
-                              <span key={i} className={x.tone === 'bad' ? 'td-bad' : 'td-warn'}>
-                                {x.text}
-                              </span>
-                            ))}
-                        </div>
-                        {editable && fix?.error && <p className="td-flat text-sm muted">{fix.error}</p>}
-                        {editable && fix?.proposal && (
-                          <div className="td-fix">
-                            <span className="td-fix__ai">
-                              <Sparkles size={14} /> Gợi ý:{' '}
-                              {fix.proposal.fromDishId ? (
-                                <>
-                                  đổi <del>{dishName(fix.proposal.fromDishId)}</del> → <ins>{dishName(fix.proposal.toDishId)}</ins>
-                                </>
-                              ) : (
-                                <>
-                                  thêm <ins>{dishName(fix.proposal.toDishId)}</ins>
-                                </>
-                              )}
-                            </span>
-                            <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => applyFix(date)}>
-                              {fix.proposal.fromDishId ? 'Đổi món' : 'Thêm món'}
-                            </button>
-                            <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => skipFix(date)}>
-                              Để sau
-                            </button>
-                            <span className="text-xs muted td-fix__reason">{fix.reason}</span>
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </>
+            {grouped.length ? (
+              <ul className="td-issues">
+                {grouped.map((g) => (
+                  <li key={g.text} className="td-issues__item">
+                    <StatusBadge tone={g.tone === 'bad' ? 'red' : 'orange'} label={g.tone === 'bad' ? 'Cần sửa' : 'Nên xem'} />
+                    <span className="td-issues__text">{g.text}</span>
+                    <span className="td-issues__days">
+                      {g.dates.map((date) => (
+                        <button key={date} type="button" className="td-day-chip" onClick={() => setOpenDay(date)} title={dayLabel(date)}>
+                          {shortDay(date)}
+                        </button>
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <p className="td-card-note td-flat muted">Các ngày đều đạt, không có gì cần xem lại.</p>
+              <p className="td-card-note td-flat muted">Các ngày đều đạt, không có gì cần sửa.</p>
             )}
+            {editable && Object.values(fixes).some(Boolean) && (
+              <>
+                <h3 className="td-fix-title text-sm">Gợi ý của AI</h3>
+                {fixList}
+              </>
+            )}
+            <details className="td-balance-toggle">
+              <summary>Xem số liệu dinh dưỡng và tiền ăn từng ngày</summary>
+              <WeekBalanceTable wm={wm} catalog={catalog} />
+            </details>
           </section>
-          <WeekBalanceTable wm={wm} catalog={catalog} />
+          <DayNormDetail
+            open={!!openDay}
+            day={wm.days.find((d) => d.date === openDay)}
+            wm={wm}
+            catalog={catalog}
+            menuName={menus.find((m) => m.id === wm.days.find((d) => d.date === openDay)?.menuId)?.name}
+            issues={issues.filter((x) => x.date === openDay)}
+            onClose={() => setOpenDay(null)}
+          />
         </>
       )}
 
@@ -483,7 +540,7 @@ export default function WeeklyMenuPage() {
         }}
         onClose={() => setConfirm(null)}
       >
-        {issueDates.length > 0 && <p className="td-warn td-flat">Còn {issueDates.length} ngày ở mục "Cần xem lại".</p>}
+        {grouped.length > 0 && <p className="td-warn td-flat">Còn {grouped.length} lưu ý ở mục "Cần sửa trước khi xuất bản".</p>}
       </ConfirmationModal>
       <ConfirmationModal
         open={confirm?.kind === 'copy'}
@@ -552,6 +609,21 @@ export default function WeeklyMenuPage() {
           </FormField>
         </div>
       </ConfirmationModal>
+      {/* AI xong ⇒ gợi ý mở trong modal; đóng modal thì khối "Gợi ý của AI" trên trang vẫn còn (user chốt) */}
+      <Modal
+        open={showFixes && editable && Object.values(fixes).some(Boolean)}
+        onClose={() => setShowFixes(false)}
+        size="lg"
+        title="Gợi ý của AI"
+        footer={
+          <button type="button" className="btn" onClick={() => setShowFixes(false)}>
+            Đóng, xử lý sau
+          </button>
+        }
+      >
+        {fixList}
+      </Modal>
+      {fixing && <AiWorkingOverlay kind="cooking" text="Đang tìm món thay cho ngày chưa đạt…" />}
     </div>
   );
 }

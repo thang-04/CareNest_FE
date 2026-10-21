@@ -22,10 +22,10 @@ const dish = { name: 'Cơm', ingredients: [{ foodId: 'f1', quantity: 60, portion
 
 beforeEach(() => values.clear());
 
-test('định lượng theo nhóm: dùng số đã nhập, ô trống là chưa nhập, món cũ nhân hệ số', () => {
+test('định lượng theo nhóm: dùng số đã nhập, ô trống là chưa nhập, món cũ không suy từ hệ số giả định', () => {
   assert.equal(ingredientQty(dish.ingredients[0], 'ag-3'), 54);
   assert.equal(ingredientQty(dish.ingredients[0], 'ag-2'), null);
-  assert.equal(ingredientQty({ foodId: 'f1', quantity: 60 }, 'ag-2'), 42);
+  assert.equal(ingredientQty({ foodId: 'f1', quantity: 60 }, 'ag-2'), null);
   assert.deepEqual(missingPortionGroups(dish, ['ag-2', 'ag-3']), ['ag-2']);
 });
 
@@ -63,6 +63,8 @@ test('lưu món với định lượng theo nhóm; dữ liệu mẫu có định
     {
       name: 'Món thử nhóm tuổi',
       type: 'MAIN',
+      // Thiếu định lượng nhóm nhà trẻ ⇒ chỉ lưu được ở Nháp
+      status: 'DRAFT',
       ingredients: [{ foodId: foods[0].id, portions: { 'ag-2': '', 'ag-3': '45', 'ag-4': '50', 'ag-5': '55' } }],
     },
     VP,

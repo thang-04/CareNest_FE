@@ -12,6 +12,19 @@ export const formatDate = (value) => {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 };
 
+/** dd/mm/yyyy -> yyyy-mm-dd; null when the text is not a real calendar date (31/02, 29/02 of a non-leap year…). */
+export const parseDisplayDate = (text) => {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text || '');
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  const date = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
+  if (date.getUTCFullYear() !== Number(y) || date.getUTCMonth() !== Number(mo) - 1 || date.getUTCDate() !== Number(d)) return null;
+  return `${y}-${mo}-${d}`;
+};
+
+/** True for a real yyyy-mm-dd date. */
+export const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !!parseDisplayDate(formatDate(value));
+
 /** ISO -> dd/mm/yyyy HH:mm */
 export const formatDateTime = (value) => {
   if (!value) return '—';

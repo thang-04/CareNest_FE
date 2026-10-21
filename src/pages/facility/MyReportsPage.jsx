@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, PackagePlus, Eye, Info, ClipboardList, RotateCcw, Link2 } from '@/components/ui/icons';
+import { AlertTriangle, PackagePlus, Info, ClipboardList, RotateCcw, Link2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useMyReports } from '@/hooks/facility/useFacility';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { IssueStatusBadge, RequestStatusBadge, IssueTypeChip } from '@/components/facility/FacilityBadges';
 import { locationLabel } from '@/models/Location';
 import { ISSUE_STATUS_LABELS, REQUEST_STATUS_LABELS, ISSUE_TYPES } from '@/models/facility/facilityConstants';
@@ -61,7 +62,7 @@ export default function MyReportsPage() {
       <Breadcrumb items={myReportCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Lịch sử báo cáo & đề nghị</h1>
-        <div className="row row--wrap" style={{ gap: 8, marginTop: 6, justifyContent: 'flex-end' }}>
+        <div className="row row--wrap gap-2 bh-head-actions bh-head-actions--tight">
           {canCreateRequest(user) && (
             <Link className="btn" to="/facility/requests/new">
               <PackagePlus size={16} /> Đề nghị bổ sung
@@ -117,8 +118,8 @@ export default function MyReportsPage() {
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap" style={{ border: 'none', borderTop: '1px solid var(--border)', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-wrap">
+            <table className="table table--grid">
               <thead>
                 <tr>
                   <th>Mã</th>
@@ -126,9 +127,9 @@ export default function MyReportsPage() {
                   <th>Lớp/phòng</th>
                   <th>{tab === 'issues' ? 'Loại sự cố' : 'Số lượng'}</th>
                   <th>Ngày gửi</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                   <th>Kết quả</th>
-                  <th className="center">Thao tác</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -193,10 +194,8 @@ export default function MyReportsPage() {
                         <td className="nowrap">{formatDate(x.createdAt)}</td>
                         <td>{tab === 'issues' ? <IssueStatusBadge status={x.status} /> : <RequestStatusBadge status={x.status} />}</td>
                         <td className={`bh-cell-wrap text-sm ${result.tone}`}>{result.text}</td>
-                        <td className="center" onClick={(e) => e.stopPropagation()}>
-                          <Link className="icon-btn" to={link} title="Xem chi tiết" aria-label={`Xem ${x.code}`}>
-                            <Eye size={17} />
-                          </Link>
+                        <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
+                          <RowActions view={{ to: link, label: 'Xem chi tiết' }} name={x.code} />
                         </td>
                       </tr>
                     );

@@ -1,7 +1,7 @@
-import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { buildPickupSeed } from '@/mocks/pickupSeed';
-import { PICKUP_OUTCOME, PICKUP_STATUS, outcomeOf } from '@/models/pickup/pickupConstants';
+import { PICKUP_OUTCOME, PICKUP_REASON, PICKUP_STATUS, outcomeOf } from '@/models/pickup/pickupConstants';
 import { canHandOverChildren, canOpenPickup } from '@/utils/pickup/pickupPermissions';
 import { validatePickupResult } from '@/utils/pickup/pickupValidation';
 import { todayInput } from '@/utils/format';
@@ -21,17 +21,19 @@ const forbidden = () => new ApiError(403, 'Bạn không có quyền thực hiệ
 const ABSENT = ['EXCUSED', 'UNEXCUSED'];
 
 const ensureSeeded = (db) => {
+  if (db.pickups) return db;
   // Wait for attendance demo data so pickup history only covers present children.
-  if (!Array.isArray(db.attendance)) return db;
-  return applyMockSeedMigration(db, 'pickup', 1, {
-    pickups: buildPickupSeed({ attendance: db.attendance, children: db.children, classes: db.classes, today: todayInput() }).pickups,
-  });
+  if (!db.attendance) return db;
+  db.pickups = clone(
+    buildPickupSeed({ attendance: db.attendance, children: db.children, classes: db.classes, today: todayInput() }).pickups,
+  );
+  return db;
 };
 
 const ready = () => {
   ensureSchoolSeeded();
   const db = readDb();
-  if (needsMockSeedMigration(db, 'pickup', 1, ['pickups']) && Array.isArray(db.attendance)) writeDb(ensureSeeded);
+  if (!db.pickups && db.attendance) writeDb(ensureSeeded);
   return readDb();
 };
 
@@ -45,6 +47,14 @@ const attendanceOf = (db, childId, date) => (db.attendance || []).find((r) => r.
 const recordsOf = (db, childId, date) =>
   (db.pickups || []).filter((p) => p.childId === childId && p.date === date).sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
 
+/** Lần cô báo phụ huynh đón về sớm (Sức khỏe trong ngày) mới nhất của trẻ trong ngày. */
+const earlyRequestOf = (db, childId, date) => {
+  const e = (db.dailyHealthEntries || [])
+    .filter((x) => x.childId === childId && x.date === date && (x.actions || []).includes('EARLY_PICKUP'))
+    .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))[0];
+  return e ? { healthEntryId: e.id, requestedAt: e.recordedAt, symptoms: e.symptoms || [], note: e.note || '' } : null;
+};
+
 const boardRow = (db, child, date) => {
   const att = attendanceOf(db, child.id, date);
   const attempts = recordsOf(db, child.id, date);
@@ -56,6 +66,7 @@ const boardRow = (db, child, date) => {
     status,
     pickup: clone(done),
     attempts: clone(attempts),
+    earlyRequest: earlyRequestOf(db, child.id, date),
   };
 };
 
@@ -78,7 +89,12 @@ export const pickupMockRepository = {
     const rows = db.children
       .filter((c) => c.classId === classId && c.status === 'ACTIVE')
       .map((c) => boardRow(db, c, day))
-      .sort((a, b) => a.child.fullName.localeCompare(b.child.fullName, 'vi'));
+      // Trẻ chờ đón sớm vì sức khỏe lên đầu danh sách
+      .sort(
+        (a, b) =>
+          Number(!!(b.earlyRequest && b.status === PICKUP_STATUS.WAITING)) -
+            Number(!!(a.earlyRequest && a.status === PICKUP_STATUS.WAITING)) || a.child.fullName.localeCompare(b.child.fullName, 'vi'),
+      );
     return { classId, className: cls.name, date: day, today: todayInput(), rows };
   },
 
@@ -123,6 +139,7 @@ export const pickupMockRepository = {
 
       const at = new Date().toISOString();
       const outcome = outcomeOf(form.verification);
+      const early = earlyRequestOf(db, child.id, today);
       const record = {
         id: uid('pk'),
         date: today,
@@ -137,6 +154,9 @@ export const pickupMockRepository = {
         handedOverAt: outcome === PICKUP_OUTCOME.HANDED_OVER ? new Date(`${today}T${form.handoverTime}:00+07:00`).toISOString() : null,
         phoneConfirmed: form.verification === 'PHONE_CONFIRMED',
         note: String(form.note || '').trim(),
+        // Trả trẻ sau khi cô báo phụ huynh đón về sớm: giữ liên kết để truy vết từ Sức khỏe trong ngày
+        reason: early && outcome === PICKUP_OUTCOME.HANDED_OVER ? PICKUP_REASON.HEALTH_EARLY : null,
+        healthEntryId: early && outcome === PICKUP_OUTCOME.HANDED_OVER ? early.healthEntryId : null,
         teacherId: user.id,
         recordedAt: at,
         // Parents use the mobile app (push notification); there is no parent account on the web demo.

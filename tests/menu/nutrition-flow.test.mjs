@@ -4,23 +4,66 @@ import { getMenuForRole } from '@/layouts/menuConfig';
 import { ROLES } from '@/models/User';
 import { FLOW_STEPS, flowSummary } from '@/utils/menu-planning/nutritionFlow';
 
-const menuGroup = (role) => getMenuForRole(role).find((m) => m.key === 'menu');
+const menuGroup = (role, key = 'nutrition') => getMenuForRole(role).find((m) => m.key === key);
 const TODAY = '2026-10-15';
 const NEXT_WEEK = '2026-10-19';
 const AGES = ['ag-2', 'ag-3', 'ag-4', 'ag-5'];
 const food = (over = {}) => ({ status: 'ACTIVE', unitPrice: 1000, nutrition: { kcal: 1, protein: 1, lipid: 1, glucid: 1 }, ...over });
 const price = (ageGroupId) => ({ ageGroupId, effectiveFrom: '2026-01-01', effectiveTo: null, price: 30000 });
+const keysOf = (role, key) => menuGroup(role, key).children.map((c) => c.key);
+const menuGroupOf = (entries, key) => entries.find((m) => m.key === key);
 
-test('nhóm Thực đơn của PHT bắt đầu bằng Quy trình rồi đi theo thứ tự bước', () => {
-  const keys = menuGroup(ROLES.VICE_PRINCIPAL).children.map((c) => c.key);
-  assert.deepEqual(keys.slice(0, 6), ['menuFlow', 'nutritionSetup', 'foods', 'dishes', 'menus', 'weeklyMenus']);
-  assert.ok(!keys.includes('mealPrices'));
-  assert.equal(menuGroup(ROLES.VICE_PRINCIPAL).children[0].to, '/menu/flow');
+test('PHT: sidebar dinh dưỡng – kho theo bốn nhóm của BA', () => {
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'catalog'), ['foods', 'dishes']);
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'nutrition'), ['menuFlow', 'nutritionSetup', 'menus', 'weeklyMenus', 'nutrition']);
+  // NCC của PHT ở nhóm Kho: nhóm Danh mục bị ẩn khi PHT không có mảng thực đơn nhưng vẫn lập phiếu nhập
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'stock'), [
+    'kitchenDay',
+    'stockReceipts',
+    'suppliers',
+    'dryStock',
+    'stockIssues',
+    'freshReceipts',
+  ]);
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'foodReport'), ['foodSamples', 'forecast']);
+  assert.deepEqual(
+    menuGroup(ROLES.VICE_PRINCIPAL).children.map((entry) => entry.to),
+    ['/menu/flow', '/menu/setup', '/menu/menus', '/menu/weekly', '/menu/nutrition'],
+  );
 });
 
-test('HT thấy Thiết lập dinh dưỡng (chỉ xem), không thấy Quy trình', () => {
-  const keys = menuGroup(ROLES.PRINCIPAL).children.map((c) => c.key);
-  assert.ok(keys.includes('nutritionSetup'));
+test('HT: thiết lập, thực đơn tuần, kho chỉ xem; bếp: thực đơn công bố, sổ báo ăn, xuất kho', () => {
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'nutrition'), ['nutritionSetup', 'weeklyMenus', 'publishedMenu']);
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'stock'), ['dryStock', 'stockIssues', 'freshReceipts']);
+  // BA 01: HT quản lý NCC trong nhóm Danh mục; thực phẩm, món là của PHT
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'catalog'), ['suppliers']);
+  assert.deepEqual(keysOf(ROLES.KITCHEN_STAFF, 'nutrition'), ['publishedMenu', 'confirmedMealCount']);
+  assert.deepEqual(keysOf(ROLES.KITCHEN_STAFF, 'stock'), ['kitchenDay', 'stockIssues', 'freshReceipts']);
+});
+
+test('không còn nhãn Duyệt xuất kho, mục kiểm kê kho hay luồng chế biến/bàn giao cũ trên sidebar', () => {
+  for (const role of Object.values(ROLES)) {
+    const items = getMenuForRole(role).flatMap((m) => m.children || []);
+    assert.ok(!items.some((c) => c.label === 'Duyệt xuất kho'), role);
+    assert.ok(
+      !items.some((c) => ['/kitchen/stock-counts', '/kitchen/preparation/update', '/attendance/meal-handover'].includes(c.to)),
+      role,
+    );
+  }
+});
+
+test('ẩn Danh mục và Dinh dưỡng khi PHT chưa được giao mảng; giữ nhóm điểm danh đã duyệt', () => {
+  const user = { role: ROLES.VICE_PRINCIPAL, campusId: 'c1', areas: { menu: 'NONE' } };
+  const entries = getMenuForRole(user.role, user);
+  assert.ok(!entries.some((entry) => ['catalog', 'nutrition'].includes(entry.key)));
+  assert.ok(
+    menuGroupOf(entries, 'stock').children.some((c) => c.key === 'suppliers'),
+    'vẫn xem được NCC khi lập phiếu nhập',
+  );
+  assert.deepEqual(
+    entries.find((entry) => entry.key === 'attendance').children.map((entry) => entry.key),
+    ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview'],
+  );
 });
 
 test('HT và bếp không thấy mục Quy trình', () => {

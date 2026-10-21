@@ -3,6 +3,11 @@ import { axiosClient } from '@/services/http/axiosClient';
 /**
  * PROPOSED Spring Boot contract for child records & child health (not agreed with CareNest_BE yet).
  * Same names and shapes as the mock repository; the backend reads the user's scope from the JWT.
+ * Mỗi trẻ trả thêm latestHealth { date, followUpLevel, campaignName } của lần khám gần nhất có xếp mức (bỏ phiếu nháp,
+ * cân đo ngoài đợt) để danh sách lọc trẻ "Cần theo dõi" qua mọi đợt (2026-10-17).
+ * Hành chính, tiền sử (2026-10-17, `models/children/childProfile.js`): child.profile trong GET profile, POST enrollments,
+ * PUT /children/{id} (danh sách không trả); declaration.medicalHistory trong PUT health-declaration; file nhập thêm cột.
+ * Khai tiếp xúc người bệnh lao ⇒ BE gửi thông báo CHILD_TB_CONTACT. Lưu kết luận phiếu khám ⇒ BE cập nhật ngược 2 phần này.
  */
 export const childrenApi = {
   listChildren: (filters) => axiosClient.get('/children', { params: filters }),
@@ -19,8 +24,12 @@ export const childrenApi = {
   },
   importChildren: (rows) => axiosClient.post('/children/enrollments/import', { rows }),
   placeChild: (childId, body) => axiosClient.post(`/children/${childId}/placement`, body),
+  withdrawChild: (childId, body) => axiosClient.post(`/children/${childId}/withdraw`, body),
   saveDeclaration: (childId, body) => axiosClient.put(`/children/${childId}/health-declaration`, body),
-  confirmAllergies: (childId) => axiosClient.post(`/children/${childId}/health-declaration/confirm-allergies`),
+  listParentAccounts: (filters) => axiosClient.get('/children/parent-accounts', { params: filters }),
+  listParentAccountOptions: (filters) => axiosClient.get('/children/parent-account-options', { params: filters }),
+  activateParentAccount: (childId, guardianIndex) => axiosClient.post(`/children/${childId}/guardians/${guardianIndex}/activate`),
+  resendParentSms: (childId, guardianIndex) => axiosClient.post(`/children/${childId}/guardians/${guardianIndex}/resend-sms`),
   getHealthRecord: (childId) => axiosClient.get(`/children/${childId}/health`),
   saveMeasurement: (childId, measurementId, payload) =>
     measurementId

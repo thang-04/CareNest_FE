@@ -128,7 +128,7 @@ function PeopleTab({ t, md }) {
               {sig ? (
                 <>
                   <img src={sig.signatureUrl} alt={`Chữ ký ${sig.signedByName}`} />
-                  <div className="text-success text-sm row" style={{ gap: 4, justifyContent: 'center' }}>
+                  <div className="text-success text-sm row gap-1 ft-justify-center">
                     <CheckCircle2 size={14} /> Đã ký {formatDateTime(sig.signedAt)} · v{sig.documentVersion}
                   </div>
                 </>
@@ -139,8 +139,8 @@ function PeopleTab({ t, md }) {
             {invalid.length > 0 && (
               <div className="mt-8 text-xs">
                 {invalid.map((s) => (
-                  <div key={s.id} className="row text-2" style={{ gap: 6, alignItems: 'flex-start' }}>
-                    <ShieldOff size={13} style={{ marginTop: 3 }} /> Chữ ký v{s.documentVersion} vô hiệu: {s.invalidReason}
+                  <div key={s.id} className="row text-2 gap-1-5 ft-align-start">
+                    <ShieldOff size={13} className="ft-icon-nudge" /> Chữ ký v{s.documentVersion} vô hiệu: {s.invalidReason}
                   </div>
                 ))}
               </div>
@@ -180,7 +180,7 @@ function HistoryTab({ t, md }) {
             <div className="muted">Chưa gửi phiếu.</div>
           ) : (
             <div className="table-wrap">
-              <table className="table table--compact">
+              <table className="table table--compact table--grid">
                 <thead>
                   <tr>
                     <th>Phiên bản</th>
@@ -293,7 +293,7 @@ export default function TransferDetailPage() {
       setCancelOpen(false);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     }
   };
 
@@ -302,12 +302,10 @@ export default function TransferDetailPage() {
       <Breadcrumb items={transferCrumbs(`Chi tiết phiếu ${t.code}`)} />
       <div className="page__head">
         <div>
-          <h1 className="page__title" style={{ marginBottom: 6 }}>
-            Chi tiết phiếu luân chuyển - {t.code}
-          </h1>
+          <h1 className="page__title">Chi tiết phiếu luân chuyển - {t.code}</h1>
           <TransferStatusBadge status={t.status} size="lg" />
         </div>
-        <div className="row row--wrap" style={{ gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+        <div className="row row--wrap gap-2 mt-8 ft-justify-end">
           {canCancelTransfer(t, user) && (
             <button
               className="btn btn--outline-danger"
@@ -349,14 +347,14 @@ export default function TransferDetailPage() {
         </div>
       </div>
 
-      <div className="card mt-16" style={{ padding: '20px 24px' }}>
+      <div className="card card--timeline mt-16">
         <TransferTimeline transfer={t} userById={md.userById} />
       </div>
 
       {openRequest && isVicePrincipal(user) && (
         <div className="alert alert--warning mt-16">
           <AlertTriangle size={20} />
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <div className="fw-600">
               Yêu cầu điều chỉnh từ {md.userById(openRequest.requestedBy)?.fullName} · {formatDateTime(openRequest.requestedAt)}
             </div>
@@ -373,7 +371,7 @@ export default function TransferDetailPage() {
       {openDiscrepancy && (
         <div className="alert alert--purple mt-16">
           <Scale size={20} />
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <div className="fw-600">
               {md.userById(openDiscrepancy.reportedBy)?.fullName} báo chênh lệch · {formatDateTime(openDiscrepancy.reportedAt)}
             </div>

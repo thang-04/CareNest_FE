@@ -183,6 +183,27 @@ test("E7: rule phải có frontmatter paths", () => {
   assert.deepEqual(errorsOf(result).map((f) => f.file), [".claude/rules/bad.md"]);
 });
 
+test("E7: rule không glob nào khớp file ⇒ lỗi (rule chết); một glob lẻ không khớp ⇒ cảnh báo", () => {
+  const root = makeRepo({
+    ".claude/rules/dead.md": '---\npaths:\n  - "src/**/*.ts"\n---\n# chết\n',
+    ".claude/rules/partial.md": '---\npaths:\n  - "src/**/*.js"\n  - "src/**/*.ts"\n---\n# một phần\n',
+    "src/a.js": "export {};\n",
+  });
+  const result = run(root, { only: ["E7"] });
+  assert.deepEqual(errorsOf(result).map((f) => f.file), [".claude/rules/dead.md"]);
+  assert.match(msgs(warnsOf(result)), /partial.md|glob không khớp file nào: src\/\*\*\/\*\.ts/);
+});
+
+test("E2: đường dẫn thiếu trong docs/plans chỉ cảnh báo (plan ghi file sẽ tạo/đã xóa)", () => {
+  const root = makeRepo({
+    "docs/plans/active/p.md": "- Files: D `scripts/gone.mjs` · C `scripts/new.mjs`\n",
+    "docs/guide.md": "Xem `scripts/gone.mjs`\n",
+  });
+  const result = run(root, { only: ["E2"] });
+  assert.deepEqual(errorsOf(result).map((f) => f.file), ["docs/guide.md"]);
+  assert.equal(warnsOf(result).filter((f) => f.file === "docs/plans/active/p.md").length, 2);
+});
+
 test("CLI: --only sai ⇒ exit 2; --json in JSON hợp lệ", () => {
   const bad = spawnSync(process.execPath, [SCRIPT, "--only", "E9"], { encoding: "utf8" });
   assert.equal(bad.status, 2);

@@ -1,17 +1,23 @@
 import { ROLES, isStaffRole } from '@/models/User';
 import { TRANSFER_STATUS, MY_TRANSFER_ROLES, SIGNATURE_TYPES } from '@/models/facility-transfer/transferConstants';
 import { getValidSignature } from '@/models/facility-transfer/TransferSignature';
+import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 
 /** Single source of truth for "who can do what". Mirrors server rules. */
 
 export const isVicePrincipal = (user) => user?.role === ROLES.VICE_PRINCIPAL;
 
-export const canCreateTransfer = (user) => isVicePrincipal(user) && !!user.campusId;
+// Mảng CSVC của Phó hiệu trưởng: Được sửa mới lập / xử lý phiếu; Chỉ xem chỉ đọc
+export const canCreateTransfer = (user) => isVicePrincipal(user) && !!user.campusId && areaAllows(user, 'facility', user.campusId, true);
 
 // GBR-FAC-06: a VP acts on transfers sent from their own campus; the receiving campus VP may only view.
-export const isSendingCampusVp = (transfer, user) => isVicePrincipal(user) && !!transfer && transfer.fromCampusId === user.campusId;
+export const isSendingCampusVp = (transfer, user) =>
+  isVicePrincipal(user) && !!transfer && transfer.fromCampusId === user.campusId && areaAllows(user, 'facility', user.campusId, true);
 export const isCampusVp = (transfer, user) =>
-  isVicePrincipal(user) && !!transfer && [transfer.fromCampusId, transfer.toCampusId].includes(user.campusId);
+  isVicePrincipal(user) &&
+  !!transfer &&
+  [transfer.fromCampusId, transfer.toCampusId].includes(user.campusId) &&
+  areaAllows(user, 'facility', user.campusId);
 
 export const getMyTransferRole = (transfer, user) => {
   if (!transfer || !user) return null;

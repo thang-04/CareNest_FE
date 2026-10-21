@@ -89,9 +89,11 @@ export default function AppearancePage() {
   return (
     <div className="page">
       <Breadcrumb items={acCrumbs('Tùy chỉnh giao diện')} />
-      <div className="page__head ap-head" style={{ '--scene-bg': `url('${sceneUrl(previewId)}')` }}>
-        <div>
-          <h1 className="page__title">Tùy chỉnh giao diện</h1>
+      <div className="page__head ap-head">
+        <h1 className="page__title">Tùy chỉnh giao diện</h1>
+        {/* Đầu trang không còn dải tranh nên xem trước tranh hôm nay bằng ảnh nhỏ */}
+        <div className="ap-head__preview">
+          <img className="ap-head__thumb" src={sceneUrl(previewId)} alt="" />
           <p className="ap-head__meta">
             Hôm nay hiển thị: <b>{sceneById(previewId)?.name}</b>
           </p>
@@ -163,7 +165,7 @@ export default function AppearancePage() {
                     <div className="ap-scene__name">{s.name}</div>
                     <div className="ap-scene__tags">
                       {sceneTags(s).map((t) => (
-                        <span key={t} className="chip">
+                        <span key={t} className="chip chip--blue">
                           {t}
                         </span>
                       ))}
@@ -202,7 +204,7 @@ export default function AppearancePage() {
       {canEdit && (
         <div className="page-actions">
           <span className="muted text-sm">{dirty ? 'Có thay đổi chưa lưu' : 'Chưa có thay đổi'}</span>
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row gap-2">
             <button type="button" className="btn" disabled={!dirty || busy} onClick={() => update(toForm(data))}>
               Hoàn tác
             </button>

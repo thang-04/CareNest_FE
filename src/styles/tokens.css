@@ -156,13 +156,13 @@
   --space-16: 64px;
 
   /* Radius (16px family) */
-  --radius-xs: 6px;
-  --radius-sm: 12px;
-  --radius-md: 14px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
-  --radius-3xl: 32px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
   --radius-full: 9999px;
 
   /* Typography */
@@ -182,6 +182,8 @@
   --fs-h2: 24px;
   --fs-2xl: 28px;
   --fs-3xl: 30px;
+  --fs-display-sm: 40px; /* số lớn trên dashboard, màn hẹp */
+  --fs-display: 48px; /* số lớn trên dashboard */
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-semibold: 600;
@@ -215,6 +217,7 @@
   /* Đường cong chuẩn Material (user chọn ở xưởng style) */
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
   --duration-overlay: 180ms;
+  --loading-reveal-delay: 300ms; /* khung chờ chỉ hiện khi tải lâu hơn mốc này; khớp LOADING_REVEAL_MS ở src/hooks/loadingTiming.js */
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
   /* Layers */
@@ -224,10 +227,11 @@
   --z-dropdown: 300;
   --z-drawer: 900;
   --z-modal: 1000;
+  --z-ai-veil: 1050; /* lớp phủ AI: trên modal đang mở, dưới toast báo lỗi */
   --z-toast: 1100;
 
   /* Breakpoints (use the number in @media; CSS vars cannot be used there)
-     768px tablet · 1024px drawer sidebar · 1280px 2-3 col grids -> fewer cols · 1366px target desktop */
+     640px phone (1 cột, header icon) · 768px tablet · 1024px drawer sidebar · 1280px 2-3 col grids -> fewer cols · 1366px target desktop */
 
   /* ===================== 2. SEMANTIC ===================== */
 
@@ -308,11 +312,12 @@
   --btn-height: 36px;
   --btn-height-sm: 32px;
   --btn-height-lg: 40px;
-  --btn-radius: var(--radius-full);
+  --stat-value-size: 34px;
+  --btn-radius: var(--radius-md);
   --btn-px: var(--space-4);
 
   --input-height: 36px;
-  --input-radius: 22px; /* gần viên thuốc; textarea vẫn bo 22 */
+  --input-radius: var(--radius-md);
   --input-border: var(--color-border-strong);
   --input-bg: var(--color-surface);
 
@@ -320,13 +325,16 @@
   --glass-bg: rgba(255, 255, 255, 0.72); /* kính trong, tranh nền nhìn rõ */
   --glass-border: rgba(255, 255, 255, 0.85);
   --glass-blur: blur(20px) saturate(1.2);
+  /* Lớp phủ AI (ngoại lệ có blur, user chọn 2026-10-20): đặt blur(0) nếu máy yếu bị giật */
+  --ai-veil-bg: color-mix(in srgb, var(--color-surface) 58%, transparent);
+  --ai-veil-blur: blur(6px) saturate(1.1);
   /* Lớp phủ trắng trên tranh nền: tông trắng, tranh chỉ thoáng hiện ở đáy trang */
   --scene-veil: linear-gradient(180deg, rgba(250, 252, 255, 0.93), rgba(248, 251, 255, 0.86));
   /* Nền dải đầu trang: xanh rất nhạt pha trắng */
   --band-bg: color-mix(in srgb, var(--color-primary-soft) 35%, var(--color-surface));
   --card-radius: var(--radius-3xl);
   --modal-radius: var(--radius-3xl);
-  --tile-radius: var(--radius-2xl); /* ô icon gần tròn */
+  --tile-radius: var(--radius-lg);
   --sidebar-radius: var(--radius-3xl);
   --card-padding: var(--space-6);
   --card-padding-dense: var(--space-4);
@@ -348,19 +356,6 @@
 
   --header-height: 64px;
   --page-padding: var(--space-5);
-  --people-tabs-gap: var(--space-2);
-  --people-tabs-padding-block: var(--space-3);
-  --people-tabs-padding-inline: var(--space-4);
-  --people-tabs-margin-bottom: var(--space-5);
-  --people-tabs-indicator-width: 3px;
-  --staff-directory-gap: var(--space-2);
-  --staff-search-min-width: 220px;
-  --staff-filter-min-width: 160px;
-  --staff-table-min-width: 720px;
-  --staff-permission-table-min-width: 880px;
-  --role-permission-matrix-min-width: 760px;
-  --role-permission-save-min-width: 280px;
-  --staff-roster-table-min-width: 650px;
 
   /* ===================== LEGACY ALIASES (v1 names) ===================== */
   /* Keep: hundreds of rules reference these. New code should use the semantic names above. */
@@ -445,4 +440,12 @@
   /* --radius-lg is also a v2 primitive (16px); v1 used it for cards. */
   --focus-ring: 0 0 0 3px var(--color-focus-ring);
   --font: var(--font-sans);
+}
+
+/* Điện thoại: lề trang và lề card hẹp lại để nội dung có chỗ */
+@media (max-width: 640px) {
+  :root {
+    --page-padding: var(--space-3);
+    --card-padding: var(--space-4);
+  }
 }

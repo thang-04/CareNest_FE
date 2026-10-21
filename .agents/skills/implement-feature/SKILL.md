@@ -9,3 +9,4 @@ description: Use for new CareNest Web screens, pages, forms, dashboards or chang
 2. Follow `../../../.ai/workflows/implement-feature.md` step by step. It is the source of truth; this skill does not redefine it.
 3. Context level starts at L2 (`../../../.ai/profiles/feature.md`); small local refactor may start at L1. Escalate via `../../../.ai/ESCALATION.md`.
 4. Find the business area via `../../../.ai/CONTEXT_MAP.yaml` (`keywords`); reference BE rule IDs, never copy business rules into FE.
+5. Before creating any component, CSS class or helper, look it up in `../../../DESIGN.md` §6.3 and `../../../docs/architecture/CODING_GUIDE.md` §2 (shared vs module, no cross-module imports — ESLint enforces).

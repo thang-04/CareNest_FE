@@ -1,5 +1,6 @@
 import { Armchair, BookOpen, Monitor, Backpack, CookingPot, Package } from '@/components/ui/icons';
 import { ASSET_CONDITION_LABELS, CONDITION_OPTIONS } from '@/models/Asset';
+import '@/styles/modules/facility-transfer.css';
 
 const CATEGORY_ICONS = {
   cat_furniture: Armchair,
@@ -17,9 +18,8 @@ export function AssetThumb({ asset, size, onClick }) {
   const Icon = categoryIcon(asset?.categoryId);
   return (
     <span
-      className={`asset-thumb ${size === 'sm' ? 'asset-thumb--sm' : ''}`}
+      className={`asset-thumb ${size === 'sm' ? 'asset-thumb--sm' : ''} ${onClick ? 'asset-thumb--action' : ''}`}
       onClick={onClick}
-      style={onClick ? { cursor: 'pointer' } : undefined}
       {...(onClick
         ? {
             role: 'button',

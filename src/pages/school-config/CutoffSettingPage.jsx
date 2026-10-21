@@ -30,7 +30,7 @@ export default function CutoffSettingPage() {
   const yearId = params.get('year') || headerYear;
   const { years } = useSchoolYears();
   const { year, setting, loading, error, reload } = useCutoffSetting(yearId, { live: false });
-  const [form, setForm] = useState({ time: '', effectiveFrom: '', note: '' });
+  const [form, setForm] = useState({ time: '', effectiveFrom: '', reopenWindowMinutes: '', note: '' });
   const [errors, setErrors] = useState({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,7 +40,7 @@ export default function CutoffSettingPage() {
     if (!year) return;
     const today = todayInput();
     const from = today < year.startDate ? year.startDate : today;
-    setForm({ time: setting?.time || '', effectiveFrom: from, note: '' });
+    setForm({ time: setting?.time || '', effectiveFrom: from, reopenWindowMinutes: String(setting?.reopenWindowMinutes ?? ''), note: '' });
     setErrors({});
   }, [year, setting]);
 
@@ -65,8 +65,14 @@ export default function CutoffSettingPage() {
 
   const ask = () => {
     const e = validateCutoff(form, year);
-    if (!e.time && setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
-      e.time = 'Giờ chốt và ngày áp dụng chưa thay đổi';
+    if (
+      !e.time &&
+      setting &&
+      setting.time === form.time &&
+      setting.effectiveFrom === form.effectiveFrom &&
+      String(setting.reopenWindowMinutes ?? '') === String(form.reopenWindowMinutes).trim()
+    )
+      e.time = 'Giờ chốt, thời hạn mở lại và ngày áp dụng chưa thay đổi';
     setErrors(e);
     if (!hasErrors(e)) setConfirmOpen(true);
   };
@@ -81,7 +87,7 @@ export default function CutoffSettingPage() {
     } catch (err) {
       setConfirmOpen(false);
       if (err.details) setErrors(err.details);
-      toast.error(err.message, 'Không lưu được thay đổi');
+      toast.error(err, 'Không lưu được thay đổi');
     } finally {
       setSaving(false);
     }
@@ -119,6 +125,13 @@ export default function CutoffSettingPage() {
                       <div className="sc-cutoff__time">{setting.time}</div>
                       <div className="text-sm text-2">
                         Áp dụng từ {formatDate(setting.effectiveFrom)} · năm học {year.name}
+                      </div>
+                      <div className="text-sm text-2">
+                        {setting.reopenWindowMinutes == null
+                          ? 'Chưa cấu hình thời hạn mở lại điểm danh'
+                          : setting.reopenWindowMinutes === 0
+                            ? 'Không cho mở lại điểm danh sau giờ chốt'
+                            : `Phó hiệu trưởng được mở lại trong ${setting.reopenWindowMinutes} phút sau giờ chốt`}
                       </div>
                       <div className="text-xs muted mt-8">
                         Cập nhật bởi {md.userById(setting.updatedBy)?.fullName || setting.updatedBy} lúc {formatDateTime(setting.updatedAt)}
@@ -165,6 +178,23 @@ export default function CutoffSettingPage() {
                         />
                       </FormField>
                     </div>
+                    <FormField
+                      label="Thời hạn mở lại điểm danh (phút sau giờ chốt)"
+                      required
+                      className="mt-12"
+                      error={errors.reopenWindowMinutes}
+                      hint="Phó hiệu trưởng chỉ mở lại lớp quên điểm danh trong khoảng này; 0 = không cho mở lại."
+                    >
+                      <input
+                        className="input"
+                        type="number"
+                        min="0"
+                        max="600"
+                        step="1"
+                        value={form.reopenWindowMinutes}
+                        onChange={(e) => set({ reopenWindowMinutes: e.target.value })}
+                      />
+                    </FormField>
                     <FormField label="Ghi chú" className="mt-12">
                       <textarea
                         className="textarea"
@@ -175,7 +205,7 @@ export default function CutoffSettingPage() {
                         onChange={(e) => set({ note: e.target.value })}
                       />
                     </FormField>
-                    <div className="row mt-16" style={{ justifyContent: 'flex-end' }}>
+                    <div className="row mt-16 sc-end">
                       <button className="btn btn--primary" onClick={ask} disabled={saving}>
                         {saving ? <Spinner small /> : <Save size={16} />} Lưu giờ chốt
                       </button>
@@ -191,13 +221,14 @@ export default function CutoffSettingPage() {
               <h2 className="card__title">Lịch sử thay đổi</h2>
             </div>
             <div className="table-wrap sc-table-flat">
-              <table className="table table--compact">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th>Thời điểm</th>
                     <th>Người thay đổi</th>
                     <th>Giờ cũ</th>
                     <th>Giờ mới</th>
+                    <th className="num">Mở lại (phút)</th>
                     <th>Áp dụng từ</th>
                     <th>Ghi chú</th>
                   </tr>
@@ -205,7 +236,7 @@ export default function CutoffSettingPage() {
                 <tbody>
                   {!setting?.history?.length ? (
                     <tr>
-                      <td colSpan={6} className="muted center">
+                      <td colSpan={7} className="muted center">
                         Chưa có thay đổi nào.
                       </td>
                     </tr>
@@ -216,6 +247,7 @@ export default function CutoffSettingPage() {
                         <td>{md.userById(h.userId)?.fullName || h.userId}</td>
                         <td>{h.previousTime || '—'}</td>
                         <td className="fw-600">{h.time}</td>
+                        <td className="num">{h.reopenWindowMinutes ?? '—'}</td>
                         <td>{formatDate(h.effectiveFrom)}</td>
                         <td className="sc-wrap">{h.note || <span className="muted">—</span>}</td>
                       </tr>
@@ -233,8 +265,8 @@ export default function CutoffSettingPage() {
         title="Lưu giờ chốt"
         message={
           <>
-            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học. Các Phó hiệu
-            trưởng sẽ nhận được thông báo.
+            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học; Phó hiệu
+            trưởng được mở lại trong <b>{form.reopenWindowMinutes} phút</b> sau giờ chốt. Các Phó hiệu trưởng sẽ nhận được thông báo.
           </>
         }
         confirmLabel="Lưu giờ chốt"

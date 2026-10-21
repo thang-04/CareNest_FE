@@ -5,20 +5,20 @@ import { buildReferenceLibrary } from '@/mocks/menuReferenceSeed';
 import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import { uid } from '@/utils/id';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
-import { mealsOf } from '@/utils/menu-planning/nutritionSetup';
+import { activeAgeGroups, ageAbbr, mealsOf } from '@/utils/menu-planning/nutritionSetup';
+import { foodUnits, purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
 import { ROLES } from '@/models/User';
-import { ageGroupById } from '@/models/School';
+import { ageGroupById, isNurseryAgeGroup } from '@/models/School';
 import {
   AI_DRAFT_KIND,
   AI_DRAFT_STATUS,
+  DISH_STATUS,
   DISH_TYPE,
-  NUTRITION_NORMS,
   RECORD_STATUS,
   WEEKLY_STATUS,
   addDays,
   defaultStorageOf,
   mondayOf,
-  portionFactorOf,
   weekDates,
   weekLabel,
 } from '@/models/menu-planning/menuPlanningConstants';
@@ -127,12 +127,48 @@ const groupName = (id) => ageGroupById(id)?.shortName || id;
 
 /* ---------------- foods ---------------- */
 
+// Không khai đơn vị kho (dữ liệu cũ, nhập khẩu) ⇒ đơn vị kho = đơn vị mua, tỷ lệ 1. Không ép số sai thành hợp lệ để validate báo lỗi.
+const unitFieldsOf = (p) => {
+  const purchaseUnit = String(p.purchaseUnit || '').trim();
+  if (!String(p.stockUnit || '').trim())
+    return {
+      purchaseUnit,
+      stockUnit: purchaseUnit,
+      purchaseToStock: 1,
+      stockUnitSize: Number(p.purchaseUnitSize),
+      purchaseUnitSize: Number(p.purchaseUnitSize),
+    };
+  const purchaseToStock = Number(p.purchaseToStock);
+  const stockUnitSize = Number(p.stockUnitSize);
+  return {
+    purchaseUnit,
+    stockUnit: String(p.stockUnit).trim(),
+    purchaseToStock,
+    stockUnitSize,
+    purchaseUnitSize: purchaseUnitSizeOf(purchaseToStock, stockUnitSize),
+  };
+};
+
+/** Thực phẩm đã có lô tồn kho hoặc phiếu nhập đã xác nhận (kho mock dùng chung DB). */
+const foodHasStock = (db, foodId) =>
+  (db.stockLots || []).some((l) => l.foodId === foodId) ||
+  (db.stockReceipts || []).some((r) => (r.status || 'CONFIRMED') !== 'DRAFT' && r.items.some((i) => i.foodId === foodId));
+
+// User chốt 20/10/2026: đã có tồn/chứng từ thì khóa đơn vị kho và tỷ lệ kho → công thức; đơn vị mua vẫn sửa được
+const lockedUnitChange = (db, before, data) => {
+  if (!before || !foodHasStock(db, before.id)) return null;
+  const a = foodUnits(before);
+  const b = foodUnits(data);
+  return a.stockUnit !== b.stockUnit || a.stockUnitSize !== b.stockUnitSize
+    ? 'Thực phẩm đã có lô tồn kho hoặc phiếu nhập: không đổi đơn vị kho và số g/ml trong một đơn vị kho.'
+    : null;
+};
+
 const sanitizeFood = (p) => ({
   name: String(p.name || '').trim(),
   group: p.group,
   unit: p.unit,
-  purchaseUnit: String(p.purchaseUnit || '').trim(),
-  purchaseUnitSize: Number(p.purchaseUnitSize),
+  ...unitFieldsOf(p),
   unitPrice: numOrNull(p.unitPrice),
   wastePct: Number(p.wastePct) || 0,
   favorite: !!p.favorite,
@@ -154,8 +190,8 @@ const sanitizeFood = (p) => ({
 const mealsOfDb = (db, ageGroupId) => mealsOf(db.nutritionSetups, ageGroupId);
 const mealCodesDb = (db, ageGroupId) => mealsOfDb(db, ageGroupId).map((m) => m.code);
 
-/** Định mức đã lưu ở Thiết lập; chưa có thì dùng giá trị mặc định. */
-const normsOf = (db, ageGroupId) => db.nutritionSetups?.find((x) => x.ageGroupId === ageGroupId)?.norms || NUTRITION_NORMS[ageGroupId];
+/** Chuẩn tạm đã nhập ở Thiết lập; chưa nhập thì null (không tự áp chuẩn mặc định). */
+const normsOf = (db, ageGroupId) => db.nutritionSetups?.find((x) => x.ageGroupId === ageGroupId)?.norms || null;
 
 const sanitizeSetup = (g) => ({
   enabled: g.enabled !== false,
@@ -165,7 +201,12 @@ const sanitizeSetup = (g) => ({
     name: String(m.name || '').trim(),
     countAs: m.countAs || m.code,
   })),
-  norms: Object.fromEntries(Object.entries(g.norms || {}).map(([k, range]) => [k, (range || []).map(Number)])),
+  // Khoảng để trống là chưa nhập chuẩn tạm, không lưu thành 0
+  norms: Object.fromEntries(
+    Object.entries(g.norms || {})
+      .filter(([, range]) => (range || []).some((v) => v !== '' && v != null))
+      .map(([k, range]) => [k, range.map(Number)]),
+  ),
 });
 
 /** Định lượng theo nhóm tuổi; `quantity` (khẩu phần chuẩn, hệ số 1) giữ cho dữ liệu cũ. */
@@ -173,8 +214,24 @@ const sanitizeIngredient = (r) => {
   if (!r.portions) return { foodId: r.foodId, quantity: Number(r.quantity) };
   const portions = Object.fromEntries(Object.entries(r.portions).map(([ag, v]) => [ag, v === '' || v == null ? null : Number(v)]));
   const std = Object.entries(portions).find(([, v]) => v != null);
-  const quantity = portions['ag-4'] ?? (std ? Math.round((std[1] / portionFactorOf(std[0])) * 10) / 10 : 0);
+  const quantity = portions['ag-4'] ?? std?.[1] ?? 0;
   return { foodId: r.foodId, quantity, portions };
+};
+
+const inMealsOf = (meals, id) => (meals || []).some((m) => m.items.some((i) => i.dishId === id));
+/** Món đã nằm trong thực đơn mẫu, thực đơn thay thế hoặc thực đơn tuần. */
+const dishInUse = (db, id) =>
+  db.menus.some((m) => inMealsOf(m.meals, id)) ||
+  db.allergyMenus.some((a) => a.replacements.some((r) => r.originalDishId === id || r.replacementDishId === id)) ||
+  db.weeklyMenus.some((w) => w.days.some((d) => inMealsOf(d.meals, id)));
+
+/** Món mới đưa vào thực đơn phải Đang sử dụng; món đã có từ trước giữ nguyên (không bắt sửa thực đơn cũ). */
+const requireUsableDish = (dish, oldIds = []) => {
+  if (oldIds.includes(dish.id) || dish.status === DISH_STATUS.ACTIVE) return;
+  fail(
+    422,
+    dish.status === DISH_STATUS.DRAFT ? `${dish.name} còn là món nháp, chưa dùng được cho thực đơn.` : `${dish.name} đã ngừng sử dụng.`,
+  );
 };
 
 /* ---------------- reference dish library (read-only, illustrative data) ---------------- */
@@ -376,10 +433,10 @@ const suggestDay = (db, { ageGroupId, avoidAllergens }) => {
     !dishTotals(d, foodById, 1, ageGroupId).noQuantity &&
     !dishAllergens(d, foodById).some((a) => restrictions.some((r) => sameAllergen(r, a)));
   const pool = (type) => db.dishes.filter((d) => d.type === type && ok(d));
-  const nursery = ageGroupId === 'ag-2';
+  const nursery = isNurseryAgeGroup(ageGroupId);
   const carbs = pool(DISH_TYPE.CARB).filter((d) => (nursery ? /cháo/i.test(d.name) : !/cháo/i.test(d.name)));
   const carbPool = carbs.length ? carbs : pool(DISH_TYPE.CARB);
-  const [lo, hi] = normsOf(db, ageGroupId)?.kcal || [0, 0];
+  const kcalRange = normsOf(db, ageGroupId)?.kcal;
   const today = todayInput();
   const codes = mealCodesDb(db, ageGroupId);
   const item = (d) => (d ? [{ dishId: d.id, portion: 1 }] : []);
@@ -408,12 +465,13 @@ const suggestDay = (db, { ageGroupId, avoidAllergens }) => {
       ],
       codes,
     );
-    // Chỉnh khẩu phần cơm/cháo để năng lượng gần giữa khoảng định mức
-    let best = null;
-    for (let p = 0.8; p <= 1.41; p += 0.1) {
+    // Chỉnh khẩu phần cơm/cháo để năng lượng gần giữa khoảng định mức; chưa có chuẩn tạm thì giữ 1 suất
+    const target = kcalRange?.length === 2 ? (Number(kcalRange[0]) + Number(kcalRange[1])) / 2 : null;
+    let best = target == null ? { meals, gap: 0 } : null;
+    for (let p = 0.8; target != null && p <= 1.41; p += 0.1) {
       const portion = Math.round(p * 10) / 10;
       const trial = meals.map((m) => ({ ...m, items: m.items.map((i) => (i.dishId === carb.id ? { ...i, portion } : i)) }));
-      const gap = Math.abs(mealsTotals(trial, dishById, foodById, ageGroupId).totals.kcal - (lo + hi) / 2);
+      const gap = Math.abs(mealsTotals(trial, dishById, foodById, ageGroupId).totals.kcal - target);
       if (!best || gap < best.gap) best = { meals: trial, gap };
     }
     return { meals: best.meals, problems: checkDayMenu({ meals: best.meals, ageGroupId, catalog, date: today }).problems };
@@ -563,6 +621,7 @@ export const menuPlanningMockRepository = {
     const db = seeded();
     const food = clone(find(db.foods, id, 'thực phẩm'));
     food.usedInDishes = db.dishes.filter((d) => d.ingredients.some((i) => i.foodId === id)).map((d) => ({ id: d.id, name: d.name }));
+    food.unitsLocked = foodHasStock(db, id);
     return food;
   },
 
@@ -577,6 +636,8 @@ export const menuPlanningMockRepository = {
       let food;
       if (id) {
         food = find(db.foods, id, 'thực phẩm');
+        const locked = lockedUnitChange(db, food, data);
+        if (locked) fail(409, locked, { stockUnitSize: locked });
         Object.assign(food, data, { updatedAt: now() });
         addHistory(food, 'UPDATED', user);
       } else {
@@ -613,11 +674,18 @@ export const menuPlanningMockRepository = {
           errors[`${it.key}.code`] = 'Không tìm thấy thực phẩm.';
           return null;
         }
+        // Nhập khẩu chỉ có cột "Quy đổi" (g/ml trong 1 đơn vị mua): giữ đơn vị kho, đổi tỷ lệ mua → kho
+        const conv =
+          before && it.data.purchaseUnitSize != null && it.data.purchaseToStock == null
+            ? { purchaseToStock: Number(it.data.purchaseUnitSize) / foodUnits(before).stockUnitSize }
+            : {};
         const merged = before
-          ? { ...before, ...it.data, nutrition: { ...before.nutrition, ...(it.data.nutrition || {}) } }
+          ? { ...before, ...it.data, ...conv, nutrition: { ...before.nutrition, ...(it.data.nutrition || {}) } }
           : { purchaseUnit: 'kg', purchaseUnitSize: 1000, unit: 'g', allergens: [], note: '', status: RECORD_STATUS.ACTIVE, ...it.data };
         const data = sanitizeFood(merged);
         const rowErrors = validateFood({ ...merged, ...data, id: before?.id }, others);
+        const locked = lockedUnitChange(db, before, data);
+        if (locked) rowErrors.stockUnitSize = locked;
         Object.entries(rowErrors).forEach(([field, msg]) => (errors[`${it.key}.${field}`] = msg));
         if (!before) others.push({ ...data, id: `new-${it.key}` });
         return { before, data };
@@ -711,9 +779,12 @@ export const menuPlanningMockRepository = {
         type: payload.type,
         description: String(payload.description || '').trim(),
         ingredients: (payload.ingredients || []).map(sanitizeIngredient),
-        status: payload.status === RECORD_STATUS.INACTIVE ? RECORD_STATUS.INACTIVE : RECORD_STATUS.ACTIVE,
+        status: Object.values(DISH_STATUS).includes(payload.status) ? payload.status : DISH_STATUS.ACTIVE,
       };
-      const errors = validateDish({ ...data, id }, db.dishes);
+      // Rời Nháp (hoặc tạo mới dùng ngay) ⇒ đủ định lượng mọi nhóm tuổi đang áp dụng
+      const activating = data.status === DISH_STATUS.ACTIVE && (!before || before.status === DISH_STATUS.DRAFT);
+      const requireGroups = activating ? activeAgeGroups(db.nutritionSetups).map((g) => ({ id: g.id, name: ageAbbr(g.id) })) : null;
+      const errors = validateDish({ ...data, id }, db.dishes, { requireGroups });
       if (hasErrors(errors)) fail(422, MSG.invalid, errors);
       const foodById = byId(db.foods);
       data.ingredients.forEach((r) => {
@@ -721,6 +792,8 @@ export const menuPlanningMockRepository = {
         const isNew = !before?.ingredients.some((x) => x.foodId === r.foodId);
         if (isNew && food.status === RECORD_STATUS.INACTIVE) fail(422, `${food.name} đã ngừng sử dụng, không thêm được vào món.`);
       });
+      if (before && before.status !== DISH_STATUS.DRAFT && data.status === DISH_STATUS.DRAFT && dishInUse(db, before.id))
+        fail(409, 'Món đã có trong thực đơn, không chuyển về Nháp được.');
       let dish;
       if (before) {
         dish = Object.assign(before, data, { updatedAt: now() });
@@ -748,12 +821,7 @@ export const menuPlanningMockRepository = {
       ensure(db);
       requireManager(db, user);
       find(db.dishes, id, 'món ăn');
-      const inMeals = (meals) => (meals || []).some((m) => m.items.some((i) => i.dishId === id));
-      const used =
-        db.menus.some((m) => inMeals(m.meals)) ||
-        db.allergyMenus.some((a) => a.replacements.some((r) => r.originalDishId === id || r.replacementDishId === id)) ||
-        db.weeklyMenus.some((w) => w.days.some((d) => inMeals(d.meals)));
-      if (used) fail(409, `${MSG.inUse} Hãy chuyển sang "Ngừng sử dụng".`);
+      if (dishInUse(db, id)) fail(409, `${MSG.inUse} Hãy chuyển sang "Ngừng sử dụng".`);
       db.dishes = db.dishes.filter((d) => d.id !== id);
     });
   },
@@ -876,7 +944,8 @@ export const menuPlanningMockRepository = {
         type: ref.type,
         description: ref.description,
         ingredients,
-        status: RECORD_STATUS.ACTIVE,
+        // Không qua form để PHT chọn trạng thái ⇒ về Nháp, PHT kiểm tra rồi mới dùng (user chốt 20/10/2026)
+        status: DISH_STATUS.DRAFT,
         createdBy: user.id,
         createdAt: now(),
         updatedAt: now(),
@@ -1022,7 +1091,7 @@ export const menuPlanningMockRepository = {
       data.meals.forEach((m) =>
         m.items.forEach((i) => {
           const dish = dishById[i.dishId] || fail(422, 'Món đã chọn không còn tồn tại.');
-          if (!oldIds.includes(i.dishId) && dish.status === RECORD_STATUS.INACTIVE) fail(422, `${dish.name} đã ngừng sử dụng.`);
+          requireUsableDish(dish, oldIds);
         }),
       );
       let menu;
@@ -1108,6 +1177,11 @@ export const menuPlanningMockRepository = {
       };
       const errors = validateAllergyMenu(data, { menus: db.menus, dishes: db.dishes, foods: db.foods });
       if (hasErrors(errors)) fail(422, errors.replacements || MSG.invalid, errors);
+      const dishById = byId(db.dishes);
+      const oldIds = (before?.replacements || []).map((r) => r.replacementDishId);
+      data.replacements.forEach(
+        (r) => r.replacementDishId && dishById[r.replacementDishId] && requireUsableDish(dishById[r.replacementDishId], oldIds),
+      );
       let rec;
       if (before) {
         rec = Object.assign(before, data, { updatedAt: now() });
@@ -1248,10 +1322,16 @@ export const menuPlanningMockRepository = {
       if (wm.status !== WEEKLY_STATUS.DRAFT) fail(409, 'Thực đơn đã xuất bản không sửa trực tiếp. Hãy tạo phiên bản thay thế.');
       const day = wm.days.find((d) => d.date === date && !d.holiday) || fail(404, 'Ngày này không có thực đơn.');
       const normalized = normalizeMeals(meals, mealCodesDb(db, wm.ageGroupId));
-      const errors = validateMenu({ name: 'x', ageGroupId: wm.ageGroupId, meals: normalized }, [], mealsOfDb(db, wm.ageGroupId));
+      // Tuần nháp thêm/bỏ từng món nên bữa được trống; xuất bản mới chặn ngày học chưa có món
+      const errors = validateMenu({ name: 'x', ageGroupId: wm.ageGroupId, meals: normalized }, [], mealsOfDb(db, wm.ageGroupId), {
+        allowEmptyMeals: true,
+      });
       if (hasErrors(errors)) fail(422, Object.values(errors)[0], errors);
       const dishById = byId(db.dishes);
-      normalized.forEach((m) => m.items.forEach((i) => dishById[i.dishId] || fail(422, 'Món đã chọn không còn tồn tại.')));
+      const oldIds = (day.meals || []).flatMap((m) => m.items.map((i) => i.dishId));
+      normalized.forEach((m) =>
+        m.items.forEach((i) => requireUsableDish(dishById[i.dishId] || fail(422, 'Món đã chọn không còn tồn tại.'), oldIds)),
+      );
       day.meals = normalized;
       wm.updatedAt = now();
       addHistory(wm, 'ADJUSTED', user, `Điều chỉnh món/khẩu phần ngày ${date.split('-').reverse().join('/')}`);
@@ -1464,7 +1544,6 @@ export const menuPlanningMockRepository = {
             publishedAt: w.publishedAt,
             holiday: !!day.holiday,
             menuId: day.menuId,
-            portionFactor: portionFactorOf(w.ageGroupId),
             meals: day.holiday ? [] : resolveMeals(day.meals, w.ageGroupId, dishById, foodById),
             allergyMenus: day.holiday
               ? []

@@ -59,10 +59,10 @@ export function WeekMatrix({ weekStart, slots, dayNotes }) {
       <table className="table ga-plan-table ga-week-table">
         <thead>
           <tr>
-            <th style={{ width: 130 }}>Giờ sinh hoạt</th>
+            <th className="w-130">Giờ sinh hoạt</th>
             {days.map((d) => (
               <th key={d.date}>
-                {d.label} <span style={{ fontWeight: 400 }}>{fmtDate(d.date).slice(0, 5)}</span>
+                {d.label} <span className="ga-day-date">{fmtDate(d.date).slice(0, 5)}</span>
               </th>
             ))}
           </tr>
@@ -111,9 +111,9 @@ export function DayTable({ slots }) {
       <table className="table ga-plan-table">
         <thead>
           <tr>
-            <th style={{ width: 150 }}>Thời điểm / Hoạt động</th>
+            <th className="w-150">Thời điểm / Hoạt động</th>
             <th>Mục đích – Yêu cầu</th>
-            <th style={{ width: 170 }}>Chuẩn bị</th>
+            <th className="ga-col-prep">Chuẩn bị</th>
             <th>Hoạt động của cô</th>
             <th>Hoạt động của trẻ</th>
           </tr>

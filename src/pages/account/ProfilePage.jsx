@@ -1,27 +1,24 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AtSign,
   Briefcase,
-  Building,
   Cake,
   Gender,
   IdCard,
   KeyRound,
   Lock,
-  Mail,
   MapPin,
   Pencil,
   PencilLine,
   Phone,
   Save,
-  School,
   ShieldCheck,
   X,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { Avatar, Breadcrumb, ErrorState, FormField, LoadingState, Spinner } from '@/components';
+import { Breadcrumb, ErrorState, FormField, LoadingState, Spinner } from '@/components';
+import { AccountSideCard } from '@/components/account/AccountSideCard';
 import { useProfile } from '@/hooks/account/useAccount';
 import { updateProfile } from '@/services/account/accountService';
 import { validateProfile } from '@/utils/account/accountValidation';
@@ -79,7 +76,7 @@ export default function ProfilePage() {
       toast.success('Đã lưu thông tin hồ sơ');
     } catch (err) {
       if (err.details && typeof err.details === 'object') setErrors(err.details);
-      toast.error(err.message, 'Không lưu được hồ sơ');
+      toast.error(err, 'Không lưu được hồ sơ');
     } finally {
       setBusy(false);
     }
@@ -124,49 +121,18 @@ export default function ProfilePage() {
 
       <div className="ac-profile">
         {/* Cột trái: là ai, phụ trách đâu, liên hệ nhanh và hai việc chính */}
-        <aside className="card ac-side">
-          <div className="ac-side__top">
-            <Avatar user={profile} size="2xl" />
-            <div className="ac-side__name">{profile.fullName}</div>
-            <span className="chip chip--teal">
-              <School size={14} /> {roleLabel}
-            </span>
-          </div>
-          <ul className="ac-side__facts">
-            {(scope.className || workplace) && (
-              <li>
-                <Building size={16} />
-                <span>{[scope.className, workplace].filter(Boolean).join(' · ')}</span>
-              </li>
-            )}
-            <li>
-              <Mail size={16} />
-              <span>{profile.email}</span>
-            </li>
-            <li>
-              <Phone size={16} />
-              <span>{profile.phone || empty}</span>
-            </li>
-            {profile.username && (
-              <li>
-                <AtSign size={16} />
-                <span>{profile.username}</span>
-              </li>
-            )}
-          </ul>
+        <AccountSideCard profile={profile}>
           {!editing && (
             <div className="ac-side__actions">
-              {profile.profileEditable !== false && (
-                <button type="button" className="btn btn--primary" onClick={startEdit}>
-                  <Pencil size={16} /> Cập nhật hồ sơ
-                </button>
-              )}
+              <button type="button" className="btn btn--primary" onClick={startEdit}>
+                <Pencil size={16} /> Cập nhật hồ sơ
+              </button>
               <Link to="/account/password" state={{ from: '/account/profile' }} className="btn">
                 <KeyRound size={16} /> Đổi mật khẩu
               </Link>
             </div>
           )}
-        </aside>
+        </AccountSideCard>
 
         <div className="ac-main">
           <form className="card" onSubmit={save} noValidate>
@@ -363,7 +329,7 @@ export default function ProfilePage() {
                     {profile.passwordChangedAt ? (
                       formatDateTime(profile.passwordChangedAt)
                     ) : (
-                      <span className="ac-empty">{profile.profileEditable === false ? 'Chưa có thông tin' : 'Chưa đổi lần nào'}</span>
+                      <span className="ac-empty">Chưa đổi lần nào</span>
                     )}
                   </dd>
                 </div>

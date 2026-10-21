@@ -26,7 +26,7 @@ export const seedFoods = [
   { id: 'kf_oil', name: 'Dầu ăn', unit: 'lít', roundStep: 0.1 },
 ];
 
-/* Quantity per portion is in the food unit, for the 4–5 year group (see PORTION_FACTOR_BY_AGE_GROUP). */
+/* Quantity per portion is in the food unit (one standard portion; age-group quantities come from menu-planning dishes). */
 const dish = (id, name, ingredients, allergens = []) => ({
   id,
   name,
@@ -196,6 +196,25 @@ export const buildOpeningStock = (campusIds, foods) =>
     }),
   );
 
+/** Danh mục NCC hư cấu (BA 01): hai NCC đồ khô có phiếu nhập seed, một NCC hàng tươi, một NCC đã ngừng dùng. */
+const SEED_SUPPLIERS = [
+  ['sup_01', 'NCC001', 'Đại lý thực phẩm khô mẫu', 'Số 1 đường Mẫu, xã Thượng Hồng', 'Nguyễn Văn Mẫu', '0900000001', '', 'ACTIVE'],
+  ['sup_02', 'NCC002', 'Cửa hàng gạo mẫu', 'Số 2 đường Mẫu, xã Thượng Hồng', 'Trần Thị Mẫu', '0900000002', '', 'ACTIVE'],
+  ['sup_03', 'NCC003', 'Công ty thực phẩm sạch mẫu', 'Số 3 đường Mẫu, Hải Phòng', 'Lê Văn Mẫu', '0900000003', '0100000003', 'ACTIVE'],
+  ['sup_04', 'NCC004', 'Cơ sở đậu phụ mẫu', 'Số 4 đường Mẫu, xã Thượng Hồng', '', '', '', 'INACTIVE'],
+].map(([id, code, name, address, contactName, phone, taxCode, status]) => ({
+  id,
+  code,
+  name,
+  address,
+  contactName,
+  phone,
+  taxCode,
+  status,
+}));
+
+export const buildSeedSuppliers = (createdAt) => SEED_SUPPLIERS.map((s) => ({ ...s, createdBy: null, createdAt, updatedAt: createdAt }));
+
 /** Hai lần nhập đồ khô gần đây mỗi cơ sở (lô, hạn dùng, giá, NCC hư cấu) để kho có lô để xem. */
 export const buildSeedReceipts = ({ campusIds, vpByCampus, dates, foods }) =>
   campusIds.flatMap((campusId, ci) =>
@@ -208,19 +227,25 @@ export const buildSeedReceipts = ({ campusIds, vpByCampus, dates, foods }) =>
         campusId,
         date,
         note: di === 0 ? 'Giao hàng định kỳ đầu tuần.' : '',
-        supplierName: di === 0 ? 'Đại lý thực phẩm khô mẫu' : 'Cửa hàng gạo mẫu',
+        supplierId: SEED_SUPPLIERS[di].id,
+        supplierName: SEED_SUPPLIERS[di].name,
+        status: 'CONFIRMED',
         items: picked.map((f, i) => {
-          const qty = (f.purchaseUnit || '').toLowerCase() === 'kg' ? 10 : 6;
+          // Dòng seed ghi theo đơn vị kho; giá thực phẩm là giá một đơn vị mua
+          const perStock = Number(f.purchaseToStock) || 1;
+          const qty = (f.stockUnit || f.purchaseUnit || '').toLowerCase() === 'kg' ? 10 : 6;
           const [y, m] = date.split('-').map(Number);
           const exp = new Date(y, m - 1 + (i === 2 ? 0 : 8), 25);
+          const mfg = new Date(y, m - 2, 10);
           return {
             foodId: f.id,
             receivedQty: qty,
             rejectedQty: 0,
             acceptedQty: qty,
             lotNo: `L${ymd.slice(2, 6)}${ci}${di}${i}`,
+            mfgDate: `${mfg.getFullYear()}-${String(mfg.getMonth() + 1).padStart(2, '0')}-10`,
             expiryDate: `${exp.getFullYear()}-${String(exp.getMonth() + 1).padStart(2, '0')}-25`,
-            unitPrice: typeof f.unitPrice === 'number' ? f.unitPrice : 0,
+            unitPrice: typeof f.unitPrice === 'number' ? Math.round(f.unitPrice / perStock) : 0,
             note: '',
           };
         }),

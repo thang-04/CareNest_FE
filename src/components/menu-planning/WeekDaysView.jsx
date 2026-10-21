@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Scale } from '@/components/ui/icons';
+import { RowActions } from '@/components/ui/RowActions';
 import { MealsView } from '@/components/menu-planning/MealsView';
 import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import { compareToNorm, mealsTotals } from '@/utils/menu-planning/menuCalculations';
@@ -14,17 +14,15 @@ export const dayNormStatus = (rows) =>
 export function WeekDaysView({ wm, catalog, linkMenus = false, balanceLink = false }) {
   return (
     <div className="table-wrap">
-      <table className="table">
+      <table className="table table--grid">
         <thead>
           <tr>
-            <th style={{ width: 130 }}>Ngày</th>
+            <th className="w-130">Ngày</th>
             <th>Món ăn</th>
-            <th className="right" style={{ width: 120 }}>
-              Năng lượng
-            </th>
-            <th style={{ width: 170 }}>Dinh dưỡng</th>
+            <th className="num w-120">Năng lượng</th>
+            <th className="td-w-170">Dinh dưỡng</th>
             {balanceLink && (
-              <th className="center" style={{ width: 70 }}>
+              <th className="cell--actions">
                 <span className="sr-only">Thao tác</span>
               </th>
             )}
@@ -64,19 +62,15 @@ export function WeekDaysView({ wm, catalog, linkMenus = false, balanceLink = fal
                     </>
                   )}
                 </td>
-                <td className="right nowrap">{result ? `${result.totals.kcal.toLocaleString('vi-VN')} kcal` : '—'}</td>
+                <td className="num nowrap">{result ? `${result.totals.kcal.toLocaleString('vi-VN')} kcal` : '—'}</td>
                 <td>{result ? <NormStatusChip status={dayNormStatus(rows)} /> : '—'}</td>
                 {balanceLink && (
-                  <td className="center">
+                  <td className="cell--actions">
                     {!day.holiday && (
-                      <Link
-                        className="icon-btn"
-                        to={`/menu/nutrition?weeklyMenuId=${wm.id}&date=${day.date}`}
-                        title="Xem cân đối dinh dưỡng"
-                        aria-label={`Xem cân đối dinh dưỡng ${WEEKDAY_LABELS[i]}`}
-                      >
-                        <Scale size={17} />
-                      </Link>
+                      <RowActions
+                        view={{ to: `/menu/nutrition?weeklyMenuId=${wm.id}&date=${day.date}`, label: 'Xem cân đối dinh dưỡng' }}
+                        name={WEEKDAY_LABELS[i]}
+                      />
                     )}
                   </td>
                 )}

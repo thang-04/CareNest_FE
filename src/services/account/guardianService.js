@@ -1,24 +1,19 @@
 import { USE_MOCK } from '@/config/env';
-import { guardianMockRepository } from '@/services/account/mock/guardianMockRepository';
-import { guardianApi } from '@/services/account/api/guardianApi';
-
-/** Facade tài khoản phụ huynh: UI chỉ gọi các hàm này. Mật khẩu tạm trả về chỉ để in phiếu, không lưu. */
-const repo = USE_MOCK ? guardianMockRepository : guardianApi;
-
-export const listGuardians = (childId, user) => repo.listGuardians(childId, user);
-export const addGuardian = (childId, form, user) => repo.addGuardian(childId, form, user);
-export const removeGuardian = (childId, userId, user) => repo.removeGuardian(childId, userId, user);
-export const updateParentStatus = (userId, status, user) => repo.updateParentStatus(userId, status, user);
-export const resetParentPassword = (userId, user) => repo.resetParentPassword(userId, user);
-
-// BE trả tối đa 100 trẻ một trang; gộp đủ các trang của một điểm trường để đếm theo lớp
-const PAGE_MAX = 100;
+import { guardianMockRepository as mock } from './mock/guardianMockRepository';
+const call = (method, ...args) =>
+  USE_MOCK
+    ? mock[method](...args)
+    : Promise.reject({ status: 501, message: 'Giao diện tài khoản phụ huynh đang demo; cần thống nhất contract BE.' });
+export const listGuardians = (id, user) => call('listGuardians', id, user);
+export const addGuardian = (id, form, user) => call('addGuardian', id, form, user);
+export const removeGuardian = (childId, id, user) => call('removeGuardian', childId, id, user);
+export const updateParentStatus = (id, status, user) => call('updateParentStatus', id, status, user);
+export const resetParentPassword = (id, user) => call('resetParentPassword', id, user);
+export const getGuardianStructure = (user) => call('getStructure', user);
 export const listAllChildrenForGuardians = async (campusId, user) => {
-  const first = await repo.searchChildren({ campusId, page: 0, size: PAGE_MAX }, user);
+  const first = await call('searchChildren', { campusId, page: 0, size: 100 }, user);
   const rest = await Promise.all(
-    Array.from({ length: Math.max(0, first.totalPages - 1) }, (_, i) =>
-      repo.searchChildren({ campusId, page: i + 1, size: PAGE_MAX }, user),
-    ),
+    Array.from({ length: first.totalPages - 1 }, (_, i) => call('searchChildren', { campusId, page: i + 1, size: 100 }, user)),
   );
-  return [first, ...rest].flatMap((p) => p.items);
+  return [first, ...rest].flatMap((page) => page.items);
 };

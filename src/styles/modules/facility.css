@@ -32,7 +32,7 @@
   margin-top: 3px;
 }
 .bh-type-option__title {
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 .bh-type-option__hint {
   color: var(--text-2);
@@ -87,10 +87,6 @@
 }
 
 /* Decision / result box on detail pages */
-.bh-result {
-  display: grid;
-  gap: var(--space-2);
-}
 .bh-change {
   display: inline-flex;
   align-items: center;
@@ -115,7 +111,7 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--border);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 /* Source picker rows in the "add from approved reports" dialog */
@@ -145,6 +141,44 @@
   white-space: normal;
   min-width: 180px;
   max-width: 320px;
+}
+
+/* Layout helpers riêng module (thay style={{}} tĩnh) */
+/* Nhóm nút ở đầu trang: dồn phải, cách tiêu đề */
+.bh-head-actions {
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+.bh-head-actions--tight {
+  margin-top: var(--space-1-5);
+}
+.bh-pre-line {
+  white-space: pre-line;
+}
+.bh-block {
+  display: block;
+}
+.bh-mt-1 {
+  margin-top: var(--space-1);
+}
+.bh-ml-1-5 {
+  margin-left: var(--space-1-5);
+}
+.bh-ml-2 {
+  margin-left: var(--space-2);
+}
+.bh-radio-row {
+  min-height: 38px;
+}
+.bh-min-w-170 {
+  min-width: 170px;
+}
+.bh-min-w-180 {
+  min-width: 180px;
+}
+.bh-photo-preview {
+  width: 100%;
+  border-radius: var(--radius-xs);
 }
 
 @media (max-width: 1280px) {

@@ -15,11 +15,13 @@ export const IMPORT_COLUMNS = [
   ['kcal', 'Kcal'],
   ['protein', 'Đạm'],
   ['lipid', 'Béo'],
-  ['glucid', 'Bột'],
+  ['glucid', 'Tinh bột'],
   ['allergens', 'Dị ứng'],
   ['storage', 'Bảo quản'],
 ];
 export const IMPORT_TEMPLATE_URL = '/templates/thuc-pham-mau.xlsx';
+// File mẫu tải trước khi đổi tên cột vẫn ghi "Bột" nên vẫn nhận tên cũ
+const HEADER_ALIASES = { glucid: ['Bột'] };
 
 const norm = (v) => normalizeText(String(v ?? '')).trim();
 const blank = (v) => v === null || v === undefined || String(v).trim() === '';
@@ -40,8 +42,8 @@ export async function readFoodFile(file) {
  */
 export function matchFoodRows(rows, foods) {
   const [header, ...body] = rows || [];
-  const expected = IMPORT_COLUMNS.map(([, label]) => norm(label));
-  if (!header || expected.some((label, i) => norm(header[i]) !== label))
+  const expected = IMPORT_COLUMNS.map(([key, label]) => [label, ...(HEADER_ALIASES[key] || [])].map(norm));
+  if (!header || expected.some((labels, i) => !labels.includes(norm(header[i]))))
     return { creates: [], updates: [], errors: [{ row: 1, reason: 'Dòng tiêu đề không đúng file mẫu. Hãy tải file mẫu và điền lại.' }] };
 
   const creates = [];

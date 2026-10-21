@@ -6,7 +6,7 @@ be_modules: []
 rules: []
 status: workaround
 date: 2026-10-09
-keywords: [npm install, ERESOLVE, peer dependency, vite 8, "@vitejs/plugin-react", legacy-peer-deps]
+keywords: [npm install, ERESOLVE, peer dependency, vite 8, '@vitejs/plugin-react', legacy-peer-deps]
 similar_to: []
 ---
 
@@ -29,11 +29,13 @@ npm error peer vite@"^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" from @vitejs/plugin-r
 
 ## Attempts — đã thử (cập nhật mỗi phiên điều tra, để phiên sau không lặp lại)
 
-| #   | Cách thử                                             | Kết quả                                                       | Vì sao không đúng / bài học                                                   |
-| --- | ---------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| 1   | `npm install @tabler/icons-react@^3.48.0`            | ERESOLVE như trên                                             | Xung đột có sẵn giữa vite và plugin-react, không liên quan gói mới            |
-| 2   | `npm install … --legacy-peer-deps`                   | Cài được, không đổi phiên bản gói khác; build/verify PASS     | Chỉ là cách tránh; peer vẫn lệch                                              |
-| 3   | `npm uninstall lucide-react … --legacy-peer-deps`    | Gỡ được                                                       | Mọi lệnh npm sửa cây phụ thuộc đều cần cờ này cho tới khi nâng plugin-react   |
+| #   | Cách thử                                          | Kết quả                                                   | Vì sao không đúng / bài học                                                 |
+| --- | ------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 1   | `npm install @tabler/icons-react@^3.48.0`         | ERESOLVE như trên                                         | Xung đột có sẵn giữa vite và plugin-react, không liên quan gói mới          |
+| 2   | `npm install … --legacy-peer-deps`                | Cài được, không đổi phiên bản gói khác; build/verify PASS | Chỉ là cách tránh; peer vẫn lệch                                            |
+| 3   | `npm uninstall lucide-react … --legacy-peer-deps` | Gỡ được                                                   | Mọi lệnh npm sửa cây phụ thuộc đều cần cờ này cho tới khi nâng plugin-react |
+
+Ngày 2026-10-19: cài `read-excel-file@9.3.10` đã được user duyệt cũng gặp cùng ERESOLVE. Dùng lại workaround `--legacy-peer-deps --ignore-scripts`, cài được; không nâng Vite/plugin-react. Khôi phục metadata libc của package cũ trong lockfile, chỉ nhận dependency mới và transitive cần thiết. Lệch peer vẫn chưa được sửa.
 
 ## Root cause
 

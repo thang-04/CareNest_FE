@@ -1,6 +1,6 @@
 # Backend Integration
 
-**CareNest_BE là owner của API contract.** File này mô tả cách Web tiêu thụ contract; khi khác với BE ⇒ BE thắng, cập nhật file này. Nguồn theo thứ tự: source BE (`../CareNest_BE/src/main/java/com/carenest/` — `utils/ResponseJson.java`, `utils/ApiCode.java`, `dto/common/PageResponse.java`, `exception/GlobalExceptionHandler.java`) → Swagger UI của BE đang chạy (springdoc, `/swagger-ui/index.html`) → `BE:docs/contracts/API_CONVENTIONS.md`, `ERROR_CONTRACT.md` → `BE:docs/backend-coding-guide.md`. OpenAPI snapshot hiện có tại `BE:docs/api/openapi.yaml`; auth gateway Web theo `docs/integration/AUTH_FLOW.md`.
+**CareNest_BE là owner của API contract.** File này mô tả cách Web tiêu thụ contract; khi khác với BE ⇒ BE thắng, cập nhật file này. Nguồn theo thứ tự: source BE (`../CareNest_BE/src/main/java/com/carenest/` — `utils/ResponseJson.java`, `utils/ApiCode.java`, `dto/common/PageResponse.java`, `exception/GlobalExceptionHandler.java`) → Swagger UI của BE đang chạy (springdoc, `/swagger-ui/index.html`) → `BE:docs/contracts/API_CONVENTIONS.md`, `ERROR_CONTRACT.md` → `BE:docs/backend-coding-guide.md`. File OpenAPI export (`BE:docs/api/`) chưa có.
 
 ## Base URL & prefix
 

@@ -10,16 +10,17 @@ import {
   Upload,
   LayoutGrid,
   Info,
-  Lock,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { EmptyState, Spinner } from '@/components/ui/States';
+import { Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { importChildren, previewEnrollmentImport } from '@/services/children/childrenService';
 import { GENDER_LABELS } from '@/models/School';
-import { ALLERGY_STATE_LABELS, DECLARATION_STATE, IMPORT_COLUMNS } from '@/models/children/childrenConstants';
+import { AllergyStateBadge, ImportRowResultBadge } from '@/components/children/ChildBadges';
+import { DECLARATION_STATE, IMPORT_COLUMNS } from '@/models/children/childrenConstants';
 import { downloadCsv } from '@/utils/exportCsv';
 import { formatDate, formatFileSize } from '@/utils/format';
 import { canEnrollChild } from '@/utils/children/childrenPermissions';
@@ -33,7 +34,11 @@ const downloadTemplate = () =>
   downloadCsv(
     [
       IMPORT_COLUMNS.map((c) => c.label),
-      ['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', 'phuhuynh.mau@example.com', 'Không', ''],
+      // Dòng mẫu: cột hành chính và tiền sử không bắt buộc, để trống là chưa cung cấp.
+      [
+        ...['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', 'phuhuynh.mau@example.com', 'Không', ''],
+        ...['', 'Không', '', 'Kinh', '', 'BHYT', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu', 'Không', '', ''],
+      ],
     ],
     'mau-tiep-nhan-tre.csv',
   );
@@ -57,13 +62,11 @@ export default function ImportChildrenPage() {
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Nhập từ Excel')} />
         <h1 className="page__title">Nhập danh sách trẻ từ Excel</h1>
-        <div className="card">
-          <EmptyState
-            icon={Lock}
-            title="Bạn không có quyền tiếp nhận trẻ"
-            description="Chỉ Phó hiệu trưởng phụ trách điểm trường được nhập danh sách trẻ."
-          />
-        </div>
+        <StatusPage
+          kind="403"
+          title="Bạn không có quyền tiếp nhận trẻ"
+          description="Chỉ Phó hiệu trưởng phụ trách điểm trường được nhập danh sách trẻ."
+        />
       </div>
     );
 
@@ -103,7 +106,7 @@ export default function ImportChildrenPage() {
       toast.success(`Đã nhập ${result.created} hồ sơ trẻ.`, 'Nhập danh sách thành công');
     } catch (err) {
       setConfirm(false);
-      toast.error(err.message, 'Không nhập được danh sách');
+      toast.error(err, 'Không nhập được danh sách');
     }
   };
 
@@ -118,11 +121,10 @@ export default function ImportChildrenPage() {
               <CheckCircle2 size={26} />
             </div>
             <div className="state__title">Đã nhập {imported.created} hồ sơ trẻ</div>
-            <div className="muted" style={{ maxWidth: 480 }}>
-              Các trẻ đang ở trạng thái <b>Chờ xếp lớp</b>. Việc tiếp nhận hoàn tất sau khi bạn xếp lớp cho từng trẻ, rồi kích hoạt tài
-              khoản phụ huynh.
+            <div className="muted tr-state-text">
+              Hồ sơ đã được tiếp nhận. Các trẻ đang ở trạng thái <b>Chờ xếp lớp</b>; xếp lớp cho từng trẻ tại màn Xếp lớp.
             </div>
-            <div className="row mt-12" style={{ gap: 8 }}>
+            <div className="row mt-12 gap-2">
               <Link className="btn" to="/children">
                 Về danh sách trẻ
               </Link>
@@ -148,7 +150,9 @@ export default function ImportChildrenPage() {
         <Info size={18} />
         <div>
           Dùng file theo mẫu của trường (.xlsx hoặc .csv), mỗi dòng một trẻ. Hệ thống kiểm tra từng dòng: thông tin bắt buộc, số điện thoại,
-          email và hồ sơ trùng. Sửa các dòng lỗi trong file rồi tải lên lại. Sau khi nhập, trẻ cần được xếp lớp để hoàn tất tiếp nhận.
+          email và hồ sơ trùng. Sửa các dòng lỗi trong file rồi tải lên lại. Sau khi nhập, trẻ cần được xếp lớp để hoàn tất tiếp nhận. Các
+          cột hành chính và tiền sử (dùng cho phiếu khám sức khỏe) không bắt buộc; để trống là chưa cung cấp. Trẻ khai có tiếp xúc với người
+          bệnh lao thì hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.
         </div>
       </div>
 
@@ -190,7 +194,7 @@ export default function ImportChildrenPage() {
         {file && (
           <div className="file-row mt-12">
             <FileSpreadsheet size={26} color="var(--file-sheet)" />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div className="file-row__name">{file.name}</div>
               <div className="muted text-sm">{formatFileSize(file.size)}</div>
             </div>
@@ -212,8 +216,8 @@ export default function ImportChildrenPage() {
 
       {preview?.supported && (
         <section className="card">
-          <div className="card__header row row--between row--wrap" style={{ gap: 12 }}>
-            <div className="row row--wrap" style={{ gap: 8 }}>
+          <div className="card__header row row--between row--wrap gap-3">
+            <div className="row row--wrap gap-2">
               <h2 className="card__title">Kết quả kiểm tra</h2>
               <span className="chip chip--blue">{rows.length} dòng</span>
               <span className="chip chip--green">{validRows.length} hợp lệ</span>
@@ -233,7 +237,7 @@ export default function ImportChildrenPage() {
             </div>
           )}
           <div className="table-wrap tr-table-flat">
-            <table className="table table--compact">
+            <table className="table table--grid table--compact">
               <thead>
                 <tr>
                   <th className="center">Dòng</th>
@@ -243,7 +247,7 @@ export default function ImportChildrenPage() {
                   <th>Phụ huynh</th>
                   <th>Số điện thoại</th>
                   <th>Dị ứng</th>
-                  <th style={{ minWidth: 220 }}>Kết quả</th>
+                  <th className="tr-col-result">Kết quả</th>
                 </tr>
               </thead>
               <tbody>
@@ -264,20 +268,19 @@ export default function ImportChildrenPage() {
                       </td>
                       <td className="nowrap">{g.phone}</td>
                       <td className="text-sm">
-                        {a.state === DECLARATION_STATE.REPORTED ? a.items.join(', ') : ALLERGY_STATE_LABELS[a.state]}
+                        {a.state === DECLARATION_STATE.REPORTED ? a.items.join(', ') : <AllergyStateBadge status={a.state} />}
                       </td>
                       <td>
-                        {r.errors.length === 0 ? (
-                          <span className="text-success row" style={{ gap: 4 }}>
-                            <CheckCircle2 size={15} /> Hợp lệ
-                          </span>
-                        ) : (
-                          <ul className="tr-error-list">
-                            {r.errors.map((e) => (
-                              <li key={e}>{e}</li>
-                            ))}
-                          </ul>
-                        )}
+                        <div className="stack gap-1-5">
+                          <ImportRowResultBadge errorCount={r.errors.length} />
+                          {r.errors.length > 0 && (
+                            <ul className="tr-error-list">
+                              {r.errors.map((e) => (
+                                <li key={e}>{e}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

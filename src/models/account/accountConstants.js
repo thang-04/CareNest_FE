@@ -1,6 +1,6 @@
 /*
  * Account module (SRS screens 2–4, 6, 7, 9): password recovery, password change, own profile, notification detail.
- * OTP/length bounds follow AUTH_CONTRACT; additional password policy is enforced by Keycloak.
+ * Values below are assumptions until the backend publishes its configured policy (GBR-AUTH-01 / GBR-AUTH-02 leave them open).
  */
 export const OTP_LENGTH = 6;
 export const OTP_TTL_MS = 5 * 60 * 1000;
@@ -8,7 +8,7 @@ export const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 export const OTP_MAX_ATTEMPTS = 5;
 
 export const PASSWORD_MIN_LENGTH = 8;
-export const PASSWORD_MAX_LENGTH = 128;
+export const PASSWORD_MAX_LENGTH = 64;
 
 /** Why a password is being set without a session. */
 export const PASSWORD_TOKEN_PURPOSE = {

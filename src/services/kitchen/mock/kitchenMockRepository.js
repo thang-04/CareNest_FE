@@ -4,27 +4,36 @@ import {
   seedFoods,
   seedDishes,
   seedMenusForDate,
-  seedMealCount,
   buildOpeningStock,
   buildSeedReceipts,
+  buildSeedSuppliers,
   isSchoolDay,
 } from '@/mocks/kitchenSeed';
 import { buildSeedMenuPlanning, topUpRecentWeeklyMenus } from '@/mocks/menuPlanningSeed';
+import { attendanceMockRepository } from '@/services/attendance/mock/attendanceMockRepository';
+import { mealSessionsForCampus } from './attendanceSource';
 import { computeMarket, countedSession, purchaseStep } from '@/services/kitchen/mock/marketList';
 import { buildWeeklyForecast, knownOrderOf, sentSnapshot, storageOf } from '@/services/kitchen/mock/weeklyForecast';
 import { addDays as addIsoDays, mondayOf, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
-import { todayInput } from '@/utils/format';
+import { normalizeText, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
+import { ingredientQty, sameAllergen } from '@/utils/menu-planning/menuCalculations';
+import { UNIT_KIND, foodUnits, lineUnitName, toStockQty } from '@/utils/menu-planning/foodUnits';
 import { ROLES } from '@/models/User';
 import {
   ISSUE_STATUS,
-  MEAL_SESSIONS,
+  isIssuePosted,
+  ALL_MEAL_SESSIONS as MEAL_SESSIONS,
+  MEAL_SESSIONS as LEGACY_PREP_SESSIONS,
   MENU_TYPE,
   FRESH_RECEIPT_STATUS,
+  RECEIPT_STATUS,
+  SUPPLIER_STATUS,
   FRESH_RESULT,
   NOTE_MAX,
-  PORTION_FACTOR_BY_AGE_GROUP,
-  STOCK_COUNT_STATUS,
+  PREP_STATUS,
+  PREP_STATUS_LABELS,
+  MEAL_SESSION_LABELS,
 } from '@/models/kitchen/kitchenConstants';
 import {
   canAccessCampus,
@@ -35,19 +44,23 @@ import {
   isKitchenStaff,
   canEditFoodSample,
   canViewStockIssue,
+  canAllocateIssueLots,
   canViewKitchenDay,
   canEditForecast,
   canViewForecast,
   canViewMealCount,
   canViewFreshReceipt,
   canViewPublishedMenu,
+  canManageSuppliers,
+  canViewSuppliers,
 } from '@/utils/kitchen/kitchenPermissions';
 import {
   validateFoodSample,
   validateForecastCells,
   validateFreshReceipt,
-  validateStockCount,
   validateStockReceipt,
+  validateSupplier,
+  validatePreparationUpdate,
 } from '@/utils/kitchen/kitchenValidation';
 
 /*
@@ -101,14 +114,21 @@ const weekDates = (date) => {
 
 const usesMenuPlanningCatalog = (db) => Array.isArray(db.foods) && db.foods.length > 0 && Array.isArray(db.dishes) && db.dishes.length > 0;
 
-const normalizeFood = (f) => ({
-  id: f.id,
-  name: f.name || f.foodName || f.ingredientName || f.id,
-  unit: f.purchaseUnit || f.unit || 'kg',
-  roundStep: Number(f.roundStep ?? f.purchaseStep ?? f.roundingStep) || 0.1,
-  storage: f.storage,
-  group: f.group,
-});
+// `unit` của bếp/kho = đơn vị kho (BA 02); thực phẩm cũ chưa khai thì bằng đơn vị mua
+const normalizeFood = (f) => {
+  const u = foodUnits(f.purchaseUnit || f.stockUnit ? f : { ...f, purchaseUnit: f.unit || 'kg' });
+  return {
+    id: f.id,
+    name: f.name || f.foodName || f.ingredientName || f.id,
+    unit: u.stockUnit,
+    stockUnit: u.stockUnit,
+    purchaseUnit: u.purchaseUnit,
+    purchaseToStock: u.purchaseToStock,
+    roundStep: Number(f.roundStep ?? f.purchaseStep ?? f.roundingStep) || 0.1,
+    storage: f.storage,
+    group: f.group,
+  };
+};
 
 const normalizeDish = (d) => ({
   id: d.id,
@@ -118,6 +138,7 @@ const normalizeDish = (d) => ({
     .map((i) => ({
       foodId: i.foodId || i.ingredientId || i.id,
       qtyPerPortion: Number(i.qtyPerPortion ?? i.quantityPerPortion ?? i.quantity ?? 0),
+      portions: i.portions || null,
     }))
     .filter((i) => i.foodId),
 });
@@ -136,7 +157,14 @@ const getCatalog = (db) => {
   };
 };
 
-const SESSION_ALIASES = { LUNCH: 'LUNCH', TRUA: 'LUNCH', AFTERNOON: 'AFTERNOON', SNACK: 'AFTERNOON', CHIEU: 'AFTERNOON' };
+const SESSION_ALIASES = {
+  MORNING: 'MORNING',
+  LUNCH: 'LUNCH',
+  TRUA: 'LUNCH',
+  AFTERNOON: 'AFTERNOON',
+  SNACK: 'AFTERNOON',
+  CHIEU: 'AFTERNOON',
+};
 const asSession = (v) => SESSION_ALIASES[String(v || '').toUpperCase()] || null;
 const dishIdsOf = (node) =>
   (node.dishIds || (Array.isArray(node.dishes) ? node.dishes.map((d) => (typeof d === 'string' ? d : d.dishId || d.id)) : [])).filter(
@@ -222,6 +250,81 @@ const getPublishedMenus = (db, date) => {
   return seedMenusForDate(date);
 };
 
+// Read model demo cho AUTH-05; không dùng danh sách trẻ này để tính lại số suất đã chốt.
+const publishedAllergyChanges = (db, cat, menu, date, campusId, published) => {
+  if (menu.type !== MENU_TYPE.NORMAL) return [];
+  const week = (db.weeklyMenus || []).find(
+    (w) => w.status === 'PUBLISHED' && menu.id === `${w.id}_${date}_${menu.session}_${MENU_TYPE.NORMAL}`,
+  );
+  const day = week?.days.find((d) => d.date === date && !d.holiday);
+  const namedDish = (id) => (id ? { id, name: cat.dishById[id]?.name || id } : null);
+  if (!day) {
+    return published
+      .filter((m) => m.type === MENU_TYPE.ALLERGY && m.session === menu.session && m.ageGroupId === menu.ageGroupId)
+      .flatMap((m) => {
+        const removedDishes = menu.dishIds.filter((id) => !m.dishIds.includes(id)).map(namedDish);
+        const addedDishes = m.dishIds.filter((id) => !menu.dishIds.includes(id)).map(namedDish);
+        return removedDishes.length || addedDishes.length
+          ? [
+              {
+                id: m.id,
+                note: m.note,
+                restrictions: [],
+                replacements: [],
+                removedDishes,
+                addedDishes,
+                childrenAvailable: false,
+                children: [],
+              },
+            ]
+          : [];
+      });
+  }
+  const classes = (db.classes || []).filter(
+    (c) => campusId && c.campusId === campusId && (!menu.ageGroupId || c.ageGroupId === menu.ageGroupId),
+  );
+  const classById = Object.fromEntries(classes.map((c) => [c.id, c]));
+  return (db.allergyMenus || [])
+    .filter((a) => a.baseMenuId === day.menuId && (!a.status || a.status === 'ACTIVE'))
+    .flatMap((a) => {
+      const replacements = (a.replacements || [])
+        .filter(
+          (r) =>
+            r.originalDishId !== r.replacementDishId &&
+            day.meals.some(
+              (meal) =>
+                meal.session === r.session &&
+                countedSession(db.nutritionSetups, menu.ageGroupId, meal.session) === menu.session &&
+                meal.items.some((i) => i.dishId === r.originalDishId),
+            ),
+        )
+        .map((r) => ({ originalDish: namedDish(r.originalDishId), replacementDish: namedDish(r.replacementDishId) }));
+      if (!replacements.length) return [];
+      const restrictions = a.restrictions || [];
+      const children = (db.children || [])
+        .filter((c) => c.status === 'ACTIVE' && classById[c.classId])
+        .map((c) => ({
+          id: c.id,
+          fullName: c.fullName,
+          className: classById[c.classId].name,
+          allergies: (c.allergies || []).filter((allergen) => restrictions.some((r) => sameAllergen(r, allergen))),
+        }))
+        .filter((c) => c.allergies.length);
+      return [
+        {
+          id: a.id,
+          note: a.note || '',
+          restrictions,
+          replacements,
+          childrenAvailable: !!campusId,
+          children,
+          childCount: children.length,
+          classCount: new Set((db.children || []).filter((c) => children.some((ch) => ch.id === c.id)).map((c) => c.classId)).size,
+        },
+      ];
+    });
+};
+
 const menuFor = (menus, session, ageGroupId, type) =>
   menus.find((m) => m.session === session && m.type === type && m.ageGroupId === ageGroupId) ||
   menus.find((m) => m.session === session && m.type === type && !m.ageGroupId) ||
@@ -244,15 +347,13 @@ const normalizeMealCount = (mc) => ({
   adjustments: mc.adjustments || [],
 });
 
-/** Meal count of the attendance module (db.mealCounts); the kitchen seed stands in while that collection does not exist. */
+// Bếp chỉ đọc snapshot nguồn điểm danh; không tự sinh số suất thay thế.
 const getMealCount = (db, campusId, date, session) => {
   if (Array.isArray(db.mealCounts)) {
     const mc = db.mealCounts.find((m) => m.campusId === campusId && m.date === date && m.session === session);
     return mc ? normalizeMealCount(mc) : null;
   }
-  if (date > todayInput()) return null;
-  const mc = seedMealCount({ campusId, date, session, classes: db.classes || [], children: db.children || [] });
-  return mc && normalizeMealCount(mc);
+  return null;
 };
 
 const classesOf = (db) => Object.fromEntries((db.classes || []).map((c) => [c.id, c]));
@@ -285,23 +386,24 @@ const computeSession = (db, cat, campusId, date, session) => {
   const classById = classesOf(db);
   const foodTotals = {};
   const dishTotals = {};
-  const add = (dishIds, servings, kind, factor) => {
+  const add = (dishIds, servings, kind, ageGroupId) => {
     if (!servings) return;
     dishIds.forEach((dishId) => {
       const dish = cat.dishById[dishId];
       if (!dish) return;
       dishTotals[dishId] ||= { dishId, name: dish.name, normal: 0, substitute: 0 };
       dishTotals[dishId][kind] += servings;
-      dish.ingredients.forEach(({ foodId, qtyPerPortion }) => {
+      dish.ingredients.forEach(({ foodId, qtyPerPortion, portions }) => {
+        // Định lượng theo nhóm tuổi đã nhập ở món; món mẫu của bếp (không có nhóm tuổi) dùng khẩu phần chuẩn
+        const qty = portions ? (ingredientQty({ portions }, ageGroupId) ?? 0) : qtyPerPortion;
         foodTotals[foodId] ||= { normal: 0, substitute: 0 };
-        foodTotals[foodId][kind] += servings * qtyPerPortion * factor;
+        foodTotals[foodId][kind] += servings * qty;
       });
     });
   };
   mealCount.classes.forEach((row) => {
     const ageGroupId = classById[row.classId]?.ageGroupId || null;
     const className = row.className || classById[row.classId]?.name || row.classId;
-    const factor = PORTION_FACTOR_BY_AGE_GROUP[ageGroupId] ?? 1;
     const normalMenu = menuFor(menus, session, ageGroupId, MENU_TYPE.NORMAL);
     if (!normalMenu) {
       result.warnings.push(`${className}: chưa có thực đơn đã công bố cho nhóm tuổi của lớp.`);
@@ -310,8 +412,8 @@ const computeSession = (db, cat, campusId, date, session) => {
     const allergyMenu = menuFor(menus, session, ageGroupId, MENU_TYPE.ALLERGY);
     if (row.substitute > 0 && !allergyMenu) result.warnings.push(`${className}: có suất thay thế nhưng chưa có thực đơn dị ứng.`);
     const subMenu = allergyMenu || normalMenu;
-    add(normalMenu.dishIds, row.normal, 'normal', factor);
-    add(subMenu.dishIds, row.substitute, 'substitute', factor);
+    add(normalMenu.dishIds, row.normal, 'normal', ageGroupId);
+    add(subMenu.dishIds, row.substitute, 'substitute', ageGroupId);
     result.classes.push({
       ...row,
       className,
@@ -345,12 +447,12 @@ const computeSession = (db, cat, campusId, date, session) => {
 const marketOf = (db, campusId, date) =>
   computeMarket(db, {
     date,
-    counts: Object.fromEntries(MEAL_SESSIONS.map((s) => [s, getMealCount(db, campusId, date, s)])),
+    counts: Object.fromEntries(mealSessionsForCampus(db, campusId).map((s) => [s, getMealCount(db, campusId, date, s)])),
     classById: classesOf(db),
   });
 
 const computeDay = (db, cat, campusId, date) => {
-  const sessions = MEAL_SESSIONS.map((s) => computeSession(db, cat, campusId, date, s));
+  const sessions = mealSessionsForCampus(db, campusId).map((s) => computeSession(db, cat, campusId, date, s));
   const withMenu = sessions.filter((s) => s.hasMenu);
   if (cat.external) {
     const market = marketOf(db, campusId, date);
@@ -359,8 +461,8 @@ const computeDay = (db, cat, campusId, date) => {
       hasMenu: withMenu.length > 0,
       allConfirmed: withMenu.length > 0 && withMenu.every((s) => s.mealCountStatus === 'CONFIRMED'),
       foods: market.foods
-        .filter((f) => f.buyUnits > 0)
-        .map((f) => ({ foodId: f.foodId, name: f.name, unit: f.purchaseUnit, requiredQty: f.buyUnits })),
+        .filter((f) => f.stockUnits > 0)
+        .map((f) => ({ foodId: f.foodId, name: f.name, unit: f.stockUnit, requiredQty: f.stockUnits })),
       market,
     };
   }
@@ -455,13 +557,14 @@ const seedWeeklyForecasts = (db, campusIds, vpByCampus) => {
 
 const COLLECTIONS = [
   'foodStock',
+  'stockLots',
   'stockReceipts',
   'stockTransactions',
   'stockIssues',
   'freshReceipts',
   'foodSamples',
   'weeklyForecasts',
-  'stockCounts',
+  'suppliers',
 ];
 const KITCHEN_DEMO_SEED_VERSION = 1;
 
@@ -532,7 +635,7 @@ const seedHistory = (db, cat, campusIds) => {
         destroyedBy: null,
       });
     });
-  if (!db.stockIssues.some((issue) => issue.campusId === c1 && issue.date === yesterday)) issueDry(db, c1, yesterday);
+  if (!db.stockIssues.some((issue) => issue.campusId === c1 && issue.date === yesterday)) issueDry(db, c1, yesterday, { post: true });
 };
 
 const MENU_COLLECTIONS = ['foods', 'dishes', 'mealPrices', 'nutritionSetups', 'menus', 'allergyMenus', 'weeklyMenus', 'menuAiDrafts'];
@@ -547,7 +650,7 @@ const seedReceiptTransactions = (db) => {
         campusId: receipt.campusId,
         foodId: item.foodId,
         type: 'IN',
-        quantity: item.acceptedQty,
+        quantity: stockQtyOf(item),
         date: receipt.date,
         expiryDate: item.expiryDate || null,
         refId: receipt.id,
@@ -558,51 +661,22 @@ const seedReceiptTransactions = (db) => {
   );
 };
 
-const seedStockCountHistory = (db, cat, campusIds, vpByCampus) => {
-  const previousMonthEnd = new Date(`${todayInput()}T00:00:00`);
-  previousMonthEnd.setDate(0);
-  const date = `${previousMonthEnd.getFullYear()}-${String(previousMonthEnd.getMonth() + 1).padStart(2, '0')}-${String(previousMonthEnd.getDate()).padStart(2, '0')}`;
-  const at = new Date(`${date}T16:00:00+07:00`).toISOString();
-  campusIds.forEach((campusId, index) => {
-    if (db.stockCounts.some((count) => count.campusId === campusId)) return;
-    const userId = vpByCampus[campusId] || null;
-    db.stockCounts.push({
-      id: `ksc_seed_${campusId}_${ymd(date)}`,
-      code: `KK-${ymd(date).slice(0, 6)}-${campusCode(db, campusId)}-${index + 1}`,
-      campusId,
-      status: STOCK_COUNT_STATUS.FINALIZED,
-      createdBy: userId,
-      createdAt: at,
-      finalizedBy: userId,
-      finalizedAt: at,
-      lines: cat.foods
-        .filter((food) => isDryFood(db, food.id))
-        .map((food) => {
-          const systemQty = stockQty(db, campusId, food.id);
-          return { foodId: food.id, systemQty, countedQty: systemQty, reason: '' };
-        }),
-    });
-  });
-};
+const sameName = (a, b) => normalizeText(a).trim() === normalizeText(b).trim();
 
-// Version hóa seed để bổ sung lịch sử cho DB cũ chỉ có collection rỗng, không ghi đè dữ liệu đã có.
+// Phiếu nhập cũ chỉ có tên NCC gõ tự do: gắn vào NCC cùng tên; không khớp thì giữ tên, hiện "Chưa liên kết danh mục".
+const linkLegacySuppliers = (db) =>
+  db.stockReceipts.forEach((r) => {
+    if (r.supplierId || !r.supplierName) return;
+    const match = db.suppliers.find((s) => sameName(s.name, r.supplierName));
+    if (match) r.supplierId = match.id;
+  });
+
+// DB cũ được giữ nguyên, không bù lại lịch sử đã xóa hoặc tự xuất lại các ngày đã chốt trước khi nâng.
 const migrateKitchenDemoSeed = (db) => {
   if ((db.kitchenDemoSeedVersion || 0) >= KITCHEN_DEMO_SEED_VERSION) return db;
-  const cat = getCatalog(db);
-  const campusIds = (db.campuses || []).map((campus) => campus.id);
-  const vpByCampus = Object.fromEntries(campusIds.map((id) => [id, usersWithRole(db, ROLES.VICE_PRINCIPAL, id)[0]?.id]));
-  if (!db.foodStock.length) db.foodStock = buildOpeningStock(campusIds, cat.foods);
-  if (!db.stockReceipts.length)
-    db.stockReceipts = buildSeedReceipts({
-      campusIds,
-      vpByCampus,
-      dates: prevSchoolDays(todayInput(), 3).slice(0, 2),
-      foods: (db.foods || []).filter((food) => storageOf(food) === 'DRY'),
-    });
-  if (!db.weeklyForecasts.length) db.weeklyForecasts = seedWeeklyForecasts(db, campusIds, vpByCampus);
-  seedReceiptTransactions(db);
-  if (!db.stockCounts.length) seedStockCountHistory(db, cat, campusIds, vpByCampus);
-  if (!db.stockIssues.length || !db.freshReceipts.length || !db.foodSamples.length) seedHistory(db, cat, campusIds);
+  db.kitchenLegacyConfirmedKeys ||= [
+    ...new Set((db.mealCounts || []).filter((count) => count.status === 'CONFIRMED').map((count) => `${count.campusId}|${count.date}`)),
+  ];
   db.kitchenDemoSeedVersion = KITCHEN_DEMO_SEED_VERSION;
   return db;
 };
@@ -621,7 +695,7 @@ const ensureSeeded = (db) => {
   const cat = getCatalog(db);
   const campusIds = (db.campuses || []).map((c) => c.id);
   const vpByCampus = Object.fromEntries(campusIds.map((id) => [id, usersWithRole(db, ROLES.VICE_PRINCIPAL, id)[0]?.id]));
-  const fresh = !Array.isArray(db.stockIssues);
+  const fresh = COLLECTIONS.every((key) => !Array.isArray(db[key]));
   if (!Array.isArray(db.foodStock)) db.foodStock = buildOpeningStock(campusIds, cat.foods);
   if (!Array.isArray(db.stockReceipts))
     db.stockReceipts = buildSeedReceipts({
@@ -630,13 +704,21 @@ const ensureSeeded = (db) => {
       dates: prevSchoolDays(todayInput(), 3).slice(0, 2),
       foods: (db.foods || []).filter((f) => storageOf(f) === 'DRY'),
     });
+  if (!Array.isArray(db.suppliers)) {
+    db.suppliers = buildSeedSuppliers(nowIso());
+    linkLegacySuppliers(db);
+  }
   if (!Array.isArray(db.stockTransactions)) db.stockTransactions = [];
+  if (!Array.isArray(db.stockLots)) db.stockLots = buildStockLots(db);
   if (!Array.isArray(db.stockIssues)) db.stockIssues = [];
   if (!Array.isArray(db.freshReceipts)) db.freshReceipts = [];
-  if (!Array.isArray(db.stockCounts)) db.stockCounts = [];
   if (!Array.isArray(db.foodSamples)) db.foodSamples = [];
   if (!Array.isArray(db.weeklyForecasts)) db.weeklyForecasts = seedWeeklyForecasts(db, campusIds, vpByCampus);
-  if (fresh) seedHistory(db, cat, campusIds);
+  if (fresh) {
+    seedHistory(db, cat, campusIds);
+    seedReceiptTransactions(db);
+    db.kitchenDemoSeedVersion = KITCHEN_DEMO_SEED_VERSION;
+  }
   return db;
 };
 
@@ -655,83 +737,106 @@ const readSeeded = () => {
 /* ------------------------------------------------------------------ */
 
 const dayConfirmed = (db, campusId, date) =>
-  isSchoolDay(date) && MEAL_SESSIONS.every((s) => getMealCount(db, campusId, date, s)?.status === 'CONFIRMED');
+  isSchoolDay(date) &&
+  mealSessionsForCampus(db, campusId).length > 0 &&
+  mealSessionsForCampus(db, campusId).every((s) => getMealCount(db, campusId, date, s)?.status === 'CONFIRMED');
 
 /** Đồ khô cần cho một ngày theo số suất đã chốt × định lượng (S8). */
 const dryNeedOf = (db, campusId, date) => {
   const cat = getCatalog(db);
   const foodById = cat.foodById;
   return marketOf(db, campusId, date)
-    .foods.filter((f) => f.buyUnits > 0 && storageOf(foodById[f.foodId]) === 'DRY')
-    .map((f) => ({ foodId: f.foodId, requiredQty: f.buyUnits }));
+    .foods.filter((f) => f.stockUnits > 0 && storageOf(foodById[f.foodId]) === 'DRY')
+    .map((f) => ({ foodId: f.foodId, requiredQty: f.stockUnits }));
 };
 
-/*
- * Xuất kho đồ khô tự động khi ngày đã chốt suất cả ngày (khảo sát 18/10/2026, S8): không duyệt, không bước "Đã nhận".
- * Tồn không đủ ⇒ chỉ trừ phần có, dòng ghi thiếu. Số chốt đổi sau đó (GV hủy suất) ⇒ xuất thêm hoặc hoàn phần chênh.
+/* ------------------------------------------------------------------ */
+/* Lô tồn kho (BA: theo dõi theo lô và hạn dùng)                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Dựng lô một lần cho DB chưa lưu lô: tồn hiện có phân về các phiếu nhập đã xác nhận gần nhất,
+ * phần dư là "tồn đầu kỳ" không rõ lô. Sau đó lô được cập nhật khi nhập (xác nhận phiếu) và khi bếp chọn lô xuất.
  */
-const issueDry = (db, campusId, date) => {
-  let issue = db.stockIssues.find((i) => i.campusId === campusId && i.date === date);
-  // Phiếu duyệt tay lập trước khảo sát giữ nguyên
-  if (issue && issue.status !== ISSUE_STATUS.ISSUED) return;
-  const need = dryNeedOf(db, campusId, date);
-  const confirmedAt =
-    MEAL_SESSIONS.map((s) => getMealCount(db, campusId, date, s)?.confirmedAt)
-      .filter(Boolean)
-      .sort()
-      .pop() || nowIso();
-  const created = !issue;
-  if (created) {
-    issue = {
-      id: uid('ksi'),
-      code: `PX-${ymd(date)}-${campusCode(db, campusId)}`,
-      campusId,
-      date,
-      status: ISSUE_STATUS.ISSUED,
-      issuedAt: confirmedAt,
-      items: [],
-      history: [],
-    };
-    db.stockIssues.unshift(issue);
-  }
-  let changed = false;
-  const ids = new Set([...need.map((n) => n.foodId), ...issue.items.map((it) => it.foodId)]);
-  ids.forEach((foodId) => {
-    const requiredQty = need.find((n) => n.foodId === foodId)?.requiredQty || 0;
-    let item = issue.items.find((it) => it.foodId === foodId);
-    if (!item) {
-      item = { foodId, requiredQty: 0, issuedQty: 0, shortage: 0 };
-      issue.items.push(item);
-    }
-    const delta = r3(requiredQty - item.requiredQty);
-    if (!delta) return;
-    changed = true;
-    if (delta > 0) {
-      const take = r3(Math.min(delta, Math.max(0, stockQty(db, campusId, foodId))));
-      if (take > 0)
-        changeStock(db, {
-          campusId,
-          foodId,
-          delta: -take,
-          type: 'OUT',
-          date,
-          refId: issue.id,
-          userId: null,
-          at: created ? confirmedAt : null,
-        });
-      item.issuedQty = r3(item.issuedQty + take);
-    } else {
-      const back = r3(Math.min(-delta, item.issuedQty));
-      if (back > 0) changeStock(db, { campusId, foodId, delta: back, type: 'RETURN', date, refId: issue.id, userId: null });
-      item.issuedQty = r3(item.issuedQty - back);
-    }
-    item.requiredQty = requiredQty;
-    item.shortage = r3(Math.max(0, item.requiredQty - item.issuedQty));
+const buildStockLots = (db) =>
+  (db.foodStock || [])
+    .filter((s) => s.quantity > 0)
+    .flatMap(({ campusId, foodId, quantity }) => {
+      let remaining = r3(quantity);
+      const lots = [];
+      db.stockReceipts
+        .filter((r) => r.campusId === campusId && (r.status || RECEIPT_STATUS.CONFIRMED) === RECEIPT_STATUS.CONFIRMED)
+        .sort((a, b) => (b.date + (b.createdAt || '')).localeCompare(a.date + (a.createdAt || '')))
+        .forEach((r) =>
+          r.items
+            .filter((it) => it.foodId === foodId && stockQtyOf(it) > 0)
+            .forEach((it) => {
+              if (remaining <= 0) return;
+              const qty = r3(Math.min(remaining, stockQtyOf(it)));
+              remaining = r3(remaining - qty);
+              lots.push(lotFromReceipt(r, it, qty));
+            }),
+        );
+      if (remaining > 0) lots.push({ ...lotFromReceipt({ campusId }, { foodId }, remaining), id: `klot_open_${campusId}_${foodId}` });
+      return lots;
+    });
+
+// Dòng phiếu cũ (trước khi có đơn vị dòng) ghi theo đơn vị kho
+const stockQtyOf = (it) => it.stockQty ?? it.acceptedQty;
+// Giá lô theo đơn vị kho: dòng nhập theo đơn vị mua thì chia theo số đơn vị kho thực nhận
+const lotUnitPrice = (it) =>
+  typeof it.unitPrice === 'number' && it.stockQty > 0 && it.acceptedQty > 0
+    ? r3((it.unitPrice * it.acceptedQty) / it.stockQty)
+    : (it.unitPrice ?? null);
+
+const lotFromReceipt = (r, it, qty) => ({
+  id: r.id ? `klot_${r.id}_${it.foodId}` : uid('klot'),
+  campusId: r.campusId,
+  foodId: it.foodId,
+  receiptId: r.id || null,
+  receiptCode: r.code || null,
+  lotNo: it.lotNo || null,
+  mfgDate: it.mfgDate || null,
+  expiryDate: it.expiryDate || null,
+  unitPrice: lotUnitPrice(it),
+  supplierName: r.supplierName || '',
+  receivedDate: r.date || null,
+  qty,
+});
+
+const isExpiredLot = (lot, date) => !!lot.expiryDate && lot.expiryDate < date;
+
+/** Lô còn tồn của một thực phẩm, hạn gần trước; `usable` = chưa hết hạn tại `date`. */
+const lotsOf = (db, campusId, foodId, date = todayInput()) =>
+  (db.stockLots || [])
+    .filter((l) => l.campusId === campusId && l.foodId === foodId && l.qty > 0)
+    .sort((a, b) => (a.expiryDate || '9999').localeCompare(b.expiryDate || '9999'))
+    .map((l) => ({ ...l, usable: !isExpiredLot(l, date) }));
+
+const usableQty = (db, campusId, foodId, date) =>
+  r3(
+    lotsOf(db, campusId, foodId, date)
+      .filter((l) => l.usable)
+      .reduce((n, l) => n + l.qty, 0),
+  );
+
+/* ------------------------------------------------------------------ */
+/* Xuất kho tự động (BA luồng tích hợp A)                              */
+/* ------------------------------------------------------------------ */
+
+// Phiếu còn tính lại được theo bản chốt và tồn kho; phiếu đã ghi xuất (hoặc dữ liệu cũ) không tự sửa kho
+const REPLANNABLE = [ISSUE_STATUS.AWAITING_STOCK, ISSUE_STATUS.AWAITING_LOT_ALLOCATION, ISSUE_STATUS.FAILED];
+
+/** Nhu cầu đồ khô của ngày so với tồn khả dụng (lô chưa hết hạn): thiếu một dòng ⇒ dừng cả phiếu. */
+const planIssue = (db, campusId, date) => {
+  const items = dryNeedOf(db, campusId, date).map(({ foodId, requiredQty }) => {
+    const availableQty = usableQty(db, campusId, foodId, date);
+    return { foodId, requiredQty, availableQty, shortage: r3(Math.max(0, requiredQty - availableQty)), issuedQty: 0, allocations: [] };
   });
-  issue.items = issue.items.filter((it) => it.requiredQty > 0 || it.issuedQty > 0);
-  if (created) issue.history.push({ action: 'ISSUED', userId: null, at: confirmedAt });
-  else if (changed) issue.history.push({ action: 'ADJUSTED', userId: null, at: nowIso() });
+  return { items, status: items.some((it) => it.shortage > 0) ? ISSUE_STATUS.AWAITING_STOCK : ISSUE_STATUS.AWAITING_LOT_ALLOCATION };
 };
+
+const planKey = (status, items) => JSON.stringify([status, items.map((it) => [it.foodId, it.requiredQty, it.availableQty])]);
 
 const sameNeed = (db, issue) => {
   const need = dryNeedOf(db, issue.campusId, issue.date);
@@ -741,16 +846,137 @@ const sameNeed = (db, issue) => {
   );
 };
 
-/** Ngày đã chốt chưa có phiếu xuất; hôm nay kiểm lại vì GV còn hủy suất được sau chốt. */
+/** Lô gợi ý: hạn gần dùng trước (dùng cho dữ liệu mẫu; bếp vẫn là người chọn ở màn phiếu xuất). */
+const suggestedAllocations = (db, issue) =>
+  Object.fromEntries(
+    issue.items.map((it) => {
+      let left = it.requiredQty;
+      const picks = [];
+      lotsOf(db, issue.campusId, it.foodId, issue.date)
+        .filter((l) => l.usable)
+        .forEach((l) => {
+          if (left <= 0) return;
+          const qty = r3(Math.min(left, l.qty));
+          left = r3(left - qty);
+          picks.push({ lotId: l.id, qty });
+        });
+      return [it.foodId, picks];
+    }),
+  );
+
+/** Kiểm tra lô bếp chọn: đủ đúng lượng cần, lô cùng cơ sở/thực phẩm, chưa hết hạn, không vượt tồn lô. Khóa lỗi `items.foodId`. */
+const validateAllocations = (db, issue, allocations) => {
+  const errors = {};
+  issue.items.forEach((it) => {
+    const picks = (allocations?.[it.foodId] || []).filter((p) => Number(p.qty) > 0);
+    const key = `items.${it.foodId}`;
+    const total = r3(picks.reduce((n, p) => n + Number(p.qty), 0));
+    const bad = picks.find((p) => {
+      const lot = db.stockLots.find((l) => l.id === p.lotId);
+      return !lot || lot.campusId !== issue.campusId || lot.foodId !== it.foodId || Number(p.qty) > lot.qty;
+    });
+    if (bad) errors[key] = 'Lô không hợp lệ hoặc không đủ lượng.';
+    else if (
+      picks.some((p) =>
+        isExpiredLot(
+          db.stockLots.find((l) => l.id === p.lotId),
+          issue.date,
+        ),
+      )
+    )
+      errors[key] = 'Không chọn lô đã hết hạn.';
+    else if (total !== r3(it.requiredQty)) errors[key] = `Chọn đủ ${it.requiredQty} (đang chọn ${total}).`;
+  });
+  return errors;
+};
+
+/** Ghi xuất một lần: trừ từng lô và tồn tổng, phiếu sang POSTED. Gọi sau khi đã kiểm tra lô. */
+const postIssue = (db, issue, allocations, userId) => {
+  issue.status = ISSUE_STATUS.PROCESSING;
+  const at = nowIso();
+  issue.items.forEach((it) => {
+    it.allocations = (allocations[it.foodId] || [])
+      .filter((p) => Number(p.qty) > 0)
+      .map((p) => {
+        const lot = db.stockLots.find((l) => l.id === p.lotId);
+        const qty = r3(Number(p.qty));
+        lot.qty = r3(lot.qty - qty);
+        changeStock(db, {
+          campusId: issue.campusId,
+          foodId: it.foodId,
+          delta: -qty,
+          type: 'OUT',
+          date: issue.date,
+          refId: issue.id,
+          userId,
+          at,
+        });
+        return { lotId: lot.id, lotNo: lot.lotNo, expiryDate: lot.expiryDate, qty };
+      });
+    it.issuedQty = it.requiredQty;
+    it.shortage = 0;
+  });
+  Object.assign(issue, { status: ISSUE_STATUS.POSTED, postedAt: at, postedBy: userId, issuedAt: at });
+  issue.history.push({ action: 'POSTED', userId, at });
+};
+
+/*
+ * BA: bản chốt suất ⇒ nhu cầu nguyên liệu ⇒ thiếu một dòng thì dừng cả phiếu (không xuất một phần, không tạo tồn âm)
+ * ⇒ đủ thì chờ bếp chọn lô. Phiếu đã ghi xuất mà số chốt đổi: chỉ ghi chú (điều chỉnh kho còn PENDING).
+ * `post`: ghi xuất luôn theo lô gợi ý (chỉ dùng khi dựng dữ liệu mẫu ngày cũ).
+ */
+const issueDry = (db, campusId, date, { post = false } = {}) => {
+  let issue = db.stockIssues.find((i) => i.campusId === campusId && i.date === date);
+  if (issue && !REPLANNABLE.includes(issue.status)) {
+    if (isIssuePosted(issue.status) && !issue.needChanged && !sameNeed(db, issue)) {
+      issue.needChanged = true;
+      (issue.history ||= []).push({ action: 'NEED_CHANGED', userId: null, at: nowIso() });
+    }
+    return;
+  }
+  const plan = planIssue(db, campusId, date);
+  if (!issue) {
+    const confirmedAt =
+      mealSessionsForCampus(db, campusId)
+        .map((s) => getMealCount(db, campusId, date, s)?.confirmedAt)
+        .filter(Boolean)
+        .sort()
+        .pop() || nowIso();
+    issue = {
+      id: uid('ksi'),
+      code: `PX-${ymd(date)}-${campusCode(db, campusId)}`,
+      campusId,
+      date,
+      status: null,
+      createdAt: confirmedAt,
+      items: [],
+      history: [{ action: 'CREATED', userId: null, at: confirmedAt }],
+    };
+    db.stockIssues.unshift(issue);
+  }
+  const changed = issue.status !== plan.status;
+  issue.items = plan.items;
+  issue.status = plan.status;
+  if (changed)
+    issue.history.push({ action: plan.status === ISSUE_STATUS.AWAITING_STOCK ? 'BLOCKED' : 'READY', userId: null, at: nowIso() });
+  if (post && issue.status === ISSUE_STATUS.AWAITING_LOT_ALLOCATION) postIssue(db, issue, suggestedAllocations(db, issue), null);
+};
+
+/** Ngày đã chốt cần tạo/tính lại phiếu: chưa có phiếu, phiếu chờ mà kho hoặc số chốt đã đổi, phiếu đã ghi xuất mà số chốt đổi. */
 const issueKeysToSync = (db) => {
-  if (!Array.isArray(db.mealCounts) || !Array.isArray(db.stockIssues)) return [];
-  const today = todayInput();
+  if (!Array.isArray(db.mealCounts) || !Array.isArray(db.stockIssues) || !Array.isArray(db.stockLots)) return [];
   const keys = new Set();
   db.mealCounts.forEach((m) => {
-    if (m.status !== 'CONFIRMED' || keys.has(`${m.campusId}|${m.date}`)) return;
+    const key = `${m.campusId}|${m.date}`;
+    if (m.status !== 'CONFIRMED' || keys.has(key)) return;
     const issue = db.stockIssues.find((i) => i.campusId === m.campusId && i.date === m.date);
-    if (issue && (m.date !== today || issue.status !== ISSUE_STATUS.ISSUED || sameNeed(db, issue))) return;
-    if (dayConfirmed(db, m.campusId, m.date)) keys.add(`${m.campusId}|${m.date}`);
+    if (!issue && db.kitchenLegacyConfirmedKeys?.includes(key)) return;
+    if (!dayConfirmed(db, m.campusId, m.date)) return;
+    if (!issue) keys.add(key);
+    else if (REPLANNABLE.includes(issue.status)) {
+      const plan = planIssue(db, m.campusId, m.date);
+      if (planKey(plan.status, plan.items) !== planKey(issue.status, issue.items)) keys.add(key);
+    } else if (isIssuePosted(issue.status) && !issue.needChanged && !sameNeed(db, issue)) keys.add(key);
   });
   return [...keys];
 };
@@ -765,25 +991,43 @@ const syncIssues = (db) => {
 
 const issueStateOf = (db, cat, campusId, date) => {
   const issue = db.stockIssues.find((i) => i.campusId === campusId && i.date === date) || null;
-  if (issue) return { state: ISSUE_STATUS.ISSUED, issue };
+  if (issue) return { state: issue.status, issue };
   const day = computeDay(db, cat, campusId, date);
   return { state: !day.hasMenu ? 'NO_MENU' : 'WAITING_MEAL_COUNT', issue: null };
 };
+
+const lotView = (l) => ({
+  id: l.id,
+  lotNo: l.lotNo,
+  mfgDate: l.mfgDate || null,
+  expiryDate: l.expiryDate,
+  receivedDate: l.receivedDate,
+  supplierName: l.supplierName,
+  qty: l.qty,
+  usable: l.usable,
+});
 
 const issueView = (db, cat, issue) => ({
   id: issue.id,
   code: issue.code,
   campusId: issue.campusId,
   date: issue.date,
-  issuedAt: issue.issuedAt || issue.approvedAt || null,
+  status: issue.status,
+  issuedAt: issue.postedAt || issue.issuedAt || issue.approvedAt || null,
+  postedByName: issue.postedAt ? userName(db, issue.postedBy) || 'Hệ thống (dữ liệu mẫu)' : null,
+  needChanged: !!issue.needChanged,
   history: issue.history || [],
   items: issue.items.map((it) => ({
     foodId: it.foodId,
     name: cat.foodById[it.foodId]?.name || it.foodId,
     unit: cat.foodById[it.foodId]?.unit || '',
     requiredQty: it.requiredQty,
-    issuedQty: it.issuedQty ?? it.requiredQty,
+    availableQty: it.availableQty ?? null,
+    issuedQty: it.issuedQty ?? (issue.status === ISSUE_STATUS.RECEIVED ? it.requiredQty : 0),
     shortage: it.shortage ?? 0,
+    allocations: it.allocations || [],
+    // Lô để bếp chọn: chỉ khi phiếu đang chờ chọn lô
+    lots: issue.status === ISSUE_STATUS.AWAITING_LOT_ALLOCATION ? lotsOf(db, issue.campusId, it.foodId, issue.date).map(lotView) : [],
   })),
 });
 
@@ -922,36 +1166,6 @@ const daysLeftOf = (db, campusId, foodId, qty) => {
   return Math.floor(qty / (out / schoolDays));
 };
 
-/** Lô còn trong kho: tồn hiện có phân về các lần nhập gần nhất (xuất lô cũ trước); phần dư là tồn đầu kỳ không rõ lô. */
-const lotsOf = (db, campusId, foodId) => {
-  let remaining = stockQty(db, campusId, foodId);
-  const lots = [];
-  db.stockReceipts
-    .filter((r) => r.campusId === campusId)
-    .sort((a, b) => (b.date + (b.createdAt || '')).localeCompare(a.date + (a.createdAt || '')))
-    .forEach((r) =>
-      r.items
-        .filter((it) => it.foodId === foodId && it.acceptedQty > 0)
-        .forEach((it) => {
-          if (remaining <= 0) return;
-          const qty = r3(Math.min(remaining, it.acceptedQty));
-          remaining = r3(remaining - qty);
-          lots.push({
-            lotNo: it.lotNo || null,
-            expiryDate: it.expiryDate || null,
-            unitPrice: it.unitPrice ?? null,
-            supplierName: r.supplierName || '',
-            receivedDate: r.date,
-            receiptCode: r.code,
-            qty,
-          });
-        }),
-    );
-  if (remaining > 0)
-    lots.push({ lotNo: null, expiryDate: null, unitPrice: null, supplierName: '', receivedDate: null, receiptCode: null, qty: remaining });
-  return lots.reverse();
-};
-
 const stockCellOf = (db, campusId, foodId) => {
   const qty = stockQty(db, campusId, foodId);
   const lots = lotsOf(db, campusId, foodId);
@@ -966,9 +1180,10 @@ const stockCellOf = (db, campusId, foodId) => {
   return { qty, daysLeft, nearestExpiry, expiring, status };
 };
 
-const TX_LABEL = { IN: 'Nhập kho', OUT: 'Xuất tự động', RETURN: 'Hoàn kho', ADJUST: 'Kiểm kê' };
+// ADJUST chỉ còn trong dữ liệu demo cũ: BA không làm kiểm kê kho thực phẩm
+const TX_LABEL = { IN: 'Nhập kho', OUT: 'Xuất tự động', RETURN: 'Hoàn kho', ADJUST: 'Điều chỉnh (dữ liệu cũ)' };
 
-/** Giao dịch gần đây gộp theo chứng từ (phiếu nhập, phiếu xuất, phiếu kiểm kê). */
+/** Giao dịch gần đây gộp theo chứng từ (phiếu nhập, phiếu xuất). */
 const transactionGroups = (db, cat, { campusIds, foodId = null, limit = 10 }) => {
   const groups = new Map();
   db.stockTransactions
@@ -1005,35 +1220,139 @@ const transactionGroups = (db, cat, { campusIds, foodId = null, limit = 10 }) =>
     });
 };
 
-const countView = (db, cat, count) => ({
-  id: count.id,
-  code: count.code,
-  campusId: count.campusId,
-  status: count.status,
-  createdAt: count.createdAt,
-  createdByName: userName(db, count.createdBy),
-  finalizedAt: count.finalizedAt || null,
-  finalizedByName: userName(db, count.finalizedBy),
-  lines: count.lines.map((l) => {
-    // Phiếu nháp so với tồn hiện tại (kho vẫn xuất mỗi ngày); phiếu đã chốt giữ số lúc chốt
-    const systemQty = count.status === STOCK_COUNT_STATUS.DRAFT ? stockQty(db, count.campusId, l.foodId) : l.systemQty;
-    return {
-      foodId: l.foodId,
-      name: cat.foodById[l.foodId]?.name || l.foodId,
-      unit: cat.foodById[l.foodId]?.unit || '',
-      systemQty,
-      countedQty: l.countedQty,
-      diff: l.countedQty == null ? null : r3(l.countedQty - systemQty),
-      reason: l.reason || '',
-    };
-  }),
-});
+// Phiếu cũ (trước khi có nháp) đều đã cộng tồn ⇒ coi là đã xác nhận
+const receiptStatus = (r) => r.status || RECEIPT_STATUS.CONFIRMED;
+
+const receiptView = (db, cat, r) => {
+  const items = (r.items || []).map((it) => ({
+    ...it,
+    unitKind: it.unitKind || UNIT_KIND.STOCK,
+    name: cat.foodById[it.foodId]?.name || it.foodId,
+    unit: cat.foodById[it.foodId] ? lineUnitName(cat.foodById[it.foodId], it.unitKind || UNIT_KIND.STOCK) : '',
+    stockUnit: cat.foodById[it.foodId]?.stockUnit || '',
+    stockQty: stockQtyOf(it),
+    amount: typeof it.unitPrice === 'number' ? Math.round(it.unitPrice * it.acceptedQty) : null,
+  }));
+  return {
+    ...r,
+    supplierId: r.supplierId || null,
+    status: receiptStatus(r),
+    campusName: campusName(db, r.campusId),
+    items,
+    totalAmount: items.reduce((n, it) => n + (it.amount || 0), 0),
+    createdByName: userName(db, r.createdBy),
+    confirmedByName: userName(db, r.confirmedBy),
+  };
+};
+
+const supplierReceipts = (db, supplierId) => db.stockReceipts.filter((r) => r.supplierId === supplierId);
+
+const supplierView = (db, s) => {
+  const receipts = supplierReceipts(db, s.id);
+  return {
+    ...s,
+    receiptCount: receipts.length,
+    lastReceiptDate: receipts.reduce((d, r) => (r.date > d ? r.date : d), '') || null,
+  };
+};
+
+const nextSupplierCode = (list) => {
+  const max = list.reduce((n, s) => Math.max(n, Number(/^NCC(\d+)$/.exec(s.code || '')?.[1] || 0)), 0);
+  return `NCC${String(max + 1).padStart(3, '0')}`;
+};
 
 /* ------------------------------------------------------------------ */
 /* Repository                                                          */
 /* ------------------------------------------------------------------ */
 
-export const kitchenMockRepository = {
+const kitchenRepository = {
+  async getLegacyMealPreparations({ campusId, date }, user) {
+    await delay();
+    guard(canViewKitchenDay(user));
+    guardCampus(user, campusId);
+    const db = readSeeded();
+    const cat = getCatalog(db);
+    if (!Array.isArray(db.mealPreparations)) return [];
+    return clone(
+      LEGACY_PREP_SESSIONS.map((session) => {
+        const s = computeSession(db, cat, campusId, date, session);
+        const record = db.mealPreparations.find((p) => p.campusId === campusId && p.date === date && p.session === session) || null;
+        return {
+          session,
+          hasMenu: s.hasMenu,
+          mealCountStatus: s.mealCountStatus,
+          totals: s.totals,
+          classes: s.mealCountStatus === 'CONFIRMED' ? s.classes : [],
+          dishes: s.dishes,
+          record,
+        };
+      }),
+    );
+  },
+
+  async updateLegacyMealPreparation(payload, user) {
+    await delay();
+    guard(isKitchenStaff(user));
+    const campusId = user.campusId;
+    guardCampus(user, campusId);
+    return writeDb((db) => {
+      ensureSeeded(db);
+      const cat = getCatalog(db);
+      const { date, session } = payload;
+      if (!Array.isArray(db.mealPreparations)) throw new ApiError(409, 'Chỉ dùng cho luồng chế biến cũ còn đang xử lý.');
+      const record = db.mealPreparations.find((p) => p.campusId === campusId && p.date === date && p.session === session);
+      invalid(validatePreparationUpdate(payload, record?.status, todayInput()));
+      const s = computeSession(db, cat, campusId, date, session);
+      // GBR-KIT-01: preparation works from the published menu and the confirmed meal count.
+      if (!s.hasMenu) throw new ApiError(409, 'Bữa ăn này chưa có thực đơn đã công bố.');
+      if (s.mealCountStatus !== 'CONFIRMED') throw new ApiError(409, 'Số suất ăn của bữa này chưa được Phó hiệu trưởng xác nhận.');
+      const entry = { status: payload.status, note: String(payload.note || '').trim(), userId: user.id, at: nowIso() };
+      const previousStatus = record?.status || null;
+      let saved = record;
+      if (saved) {
+        Object.assign(saved, { status: entry.status, note: entry.note, updatedBy: user.id, updatedAt: entry.at });
+        saved.history.push(entry);
+      } else {
+        saved = {
+          id: uid('kmp'),
+          campusId,
+          date,
+          session,
+          status: entry.status,
+          note: entry.note,
+          updatedBy: user.id,
+          updatedAt: entry.at,
+          history: [entry],
+        };
+        db.mealPreparations.push(saved);
+      }
+      const when = `${MEAL_SESSION_LABELS[session]} ngày ${date.split('-').reverse().join('/')}`;
+      usersWithRole(db, ROLES.VICE_PRINCIPAL, campusId).forEach((vp) =>
+        pushNotification(db, {
+          userId: vp.id,
+          type: 'KITCHEN_PREPARATION',
+          title: 'Bếp cập nhật tình trạng chế biến',
+          message: `${when}: ${PREP_STATUS_LABELS[entry.status]}.${entry.note ? ` ${entry.note}` : ''}`,
+          link: `/kitchen/preparation?date=${date}`,
+        }),
+      );
+      // UC 6.17 step 7: when ready, each teacher is told how many servings the class receives.
+      if (entry.status === PREP_STATUS.READY_FOR_HANDOVER && previousStatus !== PREP_STATUS.READY_FOR_HANDOVER) {
+        const classById = classesOf(db);
+        s.classes.forEach((c) => {
+          (classById[c.classId]?.teacherIds || []).forEach((teacherId) =>
+            pushNotification(db, {
+              userId: teacherId,
+              type: 'KITCHEN_READY_FOR_HANDOVER',
+              title: 'Bếp sẵn sàng bàn giao suất ăn',
+              message: `${when} – ${c.className}: ${c.normal} suất thường, ${c.substitute} suất thay thế.`,
+            }),
+          );
+        });
+      }
+      return clone(saved);
+    });
+  },
   /* ---- Quy trình bếp hôm nay: gộp số liệu các bước của một cơ sở và ngày ---- */
   async getKitchenDay({ campusId, date }, user) {
     await delay();
@@ -1059,6 +1378,7 @@ export const kitchenMockRepository = {
     return clone({
       campusId,
       date,
+      legacyPreparation: Array.isArray(db.mealPreparations),
       mealCount: {
         sessions,
         confirmed: sessions.filter((ss) => ss.status === 'CONFIRMED').length,
@@ -1093,7 +1413,8 @@ export const kitchenMockRepository = {
         ? { outOfStock: cat.foods.filter((f) => isDryFood(db, f.id) && stockQty(db, campusId, f.id) <= 0).length }
         : null,
       samples: {
-        meals: MEAL_SESSIONS.map((s) => sampleMealView(db, cat, campusId, date, s))
+        meals: mealSessionsForCampus(db, campusId)
+          .map((s) => sampleMealView(db, cat, campusId, date, s))
           .filter((m) => m.dishes.length || m.takenAt)
           .map((m) => ({ session: m.session, status: m.status, takenAt: m.takenAt })),
         pendingDestroy: pendingDestroyOf(db, campusId).length,
@@ -1108,7 +1429,9 @@ export const kitchenMockRepository = {
     guardCampus(user, campusId);
     const db = readSeeded();
     const cat = getCatalog(db);
-    const meals = MEAL_SESSIONS.map((s) => sampleMealView(db, cat, campusId, date, s)).filter((m) => m.dishes.length || m.takenAt);
+    const meals = mealSessionsForCampus(db, campusId)
+      .map((s) => sampleMealView(db, cat, campusId, date, s))
+      .filter((m) => m.dishes.length || m.takenAt);
     return clone({ campusId, date, meals, pendingDestroy: pendingDestroyOf(db, campusId), canEdit: canEditFoodSample(user, campusId) });
   },
 
@@ -1174,11 +1497,38 @@ export const kitchenMockRepository = {
   },
 
   /* ---- Phiếu nhập kho khô (UC 6.23, S7): lô, hạn dùng, giá, NCC; lưu xong không sửa (sai thì chỉnh qua kiểm kê) ---- */
-  async createStockReceipt(payload, user) {
+  /** Danh sách phiếu nhập của một cơ sở (mới nhất trước), kèm tổng tiền và trạng thái nháp/đã xác nhận. */
+  async getStockReceipts({ campusId }, user) {
+    await delay();
+    guard(canManageStock(user));
+    const db = readSeeded();
+    const cat = getCatalog(db);
+    return clone(
+      db.stockReceipts
+        .filter((r) => !campusId || r.campusId === campusId)
+        .sort((a, b) => (b.date + (b.createdAt || '')).localeCompare(a.date + (a.createdAt || '')))
+        .map((r) => receiptView(db, cat, r)),
+    );
+  },
+
+  async getStockReceipt({ id }, user) {
+    await delay();
+    guard(canManageStock(user));
+    const db = readSeeded();
+    const receipt = db.stockReceipts.find((r) => r.id === id);
+    if (!receipt) throw new ApiError(404, 'Không tìm thấy phiếu nhập kho.');
+    return clone(receiptView(db, getCatalog(db), receipt));
+  },
+
+  /**
+   * Lưu nháp (không cộng tồn) hoặc xác nhận nhập (`confirm`): kiểm tra toàn phiếu, cộng tồn đúng một lần rồi khóa sửa.
+   * `id` có ⇒ sửa phiếu nháp; phiếu đã xác nhận trả 409, không cộng tồn lần nữa.
+   */
+  async saveStockReceipt({ id = null, confirm = false, ...payload }, user) {
     await delay();
     const campusId = payload.campusId || user.campusId;
     guard(canWriteStock(user, campusId));
-    invalid(validateStockReceipt(payload, todayInput()));
+    invalid(validateStockReceipt(payload, todayInput(), { confirm }));
     return writeDb((db) => {
       ensureSeeded(db);
       const cat = getCatalog(db);
@@ -1186,47 +1536,153 @@ export const kitchenMockRepository = {
         if (!cat.foodById[it.foodId]) throw new ApiError(422, 'Thực phẩm không có trong danh mục thực phẩm.');
         if (!isDryFood(db, it.foodId)) throw new ApiError(422, 'Kho chỉ nhập đồ khô; hàng tươi kiểm nhận ở bếp.');
       });
-      const seq = db.stockReceipts.filter((r) => r.campusId === campusId && r.date === payload.date).length + 1;
-      const receipt = {
-        id: uid('ksr'),
-        code: `PN-${ymd(payload.date)}-${campusCode(db, campusId)}-${seq}`,
+      let receipt = id ? db.stockReceipts.find((r) => r.id === id) : null;
+      if (id && !receipt) throw new ApiError(404, 'Không tìm thấy phiếu nhập kho.');
+      if (receipt && receiptStatus(receipt) !== RECEIPT_STATUS.DRAFT)
+        throw new ApiError(409, 'Phiếu đã xác nhận nhập kho, không sửa hoặc xác nhận lại được.');
+      const supplier = payload.supplierId ? db.suppliers.find((s) => s.id === payload.supplierId) : null;
+      if (payload.supplierId && !supplier)
+        throw new ApiError(422, 'Nhà cung cấp không còn trong danh mục.', { supplierId: 'Chọn lại nhà cung cấp.' });
+      // NCC ngừng dùng không chọn mới được; nháp đã gắn NCC đó trước khi ngừng thì vẫn giữ
+      if (supplier && supplier.status !== SUPPLIER_STATUS.ACTIVE && receipt?.supplierId !== supplier.id)
+        throw new ApiError(422, `${supplier.name} đã ngừng dùng.`, { supplierId: 'Nhà cung cấp đã ngừng dùng, chọn nhà cung cấp khác.' });
+      if (!receipt) {
+        const seq = db.stockReceipts.filter((r) => r.campusId === campusId && r.date === payload.date).length + 1;
+        receipt = {
+          id: uid('ksr'),
+          code: `PN-${ymd(payload.date)}-${campusCode(db, campusId)}-${seq}`,
+          createdBy: user.id,
+          createdAt: nowIso(),
+        };
+        db.stockReceipts.unshift(receipt);
+      }
+      const num = (v) => (v === '' || v == null ? null : Number(v));
+      Object.assign(receipt, {
         campusId,
         date: payload.date,
         note: String(payload.note || '').trim(),
-        supplierName: String(payload.supplierName || '').trim(),
+        // Phiếu cũ chưa liên kết mà chưa chọn NCC: giữ tên cũ trên nháp
+        supplierId: supplier?.id || null,
+        supplierName: supplier ? supplier.name : (!receipt.supplierId && receipt.supplierName) || '',
+        status: confirm ? RECEIPT_STATUS.CONFIRMED : RECEIPT_STATUS.DRAFT,
+        updatedBy: user.id,
+        updatedAt: nowIso(),
         items: payload.items.map((it) => {
           const receivedQty = r3(Number(it.receivedQty));
           const rejectedQty = r3(Number(it.rejectedQty || 0));
+          const acceptedQty = r3(receivedQty - rejectedQty);
+          // Lượng dòng theo đơn vị mua hoặc kho (user chốt 20/10/2026); lô và tồn luôn theo đơn vị kho
+          const unitKind = it.unitKind === UNIT_KIND.PURCHASE ? UNIT_KIND.PURCHASE : UNIT_KIND.STOCK;
           return {
             foodId: it.foodId,
+            unitKind,
             receivedQty,
             rejectedQty,
-            acceptedQty: r3(receivedQty - rejectedQty),
+            acceptedQty,
+            stockQty: toStockQty(cat.foodById[it.foodId], acceptedQty, unitKind),
+            mfgDate: it.mfgDate || '',
             expiryDate: it.expiryDate || '',
             lotNo: String(it.lotNo || '').trim(),
-            unitPrice: Number(it.unitPrice),
+            unitPrice: num(it.unitPrice),
             note: String(it.note || '').trim(),
           };
         }),
-        createdBy: user.id,
-        createdAt: nowIso(),
-      };
-      // Rejected quantities are kept on the receipt but never enter the stock.
-      receipt.items.forEach((it) => {
-        if (it.acceptedQty > 0)
-          changeStock(db, {
-            campusId,
-            foodId: it.foodId,
-            delta: it.acceptedQty,
-            type: 'IN',
-            date: receipt.date,
-            refId: receipt.id,
-            userId: user.id,
-            expiryDate: it.expiryDate,
-          });
       });
-      db.stockReceipts.unshift(receipt);
-      return clone(receipt);
+      if (confirm) {
+        Object.assign(receipt, { confirmedBy: user.id, confirmedAt: nowIso() });
+        // Rejected quantities are kept on the receipt but never enter the stock.
+        receipt.items.forEach((it) => {
+          if (it.stockQty > 0) db.stockLots.push(lotFromReceipt(receipt, it, it.stockQty));
+          if (it.stockQty > 0)
+            changeStock(db, {
+              campusId,
+              foodId: it.foodId,
+              delta: it.stockQty,
+              type: 'IN',
+              date: receipt.date,
+              refId: receipt.id,
+              userId: user.id,
+              expiryDate: it.expiryDate,
+            });
+        });
+      }
+      return clone(receiptView(db, cat, receipt));
+    });
+  },
+
+  /** Tạo và xác nhận nhập trong một bước (giữ cho nơi gọi cũ). */
+  async createStockReceipt(payload, user) {
+    return kitchenRepository.saveStockReceipt({ ...payload, id: null, confirm: true }, user);
+  },
+
+  /* ---- Nhà cung cấp (BA 01): danh mục dùng chung hai cơ sở; HT quản lý, PHT xem và chọn khi nhập kho ---- */
+  async getSuppliers({ keyword = '', status = '' } = {}, user) {
+    await delay();
+    guard(canViewSuppliers(user));
+    const db = readSeeded();
+    const key = normalizeText(keyword).trim();
+    return clone(
+      db.suppliers
+        .filter((s) => (!status || s.status === status) && (!key || normalizeText(`${s.code} ${s.name}`).includes(key)))
+        .sort((a, b) => a.code.localeCompare(b.code))
+        .map((s) => supplierView(db, s)),
+    );
+  },
+
+  /** Chi tiết NCC kèm phiếu nhập liên kết (read-only, mới nhất trước). */
+  async getSupplier({ id }, user) {
+    await delay();
+    guard(canViewSuppliers(user));
+    const db = readSeeded();
+    const supplier = db.suppliers.find((s) => s.id === id);
+    if (!supplier) throw new ApiError(404, 'Không tìm thấy nhà cung cấp.');
+    const cat = getCatalog(db);
+    const receipts = supplierReceipts(db, id)
+      .sort((a, b) => (b.date + (b.createdAt || '')).localeCompare(a.date + (a.createdAt || '')))
+      .map((r) => receiptView(db, cat, r));
+    return clone({ ...supplierView(db, supplier), receipts });
+  },
+
+  /** Tạo/sửa NCC; mã do hệ thống sinh khi tạo, không đổi khi sửa. */
+  async saveSupplier({ id = null, ...payload }, user) {
+    await delay();
+    guard(canManageSuppliers(user));
+    invalid(validateSupplier(payload));
+    return writeDb((db) => {
+      ensureSeeded(db);
+      let supplier = id ? db.suppliers.find((s) => s.id === id) : null;
+      if (id && !supplier) throw new ApiError(404, 'Không tìm thấy nhà cung cấp.');
+      if (!supplier) {
+        supplier = { id: uid('sup'), code: nextSupplierCode(db.suppliers), createdBy: user.id, createdAt: nowIso() };
+        db.suppliers.push(supplier);
+      }
+      const text = (v) => String(v || '').trim();
+      Object.assign(supplier, {
+        name: text(payload.name),
+        address: text(payload.address),
+        contactName: text(payload.contactName),
+        phone: text(payload.phone),
+        taxCode: text(payload.taxCode),
+        status: payload.status === SUPPLIER_STATUS.INACTIVE ? SUPPLIER_STATUS.INACTIVE : SUPPLIER_STATUS.ACTIVE,
+        updatedBy: user.id,
+        updatedAt: nowIso(),
+      });
+      return clone(supplierView(db, supplier));
+    });
+  },
+
+  /** Chỉ xóa NCC chưa có phiếu nhập nào (kể cả nháp); đã có giao dịch thì chuyển Ngừng dùng. */
+  async deleteSupplier({ id }, user) {
+    await delay();
+    guard(canManageSuppliers(user));
+    return writeDb((db) => {
+      ensureSeeded(db);
+      const supplier = db.suppliers.find((s) => s.id === id);
+      if (!supplier) throw new ApiError(404, 'Không tìm thấy nhà cung cấp.');
+      if (supplierReceipts(db, id).length)
+        throw new ApiError(409, `${supplier.name} đã có phiếu nhập kho, không xóa được. Hãy chuyển sang "Ngừng dùng".`);
+      db.suppliers = db.suppliers.filter((s) => s.id !== id);
+      return { id };
     });
   },
 
@@ -1260,8 +1716,8 @@ export const kitchenMockRepository = {
       .map((f) => ({ ...f, urgency: rank(f) }));
     const countBy = (pred) => Object.fromEntries(ids.map((id) => [id, foods.filter((f) => pred(f.byCampus[id])).length]));
     const lastIssue = db.stockIssues
-      .filter((i) => i.status === ISSUE_STATUS.ISSUED && ids.includes(i.campusId))
-      .sort((a, b) => (b.issuedAt || '').localeCompare(a.issuedAt || ''))[0];
+      .filter((i) => isIssuePosted(i.status) && ids.includes(i.campusId))
+      .sort((a, b) => (b.postedAt || b.issuedAt || '').localeCompare(a.postedAt || a.issuedAt || ''))[0];
     return clone({
       campuses,
       foods,
@@ -1269,7 +1725,7 @@ export const kitchenMockRepository = {
         out: countBy((c) => c.status === 'OUT'),
         low: countBy((c) => c.status === 'LOW'),
         expiring: foods.filter((f) => Object.values(f.byCampus).some((c) => c.expiring)).map((f) => f.name),
-        lastIssue: lastIssue ? { at: lastIssue.issuedAt, campusId: lastIssue.campusId, code: lastIssue.code } : null,
+        lastIssue: lastIssue ? { at: lastIssue.postedAt || lastIssue.issuedAt, campusId: lastIssue.campusId, code: lastIssue.code } : null,
       },
       transactions: transactionGroups(db, cat, { campusIds: ids }),
     });
@@ -1298,85 +1754,6 @@ export const kitchenMockRepository = {
     });
   },
 
-  /* ---- Kiểm kê kho khô theo tháng: số đếm, lệch phải có lý do, chốt thì tồn = số đếm ---- */
-  async getStockCounts({ campusId }, user) {
-    await delay();
-    guard(canViewDryStock(user));
-    const db = readSeeded();
-    const cat = getCatalog(db);
-    return clone({
-      counts: db.stockCounts
-        .filter((c) => c.campusId === campusId)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .map((c) => countView(db, cat, c)),
-      canWrite: canWriteStock(user, campusId),
-    });
-  },
-
-  async createStockCount({ campusId }, user) {
-    await delay();
-    guard(canWriteStock(user, campusId));
-    return writeDb((db) => {
-      ensureSeeded(db);
-      if (db.stockCounts.some((c) => c.campusId === campusId && c.status === STOCK_COUNT_STATUS.DRAFT))
-        throw new ApiError(409, 'Cơ sở này đang có phiếu kiểm kê nháp. Hoàn tất phiếu đó trước.');
-      const cat = getCatalog(db);
-      const date = todayInput();
-      const seq = db.stockCounts.filter((c) => c.campusId === campusId && c.createdAt.startsWith(date.slice(0, 7))).length + 1;
-      const count = {
-        id: uid('kkc'),
-        code: `KK-${ymd(date).slice(0, 6)}-${campusCode(db, campusId)}-${seq}`,
-        campusId,
-        status: STOCK_COUNT_STATUS.DRAFT,
-        createdBy: user.id,
-        createdAt: nowIso(),
-        lines: cat.foods.filter((f) => isDryFood(db, f.id)).map((f) => ({ foodId: f.id, systemQty: null, countedQty: null, reason: '' })),
-      };
-      db.stockCounts.unshift(count);
-      return clone(countView(db, cat, count));
-    });
-  },
-
-  /** Lưu số đếm (nháp) hoặc chốt (`finalize`): lệch khác 0 phải có lý do; chốt sinh giao dịch ADJUST và khóa phiếu. */
-  async saveStockCount({ id, lines, finalize = false }, user) {
-    await delay();
-    return writeDb((db) => {
-      ensureSeeded(db);
-      const count = db.stockCounts.find((c) => c.id === id);
-      if (!count) throw new ApiError(404, 'Không tìm thấy phiếu kiểm kê.');
-      guard(canWriteStock(user, count.campusId));
-      if (count.status !== STOCK_COUNT_STATUS.DRAFT) throw new ApiError(409, 'Phiếu kiểm kê đã chốt, không sửa được.');
-      const byFood = Object.fromEntries((lines || []).map((l) => [l.foodId, l]));
-      count.lines.forEach((l) => {
-        const input = byFood[l.foodId];
-        if (!input) return;
-        l.countedQty = input.countedQty === '' || input.countedQty == null ? null : r3(Number(input.countedQty));
-        l.reason = input.reason || '';
-      });
-      const withSystem = count.lines.map((l) => ({ ...l, systemQty: stockQty(db, count.campusId, l.foodId) }));
-      invalid(validateStockCount(withSystem, { finalize }));
-      if (finalize) {
-        const at = nowIso();
-        withSystem.forEach((l) => {
-          const delta = r3(l.countedQty - l.systemQty);
-          if (delta)
-            changeStock(db, {
-              campusId: count.campusId,
-              foodId: l.foodId,
-              delta,
-              type: 'ADJUST',
-              date: todayInput(),
-              refId: count.id,
-              userId: user.id,
-            });
-        });
-        count.lines = withSystem;
-        Object.assign(count, { status: STOCK_COUNT_STATUS.FINALIZED, finalizedBy: user.id, finalizedAt: at });
-      }
-      return clone(countView(db, getCatalog(db), count));
-    });
-  },
-
   /* ---- Phiếu xuất kho đồ khô: tự sinh khi chốt suất, chỉ xem và in (S8) ---- */
   async getStockIssues({ campusId, from, to }, user) {
     await delay();
@@ -1393,13 +1770,42 @@ export const kitchenMockRepository = {
       .map((i) => issueView(db, cat, i));
     // Hôm nay chưa chốt: hiện dòng chờ để người xem biết vì sao chưa có phiếu
     const todayState = end >= today && !issues.some((i) => i.date === today) ? issueStateOf(db, cat, campusId, today).state : null;
-    return clone({ issues, today: todayState && todayState !== ISSUE_STATUS.ISSUED ? { date: today, state: todayState } : null });
+    return clone({
+      issues,
+      today: todayState && !isIssuePosted(todayState) ? { date: today, state: todayState } : null,
+      canAllocate: canAllocateIssueLots(user, campusId),
+    });
+  },
+
+  /**
+   * Bếp chọn lô cho phiếu đang chờ chọn lô: allocations = { [foodId]: [{ lotId, qty }] }.
+   * Đủ điều kiện ⇒ hệ thống ghi xuất và trừ tồn đúng một lần; phiếu đã ghi xuất trả 409.
+   */
+  async allocateIssueLots({ id, allocations }, user) {
+    await delay();
+    return writeDb((db) => {
+      ensureSeeded(db);
+      const issue = db.stockIssues.find((i) => i.id === id);
+      if (!issue) throw new ApiError(404, 'Không tìm thấy phiếu xuất kho.');
+      guard(canAllocateIssueLots(user, issue.campusId));
+      if (isIssuePosted(issue.status)) throw new ApiError(409, 'Phiếu đã ghi xuất, không ghi lại lần nữa.');
+      // Tồn có thể đã đổi từ lúc mở phiếu: tính lại trước khi nhận lô
+      if (REPLANNABLE.includes(issue.status)) issueDry(db, issue.campusId, issue.date);
+      if (issue.status === ISSUE_STATUS.AWAITING_STOCK)
+        throw new ApiError(409, 'Phiếu đang thiếu hàng: chờ Phó hiệu trưởng nhập bổ sung rồi chọn lô.');
+      if (issue.status !== ISSUE_STATUS.AWAITING_LOT_ALLOCATION) throw new ApiError(409, 'Phiếu không ở bước chọn lô.');
+      invalid(validateAllocations(db, issue, allocations));
+      postIssue(db, issue, allocations, user.id);
+      return clone(issueView(db, getCatalog(db), issue));
+    });
   },
 
   /* ---- #93 Published Menu (UC 6.20) ---- */
-  async getPublishedMenu({ date, view }, user) {
+  async getPublishedMenu({ date, view, campusId }, user) {
     await delay();
     guard(canViewPublishedMenu(user));
+    const selectedCampusId = campusId || user.campusId || null;
+    if (selectedCampusId) guardCampus(user, selectedCampusId);
     const db = readSeeded();
     const cat = getCatalog(db);
     const dates = view === 'week' ? weekDates(date) : [date];
@@ -1417,6 +1823,7 @@ export const kitchenMockRepository = {
                 ageGroupId: m.ageGroupId,
                 type: m.type,
                 note: m.note,
+                allergyChanges: publishedAllergyChanges(db, cat, m, d, selectedCampusId, menus),
                 dishes: m.dishIds.map((id) => {
                   const dish = cat.dishById[id];
                   return {
@@ -1445,8 +1852,9 @@ export const kitchenMockRepository = {
     const db = readSeeded();
     const cat = getCatalog(db);
     return clone(
-      MEAL_SESSIONS.map((s) => {
+      mealSessionsForCampus(db, campusId).map((s) => {
         const r = computeSession(db, cat, campusId, date, s);
+        const snapshot = getMealCount(db, campusId, date, s);
         // Read only for the kitchen (footnote ⁵): figures appear only once the VP has confirmed them.
         const confirmed = r.mealCountStatus === 'CONFIRMED';
         return {
@@ -1454,9 +1862,14 @@ export const kitchenMockRepository = {
           hasMenu: r.hasMenu,
           status: r.mealCountStatus,
           confirmedAt: r.confirmedAt,
-          classes: confirmed ? r.classes : [],
+          classes: confirmed
+            ? (snapshot?.classes || []).map((row) => ({
+                ...row,
+                affectedDishes: r.classes.find((line) => line.classId === row.classId)?.affectedDishes || [],
+              }))
+            : [],
           totals: confirmed
-            ? r.classes.reduce((t, c) => ({ normal: t.normal + c.normal, substitute: t.substitute + c.substitute }), {
+            ? (snapshot?.classes || []).reduce((t, c) => ({ normal: t.normal + c.normal, substitute: t.substitute + c.substitute }), {
                 normal: 0,
                 substitute: 0,
               })
@@ -1675,3 +2088,16 @@ export const kitchenMockRepository = {
     });
   },
 };
+
+// Khởi tạo số suất qua module chủ sở hữu, không sao chép seed/cách tính vào bếp.
+// @__PURE__: bản build API (VITE_USE_MOCK=false) bỏ được cả module mock này.
+export const kitchenMockRepository = /* @__PURE__ */ Object.fromEntries(
+  /* @__PURE__ */ Object.entries(kitchenRepository).map(([name, method]) => [
+    name,
+    async (...args) => {
+      const date = args[0]?.date;
+      await attendanceMockRepository.getDayInfo(/^\d{4}-\d{2}-\d{2}$/.test(date || '') ? date : todayInput());
+      return method(...args);
+    },
+  ]),
+);

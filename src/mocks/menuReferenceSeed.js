@@ -4,7 +4,7 @@
  * Thực phẩm tham khảo khớp với danh mục của trường theo tên; thiếu thì được thêm khi chép món.
  */
 import { AGE_GROUPS } from '@/models/School';
-import { PORTION_FACTORS } from '@/models/menu-planning/menuPlanningConstants';
+import { SEED_PORTION_FACTORS } from '@/mocks/menuPlanningSeed';
 
 // [tên, nhóm, đơn vị, kcal, đạm, béo, bột (trên 100 g/ml), dị ứng]
 const FOODS = [
@@ -153,7 +153,7 @@ export const buildReferenceLibrary = () => ({
     description,
     ingredients: rows.map(([foodName, quantity]) => ({
       foodName,
-      portions: Object.fromEntries(AGE_GROUPS.map(({ id: ag }) => [ag, round1(quantity * PORTION_FACTORS[ag])])),
+      portions: Object.fromEntries(AGE_GROUPS.map(({ id: ag }) => [ag, round1(quantity * SEED_PORTION_FACTORS[ag])])),
     })),
   })),
 });

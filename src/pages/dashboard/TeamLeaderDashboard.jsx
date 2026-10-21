@@ -6,8 +6,10 @@ import { Widget, KpiCard, ShortList } from '@/components/dashboard/DashboardWidg
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { ClassTodayPanel } from '@/components/dashboard/ClassTodayPanel';
 import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
+import { FACILITY_ENABLED } from '@/config/app';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
-import { EDU_STATUS, EDU_STATUS_LABELS } from '@/models/education-plan/educationPlanConstants';
+import { EduStatusBadge } from '@/components/education-plan/eduUi';
+import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { ageGroupById } from '@/models/School';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
@@ -40,7 +42,7 @@ export default function TeamLeaderDashboard() {
           unit="giáo án"
           action={!approvals.failed.length}
           icon={NotebookPen}
-          to="/education/reviews"
+          to="/education/plan-reviews"
           tone="purple"
           label="Giáo án chờ bạn duyệt"
           value={approvals.total}
@@ -52,7 +54,7 @@ export default function TeamLeaderDashboard() {
           unit="kế hoạch"
           action
           icon={PencilLine}
-          to="/education/themes"
+          to="/education/class"
           tone="red"
           label="Kế hoạch chủ đề cần hoàn thiện"
           value={count(TO_FIX)}
@@ -62,7 +64,7 @@ export default function TeamLeaderDashboard() {
         <KpiCard
           unit="kế hoạch"
           icon={Hourglass}
-          to="/education/themes"
+          to="/education/class"
           tone="orange"
           label="Kế hoạch chủ đề chờ PHT duyệt"
           value={count([EDU_STATUS.PENDING_VP])}
@@ -71,7 +73,7 @@ export default function TeamLeaderDashboard() {
         <KpiCard
           unit="kế hoạch"
           icon={BadgeCheck}
-          to="/education/themes"
+          to="/education/class"
           tone="green"
           label="Kế hoạch chủ đề đã duyệt"
           value={count([EDU_STATUS.APPROVED])}
@@ -87,7 +89,7 @@ export default function TeamLeaderDashboard() {
           <Widget
             title="Kế hoạch chủ đề của nhóm tuổi"
             icon={Layers}
-            to="/education/themes"
+            to="/education/class"
             loading={kpi.loading}
             error={themesQ.error}
             onRetry={themesQ.reload}
@@ -98,11 +100,16 @@ export default function TeamLeaderDashboard() {
             <ShortList
               rows={toFix.slice(0, 5).map((t) => ({
                 key: t.id,
-                to: `/education/themes/${t.id}`,
+                to: '/education/class',
                 icon: BookOpenCheck,
                 code: t.code,
                 title: t.name,
-                meta: `${EDU_STATUS_LABELS[t.status]} · ${formatDate(t.startDate)} – ${formatDate(t.endDate)}`,
+                // Badge ở dòng phụ: cột 1/3 hẹp, badge cuối dòng làm vỡ tiêu đề
+                meta: (
+                  <>
+                    <EduStatusBadge status={t.status} /> {formatDate(t.startDate)} – {formatDate(t.endDate)}
+                  </>
+                ),
               }))}
             />
           </Widget>
@@ -111,9 +118,11 @@ export default function TeamLeaderDashboard() {
 
       <h2 className="section-title mt-24">Lớp của bạn</h2>
       <ClassTodayPanel />
-      <div className="db-board mt-16">
-        <FacilityTasksWidget />
-      </div>
+      {FACILITY_ENABLED && (
+        <div className="db-board mt-16">
+          <FacilityTasksWidget />
+        </div>
+      )}
     </div>
   );
 }

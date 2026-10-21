@@ -7,8 +7,8 @@ import { MEAL_SESSIONS, MEAL_SESSION_LABELS } from '@/models/attendance/attendan
 import { validateMealCorrection } from '@/utils/attendance/attendanceValidation';
 
 /** After the cut-off: cancel one meal of a child (never add one, GBR-ATT-08). The kitchen is notified. */
-export function MealCorrectionModal({ open, child, record, onSubmit, onClose }) {
-  const sessions = MEAL_SESSIONS.filter((s) => record?.meals?.[s]);
+export function MealCorrectionModal({ open, child, record, sessions: classSessions = MEAL_SESSIONS, onSubmit, onClose }) {
+  const sessions = classSessions.filter((s) => record?.meals?.[s]);
   const [form, setForm] = useState({ session: '', note: '' });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);

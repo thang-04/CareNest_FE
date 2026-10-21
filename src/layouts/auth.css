@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--brand-sky-50);
+  background: var(--color-primary-soft);
   isolation: isolate;
 }
 .auth__scene {
@@ -29,7 +29,7 @@
   position: absolute;
   inset: -28px -44px;
   z-index: -1;
-  border-radius: 48px;
+  border-radius: var(--radius-3xl);
   background: var(--frost-bg);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
@@ -51,14 +51,14 @@
   place-items: center;
   width: 56px;
   height: 56px;
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
   box-shadow: var(--shadow-clay);
 }
 .auth__brandmark .wordmark {
   display: block;
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: var(--fw-bold);
   line-height: 1;
 }
 .auth__school {
@@ -100,7 +100,7 @@
   padding: var(--space-1-5) var(--space-4);
   border-radius: var(--radius-full);
   background: var(--color-surface);
-  color: var(--brand-sky-900);
+  color: var(--color-info-fg);
   font-weight: var(--fw-semibold);
   font-size: var(--fs-sm);
   box-shadow: var(--shadow-clay);
@@ -144,16 +144,16 @@
   border-radius: var(--radius-sm);
 }
 .auth__point-icon--blue {
-  background: var(--brand-sky-50);
-  color: var(--brand-sky-700);
+  background: var(--color-info-bg);
+  color: var(--color-primary);
 }
 .auth__point-icon--mint {
-  background: var(--mint-50);
-  color: var(--mint-700);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-fg);
 }
 .auth__point-icon--amber {
-  background: var(--amber-50);
-  color: var(--amber-700);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
 }
 
 /* Card form bên phải */
@@ -172,7 +172,7 @@
   position: relative;
   padding: var(--space-8);
   border: 1px solid var(--glass-border);
-  border-radius: 24px;
+  border-radius: var(--radius-2xl);
   background: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
@@ -184,7 +184,7 @@
 }
 .auth__title {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: var(--fs-2xl);
   font-weight: var(--fw-bold);
   line-height: 1.1;
   color: var(--color-text);
@@ -293,38 +293,28 @@
 .demo-chip:hover {
   border-color: var(--color-primary);
 }
+.demo-chip:focus-visible,
+.demo-account:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
 
 /* Tài khoản demo (chỉ khi VITE_USE_MOCK=true): mỗi vai trò 1 tài khoản; nền kính mờ dày để chữ rõ */
 .demo-accounts {
   width: 100%;
-  border: 2px dashed var(--brand-sky-200);
-  border-radius: 22px;
+  border: 2px dashed var(--color-primary-border);
+  border-radius: var(--radius-xl);
   background: var(--frost-bg);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   padding: var(--space-4);
-}
-.demo-accounts__head {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.demo-account__name {
-  display: block;
-  font-weight: var(--fw-semibold);
-}
-.demo-accounts__list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
 }
 .demo-account {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   border: 1px solid var(--color-border);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--color-surface);
   padding: var(--space-2);
   cursor: pointer;
@@ -337,7 +327,7 @@
 }
 .demo-account:hover {
   border-color: var(--color-brand);
-  background: var(--brand-sky-50);
+  background: var(--color-primary-soft);
 }
 
 @media (max-width: 900px) {

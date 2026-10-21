@@ -1,14 +1,16 @@
 import { USE_MOCK } from '@/config/env';
-import { permissionMockRepository } from '@/services/account/mock/permissionMockRepository';
-import { permissionApi } from '@/services/account/api/permissionApi';
+import { permissionMockRepository as mock } from './mock/permissionMockRepository';
 
-/** Facade phân quyền: UI chỉ gọi các hàm này. */
-const repo = USE_MOCK ? permissionMockRepository : permissionApi;
+const call = (method, ...args) =>
+  USE_MOCK
+    ? mock[method](...args)
+    : Promise.reject({ status: 501, message: 'Màn phân quyền này chỉ là demo; cần thống nhất contract BE.' });
 
-export const getPermissionCatalog = (user) => repo.getPermissionCatalog(user);
-export const getRolePermissions = (user) => repo.getRolePermissions(user);
-export const updateRolePermissions = (role, payload, user) => repo.updateRolePermissions(role, payload, user);
-export const getPermissionOverrides = (userId, user) => repo.getPermissionOverrides(userId, user);
-export const getAccountsWithOverrides = (user) => repo.getAccountsWithOverrides(user);
-export const updatePermissionOverrides = (userId, payload, user) => repo.updatePermissionOverrides(userId, payload, user);
-export const getPermissionChangeLogs = (filters, user) => repo.getPermissionChangeLogs(filters, user);
+export const getPermissionCatalog = (user) => call('getPermissionCatalog', user);
+export const getPermissionStaff = (user) => call('getPermissionStaff', user);
+export const getRolePermissions = (user) => call('getRolePermissions', user);
+export const updateRolePermissions = (role, payload, user) => call('updateRolePermissions', role, payload, user);
+export const getPermissionOverrides = (id, user) => call('getPermissionOverrides', id, user);
+export const getAccountsWithOverrides = (user) => call('getAccountsWithOverrides', user);
+export const updatePermissionOverrides = (id, payload, user) => call('updatePermissionOverrides', id, payload, user);
+export const getPermissionChangeLogs = (filters, user) => call('getPermissionChangeLogs', filters, user);

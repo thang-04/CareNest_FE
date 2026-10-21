@@ -1,11 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Building2, Eye, Pencil, Star } from '@/components/ui/icons';
+import { Plus, Building2, Star } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useCampusList } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { RowActions } from '@/components/ui/RowActions';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
+import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { canListCampuses, canManageCampus } from '@/utils/school-config/schoolConfigPermissions';
 import { campusCrumbs } from '@/utils/school-config/breadcrumbs';
 import '@/styles/modules/school-config.css';
@@ -44,16 +46,16 @@ export default function CampusListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap sc-table-flat">
-            <table className="table">
+            <table className="table table--grid table--compact">
               <thead>
                 <tr>
                   <th>Mã</th>
                   <th>Điểm trường</th>
                   <th>Địa chỉ</th>
                   <th>Phó hiệu trưởng phụ trách</th>
-                  <th className="center">Lớp ({schoolYear})</th>
-                  <th className="center">Trẻ</th>
-                  <th className="right">Thao tác</th>
+                  <th className="num">Lớp ({schoolYear})</th>
+                  <th className="num">Trẻ</th>
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -91,23 +93,16 @@ export default function CampusListPage() {
                       </td>
                       <td className="text-sm sc-wrap">{c.address}</td>
                       <td>
-                        {c.vicePrincipals.length ? (
-                          c.vicePrincipals.map((v) => <div key={v.id}>{v.fullName}</div>)
-                        ) : (
-                          <span className="chip chip--orange">Chưa phân công</span>
-                        )}
+                        {c.vicePrincipals.length ? c.vicePrincipals.map((v) => <div key={v.id}>{v.fullName}</div>) : <UnassignedBadge />}
                       </td>
-                      <td className="center">{c.classCount}</td>
-                      <td className="center">{c.childCount}</td>
-                      <td className="right nowrap" onClick={(e) => e.stopPropagation()}>
-                        <Link className="icon-btn" to={`/school/campuses/${c.id}`} title="Xem" aria-label={`Xem ${c.shortName}`}>
-                          <Eye size={17} />
-                        </Link>
-                        {manage && (
-                          <Link className="icon-btn" to={`/school/campuses/${c.id}/edit`} title="Sửa" aria-label={`Sửa ${c.shortName}`}>
-                            <Pencil size={17} />
-                          </Link>
-                        )}
+                      <td className="num">{c.classCount}</td>
+                      <td className="num">{c.childCount}</td>
+                      <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
+                        <RowActions
+                          view={{ to: `/school/campuses/${c.id}` }}
+                          edit={manage ? { to: `/school/campuses/${c.id}/edit` } : null}
+                          name={c.shortName}
+                        />
                       </td>
                     </tr>
                   ))

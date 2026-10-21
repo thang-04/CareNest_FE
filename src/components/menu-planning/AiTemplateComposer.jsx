@@ -4,9 +4,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { dismissAiDraft, generateAiSuggestion } from '@/services/menu-planning/menuPlanningService';
 import { Modal } from '@/components/ui/Modal';
-import { Spinner } from '@/components/ui/States';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { useAiRun } from '@/hooks/useAiRun';
+import { AiDraftLabel } from '@/components/menu-planning/MenuBadges';
 import { checkDayMenu } from '@/utils/menu-planning/menuChecks';
-import { AI_DRAFT_KIND, AI_LABEL, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { AI_DRAFT_KIND, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 
 const SEASONS = ['Xuân', 'Hạ', 'Thu', 'Đông'];
 const lowerFirst = (t) => t.charAt(0).toLowerCase() + t.slice(1);
@@ -33,7 +35,7 @@ export function AiTemplateComposer({
   const toast = useToast();
   const [season, setSeason] = useState('');
   const [wishes, setWishes] = useState('');
-  const [running, setRunning] = useState(false);
+  const { running, run: runAi } = useAiRun();
   const [draft, setDraft] = useState(null);
 
   useEffect(() => {
@@ -41,13 +43,12 @@ export function AiTemplateComposer({
   }, [open]);
 
   const run = async () => {
-    setRunning(true);
     try {
-      setDraft(await generateAiSuggestion({ kind: AI_DRAFT_KIND.DAILY, ageGroupId, avoidAllergens: true, season, wishes }, user));
+      setDraft(
+        await runAi(() => generateAiSuggestion({ kind: AI_DRAFT_KIND.DAILY, ageGroupId, avoidAllergens: true, season, wishes }, user)),
+      );
     } catch (err) {
       toast.error(`${err.message} Bạn vẫn có thể soạn tay.`, 'AI chưa soạn được');
-    } finally {
-      setRunning(false);
     }
   };
   const discard = async () => {
@@ -66,7 +67,7 @@ export function AiTemplateComposer({
         Bỏ
       </button>
       <button type="button" className="btn" onClick={run} disabled={running}>
-        {running ? <Spinner small /> : <RotateCcw size={15} />} Soạn lại
+        <RotateCcw size={15} /> Soạn lại
       </button>
       <button
         type="button"
@@ -86,7 +87,7 @@ export function AiTemplateComposer({
         Hủy
       </button>
       <button type="button" className="btn btn--primary" onClick={run} disabled={running}>
-        {running ? <Spinner small /> : <Sparkles size={15} />} Soạn
+        <Sparkles size={15} /> Soạn
       </button>
     </>
   );
@@ -136,24 +137,26 @@ export function AiTemplateComposer({
         </div>
       ) : (
         <div className="td-ai-form">
-          <span className="chip chip--purple td-self-start">
-            <Sparkles size={13} /> {AI_LABEL}
-          </span>
-          <table className="table td-ai-meals">
-            <tbody>
-              {mealList.map((m) => (
-                <tr key={m.code}>
-                  <th scope="row">{m.name}</th>
-                  <td>
-                    {(draft.meals.find((x) => x.session === m.code)?.items || [])
-                      .map((i) => catalog.dishById[i.dishId]?.name)
-                      .filter(Boolean)
-                      .join(', ') || <span className="muted">Chưa có món</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="td-self-start">
+            <AiDraftLabel />
+          </div>
+          <div className="table-wrap">
+            <table className="table table--grid td-ai-meals">
+              <tbody>
+                {mealList.map((m) => (
+                  <tr key={m.code}>
+                    <th scope="row">{m.name}</th>
+                    <td>
+                      {(draft.meals.find((x) => x.session === m.code)?.items || [])
+                        .map((i) => catalog.dishById[i.dishId]?.name)
+                        .filter(Boolean)
+                        .join(', ') || <span className="muted">Chưa có món</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div>
             <p className="fw-600 td-flat">Vì sao AI chọn</p>
             <ul className="td-ai-reasons">
@@ -174,6 +177,7 @@ export function AiTemplateComposer({
           )}
         </div>
       )}
+      {running && <AiWorkingOverlay kind="cooking" text="Đang nấu thực đơn mẫu…" />}
     </Modal>
   );
 }

@@ -1,10 +1,11 @@
-import { CheckCircle2, FileEdit, PauseCircle, Replace, Sparkles, Lock } from '@/components/ui/icons';
+import { CheckCircle2, FileEdit, PauseCircle, Replace, Sparkles } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
-import { EmptyState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { useMasterData } from '@/hooks/useMasterData';
 import { formatDateTime } from '@/utils/format';
 import {
   AI_LABEL,
+  DISH_STATUS_LABELS,
   HISTORY_LABELS,
   NORM_STATUS_LABELS,
   RECORD_STATUS_LABELS,
@@ -17,14 +18,20 @@ export const RecordStatusBadge = createStatusBadge(
   RECORD_STATUS_LABELS,
 );
 
+// Món: Nháp (chưa dùng được cho thực đơn) cùng tông chờ xử lý như thực đơn tuần nháp
+export const DishStatusBadge = createStatusBadge(
+  { DRAFT: ['gray', FileEdit], ACTIVE: ['green', CheckCircle2], INACTIVE: ['gray', PauseCircle] },
+  DISH_STATUS_LABELS,
+);
+
 export const WeeklyStatusBadge = createStatusBadge(
   { DRAFT: ['gray', FileEdit], PUBLISHED: ['green', CheckCircle2], REPLACED: ['gray', Replace] },
   WEEKLY_STATUS_LABELS,
 );
 
-const NORM_TONES = { OK: 'green', LOW: 'orange', HIGH: 'orange', NA: 'gray' };
-export const NormStatusChip = ({ status }) => (
-  <span className={`chip chip--${NORM_TONES[status] || 'gray'}`}>{NORM_STATUS_LABELS[status]}</span>
+export const NormStatusChip = createStatusBadge(
+  { OK: ['green', null], LOW: ['orange', null], HIGH: ['orange', null], NA: ['gray', null] },
+  NORM_STATUS_LABELS,
 );
 
 /** Allergens are a "needs attention" label (red), see DESIGN.md §3.2. */
@@ -50,13 +57,11 @@ export const AiDraftLabel = () => (
 
 /** Shown instead of a form when the account may only read menu data. */
 export const NoManageAccess = () => (
-  <div className="card">
-    <EmptyState
-      icon={Lock}
-      title="Bạn không có quyền thay đổi dữ liệu thực đơn"
-      description="Chỉ Phó hiệu trưởng được Hiệu trưởng giao phụ trách dịch vụ chung (bán trú toàn trường) mới lập và sửa thực phẩm, món ăn, giá suất ăn và thực đơn."
-    />
-  </div>
+  <StatusPage
+    kind="403"
+    title="Bạn không có quyền thay đổi dữ liệu thực đơn"
+    description="Chỉ Phó hiệu trưởng được Hiệu trưởng giao phụ trách dịch vụ chung (bán trú toàn trường) mới lập và sửa thực phẩm, món ăn, giá suất ăn và thực đơn."
+  />
 );
 
 /** Change history of a record. */

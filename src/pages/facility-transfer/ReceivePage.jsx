@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, Scale, Info, List, UserRound, Lock, Hourglass } from '@/components/ui/icons';
+import { ArrowLeft, Check, Scale, Info, List, UserRound, Hourglass } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useTransfer } from '@/hooks/facility-transfer/useTransfers';
 import { useMasterData } from '@/hooks/useMasterData';
 import { confirmReceipt, reportDiscrepancy } from '@/services/facility-transfer/transferService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { LoadingState, ErrorState, EmptyState } from '@/components/ui/States';
+import { LoadingState, ErrorState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { TransferStatusBadge } from '@/components/facility-transfer/TransferStatusBadge';
 import { TransferInfoCard } from '@/components/facility-transfer/TransferInfoCard';
@@ -81,7 +82,7 @@ export default function ReceivePage() {
   if (!canViewTransfer(t, user))
     return (
       <div className="page">
-        <EmptyState icon={Lock} title="Bạn không có quyền xem phiếu này" />
+        <StatusPage kind="403" title="Bạn không có quyền xem phiếu này" />
       </div>
     );
 
@@ -123,7 +124,7 @@ export default function ReceivePage() {
       reload({ silent: true });
     } catch (err) {
       setConfirmOpen(false);
-      toast.error(err.message, 'Không thể xác nhận nhận');
+      toast.error(err, 'Không thể xác nhận nhận');
     }
   };
 
@@ -139,7 +140,7 @@ export default function ReceivePage() {
       setDiscrepancyOpen(false);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err);
     }
   };
 
@@ -157,12 +158,10 @@ export default function ReceivePage() {
       <Breadcrumb items={transferCrumbs(`Xác nhận nhận tài sản - ${t.code}`)} />
       <div className="page__head">
         <div>
-          <h1 className="page__title" style={{ marginBottom: 8 }}>
-            Xác nhận nhận tài sản - {t.code}
-          </h1>
+          <h1 className="page__title">Xác nhận nhận tài sản - {t.code}</h1>
           <TransferStatusBadge status={t.status} size="lg" />
         </div>
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-8">
           <TransferPrintButtons transfer={t} md={md} />
         </div>
       </div>
@@ -210,15 +209,15 @@ export default function ReceivePage() {
         </div>
         <div className="card__body">
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table--grid">
               <thead>
                 <tr>
-                  <th className="center">STT</th>
-                  <th>Mã tài sản</th>
-                  <th>Tên tài sản</th>
-                  <th className="center">SL theo phiếu</th>
-                  <th className="center">SL đã bàn giao</th>
-                  <th className="center">SL cần nhận</th>
+                  <th className="center cell--fixed">STT</th>
+                  <th className="cell--fixed">Mã tài sản</th>
+                  <th className="cell--fixed">Tên tài sản</th>
+                  <th className="num cell--fixed">SL theo phiếu</th>
+                  <th className="num cell--fixed">SL đã bàn giao</th>
+                  <th className="num cell--fixed">SL cần nhận</th>
                   <th className="center">SL thực nhận</th>
                   <th className="center">Trong đó hỏng</th>
                   <th className="center">Tình trạng thực nhận</th>
@@ -233,9 +232,9 @@ export default function ReceivePage() {
                   const diff = Number(r.receivedQuantity) - expected;
                   return (
                     <tr key={i.id}>
-                      <td className="center">{idx + 1}</td>
-                      <td>{i.assetCode}</td>
-                      <td>
+                      <td className="center cell--fixed">{idx + 1}</td>
+                      <td className="cell--fixed">{i.assetCode}</td>
+                      <td className="cell--fixed">
                         {i.assetName}
                         {i.handoverNote && <div className="muted text-xs">Bàn giao: {i.handoverNote}</div>}
                         {(i.supplementHistory || []).map((x, k) => (
@@ -246,10 +245,10 @@ export default function ReceivePage() {
                           </div>
                         ))}
                       </td>
-                      <td className="center">{i.quantity}</td>
-                      <td className="center">{i.handoverQuantity ?? '—'}</td>
-                      <td className="center fw-600">{expected}</td>
-                      <td className="center" style={{ width: 130 }}>
+                      <td className="num cell--fixed">{i.quantity}</td>
+                      <td className="num cell--fixed">{i.handoverQuantity ?? '—'}</td>
+                      <td className="num cell--fixed fw-600">{expected}</td>
+                      <td className="center w-130">
                         {actionable ? (
                           <>
                             <input
@@ -268,7 +267,7 @@ export default function ReceivePage() {
                           (i.receivedQuantity ?? '—')
                         )}
                       </td>
-                      <td className="center" style={{ width: 110 }}>
+                      <td className="center w-110">
                         {actionable ? (
                           <input
                             type="number"
@@ -283,14 +282,14 @@ export default function ReceivePage() {
                           '—'
                         )}
                       </td>
-                      <td className="center" style={{ width: 160 }}>
+                      <td className="center w-160">
                         {actionable ? (
                           <ConditionSelect value={r.receivedCondition} onChange={(v) => setRow(i.id, { receivedCondition: v })} />
                         ) : (
                           <ConditionBadge value={i.receivedCondition} />
                         )}
                       </td>
-                      <td style={{ minWidth: 160 }}>
+                      <td className="ft-min-w-160">
                         {actionable ? (
                           <input
                             className="input"
@@ -382,7 +381,7 @@ export default function ReceivePage() {
           <ArrowLeft size={17} /> Quay lại
         </button>
         {actionable && (
-          <div className="row" style={{ gap: 12 }}>
+          <div className="row gap-3">
             <button className="btn btn--lg btn--outline-danger" onClick={() => setDiscrepancyOpen(true)}>
               <Scale size={18} /> Báo chênh lệch
             </button>
@@ -402,7 +401,7 @@ export default function ReceivePage() {
         onConfirm={doConfirm}
         onClose={() => setConfirmOpen(false)}
       >
-        <ul className="mt-8" style={{ paddingLeft: 18, margin: '8px 0 0' }}>
+        <ul className="ft-confirm-list">
           {items
             .filter((i) => expectedReceiveQuantity(i) > 0)
             .map((i) => (

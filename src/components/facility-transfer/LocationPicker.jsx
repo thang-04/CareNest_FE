@@ -1,4 +1,4 @@
-import { LOCATION_TYPE_LABELS, locationLabel } from '@/models/Location';
+import { LOCATION_TYPE_LABELS, isActiveLocation, locationLabel } from '@/models/Location';
 
 /** Select of classes/rooms of one campus, filtered by allowed location types. */
 export function LocationPicker({
@@ -14,7 +14,10 @@ export function LocationPicker({
   placeholder = 'Chọn lớp/phòng...',
   ariaLabel,
 }) {
-  const options = locations.filter((l) => l.campusId === campusId && (!allowedTypes || allowedTypes.includes(l.type)));
+  // Phòng ngừng sử dụng không chọn mới được, nhưng vẫn hiện nếu đang là giá trị đã chọn
+  const options = locations.filter(
+    (l) => l.campusId === campusId && (!allowedTypes || allowedTypes.includes(l.type)) && (isActiveLocation(l) || l.id === value),
+  );
   const groups = options.reduce((acc, l) => {
     (acc[l.type] = acc[l.type] || []).push(l);
     return acc;

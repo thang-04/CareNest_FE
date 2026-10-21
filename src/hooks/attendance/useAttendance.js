@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useClasses } from '@/hooks/useSchool';
-import { getAttendanceSummary, getClassAttendance, getMealCounts } from '@/services/attendance/attendanceService';
+import { getAttendanceSummary, getClassAttendance, getMealCounts, getMealHandovers } from '@/services/attendance/attendanceService';
 import { canViewAttendance, isClassTeacher } from '@/utils/attendance/attendancePermissions';
 
 /**
@@ -11,7 +11,7 @@ import { canViewAttendance, isClassTeacher } from '@/utils/attendance/attendance
  */
 export function useAttendanceClasses({ own = false } = {}) {
   const { user } = useAuth();
-  const { classes, loading, error, reload } = useClasses();
+  const { classes, loading, error, reload } = useClasses({ activeYear: true });
   const list = useMemo(
     () =>
       classes
@@ -25,29 +25,37 @@ export function useAttendanceClasses({ own = false } = {}) {
 /** `live: false` while the teacher is typing so a background change does not wipe the form. */
 export function useClassAttendance(classId, date, { live = true } = {}) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getClassAttendance(classId, date, user), [classId, date, user?.id], {
+  const { data, setData, loading, error, reload } = useAsync(() => getClassAttendance(classId, date, user), [classId, date, user?.id], {
     enabled: !!classId && !!date,
     refreshOnDataChange: live,
   });
-  return { sheet: data, loading: loading && !!classId, error, reload };
+  return { sheet: data, setSheet: setData, loading: loading && !!classId, error, reload };
 }
 
-export function useAttendanceSummary({ classId, from, to }) {
+/** Một lớp (classId) hoặc nhiều lớp trong phạm vi (multi: campusId tùy chọn, rỗng = toàn trường). */
+export function useAttendanceSummary({ classId, campusId, multi = false, from, to }) {
   const { user } = useAuth();
+  const enabled = (!!classId || multi) && !!from && !!to && from <= to;
   const { data, loading, error, reload } = useAsync(
-    () => getAttendanceSummary({ classId, from, to }, user),
-    [classId, from, to, user?.id],
-    {
-      enabled: !!classId && !!from && !!to && from <= to,
-      refreshOnDataChange: true,
-    },
+    () => getAttendanceSummary({ classId: classId || undefined, campusId: campusId || undefined, from, to }, user),
+    [classId, campusId, multi, from, to, user?.id],
+    { enabled, refreshOnDataChange: true },
   );
-  return { summary: data, loading: loading && !!classId, error, reload };
+  return { summary: data, loading: loading && enabled, error, reload };
 }
 
 export function useMealCounts(date) {
   const { user } = useAuth();
   const { data, loading, error, reload } = useAsync(() => getMealCounts({ date }, user), [date, user?.id], {
+    enabled: !!date,
+    refreshOnDataChange: true,
+  });
+  return { data, loading, error, reload };
+}
+
+export function useMealHandovers(date) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getMealHandovers({ date }, user), [date, user?.id], {
     enabled: !!date,
     refreshOnDataChange: true,
   });

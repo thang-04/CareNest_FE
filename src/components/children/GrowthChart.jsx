@@ -1,10 +1,10 @@
 import { formatDate } from '@/utils/format';
 import { formatNumber } from '@/utils/children/childrenHelpers';
-import { NUTRITION_STATUS_LABELS } from '@/models/children/childrenConstants';
 
 const W = 640;
 const H = 240;
-const PAD = { top: 16, right: 20, bottom: 36, left: 48 };
+// top chừa chỗ cho nhãn đơn vị để không dính vào số trục trên cùng
+const PAD = { top: 34, right: 20, bottom: 36, left: 48 };
 
 const niceTicks = (min, max, count = 4) => {
   const span = max - min || 1;
@@ -16,14 +16,24 @@ const niceTicks = (min, max, count = 4) => {
   return ticks;
 };
 
+/** Trục cố định (axis: { min, max, step }); số đo ngoài khoảng thì nới thêm vạch thay vì cắt điểm. */
+const fixedTicks = ({ min, max, step }, values) => {
+  const lo = Math.min(min, Math.floor(Math.min(...values) / step) * step);
+  const hi = Math.max(max, Math.ceil(Math.max(...values) / step) * step);
+  const ticks = [];
+  for (let v = lo; v <= hi; v += step) ticks.push(v);
+  return ticks;
+};
+
 /**
  * Plain SVG line chart of recorded values over time (no chart library).
- * points: [{ date, value, status }] in date order. A data table is shown next to it for screen readers.
+ * points: [{ date, value, tone, statusLabel }] in date order; tone (normal | alert | unavailable) comes from the result BE returns.
+ * A data table is shown next to it for screen readers.
  */
-export function GrowthChart({ title, unit, points }) {
+export function GrowthChart({ title, unit, points, axis }) {
   if (points.length === 0) return null;
   const values = points.map((p) => p.value);
-  const ticks = niceTicks(Math.min(...values) - 1, Math.max(...values) + 1);
+  const ticks = axis ? fixedTicks(axis, values) : niceTicks(Math.min(...values) - 1, Math.max(...values) + 1);
   const yMin = ticks[0];
   const yMax = ticks[ticks.length - 1];
   const times = points.map((p) => new Date(p.date).getTime());
@@ -39,7 +49,9 @@ export function GrowthChart({ title, unit, points }) {
 
   return (
     <figure className="tr-chart">
-      <figcaption className="subsection-title">{title}</figcaption>
+      <figcaption className="subsection-title">
+        {title} <span className="muted">({unit})</span>
+      </figcaption>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="tr-chart__svg"
@@ -54,7 +66,7 @@ export function GrowthChart({ title, unit, points }) {
             </text>
           </g>
         ))}
-        <text className="tr-chart__axis" x={PAD.left - 8} y={PAD.top - 4} textAnchor="end">
+        <text className="tr-chart__axis tr-chart__unit" x={PAD.left - 8} y={14} textAnchor="end">
           {unit}
         </text>
         {points.map((p, i) => (
@@ -64,16 +76,10 @@ export function GrowthChart({ title, unit, points }) {
         ))}
         <path className="tr-chart__line" d={path} />
         {points.map((p, i) => (
-          <circle
-            key={p.date}
-            className={`tr-chart__pt tr-chart__pt--${(p.status || 'NORMAL').toLowerCase()}`}
-            cx={x(times[i])}
-            cy={y(p.value)}
-            r={5}
-          >
+          <circle key={p.date} className={`tr-chart__pt tr-chart__pt--${p.tone || 'normal'}`} cx={x(times[i])} cy={y(p.value)} r={5}>
             <title>
               {formatDate(p.date)}: {formatNumber(p.value)} {unit}
-              {p.status ? ` – ${NUTRITION_STATUS_LABELS[p.status]}` : ''}
+              {p.statusLabel ? ` – ${p.statusLabel}` : ''}
             </title>
           </circle>
         ))}

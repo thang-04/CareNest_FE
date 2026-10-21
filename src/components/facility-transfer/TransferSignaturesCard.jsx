@@ -40,9 +40,7 @@ export function TransferSignaturesCard({ transfer, md, highlightUserId }) {
                 {sig ? (
                   <img src={sig.signatureUrl} alt={`Chữ ký ${sig.signedByName}`} />
                 ) : (
-                  <span className="muted" style={{ fontStyle: 'italic' }}>
-                    Chưa xác nhận
-                  </span>
+                  <span className="muted ft-italic">Chưa xác nhận</span>
                 )}
               </div>
               <div className="fw-600">{sig?.signedByName || user?.fullName || '—'}</div>

@@ -8,14 +8,22 @@ import { Breadcrumb, EmptyState, ErrorState, LoadingState, PrintHeader, PrintToo
 import { Modal } from '@/components/ui/Modal';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { IssueStatusBadge } from '@/components/kitchen/KitchenBadges';
+import { IssueLotAllocation } from '@/components/kitchen/IssueLotAllocation';
 import { KbCampusFilter, fmtQty } from '@/components/kitchen/KitchenFilters';
 import { canManageStock } from '@/utils/kitchen/kitchenPermissions';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { ISSUE_HISTORY_LABELS } from '@/models/kitchen/kitchenConstants';
+import { ISSUE_HISTORY_LABELS, ISSUE_STATUS, isIssuePosted } from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/kitchen.css';
 
 const shortOf = (issue) => issue.items.filter((it) => it.shortage > 0);
+const lotsText = (it) => it.allocations.map((a) => `${a.lotNo || 'Tồn đầu kỳ'}: ${fmtQty(a.qty)}`).join(' · ');
+// Nhập bổ sung đúng lượng thiếu: mở form phiếu nhập điền sẵn các dòng
+const restockLink = (issue) =>
+  `/kitchen/stock-receipts/new?campusId=${issue.campusId}&items=${shortOf(issue)
+    .map((it) => `${it.foodId}:${it.shortage}`)
+    .join(',')}`;
 
 /** Phiếu xuất kho A4: thực phẩm, cần xuất, đã xuất, thiếu; ký tay. */
 const IssuePrint = forwardRef(function IssuePrint({ issue, campusName }, ref) {
@@ -37,7 +45,7 @@ const IssuePrint = forwardRef(function IssuePrint({ issue, campusName }, ref) {
             <th>ĐVT</th>
             <th>Cần xuất</th>
             <th>Đã xuất</th>
-            <th>Thiếu</th>
+            <th>Lô xuất</th>
           </tr>
         </thead>
         <tbody>
@@ -48,7 +56,7 @@ const IssuePrint = forwardRef(function IssuePrint({ issue, campusName }, ref) {
               <td className="c">{it.unit}</td>
               <td className="c">{fmtQty(it.requiredQty)}</td>
               <td className="c">{fmtQty(it.issuedQty)}</td>
-              <td className="c">{it.shortage > 0 ? fmtQty(it.shortage) : ''}</td>
+              <td>{lotsText(it)}</td>
             </tr>
           ))}
         </tbody>
@@ -70,8 +78,8 @@ const IssuePrint = forwardRef(function IssuePrint({ issue, campusName }, ref) {
 });
 
 /**
- * Phiếu xuất kho đồ khô (khảo sát 18/10/2026, S8): phiếu tự sinh khi chốt suất cả ngày = suất chốt × định lượng, trừ tồn ngay.
- * Không duyệt, không bước bếp xác nhận nhận. Danh sách bên trái, bấm phiếu mở panel chi tiết; chỉ xem và in.
+ * Phiếu xuất kho đồ khô (BA): tự tính khi chốt suất cả ngày = suất chốt × định lượng. Thiếu một dòng ⇒ dừng cả phiếu chờ
+ * PHT nhập bổ sung; đủ hàng ⇒ bếp chọn lô ⇒ hệ thống ghi xuất một lần. Không duyệt; danh sách bên trái, panel chi tiết bên phải.
  */
 export default function StockIssuePage() {
   const { user } = useAuth();
@@ -98,14 +106,14 @@ export default function StockIssuePage() {
     body = (
       <section className="card">
         <div className="table-wrap">
-          <table className="table">
+          <table className="table table--grid">
             <thead>
               <tr>
                 <th>Ngày</th>
                 <th>Mã phiếu</th>
-                <th className="right">Số thực phẩm</th>
-                <th>Thiếu tồn</th>
-                <th>Trạng thái</th>
+                <th className="num">Số thực phẩm</th>
+                <th className="center">Thiếu tồn</th>
+                <th className="center">Trạng thái</th>
               </tr>
             </thead>
             <tbody>
@@ -113,9 +121,9 @@ export default function StockIssuePage() {
                 <tr>
                   <td>{formatDate(data.today.date)}</td>
                   <td className="muted">—</td>
-                  <td className="right muted">—</td>
+                  <td className="num muted">—</td>
                   <td className="muted">—</td>
-                  <td>
+                  <td className="center">
                     <IssueStatusBadge status={data.today.state} />
                   </td>
                 </tr>
@@ -126,19 +134,17 @@ export default function StockIssuePage() {
                   <tr
                     key={issue.id}
                     className={`row-click ${issue.id === openId ? 'row--selected' : ''}`}
-                    tabIndex={0}
                     aria-selected={issue.id === openId}
-                    onClick={() => setOpenId(issue.id)}
-                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setOpenId(issue.id))}
+                    {...clickableRowProps(() => setOpenId(issue.id))}
                   >
                     <td>{formatDate(issue.date)}</td>
                     <td className="fw-600 text-primary">{issue.code}</td>
-                    <td className="right">{issue.items.length}</td>
+                    <td className="num">{issue.items.length}</td>
                     <td>
                       {short.length ? <span className="chip chip--red">{short.length} thực phẩm</span> : <span className="muted">—</span>}
                     </td>
-                    <td>
-                      <IssueStatusBadge status="ISSUED" />
+                    <td className="center">
+                      <IssueStatusBadge status={issue.status} />
                     </td>
                   </tr>
                 );
@@ -155,7 +161,9 @@ export default function StockIssuePage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Phiếu xuất kho</h1>
-          <p className="page__desc">Đồ khô xuất tự động khi chốt suất cả ngày, theo suất chốt × định lượng. Không cần duyệt.</p>
+          <p className="page__desc">
+            Tính theo suất chốt × định lượng khi chốt suất cả ngày. Thiếu hàng thì dừng cả phiếu; đủ hàng thì bếp chọn lô để ghi xuất.
+          </p>
         </div>
       </div>
       <div className="kb-toolbar kb-toolbar--center">
@@ -178,45 +186,86 @@ export default function StockIssuePage() {
       >
         {open && (
           <div className="kb-stack">
-            <p className="text-sm muted">Xuất lúc {formatDateTime(open.issuedAt)} theo số suất đã chốt.</p>
-            {shortOf(open).length > 0 && (
+            <p className="text-sm muted">
+              <IssueStatusBadge status={open.status} /> ·{' '}
+              {open.issuedAt
+                ? `${formatDateTime(open.issuedAt)}${open.postedByName ? ` · ${open.postedByName}` : ''}`
+                : 'Chưa ghi xuất kho'}
+            </p>
+            {open.needChanged && (
+              <div className="alert alert--warning">
+                <AlertTriangle size={18} />
+                <div>Số suất chốt đã thay đổi sau khi ghi xuất. Kho chưa tự điều chỉnh (quy tắc điều chỉnh còn chờ chốt).</div>
+              </div>
+            )}
+            {open.status === ISSUE_STATUS.AWAITING_STOCK && (
               <div className="alert alert--danger">
                 <AlertTriangle size={18} />
                 <div>
-                  Tồn không đủ cho {shortOf(open).length} thực phẩm, đã xuất phần còn trong kho.
+                  Thiếu {shortOf(open).length} thực phẩm nên dừng cả phiếu, chưa xuất dòng nào. Nhập bổ sung xong phiếu tự chuyển sang bước
+                  chọn lô.
                   {canManageStock(user) && (
                     <>
                       {' '}
-                      <Link to="/kitchen/stock-receipts/new">Nhập kho bổ sung</Link>
+                      <Link to={restockLink(open)}>Nhập kho bổ sung</Link>
                     </>
                   )}
                 </div>
               </div>
             )}
-            <div className="table-wrap">
-              <table className="table table--compact">
-                <thead>
-                  <tr>
-                    <th>Thực phẩm</th>
-                    <th className="right">Cần xuất</th>
-                    <th className="right">Đã xuất</th>
-                    <th className="right">Thiếu</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {open.items.map((it) => (
-                    <tr key={it.foodId} className={it.shortage > 0 ? 'kb-row--short' : undefined}>
-                      <td>
-                        {it.name} <span className="text-xs muted">{it.unit}</span>
-                      </td>
-                      <td className="right">{fmtQty(it.requiredQty)}</td>
-                      <td className="right">{fmtQty(it.issuedQty)}</td>
-                      <td className={`right ${it.shortage > 0 ? 'kb-short' : 'muted'}`}>{it.shortage > 0 ? fmtQty(it.shortage) : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {open.status === ISSUE_STATUS.AWAITING_LOT_ALLOCATION && data.canAllocate ? (
+              <IssueLotAllocation issue={open} onPosted={() => reload({ silent: true })} />
+            ) : (
+              <>
+                {open.status === ISSUE_STATUS.AWAITING_LOT_ALLOCATION && (
+                  <p className="text-sm muted">Đủ hàng, chờ nhân viên bếp chọn lô để ghi xuất.</p>
+                )}
+                <div className="table-wrap">
+                  <table className="table table--grid table--compact">
+                    <thead>
+                      <tr>
+                        <th>Thực phẩm</th>
+                        <th className="num">Cần xuất</th>
+                        {isIssuePosted(open.status) ? (
+                          <>
+                            <th className="num">Đã xuất</th>
+                            <th>Lô xuất</th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="num">Tồn khả dụng</th>
+                            <th className="num">Thiếu</th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {open.items.map((it) => (
+                        <tr key={it.foodId} className={it.shortage > 0 ? 'kb-row--short' : undefined}>
+                          <td>
+                            {it.name} <span className="text-xs muted">{it.unit}</span>
+                          </td>
+                          <td className="num">{fmtQty(it.requiredQty)}</td>
+                          {isIssuePosted(open.status) ? (
+                            <>
+                              <td className="num">{fmtQty(it.issuedQty)}</td>
+                              <td className="text-sm">{lotsText(it) || <span className="muted">—</span>}</td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="num">{it.availableQty == null ? '—' : fmtQty(it.availableQty)}</td>
+                              <td className={`num ${it.shortage > 0 ? 'kb-short' : 'muted'}`}>
+                                {it.shortage > 0 ? fmtQty(it.shortage) : '—'}
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
             {open.history.length > 0 && (
               <div>
                 <div className="subsection-title">Nhật ký phiếu</div>

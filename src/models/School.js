@@ -22,17 +22,18 @@
  * @property {'ACTIVE'|'PENDING_PLACEMENT'|'LEFT'} status
  * @property {string} enrolledAt
  * @property {string[]} allergies
- * @property {{ fullName: string, relation: string, phone: string, email: string }[]} guardians
+ * @property {{ fullName: string, relation: string, phone: string, email: string, accountStatus: 'NOT_ACTIVATED'|'ACTIVE' }[]} guardians
  */
 
 export const AGE_GROUPS = [
-  { id: 'ag-2', name: 'Nhà trẻ (24–36 tháng)', shortName: 'Nhà trẻ' },
-  { id: 'ag-3', name: 'Mẫu giáo bé (3–4 tuổi)', shortName: 'Mẫu giáo bé' },
-  { id: 'ag-4', name: 'Mẫu giáo nhỡ (4–5 tuổi)', shortName: 'Mẫu giáo nhỡ' },
-  { id: 'ag-5', name: 'Mẫu giáo lớn (5–6 tuổi)', shortName: 'Mẫu giáo lớn' },
+  { id: 'ag-2', name: 'Nhà trẻ (24–36 tháng)', shortName: 'Nhà trẻ', level: 'NURSERY' },
+  { id: 'ag-3', name: 'Mẫu giáo bé (3–4 tuổi)', shortName: 'Mẫu giáo bé', level: 'KINDERGARTEN' },
+  { id: 'ag-4', name: 'Mẫu giáo nhỡ (4–5 tuổi)', shortName: 'Mẫu giáo nhỡ', level: 'KINDERGARTEN' },
+  { id: 'ag-5', name: 'Mẫu giáo lớn (5–6 tuổi)', shortName: 'Mẫu giáo lớn', level: 'KINDERGARTEN' },
 ];
 
 export const ageGroupById = (id) => AGE_GROUPS.find((g) => g.id === id) || null;
+export const isNurseryAgeGroup = (id) => ageGroupById(id)?.level === 'NURSERY';
 
 export const CHILD_STATUS = {
   ACTIVE: 'ACTIVE',

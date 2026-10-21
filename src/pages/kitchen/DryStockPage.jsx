@@ -17,8 +17,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDryStock, useDryStockItem } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
+import { StockLevelBadge } from '@/components/kitchen/KitchenBadges';
 import { canManageStock } from '@/utils/kitchen/kitchenPermissions';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/kitchen.css';
@@ -33,18 +35,14 @@ const TX_ICON = { IN: ArrowDownLeft, OUT: ArrowUpRight, RETURN: ArrowDownLeft, A
 const sum = (o) => Object.values(o).reduce((n, v) => n + v, 0);
 
 function StockCell({ cell, unit }) {
-  const tone = cell.status === 'OUT' ? 'danger' : cell.status === 'LOW' ? 'warn' : null;
   return (
     <span className="kb-stock-cell">
       <span className="nowrap">
         {fmtQty(cell.qty)} {unit}
       </span>
       <span className="muted">·</span>
-      {tone ? (
-        <span className="kb-buy">
-          <span className={`kb-dot kb-dot--${tone}`} aria-hidden="true" />
-          <b>{cell.status === 'OUT' ? 'Hết' : `${cell.daysLeft} ngày`}</b>
-        </span>
+      {cell.status === 'OUT' || cell.status === 'LOW' ? (
+        <StockLevelBadge status={cell.status} daysLeft={cell.daysLeft} />
       ) : (
         <span className="muted">{cell.daysLeft == null ? '—' : `${cell.daysLeft} ngày`}</span>
       )}
@@ -53,7 +51,7 @@ function StockCell({ cell, unit }) {
 }
 
 function TxList({ rows }) {
-  if (!rows.length) return <p className="muted text-sm">Chưa có giao dịch.</p>;
+  if (!rows.length) return <EmptyState title="Chưa có giao dịch" description="Nhập, xuất, trả hay kiểm kê thực phẩm này sẽ hiện ở đây." />;
   return (
     <ul className="kb-list">
       {rows.map((t, i) => {
@@ -183,9 +181,6 @@ export default function DryStockPage() {
           </p>
         </div>
         <div className="page__actions">
-          <Link className="btn" to={KITCHEN_PAGES.stockCounts.to}>
-            <ClipboardList size={16} /> Kiểm kê
-          </Link>
           {canManageStock(user) && (
             <Link className="btn btn--primary" to="/kitchen/stock-receipts/new">
               <Plus size={16} /> Tạo phiếu nhập
@@ -265,7 +260,7 @@ export default function DryStockPage() {
             <div className="kb-stack">
               <section className="card">
                 <div className="table-wrap">
-                  <table className="table table--compact kb-fc">
+                  <table className="table table--grid table--compact kb-fc">
                     <thead>
                       <tr>
                         <th>Thực phẩm</th>
@@ -292,10 +287,8 @@ export default function DryStockPage() {
                             <tr
                               key={f.foodId}
                               className={`row-click ${openId === f.foodId ? 'row--selected' : ''}`}
-                              tabIndex={0}
                               aria-selected={openId === f.foodId}
-                              onClick={() => setOpenId(f.foodId)}
-                              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setOpenId(f.foodId))}
+                              {...clickableRowProps(() => setOpenId(f.foodId))}
                             >
                               <td className="fw-600">{f.name}</td>
                               {data.campuses.map((c) => (

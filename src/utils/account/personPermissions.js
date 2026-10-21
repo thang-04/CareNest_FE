@@ -20,6 +20,15 @@ export const personPermissionRows = ({ configurable = [], roleDefaults = [], ove
 
 export const changedRows = (rows, values) => rows.filter((r) => values[r.code] !== r.on);
 
+// Bước thiết lập được gắn lại sau bước xác nhận; ưu tiên cả draft rỗng thay vì quyền đã lưu.
+export const permissionDraftRows = (view, roleDefaults, draft) =>
+  personPermissionRows({
+    configurable: view.configurablePermissions,
+    roleDefaults,
+    overrides: draft ?? view.overrides,
+    effectivePermissions: view.effectivePermissions,
+  });
+
 export const overridesFromSwitches = (rows, values) =>
   rows
     .filter((r) => values[r.code] !== r.roleOn)
