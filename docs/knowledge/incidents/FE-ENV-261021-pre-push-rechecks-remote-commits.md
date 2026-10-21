@@ -33,7 +33,7 @@ Nhánh remote đã tồn tại và đứng sau `origin/dev`. Kéo `origin/dev` v
 Khi nhánh remote đã tồn tại, hook lấy `range=$(git rev-list "$rsha..$lsha")`, không loại commit đã có trên các remote ref khác. Commit cũ sai định dạng đã nằm trên `origin/dev` (trước khi có hook) nên bị kiểm lại. Nhánh remote mới thì hook đã dùng `--not --remotes` nên không gặp lỗi này.
 
 ## Fix
-`.githooks/pre-push`: `range=$(git rev-list "$lsha" --not "$rsha" --remotes)` — chỉ kiểm commit chưa có trên remote nào, vẫn bắt commit mới tạo bằng `--no-verify`. Hook dùng chung ba repo ⇒ cần đồng bộ sang `CareNest_BE`, `CareNest_APP` (chưa làm, chờ user cho phép sửa repo khác).
+`.githooks/pre-push`: `range=$(git rev-list "$lsha" --not "$rsha" --remotes)` — chỉ kiểm commit chưa có trên remote nào, vẫn bắt commit mới tạo bằng `--no-verify`. Hook dùng chung ba repo ⇒ đã sửa cùng dòng ở `CareNest_BE` (`main`) và `CareNest_APP` (`dev`) ngày 2026-10-21, chưa commit ở hai repo đó.
 
 ## Regression test
 Kéo `origin/dev` có commit cũ sai định dạng về nhánh feature đã có trên remote, thêm 1 commit đúng định dạng: `git push` phải qua hook.
