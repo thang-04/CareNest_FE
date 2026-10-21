@@ -13,9 +13,7 @@ globalThis.window = new EventTarget();
 const { readDb, writeDb } = await import('@/mocks/mockDatabase');
 const { healthExamMockRepository: exams } = await import('@/services/children/mock/healthExamMockRepository');
 const { healthCheckMockRepository: checks } = await import('@/services/children/mock/healthCheckMockRepository');
-const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import(
-  '@/services/children/mock/childrenMockRepository'
-);
+const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
 const { buildEmptyExam } = await import('@/models/children/healthExamForm');
 const { todayInput } = await import('@/utils/format');
 
@@ -41,7 +39,8 @@ const addDays = (iso, n) => {
 };
 
 const followUpOf = (childId) => readDb().healthFollowUps.find((f) => f.childId === childId && !f.closedAt);
-const notificationsOf = (followUpId) => (readDb().notifications || []).filter((n) => n.link === `/children/health-follow-ups/${followUpId}`);
+const notificationsOf = (followUpId) =>
+  (readDb().notifications || []).filter((n) => n.link === `/children/health-follow-ups/${followUpId}`);
 const latestHealthOf = async (childId, user) => (await children.listChildren({}, user)).find((c) => c.id === childId)?.latestHealth;
 
 /** Phiếu đủ ô bắt buộc từ bản điền sẵn; conclusion ghi đè phần kết luận. */
@@ -94,10 +93,10 @@ const openC2Campaign = async () => {
   return c2Campaign;
 };
 
-test('seed v9: phiếu khám mẫu FOLLOW_UP và phiếu đóng có kết quả', async () => {
+test('seed v10: phiếu khám mẫu FOLLOW_UP và phiếu đóng có kết quả', async () => {
   ensureChildRecordsSeeded();
   const db = readDb();
-  assert.equal(db.healthSeedVersion, 9);
+  assert.equal(db.healthSeedVersion, 10);
   // ch_019: "Chưa ghi nhận thêm bất thường" ⇒ phiếu giữ trạng thái có kết quả chuyên khoa, không mở vòng.
   const f019 = followUpOf('ch_019');
   const added = f019.history.find((e) => e.action === 'MEASUREMENT_ADDED');
@@ -156,7 +155,13 @@ test('AC-3, AC-6, AC-11: "Chưa ghi nhận thêm" giữ phiếu; sửa sang "Có
   const health = await latestHealthOf('ch_011', MINH_ANH);
   assert.equal(health.followUpLevel, 'CLOSE_WATCH');
   // Sửa lựa chọn: vòng gộp (phiếu chưa trao đổi), ghi trao đổi tại buổi khám vì có người đi cùng.
-  await conclude(C1_OPEN, 'ch_011', MINH_ANH, { followUpFinding: 'NEW_FINDING', issueText: 'Có thêm dấu hiệu mới (giả).' }, { reason: 'Sửa theo bác sĩ.' });
+  await conclude(
+    C1_OPEN,
+    'ch_011',
+    MINH_ANH,
+    { followUpFinding: 'NEW_FINDING', issueText: 'Có thêm dấu hiệu mới (giả).' },
+    { reason: 'Sửa theo bác sĩ.' },
+  );
   f = followUpOf('ch_011');
   assert.equal(f.history.find((e) => e.measurementId === saved.measurement.id && e.action === 'MEASUREMENT_ADDED').newFinding, true);
   assert.ok(f.history.some((e) => e.atExam && e.measurementId === saved.measurement.id));
@@ -164,10 +169,16 @@ test('AC-3, AC-6, AC-11: "Chưa ghi nhận thêm" giữ phiếu; sửa sang "Có
   await conclude(C1_OPEN, 'ch_011', MINH_ANH, { followUpFinding: 'NO_NEW_FINDING' }, { reason: 'Sửa lại theo bác sĩ.' });
   f = followUpOf('ch_011');
   assert.ok(f && !f.closedAt, 'sửa không đóng phiếu');
-  assert.ok(f.history.some((e) => e.atExam && e.measurementId === saved.measurement.id), 'trao đổi đã ghi giữ nguyên');
+  assert.ok(
+    f.history.some((e) => e.atExam && e.measurementId === saved.measurement.id),
+    'trao đổi đã ghi giữ nguyên',
+  );
   const { campaign, watchList } = await checks.getHealthCheck(C1_OPEN, PRINCIPAL);
   assert.ok(campaign.progress.byConclusion.FOLLOWING_NO_NEW >= 1);
-  assert.ok(watchList.some((r) => r.childId === 'ch_011'), 'trẻ còn phiếu mở ở tab Trẻ cần theo dõi');
+  assert.ok(
+    watchList.some((r) => r.childId === 'ch_011'),
+    'trẻ còn phiếu mở ở tab Trẻ cần theo dõi',
+  );
 });
 
 test('AC-4: "Có thêm bất thường mới" khi phiếu đã trao đổi ⇒ vòng mới, hạn 7 ngày, chặn công bố, thông báo', async () => {
@@ -216,25 +227,61 @@ test('AC-4: tích nguy cơ lao ở mẫu FOLLOW_UP xử lý như bất thường
   assert.ok(notificationsOf(f.id).some((n) => n.title === 'Trẻ có nguy cơ mắc lao (tiền sử tiếp xúc)'));
 });
 
-test('AC-13: mẫu thường, có vấn đề không chuyển khám ⇒ hỏi mới hay đã biết', async () => {
+test('AC-13: mẫu thường — lao/có vấn đề không chọn "Không cần…"; "Vấn đề này" chỉ hỏi trẻ có vấn đề đã biết', async () => {
   const campaign = await openC2Campaign();
   const view = await exams.getHealthExam(campaign.id, 'ch_028', TUAN);
   assert.equal(view.conclusionMode, 'STANDARD');
+  assert.equal(view.knownCondition, null);
+  const ho = { healthIssue: true, issueText: 'Ho (giả).' };
   // "Bình thường" không đi cùng nguy cơ lao hay có vấn đề.
-  for (const other of [{ tbRisk: true }, { healthIssue: true, issueText: 'Ho (giả).' }]) {
+  for (const other of [{ tbRisk: true }, ho]) {
     const mixed = filledPayload(view, { normal: true, action: 'NONE', ...other });
     await rejects(exams.saveHealthExam(campaign.id, 'ch_028', mixed, TUAN), 422, 'exam.conclusion.flags');
   }
-  const issue = { healthIssue: true, issueText: 'Cận thị – đeo kính (giả).', action: 'NONE' };
-  await rejects(exams.saveHealthExam(campaign.id, 'ch_028', filledPayload(view, issue), TUAN), 422, 'exam.conclusion.issueKind');
-  const saved = await exams.saveHealthExam(campaign.id, 'ch_028', filledPayload(view, { ...issue, issueKind: 'KNOWN' }), TUAN);
-  assert.equal(saved.measurement.followUpLevel, 'KNOWN_STABLE');
-  assert.equal(followUpOf('ch_028'), undefined, 'không mở phiếu');
-  const health = await latestHealthOf('ch_028', TUAN);
-  assert.equal(health.followUpLevel, 'KNOWN_STABLE');
-  assert.equal(health.knownCondition, 'Cận thị – đeo kính (giả).');
-  const detail = await checks.getHealthCheck(campaign.id, PRINCIPAL);
-  assert.ok(!detail.watchList.some((r) => r.childId === 'ch_028'), 'vấn đề đã biết không vào tab Trẻ cần theo dõi');
+  // Có nguy cơ lao hoặc có vấn đề: phải tư vấn hoặc chuyển khám (user chốt 2026-10-21).
+  for (const other of [{ tbRisk: true }, ho]) {
+    const none = filledPayload(view, { action: 'NONE', ...other });
+    await rejects(exams.saveHealthExam(campaign.id, 'ch_028', none, TUAN), 422, 'exam.conclusion.action');
+  }
+  // Trẻ chưa có vấn đề đã biết: không hỏi "Vấn đề này"; vấn đề tính là mới.
+  const advice = { ...ho, action: 'ADVICE', adviceText: 'Uống đủ nước (giả).', issueKind: 'KNOWN' };
+  const saved = await exams.saveHealthExam(campaign.id, 'ch_028', filledPayload(view, advice), TUAN);
+  assert.equal(saved.measurement.followUpLevel, 'WATCH');
+  assert.equal(
+    readDb().healthMeasurements.find((m) => m.id === saved.measurement.id).exam.conclusion.issueKind,
+    '',
+    'câu không hỏi thì không lưu',
+  );
+  // Trẻ có vấn đề đã biết (đóng phiếu "chuyên khoa xác định có vấn đề"): hỏi mới hay đã biết.
+  const db = readDb();
+  const child = db.children.find((c) => c.id === 'ch_031');
+  const teacher = { id: db.classes.find((k) => k.id === child.classId).homeroomTeacherId, role: 'TEACHER', campusId: child.campusId };
+  const campaignId = child.campusId === 'c1' ? C1_OPEN : campaign.id;
+  const known = await exams.getHealthExam(campaignId, 'ch_031', teacher);
+  assert.equal(known.conclusionMode, 'STANDARD');
+  assert.equal(known.knownCondition, 'Bàn chân bẹt – mang giày chỉnh hình');
+  const reason = known.measurement?.examStatus === 'CONCLUDED' ? 'Sửa theo bác sĩ (giả).' : undefined;
+  const flat = {
+    healthIssue: true,
+    issueText: 'Bàn chân bẹt – mang giày (giả).',
+    action: 'ADVICE',
+    adviceText: 'Mang giày chỉnh hình (giả).',
+  };
+  await rejects(
+    exams.saveHealthExam(campaignId, 'ch_031', filledPayload(known, flat, { reason }), teacher),
+    422,
+    'exam.conclusion.issueKind',
+  );
+  const stable = await exams.saveHealthExam(
+    campaignId,
+    'ch_031',
+    filledPayload(known, { ...flat, issueKind: 'KNOWN' }, { reason }),
+    teacher,
+  );
+  assert.equal(stable.measurement.followUpLevel, 'KNOWN_STABLE');
+  assert.equal(followUpOf('ch_031'), undefined, 'không mở phiếu');
+  const detail = await checks.getHealthCheck(campaignId, PRINCIPAL);
+  assert.ok(!detail.watchList.some((r) => r.childId === 'ch_031'), 'vấn đề đã biết không vào tab Trẻ cần theo dõi');
   assert.equal(detail.campaign.progress.byConclusion.ISSUE >= 1, true, 'vẫn đếm là có vấn đề sức khỏe');
   // Chuyển khám: không hỏi câu này, mở phiếu như hiện nay.
   const referral = await conclude(campaign.id, 'ch_029', TUAN, {
@@ -314,5 +361,5 @@ test('AC-12: DB cũ chưa có cờ newFinding được gắn khi nâng cấp', a
   ensureChildRecordsSeeded();
   const f = followUpOf('ch_019');
   assert.equal(f.history.find((x) => x.action === 'MEASUREMENT_ADDED').newFinding, false);
-  assert.equal(readDb().healthSeedVersion, 9);
+  assert.equal(readDb().healthSeedVersion, 10);
 });

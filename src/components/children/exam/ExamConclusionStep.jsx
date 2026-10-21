@@ -209,18 +209,29 @@ function FollowUpConclusionFields({ c, set, setMany, errors, disabled }) {
   );
 }
 
-/** Mẫu thường (Phụ lục II): Kết luận và Hướng xử lý; có vấn đề không chuyển khám thì hỏi vấn đề mới hay đã biết. */
-function StandardConclusionFields({ c, set, setMany, errors, disabled }) {
+/**
+ * Mẫu thường (Phụ lục II): Kết luận và Hướng xử lý. Có nguy cơ lao hoặc có vấn đề thì ẩn "Không cần tư vấn hay chuyển khám";
+ * câu "Vấn đề này" chỉ hỏi khi trẻ có vấn đề đã biết (knownCondition BE trả) (user chốt 2026-10-21).
+ */
+function StandardConclusionFields({ c, set, setMany, errors, disabled, knownCondition }) {
   // "Bình thường" không chọn cùng 2 kết luận còn lại: đã tích lao hoặc có vấn đề thì khóa "Bình thường", tích 2 ô này thì tự bỏ "Bình thường" (user chốt 2026-10-21).
   const normalLocked = c.tbRisk || c.healthIssue;
   const flagOptions = FLAG_OPTIONS.map((o) => (o.value === 'normal' ? { ...o, disabled: normalLocked } : o));
   const toggleFlag = (key) => {
     if (key === 'normal')
       setMany({ 'exam.conclusion.normal': !c.normal, 'exam.conclusion.tbRisk': false, 'exam.conclusion.healthIssue': false });
-    else setMany({ [`exam.conclusion.${key}`]: !c[key], 'exam.conclusion.normal': false });
+    else
+      setMany({
+        [`exam.conclusion.${key}`]: !c[key],
+        'exam.conclusion.normal': false,
+        // Tích lao/có vấn đề khi đang chọn "Không cần…" thì bỏ chọn để bác sĩ chọn lại.
+        ...(!c[key] && c.action === CONCLUSION_ACTION.NONE ? { 'exam.conclusion.action': '' } : {}),
+      });
   };
+  const needsAction = c.tbRisk || c.healthIssue;
+  const actionOptions = needsAction ? ACTION_OPTIONS.filter((o) => o.value !== CONCLUSION_ACTION.NONE) : ACTION_OPTIONS;
   const flags = CONCLUSION_FLAGS.filter((f) => c[f.key]).map((f) => f.key);
-  const asksKind = c.healthIssue && !c.tbRisk && c.action !== CONCLUSION_ACTION.REFERRAL;
+  const asksKind = !!knownCondition && c.healthIssue && !c.tbRisk && c.action !== CONCLUSION_ACTION.REFERRAL;
   return (
     <>
       <ExamCheckGroup
@@ -248,10 +259,11 @@ function StandardConclusionFields({ c, set, setMany, errors, disabled }) {
         <ExamChoiceField
           name="conclusion-action"
           label="Cần được tư vấn/chuyển khám chuyên khoa"
-          options={ACTION_OPTIONS}
+          options={actionOptions}
           value={c.action}
           onChange={(v) => set('exam.conclusion.action', v)}
           error={errors['exam.conclusion.action']}
+          hint={needsAction ? 'Có nguy cơ lao hoặc có vấn đề sức khỏe: chọn Tư vấn hoặc Chuyển khám chuyên khoa.' : undefined}
           disabled={disabled}
         />
       </div>
@@ -264,7 +276,7 @@ function StandardConclusionFields({ c, set, setMany, errors, disabled }) {
             value={c.issueKind}
             onChange={(v) => set('exam.conclusion.issueKind', v)}
             error={errors['exam.conclusion.issueKind']}
-            hint="Vấn đề đã biết, không thay đổi (ví dụ cận thị đang đeo kính) thì trẻ không mang nhãn Cần theo dõi."
+            hint={`Trẻ có vấn đề đã biết: ${knownCondition}. Vấn đề lần này là vấn đề đó và không thay đổi thì trẻ không mang nhãn Cần theo dõi.`}
             disabled={disabled}
           />
         </div>
@@ -301,7 +313,7 @@ function StandardConclusionFields({ c, set, setMany, errors, disabled }) {
 
 /**
  * Bước 5 — Kết luận và tư vấn: nhập đúng lời bác sĩ. Mức theo dõi theo kết luận này (user chốt 2026-10-17).
- * mode do BE chọn (CONCLUSION_MODE); openFollowUp: phiếu theo dõi đang mở của trẻ (BE trả).
+ * mode do BE chọn (CONCLUSION_MODE); openFollowUp: phiếu theo dõi đang mở của trẻ; knownCondition: vấn đề đã biết (BE trả).
  */
 export function ExamConclusionStep({
   form,
@@ -315,6 +327,7 @@ export function ExamConclusionStep({
   disabled,
   mode,
   openFollowUp,
+  knownCondition,
 }) {
   const c = form.exam.conclusion;
   const listId = useId();
@@ -337,7 +350,11 @@ export function ExamConclusionStep({
           <Info size={18} />
           <div>Ghi đúng lời bác sĩ đã kết luận và đã nói với người đi cùng trẻ. Hệ thống không tự kết luận.</div>
         </div>
-        {mode === CONCLUSION_MODE.FOLLOW_UP ? <FollowUpConclusionFields {...fieldProps} /> : <StandardConclusionFields {...fieldProps} />}
+        {mode === CONCLUSION_MODE.FOLLOW_UP ? (
+          <FollowUpConclusionFields {...fieldProps} />
+        ) : (
+          <StandardConclusionFields {...fieldProps} knownCondition={knownCondition} />
+        )}
         <div className="grid-2 mt-12">
           <FormField label="Bác sĩ kết luận" required error={errors['exam.conclusion.doctorName']} hint="Họ tên bác sĩ ký phiếu">
             <input

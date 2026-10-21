@@ -68,7 +68,6 @@ const EXAM_CASES = {
     conclusion: {
       normal: false,
       healthIssue: true,
-      issueKind: 'NEW',
       issueText: 'Răng có mảng bám, vài vết sâu nhỏ; thở nhanh khi khám.',
       action: 'ADVICE',
       adviceText: 'Cho trẻ đánh răng 2 lần mỗi ngày, hạn chế đồ ngọt buổi tối; theo dõi nhịp thở khi trẻ ốm.',
@@ -192,7 +191,6 @@ const EXAM_CASES = {
     conclusion: {
       normal: false,
       healthIssue: true,
-      issueKind: 'NEW',
       issueText: 'Thừa cân so với tuổi.',
       action: 'ADVICE',
       adviceText: 'Giảm đồ ngọt, nước ngọt; tăng vận động ngoài trời mỗi ngày.',
@@ -214,7 +212,8 @@ const EXAM_CASES = {
       healthIssue: true,
       issueKind: 'KNOWN',
       issueText: 'Cận thị – đeo kính, nhìn rõ khi đeo kính.',
-      action: 'NONE',
+      action: 'ADVICE',
+      adviceText: 'Đeo kính đúng số; khám mắt định kỳ theo hẹn.',
     },
   },
   ch_021: {
@@ -255,7 +254,6 @@ const EXAM_CASES = {
     conclusion: {
       normal: false,
       healthIssue: true,
-      issueKind: 'NEW',
       issueText: 'Chảy nước mũi, nghẹt mũi.',
       action: 'ADVICE',
       adviceText: 'Vệ sinh mũi bằng nước muối sinh lý; giữ ấm khi trời lạnh.',

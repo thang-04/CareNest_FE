@@ -86,7 +86,8 @@ const nowIso = () => new Date().toISOString();
 // v7: phiếu khám có người đi cùng tự công bố khi lưu kết luận.
 // v8: hành chính, tiền sử hỏi khi tiếp nhận (vài trẻ demo có sẵn).
 // v9: khám trẻ đang có phiếu theo dõi (mẫu FOLLOW_UP), vấn đề đã biết, kết quả khi đóng phiếu.
-const HEALTH_SEED_VERSION = 9;
+// v10: có nguy cơ lao/có vấn đề thì không "Không cần tư vấn hay chuyển khám"; "Vấn đề này" chỉ hỏi trẻ có vấn đề đã biết.
+const HEALTH_SEED_VERSION = 10;
 const SEED_MANAGED_FIELDS = ['headCircumferenceCm', 'grossMotor', 'fineMotor', 'campaignId', 'note', 'exam', 'examStatus'];
 
 // Dữ liệu demo lưu bằng seed cũ: cập nhật bản ghi seed chưa bị sửa, thêm bản ghi seed còn thiếu; không xóa gì.
@@ -290,6 +291,9 @@ const findChild = (db, id) => {
  *   Không ghi nhận bất thường; chuyên khoa xác định có vấn đề ⇒ Vấn đề đã biết, ổn định); trùng ngày lấy phiếu đóng.
  * Phiếu nháp, cân đo ngoài đợt không đánh giá lại nên bỏ qua; đóng "không có kết quả chuyên khoa" giữ mức lần khám.
  */
+/** Vấn đề đã biết của trẻ (phiếu theo dõi đóng "chuyên khoa xác định có vấn đề" hoặc lần khám "vấn đề đã biết"), hoặc null. */
+export const knownConditionOf = (db, child) => latestHealthOf(db, child)?.knownCondition || null;
+
 const latestHealthOf = (db, child) => {
   const O = FOLLOW_UP_CLOSE_OUTCOME;
   const latest = (db.healthMeasurements || [])

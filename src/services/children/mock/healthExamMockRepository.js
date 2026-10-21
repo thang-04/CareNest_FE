@@ -34,6 +34,7 @@ import {
   ensureChildRecordsSeeded,
   ensureDeclarationOf,
   isExamDraft,
+  knownConditionOf,
   notifyTbContactDateChanged,
   profileChanges,
   toMeasurementView,
@@ -189,7 +190,7 @@ const pick = (template, raw, max) =>
   Object.fromEntries(Object.keys(template).map((k) => [k, typeof template[k] === 'string' ? str(raw?.[k], max) : template[k]]));
 
 /** Kết luận chỉ giữ ô của mẫu đang dùng (thường hoặc FOLLOW_UP). */
-const cleanConclusion = (c, mode) => {
+const cleanConclusion = (c, mode, knownCondition) => {
   const base = {
     tbRisk: !!c.tbRisk,
     issueText: str(c.issueText, EXAM_FIELD_LIMITS.note),
@@ -212,8 +213,8 @@ const cleanConclusion = (c, mode) => {
     };
   }
   const action = str(c.action);
-  // Câu "mới hay đã biết" chỉ có nghĩa khi có vấn đề mà không chuyển khám, không nguy cơ lao.
-  const asksKind = !!c.healthIssue && !c.tbRisk && action !== CONCLUSION_ACTION.REFERRAL;
+  // Câu "mới hay đã biết" chỉ hỏi trẻ có vấn đề đã biết, có vấn đề mà không chuyển khám, không nguy cơ lao (user chốt 2026-10-21).
+  const asksKind = !!knownCondition && !!c.healthIssue && !c.tbRisk && action !== CONCLUSION_ACTION.REFERRAL;
   return {
     ...base,
     normal: !!c.normal,
@@ -224,7 +225,7 @@ const cleanConclusion = (c, mode) => {
   };
 };
 
-const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD }) => {
+const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD, knownCondition = null }) => {
   const t = buildEmptyExam();
   const r = raw || {};
   const num = (v, digits) => (concluded ? roundTo(v, digits) : isBlank(v) ? '' : String(v).slice(0, 10));
@@ -270,7 +271,7 @@ const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD }) => 
     development,
     immunization: pick(t.immunization, r.immunization),
     clinical: pick(t.clinical, r.clinical),
-    conclusion: cleanConclusion(c, mode),
+    conclusion: cleanConclusion(c, mode, knownCondition),
   };
 };
 
@@ -369,6 +370,8 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
   return {
     // Mẫu kết luận do BE chọn; UI chỉ vẽ theo (user chốt 2026-10-21).
     conclusionMode: conclusionModeOf(m, openCase),
+    // Vấn đề đã biết của trẻ: có thì mẫu thường hỏi "Vấn đề này" mới hay đã biết (user chốt 2026-10-21).
+    knownCondition: knownConditionOf(db, child),
     // Phiếu theo dõi đang mở (không phải phiếu do chính phiếu khám này mở), để bác sĩ thấy trước khi kết luận.
     openFollowUp: openCase && !openCase.measurementIds.includes(m?.id) ? openFollowUpBriefOf(db, openCase) : null,
     campaign: {
@@ -471,7 +474,8 @@ export const healthExamMockRepository = {
     const mode = conclusionModeOf(m, openFollowUpOfChild(db, childId));
     if (payload.conclude && payload.conclusionMode && payload.conclusionMode !== mode)
       throw new ApiError(409, 'Phiếu theo dõi của trẻ vừa thay đổi nên mẫu kết luận đã đổi. Tải lại phiếu khám rồi lưu lại.');
-    const exam = cleanExam(payload.exam, reference, { concluded: !!payload.conclude, mode });
+    const knownCondition = knownConditionOf(db, child);
+    const exam = cleanExam(payload.exam, reference, { concluded: !!payload.conclude, mode, knownCondition });
 
     if (payload.conclude) {
       const errors = validateHealthExam(
@@ -482,6 +486,7 @@ export const healthExamMockRepository = {
           reference,
           requireReason: concluded,
           conclusionMode: mode,
+          knownCondition,
         },
       );
       if (db.healthMeasurements.some((x) => x.childId === childId && x.date === date && x.id !== m?.id))

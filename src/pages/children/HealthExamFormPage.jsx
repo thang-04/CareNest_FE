@@ -388,6 +388,7 @@ export default function HealthExamFormPage() {
       reference: view.reference,
       requireReason: concluded,
       conclusionMode: view.conclusionMode,
+      knownCondition: view.knownCondition,
     });
     if (hasErrors(errs)) {
       setErrors(errs);
@@ -645,6 +646,7 @@ export default function HealthExamFormPage() {
             requireReason={concluded}
             mode={view.conclusionMode}
             openFollowUp={view.openFollowUp}
+            knownCondition={view.knownCondition}
           />
         )}
         {step === 4 &&
