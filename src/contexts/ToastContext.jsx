@@ -1,6 +1,10 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { CheckCircle2, AlertTriangle, Info, XCircle, X } from '@/components/ui/icons';
 import { toastContent, toastStatusText } from '@/utils/toastStatus';
+import { LottiePlayer } from '@/components/ui/LottiePlayer';
+
+// Toast thành công: dấu tick vẽ nét chạy một lần (user chọn 2026-10-21); chưa tải xong thì icon tĩnh như các loại khác
+const loadCheckmark = () => import('@/assets/lottie/checkmark.json');
 
 const ToastContext = createContext(null);
 
@@ -52,7 +56,11 @@ export function ToastProvider({ children }) {
           return (
             <div key={t.id} className={`toast toast--${t.type} ${t.leaving ? 'toast--leaving' : ''}`}>
               <span className="toast__icon" aria-hidden="true">
-                <Icon size={18} />
+                {t.type === 'success' ? (
+                  <LottiePlayer load={loadCheckmark} loop={false} className="toast__check" fallback={<Icon size={18} />} />
+                ) : (
+                  <Icon size={18} />
+                )}
               </span>
               <div className="toast__body">
                 <div className="toast__status">{t.status}</div>

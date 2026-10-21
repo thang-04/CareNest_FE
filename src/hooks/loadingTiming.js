@@ -33,8 +33,8 @@ export const holdLoading = (startedAt) => {
   return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
 };
 
-// Lớp phủ AI hiện ngay khi bấm và giữ tối thiểu AI_MIN_VISIBLE_MS để hiệu ứng chạy trọn (user chốt 2026-10-20).
-export const AI_MIN_VISIBLE_MS = 1200;
+// Lớp phủ AI hiện ngay khi bấm và giữ tối thiểu AI_MIN_VISIBLE_MS để kịp thấy hoạt hình (user chốt 2 s, 2026-10-21).
+export const AI_MIN_VISIBLE_MS = 2000;
 
 export const aiHoldMs = (elapsed) => Math.max(0, AI_MIN_VISIBLE_MS - elapsed);
 

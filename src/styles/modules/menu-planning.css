@@ -1492,6 +1492,16 @@
   white-space: nowrap;
 }
 
+/* "+ Thêm" là <select> gốc trông như link: bấm một lần mở danh sách món của trình duyệt */
+.td-week__add-select {
+  appearance: none;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+.td-week__add-select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
 .td-week__pick-empty {
   display: block;
   margin-top: var(--space-1);

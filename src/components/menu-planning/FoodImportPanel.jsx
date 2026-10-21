@@ -7,6 +7,9 @@ import { SidePanel } from '@/components/ui/SidePanel';
 import { Spinner } from '@/components/ui/States';
 import { IMPORT_TEMPLATE_URL, importFieldLabel, matchFoodRows, readFoodFile } from '@/utils/menu-planning/foodImport';
 import { FOOD_GROUP_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { LottiePlayer } from '@/components/ui/LottiePlayer';
+
+const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
 
 /** Nhập khẩu cập nhật thực phẩm từ file .xlsx: tải file mẫu → chọn file → xem trước Mới / Cập nhật / Lỗi → ghi các dòng hợp lệ. */
 export function FoodImportPanel({ open, onClose, foods }) {
@@ -89,6 +92,7 @@ export function FoodImportPanel({ open, onClose, foods }) {
               <Upload size={15} /> Chọn file
               <input type="file" accept=".xlsx" className="sr-only" onChange={pick} />
             </label>
+            {reading && <LottiePlayer load={loadDocumentScan} speed={0.6} className="import-reading import-reading--inline" />}
             <span className="text-sm muted">{reading ? 'Đang đọc file…' : fileName || 'Chưa chọn file'}</span>
           </div>
         </li>
