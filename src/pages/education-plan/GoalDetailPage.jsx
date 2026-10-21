@@ -72,9 +72,13 @@ export default function GoalDetailPage() {
   const isOwner = !g.owner || g.owner.userId === user.id;
   const draftLike = editable(g.status);
   const pending = g.status === EDU_STATUS.PENDING_VP;
-  const canEditNow = (draftLike && isOwner && (isVp || isLeader)) || (pending && isVp);
-  const canSend = draftLike && isOwner && isLeader;
-  const canIssue = isVp && (pending || (draftLike && isOwner));
+  // API thật: BE trả quyền của người xem (permissions); mock chưa có thì tự suy như cũ
+  const perm = g.permissions;
+  const canEditNow = perm ? perm.canEdit : (draftLike && isOwner && (isVp || isLeader)) || (pending && isVp);
+  const canSend = perm ? perm.canSubmit : draftLike && isOwner && isLeader;
+  const canIssue = perm ? perm.canIssue : isVp && (pending || (draftLike && isOwner));
+  const canReturn = perm ? perm.canReturn : isVp && pending;
+  const canDelete = perm ? perm.canDelete : isOwner && (isVp || isLeader) && g.status === EDU_STATUS.DRAFT;
 
   const open = (kind) => {
     setNote('');
@@ -116,7 +120,7 @@ export default function GoalDetailPage() {
             <button className="btn btn--ghost" onClick={() => printYearPlan(plan, numbers) || toast(POPUP_BLOCKED, 'warn')}>
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
-            {isOwner && (isVp || isLeader) && g.status === EDU_STATUS.DRAFT && (
+            {canDelete && (
               <button className="btn btn--outline-danger" onClick={() => setModal('delete')}>
                 <Trash2 size={16} aria-hidden /> Xóa
               </button>
@@ -131,7 +135,7 @@ export default function GoalDetailPage() {
                 <Send size={16} aria-hidden /> Gửi Phó HT duyệt
               </button>
             )}
-            {isVp && pending && (
+            {canReturn && (
               <button className="btn btn--outline-primary" onClick={() => open('reject')}>
                 <Undo2 size={16} aria-hidden /> Trả lại
               </button>

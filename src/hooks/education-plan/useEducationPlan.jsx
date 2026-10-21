@@ -135,7 +135,30 @@ export function EducationPlanProvider({ children }) {
       schoolYears: schoolYears.map((y) => toEduYear(y.id)),
       setYear: (label) => setSchoolYear(fromEduYear(label)),
       historyEntry: (action, extra = {}) => ({ action, by: user.name, role: ROLE_LABELS[user.role], at: now(), tone: '', ...extra }),
-      saveGoal: saveIn('goals', service.saveGoal),
+      // Trả bản đã lưu (API thật: id do BE cấp, thay bản tạm cùng id cũ); lỗi thì báo, nạp lại và trả null
+      saveGoal: async (item) => {
+        setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, item) } : prev));
+        try {
+          const res = await service.saveGoal(item);
+          const saved = res?.id ? res : item;
+          setData((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  goals: upsert(
+                    prev.goals.filter((g) => g.id !== item.id || g.id === saved.id),
+                    saved,
+                  ),
+                }
+              : prev,
+          );
+          return saved;
+        } catch (err) {
+          toastApi.error(err.message, 'Không lưu được');
+          reload({ silent: true });
+          return null;
+        }
+      },
       deleteGoal: deleteIn('goals', service.deleteGoal),
       saveTheme: saveIn('themes', service.saveTheme),
       deleteTheme: deleteIn('themes', service.deleteTheme),

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Check, FileDown, Plus, Printer, Send, Undo2 } from '@/components/ui/icons';
+import { Check, FileDown, Plus, Printer, Save, Send, Undo2 } from '@/components/ui/icons';
 import { Card, EduStatusBadge, Field, Modal, Notice, PageHead, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { isMyReviewTurn, useClassPlanContext } from '@/components/education-plan/planUi';
 import { ThemePlanBody, themeRowOf } from '@/components/education-plan/ThemePlanBody';
@@ -8,6 +8,8 @@ import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useLeaveGuard } from '@/hooks/education-plan/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/education-plan/LeaveConfirmModal';
 import { mtList, numberGoals } from '@/models/education-plan/goalTable';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
@@ -31,7 +33,6 @@ import {
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
 
 const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
-const AUTOSAVE_MS = 1200;
 const anchor = (key) => `dossier-${key}`;
 // Cuộn tới phần cần xem, chừa chỗ cho thanh nhảy nhanh đang dính đầu trang
 const scrollToPart = (key, behavior = 'smooth') => {
@@ -46,7 +47,7 @@ const scrollToPart = (key, behavior = 'smooth') => {
 
 /**
  * Hồ sơ chủ đề theo file MN Thái Dương, hiện liền một tập như file Word: kế hoạch giáo dục chủ đề → từng chủ đề nhánh
- * (kế hoạch tuần + 5 kế hoạch ngày). Thanh nhảy nhanh tới chủ đề / tuần / ngày; giáo viên sửa ngay trong tập (tự lưu).
+ * (kế hoạch tuần + 5 kế hoạch ngày). Thanh nhảy nhanh tới chủ đề / tuần / ngày; giáo viên sửa ngay trong tập, bấm Lưu hoặc Ctrl+S.
  * Gửi một lần; Tổ trưởng rồi Phó HT duyệt hoặc trả lại cả hồ sơ ở cuối trang; đã duyệt thì in ra ký tay.
  */
 export default function ThemeDossierPage() {
@@ -69,13 +70,14 @@ function DossierInner({ classId, themeId }) {
   const blocks = yearPlan && theme ? themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId) : [];
   const goals = blocks.flatMap((b) => b.goals);
 
-  // Tự lưu các phần vừa sửa sau khi ngừng gõ (một lần cho mỗi tài liệu đã đổi)
+  // Lưu các phần vừa sửa khi bấm Lưu / Ctrl+S (một lần cho mỗi tài liệu đã đổi); trả true khi lưu hết
   latest.current = { edits, goals };
   const flush = async () => {
     const { edits: pending, goals: gs } = latest.current;
     const keys = Object.keys(pending);
-    if (!keys.length) return;
+    if (!keys.length) return true;
     setSaving(true);
+    let ok = true;
     for (const key of keys) {
       const doc = pending[key];
       const res =
@@ -84,15 +86,31 @@ function DossierInner({ classId, themeId }) {
           : await saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) });
       // Bỏ bản sửa khi đã lưu và không bị sửa thêm trong lúc lưu
       if (res) setEdits((e) => (e[key] === doc ? Object.fromEntries(Object.entries(e).filter(([k]) => k !== key)) : e));
+      else ok = false;
     }
     setSaving(false);
+    return ok;
   };
+  const hasEdits = Object.keys(edits).length > 0;
   useEffect(() => {
-    if (!Object.keys(edits).length) return undefined;
-    const t = setTimeout(flush, AUTOSAVE_MS);
-    return () => clearTimeout(t);
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        flush();
+      }
+    };
+    const warn = (e) => {
+      if (Object.keys(latest.current.edits).length) e.preventDefault();
+    };
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('beforeunload', warn);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('beforeunload', warn);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edits]);
+  }, []);
+  const guard = useLeaveGuard({ when: hasEdits, onSave: flush });
 
   // Mở bằng ?week=… thì nhảy tới tuần đó
   useEffect(() => {
@@ -182,7 +200,20 @@ function DossierInner({ classId, themeId }) {
         desc={<EduStatusBadge status={status} size="lg" />}
         actions={
           <>
-            {editable && <span className="muted text-sm">{unsaved ? 'Đang lưu…' : 'Tự lưu khi bạn sửa'}</span>}
+            {editable && (
+              <>
+                <span className="muted text-sm">{saving ? 'Đang lưu…' : hasEdits ? 'Có thay đổi chưa lưu' : ''}</span>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  onClick={flush}
+                  disabled={saving || !hasEdits}
+                  title="Lưu (Ctrl+S)"
+                >
+                  <Save size={16} aria-hidden /> Lưu
+                </button>
+              </>
+            )}
             <button type="button" className="btn btn--ghost" onClick={() => exportThemeFile(exportArgs, 'doc')}>
               <FileDown size={16} aria-hidden /> Xuất Word
             </button>
@@ -317,6 +348,7 @@ function DossierInner({ classId, themeId }) {
 
       {/* Dải nút dính đáy màn: giáo viên gửi duyệt; người đến lượt duyệt thì Trả lại / Duyệt */}
       {themeDoc && <DossierActions doc={themeDoc} ctx={ctx} user={user} dirty={unsaved} />}
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

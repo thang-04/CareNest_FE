@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { FileDown, Printer } from '@/components/ui/icons';
+import { Link, useParams } from 'react-router-dom';
+import { FileDown, Printer, Save } from '@/components/ui/icons';
 import { Card, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { useAutosave } from '@/hooks/education-plan/useAutosave';
+import { useManualSave } from '@/hooks/education-plan/useManualSave';
+import { useLeaveGuard } from '@/hooks/education-plan/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/education-plan/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import {
@@ -34,7 +36,6 @@ export default function ClassThemePlanPage() {
 
 function ThemePlanInner() {
   const { classId, themeId } = useParams();
-  const navigate = useNavigate();
   const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, toast } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, isClassTeacher } = ctx;
@@ -43,9 +44,8 @@ function ThemePlanInner() {
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
 
-  // Không còn nút Lưu: tự lưu như trang chủ đề nhánh. Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung
-  // dù kế hoạch năm đổi sau này
-  const autosave = useAutosave({
+  // Lưu tay (nút Lưu, Ctrl+S). Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
+  const saver = useManualSave({
     doc: draft,
     enabled: isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT),
     save: (doc) => {
@@ -55,11 +55,16 @@ function ThemePlanInner() {
     onSaved: (same) => same && setDirty(false),
   });
 
+  const guard = useLeaveGuard({
+    when: isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT) && saver.unsaved,
+    onSave: saver.save,
+  });
+
   useEffect(() => {
     if (dirty || !yearPlan) return;
     const doc = saved || emptyThemePlan({ classId, yearPlanId: yearPlan.id, themeId });
     setDraft(doc);
-    autosave.markClean(doc);
+    saver.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.status, saved?.history?.length, yearPlan?.id, classId, themeId]);
 
@@ -135,14 +140,20 @@ function ThemePlanInner() {
             >
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
-            {editable &&
-              (autosave.error ? (
-                <button type="button" className="btn btn--outline-primary" onClick={autosave.retry}>
-                  Chưa lưu được, thử lại
+            {editable && (
+              <>
+                <span className="muted text-sm">{saver.label}</span>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  onClick={saver.save}
+                  disabled={saver.saving || (!saver.unsaved && !saver.error)}
+                  title="Lưu (Ctrl+S)"
+                >
+                  <Save size={16} aria-hidden /> Lưu
                 </button>
-              ) : (
-                <span className="muted text-sm">{autosave.label}</span>
-              ))}
+              </>
+            )}
           </>
         }
       />
@@ -152,9 +163,9 @@ function ThemePlanInner() {
         doc={saved}
         ctx={ctx}
         user={user}
-        dirty={autosave.busy}
+        dirty={saver.unsaved || saver.saving}
         reviewTo={`${base}/themes/${themeId}/review`}
-        onGo={navigate}
+        onGo={guard.leave}
       />
       <Card title="Chủ đề nhánh" bodyClass={null}>
         <div className="card__body">
@@ -174,6 +185,7 @@ function ThemePlanInner() {
         </div>
       </Card>
       <ThemePlanBody yearPlan={yearPlan} themeId={themeId} draft={draft} editable={editable} setRow={setRow} setField={setField} />
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }
