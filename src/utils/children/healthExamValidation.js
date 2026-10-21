@@ -3,11 +3,14 @@ import {
   CLINICAL_ITEMS,
   COMPANION_RELATIONS,
   CONCLUSION_ACTION,
+  CONCLUSION_MODE,
   DEVELOPMENT_ITEMS,
   EXAM_FIELD_LIMITS,
+  FOLLOW_UP_FINDING,
   HEAD_STATUS_OPTIONS,
   HISTORY_ITEMS,
   IMMUNIZATION_ITEMS,
+  ISSUE_KIND,
   NUTRITION_STATUS,
   NUTRITION_STATUS_OPTIONS,
   VITAL_ITEMS,
@@ -48,11 +51,43 @@ const checkLength = (errors, key, value, max) => {
   if (text(value).length > max) errors[key] = `Tối đa ${max} ký tự`;
 };
 
+/** Kết luận mẫu FOLLOW_UP: 1 câu so với vấn đề đang theo dõi (user chốt 2026-10-21). */
+const validateFollowUpConclusion = (errors, c, L) => {
+  if (!Object.values(FOLLOW_UP_FINDING).includes(c.followUpFinding))
+    errors['exam.conclusion.followUpFinding'] = 'Chọn kết luận của bác sĩ so với vấn đề đang theo dõi';
+  if (c.followUpFinding === FOLLOW_UP_FINDING.ADVICE) {
+    if (!text(c.issueText)) errors['exam.conclusion.issueText'] = 'Ghi rõ vấn đề bác sĩ ghi nhận';
+    if (!text(c.adviceText)) errors['exam.conclusion.adviceText'] = 'Ghi lời tư vấn của bác sĩ';
+  }
+  if (c.followUpFinding === FOLLOW_UP_FINDING.NEW_FINDING && !text(c.issueText))
+    errors['exam.conclusion.issueText'] = 'Ghi rõ bất thường mới bác sĩ ghi nhận';
+  checkLength(errors, 'exam.conclusion.issueText', c.issueText, L.note);
+  checkLength(errors, 'exam.conclusion.adviceText', c.adviceText, L.note);
+  checkLength(errors, 'exam.conclusion.specialty', c.specialty, 150);
+};
+
+const validateStandardConclusion = (errors, c, L) => {
+  if (!c.normal && !c.tbRisk && !c.healthIssue) errors['exam.conclusion.flags'] = 'Chọn kết luận của bác sĩ';
+  else if (c.normal && (c.tbRisk || c.healthIssue)) errors['exam.conclusion.flags'] = '"Bình thường" không chọn cùng các kết luận khác';
+  if (c.healthIssue && !text(c.issueText)) errors['exam.conclusion.issueText'] = 'Ghi rõ vấn đề sức khỏe bác sĩ kết luận';
+  checkLength(errors, 'exam.conclusion.issueText', c.issueText, L.note);
+  if (!Object.values(CONCLUSION_ACTION).includes(c.action)) errors['exam.conclusion.action'] = 'Chọn hướng xử lý bác sĩ đề nghị';
+  // Có vấn đề, không chuyển khám, không nguy cơ lao: bác sĩ nói vấn đề mới hay đã biết, không chọn sẵn (user chốt 2026-10-21).
+  if (c.healthIssue && !c.tbRisk && c.action !== CONCLUSION_ACTION.REFERRAL && !Object.values(ISSUE_KIND).includes(c.issueKind))
+    errors['exam.conclusion.issueKind'] = 'Chọn vấn đề mới hay vấn đề đã biết';
+  if (c.action === CONCLUSION_ACTION.ADVICE && !text(c.adviceText)) errors['exam.conclusion.adviceText'] = 'Ghi lời tư vấn của bác sĩ';
+  checkLength(errors, 'exam.conclusion.adviceText', c.adviceText, L.note);
+  if (c.action === CONCLUSION_ACTION.REFERRAL && !text(c.specialty))
+    errors['exam.conclusion.specialty'] = 'Ghi chuyên khoa bác sĩ đề nghị, ví dụ Mắt';
+  checkLength(errors, 'exam.conclusion.specialty', c.specialty, 150);
+};
+
 /**
  * payload: { date, heightCm, weightKg, headCircumferenceCm, exam, reason }.
- * ctx: { dateOfBirth, campaign: { startDate, endDate }, reference (BE trả: headApplies, autismQuestion), requireReason }.
+ * ctx: { dateOfBirth, campaign: { startDate, endDate }, reference (BE trả: headApplies, autismQuestion), requireReason,
+ *   conclusionMode (BE trả: STANDARD | FOLLOW_UP) }.
  */
-export const validateHealthExam = (payload, { dateOfBirth, campaign, reference, requireReason } = {}) => {
+export const validateHealthExam = (payload, { dateOfBirth, campaign, reference, requireReason, conclusionMode } = {}) => {
   const errors = {};
   const exam = payload.exam || {};
   const a = exam.admin || {};
@@ -154,16 +189,8 @@ export const validateHealthExam = (payload, { dateOfBirth, campaign, reference, 
 
   // Kết luận và tư vấn
   const c = exam.conclusion || {};
-  if (!c.normal && !c.tbRisk && !c.healthIssue) errors['exam.conclusion.flags'] = 'Chọn kết luận của bác sĩ';
-  else if (c.normal && (c.tbRisk || c.healthIssue)) errors['exam.conclusion.flags'] = '"Bình thường" không chọn cùng các kết luận khác';
-  if (c.healthIssue && !text(c.issueText)) errors['exam.conclusion.issueText'] = 'Ghi rõ vấn đề sức khỏe bác sĩ kết luận';
-  checkLength(errors, 'exam.conclusion.issueText', c.issueText, L.note);
-  if (!Object.values(CONCLUSION_ACTION).includes(c.action)) errors['exam.conclusion.action'] = 'Chọn hướng xử lý bác sĩ đề nghị';
-  if (c.action === CONCLUSION_ACTION.ADVICE && !text(c.adviceText)) errors['exam.conclusion.adviceText'] = 'Ghi lời tư vấn của bác sĩ';
-  checkLength(errors, 'exam.conclusion.adviceText', c.adviceText, L.note);
-  if (c.action === CONCLUSION_ACTION.REFERRAL && !text(c.specialty))
-    errors['exam.conclusion.specialty'] = 'Ghi chuyên khoa bác sĩ đề nghị, ví dụ Mắt';
-  checkLength(errors, 'exam.conclusion.specialty', c.specialty, 150);
+  if (conclusionMode === CONCLUSION_MODE.FOLLOW_UP) validateFollowUpConclusion(errors, c, L);
+  else validateStandardConclusion(errors, c, L);
   if (!text(c.doctorName)) errors['exam.conclusion.doctorName'] = 'Nhập họ tên bác sĩ kết luận';
   else checkLength(errors, 'exam.conclusion.doctorName', c.doctorName, L.short);
 

@@ -64,8 +64,10 @@ export const MotorResultBadge = createStatusBadge(
   MOTOR_RESULT_LABELS,
 );
 
+// Vấn đề đã biết, ổn định là nhãn thông tin (teal), không phải cảnh báo (user chốt 2026-10-21).
 const FOLLOW_UP_STYLE = {
   NONE: ['green', CheckCircle2],
+  KNOWN_STABLE: ['teal', Info],
   WATCH: ['orange', Eye],
   CLOSE_WATCH: ['red', AlertTriangle],
   UNAVAILABLE: ['gray', MinusCircle],
@@ -133,13 +135,16 @@ export const ChildResultBadge = createStatusBadge(
   CHILD_RESULT_STATUS_LABELS,
 );
 
-/* Kết luận bác sĩ (BE trả nhóm): chuyển khám, nguy cơ lao = cần xử lý (red); có vấn đề, tư vấn = cần để ý (orange). */
+/* Kết luận bác sĩ (BE trả nhóm): chuyển khám, nguy cơ lao, bất thường mới khi đang theo dõi = cần xử lý (red);
+   có vấn đề, tư vấn = cần để ý (orange); đang theo dõi, chưa ghi nhận thêm = đang thực hiện (blue). */
 export const ConclusionCategoryBadge = createStatusBadge(
   {
     NORMAL: ['green', CheckCircle2],
     ISSUE: ['orange', Eye],
     REFERRAL: ['red', AlertTriangle],
     TB_RISK: ['red', ShieldAlert],
+    FOLLOWING_NO_NEW: ['blue', Eye],
+    FOLLOWING_NEW: ['red', AlertTriangle],
   },
   CONCLUSION_CATEGORY_LABELS,
 );

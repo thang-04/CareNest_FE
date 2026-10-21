@@ -5,11 +5,12 @@ import { FOLLOW_UP_LEVEL } from '@/models/children/childrenConstants';
 import {
   CAMPAIGN_STATUS,
   CHILD_RESULT_STATUS,
+  FOLLOW_UP_CLOSE_OUTCOME,
   FOLLOW_UP_FIELD_LIMITS,
   FOLLOW_UP_STATUS,
   HEALTH_CHECK_FIELD_LIMITS,
 } from '@/models/children/healthCheckConstants';
-import { formatDate } from '@/utils/format';
+import { formatDate, localDateOf } from '@/utils/format';
 import { uid } from '@/utils/id';
 import { hasErrors, validateFollowUpAction, validateHealthCheck } from '@/utils/children/childrenValidation';
 import {
@@ -21,8 +22,22 @@ import {
   teachesClass,
 } from '@/utils/children/childrenPermissions';
 import { CONCLUSION_CATEGORY, EXAM_STATUS } from '@/models/children/healthExamForm';
-import { ensureChildRecordsSeeded, isExamDraft } from './childrenMockRepository';
-import { campaignStatusOf, followUpBrief, followUpState, isOpenForEntry, latestExternalOf, unclosedCampaignOf } from './healthCheckRule';
+import {
+  KNOWN_CONDITION_HISTORY_MAX,
+  ensureChildRecordsSeeded,
+  isExamDraft,
+  recordKnownCondition,
+  selfHistoryWith,
+} from './childrenMockRepository';
+import {
+  campaignStatusOf,
+  followUpBrief,
+  followUpState,
+  isOpenForEntry,
+  latestExternalOf,
+  notedMeasurementIds,
+  unclosedCampaignOf,
+} from './healthCheckRule';
 import { screenMeasurement } from './healthScreeningRule';
 
 /*
@@ -81,8 +96,37 @@ export const conclusionBrief = (m) => {
         action: c.action,
         adviceText: c.adviceText || '',
         specialty: c.specialty || '',
+        issueKind: c.issueKind || '',
+        followUpFinding: c.followUpFinding || '',
       }
     : null;
+};
+
+/** Kết quả mới nhất trong phiếu đã mở vòng (lần khám không có bất thường mới không phải đề nghị chuyển khám). */
+const referralExamOf = (db, f) => {
+  const noted = notedMeasurementIds(f);
+  return (
+    f.measurementIds
+      .map((id) => db.healthMeasurements.find((m) => m.id === id))
+      .filter((m) => m && conclusionBrief(m) && !noted.has(m.id))
+      .sort((a, b) => b.date.localeCompare(a.date))[0] || null
+  );
+};
+
+const tbRiskOf = (db, f) => f.measurementIds.some((id) => conclusionBrief(db.healthMeasurements.find((m) => m.id === id))?.tbRisk);
+
+/** Phiếu đang mở của trẻ cho bước Kết luận của phiếu khám (D1): chuyên khoa đề nghị gần nhất, kết quả chuyên khoa gần nhất. */
+export const openFollowUpBriefOf = (db, f) => {
+  const referral = referralExamOf(db, f);
+  const brief = conclusionBrief(referral);
+  return {
+    ...followUpBrief(f),
+    openedOn: f.history.find((e) => e.action === 'OPENED')?.examOn || localDateOf(f.openedAt),
+    tbRisk: tbRiskOf(db, f),
+    referral: referral
+      ? { date: referral.date, issueText: brief.issueText, specialty: brief.specialty, adviceText: brief.adviceText }
+      : null,
+  };
 };
 
 const resultStatusOf = (m, campaignStatus) => {
@@ -221,6 +265,24 @@ const canSeeFollowUp = (db, user, f) => {
   return teachesClass(cls, user);
 };
 
+/**
+ * Kết quả đóng phiếu chọn được (user chốt 2026-10-21): "bác sĩ kết luận bình thường" cần kết quả chuyên khoa hoặc lần khám sau
+ * ngày mở phiếu; "chuyên khoa xác định có vấn đề" cần kết quả chuyên khoa; "không có kết quả chuyên khoa" luôn chọn được.
+ */
+const closeOutcomeOptionsOf = (db, f, child) => {
+  const O = FOLLOW_UP_CLOSE_OUTCOME;
+  const hasExternal = (f.history || []).some((e) => e.action === 'EXTERNAL_RESULT');
+  const openedOn = f.history.find((e) => e.action === 'OPENED')?.examOn || localDateOf(f.openedAt);
+  const examAfter = db.healthMeasurements.some(
+    (m) =>
+      m.childId === f.childId &&
+      m.date > openedOn &&
+      !isExamDraft(m) &&
+      screenMeasurement(m, child.dateOfBirth).followUpLevel !== FOLLOW_UP_LEVEL.UNAVAILABLE,
+  );
+  return [...(hasExternal || examAfter ? [O.DOCTOR_NORMAL] : []), ...(hasExternal ? [O.KNOWN_CONDITION] : []), O.NO_SPECIALIST_RESULT];
+};
+
 const toFollowUpView = (db, f, user, { full = false } = {}) => {
   const { child, cls } = followUpContext(db, f);
   const { status, round, roundStarts } = followUpState(f);
@@ -249,8 +311,8 @@ const toFollowUpView = (db, f, user, { full = false } = {}) => {
       conclusion: conclusionBrief(m),
     };
   };
-  // Kết luận bác sĩ của kết quả mới nhất có phiếu Phụ lục II trong phiếu theo dõi (chuyên khoa được chuyển, lời dặn).
-  const lastExam = [...measurements].reverse().find((m) => conclusionBrief(m));
+  // Kết luận bác sĩ của kết quả mới nhất đã mở vòng trong phiếu (chuyên khoa được chuyển, lời dặn).
+  const lastExam = referralExamOf(db, f);
   return {
     id: f.id,
     status,
@@ -259,6 +321,9 @@ const toFollowUpView = (db, f, user, { full = false } = {}) => {
     closedAt: f.closedAt,
     closedByName: userName(db, f.closedBy),
     closeReason: f.closeReason,
+    closeOutcome: f.closeOutcome || null,
+    closeConditionText: f.closeConditionText || null,
+    closeOutcomeOptions: canUpdate ? closeOutcomeOptionsOf(db, f, child) : [],
     child: {
       id: child.id,
       fullName: child.fullName,
@@ -278,7 +343,7 @@ const toFollowUpView = (db, f, user, { full = false } = {}) => {
           source: last.sc.source,
         }
       : null,
-    tbRisk: measurements.some((m) => conclusionBrief(m)?.tbRisk),
+    tbRisk: tbRiskOf(db, f),
     referral: lastExam ? { date: lastExam.date, measurementId: lastExam.id, ...conclusionBrief(lastExam) } : null,
     currentRound: round
       ? {
@@ -340,7 +405,7 @@ const updateFollowUp = (id, user, mutate) =>
   writeDb((d) => {
     const target = d.healthFollowUps.find((x) => x.id === id);
     const at = nowIso();
-    mutate(target, at);
+    mutate(target, at, d);
     target.status = followUpState(target).status;
     target.updatedAt = at;
     return toFollowUpView(d, target, user, { full: true });
@@ -597,19 +662,43 @@ export const healthCheckMockRepository = {
     });
   },
 
+  /** body: { outcome, conditionText?, reason }. Kết quả theo lời bác sĩ (user chốt 2026-10-21). */
   async closeFollowUp(id, body, user) {
     await delay();
     const db = ensureChildRecordsSeeded();
     const f = findFollowUp(db, id, user);
     assertUpdate(db, f, user);
+    const { child } = followUpContext(db, f);
+    const O = FOLLOW_UP_CLOSE_OUTCOME;
     const errors = validateFollowUpAction('close', body);
+    if (!errors.outcome && !closeOutcomeOptionsOf(db, f, child).includes(body.outcome))
+      errors.outcome =
+        body.outcome === O.KNOWN_CONDITION
+          ? 'Ghi kết quả khám chuyên khoa vào phiếu trước khi chọn kết quả này'
+          : 'Ghi kết quả khám chuyên khoa, hoặc chờ lần khám sau ngày mở phiếu, trước khi chọn kết quả này';
+    const conditionText = body.outcome === O.KNOWN_CONDITION ? (body.conditionText || '').trim() : null;
+    if (conditionText && !errors.conditionText && selfHistoryWith(db, child.id, conditionText).length > KNOWN_CONDITION_HISTORY_MAX)
+      errors.conditionText = `Tiền sử bản thân của trẻ đã dài; rút gọn tên vấn đề (cả tiền sử tối đa ${KNOWN_CONDITION_HISTORY_MAX} ký tự)`;
     if (hasErrors(errors)) invalid(errors);
     const reason = body.reason.trim().slice(0, FOLLOW_UP_FIELD_LIMITS.reason);
-    return updateFollowUp(id, user, (t, at) => {
-      t.closeReason = reason;
-      t.closedAt = at;
-      t.closedBy = user.id;
-      t.history.push({ at, userId: user.id, action: 'CLOSED', note: reason });
+    return updateFollowUp(id, user, (t, at, d) => {
+      Object.assign(t, {
+        closeReason: reason,
+        closedAt: at,
+        closedBy: user.id,
+        closeOutcome: body.outcome,
+        closeConditionText: conditionText,
+      });
+      t.history.push({
+        at,
+        userId: user.id,
+        action: 'CLOSED',
+        note: reason,
+        outcome: body.outcome,
+        ...(conditionText ? { conditionText } : {}),
+      });
+      if (conditionText)
+        recordKnownCondition(d, t.childId, conditionText, user, `Kết quả đóng phiếu theo dõi ngày ${formatDate(localDateOf(at))}`);
     });
   },
 };

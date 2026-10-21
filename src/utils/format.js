@@ -55,6 +55,12 @@ export const todayInput = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
+/** Ngày địa phương yyyy-mm-dd của một thời điểm ISO (toISOString lệch múi giờ). */
+export const localDateOf = (value) => {
+  const d = new Date(value);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 /** Lower-case and strip Vietnamese accents for search. */
 export const normalizeText = (text) =>
   String(text || '')

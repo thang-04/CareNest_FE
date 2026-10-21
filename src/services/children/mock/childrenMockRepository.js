@@ -12,8 +12,8 @@ import {
   PARENT_ACCOUNT_STATUS,
   SMS_STATUS,
 } from '@/models/children/childrenConstants';
-import { CAMPAIGN_STATUS } from '@/models/children/healthCheckConstants';
-import { EXAM_STATUS } from '@/models/children/healthExamForm';
+import { CAMPAIGN_STATUS, FOLLOW_UP_CLOSE_OUTCOME } from '@/models/children/healthCheckConstants';
+import { EXAM_STATUS, FOLLOW_UP_FINDING } from '@/models/children/healthExamForm';
 import {
   PROFILE_FIELDS,
   PROFILE_FIELD_LABELS,
@@ -21,7 +21,7 @@ import {
   emptyMedicalHistory,
   formatAddress,
 } from '@/models/children/childProfile';
-import { formatDate, normalizeText, todayInput } from '@/utils/format';
+import { formatDate, localDateOf, normalizeText, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 import {
@@ -53,7 +53,9 @@ import {
   closeFollowUpsOfWithdrawnChild,
   dueFollowUpReminders,
   followUpBrief,
+  followUpEffectOf,
   isOpenForEntry,
+  latestExternalOf,
   normalizeFollowUp,
   publishBlockOf,
   toTimelineFollowUp,
@@ -80,7 +82,8 @@ const nowIso = () => new Date().toISOString();
 // v6: đủ trường hợp thử phiếu khám (mọi lớp c1, đợt đã đóng tháng 10 ở c2, phiếu theo dõi nhắc 30 ngày, quá hạn, gộp vòng).
 // v7: phiếu khám có người đi cùng tự công bố khi lưu kết luận.
 // v8: hành chính, tiền sử hỏi khi tiếp nhận (vài trẻ demo có sẵn).
-const HEALTH_SEED_VERSION = 8;
+// v9: khám trẻ đang có phiếu theo dõi (mẫu FOLLOW_UP), vấn đề đã biết, kết quả khi đóng phiếu.
+const HEALTH_SEED_VERSION = 9;
 const SEED_MANAGED_FIELDS = ['headCircumferenceCm', 'grossMotor', 'fineMotor', 'campaignId', 'note', 'exam', 'examStatus'];
 
 // Dữ liệu demo lưu bằng seed cũ: cập nhật bản ghi seed chưa bị sửa, thêm bản ghi seed còn thiếu; không xóa gì.
@@ -130,6 +133,18 @@ const upgradeSeedFollowUps = (d, seedFollowUps) => {
   d.children
     .filter((c) => c.status === CHILD_STATUS.LEFT)
     .forEach((c) => closeFollowUpsOfWithdrawnChild(d, c, c.leftReason || 'không ghi lý do', null));
+  // v9: lần khám mẫu FOLLOW_UP trong phiếu cũ chưa có cờ newFinding ⇒ gắn theo lựa chọn của phiếu khám, tính lại trạng thái.
+  d.healthFollowUps.forEach((f) => {
+    let flagged = false;
+    (f.history || []).forEach((e) => {
+      if (e.action !== 'MEASUREMENT_ADDED' || e.newFinding !== undefined) return;
+      const c = d.healthMeasurements.find((m) => m.id === e.measurementId)?.exam?.conclusion;
+      if (!c?.followUpFinding) return;
+      e.newFinding = c.followUpFinding === FOLLOW_UP_FINDING.NEW_FINDING || !!c.tbRisk;
+      flagged = true;
+    });
+    if (flagged) f.status = normalizeFollowUp(f).status;
+  });
 };
 
 // Hồ sơ trẻ thuộc seed trường: chỉ điền khi chưa có (trẻ người dùng đã sửa giữ nguyên).
@@ -211,18 +226,111 @@ const findChild = (db, id) => {
 };
 
 /**
- * Mức theo dõi hiện tại của trẻ = mức của lần khám gần nhất có xếp mức (phiếu đã kết luận hoặc kết quả mẫu cũ).
- * Phiếu nháp và cân đo ngoài đợt không đánh giá lại nên bỏ qua: trẻ "Cần theo dõi" giữ mức tới lần khám sau.
+ * Mức theo dõi hiện tại của trẻ (user chốt 2026-10-17, 2026-10-21):
+ * - còn phiếu theo dõi mở ⇒ "Cần theo dõi sát" tới khi giáo viên đóng phiếu;
+ * - không còn ⇒ mục mới hơn giữa lần khám gần nhất có xếp mức và phiếu đóng có kết quả theo lời bác sĩ (bình thường ⇒
+ *   Không ghi nhận bất thường; chuyên khoa xác định có vấn đề ⇒ Vấn đề đã biết, ổn định); trùng ngày lấy phiếu đóng.
+ * Phiếu nháp, cân đo ngoài đợt không đánh giá lại nên bỏ qua; đóng "không có kết quả chuyên khoa" giữ mức lần khám.
  */
 const latestHealthOf = (db, child) => {
+  const O = FOLLOW_UP_CLOSE_OUTCOME;
   const latest = (db.healthMeasurements || [])
     .filter((m) => m.childId === child.id && !isExamDraft(m))
     .sort((a, b) => b.date.localeCompare(a.date))
     .map((m) => ({ m, sc: screenMeasurement(m, child.dateOfBirth) }))
     .find(({ sc }) => sc.followUpLevel !== FOLLOW_UP_LEVEL.UNAVAILABLE);
-  if (!latest) return null;
-  const campaign = latest.m.campaignId ? (db.healthCheckCampaigns || []).find((c) => c.id === latest.m.campaignId) : null;
-  return { date: latest.m.date, followUpLevel: latest.sc.followUpLevel, campaignName: campaign?.name || null };
+  const campaign = latest?.m.campaignId ? (db.healthCheckCampaigns || []).find((c) => c.id === latest.m.campaignId) : null;
+  const exam = latest
+    ? {
+        date: latest.m.date,
+        followUpLevel: latest.sc.followUpLevel,
+        campaignName: campaign?.name || null,
+        source: 'EXAM',
+        knownCondition: latest.sc.followUpLevel === FOLLOW_UP_LEVEL.KNOWN_STABLE ? latest.m.exam?.conclusion?.issueText || null : null,
+        resultOn: null,
+        followUpId: null,
+        closedWithoutResultOn: null,
+      }
+    : null;
+  const followUps = (db.healthFollowUps || []).filter((f) => f.childId === child.id);
+  const open = followUps.find((f) => !f.closedAt);
+  if (open)
+    return {
+      date: exam?.date || localDateOf(open.openedAt),
+      campaignName: exam?.campaignName || null,
+      followUpLevel: FOLLOW_UP_LEVEL.CLOSE_WATCH,
+      source: 'FOLLOW_UP_OPEN',
+      knownCondition: null,
+      resultOn: null,
+      followUpId: open.id,
+      closedWithoutResultOn: null,
+    };
+  const byClosed = (a, b) => b.closedAt.localeCompare(a.closedAt);
+  const decided = followUps.filter((f) => f.closeOutcome === O.DOCTOR_NORMAL || f.closeOutcome === O.KNOWN_CONDITION).sort(byClosed)[0];
+  if (decided && (!exam || localDateOf(decided.closedAt) >= exam.date))
+    return {
+      date: localDateOf(decided.closedAt),
+      campaignName: null,
+      followUpLevel: decided.closeOutcome === O.KNOWN_CONDITION ? FOLLOW_UP_LEVEL.KNOWN_STABLE : FOLLOW_UP_LEVEL.NONE,
+      source: 'FOLLOW_UP_CLOSED',
+      knownCondition: decided.closeConditionText || null,
+      resultOn: latestExternalOf(decided)?.on || null,
+      followUpId: decided.id,
+      closedWithoutResultOn: null,
+    };
+  if (!exam) return null;
+  const noResult = followUps
+    .filter((f) => f.closeOutcome === O.NO_SPECIALIST_RESULT && localDateOf(f.closedAt) >= exam.date)
+    .sort(byClosed)[0];
+  return noResult ? { ...exam, followUpId: noResult.id, closedWithoutResultOn: localDateOf(noResult.closedAt) } : exam;
+};
+
+/** Khai báo sức khỏe của trẻ; trẻ chưa có khai báo thì tạo phần trống để Chưa cung cấp (ghi ngược từ phiếu khám, phiếu theo dõi). */
+export const ensureDeclarationOf = (d, childId) => {
+  let decl = declarationOf(d, childId);
+  if (!decl) {
+    decl = {
+      childId,
+      allergies: { state: DECLARATION_STATE.NOT_PROVIDED, items: [] },
+      diet: { state: DECLARATION_STATE.NOT_PROVIDED, text: '' },
+      otherNotes: { state: DECLARATION_STATE.NOT_PROVIDED, text: '' },
+      history: [],
+    };
+    d.healthDeclarations.push(decl);
+  }
+  return decl;
+};
+
+export const KNOWN_CONDITION_HISTORY_MAX = 300;
+
+/** Tiền sử bản thân sau khi thêm vấn đề đã biết; đã có đúng tên đó thì giữ nguyên. */
+export const selfHistoryWith = (db, childId, condition) => {
+  const self = declarationOf(db, childId)?.medicalHistory?.self;
+  const current = self?.state === DECLARATION_STATE.REPORTED ? String(self.text || '').trim() : '';
+  const parts = current ? current.split(/;\s*/) : [];
+  if (parts.some((p) => normalizeText(p) === normalizeText(condition))) return current;
+  return [...parts, condition].join('; ');
+};
+
+/** Đóng phiếu với "Chuyên khoa xác định có vấn đề" ⇒ ghi vấn đề vào tiền sử bản thân, có lịch sử; không gửi thông báo (D9). */
+export const recordKnownCondition = (d, childId, condition, user, note) => {
+  const text = selfHistoryWith(d, childId, condition);
+  const decl = ensureDeclarationOf(d, childId);
+  const before = decl.medicalHistory || null;
+  const current = before || emptyMedicalHistory();
+  if (current.self.state === DECLARATION_STATE.REPORTED && current.self.text === text) return;
+  const next = { ...clone(current), self: { state: DECLARATION_STATE.REPORTED, text } };
+  decl.medicalHistory = next;
+  decl.history = [
+    ...(decl.history || []),
+    {
+      action: 'UPDATED_FROM_FOLLOW_UP',
+      userId: user.id,
+      at: nowIso(),
+      note,
+      historyChange: { from: before ? clone(before) : null, to: clone(next) },
+    },
+  ];
 };
 
 /** Child as returned to the UI: account internals only for Principal / VP. */
@@ -473,11 +581,13 @@ export const toMeasurementView = (db, m) => {
   };
   const campaign = fields.campaignId ? (db.healthCheckCampaigns || []).find((c) => c.id === fields.campaignId) : null;
   const screen = screenMeasurement(fields, child.dateOfBirth);
+  const followUp = (db.healthFollowUps || []).find((f) => f.measurementIds.includes(m.id)) || null;
   return {
     ...fields,
     ...screen,
     campaignName: campaign?.name || null,
-    followUpId: (db.healthFollowUps || []).find((f) => f.measurementIds.includes(m.id))?.id || null,
+    followUpId: followUp?.id || null,
+    followUpEffect: followUpEffectOf(followUp, m.id),
     publishBlockedReason: m.published ? null : publishBlockOf(db, m.id, screen.followUpLevel),
     // Kết quả của đợt đã đóng/hủy bị khóa tới khi Hiệu trưởng mở lại đợt.
     locked: !!campaign && !isOpenForEntry(campaign),

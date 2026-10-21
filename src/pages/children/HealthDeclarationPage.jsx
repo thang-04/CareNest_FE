@@ -26,7 +26,11 @@ const HISTORY_LABELS = {
   UPDATED: 'Cập nhật khai báo',
   ALLERGY_CONFIRMED: 'Hiệu trưởng xác nhận dị ứng',
   UPDATED_FROM_EXAM: 'Cập nhật tiền sử từ phiếu khám',
+  UPDATED_FROM_FOLLOW_UP: 'Cập nhật tiền sử từ phiếu theo dõi',
 };
+
+// Lịch sử do hệ thống ghi khi lưu phiếu khám hoặc đóng phiếu theo dõi: ghi chú là nguồn, không phải lý do sửa.
+const SYSTEM_UPDATES = ['UPDATED_FROM_EXAM', 'UPDATED_FROM_FOLLOW_UP'];
 
 // Chỉ liệt kê mục tiền sử có thay đổi.
 const historyChangeLines = (c) =>
@@ -200,7 +204,7 @@ export default function HealthDeclarationPage() {
                         <div>{HISTORY_LABELS[h.action] || h.action}</div>
                         <div className="muted text-sm">
                           {md.userById(h.userId)?.fullName || '—'} · {formatDateTime(h.at)}
-                          {h.note ? (h.action === 'UPDATED_FROM_EXAM' ? ` · ${h.note}` : ` · Lý do: ${h.note}`) : ''}
+                          {h.note ? (SYSTEM_UPDATES.includes(h.action) ? ` · ${h.note}` : ` · Lý do: ${h.note}`) : ''}
                         </div>
                         {h.historyChange &&
                           historyChangeLines(h.historyChange).map(([label, from, to]) => (

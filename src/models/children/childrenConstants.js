@@ -38,7 +38,7 @@
  * @typedef {'NO_ABNORMALITY'|'ABNORMAL'} MotorResult
  * @typedef {'NORMAL'|'SMALL'|'LARGE'|'NOT_MEASURED'} HeadCircumferenceStatus
  * @typedef {'HEAD_CIRCUMFERENCE'|'GROSS_MOTOR'|'FINE_MOTOR'} ScreeningCriterion
- * @typedef {'NONE'|'WATCH'|'CLOSE_WATCH'|'UNAVAILABLE'} FollowUpLevel
+ * @typedef {'NONE'|'KNOWN_STABLE'|'WATCH'|'CLOSE_WATCH'|'UNAVAILABLE'} FollowUpLevel
  * @typedef {'EXAM'|'LEGACY'|'MEASUREMENT_ONLY'} MeasurementSource
  */
 
@@ -95,10 +95,18 @@ export const SCREENING_CRITERIA_LABELS = {
   FINE_MOTOR: 'Vận động tinh có bất thường',
 };
 
-export const FOLLOW_UP_LEVEL = { NONE: 'NONE', WATCH: 'WATCH', CLOSE_WATCH: 'CLOSE_WATCH', UNAVAILABLE: 'UNAVAILABLE' };
+// KNOWN_STABLE: vấn đề đã biết, không thay đổi — không phải cảnh báo; "Cần theo dõi" là vấn đề có thể chuyển biến (user chốt 2026-10-21).
+export const FOLLOW_UP_LEVEL = {
+  NONE: 'NONE',
+  KNOWN_STABLE: 'KNOWN_STABLE',
+  WATCH: 'WATCH',
+  CLOSE_WATCH: 'CLOSE_WATCH',
+  UNAVAILABLE: 'UNAVAILABLE',
+};
 
 export const FOLLOW_UP_LEVEL_LABELS = {
   NONE: 'Không ghi nhận bất thường',
+  KNOWN_STABLE: 'Vấn đề đã biết, ổn định',
   WATCH: 'Cần theo dõi',
   CLOSE_WATCH: 'Cần theo dõi sát – đề nghị khám chuyên khoa',
   UNAVAILABLE: 'Chưa có kết luận bác sĩ',

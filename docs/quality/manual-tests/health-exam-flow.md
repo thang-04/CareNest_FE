@@ -2,7 +2,7 @@
 
 Mục đích: đi hết luồng **Hiệu trưởng tạo đợt → giáo viên nhập phiếu cùng bác sĩ → theo dõi sau khám → đóng, mở lại đợt** bằng bộ số cố định. Mỗi trẻ ứng với 1 trường hợp, gồm cả số ở ngưỡng, số sai và quyết định của bác sĩ khác gợi ý của hệ thống. Kết quả mong đợi đã kiểm bằng kịch bản tự động (backend giả) ngày 2026-10-17.
 
-Nghiệp vụ: [plan phiếu khám Phụ lục II](../../plans/completed/2026-10-17-health-exam-form-doctor-conclusion.md). Dữ liệu là dữ liệu giả.
+Nghiệp vụ: [plan phiếu khám Phụ lục II](../../plans/completed/2026-10-17-health-exam-form-doctor-conclusion.md), [plan khám trẻ đang có phiếu theo dõi, đóng phiếu có kết quả](../../plans/completed/2026-10-21-health-follow-up-close-outcome.md). Dữ liệu là dữ liệu giả. Kết quả mong đợi của các bước có ghi "phiếu theo dõi", "đóng phiếu", "vấn đề đã biết" kiểm bằng `tests/health/follow-up-exam.test.mjs` ngày 2026-10-21; các bước giao diện chưa chạy trên trình duyệt.
 
 ## 0. Chuẩn bị
 
@@ -46,16 +46,25 @@ Mở đợt → bấm **Khám trẻ của lớp** → bấm **Khám** cạnh tê
 
 **Công bố:** phiếu có người đi cùng tự công bố cho phụ huynh khi bấm **Lưu kết luận** (kể cả khi lưu lại sau sửa). Phiếu không có người đi cùng (T4) giáo viên công bố sau, khi đã ghi trao đổi.
 
+**Trẻ đang có phiếu theo dõi (T1, T3, T9)** (user chốt 2026-10-21): bước 5 có khối *Trẻ đang có phiếu theo dõi từ ngày …*. Thay cho 2 nhóm "Kết luận về sức khỏe" và "Cần được tư vấn/chuyển khám chuyên khoa" là 1 câu **So với vấn đề đang theo dõi, bác sĩ kết luận**: *Chưa ghi nhận thêm bất thường* · *Tư vấn* · *Có thêm bất thường mới*. Lưu kết luận không đóng phiếu theo dõi.
+
+**Có vấn đề mà không chuyển khám (T2, T7, T10):** sau khi chọn hướng xử lý, chọn thêm **Vấn đề này**: *Vấn đề mới hoặc có thay đổi* (mức Cần theo dõi) hoặc *Vấn đề đã biết, không thay đổi so với trước* (mức Vấn đề đã biết, ổn định). Câu này không chọn sẵn.
+
 Khi nhập số ở bước 2, trạng thái tự chọn theo khoảng của nhóm tuổi; trừ khi bảng ghi khác, giữ trạng thái hệ thống chọn. Khoảng tham khảo của trẻ 3–5 tuổi: mạch 80–120, nhịp thở 20–28 lần/phút. Nhiệt độ: sốt từ 37,5 °C, hạ thân nhiệt dưới 36 °C.
 
 ### Lớp Mầm 1 — `tuan.hoang@carenest.edu.vn`
 
-**T1 · Vũ Tuấn Kiệt (40 tháng) — Bình thường, số ở cận trên**
+**T1 · Vũ Tuấn Kiệt (40 tháng) — Đang có phiếu theo dõi, "Chưa ghi nhận thêm bất thường", số ở cận trên**
 - Bước 1: thấy số định danh, địa chỉ đã điền sẵn từ phiếu ngày 6/10.
 - Bước 2: nhiệt độ `37.4` · mạch `120` · nhịp thở `28` · chiều cao `98.5` · cân nặng `15.2` · vòng đầu `48.5` · vòng cánh tay `160`. Cả 3 trạng thái là **Bình thường**. Vòng đầu tự chọn Bình thường (khoảng tạm 46,5–52,0 cm).
-- Bước 5: thấy *Không có mục nào được ghi bất thường*. Bấm **Lưu kết luận**.
-- Mong đợi: nhãn **Bình thường**, mức **Không ghi nhận bất thường**, không mở phiếu theo dõi mới. Bước 5 có dòng *Có người đi cùng trẻ: khi lưu kết luận, phiếu được công bố cho phụ huynh ngay*. Sau khi lưu, phiếu **đã công bố** (*Đã công bố cho phụ huynh khi lưu kết luận*), không cần bấm công bố.
-- Phiếu theo dõi cũ (Tai mũi họng) vẫn mở: kết luận bình thường không tự đóng phiếu (đóng ở bước C3).
+- Bước 5:
+  - Thấy khối *Trẻ đang có phiếu theo dõi* (Tai mũi họng, kết quả chuyên khoa ngày 14/10, hẹn khám lại 14/11) và *Không có mục nào được ghi bất thường*.
+  - Không có ô "Bình thường". Chọn **Chưa ghi nhận thêm bất thường** rồi bấm **Lưu kết luận**.
+- Mong đợi:
+  - Nhãn **Đang theo dõi, chưa ghi nhận thêm**; không có nhãn "Cần theo dõi sát – đề nghị khám chuyên khoa".
+  - Màn kết quả: *Phiếu theo dõi giữ nguyên: lần khám được ghi vào dòng thời gian của phiếu, không mở vòng mới.*
+  - Bước 5 có dòng *Có người đi cùng trẻ: khi lưu kết luận, phiếu được công bố cho phụ huynh ngay*. Sau khi lưu, phiếu **đã công bố**, không cần bấm công bố.
+  - Phiếu theo dõi Tai mũi họng vẫn mở, giữ trạng thái *Đã có kết quả khám bên ngoài*; dòng thời gian có *Kết quả khám trong lúc đang theo dõi*. Lưu kết luận không đóng phiếu (đóng ở bước C5).
 
 **T2 · Đỗ Phương Linh (34 tháng) — Khoảng tham khảo đổi theo tuổi**
 - Bước 2: thấy *Khoảng tham khảo của trẻ 12–35 tháng: 98–140 lần/phút* và *22–37 lần/phút*.
@@ -66,22 +75,25 @@ Khi nhập số ở bước 2, trạng thái tự chọn theo khoảng của nh�
 - Bước 5:
   - Chọn **Có vấn đề về sức khỏe** (nếu đã tích Bình thường, ô đó tự bỏ), ghi rõ `Lòng bàn tay nhợt, có dấu hiệu thiếu máu.`
   - Chọn **Tư vấn**, lời tư vấn `Bổ sung thực phẩm giàu sắt; đưa trẻ đi khám nếu mệt, xanh xao.`
+  - Bấm **Lưu kết luận** khi chưa chọn **Vấn đề này** → lỗi *Chọn vấn đề mới hay vấn đề đã biết*. Chọn **Vấn đề mới hoặc có thay đổi**.
 - Mong đợi:
   - Điểm cần xem lại không có dòng sinh tồn. Có 2 mục: *Tình trạng dinh dưỡng: Dấu hiệu thiếu máu*, *Lòng bàn tay: Không bình thường (nhợt)*.
   - Bấm **Lưu kết luận**: hiện hộp hỏi lại với 2 điểm trên (bác sĩ chỉ tư vấn) → bấm **Lưu theo bác sĩ**.
   - Sau khi lưu: **Có vấn đề, tư vấn**, mức **Cần theo dõi**, không mở phiếu theo dõi.
 
-**T3 · Trần Đăng Khoa (42 tháng) — Gợi ý 2 dấu hiệu, kết quả vào phiếu đang mở**
+**T3 · Trần Đăng Khoa (42 tháng) — Đang có phiếu theo dõi, "Có thêm bất thường mới" (gợi ý 2 dấu hiệu)**
 - Danh sách lớp: trẻ có link *Đang có phiếu theo dõi* (đã trao đổi ngày 16/9, đã được nhắc sau 30 ngày).
 - Bước 2: `36.9` · `105` · `24` · chiều cao `97.0` · cân nặng `14.6` · vòng đầu `46.0`. Vòng đầu tự chọn **Đầu nhỏ** (khoảng tạm 46,6–52,1).
 - Bước 3: Phát triển vận động → **Không**.
 - Bước 5:
-  - Thấy gợi ý: **Gợi ý: cân nhắc chuyển khám chuyên khoa — 2/3 dấu hiệu**.
-  - Chọn **Có vấn đề**, ghi rõ `Vòng đầu nhỏ, vận động chưa theo kịp độ tuổi.`
-  - Chọn **Chuyển khám chuyên khoa**: `Nhi khoa – khám phát triển`, lời tư vấn `Đưa trẻ đi khám trong tháng này.`
+  - Thấy khối *Trẻ đang có phiếu theo dõi* và gợi ý **Gợi ý: cân nhắc chuyển khám chuyên khoa — 2/3 dấu hiệu**.
+  - Chọn **Có thêm bất thường mới**, ghi rõ `Vòng đầu nhỏ, vận động chưa theo kịp độ tuổi.`
+  - Chuyên khoa bác sĩ đề nghị `Nhi khoa – khám phát triển`, lời tư vấn `Đưa trẻ đi khám trong tháng này.`
 - Mong đợi:
-  - Mức **Cần theo dõi sát**. Màn kết quả: *Hệ thống đã mở phiếu theo dõi và ghi lần trao đổi tại buổi khám.*
+  - Nhãn **Đang theo dõi, có bất thường mới**. Bấm lưu không hiện hộp hỏi lại (đã ghi bất thường mới).
+  - Màn kết quả: *Phiếu theo dõi sang vòng mới và đã ghi lần trao đổi tại buổi khám.*
   - Mở phiếu theo dõi: **vẫn là phiếu cũ**, không có phiếu thứ hai. Dòng thời gian có *Kết quả khám mới … – bắt đầu vòng theo dõi mới* và lần trao đổi *tại buổi khám*. Trạng thái **Đã trao đổi, đề nghị khám chuyên khoa**.
+  - Hiệu trưởng, Phó hiệu trưởng Campus 2 nhận thông báo *Trẻ có thêm bất thường mới*.
 
 **T4 · Hoàng Khánh An (37 tháng) — Chuyển khám, KHÔNG có người đi cùng**
 - Bước 1: chọn **Không có người đi cùng**.
@@ -120,12 +132,13 @@ Khi nhập số ở bước 2, trạng thái tự chọn theo khoảng của nh�
 ### Lớp Lá A — `ngoc.vu@carenest.edu.vn`
 
 **T7 · Phạm Thảo Vy (58 tháng) — Thừa cân, chỉ số SD, ghi rõ hành vi; sau đó sửa phiếu**
+- Trước khi khám, danh sách trẻ hiện **Vấn đề đã biết, ổn định · Bàn chân bẹt – mang giày chỉnh hình** (phiếu theo dõi đã đóng ngày 5/10 với kết quả "Chuyên khoa xác định có vấn đề"). Bước 1 có tiền sử bản thân *Có — Bàn chân bẹt – mang giày chỉnh hình*.
 - Bước 2:
   - `36.6` · `98` · `22` · chiều cao `106.0` · chiều dài/tuổi `0.5` · cân nặng `24.5` · cân nặng/tuổi `2.3` · vòng đầu `50.0` · vòng cánh tay `210`.
   - Tình trạng dinh dưỡng: **Thừa cân/béo phì**.
 - Bước 4: *Có biểu hiện buồn bã, lo âu, mất ngủ kéo dài không* → **Có**. Ô *Nếu có, ghi rõ* thành bắt buộc: `Gần đây trẻ khó ngủ, hay lo khi xa mẹ (người đi cùng kể).`
-- Bước 5: **Có vấn đề** `Thừa cân; khó ngủ kéo dài.` · **Tư vấn** `Giảm đồ ngọt, tăng vận động; giữ giờ ngủ cố định.`
-- Mong đợi: bấm **Lưu kết luận** hiện hộp hỏi lại (thừa cân, buồn bã kéo dài, ghi rõ) → **Lưu theo bác sĩ**. Mức **Cần theo dõi**, phiếu tự công bố (có người đi cùng).
+- Bước 5: **Có vấn đề** `Thừa cân; khó ngủ kéo dài.` · **Tư vấn** `Giảm đồ ngọt, tăng vận động; giữ giờ ngủ cố định.` · **Vấn đề mới hoặc có thay đổi**.
+- Mong đợi: bấm **Lưu kết luận** hiện hộp hỏi lại (thừa cân, buồn bã kéo dài, ghi rõ) → **Lưu theo bác sĩ**. Mức **Cần theo dõi**, phiếu tự công bố (có người đi cùng). Danh sách trẻ đổi sang **Cần theo dõi** (lần khám mới hơn phiếu đã đóng).
 - Thử sửa phiếu (từ màn kết quả bấm **Xem phiếu**):
   1. Bấm **Sửa phiếu**, ở bước 2 đổi cân nặng thành `24.1`.
   2. Ở bước 5 bấm **Lưu kết luận** khi chưa ghi lý do → lỗi *Nhập lý do sửa phiếu đã có kết luận*.
@@ -137,23 +150,23 @@ Khi nhập số ở bước 2, trạng thái tự chọn theo khoảng của nh�
   - Nhập `36.0` · `80` · `20` · chiều cao `110.0` · cân nặng `18.5`. Cả 3 trạng thái là **Bình thường**.
 - Mong đợi: không có điểm cần xem lại; gợi ý kết hợp chỉ xét 2 dấu hiệu phát triển; phiếu tự công bố.
 
-**T9 · Ngô Phương Linh (60 tháng) — Số ngay dưới ngưỡng, gộp vào phiếu đang quá hạn**
+**T9 · Ngô Phương Linh (60 tháng) — Đang có phiếu quá hạn, "Có thêm bất thường mới", số ngay dưới ngưỡng**
 - Danh sách lớp: trẻ có phiếu theo dõi đỏ *Quá hạn*.
 - Bước 2: nhiệt độ `35.9` → **Hạ thân nhiệt** · mạch `79` → vẫn **Bình thường** · nhịp thở `19` → **Thở chậm** · `107.0` · `17.2` · vòng đầu `50.0`.
   - Dưới ô trạng thái mạch có ghi chú: thấp hơn khoảng tham khảo; mẫu không có ô "chậm".
 - Bước 4: Mí mắt và kết mạc → **Chảy ghèn/mủ**.
-- Bước 5: **Có vấn đề** `Mắt chảy ghèn; thân nhiệt thấp khi khám.` · **Chuyển khám chuyên khoa** `Mắt`.
+- Bước 5: thấy khối *Trẻ đang có phiếu theo dõi* có nhãn quá hạn. Chọn **Có thêm bất thường mới** `Mắt chảy ghèn; thân nhiệt thấp khi khám.` · chuyên khoa `Mắt`.
 - Mong đợi:
   - Điểm cần xem lại có 3 dòng: *Nhiệt độ 35,9 °C: hạ thân nhiệt (dưới 36 °C)*, *Mạch 79 lần/phút, dưới khoảng tham khảo 80–120 của trẻ 3–5 tuổi*, *Nhịp thở 19 lần/phút, dưới khoảng tham khảo 20–28 của trẻ 3–5 tuổi*.
-  - Dưới 3 dòng sinh tồn có dòng đỏ *Gợi ý: nhiều dấu hiệu sinh tồn bất thường, bác sĩ xem lại trước khi kết luận — 3/3*. Bác sĩ chuyển khám nên **không** có hộp hỏi lại.
-  - Phiếu theo dõi cũ **không** mở vòng mới: kết quả gộp vào vòng đang chờ. Có lần trao đổi tại buổi khám nên **hết Quá hạn**, trạng thái **Đã trao đổi**.
+  - Dưới 3 dòng sinh tồn có dòng đỏ *Gợi ý: nhiều dấu hiệu sinh tồn bất thường, bác sĩ xem lại trước khi kết luận — 3/3*. Đã ghi bất thường mới nên **không** có hộp hỏi lại.
+  - Phiếu theo dõi cũ **không** mở vòng mới: kết quả gộp vào vòng đang chờ (*Kết quả được ghi vào vòng theo dõi hiện tại…*). Có lần trao đổi tại buổi khám nên **hết Quá hạn**, trạng thái **Đã trao đổi**.
 
 **T10 · Lê Đăng Khoa (66 tháng) — Gợi ý mạnh nhưng bác sĩ chỉ tư vấn**
 - Bước 2: `36.8` · `95` · `23` · `112.0` · `19.0`.
 - Bước 3: phát triển tinh thần **Không**, phát triển vận động **Không**.
 - Bước 5:
   - Thấy **Gợi ý: cân nhắc chuyển khám chuyên khoa — 2/2 dấu hiệu**.
-  - Bác sĩ chỉ tư vấn: **Có vấn đề** `Chậm hơn bạn cùng tuổi về ngôn ngữ và vận động.` · **Tư vấn** `Theo dõi thêm 3 tháng, tăng hoạt động vận động ở lớp.`
+  - Bác sĩ chỉ tư vấn: **Có vấn đề** `Chậm hơn bạn cùng tuổi về ngôn ngữ và vận động.` · **Tư vấn** `Theo dõi thêm 3 tháng, tăng hoạt động vận động ở lớp.` · **Vấn đề mới hoặc có thay đổi**.
 - Mong đợi: bấm **Lưu kết luận** hiện hộp hỏi lại (gợi ý cân nhắc chuyển khám) → **Lưu theo bác sĩ**. Mức **Cần theo dõi**, không mở phiếu theo dõi. Gợi ý không phải quyết định.
 
 **T11 · Vũ Khánh An (62 tháng) — Nhập sai, số ngay trên ngưỡng, bác sĩ chọn khác gợi ý**
@@ -195,7 +208,7 @@ Lần 2, sửa cho đúng:
 
 | Bước | Thao tác | Kết quả mong đợi |
 | --- | --- | --- |
-| D1 | Mở đợt, xem thống kê | Đã có kết luận 10 · Đang khám 1 · Chưa khám 1. Theo kết luận: Bình thường 3 · Có vấn đề, tư vấn 3 · Chuyển khám chuyên khoa 3 · Nguy cơ lao 1. Tab **Trẻ cần theo dõi**: 7 trẻ |
+| D1 | Mở đợt, xem thống kê | Đã có kết luận 10 · Đang khám 1 · Chưa khám 1. Theo kết luận: Bình thường 2 · Có vấn đề, tư vấn 3 · Chuyển khám chuyên khoa 1 · Nguy cơ lao 1 · Đang theo dõi, chưa ghi nhận thêm 1 (T1) · Đang theo dõi, có bất thường mới 2 (T3, T9). Tab **Trẻ cần theo dõi**: 8 trẻ |
 | D2 | **Đóng đợt khám** | Hộp xác nhận: *1 trẻ chưa khám sẽ ghi Vắng khám. 1 phiếu đang khám chưa có kết luận sẽ giữ nguyên, hiện "Chưa kết luận". Còn 1 phiếu theo dõi chờ trao đổi với phụ huynh…* (của T4) |
 | D3 | Xác nhận | *Đã đóng đợt khám; 1 trẻ ghi vắng khám; 1 phiếu chưa kết luận.* Lớp Lá A: Đỗ Gia Bảo **Vắng khám**. Lớp Mầm 1: Nguyễn Bảo Ngọc **Chưa kết luận** |
 | D4 | Giáo viên mở lại phiếu T7 | Có thông báo đợt đã đóng, phiếu bị khóa; không có nút **Sửa phiếu** |
@@ -208,7 +221,11 @@ Lần 2, sửa cho đúng:
 | C2 | Thầy Tuấn | **Ghi trao đổi với phụ huynh**: ngày hôm nay, `Đã gọi điện cho bố, đề nghị đưa trẻ khám thần kinh nhi.` | Trạng thái **Đã trao đổi**. Ở **Sổ sức khỏe** của T4, kết quả đợt này có nút **Công bố** (trước đó là *Ghi trao đổi để công bố*) |
 | C3 | Thầy Tuấn | Phiếu theo dõi của T3 → **Ghi kết quả khám chuyên khoa**: để trống chuyên khoa · chọn ngày hẹn = ngày khám | Lỗi *Nhập chuyên khoa / nơi khám, ví dụ Mắt — Bệnh viện Nhi* · *Ngày hẹn khám lại phải sau ngày khám* |
 | C4 | Thầy Tuấn | Nhập đúng: ngày hôm nay · `Nhi khoa – khám phát triển, Bệnh viện Nhi Hải Phòng` · `Bác sĩ hẹn đánh giá lại sau 1 tháng, tập vận động tại nhà.` · hẹn hôm nay + 30 · thêm 1 ảnh bất kỳ (không dùng giấy khám thật) | Trạng thái **Đã có kết quả khám bên ngoài**. Sổ sức khỏe của T3 hiện kết quả chuyên khoa kèm chuyên khoa và ảnh |
-| C5 | Thầy Tuấn | Phiếu theo dõi Tai mũi họng của T1 → **Đóng phiếu**, lý do `Đã khám chuyên khoa, kết quả khám đợt này bình thường.` | Hộp đóng phiếu có câu *Đóng phiếu không có nghĩa là sức khỏe của trẻ đã bình thường.* Phiếu **Đã đóng** |
+| C5 | Cô Ngọc | Phiếu theo dõi của T9 → **Ghi kết quả khám chuyên khoa**: ngày hôm nay · `Mắt – Bệnh viện Mắt Hải Phòng` · `Bác sĩ kết luận viêm kết mạc, đã tra thuốc khỏi; không hẹn khám lại.` · để trống ngày hẹn | Lưu xong, hộp **Đóng phiếu theo dõi?** mở ngay (*Kết quả không có ngày hẹn khám lại…*), có nút **Để phiếu mở** |
+| C6 | Cô Ngọc | Trong hộp đó bấm **Đóng phiếu** khi chưa chọn kết quả, rồi chọn **Bác sĩ kết luận bình thường (chuyên khoa hoặc bác sĩ trường)**, lý do `Đã khám chuyên khoa Mắt, trẻ đã khỏi.` | Lỗi *Chọn kết quả theo lời bác sĩ*. Sau khi đóng: thẻ **Đóng phiếu** có *Kết quả: Bác sĩ kết luận bình thường…*; hộp có câu *Đóng phiếu không có nghĩa là sức khỏe của trẻ đã bình thường.* Danh sách trẻ: T9 **Không ghi nhận bất thường** · *Theo kết quả chuyên khoa …* |
+| C7 | Thầy Tuấn | Phiếu Tai mũi họng của T1 → **Ghi kết quả khám chuyên khoa** (lần khám lại): ngày hôm nay · `Tai mũi họng – Bệnh viện Trẻ em Hải Phòng` · `Bác sĩ kết luận nghe kém nhẹ tai phải, không cần điều trị; theo dõi tại nhà, không hẹn khám lại.` · để trống ngày hẹn | Hộp **Đóng phiếu theo dõi?** mở ngay |
+| C8 | Thầy Tuấn | Chọn **Chuyên khoa xác định có vấn đề, đã có hướng điều trị**, để trống tên vấn đề, bấm **Đóng phiếu**; rồi nhập `Nghe kém nhẹ tai phải – theo dõi tại nhà`, lý do `Đã khám lại chuyên khoa, không còn lịch khám.` | Lỗi *Nhập tên vấn đề, ví dụ Cận thị – đeo kính*. Sau khi đóng: **Khai báo sức khỏe** của T1 có tiền sử bản thân *Có — Nghe kém nhẹ tai phải – theo dõi tại nhà*, lịch sử *Cập nhật tiền sử từ phiếu theo dõi*. Danh sách trẻ: T1 **Vấn đề đã biết, ổn định** (nhãn thông tin, không phải cảnh báo) kèm tên vấn đề |
+| C9 | Thầy Tuấn | Phiếu theo dõi của T4 → **Đóng phiếu** | Chỉ chọn được **Không có kết quả chuyên khoa**; có dòng giải thích phải ghi kết quả khám chuyên khoa trước. Bấm **Quay lại**, không đóng |
 
 ## E. Mở lại đợt, hoàn thành phiếu dở, đóng lại
 
@@ -235,10 +252,14 @@ Lần 2, sửa cho đúng:
 
 ## Trường hợp có sẵn ở dữ liệu mẫu (Campus 1)
 
-Ba trường hợp sau phụ thuộc tuổi hoặc ngày nên không dựng trong kịch bản này. Xem ở đợt đang diễn ra của Campus 1 (giáo viên `an.nguyen@carenest.edu.vn`, `mai.tran@carenest.edu.vn`):
+Các trường hợp sau phụ thuộc tuổi hoặc ngày nên không dựng trong kịch bản này. Xem ở đợt đang diễn ra của Campus 1 (giáo viên `an.nguyen@carenest.edu.vn`, `mai.tran@carenest.edu.vn`, `hoa.le@carenest.edu.vn`, `minhanh.le@carenest.edu.vn`):
 - **Câu nguy cơ tự kỷ** (chỉ hỏi trẻ 16–30 tháng): Phạm Gia Khánh, Lớp Mầm 1.
 - **Phiếu nháp ở bước Kết luận** với hạ thân nhiệt, mạch thấp, thở chậm, vòng đầu to: Lê Khánh An, Lớp Chồi 2.
 - **Nguy cơ lao kèm có vấn đề**, người đi cùng là ông, nhiều mục bất thường: Đỗ Bảo Ngọc, Lớp Chồi 2.
+- **Trẻ có phiếu theo dõi, chưa khám đợt này** (khám từ đầu bằng mẫu *So với vấn đề đang theo dõi*): Phạm Thảo Vy, Lớp Chồi 1.
+- **"Chưa ghi nhận thêm bất thường"**: phiếu giữ nguyên (có kết quả chuyên khoa, hẹn khám lại): Bùi Phương Linh, Lớp Lá 1.
+- **"Có thêm bất thường mới", không có người đi cùng**: vòng mới, chờ trao đổi, chưa công bố được: Ngô Hoàng Nam, Lớp Mầm 1.
+- **Vấn đề đã biết, không thay đổi** (cận thị đang đeo kính): mức **Vấn đề đã biết, ổn định**, không có trong tab *Trẻ cần theo dõi*: Ngô Bảo Ngọc, Lớp Lá 1.
 
 Danh sách đầy đủ: bảng `EXAM_CASES` trong `src/mocks/childrenSeed.js`.
 
@@ -247,7 +268,8 @@ Danh sách đầy đủ: bảng `EXAM_CASES` trong `src/mocks/childrenSeed.js`.
 | Bước | Ai | Thao tác | Kết quả mong đợi |
 | --- | --- | --- | --- |
 | H1 | Hiệu trưởng | **Hồ sơ trẻ → Danh sách trẻ**, bộ lọc **Cần theo dõi** | Chỉ còn trẻ có lần khám gần nhất ở mức Cần theo dõi, ví dụ T2, T7, T10 của kịch bản. Cột **Theo dõi sức khỏe** có nhãn mức và ngày khám (bấm ngày mở Sổ sức khỏe) |
-| H2 | Hiệu trưởng | Đổi bộ lọc sang **Cần theo dõi sát** | Có T3, T4, T5, T9 và trẻ có phiếu theo dõi từ đợt trước |
+| H2 | Hiệu trưởng | Đổi bộ lọc sang **Cần theo dõi sát** | Có T3, T4, T5 và trẻ còn phiếu theo dõi mở (dòng *Đang có phiếu theo dõi*). T1, T9 không còn: đã đóng phiếu ở bước C |
+| H2b | Hiệu trưởng | Đổi bộ lọc sang **Vấn đề đã biết, ổn định** | Có T1 (*Nghe kém nhẹ tai phải – theo dõi tại nhà* · *Theo kết quả chuyên khoa …*) và Ngô Bảo Ngọc, Lớp Lá 1 (cận thị, theo lần khám) |
 | H3 | Cô Ngọc | Sau bước F (cân đo ngoài đợt cho Đỗ Gia Bảo) xem cột Theo dõi sức khỏe | Mức vẫn theo lần khám có kết luận trước đó: cân đo ngoài đợt và phiếu nháp không tính |
 | H4 | Hiệu trưởng | Bộ lọc **Chưa có kết quả khám** | Trẻ chưa có lần khám nào được xếp mức, ví dụ trẻ mới tiếp nhận Lý Gia Phúc |
 

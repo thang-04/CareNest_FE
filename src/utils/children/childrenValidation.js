@@ -1,4 +1,5 @@
 import { DECLARATION_STATE } from '@/models/children/childrenConstants';
+import { FOLLOW_UP_CLOSE_OUTCOME, FOLLOW_UP_FIELD_LIMITS } from '@/models/children/healthCheckConstants';
 import { formatDate, todayInput } from '@/utils/format';
 
 /*
@@ -145,6 +146,13 @@ export const validateHealthCheck = (c) => {
 export const validateFollowUpAction = (kind, b = {}, { contactFrom } = {}) => {
   const errors = {};
   if (kind === 'close') {
+    // Đóng phiếu chọn kết quả theo lời bác sĩ, không chọn sẵn (user chốt 2026-10-21).
+    if (!Object.values(FOLLOW_UP_CLOSE_OUTCOME).includes(b.outcome)) errors.outcome = 'Chọn kết quả theo lời bác sĩ';
+    if (b.outcome === FOLLOW_UP_CLOSE_OUTCOME.KNOWN_CONDITION) {
+      if (!b.conditionText?.trim()) errors.conditionText = 'Nhập tên vấn đề, ví dụ Cận thị – đeo kính';
+      else if (b.conditionText.trim().length > FOLLOW_UP_FIELD_LIMITS.condition)
+        errors.conditionText = `Tên vấn đề tối đa ${FOLLOW_UP_FIELD_LIMITS.condition} ký tự`;
+    }
     if (!b.reason?.trim()) errors.reason = 'Nhập lý do đóng phiếu';
     else if (b.reason.trim().length > 300) errors.reason = 'Lý do tối đa 300 ký tự';
     return errors;

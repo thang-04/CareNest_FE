@@ -75,6 +75,9 @@ export const HEALTH_CHECK_FIELD_LIMITS = { name: 150, examiner: 150, note: 500, 
  *   kết luận bác sĩ của kết quả mới nhất trong phiếu (phiếu Phụ lục II)
  * @property {FollowUpEvent[]} timeline   chronological, only on the detail view
  * @property {string|null} closeReason
+ * @property {FollowUpCloseOutcome|null} closeOutcome   null: đóng trước khi có kết quả đóng phiếu, hoặc đóng tự động
+ * @property {string|null} closeConditionText            tên vấn đề khi đóng với KNOWN_CONDITION
+ * @property {FollowUpCloseOutcome[]} closeOutcomeOptions kết quả chọn được khi đóng (BE tính theo phiếu)
  * @property {boolean} canUpdate          computed by the service
  * @property {boolean} canRecordExternal  the current round already has a parent contact
  *
@@ -89,6 +92,8 @@ export const HEALTH_CHECK_FIELD_LIMITS = { name: 150, examiner: 150, note: 500, 
  * @property {string[]} [images]         external result: photos of the result paper (optional)
  * @property {string|null} [nextVisitOn] external result: next specialist visit
  * @property {boolean} [newRound]        a measurement that started a new round
+ * @property {boolean} [newFinding]      MEASUREMENT_ADDED của mẫu FOLLOW_UP: false = lần khám không có bất thường mới, không mở vòng
+ * @property {FollowUpCloseOutcome} [outcome]   CLOSED: kết quả đóng phiếu
  *
  * @typedef {'WAITING_PARENT_CONTACT'|'PARENT_CONTACTED'|'EXTERNAL_RESULT_RECORDED'|'CLOSED'} FollowUpStatus
  * @typedef {'OPENED'|'MEASUREMENT_ADDED'|'PARENT_CONTACTED'|'EXTERNAL_RESULT'|'OVERDUE_REMINDED'|'NEXT_VISIT_REMINDED'|'EXTERNAL_RESULT_REMINDED'|'CLOSED'} FollowUpAction
@@ -118,7 +123,32 @@ export const FOLLOW_UP_ACTION_LABELS = {
   CLOSED: 'Đóng phiếu',
 };
 
-export const FOLLOW_UP_FIELD_LIMITS = { note: 500, reason: 300, facility: 150, images: 3 };
+// Lần khám của trẻ đang có phiếu mà không có bất thường mới: vào dòng thời gian, không mở vòng (user chốt 2026-10-21).
+export const FOLLOW_UP_EXAM_NOTED_LABEL = 'Kết quả khám trong lúc đang theo dõi';
+
+/**
+ * Kết quả khi giáo viên đóng phiếu, theo lời bác sĩ (user chốt 2026-10-21). Trẻ còn cần khám, tái khám hay quan sát thì để phiếu mở.
+ * @typedef {'DOCTOR_NORMAL'|'KNOWN_CONDITION'|'NO_SPECIALIST_RESULT'} FollowUpCloseOutcome
+ */
+export const FOLLOW_UP_CLOSE_OUTCOME = {
+  DOCTOR_NORMAL: 'DOCTOR_NORMAL',
+  KNOWN_CONDITION: 'KNOWN_CONDITION',
+  NO_SPECIALIST_RESULT: 'NO_SPECIALIST_RESULT',
+};
+
+export const FOLLOW_UP_CLOSE_OUTCOME_LABELS = {
+  DOCTOR_NORMAL: 'Bác sĩ kết luận bình thường (chuyên khoa hoặc bác sĩ trường)',
+  KNOWN_CONDITION: 'Chuyên khoa xác định có vấn đề, đã có hướng điều trị',
+  NO_SPECIALIST_RESULT: 'Không có kết quả chuyên khoa',
+};
+
+export const FOLLOW_UP_CLOSE_OUTCOME_HINTS = {
+  DOCTOR_NORMAL: 'Trẻ sang mức Không ghi nhận bất thường.',
+  KNOWN_CONDITION: 'Trẻ sang mức Vấn đề đã biết, ổn định. Tên vấn đề được ghi vào tiền sử bản thân của trẻ.',
+  NO_SPECIALIST_RESULT: 'Ví dụ phụ huynh không đưa trẻ đi khám, mất liên lạc. Trẻ giữ mức của lần khám gần nhất tới đợt sau.',
+};
+
+export const FOLLOW_UP_FIELD_LIMITS = { note: 500, reason: 300, facility: 150, images: 3, condition: 100 };
 
 /** Số ngày sau lần trao đổi mà chưa có kết quả khám chuyên khoa thì nhắc giáo viên (D16, user chốt 2026-10-17). */
 export const EXTERNAL_RESULT_DUE_DAYS = 30;

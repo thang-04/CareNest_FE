@@ -7,6 +7,11 @@ import { axiosClient } from '@/services/http/axiosClient';
  * Phiếu ghi được nhiều lần trao đổi và nhiều kết quả khám bên ngoài nên dùng tài nguyên số nhiều.
  * Phiếu khám Phụ lục II (docs/plans/completed/2026-10-17-health-exam-form-doctor-conclusion.md): 1 phiếu/trẻ/đợt, PUT lưu nháp
  * (conclude=false) hoặc lưu kết luận (conclude=true, sửa phiếu đã kết luận cần reason). Kết quả khám bên ngoài thêm facility, images[].
+ * Trẻ đang có phiếu theo dõi (docs/plans/completed/2026-10-21-health-follow-up-close-outcome.md): GET exam trả conclusionMode
+ * (STANDARD | FOLLOW_UP) và openFollowUp; PUT exam gửi lại conclusionMode (khác ⇒ 409) và exam.conclusion.followUpFinding
+ * (NO_NEW_FINDING | ADVICE | NEW_FINDING) hoặc issueKind (NEW | KNOWN). Lưu kết luận không đóng phiếu. Dòng thời gian có
+ * MEASUREMENT_ADDED { newFinding }. POST close nhận { outcome (DOCTOR_NORMAL | KNOWN_CONDITION | NO_SPECIALIST_RESULT),
+ * conditionText?, reason }; phiếu trả closeOutcome, closeConditionText, closeOutcomeOptions[]. KNOWN_CONDITION ⇒ BE ghi tiền sử bản thân.
  */
 export const healthCheckApi = {
   listHealthChecks: (filters) => axiosClient.get('/health-checks', { params: filters }),

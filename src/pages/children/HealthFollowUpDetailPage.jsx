@@ -24,10 +24,15 @@ import {
   EXTERNAL_RESULT_DUE_DAYS,
   FOLLOW_UP_ACTION_LABELS,
   FOLLOW_UP_CLOSE_MEANING,
+  FOLLOW_UP_CLOSE_OUTCOME,
+  FOLLOW_UP_CLOSE_OUTCOME_HINTS,
+  FOLLOW_UP_CLOSE_OUTCOME_LABELS,
+  FOLLOW_UP_EXAM_NOTED_LABEL,
   FOLLOW_UP_FIELD_LIMITS,
   FOLLOW_UP_STATUS,
 } from '@/models/children/healthCheckConstants';
-import { CONCLUSION_ACTION_LABELS } from '@/models/children/healthExamForm';
+import { FOLLOW_UP_FINDING_LABELS, conclusionActionLabelOf } from '@/models/children/healthExamForm';
+import { ExamChoiceField } from '@/components/children/exam/ExamFields';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import { formatNumber } from '@/utils/children/childrenHelpers';
 import { hasErrors, validateFollowUpAction } from '@/utils/children/childrenValidation';
@@ -61,14 +66,24 @@ const DOT_CLASS = {
   CLOSED: 'tr-dot--done',
 };
 
+// Kết luận rút gọn của một phiếu khám trong phiếu theo dõi; mẫu FOLLOW_UP hiện lựa chọn so với vấn đề đang theo dõi.
+const conclusionNote = (c) => {
+  if (c.followUpFinding) return `${FOLLOW_UP_FINDING_LABELS[c.followUpFinding]}${c.issueText ? `: ${c.issueText}` : ''}`;
+  return c.specialty ? `Chuyển khám: ${c.specialty}` : c.issueText;
+};
+
 /** Kết quả trong phiếu: phiếu khám có kết luận bác sĩ; mẫu cũ có tiêu chí sàng lọc. */
 function MeasurementOutcome({ m }) {
   if (m.source === MEASUREMENT_SOURCE.EXAM && m.conclusion)
     return (
       <span className="row row--wrap gap-2">
-        <FollowUpLevelShortBadge status={m.followUpLevel} />
+        {m.conclusion.followUpFinding ? (
+          <ConclusionCategoryBadge status={m.conclusionCategory} />
+        ) : (
+          <FollowUpLevelShortBadge status={m.followUpLevel} />
+        )}
         <span className="muted text-xs">
-          {m.conclusion.specialty ? `Chuyển khám: ${m.conclusion.specialty}` : m.conclusion.issueText} — {m.conclusion.doctorName}
+          {conclusionNote(m.conclusion)} — {m.conclusion.doctorName}
         </span>
       </span>
     );
@@ -248,10 +263,99 @@ function TimelineBody({ event: e }) {
     return (
       <div className="text-sm mt-8">
         {e.auto === 'CHILD_WITHDRAWN' && <div className="muted">Tự đóng khi cho trẻ nghỉ học.</div>}
+        {e.outcome && (
+          <div>
+            Kết quả: {FOLLOW_UP_CLOSE_OUTCOME_LABELS[e.outcome]}
+            {e.conditionText ? ` — ${e.conditionText}` : ''}
+          </div>
+        )}
         <div className="tr-pre-line">Lý do: {e.note}</div>
       </div>
     );
   return null;
+}
+
+const EMPTY_CLOSING = { outcome: '', conditionText: '', reason: '', errors: {}, prompt: false };
+
+/**
+ * Hộp đóng phiếu: chọn kết quả theo lời bác sĩ (user chốt 2026-10-21), lựa chọn chọn được do BE trả (closeOutcomeOptions).
+ * prompt: mở ngay sau khi ghi kết quả chuyên khoa không có ngày hẹn khám lại.
+ */
+function CloseFollowUpModal({ closing, options, busy, onChange, onClose, onSubmit }) {
+  const O = FOLLOW_UP_CLOSE_OUTCOME;
+  const choices = options.map((value) => ({ value, label: FOLLOW_UP_CLOSE_OUTCOME_LABELS[value] }));
+  const missing = [O.DOCTOR_NORMAL, O.KNOWN_CONDITION].filter((o) => !options.includes(o));
+  const err = closing.errors;
+  return (
+    <Modal
+      open
+      title={closing.prompt ? 'Đóng phiếu theo dõi?' : 'Đóng phiếu theo dõi'}
+      onClose={busy ? undefined : onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            {closing.prompt ? 'Để phiếu mở' : 'Quay lại'}
+          </button>
+          <button className="btn btn--danger" onClick={onSubmit} disabled={busy}>
+            {busy ? <Spinner small /> : <CircleX size={16} />} Đóng phiếu
+          </button>
+        </>
+      }
+    >
+      {closing.prompt && (
+        <p className="mb-12">
+          Kết quả không có ngày hẹn khám lại. Đóng phiếu nếu nhà trường đã xong việc theo dõi; còn cần quan sát tiếp thì để phiếu mở.
+        </p>
+      )}
+      <p className="mb-12">{FOLLOW_UP_CLOSE_MEANING}</p>
+      <ExamChoiceField
+        name="close-outcome"
+        label="Kết quả theo lời bác sĩ"
+        options={choices}
+        value={closing.outcome}
+        onChange={(v) => onChange({ outcome: v })}
+        error={err.outcome}
+        hint={FOLLOW_UP_CLOSE_OUTCOME_HINTS[closing.outcome]}
+        disabled={busy}
+      />
+      {missing.length > 0 && (
+        <p className="muted text-sm mt-8">
+          Chưa chọn được {missing.map((o) => `"${FOLLOW_UP_CLOSE_OUTCOME_LABELS[o]}"`).join(', ')}: ghi kết quả khám chuyên khoa vào phiếu
+          trước{missing.includes(O.DOCTOR_NORMAL) ? ', hoặc chờ lần khám sau ngày mở phiếu' : ''}.
+        </p>
+      )}
+      {closing.outcome === O.KNOWN_CONDITION && (
+        <FormField
+          label="Tên vấn đề"
+          required
+          error={err.conditionText}
+          hint="Ví dụ: Cận thị – đeo kính. Tên này được ghi vào tiền sử bản thân của trẻ."
+        >
+          <input
+            className="input"
+            maxLength={FOLLOW_UP_FIELD_LIMITS.condition}
+            value={closing.conditionText}
+            onChange={(e) => onChange({ conditionText: e.target.value })}
+            disabled={busy}
+          />
+        </FormField>
+      )}
+      <p className="muted text-sm mt-12 mb-12">
+        Phiếu đã đóng không cập nhật được nữa. Nếu lần khám sau trẻ vẫn ở mức Cần theo dõi sát, hệ thống mở phiếu mới.
+      </p>
+      <FormField label="Lý do đóng phiếu" required error={err.reason}>
+        <textarea
+          className="textarea"
+          rows={3}
+          maxLength={300}
+          placeholder="Ví dụ: đã khám chuyên khoa, bác sĩ không hẹn khám lại; nhà trường theo dõi tiếp ở các đợt khám sau."
+          value={closing.reason}
+          onChange={(e) => onChange({ reason: e.target.value })}
+          disabled={busy}
+        />
+      </FormField>
+    </Modal>
+  );
 }
 
 export default function HealthFollowUpDetailPage() {
@@ -303,19 +407,32 @@ export default function HealthFollowUpDetailPage() {
   };
 
   const saveEntry = async (body, success) => {
-    const details = await submit(entry === 'contact' ? recordFollowUpContact : recordFollowUpExternalResult, body, success);
-    if (!details) setEntry(null);
+    const external = entry === 'external';
+    const details = await submit(external ? recordFollowUpExternalResult : recordFollowUpContact, body, success);
+    if (!details) {
+      setEntry(null);
+      // Kết quả chuyên khoa không hẹn khám lại ⇒ hỏi đóng phiếu luôn (user chốt 2026-10-21).
+      if (external && !body.nextVisitOn) setClosing({ ...EMPTY_CLOSING, prompt: true });
+    }
     return details;
   };
 
+  const changeClosing = (changes) =>
+    setClosing((c) => ({
+      ...c,
+      ...changes,
+      errors: Object.fromEntries(Object.entries(c.errors).filter(([k]) => !Object.keys(changes).includes(k))),
+    }));
+
   const doClose = async () => {
-    const errs = validateFollowUpAction('close', closing);
+    const body = { outcome: closing.outcome, conditionText: closing.conditionText, reason: closing.reason };
+    const errs = validateFollowUpAction('close', body);
     if (hasErrors(errs)) {
-      setClosing({ ...closing, error: errs.reason });
+      setClosing({ ...closing, errors: errs });
       return;
     }
-    const details = await submit(closeFollowUp, { reason: closing.reason }, 'Đã đóng phiếu theo dõi.');
-    if (details) setClosing({ ...closing, error: details.reason || '' });
+    const details = await submit(closeFollowUp, body, 'Đã đóng phiếu theo dõi.');
+    if (details) setClosing({ ...closing, errors: details });
     else setClosing(null);
   };
 
@@ -326,7 +443,7 @@ export default function HealthFollowUpDetailPage() {
       : f.status === S.PARENT_CONTACTED
         ? `Bạn đã công bố được kết quả khám cho phụ huynh. Khi phụ huynh báo kết quả khám chuyên khoa, ghi lại đúng lời bác sĩ; sau ${EXTERNAL_RESULT_DUE_DAYS} ngày chưa có kết quả, hệ thống nhắc bạn hỏi phụ huynh.`
         : f.status === S.EXTERNAL_RESULT_RECORDED
-          ? 'Đã có kết quả khám bên ngoài. Phiếu tiếp tục mở để theo dõi ở các đợt khám sau. Đóng phiếu khi nhà trường đã xong việc theo dõi, ghi rõ lý do.'
+          ? 'Đã có kết quả khám chuyên khoa. Bác sĩ không hẹn khám lại và nhà trường đã xong việc thì đóng phiếu, chọn kết quả theo lời bác sĩ. Còn cần khám lại hoặc quan sát tiếp thì để phiếu mở.'
           : '');
 
   return (
@@ -387,21 +504,25 @@ export default function HealthFollowUpDetailPage() {
             </div>
             <div className="card__body">
               <ul className="history-list">
-                {[...f.timeline].reverse().map((e, i) => (
-                  <li key={`${e.at}${i}`}>
-                    <span className={`history-list__dot ${DOT_CLASS[e.action] || ''}`} />
-                    <div>
-                      <div className="fw-600">
-                        {FOLLOW_UP_ACTION_LABELS[e.action] || e.action}
-                        {e.newRound && ' – bắt đầu vòng theo dõi mới'}
+                {[...f.timeline].reverse().map((e, i) => {
+                  // Lần khám không có bất thường mới chỉ ghi vào dòng thời gian, không phải sự kiện cần để ý.
+                  const noted = e.action === 'MEASUREMENT_ADDED' && e.newFinding === false;
+                  return (
+                    <li key={`${e.at}${i}`}>
+                      <span className={`history-list__dot ${noted ? '' : DOT_CLASS[e.action] || ''}`} />
+                      <div>
+                        <div className="fw-600">
+                          {noted ? FOLLOW_UP_EXAM_NOTED_LABEL : FOLLOW_UP_ACTION_LABELS[e.action] || e.action}
+                          {e.newRound && ' – bắt đầu vòng theo dõi mới'}
+                        </div>
+                        <div className="muted text-xs">
+                          {e.userName || 'Hệ thống'} · {formatDateTime(e.at)}
+                        </div>
+                        <TimelineBody event={e} />
                       </div>
-                      <div className="muted text-xs">
-                        {e.userName || 'Hệ thống'} · {formatDateTime(e.at)}
-                      </div>
-                      <TimelineBody event={e} />
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </section>
@@ -432,9 +553,7 @@ export default function HealthFollowUpDetailPage() {
                         {m.source === MEASUREMENT_SOURCE.EXAM && m.conclusion ? (
                           <div className="tr-cell-stack text-sm">
                             <ConclusionCategoryBadge status={m.conclusionCategory} />
-                            <span className="muted text-xs tr-note">
-                              {m.conclusion.specialty ? `Chuyển khám: ${m.conclusion.specialty}` : m.conclusion.issueText}
-                            </span>
+                            <span className="muted text-xs tr-note">{conclusionNote(m.conclusion)}</span>
                           </div>
                         ) : (
                           <div className="tr-cell-stack text-sm">
@@ -486,10 +605,7 @@ export default function HealthFollowUpDetailPage() {
                     <dt>Bác sĩ đề nghị</dt>
                     <dd>
                       <div className="tr-cell-stack">
-                        <span>
-                          {CONCLUSION_ACTION_LABELS[f.referral.action]}
-                          {f.referral.specialty ? `: ${f.referral.specialty}` : ''}
-                        </span>
+                        <span>{conclusionActionLabelOf(f.referral) || f.referral.issueText || '—'}</span>
                         {f.referral.adviceText && <span className="text-sm">Lời dặn: {f.referral.adviceText}</span>}
                         <span className="muted text-xs">
                           {f.referral.doctorName} · khám ngày {formatDate(f.referral.date)}
@@ -552,6 +668,17 @@ export default function HealthFollowUpDetailPage() {
               </div>
               <div className="card__body">
                 <dl className="info-list">
+                  <dt>Kết quả</dt>
+                  <dd>
+                    {f.closeOutcome ? (
+                      <>
+                        {FOLLOW_UP_CLOSE_OUTCOME_LABELS[f.closeOutcome]}
+                        {f.closeConditionText ? ` — ${f.closeConditionText}` : ''}
+                      </>
+                    ) : (
+                      <span className="muted">Không ghi kết quả khi đóng</span>
+                    )}
+                  </dd>
                   <dt>Lý do</dt>
                   <dd className="tr-pre-line">{f.closeReason}</dd>
                   <dt>Người đóng</dt>
@@ -571,7 +698,7 @@ export default function HealthFollowUpDetailPage() {
           <ArrowLeft size={16} /> Về danh sách phiếu
         </Link>
         {f.canUpdate && (
-          <button className="btn btn--outline-danger" onClick={() => setClosing({ reason: '', error: '' })}>
+          <button className="btn btn--outline-danger" onClick={() => setClosing({ ...EMPTY_CLOSING })}>
             <CircleX size={16} /> Đóng phiếu
           </button>
         )}
@@ -581,40 +708,16 @@ export default function HealthFollowUpDetailPage() {
         <EntryModal kind={entry} contactFrom={round?.contactFrom} busy={busy} onClose={() => setEntry(null)} onSubmit={saveEntry} />
       )}
 
-      <Modal
-        open={!!closing}
-        title="Đóng phiếu theo dõi"
-        onClose={busy ? undefined : () => setClosing(null)}
-        footer={
-          <>
-            <button className="btn" onClick={() => setClosing(null)} disabled={busy}>
-              Quay lại
-            </button>
-            <button className="btn btn--danger" onClick={doClose} disabled={busy}>
-              {busy ? <Spinner small /> : <CircleX size={16} />} Đóng phiếu
-            </button>
-          </>
-        }
-      >
-        {closing && (
-          <>
-            <p className="mb-12">{FOLLOW_UP_CLOSE_MEANING}</p>
-            <p className="muted text-sm mb-12">
-              Phiếu đã đóng không cập nhật được nữa. Nếu lần khám sau trẻ vẫn ở mức Cần theo dõi sát, hệ thống mở phiếu mới.
-            </p>
-            <FormField label="Lý do đóng phiếu" required error={closing.error}>
-              <textarea
-                className="textarea"
-                rows={3}
-                maxLength={300}
-                placeholder="Ví dụ: đã báo phụ huynh, phụ huynh đã cho trẻ khám chuyên khoa; nhà trường theo dõi tiếp ở các đợt khám sau."
-                value={closing.reason}
-                onChange={(e) => setClosing({ reason: e.target.value, error: '' })}
-              />
-            </FormField>
-          </>
-        )}
-      </Modal>
+      {closing && f.canUpdate && (
+        <CloseFollowUpModal
+          closing={closing}
+          options={f.closeOutcomeOptions || []}
+          busy={busy}
+          onChange={changeClosing}
+          onClose={() => setClosing(null)}
+          onSubmit={doClose}
+        />
+      )}
     </div>
   );
 }

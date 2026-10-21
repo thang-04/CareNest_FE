@@ -1,16 +1,16 @@
 import { GENDER_LABELS } from '@/models/School';
 import {
   CLINICAL_GROUPS,
-  CONCLUSION_ACTION,
-  CONCLUSION_ACTION_LABELS,
-  CONCLUSION_FLAGS,
   DEVELOPMENT_ITEMS,
   HEAD_STATUS_OPTIONS,
   HISTORY_ITEMS,
   IMMUNIZATION_ITEMS,
+  ISSUE_KIND_LABELS,
   NUTRITION_STATUS_OPTIONS,
   VITAL_ITEMS,
   YES_NO,
+  conclusionActionLabelOf,
+  conclusionLabelOf,
 } from '@/models/children/healthExamForm';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { formatDecimal } from '@/utils/children/healthExamHints';
@@ -40,7 +40,6 @@ export function ExamSummary({ measurement: m, child, campaign }) {
   const e = m.exam;
   const a = e.admin;
   const c = e.conclusion;
-  const flags = CONCLUSION_FLAGS.filter((f) => c[f.key]).map((f) => f.label);
   return (
     <div className="tr-exam-summary">
       <Section title="I. Thông tin hành chính">
@@ -177,19 +176,22 @@ export function ExamSummary({ measurement: m, child, campaign }) {
       </Section>
 
       <Section title="Kết luận và tư vấn">
-        <dt>Kết luận về sức khỏe</dt>
-        <dd className="fw-600">{flags.length ? flags.join(', ') : '—'}</dd>
+        <dt>{c.followUpFinding ? 'So với vấn đề đang theo dõi' : 'Kết luận về sức khỏe'}</dt>
+        <dd className="fw-600">{conclusionLabelOf(c) || '—'}</dd>
         {c.issueText && (
           <>
             <dt>Ghi rõ</dt>
             <dd>{c.issueText}</dd>
           </>
         )}
+        {c.issueKind && (
+          <>
+            <dt>Vấn đề này</dt>
+            <dd>{ISSUE_KIND_LABELS[c.issueKind]}</dd>
+          </>
+        )}
         <dt>Tư vấn / chuyển khám</dt>
-        <dd>
-          {CONCLUSION_ACTION_LABELS[c.action] || '—'}
-          {c.action === CONCLUSION_ACTION.REFERRAL && c.specialty ? `: ${c.specialty}` : ''}
-        </dd>
+        <dd>{conclusionActionLabelOf(c) || '—'}</dd>
         {c.adviceText && (
           <>
             <dt>Lời tư vấn</dt>

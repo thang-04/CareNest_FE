@@ -68,6 +68,7 @@ const EXAM_CASES = {
     conclusion: {
       normal: false,
       healthIssue: true,
+      issueKind: 'NEW',
       issueText: 'Răng có mảng bám, vài vết sâu nhỏ; thở nhanh khi khám.',
       action: 'ADVICE',
       adviceText: 'Cho trẻ đánh răng 2 lần mỗi ngày, hạn chế đồ ngọt buổi tối; theo dõi nhịp thở khi trẻ ốm.',
@@ -75,16 +76,16 @@ const EXAM_CASES = {
     edited: { weightFrom: 0.4, reason: 'Cân lại sau khi trẻ cởi áo khoác.' },
   },
   ch_003: {
-    case: 'Chuyển khám, KHÔNG có người đi cùng: chờ trao đổi 7 ngày, chưa công bố được; gợi ý kết hợp 2 dấu hiệu',
+    case: 'Trẻ đang có phiếu theo dõi: "Có thêm bất thường mới", KHÔNG có người đi cùng ⇒ vòng mới, chờ trao đổi 7 ngày, chưa công bố được; gợi ý kết hợp 2 dấu hiệu',
     headOffset: -3.4,
     noCompanion: true,
     headStatus: 'SMALL',
     development: { motor: 'NO' },
     conclusion: {
       normal: false,
-      healthIssue: true,
+      action: '',
+      followUpFinding: 'NEW_FINDING',
       issueText: 'Vòng đầu nhỏ, vận động chưa theo kịp độ tuổi.',
-      action: 'REFERRAL',
       specialty: 'Nhi khoa – khám phát triển',
       adviceText: 'Phụ huynh đưa trẻ đi khám chuyên khoa và báo lại nhà trường.',
     },
@@ -190,6 +191,7 @@ const EXAM_CASES = {
     conclusion: {
       normal: false,
       healthIssue: true,
+      issueKind: 'NEW',
       issueText: 'Thừa cân so với tuổi.',
       action: 'ADVICE',
       adviceText: 'Giảm đồ ngọt, nước ngọt; tăng vận động ngoài trời mỗi ngày.',
@@ -198,18 +200,22 @@ const EXAM_CASES = {
   ch_018: { case: 'Kết quả mẫu cũ nhập trong đợt (trước phiếu Phụ lục II)', legacy: { gross: 'NO_ABNORMALITY', fine: 'ABNORMAL' } },
   /* ---------- Lớp Lá 1 (c1, cô Hoa; trẻ trên 60 tháng không đo vòng đầu, ví dụ ch_020) ---------- */
   ch_019: {
-    case: 'Trẻ đang có phiếu theo dõi (có kết quả chuyên khoa): kết quả mới mở vòng mới, trao đổi tại buổi khám',
+    case: 'Trẻ đang có phiếu theo dõi (có kết quả chuyên khoa, hẹn khám lại): "Chưa ghi nhận thêm bất thường" ⇒ phiếu giữ nguyên',
     clinical: { gait: 'ABNORMAL', asymmetricMotion: 'YES' },
+    conclusion: { normal: false, action: '', followUpFinding: 'NO_NEW_FINDING' },
+  },
+  ch_020: { case: 'Bình thường, trẻ trên 60 tháng (không đo vòng đầu)' },
+  ch_023: {
+    case: 'Vấn đề đã biết, không thay đổi (cận thị đang đeo kính): mức Vấn đề đã biết, ổn định, không vào danh sách Trẻ cần theo dõi',
+    history: { self: 'YES', selfText: 'Cận thị – đeo kính' },
     conclusion: {
       normal: false,
       healthIssue: true,
-      issueText: 'Dáng đi chưa vững, vận động hai bên không đều.',
-      action: 'REFERRAL',
-      specialty: 'Phục hồi chức năng',
-      adviceText: 'Tiếp tục khám theo hẹn của bác sĩ chuyên khoa; báo lại nhà trường kết quả.',
+      issueKind: 'KNOWN',
+      issueText: 'Cận thị – đeo kính, nhìn rõ khi đeo kính.',
+      action: 'NONE',
     },
   },
-  ch_020: { case: 'Bình thường, trẻ trên 60 tháng (không đo vòng đầu)' },
   ch_021: {
     case: 'Chuyển khám, không có người đi cùng; gợi ý kết hợp 2 dấu hiệu phát triển (cân nhắc chuyển khám)',
     noCompanion: true,
@@ -248,6 +254,7 @@ const EXAM_CASES = {
     conclusion: {
       normal: false,
       healthIssue: true,
+      issueKind: 'NEW',
       issueText: 'Chảy nước mũi, nghẹt mũi.',
       action: 'ADVICE',
       adviceText: 'Vệ sinh mũi bằng nước muối sinh lý; giữ ấm khi trời lạnh.',
@@ -498,6 +505,21 @@ export const SEED_CHILD_PROFILES = {
       self: { state: 'NONE_REPORTED', text: '' },
       family: { state: 'NOT_PROVIDED', text: '' },
       tbContact: { state: 'REPORTED' },
+    },
+  },
+  // Vấn đề đã biết: ch_023 khám đợt này chọn "đã biết"; ch_031 đóng phiếu với kết quả chuyên khoa xác định có vấn đề.
+  ch_023: {
+    medicalHistory: {
+      self: { state: 'REPORTED', text: 'Cận thị – đeo kính' },
+      family: { state: 'NOT_PROVIDED', text: '' },
+      tbContact: { state: 'NONE_REPORTED' },
+    },
+  },
+  ch_031: {
+    medicalHistory: {
+      self: { state: 'REPORTED', text: 'Bàn chân bẹt – mang giày chỉnh hình' },
+      family: { state: 'NOT_PROVIDED', text: '' },
+      tbContact: { state: 'NONE_REPORTED' },
     },
   },
   ch_new_1: {

@@ -5,8 +5,10 @@ import {
   CONCLUSION_CATEGORY,
   DEVELOPMENT_ITEMS,
   EXAM_STATUS,
+  FOLLOW_UP_FINDING,
   HISTORY_ITEMS,
   IMMUNIZATION_ITEMS,
+  ISSUE_KIND,
   NUTRITION_STATUS_OPTIONS,
   VITAL_ITEMS,
 } from '@/models/children/healthExamForm';
@@ -172,9 +174,24 @@ export const conclusionOutcome = (exam, examStatus) => {
   if (examStatus !== EXAM_STATUS.CONCLUDED) return { followUpLevel: FOLLOW_UP_LEVEL.UNAVAILABLE, category: null };
   const c = exam?.conclusion || {};
   if (c.tbRisk) return { followUpLevel: FOLLOW_UP_LEVEL.CLOSE_WATCH, category: CONCLUSION_CATEGORY.TB_RISK };
+  // Mẫu FOLLOW_UP: trẻ vẫn trong phiếu theo dõi nên giữ "Cần theo dõi sát" (user chốt 2026-10-21, 4a).
+  if (c.followUpFinding) {
+    const category =
+      c.followUpFinding === FOLLOW_UP_FINDING.NEW_FINDING
+        ? CONCLUSION_CATEGORY.FOLLOWING_NEW
+        : c.followUpFinding === FOLLOW_UP_FINDING.ADVICE
+          ? CONCLUSION_CATEGORY.ISSUE
+          : CONCLUSION_CATEGORY.FOLLOWING_NO_NEW;
+    return { followUpLevel: FOLLOW_UP_LEVEL.CLOSE_WATCH, category };
+  }
   if (c.action === CONCLUSION_ACTION.REFERRAL)
     return { followUpLevel: FOLLOW_UP_LEVEL.CLOSE_WATCH, category: CONCLUSION_CATEGORY.REFERRAL };
-  if (c.healthIssue) return { followUpLevel: FOLLOW_UP_LEVEL.WATCH, category: CONCLUSION_CATEGORY.ISSUE };
+  // Vấn đề đã biết, không thay đổi không gắn "Cần theo dõi" (user chốt 2026-10-21); phiếu cũ không có issueKind giữ "Cần theo dõi".
+  if (c.healthIssue)
+    return {
+      followUpLevel: c.issueKind === ISSUE_KIND.KNOWN ? FOLLOW_UP_LEVEL.KNOWN_STABLE : FOLLOW_UP_LEVEL.WATCH,
+      category: CONCLUSION_CATEGORY.ISSUE,
+    };
   return { followUpLevel: FOLLOW_UP_LEVEL.NONE, category: CONCLUSION_CATEGORY.NORMAL };
 };
 

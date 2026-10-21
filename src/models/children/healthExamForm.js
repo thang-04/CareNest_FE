@@ -34,6 +34,8 @@
  * @property {boolean} normal
  * @property {boolean} tbRisk
  * @property {boolean} healthIssue
+ * @property {'NEW'|'KNOWN'|''} issueKind        mẫu thường: vấn đề mới hay đã biết (khi có vấn đề, không chuyển khám)
+ * @property {'NO_NEW_FINDING'|'ADVICE'|'NEW_FINDING'|''} followUpFinding  mẫu FOLLOW_UP (trẻ đang có phiếu theo dõi)
  * @property {string} issueText
  * @property {'NONE'|'ADVICE'|'REFERRAL'|''} action
  * @property {string} adviceText
@@ -250,14 +252,69 @@ export const CONCLUSION_FLAGS = [
   { key: 'healthIssue', label: 'Có vấn đề về sức khỏe' },
 ];
 
+// "Có vấn đề" không chuyển khám: "Cần theo dõi" chỉ cho vấn đề có thể chuyển biến (user chốt 2026-10-21).
+export const ISSUE_KIND = { NEW: 'NEW', KNOWN: 'KNOWN' };
+
+export const ISSUE_KIND_LABELS = {
+  NEW: 'Vấn đề mới hoặc có thay đổi',
+  KNOWN: 'Vấn đề đã biết, không thay đổi so với trước',
+};
+
+/** Mẫu kết luận BE chọn: FOLLOW_UP khi trẻ có phiếu theo dõi đang mở do lần khám khác mở (user chốt 2026-10-21). */
+export const CONCLUSION_MODE = { STANDARD: 'STANDARD', FOLLOW_UP: 'FOLLOW_UP' };
+
+// Mẫu FOLLOW_UP: một câu so với vấn đề đang theo dõi thay cho 2 nhóm Kết luận, Hướng xử lý; lưu không đóng phiếu.
+export const FOLLOW_UP_FINDING = { NO_NEW_FINDING: 'NO_NEW_FINDING', ADVICE: 'ADVICE', NEW_FINDING: 'NEW_FINDING' };
+
+export const FOLLOW_UP_FINDING_LABELS = {
+  NO_NEW_FINDING: 'Chưa ghi nhận thêm bất thường',
+  ADVICE: 'Tư vấn',
+  NEW_FINDING: 'Có thêm bất thường mới',
+};
+
+export const FOLLOW_UP_FINDING_HINTS = {
+  NO_NEW_FINDING: 'Phiếu theo dõi giữ nguyên.',
+  ADVICE: 'Có vấn đề nhỏ mới, bác sĩ chỉ tư vấn. Phiếu theo dõi giữ nguyên.',
+  NEW_FINDING: 'Phiếu theo dõi sang vòng mới: trao đổi lại với phụ huynh.',
+};
+
+/** Câu kết luận để hiển thị; mẫu FOLLOW_UP hiện lựa chọn so với vấn đề đang theo dõi. */
+export const conclusionLabelOf = (c) => {
+  if (!c) return '';
+  if (c.followUpFinding)
+    return [FOLLOW_UP_FINDING_LABELS[c.followUpFinding], c.tbRisk ? CONCLUSION_FLAGS.find((f) => f.key === 'tbRisk').label : null]
+      .filter(Boolean)
+      .join(', ');
+  return CONCLUSION_FLAGS.filter((f) => c[f.key])
+    .map((f) => f.label)
+    .join(', ');
+};
+
+/** Hướng xử lý để hiển thị; mẫu FOLLOW_UP không có nhóm này, chỉ có chuyên khoa đề nghị khi có bất thường mới. */
+export const conclusionActionLabelOf = (c) => {
+  if (!c) return '';
+  if (c.followUpFinding) return c.specialty ? `Đề nghị khám chuyên khoa: ${c.specialty}` : '';
+  const label = CONCLUSION_ACTION_LABELS[c.action] || '';
+  return c.action === CONCLUSION_ACTION.REFERRAL && c.specialty ? `${label}: ${c.specialty}` : label;
+};
+
 /** Nhóm kết luận BE trả cho thống kê đợt; nguy cơ lao đứng trước chuyển khám. */
-export const CONCLUSION_CATEGORY = { NORMAL: 'NORMAL', ISSUE: 'ISSUE', REFERRAL: 'REFERRAL', TB_RISK: 'TB_RISK' };
+export const CONCLUSION_CATEGORY = {
+  NORMAL: 'NORMAL',
+  ISSUE: 'ISSUE',
+  REFERRAL: 'REFERRAL',
+  TB_RISK: 'TB_RISK',
+  FOLLOWING_NO_NEW: 'FOLLOWING_NO_NEW',
+  FOLLOWING_NEW: 'FOLLOWING_NEW',
+};
 
 export const CONCLUSION_CATEGORY_LABELS = {
   NORMAL: 'Bình thường',
   ISSUE: 'Có vấn đề, tư vấn',
   REFERRAL: 'Chuyển khám chuyên khoa',
   TB_RISK: 'Nguy cơ lao',
+  FOLLOWING_NO_NEW: 'Đang theo dõi, chưa ghi nhận thêm',
+  FOLLOWING_NEW: 'Đang theo dõi, có bất thường mới',
 };
 
 export const EXAM_FIELD_LIMITS = { short: 100, text: 300, note: 500, idNumber: 20 };
@@ -293,6 +350,8 @@ export const buildEmptyExam = () => ({
     normal: false,
     tbRisk: false,
     healthIssue: false,
+    issueKind: '',
+    followUpFinding: '',
     issueText: '',
     action: '',
     adviceText: '',

@@ -6,10 +6,10 @@ import {
   SCREENING_CRITERIA_LABELS,
 } from '@/models/children/childrenConstants';
 import {
-  CONCLUSION_ACTION,
-  CONCLUSION_ACTION_LABELS,
-  CONCLUSION_FLAGS,
+  ISSUE_KIND_LABELS,
   NUTRITION_STATUS_OPTIONS,
+  conclusionActionLabelOf,
+  conclusionLabelOf,
   labelOf,
 } from '@/models/children/healthExamForm';
 import { formatNumber } from '@/utils/children/childrenHelpers';
@@ -20,7 +20,6 @@ const NOT_SET = <span className="muted">Chưa cập nhật</span>;
 /** Kết luận bác sĩ của phiếu Phụ lục II (BE trả); mức theo dõi theo kết luận này. */
 function ExamConclusion({ m }) {
   const c = m.exam.conclusion;
-  const flags = CONCLUSION_FLAGS.filter((f) => c[f.key]).map((f) => f.label);
   return (
     <dl className="info-list mt-16">
       <dt>Kết luận của bác sĩ</dt>
@@ -28,15 +27,15 @@ function ExamConclusion({ m }) {
         <div className="tr-cell-stack">
           <ConclusionCategoryBadge status={m.conclusionCategory} />
           <span>
-            {flags.join(', ')}
+            {conclusionLabelOf(c)}
             {c.issueText ? `: ${c.issueText}` : ''}
           </span>
+          {c.issueKind && <span className="muted text-sm">{ISSUE_KIND_LABELS[c.issueKind]}</span>}
         </div>
       </dd>
       <dt>Tư vấn / chuyển khám</dt>
       <dd>
-        {CONCLUSION_ACTION_LABELS[c.action] || '—'}
-        {c.action === CONCLUSION_ACTION.REFERRAL && c.specialty ? `: ${c.specialty}` : ''}
+        {conclusionActionLabelOf(c) || '—'}
         {c.adviceText && <div className="muted text-sm mt-8">Lời dặn: {c.adviceText}</div>}
       </dd>
       <dt>Tình trạng dinh dưỡng</dt>
@@ -47,7 +46,19 @@ function ExamConclusion({ m }) {
       <dd>{c.doctorName || NOT_SET}</dd>
       <dt>Mức theo dõi</dt>
       <dd>
-        <FollowUpLevelBadge status={m.followUpLevel} />
+        {/* Lần khám của trẻ đang có phiếu theo dõi: mức theo phiếu, không phải đề nghị chuyển khám mới. */}
+        {c.followUpFinding ? (
+          <span>
+            Trẻ đang trong phiếu theo dõi.{' '}
+            {m.followUpId && (
+              <Link className="text-primary text-sm" to={`/children/health-follow-ups/${m.followUpId}`}>
+                Mở phiếu theo dõi
+              </Link>
+            )}
+          </span>
+        ) : (
+          <FollowUpLevelBadge status={m.followUpLevel} />
+        )}
         {m.campaignId && (
           <div className="mt-8">
             <Link className="text-primary text-sm" to={`/children/health-checks/${m.campaignId}/exam/${m.childId}`}>

@@ -13,12 +13,13 @@
     "format:check": "prettier --check \"src/**/*.{js,jsx,css}\"",
     "check:design": "node scripts/check-design.mjs",
     "check": "npm run lint && npm run format:check && npm run check:design && npm run build",
-    "verify": "npm run test:menu && npm run test:kitchen && npm run test:merge && npm run test:hardening && npm run test:dashboard && npm run check",
+    "verify": "npm run test:menu && npm run test:kitchen && npm run test:merge && npm run test:hardening && npm run test:dashboard && npm run test:health && npm run check",
     "test:menu": "node --import ./scripts/register-auth-test-loader.mjs --test tests/menu/*.test.mjs",
     "test:kitchen": "node --import ./scripts/register-auth-test-loader.mjs --test tests/kitchen/*.test.mjs",
     "test:merge": "node --import ./scripts/register-auth-test-loader.mjs --test tests/integration/selective-merge/*.test.mjs",
     "test:hardening": "node --import ./scripts/register-auth-test-loader.mjs --test tests/hardening/*.test.mjs",
-    "test:dashboard": "node --import ./scripts/register-auth-test-loader.mjs --test tests/dashboard/*.test.mjs"
+    "test:dashboard": "node --import ./scripts/register-auth-test-loader.mjs --test tests/dashboard/*.test.mjs",
+    "test:health": "node --import ./scripts/register-auth-test-loader.mjs --test tests/health/*.test.mjs"
   },
   "dependencies": {
     "@tabler/icons-react": "^3.49.0",

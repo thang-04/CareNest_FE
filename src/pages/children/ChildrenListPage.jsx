@@ -33,12 +33,39 @@ import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 
-// Lọc theo mức của lần khám gần nhất có xếp mức (BE trả latestHealth); NO_RESULT: chưa có lần khám nào được xếp mức.
+// Lọc theo mức hiện tại BE trả (latestHealth: phiếu mở, lần khám hoặc phiếu đóng có kết quả); NO_RESULT: chưa có mức nào.
 const NO_RESULT = 'NO_RESULT';
-const HEALTH_LEVEL_OPTIONS = [FOLLOW_UP_LEVEL.WATCH, FOLLOW_UP_LEVEL.CLOSE_WATCH, FOLLOW_UP_LEVEL.NONE].map((value) => ({
-  value,
-  label: FOLLOW_UP_LEVEL_SHORT_LABELS[value],
-}));
+const HEALTH_LEVEL_OPTIONS = [FOLLOW_UP_LEVEL.WATCH, FOLLOW_UP_LEVEL.CLOSE_WATCH, FOLLOW_UP_LEVEL.KNOWN_STABLE, FOLLOW_UP_LEVEL.NONE].map(
+  (value) => ({
+    value,
+    label: FOLLOW_UP_LEVEL_SHORT_LABELS[value],
+  }),
+);
+
+/** Dòng phụ dưới nhãn mức: tên vấn đề đã biết, nguồn của mức (lần khám, kết quả chuyên khoa), phiếu đóng chưa có kết quả. */
+function LatestHealthNote({ childId, health }) {
+  const recordLink = (text) => (
+    <Link className="text-primary text-xs" to={`/children/${childId}/health`}>
+      {text}
+    </Link>
+  );
+  return (
+    <>
+      {health.knownCondition && <span className="text-xs">{health.knownCondition}</span>}
+      {health.source === 'FOLLOW_UP_CLOSED'
+        ? recordLink(health.resultOn ? `Theo kết quả chuyên khoa ${formatDate(health.resultOn)}` : `Đóng phiếu ${formatDate(health.date)}`)
+        : recordLink(`Khám ${formatDate(health.date)}`)}
+      {health.source === 'FOLLOW_UP_OPEN' && (
+        <Link className="text-primary text-xs" to={`/children/health-follow-ups/${health.followUpId}`}>
+          Đang có phiếu theo dõi
+        </Link>
+      )}
+      {health.closedWithoutResultOn && (
+        <span className="muted text-xs">Phiếu đã đóng {formatDate(health.closedWithoutResultOn)}, chưa có kết quả chuyên khoa</span>
+      )}
+    </>
+  );
+}
 const healthLevelLabel = (value) =>
   value === NO_RESULT ? 'Chưa có kết quả khám' : HEALTH_LEVEL_OPTIONS.find((o) => o.value === value)?.label || value;
 const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '', healthLevel: '' };
@@ -342,9 +369,7 @@ export default function ChildrenListPage() {
                           {c.latestHealth ? (
                             <div className="tr-cell-stack">
                               <FollowUpLevelShortBadge status={c.latestHealth.followUpLevel} />
-                              <Link className="text-primary text-xs" to={`/children/${c.id}/health`}>
-                                Khám {formatDate(c.latestHealth.date)}
-                              </Link>
+                              <LatestHealthNote childId={c.id} health={c.latestHealth} />
                             </div>
                           ) : (
                             <span className="muted text-sm">Chưa có</span>

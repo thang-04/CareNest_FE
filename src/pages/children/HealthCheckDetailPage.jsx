@@ -38,11 +38,14 @@ const STAT_TONES = [
 ];
 
 // Thống kê theo kết luận bác sĩ (BE đếm theo nhóm kết luận; nguy cơ lao không tính vào chuyển khám).
+// Trẻ đang có phiếu theo dõi được khám theo mẫu riêng nên có 2 nhóm "Đang theo dõi" (user chốt 2026-10-21).
 const CONCLUSION_TONES = [
   { key: CONCLUSION_CATEGORY.NORMAL, tone: 'green' },
   { key: CONCLUSION_CATEGORY.ISSUE, tone: 'orange' },
   { key: CONCLUSION_CATEGORY.REFERRAL, tone: 'red' },
   { key: CONCLUSION_CATEGORY.TB_RISK, tone: 'red' },
+  { key: CONCLUSION_CATEGORY.FOLLOWING_NO_NEW, tone: 'blue' },
+  { key: CONCLUSION_CATEGORY.FOLLOWING_NEW, tone: 'red' },
 ];
 
 function StatusBanner({ campaign, teacher }) {
