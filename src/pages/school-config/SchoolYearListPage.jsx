@@ -72,9 +72,18 @@ export default function SchoolYearListPage() {
       danger: true,
       run: deleteSchoolYear,
       done: 'Đã xóa bản ghi.',
+      // Nói rõ năm có bao nhiêu lớp sẽ mất cùng; năm chưa có lớp thì chỉ xóa năm
       message: (y) => (
         <>
-          Xóa năm học <b>{y.name}</b>? Lớp, phân công giáo viên, giờ chốt và xếp lớp của năm này cũng bị xóa.
+          Xóa năm học <b>{y.name}</b>?{' '}
+          {y.classCount > 0 ? (
+            <>
+              Năm này có <b>{y.classCount} lớp</b>: lớp, phân công giáo viên, tổ trưởng, giờ chốt và xếp lớp của năm này cũng bị xóa.
+            </>
+          ) : (
+            'Năm này chưa có lớp.'
+          )}{' '}
+          Không khôi phục được sau khi xóa.
         </>
       ),
     },

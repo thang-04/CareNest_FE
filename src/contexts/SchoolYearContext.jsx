@@ -6,10 +6,14 @@ import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 
 const SchoolYearContext = createContext(null);
 
+// Nhãn trạng thái cạnh năm học ở header: biết ngay năm đang xem còn sửa được hay chỉ xem
+const STATUS_LABELS = { ACTIVE: 'Đang hoạt động', PLANNED: 'Sắp diễn ra', CLOSED: 'Đã kết thúc' };
+
 const toOption = (y) => ({
   id: y.id,
   label: (y.name || y.id).replace('-', ' - '),
   status: y.status,
+  statusLabel: STATUS_LABELS[y.status] || '',
   startDate: y.startDate || null,
   endDate: y.endDate || null,
 });

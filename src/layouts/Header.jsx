@@ -27,7 +27,7 @@ export function Header({ role, showMenuButton, menuOpen, onToggleSidebar }) {
         >
           {schoolYears.map((y) => (
             <option key={y.id} value={y.id}>
-              {y.label}
+              {y.statusLabel ? `${y.label} · ${y.statusLabel}` : y.label}
             </option>
           ))}
         </select>
