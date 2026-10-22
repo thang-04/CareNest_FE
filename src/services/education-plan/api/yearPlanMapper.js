@@ -33,16 +33,12 @@ export const buildRefs = (config) => {
   };
 };
 
-// Vai trò ký của BE → mã vai trò của UI (Tổ trưởng là giáo viên có phân công AGE_GROUP_TEAM_LEADER)
-const SIGNER_ROLE = { AGE_GROUP_TEAM_LEADER: 'TEAM_LEADER' };
-
-/** Cấu hình BE → dạng cấu hình của UI (eduConfig.js); phần BE chưa có (dòng tuần, người ký khác) lấy mặc định ở withDefaults. */
+/** Cấu hình BE → dạng cấu hình của UI (eduConfig.js); phần BE chưa có (người ký, dòng tuần) lấy mặc định ở withDefaults. */
 export const toUiEduConfig = (config) => {
   const domains = config?.domains || [];
   return {
     domainLabels: Object.fromEntries(domains.filter((d) => d.displayLabel).map((d) => [d.name, d.displayLabel])),
     extraDomains: domains.map((d) => d.name),
-    signers: config?.yearSigners?.length ? { year: config.yearSigners.map((r) => SIGNER_ROLE[r] || r) } : {},
   };
 };
 

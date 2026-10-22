@@ -35,7 +35,10 @@ function TeacherYearGoals() {
   const { classes, loading } = useClasses();
   if (loading) return <LoadingState />;
   const groups = classes.filter((c) => (c.teacherIds || []).includes(user.id)).map((c) => c.ageGroupId);
-  const issued = goals.find((g) => groups.includes(g.ageGroupId) && g.schoolYear === schoolYear && g.status === EDU_STATUS.APPROVED);
+  // API thật (có permissions): BE đã chỉ trả bản đã ban hành của khối giáo viên dạy, không lọc lại theo lớp ở client
+  const issued = goals.find(
+    (g) => (g.permissions || groups.includes(g.ageGroupId)) && g.schoolYear === schoolYear && g.status === EDU_STATUS.APPROVED,
+  );
   if (issued) return <Navigate to={`/education/goals/${issued.id}`} replace />;
   return (
     <div className="page ga-page">

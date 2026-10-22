@@ -14,7 +14,6 @@ const CONFIG = {
     { id: 11, name: 'Phát triển thể chất', displayLabel: null, shortLabel: 'Thể chất', sortOrder: 1 },
     { id: 13, name: 'Phát triển ngôn ngữ', displayLabel: null, shortLabel: 'Ngôn ngữ', sortOrder: 3 },
   ],
-  yearSigners: ['AGE_GROUP_TEAM_LEADER', 'VICE_PRINCIPAL'],
   schoolYears: [{ id: 5, name: '2026-2027', startDate: '2026-09-01', endDate: '2027-05-31' }],
   ageGroups: [{ id: 3, code: 'ag-3', name: 'Mẫu giáo bé (3–4 tuổi)', shortName: 'Mẫu giáo bé', sortOrder: 2 }],
 };
