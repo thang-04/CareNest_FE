@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { saveClass } from '@/services/school-config/schoolConfigService';
-import { classSizeLimit, validateClass, hasErrors } from '@/utils/school-config/schoolConfigValidation';
+import { classSizeLimit, validateClass, hasErrors, errorsAfterChange, CLASS_LIMITS } from '@/utils/school-config/schoolConfigValidation';
 import { isActiveLocation, LOCATION_TYPES } from '@/models/Location';
 
 const empty = (schoolYear, campusId, ageGroup) => ({
@@ -55,11 +55,7 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => {
-      const next = { ...e };
-      Object.keys(patch).forEach((k) => delete next[k]);
-      return next;
-    });
+    setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, CLASS_LIMITS));
   };
   const blurCheck = (field) => {
     const e = check();
@@ -97,8 +93,7 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
       toast.success('Đã lưu thay đổi.', cls ? 'Cập nhật lớp' : 'Tạo lớp');
       onClose(true);
     } catch (err) {
-      if (err.details) setErrors(err.details);
-      toast.error(err, 'Không lưu được thay đổi');
+      setErrors(err.details || { _form: err.message });
     } finally {
       setSaving(false);
     }
@@ -123,15 +118,14 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
         </>
       }
     >
+      {errors._form && (
+        <div className="alert alert--danger mb-12" role="alert">
+          {errors._form}
+        </div>
+      )}
       <div className="grid-2">
         <FormField label="Tên lớp" required error={errors.name}>
-          <input
-            className="input"
-            value={form.name}
-            maxLength={50}
-            onChange={(e) => set({ name: e.target.value })}
-            onBlur={() => blurCheck('name')}
-          />
+          <input className="input" value={form.name} onChange={(e) => set({ name: e.target.value })} onBlur={() => blurCheck('name')} />
         </FormField>
         <FormField label="Năm học">
           <input className="input" value={yearName || schoolYear} disabled />

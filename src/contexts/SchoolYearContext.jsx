@@ -39,7 +39,11 @@ export function SchoolYearProvider({ children }) {
           if (!alive || !list?.length) return;
           const options = list.map(toOption);
           setSchoolYears(options);
-          const active = (options.find((o) => o.status === 'ACTIVE') || options[0]).id;
+          // Mặc định: năm đang hoạt động; chưa có thì năm sắp diễn ra sớm nhất (năm sẽ kích hoạt tiếp)
+          const nextPlanned = options
+            .filter((o) => o.status === 'PLANNED')
+            .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))[0];
+          const active = (options.find((o) => o.status === 'ACTIVE') || nextPlanned || options[0]).id;
           setChosenYear((current) => (picked.current && options.some((o) => o.id === current) ? current : active));
         })
         .catch(() => {
@@ -53,7 +57,12 @@ export function SchoolYearProvider({ children }) {
     };
   }, [user]);
 
-  const value = useMemo(() => ({ schoolYear, setSchoolYear, schoolYears }), [schoolYear, setSchoolYear, schoolYears]);
+  // Năm đang chọn đã kết thúc ⇒ mọi màn Cấu hình trường chỉ xem (Cần chốt 22/10/2026)
+  const yearReadOnly = schoolYears.find((o) => o.id === schoolYear)?.status === 'CLOSED';
+  const value = useMemo(
+    () => ({ schoolYear, setSchoolYear, schoolYears, yearReadOnly }),
+    [schoolYear, setSchoolYear, schoolYears, yearReadOnly],
+  );
   return <SchoolYearContext.Provider value={value}>{children}</SchoolYearContext.Provider>;
 }
 

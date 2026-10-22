@@ -86,7 +86,7 @@ export const READINESS_STEPS = [
   },
   {
     key: 'teachers',
-    label: 'Giáo viên lớp (2 giáo viên / lớp)',
+    label: 'Giáo viên lớp',
     required: true,
     to: (y) => `/school/teachers?year=${y}`,
     action: 'Phân công',

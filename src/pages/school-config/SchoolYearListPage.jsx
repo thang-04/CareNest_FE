@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, CalendarRange, Play, Archive, Trash2, Shapes, Clock4 } from '@/components/ui/icons';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Plus, CalendarRange, Play, Archive, Trash2, Shapes, Clock4, ListChecks } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
@@ -20,9 +20,12 @@ import {
   canDeleteYear,
   canEditYear,
   canViewSchoolStructure,
+  closeYearOpensOn,
+  nextYearToActivate,
 } from '@/utils/school-config/schoolConfigPermissions';
 import { yearCrumbs } from '@/utils/school-config/breadcrumbs';
-import { formatDate } from '@/utils/format';
+import { formatDate, todayInput } from '@/utils/format';
+import { DEV_SKIP_YEAR_DATES } from '@/config/env';
 import '@/styles/modules/school-config.css';
 
 /** #16 School Year List (UC 2.1). Principal configures; other school roles view. */
@@ -31,7 +34,9 @@ export default function SchoolYearListPage() {
   const toast = useToast();
   const { years, loading, error, reload } = useSchoolYears();
   const [pending, setPending] = useState(null); // { kind, year }
+  const [pendingError, setPendingError] = useState('');
   const [activating, setActivating] = useState(null);
+  const [params, setParams] = useSearchParams();
 
   if (!canViewSchoolStructure(user))
     return (
@@ -43,6 +48,11 @@ export default function SchoolYearListPage() {
     );
 
   const active = years.find((y) => y.status === YEAR_STATUS.ACTIVE);
+  // Một card "Chuẩn bị năm học": năm chọn qua ?year=, mặc định năm sẽ kích hoạt tiếp theo
+  const next = nextYearToActivate(years);
+  const preparing = years.find((y) => y.id === params.get('year') && y.status === YEAR_STATUS.PLANNED) || next;
+  const prepare = (y) => setParams((p) => ({ ...Object.fromEntries(p), year: y.id }), { replace: true });
+  const today = todayInput();
   const ACTIONS = {
     close: {
       title: 'Kết thúc năm học',
@@ -78,8 +88,7 @@ export default function SchoolYearListPage() {
       setPending(null);
       reload({ silent: true });
     } catch (err) {
-      setPending(null);
-      toast.error(err, `Không ${action.label.toLowerCase()} được`);
+      setPendingError(err.message);
     }
   };
 
@@ -95,10 +104,14 @@ export default function SchoolYearListPage() {
         )}
       </div>
 
-      {canConfigureSchool(user) &&
-        years
-          .filter((y) => y.status === YEAR_STATUS.PLANNED)
-          .map((y) => <YearReadinessCard key={y.id} year={y} onActivate={setActivating} />)}
+      {canConfigureSchool(user) && preparing && (
+        <YearReadinessCard
+          key={preparing.id}
+          year={preparing}
+          blockedBy={preparing.id !== next?.id ? next : null}
+          onActivate={setActivating}
+        />
+      )}
 
       <div className="card">
         {error ? (
@@ -138,8 +151,21 @@ export default function SchoolYearListPage() {
                   </tr>
                 ) : (
                   years.map((y) => (
-                    <tr key={y.id}>
-                      <td className="fw-600 text-primary">{y.name}</td>
+                    <tr key={y.id} className={y.id === preparing?.id ? 'is-selected' : undefined}>
+                      <td className="fw-600 text-primary">
+                        {canConfigureSchool(user) && y.status === YEAR_STATUS.PLANNED ? (
+                          <button
+                            type="button"
+                            className="link-btn fw-600"
+                            aria-pressed={y.id === preparing?.id}
+                            onClick={() => prepare(y)}
+                          >
+                            {y.name}
+                          </button>
+                        ) : (
+                          y.name
+                        )}
+                      </td>
                       <td>{formatDate(y.startDate)}</td>
                       <td>{formatDate(y.endDate)}</td>
                       <td className="num">{y.classCount}</td>
@@ -148,7 +174,7 @@ export default function SchoolYearListPage() {
                       </td>
                       <td className="cell--actions">
                         <div className="row">
-                          {canActivateYear(y, user) && (
+                          {canActivateYear(y, user, years) && (
                             <button className="btn btn--primary btn--sm" onClick={() => setActivating(y)}>
                               <Play size={15} /> Kích hoạt
                             </button>
@@ -156,18 +182,28 @@ export default function SchoolYearListPage() {
                           <RowActions
                             edit={canEditYear(y, user) ? { to: `/school/years/${y.id}/edit`, label: 'Sửa năm học' } : null}
                             menu={[
+                              ...(canConfigureSchool(user) && y.status === YEAR_STATUS.PLANNED
+                                ? [{ label: 'Chuẩn bị năm học', icon: ListChecks, onClick: () => prepare(y) }]
+                                : []),
                               { label: 'Nhóm tuổi & lớp', icon: Shapes, to: `/school/classes?year=${y.id}` },
                               ...(canConfigureSchool(user) && y.status !== YEAR_STATUS.CLOSED
                                 ? [{ label: 'Giờ chốt điểm danh', icon: Clock4, to: `/school/cutoff?year=${y.id}` }]
                                 : []),
                               ...(canCloseYear(y, user)
                                 ? [
-                                    {
-                                      label: 'Kết thúc năm học',
-                                      icon: Archive,
-                                      danger: true,
-                                      onClick: () => setPending({ kind: 'close', year: y }),
-                                    },
+                                    // Chỉ kết thúc tay sau ngày kết thúc năm học
+                                    !DEV_SKIP_YEAR_DATES && today < closeYearOpensOn(y)
+                                      ? {
+                                          label: `Kết thúc năm học (từ ${formatDate(closeYearOpensOn(y))})`,
+                                          icon: Archive,
+                                          disabled: true,
+                                        }
+                                      : {
+                                          label: 'Kết thúc năm học',
+                                          icon: Archive,
+                                          danger: true,
+                                          onClick: () => setPending({ kind: 'close', year: y }),
+                                        },
                                   ]
                                 : []),
                               ...(canDeleteYear(y, user)
@@ -210,7 +246,11 @@ export default function SchoolYearListPage() {
         confirmLabel={action?.label}
         danger={action?.danger}
         onConfirm={confirm}
-        onClose={() => setPending(null)}
+        error={pendingError}
+        onClose={() => {
+          setPending(null);
+          setPendingError('');
+        }}
       />
     </div>
   );

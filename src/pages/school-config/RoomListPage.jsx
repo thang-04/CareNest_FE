@@ -21,6 +21,7 @@ import { roomCrumbs } from '@/utils/school-config/breadcrumbs';
 import { normalizeText } from '@/utils/format';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { YearReadOnlyNotice } from '@/components/school-config/YearReadOnlyNotice';
 import '@/styles/modules/school-config.css';
 
 /**
@@ -32,20 +33,21 @@ const ROOM_PAGE_SIZE = 10;
 export default function RoomListPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, yearReadOnly } = useSchoolYear();
   const md = useMasterData();
   const { rooms, loading, error, reload } = useRooms(schoolYear);
   const [params, setParams] = useSearchParams();
   const [filters, setFilters] = useState(() => ({ campusId: params.get('campus') || '', type: '', status: '', keyword: '' }));
   const [modal, setModal] = useState(null); // { room }
   const [pending, setPending] = useState(null); // { kind: 'delete' | 'deactivate' | 'activate', room }
+  const [pendingError, setPendingError] = useState('');
   const [blocked, setBlocked] = useState(null); // { room, actionLabel }
   // Điểm trường xem / sửa được theo quyền "Quản lý phòng ban" (Hiệu trưởng: tất cả)
   const viewIds = roomCampusIds(user, md.campuses);
-  const editIds = roomCampusIds(user, md.campuses, true);
+  const editIds = yearReadOnly ? [] : roomCampusIds(user, md.campuses, true);
   const manage = editIds.length > 0;
   // Thêm phòng cần quyền Thêm; sửa phòng cần quyền Sửa (theo điểm trường)
-  const createIds = roomCampusIds(user, md.campuses, 'create');
+  const createIds = yearReadOnly ? [] : roomCampusIds(user, md.campuses, 'create');
   const multiCampus = viewIds.length > 1;
 
   const shown = useMemo(() => {
@@ -154,8 +156,7 @@ export default function RoomListPage() {
       setPending(null);
       reload({ silent: true });
     } catch (err) {
-      setPending(null);
-      toast.error(err, `Không ${action.label.toLowerCase()} được`);
+      setPendingError(err.message);
     }
   };
 
@@ -176,7 +177,7 @@ export default function RoomListPage() {
       <td className="center">{r.capacity ?? <span className="muted">—</span>}</td>
       <td>{r.yearClasses.length ? r.yearClasses.join(', ') : <span className="muted">—</span>}</td>
       <td>
-        {md.userById(r.managerUserId)?.fullName || <span className="muted">—</span>}
+        {r.managerName || md.userById(r.managerUserId)?.fullName || <span className="muted">—</span>}
         {r.managerFromClass && r.managerUserId && <div className="text-xs muted">Chủ nhiệm lớp</div>}
       </td>
       <td className="center">
@@ -234,6 +235,7 @@ export default function RoomListPage() {
           </button>
         )}
       </div>
+      <YearReadOnlyNotice />
 
       <div className="card mb-16">
         <div className="filter-bar">
@@ -376,7 +378,11 @@ export default function RoomListPage() {
         confirmLabel={action?.label}
         danger={action?.danger}
         onConfirm={confirm}
-        onClose={() => setPending(null)}
+        error={pendingError}
+        onClose={() => {
+          setPending(null);
+          setPendingError('');
+        }}
       />
     </div>
   );

@@ -39,6 +39,7 @@ export default function YearPlacementPage() {
   const [dirty, setDirty] = useState(false);
   const [pendingId, setPendingId] = useState(null);
   const [confirmAuto, setConfirmAuto] = useState(false);
+  const [autoError, setAutoError] = useState('');
 
   const campusName = (id) => plan?.campuses.find((c) => c.id === id)?.name || id;
   const groupName = (id) => plan?.ageGroups.find((g) => g.id === id)?.shortName || '—';
@@ -87,9 +88,9 @@ export default function YearPlacementPage() {
   };
 
   const runAuto = async () => {
-    setConfirmAuto(false);
     try {
       const r = await autoPlace(yearId, user, { campusId: campusId || undefined, ageGroupId: groupId || undefined });
+      setConfirmAuto(false);
       const left = r.unplaced.map((u) => `${u.className}: ${u.count} trẻ`).join(', ');
       toast.success(`${r.promoted} trẻ lên lớp, ${r.graduated} trẻ ra trường.${left ? ` Chưa đủ chỗ: ${left}.` : ''}`, 'Đã xếp tự động');
       const fresh = await reload({ silent: true });
@@ -97,7 +98,7 @@ export default function YearPlacementPage() {
       const todo = classes.map((c) => fresh?.classes.find((x) => x.id === c.id)).find((c) => c && placedOf(c) < c.children.length);
       if (todo) setSelectedId(todo.id);
     } catch (err) {
-      toast.error(err, 'Không xếp tự động được');
+      setAutoError(err.message);
     }
   };
 
@@ -346,7 +347,11 @@ export default function YearPlacementPage() {
         message={`${filtered ? `Chỉ các lớp đang hiện theo bộ lọc (${classes.length} lớp). ` : ''}Trẻ chưa xếp được chuyển cả lớp lên nhóm tuổi kế tiếp (lớp cùng điểm trường còn nhiều chỗ nhất); nhóm tuổi lớn nhất ra trường. Trẻ đã xếp giữ nguyên. Lớp mới hết chỗ thì trẻ còn lại để chưa xếp.`}
         confirmLabel="Xếp tự động"
         onConfirm={runAuto}
-        onClose={() => setConfirmAuto(false)}
+        error={autoError}
+        onClose={() => {
+          setConfirmAuto(false);
+          setAutoError('');
+        }}
       />
     </div>
   );

@@ -132,7 +132,9 @@ export function ClassListSection({
   }, [q, group, status, campus, classes]);
 
   const roomCell = (c) => {
-    const l = c.locationId && md.locationById(c.locationId);
+    // Phòng đã xóa khỏi danh sách phòng (lớp năm cũ): dùng mã/tên BE trả kèm lớp
+    const l =
+      (c.locationId && md.locationById(c.locationId)) || (c.roomCode ? { room: c.roomCode, name: `${c.roomName || ''} (đã xóa)` } : null);
     if (!l) return <span className="muted text-sm">Chưa có phòng</span>;
     return (
       <span className="text-sm">
@@ -153,7 +155,7 @@ export function ClassListSection({
           id ? (
             <span key={id} className="sc-tslot">
               <span className="sc-tslot__label">GV {i + 1}</span>
-              <span className="sc-tslot__name">{md.userById(id)?.fullName || id}</span>
+              <span className="sc-tslot__name">{c.teachers?.find((t) => t.id === id)?.fullName || md.userById(id)?.fullName || id}</span>
               {id === c.homeroomTeacherId && <span className="chip chip--teal sc-tslot__tag">CN</span>}
             </span>
           ) : (

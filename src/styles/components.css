@@ -3266,6 +3266,11 @@ button.stat-card .stat-card__label::after {
 .row-menu__item--danger {
   color: var(--color-danger);
 }
+.row-menu__item:disabled {
+  color: var(--color-text-disabled);
+  background: none;
+  cursor: not-allowed;
+}
 
 /* ---------- Điện thoại (≤640px): primitive dùng chung về 1 cột ---------- */
 /* Đặt cuối file để thắng các biến thể phía trên (vd. .general-grid--inter .form-row 160px) */

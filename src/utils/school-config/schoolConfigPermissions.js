@@ -26,7 +26,18 @@ export const canConfigureSchool = isPrincipal;
 export const canViewSchoolStructure = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.TEACHER, ROLES.TEAM_LEADER);
 
 export const canEditYear = (year, user) => isPrincipal(user) && !!year && year.status !== YEAR_STATUS.CLOSED;
-export const canActivateYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.PLANNED;
+/** Năm được kích hoạt tiếp theo: năm PLANNED bắt đầu sớm nhất (BE chặn kích hoạt năm khác). */
+export const nextYearToActivate = (years = []) =>
+  years.filter((y) => y.status === YEAR_STATUS.PLANNED).sort((a, b) => a.startDate.localeCompare(b.startDate))[0] || null;
+export const canActivateYear = (year, user, years = [year]) =>
+  isPrincipal(user) && year?.status === YEAR_STATUS.PLANNED && nextYearToActivate(years)?.id === year.id;
+/** Kết thúc tay chỉ sau ngày kết thúc năm học (BE kiểm tra lại). */
+export const closeYearOpensOn = (year) => {
+  if (!year?.endDate) return null;
+  const d = new Date(`${year.endDate}T00:00:00`);
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 export const canCloseYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.ACTIVE;
 /** Only a planned year can be deleted (the repository also checks it has no classes – MSG53). */
 export const canDeleteYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.PLANNED;

@@ -16,17 +16,21 @@ import { formatDate } from '@/utils/format';
 const STEP_LINK = Object.fromEntries(READINESS_STEPS.map((s) => [s.key, s]));
 
 /** "Chuẩn bị năm học" card of a planned year: steps computed by the backend, each with a link to its screen. */
-export function YearReadinessCard({ year, onActivate }) {
+export function YearReadinessCard({ year, blockedBy, onActivate }) {
   const { readiness, loading, error, reload } = useYearReadiness(year.id);
   if (error) return <ErrorState error={error} onRetry={reload} />;
   const steps = readiness?.steps || [];
   const required = steps.filter((s) => s.required);
   const done = required.filter((s) => s.ok).length;
-  const reason = readiness?.canActivate
-    ? 'Đã đủ điều kiện kích hoạt.'
-    : readiness
-      ? `Kích hoạt được từ ${formatDate(readiness.openFrom)} khi xong ${required.length - done} bước bắt buộc còn lại.`
-      : '';
+  // Kích hoạt theo thứ tự: năm sau chỉ kích hoạt khi năm trước đó đã kích hoạt
+  const canActivate = !!readiness?.canActivate && !blockedBy;
+  const reason = blockedBy
+    ? `Kích hoạt năm học ${blockedBy.name} trước.`
+    : readiness?.canActivate
+      ? 'Đã đủ điều kiện kích hoạt.'
+      : readiness
+        ? `Kích hoạt được từ ${formatDate(readiness.openFrom)} khi xong ${required.length - done} bước bắt buộc còn lại.`
+        : '';
   return (
     <section className="card sc-ready" aria-label={`Chuẩn bị năm học ${year.name}`}>
       <div className="sc-ready__head">
@@ -39,7 +43,7 @@ export function YearReadinessCard({ year, onActivate }) {
           </span>
         </div>
         <div className="sc-ready__activate">
-          <button className="btn btn--primary" disabled={!readiness?.canActivate} title={reason} onClick={() => onActivate(year)}>
+          <button className="btn btn--primary" disabled={!canActivate} title={reason} onClick={() => onActivate(year)}>
             <Play size={16} /> Kích hoạt năm học
           </button>
           <span className="muted text-xs">{reason}</span>
@@ -53,8 +57,17 @@ export function YearReadinessCard({ year, onActivate }) {
           <ul className="sc-ready__steps">
             {steps.map((s) => (
               <li key={s.key} className="sc-ready__step">
-                <span className={`sc-ready__dot ${s.ok ? 'sc-ready__dot--ok' : s.required ? 'sc-ready__dot--todo' : 'sc-ready__dot--opt'}`}>
-                  {s.ok ? <CheckCircle2 size={16} aria-label="Đã xong" /> : <AlertTriangle size={16} aria-label="Chưa xong" />}
+                {/* warning: đạt (không chặn kích hoạt) nhưng còn việc nên làm ⇒ vàng như bước khuyến nghị */}
+                <span
+                  className={`sc-ready__dot ${
+                    s.ok && !s.warning ? 'sc-ready__dot--ok' : s.required && !s.ok ? 'sc-ready__dot--todo' : 'sc-ready__dot--opt'
+                  }`}
+                >
+                  {s.ok && !s.warning ? (
+                    <CheckCircle2 size={16} aria-label="Đã xong" />
+                  ) : (
+                    <AlertTriangle size={16} aria-label="Chưa xong" />
+                  )}
                 </span>
                 <b className="sc-ready__label">
                   {s.label}
@@ -94,7 +107,7 @@ export function ActivateYearModal({ year, activeYear, onClose, onDone }) {
       toast.success(`Đã kích hoạt năm học ${year.name}`);
       onDone();
     } catch (err) {
-      toast.error(err, 'Không kích hoạt được năm học');
+      setError(err.message);
     } finally {
       setBusy(false);
     }

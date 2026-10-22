@@ -2,7 +2,7 @@ import { readDb, writeDb, clone, delay, ApiError, needsMockSeedMigration } from 
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { buildAttendanceSeed, buildAttendanceUnlocks, buildDayAttendance } from '@/mocks/attendanceSeed';
-import { AGE_GROUP_EXTRA, buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
+import { AGE_GROUP_EXTRA } from '@/mocks/schoolConfigSeed';
 import { activeYearEnd, activeYearId, activeYearStart } from '@/mocks/roomManagers';
 import { ROLES } from '@/models/User';
 import {
@@ -68,22 +68,6 @@ export const readCutoff = (db) => {
     ? [...s].reverse().map((x) => x?.time || x?.cutoffTime)
     : [s?.time, s?.cutoffTime, s?.attendanceCutoff, typeof s === 'string' ? s : null];
   return candidates.find(isValidTime) || DEFAULT_CUTOFF_TIME;
-};
-
-/**
- * Thời hạn mở lại (phút sau giờ chốt) do Hiệu trưởng cấu hình; đã có cấu hình mà thiếu số thì null (không tự áp số).
- * Module cấu hình trường chưa khởi tạo dữ liệu demo thì đọc seed của module đó (như giờ chốt).
- */
-export const readReopenWindow = (db) => {
-  const s = db.cutoffSettings ?? buildSeedSchoolConfig().cutoffSettings;
-  const latest = Array.isArray(s) ? [...s].reverse().find((x) => x?.reopenWindowMinutes != null) : s;
-  const minutes = Number(latest?.reopenWindowMinutes);
-  return latest?.reopenWindowMinutes != null && Number.isInteger(minutes) && minutes >= 0 ? minutes : null;
-};
-
-const addMinutes = (time, minutes) => {
-  const total = Math.min(23 * 60 + 59, Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)) + minutes);
-  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 };
 
 /** Kitchen readiness comes from the meal preparation module (#98) when it exists. */
@@ -445,17 +429,11 @@ const dayInfo = (db, date, cls) => {
   const now = schoolNow();
   const baseLocked = isDayLocked(date, cutoff, now);
   const unlock = cls && baseLocked && cls.schoolYear === activeYearId(db) ? activeUnlockOf(db, cls.id, date) : null;
-  const reopenWindow = readReopenWindow(db);
-  const reopenUntil = reopenWindow == null ? null : addMinutes(cutoff, reopenWindow);
   return {
     date,
     today: now.date,
     now: now.time,
     cutoff,
-    reopenWindow,
-    reopenUntil,
-    // Thời hạn mở lại HT cấu hình chỉ áp cho ngày hôm nay; ngày cũ trong năm học PHT mở lại được (Cần chốt 21/10/2026)
-    reopenExpired: reopenUntil != null && date === now.date && now.time > reopenUntil,
     yearStart: activeYearStart(db),
     yearEnd: activeYearEnd(db),
     schoolDay: isSchoolDay(date),

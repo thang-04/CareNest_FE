@@ -7,7 +7,7 @@ import { Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { saveAgeGroup } from '@/services/school-config/schoolConfigService';
 import { MEAL_SESSION_LABELS, MEAL_SESSION_OPTIONS } from '@/models/school-config/schoolConfigConstants';
-import { validateAgeGroup, hasErrors } from '@/utils/school-config/schoolConfigValidation';
+import { validateAgeGroup, hasErrors, errorsAfterChange, AGE_GROUP_LIMITS } from '@/utils/school-config/schoolConfigValidation';
 
 const EMPTY = {
   name: '',
@@ -38,11 +38,7 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => {
-      const next = { ...e };
-      Object.keys(patch).forEach((k) => delete next[k]);
-      return next;
-    });
+    setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, AGE_GROUP_LIMITS));
   };
   const others = existing.filter((g) => g.id !== group?.id);
   const toggleMeal = (s) =>
@@ -66,8 +62,7 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
       toast.success('Đã lưu thay đổi.', group ? 'Cập nhật nhóm tuổi' : 'Thêm nhóm tuổi');
       onClose(true);
     } catch (err) {
-      if (err.details) setErrors(err.details);
-      toast.error(err, 'Không lưu được thay đổi');
+      setErrors(err.details || { _form: err.message });
     } finally {
       setSaving(false);
     }
@@ -104,18 +99,17 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
         </>
       }
     >
+      {errors._form && (
+        <div className="alert alert--danger mb-12" role="alert">
+          {errors._form}
+        </div>
+      )}
       <div className="grid-2">
         <FormField label="Tên nhóm tuổi" required error={errors.name}>
-          <input
-            className="input"
-            value={form.name}
-            maxLength={50}
-            onChange={(e) => set({ name: e.target.value })}
-            onBlur={() => blurCheck('name')}
-          />
+          <input className="input" value={form.name} onChange={(e) => set({ name: e.target.value })} onBlur={() => blurCheck('name')} />
         </FormField>
         <FormField label="Tên ngắn" required error={errors.shortName}>
-          <input className="input" value={form.shortName} maxLength={40} onChange={(e) => set({ shortName: e.target.value })} />
+          <input className="input" value={form.shortName} onChange={(e) => set({ shortName: e.target.value })} />
         </FormField>
         {numberField('ageFromMonths', 'Độ tuổi từ (tháng)', { min: 0, max: 72 })}
         {numberField('ageToMonths', 'Độ tuổi đến (tháng)', { min: 1, max: 72 })}
@@ -139,14 +133,8 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
         </fieldset>
         {numberField('maxClassSize', 'Sĩ số tối đa / lớp', { min: 1 })}
       </div>
-      <FormField label="Yêu cầu dinh dưỡng" className="mt-12">
-        <textarea
-          className="textarea"
-          rows={2}
-          maxLength={500}
-          value={form.nutritionNote}
-          onChange={(e) => set({ nutritionNote: e.target.value })}
-        />
+      <FormField label="Yêu cầu dinh dưỡng" error={errors.nutritionNote} className="mt-12">
+        <textarea className="textarea" rows={2} value={form.nutritionNote} onChange={(e) => set({ nutritionNote: e.target.value })} />
       </FormField>
       {mealsChanged && used.length > 0 && (
         <div className="alert alert--warning mt-12">

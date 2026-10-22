@@ -31,6 +31,8 @@ import { PERMISSION_CATALOG, defaultGrants, grantsOf, isLockedGrant } from '@/mo
 import { uid } from '@/utils/id';
 import { formatDate, normalizeText } from '@/utils/format';
 import {
+  closeYearOpensOn,
+  nextYearToActivate,
   canAssignTeachers,
   canViewTeamLeaders,
   teamLeaderActions,
@@ -65,6 +67,7 @@ import {
   validateStaffAccount,
   validateStaffProfile,
   validateVpAssignment,
+  normalizePhone,
 } from '@/utils/school-config/schoolConfigValidation';
 
 /*
@@ -259,10 +262,6 @@ const buildReadiness = (db, year) => {
   // Mỗi nhóm tuổi có lớp trong năm cần 1 tổ trưởng cho cả trường
   const leaderGroups = [...new Set(classes.map((c) => c.ageGroupId))];
   const leaderMissing = leaderGroups.filter((g) => !db.teamLeaderAssignments.some((a) => a.schoolYear === year.id && a.ageGroupId === g));
-  const shortTeachers = classes.filter((c) => (c.teacherIds || []).length < TEACHERS_PER_CLASS);
-  // Tiến độ theo từng điểm trường: "Campus 1: 2/4 lớp đủ GV · Campus 2: 0/2 lớp đủ GV"
-  const perCampus = (render) =>
-    [...new Set(classes.map((c) => c.campusId))].map((campusId) => `${campusLabel(db, campusId)}: ${render(campusId)}`).join(' · ');
   const source = placementSource(db, year);
   const toPlace = sourceChildren(db, source);
   const placed = new Set(placementsOf(db, year.id).map((p) => p.childId));
@@ -293,15 +292,24 @@ const buildReadiness = (db, year) => {
         ? `${leaderGroups.length - leaderMissing.length}/${leaderGroups.length} nhóm tuổi có tổ trưởng (toàn trường)`
         : 'Chưa có lớp',
     },
-    teachers: {
-      ok: classes.length > 0 && !shortTeachers.length,
-      detail: classes.length
-        ? perCampus((campusId) => {
-            const list = classes.filter((c) => c.campusId === campusId);
-            return `${list.length - shortTeachers.filter((c) => c.campusId === campusId).length}/${list.length} lớp đủ GV`;
-          })
-        : 'Chưa có lớp',
-    },
+    // Lớp chưa có giáo viên hoặc chưa có chủ nhiệm chặn kích hoạt; thiếu 1 GV chỉ cảnh báo (Cần chốt 22/10/2026)
+    teachers: (() => {
+      const empty = classes.filter((c) => !(c.teacherIds || []).length);
+      const short = classes.filter((c) => (c.teacherIds || []).length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS);
+      const noHomeroom = classes.filter((c) => (c.teacherIds || []).length > 0 && !c.homeroomTeacherId);
+      const ok = classes.length > 0 && !empty.length && !noHomeroom.length;
+      return {
+        ok,
+        warning: ok && short.length > 0,
+        detail: !classes.length
+          ? 'Chưa có lớp'
+          : !ok
+            ? [empty.length && `${empty.length} lớp chưa có giáo viên`, noHomeroom.length && `${noHomeroom.length} lớp chưa có chủ nhiệm`]
+                .filter(Boolean)
+                .join(' · ')
+            : ['Tất cả lớp có GV và chủ nhiệm', short.length && `${short.length} lớp thiếu 1 GV`].filter(Boolean).join(' · '),
+      };
+    })(),
     placement: {
       ok: !unplaced.length,
       detail: source
@@ -567,6 +575,9 @@ export const schoolConfigMockRepository = {
     return writeDb((db) => {
       const year = findYear(db, id);
       if (year.status !== YEAR_STATUS.PLANNED) throw new ApiError(409, 'Chỉ kích hoạt được năm học sắp diễn ra');
+      // Kích hoạt theo thứ tự: chỉ năm sắp diễn ra bắt đầu sớm nhất
+      const next = nextYearToActivate(db.schoolYears);
+      if (next && next.id !== year.id) throw new ApiError(409, `Kích hoạt năm học ${next.name} trước`);
       if ((confirmName || '').trim() !== year.name) throw invalid({ confirmName: `Gõ đúng "${year.name}" để xác nhận` });
       const readiness = buildReadiness(db, year);
       if (!readiness.canActivate) throw new ApiError(409, `Chưa kích hoạt được năm học ${year.name}: ${readiness.blockers.join('; ')}.`);
@@ -771,6 +782,8 @@ export const schoolConfigMockRepository = {
     return writeDb((db) => {
       const year = findYear(db, id);
       if (year.status !== YEAR_STATUS.ACTIVE) throw new ApiError(409, 'Chỉ kết thúc được năm học đang hoạt động');
+      if (schoolNow().date < closeYearOpensOn(year))
+        throw new ApiError(409, `Chỉ kết thúc được năm học từ ${formatDate(closeYearOpensOn(year))} (sau ngày kết thúc)`);
       year.status = YEAR_STATUS.CLOSED;
       year.history.push({ action: 'CLOSED', userId: user.id, at: now() });
       // Classes close with their academic year (Class entity lifecycle).
@@ -1041,31 +1054,21 @@ export const schoolConfigMockRepository = {
       if (hasErrors(errors)) throw invalid(errors);
       let setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
       const previousTime = setting?.time || null;
-      const reopenWindowMinutes = Number(form.reopenWindowMinutes);
-      if (
-        setting &&
-        setting.time === form.time &&
-        setting.effectiveFrom === form.effectiveFrom &&
-        setting.reopenWindowMinutes === reopenWindowMinutes
-      )
-        throw invalid({ time: 'Giờ chốt, thời hạn mở lại và ngày áp dụng chưa thay đổi' });
+      if (setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
+        throw invalid({ time: 'Giờ chốt và ngày áp dụng chưa thay đổi' });
       if (!setting) {
         setting = { schoolYear, history: [] };
         db.cutoffSettings.push(setting);
       }
-      const previousReopen = setting.reopenWindowMinutes ?? null;
       Object.assign(setting, {
         time: form.time,
         effectiveFrom: form.effectiveFrom,
-        reopenWindowMinutes,
         updatedBy: user.id,
         updatedAt: now(),
       });
       setting.history.unshift({
         time: form.time,
         effectiveFrom: form.effectiveFrom,
-        reopenWindowMinutes,
-        previousReopen,
         previousTime,
         userId: user.id,
         at: now(),
@@ -1149,7 +1152,7 @@ export const schoolConfigMockRepository = {
         name: form.name.trim(),
         shortName: form.shortName.trim(),
         address: form.address.trim(),
-        phone: (form.phone || '').trim(),
+        phone: normalizePhone(form.phone),
         isMain: !!form.isMain,
       };
       // Exactly one main campus (Campus entity).
@@ -1222,7 +1225,7 @@ export const schoolConfigMockRepository = {
       Object.assign(target, {
         fullName: form.fullName.trim(),
         email: form.email.trim().toLowerCase(),
-        phone: (form.phone || '').trim(),
+        phone: normalizePhone(form.phone),
         dateOfBirth: form.dateOfBirth || null,
         qualification: (form.qualification || '').trim(),
         note: (form.note || '').trim(),
@@ -1256,7 +1259,11 @@ export const schoolConfigMockRepository = {
       );
       if (form.campusId && !db.campuses.some((c) => c.id === form.campusId)) errors.campusId = 'Điểm trường không tồn tại';
       if (hasErrors(errors)) throw invalid(errors);
-      const data = { fullName: form.fullName.trim(), email: form.email.trim().toLowerCase(), phone: (form.phone || '').trim() };
+      const data = {
+        fullName: form.fullName.trim().replace(/\s+/g, ' '),
+        email: form.email.trim().toLowerCase(),
+        phone: normalizePhone(form.phone),
+      };
       if (!current) {
         const created = {
           id: uid('u'),
@@ -1431,6 +1438,45 @@ export const schoolConfigMockRepository = {
   },
 
   /** Tổ trưởng nhóm tuổi của năm học (toàn trường) và giáo viên có thể chọn ở mọi điểm trường. */
+  /** Mock chưa lưu lịch sử theo ngày: trả phân công hiện tại (BE thật trả đủ lịch sử). */
+  async getClassTeacherHistory(classId) {
+    await delay();
+    seeded();
+    const db = readDb();
+    const cls = db.classes.find((c) => c.id === classId);
+    if (!cls) throw notFound('lớp');
+    return (cls.teacherIds || []).map((userId) => ({
+      id: `${classId}-${userId}`,
+      userId,
+      fullName: db.users.find((u) => u.id === userId)?.fullName || userId,
+      homeroom: userId === cls.homeroomTeacherId,
+      validFrom: null,
+      validTo: null,
+      current: true,
+      assignedByName: null,
+      assignedAt: null,
+    }));
+  },
+
+  async getTeamLeaderHistory(ageGroupId, schoolYear) {
+    await delay();
+    seeded();
+    const db = readDb();
+    return db.teamLeaderAssignments
+      .filter((a) => a.ageGroupId === ageGroupId && a.schoolYear === schoolYear)
+      .map((a) => ({
+        id: `${ageGroupId}-${a.userId}`,
+        userId: a.userId,
+        fullName: db.users.find((u) => u.id === a.userId)?.fullName || a.userId,
+        homeroom: false,
+        validFrom: null,
+        validTo: null,
+        current: true,
+        assignedByName: null,
+        assignedAt: null,
+      }));
+  },
+
   async getTeamLeaders({ schoolYear }, user) {
     await delay(100);
     const db = seeded();
@@ -1450,9 +1496,19 @@ export const schoolConfigMockRepository = {
       if (!canAssignTeachers(cls.campusId, actor(db, user), action)) throw noAssignRight(db, user, cls.campusId, action);
       const year = findYear(db, cls.schoolYear);
       assertOpenYear(year);
-      const errors = validateClassTeachers(form);
+      // Còn 1 giáo viên mà không chọn chủ nhiệm ⇒ người còn lại làm chủ nhiệm; năm đang học không để lớp trống
+      if (!form.homeroomTeacherId && (form.teacherIds || []).length === 1) form = { ...form, homeroomTeacherId: form.teacherIds[0] };
+      const errors = validateClassTeachers(form, { requireHomeroom: false });
+      if (!(form.teacherIds || []).length && year.status === YEAR_STATUS.ACTIVE)
+        errors.teacherIds = 'Năm học đang hoạt động: chọn giáo viên thay thế';
       const allowed = new Set(db.users.filter((u) => TEACHING_ROLES.includes(u.role) && u.campusId === cls.campusId).map((u) => u.id));
       if ((form.teacherIds || []).some((t) => !allowed.has(t))) errors.teacherIds = 'Chỉ phân công giáo viên thuộc điểm trường của lớp';
+      // Mỗi giáo viên dạy một lớp trong năm học (Cần chốt 18/10/2026)
+      const busy = (form.teacherIds || [])
+        .map((t) => [t, db.classes.find((c) => c.id !== cls.id && c.schoolYear === cls.schoolYear && c.teacherIds?.includes(t))])
+        .find(([, c]) => c);
+      if (!errors.teacherIds && busy)
+        errors.teacherIds = `Giáo viên ${db.users.find((u) => u.id === busy[0])?.fullName || busy[0]} đang dạy lớp ${busy[1].name}; gỡ ở lớp đó trước`;
       if (hasErrors(errors)) throw invalid(errors);
       const added = form.teacherIds.filter((t) => !cls.teacherIds.includes(t));
       cls.teacherIds = [...form.teacherIds];
