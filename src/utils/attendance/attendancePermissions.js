@@ -16,7 +16,9 @@ export const isClassTeacher = (cls, user) =>
 export const canRecordAttendance = (cls, user) => isClassTeacher(cls, user);
 
 // BA: Hiệu trưởng cấu hình giờ chốt và thời hạn mở lại; chỉ Phó hiệu trưởng của campus thực hiện mở lại
-export const canUnlockAttendanceDay = (cls, user) => !!cls && user?.role === ROLES.VICE_PRINCIPAL && cls.campusId === user.campusId;
+// Cần chốt 21/10/2026: Hiệu trưởng mở lại được lớp ở cả 2 điểm trường; PHT chỉ lớp điểm trường mình
+export const canUnlockAttendanceDay = (cls, user) =>
+  !!cls && (user?.role === ROLES.PRINCIPAL || (user?.role === ROLES.VICE_PRINCIPAL && cls.campusId === user.campusId));
 
 export const canViewAttendance = (cls, user) => {
   if (!cls || !user) return false;

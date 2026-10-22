@@ -472,7 +472,7 @@ export function AppRoutes() {
             <Route path="rewards/:id/edit" element={only(CLASS_STAFF, <RewardProposalFormPage />)} />
           </Route>
           <Route path="attendance">
-            <Route path="day-unlocks" element={only(VP_ONLY, <AttendanceDayUnlockPage />)} />
+            <Route path="day-unlocks" element={only(LEADERS, <AttendanceDayUnlockPage />)} />
             <Route index element={only(CLASS_STAFF, <AttendancePage />)} />
             <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
             <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MealCountPage />)} />

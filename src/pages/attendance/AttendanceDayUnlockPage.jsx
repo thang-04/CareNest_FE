@@ -60,8 +60,8 @@ export default function AttendanceDayUnlockPage() {
   );
   const isToday = form.date === today;
   const ready = selected && day.data?.classId === form.classId && day.data?.date === form.date && !day.loading && !day.error;
-  // BA: hôm nay chỉ mở lại trong thời hạn (phút sau giờ chốt) Hiệu trưởng cấu hình; ngày cũ không theo thời hạn này
-  const canReopen = !!day.data?.schoolDay && !!day.data?.baseLocked && (!isToday || !!day.data?.reopenUntil) && !day.data?.reopenExpired;
+  // Không giới hạn giờ mở lại sau giờ chốt (Cần chốt 21/10/2026): ngày đã khóa là mở lại được
+  const canReopen = !!day.data?.schoolDay && !!day.data?.baseLocked;
   const filtered = Object.values(filters).some(Boolean);
   const invalidRange =
     (filters.from && !isIsoDate(filters.from)) ||
@@ -241,13 +241,9 @@ export default function AttendanceDayUnlockPage() {
                     ? `Lớp đã mở lại ngày ${formatDate(form.date)} đến ${formatDateTime(active.validUntil)}.`
                     : !day.data.baseLocked
                       ? `Chưa đến giờ chốt ${day.data.cutoff}; giáo viên vẫn điểm danh bình thường.`
-                      : !isToday
-                        ? `Ngày ${formatDate(form.date)} đã khóa. Có thể mở lại riêng ${selected.name} để cô sửa điểm danh ngày này.`
-                        : !day.data.reopenUntil
-                          ? 'Hiệu trưởng chưa cấu hình thời hạn mở lại điểm danh, chưa mở lại được.'
-                          : day.data.reopenExpired
-                            ? `Quá hạn mở lại hôm nay: chỉ mở lại được đến ${day.data.reopenUntil} (giờ chốt ${day.data.cutoff}).`
-                            : `Đã qua giờ chốt ${day.data.cutoff}. Có thể mở lại riêng ${selected.name} đến ${day.data.reopenUntil}.`}
+                      : isToday
+                        ? `Đã qua giờ chốt ${day.data.cutoff}. Có thể mở lại riêng ${selected.name} để cô sửa điểm danh hôm nay.`
+                        : `Ngày ${formatDate(form.date)} đã khóa. Có thể mở lại riêng ${selected.name} để cô sửa điểm danh ngày này.`}
               </div>
             </div>
           )}

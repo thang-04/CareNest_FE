@@ -543,7 +543,7 @@ export const attendanceMockRepository = {
 
   async listAttendanceDayUnlocks(user) {
     await delay(120);
-    if (user?.role !== ROLES.VICE_PRINCIPAL) throw forbidden();
+    if (![ROLES.VICE_PRINCIPAL, ROLES.PRINCIPAL].includes(user?.role)) throw forbidden();
     const db = ready();
     return clone(
       (db.attendanceDayUnlocks || [])
@@ -570,9 +570,7 @@ export const attendanceMockRepository = {
       if (!isIsoDate(date) || date > info.today || (info.yearStart && date < info.yearStart) || !info.schoolDay)
         throw new ApiError(422, 'Chọn một ngày học từ đầu năm học đến hôm nay.');
       if (!info.baseLocked) throw new ApiError(409, 'Chưa đến giờ khóa, giáo viên vẫn điểm danh được.');
-      // BA: hôm nay chỉ mở lại trong thời hạn (phút sau giờ chốt) Hiệu trưởng cấu hình; ngày cũ không theo thời hạn này
-      if (date === info.today && info.reopenUntil == null) throw new ApiError(409, 'Hiệu trưởng chưa cấu hình thời hạn mở lại điểm danh.');
-      if (info.reopenExpired) throw new ApiError(409, `Đã quá thời hạn mở lại điểm danh hôm nay (đến ${info.reopenUntil}).`);
+      // Cần chốt 21/10/2026: không giới hạn giờ mở lại sau giờ chốt; hạn dùng do người mở chọn (Mở đến)
       const until = typeof validUntil === 'string' ? Date.parse(validUntil) : NaN;
       // Hạn do HT / PHT chọn, không quá hết ngày kết thúc năm học
       const yearEndAt = info.yearEnd ? Date.parse(`${info.yearEnd}T23:59:59+07:00`) : Infinity;
