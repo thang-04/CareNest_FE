@@ -85,6 +85,11 @@ export function EducationPlanProvider({ children }) {
   );
 
   const value = useMemo(() => {
+    const yearName = (id) => {
+      const option = schoolYears.find((y) => y.id === id);
+      return option ? option.label.replace(' - ', '-') : String(id ?? '');
+    };
+
     const write = (key, call, apply) => async (arg) => {
       setData((prev) => (prev ? { ...prev, [key]: apply(prev[key], arg) } : prev));
       try {
@@ -136,9 +141,10 @@ export function EducationPlanProvider({ children }) {
       role: user.role,
       user,
       toast,
-      schoolYear: toEduYear(yearId),
-      schoolYears: schoolYears.map((y) => toEduYear(y.id)),
-      setYear: (label) => setSchoolYear(fromEduYear(label)),
+      // Header giữ id năm (số khi nối BE thật); module này dùng tên năm ('2026-2027') nên đổi qua nhãn của lựa chọn
+      schoolYear: toEduYear(yearName(yearId)),
+      schoolYears: schoolYears.map((y) => toEduYear(yearName(y.id))),
+      setYear: (label) => setSchoolYear(schoolYears.find((y) => yearName(y.id) === fromEduYear(label))?.id ?? fromEduYear(label)),
       historyEntry: (action, extra = {}) => ({ action, by: user.name, role: ROLE_LABELS[user.role], at: now(), tone: '', ...extra }),
       // Trả bản đã lưu (API thật: id do BE cấp, thay bản tạm cùng id cũ); lỗi thì báo, nạp lại và trả null
       saveGoal: async (item) => {
