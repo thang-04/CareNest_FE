@@ -235,7 +235,7 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
   );
 }
 
-/** Sức khỏe đầu ngày: Hiệu trưởng xem toàn trường, Phó hiệu trưởng xem điểm trường của mình; chỉ xem. */
+/** Sức khỏe trong ngày: Hiệu trưởng xem toàn trường, Phó hiệu trưởng xem điểm trường của mình; chỉ xem. */
 export default function DailyHealthOverviewPage() {
   const { user } = useAuth();
   const md = useMasterData();
@@ -325,9 +325,9 @@ export default function DailyHealthOverviewPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={attendanceCrumbs('Sức khỏe đầu ngày', { linkParent: false })} />
+      <Breadcrumb items={attendanceCrumbs('Sức khỏe trong ngày', { linkParent: false })} />
       <div className="page__head">
-        <h1 className="page__title">Sức khỏe đầu ngày</h1>
+        <h1 className="page__title">Sức khỏe trong ngày</h1>
       </div>
       <ClassDateBar date={date} maxDate={today} onDateChange={(value) => update({ date: value })}></ClassDateBar>
 
@@ -339,7 +339,7 @@ export default function DailyHealthOverviewPage() {
         </div>
       ) : overview && !overview.schoolDay ? (
         <div className="card">
-          <EmptyState title="Ngày đã chọn không phải ngày học" description="Chọn một ngày học khác để xem sức khỏe đầu ngày." />
+          <EmptyState title="Ngày đã chọn không phải ngày học" description="Chọn một ngày học khác để xem sức khỏe trong ngày." />
         </div>
       ) : overview && overview.classes.length === 0 ? (
         <div className="card">

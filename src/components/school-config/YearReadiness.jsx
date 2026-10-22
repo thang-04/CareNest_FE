@@ -144,7 +144,7 @@ export function ActivateYearModal({ year, activeYear, onClose, onDone }) {
               xếp lớp.
             </li>
             <li>Phân công Phó hiệu trưởng, giáo viên, tổ trưởng của năm {year.name} có hiệu lực.</li>
-            <li>Điểm danh, suất ăn, sức khỏe đầu ngày dùng lớp của năm {year.name}.</li>
+            <li>Điểm danh, suất ăn, sức khỏe trong ngày dùng lớp của năm {year.name}.</li>
           </ul>
           <FormField label={`Gõ "${year.name}" để xác nhận`} required error={error} className="mt-12">
             <input

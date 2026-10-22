@@ -624,7 +624,7 @@
   }
 }
 
-/* ---------- Sức khỏe đầu ngày (Ban giám hiệu) ---------- */
+/* ---------- Sức khỏe trong ngày (Ban giám hiệu) ---------- */
 .dd-hov__note {
   min-width: calc(var(--space-16) * 3);
   overflow-wrap: anywhere;
@@ -660,7 +660,7 @@
   overflow-wrap: anywhere;
 }
 
-/* Sức khỏe đầu ngày: bộ lọc nhóm tuổi / lớp cùng hàng, ngay sau tiêu đề "Theo lớp" (căn trái), xuống dòng khi hẹp */
+/* Sức khỏe trong ngày: bộ lọc nhóm tuổi / lớp cùng hàng, ngay sau tiêu đề "Theo lớp" (căn trái), xuống dòng khi hẹp */
 .dd-hov__head {
   flex-wrap: wrap;
   justify-content: flex-start;

@@ -12,7 +12,7 @@ function useKeyedAsync(key, loader, deps, enabled) {
   return { data: current, loading: enabled && (loading || (!current && !error)), error, reload };
 }
 
-/** Tổng hợp sức khỏe đầu ngày (Hiệu trưởng: toàn trường hoặc một điểm trường; Phó hiệu trưởng: điểm trường của mình). */
+/** Tổng hợp sức khỏe trong ngày (Hiệu trưởng: toàn trường hoặc một điểm trường; Phó hiệu trưởng: điểm trường của mình). */
 export function useDailyHealthOverview({ date, campusId = '', ageGroupId = '', classId = '' }) {
   const { user } = useAuth();
   const key = `${date}|${campusId}|${ageGroupId}|${classId}|${user?.id}`;

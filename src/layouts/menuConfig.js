@@ -75,7 +75,7 @@ const ITEMS = {
   attendanceSummary: { label: 'Tổng hợp điểm danh', to: '/attendance/summary' },
   attendanceDayUnlocks: { label: 'Mở lại điểm danh', to: '/attendance/day-unlocks' },
   mealCount: { label: 'Sổ báo ăn', to: '/attendance/meal-count' },
-  dailyHealthOverview: { label: 'Sức khỏe đầu ngày', to: '/attendance/health' },
+  dailyHealthOverview: { label: 'Sức khỏe trong ngày', to: '/attendance/health' },
   pickup: { label: 'Đón trẻ', to: '/pickup' },
 
   eduSchool: { label: 'Kế hoạch toàn trường', to: '/education/school' },
