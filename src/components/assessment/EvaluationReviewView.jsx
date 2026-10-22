@@ -16,6 +16,7 @@ import { useAiRun } from '@/hooks/useAiRun';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
 import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
+import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
 import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
@@ -38,6 +39,7 @@ export function EvaluationReviewView({ kind, id }) {
   const { run: runAi } = useAiRun();
   const [fresh, setFresh] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dayPage, setDayPage] = useState(1);
   const yearEnd = kind === EVAL_KIND.YEAR_END;
   const base = `/assessment/${yearEnd ? 'year-end' : 'periodic'}`;
 
@@ -278,7 +280,24 @@ export function EvaluationReviewView({ kind, id }) {
               <div className="muted">Chưa có đánh giá tháng nào được xác nhận. Thiếu dữ liệu nguồn – hãy xem lại các hồ sơ hiện có.</div>
             )
           ) : (
-            <DailyDaysTable days={detail.days} mealSessions={detail.mealSessions} classId={ev.classId} linkDays={canReview} />
+            <>
+              {/* Kỳ tháng tới ~22 ngày: 10 ngày / trang như bảng này ở Hồ sơ phát triển */}
+              <DailyDaysTable
+                days={paginate(detail.days, Math.min(dayPage, Math.max(1, Math.ceil(detail.days.length / 10))), 10)}
+                mealSessions={detail.mealSessions}
+                classId={ev.classId}
+                linkDays={canReview}
+              />
+              {detail.days.length > 10 && (
+                <Pagination
+                  page={Math.min(dayPage, Math.ceil(detail.days.length / 10))}
+                  total={detail.days.length}
+                  pageSize={10}
+                  onChange={setDayPage}
+                  unit="ngày"
+                />
+              )}
+            </>
           )}
         </div>
       </div>

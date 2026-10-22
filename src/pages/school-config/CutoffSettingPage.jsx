@@ -10,6 +10,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FormField } from '@/components/form/FormField';
+import { Pagination, paginate } from '@/components/ui/Pagination';
 import { YearPicker } from '@/components/school-config/YearPicker';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { saveCutoffSetting } from '@/services/school-config/schoolConfigService';
@@ -34,6 +35,7 @@ export default function CutoffSettingPage() {
   const [errors, setErrors] = useState({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
 
   // New values apply from today at the earliest: retroactive changes are not specified (UC 2.7).
   useEffect(() => {
@@ -241,8 +243,13 @@ export default function CutoffSettingPage() {
                       </td>
                     </tr>
                   ) : (
-                    setting.history.map((h, i) => (
-                      <tr key={i}>
+                    // Mới nhất trước, 5 lần / trang
+                    paginate(
+                      [...setting.history].reverse(),
+                      Math.min(historyPage, Math.max(1, Math.ceil(setting.history.length / 5))),
+                      5,
+                    ).map((h) => (
+                      <tr key={`${h.at}-${h.time}`}>
                         <td className="nowrap">{formatDateTime(h.at)}</td>
                         <td>{md.userById(h.userId)?.fullName || h.userId}</td>
                         <td>{h.previousTime || '—'}</td>
@@ -256,6 +263,15 @@ export default function CutoffSettingPage() {
                 </tbody>
               </table>
             </div>
+            {setting?.history?.length > 5 && (
+              <Pagination
+                page={Math.min(historyPage, Math.ceil(setting.history.length / 5))}
+                total={setting.history.length}
+                pageSize={5}
+                onChange={setHistoryPage}
+                unit="lần"
+              />
+            )}
           </section>
         </>
       )}

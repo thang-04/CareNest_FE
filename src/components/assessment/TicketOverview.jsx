@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, Award, BadgeCheck, Download, Ticket } from '@/components/ui/icons';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { RowActions } from '@/components/ui/RowActions';
+import { Pagination, paginate } from '@/components/ui/Pagination';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { TicketSummary } from '@/components/assessment/TicketSummary';
@@ -20,6 +21,8 @@ export function TicketOverview() {
   const [month, setMonth] = useState('');
   const [campusId, setCampusId] = useState('');
   const [classId, setClassId] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE = 10;
   const { overview, loading, error, reload } = useTicketOverview({ month: month || undefined, campusId: campusId || undefined });
   const rows = overview?.rows || [];
   const t = overview?.totals;
@@ -119,7 +122,7 @@ export function TicketOverview() {
                   </td>
                 </tr>
               ) : (
-                rows.map((r) => (
+                paginate(rows, Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE))), PAGE).map((r) => (
                   <tr key={r.classId}>
                     <td className="fw-600">{r.className}</td>
                     {multiCampus && <td>{campusName(r.campusId)}</td>}
@@ -137,6 +140,15 @@ export function TicketOverview() {
               )}
             </tbody>
           </table>
+          {rows.length > PAGE && (
+            <Pagination
+              page={Math.min(page, Math.ceil(rows.length / PAGE))}
+              total={rows.length}
+              pageSize={PAGE}
+              onChange={setPage}
+              unit="lớp"
+            />
+          )}
         </div>
       )}
     </>

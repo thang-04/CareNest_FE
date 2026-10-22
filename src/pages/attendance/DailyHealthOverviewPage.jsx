@@ -8,6 +8,7 @@ import { ChildAvatar } from '@/components/ChildAvatar';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { RowActions } from '@/components/ui/RowActions';
+import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DailyHealthHistoryModal } from '@/components/attendance/DailyHealthHistoryModal';
 import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
@@ -138,13 +139,19 @@ function ClassTable({ rows, loading, showCampus, campusName, filters, groupOf })
   );
 }
 
+const ATTENTION_PAGE = 10;
+
 function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
+  const [page, setPage] = useState(1);
+  // Đổi ngày / bộ lọc làm danh sách ngắn lại thì không đứng ở trang rỗng
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(items.length / ATTENTION_PAGE)));
   return (
     <div className="card">
       <div className="card__header">
         <h2 className="card__title">
           <HeartPulse size={20} /> Trẻ cần chú ý
         </h2>
+        {items.length > 0 && <span className="muted text-sm">{items.length} trẻ</span>}
       </div>
       {items.length === 0 ? (
         filtered ? (
@@ -180,7 +187,7 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {paginate(items, currentPage, ATTENTION_PAGE).map((item) => (
                 // Bấm cả dòng để xem chi tiết; nút cuối dòng giữ cho bàn phím
                 <tr key={item.childId} className="dd-hov__row" onClick={() => onOpen(item)}>
                   <td className="nowrap">
@@ -230,6 +237,9 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
             </tbody>
           </table>
         </div>
+      )}
+      {items.length > ATTENTION_PAGE && (
+        <Pagination page={currentPage} total={items.length} pageSize={ATTENTION_PAGE} onChange={setPage} unit="trẻ" />
       )}
     </div>
   );
