@@ -39,7 +39,7 @@ export const closeYearOpensOn = (year) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 export const canCloseYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.ACTIVE;
-/** Only a planned year can be deleted (the repository also checks it has no classes – MSG53). */
+/** Chỉ xóa năm chưa bắt đầu; xóa kèm lớp và dữ liệu chuẩn bị của năm đó (Cần chốt 22/10/2026). */
 export const canDeleteYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.PLANNED;
 
 /** Classes and age groups of a closed year are history: read only. */

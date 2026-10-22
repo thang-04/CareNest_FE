@@ -55,10 +55,10 @@ export default function RoomListPage() {
     return rooms
       .filter((r) => !filters.campusId || r.campusId === filters.campusId)
       .filter((r) => !filters.type || r.type === filters.type)
-      .filter((r) => !filters.status || r.status === filters.status)
+      .filter((r) => yearReadOnly || !filters.status || r.status === filters.status)
       .filter((r) => !kw || normalizeText(`${r.room} ${r.name}`).includes(kw))
       .sort((a, b) => a.campusId.localeCompare(b.campusId) || (a.room || '').localeCompare(b.room || '', 'vi', { numeric: true }));
-  }, [rooms, filters]);
+  }, [rooms, filters, yearReadOnly]);
 
   // Khối điểm trường mở nằm trên URL (?expanded=c1): mở trang thì mọi khối thu gọn, chỉ khối mở mới vẽ bảng.
   // Vừa đổi tìm kiếm / bộ lọc: mở các khối có phòng khớp (chỉ lúc đổi), bỏ lọc hết thì thu gọn lại.
@@ -180,9 +180,11 @@ export default function RoomListPage() {
         {r.managerName || md.userById(r.managerUserId)?.fullName || <span className="muted">—</span>}
         {r.managerFromClass && r.managerUserId && <div className="text-xs muted">Chủ nhiệm lớp</div>}
       </td>
-      <td className="center">
-        <RoomStatusBadge status={r.status} />
-      </td>
+      {!yearReadOnly && (
+        <td className="center">
+          <RoomStatusBadge status={r.status} />
+        </td>
+      )}
       {manage && (
         <td className="cell--actions">
           <RowActions
@@ -274,19 +276,22 @@ export default function RoomListPage() {
               </option>
             ))}
           </select>
-          <select
-            className="select sc-inline-select"
-            aria-label="Trạng thái"
-            value={filters.status}
-            onChange={(e) => setFilter({ status: e.target.value })}
-          >
-            <option value="">Tất cả trạng thái</option>
-            {[ROOM_STATUS.ACTIVE, ROOM_STATUS.INACTIVE].map((k) => (
-              <option key={k} value={k}>
-                {ROOM_STATUS_LABELS[k]}
-              </option>
-            ))}
-          </select>
+          {/* Năm đã kết thúc: trạng thái là tình trạng hiện tại của phòng, không thuộc năm cũ ⇒ ẩn */}
+          {!yearReadOnly && (
+            <select
+              className="select sc-inline-select"
+              aria-label="Trạng thái"
+              value={filters.status}
+              onChange={(e) => setFilter({ status: e.target.value })}
+            >
+              <option value="">Tất cả trạng thái</option>
+              {[ROOM_STATUS.ACTIVE, ROOM_STATUS.INACTIVE].map((k) => (
+                <option key={k} value={k}>
+                  {ROOM_STATUS_LABELS[k]}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -337,7 +342,7 @@ export default function RoomListPage() {
                             <th className="center">Sức chứa</th>
                             <th>Lớp ({schoolYear})</th>
                             <th>Người phụ trách</th>
-                            <th className="center">Trạng thái</th>
+                            {!yearReadOnly && <th className="center">Trạng thái</th>}
                             {manage && <th className="cell--actions">Thao tác</th>}
                           </tr>
                         </thead>

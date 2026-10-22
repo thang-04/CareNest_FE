@@ -74,7 +74,7 @@ export default function SchoolYearListPage() {
       done: 'Đã xóa bản ghi.',
       message: (y) => (
         <>
-          Xóa năm học <b>{y.name}</b>? Chỉ xóa được năm học chưa bắt đầu và chưa có lớp.
+          Xóa năm học <b>{y.name}</b>? Lớp, phân công giáo viên, giờ chốt và xếp lớp của năm này cũng bị xóa.
         </>
       ),
     },

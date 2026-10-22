@@ -799,7 +799,10 @@ export const schoolConfigMockRepository = {
     writeDb((db) => {
       const year = findYear(db, id);
       if (year.status !== YEAR_STATUS.PLANNED) throw new ApiError(409, 'Chỉ xóa được năm học chưa bắt đầu');
-      if (db.classes.some((c) => c.schoolYear === id)) throw inUse('năm học đã có lớp');
+      // Năm chưa bắt đầu: xóa luôn lớp và dữ liệu chuẩn bị của năm (Cần chốt 22/10/2026)
+      const classIds = new Set(db.classes.filter((c) => c.schoolYear === id).map((c) => c.id));
+      db.classes = db.classes.filter((c) => !classIds.has(c.id));
+      db.classPlacements = (db.classPlacements || []).filter((p) => p.schoolYear !== id);
       db.schoolYears = db.schoolYears.filter((y) => y.id !== id);
       db.vpAssignments = db.vpAssignments.filter((a) => a.schoolYear !== id);
       db.teamLeaderAssignments = db.teamLeaderAssignments.filter((a) => a.schoolYear !== id);
