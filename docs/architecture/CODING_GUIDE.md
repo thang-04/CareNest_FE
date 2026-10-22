@@ -215,7 +215,7 @@ Nghiệp vụ, quyền, contract do `CareNest_BE` sở hữu; mục này mô t�
 
 **Luồng:** mở app → `ProtectedRoute` kiểm tra token → chưa đăng nhập thì về `/login` (nhớ trang đang mở) → đăng nhập thành công quay lại đúng trang đó.
 
-**API (Spring Boot làm theo):**
+**API mock** (`VITE_AUTH_MODE=mock`, mặc định). Chế độ `gateway` dùng `/auth/csrf`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `GET /accounts/me` — xem `docs/integration/AUTH_FLOW.md`; token thật chỉ trong memory, không theo quy tắc lưu token bên dưới.
 
 | Endpoint            | Body / Header                   | Trả về                                                                                |
 | ------------------- | ------------------------------- | ------------------------------------------------------------------------------------- |

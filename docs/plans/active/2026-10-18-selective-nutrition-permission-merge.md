@@ -264,3 +264,8 @@ Nguồn: người dùng trực tiếp trong chat ngày 2026-10-18. Đây là l�
 - PHT dùng 6 mục mới theo thứ tự nguồn: Quy trình, Thiết lập dinh dưỡng, Thực phẩm, Món ăn, Thực đơn mẫu, Thực đơn tuần; Principal dùng Thiết lập dinh dưỡng/Thực đơn tuần theo nguồn và route hiện có. Không mở route VP cho Principal, không sửa vớiVpAreas hoặc teacher assignment.
 - Giữ các route cũ, cập nhật test điều hướng theo lựa chọn mới, kiểm tra các nhóm khác byte-equivalent trước/sau và cổng verify/docs. Chưa commit/push, Phase 3 chưa bắt đầu.
 - Kết quả: diff menu chỉ thêm 2 item và thay 2 mảng nhóm Thực đơn; các nhóm khác/helper scope không đổi. Review độc lập PASS_WITH_RISK, không dead link/role expansion mới. Browser mock 5192: Principal vẫn bị chặn `/menu/flow`; đăng nhập PHT hiện đủ 6 link mới và mở màn Quản lý dinh dưỡng. Ảnh bàn giao lưu ngoài repo tại outputs/nutrition-menu-new.png. `node scripts/verify.mjs` đã trả VERIFY PASS full (104 test); AI layer 0 lỗi/17 cảnh báo baseline, diff-check sạch. Chạy lại cổng sau bổ sung log này; API thật/mobile chưa kiểm, không commit/push.
+
+### 2026-10-22 — User đổi quyết định 2: nhận gateway auth vào `dev`
+
+- Nguồn: user yêu cầu "ghép cho tôi chỉ những logic trước" và chọn ghép lõi auth thẳng vào `dev` (task G94-60). Thay quyết định 2 ("không nhận gateway auth") cho phần auth.
+- Port commit `24a3a8a` (gateway login, CSRF, refresh, logout, `/accounts/me`, OTP/đổi mật khẩu + tests). `VITE_AUTH_MODE=mock` vẫn mặc định nên đăng nhập demo không đổi. Màn nhân sự/phân quyền/phụ huynh giữ mock.

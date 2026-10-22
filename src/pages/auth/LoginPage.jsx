@@ -8,12 +8,12 @@ import { Avatar, FormField, PasswordInput, Spinner } from '@/components';
 import { IS_DEMO_MODE, DEMO_LOGIN_PASSWORD, getDemoAccounts } from '@/services/authService';
 import { ROLE_LABELS } from '@/models/User';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { setPasswordChallenge } from '@/services/authChallengeStore';
 
 const validate = ({ email, password }) => {
   const e = {};
-  if (!email.trim()) e.email = 'Vui lòng nhập email';
-  else if (!EMAIL_RE.test(email.trim())) e.email = 'Email chưa đúng định dạng (ví dụ: ten@carenest.edu.vn)';
+  if (!email.trim()) e.email = 'Vui lòng nhập tên tài khoản hoặc email';
+  else if (email.trim().length > 255) e.email = 'Tên tài khoản hoặc email tối đa 255 ký tự';
   if (!password) e.password = 'Vui lòng nhập mật khẩu';
   return e;
 };
@@ -49,7 +49,7 @@ function DemoAccounts({ onPick }) {
 }
 
 export default function LoginPage() {
-  const { login, sessionMessage } = useAuth();
+  const { login, sessionMessage, sessionError, retrySession } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -83,7 +83,9 @@ export default function LoginPage() {
     } catch (err) {
       // Issued password (SRS 1.1 step 7): no session yet, the user must set a new password first.
       if (err.details?.passwordChangeRequired && err.details?.changeToken) {
-        navigate('/reset-password', { state: { token: err.details.changeToken, mode: 'first-login', email: form.email.trim() } });
+        setPasswordChallenge({ token: err.details.changeToken, mode: 'first-login', email: form.email.trim() });
+        setForm((f) => ({ ...f, password: '' }));
+        navigate('/reset-password', { state: { mode: 'first-login', email: form.email.trim() } });
         return;
       }
       setServerError(err.message || 'Không đăng nhập được, vui lòng thử lại');
@@ -106,6 +108,17 @@ export default function LoginPage() {
       footer={IS_DEMO_MODE ? <DemoAccounts onPick={pickDemo} /> : null}
     >
       <form className="auth-form" onSubmit={submit} noValidate>
+        {sessionError && !serverError && (
+          <div className="alert alert--warning" role="alert">
+            <Info size={18} />
+            <div>
+              {sessionError.message}{' '}
+              <button type="button" className="link-btn" onClick={retrySession}>
+                Thử kiểm tra lại phiên
+              </button>
+            </div>
+          </div>
+        )}
         {notice && !serverError && (
           <div className="alert alert--success" role="status">
             <CheckCircle2 size={18} />
@@ -125,13 +138,14 @@ export default function LoginPage() {
           </div>
         )}
 
-        <FormField label="Email" required error={errors.email}>
+        <FormField label="Tên tài khoản hoặc email" required error={errors.email}>
           <input
             className="input"
-            type="email"
+            type="text"
+            maxLength={255}
             autoComplete="username"
             autoFocus
-            placeholder="ten@carenest.edu.vn"
+            placeholder="Tên tài khoản hoặc email"
             value={form.email}
             onChange={(e) => set({ email: e.target.value })}
           />
