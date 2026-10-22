@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, FileDown, Printer } from '@/components/ui/icons';
+import { Link, Navigate, useParams } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, FileDown, Printer, Save } from '@/components/ui/icons';
 import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
@@ -8,7 +8,9 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { useAutosave } from '@/hooks/education-plan/useAutosave';
+import { useManualSave } from '@/hooks/education-plan/useManualSave';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
   WEEKDAY_LABELS,
@@ -52,7 +54,6 @@ function WeekReviewRedirect() {
 
 function WeekPlanInner() {
   const { classId, weekStart } = useParams();
-  const navigate = useNavigate();
   const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, toast } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, isClassTeacher } = ctx;
@@ -65,19 +66,24 @@ function WeekPlanInner() {
   const idx = weeks.findIndex((w) => w.start === weekStart);
   const week = weeks[idx];
 
-  // Không còn nút Lưu: tự lưu như trang chủ đề nhánh
-  const autosave = useAutosave({
+  // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
+  const saver = useManualSave({
     doc: draft,
     enabled: isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT),
     save: (doc) => saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) }),
     onSaved: (same) => same && setDirty(false),
   });
 
+  const guard = useLeaveGuard({
+    when: isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT) && saver.unsaved,
+    onSave: saver.save,
+  });
+
   useEffect(() => {
     if (dirty || !week) return;
     const doc = saved || emptyWeekPlan({ classId, yearPlanId: yearPlan.id, weekStart, weekNo: week.no, themeId: week.theme.id });
     setDraft(doc);
-    autosave.markClean(doc);
+    saver.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.status, saved?.history?.length, week?.start, classId]);
 
@@ -145,14 +151,20 @@ function WeekPlanInner() {
             >
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
-            {editable &&
-              (autosave.error ? (
-                <button type="button" className="btn btn--outline-primary" onClick={autosave.retry}>
-                  Chưa lưu được, thử lại
+            {editable && (
+              <>
+                <span className="muted text-sm">{saver.label}</span>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  onClick={saver.save}
+                  disabled={saver.saving || (!saver.unsaved && !saver.error)}
+                  title="Lưu (Ctrl+S)"
+                >
+                  <Save size={16} aria-hidden /> Lưu
                 </button>
-              ) : (
-                <span className="muted text-sm">{autosave.label}</span>
-              ))}
+              </>
+            )}
           </>
         }
       />
@@ -179,9 +191,9 @@ function WeekPlanInner() {
         dossier={themeDoc}
         ctx={ctx}
         user={user}
-        dirty={autosave.busy}
+        dirty={saver.unsaved || saver.saving}
         reviewTo={dossierTo}
-        onGo={navigate}
+        onGo={guard.leave}
       />
       <Card
         bodyClass={null}
@@ -253,6 +265,7 @@ function WeekPlanInner() {
           )}
         </div>
       </Card>
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

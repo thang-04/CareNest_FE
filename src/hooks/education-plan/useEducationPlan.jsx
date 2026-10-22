@@ -55,7 +55,12 @@ export function EducationPlanProvider({ children }) {
   // Kế hoạch năm, chủ đề, giáo án cũ và tài liệu của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần) tải một lần
   const { data, setData, loading, error, reload } = useAsync(
     () =>
-      Promise.all([service.getEducationPlans(), service.getClassPlans(), service.getEduConfig()]).then(([plans, classDocs, eduConfig]) => {
+      Promise.all([
+        service.getEducationPlans(),
+        // BE chưa có API tài liệu của lớp (404): màn mục tiêu năm vẫn dùng được, các màn của lớp hiện trống
+        service.getClassPlans().catch((err) => (err.status === 404 ? {} : Promise.reject(err))),
+        service.getEduConfig(),
+      ]).then(([plans, classDocs, eduConfig]) => {
         // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
         applyEduConfig(eduConfig);
         return { ...plans, ...classDocs, eduConfig };
@@ -135,7 +140,30 @@ export function EducationPlanProvider({ children }) {
       schoolYears: schoolYears.map((y) => toEduYear(y.id)),
       setYear: (label) => setSchoolYear(fromEduYear(label)),
       historyEntry: (action, extra = {}) => ({ action, by: user.name, role: ROLE_LABELS[user.role], at: now(), tone: '', ...extra }),
-      saveGoal: saveIn('goals', service.saveGoal),
+      // Trả bản đã lưu (API thật: id do BE cấp, thay bản tạm cùng id cũ); lỗi thì báo, nạp lại và trả null
+      saveGoal: async (item) => {
+        setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, item) } : prev));
+        try {
+          const res = await service.saveGoal(item);
+          const saved = res?.id ? res : item;
+          setData((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  goals: upsert(
+                    prev.goals.filter((g) => g.id !== item.id || g.id === saved.id),
+                    saved,
+                  ),
+                }
+              : prev,
+          );
+          return saved;
+        } catch (err) {
+          toastApi.error(err.message, 'Không lưu được');
+          reload({ silent: true });
+          return null;
+        }
+      },
       deleteGoal: deleteIn('goals', service.deleteGoal),
       saveTheme: saveIn('themes', service.saveTheme),
       deleteTheme: deleteIn('themes', service.deleteTheme),

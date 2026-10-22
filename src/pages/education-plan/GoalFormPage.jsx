@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Download, FileDown, Printer, Send, Upload } from '@/components/ui/icons';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, Check, Download, FileDown, Printer, Save, Send, Upload } from '@/components/ui/icons';
 import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { useAutosave } from '@/hooks/education-plan/useAutosave';
+import { useManualSave } from '@/hooks/education-plan/useManualSave';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE, isStandardDomain } from '@/models/education-plan/educationPlanConstants';
 import {
@@ -15,7 +17,7 @@ import {
   numberGoals,
   toRows,
 } from '@/models/education-plan/goalTable';
-import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { GoalTable, PLAN_TABS, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
 import { Card, Field, Modal, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
@@ -47,6 +49,19 @@ const emptyForm = (schoolYear, ageGroupId = '') => ({
   breaks: [],
 });
 
+// Kế hoạch đã lưu → dữ liệu form
+const formOf = (goal) => ({
+  ...emptyForm(goal.schoolYear),
+  ...goal,
+  // Bản nháp từng chọn mục tiêu cho chủ đề được đổi sang dấu tích ở cột "Chủ đề thực hiện"
+  ...goalIdsToTicks(
+    normalizeDomains(goal.domains.map((d) => ({ id: d.id || uid(), name: d.name, rows: toRows(d, uid) }))),
+    // Chủ đề chưa có tên viết tắt thì lấy chữ cái đầu của tên
+    (goal.themes || []).map((t) => ({ ...t, abbr: t.abbr || initialsOf(t.name) })),
+  ),
+  breaks: goal.breaks || [],
+});
+
 const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 const NO_THEME_NOTE = 'Chưa có chủ đề. Thêm chủ đề ở tab "Chủ đề và sự kiện" để có cột tích chủ đề trong bảng này.';
 
@@ -55,25 +70,14 @@ export default function GoalFormPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const { goals, schoolYear, saveGoal, toast, user } = useEducationPlan();
-  const navigate = useNavigate();
   const existing = goals.find((g) => g.id === id);
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   const isLeader = user.role === ROLES.TEAM_LEADER;
 
   const [form, setForm] = useState(() =>
     existing
-      ? {
-          ...emptyForm(existing.schoolYear),
-          ...existing,
-          // Bản nháp từng chọn mục tiêu cho chủ đề được đổi sang dấu tích ở cột "Chủ đề thực hiện"
-          ...goalIdsToTicks(
-            normalizeDomains(existing.domains.map((d) => ({ id: d.id || uid(), name: d.name, rows: toRows(d, uid) }))),
-            // Chủ đề chưa có tên viết tắt thì lấy chữ cái đầu của tên
-            (existing.themes || []).map((t) => ({ ...t, abbr: t.abbr || initialsOf(t.name) })),
-          ),
-          breaks: existing.breaks || [],
-        }
-      : // Mã cố định ngay từ đầu để các lần tự lưu cùng ghi vào một kế hoạch
+      ? formOf(existing)
+      : // Mã cố định ngay từ đầu để các lần lưu cùng ghi vào một kế hoạch
         { ...emptyForm(schoolYear, isLeader ? user.ageGroupId : ''), id: `g-${uid()}` },
   );
   // Mục tiêu là tab đầu (Tiền chọn 14/10); cột "Chủ đề thực hiện" hiện khi đã thêm chủ đề ở tab sau
@@ -190,45 +194,85 @@ export default function GoalFormPage() {
     };
   };
 
-  // Không còn nút Lưu nháp: tự lưu như trang chủ đề nhánh, khi đã có tên và nhóm tuổi (không trùng kế hoạch khác).
+  // Lưu tay (nút Lưu, Ctrl+S) khi đã có tên và nhóm tuổi (không trùng kế hoạch khác).
   // Phó HT tự sửa bản đang chờ duyệt: giữ trạng thái chờ, ghi lịch sử "chỉnh sửa" một lần cho mỗi lần mở trang
   const editLogged = useRef(false);
-  // Đã gửi / ban hành: lần lưu nốt khi rời trang không được ghi đè bản vừa gửi bằng bản nháp
+  // Đã gửi / ban hành: không lưu đè bản vừa gửi bằng bản nháp
   const finished = useRef(false);
   const dupGoal = goals.some((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
-  const autosave = useAutosave({
+  const saveReady = canEdit && !!form.title.trim() && !!form.ageGroupId && !dupGoal;
+  const saver = useManualSave({
     doc: form,
-    enabled: canEdit && !!form.title.trim() && !!form.ageGroupId && !dupGoal && !confirm,
+    enabled: saveReady && !confirm,
     save: async () => {
       if (finished.current) return true;
       const first = pendingEdit && !editLogged.current;
       const item = pendingEdit
         ? build(EDU_STATUS.PENDING_VP, first ? { history: log('Phó hiệu trưởng chỉnh sửa') } : {})
         : build(EDU_STATUS.DRAFT);
-      await saveGoal(item);
-      if (first) {
-        editLogged.current = true;
-        setForm((f) => ({ ...f, history: item.history }));
+      const saved = await saveGoal(item);
+      if (!saved) return null;
+      if (first) editLogged.current = true;
+      // API thật trả bản đã lưu với id do BE cấp: dùng tiếp bản đó để lần lưu sau không tạo trùng
+      if (saved !== item) {
+        const next = formOf(saved);
+        setForm(next);
+        return { doc: next };
       }
+      if (first) setForm((f) => ({ ...f, history: item.history }));
       return item;
     },
   });
+  const guard = useLeaveGuard({ when: canEdit && saver.unsaved && !finished.current, onSave: saver.save });
+  // Chuyển tab Mục tiêu ↔ Chủ đề khi còn thay đổi chưa lưu: cảnh báo ngay; "Không lưu" bỏ thay đổi của tab đang rời
+  const [pendingTab, setPendingTab] = useState(null);
+  const tabFields = (k) => (k === 'themes' ? ['themes', 'breaks'] : ['domains']);
+  const tabDirty = () => {
+    const clean = saver.cleanDoc();
+    return !clean || tabFields(tab).some((f) => JSON.stringify(form[f]) !== JSON.stringify(clean[f]));
+  };
+  const discardTab = () => {
+    const clean = saver.cleanDoc();
+    if (!clean) return;
+    setForm((f) => {
+      if (tab !== 'themes') return { ...f, domains: clean.domains };
+      // Chủ đề quay về bản đã lưu: bỏ dấu tích trỏ tới chủ đề không còn
+      const ids = new Set(clean.themes.map((t) => t.id));
+      const domains = f.domains.map((d) => ({
+        ...d,
+        rows: d.rows.map((r) =>
+          r.kind === 'goal' ? { ...r, contents: r.contents.map((c) => ({ ...c, themes: c.themes.filter((t) => ids.has(t)) })) } : r,
+        ),
+      }));
+      return { ...f, themes: clean.themes, breaks: clean.breaks, domains };
+    });
+  };
+  const [tabSaving, setTabSaving] = useState(false);
+  const switchTab = (next) => {
+    if (next === tab) return;
+    if (canEdit && saver.unsaved && tabDirty()) setPendingTab(next);
+    else setTab(next);
+  };
   useEffect(() => {
-    autosave.markClean(form);
+    saver.markClean(form);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // send: tổ trưởng gửi Phó HT duyệt; issue: Phó HT duyệt ban hành (bản mình soạn hoặc bản đang chờ)
-  const submit = () => {
+  const submit = async () => {
     const item =
       confirm === 'send'
         ? build(EDU_STATUS.PENDING_VP, { sentAt: today(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt') })
         : build(EDU_STATUS.APPROVED, { issued: me, history: log(pendingEdit ? 'Phó hiệu trưởng chỉnh sửa và ban hành' : 'Ban hành') });
     finished.current = true;
-    saveGoal(item);
+    const saved = await saveGoal(item);
     setConfirm(false);
+    if (!saved) {
+      finished.current = false;
+      return;
+    }
     toast(confirm === 'send' ? 'Đã gửi Phó hiệu trưởng duyệt' : 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
-    navigate(`/education/goals/${item.id}`);
+    guard.leaveNow(`/education/goals/${saved.id}`);
   };
 
   /* ---------- Nhập dữ liệu ---------- */
@@ -331,14 +375,19 @@ export default function GoalFormPage() {
           ]}
           title={existing ? 'Chỉnh sửa kế hoạch giáo dục năm học' : 'Lập kế hoạch giáo dục năm học'}
           actions={
-            autosave.error ? (
-              <button type="button" className="btn btn--outline-primary" onClick={autosave.retry}>
-                Chưa lưu được, thử lại
-              </button>
-            ) : (
-              <span className="muted text-sm">
-                {!form.title.trim() || !form.ageGroupId || dupGoal ? 'Nhập tên và nhóm tuổi để tự lưu' : autosave.label}
-              </span>
+            canEdit && (
+              <>
+                <span className="muted text-sm">{saveReady ? saver.label : 'Nhập tên và nhóm tuổi để lưu'}</span>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  onClick={saver.save}
+                  disabled={!saveReady || saver.saving || (!saver.unsaved && !saver.error)}
+                  title="Lưu (Ctrl+S)"
+                >
+                  <Save size={16} aria-hidden /> Lưu
+                </button>
+              </>
             )
           }
         />
@@ -442,7 +491,7 @@ export default function GoalFormPage() {
 
       {step === 1 && (
         <Card bodyClass={null}>
-          <PlanTabs tab={tab} onTab={setTab} counts={{ themes: themes.length, goals: totalGoals }} />
+          <PlanTabs tab={tab} onTab={switchTab} counts={{ themes: themes.length, goals: totalGoals }} />
           <div className="card__body stack">
             {tab === 'themes' ? (
               <>
@@ -531,11 +580,11 @@ export default function GoalFormPage() {
       )}
 
       <div className="page-actions">
-        {/* Đã tự lưu nên không còn "Hủy": đóng trang, phần chưa kịp lưu được lưu nốt khi rời trang */}
+        {/* Đóng: còn thay đổi chưa lưu thì hỏi lưu / rời / ở lại */}
         <button
           type="button"
           className="btn"
-          onClick={() => navigate(goals.some((g) => g.id === form.id) ? `/education/goals/${form.id}` : '/education/goals')}
+          onClick={() => guard.leave(goals.some((g) => g.id === form.id) ? `/education/goals/${form.id}` : '/education/goals')}
         >
           Đóng
         </button>
@@ -590,6 +639,27 @@ export default function GoalFormPage() {
           </p>
         </Modal>
       )}
+      <LeaveConfirmModal {...guard.modal} canSave={saveReady} />
+      <LeaveConfirmModal
+        open={!!pendingTab}
+        busy={tabSaving}
+        canSave={saveReady}
+        message={`Tab "${PLAN_TABS.find((t) => t.key === tab)?.label}" có thay đổi chưa lưu. Chọn Lưu để lưu rồi chuyển tab; Không lưu thì bỏ các thay đổi ở tab này, trở về bản đã lưu gần nhất.`}
+        onStay={() => setPendingTab(null)}
+        onDiscard={() => {
+          discardTab();
+          setTab(pendingTab);
+          setPendingTab(null);
+        }}
+        onSaveAndLeave={async () => {
+          setTabSaving(true);
+          const ok = await saver.save();
+          setTabSaving(false);
+          if (!ok) return;
+          setTab(pendingTab);
+          setPendingTab(null);
+        }}
+      />
     </div>
   );
 }

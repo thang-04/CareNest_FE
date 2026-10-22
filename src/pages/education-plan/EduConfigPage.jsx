@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, GripVertical, Pencil, RotateCcw, Save, Trash2, X } from '@/components/ui/icons';
+import { Check, Pencil, RotateCcw, Save, Trash2, X } from '@/components/ui/icons';
 import { Card, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
@@ -7,15 +7,11 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { STANDARD_DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { DOMAIN_ROMAN } from '@/models/education-plan/goalTable';
 import { DEFAULT_EDU_CONFIG, SIGN_DOCS, SIGN_ROLES } from '@/models/education-plan/eduConfig';
-import { moveItem, useSortableList } from '@/hooks/useSortableList';
+import { moveItem } from '@/hooks/useSortableList';
+import { RenumberButton, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
 
 /** Người ký của một loại tài liệu: thứ tự ký kéo-thả bằng tay nắm. */
 function SignerList({ docKey, roles, setRoles, toast, editing }) {
-  const sort = useSortableList({
-    count: roles.length,
-    onMove: (from, to) => setRoles((l) => moveItem(l, from, to)),
-    labelOf: (i) => SIGN_ROLES[roles[i]],
-  });
   if (!editing)
     return roles.map((r, i) => (
       <div key={r} className="fw-600">
@@ -23,14 +19,12 @@ function SignerList({ docKey, roles, setRoles, toast, editing }) {
       </div>
     ));
   return (
-    <>
+    <SortableList ids={roles} onMove={(from, to) => setRoles((l) => moveItem(l, from, to))} labelOf={(i) => SIGN_ROLES[roles[i]]}>
       {roles.map((r, i) => {
         const locked = docKey === 'year' && r === 'VICE_PRINCIPAL';
         return (
-          <div key={r} {...sort.itemProps(i)} className={`${sort.itemProps(i).className} ga-signer row gap-1`}>
-            <button {...sort.handleProps(i)}>
-              <GripVertical size={16} aria-hidden />
-            </button>
+          <SortableRow key={r} id={r} as="div" className="ga-signer row gap-1">
+            <SortHandle label={SIGN_ROLES[r]} />
             <span className="fw-600 flex-1">
               {i + 1}. {SIGN_ROLES[r]}
             </span>
@@ -47,11 +41,10 @@ function SignerList({ docKey, roles, setRoles, toast, editing }) {
             >
               <Trash2 size={16} aria-hidden />
             </button>
-          </div>
+          </SortableRow>
         );
       })}
-      <div {...sort.liveProps} />
-    </>
+    </SortableList>
   );
 }
 
@@ -77,11 +70,6 @@ export default function EduConfigPage() {
     setDraft((d) => fn(structuredClone(d)));
     setDirty(true);
   };
-  const weekSort = useSortableList({
-    count: draft.weekRows.length,
-    onMove: (from, to) => set((x) => ((x.weekRows = moveItem(x.weekRows, from, to)), x)),
-    labelOf: (i) => draft.weekRows[i]?.label,
-  });
   // Lĩnh vực mới: tên là khóa lưu trong kế hoạch năm nên không trùng tên đã có (không phân biệt hoa thường)
   const addDomain = () => {
     const name = newDomain.trim();
@@ -282,138 +270,146 @@ export default function EduConfigPage() {
       <Card title="3. Các dòng hoạt động của kế hoạch tuần" bodyClass={null}>
         <div className="card__body stack">
           <div className="table-wrap">
-            <table className="table ga-plan-table ga-goal-table ga-sortable-table" onMouseDown={focusCell}>
-              <colgroup>
-                <col className="ga-goal-table__del" />
-                <col />
-                <col className="ga-goal-table__code" />
-                <col className="ga-goal-table__code" />
-                {editing && <col className="ga-goal-table__del" />}
-                {editing && <col className="ga-goal-table__del" />}
-              </colgroup>
-              <thead>
-                <tr>
-                  <th className="cell--fixed">STT</th>
-                  <th>Tên hoạt động</th>
-                  <th className="center">Cho gộp cả tuần</th>
-                  <th className="center">Mặc định cả tuần</th>
-                  {editing && <th className="center">Sắp xếp</th>}
-                  {editing && <th className="center">Xóa</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {draft.weekRows.map((r, i) => (
-                  <tr key={r.key} {...weekSort.itemProps(i)}>
-                    <td className="cell--fixed">
-                      <div className="ga-goal-table__pad">{i + 1}</div>
-                    </td>
-                    <td>
-                      <Cell
-                        editable={editing}
-                        value={r.label}
-                        label={`Tên hoạt động ${i + 1}`}
-                        onChange={(v) => set((x) => ((x.weekRows[i].label = v), x))}
-                      />
-                    </td>
-                    <td className="center">
-                      <div className="ga-goal-table__pad">
-                        {!editing ? (
-                          yesNo(r.canMerge, 'Cho gộp cả tuần')
-                        ) : (
-                          <input
-                            type="checkbox"
-                            aria-label={`Cho gộp cả tuần: ${r.label}`}
-                            checked={r.canMerge}
-                            onChange={(e) =>
-                              set((x) => ((x.weekRows[i].canMerge = e.target.checked), (x.weekRows[i].allWeek &&= e.target.checked), x))
-                            }
-                          />
-                        )}
-                      </div>
-                    </td>
-                    <td className="center">
-                      <div className="ga-goal-table__pad">
-                        {!editing ? (
-                          yesNo(r.allWeek, 'Mặc định cả tuần')
-                        ) : (
-                          <input
-                            type="checkbox"
-                            aria-label={`Mặc định cả tuần: ${r.label}`}
-                            checked={r.allWeek}
-                            // Chọn "mặc định cả tuần" thì dòng đó cũng được gộp
-                            onChange={(e) =>
-                              set((x) => ((x.weekRows[i].allWeek = e.target.checked), (x.weekRows[i].canMerge ||= e.target.checked), x))
-                            }
-                          />
-                        )}
-                      </div>
-                    </td>
-                    {editing && (
-                      <td className="center">
-                        {/* Tay nắm kéo-thả (cột riêng) thay 2 nút lên/xuống */}
-                        <div className="ga-goal-table__pad">
-                          <button {...weekSort.handleProps(i)}>
-                            <GripVertical size={16} aria-hidden />
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                    {editing && (
-                      <td className="center">
-                        <div className="ga-goal-table__pad">
-                          <button
-                            type="button"
-                            className="icon-btn icon-btn--danger"
-                            aria-label={`Xóa dòng ${r.label}`}
-                            title="Xóa dòng"
-                            onClick={() =>
-                              r.key === 'hoc'
-                                ? toast('Không xóa được dòng Hoạt động học vì kế hoạch ngày dùng dòng này (môn, đề tài).', 'warn')
-                                : set((x) => ((x.weekRows = x.weekRows.filter((y) => y.key !== r.key)), x))
-                            }
-                          >
-                            <Trash2 size={16} aria-hidden />
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {editing && (
+            <SortableList
+              ids={draft.weekRows.map((r) => r.key)}
+              onMove={(from, to) => set((x) => ((x.weekRows = moveItem(x.weekRows, from, to)), x))}
+              labelOf={(i) => draft.weekRows[i]?.label}
+              disabled={!editing}
+            >
+              <table className="table ga-plan-table ga-goal-table ga-sortable-table" onMouseDown={focusCell}>
+                <colgroup>
+                  <col className="ga-goal-table__del" />
+                  <col />
+                  <col className="ga-goal-table__code" />
+                  <col className="ga-goal-table__code" />
+                  {editing && <col className="ga-goal-table__del" />}
+                  {editing && <col className="ga-goal-table__del" />}
+                </colgroup>
+                <thead>
                   <tr>
-                    <td className="cell--fixed" />
-                    <td colSpan={5}>
-                      <Cell
-                        editable
-                        value=""
-                        label="Thêm dòng hoạt động"
-                        placeholder="Nhập tên hoạt động mới (ví dụ: Ăn, ngủ, vệ sinh)"
-                        onChange={(v) => {
-                          set(
-                            (x) => (
-                              (x.weekRows = [
-                                ...x.weekRows,
-                                { key: `r_${Date.now().toString(36)}`, label: v, canMerge: true, allWeek: false },
-                              ]),
-                              x
-                            ),
-                          );
-                          // Dòng vừa thêm nhận con trỏ để gõ tiếp, như bảng mục tiêu
-                          const n = draft.weekRows.length + 1;
-                          setTimeout(() => {
-                            const el = document.querySelector(`[aria-label="Tên hoạt động ${n}"]`);
-                            el?.focus({ preventScroll: true });
-                            el?.setSelectionRange(el.value.length, el.value.length);
-                          });
-                        }}
-                      />
-                    </td>
+                    <th className="cell--fixed">
+                      <span className="stt-head">STT {editing && <RenumberButton />}</span>
+                    </th>
+                    <th>Tên hoạt động</th>
+                    <th className="center">Cho gộp cả tuần</th>
+                    <th className="center">Mặc định cả tuần</th>
+                    {editing && <th className="center">Sắp xếp</th>}
+                    {editing && <th className="center">Xóa</th>}
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {draft.weekRows.map((r, i) => (
+                    <SortableRow key={r.key} id={r.key}>
+                      <td className="cell--fixed">
+                        <div className="ga-goal-table__pad">
+                          <SortIndex id={r.key} index={i} />
+                        </div>
+                      </td>
+                      <td>
+                        <Cell
+                          editable={editing}
+                          value={r.label}
+                          label={`Tên hoạt động ${i + 1}`}
+                          onChange={(v) => set((x) => ((x.weekRows[i].label = v), x))}
+                        />
+                      </td>
+                      <td className="center">
+                        <div className="ga-goal-table__pad">
+                          {!editing ? (
+                            yesNo(r.canMerge, 'Cho gộp cả tuần')
+                          ) : (
+                            <input
+                              type="checkbox"
+                              aria-label={`Cho gộp cả tuần: ${r.label}`}
+                              checked={r.canMerge}
+                              onChange={(e) =>
+                                set((x) => ((x.weekRows[i].canMerge = e.target.checked), (x.weekRows[i].allWeek &&= e.target.checked), x))
+                              }
+                            />
+                          )}
+                        </div>
+                      </td>
+                      <td className="center">
+                        <div className="ga-goal-table__pad">
+                          {!editing ? (
+                            yesNo(r.allWeek, 'Mặc định cả tuần')
+                          ) : (
+                            <input
+                              type="checkbox"
+                              aria-label={`Mặc định cả tuần: ${r.label}`}
+                              checked={r.allWeek}
+                              // Chọn "mặc định cả tuần" thì dòng đó cũng được gộp
+                              onChange={(e) =>
+                                set((x) => ((x.weekRows[i].allWeek = e.target.checked), (x.weekRows[i].canMerge ||= e.target.checked), x))
+                              }
+                            />
+                          )}
+                        </div>
+                      </td>
+                      {editing && (
+                        <td className="center">
+                          {/* Tay nắm kéo-thả (cột riêng) thay 2 nút lên/xuống */}
+                          <div className="ga-goal-table__pad">
+                            <SortHandle label={r.label} />
+                          </div>
+                        </td>
+                      )}
+                      {editing && (
+                        <td className="center">
+                          <div className="ga-goal-table__pad">
+                            <button
+                              type="button"
+                              className="icon-btn icon-btn--danger"
+                              aria-label={`Xóa dòng ${r.label}`}
+                              title="Xóa dòng"
+                              onClick={() =>
+                                r.key === 'hoc'
+                                  ? toast('Không xóa được dòng Hoạt động học vì kế hoạch ngày dùng dòng này (môn, đề tài).', 'warn')
+                                  : set((x) => ((x.weekRows = x.weekRows.filter((y) => y.key !== r.key)), x))
+                              }
+                            >
+                              <Trash2 size={16} aria-hidden />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </SortableRow>
+                  ))}
+                  {editing && (
+                    <tr>
+                      <td className="cell--fixed" />
+                      <td colSpan={5}>
+                        <Cell
+                          editable
+                          value=""
+                          label="Thêm dòng hoạt động"
+                          placeholder="Nhập tên hoạt động mới (ví dụ: Ăn, ngủ, vệ sinh)"
+                          onChange={(v) => {
+                            set(
+                              (x) => (
+                                (x.weekRows = [
+                                  ...x.weekRows,
+                                  { key: `r_${Date.now().toString(36)}`, label: v, canMerge: true, allWeek: false },
+                                ]),
+                                x
+                              ),
+                            );
+                            // Dòng vừa thêm nhận con trỏ để gõ tiếp, như bảng mục tiêu
+                            const n = draft.weekRows.length + 1;
+                            setTimeout(() => {
+                              const el = document.querySelector(`[aria-label="Tên hoạt động ${n}"]`);
+                              el?.focus({ preventScroll: true });
+                              el?.setSelectionRange(el.value.length, el.value.length);
+                            });
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </SortableList>
           </div>
-          <div {...weekSort.liveProps} />
         </div>
       </Card>
 

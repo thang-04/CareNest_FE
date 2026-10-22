@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Check } from '@/components/ui/icons';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { suggestLessonSteps } from '@/services/education-plan/educationPlanService';
 import FloatingPanel from '@/components/education-plan/FloatingPanel';
@@ -87,24 +88,33 @@ function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, ch
       )}
       {open && (
         <FloatingPanel anchorRef={ref} panelRef={panelRef} minWidth={420}>
-          <div className="card">
+          {/* Khung gợi ý (Tiền 21/10, phương án A): nhãn MT xanh dương, loại giờ chữ xám, tên hoạt động; đã chọn nền xanh lá + ✓,
+              bấm lại để bỏ chọn */}
+          <div className="card ga-sug-panel">
+            <div className="text-xs ga-sug-panel__hint">Chọn hoạt động cho ô (hoặc gõ tự do)</div>
             <div className="search-select__list" role="listbox" aria-label="Gợi ý từ kế hoạch chủ đề">
-              <div className="muted text-xs ga-goal-table__pad">
-                Gợi ý từ cột Hoạt động giáo dục của kế hoạch chủ đề (bấm để chọn, hoặc gõ tự do)
-              </div>
-              {suggestions.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  role="option"
-                  aria-selected={pickedIds.has(a.id)}
-                  className={`search-select__option ${pickedIds.has(a.id) ? 'search-select__option--active' : ''}`}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => onPick(a)}
-                >
-                  <span className="fw-600">MT{a.goalNo}</span> · {a.text}
-                </button>
-              ))}
+              {suggestions.map((a) => {
+                const picked = pickedIds.has(a.id);
+                const colon = a.text.indexOf(':');
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="option"
+                    aria-selected={picked}
+                    className={`ga-sug ${picked ? 'ga-sug--on' : ''}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => (picked ? onUnpick(a.id) : onPick(a))}
+                  >
+                    <span className="ga-sug__mt">MT{a.goalNo}</span>
+                    <span className="ga-sug__body">
+                      {colon > 0 && <span className="ga-sug__type">{a.text.slice(0, colon)}</span>}
+                      <span className="ga-sug__text">{activityBody(a.text)}</span>
+                    </span>
+                    {picked && <Check size={16} className="ga-sug__check" aria-hidden />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </FloatingPanel>
