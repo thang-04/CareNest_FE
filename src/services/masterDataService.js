@@ -1,4 +1,5 @@
-import { USE_MOCK } from '@/config/env';
+import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
+import { beClient } from '@/services/http/beClient';
 import { axiosClient } from '@/services/http/axiosClient';
 import { masterDataMockRepository } from '@/mocks/masterDataMockRepository';
 
@@ -18,13 +19,32 @@ const api = {
 
 const repo = USE_MOCK ? masterDataMockRepository : api;
 
-export const getCampuses = () => repo.getCampuses();
-export const getLocations = () => repo.getLocations();
-export const getUsers = () => repo.getUsers();
+// Dev: màn Phòng ban gọi BE thật khi nối thử Cấu hình trường; danh mục chung khác vẫn theo repo trên
+const roomsRepo = SCHOOL_CONFIG_API
+  ? {
+      getRooms: (filters) => beClient.get('/locations', { params: filters }),
+      saveRoom: (id, form) => (id ? beClient.put(`/locations/${id}`, form) : beClient.post('/locations', form)),
+      setRoomStatus: (id, status) => beClient.patch(`/locations/${id}/status`, { status }),
+      deleteRoom: (id) => beClient.delete(`/locations/${id}`),
+    }
+  : repo;
+
+// Dev nối thử: điểm trường, phòng lấy từ BE để màn Phòng ban/Cấu hình trường dùng đúng id BE (module mock khác sẽ thấy id mới)
+export const getCampuses = () => (SCHOOL_CONFIG_API ? beClient.get('/campuses') : repo.getCampuses());
+export const getLocations = () => (SCHOOL_CONFIG_API ? beClient.get('/locations') : repo.getLocations());
+// Dev nối thử: thêm giáo viên từ BE (id số) vào danh sách user mock để màn phân công/lớp hiện tên
+export const getUsers = () =>
+  SCHOOL_CONFIG_API
+    ? Promise.all([
+        repo.getUsers(),
+        // Không có năm đang hoạt động (vd. vừa kết thúc năm học) thì BE trả 404: vẫn dùng danh sách mock, không làm hỏng dữ liệu nền
+        beClient.get('/teacher-assignments', { params: { campusId: 'all' } }).catch(() => ({ teachers: [] })),
+      ]).then(([users, { teachers }]) => [...users, ...teachers.map((t) => ({ ...t, role: 'TEACHER', status: 'ACTIVE' }))])
+    : repo.getUsers();
 export const getAssetCategories = () => repo.getAssetCategories();
 
 /** Rooms (= locations) management, Principal only. */
-export const getRooms = (filters, user) => repo.getRooms(filters, user);
-export const saveRoom = (id, form, user) => repo.saveRoom(id, form, user);
-export const setRoomStatus = (id, status, user) => repo.setRoomStatus(id, status, user);
-export const deleteRoom = (id, user) => repo.deleteRoom(id, user);
+export const getRooms = (filters, user) => roomsRepo.getRooms(filters, user);
+export const saveRoom = (id, form, user) => roomsRepo.saveRoom(id, form, user);
+export const setRoomStatus = (id, status, user) => roomsRepo.setRoomStatus(id, status, user);
+export const deleteRoom = (id, user) => roomsRepo.deleteRoom(id, user);
