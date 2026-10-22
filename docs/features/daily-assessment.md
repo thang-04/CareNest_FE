@@ -12,7 +12,7 @@ Giáo viên của lớp (route `/assessment/daily`). Chỉ người đã ghi nh�
 
 - Đánh giá ngày D khóa sau 23:59:59 của chính ngày D: không ghi mới, không sửa, không còn "Điều chỉnh + lý do".
 - Quên đánh giá: giáo viên tự gửi mail (ngoài hệ thống) cho Phó hiệu trưởng điểm trường hoặc Hiệu trưởng.
-- PHT điểm trường / Hiệu trưởng mở lại ngày đó cho lớp ở `/assessment/day-unlocks` (menu "Mở lại ngày đánh giá"); lý do tùy chọn. Người mở chọn hạn "Mở đến" (ngày + giờ, mặc định 23:59 hôm nay, sau hiện tại, tối đa `UNLOCK_MAX_DAYS` = 7 ngày — PROPOSED); giáo viên sửa được đến hạn đó, quá hạn thì khóa lại. Giáo viên của lớp nhận thông báo có link tới ngày đó. Sửa bản đã ghi trong ngày mở lại được ghi vết `corrections` kèm người mở.
+- PHT điểm trường / Hiệu trưởng mở lại ngày đó cho lớp ở `/assessment/day-unlocks` (menu "Mở lại ngày đánh giá"); lý do tùy chọn. Người mở chọn hạn "Mở đến" (ngày + giờ, mặc định 23:59 hôm nay, sau hiện tại, do HT / PHT chọn, không quá ngày kết thúc năm học — Cần chốt 21/10/2026; lùi được tới ngày bắt đầu năm học); giáo viên sửa được đến hạn đó, quá hạn thì khóa lại. Giáo viên của lớp nhận thông báo có link tới ngày đó. Sửa bản đã ghi trong ngày mở lại được ghi vết `corrections` kèm người mở.
 - Dữ liệu mock `assessmentDayUnlocks { classId, campusId, date, reason, unlockedBy, unlockedAt, validUntil }`. PENDING BE: `GET/POST /assessment/day-unlocks`; BE phải kiểm tra khóa khi lưu. Cần ghi Decision Log ở BE vì đổi rule GBR-OBS-03.
 
 ## Màn hình `/assessment/daily`
@@ -42,6 +42,8 @@ Danh mục ô tích: `src/models/assessment/dailyObservationOptions.js` (thêm /
 Sau khi merge FEAT-41, giáo án lớp là giáo án tuần (`eduClassWeek`, duyệt cả tuần) có 5 kế hoạch ngày. Mục tiêu của một giờ = các MT của hoạt động đã chọn ở ô (dòng giờ, ngày) trong `picks`; dòng gộp cả tuần dùng ô `all`. Giờ sinh hoạt → dòng: Hoạt động học → `hoc`, ngoài trời → `ngoai_troi`, trong lớp / góc → `goc`, chiều → `chieu`, Thể dục → `the_duc`. Từ 20/10 (Tiền): giờ có mục riêng trong kế hoạch ngày (Hoạt động học, ngoài trời, buổi chiều) hiện tên mục, các "Hoạt động n" của cô và dòng "Mục đích yêu cầu" của hoạt động đó lấy từ kế hoạch ngày (`plan.dayPart` trong daily-sheet); tiêu chí vẫn là MT của hoạt động đó. Kế hoạch ngày đã duyệt có nút "Đánh giá trẻ ngày này" mở `/assessment/daily?classId&date` (nhận thêm `activity`). Bộ mục tiêu năm mới không có mã YCCĐ (requirements rỗng) nên màn hình dùng mã MT. NEEDS VERIFICATION: nhóm cần chốt chấm theo MT hay YCCĐ, và ghép mã lớp chung với module giáo án.
 
 ## Dữ liệu (mock, PROPOSED)
+
+- Kết quả mỗi giờ ở màn Kiến thức kỹ năng có 3 mức (Cần chốt 21/10/2026): Đạt / Cần cố gắng / Chưa đạt; chọn ở ô sổ xuống của từng giờ. `dailyAssessments` thêm `criteriaEffort[]` (MT ở mức Cần cố gắng). Tổng hợp kỳ đếm `canCoGang`; bản nháp AI tính Cần cố gắng vào phía cần hỗ trợ; chip trong bảng từng ngày: xanh đạt, cam cần cố gắng, đỏ chưa đạt. PENDING BE: thêm field vào `PUT /assessment/daily-assessments` và `summary.structured`.
 
 - `dailyObservations`: 1 bản ghi / trẻ / ngày `{ childId, classId, date, healthOverridden, healthSigns[], healthNote, healthSetAt, meals{MORNING|LUNCH|AFTERNOON: AN_HET|AN_IT|KHONG_AN}, nap, emotion, behaviors[], behaviorNote, recordedBy, recordedAt, updatedAt }`. `healthSigns` rỗng = Bình thường; chỉ chốt khi `healthOverridden`, nếu không thì luôn lấy theo khám sức khỏe mới nhất.
 - `dailyAssessments` (theo hoạt động): thêm `participation`, `criteriaNotMet[]`, `lessonPlanId`, `themeId`. Bản ghi cũ giữ `healthStatus` để màn hồ sơ đọc.

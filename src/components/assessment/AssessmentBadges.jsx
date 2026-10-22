@@ -46,8 +46,8 @@ export const TicketBadge = createDetailBadge(
 
 /** Lần mở lại ngày đánh giá: còn hiệu lực hay đã hết hạn (hạn truyền qua `detail`). */
 export const UnlockWindowBadge = createDetailBadge(
-  { ACTIVE: ['green', Unlock], EXPIRED: ['gray', Lock] },
-  { ACTIVE: 'Đến', EXPIRED: 'Đã hết ·' },
+  { ACTIVE: ['green', Unlock], EXPIRED: ['gray', Lock], REVOKED: ['red', Lock] },
+  { ACTIVE: 'Đến', EXPIRED: 'Đã hết ·', REVOKED: 'Kết thúc sớm ·' },
 );
 
 // Nhãn bản nháp AI dùng chung (components/ui/AiDraftTag)

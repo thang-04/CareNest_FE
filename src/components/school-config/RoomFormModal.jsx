@@ -8,7 +8,11 @@ import { FormField } from '@/components/form/FormField';
 import { saveRoom } from '@/services/masterDataService';
 import { LOCATION_TYPE_LABELS, LOCATION_TYPES, MANAGER_LABELS, isRoomStaff } from '@/models/Location';
 import { ROLE_LABELS } from '@/models/User';
-import { validateRoom, hasErrors } from '@/utils/school-config/schoolConfigValidation';
+import { SCHOOL_CONFIG_API } from '@/config/env';
+import { validateRoom, hasErrors, errorsAfterChange, ROOM_LIMITS } from '@/utils/school-config/schoolConfigValidation';
+
+// Nối BE thật: chỉ chọn được người có id của BE (chưa có API /users nên tài khoản mock không gửi được)
+const isBeUser = (u) => !SCHOOL_CONFIG_API || /^\d+$/.test(String(u.id));
 
 const empty = (campusId) => ({
   campusId: campusId || '',
@@ -44,15 +48,11 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
   const minCapacity = room?.minCapacity || 0;
   // Người phụ trách: nhân sự của điểm trường (Hiệu trưởng không gắn điểm trường nên luôn có trong danh sách)
   // Chỉ nhân sự đang hoạt động của đúng điểm trường đã chọn; Hiệu trưởng luôn chọn được
-  const staff = form.campusId ? users.filter((u) => isRoomStaff(u, form.campusId)) : [];
+  const staff = form.campusId ? users.filter((u) => isRoomStaff(u, form.campusId, form.type) && isBeUser(u)) : [];
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => {
-      const next = { ...e };
-      Object.keys(patch).forEach((k) => delete next[k]);
-      return next;
-    });
+    setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, ROOM_LIMITS));
   };
   const blurCheck = (field) => {
     const e = validateRoom(form, others, { minCapacity });
@@ -69,8 +69,7 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
       toast.success('Đã lưu thay đổi.', room ? 'Cập nhật phòng' : 'Thêm phòng');
       onClose(true);
     } catch (err) {
-      if (err.details) setErrors(err.details);
-      toast.error(err, 'Không lưu được thay đổi');
+      setErrors(err.details || { _form: err.message });
     } finally {
       setSaving(false);
     }
@@ -92,6 +91,11 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
         </>
       }
     >
+      {errors._form && (
+        <div className="alert alert--danger mb-12" role="alert">
+          {errors._form}
+        </div>
+      )}
       <div className="grid-2">
         <FormField
           label="Điểm trường"
@@ -128,22 +132,10 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
           </select>
         </FormField>
         <FormField label="Mã / số phòng" required error={errors.room} hint="Không trùng trong điểm trường, ví dụ P.101">
-          <input
-            className="input"
-            value={form.room}
-            maxLength={20}
-            onChange={(e) => set({ room: e.target.value })}
-            onBlur={() => blurCheck('room')}
-          />
+          <input className="input" value={form.room} onChange={(e) => set({ room: e.target.value })} onBlur={() => blurCheck('room')} />
         </FormField>
         <FormField label="Tên phòng" required error={errors.name} hint="Ví dụ Phòng học 101, Phòng Âm nhạc">
-          <input
-            className="input"
-            value={form.name}
-            maxLength={50}
-            onChange={(e) => set({ name: e.target.value })}
-            onBlur={() => blurCheck('name')}
-          />
+          <input className="input" value={form.name} onChange={(e) => set({ name: e.target.value })} onBlur={() => blurCheck('name')} />
         </FormField>
         {form.type === LOCATION_TYPES.CLASS ? (
           // Phòng học: người phụ trách tự theo giáo viên chủ nhiệm của lớp đang dùng phòng (năm học đang hoạt động)
@@ -195,7 +187,7 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
         </FormField>
       </div>
       <FormField label="Ghi chú" error={errors.note} className="mt-12">
-        <textarea className="textarea" rows={2} maxLength={500} value={form.note} onChange={(e) => set({ note: e.target.value })} />
+        <textarea className="textarea" rows={2} value={form.note} onChange={(e) => set({ note: e.target.value })} />
       </FormField>
     </Modal>
   );

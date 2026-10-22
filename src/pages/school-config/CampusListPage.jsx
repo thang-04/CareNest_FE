@@ -10,15 +10,16 @@ import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { canListCampuses, canManageCampus } from '@/utils/school-config/schoolConfigPermissions';
 import { campusCrumbs } from '@/utils/school-config/breadcrumbs';
+import { YearReadOnlyNotice } from '@/components/school-config/YearReadOnlyNotice';
 import '@/styles/modules/school-config.css';
 
 /** #20 Campus List (UC 2.3). Principal manages; a Vice Principal sees the assigned campus. */
 export default function CampusListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, yearReadOnly } = useSchoolYear();
   const { campuses, loading, error, reload } = useCampusList(schoolYear);
-  const manage = canManageCampus(user);
+  const manage = canManageCampus(user) && !yearReadOnly;
 
   if (!canListCampuses(user))
     return (
@@ -40,6 +41,7 @@ export default function CampusListPage() {
           </Link>
         )}
       </div>
+      <YearReadOnlyNotice />
 
       <div className="card">
         {error ? (

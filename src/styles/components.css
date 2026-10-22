@@ -677,7 +677,9 @@ tr.sortable-item--moved > td {
 }
 /* Bảng kẻ ô theo bảng Mục tiêu năm học (Kế hoạch giáo dục): kẻ đủ mọi ô màu --color-text-disabled, tiêu đề chữ đậm */
 .table.table--grid th + th,
-.table.table--grid td + td {
+.table.table--grid td + td,
+.table.table--grid th + td,
+.table.table--grid td + th {
   border-left: 1px solid var(--color-text-disabled);
 }
 .table.table--grid th,
@@ -1541,6 +1543,118 @@ tr.sortable-item--moved > td {
   border-radius: var(--radius-full);
   padding: 1px var(--space-2);
   font-size: var(--fs-xs);
+}
+/* Form một hàng trong thẻ (vd. Mở lại điểm danh / ngày đánh giá): ô xếp ngang, xuống dòng khi hẹp;
+   cho danh sách chọn lớp mở xuống đè lên thẻ bên dưới */
+.form-inline {
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.form-inline .field {
+  margin: 0;
+}
+.form-inline__class {
+  min-width: 300px;
+}
+.form-inline__grow {
+  flex: 1;
+  min-width: 240px;
+}
+.form-inline__pair {
+  display: flex;
+  gap: var(--space-2);
+}
+/* Ô ngày (có nút lịch) đủ rộng cho dd/mm/yyyy */
+.form-inline__pair .input-group {
+  min-width: calc(var(--space-16) * 2 + var(--space-10));
+}
+.form-inline__full {
+  flex-basis: 100%;
+}
+/* Chọn lớp có tìm kiếm, nhóm theo nhóm tuổi (ui/ClassPicker) */
+.class-picker .search-submit .btn {
+  height: var(--input-height);
+}
+.class-picker {
+  position: relative;
+}
+.class-picker__box {
+  /* Cao bằng các ô nhập cùng hàng */
+  height: var(--input-height);
+  min-width: 0;
+  width: 100%;
+  cursor: text;
+}
+.class-picker__box.is-invalid {
+  border-color: var(--color-danger);
+}
+.class-picker__panel {
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  top: calc(100% + var(--space-1));
+  width: max(100%, 320px);
+  max-width: calc(100vw - 2 * var(--space-4));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+.class-picker__campus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+.class-picker__campus .chip {
+  cursor: pointer;
+}
+.class-picker__list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--space-1);
+}
+.class-picker__group {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+}
+.class-picker__option {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: var(--space-1-5) var(--space-3);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+.class-picker__option.is-active {
+  background: var(--color-secondary);
+}
+.class-picker__option.is-selected {
+  background: var(--color-primary-soft);
+  font-weight: var(--fw-semibold);
+}
+.class-picker__empty {
+  padding: var(--space-3);
+}
+/* Ô chọn điểm trường dùng chung (ui/CampusFilter): nhãn trên, ô chọn dưới */
+.campus-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.campus-filter .select {
+  width: auto;
 }
 .tab--active .tab__count {
   background: var(--color-primary);
@@ -3216,6 +3330,11 @@ button.stat-card .stat-card__label::after {
 
 .row-menu__item--danger {
   color: var(--color-danger);
+}
+.row-menu__item:disabled {
+  color: var(--color-text-disabled);
+  background: none;
+  cursor: not-allowed;
 }
 
 /* ---------- Điện thoại (≤640px): primitive dùng chung về 1 cột ---------- */

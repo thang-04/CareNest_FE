@@ -139,7 +139,7 @@ export default function PrincipalDashboard() {
               icon={Stethoscope}
               to="/attendance/health"
               tone="teal"
-              label="Đã khám sức khỏe đầu ngày"
+              label="Đã khám sức khỏe trong ngày"
               value={health?.present ? `${health.checked}/${health.present}` : '—'}
               unit={health?.present ? 'trẻ' : undefined}
               progress={health?.present ? health.checked / health.present : undefined}

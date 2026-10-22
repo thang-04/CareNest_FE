@@ -3,14 +3,13 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Trash2, Info, Copy, Crown, UserCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useConfigYear } from '@/hooks/school-config/useConfigYear';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolStructure, useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { RowActions } from '@/components/ui/RowActions';
-import { YearPicker } from '@/components/school-config/YearPicker';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { ClassFormModal } from '@/components/school-config/ClassFormModal';
 import { AgeGroupFormModal } from '@/components/school-config/AgeGroupFormModal';
@@ -36,10 +35,9 @@ import '@/styles/modules/school-config.css';
 export default function AgeGroupsClassesPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const { schoolYear: headerYear } = useSchoolYear();
-  const [params, setParams] = useSearchParams();
-  const yearId = params.get('year') || headerYear;
-  // Bộ lọc nằm trên URL để tải lại trang vẫn giữ (?year=&campus=&q=&group=&status=)
+  const [params] = useSearchParams();
+  const yearId = useConfigYear();
+  // Bộ lọc nằm trên URL để tải lại trang vẫn giữ (?campus=&q=&group=&status=); năm học theo header
   const campusId = params.get('campus') || '';
   const md = useMasterData();
   const { years, error: yearsError } = useSchoolYears();
@@ -48,6 +46,7 @@ export default function AgeGroupsClassesPage() {
   const [groupModal, setGroupModal] = useState(null); // { group }
   const [copyOpen, setCopyOpen] = useState(false);
   const [removing, setRemoving] = useState(null); // { kind, item }
+  const [removeError, setRemoveError] = useState('');
 
   const year = structure?.year;
   const ageGroups = useMemo(() => structure?.ageGroups || [], [structure]);
@@ -81,8 +80,7 @@ export default function AgeGroupsClassesPage() {
       setRemoving(null);
       reload({ silent: true });
     } catch (err) {
-      setRemoving(null);
-      toast.error(err, 'Không xóa được');
+      setRemoveError(err.message);
     }
   };
 
@@ -114,12 +112,6 @@ export default function AgeGroupsClassesPage() {
             </button>
           </div>
         )}
-      </div>
-
-      <div className="card mb-16">
-        <div className="filter-bar">
-          <YearPicker years={years} value={yearId} onChange={(v) => setParams({ year: v })} />
-        </div>
       </div>
 
       {yearsError && <ErrorState error={yearsError} />}
@@ -189,7 +181,10 @@ export default function AgeGroupsClassesPage() {
                         <td>
                           {teamLeaders
                             .filter((a) => a.ageGroupId === g.id)
-                            .map((a) => `${md.userById(a.userId)?.fullName} (${md.campusById(a.campusId)?.shortName || '—'})`)
+                            .map(
+                              (a) =>
+                                `${a.fullName || md.userById(a.userId)?.fullName || '—'} (${md.campusById(a.campusId)?.shortName || '—'})`,
+                            )
                             .join(', ') || <span className="muted">—</span>}
                         </td>
                         <td className="num">{count}</td>
@@ -278,7 +273,11 @@ export default function AgeGroupsClassesPage() {
         confirmLabel={removing?.kind === 'class' ? 'Xóa lớp' : 'Xóa nhóm tuổi'}
         danger
         onConfirm={confirmRemove}
-        onClose={() => setRemoving(null)}
+        error={removeError}
+        onClose={() => {
+          setRemoving(null);
+          setRemoveError('');
+        }}
       />
     </div>
   );

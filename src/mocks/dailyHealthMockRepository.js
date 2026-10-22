@@ -58,10 +58,10 @@ const overviewCampus = (user, campusId) => {
   if (user?.role === ROLES.PRINCIPAL) return campusId || null;
   if (user?.role === ROLES.VICE_PRINCIPAL) {
     if (campusId && campusId !== user.campusId)
-      throw new ApiError(403, 'Bạn chỉ xem được sức khỏe đầu ngày của điểm trường mình phụ trách.');
+      throw new ApiError(403, 'Bạn chỉ xem được sức khỏe trong ngày của điểm trường mình phụ trách.');
     return user.campusId;
   }
-  throw new ApiError(403, 'Bạn không có quyền xem tổng hợp sức khỏe đầu ngày.');
+  throw new ApiError(403, 'Bạn không có quyền xem tổng hợp sức khỏe trong ngày.');
 };
 
 const SEED_DAYS = 6;
@@ -308,10 +308,10 @@ export const dailyHealthMockRepository = {
     });
   },
 
-  /** Tổng hợp sức khỏe đầu ngày cho Ban giám hiệu, chỉ xem. */
+  /** Tổng hợp sức khỏe trong ngày cho Ban giám hiệu, chỉ xem. */
   async getDailyHealthOverview({ date, campusId, ageGroupId, classId } = {}, user) {
     await delay(150);
-    if (!LEADER_ROLES.includes(user?.role)) throw new ApiError(403, 'Bạn không có quyền xem tổng hợp sức khỏe đầu ngày.');
+    if (!LEADER_ROLES.includes(user?.role)) throw new ApiError(403, 'Bạn không có quyền xem tổng hợp sức khỏe trong ngày.');
     if (!isIsoDate(date)) throw new ApiError(422, 'Chọn ngày hợp lệ theo dd/mm/yyyy.');
     const scopeCampus = overviewCampus(user, campusId);
     await ensureDemoHealth();

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { ChevronDown, ClipboardCheck, Info, Lock, UserX } from '@/components/ui/icons';
+import { ChevronDown, ClipboardCheck, Info, Lock, Save, UserX } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -11,11 +11,19 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { DailyModeSelect } from '@/components/assessment/DailyModeSelect';
-import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { BehaviorsCell, CellPopover, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { Cell, focusCell } from '@/components/ui/TableCell';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
-import { EATING, NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
+import {
+  EATING,
+  NAP,
+  NAP_LABELS,
+  PARTICIPATION,
+  PARTICIPATION_LABELS,
+  YCCD_RESULT,
+  YCCD_RESULT_LABELS,
+} from '@/models/assessment/dailyObservationOptions';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { addDays, isSchoolDay, todayIso, unlockDeadline } from '@/utils/assessment/assessmentPeriods';
 import { validateDailyEntry, hasErrors } from '@/utils/assessment/assessmentValidation';
@@ -24,8 +32,6 @@ import '@/styles/modules/assessment.css';
 // Bảng cùng kiểu bảng mục tiêu năm học / giáo án (Tiền 20/10)
 import '@/styles/modules/education-plan.css';
 
-const AUTOSAVE_MS = 1200;
-
 const lastSchoolDay = () => {
   let d = todayIso();
   while (!isSchoolDay(d)) d = addDays(d, -1);
@@ -33,8 +39,15 @@ const lastSchoolDay = () => {
 };
 const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-/** Kết quả một giờ: mặc định Đạt mọi MT của giờ; "Chưa đạt" = mọi MT của giờ chưa đạt. */
-const resultOf = (ids, notMet) => (notMet ? { criteriaMet: [], criteriaNotMet: ids } : { criteriaMet: ids, criteriaNotMet: [] });
+/** Kết quả một giờ cho mọi MT của giờ: Đạt (mặc định) / Cần cố gắng / Chưa đạt. */
+const resultOf = (ids, level) => ({
+  criteriaMet: level === YCCD_RESULT.DAT ? ids : [],
+  criteriaEffort: level === YCCD_RESULT.CAN_CO_GANG ? ids : [],
+  criteriaNotMet: level === YCCD_RESULT.CHUA_DAT ? ids : [],
+});
+const levelOf = (act) =>
+  act.criteriaNotMet.length ? YCCD_RESULT.CHUA_DAT : act.criteriaEffort?.length ? YCCD_RESULT.CAN_CO_GANG : YCCD_RESULT.DAT;
+const LEVEL_CLASS = { DAT: 'text-success', CAN_CO_GANG: 'text-warning fw-600', CHUA_DAT: 'text-danger fw-600' };
 
 /** Giá trị đang nhập của một trẻ cho cả ngày: nhóm ngày, cờ, nhận xét và kết quả từng giờ (chưa ghi thì mặc định Đạt). */
 const fromRow = (r, sheet) => {
@@ -61,7 +74,9 @@ const fromRow = (r, sheet) => {
           activity,
           {
             participation: a?.participation || PARTICIPATION.BINH_THUONG,
-            ...(a ? { criteriaMet: a.criteriaMet || [], criteriaNotMet: a.criteriaNotMet || [] } : resultOf(ids, false)),
+            ...(a
+              ? { criteriaMet: a.criteriaMet || [], criteriaEffort: a.criteriaEffort || [], criteriaNotMet: a.criteriaNotMet || [] }
+              : resultOf(ids, YCCD_RESULT.DAT)),
           },
         ];
       }),
@@ -74,7 +89,7 @@ const recordedOf = (r) => (r.observation?.recordedBy ? r.observation : Object.va
 /**
  * #52 Đánh giá hằng ngày (UC 4.4, GBR-OBS-01..05): một bảng cho cả ngày, cùng kiểu bảng mục tiêu năm / giáo án (Tiền 20/10).
  * Mỗi giờ có MT trong kế hoạch ngày đã duyệt là một cột chỉ ghi Đạt / Chưa đạt, mặc định cả lớp Đạt: cô chỉ bấm trẻ chưa đạt.
- * Nhóm ngày, cờ (1 lần / ngày), nhận xét ghi một lần; bấm tên trẻ để ghi chi tiết cả ngày. Tự lưu sau khi ngừng sửa.
+ * Nhóm ngày, cờ (1 lần / ngày), nhận xét ghi một lần; bấm tên trẻ để ghi chi tiết cả ngày. Lưu khi bấm "Lưu đánh giá".
  */
 export default function DailyGoalAssessmentPage() {
   const { user } = useAuth();
@@ -139,18 +154,16 @@ export default function DailyGoalAssessmentPage() {
     touch([childId]);
     clearError(childId);
   };
-  /** Bấm ô giờ: Đạt ↔ Chưa đạt (cho mọi MT của giờ). */
-  const toggleResult = (childId, a) => {
-    const notMet = drafts[childId].activities[a.activity].criteriaNotMet.length > 0;
+  /** Chọn kết quả ô giờ: Đạt / Cần cố gắng / Chưa đạt (cho mọi MT của giờ). */
+  const setResult = (childId, a, level) =>
     updateActivity(
       childId,
       a.activity,
       resultOf(
         a.criteria.map((c) => c.id),
-        !notMet,
+        level,
       ),
     );
-  };
 
   const editableRows = (sheet?.rows || []).filter((r) => r.present && rowState(r) === 'editable');
   // Mặc định cả lớp Đạt: lần lưu nào cũng ghi kèm các trẻ chưa có bản ghi (với giá trị mặc định), để cô chỉ cần bấm trẻ chưa đạt
@@ -172,7 +185,8 @@ export default function DailyGoalAssessmentPage() {
   const dirtyIds = [...dirty];
   const key = sheet ? JSON.stringify(entriesOf(dirtyIds)) : '';
   latest.current = { key, dirtyIds, entriesOf, pendingIds };
-  const flush = async () => {
+  // Lưu khi cô bấm "Lưu đánh giá" (Cần chốt 21/10: không tự lưu), giống màn Hoạt động chung
+  const save = async () => {
     const { dirtyIds: changed, entriesOf: build, key: k, pendingIds: pending } = latest.current;
     if (!changed.length || inFlight.current) return;
     const ids = pending(changed);
@@ -197,6 +211,7 @@ export default function DailyGoalAssessmentPage() {
       // Không sửa thêm trong lúc lưu thì bỏ khỏi danh sách chờ lưu
       if (latest.current.key === k) setDirty(new Set());
       setSaveState({ phase: 'saved', at });
+      toast.success(`Đã lưu đánh giá của ${ids.length} trẻ.`);
     } catch (err) {
       if (err.details) setRowErrors(err.details);
       setSaveState((s) => ({ ...s, phase: 'error' }));
@@ -205,24 +220,15 @@ export default function DailyGoalAssessmentPage() {
       inFlight.current = false;
     }
   };
-  useEffect(() => {
-    if (!dirtyIds.length || saveState.phase === 'error' || saveState.phase === 'saving') return undefined;
-    const t = setTimeout(flush, AUTOSAVE_MS);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, saveState.phase]);
-  // Rời trang khi còn thay đổi chưa kịp lưu: lưu nốt; đóng tab thì trình duyệt hỏi lại
+  // Đóng tab / tải lại khi còn thay đổi chưa lưu: trình duyệt hỏi lại
   useEffect(() => {
     const warn = (e) => {
       if (latest.current.dirtyIds.length) e.preventDefault();
     };
     window.addEventListener('beforeunload', warn);
-    return () => {
-      window.removeEventListener('beforeunload', warn);
-      flush();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => window.removeEventListener('beforeunload', warn);
   }, []);
+  const saving = saveState.phase === 'saving';
 
   const presentRows = sheet?.rows.filter((r) => r.present) || [];
   const presentCount = presentRows.length;
@@ -248,19 +254,23 @@ export default function DailyGoalAssessmentPage() {
           .filter(Boolean)
           .join(' · ') || a.activity;
   const resultCell = (r, a, d, disabled) => {
-    const notMet = d.activities[a.activity].criteriaNotMet.length > 0;
+    const level = levelOf(d.activities[a.activity]);
+    const label = YCCD_RESULT_LABELS[level];
     return (
-      <button
-        type="button"
-        className="ga-cell-input"
+      <select
+        className={`select dg-select ${LEVEL_CLASS[level]}`}
+        value={level}
         disabled={disabled}
-        title={`${a.activity}: ${actTitle(a)}\n${a.criteria.map((c) => `${c.name}: ${c.description}`).join('\n')}\nBấm để đổi Đạt / Chưa đạt`}
-        aria-label={`${a.activity} của ${r.child.fullName}: ${notMet ? 'chưa đạt' : 'đạt'}`}
-        aria-pressed={notMet}
-        onClick={() => toggleResult(r.child.id, a)}
+        title={`${a.activity}: ${actTitle(a)}\n${a.criteria.map((c) => `${c.name}: ${c.description}`).join('\n')}`}
+        aria-label={`${a.activity} của ${r.child.fullName}: ${label.toLowerCase()}`}
+        onChange={(e) => setResult(r.child.id, a, e.target.value)}
       >
-        <span className={notMet ? 'text-danger fw-600' : 'text-success'}>{notMet ? 'Chưa đạt' : 'Đạt'}</span>
-      </button>
+        {Object.entries(YCCD_RESULT_LABELS).map(([k, v]) => (
+          <option key={k} value={k}>
+            {v}
+          </option>
+        ))}
+      </select>
     );
   };
   const select = (value, options, onChange, label, disabled) => (
@@ -319,21 +329,13 @@ export default function DailyGoalAssessmentPage() {
                 {!sheet.locked && presentCount > 0 && (
                   <>
                     {' · '}
-                    {saveState.phase === 'error' ? (
-                      <button
-                        type="button"
-                        className="btn btn--outline-primary btn--sm"
-                        onClick={() => setSaveState((s) => ({ ...s, phase: 'idle' }))}
-                      >
-                        Chưa lưu được, thử lại
-                      </button>
-                    ) : saveState.phase === 'saving' || dirtyIds.length ? (
-                      'Đang lưu…'
-                    ) : saveState.at ? (
-                      `Đã tự lưu lúc ${hhmm(saveState.at)}`
-                    ) : (
-                      'Tự lưu khi bạn sửa'
-                    )}
+                    {saving
+                      ? 'Đang lưu…'
+                      : dirtyIds.length
+                        ? `${dirtyIds.length} trẻ có thay đổi chưa lưu`
+                        : saveState.at
+                          ? `Đã lưu lúc ${hhmm(saveState.at)}`
+                          : 'Chưa có thay đổi'}
                   </>
                 )}
               </div>
@@ -380,14 +382,14 @@ export default function DailyGoalAssessmentPage() {
           ) : (
             <div className="card__body">
               <div className="table-wrap">
-                <table className="table ga-plan-table ga-goal-table dg-day-table" onMouseDown={focusCell}>
+                <table className="table ga-plan-table ga-goal-table dg-day-table dg-day-table--skills" onMouseDown={focusCell}>
                   {/* Độ rộng cột dùng lại lớp của bảng mục tiêu năm: Trẻ 190px, Nhận xét 96px, các giờ chia đều; cờ cắm ở màn Hoạt động chung */}
                   <colgroup>
                     <col className="ga-goal-table__group" />
                     {goalActs.map((a) => (
                       <col key={a.activity} />
                     ))}
-                    <col className="ga-goal-table__code" />
+                    <col className="dg-skill-note" />
                   </colgroup>
                   <thead>
                     <tr>
@@ -503,11 +505,21 @@ export default function DailyGoalAssessmentPage() {
         </div>
       )}
 
-      {sheet && presentCount > 0 && !sheet.locked && editableRows.some((r) => !recordedOf(r) && !savedAt[r.child.id]) && (
+      {sheet && presentCount > 0 && !sheet.locked && (
         <div className="page-actions">
-          <button className="btn" onClick={markAllPresent}>
-            <ClipboardCheck size={16} /> Ghi nhận cả lớp (mặc định Đạt)
+          <button className="btn" onClick={markAllPresent} disabled={saving || editableRows.length === 0}>
+            <ClipboardCheck size={16} /> Ghi nhận cả lớp với giá trị mặc định
           </button>
+          <div className="row gap-2">
+            {dirtyIds.length > 0 && (
+              <button className="btn" onClick={() => reload()} disabled={saving}>
+                Hủy thay đổi
+              </button>
+            )}
+            <button className="btn btn--primary" onClick={save} disabled={saving || dirtyIds.length === 0}>
+              {saving ? <Spinner small /> : <Save size={16} />} Lưu đánh giá{dirtyIds.length ? ` (${dirtyIds.length})` : ''}
+            </button>
+          </div>
         </div>
       )}
 

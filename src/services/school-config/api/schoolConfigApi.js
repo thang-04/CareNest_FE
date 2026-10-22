@@ -4,7 +4,8 @@ import { axiosClient } from '@/services/http/axiosClient';
  * PROPOSED endpoints only – the backend contract is not agreed yet (CareNest_BE owns it).
  * Same function names and arguments as the mock repository; the user comes from the JWT, so `user` is ignored.
  */
-export const schoolConfigApi = {
+/** client = axiosClient (mặc định) hoặc beClient (dev: nối thử BE thật, VITE_SCHOOL_CONFIG_API). */
+export const createSchoolConfigApi = (axiosClient) => ({
   getSchoolYears: () => axiosClient.get('/school-years'),
   getSchoolYearById: (id) => axiosClient.get(`/school-years/${id}`),
   saveSchoolYear: (id, form) => (id ? axiosClient.put(`/school-years/${id}`, form) : axiosClient.post('/school-years', form)),
@@ -54,7 +55,12 @@ export const schoolConfigApi = {
   // PENDING BE: tổ trưởng 1 người / nhóm tuổi / năm học cho cả trường (không còn campusId trong payload)
   saveTeamLeader: (payload) => axiosClient.put('/team-leader-assignments', payload),
   getTeamLeaders: (filters) => axiosClient.get('/team-leader-assignments', { params: filters }),
+  getClassTeacherHistory: (classId) => axiosClient.get(`/classes/${classId}/teacher-assignments/history`),
+  getTeamLeaderHistory: (ageGroupId, schoolYear) =>
+    axiosClient.get(`/age-groups/${ageGroupId}/team-leader-assignments/history`, { params: { schoolYear } }),
 
   getRolePermissions: () => axiosClient.get('/role-permissions'),
   saveRolePermissions: (role, payload) => axiosClient.put(`/role-permissions/${role}`, payload),
-};
+});
+
+export const schoolConfigApi = createSchoolConfigApi(axiosClient);

@@ -1,9 +1,11 @@
-import { USE_MOCK } from '@/config/env';
+import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
+import { beClient } from '@/services/http/beClient';
 import { dailyHealthMockRepository } from '@/mocks/dailyHealthMockRepository';
-import { dailyHealthApi } from '@/services/daily-health/api/dailyHealthApi';
+import { createDailyHealthBeApi, dailyHealthApi } from '@/services/daily-health/api/dailyHealthApi';
 
 /** Facade: UI only calls these functions. `user` is used by the mock; the API reads it from the token. */
-const repo = USE_MOCK ? dailyHealthMockRepository : dailyHealthApi;
+// Dev: cầu nối BE thật (VITE_SCHOOL_CONFIG_API) như điểm danh đợt 1
+const repo = SCHOOL_CONFIG_API ? createDailyHealthBeApi(beClient) : USE_MOCK ? dailyHealthMockRepository : dailyHealthApi;
 
 export const getDailyHealth = async (query, user) => repo.getDailyHealth(query, user);
 export const addDailyHealth = async (payload, user) => repo.addDailyHealth(payload, user);

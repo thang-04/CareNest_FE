@@ -44,8 +44,9 @@ export const summarizeSources = ({ assessments, presentDays, criteria, monthlyEv
 const goalSplit = (st) => {
   const goals = Object.entries(st?.goals?.byGoal || {});
   return {
-    met: goals.filter(([, c]) => c.dat > 0 && c.dat >= c.chuaDat).map(([g]) => g.split(' – ')[0]),
-    notYet: goals.filter(([, c]) => c.chuaDat > c.dat).map(([g]) => g.split(' – ')[0]),
+    // Cần cố gắng tính vào phía cần hỗ trợ
+    met: goals.filter(([, c]) => c.dat > 0 && c.dat >= c.chuaDat + (c.canCoGang || 0)).map(([g]) => g.split(' – ')[0]),
+    notYet: goals.filter(([, c]) => c.chuaDat + (c.canCoGang || 0) > c.dat).map(([g]) => g.split(' – ')[0]),
   };
 };
 

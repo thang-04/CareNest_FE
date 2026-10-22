@@ -24,6 +24,7 @@ import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { RewardStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { ChildNameCell, childOfRow } from '@/components/assessment/ChildNameCell';
 import { REWARD_HISTORY_LABELS, REWARD_STATUS as S } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
 import {
@@ -245,8 +246,8 @@ export default function RewardProposalDetailPage() {
           <div className="card__body">
             <dl className="info-list info-list--wide">
               <dt>Trẻ:</dt>
-              <dd className="fw-600">
-                {p.childName} <span className="muted">· {p.childCode}</span>
+              <dd>
+                <ChildNameCell child={childOfRow(p)} />
               </dd>
               <dt>Lớp:</dt>
               <dd>{p.className}</dd>

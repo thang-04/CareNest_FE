@@ -75,7 +75,7 @@ const ITEMS = {
   attendanceSummary: { label: 'Tổng hợp điểm danh', to: '/attendance/summary' },
   attendanceDayUnlocks: { label: 'Mở lại điểm danh', to: '/attendance/day-unlocks' },
   mealCount: { label: 'Sổ báo ăn', to: '/attendance/meal-count' },
-  dailyHealthOverview: { label: 'Sức khỏe đầu ngày', to: '/attendance/health' },
+  dailyHealthOverview: { label: 'Sức khỏe trong ngày', to: '/attendance/health' },
   pickup: { label: 'Đón trẻ', to: '/pickup' },
 
   eduSchool: { label: 'Kế hoạch toàn trường', to: '/education/school' },
@@ -147,8 +147,8 @@ const MENUS = {
       'schoolRoles',
     ]),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
-    group('attendance', ['attendanceSummary', 'mealCount', 'dailyHealthOverview']),
-    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards', 'assessDayUnlocks']),
+    group('attendance', ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards', 'assessDayUnlocks']),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings']),
     group('catalog', ['suppliers']),
     group('nutrition', ['nutritionSetup', 'weeklyMenus', 'publishedMenu']),
@@ -161,7 +161,15 @@ const MENUS = {
   [ROLES.VICE_PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('school', ['schoolYears', 'schoolClasses', 'schoolRooms', 'schoolCampuses', 'schoolTeachers', 'schoolStaffView']),
+    group('school', [
+      'schoolYears',
+      'schoolPlacement',
+      'schoolClasses',
+      'schoolRooms',
+      'schoolCampuses',
+      'schoolTeachers',
+      'schoolStaffView',
+    ]),
     group('children', [
       'childList',
       'childEnroll',
@@ -173,7 +181,7 @@ const MENUS = {
     ]),
     group('attendance', ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings']),
-    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards', 'assessDayUnlocks']),
+    group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards', 'assessDayUnlocks']),
     group('catalog', ['foods', 'dishes']),
     group('nutrition', ['menuFlow', 'nutritionSetup', 'menus', 'weeklyMenus', 'nutrition']),
     group('stock', ['kitchenDay', 'stockReceipts', 'suppliers', 'dryStock', 'stockIssues', 'freshReceipts']),
@@ -227,7 +235,7 @@ const withTeacherAssignment = (menu, user) => {
 
 /** Mảng chưa được thêm cho Phó hiệu trưởng (Không có): ẩn nhóm / mục menu tương ứng. */
 const AREA_GROUPS = { menu: ['catalog', 'nutrition'], facility: ['facility'], children: ['children'] };
-const AREA_ITEMS = { rooms: ['schoolRooms'], staff: ['schoolStaffView'] };
+const AREA_ITEMS = { rooms: ['schoolRooms'], staff: ['schoolStaffView'], yearPlacement: ['schoolPlacement'] };
 const withVpAreas = (menu, user) => {
   if (user?.role !== 'VICE_PRINCIPAL') return menu;
   const none = (area) => areaAccess(user, area).access === 'NONE';

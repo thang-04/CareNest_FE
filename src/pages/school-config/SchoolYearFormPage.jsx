@@ -15,7 +15,7 @@ import { copyClasses, saveSchoolYear } from '@/services/school-config/schoolConf
 import { copyResultMessage, copySourcesFor } from '@/components/school-config/CopyClassesModal';
 import { YEAR_ACTION_LABELS, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { canConfigureSchool, canEditYear } from '@/utils/school-config/schoolConfigPermissions';
-import { validateSchoolYear, hasErrors } from '@/utils/school-config/schoolConfigValidation';
+import { validateSchoolYear, hasErrors, errorsAfterChange } from '@/utils/school-config/schoolConfigValidation';
 import { yearCrumbs } from '@/utils/school-config/breadcrumbs';
 import { formatDateTime } from '@/utils/format';
 import '@/styles/modules/school-config.css';
@@ -48,11 +48,7 @@ function YearForm({ year, years, user }) {
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => {
-      const next = { ...e };
-      Object.keys(patch).forEach((k) => delete next[k]);
-      return next;
-    });
+    setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, {}));
   };
   const blurCheck = (field) => {
     const e = validateSchoolYear(form, others);
@@ -80,8 +76,7 @@ function YearForm({ year, years, user }) {
       if (openVp) return navigate(`/school/vice-principals?year=${result.id}`);
       setSaved({ ...result, copyNote });
     } catch (err) {
-      if (err.details) setErrors(err.details);
-      toast.error(err, 'Không lưu được thay đổi');
+      setErrors(err.details || { _form: err.message });
     } finally {
       setSaving(false);
     }
@@ -111,6 +106,11 @@ function YearForm({ year, years, user }) {
     <>
       <section className="card wizard-card">
         <h2 className="section-title">Thông tin năm học</h2>
+        {errors._form && (
+          <div className="alert alert--danger mb-12" role="alert">
+            {errors._form}
+          </div>
+        )}
         <div className="grid-3">
           <FormField
             label="Tên năm học"
@@ -122,7 +122,6 @@ function YearForm({ year, years, user }) {
               className="input"
               value={form.name}
               disabled={nameLocked}
-              maxLength={9}
               onChange={(e) => set({ name: e.target.value })}
               onBlur={() => blurCheck('name')}
             />

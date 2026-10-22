@@ -142,6 +142,7 @@ export const masterDataMockRepository = {
         !isRoomStaff(
           db.users.find((u) => u.id === form.managerUserId),
           form.campusId,
+          form.type,
         )
       )
         errors.managerUserId = 'Người phụ trách phải là nhân sự đang làm việc ở điểm trường này';

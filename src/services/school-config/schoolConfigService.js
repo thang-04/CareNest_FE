@@ -1,9 +1,33 @@
-import { USE_MOCK } from '@/config/env';
+import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
+import { beClient } from '@/services/http/beClient';
 import { schoolConfigMockRepository } from '@/services/school-config/mock/schoolConfigMockRepository';
-import { schoolConfigApi } from '@/services/school-config/api/schoolConfigApi';
+import { createSchoolConfigApi, schoolConfigApi } from '@/services/school-config/api/schoolConfigApi';
+
+// BE chưa có (Tài khoản nhân sự, Phân công PHT, Vai trò & quyền): khi nối thử vẫn dùng mock
+const NOT_IN_BE = [
+  'getStaffAccounts',
+  'getStaffImpact',
+  'saveStaffAccount',
+  'updateStaffProfile',
+  'setStaffStatus',
+  'getViceAssignments',
+  'saveViceAssignment',
+  'getRolePermissions',
+  'saveRolePermissions',
+];
+
+const devBeRepo = () => {
+  const api = createSchoolConfigApi(beClient);
+  return Object.fromEntries(
+    Object.keys(schoolConfigMockRepository).map((name) => [
+      name,
+      NOT_IN_BE.includes(name) || !api[name] ? schoolConfigMockRepository[name].bind(schoolConfigMockRepository) : api[name],
+    ]),
+  );
+};
 
 /** Facade of school configuration: UI only calls these functions. */
-const repo = USE_MOCK ? schoolConfigMockRepository : schoolConfigApi;
+const repo = SCHOOL_CONFIG_API ? devBeRepo() : USE_MOCK ? schoolConfigMockRepository : schoolConfigApi;
 
 export const getSchoolYears = (user) => repo.getSchoolYears(user);
 export const getSchoolYearById = (id, user) => repo.getSchoolYearById(id, user);
@@ -52,6 +76,9 @@ export const saveClassTeachers = (classId, form, user) => repo.saveClassTeachers
 export const saveTeamLeader = (payload, user) => repo.saveTeamLeader(payload, user);
 /** Tổ trưởng nhóm tuổi toàn trường của năm học + giáo viên chọn được. */
 export const getTeamLeaders = (filters, user) => repo.getTeamLeaders(filters, user);
+/** Lịch sử phân công: [{ userId, fullName, homeroom, validFrom, validTo, current, assignedByName, assignedAt }], mới nhất trước. */
+export const getClassTeacherHistory = (classId, user) => repo.getClassTeacherHistory(classId, user);
+export const getTeamLeaderHistory = (ageGroupId, schoolYear, user) => repo.getTeamLeaderHistory(ageGroupId, schoolYear, user);
 
 export const getRolePermissions = (user) => repo.getRolePermissions(user);
 export const saveRolePermissions = (role, payload, user) => repo.saveRolePermissions(role, payload, user);
