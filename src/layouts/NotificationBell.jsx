@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Bell, Checks } from '@/components/ui/icons';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { timeAgo } from '@/utils/format';
+import { useGuardedNavigate } from '@/hooks/useLeaveGuard';
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const navigate = useNavigate();
+  const navigate = useGuardedNavigate();
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(ref, close, open);

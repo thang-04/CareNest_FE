@@ -4,8 +4,8 @@ import { ArrowLeft, ArrowRight, Check, Download, FileDown, Printer, Save, Send, 
 import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
-import { useLeaveGuard } from '@/hooks/education-plan/useLeaveGuard';
-import { LeaveConfirmModal } from '@/components/education-plan/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE, isStandardDomain } from '@/models/education-plan/educationPlanConstants';
 import {
@@ -17,7 +17,7 @@ import {
   numberGoals,
   toRows,
 } from '@/models/education-plan/goalTable';
-import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { GoalTable, PLAN_TABS, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
 import { Card, Field, Modal, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
@@ -224,6 +224,35 @@ export default function GoalFormPage() {
     },
   });
   const guard = useLeaveGuard({ when: canEdit && saver.unsaved && !finished.current, onSave: saver.save });
+  // Chuyển tab Mục tiêu ↔ Chủ đề khi còn thay đổi chưa lưu: cảnh báo ngay; "Không lưu" bỏ thay đổi của tab đang rời
+  const [pendingTab, setPendingTab] = useState(null);
+  const tabFields = (k) => (k === 'themes' ? ['themes', 'breaks'] : ['domains']);
+  const tabDirty = () => {
+    const clean = saver.cleanDoc();
+    return !clean || tabFields(tab).some((f) => JSON.stringify(form[f]) !== JSON.stringify(clean[f]));
+  };
+  const discardTab = () => {
+    const clean = saver.cleanDoc();
+    if (!clean) return;
+    setForm((f) => {
+      if (tab !== 'themes') return { ...f, domains: clean.domains };
+      // Chủ đề quay về bản đã lưu: bỏ dấu tích trỏ tới chủ đề không còn
+      const ids = new Set(clean.themes.map((t) => t.id));
+      const domains = f.domains.map((d) => ({
+        ...d,
+        rows: d.rows.map((r) =>
+          r.kind === 'goal' ? { ...r, contents: r.contents.map((c) => ({ ...c, themes: c.themes.filter((t) => ids.has(t)) })) } : r,
+        ),
+      }));
+      return { ...f, themes: clean.themes, breaks: clean.breaks, domains };
+    });
+  };
+  const [tabSaving, setTabSaving] = useState(false);
+  const switchTab = (next) => {
+    if (next === tab) return;
+    if (canEdit && saver.unsaved && tabDirty()) setPendingTab(next);
+    else setTab(next);
+  };
   useEffect(() => {
     saver.markClean(form);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -462,7 +491,7 @@ export default function GoalFormPage() {
 
       {step === 1 && (
         <Card bodyClass={null}>
-          <PlanTabs tab={tab} onTab={setTab} counts={{ themes: themes.length, goals: totalGoals }} />
+          <PlanTabs tab={tab} onTab={switchTab} counts={{ themes: themes.length, goals: totalGoals }} />
           <div className="card__body stack">
             {tab === 'themes' ? (
               <>
@@ -611,6 +640,26 @@ export default function GoalFormPage() {
         </Modal>
       )}
       <LeaveConfirmModal {...guard.modal} canSave={saveReady} />
+      <LeaveConfirmModal
+        open={!!pendingTab}
+        busy={tabSaving}
+        canSave={saveReady}
+        message={`Tab "${PLAN_TABS.find((t) => t.key === tab)?.label}" có thay đổi chưa lưu. Chọn Lưu để lưu rồi chuyển tab; Không lưu thì bỏ các thay đổi ở tab này, trở về bản đã lưu gần nhất.`}
+        onStay={() => setPendingTab(null)}
+        onDiscard={() => {
+          discardTab();
+          setTab(pendingTab);
+          setPendingTab(null);
+        }}
+        onSaveAndLeave={async () => {
+          setTabSaving(true);
+          const ok = await saver.save();
+          setTabSaving(false);
+          if (!ok) return;
+          setTab(pendingTab);
+          setPendingTab(null);
+        }}
+      />
     </div>
   );
 }

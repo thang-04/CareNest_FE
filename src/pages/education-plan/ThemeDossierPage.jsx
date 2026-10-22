@@ -8,8 +8,8 @@ import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { useLeaveGuard } from '@/hooks/education-plan/useLeaveGuard';
-import { LeaveConfirmModal } from '@/components/education-plan/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { mtList, numberGoals } from '@/models/education-plan/goalTable';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {

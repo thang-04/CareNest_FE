@@ -8,12 +8,15 @@ import { IS_DEMO_MODE, resetDemoData } from '@/services/authService';
 import { ROLE_LABELS } from '@/models/User';
 import { Avatar } from '@/components/ui/Avatar';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { useGuardedNavigate } from '@/hooks/useLeaveGuard';
 
 /** Account box ở đáy sidebar: profile info, own profile / password links, developer links, logout. Menu mở lên trên. */
 export function UserMenu({ collapsed = false }) {
   const { user, logout } = useAuth();
   const toast = useToast();
-  const navigate = useNavigate();
+  // Chuyển màn từ menu hỏi trước nếu màn đang có thay đổi chưa lưu; sau đăng xuất thì đi thẳng
+  const navigate = useGuardedNavigate();
+  const navigateNow = useNavigate();
   const [open, setOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -32,7 +35,7 @@ export function UserMenu({ collapsed = false }) {
     await logout();
     setConfirmLogout(false);
     toast.success('Bạn đã đăng xuất');
-    navigate('/login', { replace: true });
+    navigateNow('/login', { replace: true });
   };
 
   const onReset = async () => {
@@ -40,7 +43,7 @@ export function UserMenu({ collapsed = false }) {
     setConfirmReset(false);
     toast.success('Đã khôi phục dữ liệu demo ban đầu');
     await logout();
-    navigate('/login', { replace: true });
+    navigateNow('/login', { replace: true });
   };
 
   return (
@@ -138,7 +141,10 @@ export function UserMenu({ collapsed = false }) {
         title="Đăng xuất?"
         message="Bạn sẽ cần đăng nhập lại để tiếp tục sử dụng hệ thống."
         confirmLabel="Đăng xuất"
-        onConfirm={onLogout}
+        onConfirm={() => {
+          setConfirmLogout(false);
+          navigate.run(onLogout);
+        }}
         onClose={() => setConfirmLogout(false)}
       />
       <ConfirmationModal
@@ -147,7 +153,10 @@ export function UserMenu({ collapsed = false }) {
         message="Toàn bộ phiếu, chữ ký và thông báo tạo trong lúc test sẽ bị xóa và thay bằng dữ liệu mẫu. Bạn sẽ được đăng xuất."
         confirmLabel="Khôi phục dữ liệu"
         danger
-        onConfirm={onReset}
+        onConfirm={() => {
+          setConfirmReset(false);
+          navigate.run(onReset);
+        }}
         onClose={() => setConfirmReset(false)}
       />
     </div>

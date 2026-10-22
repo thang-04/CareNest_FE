@@ -5,7 +5,7 @@ const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinu
 /**
  * Lưu tay bản đang soạn (Tiền chốt 22/10: bỏ tự lưu): bấm Lưu hoặc Ctrl+S; đóng tab khi còn thay đổi chưa lưu thì
  * trình duyệt hỏi. Rời trang trong app do useLeaveGuard hỏi.
- * markClean(doc) = bản vừa nạp hoặc vừa lưu. save(doc) trả kết quả khác null khi lưu được ({ doc } nếu thay bản đang sửa).
+ * markClean(doc) = bản vừa nạp hoặc vừa lưu; cleanDoc() trả lại bản đó (để bỏ thay đổi). save(doc) trả kết quả khác null khi lưu được ({ doc } nếu thay bản đang sửa).
  */
 export function useManualSave({ doc, enabled, save, onSaved }) {
   const [cleanKey, setCleanKey] = useState(null);
@@ -62,6 +62,7 @@ export function useManualSave({ doc, enabled, save, onSaved }) {
     error: state.phase === 'error',
     save: run,
     markClean: (d) => setCleanKey(d ? JSON.stringify(d) : null),
+    cleanDoc: () => (cleanKey ? JSON.parse(cleanKey) : null),
     label:
       state.phase === 'saving'
         ? 'Đang lưu…'
