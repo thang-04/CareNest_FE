@@ -15,7 +15,7 @@ import { MealCorrectionModal } from '@/components/attendance/MealCorrectionModal
 import { saveReception } from '@/services/receptionService';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DayLockAlert } from '@/components/attendance/DayLockAlert';
-import { useAttendanceClasses, useClassAttendance } from '@/hooks/attendance/useAttendance';
+import { useAttendanceClasses, useAttendanceYear, useClassAttendance } from '@/hooks/attendance/useAttendance';
 import { getDayInfo, saveClassAttendance, correctMealAfterLock } from '@/services/attendance/attendanceService';
 import { ATTENDANCE_STATUS, DEFAULT_MEAL_SESSIONS, allMeals, eatsAny, isAbsent, mealsIn } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
@@ -69,9 +69,12 @@ export default function AttendancePage() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const today = schoolToday();
-  const date = params.get('date') || today;
+  const { defaultDate } = useAttendanceYear();
+  const date = params.get('date') || defaultDate;
   const { classes, loading, error, reload } = useAttendanceClasses({ own: true });
-  const classId = params.get('classId') || classes[0]?.id || '';
+  // Lớp trên URL không thuộc năm đang chọn ở header ⇒ lớp đầu tiên của năm đó
+  const paramClass = params.get('classId');
+  const classId = classes.some((c) => c.id === paramClass) ? paramClass : classes[0]?.id || '';
   const [unsaved, setUnsaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
@@ -152,6 +155,7 @@ export default function AttendancePage() {
 }
 
 function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
+  const { year, yearReadOnly } = useAttendanceYear();
   const [search] = useSearchParams();
   const toast = useToast();
   const { sheet, setSheet, loading, error, reload } = useClassAttendance(classId, date, { live: false });
@@ -388,7 +392,14 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
         </div>
       )}
       {/* Ngày đang mở: giờ khóa hiện ở chip "Đang mở" của bảng; chỉ báo khi không phải ngày học hoặc đã khóa */}
-      {(!sheet.schoolDay || day.locked || day.unlock) && <DayLockAlert sheet={{ ...sheet, ...day }} />}
+      {/* Năm chọn ở header đã kết thúc: sổ điểm danh chỉ xem, không mở lại được */}
+      {yearReadOnly ? (
+        <div className="alert alert--info mb-12" role="status">
+          Năm học {year?.label || year?.id} đã kết thúc – chỉ xem điểm danh, báo ăn và sức khỏe.
+        </div>
+      ) : (
+        (!sheet.schoolDay || day.locked || day.unlock) && <DayLockAlert sheet={{ ...sheet, ...day }} />
+      )}
       <div className="dd-reception__summary" aria-live="polite">
         <span className="chip chip--blue">Sĩ số: {sheet.receptionStats?.total ?? rows.length}</span>
         <span className="chip chip--green">Có mặt đã lưu: {sheet.receptionStats?.present ?? '—'}</span>

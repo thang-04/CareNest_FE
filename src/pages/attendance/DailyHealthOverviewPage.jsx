@@ -15,6 +15,7 @@ import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
 import { useChildDailyHealthHistory, useDailyHealthOverview } from '@/hooks/attendance/useDailyHealthOverview';
 import { ROLES } from '@/models/User';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
+import { useAttendanceYear } from '@/hooks/attendance/useAttendance';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { symptomLabels } from '@/utils/dailyHealthValidation';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
@@ -251,8 +252,9 @@ export default function DailyHealthOverviewPage() {
   const md = useMasterData();
   const [params, setParams] = useSearchParams();
   const today = schoolToday();
+  const { defaultDate } = useAttendanceYear();
   const paramDate = params.get('date');
-  const date = isIsoDate(paramDate) && paramDate <= today ? paramDate : today;
+  const date = isIsoDate(paramDate) && paramDate <= today ? paramDate : defaultDate;
   const isPrincipal = user?.role === ROLES.PRINCIPAL;
   const campusId = isPrincipal ? params.get('campusId') || '' : '';
   const ageGroupId = params.get('ageGroupId') || '';

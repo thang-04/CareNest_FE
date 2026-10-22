@@ -94,6 +94,34 @@ const RULES = [
   [/^(.+) has no age group; set it before placing children/, '_form', (m) => `${m[1]} chưa có nhóm tuổi, cập nhật lớp trước khi xếp`],
   [/^(.+) is not the right age group for (\w+)/, '_form', (m) => `${m[1]} không đúng nhóm tuổi cho lựa chọn này`],
   [/^Child (\S+) is not in a class of the active year/, '_form', () => 'Có trẻ không thuộc lớp nào của năm học đang hoạt động'],
+  // Điểm danh (đợt 1)
+  [/^Attendance is locked after (\S+)/, '_form', (m) => `Điểm danh và báo ăn đã khóa sau ${m[1]}.`],
+  [/^Attendance can only be recorded for today/, '_form', () => 'Chỉ điểm danh được cho ngày hôm nay.'],
+  [/^Selected date is not a school day/, '_form', () => 'Ngày đã chọn không phải ngày học.'],
+  [
+    /^Attendance can only be recorded for classes of the active school year/,
+    '_form',
+    () => 'Lớp thuộc năm học đã kết thúc hoặc chưa bắt đầu, chỉ xem được.',
+  ],
+  [/^Child list does not match the class/, '_form', () => 'Danh sách trẻ đã thay đổi, tải lại trang rồi điểm danh lại.'],
+  [/^Absent child cannot have meals/, '_form', () => 'Trẻ vắng mặt không thể đăng ký suất ăn.'],
+  [/^Meal session is not served to this class/, '_form', () => 'Bữa ăn không thuộc nhóm tuổi của lớp. Chọn lại bữa ăn.'],
+  [/^Choose a school day from the start of the school year to today/, 'date', () => 'Chọn một ngày học từ đầu năm học đến hôm nay.'],
+  [/^Attendance of this day is not locked yet/, '_form', () => 'Chưa đến giờ khóa, giáo viên vẫn điểm danh được.'],
+  [/^Unlock deadline must be after now/, 'until', () => 'Chọn hạn mở lại sau thời điểm hiện tại và không quá ngày kết thúc năm học.'],
+  [/^This class already has an active unlock for this day/, '_form', () => 'Lớp/ngày này đang có lần mở lại còn hiệu lực.'],
+  [/^Only classes of the active school year can be unlocked/, '_form', () => 'Chỉ mở lại lớp thuộc năm học đang hoạt động.'],
+  [/^This unlock has already ended/, '_form', () => 'Lần mở lại này đã hết hiệu lực.'],
+  [/^(From and to dates are required|To date must not)/, 'to', () => 'Chọn khoảng ngày hợp lệ, không chọn ngày trong tương lai.'],
+  [/^Date range must not exceed 366 days/, 'to', () => 'Khoảng ngày tối đa 1 năm.'],
+  // Sức khỏe trong ngày
+  [/^Save the child as present today before recording health/, '_form', () => 'Chỉ ghi nhận cho trẻ đã lưu Có mặt trong ngày hôm nay.'],
+  [/^Health can only be recorded for today/, '_form', () => 'Chỉ ghi nhận sức khỏe cho ngày hôm nay.'],
+  [/^Health can only be recorded for classes of the active school year/, '_form', () => 'Lớp không thuộc năm học đang hoạt động.'],
+  [/^A noted observation needs symptoms or a note/, 'note', () => 'Ghi biểu hiện hoặc ghi chú cần lưu ý.'],
+  [/^Actions are only recorded for a noted observation/, 'actions', () => 'Chỉ ghi xử trí khi có dấu hiệu cần lưu ý.'],
+  [/^Referral needs a place and a time/, 'referral', () => 'Nhập nơi chuyển trẻ đến và giờ chuyển.'],
+  [/^Child is not in this class/, '_form', () => 'Trẻ không thuộc danh sách lớp hiện tại.'],
 ];
 
 /** Lỗi validation của BE (400, data=[{field,message}]) khi FE chưa chặn trước. */

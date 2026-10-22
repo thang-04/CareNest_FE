@@ -10,18 +10,26 @@ import { MEAL_COUNT_STATUS, HANDOVER_STATUS } from '@/models/attendance/attendan
  *  - Meal handover: Teacher of the class confirms, Kitchen Staff of the campus supplements (UC 6.26).
  */
 
+// Lớp từ BE (điểm danh đợt 1) có cờ teaches / canRecord / canUnlock: dùng cờ thay cho so id người dùng.
+// teaches = được phân công lớp (cả năm đã kết thúc, chỉ xem); ghi được hay không theo canRecord của sổ điểm danh
 export const isClassTeacher = (cls, user) =>
-  !!cls && [ROLES.TEACHER, ROLES.TEAM_LEADER].includes(user?.role) && (cls.teacherIds || []).includes(user.id);
+  !!cls &&
+  [ROLES.TEACHER, ROLES.TEAM_LEADER].includes(user?.role) &&
+  (typeof cls.teaches === 'boolean' ? cls.teaches : (cls.teacherIds || []).includes(user.id));
 
 export const canRecordAttendance = (cls, user) => isClassTeacher(cls, user);
 
 // BA: Hiệu trưởng cấu hình giờ chốt và thời hạn mở lại; chỉ Phó hiệu trưởng của campus thực hiện mở lại
 // Cần chốt 21/10/2026: Hiệu trưởng mở lại được lớp ở cả 2 điểm trường; PHT chỉ lớp điểm trường mình
 export const canUnlockAttendanceDay = (cls, user) =>
-  !!cls && (user?.role === ROLES.PRINCIPAL || (user?.role === ROLES.VICE_PRINCIPAL && cls.campusId === user.campusId));
+  typeof cls?.canUnlock === 'boolean'
+    ? cls.canUnlock
+    : !!cls && (user?.role === ROLES.PRINCIPAL || (user?.role === ROLES.VICE_PRINCIPAL && cls.campusId === user.campusId));
 
 export const canViewAttendance = (cls, user) => {
   if (!cls || !user) return false;
+  // BE chỉ trả lớp trong phạm vi người dùng
+  if (typeof cls.canRecord === 'boolean') return true;
   if (user.role === ROLES.PRINCIPAL) return true;
   if (user.role === ROLES.VICE_PRINCIPAL) return cls.campusId === user.campusId;
   return isClassTeacher(cls, user);
