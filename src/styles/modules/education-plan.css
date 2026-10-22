@@ -413,6 +413,30 @@
 .ga-goal-table__del {
   width: 64px;
 }
+/* Cột "Sắp xếp" bảng chủ đề, đợt nghỉ: tay nắm kéo-thả và 2 nút lên/xuống trên 1 hàng */
+.ga-goal-table__sort {
+  width: 132px;
+}
+.ga-sort-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+/* Nút lên/xuống: nhích nhẹ theo hướng khi rê chuột để báo hướng di chuyển */
+.ga-sort-btn {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.ga-sort-btn:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.ga-sort-btn--up:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.ga-sort-btn--down:hover:not(:disabled) {
+  transform: translateY(2px);
+}
 /* Cột "Tháng" bảng chủ đề nhánh: đủ "Tháng 12" trên 1 dòng */
 .ga-col-month {
   width: calc(var(--space-16) * 1.375);
