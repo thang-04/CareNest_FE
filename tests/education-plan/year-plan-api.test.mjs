@@ -5,7 +5,7 @@ import { AxiosError } from 'axios';
 globalThis.window = new EventTarget();
 
 const { axiosClient } = await import('../../src/services/http/axiosClient.js');
-const { buildRefs, planSteps, toUiGoal, toYearPlanRequest } = await import('@/services/education-plan/api/yearPlanMapper');
+const { buildRefs, planSteps, toUiEduConfig, toUiGoal, toYearPlanRequest } = await import('@/services/education-plan/api/yearPlanMapper');
 const { educationPlanApi } = await import('@/services/education-plan/api/educationPlanApi');
 
 // Dữ liệu giả theo DTO BE (docs/api/openapi.yaml của CareNest_BE)
@@ -170,4 +170,36 @@ test('BE:EDU-10 — vào / thoát trang soạn gọi start-editing / finish-edit
   await educationPlanApi.finishEditingGoal('41');
 
   assert.deepEqual(calls.slice(-2), ['POST /education-plans/goals/41/start-editing', 'POST /education-plans/goals/41/finish-editing']);
+});
+
+test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩn; lưu gửi PUT /education-plans/config', async () => {
+  const signers = { year: ['TEAM_LEADER', 'VICE_PRINCIPAL'], branch: ['VICE_PRINCIPAL'], week: ['TEAM_LEADER', 'VICE_PRINCIPAL'] };
+  const weekRows = [{ key: 'hoc', label: 'Hoạt động học', canMerge: false, allWeek: false, extraLabel: null }];
+  const beConfig = {
+    ...CONFIG,
+    domains: [
+      { id: 11, name: 'Phát triển thể chất', displayLabel: 'Thể chất', standard: true },
+      { id: 20, name: 'Lĩnh vực mới', displayLabel: null, standard: false },
+    ],
+    signers,
+    weekRows,
+  };
+  assert.deepEqual(toUiEduConfig(beConfig), {
+    domainLabels: { 'Phát triển thể chất': 'Thể chất' },
+    extraDomains: ['Lĩnh vực mới'],
+    signers,
+    weekRows,
+  });
+
+  let sent = null;
+  axiosClient.defaults.adapter = async (config) => {
+    sent = { method: config.method, url: config.url, body: JSON.parse(config.data) };
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data: beConfig } };
+  };
+  const saved = await educationPlanApi.saveEduConfig({ domainLabels: {}, extraDomains: ['Lĩnh vực mới'], signers, weekRows });
+
+  assert.equal(sent.method, 'put');
+  assert.equal(sent.url, '/education-plans/config');
+  assert.deepEqual(sent.body.extraDomains, ['Lĩnh vực mới']);
+  assert.deepEqual(saved.signers, signers);
 });

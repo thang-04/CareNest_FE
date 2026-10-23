@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Check, Pencil, RotateCcw, Save, Trash2, X } from '@/components/ui/icons';
 import { Card, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -70,6 +70,16 @@ export default function EduConfigPage() {
   const [editing, setEditing] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  // Dòng tuần vừa thêm: chuyển con trỏ sang ngay sau khi vẽ, trước phím gõ tiếp theo (gõ nhanh, bộ gõ tiếng Việt)
+  const [focusRowKey, setFocusRowKey] = useState(null);
+  useLayoutEffect(() => {
+    if (!focusRowKey) return;
+    const i = draft.weekRows.findIndex((r) => r.key === focusRowKey);
+    const el = document.querySelector(`[aria-label="Tên hoạt động ${i + 1}"]`);
+    el?.focus({ preventScroll: true });
+    el?.setSelectionRange?.(el.value.length, el.value.length);
+    setFocusRowKey(null);
+  }, [focusRowKey, draft.weekRows]);
 
   const saver = useManualSave({
     doc: editing ? draft : null,
@@ -427,22 +437,9 @@ export default function EduConfigPage() {
                           label="Thêm dòng hoạt động"
                           placeholder="Nhập tên hoạt động mới (ví dụ: Ăn, ngủ, vệ sinh)"
                           onChange={(v) => {
-                            set(
-                              (x) => (
-                                (x.weekRows = [
-                                  ...x.weekRows,
-                                  { key: `r_${Date.now().toString(36)}`, label: v, canMerge: true, allWeek: false },
-                                ]),
-                                x
-                              ),
-                            );
-                            // Dòng vừa thêm nhận con trỏ để gõ tiếp, như bảng mục tiêu
-                            const n = draft.weekRows.length + 1;
-                            setTimeout(() => {
-                              const el = document.querySelector(`[aria-label="Tên hoạt động ${n}"]`);
-                              el?.focus({ preventScroll: true });
-                              el?.setSelectionRange(el.value.length, el.value.length);
-                            });
+                            const key = `r_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+                            set((x) => ((x.weekRows = [...x.weekRows, { key, label: v, canMerge: true, allWeek: false }]), x));
+                            setFocusRowKey(key);
                           }}
                         />
                       </td>
