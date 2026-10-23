@@ -9,6 +9,8 @@ const repo = SCHOOL_CONFIG_API ? createDailyHealthBeApi(beClient) : USE_MOCK ? d
 
 export const getDailyHealth = async (query, user) => repo.getDailyHealth(query, user);
 export const addDailyHealth = async (payload, user) => repo.addDailyHealth(payload, user);
+// BE thật chưa gửi thông báo phụ huynh ⇒ UI không hứa "đã gửi thông báo"
+export const PARENT_NOTIFY_ENABLED = !SCHOOL_CONFIG_API;
 export const notifyDailyHealth = async (entryId, user) => repo.notifyDailyHealth(entryId, user);
 export const getDailyHealthOverview = async (query, user) => repo.getDailyHealthOverview(query, user);
 export const getChildDailyHealthHistory = async (query, user) => repo.getChildDailyHealthHistory(query, user);

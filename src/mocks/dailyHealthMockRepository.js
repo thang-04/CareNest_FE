@@ -45,6 +45,15 @@ export const withEarlyPickup = (db, entry) => {
   return { ...entry, earlyPickup: p ? { fullName: p.pickupPersonName, relation: p.pickupPersonRelation, time, pickupId: p.id } : null };
 };
 
+/** Lần trả trẻ cho phụ huynh trong ngày (màn Đón trẻ); đã trả thì khóa ghi sức khỏe của trẻ ngày đó (Cần chốt 24/10/2026). */
+const handedOverOf = (db, childId, date) =>
+  (db.pickups || [])
+    .filter((x) => x.childId === childId && x.date === date && x.outcome === PICKUP_OUTCOME.HANDED_OVER)
+    .map((x) => x.handedOverAt)
+    .sort()
+    .at(-1) || null;
+const hhmm = (iso) => new Date(new Date(iso).getTime() + 7 * 3600000).toISOString().slice(11, 16);
+
 const notificationsOf = (db, entryId) => (db.parentHealthNotifications || []).filter((item) => item.healthEntryId === entryId);
 
 // Chỉ đếm lớp của năm học đang hoạt động; thiếu dữ liệu năm học thì lấy mọi lớp chưa đóng.
@@ -201,9 +210,11 @@ export const dailyHealthMockRepository = {
     const entries = (db.dailyHealthEntries || [])
       .filter((entry) => entry.childId === query.childId && entry.classId === query.classId && entry.date === query.date)
       .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
+    const handedOverAt = handedOverOf(db, query.childId, query.date);
     return {
       ...query,
-      canRecord,
+      canRecord: canRecord && !handedOverAt,
+      handedOverAt,
       healthSummary: dailyHealthSummary(entries),
       // Chỉ tên, quan hệ, SĐT phụ huynh từ hồ sơ nhập học (không trả email, trạng thái tài khoản)
       contacts: parentContacts(child),
@@ -221,6 +232,9 @@ export const dailyHealthMockRepository = {
     return writeDb((db) => {
       const { canRecord } = context(db, payload, user);
       if (!canRecord) throw new ApiError(409, 'Chỉ ghi nhận cho trẻ đã lưu Có mặt trong ngày hôm nay.');
+      const handedOverAt = handedOverOf(db, payload.childId, payload.date);
+      if (handedOverAt)
+        throw new ApiError(409, `Trẻ đã được trả cho phụ huynh lúc ${hhmm(handedOverAt)}, không ghi thêm sức khỏe trong ngày.`);
       const errors = validateDailyHealth(payload);
       if (Object.keys(errors).length) throw new ApiError(422, 'Kiểm tra lại các trường được đánh dấu.', errors);
       if (!payload.requestId) throw new ApiError(422, 'Thiếu mã lần ghi nhận. Hãy thử lại.');

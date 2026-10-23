@@ -26,11 +26,13 @@ export const dailyHealthApi = {
   getChildDailyHealthHistory: ({ childId, date }) => axiosClient.get(`/children/${childId}/daily-health`, { params: { date } }),
 };
 
+// BE chưa có module thông báo phụ huynh (Cần chốt 24/10): ẩn trạng thái/nút gửi lại thay vì báo "chưa gửi được"
 const toEntry = (entry) => ({
   ...entry,
   temperature: entry.temperature === null || entry.temperature === undefined ? null : Number(entry.temperature),
   earlyPickup: null,
   parentNotifications: [],
+  notificationStatus: 'NOT_REQUIRED',
 });
 
 const toTemperature = (value) => {
@@ -42,7 +44,7 @@ const toTemperature = (value) => {
 
 /**
  * Dev (VITE_SCHOOL_CONFIG_API): sức khỏe trong ngày nối BE thật qua beClient. BE chưa có thông báo phụ huynh
- * (notificationStatus luôn PENDING), liên hệ phụ huynh, giờ đón sớm từ màn Đón trẻ.
+ * (bước gửi thông báo được bỏ qua, xem toEntry), liên hệ phụ huynh, giờ đón sớm từ màn Đón trẻ.
  */
 export const createDailyHealthBeApi = (client) => ({
   getDailyHealth: async ({ classId, childId, date }) => {
@@ -67,8 +69,8 @@ export const createDailyHealthBeApi = (client) => ({
     });
     return toEntry(entry);
   },
-  // TODO(Cần): BE chưa có module thông báo phụ huynh; lần ghi nhận đã lưu, báo rõ là chưa gửi
-  notifyDailyHealth: () => Promise.reject(Object.assign(new Error('Máy chủ chưa có chức năng gửi thông báo phụ huynh.'), { status: 501 })),
+  // TODO(Cần): nối API gửi thông báo phụ huynh khi BE có module thông báo; tới lúc đó bỏ qua bước này
+  notifyDailyHealth: async () => null,
   getDailyHealthOverview: async ({ date, schoolYear, campusId, ageGroupId, classId }) => {
     const data = await client.get('/daily-health/overview', {
       params: {
@@ -93,7 +95,7 @@ export const createDailyHealthBeApi = (client) => ({
           note: latest.note,
           recordedByName: latest.recordedByName,
           recordedAt: latest.recordedAt,
-          notificationStatus: latest.notificationStatus,
+          notificationStatus: 'NOT_REQUIRED',
           notifiedAt: null,
           readingCount: list.length,
           temperatureTrail: list.map((item) => item.temperature),
