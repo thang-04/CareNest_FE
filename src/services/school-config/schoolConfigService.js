@@ -59,6 +59,8 @@ export const getCampusesWithStats = (schoolYear, user) => repo.getCampuses(schoo
 export const getCampusDetail = (id, schoolYear, user) => repo.getCampusDetail(id, schoolYear, user);
 export const saveCampus = (id, form, user) => repo.saveCampus(id, form, user);
 export const deleteCampus = (id, user) => repo.deleteCampus(id, user);
+/** status: ACTIVE | INACTIVE (ngừng hoạt động). */
+export const setCampusStatus = (id, status, user) => repo.setCampusStatus(id, status, user);
 
 /** Staff accounts (PENDING BE: GET/POST /users, PUT /users/{id}, PATCH /users/{id}/role, PATCH /users/{id}/status). */
 export const getStaffAccounts = (user) => repo.getStaffAccounts(user);

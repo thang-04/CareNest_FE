@@ -38,6 +38,8 @@ export const createSchoolConfigApi = (axiosClient) => ({
   getCampusDetail: (id, schoolYear) => axiosClient.get(`/campuses/${id}`, { params: { schoolYear } }),
   saveCampus: (id, form) => (id ? axiosClient.put(`/campuses/${id}`, form) : axiosClient.post('/campuses', form)),
   deleteCampus: (id) => axiosClient.delete(`/campuses/${id}`),
+  // CFG-CP-01: ngừng hoạt động / hoạt động lại điểm trường
+  setCampusStatus: (id, status) => axiosClient.patch(`/campuses/${id}/status`, { status }),
 
   // PENDING BE: tài khoản nhân sự (đổi vai trò / điểm trường kết thúc phân công cũ ngay, giữ lịch sử)
   getStaffAccounts: () => axiosClient.get('/users', { params: { staff: true } }),

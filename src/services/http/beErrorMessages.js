@@ -36,6 +36,18 @@ const RULES = [
   [/^Campus already has classes and cannot be deleted/, '_form', () => 'Điểm trường đã có lớp, không xóa được'],
   [/^Campus already has rooms and cannot be deleted/, '_form', () => 'Điểm trường đã có phòng, không xóa được'],
   [/^Campus already has staff and cannot be deleted/, '_form', () => 'Điểm trường đã có nhân sự, không xóa được'],
+  [/^The main campus cannot be deactivated/, '_form', () => 'Không ngừng hoạt động được điểm trường chính.'],
+  [
+    /^Campus has classes in the active or planned school year/,
+    '_form',
+    () => 'Điểm trường còn lớp ở năm học đang hoạt động hoặc sắp diễn ra. Chuyển hoặc xóa lớp trước.',
+  ],
+  [
+    /^Campus still has vice principals assigned: (.+)/,
+    '_form',
+    (m) => `Điểm trường còn PHT phụ trách: ${m[1]}. Gỡ phân công PHT trước khi ngừng hoạt động.`,
+  ],
+  [/^Campus is inactive/, 'campusId', () => 'Điểm trường đã ngừng hoạt động, chọn điểm trường khác.'],
   // Phòng
   [/^Room is used by a class and cannot change type/, 'type', () => 'Phòng đang là phòng học của lớp, không đổi được loại phòng'],
   [/^Campus already has a room with this code/, 'room', () => 'Điểm trường đã có phòng cùng mã'],

@@ -110,11 +110,13 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
             onChange={(e) => set({ campusId: e.target.value, managerUserId: '' })}
           >
             <option value="">Chọn điểm trường</option>
-            {campuses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.shortName || c.name}
-              </option>
-            ))}
+            {campuses
+              .filter((c) => c.status !== 'INACTIVE' || c.id === form.campusId)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.shortName || c.name}
+                </option>
+              ))}
           </select>
         </FormField>
         <FormField

@@ -158,11 +158,13 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
             onChange={(e) => set({ campusId: e.target.value, locationId: '' })}
           >
             <option value="">Chọn điểm trường</option>
-            {campuses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.shortName || c.name}
-              </option>
-            ))}
+            {campuses
+              .filter((c) => c.status !== 'INACTIVE' || c.id === form.campusId)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.shortName || c.name}
+                </option>
+              ))}
           </select>
         </FormField>
         <FormField

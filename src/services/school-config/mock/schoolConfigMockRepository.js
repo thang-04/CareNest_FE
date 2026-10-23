@@ -1171,6 +1171,32 @@ export const schoolConfigMockRepository = {
     });
   },
 
+  /** BE CFG-CP-01: không ngừng điểm chính / điểm còn lớp năm chưa kết thúc / điểm còn PHT phụ trách. */
+  async setCampusStatus(id, status, user) {
+    await delay();
+    if (!canManageCampus(user)) throw forbid();
+    seeded();
+    return writeDb((db) => {
+      const campus = db.campuses.find((c) => c.id === id);
+      if (!campus) throw notFound('điểm trường');
+      if (status === 'INACTIVE' && campus.status !== 'INACTIVE') {
+        if (campus.isMain) throw new ApiError(409, 'Không ngừng hoạt động được điểm trường chính.');
+        const open = openYearIds(db);
+        if (db.classes.some((c) => c.campusId === id && open.has(c.schoolYear)))
+          throw new ApiError(409, 'Điểm trường còn lớp ở năm học đang hoạt động hoặc sắp diễn ra.');
+        const vps = [
+          ...new Set(db.vpAssignments.filter((a) => a.campusId === id && open.has(a.schoolYear)).map((a) => userName(db, a.userId))),
+        ];
+        if (vps.length)
+          throw new ApiError(409, `Điểm trường còn PHT phụ trách: ${vps.join(', ')}. Gỡ phân công PHT trước khi ngừng hoạt động.`);
+        campus.status = 'INACTIVE';
+      } else if (status === 'ACTIVE') {
+        campus.status = 'ACTIVE';
+      }
+      return clone(campus);
+    });
+  },
+
   async deleteCampus(id, user) {
     await delay();
     if (!canManageCampus(user)) throw forbid();
