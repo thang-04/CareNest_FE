@@ -208,7 +208,8 @@ export default function GoalFormPage() {
   const releaseTimer = useRef(null);
   const finishRef = useRef(finishEditingGoal);
   finishRef.current = finishEditingGoal;
-  const lockId = existing?.id;
+  // Lập mới (/new): lần Lưu đầu BE đã cấp id và giữ khóa cho người lập, nên nhả khóa theo id đó khi thoát trang
+  const lockId = existing?.id || goals.find((g) => g.id === form.id)?.id;
   useEffect(() => {
     clearTimeout(releaseTimer.current);
     if (lockId && canEdit && heldId.current !== lockId) {
