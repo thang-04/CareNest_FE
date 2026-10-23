@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ArrowLeft, ArrowRight, Check, Download, FileDown, Printer, Save, Send, Upload } from '@/components/ui/icons';
 import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
@@ -70,6 +71,8 @@ export default function GoalFormPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const { goals, schoolYear, saveGoal, startEditingGoal, finishEditingGoal, toast, user } = useEducationPlan();
+  const { schoolYears: yearOptions } = useSchoolYear();
+  const navigate = useNavigate();
   const existing = goals.find((g) => g.id === id);
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   const isLeader = user.role === ROLES.TEAM_LEADER;
@@ -98,6 +101,9 @@ export default function GoalFormPage() {
     });
   };
   const ageName = AGE_GROUPS.find((a) => a.id === form.ageGroupId)?.name;
+  const yearStart =
+    yearOptions.find((y) => y.label.replace(' - ', '-') === form.schoolYear.replace(' – ', '-'))?.startDate ||
+    `${form.schoolYear.slice(0, 4)}-09-01`;
   // Phó HT và tổ trưởng nhóm tuổi cùng soạn, mỗi lúc một người giữ khóa "Đang sửa" (BE:EDU-03, EDU-10);
   // đang chờ duyệt thì chỉ Phó HT tự sửa chỗ nhỏ. API thật dùng quyền BE trả; mock tự suy
   const editor = existing?.status === EDU_STATUS.EDITING ? existing.editing : null;
@@ -136,6 +142,16 @@ export default function GoalFormPage() {
     setErrors(e);
     return Object.keys(e).length === 0;
   };
+
+  // Lỗi bảng chủ đề tính ngay khi gõ để báo tại chỗ; khi bấm Tiếp theo / Gửi vẫn kiểm lại đầy đủ
+  const themeAbbrs = themes.map((t) => t.abbr.trim().toLowerCase()).filter(Boolean);
+  const themeIssue = themes.some((t) => !t.name.trim() || !t.abbr.trim())
+    ? 'Có chủ đề chưa có tên hoặc tên viết tắt.'
+    : themeAbbrs.some((a, i) => themeAbbrs.indexOf(a) !== i)
+      ? 'Tên viết tắt của các chủ đề bị trùng.'
+      : themes.some((t) => t.start && t.end && t.end < t.start)
+        ? 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.'
+        : null;
 
   const next = () => {
     if (!validate(step)) return;
@@ -209,7 +225,9 @@ export default function GoalFormPage() {
   const finishRef = useRef(finishEditingGoal);
   finishRef.current = finishEditingGoal;
   // Lập mới (/new): lần Lưu đầu BE đã cấp id và giữ khóa cho người lập, nên nhả khóa theo id đó khi thoát trang
-  const lockId = existing?.id || goals.find((g) => g.id === form.id)?.id;
+  // (lấy id bản lưu trả về, không lấy id tạm của bản ghi lạc quan trong danh sách)
+  const [createdId, setCreatedId] = useState(null);
+  const lockId = existing?.id || createdId;
   useEffect(() => {
     clearTimeout(releaseTimer.current);
     if (lockId && canEdit && heldId.current !== lockId) {
@@ -246,6 +264,7 @@ export default function GoalFormPage() {
         : build(EDU_STATUS.DRAFT);
       const saved = await saveGoal(item);
       if (!saved) return null;
+      if (!existing) setCreatedId(saved.id);
       if (first) editLogged.current = true;
       // API thật trả bản đã lưu với id do BE cấp: dùng tiếp bản đó để lần lưu sau không tạo trùng
       if (saved !== item) {
@@ -257,6 +276,11 @@ export default function GoalFormPage() {
       return item;
     },
   });
+  // Lập mới: lưu xong đổi địa chỉ sang trang sửa của kế hoạch, tải lại trang không mất kế hoạch đang soạn
+  useEffect(() => {
+    if (!id && lockId && !saver.unsaved) navigate(`/education/goals/${lockId}/edit`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, lockId, saver.unsaved]);
   const guard = useLeaveGuard({ when: canEdit && saver.unsaved && !finished.current, onSave: saver.save });
   // Chuyển tab Mục tiêu ↔ Chủ đề khi còn thay đổi chưa lưu: cảnh báo ngay; "Không lưu" bỏ thay đổi của tab đang rời
   const [pendingTab, setPendingTab] = useState(null);
@@ -291,6 +315,17 @@ export default function GoalFormPage() {
     saver.markClean(form);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const askFinish = (kind) => {
+    for (const s of [0, 1]) {
+      if (!validate(s)) {
+        setStep(s);
+        setMaxReached((m) => Math.max(m, s));
+        return;
+      }
+    }
+    setConfirm(kind);
+  };
 
   // send: tổ trưởng gửi Phó HT duyệt; issue: Phó HT duyệt ban hành (bản mình soạn hoặc bản đang chờ)
   const submit = async () => {
@@ -421,6 +456,16 @@ export default function GoalFormPage() {
                 >
                   <Save size={16} aria-hidden /> Lưu
                 </button>
+                {step < STEPS.length - 1 && isLeader && !pendingEdit && (
+                  <button type="button" className="btn btn--outline-primary btn--sm" onClick={() => askFinish('send')}>
+                    <Send size={16} aria-hidden /> Gửi Phó HT duyệt
+                  </button>
+                )}
+                {step < STEPS.length - 1 && isVp && (
+                  <button type="button" className="btn btn--outline-primary btn--sm" onClick={() => askFinish('issue')}>
+                    <Check size={16} aria-hidden /> {pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
+                  </button>
+                )}
               </>
             )
           }
@@ -529,8 +574,9 @@ export default function GoalFormPage() {
           <div className="card__body stack">
             {tab === 'themes' ? (
               <>
-                {errors.themes && <Notice tone="err">{errors.themes}</Notice>}
+                {errors.themes ? <Notice tone="err">{errors.themes}</Notice> : themeIssue && <Notice tone="warn">{themeIssue}</Notice>}
                 <ThemeEventTable
+                  yearStart={yearStart}
                   themes={form.themes}
                   breaks={form.breaks}
                   domains={form.domains}

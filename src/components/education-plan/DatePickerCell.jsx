@@ -26,7 +26,7 @@ const monthGrid = (first) => {
  * taken: [{ start, end, label }] các khoảng của dòng khác (ngày thuộc khoảng này tô đỏ, rê chuột thấy tên);
  * range: khoảng của chính dòng này (tô xanh lá). Ngày đỏ vẫn chọn được, bảng tự báo trùng.
  */
-export default function DatePickerCell({ value, onChange, label, taken = [], range = {} }) {
+export default function DatePickerCell({ value, onChange, label, taken = [], range = {}, openAt }) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(() => monthStart(value || range.start));
   const ref = useRef(null);
@@ -56,12 +56,24 @@ export default function DatePickerCell({ value, onChange, label, taken = [], ran
       .map((t) => t.end || t.start)
       .sort()
       .at(-1);
-    if (!open) setView(monthStart(value || range.start || lastEnd));
+    // Chưa có ngày nào thì mở ở tháng đầu năm học (lập kế hoạch năm sau không phải bấm "Tháng sau" nhiều lần)
+    if (!open) setView(monthStart(value || range.start || lastEnd || openAt));
     setOpen((v) => !v);
   };
   const pick = (iso) => {
     onChange(iso);
     setOpen(false);
+  };
+  // Gõ ngày dd/mm/yyyy (hoặc dd/mm, lấy năm của tháng đang xem) rồi Enter, không phải bấm qua nhiều tháng
+  const typeDate = (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const m = e.target.value.trim().match(/^(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{4}))?$/);
+    if (!m) return;
+    const y = Number(m[3] || view.getUTCFullYear());
+    const d = new Date(Date.UTC(y, Number(m[2]) - 1, Number(m[1])));
+    if (d.getUTCDate() !== Number(m[1])) return;
+    pick(isoOf(d));
   };
   // Ngày có thể vừa thuộc chủ đề vừa thuộc đợt nghỉ: ghi đủ tên các dòng đang giữ ngày đó
   const ownerOf = (iso) =>
@@ -89,6 +101,13 @@ export default function DatePickerCell({ value, onChange, label, taken = [], ran
       {open && (
         <FloatingPanel anchorRef={ref} panelRef={panelRef} minWidth={360}>
           <div className="ga-cal" role="dialog" aria-label={label}>
+            <input
+              className="input"
+              placeholder="Gõ ngày dd/mm/yyyy rồi Enter"
+              aria-label={`Gõ ${label}`}
+              defaultValue={value ? fmtDate(value) : ''}
+              onKeyDown={typeDate}
+            />
             <div className="ga-cal__head">
               <button type="button" className="icon-btn" onClick={() => setView((v) => addMonths(v, -1))} aria-label="Tháng trước">
                 <ChevronLeft size={16} aria-hidden />

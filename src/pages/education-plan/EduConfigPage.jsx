@@ -11,7 +11,7 @@ import { moveItem } from '@/hooks/useSortableList';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { RenumberButton, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
+import { RenumberButton, SortButtons, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
 
 /** Người ký của một loại tài liệu: thứ tự ký kéo-thả bằng tay nắm. */
 function SignerList({ docKey, docLabel, roles, setRoles, toast, editing, askDelete }) {
@@ -329,7 +329,7 @@ export default function EduConfigPage() {
                   <col />
                   <col className="ga-goal-table__code" />
                   <col className="ga-goal-table__code" />
-                  {editing && <col className="ga-goal-table__del" />}
+                  {editing && <col className="ga-goal-table__sort" />}
                   {editing && <col className="ga-goal-table__del" />}
                 </colgroup>
                 <thead>
@@ -395,9 +395,9 @@ export default function EduConfigPage() {
                       </td>
                       {editing && (
                         <td className="center">
-                          {/* Tay nắm kéo-thả (cột riêng) thay 2 nút lên/xuống */}
-                          <div className="ga-goal-table__pad">
+                          <div className="ga-goal-table__pad ga-sort-cell">
                             <SortHandle label={r.label} />
+                            <SortButtons index={i} label={r.label} />
                           </div>
                         </td>
                       )}

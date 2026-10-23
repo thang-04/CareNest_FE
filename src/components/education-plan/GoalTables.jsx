@@ -483,7 +483,11 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
                     type="button"
                     className="icon-btn icon-btn--danger"
                     onClick={() =>
-                      askDelete('Xóa lĩnh vực con', `Xóa lĩnh vực con ${subNo}${quoted(b.sub.text)}?`, () => removeRow(di, b.sub.id))
+                      askDelete(
+                        'Xóa lĩnh vực con',
+                        `Xóa lĩnh vực con ${subNo}${quoted(b.sub.text)}? Nhóm kết quả mong đợi và mục tiêu bên dưới không bị xóa.`,
+                        () => removeRow(di, b.sub.id),
+                      )
                     }
                     aria-label={`Xóa lĩnh vực con ${subNo}`}
                     title="Xóa lĩnh vực con"
@@ -708,7 +712,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
 /* ---------- B. Chủ đề, sự kiện trong năm ---------- */
 
 /** Bảng dự kiến chủ đề, sự kiện cả năm và các đợt nghỉ. Số MT (từ dấu tích ở bảng mục tiêu) và số tuần tự tính; xóa chủ đề thì bỏ dấu tích của chủ đề đó. */
-export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, readOnly = false }) {
+export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, readOnly = false, yearStart }) {
   const setFocusId = useCellFocus();
   const patchTheme = (id, patch) => onChange({ themes: themes.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
   const removeTheme = (id) =>
@@ -796,7 +800,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
     readOnly ? (
       <div className="ga-goal-table__pad">{value ? fmtDate(value) : '—'}</div>
     ) : (
-      <DatePickerCell value={value} onChange={onValue} label={label} range={row} taken={others} />
+      <DatePickerCell value={value} onChange={onValue} label={label} range={row} taken={others} openAt={yearStart} />
     );
   // Khoảng thời gian đã dùng (tô đỏ trên lịch): mọi chủ đề và đợt nghỉ khác dòng đang chọn
   const span = (x, label) => ({ start: x.start, end: x.end || x.start, label });
@@ -818,16 +822,17 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
           disabled={readOnly}
         >
           <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+            {/* Cột có độ rộng cố định để màn hẹp thì bảng cuộn ngang, không bóp cột tên còn 1 chữ / dòng */}
             <colgroup>
               <col className="ga-goal-table__del" />
-              <col />
+              <col className="ga-goal-table__group" />
               <col className="ga-goal-table__code" />
-              <col />
-              <col />
+              <col className="ga-goal-table__code" />
+              <col className="ga-goal-table__code" />
               <col className="ga-cal__col" />
               <col className="ga-cal__col" />
               <col className="ga-goal-table__code" />
-              <col />
+              <col className="ga-goal-table__code" />
               {!readOnly && <col className="ga-goal-table__sort" />}
               {!readOnly && <col className="ga-goal-table__del" />}
             </colgroup>
