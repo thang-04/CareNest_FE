@@ -74,4 +74,4 @@ Admin và dữ liệu trẻ: AUTH-06 (PENDING P-16).
 
 ## Không có trên Web (mặc định)
 
-Parent (thuộc APP; gửi báo nghỉ qua app) · Kitchen trên Web: chỉ khi được yêu cầu (`BE:docs/business/USER_ROLES.md`) · ngữ cảnh hoạt động/giáo án (OPEN ADR-0006 / GoKids) · tài sản (ngoài V1) · kho/NCC thật (OPEN — BE ADR-0009; UI mock theo BA, xem `docs/features/nutrition-inventory.md`) · kiểm kê kho thực phẩm (BA: không làm, gỡ 2026-10-20).
+Parent (thuộc APP; gửi báo nghỉ qua app) · Kitchen trên Web: chỉ khi được yêu cầu (`BE:docs/business/USER_ROLES.md`) · tài sản (ngoài V1) · kho/NCC thật (OPEN — BE ADR-0009; UI mock theo BA, xem `docs/features/nutrition-inventory.md`) · kiểm kê kho thực phẩm (BA: không làm, gỡ 2026-10-20).
