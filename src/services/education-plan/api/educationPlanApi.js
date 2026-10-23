@@ -56,6 +56,17 @@ export const educationPlanApi = {
     const detail = await runSteps(item, refs);
     return detail ? toUiGoal(detail, refs) : item;
   },
+  // BE:EDU-10 — vào trang soạn lấy khóa "Đang sửa"; thoát trang nhả khóa (về Nháp / Bị trả lại)
+  startEditingGoal: async (id) => {
+    const refs = buildRefs(await loadConfig());
+    return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/start-editing`), refs);
+  },
+  // keepalive: request vẫn gửi đi khi đóng tab (axios dùng fetch adapter)
+  finishEditingGoal: async (id, { keepalive = false } = {}) => {
+    const refs = buildRefs(await loadConfig());
+    const options = keepalive ? { adapter: 'fetch', fetchOptions: { keepalive: true } } : undefined;
+    return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/finish-editing`, null, options), refs);
+  },
   deleteGoal: async (id) => {
     await axiosClient.delete(`${GOALS}/${serverId(id) ?? id}`);
     known.delete(String(id));

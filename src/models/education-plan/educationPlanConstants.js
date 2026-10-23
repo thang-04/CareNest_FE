@@ -44,6 +44,7 @@ export const WEEKDAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
 
 export const EDU_STATUS = {
   DRAFT: 'DRAFT',
+  EDITING: 'EDITING',
   SENT: 'SENT',
   PENDING_TL: 'PENDING_TL',
   PENDING_VP: 'PENDING_VP',
@@ -54,6 +55,7 @@ export const EDU_STATUS = {
 
 export const EDU_STATUS_LABELS = {
   DRAFT: 'Nháp',
+  EDITING: 'Đang sửa',
   SENT: 'Đã gửi tổ trưởng',
   PENDING_TL: 'Chờ tổ trưởng duyệt',
   PENDING_VP: 'Chờ Phó HT duyệt',

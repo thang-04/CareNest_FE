@@ -37,7 +37,7 @@ const normalizeDomains = (domains) => [
   ...domains.filter((d) => !isStandardDomain(d.name)),
 ];
 const cleanContents = (cs) => cs.filter((c) => c.text.trim()).map((c) => ({ ...c, text: c.text.trim() }));
-const editableStatus = (s) => !s || s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED;
+const editableStatus = (s) => !s || s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED || s === EDU_STATUS.EDITING;
 
 const emptyForm = (schoolYear, ageGroupId = '') => ({
   title: suggestTitle(schoolYear, ageGroupId),
@@ -69,7 +69,7 @@ const NO_THEME_NOTE = 'Chưa có chủ đề. Thêm chủ đề ở tab "Chủ �
 export default function GoalFormPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
-  const { goals, schoolYear, saveGoal, toast, user } = useEducationPlan();
+  const { goals, schoolYear, saveGoal, startEditingGoal, finishEditingGoal, toast, user } = useEducationPlan();
   const existing = goals.find((g) => g.id === id);
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   const isLeader = user.role === ROLES.TEAM_LEADER;
@@ -98,12 +98,14 @@ export default function GoalFormPage() {
     });
   };
   const ageName = AGE_GROUPS.find((a) => a.id === form.ageGroupId)?.name;
-  // Người tạo (tổ trưởng hoặc Phó HT) là người duy nhất sửa khi còn nháp; đang chờ duyệt thì Phó HT được tự sửa chỗ nhỏ
-  const owner = existing?.owner || null;
-  const isOwner = !owner || owner.userId === user.id;
+  // Phó HT và tổ trưởng nhóm tuổi cùng soạn, mỗi lúc một người giữ khóa "Đang sửa" (BE:EDU-03, EDU-10);
+  // đang chờ duyệt thì chỉ Phó HT tự sửa chỗ nhỏ. API thật dùng quyền BE trả; mock tự suy
+  const editor = existing?.status === EDU_STATUS.EDITING ? existing.editing : null;
+  const lockedByOther = !!editor && editor.userId !== user.id;
   const pendingEdit = isVp && existing?.status === EDU_STATUS.PENDING_VP;
-  const canEdit =
-    pendingEdit || (editableStatus(existing?.status) && isOwner && (isVp || (isLeader && form.ageGroupId === user.ageGroupId)));
+  const canEdit = existing?.permissions
+    ? existing.permissions.canEdit
+    : pendingEdit || (editableStatus(existing?.status) && !lockedByOther && (isVp || (isLeader && form.ageGroupId === user.ageGroupId)));
 
   // Dòng chủ đề / đợt nghỉ còn trống (vừa Enter thêm) không tính vào kiểm tra, cột tích và bản lưu
   const themes = form.themes.filter((t) => !isBlankTheme(t));
@@ -199,6 +201,37 @@ export default function GoalFormPage() {
   const editLogged = useRef(false);
   // Đã gửi / ban hành: không lưu đè bản vừa gửi bằng bản nháp
   const finished = useRef(false);
+
+  // Khóa "Đang sửa" (BE:EDU-10): vào trang thì lấy khóa, thoát trang (kể cả đóng tab) thì nhả về Nháp / Bị trả lại.
+  // Nhả trễ một nhịp để StrictMode (gỡ rồi gắn lại effect) không nhả mất khóa vừa lấy
+  const heldId = useRef(null);
+  const releaseTimer = useRef(null);
+  const finishRef = useRef(finishEditingGoal);
+  finishRef.current = finishEditingGoal;
+  const lockId = existing?.id;
+  useEffect(() => {
+    clearTimeout(releaseTimer.current);
+    if (lockId && canEdit && heldId.current !== lockId) {
+      heldId.current = lockId;
+      startEditingGoal(lockId).then((goal) => {
+        if (goal?.status !== EDU_STATUS.EDITING && heldId.current === lockId) heldId.current = null;
+      });
+    }
+    return () => {
+      releaseTimer.current = setTimeout(() => {
+        if (heldId.current && !finished.current) finishRef.current(heldId.current);
+        heldId.current = null;
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockId]);
+  useEffect(() => {
+    const onHide = () => {
+      if (heldId.current && !finished.current) finishRef.current(heldId.current, { keepalive: true });
+    };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+  }, []);
   const dupGoal = goals.some((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
   const saveReady = canEdit && !!form.title.trim() && !!form.ageGroupId && !dupGoal;
   const saver = useManualSave({
@@ -357,8 +390,8 @@ export default function GoalFormPage() {
             ? 'Kế hoạch đã ban hành nên không sửa được.'
             : existing?.status === EDU_STATUS.PENDING_VP
               ? 'Kế hoạch đang chờ Phó hiệu trưởng duyệt nên không sửa được.'
-              : existing && !isOwner
-                ? `Kế hoạch do ${owner.name} soạn. Khi còn là bản nháp, chỉ người soạn được sửa.`
+              : lockedByOther
+                ? `Kế hoạch đang được ${editor.name} sửa từ ${editor.at}.`
                 : 'Bạn chỉ lập, sửa được kế hoạch năm học của nhóm tuổi mình phụ trách.'}
         </Notice>
       </div>

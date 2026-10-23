@@ -170,6 +170,27 @@ export function EducationPlanProvider({ children }) {
           return null;
         }
       },
+      // Khóa "Đang sửa" (BE:EDU-10): trả kế hoạch mới nhất; người khác đang giữ khóa thì trả null, không báo lỗi
+      startEditingGoal: async (id) => {
+        try {
+          const goal = await service.startEditingGoal(id, actor);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
+          return goal;
+        } catch (err) {
+          if (err.status !== 409) toastApi.error(err.message, 'Không mở được trang soạn');
+          reload({ silent: true });
+          return null;
+        }
+      },
+      // Thoát trang soạn; lỗi mạng thì để BE tự nhả khóa sau thời hạn
+      finishEditingGoal: async (id, opts) => {
+        try {
+          const goal = await service.finishEditingGoal(id, actor, opts);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
+        } catch {
+          reload({ silent: true });
+        }
+      },
       deleteGoal: deleteIn('goals', service.deleteGoal),
       saveTheme: saveIn('themes', service.saveTheme),
       deleteTheme: deleteIn('themes', service.deleteTheme),

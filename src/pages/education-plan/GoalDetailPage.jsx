@@ -13,7 +13,7 @@ import { StatusPage } from '@/components/ui/StatusPage';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const ISSUE_NOTE =
   'Sau khi ban hành, các lớp trong nhóm tuổi dùng kế hoạch này để lập kế hoạch chủ đề và giáo án. Xuất file để in và ký tay.';
-const editable = (s) => s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED;
+const editable = (s) => s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED || s === EDU_STATUS.EDITING;
 
 /** Kế hoạch giáo dục năm học của một nhóm tuổi: bảng mục tiêu (A), chủ đề, sự kiện (B), người xây dựng và ban hành. */
 const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
@@ -68,17 +68,20 @@ export default function GoalDetailPage() {
   const now = () => new Date().toISOString().slice(0, 10);
   const log = (action, extra) => [...history, { at: now(), by: user.name, action, note: extra || undefined }];
   const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: now() };
-  // Người tạo là người duy nhất sửa / gửi khi còn nháp; Phó HT duyệt, trả lại hoặc tự sửa khi đang chờ
+  // Phó HT và tổ trưởng cùng soạn, mỗi lúc một người (BE:EDU-03, EDU-10); Phó HT duyệt, trả lại hoặc tự sửa khi đang chờ
   const isOwner = !g.owner || g.owner.userId === user.id;
   const draftLike = editable(g.status);
   const pending = g.status === EDU_STATUS.PENDING_VP;
-  // API thật: BE trả quyền của người xem (permissions); mock chưa có thì tự suy như cũ
+  const editor = g.status === EDU_STATUS.EDITING ? g.editing : null;
+  const lockedByOther = !!editor && editor.userId !== user.id;
+  // API thật: BE trả quyền của người xem (permissions); mock chưa có thì tự suy
   const perm = g.permissions;
-  const canEditNow = perm ? perm.canEdit : (draftLike && isOwner && (isVp || isLeader)) || (pending && isVp);
-  const canSend = perm ? perm.canSubmit : draftLike && isOwner && isLeader;
-  const canIssue = perm ? perm.canIssue : isVp && (pending || (draftLike && isOwner));
+  const free = draftLike && !lockedByOther;
+  const canEditNow = perm ? perm.canEdit : (free && (isVp || isLeader)) || (pending && isVp);
+  const canSend = perm ? perm.canSubmit : free && isLeader;
+  const canIssue = perm ? perm.canIssue : isVp && (pending || (free && isOwner));
   const canReturn = perm ? perm.canReturn : isVp && pending;
-  const canDelete = perm ? perm.canDelete : isOwner && (isVp || isLeader) && g.status === EDU_STATUS.DRAFT;
+  const canDelete = perm ? perm.canDelete : isVp && !lockedByOther && (g.status === EDU_STATUS.DRAFT || g.editingFrom === EDU_STATUS.DRAFT);
 
   const open = (kind) => {
     setNote('');
@@ -156,9 +159,11 @@ export default function GoalDetailPage() {
           </Notice>
         </div>
       )}
-      {draftLike && !isOwner && (isVp || isLeader) && (
+      {lockedByOther && (
         <div className="mb-16">
-          <Notice>Kế hoạch do {g.owner.name} soạn. Khi còn là bản nháp, chỉ người soạn được sửa và gửi.</Notice>
+          <Notice tone="warn">
+            Đang được {editor.name} sửa từ {editor.at}.
+          </Notice>
         </div>
       )}
       {g.status === EDU_STATUS.PENDING_VP && !isVp && (
