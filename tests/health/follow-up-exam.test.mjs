@@ -46,12 +46,9 @@ const latestHealthOf = async (childId, user) => (await children.listChildren({},
 /** Phiếu đủ ô bắt buộc từ bản điền sẵn; conclusion ghi đè phần kết luận. */
 const filledPayload = (view, conclusion, { companion = true, reason } = {}) => {
   const exam = structuredClone(view.draft ? view.draft.exam : view.measurement.exam);
-  exam.admin.premature ||= 'NO';
+  // Người đi cùng là phụ huynh đầu tiên của hồ sơ; hành chính, tiền sử BE lấy từ hồ sơ.
   exam.admin.hasCompanion = companion ? 'YES' : 'NO';
-  exam.admin.companion = companion
-    ? { guardianIndex: null, fullName: 'Người đi cùng (giả)', relation: 'Mẹ', phone: '', idNumber: '' }
-    : { guardianIndex: null, fullName: '', relation: '', phone: '', idNumber: '' };
-  exam.history = { self: 'NO', selfText: '', family: 'NO', familyText: '', tbContact: 'NO' };
+  exam.admin.companion = { ...buildEmptyExam().admin.companion, guardianIndex: companion ? 0 : null };
   exam.vitals = {
     temperatureC: 36.8,
     temperatureStatus: 'NORMAL',
@@ -63,7 +60,13 @@ const filledPayload = (view, conclusion, { companion = true, reason } = {}) => {
   exam.nutrition = { ...exam.nutrition, headStatus: view.reference.headApplies ? 'NORMAL' : '', statuses: ['NORMAL'] };
   exam.development = { mental: 'YES', motor: 'YES', autismRisk: view.reference.autismQuestion ? 'NO' : '' };
   exam.immunization = { bcg: 'YES', hepB1: 'YES', fullSchedule: 'YES' };
-  exam.conclusion = { ...buildEmptyExam().conclusion, doctorName: 'BS. Thử Nghiệm', ...conclusion };
+  // Ý kiến phụ huynh: BE giả bỏ khi không cần (không người đi cùng hoặc không Cần theo dõi sát).
+  exam.conclusion = {
+    ...buildEmptyExam().conclusion,
+    doctorName: 'BS. Thử Nghiệm',
+    parentOpinion: 'Phụ huynh đồng ý (giả).',
+    ...conclusion,
+  };
   return {
     date: view.measurement?.date || view.draft.date,
     heightCm: 100,
@@ -93,10 +96,10 @@ const openC2Campaign = async () => {
   return c2Campaign;
 };
 
-test('seed v10: phiếu khám mẫu FOLLOW_UP và phiếu đóng có kết quả', async () => {
+test('seed v11: phiếu khám mẫu FOLLOW_UP và phiếu đóng có kết quả', async () => {
   ensureChildRecordsSeeded();
   const db = readDb();
-  assert.equal(db.healthSeedVersion, 10);
+  assert.equal(db.healthSeedVersion, 12);
   // ch_019: "Chưa ghi nhận thêm bất thường" ⇒ phiếu giữ trạng thái có kết quả chuyên khoa, không mở vòng.
   const f019 = followUpOf('ch_019');
   const added = f019.history.find((e) => e.action === 'MEASUREMENT_ADDED');
@@ -142,7 +145,8 @@ test('AC-3, AC-6, AC-11: "Chưa ghi nhận thêm" giữ phiếu; sửa sang "Có
   const before = followUpOf('ch_011');
   const notified = notificationsOf(before.id).length;
   const saved = await conclude(C1_OPEN, 'ch_011', MINH_ANH, { followUpFinding: 'NO_NEW_FINDING' });
-  assert.equal(saved.measurement.publishBlockedReason, null);
+  assert.equal(saved.measurement.published, true);
+  assert.equal(saved.measurement.parentContact.contacted, true, 'có người đi cùng ⇒ đã trao đổi tại buổi khám');
   assert.equal(saved.measurement.followUpLevel, 'CLOSE_WATCH');
   assert.equal(saved.measurement.conclusionCategory, 'FOLLOWING_NO_NEW');
   let f = followUpOf('ch_011');
@@ -181,7 +185,7 @@ test('AC-3, AC-6, AC-11: "Chưa ghi nhận thêm" giữ phiếu; sửa sang "Có
   );
 });
 
-test('AC-4: "Có thêm bất thường mới" khi phiếu đã trao đổi ⇒ vòng mới, hạn 7 ngày, chặn công bố, thông báo', async () => {
+test('AC-4: "Có thêm bất thường mới" khi phiếu đã trao đổi ⇒ vòng mới, hạn 7 ngày, chưa trao đổi phụ huynh, thông báo', async () => {
   const campaign = await openC2Campaign();
   const f = followUpOf('ch_027');
   assert.equal(f.status, 'PARENT_CONTACTED');
@@ -198,7 +202,8 @@ test('AC-4: "Có thêm bất thường mới" khi phiếu đã trao đổi ⇒ v
   const after = followUpOf('ch_027');
   assert.equal(after.id, f.id, 'không mở phiếu thứ hai');
   assert.equal(after.status, 'WAITING_PARENT_CONTACT');
-  assert.equal(saved.measurement.publishBlockedReason, 'FOLLOW_UP_CONTACT_REQUIRED');
+  assert.equal(saved.measurement.published, true, 'mọi kết quả tự công bố (2026-10-23)');
+  assert.equal(saved.measurement.parentContact.contacted, false);
   assert.equal(saved.measurement.conclusionCategory, 'FOLLOWING_NEW');
   const titles = notificationsOf(f.id).map((n) => n.title);
   assert.ok(titles.includes('Trẻ có thêm bất thường mới'));
@@ -361,5 +366,5 @@ test('AC-12: DB cũ chưa có cờ newFinding được gắn khi nâng cấp', a
   ensureChildRecordsSeeded();
   const f = followUpOf('ch_019');
   assert.equal(f.history.find((x) => x.action === 'MEASUREMENT_ADDED').newFinding, false);
-  assert.equal(readDb().healthSeedVersion, 10);
+  assert.equal(readDb().healthSeedVersion, 12);
 });

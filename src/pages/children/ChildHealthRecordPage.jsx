@@ -1,25 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import {
-  Plus,
-  LineChart,
-  Send,
-  History,
-  ArrowLeft,
-  Info,
-  HeartPulse,
-  RotateCcw,
-  Lock,
-  Stethoscope,
-  ClipboardCheck,
-  Handshake,
-} from '@/components/ui/icons';
+import { Plus, LineChart, History, ArrowLeft, Info, HeartPulse, RotateCcw, Stethoscope, ClipboardCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToastContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
-import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, LoadingState } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import {
@@ -32,20 +17,15 @@ import {
   PublishStatusBadge,
 } from '@/components/children/ChildBadges';
 import { MeasurementSummary } from '@/components/children/MeasurementSummary';
+import { MeasurementDetailModal } from '@/components/children/MeasurementDetailModal';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { ImageUploader } from '@/components/upload/ImageUploader';
-import { publishMeasurement } from '@/services/children/childrenService';
-import {
-  DECLARATION_STATE,
-  MEASUREMENT_SOURCE,
-  MEASUREMENT_SOURCE_LABELS,
-  PARENT_VISIBLE_HEALTH_TEXT,
-} from '@/models/children/childrenConstants';
+import { DECLARATION_STATE, MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children/childrenConstants';
 import { EXAM_STATUS } from '@/models/children/healthExamForm';
-import { FOLLOW_UP_STATUS, PUBLISH_BLOCKED_TEXT } from '@/models/children/healthCheckConstants';
+import { FOLLOW_UP_STATUS } from '@/models/children/healthCheckConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { formatMeasurementChange, formatNumber } from '@/utils/children/childrenHelpers';
-import { canEditMeasurement, canPublishMeasurement, canRecordMeasurement } from '@/utils/children/childrenPermissions';
+import { canEditMeasurement, canRecordMeasurement } from '@/utils/children/childrenPermissions';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -55,12 +35,11 @@ const ageText = (months) =>
 export default function ChildHealthRecordPage() {
   const { id } = useParams();
   const { user } = useAuth();
-  const toast = useToast();
   const { record, loading, error, reload } = useHealthRecord(id);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [historyOf, setHistoryOf] = useState(null);
-  const [publishing, setPublishing] = useState(null);
+  const [viewing, setViewing] = useState(null);
 
   const measurements = useMemo(
     () => (record?.measurements || []).filter((m) => (!from || m.date >= from) && (!to || m.date <= to)),
@@ -88,19 +67,7 @@ export default function ChildHealthRecordPage() {
   const latest = record.measurements[0];
   const canRecord = canRecordMeasurement(child, user, cls);
   const canEdit = canEditMeasurement(child, user, cls);
-  const canPublish = canPublishMeasurement(child, user, cls);
   const filtered = !!(from || to);
-
-  const doPublish = async () => {
-    try {
-      await publishMeasurement(child.id, publishing.id, user);
-      toast.success(`Đã công bố kết quả ngày ${formatDate(publishing.date)} cho phụ huynh.`);
-    } catch (err) {
-      toast.error(err, 'Không công bố được');
-    } finally {
-      setPublishing(null);
-    }
-  };
 
   return (
     <div className="page">
@@ -374,37 +341,11 @@ export default function ChildHealthRecordPage() {
                       <PublishStatusBadge status={m.published ? 'PUBLISHED' : 'UNPUBLISHED'} />
                     </td>
                     <td className="cell--actions">
-                      {canEdit && m.locked && (
-                        <span
-                          className="icon-btn"
-                          title="Đợt khám đã đóng, kết quả bị khóa"
-                          role="img"
-                          aria-label="Kết quả bị khóa vì đợt khám đã đóng"
-                        >
-                          <Lock size={17} />
-                        </span>
-                      )}
-                      {canPublish &&
-                        !m.published &&
-                        (m.publishBlockedReason ? (
-                          <Link
-                            className="btn btn--primary btn--sm"
-                            to={`/children/health-follow-ups/${m.followUpId}`}
-                            title={PUBLISH_BLOCKED_TEXT[m.publishBlockedReason]}
-                            aria-label={`${PUBLISH_BLOCKED_TEXT[m.publishBlockedReason]} Mở phiếu theo dõi.`}
-                          >
-                            <Handshake size={14} /> Ghi trao đổi để công bố
-                          </Link>
-                        ) : (
-                          <button className="btn btn--primary btn--sm" onClick={() => setPublishing(m)}>
-                            <Send size={14} /> Công bố
-                          </button>
-                        ))}
                       <RowActions
                         view={
                           m.source === MEASUREMENT_SOURCE.EXAM
                             ? { to: `/children/health-checks/${m.campaignId}/exam/${child.id}`, label: 'Xem phiếu khám' }
-                            : null
+                            : { onClick: () => setViewing(m), label: 'Xem chi tiết' }
                         }
                         edit={
                           canEdit && !m.locked && m.source !== MEASUREMENT_SOURCE.EXAM
@@ -428,6 +369,8 @@ export default function ChildHealthRecordPage() {
           <ArrowLeft size={16} /> Về hồ sơ trẻ
         </Link>
       </div>
+
+      <MeasurementDetailModal measurement={viewing} ageText={ageText} onClose={() => setViewing(null)} />
 
       <Modal
         open={!!historyOf}
@@ -459,19 +402,6 @@ export default function ChildHealthRecordPage() {
           </ul>
         )}
       </Modal>
-
-      <ConfirmationModal
-        open={!!publishing}
-        title="Công bố kết quả cho phụ huynh?"
-        message={
-          publishing
-            ? `Phụ huynh của ${child.fullName} sẽ xem được ${PARENT_VISIBLE_HEALTH_TEXT} của ngày ${formatDate(publishing.date)} và nhận thông báo trên ứng dụng.`
-            : ''
-        }
-        confirmLabel="Công bố kết quả"
-        onConfirm={doPublish}
-        onClose={() => setPublishing(null)}
-      />
     </div>
   );
 }

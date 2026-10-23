@@ -1,30 +1,34 @@
 import { Info, UserCheck } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
 import { GENDER_LABELS } from '@/models/School';
-import {
-  COMPANION_OPTIONS,
-  COMPANION_RELATIONS,
-  GUARDIAN_TO_COMPANION_RELATION,
-  HISTORY_ITEMS,
-  PREMATURE_OPTIONS,
-  YES_NO,
-} from '@/models/children/healthExamForm';
+import { COMPANION_OPTIONS, GUARDIAN_TO_COMPANION_RELATION, HISTORY_ITEMS, YES_NO } from '@/models/children/healthExamForm';
+import { PREMATURE_LABELS, PROFILE_FIELD_LABELS, formatAddress } from '@/models/children/childProfile';
 import { formatDate, todayInput } from '@/utils/format';
-import { ExamChoiceField, ExamNumberField, ExamTextField } from './ExamFields';
+import { ExamChoiceField, ExamTextField } from './ExamFields';
+import { SplitInfoList } from './SplitInfoList';
 
-/** Bước 1 — Phần I: thông tin hành chính, người đi cùng trẻ, tiền sử. Họ tên, ngày sinh, giới lấy từ hồ sơ, không sửa ở đây. */
+const missing = <span className="muted">Chưa cung cấp</span>;
+const show = (v) => (v === '' || v == null ? missing : v);
+
+/**
+ * Bước 1 — Phần I (user chốt 2026-10-22). Hành chính lấy từ hồ sơ trẻ, chỉ xem; Hiệu trưởng, Phó hiệu trưởng sửa ở hồ sơ.
+ * Giáo viên nhập ngày khám, chọn người đi cùng trong phụ huynh của hồ sơ; tiền sử điền sẵn từ khai báo, giáo viên sửa được.
+ */
 export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, disabled }) {
   const a = form.exam.admin;
   const h = form.exam.history;
+  const premature = a.premature
+    ? `${PREMATURE_LABELS[a.premature]}${a.premature === YES_NO.YES && a.gestationWeeks ? ` · ${a.gestationWeeks} tuần` : ''}`
+    : '';
   const pickGuardian = (g, index) =>
     set('exam.admin.companion', {
-      ...a.companion,
       guardianIndex: index,
       fullName: g.fullName,
       relation: GUARDIAN_TO_COMPANION_RELATION[g.relation] || 'Khác',
       phone: g.phone,
       idNumber: g.idNumber || '',
     });
+  const picked = a.hasCompanion === YES_NO.YES && Number.isInteger(a.companion.guardianIndex);
 
   return (
     <>
@@ -34,25 +38,34 @@ export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, d
           <div className="alert alert--info mb-16">
             <Info size={18} />
             <div>
-              Hành chính và tiền sử điền sẵn từ hồ sơ trẻ; ô hồ sơ còn trống lấy từ phiếu khám gần nhất. Hỏi lại người đi cùng trẻ. Khi lưu
-              kết luận, thay đổi ở hai phần này được cập nhật vào hồ sơ trẻ.
+              Hành chính lấy từ hồ sơ trẻ, không sửa ở phiếu khám; sai hoặc thiếu thì báo Hiệu trưởng hoặc Phó hiệu trưởng sửa ở hồ sơ trẻ.
+              Tiền sử điền sẵn từ khai báo sức khỏe, hỏi lại người đi cùng; khi lưu kết luận, thay đổi được cập nhật vào khai báo sức khỏe
+              của trẻ.
             </div>
           </div>
         )}
-        <dl className="info-list mb-16">
-          <dt>Họ và tên</dt>
-          <dd className="fw-600">{child.fullName.toUpperCase()}</dd>
-          <dt>Ngày sinh</dt>
-          <dd>{formatDate(child.dateOfBirth)}</dd>
-          <dt>Giới</dt>
-          <dd>{GENDER_LABELS[child.gender] || child.gender}</dd>
-          <dt>Cơ sở giáo dục</dt>
-          <dd>
-            {child.schoolName} · {child.className}
-          </dd>
-          <dt>Cơ sở kiểm tra sức khỏe</dt>
-          <dd>{campaign.examiner || <span className="muted">Chưa cập nhật ở đợt khám</span>}</dd>
-        </dl>
+        <div className="mb-16">
+          <SplitInfoList
+            rows={[
+              { key: 'name', label: 'Họ và tên', value: child.fullName.toUpperCase(), className: 'fw-600' },
+              { key: 'dob', label: 'Ngày sinh', value: formatDate(child.dateOfBirth) },
+              { key: 'gender', label: 'Giới', value: GENDER_LABELS[child.gender] || child.gender },
+              { key: 'idNumber', label: PROFILE_FIELD_LABELS.idNumber, value: show(a.childIdNumber) },
+              { key: 'premature', label: PROFILE_FIELD_LABELS.premature, value: show(premature) },
+              { key: 'ethnicity', label: PROFILE_FIELD_LABELS.ethnicity, value: show(a.ethnicity) },
+              { key: 'beneficiary', label: PROFILE_FIELD_LABELS.beneficiary, value: show(a.beneficiary) },
+              { key: 'paymentSource', label: PROFILE_FIELD_LABELS.paymentSource, value: show(a.paymentSource) },
+              { key: 'bloodType', label: PROFILE_FIELD_LABELS.bloodType, value: show(a.bloodType) },
+              { key: 'address', label: PROFILE_FIELD_LABELS.address, value: show(formatAddress(a.address)) },
+              { key: 'school', label: 'Cơ sở giáo dục', value: `${child.schoolName} · ${child.className}` },
+              {
+                key: 'examiner',
+                label: 'Cơ sở kiểm tra sức khỏe',
+                value: campaign.examiner || <span className="muted">Chưa cập nhật ở đợt khám</span>,
+              },
+            ]}
+          />
+        </div>
         <div className="grid-2">
           <FormField label="Ngày kiểm tra sức khỏe" required error={errors.date}>
             <input
@@ -65,86 +78,6 @@ export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, d
               onChange={(e) => set('date', e.target.value)}
             />
           </FormField>
-          <ExamTextField
-            label="Số CC/CCCD/Hộ chiếu/Mã định danh của trẻ"
-            value={a.childIdNumber}
-            onChange={(v) => set('exam.admin.childIdNumber', v)}
-            error={errors['exam.admin.childIdNumber']}
-            hint="Không bắt buộc. 12 chữ số, hoặc số hộ chiếu."
-            maxLength={20}
-            disabled={disabled}
-          />
-          <ExamChoiceField
-            name="premature"
-            label="Sinh non"
-            options={PREMATURE_OPTIONS}
-            value={a.premature}
-            onChange={(v) => set('exam.admin.premature', v)}
-            error={errors['exam.admin.premature']}
-            disabled={disabled}
-          />
-          <ExamNumberField
-            label="Tuần thai khi sinh (tuần)"
-            value={a.gestationWeeks}
-            onChange={(v) => set('exam.admin.gestationWeeks', v)}
-            error={errors['exam.admin.gestationWeeks']}
-            required={a.premature === YES_NO.YES}
-            min="20"
-            max="42"
-            step="1"
-            hint="Từ 20 đến 42 tuần"
-            disabled={disabled}
-          />
-          <ExamTextField
-            label="Dân tộc"
-            value={a.ethnicity}
-            onChange={(v) => set('exam.admin.ethnicity', v)}
-            error={errors['exam.admin.ethnicity']}
-            disabled={disabled}
-          />
-          <ExamTextField
-            label="Đối tượng"
-            value={a.beneficiary}
-            onChange={(v) => set('exam.admin.beneficiary', v)}
-            error={errors['exam.admin.beneficiary']}
-            disabled={disabled}
-          />
-          <ExamTextField
-            label="Nguồn chi trả"
-            value={a.paymentSource}
-            onChange={(v) => set('exam.admin.paymentSource', v)}
-            error={errors['exam.admin.paymentSource']}
-            disabled={disabled}
-          />
-          <ExamTextField
-            label="Nhóm máu (nếu có)"
-            value={a.bloodType}
-            onChange={(v) => set('exam.admin.bloodType', v)}
-            error={errors['exam.admin.bloodType']}
-            disabled={disabled}
-          />
-          <ExamTextField
-            label="Nơi ở — Tỉnh/thành"
-            value={a.address.province}
-            onChange={(v) => set('exam.admin.address.province', v)}
-            error={errors['exam.admin.address.province']}
-            disabled={disabled}
-          />
-          <ExamTextField
-            label="Nơi ở — Phường/xã"
-            value={a.address.ward}
-            onChange={(v) => set('exam.admin.address.ward', v)}
-            error={errors['exam.admin.address.ward']}
-            disabled={disabled}
-          />
-          <ExamTextField
-            label="Nơi ở — Số nhà/thôn/xóm"
-            value={a.address.street}
-            onChange={(v) => set('exam.admin.address.street', v)}
-            error={errors['exam.admin.address.street']}
-            maxLength={300}
-            disabled={disabled}
-          />
         </div>
       </section>
 
@@ -162,70 +95,64 @@ export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, d
         />
         {a.hasCompanion === YES_NO.YES && (
           <>
-            {child.guardians.length > 0 && !disabled && (
-              <div className="row row--wrap gap-2 mt-12">
-                <span className="muted text-sm">Chọn từ hồ sơ trẻ:</span>
-                {child.guardians.map((g, i) => (
-                  <button
-                    key={`${g.phone}${i}`}
-                    type="button"
-                    className={`btn btn--sm ${a.companion.guardianIndex === i ? 'btn--primary' : ''}`}
-                    aria-pressed={a.companion.guardianIndex === i}
-                    onClick={() => pickGuardian(g, i)}
-                  >
-                    <UserCheck size={14} /> {g.fullName} ({g.relation})
-                  </button>
-                ))}
-              </div>
+            {!disabled &&
+              (child.guardians.length > 0 ? (
+                <div className="mt-16">
+                  <fieldset className="field tr-fieldset tr-exam-choice">
+                    <legend className="field__label">
+                      Chọn người đi cùng trong phụ huynh của hồ sơ<span className="req">*</span>
+                    </legend>
+                    <div className="row row--wrap gap-2">
+                      {child.guardians.map((g, i) => (
+                        <button
+                          key={`${g.phone}${i}`}
+                          type="button"
+                          className={`btn btn--sm ${a.companion.guardianIndex === i ? 'btn--primary' : ''}`}
+                          aria-pressed={a.companion.guardianIndex === i}
+                          onClick={() => pickGuardian(g, i)}
+                        >
+                          <UserCheck size={14} /> {g.fullName} ({g.relation})
+                        </button>
+                      ))}
+                    </div>
+                    {errors['exam.admin.companion'] ? (
+                      <span className="field__error" role="alert">
+                        {errors['exam.admin.companion']}
+                      </span>
+                    ) : (
+                      <span className="field__hint">
+                        Người đi cùng không có trong hồ sơ: báo Hiệu trưởng hoặc Phó hiệu trưởng thêm vào hồ sơ trẻ.
+                      </span>
+                    )}
+                  </fieldset>
+                </div>
+              ) : (
+                <p className="field__error mt-12" role="alert">
+                  Hồ sơ trẻ chưa có phụ huynh. Báo Hiệu trưởng hoặc Phó hiệu trưởng bổ sung, hoặc chọn Không có người đi cùng.
+                </p>
+              ))}
+            {(picked || disabled) && a.companion.fullName && (
+              <dl className="info-list mt-12">
+                <dt>Họ tên</dt>
+                <dd className="fw-600">{a.companion.fullName}</dd>
+                <dt>Mối quan hệ với trẻ</dt>
+                <dd>{show(a.companion.relation)}</dd>
+                <dt>Số điện thoại liên hệ</dt>
+                <dd>{show(a.companion.phone)}</dd>
+                <dt>Số CC/CCCD/Mã định danh</dt>
+                <dd>{show(a.companion.idNumber)}</dd>
+              </dl>
             )}
-            <div className="grid-2 mt-12">
-              <ExamTextField
-                label="Họ tên người đi cùng trẻ"
-                required
-                value={a.companion.fullName}
-                onChange={(v) => set('exam.admin.companion', { ...a.companion, fullName: v, guardianIndex: null })}
-                error={errors['exam.admin.companion.fullName']}
-                disabled={disabled}
-              />
-              <FormField label="Mối quan hệ với trẻ" required error={errors['exam.admin.companion.relation']}>
-                <select
-                  className="select"
-                  value={a.companion.relation}
-                  disabled={disabled}
-                  onChange={(e) => set('exam.admin.companion.relation', e.target.value)}
-                >
-                  <option value="">Chọn quan hệ</option>
-                  {COMPANION_RELATIONS.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <ExamTextField
-                label="Số điện thoại liên hệ"
-                value={a.companion.phone}
-                onChange={(v) => set('exam.admin.companion.phone', v)}
-                error={errors['exam.admin.companion.phone']}
-                disabled={disabled}
-              />
-              <ExamTextField
-                label="Số CC/CCCD/Mã định danh người đi cùng"
-                value={a.companion.idNumber}
-                onChange={(v) => set('exam.admin.companion.idNumber', v)}
-                error={errors['exam.admin.companion.idNumber']}
-                hint="Không bắt buộc"
-                maxLength={20}
-                disabled={disabled}
-              />
-            </div>
           </>
         )}
       </section>
 
       <section className="card wizard-card mt-16">
         <h2 className="card__title mb-12">Tiền sử</h2>
-        <p className="muted text-sm mb-12">Hỏi người đi cùng trẻ. Ghi đúng tên bệnh người nhà báo, không tự ghi chẩn đoán.</p>
+        <p className="muted text-sm mb-12">
+          Hỏi người đi cùng trẻ. Ghi đúng tên bệnh người nhà báo, không tự ghi chẩn đoán. Lưu kết luận thì cập nhật vào khai báo sức khỏe
+          của trẻ.
+        </p>
         <div className="grid-2">
           {HISTORY_ITEMS.map((item) => (
             <div key={item.key}>

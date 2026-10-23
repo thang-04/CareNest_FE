@@ -27,6 +27,13 @@ export const formatNumber = (value, digits = 1) =>
 
 export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', idNumber: '', email: '' });
 
+/** Phụ huynh có CCCD trùng tài khoản (accountOf, BE trả): họ tên, SĐT, email theo tài khoản để hiển thị, kiểm nhập và gửi đi. */
+export const withGuardianAccounts = (guardians, accountOf) =>
+  guardians.map((g) => {
+    const acc = accountOf(g.idNumber);
+    return acc ? { ...g, fullName: acc.fullName, phone: acc.phone, email: acc.email || '' } : g;
+  });
+
 /** Bước 1 của form tiếp nhận: thông tin trẻ, phụ huynh và phần hành chính (dùng cho phiếu khám). */
 export const emptyChildInfo = () => ({
   fullName: '',

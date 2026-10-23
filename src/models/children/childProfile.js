@@ -2,8 +2,9 @@ import { formatDate } from '@/utils/format';
 import { DECLARATION_STATE } from './childrenConstants';
 
 /**
- * Hành chính và tiền sử của trẻ, hỏi khi tiếp nhận (user chốt 2026-10-17, PROPOSED — chờ BE).
- * Phiếu khám Phụ lục II luôn điền sẵn từ đây; lưu kết luận thì cập nhật ngược, có ghi lịch sử. Không bắt buộc khi tiếp nhận.
+ * Hành chính và tiền sử của trẻ, nhập khi tiếp nhận (user chốt 2026-10-17, PROPOSED — chờ BE). Từ 2026-10-22: bắt buộc trừ
+ * idNumber, bloodType. Phiếu khám Phụ lục II: hành chính chỉ đọc từ đây; tiền sử điền sẵn, giáo viên sửa được, lưu kết luận cập
+ * nhật lại vào khai báo. Dữ liệu cũ có thể còn "" = chưa cung cấp.
  *
  * @typedef {Object} ChildProfile          child.profile
  * @property {string} idNumber              số CC/CCCD/hộ chiếu/mã định danh

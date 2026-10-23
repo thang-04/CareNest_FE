@@ -31,10 +31,10 @@ Kịch bản dùng Campus 2: Campus 1 đã có đợt đang diễn ra với dữ
 
 ## B. Giáo viên nhập phiếu cùng bác sĩ
 
-Mở đợt → bấm **Khám trẻ của lớp** → bấm **Khám** cạnh tên trẻ. Phiếu có 5 bước: **1 Hành chính, tiền sử · 2 Sinh tồn, dinh dưỡng · 3 Phát triển, tiêm chủng · 4 Khám lâm sàng · 5 Kết luận**.
+Mở đợt → danh sách trẻ của lớp hiện ngay dưới phần thông tin đợt (màn giáo viên không có hàng thẻ tiến độ và bảng tiến độ theo lớp) → bấm **Khám** cạnh tên trẻ. Phiếu có 5 bước: **1 Hành chính, tiền sử · 2 Sinh tồn, dinh dưỡng · 3 Phát triển, tiêm chủng · 4 Khám lâm sàng · 5 Kết luận**.
 
 **Mặc định, trừ khi bảng ghi khác:**
-- Bước 1: giữ người đi cùng hệ thống điền sẵn (bố trong hồ sơ). Sinh non: Không. Tiền sử bản thân, gia đình, tiếp xúc lao: Không.
+- Bước 1: hành chính chỉ xem (lấy từ hồ sơ trẻ). Giữ người đi cùng hệ thống chọn sẵn (phụ huynh đầu tiên của hồ sơ). Tiền sử giữ bản điền sẵn từ khai báo sức khỏe (dữ liệu demo: Không).
 - Bước 2: tình trạng dinh dưỡng chọn Bình thường.
 - Bước 3: phần IV chọn Có, Có; phần V chọn Có, Có, Có.
 - Bước 4: giữ nguyên các lựa chọn chọn sẵn.
@@ -44,7 +44,7 @@ Mở đợt → bấm **Khám trẻ của lớp** → bấm **Khám** cạnh tê
 
 **Gợi ý gộp sinh tồn:** 1/3 chỉ số (nhiệt độ, mạch, nhịp thở) ngoài khoảng ⇒ dòng vàng *Gợi ý: cần theo dõi*; từ 2/3 ⇒ dòng đỏ *Gợi ý: nhiều dấu hiệu sinh tồn bất thường, bác sĩ xem lại trước khi kết luận*.
 
-**Công bố:** phiếu có người đi cùng tự công bố cho phụ huynh khi bấm **Lưu kết luận** (kể cả khi lưu lại sau sửa). Phiếu không có người đi cùng (T4) giáo viên công bố sau, khi đã ghi trao đổi.
+**Công bố (2026-10-23):** mọi kết quả tự công bố cho phụ huynh khi lưu (phiếu khám: **Lưu kết luận**, kể cả lưu lại sau sửa; cân đo ngoài đợt: **Lưu số đo**); không còn nút **Công bố**. Kết luận mức *Cần theo dõi sát* có người đi cùng thì bước 5 bắt buộc ô **Ý kiến phụ huynh**; phiếu ghi **Đã trao đổi phụ huynh**. Không có người đi cùng (T4) thì phiếu ghi **Chưa trao đổi phụ huynh** tới khi giáo viên ghi trao đổi trong phiếu theo dõi.
 
 **Trẻ đang có phiếu theo dõi (T1, T3, T9)** (user chốt 2026-10-21): bước 5 có khối *Trẻ đang có phiếu theo dõi từ ngày …*. Thay cho 2 nhóm "Kết luận về sức khỏe" và "Cần được tư vấn/chuyển khám chuyên khoa" là 1 câu **So với vấn đề đang theo dõi, bác sĩ kết luận**: *Chưa ghi nhận thêm bất thường* · *Tư vấn* · *Có thêm bất thường mới*. Lưu kết luận không đóng phiếu theo dõi.
 
@@ -55,15 +55,15 @@ Khi nhập số ở bước 2, trạng thái tự chọn theo khoảng của nh�
 ### Lớp Mầm 1 — `tuan.hoang@carenest.edu.vn`
 
 **T1 · Vũ Tuấn Kiệt (40 tháng) — Đang có phiếu theo dõi, "Chưa ghi nhận thêm bất thường", số ở cận trên**
-- Bước 1: thấy số định danh, địa chỉ đã điền sẵn từ phiếu ngày 6/10.
+- Bước 1: số định danh, địa chỉ lấy từ hồ sơ trẻ, chỉ xem; tiền sử điền sẵn từ khai báo sức khỏe.
 - Bước 2: nhiệt độ `37.4` · mạch `120` · nhịp thở `28` · chiều cao `98.5` · cân nặng `15.2` · vòng đầu `48.5` · vòng cánh tay `160`. Cả 3 trạng thái là **Bình thường**. Vòng đầu tự chọn Bình thường (khoảng tạm 46,5–52,0 cm).
 - Bước 5:
   - Thấy khối *Trẻ đang có phiếu theo dõi* (Tai mũi họng, kết quả chuyên khoa ngày 14/10, hẹn khám lại 14/11) và *Không có mục nào được ghi bất thường*.
-  - Không có ô "Bình thường". Chọn **Chưa ghi nhận thêm bất thường** rồi bấm **Lưu kết luận**.
+  - Không có ô "Bình thường". Chọn **Chưa ghi nhận thêm bất thường**, để trống **Ý kiến phụ huynh**, bấm **Lưu kết luận** ⇒ lỗi *Ghi ý kiến của phụ huynh (người đi cùng) về kết luận*. Nhập `Mẹ cho biết trẻ vẫn tái khám theo hẹn.` rồi lưu lại.
 - Mong đợi:
   - Nhãn **Đang theo dõi, chưa ghi nhận thêm**; không có nhãn "Cần theo dõi sát – đề nghị khám chuyên khoa".
   - Màn kết quả: *Phiếu theo dõi giữ nguyên: lần khám được ghi vào dòng thời gian của phiếu, không mở vòng mới.*
-  - Bước 5 có dòng *Có người đi cùng trẻ: khi lưu kết luận, phiếu được công bố cho phụ huynh ngay*. Sau khi lưu, phiếu **đã công bố**, không cần bấm công bố.
+  - Bước 5 có dòng *Lưu kết luận là công bố cho phụ huynh ngay*. Sau khi lưu, phiếu **Đã công bố** và **Đã trao đổi phụ huynh**; phần Kết luận có *Ý kiến phụ huynh*.
   - Phiếu theo dõi Tai mũi họng vẫn mở, giữ trạng thái *Đã có kết quả khám bên ngoài*; dòng thời gian có *Kết quả khám trong lúc đang theo dõi*. Lưu kết luận không đóng phiếu (đóng ở bước C5).
 
 **T2 · Đỗ Phương Linh (34 tháng) — Khoảng tham khảo đổi theo tuổi**
@@ -103,23 +103,24 @@ Khi nhập số ở bước 2, trạng thái tự chọn theo khoảng của nh�
   - Bác sĩ vẫn đề nghị chuyển khám: chọn **Có vấn đề**, ghi rõ `Vòng đầu to so với tuổi.`; **Chuyển khám chuyên khoa** `Nhi khoa – thần kinh`.
 - Mong đợi:
   - Mức **Cần theo dõi sát**, theo kết luận bác sĩ, không theo gợi ý.
-  - Bước 5 có dòng *Không có người đi cùng: lưu kết luận chưa công bố cho phụ huynh*. Phiếu **không** tự công bố.
-  - Màn kết quả có cảnh báo vàng: chưa ghi trao đổi với phụ huynh, cần trao đổi trong 7 ngày. Có nút **Ghi trao đổi trong phiếu theo dõi** thay cho nút Công bố.
+  - Bước 5 không có ô Ý kiến phụ huynh (không có người đi cùng). Phiếu vẫn **tự công bố** khi lưu.
+  - Màn kết quả có cảnh báo vàng: phiếu ghi *Chưa trao đổi phụ huynh*, trao đổi với phụ huynh rồi ghi vào phiếu theo dõi. Không có nút Công bố.
   - Phiếu theo dõi mới ở trạng thái **Chờ trao đổi phụ huynh**, hạn = hôm nay + 7.
 
-**T5 · Bùi Gia Bảo (44 tháng) — Nguy cơ lao, người đi cùng là bà**
+**T5 · Bùi Gia Bảo (44 tháng) — Nguy cơ lao, tiền sử giáo viên ghi ở phiếu**
 - Bước 1:
-  - Người đi cùng: sửa họ tên thành `Bùi Thị Tám`, quan hệ **Ông/bà**, SĐT `0912 345 029`, CCCD `999196200029`.
-  - Tiền sử gia đình **Có**: `Ông nội đang điều trị lao`. Tiền sử tiếp xúc với người bệnh lao **Có**.
+  - Người đi cùng là phụ huynh trong hồ sơ (không gõ tay người khác được).
+  - Tiền sử gia đình **Có**: `Ông nội đang điều trị lao`. Tiền sử tiếp xúc với người bệnh lao **Có**, ngày tiếp xúc gần nhất `01/10/2026`.
 - Bước 2: `37.1` · `112` · `27` · chiều cao `99.0` · cân nặng `15.0` · vòng đầu `49.5`.
 - Bước 5:
   - Chọn **Có nguy cơ mắc lao (tiền sử tiếp xúc)** (không chọn Bình thường).
-  - **Chuyển khám chuyên khoa** `Lao và bệnh phổi – Trung tâm Y tế`, lời tư vấn `Đưa trẻ đi khám sàng lọc lao trong tuần.`
+  - **Chuyển khám chuyên khoa** `Lao và bệnh phổi – Trung tâm Y tế`, lời tư vấn `Đưa trẻ đi khám sàng lọc lao trong tuần.`; ý kiến phụ huynh `Gia đình đồng ý đưa trẻ đi khám trong tuần.`
 - Mong đợi:
   - Điểm cần xem lại có *Tiền sử gia đình: Có (Ông nội đang điều trị lao)* và *Tiền sử tiếp xúc với người bệnh lao: Có*.
   - Sau khi lưu: nhãn **Nguy cơ lao**, khung đỏ báo đã gửi thông báo.
+  - Khai báo sức khỏe của trẻ: tiền sử gia đình *Có — Ông nội đang điều trị lao*, tiếp xúc lao *Có — gần nhất ngày 01/10/2026*; lịch sử *Cập nhật tiền sử từ phiếu khám*.
   - Đăng nhập Hiệu trưởng và Phó hiệu trưởng Campus 2: chuông có *Trẻ có nguy cơ mắc lao (tiền sử tiếp xúc)*.
-  - Phiếu theo dõi có nhãn đỏ nguy cơ lao; lần trao đổi ghi *Bùi Thị Tám (Ông/bà)*.
+  - Phiếu theo dõi có nhãn đỏ nguy cơ lao; lần trao đổi ghi *Bùi Thị Tám (Ông/bà)* kèm *Ý kiến phụ huynh: Gia đình đồng ý…*.
   - Danh sách lớp không hiện số CCCD.
 
 **T6 · Nguyễn Bảo Ngọc (38 tháng) — Phiếu khám dở**
@@ -138,12 +139,12 @@ Khi nhập số ở bước 2, trạng thái tự chọn theo khoảng của nh�
   - Tình trạng dinh dưỡng: **Thừa cân/béo phì**.
 - Bước 4: *Có biểu hiện buồn bã, lo âu, mất ngủ kéo dài không* → **Có**. Ô *Nếu có, ghi rõ* thành bắt buộc: `Gần đây trẻ khó ngủ, hay lo khi xa mẹ (người đi cùng kể).`
 - Bước 5: **Có vấn đề** `Thừa cân; khó ngủ kéo dài.` · **Tư vấn** `Giảm đồ ngọt, tăng vận động; giữ giờ ngủ cố định.` · **Vấn đề mới hoặc có thay đổi**.
-- Mong đợi: bấm **Lưu kết luận** hiện hộp hỏi lại (thừa cân, buồn bã kéo dài, ghi rõ) → **Lưu theo bác sĩ**. Mức **Cần theo dõi**, phiếu tự công bố (có người đi cùng). Danh sách trẻ đổi sang **Cần theo dõi** (lần khám mới hơn phiếu đã đóng).
+- Mong đợi: bấm **Lưu kết luận** hiện hộp hỏi lại (thừa cân, buồn bã kéo dài, ghi rõ) → **Lưu theo bác sĩ**. Mức **Cần theo dõi**, phiếu tự công bố. Danh sách trẻ đổi sang **Cần theo dõi** (lần khám mới hơn phiếu đã đóng).
 - Thử sửa phiếu (từ màn kết quả bấm **Xem phiếu**):
   1. Bấm **Sửa phiếu**, ở bước 2 đổi cân nặng thành `24.1`.
   2. Ở bước 5 bấm **Lưu kết luận** khi chưa ghi lý do → lỗi *Nhập lý do sửa phiếu đã có kết luận*.
   3. Ghi lý do `Cân lại sau khi trẻ cởi áo khoác.` rồi lưu.
-- Mong đợi sau khi sửa: **Lịch sử sửa phiếu** có *Cân nặng (kg): 24,5 → 24,1*. Phiếu vẫn có người đi cùng nên **tự công bố lại** khi lưu.
+- Mong đợi sau khi sửa: **Lịch sử sửa phiếu** có *Cân nặng (kg): 24,5 → 24,1*. Phiếu **tự công bố lại** khi lưu.
 
 **T8 · Đặng Tuấn Kiệt (65 tháng) — Trên 60 tháng, số ở cận dưới**
 - Bước 2: không có ô vòng đầu (*Trẻ trên 60 tháng tuổi tại ngày khám: không đo vòng đầu*).
@@ -175,9 +176,6 @@ Lần 1, nhập sai rồi bấm **Lưu kết luận** ở bước 5:
 
 | Bước | Nhập | Lỗi mong đợi |
 | --- | --- | --- |
-| 1 | CCCD trẻ `12345678` | *Nhập 12 chữ số (CCCD/mã định danh) hoặc số hộ chiếu 6–12 ký tự* |
-| 1 | SĐT người đi cùng `12345` | *Nhập số điện thoại hợp lệ, ví dụ 0912 345 678* |
-| 1 | CCCD người đi cùng `B7654321` | Không lỗi (số hộ chiếu) |
 | 2 | Nhiệt độ `43` | *Nhập nhiệt độ từ 34 đến 42 °C* |
 | 2 | Mạch `250` | *Nhập mạch từ 40 đến 220 lần/phút* |
 | 2 | Chiều cao `160` · cân nặng `2` | *Nhập chiều cao/chiều dài từ 40 đến 150 cm* · *Nhập cân nặng từ 3 đến 60 kg* |
@@ -186,10 +184,9 @@ Lần 1, nhập sai rồi bấm **Lưu kết luận** ở bước 5:
 | 3 | Để trống *Tiêm chủng đầy đủ…* | *Chọn Có hoặc Không* |
 | 5 | Bỏ tích kết luận · chọn **Tư vấn** nhưng để trống lời tư vấn · xóa tên bác sĩ | *Chọn kết luận của bác sĩ* · *Ghi lời tư vấn của bác sĩ* · *Nhập họ tên bác sĩ kết luận* |
 
-Mong đợi: thông báo *Phiếu còn thiếu thông tin*. Phiếu nhảy về **bước 1** (bước đầu tiên có lỗi), ô lỗi viền đỏ. Sửa ô nào thì lỗi ô đó mất.
+Mong đợi: thông báo *Phiếu còn thiếu thông tin*. Phiếu nhảy về **bước 2** (bước đầu tiên có lỗi; bước 1 không còn ô nhập hành chính), ô lỗi viền đỏ. Sửa ô nào thì lỗi ô đó mất.
 
 Lần 2, sửa cho đúng:
-- Bước 1: CCCD trẻ `999202100035` · SĐT `0912 345 035`.
 - Bước 2:
   - Nhiệt độ `37.5` → tự chọn **Sốt**.
   - Mạch `121` → tự chọn **Nhanh**; đổi sang **Bình thường** theo bác sĩ. Dưới ô hiện *Hệ thống gợi ý: Nhanh*.
@@ -208,7 +205,7 @@ Lần 2, sửa cho đúng:
 
 | Bước | Thao tác | Kết quả mong đợi |
 | --- | --- | --- |
-| D1 | Mở đợt, xem thống kê | Đã có kết luận 10 · Đang khám 1 · Chưa khám 1. Theo kết luận: Bình thường 2 · Có vấn đề, tư vấn 3 · Chuyển khám chuyên khoa 1 · Nguy cơ lao 1 · Đang theo dõi, chưa ghi nhận thêm 1 (T1) · Đang theo dõi, có bất thường mới 2 (T3, T9). Tab **Trẻ cần theo dõi**: 8 trẻ |
+| D1 | Mở đợt, xem thống kê | Đã có kết luận 10 · Đang khám 1 · Chưa khám 1. Không có khối "Theo kết luận của bác sĩ". Tab **Trẻ cần theo dõi**: 8 trẻ |
 | D2 | **Đóng đợt khám** | Hộp xác nhận: *1 trẻ chưa khám sẽ ghi Vắng khám. 1 phiếu đang khám chưa có kết luận sẽ giữ nguyên, hiện "Chưa kết luận". Còn 1 phiếu theo dõi chờ trao đổi với phụ huynh…* (của T4) |
 | D3 | Xác nhận | *Đã đóng đợt khám; 1 trẻ ghi vắng khám; 1 phiếu chưa kết luận.* Lớp Lá A: Đỗ Gia Bảo **Vắng khám**. Lớp Mầm 1: Nguyễn Bảo Ngọc **Chưa kết luận** |
 | D4 | Giáo viên mở lại phiếu T7 | Có thông báo đợt đã đóng, phiếu bị khóa; không có nút **Sửa phiếu** |
@@ -218,7 +215,7 @@ Lần 2, sửa cho đúng:
 | Bước | Ai | Thao tác | Kết quả mong đợi |
 | --- | --- | --- | --- |
 | C1 | Thầy Tuấn | Mở phiếu theo dõi của T4 | Nút **Ghi kết quả khám chuyên khoa** mờ: phải ghi trao đổi trước |
-| C2 | Thầy Tuấn | **Ghi trao đổi với phụ huynh**: ngày hôm nay, `Đã gọi điện cho bố, đề nghị đưa trẻ khám thần kinh nhi.` | Trạng thái **Đã trao đổi**. Ở **Sổ sức khỏe** của T4, kết quả đợt này có nút **Công bố** (trước đó là *Ghi trao đổi để công bố*) |
+| C2 | Thầy Tuấn | **Ghi trao đổi với phụ huynh**: ngày hôm nay, `Đã gọi điện cho bố, đề nghị đưa trẻ khám thần kinh nhi.` | Trạng thái **Đã trao đổi**. Phiếu khám của T4 đổi từ *Chưa trao đổi phụ huynh* sang **Đã trao đổi phụ huynh**, kèm ngày trao đổi |
 | C3 | Thầy Tuấn | Phiếu theo dõi của T3 → **Ghi kết quả khám chuyên khoa**: để trống chuyên khoa · chọn ngày hẹn = ngày khám | Lỗi *Nhập chuyên khoa / nơi khám, ví dụ Mắt — Bệnh viện Nhi* · *Ngày hẹn khám lại phải sau ngày khám* |
 | C4 | Thầy Tuấn | Nhập đúng: ngày hôm nay · `Nhi khoa – khám phát triển, Bệnh viện Nhi Hải Phòng` · `Bác sĩ hẹn đánh giá lại sau 1 tháng, tập vận động tại nhà.` · hẹn hôm nay + 30 · thêm 1 ảnh bất kỳ (không dùng giấy khám thật) | Trạng thái **Đã có kết quả khám bên ngoài**. Sổ sức khỏe của T3 hiện kết quả chuyên khoa kèm chuyên khoa và ảnh |
 | C5 | Cô Ngọc | Phiếu theo dõi của T9 → **Ghi kết quả khám chuyên khoa**: ngày hôm nay · `Mắt – Bệnh viện Mắt Hải Phòng` · `Bác sĩ kết luận viêm kết mạc, đã tra thuốc khỏi; không hẹn khám lại.` · để trống ngày hẹn | Lưu xong, hộp **Đóng phiếu theo dõi?** mở ngay (*Kết quả không có ngày hẹn khám lại…*), có nút **Để phiếu mở** |
@@ -248,7 +245,7 @@ Lần 2, sửa cho đúng:
 | Bước | Ai | Thao tác | Kết quả mong đợi |
 | --- | --- | --- | --- |
 | G1 | Cô Ngọc | Dán đường dẫn phiếu khám của T1 (trẻ lớp thầy Tuấn) | *Không tìm thấy đợt khám* (ngoài phạm vi trả 404) |
-| G2 | Phó hiệu trưởng Campus 2 | Mở phiếu của T1 | Chỉ xem, không có nút sửa hay công bố |
+| G2 | Phó hiệu trưởng Campus 2 | Mở phiếu của T1 | Chỉ xem, không có nút sửa |
 
 ## Trường hợp có sẵn ở dữ liệu mẫu (Campus 1)
 
@@ -258,7 +255,7 @@ Các trường hợp sau phụ thuộc tuổi hoặc ngày nên không dựng tr
 - **Nguy cơ lao kèm có vấn đề**, người đi cùng là ông, nhiều mục bất thường: Đỗ Bảo Ngọc, Lớp Chồi 2.
 - **Trẻ có phiếu theo dõi, chưa khám đợt này** (khám từ đầu bằng mẫu *So với vấn đề đang theo dõi*): Phạm Thảo Vy, Lớp Chồi 1.
 - **"Chưa ghi nhận thêm bất thường"**: phiếu giữ nguyên (có kết quả chuyên khoa, hẹn khám lại): Bùi Phương Linh, Lớp Lá 1.
-- **"Có thêm bất thường mới", không có người đi cùng**: vòng mới, chờ trao đổi, chưa công bố được: Ngô Hoàng Nam, Lớp Mầm 1.
+- **"Có thêm bất thường mới", không có người đi cùng**: vòng mới, chờ trao đổi; phiếu đã công bố, ghi *Chưa trao đổi phụ huynh*: Ngô Hoàng Nam, Lớp Mầm 1.
 - **Vấn đề đã biết, không thay đổi** (cận thị đang đeo kính): mức **Vấn đề đã biết, ổn định**, không có trong tab *Trẻ cần theo dõi*: Ngô Bảo Ngọc, Lớp Lá 1.
 
 Danh sách đầy đủ: bảng `EXAM_CASES` trong `src/mocks/childrenSeed.js`.
@@ -273,24 +270,25 @@ Danh sách đầy đủ: bảng `EXAM_CASES` trong `src/mocks/childrenSeed.js`.
 | H3 | Cô Ngọc | Sau bước F (cân đo ngoài đợt cho Đỗ Gia Bảo) xem cột Theo dõi sức khỏe | Mức vẫn theo lần khám có kết luận trước đó: cân đo ngoài đợt và phiếu nháp không tính |
 | H4 | Hiệu trưởng | Bộ lọc **Chưa có kết quả khám** | Trẻ chưa có lần khám nào được xếp mức, ví dụ trẻ mới tiếp nhận Lý Gia Phúc |
 
-## I. Hành chính, tiền sử hỏi khi tiếp nhận (Campus 1)
+## I. Hành chính, tiền sử nhập khi tiếp nhận; phiếu khám chỉ xem hành chính (Campus 1)
 
-Nghiệp vụ: [plan hồ sơ hành chính, tiền sử](../../plans/completed/2026-10-17-enrollment-admin-medical-history.md). Làm sau bước 0 (khôi phục dữ liệu demo). Tài khoản thêm: Phó hiệu trưởng Campus 1 `lan.nguyen@carenest.edu.vn`, giáo viên Lớp Chồi 1 `minhanh.le@carenest.edu.vn`.
+Nghiệp vụ: [plan hồ sơ hành chính, tiền sử](../../plans/completed/2026-10-17-enrollment-admin-medical-history.md), thay một phần bởi [plan phiếu khám chỉ xem Phần I](../../plans/completed/2026-10-22-exam-admin-from-profile.md). Làm sau bước 0 (khôi phục dữ liệu demo). Tài khoản thêm: Phó hiệu trưởng Campus 1 `lan.nguyen@carenest.edu.vn`, giáo viên Lớp Chồi 1 `minhanh.le@carenest.edu.vn`.
 
 | Bước | Ai | Thao tác | Kết quả mong đợi |
 | --- | --- | --- | --- |
-| I1 | Phó hiệu trưởng Campus 1 | **Hồ sơ trẻ → Tiếp nhận trẻ**. Bước 1 nhập tên, ngày sinh, giới, phụ huynh; để trống khối **Thông tin hành chính**, bấm **Tiếp tục** | Qua bước được (không bắt buộc). Khối hành chính có 10 ô, Sinh non mặc định **Chưa cung cấp** |
-| I2 | Phó hiệu trưởng Campus 1 | Quay lại bước 1: số định danh `123`, tuần thai `50`, bấm **Tiếp tục** | *Nhập 12 chữ số (CCCD/mã định danh) hoặc số hộ chiếu 6–12 ký tự* và *Nhập tuần thai từ 20 đến 42*. Sửa thành `031222000888`, sinh non Có, `35` tuần, nhóm máu `O` |
-| I3 | Phó hiệu trưởng Campus 1 | Bước Xếp lớp chọn **Lớp Chồi 1**. Bước Khai báo sức khỏe, phần **Tiền sử**: bản thân chọn Có, để trống, bấm **Tiếp tục** | Ba mục mặc định **Chưa cung cấp**. Lỗi *Ghi rõ tên bệnh*. Nhập `Viêm phổi lúc 1 tuổi` |
-| I4 | Phó hiệu trưởng Campus 1 | Tiếp xúc với người bệnh lao chọn **Có** | Hiện ghi chú: khi lưu, hệ thống báo Hiệu trưởng, Phó hiệu trưởng điểm trường và giáo viên lớp |
+| I1 | Phó hiệu trưởng Campus 1 | **Hồ sơ trẻ → Tiếp nhận trẻ**. Bước 1 nhập tên, ngày sinh, giới, phụ huynh; để trống khối **Thông tin hành chính**, bấm **Tiếp tục** | Không qua được. Lỗi *Chọn trẻ có sinh non hay không*, *Nhập dân tộc*, *Nhập đối tượng*, *Nhập nguồn chi trả*, *Nhập tỉnh/thành nơi ở*, *Nhập phường/xã nơi ở*, *Nhập số nhà/thôn/xóm nơi ở*. Số định danh và nhóm máu không báo lỗi. Sinh non chỉ có Không/Có |
+| I2 | Phó hiệu trưởng Campus 1 | Số định danh `123`, sinh non **Có**, để trống tuần thai, bấm **Tiếp tục**; rồi tuần thai `50` | *Nhập 12 chữ số (CCCD/mã định danh) hoặc số hộ chiếu 6–12 ký tự*, *Nhập tuần thai khi sinh của trẻ sinh non*, rồi *Nhập tuần thai từ 20 đến 42*. Sửa thành `999222000888`, `35` tuần, dân tộc `Kinh`, đối tượng `Trẻ em dưới 6 tuổi`, nguồn chi trả `BHYT`, nhóm máu `O`, nơi ở `Hải Phòng` · `Phường Thượng Hồng` · `Số 5 ngõ 2` |
+| I3 | Phó hiệu trưởng Campus 1 | Bước Xếp lớp chọn **Lớp Chồi 1**. Bước Khai báo sức khỏe, phần **Tiền sử**: không chọn gì, bấm **Tiếp tục**; rồi bản thân chọn Có, để trống | Ba mục chỉ có Có/Không, chưa chọn sẵn. Lỗi *Chọn Có hoặc Không cho tiền sử bản thân*, *… cho tiền sử gia đình*, *Tiếp xúc người bệnh lao chọn Có hoặc Không*. Rồi *Ghi rõ tên bệnh*. Nhập `Viêm phổi lúc 1 tuổi`, gia đình Không |
+| I4 | Phó hiệu trưởng Campus 1 | Tiếp xúc với người bệnh lao chọn **Có**, ngày tiếp xúc gần nhất `15/09/2026` | Hiện ghi chú: khi lưu, hệ thống báo Hiệu trưởng, Phó hiệu trưởng điểm trường và giáo viên lớp |
 | I5 | Phó hiệu trưởng Campus 1 | Bước Xem lại, rồi **Lưu hồ sơ tiếp nhận** | Thẻ Thông tin trẻ có mục Thông tin hành chính (số định danh, *Có · 35 tuần*, nhóm máu O). Thẻ Khai báo sức khỏe có 3 dòng tiền sử, ví dụ *Có — Viêm phổi lúc 1 tuổi* |
-| I6 | Hiệu trưởng, cô Minh Anh | Mở chuông thông báo | Có *Trẻ có tiền sử tiếp xúc với người bệnh lao*: *Phụ huynh khai … có tiền sử tiếp xúc với người bệnh lao. Nhà trường trao đổi với phụ huynh về việc đưa trẻ đi khám sàng lọc; bác sĩ xem lại ở đợt khám tới.* Phó hiệu trưởng Campus 1 (người lưu) và Phó hiệu trưởng Campus 2 không nhận |
+| I6 | Hiệu trưởng, cô Minh Anh | Mở chuông thông báo | Có *Trẻ có tiền sử tiếp xúc với người bệnh lao* kèm ngày tiếp xúc. Phó hiệu trưởng Campus 1 (người lưu) không nhận |
 | I7 | Hiệu trưởng | **Danh sách trẻ**, xem nhanh trẻ vừa nhận | Không có số định danh hay tiền sử tiếp xúc lao trong danh sách |
-| I8 | Hiệu trưởng | Mở hồ sơ trẻ vừa nhận | Thẻ **Thông tin hành chính**; cột Sức khỏe có 3 dòng tiền sử |
-| I9 | Phó hiệu trưởng Campus 1 | **Khai báo sức khỏe → Sửa khai báo**: tiếp xúc lao Không, lưu (lý do); rồi sửa lại Có, lưu; rồi chỉ đổi Thông tin khác, lưu | Lần chuyển sang Có báo lại Hiệu trưởng và cô Minh Anh; lần lưu khi vẫn Có không báo. Lịch sử thay đổi ghi *Tiền sử tiếp xúc với người bệnh lao: Không → Có* |
-| I10 | Phó hiệu trưởng Campus 1 | **Nhập từ Excel → Tải file mẫu** | File có thêm 13 cột hành chính, tiền sử. Thêm 1 dòng có số định danh `12ab`, Sinh non `Chắc chắn`: xem trước báo lỗi đúng dòng. File mẫu cũ (9 cột) vẫn nhập được |
-| I11 | Cô Minh Anh | Đợt khám Campus 1 → Lớp Chồi 1 → **Khám** Trần Khánh An | Bước 1 có ghi chú *điền sẵn từ hồ sơ trẻ*. Số định danh `999222009007`, sinh non Có 35 tuần, nhóm máu A, nơi ở Số 12 ngõ 5; tiền sử bản thân Có *Hen phế quản*, gia đình Không, tiếp xúc lao Không |
-| I12 | Cô Minh Anh | **Khám** Bùi Bảo Ngọc | Hồ sơ thiếu: dân tộc Kinh, nhóm máu O; số định danh trống; tiền sử gia đình trống (Chưa cung cấp); tiếp xúc lao **Có** |
-| I13 | Cô Minh Anh | Trần Khánh An: đổi nhóm máu `AB`, bấm **Lưu nháp** | Hồ sơ trẻ vẫn nhóm máu A (phiếu nháp không cập nhật) |
-| I14 | Cô Minh Anh | Tiền sử gia đình Có `Tăng huyết áp (bà ngoại)`, điền đủ phiếu, **Lưu kết luận** | Hồ sơ trẻ: nhóm máu AB, dòng *Cập nhật gần nhất: Cập nhật từ phiếu khám ngày …*. Khai báo sức khỏe: lịch sử *Cập nhật tiền sử từ phiếu khám*, *Tiền sử gia đình: Không → Có — Tăng huyết áp (bà ngoại)*. Không có thông báo tiếp xúc lao mới |
-| I15 | Hiệu trưởng | Mở hồ sơ Nguyễn Hoàng Nam (trẻ tiếp nhận từ trước) | Thông tin hành chính *Chưa cung cấp*; tiền sử *Chưa cung cấp*. Ở mục B, T1 vẫn điền sẵn từ phiếu 6/10 vì hồ sơ trống |
+| I8 | Hiệu trưởng | Mở hồ sơ trẻ vừa nhận → **Sửa hồ sơ**, xóa trống Dân tộc, nhập lý do, lưu | Không lưu được: *Nhập dân tộc* (sửa hồ sơ cũng bắt buộc) |
+| I9 | Hiệu trưởng | Mở **Khai báo sức khỏe** của trẻ vừa nhận | Có nút **Sửa khai báo** (Hiệu trưởng sửa được như Phó hiệu trưởng). Tiền sử chỉ Có/Không, có dấu bắt buộc |
+| I10 | Phó hiệu trưởng Campus 1 | **Nhập từ Excel → Tải file mẫu** | Dòng mẫu điền đủ các cột hành chính, tiền sử. Thêm 1 dòng để trống Dân tộc và Tiền sử bản thân: xem trước báo *Nhập dân tộc*, *Chọn Có hoặc Không cho tiền sử bản thân* đúng dòng. File mẫu cũ thiếu cột thì báo *Thiếu cột: …* |
+| I11 | Cô Minh Anh | Đợt khám Campus 1 → Lớp Chồi 1 → **Khám** Trần Khánh An | Bước 1 có ghi chú *Hành chính lấy từ hồ sơ trẻ, không sửa ở phiếu khám*. Không có ô nhập hành chính: số định danh `999222009007`, sinh non *Có · 35 tuần*, nhóm máu A, nơi ở Số 12 ngõ 5. Tiền sử là ô chọn, điền sẵn: bản thân Có *Hen phế quản*, gia đình Không, tiếp xúc lao Không |
+| I12 | Cô Minh Anh | **Khám** Bùi Bảo Ngọc | Hồ sơ đủ (dữ liệu demo điền đầy): nhóm máu O; tiếp xúc lao *Có — gần nhất ngày 28/07/2026* |
+| I13 | Cô Minh Anh | Trần Khánh An, khối **Người đi cùng trẻ**: chọn **Có người đi cùng** | Chỉ chọn được phụ huynh trong hồ sơ (nút tên phụ huynh); họ tên, quan hệ, SĐT, CCCD hiện theo hồ sơ, không sửa được. Có dòng *Người đi cùng không có trong hồ sơ: báo Hiệu trưởng hoặc Phó hiệu trưởng thêm vào hồ sơ trẻ* |
+| I14 | Cô Minh Anh | Trần Khánh An: tiền sử gia đình **Có** `Tăng huyết áp (bà ngoại)`, **Lưu nháp**; rồi điền đủ phiếu, **Lưu kết luận** | Sau lưu nháp khai báo chưa đổi. Sau lưu kết luận: hồ sơ trẻ (hành chính) không đổi. Khai báo sức khỏe: tiền sử gia đình *Có — Tăng huyết áp (bà ngoại)*, lịch sử *Cập nhật tiền sử từ phiếu khám*, *Tiền sử gia đình: Không → Có — Tăng huyết áp (bà ngoại)* |
+| I15 | Phó hiệu trưởng Campus 1 | **Sửa hồ sơ** Trần Khánh An: nhóm máu `AB`, lý do, lưu. Cô Minh Anh mở lại phiếu đã kết luận | Phiếu vẫn hiện nhóm máu A (giữ thông tin lúc lưu kết luận). Phiếu mới hoặc phiếu nháp thì hiện hồ sơ hiện tại |
+| I16 | Hiệu trưởng | Mở hồ sơ Nguyễn Hoàng Nam (trẻ tiếp nhận từ trước) | Đủ thông tin hành chính và tiền sử (dữ liệu demo điền đầy, 2026-10-22) |

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useChildDetail } from '@/hooks/children/useChildRecords';
+import { useChildDetail, useCitizenIdAccounts } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
@@ -16,6 +16,7 @@ import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { emptyChildProfile } from '@/models/children/childProfile';
 import { hasErrors, validateChildInfo } from '@/utils/children/childrenValidation';
 import { canEditChild } from '@/utils/children/childrenPermissions';
+import { withGuardianAccounts } from '@/utils/children/childrenHelpers';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -29,6 +30,8 @@ export default function EditChildPage() {
   const [reason, setReason] = useState('');
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  // Thêm phụ huynh có CCCD trùng tài khoản có sẵn ⇒ tự điền theo tài khoản, khóa; lưu thì liên kết (user chốt 2026-10-23).
+  const accountOf = useCitizenIdAccounts((form?.guardians || []).map((g) => g.idNumber));
 
   useEffect(() => {
     if (detail?.child) {
@@ -84,14 +87,16 @@ export default function EditChildPage() {
   // Đã có tài khoản và đã có CCCD: CCCD theo tài khoản; chưa có thì nhập để bổ sung (user chốt 2026-10-21).
   const lockedIdPhones = withAccount.filter((g) => g.idNumber).map((g) => g.phone);
 
+  const effective = { ...form, guardians: withGuardianAccounts(form.guardians, accountOf) };
+
   const save = async () => {
-    const errs = validateChildInfo(form);
+    const errs = validateChildInfo(effective);
     if (!reason.trim()) errs.reason = 'Nhập lý do chỉnh sửa hồ sơ';
     setErrors(errs);
     if (hasErrors(errs)) return;
     setBusy(true);
     try {
-      await updateChild(id, { child: form, reason }, user);
+      await updateChild(id, { child: effective, reason }, user);
       toast.success('Đã lưu thay đổi hồ sơ.');
       navigate(`/children/${id}`);
     } catch (err) {
@@ -104,7 +109,7 @@ export default function EditChildPage() {
 
   const change = (v) => {
     setForm(v);
-    const now = validateChildInfo(v);
+    const now = validateChildInfo({ ...v, guardians: withGuardianAccounts(v.guardians, accountOf) });
     setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k === 'reason' || now[k])));
   };
 
@@ -119,6 +124,8 @@ export default function EditChildPage() {
           errors={errors}
           lockedGuardianPhones={lockedPhones}
           lockedGuardianIdPhones={lockedIdPhones}
+          accountOf={accountOf}
+          childId={id}
         />
       </section>
       <section className="card wizard-card">

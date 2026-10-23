@@ -10,9 +10,8 @@ const phoneKey = (phone) =>
     .replace(/[\s.\-()]/g, '')
     .replace(/^\+84/, '0');
 
-export const CITIZEN_ID_TAKEN =
-  'Số CCCD này đã thuộc phụ huynh khác (số điện thoại khác). Kiểm tra lại số CCCD, hoặc chọn tài khoản có sẵn.';
-export const PHONE_HAS_OTHER_ID = 'Số điện thoại này đã ghi cho phụ huynh có số CCCD khác. Kiểm tra lại số CCCD.';
+export const CITIZEN_ID_TAKEN = 'Số CCCD này đã ghi cho phụ huynh khác (số điện thoại khác). Kiểm tra lại số CCCD.';
+export const PHONE_HAS_OTHER_ID = 'Số điện thoại này đã thuộc phụ huynh có số CCCD khác. Kiểm tra lại số điện thoại hoặc số CCCD.';
 
 /** Câu lỗi khi { phone, idNumber } lệch với phụ huynh đã ghi, hoặc null. excludeChildId: bỏ bản ghi của hồ sơ đang sửa. */
 export const identityConflict = (db, { phone, idNumber }, { excludeChildId } = {}) => {

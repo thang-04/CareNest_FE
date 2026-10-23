@@ -1,7 +1,6 @@
 import {
   BEHAVIOR_NOTE_TRIGGERS,
   CLINICAL_ITEMS,
-  COMPANION_RELATIONS,
   CONCLUSION_ACTION,
   CONCLUSION_MODE,
   DEVELOPMENT_ITEMS,
@@ -17,7 +16,7 @@ import {
   YES_NO,
 } from '@/models/children/healthExamForm';
 import { todayInput } from '@/utils/format';
-import { ID_NUMBER_MESSAGE, isValidIdNumber, isValidPhone, tbContactDateError } from './childrenValidation';
+import { tbContactDateError } from './childrenValidation';
 
 /*
  * Kiểm tra nhập liệu của phiếu Phụ lục II khi lưu kết luận (form báo ngay, backend giả trả 422 cùng khóa).
@@ -29,10 +28,6 @@ const YES_NO_VALUES = Object.values(YES_NO);
 
 const isBlank = (v) => v === '' || v == null;
 const text = (v) => String(v ?? '').trim();
-
-// Dùng chung định dạng số định danh với hồ sơ trẻ.
-export { isValidIdNumber };
-const ID_MESSAGE = ID_NUMBER_MESSAGE;
 
 const checkNumber = (errors, key, value, { min, max, required, label, unit }) => {
   if (isBlank(value)) {
@@ -49,6 +44,16 @@ const checkChoice = (errors, key, value, options, message) => {
 
 const checkLength = (errors, key, value, max) => {
   if (text(value).length > max) errors[key] = `Tối đa ${max} ký tự`;
+};
+
+/**
+ * Có người đi cùng và kết luận ở mức "Cần theo dõi sát" (nguy cơ lao, chuyển khám, hoặc mẫu FOLLOW_UP — mức theo kết luận D9)
+ * ⇒ ghi ý kiến phụ huynh tại buổi khám (user chốt 2026-10-23). mode: conclusionMode BE trả.
+ */
+export const needsParentOpinion = (exam, mode) => {
+  const c = exam?.conclusion || {};
+  const closeWatch = mode === CONCLUSION_MODE.FOLLOW_UP || !!c.tbRisk || c.action === CONCLUSION_ACTION.REFERRAL;
+  return exam?.admin?.hasCompanion === YES_NO.YES && closeWatch;
 };
 
 /** Kết luận mẫu FOLLOW_UP: 1 câu so với vấn đề đang theo dõi (user chốt 2026-10-21). */
@@ -97,9 +102,12 @@ const validateStandardConclusion = (errors, c, L, knownCondition) => {
 /**
  * payload: { date, heightCm, weightKg, headCircumferenceCm, exam, reason }.
  * ctx: { dateOfBirth, campaign: { startDate, endDate }, reference (BE trả: headApplies, autismQuestion), requireReason,
- *   conclusionMode (BE trả: STANDARD | FOLLOW_UP), knownCondition (BE trả: vấn đề đã biết của trẻ hoặc null) }.
+ *   conclusionMode (BE trả: STANDARD | FOLLOW_UP), knownCondition (BE trả: vấn đề đã biết của trẻ hoặc null), guardianCount }.
  */
-export const validateHealthExam = (payload, { dateOfBirth, campaign, reference, requireReason, conclusionMode, knownCondition } = {}) => {
+export const validateHealthExam = (
+  payload,
+  { dateOfBirth, campaign, reference, requireReason, conclusionMode, knownCondition, guardianCount } = {},
+) => {
   const errors = {};
   const exam = payload.exam || {};
   const a = exam.admin || {};
@@ -111,28 +119,13 @@ export const validateHealthExam = (payload, { dateOfBirth, campaign, reference, 
   else if (campaign && (payload.date < campaign.startDate || payload.date > campaign.endDate))
     errors.date = 'Chọn ngày khám trong khoảng ngày khám của đợt';
 
-  // I. Hành chính
-  if (!isBlank(a.childIdNumber) && !isValidIdNumber(a.childIdNumber)) errors['exam.admin.childIdNumber'] = ID_MESSAGE;
-  if (!YES_NO_VALUES.includes(a.premature)) errors['exam.admin.premature'] = 'Chọn trẻ có sinh non hay không';
-  checkNumber(errors, 'exam.admin.gestationWeeks', a.gestationWeeks, {
-    min: 20,
-    max: 42,
-    required: a.premature === YES_NO.YES,
-    label: 'tuần thai khi sinh',
-    unit: 'tuần',
-  });
-  ['ethnicity', 'beneficiary', 'paymentSource', 'bloodType'].forEach((k) => checkLength(errors, `exam.admin.${k}`, a[k], L.short));
-  checkLength(errors, 'exam.admin.address.province', a.address?.province, L.short);
-  checkLength(errors, 'exam.admin.address.ward', a.address?.ward, L.short);
-  checkLength(errors, 'exam.admin.address.street', a.address?.street, L.text);
+  // I. Hành chính lấy từ hồ sơ trẻ, giáo viên không sửa (user chốt 2026-10-22); kiểm người đi cùng và tiền sử.
+  // Người đi cùng chọn trong phụ huynh của hồ sơ (guardianCount: số phụ huynh BE trả).
   if (!YES_NO_VALUES.includes(a.hasCompanion)) errors['exam.admin.hasCompanion'] = 'Chọn có người đi cùng trẻ hay không';
-  if (a.hasCompanion === YES_NO.YES) {
-    const c = a.companion || {};
-    if (!text(c.fullName)) errors['exam.admin.companion.fullName'] = 'Nhập họ tên người đi cùng trẻ';
-    else checkLength(errors, 'exam.admin.companion.fullName', c.fullName, L.short);
-    if (!COMPANION_RELATIONS.includes(c.relation)) errors['exam.admin.companion.relation'] = 'Chọn mối quan hệ với trẻ';
-    if (!isBlank(c.phone) && !isValidPhone(c.phone)) errors['exam.admin.companion.phone'] = 'Nhập số điện thoại hợp lệ, ví dụ 0912 345 678';
-    if (!isBlank(c.idNumber) && !isValidIdNumber(c.idNumber)) errors['exam.admin.companion.idNumber'] = ID_MESSAGE;
+  else if (a.hasCompanion === YES_NO.YES) {
+    const i = a.companion?.guardianIndex;
+    if (!Number.isInteger(i) || i < 0 || (guardianCount != null && i >= guardianCount))
+      errors['exam.admin.companion'] = 'Chọn người đi cùng trong danh sách phụ huynh của hồ sơ trẻ';
   }
   HISTORY_ITEMS.forEach((item) => {
     const v = exam.history?.[item.key];
@@ -209,6 +202,10 @@ export const validateHealthExam = (payload, { dateOfBirth, campaign, reference, 
   else validateStandardConclusion(errors, c, L, knownCondition);
   if (!text(c.doctorName)) errors['exam.conclusion.doctorName'] = 'Nhập họ tên bác sĩ kết luận';
   else checkLength(errors, 'exam.conclusion.doctorName', c.doctorName, L.short);
+  if (needsParentOpinion(exam, conclusionMode)) {
+    if (!text(c.parentOpinion)) errors['exam.conclusion.parentOpinion'] = 'Ghi ý kiến của phụ huynh (người đi cùng) về kết luận';
+    else checkLength(errors, 'exam.conclusion.parentOpinion', c.parentOpinion, L.note);
+  }
 
   if (requireReason && !text(payload.reason)) errors.reason = 'Nhập lý do sửa phiếu đã có kết luận';
   else checkLength(errors, 'reason', payload.reason, L.text);

@@ -7,6 +7,13 @@ Lệnh chuẩn: `node scripts/verify.mjs` — chưa có code (`package.json`) �
 
 ## Bằng chứng
 
+### Swimlane luồng khám sức khỏe — 2026-10-23
+
+- Làn M (kèm ghi nhận kiểm thử ngoài phạm vi): tạo `artifacts/health-examination-swimlane.drawio`, XML UTF-8 chỉnh sửa được, gồm 4 trang: tổng quan; nhập phiếu và công bố; theo dõi sau khám; vòng đời đợt. Gồm 84 nút hoạt động/điều kiện/ghi chú và 86 đường nối; không chứa hồ sơ trẻ hay thông tin tài khoản.
+- Đối chiếu `docs/features/README.md`, các plan đã hoàn thành ngày 17/21/22-10 và mock repository hiện tại. Sibling BE không có, GitHub không đọc được; tham khảo bản BE local tại `D:/project_capstone/project/be/CareNest_BE/docs/` (card health và flow health-check, bản cũ). Sơ đồ gắn DRAFT và ghi rõ FE/mock còn chờ thống nhất BE; không thay đổi nghiệp vụ hay ứng dụng.
+- Kiểm XML, tham chiếu hình/đường nối, Unicode và bố cục SVG tương ứng; review độc lập các nhánh công bố, trao đổi, đóng/mở lại đợt. Chưa mở trực tiếp bằng diagrams.net; chưa kiểm BE thật.
+- Lịch sử cổng repo: lần đầu 5 test `follow-up-exam.test.mjs` không đạt; lần sau 269 test và lint đạt, dừng ở format của `src/components/children/exam/ExamSummary.jsx`. `check-ai-layer`: 0 lỗi, 14 cảnh báo hiện hữu. Ghi [incident kiểm thử](../knowledge/incidents/FE-BUG-261023-health-follow-up-verification.md) và index; không sửa source/test. Cả hai cổng chạy lại sau lần ghi tài liệu cuối; output bàn giao và `verify.log` là kết quả cuối.
+
 ### Nhịp ba chấm loading — 2026-10-20
 
 - Kiểm tiếp sau phản hồi "vẫn giật lắm": Chrome local mock `/ui-kit` bật giảm chuyển động. Trước sửa cả 9 chấm vẫn chạy `spinner-hop` infinite với duration `1e-05s` do rule `!important` toàn cục. Sau media rule riêng cho chấm: cả 9 có animation-name `none`, transform `none`, opacity `0.7`. Chế độ thường giữ source 1.6s, chưa giả lập lại; không đổi thời gian loading. Incident: `docs/knowledge/incidents/FE-BUG-261020-spinner-reduced-motion-loop.md`. Cổng verify và check-ai-layer chạy lại sau lần sửa cuối, xem output bàn giao.

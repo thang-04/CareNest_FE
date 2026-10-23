@@ -56,6 +56,7 @@ Admin và dữ liệu trẻ: AUTH-06 (PENDING P-16).
 | Review/duyệt summary | Sửa và duyệt summary DRAFT (template hoặc AI)            | `summary:approve`                      | `BE:docs/modules/learning-observation.md` | Tần suất PENDING P-12                           |
 | Báo sự cố CSVC       | Tạo sự cố (loại, mô tả, vị trí, ảnh)                     | `facility-issue:report`                | `BE:docs/modules/facility-issue.md`       |                                                 |
 | Báo nghỉ của lớp     | Xem báo nghỉ phụ huynh đã gửi (chỉ xem, **không duyệt**) | theo scope (không có permission duyệt) | `BE:docs/modules/attendance.md`           | ATT-04, ATT-05; GV tạo thay phụ huynh: PROPOSED |
+| Đón trẻ `/pickup`    | Danh sách chờ đón theo lớp/ngày; mỗi trẻ có "Trả trẻ" (modal so ảnh, khớp thì ghi giờ trả ngay trong modal) và "Gọi phụ huynh" (modal ghi nội dung cuộc gọi, Không trả ghi ngay, Trả trẻ sang `/pickup/result` nhập người đón) — user yêu cầu 2026-10-23 | theo vai (Giáo viên, Tổ trưởng) | chưa có (BE chưa có module card đón trẻ) | Chỉ Giáo viên, Tổ trưởng; Hiệu trưởng, Phó hiệu trưởng không xem (user chốt 2026-10-23) |
 
 ## Actor PENDING (hiển thị theo permission, không gán role)
 

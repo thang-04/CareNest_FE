@@ -160,14 +160,22 @@ export const FollowUpStatusBadge = createStatusBadge(
   FOLLOW_UP_STATUS_LABELS,
 );
 
-/* Công bố kết quả cho phụ huynh: đã công bố = hoàn tất (green), chưa công bố = chưa có (gray). */
+/* Công bố kết quả cho phụ huynh (BE công bố khi lưu, 2026-10-23): đã công bố = hoàn tất (green), chưa công bố = chưa có (gray). */
 export const PublishStatusBadge = createStatusBadge(
   {
     PUBLISHED: ['green', CheckCircle2],
-    PUBLISHED_ON_SAVE: ['green', CheckCircle2],
     UNPUBLISHED: ['gray', MinusCircle],
   },
-  { PUBLISHED: 'Đã công bố', PUBLISHED_ON_SAVE: 'Đã công bố khi lưu kết luận', UNPUBLISHED: 'Chưa công bố' },
+  { PUBLISHED: 'Đã công bố', UNPUBLISHED: 'Chưa công bố' },
+);
+
+/* Phiếu khám mức Cần theo dõi sát đã trao đổi với phụ huynh chưa: chưa = việc của giáo viên (orange). */
+export const ParentContactBadge = createStatusBadge(
+  {
+    CONTACTED: ['green', Handshake],
+    NOT_CONTACTED: ['orange', Clock],
+  },
+  { CONTACTED: 'Đã trao đổi phụ huynh', NOT_CONTACTED: 'Chưa trao đổi phụ huynh' },
 );
 
 /** Hạn trao đổi của vòng theo dõi (BE trả dueOn, overdueDays). Quá hạn = cần xử lý (red). */

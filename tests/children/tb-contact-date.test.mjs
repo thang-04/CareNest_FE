@@ -18,6 +18,7 @@ const { healthCheckMockRepository: checks } = await import('@/services/children/
 const { IMPORT_COLUMNS } = await import('@/models/children/childrenConstants');
 const { buildEmptyExam } = await import('@/models/children/healthExamForm');
 const { emptyChildInfo, emptyDeclaration } = await import('@/utils/children/childrenHelpers');
+const { filledImportColumns, filledMedicalHistory, filledProfile } = await import('./profileFixture.mjs');
 const { todayInput } = await import('@/utils/format');
 
 /*
@@ -111,11 +112,18 @@ test('AC-1, AC-4, AC-6: sửa khai báo — bắt ngày; lần đầu "Có" báo
 
 test('AC-1: tiếp nhận — khai "Có tiếp xúc" mà thiếu ngày ⇒ 422', async () => {
   const vp = await loginAs((u) => u.role === 'VICE_PRINCIPAL' && u.campusId === 'c1');
-  const declaration = emptyDeclaration();
+  const declaration = { ...emptyDeclaration(), medicalHistory: filledMedicalHistory() };
   declaration.medicalHistory.tbContact = { state: 'REPORTED', contactDate: '' };
   const guardian = { fullName: 'Phụ huynh thử', relation: 'Mẹ', phone: '0900 000 011', idNumber: '999900000011', email: '' };
   const payload = {
-    child: { ...emptyChildInfo(), fullName: 'Trẻ Thử Lao', dateOfBirth: '2023-02-02', gender: 'FEMALE', guardians: [guardian] },
+    child: {
+      ...emptyChildInfo(),
+      fullName: 'Trẻ Thử Lao',
+      dateOfBirth: '2023-02-02',
+      gender: 'FEMALE',
+      guardians: [guardian],
+      profile: filledProfile(),
+    },
     classId: '',
     declaration,
   };
@@ -135,6 +143,7 @@ test('AC-2: nhập Excel — "Có" mà thiếu ngày ⇒ dòng lỗi; có ngày 
     relation: 'Bố',
     phone: `0900 002 00${n}`,
     guardianIdNumber: `99990000200${n}`,
+    ...filledImportColumns(),
     tbContact: 'Có',
     ...patch,
   });
@@ -153,9 +162,9 @@ test('AC-2: nhập Excel — "Có" mà thiếu ngày ⇒ dòng lỗi; có ngày 
 /** Phiếu đủ ô bắt buộc từ bản điền sẵn; history ghi đè phần tiền sử. */
 const filledPayload = (view, history) => {
   const exam = structuredClone(view.draft ? view.draft.exam : view.measurement.exam);
-  exam.admin.premature ||= 'NO';
+  // Người đi cùng là phụ huynh đầu tiên của hồ sơ; hành chính BE lấy từ hồ sơ.
   exam.admin.hasCompanion = 'YES';
-  exam.admin.companion = { guardianIndex: null, fullName: 'Người đi cùng (giả)', relation: 'Mẹ', phone: '', idNumber: '' };
+  exam.admin.companion = { ...exam.admin.companion, guardianIndex: 0 };
   exam.history = { ...exam.history, self: 'NO', selfText: '', family: 'NO', familyText: '', ...history };
   exam.vitals = {
     temperatureC: 36.8,

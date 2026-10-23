@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ClipboardList, Save, ShieldCheck, ShieldAlert } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -93,6 +93,8 @@ function ResultForm({ childId, verification, guardianIndex }) {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  // Nội dung cuộc gọi ghi ở modal "Gọi phụ huynh" (danh sách Đón trẻ) chuyển sang đây.
+  const callNote = useLocation().state?.note || '';
   const { context, loading, error, reload } = usePickupChild(childId, { live: false });
   const [form, setForm] = useState(null);
   const [errors, setErrors] = useState({});
@@ -111,9 +113,9 @@ function ResultForm({ childId, verification, guardianIndex }) {
       pickupPersonRelation: g?.relation || prior?.pickupPersonRelation || '',
       pickupPersonPhone: prior?.pickupPersonPhone || '',
       handoverTime: nowTime(),
-      note: '',
+      note: callNote,
     });
-  }, [context, form, childId, verification, guardianIndex]);
+  }, [context, form, childId, verification, guardianIndex, callNote]);
 
   if (loading || (!form && !error)) return <LoadingState />;
   if (error)
@@ -130,6 +132,8 @@ function ResultForm({ childId, verification, guardianIndex }) {
   const handedOver = outcomeOf(verification) === PICKUP_OUTCOME.HANDED_OVER;
   const fromPhoto = verification === VERIFICATION.PHOTO_MATCH;
   const unreachable = verification === VERIFICATION.PHONE_UNREACHABLE;
+  const byPhone = verification === VERIFICATION.PHONE_CONFIRMED || verification === VERIFICATION.PHONE_DECLINED;
+  const backTo = `/pickup?classId=${context?.classId}&${byPhone ? 'call' : 'verify'}=${childId}`;
   const selfDeclared = unreachable ? ' (theo lời người đón)' : '';
   const set = (k) => (e) => {
     setForm({ ...form, [k]: e.target.value });
@@ -180,7 +184,7 @@ function ResultForm({ childId, verification, guardianIndex }) {
           {handedOver
             ? 'Trẻ được trả cho người đón.'
             : unreachable
-              ? 'Chưa trả trẻ. Người đón có thể chờ; khi phụ huynh gọi lại đồng ý, bấm "Xác minh lại" ở danh sách đón để trả trẻ.'
+              ? 'Chưa trả trẻ. Người đón có thể chờ; khi phụ huynh gọi lại đồng ý, bấm "Gọi phụ huynh" ở danh sách đón để trả trẻ.'
               : 'Không trả trẻ. Trẻ ở lại lớp.'}
         </div>
       </div>
@@ -247,7 +251,13 @@ function ResultForm({ childId, verification, guardianIndex }) {
             <span className="text-sm text-2">Xác nhận qua điện thoại:</span>{' '}
             <b>{verification === VERIFICATION.PHONE_CONFIRMED ? 'Có – phụ huynh đồng ý' : fromPhoto ? 'Không cần (khớp ảnh)' : 'Không'}</b>
           </div>
-          <FormField label="Ghi chú" error={errors.note} className="mt-12" hint={unreachable ? 'Không bắt buộc' : undefined}>
+          <FormField
+            label={byPhone ? 'Nội dung cuộc gọi' : 'Ghi chú'}
+            required={byPhone}
+            error={errors.note}
+            className="mt-12"
+            hint={unreachable ? 'Không bắt buộc' : undefined}
+          >
             <textarea
               className="textarea"
               rows={3}
@@ -260,7 +270,7 @@ function ResultForm({ childId, verification, guardianIndex }) {
         </div>
       </div>
       <div className="page-actions">
-        <Link className="btn" to={`/pickup/${childId}/verify`}>
+        <Link className="btn" to={backTo}>
           <ArrowLeft size={16} /> Quay lại xác minh
         </Link>
         <button className={`btn btn--lg ${handedOver ? 'btn--primary' : 'btn--danger'}`} onClick={openConfirm}>

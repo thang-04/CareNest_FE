@@ -485,6 +485,7 @@ export default function UiKitPage() {
           </div>
           <div className="mt-12" style={{ maxWidth: 320 }}>
             <ProgressBar value={7} total={10} />
+            <ProgressBar value={7} total={10} ended />
             <ProgressBar value={10} total={10} />
             <ProgressBar value={0} total={0} />
           </div>

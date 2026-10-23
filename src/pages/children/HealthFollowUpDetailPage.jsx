@@ -439,9 +439,9 @@ export default function HealthFollowUpDetailPage() {
   const todo =
     f.canUpdate &&
     (f.status === S.WAITING_PARENT_CONTACT
-      ? `Trao đổi với phụ huynh về kết quả khám mới nhất trước ngày ${formatDate(round.dueOn)}, rồi ghi lại. Kết quả ở mức Cần theo dõi sát chỉ công bố được cho phụ huynh sau khi bạn ghi trao đổi.`
+      ? `Trao đổi với phụ huynh về kết quả khám mới nhất trước ngày ${formatDate(round.dueOn)}, rồi ghi lại. Phụ huynh đã thấy kết quả trên ứng dụng; ghi trao đổi thì phiếu khám chuyển sang "Đã trao đổi phụ huynh".`
       : f.status === S.PARENT_CONTACTED
-        ? `Bạn đã công bố được kết quả khám cho phụ huynh. Khi phụ huynh báo kết quả khám chuyên khoa, ghi lại đúng lời bác sĩ; sau ${EXTERNAL_RESULT_DUE_DAYS} ngày chưa có kết quả, hệ thống nhắc bạn hỏi phụ huynh.`
+        ? `Đã trao đổi với phụ huynh. Khi phụ huynh báo kết quả khám chuyên khoa, ghi lại đúng lời bác sĩ; sau ${EXTERNAL_RESULT_DUE_DAYS} ngày chưa có kết quả, hệ thống nhắc bạn hỏi phụ huynh.`
         : f.status === S.EXTERNAL_RESULT_RECORDED
           ? 'Đã có kết quả khám chuyên khoa. Bác sĩ không hẹn khám lại và nhà trường đã xong việc thì đóng phiếu, chọn kết quả theo lời bác sĩ. Còn cần khám lại hoặc quan sát tiếp thì để phiếu mở.'
           : '');

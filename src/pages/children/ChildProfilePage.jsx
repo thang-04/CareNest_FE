@@ -8,10 +8,9 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState } from '@/components/ui/States';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
-import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import { avatarTone, formatDate, formatDateTime, initials } from '@/utils/format';
-import { canDeclareHealth, canEditChild, canPlaceChild } from '@/utils/children/childrenPermissions';
+import { canEditChild, canPlaceChild } from '@/utils/children/childrenPermissions';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { canActivateParent, canRecordMeasurement, canViewParentAccounts } from '@/utils/children/childrenPermissions';
 import { SMS_STATUS } from '@/models/children/childrenConstants';
@@ -226,23 +225,6 @@ export default function ChildProfilePage() {
                 </div>
               )}
             </section>
-            <section className="card">
-              <div className="card__header row row--between">
-                <h2 className="card__title">Sức khỏe khi tiếp nhận</h2>
-                {canDeclareHealth(child, user) && (
-                  <Link className="btn btn--sm" to={`/children/${child.id}/health-declaration`}>
-                    <Pencil size={15} /> Cập nhật khai báo
-                  </Link>
-                )}
-              </div>
-              <div className="card__body">
-                <DeclarationSummary
-                  declaration={declaration}
-                  confirmedAllergies={child.allergies}
-                  confirmedByName={declaration?.confirmedByName}
-                />
-              </div>
-            </section>
           </div>
           <aside className="detail-layout__aside">
             <section className="card">
@@ -292,7 +274,7 @@ export default function ChildProfilePage() {
                   <ClipboardList size={20} />
                   <span>
                     <span className="fw-600">Khai báo sức khỏe</span>
-                    <span className="muted text-sm">Dị ứng, chế độ ăn khi tiếp nhận</span>
+                    <span className="muted text-sm">Dị ứng, chế độ ăn, tiền sử</span>
                   </span>
                 </Link>
               </div>

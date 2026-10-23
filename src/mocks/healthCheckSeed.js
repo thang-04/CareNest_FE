@@ -301,6 +301,7 @@ const examContactNote = (m) => {
   const { companion } = m.exam.admin;
   const c = m.exam.conclusion;
   const parts = [`Bác sĩ trao đổi kết luận với ${companion.fullName} (${companion.relation}) tại buổi khám.`];
+  if (c.parentOpinion) parts.push(`Ý kiến phụ huynh: ${c.parentOpinion}`);
   if (c.tbRisk) parts.push('Kết luận có nguy cơ mắc lao (tiền sử tiếp xúc).');
   if (c.action === 'REFERRAL') parts.push(`Đề nghị khám chuyên khoa: ${c.specialty}.`);
   if (c.adviceText) parts.push(`Lời dặn: ${c.adviceText}`);

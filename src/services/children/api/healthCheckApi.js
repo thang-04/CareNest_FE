@@ -12,6 +12,15 @@ import { axiosClient } from '@/services/http/axiosClient';
  * (NO_NEW_FINDING | ADVICE | NEW_FINDING) hoặc issueKind (NEW | KNOWN). Lưu kết luận không đóng phiếu. Dòng thời gian có
  * MEASUREMENT_ADDED { newFinding }. POST close nhận { outcome (DOCTOR_NORMAL | KNOWN_CONDITION | NO_SPECIALIST_RESULT),
  * conditionText?, reason }; phiếu trả closeOutcome, closeConditionText, closeOutcomeOptions[]. KNOWN_CONDITION ⇒ BE ghi tiền sử bản thân.
+ * Phần I (docs/plans/completed/2026-10-22-exam-admin-from-profile.md): BE điền exam.admin (trừ người đi cùng) từ hồ sơ trẻ,
+ * bỏ qua giá trị client gửi; phiếu đã kết luận giữ bản chụp. Người đi cùng: client gửi hasCompanion + companion.guardianIndex,
+ * BE chép chi tiết từ phụ huynh của hồ sơ; thiếu/sai ⇒ 422 exam.admin.companion. exam.history client gửi (điền sẵn từ khai báo);
+ * lưu kết luận ⇒ BE cập nhật declaration.medicalHistory, có lịch sử; đổi ngày tiếp xúc lao ⇒ CHILD_TB_CONTACT_DATE_CHANGED.
+ * previous (danh sách lớp, phiếu khám; 2026-10-22): lần khám trong đợt gần nhất trước ngày khám, không tính phiếu nháp và cân đo
+ * ngoài đợt của giáo viên.
+ * Công bố (2026-10-23, docs/plans/completed/2026-10-23-auto-publish-health-results.md): lưu kết luận (kể cả lưu lại sau sửa) ⇒ BE công bố
+ * ngay; nháp không công bố. exam.conclusion.parentOpinion (≤500) bắt buộc khi có người đi cùng và kết luận mức Cần theo dõi sát
+ * (422 exam.conclusion.parentOpinion), BE ghi vào lần trao đổi tại buổi khám; measurement trả parentContact.
  */
 export const healthCheckApi = {
   listHealthChecks: (filters) => axiosClient.get('/health-checks', { params: filters }),

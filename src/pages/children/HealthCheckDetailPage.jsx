@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Info, Users, CheckCircle2 } from '@/components/ui/icons';
+import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Info, Users, CheckCircle2, ChevronDown } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheck } from '@/hooks/children/useHealthChecks';
@@ -23,7 +23,6 @@ import { HealthCheckClassRoster } from '@/components/children/HealthCheckClassRo
 import { cancelHealthCheck, closeHealthCheck, reopenHealthCheck } from '@/services/children/healthCheckService';
 import { SCREENING_CRITERIA_LABELS } from '@/models/children/childrenConstants';
 import { CAMPAIGN_ACTION_LABELS, CAMPAIGN_STATUS } from '@/models/children/healthCheckConstants';
-import { CONCLUSION_CATEGORY, CONCLUSION_CATEGORY_LABELS } from '@/models/children/healthExamForm';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { canManageHealthCheck, isTeacherRole } from '@/utils/children/childrenPermissions';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
@@ -37,25 +36,14 @@ const STAT_TONES = [
   { key: 'notConcluded', label: 'Chưa kết luận', tone: 'orange', hideZero: true },
 ];
 
-// Thống kê theo kết luận bác sĩ (BE đếm theo nhóm kết luận; nguy cơ lao không tính vào chuyển khám).
-// Trẻ đang có phiếu theo dõi được khám theo mẫu riêng nên có 2 nhóm "Đang theo dõi" (user chốt 2026-10-21).
-const CONCLUSION_TONES = [
-  { key: CONCLUSION_CATEGORY.NORMAL, tone: 'green' },
-  { key: CONCLUSION_CATEGORY.ISSUE, tone: 'orange' },
-  { key: CONCLUSION_CATEGORY.REFERRAL, tone: 'red' },
-  { key: CONCLUSION_CATEGORY.TB_RISK, tone: 'red' },
-  { key: CONCLUSION_CATEGORY.FOLLOWING_NO_NEW, tone: 'blue' },
-  { key: CONCLUSION_CATEGORY.FOLLOWING_NEW, tone: 'red' },
-];
-
 function StatusBanner({ campaign, teacher }) {
   if (campaign.status === CAMPAIGN_STATUS.IN_PROGRESS)
     return teacher ? (
       <div className="alert alert--info mb-16">
         <Info size={18} />
         <div>
-          Chọn lớp, bấm <b>Khám</b> cạnh tên trẻ để nhập phiếu theo mẫu Phụ lục II cùng bác sĩ. Phụ huynh chỉ xem được phiếu sau khi bạn
-          công bố.
+          Bấm <b>Khám</b> cạnh tên trẻ ở danh sách lớp bên dưới để nhập phiếu theo mẫu Phụ lục II cùng bác sĩ. Lưu kết luận là công bố cho
+          phụ huynh ngay.
         </div>
       </div>
     ) : null;
@@ -118,8 +106,9 @@ export default function HealthCheckDetailPage() {
   const manage = canManageHealthCheck(user);
   const teacher = isTeacherRole(user);
   const unclosed = [CAMPAIGN_STATUS.UPCOMING, CAMPAIGN_STATUS.IN_PROGRESS].includes(campaign.status);
-  // Giáo viên chỉ phụ trách một lớp trong đợt: mở sẵn danh sách lớp đó
-  const classId = params.get('classId') || (teacher && classes.length === 1 ? classes[0].classId : '');
+  // Đợt đã đóng/hủy: thanh tiến độ tĩnh, không như đang diễn ra (user yêu cầu 2026-10-23).
+  const ended = !unclosed;
+  const classId = params.get('classId') || '';
   const selectClass = (id) => setParams(id ? { classId: id } : {});
 
   const run = async (action, success) => {
@@ -216,28 +205,22 @@ export default function HealthCheckDetailPage() {
                 <dd>{campaign.note || <span className="muted">Không có</span>}</dd>
                 <dt>Tiến độ{teacher ? ' lớp của bạn' : ''}</dt>
                 <dd className="tr-progress-cell">
-                  <ProgressBar value={campaign.progress.recorded} total={campaign.progress.total} />
+                  <ProgressBar value={campaign.progress.recorded} total={campaign.progress.total} ended={ended} />
                 </dd>
               </dl>
             </div>
           </section>
-          <div className="stat-grid mt-16">
-            {STAT_TONES.filter((s) => !s.hideZero || campaign.progress[s.key] > 0).map((s) => (
-              <div key={s.key} className={`stat-card stat-card--${s.tone}`}>
-                <div className="stat-card__value">{campaign.progress[s.key]}</div>
-                <div className="stat-card__label">{s.label}</div>
-              </div>
-            ))}
-          </div>
-          <h2 className="subsection-title mt-16">Theo kết luận của bác sĩ</h2>
-          <div className="stat-grid">
-            {CONCLUSION_TONES.map((s) => (
-              <div key={s.key} className={`stat-card stat-card--${s.tone}`}>
-                <div className="stat-card__value">{campaign.progress.byConclusion?.[s.key] ?? 0}</div>
-                <div className="stat-card__label">{CONCLUSION_CATEGORY_LABELS[s.key]}</div>
-              </div>
-            ))}
-          </div>
+          {/* Giáo viên xem tiến độ ở thanh "Tiến độ" và tiêu đề danh sách lớp, không cần hàng thẻ (user chốt 2026-10-22). */}
+          {!teacher && (
+            <div className="stat-grid mt-16">
+              {STAT_TONES.filter((s) => !s.hideZero || campaign.progress[s.key] > 0).map((s) => (
+                <div key={s.key} className={`stat-card stat-card--${s.tone}`}>
+                  <div className="stat-card__value">{campaign.progress[s.key]}</div>
+                  <div className="stat-card__label">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <aside className="detail-layout__aside">
           <section className="card">
@@ -264,159 +247,190 @@ export default function HealthCheckDetailPage() {
         </aside>
       </div>
 
-      <section className="card mt-16">
-        <div className="tr-chart-toolbar">
-          <div className="tabs" role="tablist" aria-label="Nội dung đợt khám">
-            <button
-              role="tab"
-              aria-selected={tab === 'classes'}
-              className={`tab ${tab === 'classes' ? 'tab--active' : ''}`}
-              onClick={() => setTab('classes')}
-            >
-              Tiến độ theo lớp
-            </button>
-            <button
-              role="tab"
-              aria-selected={tab === 'watch'}
-              className={`tab ${tab === 'watch' ? 'tab--active' : ''}`}
-              onClick={() => setTab('watch')}
-            >
-              Trẻ cần theo dõi <span className="tab__count">{watchList.length}</span>
-            </button>
-          </div>
-        </div>
-        {tab === 'classes' ? (
-          classes.length === 0 ? (
+      {/* Giáo viên: danh sách trẻ của lớp hiện thẳng, không qua bảng tiến độ theo lớp và tab (user chốt 2026-10-22). */}
+      {teacher ? (
+        classes.length === 0 ? (
+          <section className="card mt-16">
             <EmptyState icon={Users} title="Không có lớp trong phạm vi của bạn" description="Đợt khám này không có lớp bạn phụ trách." />
+          </section>
+        ) : (
+          classes.map((c) => <HealthCheckClassRoster key={c.classId} campaignId={campaign.id} classId={c.classId} />)
+        )
+      ) : (
+        <section className="card mt-16">
+          <div className="tr-chart-toolbar">
+            <div className="tabs" role="tablist" aria-label="Nội dung đợt khám">
+              <button
+                role="tab"
+                aria-selected={tab === 'classes'}
+                className={`tab ${tab === 'classes' ? 'tab--active' : ''}`}
+                onClick={() => setTab('classes')}
+              >
+                Tiến độ theo lớp
+              </button>
+              <button
+                role="tab"
+                aria-selected={tab === 'watch'}
+                className={`tab ${tab === 'watch' ? 'tab--active' : ''}`}
+                onClick={() => setTab('watch')}
+              >
+                Trẻ cần theo dõi <span className="tab__count">{watchList.length}</span>
+              </button>
+            </div>
+          </div>
+          {tab === 'classes' ? (
+            classes.length === 0 ? (
+              <EmptyState icon={Users} title="Không có lớp trong phạm vi của bạn" description="Đợt khám này không có lớp bạn phụ trách." />
+            ) : (
+              <div className="table-wrap tr-table-flat">
+                <table className="table table--grid">
+                  <thead>
+                    <tr>
+                      <th>Lớp</th>
+                      <th>Đã có kết luận</th>
+                      <th className="num">Vắng khám</th>
+                      <th className="num">Cần theo dõi</th>
+                      <th className="num">Cần theo dõi sát</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {classes.map((c) => {
+                      const open = classId === c.classId;
+                      const panelId = `hc-class-${c.classId}`;
+                      const toggle = () => selectClass(open ? '' : c.classId);
+                      return (
+                        <Fragment key={c.classId}>
+                          {/* Danh sách trẻ sổ ngay dưới dòng lớp, mỗi lúc một lớp (user yêu cầu 2026-10-23); bấm dòng hoặc nút để mở, đóng. */}
+                          <tr className={`tr-acc-row ${open ? 'tr-row-selected' : ''}`} onClick={toggle}>
+                            <td className="fw-600">
+                              <button
+                                type="button"
+                                className="tr-acc-toggle"
+                                aria-expanded={open}
+                                aria-controls={open ? panelId : undefined}
+                                title={open ? 'Thu gọn danh sách trẻ' : 'Xem danh sách trẻ'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggle();
+                                }}
+                              >
+                                <ChevronDown
+                                  size={16}
+                                  className={`tr-acc-chevron ${open ? 'tr-acc-chevron--open' : ''}`}
+                                  aria-hidden="true"
+                                />
+                                {c.className}
+                              </button>
+                            </td>
+                            <td className="tr-progress-cell">
+                              <ProgressBar value={c.recorded} total={c.total} ended={ended} />
+                            </td>
+                            <td className="num">{c.absent || '—'}</td>
+                            <td className="num">{c.watch || '—'}</td>
+                            <td className="num">{c.closeWatch ? <span className="text-danger fw-600">{c.closeWatch}</span> : '—'}</td>
+                          </tr>
+                          {open && (
+                            <tr id={panelId} className="tr-acc-panel">
+                              <td colSpan={5}>
+                                <HealthCheckClassRoster campaignId={campaign.id} classId={c.classId} embedded />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : watchList.length === 0 ? (
+            <EmptyState
+              icon={CheckCircle2}
+              title="Chưa có trẻ cần theo dõi"
+              description="Trẻ ở mức Cần theo dõi hoặc Cần theo dõi sát trong đợt này sẽ hiện ở đây."
+            />
           ) : (
             <div className="table-wrap tr-table-flat">
               <table className="table table--grid">
                 <thead>
                   <tr>
+                    <th>Trẻ</th>
                     <th>Lớp</th>
-                    <th>Đã có kết luận</th>
-                    <th className="num">Vắng khám</th>
-                    <th className="num">Cần theo dõi</th>
-                    <th className="num">Cần theo dõi sát</th>
+                    <th>Đợt này</th>
+                    <th>Lần khám trước</th>
+                    <th>Phiếu theo dõi</th>
                     <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {classes.map((c) => (
-                    <tr key={c.classId} className={classId === c.classId ? 'tr-row-selected' : ''}>
-                      <td className="fw-600">{c.className}</td>
-                      <td className="tr-progress-cell">
-                        <ProgressBar value={c.recorded} total={c.total} />
+                  {watchList.map((r) => (
+                    <tr key={r.childId}>
+                      <td>
+                        <div className="fw-600">{r.fullName}</div>
+                        <div className="muted text-xs">{r.code}</div>
                       </td>
-                      <td className="num">{c.absent || '—'}</td>
-                      <td className="num">{c.watch || '—'}</td>
-                      <td className="num">{c.closeWatch ? <span className="text-danger fw-600">{c.closeWatch}</span> : '—'}</td>
+                      <td className="nowrap">{r.className}</td>
+                      <td>
+                        {r.conclusionCategory ? (
+                          <div className="tr-cell-stack">
+                            <ConclusionCategoryBadge status={r.conclusionCategory} />
+                            <span className="muted text-xs tr-note">
+                              {r.conclusion?.specialty ? `Chuyển khám: ${r.conclusion.specialty}` : r.conclusion?.issueText}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="tr-cell-stack">
+                            <FollowUpLevelShortBadge status={r.followUpLevel} />
+                            <span className="muted text-xs">
+                              {r.criteria
+                                .filter((c) => c.flagged)
+                                .map((c) => SCREENING_CRITERIA_LABELS[c.key])
+                                .join(' · ')}
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="text-sm">
+                        {r.previous ? (
+                          <div className="tr-cell-stack">
+                            <span className="muted text-xs">
+                              {formatDate(r.previous.date)}
+                              {r.previous.campaignName ? ` · ${r.previous.campaignName}` : ''}
+                            </span>
+                            <FollowUpLevelShortBadge status={r.previous.followUpLevel} />
+                          </div>
+                        ) : (
+                          <span className="muted">Chưa có</span>
+                        )}
+                      </td>
+                      <td>
+                        {r.followUp ? (
+                          <div className="tr-cell-stack">
+                            <Link to={`/children/health-follow-ups/${r.followUp.id}`} aria-label={`Mở phiếu theo dõi của ${r.fullName}`}>
+                              <FollowUpStatusBadge status={r.followUp.status} />
+                            </Link>
+                            <FollowUpDueBadge dueOn={r.followUp.dueOn} overdueDays={r.followUp.overdueDays} hideOnTime />
+                            {r.followUp.latestExternalResult && (
+                              <span className="muted text-xs tr-note">
+                                Bác sĩ chuyên khoa ({formatDate(r.followUp.latestExternalResult.on)}):{' '}
+                                {r.followUp.latestExternalResult.note}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
                       <td className="cell--actions">
-                        <button
-                          type="button"
-                          className={`btn btn--sm ${c.canRecord ? 'btn--primary' : ''}`}
-                          aria-pressed={classId === c.classId}
-                          onClick={() => selectClass(classId === c.classId ? '' : c.classId)}
-                        >
-                          {c.canRecord ? 'Khám trẻ của lớp' : 'Xem danh sách trẻ'}
-                        </button>
+                        <RowActions view={{ to: `/children/${r.childId}/health`, label: 'Mở sổ sức khỏe' }} name={r.fullName} />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )
-        ) : watchList.length === 0 ? (
-          <EmptyState
-            icon={CheckCircle2}
-            title="Chưa có trẻ cần theo dõi"
-            description="Trẻ ở mức Cần theo dõi hoặc Cần theo dõi sát trong đợt này sẽ hiện ở đây."
-          />
-        ) : (
-          <div className="table-wrap tr-table-flat">
-            <table className="table table--grid">
-              <thead>
-                <tr>
-                  <th>Trẻ</th>
-                  <th>Lớp</th>
-                  <th>Đợt này</th>
-                  <th>Lần khám trước</th>
-                  <th>Phiếu theo dõi</th>
-                  <th className="cell--actions">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {watchList.map((r) => (
-                  <tr key={r.childId}>
-                    <td>
-                      <div className="fw-600">{r.fullName}</div>
-                      <div className="muted text-xs">{r.code}</div>
-                    </td>
-                    <td className="nowrap">{r.className}</td>
-                    <td>
-                      {r.conclusionCategory ? (
-                        <div className="tr-cell-stack">
-                          <ConclusionCategoryBadge status={r.conclusionCategory} />
-                          <span className="muted text-xs tr-note">
-                            {r.conclusion?.specialty ? `Chuyển khám: ${r.conclusion.specialty}` : r.conclusion?.issueText}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="tr-cell-stack">
-                          <FollowUpLevelShortBadge status={r.followUpLevel} />
-                          <span className="muted text-xs">
-                            {r.criteria
-                              .filter((c) => c.flagged)
-                              .map((c) => SCREENING_CRITERIA_LABELS[c.key])
-                              .join(' · ')}
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="text-sm">
-                      {r.previous ? (
-                        <div className="tr-cell-stack">
-                          <span className="muted text-xs">
-                            {formatDate(r.previous.date)}
-                            {r.previous.campaignName ? ` · ${r.previous.campaignName}` : ''}
-                          </span>
-                          <FollowUpLevelShortBadge status={r.previous.followUpLevel} />
-                        </div>
-                      ) : (
-                        <span className="muted">Chưa có</span>
-                      )}
-                    </td>
-                    <td>
-                      {r.followUp ? (
-                        <div className="tr-cell-stack">
-                          <Link to={`/children/health-follow-ups/${r.followUp.id}`} aria-label={`Mở phiếu theo dõi của ${r.fullName}`}>
-                            <FollowUpStatusBadge status={r.followUp.status} />
-                          </Link>
-                          <FollowUpDueBadge dueOn={r.followUp.dueOn} overdueDays={r.followUp.overdueDays} hideOnTime />
-                          {r.followUp.latestExternalResult && (
-                            <span className="muted text-xs tr-note">
-                              Bác sĩ chuyên khoa ({formatDate(r.followUp.latestExternalResult.on)}): {r.followUp.latestExternalResult.note}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
-                    <td className="cell--actions">
-                      <RowActions view={{ to: `/children/${r.childId}/health`, label: 'Mở sổ sức khỏe' }} name={r.fullName} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {tab === 'classes' && classId && classes.some((c) => c.classId === classId) && (
-        <HealthCheckClassRoster campaignId={campaign.id} classId={classId} onClose={() => selectClass('')} />
+          )}
+        </section>
       )}
 
       <div className="page-actions">

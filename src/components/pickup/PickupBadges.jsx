@@ -13,7 +13,7 @@ export const PickupOutcomeBadge = createStatusBadge(
   PICKUP_OUTCOME_LABELS,
 );
 
-/* Cách xác minh người đón là thông tin (teal); phụ huynh từ chối = red, chưa liên lạc được = chờ phụ huynh (orange). */
+/* Cách xác minh người đón là thông tin (teal); gọi phụ huynh rồi không trả = red; không liên lạc được (bản ghi cũ) = orange. */
 export const VerificationBadge = createStatusBadge(
   {
     PHOTO_MATCH: ['teal', Camera],

@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Send, CheckCircle2, Info, LineChart, FileCheck2, Stethoscope } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { MeasurementSummary } from '@/components/children/MeasurementSummary';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
-import { publishMeasurement, saveMeasurement } from '@/services/children/childrenService';
-import { MEASUREMENT_SOURCE, PARENT_VISIBLE_HEALTH_TEXT } from '@/models/children/childrenConstants';
+import { saveMeasurement } from '@/services/children/childrenService';
+import { MEASUREMENT_SOURCE } from '@/models/children/childrenConstants';
 import { EXAM_STATUS } from '@/models/children/healthExamForm';
 import { ageLabel } from '@/models/School';
 import { formatDate, todayInput } from '@/utils/format';
@@ -31,13 +30,11 @@ export default function HealthMeasurementFormPage() {
   const { id, measurementId } = useParams();
   const { user } = useAuth();
   const toast = useToast();
-  const navigate = useNavigate();
   const { record, loading, error, reload } = useHealthRecord(id, { live: false });
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(null);
-  const [confirmPublish, setConfirmPublish] = useState(false);
 
   const existing = measurementId ? record?.measurements.find((m) => m.id === measurementId) : null;
 
@@ -45,7 +42,6 @@ export default function HealthMeasurementFormPage() {
     setForm(emptyForm());
     setErrors({});
     setSaved(null);
-    setConfirmPublish(false);
   }, [id, measurementId]);
 
   useEffect(() => {
@@ -167,23 +163,12 @@ export default function HealthMeasurementFormPage() {
     try {
       const m = await saveMeasurement(child.id, measurementId || null, form, user);
       setSaved(m);
-      toast.success('Đã lưu số đo.');
+      toast.success('Đã lưu số đo và công bố cho phụ huynh.');
     } catch (err) {
       if (err.details) setErrors(err.details);
       toast.error(err, 'Không lưu được số đo');
     } finally {
       setBusy(false);
-    }
-  };
-
-  const publish = async () => {
-    try {
-      await publishMeasurement(child.id, saved.id, user);
-      toast.success('Đã công bố số đo cho phụ huynh.');
-      navigate(backTo);
-    } catch (err) {
-      toast.error(err, 'Không công bố được');
-      setConfirmPublish(false);
     }
   };
 
@@ -198,10 +183,13 @@ export default function HealthMeasurementFormPage() {
             <h2 className="card__title">Đã lưu số đo ngày {formatDate(saved.date)}</h2>
           </div>
           <MeasurementSummary measurement={saved} />
-          <div className="alert alert--info mt-16">
-            <Info size={18} />
+          <div className="alert alert--success mt-16">
+            <Send size={18} />
             <div>
-              Cân đo ngoài đợt khám không có kết luận của bác sĩ và không mở phiếu theo dõi. Nếu chưa công bố, phụ huynh chưa xem được.
+              {requireReason
+                ? 'Đã công bố lại bản mới cho phụ huynh; phụ huynh nhận thông báo kết quả đã cập nhật.'
+                : 'Đã công bố cho phụ huynh khi lưu; phụ huynh nhận thông báo trên ứng dụng.'}{' '}
+              {existing?.campaignId ? '' : 'Cân đo ngoài đợt khám không có kết luận của bác sĩ và không mở phiếu theo dõi.'}
             </div>
           </div>
         </section>
@@ -214,25 +202,10 @@ export default function HealthMeasurementFormPage() {
               <LineChart size={16} /> Xem xu hướng
             </Link>
           </div>
-          <div className="row gap-2">
-            <Link className="btn" to={backTo}>
-              Để sau, chưa công bố
-            </Link>
-            {!saved.published && (
-              <button className="btn btn--primary" onClick={() => setConfirmPublish(true)}>
-                <Send size={16} /> Công bố cho phụ huynh
-              </button>
-            )}
-          </div>
+          <Link className="btn btn--primary" to={backTo}>
+            Về sổ sức khỏe
+          </Link>
         </div>
-        <ConfirmationModal
-          open={confirmPublish}
-          title="Công bố số đo cho phụ huynh?"
-          message={`Phụ huynh của ${child.fullName} sẽ xem được ${PARENT_VISIBLE_HEALTH_TEXT} của ngày ${formatDate(saved.date)} và nhận thông báo trên ứng dụng.`}
-          confirmLabel="Công bố số đo"
-          onConfirm={publish}
-          onClose={() => setConfirmPublish(false)}
-        />
       </div>
     );
 
@@ -254,7 +227,8 @@ export default function HealthMeasurementFormPage() {
             <>
               Cân đo <b>ngoài đợt khám</b> (ví dụ tại lớp, không có bác sĩ): không có kết luận, không mở phiếu theo dõi.
             </>
-          )}
+          )}{' '}
+          Lưu là công bố cho phụ huynh ngay; phụ huynh xem được số đo và ghi chú trên ứng dụng.
         </div>
       </div>
       {!existing && openCampaign && openCampaign.resultStatus !== EXAM_STATUS.CONCLUDED && openCampaign.resultStatus !== 'LEGACY' && (
@@ -275,7 +249,7 @@ export default function HealthMeasurementFormPage() {
       {requireReason && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
-          <div>Số đo này đã công bố cho phụ huynh. Sửa cần ghi lý do, và bạn cần công bố lại.</div>
+          <div>Số đo này đã công bố cho phụ huynh. Sửa cần ghi lý do; lưu là công bố lại và phụ huynh nhận thông báo cập nhật.</div>
         </div>
       )}
       <section className="card wizard-card">

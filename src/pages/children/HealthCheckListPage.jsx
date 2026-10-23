@@ -10,7 +10,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import { CampaignStatusBadge } from '@/components/children/ChildBadges';
-import { CAMPAIGN_STATUS_LABELS } from '@/models/children/healthCheckConstants';
+import { CAMPAIGN_STATUS, CAMPAIGN_STATUS_LABELS } from '@/models/children/healthCheckConstants';
 import { formatDate } from '@/utils/format';
 import { canManageHealthCheck, isPrincipal, isTeacherRole } from '@/utils/children/childrenPermissions';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
@@ -166,7 +166,11 @@ export default function HealthCheckListPage() {
                         <CampaignStatusBadge status={c.status} />
                       </td>
                       <td className="tr-progress-cell">
-                        <ProgressBar value={c.progress.recorded} total={c.progress.total} />
+                        <ProgressBar
+                          value={c.progress.recorded}
+                          total={c.progress.total}
+                          ended={c.status === CAMPAIGN_STATUS.CLOSED || c.status === CAMPAIGN_STATUS.CANCELLED}
+                        />
                         {c.progress.absent > 0 && <div className="muted text-xs">{c.progress.absent} vắng khám</div>}
                       </td>
                       <td className="text-sm nowrap">

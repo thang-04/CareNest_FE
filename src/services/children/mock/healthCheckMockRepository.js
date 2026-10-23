@@ -80,9 +80,10 @@ const findCampaign = (db, id, user) => {
   return c;
 };
 
-const latestBefore = (db, childId, date, excludeId) =>
+/** Lần khám trước: chỉ lần khám trong đợt (có bác sĩ); bỏ phiếu nháp và cân đo ngoài đợt của giáo viên (user chốt 2026-10-22). */
+export const previousExamOf = (db, childId, date, excludeId) =>
   db.healthMeasurements
-    .filter((m) => m.childId === childId && m.id !== excludeId && m.date < date && !isExamDraft(m))
+    .filter((m) => m.childId === childId && m.id !== excludeId && !!m.campaignId && m.date < date && !isExamDraft(m))
     .sort((a, b) => b.date.localeCompare(a.date))[0] || null;
 
 /** Kết luận bác sĩ rút gọn (phiếu Phụ lục II) cho danh sách, phiếu theo dõi, đợt sau. */
@@ -155,7 +156,7 @@ const rosterOf = (db, campaign, cls) => {
       const m = resultByChild[ch.id];
       const draft = !!m && isExamDraft(m);
       const screen = m && !draft ? screenMeasurement(m, ch.dateOfBirth) : null;
-      const prev = latestBefore(db, ch.id, m?.date || campaign.startDate, m?.id);
+      const prev = previousExamOf(db, ch.id, m?.date || campaign.startDate, m?.id);
       const prevCampaign = prev?.campaignId ? db.healthCheckCampaigns.find((c) => c.id === prev.campaignId) : null;
       const followUp = openFollowUpOf(db, ch.id);
       return {

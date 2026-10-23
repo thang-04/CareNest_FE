@@ -19,6 +19,7 @@ const { healthExamMockRepository: exams } = await import('@/services/children/mo
 const { CITIZEN_ID_TAKEN, PHONE_HAS_OTHER_ID, fillMissingCitizenIds, seedCitizenIdFor } = await import('@/mocks/guardianIdentity');
 const { IMPORT_COLUMNS } = await import('@/models/children/childrenConstants');
 const { emptyChildInfo, emptyDeclaration } = await import('@/utils/children/childrenHelpers');
+const { filledImportColumns, filledMedicalHistory, filledProfile } = await import('./profileFixture.mjs');
 
 /*
  * Kịch bản backend giả cho plan docs/plans/completed/2026-10-21-guardian-citizen-id-required.md.
@@ -49,9 +50,10 @@ const payload = (guardianList) => {
       dateOfBirth: `2023-01-${String(seq).padStart(2, '0')}`,
       gender: 'MALE',
       guardians: guardianList,
+      profile: filledProfile(),
     },
     classId: '',
-    declaration: emptyDeclaration(),
+    declaration: { ...emptyDeclaration(), medicalHistory: filledMedicalHistory() },
   };
 };
 const newGuardian = (patch = {}) => ({
@@ -147,24 +149,34 @@ test('AC-1, AC-2: thiếu/sai CCCD ⇒ 422 theo ô; trùng trong trẻ ⇒ 422; 
   assert.equal(saved.guardians[0].idNumber, '999900000001');
 });
 
-test('AC-4: CCCD thuộc phụ huynh khác (SĐT khác) hoặc SĐT đã có CCCD khác ⇒ 409 dưới ô CCCD', async () => {
-  const acc = readDb().parentAccounts[0];
-  const at = (message) => (err) => err.status === 409 && err.details?.['guardians.0.idNumber'] === message;
-  await assert.rejects(children.enrollChild(payload([newGuardian({ idNumber: acc.idNumber })]), vp), at(CITIZEN_ID_TAKEN));
-  await assert.rejects(children.enrollChild(payload([newGuardian({ phone: acc.phone })]), vp), at(PHONE_HAS_OTHER_ID));
-  // Cùng một người (SĐT và CCCD khớp tài khoản) vẫn lưu được.
-  const same = await children.enrollChild(payload([newGuardian({ phone: acc.phone, idNumber: acc.idNumber })]), vp);
-  assert.equal(same.guardians[0].idNumber, acc.idNumber);
+test('AC-4: CCCD ghi cho phụ huynh khác (không có tài khoản, SĐT khác) ⇒ 409 dưới ô CCCD; SĐT đã có CCCD khác ⇒ 409 dưới ô SĐT', async () => {
+  const db = readDb();
+  const acc = db.parentAccounts[0];
+  const lone = db.children
+    .flatMap((c) => c.guardians || [])
+    .find((g) => g.accountStatus === 'NOT_ACTIVATED' && !db.parentAccounts.some((a) => a.idNumber === g.idNumber));
+  const at = (key, message) => (err) => err.status === 409 && err.details?.[key] === message;
+  await assert.rejects(
+    children.enrollChild(payload([newGuardian({ idNumber: lone.idNumber })]), vp),
+    at('guardians.0.idNumber', CITIZEN_ID_TAKEN),
+  );
+  await assert.rejects(children.enrollChild(payload([newGuardian({ phone: acc.phone })]), vp), at('guardians.0.phone', PHONE_HAS_OTHER_ID));
+  // CCCD của tài khoản (user chốt 2026-10-23): liên kết tài khoản, SĐT theo tài khoản dù client gửi số khác.
+  const same = await children.enrollChild(payload([newGuardian({ idNumber: acc.idNumber })]), vp);
+  assert.equal(digits(same.guardians[0].phone), acc.phone);
 });
 
-test('AC-5: tài khoản có sẵn: có CCCD thì dùng số của tài khoản; chưa có thì bắt bổ sung và lưu vào tài khoản', async () => {
-  const [withId, noId] = await children.listParentAccountOptions({}, vp);
-  assert.equal(withId.idNumber, seedCitizenIdFor(withId.phone));
-  const linked = await children.enrollChild(payload([{ accountId: withId.id, relation: 'Mẹ', idNumber: '999911112222' }]), vp);
-  assert.equal(linked.guardians[0].idNumber, withId.idNumber, 'không nhận số client gửi khi tài khoản đã có CCCD');
+test('AC-5: tài khoản có sẵn theo CCCD dùng thông tin tài khoản; tài khoản cũ chưa có CCCD khớp theo SĐT và được bổ sung', async () => {
+  const [withId, noId] = readDb().parentAccounts.filter((a) => notStaff(a.phone));
+  const linked = await children.enrollChild(payload([newGuardian({ idNumber: withId.idNumber, fullName: 'Tên gõ khác' })]), vp);
+  assert.equal(linked.guardians[0].fullName, withId.fullName, 'họ tên theo tài khoản');
+  assert.ok(
+    readDb()
+      .parentAccounts.find((a) => a.id === withId.id)
+      .childIds.includes(linked.id),
+  );
   clearIdOfAccount(noId.id);
-  await rejects(children.enrollChild(payload([{ accountId: noId.id, relation: 'Bố' }]), vp), 422, 'guardians.0.idNumber');
-  const filled = await children.enrollChild(payload([{ accountId: noId.id, relation: 'Bố', idNumber: '999911113333' }]), vp);
+  const filled = await children.enrollChild(payload([newGuardian({ phone: noId.phone, idNumber: '999911113333' })]), vp);
   assert.equal(filled.guardians[0].idNumber, '999911113333');
   assert.equal(readDb().parentAccounts.find((a) => a.id === noId.id).idNumber, '999911113333');
 });
@@ -182,6 +194,7 @@ const row = (n, patch = {}) => ({
   relation: 'Mẹ',
   phone: `0900 001 00${n}`,
   guardianIdNumber: `99990000100${n}`,
+  ...filledImportColumns(),
   ...patch,
 });
 

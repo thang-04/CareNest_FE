@@ -23,14 +23,19 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Stepper } from '@/components/ui/Stepper';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { ChildAccessState, HEALTH_CHECK_ACCESS_TEXT } from '@/components/children/ChildAccessState';
-import { ChildResultBadge, ConclusionCategoryBadge, FollowUpLevelBadge, PublishStatusBadge } from '@/components/children/ChildBadges';
+import {
+  ChildResultBadge,
+  ConclusionCategoryBadge,
+  FollowUpLevelBadge,
+  ParentContactBadge,
+  PublishStatusBadge,
+} from '@/components/children/ChildBadges';
 import { ExamAdminStep } from '@/components/children/exam/ExamAdminStep';
 import { ExamMeasureStep } from '@/components/children/exam/ExamMeasureStep';
 import { ExamDevelopmentStep } from '@/components/children/exam/ExamDevelopmentStep';
 import { ExamClinicalStep } from '@/components/children/exam/ExamClinicalStep';
 import { ExamConclusionStep, ExamReviewPoints, reviewPointTexts } from '@/components/children/exam/ExamConclusionStep';
 import { ExamSummary } from '@/components/children/exam/ExamSummary';
-import { publishMeasurement } from '@/services/children/childrenService';
 import { previewHealthExamReview, saveHealthExam } from '@/services/children/healthCheckService';
 import {
   CONCLUSION_ACTION,
@@ -46,7 +51,7 @@ import {
   stepOfField,
 } from '@/models/children/healthExamForm';
 import { PARENT_VISIBLE_HEALTH_TEXT } from '@/models/children/childrenConstants';
-import { CHILD_RESULT_STATUS, PUBLISH_BLOCKED_TEXT } from '@/models/children/healthCheckConstants';
+import { CHILD_RESULT_STATUS, PARENT_CONTACT_STATUS } from '@/models/children/healthCheckConstants';
 import { ageLabel } from '@/models/School';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import { hasErrors } from '@/utils/children/childrenValidation';
@@ -106,13 +111,13 @@ function FollowUpResultNotice({ m }) {
         <div>Phiếu theo dõi giữ nguyên: lần khám được ghi vào dòng thời gian của phiếu, không mở vòng mới. {link}</div>
       </div>
     );
-  if (m.publishBlockedReason)
+  if (m.parentContact && !m.parentContact.contacted)
     return (
       <div className="alert alert--warning mt-16">
         <AlertTriangle size={18} />
         <div>
-          Phiếu không có người đi cùng nên chưa ghi trao đổi với phụ huynh. Trao đổi với phụ huynh và ghi vào phiếu theo dõi.{' '}
-          {PUBLISH_BLOCKED_TEXT[m.publishBlockedReason]} {link}
+          Không có người đi cùng nên phiếu ghi <b>Chưa trao đổi phụ huynh</b>. Trao đổi với phụ huynh về kết luận rồi ghi vào phiếu theo
+          dõi. {link}
         </div>
       </div>
     );
@@ -190,7 +195,6 @@ export default function HealthExamFormPage() {
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [reviewStale, setReviewStale] = useState(false);
-  const [confirmPublish, setConfirmPublish] = useState(false);
   // Sửa phiếu đã kết luận không lưu nháp: điểm cần xem lại lấy theo dữ liệu đang nhập (BE tính, không lưu).
   const [previewPoints, setPreviewPoints] = useState(null);
   const [confirmConclude, setConfirmConclude] = useState(null);
@@ -202,7 +206,6 @@ export default function HealthExamFormPage() {
     setEditing(false);
     setSaved(false);
     setReviewStale(false);
-    setConfirmPublish(false);
     setPreviewPoints(null);
     setConfirmConclude(null);
   }, [campaignId, childId]);
@@ -217,7 +220,11 @@ export default function HealthExamFormPage() {
     setMaxReached(m?.examStatus === EXAM_STATUS.CONCLUDED ? 4 : draftStep);
   }, [view, form]);
 
-  const campaignLink = `/children/health-checks/${campaignId}${classIdParam ? `?classId=${classIdParam}` : ''}`;
+  // Giữ lớp và bộ lọc danh sách lớp (keyword, result…) khi qua lại giữa đợt khám và phiếu.
+  const listParams = new URLSearchParams(params);
+  if (classIdParam) listParams.set('classId', classIdParam);
+  const listQuery = listParams.toString() ? `?${listParams}` : '';
+  const campaignLink = `/children/health-checks/${campaignId}${listQuery}`;
   const child = view?.child;
   const crumbs = healthCheckCrumbs(
     view ? { label: view.campaign.name, to: campaignLink } : null,
@@ -376,7 +383,7 @@ export default function HealthExamFormPage() {
         ?.childId || null
     );
   };
-  const examLink = (id) => `/children/health-checks/${campaignId}/exam/${id}${classIdParam ? `?classId=${classIdParam}` : ''}`;
+  const examLink = (id) => `/children/health-checks/${campaignId}/exam/${id}${listQuery}`;
 
   const reviewPoints = (concluded ? previewPoints : null) || m?.reviewPoints || null;
 
@@ -389,6 +396,7 @@ export default function HealthExamFormPage() {
       requireReason: concluded,
       conclusionMode: view.conclusionMode,
       knownCondition: view.knownCondition,
+      guardianCount: child.guardians.length,
     });
     if (hasErrors(errs)) {
       setErrors(errs);
@@ -417,7 +425,7 @@ export default function HealthExamFormPage() {
       setErrors({});
       setReviewStale(false);
       if (andNext) {
-        toast.success(`Đã lưu kết luận của ${child.fullName}${res.measurement.autoPublished ? ' và công bố cho phụ huynh' : ''}.`);
+        toast.success(`Đã lưu kết luận của ${child.fullName} và công bố cho phụ huynh.`);
         const next = nextChildId();
         if (next) navigate(examLink(next));
         else {
@@ -427,7 +435,7 @@ export default function HealthExamFormPage() {
         return;
       }
       setSaved(true);
-      toast.success(res.measurement.autoPublished ? 'Đã lưu kết luận và công bố cho phụ huynh.' : 'Đã lưu kết luận phiếu khám.');
+      toast.success('Đã lưu kết luận và công bố cho phụ huynh.');
     } catch (err) {
       if (err.details) {
         setErrors(err.details);
@@ -438,41 +446,6 @@ export default function HealthExamFormPage() {
       setBusy(false);
     }
   };
-
-  const publish = async () => {
-    try {
-      await publishMeasurement(child.id, m.id, user);
-      toast.success('Đã công bố phiếu khám cho phụ huynh.');
-      setConfirmPublish(false);
-      reload();
-    } catch (err) {
-      toast.error(err, 'Không công bố được');
-      setConfirmPublish(false);
-    }
-  };
-
-  const publishAction =
-    concluded && view.canEdit && !m.published ? (
-      m.publishBlockedReason ? (
-        <Link className="btn btn--primary" to={`/children/health-follow-ups/${m.followUpId}`}>
-          <Handshake size={16} /> Ghi trao đổi trong phiếu theo dõi
-        </Link>
-      ) : (
-        <button className="btn btn--primary" onClick={() => setConfirmPublish(true)}>
-          <Send size={16} /> Công bố cho phụ huynh
-        </button>
-      )
-    ) : null;
-  const publishModal = concluded && (
-    <ConfirmationModal
-      open={confirmPublish}
-      title="Công bố phiếu khám cho phụ huynh?"
-      message={`Phụ huynh của ${child.fullName} sẽ xem được ${PARENT_VISIBLE_HEALTH_TEXT} của ngày ${formatDate(m.date)} và nhận thông báo trên ứng dụng.`}
-      confirmLabel="Công bố phiếu khám"
-      onConfirm={publish}
-      onClose={() => setConfirmPublish(false)}
-    />
-  );
 
   // Màn kết quả ngay sau khi lưu kết luận: hệ thống đã làm gì, việc tiếp theo.
   if (saved && concluded) {
@@ -490,10 +463,10 @@ export default function HealthExamFormPage() {
             {!m.exam.conclusion.followUpFinding && <FollowUpLevelBadge status={m.followUpLevel} />}
           </div>
           <p className="m-0">{conclusionSentence(m.exam.conclusion)}</p>
-          {m.published && m.autoPublished && (
+          {m.published && (
             <div className="alert alert--success mt-16">
               <Send size={18} />
-              <div>Đã công bố cho phụ huynh khi lưu kết luận (có người đi cùng trẻ). Phụ huynh nhận thông báo trên ứng dụng.</div>
+              <div>Đã công bố cho phụ huynh khi lưu kết luận. Phụ huynh nhận thông báo trên ứng dụng.</div>
             </div>
           )}
           {m.conclusionCategory === CONCLUSION_CATEGORY.TB_RISK && (
@@ -514,7 +487,6 @@ export default function HealthExamFormPage() {
             {back}
           </div>
           <div className="row gap-2">
-            {publishAction}
             {next && (
               <Link className="btn" to={examLink(next)}>
                 Khám trẻ tiếp theo <ArrowRight size={16} />
@@ -522,7 +494,6 @@ export default function HealthExamFormPage() {
             )}
           </div>
         </div>
-        {publishModal}
       </div>
     );
   }
@@ -548,7 +519,12 @@ export default function HealthExamFormPage() {
           <div className="row row--wrap gap-2 mb-16">
             <ConclusionCategoryBadge status={m.conclusionCategory} size="lg" />
             {!m.exam.conclusion.followUpFinding && <FollowUpLevelBadge status={m.followUpLevel} />}
-            <PublishStatusBadge status={m.published ? (m.autoPublished ? 'PUBLISHED_ON_SAVE' : 'PUBLISHED') : 'UNPUBLISHED'} />
+            <PublishStatusBadge status={m.published ? 'PUBLISHED' : 'UNPUBLISHED'} />
+            {m.parentContact && (
+              <ParentContactBadge
+                status={m.parentContact.contacted ? PARENT_CONTACT_STATUS.CONTACTED : PARENT_CONTACT_STATUS.NOT_CONTACTED}
+              />
+            )}
             {m.followUpId && (
               <Link className="text-primary text-sm" to={`/children/health-follow-ups/${m.followUpId}`}>
                 Mở phiếu theo dõi
@@ -594,8 +570,8 @@ export default function HealthExamFormPage() {
         )}
         <div className="page-actions">
           {back}
-          <div className="row gap-2">
-            {concluded && view.canEdit && (
+          {concluded && view.canEdit && (
+            <div className="row gap-2">
               <button
                 className="btn"
                 onClick={() => {
@@ -607,11 +583,9 @@ export default function HealthExamFormPage() {
               >
                 <Pencil size={16} /> Sửa phiếu
               </button>
-            )}
-            {publishAction}
-          </div>
+            </div>
+          )}
         </div>
-        {publishModal}
       </div>
     );
 
@@ -623,8 +597,8 @@ export default function HealthExamFormPage() {
         <div className="alert alert--warning mb-16">
           <Info size={18} />
           <div>
-            Bạn đang sửa phiếu đã có kết luận. Lưu lại kết luận cần ghi lý do. Có người đi cùng thì phiếu tự công bố lại khi lưu; không có
-            người đi cùng thì bạn cần công bố lại.
+            Bạn đang sửa phiếu đã có kết luận. Lưu lại kết luận cần ghi lý do; phiếu tự công bố lại và phụ huynh nhận thông báo kết quả đã
+            cập nhật.
           </div>
         </div>
       )}
@@ -649,26 +623,16 @@ export default function HealthExamFormPage() {
             knownCondition={view.knownCondition}
           />
         )}
-        {step === 4 &&
-          (form.exam.admin.hasCompanion === YES_NO.YES ? (
-            <div className="alert alert--info mt-16">
-              <Send size={18} />
-              <div>
-                Có người đi cùng trẻ: khi lưu kết luận, phiếu được <b>công bố cho phụ huynh ngay</b>. Phụ huynh xem được{' '}
-                {PARENT_VISIBLE_HEALTH_TEXT} trên ứng dụng.
-              </div>
+        {step === 4 && (
+          <div className="alert alert--info mt-16">
+            <Send size={18} />
+            <div>
+              Lưu kết luận là <b>công bố cho phụ huynh ngay</b>; phụ huynh xem được {PARENT_VISIBLE_HEALTH_TEXT} trên ứng dụng.
+              {form.exam.admin.hasCompanion === YES_NO.NO &&
+                ' Không có người đi cùng: nếu bác sĩ đề nghị khám chuyên khoa, phiếu ghi Chưa trao đổi phụ huynh tới khi bạn ghi trao đổi trong phiếu theo dõi.'}
             </div>
-          ) : (
-            form.exam.admin.hasCompanion === YES_NO.NO && (
-              <div className="alert alert--warning mt-16">
-                <Info size={18} />
-                <div>
-                  Không có người đi cùng: lưu kết luận chưa công bố cho phụ huynh. Bạn công bố sau, khi đã trao đổi với phụ huynh nếu bác sĩ
-                  đề nghị khám chuyên khoa.
-                </div>
-              </div>
-            )
-          ))}
+          </div>
+        )}
       </div>
       <div className="page-actions">
         {step > 0 ? (

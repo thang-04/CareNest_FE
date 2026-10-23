@@ -17,10 +17,9 @@ export const placeChild = (childId, body, user) => repo.placeChild(childId, body
 export const withdrawChild = (childId, body, user) => repo.withdrawChild(childId, body, user);
 export const saveHealthDeclaration = (childId, body, user) => repo.saveDeclaration(childId, body, user);
 export const getParentAccounts = (filters, user) => repo.listParentAccounts(filters, user);
-export const getParentAccountOptions = (filters, user) => repo.listParentAccountOptions(filters, user);
+export const findParentAccountByCitizenId = (idNumber, user) => repo.findParentAccountByCitizenId(idNumber, user);
 export const activateParentAccount = (childId, guardianIndex, user) => repo.activateParentAccount(childId, guardianIndex, user);
 export const resendParentSms = (childId, guardianIndex, user) => repo.resendParentSms(childId, guardianIndex, user);
 export const getHealthRecord = (childId, user) => repo.getHealthRecord(childId, user);
 export const saveMeasurement = (childId, measurementId, payload, user) => repo.saveMeasurement(childId, measurementId, payload, user);
-export const publishMeasurement = (childId, measurementId, user) => repo.publishMeasurement(childId, measurementId, user);
 export const analyzeHealthTrend = (childId, user) => repo.analyzeHealthTrend(childId, user);

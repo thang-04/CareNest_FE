@@ -190,7 +190,12 @@ function RoundList({ user, md }) {
                           {r.status === ROUND_STATUS.DRAFT ? (
                             <span className="muted">{r.scope.length} lớp/phòng</span>
                           ) : (
-                            <ProgressBar value={p.approved} total={p.total} tone={p.approved === p.total ? 'green' : 'primary'} />
+                            <ProgressBar
+                              value={p.approved}
+                              total={p.total}
+                              tone={p.approved === p.total ? 'green' : 'primary'}
+                              ended={r.status === ROUND_STATUS.COMPLETED || r.status === ROUND_STATUS.CANCELLED}
+                            />
                           )}
                         </td>
                         <td className="center">
@@ -311,7 +316,15 @@ function MySheetList({ user, md }) {
                         <td>{locationLabel(md.locationById(sheet.locationId))}</td>
                         <td>{formatDate(round.deadline)}</td>
                         <td>
-                          <ProgressBar value={sum.counted} total={sum.total} tone={sum.counted === sum.total ? 'green' : 'primary'} />
+                          <ProgressBar
+                            value={sum.counted}
+                            total={sum.total}
+                            tone={sum.counted === sum.total ? 'green' : 'primary'}
+                            ended={
+                              [SHEET_STATUS.APPROVED, SHEET_STATUS.CANCELLED].includes(sheet.status) ||
+                              round.status === ROUND_STATUS.CANCELLED
+                            }
+                          />
                         </td>
                         <td className="center">
                           <SheetStatusBadge status={sheet.status} />

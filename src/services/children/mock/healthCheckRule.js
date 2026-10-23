@@ -6,9 +6,8 @@ import {
   EXTERNAL_RESULT_DUE_DAYS,
   FOLLOW_UP_FIELD_LIMITS,
   FOLLOW_UP_STATUS,
-  PUBLISH_BLOCKED,
 } from '@/models/children/healthCheckConstants';
-import { CONCLUSION_ACTION, FOLLOW_UP_FINDING } from '@/models/children/healthExamForm';
+import { CONCLUSION_ACTION, EXAM_STATUS, FOLLOW_UP_FINDING } from '@/models/children/healthExamForm';
 import { formatDate, localDateOf as localDate, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 
@@ -143,6 +142,8 @@ const examContactNote = (measurement, companion) => {
   if (c.specialty?.trim() && (c.action === CONCLUSION_ACTION.REFERRAL || c.followUpFinding))
     parts.push(`Đề nghị khám chuyên khoa: ${c.specialty.trim()}.`);
   if (c.adviceText?.trim()) parts.push(`Lời dặn: ${c.adviceText.trim()}`);
+  // Ý kiến phụ huynh đặt trước để không bị cắt khi ghi chú dài (user chốt 2026-10-23).
+  if (c.parentOpinion?.trim()) parts.splice(1, 0, `Ý kiến phụ huynh: ${c.parentOpinion.trim().replace(/[.!?]?$/, '.')}`);
   return parts.join(' ').slice(0, FOLLOW_UP_FIELD_LIMITS.note);
 };
 
@@ -208,7 +209,8 @@ const announceRound = (d, child, f, measurement, user, { isNew, reopened }) => {
  * Vòng trước đã trao đổi ⇒ phiếu vào vòng mới, về "Chờ trao đổi phụ huynh". Lưu kết luận không bao giờ đóng phiếu.
  * Mẫu FOLLOW_UP (trẻ đang có phiếu): "Chưa ghi nhận thêm" hoặc "Tư vấn" chỉ vào dòng thời gian; "Có thêm bất thường mới"
  * mở vòng như chuyển khám; sửa đổi lựa chọn thì vòng tính lại (user chốt 2026-10-21).
- * Phiếu khám có người đi cùng ⇒ ghi sẵn lần trao đổi tại buổi khám: không có hạn 7 ngày, công bố được ngay (user chốt 2026-10-17).
+ * Phiếu khám có người đi cùng ⇒ ghi sẵn lần trao đổi tại buổi khám, kèm ý kiến phụ huynh: không có hạn 7 ngày (user chốt 2026-10-17,
+ * 2026-10-23). Sửa phiếu thì ghi chú của lần trao đổi đó theo kết luận mới.
  */
 export const trackFollowUp = (d, child, measurement, followUpLevel, user) => {
   d.healthFollowUps ||= [];
@@ -218,6 +220,9 @@ export const trackFollowUp = (d, child, measurement, followUpLevel, user) => {
   if (linked) {
     const event = linked.history.find((e) => isMeasurementEvent(e) && e.measurementId === measurement.id);
     if (event) event.examOn = measurement.date;
+    const contact = linked.history.find((e) => e.action === 'PARENT_CONTACTED' && e.atExam && e.measurementId === measurement.id);
+    const companion = examCompanionOf(measurement);
+    if (contact && companion) Object.assign(contact, { on: measurement.date, note: examContactNote(measurement, companion) });
     const changed = event?.action === 'MEASUREMENT_ADDED' && followUpMode && (event.newFinding !== false) !== newFinding;
     if (changed && !linked.closedAt) {
       const reopened = newFinding && followUpState(linked).status !== S.WAITING_PARENT_CONTACT;
@@ -274,15 +279,17 @@ export const followUpEffectOf = (f, measurementId) => {
   return followUpState(f).roundStarts.includes(e.at) ? 'NEW_ROUND' : 'MERGED';
 };
 
-/** Kết quả "Cần theo dõi sát" chỉ công bố sau khi giáo viên ghi trao đổi với phụ huynh (user chốt 2026-10-16). */
-export const publishBlockOf = (db, measurementId, followUpLevel) => {
-  if (followUpLevel !== FOLLOW_UP_LEVEL.CLOSE_WATCH) return null;
-  const f = (db.healthFollowUps || []).find((x) => x.measurementIds.includes(measurementId));
-  if (!f || f.closedAt) return null;
-  const from = f.history.findIndex((e) => isMeasurementEvent(e) && e.measurementId === measurementId);
-  // Lần khám không có bất thường mới không cần trao đổi lại trước khi công bố (user chốt 2026-10-21).
-  if (f.history[from]?.newFinding === false) return null;
-  return f.history.slice(from + 1).some((e) => e.action === 'PARENT_CONTACTED') ? null : PUBLISH_BLOCKED.FOLLOW_UP_CONTACT_REQUIRED;
+/**
+ * Phiếu khám mức "Cần theo dõi sát" đã trao đổi với phụ huynh chưa (user chốt 2026-10-23): có người đi cùng ⇒ đã trao đổi tại buổi
+ * khám; không có ⇒ chưa, tới khi giáo viên ghi trao đổi trong phiếu theo dõi sau lần khám này. Kết quả khác: null.
+ */
+export const parentContactOf = (db, m, followUpLevel) => {
+  if (m.examStatus !== EXAM_STATUS.CONCLUDED || followUpLevel !== FOLLOW_UP_LEVEL.CLOSE_WATCH) return null;
+  if (examCompanionOf(m)) return { contacted: true, atExam: true, on: m.date, opinion: m.exam.conclusion?.parentOpinion || '' };
+  const f = (db.healthFollowUps || []).find((x) => x.measurementIds.includes(m.id));
+  const from = f ? f.history.findIndex((e) => isMeasurementEvent(e) && e.measurementId === m.id) : -1;
+  const contact = from < 0 ? null : f.history.slice(from + 1).find((e) => e.action === 'PARENT_CONTACTED');
+  return { contacted: !!contact, atExam: false, on: contact ? contact.on || localDate(contact.at) : null, opinion: '' };
 };
 
 /** Cho trẻ nghỉ học ⇒ đóng phiếu đang mở của trẻ (user chốt 2026-10-16). Trả số phiếu đã đóng. */

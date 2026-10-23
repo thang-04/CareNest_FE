@@ -41,6 +41,7 @@
  * @property {string} adviceText
  * @property {string} specialty
  * @property {string} doctorName
+ * @property {string} parentOpinion              ý kiến phụ huynh tại buổi khám: có người đi cùng, mức Cần theo dõi sát (2026-10-23)
  *
  * @typedef {'YES'|'NO'} YesNo
  */
@@ -364,6 +365,7 @@ export const buildEmptyExam = () => ({
     adviceText: '',
     specialty: '',
     doctorName: '',
+    parentOpinion: '',
   },
 });
 

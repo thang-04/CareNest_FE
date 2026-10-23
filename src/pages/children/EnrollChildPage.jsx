@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useParentAccountOptions, usePlacementClasses } from '@/hooks/children/useChildRecords';
+import { useCitizenIdAccounts, usePlacementClasses } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Stepper } from '@/components/ui/Stepper';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -15,25 +15,19 @@ import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { ChildProfileFields } from '@/components/children/ChildProfileFields';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
-import { ExistingGuardianPicker } from '@/components/children/ExistingGuardianPicker';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { checkDuplicateChild, enrollChild } from '@/services/children/childrenService';
 import { GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import { formatDate } from '@/utils/format';
-import { hasErrors, normalizePhone, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
-import { normalizeCitizenId } from '@/utils/citizenId';
+import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { canEnrollChild } from '@/utils/children/childrenPermissions';
-import { emptyChildInfo, emptyDeclaration, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
+import { emptyChildInfo, emptyDeclaration, suggestAgeGroupId, withGuardianAccounts } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
 const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Khai báo sức khỏe', 'Xem lại & xác nhận'];
-
-const GUARDIAN_MODE = { EXISTING: 'EXISTING', NEW: 'NEW' };
-const GUARDIAN_MODE_LABELS = { EXISTING: 'Đã có tài khoản', NEW: 'Chưa có tài khoản' };
-const MAX_GUARDIANS = 3;
 
 const stepOfField = (field) => (field.startsWith('declaration.') ? 2 : field === 'classId' ? 1 : 0);
 
@@ -55,13 +49,10 @@ export default function EnrollChildPage() {
   const { schoolYear } = useSchoolYear();
   const md = useMasterData();
   const { classes, loading: classesLoading } = usePlacementClasses(schoolYear);
-  const accountsQ = useParentAccountOptions({ enabled: canEnrollChild(user) });
 
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
   const [info, setInfo] = useState(emptyChildInfo);
-  const [guardianMode, setGuardianMode] = useState(GUARDIAN_MODE.NEW);
-  const [linked, setLinked] = useState([]);
   const [ageGroupId, setAgeGroupId] = useState('');
   const [classId, setClassId] = useState('');
   const [declaration, setDeclaration] = useState(emptyDeclaration());
@@ -70,6 +61,11 @@ export default function EnrollChildPage() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  // CCCD trùng tài khoản phụ huynh có sẵn ⇒ dùng tài khoản đó (user chốt 2026-10-23); bỏ 2 tab Đã có / Chưa có tài khoản.
+  const accountOf = useCitizenIdAccounts(
+    info.guardians.map((g) => g.idNumber),
+    { enabled: canEnrollChild(user) },
+  );
 
   if (!canEnrollChild(user)) {
     return (
@@ -87,65 +83,12 @@ export default function EnrollChildPage() {
 
   const suggested = suggestAgeGroupId(info.dateOfBirth, schoolYear);
   const selectedClass = classes.find((c) => c.id === classId);
-  const dirty = !!(info.fullName || info.dateOfBirth || linked.length || info.guardians.some((g) => g.fullName || g.phone));
+  const dirty = !!(info.fullName || info.dateOfBirth || info.guardians.some((g) => g.fullName || g.phone || g.idNumber));
 
-  // Chế độ "Đã có tài khoản": thông tin liên hệ lấy từ tài khoản; BE vẫn đọc lại theo accountId khi lưu.
-  const withGuardians = (base, mode, links) =>
-    mode === GUARDIAN_MODE.NEW
-      ? base
-      : {
-          ...base,
-          guardians: links.map((g) => {
-            const acc = accountsQ.accounts.find((a) => a.id === g.accountId);
-            return {
-              accountId: g.accountId,
-              relation: g.relation,
-              fullName: acc?.fullName || '',
-              phone: acc?.phone || '',
-              // Tài khoản chưa có CCCD thì dùng số người dùng bổ sung trên thẻ tài khoản.
-              idNumber: acc?.idNumber || g.idNumber || '',
-              email: acc?.email || '',
-            };
-          }),
-        };
-  const effectiveInfo = withGuardians(info, guardianMode, linked);
-
-  const validateInfo = (value, mode = guardianMode) => {
-    const errs = validateChildInfo(value);
-    if (mode === GUARDIAN_MODE.EXISTING && !value.guardians.length) errs.guardians = 'Chọn ít nhất một tài khoản phụ huynh';
-    return errs;
-  };
-
-  const accountOfContact = (g) => {
-    const phone = normalizePhone(g?.phone);
-    const email = (g?.email || '').trim().toLowerCase();
-    const idNumber = normalizeCitizenId(g?.idNumber);
-    return (
-      accountsQ.accounts.find(
-        (a) => (phone && a.phone === phone) || (email && a.email.toLowerCase() === email) || (idNumber && a.idNumber === idNumber),
-      ) || null
-    );
-  };
-
-  const switchMode = (mode) => {
-    setGuardianMode(mode);
-    setErrors((e) => ({ ...e, info: Object.fromEntries(Object.entries(e.info).filter(([k]) => !k.startsWith('guardians'))) }));
-  };
-
-  const pickSuggestedAccount = (g) => {
-    const acc = accountOfContact(g);
-    if (!acc) return;
-    setLinked((l) =>
-      l.some((x) => x.accountId === acc.id) || l.length >= MAX_GUARDIANS ? l : [...l, { accountId: acc.id, relation: g.relation }],
-    );
-    switchMode(GUARDIAN_MODE.EXISTING);
-  };
-
-  const changeLinked = (value) => {
-    setLinked(value);
-    const now = validateInfo(withGuardians(info, GUARDIAN_MODE.EXISTING, value), GUARDIAN_MODE.EXISTING);
-    setErrors((e) => ({ ...e, info: Object.fromEntries(Object.entries(e.info).filter(([k]) => now[k])) }));
-  };
+  // Phụ huynh có CCCD trùng tài khoản: họ tên, SĐT, email theo tài khoản; BE vẫn tự liên kết theo CCCD khi lưu.
+  const withAccounts = (value) => ({ ...value, guardians: withGuardianAccounts(value.guardians, accountOf) });
+  const effectiveInfo = withAccounts(info);
+  const validateInfo = (value) => validateChildInfo(value);
 
   const goTo = (i) => {
     setStep(i);
@@ -167,7 +110,7 @@ export default function EnrollChildPage() {
     setInfo(value);
     setDuplicate(null);
     // Clear errors as soon as the user fixes them; new errors only appear on blur / next.
-    const now = validateInfo(withGuardians(value, guardianMode, linked));
+    const now = validateInfo(withAccounts(value));
     setErrors((e) => ({ ...e, info: Object.fromEntries(Object.entries(e.info).filter(([k]) => now[k])) }));
   };
 
@@ -245,8 +188,6 @@ export default function EnrollChildPage() {
                 onClick={() => {
                   setSaved(null);
                   setInfo(emptyChildInfo());
-                  setGuardianMode(GUARDIAN_MODE.NEW);
-                  setLinked([]);
                   setClassId('');
                   setAgeGroupId('');
                   setDeclaration(emptyDeclaration());
@@ -286,58 +227,7 @@ export default function EnrollChildPage() {
 
       {step === 0 && (
         <section className="card wizard-card">
-          <ChildInfoFields
-            split
-            value={info}
-            onChange={changeInfo}
-            errors={errors.info}
-            onBlurField={blurCheck}
-            guardianTabs={
-              <div className="tabs tr-guardian-mode" role="tablist" aria-label="Tài khoản phụ huynh">
-                {[GUARDIAN_MODE.EXISTING, GUARDIAN_MODE.NEW].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    role="tab"
-                    aria-selected={guardianMode === m}
-                    className={`tab ${guardianMode === m ? 'tab--active' : ''}`}
-                    onClick={() => switchMode(m)}
-                  >
-                    {GUARDIAN_MODE_LABELS[m]}
-                  </button>
-                ))}
-              </div>
-            }
-            guardiansOverride={
-              guardianMode === GUARDIAN_MODE.EXISTING && (
-                <ExistingGuardianPicker
-                  accounts={accountsQ.accounts}
-                  loading={accountsQ.loading}
-                  error={accountsQ.error}
-                  onRetry={accountsQ.reload}
-                  value={linked}
-                  onChange={changeLinked}
-                  errors={errors.info}
-                />
-              )
-            }
-            guardianNotice={(i) => {
-              const acc = accountOfContact(info.guardians[i]);
-              return (
-                acc && (
-                  <div className="alert alert--warning mt-12">
-                    <AlertTriangle size={18} />
-                    <div>
-                      Số điện thoại, email hoặc số CCCD này đã có tài khoản phụ huynh <b>{acc.fullName}</b>.{' '}
-                      <button type="button" className="btn btn--sm btn--ghost" onClick={() => pickSuggestedAccount(info.guardians[i])}>
-                        Chọn tài khoản này
-                      </button>
-                    </div>
-                  </div>
-                )
-              );
-            }}
-          />
+          <ChildInfoFields split value={info} onChange={changeInfo} errors={errors.info} onBlurField={blurCheck} accountOf={accountOf} />
           {duplicate && (
             <div className="alert alert--danger mt-16" role="alert">
               <AlertTriangle size={18} />
@@ -427,7 +317,7 @@ export default function EnrollChildPage() {
                   <dd>
                     {g.fullName} ({g.relation}) · {g.phone} · CCCD {g.idNumber}
                     {g.email ? ` · ${g.email}` : ''}
-                    {g.accountId && <span className="muted"> · tài khoản có sẵn, liên kết khi lưu</span>}
+                    {accountOf(g.idNumber) && <span className="muted"> · tài khoản có sẵn, liên kết khi lưu</span>}
                   </dd>
                 </div>
               ))}

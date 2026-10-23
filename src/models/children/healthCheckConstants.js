@@ -153,13 +153,8 @@ export const FOLLOW_UP_FIELD_LIMITS = { note: 500, reason: 300, facility: 150, i
 /** Số ngày sau lần trao đổi mà chưa có kết quả khám chuyên khoa thì nhắc giáo viên (D16, user chốt 2026-10-17). */
 export const EXTERNAL_RESULT_DUE_DAYS = 30;
 
-/** Lý do không công bố được một kết quả (BE trả trong publishBlockedReason). */
-export const PUBLISH_BLOCKED = { FOLLOW_UP_CONTACT_REQUIRED: 'FOLLOW_UP_CONTACT_REQUIRED' };
-
-export const PUBLISH_BLOCKED_TEXT = {
-  FOLLOW_UP_CONTACT_REQUIRED:
-    'Kết quả ở mức Cần theo dõi sát chỉ công bố được sau khi bạn ghi trao đổi với phụ huynh trong phiếu theo dõi.',
-};
+/** Phiếu khám mức Cần theo dõi sát: đã trao đổi với phụ huynh chưa (từ parentContact BE trả, user chốt 2026-10-23). */
+export const PARENT_CONTACT_STATUS = { CONTACTED: 'CONTACTED', NOT_CONTACTED: 'NOT_CONTACTED' };
 
 // Tránh hiểu nhầm đóng phiếu là trẻ đã khỏe (user chốt 2026-10-16).
 export const FOLLOW_UP_CLOSE_MEANING =

@@ -15,6 +15,7 @@ import {
 } from '@/models/children/healthExamForm';
 import { FOLLOW_UP_STATUS } from '@/models/children/healthCheckConstants';
 import { formatDate } from '@/utils/format';
+import { needsParentOpinion } from '@/utils/children/healthExamValidation';
 import { ExamCheckGroup, ExamChoiceField, ExamTextField } from './ExamFields';
 
 const ACTION_OPTIONS = Object.values(CONCLUSION_ACTION).map((value) => ({ value, label: CONCLUSION_ACTION_LABELS[value] }));
@@ -372,6 +373,21 @@ export function ExamConclusionStep({
             ))}
           </datalist>
         </div>
+        {needsParentOpinion(form.exam, mode) && (
+          <div className="mt-12">
+            <ExamTextField
+              label="Ý kiến phụ huynh"
+              required
+              multiline
+              maxLength={500}
+              value={c.parentOpinion}
+              onChange={(v) => set('exam.conclusion.parentOpinion', v)}
+              error={errors['exam.conclusion.parentOpinion']}
+              hint={`Kết quả ở mức Cần theo dõi sát: ghi ý kiến của ${form.exam.admin.companion?.fullName || 'người đi cùng'} sau khi nghe bác sĩ, ví dụ đồng ý đưa trẻ đi khám chuyên khoa. Ghi vào lần trao đổi tại buổi khám của phiếu theo dõi.`}
+              disabled={disabled}
+            />
+          </div>
+        )}
         {requireReason && (
           <ExamTextField
             label="Lý do sửa phiếu đã có kết luận"

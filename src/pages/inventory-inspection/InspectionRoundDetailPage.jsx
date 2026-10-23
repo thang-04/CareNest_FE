@@ -369,7 +369,12 @@ export default function InspectionRoundDetailPage() {
                       <td>{locationLabel(md.locationById(s.locationId))}</td>
                       <td>{md.userById(s.inspectorUserId)?.fullName}</td>
                       <td>
-                        <ProgressBar value={sum.counted} total={sum.total} tone={sum.counted === sum.total ? 'green' : 'primary'} />
+                        <ProgressBar
+                          value={sum.counted}
+                          total={sum.total}
+                          tone={sum.counted === sum.total ? 'green' : 'primary'}
+                          ended={[SHEET_STATUS.APPROVED, SHEET_STATUS.CANCELLED].includes(s.status) || r.status === ROUND_STATUS.CANCELLED}
+                        />
                       </td>
                       <td className="center">{sum.variance ? <span className="chip chip--orange">{sum.variance}</span> : '0'}</td>
                       <td className="center">{sum.damaged ? <span className="chip chip--red">{sum.damaged}</span> : '0'}</td>

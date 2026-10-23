@@ -31,10 +31,14 @@ export const VERIFICATION = {
   PHONE_UNREACHABLE: 'PHONE_UNREACHABLE',
 };
 
+/**
+ * Từ 2026-10-23 "Gọi phụ huynh" chỉ còn Trả trẻ (PHONE_CONFIRMED) / Không trả (PHONE_DECLINED), lý do ghi trong nội dung cuộc gọi;
+ * PHONE_UNREACHABLE chỉ còn ở bản ghi cũ.
+ */
 export const VERIFICATION_LABELS = {
   PHOTO_MATCH: 'Khớp ảnh đăng ký',
   PHONE_CONFIRMED: 'Phụ huynh xác nhận qua điện thoại',
-  PHONE_DECLINED: 'Phụ huynh không đồng ý',
+  PHONE_DECLINED: 'Gọi phụ huynh – không trả',
   PHONE_UNREACHABLE: 'Không liên lạc được phụ huynh',
 };
 

@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarDays, ClipboardList, School, UserCheck } from '@/components/ui/icons';
+import { CalendarDays, ClipboardList, Phone, School, UserCheck } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { Modal } from '@/components/ui/Modal';
+import { PickupCallFlow, PickupPhotoFlow } from '@/components/pickup/PickupVerifyFlow';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
 import { usePickupBoard, usePickupClasses } from '@/hooks/pickup/usePickups';
-import { PICKUP_REASON_LABELS, PICKUP_STATUS, VERIFICATION } from '@/models/pickup/pickupConstants';
+import { PICKUP_REASON_LABELS, PICKUP_STATUS } from '@/models/pickup/pickupConstants';
 import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
 import '@/styles/modules/pickup.css';
@@ -32,7 +34,19 @@ export default function PickupListPage() {
 
   const setParam = (key, value) => {
     const next = new URLSearchParams(params);
-    next.set(key, value);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    if (!next.get('classId') && classId) next.set('classId', classId);
+    setParams(next, { replace: true });
+  };
+  // "Trả trẻ" (so ảnh) và "Gọi phụ huynh" mở modal ngay trên danh sách (user yêu cầu 2026-10-23); trẻ đang mở ghi trên URL
+  // để trang ghi kết quả quay lại mở lại đúng modal.
+  const verifyId = params.get('verify') || '';
+  const callId = params.get('call') || '';
+  const closeModals = () => {
+    const next = new URLSearchParams(params);
+    next.delete('verify');
+    next.delete('call');
     if (!next.get('classId') && classId) next.set('classId', classId);
     setParams(next, { replace: true });
   };
@@ -43,6 +57,7 @@ export default function PickupListPage() {
     .filter((r) => tab === 'ALL' || r.status === tab)
     .filter((r) => !keyword || normalizeText(r.child.fullName).includes(normalizeText(keyword)));
   const isToday = date === today;
+  const nameOf = (id) => rows.find((r) => r.child.id === id)?.child.fullName || '';
 
   if (loadingClasses) return <LoadingState />;
 
@@ -131,9 +146,6 @@ export default function PickupListPage() {
                     ) : (
                       visible.map((r) => {
                         const failed = r.attempts.filter((a) => a.outcome !== 'HANDED_OVER').length;
-                        // Lần gần nhất là "không liên lạc được": người đón đang chờ phụ huynh gọi lại
-                        const last = r.attempts[r.attempts.length - 1];
-                        const awaitingCall = r.status === PICKUP_STATUS.WAITING && last?.verification === VERIFICATION.PHONE_UNREACHABLE;
                         return (
                           <tr key={r.child.id}>
                             <td>
@@ -187,9 +199,19 @@ export default function PickupListPage() {
                             </td>
                             <td className="cell--actions">
                               {isToday && r.status === PICKUP_STATUS.WAITING && (
-                                <Link className="btn btn--sm btn--primary" to={`/pickup/${r.child.id}/verify`}>
-                                  <UserCheck size={15} /> {awaitingCall ? 'Xác minh lại' : 'Trả trẻ'}
-                                </Link>
+                                <div className="row-actions">
+                                  <button type="button" className="btn btn--sm btn--primary" onClick={() => setParam('verify', r.child.id)}>
+                                    <UserCheck size={15} /> Trả trẻ
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn--sm"
+                                    onClick={() => setParam('call', r.child.id)}
+                                    aria-label={`Gọi phụ huynh của ${r.child.fullName}`}
+                                  >
+                                    <Phone size={15} /> Gọi phụ huynh
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -207,6 +229,12 @@ export default function PickupListPage() {
               <ClipboardList size={16} /> Kết quả trả trẻ hôm nay
             </Link>
           </div>
+          <Modal open={!!verifyId} size="lg" title={`Trả trẻ: ${nameOf(verifyId)}`} onClose={closeModals}>
+            {verifyId && <PickupPhotoFlow key={verifyId} childId={verifyId} onDone={closeModals} />}
+          </Modal>
+          <Modal open={!!callId} title={`Gọi phụ huynh: ${nameOf(callId)}`} onClose={closeModals}>
+            {callId && <PickupCallFlow key={callId} childId={callId} onDone={closeModals} />}
+          </Modal>
         </>
       )}
     </div>

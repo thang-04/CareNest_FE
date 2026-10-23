@@ -31,7 +31,14 @@
  * @property {FollowUpLevel} followUpLevel   phiếu: theo kết luận bác sĩ; mẫu cũ: theo 3 tiêu chí
  * @property {'NORMAL'|'ISSUE'|'REFERRAL'|'TB_RISK'|null} conclusionCategory
  * @property {{ code: string, label: string }} reference   reference standard used for the screening
- * @property {boolean} published         visible to linked parents (GBR-HLT-05)
+ * @property {boolean} published         visible to linked parents (GBR-HLT-05); BE công bố ngay khi lưu, trừ phiếu nháp (2026-10-23)
+ * @property {ParentContact|null} parentContact  phiếu khám mức Cần theo dõi sát: đã trao đổi với phụ huynh chưa (BE tính)
+ *
+ * @typedef {Object} ParentContact
+ * @property {boolean} contacted
+ * @property {boolean} atExam            trao đổi tại buổi khám (có người đi cùng)
+ * @property {string|null} on            ngày trao đổi
+ * @property {string} opinion            ý kiến phụ huynh tại buổi khám
  * @property {string} measuredBy / measuredByName
  * @property {{ at, userId, userName, reason, changes: { field, from, to }[] }[]} edits  (GBR-HLT-03)
  *
@@ -153,20 +160,20 @@ export const IMPORT_COLUMNS = [
   { key: 'email', label: 'Email', required: false },
   { key: 'allergies', label: 'Dị ứng (để trống = chưa cung cấp, "Không" = không có)', required: false },
   { key: 'diet', label: 'Chế độ ăn (để trống = chưa cung cấp, "Không" = không có)', required: false },
-  // Hành chính và tiền sử dùng cho phiếu khám (user chốt 2026-10-17): đều không bắt buộc.
+  // Hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22); file mẫu cũ thiếu cột không nhập được.
   { key: 'idNumber', label: 'Số CCCD/mã định danh của trẻ', required: false },
-  { key: 'premature', label: 'Sinh non (Có/Không)', required: false },
-  { key: 'gestationWeeks', label: 'Tuần thai khi sinh', required: false },
-  { key: 'ethnicity', label: 'Dân tộc', required: false },
-  { key: 'beneficiary', label: 'Đối tượng', required: false },
-  { key: 'paymentSource', label: 'Nguồn chi trả', required: false },
+  { key: 'premature', label: 'Sinh non (Có/Không)', required: true },
+  { key: 'gestationWeeks', label: 'Tuần thai khi sinh (bắt buộc khi sinh non)', required: false },
+  { key: 'ethnicity', label: 'Dân tộc', required: true },
+  { key: 'beneficiary', label: 'Đối tượng', required: true },
+  { key: 'paymentSource', label: 'Nguồn chi trả', required: true },
   { key: 'bloodType', label: 'Nhóm máu', required: false },
-  { key: 'province', label: 'Nơi ở - Tỉnh/thành', required: false },
-  { key: 'ward', label: 'Nơi ở - Phường/xã', required: false },
-  { key: 'street', label: 'Nơi ở - Số nhà/thôn/xóm', required: false },
-  { key: 'selfHistory', label: 'Tiền sử bản thân (để trống = chưa cung cấp, "Không" = không có)', required: false },
-  { key: 'familyHistory', label: 'Tiền sử gia đình (để trống = chưa cung cấp, "Không" = không có)', required: false },
-  { key: 'tbContact', label: 'Tiếp xúc người bệnh lao (Có/Không, để trống = chưa cung cấp)', required: false },
+  { key: 'province', label: 'Nơi ở - Tỉnh/thành', required: true },
+  { key: 'ward', label: 'Nơi ở - Phường/xã', required: true },
+  { key: 'street', label: 'Nơi ở - Số nhà/thôn/xóm', required: true },
+  { key: 'selfHistory', label: 'Tiền sử bản thân ("Không" hoặc tên bệnh)', required: true },
+  { key: 'familyHistory', label: 'Tiền sử gia đình ("Không" hoặc tên bệnh)', required: true },
+  { key: 'tbContact', label: 'Tiếp xúc người bệnh lao (Có/Không)', required: true },
   // Bắt buộc khi cột trên là "Có" (user chốt 2026-10-21); kiểm theo dòng.
   { key: 'tbContactDate', label: 'Ngày tiếp xúc người bệnh lao gần nhất (dd/mm/yyyy)', required: false },
 ];

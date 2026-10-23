@@ -52,7 +52,8 @@ export const canEditChild = (child, user) =>
   !!child && child.status !== CHILD_STATUS.LEFT && (vpOfCampus(child, user) || isPrincipal(user));
 export const canWithdrawChild = canEditChild;
 export const canPlaceChild = vpEditable;
-export const canDeclareHealth = vpEditable;
+// Tiền sử nằm ở khai báo nên sửa cùng quyền với Sửa hồ sơ: Hiệu trưởng hoặc Phó hiệu trưởng điểm trường (user chốt 2026-10-22).
+export const canDeclareHealth = canEditChild;
 export const canActivateParent = vpEditable;
 
 /* ---- Class teacher (UC 5.3; Principal and VP have "No" for Record / Edit in the matrix) ---- */
@@ -60,7 +61,6 @@ export const canRecordMeasurement = (child, user, cls) =>
   !!child && child.status === CHILD_STATUS.ACTIVE && child.classId === cls?.id && teachesClass(cls, user);
 
 export const canEditMeasurement = canRecordMeasurement;
-export const canPublishMeasurement = canRecordMeasurement;
 
 /* ---- Đợt khám sức khỏe (user chốt 2026-10-15, PROPOSED): Hiệu trưởng quản lý; PHT, giáo viên xem theo điểm trường ---- */
 export const canManageHealthCheck = (user) => isPrincipal(user);

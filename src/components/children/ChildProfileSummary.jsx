@@ -2,7 +2,7 @@ import { PREMATURE_LABELS, PROFILE_FIELD_LABELS, formatAddress, hasProfileData }
 
 /** Thông tin hành chính chỉ xem (bước Xem lại khi tiếp nhận, hồ sơ trẻ). Ô trống hiện "Chưa cung cấp". */
 export function ChildProfileSummary({ profile }) {
-  if (!hasProfileData(profile)) return <p className="muted">Chưa cung cấp. Phiếu khám sức khỏe sẽ hỏi khi khám.</p>;
+  if (!hasProfileData(profile)) return <p className="muted">Chưa cung cấp. Hiệu trưởng hoặc Phó hiệu trưởng bổ sung ở Sửa hồ sơ.</p>;
   const missing = <span className="muted">Chưa cung cấp</span>;
   const show = (v) => (v === '' || v == null ? missing : v);
   const premature = profile.premature

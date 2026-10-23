@@ -4,6 +4,7 @@
  */
 
 import { GUARDIAN_TO_COMPANION_RELATION, buildEmptyExam } from '@/models/children/healthExamForm';
+import { historyToExam, profileToExamAdmin } from '@/models/children/childProfile';
 import { C2_OCT_CAMPAIGN, OPEN_CAMPAIGN, SEED_CAMPAIGN_DATES, openCampaignDates, seedCampaignId } from './healthCheckSeed';
 
 // Ngày khám của các đợt đã đóng (khớp healthCheckSeed); đợt tháng 9 là lần gần nhất.
@@ -15,8 +16,6 @@ const LEGACY_DATE = '2025-12-15';
 const CLASS_MEASURE_DATE = '2026-10-10';
 // Trẻ vắng ngày khám của đợt (không có kết quả): đợt tháng 3 là trẻ có n chia hết cho 9, đợt tháng 6 như dưới.
 const ABSENT_JUNE = ['ch_013', 'ch_029'];
-// Kết quả "Cần theo dõi sát" tháng 9 của trẻ có phiếu còn chờ trao đổi: chưa công bố (trao đổi với phụ huynh trước khi công bố).
-const UNPUBLISHED_LATEST = ['ch_011', 'ch_027'];
 
 /*
  * Kết quả bất thường dựng sẵn cho đợt tháng 3 và tháng 6 (dữ liệu giả) để các đợt cũ có trẻ cần theo dõi
@@ -54,12 +53,12 @@ const DOCTOR_C2 = 'BS. Đặng Quốc Việt';
  * Phiếu Phụ lục II dựng sẵn để thử mọi trường hợp (dữ liệu giả). Mỗi trẻ 1 trường hợp, ghi ở `case`.
  * campaign: 'open' = đợt đang diễn ra ở điểm trường c1; C2_OCT_CAMPAIGN.id = đợt đã đóng đầu tháng 10 ở c2.
  * draft: phiếu nháp dừng ở bước đó (0–4); các bước trước đã nhập đủ. legacy: kết quả mẫu cũ nhập trong đợt.
- * Phiếu đã kết luận có người đi cùng là đã công bố; không có người đi cùng thì chưa công bố (chờ trao đổi).
+ * Mọi kết quả đã kết luận là đã công bố (user chốt 2026-10-23). Có người đi cùng + mức Cần theo dõi sát thì có ý kiến phụ huynh.
  * Số định danh giả bắt đầu bằng 999 (không có mã tỉnh này). Lớp Chồi 1 để trống: khám từ đầu.
  */
 const EXAM_CASES = {
   /* ---------- Lớp Mầm 1 (c1, cô An) ---------- */
-  ch_001: { case: 'Bình thường, có người đi cùng: tự công bố khi lưu kết luận' },
+  ch_001: { case: 'Bình thường, có người đi cùng' },
   ch_002: {
     case: 'Có vấn đề, tư vấn; trẻ 35 tháng (nhóm 12–35 tháng) thở nhanh; phiếu đã sửa có lý do',
     headOffset: 0.4,
@@ -75,7 +74,7 @@ const EXAM_CASES = {
     edited: { weightFrom: 0.4, reason: 'Cân lại sau khi trẻ cởi áo khoác.' },
   },
   ch_003: {
-    case: 'Trẻ đang có phiếu theo dõi: "Có thêm bất thường mới", KHÔNG có người đi cùng ⇒ vòng mới, chờ trao đổi 7 ngày, chưa công bố được; gợi ý kết hợp 2 dấu hiệu',
+    case: 'Trẻ đang có phiếu theo dõi: "Có thêm bất thường mới", KHÔNG có người đi cùng ⇒ vòng mới, chờ trao đổi 7 ngày, phiếu ghi "Chưa trao đổi phụ huynh"; gợi ý kết hợp 2 dấu hiệu',
     headOffset: -3.4,
     noCompanion: true,
     headStatus: 'SMALL',
@@ -91,7 +90,7 @@ const EXAM_CASES = {
   },
   ch_004: { case: 'Phiếu nháp dừng ở bước 2 (sinh tồn, dinh dưỡng)', draft: 1, headOffset: 0.2 },
   ch_005: {
-    case: 'Chuyển khám có người đi cùng: trao đổi ghi tại buổi khám, công bố được; sốt + mạch nhanh',
+    case: 'Chuyển khám có người đi cùng: trao đổi ghi tại buổi khám kèm ý kiến phụ huynh; sốt + mạch nhanh',
     headOffset: 0.3,
     vitals: { temperatureC: 37.8, temperatureStatus: 'FEVER', pulse: 132, pulseStatus: 'FAST' },
     clinical: { strabismus: 'YES' },
@@ -102,18 +101,19 @@ const EXAM_CASES = {
       action: 'REFERRAL',
       specialty: 'Mắt',
       adviceText: 'Theo dõi nhiệt độ ở nhà; đưa trẻ khám chuyên khoa mắt.',
+      parentOpinion: 'Gia đình đồng ý, sẽ đưa trẻ khám mắt cuối tuần này.',
     },
   },
   ch_006: {
     case: 'Nguy cơ mắc lao (tiền sử tiếp xúc), có người đi cùng',
     headOffset: -0.2,
-    history: { tbContact: 'YES', tbContactDate: '2026-09-05' },
     conclusion: {
       normal: false,
       tbRisk: true,
       action: 'REFERRAL',
       specialty: 'Lao và bệnh phổi – Trung tâm Y tế',
       adviceText: 'Đưa trẻ đến cơ sở y tế để được khám sàng lọc lao.',
+      parentOpinion: 'Phụ huynh đồng ý đưa trẻ đi khám sàng lọc lao trong tuần.',
     },
   },
   ch_037: {
@@ -127,6 +127,7 @@ const EXAM_CASES = {
       action: 'REFERRAL',
       specialty: 'Nhi khoa – khám phát triển, tâm lý trẻ em',
       adviceText: 'Đưa trẻ đi khám chuyên khoa sớm; ở nhà tăng trò chuyện, đọc sách cùng trẻ.',
+      parentOpinion: 'Mẹ đã thấy trẻ chậm nói, muốn được giới thiệu nơi khám phát triển.',
     },
   },
   /* ---------- Lớp Chồi 2 (c1, cô Mai, cô Hà) ---------- */
@@ -152,19 +153,9 @@ const EXAM_CASES = {
     conclusion: { action: 'ADVICE', adviceText: 'Cho trẻ uống đủ nước, nghỉ ngơi; đo lại nhiệt độ buổi chiều.' },
   },
   ch_016: {
-    case: 'Nguy cơ lao + có vấn đề; người đi cùng là ông (không có trong hồ sơ); tiền sử, sinh non, thiếu cân, thiếu máu, chưa tiêm đủ, buồn bã kéo dài',
+    case: 'Nguy cơ lao + có vấn đề; tiền sử, sinh non, thiếu cân, thiếu máu, chưa tiêm đủ, buồn bã kéo dài',
     headOffset: -0.6,
     weightFactor: 0.8,
-    companion: { fullName: 'Lê Văn Bảy', relation: 'Ông/bà', phone: '0912 000 016', idNumber: '999195500016' },
-    admin: { premature: 'YES', gestationWeeks: 35, bloodType: 'O', beneficiary: 'Hộ cận nghèo' },
-    history: {
-      self: 'YES',
-      selfText: 'Viêm phổi lúc 2 tuổi',
-      family: 'YES',
-      familyText: 'Ông nội từng điều trị lao',
-      tbContact: 'YES',
-      tbContactDate: '2026-08-20',
-    },
     nutrition: { statuses: ['MALNUTRITION', 'ANEMIA_SIGNS'], weightForAgeSd: -2.4, lengthForAgeSd: -1.1, armCircumferenceMm: 128 },
     immunization: { fullSchedule: 'NO' },
     clinical: {
@@ -181,6 +172,7 @@ const EXAM_CASES = {
       action: 'REFERRAL',
       specialty: 'Lao và bệnh phổi – Trung tâm Y tế; Nhi khoa (dinh dưỡng)',
       adviceText: 'Khám sàng lọc lao sớm; bổ sung bữa phụ giàu sắt; hoàn thành mũi tiêm còn thiếu.',
+      parentOpinion: 'Gia đình lo về cân nặng của trẻ, đồng ý đi khám và bổ sung bữa phụ.',
     },
   },
   ch_017: {
@@ -201,12 +193,16 @@ const EXAM_CASES = {
   ch_019: {
     case: 'Trẻ đang có phiếu theo dõi (có kết quả chuyên khoa, hẹn khám lại): "Chưa ghi nhận thêm bất thường" ⇒ phiếu giữ nguyên',
     clinical: { gait: 'ABNORMAL', asymmetricMotion: 'YES' },
-    conclusion: { normal: false, action: '', followUpFinding: 'NO_NEW_FINDING' },
+    conclusion: {
+      normal: false,
+      action: '',
+      followUpFinding: 'NO_NEW_FINDING',
+      parentOpinion: 'Phụ huynh cho biết trẻ vẫn tập vật lý trị liệu theo hẹn.',
+    },
   },
   ch_020: { case: 'Bình thường, trẻ trên 60 tháng (không đo vòng đầu)' },
   ch_023: {
     case: 'Vấn đề đã biết, không thay đổi (cận thị đang đeo kính): mức Vấn đề đã biết, ổn định, không vào danh sách Trẻ cần theo dõi',
-    history: { self: 'YES', selfText: 'Cận thị – đeo kính' },
     conclusion: {
       normal: false,
       healthIssue: true,
@@ -242,6 +238,7 @@ const EXAM_CASES = {
       action: 'REFERRAL',
       specialty: 'Tai mũi họng',
       adviceText: 'Giữ tai khô; đưa trẻ khám chuyên khoa tai mũi họng trong tuần.',
+      parentOpinion: 'Phụ huynh đồng ý, hẹn khám tai mũi họng trong tuần.',
     },
   },
   ch_026: { case: 'Đợt đóng khi phiếu còn nháp: "Chưa kết luận"', campaign: 'c2_oct', draft: 2, headOffset: 0 },
@@ -278,24 +275,14 @@ const EXAM_CASES = {
 
 const pad5 = (n) => String(n).padStart(5, '0');
 
-/** Phiếu theo trường hợp; phiếu nháp chỉ có các bước trước bước đang dừng. */
+/** Phiếu theo trường hợp; phiếu nháp chỉ có các bước trước bước đang dừng. Phần I lấy từ hồ sơ mẫu của trẻ như BE. */
 const seedExam = (ch, n, spec, { headApplies, doctor }) => {
   const e = buildEmptyExam();
   const g = ch.guardians?.[0];
   const stop = spec.draft ?? 5;
   e.step = Math.min(stop, 4);
-  Object.assign(e.admin, {
-    childIdNumber: `999${ch.dateOfBirth.slice(0, 4)}${pad5(n)}`,
-    premature: 'NO',
-    gestationWeeks: 39,
-    ethnicity: 'Kinh',
-    paymentSource: 'Gia đình chi trả',
-    address: { province: 'Hải Phòng', ward: 'Thượng Hồng', street: `Thôn ${(n % 5) + 1}` },
-    hasCompanion: spec.noCompanion ? 'NO' : 'YES',
-    ...spec.admin,
-  });
-  if (spec.companion) e.admin.companion = { guardianIndex: null, ...spec.companion };
-  else if (!spec.noCompanion && g)
+  Object.assign(e.admin, profileToExamAdmin(seedChildProfileOf(ch)), { hasCompanion: spec.noCompanion ? 'NO' : 'YES' });
+  if (!spec.noCompanion && g)
     e.admin.companion = {
       guardianIndex: 0,
       fullName: g.fullName,
@@ -304,7 +291,7 @@ const seedExam = (ch, n, spec, { headApplies, doctor }) => {
       idNumber: g.idNumber || '',
     };
   if (stop === 0) return e;
-  Object.assign(e.history, { self: 'NO', family: 'NO', tbContact: 'NO' }, spec.history);
+  Object.assign(e.history, historyToExam(seedMedicalHistoryOf(ch)));
   if (stop === 1) return e;
   Object.assign(e.vitals, {
     temperatureC: 36.8,
@@ -385,7 +372,6 @@ const buildMeasurements = (children, classes) => {
         const slow = n % 7 === 0 && date === LATEST_DATE ? -0.6 : 0;
         const special = date === LATEST_DATE ? latestAbnormal(n) : PAST_ABNORMAL[date]?.[n] || {};
         const head = 46.3 + (age - 24) * 0.075 + (special.head || ((n % 5) - 2) * 0.4);
-        const held = date === LATEST_DATE && UNPUBLISHED_LATEST.includes(ch.id);
         list.push({
           id: `hm_${ch.id}_${k}`,
           childId: ch.id,
@@ -398,8 +384,8 @@ const buildMeasurements = (children, classes) => {
           note: EXAM_NOTES[date](idx),
           campaignId: SEED_CAMPAIGN_DATES.includes(date) ? seedCampaignId(ch.campusId, date) : null,
           measuredBy: teacherId,
-          published: !held,
-          publishedAt: held ? null : `${date}T09:00:00.000Z`,
+          published: true,
+          publishedAt: `${date}T09:00:00.000Z`,
           createdAt: `${date}T08:30:00.000Z`,
           edits: [],
         });
@@ -421,8 +407,8 @@ const buildMeasurements = (children, classes) => {
           note: 'Cân đo tại lớp, không có bác sĩ.',
           campaignId: null,
           measuredBy: teacherId,
-          published: false,
-          publishedAt: null,
+          published: true,
+          publishedAt: `${CLASS_MEASURE_DATE}T09:00:00.000Z`,
           createdAt: `${CLASS_MEASURE_DATE}T08:30:00.000Z`,
           edits: [],
         });
@@ -452,10 +438,9 @@ const buildMeasurements = (children, classes) => {
           concludedAt: concluded ? `${date}T09:30:00.000Z` : null,
           campaignId: campaign.id,
           measuredBy: teacherId,
-          // Phiếu đã kết luận có người đi cùng tự công bố khi lưu (user chốt 2026-10-17).
-          published: concluded && !spec.noCompanion,
-          publishedAt: concluded && !spec.noCompanion ? `${date}T09:30:00.000Z` : null,
-          autoPublished: concluded && !spec.noCompanion,
+          // Lưu kết luận là công bố cho phụ huynh; phiếu nháp chưa công bố (user chốt 2026-10-23).
+          published: concluded || !!spec.legacy,
+          publishedAt: concluded || spec.legacy ? `${date}T09:30:00.000Z` : null,
           createdAt: `${date}T08:30:00.000Z`,
           // Phiếu đã sửa sau khi kết luận: lịch sử có lý do, giá trị cũ và mới.
           edits: spec.edited
@@ -475,9 +460,9 @@ const buildMeasurements = (children, classes) => {
 };
 
 /*
- * Hành chính, tiền sử hỏi khi tiếp nhận (dữ liệu giả). Trẻ khác để "Chưa cung cấp" như trẻ tiếp nhận từ trước (quyết định 5).
- * ch_007: đủ hồ sơ, chưa khám đợt này ⇒ phiếu điền sẵn từ hồ sơ. ch_009: hồ sơ thiếu, khai có tiếp xúc người bệnh lao.
- * ch_new_1: chờ xếp lớp, khai đủ.
+ * Hành chính, tiền sử nhập khi tiếp nhận (dữ liệu giả). Mọi trẻ đủ ô bắt buộc (user chốt 2026-10-22); trẻ không có ở đây
+ * dùng giá trị chung của seedChildProfileOf. ch_007: sinh non, hen phế quản, chưa khám đợt này. ch_009: khai có tiếp xúc
+ * người bệnh lao. ch_006, ch_016: phiếu khám có nguy cơ lao. ch_new_1: chờ xếp lớp.
  */
 const address = (street, ward) => ({ province: 'Hải Phòng', ward, street });
 export const SEED_CHILD_PROFILES = {
@@ -499,26 +484,29 @@ export const SEED_CHILD_PROFILES = {
     },
   },
   ch_009: {
-    profile: { ethnicity: 'Kinh', bloodType: 'O' },
+    profile: { bloodType: 'O' },
+    medicalHistory: { tbContact: { state: 'REPORTED', contactDate: '2026-07-28' } },
+  },
+  ch_006: {
+    medicalHistory: { tbContact: { state: 'REPORTED', contactDate: '2026-09-05' } },
+  },
+  ch_016: {
+    profile: { premature: 'YES', gestationWeeks: 35, bloodType: 'O', beneficiary: 'Hộ cận nghèo' },
     medicalHistory: {
-      self: { state: 'NONE_REPORTED', text: '' },
-      family: { state: 'NOT_PROVIDED', text: '' },
-      tbContact: { state: 'REPORTED', contactDate: '2026-07-28' },
+      self: { state: 'REPORTED', text: 'Viêm phổi lúc 2 tuổi' },
+      family: { state: 'REPORTED', text: 'Ông nội từng điều trị lao' },
+      tbContact: { state: 'REPORTED', contactDate: '2026-08-20' },
     },
   },
   // Vấn đề đã biết: ch_023 khám đợt này chọn "đã biết"; ch_031 đóng phiếu với kết quả chuyên khoa xác định có vấn đề.
   ch_023: {
     medicalHistory: {
       self: { state: 'REPORTED', text: 'Cận thị – đeo kính' },
-      family: { state: 'NOT_PROVIDED', text: '' },
-      tbContact: { state: 'NONE_REPORTED' },
     },
   },
   ch_031: {
     medicalHistory: {
       self: { state: 'REPORTED', text: 'Bàn chân bẹt – mang giày chỉnh hình' },
-      family: { state: 'NOT_PROVIDED', text: '' },
-      tbContact: { state: 'NONE_REPORTED' },
     },
   },
   ch_new_1: {
@@ -540,6 +528,35 @@ export const SEED_CHILD_PROFILES = {
   },
 };
 
+const WARDS = ['Phường Thượng Hồng', 'Xã Hồng Phong', 'Phường Bạch Đằng'];
+const BLOOD_TYPES = ['O', 'A', 'B', 'AB'];
+const seedNo = (id) => Number(String(id).replace(/\D/g, '')) || 0;
+
+/** Hành chính giả đủ ô bắt buộc của một trẻ (CCCD giả bắt đầu 999); trẻ có trong SEED_CHILD_PROFILES ghi đè từng ô. */
+export const seedChildProfileOf = (ch) => {
+  const n = seedNo(ch.id);
+  const own = SEED_CHILD_PROFILES[ch.id]?.profile || {};
+  return {
+    idNumber: `999${String(ch.dateOfBirth || '2022').slice(0, 4)}${pad5(n)}`,
+    premature: 'NO',
+    gestationWeeks: own.premature === 'YES' ? 35 : 39,
+    ethnicity: 'Kinh',
+    beneficiary: 'Trẻ em dưới 6 tuổi',
+    paymentSource: n % 2 ? 'BHYT' : 'Gia đình chi trả',
+    bloodType: BLOOD_TYPES[n % BLOOD_TYPES.length],
+    address: address(`Thôn ${(n % 5) + 1}`, WARDS[n % WARDS.length]),
+    ...own,
+  };
+};
+
+/** Tiền sử giả của một trẻ: mặc định "Không" cả 3 mục; trẻ có trong SEED_CHILD_PROFILES ghi đè từng mục. */
+export const seedMedicalHistoryOf = (ch) => ({
+  self: { state: 'NONE_REPORTED', text: '' },
+  family: { state: 'NONE_REPORTED', text: '' },
+  tbContact: { state: 'NONE_REPORTED', contactDate: '' },
+  ...SEED_CHILD_PROFILES[ch.id]?.medicalHistory,
+});
+
 const buildDeclarations = (children) =>
   children.map((ch, i) => ({
     childId: ch.id,
@@ -549,7 +566,7 @@ const buildDeclarations = (children) =>
         ? { state: 'REPORTED', text: 'Ăn cháo/cơm nát, không ăn đồ cay.' }
         : { state: i % 3 === 0 ? 'NOT_PROVIDED' : 'NONE_REPORTED', text: '' },
     otherNotes: { state: 'NOT_PROVIDED', text: '' },
-    ...(SEED_CHILD_PROFILES[ch.id] && { medicalHistory: SEED_CHILD_PROFILES[ch.id].medicalHistory }),
+    medicalHistory: seedMedicalHistoryOf(ch),
     declaredBy: 'u_lan',
     declaredAt: ch.enrolledAt ? `${ch.enrolledAt}T02:00:00.000Z` : null,
     history: [],

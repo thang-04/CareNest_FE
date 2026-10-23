@@ -1,13 +1,15 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import {
   getChildDetail,
   getChildren,
   getHealthRecord,
-  getParentAccountOptions,
+  findParentAccountByCitizenId,
   getParentAccounts,
   getPlacementClasses,
 } from '@/services/children/childrenService';
+import { isValidCitizenId, normalizeCitizenId } from '@/utils/citizenId';
 
 /** Children in the user's scope. filters: { keyword, campusId, classId, status, schoolYear } */
 export function useChildRecords(filters = {}) {
@@ -43,11 +45,33 @@ export function useParentAccounts(filters = {}) {
   return { rows: data || [], loading, error, reload };
 }
 
-/** Existing parent accounts of the VP's campus, for linking a new child at enrollment. */
-export function useParentAccountOptions({ enabled = true } = {}) {
+/**
+ * Tài khoản phụ huynh theo CCCD của từng ô phụ huynh (user chốt 2026-10-23): tra khi CCCD đủ 12 chữ số, nhớ kết quả theo số.
+ * Trả hàm accountOf(idNumber) → tài khoản | null (không có / chưa tra xong). BE vẫn tự liên kết theo CCCD khi lưu.
+ */
+export function useCitizenIdAccounts(idNumbers, { enabled = true } = {}) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getParentAccountOptions({}, user), [user?.id], { enabled });
-  return { accounts: data || [], loading, error, reload };
+  const [found, setFound] = useState({});
+  const pending = useRef(new Set());
+  const ids = [...new Set(idNumbers.map(normalizeCitizenId).filter(isValidCitizenId))];
+  const key = ids.join(',');
+  useEffect(() => {
+    if (!enabled) return;
+    key
+      .split(',')
+      .filter((id) => id && !(id in found) && !pending.current.has(id))
+      .forEach((id) => {
+        pending.current.add(id);
+        findParentAccountByCitizenId(id, user)
+          // Không tra được thì coi như chưa có tài khoản; BE kiểm lại khi lưu.
+          .catch(() => null)
+          .then((acc) => {
+            pending.current.delete(id);
+            setFound((f) => ({ ...f, [id]: acc }));
+          });
+      });
+  }, [key, enabled, found, user]);
+  return useCallback((idNumber) => found[normalizeCitizenId(idNumber)] || null, [found]);
 }
 
 /** Health record bundle { child, cls, declaration, measurements (newest first) }. */
