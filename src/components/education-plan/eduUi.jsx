@@ -78,6 +78,7 @@ export const DocAvailabilityBadge = createStatusBadge(
 export const YearPlanStatusBadge = createStatusBadge(
   {
     DRAFT: ['gray', FileEdit],
+    EDITING: ['orange', Lock],
     SENT: ['green', Send],
     PENDING_TL: ['purple', Clock],
     PENDING_VP: ['purple', Clock],

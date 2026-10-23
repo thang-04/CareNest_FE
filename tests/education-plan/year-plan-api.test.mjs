@@ -88,16 +88,28 @@ test('trạng thái UI → endpoint hành động của BE', () => {
   const draft = { status: 'DRAFT', permissions: { canEdit: true } };
   const pending = { status: 'PENDING_VP', permissions: { canEdit: true } };
 
-  assert.deepEqual(planSteps(null, { status: 'DRAFT' }).map((s) => s.call), ['create']);
-  assert.deepEqual(planSteps(draft, { status: 'DRAFT' }).map((s) => s.call), ['update']);
-  assert.deepEqual(planSteps(draft, { status: 'PENDING_VP', history: [] }).map((s) => s.call), ['update', 'submit']);
-  assert.deepEqual(planSteps(draft, { status: 'PENDING_VP', history: [] }, false).map((s) => s.call), ['submit']);
-  // Phó HT ban hành / trả lại ở trang chi tiết: không lưu lại nội dung
-  assert.deepEqual(planSteps(pending, { status: 'APPROVED', history: [] }, false).map((s) => s.call), ['issue']);
   assert.deepEqual(
-    planSteps(pending, { status: 'REJECTED', history: [{ note: 'Sửa MT' }] }),
-    [{ call: 'return', note: 'Sửa MT' }],
+    planSteps(null, { status: 'DRAFT' }).map((s) => s.call),
+    ['create'],
   );
+  assert.deepEqual(
+    planSteps(draft, { status: 'DRAFT' }).map((s) => s.call),
+    ['update'],
+  );
+  assert.deepEqual(
+    planSteps(draft, { status: 'PENDING_VP', history: [] }).map((s) => s.call),
+    ['update', 'submit'],
+  );
+  assert.deepEqual(
+    planSteps(draft, { status: 'PENDING_VP', history: [] }, false).map((s) => s.call),
+    ['submit'],
+  );
+  // Phó HT ban hành / trả lại ở trang chi tiết: không lưu lại nội dung
+  assert.deepEqual(
+    planSteps(pending, { status: 'APPROVED', history: [] }, false).map((s) => s.call),
+    ['issue'],
+  );
+  assert.deepEqual(planSteps(pending, { status: 'REJECTED', history: [{ note: 'Sửa MT' }] }), [{ call: 'return', note: 'Sửa MT' }]);
 });
 
 test('lưu kế hoạch mới: POST rồi trả bản BE (id thật), bóc envelope { code, desc, data }', async () => {
@@ -123,4 +135,39 @@ test('lưu kế hoạch mới: POST rồi trả bản BE (id thật), bóc envel
   assert.deepEqual(calls, ['GET /education-plans/config', 'POST /education-plans/goals']);
   // Lỗi của BE đọc từ desc
   await assert.rejects(axiosClient.get('/education-plans/goals/999'), { status: 404, message: 'Year plan not found' });
+});
+
+test('BE:EDU-10 — khóa "Đang sửa": người giữ khóa; lưu khi đang sửa chỉ là update, gửi vẫn là submit', () => {
+  const goal = toUiGoal(
+    detail({ status: 'EDITING', editing: { userId: 7, name: 'Demo leader', title: null, at: '2026-10-22T03:05:00Z' } }),
+    refs,
+  );
+  assert.equal(goal.status, 'EDITING');
+  assert.equal(goal.editing.name, 'Demo leader');
+  assert.match(goal.editing.at, /^2026-10-22 \d\d:05$/);
+  assert.equal(toUiGoal(detail(), refs).editing, null);
+
+  const editing = { status: 'EDITING', permissions: { canEdit: true } };
+  assert.deepEqual(
+    planSteps(editing, { status: 'DRAFT' }).map((s) => s.call),
+    ['update'],
+  );
+  assert.deepEqual(
+    planSteps(editing, { status: 'PENDING_VP', history: [] }).map((s) => s.call),
+    ['update', 'submit'],
+  );
+});
+
+test('BE:EDU-10 — vào / thoát trang soạn gọi start-editing / finish-editing', async () => {
+  const calls = [];
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(`${config.method.toUpperCase()} ${config.url}`);
+    const data = config.url === '/education-plans/config' ? CONFIG : detail({ status: 'DRAFT' });
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data } };
+  };
+
+  await educationPlanApi.startEditingGoal('41');
+  await educationPlanApi.finishEditingGoal('41');
+
+  assert.deepEqual(calls.slice(-2), ['POST /education-plans/goals/41/start-editing', 'POST /education-plans/goals/41/finish-editing']);
 });

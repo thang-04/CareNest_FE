@@ -43,6 +43,8 @@ export const toUiEduConfig = (config) => {
 };
 
 const actor = (a) => (a ? { userId: a.userId, name: a.name, title: a.title || null, at: localDate(a.at) } : null);
+// Người đang giữ khóa "Đang sửa" (BE:EDU-10), at = giờ bắt đầu sửa
+const editor = (a) => (a ? { userId: a.userId, name: a.name, at: localDateTime(a.at) } : null);
 
 /** YearPlanDetailResponse → kế hoạch năm dạng UI. */
 export const toUiGoal = (detail, refs) => {
@@ -88,6 +90,7 @@ export const toUiGoal = (detail, refs) => {
     owner: actor(detail.owner),
     sentBy: actor(detail.sentBy),
     issued: actor(detail.issued),
+    editing: editor(detail.editing),
     history: (detail.history || []).map((h) => ({
       at: localDateTime(h.at),
       by: h.actorName,

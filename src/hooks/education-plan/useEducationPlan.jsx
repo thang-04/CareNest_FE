@@ -85,6 +85,11 @@ export function EducationPlanProvider({ children }) {
   );
 
   const value = useMemo(() => {
+    const yearName = (id) => {
+      const option = schoolYears.find((y) => y.id === id);
+      return option ? option.label.replace(' - ', '-') : String(id ?? '');
+    };
+
     const write = (key, call, apply) => async (arg) => {
       setData((prev) => (prev ? { ...prev, [key]: apply(prev[key], arg) } : prev));
       try {
@@ -136,9 +141,10 @@ export function EducationPlanProvider({ children }) {
       role: user.role,
       user,
       toast,
-      schoolYear: toEduYear(yearId),
-      schoolYears: schoolYears.map((y) => toEduYear(y.id)),
-      setYear: (label) => setSchoolYear(fromEduYear(label)),
+      // Header giữ id năm (số khi nối BE thật); module này dùng tên năm ('2026-2027') nên đổi qua nhãn của lựa chọn
+      schoolYear: toEduYear(yearName(yearId)),
+      schoolYears: schoolYears.map((y) => toEduYear(yearName(y.id))),
+      setYear: (label) => setSchoolYear(schoolYears.find((y) => yearName(y.id) === fromEduYear(label))?.id ?? fromEduYear(label)),
       historyEntry: (action, extra = {}) => ({ action, by: user.name, role: ROLE_LABELS[user.role], at: now(), tone: '', ...extra }),
       // Trả bản đã lưu (API thật: id do BE cấp, thay bản tạm cùng id cũ); lỗi thì báo, nạp lại và trả null
       saveGoal: async (item) => {
@@ -162,6 +168,27 @@ export function EducationPlanProvider({ children }) {
           toastApi.error(err.message, 'Không lưu được');
           reload({ silent: true });
           return null;
+        }
+      },
+      // Khóa "Đang sửa" (BE:EDU-10): trả kế hoạch mới nhất; người khác đang giữ khóa thì trả null, không báo lỗi
+      startEditingGoal: async (id) => {
+        try {
+          const goal = await service.startEditingGoal(id, actor);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
+          return goal;
+        } catch (err) {
+          if (err.status !== 409) toastApi.error(err.message, 'Không mở được trang soạn');
+          reload({ silent: true });
+          return null;
+        }
+      },
+      // Thoát trang soạn; lỗi mạng thì để BE tự nhả khóa sau thời hạn
+      finishEditingGoal: async (id, opts) => {
+        try {
+          const goal = await service.finishEditingGoal(id, actor, opts);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
+        } catch {
+          reload({ silent: true });
         }
       },
       deleteGoal: deleteIn('goals', service.deleteGoal),

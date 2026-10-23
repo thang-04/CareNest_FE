@@ -12,6 +12,9 @@ const repo = USE_MOCK ? educationPlanMockRepository : educationPlanApi;
 export const getEducationPlans = () => repo.getAll();
 export const saveGoal = (item) => repo.saveGoal(item);
 export const deleteGoal = (id) => repo.deleteGoal(id);
+// Khóa "Đang sửa" kế hoạch năm (BE:EDU-10). user: người thao tác (mock cần); keepalive: gửi được cả khi đóng tab
+export const startEditingGoal = (id, user) => (USE_MOCK ? repo.startEditingGoal(id, user) : repo.startEditingGoal(id));
+export const finishEditingGoal = (id, user, opts) => (USE_MOCK ? repo.finishEditingGoal(id, user) : repo.finishEditingGoal(id, opts));
 export const saveTheme = (item) => repo.saveTheme(item);
 export const deleteTheme = (id) => repo.deleteTheme(id);
 export const saveLesson = (item) => repo.saveLesson(item);
