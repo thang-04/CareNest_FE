@@ -2,6 +2,7 @@ import axios from 'axios';
 import { DEV_BE_BASE_URL } from '@/config/env';
 import { translateBeError } from './beErrorMessages';
 import { getDevAccessToken } from './devKeycloakAuth';
+import { UNAUTHORIZED_EVENT } from './tokenStorage';
 
 /*
  * Client cho API BE thật của Cấu hình trường (VITE_SCHOOL_CONFIG_API=true). Tách khỏi axiosClient chung để module
@@ -27,8 +28,14 @@ raw.interceptors.request.use(async (config) => {
 });
 
 const loadYears = async () => {
-  const { data } = await raw.get('/school-years');
-  years = data.data.map((y) => ({ id: y.id, name: y.name }));
+  try {
+    const { data } = await raw.get('/school-years');
+    years = data.data.map((y) => ({ id: y.id, name: y.name }));
+  } catch (error) {
+    // Vai trò không xem được danh sách năm học (bếp): không đổi tên <-> id năm, BE dùng năm đang hoạt động
+    if (error.response?.status !== 403) throw error;
+    years = [];
+  }
 };
 
 let loading = null; // gộp các lần nạp đồng thời
@@ -110,6 +117,8 @@ const call = async (method, url, { params, data } = {}) => {
     if (method !== 'get' && url.startsWith('/school-years')) await ensureYears(true);
     return toUi(response.data.data);
   } catch (error) {
+    // Token bị BE từ chối ⇒ luồng hết phiên chung (AuthContext đăng xuất)
+    if (error.response?.status === 401) window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
     throw normalizeError(error);
   }
 };
