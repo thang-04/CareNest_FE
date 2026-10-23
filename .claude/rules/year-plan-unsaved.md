@@ -6,11 +6,16 @@ paths:
   - "src/hooks/education-plan/useManualSave.js"
   - "src/hooks/useLeaveGuard.js"
   - "src/components/ui/LeaveConfirmModal.jsx"
+  - "src/pages/education-plan/BranchPlanPage.jsx"
+  - "src/pages/education-plan/ClassThemePlanPage.jsx"
+  - "src/pages/education-plan/EduConfigPage.jsx"
 ---
 
-# Kế hoạch năm học — cảnh báo rời màn khi chưa lưu
+# Kế hoạch giáo dục — lưu tay, cảnh báo rời màn, xác nhận khi xóa
 
-> Phạm vi: **chỉ** màn lập/sửa kế hoạch năm học (mục tiêu năm, `/education/goals/new`, `/education/goals/:id/edit` — `GoalFormPage`). Tiền chốt 23/10/2026: "cứ một màn hình có thông tin mà sang màn khác mà chưa lưu thì cần cảnh báo", chỉ cho phần kế hoạch năm học. Không áp quy tắc này sang module khác (bếp, sức khỏe, điểm danh…) khi chưa được yêu cầu.
+> Phạm vi: màn lập/sửa kế hoạch năm học (`GoalFormPage`); Tiền 23/10/2026 mở rộng sang Chủ đề nhánh (`BranchPlanPage`), Kế hoạch chủ đề (`ClassThemePlanPage`) và Cấu hình kế hoạch giáo dục (`EduConfigPage`). Không áp sang module khác (bếp, sức khỏe, điểm danh…) khi chưa được yêu cầu.
+
+- Xóa một mục (dòng, lĩnh vực, người ký, mục tiêu, chủ đề…) chỉ bằng nút thùng rác `icon-btn--danger` và luôn qua `ConfirmationModal` (danger) nêu tên mục và những gì mất kèm; bỏ nhiều thứ một lần (vd. "Bỏ tất cả" gợi ý AI) cũng hỏi. Backspace ở ô trống không xóa dòng; Enter ở ô tên thêm dòng dưới.
 
 - Lưu tay (bỏ tự lưu, Tiền 22/10): nút Lưu đầu trang hoặc Ctrl+S qua `useManualSave`; `unsaved` = bản đang sửa khác bản vừa nạp/vừa lưu.
 - Còn thay đổi chưa lưu mà sang màn khác ⇒ **luôn hỏi** bằng `LeaveConfirmModal` (Hủy · Không lưu · Lưu) qua `useLeaveGuard({ when: canEdit && saver.unsaved, onSave: saver.save })`. Phải chặn đủ các đường rời màn:

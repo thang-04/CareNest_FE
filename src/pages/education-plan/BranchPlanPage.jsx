@@ -188,6 +188,15 @@ function BranchPlanInner({ classId }) {
     pendingWeeks.forEach((w) => set('names', w, pending[w].prev));
     setPending({});
   };
+  // Bỏ nhiều gợi ý một lần: hỏi trước như mọi thao tác xóa (quy tắc trang kế hoạch năm)
+  const confirmRejectAll = () =>
+    setConfirm({
+      danger: true,
+      title: `Bỏ cả ${pendingWeeks.length} tên AI điền?`,
+      message: 'Các tuần này trở về tên trước khi AI điền (để trống nếu trước đó chưa có tên).',
+      confirmLabel: 'Bỏ tất cả',
+      run: rejectAll,
+    });
   const aiBusy = !!aiTheme || !!rewriting;
   const printArgs = { doc: saved || draft, cls, yearPlan, teachers };
   // Hỏi trước khi chạy AI; kết quả là bản nháp để giáo viên giữ / bỏ
@@ -296,7 +305,7 @@ function BranchPlanInner({ classId }) {
             <span className="row row--wrap gap-2">
               {pendingWeeks.length > 0 ? (
                 <>
-                  <button type="button" className="btn btn--sm" onClick={rejectAll}>
+                  <button type="button" className="btn btn--sm" onClick={confirmRejectAll}>
                     <X size={16} aria-hidden /> Bỏ tất cả
                   </button>
                   <button type="button" className="btn btn--success btn--sm" onClick={() => setPending({})}>
@@ -467,6 +476,7 @@ function BranchPlanInner({ classId }) {
       </Card>
       <ConfirmationModal
         open={!!confirm}
+        danger={!!confirm?.danger}
         title={confirm?.title}
         message={confirm?.message}
         confirmLabel={confirm?.confirmLabel}
@@ -491,7 +501,14 @@ function BranchPlanInner({ classId }) {
             <button type="button" className="btn btn--ghost" onClick={() => setShowPending(false)}>
               Đóng, xử lý sau
             </button>
-            <button type="button" className="btn" onClick={rejectAll}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setShowPending(false);
+                confirmRejectAll();
+              }}
+            >
               <X size={16} aria-hidden /> Bỏ tất cả
             </button>
             <button type="button" className="btn btn--success" onClick={() => setPending({})}>
