@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { RotateCcw } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { Card, EduStatusBadge, EmptyState, PageHead, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
-import { className, periodLabel, typeLabel } from '@/components/education-plan/lessonShared';
+import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
+import { LoadingState } from '@/components/ui/States';
+import { useClasses } from '@/hooks/useSchool';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
+import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 import { clickableRowProps } from '@/utils/clickableRow';
 
@@ -13,19 +15,23 @@ const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
 const TABS = [
   { key: 'goals', label: 'Mục tiêu năm học' },
-  { key: 'themes', label: 'Kế hoạch chủ đề' },
-  { key: 'lessons', label: 'Giáo án' },
+  { key: 'branches', label: 'Chủ đề nhánh' },
+  { key: 'themes', label: 'Hồ sơ chủ đề' },
 ];
 
-// Bản nháp chưa gửi đi thuộc về người soạn; Hiệu trưởng chỉ xem những gì đã gửi hoặc đã duyệt.
-const isShared = (status) => status !== EDU_STATUS.DRAFT;
+// Bản nháp, bản đang sửa thuộc về người soạn; Hiệu trưởng chỉ xem những gì đã gửi hoặc đã duyệt (BE:EDU-06)
+const isShared = (status) => status !== EDU_STATUS.DRAFT && status !== EDU_STATUS.EDITING;
+const isPending = (status) => [EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP, EDU_STATUS.PENDING_HT].includes(status);
+// Lần gửi gần nhất (dòng lịch sử không có tone) và lần cập nhật cuối
+const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
 
 /**
- * Principal: read-only view of the whole school's education plans (SRS 4.4 – Lesson plan View: Full).
- * No approval here: the Vice Principal approves (UC "View Lesson Plans").
+ * Hiệu trưởng: xem kế hoạch giáo dục toàn trường (kế hoạch năm theo nhóm tuổi, chủ đề nhánh và hồ sơ chủ đề của các lớp),
+ * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch, giáo án.
  */
 export default function SchoolPlansPage() {
-  const { goals, themes, lessons, schoolYear } = useEducationPlan();
+  const { goals, branchPlans, classThemePlans, schoolYear } = useEducationPlan();
+  const { classes, loading } = useClasses();
   const navigate = useNavigate();
   const [tab, setTab] = useState('goals');
   const [age, setAge] = useState('');
@@ -33,11 +39,25 @@ export default function SchoolPlansPage() {
   const [q, setQ] = useState('');
 
   const data = useMemo(() => {
-    const yearThemes = themes.filter((t) => t.schoolYear === schoolYear && isShared(t.status));
-    const themeIds = new Set(themes.filter((t) => t.schoolYear === schoolYear).map((t) => t.id));
+    const yearGoals = goals.filter((g) => g.schoolYear === schoolYear);
+    const planOf = (doc) => yearGoals.find((g) => g.id === doc.yearPlanId);
+    const classOf = (id) => classes.find((c) => c.id === id);
+    const classDoc = (doc) => {
+      const cls = classOf(doc.classId);
+      const last = doc.history?.at(-1);
+      return {
+        id: doc.id,
+        code: '',
+        scope: cls?.name || '—',
+        ageGroupId: cls?.ageGroupId,
+        by: sentEntry(doc)?.by,
+        at: last ? fmtDateTime(last.at) : '—',
+        status: doc.status,
+      };
+    };
     return {
-      goals: goals
-        .filter((g) => g.schoolYear === schoolYear && isShared(g.status))
+      goals: yearGoals
+        .filter((g) => isShared(g.status))
         .map((g) => ({
           id: g.id,
           to: `/education/goals/${g.id}`,
@@ -45,39 +65,37 @@ export default function SchoolPlansPage() {
           code: g.code,
           scope: ageName(g.ageGroupId),
           ageGroupId: g.ageGroupId,
-          detail: `${allGoalItems(g).length} mục tiêu · ${g.domains.length} lĩnh vực`,
-          by: g.createdBy,
+          detail: `${allGoalItems(g).length} mục tiêu · ${(g.themes || []).length} chủ đề`,
+          by: g.owner?.name || g.createdBy,
           at: fmtDate(g.sentAt),
           status: g.status,
+          year: true,
         })),
-      themes: yearThemes.map((t) => ({
-        id: t.id,
-        to: '/education/plan-reviews',
-        title: `Chủ đề: ${t.name}`,
-        code: t.code,
-        scope: ageName(t.ageGroupId),
-        ageGroupId: t.ageGroupId,
-        detail: `${fmtDate(t.startDate)} – ${fmtDate(t.endDate)}`,
-        by: t.createdBy,
-        at: fmtDateTime(t.history?.at(-1)?.at),
-        status: t.status,
-      })),
-      lessons: lessons
-        .filter((l) => themeIds.has(l.themeId) && isShared(l.status))
-        .map((l) => ({
-          id: l.id,
-          to: '/education/plan-reviews',
-          title: `${typeLabel(l.type)} · Tuần ${l.weekIndex}: ${l.branch}`,
-          code: l.code,
-          scope: `Lớp ${className(l.classId)}`,
-          ageGroupId: l.ageGroupId,
-          detail: periodLabel(l),
-          by: l.createdBy,
-          at: fmtDateTime(l.history?.at(-1)?.at),
-          status: l.status,
-        })),
+      branches: branchPlans
+        .filter((d) => planOf(d) && isShared(d.status))
+        .map((d) => {
+          const weeks = yearWeeks(planOf(d)).filter((w) => w.type === 'week');
+          return {
+            ...classDoc(d),
+            to: `/education/branches/${d.classId}`,
+            title: 'Dự kiến chủ đề nhánh cả năm',
+            detail: `${weeks.filter((w) => d.names?.[w.start]?.trim()).length}/${weeks.length} tuần có tên`,
+          };
+        }),
+      themes: classThemePlans
+        .filter((d) => planOf(d) && isShared(d.status))
+        .map((d) => {
+          const plan = planOf(d);
+          const theme = (plan.themes || []).find((t) => t.id === d.themeId);
+          return {
+            ...classDoc(d),
+            to: `/education/class/${d.classId}/themes/${d.themeId}/review`,
+            title: `Chủ đề ${themeNumber(plan, d.themeId)}: ${theme?.name || '—'}`,
+            detail: `${fmtDate(theme?.start)} – ${fmtDate(theme?.end)} · ${themeWeeksOf(plan, d.themeId).length} nhánh`,
+          };
+        }),
     };
-  }, [goals, themes, lessons, schoolYear]);
+  }, [goals, branchPlans, classThemePlans, classes, schoolYear]);
 
   const all = data[tab];
   const rows = all.filter(
@@ -88,13 +106,18 @@ export default function SchoolPlansPage() {
   );
   const statuses = [...new Set(all.map((r) => r.status))];
   const count = (list, s) => list.filter((r) => r.status === s).length;
-  const pending = (list) => count(list, EDU_STATUS.PENDING_TL) + count(list, EDU_STATUS.PENDING_VP) + count(list, EDU_STATUS.SENT);
+  const pendingCount = (list) => list.filter((r) => isPending(r.status)).length;
 
   const stats = [
-    { label: 'Bộ mục tiêu đã gửi', value: data.goals.length, tone: 'blue', tab: 'goals' },
-    { label: 'Kế hoạch chủ đề đã duyệt', value: count(data.themes, EDU_STATUS.APPROVED), tone: 'green', tab: 'themes' },
-    { label: 'Giáo án đã duyệt', value: count(data.lessons, EDU_STATUS.APPROVED), tone: 'purple', tab: 'lessons' },
-    { label: 'Đang chờ duyệt', value: pending(data.themes) + pending(data.lessons), tone: 'orange', tab: 'lessons' },
+    { label: 'Kế hoạch năm đã ban hành', value: count(data.goals, EDU_STATUS.APPROVED), tone: 'blue', tab: 'goals' },
+    { label: 'Chủ đề nhánh đã duyệt', value: count(data.branches, EDU_STATUS.APPROVED), tone: 'green', tab: 'branches' },
+    { label: 'Hồ sơ chủ đề đã duyệt', value: count(data.themes, EDU_STATUS.APPROVED), tone: 'purple', tab: 'themes' },
+    {
+      label: 'Đang chờ duyệt',
+      value: pendingCount(data.goals) + pendingCount(data.branches) + pendingCount(data.themes),
+      tone: 'orange',
+      tab: 'themes',
+    },
   ];
 
   const switchTab = (key) => {
@@ -107,6 +130,8 @@ export default function SchoolPlansPage() {
     setStatus('');
     setQ('');
   };
+
+  if (loading) return <LoadingState />;
 
   return (
     <div className="page ga-page">
@@ -174,7 +199,7 @@ export default function SchoolPlansPage() {
                 <tr>
                   <th>{TABS.find((t) => t.key === tab).label}</th>
                   <th>Phạm vi</th>
-                  <th>{tab === 'goals' ? 'Nội dung' : 'Thời gian'}</th>
+                  <th>{tab === 'goals' ? 'Nội dung' : 'Tiến độ'}</th>
                   <th>Người lập</th>
                   <th>{tab === 'goals' ? 'Ngày gửi' : 'Cập nhật'}</th>
                   <th className="center">Trạng thái</th>
@@ -191,9 +216,7 @@ export default function SchoolPlansPage() {
                     <td>{r.detail}</td>
                     <td>{r.by || '—'}</td>
                     <td>{r.at}</td>
-                    <td className="center">
-                      <EduStatusBadge status={r.status} />
-                    </td>
+                    <td className="center">{r.year ? <YearPlanStatusBadge status={r.status} /> : <EduStatusBadge status={r.status} />}</td>
                   </tr>
                 ))}
               </tbody>
