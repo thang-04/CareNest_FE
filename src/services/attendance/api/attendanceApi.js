@@ -8,8 +8,6 @@ export const attendanceApi = {
   getDayInfo: (date) => axiosClient.get('/attendance/day-info', { params: { date } }),
   getClassAttendance: (classId, date) => axiosClient.get(`/classes/${classId}/attendance`, { params: { date } }),
   saveClassAttendance: ({ classId, date, entries }) => axiosClient.put(`/classes/${classId}/attendance`, { date, entries }),
-  correctMealAfterLock: ({ childId, date, session, note }) =>
-    axiosClient.post(`/attendance/meal-corrections`, { childId, date, session, note }),
   // PENDING BE: không có classId = tổng hợp nhiều lớp trong phạm vi người gọi (campusId tùy chọn, BE tự giới hạn phạm vi)
   getAttendanceSummary: ({ classId, campusId, from, to }) =>
     classId
@@ -55,11 +53,9 @@ const toSheet = (data) => {
 
 const withSubstitute = (summary, scope) => ({ scope, ...summary, days: summary.days.map((d) => ({ ...d, substitute: 0 })) });
 
-const notInBe = () => Promise.reject(Object.assign(new Error('Chức năng này chưa có trên máy chủ.'), { status: 501 }));
-
 /**
- * Dev (VITE_SCHOOL_CONFIG_API): điểm danh đợt 1 nối BE thật qua beClient (id số <-> chuỗi, lỗi đã dịch).
- * Hủy suất sau giờ khóa, số suất, bàn giao bữa chưa có BE.
+ * Dev (VITE_SCHOOL_CONFIG_API): điểm danh (đợt 1) và sổ báo ăn (đợt 2) nối BE thật qua beClient (id số <-> chuỗi,
+ * lỗi đã dịch). Bàn giao bữa chưa có BE.
  */
 export const createAttendanceBeApi = (client) => ({
   getAttendanceClasses: (schoolYear) => client.get('/attendance/classes', { params: { schoolYearId: schoolYear || undefined } }),
@@ -82,5 +78,8 @@ export const createAttendanceBeApi = (client) => ({
           }),
           'MULTI',
         ),
-  correctMealAfterLock: notInBe,
+  getMealCounts: ({ date, schoolYear }) => client.get('/meal-counts', { params: { date, schoolYearId: schoolYear || undefined } }),
+  confirmMealCount: (id) => client.post(`/meal-counts/${id}/confirm`),
+  adjustMealDay: ({ campusId, date, session, classId, normal, substitute, note }) =>
+    client.post('/meal-counts/adjustments', { campusId, date, session: session || null, classId, normal, substitute, note }),
 });

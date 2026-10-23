@@ -48,6 +48,10 @@ const RULES = [
     (m) => `Điểm trường còn PHT phụ trách: ${m[1]}. Gỡ phân công PHT trước khi ngừng hoạt động.`,
   ],
   [/^Campus is inactive/, 'campusId', () => 'Điểm trường đã ngừng hoạt động, chọn điểm trường khác.'],
+  // Sổ báo ăn
+  [/^Meal count is already confirmed/, '_form', () => 'Sổ báo ăn bữa này đã được xác nhận.'],
+  [/^Meal count is unchanged/, 'normal', () => 'Số suất chưa thay đổi.'],
+  [/^Meal counts of an inactive school year are read-only/, '_form', () => 'Năm học không hoạt động, sổ báo ăn chỉ xem.'],
   // Phòng
   [/^Room is used by a class and cannot change type/, 'type', () => 'Phòng đang là phòng học của lớp, không đổi được loại phòng'],
   [/^Campus already has a room with this code/, 'room', () => 'Điểm trường đã có phòng cùng mã'],

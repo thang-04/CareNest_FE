@@ -6,7 +6,7 @@ import { attendanceApi, createAttendanceBeApi } from '@/services/attendance/api/
 
 /** Facade: UI only calls these functions. `user` is used by the mock; the API reads it from the token. */
 const repo = USE_MOCK ? attendanceMockRepository : attendanceApi;
-// Dev: điểm danh đợt 1 (xem/lưu, mở lại ngày, tổng hợp) dùng BE thật; số suất, bàn giao bữa vẫn mock
+// Dev: điểm danh (xem/lưu, mở lại ngày, tổng hợp) và sổ báo ăn dùng BE thật; bàn giao bữa vẫn mock
 const be = SCHOOL_CONFIG_API ? createAttendanceBeApi(beClient) : null;
 
 /** Lớp của năm học chọn ở header trong phạm vi người dùng (BE kèm cờ canRecord / canUnlock); mock: năm đang hoạt động. */
@@ -23,11 +23,10 @@ export const revokeAttendanceDayUnlock = (id, user) =>
   be ? be.revokeAttendanceDayUnlock(id) : USE_MOCK ? attendanceMockRepository.revokeAttendanceDayUnlock(id, user) : unlockUnavailable();
 export const getClassAttendance = (classId, date, user) => (be || repo).getClassAttendance(classId, date, user);
 export const saveClassAttendance = (payload, user) => (be || repo).saveClassAttendance(payload, user);
-export const correctMealAfterLock = (payload, user) => (be || repo).correctMealAfterLock(payload, user);
 export const getAttendanceSummary = (query, user) => (be || repo).getAttendanceSummary(query, user);
-export const getMealCounts = (query, user) => repo.getMealCounts(query, user);
-export const confirmMealCount = (id, user) => repo.confirmMealCount(id, user);
-export const adjustMealDay = (payload, user) => repo.adjustMealDay(payload, user);
+export const getMealCounts = (query, user) => (be || repo).getMealCounts(query, user);
+export const confirmMealCount = (id, user) => (be || repo).confirmMealCount(id, user);
+export const adjustMealDay = (payload, user) => (be || repo).adjustMealDay(payload, user);
 export const getMealHandovers = (query, user) => repo.getMealHandovers(query, user);
 export const confirmHandover = (id, body, user) => repo.confirmHandover(id, body, user);
 export const reportHandoverShortage = (id, body, user) => repo.reportHandoverShortage(id, body, user);

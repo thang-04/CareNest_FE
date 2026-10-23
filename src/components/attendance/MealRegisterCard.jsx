@@ -53,7 +53,7 @@ function MealPanel({ count, user, md, onConfirm, onAdjust, counts }) {
         <MealCountStatusBadge status={count.status} />
         <span className="muted text-sm">
           {count.confirmedAt
-            ? `${count.needsReconfirmation ? 'Lần xác nhận trước' : 'Xác nhận'} bởi ${md.userById?.(count.confirmedBy)?.fullName || 'Phó hiệu trưởng'} lúc ${formatDateTime(count.confirmedAt)}`
+            ? `${count.needsReconfirmation ? 'Lần xác nhận trước' : 'Xác nhận'} bởi ${count.confirmedByName || md.userById?.(count.confirmedBy)?.fullName || 'Phó hiệu trưởng'} lúc ${formatDateTime(count.confirmedAt)}`
             : count.status === 'OPEN'
               ? 'Đang báo ăn, chưa tới giờ chốt'
               : 'Chưa xác nhận'}
@@ -266,7 +266,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
                   <span className="text-xs muted nowrap">{formatDateTime(a.at)}</span>
                   <span>
                     <b>{classById[a.classId]}</b> ({a.sessions.map((x) => MEAL_SESSION_LABELS[x]).join(', ')}): {deltaText(a)} – {a.note}
-                    <span className="muted"> ({md.userById?.(a.userId)?.fullName || 'Giáo viên'})</span>
+                    <span className="muted"> ({a.userName || md.userById?.(a.userId)?.fullName || 'Giáo viên'})</span>
                   </span>
                 </li>
               ))}
@@ -275,7 +275,8 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
         )}
         {!confirmable.length && lastConfirmed && status === MEAL_COUNT_STATUS.CONFIRMED && (
           <div className="text-sm muted mt-12">
-            Đã xác nhận đủ {counts.length} bữa · lần cuối bởi {md.userById?.(lastConfirmed.confirmedBy)?.fullName || 'Phó hiệu trưởng'} lúc{' '}
+            Đã xác nhận đủ {counts.length} bữa · lần cuối bởi{' '}
+            {lastConfirmed.confirmedByName || md.userById?.(lastConfirmed.confirmedBy)?.fullName || 'Phó hiệu trưởng'} lúc{' '}
             {formatDateTime(lastConfirmed.confirmedAt)}. Bếp đang dùng số này.
           </div>
         )}

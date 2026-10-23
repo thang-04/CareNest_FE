@@ -23,7 +23,6 @@ import { MEAL_SESSIONS as KITCHEN_SESSIONS } from '@/models/kitchen/kitchenConst
 import {
   canAdjustMealCount,
   canConfirmMealCount,
-  canCorrectMealAfterLock,
   canRecordAttendance,
   canUnlockAttendanceDay,
   canReceiveHandover,
@@ -34,12 +33,7 @@ import {
   canViewMealCounts,
   canOpenMealHandover,
 } from '@/utils/attendance/attendancePermissions';
-import {
-  validateClassAttendance,
-  validateHandoverCheck,
-  validateMealCorrection,
-  validateSummaryRange,
-} from '@/utils/attendance/attendanceValidation';
+import { validateClassAttendance, validateHandoverCheck, validateSummaryRange } from '@/utils/attendance/attendanceValidation';
 import { isDayLocked, isSchoolDay, isValidTime, schoolDaysBetween, schoolNow } from '@/utils/attendance/attendanceTime';
 import { formatDate, isIsoDate } from '@/utils/format';
 import { isAttendanceUnlockActive } from '@/utils/attendance/attendanceUnlock';
@@ -365,17 +359,20 @@ const ready = () => {
   const db = readDb();
   if (!db.attendance || !db.mealCounts || !db.mealHandovers) writeDb(ensureSeeded);
   const current = readDb();
-  if (
-    !current.leaveRequests ||
-    current.leaveRequests.some(
-      (leave) =>
-        leave.status === 'SUBMITTED' &&
-        leave.fromDate <= schoolNow().date &&
-        leave.toDate >= schoolNow().date &&
-        !recordOf(current, leave.childId, schoolNow().date),
-    )
-  )
-    writeDb(ensureLeaveDemo);
+  const now = schoolNow().date;
+  // Cùng điều kiện với ensureLeaveDemo: ngày nghỉ hoặc sổ đã tổng hợp thì không ghi (ghi mãi ⇒ màn hình tải lại vô hạn)
+  const leaveToApply = (leave) => {
+    const child = current.children?.find((ch) => ch.id === leave.childId && ch.status === 'ACTIVE');
+    return (
+      !!child &&
+      leave.status === 'SUBMITTED' &&
+      leave.fromDate <= now &&
+      leave.toDate >= now &&
+      !recordOf(current, leave.childId, now) &&
+      !(current.mealCounts || []).some((count) => count.campusId === child.campusId && count.date === now)
+    );
+  };
+  if (!current.leaveRequests || (isSchoolDay(now) && current.leaveRequests.some(leaveToApply))) writeDb(ensureLeaveDemo);
   if (needsMockSeedMigration(readDb(), 'attendanceUnlocks', 1, ['attendanceDayUnlocks']))
     writeDb((d) => {
       const has = new Set(d.attendanceDayUnlocks.map((u) => u.id));
@@ -733,66 +730,6 @@ export const attendanceMockRepository = {
         });
       }
       return { savedAt: at, count: entries.length };
-    });
-  },
-
-  /**
-   * After the lock a teacher can only cancel a meal of today (e.g. child sent home sick).
-   * The count is updated and the kitchen notified without a new approval (UC 6.10 alt flow).
-   */
-  async correctMealAfterLock({ childId, date, session, note }, user) {
-    await delay();
-    return writeDb((db) => {
-      ensureSeeded(db);
-      const rec = recordOf(db, childId, date);
-      if (!rec) throw new ApiError(404, 'Trẻ chưa có dữ liệu điểm danh ngày này.');
-      const cls = findClass(db, rec.classId);
-      if (!canCorrectMealAfterLock(cls, user)) throw forbidden();
-      if (
-        activeUnlockOf(db, cls.id, date) ||
-        db.mealCounts.some((count) => count.campusId === cls.campusId && count.date === date && count.needsReconfirmation)
-      )
-        throw new ApiError(
-          409,
-          'Ngày đã mở lại hoặc số suất đang chờ xác nhận lại. Sửa tại điểm danh trong hạn mở hoặc liên hệ Phó hiệu trưởng.',
-        );
-      const errors = validateMealCorrection({ session, note });
-      if (Object.keys(errors).length) throw new ApiError(422, Object.values(errors)[0], errors);
-      const info = dayInfo(db, date);
-      if (date !== info.today || !info.locked) throw new ApiError(422, 'Chỉ điều chỉnh sau giờ khóa của ngày hôm nay.');
-      if (!rec.meals?.[session]) throw new ApiError(409, 'Trẻ không đăng ký bữa này.');
-      materializeCounts(db, date);
-
-      const at = new Date().toISOString();
-      const child = db.children.find((c) => c.id === childId);
-      const kind = needsSubstitute(child) ? 'substitute' : 'normal';
-      rec.meals[session] = false;
-      rec.history.push({ at, userId: user.id, action: 'MEAL_CANCELLED', note: `${MEAL_SESSION_LABELS[session]}: ${note.trim()}` });
-
-      const count = db.mealCounts.find((m) => m.campusId === cls.campusId && m.date === date && m.session === session);
-      const line = count?.classes.find((l) => l.classId === cls.id);
-      if (line) line[kind] = Math.max(0, line[kind] - 1);
-      count?.adjustments.push({
-        at,
-        userId: user.id,
-        classId: cls.id,
-        childId,
-        normal: kind === 'normal' ? -1 : 0,
-        substitute: kind === 'substitute' ? -1 : 0,
-        note: note.trim(),
-      });
-      const handover = db.mealHandovers.find((h) => h.classId === cls.id && h.date === date && h.session === session);
-      if (handover && handover.status !== HANDOVER_STATUS.CONFIRMED) handover.expected[kind] = Math.max(0, handover.expected[kind] - 1);
-
-      if (count?.status === MEAL_COUNT_STATUS.CONFIRMED) {
-        notifyAll(db, usersOf(db, ROLES.KITCHEN_STAFF, cls.campusId), {
-          type: 'MEAL_COUNT',
-          title: 'Điều chỉnh sĩ số suất ăn',
-          message: `${cls.name}: giảm 1 suất ${kind === 'substitute' ? 'thay thế' : 'thường'} ${MEAL_SESSION_LABELS[session].toLowerCase()} ngày ${formatDate(date)}.`,
-          link: `/attendance/meal-count?date=${date}`,
-        });
-      }
-      return clone(rec);
     });
   },
 

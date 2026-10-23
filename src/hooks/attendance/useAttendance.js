@@ -57,7 +57,8 @@ export function useAttendanceSummary({ classId, campusId, multi = false, from, t
 
 export function useMealCounts(date) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getMealCounts({ date }, user), [date, user?.id], {
+  const { schoolYear } = useSchoolYear();
+  const { data, loading, error, reload } = useAsync(() => getMealCounts({ date, schoolYear }, user), [date, user?.id, schoolYear], {
     enabled: !!date,
     refreshOnDataChange: true,
   });
