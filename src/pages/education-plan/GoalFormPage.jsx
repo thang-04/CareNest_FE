@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { ArrowLeft, ArrowRight, Check, Download, FileDown, Printer, Save, Send, Upload } from '@/components/ui/icons';
+import { ReviewActions } from '@/components/education-plan/reviewUi';
+import { ArrowLeft, ArrowRight, Download, FileDown, Printer, Save, Upload } from '@/components/ui/icons';
 import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
@@ -21,7 +22,7 @@ import {
 import { GoalTable, PLAN_TABS, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
-import { Card, Field, Modal, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, Field, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
 
 const suggestTitle = (year, ageGroupId) => {
   const ag = AGE_GROUPS.find((a) => a.id === ageGroupId);
@@ -88,7 +89,6 @@ export default function GoalFormPage() {
   const [step, setStep] = useState(() => (params.get('buoc') === 'ky' ? 2 : 0));
   const [maxReached, setMaxReached] = useState(existing ? 2 : 0);
   const [errors, setErrors] = useState({});
-  const [confirm, setConfirm] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileRef = useRef(null);
 
@@ -101,9 +101,12 @@ export default function GoalFormPage() {
     });
   };
   const ageName = AGE_GROUPS.find((a) => a.id === form.ageGroupId)?.name;
-  const yearStart =
-    yearOptions.find((y) => y.label.replace(' - ', '-') === form.schoolYear.replace(' – ', '-'))?.startDate ||
-    `${form.schoolYear.slice(0, 4)}-09-01`;
+  // Ngày bắt đầu, kết thúc năm học của kế hoạch: lịch chỉ cho chọn ngày trong khoảng này (BE kiểm lại khi lưu)
+  const yearOption = yearOptions.find((y) => y.label.replace(' - ', '-') === form.schoolYear.replace(' – ', '-'));
+  const yearRange = {
+    start: yearOption?.startDate || `${form.schoolYear.slice(0, 4)}-09-01`,
+    end: yearOption?.endDate || `${Number(form.schoolYear.slice(0, 4)) + 1}-05-31`,
+  };
   // Phó HT và tổ trưởng nhóm tuổi cùng soạn, mỗi lúc một người giữ khóa "Đang sửa" (BE:EDU-03, EDU-10);
   // đang chờ duyệt thì chỉ Phó HT tự sửa chỗ nhỏ. API thật dùng quyền BE trả; mock tự suy
   const editor = existing?.status === EDU_STATUS.EDITING ? existing.editing : null;
@@ -120,6 +123,10 @@ export default function GoalFormPage() {
   const csvName = `ke-hoach-nam-hoc-${form.schoolYear.replace(/\s/g, '')}.csv`;
   const totalGoals = Object.keys(numbers).length;
 
+  const outOfYear = [...form.themes, ...form.breaks].some((x) =>
+    [x.start, x.end].some((d) => d && (d < yearRange.start || d > yearRange.end)),
+  );
+  const outOfYearMsg = `Có chủ đề hoặc đợt nghỉ nằm ngoài năm học (${fmtDate(yearRange.start)} – ${fmtDate(yearRange.end)}).`;
   const validate = (s) => {
     const e = {};
     if (s === 0) {
@@ -134,6 +141,7 @@ export default function GoalFormPage() {
         e.themes = 'Mỗi chủ đề cần có tên và tên viết tắt (dùng làm cột "Chủ đề thực hiện" ở bảng mục tiêu).';
       else if (abbrs.some((a, i) => abbrs.indexOf(a) !== i)) e.themes = 'Tên viết tắt của các chủ đề bị trùng.';
       else if (themes.some((t) => t.start && t.end && t.end < t.start)) e.themes = 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.';
+      else if (outOfYear) e.themes = outOfYearMsg;
       else if (totalGoals === 0) e.domains = 'Nhập ít nhất một mục tiêu';
       // Mở đúng tab đang có lỗi
       if (e.themes) setTab('themes');
@@ -151,7 +159,9 @@ export default function GoalFormPage() {
       ? 'Tên viết tắt của các chủ đề bị trùng.'
       : themes.some((t) => t.start && t.end && t.end < t.start)
         ? 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.'
-        : null;
+        : outOfYear
+          ? outOfYearMsg
+          : null;
 
   const next = () => {
     if (!validate(step)) return;
@@ -255,7 +265,7 @@ export default function GoalFormPage() {
   const saveReady = canEdit && !!form.title.trim() && !!form.ageGroupId && !dupGoal;
   const saver = useManualSave({
     doc: form,
-    enabled: saveReady && !confirm,
+    enabled: saveReady,
     save: async () => {
       if (finished.current) return true;
       const first = pendingEdit && !editLogged.current;
@@ -316,32 +326,36 @@ export default function GoalFormPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const askFinish = (kind) => {
+  // Trước khi mở hộp gửi / ban hành: thiếu thông tin thì mở đúng bước có lỗi
+  const checkBeforeFinish = () => {
     for (const s of [0, 1]) {
       if (!validate(s)) {
         setStep(s);
         setMaxReached((m) => Math.max(m, s));
-        return;
+        return false;
       }
     }
-    setConfirm(kind);
+    return true;
   };
 
-  // send: tổ trưởng gửi Phó HT duyệt; issue: Phó HT duyệt ban hành (bản mình soạn hoặc bản đang chờ)
-  const submit = async () => {
+  // submit: tổ trưởng gửi Phó HT duyệt; approve: Phó HT ban hành (bản mình soạn hoặc bản đang chờ)
+  const finish = async (action, note) => {
     const item =
-      confirm === 'send'
-        ? build(EDU_STATUS.PENDING_VP, { sentAt: today(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt') })
-        : build(EDU_STATUS.APPROVED, { issued: me, history: log(pendingEdit ? 'Phó hiệu trưởng chỉnh sửa và ban hành' : 'Ban hành') });
+      action === 'submit'
+        ? build(EDU_STATUS.PENDING_VP, { sentAt: today(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt', note) })
+        : build(EDU_STATUS.APPROVED, {
+            issued: me,
+            history: log(pendingEdit ? 'Phó hiệu trưởng chỉnh sửa và ban hành' : 'Ban hành', note),
+          });
     finished.current = true;
     const saved = await saveGoal(item);
-    setConfirm(false);
     if (!saved) {
       finished.current = false;
-      return;
+      return null;
     }
-    toast(confirm === 'send' ? 'Đã gửi Phó hiệu trưởng duyệt' : 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
+    toast(action === 'submit' ? 'Đã gửi Phó hiệu trưởng duyệt' : 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
     guard.leaveNow(`/education/goals/${saved.id}`);
+    return saved;
   };
 
   /* ---------- Nhập dữ liệu ---------- */
@@ -456,16 +470,19 @@ export default function GoalFormPage() {
                 >
                   <Save size={16} aria-hidden /> Lưu
                 </button>
-                {step < STEPS.length - 1 && isLeader && !pendingEdit && (
-                  <button type="button" className="btn btn--outline-primary btn--sm" onClick={() => askFinish('send')}>
-                    <Send size={16} aria-hidden /> Gửi Phó HT duyệt
-                  </button>
-                )}
-                {step < STEPS.length - 1 && isVp && (
-                  <button type="button" className="btn btn--outline-primary btn--sm" onClick={() => askFinish('issue')}>
-                    <Check size={16} aria-hidden /> {pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
-                  </button>
-                )}
+                {/* Gửi / ban hành theo mẫu chung (reviewUi), có ở mọi bước */}
+                <ReviewActions
+                  name="kế hoạch năm học"
+                  sendTo="Phó HT"
+                  approveLabel={pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
+                  can={{ send: isLeader && !pendingEdit, approve: isVp }}
+                  beforeOpen={checkBeforeFinish}
+                  notes={{
+                    submit: `Gửi "${form.title}" cho Phó hiệu trưởng duyệt? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`,
+                    approve: `Ban hành "${form.title}"? Giáo viên trong khối sẽ thấy kế hoạch này. Sau đó xuất file để in và ký.`,
+                  }}
+                  onAct={finish}
+                />
               </>
             )
           }
@@ -576,7 +593,7 @@ export default function GoalFormPage() {
               <>
                 {errors.themes ? <Notice tone="err">{errors.themes}</Notice> : themeIssue && <Notice tone="warn">{themeIssue}</Notice>}
                 <ThemeEventTable
-                  yearStart={yearStart}
+                  yearRange={yearRange}
                   themes={form.themes}
                   breaks={form.breaks}
                   domains={form.domains}
@@ -674,51 +691,14 @@ export default function GoalFormPage() {
               <ArrowLeft size={16} aria-hidden /> Quay lại
             </button>
           )}
-          {step < STEPS.length - 1 ? (
+          {step < STEPS.length - 1 && (
             <button type="button" className="btn btn--primary" onClick={next}>
               Tiếp theo <ArrowRight size={16} aria-hidden />
             </button>
-          ) : (
-            <>
-              {/* Tổ trưởng soạn thì gửi Phó HT duyệt; Phó HT (bản mình soạn hoặc bản đang chờ) duyệt ban hành luôn */}
-              {isLeader && !pendingEdit && (
-                <button type="button" className="btn btn--primary" onClick={() => setConfirm('send')}>
-                  <Send size={16} aria-hidden /> Gửi Phó HT duyệt
-                </button>
-              )}
-              {isVp && (
-                <button type="button" className="btn btn--primary" onClick={() => setConfirm('issue')}>
-                  <Check size={16} aria-hidden /> {pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
-                </button>
-              )}
-            </>
           )}
         </div>
       </div>
 
-      {confirm && (
-        <Modal
-          title={confirm === 'send' ? 'Gửi Phó hiệu trưởng duyệt' : 'Ban hành kế hoạch năm học'}
-          onClose={() => setConfirm(false)}
-          footer={
-            <>
-              <button className="btn" onClick={() => setConfirm(false)}>
-                Quay lại kiểm tra
-              </button>
-              <button className="btn btn--primary" onClick={submit}>
-                {confirm === 'send' ? <Send size={16} aria-hidden /> : <Check size={16} aria-hidden />}{' '}
-                {confirm === 'send' ? 'Gửi' : 'Ban hành'}
-              </button>
-            </>
-          }
-        >
-          <p>
-            {confirm === 'send'
-              ? `Gửi "${form.title}" cho Phó hiệu trưởng duyệt? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`
-              : `Ban hành "${form.title}"? Giáo viên trong khối sẽ thấy kế hoạch này. Sau đó xuất file để in và ký.`}
-          </p>
-        </Modal>
-      )}
       <LeaveConfirmModal {...guard.modal} canSave={saveReady} />
       <LeaveConfirmModal
         open={!!pendingTab}

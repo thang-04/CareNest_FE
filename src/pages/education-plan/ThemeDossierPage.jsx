@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Check, FileDown, Plus, Printer, Save, Send, Undo2 } from '@/components/ui/icons';
-import { Card, EduStatusBadge, Field, Modal, Notice, PageHead, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
-import { isMyReviewTurn, useClassPlanContext } from '@/components/education-plan/planUi';
+import { FileDown, Plus, Printer, Save } from '@/components/ui/icons';
+import { Card, EduStatusBadge, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
+import { docReview, useClassPlanContext } from '@/components/education-plan/planUi';
 import { ThemePlanBody, themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
 import { LoadingState } from '@/components/ui/States';
@@ -57,7 +58,7 @@ export default function ThemeDossierPage() {
 
 function DossierInner({ classId, themeId }) {
   const [params] = useSearchParams();
-  const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, toast } = useEducationPlan();
+  const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, actOnClassDoc, toast, eduConfig } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, isClassTeacher } = ctx;
   // Bản đang sửa trong tập: key 'theme' hoặc ngày đầu tuần → tài liệu; chỉ giữ phần chưa lưu xong
@@ -187,6 +188,15 @@ function DossierInner({ classId, themeId }) {
       {'Mục tiêu, nội dung, hoạt động và môi trường giáo dục'}
     </>
   );
+  // Gửi / duyệt cả hồ sơ (kế hoạch chủ đề + giáo án tuần, ngày) theo mẫu chung; chưa đủ điều kiện thì chỉ nhắc
+  const review = docReview('theme', themeDoc, ctx, user, eduConfig);
+  const checkBeforeOpen = (action) => {
+    if (action !== 'submit') return true;
+    const block = submitBlocker('theme', themeDoc, { branchPlans, weekPlans, classThemePlans, yearPlan });
+    if (block) toast(block, 'warn');
+    return !block;
+  };
+  const act = (action, note) => actOnClassDoc('theme', themeDoc.id, { action, note });
   const parts = [
     { key: 'theme', label: 'I, II. Mục tiêu, môi trường' },
     ...weeks.map((w) => ({ key: w.week.start, label: `Tuần ${w.week.no} · Nhánh ${w.branchNo}` })),
@@ -224,9 +234,23 @@ function DossierInner({ classId, themeId }) {
             >
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
+            <ReviewActions
+              name="kế hoạch chủ đề"
+              sendTo={review.sendTo}
+              can={review.can}
+              sendBlocked={unsaved ? 'Lưu trước khi gửi' : null}
+              beforeOpen={checkBeforeOpen}
+              notes={{
+                submit: `Gửi cả kế hoạch chủ đề và giáo án ${weeks.length} tuần nhánh. Hồ sơ bị khóa cho tới khi được duyệt hoặc bị trả lại.`,
+                approve: 'Duyệt cả kế hoạch chủ đề và giáo án các tuần nhánh.',
+                reject: 'Trả lại cả hồ sơ để giáo viên sửa rồi gửi lại.',
+              }}
+              onAct={act}
+            />
           </>
         }
       />
+      {status === EDU_STATUS.REJECTED && <RejectedNotice status={status} history={themeDoc?.history} />}
 
       {/* Tab dính đầu trang: tách riêng để khi cuộn chỉ thanh tab vẽ lại, không vẽ lại cả tập */}
       <DossierNav parts={parts} />
@@ -346,8 +370,7 @@ function DossierInner({ classId, themeId }) {
         </Fragment>
       ))}
 
-      {/* Dải nút dính đáy màn: giáo viên gửi duyệt; người đến lượt duyệt thì Trả lại / Duyệt */}
-      {themeDoc && <DossierActions doc={themeDoc} ctx={ctx} user={user} dirty={unsaved} />}
+      {themeDoc && <ReviewHistory items={themeDoc.history} />}
       <LeaveConfirmModal {...guard.modal} />
     </div>
   );
@@ -404,98 +427,5 @@ function DossierNav({ parts }) {
         </div>
       </Card>
     </div>
-  );
-}
-
-/**
- * Dải nút cuối trang kế hoạch chủ đề (dính đáy màn hình): chỉ còn nút cần bấm. Giáo viên "Gửi duyệt kế hoạch chủ đề";
- * Tổ trưởng / Phó HT đến lượt thì "Trả lại" (hỏi lý do) hoặc "Duyệt". Chưa đủ điều kiện gửi thì nhắc ở góc màn hình.
- */
-function DossierActions({ doc, ctx, user, dirty }) {
-  const { branchPlans, weekPlans, classThemePlans, actOnClassDoc, toast } = useEducationPlan();
-  const [rejecting, setRejecting] = useState(false);
-  const [note, setNote] = useState('');
-  const [tried, setTried] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const open = doc.status === EDU_STATUS.DRAFT || doc.status === EDU_STATUS.REJECTED;
-  const canSend = ctx.isClassTeacher && open;
-  const canReview = isMyReviewTurn(doc, ctx, user);
-  const lastReject = [...(doc.history || [])].reverse().find((h) => h.tone === 'err');
-  const run = async (action, body = {}) => {
-    setBusy(true);
-    const res = await actOnClassDoc('theme', doc.id, { action, ...body });
-    setBusy(false);
-    return res;
-  };
-  const send = () => {
-    const block = submitBlocker('theme', doc, { branchPlans, weekPlans, classThemePlans, yearPlan: ctx.yearPlan });
-    if (block) return toast(block, 'warn');
-    return run('submit');
-  };
-  const reject = async () => {
-    setTried(true);
-    if (!note.trim()) return;
-    if (await run('reject', { note: note.trim() })) {
-      setRejecting(false);
-      setNote('');
-      setTried(false);
-    }
-  };
-  return (
-    <>
-      {doc.status === EDU_STATUS.REJECTED && lastReject?.note && (
-        <Notice tone="err">
-          Bị trả lại bởi {lastReject.by} ({fmtDateTime(lastReject.at)}): {lastReject.note}
-        </Notice>
-      )}
-      {(canSend || canReview) && (
-        <div className="page-actions">
-          <span />
-          <div className="row gap-2">
-            {canSend && (
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={busy || dirty}
-                title={dirty ? 'Chờ lưu xong rồi gửi' : undefined}
-                onClick={send}
-              >
-                <Send size={16} aria-hidden /> Gửi duyệt kế hoạch chủ đề
-              </button>
-            )}
-            {canReview && (
-              <>
-                <button type="button" className="btn btn--outline-danger" disabled={busy} onClick={() => setRejecting(true)}>
-                  <Undo2 size={16} aria-hidden /> Trả lại
-                </button>
-                <button type="button" className="btn btn--primary" disabled={busy} onClick={() => run('approve')}>
-                  <Check size={16} aria-hidden /> Duyệt
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-      {rejecting && (
-        <Modal
-          title="Trả lại kế hoạch chủ đề"
-          onClose={() => setRejecting(false)}
-          footer={
-            <>
-              <button type="button" className="btn" onClick={() => setRejecting(false)}>
-                Hủy
-              </button>
-              <button type="button" className="btn btn--outline-danger" disabled={busy} onClick={reject}>
-                <Undo2 size={16} aria-hidden /> Trả lại
-              </button>
-            </>
-          }
-        >
-          <Field label="Lý do trả lại" required error={tried && !note.trim() ? 'Vui lòng ghi lý do trả lại' : undefined}>
-            <textarea className="textarea" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
-          </Field>
-        </Modal>
-      )}
-    </>
   );
 }

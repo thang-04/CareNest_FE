@@ -256,7 +256,7 @@ const buildClassDocs = (plan, { pendingTeacher } = {}) => {
     ],
     history: [
       log('Gửi Tổ trưởng duyệt', 'Lê Minh Anh', 'Giáo viên', '2026-09-01 15:00'),
-      log('Tổ trưởng duyệt, chuyển Phó Hiệu trưởng', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-09-01 17:00', 'ok'),
+      log('Tổ trưởng duyệt, chuyển Phó hiệu trưởng', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-09-01 17:00', 'ok'),
       log('Phó hiệu trưởng duyệt', 'Nguyễn Thị Lan', 'Phó hiệu trưởng', '2026-09-02 08:30', 'ok'),
     ],
   };
@@ -276,7 +276,7 @@ const buildClassDocs = (plan, { pendingTeacher } = {}) => {
     approvals: [approval('u_ha', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', 'TEAM_LEADER', '2026-10-15 09:00')],
     history: [
       log('Gửi Tổ trưởng duyệt', pendingTeacher || 'Giáo viên lớp Chồi 3', 'Giáo viên', '2026-10-14 15:00'),
-      log('Tổ trưởng duyệt, chuyển Phó Hiệu trưởng', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-10-15 09:00', 'ok'),
+      log('Tổ trưởng duyệt, chuyển Phó hiệu trưởng', 'Trần Thu Hà', 'Tổ trưởng nhóm tuổi', '2026-10-15 09:00', 'ok'),
     ],
   };
 

@@ -25,9 +25,11 @@ const monthGrid = (first) => {
  * Ô chọn ngày trong bảng chủ đề / đợt nghỉ: lịch thả xuống tô màu theo tuần đã dùng.
  * taken: [{ start, end, label }] các khoảng của dòng khác (ngày thuộc khoảng này tô đỏ, rê chuột thấy tên);
  * range: khoảng của chính dòng này (tô xanh lá). Ngày đỏ vẫn chọn được, bảng tự báo trùng.
+ * min / max (yyyy-mm-dd): chỉ chọn, gõ được ngày trong khoảng này (vd. ngày bắt đầu, kết thúc năm học).
  */
-export default function DatePickerCell({ value, onChange, label, taken = [], range = {}, openAt }) {
+export default function DatePickerCell({ value, onChange, label, taken = [], range = {}, openAt, min, max }) {
   const [open, setOpen] = useState(false);
+  const [typeError, setTypeError] = useState(null);
   const [view, setView] = useState(() => monthStart(value || range.start));
   const ref = useRef(null);
   const panelRef = useRef(null);
@@ -58,6 +60,7 @@ export default function DatePickerCell({ value, onChange, label, taken = [], ran
       .at(-1);
     // Chưa có ngày nào thì mở ở tháng đầu năm học (lập kế hoạch năm sau không phải bấm "Tháng sau" nhiều lần)
     if (!open) setView(monthStart(value || range.start || lastEnd || openAt));
+    setTypeError(null);
     setOpen((v) => !v);
   };
   const pick = (iso) => {
@@ -73,8 +76,16 @@ export default function DatePickerCell({ value, onChange, label, taken = [], ran
     const y = Number(m[3] || view.getUTCFullYear());
     const d = new Date(Date.UTC(y, Number(m[2]) - 1, Number(m[1])));
     if (d.getUTCDate() !== Number(m[1])) return;
+    if (outside(isoOf(d))) {
+      setTypeError(`Chọn ngày trong năm học: ${fmtDate(min)} – ${fmtDate(max)}`);
+      return;
+    }
     pick(isoOf(d));
   };
+  const outside = (iso) => (min && iso < min) || (max && iso > max);
+  // Không lùi / tiến quá tháng đầu, tháng cuối của khoảng cho phép
+  const canPrev = !min || isoOf(addMonths(view, -1)).slice(0, 7) >= min.slice(0, 7);
+  const canNext = !max || isoOf(addMonths(view, 1)).slice(0, 7) <= max.slice(0, 7);
   // Ngày có thể vừa thuộc chủ đề vừa thuộc đợt nghỉ: ghi đủ tên các dòng đang giữ ngày đó
   const ownerOf = (iso) =>
     taken
@@ -108,14 +119,31 @@ export default function DatePickerCell({ value, onChange, label, taken = [], ran
               defaultValue={value ? fmtDate(value) : ''}
               onKeyDown={typeDate}
             />
+            {typeError && (
+              <span className="field__error" role="alert">
+                {typeError}
+              </span>
+            )}
             <div className="ga-cal__head">
-              <button type="button" className="icon-btn" onClick={() => setView((v) => addMonths(v, -1))} aria-label="Tháng trước">
+              <button
+                type="button"
+                className="icon-btn"
+                disabled={!canPrev}
+                onClick={() => setView((v) => addMonths(v, -1))}
+                aria-label="Tháng trước"
+              >
                 <ChevronLeft size={16} aria-hidden />
               </button>
               <span>
                 Tháng {view.getUTCMonth() + 1} năm {view.getUTCFullYear()}
               </span>
-              <button type="button" className="icon-btn" onClick={() => setView((v) => addMonths(v, 1))} aria-label="Tháng sau">
+              <button
+                type="button"
+                className="icon-btn"
+                disabled={!canNext}
+                onClick={() => setView((v) => addMonths(v, 1))}
+                aria-label="Tháng sau"
+              >
                 <ChevronRight size={16} aria-hidden />
               </button>
             </div>
@@ -128,9 +156,10 @@ export default function DatePickerCell({ value, onChange, label, taken = [], ran
               {monthGrid(view).map((d) => {
                 const iso = isoOf(d);
                 const owner = ownerOf(iso);
+                const off = outside(iso);
                 const cls = [
                   'ga-cal__day',
-                  d.getUTCMonth() !== view.getUTCMonth() && 'ga-cal__day--out',
+                  (off || d.getUTCMonth() !== view.getUTCMonth()) && 'ga-cal__day--out',
                   // Ưu tiên màu: ngày đang chọn (xanh lá đậm) > khoảng của dòng này (xanh lá nhạt) > đã thuộc dòng khác (đỏ)
                   iso === value ? 'ga-cal__day--selected' : inRange(iso) ? 'ga-cal__day--range' : owner ? 'ga-cal__day--taken' : '',
                 ]
@@ -141,8 +170,9 @@ export default function DatePickerCell({ value, onChange, label, taken = [], ran
                     key={iso}
                     type="button"
                     className={cls}
-                    title={owner ? `Đã thuộc ${owner}` : undefined}
-                    aria-label={`${fmtDate(iso)}${owner ? `, đã thuộc ${owner}` : ''}`}
+                    disabled={off}
+                    title={off ? 'Ngoài năm học' : owner ? `Đã thuộc ${owner}` : undefined}
+                    aria-label={`${fmtDate(iso)}${off ? ', ngoài năm học' : owner ? `, đã thuộc ${owner}` : ''}`}
                     aria-pressed={iso === value}
                     aria-current={iso === today ? 'date' : undefined}
                     autoFocus={iso === (value || '')}

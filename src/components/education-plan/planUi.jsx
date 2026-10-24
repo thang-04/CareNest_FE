@@ -1,14 +1,11 @@
-import { useMemo, useState } from 'react';
-import { Check, Eye, Send, Undo2 } from '@/components/ui/icons';
-import { Card, EduStatusBadge, Field, History, Notice, fmtDateTime } from '@/components/education-plan/eduUi';
-import { useAsync } from '@/hooks/useAsync';
-import { useClasses } from '@/hooks/useSchool';
-import { getUsers } from '@/services/masterDataService';
+import { useMemo } from 'react';
+import { Check, Eye, Send } from '@/components/ui/icons';
+import { Card, EduStatusBadge } from '@/components/education-plan/eduUi';
+import { RejectedNotice, SIGNER_SHORT } from '@/components/education-plan/reviewUi';
 import { ROLES } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { toRows } from '@/models/education-plan/goalTable';
-import { submitBlocker } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
 
 /** Bước còn thiếu khi tài liệu chưa thể bắt đầu (lock = kết quả createBlocker). */
@@ -24,10 +21,8 @@ export { Cell, focusCell } from '@/components/ui/TableCell';
 
 /** Dữ liệu dùng chung của màn lớp. Kế hoạch năm chỉ dùng bản đã được Phó HT ban hành. */
 export function useClassPlanContext(classId) {
-  const { user, goals, schoolYear } = useEducationPlan();
-  const { classes, loading } = useClasses();
-  const usersQ = useAsync(() => getUsers(), []);
-  const users = useMemo(() => usersQ.data || [], [usersQ.data]);
+  // Lớp, giáo viên, tổ trưởng nạp cùng tài liệu của lớp (theo phạm vi người xem)
+  const { user, goals, schoolYear, classes, staff: users } = useEducationPlan();
   const cls = classes.find((c) => c.id === classId) || null;
   const raw = cls
     ? goals.find((g) => g.ageGroupId === cls.ageGroupId && g.schoolYear === schoolYear && g.status === EDU_STATUS.APPROVED)
@@ -51,7 +46,7 @@ export function useClassPlanContext(classId) {
   return {
     cls,
     classes,
-    loading: loading || usersQ.loading,
+    loading: false,
     yearPlan,
     pendingYearPlan: pending,
     teachers,
@@ -88,90 +83,19 @@ export function reviewLabel(doc, ctx, user, kind = 'branch') {
 }
 
 /**
- * Phần gửi / duyệt ở CUỐI trang, không có chữ ký trong hệ thống (duyệt xong in ra ký tay):
- * - giáo viên của lớp: "Gửi duyệt" (chủ đề nhánh, hồ sơ chủ đề) khi còn nháp hoặc bị trả lại;
- * - người đến lượt duyệt: nhận xét rồi "Duyệt", hoặc ghi lý do rồi "Trả lại".
- * kind: branch | theme. onAct(action, body) trả tài liệu mới hoặc null. actions: nút thêm (vd. xuất / in khi đã duyệt).
+ * Quyền hiển thị nút gửi / duyệt tài liệu của lớp theo mẫu chung (reviewUi) và người duyệt đầu tiên của chuỗi:
+ * chủ đề nhánh theo eduConfig.signers.branch, hồ sơ chủ đề theo signers.week; bỏ Tổ trưởng khi ctx.skipLeader.
+ * Chỉ là UX, service quyết định khi gửi.
  */
-export function SignPanel({ kind, doc, ctx, user, dirty, onAct, title = 'Gửi duyệt và duyệt', actions }) {
-  const { branchPlans, weekPlans, classThemePlans, toast } = useEducationPlan();
-  const [note, setNote] = useState('');
-  const [tried, setTried] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const status = doc?.status || EDU_STATUS.DRAFT;
-  const canReview = isMyReviewTurn(doc, ctx, user);
-  const canSend = ctx.isClassTeacher && !!doc && isOpen(doc);
-  const lastReject = [...(doc?.history || [])].reverse().find((h) => h.tone === 'err');
-  const orderBlock = canSend ? submitBlocker(kind, doc, { branchPlans, weekPlans, classThemePlans, yearPlan: ctx.yearPlan }) : null;
-  const blocked = dirty || !doc?.id;
-  const run = async (action) => {
-    setTried(action);
-    if (action === 'reject' && !note.trim()) return;
-    // Chưa đủ điều kiện gửi: chỉ nhắc ở góc màn hình khi bấm, không hiện sẵn trên trang
-    if (action === 'submit' && orderBlock) return toast(orderBlock, 'warn');
-    setBusy(true);
-    const res = await onAct(action, { note: note.trim() || undefined });
-    setBusy(false);
-    if (res) {
-      setNote('');
-      setTried(null);
-    }
-  };
-
-  return (
-    <Card title={title}>
-      <div className="stack">
-        <div className="row row--wrap gap-2">
-          <EduStatusBadge status={status} />
-        </div>
-        {status === EDU_STATUS.REJECTED && lastReject?.note && (
-          <Notice tone="err">
-            Bị trả lại bởi {lastReject.by} ({fmtDateTime(lastReject.at)}): {lastReject.note}
-          </Notice>
-        )}
-        {(canSend || canReview) && (
-          <Field
-            label={canReview ? 'Nhận xét (bắt buộc khi trả lại)' : 'Ghi chú gửi kèm'}
-            error={tried === 'reject' && !note.trim() ? 'Vui lòng ghi lý do trả lại' : undefined}
-          >
-            <textarea className="textarea" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
-          </Field>
-        )}
-        {(canSend || canReview || actions) && (
-          <div className="row row--wrap gap-2">
-            {canSend && (
-              <button
-                type="button"
-                className="btn btn--warning"
-                disabled={busy || blocked}
-                title={blocked ? 'Chờ lưu xong rồi gửi' : undefined}
-                onClick={() => run('submit')}
-              >
-                <Send size={16} aria-hidden /> {kind === 'branch' ? 'Gửi duyệt' : 'Gửi duyệt kế hoạch chủ đề'}
-              </button>
-            )}
-            {canReview && (
-              <>
-                <button type="button" className="btn btn--outline-danger" disabled={busy} onClick={() => run('reject')}>
-                  <Undo2 size={16} aria-hidden /> Trả lại
-                </button>
-                <button type="button" className="btn btn--success" disabled={busy} onClick={() => run('approve')}>
-                  <Check size={16} aria-hidden /> Duyệt
-                </button>
-              </>
-            )}
-            {actions}
-          </div>
-        )}
-        <details>
-          <summary className="muted text-sm">Lịch sử xử lý ({doc?.history?.length || 0})</summary>
-          <div className="mt-8">
-            <History items={doc?.history} />
-          </div>
-        </details>
-      </div>
-    </Card>
+export function docReview(kind, doc, ctx, user, eduConfig) {
+  const chain = (eduConfig?.signers?.[kind === 'branch' ? 'branch' : 'week'] || []).filter(
+    (r) => r !== ROLES.TEAM_LEADER || !ctx.skipLeader,
   );
+  const myTurn = isMyReviewTurn(doc, ctx, user);
+  return {
+    can: { send: ctx.isClassTeacher && !!doc && isOpen(doc), reject: myTurn, approve: myTurn },
+    sendTo: chain.length ? SIGNER_SHORT[chain[0]] : 'đi',
+  };
 }
 
 /**
@@ -181,7 +105,6 @@ export function SignPanel({ kind, doc, ctx, user, dirty, onAct, title = 'Gửi d
 export function DocStatusStrip({ kind, doc, dossier, ctx, user, reviewTo, dirty, onGo }) {
   const holder = kind === 'week' ? dossier : doc;
   const status = holder?.status || EDU_STATUS.DRAFT;
-  const lastReject = [...(holder?.history || [])].reverse().find((h) => h.tone === 'err');
   const label = reviewLabel(holder, ctx, user, kind === 'branch' ? 'branch' : 'theme');
   const blocked = dirty || (kind !== 'week' && !doc?.id);
   return (
@@ -214,11 +137,7 @@ export function DocStatusStrip({ kind, doc, dossier, ctx, user, reviewTo, dirty,
             {label}
           </button>
         </div>
-        {holder?.status === EDU_STATUS.REJECTED && lastReject?.note && (
-          <Notice tone="err">
-            Bị trả lại bởi {lastReject.by} ({fmtDateTime(lastReject.at)}): {lastReject.note}
-          </Notice>
-        )}
+        <RejectedNotice status={holder?.status} history={holder?.history} />
       </div>
     </Card>
   );

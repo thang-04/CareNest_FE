@@ -712,7 +712,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
 /* ---------- B. Chủ đề, sự kiện trong năm ---------- */
 
 /** Bảng dự kiến chủ đề, sự kiện cả năm và các đợt nghỉ. Số MT (từ dấu tích ở bảng mục tiêu) và số tuần tự tính; xóa chủ đề thì bỏ dấu tích của chủ đề đó. */
-export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, readOnly = false, yearStart }) {
+export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, readOnly = false, yearRange }) {
   const setFocusId = useCellFocus();
   const patchTheme = (id, patch) => onChange({ themes: themes.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
   const removeTheme = (id) =>
@@ -800,7 +800,16 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
     readOnly ? (
       <div className="ga-goal-table__pad">{value ? fmtDate(value) : '—'}</div>
     ) : (
-      <DatePickerCell value={value} onChange={onValue} label={label} range={row} taken={others} openAt={yearStart} />
+      <DatePickerCell
+        value={value}
+        onChange={onValue}
+        label={label}
+        range={row}
+        taken={others}
+        openAt={yearRange?.start}
+        min={yearRange?.start}
+        max={yearRange?.end}
+      />
     );
   // Khoảng thời gian đã dùng (tô đỏ trên lịch): mọi chủ đề và đợt nghỉ khác dòng đang chọn
   const span = (x, label) => ({ start: x.start, end: x.end || x.start, label });
