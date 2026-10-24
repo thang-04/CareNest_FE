@@ -4,8 +4,6 @@ import { RotateCcw } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
-import { LoadingState } from '@/components/ui/States';
-import { useClasses } from '@/hooks/useSchool';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
@@ -30,8 +28,7 @@ const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.ton
  * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch, giáo án.
  */
 export default function SchoolPlansPage() {
-  const { goals, branchPlans, classThemePlans, schoolYear } = useEducationPlan();
-  const { classes, loading } = useClasses();
+  const { goals, branchPlans, classThemePlans, schoolYear, classes } = useEducationPlan();
   const navigate = useNavigate();
   const [tab, setTab] = useState('goals');
   const [age, setAge] = useState('');
@@ -131,7 +128,6 @@ export default function SchoolPlansPage() {
     setQ('');
   };
 
-  if (loading) return <LoadingState />;
 
   return (
     <div className="page ga-page">

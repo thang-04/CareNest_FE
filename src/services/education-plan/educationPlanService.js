@@ -21,7 +21,9 @@ export const saveLesson = (item) => repo.saveLesson(item);
 export const deleteLesson = (id) => repo.deleteLesson(id);
 
 // Tài liệu kế hoạch của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần). user: người thao tác (mock cần để kiểm quyền).
-export const getClassPlans = () => (USE_MOCK ? classPlanMockRepository.getAll() : educationPlanApi.getClassPlans());
+// Kèm lớp (classes) và giáo viên, tổ trưởng (staff) người xem được; schoolYearId: năm đang chọn ở header
+export const getClassPlans = (schoolYearId) =>
+  USE_MOCK ? classPlanMockRepository.getAll() : educationPlanApi.getClassPlans(schoolYearId);
 export const saveClassDoc = (kind, doc, user) =>
   USE_MOCK ? classPlanMockRepository.saveDoc(kind, doc, user) : educationPlanApi.saveClassDoc(kind, doc);
 export const actOnClassDoc = (kind, id, body, user) =>

@@ -17,7 +17,6 @@ import { Check, FileDown, Plus } from '@/components/ui/icons';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
-import { useClasses } from '@/hooks/useSchool';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
@@ -33,9 +32,7 @@ import {
 
 /** /education/class, /education/branches: mở lớp đầu tiên người dùng được xem (lớp mình dạy trước). */
 export function ClassPlanRedirect({ toOf = (id) => `/education/class/${id}` }) {
-  const { user } = useEducationPlan();
-  const { classes, loading } = useClasses();
-  if (loading) return <LoadingState />;
+  const { user, classes } = useEducationPlan();
   const own = classes.find((c) => (c.teacherIds || []).includes(user.id)) || classes[0];
   if (!own) return <EmptyState title="Bạn chưa được phân công lớp nào" />;
   return <Navigate to={toOf(own.id)} replace />;

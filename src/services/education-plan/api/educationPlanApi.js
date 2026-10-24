@@ -3,7 +3,7 @@ import { buildRefs, planSteps, serverId, toUiEduConfig, toUiGoal, toYearPlanRequ
 
 /*
  * Mục tiêu năm học (kế hoạch năm) và cấu hình: theo contract BE (`BE:docs/api/openapi.yaml`, /education-plans/...).
- * Các phần khác (kế hoạch chủ đề, giáo án, tài liệu của lớp, AI) vẫn là PROPOSED, BE chưa có.
+ * Tài liệu của lớp: /education-plans/class-docs (BE:EDU-12..18). AI vẫn là PROPOSED, BE chưa có.
  * Cùng tên hàm và tham số với mock repository.
  */
 const GOALS = '/education-plans/goals';
@@ -75,7 +75,9 @@ export const educationPlanApi = {
   deleteTheme: (id) => axiosClient.delete(`/education-plans/themes/${id}`),
   saveLesson: (item) => axiosClient.put(`/education-plans/lessons/${item.id}`, item),
   deleteLesson: (id) => axiosClient.delete(`/education-plans/lessons/${id}`),
-  getClassPlans: () => axiosClient.get('/education-plans/class-docs'),
+  // Tài liệu + lớp + giáo viên, tổ trưởng của năm học đang chọn ở header (BE lọc theo phạm vi người xem)
+  getClassPlans: (schoolYearId) =>
+    axiosClient.get('/education-plans/class-docs', { params: serverId(schoolYearId) == null ? {} : { schoolYearId: serverId(schoolYearId) } }),
   getEduConfig: async () => toUiEduConfig(await loadConfig()),
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
   saveEduConfig: async (cfg) => {
