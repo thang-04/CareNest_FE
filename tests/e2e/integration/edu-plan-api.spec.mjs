@@ -85,6 +85,7 @@ test('IT-04 một người sửa: Phó HT không nhận được quyền sửa k
   const res = await api(USERS.vp, 'POST', `${GOALS}/${plan.id}/start-editing`, { headers: editHeaders(s.vp, plan.revision) });
   expect(res.status).toBe(409);
   // B2: thông báo ngắn tiếng Việt, nêu người đang sửa
+  expect(res.errorCode).toBe(7006); // YEAR_PLAN_LOCKED_BY_OTHER
   expect(res.desc).toMatch(/^Đang được .+ sửa$/);
 });
 
@@ -92,6 +93,7 @@ test('IT-05 ghi bằng revision cũ bị từ chối (không ghi đè bản mớ
   const body = await yearPlanBody(`${E2E.titlePrefix} ghi đè`);
   const res = await api(USERS.teacher1, 'PUT', `${GOALS}/${plan.id}`, { body, headers: editHeaders(s.tl, plan.revision - 1) });
   expect(res.status).toBe(409);
+  expect(res.errorCode).toBe(7021); // YEAR_PLAN_REVISION_STALE
   expect(res.desc).toBe('Kế hoạch đã được thay đổi ở nơi khác. Tải lại để đối chiếu');
 });
 
@@ -101,10 +103,12 @@ test('IT-05b cùng tài khoản mở phiên mới (vd. sau mất điện) ⇒ nh
   expect(taken.status, taken.desc).toBe(200);
   const beat = await api(USERS.teacher1, 'POST', `${GOALS}/${plan.id}/editing-heartbeat`, { headers: editHeaders(s.tl, plan.revision) });
   expect(beat.status).toBe(409);
+  expect(beat.errorCode).toBe(7020); // EDIT_SESSION_LOST
   expect(beat.desc).toMatch(/^Đã mất quyền sửa/);
   const body = await yearPlanBody(`${E2E.titlePrefix} phiên cũ ghi`);
   const old = await api(USERS.teacher1, 'PUT', `${GOALS}/${plan.id}`, { body, headers: editHeaders(s.tl, plan.revision) });
   expect(old.status).toBe(409);
+  expect(old.errorCode).toBe(7020);
   // Phiên cũ thoát trang không nhả được quyền của phiên mới; người khác vẫn bị chặn
   await api(USERS.teacher1, 'POST', `${GOALS}/${plan.id}/finish-editing`, { headers: editHeaders(s.tl, plan.revision) });
   const other = await api(USERS.vp, 'POST', `${GOALS}/${plan.id}/start-editing`, { headers: editHeaders(s.vp, plan.revision) });
@@ -147,6 +151,7 @@ test('IT-08 Tổ trưởng nhóm khác / giáo viên không gửi, không ban h�
   }
   const issue = await api(USERS.teacher1, 'POST', `${GOALS}/${plan.id}/issue`, { body: {}, headers: editHeaders(s.tl, plan.revision) });
   expect(issue.status).toBe(403);
+  expect(issue.errorCode).toBe(1101); // FORBIDDEN: endpoint chỉ cho Phó HT (chặn ở @PreAuthorize)
 });
 
 test('IT-09 Tổ trưởng sửa bản bị trả lại, gửi lại; Phó HT ban hành; giáo viên xem được (chỉ đọc)', async () => {
@@ -192,6 +197,7 @@ test('IT-10 chủ đề nhánh: chỉ giáo viên của lớp lưu được; ch�
   expect(empty.status, empty.desc).toBe(200);
   const blocked = await api(USERS.teacher2, 'POST', `${DOCS}/branch/${branchKey()}/actions`, { body: { action: 'submit' } });
   expect(blocked.status).toBe(409);
+  expect(blocked.errorCode).toBe(7112); // BRANCH_WEEKS_UNNAMED
   const saved = await api(USERS.teacher2, 'PUT', `${DOCS}/branch/${branchKey()}`, { body: branchDoc('Bé vui đến trường (E2E)') });
   expect(saved.status).toBe(200);
 });
@@ -201,6 +207,7 @@ test('IT-11 kế hoạch chủ đề chưa mở khi chủ đề nhánh chưa đ�
     body: { id: themeKey(), kind: 'theme', classId: ref.classroom, yearPlanId: plan.id, themeId, rows: {} },
   });
   expect(res.status).toBe(409);
+  expect(res.errorCode).toBe(7110); // BRANCH_THEMES_NOT_APPROVED
 });
 
 test('IT-12 duyệt chủ đề nhánh: Tổ trưởng → Phó HT; sai lượt bị chặn; trả lại cần lý do', async () => {
@@ -310,7 +317,9 @@ test('IT-15 học liệu: hồ sơ chủ đề đã duyệt thì không tải h�
       activityLabel: 'Hoạt động E2E',
     },
   });
-  expect(res.status(), await res.text()).toBe(409);
+  const body = await res.json();
+  expect(res.status(), JSON.stringify(body)).toBe(409);
+  expect(body.errorCode).toBe(7117); // CLASS_DOC_LOCKED
 });
 
 test('IT-16 học liệu: thiếu một phần multipart ⇒ 400 kèm câu rõ ràng (không 500)', async ({ request }) => {
@@ -323,5 +332,7 @@ test('IT-16 học liệu: thiếu một phần multipart ⇒ 400 kèm câu rõ r
     },
   });
   expect(res.status()).toBe(400);
-  expect((await res.json()).desc).toBe('Thiếu dữ liệu bắt buộc: activitySignature');
+  const body = await res.json();
+  expect(body.errorCode).toBe(9003); // REQUIRED_FIELD_MISSING
+  expect(body.desc).toBe('Thiếu thông tin bắt buộc: activitySignature');
 });

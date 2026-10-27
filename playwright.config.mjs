@@ -29,7 +29,8 @@ export default defineConfig({
   webServer: {
     command: `npx vite build --outDir ${OUT} --emptyOutDir && npx vite preview --outDir ${OUT} --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
-    env: { VITE_USE_MOCK: 'false', VITE_API_BASE_URL: '/be-api' },
+    // VITE_SCHOOL_CONFIG_API: đăng nhập Keycloak dev thật (authService); DEV_BE_TARGET: BE khác :8080 nếu cần
+    env: { VITE_USE_MOCK: 'false', VITE_API_BASE_URL: '/be-api', VITE_SCHOOL_CONFIG_API: 'true', DEV_BE_TARGET: process.env.DEV_BE_TARGET || 'http://localhost:8080' },
     reuseExistingServer: false,
     timeout: 180_000,
   },

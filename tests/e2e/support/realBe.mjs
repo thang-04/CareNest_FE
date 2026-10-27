@@ -12,6 +12,7 @@ export function devPassword() {
   return process.env.E2E_DEV_PASSWORD;
 }
 const PG_CONTAINER = process.env.E2E_PG_CONTAINER || 'carenest_be-postgres-1';
+const PG_DB = process.env.E2E_PG_DB || 'carenest';
 
 export const USERS = {
   vp: 'viceprincipal@gmail.com',
@@ -46,7 +47,7 @@ export async function tokenOf(email) {
   return body.access_token;
 }
 
-/** Gọi BE thật như FE: bóc envelope { code, desc, data }; trả { status, data, desc }. */
+/** Gọi BE thật như FE: bóc envelope { code, errorCode, desc, data }; trả { status, data, desc, errorCode }. */
 export async function api(email, method, path, { body, headers } = {}) {
   const ctx = await request.newContext();
   try {
@@ -62,7 +63,7 @@ export async function api(email, method, path, { body, headers } = {}) {
     } catch {
       json = { raw: text };
     }
-    return { status: res.status(), data: json?.data ?? json, desc: json?.desc };
+    return { status: res.status(), data: json?.data ?? json, desc: json?.desc, errorCode: json?.errorCode ?? null };
   } finally {
     await ctx.dispose();
   }
@@ -79,7 +80,7 @@ export const newSession = () => randomUUID();
 export function sql(query) {
   return execFileSync(
     'docker',
-    ['exec', PG_CONTAINER, 'psql', '-U', 'postgres', '-d', 'carenest', '-At', '-v', 'ON_ERROR_STOP=1', '-c', query],
+    ['exec', PG_CONTAINER, 'psql', '-U', 'postgres', '-d', PG_DB, '-At', '-v', 'ON_ERROR_STOP=1', '-c', query],
     {
       encoding: 'utf8',
     },
