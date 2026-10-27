@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -17,7 +17,8 @@ import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
-import { checkDuplicateChild, enrollChild } from '@/services/children/childrenService';
+import { checkDuplicateChild, enrollChild, readmitChild } from '@/services/children/childrenService';
+import { FormField } from '@/components/form/FormField';
 import { GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import { formatDate } from '@/utils/format';
 import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
@@ -58,6 +59,9 @@ export default function EnrollChildPage() {
   const [declaration, setDeclaration] = useState(emptyDeclaration());
   const [errors, setErrors] = useState({ info: {}, placement: {}, declaration: {} });
   const [duplicate, setDuplicate] = useState(null);
+  const [readmitOpen, setReadmitOpen] = useState(false);
+  const [readmitReason, setReadmitReason] = useState('');
+  const [readmitError, setReadmitError] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -114,6 +118,26 @@ export default function EnrollChildPage() {
     setErrors((e) => ({ ...e, info: Object.fromEntries(Object.entries(e.info).filter(([k]) => now[k])) }));
   };
 
+  const toPlacement = () => {
+    if (!ageGroupId) setAgeGroupId(suggested);
+    goTo(1);
+  };
+
+  const readmit = async () => {
+    try {
+      const child = await readmitChild(duplicate.id, { reason: readmitReason }, user);
+      toast.success(
+        `Đã mở lại hồ sơ ${child.fullName} (${child.code}): trẻ ở trạng thái Chờ xếp lớp. Cập nhật hồ sơ, khai báo sức khỏe nếu có thay đổi rồi xếp lớp.`,
+        'Tiếp nhận lại',
+      );
+      navigate(`/children/${child.id}`);
+    } catch (err) {
+      if (err.details?.reason) setReadmitError(err.details.reason);
+      else setReadmitOpen(false);
+      toast.error(err, 'Không mở lại được hồ sơ');
+    }
+  };
+
   const next = async () => {
     if (step === 0) {
       const errs = validateInfo(effectiveInfo);
@@ -121,7 +145,15 @@ export default function EnrollChildPage() {
       if (hasErrors(errs)) return;
       setBusy(true);
       try {
-        const dup = await checkDuplicateChild({ fullName: info.fullName, dateOfBirth: info.dateOfBirth }, user);
+        // Trùng hồ sơ = cùng họ tên, ngày sinh và CCCD một phụ huynh (BE kiểm); trẻ đã nghỉ học thì gợi ý mở lại hồ sơ cũ.
+        const dup = await checkDuplicateChild(
+          {
+            fullName: info.fullName,
+            dateOfBirth: info.dateOfBirth,
+            guardianIdNumbers: effectiveInfo.guardians.map((g) => g.idNumber),
+          },
+          user,
+        );
         setDuplicate(dup);
         if (dup) return;
       } catch (err) {
@@ -130,8 +162,7 @@ export default function EnrollChildPage() {
       } finally {
         setBusy(false);
       }
-      if (!ageGroupId) setAgeGroupId(suggested);
-      goTo(1);
+      toPlacement();
     } else if (step === 1) {
       // Lớp không bắt buộc khi tiếp nhận: bỏ trống thì trẻ ở trạng thái Chờ xếp lớp.
       goTo(2);
@@ -228,11 +259,11 @@ export default function EnrollChildPage() {
       {step === 0 && (
         <section className="card wizard-card">
           <ChildInfoFields split value={info} onChange={changeInfo} errors={errors.info} onBlurField={blurCheck} accountOf={accountOf} />
-          {duplicate && (
+          {duplicate?.kind === 'ACTIVE' && (
             <div className="alert alert--danger mt-16" role="alert">
               <AlertTriangle size={18} />
               <div>
-                Hồ sơ này đã tồn tại (trùng họ tên và ngày sinh). Xem lại hồ sơ đã có.{' '}
+                Hồ sơ này đã tồn tại (trùng họ tên, ngày sinh và phụ huynh). Xem lại hồ sơ đã có.{' '}
                 {duplicate.sameCampus ? (
                   <Link className="text-primary" to={`/children/${duplicate.id}`}>
                     {duplicate.fullName} ({duplicate.code})
@@ -240,6 +271,49 @@ export default function EnrollChildPage() {
                 ) : (
                   'Hồ sơ thuộc điểm trường khác – liên hệ Hiệu trưởng.'
                 )}
+              </div>
+            </div>
+          )}
+          {duplicate?.kind === 'LEFT' && (
+            <div className="alert alert--warning mt-16" role="alert">
+              <RotateCcw size={18} />
+              <div className="tr-cell-stack">
+                {duplicate.sameCampus ? (
+                  <span>
+                    Trẻ này từng học ở trường và đã nghỉ học{duplicate.leftAt ? ` từ ${formatDate(duplicate.leftAt)}` : ''}: hồ sơ cũ{' '}
+                    <Link className="text-primary" to={`/children/${duplicate.id}`}>
+                      {duplicate.fullName} ({duplicate.code})
+                    </Link>
+                    . Nên mở lại hồ sơ cũ để giữ mã trẻ, lịch sử sức khỏe, đánh giá và tài khoản phụ huynh.
+                  </span>
+                ) : (
+                  <span>Trẻ này có hồ sơ cũ (đã nghỉ học) ở điểm trường khác. Liên hệ Hiệu trưởng nếu cần mở lại hồ sơ cũ.</span>
+                )}
+                <div className="row row--wrap gap-2">
+                  {duplicate.canReadmit && (
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--primary"
+                      onClick={() => {
+                        setReadmitReason('');
+                        setReadmitError('');
+                        setReadmitOpen(true);
+                      }}
+                    >
+                      <RotateCcw size={15} /> Mở lại hồ sơ cũ
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    onClick={() => {
+                      setDuplicate(null);
+                      toPlacement();
+                    }}
+                  >
+                    Vẫn tạo hồ sơ mới
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -373,6 +447,35 @@ export default function EnrollChildPage() {
           </button>
         )}
       </div>
+
+      <ConfirmationModal
+        open={readmitOpen}
+        title="Mở lại hồ sơ cũ?"
+        message={
+          duplicate?.kind === 'LEFT'
+            ? `${duplicate.fullName} (${duplicate.code}) về trạng thái Chờ xếp lớp, giữ mã trẻ và toàn bộ lịch sử. Thông tin vừa nhập ở form không được lưu; có thay đổi thì sửa ở hồ sơ trẻ.`
+            : ''
+        }
+        confirmLabel="Mở lại hồ sơ"
+        onConfirm={readmit}
+        onClose={() => setReadmitOpen(false)}
+      >
+        <div className="confirm__form mt-12">
+          <FormField label="Lý do tiếp nhận lại" required error={readmitError}>
+            <textarea
+              className="textarea"
+              rows={2}
+              maxLength={300}
+              value={readmitReason}
+              onChange={(e) => {
+                setReadmitReason(e.target.value);
+                if (readmitError) setReadmitError('');
+              }}
+              placeholder="Ví dụ: Gia đình chuyển về lại địa phương, xin cho trẻ học tiếp"
+            />
+          </FormField>
+        </div>
+      </ConfirmationModal>
 
       <ConfirmationModal
         open={confirmLeave}

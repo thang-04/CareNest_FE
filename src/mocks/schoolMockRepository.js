@@ -1,7 +1,8 @@
 import { readDb, writeDb, clone, delay, ApiError } from './mockDatabase';
 import { buildSeedSchool, buildM1ExtraChildren } from './schoolSeed';
-import { buildExtraTeachers } from './teacherSeed';
+import { buildExtraTeachers, legacyTeacherPhoneOf, teacherPhoneOf } from './teacherSeed';
 import { buildExtraClassData } from './classSeed';
+import { fixDuplicateSeedChildId } from './seedChildIdFix';
 import { ROLES } from '@/models/User';
 import { activeYearId } from './roomManagers';
 import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
@@ -37,6 +38,23 @@ export const ensureSchoolSeeded = () => {
       add(d.classes, extra.classes);
       add(d.children, extra.children);
       d.classes24 = true;
+    });
+  }
+  // Dữ liệu demo cũ: SĐT giáo viên mẫu trùng SĐT phụ huynh mẫu ⇒ đổi sang đầu số 08 (một lần, chỉ số còn theo công thức cũ)
+  if (readDb().users && !readDb().teacherPhones08) {
+    writeDb((d) => {
+      d.users.forEach((u) => {
+        const n = Number(/^u_gv(\d{3})$/.exec(u.id)?.[1]);
+        if (n && u.phone === legacyTeacherPhoneOf(n)) u.phone = teacherPhoneOf(n);
+      });
+      d.teacherPhones08 = true;
+    });
+  }
+  // Dữ liệu demo cũ: hai trẻ mẫu cùng id ch_037 ⇒ tách trẻ viết tay sang id mới (một lần)
+  if (readDb().children && !readDb().childIdFix037) {
+    writeDb((d) => {
+      fixDuplicateSeedChildId(d);
+      d.childIdFix037 = true;
     });
   }
   if (db.classes && db.children) return readDb();

@@ -1119,6 +1119,10 @@ tr.sortable-item--drop-after > td {
 .modal--confirm .modal__footer > .btn {
   flex: 1;
 }
+/* Ô nhập trong hộp xác nhận (lý do, ghi chú): hộp căn giữa chữ, form căn trái */
+.confirm__form {
+  text-align: left;
+}
 @media (prefers-reduced-motion: reduce) {
   .page,
   .modal,

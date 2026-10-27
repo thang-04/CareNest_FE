@@ -293,7 +293,6 @@ const examEntries = (m) => {
     ['exam.admin.gestationWeeks', 'Tuần thai khi sinh', e.admin.gestationWeeks],
     ['exam.admin.ethnicity', 'Dân tộc', e.admin.ethnicity],
     ['exam.admin.beneficiary', 'Đối tượng', e.admin.beneficiary],
-    ['exam.admin.paymentSource', 'Nguồn chi trả', e.admin.paymentSource],
     ['exam.admin.bloodType', 'Nhóm máu', e.admin.bloodType],
     [
       'exam.admin.address',

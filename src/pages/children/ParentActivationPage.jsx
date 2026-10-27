@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertCircle, Filter, KeyRound, Lock, Plus, Unlock, Users } from '@/components/ui/icons';
+import { AlertCircle, Filter, KeyRound, Lock, Unlock, UserPlus, Users } from '@/components/ui/icons';
 import { useCampusGuardianChildren } from '@/hooks/account/useGuardians';
 import { useGuardianStructure } from '@/hooks/account/useGuardians';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +14,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import { AccountStatusBadge } from '@/components/account/AccountStatusBadge';
 import { ParentAccountBadge } from '@/components/children/ChildBadges';
-import { AccountSlip, GuardianPanel } from '@/components/account/GuardianPanel';
+import { GuardianPanel } from '@/components/account/GuardianPanel';
 import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 import { resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
@@ -45,9 +45,7 @@ export default function ParentActivationPage() {
   const [keyword, setKeyword] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [openChild, setOpenChild] = useState(null);
-  const [openWithAdd, setOpenWithAdd] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
-  const [slipModal, setSlipModal] = useState(null);
 
   const children = useMemo(() => data || [], [data]);
   useEffect(() => {
@@ -102,7 +100,7 @@ export default function ParentActivationPage() {
     : view === TODO
       ? {
           title: 'Bé chưa có tài khoản phụ huynh',
-          sub: 'Mở từng bé để nhập số điện thoại phụ huynh',
+          sub: 'Mở từng bé để kích hoạt tài khoản theo phụ huynh trên hồ sơ trẻ',
           rows: children.filter(missingAccount),
           showClass: true,
         }
@@ -123,10 +121,7 @@ export default function ParentActivationPage() {
     setViewPick('');
     setClassFilter('');
   };
-  const openChildProfile = (child, addGuardian = false) => {
-    setOpenChild(child);
-    setOpenWithAdd(addGuardian);
-  };
+  const openChildProfile = (child) => setOpenChild(child);
   const handleChildRowClick = (event, child) => {
     if (event.target.closest('button, a, input, select, textarea')) return;
     openChildProfile(child);
@@ -139,17 +134,14 @@ export default function ParentActivationPage() {
 
   const handleConfirmAction = async () => {
     if (!confirmModal) return;
-    const { type, guardian, child } = confirmModal;
+    const { type, guardian } = confirmModal;
     if (type === 'password') {
       try {
         const result = await resetParentPassword(guardian.userId, user);
         setConfirmModal(null);
-        if (result) {
-          setSlipModal({
-            slip: { username: result.username, fullName: guardian.fullName, password: result.temporaryPassword }, // carenest:allow-secret
-            child,
-          });
-        }
+        // Mật khẩu tạm gửi qua SMS, không in phiếu (user bỏ màn in phiếu 2026-10-23).
+        if (result?.smsStatus === 'FAILED') toast.warning(`Chưa gửi được SMS mật khẩu tới ${result.username}. Thử lại sau.`, 'Gửi SMS lỗi');
+        else if (result) toast.success(`Đã gửi mật khẩu tạm mới qua SMS tới ${result.username}.`);
         reload({ silent: true });
       } catch (err) {
         setConfirmModal(null);
@@ -408,7 +400,7 @@ export default function ParentActivationPage() {
                                                     {
                                                       label: 'Cấp lại mật khẩu tạm',
                                                       icon: KeyRound,
-                                                      onClick: () => setConfirmModal({ type: 'password', guardian: g, child }),
+                                                      onClick: () => setConfirmModal({ type: 'password', guardian: g }),
                                                     },
                                                     {
                                                       label: active ? 'Khóa tài khoản' : 'Mở khóa tài khoản',
@@ -429,11 +421,9 @@ export default function ParentActivationPage() {
                                         type="button"
                                         className="btn btn--sm btn--primary"
                                         disabled={!child.canManage}
-                                        onClick={() => {
-                                          openChildProfile(child, true);
-                                        }}
+                                        onClick={() => openChildProfile(child)}
                                       >
-                                        <Plus size={13} /> Thêm phụ huynh
+                                        <UserPlus size={13} /> Kích hoạt tài khoản
                                       </button>
                                     </div>
                                   )}
@@ -459,18 +449,13 @@ export default function ParentActivationPage() {
           title={`Phụ huynh của bé ${openChild.fullName}`}
           size="lg"
           className="pa-guardian-modal"
-          onClose={() => {
-            setOpenChild(null);
-            setOpenWithAdd(false);
-          }}
+          onClose={() => setOpenChild(null)}
         >
           <fieldset disabled={!openChild.canManage} className="pa-guard-fieldset">
             <GuardianPanel
               key={openChild.id}
               child={openChild}
               classroomName={classOf(openChild)}
-              initialAdding={openWithAdd}
-              isModal
               onChanged={() => reload({ silent: true })}
             />
           </fieldset>
@@ -490,7 +475,7 @@ export default function ParentActivationPage() {
           }
           message={
             confirmModal.type === 'password'
-              ? `Hệ thống sẽ tạo một mật khẩu tạm ngẫu nhiên mới và vô hiệu mật khẩu cũ của phụ huynh ${confirmModal.guardian.fullName}. Bạn có thể in hoặc sao chép phiếu mật khẩu ngay sau thao tác.`
+              ? `Hệ thống tạo mật khẩu tạm mới, gửi qua SMS tới ${confirmModal.guardian.username} và vô hiệu mật khẩu cũ của phụ huynh ${confirmModal.guardian.fullName}.`
               : confirmModal.guardian.status === 'ACTIVE'
                 ? `Khóa tài khoản phụ huynh ${confirmModal.guardian.fullName} trong dữ liệu demo? Chưa tác động App thật.`
                 : `Mở khóa tài khoản cho phụ huynh ${confirmModal.guardian.fullName} trong dữ liệu demo? Chưa tác động App thật.`
@@ -501,16 +486,6 @@ export default function ParentActivationPage() {
           }
           onConfirm={handleConfirmAction}
           onClose={() => setConfirmModal(null)}
-        />
-      )}
-
-      {/* Modal phiếu in mật khẩu tạm */}
-      {slipModal && (
-        <AccountSlip
-          slip={slipModal.slip}
-          child={slipModal.child}
-          classroomName={classOf(slipModal.child)}
-          onClose={() => setSlipModal(null)}
         />
       )}
     </div>

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, ImageOff, Phone, Save, ThumbsUp, UserCheck, XCircle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -8,7 +7,13 @@ import { FormField } from '@/components/form/FormField';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { recordPickupResult } from '@/services/pickup/pickupService';
 import { usePickupChild } from '@/hooks/pickup/usePickups';
-import { PICKUP_STATUS, VERIFICATION, VERIFICATION_LABELS } from '@/models/pickup/pickupConstants';
+import {
+  CALL_NOTE_PERSON_LABEL,
+  PICKUP_STATUS,
+  PICKUP_STATUS_MESSAGES,
+  VERIFICATION,
+  VERIFICATION_LABELS,
+} from '@/models/pickup/pickupConstants';
 import { callNoteError, validatePickupResult } from '@/utils/pickup/pickupValidation';
 import { formatDateTime, initials } from '@/utils/format';
 import { PickupOutcomeBadge } from './PickupBadges';
@@ -37,10 +42,14 @@ function WaitingChild({ childId, children }) {
     return (
       <EmptyState
         icon={CheckCircle2}
-        title={context.status === PICKUP_STATUS.PICKED_UP ? 'Trẻ đã được trả hôm nay' : 'Trẻ vắng mặt hôm nay'}
+        title={PICKUP_STATUS_MESSAGES[context.status]}
         description={
           context.pickup
-            ? `${context.pickup.pickupPersonName} (${context.pickup.pickupPersonRelation}) đón lúc ${formatDateTime(context.pickup.handedOverAt)}.`
+            ? `${
+                context.pickup.pickupPersonName
+                  ? `${context.pickup.pickupPersonName} (${context.pickup.pickupPersonRelation})`
+                  : `Người đón (${CALL_NOTE_PERSON_LABEL.toLowerCase()})`
+              } đón lúc ${formatDateTime(context.pickup.handedOverAt)}.`
             : undefined
         }
       />
@@ -167,16 +176,18 @@ export function PickupPhotoFlow({ childId, onDone }) {
 }
 
 /**
- * Nút "Gọi phụ huynh" (user chốt 2026-10-23): ghi nội dung cuộc gọi (bắt buộc), rồi "Trả trẻ" (sang trang ghi người đón, giờ trả)
- * hoặc "Không trả" (ghi nhận ngay; không liên lạc được cũng là không trả, lý do ghi trong nội dung). onDone: đã ghi nhận không trả.
+ * Nút "Gọi phụ huynh" (user chốt 2026-10-23): ghi nội dung cuộc gọi (bắt buộc), rồi "Trả trẻ" hoặc "Không trả", cả hai xác nhận rồi
+ * ghi nhận ngay trong modal (trả trẻ ghi luôn: user chốt 2026-10-24). Người đón, lý do không trả ghi trong nội dung cuộc gọi.
+ * onDone: đã ghi nhận.
  */
 export function PickupCallFlow({ childId, onDone }) {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
-  const [declineOpen, setDeclineOpen] = useState(false);
+  // Kết quả đang chờ xác nhận: PHONE_CONFIRMED (trả) hoặc PHONE_DECLINED (không trả).
+  const [confirming, setConfirming] = useState(null);
+  const [handoverTime, setHandoverTime] = useState('');
 
   const checkNote = () => {
     const msg = callNoteError(note);
@@ -184,32 +195,35 @@ export function PickupCallFlow({ childId, onDone }) {
     return !msg;
   };
 
-  const handOver = () => {
+  const ask = (verification) => {
     if (!checkNote()) return;
-    navigate(`/pickup/result?${new URLSearchParams({ childId, verification: VERIFICATION.PHONE_CONFIRMED })}`, {
-      state: { note: note.trim() },
-    });
+    setHandoverTime(nowTime());
+    setConfirming(verification);
   };
 
-  const recordDeclined = async () => {
+  const record = async () => {
+    const handedOver = confirming === VERIFICATION.PHONE_CONFIRMED;
     try {
       await recordPickupResult(
         {
           childId,
-          verification: VERIFICATION.PHONE_DECLINED,
+          verification: confirming,
           pickupPersonName: '',
           pickupPersonRelation: '',
           pickupPersonPhone: '',
-          handoverTime: '',
+          handoverTime: handedOver ? handoverTime : '',
           note: note.trim(),
         },
         user,
       );
-      toast.success('Đã ghi nhận không trả trẻ và thông báo cho phụ huynh.', 'Ghi nhận thành công');
-      setDeclineOpen(false);
+      toast.success(
+        handedOver ? 'Đã ghi nhận trả trẻ và thông báo cho phụ huynh.' : 'Đã ghi nhận không trả trẻ và thông báo cho phụ huynh.',
+        'Ghi nhận thành công',
+      );
+      setConfirming(null);
       onDone?.();
     } catch (err) {
-      setDeclineOpen(false);
+      setConfirming(null);
       if (err.details?.note) setError(err.details.note);
       toast.error(err, 'Không ghi nhận được kết quả');
     }
@@ -256,21 +270,29 @@ export function PickupCallFlow({ childId, onDone }) {
             />
           </FormField>
           <div className="dt-call__actions mt-16">
-            <button className="btn btn--danger" onClick={() => checkNote() && setDeclineOpen(true)}>
+            <button className="btn btn--danger" onClick={() => ask(VERIFICATION.PHONE_DECLINED)}>
               <XCircle size={16} /> Không trả
             </button>
-            <button className="btn btn--primary" onClick={handOver}>
+            <button className="btn btn--primary" onClick={() => ask(VERIFICATION.PHONE_CONFIRMED)}>
               <UserCheck size={16} /> Trả trẻ
             </button>
           </div>
           <ConfirmationModal
-            open={declineOpen}
+            open={confirming === VERIFICATION.PHONE_DECLINED}
             danger
             title="Ghi nhận không trả trẻ?"
             message={`${context.child.fullName} ở lại lớp. Nội dung cuộc gọi được lưu; phụ huynh sẽ nhận thông báo.`}
             confirmLabel="Ghi nhận không trả trẻ"
-            onConfirm={recordDeclined}
-            onClose={() => setDeclineOpen(false)}
+            onConfirm={record}
+            onClose={() => setConfirming(null)}
+          />
+          <ConfirmationModal
+            open={confirming === VERIFICATION.PHONE_CONFIRMED}
+            title="Ghi nhận trả trẻ?"
+            message={`Trả ${context.child.fullName} lúc ${handoverTime} theo nội dung cuộc gọi. Phụ huynh sẽ nhận thông báo.`}
+            confirmLabel="Ghi nhận trả trẻ"
+            onConfirm={record}
+            onClose={() => setConfirming(null)}
           />
         </section>
       )}

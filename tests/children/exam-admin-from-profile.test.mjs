@@ -164,7 +164,6 @@ test('AC-5: tiếp nhận, sửa hồ sơ, khai báo bắt buộc hành chính v
     'profile.premature',
     'profile.ethnicity',
     'profile.beneficiary',
-    'profile.paymentSource',
     'profile.address.province',
     'profile.address.ward',
     'profile.address.street',
@@ -181,6 +180,8 @@ test('AC-5: tiếp nhận, sửa hồ sơ, khai báo bắt buộc hành chính v
   const saved = await children.enrollChild(payload(filledProfile(), filledMedicalHistory()), vp);
 
   const c = childOf(saved.id);
+  // Form không gửi nguồn chi trả; BE giả luôn ghi BHYT.
+  assert.equal(c.profile.paymentSource, 'BHYT');
   const form = {
     fullName: c.fullName,
     dateOfBirth: c.dateOfBirth,

@@ -6,7 +6,7 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Modal } from '@/components/ui/Modal';
 import { PickupCallFlow, PickupPhotoFlow } from '@/components/pickup/PickupVerifyFlow';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
-import { PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
+import { PickupPerson, PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
 import { usePickupBoard, usePickupClasses } from '@/hooks/pickup/usePickups';
 import { PICKUP_REASON_LABELS, PICKUP_STATUS } from '@/models/pickup/pickupConstants';
 import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
@@ -58,6 +58,16 @@ export default function PickupListPage() {
     .filter((r) => !keyword || normalizeText(r.child.fullName).includes(normalizeText(keyword)));
   const isToday = date === today;
   const nameOf = (id) => rows.find((r) => r.child.id === id)?.child.fullName || '';
+  // Tab Chờ đón trống: nói rõ vì sao không còn trẻ để trả (chỉ trẻ điểm danh Có mặt mới chờ đón, user chốt 2026-10-27)
+  const unmarked = count(PICKUP_STATUS.UNMARKED);
+  const waitingEmpty = tab === PICKUP_STATUS.WAITING && !keyword;
+  const emptyTitle = !waitingEmpty
+    ? 'Không có trẻ phù hợp'
+    : unmarked
+      ? `Còn ${unmarked} trẻ chưa điểm danh`
+      : count(PICKUP_STATUS.PICKED_UP)
+        ? 'Đã trả hết trẻ có mặt'
+        : 'Không có trẻ có mặt';
 
   if (loadingClasses) return <LoadingState />;
 
@@ -138,8 +148,21 @@ export default function PickupListPage() {
                         <td colSpan={6}>
                           <EmptyState
                             icon={UserCheck}
-                            title={tab === PICKUP_STATUS.WAITING && rows.length > 0 ? 'Đã trả hết trẻ của lớp' : 'Không có trẻ phù hợp'}
-                            description={`Ngày ${formatDate(date)}`}
+                            title={emptyTitle}
+                            description={
+                              waitingEmpty && unmarked
+                                ? `Chỉ trẻ được điểm danh Có mặt mới trả được. Ngày ${formatDate(date)}`
+                                : `Ngày ${formatDate(date)}`
+                            }
+                            action={
+                              waitingEmpty &&
+                              unmarked > 0 &&
+                              isToday && (
+                                <Link className="btn btn--primary" to={`/attendance?classId=${classId}&date=${date}`}>
+                                  Điểm danh ngay
+                                </Link>
+                              )
+                            }
                           />
                         </td>
                       </tr>
@@ -150,10 +173,7 @@ export default function PickupListPage() {
                           <tr key={r.child.id}>
                             <td>
                               <div className="fw-600">{r.child.fullName}</div>
-                              <div className="text-xs muted">
-                                {r.child.code}
-                                {!r.attendanceStatus && r.status === PICKUP_STATUS.WAITING ? ' · chưa điểm danh' : ''}
-                              </div>
+                              <div className="text-xs muted">{r.child.code}</div>
                             </td>
                             <td className="center">
                               <PickupStatusBadge status={r.status} />
@@ -176,8 +196,10 @@ export default function PickupListPage() {
                             <td>
                               {r.pickup ? (
                                 <>
-                                  <div>{r.pickup.pickupPersonName}</div>
-                                  <div className="text-xs muted">{r.pickup.pickupPersonRelation}</div>
+                                  <PickupPerson pickup={r.pickup} />
+                                  {!r.pickup.pickupPersonName && r.pickup.note && (
+                                    <div className="text-xs muted dt-note">{r.pickup.note}</div>
+                                  )}
                                 </>
                               ) : (
                                 <span className="muted">—</span>

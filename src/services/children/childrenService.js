@@ -8,6 +8,7 @@ const repo = USE_MOCK ? mock : api;
 export const getChildren = (filters, user) => repo.listChildren(filters, user);
 export const getChildDetail = (id, user) => repo.getChildDetail(id, user);
 export const checkDuplicateChild = (data, user, excludeId) => repo.checkDuplicate(data, user, excludeId);
+export const readmitChild = (childId, body, user) => repo.readmitChild(childId, body, user);
 export const getPlacementClasses = (filters, user) => repo.getPlacementClasses(filters, user);
 export const enrollChild = (payload, user) => repo.enrollChild(payload, user);
 export const updateChild = (id, body, user) => repo.updateChild(id, body, user);

@@ -11,6 +11,7 @@ import { uid } from '@/utils/id';
  * Fake backend for child pickup (UC 3.15 / 3.16, GBR-CP-03).
  * Rules the backend must re-implement:
  *  - only the teacher of the class hands over its children, only today;
+ *  - only children marked present today (attendance PRESENT) can be handed over (user 2026-10-27);
  *  - a handover is completed only after photo match or the parent's phone agreement;
  *    a failed verification is stored but never counted as a handover;
  *  - one completed handover per child per day; the parent is notified of every result.
@@ -18,6 +19,7 @@ import { uid } from '@/utils/id';
  */
 
 const forbidden = () => new ApiError(403, 'Bạn không có quyền thực hiện thao tác này.');
+const PRESENT = 'PRESENT';
 const ABSENT = ['EXCUSED', 'UNEXCUSED'];
 
 const ensureSeeded = (db) => {
@@ -55,11 +57,18 @@ const earlyRequestOf = (db, childId, date) => {
   return e ? { healthEntryId: e.id, requestedAt: e.recordedAt, symptoms: e.symptoms || [], note: e.note || '' } : null;
 };
 
+// Chờ đón chỉ khi trẻ điểm danh Có mặt; chưa điểm danh không coi là có mặt (user chốt 2026-10-27).
+const statusOf = (att, done) => {
+  if (done) return PICKUP_STATUS.PICKED_UP;
+  if (att?.status === PRESENT) return PICKUP_STATUS.WAITING;
+  return att && ABSENT.includes(att.status) ? PICKUP_STATUS.ABSENT : PICKUP_STATUS.UNMARKED;
+};
+
 const boardRow = (db, child, date) => {
   const att = attendanceOf(db, child.id, date);
   const attempts = recordsOf(db, child.id, date);
   const done = attempts.find((p) => p.outcome === PICKUP_OUTCOME.HANDED_OVER) || null;
-  const status = done ? PICKUP_STATUS.PICKED_UP : att && ABSENT.includes(att.status) ? PICKUP_STATUS.ABSENT : PICKUP_STATUS.WAITING;
+  const status = statusOf(att, done);
   return {
     child: { id: child.id, code: child.code, fullName: child.fullName, gender: child.gender },
     attendanceStatus: att?.status || null,
@@ -133,7 +142,8 @@ export const pickupMockRepository = {
         throw new ApiError(422, 'Người đón không có trong danh sách phụ huynh đã đăng ký ảnh. Hãy gọi điện xác nhận với phụ huynh.');
       const today = todayInput();
       const att = attendanceOf(db, child.id, today);
-      if (att && ABSENT.includes(att.status)) throw new ApiError(409, 'Trẻ được điểm danh vắng hôm nay.');
+      if (att?.status !== PRESENT)
+        throw new ApiError(409, att ? 'Trẻ được điểm danh vắng hôm nay.' : 'Trẻ chưa được điểm danh có mặt hôm nay.');
       if (recordsOf(db, child.id, today).some((p) => p.outcome === PICKUP_OUTCOME.HANDED_OVER))
         throw new ApiError(409, 'Trẻ đã được trả cho người đón hôm nay.');
 

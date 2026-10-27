@@ -348,7 +348,7 @@ export function AppRoutes() {
             <Route path="new" element={only(VP_ONLY, <EnrollChildPage />)} />
             <Route path="import" element={only(VP_ONLY, <ImportChildrenPage />)} />
             <Route path="placement" element={only(VP_ONLY, <ClassPlacementPage />)} />
-            <Route path="activation" element={only(VP_ONLY, <ParentActivationPage />)} />
+            <Route path="activation" element={only(LEADERS, <ParentActivationPage />)} />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
             <Route path="health-checks" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckListPage />)} />
             <Route path="health-checks/new" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />

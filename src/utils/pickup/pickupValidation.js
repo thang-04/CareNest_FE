@@ -15,15 +15,16 @@ const PHONE_VERIFICATIONS = [VERIFICATION.PHONE_CONFIRMED, VERIFICATION.PHONE_DE
 
 /**
  * Pickup result form (UC 3.16). Returns { field: message }.
- * Thông tin người đón chỉ bắt buộc khi trả trẻ. Không trả sau khi gọi phụ huynh: không lấy thông tin người đón (quyết định user
- * 2026-10-15); lý do (không đồng ý, không liên lạc được) ghi trong nội dung cuộc gọi (2026-10-23).
+ * Thông tin người đón chỉ bắt buộc khi trả trẻ khớp ảnh. Gọi phụ huynh (trả hoặc không trả): không lấy thông tin người đón, người đón
+ * và lý do ghi trong nội dung cuộc gọi (user chốt 2026-10-15, 2026-10-23; trả trẻ ghi ngay trong modal 2026-10-24).
  */
 export const validatePickupResult = (form = {}) => {
   const errors = {};
   if (!Object.values(VERIFICATION).includes(form.verification)) errors.verification = 'Chọn kết quả xác minh người đón.';
   const handedOver = outcomeOf(form.verification) === PICKUP_OUTCOME.HANDED_OVER;
-  if (handedOver && !String(form.pickupPersonName || '').trim()) errors.pickupPersonName = 'Nhập họ tên người đón.';
-  if (handedOver && !String(form.pickupPersonRelation || '').trim()) errors.pickupPersonRelation = 'Chọn quan hệ với trẻ.';
+  const needsPerson = form.verification === VERIFICATION.PHOTO_MATCH;
+  if (needsPerson && !String(form.pickupPersonName || '').trim()) errors.pickupPersonName = 'Nhập họ tên người đón.';
+  if (needsPerson && !String(form.pickupPersonRelation || '').trim()) errors.pickupPersonRelation = 'Chọn quan hệ với trẻ.';
   const phone = String(form.pickupPersonPhone || '').replace(/\s/g, '');
   if (phone && !PHONE_RE.test(phone)) errors.pickupPersonPhone = 'Số điện thoại gồm 10 chữ số, bắt đầu bằng 0.';
   if (handedOver && !TIME_RE.test(String(form.handoverTime || ''))) errors.handoverTime = 'Nhập giờ trả trẻ (HH:mm).';

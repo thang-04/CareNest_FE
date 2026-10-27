@@ -166,7 +166,6 @@ export const IMPORT_COLUMNS = [
   { key: 'gestationWeeks', label: 'Tuần thai khi sinh (bắt buộc khi sinh non)', required: false },
   { key: 'ethnicity', label: 'Dân tộc', required: true },
   { key: 'beneficiary', label: 'Đối tượng', required: true },
-  { key: 'paymentSource', label: 'Nguồn chi trả', required: true },
   { key: 'bloodType', label: 'Nhóm máu', required: false },
   { key: 'province', label: 'Nơi ở - Tỉnh/thành', required: true },
   { key: 'ward', label: 'Nơi ở - Phường/xã', required: true },

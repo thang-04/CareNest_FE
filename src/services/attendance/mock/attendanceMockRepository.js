@@ -119,6 +119,19 @@ const leaveOf = (db, childId, date) =>
     (leave) => leave.childId === childId && leave.status === 'SUBMITTED' && leave.fromDate <= date && leave.toDate >= date,
   );
 
+/** Đơn báo nghỉ phủ `today` sẽ được ghi thành điểm danh; ready() dùng cùng điều kiện để không ghi DB lặp mỗi lần đọc. */
+const leavesToRecord = (db, today) => {
+  if (!isSchoolDay(today)) return [];
+  return (db.leaveRequests || []).flatMap((leave) => {
+    if (leave.status !== 'SUBMITTED' || leave.fromDate > today || leave.toDate < today) return [];
+    const child = db.children.find((ch) => ch.id === leave.childId && ch.status === 'ACTIVE');
+    if (!child || recordOf(db, child.id, today)) return [];
+    // Luồng sau khóa chưa có contract: không âm thầm sửa sĩ số đã tổng hợp.
+    if (db.mealCounts.some((count) => count.campusId === child.campusId && count.date === today)) return [];
+    return [{ leave, child }];
+  });
+};
+
 const ensureLeaveDemo = (db) => {
   const today = schoolNow().date;
   if (!db.leaveRequests) {
@@ -143,12 +156,7 @@ const ensureLeaveDemo = (db) => {
         : [];
     });
   }
-  db.leaveRequests.forEach((leave) => {
-    if (leave.status !== 'SUBMITTED' || leave.fromDate > today || leave.toDate < today || !isSchoolDay(today)) return;
-    const child = db.children.find((ch) => ch.id === leave.childId && ch.status === 'ACTIVE');
-    if (!child || recordOf(db, child.id, today)) return;
-    // Luồng sau khóa chưa có contract: không âm thầm sửa sĩ số đã tổng hợp.
-    if (db.mealCounts.some((count) => count.campusId === child.campusId && count.date === today)) return;
+  leavesToRecord(db, today).forEach(({ leave, child }) => {
     db.attendance.push({
       id: uid('att'),
       childId: child.id,
@@ -342,17 +350,7 @@ const ready = () => {
   const db = readDb();
   if (!db.attendance || !db.mealCounts || !db.mealHandovers) writeDb(ensureSeeded);
   const current = readDb();
-  if (
-    !current.leaveRequests ||
-    current.leaveRequests.some(
-      (leave) =>
-        leave.status === 'SUBMITTED' &&
-        leave.fromDate <= schoolNow().date &&
-        leave.toDate >= schoolNow().date &&
-        !recordOf(current, leave.childId, schoolNow().date),
-    )
-  )
-    writeDb(ensureLeaveDemo);
+  if (!current.leaveRequests || leavesToRecord(current, schoolNow().date).length) writeDb(ensureLeaveDemo);
   if (needsMockSeedMigration(readDb(), 'attendanceUnlocks', 1, ['attendanceDayUnlocks']))
     writeDb((d) => {
       const has = new Set(d.attendanceDayUnlocks.map((u) => u.id));

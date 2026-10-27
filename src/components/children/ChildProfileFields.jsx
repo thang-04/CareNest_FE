@@ -57,7 +57,6 @@ export function ChildProfileFields({ value, onChange, errors = {} }) {
         />
         {text('ethnicity', 'Dân tộc')}
         {text('beneficiary', 'Đối tượng')}
-        {text('paymentSource', 'Nguồn chi trả')}
         {text('bloodType', 'Nhóm máu (nếu có)', { required: false })}
         <ExamTextField
           label="Nơi ở — Tỉnh/thành"

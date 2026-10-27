@@ -1,63 +1,66 @@
 import { useRef, useState } from 'react';
-import { KeyRound, Lock, Printer, Trash2, Unlock, UserPlus } from '@/components/ui/icons';
+import { Link } from 'react-router-dom';
+import { Info, KeyRound, Lock, Pencil, Trash2, Unlock, UserPlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useChildGuardians } from '@/hooks/account/useGuardians';
-import { Modal } from '@/components/ui/Modal';
+import { useChildGuardians, usePendingGuardians } from '@/hooks/account/useGuardians';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
-import { FormField } from '@/components/form/FormField';
-import { PrintHeader } from '@/components/print/PrintHeader';
 import { AccountStatusBadge } from '@/components/account/AccountStatusBadge';
-import { addGuardian, removeGuardian, resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
-import { GUARDIAN_RELATIONSHIPS, GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
-import { validateGuardian } from '@/utils/account/guardianValidation';
+import { activateGuardians, removeGuardian, resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
+import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
 import { avatarTone, formatDate, initials } from '@/utils/format';
 
-const EMPTY_FORM = { phone: '', idNumber: '', fullName: '', email: '', relationship: 'MOTHER' };
+/** Kết quả gửi SMS mật khẩu tạm (BE trả smsStatus): không hiện, không in mật khẩu (user bỏ màn in phiếu 2026-10-23). */
+const smsFailed = (rows) => rows.filter((r) => r.smsStatus === 'FAILED');
 
 // Quản lý tài khoản demo qua adapter legacy; chưa nối hợp đồng BE/App.
-export function GuardianPanel({ child, classroomName, onChanged, initialAdding = false, _isModal = false }) {
+/**
+ * Phụ huynh của bé: tài khoản đã liên kết (cấp mật khẩu, gỡ, khóa) và phụ huynh trên hồ sơ trẻ chưa có tài khoản.
+ * Thông tin phụ huynh lấy từ hồ sơ trẻ, không sửa ở đây; có từ 2 phụ huynh thì chọn xem từng người, kích hoạt tạo cho tất cả
+ * (user chốt 2026-10-23). Mật khẩu tạm gửi qua SMS tới số đăng nhập, không in phiếu.
+ */
+export function GuardianPanel({ child, classroomName, onChanged }) {
   const { user } = useAuth();
   const toast = useToast();
   const { data: guardians, loading, error, reload } = useChildGuardians(child.id);
-  const [adding, setAdding] = useState(initialAdding);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState({});
+  const pendingQ = usePendingGuardians(child.id);
+  const [pick, setPick] = useState(0);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
-  const [slip, setSlip] = useState(null);
   const submitting = useRef(false);
-
-  const set = (patch) => {
-    setForm((f) => ({ ...f, ...patch }));
-    setErrors({});
-  };
 
   const refresh = () => {
     reload({ silent: true });
+    pendingQ.reload({ silent: true });
     onChanged();
   };
 
-  const add = async (e) => {
-    e.preventDefault();
+  const activate = async () => {
     if (submitting.current) return;
-    const found = validateGuardian(form);
-    setErrors(found);
-    if (Object.keys(found).length) return;
     submitting.current = true;
     setSaving(true);
     try {
-      const created = await addGuardian(child.id, form, user);
-      setForm(EMPTY_FORM);
-      setAdding(false);
+      const results = await activateGuardians(child.id, user);
       refresh();
-      if (created.newAccount)
-        setSlip({ username: created.username, fullName: created.fullName, password: created.temporaryPassword }); // carenest:allow-secret
-      else toast.success('Số điện thoại đã có tài khoản phụ huynh; đã liên kết thêm bé này, mật khẩu giữ nguyên.');
+      setPick(0);
+      const fresh = results.filter((r) => r.newAccount);
+      const linked = results.length - fresh.length;
+      const failed = smsFailed(fresh);
+      const sent = fresh.filter((r) => !failed.includes(r));
+      if (sent.length)
+        toast.success(
+          `Đã tạo ${sent.length} tài khoản; mật khẩu tạm gửi qua SMS tới ${sent.map((r) => r.username).join(', ')}.`,
+          'Kích hoạt thành công',
+        );
+      if (linked) toast.success(`${linked} phụ huynh đã có tài khoản: đã liên kết thêm bé này, mật khẩu giữ nguyên.`);
+      if (failed.length)
+        toast.warning(
+          `Tài khoản đã tạo nhưng chưa gửi được SMS mật khẩu tới ${failed.map((r) => r.username).join(', ')}. Bấm "Cấp mật khẩu mới" để gửi lại.`,
+          'Gửi SMS lỗi',
+        );
     } catch (err) {
-      if (err.details) setErrors(err.details);
-      toast.error(err, 'Không thêm được phụ huynh');
+      toast.error(err, 'Không kích hoạt được tài khoản');
     } finally {
       submitting.current = false;
       setSaving(false);
@@ -82,7 +85,8 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
     const g = confirm.guardian;
     if (confirm.type === 'password') {
       const result = await run(() => resetParentPassword(g.userId, user));
-      if (result) setSlip({ username: result.username, fullName: g.fullName, password: result.temporaryPassword }); // carenest:allow-secret
+      if (result?.smsStatus === 'FAILED') toast.warning(`Chưa gửi được SMS mật khẩu tới ${result.username}. Thử lại sau.`, 'Gửi SMS lỗi');
+      else if (result) toast.success(`Đã gửi mật khẩu tạm mới qua SMS tới ${result.username}.`);
       return;
     }
     if (confirm.type === 'remove') {
@@ -107,15 +111,18 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
         }
       : confirm.type === 'password'
         ? {
-            title: 'Cấp mật khẩu mới và in phiếu',
-            message: `Cấp mật khẩu tạm demo mới cho ${target.fullName}? Chưa tác động phiên đăng nhập trên App thật.`,
+            title: 'Cấp mật khẩu mới',
+            message: `Gửi mật khẩu tạm mới qua SMS tới ${target.username} (${target.fullName})? Mật khẩu cũ hết hiệu lực.`,
+            confirmLabel: 'Gửi mật khẩu mới',
           }
         : {
             title: target.status === 'ACTIVE' ? 'Khóa tài khoản phụ huynh' : 'Mở khóa tài khoản phụ huynh',
             message: `${target.status === 'ACTIVE' ? 'Khóa' : 'Mở khóa'} tài khoản ${target.fullName}?`,
             danger: target.status === 'ACTIVE',
           };
-  const showForm = adding || (guardians && !guardians.length);
+  const pending = pendingQ.data || [];
+  const current = pending[Math.min(pick, pending.length - 1)];
+  const blocked = pending.some((p) => p.problems.length > 0);
 
   return (
     <>
@@ -123,14 +130,16 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
         {classroomName || 'Chưa xếp lớp'} · sinh {formatDate(child.dateOfBirth)}
       </p>
 
-      {error ? (
-        <ErrorState error={error} onRetry={reload} />
-      ) : loading ? (
+      {error || pendingQ.error ? (
+        <ErrorState error={error || pendingQ.error} onRetry={refresh} />
+      ) : loading || pendingQ.loading ? (
         <LoadingState />
       ) : (
         <>
-          {!guardians.length && (
-            <div className="alert alert--warning mb-16">Bé chưa có tài khoản phụ huynh. Nhập số điện thoại phụ huynh để tạo.</div>
+          {!guardians.length && pending.length > 0 && (
+            <div className="alert alert--warning mb-16">
+              Bé chưa có tài khoản phụ huynh. Kiểm tra thông tin theo hồ sơ trẻ rồi kích hoạt.
+            </div>
           )}
           {guardians.map((g) => (
             <div key={g.userId} className="pa-guardian">
@@ -141,7 +150,7 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
                 <div className="pa-guardian__main">
                   <div className="pa-guardian__identity">
                     <strong className="pa-guardian__name">{g.fullName}</strong>
-                    <span className="pa-guardian__relation">{GUARDIAN_RELATIONSHIP_LABELS[g.relationship]}</span>
+                    <span className="pa-guardian__relation">{g.relation || GUARDIAN_RELATIONSHIP_LABELS[g.relationship]}</span>
                   </div>
                   <div className="pa-guardian__username">
                     Tài khoản: {g.username} · {g.idNumber ? `CCCD ${g.idNumber}` : 'Chưa có CCCD'}
@@ -167,60 +176,81 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
             </div>
           ))}
 
-          {showForm ? (
-            <form onSubmit={add} noValidate className="pa-add">
-              <h3 className="section-title">{guardians.length ? 'Thêm phụ huynh khác' : 'Tạo tài khoản phụ huynh'}</h3>
-              <FormField label="Số điện thoại" required error={errors.phone} hint="Dùng làm tên đăng nhập">
-                <input
-                  className="input"
-                  inputMode="tel"
-                  value={form.phone}
-                  maxLength={20}
-                  onChange={(e) => set({ phone: e.target.value })}
-                />
-              </FormField>
-              <FormField label="Họ tên phụ huynh" required error={errors.fullName}>
-                <input className="input" value={form.fullName} maxLength={150} onChange={(e) => set({ fullName: e.target.value })} />
-              </FormField>
-              <FormField label="Số CCCD" required error={errors.idNumber} hint="12 chữ số trên căn cước">
-                <input
-                  className="input"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={form.idNumber}
-                  maxLength={15}
-                  onChange={(e) => set({ idNumber: e.target.value })}
-                />
-              </FormField>
-              <FormField label="Quan hệ với bé" required error={errors.relationship}>
-                <select className="select" value={form.relationship} onChange={(e) => set({ relationship: e.target.value })}>
-                  {GUARDIAN_RELATIONSHIPS.map((r) => (
-                    <option key={r} value={r}>
-                      {GUARDIAN_RELATIONSHIP_LABELS[r]}
-                    </option>
+          {pending.length > 0 && (
+            <section className="pa-pending" aria-label="Phụ huynh chưa có tài khoản">
+              <h3 className="section-title">{guardians.length ? 'Phụ huynh chưa có tài khoản' : 'Kích hoạt tài khoản phụ huynh'}</h3>
+              <p className="text-sm text-2 mb-12">
+                Thông tin lấy từ hồ sơ trẻ, không sửa ở đây. Sai hoặc thiếu thì sửa ở hồ sơ trẻ rồi kích hoạt.
+              </p>
+              {pending.length > 1 && (
+                <div className="tabs mb-12" role="tablist" aria-label="Phụ huynh trên hồ sơ trẻ">
+                  {pending.map((p, i) => (
+                    <button
+                      key={p.phone || i}
+                      type="button"
+                      role="tab"
+                      aria-selected={p === current}
+                      className={`tab ${p === current ? 'tab--active' : ''}`}
+                      onClick={() => setPick(i)}
+                    >
+                      {p.fullName || `Phụ huynh ${i + 1}`} <span className="muted">({p.relation || '—'})</span>
+                    </button>
                   ))}
-                </select>
-              </FormField>
-              <FormField label="Email liên hệ" error={errors.email} hint="Không bắt buộc; giữ để liên hệ và thông báo demo.">
-                <input className="input" type="email" value={form.email} maxLength={150} onChange={(e) => set({ email: e.target.value })} />
-              </FormField>
-              <div className="row gap-2">
-                {guardians.length > 0 && (
-                  <button className="btn" type="button" onClick={() => setAdding(false)}>
-                    Hủy
-                  </button>
-                )}
-                <button className="btn btn--primary" type="submit" disabled={saving}>
-                  <UserPlus size={16} /> Tạo / liên kết tài khoản
+                </div>
+              )}
+              {current && (
+                <div className="pa-guardian" role={pending.length > 1 ? 'tabpanel' : undefined}>
+                  <dl className="info-list">
+                    <dt>Số điện thoại</dt>
+                    <dd>
+                      <b>{current.phone || '—'}</b> <span className="text-sm muted">(tên đăng nhập)</span>
+                    </dd>
+                    <dt>Họ tên</dt>
+                    <dd>{current.fullName || '—'}</dd>
+                    <dt>Số CCCD</dt>
+                    <dd>{current.idNumber || '—'}</dd>
+                    <dt>Quan hệ với bé</dt>
+                    <dd>{current.relation || '—'}</dd>
+                    <dt>Email</dt>
+                    <dd>{current.email || <span className="muted">Không có</span>}</dd>
+                  </dl>
+                  {current.hasAccount && (
+                    <div className="alert alert--info mt-12">
+                      <Info size={18} />
+                      <div>Số điện thoại này đã có tài khoản phụ huynh: kích hoạt chỉ liên kết thêm bé, mật khẩu giữ nguyên.</div>
+                    </div>
+                  )}
+                  {current.problems.length > 0 && (
+                    <div className="alert alert--warning mt-12">
+                      <Info size={18} />
+                      <div>Thông tin trên hồ sơ trẻ chưa đủ: {current.problems.join('; ')}. Sửa ở hồ sơ trẻ trước khi kích hoạt.</div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="row row--wrap gap-2 mt-16">
+                <button className="btn btn--primary" type="button" onClick={activate} disabled={saving || blocked}>
+                  <UserPlus size={16} />{' '}
+                  {pending.length > 1 ? `Kích hoạt tài khoản cho cả ${pending.length} phụ huynh` : 'Kích hoạt tài khoản'}
                 </button>
+                <Link className="btn" to={`/children/${child.id}/edit`}>
+                  <Pencil size={16} /> Sửa thông tin ở hồ sơ trẻ
+                </Link>
               </div>
-            </form>
-          ) : (
-            <button type="button" className="btn mt-16" onClick={() => setAdding(true)}>
-              <UserPlus size={16} /> Thêm phụ huynh khác
-            </button>
+            </section>
           )}
-          {guardians.length > 0 && <p className="text-sm text-2 mt-12">Cấp mật khẩu mới sẽ in phiếu mới; phiếu cũ hết hiệu lực.</p>}
+          {!pending.length && !guardians.length && (
+            <div className="alert alert--warning">
+              Hồ sơ trẻ chưa có phụ huynh.{' '}
+              <Link className="text-primary" to={`/children/${child.id}/edit`}>
+                Thêm phụ huynh ở hồ sơ trẻ
+              </Link>
+              .
+            </div>
+          )}
+          {guardians.length > 0 && (
+            <p className="text-sm text-2 mt-12">Cấp mật khẩu mới: mật khẩu tạm gửi qua SMS tới số đăng nhập, mật khẩu cũ hết hiệu lực.</p>
+          )}
         </>
       )}
 
@@ -229,71 +259,10 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
         title={dialog.title}
         message={dialog.message}
         danger={!!dialog.danger}
+        confirmLabel={dialog.confirmLabel}
         onConfirm={onConfirm}
         onClose={() => setConfirm(null)}
       />
-      {slip && <AccountSlip slip={slip} child={child} classroomName={classroomName} onClose={() => setSlip(null)} />}
     </>
-  );
-}
-
-// Phiếu minh họa: không dùng thông tin thật, không xác nhận đăng nhập App.
-export function AccountSlip({ slip, child, classroomName, onClose }) {
-  return (
-    <Modal
-      open
-      title="Phiếu tài khoản phụ huynh"
-      onClose={onClose}
-      footer={
-        <>
-          <button className="btn" onClick={onClose}>
-            Đóng
-          </button>
-          <button className="btn btn--primary" onClick={() => window.print()}>
-            <Printer size={16} /> In phiếu
-          </button>
-        </>
-      }
-    >
-      <p className="text-sm text-2 mb-16 no-print">Mật khẩu tạm chỉ hiện lần này. Hãy in phiếu trước khi đóng.</p>
-      <div className="print-sheet">
-        <PrintHeader />
-        <div className="ps-title">
-          <h1>Phiếu tài khoản ứng dụng CareNest</h1>
-        </div>
-        <div className="ps-section">
-          <table className="ps-table">
-            <tbody>
-              <tr>
-                <th>Trẻ</th>
-                <td>
-                  {child.fullName}
-                  {classroomName ? ` — ${classroomName}` : ''}
-                </td>
-              </tr>
-              <tr>
-                <th>Phụ huynh</th>
-                <td>{slip.fullName}</td>
-              </tr>
-              <tr>
-                <th>Tên đăng nhập</th>
-                <td>
-                  <b>{slip.username}</b>
-                </td>
-              </tr>
-              <tr>
-                <th>Mật khẩu tạm</th>
-                <td>
-                  <b className="pa-slip__password">{slip.password}</b>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="ps-section">
-          Phiếu minh họa giao diện Web, chưa kết nối đăng nhập ứng dụng CareNest. Chỉ sử dụng dữ liệu demo, không dùng mật khẩu thật.
-        </div>
-      </div>
-    </Modal>
   );
 }

@@ -155,7 +155,6 @@ export const readEnrollmentCsv = (text) => {
             gestationWeeks: raw.gestationWeeks || '',
             ethnicity: raw.ethnicity || '',
             beneficiary: raw.beneficiary || '',
-            paymentSource: raw.paymentSource || '',
             bloodType: raw.bloodType || '',
             address: { province: raw.province || '', ward: raw.ward || '', street: raw.street || '' },
           },

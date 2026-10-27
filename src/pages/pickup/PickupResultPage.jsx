@@ -8,10 +8,18 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
-import { PickupOutcomeBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
+import { PickupOutcomeBadge, PickupPerson, VerificationBadge } from '@/components/pickup/PickupBadges';
 import { usePickupChild, usePickupResults } from '@/hooks/pickup/usePickups';
 import { recordPickupResult } from '@/services/pickup/pickupService';
-import { PICKUP_OUTCOME, PICKUP_STATUS, RELATIONS, VERIFICATION, VERIFICATION_LABELS, outcomeOf } from '@/models/pickup/pickupConstants';
+import {
+  PICKUP_OUTCOME,
+  PICKUP_STATUS,
+  PICKUP_STATUS_MESSAGES,
+  RELATIONS,
+  VERIFICATION,
+  VERIFICATION_LABELS,
+  outcomeOf,
+} from '@/models/pickup/pickupConstants';
 import { validatePickupResult } from '@/utils/pickup/pickupValidation';
 import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
@@ -67,8 +75,7 @@ function ResultList() {
                     <td className="fw-600">{r.childName}</td>
                     <td>{r.className}</td>
                     <td>
-                      <div>{r.pickupPersonName}</div>
-                      <div className="text-xs muted">{r.pickupPersonRelation}</div>
+                      <PickupPerson pickup={r} />
                     </td>
                     <td className="center">
                       <VerificationBadge status={r.verification} />
@@ -144,7 +151,7 @@ function ResultForm({ childId, verification, guardianIndex }) {
     return (
       <div className="card">
         <EmptyState
-          title={context.status === PICKUP_STATUS.PICKED_UP ? 'Trẻ đã được trả hôm nay' : 'Trẻ vắng mặt hôm nay'}
+          title={PICKUP_STATUS_MESSAGES[context.status]}
           action={
             <Link className="btn" to={`/pickup?classId=${context.classId}`}>
               Quay lại danh sách
@@ -199,7 +206,7 @@ function ResultForm({ childId, verification, guardianIndex }) {
           <div className="grid-2">
             <FormField
               label={`Họ tên người đón${selfDeclared}`}
-              required={handedOver}
+              required={fromPhoto}
               error={errors.pickupPersonName}
               hint={unreachable ? 'Không bắt buộc' : undefined}
             >
@@ -213,7 +220,7 @@ function ResultForm({ childId, verification, guardianIndex }) {
             </FormField>
             <FormField
               label={`Quan hệ với trẻ${selfDeclared}`}
-              required={handedOver}
+              required={fromPhoto}
               error={errors.pickupPersonRelation}
               hint={unreachable ? 'Không bắt buộc' : undefined}
             >

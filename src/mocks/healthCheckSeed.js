@@ -270,7 +270,7 @@ const SEED_FOLLOW_UPS = [
   // Mở từ phiếu khám của đợt đang diễn ra (c1).
   { childId: 'ch_005', campusId: 'c1', teacherId: 'u_an', fromCampaign: OPEN_CAMPAIGN.id },
   { childId: 'ch_006', campusId: 'c1', teacherId: 'u_an', fromCampaign: OPEN_CAMPAIGN.id },
-  { childId: 'ch_037', campusId: 'c1', teacherId: 'u_an', fromCampaign: OPEN_CAMPAIGN.id },
+  { childId: 'ch_902', campusId: 'c1', teacherId: 'u_an', fromCampaign: OPEN_CAMPAIGN.id },
   { childId: 'ch_016', campusId: 'c1', teacherId: 'u_mai', fromCampaign: OPEN_CAMPAIGN.id },
   { childId: 'ch_021', campusId: 'c1', teacherId: 'u_hoa', fromCampaign: OPEN_CAMPAIGN.id },
   // Mở từ phiếu khám của đợt đã đóng đầu tháng 10 (c2).

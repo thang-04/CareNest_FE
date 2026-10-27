@@ -96,13 +96,7 @@ export function ExamSummary({ measurement: m, child, campaign }) {
               {show(a.ethnicity)} · {show(a.beneficiary)}
             </>,
           ),
-          row(
-            'payment',
-            'Nguồn chi trả · Nhóm máu',
-            <>
-              {show(a.paymentSource)} · {show(a.bloodType)}
-            </>,
-          ),
+          row('bloodType', 'Nhóm máu', show(a.bloodType)),
           row('address', 'Nơi ở hiện tại', show([a.address.street, a.address.ward, a.address.province].filter(Boolean).join(', '))),
           row('school', 'Cơ sở giáo dục', `${child.schoolName} · ${child.className}`),
           row(

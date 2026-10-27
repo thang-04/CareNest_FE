@@ -39,6 +39,7 @@ import {
   canEditChild,
   canEnrollChild,
   canPlaceChild,
+  canReadmitChild,
   canWithdrawChild,
   canRecordMeasurement,
   canViewChild,
@@ -210,7 +211,7 @@ const fillChildProfiles = (d) => {
     const pick = (k) => (blank(cur[k]) ? seed[k] : cur[k]);
     const premature = pick('premature');
     child.profile = cleanProfile({
-      ...Object.fromEntries(['idNumber', 'ethnicity', 'beneficiary', 'paymentSource', 'bloodType'].map((k) => [k, pick(k)])),
+      ...Object.fromEntries(['idNumber', 'ethnicity', 'beneficiary', 'bloodType'].map((k) => [k, pick(k)])),
       premature,
       gestationWeeks: blank(cur.gestationWeeks) ? (premature === 'YES' ? 35 : seed.gestationWeeks) : cur.gestationWeeks,
       address: Object.fromEntries(
@@ -494,18 +495,39 @@ const assertView = (db, childId, user, check = canViewChild) => {
   return child;
 };
 
-const isDuplicate = (db, data, excludeId) => {
-  const name = normalizeText(data.fullName).trim();
+// Họ tên so khớp giữ dấu, không phân biệt hoa thường và khoảng trắng: "Minh Anh" khác "Minh Ánh" (trẻ sinh đôi).
+const nameKey = (v) =>
+  String(v || '')
+    .normalize('NFC')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('vi');
+const citizenIdsOf = (guardians) =>
+  new Set((guardians || []).map((g) => normalizeCitizenId(g.idNumber)).filter((id) => isValidCitizenId(id)));
+
+/**
+ * Trùng hồ sơ (user chốt 2026-10-23, PROPOSED — chờ BE): cùng họ tên, ngày sinh và ít nhất một phụ huynh cùng CCCD.
+ * Chỉ trùng họ tên, ngày sinh mà khác phụ huynh là hai trẻ khác nhau, tiếp nhận bình thường.
+ * left: tìm trong trẻ đã nghỉ học (gợi ý mở lại hồ sơ cũ) thay vì trẻ đang học / chờ xếp lớp.
+ */
+const sameChildOf = (db, data, { excludeId, left = false } = {}) => {
+  const name = nameKey(data.fullName);
+  const ids = citizenIdsOf(data.guardians);
+  if (!name || !data.dateOfBirth || !ids.size) return null;
   return (
     db.children.find(
       (c) =>
         c.id !== excludeId &&
-        c.status !== CHILD_STATUS.LEFT &&
-        normalizeText(c.fullName).trim() === name &&
-        c.dateOfBirth === data.dateOfBirth,
+        (c.status === CHILD_STATUS.LEFT) === left &&
+        c.dateOfBirth === data.dateOfBirth &&
+        nameKey(c.fullName) === name &&
+        (c.guardians || []).some((g) => ids.has(normalizeCitizenId(g.idNumber))),
     ) || null
   );
 };
+const isDuplicate = (db, data, excludeId) => sameChildOf(db, data, { excludeId });
+// Khóa so trùng giữa các dòng của cùng một file nhập.
+const childKey = (child) => `${nameKey(child.fullName)}|${child.dateOfBirth}|${[...citizenIdsOf(child.guardians)].sort().join(',')}`;
 
 const nextCode = (db) => {
   const prefix = `HS${new Date().getFullYear().toString().slice(2)}`;
@@ -568,7 +590,8 @@ export const cleanProfile = (p) => {
     gestationWeeks: w === '' || w == null || Number.isNaN(Number(w)) ? null : Math.round(Number(w)),
     ethnicity: s(p?.ethnicity),
     beneficiary: s(p?.beneficiary),
-    paymentSource: s(p?.paymentSource),
+    // Nguồn chi trả luôn BHYT, không nhập ở form hay Excel (user chốt 2026-10-23, PROPOSED — chờ BE).
+    paymentSource: 'BHYT',
     bloodType: s(p?.bloodType),
     address: { province: s(p?.address?.province), ward: s(p?.address?.ward), street: s(p?.address?.street, 300) },
   };
@@ -592,13 +615,13 @@ const schoolLeadersOf = (d, child) =>
   (d.users || []).filter((u) => u.role === 'PRINCIPAL' || (u.role === 'VICE_PRINCIPAL' && u.campusId === child.campusId)).map((u) => u.id);
 
 /**
- * Khai "Có tiếp xúc với người bệnh lao" ⇒ báo Hiệu trưởng, Phó hiệu trưởng điểm trường, giáo viên lớp, trừ người lưu
- * (user chốt 2026-10-17); câu báo kèm ngày tiếp xúc gần nhất (2026-10-21). Câu trung tính; không mở phiếu theo dõi.
+ * Khai "Có tiếp xúc với người bệnh lao" ⇒ báo Hiệu trưởng, Phó hiệu trưởng điểm trường, giáo viên lớp và cả người lưu
+ * (user chốt 2026-10-17; thêm người lưu 2026-10-27); câu báo kèm ngày tiếp xúc gần nhất (2026-10-21). Câu trung tính;
+ * không mở phiếu theo dõi.
  */
 export const notifyTbContactReported = (d, child, actorId, contactDate) => {
   const cls = child.classId ? d.classes.find((c) => c.id === child.classId) : null;
-  const ids = new Set([...schoolLeadersOf(d, child), ...(cls?.teacherIds || [])]);
-  ids.delete(actorId);
+  const ids = new Set([...schoolLeadersOf(d, child), ...(cls?.teacherIds || []), actorId].filter(Boolean));
   const when = contactDate ? ` (gần nhất ngày ${formatDate(contactDate)})` : '';
   ids.forEach((userId) =>
     pushNotification(d, {
@@ -612,13 +635,13 @@ export const notifyTbContactReported = (d, child, actorId, contactDate) => {
 };
 
 /**
- * Ngày tiếp xúc gần nhất đã có mà đổi sang ngày khác (sửa khai báo hoặc lưu kết luận phiếu khám) ⇒ báo Hiệu trưởng và
- * Phó hiệu trưởng điểm trường, trừ người lưu; không báo giáo viên (user chốt 2026-10-21). source: nơi đổi.
+ * Ngày tiếp xúc gần nhất đã có mà đổi sang ngày khác (sửa khai báo hoặc lưu kết luận phiếu khám) ⇒ báo Hiệu trưởng,
+ * Phó hiệu trưởng điểm trường và cả người lưu (user chốt 2026-10-21; thêm người lưu 2026-10-27); giáo viên khác không nhận.
+ * source: nơi đổi.
  */
 export const notifyTbContactDateChanged = (d, child, { from, to, source }, actorId) => {
   if (!from || !to || from === to) return;
-  const ids = new Set(schoolLeadersOf(d, child));
-  ids.delete(actorId);
+  const ids = new Set([...schoolLeadersOf(d, child), actorId].filter(Boolean));
   ids.forEach((userId) =>
     pushNotification(d, {
       userId,
@@ -809,16 +832,52 @@ export const childrenMockRepository = {
   },
 
   /* ------------------------------ #28 Enrollment form ------------------------------ */
+  /**
+   * Kiểm trùng hồ sơ trước khi tiếp nhận: data { fullName, dateOfBirth, guardianIdNumbers[] }.
+   * Trả { kind: 'ACTIVE' } (trùng trẻ đang học/chờ xếp lớp ⇒ không tiếp nhận) hoặc { kind: 'LEFT' } (trẻ đã nghỉ học ⇒ gợi ý mở lại
+   * hồ sơ cũ, user chốt 2026-10-23); null khi không trùng. Điểm trường khác: chỉ báo có, không lộ hồ sơ (GBR-GEN-01).
+   */
   async checkDuplicate(data, user, excludeId) {
     await delay(100);
     if (!canEnrollChild(user)) forbid();
     const db = ensureSeeded();
-    const dup = isDuplicate(db, data, excludeId);
-    if (!dup) return null;
-    // Another campus: say it exists without exposing the record (GBR-GEN-01).
-    return areaAllows(user, 'children', dup.campusId)
-      ? { id: dup.id, code: dup.code, fullName: dup.fullName, sameCampus: true }
-      : { sameCampus: false };
+    const query = { ...data, guardians: (data.guardianIdNumbers || []).map((idNumber) => ({ idNumber })) };
+    const active = sameChildOf(db, query, { excludeId });
+    const match = active || sameChildOf(db, query, { left: true });
+    if (!match) return null;
+    const kind = active ? 'ACTIVE' : 'LEFT';
+    if (!areaAllows(user, 'children', match.campusId)) return { kind, sameCampus: false };
+    return {
+      kind,
+      sameCampus: true,
+      id: match.id,
+      code: match.code,
+      fullName: match.fullName,
+      leftAt: match.leftAt || null,
+      canReadmit: kind === 'LEFT' && canReadmitChild(match, user),
+    };
+  },
+
+  /** Mở lại hồ sơ trẻ đã nghỉ học (user chốt 2026-10-23): về Chờ xếp lớp, giữ mã, lịch sử, sức khỏe, tài khoản phụ huynh. */
+  async readmitChild(childId, { reason } = {}, user) {
+    await delay();
+    const db = ensureSeeded();
+    const child = findChild(db, childId);
+    if (!canReadmitChild(child, user)) {
+      if (child.status !== CHILD_STATUS.LEFT) throw new ApiError(409, 'Trẻ chưa nghỉ học, không cần mở lại hồ sơ.');
+      forbid();
+    }
+    const text = String(reason || '').trim();
+    if (!text) invalid({ reason: 'Nhập lý do tiếp nhận lại' });
+    if (text.length > 300) invalid({ reason: 'Lý do tối đa 300 ký tự' });
+    return writeDb((d) => {
+      const target = findChild(d, childId);
+      Object.assign(target, { status: CHILD_STATUS.PENDING_PLACEMENT, classId: null, readmittedAt: todayInput() });
+      delete target.leftAt;
+      delete target.leftReason;
+      target.history = [...(target.history || []), { action: 'READMITTED', userId: user.id, at: nowIso(), note: text }];
+      return toView(d, target, user);
+    });
   },
 
   async getPlacementClasses({ schoolYear } = {}, user) {
@@ -839,7 +898,7 @@ export const childrenMockRepository = {
     const resolved = { ...payload, child: { ...payload.child, guardians } };
     const { errors, dup, conflicts } = validateEnrollment(db, resolved);
     if (hasErrors(errors)) invalid(errors);
-    if (dup) throw new ApiError(409, 'Hồ sơ trẻ này đã tồn tại (trùng họ tên và ngày sinh). Xem lại hồ sơ đã có.');
+    if (dup) throw new ApiError(409, 'Hồ sơ trẻ này đã tồn tại (trùng họ tên, ngày sinh và phụ huynh). Xem lại hồ sơ đã có.');
     throwConflicts(conflicts);
     return writeDb((d) => {
       // Lớp không bắt buộc khi tiếp nhận; có lớp thì vẫn kiểm sức chứa và campus.
@@ -873,7 +932,7 @@ export const childrenMockRepository = {
     const errors = validateChildInfo(child);
     if (!reason?.trim()) errors.reason = 'Nhập lý do chỉnh sửa hồ sơ';
     if (hasErrors(errors)) invalid(errors);
-    if (isDuplicate(db, child, id)) throw new ApiError(409, 'Đã có hồ sơ khác trùng họ tên và ngày sinh. Xem lại hồ sơ đã có.');
+    if (isDuplicate(db, child, id)) throw new ApiError(409, 'Đã có hồ sơ khác trùng họ tên, ngày sinh và phụ huynh. Xem lại hồ sơ đã có.');
     throwConflicts(guardianConflicts(db, guardians, errors, id));
     return writeDb((d) => {
       const target = findChild(d, id);
@@ -933,8 +992,11 @@ export const childrenMockRepository = {
         );
       const { errors, dup, conflicts } = validateEnrollment(db, r.payload);
       const messages = [...new Set([...Object.values(errors), ...Object.values(conflicts)])];
-      if (dup) messages.push('Trẻ đã có hồ sơ trong hệ thống (trùng họ tên và ngày sinh)');
-      const key = `${normalizeText(r.payload.child.fullName).trim()}|${r.payload.child.dateOfBirth}`;
+      if (dup) messages.push('Trẻ đã có hồ sơ trong hệ thống (trùng họ tên, ngày sinh và phụ huynh)');
+      const left = dup ? null : sameChildOf(db, r.payload.child, { left: true });
+      if (left)
+        notes.push(`Trẻ từng học ở trường (hồ sơ cũ ${left.code}, đã nghỉ học): nên mở lại hồ sơ cũ ở Tiếp nhận trẻ thay vì nhập mới.`);
+      const key = childKey(r.payload.child);
       if (r.payload.child.fullName && seen.has(key)) messages.push(`Trùng với dòng ${seen.get(key)} trong file`);
       else seen.set(key, r.rowNo);
       const g = r.payload.child.guardians[0];
@@ -956,7 +1018,7 @@ export const childrenMockRepository = {
     const resolved = rows.map((r) => ({ ...r, child: { ...r.child, guardians: withAccounts(db, r.child?.guardians) } }));
     resolved.forEach((r, i) => {
       const { errors, dup, conflicts } = validateEnrollment(db, r);
-      const key = `${normalizeText(r.child.fullName).trim()}|${r.child.dateOfBirth}`;
+      const key = childKey(r.child);
       const fileIssue = (r.child.guardians || []).some((g) => inFile(g, i + 1));
       if (hasErrors(errors) || hasErrors(conflicts) || dup || keys.has(key) || fileIssue)
         invalid({ file: 'File có dòng lỗi. Kiểm tra lại trước khi nhập.' });

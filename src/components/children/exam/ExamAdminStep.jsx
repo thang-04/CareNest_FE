@@ -54,7 +54,6 @@ export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, d
               { key: 'premature', label: PROFILE_FIELD_LABELS.premature, value: show(premature) },
               { key: 'ethnicity', label: PROFILE_FIELD_LABELS.ethnicity, value: show(a.ethnicity) },
               { key: 'beneficiary', label: PROFILE_FIELD_LABELS.beneficiary, value: show(a.beneficiary) },
-              { key: 'paymentSource', label: PROFILE_FIELD_LABELS.paymentSource, value: show(a.paymentSource) },
               { key: 'bloodType', label: PROFILE_FIELD_LABELS.bloodType, value: show(a.bloodType) },
               { key: 'address', label: PROFILE_FIELD_LABELS.address, value: show(formatAddress(a.address)) },
               { key: 'school', label: 'Cơ sở giáo dục', value: `${child.schoolName} · ${child.className}` },

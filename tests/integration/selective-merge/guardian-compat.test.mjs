@@ -19,11 +19,12 @@ beforeEach(async () => {
   child = rows.items.find((row) => row.canManage);
   assert.ok(child);
 });
-test('UI structure/scope giữ campus legacy; teacher/Principal không ghi tài khoản', async () => {
+test('UI structure/scope giữ campus legacy; teacher không ghi tài khoản, Hiệu trưởng ghi được (2026-10-23)', async () => {
   const structure = await repo.getStructure(vp);
   assert.ok(structure.campuses.some((row) => row.id === 'c1'));
   const principal = readDb().users.find((row) => row.role === 'PRINCIPAL');
-  await assert.rejects(repo.addGuardian(child.id, form(), principal), rejectStatus(403));
+  // Hiệu trưởng kích hoạt tài khoản phụ huynh toàn trường (user chốt 2026-10-23, thay quy định chỉ Phó hiệu trưởng).
+  assert.ok((await repo.addGuardian(child.id, form(), principal)).newAccount);
   await assert.rejects(repo.listGuardians(child.id, { id: 'teacher', role: 'TEACHER' }), rejectStatus(403));
   const other = readDb().children.find((row) => row.campusId === 'c2');
   await assert.rejects(repo.listGuardians(other.id, vp), rejectStatus(403));
@@ -58,7 +59,8 @@ test('liên kết tài khoản đã có giữ ID/mật khẩu; không tạo trù
   const linked = await repo.addGuardian(another.id, form(), vp);
   assert.equal(linked.newAccount, false);
   assert.equal(linked.userId, added.userId);
-  assert.equal(linked.temporaryPassword, null);
+  assert.equal(linked.smsStatus, null, 'tài khoản có sẵn giữ mật khẩu, không gửi SMS');
+  assert.ok(!('temporaryPassword' in linked));
   await assert.rejects(repo.addGuardian(another.id, form(), vp), rejectStatus(409));
   assert.deepEqual({ health: readDb().healthMeasurements, declarations: readDb().healthDeclarations, placements: readDb().childPlacements, pickups: readDb().pickups, users: readDb().users, classes: readDb().classes }, snapshot);
 });

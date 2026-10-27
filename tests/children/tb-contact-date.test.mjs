@@ -93,12 +93,20 @@ test('AC-1, AC-4, AC-6: sửa khai báo — bắt ngày; lần đầu "Có" báo
     teachers.every((t) => first.some((n) => n.userId === t)),
     'lần đầu khai "Có" vẫn báo giáo viên lớp',
   );
+  assert.ok(
+    first.some((n) => n.userId === vp.id),
+    'người lưu cũng nhận thông báo khai "Có" (user chốt 2026-10-27)',
+  );
   assert.equal(noticesOf('CHILD_TB_CONTACT_DATE_CHANGED', child.id).length, 0);
 
   const saved = readDb().healthDeclarations.find((x) => x.childId === child.id);
   await save(withTb(saved, '2026-09-08'));
   const changed = noticesOf('CHILD_TB_CONTACT_DATE_CHANGED', child.id);
-  assert.deepEqual(changed.map((n) => n.userId).sort(), [PRINCIPAL.id].sort(), 'chỉ Hiệu trưởng (người lưu là Phó hiệu trưởng)');
+  assert.deepEqual(
+    changed.map((n) => n.userId).sort(),
+    [PRINCIPAL.id, vp.id].sort(),
+    'Hiệu trưởng + Phó hiệu trưởng điểm trường (cũng là người lưu); giáo viên không nhận',
+  );
   assert.ok(changed[0].message.includes('01/09/2026') && changed[0].message.includes('08/09/2026'));
   assert.ok(changed[0].message.includes('sửa khai báo sức khỏe'));
   await save(
@@ -107,7 +115,7 @@ test('AC-1, AC-4, AC-6: sửa khai báo — bắt ngày; lần đầu "Có" báo
       '2026-09-08',
     ),
   );
-  assert.equal(noticesOf('CHILD_TB_CONTACT_DATE_CHANGED', child.id).length, 1, 'lưu lại cùng ngày không báo');
+  assert.equal(noticesOf('CHILD_TB_CONTACT_DATE_CHANGED', child.id).length, changed.length, 'lưu lại cùng ngày không báo');
 });
 
 test('AC-1: tiếp nhận — khai "Có tiếp xúc" mà thiếu ngày ⇒ 422', async () => {
@@ -215,7 +223,11 @@ test('AC-3, AC-5: phiếu khám điền sẵn ngày; "Có" bắt ngày, không s
   const decl = readDb().healthDeclarations.find((x) => x.childId === 'ch_028');
   assert.deepEqual(decl.medicalHistory.tbContact, { state: 'REPORTED', contactDate: '2026-09-10' }, 'cập nhật ngược vào khai báo');
   const changed = noticesOf('CHILD_TB_CONTACT_DATE_CHANGED', 'ch_028');
-  assert.deepEqual(changed.map((n) => n.userId).sort(), [PRINCIPAL.id, vpIdOf('c2')].sort(), 'Hiệu trưởng + Phó hiệu trưởng điểm trường');
+  assert.deepEqual(
+    changed.map((n) => n.userId).sort(),
+    [PRINCIPAL.id, vpIdOf('c2'), TUAN.id].sort(),
+    'Hiệu trưởng + Phó hiệu trưởng điểm trường + người lưu (user chốt 2026-10-27)',
+  );
   assert.ok(changed[0].message.includes('01/09/2026') && changed[0].message.includes('10/09/2026'));
   assert.ok(changed[0].message.includes('phiếu khám ngày'));
   assert.equal(noticesOf('CHILD_TB_CONTACT', 'ch_028').length, 0, 'phiếu khám không báo khai lần đầu (3b)');

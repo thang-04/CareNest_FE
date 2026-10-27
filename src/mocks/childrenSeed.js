@@ -116,7 +116,7 @@ const EXAM_CASES = {
       parentOpinion: 'Phụ huynh đồng ý đưa trẻ đi khám sàng lọc lao trong tuần.',
     },
   },
-  ch_037: {
+  ch_902: {
     case: 'Trẻ 27 tháng: có câu nguy cơ tự kỷ; người đi cùng là mẹ',
     headOffset: 0,
     development: { mental: 'NO', autismRisk: 'YES' },
@@ -542,7 +542,7 @@ export const seedChildProfileOf = (ch) => {
     gestationWeeks: own.premature === 'YES' ? 35 : 39,
     ethnicity: 'Kinh',
     beneficiary: 'Trẻ em dưới 6 tuổi',
-    paymentSource: n % 2 ? 'BHYT' : 'Gia đình chi trả',
+    paymentSource: 'BHYT',
     bloodType: BLOOD_TYPES[n % BLOOD_TYPES.length],
     address: address(`Thôn ${(n % 5) + 1}`, WARDS[n % WARDS.length]),
     ...own,

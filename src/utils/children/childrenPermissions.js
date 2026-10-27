@@ -52,9 +52,14 @@ export const canEditChild = (child, user) =>
   !!child && child.status !== CHILD_STATUS.LEFT && (vpOfCampus(child, user) || isPrincipal(user));
 export const canWithdrawChild = canEditChild;
 export const canPlaceChild = vpEditable;
+// Mở lại hồ sơ trẻ đã nghỉ học: như tiếp nhận — Phó hiệu trưởng của điểm trường của trẻ (user chốt 2026-10-23).
+export const canReadmitChild = (child, user) =>
+  !!child && child.status === CHILD_STATUS.LEFT && canEnrollChild(user) && vpOfCampus(child, user);
 // Tiền sử nằm ở khai báo nên sửa cùng quyền với Sửa hồ sơ: Hiệu trưởng hoặc Phó hiệu trưởng điểm trường (user chốt 2026-10-22).
 export const canDeclareHealth = canEditChild;
-export const canActivateParent = vpEditable;
+// Kích hoạt tài khoản phụ huynh (gửi mật khẩu tạm qua SMS): Hiệu trưởng toàn trường hoặc Phó hiệu trưởng điểm trường của trẻ
+// (user chốt 2026-10-23, PROPOSED — chờ BE).
+export const canActivateParent = canEditChild;
 
 /* ---- Class teacher (UC 5.3; Principal and VP have "No" for Record / Edit in the matrix) ---- */
 export const canRecordMeasurement = (child, user, cls) =>

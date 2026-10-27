@@ -34,7 +34,6 @@ export const ID_NUMBER_MESSAGE = 'Nhập 12 chữ số (CCCD/mã định danh) h
 const PROFILE_REQUIRED_TEXT = [
   ['ethnicity', 'Nhập dân tộc'],
   ['beneficiary', 'Nhập đối tượng'],
-  ['paymentSource', 'Nhập nguồn chi trả'],
   ['address.province', 'Nhập tỉnh/thành nơi ở'],
   ['address.ward', 'Nhập phường/xã nơi ở'],
   ['address.street', 'Nhập số nhà/thôn/xóm nơi ở'],
@@ -57,7 +56,7 @@ export const validateChildProfile = (p = {}) => {
   PROFILE_REQUIRED_TEXT.forEach(([path, message]) => {
     if (!String(value(path) ?? '').trim()) errors[`profile.${path}`] = message;
   });
-  ['ethnicity', 'beneficiary', 'paymentSource', 'bloodType'].forEach((k) => {
+  ['ethnicity', 'beneficiary', 'bloodType'].forEach((k) => {
     if (tooLong(p[k], 100)) errors[`profile.${k}`] = 'Tối đa 100 ký tự';
   });
   if (tooLong(p.address?.province, 100)) errors['profile.address.province'] = 'Tối đa 100 ký tự';

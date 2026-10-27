@@ -42,6 +42,9 @@ export const VERIFICATION_LABELS = {
   PHONE_UNREACHABLE: 'Không liên lạc được phụ huynh',
 };
 
+/** Trả trẻ qua gọi phụ huynh không ghi tên người đón riêng; người đón nằm trong nội dung cuộc gọi (user chốt 2026-10-24). */
+export const CALL_NOTE_PERSON_LABEL = 'Theo nội dung cuộc gọi';
+
 /**
  * Lý do trả trẻ khác giờ thường: cô đã báo phụ huynh đón về sớm ở Sức khỏe trong ngày. Trẻ hiện "Chờ đón sớm" ở Đón trẻ;
  * giờ đón là lúc cô thực sự trả trẻ (vẫn xác minh như thường, GBR-CP-03).
@@ -55,9 +58,19 @@ export const outcomeOf = (verification) =>
     ? PICKUP_OUTCOME.HANDED_OVER
     : PICKUP_OUTCOME.NOT_HANDED_OVER;
 
-/** Board status of a child for the day (derived by the backend). */
-export const PICKUP_STATUS = { WAITING: 'WAITING', PICKED_UP: 'PICKED_UP', ABSENT: 'ABSENT' };
+/**
+ * Board status of a child for the day (derived by the backend). Chỉ trẻ điểm danh Có mặt mới Chờ đón và trả được
+ * (user chốt 2026-10-27); trẻ vắng, chưa điểm danh vẫn hiện trên bảng nhưng không có thao tác.
+ */
+export const PICKUP_STATUS = { WAITING: 'WAITING', PICKED_UP: 'PICKED_UP', ABSENT: 'ABSENT', UNMARKED: 'UNMARKED' };
 
-export const PICKUP_STATUS_LABELS = { WAITING: 'Chờ đón', PICKED_UP: 'Đã đón', ABSENT: 'Vắng hôm nay' };
+export const PICKUP_STATUS_LABELS = { WAITING: 'Chờ đón', PICKED_UP: 'Đã đón', ABSENT: 'Vắng hôm nay', UNMARKED: 'Chưa điểm danh' };
+
+/** Lý do không trả được, hiện khi mở trả trẻ cho trẻ không ở trạng thái Chờ đón. */
+export const PICKUP_STATUS_MESSAGES = {
+  PICKED_UP: 'Trẻ đã được trả hôm nay',
+  ABSENT: 'Trẻ vắng mặt hôm nay',
+  UNMARKED: 'Trẻ chưa được điểm danh có mặt hôm nay',
+};
 
 export const RELATIONS = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Anh/chị', 'Cô/dì/chú/bác', 'Khác'];

@@ -18,8 +18,6 @@ export function ChildProfileSummary({ profile }) {
       <dd>{show(profile.ethnicity)}</dd>
       <dt>{PROFILE_FIELD_LABELS.beneficiary}</dt>
       <dd>{show(profile.beneficiary)}</dd>
-      <dt>{PROFILE_FIELD_LABELS.paymentSource}</dt>
-      <dd>{show(profile.paymentSource)}</dd>
       <dt>{PROFILE_FIELD_LABELS.bloodType}</dt>
       <dd>{show(profile.bloodType)}</dd>
       <dt>{PROFILE_FIELD_LABELS.address}</dt>

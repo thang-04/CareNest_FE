@@ -146,7 +146,7 @@ const MENUS = {
       'schoolVps',
       'schoolRoles',
     ]),
-    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
+    group('children', ['childList', 'parentActivation', 'healthChecks', 'healthFollowUps', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'mealCount', 'dailyHealthOverview']),
     group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessRewards', 'assessDayUnlocks']),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings']),

@@ -419,7 +419,9 @@ export function DailyHealthPanel({
                             Xử trí: {entry.actions.map((a) => HEALTH_ACTIONS[a]).join(', ')}
                             {entry.actions.includes('EARLY_PICKUP') &&
                               (entry.earlyPickup
-                                ? ` · ${entry.earlyPickup.relation} ${entry.earlyPickup.fullName} đã đón lúc ${entry.earlyPickup.time}`
+                                ? entry.earlyPickup.fullName
+                                  ? ` · ${entry.earlyPickup.relation} ${entry.earlyPickup.fullName} đã đón lúc ${entry.earlyPickup.time}`
+                                  : ` · đã trả trẻ lúc ${entry.earlyPickup.time}`
                                 : ' · chờ phụ huynh đến đón')}{' '}
                             {entry.actions.includes('EARLY_PICKUP') && (
                               <Link to={`/pickup?classId=${classId}&date=${date}`} className="text-sm">

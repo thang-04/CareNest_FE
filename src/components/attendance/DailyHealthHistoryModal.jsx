@@ -108,7 +108,9 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
                       {actionSummary([entry]) || '—'}
                       {entry.earlyPickup && (
                         <div className="muted text-xs">
-                          {entry.earlyPickup.relation} {entry.earlyPickup.fullName} đã đón lúc {entry.earlyPickup.time}
+                          {entry.earlyPickup.fullName
+                            ? `${entry.earlyPickup.relation} ${entry.earlyPickup.fullName} đã đón lúc ${entry.earlyPickup.time}`
+                            : `Đã trả trẻ lúc ${entry.earlyPickup.time}`}
                         </div>
                       )}
                       {entry.referral && <div className="muted text-xs">{entry.referral.place}</div>}

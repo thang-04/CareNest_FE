@@ -733,7 +733,7 @@ export default function UiKitPage() {
         <Section
           id="overlays"
           title="Modal, xác nhận, toast"
-          code={`const toast = useToast();\ntoast.success('Đã lưu');  toast.error(err, 'Không lưu được');\n\n<ConfirmationModal open={open} title="Hủy phiếu?" message="..." confirmLabel="Hủy phiếu" danger\n  onConfirm={doCancel} onClose={() => setOpen(false)} />`}
+          code={`const toast = useToast();\ntoast.success('Đã lưu');  toast.error(err, 'Không lưu được');\n\n<ConfirmationModal open={open} title="Hủy phiếu?" message="..." confirmLabel="Hủy phiếu" danger\n  onConfirm={doCancel} onClose={() => setOpen(false)}>\n  {/* Ô nhập trong hộp xác nhận: bọc .confirm__form để căn trái */}\n  <div className="confirm__form mt-12"><FormField label="Lý do" required>…</FormField></div>\n</ConfirmationModal>`}
         >
           <div className="row row--wrap">
             <button className="btn" onClick={() => setModal(true)}>
@@ -783,7 +783,14 @@ export default function UiKitPage() {
             danger
             onConfirm={() => setConfirm(false)}
             onClose={() => setConfirm(false)}
-          />
+          >
+            <div className="confirm__form mt-12">
+              <label className="field">
+                <span className="field__label">Lý do hủy</span>
+                <textarea className="textarea" rows={2} placeholder="Ví dụ: nhập trùng phiếu" />
+              </label>
+            </div>
+          </ConfirmationModal>
         </Section>
 
         <Section

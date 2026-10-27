@@ -5,7 +5,8 @@ const call = (method, ...args) =>
     ? mock[method](...args)
     : Promise.reject({ status: 501, message: 'Giao diện tài khoản phụ huynh đang demo; cần thống nhất contract BE.' });
 export const listGuardians = (id, user) => call('listGuardians', id, user);
-export const addGuardian = (id, form, user) => call('addGuardian', id, form, user);
+export const listPendingGuardians = (childId, user) => call('listPendingGuardians', childId, user);
+export const activateGuardians = (childId, user) => call('activateGuardians', childId, user);
 export const removeGuardian = (childId, id, user) => call('removeGuardian', childId, id, user);
 export const updateParentStatus = (id, status, user) => call('updateParentStatus', id, status, user);
 export const resetParentPassword = (id, user) => call('resetParentPassword', id, user);
