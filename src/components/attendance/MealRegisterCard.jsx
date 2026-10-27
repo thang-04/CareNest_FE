@@ -12,6 +12,7 @@ import { MEAL_COUNT_STATUS, MEAL_SESSION_LABELS } from '@/models/attendance/atte
 import { canAdjustMealCount, canConfirmMealCount, canSeeMealReconfirmNotice } from '@/utils/attendance/attendancePermissions';
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
 import { formatDate, formatDateTime } from '@/utils/format';
+import { ROLE_LABELS } from '@/models/User';
 
 // OPEN: chưa tới giờ chốt (sổ tạm tính)
 const STATUS_ORDER = ['OPEN', MEAL_COUNT_STATUS.PENDING_CONFIRMATION, MEAL_COUNT_STATUS.CONFIRMED];
@@ -43,6 +44,14 @@ const groupAdjustments = (list) => {
 
 const mealName = (session) => (MEAL_SESSION_LABELS[session] || session).toLowerCase();
 
+// NUT-02: HT hoặc PHT xác nhận; ghi rõ vai trò cạnh tên người xác nhận
+const confirmerLabel = (count, md) => {
+  const name = count.confirmedByName || md.userById?.(count.confirmedBy)?.fullName;
+  const role = ROLE_LABELS[count.confirmedByRole];
+  if (name && role) return `${name} (${role})`;
+  return name || role || 'Phó hiệu trưởng';
+};
+
 /** Bảng lớp của một bữa: số suất theo bữa BE trả, sửa riêng bữa này, xác nhận riêng bữa này. */
 function MealPanel({ count, user, md, onConfirm, onAdjust, counts }) {
   const confirmable = count.id && canConfirmMealCount(count, user);
@@ -53,7 +62,7 @@ function MealPanel({ count, user, md, onConfirm, onAdjust, counts }) {
         <MealCountStatusBadge status={count.status} />
         <span className="muted text-sm">
           {count.confirmedAt
-            ? `${count.needsReconfirmation ? 'Lần xác nhận trước' : 'Xác nhận'} bởi ${md.userById?.(count.confirmedBy)?.fullName || 'Phó hiệu trưởng'} lúc ${formatDateTime(count.confirmedAt)}`
+            ? `${count.needsReconfirmation ? 'Lần xác nhận trước' : 'Xác nhận'} bởi ${confirmerLabel(count, md)} lúc ${formatDateTime(count.confirmedAt)}`
             : count.status === 'OPEN'
               ? 'Đang báo ăn, chưa tới giờ chốt'
               : 'Chưa xác nhận'}
@@ -266,7 +275,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
                   <span className="text-xs muted nowrap">{formatDateTime(a.at)}</span>
                   <span>
                     <b>{classById[a.classId]}</b> ({a.sessions.map((x) => MEAL_SESSION_LABELS[x]).join(', ')}): {deltaText(a)} – {a.note}
-                    <span className="muted"> ({md.userById?.(a.userId)?.fullName || 'Giáo viên'})</span>
+                    <span className="muted"> ({a.userName || md.userById?.(a.userId)?.fullName || 'Giáo viên'})</span>
                   </span>
                 </li>
               ))}
@@ -275,7 +284,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
         )}
         {!confirmable.length && lastConfirmed && status === MEAL_COUNT_STATUS.CONFIRMED && (
           <div className="text-sm muted mt-12">
-            Đã xác nhận đủ {counts.length} bữa · lần cuối bởi {md.userById?.(lastConfirmed.confirmedBy)?.fullName || 'Phó hiệu trưởng'} lúc{' '}
+            Đã xác nhận đủ {counts.length} bữa · lần cuối bởi {confirmerLabel(lastConfirmed, md)} lúc{' '}
             {formatDateTime(lastConfirmed.confirmedAt)}. Bếp đang dùng số này.
           </div>
         )}

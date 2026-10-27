@@ -49,24 +49,23 @@ export const canViewMealCount = (count, user) => {
   return user.role !== ROLES.KITCHEN_STAFF || count.status === MEAL_COUNT_STATUS.CONFIRMED;
 };
 
-// Sửa số suất: PHT điểm trường hoặc Hiệu trưởng (Cần đề xuất 20/10/2026, PROPOSED); chốt vẫn chỉ PHT điểm trường
-const leadsCampus = (campusId, user) =>
-  user?.role === ROLES.PRINCIPAL || (user?.role === ROLES.VICE_PRINCIPAL && campusId === user.campusId);
+// NUT-02 (Cần chốt 27/10/2026): HT xác nhận mọi điểm trường, PHT điểm trường mình; chỉ PHT điểm trường sửa số suất
+const leadsCampus = (campusId, user) => user?.role === ROLES.VICE_PRINCIPAL && campusId === user.campusId;
+const confirmsCampus = (campusId, user) => user?.role === ROLES.PRINCIPAL || leadsCampus(campusId, user);
 
+// BE trả cờ canConfirm / canAdjust (theo phân công + năm học); mock không có cờ thì xét theo vai trò
 export const canConfirmMealCount = (count, user) =>
-  user?.role === ROLES.VICE_PRINCIPAL && count?.campusId === user.campusId && count?.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION;
+  count?.canConfirm ?? (confirmsCampus(count?.campusId, user) && count?.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION);
 
 /** Cảnh báo "cần xác nhận lại" chỉ cho người duyệt; bếp chỉ thấy số đã xác nhận. */
 export const canSeeMealReconfirmNotice = (user) => !!user && user.role !== ROLES.KITCHEN_STAFF;
 
 /** Sửa số suất từng lớp để chốt (ghi lý do): sau giờ khóa, cả khi đã xác nhận (chuyển sang chờ xác nhận lại). */
 export const canAdjustMealCount = (count, user) =>
+  (count?.canAdjust ?? true) &&
   !!count?.id &&
   leadsCampus(count.campusId, user) &&
   [MEAL_COUNT_STATUS.PENDING_CONFIRMATION, MEAL_COUNT_STATUS.CONFIRMED].includes(count.status);
-
-/** After the lock, a teacher may only cancel a meal of today (child sent home); never add one (GBR-ATT-08). */
-export const canCorrectMealAfterLock = (cls, user) => isClassTeacher(cls, user);
 
 export const canOpenMealHandover = (user) => [ROLES.TEACHER, ROLES.TEAM_LEADER, ROLES.KITCHEN_STAFF].includes(user?.role);
 

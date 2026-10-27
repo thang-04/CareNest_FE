@@ -11,12 +11,11 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, LoadingState, SubmitOverlay } from '@/components/ui/States';
 import { DailyHealthPanel } from '@/components/DailyHealthPanel';
-import { MealCorrectionModal } from '@/components/attendance/MealCorrectionModal';
 import { saveReception } from '@/services/receptionService';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DayLockAlert } from '@/components/attendance/DayLockAlert';
 import { useAttendanceClasses, useAttendanceYear, useClassAttendance } from '@/hooks/attendance/useAttendance';
-import { getDayInfo, saveClassAttendance, correctMealAfterLock } from '@/services/attendance/attendanceService';
+import { getDayInfo, saveClassAttendance } from '@/services/attendance/attendanceService';
 import { ATTENDANCE_STATUS, DEFAULT_MEAL_SESSIONS, allMeals, eatsAny, isAbsent, mealsIn } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
@@ -174,7 +173,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
   const [pendingId, setPendingId] = useState(null);
   const [rowErrors, setRowErrors] = useState({});
   const [clock, setClock] = useState(null);
-  const [correctFor, setCorrectFor] = useState(null);
   const [confirmAll, setConfirmAll] = useState(false);
   const [leaveFor, setLeaveFor] = useState(null);
   const [confirmArrival, setConfirmArrival] = useState(null);
@@ -360,21 +358,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
       const info = await getDayInfo(date, classId, user).catch(() => null);
       if (info) setClock(info);
       submitRef.current = false;
-    }
-  };
-  const submitCorrection = async (form) => {
-    setSaving(true);
-    try {
-      await correctMealAfterLock({ childId: correctFor.child.id, date, ...form }, user);
-      const fresh = await reload({ silent: true });
-      if (fresh) setDraft(toDraft(fresh));
-      setCorrectFor(null);
-      toast.success('Đã hủy suất ăn và thông báo cho bếp.');
-    } catch (err) {
-      toast.error(err, 'Không điều chỉnh được');
-      throw err;
-    } finally {
-      setSaving(false);
     }
   };
   if (loading || !initialized.current) {
@@ -607,15 +590,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                             ) : (
                               <span>{eatsAny(entry.meals, sessions) ? 'Có' : '—'}</span>
                             )}
-                            {sheet.canRecord &&
-                              day.locked &&
-                              date === day.today &&
-                              row.record?.status === 'PRESENT' &&
-                              eatsAny(row.record.meals, sessions) && (
-                                <button className="btn btn--sm btn--ghost" disabled={busy} onClick={() => setCorrectFor(row)}>
-                                  Hủy suất
-                                </button>
-                              )}
                           </div>
                           {rowErrors[row.child.id]?.meals && <p className="field__error">{rowErrors[row.child.id].meals}</p>}
                         </td>
@@ -726,16 +700,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
         confirmLabel="Chọn Có mặt"
         onClose={() => setConfirmAll(false)}
         onConfirm={markAllPresent}
-      />
-      <MealCorrectionModal
-        open={!!correctFor}
-        child={correctFor?.child}
-        record={correctFor?.record}
-        sessions={sessions}
-        onClose={() => {
-          if (!saving) setCorrectFor(null);
-        }}
-        onSubmit={submitCorrection}
       />
     </>
   );

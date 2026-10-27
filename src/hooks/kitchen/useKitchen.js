@@ -5,6 +5,7 @@ import { loadWithHold } from '@/hooks/loadingTiming';
 import { isPrincipal } from '@/utils/kitchen/kitchenPermissions';
 import { resolveKitchenCampusId } from '@/utils/kitchen/kitchenCampus';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
+import { readSeenMealCounts, saveSeenMealCounts } from '@/services/kitchen/mealCountSeenStore';
 import {
   getConfirmedMealCount,
   getFoodCatalog,
@@ -119,6 +120,36 @@ export const useConfirmedMealCount = (campusId, date) => {
     enabled: !!campusId && !!date,
   });
   return { sessions: data || [], ...rest };
+};
+
+/**
+ * Bữa có số mới với bếp (vừa xác nhận hoặc xác nhận lại) so với lần xem trước trên máy này. Thay thông báo
+ * khi chưa có module thông báo (Cần chốt 24/10/2026).
+ */
+export const useNewMealCounts = (campusId, date, sessions) => {
+  const [fresh, setFresh] = useState(() => new Set());
+  const shownDay = useRef('');
+  const signature = sessions.map((s) => `${s.session}:${s.changedAt || ''}`).join('|');
+  useEffect(() => {
+    if (!campusId || !date || !signature) return;
+    const seen = readSeenMealCounts();
+    const next = new Set();
+    signature.split('|').forEach((part) => {
+      const [session, changedAt] = part.split(/:(.*)/s);
+      const key = `${campusId}|${date}|${session}`;
+      if (changedAt && seen[key] !== changedAt) {
+        next.add(session);
+        seen[key] = changedAt;
+      }
+    });
+    // Đổi ngày/điểm trường: chỉ giữ nhãn của ngày đang xem; cùng ngày: giữ nhãn đã hiện tới khi rời trang
+    const day = `${campusId}|${date}`;
+    const sameDay = shownDay.current === day;
+    shownDay.current = day;
+    setFresh((prev) => (sameDay ? new Set([...prev, ...next]) : next));
+    saveSeenMealCounts(seen);
+  }, [campusId, date, signature]);
+  return fresh;
 };
 
 export const useWeeklyForecast = (campusId, weekStart) =>

@@ -529,7 +529,7 @@ export const schoolConfigMockRepository = {
       if (current) assertOpenYear(current);
       const others = db.schoolYears.filter((y) => y.id !== id);
       const name = (form.name || '').trim();
-      const errors = validateSchoolYear({ ...form, name }, others);
+      const errors = validateSchoolYear({ ...form, name }, others, { creating: !current });
       if (hasErrors(errors)) throw invalid(errors);
       // The year id is used by classes and the header selector: it can change only before anything uses it.
       if (current && current.name !== name && current.status !== YEAR_STATUS.PLANNED)
@@ -1167,6 +1167,32 @@ export const schoolConfigMockRepository = {
       const campus = { id: uid('c'), ...data, createdBy: user.id, createdAt: now() };
       if (!db.campuses.some((c) => c.isMain)) campus.isMain = true;
       db.campuses.push(campus);
+      return clone(campus);
+    });
+  },
+
+  /** BE CFG-CP-01: không ngừng điểm chính / điểm còn lớp năm chưa kết thúc / điểm còn PHT phụ trách. */
+  async setCampusStatus(id, status, user) {
+    await delay();
+    if (!canManageCampus(user)) throw forbid();
+    seeded();
+    return writeDb((db) => {
+      const campus = db.campuses.find((c) => c.id === id);
+      if (!campus) throw notFound('điểm trường');
+      if (status === 'INACTIVE' && campus.status !== 'INACTIVE') {
+        if (campus.isMain) throw new ApiError(409, 'Không ngừng hoạt động được điểm trường chính.');
+        const open = openYearIds(db);
+        if (db.classes.some((c) => c.campusId === id && open.has(c.schoolYear)))
+          throw new ApiError(409, 'Điểm trường còn lớp ở năm học đang hoạt động hoặc sắp diễn ra.');
+        const vps = [
+          ...new Set(db.vpAssignments.filter((a) => a.campusId === id && open.has(a.schoolYear)).map((a) => userName(db, a.userId))),
+        ];
+        if (vps.length)
+          throw new ApiError(409, `Điểm trường còn PHT phụ trách: ${vps.join(', ')}. Gỡ phân công PHT trước khi ngừng hoạt động.`);
+        campus.status = 'INACTIVE';
+      } else if (status === 'ACTIVE') {
+        campus.status = 'ACTIVE';
+      }
       return clone(campus);
     });
   },

@@ -14,5 +14,3 @@ export const DEV_BE_BASE_URL = import.meta.env.VITE_DEV_BE_BASE_URL || '/be-api'
 export const DEV_KEYCLOAK_URL = import.meta.env.VITE_DEV_KEYCLOAK_URL || '/kc';
 export const DEV_KEYCLOAK_REALM = import.meta.env.VITE_DEV_KEYCLOAK_REALM || 'carenest';
 export const DEV_KEYCLOAK_CLIENT = import.meta.env.VITE_DEV_KEYCLOAK_CLIENT || 'carenest-dev';
-// Mật khẩu chung của user dev Keycloak (BE .env KEYCLOAK_DEV_USER_PASSWORD); đặt trong .env.local, không commit
-export const DEV_KEYCLOAK_PASSWORD = import.meta.env.VITE_DEV_KEYCLOAK_PASSWORD || ''; // carenest:allow-secret (đọc từ .env.local)

@@ -1,9 +1,9 @@
 import { formatDate } from '@/utils/format';
 
 /*
- * Lỗi nghiệp vụ của API Cấu hình trường: BE trả desc tiếng Anh, không kèm field. Bảng này đổi desc thành câu tiếng Việt
- * và gắn vào ô nhập tương ứng (field theo tên field của form FE); `_form` = lỗi chung hiển thị đầu form/hộp thoại.
- * TODO(Cần): bỏ bảng khi BE trả mã lỗi + field cho lỗi nghiệp vụ (đề xuất trong docs/validation-cau-hinh-truong.md).
+ * Dự phòng cho BE cũ chưa trả errorCode: đổi desc tiếng Anh thành câu tiếng Việt và gắn vào ô nhập tương ứng
+ * (field theo tên field của form FE); `_form` = lỗi chung đầu form/hộp thoại. BE có errorCode thì beClient dùng
+ * beErrorFields.js. TODO(Cần): bỏ bảng này khi mọi môi trường BE đã trả errorCode.
  */
 const RULES = [
   // Body không đọc được (sai kiểu số/id/enum)
@@ -29,6 +29,12 @@ const RULES = [
   ],
   [/^Only the active school year can be closed/, '_form', () => 'Chỉ kết thúc được năm học đang hoạt động'],
   [/^School year (\S+) is closed/, '_form', (m) => `Năm học ${m[1]} đã kết thúc, chỉ xem được`],
+  [/^Next school year must be (\S+) \(after (\S+)\)/, 'name', (m) => `Năm học tiếp theo phải là ${m[1]} (sau năm ${m[2]})`],
+  [
+    /^Start date must be after the end of school year (\S+) (\S+)/,
+    'startDate',
+    (m) => `Ngày bắt đầu phải sau ngày kết thúc năm học ${m[1]} (${formatDate(m[2])})`,
+  ],
   // Điểm trường
   [/^Campus code already exists/, 'code', () => 'Mã điểm trường đã tồn tại'],
   [/^Campus name already exists/, 'name', () => 'Tên điểm trường đã tồn tại'],
@@ -36,6 +42,22 @@ const RULES = [
   [/^Campus already has classes and cannot be deleted/, '_form', () => 'Điểm trường đã có lớp, không xóa được'],
   [/^Campus already has rooms and cannot be deleted/, '_form', () => 'Điểm trường đã có phòng, không xóa được'],
   [/^Campus already has staff and cannot be deleted/, '_form', () => 'Điểm trường đã có nhân sự, không xóa được'],
+  [/^The main campus cannot be deactivated/, '_form', () => 'Không ngừng hoạt động được điểm trường chính.'],
+  [
+    /^Campus has classes in the active or planned school year/,
+    '_form',
+    () => 'Điểm trường còn lớp ở năm học đang hoạt động hoặc sắp diễn ra. Chuyển hoặc xóa lớp trước.',
+  ],
+  [
+    /^Campus still has vice principals assigned: (.+)/,
+    '_form',
+    (m) => `Điểm trường còn PHT phụ trách: ${m[1]}. Gỡ phân công PHT trước khi ngừng hoạt động.`,
+  ],
+  [/^Campus is inactive/, 'campusId', () => 'Điểm trường đã ngừng hoạt động, chọn điểm trường khác.'],
+  // Sổ báo ăn
+  [/^Meal count is already confirmed/, '_form', () => 'Sổ báo ăn bữa này đã được xác nhận.'],
+  [/^Meal count is unchanged/, 'normal', () => 'Số suất chưa thay đổi.'],
+  [/^Meal counts of an inactive school year are read-only/, '_form', () => 'Năm học không hoạt động, sổ báo ăn chỉ xem.'],
   // Phòng
   [/^Room is used by a class and cannot change type/, 'type', () => 'Phòng đang là phòng học của lớp, không đổi được loại phòng'],
   [/^Campus already has a room with this code/, 'room', () => 'Điểm trường đã có phòng cùng mã'],
@@ -60,6 +82,13 @@ const RULES = [
   [/^Class already has children; age group cannot change/, 'ageGroupId', () => 'Lớp đã có trẻ, không đổi được nhóm tuổi'],
   [/^Class already has children and cannot be deleted/, '_form', () => 'Lớp đã có trẻ, không xóa được'],
   [/^Choose another school year to copy from/, 'sourceYearId', () => 'Chọn năm học khác với năm đang cấu hình để sao chép'],
+  [
+    /^Class already has placed children; age group cannot change/,
+    'ageGroupId',
+    () => 'Lớp đã có trẻ được xếp vào, không đổi được nhóm tuổi',
+  ],
+  [/^Class already has placed children; campus cannot change/, 'campusId', () => 'Lớp đã có trẻ được xếp vào, không đổi được điểm trường'],
+  [/^Class already has placed children and cannot be deleted/, '_form', () => 'Lớp đã có trẻ được xếp vào năm mới, không xóa được'],
   [/^Room does not belong to the selected campus/, 'locationId', () => 'Phòng không thuộc điểm trường đã chọn'],
   [/^Room is no longer in use/, 'locationId', () => 'Phòng đã ngừng sử dụng'],
   [/^Campus already has a class with this name/, 'name', () => 'Điểm trường đã có lớp cùng tên trong năm học này'],
@@ -90,6 +119,7 @@ const RULES = [
   [/^Choose a class of the new school year/, '_form', () => 'Chọn lớp của năm học mới'],
   [/^Class max size exceeded: (.+)/, '_form', (m) => `Vượt sĩ số tối đa: ${m[1]}`],
   [/^Placements are only for an upcoming school year/, '_form', () => 'Chỉ xếp lớp cho năm học chưa bắt đầu'],
+  [/^Placements are only for the next school year ?(\S*)/, '_form', (m) => `Chỉ xếp lớp cho năm học kế tiếp${m[1] ? ` ${m[1]}` : ''}`],
   [/^No active school year to move children from/, '_form', () => 'Không có năm học đang hoạt động để chuyển trẻ'],
   [/^(.+) has no age group; set it before placing children/, '_form', (m) => `${m[1]} chưa có nhóm tuổi, cập nhật lớp trước khi xếp`],
   [/^(.+) is not the right age group for (\w+)/, '_form', (m) => `${m[1]} không đúng nhóm tuổi cho lựa chọn này`],

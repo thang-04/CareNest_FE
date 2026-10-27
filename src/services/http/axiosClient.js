@@ -26,6 +26,8 @@ axiosClient.interceptors.response.use(
     const message = body?.desc || body?.message || (status === 0 ? 'Không thể kết nối máy chủ' : error.message);
     const normalized = new Error(message);
     normalized.status = status;
+    // Mã lỗi nghiệp vụ của BE (ApiCode); desc đã là câu tiếng Việt
+    normalized.errorCode = body?.errorCode ?? null;
     // Lỗi validation 400 của BE: danh sách lỗi theo field nằm trong data
     normalized.details = body?.errors || (isEnvelope(body) ? body.data : undefined);
     // Expired / invalid token: let AuthContext log out. Bỏ qua login (tự xử lý 401) và logout (tránh vòng lặp logout).
