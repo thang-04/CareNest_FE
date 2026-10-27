@@ -116,10 +116,11 @@ export const educationPlanApi = {
   saveLesson: (item) => axiosClient.put(`/education-plans/lessons/${item.id}`, item),
   deleteLesson: (id) => axiosClient.delete(`/education-plans/lessons/${id}`),
   // Tài liệu + lớp + giáo viên, tổ trưởng của năm học đang chọn ở header (BE lọc theo phạm vi người xem)
-  getClassPlans: (schoolYearId) =>
-    axiosClient.get('/education-plans/class-docs', {
-      params: serverId(schoolYearId) == null ? {} : { schoolYearId: serverId(schoolYearId) },
-    }),
+  // Header giữ id số (API) hoặc tên năm "2027-2028" (nối thử qua beClient) ⇒ đổi tên sang id theo cấu hình
+  getClassPlans: async (schoolYearId) => {
+    const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
+    return axiosClient.get('/education-plans/class-docs', { params: id == null ? {} : { schoolYearId: id } });
+  },
   getEduConfig: async () => toUiEduConfig(await loadConfig()),
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
   saveEduConfig: async (cfg) => {

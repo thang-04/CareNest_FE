@@ -68,18 +68,22 @@ export function EducationPlanProvider({ children }) {
 
   const toast = useCallback((message, tone = 'ok') => toastApi[TOAST_TYPES[tone] || 'success'](message), [toastApi]);
 
-  const user = useMemo(
-    () => ({
-      id: authUser.id,
+  const user = useMemo(() => {
+    // Đăng nhập Keycloak dev (beClient) trả id dạng chuỗi số, nhóm tuổi theo id; module so id số như class-docs BE
+    // và dùng mã nhóm tuổi ("ag-3") ⇒ đổi về đúng dạng, mã lấy từ danh sách tổ trưởng BE trả
+    const numeric = (v) => (/^\d+$/.test(String(v ?? '')) ? Number(v) : v);
+    const id = numeric(authUser.id);
+    const leader = (data?.staff || []).find((s) => s.id === id && s.role === ROLES.TEAM_LEADER);
+    return {
+      id,
       role: authUser.role,
       name: authUser.fullName,
       title: titleOf(authUser),
       initials: initialsOf(authUser.fullName),
-      ageGroupId: authUser.ageGroupId,
-      classId: authUser.classId,
-    }),
-    [authUser],
-  );
+      ageGroupId: /^\d+$/.test(String(authUser.ageGroupId ?? '')) ? (leader?.ageGroupId ?? authUser.ageGroupId) : authUser.ageGroupId,
+      classId: authUser.classId == null ? authUser.classId : String(authUser.classId),
+    };
+  }, [authUser, data?.staff]);
 
   const value = useMemo(() => {
     const yearName = (id) => {
