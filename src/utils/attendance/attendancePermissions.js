@@ -49,12 +49,13 @@ export const canViewMealCount = (count, user) => {
   return user.role !== ROLES.KITCHEN_STAFF || count.status === MEAL_COUNT_STATUS.CONFIRMED;
 };
 
-// NUT-02: chỉ PHT điểm trường xác nhận và sửa số suất; HT chỉ xem (Cần chốt 24/10/2026)
+// NUT-02 (Cần chốt 27/10/2026): HT xác nhận mọi điểm trường, PHT điểm trường mình; chỉ PHT điểm trường sửa số suất
 const leadsCampus = (campusId, user) => user?.role === ROLES.VICE_PRINCIPAL && campusId === user.campusId;
+const confirmsCampus = (campusId, user) => user?.role === ROLES.PRINCIPAL || leadsCampus(campusId, user);
 
 // BE trả cờ canConfirm / canAdjust (theo phân công + năm học); mock không có cờ thì xét theo vai trò
 export const canConfirmMealCount = (count, user) =>
-  count?.canConfirm ?? (leadsCampus(count?.campusId, user) && count?.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION);
+  count?.canConfirm ?? (confirmsCampus(count?.campusId, user) && count?.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION);
 
 /** Cảnh báo "cần xác nhận lại" chỉ cho người duyệt; bếp chỉ thấy số đã xác nhận. */
 export const canSeeMealReconfirmNotice = (user) => !!user && user.role !== ROLES.KITCHEN_STAFF;

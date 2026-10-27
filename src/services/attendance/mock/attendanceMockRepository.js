@@ -244,9 +244,10 @@ const createHandovers = (db, count) => {
   });
 };
 
-const confirmCountIn = (db, count, userId, at) => {
+const confirmCountIn = (db, count, userId, at, role = ROLES.VICE_PRINCIPAL) => {
   count.status = MEAL_COUNT_STATUS.CONFIRMED;
   count.confirmedBy = userId;
+  count.confirmedByRole = role === ROLES.PRINCIPAL ? 'PRINCIPAL' : 'VICE_PRINCIPAL';
   count.confirmedAt = at;
   count.history.push({ at, userId, action: 'CONFIRMED' });
   createHandovers(db, count);
@@ -285,7 +286,7 @@ const confirmOneIn = (db, id, user) => {
       handover.expected = { normal: line.normal, substitute: line.substitute };
     });
   }
-  confirmCountIn(db, count, user.id, new Date().toISOString());
+  confirmCountIn(db, count, user.id, new Date().toISOString(), user.role);
   const total = count.classes.reduce((t, l) => t + l.normal + l.substitute, 0);
   notifyAll(db, usersOf(db, ROLES.KITCHEN_STAFF, count.campusId), {
     type: 'MEAL_COUNT',
