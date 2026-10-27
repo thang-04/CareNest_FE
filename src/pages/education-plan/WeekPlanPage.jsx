@@ -145,6 +145,18 @@ function WeekPlanInner() {
         desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`}
         actions={
           <>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={!saved || !themeDoc}
+              onClick={() =>
+                guard.leave(
+                  `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}${day >= 0 ? `&date=${encodeURIComponent(draft.days[day].date)}` : ''}`,
+                )
+              }
+            >
+              Dạy học{day >= 0 ? ' ngày này' : ' tuần này'}
+            </button>
             {/* In giáo án tuần ở mọi bước (đã duyệt thì in để dạy hằng ngày) */}
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => exportWeekPlan(exportArgs, 'doc')}>
               <FileDown size={16} aria-hidden /> Xuất Word

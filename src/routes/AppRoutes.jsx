@@ -57,6 +57,7 @@ const BranchPlanLegacyRedirect = lazy(() =>
   import('@/pages/education-plan/BranchPlanPage').then((m) => ({ default: m.BranchPlanLegacyRedirect })),
 );
 const ClassThemePlanPage = lazy(() => import('@/pages/education-plan/ClassThemePlanPage'));
+const TeachingPresentationPage = lazy(() => import('@/pages/education-plan/TeachingPresentationPage'));
 const ThemeDossierPage = lazy(() => import('@/pages/education-plan/ThemeDossierPage'));
 const WeekPlanPage = lazy(() => import('@/pages/education-plan/WeekPlanPage'));
 const PlanReviewQueuePage = lazy(() => import('@/pages/education-plan/PlanReviewQueuePage'));
@@ -304,6 +305,7 @@ export function AppRoutes() {
             <Route path="class/:classId/branches" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
             <Route path="class/:classId/branches/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
             <Route path="class/:classId/themes/:themeId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassThemePlanPage />)} />
+            <Route path="class/:classId/themes/:themeId/teach" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <TeachingPresentationPage />)} />
             <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeDossierPage />)} />
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
             <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />

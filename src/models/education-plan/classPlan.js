@@ -342,6 +342,11 @@ const activeCells = (doc) =>
       return merged ? day === 'all' : day !== 'all';
     });
 
+export const teachingDayPicks = (doc, day) =>
+  activeCells(doc)
+    .filter((cell) => day == null || cell.day === 'all' || cell.day === 'extra' || cell.day === String(day))
+    .flatMap((cell) => cell.list);
+
 /** MT dạy trong từng ngày (0–4) từ các hoạt động đã chọn; ô gộp cả tuần tính cho mọi ngày. */
 export const dayGoalsOf = (doc) =>
   [0, 1, 2, 3, 4].map((i) => {
@@ -368,6 +373,21 @@ export const hocTitle = (hoc) => {
   const main = [hoc?.subject?.trim(), ls[0]].filter(Boolean).join(': ');
   return ls.length > 1 ? `${main} (NDKH: ${ls.slice(1).join('; ')})` : main;
 };
+
+// Bản cũ có nội dung nhập tay nhưng chưa có picks: giữ nội dung, không đoán liên kết MT/học liệu.
+export const teachingDayUnlinked = (doc, day) =>
+  weekRows().flatMap((row) => {
+    const grid = rowCell({ ...doc, grid: doc.grid || {} }, row);
+    const merged = row.canMerge && grid.allWeek;
+    const cells = merged ? [['all', grid.common]] : (day == null ? [0, 1, 2, 3, 4] : [day]).map((d) => [d, grid.days?.[d]]);
+    if (!merged && row.extraLabel) cells.push(['extra', grid.extra]);
+    return cells
+      .filter(([d]) => !(doc.picks?.[cellKey(row.key, d)] || []).length)
+      .flatMap(([d, value]) => {
+        const text = typeof value === 'string' ? value.trim() : hocTitle(value).trim();
+        return text ? [{ id: `unlinked/${row.key}/${d}`, goalId: null, goalNo: null, text: `${row.label}: ${text}`, unlinked: true }] : [];
+      });
+  });
 
 export function dayDraftFromWeek(doc, i, goals = []) {
   const lines = (s) =>

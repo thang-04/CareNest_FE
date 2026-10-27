@@ -22,6 +22,8 @@ import {
 } from '@/models/education-plan/classPlan';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
 import { ThemePlanBody, themeRowOf } from '@/components/education-plan/ThemePlanBody';
+import { ActivityResources } from '@/components/education-plan/ActivityResources';
+import { themeActivities } from '@/models/education-plan/classPlan';
 
 const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 
@@ -135,6 +137,14 @@ function ThemePlanInner() {
         desc={<EduStatusBadge status={status} size="lg" />}
         actions={
           <>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={!saved}
+              onClick={() => guard.leave(`${base}/themes/${themeId}/teach`)}
+            >
+              Dạy học / Trình chiếu
+            </button>
             <button type="button" className="btn btn--ghost" onClick={() => exportThemeFile(exportArgs, 'doc')}>
               <FileDown size={16} aria-hidden /> Xuất Word
             </button>
@@ -191,6 +201,14 @@ function ThemePlanInner() {
         </div>
       </Card>
       <ThemePlanBody yearPlan={yearPlan} themeId={themeId} draft={draft} editable={editable} setRow={setRow} setField={setField} />
+      <ActivityResources
+        user={user}
+        doc={draft}
+        activities={themeActivities(blocks, rowOf)}
+        editable={editable}
+        exists={!!saved}
+        onSave={saver.save}
+      />
       <LeaveConfirmModal
         {...guard.modal}
         onDiscard={() => {
