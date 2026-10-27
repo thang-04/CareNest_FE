@@ -108,6 +108,7 @@ available:
     - docs/architecture/ROUTE_MAP.md
     - docs/features/README.md
     - docs/integration/BACKEND_INTEGRATION.md
+    - docs/integration/AUTH_FLOW.md
     - docs/knowledge/ISSUE_INDEX.md
     - docs/knowledge/KNOWN_ISSUES.md
     - docs/knowledge/TROUBLESHOOTING.md

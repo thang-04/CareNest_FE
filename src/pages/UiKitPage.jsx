@@ -3,6 +3,7 @@ import { Plus, Save, Send, Trash2, Printer, Info, AlertTriangle, CheckCircle2, X
 import * as AppIcons from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { useAiRun } from '@/hooks/useAiRun';
+import { LottiePlayer } from '@/components/ui/LottiePlayer';
 import {
   Breadcrumb,
   Modal,
@@ -189,10 +190,12 @@ const NAV = [
 ];
 
 /** Living style guide: every shared token / component with a copy-paste snippet. */
+const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
+
 export default function UiKitPage() {
   const toast = useToast();
   const ai = useAiRun();
-  const [aiKind, setAiKind] = useState('sparkle');
+  const [aiKind, setAiKind] = useState('writing');
   const demoAi = (kind) => {
     setAiKind(kind);
     ai.run(() => new Promise((resolve) => setTimeout(resolve, 2400)));
@@ -679,7 +682,7 @@ export default function UiKitPage() {
           </div>
           {/* Lớp phủ AI: cả màn khi bấm nút AI; `scoped` khi AI tự chạy trong một card */}
           <div className="grid-3 mt-12">
-            {['cooking', 'sparkle'].map((kind) => (
+            {['cooking', 'writing'].map((kind) => (
               <div key={kind} className="card card__body" style={{ position: 'relative', minHeight: 200 }}>
                 <AiWorkingOverlay scoped kind={kind} text={kind === 'cooking' ? 'Đang nấu thực đơn…' : 'Đang phân tích xu hướng…'} />
               </div>
@@ -688,10 +691,15 @@ export default function UiKitPage() {
               <button className="btn btn--sm" onClick={() => demoAi('cooking')} disabled={ai.running}>
                 Phủ cả màn: nấu
               </button>
-              <button className="btn btn--sm" onClick={() => demoAi('sparkle')} disabled={ai.running}>
-                Phủ cả màn: lấp lánh
+              <button className="btn btn--sm" onClick={() => demoAi('writing')} disabled={ai.running}>
+                Phủ cả màn: viết
               </button>
             </div>
+          </div>
+          {/* Đang đọc file Excel (nhập danh sách trẻ, thực phẩm) */}
+          <div className="card card__body row row--center mt-12">
+            <LottiePlayer load={loadDocumentScan} speed={0.6} className="import-reading" />
+            <span className="text-sm muted">Đang đọc file…</span>
           </div>
           {ai.running && <AiWorkingOverlay kind={aiKind} text={aiKind === 'cooking' ? 'Đang nấu thực đơn…' : 'Đang soạn bản nháp…'} />}
         </Section>

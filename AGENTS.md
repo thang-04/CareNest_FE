@@ -31,7 +31,7 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 
 ## Stack
 
-Đã có source: React 18 + Vite, **JavaScript/JSX** (không TypeScript), `react-router-dom` v7, axios, CSS thuần + `src/styles/tokens.css`, icon Tabler qua `src/components/ui/icons.js`; dữ liệu qua service facade → mock (localStorage, `VITE_USE_MOCK=true`) hoặc API thật. Server state bằng `useAsync`, không thư viện cache; test `node:test` (`tests/`).
+Đã có source: React 18 + Vite, **JavaScript/JSX** (không TypeScript), `react-router-dom` v7, axios, CSS thuần + `src/styles/tokens.css`, icon Tabler qua `src/components/ui/icons.js`; dữ liệu qua service facade → mock (localStorage, `VITE_USE_MOCK=true`) hoặc API thật. Auth: `VITE_AUTH_MODE=mock` mặc định, `gateway` đăng nhập qua BE theo `docs/integration/AUTH_FLOW.md` (token thật chỉ trong memory). Server state bằng `useAsync`, không thư viện cache; test `node:test` (`tests/`).
 - **Code** (thư mục, tầng, ranh giới module, thêm module 12 bước, CSS): `docs/architecture/CODING_GUIDE.md`.
 - **Giao diện** (token, danh mục component §6.3, công thức màn §8, trạng thái §9, tự kiểm §13): `DESIGN.md`. Không tự chế màu/nút/bảng/modal/badge — tra §6.3 trước, thiếu thì thêm vào phần dùng chung.
 - Đổi thư viện nền, cách lưu token/auth thật, thêm dependency ⇒ hỏi trước (làn L).
