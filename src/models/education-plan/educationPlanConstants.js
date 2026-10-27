@@ -61,7 +61,8 @@ export const EDU_STATUS_LABELS = {
   PENDING_VP: 'Chờ Phó HT duyệt',
   PENDING_HT: 'Chờ Hiệu trưởng duyệt',
   APPROVED: 'Đã duyệt',
-  REJECTED: 'Bị từ chối',
+  // Tên trạng thái theo nghiệp vụ (BE:EDU-05, EDU-18): trả lại để sửa, không phải từ chối hẳn
+  REJECTED: 'Bị trả lại',
 };
 
 export function allGoalItems(goal) {

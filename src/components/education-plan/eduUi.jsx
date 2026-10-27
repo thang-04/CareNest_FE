@@ -270,7 +270,11 @@ export function History({ items }) {
             <div className="muted text-xs">
               {h.by} · {h.role} · {fmtDateTime(h.at)}
             </div>
-            {h.note && <div className="ga-note mt-8">Lý do: {h.note}</div>}
+            {h.note && (
+              <div className="ga-note mt-8">
+                {h.tone === 'err' ? 'Lý do' : 'Ghi chú'}: {h.note}
+              </div>
+            )}
           </div>
         </li>
       ))}

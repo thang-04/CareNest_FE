@@ -201,8 +201,8 @@ const EDU_DENIED =
   'Chức năng này dành cho Hiệu trưởng (chỉ xem), Phó hiệu trưởng, tổ trưởng nhóm tuổi hoặc giáo viên theo từng bước của kế hoạch giáo dục.';
 
 /** Route element guarded for education-plan roles. */
-const edu = (roles, page) => (
-  <RoleGuard roles={roles} description={EDU_DENIED}>
+const edu = (roles, page, description = EDU_DENIED) => (
+  <RoleGuard roles={roles} description={description}>
     {page}
   </RoleGuard>
 );
@@ -308,7 +308,14 @@ export function AppRoutes() {
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
             <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />
             <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />
-            <Route path="settings" element={edu([ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL], <EduConfigPage />)} />
+            <Route
+              path="settings"
+              element={edu(
+                [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
+                <EduConfigPage />,
+                'Cấu hình kế hoạch giáo dục dành cho Hiệu trưởng và Phó hiệu trưởng.',
+              )}
+            />
           </Route>
           <Route path="school">
             <Route path="years" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <SchoolYearListPage />)} />

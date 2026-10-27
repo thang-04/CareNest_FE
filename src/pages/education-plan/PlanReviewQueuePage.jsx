@@ -1,7 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
-import { LoadingState } from '@/components/ui/States';
-import { useClasses } from '@/hooks/useSchool';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
@@ -14,10 +12,8 @@ import { clickableRowProps } from '@/utils/clickableRow';
  * Phó HT thấy chủ đề nhánh, hồ sơ chủ đề chờ Phó HT và kế hoạch năm chờ ban hành. Danh sách chỉ để mở nhanh; quyền duyệt do service kiểm.
  */
 export default function PlanReviewQueuePage() {
-  const { user, goals, branchPlans, classThemePlans } = useEducationPlan();
+  const { user, goals, branchPlans, classThemePlans, classes } = useEducationPlan();
   const navigate = useNavigate();
-  const { classes, loading } = useClasses();
-  if (loading) return <LoadingState />;
 
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   // Trạng thái chờ đúng vai trò người dùng (thứ tự duyệt theo cấu hình của trường)
