@@ -19,7 +19,10 @@
     "test:merge": "node --import ./scripts/register-auth-test-loader.mjs --test tests/integration/selective-merge/*.test.mjs",
     "test:hardening": "node --import ./scripts/register-auth-test-loader.mjs --test tests/hardening/*.test.mjs",
     "test:dashboard": "node --import ./scripts/register-auth-test-loader.mjs --test tests/dashboard/*.test.mjs",
-    "test:edu": "node --import ./scripts/register-auth-test-loader.mjs --test tests/education-plan/*.test.mjs"
+    "test:edu": "node --import ./scripts/register-auth-test-loader.mjs --test tests/education-plan/*.test.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:integration": "playwright test --project=integration",
+    "test:e2e:system": "playwright test --project=system --no-deps"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
@@ -37,6 +40,7 @@
     "read-excel-file": "9.3.10"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
