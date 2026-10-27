@@ -1,4 +1,5 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
+import { eduError } from './eduMockErrors';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 
@@ -24,7 +25,7 @@ const upsert = (list, item) => {
 
 const save = (kind) => async (item) => {
   await delay();
-  if (!item?.id) throw new ApiError(400, 'Thiếu mã bản ghi');
+  if (!item?.id) throw eduError('REQUIRED_FIELD_MISSING', 'mã bản ghi');
   return writeDb((db) => clone(upsert(ensureSeeded(db)[COLLECTIONS[kind]], clone(item))));
 };
 
@@ -33,9 +34,9 @@ const remove = (kind) => async (id) => {
   writeDb((db) => {
     const list = ensureSeeded(db)[COLLECTIONS[kind]];
     const found = list.find((x) => x.id === id);
-    if (!found) throw new ApiError(404, 'Không tìm thấy bản ghi');
+    if (!found) throw eduError('YEAR_PLAN_NOT_FOUND');
     if (found.status !== EDU_STATUS.DRAFT && found.status !== EDU_STATUS.REJECTED) {
-      throw new ApiError(409, 'Chỉ xóa được bản nháp hoặc bản bị từ chối');
+      throw eduError('YEAR_PLAN_DELETE_DRAFT_ONLY');
     }
     db[COLLECTIONS[kind]] = list.filter((x) => x.id !== id);
   });
@@ -57,7 +58,7 @@ const editGoal = (apply) => async (id, user, edit) => {
   return writeDb((db) => {
     const list = ensureSeeded(db).eduGoals;
     const i = list.findIndex((x) => x.id === id);
-    if (i === -1) throw new ApiError(404, 'Không tìm thấy kế hoạch');
+    if (i === -1) throw eduError('YEAR_PLAN_NOT_FOUND');
     list[i] = apply(list[i], user, edit);
     return clone(list[i]);
   });
@@ -66,23 +67,22 @@ const editGoal = (apply) => async (id, user, edit) => {
 // Lưu: trang soạn gửi status Nháp; đang giữ khóa thì vẫn là Đang sửa (BE:EDU-10), gửi / ban hành thì nhả khóa
 const saveGoal = async (item, options = {}) => {
   await delay();
-  if (!item?.id) throw new ApiError(400, 'Thiếu mã bản ghi');
+  if (!item?.id) throw eduError('REQUIRED_FIELD_MISSING', 'mã bản ghi');
   return writeDb((db) => {
     const list = ensureSeeded(db).eduGoals;
     const prev = list.find((x) => x.id === item.id);
     const edit = options.edit;
-    if (prev?.status === EDU_STATUS.APPROVED) throw new ApiError(403, 'Kế hoạch đã ban hành không được sửa');
+    if (prev?.status === EDU_STATUS.APPROVED) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
     if (prev?.editSessionId && !edit && Date.now() - (prev.editingAt || 0) < EDIT_LOCK_MS)
-      throw new ApiError(409, 'Một phiên đang sửa kế hoạch');
-    if (prev && !edit && (item.revision || 0) !== (prev.revision || 0)) throw new ApiError(409, 'Kế hoạch đã thay đổi');
-    if (prev?.editSessionId && edit && Date.now() - (prev.editingAt || 0) >= EDIT_LOCK_MS)
-      throw new ApiError(409, 'Phiên đã hết hạn; cần nhận lại quyền');
+      throw eduError('YEAR_PLAN_LOCKED_BY_OTHER', prev.editing?.name || 'người khác');
+    if (prev && !edit && (item.revision || 0) !== (prev.revision || 0)) throw eduError('YEAR_PLAN_REVISION_STALE');
+    if (prev?.editSessionId && edit && Date.now() - (prev.editingAt || 0) >= EDIT_LOCK_MS) throw eduError('EDIT_SESSION_LOST');
 
     if (prev && edit) {
       if (prev.editSessionId && prev.editSessionId !== edit.sessionId && Date.now() - (prev.editingAt || 0) < EDIT_LOCK_MS)
-        throw new ApiError(409, 'Phiên khác đang sửa');
+        throw eduError('EDIT_SESSION_LOST');
       if (prev.lastSaveRequestId === edit.requestId) return clone(prev);
-      if ((prev.revision || 0) !== edit.revision) throw new ApiError(409, 'Kế hoạch đã thay đổi');
+      if ((prev.revision || 0) !== edit.revision) throw eduError('YEAR_PLAN_REVISION_STALE');
     }
     const { editing, editingAt, editingFrom, editSessionId, ...rest } = clone(item);
     const draftLike = rest.status === EDU_STATUS.DRAFT || rest.status === EDU_STATUS.REJECTED;
@@ -119,7 +119,7 @@ export const educationPlanMockRepository = {
   },
   saveGoal,
   startEditingGoal: editGoal((goal, user, edit) => {
-    if (lockedByOther(goal, user)) throw new ApiError(409, `Đang được ${goal.editing.name} sửa`);
+    if (lockedByOther(goal, user)) throw eduError('YEAR_PLAN_LOCKED_BY_OTHER', goal.editing.name);
     // BE:EDU-10 (27/10) — cùng tài khoản mở lại thì phiên mới nhận quyền ngay; người khác vẫn chờ hết hạn (lockedByOther)
     if (goal.status === EDU_STATUS.PENDING_VP && !edit) return goal;
     if (
@@ -128,7 +128,7 @@ export const educationPlanMockRepository = {
       goal.status !== EDU_STATUS.EDITING &&
       goal.status !== EDU_STATUS.PENDING_VP
     )
-      throw new ApiError(409, 'Kế hoạch không sửa được ở trạng thái này');
+      throw eduError('YEAR_PLAN_INVALID_STATUS', 'sửa');
     const mine = goal.status === EDU_STATUS.EDITING && goal.editing?.userId === user.id;
     const from = goal.status === EDU_STATUS.EDITING ? goal.editingFrom : goal.status;
     return {
@@ -141,8 +141,7 @@ export const educationPlanMockRepository = {
     };
   }),
   heartbeatGoal: editGoal((goal, user, edit) => {
-    if (goal.editSessionId !== edit.sessionId || Date.now() - (goal.editingAt || 0) >= EDIT_LOCK_MS)
-      throw new ApiError(409, 'Đã mất quyền sửa: phiên đã hết hạn hoặc kế hoạch đang mở ở tab khác');
+    if (goal.editSessionId !== edit.sessionId || Date.now() - (goal.editingAt || 0) >= EDIT_LOCK_MS) throw eduError('EDIT_SESSION_LOST');
     return { ...goal, editingAt: Date.now() };
   }),
   finishEditingGoal: editGoal((goal, user, options) =>
@@ -150,8 +149,9 @@ export const educationPlanMockRepository = {
   ),
   deleteGoal: async (id, revision) => {
     const goal = ensureSeeded(readDb()).eduGoals.find((item) => item.id === id);
-    if (goal?.editSessionId && Date.now() - (goal.editingAt || 0) < EDIT_LOCK_MS) throw new ApiError(409, 'Kế hoạch đang được sửa');
-    if (goal && (revision ?? 0) !== (goal.revision ?? 0)) throw new ApiError(409, 'Kế hoạch đã thay đổi');
+    if (goal?.editSessionId && Date.now() - (goal.editingAt || 0) < EDIT_LOCK_MS)
+      throw eduError('YEAR_PLAN_LOCKED_BY_OTHER', goal.editing?.name || 'người khác');
+    if (goal && (revision ?? 0) !== (goal.revision ?? 0)) throw eduError('YEAR_PLAN_REVISION_STALE');
     if (goal?.editSessionId)
       writeDb((db) => {
         const found = db.eduGoals.findIndex((item) => item.id === id);

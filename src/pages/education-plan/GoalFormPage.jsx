@@ -10,7 +10,14 @@ import { recoveryText } from '@/models/education-plan/yearPlanAutosave.mjs';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ROLES } from '@/models/User';
-import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE, isStandardDomain } from '@/models/education-plan/educationPlanConstants';
+import {
+  AGE_GROUPS,
+  DOMAINS,
+  EDU_ERROR_CODE,
+  EDU_STATUS,
+  SCHOOL_SCOPE,
+  isStandardDomain,
+} from '@/models/education-plan/educationPlanConstants';
 import { goalIdsToTicks, isBlankBreak, isBlankTheme, nestUnderFirstSub, numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
@@ -329,7 +336,7 @@ export default function GoalFormPage() {
         await leaseLatest.current.heartbeatGoal(lockId, editRef.current);
         lastBeat = Date.now();
       } catch (error) {
-        if (error.status === 409 && Date.now() - lastBeat < LEASE_TTL_MS - 5000) {
+        if (error.errorCode === EDU_ERROR_CODE.EDIT_SESSION_LOST && Date.now() - lastBeat < LEASE_TTL_MS - 5000) {
           // Quyền còn hạn mà bị từ chối ⇒ cùng tài khoản đã mở lại ở tab/máy khác và nhận quyền (EDU-10):
           // tab này dừng, không giành lại; bản giữ trên máy vẫn còn để đối chiếu
           contentConflict = true;

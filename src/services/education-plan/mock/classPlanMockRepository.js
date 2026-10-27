@@ -1,4 +1,5 @@
-import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
+import { eduError } from './eduMockErrors';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { ROLES, ROLE_LABELS } from '@/models/User';
@@ -45,7 +46,7 @@ const leadersOf = (db, cls) => (db.users || []).filter((u) => u.role === ROLES.T
 
 const findDoc = (db, kind, id) => {
   const doc = (ensureCollections(db)[COLLECTIONS[kind]] || []).find((x) => x.id === id);
-  if (!doc) throw new ApiError(404, 'Không tìm thấy tài liệu. Lưu bản nháp trước khi ký hoặc gửi.');
+  if (!doc) throw eduError('CLASS_DOC_NOT_FOUND');
   return doc;
 };
 
@@ -73,18 +74,18 @@ export const classPlanMockRepository = {
   /** Lưu nội dung; bản đã gửi / đã duyệt không sửa được (đánh giá trẻ ghi ở trang Đánh giá hằng ngày). */
   async saveDoc(kind, doc, user) {
     await delay();
-    if (!doc?.id) throw new ApiError(400, 'Thiếu mã tài liệu');
+    if (!doc?.id) throw eduError('REQUIRED_FIELD_MISSING', 'mã tài liệu');
     ensureSchoolSeeded();
     return writeDb((db) => {
       const list = ensureCollections(db)[COLLECTIONS[kind]];
       const i = list.findIndex((x) => x.id === doc.id);
       const current = i === -1 ? null : list[i];
-      if (!teachesClass(classOf(db, doc.classId), user)) throw new ApiError(403, 'Chỉ giáo viên của lớp sửa được tài liệu này');
+      if (!teachesClass(classOf(db, doc.classId), user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
       if (!current) {
         const blocker = createBlocker(kind, doc, { branchPlans: db.eduClassBranch, classThemePlans: db.eduClassTheme });
-        if (blocker) throw new ApiError(409, `Chưa thể bắt đầu: ${blocker.message}`);
+        if (blocker) throw eduError('CLASS_DOC_NOT_READY', `Chưa thể bắt đầu: ${blocker.message}`);
       }
-      if (current && !isEditableStatus(current.status)) throw new ApiError(409, 'Tài liệu đã gửi duyệt, không sửa được');
+      if (current && !isEditableStatus(current.status)) throw eduError('CLASS_DOC_SUBMITTED');
       const saved = {
         ...clone(doc),
         status: current?.status || EDU_STATUS.DRAFT,
@@ -108,10 +109,10 @@ export const classPlanMockRepository = {
     await delay();
     ensureSchoolSeeded();
     return writeDb((db) => {
-      const fail = (msg, status = 409) => {
-        throw new ApiError(status, msg);
+      const fail = (name, ...args) => {
+        throw eduError(name, ...args);
       };
-      if (kind === CLASS_DOC.WEEK) fail('Giáo án tuần được gửi và duyệt cùng kế hoạch chủ đề', 400);
+      if (kind === CLASS_DOC.WEEK) fail('WEEKLY_LESSON_VIA_THEME');
       const doc = findDoc(db, kind, id);
       const cls = classOf(db, doc.classId);
       const yearPlan = (db.eduGoals || []).find((g) => g.id === doc.yearPlanId);
@@ -140,20 +141,20 @@ export const classPlanMockRepository = {
         });
 
       if (action === 'submit') {
-        if (!teachesClass(cls, user)) fail('Chỉ giáo viên được phân công vào lớp mới gửi được', 403);
-        if (!isEditableStatus(doc.status)) fail('Tài liệu đã được gửi');
+        if (!teachesClass(cls, user)) fail('CLASS_DOC_TEACHER_ONLY');
+        if (!isEditableStatus(doc.status)) fail('CLASS_DOC_SUBMITTED');
         const blocker = submitBlocker(kind, doc, lists);
-        if (blocker) fail(blocker);
+        if (blocker) fail('CLASS_DOC_NOT_READY', blocker);
         if (kind === CLASS_DOC.BRANCH) {
           const empty = (yearPlan ? yearWeeks(yearPlan).filter((w) => w.type === 'week') : []).filter(
             (w) => !doc.names?.[w.start]?.trim(),
           ).length;
-          if (empty) fail(`Còn ${empty} tuần chưa đặt tên chủ đề nhánh`);
+          if (empty) fail('BRANCH_WEEKS_UNNAMED', empty);
         }
         setStatus(toStep(chain[0]));
         log(entry(user, chain[0] ? `Gửi ${SIGN_ROLES[chain[0]]} duyệt` : 'Gửi (không cần duyệt)', '', note));
       } else if (action === 'approve') {
-        if (!isWaitingFor) fail('Bạn không duyệt được ở bước này', 403);
+        if (!isWaitingFor) fail('NOT_YOUR_REVIEW_STEP', 'duyệt');
         const next = chain[chain.indexOf(waiting) + 1];
         setStatus(toStep(next), {
           userId: user.id,
@@ -166,11 +167,11 @@ export const classPlanMockRepository = {
         // setStatus cộng dồn người duyệt vào từng tài liệu; giữ lại người duyệt các bước trước
         log(entry(user, next ? `${SIGN_ROLES[waiting]} duyệt, chuyển ${SIGN_ROLES[next]}` : `${SIGN_ROLES[waiting]} duyệt`, 'ok', note));
       } else if (action === 'reject') {
-        if (!isWaitingFor) fail('Bạn không trả lại được ở bước này', 403);
-        if (!note?.trim()) fail('Cần ghi lý do trả lại', 400);
+        if (!isWaitingFor) fail('NOT_YOUR_REVIEW_STEP', 'trả lại');
+        if (!note?.trim()) fail('RETURN_REASON_REQUIRED');
         setStatus(EDU_STATUS.REJECTED);
         log(entry(user, 'Trả lại để sửa', 'err', note));
-      } else fail('Hành động không hợp lệ', 400);
+      } else fail('INVALID_VALUE', 'hành động');
       return clone(doc);
     });
   },

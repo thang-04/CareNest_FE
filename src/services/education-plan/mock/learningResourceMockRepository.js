@@ -1,4 +1,5 @@
-import { readDb, ApiError } from '@/mocks/mockDatabase';
+import { readDb } from '@/mocks/mockDatabase';
+import { eduError } from './eduMockErrors';
 import { ROLES } from '@/models/User';
 import { activitySignature, fileLimit } from '@/models/education-plan/learningResources.mjs';
 import { themeActivities, themeGoalBlocks, isEditableStatus } from '@/models/education-plan/classPlan';
@@ -30,14 +31,14 @@ function access(user, docKey, write = false) {
   const db = readDb();
   const doc = db.eduClassTheme?.find((d) => d.id === docKey);
   const cls = db.classes?.find((c) => c.id === doc?.classId);
-  if (!doc || !cls) throw new ApiError(404, 'Lưu kế hoạch chủ đề trước khi thêm học liệu.');
+  if (!doc || !cls) throw eduError('THEME_PLAN_NOT_FOUND');
   const assigned = cls.teacherIds?.includes(user?.id);
   const read =
     assigned ||
     [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL].includes(user?.role) ||
     (user?.role === ROLES.TEAM_LEADER && user.ageGroupId === cls.ageGroupId);
-  if (!read || (write && !assigned)) throw new ApiError(403, 'Không có quyền với học liệu của lớp.');
-  if (write && !isEditableStatus(doc.status)) throw new ApiError(409, 'Tài liệu đã khóa chỉnh sửa.');
+  if (!read || (write && !assigned)) throw eduError('CLASS_ACCESS_DENIED');
+  if (write && !isEditableStatus(doc.status)) throw eduError('CLASS_DOC_LOCKED');
   return { doc, editor: assigned && isEditableStatus(doc.status), plan: db.eduGoals?.find((g) => g.id === doc.yearPlanId) };
 }
 async function active(doc, r) {
@@ -56,7 +57,7 @@ async function validate(doc, plan, binding) {
     !activities.some((a) => a.id === binding.activityKey) ||
     binding.activitySignature !== (await activitySignature(doc.rows?.[binding.activityKey.split('#')[0]]?.activities))
   )
-    throw new ApiError(409, 'Hoạt động đã thay đổi. Lưu rồi chọn lại hoạt động.');
+    throw eduError('ACTIVITY_CHANGED');
 }
 const metadata = async (doc, r) => {
   const { blob, ...meta } = r;
@@ -78,8 +79,8 @@ export const learningResourceMockRepository = {
     await validate(doc, plan, binding);
     const extension = file.name.split('.').pop().toLowerCase();
     if (!['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'webm', 'pdf', 'pptx', 'docx', 'xlsx', 'txt', 'csv'].includes(extension))
-      throw new ApiError(415, 'Loại tệp chưa hỗ trợ.');
-    if (!file.size || file.size > fileLimit(file.type)) throw new ApiError(413, 'Tệp rỗng hoặc vượt dung lượng cho phép.');
+      throw eduError('UNSUPPORTED_MEDIA_TYPE');
+    if (!file.size || file.size > fileLimit(file.type)) throw file.size ? eduError('FILE_TOO_LARGE') : eduError('FILE_EMPTY');
     const row = {
       id: crypto.randomUUID(),
       docKey: key,
@@ -101,7 +102,7 @@ export const learningResourceMockRepository = {
     const { doc, plan } = access(user, key, true);
     await validate(doc, plan, binding);
     const row = await run('readonly', (s) => s.get(id));
-    if (!row || row.docKey !== key) throw new ApiError(404, 'Không tìm thấy học liệu.');
+    if (!row || row.docKey !== key) throw eduError('LEARNING_RESOURCE_NOT_FOUND');
     access(user, key, true);
     const next = { ...row, ...binding };
     await run('readwrite', (s) => s.put(next));
@@ -110,14 +111,14 @@ export const learningResourceMockRepository = {
   async detach(user, key, id) {
     access(user, key, true);
     const row = await run('readonly', (s) => s.get(id));
-    if (!row || row.docKey !== key) throw new ApiError(404, 'Không tìm thấy học liệu.');
+    if (!row || row.docKey !== key) throw eduError('LEARNING_RESOURCE_NOT_FOUND');
     access(user, key, true);
     await run('readwrite', (s) => s.put({ ...row, activityKey: null, activitySignature: null }));
   },
   async content(user, key, id) {
     const { doc, editor } = access(user, key);
     const row = await run('readonly', (s) => s.get(id));
-    if (!row || row.docKey !== key || (!editor && !(await active(doc, row)))) throw new ApiError(404, 'Không tìm thấy học liệu.');
+    if (!row || row.docKey !== key || (!editor && !(await active(doc, row)))) throw eduError('LEARNING_RESOURCE_NOT_FOUND');
     return row.blob;
   },
 };
