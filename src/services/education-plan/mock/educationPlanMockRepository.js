@@ -41,6 +41,45 @@ const remove = (kind) => async (id) => {
   });
 };
 
+// BE:EDU-10 — khóa "Đang sửa" của kế hoạch năm; tự nhả sau 30 phút không lưu
+const EDIT_LOCK_MS = 30 * 60 * 1000;
+const stamp = () => {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+const lockedByOther = (goal, user) =>
+  goal.status === EDU_STATUS.EDITING && goal.editing?.userId !== user.id && Date.now() - (goal.editingAt || 0) < EDIT_LOCK_MS;
+const releaseLock = ({ editing, editingAt, editingFrom, ...goal }) => ({ ...goal, status: editingFrom || EDU_STATUS.DRAFT });
+
+const editGoal = (apply) => async (id, user) => {
+  await delay();
+  return writeDb((db) => {
+    const list = ensureSeeded(db).eduGoals;
+    const i = list.findIndex((x) => x.id === id);
+    if (i === -1) throw new ApiError(404, 'Không tìm thấy kế hoạch');
+    list[i] = apply(list[i], user);
+    return clone(list[i]);
+  });
+};
+
+// Lưu: trang soạn gửi status Nháp; đang giữ khóa thì vẫn là Đang sửa (BE:EDU-10), gửi / ban hành thì nhả khóa
+const saveGoal = async (item) => {
+  await delay();
+  if (!item?.id) throw new ApiError(400, 'Thiếu mã bản ghi');
+  return writeDb((db) => {
+    const list = ensureSeeded(db).eduGoals;
+    const prev = list.find((x) => x.id === item.id);
+    const { editing, editingAt, editingFrom, ...rest } = clone(item);
+    const draftLike = rest.status === EDU_STATUS.DRAFT || rest.status === EDU_STATUS.REJECTED;
+    const keep = prev?.status === EDU_STATUS.EDITING && draftLike;
+    const next = keep
+      ? { ...rest, status: EDU_STATUS.EDITING, editing: prev.editing, editingFrom: prev.editingFrom, editingAt: Date.now() }
+      : rest;
+    return clone(upsert(list, next));
+  });
+};
+
 export const educationPlanMockRepository = {
   async getAll() {
     await delay();
@@ -49,7 +88,25 @@ export const educationPlanMockRepository = {
     const fresh = readDb();
     return { goals: clone(fresh.eduGoals), themes: clone(fresh.eduThemes), lessons: clone(fresh.eduLessons) };
   },
-  saveGoal: save('goals'),
+  saveGoal,
+  startEditingGoal: editGoal((goal, user) => {
+    if (lockedByOther(goal, user)) throw new ApiError(409, `Kế hoạch đang được ${goal.editing.name} sửa`);
+    if (goal.status === EDU_STATUS.PENDING_VP) return goal;
+    if (goal.status !== EDU_STATUS.DRAFT && goal.status !== EDU_STATUS.REJECTED && goal.status !== EDU_STATUS.EDITING)
+      throw new ApiError(409, 'Kế hoạch không sửa được ở trạng thái này');
+    const mine = goal.status === EDU_STATUS.EDITING && goal.editing?.userId === user.id;
+    const from = goal.status === EDU_STATUS.EDITING ? goal.editingFrom : goal.status;
+    return {
+      ...goal,
+      status: EDU_STATUS.EDITING,
+      editingFrom: from,
+      editing: mine ? goal.editing : { userId: user.id, name: user.fullName, at: stamp() },
+      editingAt: Date.now(),
+    };
+  }),
+  finishEditingGoal: editGoal((goal, user) =>
+    goal.status === EDU_STATUS.EDITING && goal.editing?.userId === user.id ? releaseLock(goal) : goal,
+  ),
   deleteGoal: remove('goals'),
   saveTheme: save('themes'),
   deleteTheme: remove('themes'),

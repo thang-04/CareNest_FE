@@ -8,6 +8,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { RowActions } from '@/components/ui/RowActions';
+import { ChildNameCell, childOfRow } from '@/components/assessment/ChildNameCell';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { RewardStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { REWARD_STATUS as S } from '@/models/assessment/assessmentConstants';
@@ -170,7 +171,9 @@ export default function RewardProposalListPage() {
                     return (
                       <tr key={p.id} className="row-click" onClick={() => navigate(a.to)}>
                         <td className="fw-600 text-primary">{p.code}</td>
-                        <td>{p.childName}</td>
+                        <td>
+                          <ChildNameCell child={childOfRow(p)} />
+                        </td>
                         <td>{p.className}</td>
                         <td>{p.rewardTitle}</td>
                         <td className="nowrap">{formatDate(p.submittedAt)}</td>

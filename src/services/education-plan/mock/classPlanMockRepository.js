@@ -64,7 +64,7 @@ export const classPlanMockRepository = {
     };
   },
 
-  /** Lưu nội dung. Bản đã gửi / đã duyệt chỉ cho ghi đánh giá cuối ngày của giáo án tuần. */
+  /** Lưu nội dung; bản đã gửi / đã duyệt không sửa được (đánh giá trẻ ghi ở trang Đánh giá hằng ngày). */
   async saveDoc(kind, doc, user) {
     await delay();
     if (!doc?.id) throw new ApiError(400, 'Thiếu mã tài liệu');
@@ -78,17 +78,7 @@ export const classPlanMockRepository = {
         const blocker = createBlocker(kind, doc, { branchPlans: db.eduClassBranch, classThemePlans: db.eduClassTheme });
         if (blocker) throw new ApiError(409, `Chưa thể bắt đầu: ${blocker.message}`);
       }
-      if (current && !isEditableStatus(current.status)) {
-        if (kind !== CLASS_DOC.WEEK) throw new ApiError(409, 'Tài liệu đã gửi duyệt, không sửa được');
-        // Sau khi gửi / duyệt chỉ ghi đánh giá trẻ trong ngày và kế hoạch điều chỉnh
-        const merged = clone(current);
-        merged.days.forEach((d, k) => {
-          d.evaluation = doc.days[k]?.evaluation ?? d.evaluation;
-          d.adjustment = doc.days[k]?.adjustment ?? d.adjustment;
-        });
-        list[i] = merged;
-        return clone(merged);
-      }
+      if (current && !isEditableStatus(current.status)) throw new ApiError(409, 'Tài liệu đã gửi duyệt, không sửa được');
       const saved = {
         ...clone(doc),
         status: current?.status || EDU_STATUS.DRAFT,

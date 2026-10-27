@@ -1,4 +1,6 @@
 import { axiosClient } from '@/services/http/axiosClient';
+import { dailyHealthSummary } from '@/mocks/dailyHealthSummary';
+import { actionSummary } from '@/utils/dailyHealthValidation';
 
 /*
  * PROPOSED endpoints only – the backend contract is not agreed yet (CareNest_BE owns it).
@@ -14,7 +16,7 @@ export const dailyHealthApi = {
   notifyDailyHealth: (entryId) => axiosClient.post(`/daily-health-entries/${entryId}/parent-notifications`),
 
   // PENDING BE: mỗi lần ghi nhận nên trả kèm mức thân nhiệt (level: LOW/NORMAL/WATCH/HIGH/VERY_HIGH, ngưỡng ở utils/attendance/temperatureLevels.js)
-  // PENDING BE: tổng hợp sức khỏe đầu ngày cho Ban giám hiệu; BE tự giới hạn điểm trường theo người gọi,
+  // PENDING BE: tổng hợp sức khỏe trong ngày cho Ban giám hiệu; BE tự giới hạn điểm trường theo người gọi,
   // campusId / ageGroupId / classId chỉ là bộ lọc; trả kèm options (nhóm tuổi, lớp trong phạm vi); trẻ cần chú ý kèm photoUrl
   getDailyHealthOverview: ({ date, campusId, ageGroupId, classId }) =>
     axiosClient.get('/daily-health/overview', {
@@ -23,3 +25,87 @@ export const dailyHealthApi = {
   // PENDING BE: lịch sử ghi nhận trong ngày của một trẻ, chỉ xem
   getChildDailyHealthHistory: ({ childId, date }) => axiosClient.get(`/children/${childId}/daily-health`, { params: { date } }),
 };
+
+// BE chưa có module thông báo phụ huynh (Cần chốt 24/10): ẩn trạng thái/nút gửi lại thay vì báo "chưa gửi được"
+const toEntry = (entry) => ({
+  ...entry,
+  temperature: entry.temperature === null || entry.temperature === undefined ? null : Number(entry.temperature),
+  earlyPickup: null,
+  parentNotifications: [],
+  notificationStatus: 'NOT_REQUIRED',
+});
+
+const toTemperature = (value) => {
+  const raw = String(value ?? '')
+    .trim()
+    .replace(',', '.');
+  return raw ? Number(raw) : null;
+};
+
+/**
+ * Dev (VITE_SCHOOL_CONFIG_API): sức khỏe trong ngày nối BE thật qua beClient. BE chưa có thông báo phụ huynh
+ * (bước gửi thông báo được bỏ qua, xem toEntry), liên hệ phụ huynh, giờ đón sớm từ màn Đón trẻ.
+ */
+export const createDailyHealthBeApi = (client) => ({
+  getDailyHealth: async ({ classId, childId, date }) => {
+    const day = await client.get(`/classes/${classId}/children/${childId}/daily-health`, { params: { date } });
+    const entries = day.entries.map(toEntry);
+    return { classId, childId, date, canRecord: day.canRecord, healthSummary: dailyHealthSummary(entries), contacts: [], entries };
+  },
+  addDailyHealth: async (payload) => {
+    const noted = payload.observation === 'NOTED';
+    const actions = noted ? payload.actions || [] : [];
+    const entry = await client.post('/daily-health-entries', {
+      requestId: payload.requestId,
+      classId: payload.classId,
+      childId: payload.childId,
+      date: payload.date,
+      temperature: toTemperature(payload.temperature),
+      observation: payload.observation,
+      symptoms: noted ? payload.symptoms || [] : [],
+      note: (payload.note || '').trim(),
+      actions,
+      referral: actions.includes('REFERRAL') ? payload.referral : null,
+    });
+    return toEntry(entry);
+  },
+  // TODO(Cần): nối API gửi thông báo phụ huynh khi BE có module thông báo; tới lúc đó bỏ qua bước này
+  notifyDailyHealth: async () => null,
+  getDailyHealthOverview: async ({ date, schoolYear, campusId, ageGroupId, classId }) => {
+    const data = await client.get('/daily-health/overview', {
+      params: {
+        date,
+        schoolYearId: schoolYear || undefined,
+        campusId: campusId || undefined,
+        ageGroupId: ageGroupId || undefined,
+        classId: classId || undefined,
+      },
+    });
+    return {
+      ...data,
+      attention: data.attention.map(({ latest, readings, ...child }) => {
+        const list = readings.map(toEntry);
+        return {
+          ...child,
+          childCode: '',
+          photoUrl: null,
+          temperature: toEntry(latest).temperature,
+          observation: latest.observation,
+          symptoms: latest.symptoms,
+          note: latest.note,
+          recordedByName: latest.recordedByName,
+          recordedAt: latest.recordedAt,
+          notificationStatus: 'NOT_REQUIRED',
+          notifiedAt: null,
+          readingCount: list.length,
+          temperatureTrail: list.map((item) => item.temperature),
+          actionsText: actionSummary(list),
+        };
+      }),
+    };
+  },
+  getChildDailyHealthHistory: async ({ childId, date }) => {
+    const day = await client.get(`/children/${childId}/daily-health`, { params: { date } });
+    return { ...day, childCode: '', contacts: [], entries: day.entries.map(toEntry) };
+  },
+});

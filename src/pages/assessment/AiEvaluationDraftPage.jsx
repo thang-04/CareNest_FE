@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useAiRun } from '@/hooks/useAiRun';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
 import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
@@ -71,11 +72,14 @@ export default function AiEvaluationDraftPage() {
     return (
       <>
         <div className="page__head">
-          <div>
-            <h1 className="page__title">Bản nháp AI – {ev.childName}</h1>
-            <div className="row row--wrap gap-2">
-              <EvaluationStatusBadge status={ev.status} size="lg" />
-              <AiDraftTag />
+          <div className="dg-eval-head">
+            <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
+            <div>
+              <h1 className="page__title">Bản nháp AI – {ev.childName}</h1>
+              <div className="row row--wrap gap-2">
+                <EvaluationStatusBadge status={ev.status} size="lg" />
+                <AiDraftTag />
+              </div>
             </div>
           </div>
         </div>

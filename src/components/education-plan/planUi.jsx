@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Check, Eye, Send, Undo2 } from '@/components/ui/icons';
 import { Card, EduStatusBadge, Field, History, Notice, fmtDateTime } from '@/components/education-plan/eduUi';
 import { useAsync } from '@/hooks/useAsync';
@@ -17,54 +17,8 @@ export const lockTarget = (lock, base, themeId) =>
     ? { to: base.replace('/class/', '/branches/'), label: 'Mở Chủ đề nhánh' }
     : { to: `${base}/themes/${themeId}`, label: 'Mở kế hoạch chủ đề' };
 
-/* ---------- Ô nhập trong bảng (cùng kiểu ô của bảng mục tiêu năm) ---------- */
-
-// Ô nhập tự cao theo nội dung để đọc đủ đoạn dài, không cuộn trong ô
-const fitHeight = (el) => {
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight}px`;
-};
-
-/** Ô chữ trong bảng: gõ thẳng khi sửa được, chữ thường (giữ xuống dòng) khi chỉ xem. */
-export function Cell({ value, onChange, editable, label, placeholder, onKeyDown }) {
-  const ref = useRef(null);
-  // Đo lại chiều cao sau khi bảng có độ rộng thật (lần vẽ đầu cột còn hẹp nên ô bị cao) và khi đổi cỡ cửa sổ;
-  // chỉ đo khi chữ đổi hoặc đổi chế độ sửa, vì trang dài có hàng trăm ô, đo mỗi lần vẽ lại sẽ giật
-  useLayoutEffect(() => {
-    fitHeight(ref.current);
-    const id = requestAnimationFrame(() => fitHeight(ref.current));
-    return () => cancelAnimationFrame(id);
-  }, [value, editable]);
-  useEffect(() => {
-    const onResize = () => fitHeight(ref.current);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-  if (!editable) return <div className="ga-goal-table__pad ga-cell-text">{value?.trim() ? value : <span className="muted">—</span>}</div>;
-  return (
-    <textarea
-      className="ga-cell-input"
-      rows={1}
-      ref={ref}
-      onInput={(e) => fitHeight(e.target)}
-      aria-label={label}
-      placeholder={placeholder}
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={onKeyDown}
-    />
-  );
-}
-
-/** Bấm vào phần trống của ô (dưới ô nhập khi hàng cao hơn) cũng đặt con trỏ vào ô nhập, như bảng tính. */
-export const focusCell = (e) => {
-  if (e.target.tagName !== 'TD') return;
-  const input = e.target.querySelector('.ga-cell-input');
-  if (!input) return;
-  e.preventDefault();
-  input.focus();
-};
+// Ô nhập trong bảng đã chuyển lên phần chung (dùng cả ở Đánh giá hằng ngày)
+export { Cell, focusCell } from '@/components/ui/TableCell';
 
 /* ---------- Lớp, kế hoạch năm đã ban hành và vai trò của người dùng với lớp ---------- */
 

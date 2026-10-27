@@ -11,12 +11,11 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, LoadingState, SubmitOverlay } from '@/components/ui/States';
 import { DailyHealthPanel } from '@/components/DailyHealthPanel';
-import { MealCorrectionModal } from '@/components/attendance/MealCorrectionModal';
 import { saveReception } from '@/services/receptionService';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DayLockAlert } from '@/components/attendance/DayLockAlert';
-import { useAttendanceClasses, useClassAttendance } from '@/hooks/attendance/useAttendance';
-import { getDayInfo, saveClassAttendance, correctMealAfterLock } from '@/services/attendance/attendanceService';
+import { useAttendanceClasses, useAttendanceYear, useClassAttendance } from '@/hooks/attendance/useAttendance';
+import { getDayInfo, saveClassAttendance } from '@/services/attendance/attendanceService';
 import { ATTENDANCE_STATUS, DEFAULT_MEAL_SESSIONS, allMeals, eatsAny, isAbsent, mealsIn } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
@@ -69,9 +68,12 @@ export default function AttendancePage() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const today = schoolToday();
-  const date = params.get('date') || today;
+  const { defaultDate } = useAttendanceYear();
+  const date = params.get('date') || defaultDate;
   const { classes, loading, error, reload } = useAttendanceClasses({ own: true });
-  const classId = params.get('classId') || classes[0]?.id || '';
+  // Lớp trên URL không thuộc năm đang chọn ở header ⇒ lớp đầu tiên của năm đó
+  const paramClass = params.get('classId');
+  const classId = classes.some((c) => c.id === paramClass) ? paramClass : classes[0]?.id || '';
   const [unsaved, setUnsaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
@@ -152,6 +154,7 @@ export default function AttendancePage() {
 }
 
 function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
+  const { year, yearReadOnly } = useAttendanceYear();
   const [search] = useSearchParams();
   const toast = useToast();
   const { sheet, setSheet, loading, error, reload } = useClassAttendance(classId, date, { live: false });
@@ -170,7 +173,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
   const [pendingId, setPendingId] = useState(null);
   const [rowErrors, setRowErrors] = useState({});
   const [clock, setClock] = useState(null);
-  const [correctFor, setCorrectFor] = useState(null);
   const [confirmAll, setConfirmAll] = useState(false);
   const [leaveFor, setLeaveFor] = useState(null);
   const [confirmArrival, setConfirmArrival] = useState(null);
@@ -223,7 +225,8 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
     const timer = setTimeout(() => setClock((current) => ({ ...(current || day), locked: true, unlock: null })), Math.max(0, remaining));
     return () => clearTimeout(timer);
   }, [day]);
-  const editable = !!sheet?.canRecord && day?.schoolDay && !day.locked && date === day.today;
+  // Ngày cũ sửa được khi PHT đã mở lại riêng lớp cho ngày đó
+  const editable = !!sheet?.canRecord && day?.schoolDay && !day.locked && (date === day.today || !!day.unlock);
   const selected = rows.find((row) => row.child.id === selectedId);
   const visibleRows = rows.filter((row) => {
     const entry = draft[row.child.id];
@@ -357,21 +360,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
       submitRef.current = false;
     }
   };
-  const submitCorrection = async (form) => {
-    setSaving(true);
-    try {
-      await correctMealAfterLock({ childId: correctFor.child.id, date, ...form }, user);
-      const fresh = await reload({ silent: true });
-      if (fresh) setDraft(toDraft(fresh));
-      setCorrectFor(null);
-      toast.success('Đã hủy suất ăn và thông báo cho bếp.');
-    } catch (err) {
-      toast.error(err, 'Không điều chỉnh được');
-      throw err;
-    } finally {
-      setSaving(false);
-    }
-  };
   if (loading || !initialized.current) {
     if (error) return <ErrorState error={error} onRetry={reload} />;
     return <LoadingState />;
@@ -387,7 +375,14 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
         </div>
       )}
       {/* Ngày đang mở: giờ khóa hiện ở chip "Đang mở" của bảng; chỉ báo khi không phải ngày học hoặc đã khóa */}
-      {(!sheet.schoolDay || day.locked || day.unlock) && <DayLockAlert sheet={{ ...sheet, ...day }} />}
+      {/* Năm chọn ở header đã kết thúc: sổ điểm danh chỉ xem, không mở lại được */}
+      {yearReadOnly ? (
+        <div className="alert alert--info mb-12" role="status">
+          Năm học {year?.label || year?.id} đã kết thúc – chỉ xem điểm danh, báo ăn và sức khỏe.
+        </div>
+      ) : (
+        (!sheet.schoolDay || day.locked || day.unlock) && <DayLockAlert sheet={{ ...sheet, ...day }} />
+      )}
       <div className="dd-reception__summary" aria-live="polite">
         <span className="chip chip--blue">Sĩ số: {sheet.receptionStats?.total ?? rows.length}</span>
         <span className="chip chip--green">Có mặt đã lưu: {sheet.receptionStats?.present ?? '—'}</span>
@@ -595,15 +590,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                             ) : (
                               <span>{eatsAny(entry.meals, sessions) ? 'Có' : '—'}</span>
                             )}
-                            {sheet.canRecord &&
-                              day.locked &&
-                              date === day.today &&
-                              row.record?.status === 'PRESENT' &&
-                              eatsAny(row.record.meals, sessions) && (
-                                <button className="btn btn--sm btn--ghost" disabled={busy} onClick={() => setCorrectFor(row)}>
-                                  Hủy suất
-                                </button>
-                              )}
                           </div>
                           {rowErrors[row.child.id]?.meals && <p className="field__error">{rowErrors[row.child.id].meals}</p>}
                         </td>
@@ -714,16 +700,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
         confirmLabel="Chọn Có mặt"
         onClose={() => setConfirmAll(false)}
         onConfirm={markAllPresent}
-      />
-      <MealCorrectionModal
-        open={!!correctFor}
-        child={correctFor?.child}
-        record={correctFor?.record}
-        sessions={sessions}
-        onClose={() => {
-          if (!saving) setCorrectFor(null);
-        }}
-        onSubmit={submitCorrection}
       />
     </>
   );

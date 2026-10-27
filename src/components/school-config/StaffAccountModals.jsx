@@ -8,7 +8,16 @@ import { Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { getStaffImpact, saveStaffAccount, setStaffStatus, updateStaffProfile } from '@/services/school-config/schoolConfigService';
 import { ROLES, ROLE_LABELS } from '@/models/User';
-import { STAFF_ROLE_OPTIONS, validateStaffAccount, validateStaffProfile, hasErrors } from '@/utils/school-config/schoolConfigValidation';
+import {
+  STAFF_LIMITS,
+  STAFF_ROLE_OPTIONS,
+  errorsAfterChange,
+  hasErrors,
+  isVnPhone,
+  normalizePhone,
+  validateStaffAccount,
+  validateStaffProfile,
+} from '@/utils/school-config/schoolConfigValidation';
 import { DateInput } from '@/components/form/DateInput';
 
 const baseRole = (role) => (role === ROLES.TEAM_LEADER ? ROLES.TEACHER : role);
@@ -76,13 +85,16 @@ export function StaffFormModal({ account, campuses, existing, onClose }) {
     };
   }, [changed, form.role, form.campusId, account, user]);
 
+  const others = existing.filter((u) => u.id !== account?.id);
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => {
-      const next = { ...e };
-      Object.keys(patch).forEach((k) => delete next[k]);
-      return next;
-    });
+    setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, STAFF_LIMITS));
+  };
+  const blurCheck = (field) => {
+    const e = validateStaffAccount(form, others);
+    if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
+    // SĐT hợp lệ: hiện dạng đã chuẩn hóa (+84 912 345 678 -> 0912345678)
+    else if (field === 'phone' && form.phone && isVnPhone(form.phone)) setForm((f) => ({ ...f, phone: normalizePhone(f.phone) }));
   };
 
   const submit = async () => {
@@ -95,7 +107,7 @@ export function StaffFormModal({ account, campuses, existing, onClose }) {
     if (hasErrors(e)) return;
     setSaving(true);
     try {
-      const result = await saveStaffAccount(account?.id || null, form, user);
+      const result = await saveStaffAccount(account?.id || null, { ...form, phone: normalizePhone(form.phone) }, user);
       toast.success(
         changed || !account ? `${result.fullName} đã được thông báo.` : 'Đã lưu thay đổi.',
         account ? 'Cập nhật tài khoản' : 'Tạo tài khoản',
@@ -104,8 +116,7 @@ export function StaffFormModal({ account, campuses, existing, onClose }) {
       if (form.role === ROLES.VICE_PRINCIPAL && (changed || !account)) setSaved(result);
       else onClose(true);
     } catch (err) {
-      if (err.details) setErrors(err.details);
-      toast.error(err, 'Không lưu được thay đổi');
+      setErrors(err.details || { _form: err.message });
     } finally {
       setSaving(false);
     }
@@ -151,17 +162,39 @@ export function StaffFormModal({ account, campuses, existing, onClose }) {
         </>
       }
     >
+      {errors._form && (
+        <div className="alert alert--danger mb-12" role="alert">
+          {errors._form}
+        </div>
+      )}
       <div className="grid-2">
         <FormField label="Họ tên" required error={errors.fullName}>
-          <input className="input" value={form.fullName} maxLength={100} onChange={(e) => set({ fullName: e.target.value })} />
+          <input
+            className="input"
+            value={form.fullName}
+            onChange={(e) => set({ fullName: e.target.value })}
+            onBlur={() => blurCheck('fullName')}
+          />
         </FormField>
         <FormField label="Email đăng nhập" required error={errors.email}>
-          <input className="input" type="email" value={form.email} maxLength={120} onChange={(e) => set({ email: e.target.value })} />
+          <input
+            className="input"
+            type="email"
+            value={form.email}
+            onChange={(e) => set({ email: e.target.value })}
+            onBlur={() => blurCheck('email')}
+          />
         </FormField>
         <FormField label="Số điện thoại" error={errors.phone}>
-          <input className="input" value={form.phone} maxLength={20} onChange={(e) => set({ phone: e.target.value })} />
+          <input
+            className="input"
+            inputMode="tel"
+            value={form.phone}
+            onChange={(e) => set({ phone: e.target.value })}
+            onBlur={() => blurCheck('phone')}
+          />
         </FormField>
-        <FormField label="Vai trò" required error={errors.role} hint="Tổ trưởng là giáo viên được giao nhóm tuổi (Phân công giáo viên)">
+        <FormField label="Vai trò" required error={errors.role}>
           <select className="select" value={form.role} onChange={(e) => set({ role: e.target.value })}>
             {STAFF_ROLE_OPTIONS.map((r) => (
               <option key={r} value={r}>
@@ -170,12 +203,7 @@ export function StaffFormModal({ account, campuses, existing, onClose }) {
             ))}
           </select>
         </FormField>
-        <FormField
-          label="Điểm trường"
-          required={form.role !== ROLES.VICE_PRINCIPAL}
-          error={errors.campusId}
-          hint={form.role === ROLES.VICE_PRINCIPAL ? 'Có thể để trống và phân công sau ở màn Phân công Phó hiệu trưởng' : undefined}
-        >
+        <FormField label="Điểm trường" required={form.role !== ROLES.VICE_PRINCIPAL} error={errors.campusId}>
           <select className="select" value={form.campusId} onChange={(e) => set({ campusId: e.target.value })}>
             <option value="">{form.role === ROLES.VICE_PRINCIPAL ? 'Chưa chọn' : 'Chọn điểm trường'}</option>
             {campuses.map((c) => (
@@ -192,13 +220,7 @@ export function StaffFormModal({ account, campuses, existing, onClose }) {
           <FormField label="Lý do đổi" required error={errors.reason} className="mt-12">
             <textarea className="textarea" rows={2} maxLength={300} value={form.reason} onChange={(e) => set({ reason: e.target.value })} />
           </FormField>
-          <p className="text-xs muted mt-8">Thay đổi có hiệu lực từ lần đăng nhập tiếp theo của người này; người này nhận thông báo.</p>
         </>
-      )}
-      {!account && (
-        <p className="text-xs muted mt-12">
-          Hệ thống gửi email để người dùng đặt mật khẩu lần đầu (BE). Bản demo: đăng nhập bằng mật khẩu demo rồi đổi mật khẩu.
-        </p>
       )}
     </Modal>
   );
@@ -291,7 +313,7 @@ export function StaffProfileModal({ account, existing, onClose }) {
   const [saving, setSaving] = useState(false);
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch))));
+    setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, STAFF_LIMITS));
   };
   const submit = async () => {
     const e = validateStaffProfile(
@@ -302,12 +324,11 @@ export function StaffProfileModal({ account, existing, onClose }) {
     if (hasErrors(e)) return;
     setSaving(true);
     try {
-      await updateStaffProfile(account.id, form, user);
+      await updateStaffProfile(account.id, { ...form, phone: normalizePhone(form.phone) }, user);
       toast.success('Đã lưu thông tin hồ sơ.', account.fullName);
       onClose(true);
     } catch (err) {
-      if (err.details) setErrors(err.details);
-      toast.error(err, 'Không lưu được thay đổi');
+      setErrors(err.details || { _form: err.message });
       setSaving(false);
     }
   };
@@ -332,7 +353,7 @@ export function StaffProfileModal({ account, existing, onClose }) {
       </p>
       <div className="grid-2">
         <FormField label="Họ tên" required error={errors.fullName}>
-          <input className="input" maxLength={100} value={form.fullName} onChange={(e) => set({ fullName: e.target.value })} />
+          <input className="input" value={form.fullName} onChange={(e) => set({ fullName: e.target.value })} />
         </FormField>
         <FormField label="Email" required error={errors.email}>
           <input className="input" type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} />

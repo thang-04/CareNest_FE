@@ -26,6 +26,9 @@ import { formatDate, formatFileSize } from '@/utils/format';
 import { canEnrollChild } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
+import { LottiePlayer } from '@/components/ui/LottiePlayer';
+
+const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const ACCEPT = '.csv,.xlsx,.xls';
@@ -180,7 +183,11 @@ export default function ImportChildrenPage() {
             readFile(e.dataTransfer.files?.[0]);
           }}
         >
-          {reading ? <Spinner /> : <UploadCloud size={30} className="text-primary" />}
+          {reading ? (
+            <LottiePlayer load={loadDocumentScan} speed={0.6} className="import-reading" fallback={<Spinner />} />
+          ) : (
+            <UploadCloud size={30} className="text-primary" />
+          )}
           <div>
             Kéo thả file hoặc <span className="text-primary">chọn file</span>
           </div>

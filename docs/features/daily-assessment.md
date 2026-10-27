@@ -12,7 +12,7 @@ Giáo viên của lớp (route `/assessment/daily`). Chỉ người đã ghi nh�
 
 - Đánh giá ngày D khóa sau 23:59:59 của chính ngày D: không ghi mới, không sửa, không còn "Điều chỉnh + lý do".
 - Quên đánh giá: giáo viên tự gửi mail (ngoài hệ thống) cho Phó hiệu trưởng điểm trường hoặc Hiệu trưởng.
-- PHT điểm trường / Hiệu trưởng mở lại ngày đó cho lớp ở `/assessment/day-unlocks` (menu "Mở lại ngày đánh giá"); lý do tùy chọn. Người mở chọn hạn "Mở đến" (ngày + giờ, mặc định 23:59 hôm nay, sau hiện tại, tối đa `UNLOCK_MAX_DAYS` = 7 ngày — PROPOSED); giáo viên sửa được đến hạn đó, quá hạn thì khóa lại. Giáo viên của lớp nhận thông báo có link tới ngày đó. Sửa bản đã ghi trong ngày mở lại được ghi vết `corrections` kèm người mở.
+- PHT điểm trường / Hiệu trưởng mở lại ngày đó cho lớp ở `/assessment/day-unlocks` (menu "Mở lại ngày đánh giá"); lý do tùy chọn. Người mở chọn hạn "Mở đến" (ngày + giờ, mặc định 23:59 hôm nay, sau hiện tại, do HT / PHT chọn, không quá ngày kết thúc năm học — Cần chốt 21/10/2026; lùi được tới ngày bắt đầu năm học); giáo viên sửa được đến hạn đó, quá hạn thì khóa lại. Giáo viên của lớp nhận thông báo có link tới ngày đó. Sửa bản đã ghi trong ngày mở lại được ghi vết `corrections` kèm người mở.
 - Dữ liệu mock `assessmentDayUnlocks { classId, campusId, date, reason, unlockedBy, unlockedAt, validUntil }`. PENDING BE: `GET/POST /assessment/day-unlocks`; BE phải kiểm tra khóa khi lưu. Cần ghi Decision Log ở BE vì đổi rule GBR-OBS-03.
 
 ## Màn hình `/assessment/daily`
@@ -39,9 +39,11 @@ Danh mục ô tích: `src/models/assessment/dailyObservationOptions.js` (thêm /
 
 ## Giáo án (phụ thuộc module Kế hoạch giáo dục)
 
-Sau khi merge FEAT-41, giáo án lớp là giáo án tuần (`eduClassWeek`, duyệt cả tuần) có 5 kế hoạch ngày. Mục tiêu của một giờ = các MT của hoạt động đã chọn ở ô (dòng giờ, ngày) trong `picks`; dòng gộp cả tuần dùng ô `all`. Giờ sinh hoạt → dòng: Hoạt động học → `hoc`, ngoài trời → `ngoai_troi`, trong lớp / góc → `goc`, chiều → `chieu`, Thể dục → `the_duc`. Bộ mục tiêu năm mới không có mã YCCĐ (requirements rỗng) nên màn hình dùng mã MT. NEEDS VERIFICATION: nhóm cần chốt chấm theo MT hay YCCĐ, và ghép mã lớp chung với module giáo án.
+Sau khi merge FEAT-41, giáo án lớp là giáo án tuần (`eduClassWeek`, duyệt cả tuần) có 5 kế hoạch ngày. Mục tiêu của một giờ = các MT của hoạt động đã chọn ở ô (dòng giờ, ngày) trong `picks`; dòng gộp cả tuần dùng ô `all`. Giờ sinh hoạt → dòng: Hoạt động học → `hoc`, ngoài trời → `ngoai_troi`, trong lớp / góc → `goc`, chiều → `chieu`, Thể dục → `the_duc`. Từ 20/10 (Tiền): giờ có mục riêng trong kế hoạch ngày (Hoạt động học, ngoài trời, buổi chiều) hiện tên mục, các "Hoạt động n" của cô và dòng "Mục đích yêu cầu" của hoạt động đó lấy từ kế hoạch ngày (`plan.dayPart` trong daily-sheet); tiêu chí vẫn là MT của hoạt động đó. Kế hoạch ngày đã duyệt có nút "Đánh giá trẻ ngày này" mở `/assessment/daily?classId&date` (nhận thêm `activity`). Bộ mục tiêu năm mới không có mã YCCĐ (requirements rỗng) nên màn hình dùng mã MT. NEEDS VERIFICATION: nhóm cần chốt chấm theo MT hay YCCĐ, và ghép mã lớp chung với module giáo án.
 
 ## Dữ liệu (mock, PROPOSED)
+
+- Kết quả mỗi giờ ở màn Kiến thức kỹ năng có 3 mức (Cần chốt 21/10/2026): Đạt / Cần cố gắng / Chưa đạt; chọn ở ô sổ xuống của từng giờ. `dailyAssessments` thêm `criteriaEffort[]` (MT ở mức Cần cố gắng). Tổng hợp kỳ đếm `canCoGang`; bản nháp AI tính Cần cố gắng vào phía cần hỗ trợ; chip trong bảng từng ngày: xanh đạt, cam cần cố gắng, đỏ chưa đạt. PENDING BE: thêm field vào `PUT /assessment/daily-assessments` và `summary.structured`.
 
 - `dailyObservations`: 1 bản ghi / trẻ / ngày `{ childId, classId, date, healthOverridden, healthSigns[], healthNote, healthSetAt, meals{MORNING|LUNCH|AFTERNOON: AN_HET|AN_IT|KHONG_AN}, nap, emotion, behaviors[], behaviorNote, recordedBy, recordedAt, updatedAt }`. `healthSigns` rỗng = Bình thường; chỉ chốt khi `healthOverridden`, nếu không thì luôn lấy theo khám sức khỏe mới nhất.
 - `dailyAssessments` (theo hoạt động): thêm `participation`, `criteriaNotMet[]`, `lessonPlanId`, `themeId`. Bản ghi cũ giữ `healthStatus` để màn hồ sơ đọc.
@@ -82,3 +84,12 @@ Repo FE không có Decision Log; nhật ký quyết định ở `BE:docs/decisio
 ## Test
 
 Tay, 2026-10-15, Lê Minh Anh, Lớp Chồi 1, 1366×768: ngày có giáo án (14/10, giáo án tuần duyệt tạm) và ngày không có (09/10). Lưu ăn ít, hành vi, MT1 đạt / MT2 chưa đạt, chấm hàng loạt; ô Sức khỏe điền sẵn, tự theo lần khám mới, giữ lựa chọn của cô và hiện Áp dụng khi khám mới 38,2 °C (→ Sốt); số trong `periodSummaryOf` và bản nháp AI khớp ô tích. Trẻ vắng bị từ chối khi lưu.
+
+## Cập nhật 2026-10-20 (Tiền): một bảng cho cả ngày
+
+- Bỏ ô chọn "Hoạt động trong thời khóa biểu". Mỗi giờ có MT trong kế hoạch ngày đã duyệt là một cột (tiêu đề: tên giờ + nội dung), đứng ngay sau cột Trẻ; nút "Cả lớp đạt" theo từng cột. Sau đó là Cờ, Sức khỏe, Ăn, Ngủ, Cảm xúc, Hành vi, Nhận xét (ghi một lần cho cả ngày).
+- Cô chấm giờ nào lúc nào cũng được; bấm tên trẻ mở khung chi tiết cả ngày (mọi giờ, kể cả giờ chưa có MT; mức tham gia; hành vi; cờ; nhận xét). Tự lưu 1,2 s sau khi ngừng sửa, không còn nút Lưu.
+- **Cờ bé ngoan: 1 cờ / trẻ / ngày**, lưu ở `dailyObservations.flag` (trước đây lưu theo từng hoạt động nên một ngày được nhiều cờ). Nhận xét của ngày ở `dailyObservations.comment`. Đếm cờ cho phiếu bé ngoan, danh sách đánh giá kỳ và bản nháp AI theo số ngày có cờ (`flagDaysOf`); bản ghi cũ: ngày có cờ ở bất kỳ hoạt động nào tính 1.
+- PROPOSED API: `GET /assessment/daily-day-sheet?classId&date` (activities[] gồm criteria, dayPart; rows[].assessments theo giờ, flag, comment), `PUT /assessment/daily-days` (entries: nhóm ngày + flag + comment + activities{giờ: participation, criteriaMet, criteriaNotMet}, chỉ gửi giờ đã sửa). PENDING BE.
+- Demo: Chồi 1 được điểm danh sẵn mỗi ngày học (mock) để thử với giáo án tuần 7 đã duyệt.
+- Cập nhật cùng ngày (Tiền): bảng dùng đúng kiểu bảng mục tiêu năm / giáo án (`table ga-plan-table ga-goal-table`, ô `ga-cell-input`, `Cell`, `focusCell`). Cột: Trẻ | các giờ có MT | Cờ | Nhận xét. Ô giờ chỉ "Đạt" / "Chưa đạt" (cho mọi MT của giờ), **mặc định Đạt**, cô chỉ bấm trẻ chưa đạt; tiêu đề cột đếm "n chưa đạt". Lần tự lưu đầu tiên ghi luôn cả lớp với giá trị mặc định. Sức khỏe, ăn, ngủ, cảm xúc, hành vi (điền sẵn) và mức tham gia sửa ở khung chi tiết khi bấm tên trẻ.

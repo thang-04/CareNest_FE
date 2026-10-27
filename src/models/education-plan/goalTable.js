@@ -86,7 +86,7 @@ export const themeGoalLabel = (domains, numbers, theme) => {
     .map((id) => numbers[id])
     .filter(Boolean)
     .sort((a, b) => a - b);
-  return nos.length ? `MT ${nos.join(', ')} (${nos.length} MT)` : '';
+  return nos.length ? `${mtList(nos)} (${nos.length} MT)` : '';
 };
 
 /* ---------- Ngày tháng (yyyy-mm-dd, tính theo UTC để không lệch múi giờ) ---------- */
@@ -112,3 +112,6 @@ export const weekCount = (theme, breaks = []) => {
   }
   return n;
 };
+
+/** Ghi số mục tiêu liền chữ MT (Tiền 21/10): "MT1", nhiều MT thì "MT1, MT2, MT5". */
+export const mtList = (nos) => nos.map((n) => `MT${n}`).join(', ');

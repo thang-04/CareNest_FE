@@ -7,7 +7,17 @@ import { commune, docShell, downloadDoc, esc, fileTitle, fmt, printDoc } from '@
 import { domainRoman } from '@/models/education-plan/goalTable';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { SIGN_ROLES, getEduConfig } from '@/models/education-plan/eduConfig';
-import { DAY_SECTIONS, WEEKDAY_LABELS, addDays, longDay, monthOf, rowCell, weekRows, yearWeeks } from '@/models/education-plan/classPlan';
+import {
+  DAY_SECTIONS,
+  WEEKDAY_LABELS,
+  addDays,
+  hocTitle,
+  longDay,
+  monthOf,
+  rowCell,
+  weekRows,
+  yearWeeks,
+} from '@/models/education-plan/classPlan';
 
 const text = (s) => (s?.trim() ? esc(s).replace(/\n/g, '<br/>') : '');
 const domainTitle = (name) => `${domainRoman(name)}. Giáo dục ${domainLabel(name).replace(/^P/, 'p')}`;
@@ -71,14 +81,16 @@ const weekSection = ({ doc, week, branchNo, branchName }) => {
       const cells = g.days.map((v) =>
         r.key === 'hoc' ? `<td>${v.subject ? `<b>${esc(v.subject)}</b><br/>` : ''}${text(v.topic)}</td>` : `<td>${text(v)}</td>`,
       );
-      return `<tr><td><b>${esc(r.label)}</b></td>${cells.join('')}</tr>`;
+      // Phần chung cả tuần của dòng (Chơi tự do, Chơi tự chọn…) thành hàng gộp ngay dưới, như file mẫu
+      const extra = r.extraLabel && g.extra?.trim() ? `<tr><td><b>${esc(r.label)}</b></td><td colspan="5">${text(g.extra)}</td></tr>` : '';
+      return `<tr><td><b>${esc(r.label)}</b></td>${cells.join('')}</tr>${extra}`;
     })
     .join('');
   const days = doc.days
     .map((d, i) => {
       const hoc = doc.grid.hoc.days[i] || {};
       const steps = DAY_SECTIONS.map((s) => {
-        const head = `<tr><td colspan="3"><b>${esc(s.label)}${s.key === 'hoc' && (hoc.subject || hoc.topic) ? `: ${esc([hoc.subject, hoc.topic].filter(Boolean).join(' – '))}` : ''}</b></td></tr>`;
+        const head = `<tr><td colspan="3"><b>${esc(s.label)}${s.key === 'hoc' && hocTitle(hoc) ? `: ${esc(hocTitle(hoc))}` : ''}</b></td></tr>`;
         return (
           head +
           s.parts
@@ -96,8 +108,8 @@ ${i === 0 ? '<h1>KẾ HOẠCH NGÀY</h1>' : ''}<p class="c"><b>${esc(longDay(d.d
 <h2>III. Tiến trình hoạt động</h2>
 <table class="grid"><colgroup><col style="width:42%"/><col style="width:42%"/><col style="width:16%"/></colgroup>
 <thead><tr><th>Hoạt động của cô</th><th>Hoạt động của trẻ</th><th>Ghi chú</th></tr></thead><tbody>${steps}</tbody></table>
-<p><b>Đánh giá trẻ trong ngày:</b><br/>${text(d.evaluation)}</p>
-<p><b>Kế hoạch điều chỉnh và bổ sung:</b><br/>${text(d.adjustment)}</p>`;
+<p><b>*Đánh giá trẻ trong ngày:</b><br/><br/><br/></p>
+<p><b>*Kế hoạch điều chỉnh và bổ sung:</b><br/><br/><br/></p>`;
     })
     .join('');
   return `<div style="page-break-before:always"></div>

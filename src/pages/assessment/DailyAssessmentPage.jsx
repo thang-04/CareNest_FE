@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { CheckCheck, ClipboardCheck, Flag, Info, Lock, Save, UserX } from '@/components/ui/icons';
+import { ClipboardCheck, Flag, Lock, Save, UserX } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useAssessmentClasses, useDailySheet } from '@/hooks/assessment/useAssessment';
+import { DailyModeSelect } from '@/components/assessment/DailyModeSelect';
 import { saveDailyAssessments } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { BehaviorsCell, CellPopover, GoalChips, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
+import { BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { EATING, NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { formatDate, formatDateTime } from '@/utils/format';
@@ -43,12 +44,13 @@ const fromRow = (r, mealSessions) => {
     participation: a?.participation || PARTICIPATION.BINH_THUONG,
     criteriaMet: a?.criteriaMet || [],
     criteriaNotMet: a?.criteriaNotMet || [],
-    flag: !!a?.flag,
+    // Cờ của ngày (1 cờ / trẻ / ngày): cô đã quyết thì giữ, chưa thì theo gợi ý
+    flag: r.flag ?? !!r.flagSuggestion?.eligible,
     comment: a?.comment || '',
   };
 };
 
-const COLS = 10;
+const COLS = 9;
 // Ô khác giá trị mặc định được tô nhẹ để giáo viên thấy ngay ngoại lệ
 const tint = (tone) => (tone ? `dg-cell--${tone}` : '');
 
@@ -61,7 +63,8 @@ export default function DailyAssessmentPage() {
   const [search] = useSearchParams();
   const [classId, setClassId] = useState(search.get('classId') || '');
   const [date, setDate] = useState(() => search.get('date') || lastSchoolDay());
-  const [activity, setActivity] = useState('Hoạt động học');
+  // Hoạt động chung ghi theo giờ Hoạt động học; kiến thức kỹ năng từng giờ ở màn /assessment/daily/skills
+  const activity = 'Hoạt động học';
   const currentClassId = classId || classes[0]?.id || '';
   const params = useMemo(() => ({ classId: currentClassId, date, activity }), [currentClassId, date, activity]);
   const { sheet, loading, error, reload } = useDailySheet(params);
@@ -102,27 +105,6 @@ export default function DailyAssessmentPage() {
     });
   };
 
-  /** Đặt kết quả một mục tiêu cho nhiều trẻ (Cả lớp đạt, hoặc các trẻ đang chọn); trả số trẻ đã đặt. */
-  const setGoalFor = (ids, goalId, met) => {
-    const editable = ids.filter((childId) => rowState(sheet.rows.find((r) => r.child.id === childId)) === 'editable');
-    setDrafts((prev) => {
-      const next = { ...prev };
-      editable.forEach((childId) => {
-        const d = next[childId];
-        const criteriaMet = d.criteriaMet.filter((x) => x !== goalId);
-        const criteriaNotMet = d.criteriaNotMet.filter((x) => x !== goalId);
-        next[childId] = {
-          ...d,
-          criteriaMet: met ? [...criteriaMet, goalId] : criteriaMet,
-          criteriaNotMet: met ? criteriaNotMet : [...criteriaNotMet, goalId],
-        };
-      });
-      return next;
-    });
-    setDirty((prev) => new Set([...prev, ...editable]));
-    return editable.length;
-  };
-
   const markAllPresent = () => {
     const ids = sheet.rows.filter((r) => r.present && !r.assessment).map((r) => r.child.id);
     setDirty((prev) => new Set([...prev, ...ids]));
@@ -156,8 +138,6 @@ export default function DailyAssessmentPage() {
   const assessedCount = sheet?.rows.filter((r) => r.assessment).length || 0;
   const presentRows = sheet?.rows.filter((r) => r.present) || [];
   const presentCount = presentRows.length;
-  const presentIds = presentRows.map((r) => r.child.id);
-  const criteria = sheet?.criteria || [];
   const absentRows = sheet?.rows.filter((r) => r.attendanceStatus && !r.present) || [];
   const unmarkedRows = sheet?.attendanceTaken ? sheet.rows.filter((r) => !r.attendanceStatus) : [];
   // Chỉ có dòng vắng do phụ huynh báo nghỉ, chưa ai được điểm danh Có mặt: coi như lớp chưa điểm danh
@@ -216,18 +196,7 @@ export default function DailyAssessmentPage() {
                 onChange={(e) => e.target.value && setDate(e.target.value)}
               />
             </div>
-            <div className="field dg-field-activity">
-              <label className="field__label" htmlFor="dg-activity">
-                Hoạt động trong thời khóa biểu
-              </label>
-              <select id="dg-activity" className="select" value={sheet?.activity || activity} onChange={(e) => setActivity(e.target.value)}>
-                {(sheet?.activities || [activity]).map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <DailyModeSelect mode="general" classId={currentClassId} date={date} />
             <div className="spacer" />
             {sheet && (
               <div className="text-sm text-2 dg-filter-count">
@@ -255,26 +224,6 @@ export default function DailyAssessmentPage() {
               </div>
             </div>
           )}
-          {sheet?.plan && attendanceTaken && (
-            <div className="alert alert--info dg-alert-inset">
-              <Info size={18} />
-              <div className="dg-plan">
-                <div>
-                  Theo giáo án <span className="fw-600">{sheet.plan.code}</span>
-                  {sheet.plan.topic && ` · ${sheet.plan.topic}`}
-                </div>
-                {criteria.length === 0 ? (
-                  <div className="text-sm">Giờ sinh hoạt này chưa chọn mục tiêu trong giáo án; chỉ ghi mức tham gia.</div>
-                ) : (
-                  criteria.map((c) => (
-                    <div key={c.id} className="text-sm">
-                      <span className="fw-600">{c.name}</span>: {c.description}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
           {/* Chỉ đánh giá trẻ đã điểm danh Có mặt: trẻ vắng / chưa điểm danh chỉ nêu tên ở một dòng */}
           {sheet && attendanceTaken && (absentRows.length > 0 || unmarkedRows.length > 0) && (
             <p className="muted text-sm dg-absent-line">
@@ -298,29 +247,6 @@ export default function DailyAssessmentPage() {
                     <th>Cảm xúc</th>
                     <th>Hành vi</th>
                     <th>Tham gia</th>
-                    <th className="dg-col-goals">
-                      <span className="dg-head-goal">
-                        Kiến thức, kỹ năng
-                        {sheet?.plan && criteria.length > 0 && presentCount > 0 && (
-                          <CellPopover label="Cả lớp đạt" icon={<CheckCheck size={14} />} minWidth={260}>
-                            <div className="dg-pop__title">Đánh dấu mọi trẻ có mặt đạt (bấm Lưu để ghi nhận)</div>
-                            {criteria.map((c) => (
-                              <button
-                                key={c.id}
-                                type="button"
-                                className="btn btn--sm dg-pop__action"
-                                onClick={() => {
-                                  const n = setGoalFor(presentIds, c.id, true);
-                                  toast.success(`Đã đánh dấu ${n} trẻ đạt ${c.name}. Bấm Lưu để ghi nhận.`);
-                                }}
-                              >
-                                <CheckCheck size={14} /> {c.name} – cả lớp đạt
-                              </button>
-                            ))}
-                          </CellPopover>
-                        )}
-                      </span>
-                    </th>
                     <th className="center">Cờ</th>
                     <th className="dg-col-note">Nhận xét</th>
                   </tr>
@@ -465,30 +391,17 @@ export default function DailyAssessmentPage() {
                               <span className="muted text-xs">—</span>
                             )}
                           </td>
-                          <td className="dg-col-goals">
-                            {!sheet.plan ? (
-                              <span className="muted text-xs dg-locked">
-                                <Lock size={12} /> Chưa có giáo án duyệt
-                              </span>
-                            ) : criteria.length === 0 ? (
-                              <span className="muted text-xs">Giờ này chưa có mục tiêu</span>
-                            ) : (
-                              <GoalChips
-                                criteria={criteria}
-                                draft={d}
-                                disabled={disabled}
-                                name={name}
-                                onChange={(patch) => update(id, patch)}
-                              />
-                            )}
-                          </td>
                           <td className="center">
                             <button
                               type="button"
                               className={`dg-flag ${d.flag ? 'dg-flag--on' : ''}`}
                               aria-pressed={d.flag}
-                              aria-label={`Cờ bé ngoan cho ${name}`}
-                              title={d.flag ? 'Bỏ cờ bé ngoan' : 'Cắm cờ bé ngoan'}
+                              aria-label={`Cờ bé ngoan hôm nay cho ${name}`}
+                              title={
+                                r.flagSuggestion?.eligible
+                                  ? `${d.flag ? 'Bỏ' : 'Cắm'} cờ bé ngoan (đủ tiêu chí gợi ý cờ)`
+                                  : `Chưa đủ tiêu chí gợi ý cờ: ${r.flagSuggestion?.reasons?.join('; ') || ''}. Cô vẫn ${d.flag ? 'bỏ' : 'cắm'} cờ được.`
+                              }
                               disabled={disabled}
                               onClick={() => update(id, { flag: !d.flag })}
                             >
@@ -503,7 +416,7 @@ export default function DailyAssessmentPage() {
                               disabled={disabled}
                               placeholder="Tùy chọn"
                               onChange={(e) => update(id, { comment: e.target.value })}
-                              aria-label={`Nhận xét hoạt động cho ${name}`}
+                              aria-label={`Nhận xét trong ngày cho ${name}`}
                             />
                           </td>
                         </tr>
@@ -512,18 +425,6 @@ export default function DailyAssessmentPage() {
                   )}
                 </tbody>
               </table>
-            </div>
-          )}
-          {sheet && presentCount > 0 && (
-            <div className="dg-legend text-xs text-2">
-              <span>
-                Mục tiêu: 1 lần <span className="chip chip--green">Đạt</span> · 2 lần <span className="chip chip--red">Chưa đạt</span> · 3
-                lần bỏ chọn
-              </span>
-              <span className="dg-child">
-                <Flag size={12} /> Phiếu bé ngoan tuần: ≥ 4 ngày có mặt, ≥ 3 cờ
-              </span>
-              <span>Ô vàng / đỏ: khác mặc định</span>
             </div>
           )}
         </div>

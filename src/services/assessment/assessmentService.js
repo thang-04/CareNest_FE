@@ -9,8 +9,12 @@ export const getAssessmentCriteria = () => repo.getCriteria();
 
 export const getDailySheet = (params, user) => repo.getDailySheet(params, user);
 export const saveDailyAssessments = (body, user) => repo.saveDailyAssessments(body, user);
+// Đánh giá cả ngày trên một bảng (PROPOSED API, cần thống nhất với BE)
+export const getDailyDaySheet = (params, user) => repo.getDailyDaySheet(params, user);
+export const saveDailyDay = (body, user) => repo.saveDailyDay(body, user);
 export const getAssessmentDayUnlocks = (user) => repo.listAssessmentDayUnlocks(user);
 export const unlockAssessmentDay = (body, user) => repo.unlockAssessmentDay(body, user);
+export const revokeAssessmentDayUnlock = (id, user) => repo.revokeAssessmentDayUnlock(id, user);
 
 export const getChildDevelopment = (childId, params, user) => repo.getChildDevelopment(childId, params, user);
 
@@ -21,6 +25,8 @@ export const confirmEvaluation = (kind, id, content, user) => repo.confirmEvalua
 export const regenerateEvaluationDraft = (kind, id, user) => repo.regenerateEvaluationDraft(kind, id, user);
 
 export const getTicketBoard = (params, user) => repo.getTicketBoard(params, user);
+export const getTicketSummary = (params, user) => repo.getTicketSummary(params, user);
+export const getTicketOverview = (params, user) => repo.getTicketOverview(params, user);
 export const issueTickets = (body, user) => repo.issueTickets(body, user);
 
 export const getRewardProposals = (filters, user) => repo.listRewardProposals(filters, user);

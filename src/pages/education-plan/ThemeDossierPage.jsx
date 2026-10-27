@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Check, FileDown, Plus, Printer, Send, Undo2 } from '@/components/ui/icons';
+import { Check, FileDown, Plus, Printer, Save, Send, Undo2 } from '@/components/ui/icons';
 import { Card, EduStatusBadge, Field, Modal, Notice, PageHead, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { isMyReviewTurn, useClassPlanContext } from '@/components/education-plan/planUi';
 import { ThemePlanBody, themeRowOf } from '@/components/education-plan/ThemePlanBody';
@@ -8,7 +8,9 @@ import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { numberGoals } from '@/models/education-plan/goalTable';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { mtList, numberGoals } from '@/models/education-plan/goalTable';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
   WEEKDAY_LABELS,
@@ -19,15 +21,18 @@ import {
   emptyThemePlan,
   emptyWeekPlan,
   isEditableStatus,
+  lessonReuseFor,
+  placedInOtherWeeks,
+  themeCoverage,
   submitBlocker,
   themeActivities,
   themeGoalBlocks,
   themeNumber,
+  yearWeeks,
 } from '@/models/education-plan/classPlan';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
 
 const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
-const AUTOSAVE_MS = 1200;
 const anchor = (key) => `dossier-${key}`;
 // Cuộn tới phần cần xem, chừa chỗ cho thanh nhảy nhanh đang dính đầu trang
 const scrollToPart = (key, behavior = 'smooth') => {
@@ -42,7 +47,7 @@ const scrollToPart = (key, behavior = 'smooth') => {
 
 /**
  * Hồ sơ chủ đề theo file MN Thái Dương, hiện liền một tập như file Word: kế hoạch giáo dục chủ đề → từng chủ đề nhánh
- * (kế hoạch tuần + 5 kế hoạch ngày). Thanh nhảy nhanh tới chủ đề / tuần / ngày; giáo viên sửa ngay trong tập (tự lưu).
+ * (kế hoạch tuần + 5 kế hoạch ngày). Thanh nhảy nhanh tới chủ đề / tuần / ngày; giáo viên sửa ngay trong tập, bấm Lưu hoặc Ctrl+S.
  * Gửi một lần; Tổ trưởng rồi Phó HT duyệt hoặc trả lại cả hồ sơ ở cuối trang; đã duyệt thì in ra ký tay.
  */
 export default function ThemeDossierPage() {
@@ -65,13 +70,14 @@ function DossierInner({ classId, themeId }) {
   const blocks = yearPlan && theme ? themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId) : [];
   const goals = blocks.flatMap((b) => b.goals);
 
-  // Tự lưu các phần vừa sửa sau khi ngừng gõ (một lần cho mỗi tài liệu đã đổi)
+  // Lưu các phần vừa sửa khi bấm Lưu / Ctrl+S (một lần cho mỗi tài liệu đã đổi); trả true khi lưu hết
   latest.current = { edits, goals };
   const flush = async () => {
     const { edits: pending, goals: gs } = latest.current;
     const keys = Object.keys(pending);
-    if (!keys.length) return;
+    if (!keys.length) return true;
     setSaving(true);
+    let ok = true;
     for (const key of keys) {
       const doc = pending[key];
       const res =
@@ -80,15 +86,31 @@ function DossierInner({ classId, themeId }) {
           : await saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) });
       // Bỏ bản sửa khi đã lưu và không bị sửa thêm trong lúc lưu
       if (res) setEdits((e) => (e[key] === doc ? Object.fromEntries(Object.entries(e).filter(([k]) => k !== key)) : e));
+      else ok = false;
     }
     setSaving(false);
+    return ok;
   };
+  const hasEdits = Object.keys(edits).length > 0;
   useEffect(() => {
-    if (!Object.keys(edits).length) return undefined;
-    const t = setTimeout(flush, AUTOSAVE_MS);
-    return () => clearTimeout(t);
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        flush();
+      }
+    };
+    const warn = (e) => {
+      if (Object.keys(latest.current.edits).length) e.preventDefault();
+    };
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('beforeunload', warn);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('beforeunload', warn);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edits]);
+  }, []);
+  const guard = useLeaveGuard({ when: hasEdits, onSave: flush });
 
   // Mở bằng ?week=… thì nhảy tới tuần đó
   useEffect(() => {
@@ -123,6 +145,22 @@ function DossierInner({ classId, themeId }) {
     ),
   );
   const unused = activities.filter((a) => !used.has(a.id));
+  const coverage = themeCoverage(
+    goals,
+    activities,
+    weeks.map((w) => w.doc),
+  );
+  // Tuần liền trước trong năm (tuần nhánh trước, hoặc tuần cuối chủ đề trước) để chép các dòng cả tuần
+  const allWeeks = yearWeeks(yearPlan).filter((x) => x.type === 'week');
+  const prevDocOf = (start) => {
+    const prev = allWeeks[allWeeks.findIndex((x) => x.start === start) - 1];
+    if (!prev) return null;
+    return (
+      weeks.find((w) => w.week.start === prev.start)?.doc ||
+      weekPlans.find((x) => x.classId === classId && x.weekStart === prev.start) ||
+      null
+    );
+  };
   const exportArgs = {
     themeDoc: themeDraft,
     theme,
@@ -162,7 +200,20 @@ function DossierInner({ classId, themeId }) {
         desc={<EduStatusBadge status={status} size="lg" />}
         actions={
           <>
-            {editable && <span className="muted text-sm">{unsaved ? 'Đang lưu…' : 'Tự lưu khi bạn sửa'}</span>}
+            {editable && (
+              <>
+                <span className="muted text-sm">{saving ? 'Đang lưu…' : hasEdits ? 'Có thay đổi chưa lưu' : ''}</span>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  onClick={flush}
+                  disabled={saving || !hasEdits}
+                  title="Lưu (Ctrl+S)"
+                >
+                  <Save size={16} aria-hidden /> Lưu
+                </button>
+              </>
+            )}
             <button type="button" className="btn btn--ghost" onClick={() => exportThemeFile(exportArgs, 'doc')}>
               <FileDown size={16} aria-hidden /> Xuất Word
             </button>
@@ -186,6 +237,12 @@ function DossierInner({ classId, themeId }) {
           {due === 'late' ? ' (quá hạn)' : due === 'soon' ? ' (sắp đến hạn)' : ''}.
         </Notice>
       )}
+      {coverage.missingGoals.length > 0 && (
+        <Notice tone="warn">
+          {mtList(coverage.missingGoals.map((g) => g.no))} chưa có trong tuần nào của chủ đề (đã phủ {coverage.covered}/{coverage.goals}{' '}
+          MT). Vẫn gửi duyệt được.
+        </Notice>
+      )}
       {unused.length > 0 && (
         <Notice tone="warn">
           Còn {unused.length} hoạt động trong kế hoạch chủ đề chưa xếp vào tuần nào.
@@ -194,7 +251,7 @@ function DossierInner({ classId, themeId }) {
             <ul>
               {unused.map((a) => (
                 <li key={a.id} className="text-sm">
-                  MT {a.goalNo}: {a.text}
+                  MT{a.goalNo}: {a.text}
                 </li>
               ))}
             </ul>
@@ -239,7 +296,20 @@ function DossierInner({ classId, themeId }) {
               {w.doc ? (
                 <>
                   <div className="section-title">KẾ HOẠCH TUẦN</div>
-                  <WeekTab draft={w.doc} week={w.week} editable={editable} update={edit(w.week.start, w.doc)} activities={activities} />
+                  <WeekTab
+                    draft={w.doc}
+                    week={w.week}
+                    editable={editable}
+                    update={edit(w.week.start, w.doc)}
+                    activities={activities}
+                    placedElsewhere={placedInOtherWeeks(
+                      weeks.map((x) => x.doc),
+                      w.week.start,
+                    )}
+                    prevWeek={prevDocOf(w.week.start)}
+                    coverage={coverage}
+                    goals={goals}
+                  />
                   <div className="section-title">KẾ HOẠCH NGÀY</div>
                   {w.doc.days.map((d, i) => (
                     <div key={d.date} id={anchor(`${w.week.start}-d${i}`)} className="ga-dossier-day">
@@ -251,9 +321,12 @@ function DossierInner({ classId, themeId }) {
                         draft={w.doc}
                         index={i}
                         editable={editable}
-                        canEvaluate={isClassTeacher}
                         update={edit(w.week.start, w.doc)}
                         goals={goals}
+                        reuse={lessonReuseFor(weekPlans, w.doc, i)}
+                        assessTo={
+                          w.doc.status === EDU_STATUS.APPROVED ? `/assessment/daily/skills?classId=${classId}&date=${d.date}` : null
+                        }
                       />
                     </div>
                   ))}
@@ -275,6 +348,7 @@ function DossierInner({ classId, themeId }) {
 
       {/* Dải nút dính đáy màn: giáo viên gửi duyệt; người đến lượt duyệt thì Trả lại / Duyệt */}
       {themeDoc && <DossierActions doc={themeDoc} ctx={ctx} user={user} dirty={unsaved} />}
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

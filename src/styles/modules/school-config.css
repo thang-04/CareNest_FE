@@ -1031,3 +1031,8 @@
 .sc-tpick__tools .sc-leader-campus {
   width: auto;
 }
+
+/* Năm học đang hiện ở card "Chuẩn bị năm học" */
+.sc-table-flat tr.is-selected td {
+  background: var(--color-primary-soft);
+}

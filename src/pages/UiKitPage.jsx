@@ -3,6 +3,7 @@ import { Plus, Save, Send, Trash2, Printer, Info, AlertTriangle, CheckCircle2, X
 import * as AppIcons from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { useAiRun } from '@/hooks/useAiRun';
+import { LottiePlayer } from '@/components/ui/LottiePlayer';
 import {
   Breadcrumb,
   Modal,
@@ -38,6 +39,8 @@ import { ROUND_STATUS, SHEET_STATUS } from '@/models/inventory-inspection/inspec
 import { CONDITION_OPTIONS } from '@/models/Asset';
 import './ui-kit.css';
 import { NutritionPrimitivesDemo } from '@/components/ui/NutritionPrimitivesDemo';
+import { Tabs } from '@/components/ui/Tabs';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const COLOR_GROUPS = [
   {
@@ -182,6 +185,7 @@ const NAV = [
   ['alerts', 'Thông báo'],
   ['table', 'Bảng & thẻ'],
   ['states', 'Loading / Empty / Error'],
+  ['tabs', 'Tab & chọn điểm trường'],
   ['flow', 'Tiến trình & phân trang'],
   ['overlays', 'Modal & Toast'],
   ['domain', 'Chữ ký, upload, tài sản'],
@@ -189,15 +193,19 @@ const NAV = [
 ];
 
 /** Living style guide: every shared token / component with a copy-paste snippet. */
+const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
+
 export default function UiKitPage() {
   const toast = useToast();
   const ai = useAiRun();
-  const [aiKind, setAiKind] = useState('sparkle');
+  const [aiKind, setAiKind] = useState('writing');
   const demoAi = (kind) => {
     setAiKind(kind);
     ai.run(() => new Promise((resolve) => setTimeout(resolve, 2400)));
   };
   const [modal, setModal] = useState(false);
+  const [demoTab, setDemoTab] = useState('week');
+  const [demoCampus, setDemoCampus] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [select, setSelect] = useState(null);
   const [condition, setCondition] = useState('GOOD');
@@ -680,7 +688,7 @@ export default function UiKitPage() {
           </div>
           {/* Lớp phủ AI: cả màn khi bấm nút AI; `scoped` khi AI tự chạy trong một card */}
           <div className="grid-3 mt-12">
-            {['cooking', 'sparkle'].map((kind) => (
+            {['cooking', 'writing'].map((kind) => (
               <div key={kind} className="card card__body" style={{ position: 'relative', minHeight: 200 }}>
                 <AiWorkingOverlay scoped kind={kind} text={kind === 'cooking' ? 'Đang nấu thực đơn…' : 'Đang phân tích xu hướng…'} />
               </div>
@@ -689,12 +697,44 @@ export default function UiKitPage() {
               <button className="btn btn--sm" onClick={() => demoAi('cooking')} disabled={ai.running}>
                 Phủ cả màn: nấu
               </button>
-              <button className="btn btn--sm" onClick={() => demoAi('sparkle')} disabled={ai.running}>
-                Phủ cả màn: lấp lánh
+              <button className="btn btn--sm" onClick={() => demoAi('writing')} disabled={ai.running}>
+                Phủ cả màn: viết
               </button>
             </div>
           </div>
+          {/* Đang đọc file Excel (nhập danh sách trẻ, thực phẩm) */}
+          <div className="card card__body row row--center mt-12">
+            <LottiePlayer load={loadDocumentScan} speed={0.6} className="import-reading" />
+            <span className="text-sm muted">Đang đọc file…</span>
+          </div>
           {ai.running && <AiWorkingOverlay kind={aiKind} text={aiKind === 'cooking' ? 'Đang nấu thực đơn…' : 'Đang soạn bản nháp…'} />}
+        </Section>
+
+        <Section
+          id="tabs"
+          title="Tab & chọn điểm trường"
+          code={`<Tabs items={[{ key: 'week', label: 'Phiếu tuần', count: 3 }]} value={tab} onChange={setTab} />\n<CampusFilter campuses={[{ id, name }]} value={campusId} onChange={setCampusId} />`}
+        >
+          <Tabs
+            ariaLabel="Mẫu tab"
+            items={[
+              { key: 'week', label: 'Phiếu tuần', count: 3 },
+              { key: 'month', label: 'Phiếu tháng' },
+              { key: 'sum', label: 'Tổng hợp' },
+            ]}
+            value={demoTab}
+            onChange={setDemoTab}
+          />
+          <div className="mt-12">
+            <CampusFilter
+              campuses={[
+                { id: 'c1', name: 'Campus 1' },
+                { id: 'c2', name: 'Campus 2' },
+              ]}
+              value={demoCampus}
+              onChange={setDemoCampus}
+            />
+          </div>
         </Section>
 
         <Section

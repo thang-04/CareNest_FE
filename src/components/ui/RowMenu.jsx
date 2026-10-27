@@ -14,7 +14,7 @@ const stop = (e) => e.stopPropagation();
 
 /**
  * Nút "…" cuối dòng bảng mở danh sách thao tác (chuẩn hành động hàng, DESIGN §6.4).
- * items: [{ label, icon?, to? | onClick?, danger?, confirm?: { title, message, confirmLabel } }]
+ * items: [{ label, icon?, to? | onClick?, danger?, disabled?, confirm?: { title, message, confirmLabel } }]
  * Mục `danger` có `confirm` thì hỏi lại bằng ConfirmationModal trước khi chạy onClick.
  * Menu render ra body (position: fixed) để không bị khung cuộn của bảng cắt mất.
  */
@@ -112,8 +112,8 @@ export function RowMenu({ label, items }) {
             onKeyDown={onPanelKey}
           >
             {items.map((item) => {
-              const { label: text, to, icon: Icon, danger } = item;
-              const cls = `row-menu__item${danger ? ' row-menu__item--danger' : ''}`;
+              const { label: text, to, icon: Icon, danger, disabled } = item;
+              const cls = `row-menu__item${danger && !disabled ? ' row-menu__item--danger' : ''}`;
               const body = (
                 <>
                   {Icon && <Icon size={16} />} {text}
@@ -124,7 +124,7 @@ export function RowMenu({ label, items }) {
                   {body}
                 </Link>
               ) : (
-                <button key={text} type="button" role="menuitem" className={cls} onClick={() => run(item)}>
+                <button key={text} type="button" role="menuitem" className={cls} disabled={disabled} onClick={() => run(item)}>
                   {body}
                 </button>
               );

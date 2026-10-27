@@ -413,6 +413,30 @@
 .ga-goal-table__del {
   width: 64px;
 }
+/* Cột "Sắp xếp" bảng chủ đề, đợt nghỉ: tay nắm kéo-thả và 2 nút lên/xuống trên 1 hàng */
+.ga-goal-table__sort {
+  width: 132px;
+}
+.ga-sort-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+/* Nút lên/xuống: nhích nhẹ theo hướng khi rê chuột để báo hướng di chuyển */
+.ga-sort-btn {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.ga-sort-btn:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.ga-sort-btn--up:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.ga-sort-btn--down:hover:not(:disabled) {
+  transform: translateY(2px);
+}
 /* Cột "Tháng" bảng chủ đề nhánh: đủ "Tháng 12" trên 1 dòng */
 .ga-col-month {
   width: calc(var(--space-16) * 1.375);
@@ -702,6 +726,31 @@
   border-left: 2px solid var(--color-border);
 }
 
+/* Ô kế hoạch tuần: nhãn MT / "Chưa gắn MT" là nút cùng kiểu, luôn ở góc trái dưới của ô dù hàng cao bao nhiêu (Tiền 20/10).
+   td height: 1px để khối con cao bằng cả ô (table cell không nhận height: 100% nếu không có chiều cao) */
+.table.ga-goal-table td:has(> .ga-act-cell) {
+  height: 1px;
+}
+.ga-act-cell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.ga-act-cell__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: auto;
+  padding: var(--space-2);
+}
+/* Cột Thứ 2–6 hẹp: nút được xuống dòng trong ô thay vì tràn sang ô bên */
+.ga-act-cell__foot .btn {
+  max-width: 100%;
+  height: auto;
+  min-height: var(--btn-height-sm);
+  padding: var(--space-1) var(--space-2);
+  white-space: normal;
+}
 /* Modal duyệt tên chủ đề nhánh AI điền: tuần · tên cũ gạch → tên AI · ✓ ✗ */
 .ga-ai-review {
   display: grid;
@@ -736,4 +785,74 @@
   .ga-ai-review__week {
     grid-column: 1 / -1;
   }
+}
+
+/* Khung gợi ý hoạt động của ô kế hoạch tuần (Tiền 21/10, phương án A) */
+.ga-sug-panel .search-select__list {
+  max-height: 320px;
+}
+.ga-sug-panel {
+  overflow: hidden;
+  border: 1px solid var(--color-primary);
+  box-shadow: var(--shadow-lg);
+}
+/* Thanh đầu khung màu xanh nổi bật (Tiền 21/10) */
+.ga-sug-panel__hint {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  font-weight: var(--fw-semibold);
+}
+.ga-sug {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  border: 1px solid transparent;
+  background: none;
+  text-align: left;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+/* Cách nhau để hai dòng đã chọn (nền xanh lá) không dính viền */
+.ga-sug + .ga-sug {
+  margin-top: var(--space-1);
+}
+.ga-sug:hover {
+  background: var(--color-primary-soft);
+}
+.ga-sug--on,
+.ga-sug--on:hover {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+.ga-sug__mt {
+  flex: none;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-full);
+  color: var(--color-primary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  line-height: 20px;
+}
+.ga-sug__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.ga-sug__type {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.ga-sug__text {
+  color: var(--color-text);
+  font-weight: var(--fw-semibold);
+}
+.ga-sug__check {
+  flex: none;
+  color: var(--color-success-fg);
 }

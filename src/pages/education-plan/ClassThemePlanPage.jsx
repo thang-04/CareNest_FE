@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { FileDown, Printer, Save } from '@/components/ui/icons';
 import { Card, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useManualSave } from '@/hooks/education-plan/useManualSave';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import {
@@ -33,7 +36,6 @@ export default function ClassThemePlanPage() {
 
 function ThemePlanInner() {
   const { classId, themeId } = useParams();
-  const navigate = useNavigate();
   const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, toast } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, isClassTeacher } = ctx;
@@ -42,8 +44,27 @@ function ThemePlanInner() {
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
 
+  // Lưu tay (nút Lưu, Ctrl+S). Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
+  const saver = useManualSave({
+    doc: draft,
+    enabled: isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT),
+    save: (doc) => {
+      const gs = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId).flatMap((b) => b.goals);
+      return saveClassDoc('theme', { ...doc, rows: Object.fromEntries(gs.map((g) => [g.id, themeRowOf(doc, g)])) });
+    },
+    onSaved: (same) => same && setDirty(false),
+  });
+
+  const guard = useLeaveGuard({
+    when: isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT) && saver.unsaved,
+    onSave: saver.save,
+  });
+
   useEffect(() => {
-    if (!dirty && yearPlan) setDraft(saved || emptyThemePlan({ classId, yearPlanId: yearPlan.id, themeId }));
+    if (dirty || !yearPlan) return;
+    const doc = saved || emptyThemePlan({ classId, yearPlanId: yearPlan.id, themeId });
+    setDraft(doc);
+    saver.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.status, saved?.history?.length, yearPlan?.id, classId, themeId]);
 
@@ -70,7 +91,6 @@ function ThemePlanInner() {
   }
   const numbers = numberGoals(yearPlan.domains);
   const blocks = themeGoalBlocks(yearPlan.domains, numbers, themeId);
-  const goals = blocks.flatMap((b) => b.goals);
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const weeks = yearWeeks(yearPlan).filter((w) => w.type === 'week' && w.theme.id === themeId);
   // Nội dung lấy nguyên từ kế hoạch năm (không sửa); giáo viên viết hoạt động giáo dục
@@ -82,15 +102,6 @@ function ThemePlanInner() {
   const setField = (field, value) => {
     setDraft((d) => ({ ...d, [field]: value }));
     setDirty(true);
-  };
-  const save = async () => {
-    // Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
-    const res = await saveClassDoc('theme', { ...draft, rows: Object.fromEntries(goals.map((g) => [g.id, rowOf(g)])) });
-    if (res) {
-      setDirty(false);
-      setDraft(res);
-      toast('Đã lưu kế hoạch chủ đề');
-    }
   };
   // Hồ sơ chủ đề như file của trường: kế hoạch chủ đề rồi từng tuần nhánh đã soạn (kèm khung duyệt của tuần)
   const exportArgs = {
@@ -130,9 +141,18 @@ function ThemePlanInner() {
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
             {editable && (
-              <button type="button" className="btn btn--primary" disabled={!dirty && !!saved} onClick={save}>
-                <Save size={16} aria-hidden /> {dirty || !saved ? 'Lưu' : 'Đã lưu'}
-              </button>
+              <>
+                <span className="muted text-sm">{saver.label}</span>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  onClick={saver.save}
+                  disabled={saver.saving || (!saver.unsaved && !saver.error)}
+                  title="Lưu (Ctrl+S)"
+                >
+                  <Save size={16} aria-hidden /> Lưu
+                </button>
+              </>
             )}
           </>
         }
@@ -143,9 +163,9 @@ function ThemePlanInner() {
         doc={saved}
         ctx={ctx}
         user={user}
-        dirty={dirty}
+        dirty={saver.unsaved || saver.saving}
         reviewTo={`${base}/themes/${themeId}/review`}
-        onGo={navigate}
+        onGo={guard.leave}
       />
       <Card title="Chủ đề nhánh" bodyClass={null}>
         <div className="card__body">
@@ -165,6 +185,7 @@ function ThemePlanInner() {
         </div>
       </Card>
       <ThemePlanBody yearPlan={yearPlan} themeId={themeId} draft={draft} editable={editable} setRow={setRow} setField={setField} />
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

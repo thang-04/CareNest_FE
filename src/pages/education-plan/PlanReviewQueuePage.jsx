@@ -65,17 +65,7 @@ export default function PlanReviewQueuePage() {
 
   return (
     <div className="page ga-page">
-      <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Duyệt kế hoạch, giáo án' }]}
-        title="Duyệt kế hoạch, giáo án"
-        desc={
-          isVp
-            ? 'Tài liệu của các lớp đang chờ Phó hiệu trưởng duyệt, và kế hoạch năm chờ ban hành.'
-            : user.role === ROLES.PRINCIPAL
-              ? 'Tài liệu của các lớp đang chờ Hiệu trưởng duyệt (theo cấu hình người ký).'
-              : 'Chủ đề nhánh và kế hoạch giáo dục chủ đề của các lớp trong khối chờ tổ trưởng duyệt. Tài liệu bạn duyệt chuyển tiếp tới Phó hiệu trưởng.'
-        }
-      />
+      <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Duyệt kế hoạch, giáo án' }]} title="Duyệt kế hoạch, giáo án" />
       <Card bodyClass={null}>
         {items.length === 0 ? (
           <EmptyState title="Không có tài liệu chờ duyệt" desc="Khi giáo viên gửi kế hoạch hoặc giáo án, tài liệu sẽ hiện ở đây." />
