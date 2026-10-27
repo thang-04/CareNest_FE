@@ -5,7 +5,7 @@
  */
 import { DOMAINS, STANDARD_DOMAINS, setDomainLabelOverrides, setDomains } from '@/models/education-plan/educationPlanConstants';
 
-export const SIGN_ROLES = { TEAM_LEADER: 'Tổ trưởng', VICE_PRINCIPAL: 'Phó Hiệu trưởng', PRINCIPAL: 'Hiệu trưởng' };
+export const SIGN_ROLES = { TEAM_LEADER: 'Tổ trưởng', VICE_PRINCIPAL: 'Phó hiệu trưởng', PRINCIPAL: 'Hiệu trưởng' };
 
 /** Trạng thái chờ của từng vai trò duyệt. */
 export const PENDING_OF = { TEAM_LEADER: 'PENDING_TL', VICE_PRINCIPAL: 'PENDING_VP', PRINCIPAL: 'PENDING_HT' };

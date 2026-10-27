@@ -29,9 +29,12 @@ export function SchoolYearProvider({ children }) {
   const [schoolYear, setChosenYear] = useState(DEFAULT_SCHOOL_YEAR);
   // Người dùng tự chọn năm ở header thì giữ; chưa chọn thì luôn theo năm đang hoạt động (kể cả sau khi chuyển năm)
   const picked = useRef(false);
+  const optionsRef = useRef(schoolYears);
+  optionsRef.current = schoolYears;
+  // Ô chọn ở header trả id dạng chuỗi; giữ đúng kiểu id của danh sách năm (BE: số) để các màn so khớp được
   const setSchoolYear = useCallback((id) => {
     picked.current = true;
-    setChosenYear(id);
+    setChosenYear(optionsRef.current.find((o) => String(o.id) === String(id))?.id ?? id);
   }, []);
 
   useEffect(() => {

@@ -37,10 +37,10 @@ keywords:
     {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/children/]}   # người nhập PENDING ở BE; user chốt GV phụ trách lớp, đợt khám (PROPOSED)
   "quan sát|observation|tiêu chí|criteria|nhận xét|summary|đánh giá|assessment|phát triển|development profile":
     {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/assessment/]}
-  "kế hoạch giáo dục|education plan|kế hoạch năm|kế hoạch chủ đề|kế hoạch tuần":
-    {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: [docs/architecture/ROUTE_MAP.md], fe_code: [src/services/education-plan/]}
-  "hoạt động|activity|giáo án|gokids":
-    {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: []}   # ADR-0006 OPEN — không làm màn hình
+  "kế hoạch giáo dục|education plan|kế hoạch năm|mục tiêu năm|kế hoạch chủ đề|chủ đề nhánh|kế hoạch tuần|kế hoạch ngày|giáo án|hồ sơ chủ đề":
+    {be_module_card: ../CareNest_BE/docs/modules/education-plan.md, fe_docs: [docs/architecture/ROUTE_MAP.md, ../CareNest_BE/docs/business/flows/education-plan.md], fe_code: [src/services/education-plan/]}   # rule EDU-01..22
+  "hoạt động|activity|gokids":
+    {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: []}   # ADR-0006 ACCEPTED: ngữ cảnh = giáo án đã duyệt, không import GoKids
   "cơ sở vật chất|csvc|thiết bị|sự cố|facility|hỏng|thiếu":
     {be_module_card: ../CareNest_BE/docs/modules/facility-issue.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/facility/]}   # màn CSVC đang ẩn sau feature flag
   "tài sản|asset|khấu hao|bảo trì|kiểm kê|luân chuyển":

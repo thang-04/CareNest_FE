@@ -6,7 +6,6 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/components/education-plan/eduUi';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
-import { useClasses } from '@/hooks/useSchool';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { clickableRowProps } from '@/utils/clickableRow';
 
@@ -29,8 +28,7 @@ export function GoalsEntry() {
 }
 
 export default function GoalListPage() {
-  const { goals, schoolYear, role, user } = useEducationPlan();
-  const { classes } = useClasses();
+  const { goals, schoolYear, role, user, classes } = useEducationPlan();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [age, setAge] = useState('');

@@ -56,11 +56,17 @@ export const classPlanMockRepository = {
     // Bộ demo cũ: nạp bộ demo hiện hành (kế hoạch năm + bản nháp của lớp) trước khi đọc
     if (db.eduSeedVersion !== EDU_SEED_VERSION) writeDb(ensureEduDemo);
     if (Object.values(COLLECTIONS).some((key) => !readDb()[key])) writeDb(ensureCollections);
+    ensureSchoolSeeded();
     const fresh = readDb();
     return {
       branchPlans: clone(fresh.eduClassBranch),
       classThemePlans: clone(fresh.eduClassTheme),
       weekPlans: clone(fresh.eduClassWeek),
+      // Lớp và giáo viên, tổ trưởng (giống GET /education-plans/class-docs của BE)
+      classes: clone(fresh.classes || []),
+      staff: (fresh.users || [])
+        .filter((u) => u.role === ROLES.TEACHER || u.role === ROLES.TEAM_LEADER)
+        .map((u) => ({ id: u.id, fullName: u.fullName, role: u.role, ageGroupId: u.ageGroupId })),
     };
   },
 

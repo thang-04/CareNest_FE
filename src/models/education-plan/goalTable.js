@@ -102,11 +102,17 @@ const mondayOf = (iso) => {
   return addDays(iso, day === 0 ? -6 : 1 - day);
 };
 
+/** Thứ Hai của tuần học đầu tiên: bắt đầu vào Thứ 7 / Chủ nhật thì tính từ Thứ Hai kế tiếp. */
+export const firstTeachingMonday = (iso) => {
+  const day = toDate(iso).getUTCDay();
+  return day === 6 ? addDays(iso, 2) : day === 0 ? addDays(iso, 1) : mondayOf(iso);
+};
+
 /** Số tuần học (Thứ 2 → Thứ 6) của chủ đề, bỏ các tuần trùng đợt nghỉ. */
 export const weekCount = (theme, breaks = []) => {
   if (!theme.start || !theme.end || theme.end < theme.start) return 0;
   let n = 0;
-  for (let m = mondayOf(theme.start); m <= theme.end; m = addDays(m, 7)) {
+  for (let m = firstTeachingMonday(theme.start); m <= theme.end; m = addDays(m, 7)) {
     const fri = addDays(m, 4);
     if (!breaks.some((b) => b.start && b.end && m <= b.end && fri >= b.start)) n += 1;
   }

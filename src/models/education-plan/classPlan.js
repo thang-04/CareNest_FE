@@ -47,6 +47,11 @@ export const mondayOf = (iso) => {
   const day = toDate(iso).getUTCDay();
   return addDays(iso, day === 0 ? -6 : 1 - day);
 };
+/** Thứ Hai của tuần học đầu tiên: bắt đầu vào Thứ 7 / Chủ nhật thì tính từ Thứ Hai kế tiếp. */
+const firstTeachingMonday = (iso) => {
+  const day = toDate(iso).getUTCDay();
+  return day === 6 ? addDays(iso, 2) : day === 0 ? addDays(iso, 1) : mondayOf(iso);
+};
 export const ddmm = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 export const monthOf = (iso) => Number(iso.slice(5, 7));
 export const todayIso = () => {
@@ -71,7 +76,7 @@ export const yearWeeks = (plan) => {
   const rows = [];
   let no = 0;
   themes.forEach((t) => {
-    for (let m = mondayOf(t.start); m <= t.end; m = addDays(m, 7)) {
+    for (let m = firstTeachingMonday(t.start); m <= t.end; m = addDays(m, 7)) {
       const br = breaks.find((b) => b.start && m <= (b.end || b.start) && addDays(m, 4) >= b.start);
       if (br) {
         if (!rows.some((r) => r.type === 'break' && r.start === br.start))

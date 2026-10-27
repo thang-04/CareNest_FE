@@ -33,12 +33,14 @@ export const buildRefs = (config) => {
   };
 };
 
-/** Cấu hình BE → dạng cấu hình của UI (eduConfig.js); phần BE chưa có (người ký, dòng tuần) lấy mặc định ở withDefaults. */
+/** Cấu hình BE (GET/PUT /education-plans/config) → dạng cấu hình của UI (eduConfig.js). */
 export const toUiEduConfig = (config) => {
   const domains = config?.domains || [];
   return {
     domainLabels: Object.fromEntries(domains.filter((d) => d.displayLabel).map((d) => [d.name, d.displayLabel])),
-    extraDomains: domains.map((d) => d.name),
+    extraDomains: domains.filter((d) => !d.standard).map((d) => d.name),
+    ...(config?.signers ? { signers: config.signers } : {}),
+    ...(config?.weekRows ? { weekRows: config.weekRows } : {}),
   };
 };
 

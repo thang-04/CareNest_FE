@@ -57,15 +57,14 @@ export function EducationPlanProvider({ children }) {
     () =>
       Promise.all([
         service.getEducationPlans(),
-        // BE chưa có API tài liệu của lớp (404): màn mục tiêu năm vẫn dùng được, các màn của lớp hiện trống
-        service.getClassPlans().catch((err) => (err.status === 404 ? {} : Promise.reject(err))),
+        service.getClassPlans(yearId),
         service.getEduConfig(),
       ]).then(([plans, classDocs, eduConfig]) => {
         // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
         applyEduConfig(eduConfig);
         return { ...plans, ...classDocs, eduConfig };
       }),
-    [],
+    [yearId],
     { refreshOnDataChange: true },
   );
 
@@ -124,6 +123,9 @@ export function EducationPlanProvider({ children }) {
       branchPlans: data?.branchPlans || [],
       classThemePlans: data?.classThemePlans || [],
       weekPlans: data?.weekPlans || [],
+      // Lớp, giáo viên và tổ trưởng của năm đang chọn (cùng nguồn với tài liệu của lớp)
+      classes: data?.classes || [],
+      staff: data?.staff || [],
       eduConfig: withDefaults(data?.eduConfig),
       saveEduConfig: async (cfg) => {
         try {
@@ -137,7 +139,12 @@ export function EducationPlanProvider({ children }) {
         }
       },
       saveClassDoc: classCall(service.saveClassDoc),
-      actOnClassDoc: classCall(service.actOnClassDoc),
+      // Gửi / duyệt hồ sơ chủ đề đổi trạng thái cả giáo án các tuần: nạp lại để các tuần không giữ trạng thái cũ
+      actOnClassDoc: async (kind, ...args) => {
+        const saved = await classCall(service.actOnClassDoc)(kind, ...args);
+        if (saved && kind === 'theme') reload({ silent: true });
+        return saved;
+      },
       role: user.role,
       user,
       toast,

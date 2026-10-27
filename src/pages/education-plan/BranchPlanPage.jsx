@@ -4,7 +4,8 @@ import { Check, FileDown, Lightbulb, Printer, Save, Wand2, X } from '@/component
 import { exportBranchFile } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
 import { Card, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
-import { Cell, SignPanel, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import { Cell, docReview, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { Modal } from '@/components/ui/Modal';
@@ -41,7 +42,7 @@ export function BranchPlanLegacyRedirect() {
 }
 
 function BranchPlanInner({ classId }) {
-  const { user, branchPlans, saveClassDoc, actOnClassDoc, toast } = useEducationPlan();
+  const { user, branchPlans, saveClassDoc, actOnClassDoc, toast, eduConfig } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, teachers, isClassTeacher } = ctx;
   const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null : null;
@@ -226,18 +227,21 @@ function BranchPlanInner({ classId }) {
       confirmLabel: 'Dùng AI viết lại',
       run: () => rewrite(r),
     });
-  // Chỉ nhắc khi gửi (thông báo nhỏ ở góc), không hiện sẵn trên trang
-  const act = (action, body) => {
-    if (action === 'submit' && pendingWeeks.length) {
+  // Chưa đủ điều kiện gửi: chỉ nhắc ở góc màn hình khi bấm, không mở hộp gửi
+  const checkBeforeOpen = (action) => {
+    if (action !== 'submit') return true;
+    if (pendingWeeks.length) {
       toast(`Còn ${pendingWeeks.length} tên do AI điền chưa giữ hoặc bỏ. Bấm ✓ / ✗ hoặc "Giữ tất cả" trước khi gửi.`, 'warn');
-      return null;
+      return false;
     }
-    if (action === 'submit' && empty > 0) {
+    if (empty > 0) {
       toast(`Còn ${empty} tuần chưa đặt tên chủ đề nhánh. Đặt tên đủ các tuần rồi mới gửi duyệt.`, 'warn');
-      return null;
+      return false;
     }
-    return actOnClassDoc('branch', draft.id, { action, ...body });
+    return true;
   };
+  const act = (action, note) => actOnClassDoc('branch', draft.id, { action, note });
+  const review = docReview('branch', saved, ctx, user, eduConfig);
   // Ô tháng và ô chủ đề gộp các dòng liên tiếp cùng tháng / cùng chủ đề như bảng của trường
   const spanFrom = (i, same) => {
     let n = 1;
@@ -294,9 +298,23 @@ function BranchPlanInner({ classId }) {
                 </button>
               </>
             )}
+            <ReviewActions
+              name="chủ đề nhánh"
+              sendTo={review.sendTo}
+              can={review.can}
+              sendBlocked={saver.unsaved || saver.saving ? 'Lưu trước khi gửi' : null}
+              beforeOpen={checkBeforeOpen}
+              notes={{ submit: 'Chủ đề nhánh sẽ bị khóa cho tới khi được duyệt hoặc bị trả lại.' }}
+              onAct={act}
+            />
           </>
         }
       />
+      {status === EDU_STATUS.REJECTED && (
+        <div className="mb-16">
+          <RejectedNotice status={status} history={saved?.history} />
+        </div>
+      )}
       <Card
         title="Chủ đề nhánh"
         bodyClass={null}
@@ -489,7 +507,7 @@ function BranchPlanInner({ classId }) {
         onClose={() => setConfirm(null)}
       />
       {/* Ký, gửi, duyệt ngay cuối trang như trang mục tiêu năm; không mở hộp thoại */}
-      <SignPanel kind="branch" doc={saved} ctx={ctx} user={user} dirty={saver.unsaved || saver.saving} onAct={act} />
+      <ReviewHistory items={saved?.history} />
       {/* AI xong ⇒ tên AI điền mở trong modal để giữ/bỏ; đóng modal thì ✓/✗ cạnh từng ô vẫn còn (user chốt) */}
       <Modal
         open={showPending && editable && pendingWeeks.length > 0}

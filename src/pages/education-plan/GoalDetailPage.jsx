@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check, FileDown, Pencil, Printer, Send, Trash2, Undo2 } from '@/components/ui/icons';
+import { FileDown, Pencil, Printer, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
 import { goalIdsToTicks, numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
-import { Card, YearPlanStatusBadge, Field, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, YearPlanStatusBadge, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { StatusPage } from '@/components/ui/StatusPage';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -23,8 +24,6 @@ export default function GoalDetailPage() {
   const { goals, themes: themePlans, user, saveGoal, deleteGoal, toast } = useEducationPlan();
   const navigate = useNavigate();
   const [modal, setModal] = useState(null);
-  const [note, setNote] = useState('');
-  const [tried, setTried] = useState(false);
   const [tab, setTab] = useState('goals');
   const found = goals.find((x) => x.id === id);
   // Giáo viên chỉ xem kế hoạch năm đã ban hành
@@ -66,7 +65,7 @@ export default function GoalDetailPage() {
   const plan = { ...g, domains, themes };
   const history = g.history || [];
   const now = () => new Date().toISOString().slice(0, 10);
-  const log = (action, extra) => [...history, { at: now(), by: user.name, action, note: extra || undefined }];
+  const log = (action, extra, tone) => [...history, { at: now(), by: user.name, action, note: extra || undefined, tone }];
   const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: now() };
   // Phó HT và tổ trưởng cùng soạn, mỗi lúc một người (BE:EDU-03, EDU-10); Phó HT duyệt, trả lại hoặc tự sửa khi đang chờ
   const isOwner = !g.owner || g.owner.userId === user.id;
@@ -83,25 +82,23 @@ export default function GoalDetailPage() {
   const canReturn = perm ? perm.canReturn : isVp && pending;
   const canDelete = perm ? perm.canDelete : isVp && !lockedByOther && (g.status === EDU_STATUS.DRAFT || g.editingFrom === EDU_STATUS.DRAFT);
 
-  const open = (kind) => {
-    setNote('');
-    setTried(false);
-    setModal(kind);
-  };
-  const act = () => {
-    setTried(true);
-    if (modal === 'reject') {
-      if (!note.trim()) return;
-      saveGoal({ ...g, status: EDU_STATUS.REJECTED, history: log('Trả lại để sửa', note.trim()) });
-      toast('Đã trả lại kế hoạch cho tổ trưởng');
-    } else if (modal === 'issue') {
-      saveGoal({ ...g, status: EDU_STATUS.APPROVED, issued: me, history: log('Ban hành', note.trim()) });
-      toast('Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
-    } else if (modal === 'send') {
-      saveGoal({ ...g, status: EDU_STATUS.PENDING_VP, sentAt: now(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt', note.trim()) });
-      toast('Đã gửi Phó hiệu trưởng duyệt');
-    }
-    setModal(null);
+  // Gửi / trả lại / ban hành theo mẫu chung (reviewUi); service quyết định trạng thái
+  const act = async (action, note) => {
+    const next = {
+      submit: { ...g, status: EDU_STATUS.PENDING_VP, sentAt: now(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt', note) },
+      reject: { ...g, status: EDU_STATUS.REJECTED, history: log('Trả lại để sửa', note, 'err') },
+      approve: { ...g, status: EDU_STATUS.APPROVED, issued: me, history: log('Ban hành', note) },
+    }[action];
+    const saved = await saveGoal(next);
+    if (saved)
+      toast(
+        {
+          submit: 'Đã gửi Phó hiệu trưởng duyệt',
+          reject: 'Đã trả lại kế hoạch cho tổ trưởng',
+          approve: 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.',
+        }[action],
+      );
+    return saved;
   };
 
   return (
@@ -133,30 +130,25 @@ export default function GoalDetailPage() {
                 <Pencil size={16} aria-hidden /> {pending ? 'Sửa trước khi duyệt' : 'Chỉnh sửa'}
               </Link>
             )}
-            {canSend && (
-              <button className="btn btn--primary" onClick={() => open('send')}>
-                <Send size={16} aria-hidden /> Gửi Phó HT duyệt
-              </button>
-            )}
-            {canReturn && (
-              <button className="btn btn--outline-primary" onClick={() => open('reject')}>
-                <Undo2 size={16} aria-hidden /> Trả lại
-              </button>
-            )}
-            {canIssue && (
-              <button className="btn btn--primary" onClick={() => open('issue')}>
-                <Check size={16} aria-hidden /> Ban hành
-              </button>
-            )}
+            <ReviewActions
+              name="kế hoạch năm học"
+              sendTo="Phó HT"
+              approveLabel="Ban hành"
+              size=""
+              can={{ send: canSend, reject: canReturn, approve: canIssue }}
+              notes={{
+                submit: 'Kế hoạch sẽ bị khóa cho tới khi Phó hiệu trưởng ban hành hoặc trả lại.',
+                approve: `Kế hoạch có ${Object.keys(numbers).length} mục tiêu, ${themes.length} chủ đề. ${ISSUE_NOTE}`,
+              }}
+              onAct={act}
+            />
           </>
         }
       />
 
-      {g.status === EDU_STATUS.REJECTED && history.at(-1)?.note && (
+      {g.status === EDU_STATUS.REJECTED && (
         <div className="mb-16">
-          <Notice tone="err">
-            Bị trả lại ({history.at(-1).by}, {fmtDate(history.at(-1).at)}): {history.at(-1).note}
-          </Notice>
+          <RejectedNotice status={g.status} history={history} />
         </div>
       )}
       {lockedByOther && (
@@ -204,38 +196,9 @@ export default function GoalDetailPage() {
         </div>
       </Card>
 
-      {(modal === 'send' || modal === 'reject' || modal === 'issue') && (
-        <Modal
-          title={
-            {
-              send: 'Gửi Phó hiệu trưởng duyệt',
-              reject: 'Trả lại kế hoạch',
-              issue: 'Ban hành kế hoạch năm học',
-            }[modal]
-          }
-          onClose={() => setModal(null)}
-          footer={
-            <>
-              <button className="btn" onClick={() => setModal(null)}>
-                Hủy
-              </button>
-              <button className="btn btn--primary" onClick={act}>
-                Xác nhận
-              </button>
-            </>
-          }
-        >
-          {modal === 'send' && <p>Kế hoạch sẽ bị khóa cho tới khi Phó hiệu trưởng ban hành hoặc trả lại.</p>}
-          {modal === 'issue' && <p>{`Kế hoạch có ${Object.keys(numbers).length} mục tiêu, ${themes.length} chủ đề. ${ISSUE_NOTE}`}</p>}
-          <Field
-            label={modal === 'reject' ? 'Lý do trả lại' : 'Ghi chú'}
-            required={modal === 'reject'}
-            error={tried && modal === 'reject' && !note.trim() ? 'Vui lòng ghi lý do' : undefined}
-          >
-            <textarea className="textarea" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
-          </Field>
-        </Modal>
-      )}
+      <div className="mt-16">
+        <ReviewHistory items={history} />
+      </div>
 
       {modal === 'delete' && (
         <Modal
