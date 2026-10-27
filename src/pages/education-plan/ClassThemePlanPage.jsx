@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { FileDown, Printer, Save } from '@/components/ui/icons';
-import { Card, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { Card, DraftRecoveryNotice, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
@@ -53,6 +53,11 @@ function ThemePlanInner() {
       return saveClassDoc('theme', { ...doc, rows: Object.fromEntries(gs.map((g) => [g.id, themeRowOf(doc, g)])) });
     },
     onSaved: (same) => same && setDirty(false),
+    backup: { userId: user?.id, key: yearPlan && `theme:${classId}:${yearPlan.id}:${themeId}` },
+    onRestore: (doc) => {
+      setDraft(doc);
+      setDirty(true);
+    },
   });
 
   const guard = useLeaveGuard({
@@ -157,6 +162,7 @@ function ThemePlanInner() {
           </>
         }
       />
+      {editable && saver.recovery && <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />}
       {/* Gửi / duyệt cả hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) ở trang hồ sơ */}
       <DocStatusStrip
         kind="theme"
@@ -185,7 +191,13 @@ function ThemePlanInner() {
         </div>
       </Card>
       <ThemePlanBody yearPlan={yearPlan} themeId={themeId} draft={draft} editable={editable} setRow={setRow} setField={setField} />
-      <LeaveConfirmModal {...guard.modal} />
+      <LeaveConfirmModal
+        {...guard.modal}
+        onDiscard={() => {
+          saver.discardBackup();
+          guard.modal.onDiscard();
+        }}
+      />
     </div>
   );
 }

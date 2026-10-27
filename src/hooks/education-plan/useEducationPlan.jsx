@@ -55,15 +55,13 @@ export function EducationPlanProvider({ children }) {
   // Kế hoạch năm, chủ đề, giáo án cũ và tài liệu của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần) tải một lần
   const { data, setData, loading, error, reload } = useAsync(
     () =>
-      Promise.all([
-        service.getEducationPlans(),
-        service.getClassPlans(yearId),
-        service.getEduConfig(),
-      ]).then(([plans, classDocs, eduConfig]) => {
-        // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
-        applyEduConfig(eduConfig);
-        return { ...plans, ...classDocs, eduConfig };
-      }),
+      Promise.all([service.getEducationPlans(), service.getClassPlans(yearId), service.getEduConfig()]).then(
+        ([plans, classDocs, eduConfig]) => {
+          // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
+          applyEduConfig(eduConfig);
+          return { ...plans, ...classDocs, eduConfig };
+        },
+      ),
     [yearId],
     { refreshOnDataChange: true },
   );
@@ -154,10 +152,10 @@ export function EducationPlanProvider({ children }) {
       setYear: (label) => setSchoolYear(schoolYears.find((y) => yearName(y.id) === fromEduYear(label))?.id ?? fromEduYear(label)),
       historyEntry: (action, extra = {}) => ({ action, by: user.name, role: ROLE_LABELS[user.role], at: now(), tone: '', ...extra }),
       // Trả bản đã lưu (API thật: id do BE cấp, thay bản tạm cùng id cũ); lỗi thì báo, nạp lại và trả null
-      saveGoal: async (item) => {
-        setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, item) } : prev));
+      saveGoal: async (item, options = {}) => {
+        if (!options.silent) setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, item) } : prev));
         try {
-          const res = await service.saveGoal(item);
+          const res = await service.saveGoal(item, options);
           const saved = res?.id ? res : item;
           setData((prev) =>
             prev
@@ -172,33 +170,42 @@ export function EducationPlanProvider({ children }) {
           );
           return saved;
         } catch (err) {
+          if (options.silent) throw err;
           toastApi.error(err.message, 'Không lưu được');
           reload({ silent: true });
           return null;
         }
       },
       // Khóa "Đang sửa" (BE:EDU-10): trả kế hoạch mới nhất; người khác đang giữ khóa thì trả null, không báo lỗi
-      startEditingGoal: async (id) => {
+      startEditingGoal: async (id, edit, strict = false) => {
         try {
-          const goal = await service.startEditingGoal(id, actor);
+          const goal = await service.startEditingGoal(id, actor, edit);
           setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
           return goal;
         } catch (err) {
+          if (strict) throw err;
           if (err.status !== 409) toastApi.error(err.message, 'Không mở được trang soạn');
           reload({ silent: true });
           return null;
         }
       },
+      heartbeatGoal: (id, edit) => service.heartbeatGoal(id, edit, actor),
       // Thoát trang soạn; lỗi mạng thì để BE tự nhả khóa sau thời hạn
       finishEditingGoal: async (id, opts) => {
         try {
-          const goal = await service.finishEditingGoal(id, actor, opts);
-          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
+          await service.finishEditingGoal(id, actor, opts);
         } catch {
           reload({ silent: true });
         }
       },
-      deleteGoal: deleteIn('goals', service.deleteGoal),
+      deleteGoal: async (id) => {
+        try {
+          await service.deleteGoal(id, data?.goals.find((goal) => goal.id === id)?.revision);
+          setData((prev) => (prev ? { ...prev, goals: prev.goals.filter((goal) => goal.id !== id) } : prev));
+        } catch (error) {
+          toastApi.error(error.message, 'Không xóa được');
+        }
+      },
       saveTheme: saveIn('themes', service.saveTheme),
       deleteTheme: deleteIn('themes', service.deleteTheme),
       saveLesson: saveIn('lessons', service.saveLesson),

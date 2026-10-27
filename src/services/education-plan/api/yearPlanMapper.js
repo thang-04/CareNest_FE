@@ -80,6 +80,8 @@ export const toUiGoal = (detail, refs) => {
   });
   return {
     id: String(detail.id),
+    revision: detail.revision ?? 0,
+    editExpiresAt: detail.editExpiresAt,
     code: detail.code,
     schoolYear: toYearLabel(detail.schoolYearName),
     ageGroupId: refs.ageGroupCode(detail.ageGroupId),

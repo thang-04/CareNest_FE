@@ -28,14 +28,27 @@ const remember = (detail, refs) => {
 const bodyKey = (goal, refs) => JSON.stringify(toYearPlanRequest(goal, refs));
 const fetchGoal = async (id, refs) => remember(await axiosClient.get(`${GOALS}/${id}`), refs);
 
-const runSteps = async (goal, refs) => {
+const editHeaders = (edit) => ({
+  'X-Edit-Session': edit.sessionId,
+  'X-Plan-Revision': String(edit.revision ?? 0),
+  'X-Request-Id': edit.requestId || crypto.randomUUID(),
+});
+
+const runSteps = async (goal, refs, edit, forceSave = false) => {
   let id = serverId(goal.id);
   let detail = null;
   const prev = id == null ? null : known.get(String(id));
-  for (const step of planSteps(prev, goal, !prev || prev.body !== bodyKey(goal, refs))) {
-    if (step.call === 'create') detail = await axiosClient.post(GOALS, toYearPlanRequest(goal, refs));
-    else if (step.call === 'update') detail = await axiosClient.put(`${GOALS}/${id}`, toYearPlanRequest(goal, refs));
-    else detail = await axiosClient.post(`${GOALS}/${id}/${step.call}`, { note: step.note });
+  for (const step of planSteps(prev, goal, forceSave || !prev || prev.body !== bodyKey(goal, refs))) {
+    if (step.call === 'create') detail = await axiosClient.post(GOALS, toYearPlanRequest(goal, refs), { headers: editHeaders(edit) });
+    else if (step.call === 'update')
+      detail = await axiosClient.put(`${GOALS}/${id}`, toYearPlanRequest(goal, refs), { headers: editHeaders(edit) });
+    else
+      detail = await axiosClient.post(
+        `${GOALS}/${id}/${step.call}`,
+        { note: step.note },
+        { headers: editHeaders({ ...edit, requestId: crypto.randomUUID() }) },
+      );
+    edit.revision = detail.revision;
     id = detail.id;
     remember(detail, refs);
   }
@@ -51,25 +64,52 @@ export const educationPlanApi = {
     return { goals, themes: [], lessons: [] };
   },
   // Trả kế hoạch đã lưu (id do BE cấp) để trang lập kế hoạch dùng tiếp id thật
-  saveGoal: async (item) => {
+  saveGoal: async (item, options = {}) => {
     const refs = buildRefs(await loadConfig());
-    const detail = await runSteps(item, refs);
-    return detail ? toUiGoal(detail, refs) : item;
+    const explicit = options.edit;
+    const edit = explicit
+      ? { ...explicit }
+      : { sessionId: crypto.randomUUID(), revision: item.revision ?? 0, requestId: crypto.randomUUID() };
+    const id = serverId(item.id);
+    let acquired = false;
+    try {
+      if (!explicit && id != null) {
+        const current = await axiosClient.post(`${GOALS}/${id}/start-editing`, null, { headers: editHeaders(edit) });
+        acquired = true;
+        if ((item.revision ?? 0) !== (current.revision ?? 0)) {
+          throw Object.assign(new Error('Kế hoạch đã thay đổi. Hãy tải lại và xem nội dung mới trước khi thao tác.'), { status: 409 });
+        }
+        remember(current, refs);
+      }
+      const detail = await runSteps(item, refs, edit, !!options.silent);
+      return detail ? toUiGoal(detail, refs) : item;
+    } finally {
+      if (acquired) await axiosClient.post(`${GOALS}/${id}/finish-editing`, null, { headers: editHeaders(edit) }).catch(() => {});
+    }
   },
-  // BE:EDU-10 — vào trang soạn lấy khóa "Đang sửa"; thoát trang nhả khóa (về Nháp / Bị trả lại)
-  startEditingGoal: async (id) => {
+  startEditingGoal: async (id, edit) => {
     const refs = buildRefs(await loadConfig());
-    return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/start-editing`), refs);
+    return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/start-editing`, null, { headers: editHeaders(edit) }), refs);
   },
-  // keepalive: request vẫn gửi đi khi đóng tab (axios dùng fetch adapter)
-  finishEditingGoal: async (id, { keepalive = false } = {}) => {
+  heartbeatGoal: async (id, edit) => {
     const refs = buildRefs(await loadConfig());
-    const options = keepalive ? { adapter: 'fetch', fetchOptions: { keepalive: true } } : undefined;
-    return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/finish-editing`, null, options), refs);
+    return toUiGoal(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/editing-heartbeat`, null, { headers: editHeaders(edit) }), refs);
   },
-  deleteGoal: async (id) => {
-    await axiosClient.delete(`${GOALS}/${serverId(id) ?? id}`);
-    known.delete(String(id));
+  finishEditingGoal: async (id, { keepalive = false, edit } = {}) => {
+    const options = { headers: editHeaders(edit), ...(keepalive ? { adapter: 'fetch', fetchOptions: { keepalive: true } } : {}) };
+    return axiosClient.post(`${GOALS}/${serverId(id) ?? id}/finish-editing`, null, options);
+  },
+  deleteGoal: async (id, revision) => {
+    const edit = { sessionId: crypto.randomUUID(), revision: revision ?? 0 };
+    const current = await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/start-editing`, null, { headers: editHeaders(edit) });
+    try {
+      if (edit.revision !== current.revision)
+        throw Object.assign(new Error('Kế hoạch đã thay đổi. Hãy xem lại trước khi xóa.'), { status: 409 });
+      await axiosClient.delete(`${GOALS}/${serverId(id) ?? id}`, { headers: editHeaders(edit) });
+      known.delete(String(id));
+    } finally {
+      await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/finish-editing`, null, { headers: editHeaders(edit) }).catch(() => {});
+    }
   },
   saveTheme: (item) => axiosClient.put(`/education-plans/themes/${item.id}`, item),
   deleteTheme: (id) => axiosClient.delete(`/education-plans/themes/${id}`),
@@ -77,7 +117,9 @@ export const educationPlanApi = {
   deleteLesson: (id) => axiosClient.delete(`/education-plans/lessons/${id}`),
   // Tài liệu + lớp + giáo viên, tổ trưởng của năm học đang chọn ở header (BE lọc theo phạm vi người xem)
   getClassPlans: (schoolYearId) =>
-    axiosClient.get('/education-plans/class-docs', { params: serverId(schoolYearId) == null ? {} : { schoolYearId: serverId(schoolYearId) } }),
+    axiosClient.get('/education-plans/class-docs', {
+      params: serverId(schoolYearId) == null ? {} : { schoolYearId: serverId(schoolYearId) },
+    }),
   getEduConfig: async () => toUiEduConfig(await loadConfig()),
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
   saveEduConfig: async (cfg) => {

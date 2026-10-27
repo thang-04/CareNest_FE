@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, FileDown, Printer, Save } from '@/components/ui/icons';
-import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, DraftRecoveryNotice, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
@@ -72,6 +72,11 @@ function WeekPlanInner() {
     enabled: isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT),
     save: (doc) => saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) }),
     onSaved: (same) => same && setDirty(false),
+    backup: { userId: user?.id, key: `week:${classId}:${weekStart}` },
+    onRestore: (doc) => {
+      setDraft(doc);
+      setDirty(true);
+    },
   });
 
   const guard = useLeaveGuard({
@@ -168,6 +173,7 @@ function WeekPlanInner() {
           </>
         }
       />
+      {editable && saver.recovery && <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />}
       {/* Tên chủ đề nhánh đặt ở trang chủ đề nhánh của lớp; đưa lên đầu để soạn đúng nhánh */}
       <div className="ga-week-hero">
         <div className="ga-week-hero__label">
@@ -265,7 +271,13 @@ function WeekPlanInner() {
           )}
         </div>
       </Card>
-      <LeaveConfirmModal {...guard.modal} />
+      <LeaveConfirmModal
+        {...guard.modal}
+        onDiscard={() => {
+          saver.discardBackup();
+          guard.modal.onDiscard();
+        }}
+      />
     </div>
   );
 }

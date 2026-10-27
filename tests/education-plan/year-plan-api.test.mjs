@@ -166,10 +166,24 @@ test('BE:EDU-10 — vào / thoát trang soạn gọi start-editing / finish-edit
     return { status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data } };
   };
 
-  await educationPlanApi.startEditingGoal('41');
-  await educationPlanApi.finishEditingGoal('41');
+  const edit = { sessionId: crypto.randomUUID(), revision: 0 };
+  await educationPlanApi.startEditingGoal('41', edit);
+  await educationPlanApi.finishEditingGoal('41', { edit });
 
   assert.deepEqual(calls.slice(-2), ['POST /education-plans/goals/41/start-editing', 'POST /education-plans/goals/41/finish-editing']);
+});
+
+test('trang chi tiết cũ không dùng revision mới nhận được để ghi đè; quyền tạm luôn được nhả', async () => {
+  const calls = [];
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(`${config.method.toUpperCase()} ${config.url}`);
+    const data = config.url === '/education-plans/config' ? CONFIG : detail({ revision: 9 });
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data } };
+  };
+  const stale = { ...toUiGoal(detail({ revision: 8 }), refs), status: 'APPROVED' };
+  await assert.rejects(educationPlanApi.saveGoal(stale), { status: 409 });
+  assert.ok(calls.includes('POST /education-plans/goals/41/finish-editing'));
+  assert.ok(!calls.some((call) => call.startsWith('PUT ') || call.endsWith('/issue')));
 });
 
 test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩn; lưu gửi PUT /education-plans/config', async () => {

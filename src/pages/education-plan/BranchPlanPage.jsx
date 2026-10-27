@@ -3,7 +3,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import { Check, FileDown, Lightbulb, Printer, Save, Wand2, X } from '@/components/ui/icons';
 import { exportBranchFile } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
-import { Card, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
+import { Card, DraftRecoveryNotice, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
 import { Cell, docReview, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
@@ -69,6 +69,11 @@ function BranchPlanInner({ classId }) {
     save: (doc) => saveClassDoc('branch', doc),
     // Còn ô AI chờ ✓ / ✗ thì giữ bản đang sửa, không nạp lại từ bản đã lưu
     onSaved: (same) => same && !hasPending && setDirty(false),
+    backup: { userId: user?.id, key: yearPlan && `branch:${classId}:${yearPlan.id}` },
+    onRestore: (doc) => {
+      setDraft(doc);
+      setDirty(true);
+    },
   });
   const guard = useLeaveGuard({ when: autoOk && saver.unsaved, onSave: saver.save });
 
@@ -310,6 +315,7 @@ function BranchPlanInner({ classId }) {
           </>
         }
       />
+      {editable && saver.recovery && <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />}
       {status === EDU_STATUS.REJECTED && (
         <div className="mb-16">
           <RejectedNotice status={status} history={saved?.history} />
@@ -573,7 +579,13 @@ function BranchPlanInner({ classId }) {
       {aiBusy && (
         <AiWorkingOverlay text={aiTheme === 'rewrite' || rewriting ? 'Đang viết lại tên chủ đề nhánh…' : 'Đang gợi ý tên chủ đề nhánh…'} />
       )}
-      <LeaveConfirmModal {...guard.modal} />
+      <LeaveConfirmModal
+        {...guard.modal}
+        onDiscard={() => {
+          saver.discardBackup();
+          guard.modal.onDiscard();
+        }}
+      />
     </div>
   );
 }

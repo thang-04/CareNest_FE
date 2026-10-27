@@ -29,7 +29,8 @@
 }
 .ga-stack-cards > .card + .card,
 /* Các khối trên trang kế hoạch giáo dục cách nhau đều như các trang khác */
-.ga-page > * + :is(.card, .alert, .ga-week-hero) {
+.ga-page > * + :is(.card, .alert, .ga-week-hero),
+.ga-edit-fieldset > * + :is(.card, .alert, .ga-week-hero) {
   margin-top: var(--space-4);
 }
 .ga-week-hero {
@@ -855,4 +856,11 @@
 .ga-sug__check {
   flex: none;
   color: var(--color-success-fg);
+}
+
+.ga-edit-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }

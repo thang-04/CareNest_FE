@@ -10,11 +10,12 @@ import { lessonAiMock } from '@/services/education-plan/mock/lessonAiMock';
 const repo = USE_MOCK ? educationPlanMockRepository : educationPlanApi;
 
 export const getEducationPlans = () => repo.getAll();
-export const saveGoal = (item) => repo.saveGoal(item);
-export const deleteGoal = (id) => repo.deleteGoal(id);
+export const saveGoal = (item, options) => repo.saveGoal(item, options);
+export const deleteGoal = (id, revision) => repo.deleteGoal(id, revision);
 // Khóa "Đang sửa" kế hoạch năm (BE:EDU-10). user: người thao tác (mock cần); keepalive: gửi được cả khi đóng tab
-export const startEditingGoal = (id, user) => (USE_MOCK ? repo.startEditingGoal(id, user) : repo.startEditingGoal(id));
-export const finishEditingGoal = (id, user, opts) => (USE_MOCK ? repo.finishEditingGoal(id, user) : repo.finishEditingGoal(id, opts));
+export const startEditingGoal = (id, user, edit) => (USE_MOCK ? repo.startEditingGoal(id, user, edit) : repo.startEditingGoal(id, edit));
+export const heartbeatGoal = (id, edit, user) => (USE_MOCK ? repo.heartbeatGoal(id, user, edit) : repo.heartbeatGoal(id, edit));
+export const finishEditingGoal = (id, user, opts) => (USE_MOCK ? repo.finishEditingGoal(id, user, opts) : repo.finishEditingGoal(id, opts));
 export const saveTheme = (item) => repo.saveTheme(item);
 export const deleteTheme = (id) => repo.deleteTheme(id);
 export const saveLesson = (item) => repo.saveLesson(item);
@@ -22,8 +23,7 @@ export const deleteLesson = (id) => repo.deleteLesson(id);
 
 // Tài liệu kế hoạch của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần). user: người thao tác (mock cần để kiểm quyền).
 // Kèm lớp (classes) và giáo viên, tổ trưởng (staff) người xem được; schoolYearId: năm đang chọn ở header
-export const getClassPlans = (schoolYearId) =>
-  USE_MOCK ? classPlanMockRepository.getAll() : educationPlanApi.getClassPlans(schoolYearId);
+export const getClassPlans = (schoolYearId) => (USE_MOCK ? classPlanMockRepository.getAll() : educationPlanApi.getClassPlans(schoolYearId));
 export const saveClassDoc = (kind, doc, user) =>
   USE_MOCK ? classPlanMockRepository.saveDoc(kind, doc, user) : educationPlanApi.saveClassDoc(kind, doc);
 export const actOnClassDoc = (kind, id, body, user) =>

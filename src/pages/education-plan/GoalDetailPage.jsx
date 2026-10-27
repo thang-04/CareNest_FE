@@ -102,7 +102,7 @@ export default function GoalDetailPage() {
   };
 
   return (
-    <div className="page ga-page">
+    <div className="page ga-page ga-goal-detail">
       <PageHead
         crumbs={[
           { label: 'Kế hoạch giáo dục' },
