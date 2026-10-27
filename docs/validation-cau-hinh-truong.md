@@ -106,7 +106,7 @@ Cột "Nguồn BE": DTO = annotation của request; SV = kiểm tra trong servic
 | Lớp mới của trẻ | Lên lớp / ở lại phải chọn lớp của năm mới                            | Chọn lớp năm học mới                                                                           | SV 400   |
 | Lựa chọn        | Nhóm tuổi lớn nhất chỉ Ra trường hoặc Ở lại; lớp đích đúng nhóm tuổi | Trẻ nhóm tuổi lớn nhất chỉ chọn Ra trường hoặc Ở lại / … không đúng nhóm tuổi cho lựa chọn này | SV 400   |
 | Sĩ số           | Không vượt sĩ số tối đa lớp mới                                      | Vượt sĩ số tối đa: …                                                                           | SV 409   |
-| Năm học         | Chỉ năm chưa bắt đầu, có năm đang hoạt động để chuyển trẻ            | Chỉ xếp lớp cho năm học chưa bắt đầu / Không có năm học đang hoạt động để chuyển trẻ           | SV 409   |
+| Năm học         | Chỉ năm kế tiếp (năm chưa bắt đầu sớm nhất), có năm đang hoạt động để chuyển trẻ; màn hình hiện cố định năm kế tiếp | Chỉ xếp lớp cho năm học kế tiếp … / Không có năm học đang hoạt động để chuyển trẻ | SV 409   |
 
 ### Tài khoản nhân sự (`/school/staff`, hộp Thêm/Sửa tài khoản, Sửa hồ sơ) — chưa có BE, kiểm ở FE/mock
 
