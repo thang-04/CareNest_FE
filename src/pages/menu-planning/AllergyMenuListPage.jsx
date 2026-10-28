@@ -56,7 +56,7 @@ export default function AllergyMenuListPage() {
                 <b>{r.allergen}</b> ({r.childCount} trẻ, {r.classes.length} lớp)
               </span>
             ))}
-            . Danh sách lấy từ khai báo dị ứng Phó hiệu trưởng đã chốt khi tiếp nhận trẻ.
+            . Danh sách lấy từ khai báo dị ứng đã chốt khi tiếp nhận trẻ.
           </div>
         </div>
       )}

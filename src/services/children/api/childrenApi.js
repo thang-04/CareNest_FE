@@ -26,6 +26,18 @@ import { axiosClient } from '@/services/http/axiosClient';
  * Trùng hồ sơ (2026-10-23): cùng họ tên (giữ dấu), ngày sinh và CCCD của ít nhất một phụ huynh; duplicate-check nhận thêm
  * guardianIdNumbers, trả { kind: ACTIVE | LEFT, sameCampus, id?, code?, fullName?, leftAt?, canReadmit? } | null; LEFT ⇒ gợi ý
  * POST /children/{id}/readmit { reason } (về PENDING_PLACEMENT, giữ hồ sơ cũ). Enrollment/PUT/import 409 theo quy tắc mới.
+ * Hiệu trưởng tiếp nhận như PHT trên mọi điểm trường (2026-10-27, docs/plans/active/2026-10-27-principal-child-enrollment.md):
+ * duplicate-check, enrollments, import, readmit, placement nhận Hiệu trưởng; POST enrollments và import thêm campusId (bắt buộc
+ * khi chưa xếp lớp và người dùng được giao toàn trường; PHT một điểm trường bỏ trống = điểm trường của mình; ngoài phạm vi ⇒ 422
+ * campusId; có classId thì trẻ theo điểm trường của lớp, lớp khác campusId ⇒ 422 classId); placement sang lớp điểm trường khác
+ * ⇒ campusId của trẻ theo lớp.
+ * Form tiếp nhận kích hoạt ngay (2026-10-28, docs/plans/completed/2026-10-28-enroll-activates-guardians.md): POST enrollments tạo/liên
+ * kết tài khoản phụ huynh trong cùng giao dịch, gửi SMS mật khẩu tạm, trả thêm guardianAccounts [{ fullName, phone, result:
+ * CREATED | LINKED | NOT_ACTIVATED (người lưu không có quyền kích hoạt), smsStatus }]; import không tạo tài khoản.
+ * Sửa thông tin phụ huynh (2026-10-28, docs/plans/completed/2026-10-28-guardian-info-editable.md): POST enrollments, PUT /children/{id}
+ * nhận họ tên/SĐT/email/CCCD client gửi cho phụ huynh đã có tài khoản và cập nhật tài khoản; đổi SĐT ⇒ tên đăng nhập = SĐT mới, mật
+ * khẩu tạm mới gửi SMS. PUT trả thêm accountChanges [{ fullName, phone, phoneChanged, smsStatus }]; guardianAccounts thêm phoneChanged.
+ * Đổi cùng lúc CCCD và SĐT của phụ huynh đã có tài khoản ⇒ 422 guardians.i.idNumber. Import vẫn dùng thông tin tài khoản.
  */
 export const childrenApi = {
   listChildren: (filters) => axiosClient.get('/children', { params: filters }),
@@ -39,6 +51,8 @@ export const childrenApi = {
         excludeId,
       },
     }),
+  // POST để CCCD, SĐT phụ huynh không nằm trên URL; lệch phụ huynh đã có ⇒ 409, details theo ô như khi lưu (2026-10-28).
+  checkGuardianConflicts: (guardians) => axiosClient.post('/children/guardian-check', { guardians }),
   readmitChild: (childId, body) => axiosClient.post(`/children/${childId}/readmit`, body),
   getPlacementClasses: (filters) => axiosClient.get('/children/placement-classes', { params: filters }),
   enrollChild: (payload) => axiosClient.post('/children/enrollments', payload),
@@ -48,7 +62,7 @@ export const childrenApi = {
     form.append('file', file);
     return axiosClient.post('/children/enrollments/import/preview', form);
   },
-  importChildren: (rows) => axiosClient.post('/children/enrollments/import', { rows }),
+  importChildren: (rows, _user, campusId) => axiosClient.post('/children/enrollments/import', { rows, campusId }),
   placeChild: (childId, body) => axiosClient.post(`/children/${childId}/placement`, body),
   withdrawChild: (childId, body) => axiosClient.post(`/children/${childId}/withdraw`, body),
   saveDeclaration: (childId, body) => axiosClient.put(`/children/${childId}/health-declaration`, body),

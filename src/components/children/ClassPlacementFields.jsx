@@ -1,10 +1,13 @@
 import { Info } from '@/components/ui/icons';
+import { FormField } from '@/components/form/FormField';
 import { ClassFillBadge } from '@/components/school-config/SchoolConfigBadges';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
 
 /**
  * Age group + class choice (SRS #29). Capacity numbers come from the service; the service re-checks them on save.
- * classes: [{ id, name, ageGroupId, capacity, enrolledCount, homeroomTeacherId }]
+ * classes: [{ id, name, ageGroupId, campusId, capacity, enrolledCount, homeroomTeacherId }]
+ * campuses: điểm trường được chọn; từ 2 điểm trường (Hiệu trưởng, PHT toàn trường) hiện ô Điểm trường và chỉ hiện lớp của
+ * điểm trường đó (hai điểm trường có lớp trùng tên).
  */
 export function ClassPlacementFields({
   classes,
@@ -17,13 +20,31 @@ export function ClassPlacementFields({
   error,
   userById,
   required = true,
+  campuses = [],
+  campusId = '',
+  onCampusChange,
+  campusError,
 }) {
-  const inGroup = classes.filter((c) => !ageGroupId || c.ageGroupId === ageGroupId);
+  const pickCampus = campuses.length > 1;
+  const inCampus = pickCampus ? classes.filter((c) => c.campusId === campusId) : classes;
+  const inGroup = inCampus.filter((c) => !ageGroupId || c.ageGroupId === ageGroupId);
   const mismatch = suggestedAgeGroupId && ageGroupId && suggestedAgeGroupId !== ageGroupId;
   const req = required && <span className="req">*</span>;
 
   return (
     <div className="stack gap-3-5">
+      {pickCampus && (
+        <FormField label="Điểm trường" required error={campusError} className="tr-field-narrow">
+          <select className="select" value={campusId} onChange={(e) => onCampusChange(e.target.value)}>
+            <option value="">Chọn điểm trường</option>
+            {campuses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.shortName || c.name}
+              </option>
+            ))}
+          </select>
+        </FormField>
+      )}
       <div className="field tr-field-narrow">
         <label className="field__label" htmlFor="tr-age-group">
           Nhóm tuổi{req}
@@ -58,10 +79,12 @@ export function ClassPlacementFields({
             )}
           </div>
         )}
-        {inGroup.length === 0 ? (
+        {pickCampus && !campusId ? (
+          <p className="muted text-sm">Chọn điểm trường để xem lớp.</p>
+        ) : inGroup.length === 0 ? (
           <div className="alert alert--warning">
             <Info size={18} />
-            <div>Không có lớp nào phù hợp trong điểm trường và năm học này. Liên hệ Hiệu trưởng để mở lớp.</div>
+            <div>Không có lớp nào phù hợp trong điểm trường và năm học này. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.</div>
           </div>
         ) : (
           <div className="tr-class-grid" role="radiogroup">

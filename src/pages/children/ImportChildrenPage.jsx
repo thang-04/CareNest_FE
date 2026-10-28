@@ -13,7 +13,9 @@ import {
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useMasterData } from '@/hooks/useMasterData';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { FormField } from '@/components/form/FormField';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
@@ -23,7 +25,8 @@ import { AllergyStateBadge, ImportRowResultBadge } from '@/components/children/C
 import { DECLARATION_STATE, IMPORT_COLUMNS } from '@/models/children/childrenConstants';
 import { downloadCsv } from '@/utils/exportCsv';
 import { formatDate, formatFileSize } from '@/utils/format';
-import { canEnrollChild } from '@/utils/children/childrenPermissions';
+import { canEnrollChild, childCampusesOf } from '@/utils/children/childrenPermissions';
+import { defaultCampusId } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 import { LottiePlayer } from '@/components/ui/LottiePlayer';
@@ -37,11 +40,11 @@ const downloadTemplate = () =>
   downloadCsv(
     [
       IMPORT_COLUMNS.map((c) => c.label),
-      // Dòng mẫu: hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22).
+      // Dòng mẫu: hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22); mỗi giá trị ứng 1 cột IMPORT_COLUMNS.
       [
         ...['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', '9999 1200 0111'],
         ...['phuhuynh.mau@example.com', 'Không', ''],
-        ...['', 'Không', '', 'Kinh', 'Trẻ em dưới 6 tuổi', 'BHYT', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu'],
+        ...['', 'Không', '', 'Kinh', 'Trẻ em dưới 6 tuổi', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu'],
         ...['Không', 'Không', 'Không', ''],
       ],
     ],
@@ -52,7 +55,10 @@ export default function ImportChildrenPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const md = useMasterData();
   const inputRef = useRef(null);
+  const [campusPick, setCampusPick] = useState(null);
+  const [campusError, setCampusError] = useState('');
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -70,10 +76,16 @@ export default function ImportChildrenPage() {
         <StatusPage
           kind="403"
           title="Bạn không có quyền tiếp nhận trẻ"
-          description="Chỉ Phó hiệu trưởng phụ trách điểm trường được nhập danh sách trẻ."
+          description="Chỉ Hiệu trưởng hoặc Phó hiệu trưởng được giao quyền tiếp nhận trẻ mới nhập được danh sách trẻ."
         />
       </div>
     );
+
+  // Hiệu trưởng, PHT toàn trường chọn điểm trường cho cả file; PHT một điểm trường dùng điểm trường của mình (BE kiểm lại).
+  const campusOptions = childCampusesOf(user, md.campuses);
+  const pickCampus = campusOptions.length > 1;
+  const campusId = campusPick ?? defaultCampusId(campusOptions, user);
+  const campusName = md.campusById(campusId)?.shortName || md.campusById(campusId)?.name || '';
 
   const readFile = async (f) => {
     if (!f) return;
@@ -100,17 +112,24 @@ export default function ImportChildrenPage() {
   const validRows = rows.filter((r) => r.errors.length === 0);
   const shown = onlyErrors ? errorRows : rows;
 
+  const askImport = () => {
+    if (pickCampus && !campusId) setCampusError('Chọn điểm trường tiếp nhận trẻ');
+    else setConfirm(true);
+  };
+
   const doImport = async () => {
     try {
       const result = await importChildren(
         validRows.map((r) => r.payload),
         user,
+        campusId || undefined,
       );
       setImported(result);
       setConfirm(false);
       toast.success(`Đã nhập ${result.created} hồ sơ trẻ.`, 'Nhập danh sách thành công');
     } catch (err) {
       setConfirm(false);
+      if (err.details?.campusId) setCampusError(err.details.campusId);
       toast.error(err, 'Không nhập được danh sách');
     }
   };
@@ -127,7 +146,8 @@ export default function ImportChildrenPage() {
             </div>
             <div className="state__title">Đã nhập {imported.created} hồ sơ trẻ</div>
             <div className="muted tr-state-text">
-              Hồ sơ đã được tiếp nhận. Các trẻ đang ở trạng thái <b>Chờ xếp lớp</b>; xếp lớp cho từng trẻ tại màn Xếp lớp.
+              Hồ sơ đã được tiếp nhận. Các trẻ đang ở trạng thái <b>Chờ xếp lớp</b>; xếp lớp cho từng trẻ tại màn Xếp lớp. Tài khoản phụ
+              huynh chưa tạo: kích hoạt ở màn Tài khoản phụ huynh.
             </div>
             <div className="row mt-12 gap-2">
               <Link className="btn" to="/children">
@@ -165,6 +185,31 @@ export default function ImportChildrenPage() {
       </div>
 
       <section className="card wizard-card">
+        {pickCampus && (
+          <FormField
+            label="Điểm trường tiếp nhận"
+            required
+            error={campusError}
+            hint="Trẻ trong file vào điểm trường này, ở trạng thái Chờ xếp lớp."
+            className="tr-field-narrow mb-16"
+          >
+            <select
+              className="select"
+              value={campusId}
+              onChange={(e) => {
+                setCampusPick(e.target.value);
+                setCampusError('');
+              }}
+            >
+              <option value="">Chọn điểm trường</option>
+              {campusOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.shortName || c.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        )}
         <div
           className={`dropzone ${dragging ? 'dropzone--active' : ''}`}
           role="button"
@@ -315,7 +360,7 @@ export default function ImportChildrenPage() {
           <ArrowLeft size={16} /> Quay lại
         </button>
         {preview?.supported && (
-          <button className="btn btn--primary" disabled={validRows.length === 0 || errorRows.length > 0} onClick={() => setConfirm(true)}>
+          <button className="btn btn--primary" disabled={validRows.length === 0 || errorRows.length > 0} onClick={askImport}>
             <Upload size={16} /> Nhập {validRows.length} trẻ
           </button>
         )}
@@ -324,7 +369,7 @@ export default function ImportChildrenPage() {
       <ConfirmationModal
         open={confirm}
         title="Nhập danh sách trẻ?"
-        message={`Hệ thống sẽ tạo ${validRows.length} hồ sơ trẻ ở trạng thái Chờ xếp lớp, kèm khai báo sức khỏe theo file.`}
+        message={`Hệ thống sẽ tạo ${validRows.length} hồ sơ trẻ ở trạng thái Chờ xếp lớp${pickCampus ? ` tại ${campusName}` : ''}, kèm khai báo sức khỏe theo file. Tài khoản phụ huynh kích hoạt sau ở màn Tài khoản phụ huynh.`}
         confirmLabel={`Nhập ${validRows.length} trẻ`}
         onConfirm={doImport}
         onClose={() => setConfirm(false)}

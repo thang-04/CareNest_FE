@@ -20,6 +20,7 @@ import { areaAccess } from '@/utils/school-config/schoolConfigPermissions';
 
 const R = ROLES;
 const VP_ONLY = [R.VICE_PRINCIPAL];
+const LEADERS = [R.PRINCIPAL, R.VICE_PRINCIPAL];
 const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
 const REPORTERS = [...CLASS_STAFF, R.KITCHEN_STAFF];
 
@@ -34,7 +35,7 @@ const QUICK_ACTIONS = [
   { label: 'Đề nghị bổ sung', to: '/facility/requests/new', group: 'Cơ sở vật chất', icon: PackagePlus, roles: REPORTERS },
   { label: 'Đề xuất khen thưởng', to: '/assessment/rewards/new', group: 'Đánh giá trẻ', icon: Award, roles: CLASS_STAFF },
   { label: 'Kế hoạch chủ đề', to: '/education/class', group: 'Kế hoạch giáo dục', icon: PenLine, roles: [R.TEAM_LEADER] },
-  { label: 'Tiếp nhận trẻ', to: '/children/new', group: 'Quản lý trẻ', icon: Baby, roles: VP_ONLY, area: 'children' },
+  { label: 'Tiếp nhận trẻ', to: '/children/new', group: 'Quản lý trẻ', icon: Baby, roles: LEADERS, area: 'children' },
   {
     label: 'Đề xuất mua sắm, sửa chữa',
     to: '/facility/proposals/new',

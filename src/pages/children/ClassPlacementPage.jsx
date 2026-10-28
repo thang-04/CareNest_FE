@@ -16,7 +16,7 @@ import { ClassPlacementFields } from '@/components/children/ClassPlacementFields
 import { placeChild } from '@/services/children/childrenService';
 import { CHILD_STATUS, ageLabel } from '@/models/School';
 import { normalizeText } from '@/utils/format';
-import { canPlaceChild, isVicePrincipal } from '@/utils/children/childrenPermissions';
+import { canOpenPlacement, canPlaceChild, childCampusesOf } from '@/utils/children/childrenPermissions';
 import { suggestAgeGroupId } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
@@ -37,6 +37,7 @@ export default function ClassPlacementPage() {
   const [tab, setTab] = useState(CHILD_STATUS.PENDING_PLACEMENT);
   const [keyword, setKeyword] = useState('');
   const [ageGroupId, setAgeGroupId] = useState('');
+  const [campusId, setCampusId] = useState('');
   const [classId, setClassId] = useState('');
   const [reason, setReason] = useState('');
   const [errors, setErrors] = useState({});
@@ -50,6 +51,7 @@ export default function ClassPlacementPage() {
     if (!selected) return;
     setTab(selected.status === CHILD_STATUS.PENDING_PLACEMENT ? CHILD_STATUS.PENDING_PLACEMENT : CHILD_STATUS.ACTIVE);
     setAgeGroupId(selected.ageGroupId || suggestAgeGroupId(selected.dateOfBirth, schoolYear));
+    setCampusId(selected.campusId || '');
     setClassId('');
     setReason('');
     setErrors({});
@@ -62,7 +64,7 @@ export default function ClassPlacementPage() {
     return children.filter((c) => c.status === tab).filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw));
   }, [children, tab, keyword]);
 
-  if (!isVicePrincipal(user))
+  if (!canOpenPlacement(user))
     return (
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Xếp lớp')} />
@@ -70,13 +72,20 @@ export default function ClassPlacementPage() {
         <StatusPage
           kind="403"
           title="Bạn không có quyền xếp lớp"
-          description="Chỉ Phó hiệu trưởng của điểm trường được xếp và chuyển lớp cho trẻ."
+          description="Chỉ Hiệu trưởng hoặc Phó hiệu trưởng của điểm trường được xếp và chuyển lớp cho trẻ."
         />
       </div>
     );
 
   const isTransfer = !!selected?.classId;
   const targetClass = classes.find((c) => c.id === classId);
+  // Hiệu trưởng, PHT toàn trường: ô Điểm trường mặc định điểm trường của trẻ; lớp điểm trường khác = chuyển điểm trường.
+  const campusOptions = childCampusesOf(user, md.campuses, 'update');
+  const pickCampus = campusOptions.length > 1;
+  const campusLabel = (id) => md.campusById(id)?.shortName || md.campusById(id)?.name || '';
+  const movesCampus = !!selected && !!targetClass && targetClass.campusId !== selected.campusId;
+  const targetName = targetClass ? `${targetClass.name}${movesCampus ? ` (${campusLabel(targetClass.campusId)})` : ''}` : '';
+  const campusNote = movesCampus ? ' Trẻ chuyển sang điểm trường của lớp mới.' : '';
   const tabCount = (status) => children.filter((c) => c.status === status).length;
 
   const submit = () => {
@@ -179,7 +188,10 @@ export default function ClassPlacementPage() {
                           <div className="muted text-xs">{c.code}</div>
                         </td>
                         <td className="nowrap">{ageLabel(c.dateOfBirth)}</td>
-                        <td>{c.className || <span className="muted">Chưa xếp</span>}</td>
+                        <td>
+                          {c.className || <span className="muted">Chưa xếp</span>}
+                          {pickCampus && <div className="muted text-xs">{campusLabel(c.campusId)}</div>}
+                        </td>
                       </tr>
                     ))
                   )}
@@ -225,6 +237,12 @@ export default function ClassPlacementPage() {
                 currentClassId={selected.classId}
                 error={errors.classId}
                 userById={md.userById}
+                campuses={campusOptions}
+                campusId={campusId}
+                onCampusChange={(id) => {
+                  setCampusId(id);
+                  setClassId('');
+                }}
               />
               {isTransfer && (
                 <FormField label="Lý do chuyển lớp" required error={errors.reason} className="mt-16">
@@ -259,8 +277,8 @@ export default function ClassPlacementPage() {
         message={
           selected && targetClass
             ? isTransfer
-              ? `${selected.fullName} sẽ rời ${selected.className} và vào ${targetClass.name}. Giáo viên lớp mới được thông báo.`
-              : `${selected.fullName} sẽ vào ${targetClass.name}. Giáo viên của lớp được thông báo.`
+              ? `${selected.fullName} sẽ rời ${selected.className} và vào ${targetName}.${campusNote} Giáo viên lớp mới được thông báo.`
+              : `${selected.fullName} sẽ vào ${targetName}.${campusNote} Giáo viên của lớp được thông báo.`
             : ''
         }
         confirmLabel={isTransfer ? 'Chuyển lớp' : 'Xếp vào lớp'}

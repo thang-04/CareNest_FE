@@ -353,9 +353,10 @@ export function AppRoutes() {
           </Route>
           <Route path="children">
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />
-            <Route path="new" element={only(VP_ONLY, <EnrollChildPage />)} />
-            <Route path="import" element={only(VP_ONLY, <ImportChildrenPage />)} />
-            <Route path="placement" element={only(VP_ONLY, <ClassPlacementPage />)} />
+            {/* Tiếp nhận, nhập Excel, xếp lớp: Hiệu trưởng như PHT (user chốt 2026-10-27) */}
+            <Route path="new" element={only(LEADERS, <EnrollChildPage />)} />
+            <Route path="import" element={only(LEADERS, <ImportChildrenPage />)} />
+            <Route path="placement" element={only(LEADERS, <ClassPlacementPage />)} />
             <Route path="activation" element={only(LEADERS, <ParentActivationPage />)} />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
             <Route path="health-checks" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckListPage />)} />

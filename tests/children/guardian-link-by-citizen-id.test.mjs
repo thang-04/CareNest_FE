@@ -67,13 +67,18 @@ test('AC-1: tra CCCD ⇒ thông tin tài khoản; không trùng ⇒ null; Hiệu
   await assert.rejects(children.findParentAccountByCitizenId(acc.idNumber, TEACHER), (err) => err.status === 403);
 });
 
-test('AC-2: tiếp nhận với CCCD trùng tài khoản ⇒ dùng họ tên/SĐT/email của tài khoản, liên kết trẻ, không cần kích hoạt', async () => {
-  const acc = activeAccount();
-  const saved = await children.enrollChild(payload([guardian({ idNumber: acc.idNumber })]), VP);
+// Form điền sẵn thông tin tài khoản khi CCCD trùng; sửa ở form thì tài khoản đổi theo (user chốt 2026-10-28) — test sửa ở guardian-info-editable.
+const asAccount = (acc, patch = {}) =>
+  guardian({ idNumber: acc.idNumber, fullName: acc.fullName, phone: acc.phone, email: acc.email || '', ...patch });
+
+test('AC-2: tiếp nhận với CCCD trùng tài khoản, thông tin như tài khoản ⇒ liên kết trẻ, tài khoản giữ nguyên, không cần kích hoạt', async () => {
+  const acc = structuredClone(activeAccount());
+  const saved = await children.enrollChild(payload([asAccount(acc)]), VP);
   const g = saved.guardians[0];
   assert.equal(g.fullName, acc.fullName);
   assert.equal(digits(g.phone), acc.phone);
   assert.equal(g.accountStatus, 'ACTIVE');
+  assert.equal(readDb().parentAccounts.find((a) => a.id === acc.id).username, acc.username);
   assert.ok(
     readDb()
       .parentAccounts.find((a) => a.id === acc.id)
@@ -91,12 +96,12 @@ test('AC-3: CCCD mới nhưng SĐT của phụ huynh có CCCD khác ⇒ 409 dư�
 
 test('AC-4: sửa hồ sơ, thêm phụ huynh có CCCD trùng tài khoản ⇒ liên kết', async () => {
   const saved = await children.enrollChild(payload([guardian()]), VP);
-  const acc = readDb().parentAccounts.find((a) => a.status === 'ACTIVE' && a.idNumber && !a.childIds.includes(saved.id));
+  const acc = structuredClone(readDb().parentAccounts.find((a) => a.status === 'ACTIVE' && a.idNumber && !a.childIds.includes(saved.id)));
   const form = {
     fullName: saved.fullName,
     dateOfBirth: saved.dateOfBirth,
     gender: saved.gender,
-    guardians: [...saved.guardians, guardian({ relation: 'Bố', phone: '0900 000 202', idNumber: acc.idNumber })],
+    guardians: [...saved.guardians, asAccount(acc, { relation: 'Bố' })],
     profile: saved.profile,
   };
   const updated = await children.updateChild(saved.id, { child: form, reason: 'Thêm bố (giả)' }, VP);

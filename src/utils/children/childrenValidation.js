@@ -78,6 +78,8 @@ export const validateChildInfo = (data) => {
   if (guardians.length === 0) errors.guardians = 'Thêm ít nhất một phụ huynh';
   guardians.forEach((g, i) => {
     if (!g.fullName?.trim()) errors[`guardians.${i}.fullName`] = 'Nhập họ tên phụ huynh';
+    // Bằng giới hạn khi kích hoạt tài khoản (BE AddGuardianRequest ≤150): tiếp nhận được thì kích hoạt được.
+    else if (g.fullName.trim().length > 150) errors[`guardians.${i}.fullName`] = 'Họ tên tối đa 150 ký tự';
     if (!g.relation) errors[`guardians.${i}.relation`] = 'Chọn quan hệ với trẻ';
     if (!g.phone?.trim()) errors[`guardians.${i}.phone`] = 'Nhập số điện thoại để gửi tài khoản';
     else if (!isValidPhone(g.phone)) errors[`guardians.${i}.phone`] = 'Nhập số điện thoại hợp lệ, ví dụ 0912 345 678';

@@ -17,6 +17,7 @@ import { emptyChildProfile } from '@/models/children/childProfile';
 import { hasErrors, validateChildInfo } from '@/utils/children/childrenValidation';
 import { canEditChild } from '@/utils/children/childrenPermissions';
 import { withGuardianAccounts } from '@/utils/children/childrenHelpers';
+import { normalizeCitizenId } from '@/utils/citizenId';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -83,9 +84,9 @@ export default function EditChildPage() {
     );
 
   const withAccount = child.guardians.filter((g) => g.accountStatus && g.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED);
-  const lockedPhones = withAccount.map((g) => g.phone);
-  // Đã có tài khoản và đã có CCCD: CCCD theo tài khoản; chưa có thì nhập để bổ sung (user chốt 2026-10-21).
-  const lockedIdPhones = withAccount.filter((g) => g.idNumber).map((g) => g.phone);
+  // Phụ huynh đã có tài khoản: sửa được thông tin (tài khoản đổi theo, user chốt 2026-10-28) nhưng không xóa ở form.
+  const accountPhones = withAccount.map((g) => g.phone);
+  const accountIds = withAccount.filter((g) => g.idNumber).map((g) => normalizeCitizenId(g.idNumber));
 
   const effective = { ...form, guardians: withGuardianAccounts(form.guardians, accountOf) };
 
@@ -96,7 +97,17 @@ export default function EditChildPage() {
     if (hasErrors(errs)) return;
     setBusy(true);
     try {
-      await updateChild(id, { child: effective, reason }, user);
+      const saved = await updateChild(id, { child: effective, reason }, user);
+      // Đổi SĐT phụ huynh đã có tài khoản ⇒ BE đổi tên đăng nhập, gửi mật khẩu mới qua SMS (user chốt 2026-10-28).
+      (saved.accountChanges || [])
+        .filter((c) => c.phoneChanged)
+        .forEach((c) =>
+          c.smsStatus === 'FAILED'
+            ? toast.warning(
+                `Tên đăng nhập của ${c.fullName} đã đổi sang ${c.phone} nhưng chưa gửi được SMS mật khẩu; gửi lại ở màn Tài khoản phụ huynh.`,
+              )
+            : toast.success(`Tên đăng nhập của ${c.fullName} đổi sang ${c.phone}; mật khẩu tạm mới đã gửi qua SMS tới số này.`),
+        );
       toast.success('Đã lưu thay đổi hồ sơ.');
       navigate(`/children/${id}`);
     } catch (err) {
@@ -122,8 +133,8 @@ export default function EditChildPage() {
           value={form}
           onChange={change}
           errors={errors}
-          lockedGuardianPhones={lockedPhones}
-          lockedGuardianIdPhones={lockedIdPhones}
+          accountGuardianPhones={accountPhones}
+          accountGuardianIds={accountIds}
           accountOf={accountOf}
           childId={id}
         />

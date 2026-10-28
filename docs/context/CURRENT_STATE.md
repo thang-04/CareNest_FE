@@ -25,7 +25,7 @@ Status: `—` chưa bắt đầu · `đang làm` · `xong`. Định nghĩa group
 | Quản trị tài khoản, role, phân công        | System Admin                                  | identity-access, school-structure | UI mock (`school-config`, `account`, `permissions`) |
 | Cấu trúc trường: campus, lớp, năm học      | System Admin                                  | school-structure                  | UI mock (`school-config`) |
 | Cấu hình hệ thống / master data            | System Admin                                  | nhiều                             | một phần (`school-config`, `menu-planning`) |
-| Hồ sơ trẻ / ghi danh                       | System Admin (màn hình Web chưa xác định)     | child                             | UI mock (`children`) |
+| Hồ sơ trẻ / ghi danh                       | Principal (toàn trường), Vice Principal theo "Hồ sơ trẻ" — tiếp nhận, nhập Excel, xếp lớp (user chốt 2026-10-27) | child                             | UI mock (`children`) |
 | Dashboard báo cáo lớp/campus/trường        | Principal, Vice Principal                     | reporting                         | UI mock (`dashboard`) |
 | Xác nhận số suất ăn                        | PENDING (P-05)                                | nutrition                         | UI mock (`attendance`, `kitchen`) |
 | Xuất bản thực đơn tuần (BA: PHT công bố)   | Vice Principal (lệch NUT-08, xem features/nutrition-inventory.md) | nutrition                         | UI mock (`menu-planning`) |
@@ -49,6 +49,6 @@ Status: `—` chưa bắt đầu · `đang làm` · `xong`. Định nghĩa group
 | Actor xác nhận suất ăn                 | PENDING P-05         | `BE:docs/business/BUSINESS_RULES.md`                                  |
 | Người nhập đo sức khỏe                 | PENDING              | `BE:docs/modules/health.md`                                           |
 | Ngữ cảnh hoạt động                     | OPEN (ADR-0006)      | `BE:docs/decisions/`                                                  |
-| Màn hình hồ sơ trẻ / ghi danh trên Web | chưa xác định        | `docs/features/README.md`                                             |
+| Màn hình hồ sơ trẻ / ghi danh trên Web | FE mock xong (`/children/new`, `/children/import`, `/children/placement`), chờ contract BE | `docs/features/README.md`                                             |
 
 Đã chốt gần đây: báo nghỉ = thông báo của phụ huynh qua app, **không có bước duyệt**; GV/BGH trong scope chỉ xem (ATT-05, đóng 2026-10-02 — `BE:docs/business/flows/leave-request.md`).

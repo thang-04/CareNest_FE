@@ -4,12 +4,17 @@ import { ParentAccountBadge } from './ChildBadges';
 import { GENDER_LABELS } from '@/models/School';
 import { GUARDIAN_RELATIONS } from '@/models/children/childrenConstants';
 import { emptyGuardian, withGuardianAccounts } from '@/utils/children/childrenHelpers';
+import { normalizePhone } from '@/utils/children/childrenValidation';
+import { normalizeCitizenId } from '@/utils/citizenId';
 import { todayInput } from '@/utils/format';
 
 const MAX_GUARDIANS = 3;
 
-/** CCCD trùng tài khoản phụ huynh có sẵn (BE trả): ai, đang là phụ huynh của trẻ nào; lưu thì liên kết trẻ (user chốt 2026-10-23). */
-function AccountNotice({ account, childId }) {
+/**
+ * CCCD trùng tài khoản phụ huynh có sẵn (BE trả): ai, đang là phụ huynh của trẻ nào; lưu thì liên kết trẻ (user chốt 2026-10-23).
+ * Sửa thông tin ở form thì tài khoản đổi theo; SĐT khác tài khoản ⇒ báo trước việc đổi tên đăng nhập, gửi mật khẩu mới (2026-10-28).
+ */
+function AccountNotice({ account, guardian, childId }) {
   const linkedHere = !!childId && account.children.some((c) => c.id === childId);
   const kids = account.children.map((c) => `${c.fullName}${c.className ? ` (${c.className})` : ''}`);
   if (account.otherChildrenCount) kids.push(`${account.otherChildrenCount} trẻ ở điểm trường khác`);
@@ -22,9 +27,15 @@ function AccountNotice({ account, childId }) {
         </span>
         {kids.length > 0 && <span className="text-sm">Đang là phụ huynh của: {kids.join(', ')}.</span>}
         <span className="text-sm muted">
-          {linkedHere ? '' : 'Khi lưu, trẻ được liên kết vào tài khoản này, không tạo tài khoản mới. '}Họ tên, số điện thoại, email theo tài
-          khoản; sai thì sửa ở tài khoản phụ huynh.
+          {linkedHere ? '' : 'Khi lưu, trẻ được liên kết vào tài khoản này, không tạo tài khoản mới. '}Ô trống được điền theo tài khoản; sửa
+          ở đây thì tài khoản và hồ sơ các trẻ khác của phụ huynh này đổi theo.
         </span>
+        {normalizePhone(guardian.phone) !== normalizePhone(account.phone) && (
+          <span className="text-sm">
+            <b>Số điện thoại khác tài khoản ({account.phone}).</b> Lưu sẽ đổi tên đăng nhập sang số mới và gửi mật khẩu tạm mới qua SMS tới
+            số mới.
+          </span>
+        )}
       </div>
     </div>
   );
@@ -33,8 +44,9 @@ function AccountNotice({ account, childId }) {
 /**
  * Child identity + parents / guardians block (enrollment step 1 and profile edit).
  * value: { fullName, dateOfBirth, gender, guardians[] }; errors keyed like 'guardians.0.phone'.
- * lockedGuardianIdPhones: SĐT của phụ huynh có tài khoản đã có CCCD — ô CCCD khóa như SĐT đăng nhập.
- * accountOf(idNumber): tài khoản phụ huynh có CCCD đó (BE trả) hoặc null — có thì họ tên, SĐT, email theo tài khoản và khóa.
+ * accountGuardianPhones / accountGuardianIds: SĐT, CCCD ban đầu của phụ huynh đã có tài khoản (Sửa hồ sơ) — không xóa ở form
+ *   (gỡ ở màn Tài khoản phụ huynh); ô vẫn sửa được, tài khoản đổi theo (user chốt 2026-10-28).
+ * accountOf(idNumber): tài khoản phụ huynh có CCCD đó (BE trả) hoặc null — có thì điền ô trống theo tài khoản.
  * childId: hồ sơ đang sửa (để biết tài khoản đã liên kết trẻ này chưa). split: trẻ bên trái, phụ huynh bên phải (tiếp nhận).
  */
 export function ChildInfoFields({
@@ -42,8 +54,8 @@ export function ChildInfoFields({
   onChange,
   errors = {},
   onBlurField,
-  lockedGuardianPhones = [],
-  lockedGuardianIdPhones = [],
+  accountGuardianPhones = [],
+  accountGuardianIds = [],
   accountOf = () => null,
   childId = null,
   split = false,
@@ -118,15 +130,15 @@ export function ChildInfoFields({
       )}
       <div className="stack gap-3">
         {value.guardians.map((g, i) => {
-          const locked = lockedGuardianPhones.includes(g.phone);
-          const idLocked = lockedGuardianIdPhones.includes(g.phone);
+          const holder =
+            accountGuardianPhones.includes(g.phone) || (!!g.idNumber && accountGuardianIds.includes(normalizeCitizenId(g.idNumber)));
           const acc = accountOf(g.idNumber);
           const [shown] = withGuardianAccounts([g], accountOf);
           return (
             <div key={i} className="tr-guardian">
               <div className="tr-guardian__head">
                 <span className="fw-600">Phụ huynh {i + 1}</span>
-                {value.guardians.length > 1 && !locked && (
+                {value.guardians.length > 1 && !holder && (
                   <button
                     type="button"
                     className="icon-btn"
@@ -149,8 +161,8 @@ export function ChildInfoFields({
                   required
                   error={errors[`guardians.${i}.idNumber`]}
                   hint={
-                    idLocked
-                      ? 'Theo tài khoản phụ huynh – không sửa ở đây'
+                    holder
+                      ? 'Đổi CCCD thì tài khoản phụ huynh đổi theo'
                       : '12 chữ số trên căn cước; trùng tài khoản có sẵn thì tự điền thông tin tài khoản'
                   }
                 >
@@ -160,7 +172,6 @@ export function ChildInfoFields({
                     autoComplete="off"
                     maxLength={15}
                     value={g.idNumber || ''}
-                    disabled={idLocked}
                     onChange={(e) => setGuardian(i, 'idNumber', e.target.value)}
                     onBlur={() => onBlurField?.(`guardians.${i}.idNumber`)}
                   />
@@ -169,13 +180,12 @@ export function ChildInfoFields({
                   label="Họ và tên"
                   required
                   error={errors[`guardians.${i}.fullName`]}
-                  hint={acc ? 'Theo tài khoản phụ huynh' : undefined}
+                  hint={acc ? 'Điền theo tài khoản; sửa thì tài khoản đổi theo' : undefined}
                 >
                   <input
                     className="input"
                     value={shown.fullName}
                     maxLength={100}
-                    disabled={!!acc}
                     onChange={(e) => setGuardian(i, 'fullName', e.target.value)}
                   />
                 </FormField>
@@ -184,11 +194,9 @@ export function ChildInfoFields({
                   required
                   error={errors[`guardians.${i}.phone`]}
                   hint={
-                    acc
-                      ? 'Tên đăng nhập của tài khoản'
-                      : locked
-                        ? 'Đã có tài khoản – không đổi được số đăng nhập'
-                        : 'Dùng làm tên đăng nhập, nhận mật khẩu qua SMS'
+                    holder || acc
+                      ? 'Tên đăng nhập; đổi số thì tên đăng nhập đổi theo, mật khẩu tạm mới gửi SMS tới số mới'
+                      : 'Dùng làm tên đăng nhập, nhận mật khẩu qua SMS'
                   }
                 >
                   <input
@@ -196,7 +204,6 @@ export function ChildInfoFields({
                     inputMode="tel"
                     placeholder="0912 345 678"
                     value={shown.phone}
-                    disabled={locked || !!acc}
                     onChange={(e) => setGuardian(i, 'phone', e.target.value)}
                     onBlur={() => onBlurField?.(`guardians.${i}.phone`)}
                   />
@@ -222,13 +229,12 @@ export function ChildInfoFields({
                     type="email"
                     placeholder={acc ? '' : 'ten@example.com'}
                     value={shown.email}
-                    disabled={!!acc}
                     onChange={(e) => setGuardian(i, 'email', e.target.value)}
                     onBlur={() => onBlurField?.(`guardians.${i}.email`)}
                   />
                 </FormField>
               </div>
-              {acc && <AccountNotice account={acc} childId={childId} />}
+              {acc && <AccountNotice account={acc} guardian={shown} childId={childId} />}
             </div>
           );
         })}

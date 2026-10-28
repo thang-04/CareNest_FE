@@ -56,6 +56,10 @@ Không log/console/persist body chứa dữ liệu trẻ, sức khỏe, token. K
 
 Không tự bịa response. Mô tả thay đổi cần thống nhất (endpoint, request, response, status, `desc`) → profile `cross-repo`; bug contract ⇒ đề xuất ghi `../CareNest_BE/docs/knowledge/CROSS_MODULE_ISSUES.md`.
 
+## Hồ sơ trẻ, tiếp nhận (chưa nối BE)
+
+Điểm lệch BE–FE cần chốt của nhánh G94-180 (tiếp nhận, hồ sơ trẻ, phụ huynh): [CHILD_ENROLLMENT_BE_GAPS.md](CHILD_ENROLLMENT_BE_GAPS.md).
+
 ## Mục tiêu năm học (đã nối BE, G94-226)
 
 - API: `GET/POST /education-plans/goals`, `GET/PUT/DELETE /education-plans/goals/{id}`, `POST …/{id}/submit|issue|return`, `GET /education-plans/config` (`BE:docs/api/openapi.yaml`).

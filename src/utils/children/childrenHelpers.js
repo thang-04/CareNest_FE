@@ -25,13 +25,18 @@ export const maskPhone = (phone) => {
 export const formatNumber = (value, digits = 1) =>
   value == null || Number.isNaN(Number(value)) ? '—' : Number(value).toLocaleString('vi-VN', { maximumFractionDigits: digits });
 
+/** Điểm trường chọn sẵn khi tiếp nhận / nhập Excel: chỉ 1 thì chọn luôn; nhiều thì điểm trường của tài khoản nếu có trong danh sách. */
+export const defaultCampusId = (campuses, user) =>
+  campuses.length === 1 ? campuses[0].id : campuses.some((c) => c.id === user?.campusId) ? user.campusId : '';
+
 export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', idNumber: '', email: '' });
 
 /** Phụ huynh có CCCD trùng tài khoản (accountOf, BE trả): họ tên, SĐT, email theo tài khoản để hiển thị, kiểm nhập và gửi đi. */
 export const withGuardianAccounts = (guardians, accountOf) =>
   guardians.map((g) => {
     const acc = accountOf(g.idNumber);
-    return acc ? { ...g, fullName: acc.fullName, phone: acc.phone, email: acc.email || '' } : g;
+    // Chỉ điền ô còn trống; số người dùng đã gõ giữ nguyên — sửa ở hồ sơ thì tài khoản đổi theo (user chốt 2026-10-28).
+    return acc ? { ...g, fullName: g.fullName || acc.fullName, phone: g.phone || acc.phone, email: g.email || acc.email || '' } : g;
   });
 
 /** Bước 1 của form tiếp nhận: thông tin trẻ, phụ huynh và phần hành chính (dùng cho phiếu khám). */

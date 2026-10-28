@@ -37,3 +37,6 @@ DB demo mới (`resetDb()`): 52 bản ghi phụ huynh mẫu có SĐT trùng SĐT
 
 ## Regression test
 `tests/hardening/seed-integrity.test.mjs`: DB mới và DB cũ sau nâng cấp không có SĐT/email phụ huynh mẫu nào trùng nhân sự.
+
+## Cập nhật 2026-10-28
+User bỏ kiểm trùng nhân sự, email phụ huynh chỉ là liên hệ (plan `docs/plans/completed/2026-10-27-guardian-activation-ready-at-enrollment.md`): SĐT/email phụ huynh trùng nhân sự không còn chặn kích hoạt, lỗi `409` của incident này không còn xuất hiện. Dữ liệu mẫu (giáo viên `08`, phụ huynh `09`) và test `seed-integrity` giữ nguyên; test kích hoạt bỏ lọc `notStaff`.

@@ -4,6 +4,7 @@ import { buildSeedChildRecords, seedChildProfileOf, seedMedicalHistoryOf } from 
 import { PHONE_HAS_OTHER_ID, createBatchIdentityCheck, fillMissingCitizenIds, identityConflict } from '@/mocks/guardianIdentity';
 import { OPEN_CAMPAIGN, buildSeedFollowUps, buildSeedHealthChecks } from '@/mocks/healthCheckSeed';
 import { pushNotification } from '@/mocks/notificationMockRepository';
+import { activatePendingGuardians, applyGuardianEdits, differsFromAccount } from '@/mocks/parentAccountMock';
 import { CHILD_STATUS } from '@/models/School';
 import {
   AI_TREND_STATUS,
@@ -15,6 +16,7 @@ import {
 } from '@/models/children/childrenConstants';
 import { CAMPAIGN_STATUS, FOLLOW_UP_CLOSE_OUTCOME } from '@/models/children/healthCheckConstants';
 import { EXAM_STATUS, FOLLOW_UP_FINDING } from '@/models/children/healthExamForm';
+import { PERMISSION_SCOPE } from '@/models/school-config/schoolConfigConstants';
 import {
   PROFILE_FIELDS,
   PROFILE_FIELD_LABELS,
@@ -25,7 +27,7 @@ import {
 import { isValidCitizenId, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, localDateOf, normalizeText, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
-import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
+import { areaAccess, areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 import {
   hasErrors,
   normalizePhone,
@@ -452,6 +454,29 @@ const withAccounts = (db, guardians = []) =>
     return acc ? { ...g, accountId: acc.id, fullName: acc.fullName, phone: acc.phone, email: acc.email || '' } : g;
   });
 
+/**
+ * Form tiếp nhận, Sửa hồ sơ (user chốt 2026-10-28): gắn tài khoản nhưng giữ thông tin client gửi — sửa ở hồ sơ thì tài khoản đổi theo.
+ * Tài khoản nhận theo CCCD; đổi CCCD ở Sửa hồ sơ thì theo phụ huynh cũ cùng vị trí; tài khoản cũ chưa có CCCD khớp theo SĐT.
+ */
+const attachAccounts = (db, guardians = [], previous = []) =>
+  guardians.map(({ accountId: _clientAccountId, ...g }, i) => {
+    const old = previous[i];
+    const oldAccount = old && old.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED ? accountByPhone(db, old.phone) : null;
+    const byPhone = accountByPhone(db, g.phone);
+    const acc = accountByCitizenId(db, g.idNumber) || oldAccount || (byPhone && !byPhone.idNumber ? byPhone : null);
+    return acc ? { ...g, accountId: acc.id } : g;
+  });
+
+const accountOfGuardian = (db, g) => (g.accountId && db.parentAccounts.find((a) => a.id === g.accountId)) || null;
+
+/** Sau khi lưu form/Sửa hồ sơ: thông tin khác tài khoản ⇒ cập nhật tài khoản (đổi SĐT ⇒ tên đăng nhập + mật khẩu mới, SMS). */
+const applyAccountEdits = (db, guardians) =>
+  guardians.flatMap((g) => {
+    const acc = accountOfGuardian(db, g);
+    if (!acc || !differsFromAccount(acc, g)) return [];
+    return [{ fullName: g.fullName.trim(), phone: normalizePhone(g.phone), ...applyGuardianEdits(db, acc, g) }];
+  });
+
 /** Sau khi lưu: thêm trẻ vào tài khoản đã khớp, trạng thái phụ huynh theo tài khoản, bổ sung CCCD cho tài khoản cũ. */
 const linkAccounts = (db, record, guardians) =>
   guardians.forEach((g, i) => {
@@ -539,7 +564,11 @@ const nextCode = (db) => {
 
 const cleanGuardians = (guardians, previous = []) =>
   guardians.map((g) => {
-    const old = previous.find((p) => normalizePhone(p.phone) === normalizePhone(g.phone));
+    // Đổi SĐT vẫn là phụ huynh cũ (nhận theo CCCD) ⇒ giữ trạng thái tài khoản.
+    const id = normalizeCitizenId(g.idNumber);
+    const old =
+      (id && previous.find((p) => normalizeCitizenId(p.idNumber) === id)) ||
+      previous.find((p) => normalizePhone(p.phone) === normalizePhone(g.phone));
     return {
       fullName: g.fullName.trim(),
       relation: g.relation,
@@ -665,6 +694,20 @@ const assertClassAvailable = (db, classId, user) => {
   return cls;
 };
 
+/**
+ * Điểm trường của trẻ tiếp nhận chưa xếp lớp (user chốt 2026-10-27, PROPOSED — chờ BE): người được giao toàn trường
+ * (Hiệu trưởng, PHT toàn trường) phải chọn; PHT một điểm trường không gửi thì dùng điểm trường của mình.
+ */
+const enrollCampusOf = (db, campusId, user) => {
+  const grant = areaAccess(user, 'children');
+  const id = campusId || (grant.scope === PERMISSION_SCOPE.CAMPUS ? grant.campusId || user.campusId : '');
+  if (!id) invalid({ campusId: 'Chọn điểm trường tiếp nhận trẻ' });
+  const campus = db.campuses.find((c) => c.id === id);
+  if (!campus || campus.status === 'INACTIVE') invalid({ campusId: 'Điểm trường không tồn tại hoặc đã ngừng hoạt động' });
+  if (!areaAllows(user, 'children', id, 'create')) invalid({ campusId: 'Chỉ tiếp nhận trẻ vào điểm trường bạn được giao' });
+  return id;
+};
+
 const notifyClassTeachers = (db, cls, child) =>
   (cls?.teacherIds || []).forEach((teacherId) =>
     pushNotification(db, {
@@ -684,7 +727,8 @@ const guardianConflicts = (db, guardians, errors = {}, excludeChildId) =>
   Object.fromEntries(
     (guardians || []).flatMap((g, i) => {
       if (errors[`guardians.${i}.idNumber`] || errors[`guardians.${i}.phone`]) return [];
-      const message = identityConflict(db, g, { excludeChildId });
+      const sameAccount = (g.accountId && db.parentAccounts.find((a) => a.id === g.accountId)) || null;
+      const message = identityConflict(db, g, { excludeChildId, sameAccount });
       if (!message) return [];
       return [[`guardians.${i}.${message === PHONE_HAS_OTHER_ID ? 'phone' : 'idNumber'}`, message]];
     }),
@@ -706,7 +750,7 @@ const validateEnrollment = (db, { child, declaration }, excludeId) => {
 
 const prefix = (p, errors) => Object.fromEntries(Object.entries(errors).map(([k, v]) => [`${p}.${k}`, v]));
 
-const createChild = (db, { child, declaration }, { classId, user }) => {
+const createChild = (db, { child, declaration }, { classId, campusId, user }) => {
   const decl = cleanDeclaration(declaration);
   const record = {
     id: uid('ch'),
@@ -715,10 +759,10 @@ const createChild = (db, { child, declaration }, { classId, user }) => {
     gender: child.gender,
     dateOfBirth: child.dateOfBirth,
     classId: classId || null,
-    campusId: db.classes.find((c) => c.id === classId)?.campusId || user.campusId,
+    campusId,
     status: classId ? CHILD_STATUS.ACTIVE : CHILD_STATUS.PENDING_PLACEMENT,
     enrolledAt: todayInput(),
-    // Phó hiệu trưởng chốt dị ứng ngay khi tiếp nhận, không chờ Hiệu trưởng (quyết định user 2026-10-14).
+    // Người tiếp nhận chốt dị ứng ngay khi tiếp nhận, không chờ Hiệu trưởng duyệt (quyết định user 2026-10-14).
     allergies: [...decl.allergies.items],
     guardians: cleanGuardians(child.guardians),
     profile: cleanProfile(child.profile),
@@ -737,6 +781,19 @@ const createChild = (db, { child, declaration }, { classId, user }) => {
   if (tbReported(decl.medicalHistory)) notifyTbContactReported(db, record, user.id, tbContactDateOf(decl.medicalHistory));
   return record;
 };
+
+/** Kết quả tài khoản từng phụ huynh khi lưu form tiếp nhận: CREATED (tạo, gửi SMS) · LINKED (tài khoản có sẵn) · NOT_ACTIVATED. */
+const guardianAccountsOf = (record, activated, edited = []) =>
+  (record.guardians || []).map((g) => {
+    const same = (r) => normalizePhone(r.phone) === normalizePhone(g.phone);
+    const done = activated.find(same);
+    const edit = edited.find(same);
+    const linked = done || g.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED;
+    const result = done?.newAccount ? 'CREATED' : linked ? 'LINKED' : 'NOT_ACTIVATED';
+    // phoneChanged: tài khoản có sẵn đổi tên đăng nhập sang SĐT mới, mật khẩu mới gửi SMS (user chốt 2026-10-28).
+    const smsStatus = done?.smsStatus || edit?.smsStatus || null;
+    return { fullName: g.fullName, phone: g.phone, result, phoneChanged: !!edit?.phoneChanged, smsStatus };
+  });
 
 const smsWouldFail = (account) => /99$/.test(account.phone) && account.sms.length === 0;
 
@@ -858,6 +915,18 @@ export const childrenMockRepository = {
     };
   },
 
+  /**
+   * Kiểm CCCD/SĐT phụ huynh ngay ở bước 1 tiếp nhận, cùng kiểm như khi lưu (user chốt 2026-10-28, PROPOSED — chờ BE):
+   * lệch phụ huynh đã có ⇒ 409 lỗi theo ô; hợp lệ ⇒ null.
+   */
+  async checkGuardianConflicts(guardians, user) {
+    await delay(100);
+    if (!canEnrollChild(user)) forbid();
+    const db = ensureSeeded();
+    throwConflicts(guardianConflicts(db, attachAccounts(db, guardians)));
+    return null;
+  },
+
   /** Mở lại hồ sơ trẻ đã nghỉ học (user chốt 2026-10-23): về Chờ xếp lớp, giữ mã, lịch sử, sức khỏe, tài khoản phụ huynh. */
   async readmitChild(childId, { reason } = {}, user) {
     await delay();
@@ -894,20 +963,27 @@ export const childrenMockRepository = {
     await delay();
     if (!canEnrollChild(user)) forbid();
     const db = ensureSeeded();
-    const guardians = withAccounts(db, payload.child?.guardians);
+    const guardians = attachAccounts(db, payload.child?.guardians);
     const resolved = { ...payload, child: { ...payload.child, guardians } };
     const { errors, dup, conflicts } = validateEnrollment(db, resolved);
     if (hasErrors(errors)) invalid(errors);
     if (dup) throw new ApiError(409, 'Hồ sơ trẻ này đã tồn tại (trùng họ tên, ngày sinh và phụ huynh). Xem lại hồ sơ đã có.');
     throwConflicts(conflicts);
     return writeDb((d) => {
-      // Lớp không bắt buộc khi tiếp nhận; có lớp thì vẫn kiểm sức chứa và campus.
+      // Lớp không bắt buộc khi tiếp nhận; có lớp thì vẫn kiểm sức chứa và campus, trẻ thuộc điểm trường của lớp.
       const cls = payload.classId ? assertClassAvailable(d, payload.classId, user) : null;
-      const record = createChild(d, resolved, { classId: cls?.id || null, user });
+      if (cls && payload.campusId && cls.campusId !== payload.campusId) invalid({ classId: 'Lớp không thuộc điểm trường đã chọn' });
+      const campusId = cls?.campusId || enrollCampusOf(d, payload.campusId, user);
+      const record = createChild(d, resolved, { classId: cls?.id || null, campusId, user });
       // Tài khoản có sẵn: liên kết ngay khi lưu, không tạo tài khoản mới, không gửi mật khẩu (UC 3.9 nhánh đã có tài khoản).
       linkAccounts(d, record, guardians);
+      // Thông tin sửa khác tài khoản có sẵn ⇒ tài khoản đổi theo; làm trước kích hoạt để phụ huynh đổi SĐT không bị coi là người mới.
+      const edited = applyAccountEdits(d, guardians);
+      // Form tiếp nhận: tạo tài khoản cho phụ huynh chưa có và gửi SMS ngay; nhập Excel vẫn kích hoạt sau (user chốt 2026-10-28, L-14).
+      // Người lưu không có quyền kích hoạt ở điểm trường đó thì phụ huynh chờ kích hoạt.
+      const activated = canActivateParent(record, user) ? activatePendingGuardians(d, record) : [];
       if (cls) notifyClassTeachers(d, cls, record);
-      return toView(d, record, user);
+      return { ...toView(d, record, user), guardianAccounts: guardianAccountsOf(record, activated, edited) };
     });
   },
 
@@ -916,20 +992,18 @@ export const childrenMockRepository = {
     const db = ensureSeeded();
     const current = findChild(db, id);
     if (!canEditChild(current, user)) forbid();
-    // Phụ huynh đã có tài khoản và tài khoản đã có CCCD: CCCD theo tài khoản, không nhận số client gửi (D5).
-    const linkedAccount = (g) => {
-      const old = (current.guardians || []).find((p) => normalizePhone(p.phone) === normalizePhone(g.phone));
-      return old && old.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED ? accountByPhone(db, g.phone) : null;
-    };
-    const guardians = withAccounts(
-      db,
-      (input.guardians || []).map((g) => {
-        const acc = linkedAccount(g);
-        return acc?.idNumber ? { ...g, idNumber: acc.idNumber } : g;
-      }),
-    );
+    // Thông tin phụ huynh sửa được, tài khoản đổi theo (user chốt 2026-10-28; thay D5 "CCCD theo tài khoản").
+    const guardians = attachAccounts(db, input.guardians, current.guardians);
     const child = { ...input, guardians };
     const errors = validateChildInfo(child);
+    // Đổi cùng lúc CCCD và SĐT của phụ huynh đã có tài khoản dễ thành thay người khác vào tài khoản cũ.
+    guardians.forEach((g, i) => {
+      const acc = accountOfGuardian(db, g);
+      const idChanged = !!acc?.idNumber && normalizeCitizenId(acc.idNumber) !== normalizeCitizenId(g.idNumber);
+      if (idChanged && normalizePhone(acc.phone) !== normalizePhone(g.phone))
+        errors[`guardians.${i}.idNumber`] ||=
+          'Phụ huynh đã có tài khoản: không đổi cùng lúc CCCD và số điện thoại. Đổi từng thông tin, hoặc gỡ phụ huynh ở màn Tài khoản phụ huynh rồi thêm người mới.';
+    });
     if (!reason?.trim()) errors.reason = 'Nhập lý do chỉnh sửa hồ sơ';
     if (hasErrors(errors)) invalid(errors);
     if (isDuplicate(db, child, id)) throw new ApiError(409, 'Đã có hồ sơ khác trùng họ tên, ngày sinh và phụ huynh. Xem lại hồ sơ đã có.');
@@ -947,13 +1021,15 @@ export const childrenMockRepository = {
       set('guardians', cleanGuardians(child.guardians, target.guardians));
       // Phụ huynh khớp tài khoản (theo CCCD): liên kết trẻ; tài khoản chưa có CCCD được bổ sung số vừa nhập (D2).
       linkAccounts(d, target, guardians);
+      // accountChanges: tài khoản đổi theo thông tin vừa sửa; đổi SĐT ⇒ tên đăng nhập mới, mật khẩu mới gửi SMS.
+      const accountChanges = applyAccountEdits(d, guardians);
       if (child.profile) {
         const next = cleanProfile(child.profile);
         changes.push(...profileChanges(target.profile, next));
         target.profile = next;
       }
       target.history = [...(target.history || []), { action: 'UPDATED', userId: user.id, at: nowIso(), note: reason.trim(), changes }];
-      return toView(d, target, user);
+      return { ...toView(d, target, user), accountChanges };
     });
   },
 
@@ -1007,12 +1083,16 @@ export const childrenMockRepository = {
     return { supported: true, fileName: name, rows: checked };
   },
 
-  /** Valid rows become children waiting for placement; their declaration is saved as entered (UC 3.8 alt flow). */
-  async importChildren(rows, user) {
+  /**
+   * Valid rows become children waiting for placement; their declaration is saved as entered (UC 3.8 alt flow).
+   * campusId: điểm trường của cả file (bắt buộc với người được giao toàn trường, như enrollCampusOf).
+   */
+  async importChildren(rows, user, campusId) {
     await delay();
     if (!canEnrollChild(user)) forbid();
     const db = ensureSeeded();
     if (!rows?.length) invalid({ file: 'Không có dòng hợp lệ để nhập' });
+    const targetCampusId = enrollCampusOf(db, campusId, user);
     const keys = new Set();
     const inFile = createBatchIdentityCheck();
     const resolved = rows.map((r) => ({ ...r, child: { ...r.child, guardians: withAccounts(db, r.child?.guardians) } }));
@@ -1026,7 +1106,7 @@ export const childrenMockRepository = {
     });
     return writeDb((d) => {
       const created = resolved.map((r) => {
-        const record = createChild(d, r, { classId: null, user });
+        const record = createChild(d, r, { classId: null, campusId: targetCampusId, user });
         linkAccounts(d, record, r.child.guardians);
         return record;
       });
@@ -1058,6 +1138,8 @@ export const childrenMockRepository = {
         reason: reason?.trim() || '',
       });
       target.classId = cls.id;
+      // Điểm trường theo lớp (BE DOMAIN_MODEL: campus suy từ classroom): lớp ở điểm trường khác = chuyển điểm trường.
+      target.campusId = cls.campusId;
       target.status = CHILD_STATUS.ACTIVE;
       notifyClassTeachers(d, cls, target);
       return toView(d, target, user);
@@ -1195,21 +1277,14 @@ export const childrenMockRepository = {
     if (guardian.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED)
       throw new ApiError(409, 'Phụ huynh này đã có tài khoản liên kết với trẻ.');
     const phone = normalizePhone(guardian.phone);
-    const email = (guardian.email || '').trim().toLowerCase();
+    // Như kích hoạt theo hồ sơ (user chốt 2026-10-28): không chặn SĐT/email nhân sự; email chỉ là liên hệ, tìm tài khoản theo SĐT.
     const byPhone = db.parentAccounts.find((a) => a.phone === phone);
-    const byEmail = email ? db.parentAccounts.find((a) => a.email.toLowerCase() === email) : null;
-    if (byPhone && byEmail && byPhone.id !== byEmail.id)
-      throw new ApiError(409, 'Số điện thoại và email thuộc hai tài khoản phụ huynh khác nhau. Kiểm tra lại thông tin liên hệ.');
-    // Sign-in phone / email are unique across every account, staff included (data rule).
-    const staffClash = db.users.some((u) => normalizePhone(u.phone) === phone || (email && u.email?.toLowerCase() === email));
-    if (staffClash)
-      throw new ApiError(409, 'Số điện thoại hoặc email đã được dùng cho tài khoản nhân viên. Không tạo được tài khoản phụ huynh.');
     // 1 người 1 tài khoản (D4); hồ sơ cũ chưa có CCCD vẫn kích hoạt được (D7).
     const conflict = identityConflict(db, { phone, idNumber: guardian.idNumber }, { excludeChildId: childId });
     if (conflict) throw new ApiError(409, conflict);
     return writeDb((d) => {
       const target = findChild(d, childId).guardians[guardianIndex];
-      const existing = d.parentAccounts.find((a) => a.id === (byPhone || byEmail)?.id);
+      const existing = d.parentAccounts.find((a) => a.id === byPhone?.id);
       if (existing) {
         // Existing account: link only, no new password (UC 3.9 alt flow step 2).
         if (!existing.childIds.includes(childId)) existing.childIds.push(childId);
@@ -1221,7 +1296,7 @@ export const childrenMockRepository = {
         id: uid('pa'),
         username: phone,
         phone,
-        email,
+        email: (target.email || '').trim().toLowerCase(),
         fullName: target.fullName,
         idNumber: target.idNumber || '',
         status: PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION,

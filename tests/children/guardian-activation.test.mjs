@@ -21,16 +21,14 @@ const { guardianMockRepository: guardians } = await import('@/services/account/m
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL', campusId: 'c1' };
 const TEACHER = { id: 'u_minhanh', role: 'TEACHER', campusId: 'c1' };
 const digits = (v) => String(v).replace(/\s/g, '');
-const notStaff = (phone) => !readDb().users.some((u) => u.role !== 'PARENT' && digits(u.phone || '') === digits(phone));
 
 let child;
 beforeEach(() => {
   resetDb();
   ensureChildRecordsSeeded();
-  // Bé có 2 phụ huynh trên hồ sơ, chưa ai có tài khoản (SĐT không trùng nhân sự, không trùng tài khoản có sẵn).
+  // Bé có 2 phụ huynh trên hồ sơ, chưa ai có tài khoản (SĐT không trùng tài khoản có sẵn).
   const db = readDb();
-  const free = (g) =>
-    g.accountStatus === 'NOT_ACTIVATED' && notStaff(g.phone) && !db.parentAccounts.some((a) => a.phone === digits(g.phone));
+  const free = (g) => g.accountStatus === 'NOT_ACTIVATED' && !db.parentAccounts.some((a) => a.phone === digits(g.phone));
   const base = db.children.find((c) => c.campusId === 'c1' && c.status === 'ACTIVE' && c.guardians.length === 1 && free(c.guardians[0]));
   writeDb((d) => {
     const target = d.children.find((c) => c.id === base.id);

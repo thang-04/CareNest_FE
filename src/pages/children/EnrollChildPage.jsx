@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -17,27 +17,34 @@ import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
-import { checkDuplicateChild, enrollChild, readmitChild } from '@/services/children/childrenService';
+import { checkDuplicateChild, checkGuardianConflicts, enrollChild, readmitChild } from '@/services/children/childrenService';
 import { FormField } from '@/components/form/FormField';
 import { GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import { formatDate } from '@/utils/format';
 import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
-import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
-import { canEnrollChild } from '@/utils/children/childrenPermissions';
-import { emptyChildInfo, emptyDeclaration, suggestAgeGroupId, withGuardianAccounts } from '@/utils/children/childrenHelpers';
+import { canActivateParentsAt, canEnrollChild, childCampusesOf } from '@/utils/children/childrenPermissions';
+import {
+  defaultCampusId,
+  emptyChildInfo,
+  emptyDeclaration,
+  suggestAgeGroupId,
+  withGuardianAccounts,
+} from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
 const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Khai báo sức khỏe', 'Xem lại & xác nhận'];
 
-const stepOfField = (field) => (field.startsWith('declaration.') ? 2 : field === 'classId' ? 1 : 0);
+const PLACEMENT_FIELDS = ['classId', 'campusId'];
+
+const stepOfField = (field) => (field.startsWith('declaration.') ? 2 : PLACEMENT_FIELDS.includes(field) ? 1 : 0);
 
 /** Splits '422' details from the service back into each step's error map. */
 const splitServerErrors = (details = {}) => {
   const out = { info: {}, placement: {}, declaration: {} };
   Object.entries(details).forEach(([k, v]) => {
     if (k.startsWith('declaration.')) out.declaration[k.slice(12)] = v;
-    else if (k === 'classId') out.placement.classId = v;
+    else if (PLACEMENT_FIELDS.includes(k)) out.placement[k] = v;
     else out.info[k] = v;
   });
   return out;
@@ -56,6 +63,8 @@ export default function EnrollChildPage() {
   const [info, setInfo] = useState(emptyChildInfo);
   const [ageGroupId, setAgeGroupId] = useState('');
   const [classId, setClassId] = useState('');
+  // null = chưa chọn: dùng điểm trường mặc định; giữ lựa chọn khi tiếp nhận trẻ khác.
+  const [campusPick, setCampusPick] = useState(null);
   const [declaration, setDeclaration] = useState(emptyDeclaration());
   const [errors, setErrors] = useState({ info: {}, placement: {}, declaration: {} });
   const [duplicate, setDuplicate] = useState(null);
@@ -79,7 +88,7 @@ export default function EnrollChildPage() {
         <StatusPage
           kind="403"
           title="Bạn không có quyền tiếp nhận trẻ"
-          description="Chỉ Phó hiệu trưởng phụ trách điểm trường được tiếp nhận trẻ."
+          description="Chỉ Hiệu trưởng hoặc Phó hiệu trưởng được giao quyền tiếp nhận trẻ."
         />
       </div>
     );
@@ -87,6 +96,11 @@ export default function EnrollChildPage() {
 
   const suggested = suggestAgeGroupId(info.dateOfBirth, schoolYear);
   const selectedClass = classes.find((c) => c.id === classId);
+  // Hiệu trưởng, PHT toàn trường chọn điểm trường: trẻ chưa xếp lớp thuộc điểm trường này (BE kiểm lại).
+  const campusOptions = childCampusesOf(user, md.campuses);
+  const pickCampus = campusOptions.length > 1;
+  const campusId = campusPick ?? defaultCampusId(campusOptions, user);
+  const campusLabel = (id) => md.campusById(id)?.shortName || md.campusById(id)?.name || '';
   const dirty = !!(info.fullName || info.dateOfBirth || info.guardians.some((g) => g.fullName || g.phone || g.idNumber));
 
   // Phụ huynh có CCCD trùng tài khoản: họ tên, SĐT, email theo tài khoản; BE vẫn tự liên kết theo CCCD khi lưu.
@@ -156,15 +170,24 @@ export default function EnrollChildPage() {
         );
         setDuplicate(dup);
         if (dup) return;
+        // CCCD/SĐT phụ huynh lệch phụ huynh đã có: báo ngay ở bước này, không đợi lưu; lưu vẫn kiểm lại (user chốt 2026-10-28).
+        await checkGuardianConflicts(effectiveInfo.guardians, user);
       } catch (err) {
-        toast.error(err, 'Không kiểm tra được hồ sơ trùng');
+        if (err.status === 409 && err.details) {
+          setErrors((e) => ({ ...e, info: err.details }));
+          toast.error(err, 'Thông tin phụ huynh chưa đúng');
+        } else toast.error(err, 'Không kiểm tra được hồ sơ');
         return;
       } finally {
         setBusy(false);
       }
       toPlacement();
     } else if (step === 1) {
-      // Lớp không bắt buộc khi tiếp nhận: bỏ trống thì trẻ ở trạng thái Chờ xếp lớp.
+      // Lớp không bắt buộc khi tiếp nhận: bỏ trống thì trẻ ở trạng thái Chờ xếp lớp của điểm trường đã chọn.
+      if (pickCampus && !campusId) {
+        setErrors((e) => ({ ...e, placement: { campusId: 'Chọn điểm trường tiếp nhận trẻ' } }));
+        return;
+      }
       goTo(2);
     } else if (step === 2) {
       const errs = validateDeclaration(declaration, { dateOfBirth: info.dateOfBirth });
@@ -176,7 +199,7 @@ export default function EnrollChildPage() {
   const save = async () => {
     setBusy(true);
     try {
-      const child = await enrollChild({ child: effectiveInfo, classId, declaration }, user);
+      const child = await enrollChild({ child: effectiveInfo, classId, campusId: campusId || undefined, declaration }, user);
       setSaved(child);
       toast.success(`Đã lưu hồ sơ ${child.fullName} (${child.code}).`, 'Tiếp nhận thành công');
     } catch (err) {
@@ -192,8 +215,18 @@ export default function EnrollChildPage() {
   };
 
   if (saved) {
-    // Trạng thái tài khoản lấy từ BE trả về sau khi lưu, không suy từ lựa chọn trên form.
-    const needsActivation = (saved.guardians || []).some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED);
+    // Kết quả tài khoản phụ huynh lấy từ BE trả về sau khi lưu (form tiếp nhận kích hoạt ngay — user chốt 2026-10-28).
+    const accounts = saved.guardianAccounts || [];
+    const created = accounts.filter((a) => a.result === 'CREATED');
+    // Tài khoản có sẵn đổi SĐT ở form ⇒ tên đăng nhập mới, mật khẩu mới gửi SMS (user chốt 2026-10-28).
+    const renamed = accounts.filter((a) => a.result === 'LINKED' && a.phoneChanged);
+    const smsFailed = [...created, ...renamed].filter((a) => a.smsStatus === 'FAILED');
+    const smsSent = created.filter((a) => a.smsStatus !== 'FAILED');
+    const renamedSent = renamed.filter((a) => a.smsStatus !== 'FAILED');
+    const linked = accounts.filter((a) => a.result === 'LINKED');
+    const waiting = accounts.filter((a) => a.result === 'NOT_ACTIVATED');
+    const phones = (list) => list.map((a) => a.phone).join(', ');
+    const names = (list) => list.map((a) => a.fullName).join(', ');
     return (
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
@@ -208,10 +241,22 @@ export default function EnrollChildPage() {
               {saved.className ? ` vào ${saved.className}` : ' – chờ xếp lớp'}
             </div>
             <div className="muted tr-state-text">
-              Mã trẻ <b>{saved.code}</b>.{' '}
-              {needsActivation
-                ? 'Bước tiếp theo: kích hoạt tài khoản cho phụ huynh chưa có tài khoản để nhận tên đăng nhập và mật khẩu qua SMS.'
-                : 'Trẻ đã được liên kết vào tài khoản phụ huynh có sẵn; phụ huynh xem được trẻ trên ứng dụng, không cần mật khẩu mới.'}
+              <div>
+                Mã trẻ <b>{saved.code}</b>.
+              </div>
+              {smsSent.length > 0 && <div>Đã tạo tài khoản phụ huynh, mật khẩu tạm gửi qua SMS tới {phones(smsSent)}.</div>}
+              {renamedSent.length > 0 && (
+                <div>Tài khoản có sẵn đổi tên đăng nhập sang {phones(renamedSent)}; mật khẩu tạm mới đã gửi qua SMS tới số mới.</div>
+              )}
+              {smsFailed.length > 0 && (
+                <div>Chưa gửi được SMS mật khẩu tới {phones(smsFailed)}: gửi lại mật khẩu ở màn Tài khoản phụ huynh.</div>
+              )}
+              {linked.length > 0 && (
+                <div>Liên kết vào tài khoản có sẵn của {names(linked)}; phụ huynh xem được trẻ trên ứng dụng, không cần mật khẩu mới.</div>
+              )}
+              {waiting.length > 0 && (
+                <div>Chưa tạo tài khoản cho {names(waiting)}: người có quyền kích hoạt ở màn Tài khoản phụ huynh.</div>
+              )}
             </div>
             <div className="row row--wrap mt-12 gap-2 tr-state-actions">
               <button
@@ -231,9 +276,9 @@ export default function EnrollChildPage() {
               <Link className="btn" to={`/children/${saved.id}`}>
                 <Eye size={16} /> Xem hồ sơ
               </Link>
-              {needsActivation && (
+              {(waiting.length > 0 || smsFailed.length > 0) && (
                 <Link className="btn btn--primary" to={`/children/activation?childId=${saved.id}`}>
-                  <KeyRound size={16} /> Kích hoạt tài khoản phụ huynh
+                  <KeyRound size={16} /> {waiting.length > 0 ? 'Kích hoạt tài khoản phụ huynh' : 'Gửi lại mật khẩu'}
                 </Link>
               )}
             </div>
@@ -347,6 +392,14 @@ export default function EnrollChildPage() {
               error={errors.placement.classId}
               userById={md.userById}
               required={false}
+              campuses={campusOptions}
+              campusId={campusId}
+              onCampusChange={(id) => {
+                setCampusPick(id);
+                if (classes.find((c) => c.id === classId)?.campusId !== id) setClassId('');
+                setErrors((e) => ({ ...e, placement: {} }));
+              }}
+              campusError={errors.placement.campusId}
             />
           )}
         </section>
@@ -396,6 +449,15 @@ export default function EnrollChildPage() {
                 </div>
               ))}
             </dl>
+            {canActivateParentsAt(selectedClass?.campusId || campusId, user) && (
+              <div className="alert alert--info mt-12">
+                <Info size={18} />
+                <div>
+                  Khi lưu, phụ huynh chưa có tài khoản được tạo tài khoản ngay và nhận mật khẩu tạm qua SMS; phụ huynh đã có tài khoản chỉ
+                  được liên kết thêm trẻ.
+                </div>
+              </div>
+            )}
             <h3 className="subsection-title mt-16">Thông tin hành chính</h3>
             <ChildProfileSummary profile={info.profile} />
           </section>
@@ -406,6 +468,11 @@ export default function EnrollChildPage() {
                 Sửa
               </button>
             </div>
+            {pickCampus && (
+              <p className="mb-12">
+                Điểm trường: <b>{campusLabel(selectedClass?.campusId || campusId)}</b>
+              </p>
+            )}
             {selectedClass ? (
               <p>
                 <b>{selectedClass.name}</b> – {ageGroupById(selectedClass.ageGroupId)?.name} · năm học {schoolYear} · sĩ số hiện tại{' '}

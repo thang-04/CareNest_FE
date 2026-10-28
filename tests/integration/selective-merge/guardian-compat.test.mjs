@@ -29,11 +29,19 @@ test('UI structure/scope giữ campus legacy; teacher không ghi tài khoản, H
   const other = readDb().children.find((row) => row.campusId === 'c2');
   await assert.rejects(repo.listGuardians(other.id, vp), rejectStatus(403));
 });
-test('email/phone nhân sự hoặc hai parent khác nhau bị chặn như activation cũ', async () => {
-  await assert.rejects(repo.addGuardian(child.id, form({ email: readDb().users[0].email }), vp), rejectStatus(409));
-  const [a, b] = readDb().parentAccounts.filter((row) => row.email).slice(0, 2);
+// User chốt 2026-10-28: tài khoản nhân sự tách riêng; email chỉ là liên hệ, tài khoản phụ huynh tìm theo SĐT.
+test('SĐT/email nhân sự không chặn; email của tài khoản khác không ghép, tài khoản tìm theo SĐT', async () => {
+  const staff = readDb().users.find((row) => row.role === 'TEACHER' && row.phone && row.email);
+  assert.ok((await repo.addGuardian(child.id, form({ phone: staff.phone, email: staff.email }), vp)).newAccount);
+  const [a, b] = readDb()
+    .parentAccounts.filter((row) => row.email && row.idNumber && !(row.childIds || []).includes(child.id))
+    .slice(0, 2);
   assert.ok(a && b);
-  await assert.rejects(repo.addGuardian(child.id, form({ phone: a.phone, email: b.email }), vp), rejectStatus(409));
+  const linked = await repo.addGuardian(child.id, form({ phone: a.phone, idNumber: a.idNumber, email: b.email }), vp);
+  assert.equal(linked.newAccount, false);
+  const accountOf = (id) => readDb().parentAccounts.find((row) => row.id === id);
+  assert.ok(accountOf(a.id).childIds.includes(child.id));
+  assert.ok(!accountOf(b.id).childIds.includes(child.id));
 });
 test('thêm phụ huynh không email: hồ sơ, thông báo demo, khóa/gỡ liên kết đồng nhất', async () => {
   const added = await repo.addGuardian(child.id, form(), vp);

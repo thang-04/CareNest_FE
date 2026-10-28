@@ -13,15 +13,23 @@ const phoneKey = (phone) =>
 export const CITIZEN_ID_TAKEN = 'Số CCCD này đã ghi cho phụ huynh khác (số điện thoại khác). Kiểm tra lại số CCCD.';
 export const PHONE_HAS_OTHER_ID = 'Số điện thoại này đã thuộc phụ huynh có số CCCD khác. Kiểm tra lại số điện thoại hoặc số CCCD.';
 
-/** Câu lỗi khi { phone, idNumber } lệch với phụ huynh đã ghi, hoặc null. excludeChildId: bỏ bản ghi của hồ sơ đang sửa. */
-export const identityConflict = (db, { phone, idNumber }, { excludeChildId } = {}) => {
+/**
+ * Câu lỗi khi { phone, idNumber } lệch với phụ huynh đã ghi, hoặc null. excludeChildId: bỏ bản ghi của hồ sơ đang sửa.
+ * sameAccount: tài khoản của chính phụ huynh đang sửa ⇒ bỏ tài khoản đó và bản sao cùng SĐT/CCCD cũ (đổi SĐT, CCCD — user chốt 2026-10-28).
+ */
+export const identityConflict = (db, { phone, idNumber }, { excludeChildId, sameAccount } = {}) => {
   const id = normalizeCitizenId(idNumber);
   const p = phoneKey(phone);
   if (!id || !p) return null;
+  const ownRecord = (r) =>
+    !!sameAccount &&
+    (r === sameAccount ||
+      phoneKey(r.phone) === phoneKey(sameAccount.phone) ||
+      (!!sameAccount.idNumber && normalizeCitizenId(r.idNumber) === normalizeCitizenId(sameAccount.idNumber)));
   const records = [
     ...(db.parentAccounts || []),
     ...(db.children || []).filter((c) => c.id !== excludeChildId).flatMap((c) => c.guardians || []),
-  ];
+  ].filter((r) => !ownRecord(r));
   for (const r of records) {
     const rid = normalizeCitizenId(r.idNumber);
     const rp = phoneKey(r.phone);

@@ -9,6 +9,7 @@ import { areaAccess, areaAllows } from '@/utils/school-config/schoolConfigPermis
  * Used to hide buttons AND re-checked in the mock repository. Teacher / Team Leader acting as a teacher:
  * only children of a class they are assigned to (footnote ²); Vice Principal: per-VP "Hồ sơ trẻ" right
  * (Không có / Chỉ xem / Sửa, campus mình hoặc toàn trường; mặc định sửa campus mình) set by the Principal.
+ * Principal: như PHT được Thêm + Sửa toàn trường (areaAccess) — tiếp nhận trẻ như PHT (user chốt 2026-10-27, PROPOSED — chờ BE).
  */
 
 export const isPrincipal = (user) => user?.role === ROLES.PRINCIPAL;
@@ -39,27 +40,31 @@ export const canViewHealth = canViewChild;
 /** Account details (username, SMS) are only for the enrolling management roles. */
 export const canViewParentAccounts = (user) => isPrincipal(user) || isVicePrincipal(user);
 
-/* ---- Vice Principal of the child's campus (UC 3.8, 3.9, 3.10, 5.2) ---- */
+/* ---- Hiệu trưởng, Phó hiệu trưởng của điểm trường của trẻ (UC 3.8, 3.9, 3.10, 5.2) ---- */
 // Thêm = tiếp nhận trẻ mới; Sửa = sửa hồ sơ, xếp lớp, khai báo sức khỏe, kích hoạt phụ huynh
-export const canEnrollChild = (user) => isVicePrincipal(user) && !!areaAccess(user, 'children').actions?.create;
+export const canEnrollChild = (user) => !!areaAccess(user, 'children').actions?.create;
 
-const vpOfCampus = (child, user) => isVicePrincipal(user) && !!child && areaAllows(user, 'children', child.campusId, 'update');
+const managesChild = (child, user) => !!child && areaAllows(user, 'children', child.campusId, 'update');
 
-const vpEditable = (child, user) => vpOfCampus(child, user) && child.status !== CHILD_STATUS.LEFT;
-
-// Sửa hồ sơ và cho nghỉ học: Phó hiệu trưởng điểm trường của trẻ hoặc Hiệu trưởng (quyết định user 2026-10-14).
-export const canEditChild = (child, user) =>
-  !!child && child.status !== CHILD_STATUS.LEFT && (vpOfCampus(child, user) || isPrincipal(user));
+// Sửa hồ sơ, cho nghỉ học (quyết định user 2026-10-14), xếp lớp: Phó hiệu trưởng điểm trường của trẻ hoặc Hiệu trưởng.
+export const canEditChild = (child, user) => managesChild(child, user) && child.status !== CHILD_STATUS.LEFT;
 export const canWithdrawChild = canEditChild;
-export const canPlaceChild = vpEditable;
-// Mở lại hồ sơ trẻ đã nghỉ học: như tiếp nhận — Phó hiệu trưởng của điểm trường của trẻ (user chốt 2026-10-23).
+export const canPlaceChild = canEditChild;
+/** Màn Xếp lớp; từng trẻ theo canPlaceChild. */
+export const canOpenPlacement = (user) => isPrincipal(user) || isVicePrincipal(user);
+// Mở lại hồ sơ trẻ đã nghỉ học: như tiếp nhận — Phó hiệu trưởng điểm trường của trẻ hoặc Hiệu trưởng (user chốt 2026-10-23, 2026-10-27).
 export const canReadmitChild = (child, user) =>
-  !!child && child.status === CHILD_STATUS.LEFT && canEnrollChild(user) && vpOfCampus(child, user);
+  !!child && child.status === CHILD_STATUS.LEFT && canEnrollChild(user) && managesChild(child, user);
+/** Điểm trường được tiếp nhận ('create') / xếp lớp ('update') trẻ vào: Hiệu trưởng mọi điểm trường, PHT theo "Hồ sơ trẻ". */
+export const childCampusesOf = (user, campuses = [], action = 'create') =>
+  campuses.filter((c) => c.status !== 'INACTIVE' && areaAllows(user, 'children', c.id, action));
 // Tiền sử nằm ở khai báo nên sửa cùng quyền với Sửa hồ sơ: Hiệu trưởng hoặc Phó hiệu trưởng điểm trường (user chốt 2026-10-22).
 export const canDeclareHealth = canEditChild;
 // Kích hoạt tài khoản phụ huynh (gửi mật khẩu tạm qua SMS): Hiệu trưởng toàn trường hoặc Phó hiệu trưởng điểm trường của trẻ
 // (user chốt 2026-10-23, PROPOSED — chờ BE).
 export const canActivateParent = canEditChild;
+/** Như canActivateParent cho trẻ chưa có hồ sơ (bước Xem lại khi tiếp nhận): lưu form tiếp nhận sẽ kích hoạt phụ huynh. */
+export const canActivateParentsAt = (campusId, user) => areaAllows(user, 'children', campusId, 'update');
 
 /* ---- Class teacher (UC 5.3; Principal and VP have "No" for Record / Edit in the matrix) ---- */
 export const canRecordMeasurement = (child, user, cls) =>

@@ -29,8 +29,6 @@ const loginAs = async (predicate) => (await auth.login({ email: readDb().users.f
 const rejects = (promise, status, key) =>
   assert.rejects(promise, (err) => err.status === status && (!key || Object.hasOwn(err.details || {}, key)));
 const digits = (phone) => phone.replace(/\s/g, '');
-// Dữ liệu mẫu có SĐT phụ huynh trùng SĐT nhân sự (bị chặn trước bước CCCD); kịch bản chọn SĐT không trùng.
-const notStaff = (phone) => !readDb().users.some((u) => u.role !== 'PARENT' && digits(u.phone || '') === digits(phone));
 
 let vp;
 beforeEach(async () => {
@@ -161,15 +159,19 @@ test('AC-4: CCCD ghi cho phụ huynh khác (không có tài khoản, SĐT khác)
     at('guardians.0.idNumber', CITIZEN_ID_TAKEN),
   );
   await assert.rejects(children.enrollChild(payload([newGuardian({ phone: acc.phone })]), vp), at('guardians.0.phone', PHONE_HAS_OTHER_ID));
-  // CCCD của tài khoản (user chốt 2026-10-23): liên kết tài khoản, SĐT theo tài khoản dù client gửi số khác.
-  const same = await children.enrollChild(payload([newGuardian({ idNumber: acc.idNumber })]), vp);
-  assert.equal(digits(same.guardians[0].phone), acc.phone);
+  // CCCD của tài khoản: liên kết tài khoản; SĐT gõ khác ⇒ tài khoản đổi tên đăng nhập sang số đó (user chốt 2026-10-28, thay 2026-10-23).
+  const sent = newGuardian({ idNumber: acc.idNumber });
+  const same = await children.enrollChild(payload([sent]), vp);
+  assert.equal(digits(same.guardians[0].phone), digits(sent.phone));
+  assert.equal(readDb().parentAccounts.find((a) => a.id === acc.id).username, digits(sent.phone));
 });
 
-test('AC-5: tài khoản có sẵn theo CCCD dùng thông tin tài khoản; tài khoản cũ chưa có CCCD khớp theo SĐT và được bổ sung', async () => {
-  const [withId, noId] = readDb().parentAccounts.filter((a) => notStaff(a.phone));
+test('AC-5: tài khoản có sẵn theo CCCD nhận thông tin sửa ở form; tài khoản cũ chưa có CCCD khớp theo SĐT và được bổ sung', async () => {
+  const [withId, noId] = readDb().parentAccounts;
   const linked = await children.enrollChild(payload([newGuardian({ idNumber: withId.idNumber, fullName: 'Tên gõ khác' })]), vp);
-  assert.equal(linked.guardians[0].fullName, withId.fullName, 'họ tên theo tài khoản');
+  // Sửa ở form ⇒ tài khoản đổi theo (user chốt 2026-10-28, thay "họ tên theo tài khoản" 2026-10-23).
+  assert.equal(linked.guardians[0].fullName, 'Tên gõ khác');
+  assert.equal(readDb().parentAccounts.find((a) => a.id === withId.id).fullName, 'Tên gõ khác');
   assert.ok(
     readDb()
       .parentAccounts.find((a) => a.id === withId.id)
@@ -252,7 +254,7 @@ test('AC-8: thêm phụ huynh ở màn tài khoản: bắt CCCD; lệch ⇒ 409;
     ...patch,
   });
   await rejects(guardians.addGuardian(child.id, form({ idNumber: '' }), vp), 400, 'idNumber');
-  const other = readDb().parentAccounts.find((a) => !a.childIds.includes(child.id) && notStaff(a.phone));
+  const other = readDb().parentAccounts.find((a) => !a.childIds.includes(child.id));
   await rejects(guardians.addGuardian(child.id, form({ idNumber: other.idNumber }), vp), 409, 'idNumber');
   await rejects(guardians.addGuardian(child.id, form({ phone: other.phone }), vp), 409, 'idNumber');
   clearIdOfAccount(other.id);
@@ -264,10 +266,7 @@ test('AC-8: thêm phụ huynh ở màn tài khoản: bắt CCCD; lệch ⇒ 409;
 
 test('AC-4: kích hoạt tạo tài khoản mang CCCD của hồ sơ; CCCD thuộc phụ huynh khác ⇒ 409', async () => {
   const db = readDb();
-  const child = db.children.find(
-    (c) =>
-      c.campusId === 'c1' && c.status !== 'LEFT' && c.guardians[0]?.accountStatus === 'NOT_ACTIVATED' && notStaff(c.guardians[0].phone),
-  );
+  const child = db.children.find((c) => c.campusId === 'c1' && c.status !== 'LEFT' && c.guardians[0]?.accountStatus === 'NOT_ACTIVATED');
   const setId = (value) =>
     writeDb((d) => {
       d.children.find((c) => c.id === child.id).guardians[0].idNumber = value;
