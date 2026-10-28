@@ -217,3 +217,112 @@ test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩ
   assert.deepEqual(sent.body.extraDomains, ['Lĩnh vực mới']);
   assert.deepEqual(saved.signers, signers);
 });
+
+const sourceActor = { id: 'vp-demo', role: 'VICE_PRINCIPAL' };
+const respond = (config, data) => ({ status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data } });
+
+test('import sources maps filters, traverses pages, dedupes/excludes and never eagerly loads details', async () => {
+  const calls = [];
+  const signal = new AbortController().signal;
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(config);
+    const page = config.params.page;
+    return respond(config, {
+      items:
+        page === 0
+          ? [detail({ id: 81, goalCount: 4 }), detail({ id: 82 })]
+          : [detail({ id: 81 }), detail({ id: 83, goalCount: 2, revision: 7 })],
+      totalPages: 2,
+    });
+  };
+  const result = await educationPlanApi.listGoalSources({ schoolYear: '2026 – 2027', ageGroupId: 'ag-3', excludeId: '82' }, sourceActor, {
+    signal,
+  });
+  assert.deepEqual(
+    result.map((s) => s.id),
+    ['81', '83'],
+  );
+  assert.deepEqual(result[1], {
+    id: '83',
+    code: 'KHNH-2627-MGB',
+    title: 'Kế hoạch MGB',
+    schoolYear: '2026 – 2027',
+    ageGroupId: 'ag-3',
+    status: 'DRAFT',
+    revision: 7,
+    goalCount: 2,
+  });
+  assert.deepEqual(
+    calls.map((c) => c.params),
+    [0, 1].map((page) => ({ schoolYearId: 5, ageGroupId: 3, page, size: 200 })),
+  );
+  assert.ok(calls.every((c) => c.url === '/education-plans/goals' && c.signal === signal));
+});
+
+test('import sources rejects unknown filters rather than widening scope', async () => {
+  let calls = 0;
+  axiosClient.defaults.adapter = async (config) => {
+    calls++;
+    return respond(config, { items: [], totalPages: 0 });
+  };
+  await assert.rejects(educationPlanApi.listGoalSources({ schoolYear: 'unknown' }, sourceActor), { status: 400 });
+  await assert.rejects(educationPlanApi.listGoalSources({ ageGroupId: 'unknown' }, sourceActor), { status: 400 });
+  assert.equal(calls, 0);
+});
+
+test('import source detail stays fresh and does not overwrite the writer baseline or start editing', async () => {
+  const calls = [];
+  const signal = new AbortController().signal;
+  const edit = { sessionId: 'writer-session', revision: 0 };
+  const original = toUiGoal(detail({ id: 91 }), refs);
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(`${config.method} ${config.url}`);
+    const sourceRead = config.method === 'get';
+    if (sourceRead) assert.equal(config.signal, signal);
+    return respond(
+      config,
+      detail({ id: 91, title: sourceRead ? 'Changed source' : original.title, revision: sourceRead ? calls.length : 0 }),
+    );
+  };
+  await educationPlanApi.startEditingGoal('91', edit);
+  const first = await educationPlanApi.getGoalSource('91', sourceActor, { signal });
+  const second = await educationPlanApi.getGoalSource('91', sourceActor, { signal });
+  assert.notEqual(first.revision, second.revision);
+  assert.equal(first.domains[0].rows[1].contents[0].text, 'Hô hấp');
+  const beforeSave = calls.length;
+  await educationPlanApi.saveGoal(original, { edit });
+  assert.equal(calls.length, beforeSave);
+  assert.deepEqual(calls, [
+    'post /education-plans/goals/91/start-editing',
+    'get /education-plans/goals/91',
+    'get /education-plans/goals/91',
+  ]);
+});
+
+test('import source reads preserve forbidden, missing and network errors', async () => {
+  for (const status of [403, 404, 500]) {
+    axiosClient.defaults.adapter = async (config) => {
+      throw new AxiosError('read failed', 'ERR_BAD_REQUEST', config, null, { status, config, headers: {}, data: { desc: 'read failed' } });
+    };
+    await assert.rejects(educationPlanApi.listGoalSources({}, sourceActor), { status });
+    await assert.rejects(educationPlanApi.getGoalSource('41', sourceActor), { status });
+  }
+  axiosClient.defaults.adapter = async (config) => {
+    throw new AxiosError('Network Error', 'ERR_NETWORK', config);
+  };
+  await assert.rejects(educationPlanApi.listGoalSources({}, sourceActor), { status: 0 });
+  await assert.rejects(educationPlanApi.getGoalSource('41', sourceActor), { status: 0 });
+});
+
+test('import sources restrict team leader filter and detail to their age group without sending actor', async () => {
+  const leader = { id: 'leader-demo', role: 'TEAM_LEADER', ageGroupId: 'ag-3' };
+  let sent;
+  axiosClient.defaults.adapter = async (config) => {
+    sent = config;
+    return respond(config, config.url.endsWith('/42') ? detail({ id: 42, ageGroupId: 99 }) : { items: [], totalPages: 0 });
+  };
+  await educationPlanApi.listGoalSources({ ageGroupId: 'other' }, leader);
+  assert.equal(sent.params.ageGroupId, 3);
+  assert.equal(sent.params.actor, undefined);
+  await assert.rejects(educationPlanApi.getGoalSource('42', leader), { status: 403 });
+});

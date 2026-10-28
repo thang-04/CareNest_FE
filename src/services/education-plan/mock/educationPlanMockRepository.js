@@ -2,6 +2,7 @@ import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { eduError } from './eduMockErrors';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { ROLES } from '@/models/User';
 
 /*
  * Fake backend for yearly goals, theme plans and lesson plans.
@@ -9,6 +10,33 @@ import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
  * deleting anything that has already been sent. Backend must own the approval flow.
  */
 const COLLECTIONS = { goals: 'eduGoals', themes: 'eduThemes', lessons: 'eduLessons' };
+
+// BE:EDU-06/24 — BE giả chỉ cho Phó HT lấy khác nhóm, Tổ trưởng lấy nhóm mình.
+const sourceGroup = (actor, requested) => {
+  if (actor?.role === ROLES.VICE_PRINCIPAL) return requested;
+  if (actor?.role === ROLES.TEAM_LEADER && actor.ageGroupId) return actor.ageGroupId;
+  throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
+};
+const sourceGoals = () => {
+  const db = readDb();
+  if (db.eduSeedVersion !== EDU_SEED_VERSION) writeDb(ensureSeeded);
+  return readDb().eduGoals;
+};
+const goalCount = (goal) =>
+  (goal.domains || []).reduce(
+    (count, domain) => count + (domain.rows ? domain.rows.filter((row) => row.kind === 'goal').length : (domain.items || []).length),
+    0,
+  );
+const sourceSummary = (goal) => ({
+  id: String(goal.id),
+  code: goal.code,
+  title: goal.title,
+  schoolYear: goal.schoolYear,
+  ageGroupId: goal.ageGroupId,
+  status: goal.status,
+  revision: goal.revision ?? 0,
+  goalCount: goalCount(goal),
+});
 
 // Trình duyệt còn bộ dữ liệu demo cũ (hoặc chưa có): nạp bộ demo kế hoạch giáo dục hiện hành
 const ensureSeeded = (db) => {
@@ -110,6 +138,24 @@ const saveGoal = async (item, options = {}) => {
 };
 
 export const educationPlanMockRepository = {
+  async listGoalSources({ schoolYear, ageGroupId, excludeId } = {}, actor) {
+    const group = sourceGroup(actor, ageGroupId);
+    await delay();
+    return sourceGoals()
+      .filter(
+        (goal) =>
+          (!schoolYear || goal.schoolYear === schoolYear) && (!group || goal.ageGroupId === group) && String(goal.id) !== String(excludeId),
+      )
+      .map(sourceSummary);
+  },
+  async getGoalSource(id, actor) {
+    const group = sourceGroup(actor);
+    await delay();
+    const goal = sourceGoals().find((item) => String(item.id) === String(id));
+    if (!goal) throw eduError('YEAR_PLAN_NOT_FOUND');
+    if (group && goal.ageGroupId !== group) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
+    return clone({ ...goal, id: String(goal.id), revision: goal.revision ?? 0, goalCount: goalCount(goal) });
+  },
   async getAll() {
     await delay();
     const db = readDb();

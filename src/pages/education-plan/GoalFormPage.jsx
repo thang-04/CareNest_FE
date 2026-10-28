@@ -20,6 +20,7 @@ import {
 } from '@/models/education-plan/educationPlanConstants';
 import { goalIdsToTicks, isBlankBreak, isBlankTheme, nestUnderFirstSub, numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
 import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
 import { Card, DraftRecoveryNotice, Field, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
@@ -99,6 +100,7 @@ export default function GoalFormPage() {
   const [maxReached, setMaxReached] = useState(existing ? 2 : 0);
   const [errors, setErrors] = useState({});
   const [importing, setImporting] = useState(false);
+  const [importReport, setImportReport] = useState(null);
   const fileRef = useRef(null);
 
   const set = (patch) => {
@@ -487,38 +489,18 @@ export default function GoalFormPage() {
     toast(added ? `Đã nhập ${added} mục tiêu từ file${skipNote}` : 'File không có mục tiêu mới để thêm', skipped ? 'warn' : 'ok');
   };
 
-  // Lấy từ kế hoạch có sẵn: chép mục tiêu và nội dung đã chọn; chưa có chủ đề thì chép luôn bảng chủ đề, đợt nghỉ của kế hoạch nguồn.
-  const importGoals = (picked, source) => {
-    let themes = form.themes;
-    let breaks = form.breaks;
-    if (!themes.length && source.themes?.length) {
-      themes = source.themes.map(({ goalIds, ...t }) => ({ ...t, id: uid() }));
-      breaks = (source.breaks || []).map((b) => ({ ...b, id: uid() }));
-    }
-    const srcAbbr = Object.fromEntries((source.themes || []).map((t) => [t.id, t.abbr.trim().toLowerCase()]));
-    const ids = abbrToId(themes);
-    let added = 0;
-    const merged = form.domains.map((d) => {
-      const src = picked.find((p) => p.name === d.name);
-      if (!src) return d;
-      const fresh = src.items
-        .filter((it) => !d.rows.some((r) => r.kind === 'goal' && r.text.trim() === it.text.trim()))
-        .map((it) => ({
-          id: uid(),
-          kind: 'goal',
-          text: it.text,
-          contents: (it.contents || (it.requirements || []).map((r) => ({ text: r.text, themes: [] }))).map((c) => ({
-            id: uid(),
-            text: c.text,
-            themes: (c.themes || []).map((t) => ids[srcAbbr[t]]).filter(Boolean),
-          })),
-        }));
-      added += fresh.length;
-      return { ...d, rows: nestUnderFirstSub([...d.rows, ...fresh]) };
-    });
-    set({ domains: merged, themes, breaks });
-    setImporting(false);
-    toast(added ? `Đã thêm ${added} mục tiêu từ ${source.code}` : 'Không có mục tiêu mới được thêm');
+  const importState = useRef(null);
+  importState.current = { form, allowed: canEdit && leaseReady && !saver.recovery && !finishing && !leaseError };
+  const importGoals = ({ source, selectedGoalIds }) => {
+    const current = importState.current;
+    if (!current.allowed) return false;
+    const { domains, report } = mergeImportedGoals(current.form, source, selectedGoalIds, () => `import-${uid()}`);
+    if (report.added) set({ domains });
+    setImportReport(report);
+    const skipped = report.duplicates ? ` · bỏ qua ${report.duplicates} mục tiêu trùng` : '';
+    const unavailable = report.unavailable.length ? ` · ${report.unavailable.length} mục tiêu chưa thêm được` : '';
+    toast(`Đã thêm ${report.added} mục tiêu${skipped}${unavailable}`, report.added ? 'ok' : 'warn');
+    return true;
   };
 
   if (!permitted && !leaseError && !saver.recovery)
@@ -715,6 +697,18 @@ export default function GoalFormPage() {
           <Card bodyClass={null}>
             <PlanTabs tab={tab} onTab={switchTab} counts={{ themes: themes.length, goals: totalGoals }} />
             <div className="card__body stack">
+              {importReport?.unavailable.length > 0 && (
+                <Notice tone="warn">
+                  <span>Chưa thêm được các mục tiêu sau:</span>
+                  <ul>
+                    {importReport.unavailable.map((item) => (
+                      <li key={item.id}>
+                        {item.label}: {item.reason}
+                      </li>
+                    ))}
+                  </ul>
+                </Notice>
+              )}
               {tab === 'themes' ? (
                 <>
                   {errors.themes ? <Notice tone="err">{errors.themes}</Notice> : themeIssue && <Notice tone="warn">{themeIssue}</Notice>}
@@ -746,7 +740,6 @@ export default function GoalFormPage() {
 
         {importing && (
           <ImportGoalsModal
-            goals={goals}
             excludeId={form.id}
             defaultAgeGroupId={form.ageGroupId}
             onClose={() => setImporting(false)}

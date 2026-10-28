@@ -10,6 +10,8 @@ import { lessonAiMock } from '@/services/education-plan/mock/lessonAiMock';
 const repo = USE_MOCK ? educationPlanMockRepository : educationPlanApi;
 
 export const getEducationPlans = () => repo.getAll();
+export const listGoalSources = (filters, actor, options) => repo.listGoalSources(filters, actor, options);
+export const getGoalSource = (id, actor, options) => repo.getGoalSource(id, actor, options);
 export const saveGoal = (item, options) => repo.saveGoal(item, options);
 export const deleteGoal = (id, revision) => repo.deleteGoal(id, revision);
 // Khóa "Đang sửa" kế hoạch năm (BE:EDU-10). user: người thao tác (mock cần); keepalive: gửi được cả khi đóng tab
