@@ -4,10 +4,11 @@ import { canActivateParent, canViewChild, canViewChildren, canViewParentAccounts
 import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 import { validateGuardian } from '@/utils/account/guardianValidation';
 import { issuePassword } from '@/mocks/authMockRepository';
+// Thêm phụ huynh kèm tạo tài khoản ngay (POST /children/{id}/guardians) đã bỏ: phụ huynh nhập ở hồ sơ trẻ rồi kích hoạt
+// (AUTH-20; user chốt 2026-10-28, C-4 A). Phần tạo/liên kết tài khoản dùng chung ở parentAccountMock.
 import {
   activatePendingGuardians,
   guardianForm,
-  linkGuardian,
   parentAccountView,
   pendingGuardiansOf,
   sendPasswordSms,
@@ -98,12 +99,6 @@ export const guardianMockRepository = {
   async listGuardians(childId, actor) {
     const db = await initialize(actor);
     return clone(guardiansOf(db, loadChild(db, childId, actor)));
-  },
-  async addGuardian(childId, form, actor) {
-    await initialize(actor);
-    const errors = validateGuardian(form);
-    if (Object.keys(errors).length) throw new ApiError(400, 'Kiểm tra thông tin phụ huynh.', errors);
-    return writeDb((db) => clone(linkGuardian(db, loadChild(db, childId, actor, true), form)));
   },
   /** Phụ huynh trên hồ sơ trẻ chưa có tài khoản liên kết với trẻ; thông tin lấy từ hồ sơ, không sửa ở màn này (user chốt 2026-10-23). */
   async listPendingGuardians(childId, actor) {

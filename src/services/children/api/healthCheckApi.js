@@ -21,6 +21,9 @@ import { axiosClient } from '@/services/http/axiosClient';
  * Công bố (2026-10-23, docs/plans/completed/2026-10-23-auto-publish-health-results.md): lưu kết luận (kể cả lưu lại sau sửa) ⇒ BE công bố
  * ngay; nháp không công bố. exam.conclusion.parentOpinion (≤500) bắt buộc khi có người đi cùng và kết luận mức Cần theo dõi sát
  * (422 exam.conclusion.parentOpinion), BE ghi vào lần trao đổi tại buổi khám; measurement trả parentContact.
+ * Năm học (user chốt 2026-10-28, Y-4): GET /health-checks và /health-follow-ups nhận schoolYear (năm chọn ở header). Đợt khám thuộc
+ * năm học của ngày bắt đầu (ngày thuộc năm gần nhất đã bắt đầu, hè tính vào năm vừa qua). Phiếu theo dõi đang mở luôn trả; phiếu đã
+ * đóng trả khi khoảng mở–đóng giao năm đó; counts tính trên cùng phạm vi.
  */
 export const healthCheckApi = {
   listHealthChecks: (filters) => axiosClient.get('/health-checks', { params: filters }),

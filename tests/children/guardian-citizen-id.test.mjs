@@ -243,22 +243,33 @@ test('AC-7: sửa hồ sơ: thiếu CCCD phải nhập; phụ huynh có tài kho
   assert.equal(fixed.guardians[0].idNumber, '999955557777');
 });
 
-test('AC-8: thêm phụ huynh ở màn tài khoản: bắt CCCD; lệch ⇒ 409; tài khoản thiếu CCCD được bổ sung', async () => {
+// Phụ huynh nhập ở hồ sơ trẻ rồi kích hoạt ở màn tài khoản (AUTH-20; thêm kèm tạo tài khoản ngay đã bỏ — user chốt 2026-10-28, C-4 A).
+test('AC-8: kích hoạt ở màn tài khoản: bắt CCCD; lệch ⇒ 409; tài khoản thiếu CCCD được bổ sung', async () => {
   const child = (await guardians.searchChildren({ campusId: 'c1' }, vp)).items.find((r) => r.canManage);
-  const form = (patch = {}) => ({
-    fullName: 'Liên hệ thử',
-    phone: '0900000003',
-    email: '',
-    relationship: 'MOTHER',
-    idNumber: '999900000003',
-    ...patch,
-  });
-  await rejects(guardians.addGuardian(child.id, form({ idNumber: '' }), vp), 400, 'idNumber');
+  const base = structuredClone(readDb().children.find((c) => c.id === child.id).guardians);
+  const activateWith = (patch = {}) => {
+    writeDb((d) => {
+      d.children.find((c) => c.id === child.id).guardians = [
+        ...structuredClone(base),
+        {
+          fullName: 'Liên hệ thử',
+          relation: 'Mẹ',
+          phone: '0900000003',
+          email: '',
+          idNumber: '999900000003',
+          accountStatus: 'NOT_ACTIVATED',
+          ...patch,
+        },
+      ];
+    });
+    return guardians.activateGuardians(child.id, vp);
+  };
+  await rejects(activateWith({ idNumber: '' }), 400);
   const other = readDb().parentAccounts.find((a) => !a.childIds.includes(child.id));
-  await rejects(guardians.addGuardian(child.id, form({ idNumber: other.idNumber }), vp), 409, 'idNumber');
-  await rejects(guardians.addGuardian(child.id, form({ phone: other.phone }), vp), 409, 'idNumber');
+  await rejects(activateWith({ idNumber: other.idNumber }), 409, 'idNumber');
+  await rejects(activateWith({ phone: other.phone }), 409, 'idNumber');
   clearIdOfAccount(other.id);
-  const linked = await guardians.addGuardian(child.id, form({ phone: other.phone, idNumber: '999900000004' }), vp);
+  const linked = (await activateWith({ phone: other.phone, idNumber: '999900000004' })).find((r) => r.phone === other.phone);
   assert.equal(linked.newAccount, false);
   assert.equal(linked.idNumber, '999900000004');
   assert.equal(readDb().parentAccounts.find((a) => a.id === other.id).idNumber, '999900000004');
@@ -272,9 +283,10 @@ test('AC-4: kích hoạt tạo tài khoản mang CCCD của hồ sơ; CCCD thu�
       d.children.find((c) => c.id === child.id).guardians[0].idNumber = value;
     });
   setId(db.parentAccounts[0].idNumber);
-  await rejects(children.activateParentAccount(child.id, 0, vp), 409);
+  // Kích hoạt cả nhà ở màn Tài khoản phụ huynh (AUTH-20); API kích hoạt từng phụ huynh đã bỏ.
+  await rejects(guardians.activateGuardians(child.id, vp), 409);
   setId('999900000005');
-  await children.activateParentAccount(child.id, 0, vp);
+  await guardians.activateGuardians(child.id, vp);
   assert.equal(readDb().parentAccounts.find((a) => a.phone === digits(child.guardians[0].phone)).idNumber, '999900000005');
 });
 

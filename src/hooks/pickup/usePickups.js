@@ -5,10 +5,10 @@ import { useClasses } from '@/hooks/useSchool';
 import { getPickupBoard, getPickupChild, getPickupResults } from '@/services/pickup/pickupService';
 import { canHandOverChildren } from '@/utils/pickup/pickupPermissions';
 
-/** Classes whose children the user hands over (own classes only). */
+/** Classes whose children the user hands over (own classes only), chỉ năm học đang hoạt động như điểm danh (user chốt 2026-10-28, Y-1). */
 export function usePickupClasses() {
   const { user } = useAuth();
-  const { classes, loading, error, reload } = useClasses();
+  const { classes, loading, error, reload } = useClasses({ activeYear: true });
   const own = useMemo(() => classes.filter((c) => canHandOverChildren(c, user)), [classes, user]);
   return { classes: own, loading, error, reload };
 }

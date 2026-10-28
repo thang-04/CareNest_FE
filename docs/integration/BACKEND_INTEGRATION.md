@@ -58,7 +58,7 @@ Không tự bịa response. Mô tả thay đổi cần thống nhất (endpoint,
 
 ## Hồ sơ trẻ, tiếp nhận (chưa nối BE)
 
-Điểm lệch BE–FE cần chốt của nhánh G94-180 (tiếp nhận, hồ sơ trẻ, phụ huynh): [CHILD_ENROLLMENT_BE_GAPS.md](CHILD_ENROLLMENT_BE_GAPS.md).
+Điểm lệch BE–FE của nhánh G94-180 (tiếp nhận, hồ sơ trẻ, phụ huynh), đã chốt: [CHILD_ENROLLMENT_BE_GAPS.md](CHILD_ENROLLMENT_BE_GAPS.md). Việc BE cần làm (dữ liệu, quyền, API, SMS, thông báo, Keycloak): [CHILD_ENROLLMENT_BE_SPEC.md](CHILD_ENROLLMENT_BE_SPEC.md).
 
 ## Mục tiêu năm học (đã nối BE, G94-226)
 

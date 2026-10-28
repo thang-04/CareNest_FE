@@ -1,5 +1,6 @@
 import { writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { pushNotification } from '@/mocks/notificationMockRepository';
+import { overlapsSchoolYear, schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { CHILD_STATUS } from '@/models/School';
 import { FOLLOW_UP_LEVEL } from '@/models/children/childrenConstants';
 import {
@@ -419,8 +420,10 @@ export const healthCheckMockRepository = {
     await delay(150);
     const db = ensureChildRecordsSeeded();
     if (!canViewHealthChecks(user)) forbid();
+    // Đợt khám thuộc năm học của ngày bắt đầu khám (user chốt 2026-10-28, Y-4).
+    const inYear = (c) => !filters.schoolYear || schoolYearIdOfDate(db, c.startDate) === filters.schoolYear;
     return db.healthCheckCampaigns
-      .filter((c) => canSeeCampaign(db, user, c))
+      .filter((c) => canSeeCampaign(db, user, c) && inYear(c))
       .filter((c) => !filters.campusId || c.campusId === filters.campusId)
       .map((c) => toCampaignView(db, c, user))
       .filter((c) => !filters.status || c.status === filters.status)
@@ -596,8 +599,10 @@ export const healthCheckMockRepository = {
     await delay(150);
     const db = ensureChildRecordsSeeded();
     if (!canViewHealthChecks(user)) forbid();
+    // Theo năm học (user chốt 2026-10-28, Y-4): phiếu đang mở luôn hiện; phiếu đã đóng ở mọi năm mà phiếu còn mở trong năm đó.
+    const inYear = (f) => !filters.schoolYear || !f.closedAt || overlapsSchoolYear(db, filters.schoolYear, f.openedAt, f.closedAt);
     const inScope = db.healthFollowUps
-      .filter((f) => canSeeFollowUp(db, user, f))
+      .filter((f) => canSeeFollowUp(db, user, f) && inYear(f))
       .map((f) => toFollowUpView(db, f, user))
       .filter((f) => !filters.campusId || f.child.campusId === filters.campusId);
     // Số đếm theo trạng thái tính trên phạm vi + điểm trường, trước khi lọc trạng thái.

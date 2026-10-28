@@ -66,9 +66,11 @@ export function SchoolYearProvider({ children }) {
 
   // Năm đang chọn đã kết thúc ⇒ mọi màn Cấu hình trường chỉ xem (Cần chốt 22/10/2026)
   const yearReadOnly = schoolYears.find((o) => o.id === schoolYear)?.status === 'CLOSED';
+  // Việc trong ngày, tiếp nhận, xếp lớp luôn theo năm đang hoạt động dù header chọn năm khác (user chốt 2026-10-28, Y-1, Y-3)
+  const activeYear = schoolYears.find((o) => o.status === 'ACTIVE') || null;
   const value = useMemo(
-    () => ({ schoolYear, setSchoolYear, schoolYears, yearReadOnly }),
-    [schoolYear, setSchoolYear, schoolYears, yearReadOnly],
+    () => ({ schoolYear, setSchoolYear, schoolYears, yearReadOnly, activeYear }),
+    [schoolYear, setSchoolYear, schoolYears, yearReadOnly, activeYear],
   );
   return <SchoolYearContext.Provider value={value}>{children}</SchoolYearContext.Provider>;
 }

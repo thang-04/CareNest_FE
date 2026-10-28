@@ -34,10 +34,23 @@ import { axiosClient } from '@/services/http/axiosClient';
  * Form tiếp nhận kích hoạt ngay (2026-10-28, docs/plans/completed/2026-10-28-enroll-activates-guardians.md): POST enrollments tạo/liên
  * kết tài khoản phụ huynh trong cùng giao dịch, gửi SMS mật khẩu tạm, trả thêm guardianAccounts [{ fullName, phone, result:
  * CREATED | LINKED | NOT_ACTIVATED (người lưu không có quyền kích hoạt), smsStatus }]; import không tạo tài khoản.
+ * P-18 A (user chốt 2026-10-28): người lưu không có quyền kích hoạt vẫn lưu, phụ huynh mới NOT_ACTIVATED; phụ huynh trùng CCCD tài
+ * khoản ⇒ BE dùng họ tên/SĐT/email của tài khoản như import, không cập nhật tài khoản (user đồng ý 2026-10-28).
  * Sửa thông tin phụ huynh (2026-10-28, docs/plans/completed/2026-10-28-guardian-info-editable.md): POST enrollments, PUT /children/{id}
  * nhận họ tên/SĐT/email/CCCD client gửi cho phụ huynh đã có tài khoản và cập nhật tài khoản; đổi SĐT ⇒ tên đăng nhập = SĐT mới, mật
  * khẩu tạm mới gửi SMS. PUT trả thêm accountChanges [{ fullName, phone, phoneChanged, smsStatus }]; guardianAccounts thêm phoneChanged.
  * Đổi cùng lúc CCCD và SĐT của phụ huynh đã có tài khoản ⇒ 422 guardians.i.idNumber. Import vẫn dùng thông tin tài khoản.
+ * BE giả theo nghiệp vụ đã chốt (2026-10-28, đặc tả docs/integration/CHILD_ENROLLMENT_BE_SPEC.md): bỏ kích hoạt từng phụ huynh
+ * (POST /children/{id}/guardians/{index}/activate, /resend-sms) — kích hoạt khi lưu form hoặc cả nhà ở màn Tài khoản phụ huynh;
+ * guardians[].accountStatus NOT_ACTIVATED | ACTIVE | INACTIVE; PUT bỏ phụ huynh đã liên kết tài khoản ⇒ 422 guardians;
+ * mở lại hồ sơ theo quyền tiếp nhận; by-citizen-id cho cả người sửa hồ sơ.
+ * Năm học (user chốt 2026-10-28, Y-2, Y-3): GET /children?schoolYear=X trả trẻ có lớp thuộc năm X (lớp cuối cùng trong năm X theo
+ * enrollment) với classId/className/campusId của lớp đó; trẻ chờ xếp lớp chỉ ở năm đang hoạt động; trẻ nghỉ khi chưa có lớp ở năm
+ * của ngày nghỉ. placement-classes chỉ trả lớp năm đang hoạt động (bỏ tham số schoolYear); enrollments/placement với lớp năm khác
+ * ⇒ 422 classId.
+ * Phụ huynh (user chốt 2026-10-28, D-5a B, D-5b A): relation một trong Bố, Mẹ, Ông, Bà, Anh/chị, Người giám hộ (khác ⇒ 422
+ * guardians.i.relation; file nhập so không dấu); mỗi trẻ tối đa 3 phụ huynh (⇒ 422 guardians). Liên kết tài khoản dùng 6 mã tương
+ * ứng (FATHER, MOTHER, GRANDFATHER, GRANDMOTHER, SIBLING, GUARDIAN).
  */
 export const childrenApi = {
   listChildren: (filters) => axiosClient.get('/children', { params: filters }),
@@ -68,8 +81,6 @@ export const childrenApi = {
   saveDeclaration: (childId, body) => axiosClient.put(`/children/${childId}/health-declaration`, body),
   listParentAccounts: (filters) => axiosClient.get('/children/parent-accounts', { params: filters }),
   findParentAccountByCitizenId: (idNumber) => axiosClient.get('/children/parent-accounts/by-citizen-id', { params: { idNumber } }),
-  activateParentAccount: (childId, guardianIndex) => axiosClient.post(`/children/${childId}/guardians/${guardianIndex}/activate`),
-  resendParentSms: (childId, guardianIndex) => axiosClient.post(`/children/${childId}/guardians/${guardianIndex}/resend-sms`),
   getHealthRecord: (childId) => axiosClient.get(`/children/${childId}/health`),
   saveMeasurement: (childId, measurementId, payload) =>
     measurementId

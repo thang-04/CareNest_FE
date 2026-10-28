@@ -5,6 +5,8 @@ import { PHONE_HAS_OTHER_ID, createBatchIdentityCheck, fillMissingCitizenIds, id
 import { OPEN_CAMPAIGN, buildSeedFollowUps, buildSeedHealthChecks } from '@/mocks/healthCheckSeed';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { activatePendingGuardians, applyGuardianEdits, differsFromAccount } from '@/mocks/parentAccountMock';
+import { activeYearId } from '@/mocks/roomManagers';
+import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { CHILD_STATUS } from '@/models/School';
 import {
   AI_TREND_STATUS,
@@ -12,7 +14,6 @@ import {
   FOLLOW_UP_LEVEL,
   MEASUREMENT_FIELD_LABELS,
   PARENT_ACCOUNT_STATUS,
-  SMS_STATUS,
 } from '@/models/children/childrenConstants';
 import { CAMPAIGN_STATUS, FOLLOW_UP_CLOSE_OUTCOME } from '@/models/children/healthCheckConstants';
 import { EXAM_STATUS, FOLLOW_UP_FINDING } from '@/models/children/healthExamForm';
@@ -36,10 +37,11 @@ import {
   validateMeasurement,
 } from '@/utils/children/childrenValidation';
 import {
-  canActivateParent,
+  canActivateParentsAt,
   canDeclareHealth,
   canEditChild,
   canEnrollChild,
+  canLookupParentAccounts,
   canPlaceChild,
   canReadmitChild,
   canWithdrawChild,
@@ -244,6 +246,24 @@ const publishAllResults = (d) => {
 };
 
 /**
+ * DB demo (một lần): API kích hoạt từng phụ huynh cũ (đã bỏ, AUTH-20) để tài khoản, phụ huynh ở "PENDING_ACTIVATION" — trạng thái
+ * BE không có. Chuyển thành tài khoản đang hoạt động, vẫn bắt đổi mật khẩu lần đầu.
+ */
+const PARENT_STATUS_VERSION = 1;
+const LEGACY_PENDING_ACTIVATION = 'PENDING_ACTIVATION';
+const normalizeParentStatuses = (d) => {
+  (d.parentAccounts || []).forEach((a) => {
+    if (a.status === LEGACY_PENDING_ACTIVATION) Object.assign(a, { status: PARENT_ACCOUNT_STATUS.ACTIVE, mustChangePassword: true });
+  });
+  (d.children || []).forEach((c) =>
+    (c.guardians || []).forEach((g) => {
+      if (g.accountStatus === LEGACY_PENDING_ACTIVATION) g.accountStatus = PARENT_ACCOUNT_STATUS.ACTIVE;
+    }),
+  );
+  d.parentStatusVersion = PARENT_STATUS_VERSION;
+};
+
+/**
  * Seed mọi collection sức khỏe (đo, khai báo, đợt khám, phiếu theo dõi). Dùng chung cho repository đợt khám.
  * Mock thay job hằng ngày của BE: mỗi lần đọc tạo nhắc quá hạn trao đổi / tới ngày hẹn khám lại còn thiếu.
  */
@@ -293,6 +313,10 @@ export const ensureChildRecordsSeeded = () => {
   }
   if (db.autoPublishVersion !== AUTO_PUBLISH_VERSION) {
     writeDb(publishAllResults);
+    db = readDb();
+  }
+  if (db.parentStatusVersion !== PARENT_STATUS_VERSION) {
+    writeDb(normalizeParentStatuses);
     db = readDb();
   }
   const due = dueFollowUpReminders(db);
@@ -514,6 +538,39 @@ const toView = (db, child, user) => {
   };
 };
 
+/**
+ * Lớp của trẻ trong một năm học (user chốt 2026-10-28, Y-2; CMR-04): lớp cuối cùng thuộc năm đó theo lịch sử xếp/chuyển lớp
+ * (childPlacements) và chuyển năm học (history PLACEMENT_* của Xếp lớp năm học mới); không có lịch sử thì lớp hiện tại.
+ */
+const classInYear = (db, child, yearId) => {
+  const moves = [
+    ...db.childPlacements.filter((p) => p.childId === child.id),
+    ...(child.history || []).filter((h) => h.fromClassId || h.toClassId),
+  ].sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  const ids = [moves[0]?.fromClassId, ...moves.map((m) => m.toClassId), child.classId].filter(Boolean);
+  const inYear = ids.map((id) => db.classes.find((c) => c.id === id)).filter((c) => c?.schoolYear === yearId);
+  return inYear.at(-1) || null;
+};
+
+/**
+ * Trẻ trong danh sách năm học yearId: có lớp thuộc năm đó ⇒ hiện với lớp, điểm trường của năm đó; trẻ chờ xếp lớp chỉ ở năm đang
+ * hoạt động; trẻ nghỉ khi chưa có lớp ở năm của ngày nghỉ. Trạng thái giữ trạng thái hiện tại.
+ */
+const inSchoolYear = (db, view, child, yearId) => {
+  const cls = classInYear(db, child, yearId);
+  if (cls)
+    return {
+      ...view,
+      classId: cls.id,
+      className: cls.name,
+      ageGroupId: cls.ageGroupId,
+      schoolYear: cls.schoolYear,
+      campusId: cls.campusId,
+    };
+  if (child.status === CHILD_STATUS.PENDING_PLACEMENT) return yearId === activeYearId(db) ? view : null;
+  return child.status === CHILD_STATUS.LEFT && !child.classId && schoolYearIdOfDate(db, child.leftAt) === yearId ? view : null;
+};
+
 const assertView = (db, childId, user, check = canViewChild) => {
   const child = findChild(db, childId);
   if (!check(child, user, classOf(db, child))) forbid();
@@ -685,10 +742,15 @@ export const notifyTbContactDateChanged = (d, child, { from, to, source }, actor
 const tbReported = (mh) => mh?.tbContact?.state === DECLARATION_STATE.REPORTED;
 const tbContactDateOf = (mh) => (tbReported(mh) ? mh.tbContact.contactDate || '' : '');
 
-/** Placement checks (UC 3.10 step 4): class of the VP's campus, active, not full. */
+/**
+ * Placement checks (UC 3.10 step 4): class of the VP's campus, active, not full; chỉ lớp của năm học đang hoạt động — xếp lớp
+ * năm sau ở màn Xếp lớp năm học mới (user chốt 2026-10-28, Y-3).
+ */
 const assertClassAvailable = (db, classId, user) => {
   const cls = db.classes.find((c) => c.id === classId);
   if (!cls || cls.status === 'INACTIVE') invalid({ classId: 'Lớp không tồn tại hoặc đã ngừng hoạt động' });
+  if (cls.schoolYear !== activeYearId(db))
+    invalid({ classId: 'Chỉ xếp vào lớp của năm học đang hoạt động. Xếp lớp cho năm học sau ở màn Xếp lớp năm học mới.' });
   if (!areaAllows(user, 'children', cls.campusId, true)) invalid({ classId: 'Chỉ xếp được vào lớp thuộc điểm trường bạn được giao' });
   if (activeCount(db, cls.id) >= cls.capacity) invalid({ classId: `${cls.name} đã đủ ${cls.capacity} trẻ. Chọn lớp khác.` });
   return cls;
@@ -707,6 +769,9 @@ const enrollCampusOf = (db, campusId, user) => {
   if (!areaAllows(user, 'children', id, 'create')) invalid({ campusId: 'Chỉ tiếp nhận trẻ vào điểm trường bạn được giao' });
   return id;
 };
+
+/** Điểm trường nhận trẻ theo lớp hoặc điểm trường gửi lên; rỗng = điểm trường của PHT một điểm trường (như enrollCampusOf). */
+const targetCampusOf = (db, { classId, campusId }) => db.classes.find((c) => c.id === classId)?.campusId || campusId || '';
 
 const notifyClassTeachers = (db, cls, child) =>
   (cls?.teacherIds || []).forEach((teacherId) =>
@@ -795,15 +860,6 @@ const guardianAccountsOf = (record, activated, edited = []) =>
     return { fullName: g.fullName, phone: g.phone, result, phoneChanged: !!edit?.phoneChanged, smsStatus };
   });
 
-const smsWouldFail = (account) => /99$/.test(account.phone) && account.sms.length === 0;
-
-const sendCredentials = (account) => {
-  // Demo SMS gateway: numbers ending in 99 fail on the first attempt so the resend path can be tried.
-  const status = smsWouldFail(account) ? SMS_STATUS.FAILED : SMS_STATUS.SENT;
-  account.sms.push({ at: nowIso(), status });
-  return status;
-};
-
 /** Phiếu khám còn nháp: chưa là kết quả, không hiện ở Sổ sức khỏe, xu hướng, phiếu theo dõi. */
 export const isExamDraft = (m) => m.examStatus === EXAM_STATUS.DRAFT;
 
@@ -847,11 +903,11 @@ export const childrenMockRepository = {
     const list = db.children
       .filter((c) => canViewChild(c, user, classOf(db, c)))
       // Danh sách không trả phần hành chính (có số định danh); xem ở hồ sơ trẻ.
-      .map((c) => {
+      .flatMap((c) => {
         const { profile: _profile, ...rest } = toView(db, c, user);
-        return rest;
+        const view = filters.schoolYear ? inSchoolYear(db, rest, c, filters.schoolYear) : rest;
+        return view ? [view] : [];
       })
-      .filter((c) => !filters.schoolYear || !c.classId || c.schoolYear === filters.schoolYear)
       .filter((c) => !filters.campusId || c.campusId === filters.campusId)
       .filter((c) => !filters.classId || c.classId === filters.classId)
       .filter((c) => !filters.status || c.status === filters.status)
@@ -949,13 +1005,14 @@ export const childrenMockRepository = {
     });
   },
 
-  async getPlacementClasses({ schoolYear } = {}, user) {
+  /** Lớp để tiếp nhận, xếp lớp: chỉ lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */
+  async getPlacementClasses(_filters, user) {
     await delay(100);
     if (!isVicePrincipal(user) && !isPrincipal(user)) forbid();
     const db = ensureSeeded();
+    const year = activeYearId(db);
     return db.classes
-      .filter((c) => areaAllows(user, 'children', c.campusId, true) && c.status !== 'INACTIVE')
-      .filter((c) => !schoolYear || c.schoolYear === schoolYear)
+      .filter((c) => areaAllows(user, 'children', c.campusId, true) && c.status !== 'INACTIVE' && c.schoolYear === year)
       .map((c) => ({ ...clone(c), enrolledCount: activeCount(db, c.id) }));
   },
 
@@ -963,7 +1020,10 @@ export const childrenMockRepository = {
     await delay();
     if (!canEnrollChild(user)) forbid();
     const db = ensureSeeded();
-    const guardians = attachAccounts(db, payload.child?.guardians);
+    // P-18 A (user chốt 2026-10-28): không có quyền kích hoạt ở điểm trường nhận trẻ ⇒ vẫn lưu, phụ huynh mới chờ kích hoạt.
+    // Phụ huynh trùng CCCD tài khoản thì chỉ liên kết, thông tin theo tài khoản như nhập Excel (user đồng ý 2026-10-28; chờ BE).
+    const manageAccounts = canActivateParentsAt(targetCampusOf(db, payload), user);
+    const guardians = (manageAccounts ? attachAccounts : withAccounts)(db, payload.child?.guardians);
     const resolved = { ...payload, child: { ...payload.child, guardians } };
     const { errors, dup, conflicts } = validateEnrollment(db, resolved);
     if (hasErrors(errors)) invalid(errors);
@@ -978,10 +1038,9 @@ export const childrenMockRepository = {
       // Tài khoản có sẵn: liên kết ngay khi lưu, không tạo tài khoản mới, không gửi mật khẩu (UC 3.9 nhánh đã có tài khoản).
       linkAccounts(d, record, guardians);
       // Thông tin sửa khác tài khoản có sẵn ⇒ tài khoản đổi theo; làm trước kích hoạt để phụ huynh đổi SĐT không bị coi là người mới.
-      const edited = applyAccountEdits(d, guardians);
+      const edited = manageAccounts ? applyAccountEdits(d, guardians) : [];
       // Form tiếp nhận: tạo tài khoản cho phụ huynh chưa có và gửi SMS ngay; nhập Excel vẫn kích hoạt sau (user chốt 2026-10-28, L-14).
-      // Người lưu không có quyền kích hoạt ở điểm trường đó thì phụ huynh chờ kích hoạt.
-      const activated = canActivateParent(record, user) ? activatePendingGuardians(d, record) : [];
+      const activated = manageAccounts ? activatePendingGuardians(d, record) : [];
       if (cls) notifyClassTeachers(d, cls, record);
       return { ...toView(d, record, user), guardianAccounts: guardianAccountsOf(record, activated, edited) };
     });
@@ -1004,6 +1063,14 @@ export const childrenMockRepository = {
         errors[`guardians.${i}.idNumber`] ||=
           'Phụ huynh đã có tài khoản: không đổi cùng lúc CCCD và số điện thoại. Đổi từng thông tin, hoặc gỡ phụ huynh ở màn Tài khoản phụ huynh rồi thêm người mới.';
     });
+    // Phụ huynh đã liên kết tài khoản chỉ gỡ ở màn Tài khoản phụ huynh (AUTH-19); bỏ ở đây thì tài khoản vẫn liên kết trẻ.
+    const kept = new Set(guardians.map((g) => g.accountId).filter(Boolean));
+    const dropped = (current.guardians || [])
+      .filter((g) => g.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED)
+      .map((g) => accountByPhone(db, g.phone))
+      .filter((acc) => acc && (acc.childIds || []).includes(id) && !kept.has(acc.id));
+    if (dropped.length)
+      errors.guardians ||= `${dropped.map((acc) => acc.fullName).join(', ')} đã có tài khoản liên kết với trẻ nên không xóa ở hồ sơ. Gỡ liên kết ở màn Tài khoản phụ huynh.`;
     if (!reason?.trim()) errors.reason = 'Nhập lý do chỉnh sửa hồ sơ';
     if (hasErrors(errors)) invalid(errors);
     if (isDuplicate(db, child, id)) throw new ApiError(409, 'Đã có hồ sơ khác trùng họ tên, ngày sinh và phụ huynh. Xem lại hồ sơ đã có.');
@@ -1219,11 +1286,15 @@ export const childrenMockRepository = {
     });
   },
 
-  /* ------------------------------ #31 Parent account activation ------------------------------ */
-  /** Tra tài khoản phụ huynh theo CCCD (user chốt 2026-10-23): form hiện thông tin tài khoản khi CCCD trùng; trẻ ngoài phạm vi chỉ đếm. */
+  /* ------------------------------ #31 Parent accounts ------------------------------ */
+  /*
+   * Kích hoạt tài khoản: khi lưu form tiếp nhận (enrollChild) hoặc cả nhà ở màn Tài khoản phụ huynh
+   * (guardianMockRepository.activateGuardians) — AUTH-20; không còn kích hoạt từng phụ huynh.
+   */
+  /** Tra tài khoản phụ huynh theo CCCD (user chốt 2026-10-23): form tiếp nhận, Sửa hồ sơ hiện thông tin tài khoản; trẻ ngoài phạm vi chỉ đếm. */
   async findParentAccountByCitizenId(idNumber, user) {
     await delay(120);
-    if (!canEnrollChild(user) && !isPrincipal(user)) forbid();
+    if (!canLookupParentAccounts(user)) forbid();
     const db = ensureSeeded();
     const acc = accountByCitizenId(db, idNumber);
     if (!acc) return null;
@@ -1243,6 +1314,7 @@ export const childrenMockRepository = {
     };
   },
 
+  /** Phụ huynh trên hồ sơ trẻ trong phạm vi, kèm trạng thái tài khoản (bảng tổng quan PHT đếm phụ huynh chưa kích hoạt). */
   async listParentAccounts(filters = {}, user) {
     await delay(150);
     if (!canViewParentAccounts(user)) forbid();
@@ -1260,79 +1332,11 @@ export const childrenMockRepository = {
           className: classOf(db, c)?.name || '',
           guardianIndex: index,
           guardian: clone(g),
-          username: db.parentAccounts.find((a) => a.phone === normalizePhone(g.phone))?.username || '',
+          username: accountByPhone(db, g.phone)?.username || '',
         })),
       )
       .filter((r) => !filters.status || r.guardian.accountStatus === filters.status)
       .filter((r) => !kw || normalizeText(`${r.childName} ${r.childCode} ${r.guardian.fullName} ${r.guardian.phone}`).includes(kw));
-  },
-
-  async activateParentAccount(childId, guardianIndex, user) {
-    await delay(400);
-    const db = ensureSeeded();
-    const child = findChild(db, childId);
-    if (!canActivateParent(child, user)) forbid();
-    const guardian = child.guardians?.[guardianIndex];
-    if (!guardian) throw new ApiError(404, 'Không tìm thấy phụ huynh.');
-    if (guardian.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED)
-      throw new ApiError(409, 'Phụ huynh này đã có tài khoản liên kết với trẻ.');
-    const phone = normalizePhone(guardian.phone);
-    // Như kích hoạt theo hồ sơ (user chốt 2026-10-28): không chặn SĐT/email nhân sự; email chỉ là liên hệ, tìm tài khoản theo SĐT.
-    const byPhone = db.parentAccounts.find((a) => a.phone === phone);
-    // 1 người 1 tài khoản (D4); hồ sơ cũ chưa có CCCD vẫn kích hoạt được (D7).
-    const conflict = identityConflict(db, { phone, idNumber: guardian.idNumber }, { excludeChildId: childId });
-    if (conflict) throw new ApiError(409, conflict);
-    return writeDb((d) => {
-      const target = findChild(d, childId).guardians[guardianIndex];
-      const existing = d.parentAccounts.find((a) => a.id === byPhone?.id);
-      if (existing) {
-        // Existing account: link only, no new password (UC 3.9 alt flow step 2).
-        if (!existing.childIds.includes(childId)) existing.childIds.push(childId);
-        if (!existing.idNumber && target.idNumber) existing.idNumber = target.idNumber;
-        target.accountStatus = existing.status;
-        return { mode: 'LINKED', username: existing.username, accountStatus: existing.status };
-      }
-      const account = {
-        id: uid('pa'),
-        username: phone,
-        phone,
-        email: (target.email || '').trim().toLowerCase(),
-        fullName: target.fullName,
-        idNumber: target.idNumber || '',
-        status: PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION,
-        childIds: [childId],
-        createdAt: nowIso(),
-        mustChangePassword: true,
-        sms: [],
-      };
-      d.parentAccounts.push(account);
-      // The issued password goes only to the SMS gateway; it is never returned to the web client.
-      const smsStatus = sendCredentials(account);
-      target.accountStatus = PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION;
-      target.smsStatus = smsStatus;
-      target.smsAt = nowIso();
-      return { mode: 'CREATED', username: account.username, accountStatus: account.status, smsStatus };
-    });
-  },
-
-  async resendParentSms(childId, guardianIndex, user) {
-    await delay(400);
-    const db = ensureSeeded();
-    const child = findChild(db, childId);
-    if (!canActivateParent(child, user)) forbid();
-    const guardian = child.guardians?.[guardianIndex];
-    if (!guardian) throw new ApiError(404, 'Không tìm thấy phụ huynh.');
-    if (guardian.accountStatus !== PARENT_ACCOUNT_STATUS.PENDING_ACTIVATION)
-      throw new ApiError(409, 'Chỉ gửi lại được cho tài khoản chưa đổi mật khẩu lần đầu.');
-    return writeDb((d) => {
-      const target = findChild(d, childId).guardians[guardianIndex];
-      const account = d.parentAccounts.find((a) => a.phone === normalizePhone(target.phone));
-      if (!account) throw new ApiError(404, 'Không tìm thấy tài khoản phụ huynh.');
-      const smsStatus = sendCredentials(account);
-      target.smsStatus = smsStatus;
-      target.smsAt = nowIso();
-      return { smsStatus };
-    });
   },
 
   /* ------------------------------ #33 Child health record ------------------------------ */

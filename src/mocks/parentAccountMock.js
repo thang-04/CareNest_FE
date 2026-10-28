@@ -15,6 +15,9 @@ import { uid } from '@/utils/id';
 const relationOf = (value) =>
   Object.keys(GUARDIAN_RELATIONSHIP_LABELS).find((key) => GUARDIAN_RELATIONSHIP_LABELS[key] === value) || value || 'GUARDIAN';
 
+// Email liên hệ của tài khoản lưu chữ thường như BE (L-17, `user_accounts.email`).
+const accountEmail = (email) => (email || '').trim().toLowerCase();
+
 export const parentAccountView = (account, guardian) => ({
   userId: account.id,
   username: account.username || account.phone,
@@ -92,7 +95,7 @@ export const linkGuardian = (db, child, form, relationLabel) => {
       username: phone,
       phone,
       fullName: form.fullName.trim(),
-      email: (form.email || '').trim(),
+      email: accountEmail(form.email),
       idNumber,
       status: 'ACTIVE',
       childIds: [],
@@ -128,7 +131,7 @@ export const linkGuardian = (db, child, form, relationLabel) => {
 export const differsFromAccount = (account, g) =>
   account.fullName !== (g.fullName || '').trim() ||
   normalizePhone(account.phone) !== normalizePhone(g.phone) ||
-  (account.email || '') !== (g.email || '').trim() ||
+  accountEmail(account.email) !== accountEmail(g.email) ||
   (!!normalizeCitizenId(g.idNumber) && normalizeCitizenId(account.idNumber) !== normalizeCitizenId(g.idNumber));
 
 /**
@@ -140,7 +143,7 @@ export const applyGuardianEdits = (db, account, g) => {
   const phone = normalizePhone(g.phone);
   const phoneChanged = !!phone && phone !== normalizePhone(account.phone);
   account.fullName = g.fullName.trim();
-  account.email = (g.email || '').trim();
+  account.email = accountEmail(g.email);
   account.idNumber = normalizeCitizenId(g.idNumber) || account.idNumber;
   if (phoneChanged) Object.assign(account, { phone, username: phone, mustChangePassword: true });
   copies.forEach((x) =>

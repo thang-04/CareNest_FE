@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarDays, ClipboardList, Phone, School, UserCheck } from '@/components/ui/icons';
+import { CalendarDays, ClipboardList, Info, Phone, School, UserCheck } from '@/components/ui/icons';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Modal } from '@/components/ui/Modal';
@@ -24,8 +25,11 @@ const timeOf = (iso) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour:
 /** #99 Pickup List: children of the class waiting to be picked up (UC 3.15 entry point). */
 export default function PickupListPage() {
   const [params, setParams] = useSearchParams();
+  const { schoolYear, activeYear } = useSchoolYear();
   const today = todayInput();
   const date = params.get('date') || today;
+  // Đón trẻ theo năm học đang hoạt động (user chốt 2026-10-28, Y-1): xem lại từ ngày đầu năm; năm chưa bắt đầu thì không chặn.
+  const minDate = activeYear?.startDate && activeYear.startDate <= today ? activeYear.startDate : undefined;
   const { classes, loading: loadingClasses, error: classError, reload: reloadClasses } = usePickupClasses();
   const classId = params.get('classId') || classes[0]?.id || '';
   const { board, loading, error, reload } = usePickupBoard(classId, date);
@@ -75,6 +79,12 @@ export default function PickupListPage() {
     <div className="page">
       <Breadcrumb items={pickupCrumbs()} />
       <h1 className="page__title">Đón trẻ</h1>
+      {activeYear && schoolYear !== activeYear.id && (
+        <div className="alert alert--info mb-16" role="status">
+          <Info size={18} />
+          <div>Đón trẻ luôn theo lớp của năm học đang hoạt động {activeYear.label}.</div>
+        </div>
+      )}
       {classError ? (
         <ErrorState error={classError} onRetry={reloadClasses} />
       ) : classes.length === 0 ? (
@@ -106,6 +116,7 @@ export default function PickupListPage() {
                   type="date"
                   className="input"
                   value={date}
+                  min={minDate}
                   max={today}
                   onChange={(e) => e.target.value && setParam('date', e.target.value)}
                 />

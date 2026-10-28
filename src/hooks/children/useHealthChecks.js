@@ -9,7 +9,7 @@ import {
   getHealthFollowUps,
 } from '@/services/children/healthCheckService';
 
-/** Đợt khám trong phạm vi người dùng. filters: { campusId, status } */
+/** Đợt khám trong phạm vi người dùng. filters: { campusId, status, schoolYear } */
 export function useHealthChecks(filters = {}) {
   const { user } = useAuth();
   const key = JSON.stringify(filters);
@@ -53,7 +53,7 @@ export function useHealthExam(campaignId, childId) {
   return { examView: data, setExamView: setData, loading, error, reload };
 }
 
-/** Phiếu theo dõi trong phạm vi người dùng { items, counts }. filters: { campusId, status, overdue } */
+/** Phiếu theo dõi trong phạm vi người dùng { items, counts }. filters: { campusId, status, overdue, schoolYear } */
 export function useHealthFollowUps(filters = {}) {
   const { user } = useAuth();
   const key = JSON.stringify(filters);

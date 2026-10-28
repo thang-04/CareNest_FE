@@ -1,10 +1,11 @@
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { buildPickupSeed } from '@/mocks/pickupSeed';
+import { activeYearId, activeYearStart } from '@/mocks/roomManagers';
 import { PICKUP_OUTCOME, PICKUP_REASON, PICKUP_STATUS, outcomeOf } from '@/models/pickup/pickupConstants';
 import { canHandOverChildren, canOpenPickup } from '@/utils/pickup/pickupPermissions';
 import { validatePickupResult } from '@/utils/pickup/pickupValidation';
-import { todayInput } from '@/utils/format';
+import { formatDate, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 
 /*
@@ -43,6 +44,24 @@ const findClass = (db, id) => {
   const cls = db.classes.find((c) => c.id === id);
   if (!cls) throw new ApiError(404, 'Không tìm thấy lớp');
   return cls;
+};
+
+/*
+ * Đón trẻ theo năm học đang hoạt động như điểm danh (user chốt 2026-10-28, Y-1): lớp của năm đó; ngày xem từ đầu năm tới hôm nay
+ * (năm chưa bắt đầu thì không chặn ngày cũ).
+ */
+const inActiveYear = (db, cls) => cls.schoolYear === activeYearId(db);
+const assertActiveYearClass = (db, cls) => {
+  if (!inActiveYear(db, cls))
+    throw new ApiError(422, 'Đón trẻ chỉ theo lớp của năm học đang hoạt động.', { classId: 'Chọn lớp của năm học đang hoạt động' });
+};
+const assertPickupDay = (db, day) => {
+  const today = todayInput();
+  const start = activeYearStart(db);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day > today)
+    throw new ApiError(422, 'Ngày xem không hợp lệ.', { date: 'Chọn ngày không ở tương lai' });
+  if (start && start <= today && day < start)
+    throw new ApiError(422, 'Ngày xem trước năm học đang hoạt động.', { date: `Chọn ngày từ ${formatDate(start)}` });
 };
 
 const attendanceOf = (db, childId, date) => (db.attendance || []).find((r) => r.childId === childId && r.date === date) || null;
@@ -94,7 +113,9 @@ export const pickupMockRepository = {
     const db = ready();
     const cls = findClass(db, classId);
     if (!canHandOverChildren(cls, user)) throw forbidden();
+    assertActiveYearClass(db, cls);
     const day = date || todayInput();
+    assertPickupDay(db, day);
     const rows = db.children
       .filter((c) => c.classId === classId && c.status === 'ACTIVE')
       .map((c) => boardRow(db, c, day))
@@ -183,7 +204,8 @@ export const pickupMockRepository = {
     if (!canOpenPickup(user)) throw forbidden();
     const db = ready();
     const day = date || todayInput();
-    const classes = db.classes.filter((c) => canHandOverChildren(c, user));
+    assertPickupDay(db, day);
+    const classes = db.classes.filter((c) => inActiveYear(db, c) && canHandOverChildren(c, user));
     const ids = new Set(classes.map((c) => c.id));
     const names = Object.fromEntries(db.children.map((c) => [c.id, c.fullName]));
     const classNames = Object.fromEntries(classes.map((c) => [c.id, c.name]));

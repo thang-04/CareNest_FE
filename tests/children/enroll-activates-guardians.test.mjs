@@ -13,7 +13,7 @@ globalThis.window = new EventTarget();
 const { readDb, resetDb } = await import('@/mocks/mockDatabase');
 const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
 const { guardianMockRepository: guardians } = await import('@/services/account/mock/guardianMockRepository');
-const { emptyChildInfo, emptyDeclaration } = await import('@/utils/children/childrenHelpers');
+const { emptyChildInfo, emptyDeclaration, withGuardianAccounts } = await import('@/utils/children/childrenHelpers');
 const { filledMedicalHistory, filledProfile } = await import('./profileFixture.mjs');
 
 /*
@@ -112,4 +112,48 @@ test('AC-5: người lưu không có quyền Sửa hồ sơ trẻ ⇒ lưu đư�
   const saved = await children.enrollChild({ ...row([guardian(5)]), classId: '' }, VP_CREATE_ONLY);
   assert.equal(saved.guardianAccounts[0].result, 'NOT_ACTIVATED');
   assert.equal(readDb().parentAccounts.length, before);
+});
+
+// P-18 A (user chốt 2026-10-28); không có quyền thì giữ thông tin tài khoản (user đồng ý 2026-10-28).
+test('P-18 A: không có quyền kích hoạt ⇒ phụ huynh trùng CCCD chỉ liên kết, giữ thông tin tài khoản; phụ huynh mới chờ kích hoạt', async () => {
+  const existing = readDb().parentAccounts.find((a) => a.idNumber && a.status === 'ACTIVE');
+  const sent = existing.sms?.length || 0;
+  const saved = await children.enrollChild(
+    {
+      ...row([
+        guardian(6, { idNumber: existing.idNumber, phone: '0900 000 896', fullName: 'Tên gõ khác tài khoản', email: 'khac@example.test' }),
+        guardian(7, { relation: 'Bố' }),
+      ]),
+      classId: '',
+    },
+    VP_CREATE_ONLY,
+  );
+  const after = readDb().parentAccounts.find((a) => a.id === existing.id);
+  assert.deepEqual(
+    [after.username, after.phone, after.fullName, after.email || ''],
+    [existing.username, existing.phone, existing.fullName, existing.email || ''],
+  );
+  assert.equal(after.sms?.length || 0, sent);
+  assert.ok(after.childIds.includes(saved.id));
+  assert.deepEqual([saved.guardians[0].fullName, digits(saved.guardians[0].phone)], [existing.fullName, digits(existing.phone)]);
+  assert.deepEqual(
+    saved.guardianAccounts.map((a) => [a.result, a.phoneChanged]),
+    [
+      ['LINKED', false],
+      ['NOT_ACTIVATED', false],
+    ],
+  );
+  assert.equal(accountOfPhone(guardian(7).phone), undefined);
+});
+
+test('P-18 A: form tiếp nhận hiện thông tin tài khoản khi không có quyền kích hoạt', () => {
+  const account = { fullName: 'Tên theo tài khoản', phone: '0900000811', email: 'tk@example.test' };
+  const typed = [{ ...guardian(12), fullName: 'Tên đã gõ', email: '' }];
+  const fields = ([g]) => [g.fullName, digits(g.phone), g.email];
+  assert.deepEqual(fields(withGuardianAccounts(typed, () => account)), ['Tên đã gõ', digits(guardian(12).phone), 'tk@example.test']);
+  assert.deepEqual(fields(withGuardianAccounts(typed, () => account, { accountOnly: true })), [
+    'Tên theo tài khoản',
+    '0900000811',
+    'tk@example.test',
+  ]);
 });

@@ -52,9 +52,10 @@ export const canWithdrawChild = canEditChild;
 export const canPlaceChild = canEditChild;
 /** Màn Xếp lớp; từng trẻ theo canPlaceChild. */
 export const canOpenPlacement = (user) => isPrincipal(user) || isVicePrincipal(user);
-// Mở lại hồ sơ trẻ đã nghỉ học: như tiếp nhận — Phó hiệu trưởng điểm trường của trẻ hoặc Hiệu trưởng (user chốt 2026-10-23, 2026-10-27).
+// Mở lại hồ sơ trẻ đã nghỉ học: quyền tiếp nhận (Thêm) ở điểm trường của trẻ — Hiệu trưởng hoặc PHT điểm trường đó
+// (user chốt 2026-10-23, 2026-10-27; CHD-01, L-01 A: cùng nhóm tiếp nhận, không cần quyền Sửa).
 export const canReadmitChild = (child, user) =>
-  !!child && child.status === CHILD_STATUS.LEFT && canEnrollChild(user) && managesChild(child, user);
+  !!child && child.status === CHILD_STATUS.LEFT && areaAllows(user, 'children', child.campusId, 'create');
 /** Điểm trường được tiếp nhận ('create') / xếp lớp ('update') trẻ vào: Hiệu trưởng mọi điểm trường, PHT theo "Hồ sơ trẻ". */
 export const childCampusesOf = (user, campuses = [], action = 'create') =>
   campuses.filter((c) => c.status !== 'INACTIVE' && areaAllows(user, 'children', c.id, action));
@@ -65,6 +66,11 @@ export const canDeclareHealth = canEditChild;
 export const canActivateParent = canEditChild;
 /** Như canActivateParent cho trẻ chưa có hồ sơ (bước Xem lại khi tiếp nhận): lưu form tiếp nhận sẽ kích hoạt phụ huynh. */
 export const canActivateParentsAt = (campusId, user) => areaAllows(user, 'children', campusId, 'update');
+/** Tra tài khoản phụ huynh theo CCCD: ai tiếp nhận (Thêm) hoặc sửa hồ sơ trẻ (Sửa) — cả hai form đều hiện tài khoản trùng CCCD. */
+export const canLookupParentAccounts = (user) => {
+  const { actions } = areaAccess(user, 'children');
+  return !!(actions?.create || actions?.update);
+};
 
 /* ---- Class teacher (UC 5.3; Principal and VP have "No" for Record / Edit in the matrix) ---- */
 export const canRecordMeasurement = (child, user, cls) =>

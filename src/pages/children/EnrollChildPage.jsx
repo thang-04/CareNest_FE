@@ -11,6 +11,7 @@ import { Stepper } from '@/components/ui/Stepper';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
+import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { ChildProfileFields } from '@/components/children/ChildProfileFields';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
@@ -54,9 +55,9 @@ export default function EnrollChildPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, activeYear, yearReadOnly } = useSchoolYear();
   const md = useMasterData();
-  const { classes, loading: classesLoading } = usePlacementClasses(schoolYear);
+  const { classes, loading: classesLoading } = usePlacementClasses();
 
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
@@ -94,18 +95,29 @@ export default function EnrollChildPage() {
     );
   }
 
-  const suggested = suggestAgeGroupId(info.dateOfBirth, schoolYear);
+  // Xếp lớp khi tiếp nhận luôn vào năm học đang hoạt động (user chốt 2026-10-28, Y-3).
+  const yearId = activeYear?.id || schoolYear;
+  const yearLabel = activeYear?.label || schoolYear;
+  const suggested = suggestAgeGroupId(info.dateOfBirth, yearId);
   const selectedClass = classes.find((c) => c.id === classId);
   // Hiệu trưởng, PHT toàn trường chọn điểm trường: trẻ chưa xếp lớp thuộc điểm trường này (BE kiểm lại).
   const campusOptions = childCampusesOf(user, md.campuses);
   const pickCampus = campusOptions.length > 1;
   const campusId = campusPick ?? defaultCampusId(campusOptions, user);
+  // Không có quyền kích hoạt tài khoản phụ huynh ở điểm trường nhận trẻ ⇒ vẫn lưu, phụ huynh mới chờ kích hoạt; phụ huynh đã có
+  // tài khoản chỉ liên kết, thông tin theo tài khoản (P-18 A, user chốt 2026-10-28; BE kiểm lại).
+  const manageAccounts = canActivateParentsAt(selectedClass?.campusId || campusId, user);
   const campusLabel = (id) => md.campusById(id)?.shortName || md.campusById(id)?.name || '';
   const dirty = !!(info.fullName || info.dateOfBirth || info.guardians.some((g) => g.fullName || g.phone || g.idNumber));
 
   // Phụ huynh có CCCD trùng tài khoản: họ tên, SĐT, email theo tài khoản; BE vẫn tự liên kết theo CCCD khi lưu.
-  const withAccounts = (value) => ({ ...value, guardians: withGuardianAccounts(value.guardians, accountOf) });
+  const withAccounts = (value) => ({
+    ...value,
+    guardians: withGuardianAccounts(value.guardians, accountOf, { accountOnly: !manageAccounts }),
+  });
   const effectiveInfo = withAccounts(info);
+  // Phụ huynh chưa có tài khoản (theo tra CCCD): báo trước ở bước Xem lại khi người lưu không có quyền kích hoạt.
+  const waitingNames = effectiveInfo.guardians.filter((g) => !accountOf(g.idNumber)).map((g) => g.fullName);
   const validateInfo = (value) => validateChildInfo(value);
 
   const goTo = (i) => {
@@ -288,6 +300,15 @@ export default function EnrollChildPage() {
     );
   }
 
+  if (yearReadOnly)
+    return (
+      <div className="page">
+        <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
+        <h1 className="page__title">Tiếp nhận trẻ</h1>
+        <ActiveYearNotice action="Tiếp nhận trẻ" />
+      </div>
+    );
+
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
@@ -297,13 +318,22 @@ export default function EnrollChildPage() {
           Nhập nhiều trẻ từ Excel
         </Link>
       </div>
+      <ActiveYearNotice action="Tiếp nhận trẻ" />
       <div className="card stepper-card">
         <Stepper steps={STEPS} current={step} maxReached={maxReached} onStepClick={goTo} />
       </div>
 
       {step === 0 && (
         <section className="card wizard-card">
-          <ChildInfoFields split value={info} onChange={changeInfo} errors={errors.info} onBlurField={blurCheck} accountOf={accountOf} />
+          <ChildInfoFields
+            split
+            value={info}
+            onChange={changeInfo}
+            errors={errors.info}
+            onBlurField={blurCheck}
+            accountOf={accountOf}
+            accountReadOnly={!manageAccounts}
+          />
           {duplicate?.kind === 'ACTIVE' && (
             <div className="alert alert--danger mt-16" role="alert">
               <AlertTriangle size={18} />
@@ -372,7 +402,7 @@ export default function EnrollChildPage() {
 
       {step === 1 && (
         <section className="card wizard-card">
-          <h2 className="card__title mb-12">Xếp lớp năm học {schoolYear}</h2>
+          <h2 className="card__title mb-12">Xếp lớp năm học {yearLabel}</h2>
           {classesLoading ? (
             <Spinner deferred />
           ) : (
@@ -449,7 +479,7 @@ export default function EnrollChildPage() {
                 </div>
               ))}
             </dl>
-            {canActivateParentsAt(selectedClass?.campusId || campusId, user) && (
+            {manageAccounts ? (
               <div className="alert alert--info mt-12">
                 <Info size={18} />
                 <div>
@@ -457,6 +487,16 @@ export default function EnrollChildPage() {
                   được liên kết thêm trẻ.
                 </div>
               </div>
+            ) : (
+              waitingNames.length > 0 && (
+                <div className="alert alert--warning mt-12" role="status">
+                  <AlertTriangle size={18} />
+                  <div>
+                    Bạn không có quyền kích hoạt tài khoản phụ huynh ở điểm trường này. Khi lưu, {waitingNames.join(', ')} chưa có tài khoản
+                    sẽ ở trạng thái Chưa kích hoạt; người có quyền kích hoạt ở màn Tài khoản phụ huynh.
+                  </div>
+                </div>
+              )
             )}
             <h3 className="subsection-title mt-16">Thông tin hành chính</h3>
             <ChildProfileSummary profile={info.profile} />
@@ -475,7 +515,7 @@ export default function EnrollChildPage() {
             )}
             {selectedClass ? (
               <p>
-                <b>{selectedClass.name}</b> – {ageGroupById(selectedClass.ageGroupId)?.name} · năm học {schoolYear} · sĩ số hiện tại{' '}
+                <b>{selectedClass.name}</b> – {ageGroupById(selectedClass.ageGroupId)?.name} · năm học {yearLabel} · sĩ số hiện tại{' '}
                 {selectedClass.enrolledCount}/{selectedClass.capacity}
               </p>
             ) : (

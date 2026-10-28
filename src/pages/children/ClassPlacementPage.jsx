@@ -12,6 +12,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
+import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { placeChild } from '@/services/children/childrenService';
 import { CHILD_STATUS, ageLabel } from '@/models/School';
@@ -30,10 +31,12 @@ export default function ClassPlacementPage() {
   const { user } = useAuth();
   const toast = useToast();
   const md = useMasterData();
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, activeYear, yearReadOnly } = useSchoolYear();
+  // Xếp, chuyển lớp luôn ở năm học đang hoạt động dù header chọn năm khác (user chốt 2026-10-28, Y-3).
+  const yearId = activeYear?.id || schoolYear;
   const [params, setParams] = useSearchParams();
-  const { children, loading, error, reload } = useChildRecords({ schoolYear });
-  const { classes } = usePlacementClasses(schoolYear);
+  const { children, loading, error, reload } = useChildRecords({ schoolYear: yearId });
+  const { classes } = usePlacementClasses();
   const [tab, setTab] = useState(CHILD_STATUS.PENDING_PLACEMENT);
   const [keyword, setKeyword] = useState('');
   const [ageGroupId, setAgeGroupId] = useState('');
@@ -45,12 +48,12 @@ export default function ClassPlacementPage() {
 
   const selectedId = params.get('childId') || '';
   const selected = children.find((c) => c.id === selectedId) || null;
-  const suggested = selected ? suggestAgeGroupId(selected.dateOfBirth, schoolYear) : '';
+  const suggested = selected ? suggestAgeGroupId(selected.dateOfBirth, yearId) : '';
 
   useEffect(() => {
     if (!selected) return;
     setTab(selected.status === CHILD_STATUS.PENDING_PLACEMENT ? CHILD_STATUS.PENDING_PLACEMENT : CHILD_STATUS.ACTIVE);
-    setAgeGroupId(selected.ageGroupId || suggestAgeGroupId(selected.dateOfBirth, schoolYear));
+    setAgeGroupId(selected.ageGroupId || suggestAgeGroupId(selected.dateOfBirth, yearId));
     setCampusId(selected.campusId || '');
     setClassId('');
     setReason('');
@@ -74,6 +77,15 @@ export default function ClassPlacementPage() {
           title="Bạn không có quyền xếp lớp"
           description="Chỉ Hiệu trưởng hoặc Phó hiệu trưởng của điểm trường được xếp và chuyển lớp cho trẻ."
         />
+      </div>
+    );
+
+  if (yearReadOnly)
+    return (
+      <div className="page">
+        <Breadcrumb items={childrenCrumbs('Xếp lớp')} />
+        <h1 className="page__title">Xếp lớp cho trẻ</h1>
+        <ActiveYearNotice action="Xếp lớp, chuyển lớp" />
       </div>
     );
 
@@ -113,6 +125,7 @@ export default function ClassPlacementPage() {
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Xếp lớp')} />
       <h1 className="page__title">Xếp lớp cho trẻ</h1>
+      <ActiveYearNotice action="Xếp lớp, chuyển lớp" />
       <div className="split-2 tr-split">
         <section className="card">
           <div className="tabs" role="tablist">

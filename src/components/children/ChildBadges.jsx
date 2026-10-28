@@ -4,7 +4,7 @@ import {
   UserX,
   AlertTriangle,
   MinusCircle,
-  KeyRound,
+  Lock,
   UserCheck,
   UserPlus,
   Eye,
@@ -82,8 +82,8 @@ export const FollowUpLevelShortBadge = createStatusBadge(FOLLOW_UP_STYLE, FOLLOW
 export const ParentAccountBadge = createStatusBadge(
   {
     NOT_ACTIVATED: ['gray', UserPlus],
-    PENDING_ACTIVATION: ['orange', KeyRound],
     ACTIVE: ['green', UserCheck],
+    INACTIVE: ['gray', Lock],
     NO_ACCOUNT: ['orange', UserPlus],
   },
   { ...PARENT_ACCOUNT_STATUS_LABELS, NO_ACCOUNT: 'Chưa có tài khoản' },

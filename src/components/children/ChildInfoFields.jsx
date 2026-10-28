@@ -2,19 +2,18 @@ import { Plus, Trash2, UserCheck } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
 import { ParentAccountBadge } from './ChildBadges';
 import { GENDER_LABELS } from '@/models/School';
-import { GUARDIAN_RELATIONS } from '@/models/children/childrenConstants';
+import { GUARDIAN_RELATIONS, MAX_GUARDIANS } from '@/models/children/childrenConstants';
 import { emptyGuardian, withGuardianAccounts } from '@/utils/children/childrenHelpers';
 import { normalizePhone } from '@/utils/children/childrenValidation';
 import { normalizeCitizenId } from '@/utils/citizenId';
 import { todayInput } from '@/utils/format';
 
-const MAX_GUARDIANS = 3;
-
 /**
  * CCCD trùng tài khoản phụ huynh có sẵn (BE trả): ai, đang là phụ huynh của trẻ nào; lưu thì liên kết trẻ (user chốt 2026-10-23).
  * Sửa thông tin ở form thì tài khoản đổi theo; SĐT khác tài khoản ⇒ báo trước việc đổi tên đăng nhập, gửi mật khẩu mới (2026-10-28).
+ * readOnly: người lưu không có quyền kích hoạt tài khoản phụ huynh ⇒ thông tin theo tài khoản, chỉ liên kết (P-18 A).
  */
-function AccountNotice({ account, guardian, childId }) {
+function AccountNotice({ account, guardian, childId, readOnly }) {
   const linkedHere = !!childId && account.children.some((c) => c.id === childId);
   const kids = account.children.map((c) => `${c.fullName}${c.className ? ` (${c.className})` : ''}`);
   if (account.otherChildrenCount) kids.push(`${account.otherChildrenCount} trẻ ở điểm trường khác`);
@@ -27,8 +26,10 @@ function AccountNotice({ account, guardian, childId }) {
         </span>
         {kids.length > 0 && <span className="text-sm">Đang là phụ huynh của: {kids.join(', ')}.</span>}
         <span className="text-sm muted">
-          {linkedHere ? '' : 'Khi lưu, trẻ được liên kết vào tài khoản này, không tạo tài khoản mới. '}Ô trống được điền theo tài khoản; sửa
-          ở đây thì tài khoản và hồ sơ các trẻ khác của phụ huynh này đổi theo.
+          {linkedHere ? '' : 'Khi lưu, trẻ được liên kết vào tài khoản này, không tạo tài khoản mới. '}
+          {readOnly
+            ? 'Họ tên, số điện thoại, email theo tài khoản: bạn không có quyền sửa tài khoản phụ huynh.'
+            : 'Ô trống được điền theo tài khoản; sửa ở đây thì tài khoản và hồ sơ các trẻ khác của phụ huynh này đổi theo.'}
         </span>
         {normalizePhone(guardian.phone) !== normalizePhone(account.phone) && (
           <span className="text-sm">
@@ -47,6 +48,8 @@ function AccountNotice({ account, guardian, childId }) {
  * accountGuardianPhones / accountGuardianIds: SĐT, CCCD ban đầu của phụ huynh đã có tài khoản (Sửa hồ sơ) — không xóa ở form
  *   (gỡ ở màn Tài khoản phụ huynh); ô vẫn sửa được, tài khoản đổi theo (user chốt 2026-10-28).
  * accountOf(idNumber): tài khoản phụ huynh có CCCD đó (BE trả) hoặc null — có thì điền ô trống theo tài khoản.
+ * accountReadOnly: người lưu không có quyền kích hoạt tài khoản phụ huynh ⇒ họ tên, SĐT, email của phụ huynh đã có tài khoản
+ *   theo tài khoản, không sửa được (P-18 A).
  * childId: hồ sơ đang sửa (để biết tài khoản đã liên kết trẻ này chưa). split: trẻ bên trái, phụ huynh bên phải (tiếp nhận).
  */
 export function ChildInfoFields({
@@ -57,6 +60,7 @@ export function ChildInfoFields({
   accountGuardianPhones = [],
   accountGuardianIds = [],
   accountOf = () => null,
+  accountReadOnly = false,
   childId = null,
   split = false,
 }) {
@@ -133,7 +137,8 @@ export function ChildInfoFields({
           const holder =
             accountGuardianPhones.includes(g.phone) || (!!g.idNumber && accountGuardianIds.includes(normalizeCitizenId(g.idNumber)));
           const acc = accountOf(g.idNumber);
-          const [shown] = withGuardianAccounts([g], accountOf);
+          const locked = !!acc && accountReadOnly;
+          const [shown] = withGuardianAccounts([g], accountOf, { accountOnly: accountReadOnly });
           return (
             <div key={i} className="tr-guardian">
               <div className="tr-guardian__head">
@@ -180,12 +185,13 @@ export function ChildInfoFields({
                   label="Họ và tên"
                   required
                   error={errors[`guardians.${i}.fullName`]}
-                  hint={acc ? 'Điền theo tài khoản; sửa thì tài khoản đổi theo' : undefined}
+                  hint={locked ? 'Theo tài khoản phụ huynh' : acc ? 'Điền theo tài khoản; sửa thì tài khoản đổi theo' : undefined}
                 >
                   <input
                     className="input"
                     value={shown.fullName}
                     maxLength={100}
+                    readOnly={locked}
                     onChange={(e) => setGuardian(i, 'fullName', e.target.value)}
                   />
                 </FormField>
@@ -194,9 +200,11 @@ export function ChildInfoFields({
                   required
                   error={errors[`guardians.${i}.phone`]}
                   hint={
-                    holder || acc
-                      ? 'Tên đăng nhập; đổi số thì tên đăng nhập đổi theo, mật khẩu tạm mới gửi SMS tới số mới'
-                      : 'Dùng làm tên đăng nhập, nhận mật khẩu qua SMS'
+                    locked
+                      ? 'Tên đăng nhập của tài khoản phụ huynh'
+                      : holder || acc
+                        ? 'Tên đăng nhập; đổi số thì tên đăng nhập đổi theo, mật khẩu tạm mới gửi SMS tới số mới'
+                        : 'Dùng làm tên đăng nhập, nhận mật khẩu qua SMS'
                   }
                 >
                   <input
@@ -204,6 +212,7 @@ export function ChildInfoFields({
                     inputMode="tel"
                     placeholder="0912 345 678"
                     value={shown.phone}
+                    readOnly={locked}
                     onChange={(e) => setGuardian(i, 'phone', e.target.value)}
                     onBlur={() => onBlurField?.(`guardians.${i}.phone`)}
                   />
@@ -229,12 +238,13 @@ export function ChildInfoFields({
                     type="email"
                     placeholder={acc ? '' : 'ten@example.com'}
                     value={shown.email}
+                    readOnly={locked}
                     onChange={(e) => setGuardian(i, 'email', e.target.value)}
                     onBlur={() => onBlurField?.(`guardians.${i}.email`)}
                   />
                 </FormField>
               </div>
-              {acc && <AccountNotice account={acc} guardian={shown} childId={childId} />}
+              {acc && <AccountNotice account={acc} guardian={shown} childId={childId} readOnly={accountReadOnly} />}
             </div>
           );
         })}

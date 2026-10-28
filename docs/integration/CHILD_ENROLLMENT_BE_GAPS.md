@@ -6,7 +6,9 @@ Nguồn đọc BE: commit `aa64480` (trùng `origin/dev`, 22/10/2026). `BE:` = r
 
 ## Trạng thái
 
-User chốt hết ngày 28/10/2026 (bảng "Kết quả chốt" cuối tài liệu), còn P-18 (xem L-14). FE đã làm theo. Quyết định đã ghi vào repo BE ngày 28/10 (user cho phép, chưa commit; mục "Đã ghi vào BE"); phần code/API là việc của BE. ID giữ như bản đầu; số không liền vì đã bỏ mục của nhánh khác.
+User chốt hết ngày 28/10/2026 (bảng "Kết quả chốt" cuối tài liệu), kể cả P-18 = A (xem L-14). FE đã làm theo. Quyết định đã ghi vào repo BE ngày 28/10 (user cho phép, chưa commit; mục "Đã ghi vào BE"); phần code/API là việc của BE. ID giữ như bản đầu; số không liền vì đã bỏ mục của nhánh khác.
+
+**Việc BE cần làm** (dữ liệu, quyền, endpoint, SMS, thông báo, Keycloak, điểm cần thống nhất): [CHILD_ENROLLMENT_BE_SPEC.md](CHILD_ENROLLMENT_BE_SPEC.md). BE giả đã đối chiếu lại với các quyết định này ngày 28/10 (plan `docs/plans/completed/2026-10-28-mock-be-current-business.md`).
 
 Ưu tiên: **1** = chặn thiết kế API tiếp nhận; **2** = chặn chi tiết API/dữ liệu; **3** = làm sau được.
 
@@ -19,10 +21,10 @@ User chốt hết ngày 28/10/2026 (bảng "Kết quả chốt" cuối tài li�
 | L-08 | Thông tin hành chính (form, Excel) | `cb653ec` | 2 | A — BE thêm, bảng riêng |
 | L-09 | Khai báo sức khỏe khi tiếp nhận, ai chốt dị ứng (P-17) | `9743bba`, `cb653ec`, `36afa3c` | 1 | A — người tiếp nhận chốt ngay |
 | L-10 | Báo khi khai tiếp xúc người bệnh lao | `cb653ec`, `36afa3c` | 3 | A — BE phát như FE |
-| L-14 | Phụ huynh chưa có tài khoản: 1 bước hay 2 bước | `4867b60`, plan 28/10 | 1 | Phương án mới: form tiếp nhận kích hoạt ngay; nhập Excel, Sửa hồ sơ thêm phụ huynh theo A (2 bước); người chỉ có quyền Thêm: chưa chốt (P-18) |
+| L-14 | Phụ huynh chưa có tài khoản: 1 bước hay 2 bước | `4867b60`, plan 28/10 | 1 | Phương án mới: form tiếp nhận kích hoạt ngay; nhập Excel, Sửa hồ sơ thêm phụ huynh theo A (2 bước); người chỉ có quyền Thêm: vẫn lưu, phụ huynh mới chờ kích hoạt (P-18 = A) |
 | L-15 | Gửi mật khẩu tạm: SMS hay in phiếu | `4867b60` | 1 | A — SMS |
 | L-16 | Nhận diện phụ huynh: CCCD hay SĐT | `7232ae0`, `5e7f4a5` | 1 | A — CCCD; thông tin phụ huynh sửa được, đổi SĐT thì đổi tên đăng nhập + mật khẩu mới gửi SMS số mới |
-| L-17 | Email phụ huynh | plan 28/10 | — | Chỉ để liên hệ |
+| L-17 | Email phụ huynh | plan 28/10 | — | Chỉ để liên hệ; BE đã sửa |
 | L-18 | SĐT phụ huynh trùng tài khoản nhân sự | plan 28/10 | — | Bỏ kiểm; BE đã sửa |
 
 ## A. Quyền và điểm trường
@@ -94,7 +96,8 @@ User chốt hết ngày 28/10/2026 (bảng "Kết quả chốt" cuối tài li�
 - **A (đề xuất):** BE thêm "phụ huynh trên hồ sơ trẻ" (chưa có tài khoản), API kiểm điều kiện trước khi lưu và API kích hoạt tạo tài khoản theo AUTH-18. Tiếp nhận nhiều trẻ, nhập Excel không phải tạo tài khoản ngay.
 - **B:** theo BE — lưu tiếp nhận là tạo luôn tài khoản phụ huynh; FE nối thẳng API BE đã có, bỏ trạng thái "Chưa kích hoạt".
 - **Chốt 28/10 (phương án mới):** form tiếp nhận ⇒ lưu là tạo/liên kết tài khoản và gửi SMS ngay (như B); nhập Excel ⇒ theo A (lưu phụ huynh "Chưa kích hoạt", kích hoạt sau ở màn Tài khoản phụ huynh). FE đã làm: `enrollChild` gọi `activatePendingGuardians` (`src/mocks/parentAccountMock.js`), trả `guardianAccounts`; plan `docs/plans/completed/2026-10-28-enroll-activates-guardians.md`.
-- **Bổ sung 28/10:** Sửa hồ sơ thêm phụ huynh mới ⇒ kích hoạt sau (chốt). Người lưu có quyền tiếp nhận nhưng không có quyền quản lý tài khoản phụ huynh: chưa chốt — `BE:docs/business/BUSINESS_RULES.md` P-18 (FE tạm: lưu, phụ huynh chờ kích hoạt).
+- **Bổ sung 28/10:** Sửa hồ sơ thêm phụ huynh mới ⇒ kích hoạt sau (chốt). Người lưu có quyền tiếp nhận nhưng không có quyền quản lý tài khoản phụ huynh: **chốt P-18 = A** — vẫn lưu, phụ huynh chưa có tài khoản chờ kích hoạt, phụ huynh trùng CCCD tài khoản vẫn được liên kết (`BE:docs/business/BUSINESS_RULES.md` P-18 đã đóng).
+- **Kèm P-18 (user xác nhận 28/10, C-1 A, C-2 đồng ý):** người không có quyền đó không sửa được tài khoản có sẵn khi tiếp nhận — BE dùng họ tên/SĐT/email của tài khoản như nhập Excel, không đổi tên đăng nhập, không cấp mật khẩu mới (`src/services/children/mock/childrenMockRepository.js` `enrollChild`); form khóa các ô đó và bước Xem lại báo trước phụ huynh nào chờ kích hoạt. Lưu ý BE: liên kết phụ huynh hiện cần `PARENT_ACCOUNT_MANAGE` (`POST /children/{id}/guardians`); FE dùng quyền "Sửa" hồ sơ trẻ làm quyền kích hoạt ⇒ khi làm AUTH-20 cần thống nhất một quyền.
 
 ### L-15 — Gửi mật khẩu tạm: SMS hay in phiếu
 - **Nhánh:** `4867b60` (user bỏ màn in phiếu 23/10).
@@ -116,11 +119,12 @@ User chốt hết ngày 28/10/2026 (bảng "Kết quả chốt" cuối tài li�
 
 ### L-17 — Email phụ huynh — **Đã chốt**
 - Chốt 28/10 (Q2-A, `docs/plans/completed/2026-10-27-guardian-activation-ready-at-enrollment.md`): email chỉ để liên hệ, không dùng nhận diện.
-- **Còn lệch:** BE không nhận email khi thêm phụ huynh, tạo tài khoản với email rỗng (`GuardianAccountServiceImpl.java:111-114`) ⇒ đề xuất BE nhận và lưu `user_accounts.email` (cột đã có, cho phép rỗng).
+- **Hết lệch — BE đã sửa 28/10 (user cho phép, chưa commit; plan `BE:docs/plans/completed/2026-10-28-guardian-contact-email.md`):** `POST /children/{childId}/guardians` nhận `email` tùy chọn (đúng định dạng, ≤255 ký tự), lưu chữ thường vào `user_accounts.email`, không gửi Keycloak (không đăng nhập bằng email này, không bị chặn trùng email nhân sự). SĐT đã có tài khoản ⇒ giữ email của tài khoản. `GET /children/{childId}/guardians` và response thêm phụ huynh trả `email`. Quên mật khẩu web bỏ qua tài khoản phụ huynh.
+- FE chưa gọi các API này (`src/services/account/guardianService.js` trả 501 khi không chạy mock) ⇒ khi nối API thật: gửi `email` khi thêm phụ huynh, đọc `email` từ danh sách phụ huynh.
 
 ### L-18 — SĐT phụ huynh trùng tài khoản nhân sự — **Đã chốt**
 - Chốt 28/10 (Q1, cùng plan): bỏ kiểm; nhân sự có tài khoản riêng (`guardianMockRepository.js:114-115`).
-- **Hết lệch — BE đã sửa 28/10 (user cho phép, chưa commit; plan `BE:docs/plans/active/2026-10-28-staff-username-not-phone.md`):** AUTH-18 bỏ "SĐT của nhân sự ⇒ từ chối"; `POST /accounts` từ chối tên đăng nhập nhân sự dạng SĐT (400 `Staff username must not be a phone number`). 409 `This phone number belongs to a staff account` chỉ còn với tài khoản nhân sự tạo trước quy ước hoặc tạo thẳng trên Keycloak.
+- **Hết lệch — BE đã sửa 28/10 (user cho phép, chưa commit; plan `BE:docs/plans/completed/2026-10-28-staff-username-not-phone.md`; verify có Docker pass, 0 skip):** AUTH-18 bỏ "SĐT của nhân sự ⇒ từ chối"; `POST /accounts` từ chối tên đăng nhập nhân sự dạng SĐT (400 `Staff username must not be a phone number`). 409 `This phone number belongs to a staff account` chỉ còn với tài khoản nhân sự tạo trước quy ước hoặc tạo thẳng trên Keycloak.
 
 ## Kết quả chốt
 
@@ -133,15 +137,15 @@ User chốt hết ngày 28/10/2026 (bảng "Kết quả chốt" cuối tài li�
 | L-08 | A | user | 2026-10-28 | BE: bảng hành chính |
 | L-09 | A | user | 2026-10-28 | BE: đóng P-17, API khai báo sức khỏe |
 | L-10 | A | user | 2026-10-28 | BE: 2 sự kiện thông báo |
-| L-14 | Form kích hoạt ngay; Excel, Sửa hồ sơ thêm phụ huynh theo A | user | 2026-10-28 | FE xong; BE: AUTH-20 (đã ghi); P-18 chờ chốt |
+| L-14 | Form kích hoạt ngay; Excel, Sửa hồ sơ thêm phụ huynh theo A; P-18 = A | user | 2026-10-28 | FE xong; BE: AUTH-20 (đã ghi, P-18 đã đóng) |
 | L-15 | A (SMS) | user | 2026-10-28 | BE: sửa AUTH-18, chọn nhà cung cấp SMS |
 | L-16 | A; sửa được thông tin, đổi SĐT ⇒ tên đăng nhập + mật khẩu mới gửi SMS số mới | user | 2026-10-28 | FE xong; BE: AUTH-18, AUTH-21 (đã ghi), cách đổi tên đăng nhập Keycloak |
-| L-17 | Email chỉ để liên hệ (Q2-A) | user | 2026-10-28 | Đề xuất BE nhận, lưu email phụ huynh |
+| L-17 | Email chỉ để liên hệ (Q2-A) | user | 2026-10-28 | BE đã nhận, lưu email phụ huynh (28/10, chưa commit); FE gửi/đọc `email` khi nối API phụ huynh |
 | L-18 | Bỏ kiểm trùng nhân sự (Q1) | user | 2026-10-28 | BE đã sửa AUTH-18 + chặn tên đăng nhập nhân sự dạng SĐT (28/10, chưa commit) |
 
 ## Đã ghi vào BE
 
-Đã ghi ngày 28/10/2026 (user cho phép; chưa commit) vào `BE:docs/business/BUSINESS_RULES.md`: AUTH-18 (sửa), AUTH-20, AUTH-21, CHD-01..CHD-07 (mới), HLT-06 (sửa), P-17 đóng, P-18 mới; cùng `BE:docs/business/USER_ROLES.md`, `BE:docs/business/DOMAIN_MODEL.md`, `BE:docs/modules/child.md`, `BE:docs/modules/identity-access.md`, `BE:docs/database/DATA_DICTIONARY.md`, `BE:docs/context/CURRENT_STATE.md`, `BE:docs/README_AI.md`. Code/API BE chưa làm. Bảng dưới là nội dung đã ghi theo từng file:
+Đã ghi ngày 28/10/2026 (user cho phép; chưa commit) vào `BE:docs/business/BUSINESS_RULES.md`: AUTH-18 (sửa), AUTH-20, AUTH-21, CHD-01..CHD-07 (mới), HLT-06 (sửa), P-17 đóng, P-18 mới rồi đóng cùng ngày (A); cùng `BE:docs/business/USER_ROLES.md`, `BE:docs/business/DOMAIN_MODEL.md`, `BE:docs/modules/child.md`, `BE:docs/modules/identity-access.md`, `BE:docs/database/DATA_DICTIONARY.md`, `BE:docs/context/CURRENT_STATE.md`, `BE:docs/README_AI.md`. Code/API BE chưa làm (trừ L-17, L-18 — mục riêng ở trên). Bảng dưới là nội dung đã ghi theo từng file:
 
 | File BE | Việc | Mục |
 | --- | --- | --- |

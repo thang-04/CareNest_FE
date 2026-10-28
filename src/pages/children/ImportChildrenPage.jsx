@@ -12,8 +12,10 @@ import {
   Info,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
+import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { FormField } from '@/components/form/FormField';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -56,6 +58,7 @@ export default function ImportChildrenPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const md = useMasterData();
+  const { yearReadOnly } = useSchoolYear();
   const inputRef = useRef(null);
   const [campusPick, setCampusPick] = useState(null);
   const [campusError, setCampusError] = useState('');
@@ -162,6 +165,15 @@ export default function ImportChildrenPage() {
       </div>
     );
 
+  if (yearReadOnly)
+    return (
+      <div className="page">
+        <Breadcrumb items={childrenCrumbs('Nhập từ Excel')} />
+        <h1 className="page__title">Nhập danh sách trẻ từ Excel</h1>
+        <ActiveYearNotice action="Nhập danh sách trẻ" />
+      </div>
+    );
+
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Nhập từ Excel')} />
@@ -171,6 +183,7 @@ export default function ImportChildrenPage() {
           <Download size={16} /> Tải file mẫu
         </button>
       </div>
+      <ActiveYearNotice action="Nhập danh sách trẻ" />
       <div className="alert alert--info mb-16">
         <Info size={18} />
         <div>

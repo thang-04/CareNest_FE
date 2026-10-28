@@ -31,12 +31,17 @@ export const defaultCampusId = (campuses, user) =>
 
 export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', idNumber: '', email: '' });
 
-/** Phụ huynh có CCCD trùng tài khoản (accountOf, BE trả): họ tên, SĐT, email theo tài khoản để hiển thị, kiểm nhập và gửi đi. */
-export const withGuardianAccounts = (guardians, accountOf) =>
+/**
+ * Phụ huynh có CCCD trùng tài khoản (accountOf, BE trả): họ tên, SĐT, email theo tài khoản để hiển thị, kiểm nhập và gửi đi.
+ * accountOnly: người lưu không có quyền kích hoạt tài khoản phụ huynh ⇒ luôn theo tài khoản, không sửa được (P-18 A).
+ */
+export const withGuardianAccounts = (guardians, accountOf, { accountOnly = false } = {}) =>
   guardians.map((g) => {
     const acc = accountOf(g.idNumber);
+    if (!acc) return g;
+    if (accountOnly) return { ...g, fullName: acc.fullName, phone: acc.phone, email: acc.email || '' };
     // Chỉ điền ô còn trống; số người dùng đã gõ giữ nguyên — sửa ở hồ sơ thì tài khoản đổi theo (user chốt 2026-10-28).
-    return acc ? { ...g, fullName: g.fullName || acc.fullName, phone: g.phone || acc.phone, email: g.email || acc.email || '' } : g;
+    return { ...g, fullName: g.fullName || acc.fullName, phone: g.phone || acc.phone, email: g.email || acc.email || '' };
   });
 
 /** Bước 1 của form tiếp nhận: thông tin trẻ, phụ huynh và phần hành chính (dùng cho phiếu khám). */

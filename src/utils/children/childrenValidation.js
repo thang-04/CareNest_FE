@@ -1,4 +1,4 @@
-import { DECLARATION_STATE } from '@/models/children/childrenConstants';
+import { DECLARATION_STATE, GUARDIAN_RELATIONS, MAX_GUARDIANS } from '@/models/children/childrenConstants';
 import { FOLLOW_UP_CLOSE_OUTCOME, FOLLOW_UP_FIELD_LIMITS } from '@/models/children/healthCheckConstants';
 import { citizenIdError, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
@@ -12,7 +12,11 @@ const PHONE_RE = /^(0|\+84)\d{9}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export const normalizePhone = (phone) => String(phone || '').replace(/[\s.-]/g, '');
+// Như tên đăng nhập phụ huynh (SĐT chuẩn hóa 10 số bắt đầu 0, AUTH-18): "+84 912…" và "0912…" là một số.
+export const normalizePhone = (phone) =>
+  String(phone || '')
+    .replace(/[\s.\-()]/g, '')
+    .replace(/^\+84/, '0');
 
 export const isValidPhone = (phone) => PHONE_RE.test(normalizePhone(phone));
 
@@ -81,6 +85,9 @@ export const validateChildInfo = (data) => {
     // Bằng giới hạn khi kích hoạt tài khoản (BE AddGuardianRequest ≤150): tiếp nhận được thì kích hoạt được.
     else if (g.fullName.trim().length > 150) errors[`guardians.${i}.fullName`] = 'Họ tên tối đa 150 ký tự';
     if (!g.relation) errors[`guardians.${i}.relation`] = 'Chọn quan hệ với trẻ';
+    // Tài khoản phụ huynh dùng cùng 6 loại quan hệ (user chốt 2026-10-28, D-5a B) ⇒ giá trị khác (vd. chữ tự do từ Excel) không nhận.
+    else if (!GUARDIAN_RELATIONS.includes(g.relation))
+      errors[`guardians.${i}.relation`] = `Quan hệ chỉ nhận: ${GUARDIAN_RELATIONS.join(', ')}`;
     if (!g.phone?.trim()) errors[`guardians.${i}.phone`] = 'Nhập số điện thoại để gửi tài khoản';
     else if (!isValidPhone(g.phone)) errors[`guardians.${i}.phone`] = 'Nhập số điện thoại hợp lệ, ví dụ 0912 345 678';
     if (g.email?.trim() && !isValidEmail(g.email)) errors[`guardians.${i}.email`] = 'Nhập email hợp lệ, ví dụ ten@example.com';
@@ -91,6 +98,7 @@ export const validateChildInfo = (data) => {
   if (new Set(phones).size !== phones.length) errors.guardians = 'Hai phụ huynh không được dùng chung số điện thoại';
   const ids = guardians.map((g) => normalizeCitizenId(g.idNumber)).filter(Boolean);
   if (new Set(ids).size !== ids.length) errors.guardians = 'Hai phụ huynh không được dùng chung số CCCD';
+  if (guardians.length > MAX_GUARDIANS) errors.guardians = `Mỗi trẻ tối đa ${MAX_GUARDIANS} phụ huynh`;
   return errors;
 };
 

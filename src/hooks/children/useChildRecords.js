@@ -29,10 +29,10 @@ export function useChildDetail(id, { live = true } = {}) {
   return { detail: data, loading, error, reload };
 }
 
-/** Classes the VP can place children into, with their current number of children. */
-export function usePlacementClasses(schoolYear) {
+/** Lớp tiếp nhận, xếp lớp được (kèm sĩ số hiện tại): BE chỉ trả lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */
+export function usePlacementClasses() {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getPlacementClasses({ schoolYear }, user), [schoolYear, user?.id], {
+  const { data, loading, error, reload } = useAsync(() => getPlacementClasses({}, user), [user?.id], {
     refreshOnDataChange: true,
   });
   return { classes: data || [], loading, error, reload };

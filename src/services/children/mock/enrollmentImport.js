@@ -1,5 +1,5 @@
 import { normalizeText } from '@/utils/format';
-import { DECLARATION_STATE, IMPORT_COLUMNS } from '@/models/children/childrenConstants';
+import { DECLARATION_STATE, GUARDIAN_RELATIONS, IMPORT_COLUMNS } from '@/models/children/childrenConstants';
 
 /*
  * Fake-backend parser for the enrollment template. Only CSV is read in the demo (no spreadsheet
@@ -64,6 +64,11 @@ const toGender = (value) => {
   if (['nu', 'female', 'f'].includes(v)) return 'FEMALE';
   return '';
 };
+
+// Quan hệ trong file so không dấu, không phân biệt hoa thường, bỏ khoảng trắng/dấu "/" ("anh chị" = "Anh/chị"); không khớp 6 lựa
+// chọn thì giữ nguyên để báo lỗi đúng dòng (user chốt 2026-10-28, D-5a B).
+const relationKey = (value) => normalizeText(value).replace(/[^a-z]/g, '');
+const toRelation = (value) => GUARDIAN_RELATIONS.find((r) => relationKey(r) === relationKey(value)) || String(value || '').trim();
 
 const isNone = (value) => ['khong', 'khong co', 'none', 'no'].includes(normalizeText(value).trim());
 const isYes = (value) => ['co', 'yes', 'x'].includes(normalizeText(value).trim());
@@ -143,7 +148,7 @@ export const readEnrollmentCsv = (text) => {
           guardians: [
             {
               fullName: raw.guardianName || '',
-              relation: raw.relation || '',
+              relation: toRelation(raw.relation),
               phone: raw.phone || '',
               idNumber: raw.guardianIdNumber || '',
               email: raw.email || '',

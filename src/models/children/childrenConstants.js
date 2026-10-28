@@ -126,24 +126,31 @@ export const FOLLOW_UP_LEVEL_SHORT_LABELS = { ...FOLLOW_UP_LEVEL_LABELS, CLOSE_W
 export const PARENT_VISIBLE_HEALTH_TEXT =
   'toàn bộ phiếu khám (số đo, các phần khám, kết luận, lời tư vấn, chuyển khám), biểu đồ và ghi chú khám';
 
-/** Parent account state as stored on child.guardians[i].accountStatus. */
+/**
+ * Parent account state as stored on child.guardians[i].accountStatus: chưa có tài khoản liên kết với trẻ, hoặc trạng thái
+ * tài khoản (`UserStatus` BE: ACTIVE / INACTIVE = bị khóa, AUTH-19).
+ */
 export const PARENT_ACCOUNT_STATUS = {
   NOT_ACTIVATED: 'NOT_ACTIVATED',
-  PENDING_ACTIVATION: 'PENDING_ACTIVATION',
   ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
 };
 
 export const PARENT_ACCOUNT_STATUS_LABELS = {
   NOT_ACTIVATED: 'Chưa kích hoạt',
-  PENDING_ACTIVATION: 'Chờ phụ huynh đổi mật khẩu',
   ACTIVE: 'Đang hoạt động',
+  INACTIVE: 'Đã khóa',
 };
 
 export const SMS_STATUS = { SENT: 'SENT', FAILED: 'FAILED' };
 
 export const SMS_STATUS_LABELS = { SENT: 'Đã gửi SMS', FAILED: 'Gửi SMS lỗi' };
 
+/** Quan hệ phụ huynh–trẻ trên hồ sơ; tài khoản dùng cùng 6 loại (user chốt 2026-10-28, D-5a B); file Excel chỉ nhận các giá trị này. */
 export const GUARDIAN_RELATIONS = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Anh/chị', 'Người giám hộ'];
+
+/** Số phụ huynh tối đa trên hồ sơ một trẻ; BE cũng chặn (user chốt 2026-10-28, D-5b A). */
+export const MAX_GUARDIANS = 3;
 
 export const AI_TREND_STATUS = { OK: 'OK', NOT_ENOUGH_DATA: 'NOT_ENOUGH_DATA', FAILED: 'FAILED' };
 
@@ -153,7 +160,7 @@ export const IMPORT_COLUMNS = [
   { key: 'dateOfBirth', label: 'Ngày sinh (dd/mm/yyyy)', required: true },
   { key: 'gender', label: 'Giới tính (Nam/Nữ)', required: true },
   { key: 'guardianName', label: 'Họ tên phụ huynh', required: true },
-  { key: 'relation', label: 'Quan hệ', required: true },
+  { key: 'relation', label: 'Quan hệ (Bố, Mẹ, Ông, Bà, Anh/chị, Người giám hộ)', required: true },
   { key: 'phone', label: 'Số điện thoại', required: true },
   // CCCD phụ huynh bắt buộc cả khi nhập Excel (user chốt 2026-10-21); file mẫu cũ thiếu cột này không nhập được.
   { key: 'guardianIdNumber', label: 'Số CCCD phụ huynh', required: true },

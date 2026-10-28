@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, RotateCcw, Info, Stethoscope, Search } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useHealthChecks } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -25,7 +26,10 @@ export default function HealthCheckListPage() {
   const [campusId, setCampusId] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
-  const { campaigns, loading, error, reload } = useHealthChecks({ campusId, status });
+  // Đợt khám theo năm học chọn ở header, tính theo ngày bắt đầu khám (user chốt 2026-10-28, Y-4).
+  const { schoolYear, schoolYears } = useSchoolYear();
+  const yearLabel = schoolYears.find((y) => y.id === schoolYear)?.label || schoolYear;
+  const { campaigns, loading, error, reload } = useHealthChecks({ campusId, status, schoolYear });
   const manage = canManageHealthCheck(user);
   const filtered = !!(campusId || status);
   const pageRows = paginate(campaigns, page);
@@ -52,7 +56,8 @@ export default function HealthCheckListPage() {
         <div>
           {isTeacherRole(user)
             ? 'Mở đợt đang diễn ra để nhập kết quả khám cho trẻ lớp bạn phụ trách.'
-            : 'Mỗi điểm trường chỉ có một đợt khám chưa đóng. Giáo viên phụ trách lớp nhập kết quả trong ngày khám; Hiệu trưởng đóng đợt khi nhập xong.'}
+            : 'Mỗi điểm trường chỉ có một đợt khám chưa đóng. Giáo viên phụ trách lớp nhập kết quả trong ngày khám; Hiệu trưởng đóng đợt khi nhập xong.'}{' '}
+          Danh sách gồm các đợt bắt đầu trong năm học {yearLabel}; chọn năm khác ở thanh trên để xem đợt cũ.
         </div>
       </div>
 
@@ -132,7 +137,7 @@ export default function HealthCheckListPage() {
                       ) : (
                         <EmptyState
                           icon={Stethoscope}
-                          title="Chưa có đợt khám sức khỏe"
+                          title={`Năm học ${yearLabel} chưa có đợt khám sức khỏe`}
                           description={
                             manage
                               ? 'Tạo đợt khám cho từng điểm trường để giáo viên nhập kết quả trong ngày khám.'
