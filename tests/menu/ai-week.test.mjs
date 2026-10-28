@@ -13,9 +13,12 @@ globalThis.window = new EventTarget();
 const { menuPlanningMockRepository: repo } = await import('@/services/menu-planning/mock/menuPlanningMockRepository');
 const { checkDayMenu } = await import('@/utils/menu-planning/menuChecks');
 const { byId } = await import('@/utils/menu-planning/menuCalculations');
+const { addDays, schoolWeekStart } = await import('@/models/menu-planning/menuPlanningConstants');
+const { todayInput } = await import('@/utils/format');
 
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL' };
-const WEEK = '2026-11-02';
+// Seed tự có thực đơn tuần trước, tuần này, tuần sau so với hôm nay (buildRecentWeeklyMenus): test dùng từ 2 tuần sau.
+const WEEK = addDays(schoolWeekStart(todayInput()), 14);
 
 beforeEach(() => values.clear());
 
@@ -32,7 +35,7 @@ test('AI soạn tuần: bản nháp 5 ngày có lý do từng ngày, chỉ số 
 
 test('AI đề xuất sửa ngày: bữa trống thì thêm món; áp dụng ghi vào ngày và đánh dấu bản nháp đã dùng; xử lý lại bị chặn', async () => {
   // Dữ liệu mock giữ trong bộ nhớ giữa các test: dùng tuần khác test trước
-  const week2 = '2026-11-09';
+  const week2 = addDays(WEEK, 7);
   const draftWeek = await repo.generateAiSuggestion({ kind: 'WEEKLY', ageGroupId: 'ag-4', weekStart: week2 }, VP);
   const wm = await repo.saveWeeklyMenu(null, { ageGroupId: 'ag-4', weekStart: week2, days: draftWeek.days }, VP);
   const day = wm.days[0];
@@ -48,7 +51,7 @@ test('AI đề xuất sửa ngày: bữa trống thì thêm món; áp dụng ghi
 });
 
 test('AI soạn tuần ưu tiên ngày đạt kiểm tra; ngày không có mẫu đạt thì nói rõ thiếu thực đơn mẫu', async () => {
-  const week3 = '2026-11-16';
+  const week3 = addDays(WEEK, 14);
   const d = await repo.generateAiSuggestion({ kind: 'WEEKLY', ageGroupId: 'ag-4', weekStart: week3 }, VP);
   const c = await repo.getCatalog(VP);
   const catalog = { ...c, dishById: byId(c.dishes), foodById: byId(c.foods) };
@@ -75,7 +78,7 @@ test('AI soạn tuần ưu tiên ngày đạt kiểm tra; ngày không có mẫu
 });
 
 test('gợi ý sửa ngày không bao giờ đưa món có chất mà nhóm có trẻ dị ứng', async () => {
-  const week4 = '2026-11-23';
+  const week4 = addDays(WEEK, 21);
   const d = await repo.generateAiSuggestion({ kind: 'WEEKLY', ageGroupId: 'ag-4', weekStart: week4 }, VP);
   const c = await repo.getCatalog(VP);
   const foodById = byId(c.foods);

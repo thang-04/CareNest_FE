@@ -4,7 +4,7 @@ type: bug
 screens: [menu-planning]
 be_modules: [nutrition]
 rules: []
-status: open
+status: fixed
 date: 2026-10-24
 keywords: [ai-week, verify, thực đơn tuần, trùng tuần, TT-20261102-MGN]
 similar_to: []
@@ -34,6 +34,8 @@ Nhóm tuổi này đã có thực đơn tuần TT-20261102-MGN cho tuần đã c
 | 2 | Chạy cùng cổng ngoài sandbox, đọc `verify.log` | `VERIFY FAIL full`; menu 95/96, lỗi trùng tuần như trên | Cổng dừng trước nhóm đón trẻ, lint và build; không suy luận các nhóm chưa chạy là đạt |
 | 3 | Chạy riêng `pickup-call-note.test.mjs` và `pickup-seed-size.test.mjs` với test loader có sẵn | 2/2 đạt, không skip | Xác minh riêng luồng đón trẻ đang mô tả; không sửa lỗi thực đơn ngoài phạm vi |
 | 4 | Đọc fixture, hàm sinh seed và cách xác định tuần học | Fixture cố định 02/11/2026 trùng tuần nháp seed vào ngày chạy 24/10/2026 | Xác định xung đột phụ thuộc ngày bằng source và mã thực đơn trong log; chưa sửa test |
+| 5 | 2026-10-27 (task Hiệu trưởng tiếp nhận trẻ): chạy lại riêng `ai-week.test.mjs` | Vẫn 4/5, cùng lỗi `TT-20261102-MGN` | Lỗi không phụ thuộc thay đổi đang làm; còn trùng tới khi tuần 02/11 đã qua |
+| 6 | Đổi 4 tuần cố định (02/11–23/11) thành tuần tính theo hôm nay: từ 2 tuần sau tuần học hiện tại (`addDays(schoolWeekStart(todayInput()), 14)`, +7, +14, +21) | 5/5; `node scripts/verify.mjs` → `VERIFY PASS full` | Seed chỉ sinh tuần trước, tuần này, tuần sau nên từ 2 tuần sau luôn trống; tuần chưa qua nên không vướng "tuần đã qua" |
 
 ## Root cause
 
@@ -41,11 +43,11 @@ Fixture phụ thuộc ngày: `tests/menu/ai-week.test.mjs:18` cố định tuầ
 
 ## Fix
 
-Chưa sửa; ngoài phạm vi xuất sơ đồ. Không đổi dữ liệu seed, test hoặc quy tắc lưu thực đơn để làm cổng xanh.
+2026-10-27: chỉ sửa test `tests/menu/ai-week.test.mjs` — tuần thử tính theo ngày chạy, bắt đầu 2 tuần sau tuần học hiện tại (seed `buildRecentWeeklyMenus` chỉ có tuần trước, tuần này, tuần sau). Không đổi seed hay quy tắc lưu thực đơn.
 
 ## Regression test
 
-Ca `AI soạn tuần: bản nháp 5 ngày có lý do từng ngày, chỉ số trẻ dị ứng tổng hợp (không tên trẻ)` trong `tests/menu/ai-week.test.mjs` hiện không đạt khi chạy cổng. Chưa có bản sửa; kết quả cuối xem `verify.log` và báo cáo bàn giao.
+Cả 5 ca của `tests/menu/ai-week.test.mjs` đạt ngày 2026-10-27 (trước sửa: ca dòng 22 không đạt); cổng `VERIFY PASS full`.
 
 ## Ảnh hưởng
 
@@ -53,4 +55,4 @@ Cổng đầy đủ dừng ngay tại nhóm menu; các nhóm sau chưa được 
 
 ## Lesson
 
-Khi xuất tài liệu, báo riêng bằng chứng kiểm sơ đồ và kết quả cổng repo. Kiểm tra xung đột tuần giữa fixture và seed trước khi sửa nghiệp vụ thực đơn.
+Khi xuất tài liệu, báo riêng bằng chứng kiểm sơ đồ và kết quả cổng repo. Kiểm tra xung đột tuần giữa fixture và seed trước khi sửa nghiệp vụ thực đơn. Test chạm dữ liệu seed sinh theo hôm nay thì ngày thử cũng tính theo hôm nay, không cố định.
