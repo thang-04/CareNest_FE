@@ -77,7 +77,9 @@ export const educationPlanApi = {
   deleteLesson: (id) => axiosClient.delete(`/education-plans/lessons/${id}`),
   // Tài liệu + lớp + giáo viên, tổ trưởng của năm học đang chọn ở header (BE lọc theo phạm vi người xem)
   getClassPlans: (schoolYearId) =>
-    axiosClient.get('/education-plans/class-docs', { params: serverId(schoolYearId) == null ? {} : { schoolYearId: serverId(schoolYearId) } }),
+    axiosClient.get('/education-plans/class-docs', {
+      params: serverId(schoolYearId) == null ? {} : { schoolYearId: serverId(schoolYearId) },
+    }),
   getEduConfig: async () => toUiEduConfig(await loadConfig()),
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
   saveEduConfig: async (cfg) => {
