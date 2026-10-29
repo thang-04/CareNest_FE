@@ -28,18 +28,31 @@ const unauthorized = (config) => {
 
 let refreshCalls;
 let refreshFails;
+let usedRefresh;
+let sessionDead;
 let validToken;
 let events;
 const onEvent = () => events++;
 window.addEventListener(UNAUTHORIZED_EVENT, onEvent);
 
-// Keycloak giả: mỗi lần refresh cấp token mới (xoay vòng refresh token)
+// Keycloak giả: mỗi lần refresh cấp token mới (xoay vòng refresh token). Như realm thật (revokeRefreshToken): dùng lại
+// refresh token đã dùng ⇒ invalid_grant và hủy cả phiên (mọi refresh token sau đó đều hỏng)
 axios.defaults.adapter = async (config) => {
   refreshCalls++;
   await new Promise((r) => setTimeout(r, 5));
-  if (refreshFails) throw unauthorized(config);
+  const used = new URLSearchParams(String(config.data)).get('refresh_token');
+  if (used && usedRefresh.has(used)) sessionDead = true;
+  if (used) usedRefresh.add(used);
+  if (refreshFails || sessionDead) throw unauthorized(config);
   validToken = `access-${refreshCalls}`;
-  return { status: 200, statusText: 'OK', headers: {}, config, data: { access_token: validToken, refresh_token: `refresh-${refreshCalls}`, expires_in: 300 } }; // carenest:allow-secret — token giả của Keycloak mô phỏng
+  return {
+    status: 200,
+    statusText: 'OK',
+    headers: {},
+    config,
+    // carenest:allow-secret — token giả của Keycloak mô phỏng
+    data: { access_token: validToken, refresh_token: `refresh-${refreshCalls}`, expires_in: 300 }, // carenest:allow-secret
+  };
 };
 // BE giả: chỉ nhận token hiện hành
 axiosClient.defaults.adapter = async (config) => {
@@ -60,6 +73,8 @@ beforeEach(() => {
   sessionStorage.clear();
   refreshCalls = 0;
   refreshFails = false;
+  usedRefresh = new Set();
+  sessionDead = false;
   validToken = 'access-0';
   events = 0;
 });
@@ -101,4 +116,54 @@ test('không có phiên Keycloak dev: 401 vẫn báo hết phiên ngay, không g
   await assert.rejects(axiosClient.get('/children'), { status: 401 });
   assert.equal(refreshCalls, 0);
   assert.equal(events, 1);
+});
+
+// Tab mở bằng link target=_blank / nhân bản tab: trình duyệt chép sessionStorage ⇒ hai tab giữ cùng refresh token
+const copyOfTab = () => {
+  const snapshot = new Map();
+  ['carenest.accessToken', 'carenest.kcRefreshToken', 'carenest.kcAccessExp'].forEach((k) => snapshot.set(k, sessionStorage.getItem(k)));
+  return () => snapshot.forEach((v, k) => (v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v)));
+};
+const signInSession = () => {
+  sessionStorage.setItem('carenest.accessToken', 'access-0');
+  sessionStorage.setItem('carenest.kcRefreshToken', 'refresh-0');
+  sessionStorage.setItem('carenest.kcAccessExp', String(Date.now() - 1000));
+  validToken = 'not-issued-yet';
+};
+
+test('hai tab chung bản sao phiên (không ghi nhớ): tab sau nhận token mới, không dùng lại refresh token, không hủy phiên', async () => {
+  signInSession();
+  const switchToTabB = copyOfTab();
+  await axiosClient.get('/tab-a');
+  assert.equal(refreshCalls, 1);
+  switchToTabB();
+  assert.equal(sessionStorage.getItem('carenest.kcRefreshToken'), 'refresh-0');
+  assert.deepEqual(await axiosClient.get('/tab-b'), { url: '/tab-b' });
+  assert.equal(refreshCalls, 1);
+  assert.equal(sessionDead, false);
+  assert.equal(sessionStorage.getItem('carenest.kcRefreshToken'), 'refresh-1');
+  assert.equal(events, 0);
+});
+
+test('tab cầm token cũ sau nhiều lần đổi vẫn nhận bộ token mới nhất', async () => {
+  signInSession();
+  const switchToTabB = copyOfTab();
+  await axiosClient.get('/a1');
+  sessionStorage.setItem('carenest.kcAccessExp', String(Date.now() - 1000));
+  await axiosClient.get('/a2');
+  assert.equal(refreshCalls, 2);
+  switchToTabB();
+  await axiosClient.get('/b');
+  assert.equal(refreshCalls, 2);
+  assert.equal(sessionStorage.getItem('carenest.kcRefreshToken'), 'refresh-2');
+  assert.equal(sessionDead, false);
+});
+
+test('đăng xuất xóa cả bản ghi đổi token', async () => {
+  signInSession();
+  await axiosClient.get('/a');
+  assert.ok(localStorage.getItem('carenest.kcRotation'));
+  const { devKeycloakLogout } = await import('../../src/services/http/devKeycloakAuth.js');
+  await devKeycloakLogout();
+  assert.equal(localStorage.getItem('carenest.kcRotation'), null);
 });

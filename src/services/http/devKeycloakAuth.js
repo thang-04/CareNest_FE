@@ -9,6 +9,12 @@ import { tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
  */
 const REFRESH_KEY = 'carenest.kcRefreshToken';
 const EXP_KEY = 'carenest.kcAccessExp';
+// Realm xoay vòng refresh token và HỦY CẢ PHIÊN khi một refresh token bị dùng lại. Các tab cùng phiên (tab mở bằng link
+// target=_blank / nhân bản tab mang bản sao sessionStorage; "Ghi nhớ" dùng chung localStorage) ghi lại lần đổi token ở
+// đây để tab còn giữ token cũ nhận token mới thay vì gửi token cũ lên Keycloak.
+const ROTATION_KEY = 'carenest.kcRotation';
+const ROTATION_TTL = 15 * 60_000;
+const LOCK_NAME = 'carenest-kc-refresh';
 
 const safe = (fn, fallback = null) => {
   try {
@@ -22,8 +28,37 @@ const remembered = () => safe(() => !!localStorage.getItem(REFRESH_KEY), false);
 
 const clearSession = () => {
   tokenStorage.clear();
-  safe(() => [localStorage, sessionStorage].forEach((s) => [REFRESH_KEY, EXP_KEY].forEach((k) => s.removeItem(k))));
+  safe(() => [localStorage, sessionStorage].forEach((s) => [REFRESH_KEY, EXP_KEY, ROTATION_KEY].forEach((k) => s.removeItem(k))));
 };
+
+// Dấu nhận refresh token (phần chữ ký cuối JWT) để so mà không cần chép cả token cũ
+const mark = (token) => String(token || '').slice(-32);
+const readRotation = () => {
+  const r = safe(() => JSON.parse(localStorage.getItem(ROTATION_KEY) || 'null'));
+  return r && Date.now() - r.at < ROTATION_TTL ? r : null;
+};
+const saveTokens = ({ access, refresh, exp }, remember) => {
+  tokenStorage.set(access, remember);
+  safe(() => {
+    const store = remember ? localStorage : sessionStorage;
+    store.setItem(REFRESH_KEY, refresh);
+    store.setItem(EXP_KEY, String(exp));
+  });
+};
+const recordRotation = (used, latest) =>
+  safe(() => {
+    const consumed = [...(readRotation()?.consumed || []), mark(used)].slice(-20);
+    localStorage.setItem(ROTATION_KEY, JSON.stringify({ at: Date.now(), consumed, latest }));
+  });
+/** Refresh token của tab này đã được tab khác dùng ⇒ lấy bộ token mới nhất, không gọi Keycloak. */
+const adoptRotation = (refreshToken) => {
+  const r = readRotation();
+  if (!r?.consumed.includes(mark(refreshToken)) || !r.latest?.refresh) return null;
+  saveTokens(r.latest, remembered());
+  return r.latest.access;
+};
+// Khóa giữa các tab cùng origin; trình duyệt không có Web Locks thì chạy thẳng (vẫn có bước nhận token đã đổi)
+const withTabLock = (fn) => (typeof navigator !== 'undefined' && navigator.locks?.request ? navigator.locks.request(LOCK_NAME, fn) : fn());
 
 const requestToken = async (params, remember) => {
   const body = new URLSearchParams({ client_id: DEV_KEYCLOAK_CLIENT, ...params });
@@ -32,12 +67,9 @@ const requestToken = async (params, remember) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 15000,
     });
-    tokenStorage.set(data.access_token, remember);
-    safe(() => {
-      const store = remember ? localStorage : sessionStorage;
-      store.setItem(REFRESH_KEY, data.refresh_token);
-      store.setItem(EXP_KEY, String(Date.now() + data.expires_in * 1000));
-    });
+    const tokens = { access: data.access_token, refresh: data.refresh_token, exp: Date.now() + data.expires_in * 1000 };
+    saveTokens(tokens, remember);
+    if (params.grant_type === 'refresh_token') recordRotation(params.refresh_token, tokens);
     return data.access_token;
   } catch (error) {
     const status = error.response?.status ?? 0;
@@ -56,12 +88,22 @@ const requestToken = async (params, remember) => {
 export const devKeycloakLogin = ({ email, password, remember }) =>
   requestToken({ grant_type: 'password', username: email, password }, remember); // carenest:allow-secret – mật khẩu người dùng nhập
 
-// Realm xoay vòng refresh token (dùng 1 lần): gộp các lần làm mới song song thành 1 request
+// Realm xoay vòng refresh token (dùng 1 lần): gộp các lần làm mới song song thành 1 request, khóa giữa các tab; trong khóa
+// đọc lại kho: tab khác vừa đổi token (cùng phiên) thì dùng luôn token đó. force: token hiện tại bị BE từ chối (401).
 let refreshing = null;
-const refresh = () => {
-  const refreshToken = read(REFRESH_KEY);
-  if (!refreshToken) return Promise.resolve(null);
-  refreshing ??= requestToken({ grant_type: 'refresh_token', refresh_token: refreshToken }, remembered())
+const refresh = (force = false) => {
+  if (!read(REFRESH_KEY)) return Promise.resolve(null);
+  const sent = tokenStorage.get();
+  refreshing ??= withTabLock(async () => {
+    const refreshToken = read(REFRESH_KEY);
+    if (!refreshToken) return null;
+    const adopted = adoptRotation(refreshToken);
+    if (adopted) return adopted;
+    const current = tokenStorage.get();
+    const fresh = Number(read(EXP_KEY) || 0) - Date.now() > 30_000;
+    if (current && fresh && (!force || current !== sent)) return current;
+    return requestToken({ grant_type: 'refresh_token', refresh_token: refreshToken }, remembered());
+  })
     .catch((error) => {
       if (error.status === 401) {
         clearSession();
@@ -96,7 +138,7 @@ export const tokenForRetry = async (sentAuthorization) => {
   const current = tokenStorage.get();
   if (current && `Bearer ${current}` !== sentAuthorization) return current;
   try {
-    return await refresh();
+    return await refresh(true);
   } catch {
     return null;
   }
@@ -107,6 +149,13 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && hasDevSession()) getDevAccessToken().catch(() => {});
   });
+}
+// Realm hết phiên sau 30 phút không làm mới: app đang mở mà không có request nào (chỉ đọc, để màn hình) vẫn làm mới
+// token đúng hạn để không bị đăng xuất khi quay lại thao tác
+if (typeof window !== 'undefined' && typeof window.setInterval === 'function') {
+  window.setInterval(() => {
+    if (hasDevSession()) getDevAccessToken().catch(() => {});
+  }, 60_000);
 }
 
 export const devKeycloakLogout = async () => {
