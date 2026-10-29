@@ -18,7 +18,15 @@ import {
   SCHOOL_SCOPE,
   isStandardDomain,
 } from '@/models/education-plan/educationPlanConstants';
-import { goalIdsToTicks, isBlankBreak, isBlankTheme, nestUnderFirstSub, numberGoals, toRows } from '@/models/education-plan/goalTable';
+import {
+  goalIdsToTicks,
+  isBlankBreak,
+  isBlankTheme,
+  nestUnderFirstSub,
+  numberGoals,
+  themeScheduleIssue,
+  toRows,
+} from '@/models/education-plan/goalTable';
 import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
 import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
@@ -151,6 +159,7 @@ export default function GoalFormPage() {
     [x.start, x.end].some((d) => d && (d < yearRange.start || d > yearRange.end)),
   );
   const outOfYearMsg = `Có chủ đề hoặc đợt nghỉ nằm ngoài năm học (${fmtDate(yearRange.start)} – ${fmtDate(yearRange.end)}).`;
+  const scheduleIssue = themeScheduleIssue(themes);
   const validate = (s) => {
     const e = {};
     if (s === 0) {
@@ -165,6 +174,7 @@ export default function GoalFormPage() {
       else if (abbrs.some((a, i) => abbrs.indexOf(a) !== i)) e.themes = 'Tên viết tắt của các chủ đề bị trùng.';
       else if (themes.some((t) => t.start && t.end && t.end < t.start)) e.themes = 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.';
       else if (outOfYear) e.themes = outOfYearMsg;
+      else if (scheduleIssue) e.themes = scheduleIssue;
       else if (totalGoals === 0) e.domains = 'Nhập ít nhất một mục tiêu';
       // Mở đúng tab đang có lỗi
       if (e.themes) setTab('themes');
@@ -184,7 +194,7 @@ export default function GoalFormPage() {
         ? 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.'
         : outOfYear
           ? outOfYearMsg
-          : null;
+          : scheduleIssue;
 
   const next = () => {
     if (!validate(step)) return;

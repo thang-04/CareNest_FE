@@ -4,6 +4,7 @@
  */
 import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { getEduConfig } from '@/models/education-plan/eduConfig';
+import { weekBreaks } from '@/models/education-plan/goalTable';
 
 /** Loại tài liệu của lớp (khóa collection trong service). */
 export const CLASS_DOC = { BRANCH: 'branch', THEME: 'theme', WEEK: 'week' };
@@ -66,8 +67,9 @@ export const longDay = (iso, i) => `${WEEKDAY_LONG[i]}, ngày ${iso.slice(8, 10)
 /* ---------- Đọc kế hoạch năm (dạng hàng của bảng mục tiêu) ---------- */
 
 /**
- * Lịch tuần cả năm: tuần học đánh số liên tục 1..n theo các chủ đề, xen dòng đợt nghỉ đúng vị trí.
- * Mỗi phần tử: { type: 'week', no, start, end, theme } | { type: 'break', start, end, label, theme }.
+ * Lịch tuần cả năm: tuần học đánh số liên tục 1..n theo các chủ đề, xen dòng đợt nghỉ đúng vị trí. Tuần chỉ thành dòng nghỉ
+ * khi đợt nghỉ phủ cả Thứ 2 → Thứ 6; nghỉ vài ngày thì vẫn là tuần học, offDays ghi tên đợt nghỉ của ngày đó (BE:EDU-41).
+ * Mỗi phần tử: { type: 'week', no, start, end, theme, offDays } | { type: 'break', start, end, label, theme }.
  */
 export const yearWeeks = (plan) => {
   if (!plan) return [];
@@ -77,11 +79,15 @@ export const yearWeeks = (plan) => {
   let no = 0;
   themes.forEach((t) => {
     for (let m = firstTeachingMonday(t.start); m <= t.end; m = addDays(m, 7)) {
-      const br = breaks.find((b) => b.start && m <= (b.end || b.start) && addDays(m, 4) >= b.start);
-      if (br) {
+      const off = weekBreaks(breaks, m);
+      if (off.every(Boolean)) {
+        const br = off[0];
         if (!rows.some((r) => r.type === 'break' && r.start === br.start))
           rows.push({ type: 'break', start: br.start, end: br.end, label: br.label, theme: t });
-      } else rows.push({ type: 'week', no: (no += 1), start: m, end: addDays(m, 4), theme: t });
+      } else {
+        const offDays = off.map((b) => (b ? b.label || 'Nghỉ' : null));
+        rows.push({ type: 'week', no: (no += 1), start: m, end: addDays(m, 4), theme: t, offDays });
+      }
     }
   });
   return rows;

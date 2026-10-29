@@ -10,6 +10,8 @@ import {
   themeAbbr,
   themeGoalIds,
   themeGoalLabel,
+  isWholeWeekTheme,
+  overlappingThemes,
   weekCount,
 } from '@/models/education-plan/goalTable';
 import { fmtDate } from '@/components/education-plan/eduUi';
@@ -832,9 +834,8 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
   const themeSpans = themes.filter((t) => t.start).map((t) => ({ ...span(t, `chủ đề "${t.name || 'chưa đặt tên'}"`), id: t.id }));
   const takenForTheme = (t) => [...themeSpans.filter((x) => x.id !== t.id), ...breakSpans];
   const takenForBreak = (b) => [...themeSpans, ...breakSpans.filter((x) => x.id !== b.id)];
-  /** Chủ đề trùng thời gian với chủ đề khác: chỉ báo, không chặn. */
-  const overlapOf = (t) =>
-    t.start && t.end ? themeSpans.filter((x) => x.id !== t.id && x.start <= t.end && t.start <= x.end).map((x) => x.label) : [];
+  /** Chủ đề trùng thời gian (EDU-39) / không trọn tuần (EDU-40): báo tại chỗ, chặn ở bước gửi / ban hành. */
+  const overlapOf = (t) => overlappingThemes(t, themes).map((x) => `chủ đề "${x.name || 'chưa đặt tên'}"`);
 
   return (
     <div className="stack">
@@ -916,6 +917,9 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                     {dateCell(t.end, (end) => patchTheme(t.id, { end }), `Đến ngày chủ đề ${i + 1}`, t, takenForTheme(t))}
                     {!readOnly && overlapOf(t).length > 0 && (
                       <div className="ga-goal-table__pad text-xs text-danger">Trùng thời gian với {overlapOf(t).join(', ')}</div>
+                    )}
+                    {!readOnly && !isWholeWeekTheme(t) && (
+                      <div className="ga-goal-table__pad text-xs text-danger">Bắt đầu Thứ 2, kết thúc Thứ 6</div>
                     )}
                   </td>
                   <td className="center cell--fixed">

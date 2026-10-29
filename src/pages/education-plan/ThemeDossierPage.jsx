@@ -361,6 +361,7 @@ function DossierInner({ classId, themeId }) {
                       {/* Nhãn ngày (xám); tiêu đề "Thứ …, ngày …" đã có sẵn trong kế hoạch ngày */}
                       <span className="chip chip--gray">
                         Tuần {w.week.no} · {WEEKDAY_LABELS[i]}
+                        {w.week.offDays?.[i] ? ' · Nghỉ' : ''}
                       </span>
                       <DayTab
                         draft={w.doc}
@@ -369,6 +370,7 @@ function DossierInner({ classId, themeId }) {
                         update={edit(w.week.start, w.doc)}
                         goals={goals}
                         reuse={lessonReuseFor(weekPlans, w.doc, i)}
+                        offLabel={w.week.offDays?.[i] || null}
                         assessTo={
                           w.doc.status === EDU_STATUS.APPROVED ? `/assessment/daily/skills?classId=${classId}&date=${d.date}` : null
                         }

@@ -17,7 +17,7 @@ import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { ddmm, emptyBranchPlan, isEditableStatus, monthOf, yearWeeks } from '@/models/education-plan/classPlan';
+import { WEEKDAY_LABELS, ddmm, emptyBranchPlan, isEditableStatus, monthOf, yearWeeks } from '@/models/education-plan/classPlan';
 import { SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -518,6 +518,15 @@ function BranchPlanInner({ classId }) {
                       <td className="cell--fixed">
                         <div className="ga-goal-table__pad">
                           Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
+                          {r.offDays?.some(Boolean) && (
+                            <div className="text-xs text-warning">
+                              Nghỉ{' '}
+                              {r.offDays
+                                .map((label, i) => (label ? `${WEEKDAY_LABELS[i]} (${label})` : null))
+                                .filter(Boolean)
+                                .join(', ')}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td>

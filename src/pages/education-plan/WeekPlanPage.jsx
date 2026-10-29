@@ -309,6 +309,7 @@ function WeekPlanInner() {
               onClick={() => setTab(String(i))}
             >
               {WEEKDAY_LABELS[i]} · {ddmm(d.date)}
+              {week?.offDays?.[i] ? ' · Nghỉ' : ''}
             </button>
           ))}
         </div>
@@ -336,6 +337,7 @@ function WeekPlanInner() {
               reuse={lessonReuseFor(weekPlans, draft, day)}
               adjustEditable={adjustEditable}
               flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
+              offLabel={week?.offDays?.[day] || null}
               assessTo={status === EDU_STATUS.APPROVED ? `/assessment/daily/skills?classId=${classId}&date=${draft.days[day].date}` : null}
             />
           )}
