@@ -50,6 +50,16 @@ export const BE_ERROR_FIELDS = {
   5006: 'actions', // HEALTH_ACTIONS_NOT_ALLOWED
   5007: 'referral', // HEALTH_REFERRAL_INCOMPLETE
   6006: 'normal', // MEAL_COUNT_UNCHANGED
+  // Đánh giá hằng ngày: lỗi theo dòng trẻ / ô nhận xét (BE chưa trả childId nên trang hiện ở đầu bảng)
+  7307: 'row', // ASSESSMENT_CHILD_NOT_PRESENT
+  7311: 'comment', // ASSESSMENT_DIAGNOSTIC_TERM
+  7322: 'classComment', // CLASS_COMMENT_TOO_LONG
+  7323: 'classComment', // CLASS_COMMENT_DIAGNOSTIC_TERM
+  // Mở lại ngày đánh giá
+  7314: 'date', // ASSESSMENT_UNLOCK_DATE_OUT_OF_RANGE
+  7315: 'date', // ASSESSMENT_DAY_NOT_LOCKED_YET
+  7316: 'validUntil', // ASSESSMENT_UNLOCK_DEADLINE_INVALID
+  7317: 'date', // ASSESSMENT_UNLOCK_ALREADY_ACTIVE
   9005: 'to', // INVALID_DATE_RANGE
   9006: 'to', // DATE_RANGE_TOO_LONG
 };

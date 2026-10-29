@@ -21,8 +21,7 @@ import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { normalizeText, formatDate, formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { formatTemperature, symptomLabels } from '@/utils/dailyHealthValidation';
-import { temperatureLevel } from '@/utils/attendance/temperatureLevels';
+import { flagTone, healthFlag } from '@/utils/attendance/healthFlag';
 import '@/styles/modules/attendance.css';
 
 // Bữa của lớp = bữa Hiệu trưởng cấu hình cho nhóm tuổi; Có mặt mặc định ăn đủ các bữa đó
@@ -37,32 +36,6 @@ const toDraft = (sheet) =>
 const changed = (entry, record, sessions) =>
   !!entry?.status &&
   (entry.status !== (record?.status || '') || sessions.some((session) => !!entry.meals[session] !== !!record?.meals?.[session]));
-
-/**
- * Thẻ trên dòng trẻ (một thẻ ngắn): "38 °C · Cần chú ý" / "Cần chú ý" / "38 °C"; không có lần ghi nhận thì không hiện.
- * full = nội dung đầy đủ cho tooltip (mức, biểu hiện, ghi chú); chi tiết xem ở khung sức khỏe bên phải.
- */
-const healthFlag = (latest, full = false) => {
-  if (!latest) return '';
-  const noted = latest.observation === 'NOTED';
-  const level = temperatureLevel(latest.temperature);
-  const temp = Number.isFinite(latest.temperature) ? formatTemperature(latest.temperature) : '';
-  if (!full) return [temp, noted ? 'Cần chú ý' : ''].filter(Boolean).join(' · ');
-  const parts = noted ? ['Cần chú ý'] : [];
-  if (temp) parts.push(`${temp}${level?.chip ? ` ${level.label}` : ''}`);
-  const signs = symptomLabels(latest.symptoms);
-  if (signs) parts.push(signs);
-  if (latest.note) parts.push(latest.note);
-  return parts.join(' · ');
-};
-
-/** Màu thẻ: theo mức thân nhiệt; có dấu hiệu mà thân nhiệt bình thường / thấp / chưa đo thì đỏ; không dấu hiệu, bình thường thì xám. */
-const flagTone = (latest) => {
-  const level = temperatureLevel(latest?.temperature);
-  if (level?.chip && level.key !== 'LOW') return level.chip.replace('chip--', '');
-  if (latest?.observation === 'NOTED') return 'red';
-  return level?.chip?.replace('chip--', '') || 'gray';
-};
 
 export default function AttendancePage() {
   const { user } = useAuth();
@@ -522,7 +495,8 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                                   />
                                 </button>
                               )}
-                              {entry.status === 'PRESENT' && row.record?.status === 'PRESENT' && row.healthSummary?.reminder && (
+                              {/* Chưa khám: trẻ chưa điểm danh hoặc đã lưu Có mặt; đã lưu Vắng thì không hiện */}
+                              {row.healthSummary?.reminder && !isAbsent(row.record?.status) && (
                                 <button
                                   className="dd-reception__flag"
                                   type="button"

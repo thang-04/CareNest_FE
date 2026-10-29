@@ -64,11 +64,12 @@ const ensureYears = async (refresh = false) => {
 const toNumberIfNumeric = (v) => (typeof v === 'string' && /^\d+$/.test(v) ? Number(v) : v);
 
 // UI -> BE (ô số / chọn để trống '' ⇒ null, BE không nhận chuỗi rỗng cho số/id)
-const toBe = (value, key) => {
-  if (value === '' && key) return null;
-  if (Array.isArray(value)) return value.map((v) => (isIdsKey(key || '') ? toNumberIfNumeric(v) : toBe(v)));
+const toBe = (value, key, preserveEmptyStrings = []) => {
+  if (value === '' && key && !preserveEmptyStrings.includes(key)) return null;
+  if (Array.isArray(value))
+    return value.map((v) => (isIdsKey(key || '') ? toNumberIfNumeric(v) : toBe(v, undefined, preserveEmptyStrings)));
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toBe(v, k)]));
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toBe(v, k, preserveEmptyStrings)]));
   }
   if (key && YEAR_KEYS.has(key) && typeof value === 'string' && YEAR_NAME.test(value)) return yearId(value);
   if (key && (isIdKey(key) || isIdsKey(key))) return toNumberIfNumeric(value);
@@ -136,11 +137,16 @@ const mapPath = (url) =>
 const hasUnknownYear = (...parts) =>
   (JSON.stringify(parts).match(/\d{4}-\d{4}/g) || []).some((name) => !years?.some((y) => y.name === name));
 
-const call = async (method, url, { params, data } = {}) => {
+const call = async (method, url, { params, data, preserveEmptyStrings = [] } = {}) => {
   try {
     await ensureYears();
     if (hasUnknownYear(decodeURIComponent(url), params, data)) await ensureYears(true);
-    const response = await raw.request({ method, url: mapPath(url), params: toBe(params), data: toBe(data) });
+    const response = await raw.request({
+      method,
+      url: mapPath(url),
+      params: toBe(params),
+      data: toBe(data, undefined, preserveEmptyStrings),
+    });
     // Năm học thay đổi ⇒ nạp lại bảng tên <-> id
     if (method !== 'get' && url.startsWith('/school-years')) await ensureYears(true);
     return toUi(response.data.data);
@@ -154,7 +160,7 @@ const call = async (method, url, { params, data } = {}) => {
 export const beClient = {
   get: (url, config = {}) => call('get', url, { params: config.params }),
   post: (url, data, config = {}) => call('post', url, { data, params: config.params }),
-  put: (url, data, config = {}) => call('put', url, { data, params: config.params }),
+  put: (url, data, config = {}) => call('put', url, { data, params: config.params, preserveEmptyStrings: config.preserveEmptyStrings }),
   patch: (url, data, config = {}) => call('patch', url, { data, params: config.params }),
   delete: (url, config = {}) => call('delete', url, { params: config.params }),
 };

@@ -1,8 +1,22 @@
 # Feature — Đánh giá hằng ngày (3 nhóm)
 
+Cập nhật 30/10/2026 theo người dùng: Tham gia của trẻ chưa ghi nhận mặc định Bình thường; giá trị được gửi khi cô bấm Lưu. Bản đã lưu giữ mức cũ, không tự ghi đè khi mở màn. Chỉ áp dụng Hoạt động chung; không tự chấm mục tiêu kỹ năng.
+
 Status: demo FE (mock), 2026-10-15 · BE card: `../CareNest_BE/docs/modules/learning-observation.md` · Rule: OBS (GBR-OBS-01..05), ATT, AI
 
 Người dùng (Cần) yêu cầu ngày 2026-10-15: đánh giá theo 3 nhóm của Chương trình GDMN (TT 17/2009, TT 28/2016, TT 51/2020, VBHN 01/2021). Mục đích: dữ liệu dạng ô tích để tổng hợp tuần/tháng và làm đầu vào cho AI, dựa trên giáo án. Chỉ sửa màn đánh giá; không đổi luồng của điểm danh, khám sức khỏe, giáo án.
+
+## Cập nhật thao tác Lưu Hoạt động chung — 29/10/2026
+
+Người dùng chốt: khi có trẻ Có mặt chưa ghi nhận, nút Lưu đánh giá khả dụng ngay với các giá trị đang hiển thị. Lần lưu này gồm trẻ chưa ghi nhận (giá trị mặc định hoặc cô đã chỉnh) và trẻ đã ghi nhận được sửa; trẻ đã lưu mà chưa thay đổi không gửi lại. Sau khi lưu, tải lại phiếu từ service để cập nhật số đã ghi nhận. Không tự lưu lúc mở màn.
+
+Chỉ áp dụng view Hoạt động chung; Kiến thức kỹ năng vẫn chỉ gửi mục tiêu giáo viên đã chấm, theo BE rule OBS-14. Quyền ghi/khóa/ngày theo cờ BE (OBS-12, OBS-15). Các đoạn có ngày cũ bên dưới là lịch sử thiết kế. Bẫy: không dùng riêng `dirty` để quyết định dòng cần lưu khi form có dữ liệu mặc định; xem [incident](../knowledge/incidents/FE-BUG-261029-daily-general-default-save.md).
+
+## Nhận xét chung của lớp — 29/10/2026
+
+Người dùng duyệt ô nhận xét chung dưới bảng Hoạt động chung, cùng nút Lưu đánh giá. Nhận xét riêng của lớp/ngày; người có quyền ghi vẫn sửa được khi phần trẻ không thay đổi. Thiếu field giữ nội dung cũ, xóa trắng lưu chuỗi rỗng. Không đưa vào nhận xét/cờ từng trẻ, không tự tạo đánh giá trẻ. Quyền/khóa và giới hạn theo BE:OBS-19, OBS-15, OBS-17.
+
+PHT/HT mở Tổng quan đánh giá lớp, bấm số nhận xét hoặc tên lớp để đọc danh sách nhận xét từng ngày trong kỳ ngày/tuần/tháng, kèm người cập nhật và thời gian. Không bắt nhập thêm báo cáo tuần/tháng. [Plan](../plans/active/2026-10-29-class-daily-comments.md).
 
 ## Actor & permission
 

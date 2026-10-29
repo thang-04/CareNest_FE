@@ -151,6 +151,7 @@ const AiEvaluationDraftPage = lazy(() => import('@/pages/assessment/AiEvaluation
 const YearEndEvaluationListPage = lazy(() => import('@/pages/assessment/YearEndEvaluationListPage'));
 const YearEndEvaluationDetailPage = lazy(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
 const GoodBehaviourTicketsPage = lazy(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
+const ClassAssessmentOverviewPage = lazy(() => import('@/pages/assessment/ClassAssessmentOverviewPage'));
 const RewardProposalListPage = lazy(() => import('@/pages/assessment/RewardProposalListPage'));
 const RewardProposalFormPage = lazy(() => import('@/pages/assessment/RewardProposalFormPage'));
 const RewardProposalDetailPage = lazy(() => import('@/pages/assessment/RewardProposalDetailPage'));
@@ -467,6 +468,7 @@ export function AppRoutes() {
             <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
             <Route path="daily/skills" element={only(CLASS_STAFF, <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={only(LEADERS, <AssessmentDayUnlockPage />)} />
+            <Route path="overview" element={only(LEADERS, <ClassAssessmentOverviewPage />)} />
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />

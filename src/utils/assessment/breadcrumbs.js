@@ -5,6 +5,7 @@ export const assessmentCrumbs = (section, last) => [...ROOT, ...(section ? [sect
 
 export const SECTIONS = {
   daily: { label: 'Đánh giá hằng ngày', to: '/assessment/daily' },
+  overview: { label: 'Tổng quan đánh giá lớp', to: '/assessment/overview' },
   unlocks: { label: 'Mở lại ngày đánh giá', to: '/assessment/day-unlocks' },
   children: { label: 'Hồ sơ phát triển', to: '/assessment/children' },
   periodic: { label: 'Đánh giá tuần / tháng', to: '/assessment/periodic' },

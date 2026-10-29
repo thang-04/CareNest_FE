@@ -595,6 +595,14 @@
   text-align: right;
 }
 
+.dg-class-comments {
+  padding: var(--space-4);
+}
+.dg-class-comment-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* Dòng tên trẻ vắng / chưa điểm danh phía trên bảng đánh giá ngày */
 .dg-absent-line {
   display: flex;
