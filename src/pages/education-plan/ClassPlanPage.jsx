@@ -119,7 +119,7 @@ export default function ClassPlanPage() {
             week: w,
             branchNo: i + 1,
             branchName: branch?.names?.[w.start] || '',
-            doc: weekPlans.find((x) => x.classId === classId && x.weekStart === w.start),
+            doc: weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start),
           }))
           .filter((w) => w.doc),
       },
@@ -272,7 +272,8 @@ export default function ClassPlanPage() {
                               </td>
                             </tr>
                           );
-                        const wdoc = weekPlans.find((w) => w.classId === classId && w.weekStart === r.start) || null;
+                        const wdoc =
+                          weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.weekStart === r.start) || null;
                         const name = branch?.names?.[r.start]?.trim();
                         const lock = !wdoc && weekLock;
                         return (

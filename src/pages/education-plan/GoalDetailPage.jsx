@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { FileDown, Pencil, Printer, Trash2 } from '@/components/ui/icons';
+import { Copy, FileDown, Pencil, Printer, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
@@ -10,6 +10,8 @@ import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearP
 import { Card, YearPlanStatusBadge, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { StatusPage } from '@/components/ui/StatusPage';
+import { VersionBadge, YearPlanVersionPanel } from '@/components/education-plan/VersionWidgets';
+import { chainOf, currentPlanOf } from '@/models/education-plan/planVersions.mjs';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const ISSUE_NOTE =
@@ -21,9 +23,10 @@ const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ
 
 export default function GoalDetailPage() {
   const { id } = useParams();
-  const { goals, themes: themePlans, user, saveGoal, deleteGoal, toast } = useEducationPlan();
+  const { goals, themes: themePlans, user, saveGoal, deleteGoal, createGoalVersion, toast } = useEducationPlan();
   const navigate = useNavigate();
   const [modal, setModal] = useState(null);
+  const [creating, setCreating] = useState(false);
   const [tab, setTab] = useState('goals');
   const found = goals.find((x) => x.id === id);
   // Giáo viên chỉ xem kế hoạch năm đã ban hành
@@ -81,6 +84,22 @@ export default function GoalDetailPage() {
   const canIssue = perm ? perm.canIssue : isVp && (pending || (free && isOwner));
   const canReturn = perm ? perm.canReturn : isVp && pending;
   const canDelete = perm ? perm.canDelete : isVp && !lockedByOther && (g.status === EDU_STATUS.DRAFT || g.editingFrom === EDU_STATUS.DRAFT);
+  // BE:EDU-25 — sửa bản đã ban hành = tạo phiên bản mới; bản đã ban hành giữ nguyên
+  const canCreateVersion =
+    perm?.canCreateVersion ??
+    ((isVp || isLeader) &&
+      currentPlanOf(goals, g.ageGroupId, g.schoolYear)?.id === g.id &&
+      chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED));
+  const newVersion = async () => {
+    setCreating(true);
+    const plan = await createGoalVersion(g.id);
+    setCreating(false);
+    setModal(null);
+    if (plan) {
+      toast(`Đã tạo ${plan.code}. Sửa rồi gửi / ban hành như kế hoạch mới.`);
+      navigate(`/education/goals/${plan.id}/edit`);
+    }
+  };
 
   // Gửi / trả lại / ban hành theo mẫu chung (reviewUi); service quyết định trạng thái
   const act = async (action, note) => {
@@ -110,7 +129,12 @@ export default function GoalDetailPage() {
           { label: g.code },
         ]}
         title={g.title}
-        desc={<YearPlanStatusBadge status={g.status} size="lg" />}
+        desc={
+          <span className="row row--wrap gap-2">
+            <YearPlanStatusBadge status={g.status} size="lg" />
+            <VersionBadge plan={g} goals={goals} />
+          </span>
+        }
         actions={
           <>
             {/* Xuất / in ở mọi bước; bản đã ban hành thì Phó HT in ra ký, giáo viên in để dùng */}
@@ -123,6 +147,11 @@ export default function GoalDetailPage() {
             {canDelete && (
               <button className="btn btn--outline-danger" onClick={() => setModal('delete')}>
                 <Trash2 size={16} aria-hidden /> Xóa
+              </button>
+            )}
+            {canCreateVersion && (
+              <button className="btn btn--outline-primary" onClick={() => setModal('version')}>
+                <Copy size={16} aria-hidden /> Tạo phiên bản điều chỉnh
               </button>
             )}
             {canEditNow && (
@@ -191,14 +220,39 @@ export default function GoalDetailPage() {
           {tab === 'themes' ? (
             <ThemeEventTable themes={themes} breaks={g.breaks || []} domains={domains} numbers={numbers} readOnly />
           ) : (
-            <GoalTable domains={domains} themes={themes} numbers={numbers} readOnly />
+            <GoalTable domains={domains} themes={themes} numbers={numbers} ageGroupId={g.ageGroupId} readOnly />
           )}
         </div>
       </Card>
 
+      <YearPlanVersionPanel plan={g} goals={goals} />
+
       <div className="mt-16">
         <ReviewHistory items={history} />
       </div>
+
+      {modal === 'version' && (
+        <Modal
+          title="Tạo phiên bản điều chỉnh?"
+          onClose={() => setModal(null)}
+          footer={
+            <>
+              <button className="btn" onClick={() => setModal(null)}>
+                Hủy
+              </button>
+              <button className="btn btn--primary" disabled={creating} onClick={newVersion}>
+                <Copy size={16} aria-hidden /> Tạo phiên bản
+              </button>
+            </>
+          }
+        >
+          <p>
+            Bản đã ban hành giữ nguyên. Hệ thống chép toàn bộ mục tiêu, nội dung, chủ đề, đợt nghỉ thành một phiên bản mới để sửa, rồi gửi /
+            ban hành như kế hoạch mới. Lớp vẫn dùng bản hiện hành tới khi phiên bản mới được ban hành; sau đó các ô liên quan trong tài liệu
+            lớp sẽ hiện đỏ để giáo viên sửa.
+          </p>
+        </Modal>
+      )}
 
       {modal === 'delete' && (
         <Modal

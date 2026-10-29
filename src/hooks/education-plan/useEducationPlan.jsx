@@ -141,6 +141,34 @@ export function EducationPlanProvider({ children }) {
         }
       },
       saveClassDoc: classCall(service.saveClassDoc),
+      // BE:EDU-27 — ô điều chỉnh của kế hoạch ngày; trả bản đã lưu, lỗi thì báo và trả null
+      saveClassDocAdjustments: async (id, adjustments) => {
+        try {
+          const saved = await service.saveClassDocAdjustments(id, adjustments, actor);
+          setData((prev) => (prev ? { ...prev, weekPlans: upsert(prev.weekPlans || [], saved) } : prev));
+          return saved;
+        } catch (err) {
+          toastApi.error(err.message, 'Không lưu được kế hoạch điều chỉnh');
+          return null;
+        }
+      },
+      // BE:EDU-25 — tạo phiên bản điều chỉnh của kế hoạch năm đã ban hành
+      createGoalVersion: async (id) => {
+        try {
+          const edit = {
+            sessionId: crypto.randomUUID(),
+            revision: data?.goals.find((g) => g.id === id)?.revision ?? 0,
+            requestId: crypto.randomUUID(),
+          };
+          const plan = await service.createGoalVersion(id, actor, edit);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, plan) } : prev));
+          return plan;
+        } catch (err) {
+          toastApi.error(err.message, 'Không tạo được phiên bản');
+          return null;
+        }
+      },
+      getGoalChanges: service.getGoalChanges,
       // Gửi / duyệt hồ sơ chủ đề đổi trạng thái cả giáo án các tuần: nạp lại để các tuần không giữ trạng thái cũ
       actOnClassDoc: async (kind, ...args) => {
         const saved = await classCall(service.actOnClassDoc)(kind, ...args);

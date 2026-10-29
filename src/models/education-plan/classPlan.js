@@ -168,8 +168,9 @@ export const rowCell = (doc, r) =>
   };
 
 /** Giáo án tuần rỗng: kế hoạch tuần + 5 kế hoạch ngày Thứ 2–6. */
-export const emptyWeekPlan = ({ classId, yearPlanId, weekStart, weekNo, themeId }) => ({
-  id: `wp_${classId}_${weekStart}`,
+export const emptyWeekPlan = ({ classId, yearPlanId, weekStart, weekNo, themeId, versionNo = 1 }) => ({
+  // Phiên bản kế hoạch năm ≥2: khóa thêm id kế hoạch để không trùng tuần của phiên bản cũ (BE kiểm khớp)
+  id: `wp_${classId}_${weekStart}${versionNo > 1 ? `_${yearPlanId}` : ''}`,
   kind: CLASS_DOC.WEEK,
   classId,
   yearPlanId,

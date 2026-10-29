@@ -4,6 +4,7 @@ import { ROLES } from '@/models/User';
 import { activitySignature, fileLimit } from '@/models/education-plan/learningResources.mjs';
 import { themeActivities, themeGoalBlocks, isEditableStatus } from '@/models/education-plan/classPlan';
 import { numberGoals } from '@/models/education-plan/goalTable';
+import { currentPlanOf, versionOf } from '@/models/education-plan/planVersions.mjs';
 
 let opening;
 const open = () =>
@@ -39,7 +40,12 @@ function access(user, docKey, write = false) {
     (user?.role === ROLES.TEAM_LEADER && user.ageGroupId === cls.ageGroupId);
   if (!read || (write && !assigned)) throw eduError('CLASS_ACCESS_DENIED');
   if (write && !isEditableStatus(doc.status)) throw eduError('CLASS_DOC_LOCKED');
-  return { doc, editor: assigned && isEditableStatus(doc.status), plan: db.eduGoals?.find((g) => g.id === doc.yearPlanId) };
+  const plan = db.eduGoals?.find((g) => g.id === doc.yearPlanId);
+  // BE:EDU-26 — phiên bản kế hoạch năm đã bị thay thế: học liệu của tài liệu cũng chỉ xem
+  const current = plan && currentPlanOf(db.eduGoals, plan.ageGroupId, plan.schoolYear);
+  const superseded = !!current && versionOf(current) > versionOf(plan);
+  if (write && superseded) throw eduError('YEAR_PLAN_SUPERSEDED');
+  return { doc, editor: assigned && isEditableStatus(doc.status) && !superseded, plan };
 }
 async function active(doc, r) {
   if (!r.activityKey) return false;

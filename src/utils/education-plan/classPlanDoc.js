@@ -109,7 +109,7 @@ ${i === 0 ? '<h1>KẾ HOẠCH NGÀY</h1>' : ''}<p class="c"><b>${esc(longDay(d.d
 <table class="grid"><colgroup><col style="width:42%"/><col style="width:42%"/><col style="width:16%"/></colgroup>
 <thead><tr><th>Hoạt động của cô</th><th>Hoạt động của trẻ</th><th>Ghi chú</th></tr></thead><tbody>${steps}</tbody></table>
 <p><b>*Đánh giá trẻ trong ngày:</b><br/><br/><br/></p>
-<p><b>*Kế hoạch điều chỉnh và bổ sung:</b><br/><br/><br/></p>`;
+<p><b>*Kế hoạch điều chỉnh và bổ sung:</b><br/>${doc.adjustments?.[d.date]?.trim() ? text(doc.adjustments[d.date]) : '<br/><br/>'}</p>`;
     })
     .join('');
   return `<div style="page-break-before:always"></div>

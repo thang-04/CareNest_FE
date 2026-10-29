@@ -31,7 +31,7 @@ import { mtList } from '@/models/education-plan/goalTable';
  * Ô của kế hoạch tuần có gợi ý hoạt động từ kế hoạch chủ đề (lọc theo loại giờ của dòng). Chọn gợi ý thì ghi nội dung
  * vào ô và nhớ MT của hoạt động; vẫn gõ tự do được. MT đã nhớ hiện thành nhãn dưới ô.
  */
-function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, children }) {
+function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, flagOf = () => null, children }) {
   const ref = useRef(null);
   const panelRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -56,24 +56,28 @@ function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, ch
           thì không có gì để đánh giá trẻ: bấm để mở gợi ý */}
       {(picks.length > 0 || (editable && text?.trim())) && (
         <div className="ga-act-cell__foot">
-          {picks.map((p) =>
-            editable ? (
+          {picks.map((p) => {
+            // Ô đỏ (BE:EDU-26): MT của hoạt động đổi / bị bỏ ở kế hoạch năm mới
+            const flag = flagOf(p.goalId);
+            const cls = `btn ${flag ? 'btn--outline-danger' : 'btn--outline-primary'} btn--sm`;
+            const label = flag ? `${flag.label} !` : `MT${p.goalNo}`;
+            return editable ? (
               <button
                 key={p.id}
                 type="button"
-                className="btn btn--outline-primary btn--sm"
-                title={`${p.text} (bấm để bỏ khỏi ô)`}
-                aria-label={`Bỏ MT${p.goalNo} khỏi ô`}
+                className={cls}
+                title={flag ? flag.message : `${p.text} (bấm để bỏ khỏi ô)`}
+                aria-label={`Bỏ ${label} khỏi ô`}
                 onClick={() => onUnpick(p.id)}
               >
-                MT{p.goalNo} ×
+                {label} ×
               </button>
             ) : (
-              <span key={p.id} className="btn btn--outline-primary btn--sm" title={p.text}>
-                MT{p.goalNo}
+              <span key={p.id} className={cls} title={flag ? flag.message : p.text}>
+                {label}
               </span>
-            ),
-          )}
+            );
+          })}
           {!picks.length && (
             <button
               type="button"
@@ -165,6 +169,7 @@ export function WeekTab({
   prevWeek = null,
   coverage = null,
   goals = [],
+  flagOf = () => null,
 }) {
   // Mỗi lần sửa bảng tuần: ô gõ tay trùng nội dung hoạt động của kế hoạch chủ đề thì tự nhớ MT
   const update = (fn) => rawUpdate((d) => linkTypedActivities(fn(d), activities, placedElsewhere));
@@ -209,6 +214,7 @@ export function WeekTab({
     })(),
     onPick: (a) => pick(r, day, a),
     onUnpick: (id) => unpick(r, day, id),
+    flagOf,
   });
   return (
     <>
@@ -377,15 +383,26 @@ export function WeekTab({
   );
 }
 
-export function DayTab({ draft, index, editable, update, goals = [], assessTo = null, reuse = [] }) {
+export function DayTab({
+  draft,
+  index,
+  editable,
+  update,
+  goals = [],
+  assessTo = null,
+  reuse = [],
+  adjustEditable = false,
+  flagOf = () => null,
+}) {
   const [aiBusy, setAiBusy] = useState(false);
   const d = draft.days[index];
   const hoc = draft.grid.hoc?.days?.[index] || {};
   // Đề tài lấy từ ô Hoạt động học của ngày; MT của ngày lấy từ các hoạt động đã chọn ở kế hoạch tuần
   const topic = hocTitle(hoc);
-  const dayGoals = dayGoalsOf(draft)
-    [index].map((id) => goals.find((g) => g.id === id))
-    .filter(Boolean);
+  const dayGoalIds = dayGoalsOf(draft)[index];
+  const dayGoals = dayGoalIds.map((id) => goals.find((g) => g.id === id)).filter(Boolean);
+  // MT trong ngày đổi / bị bỏ ở kế hoạch năm mới (BE:EDU-26): nêu bằng chữ, sửa ở ô của kế hoạch tuần
+  const dayFlags = [...new Set(dayGoalIds)].map((id) => flagOf(id)).filter(Boolean);
   const setDay = (field, v) => update((x) => ((x.days[index][field] = v), x));
   const setStep = (key, field, v) => update((x) => ((x.days[index].steps[key][field] = v), x));
   // Lấy từ kế hoạch tuần: điền ô trống và ô còn nguyên chữ của lần lấy trước (pulled), nên sửa tuần rồi lấy lại được;
@@ -521,6 +538,11 @@ export function DayTab({ draft, index, editable, update, goals = [], assessTo = 
             label: 'Mục tiêu trong ngày',
             cell: (
               <div className="ga-goal-table__pad ga-cell-text">
+                {dayFlags.map((f) => (
+                  <div key={f.ref} className="field__error">
+                    {f.label}: {f.message}
+                  </div>
+                ))}
                 {dayGoals.length ? (
                   dayGoals.map((g) => (
                     <div key={g.id}>
@@ -627,6 +649,24 @@ export function DayTab({ draft, index, editable, update, goals = [], assessTo = 
           </tbody>
         </table>
       </div>
+      {/* Mẫu Thái Dương: cuối kế hoạch ngày; ghi được cả sau khi duyệt (BE:EDU-27) */}
+      <div className="section-title">*Kế hoạch điều chỉnh và bổ sung</div>
+      <LabelTable
+        rows={[
+          {
+            label: 'Kế hoạch điều chỉnh và bổ sung',
+            cell: (
+              <Cell
+                editable={adjustEditable}
+                value={draft.adjustments?.[d.date] || ''}
+                label="Kế hoạch điều chỉnh và bổ sung"
+                placeholder="Điều chỉnh, bổ sung cho ngày này (ghi được cả sau khi duyệt)"
+                onChange={(v) => update((x) => (((x.adjustments ||= {})[d.date] = v), x))}
+              />
+            ),
+          },
+        ]}
+      />
     </>
   );
 }

@@ -8,6 +8,8 @@ import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/comp
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { clickableRowProps } from '@/utils/clickableRow';
+import { VersionBadge } from '@/components/education-plan/VersionWidgets';
+import { versionOf } from '@/models/education-plan/planVersions.mjs';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -155,6 +157,7 @@ export default function GoalListPage() {
                     <td>
                       <div className="ga-cell-title">{g.title}</div>
                       <div className="ga-cell-sub">{g.code}</div>
+                      {versionOf(g) > 1 && <VersionBadge plan={g} goals={goals} />}
                     </td>
                     <td>{ageName(g.ageGroupId)}</td>
                     <td>

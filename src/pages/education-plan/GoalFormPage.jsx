@@ -23,6 +23,8 @@ import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-pla
 import { mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
 import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
+import CurriculumGoalsModal from '@/components/education-plan/CurriculumGoalsModal';
+import { addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
 import { Card, DraftRecoveryNotice, Field, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
 
 const suggestTitle = (year, ageGroupId) => {
@@ -99,7 +101,11 @@ export default function GoalFormPage() {
   const [step, setStep] = useState(() => (params.get('buoc') === 'ky' ? 2 : 0));
   const [maxReached, setMaxReached] = useState(existing ? 2 : 0);
   const [errors, setErrors] = useState({});
+  // BE:EDU-25 — phiên bản điều chỉnh dùng chung (năm học, nhóm tuổi) với các bản trước nên không tính là trùng
+  const sameScope = existing && existing.schoolYear === form.schoolYear && existing.ageGroupId === form.ageGroupId;
+  const dupGoal = !sameScope && goals.some((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
   const [importing, setImporting] = useState(false);
+  const [ministryOpen, setMinistryOpen] = useState(false);
   const [importReport, setImportReport] = useState(null);
   const fileRef = useRef(null);
 
@@ -150,8 +156,7 @@ export default function GoalFormPage() {
     if (s === 0) {
       if (!form.title.trim()) e.title = 'Nhập tên kế hoạch';
       if (!form.ageGroupId) e.ageGroupId = 'Chọn nhóm tuổi áp dụng';
-      const dup = goals.find((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
-      if (form.ageGroupId && dup) e.ageGroupId = 'Nhóm tuổi này đã có kế hoạch năm học. Mở kế hoạch đã có để chỉnh sửa.';
+      if (form.ageGroupId && dupGoal) e.ageGroupId = 'Nhóm tuổi này đã có kế hoạch năm học. Mở kế hoạch đã có để chỉnh sửa.';
     }
     if (s === 1) {
       const abbrs = themes.map((t) => t.abbr.trim().toLowerCase());
@@ -218,6 +223,9 @@ export default function GoalFormPage() {
       sentBy: source.sentBy || null,
       issued: source.issued || null,
       history: source.history || [],
+      // Phiên bản (BE:EDU-25) do service cấp, giữ nguyên khi lưu
+      versionNo: source.versionNo || 1,
+      sourcePlanId: source.sourcePlanId || null,
       file: source.file || null,
       themes: source.themes,
       breaks: source.breaks,
@@ -248,7 +256,6 @@ export default function GoalFormPage() {
   const leaseTimer = useRef(null);
   const retryLease = useRef(() => {});
   const lockId = existing?.id || (goals.some((g) => g.id === form.id) ? form.id : null);
-  const dupGoal = goals.some((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
   const saveReady = canEdit && leaseReady && !!form.ageGroupId && !!form.schoolYear && !dupGoal;
   const saver = useYearPlanAutosave({
     doc: form,
@@ -502,6 +509,16 @@ export default function GoalFormPage() {
     toast(`Đã thêm ${report.added} mục tiêu${skipped}${unavailable}`, report.added ? 'ok' : 'warn');
     return true;
   };
+  // BE:EDU-28 — mục tiêu của Bộ dựng thành kế hoạch nguồn để dùng chung cách ghép của EDU-24
+  const importMinistryGoals = (goals) =>
+    importGoals({ source: curriculumAsSourcePlan(goals), selectedGoalIds: goals.map((g) => `cg-${g.id}`) });
+  const addMinistryContents = (goalRowId, suggestions) => {
+    if (!importState.current.allowed) return false;
+    const { domains, added, duplicates } = addSuggestedContents(importState.current.form, goalRowId, suggestions, () => `import-${uid()}`);
+    if (added) set({ domains });
+    toast(`Đã thêm ${added} nội dung${duplicates ? ` · bỏ qua ${duplicates} nội dung trùng` : ''}`, added ? 'ok' : 'warn');
+    return true;
+  };
 
   if (!permitted && !leaseError && !saver.recovery)
     return (
@@ -626,6 +643,14 @@ export default function GoalFormPage() {
                     <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
                       <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
                     </button>
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--outline-primary"
+                      disabled={!form.ageGroupId}
+                      onClick={() => setMinistryOpen(true)}
+                    >
+                      <Download size={16} aria-hidden /> Lấy từ Chương trình của Bộ
+                    </button>
                   </div>
                 )
               }
@@ -738,6 +763,16 @@ export default function GoalFormPage() {
           </Card>
         )}
 
+        {ministryOpen && (
+          <CurriculumGoalsModal
+            ageGroupId={form.ageGroupId}
+            form={form}
+            onClose={() => setMinistryOpen(false)}
+            onImportGoals={importMinistryGoals}
+            onAddContents={addMinistryContents}
+          />
+        )}
+
         {importing && (
           <ImportGoalsModal
             excludeId={form.id}
@@ -788,7 +823,7 @@ export default function GoalFormPage() {
                 {tab === 'themes' ? (
                   <ThemeEventTable themes={themes} breaks={breaks} domains={form.domains} numbers={numbers} readOnly />
                 ) : (
-                  <GoalTable domains={form.domains} themes={themes} numbers={numbers} readOnly />
+                  <GoalTable domains={form.domains} themes={themes} numbers={numbers} ageGroupId={form.ageGroupId} readOnly />
                 )}
               </div>
             </Card>

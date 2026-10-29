@@ -16,6 +16,8 @@ import { fmtDate } from '@/components/education-plan/eduUi';
 import FloatingPanel from '@/components/education-plan/FloatingPanel';
 import DatePickerCell from '@/components/education-plan/DatePickerCell';
 import { expectedResultsFor } from '@/models/education-plan/expectedResults';
+import { curriculumBadge, curriculumSourceLink } from '@/models/education-plan/curriculum.mjs';
+import { Link } from 'react-router-dom';
 import { normalizeText } from '@/utils/format';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { moveItem } from '@/hooks/useSortableList';
@@ -295,11 +297,24 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
     const contents = readOnly ? r.contents.filter((c) => c.text.trim()) : r.contents;
     const span = Math.max(contents.length, 1);
     const no = numbers[r.id];
+    // BE:EDU-28 — mục tiêu lấy từ Chương trình của Bộ: nhãn mở trang nguồn đúng mục
+    const ministry = curriculumBadge(r);
     const head = (
       <>
         <td rowSpan={span} className="cell--fixed">
           <div className="ga-goal-table__pad">
             <span className="ga-goal-code">{no ? `MT${no}` : '—'}</span>
+            {ministry && (
+              <Link
+                className={`chip ${ministry.edited ? 'chip--orange' : 'chip--teal'}`}
+                to={curriculumSourceLink(ageGroupId, ministry.curriculumGoalId)}
+                target="_blank"
+                rel="noopener"
+                title={`Chương trình GDMN: ${ministry.sectionRef}`}
+              >
+                {ministry.label}
+              </Link>
+            )}
           </div>
         </td>
         <td rowSpan={span}>

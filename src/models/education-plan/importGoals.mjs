@@ -24,6 +24,14 @@ export const getImportGoals = (source) =>
           text: row.text,
           code: row.code || (domain.rows ? domain.items?.find((item) => item.id === row.id)?.code : domain.items?.[rowIndex]?.code) || '',
           contents: row.contents || [],
+          // Mục tiêu lấy từ Chương trình của Bộ (BE:EDU-28): giữ liên kết nguồn khi chép
+          ...(row.curriculumGoalId
+            ? {
+                curriculumGoalId: row.curriculumGoalId,
+                curriculumGoalText: row.curriculumGoalText,
+                curriculumSectionRef: row.curriculumSectionRef,
+              }
+            : {}),
           sub,
           group,
         },
@@ -113,6 +121,13 @@ export const mergeImportedGoals = (target, source, selectedGoalIds, makeId) => {
       id: nextId(),
       kind: 'goal',
       text: incoming.text,
+      ...(incoming.curriculumGoalId
+        ? {
+            curriculumGoalId: incoming.curriculumGoalId,
+            curriculumGoalText: incoming.curriculumGoalText,
+            curriculumSectionRef: incoming.curriculumSectionRef,
+          }
+        : {}),
       contents: incoming.contents.map((content) => ({ id: nextId(), text: content.text, themes: [] })),
     };
     additions.push(row);

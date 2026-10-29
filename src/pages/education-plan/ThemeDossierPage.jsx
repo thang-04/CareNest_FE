@@ -29,9 +29,13 @@ import {
   themeActivities,
   themeGoalBlocks,
   themeNumber,
+  todayIso,
   yearWeeks,
 } from '@/models/education-plan/classPlan';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
+import { SupersededNote } from '@/components/education-plan/VersionWidgets';
+import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
+import { danglingRows, unresolvedFlags, versionFlags } from '@/models/education-plan/planVersions.mjs';
 
 const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 const anchor = (key) => `dossier-${key}`;
@@ -68,13 +72,14 @@ function DossierInner({ classId, themeId }) {
 
   const theme = yearPlan?.themes.find((t) => t.id === themeId);
   const themeDoc = classThemePlans.find((t) => t.classId === classId && t.themeId === themeId) || null;
+  const version = useDocVersion('theme', themeDoc, ctx, classThemePlans, { themeId });
   const blocks = yearPlan && theme ? themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId) : [];
   const goals = blocks.flatMap((b) => b.goals);
 
   // Lưu các phần vừa sửa khi bấm Lưu / Ctrl+S (một lần cho mỗi tài liệu đã đổi); trả true khi lưu hết
-  latest.current = { edits, goals };
+  latest.current = { edits, goals, yearPlan };
   const flush = async () => {
-    const { edits: pending, goals: gs } = latest.current;
+    const { edits: pending, goals: gs, yearPlan: plan } = latest.current;
     const keys = Object.keys(pending);
     if (!keys.length) return true;
     setSaving(true);
@@ -83,7 +88,10 @@ function DossierInner({ classId, themeId }) {
       const doc = pending[key];
       const res =
         key === 'theme'
-          ? await saveClassDoc('theme', { ...doc, rows: Object.fromEntries(gs.map((g) => [g.id, themeRowOf(doc, g)])) })
+          ? await saveClassDoc('theme', {
+              ...doc,
+              rows: { ...danglingRows(doc, plan), ...Object.fromEntries(gs.map((g) => [g.id, themeRowOf(doc, g)])) },
+            })
           : await saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) });
       // Bỏ bản sửa khi đã lưu và không bị sửa thêm trong lúc lưu
       if (res) setEdits((e) => (e[key] === doc ? Object.fromEntries(Object.entries(e).filter(([k]) => k !== key)) : e));
@@ -135,7 +143,7 @@ function DossierInner({ classId, themeId }) {
   const themeDraft = edits.theme || themeDoc;
   const status = themeDoc?.status || EDU_STATUS.DRAFT;
   // Cả hồ sơ cùng một trạng thái: còn nháp / bị trả lại thì giáo viên sửa thẳng trong tập
-  const editable = isClassTeacher && isEditableStatus(status);
+  const editable = isClassTeacher && !ctx.superseded && isEditableStatus(status);
   const sent = status !== EDU_STATUS.DRAFT;
   const activities = themeActivities(blocks, (g) => themeRowOf(themeDraft, g));
   const used = new Set(
@@ -158,7 +166,7 @@ function DossierInner({ classId, themeId }) {
     if (!prev) return null;
     return (
       weeks.find((w) => w.week.start === prev.start)?.doc ||
-      weekPlans.find((x) => x.classId === classId && x.weekStart === prev.start) ||
+      weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === prev.start) ||
       null
     );
   };
@@ -180,7 +188,10 @@ function DossierInner({ classId, themeId }) {
   const setField = (field, value) => themeEdit((d) => ({ ...d, [field]: value }));
   const createTheme = () => saveClassDoc('theme', emptyThemePlan({ classId, yearPlanId: yearPlan.id, themeId }));
   const createWeek = (w) =>
-    saveClassDoc('week', emptyWeekPlan({ classId, yearPlanId: yearPlan.id, weekStart: w.start, weekNo: w.no, themeId }));
+    saveClassDoc(
+      'week',
+      emptyWeekPlan({ classId, yearPlanId: yearPlan.id, weekStart: w.start, weekNo: w.no, themeId, versionNo: yearPlan.versionNo }),
+    );
   const unsaved = saving || Object.keys(edits).length > 0;
   const themeTitle = (
     <>
@@ -194,7 +205,16 @@ function DossierInner({ classId, themeId }) {
     if (action !== 'submit') return true;
     const block = submitBlocker('theme', themeDoc, { branchPlans, weekPlans, classThemePlans, yearPlan });
     if (block) toast(block, 'warn');
-    return !block;
+    if (block) return false;
+    // BE:EDU-26 — bản chép còn ô đỏ (kế hoạch chủ đề và các tuần) thì chưa gửi; BE cũng kiểm lại
+    const today = todayIso();
+    const red =
+      version.unresolved.length +
+      weeks
+        .filter((w) => w.doc?.sourceDocKey && version.changes)
+        .reduce((n, w) => n + unresolvedFlags(versionFlags('week', w.doc, version.changes, yearPlan, today), w.doc).length, 0);
+    if (red) toast(`Còn ${red} mục đổi theo kế hoạch năm mới chưa sửa (ô đỏ). Sửa ở kế hoạch chủ đề / giáo án tuần rồi gửi.`, 'warn');
+    return !red;
   };
   const act = (action, note) => actOnClassDoc('theme', themeDoc.id, { action, note });
   const parts = [
@@ -250,6 +270,7 @@ function DossierInner({ classId, themeId }) {
           </>
         }
       />
+      <SupersededNote doc={themeDoc} />
       {status === EDU_STATUS.REJECTED && <RejectedNotice status={status} history={themeDoc?.history} />}
 
       {/* Tab dính đầu trang: tách riêng để khi cuộn chỉ thanh tab vẽ lại, không vẽ lại cả tập */}

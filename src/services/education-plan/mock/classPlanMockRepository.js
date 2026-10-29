@@ -6,6 +6,8 @@ import { ROLES, ROLE_LABELS } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { CLASS_DOC, createBlocker, dossierWeekDocs, isEditableStatus, submitBlocker, yearWeeks } from '@/models/education-plan/classPlan';
 import { PENDING_OF, SIGN_ROLES, withDefaults } from '@/models/education-plan/eduConfig';
+import { toRows } from '@/models/education-plan/goalTable';
+import { currentPlanOf, diffPlans, unresolvedFlags, versionFlags, versionOf } from '@/models/education-plan/planVersions.mjs';
 
 /*
  * Fake backend cho tài liệu kế hoạch của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần).
@@ -50,7 +52,50 @@ const findDoc = (db, kind, id) => {
   return doc;
 };
 
+// BE:EDU-26 — phiên bản kế hoạch năm đã có bản ban hành mới hơn thì tài liệu của nó chỉ xem
+const isSuperseded = (db, yearPlanId) => {
+  const plan = (db.eduGoals || []).find((g) => g.id === yearPlanId);
+  const current = plan && currentPlanOf(db.eduGoals, plan.ageGroupId, plan.schoolYear);
+  return !!current && versionOf(current) > versionOf(plan);
+};
+const withRows = (plan) => plan && { ...plan, domains: plan.domains.map((d) => ({ ...d, rows: toRows(d, () => 'x') })) };
+const todayIso = () => new Date().toISOString().slice(0, 10);
+// BE:EDU-26 — số ô đỏ còn lại của bản chép (tham chiếu bị bỏ hoặc mục đổi chưa kiểm tra)
+const unresolvedOf = (db, kind, doc) => {
+  if (!doc?.sourceDocKey) return 0;
+  const source = Object.values(COLLECTIONS)
+    .flatMap((key) => db[key] || [])
+    .find((d) => d.id === doc.sourceDocKey);
+  const plan = withRows((db.eduGoals || []).find((g) => g.id === doc.yearPlanId));
+  const from = (db.eduGoals || []).find((g) => g.id === source?.yearPlanId);
+  if (!source || !plan || !from || from.id === plan.id) return 0;
+  return unresolvedFlags(versionFlags(kind, doc, diffPlans(from, plan), plan, todayIso()), doc).length;
+};
+const decorate = (db, doc) => ({ ...doc, superseded: isSuperseded(db, doc.yearPlanId), adjustments: doc.adjustments || {} });
+
 export const classPlanMockRepository = {
+  /** BE:EDU-27 — "Kế hoạch điều chỉnh và bổ sung" ghi được ở mọi trạng thái, chỉ giáo viên của lớp. */
+  async saveAdjustments(id, adjustments, user) {
+    await delay();
+    ensureSchoolSeeded();
+    return writeDb((db) => {
+      const doc = findDoc(db, CLASS_DOC.WEEK, id);
+      if (!teachesClass(classOf(db, doc.classId), user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
+      const days = new Set((doc.days || []).map((d) => d.date));
+      const next = {};
+      Object.entries(adjustments || {}).forEach(([day, text]) => {
+        const value = String(text || '').trim();
+        if (!days.has(day) || value.length > 4000) throw eduError('CLASS_DOC_ADJUSTMENT_INVALID');
+        if (value) next[day] = value;
+      });
+      if (JSON.stringify(next) !== JSON.stringify(doc.adjustments || {})) {
+        doc.adjustments = next;
+        doc.history = [...(doc.history || []), entry(user, 'Cập nhật kế hoạch điều chỉnh và bổ sung')];
+      }
+      return clone(decorate(db, doc));
+    });
+  },
+
   async getAll() {
     await delay();
     const db = readDb();
@@ -60,9 +105,9 @@ export const classPlanMockRepository = {
     ensureSchoolSeeded();
     const fresh = readDb();
     return {
-      branchPlans: clone(fresh.eduClassBranch),
-      classThemePlans: clone(fresh.eduClassTheme),
-      weekPlans: clone(fresh.eduClassWeek),
+      branchPlans: clone(fresh.eduClassBranch.map((d) => decorate(fresh, d))),
+      classThemePlans: clone(fresh.eduClassTheme.map((d) => decorate(fresh, d))),
+      weekPlans: clone(fresh.eduClassWeek.map((d) => decorate(fresh, d))),
       // Lớp và giáo viên, tổ trưởng (giống GET /education-plans/class-docs của BE)
       classes: clone(fresh.classes || []),
       staff: (fresh.users || [])
@@ -81,20 +126,24 @@ export const classPlanMockRepository = {
       const i = list.findIndex((x) => x.id === doc.id);
       const current = i === -1 ? null : list[i];
       if (!teachesClass(classOf(db, doc.classId), user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
+      if (isSuperseded(db, doc.yearPlanId)) throw eduError('YEAR_PLAN_SUPERSEDED');
       if (!current) {
         const blocker = createBlocker(kind, doc, { branchPlans: db.eduClassBranch, classThemePlans: db.eduClassTheme });
         if (blocker) throw eduError('CLASS_DOC_NOT_READY', `Chưa thể bắt đầu: ${blocker.message}`);
       }
       if (current && !isEditableStatus(current.status)) throw eduError('CLASS_DOC_SUBMITTED');
+      const { superseded, ...body } = clone(doc);
       const saved = {
-        ...clone(doc),
+        ...body,
+        sourceDocKey: current ? current.sourceDocKey : body.sourceDocKey,
+        adjustments: current?.adjustments || {},
         status: current?.status || EDU_STATUS.DRAFT,
         approvals: current?.approvals || [],
         history: current?.history || [],
       };
       if (i === -1) list.unshift(saved);
       else list[i] = saved;
-      return clone(saved);
+      return clone(decorate(db, saved));
     });
   },
 
@@ -143,8 +192,11 @@ export const classPlanMockRepository = {
       if (action === 'submit') {
         if (!teachesClass(cls, user)) fail('CLASS_DOC_TEACHER_ONLY');
         if (!isEditableStatus(doc.status)) fail('CLASS_DOC_SUBMITTED');
+        if (isSuperseded(db, doc.yearPlanId)) fail('YEAR_PLAN_SUPERSEDED');
         const blocker = submitBlocker(kind, doc, lists);
         if (blocker) fail('CLASS_DOC_NOT_READY', blocker);
+        const unresolved = all.reduce((n, d) => n + unresolvedOf(db, d.kind || (d === doc ? kind : CLASS_DOC.WEEK), d), 0);
+        if (unresolved) fail('CLASS_DOC_VERSION_FIX_REQUIRED', unresolved);
         if (kind === CLASS_DOC.BRANCH) {
           const empty = (yearPlan ? yearWeeks(yearPlan).filter((w) => w.type === 'week') : []).filter(
             (w) => !doc.names?.[w.start]?.trim(),
@@ -172,7 +224,7 @@ export const classPlanMockRepository = {
         setStatus(EDU_STATUS.REJECTED);
         log(entry(user, 'Trả lại để sửa', 'err', note));
       } else fail('INVALID_VALUE', 'hành động');
-      return clone(doc);
+      return clone(decorate(db, doc));
     });
   },
 };

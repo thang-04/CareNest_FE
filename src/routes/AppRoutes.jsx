@@ -62,6 +62,7 @@ const ThemeDossierPage = lazy(() => import('@/pages/education-plan/ThemeDossierP
 const WeekPlanPage = lazy(() => import('@/pages/education-plan/WeekPlanPage'));
 const PlanReviewQueuePage = lazy(() => import('@/pages/education-plan/PlanReviewQueuePage'));
 const EduConfigPage = lazy(() => import('@/pages/education-plan/EduConfigPage'));
+const CurriculumSourcesPage = lazy(() => import('@/pages/education-plan/CurriculumSourcesPage'));
 const SchoolPlansPage = lazy(() => import('@/pages/education-plan/SchoolPlansPage'));
 
 const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'));
@@ -310,6 +311,7 @@ export function AppRoutes() {
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
             <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />
             <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />
+            <Route path="curriculum-sources" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <CurriculumSourcesPage />)} />
             <Route
               path="settings"
               element={edu(

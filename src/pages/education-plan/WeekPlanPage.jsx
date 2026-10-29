@@ -29,6 +29,9 @@ import {
 } from '@/models/education-plan/classPlan';
 import { exportWeekPlan } from '@/utils/education-plan/classPlanDoc';
 import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
+import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
+import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
+import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 
 const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 
@@ -54,10 +57,10 @@ function WeekReviewRedirect() {
 
 function WeekPlanInner() {
   const { classId, weekStart } = useParams();
-  const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, toast } = useEducationPlan();
+  const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, saveClassDocAdjustments, toast } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, isClassTeacher } = ctx;
-  const saved = weekPlans.find((w) => w.classId === classId && w.weekStart === weekStart) || null;
+  const saved = weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan?.id && w.weekStart === weekStart) || null;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
   const [tab, setTab] = useState('week');
@@ -65,14 +68,24 @@ function WeekPlanInner() {
   const weeks = yearPlan ? yearWeeks(yearPlan).filter((w) => w.type === 'week') : [];
   const idx = weeks.findIndex((w) => w.start === weekStart);
   const week = weeks[idx];
+  const [copying, setCopying] = useState(false);
+  const version = useDocVersion('week', saved, ctx, weekPlans, { themeId: week?.theme.id, weekStart, weekNo: week?.no });
+  // Nội dung sửa khi Nháp / Bị trả lại trên phiên bản hiện hành; ô điều chỉnh của ngày ghi được ở mọi trạng thái (BE:EDU-27)
+  const contentEditable = isClassTeacher && !ctx.superseded && isEditableStatus(saved?.status || EDU_STATUS.DRAFT);
+  const adjustEditable = isClassTeacher && !!saved;
+  const sameAdjust = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {});
 
   // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
   const saver = useManualSave({
     doc: draft,
-    enabled: isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT),
-    save: (doc) => saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) }),
+    enabled: contentEditable || adjustEditable,
+    save: async (doc) => {
+      let out = contentEditable ? await saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) }) : saved;
+      if (out && !sameAdjust(doc.adjustments, out.adjustments)) out = await saveClassDocAdjustments(out.id, doc.adjustments || {});
+      return out;
+    },
     onSaved: (same) => same && setDirty(false),
-    backup: { userId: user?.id, key: `week:${classId}:${weekStart}` },
+    backup: { userId: user?.id, key: `week:${classId}:${weekStart}${versionOf(yearPlan) > 1 ? `:${yearPlan.id}` : ''}` },
     onRestore: (doc) => {
       setDraft(doc);
       setDirty(true);
@@ -80,13 +93,22 @@ function WeekPlanInner() {
   });
 
   const guard = useLeaveGuard({
-    when: isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT) && saver.unsaved,
+    when: (contentEditable || adjustEditable) && saver.unsaved,
     onSave: saver.save,
   });
 
   useEffect(() => {
     if (dirty || !week) return;
-    const doc = saved || emptyWeekPlan({ classId, yearPlanId: yearPlan.id, weekStart, weekNo: week.no, themeId: week.theme.id });
+    const doc =
+      saved ||
+      emptyWeekPlan({
+        classId,
+        yearPlanId: yearPlan.id,
+        weekStart,
+        weekNo: week.no,
+        themeId: week.theme.id,
+        versionNo: versionOf(yearPlan),
+      });
     setDraft(doc);
     saver.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,7 +119,16 @@ function WeekPlanInner() {
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;
-  const editable = isClassTeacher && isEditableStatus(status);
+  const editable = contentEditable;
+  // Chép giáo án tuần cũ sang phiên bản mới (BE:EDU-26), lưu ngay thành Nháp để sửa ô đỏ
+  const copyOld = async () => {
+    setCopying(true);
+    const doc = await saveClassDoc('week', version.copy());
+    setCopying(false);
+    if (doc) toast('Đã chép giáo án tuần cũ. Sửa các ô đỏ trước khi gửi duyệt hồ sơ chủ đề.');
+  };
+  const fromTemplate = () => setDirty(true);
+  const flagEdit = (fn) => update((d) => fn(d));
   const base = `/education/class/${classId}`;
   const dossierTo = `${base}/themes/${week.theme.id}/review?week=${weekStart}`;
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
@@ -130,7 +161,9 @@ function WeekPlanInner() {
   const placedElsewhere = placedInOtherWeeks(themeWeekDocs, weekStart);
   // Tiến độ cả chủ đề (bản đang soạn thay cho bản đã lưu của tuần này)
   const coverage = themeCoverage(goals, activities, [...themeWeekDocs.filter((w) => w.weekStart !== weekStart), draft]);
-  const prevWeekDoc = weeks[idx - 1] ? weekPlans.find((w) => w.classId === classId && w.weekStart === weeks[idx - 1].start) || null : null;
+  const prevWeekDoc = weeks[idx - 1]
+    ? weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.weekStart === weeks[idx - 1].start) || null
+    : null;
   const prev = weeks[idx - 1];
   const next = weeks[idx + 1];
   const day = tab === 'week' ? -1 : Number(tab);
@@ -168,7 +201,7 @@ function WeekPlanInner() {
             >
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
-            {editable && (
+            {(editable || adjustEditable) && (
               <>
                 <span className="muted text-sm">{saver.label}</span>
                 <button
@@ -185,7 +218,29 @@ function WeekPlanInner() {
           </>
         }
       />
-      {editable && saver.recovery && <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />}
+      <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
+      {!saved && version.finished && <FinishedThemeNote />}
+      {!saved && !version.finished && version.prevDoc && !dirty && (
+        <VersionCopyOffer
+          plan={yearPlan}
+          previous={ctx.previousPlan}
+          prevDoc={version.prevDoc}
+          canCreate={editable}
+          busy={copying}
+          onTemplate={fromTemplate}
+          onCopy={copyOld}
+        />
+      )}
+      <VersionFlagsPanel
+        flags={version.flags}
+        doc={draft}
+        editable={editable}
+        onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
+        onDrop={(f) => flagEdit((d) => dropReference('week', d, f))}
+      />
+      {(editable || adjustEditable) && saver.recovery && (
+        <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />
+      )}
       {/* Tên chủ đề nhánh đặt ở trang chủ đề nhánh của lớp; đưa lên đầu để soạn đúng nhánh */}
       <div className="ga-week-hero">
         <div className="ga-week-hero__label">
@@ -269,6 +324,7 @@ function WeekPlanInner() {
               prevWeek={prevWeekDoc}
               coverage={coverage}
               goals={goals}
+              flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
             />
           ) : (
             <DayTab
@@ -278,6 +334,8 @@ function WeekPlanInner() {
               update={update}
               goals={goals}
               reuse={lessonReuseFor(weekPlans, draft, day)}
+              adjustEditable={adjustEditable}
+              flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
               assessTo={status === EDU_STATUS.APPROVED ? `/assessment/daily/skills?classId=${classId}&date=${draft.days[day].date}` : null}
             />
           )}

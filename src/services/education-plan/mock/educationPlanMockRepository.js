@@ -3,6 +3,8 @@ import { eduError } from './eduMockErrors';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { ROLES } from '@/models/User';
+import { toRows } from '@/models/education-plan/goalTable';
+import { chainOf, currentPlanOf, diffPlans, versionOf } from '@/models/education-plan/planVersions.mjs';
 
 /*
  * Fake backend for yearly goals, theme plans and lesson plans.
@@ -137,7 +139,78 @@ const saveGoal = async (item, options = {}) => {
   });
 };
 
+const newId = (prefix) => `${prefix}${Math.random().toString(36).slice(2, 9)}`;
+
+// BE:EDU-25 — chép cả cây sang phiên bản n+1, dòng chép giữ lineage để so sánh và chép tài liệu lớp
+const copyPlan = (source, user, versionNo, code) => {
+  const themeIds = new Map((source.themes || []).map((t) => [t.id, newId('th')]));
+  return {
+    ...clone(source),
+    id: `${source.id}-v${versionNo}`,
+    code,
+    versionNo,
+    sourcePlanId: source.id,
+    status: EDU_STATUS.DRAFT,
+    revision: 0,
+    owner: { userId: user.id, name: user.fullName, title: null, at: stamp().slice(0, 10) },
+    createdBy: user.fullName,
+    createdAt: stamp().slice(0, 10),
+    sentAt: null,
+    sentBy: null,
+    issued: null,
+    permissions: undefined,
+    history: [{ at: stamp(), by: user.fullName, action: `Tạo phiên bản ${versionNo} từ phiên bản ${versionOf(source)}`, tone: '' }],
+    themes: (source.themes || []).map((t) => ({ ...t, id: themeIds.get(t.id), lineageId: t.lineageId ?? t.id })),
+    breaks: (source.breaks || []).map((b) => ({ ...b, id: newId('br'), lineageId: b.lineageId ?? b.id })),
+    domains: (source.domains || []).map((d) => ({
+      id: d.id,
+      name: d.name,
+      rows: toRows(d, () => newId('r')).map((r) => ({
+        ...r,
+        id: newId('r'),
+        lineageId: r.lineageId ?? r.id,
+        ...(r.kind === 'goal'
+          ? {
+              contents: (r.contents || []).map((c) => ({
+                ...c,
+                id: newId('c'),
+                lineageId: c.lineageId ?? c.id,
+                themes: (c.themes || []).map((t) => themeIds.get(t)).filter(Boolean),
+              })),
+            }
+          : {}),
+      })),
+    })),
+  };
+};
+
 export const educationPlanMockRepository = {
+  async createGoalVersion(id, user) {
+    await delay();
+    return writeDb((db) => {
+      const list = ensureSeeded(db).eduGoals;
+      const source = list.find((g) => g.id === id);
+      if (!source) throw eduError('YEAR_PLAN_NOT_FOUND');
+      const allowed = user.role === ROLES.VICE_PRINCIPAL || (user.role === ROLES.TEAM_LEADER && user.ageGroupId === source.ageGroupId);
+      if (!allowed) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
+      const chain = chainOf(list, source);
+      const open = chain.find((g) => g.status !== EDU_STATUS.APPROVED);
+      if (open) throw eduError('YEAR_PLAN_OPEN_VERSION_EXISTS', open.code);
+      if (currentPlanOf(list, source.ageGroupId, source.schoolYear)?.id !== source.id) throw eduError('YEAR_PLAN_VERSION_SOURCE_INVALID');
+      const versionNo = versionOf(source) + 1;
+      const plan = copyPlan(source, user, versionNo, `${chain[0].code}-V${versionNo}`);
+      list.unshift(plan);
+      return clone(plan);
+    });
+  },
+  async getGoalChanges(id, fromId) {
+    await delay();
+    const list = sourceGoals();
+    const plan = list.find((g) => g.id === id);
+    const from = list.find((g) => g.id === (fromId || plan?.sourcePlanId));
+    if (!plan || !from) throw eduError('YEAR_PLAN_NOT_FOUND');
+    return diffPlans(from, plan);
+  },
   async listGoalSources({ schoolYear, ageGroupId, excludeId } = {}, actor) {
     const group = sourceGroup(actor, ageGroupId);
     await delay();

@@ -73,7 +73,17 @@ const runSteps = async (goal, refs, edit, forceSave = false) => {
   return detail;
 };
 
+// Danh mục Chương trình GDMN của Bộ (BE:EDU-28); nhóm tuổi UI dạng mã "ag-3"
+const curriculumOf = async (path, ageGroupCode, options = {}) => {
+  const ageGroupId = buildRefs(await loadConfig()).ageGroupId(ageGroupCode);
+  if (ageGroupId == null) throw sourceError(400, 'Nhóm tuổi đã chọn không hợp lệ.');
+  return axiosClient.get(`/education-plans/curriculum/${path}`, { params: { ageGroupId }, signal: options.signal });
+};
+
 export const educationPlanApi = {
+  getCurriculumSources: (options = {}) => axiosClient.get('/education-plans/curriculum/sources', { signal: options.signal }),
+  getCurriculumGoals: (ageGroupCode, options) => curriculumOf('goals', ageGroupCode, options),
+  getCurriculumContents: (ageGroupCode, options) => curriculumOf('contents', ageGroupCode, options),
   listGoalSources: async ({ schoolYear, ageGroupId, excludeId } = {}, actor, options = {}) => {
     const group = sourceGroup(actor, ageGroupId);
     const refs = buildRefs(await loadConfig());
@@ -154,6 +164,13 @@ export const educationPlanApi = {
     const options = { headers: editHeaders(edit), ...(keepalive ? { adapter: 'fetch', fetchOptions: { keepalive: true } } : {}) };
     return axiosClient.post(`${GOALS}/${serverId(id) ?? id}/finish-editing`, null, options);
   },
+  // BE:EDU-25 — phiên bản n+1 chép từ bản ban hành mới nhất; người tạo giữ phiên sửa của bản mới
+  createGoalVersion: async (id, edit) => {
+    const refs = buildRefs(await loadConfig());
+    return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/versions`, null, { headers: editHeaders(edit) }), refs);
+  },
+  getGoalChanges: (id, fromId) =>
+    axiosClient.get(`${GOALS}/${serverId(id) ?? id}/changes`, { params: fromId ? { fromPlanId: serverId(fromId) ?? fromId } : {} }),
   deleteGoal: async (id, revision) => {
     const edit = { sessionId: crypto.randomUUID(), revision: revision ?? 0 };
     const current = await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/start-editing`, null, { headers: editHeaders(edit) });
@@ -189,6 +206,8 @@ export const educationPlanApi = {
     return toUiEduConfig(saved);
   },
   saveClassDoc: (kind, doc) => axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, doc),
+  // BE:EDU-27 — ô "Kế hoạch điều chỉnh và bổ sung", ghi được cả khi đã duyệt
+  saveClassDocAdjustments: (id, adjustments) => axiosClient.put(`/education-plans/class-docs/week/${id}/adjustments`, { adjustments }),
   actOnClassDoc: (kind, id, body) => axiosClient.post(`/education-plans/class-docs/${kind}/${id}/actions`, body),
   suggestBranchNames: (input) => axiosClient.post('/education-plans/ai/branch-names', input),
   rewriteBranchName: (input) => axiosClient.post('/education-plans/ai/branch-names/rewrite', input),

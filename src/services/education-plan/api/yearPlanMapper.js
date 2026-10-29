@@ -67,6 +67,10 @@ export const toUiGoal = (detail, refs) => {
       ...(r.kind === 'goal'
         ? { contents: r.contents.map((c) => ({ id: String(c.id), text: c.text, themes: c.themeIds.map(String) })) }
         : {}),
+      // Mục tiêu lấy từ Chương trình của Bộ (BE:EDU-28): câu gốc để hiện nhãn Theo Bộ / Đã sửa từ Bộ
+      ...(r.curriculumGoalId
+        ? { curriculumGoalId: r.curriculumGoalId, curriculumGoalText: r.curriculumGoalText, curriculumSectionRef: r.curriculumSectionRef }
+        : {}),
     }));
     const goalNo = Object.fromEntries(d.rows.map((r) => [String(r.id), r.goalNo]));
     return {
@@ -108,6 +112,21 @@ export const toUiGoal = (detail, refs) => {
     breaks: (detail.breaks || []).map((b) => ({ id: String(b.id), label: b.label, start: b.startDate || '', end: b.endDate || '' })),
     domains,
     permissions: detail.permissions,
+    // Phiên bản (BE:EDU-25): số phiên bản, phiên bản nguồn, hiện hành, các phiên bản người xem được thấy
+    versionNo: detail.versionNo ?? 1,
+    sourcePlanId: detail.sourcePlanId == null ? null : String(detail.sourcePlanId),
+    current: !!detail.current,
+    versions: (detail.versions || []).map((v) => ({
+      id: String(v.id),
+      versionNo: v.versionNo,
+      code: v.code,
+      status: v.status,
+      ownerName: v.ownerName || '',
+      createdAt: localDate(v.createdAt),
+      issuedByName: v.issuedByName || '',
+      issuedAt: localDate(v.issuedAt),
+      current: !!v.current,
+    })),
   };
 };
 
@@ -127,6 +146,7 @@ export const toYearPlanRequest = (goal, refs) => ({
         kind: r.kind,
         text: r.text,
         contents: (r.contents || []).map((c) => ({ id: serverId(c.id), text: c.text, themeKeys: (c.themes || []).map(String) })),
+        curriculumGoalId: r.kind === 'goal' ? (r.curriculumGoalId ?? null) : null,
       })),
     })),
   themes: (goal.themes || []).map((t) => ({
