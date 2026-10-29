@@ -1,6 +1,16 @@
 # Feature — Đánh giá hằng ngày (3 nhóm)
 
-Status: demo FE (mock), 2026-10-15 · BE card: `../CareNest_BE/docs/modules/learning-observation.md` · Rule: OBS (GBR-OBS-01..05), ATT, AI
+Status: demo FE (mock), 2026-10-15 · BE card: `../CareNest_BE/docs/modules/learning-observation.md` · Rule: OBS-01, OBS-02, OBS-07, OBS-12, OBS-13 (BE, chốt 29/10; trước đó GBR-OBS-01..05), ATT, AI
+
+## Lệch BE (29/10)
+
+Mock dưới đây làm trước khi BE chốt nhóm OBS; cần sửa khi tích hợp:
+- Mặt và mức: BE có 7 mặt (ăn uống, ngủ, cảm xúc, hành vi/quan hệ với bạn, tham gia hoạt động, kiến thức–kỹ năng, sức khỏe), mức Đạt / Cần cố gắng / Chưa đạt (OBS-02). Mock dùng 3 nhóm với thang riêng từng cột, kiến thức–kỹ năng chỉ Đạt/Chưa đạt. Tiêu chí cố định hay trường cấu hình: P-11.
+- Khóa ngày: BE hết ngày thì khóa, không có bước mở lại (OBS-12). Mock có PHT/HT mở lại ngày đã khóa (`/assessment/day-unlocks`).
+- Mặc định: BE mọi trẻ có mặt mặc định "bình thường", GV chỉ sửa trẻ khác thường (OBS-01); mock điền sẵn phần lớn ô, khớp ý này.
+- Kiến thức–kỹ năng: BE chấm theo mục tiêu hoạt động của kế hoạch ngày (OBS-07). Câu hỏi "MT hay YCCĐ" bên dưới nghiêng về MT; ghép mã với module kế hoạch giáo dục khi BE có API.
+- Bữa ăn: mock còn cố định "Không ăn" cho bữa tắt "Tham gia ăn"; BE có mặt là ăn mọi bữa (ATT-02).
+- Phụ huynh xem đánh giá ngày sau khi GV lưu (OBS-13) — thuộc APP.
 
 Người dùng (Cần) yêu cầu ngày 2026-10-15: đánh giá theo 3 nhóm của Chương trình GDMN (TT 17/2009, TT 28/2016, TT 51/2020, VBHN 01/2021). Mục đích: dữ liệu dạng ô tích để tổng hợp tuần/tháng và làm đầu vào cho AI, dựa trên giáo án. Chỉ sửa màn đánh giá; không đổi luồng của điểm danh, khám sức khỏe, giáo án.
 
