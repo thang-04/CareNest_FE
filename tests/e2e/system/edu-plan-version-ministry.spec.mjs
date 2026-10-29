@@ -45,11 +45,17 @@ test.beforeAll(async () => {
     headers: editHeaders(tl, 0),
   });
   expect(created.status, created.desc).toBe(201);
-  const sub = await api(USERS.teacher1, 'POST', `${GOALS}/${created.data.id}/submit`, { body: {}, headers: editHeaders(tl, created.data.revision) });
+  const sub = await api(USERS.teacher1, 'POST', `${GOALS}/${created.data.id}/submit`, {
+    body: {},
+    headers: editHeaders(tl, created.data.revision),
+  });
   expect(sub.status, sub.desc).toBe(200);
   const vp = newSession();
   const lease = await api(USERS.vp, 'POST', `${GOALS}/${created.data.id}/start-editing`, { headers: editHeaders(vp, sub.data.revision) });
-  const issued = await api(USERS.vp, 'POST', `${GOALS}/${created.data.id}/issue`, { body: {}, headers: editHeaders(vp, lease.data.revision) });
+  const issued = await api(USERS.vp, 'POST', `${GOALS}/${created.data.id}/issue`, {
+    body: {},
+    headers: editHeaders(vp, lease.data.revision),
+  });
   expect(issued.data.status, issued.desc).toBe('APPROVED');
   v1 = issued.data;
   // Mục tiêu đầu tiên của Bộ ở lĩnh vực chưa có mục tiêu tự gõ (lĩnh vực có mục tiêu ngoài lĩnh vực con thì EDU-24 không ghép
@@ -87,7 +93,7 @@ test('ST-14 phiên bản mới: lấy mục tiêu và gợi ý nội dung từ C
   await page.getByRole('button', { name: 'Lấy từ Chương trình của Bộ' }).click();
   const dialog = page.getByRole('dialog', { name: 'Lấy từ Chương trình của Bộ' });
   await expect(dialog).toContainText('01/VBHN-BGDĐT');
-  await dialog.locator('label.ga-goal-check', { hasText: ministryGoal.goalText }).first().locator('input').check();
+  await dialog.locator('label.ga-cur-row', { hasText: ministryGoal.goalText }).first().locator('input').check();
   await dialog.getByRole('button', { name: /Thêm 1 mục tiêu/ }).click();
   await expect(dialog).toBeHidden();
   const badge = page.getByRole('link', { name: 'Theo Bộ' });
@@ -98,9 +104,12 @@ test('ST-14 phiên bản mới: lấy mục tiêu và gợi ý nội dung từ C
   await page.getByRole('button', { name: 'Lấy từ Chương trình của Bộ' }).click();
   await dialog.getByRole('tab', { name: /Gợi ý nội dung/ }).click();
   const target = dialog.locator('#cur-target');
-  const value = await target.locator('option', { hasText: ministryGoal.goalText.slice(0, 40) }).first().getAttribute('value');
+  const value = await target
+    .locator('option', { hasText: ministryGoal.goalText.slice(0, 40) })
+    .first()
+    .getAttribute('value');
   await target.selectOption(value);
-  await dialog.locator('label.ga-goal-check', { hasText: suggestion.text }).first().locator('input').check();
+  await dialog.locator('label.ga-cur-row', { hasText: suggestion.text }).first().locator('input').check();
   await dialog.getByRole('button', { name: /Thêm 1 nội dung/ }).click();
   await dialog.getByRole('button', { name: 'Đóng', exact: true }).last().click();
   await expect(dialog).toBeHidden();

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download } from '@/components/ui/icons';
+import { Download, Search } from '@/components/ui/icons';
 import { Tabs } from '@/components/ui/Tabs';
 import { useCurriculum } from '@/hooks/education-plan/useCurriculum';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
@@ -12,10 +12,35 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
  * Lấy mục tiêu từ Chương trình GDMN của Bộ (BE:EDU-28): thẻ Mục tiêu (mục D) chọn từng/nhóm/lĩnh vực/tất cả;
  * thẻ Gợi ý nội dung (mục C) chọn mục tiêu đích trong bản đang soạn rồi tích gợi ý. Chỉ đổi bản đang soạn.
  */
+
+// Tìm không phân biệt hoa thường, dấu
+const fold = (s) =>
+  String(s || '')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/đ/gi, 'd')
+    .toLowerCase();
+
+/** Ô chọn có trạng thái chọn một phần (một số mục trong nhóm đã chọn). */
+function GroupCheck({ ids, picked, onToggle, label }) {
+  const count = ids.filter((id) => picked.has(id)).length;
+  return (
+    <input
+      type="checkbox"
+      aria-label={label}
+      checked={ids.length > 0 && count === ids.length}
+      ref={(el) => el && (el.indeterminate = count > 0 && count < ids.length)}
+      onChange={() => onToggle(ids)}
+    />
+  );
+}
+
 export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImportGoals, onAddContents }) {
   const data = useCurriculum(ageGroupId);
   const [tab, setTab] = useState('goals');
   const [picked, setPicked] = useState(() => new Set());
+  const [query, setQuery] = useState('');
+  const [domainPick, setDomainPick] = useState('');
   const [target, setTarget] = useState('');
   const [domainFilter, setDomainFilter] = useState('');
   const [subFilter, setSubFilter] = useState('');
@@ -30,6 +55,33 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
   const source = data.sources[0];
   const ageName = AGE_GROUPS.find((a) => a.id === ageGroupId)?.name || '';
   const allIds = data.goals.map((g) => g.id);
+
+  // Cây đang hiện theo lĩnh vực đã chọn và ô tìm (tìm cả câu mục tiêu, tên nhóm, nội dung con)
+  const q = fold(query.trim());
+  const shown = useMemo(
+    () =>
+      tree
+        .filter((d) => !domainPick || d.name === domainPick)
+        .map((d) => ({
+          ...d,
+          subs: d.subs
+            .map((s) => ({
+              ...s,
+              groups: s.groups
+                .map((g) => ({
+                  ...g,
+                  goals: g.goals.filter((x) => !q || fold([x.goalText, g.text, s.name, ...x.contents].join(' ')).includes(q)),
+                }))
+                .filter((g) => g.goals.length),
+            }))
+            .filter((s) => s.groups.length),
+        }))
+        .filter((d) => d.subs.length),
+    [tree, domainPick, q],
+  );
+  const idsOf = (domain) => domain.subs.flatMap((s) => s.groups.flatMap((g) => g.goals.map((x) => x.id)));
+  const shownIds = shown.flatMap(idsOf);
+  const countOf = (d) => d.subs.reduce((n, s) => n + s.groups.reduce((m, g) => m + g.goals.length, 0), 0);
 
   const toggle = (ids) => {
     const on = !ids.every((id) => picked.has(id));
@@ -56,19 +108,13 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
       setSuggested(new Set());
   };
 
-  const sourceNote = source && (
-    <p className="muted text-xs">
-      Nguồn: {source.title} số {source.documentNo} ngày {source.issuedDate?.split('-').reverse().join('/')} của {source.issuer} ·{' '}
-      <Link to={curriculumSourceLink(ageGroupId)} target="_blank" rel="noopener">
-        Xem trang nguồn để đối chiếu
-      </Link>
-    </p>
-  );
+  const allShownPicked = shownIds.length > 0 && shownIds.every((id) => picked.has(id));
 
   return (
     <Modal
       title="Lấy từ Chương trình của Bộ"
-      width={820}
+      width={1100}
+      className="ga-cur-modal"
       onClose={onClose}
       footer={
         <>
@@ -87,10 +133,17 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
         </>
       }
     >
-      <p className="muted text-sm">
-        {ageName} · Mục tiêu và nội dung lấy nguyên văn; thêm vào cuối, bỏ qua mục đã có. Chưa ghi lên hệ thống cho tới khi bấm Lưu.
-      </p>
-      {sourceNote}
+      <div className="ga-cur-meta">
+        {ageName && <span className="chip chip--blue">{ageName}</span>}
+        {source && (
+          <span className="muted text-sm ga-cur-meta__source" title={`${source.title} — ${source.issuer}`}>
+            {source.documentNo} · {source.issuedDate?.split('-').reverse().join('/')}
+          </span>
+        )}
+        <Link className="text-sm" to={curriculumSourceLink(ageGroupId)} target="_blank" rel="noopener">
+          Đối chiếu
+        </Link>
+      </div>
       <Tabs
         ariaLabel="Lấy từ Chương trình của Bộ"
         value={tab}
@@ -108,70 +161,104 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
         <EmptyState title="Chưa có dữ liệu của Bộ cho nhóm tuổi này" />
       ) : tab === 'goals' ? (
         <>
-          <div className="row row--between">
-            <span className="fw-600" aria-live="polite">
-              Đã chọn {picked.size}/{allIds.length} mục tiêu
-            </span>
-            <button type="button" className="btn btn--sm" onClick={() => toggle(allIds)}>
-              {allIds.length > 0 && picked.size === allIds.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-            </button>
+          <div className="ga-cur-toolbar">
+            <label className="ga-cur-search">
+              <Search size={16} aria-hidden />
+              <input
+                type="search"
+                className="input"
+                placeholder="Tìm mục tiêu"
+                aria-label="Tìm mục tiêu"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+            <div className="ga-cur-chips" role="group" aria-label="Lọc theo lĩnh vực">
+              {[{ name: '', label: 'Tất cả', n: allIds.length }, ...tree.map((d) => ({ name: d.name, label: d.name, n: countOf(d) }))].map(
+                (d) => (
+                  <button
+                    key={d.name || 'all'}
+                    type="button"
+                    className={`ga-cur-chip ${domainPick === d.name ? 'is-on' : ''}`}
+                    aria-pressed={domainPick === d.name}
+                    onClick={() => setDomainPick(d.name)}
+                  >
+                    {d.label} <span className="ga-cur-chip__n">{d.n}</span>
+                  </button>
+                ),
+              )}
+            </div>
+            <div className="row row--between gap-2">
+              <span className="fw-600" aria-live="polite">
+                Đã chọn {picked.size}/{allIds.length} mục tiêu
+              </span>
+              <button type="button" className="btn btn--sm" disabled={!shownIds.length} onClick={() => toggle(shownIds)}>
+                {allShownPicked ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+              </button>
+            </div>
           </div>
-          <div className="ga-pick-list">
-            {tree.map((domain) => {
-              const domainIds = domain.subs.flatMap((s) => s.groups.flatMap((g) => g.goals.map((x) => x.id)));
-              return (
-                <div key={domain.name} className="mb-8">
-                  <label className="ga-goal-check ga-goal-check--head">
-                    <input type="checkbox" checked={domainIds.every((id) => picked.has(id))} onChange={() => toggle(domainIds)} />
-                    <span className="fw-600">{domain.name}</span>
+          {!shown.length ? (
+            <p className="muted">Không có mục tiêu khớp.</p>
+          ) : (
+            <div className="ga-cur-list">
+              {shown.map((domain) => (
+                <section key={domain.name} className="ga-cur-domain">
+                  <label className="ga-cur-domain__head">
+                    <GroupCheck ids={idsOf(domain)} picked={picked} onToggle={toggle} label={`Chọn cả lĩnh vực ${domain.name}`} />
+                    <span>{domain.name}</span>
                   </label>
-                  {domain.subs.map((sub) =>
-                    sub.groups.map((group) => {
-                      const groupIds = group.goals.map((g) => g.id);
-                      return (
-                        <div key={`${sub.name}-${group.key}`}>
-                          <label className="ga-goal-check ga-goal-check--child">
-                            <input
-                              type="checkbox"
-                              aria-label={`Chọn cả nhóm ${group.text}`}
-                              checked={groupIds.every((id) => picked.has(id))}
-                              onChange={() => toggle(groupIds)}
+                  {domain.subs.map((sub) => (
+                    <div key={sub.name || '-'} className="ga-cur-sub">
+                      {sub.name && <div className="ga-cur-sub__name">{sub.name}</div>}
+                      {sub.groups.map((group) => (
+                        <div key={group.key} className="ga-cur-group">
+                          <label className="ga-cur-group__head">
+                            <GroupCheck
+                              ids={group.goals.map((g) => g.id)}
+                              picked={picked}
+                              onToggle={toggle}
+                              label={`Chọn cả nhóm ${group.text}`}
                             />
-                            <span className="muted text-xs">
-                              {[sub.name, `${group.no ? `${group.no}. ` : ''}${group.text}`].filter(Boolean).join(' › ')}
+                            <span>
+                              {group.no ? `${group.no}. ` : ''}
+                              {group.text}
                             </span>
                           </label>
                           {group.goals.map((goal) => (
-                            <div key={goal.id} id={`pick-cg-${goal.id}`}>
-                              <label className="ga-goal-check ga-goal-check--child">
+                            <div key={goal.id} id={`pick-cg-${goal.id}`} className="ga-cur-item">
+                              <label className="ga-cur-row">
                                 <input type="checkbox" checked={picked.has(goal.id)} onChange={() => toggle([goal.id])} />
-                                {goal.goalNo && <span className="ga-goal-code">{goal.goalNo}</span>}
-                                <span className="text-sm">{goal.goalText}</span>
+                                <span className="ga-cur-row__text">
+                                  {goal.goalNo && <span className="ga-goal-code">{goal.goalNo}</span>} {goal.goalText}
+                                </span>
                               </label>
                               {goal.contents.length > 0 && (
-                                <ul className="muted text-sm">
-                                  {goal.contents.map((c) => (
-                                    <li key={c}>{c}</li>
-                                  ))}
-                                </ul>
+                                <details className="ga-cur-contents">
+                                  <summary className="muted text-sm">{goal.contents.length} nội dung</summary>
+                                  <ul className="text-sm">
+                                    {goal.contents.map((c) => (
+                                      <li key={c}>{c}</li>
+                                    ))}
+                                  </ul>
+                                </details>
                               )}
                             </div>
                           ))}
                         </div>
-                      );
-                    }),
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                      ))}
+                    </div>
+                  ))}
+                </section>
+              ))}
+            </div>
+          )}
         </>
       ) : (
         <>
           {!targets.length ? (
-            <Notice tone="warn">Bản đang soạn chưa có mục tiêu. Thêm mục tiêu trước rồi mới gắn gợi ý nội dung.</Notice>
+            <Notice tone="warn">Bản đang soạn chưa có mục tiêu.</Notice>
           ) : (
-            <div className="grid-2 gap-3">
+            <div className="ga-cur-toolbar ga-cur-filters">
               <div className="field">
                 <label className="field__label" htmlFor="cur-target">
                   Thêm vào mục tiêu
@@ -195,7 +282,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
               </div>
               <div className="field">
                 <label className="field__label" htmlFor="cur-domain">
-                  Lĩnh vực của gợi ý
+                  Lĩnh vực
                 </label>
                 <select
                   id="cur-domain"
@@ -220,7 +307,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
                     Lĩnh vực con
                   </label>
                   <select id="cur-sub" className="select" value={subFilter} onChange={(e) => setSubFilter(e.target.value)}>
-                    <option value="">Tất cả lĩnh vực con</option>
+                    <option value="">Tất cả</option>
                     {subDomains.map((s) => (
                       <option key={s} value={s}>
                         {s}
@@ -231,20 +318,17 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
               )}
             </div>
           )}
-          <p className="fw-600" aria-live="polite">
-            Đã chọn {suggested.size} gợi ý
-          </p>
-          <div className="ga-pick-list">
+          <div className="ga-cur-list">
             {suggestions.map((c, i) => {
               const head = `${c.subDomain ? `${c.subDomain} › ` : ''}${c.categoryNo ? `${c.categoryNo}. ` : ''}${c.category}`;
               const prev = suggestions[i - 1];
               const showHead = !prev || `${prev.subDomain}|${prev.category}` !== `${c.subDomain}|${c.category}`;
               return (
                 <div key={c.id}>
-                  {showHead && <p className="muted text-xs">{head}</p>}
-                  <label className="ga-goal-check ga-goal-check--child">
+                  {showHead && <div className="ga-cur-sub__name">{head}</div>}
+                  <label className="ga-cur-row">
                     <input type="checkbox" disabled={!target} checked={suggested.has(c.id)} onChange={() => toggleSuggestion(c.id)} />
-                    <span className="text-sm">
+                    <span className="ga-cur-row__text">
                       {c.label && <span className="muted">{c.label}: </span>}
                       {c.text}
                     </span>

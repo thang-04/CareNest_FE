@@ -997,3 +997,226 @@
     min-height: 0;
   }
 }
+
+/* ---------- Lấy từ Chương trình của Bộ (CurriculumGoalsModal) ---------- */
+.ga-cur-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.ga-cur-meta__source {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Thanh tìm / lọc dính đầu vùng cuộn của hộp, nền đặc để không lẫn chữ bên dưới */
+.ga-cur-toolbar {
+  position: sticky;
+  top: calc(-1 * var(--space-5));
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0 calc(-1 * var(--space-6));
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.ga-cur-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.ga-cur-search {
+  position: relative;
+  display: block;
+  max-width: 420px;
+  color: var(--color-text-muted);
+}
+.ga-cur-search svg {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.ga-cur-search .input {
+  width: 100%;
+  padding-left: var(--space-10);
+}
+.ga-cur-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ga-cur-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.ga-cur-chip:hover {
+  background: var(--color-surface-hover);
+}
+.ga-cur-chip.is-on {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+}
+.ga-cur-chip__n {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.ga-cur-chip:focus-visible,
+.ga-cur-row input:focus-visible,
+.ga-cur-group__head input:focus-visible,
+.ga-cur-domain__head input:focus-visible,
+.ga-cur-contents summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.ga-cur-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.ga-cur-domain__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-primary-soft);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.ga-cur-sub {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.ga-cur-sub__name {
+  padding: 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.ga-cur-group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.ga-cur-group__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.ga-cur-item + .ga-cur-item {
+  border-top: 1px solid var(--color-border);
+}
+.ga-cur-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  padding: var(--space-2-5) var(--space-3);
+  cursor: pointer;
+}
+.ga-cur-row:hover {
+  background: var(--color-surface-hover);
+}
+.ga-cur-list > div > .ga-cur-row {
+  border-radius: var(--radius);
+}
+.ga-cur-row input,
+.ga-cur-group__head input,
+.ga-cur-domain__head input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--color-primary);
+}
+h2.ga-cur-domain__head {
+  margin: 0;
+  font-size: var(--fs-md);
+  cursor: default;
+}
+/* Câu mục tiêu dài: giới hạn độ dài dòng cho dễ đọc */
+.ga-cur-row__text {
+  max-width: 75ch;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+.ga-cur-row__text .ga-goal-code {
+  margin-right: var(--space-1);
+}
+.ga-cur-contents {
+  padding: 0 var(--space-3) var(--space-2) calc(var(--space-3) + 26px);
+}
+.ga-cur-contents summary {
+  width: fit-content;
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+}
+.ga-cur-contents ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+  color: var(--color-text-muted);
+}
+.ga-cur-modal .modal__footer {
+  align-items: center;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+/* Điện thoại: hộp chiếm cả màn hình */
+@media (max-width: 640px) {
+  .modal-backdrop:has(> .ga-cur-modal) {
+    padding: 0;
+  }
+  .modal.ga-cur-modal {
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .ga-cur-modal .modal__body,
+  .ga-cur-modal .modal__header,
+  .ga-cur-modal .modal__footer {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+  .ga-cur-toolbar {
+    margin: 0 calc(-1 * var(--space-4));
+    padding: var(--space-3) var(--space-4);
+  }
+  .ga-cur-search {
+    max-width: none;
+  }
+  .ga-cur-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: var(--space-1);
+  }
+  .ga-cur-chip {
+    flex: none;
+  }
+  .ga-page .filter-bar .select[aria-label='Nhóm tuổi'] {
+    width: 100%;
+  }
+}
