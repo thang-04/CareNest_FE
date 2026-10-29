@@ -208,7 +208,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
                     <span>{domain.name}</span>
                   </label>
                   {domain.subs.map((sub) => (
-                    <div key={sub.name || '-'} className="ga-cur-sub">
+                    <div key={sub.key || '-'} className="ga-cur-sub">
                       {sub.name && <div className="ga-cur-sub__name">{sub.name}</div>}
                       {sub.groups.map((group) => (
                         <div key={group.key} className="ga-cur-group">

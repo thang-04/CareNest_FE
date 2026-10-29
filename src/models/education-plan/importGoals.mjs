@@ -1,4 +1,5 @@
 import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
+import { curriculumLink } from '@/models/education-plan/curriculum.mjs';
 import { toRows } from '@/models/education-plan/goalTable';
 
 const readRows = (domain, domainIndex) => {
@@ -103,7 +104,8 @@ export const mergeImportedGoals = (target, source, selectedGoalIds, makeId) => {
     const additions = [];
     let { sub, group, subId, groupId } = state;
     const addHeading = (row) => {
-      const heading = { id: nextId(), kind: row.kind, text: row.text };
+      // Lĩnh vực con/nhóm lấy từ Bộ giữ liên kết nguồn khi chép (BE:EDU-28)
+      const heading = { id: nextId(), kind: row.kind, text: row.text, ...curriculumLink(row) };
       additions.push(heading);
       return heading.id;
     };

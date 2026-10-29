@@ -100,10 +100,10 @@ export default function CurriculumSourcesPage() {
                       <section key={domain.name} className="ga-cur-domain">
                         <h2 className="ga-cur-domain__head">{domain.name}</h2>
                         {domain.subs.map((sub) => (
-                          <div key={sub.name || '-'} className="ga-cur-sub">
+                          <div key={sub.key || '-'} id={sub.id ? `cs-${sub.id}` : undefined} className="ga-cur-sub">
                             {sub.name && <div className="ga-cur-sub__name">{sub.name}</div>}
                             {sub.groups.map((group) => (
-                              <div key={group.key} className="ga-cur-group">
+                              <div key={group.key} id={group.id ? `cgr-${group.id}` : undefined} className="ga-cur-group">
                                 <div className="ga-cur-group__head">
                                   {group.no ? `${group.no}. ` : ''}
                                   {group.text}

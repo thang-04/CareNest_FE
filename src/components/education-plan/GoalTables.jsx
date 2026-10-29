@@ -294,29 +294,35 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
     addContentsAfter(di, r, c.id, lines, !c.text.trim());
   };
 
+  /** BE:EDU-28 — dòng lấy từ Chương trình của Bộ (lĩnh vực con, nhóm, mục tiêu): nhãn mở trang nguồn đúng dòng. */
+  const ministryChip = (row) => {
+    const ministry = curriculumBadge(row);
+    return (
+      ministry && (
+        <Link
+          className={`chip ${ministry.edited ? 'chip--orange' : 'chip--teal'}`}
+          to={curriculumSourceLink(ageGroupId, ministry.curriculumGoalId, ministry.anchor)}
+          target="_blank"
+          rel="noopener"
+          title={ministry.sectionRef ? `Chương trình GDMN: ${ministry.sectionRef}` : 'Chương trình GDMN của Bộ'}
+        >
+          {ministry.label}
+        </Link>
+      )
+    );
+  };
+
   /** Các hàng của một mục tiêu (mỗi nội dung một hàng); lead là các ô tầng trên gộp dọc, chỉ có ở hàng đầu. */
   const goalRows = (d, di, r, lead) => {
     const contents = readOnly ? r.contents.filter((c) => c.text.trim()) : r.contents;
     const span = Math.max(contents.length, 1);
     const no = numbers[r.id];
-    // BE:EDU-28 — mục tiêu lấy từ Chương trình của Bộ: nhãn mở trang nguồn đúng mục
-    const ministry = curriculumBadge(r);
     const head = (
       <>
         <td rowSpan={span} className="cell--fixed">
           <div className="ga-goal-table__pad">
             <span className="ga-goal-code">{no ? `MT${no}` : '—'}</span>
-            {ministry && (
-              <Link
-                className={`chip ${ministry.edited ? 'chip--orange' : 'chip--teal'}`}
-                to={curriculumSourceLink(ageGroupId, ministry.curriculumGoalId)}
-                target="_blank"
-                rel="noopener"
-                title={`Chương trình GDMN: ${ministry.sectionRef}`}
-              >
-                {ministry.label}
-              </Link>
-            )}
+            {ministryChip(r)}
           </div>
         </td>
         <td rowSpan={span}>
@@ -495,6 +501,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
             <td colSpan={cols} className="ga-goal-table__subband">
               <div className="ga-goal-table__subname">
                 {subNo}. {edit ? subInput(di, b, `Lĩnh vực con ${subNo}`) : b.sub.text}
+                {ministryChip(b.sub)}
                 {edit && (
                   <button
                     type="button"
@@ -543,6 +550,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
                       onEnter: () => insertAfter(di, gr.last, [make('group')]),
                     })}
                   </Suggest>
+                  {ministryChip(gr.group)}
                   <button
                     type="button"
                     className="icon-btn icon-btn--danger"
@@ -562,7 +570,9 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
                   </button>
                 </div>
               ) : (
-                <div className="ga-goal-table__pad">{gr.group.text}</div>
+                <div className="ga-goal-table__pad">
+                  {gr.group.text} {ministryChip(gr.group)}
+                </div>
               )
             ) : edit && gr.goals.length ? (
               // Mục tiêu chưa thuộc nhóm nào: gõ vào đây để bổ sung nhóm kết quả cho các mục tiêu này
