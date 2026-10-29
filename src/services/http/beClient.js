@@ -2,7 +2,7 @@ import axios from 'axios';
 import { DEV_BE_BASE_URL } from '@/config/env';
 import { BE_ERROR_FIELDS } from './beErrorFields';
 import { translateBeError } from './beErrorMessages';
-import { getDevAccessToken } from './devKeycloakAuth';
+import { getDevAccessToken, tokenForRetry } from './devKeycloakAuth';
 import { UNAUTHORIZED_EVENT } from './tokenStorage';
 
 /*
@@ -27,6 +27,18 @@ raw.interceptors.request.use(async (config) => {
   const token = await getDevAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
+});
+// 401 giữa chừng: làm mới token (chung với axiosClient) rồi gửi lại một lần; vẫn 401 thì call() báo hết phiên
+raw.interceptors.response.use(undefined, async (error) => {
+  if (error.response?.status === 401 && error.config && !error.config.devRetried) {
+    const fresh = await tokenForRetry(error.config.headers?.Authorization);
+    if (fresh) {
+      error.config.devRetried = true;
+      error.config.headers.Authorization = `Bearer ${fresh}`;
+      return raw.request(error.config);
+    }
+  }
+  return Promise.reject(error);
 });
 
 const loadYears = async () => {

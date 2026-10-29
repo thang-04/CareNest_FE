@@ -84,6 +84,31 @@ export const getDevAccessToken = async () => {
   return refresh();
 };
 
+/** Đang đăng nhập bằng Keycloak dev (có refresh token) — mọi client HTTP dùng chung luồng làm mới ở đây. */
+export const hasDevSession = () => !!read(REFRESH_KEY);
+
+/**
+ * Token để gửi lại một request bị 401: tab/request khác vừa làm mới ⇒ dùng token mới; chưa ⇒ làm mới một lần.
+ * null ⇒ không gửi lại (không có phiên dev hoặc làm mới thất bại; refresh 401 đã tự phát hết phiên).
+ */
+export const tokenForRetry = async (sentAuthorization) => {
+  if (!hasDevSession()) return null;
+  const current = tokenStorage.get();
+  if (current && `Bearer ${current}` !== sentAuthorization) return current;
+  try {
+    return await refresh();
+  } catch {
+    return null;
+  }
+};
+
+// Quay lại tab sau lúc ẩn (timer bị trình duyệt hãm): làm mới sớm để request đầu tiên không mang token đã hết hạn
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && hasDevSession()) getDevAccessToken().catch(() => {});
+  });
+}
+
 export const devKeycloakLogout = async () => {
   const refreshToken = read(REFRESH_KEY);
   clearSession();
