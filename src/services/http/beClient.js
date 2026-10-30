@@ -1,13 +1,15 @@
 import axios from 'axios';
 import { DEV_BE_BASE_URL } from '@/config/env';
+import { BE_ERROR_FIELDS } from './beErrorFields';
 import { translateBeError } from './beErrorMessages';
-import { getDevAccessToken } from './devKeycloakAuth';
+import { getDevAccessToken, tokenForRetry } from './devKeycloakAuth';
 import { UNAUTHORIZED_EVENT } from './tokenStorage';
 
 /*
  * Client cho API BE thật của Cấu hình trường (VITE_SCHOOL_CONFIG_API=true). Tách khỏi axiosClient chung để module
  * khác (vẫn mock) không bị ảnh hưởng. Chuyển đổi giữa dạng BE và dạng UI đang dùng:
- * - BE bọc { code, desc, data } ⇒ trả về data; lỗi đọc desc, lỗi validation data=[{field,message}] ⇒ details {field: message}.
+ * - BE bọc { code, errorCode, desc, data } ⇒ trả về data. Lỗi có errorCode: desc đã là câu tiếng Việt, gắn vào ô theo
+ *   BE_ERROR_FIELDS; lỗi validation (9001) data=[{field,message}] ⇒ details {field: message}.
  * - BE dùng id số; UI dùng id chuỗi ⇒ response: id/xxxId thành chuỗi; request: chuỗi số thành số.
  * - Năm học: UI dùng tên ('2026-2027') làm id (bộ chọn năm, module mock khác) ⇒ đổi tên <-> id số của BE.
  */
@@ -25,6 +27,18 @@ raw.interceptors.request.use(async (config) => {
   const token = await getDevAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
+});
+// 401 giữa chừng: làm mới token (chung với axiosClient) rồi gửi lại một lần; vẫn 401 thì call() báo hết phiên
+raw.interceptors.response.use(undefined, async (error) => {
+  if (error.response?.status === 401 && error.config && !error.config.devRetried) {
+    const fresh = await tokenForRetry(error.config.headers?.Authorization);
+    if (fresh) {
+      error.config.devRetried = true;
+      error.config.headers.Authorization = `Bearer ${fresh}`;
+      return raw.request(error.config);
+    }
+  }
+  return Promise.reject(error);
 });
 
 const loadYears = async () => {
@@ -78,14 +92,28 @@ const toUi = (value, key) => {
   return value;
 };
 
+/** { message, details } từ lỗi có errorCode; validation (data là danh sách lỗi theo ô) dùng lại bảng dịch theo field. */
+const fromErrorCode = (errorCode, desc, data) => {
+  if (Array.isArray(data) && data.length) return translateBeError(desc, data);
+  return { message: desc, details: { [BE_ERROR_FIELDS[errorCode] || '_form']: desc } };
+};
+
 const normalizeError = (error) => {
   const status = error.response?.status ?? 0;
   const body = error.response?.data;
   // 400/409: câu tiếng Việt gắn vào ô nhập (details) hoặc lỗi chung của form (details._form)
-  const known = status === 400 || status === 409 ? translateBeError(body?.desc, body?.data) : null;
+  const errorCode = body?.errorCode ?? null;
+  // Có errorCode (mã tập trung của BE): hiện thẳng desc; chưa có (BE cũ) thì dịch desc tiếng Anh theo bảng cũ
+  const known =
+    errorCode != null
+      ? fromErrorCode(errorCode, body?.desc, body?.data)
+      : status === 400 || status === 409
+        ? translateBeError(body?.desc, body?.data)
+        : null;
   const message = known?.message || body?.desc || (status === 0 ? 'Không thể kết nối máy chủ' : error.message);
   const normalized = new Error(message);
   normalized.status = status;
+  normalized.errorCode = errorCode;
   if (known) normalized.details = known.details;
   else if (status === 400 || status === 409) {
     // desc BE chưa có trong bảng dịch: không hiện câu tiếng Anh cho người dùng

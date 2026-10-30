@@ -52,8 +52,33 @@ import { axiosClient } from '@/services/http/axiosClient';
  * guardians.i.relation; file nhập so không dấu); mỗi trẻ tối đa 3 phụ huynh (⇒ 422 guardians). Liên kết tài khoản dùng 6 mã tương
  * ứng (FATHER, MOTHER, GRANDFATHER, GRANDMOTHER, SIBLING, GUARDIAN).
  */
+const PAGE_SIZE = 100;
+
+/**
+ * BE:ChildController.searchChildren (G94-60) trả trang {items, totalPages}, tối đa 100 trẻ/trang, chỉ lọc campusId,
+ * classroomId, q. Màn hình cần cả danh sách ⇒ đọc hết các trang, đổi classroomId → classId như mock.
+ */
+export async function listAllChildren(filters = {}) {
+  const params = Object.fromEntries(
+    Object.entries({ campusId: filters.campusId, classroomId: filters.classId, q: filters.keyword }).filter(([, v]) => v),
+  );
+  const items = [];
+  let page = 0;
+  let totalPages = 1;
+  do {
+    const result = await axiosClient.get('/children', { params: { ...params, page, size: PAGE_SIZE } });
+    // Bản cũ (mảng) vẫn đọc được
+    if (Array.isArray(result)) return result;
+    items.push(...(result?.items || []));
+    totalPages = result?.totalPages || 0;
+    page++;
+  } while (page < totalPages);
+  // DTO chỉ có guardianCount, chưa có mã, trạng thái, giới tính, tên lớp, sức khỏe: để trống, không đoán
+  return items.map((child) => ({ ...child, classId: child.classId ?? child.classroomId, guardians: child.guardians || [] }));
+}
+
 export const childrenApi = {
-  listChildren: (filters) => axiosClient.get('/children', { params: filters }),
+  listChildren: (filters) => listAllChildren(filters),
   getChildDetail: (id) => axiosClient.get(`/children/${id}/profile`),
   checkDuplicate: (data, _user, excludeId) =>
     axiosClient.get('/children/duplicate-check', {

@@ -5,16 +5,28 @@ import { classPlanMockRepository } from '@/services/education-plan/mock/classPla
 import { eduConfigMockRepository } from '@/services/education-plan/mock/eduConfigMockRepository';
 import { branchAiMock } from '@/services/education-plan/mock/branchAiMock';
 import { lessonAiMock } from '@/services/education-plan/mock/lessonAiMock';
+import { curriculumMockRepository } from '@/services/education-plan/mock/curriculumMockRepository';
 
 /** Facade: UI only calls these functions. */
 const repo = USE_MOCK ? educationPlanMockRepository : educationPlanApi;
 
 export const getEducationPlans = () => repo.getAll();
-export const saveGoal = (item) => repo.saveGoal(item);
-export const deleteGoal = (id) => repo.deleteGoal(id);
+export const listGoalSources = (filters, actor, options) => repo.listGoalSources(filters, actor, options);
+export const getGoalSource = (id, actor, options) => repo.getGoalSource(id, actor, options);
+export const saveGoal = (item, options) => repo.saveGoal(item, options);
+export const deleteGoal = (id, revision) => repo.deleteGoal(id, revision);
 // Khóa "Đang sửa" kế hoạch năm (BE:EDU-10). user: người thao tác (mock cần); keepalive: gửi được cả khi đóng tab
-export const startEditingGoal = (id, user) => (USE_MOCK ? repo.startEditingGoal(id, user) : repo.startEditingGoal(id));
-export const finishEditingGoal = (id, user, opts) => (USE_MOCK ? repo.finishEditingGoal(id, user) : repo.finishEditingGoal(id, opts));
+export const startEditingGoal = (id, user, edit) => (USE_MOCK ? repo.startEditingGoal(id, user, edit) : repo.startEditingGoal(id, edit));
+export const heartbeatGoal = (id, edit, user) => (USE_MOCK ? repo.heartbeatGoal(id, user, edit) : repo.heartbeatGoal(id, edit));
+export const finishEditingGoal = (id, user, opts) => (USE_MOCK ? repo.finishEditingGoal(id, user, opts) : repo.finishEditingGoal(id, opts));
+// Phiên bản kế hoạch năm (BE:EDU-25): tạo bản n+1 từ bản ban hành mới nhất; so sánh với phiên bản trước theo lineage
+export const createGoalVersion = (id, user, edit) => (USE_MOCK ? repo.createGoalVersion(id, user, edit) : repo.createGoalVersion(id, edit));
+export const getGoalChanges = (id, fromId) => repo.getGoalChanges(id, fromId);
+// Danh mục Chương trình GDMN của Bộ (BE:EDU-28): nguồn, mục tiêu và gợi ý nội dung theo nhóm tuổi (mã "ag-3")
+const curriculum = USE_MOCK ? curriculumMockRepository : educationPlanApi;
+export const getCurriculumSources = (options) => curriculum.getCurriculumSources(options);
+export const getCurriculumGoals = (ageGroupCode, options) => curriculum.getCurriculumGoals(ageGroupCode, options);
+export const getCurriculumContents = (ageGroupCode, options) => curriculum.getCurriculumContents(ageGroupCode, options);
 export const saveTheme = (item) => repo.saveTheme(item);
 export const deleteTheme = (id) => repo.deleteTheme(id);
 export const saveLesson = (item) => repo.saveLesson(item);
@@ -25,6 +37,8 @@ export const deleteLesson = (id) => repo.deleteLesson(id);
 export const getClassPlans = (schoolYearId) => (USE_MOCK ? classPlanMockRepository.getAll() : educationPlanApi.getClassPlans(schoolYearId));
 export const saveClassDoc = (kind, doc, user) =>
   USE_MOCK ? classPlanMockRepository.saveDoc(kind, doc, user) : educationPlanApi.saveClassDoc(kind, doc);
+export const saveClassDocAdjustments = (id, adjustments, user) =>
+  USE_MOCK ? classPlanMockRepository.saveAdjustments(id, adjustments, user) : educationPlanApi.saveClassDocAdjustments(id, adjustments);
 export const actOnClassDoc = (kind, id, body, user) =>
   USE_MOCK ? classPlanMockRepository.act(kind, id, body, user) : educationPlanApi.actOnClassDoc(kind, id, body);
 

@@ -7,7 +7,7 @@ Làn S: 1 dòng `Rule: <ID> (<status>)`. Chưa CONFIRMED/ACCEPTED hoặc lệch 
 1. **Hiểu nghiệp vụ** — block ≤8 dòng (làn L: ghi vào plan, mục "Làm rõ nghiệp vụ"):
    ```text
    Actor/role: … · Outcome: …
-   Rule: ATT-05 (CONFIRMED) · P-05 (PENDING)        ← BE là nguồn: grep "| ATT-" BE:docs/business/BUSINESS_RULES.md
+   Rule: ATT-04 (CONFIRMED) · P-20 (PENDING)        ← BE là nguồn: grep "| ATT-" BE:docs/business/BUSINESS_RULES.md
    Flow: [B] … → [S] …                               ← BE module card + flow
    Ảnh hưởng: màn hình/route (`docs/architecture/ROUTE_MAP.md`) · quyền theo role · dữ liệu BE trả · BE contract · APP dùng chung
    Tài liệu vs yêu cầu: <khớp | lệch: tài liệu ghi X (file:line), yêu cầu Y>

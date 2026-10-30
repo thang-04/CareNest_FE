@@ -68,18 +68,22 @@ export function EducationPlanProvider({ children }) {
 
   const toast = useCallback((message, tone = 'ok') => toastApi[TOAST_TYPES[tone] || 'success'](message), [toastApi]);
 
-  const user = useMemo(
-    () => ({
-      id: authUser.id,
+  const user = useMemo(() => {
+    // Đăng nhập Keycloak dev (beClient) trả id dạng chuỗi số, nhóm tuổi theo id; module so id số như class-docs BE
+    // và dùng mã nhóm tuổi ("ag-3") ⇒ đổi về đúng dạng, mã lấy từ danh sách tổ trưởng BE trả
+    const numeric = (v) => (/^\d+$/.test(String(v ?? '')) ? Number(v) : v);
+    const id = numeric(authUser.id);
+    const leader = (data?.staff || []).find((s) => s.id === id && s.role === ROLES.TEAM_LEADER);
+    return {
+      id,
       role: authUser.role,
       name: authUser.fullName,
       title: titleOf(authUser),
       initials: initialsOf(authUser.fullName),
-      ageGroupId: authUser.ageGroupId,
-      classId: authUser.classId,
-    }),
-    [authUser],
-  );
+      ageGroupId: /^\d+$/.test(String(authUser.ageGroupId ?? '')) ? (leader?.ageGroupId ?? authUser.ageGroupId) : authUser.ageGroupId,
+      classId: authUser.classId == null ? authUser.classId : String(authUser.classId),
+    };
+  }, [authUser, data?.staff]);
 
   const value = useMemo(() => {
     const yearName = (id) => {
@@ -137,6 +141,34 @@ export function EducationPlanProvider({ children }) {
         }
       },
       saveClassDoc: classCall(service.saveClassDoc),
+      // BE:EDU-27 — ô điều chỉnh của kế hoạch ngày; trả bản đã lưu, lỗi thì báo và trả null
+      saveClassDocAdjustments: async (id, adjustments) => {
+        try {
+          const saved = await service.saveClassDocAdjustments(id, adjustments, actor);
+          setData((prev) => (prev ? { ...prev, weekPlans: upsert(prev.weekPlans || [], saved) } : prev));
+          return saved;
+        } catch (err) {
+          toastApi.error(err.message, 'Không lưu được kế hoạch điều chỉnh');
+          return null;
+        }
+      },
+      // BE:EDU-25 — tạo phiên bản điều chỉnh của kế hoạch năm đã ban hành
+      createGoalVersion: async (id) => {
+        try {
+          const edit = {
+            sessionId: crypto.randomUUID(),
+            revision: data?.goals.find((g) => g.id === id)?.revision ?? 0,
+            requestId: crypto.randomUUID(),
+          };
+          const plan = await service.createGoalVersion(id, actor, edit);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, plan) } : prev));
+          return plan;
+        } catch (err) {
+          toastApi.error(err.message, 'Không tạo được phiên bản');
+          return null;
+        }
+      },
+      getGoalChanges: service.getGoalChanges,
       // Gửi / duyệt hồ sơ chủ đề đổi trạng thái cả giáo án các tuần: nạp lại để các tuần không giữ trạng thái cũ
       actOnClassDoc: async (kind, ...args) => {
         const saved = await classCall(service.actOnClassDoc)(kind, ...args);
@@ -152,10 +184,10 @@ export function EducationPlanProvider({ children }) {
       setYear: (label) => setSchoolYear(schoolYears.find((y) => yearName(y.id) === fromEduYear(label))?.id ?? fromEduYear(label)),
       historyEntry: (action, extra = {}) => ({ action, by: user.name, role: ROLE_LABELS[user.role], at: now(), tone: '', ...extra }),
       // Trả bản đã lưu (API thật: id do BE cấp, thay bản tạm cùng id cũ); lỗi thì báo, nạp lại và trả null
-      saveGoal: async (item) => {
-        setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, item) } : prev));
+      saveGoal: async (item, options = {}) => {
+        if (!options.silent) setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, item) } : prev));
         try {
-          const res = await service.saveGoal(item);
+          const res = await service.saveGoal(item, options);
           const saved = res?.id ? res : item;
           setData((prev) =>
             prev
@@ -170,33 +202,42 @@ export function EducationPlanProvider({ children }) {
           );
           return saved;
         } catch (err) {
+          if (options.silent) throw err;
           toastApi.error(err.message, 'Không lưu được');
           reload({ silent: true });
           return null;
         }
       },
       // Khóa "Đang sửa" (BE:EDU-10): trả kế hoạch mới nhất; người khác đang giữ khóa thì trả null, không báo lỗi
-      startEditingGoal: async (id) => {
+      startEditingGoal: async (id, edit, strict = false) => {
         try {
-          const goal = await service.startEditingGoal(id, actor);
+          const goal = await service.startEditingGoal(id, actor, edit);
           setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
           return goal;
         } catch (err) {
+          if (strict) throw err;
           if (err.status !== 409) toastApi.error(err.message, 'Không mở được trang soạn');
           reload({ silent: true });
           return null;
         }
       },
+      heartbeatGoal: (id, edit) => service.heartbeatGoal(id, edit, actor),
       // Thoát trang soạn; lỗi mạng thì để BE tự nhả khóa sau thời hạn
       finishEditingGoal: async (id, opts) => {
         try {
-          const goal = await service.finishEditingGoal(id, actor, opts);
-          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
+          await service.finishEditingGoal(id, actor, opts);
         } catch {
           reload({ silent: true });
         }
       },
-      deleteGoal: deleteIn('goals', service.deleteGoal),
+      deleteGoal: async (id) => {
+        try {
+          await service.deleteGoal(id, data?.goals.find((goal) => goal.id === id)?.revision);
+          setData((prev) => (prev ? { ...prev, goals: prev.goals.filter((goal) => goal.id !== id) } : prev));
+        } catch (error) {
+          toastApi.error(error.message, 'Không xóa được');
+        }
+      },
       saveTheme: saveIn('themes', service.saveTheme),
       deleteTheme: deleteIn('themes', service.deleteTheme),
       saveLesson: saveIn('lessons', service.saveLesson),

@@ -8,6 +8,8 @@ Module: tài khoản, cấu hình trường, quản lý trẻ & sức khỏe, đ
 đánh giá trẻ & khen thưởng, thực đơn & dinh dưỡng, bếp & kho, cơ sở vật chất (sự cố, đề nghị, đề xuất,
 luân chuyển, kiểm kê), dashboard theo vai trò và danh sách chờ duyệt.
 
+Phạm vi nghiệp vụ theo BE (29/10): cơ sở vật chất đã loại, màn ẩn sau `FACILITY_ENABLED=false`; kế hoạch giáo dục, đánh giá trẻ, sức khỏe, đón trẻ còn lệch rule BE — xem `docs/context/CURRENT_STATE.md`.
+
 Thư mục `docs/`, `.ai/`, `.claude/` và file `AGENTS.md` là tài liệu, quy tắc làm việc của repo.
 
 > 📘 **Trước khi code: đọc [DESIGN.md](./DESIGN.md)** (design system chung web + app: màu, chữ, component, bố cục, câu chữ) và [CODING_GUIDE](./docs/architecture/CODING_GUIDE.md) (thư mục, luồng dữ liệu, thêm module, quy tắc chung)

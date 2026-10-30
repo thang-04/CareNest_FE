@@ -84,8 +84,8 @@ test('xuất kho theo BA: thiếu một dòng dừng cả phiếu; nhập bổ s
   });
   const before = Object.fromEntries([...dryIds].map((id) => [id, stockOf('c2', id)]));
 
-  await rejects(confirmExistingCounts({ campusId: 'c2', date }, PRINCIPAL), 403);
-  await confirmExistingCounts({ campusId: 'c2', date }, VP_B);
+  // NUT-02 (Cần chốt 27/10/2026): HT cũng xác nhận được sổ báo ăn của mọi điểm trường
+  await confirmExistingCounts({ campusId: 'c2', date }, PRINCIPAL);
   let issue = (await kitchen.getStockIssues({ campusId: 'c2' }, VP_B)).issues.find((i) => i.date === date);
   assert.ok(issue, 'có phiếu xuất cho ngày vừa chốt');
   assert.equal(issue.status, 'AWAITING_STOCK', 'thiếu một dòng ⇒ dừng cả phiếu');

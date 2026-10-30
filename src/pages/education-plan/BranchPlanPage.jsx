@@ -3,7 +3,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import { Check, FileDown, Lightbulb, Printer, Save, Wand2, X } from '@/components/ui/icons';
 import { exportBranchFile } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
-import { Card, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
+import { Card, DraftRecoveryNotice, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
 import { Cell, docReview, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
@@ -17,7 +17,10 @@ import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { ddmm, emptyBranchPlan, isEditableStatus, monthOf, yearWeeks } from '@/models/education-plan/classPlan';
+import { WEEKDAY_LABELS, ddmm, emptyBranchPlan, isEditableStatus, monthOf, yearWeeks } from '@/models/education-plan/classPlan';
+import { SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
+import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
+import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 
 /**
  * "Dự kiến chủ đề nhánh và thời gian thực hiện" theo mẫu MN Thái Dương.
@@ -59,7 +62,9 @@ function BranchPlanInner({ classId }) {
   const [tries, setTries] = useState({});
   // Hộp xác nhận trước mỗi lần dùng AI: { title, message, confirmLabel, run }
   const [confirm, setConfirm] = useState(null);
-  const autoOk = isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT);
+  const [copying, setCopying] = useState(false);
+  const version = useDocVersion('branch', saved, ctx, branchPlans);
+  const autoOk = isClassTeacher && !ctx.superseded && isEditableStatus(saved?.status || EDU_STATUS.DRAFT);
   const payload = payloadOf(draft, pending);
   const hasPending = Object.keys(pending).length > 0;
   // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
@@ -69,6 +74,11 @@ function BranchPlanInner({ classId }) {
     save: (doc) => saveClassDoc('branch', doc),
     // Còn ô AI chờ ✓ / ✗ thì giữ bản đang sửa, không nạp lại từ bản đã lưu
     onSaved: (same) => same && !hasPending && setDirty(false),
+    backup: { userId: user?.id, key: yearPlan && `branch:${classId}:${yearPlan.id}` },
+    onRestore: (doc) => {
+      setDraft(doc);
+      setDirty(true);
+    },
   });
   const guard = useLeaveGuard({ when: autoOk && saver.unsaved, onSave: saver.save });
 
@@ -85,7 +95,18 @@ function BranchPlanInner({ classId }) {
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;
-  const canEdit = isClassTeacher && isEditableStatus(status);
+  const canEdit = autoOk;
+  // Chép chủ đề nhánh của phiên bản trước sang phiên bản mới (BE:EDU-26)
+  const copyOld = async () => {
+    setCopying(true);
+    const doc = await saveClassDoc('branch', version.copy());
+    setCopying(false);
+    if (doc) toast('Đã chép chủ đề nhánh cũ. Sửa các mục đỏ rồi gửi duyệt lại.');
+  };
+  const flagEdit = (fn) => {
+    setDraft((d) => fn(d));
+    setDirty(true);
+  };
   const editable = canEdit;
   const rows = yearWeeks(yearPlan);
   const weekCount = rows.filter((r) => r.type === 'week').length;
@@ -302,7 +323,14 @@ function BranchPlanInner({ classId }) {
               name="chủ đề nhánh"
               sendTo={review.sendTo}
               can={review.can}
-              sendBlocked={saver.unsaved || saver.saving ? 'Lưu trước khi gửi' : null}
+              sendBlocked={
+                saver.unsaved || saver.saving
+                  ? 'Lưu trước khi gửi'
+                  : // BE:EDU-26 — còn mục đỏ thì chưa gửi (BE cũng kiểm lại)
+                    version.unresolved.length
+                    ? `Còn ${version.unresolved.length} mục đổi theo kế hoạch năm mới cần sửa`
+                    : null
+              }
               beforeOpen={checkBeforeOpen}
               notes={{ submit: 'Chủ đề nhánh sẽ bị khóa cho tới khi được duyệt hoặc bị trả lại.' }}
               onAct={act}
@@ -310,6 +338,26 @@ function BranchPlanInner({ classId }) {
           </>
         }
       />
+      <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
+      {!saved && version.prevDoc && !dirty && (
+        <VersionCopyOffer
+          plan={yearPlan}
+          previous={ctx.previousPlan}
+          prevDoc={version.prevDoc}
+          canCreate={editable}
+          busy={copying}
+          onTemplate={() => setDirty(true)}
+          onCopy={copyOld}
+        />
+      )}
+      <VersionFlagsPanel
+        flags={version.flags}
+        doc={draft}
+        editable={editable}
+        onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
+        onDrop={(f) => flagEdit((d) => dropReference('branch', d, f))}
+      />
+      {editable && saver.recovery && <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />}
       {status === EDU_STATUS.REJECTED && (
         <div className="mb-16">
           <RejectedNotice status={status} history={saved?.history} />
@@ -387,6 +435,9 @@ function BranchPlanInner({ classId }) {
                         <span className="text-xs">
                           {ddmm(r.theme.start)} → {ddmm(r.theme.end)}
                         </span>
+                        {version.unresolved.some((f) => f.ref === `theme:${r.theme.id}`) && (
+                          <span className="field__error">Chủ đề đổi ở kế hoạch năm mới — kiểm tra tên nhánh</span>
+                        )}
                         {editable && (
                           <span>
                             <button
@@ -467,6 +518,15 @@ function BranchPlanInner({ classId }) {
                       <td className="cell--fixed">
                         <div className="ga-goal-table__pad">
                           Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
+                          {r.offDays?.some(Boolean) && (
+                            <div className="text-xs text-warning">
+                              Nghỉ{' '}
+                              {r.offDays
+                                .map((label, i) => (label ? `${WEEKDAY_LABELS[i]} (${label})` : null))
+                                .filter(Boolean)
+                                .join(', ')}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td>
@@ -573,7 +633,13 @@ function BranchPlanInner({ classId }) {
       {aiBusy && (
         <AiWorkingOverlay text={aiTheme === 'rewrite' || rewriting ? 'Đang viết lại tên chủ đề nhánh…' : 'Đang gợi ý tên chủ đề nhánh…'} />
       )}
-      <LeaveConfirmModal {...guard.modal} />
+      <LeaveConfirmModal
+        {...guard.modal}
+        onDiscard={() => {
+          saver.discardBackup();
+          guard.modal.onDiscard();
+        }}
+      />
     </div>
   );
 }

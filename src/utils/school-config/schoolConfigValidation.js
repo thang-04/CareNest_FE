@@ -60,7 +60,7 @@ export const errorsAfterChange = (prev, patch, nextForm, limits) => {
 export const hasErrors = (e) => Object.keys(e).length > 0;
 export const firstError = (e) => Object.values(e)[0];
 
-export const validateSchoolYear = (form, others = []) => {
+export const validateSchoolYear = (form, others = [], { creating = false } = {}) => {
   const e = {};
   const name = (form.name || '').trim();
   const m = YEAR_NAME.exec(name);
@@ -78,6 +78,15 @@ export const validateSchoolYear = (form, others = []) => {
     if (overlap)
       e.endDate = `Khoảng thời gian trùng với năm học ${overlap.name} (${formatDate(overlap.startDate)} – ${formatDate(overlap.endDate)})`;
   }
+  // CFG-YR-03: năm mới nối tiếp năm mới nhất (tên = năm mới nhất + 1, bắt đầu sau ngày kết thúc năm đó)
+  const latest = creating ? [...others].sort((a, b) => b.startDate.localeCompare(a.startDate))[0] : null;
+  const latestName = latest && YEAR_NAME.exec(latest.name);
+  if (latestName && !e.name && m && Number(m[1]) !== Number(latestName[1]) + 1) {
+    const from = Number(latestName[1]) + 1;
+    e.name = `Năm học tiếp theo phải là ${from}-${from + 1} (sau năm ${latest.name})`;
+  }
+  if (latest && !e.startDate && !e.endDate && form.startDate <= latest.endDate)
+    e.startDate = `Ngày bắt đầu phải sau ngày kết thúc năm học ${latest.name} (${formatDate(latest.endDate)})`;
   return e;
 };
 

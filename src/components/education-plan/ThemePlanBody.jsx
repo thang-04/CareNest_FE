@@ -4,6 +4,7 @@ import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTable';
 import { themeGoalBlocks, weekRows } from '@/models/education-plan/classPlan';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 
 /**
  * Dòng của một mục tiêu. Nội dung giáo dục do Phó HT / Tổ trưởng lập ở kế hoạch năm (các nội dung đã tích cho chủ đề),
@@ -61,7 +62,7 @@ function ActivityCell({ value, onChange, editable, label }) {
  * Nội dung kế hoạch chủ đề (I. mục tiêu, nội dung, hoạt động; II. môi trường). Dùng ở trang soạn và chỉ đọc ở trang
  * duyệt giáo án tuần đầu của chủ đề (kế hoạch chủ đề duyệt chung với tuần đó).
  */
-export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setRow, setField }) {
+export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setRow, setField, flagOf = () => null, added = null }) {
   const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId);
   const goals = blocks.flatMap((b) => b.goals);
   const rowOf = (g) => themeRowOf(draft, g);
@@ -87,7 +88,7 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
               </colgroup>
               <thead>
                 <tr>
-                  <th className="cell--fixed">TT</th>
+                  <th className="cell--fixed ga-stt">TT</th>
                   <th className="cell--fixed">Mục tiêu giáo dục</th>
                   <th>Nội dung giáo dục</th>
                   <th>Hoạt động giáo dục</th>
@@ -116,13 +117,19 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
                     )}
                     {b.goals.map((g) => (
                       <tr key={g.id}>
-                        <td className="cell--fixed">
+                        <td className="cell--fixed ga-stt">
                           <div className="ga-goal-table__pad">
                             <span className="ga-goal-code">MT{g.no}</span>
+                            {/* Phiên bản kế hoạch năm mới (BE:EDU-26): MT đổi hiện đỏ, MT mới có nhãn "mới" */}
+                            {flagOf(g.id) && <StatusBadge tone="red" label="Đổi" size="sm" />}
+                            {added?.has(g.id) && <StatusBadge tone="blue" label="Mới" size="sm" />}
                           </div>
                         </td>
                         <td className="cell--fixed">
-                          <div className="ga-goal-table__pad">{g.text}</div>
+                          <div className="ga-goal-table__pad">
+                            {g.text}
+                            {flagOf(g.id) && <div className="field__error">{flagOf(g.id).message}</div>}
+                          </div>
                         </td>
                         <td className="cell--fixed">
                           <Cell editable={false} value={rowOf(g).contents} label={`Nội dung của MT${g.no}`} />

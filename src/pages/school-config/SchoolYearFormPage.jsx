@@ -51,12 +51,12 @@ function YearForm({ year, years, user }) {
     setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, {}));
   };
   const blurCheck = (field) => {
-    const e = validateSchoolYear(form, others);
+    const e = validateSchoolYear(form, others, { creating: !year });
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
   };
 
   const submit = async () => {
-    const e = validateSchoolYear(form, others);
+    const e = validateSchoolYear(form, others, { creating: !year });
     setErrors(e);
     if (hasErrors(e)) return;
     setSaving(true);

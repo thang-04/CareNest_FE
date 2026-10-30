@@ -529,7 +529,7 @@ export const schoolConfigMockRepository = {
       if (current) assertOpenYear(current);
       const others = db.schoolYears.filter((y) => y.id !== id);
       const name = (form.name || '').trim();
-      const errors = validateSchoolYear({ ...form, name }, others);
+      const errors = validateSchoolYear({ ...form, name }, others, { creating: !current });
       if (hasErrors(errors)) throw invalid(errors);
       // The year id is used by classes and the header selector: it can change only before anything uses it.
       if (current && current.name !== name && current.status !== YEAR_STATUS.PLANNED)

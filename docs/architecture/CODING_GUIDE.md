@@ -189,20 +189,20 @@ Hook dùng chung: người đang đăng nhập `const { user, hasRole, logout } 
 
 ## 5. Quy trình thêm module mới (từng bước)
 
-Ví dụ module **Báo hỏng** (`facility-issue`). Mỗi bước đặt file vào đúng layer, trong thư mục con `facility-issue/` của layer đó (đường dẫn dưới đây tính từ `src/`):
+Ví dụ module **Đón trẻ** (`pickup`, đã có trong source). Mỗi bước đặt file vào đúng layer, trong thư mục con `pickup/` của layer đó (đường dẫn dưới đây tính từ `src/`):
 
-0. **Mockup** – đặt ảnh thiết kế vào `mockups/facility-issue/` và thêm dòng mô tả vào `mockups/README.md`.
-1. **Model** – `models/facility-issue/issueConstants.js`: `ISSUE_STATUS`, `ISSUE_STATUS_LABELS`, typedef.
-2. **Quy tắc** – `utils/facility-issue/issueValidation.js` (trả về `{ field: message }`), `utils/facility-issue/issuePermissions.js` (`canApproveIssue(issue, user)`…).
-3. **Mock backend** – `services/facility-issue/mock/issueMockRepository.js`: dùng `readDb`, `writeDb`, `delay`, `ApiError` từ `@/mocks/mockDatabase`; gửi thông báo bằng `pushNotification`. Thêm dữ liệu mẫu vào `mocks/seed.js` (`buildSeedDatabase`) và đọc an toàn `db.issues ||= []`.
-4. **API thật** – `services/facility-issue/api/issueApi.js`: các hàm axios cùng tên/tham số với mock.
-5. **Facade** – `services/facility-issue/issueService.js`: `const repo = USE_MOCK ? mock : api;` rồi export các hàm `getIssues`, `approveIssue`…
-6. **Hook** – `hooks/facility-issue/useIssues.js` dùng `useAsync`.
-7. **Badge** – `components/facility-issue/IssueStatusBadge.jsx` bằng `createStatusBadge` (`DESIGN.md` mục 3.2).
-8. **Trang** – `pages/facility-issue/IssueListPage.jsx`… theo công thức `DESIGN.md` mục 8. Breadcrumb: `utils/facility-issue/breadcrumbs.js`.
-9. **Route** – `routes/AppRoutes.jsx`: thêm vào **bên trong** khối `<Route element={<ProtectedRoute />}>` → `<Route element={<MainLayout />}>` (tự bắt đăng nhập). Trang `lazy(() => import('@/pages/facility-issue/IssueListPage'))`; trang chỉ PHT dùng thì bọc `<RoleGuard roles={[ROLES.VICE_PRINCIPAL]}>`. Trang công khai (không cần đăng nhập) đặt ngoài khối đó, dùng `AuthLayout`.
-10. **Menu** – `layouts/menuConfig.js`: thêm mục vào `ITEMS` (tên, route) **một lần**, rồi thêm key đó vào nhóm `facility` (hoặc nhóm phù hợp) trong `MENUS` của từng vai trò được dùng. Không tạo tên/icon khác cho cùng chức năng.
-11. **CSS** – chỉ khi cần: `styles/modules/facility-issue.css` (trùng tên module), class có tiền tố `bh-`.
+0. **Mockup** – đặt ảnh thiết kế vào `mockups/pickup/` và thêm dòng mô tả vào `mockups/README.md`.
+1. **Model** – `models/pickup/pickupConstants.js`: `PICKUP_STATUS`, `PICKUP_STATUS_LABELS`, typedef.
+2. **Quy tắc** – `utils/pickup/pickupValidation.js` (`validatePickupResult` trả về `{ field: message }`), `utils/pickup/pickupPermissions.js` (`canOpenPickup(user)`…).
+3. **Mock backend** – `services/pickup/mock/pickupMockRepository.js`: dùng `readDb`, `writeDb`, `delay`, `ApiError` từ `@/mocks/mockDatabase`; gửi thông báo bằng `pushNotification` khi luồng cần. Thêm dữ liệu mẫu vào `mocks/seed.js` (`buildSeedDatabase`) hoặc file seed riêng như `mocks/pickupSeed.js`, và đọc an toàn khi db cũ chưa có khóa mới (`db.pickups`).
+4. **API thật** – `services/pickup/api/pickupApi.js`: các hàm axios cùng tên/tham số với mock.
+5. **Facade** – `services/pickup/pickupService.js`: `const repo = USE_MOCK ? mock : api;` rồi export các hàm `getPickupBoard`, `recordPickupResult`…
+6. **Hook** – `hooks/pickup/usePickups.js` dùng `useAsync`.
+7. **Badge** – `components/pickup/PickupBadges.jsx` (`PickupStatusBadge`…) bằng `createStatusBadge` (`DESIGN.md` mục 3.2).
+8. **Trang** – `pages/pickup/PickupListPage.jsx`… theo công thức `DESIGN.md` mục 8. Breadcrumb: `utils/pickup/breadcrumbs.js`.
+9. **Route** – `routes/AppRoutes.jsx`: thêm vào **bên trong** khối `<Route element={<ProtectedRoute />}>` → `<Route element={<MainLayout />}>` (tự bắt đăng nhập). Trang `lazy(() => import('@/pages/pickup/PickupListPage'))`; trang giới hạn vai trò thì bọc `<RoleGuard roles={[...]}>` (helper `only(roles, page)` trong file). Trang công khai (không cần đăng nhập) đặt ngoài khối đó, dùng `AuthLayout`.
+10. **Menu** – `layouts/menuConfig.js`: thêm mục vào `ITEMS` (tên, route) **một lần**, rồi thêm key đó vào nhóm `attendance` (hoặc nhóm phù hợp) trong `MENUS` của từng vai trò được dùng. Không tạo tên/icon khác cho cùng chức năng.
+11. **CSS** – chỉ khi cần: `styles/modules/pickup.css` (trùng tên module), class có tiền tố riêng của module (`dt-`).
 12. **Kiểm tra** – đăng nhập bằng từng tài khoản liên quan, test đủ luồng, `npm run check`.
 
 ---

@@ -1,7 +1,7 @@
 /*
  * Danh mục "kết quả mong đợi" theo Chương trình GDMN, dùng làm gợi ý ở cột Nhóm kết quả mong đợi khi lập kế hoạch năm.
  * Khối 3–4 tuổi lấy nguyên các câu trong kế hoạch năm thật của MN Thái Dương (chỉ nội dung chương trình, không có tên người).
- * Sau này BE trả về danh mục này thay cho hằng số ở FE.
+ * BE không có API cho danh mục này (bảng cũ đã bỏ ở BE V36); bổ sung thì lấy từ danh mục Bộ `/education-plans/curriculum/*` (EDU-28).
  */
 
 /** Theo nhóm tuổi → lĩnh vực → danh sách { sub: lĩnh vực con, text: câu kết quả mong đợi }. */

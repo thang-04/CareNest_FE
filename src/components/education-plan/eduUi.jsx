@@ -257,6 +257,24 @@ export function Notice({ tone, children }) {
   );
 }
 
+/** Mở lại khi còn nội dung chưa lưu từ lần soạn trước (bản giữ ẩn trên máy): Khôi phục · Bỏ; note/actions thêm khi cần. */
+export function DraftRecoveryNotice({ onRestore, onDismiss, restoreDisabled = false, note, actions }) {
+  return (
+    <Notice tone="warn">
+      Có nội dung chưa lưu từ lần soạn trước.{note ? ` ${note}` : ''}
+      <div className="row">
+        <button type="button" className="btn" disabled={restoreDisabled} onClick={onRestore}>
+          Khôi phục
+        </button>
+        {actions}
+        <button type="button" className="btn" onClick={onDismiss}>
+          Bỏ
+        </button>
+      </div>
+    </Notice>
+  );
+}
+
 /** Processing history (oldest first); rejection reason shown under its entry. */
 export function History({ items }) {
   if (!items?.length) return <p className="muted">Chưa có lịch sử xử lý.</p>;

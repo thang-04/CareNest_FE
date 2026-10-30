@@ -12,8 +12,8 @@ import { PlacementClassPanel } from '@/components/school-config/PlacementClassPa
 import { PlacementActionBadge } from '@/components/school-config/SchoolConfigBadges';
 import { usePlacements, useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
 import { autoPlace } from '@/services/school-config/schoolConfigService';
-import { PLACEMENT_ACTION, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
-import { canConfigureSchool, canViewYearPlacement } from '@/utils/school-config/schoolConfigPermissions';
+import { PLACEMENT_ACTION } from '@/models/school-config/schoolConfigConstants';
+import { canConfigureSchool, canViewYearPlacement, nextYearToActivate } from '@/utils/school-config/schoolConfigPermissions';
 import { placementCrumbs } from '@/utils/school-config/breadcrumbs';
 import '@/styles/modules/school-config.css';
 
@@ -29,8 +29,9 @@ export default function YearPlacementPage() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const { years } = useSchoolYears();
-  const planned = years.filter((y) => y.status === YEAR_STATUS.PLANNED);
-  const yearId = params.get('year') || planned[0]?.id || '';
+  // CFG-YR-03: chỉ xếp lớp cho năm sắp diễn ra sớm nhất (năm kế tiếp năm đang hoạt động)
+  const nextYear = nextYearToActivate(years);
+  const yearId = nextYear?.id || '';
   const campusId = params.get('campus') || '';
   const groupId = params.get('group') || '';
   const filtered = !!(campusId || groupId);
@@ -147,7 +148,7 @@ export default function YearPlacementPage() {
         </div>
       </div>
 
-      {!planned.length && !params.get('year') ? (
+      {!nextYear ? (
         <div className="card card__body">
           <EmptyState
             icon={CalendarRange}
@@ -169,20 +170,10 @@ export default function YearPlacementPage() {
       ) : (
         <>
           <div className="card sc-plc__filters">
-            {planned.length > 1 && (
-              <div className="sc-inline-field">
-                <label className="field__label" htmlFor="plc-year">
-                  Năm học mới
-                </label>
-                <select id="plc-year" className="select" value={yearId} onChange={(e) => setParam('year', e.target.value)}>
-                  {planned.map((y) => (
-                    <option key={y.id} value={y.id}>
-                      {y.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div className="sc-inline-field">
+              <span className="field__label">Năm học mới</span>
+              <strong>{nextYear.name}</strong>
+            </div>
             {/* PHT được giao 1 điểm trường: không cần chọn điểm trường */}
             {(plan?.campuses?.length || 0) > 1 && (
               <div className="sc-inline-field">

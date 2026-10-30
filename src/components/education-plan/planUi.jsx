@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Check, Eye, Send } from '@/components/ui/icons';
 import { Card, EduStatusBadge } from '@/components/education-plan/eduUi';
 import { RejectedNotice, SIGNER_SHORT } from '@/components/education-plan/reviewUi';
@@ -7,6 +8,7 @@ import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { toRows } from '@/models/education-plan/goalTable';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
+import { currentPlanOf, previousPlanOf } from '@/models/education-plan/planVersions.mjs';
 
 /** Bước còn thiếu khi tài liệu chưa thể bắt đầu (lock = kết quả createBlocker). */
 export const lockTarget = (lock, base, themeId) =>
@@ -24,15 +26,19 @@ export function useClassPlanContext(classId) {
   // Lớp, giáo viên, tổ trưởng nạp cùng tài liệu của lớp (theo phạm vi người xem)
   const { user, goals, schoolYear, classes, staff: users } = useEducationPlan();
   const cls = classes.find((c) => c.id === classId) || null;
-  const raw = cls
-    ? goals.find((g) => g.ageGroupId === cls.ageGroupId && g.schoolYear === schoolYear && g.status === EDU_STATUS.APPROVED)
-    : null;
+  // Phiên bản hiện hành = bản đã ban hành mới nhất (BE:EDU-25); phiên bản trước để chép tài liệu cũ
+  const current = cls ? currentPlanOf(goals, cls.ageGroupId, schoolYear) : null;
+  // ?plan=<id>: xem tài liệu của một phiên bản cũ đã ban hành cùng nhóm tuổi (chỉ xem, BE:EDU-26)
+  const [params] = useSearchParams();
+  const pinned =
+    current && goals.find((g) => g.id === params.get('plan') && g.status === EDU_STATUS.APPROVED && g.ageGroupId === current.ageGroupId);
+  const raw = pinned || current;
+  const rawPrevious = raw ? previousPlanOf(goals, raw) : null;
+  const asRows = (p) =>
+    p ? { ...p, domains: p.domains.map((d) => ({ ...d, rows: toRows(d, () => Math.random().toString(36).slice(2, 9)) })) } : null;
   // Kế hoạch năm dạng hàng của bảng (giống trang mục tiêu năm)
-  const yearPlan = useMemo(
-    () =>
-      raw ? { ...raw, domains: raw.domains.map((d) => ({ ...d, rows: toRows(d, () => Math.random().toString(36).slice(2, 9)) })) } : null,
-    [raw],
-  );
+  const yearPlan = useMemo(() => asRows(raw), [raw]);
+  const previousPlan = useMemo(() => asRows(rawPrevious), [rawPrevious]);
   const pending = cls ? goals.find((g) => g.ageGroupId === cls.ageGroupId && g.schoolYear === schoolYear) : null;
   const teachers = cls ? (cls.teacherIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) : [];
   const leaders = cls ? users.filter((u) => u.role === ROLES.TEAM_LEADER && u.ageGroupId === cls.ageGroupId) : [];
@@ -48,6 +54,9 @@ export function useClassPlanContext(classId) {
     classes,
     loading: false,
     yearPlan,
+    previousPlan,
+    // Đang xem phiên bản đã bị thay thế: mọi tài liệu chỉ xem
+    superseded: !!raw && raw.id !== current?.id,
     pendingYearPlan: pending,
     teachers,
     users,

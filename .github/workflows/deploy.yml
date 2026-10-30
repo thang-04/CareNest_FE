@@ -28,6 +28,8 @@ jobs:
     environment: production
     env:
       APP_DIR: /data/thangnd/CAPSTONE/CareNest_FE
+      CADDY_DIR: /data/thangnd/CAPSTONE/caddy
+      SITE_URL: https://web.carenest.edu.vn/
       VPS_HOST: ${{ secrets.VPS_HOST }}
       VPS_PORT: ${{ secrets.VPS_PORT }}
       VPS_USER: ${{ secrets.VPS_USER }}
@@ -47,6 +49,12 @@ jobs:
           rsync -az --delete --exclude-from=.dockerignore \
             -e "ssh -p $VPS_PORT" ./ "$VPS_USER@$VPS_HOST:$APP_DIR/"
 
+      # deploy/ bị loại theo .dockerignore nên gửi riêng; đuôi .new không khớp `import *.caddy`
+      - name: Upload Caddy site
+        run: |
+          rsync -z -e "ssh -p $VPS_PORT" deploy/caddy/carenest-web.caddy \
+            "$VPS_USER@$VPS_HOST:$CADDY_DIR/carenest-web.caddy.new"
+
       - name: Build and restart on VPS
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api' }}
@@ -60,3 +68,28 @@ jobs:
           sleep 2
           curl -fsS -o /dev/null http://127.0.0.1:18300/
           EOF
+
+      # Caddy dùng chung với site khác: reload lỗi thì Caddy giữ cấu hình đang chạy,
+      # nhưng file lỗi còn trên đĩa sẽ làm Caddy không lên sau reboot ⇒ khôi phục file cũ
+      - name: Apply Caddy site
+        run: |
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "cd '$CADDY_DIR' && bash -s" <<'EOF'
+          set -e
+          rm -f carenest-web.caddy.bak
+          if cmp -s carenest-web.caddy.new carenest-web.caddy; then
+            rm carenest-web.caddy.new
+            echo "Caddy site unchanged"
+            exit 0
+          fi
+          if [ -f carenest-web.caddy ]; then cp -p carenest-web.caddy carenest-web.caddy.bak; fi
+          mv carenest-web.caddy.new carenest-web.caddy
+          if ! sudo -n systemctl reload caddy; then
+            if [ -f carenest-web.caddy.bak ]; then mv carenest-web.caddy.bak carenest-web.caddy; else rm carenest-web.caddy; fi
+            sudo -n systemctl reload caddy || true
+            echo "Caddy reload failed, previous site file restored" >&2
+            exit 1
+          fi
+          EOF
+
+      - name: Smoke test HTTPS
+        run: curl -fsSI -o /dev/null --retry 5 --retry-delay 3 --retry-all-errors "$SITE_URL"

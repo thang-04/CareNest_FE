@@ -4,6 +4,7 @@
  */
 import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { getEduConfig } from '@/models/education-plan/eduConfig';
+import { weekBreaks } from '@/models/education-plan/goalTable';
 
 /** Loại tài liệu của lớp (khóa collection trong service). */
 export const CLASS_DOC = { BRANCH: 'branch', THEME: 'theme', WEEK: 'week' };
@@ -66,8 +67,9 @@ export const longDay = (iso, i) => `${WEEKDAY_LONG[i]}, ngày ${iso.slice(8, 10)
 /* ---------- Đọc kế hoạch năm (dạng hàng của bảng mục tiêu) ---------- */
 
 /**
- * Lịch tuần cả năm: tuần học đánh số liên tục 1..n theo các chủ đề, xen dòng đợt nghỉ đúng vị trí.
- * Mỗi phần tử: { type: 'week', no, start, end, theme } | { type: 'break', start, end, label, theme }.
+ * Lịch tuần cả năm: tuần học đánh số liên tục 1..n theo các chủ đề, xen dòng đợt nghỉ đúng vị trí. Tuần chỉ thành dòng nghỉ
+ * khi đợt nghỉ phủ cả Thứ 2 → Thứ 6; nghỉ vài ngày thì vẫn là tuần học, offDays ghi tên đợt nghỉ của ngày đó (BE:EDU-41).
+ * Mỗi phần tử: { type: 'week', no, start, end, theme, offDays } | { type: 'break', start, end, label, theme }.
  */
 export const yearWeeks = (plan) => {
   if (!plan) return [];
@@ -77,11 +79,15 @@ export const yearWeeks = (plan) => {
   let no = 0;
   themes.forEach((t) => {
     for (let m = firstTeachingMonday(t.start); m <= t.end; m = addDays(m, 7)) {
-      const br = breaks.find((b) => b.start && m <= (b.end || b.start) && addDays(m, 4) >= b.start);
-      if (br) {
+      const off = weekBreaks(breaks, m);
+      if (off.every(Boolean)) {
+        const br = off[0];
         if (!rows.some((r) => r.type === 'break' && r.start === br.start))
           rows.push({ type: 'break', start: br.start, end: br.end, label: br.label, theme: t });
-      } else rows.push({ type: 'week', no: (no += 1), start: m, end: addDays(m, 4), theme: t });
+      } else {
+        const offDays = off.map((b) => (b ? b.label || 'Nghỉ' : null));
+        rows.push({ type: 'week', no: (no += 1), start: m, end: addDays(m, 4), theme: t, offDays });
+      }
     }
   });
   return rows;
@@ -168,8 +174,9 @@ export const rowCell = (doc, r) =>
   };
 
 /** Giáo án tuần rỗng: kế hoạch tuần + 5 kế hoạch ngày Thứ 2–6. */
-export const emptyWeekPlan = ({ classId, yearPlanId, weekStart, weekNo, themeId }) => ({
-  id: `wp_${classId}_${weekStart}`,
+export const emptyWeekPlan = ({ classId, yearPlanId, weekStart, weekNo, themeId, versionNo = 1 }) => ({
+  // Phiên bản kế hoạch năm ≥2: khóa thêm id kế hoạch để không trùng tuần của phiên bản cũ (BE kiểm khớp)
+  id: `wp_${classId}_${weekStart}${versionNo > 1 ? `_${yearPlanId}` : ''}`,
   kind: CLASS_DOC.WEEK,
   classId,
   yearPlanId,
@@ -342,6 +349,11 @@ const activeCells = (doc) =>
       return merged ? day === 'all' : day !== 'all';
     });
 
+export const teachingDayPicks = (doc, day) =>
+  activeCells(doc)
+    .filter((cell) => day == null || cell.day === 'all' || cell.day === 'extra' || cell.day === String(day))
+    .flatMap((cell) => cell.list);
+
 /** MT dạy trong từng ngày (0–4) từ các hoạt động đã chọn; ô gộp cả tuần tính cho mọi ngày. */
 export const dayGoalsOf = (doc) =>
   [0, 1, 2, 3, 4].map((i) => {
@@ -368,6 +380,21 @@ export const hocTitle = (hoc) => {
   const main = [hoc?.subject?.trim(), ls[0]].filter(Boolean).join(': ');
   return ls.length > 1 ? `${main} (NDKH: ${ls.slice(1).join('; ')})` : main;
 };
+
+// Bản cũ có nội dung nhập tay nhưng chưa có picks: giữ nội dung, không đoán liên kết MT/học liệu.
+export const teachingDayUnlinked = (doc, day) =>
+  weekRows().flatMap((row) => {
+    const grid = rowCell({ ...doc, grid: doc.grid || {} }, row);
+    const merged = row.canMerge && grid.allWeek;
+    const cells = merged ? [['all', grid.common]] : (day == null ? [0, 1, 2, 3, 4] : [day]).map((d) => [d, grid.days?.[d]]);
+    if (!merged && row.extraLabel) cells.push(['extra', grid.extra]);
+    return cells
+      .filter(([d]) => !(doc.picks?.[cellKey(row.key, d)] || []).length)
+      .flatMap(([d, value]) => {
+        const text = typeof value === 'string' ? value.trim() : hocTitle(value).trim();
+        return text ? [{ id: `unlinked/${row.key}/${d}`, goalId: null, goalNo: null, text: `${row.label}: ${text}`, unlinked: true }] : [];
+      });
+  });
 
 export function dayDraftFromWeek(doc, i, goals = []) {
   const lines = (s) =>

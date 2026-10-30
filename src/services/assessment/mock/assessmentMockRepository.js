@@ -7,6 +7,7 @@ import { EDU_SEED_VERSION, ensureEduDemo, seedTodayAttendance } from '@/mocks/ed
 import { EDU_STATUS, goalRequirements } from '@/models/education-plan/educationPlanConstants';
 import { DAY_SECTIONS, cellKey, hocTitle, longDay, rowCell, weekRows, yearWeeks } from '@/models/education-plan/classPlan';
 import { numberGoals } from '@/models/education-plan/goalTable';
+import { remapCriteriaToPlan } from '@/models/education-plan/planVersions.mjs';
 import { ROLES } from '@/models/User';
 import {
   EVAL_KIND,
@@ -140,6 +141,12 @@ const goalCriteria = (db) =>
     );
   });
 
+/*
+ * BE:EDU-19/26 (Tiền 28/10): đánh giá trẻ luôn theo MT của giáo án ngày đang dùng cho ngày đó. Giáo án ngày đổi sang
+ * phiên bản kế hoạch năm mới thì MT đã chấm chuyển theo MT cùng lineage của phiên bản mới; MT bị bỏ không còn hiện.
+ */
+const toPlanCriteria = (db, plan, assessment) => remapCriteriaToPlan(db.eduGoals || [], plan?.yearPlanId, assessment);
+
 /** YCCĐ có mã của bộ mục tiêu kiểu cũ (đánh giá đã lưu trước khi đổi sang giáo án tuần). */
 const requirementCriteria = (db) => {
   const seen = new Set();
@@ -165,9 +172,11 @@ const rowKeyOf = (activity) => ACTIVITY_ROWS.find(([, re]) => re.test(activity))
 
 /** Kế hoạch ngày = một ngày (Thứ 2–6) của giáo án tuần đã được duyệt (duyệt cả tuần một lần). */
 const approvedDayPlan = (db, cls, date) => {
-  const doc = (db.eduClassWeek || []).find(
-    (w) => w.classId === cls.id && w.status === EDU_STATUS.APPROVED && date >= w.weekStart && date <= addDays(w.weekStart, 4),
-  );
+  // BE:EDU-26 — ngày có giáo án đã duyệt của nhiều phiên bản kế hoạch năm: dùng bản của phiên bản mới nhất
+  const versionOfPlan = (id) => Number((db.eduGoals || []).find((g) => g.id === id)?.versionNo) || 1;
+  const doc = (db.eduClassWeek || [])
+    .filter((w) => w.classId === cls.id && w.status === EDU_STATUS.APPROVED && date >= w.weekStart && date <= addDays(w.weekStart, 4))
+    .sort((a, b) => versionOfPlan(b.yearPlanId) - versionOfPlan(a.yearPlanId))[0];
   if (!doc) return null;
   return {
     id: doc.id,
@@ -895,7 +904,11 @@ export const assessmentMockRepository = {
     const mealSessions = mealSessionsOf(db, cls);
     const rows = activeChildrenOf(db, classId).map((child) => {
       const attendanceStatus = att.get(`${date}|${child.id}`) || null;
-      const assessment = db.dailyAssessments.find((a) => a.childId === child.id && a.date === date && a.activity === current) || null;
+      const assessment = toPlanCriteria(
+        db,
+        plan,
+        db.dailyAssessments.find((a) => a.childId === child.id && a.date === date && a.activity === current) || null,
+      );
       // Sức khỏe, ăn ngủ, cảm xúc – hành vi ghi một lần cho cả ngày; bản ghi cũ lấy từ các hoạt động trong ngày
       const observation =
         observationOf(db, child.id, date) || legacyDay(db.dailyAssessments.filter((a) => a.childId === child.id && a.date === date));
@@ -969,7 +982,9 @@ export const assessmentMockRepository = {
         attendanceStatus,
         present: attendanceStatus === 'PRESENT',
         observation,
-        assessments: Object.fromEntries(activities.map(({ activity }) => [activity, records.find((a) => a.activity === activity) || null])),
+        assessments: Object.fromEntries(
+          activities.map(({ activity }) => [activity, toPlanCriteria(db, plan, records.find((a) => a.activity === activity) || null)]),
+        ),
         // Cờ, nhận xét của ngày: bản ghi ngày; bản cũ lấy từ các hoạt động trong ngày
         flag: observation?.flag ?? records.some((a) => a.flag),
         comment:
