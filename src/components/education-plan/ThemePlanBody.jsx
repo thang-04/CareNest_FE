@@ -88,7 +88,7 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
               </colgroup>
               <thead>
                 <tr>
-                  <th className="cell--fixed">TT</th>
+                  <th className="cell--fixed ga-stt">TT</th>
                   <th className="cell--fixed">Mục tiêu giáo dục</th>
                   <th>Nội dung giáo dục</th>
                   <th>Hoạt động giáo dục</th>
@@ -117,7 +117,7 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
                     )}
                     {b.goals.map((g) => (
                       <tr key={g.id}>
-                        <td className="cell--fixed">
+                        <td className="cell--fixed ga-stt">
                           <div className="ga-goal-table__pad">
                             <span className="ga-goal-code">MT{g.no}</span>
                             {/* Phiên bản kế hoạch năm mới (BE:EDU-26): MT đổi hiện đỏ, MT mới có nhãn "mới" */}

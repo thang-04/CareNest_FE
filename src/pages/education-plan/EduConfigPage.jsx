@@ -179,7 +179,7 @@ export default function EduConfigPage() {
               </colgroup>
               <thead>
                 <tr>
-                  <th className="cell--fixed">STT</th>
+                  <th className="cell--fixed ga-stt">STT</th>
                   <th>Tên lĩnh vực</th>
                   {editing && <th className="center">Xóa</th>}
                 </tr>
@@ -189,7 +189,7 @@ export default function EduConfigPage() {
                   const extra = i >= STANDARD_DOMAINS.length;
                   return (
                     <tr key={d}>
-                      <td className="cell--fixed">
+                      <td className="cell--fixed ga-stt">
                         <div className="ga-goal-table__pad">{DOMAIN_ROMAN[i] || i + 1}</div>
                       </td>
                       <td>
@@ -334,7 +334,7 @@ export default function EduConfigPage() {
                 </colgroup>
                 <thead>
                   <tr>
-                    <th className="cell--fixed">
+                    <th className="cell--fixed ga-stt">
                       <span className="stt-head">STT {editing && <RenumberButton />}</span>
                     </th>
                     <th>Tên hoạt động</th>
@@ -347,7 +347,7 @@ export default function EduConfigPage() {
                 <tbody>
                   {draft.weekRows.map((r, i) => (
                     <SortableRow key={r.key} id={r.key}>
-                      <td className="cell--fixed">
+                      <td className="cell--fixed ga-stt">
                         <div className="ga-goal-table__pad">
                           <SortIndex id={r.key} index={i} />
                         </div>

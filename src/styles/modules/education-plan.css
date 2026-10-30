@@ -514,9 +514,26 @@
 .ga-goal-table__domain .chip {
   font-size: var(--fs-2xs);
 }
-/* Bảng mục tiêu năm có các cột tích chủ đề (lấy từ phần B): cột chủ đề hẹp, bảng cuộn ngang khi màn hình hẹp */
-.table.ga-goal-table--themes {
-  min-width: 1500px;
+/* Bảng mục tiêu năm có các cột tích chủ đề (lấy từ phần B): màn rộng vừa khung (cột chủ đề hẹp, cột chữ theo %),
+   điện thoại cuộn ngang trong khung bảng vì không đủ chỗ cho mọi cột chủ đề (Tiền 30/10) */
+@media (max-width: 767px) {
+  .table.ga-goal-table--themes {
+    min-width: 960px;
+  }
+}
+@media (min-width: 768px) {
+  .ga-goal-table--themes .ga-goal-table__theme {
+    width: var(--space-10);
+  }
+  .ga-goal-table--themes .ga-goal-table__group {
+    width: 15%;
+  }
+  .ga-goal-table--themes .ga-goal-table__goaltext {
+    width: 20%;
+  }
+  .ga-goal-table--themes .ga-goal-table__code {
+    width: var(--space-16);
+  }
 }
 .ga-goal-table__theme {
   width: var(--space-12);
@@ -1219,4 +1236,54 @@ h2.ga-cur-domain__head {
   .ga-page .filter-bar .select[aria-label='Nhóm tuổi'] {
     width: 100%;
   }
+}
+
+/* ---------- Bảng kế hoạch giáo dục vừa khung, không cuộn ngang (Tiền 30/10) ---------- */
+/* Chữ dài (từ không dấu cách, đường link) xuống dòng trong ô thay vì đẩy bảng rộng ra */
+.table.ga-plan-table th,
+.table.ga-plan-table td {
+  overflow-wrap: break-word;
+}
+.table.ga-plan-table .ga-cell-input,
+.table.ga-plan-table input,
+.table.ga-plan-table select {
+  min-width: 0;
+  max-width: 100%;
+}
+/* Điện thoại: bảng từ 4 cột trở lên (mục tiêu, nội dung, hoạt động, lịch tuần) không đủ chỗ ⇒ giữ bề rộng đọc được và cuộn
+   ngang bên trong khung bảng (.table-wrap), trang không cuộn ngang */
+@media (max-width: 767px) {
+  .table.ga-plan-table:has(tr > :nth-child(4)) {
+    min-width: 600px;
+  }
+}
+/* Cột hẹp có độ rộng cố định; cột chữ (tên, mục tiêu, lễ hội, ghi chú) chia phần còn lại */
+.ga-col-stt {
+  width: calc(var(--space-12) + var(--space-2));
+}
+.ga-col-abbr {
+  width: calc(var(--space-16) + var(--space-2));
+}
+.ga-col-date {
+  width: calc(var(--space-16) * 1.75);
+}
+.ga-col-weeks {
+  width: var(--space-16);
+}
+/* STT / số MT nằm chính giữa cột, cả ngang lẫn dọc */
+.table.ga-goal-table th.ga-stt,
+.table.ga-goal-table td.ga-stt,
+.table.ga-goal-table.ga-sortable-table td.ga-stt {
+  text-align: center;
+  vertical-align: middle;
+}
+.table.ga-goal-table td.ga-stt .ga-goal-table__pad {
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+}
+.table.ga-goal-table th.ga-stt {
+  white-space: nowrap;
+}
+.table.ga-goal-table th.ga-stt .stt-head {
+  align-items: center;
 }
