@@ -32,12 +32,12 @@ import {
   todayIso,
   yearWeeks,
 } from '@/models/education-plan/classPlan';
-import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
+import { leaderNameOf, themeFile } from '@/utils/education-plan/classPlanDoc';
 import { SupersededNote } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { danglingRows, unresolvedFlags, versionFlags } from '@/models/education-plan/planVersions.mjs';
+import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
-const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 const anchor = (key) => `dossier-${key}`;
 // Cuộn tới phần cần xem, chừa chỗ cho thanh nhảy nhanh đang dính đầu trang
 const scrollToPart = (key, behavior = 'smooth') => {
@@ -62,7 +62,8 @@ export default function ThemeDossierPage() {
 
 function DossierInner({ classId, themeId }) {
   const [params] = useSearchParams();
-  const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, actOnClassDoc, toast, eduConfig } = useEducationPlan();
+  const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, actOnClassDoc, toast, eduConfig, staff } = useEducationPlan();
+  const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, isClassTeacher } = ctx;
   // Bản đang sửa trong tập: key 'theme' hoặc ngày đầu tuần → tài liệu; chỉ giữ phần chưa lưu xong
@@ -244,16 +245,25 @@ function DossierInner({ classId, themeId }) {
                 </button>
               </>
             )}
-            <button type="button" className="btn btn--ghost" onClick={() => exportThemeFile(exportArgs, 'doc')}>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() =>
+                setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
+              }
+            >
               <FileDown size={16} aria-hidden /> Xuất Word
             </button>
             <button
               type="button"
               className="btn btn--ghost"
-              onClick={() => exportThemeFile(exportArgs, 'print') || toast(POPUP_BLOCKED, 'warn')}
+              onClick={() =>
+                setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
+              }
             >
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
+            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
             <ReviewActions
               name="kế hoạch chủ đề"
               sendTo={review.sendTo}
@@ -361,6 +371,7 @@ function DossierInner({ classId, themeId }) {
                       {/* Nhãn ngày (xám); tiêu đề "Thứ …, ngày …" đã có sẵn trong kế hoạch ngày */}
                       <span className="chip chip--gray">
                         Tuần {w.week.no} · {WEEKDAY_LABELS[i]}
+                        {w.week.offDays?.[i] ? ' · Nghỉ' : ''}
                       </span>
                       <DayTab
                         draft={w.doc}
@@ -369,6 +380,7 @@ function DossierInner({ classId, themeId }) {
                         update={edit(w.week.start, w.doc)}
                         goals={goals}
                         reuse={lessonReuseFor(weekPlans, w.doc, i)}
+                        offLabel={w.week.offDays?.[i] || null}
                         assessTo={
                           w.doc.status === EDU_STATUS.APPROVED ? `/assessment/daily/skills?classId=${classId}&date=${d.date}` : null
                         }

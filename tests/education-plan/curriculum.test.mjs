@@ -5,7 +5,6 @@ import { CURRICULUM_SEED } from '../../src/mocks/curriculumSeed.js';
 import {
   addSuggestedContents,
   curriculumAsSourcePlan,
-  curriculumBadge,
   curriculumSourceLink,
   curriculumTree,
   goalTargets,
@@ -15,7 +14,13 @@ import { toYearPlanRequest, toUiGoal } from '../../src/services/education-plan/a
 
 // BE:EDU-28 — lấy mục tiêu từ Chương trình GDMN của Bộ (specs/005-ministry-goal-catalog)
 const goalsOf = (age) => CURRICULUM_SEED.goals.filter((g) => g.ageGroup === age);
-const DOMAINS = ['Phát triển thể chất', 'Phát triển nhận thức', 'Phát triển ngôn ngữ', 'Phát triển tình cảm và kỹ năng xã hội', 'Phát triển thẩm mỹ'];
+const DOMAINS = [
+  'Phát triển thể chất',
+  'Phát triển nhận thức',
+  'Phát triển ngôn ngữ',
+  'Phát triển tình cảm và kỹ năng xã hội',
+  'Phát triển thẩm mỹ',
+];
 const emptyPlan = () => ({ id: 'g-1', domains: DOMAINS.map((name, i) => ({ id: `d${i}`, name, rows: [] })) });
 let seq = 0;
 const makeId = () => `n${++seq}`;
@@ -34,7 +39,12 @@ test('dữ liệu mock trùng số lượng BE (V31) cho 4 nhóm tuổi', () => 
 
 test('lấy tất cả mục tiêu MG bé: đủ lĩnh vực con, nhóm, mục tiêu nguyên văn kèm nội dung và liên kết nguồn', () => {
   const goals = goalsOf('ag-3');
-  const { domains, report } = mergeImportedGoals(emptyPlan(), curriculumAsSourcePlan(goals), goals.map((g) => `cg-${g.id}`), makeId);
+  const { domains, report } = mergeImportedGoals(
+    emptyPlan(),
+    curriculumAsSourcePlan(goals),
+    goals.map((g) => `cg-${g.id}`),
+    makeId,
+  );
   assert.equal(report.added, 84);
   assert.equal(report.duplicates, 0);
   const physical = domains.find((d) => d.name === 'Phát triển thể chất').rows;
@@ -58,8 +68,18 @@ test('lấy tất cả mục tiêu MG bé: đủ lĩnh vực con, nhóm, mục t
 
 test('lấy lại cùng mục tiêu: bỏ qua trùng, không ghi đè', () => {
   const goals = goalsOf('ag-3').slice(0, 5);
-  const once = mergeImportedGoals(emptyPlan(), curriculumAsSourcePlan(goals), goals.map((g) => `cg-${g.id}`), makeId);
-  const twice = mergeImportedGoals({ ...emptyPlan(), domains: once.domains }, curriculumAsSourcePlan(goals), goals.map((g) => `cg-${g.id}`), makeId);
+  const once = mergeImportedGoals(
+    emptyPlan(),
+    curriculumAsSourcePlan(goals),
+    goals.map((g) => `cg-${g.id}`),
+    makeId,
+  );
+  const twice = mergeImportedGoals(
+    { ...emptyPlan(), domains: once.domains },
+    curriculumAsSourcePlan(goals),
+    goals.map((g) => `cg-${g.id}`),
+    makeId,
+  );
   assert.equal(twice.report.added, 0);
   assert.equal(twice.report.duplicates, 5);
 });
@@ -77,7 +97,12 @@ test('lĩnh vực có mục tiêu tự gõ ngoài lĩnh vực con: không thêm 
 
 test('chép mục tiêu sang kế hoạch khác (EDU-24) vẫn giữ liên kết Bộ', () => {
   const goals = goalsOf('ag-4').slice(0, 2);
-  const first = mergeImportedGoals(emptyPlan(), curriculumAsSourcePlan(goals), goals.map((g) => `cg-${g.id}`), makeId);
+  const first = mergeImportedGoals(
+    emptyPlan(),
+    curriculumAsSourcePlan(goals),
+    goals.map((g) => `cg-${g.id}`),
+    makeId,
+  );
   const source = { ...emptyPlan(), id: 'src', domains: first.domains };
   const ids = first.domains.flatMap((d) => d.rows.filter((r) => r.kind === 'goal').map((r) => r.id));
   const copied = mergeImportedGoals(emptyPlan(), source, ids, makeId);
@@ -103,11 +128,7 @@ test('gợi ý nội dung: thêm vào mục tiêu đích, bỏ trùng; chỉ m�
   );
 });
 
-test('nhãn Theo Bộ / Đã sửa từ Bộ và đường dẫn trang nguồn', () => {
-  const row = { curriculumGoalId: 7, curriculumGoalText: 'Câu gốc.', curriculumSectionRef: 'Phần ba › D › I', text: ' Câu gốc. ' };
-  assert.equal(curriculumBadge(row).label, 'Theo Bộ');
-  assert.equal(curriculumBadge({ ...row, text: 'Trẻ câu đã sửa.' }).label, 'Đã sửa từ Bộ');
-  assert.equal(curriculumBadge({ text: 'x' }), null);
+test('đường dẫn trang nguồn', () => {
   assert.equal(curriculumSourceLink('ag-3', 7), '/education/curriculum-sources?ageGroup=ag-3#cg-7');
 });
 
@@ -115,7 +136,10 @@ test('cây hiển thị giữ thứ tự văn bản: lĩnh vực > lĩnh vực c
   const tree = curriculumTree(goalsOf('ag-5'));
   assert.equal(tree[0].name, 'Phát triển thể chất');
   assert.equal(tree[0].subs[0].name, 'Phát triển vận động');
-  assert.equal(tree.reduce((n, d) => n + d.subs.reduce((m, s) => m + s.groups.reduce((k, g) => k + g.goals.length, 0), 0), 0), 103);
+  assert.equal(
+    tree.reduce((n, d) => n + d.subs.reduce((m, s) => m + s.groups.reduce((k, g) => k + g.goals.length, 0), 0), 0),
+    103,
+  );
 });
 
 test('mapper: gửi curriculumGoalId cho dòng mục tiêu, đọc lại câu gốc', () => {
@@ -139,7 +163,18 @@ test('mapper: gửi curriculumGoalId cho dòng mục tiêu, đọc lại câu g�
         {
           domainId: 3,
           name: 'Phát triển thể chất',
-          rows: [{ id: 5, kind: 'goal', text: 'x', goalNo: 1, contents: [], curriculumGoalId: 9, curriculumGoalText: 'x', curriculumSectionRef: 'r' }],
+          rows: [
+            {
+              id: 5,
+              kind: 'goal',
+              text: 'x',
+              goalNo: 1,
+              contents: [],
+              curriculumGoalId: 9,
+              curriculumGoalText: 'x',
+              curriculumSectionRef: 'r',
+            },
+          ],
         },
       ],
     },
@@ -147,4 +182,92 @@ test('mapper: gửi curriculumGoalId cho dòng mục tiêu, đọc lại câu g�
   );
   assert.equal(ui.domains[0].rows[0].curriculumGoalId, 9);
   assert.equal(ui.domains[0].rows[0].curriculumSectionRef, 'r');
+});
+
+// BE V37 — danh mục 3 tầng: API trả id lĩnh vực con/nhóm; dữ liệu mock chưa có id nên gán giả theo chữ
+const withTierIds = (goals) => {
+  const subs = new Map();
+  const groups = new Map();
+  return goals.map((g) => {
+    const subKey = `${g.domainName}|${g.subDomain || ''}`;
+    const groupKey = `${subKey}|${g.groupNo}|${g.groupText}`;
+    if (g.subDomain && !subs.has(subKey)) subs.set(subKey, 500 + subs.size);
+    if (!groups.has(groupKey)) groups.set(groupKey, 900 + groups.size);
+    return { ...g, subDomainId: g.subDomain ? subs.get(subKey) : null, expectedResultId: groups.get(groupKey) };
+  });
+};
+
+test('3 tầng: lấy từ Bộ gắn liên kết cho lĩnh vực con và nhóm; chép sang kế hoạch khác vẫn giữ', () => {
+  const goals = withTierIds(goalsOf('ag-4').slice(0, 3));
+  const first = mergeImportedGoals(
+    emptyPlan(),
+    curriculumAsSourcePlan(goals),
+    goals.map((g) => `cg-${g.id}`),
+    makeId,
+  );
+  const rows = first.domains.flatMap((d) => d.rows);
+  const sub = rows.find((r) => r.kind === 'sub');
+  const group = rows.find((r) => r.kind === 'group');
+  assert.equal(sub.curriculumSubDomainId, goals[0].subDomainId);
+  assert.equal(sub.curriculumText, goals[0].subDomain);
+  assert.equal(group.curriculumExpectedResultId, goals[0].expectedResultId);
+  assert.equal(group.curriculumText, goals[0].groupText);
+
+  const source = { ...emptyPlan(), id: 'src', domains: first.domains };
+  const ids = rows.filter((r) => r.kind === 'goal').map((r) => r.id);
+  const copied = mergeImportedGoals(emptyPlan(), source, ids, makeId).domains.flatMap((d) => d.rows);
+  assert.equal(copied.find((r) => r.kind === 'sub').curriculumSubDomainId, goals[0].subDomainId);
+  assert.equal(copied.find((r) => r.kind === 'group').curriculumExpectedResultId, goals[0].expectedResultId);
+});
+
+test('3 tầng: đường dẫn nguồn cho nhóm; cây dùng id tầng', () => {
+  assert.equal(curriculumSourceLink('ag-3', null, 'cgr-12'), '/education/curriculum-sources?ageGroup=ag-3#cgr-12');
+  const tree = curriculumTree(withTierIds(goalsOf('ag-5')));
+  assert.ok(tree[0].subs[0].id);
+  assert.ok(tree[0].subs[0].groups[0].id);
+});
+
+test('3 tầng: mapper gửi id lĩnh vực con/nhóm đúng tầng và đọc lại câu gốc', () => {
+  const refs = { schoolYearId: () => 1, ageGroupId: () => 2, domainId: () => 3, ageGroupCode: () => 'ag-3' };
+  const req = toYearPlanRequest(
+    {
+      schoolYear: '2026 – 2027',
+      ageGroupId: 'ag-3',
+      title: 't',
+      domains: [
+        {
+          name: 'Phát triển thể chất',
+          rows: [
+            { id: 'n1', kind: 'sub', text: 's', curriculumSubDomainId: 4, curriculumExpectedResultId: 99 },
+            { id: 'n2', kind: 'group', text: 'g', curriculumExpectedResultId: 12 },
+          ],
+        },
+      ],
+      themes: [],
+      breaks: [],
+    },
+    refs,
+  );
+  const [sub, group] = req.domains[0].rows;
+  assert.equal(sub.curriculumSubDomainId, 4);
+  assert.equal(sub.curriculumExpectedResultId, null);
+  assert.equal(group.curriculumExpectedResultId, 12);
+  const ui = toUiGoal(
+    {
+      id: 1,
+      domains: [
+        {
+          domainId: 3,
+          name: 'Phát triển thể chất',
+          rows: [
+            { id: 5, kind: 'sub', text: 's', curriculumSubDomainId: 4, curriculumText: 'Gốc' },
+            { id: 6, kind: 'group', text: 'g', curriculumExpectedResultId: 12, curriculumText: 'Nhóm gốc' },
+          ],
+        },
+      ],
+    },
+    refs,
+  );
+  assert.equal(ui.domains[0].rows[0].curriculumSubDomainId, 4);
+  assert.equal(ui.domains[0].rows[1].curriculumText, 'Nhóm gốc');
 });

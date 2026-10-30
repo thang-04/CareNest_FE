@@ -6,7 +6,7 @@
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
 import { AGE_GROUPS, DOMAINS, domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, themeAbbr, themeGoalIds, weekCount } from '@/models/education-plan/goalTable';
-import { SIGN_ROLES, getEduConfig } from '@/models/education-plan/eduConfig';
+import { SIGN_ROLES, getEduConfig, soleSignerName } from '@/models/education-plan/eduConfig';
 
 export const esc = (s = '') => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 export const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
@@ -49,12 +49,22 @@ export const docHeader = () => `<table class="plain"><tr>
 
 /**
  * Người xây dựng kế hoạch năm theo cấu hình (mặc định Phó HT, Tổ trưởng) để in họ tên dưới chỗ ký tay:
- * [{ role, title, name }]. Tên lấy từ người soạn, người gửi và người ban hành; chưa có thì để trống cho viết tay.
+ * [{ role, title, name }]. Tên lấy từ người soạn, người gửi và người ban hành; Tổ trưởng chưa thao tác thì lấy Tổ trưởng
+ * của nhóm tuổi (staff BE trả); không có thì để trống cho viết tay.
  */
-export const yearSigners = (plan) =>
+export const yearSigners = (plan, staff = []) =>
   getEduConfig().signers.year.map((role) => {
-    const people = [plan.owner, plan.sentBy, plan.issued].filter(Boolean);
-    return { role, title: SIGN_ROLES[role], name: people.find((p) => p.role === role)?.name || '' };
+    // Người gửi duyệt luôn là Tổ trưởng, người ban hành luôn là Phó HT (EDU-04/05); người soạn suy từ chức danh BE trả
+    const roleOfTitle = (t = '') => (/tổ trưởng/i.test(t) ? 'TEAM_LEADER' : /phó hiệu trưởng/i.test(t) ? 'VICE_PRINCIPAL' : null);
+    const people = [
+      plan.owner && { ...plan.owner, role: plan.owner.role || roleOfTitle(plan.owner.title) },
+      plan.sentBy && { ...plan.sentBy, role: plan.sentBy.role || 'TEAM_LEADER' },
+      plan.issued && { ...plan.issued, role: plan.issued.role || 'VICE_PRINCIPAL' },
+    ].filter(Boolean);
+    const leader = role === 'TEAM_LEADER' ? staff.find((s) => s.role === 'TEAM_LEADER' && s.ageGroupId === plan.ageGroupId) : null;
+    const name =
+      people.find((p) => p.role === role)?.name || soleSignerName(role, plan.ageGroupId, plan.schoolYear) || leader?.fullName || '';
+    return { role, title: SIGN_ROLES[role], name };
   });
 
 const domainTitle = (name) => `${domainRoman(name)}. Giáo dục ${domainLabel(name).replace(/^P/, 'p')}`;
@@ -127,12 +137,12 @@ const partB = (domains, themes, breaks, numbers) => {
 };
 
 // Chỗ ký tay: ngày ban hành (chưa có thì để trống), chức danh, khoảng trống ký, họ tên
-const signBlock = (plan) => {
-  const list = yearSigners(plan);
+const signBlock = (plan, staff) => {
+  const list = yearSigners(plan, staff);
   const date = plan.issued?.at;
   const [y, m, d] = date ? date.slice(0, 10).split('-') : ['……', '……', '……'];
   const width = Math.floor(100 / Math.max(list.length, 1));
-  const col = (x) => `<td class="c" style="width:${width}%"><b>${esc(x.title)}</b><br/><div class="sign"></div><b>${esc(x.name)}</b></td>`;
+  const col = (x) => `<td class="c" style="width:${width}%"><b>${esc(x.title)}</b><br/><div class="sign"></div>${esc(x.name)}</td>`;
   return `<table class="plain sign-block"><tr><td style="width:30%"></td><td style="width:70%" class="c">
 <i>${esc(commune)}, ngày ${d} tháng ${m} năm ${y}</i><br/><b>Người xây dựng kế hoạch</b>
 <table class="plain"><tr>${list.map(col).join('')}</tr></table>
@@ -143,7 +153,7 @@ const signBlock = (plan) => {
  * HTML đầy đủ của kế hoạch năm học. plan: { schoolYear, ageGroupId, domains (dạng hàng), themes, breaks, owner, sentBy, issued };
  * numbers: số MT theo id mục tiêu.
  */
-export const yearPlanHtml = (plan, numbers) => {
+export const yearPlanHtml = (plan, numbers, staff = []) => {
   const ageName = (AGE_GROUPS.find((a) => a.id === plan.ageGroupId)?.name || '').replace(/[–—]/g, ' - ');
   const year = (plan.schoolYear || '').replace(/\s*[-–]\s*/, ' - ');
   return docShell(
@@ -156,7 +166,7 @@ export const yearPlanHtml = (plan, numbers) => {
 ${partA(plan.domains, plan.themes, numbers)}
 <h2>B. DỰ KIẾN KẾ HOẠCH CHỦ ĐỀ, SỰ KIỆN NĂM HỌC</h2>
 ${partB(plan.domains, plan.themes, plan.breaks || [], numbers)}
-${signBlock(plan)}`,
+${signBlock(plan, staff)}`,
   );
 };
 
@@ -207,5 +217,7 @@ export const printDoc = (html) => {
   return true;
 };
 
-export const downloadYearPlanDoc = (plan, numbers) => downloadDoc(yearPlanHtml(plan, numbers), yearPlanFileName(plan));
-export const printYearPlan = (plan, numbers) => printDoc(yearPlanHtml(plan, numbers));
+/** Tài liệu kế hoạch năm để xem trước rồi xuất / in: { html, name } (xem trước dùng đúng HTML sẽ xuất). */
+export const yearPlanFile = (plan, numbers, staff) => ({ html: yearPlanHtml(plan, numbers, staff), name: yearPlanFileName(plan) });
+export const downloadYearPlanDoc = (plan, numbers, staff) => downloadDoc(yearPlanHtml(plan, numbers, staff), yearPlanFileName(plan));
+export const printYearPlan = (plan, numbers, staff) => printDoc(yearPlanHtml(plan, numbers, staff));

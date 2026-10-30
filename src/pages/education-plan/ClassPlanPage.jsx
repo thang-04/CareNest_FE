@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
@@ -16,7 +17,8 @@ import { RowActions } from '@/components/ui/RowActions';
 import { Check, FileDown, Plus } from '@/components/ui/icons';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
-import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
+import { leaderNameOf, themeFile } from '@/utils/education-plan/classPlanDoc';
+import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
@@ -45,7 +47,8 @@ export function ClassPlanRedirect({ toOf = (id) => `/education/class/${id}` }) {
 export default function ClassPlanPage() {
   const { classId } = useParams();
   const navigate = useNavigate();
-  const { user, branchPlans, classThemePlans, weekPlans, toast } = useEducationPlan();
+  const { user, branchPlans, classThemePlans, weekPlans, staff } = useEducationPlan();
+  const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, pendingYearPlan, teachers, isClassTeacher } = ctx;
 
@@ -104,9 +107,9 @@ export default function ClassPlanPage() {
   const themes = [...yearPlan.themes].filter((t) => t.start && t.end).sort((a, b) => a.start.localeCompare(b.start));
   const numbers = numberGoals(yearPlan.domains);
   // Xuất cả hồ sơ chủ đề (kế hoạch chủ đề + các tuần đã soạn) đúng thứ tự file của trường
-  const exportTheme = (t, themeNo, doc, themeWeeks, mode) => {
-    const ok = exportThemeFile(
-      {
+  const exportTheme = (t, themeNo, doc, themeWeeks) =>
+    setPreview(
+      themeFile({
         themeDoc: doc,
         theme: t,
         themeNo,
@@ -122,11 +125,9 @@ export default function ClassPlanPage() {
             doc: weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start),
           }))
           .filter((w) => w.doc),
-      },
-      mode,
+        leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear),
+      }),
     );
-    if (!ok) toast('Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.', 'warn');
-  };
   // Hạn gửi chỉ để nhắc: hồ sơ chủ đề gửi trước ngày bắt đầu chủ đề
   const due = (doc, dueIso) => {
     const st = dueState(doc, dueIso);
@@ -172,6 +173,7 @@ export default function ClassPlanPage() {
 
   return (
     <div className="page ga-page">
+      {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
       {head}
       {!branchApproved && (
         <Notice tone="warn">
@@ -202,7 +204,7 @@ export default function ClassPlanPage() {
                   <button
                     type="button"
                     className="btn btn--outline-primary btn--sm"
-                    onClick={() => exportTheme(t, ti + 1, doc, themeWeeks, 'doc')}
+                    onClick={() => exportTheme(t, ti + 1, doc, themeWeeks)}
                   >
                     <FileDown size={16} aria-hidden /> Xuất Word
                   </button>

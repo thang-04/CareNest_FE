@@ -62,7 +62,7 @@ Làn L: đổi 4 màn (mục tiêu năm → kế hoạch chủ đề → tuần 
 
 ## Việc còn treo
 
-- [ ] Danh mục kết quả mong đợi (`src/models/education-plan/expectedResults.js`): mới có khối 3–4 tuổi (30 câu lấy từ kế hoạch năm thật MN Thái Dương). Cần bổ sung nhà trẻ (ag-2), 4–5 tuổi (ag-4), 5–6 tuổi (ag-5) từ văn bản Chương trình GDMN; không tự đặt câu. Sau này BE trả về danh mục.
+- [ ] Danh mục kết quả mong đợi (`src/models/education-plan/expectedResults.js`): mới có khối 3–4 tuổi (30 câu lấy từ kế hoạch năm thật MN Thái Dương). Cần bổ sung nhà trẻ (ag-2), 4–5 tuổi (ag-4), 5–6 tuổi (ag-5) từ văn bản Chương trình GDMN; không tự đặt câu. BE không có API cho danh mục này (bảng `edu_expected_results` đã bỏ ở BE V36); bổ sung thì lấy từ danh mục Bộ `/education-plans/curriculum/*` (EDU-28).
 
 ## Progress log
 

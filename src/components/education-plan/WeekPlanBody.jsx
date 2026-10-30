@@ -283,6 +283,7 @@ export function WeekTab({
               {WEEKDAY_LABELS.map((l, i) => (
                 <th key={l} className="center">
                   {l} · {ddmm(addDays(week.start, i))}
+                  {week.offDays?.[i] && <div className="text-xs text-warning">Nghỉ: {week.offDays[i]}</div>}
                 </th>
               ))}
             </tr>
@@ -393,6 +394,7 @@ export function DayTab({
   reuse = [],
   adjustEditable = false,
   flagOf = () => null,
+  offLabel = null,
 }) {
   const [aiBusy, setAiBusy] = useState(false);
   const d = draft.days[index];
@@ -467,6 +469,8 @@ export function DayTab({
   return (
     <>
       <div className="section-title center">{longDay(d.date, index)}</div>
+      {/* BE:EDU-41: ngày trùng đợt nghỉ vẫn nằm trong tuần học, không bắt buộc soạn; các ngày khác soạn bình thường */}
+      {offLabel && <p className="text-sm text-warning center">Ngày nghỉ: {offLabel}. Không cần soạn kế hoạch cho ngày này.</p>}
       {(editable || assessTo) && (
         <div className="row row--wrap gap-2">
           {/* Giáo án đã duyệt: sang trang Đánh giá hằng ngày đúng lớp, ngày (tiêu chí lấy từ kế hoạch ngày này) */}

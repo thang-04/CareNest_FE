@@ -54,6 +54,15 @@ export const initialsOf = (name = '') =>
     .map((w) => w[0].toUpperCase())
     .join('');
 
+/** Id các chủ đề có tên viết tắt trùng chủ đề khác (bỏ khoảng trắng, không phân biệt hoa thường; ô trống không tính) — BE:EDU-42 (7012). */
+export const duplicateAbbrThemeIds = (themes) => {
+  const key = (t) => (t.abbr || '').trim().toLowerCase();
+  const count = new Map();
+  themes.forEach((t) => key(t) && count.set(key(t), (count.get(key(t)) || 0) + 1));
+  return new Set(themes.filter((t) => count.get(key(t)) > 1).map((t) => t.id));
+};
+export const DUPLICATE_ABBR_MESSAGE = 'Tên viết tắt đã có';
+
 /** Dòng chủ đề / đợt nghỉ chưa gõ gì (dòng vừa thêm bằng Enter): không lưu, không thành cột tích ở bảng mục tiêu. */
 export const isBlankTheme = (t) => ![t.name, t.abbr, t.festivals, t.note].some((v) => v?.trim()) && !t.start && !t.end;
 export const isBlankBreak = (b) => !b.label?.trim() && !b.start && !b.end;
@@ -86,7 +95,8 @@ export const themeGoalLabel = (domains, numbers, theme) => {
     .map((id) => numbers[id])
     .filter(Boolean)
     .sort((a, b) => a - b);
-  return nos.length ? `${mtList(nos)} (${nos.length} MT)` : '';
+  // Chỉ liệt kê MT, không thêm số đếm (Tiền 31/10: ít chữ)
+  return nos.length ? mtList(nos) : '';
 };
 
 /* ---------- Ngày tháng (yyyy-mm-dd, tính theo UTC để không lệch múi giờ) ---------- */
@@ -108,15 +118,43 @@ export const firstTeachingMonday = (iso) => {
   return day === 6 ? addDays(iso, 2) : day === 0 ? addDays(iso, 1) : mondayOf(iso);
 };
 
-/** Số tuần học (Thứ 2 → Thứ 6) của chủ đề, bỏ các tuần trùng đợt nghỉ. */
+/** Đợt nghỉ chứa ngày iso (đợt một ngày được để trống ngày kết thúc). */
+export const breakOn = (breaks, iso) => breaks.find((b) => b.start && iso >= b.start && iso <= (b.end || b.start)) || null;
+
+/** Đợt nghỉ của từng ngày Thứ 2 → Thứ 6 trong tuần bắt đầu monday (null = ngày học). */
+export const weekBreaks = (breaks, monday) => [0, 1, 2, 3, 4].map((i) => breakOn(breaks, addDays(monday, i)));
+
+/** BE:EDU-41 — tuần chỉ bị bỏ khi đợt nghỉ phủ cả Thứ 2 → Thứ 6; nghỉ vài ngày vẫn là tuần học. */
+export const isWholeWeekOff = (breaks, monday) => weekBreaks(breaks, monday).every(Boolean);
+
+/** Số tuần học (Thứ 2 → Thứ 6) của chủ đề, bỏ các tuần nghỉ trọn tuần. */
 export const weekCount = (theme, breaks = []) => {
   if (!theme.start || !theme.end || theme.end < theme.start) return 0;
   let n = 0;
   for (let m = firstTeachingMonday(theme.start); m <= theme.end; m = addDays(m, 7)) {
-    const fri = addDays(m, 4);
-    if (!breaks.some((b) => b.start && b.end && m <= b.end && fri >= b.start)) n += 1;
+    if (!isWholeWeekOff(breaks, m)) n += 1;
   }
   return n;
+};
+
+const weekdayOf = (iso) => toDate(iso).getUTCDay();
+
+/** BE:EDU-40 — chủ đề trọn tuần học: bắt đầu Thứ 2, kết thúc Thứ 6. */
+export const isWholeWeekTheme = (theme) => !theme.start || !theme.end || (weekdayOf(theme.start) === 1 && weekdayOf(theme.end) === 5);
+
+/** BE:EDU-39 — tên các chủ đề khác trùng thời gian với chủ đề này. */
+export const overlappingThemes = (theme, themes) =>
+  theme.start && theme.end
+    ? themes.filter((x) => x.id !== theme.id && x.start && x.end && x.start <= theme.end && theme.start <= x.end)
+    : [];
+
+/** Lỗi lịch chủ đề kiểm khi gửi / ban hành (EDU-39, EDU-40); nháp vẫn lưu được (EDU-23). */
+export const themeScheduleIssue = (themes) => {
+  const misaligned = themes.find((t) => !isWholeWeekTheme(t));
+  if (misaligned) return `Chủ đề "${misaligned.name || misaligned.abbr}" phải bắt đầu vào Thứ 2 và kết thúc vào Thứ 6.`;
+  const overlapped = themes.find((t) => overlappingThemes(t, themes).length > 0);
+  if (overlapped) return `Chủ đề "${overlapped.name || overlapped.abbr}" trùng thời gian với chủ đề khác.`;
+  return null;
 };
 
 /** Ghi số mục tiêu liền chữ MT (Tiền 21/10): "MT1", nhiều MT thì "MT1, MT2, MT5". */

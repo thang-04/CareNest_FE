@@ -1,5 +1,6 @@
 import { axiosClient } from '@/services/http/axiosClient';
 import { ROLES } from '@/models/User';
+import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { buildRefs, planSteps, serverId, toUiEduConfig, toUiGoal, toYearPlanRequest } from './yearPlanMapper';
 
 /*
@@ -10,9 +11,10 @@ import { buildRefs, planSteps, serverId, toUiEduConfig, toUiGoal, toYearPlanRequ
 const GOALS = '/education-plans/goals';
 
 const sourceError = (status, message) => Object.assign(new Error(message), { status });
+// BE:EDU-06 — Tổ trưởng chọn được nhóm tuổi khác; BE chỉ trả bản đã ban hành của nhóm đó
 const sourceGroup = (actor, requested) => {
   if (actor?.role === ROLES.VICE_PRINCIPAL) return requested;
-  if (actor?.role === ROLES.TEAM_LEADER && actor.ageGroupId) return actor.ageGroupId;
+  if (actor?.role === ROLES.TEAM_LEADER && actor.ageGroupId) return requested;
   throw sourceError(403, 'Bạn không có quyền lấy mục tiêu từ kế hoạch này.');
 };
 const sourceSummary = (item, refs) => ({
@@ -111,11 +113,12 @@ export const educationPlanApi = {
     return [...sources.values()];
   },
   getGoalSource: async (id, actor, options = {}) => {
-    const group = sourceGroup(actor);
+    sourceGroup(actor);
     const refs = buildRefs(await loadConfig());
     const goal = toUiGoal(await axiosClient.get(`${GOALS}/${id}`, { signal: options.signal }), refs);
-    // BE:EDU-24 — giới hạn UX của import; quyền đọc thực tế vẫn do BE kiểm qua token.
-    if (group && goal.ageGroupId !== group) throw sourceError(403, 'Chỉ lấy mục tiêu trong nhóm tuổi bạn phụ trách.');
+    // BE:EDU-06/24 — giới hạn UX của import; quyền đọc thực tế vẫn do BE kiểm qua token.
+    if (actor.role === ROLES.TEAM_LEADER && goal.ageGroupId !== actor.ageGroupId && goal.status !== EDU_STATUS.APPROVED)
+      throw sourceError(403, 'Nhóm tuổi khác chỉ lấy được từ kế hoạch đã ban hành.');
     return {
       ...goal,
       goalCount: goal.domains.reduce((count, domain) => count + domain.rows.filter((row) => row.kind === 'goal').length, 0),

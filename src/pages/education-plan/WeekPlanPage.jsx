@@ -27,13 +27,12 @@ import {
   themeGoalBlocks,
   yearWeeks,
 } from '@/models/education-plan/classPlan';
-import { exportWeekPlan } from '@/utils/education-plan/classPlanDoc';
+import { leaderNameOf, weekFile } from '@/utils/education-plan/classPlanDoc';
 import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
-
-const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
+import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 /**
  * Giáo án một tuần của lớp = kế hoạch tuần (mục đích, chuẩn bị, bảng hoạt động × Thứ 2–6) + 5 kế hoạch ngày.
@@ -57,7 +56,8 @@ function WeekReviewRedirect() {
 
 function WeekPlanInner() {
   const { classId, weekStart } = useParams();
-  const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, saveClassDocAdjustments, toast } = useEducationPlan();
+  const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, saveClassDocAdjustments, toast, staff } = useEducationPlan();
+  const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, isClassTeacher } = ctx;
   const saved = weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan?.id && w.weekStart === weekStart) || null;
@@ -168,7 +168,7 @@ function WeekPlanInner() {
   const next = weeks[idx + 1];
   const day = tab === 'week' ? -1 : Number(tab);
   const branchNo = branchNumber(yearPlan, weekStart);
-  const exportArgs = { doc: draft, week, cls, branchNo, branchName };
+  const exportArgs = { doc: draft, week, cls, branchNo, branchName, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) };
 
   return (
     <div className="page ga-page">
@@ -191,16 +191,13 @@ function WeekPlanInner() {
               Dạy học{day >= 0 ? ' ngày này' : ' tuần này'}
             </button>
             {/* In giáo án tuần ở mọi bước (đã duyệt thì in để dạy hằng ngày) */}
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => exportWeekPlan(exportArgs, 'doc')}>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPreview(weekFile(exportArgs))}>
               <FileDown size={16} aria-hidden /> Xuất Word
             </button>
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={() => exportWeekPlan(exportArgs, 'print') || toast(POPUP_BLOCKED, 'warn')}
-            >
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPreview(weekFile(exportArgs))}>
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
+            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
             {(editable || adjustEditable) && (
               <>
                 <span className="muted text-sm">{saver.label}</span>
@@ -309,6 +306,7 @@ function WeekPlanInner() {
               onClick={() => setTab(String(i))}
             >
               {WEEKDAY_LABELS[i]} · {ddmm(d.date)}
+              {week?.offDays?.[i] ? ' · Nghỉ' : ''}
             </button>
           ))}
         </div>
@@ -336,6 +334,7 @@ function WeekPlanInner() {
               reuse={lessonReuseFor(weekPlans, draft, day)}
               adjustEditable={adjustEditable}
               flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
+              offLabel={week?.offDays?.[day] || null}
               assessTo={status === EDU_STATUS.APPROVED ? `/assessment/daily/skills?classId=${classId}&date=${draft.days[day].date}` : null}
             />
           )}

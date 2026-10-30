@@ -15,6 +15,7 @@ const SPECS = {
   EDIT_SESSION_LOST: [409, 'Đã mất quyền sửa: phiên đã hết hạn hoặc kế hoạch đang mở ở tab khác'],
   YEAR_PLAN_REVISION_STALE: [409, 'Kế hoạch đã được thay đổi ở nơi khác. Tải lại để đối chiếu'],
   RETURN_REASON_REQUIRED: [400, 'Cần ghi lý do trả lại'],
+  THEME_ABBR_DUPLICATE: [400, 'Tên viết tắt của chủ đề không được trùng'],
   CLASS_DOC_NOT_FOUND: [404, 'Không tìm thấy tài liệu. Lưu bản nháp trước khi gửi'],
   CLASS_DOC_TEACHER_ONLY: [403, 'Chỉ giáo viên được phân công vào lớp mới sửa hoặc gửi được tài liệu'],
   CLASS_DOC_SUBMITTED: [409, 'Tài liệu đã gửi duyệt, không sửa được'],

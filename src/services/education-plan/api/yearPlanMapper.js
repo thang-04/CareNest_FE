@@ -41,6 +41,8 @@ export const toUiEduConfig = (config) => {
     extraDomains: domains.filter((d) => !d.standard).map((d) => d.name),
     ...(config?.signers ? { signers: config.signers } : {}),
     ...(config?.weekRows ? { weekRows: config.weekRows } : {}),
+    // BE:EDU-21 — họ tên Hiệu trưởng, Phó HT đang hoạt động để in dưới chỗ ký tay
+    ...(config?.signerNames ? { signerNames: config.signerNames } : {}),
   };
 };
 
@@ -67,9 +69,13 @@ export const toUiGoal = (detail, refs) => {
       ...(r.kind === 'goal'
         ? { contents: r.contents.map((c) => ({ id: String(c.id), text: c.text, themes: c.themeIds.map(String) })) }
         : {}),
-      // Mục tiêu lấy từ Chương trình của Bộ (BE:EDU-28): câu gốc để hiện nhãn Theo Bộ / Đã sửa từ Bộ
+      // Dòng lấy từ Chương trình của Bộ (BE:EDU-28): giữ liên kết nguồn để bỏ trùng khi lấy lại, không hiện nhãn
       ...(r.curriculumGoalId
         ? { curriculumGoalId: r.curriculumGoalId, curriculumGoalText: r.curriculumGoalText, curriculumSectionRef: r.curriculumSectionRef }
+        : {}),
+      ...(r.curriculumSubDomainId ? { curriculumSubDomainId: r.curriculumSubDomainId, curriculumText: r.curriculumText } : {}),
+      ...(r.curriculumExpectedResultId
+        ? { curriculumExpectedResultId: r.curriculumExpectedResultId, curriculumText: r.curriculumText }
         : {}),
     }));
     const goalNo = Object.fromEntries(d.rows.map((r) => [String(r.id), r.goalNo]));
@@ -147,6 +153,8 @@ export const toYearPlanRequest = (goal, refs) => ({
         text: r.text,
         contents: (r.contents || []).map((c) => ({ id: serverId(c.id), text: c.text, themeKeys: (c.themes || []).map(String) })),
         curriculumGoalId: r.kind === 'goal' ? (r.curriculumGoalId ?? null) : null,
+        curriculumSubDomainId: r.kind === 'sub' ? (r.curriculumSubDomainId ?? null) : null,
+        curriculumExpectedResultId: r.kind === 'group' ? (r.curriculumExpectedResultId ?? null) : null,
       })),
     })),
   themes: (goal.themes || []).map((t) => ({

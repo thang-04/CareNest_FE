@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
-import { api, USERS, beReachable, editHeaders, newSession, sql } from '../support/realBe.mjs';
+import { E2E, api, USERS, beReachable, cleanup, editHeaders, newSession, sql, suspendOtherTeamLeads } from '../support/realBe.mjs';
 import { login, saveStatus } from '../support/ui.mjs';
 
 // EDU-24: fixture riêng, BE/Keycloak thật; response giả chỉ dùng để kiểm race/lỗi.
@@ -23,7 +23,7 @@ const read = async (id) => {
   return result.data;
 };
 const uiYear = (year) => year.name.replace('-', ' – ');
-const childChecks = (dialog) => dialog.locator('.ga-goal-check--child input');
+const childChecks = (dialog) => dialog.locator('.ga-cur-row input');
 const importDialog = (page) => page.getByRole('dialog', { name: 'Lấy mục tiêu từ kế hoạch có sẵn' });
 const confirm = (dialog) => dialog.getByRole('button', { name: /^Thêm.*mục tiêu$/ });
 const envelope = (data) => ({ code: 200, desc: 'ok', data });
@@ -188,7 +188,7 @@ test('EDU-24 selection: one/domain/all, reset filters, cancel and keyboard keep 
   await childChecks(dialog).first().focus();
   await page.keyboard.press('Space');
   await expect(dialog.getByText('Đã chọn 1/10 mục tiêu', { exact: true })).toBeVisible();
-  await dialog.locator('.ga-goal-check--head input').first().check();
+  await dialog.locator('.ga-cur-domain__head input').first().check();
   await expect(dialog.getByText('Đã chọn 5/10 mục tiêu', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'Chọn tất cả', exact: true }).click();
   await expect(dialog.getByText('Đã chọn 10/10 mục tiêu', { exact: true })).toBeVisible();
@@ -400,4 +400,102 @@ test('EDU-24/22 double confirm imports once; only manual Save persists hierarchy
   expect(logicalRows(await read(target.id))).toEqual(reopenedRows);
   expect(writes).toHaveLength(2);
   await page.goto('/');
+});
+
+test('EDU-43 lấy chủ đề, đợt nghỉ từ kế hoạch khác năm/nhóm tuổi: dời ngày theo năm, bỏ dòng đã có, chỉ lưu khi bấm Lưu', async ({
+  page,
+}) => {
+  const shift = Number(targetYear.name.slice(0, 4)) - Number(sourceYear.name.slice(0, 4));
+  const moved = (date) => `${Number(date.slice(0, 4)) + shift}${date.slice(4)}`;
+  const vn = (date) => date.split('-').reverse().join('/');
+  await login(page, USERS.vp);
+  await page.goto(`/education/goals/${target.id}/edit`);
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
+  await page.getByRole('tab', { name: /Chủ đề và sự kiện/ }).click();
+  await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Lấy chủ đề từ kế hoạch có sẵn' });
+  await dialog.locator('#imt-year').selectOption(uiYear(sourceYear));
+  await dialog.locator('#imt-age').selectOption(sourceGroup.code);
+  await dialog.locator('#imt-src').selectOption(String(source.id));
+  await expect(dialog.getByRole('checkbox')).toHaveCount(2);
+  await expect(dialog.getByRole('button', { name: /^Thêm.*dòng$/ })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Chọn tất cả', exact: true }).click();
+  await expect(dialog.getByText('Đã chọn 2/2 dòng', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Thêm 2 dòng' }).click();
+  await expect(dialog).toBeHidden();
+  const n = targetBefore.themes.length + 1;
+  await expect(page.getByLabel(`Tên chủ đề ${n}`)).toHaveValue('Nguồn chủ đề riêng');
+  await expect(page.getByLabel(`Viết tắt chủ đề ${n}`)).toHaveValue('Nguồn');
+  const start = moved(source.themes[0].startDate);
+  await expect
+    .poll(() => page.locator('main input, main button').evaluateAll((els) => els.map((el) => el.value || el.textContent || '')))
+    .toEqual(expect.arrayContaining([expect.stringMatching(new RegExp(`${start}|${vn(start)}`))]));
+  // Chưa bấm Lưu thì hệ thống chưa đổi
+  expect((await read(target.id)).themes).toHaveLength(targetBefore.themes.length);
+
+  // Lấy lần hai: dòng đã có bị khóa, không thêm trùng
+  await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
+  await dialog.locator('#imt-year').selectOption(uiYear(sourceYear));
+  await dialog.locator('#imt-age').selectOption(sourceGroup.code);
+  await dialog.locator('#imt-src').selectOption(String(source.id));
+  await expect(dialog.getByText('Đã có')).toHaveCount(2);
+  await expect(dialog.getByRole('button', { name: 'Chọn tất cả', exact: true })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+
+  await page.keyboard.press('Control+s');
+  await expect(saveStatus(page)).toHaveText(/Đã lưu lúc \d\d:\d\d/);
+  const saved = await read(target.id);
+  const theme = saved.themes.find((t) => t.name === 'Nguồn chủ đề riêng');
+  expect(theme).toMatchObject({ abbr: 'Nguồn', startDate: start, endDate: moved(source.themes[0].endDate) });
+  const brk = saved.breaks.find((b) => b.label === 'Nguồn nghỉ riêng');
+  expect(brk).toMatchObject({ startDate: moved(source.breaks[0].startDate), endDate: moved(source.breaks[0].endDate) });
+  // Không chép dấu tích chủ đề của kế hoạch nguồn
+  const ticked = saved.domains.flatMap((d) => d.rows.flatMap((r) => (r.contents || []).flatMap((c) => c.themeIds || [])));
+  expect(ticked).not.toContain(theme.id);
+  await page.goto('/');
+});
+
+test('EDU-06/43 Tổ trưởng: nhóm tuổi khác chỉ thấy bản đã ban hành (chỉ đọc) và lấy được chủ đề từ đó', async ({ page }) => {
+  const teacher1 = Number(sql(`select id from user_accounts where username = 'teacher1'`));
+  sql(
+    `insert into staff_assignments (user_id, staff_role, age_group_id, valid_from) values (${teacher1}, 'AGE_GROUP_TEAM_LEADER', ${Number(target.ageGroupId)}, '${E2E.markerDate}')`,
+  );
+  suspendOtherTeamLeads('teacher1');
+  try {
+    const listOf = async () =>
+      (await api(USERS.teacher1, 'GET', `${GOALS}?ageGroupId=${sourceGroup.id}&page=0&size=200`)).data.items.map((p) => p.id);
+    // Bản nháp của nhóm khác: không thấy trong danh sách, đọc chi tiết bị 403
+    expect(await listOf()).not.toContain(source.id);
+    expect((await api(USERS.teacher1, 'GET', `${GOALS}/${source.id}`)).status).toBe(403);
+    sql(`update edu_year_plans set status = 'APPROVED' where id = ${Number(source.id)} and title like '${marker}%'`);
+    expect(await listOf()).toContain(source.id);
+    const seen = await api(USERS.teacher1, 'GET', `${GOALS}/${source.id}`);
+    expect(seen.status).toBe(200);
+    expect(seen.data.permissions.canEdit).toBe(false);
+    expect(
+      (await api(USERS.teacher1, 'POST', `${GOALS}/${source.id}/start-editing`, { headers: editHeaders(newSession(), seen.data.revision) }))
+        .status,
+    ).toBe(403);
+
+    await login(page, USERS.teacher1);
+    await page.goto(`/education/goals/${target.id}/edit`);
+    await expect(page.locator('#desc')).toBeEditable();
+    await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
+    await page.getByRole('tab', { name: /Chủ đề và sự kiện/ }).click();
+    await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
+    const dialog = page.getByRole('dialog', { name: 'Lấy chủ đề từ kế hoạch có sẵn' });
+    await dialog.locator('#imt-year').selectOption(uiYear(sourceYear));
+    await dialog.locator('#imt-age').selectOption(sourceGroup.code);
+    await dialog.locator('#imt-src').selectOption(String(source.id));
+    // Tổ trưởng đọc được bản đã ban hành của nhóm khác trong hộp chọn; chủ đề, đợt nghỉ đã lấy ở bước EDU-43 nên hiện "Đã có"
+    await expect(dialog.getByRole('checkbox')).toHaveCount(2);
+    await expect(dialog.getByText('Nguồn chủ đề riêng')).toBeVisible();
+    await expect(dialog.getByText('Đã có')).toHaveCount(2);
+    await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await page.goto('/');
+  } finally {
+    cleanup();
+  }
 });

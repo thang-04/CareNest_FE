@@ -28,7 +28,7 @@ Chạm bất kỳ mục nào: số suất ăn / MealCount (xác nhận, điều 
 
 ## Bảng 3 — Ngoài scope
 
-Kho/NCC, tài sản/khấu hao/bảo trì/kiểm kê, chat, chẩn đoán, multi-school, payroll/kế toán, màn hình Phụ huynh (thuộc APP) ⇒ **dừng**, đối chiếu `../CareNest_BE/docs/context/PROJECT_CONTEXT.md` (Exclusions) và hỏi người dùng. Kitchen trên Web: chỉ khi được yêu cầu (`BE:docs/business/USER_ROLES.md`).
+Kho/NCC ngoài phạm vi rút gọn của ADR-0009 (kiểm kê, chuyển liên cơ sở, dự báo tuần), CSVC (sự cố, tài sản, luân chuyển, kiểm kê — BE FAC REMOVED 29/10; code ẩn), đăng ký trước người đón hộ (PCK-03), chat, chẩn đoán, multi-school, payroll/kế toán, màn hình Phụ huynh (thuộc APP) ⇒ **dừng**, đối chiếu `../CareNest_BE/docs/context/PROJECT_CONTEXT.md` (Exclusions) và hỏi người dùng. Kitchen: chỉ App, gateway Web từ chối (AUTH-21, `BE:docs/business/USER_ROLES.md`).
 
 ## Cập nhật tri thức (song song với mọi task)
 

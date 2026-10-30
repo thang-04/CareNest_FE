@@ -2,6 +2,8 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { Trash2, X } from '@/components/ui/icons';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import {
+  DUPLICATE_ABBR_MESSAGE,
+  duplicateAbbrThemeIds,
   domainRoman,
   initialsOf,
   isBlankBreak,
@@ -10,14 +12,14 @@ import {
   themeAbbr,
   themeGoalIds,
   themeGoalLabel,
+  isWholeWeekTheme,
+  overlappingThemes,
   weekCount,
 } from '@/models/education-plan/goalTable';
 import { fmtDate } from '@/components/education-plan/eduUi';
 import FloatingPanel from '@/components/education-plan/FloatingPanel';
 import DatePickerCell from '@/components/education-plan/DatePickerCell';
 import { expectedResultsFor } from '@/models/education-plan/expectedResults';
-import { curriculumBadge, curriculumSourceLink } from '@/models/education-plan/curriculum.mjs';
-import { Link } from 'react-router-dom';
 import { normalizeText } from '@/utils/format';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { moveItem } from '@/hooks/useSortableList';
@@ -28,8 +30,8 @@ const blankTheme = () => ({ id: uid(), name: '', abbr: '', festivals: '', start:
 const GROUP_HINT = 'Nhập kết quả mong đợi';
 // Độ rộng tối thiểu (px) của cả nhóm cột chủ đề, vừa chữ "Chủ đề thực hiện"
 const THEME_HEAD_MIN = 140;
-const NEW_GOAL_HINT = 'Nhập mục tiêu mới (Enter trong ô mục tiêu cũng thêm mục tiêu)';
-const NO_BREAKS_HINT = 'Nhập đợt nghỉ mới: Tết, ôn tập, nghỉ lễ… (tuần trùng đợt nghỉ không tính vào số tuần của chủ đề)';
+const NEW_GOAL_HINT = 'Nhập mục tiêu mới';
+const NO_BREAKS_HINT = 'Nhập đợt nghỉ mới';
 const NO_BREAKS = 'Chưa có đợt nghỉ. Tuần trùng đợt nghỉ không được tính vào số tuần của chủ đề.';
 /** ` "chữ"` (cắt bớt nếu dài) để đưa vào câu hỏi xác nhận; ô trống ⇒ chuỗi rỗng. */
 const quoted = (text) => {
@@ -73,12 +75,22 @@ function useCellFocus() {
 }
 
 /** Bấm vào phần trống của ô (dưới ô nhập khi hàng cao hơn) cũng đặt con trỏ vào ô nhập, như bảng tính. */
+// Bấm chỗ nào trong ô (cả dòng báo lỗi, khoảng đệm) cũng vào ô nhập của ô đó, như bảng tính (Tiền 31/10)
 const focusCell = (e) => {
-  if (e.target.tagName !== 'TD') return;
-  const input = e.target.querySelector('.ga-cell-input');
+  if (e.target.closest('input, textarea, select, button, a, [role="button"]')) return;
+  const input = e.target.closest('td')?.querySelector('.ga-cell-input');
   if (!input) return;
   e.preventDefault();
   input.focus();
+};
+/** Enter: xuống ô cùng cột ở dòng dưới (bảng chủ đề). */
+const focusBelow = (el) => {
+  const td = el.closest('td');
+  const input = td?.parentElement?.nextElementSibling?.cells[td.cellIndex]?.querySelector('.ga-cell-input');
+  if (!input) return false;
+  input.focus({ preventScroll: false });
+  input.setSelectionRange?.(input.value.length, input.value.length);
+  return true;
 };
 
 /* ---------- A. Mục tiêu, nội dung giáo dục ---------- */
@@ -191,7 +203,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
           {c && edit ? (
             <button
               type="button"
-              className="ga-cell-input text-xs fw-600"
+              className="ga-cell-input ga-theme-tick text-xs fw-600"
               aria-pressed={on}
               aria-label={`Chủ đề ${t.name || abbr} – ${label}`}
               title={t.name}
@@ -200,7 +212,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
               {on ? abbr : ''}
             </button>
           ) : (
-            <div className="ga-goal-table__pad text-xs fw-600">{on ? abbr : ''}</div>
+            <div className="ga-goal-table__pad ga-theme-tick text-xs fw-600">{on ? abbr : ''}</div>
           )}
         </td>
       );
@@ -297,24 +309,11 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
     const contents = readOnly ? r.contents.filter((c) => c.text.trim()) : r.contents;
     const span = Math.max(contents.length, 1);
     const no = numbers[r.id];
-    // BE:EDU-28 — mục tiêu lấy từ Chương trình của Bộ: nhãn mở trang nguồn đúng mục
-    const ministry = curriculumBadge(r);
     const head = (
       <>
         <td rowSpan={span} className="cell--fixed">
           <div className="ga-goal-table__pad">
             <span className="ga-goal-code">{no ? `MT${no}` : '—'}</span>
-            {ministry && (
-              <Link
-                className={`chip ${ministry.edited ? 'chip--orange' : 'chip--teal'}`}
-                to={curriculumSourceLink(ageGroupId, ministry.curriculumGoalId)}
-                target="_blank"
-                rel="noopener"
-                title={`Chương trình GDMN: ${ministry.sectionRef}`}
-              >
-                {ministry.label}
-              </Link>
-            )}
           </div>
         </td>
         <td rowSpan={span}>
@@ -773,21 +772,35 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
     </td>
   );
   // Thêm dòng như bảng mục tiêu: gõ vào dòng trống cuối bảng, hoặc Enter ở ô tên để chèn dòng mới ngay dưới
-  const insertTheme = (afterIdx, name = '') => {
+  // col: tiền tố data-focus của cột cần đặt con trỏ ở dòng mới ('' = ô tên)
+  const insertTheme = (afterIdx, name = '', col = '') => {
     const t = { ...blankTheme(), name, abbr: initialsOf(name) };
     onChange({ themes: [...themes.slice(0, afterIdx + 1), t, ...themes.slice(afterIdx + 1)] });
-    setFocusId(t.id);
+    setFocusId(`${col}${t.id}`);
   };
   const insertBreak = (afterIdx, label = '') => {
     const b = { id: uid(), label, start: '', end: '' };
     onChange({ breaks: [...breaks.slice(0, afterIdx + 1), b, ...breaks.slice(afterIdx + 1)] });
     setFocusId(b.id);
   };
-  /** Enter ở ô tên: thêm dòng dưới. Xóa hết chữ chỉ để ô trống, không xóa dòng (như ô mục tiêu); xóa dòng bằng thùng rác. */
+  // BE:EDU-42 viết tắt trùng: chỉ báo đỏ tại ô; còn trùng thì không thêm chủ đề mới, không tự kéo con trỏ đi đâu
+  const dupAbbr = duplicateAbbrThemeIds(themes);
+  /** Enter ở ô tên đợt nghỉ: thêm dòng dưới. Xóa hết chữ chỉ để ô trống, không xóa dòng; xóa dòng bằng thùng rác. */
   const nameKeys = (row, i, insert, blank) => (e) => {
     if (!enterKey(e)) return;
     e.preventDefault();
     if (!blank(row)) insert(i);
+  };
+  /**
+   * Enter ở ô của bảng chủ đề: xuống ô cùng cột ở dòng dưới như bảng tính; dòng cuối thì thêm chủ đề mới và đặt con trỏ
+   * vào ô cùng cột của dòng mới (Tiền 31/10). Còn viết tắt trùng thì đứng yên tại ô, không thêm dòng.
+   */
+  const themeKeys = (t, i, col) => (e) => {
+    if (!enterKey(e)) return;
+    e.preventDefault();
+    if (dupAbbr.has(t.id)) return;
+    if (i < themes.length - 1 && focusBelow(e.target)) return;
+    if (i === themes.length - 1 && !dupAbbr.size && !isBlankTheme(t)) insertTheme(i, '', col);
   };
 
   const textCell = (value, onValue, label, extra) =>
@@ -832,9 +845,8 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
   const themeSpans = themes.filter((t) => t.start).map((t) => ({ ...span(t, `chủ đề "${t.name || 'chưa đặt tên'}"`), id: t.id }));
   const takenForTheme = (t) => [...themeSpans.filter((x) => x.id !== t.id), ...breakSpans];
   const takenForBreak = (b) => [...themeSpans, ...breakSpans.filter((x) => x.id !== b.id)];
-  /** Chủ đề trùng thời gian với chủ đề khác: chỉ báo, không chặn. */
-  const overlapOf = (t) =>
-    t.start && t.end ? themeSpans.filter((x) => x.id !== t.id && x.start <= t.end && t.start <= x.end).map((x) => x.label) : [];
+  /** Chủ đề trùng thời gian (EDU-39) / không trọn tuần (EDU-40): báo tại chỗ, chặn ở bước gửi / ban hành. */
+  const overlapOf = (t) => overlappingThemes(t, themes).map((x) => `chủ đề "${x.name || 'chưa đặt tên'}"`);
 
   return (
     <div className="stack">
@@ -848,21 +860,21 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
           <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
             {/* Cột có độ rộng cố định để màn hẹp thì bảng cuộn ngang, không bóp cột tên còn 1 chữ / dòng */}
             <colgroup>
-              <col className="ga-goal-table__del" />
-              <col className="ga-goal-table__group" />
-              <col className="ga-goal-table__code" />
-              <col className="ga-goal-table__code" />
-              <col className="ga-goal-table__code" />
-              <col className="ga-cal__col" />
-              <col className="ga-cal__col" />
-              <col className="ga-goal-table__code" />
-              <col className="ga-goal-table__code" />
+              <col className="ga-col-stt" />
+              <col />
+              <col className="ga-col-abbr" />
+              <col />
+              <col />
+              <col className="ga-col-date" />
+              <col className="ga-col-date" />
+              <col className="ga-col-weeks" />
+              <col />
               {!readOnly && <col className="ga-goal-table__sort" />}
               {!readOnly && <col className="ga-goal-table__del" />}
             </colgroup>
             <thead>
               <tr>
-                <th className="cell--fixed">
+                <th className="cell--fixed ga-stt">
                   <span className="stt-head">STT {!readOnly && <RenumberButton />}</span>
                 </th>
                 <th>Tên chủ đề</th>
@@ -887,7 +899,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
               )}
               {themes.map((t, i) => (
                 <SortableRow key={t.id} id={t.id}>
-                  <td className="cell--fixed">
+                  <td className="cell--fixed ga-stt">
                     <div className="ga-goal-table__pad">
                       <SortIndex id={t.id} index={i} />
                     </div>
@@ -900,28 +912,51 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                       {
                         'data-focus': t.id,
                         placeholder: 'Nhập tên chủ đề',
-                        onKeyDown: nameKeys(t, i, insertTheme, isBlankTheme),
+                        onKeyDown: themeKeys(t, i, ''),
                       },
                     )}
                   </td>
                   <td className="center ga-goal-table__center">
-                    {textCell(t.abbr, (abbr) => patchTheme(t.id, { abbr }), `Viết tắt chủ đề ${i + 1}`)}
+                    {textCell(t.abbr, (abbr) => patchTheme(t.id, { abbr }), `Viết tắt chủ đề ${i + 1}`, {
+                      'data-focus': `abbr-${t.id}`,
+                      'aria-invalid': dupAbbr.has(t.id) || undefined,
+                      'aria-describedby': dupAbbr.has(t.id) ? `abbr-err-${t.id}` : undefined,
+                      onKeyDown: themeKeys(t, i, 'abbr-'),
+                    })}
+                    {!readOnly && dupAbbr.has(t.id) && (
+                      <div id={`abbr-err-${t.id}`} className="ga-goal-table__pad field__error" role="alert">
+                        {DUPLICATE_ABBR_MESSAGE}
+                      </div>
+                    )}
                   </td>
                   <td className="cell--fixed">
-                    <div className="ga-goal-table__pad">{themeGoalLabel(domains, numbers, t) || 'Tích ở tab Mục tiêu'}</div>
+                    <div className="ga-goal-table__pad">{themeGoalLabel(domains, numbers, t)}</div>
                   </td>
-                  <td>{textCell(t.festivals, (festivals) => patchTheme(t.id, { festivals }), `Ngày lễ hội chủ đề ${i + 1}`)}</td>
+                  <td>
+                    {textCell(t.festivals, (festivals) => patchTheme(t.id, { festivals }), `Ngày lễ hội chủ đề ${i + 1}`, {
+                      'data-focus': `fest-${t.id}`,
+                      onKeyDown: themeKeys(t, i, 'fest-'),
+                    })}
+                  </td>
                   <td>{dateCell(t.start, (start) => patchTheme(t.id, { start }), `Từ ngày chủ đề ${i + 1}`, t, takenForTheme(t))}</td>
                   <td>
                     {dateCell(t.end, (end) => patchTheme(t.id, { end }), `Đến ngày chủ đề ${i + 1}`, t, takenForTheme(t))}
                     {!readOnly && overlapOf(t).length > 0 && (
                       <div className="ga-goal-table__pad text-xs text-danger">Trùng thời gian với {overlapOf(t).join(', ')}</div>
                     )}
+                    {!readOnly && !isWholeWeekTheme(t) && (
+                      <div className="ga-goal-table__pad text-xs text-danger">Bắt đầu Thứ 2, kết thúc Thứ 6</div>
+                    )}
                   </td>
                   <td className="center cell--fixed">
                     <div className="ga-goal-table__pad">{weekCount(t, breaks) || '—'}</div>
                   </td>
-                  <td>{textCell(t.note, (note) => patchTheme(t.id, { note }), `Ghi chú chủ đề ${i + 1}`)}</td>
+                  <td>
+                    {textCell(t.note, (note) => patchTheme(t.id, { note }), `Ghi chú chủ đề ${i + 1}`, {
+                      'data-focus': `note-${t.id}`,
+                      onKeyDown: themeKeys(t, i, 'note-'),
+                    })}
+                  </td>
                   {!readOnly && sortCell(i, themeLabel(i))}
                   {!readOnly && (
                     <td className="center">
@@ -941,9 +976,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                 </SortableRow>
               ))}
               {!readOnly &&
-                newRow(10, 'Thêm chủ đề', 'Nhập tên chủ đề mới (Enter trong ô tên chủ đề cũng thêm dòng)', (name) =>
-                  insertTheme(themes.length - 1, name),
-                )}
+                newRow(10, 'Thêm chủ đề', 'Nhập tên chủ đề mới', (name) => (dupAbbr.size ? null : insertTheme(themes.length - 1, name)))}
             </tbody>
           </table>
         </SortableList>
@@ -958,16 +991,16 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
         >
           <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
             <colgroup>
-              <col className="ga-goal-table__del" />
+              <col className="ga-col-stt" />
               <col />
-              <col className="ga-cal__col" />
-              <col className="ga-cal__col" />
+              <col className="ga-col-date" />
+              <col className="ga-col-date" />
               {!readOnly && <col className="ga-goal-table__sort" />}
               {!readOnly && <col className="ga-goal-table__del" />}
             </colgroup>
             <thead>
               <tr>
-                <th className="cell--fixed">
+                <th className="cell--fixed ga-stt">
                   <span className="stt-head">STT {!readOnly && <RenumberButton />}</span>
                 </th>
                 <th>Đợt nghỉ (Tết, ôn tập, nghỉ lễ…)</th>
@@ -987,7 +1020,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
               )}
               {breaks.map((b, i) => (
                 <SortableRow key={b.id} id={b.id}>
-                  <td className="cell--fixed">
+                  <td className="cell--fixed ga-stt">
                     <div className="ga-goal-table__pad">
                       <SortIndex id={b.id} index={i} />
                     </div>

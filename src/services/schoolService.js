@@ -2,6 +2,7 @@ import { USE_MOCK } from '@/config/env';
 import { axiosClient } from '@/services/http/axiosClient';
 import { schoolMockRepository } from '@/mocks/schoolMockRepository';
 import { getAgeGroups as getConfiguredAgeGroups } from '@/services/school-config/schoolConfigService';
+import { listAllChildren } from '@/services/children/api/childrenApi';
 
 /**
  * Shared read access to the school structure (classes, children) for every module.
@@ -11,7 +12,7 @@ import { getAgeGroups as getConfiguredAgeGroups } from '@/services/school-config
 const api = {
   getClasses: (filters) => axiosClient.get('/classes', { params: filters }),
   getClassById: (id) => axiosClient.get(`/classes/${id}`),
-  getChildren: (filters) => axiosClient.get('/children', { params: filters }),
+  getChildren: (filters) => listAllChildren(filters),
   getChildById: (id) => axiosClient.get(`/children/${id}`),
 };
 
