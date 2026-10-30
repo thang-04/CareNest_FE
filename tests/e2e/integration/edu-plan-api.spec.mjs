@@ -97,6 +97,21 @@ test('IT-05 ghi bằng revision cũ bị từ chối (không ghi đè bản mớ
   expect(res.desc).toBe('Kế hoạch đã được thay đổi ở nơi khác. Tải lại để đối chiếu');
 });
 
+test('IT-05a hai chủ đề trùng tên viết tắt (khác hoa thường, thừa khoảng trắng) ⇒ 400 mã 7012, bản đang lưu không đổi', async () => {
+  const body = await yearPlanBody(`${E2E.titlePrefix} trùng viết tắt`);
+  body.themes[0].id = themeId;
+  body.themes = [
+    body.themes[0],
+    { ...body.themes[0], id: null, key: 'dup-abbr', name: 'Chủ đề trùng', abbr: ` ${body.themes[0].abbr.toLowerCase()} ` },
+  ];
+  const res = await api(USERS.teacher1, 'PUT', `${GOALS}/${plan.id}`, { body, headers: editHeaders(s.tl, plan.revision) });
+  expect(res.status).toBe(400);
+  expect(res.errorCode).toBe(7012); // THEME_ABBR_DUPLICATE (BE:EDU-42)
+  const after = await api(USERS.teacher1, 'GET', `${GOALS}/${plan.id}`);
+  expect(after.data.revision).toBe(plan.revision);
+  expect(after.data.themes).toHaveLength(plan.themes.length);
+});
+
 test('IT-05b cùng tài khoản mở phiên mới (vd. sau mất điện) ⇒ nhận quyền ngay; phiên cũ bị 409 khi gửi tín hiệu/lưu', async () => {
   const fresh = newSession();
   const taken = await api(USERS.teacher1, 'POST', `${GOALS}/${plan.id}/start-editing`, { headers: editHeaders(fresh, plan.revision) });

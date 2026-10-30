@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, Search } from '@/components/ui/icons';
+import { Download } from '@/components/ui/icons';
+import { GoalPicker } from '@/components/education-plan/GoalPicker';
 import { Tabs } from '@/components/ui/Tabs';
 import { useCurriculum } from '@/hooks/education-plan/useCurriculum';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
@@ -13,34 +14,10 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
  * thẻ Gợi ý nội dung (mục C) chọn mục tiêu đích trong bản đang soạn rồi tích gợi ý. Chỉ đổi bản đang soạn.
  */
 
-// Tìm không phân biệt hoa thường, dấu
-const fold = (s) =>
-  String(s || '')
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .replace(/đ/gi, 'd')
-    .toLowerCase();
-
-/** Ô chọn có trạng thái chọn một phần (một số mục trong nhóm đã chọn). */
-function GroupCheck({ ids, picked, onToggle, label }) {
-  const count = ids.filter((id) => picked.has(id)).length;
-  return (
-    <input
-      type="checkbox"
-      aria-label={label}
-      checked={ids.length > 0 && count === ids.length}
-      ref={(el) => el && (el.indeterminate = count > 0 && count < ids.length)}
-      onChange={() => onToggle(ids)}
-    />
-  );
-}
-
 export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImportGoals, onAddContents }) {
   const data = useCurriculum(ageGroupId);
   const [tab, setTab] = useState('goals');
   const [picked, setPicked] = useState(() => new Set());
-  const [query, setQuery] = useState('');
-  const [domainPick, setDomainPick] = useState('');
   const [target, setTarget] = useState('');
   const [domainFilter, setDomainFilter] = useState('');
   const [subFilter, setSubFilter] = useState('');
@@ -54,34 +31,24 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
   const suggestions = inDomain.filter((c) => !subFilter || c.subDomain === subFilter);
   const source = data.sources[0];
   const ageName = AGE_GROUPS.find((a) => a.id === ageGroupId)?.name || '';
-  const allIds = data.goals.map((g) => g.id);
 
-  // Cây đang hiện theo lĩnh vực đã chọn và ô tìm (tìm cả câu mục tiêu, tên nhóm, nội dung con)
-  const q = fold(query.trim());
-  const shown = useMemo(
+  // Dạng cây của danh sách chọn dùng chung (GoalPicker)
+  const pickTree = useMemo(
     () =>
-      tree
-        .filter((d) => !domainPick || d.name === domainPick)
-        .map((d) => ({
-          ...d,
-          subs: d.subs
-            .map((s) => ({
-              ...s,
-              groups: s.groups
-                .map((g) => ({
-                  ...g,
-                  goals: g.goals.filter((x) => !q || fold([x.goalText, g.text, s.name, ...x.contents].join(' ')).includes(q)),
-                }))
-                .filter((g) => g.goals.length),
-            }))
-            .filter((s) => s.groups.length),
-        }))
-        .filter((d) => d.subs.length),
-    [tree, domainPick, q],
+      tree.map((d) => ({
+        name: d.name,
+        subs: d.subs.map((s) => ({
+          key: s.key,
+          name: s.name,
+          groups: s.groups.map((g) => ({
+            key: g.key,
+            title: `${g.no ? `${g.no}. ` : ''}${g.text}`,
+            goals: g.goals.map((x) => ({ id: x.id, code: x.goalNo, text: x.goalText, contents: x.contents, anchor: `pick-cg-${x.id}` })),
+          })),
+        })),
+      })),
+    [tree],
   );
-  const idsOf = (domain) => domain.subs.flatMap((s) => s.groups.flatMap((g) => g.goals.map((x) => x.id)));
-  const shownIds = shown.flatMap(idsOf);
-  const countOf = (d) => d.subs.reduce((n, s) => n + s.groups.reduce((m, g) => m + g.goals.length, 0), 0);
 
   const toggle = (ids) => {
     const on = !ids.every((id) => picked.has(id));
@@ -107,8 +74,6 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
     )
       setSuggested(new Set());
   };
-
-  const allShownPicked = shownIds.length > 0 && shownIds.every((id) => picked.has(id));
 
   return (
     <Modal
@@ -160,99 +125,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
       ) : !data.goals.length && !data.contents.length ? (
         <EmptyState title="Chưa có dữ liệu của Bộ cho nhóm tuổi này" />
       ) : tab === 'goals' ? (
-        <>
-          <div className="ga-cur-toolbar">
-            <label className="ga-cur-search">
-              <Search size={16} aria-hidden />
-              <input
-                type="search"
-                className="input"
-                placeholder="Tìm mục tiêu"
-                aria-label="Tìm mục tiêu"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </label>
-            <div className="ga-cur-chips" role="group" aria-label="Lọc theo lĩnh vực">
-              {[{ name: '', label: 'Tất cả', n: allIds.length }, ...tree.map((d) => ({ name: d.name, label: d.name, n: countOf(d) }))].map(
-                (d) => (
-                  <button
-                    key={d.name || 'all'}
-                    type="button"
-                    className={`ga-cur-chip ${domainPick === d.name ? 'is-on' : ''}`}
-                    aria-pressed={domainPick === d.name}
-                    onClick={() => setDomainPick(d.name)}
-                  >
-                    {d.label} <span className="ga-cur-chip__n">{d.n}</span>
-                  </button>
-                ),
-              )}
-            </div>
-            <div className="row row--between gap-2">
-              <span className="fw-600" aria-live="polite">
-                Đã chọn {picked.size}/{allIds.length} mục tiêu
-              </span>
-              <button type="button" className="btn btn--sm" disabled={!shownIds.length} onClick={() => toggle(shownIds)}>
-                {allShownPicked ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-              </button>
-            </div>
-          </div>
-          {!shown.length ? (
-            <p className="muted">Không có mục tiêu khớp.</p>
-          ) : (
-            <div className="ga-cur-list">
-              {shown.map((domain) => (
-                <section key={domain.name} className="ga-cur-domain">
-                  <label className="ga-cur-domain__head">
-                    <GroupCheck ids={idsOf(domain)} picked={picked} onToggle={toggle} label={`Chọn cả lĩnh vực ${domain.name}`} />
-                    <span>{domain.name}</span>
-                  </label>
-                  {domain.subs.map((sub) => (
-                    <div key={sub.key || '-'} className="ga-cur-sub">
-                      {sub.name && <div className="ga-cur-sub__name">{sub.name}</div>}
-                      {sub.groups.map((group) => (
-                        <div key={group.key} className="ga-cur-group">
-                          <label className="ga-cur-group__head">
-                            <GroupCheck
-                              ids={group.goals.map((g) => g.id)}
-                              picked={picked}
-                              onToggle={toggle}
-                              label={`Chọn cả nhóm ${group.text}`}
-                            />
-                            <span>
-                              {group.no ? `${group.no}. ` : ''}
-                              {group.text}
-                            </span>
-                          </label>
-                          {group.goals.map((goal) => (
-                            <div key={goal.id} id={`pick-cg-${goal.id}`} className="ga-cur-item">
-                              <label className="ga-cur-row">
-                                <input type="checkbox" checked={picked.has(goal.id)} onChange={() => toggle([goal.id])} />
-                                <span className="ga-cur-row__text">
-                                  {goal.goalNo && <span className="ga-goal-code">{goal.goalNo}</span>} {goal.goalText}
-                                </span>
-                              </label>
-                              {goal.contents.length > 0 && (
-                                <details className="ga-cur-contents">
-                                  <summary className="muted text-sm">{goal.contents.length} nội dung</summary>
-                                  <ul className="text-sm">
-                                    {goal.contents.map((c) => (
-                                      <li key={c}>{c}</li>
-                                    ))}
-                                  </ul>
-                                </details>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </section>
-              ))}
-            </div>
-          )}
-        </>
+        <GoalPicker tree={pickTree} picked={picked} onToggle={toggle} />
       ) : (
         <>
           {!targets.length ? (

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useGoalImportSources } from '@/hooks/education-plan/useGoalImportSources';
@@ -7,6 +7,8 @@ import { getImportGoals } from '@/models/education-plan/importGoals.mjs';
 import { ROLES } from '@/models/User';
 import { EmptyState, Modal, Notice, YearPlanStatusBadge } from '@/components/education-plan/eduUi';
 import { ErrorState, LoadingState } from '@/components/ui/States';
+import { GoalPicker } from '@/components/education-plan/GoalPicker';
+import { versionOf } from '@/models/education-plan/planVersions.mjs';
 
 export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose, onImport }) {
   const { schoolYears, user } = useEducationPlan();
@@ -19,13 +21,29 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose
   const isLeader = user.role === ROLES.TEAM_LEADER;
   const query = useGoalImportSources({
     schoolYear: year,
-    ageGroupId: isLeader ? defaultAgeGroupId : ageGroupId,
+    ageGroupId,
     excludeId,
     sourceId,
     actor: user,
   });
   const source = query.source;
-  const goals = source ? getImportGoals(source) : [];
+  const goals = useMemo(() => (source ? getImportGoals(source) : []), [source]);
+  // Dạng cây của danh sách chọn dùng chung (GoalPicker): lĩnh vực → lĩnh vực con → nhóm kết quả mong đợi → MT
+  const pickTree = useMemo(() => {
+    const domains = [];
+    goals.forEach((goal) => {
+      let d = domains.find((x) => x.name === goal.domainName);
+      if (!d) domains.push((d = { name: goal.domainName, subs: [] }));
+      const subKey = goal.sub?.id || '-';
+      let sub = d.subs.find((x) => x.key === subKey);
+      if (!sub) d.subs.push((sub = { key: subKey, name: goal.sub?.text || '', groups: [] }));
+      const groupKey = goal.group?.id || '-';
+      let group = sub.groups.find((x) => x.key === groupKey);
+      if (!group) sub.groups.push((group = { key: groupKey, title: goal.group?.text || '', goals: [] }));
+      group.goals.push({ id: goal.id, code: goal.code, text: goal.text, contents: goal.contents.map((c) => c.text) });
+    });
+    return domains;
+  }, [goals]);
   const key = `${query.sourceKey}:${source?.revision ?? 0}:${source?.status || ''}`;
   const selected = new Set(picked.key === key ? picked.ids : []);
   const selectedIds = goals.filter((goal) => selected.has(goal.id)).map((goal) => goal.id);
@@ -97,7 +115,8 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose
   return (
     <Modal
       title="Lấy mục tiêu từ kế hoạch có sẵn"
-      width={760}
+      width={1100}
+      className="ga-cur-modal"
       onClose={close}
       footer={
         <>
@@ -110,7 +129,7 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose
         </>
       }
     >
-      <div className="grid-2 gap-3">
+      <div className="ga-cur-filters gap-3">
         <div className="field">
           <label className="field__label" htmlFor="imp-year">
             Năm học
@@ -137,16 +156,15 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose
           <select
             id="imp-age"
             className="select"
-            value={isLeader ? defaultAgeGroupId : ageGroupId}
-            disabled={isLeader}
+            value={ageGroupId}
             onChange={(event) => {
               reset();
               setAgeGroupId(event.target.value);
               setSourceId('');
             }}
           >
-            {!isLeader && <option value="">Tất cả nhóm tuổi</option>}
-            {AGE_GROUPS.filter((age) => !isLeader || age.id === defaultAgeGroupId).map((age) => (
+            <option value="">Tất cả nhóm tuổi</option>
+            {AGE_GROUPS.map((age) => (
               <option key={age.id} value={age.id}>
                 {age.name}
               </option>
@@ -154,7 +172,7 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose
           </select>
         </div>
       </div>
-      <p className="muted text-xs">Chỉ chép mục tiêu và nội dung giáo dục. Không lấy chủ đề, đợt nghỉ hoặc dấu tích chủ đề từ nguồn.</p>
+      {isLeader && <p className="muted text-sm">Nhóm tuổi khác chỉ hiện kế hoạch đã ban hành.</p>}
       {confirmError && <Notice tone="warn">{confirmError}</Notice>}
       {query.loadingList ? (
         <LoadingState />
@@ -167,7 +185,7 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose
           }}
         />
       ) : !query.sources.length ? (
-        <EmptyState title="Không có bộ mục tiêu phù hợp" desc="Thử chọn năm học hoặc nhóm tuổi khác trong phạm vi của bạn." />
+        <EmptyState title="Không có bộ mục tiêu phù hợp" />
       ) : (
         <>
           <div className="field">
@@ -203,67 +221,17 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose
           ) : (
             ready && (
               <>
-                <p className="muted text-sm">
-                  {source.schoolYear} · {AGE_GROUPS.find((age) => age.id === source.ageGroupId)?.name} ·{' '}
-                  <YearPlanStatusBadge status={source.status} />
-                </p>
-                <div className="row row--between">
-                  <span className="fw-600" aria-live="polite">
-                    Đã chọn {count}/{goals.length} mục tiêu
+                <div className="ga-cur-meta">
+                  <span className="chip chip--blue">{AGE_GROUPS.find((age) => age.id === source.ageGroupId)?.name}</span>
+                  <span className="muted text-sm">
+                    {source.schoolYear} · Phiên bản {versionOf(source)}
                   </span>
-                  <button
-                    type="button"
-                    className="btn btn--sm"
-                    disabled={!goals.length || checking}
-                    onClick={() => toggle(goals.map((goal) => goal.id))}
-                  >
-                    {goals.length > 0 && count === goals.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-                  </button>
+                  <YearPlanStatusBadge status={source.status} />
                 </div>
                 {!goals.length ? (
                   <EmptyState title="Kế hoạch nguồn chưa có mục tiêu" />
                 ) : (
-                  <div className="ga-pick-list">
-                    {source.domains.map((domain) => {
-                      const items = goals.filter((goal) => goal.domainName === domain.name);
-                      if (!items.length) return null;
-                      return (
-                        <div key={domain.id || domain.name} className="mb-8">
-                          <label className="ga-goal-check ga-goal-check--head">
-                            <input
-                              type="checkbox"
-                              disabled={checking}
-                              checked={items.every((goal) => selected.has(goal.id))}
-                              onChange={() => toggle(items.map((goal) => goal.id))}
-                            />
-                            <span className="fw-600">{domain.name}</span>
-                          </label>
-                          {items.map((goal) => (
-                            <div key={goal.id}>
-                              {(goal.sub || goal.group) && (
-                                <p className="muted text-xs">{[goal.sub?.text, goal.group?.text].filter(Boolean).join(' › ')}</p>
-                              )}
-                              <label className="ga-goal-check ga-goal-check--child">
-                                <input
-                                  type="checkbox"
-                                  disabled={checking}
-                                  checked={selected.has(goal.id)}
-                                  onChange={() => toggle([goal.id])}
-                                />
-                                <span className="ga-goal-code">{goal.code}</span>
-                                <span className="text-sm">{goal.text}</span>
-                              </label>
-                              <ul className="muted text-sm">
-                                {goal.contents.map((content) => (
-                                  <li key={content.id}>{content.text}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <GoalPicker tree={pickTree} picked={selected} onToggle={toggle} disabled={checking} />
                 )}
               </>
             )

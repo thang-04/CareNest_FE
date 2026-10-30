@@ -314,15 +314,19 @@ test('import source reads preserve forbidden, missing and network errors', async
   await assert.rejects(educationPlanApi.getGoalSource('41', sourceActor), { status: 0 });
 });
 
-test('import sources restrict team leader filter and detail to their age group without sending actor', async () => {
+test('import sources: team leader chọn được nhóm tuổi khác; chi tiết nhóm khác chưa ban hành bị chặn (BE:EDU-06)', async () => {
   const leader = { id: 'leader-demo', role: 'TEAM_LEADER', ageGroupId: 'ag-3' };
   let sent;
   axiosClient.defaults.adapter = async (config) => {
     sent = config;
-    return respond(config, config.url.endsWith('/42') ? detail({ id: 42, ageGroupId: 99 }) : { items: [], totalPages: 0 });
+    if (config.url.endsWith('/42')) return respond(config, detail({ id: 42, ageGroupId: 99 }));
+    if (config.url.endsWith('/43')) return respond(config, detail({ id: 43, ageGroupId: 99, status: 'APPROVED' }));
+    return respond(config, { items: [], totalPages: 0 });
   };
-  await educationPlanApi.listGoalSources({ ageGroupId: 'other' }, leader);
-  assert.equal(sent.params.ageGroupId, 3);
+  // Không ép về nhóm mình nữa: BE lọc theo phạm vi xem
+  await educationPlanApi.listGoalSources({}, leader);
+  assert.equal(sent.params.ageGroupId, undefined);
   assert.equal(sent.params.actor, undefined);
   await assert.rejects(educationPlanApi.getGoalSource('42', leader), { status: 403 });
+  assert.equal((await educationPlanApi.getGoalSource('43', leader)).id, '43');
 });

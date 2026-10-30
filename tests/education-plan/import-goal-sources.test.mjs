@@ -53,13 +53,21 @@ test('mock VP lists across age groups with year, age and exclude filters and sum
   assert.deepEqual(await repo.listGoalSources({ schoolYear: '1900 – 1901' }, vp), []);
 });
 
-test('mock TL sources stay within responsible group including forged detail IDs', async () => {
+test('mock TL: mọi bản nhóm mình, nhóm khác chỉ bản đã ban hành, kể cả đoán mã chi tiết (BE:EDU-06)', async () => {
   seed();
+  writeDb((db) => {
+    db.eduGoals.push({ ...source('d', 'ag-3'), status: 'APPROVED' });
+  });
+  assert.deepEqual(
+    (await repo.listGoalSources({}, leader)).map((s) => s.id),
+    ['a', 'c', 'd'],
+  );
   assert.deepEqual(
     (await repo.listGoalSources({ ageGroupId: 'ag-3' }, leader)).map((s) => s.id),
-    ['a', 'c'],
+    ['d'],
   );
   await assert.rejects(repo.getGoalSource('b', leader), { status: 403 });
+  assert.equal((await repo.getGoalSource('d', leader)).id, 'd');
   await assert.rejects(repo.getGoalSource('missing', vp), { status: 404 });
   await assert.rejects(repo.listGoalSources({}, null), { status: 403 });
   await assert.rejects(repo.getGoalSource('a', { role: 'TEACHER', ageGroupId: 'ag-4' }), { status: 403 });

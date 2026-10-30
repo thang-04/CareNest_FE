@@ -96,7 +96,8 @@ test('ST-14 phiên bản mới: lấy mục tiêu và gợi ý nội dung từ C
   await dialog.locator('label.ga-cur-row', { hasText: ministryGoal.goalText }).first().locator('input').check();
   await dialog.getByRole('button', { name: /Thêm 1 mục tiêu/ }).click();
   await expect(dialog).toBeHidden();
-  const badge = page.getByRole('link', { name: 'Theo Bộ' });
+  // Dòng lĩnh vực con / nhóm lấy từ Bộ cũng có nhãn Theo Bộ (3cdc993) ⇒ xét nhãn của đúng mục tiêu
+  const badge = page.getByRole('link', { name: 'Theo Bộ' }).and(page.locator(`a[href$="#cg-${ministryGoal.id}"]`));
   await expect(badge).toHaveCount(1);
   await expect(badge).toHaveAttribute('href', new RegExp(`#cg-${ministryGoal.id}$`));
 
@@ -143,7 +144,7 @@ test('ST-15 gửi Phó HT duyệt; Phó HT ban hành phiên bản mới; nhãn T
   expect((await plan(v1.id)).current).toBe(false);
 
   await vp.reload();
-  const badge = vp.getByRole('link', { name: 'Theo Bộ' });
+  const badge = vp.getByRole('link', { name: 'Theo Bộ' }).and(vp.locator(`a[href$="#cg-${ministryGoal.id}"]`));
   await expect(badge).toHaveCount(1);
   const [source] = await Promise.all([ctx.waitForEvent('page'), badge.click()]);
   await source.waitForLoadState();

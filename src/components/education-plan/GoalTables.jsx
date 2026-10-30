@@ -2,6 +2,8 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { Trash2, X } from '@/components/ui/icons';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import {
+  DUPLICATE_ABBR_MESSAGE,
+  duplicateAbbrThemeIds,
   domainRoman,
   initialsOf,
   isBlankBreak,
@@ -795,11 +797,25 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
     onChange({ breaks: [...breaks.slice(0, afterIdx + 1), b, ...breaks.slice(afterIdx + 1)] });
     setFocusId(b.id);
   };
+  // BE:EDU-42 viết tắt trùng: báo ngay tại ô, không cho thêm chủ đề mới tới khi sửa
+  const dupAbbr = duplicateAbbrThemeIds(themes);
+  const focusDupAbbr = () => {
+    const first = themes.find((t) => dupAbbr.has(t.id));
+    if (first) document.querySelector(`[data-focus="abbr-${first.id}"]`)?.focus();
+  };
   /** Enter ở ô tên: thêm dòng dưới. Xóa hết chữ chỉ để ô trống, không xóa dòng (như ô mục tiêu); xóa dòng bằng thùng rác. */
   const nameKeys = (row, i, insert, blank) => (e) => {
     if (!enterKey(e)) return;
     e.preventDefault();
+    if (insert === insertTheme && dupAbbr.size) return focusDupAbbr();
     if (!blank(row)) insert(i);
+  };
+  // Rời ô viết tắt đang trùng: đưa con trỏ về ô đó, trừ khi sang sửa ô viết tắt khác hoặc bấm xóa dòng
+  const keepAbbrFocus = (id) => (e) => {
+    const next = e.relatedTarget;
+    if (!dupAbbr.has(id) || next?.dataset?.focus?.startsWith('abbr-') || next?.closest?.('.icon-btn--danger')) return;
+    const el = e.target;
+    requestAnimationFrame(() => el.isConnected && el.focus());
   };
 
   const textCell = (value, onValue, label, extra) =>
@@ -859,21 +875,21 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
           <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
             {/* Cột có độ rộng cố định để màn hẹp thì bảng cuộn ngang, không bóp cột tên còn 1 chữ / dòng */}
             <colgroup>
-              <col className="ga-goal-table__del" />
-              <col className="ga-goal-table__group" />
-              <col className="ga-goal-table__code" />
-              <col className="ga-goal-table__code" />
-              <col className="ga-goal-table__code" />
-              <col className="ga-cal__col" />
-              <col className="ga-cal__col" />
-              <col className="ga-goal-table__code" />
-              <col className="ga-goal-table__code" />
+              <col className="ga-col-stt" />
+              <col />
+              <col className="ga-col-abbr" />
+              <col />
+              <col />
+              <col className="ga-col-date" />
+              <col className="ga-col-date" />
+              <col className="ga-col-weeks" />
+              <col />
               {!readOnly && <col className="ga-goal-table__sort" />}
               {!readOnly && <col className="ga-goal-table__del" />}
             </colgroup>
             <thead>
               <tr>
-                <th className="cell--fixed">
+                <th className="cell--fixed ga-stt">
                   <span className="stt-head">STT {!readOnly && <RenumberButton />}</span>
                 </th>
                 <th>Tên chủ đề</th>
@@ -898,7 +914,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
               )}
               {themes.map((t, i) => (
                 <SortableRow key={t.id} id={t.id}>
-                  <td className="cell--fixed">
+                  <td className="cell--fixed ga-stt">
                     <div className="ga-goal-table__pad">
                       <SortIndex id={t.id} index={i} />
                     </div>
@@ -916,7 +932,18 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                     )}
                   </td>
                   <td className="center ga-goal-table__center">
-                    {textCell(t.abbr, (abbr) => patchTheme(t.id, { abbr }), `Viết tắt chủ đề ${i + 1}`)}
+                    {textCell(t.abbr, (abbr) => patchTheme(t.id, { abbr }), `Viết tắt chủ đề ${i + 1}`, {
+                      'data-focus': `abbr-${t.id}`,
+                      'aria-invalid': dupAbbr.has(t.id) || undefined,
+                      'aria-describedby': dupAbbr.has(t.id) ? `abbr-err-${t.id}` : undefined,
+                      onBlur: keepAbbrFocus(t.id),
+                      onKeyDown: (e) => enterKey(e) && e.preventDefault(),
+                    })}
+                    {!readOnly && dupAbbr.has(t.id) && (
+                      <div id={`abbr-err-${t.id}`} className="ga-goal-table__pad field__error" role="alert">
+                        {DUPLICATE_ABBR_MESSAGE}
+                      </div>
+                    )}
                   </td>
                   <td className="cell--fixed">
                     <div className="ga-goal-table__pad">{themeGoalLabel(domains, numbers, t) || 'Tích ở tab Mục tiêu'}</div>
@@ -956,7 +983,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
               ))}
               {!readOnly &&
                 newRow(10, 'Thêm chủ đề', 'Nhập tên chủ đề mới (Enter trong ô tên chủ đề cũng thêm dòng)', (name) =>
-                  insertTheme(themes.length - 1, name),
+                  dupAbbr.size ? focusDupAbbr() : insertTheme(themes.length - 1, name),
                 )}
             </tbody>
           </table>
@@ -972,16 +999,16 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
         >
           <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
             <colgroup>
-              <col className="ga-goal-table__del" />
+              <col className="ga-col-stt" />
               <col />
-              <col className="ga-cal__col" />
-              <col className="ga-cal__col" />
+              <col className="ga-col-date" />
+              <col className="ga-col-date" />
               {!readOnly && <col className="ga-goal-table__sort" />}
               {!readOnly && <col className="ga-goal-table__del" />}
             </colgroup>
             <thead>
               <tr>
-                <th className="cell--fixed">
+                <th className="cell--fixed ga-stt">
                   <span className="stt-head">STT {!readOnly && <RenumberButton />}</span>
                 </th>
                 <th>Đợt nghỉ (Tết, ôn tập, nghỉ lễ…)</th>
@@ -1001,7 +1028,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
               )}
               {breaks.map((b, i) => (
                 <SortableRow key={b.id} id={b.id}>
-                  <td className="cell--fixed">
+                  <td className="cell--fixed ga-stt">
                     <div className="ga-goal-table__pad">
                       <SortIndex id={b.id} index={i} />
                     </div>

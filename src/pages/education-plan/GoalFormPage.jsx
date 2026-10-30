@@ -19,6 +19,7 @@ import {
   isStandardDomain,
 } from '@/models/education-plan/educationPlanConstants';
 import {
+  duplicateAbbrThemeIds,
   goalIdsToTicks,
   isBlankBreak,
   isBlankTheme,
@@ -29,8 +30,10 @@ import {
 } from '@/models/education-plan/goalTable';
 import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
-import { exportGoalsCsv, parseGoalsCsv } from '@/utils/education-plan/goalCsv';
+import { parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
+import ImportThemesModal from '@/components/education-plan/ImportThemesModal';
+import { mergeImportedThemes } from '@/models/education-plan/importThemes.mjs';
 import CurriculumGoalsModal from '@/components/education-plan/CurriculumGoalsModal';
 import { addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
 import { Card, DraftRecoveryNotice, Field, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
@@ -113,6 +116,7 @@ export default function GoalFormPage() {
   const sameScope = existing && existing.schoolYear === form.schoolYear && existing.ageGroupId === form.ageGroupId;
   const dupGoal = !sameScope && goals.some((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
   const [importing, setImporting] = useState(false);
+  const [importingThemes, setImportingThemes] = useState(false);
   const [ministryOpen, setMinistryOpen] = useState(false);
   const [importReport, setImportReport] = useState(null);
   const fileRef = useRef(null);
@@ -152,7 +156,6 @@ export default function GoalFormPage() {
   const themes = form.themes.filter((t) => !isBlankTheme(t));
   const breaks = form.breaks.filter((b) => !isBlankBreak(b));
   const numbers = numberGoals(form.domains);
-  const csvName = `ke-hoach-nam-hoc-${form.schoolYear.replace(/\s/g, '')}.csv`;
   const totalGoals = Object.keys(numbers).length;
 
   const outOfYear = [...form.themes, ...form.breaks].some((x) =>
@@ -279,6 +282,9 @@ export default function GoalFormPage() {
       setLeaseReady(false);
     },
     save: async (snapshot, requestId) => {
+      // BE:EDU-42 viết tắt chủ đề trùng: không lưu tới khi sửa
+      if (duplicateAbbrThemeIds(snapshot.themes || []).size)
+        throw Object.assign(new Error('Tên viết tắt của các chủ đề bị trùng.'), { status: 400 });
       const item = build(pendingEdit ? EDU_STATUS.PENDING_VP : EDU_STATUS.DRAFT, {}, snapshot);
       const saved = await saveGoal(item, { silent: true, edit: { ...editRef.current, requestId } });
       editRef.current.revision = saved.revision ?? editRef.current.revision;
@@ -519,6 +525,24 @@ export default function GoalFormPage() {
     toast(`Đã thêm ${report.added} mục tiêu${skipped}${unavailable}`, report.added ? 'ok' : 'warn');
     return true;
   };
+  // BE:EDU-43 — chủ đề, đợt nghỉ lấy từ kế hoạch khác thêm vào cuối; ngày ngoài năm học do kiểm tra sẵn có báo để sửa
+  const importThemes = ({ source, themeIds, breakIds }) => {
+    if (!importState.current.allowed) return false;
+    const {
+      themes: nextThemes,
+      breaks: nextBreaks,
+      report,
+    } = mergeImportedThemes(importState.current.form, source, { themeIds, breakIds }, () => `import-${uid()}`);
+    if (report.themes || report.breaks) set({ themes: nextThemes, breaks: nextBreaks });
+    const parts = [`Đã thêm ${report.themes} chủ đề`, report.breaks && `${report.breaks} đợt nghỉ`].filter(Boolean).join(', ');
+    const shifted =
+      report.shifted && (report.themes || report.breaks) ? ` · đã dời ngày ${Math.abs(report.shifted)} năm, kiểm tra lại ngày` : '';
+    toast(
+      `${parts}${report.skipped ? ` · bỏ qua ${report.skipped} dòng đã có` : ''}${shifted}`,
+      report.themes || report.breaks ? 'ok' : 'warn',
+    );
+    return true;
+  };
   // BE:EDU-28 — mục tiêu của Bộ dựng thành kế hoạch nguồn để dùng chung cách ghép của EDU-24
   const importMinistryGoals = (goals) =>
     importGoals({ source: curriculumAsSourcePlan(goals), selectedGoalIds: goals.map((g) => `cg-${g.id}`) });
@@ -629,16 +653,13 @@ export default function GoalFormPage() {
               num="2"
               bodyClass={null}
               actions={
-                tab === 'goals' && (
+                tab === 'themes' ? (
+                  <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImportingThemes(true)}>
+                    <Download size={16} aria-hidden /> Lấy chủ đề từ kế hoạch có sẵn
+                  </button>
+                ) : (
                   <div className="row">
                     <span className="muted text-xs nowrap">{totalGoals} mục tiêu</span>
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--ghost"
-                      onClick={() => exportGoalsCsv(form.domains, numbers, themes, csvName)}
-                    >
-                      <FileDown size={16} aria-hidden /> Xuất file
-                    </button>
                     <button type="button" className="btn btn--sm btn--ghost" onClick={() => fileRef.current?.click()}>
                       <Upload size={16} aria-hidden /> Nhập file
                     </button>
@@ -783,6 +804,16 @@ export default function GoalFormPage() {
           />
         )}
 
+        {importingThemes && (
+          <ImportThemesModal
+            excludeId={form.id}
+            defaultAgeGroupId={form.ageGroupId}
+            form={form}
+            onClose={() => setImportingThemes(false)}
+            onImport={importThemes}
+          />
+        )}
+
         {importing && (
           <ImportGoalsModal
             excludeId={form.id}
@@ -798,6 +829,7 @@ export default function GoalFormPage() {
               title="Duyệt lại nội dung"
               num="4"
               actions={
+                // Bước cuối (Xác nhận) mới xuất / in file (Tiền 30/10)
                 <div className="row">
                   <button
                     type="button"
