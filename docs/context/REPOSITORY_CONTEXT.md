@@ -39,7 +39,7 @@ Màn hình, route/navigation, client state, tích hợp API, UX/accessibility, �
 
 ## Ngoài scope V1 (liên quan Web)
 
-CSVC: cả báo/theo dõi sự cố lẫn tài sản, luân chuyển, kiểm kê (BE FAC REMOVED 29/10; code ẩn sau `FACILITY_ENABLED=false`) · kho/NCC ngoài phạm vi rút gọn của ADR-0009 (ACCEPTED 28/10 — `BE:docs/decisions/ADR-0009-nutrition-inventory-scope.md`: chỉ nhập kho khô, trừ tự động, xem tồn, kiểm nhận hàng tươi, danh mục NCC; FE hiện UI mock theo BA, `docs/features/nutrition-inventory.md`; không kiểm kê kho thực phẩm) · chat thay Zalo · chẩn đoán y tế/tâm lý · payroll/kế toán. Kế hoạch giáo dục **trong scope** (BE EDU-01..10, ADR-0019); ngữ cảnh hoạt động lấy từ kế hoạch ngày (OBS-07).
+CSVC: cả báo/theo dõi sự cố lẫn tài sản, luân chuyển, kiểm kê (BE FAC REMOVED 29/10; code ẩn sau `FACILITY_ENABLED=false`) · kho/NCC ngoài phạm vi rút gọn của ADR-0009 (ACCEPTED 28/10 — `BE:docs/decisions/ADR-0009-nutrition-inventory-scope.md`: chỉ nhập kho khô, trừ tự động, xem tồn, kiểm nhận hàng tươi, danh mục NCC; FE hiện UI mock theo BA, `docs/features/nutrition-inventory.md`; không kiểm kê kho thực phẩm) · chat thay Zalo · chẩn đoán y tế/tâm lý · payroll/kế toán. Kế hoạch giáo dục **trong scope** (BE EDU-01..28, ADR-0020); ngữ cảnh hoạt động = MT giáo án tuần/ngày đã duyệt (OBS-07, EDU-19).
 
 ## Stack Web
 

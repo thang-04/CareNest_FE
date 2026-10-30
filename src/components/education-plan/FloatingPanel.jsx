@@ -13,6 +13,7 @@ const GAP = 4; // cách ô gốc
 export default function FloatingPanel({ anchorRef, panelRef, keepFocus = false, minWidth = 420, children }) {
   const innerRef = useRef(null);
   const [pos, setPos] = useState(null);
+  const posRef = useRef(null);
 
   const place = useCallback(() => {
     const r = anchorRef.current?.getBoundingClientRect();
@@ -26,9 +27,11 @@ export default function FloatingPanel({ anchorRef, panelRef, keepFocus = false, 
     const up = height > below && above > below;
     const room = Math.max(up ? above : below, 0);
     const top = up ? r.top - GAP - Math.min(height, room) : r.bottom + GAP;
-    setPos((p) =>
-      p && p.top === top && p.left === left && p.width === width && p.maxHeight === room ? p : { top, left, width, maxHeight: room },
-    );
+    // So với vị trí đã đặt (ref) để không gọi setState khi không đổi: gọi setState trong layout effect mỗi lần vẽ dễ thành vòng lặp
+    const p = posRef.current;
+    if (p && p.top === top && p.left === left && p.width === width && p.maxHeight === room) return;
+    posRef.current = { top, left, width, maxHeight: room };
+    setPos(posRef.current);
   }, [anchorRef, minWidth]);
 
   // Đo lại sau mỗi lần vẽ (nội dung có thể đổi chiều cao); chỉ đặt state khi vị trí thật sự đổi

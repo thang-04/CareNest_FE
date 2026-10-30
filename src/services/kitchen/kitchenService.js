@@ -1,13 +1,20 @@
-import { USE_MOCK } from '@/config/env';
+import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
 import { kitchenMockRepository as mock } from '@/services/kitchen/mock/kitchenMockRepository';
+import { syncBeMealCounts } from '@/services/kitchen/mock/beMealCountBridge';
 import { kitchenApi as api } from '@/services/kitchen/api/kitchenApi';
 import { readLegacyKitchenRows } from './mock/legacyDashboardRepository';
 
 /** Facade used by hooks/pages. VITE_USE_MOCK=false switches to Spring Boot. */
 const repo = USE_MOCK ? mock : api;
 
+// Dev: số suất HT/PHT đã xác nhận lấy từ BE trước khi bếp (mock) tính định lượng
+const withBeMealCounts = (load) => async (filters, user) => {
+  if (SCHOOL_CONFIG_API && USE_MOCK) await syncBeMealCounts(filters?.date);
+  return load(filters, user);
+};
+
 /** Quy trình bếp hôm nay: { mealCount, market, issue, missing, stock, samples } của một cơ sở và ngày. */
-export const getKitchenDay = (filters, user) => repo.getKitchenDay(filters, user);
+export const getKitchenDay = withBeMealCounts((filters, user) => repo.getKitchenDay(filters, user));
 /** Sổ lưu mẫu một ngày: { meals, pendingDestroy, canEdit }. */
 export const getFoodSampleLog = (filters, user) => repo.getFoodSampleLog(filters, user);
 export const saveFoodSample = (payload, user) => repo.saveFoodSample(payload, user);
@@ -36,7 +43,7 @@ export const getStockIssue = async ({ campusId, date }, user) => {
   return { state: issue?.status || view.today?.state || 'WAITING_MEAL_COUNT', issue };
 };
 export const getPublishedMenu = (filters, user) => repo.getPublishedMenu(filters, user);
-export const getConfirmedMealCount = (filters, user) => repo.getConfirmedMealCount(filters, user);
+export const getConfirmedMealCount = withBeMealCounts((filters, user) => repo.getConfirmedMealCount(filters, user));
 /** Dự trù tuần: { status, days, classes, fresh, dry, changes, pendingChanges, sent, canEdit }. */
 export const getWeeklyForecast = (filters, user) => repo.getWeeklyForecast(filters, user);
 export const saveWeeklyForecast = (payload, user) => repo.saveWeeklyForecast(payload, user);
@@ -48,8 +55,9 @@ export const saveFreshReceipt = (payload, user) => repo.saveFreshReceipt(payload
 export const reviewFreshReceipt = (payload, user) => repo.reviewFreshReceipt(payload, user);
 export const setFreshSupplierNotified = (payload, user) => repo.setFreshSupplierNotified(payload, user);
 
-export const getMealPreparations = (filters, user) =>
-  USE_MOCK ? mock.getLegacyMealPreparations(filters, user) : Promise.reject({ status: 501, message: 'Cần thống nhất contract bếp.' });
+export const getMealPreparations = withBeMealCounts((filters, user) =>
+  USE_MOCK ? mock.getLegacyMealPreparations(filters, user) : Promise.reject({ status: 501, message: 'Cần thống nhất contract bếp.' }),
+);
 export const updateMealPreparation = (payload, user) =>
   USE_MOCK ? mock.updateLegacyMealPreparation(payload, user) : Promise.reject({ status: 501, message: 'Cần thống nhất contract bếp.' });
 export const getMissingFoodReports = (filters, user) =>

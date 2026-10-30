@@ -15,94 +15,16 @@ import { Modal } from '@/components/ui/Modal';
 import { useAiRun } from '@/hooks/useAiRun';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
-import { EMOTION_LABELS, EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
-import { BEHAVIORS, NAP, NAP_LABELS } from '@/models/assessment/dailyObservationOptions';
-import { HEALTH_SYMPTOMS } from '@/utils/dailyHealthValidation';
-import { mealsText } from '@/components/assessment/DailyAssessmentCells';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
+import { Pagination, paginate } from '@/components/ui/Pagination';
+import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
+import { formatDateTime } from '@/utils/format';
 import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
 import { canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { validateEvaluationContent, hasErrors } from '@/utils/assessment/assessmentValidation';
 
 const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp tục viết đánh giá thủ công.';
-
-const GoalChip = ({ goal, tone }) => (
-  <span className={`chip chip--${tone}`} title={goal.description || goal.name}>
-    {goal.name}
-  </span>
-);
-
-/** Đánh giá hằng ngày trong kỳ, mỗi ngày một dòng, cùng cột với màn Đánh giá hằng ngày (căn cứ của bản nháp AI). */
-function DayTable({ days, mealSessions, classId, linkDays }) {
-  if (!days.length) return <div className="muted">Không có đánh giá hằng ngày nào trong kỳ.</div>;
-  const dash = <span className="muted">—</span>;
-  return (
-    <div className="table-wrap">
-      <table className="table table--grid dg-days">
-        <thead>
-          <tr>
-            <th>Ngày</th>
-            <th>Sức khỏe</th>
-            <th>Ăn</th>
-            <th>Ngủ</th>
-            <th>Cảm xúc</th>
-            <th>Hành vi</th>
-            <th>Kiến thức, kỹ năng</th>
-            <th>Nhận xét</th>
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((d) => (
-            <tr key={d.date}>
-              <td className="nowrap">
-                {linkDays ? (
-                  <Link to={`/assessment/daily?classId=${classId}&date=${d.date}`} title="Mở đánh giá hằng ngày của ngày này">
-                    {formatDate(d.date)}
-                  </Link>
-                ) : (
-                  formatDate(d.date)
-                )}
-              </td>
-              <td className={d.health?.signs.length ? 'dg-cell--warn' : ''}>
-                {d.health ? (
-                  <>
-                    {d.health.signs.length ? d.health.signs.map((x) => HEALTH_SYMPTOMS[x] || x).join(', ') : 'Bình thường'}
-                    {d.health.note && <div className="muted text-xs">{d.health.note}</div>}
-                  </>
-                ) : (
-                  dash
-                )}
-              </td>
-              <td>{d.meals ? mealsText(d.meals, mealSessions) : dash}</td>
-              <td className={d.nap && d.nap !== NAP.NGU_TOT ? 'dg-cell--warn' : ''}>{d.nap ? NAP_LABELS[d.nap] : dash}</td>
-              <td>{d.emotion ? EMOTION_LABELS[d.emotion] : dash}</td>
-              <td>
-                {d.behaviors.length ? d.behaviors.map((x) => BEHAVIORS[x] || x).join(', ') : dash}
-                {d.behaviorNote && <div className="muted text-xs">{d.behaviorNote}</div>}
-              </td>
-              <td>
-                {d.met.length || d.notMet.length ? (
-                  <div className="dg-days__goals">
-                    {d.met.map((g) => (
-                      <GoalChip key={g.id} goal={g} tone="green" />
-                    ))}
-                    {d.notMet.map((g) => (
-                      <GoalChip key={g.id} goal={g} tone="orange" />
-                    ))}
-                  </div>
-                ) : (
-                  dash
-                )}
-              </td>
-              <td className="dg-days__comment">{d.comment || dash}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 /** Shared body of #56 Periodic Evaluation Detail and #59 Year-end Evaluation Detail (UC 4.5, 4.6). */
 export function EvaluationReviewView({ kind, id }) {
@@ -117,6 +39,7 @@ export function EvaluationReviewView({ kind, id }) {
   const { run: runAi } = useAiRun();
   const [fresh, setFresh] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dayPage, setDayPage] = useState(1);
   const yearEnd = kind === EVAL_KIND.YEAR_END;
   const base = `/assessment/${yearEnd ? 'year-end' : 'periodic'}`;
 
@@ -340,7 +263,7 @@ export function EvaluationReviewView({ kind, id }) {
       <div className="card mt-16">
         <div className="card__header">
           <div className="card__title">{yearEnd ? 'Đánh giá tháng đã xác nhận trong năm học' : 'Đánh giá hằng ngày trong kỳ'}</div>
-          {!yearEnd && <span className="muted text-sm">Xanh: đạt · Cam: chưa đạt</span>}
+          {!yearEnd && <span className="muted text-sm">Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>}
         </div>
         <div className="card__body">
           {yearEnd ? (
@@ -357,7 +280,24 @@ export function EvaluationReviewView({ kind, id }) {
               <div className="muted">Chưa có đánh giá tháng nào được xác nhận. Thiếu dữ liệu nguồn – hãy xem lại các hồ sơ hiện có.</div>
             )
           ) : (
-            <DayTable days={detail.days} mealSessions={detail.mealSessions} classId={ev.classId} linkDays={canReview} />
+            <>
+              {/* Kỳ tháng tới ~22 ngày: 10 ngày / trang như bảng này ở Hồ sơ phát triển */}
+              <DailyDaysTable
+                days={paginate(detail.days, Math.min(dayPage, Math.max(1, Math.ceil(detail.days.length / 10))), 10)}
+                mealSessions={detail.mealSessions}
+                classId={ev.classId}
+                linkDays={canReview}
+              />
+              {detail.days.length > 10 && (
+                <Pagination
+                  page={Math.min(dayPage, Math.ceil(detail.days.length / 10))}
+                  total={detail.days.length}
+                  pageSize={10}
+                  onChange={setDayPage}
+                  unit="ngày"
+                />
+              )}
+            </>
           )}
         </div>
       </div>

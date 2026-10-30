@@ -7,7 +7,17 @@ import { normalizeText } from '@/utils/format';
  * Ô chọn lớp gõ tay được: gõ tên lớp ngay trong ô để lọc, danh sách chia theo nhóm tuổi,
  * nhiều điểm trường thì có nút lọc điểm trường. Phím ↑ ↓ chọn, Enter lấy lớp, Esc đóng.
  */
-export function ClassPicker({ classes, ageGroups, campuses, value, onChange, disabled, error, placeholder = 'Tìm lớp, vd: Chồi 1' }) {
+export function ClassPicker({
+  classes,
+  ageGroups,
+  campuses,
+  value,
+  onChange,
+  disabled,
+  error,
+  label = 'Lớp',
+  placeholder = 'Tìm lớp, vd: Chồi 1',
+}) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [campusId, setCampusId] = useState('');
@@ -73,7 +83,7 @@ export function ClassPicker({ classes, ageGroups, campuses, value, onChange, dis
       <div className="search-submit">
         <label className={`search-box class-picker__box ${error ? 'is-invalid' : ''}`}>
           <Search size={16} className="muted" aria-hidden="true" />
-          <span className="sr-only">Lớp cần mở lại</span>
+          <span className="sr-only">{label}</span>
           <input
             ref={inputRef}
             role="combobox"

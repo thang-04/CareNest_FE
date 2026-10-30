@@ -25,13 +25,6 @@ export const validateClassAttendance = (entries, { sessions } = {}) =>
     entries.map((e) => [e.childId, validateAttendanceEntry(e, { sessions })]).filter(([, errs]) => Object.keys(errs).length > 0),
   );
 
-export const validateMealCorrection = ({ session, note } = {}) => {
-  const errors = {};
-  if (!MEAL_SESSIONS.includes(session)) errors.session = 'Chọn bữa ăn cần hủy.';
-  if (!String(note || '').trim()) errors.note = 'Nhập lý do điều chỉnh (ví dụ: trẻ về sớm vì mệt).';
-  return errors;
-};
-
 const isCount = (v) => Number.isInteger(Number(v)) && Number(v) >= 0 && String(v).trim() !== '';
 
 /** Teacher's check of servings received from the kitchen (UC 6.26). */

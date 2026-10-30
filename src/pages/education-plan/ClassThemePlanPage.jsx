@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { FileDown, Printer, Save } from '@/components/ui/icons';
-import { Card, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { Card, DraftRecoveryNotice, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useManualSave } from '@/hooks/education-plan/useManualSave';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import {
@@ -19,6 +22,11 @@ import {
 } from '@/models/education-plan/classPlan';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
 import { ThemePlanBody, themeRowOf } from '@/components/education-plan/ThemePlanBody';
+import { ActivityResources } from '@/components/education-plan/ActivityResources';
+import { themeActivities } from '@/models/education-plan/classPlan';
+import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
+import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
+import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 
 const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 
@@ -33,7 +41,6 @@ export default function ClassThemePlanPage() {
 
 function ThemePlanInner() {
   const { classId, themeId } = useParams();
-  const navigate = useNavigate();
   const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, toast } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, isClassTeacher } = ctx;
@@ -41,9 +48,40 @@ function ThemePlanInner() {
   const saved = classThemePlans.find((t) => t.classId === classId && t.themeId === themeId) || null;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const version = useDocVersion('theme', saved, ctx, classThemePlans, { themeId });
+  const canWrite = isClassTeacher && !ctx.superseded && isEditableStatus(saved?.status || EDU_STATUS.DRAFT);
+
+  // Lưu tay (nút Lưu, Ctrl+S). Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
+  const saver = useManualSave({
+    doc: draft,
+    enabled: canWrite,
+    save: (doc) => {
+      const gs = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId).flatMap((b) => b.goals);
+      // Bản chép: dòng MT đã bị bỏ ở phiên bản mới giữ lại (đỏ) tới khi giáo viên bỏ (BE:EDU-26)
+      return saveClassDoc('theme', {
+        ...doc,
+        rows: { ...danglingRows(doc, yearPlan), ...Object.fromEntries(gs.map((g) => [g.id, themeRowOf(doc, g)])) },
+      });
+    },
+    onSaved: (same) => same && setDirty(false),
+    backup: { userId: user?.id, key: yearPlan && `theme:${classId}:${yearPlan.id}:${themeId}` },
+    onRestore: (doc) => {
+      setDraft(doc);
+      setDirty(true);
+    },
+  });
+
+  const guard = useLeaveGuard({
+    when: canWrite && saver.unsaved,
+    onSave: saver.save,
+  });
 
   useEffect(() => {
-    if (!dirty && yearPlan) setDraft(saved || emptyThemePlan({ classId, yearPlanId: yearPlan.id, themeId }));
+    if (dirty || !yearPlan) return;
+    const doc = saved || emptyThemePlan({ classId, yearPlanId: yearPlan.id, themeId });
+    setDraft(doc);
+    saver.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.status, saved?.history?.length, yearPlan?.id, classId, themeId]);
 
@@ -52,7 +90,17 @@ function ThemePlanInner() {
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;
-  const editable = isClassTeacher && isEditableStatus(status);
+  const editable = canWrite;
+  const copyOld = async () => {
+    setCopying(true);
+    const doc = await saveClassDoc('theme', version.copy());
+    setCopying(false);
+    if (doc) toast('Đã chép kế hoạch chủ đề cũ. Sửa các ô đỏ trước khi gửi duyệt.');
+  };
+  const flagEdit = (fn) => {
+    setDraft((d) => fn(d));
+    setDirty(true);
+  };
   const base = `/education/class/${classId}`;
   const crumbs = [{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}`, to: base }, { label: theme.name }];
   // Mở thẳng đường dẫn khi chưa tới bước này: không hiện biểu mẫu, chỉ ra bước còn thiếu
@@ -70,7 +118,6 @@ function ThemePlanInner() {
   }
   const numbers = numberGoals(yearPlan.domains);
   const blocks = themeGoalBlocks(yearPlan.domains, numbers, themeId);
-  const goals = blocks.flatMap((b) => b.goals);
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const weeks = yearWeeks(yearPlan).filter((w) => w.type === 'week' && w.theme.id === themeId);
   // Nội dung lấy nguyên từ kế hoạch năm (không sửa); giáo viên viết hoạt động giáo dục
@@ -82,15 +129,6 @@ function ThemePlanInner() {
   const setField = (field, value) => {
     setDraft((d) => ({ ...d, [field]: value }));
     setDirty(true);
-  };
-  const save = async () => {
-    // Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
-    const res = await saveClassDoc('theme', { ...draft, rows: Object.fromEntries(goals.map((g) => [g.id, rowOf(g)])) });
-    if (res) {
-      setDirty(false);
-      setDraft(res);
-      toast('Đã lưu kế hoạch chủ đề');
-    }
   };
   // Hồ sơ chủ đề như file của trường: kế hoạch chủ đề rồi từng tuần nhánh đã soạn (kèm khung duyệt của tuần)
   const exportArgs = {
@@ -106,7 +144,7 @@ function ThemePlanInner() {
         week: w,
         branchNo: i + 1,
         branchName: branch?.names?.[w.start] || '',
-        doc: weekPlans.find((x) => x.classId === classId && x.weekStart === w.start),
+        doc: weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start),
       }))
       .filter((w) => w.doc),
   };
@@ -119,6 +157,14 @@ function ThemePlanInner() {
         desc={<EduStatusBadge status={status} size="lg" />}
         actions={
           <>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={!saved}
+              onClick={() => guard.leave(`${base}/themes/${themeId}/teach`)}
+            >
+              Dạy học / Trình chiếu
+            </button>
             <button type="button" className="btn btn--ghost" onClick={() => exportThemeFile(exportArgs, 'doc')}>
               <FileDown size={16} aria-hidden /> Xuất Word
             </button>
@@ -130,22 +176,52 @@ function ThemePlanInner() {
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
             {editable && (
-              <button type="button" className="btn btn--primary" disabled={!dirty && !!saved} onClick={save}>
-                <Save size={16} aria-hidden /> {dirty || !saved ? 'Lưu' : 'Đã lưu'}
-              </button>
+              <>
+                <span className="muted text-sm">{saver.label}</span>
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  onClick={saver.save}
+                  disabled={saver.saving || (!saver.unsaved && !saver.error)}
+                  title="Lưu (Ctrl+S)"
+                >
+                  <Save size={16} aria-hidden /> Lưu
+                </button>
+              </>
             )}
           </>
         }
       />
+      <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
+      {!saved && version.finished && <FinishedThemeNote />}
+      {!saved && !version.finished && version.prevDoc && !dirty && (
+        <VersionCopyOffer
+          plan={yearPlan}
+          previous={ctx.previousPlan}
+          prevDoc={version.prevDoc}
+          canCreate={editable}
+          busy={copying}
+          onTemplate={() => setDirty(true)}
+          onCopy={copyOld}
+        />
+      )}
+      <VersionFlagsPanel
+        flags={version.flags}
+        doc={draft}
+        editable={editable}
+        onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
+        onDrop={(f) => flagEdit((d) => dropReference('theme', d, f))}
+      />
+      {editable && saver.recovery && <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />}
       {/* Gửi / duyệt cả hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) ở trang hồ sơ */}
       <DocStatusStrip
         kind="theme"
         doc={saved}
         ctx={ctx}
         user={user}
-        dirty={dirty}
+        dirty={saver.unsaved || saver.saving}
         reviewTo={`${base}/themes/${themeId}/review`}
-        onGo={navigate}
+        onGo={guard.leave}
       />
       <Card title="Chủ đề nhánh" bodyClass={null}>
         <div className="card__body">
@@ -164,7 +240,31 @@ function ThemePlanInner() {
           )}
         </div>
       </Card>
-      <ThemePlanBody yearPlan={yearPlan} themeId={themeId} draft={draft} editable={editable} setRow={setRow} setField={setField} />
+      <ThemePlanBody
+        yearPlan={yearPlan}
+        themeId={themeId}
+        draft={draft}
+        editable={editable}
+        setRow={setRow}
+        setField={setField}
+        flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
+        added={draft.sourceDocKey ? addedGoalIds(version.changes) : null}
+      />
+      <ActivityResources
+        user={user}
+        doc={draft}
+        activities={themeActivities(blocks, rowOf)}
+        editable={editable}
+        exists={!!saved}
+        onSave={saver.save}
+      />
+      <LeaveConfirmModal
+        {...guard.modal}
+        onDiscard={() => {
+          saver.discardBackup();
+          guard.modal.onDiscard();
+        }}
+      />
     </div>
   );
 }

@@ -37,8 +37,8 @@ keywords:
     {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/children/]}   # HLT-08..14 chốt 29/10 (GV cân đo — HLT-09); phiếu khám/phiếu theo dõi lệch HLT-10, HLT-12 — features/README.md
   "quan sát|observation|tiêu chí|criteria|nhận xét|summary|đánh giá|assessment|phát triển|development profile|bé ngoan|khen thưởng":
     {be_module_card: ../CareNest_BE/docs/modules/learning-observation.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/assessment/]}   # OBS-01..14 chốt 29/10
-  "kế hoạch giáo dục|education plan|kế hoạch năm|mục tiêu năm học|kế hoạch chủ đề|chủ đề nhánh|kế hoạch tuần|kế hoạch ngày|giáo án|hoạt động|activity|gokids":
-    {be_module_card: null, fe_docs: [docs/architecture/ROUTE_MAP.md, docs/features/README.md], fe_code: [src/services/education-plan/]}   # card education-plan của BE chưa merge nhánh chính BE (merge xong đổi thành link); EDU-01..10, OBS-07 (ADR-0019); luồng duyệt mock lệch EDU-02..04 — CURRENT_STATE.md
+  "kế hoạch giáo dục|education plan|kế hoạch năm|mục tiêu năm|kế hoạch chủ đề|chủ đề nhánh|kế hoạch tuần|kế hoạch ngày|giáo án|hồ sơ chủ đề|hoạt động|activity|gokids":
+    {be_module_card: ../CareNest_BE/docs/modules/education-plan.md, fe_docs: [docs/architecture/ROUTE_MAP.md, docs/features/README.md, ../CareNest_BE/docs/business/flows/education-plan.md], fe_code: [src/services/education-plan/]}   # EDU-01..28 theo code BE (ADR-0020); EDU-31/32/35/38 SUPERSEDED; ngữ cảnh hoạt động OBS-07, EDU-19
   "cơ sở vật chất|csvc|thiết bị|sự cố|facility|hỏng|thiếu|tài sản|asset|khấu hao|bảo trì|kiểm kê|luân chuyển":
     {be_module_card: null, fe_docs: [docs/context/REPOSITORY_CONTEXT.md], fe_code: [src/services/facility/, src/services/inventory-inspection/, src/services/facility-transfer/]}   # BE FAC REMOVED 29/10 — ngoài scope; code ẩn sau FACILITY_ENABLED=false, không phát triển thêm
   "đón trẻ|pickup|người đón|trả trẻ|về sớm":

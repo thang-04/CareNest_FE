@@ -4,16 +4,16 @@ Cập nhật: 2026-10-20 (bảng screen group theo source; mọi màn chạy tr�
 
 ## Đồng bộ nghiệp vụ BE 2026-10-29
 
-Nguồn: `BE:docs/business/BUSINESS_RULES.md` (khảo sát team 210/210, user chốt 2026-10-29). Đã đóng: P-01 ⇒ EDU-01, OBS-07 · P-02 ⇒ AI-09 · P-12 ⇒ OBS-06 · P-13 ⇒ HLT-03 · P-13b ⇒ PAR-03 · P-16b ⇒ OBS-09. `REMOVED`: OBS-08 (thay bằng nhóm EDU), FAC-01..04 (CSVC). ADR-0006 SUPERSEDED bởi ADR-0019. Rule mới: HLT-08..14, OBS-12..14, EDU-01..10, PCK-01..04, PAR-05, PAR-06, RPT-01..03, AI-07..10; AUTH-03 mở rộng (GV cũ xem lại lớp/năm từng dạy, chỉ đọc — BE chưa code). PENDING mới: P-29..P-35.
+Nguồn: `BE:docs/business/BUSINESS_RULES.md` (khảo sát team 210/210, user chốt 2026-10-29). Đã đóng: P-01 ⇒ EDU-29, OBS-07 · P-02 ⇒ AI-09 · P-12 ⇒ OBS-06 · P-13 ⇒ HLT-03 · P-13b ⇒ PAR-03 · P-16b ⇒ OBS-09. `REMOVED`: OBS-08 (thay bằng nhóm EDU), FAC-01..04 (CSVC). ADR-0006 ACCEPTED; ADR-0019 SUPERSEDED bởi ADR-0020 (user chốt 29/10: kế hoạch giáo dục theo code G94-226). Rule mới: HLT-08..14, OBS-12..14, EDU-29..38 (trên `dev` là EDU-01..10; EDU-31/32/35/38 SUPERSEDED theo code — `BE:docs/business/flows/education-plan.md`), PCK-01..04, PAR-05, PAR-06, RPT-01..03, AI-07..10; AUTH-03 mở rộng (GV cũ xem lại lớp/năm từng dạy, chỉ đọc — BE chưa code). PENDING mới: P-29..P-35.
 
 UI mock **lệch BE (29/10), cần sửa khi tích hợp**:
-- Kế hoạch giáo dục (`/education/*`): mock cho PHT tạo mục tiêu năm, tổ trưởng lập kế hoạch chủ đề, giáo án tuần/ngày qua duyệt tổ trưởng → PHT. BE: tổ trưởng soạn mục tiêu, PHT duyệt và ban hành (EDU-02); GV lập chủ đề nhánh + kế hoạch, duyệt GV → tổ trưởng → PHT (EDU-03); chủ đề tuần, kế hoạch ngày không duyệt (EDU-04); bản đã duyệt nhân bản để sửa (EDU-08).
+- Kế hoạch giáo dục (`/education/*`): đủ luồng theo BE EDU-01..28, EDU-39..41 (mục tiêu năm học + phiên bản, cấu hình, tài liệu lớp, hồ sơ chủ đề, duyệt theo chuỗi người ký), gọi BE thật khi `VITE_USE_MOCK=false`. Trang "Kế hoạch toàn trường" của HT còn đọc dữ liệu chủ đề/giáo án kiểu cũ nên trống khi nối BE.
 - Đánh giá hằng ngày (`/assessment/daily`): mock 3 nhóm, kiến thức–kỹ năng Đạt/Chưa đạt, PHT/HT mở lại ngày đã khóa. BE: 7 mặt, mức Đạt / Cần cố gắng / Chưa đạt (OBS-02), hết ngày thì khóa, không có bước mở lại (OBS-12). Chi tiết: [daily-assessment](../features/daily-assessment.md) mục "Lệch BE".
 - Sức khỏe (`/children/health-*`): mock có phiếu khám Phụ lục II, mức theo dõi, phiếu theo dõi; bác sĩ chọn tình trạng dinh dưỡng thay nhãn tự tính. BE: tự phân loại theo WHO, GV chỉnh kèm lý do (HLT-03, HLT-10); suy dinh dưỡng/thừa cân chỉ đánh dấu, không có quy trình theo dõi (HLT-12, OBS-03); nội dung ghi từ đợt khám bác sĩ chưa có rule (HLT-08). Cần team chốt trước khi tích hợp.
 - Đón trẻ (`/pickup/*`): mock xác minh bằng ảnh người giám hộ hoặc phụ huynh đồng ý qua điện thoại, gần PCK-02. Nguồn ảnh đối chiếu còn P-33; người lạ đón phải ghi lý do (PCK-02); không đăng ký trước người đón hộ (PCK-03).
 - CSVC (`/facility/*`): giữ ẩn (`FACILITY_ENABLED=false`), không phát triển thêm.
 
-Card education-plan, flow pickup và flow education-plan mới có ở working tree BE, chưa merge vào nhánh chính BE; docs FE ghi tên, merge xong đổi thành link `BE:`.
+Card education-plan, flow pickup và flow education-plan có ở BE nhánh G94-226 (đã merge `dev`); docs FE ghi link `BE:`.
 
 ## Đồng bộ nghiệp vụ BE 2026-10-28
 
@@ -49,14 +49,14 @@ Status: `—` chưa bắt đầu · `đang làm` · `xong`. Định nghĩa group
 | Xác nhận số suất ăn                        | Vice Principal tại cơ sở; Principal thay khi vắng (NUT-02) | nutrition                         | UI mock (`attendance`, `kitchen`) |
 | Xuất bản thực đơn tuần (BA: PHT công bố)   | Vice Principal mảng dinh dưỡng (NUT-08: công bố = duyệt; còn lệch, xem features/nutrition-inventory.md) | nutrition                         | UI mock (`menu-planning`) |
 | Xem nhận xét định kỳ / hồ sơ phát triển    | Principal, Vice Principal                     | learning-observation              | UI mock (`assessment`) |
-| Kế hoạch giáo dục: duyệt, ban hành         | Vice Principal được phân công; tổ trưởng (AUTH-23) duyệt bước giữa (EDU-02, EDU-03) | education-plan | UI mock (`education`), lệch BE 29/10 |
+| Kế hoạch giáo dục: duyệt, ban hành         | Phó HT ban hành mục tiêu năm (EDU-05); chủ đề nhánh, hồ sơ chủ đề theo chuỗi người ký, Tổ trưởng chỉ lớp nhóm tuổi mình (EDU-18) | education-plan | BE + UI (`education`) |
 | Tổng quan sức khỏe                         | Principal, Vice Principal                     | health                            | UI mock (`children`, `attendance`) |
 | ~~Theo dõi sự cố CSVC~~                    | —                                             | — (FAC REMOVED 29/10)             | UI mock, ẩn (`FACILITY_ENABLED=false`) |
 | Báo nghỉ của campus (chỉ xem, không duyệt) | Principal, Vice Principal                     | attendance                        | hiển thị trong điểm danh |
 | Điểm danh + báo ăn                         | Teacher                                       | attendance                        | UI mock (`attendance`) |
 | Đánh giá hằng ngày                         | Teacher                                       | learning-observation              | UI mock (`assessment`), lệch BE 29/10 |
 | Nhận xét định kỳ (GV xác nhận — OBS-05)    | Teacher                                       | learning-observation              | UI mock (`assessment`) |
-| Kế hoạch giáo dục lớp (chủ đề nhánh, tuần, ngày) | Teacher (EDU-03, EDU-07)                | education-plan                    | UI mock (`education`), lệch BE 29/10 |
+| Kế hoạch giáo dục lớp (chủ đề nhánh, tuần, ngày) | Teacher của lớp (EDU-12..17)            | education-plan                    | BE + UI (`education`) |
 | Đón trẻ                                    | Teacher (PCK-02, PCK-04)                      | attendance                        | UI mock (`pickup`) |
 | Nhập đo sức khỏe                           | Teacher (HLT-09)                              | health                            | UI mock (`children`), lệch BE 29/10 |
 | ~~Báo sự cố CSVC~~                         | —                                             | — (FAC REMOVED 29/10)             | UI mock, ẩn (`FACILITY_ENABLED=false`) |
@@ -70,7 +70,7 @@ Status: `—` chưa bắt đầu · `đang làm` · `xong`. Định nghĩa group
 | Auth flow, lưu token                   | chưa chốt            | `docs/integration/AUTH_FLOW.md`, `BE:docs/contracts/AUTH_CONTRACT.md` |
 | Actor xác nhận suất ăn                 | Đã chốt NUT-02 (đóng P-05, 2026-10-28) | `BE:docs/business/BUSINESS_RULES.md`                                  |
 | Người nhập đo sức khỏe                 | Đã chốt HLT-09: GV (2026-10-29) | `BE:docs/modules/health.md`                                           |
-| Ngữ cảnh hoạt động                     | Đã chốt OBS-07: lấy từ kế hoạch ngày (ADR-0019, 2026-10-29) | card education-plan của BE (chưa merge nhánh chính BE)                                   |
+| Ngữ cảnh hoạt động                     | Đã chốt OBS-07: MT của giáo án tuần/ngày đã duyệt (EDU-19, ADR-0006) | `BE:docs/modules/education-plan.md`                                   |
 | Màn hình hồ sơ trẻ / ghi danh trên Web | Actor chốt CHD-01 (PHT chuyên môn, form/Excel); màn Web theo UI mock `children` | `docs/features/README.md`                                             |
 
 Đã chốt gần đây: báo nghỉ = thông báo của phụ huynh qua app, **không có bước duyệt**; GV/BGH trong scope chỉ xem, GV không tạo thay phụ huynh (ATT-05, đóng 2026-10-02, bổ sung 27/10 — `BE:docs/business/flows/leave-request.md`).

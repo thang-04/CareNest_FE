@@ -17,7 +17,11 @@ const { byId } = await import('@/utils/menu-planning/menuCalculations');
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL' };
 const WEEK = '2026-11-02';
 
-beforeEach(() => values.clear());
+beforeEach((context) => {
+  values.clear();
+  // Seed theo ngày không được trùng tuần cố định của bài kiểm thử.
+  context.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T00:00:00Z').getTime() });
+});
 
 test('AI soạn tuần: bản nháp 5 ngày có lý do từng ngày, chỉ số trẻ dị ứng tổng hợp (không tên trẻ)', async () => {
   const d = await repo.generateAiSuggestion({ kind: 'WEEKLY', ageGroupId: 'ag-4', weekStart: WEEK, noRepeatDays: 7, season: 'Thu' }, VP);

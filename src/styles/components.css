@@ -232,25 +232,31 @@
   color: var(--color-danger-fg);
 }
 
-/* Sắp xếp kéo-thả (useSortableList): tay nắm ⋮⋮ đầu dòng, vạch xanh báo chỗ thả */
+/* Sắp xếp kéo-thả (components/ui/Sortable, dnd-kit): tay nắm ↕ có viền; khi kéo, dòng gốc thành ô giữ chỗ tô xanh
+   (đi theo vị trí sẽ thả), bản nhấc lên bám theo chuột; dòng vừa đổi chỗ nháy sáng */
 .drag-handle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: var(--space-6);
+  width: var(--space-8);
   height: var(--space-8);
   padding: 0;
-  border: 0;
-  border-radius: var(--radius-xs);
-  background: none;
-  color: var(--color-text-muted);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
   cursor: grab;
   touch-action: none;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 .drag-handle:hover {
-  background: var(--color-secondary);
-  color: var(--color-text);
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  transform: scale(1.06);
 }
 .drag-handle:active {
   cursor: grabbing;
@@ -260,28 +266,87 @@
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 .drag-handle--grabbed {
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+}
+.sortable-item {
+  position: relative;
+}
+/* Ô giữ chỗ: tô xanh cả dòng + khung nét đứt. !important vì nền sọc/ô cố định/hover của từng bảng
+   có độ ưu tiên cao hơn, mà khi đang kéo thì chỗ thả phải luôn nổi nhất */
+.sortable-item--placeholder,
+tr.sortable-item--placeholder > td {
+  background: var(--color-primary-soft-hover) !important;
+}
+.sortable-item--placeholder {
+  z-index: 1;
+  outline: 2px dashed var(--color-primary);
+  outline-offset: -2px;
+}
+.sortable-item--placeholder > * {
+  visibility: hidden;
+}
+tr.sortable-item--placeholder > td > * {
+  visibility: hidden;
+}
+/* Bản nhấc lên (DragOverlay): rộng bằng dòng, nổi bóng, nghiêng nhẹ như đang cầm */
+.sortable-overlay {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 100%;
+  min-height: var(--space-10);
+  padding: 0 var(--space-3);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  /* Nền xanh hơi trong: chỗ sẽ thả hiện xanh rõ, vẫn thấy kẻ ô bên dưới */
+  background: color-mix(in srgb, var(--color-primary-soft-hover) 88%, transparent);
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-lg);
+  cursor: grabbing;
+  transform: rotate(-0.6deg) scale(1.01);
+}
+.sortable-overlay__text {
+  overflow: hidden;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Tiêu đề cột STT có nút "Đánh số lại" xếp dưới chữ (cột STT hẹp); nút chỉ nổi màu khi STT đang lệch thứ tự */
+.stt-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.renumber-btn {
+  width: var(--space-6);
+  height: var(--space-6);
+  padding: 0;
+}
+.renumber-btn--active {
+  border: 1px solid var(--color-primary-border);
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
-.sortable-item--dragging {
-  opacity: 0.45;
+/* Dòng vừa đổi chỗ (nút ↑↓, bàn phím, thả): tô xanh cả dòng + khung xanh như ô giữ chỗ khi kéo, giữ ~1 giây (JS gỡ class).
+   Không dùng animation vì base.css ép mọi animation còn 0.01ms khi máy bật giảm chuyển động; !important để thắng nền sọc/ô cố định */
+.sortable-item--moved {
+  z-index: 1;
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
-.sortable-item--grabbed,
-tr.sortable-item--grabbed > td {
-  background: var(--color-primary-soft);
+div.sortable-item--moved,
+tr.sortable-item--moved > td {
+  background: var(--color-primary-soft-hover) !important;
 }
-.sortable-item--drop-before {
-  box-shadow: 0 -2px 0 var(--color-primary);
-}
-.sortable-item--drop-after {
-  box-shadow: 0 2px 0 var(--color-primary);
-}
-/* Ô bảng không vẽ box-shadow của tr: vẽ vạch trên từng ô */
-tr.sortable-item--drop-before > td {
-  box-shadow: inset 0 2px 0 var(--color-primary);
-}
-tr.sortable-item--drop-after > td {
-  box-shadow: inset 0 -2px 0 var(--color-primary);
+/* Giảm chuyển động: bỏ nghiêng bản nhấc lên; vẫn giữ tô xanh dòng vừa chuyển vì chỉ đổi màu, không chuyển động */
+@media (prefers-reduced-motion: reduce) {
+  .sortable-overlay {
+    transform: none;
+  }
 }
 .link-btn {
   border: none;
@@ -612,7 +677,9 @@ tr.sortable-item--drop-after > td {
 }
 /* Bảng kẻ ô theo bảng Mục tiêu năm học (Kế hoạch giáo dục): kẻ đủ mọi ô màu --color-text-disabled, tiêu đề chữ đậm */
 .table.table--grid th + th,
-.table.table--grid td + td {
+.table.table--grid td + td,
+.table.table--grid th + td,
+.table.table--grid td + th {
   border-left: 1px solid var(--color-text-disabled);
 }
 .table.table--grid th,
@@ -1476,6 +1543,118 @@ tr.sortable-item--drop-after > td {
   border-radius: var(--radius-full);
   padding: 1px var(--space-2);
   font-size: var(--fs-xs);
+}
+/* Form một hàng trong thẻ (vd. Mở lại điểm danh / ngày đánh giá): ô xếp ngang, xuống dòng khi hẹp;
+   cho danh sách chọn lớp mở xuống đè lên thẻ bên dưới */
+.form-inline {
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.form-inline .field {
+  margin: 0;
+}
+.form-inline__class {
+  min-width: 300px;
+}
+.form-inline__grow {
+  flex: 1;
+  min-width: 240px;
+}
+.form-inline__pair {
+  display: flex;
+  gap: var(--space-2);
+}
+/* Ô ngày (có nút lịch) đủ rộng cho dd/mm/yyyy */
+.form-inline__pair .input-group {
+  min-width: calc(var(--space-16) * 2 + var(--space-10));
+}
+.form-inline__full {
+  flex-basis: 100%;
+}
+/* Chọn lớp có tìm kiếm, nhóm theo nhóm tuổi (ui/ClassPicker) */
+.class-picker .search-submit .btn {
+  height: var(--input-height);
+}
+.class-picker {
+  position: relative;
+}
+.class-picker__box {
+  /* Cao bằng các ô nhập cùng hàng */
+  height: var(--input-height);
+  min-width: 0;
+  width: 100%;
+  cursor: text;
+}
+.class-picker__box.is-invalid {
+  border-color: var(--color-danger);
+}
+.class-picker__panel {
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  top: calc(100% + var(--space-1));
+  width: max(100%, 320px);
+  max-width: calc(100vw - 2 * var(--space-4));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+.class-picker__campus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+.class-picker__campus .chip {
+  cursor: pointer;
+}
+.class-picker__list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--space-1);
+}
+.class-picker__group {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+}
+.class-picker__option {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: var(--space-1-5) var(--space-3);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+.class-picker__option.is-active {
+  background: var(--color-secondary);
+}
+.class-picker__option.is-selected {
+  background: var(--color-primary-soft);
+  font-weight: var(--fw-semibold);
+}
+.class-picker__empty {
+  padding: var(--space-3);
+}
+/* Ô chọn điểm trường dùng chung (ui/CampusFilter): nhãn trên, ô chọn dưới */
+.campus-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.campus-filter .select {
+  width: auto;
 }
 .tab--active .tab__count {
   background: var(--color-primary);
@@ -3151,6 +3330,11 @@ button.stat-card .stat-card__label::after {
 
 .row-menu__item--danger {
   color: var(--color-danger);
+}
+.row-menu__item:disabled {
+  color: var(--color-text-disabled);
+  background: none;
+  cursor: not-allowed;
 }
 
 /* ---------- Điện thoại (≤640px): primitive dùng chung về 1 cột ---------- */

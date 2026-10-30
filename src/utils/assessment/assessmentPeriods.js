@@ -96,7 +96,6 @@ export const monthOfWeek = (monday) => monthStart(monday);
 export const isAssessmentLocked = (date, today = todayIso()) => today > date;
 
 // Hạn mở lại dài nhất người mở được chọn (PROPOSED, chờ Cần chốt)
-export const UNLOCK_MAX_DAYS = 7;
 
 /** Hạn của lần mở lại (người mở chọn ngày giờ); bản cũ chỉ lưu ngày thì hết lúc 23:59:59 ngày đó. */
 export const unlockDeadline = (validUntil) => new Date(/^\d{4}-\d{2}-\d{2}$/.test(validUntil) ? `${validUntil}T23:59:59` : validUntil);

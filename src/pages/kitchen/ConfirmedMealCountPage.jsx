@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Lock, Users } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useConfirmedMealCount, useKitchenCampus } from '@/hooks/kitchen/useKitchen';
+import { useConfirmedMealCount, useKitchenCampus, useNewMealCounts } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { MealCountStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter, KbSessionFilter } from '@/components/kitchen/KitchenFilters';
@@ -21,6 +21,7 @@ export default function ConfirmedMealCountPage() {
   const [classId, setClassId] = useState('ALL');
   const { campusId, setCampusId, canPick } = useKitchenCampus(md.campuses[0]?.id);
   const { sessions, loading, error, reload } = useConfirmedMealCount(campusId, date);
+  const fresh = useNewMealCounts(campusId, date, sessions);
 
   const classOptions = useMemo(() => {
     const map = new Map();
@@ -40,7 +41,7 @@ export default function ConfirmedMealCountPage() {
       </div>
       <div className="alert alert--info mb-16">
         <Lock size={18} />
-        <div>Số suất ăn do Phó hiệu trưởng xác nhận từ dữ liệu chốt lúc 8:45. Bếp chỉ xem, không sửa được.</div>
+        <div>Số suất ăn do Phó hiệu trưởng xác nhận từ dữ liệu chốt điểm danh. Bếp chỉ xem, không sửa được.</div>
       </div>
       <div className="kb-toolbar">
         <KbDateFilter value={date} onChange={(d) => setParams({ date: d }, { replace: true })} />
@@ -90,13 +91,13 @@ export default function ConfirmedMealCountPage() {
               return (
                 <div key={s.session} className="card">
                   <div className="card__header row row--between">
-                    <div className="card__title">{MEAL_SESSION_LABELS[s.session]}</div>
+                    <div className="card__title">
+                      {MEAL_SESSION_LABELS[s.session]} {fresh.has(s.session) && <span className="chip chip--green">Mới</span>}
+                    </div>
                     <MealCountStatusBadge status={s.status} />
                   </div>
                   {s.status !== 'CONFIRMED' ? (
-                    <div className="card__body muted">
-                      Số suất ăn chưa được Phó hiệu trưởng xác nhận. Bếp sẽ được thông báo khi có số chính thức.
-                    </div>
+                    <div className="card__body muted">Số suất ăn chưa được Phó hiệu trưởng xác nhận.</div>
                   ) : (
                     <>
                       <div className="card__body kb-totals">

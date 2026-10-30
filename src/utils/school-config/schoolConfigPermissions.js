@@ -26,9 +26,20 @@ export const canConfigureSchool = isPrincipal;
 export const canViewSchoolStructure = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.TEACHER, ROLES.TEAM_LEADER);
 
 export const canEditYear = (year, user) => isPrincipal(user) && !!year && year.status !== YEAR_STATUS.CLOSED;
-export const canActivateYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.PLANNED;
+/** Năm được kích hoạt tiếp theo: năm PLANNED bắt đầu sớm nhất (BE chặn kích hoạt năm khác). */
+export const nextYearToActivate = (years = []) =>
+  years.filter((y) => y.status === YEAR_STATUS.PLANNED).sort((a, b) => a.startDate.localeCompare(b.startDate))[0] || null;
+export const canActivateYear = (year, user, years = [year]) =>
+  isPrincipal(user) && year?.status === YEAR_STATUS.PLANNED && nextYearToActivate(years)?.id === year.id;
+/** Kết thúc tay chỉ sau ngày kết thúc năm học (BE kiểm tra lại). */
+export const closeYearOpensOn = (year) => {
+  if (!year?.endDate) return null;
+  const d = new Date(`${year.endDate}T00:00:00`);
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 export const canCloseYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.ACTIVE;
-/** Only a planned year can be deleted (the repository also checks it has no classes – MSG53). */
+/** Chỉ xóa năm chưa bắt đầu; xóa kèm lớp và dữ liệu chuẩn bị của năm đó (Cần chốt 22/10/2026). */
 export const canDeleteYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.PLANNED;
 
 /** Classes and age groups of a closed year are history: read only. */
@@ -86,6 +97,19 @@ export const areaAllows = (user, key, campusId, need = false) => {
   if (need === true && a.access !== PERMISSION_ACCESS.EDIT) return false;
   if (typeof need === 'string' && !a.actions[need]) return false;
   return a.scope === PERMISSION_SCOPE.ALL || !campusId || campusId === a.campusId;
+};
+
+/**
+ * Xếp lớp năm học mới: Hiệu trưởng toàn trường; PHT theo mảng "Xếp lớp năm học mới" Hiệu trưởng giao
+ * (1 điểm trường hoặc toàn trường; Xem hoặc Xem + Sửa).
+ */
+export const canViewYearPlacement = (user, campusId) => isPrincipal(user) || areaAllows(user, 'yearPlacement', campusId);
+export const canEditYearPlacement = (user, campusId) => isPrincipal(user) || areaAllows(user, 'yearPlacement', campusId, 'update');
+/** Điểm trường PHT được xếp (null = toàn trường). */
+export const yearPlacementCampus = (user) => {
+  if (isPrincipal(user)) return null;
+  const a = areaAccess(user, 'yearPlacement');
+  return a.scope === PERMISSION_SCOPE.ALL ? null : a.campusId || user?.campusId || null;
 };
 
 /** { access: NONE | VIEW | EDIT, scope: ALL | CAMPUS } of one permission for the signed-in user. */

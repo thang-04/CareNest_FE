@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Users, Info, UserCheck, Crown, Search } from '@/components/ui/icons';
+import { Users, Info, UserCheck, UserMinus, UserPlus, Crown, Search, History } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { normalizeText } from '@/utils/format';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useConfigYear } from '@/hooks/school-config/useConfigYear';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYears, useTeacherAssignments, useTeamLeaders } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { RowActions } from '@/components/ui/RowActions';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
-import { YearPicker } from '@/components/school-config/YearPicker';
 import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { saveTeamLeader } from '@/services/school-config/schoolConfigService';
+import { RemoveTeachersModal } from '@/components/school-config/RemoveTeachersModal';
+import { AssignmentHistoryModal } from '@/components/school-config/AssignmentHistoryModal';
 import { TEACHERS_PER_CLASS, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { ROLES } from '@/models/User';
 import {
@@ -35,7 +37,7 @@ const CAMPUS_ALL = 'all';
 const CLASS_PAGE_SIZE = 10;
 
 /** Một dòng nhóm tuổi: tổ trưởng hiện tại và nút mở hộp chọn (cùng kiểu Phân công giáo viên). */
-function TeamLeaderRow({ group, classCount, current, campusName, readOnly, acts, onOpen }) {
+function TeamLeaderRow({ group, classCount, current, campusName, readOnly, acts, onOpen, onRemove, onHistory }) {
   const canEdit = !readOnly && (current ? acts.update || acts.delete : acts.create);
   return (
     <tr>
@@ -51,15 +53,30 @@ function TeamLeaderRow({ group, classCount, current, campusName, readOnly, acts,
           <span className="muted">Chưa phân công</span>
         )}
       </td>
-      {!readOnly && (
-        <td className="cell--actions">
-          {canEdit && (
-            <button className="btn btn--primary btn--sm" onClick={() => onOpen(group)}>
-              <Crown size={15} /> {current ? 'Đổi tổ trưởng' : 'Phân công'}
-            </button>
-          )}
-        </td>
-      )}
+      <td className="cell--actions">
+        <RowActions
+          menu={[
+            ...(canEdit ? [{ label: current ? 'Đổi tổ trưởng' : 'Phân công', icon: Crown, onClick: () => onOpen(group) }] : []),
+            { label: 'Lịch sử phân công', icon: History, onClick: () => onHistory(group) },
+            ...(canEdit && current && acts.delete
+              ? [
+                  {
+                    label: 'Gỡ tổ trưởng',
+                    icon: UserMinus,
+                    danger: true,
+                    onClick: () => onRemove(group),
+                    confirm: {
+                      title: 'Gỡ tổ trưởng',
+                      message: `Gỡ ${current.fullName} khỏi vai trò tổ trưởng ${group.name}?`,
+                      confirmLabel: 'Gỡ tổ trưởng',
+                    },
+                  },
+                ]
+              : []),
+          ]}
+          name={group.name}
+        />
+      </td>
     </tr>
   );
 }
@@ -68,13 +85,20 @@ function TeamLeaderRow({ group, classCount, current, campusName, readOnly, acts,
  * #26 Teacher Assignment (UC 2.6). Teacher part follows "Phân công giáo viên"; team leaders follow the separate VP area "Phân công tổ trưởng nhóm tuổi":
  * FULL (always the Principal) chooses any campus, RESTRICTED works on the own campus.
  */
+// Lọc tình trạng: đủ = 2 giáo viên + chủ nhiệm; lớp được lưu với 0–2 giáo viên
+const STATUS_MATCH = {
+  FULL: (c) => c.teacherIds.length >= TEACHERS_PER_CLASS && !!c.homeroomTeacherId,
+  MISSING: (c) => c.teacherIds.length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS,
+  NONE: (c) => c.teacherIds.length === 0,
+  NO_HOMEROOM: (c) => c.teacherIds.length > 0 && !c.homeroomTeacherId,
+};
+
 export default function TeacherAssignmentPage() {
   const { user } = useAuth();
   const toast = useToast();
   const md = useMasterData();
-  const { schoolYear: headerYear } = useSchoolYear();
   const [params, setParams] = useSearchParams();
-  const yearId = params.get('year') || headerYear;
+  const yearId = useConfigYear();
   const access = permissionAccess(user, ASSIGN_TEACHER);
   const fullScope = access.scope === 'ALL';
   // Phạm vi toàn trường: chọn "Toàn trường" (mặc định của Hiệu trưởng, ?campus=all) hoặc 1 điểm trường;
@@ -98,7 +122,11 @@ export default function TeacherAssignmentPage() {
   useEffect(() => {
     if (leadersReady && window.location.hash === '#to-truong') document.getElementById('to-truong')?.scrollIntoView({ block: 'start' });
   }, [leadersReady]);
+  // Tên giáo viên của lớp: BE trả kèm (đúng cả năm đã kết thúc); thiếu thì tra danh sách người dùng
+  const teacherName = (c, id) => c.teachers?.find((t) => t.id === id)?.fullName || md.userById(id)?.fullName || '';
   const [editing, setEditing] = useState(null);
+  const [removing, setRemoving] = useState(null); // lớp đang chọn giáo viên để gỡ
+  const [history, setHistory] = useState(null); // { kind: 'class' | 'leader', id, name, schoolYear? }
   const [leaderGroup, setLeaderGroup] = useState(null);
 
   const classes = useMemo(() => data?.classes || [], [data]);
@@ -114,10 +142,8 @@ export default function TeacherAssignmentPage() {
   const shownClasses = classOptions.filter(
     (c) =>
       (!classFilter || c.id === classFilter) &&
-      (!kw ||
-        normalizeText(c.name).includes(kw) ||
-        c.teacherIds.some((id) => normalizeText(md.userById(id)?.fullName || '').includes(kw))) &&
-      (!statusFilter || (statusFilter === 'MISSING' ? c.teacherIds.length < TEACHERS_PER_CLASS : !c.homeroomTeacherId)),
+      (!kw || normalizeText(c.name).includes(kw) || c.teacherIds.some((id) => normalizeText(teacherName(c, id) || '').includes(kw))) &&
+      (!statusFilter || STATUS_MATCH[statusFilter]?.(c)),
   );
   const pageRows = paginate(shownClasses, page, CLASS_PAGE_SIZE);
   // Đổi bộ lọc thì về trang 1
@@ -144,7 +170,7 @@ export default function TeacherAssignmentPage() {
   const leaderReadOnly = closed || !Object.values(leaderActs).some(Boolean);
   const teachers = data?.teachers || [];
   const groups = leaders.data?.leaderGroups || [];
-  const unassigned = classes.filter((c) => !c.teacherIds.length).length;
+  const unassigned = classes.filter((c) => c.teacherIds.length < TEACHERS_PER_CLASS).length;
   const campusName = (id) => md.campusById(id)?.shortName || '—';
 
   const onSaveLeader = async (group, userId) => {
@@ -154,8 +180,7 @@ export default function TeacherAssignmentPage() {
       leaders.reload({ silent: true });
       return true;
     } catch (err) {
-      toast.error(err, 'Không lưu được thay đổi');
-      return false;
+      return err.message;
     }
   };
 
@@ -163,12 +188,6 @@ export default function TeacherAssignmentPage() {
     <div className="page">
       <Breadcrumb items={teacherCrumbs()} />
       <h1 className="page__title">Phân công giáo viên</h1>
-
-      <div className="card mb-16">
-        <div className="filter-bar">
-          <YearPicker years={years} value={yearId} onChange={(v) => setParams((prev) => ({ ...Object.fromEntries(prev), year: v }))} />
-        </div>
-      </div>
 
       {allowed && !canEdit && (
         <div className="alert alert--warning mb-16">
@@ -201,7 +220,7 @@ export default function TeacherAssignmentPage() {
                     <th>Nhóm tuổi</th>
                     <th className="num">Số lớp</th>
                     <th className="sc-col-leader">Tổ trưởng</th>
-                    {!leaderReadOnly && <th className="cell--actions">Thao tác</th>}
+                    <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -225,6 +244,8 @@ export default function TeacherAssignmentPage() {
                           readOnly={leaderReadOnly}
                           acts={leaderActs}
                           onOpen={setLeaderGroup}
+                          onRemove={(g) => onSaveLeader(g, null)}
+                          onHistory={(g) => setHistory({ kind: 'leader', id: g.id, name: g.name, schoolYear: yearId })}
                         />
                       );
                     })
@@ -293,7 +314,9 @@ export default function TeacherAssignmentPage() {
                   onChange={(e) => setFilter({ status: e.target.value })}
                 >
                   <option value="">Mọi tình trạng</option>
-                  <option value="MISSING">Chưa đủ {TEACHERS_PER_CLASS} giáo viên</option>
+                  <option value="FULL">Đủ giáo viên</option>
+                  <option value="MISSING">Thiếu 1 GV</option>
+                  <option value="NONE">Chưa có giáo viên</option>
                   <option value="NO_HOMEROOM">Chưa có chủ nhiệm</option>
                 </select>
                 <SearchSubmit
@@ -312,7 +335,7 @@ export default function TeacherAssignmentPage() {
                   </button>
                 )}
               </div>
-              {unassigned > 0 && <span className="chip chip--orange sc-head-filters__end">{unassigned} lớp chưa có giáo viên</span>}
+              {unassigned > 0 && <span className="chip chip--orange sc-head-filters__end">{unassigned} lớp chưa đủ giáo viên</span>}
             </div>
             <div className="table-wrap sc-table-flat">
               <table className="table table--grid table--compact">
@@ -324,7 +347,7 @@ export default function TeacherAssignmentPage() {
                     <th className="num">Sĩ số</th>
                     <th>Chủ nhiệm</th>
                     <th>Giáo viên</th>
-                    {!readOnly && <th className="cell--actions">Thao tác</th>}
+                    <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -349,24 +372,75 @@ export default function TeacherAssignmentPage() {
                         {allCampuses && <td>{campusName(c.campusId)}</td>}
                         <td>{data.ageGroups.find((g) => g.id === c.ageGroupId)?.shortName}</td>
                         <td className="num">
-                          {c.childCount}/{c.capacity}
+                          {c.childCount}/{c.capacity ?? '—'}
                         </td>
-                        <td>{md.userById(c.homeroomTeacherId)?.fullName || <UnassignedBadge label="Chưa có" />}</td>
+                        <td>{c.homeroomTeacherId ? teacherName(c, c.homeroomTeacherId) : <UnassignedBadge label="Chưa có" />}</td>
                         <td className="text-sm sc-wrap">
                           {c.teacherIds
-                            .map((id) => md.userById(id)?.fullName)
+                            .map((id) => teacherName(c, id))
                             .filter(Boolean)
                             .join(', ') || <span className="muted">—</span>}
+                          {c.teacherIds.length > 0 && !c.homeroomTeacherId && (
+                            <>
+                              {' '}
+                              <span className="chip chip--orange">Chưa có chủ nhiệm</span>
+                            </>
+                          )}
+                          {c.teacherIds.length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS && (
+                            <>
+                              {' '}
+                              {canAssignClass(c, user) && !readOnly ? (
+                                <button
+                                  type="button"
+                                  className="chip chip--orange"
+                                  title="Phân công thêm giáo viên"
+                                  onClick={() => setEditing({ ...c, addMore: true })}
+                                >
+                                  Thiếu {TEACHERS_PER_CLASS - c.teacherIds.length} GV
+                                </button>
+                              ) : (
+                                <span className="chip chip--orange">Thiếu {TEACHERS_PER_CLASS - c.teacherIds.length} GV</span>
+                              )}
+                            </>
+                          )}
                         </td>
-                        {!readOnly && (
-                          <td className="cell--actions">
-                            {canAssignClass(c, user) && (
-                              <button className={`btn btn--sm ${c.teacherIds.length ? '' : 'btn--primary'}`} onClick={() => setEditing(c)}>
-                                <UserCheck size={15} /> {c.teacherIds.length ? 'Đổi giáo viên' : 'Phân công'}
-                              </button>
-                            )}
-                          </td>
-                        )}
+                        <td className="cell--actions">
+                          {readOnly || !canAssignClass(c, user) ? (
+                            <RowActions
+                              menu={[
+                                {
+                                  label: 'Lịch sử phân công',
+                                  icon: History,
+                                  onClick: () => setHistory({ kind: 'class', id: c.id, name: c.name }),
+                                },
+                              ]}
+                              name={c.name}
+                            />
+                          ) : (
+                            <RowActions
+                              menu={[
+                                ...(c.teacherIds.length === 0
+                                  ? [{ label: 'Phân công', icon: UserCheck, onClick: () => setEditing(c) }]
+                                  : []),
+                                ...(c.teacherIds.length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS
+                                  ? [{ label: 'Phân công thêm', icon: UserPlus, onClick: () => setEditing({ ...c, addMore: true }) }]
+                                  : []),
+                                ...(c.teacherIds.length > 0
+                                  ? [{ label: 'Đổi giáo viên', icon: UserCheck, onClick: () => setEditing(c) }]
+                                  : []),
+                                {
+                                  label: 'Lịch sử phân công',
+                                  icon: History,
+                                  onClick: () => setHistory({ kind: 'class', id: c.id, name: c.name }),
+                                },
+                                ...(c.teacherIds.length > 0
+                                  ? [{ label: 'Gỡ giáo viên', icon: UserMinus, danger: true, onClick: () => setRemoving(c) }]
+                                  : []),
+                              ]}
+                              name={c.name}
+                            />
+                          )}
+                        </td>
                       </tr>
                     ))
                   )}
@@ -395,6 +469,20 @@ export default function TeacherAssignmentPage() {
           acts={leaderActs}
           onSave={onSaveLeader}
           onClose={() => setLeaderGroup(null)}
+        />
+      )}
+      {history && <AssignmentHistoryModal target={history} onClose={() => setHistory(null)} />}
+      {removing && (
+        <RemoveTeachersModal
+          cls={removing}
+          nameOf={(id) => md.userById(id)?.fullName || id}
+          yearActive={year?.status === YEAR_STATUS.ACTIVE}
+          teachers={teachers.filter((t) => t.campusId === removing.campusId)}
+          classesOf={classesOf}
+          onClose={(changed) => {
+            setRemoving(null);
+            if (changed) reload({ silent: true });
+          }}
         />
       )}
       {editing && (

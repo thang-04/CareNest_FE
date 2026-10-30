@@ -29,7 +29,8 @@
 }
 .ga-stack-cards > .card + .card,
 /* Các khối trên trang kế hoạch giáo dục cách nhau đều như các trang khác */
-.ga-page > * + :is(.card, .alert, .ga-week-hero) {
+.ga-page > * + :is(.card, .alert, .ga-week-hero),
+.ga-edit-fieldset > * + :is(.card, .alert, .ga-week-hero) {
   margin-top: var(--space-4);
 }
 .ga-week-hero {
@@ -413,6 +414,30 @@
 .ga-goal-table__del {
   width: 64px;
 }
+/* Cột "Sắp xếp" bảng chủ đề, đợt nghỉ: tay nắm kéo-thả và 2 nút lên/xuống trên 1 hàng */
+.ga-goal-table__sort {
+  width: 132px;
+}
+.ga-sort-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+/* Nút lên/xuống: nhích nhẹ theo hướng khi rê chuột để báo hướng di chuyển */
+.ga-sort-btn {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.ga-sort-btn:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.ga-sort-btn--up:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.ga-sort-btn--down:hover:not(:disabled) {
+  transform: translateY(2px);
+}
 /* Cột "Tháng" bảng chủ đề nhánh: đủ "Tháng 12" trên 1 dòng */
 .ga-col-month {
   width: calc(var(--space-16) * 1.375);
@@ -702,6 +727,31 @@
   border-left: 2px solid var(--color-border);
 }
 
+/* Ô kế hoạch tuần: nhãn MT / "Chưa gắn MT" là nút cùng kiểu, luôn ở góc trái dưới của ô dù hàng cao bao nhiêu (Tiền 20/10).
+   td height: 1px để khối con cao bằng cả ô (table cell không nhận height: 100% nếu không có chiều cao) */
+.table.ga-goal-table td:has(> .ga-act-cell) {
+  height: 1px;
+}
+.ga-act-cell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.ga-act-cell__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: auto;
+  padding: var(--space-2);
+}
+/* Cột Thứ 2–6 hẹp: nút được xuống dòng trong ô thay vì tràn sang ô bên */
+.ga-act-cell__foot .btn {
+  max-width: 100%;
+  height: auto;
+  min-height: var(--btn-height-sm);
+  padding: var(--space-1) var(--space-2);
+  white-space: normal;
+}
 /* Modal duyệt tên chủ đề nhánh AI điền: tuần · tên cũ gạch → tên AI · ✓ ✗ */
 .ga-ai-review {
   display: grid;
@@ -735,5 +785,438 @@
   }
   .ga-ai-review__week {
     grid-column: 1 / -1;
+  }
+}
+
+/* Khung gợi ý hoạt động của ô kế hoạch tuần (Tiền 21/10, phương án A) */
+.ga-sug-panel .search-select__list {
+  max-height: 320px;
+}
+.ga-sug-panel {
+  overflow: hidden;
+  border: 1px solid var(--color-primary);
+  box-shadow: var(--shadow-lg);
+}
+/* Thanh đầu khung màu xanh nổi bật (Tiền 21/10) */
+.ga-sug-panel__hint {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  font-weight: var(--fw-semibold);
+}
+.ga-sug {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  border: 1px solid transparent;
+  background: none;
+  text-align: left;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+/* Cách nhau để hai dòng đã chọn (nền xanh lá) không dính viền */
+.ga-sug + .ga-sug {
+  margin-top: var(--space-1);
+}
+.ga-sug:hover {
+  background: var(--color-primary-soft);
+}
+.ga-sug--on,
+.ga-sug--on:hover {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+.ga-sug__mt {
+  flex: none;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-full);
+  color: var(--color-primary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  line-height: 20px;
+}
+.ga-sug__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.ga-sug__type {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.ga-sug__text {
+  color: var(--color-text);
+  font-weight: var(--fw-semibold);
+}
+.ga-sug__check {
+  flex: none;
+  color: var(--color-success-fg);
+}
+
+.ga-edit-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.ga-media-upload,
+.ga-teaching-files,
+.ga-teaching-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-4);
+}
+.ga-resource-list {
+  list-style: none;
+  padding: 0;
+}
+.ga-resource-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.ga-media-unbound {
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-lg);
+}
+.ga-media-viewer {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+  width: 100%;
+  min-width: 0;
+}
+.ga-media-viewer img,
+.ga-media-viewer video {
+  max-width: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+}
+.ga-media-viewer object {
+  width: 100%;
+  height: 65vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.ga-teaching {
+  background: var(--color-surface-muted);
+}
+.ga-teaching:fullscreen {
+  overflow: auto;
+  padding: var(--space-6);
+}
+.ga-teaching-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+.ga-teaching-nav {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  max-height: 80vh;
+  overflow: auto;
+}
+.ga-teaching-nav h2 {
+  margin: 0 0 var(--space-4);
+}
+.ga-teaching-activity {
+  display: grid;
+  gap: var(--space-2);
+  text-align: left;
+  width: 100%;
+  padding: var(--space-4);
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+.ga-teaching-activity.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.ga-teaching-mt {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.ga-teaching-stage {
+  min-width: 0;
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.ga-teaching-title {
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  line-height: 1.3;
+  white-space: pre-wrap;
+  margin-bottom: var(--space-6);
+}
+.ga-teaching-controls {
+  justify-content: space-between;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+@media (max-width: 800px) {
+  .ga-teaching-layout {
+    grid-template-columns: 1fr;
+  }
+  .ga-teaching-nav {
+    max-height: 35vh;
+  }
+  .ga-teaching-stage {
+    padding: var(--space-4);
+  }
+}
+
+/* Chi tiết kế hoạch năm: từ 3 nút hành động trở lên thì không đặt lên hàng breadcrumb (đè mã kế hoạch), để cùng hàng nhãn trạng thái */
+@media (min-width: 1024px) {
+  .ga-goal-detail .breadcrumb + .page__head > .page__actions:has(> :nth-child(3)) {
+    position: static;
+    min-height: 0;
+  }
+}
+
+/* ---------- Lấy từ Chương trình của Bộ (CurriculumGoalsModal) ---------- */
+.ga-cur-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.ga-cur-meta__source {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Thanh tìm / lọc dính đầu vùng cuộn của hộp, nền đặc để không lẫn chữ bên dưới */
+.ga-cur-toolbar {
+  position: sticky;
+  top: calc(-1 * var(--space-5));
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0 calc(-1 * var(--space-6));
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.ga-cur-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.ga-cur-search {
+  position: relative;
+  display: block;
+  max-width: 420px;
+  color: var(--color-text-muted);
+}
+.ga-cur-search svg {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.ga-cur-search .input {
+  width: 100%;
+  padding-left: var(--space-10);
+}
+.ga-cur-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ga-cur-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.ga-cur-chip:hover {
+  background: var(--color-surface-hover);
+}
+.ga-cur-chip.is-on {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+}
+.ga-cur-chip__n {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.ga-cur-chip:focus-visible,
+.ga-cur-row input:focus-visible,
+.ga-cur-group__head input:focus-visible,
+.ga-cur-domain__head input:focus-visible,
+.ga-cur-contents summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.ga-cur-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.ga-cur-domain__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-primary-soft);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.ga-cur-sub {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.ga-cur-sub__name {
+  padding: 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.ga-cur-group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.ga-cur-group__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.ga-cur-item + .ga-cur-item {
+  border-top: 1px solid var(--color-border);
+}
+.ga-cur-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  padding: var(--space-2-5) var(--space-3);
+  cursor: pointer;
+}
+.ga-cur-row:hover {
+  background: var(--color-surface-hover);
+}
+.ga-cur-list > div > .ga-cur-row {
+  border-radius: var(--radius);
+}
+.ga-cur-row input,
+.ga-cur-group__head input,
+.ga-cur-domain__head input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--color-primary);
+}
+h2.ga-cur-domain__head {
+  margin: 0;
+  font-size: var(--fs-md);
+  cursor: default;
+}
+/* Câu mục tiêu dài: giới hạn độ dài dòng cho dễ đọc */
+.ga-cur-row__text {
+  max-width: 75ch;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+.ga-cur-row__text .ga-goal-code {
+  margin-right: var(--space-1);
+}
+.ga-cur-contents {
+  padding: 0 var(--space-3) var(--space-2) calc(var(--space-3) + 26px);
+}
+.ga-cur-contents summary {
+  width: fit-content;
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+}
+.ga-cur-contents ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+  color: var(--color-text-muted);
+}
+.ga-cur-modal .modal__footer {
+  align-items: center;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+/* Điện thoại: hộp chiếm cả màn hình */
+@media (max-width: 640px) {
+  .modal-backdrop:has(> .ga-cur-modal) {
+    padding: 0;
+  }
+  .modal.ga-cur-modal {
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .ga-cur-modal .modal__body,
+  .ga-cur-modal .modal__header,
+  .ga-cur-modal .modal__footer {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+  .ga-cur-toolbar {
+    margin: 0 calc(-1 * var(--space-4));
+    padding: var(--space-3) var(--space-4);
+  }
+  .ga-cur-search {
+    max-width: none;
+  }
+  .ga-cur-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: var(--space-1);
+  }
+  .ga-cur-chip {
+    flex: none;
+  }
+  .ga-page .filter-bar .select[aria-label='Nhóm tuổi'] {
+    width: 100%;
   }
 }

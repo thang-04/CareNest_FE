@@ -1,158 +1,32 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Download, Info, UtensilsCrossed, History } from '@/components/ui/icons';
+import { Download, UtensilsCrossed } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
-import { MealCountStatusBadge } from '@/components/attendance/AttendanceBadges';
+import { MealAdjustModal, MealRegisterCard, dayStatus } from '@/components/attendance/MealRegisterCard';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 import { DonutChart } from '@/components/charts/MiniCharts';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { useMealCounts } from '@/hooks/attendance/useAttendance';
 import { confirmMealCount } from '@/services/attendance/attendanceService';
 import { ROLES } from '@/models/User';
-import { MEAL_COUNT_STATUS, MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
-import { canConfirmMealCount } from '@/utils/attendance/attendancePermissions';
+import { MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { dayRegister } from '@/utils/attendance/mealRegister';
+import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
 import { downloadCsv } from '@/utils/exportCsv';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { formatDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
-
-// OPEN: chưa tới giờ chốt (sổ tạm tính)
-const STATUS_ORDER = ['OPEN', MEAL_COUNT_STATUS.PENDING_CONFIRMATION, MEAL_COUNT_STATUS.CONFIRMED];
-
-/** Trạng thái sổ của một ngày: bữa nào còn mở/chờ xác nhận thì cả ngày chưa chốt. */
-const dayStatus = (counts) => STATUS_ORDER.find((st) => counts.some((c) => c.status === st)) || MEAL_COUNT_STATUS.CONFIRMED;
-
-/**
- * Sổ báo ăn ngày của một điểm trường (BA): mỗi lớp một dòng số suất/ngày, lớp chưa hoàn thành điểm danh, một nút xác nhận cả ngày.
- * Dữ liệu vẫn theo bữa (BE); "Ăn" đánh dấu mọi bữa cùng lúc nên mỗi lớp lấy số ở bữa đầu tiên có lớp đó.
- */
-function DayRegisterCard({ counts, campusName, user, md, onConfirm }) {
-  const first = counts[0];
-  const status = dayStatus(counts);
-  const confirmable = counts.filter((c) => c.id && canConfirmMealCount(c, user));
-  const reconfirm = counts.some((c) => c.needsReconfirmation);
-  const register = dayRegister(counts);
-  const incomplete = register.rows.filter((l) => l.missing > 0);
-  const servings = register.servings;
-  const classById = Object.fromEntries(register.rows.map((l) => [l.classId, l.className]));
-  const adjustments = counts.flatMap((c) => c.adjustments.map((a) => ({ ...a, session: c.session })));
-  const confirmed = counts.filter((c) => c.confirmedAt).sort((a, b) => (a.confirmedAt < b.confirmedAt ? 1 : -1))[0];
-  return (
-    <div className="card dd-count">
-      <div className="card__header">
-        <div className="card__title">Sổ báo ăn ngày{campusName ? ` · ${campusName}` : ''}</div>
-        <MealCountStatusBadge status={status} />
-      </div>
-      <div className="card__body">
-        {reconfirm && user?.role !== ROLES.KITCHEN_STAFF && (
-          <div className="alert alert--warning mb-12" role="status">
-            <AlertTriangle size={18} />
-            <div>Điểm danh đã thay đổi sau khi mở lại lớp. Số dưới đây cần được xác nhận lại; bếp vẫn dùng số đã xác nhận trước đó.</div>
-          </div>
-        )}
-        {status === 'OPEN' && (
-          <div className="alert alert--info mb-12">
-            <Info size={18} />
-            <div>Giáo viên đang điểm danh và báo ăn. Số liệu dưới đây là tạm tính đến giờ chốt.</div>
-          </div>
-        )}
-        {status !== MEAL_COUNT_STATUS.CONFIRMED && incomplete.length > 0 && (
-          <div className="alert alert--warning mb-12">
-            <AlertTriangle size={18} />
-            <div>
-              Lớp chưa hoàn thành điểm danh: <b>{incomplete.map((l) => l.className).join(', ')}</b>. Trẻ chưa điểm danh không được tính
-              suất; kiểm tra với giáo viên trước khi xác nhận.
-            </div>
-          </div>
-        )}
-        <div className="dd-count__totals">
-          <div>
-            <span className="dd-count__num">{servings}</span>
-            <span className="muted text-sm">Suất ăn / ngày</span>
-          </div>
-          <div>
-            <span className="dd-count__num dd-count__num--sub">{register.substitute}</span>
-            <span className="muted text-sm">Trong đó suất thay thế</span>
-          </div>
-          <div>
-            <span className="dd-count__num">{counts.length}</span>
-            <span className="muted text-sm">Bữa trong ngày</span>
-          </div>
-        </div>
-        <div className="table-wrap mt-12">
-          <table className="table table--grid table--compact table--wrap-head">
-            <thead>
-              <tr>
-                <th>Lớp</th>
-                <th className="num">Có mặt</th>
-                <th className="num">Vắng</th>
-                <th className="num">Chưa ĐD</th>
-                <th className="num">Suất / ngày</th>
-                <th className="num">Suất thay thế</th>
-                <th>Điểm danh</th>
-              </tr>
-            </thead>
-            <tbody>
-              {register.rows.map((l) => (
-                <tr key={l.classId}>
-                  <td className="fw-600 nowrap">{l.className}</td>
-                  <td className="num">{l.present}</td>
-                  <td className="num">{l.absent}</td>
-                  <td className={`num ${l.missing ? 'text-danger' : 'muted'}`}>{l.missing || '—'}</td>
-                  <td className="num fw-600">{l.normal + l.substitute}</td>
-                  <td className="num">{l.substitute}</td>
-                  <td className={l.missing ? 'text-danger' : 'muted'}>{l.missing ? 'Chưa hoàn thành' : 'Hoàn thành'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {adjustments.length > 0 && (
-          <div className="mt-12">
-            <div className="subsection-title row">
-              <History size={16} /> Điều chỉnh sau giờ chốt ({adjustments.length})
-            </div>
-            <ul className="dd-adjust">
-              {adjustments.map((a, i) => (
-                <li key={i}>
-                  <span className="text-xs muted nowrap">{formatDateTime(a.at)}</span>
-                  <span>
-                    <b>{classById[a.classId]}</b> ({MEAL_SESSION_LABELS[a.session]}):{' '}
-                    {a.normal ? `${a.normal} suất thường` : `${a.substitute} suất thay thế`} – {a.note}
-                    <span className="muted"> ({md.userById?.(a.userId)?.fullName || 'Giáo viên'})</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {confirmed && (
-          <div className="text-sm muted mt-12">
-            Xác nhận bởi {md.userById?.(confirmed.confirmedBy)?.fullName || 'Phó hiệu trưởng'} lúc {formatDateTime(confirmed.confirmedAt)}
-          </div>
-        )}
-        {confirmable.length > 0 && (
-          <div className="row mt-12 dd-count__actions">
-            <button className="btn btn--primary" onClick={() => onConfirm({ counts: confirmable, servings, campusName, date: first.date })}>
-              <CheckCircle2 size={16} /> {reconfirm ? 'Xác nhận lại sổ báo ăn ngày' : 'Xác nhận sổ báo ăn ngày'}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /** Điểm danh và suất ăn trong ngày: mỗi lớp lấy 1 lần vì các bữa của lớp dùng chung số điểm danh BE trả. */
 function dayAttendance(counts) {
   const d = dayRegister(counts);
-  return { classes: d.rows.length, present: d.present, absent: d.absent, missing: d.missing, meals: d.servings };
+  // Suất: cộng đủ các bữa trong ngày (Cần chốt 20/10/2026)
+  return { classes: d.rows.length, present: d.present, absent: d.absent, missing: d.missing, meals: dayBySession(counts).total };
 }
 
 /** Khối tổng đầu trang, cùng mẫu màn Tổng hợp điểm danh. */
@@ -190,7 +64,7 @@ function DayOverview({ counts }) {
         </div>
         <div className="dd-stat dd-stat--blue">
           <span className="dd-stat__value">{d.meals}</span>
-          <span className="dd-stat__label">Suất ăn / ngày</span>
+          <span className="dd-stat__label">Tổng suất cả ngày</span>
         </div>
         <div className="dd-stat">
           <span className="dd-stat__value">{counts.length}</span>
@@ -211,13 +85,18 @@ export default function MealCountPage() {
   const date = params.get('date') || today;
   const { data, loading, error, reload } = useMealCounts(date);
   const [confirming, setConfirming] = useState(null);
+  const [adjusting, setAdjusting] = useState(null);
   const kitchen = user?.role === ROLES.KITCHEN_STAFF;
+  // Hiệu trưởng xem cả trường: lọc điểm trường
+  const [campusFilter, setCampusFilter] = useState('');
+  const allCampuses = [...new Set((data?.counts || []).map((c) => c.campusId))];
+  const shownCounts = useMemo(() => (data?.counts || []).filter((c) => !campusFilter || c.campusId === campusFilter), [data, campusFilter]);
 
-  // Một lần xác nhận cho cả ngày: chốt mọi bữa còn chờ của điểm trường
+  // Xác nhận một bữa hoặc tất cả bữa còn chờ của điểm trường
   const doConfirm = async () => {
     try {
       for (const c of confirming.counts) await confirmMealCount(c.id, user);
-      toast.success('Đã xác nhận sổ báo ăn ngày. Bếp đã nhận được số liệu.', 'Xác nhận thành công');
+      toast.success(`Đã xác nhận ${confirming.scope}. Bếp đã nhận được số liệu.`, 'Xác nhận thành công');
       setConfirming(null);
       reload({ silent: true });
     } catch (err) {
@@ -225,18 +104,32 @@ export default function MealCountPage() {
     }
   };
 
-  const campuses = [...new Set((data?.counts || []).map((c) => c.campusId))];
+  const campuses = [...new Set(shownCounts.map((c) => c.campusId))];
   const exportCsv = () => {
-    const rows = [['Điểm trường', 'Lớp', 'Có mặt', 'Vắng', 'Chưa điểm danh', 'Suất/ngày', 'Suất thay thế', 'Trạng thái']];
+    const sessions = [...new Set(shownCounts.map((c) => c.session))];
+    const rows = [
+      [
+        'Điểm trường',
+        'Lớp',
+        'Có mặt',
+        'Vắng',
+        'Chưa điểm danh',
+        ...sessions.map((sKey) => MEAL_SESSION_LABELS[sKey]),
+        'Tổng suất',
+        'Suất thay thế',
+        'Trạng thái',
+      ],
+    ];
     campuses.forEach((campusId) => {
-      const counts = data.counts.filter((c) => c.campusId === campusId);
-      dayRegister(counts).rows.forEach((l) =>
+      const counts = shownCounts.filter((c) => c.campusId === campusId);
+      dayBySession(counts).rows.forEach((l) =>
         rows.push([
           md.campusById?.(campusId)?.name || campusId,
           l.className,
           l.present,
           l.absent,
           l.missing,
+          ...sessions.map((sKey) => (l.meals[sKey] ? l.meals[sKey].normal + l.meals[sKey].substitute : '')),
           l.normal + l.substitute,
           l.substitute,
           dayStatus(counts),
@@ -258,6 +151,12 @@ export default function MealCountPage() {
         )}
       </div>
       <ClassDateBar date={date} maxDate={today} onDateChange={(v) => setParams({ date: v }, { replace: true })}>
+        <CampusFilter
+          className="dd-bar__field"
+          campuses={allCampuses.map((id) => ({ id, name: md.campusById?.(id)?.name || id }))}
+          value={campusFilter}
+          onChange={setCampusFilter}
+        />
         <div className="spacer" />
         {kitchen && (
           <Link className="btn" to={`/attendance/meal-handover?date=${date}`}>
@@ -284,15 +183,16 @@ export default function MealCountPage() {
         </div>
       ) : (
         <>
-          <DayOverview counts={data.counts} />
+          <DayOverview counts={shownCounts} />
           {campuses.map((campusId) => (
             <section key={campusId} className="mb-16">
-              <DayRegisterCard
-                counts={data.counts.filter((c) => c.campusId === campusId)}
-                campusName={campuses.length > 1 ? md.campusById?.(campusId)?.name || campusId : ''}
+              <MealRegisterCard
+                counts={shownCounts.filter((c) => c.campusId === campusId)}
+                campusName={allCampuses.length > 1 ? md.campusById?.(campusId)?.name || campusId : ''}
                 user={user}
                 md={md}
                 onConfirm={setConfirming}
+                onAdjust={setAdjusting}
               />
             </section>
           ))}
@@ -300,16 +200,29 @@ export default function MealCountPage() {
       )}
       <ConfirmationModal
         open={!!confirming}
-        title="Xác nhận sổ báo ăn ngày"
+        title={confirming?.counts.length > 1 ? 'Xác nhận tất cả bữa' : `Xác nhận ${confirming?.scope || ''}`}
         message={
           confirming
-            ? `${confirming.campusName ? `${confirming.campusName}, ` : ''}ngày ${formatDate(confirming.date)}: ${confirming.servings} suất/ngày. Xác nhận một lần cho ${confirming.counts.length} bữa; bếp dùng số liệu này để tính nguyên liệu và xuất kho.`
+            ? `${confirming.counts
+                .map((c) => `${MEAL_SESSION_LABELS[c.session]} ${c.totals.normal + c.totals.substitute} suất`)
+                .join('; ')} ngày ${formatDate(confirming.counts[0].date)}. Bếp dùng số liệu này để tính nguyên liệu và xuất kho.`
             : ''
         }
-        confirmLabel="Xác nhận sổ báo ăn"
+        confirmLabel={confirming?.counts.length > 1 ? `Xác nhận ${confirming.counts.length} bữa` : 'Xác nhận'}
         onConfirm={doConfirm}
         onClose={() => setConfirming(null)}
       />
+      {adjusting && (
+        <MealAdjustModal
+          target={adjusting}
+          user={user}
+          onClose={() => setAdjusting(null)}
+          onSaved={() => {
+            setAdjusting(null);
+            reload({ silent: true });
+          }}
+        />
+      )}
     </div>
   );
 }

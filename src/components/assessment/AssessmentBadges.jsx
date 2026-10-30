@@ -1,6 +1,6 @@
-import { CheckCircle2, Clock, FileEdit, AlertTriangle, XCircle, Sparkles, Undo2, Award, Ticket, Lock, Unlock } from '@/components/ui/icons';
+import { CheckCircle2, Clock, FileEdit, AlertTriangle, XCircle, Undo2, Award, Ticket, Lock, Unlock } from '@/components/ui/icons';
 import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
-import { AI_DRAFT_LABEL, EVAL_STATUS_LABELS, REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
+import { EVAL_STATUS_LABELS, REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
 
 /* Tones follow DESIGN.md §3.2: purple = waiting for review, red = needs action, green = done. */
 export const EvaluationStatusBadge = createStatusBadge(
@@ -46,15 +46,9 @@ export const TicketBadge = createDetailBadge(
 
 /** Lần mở lại ngày đánh giá: còn hiệu lực hay đã hết hạn (hạn truyền qua `detail`). */
 export const UnlockWindowBadge = createDetailBadge(
-  { ACTIVE: ['green', Unlock], EXPIRED: ['gray', Lock] },
-  { ACTIVE: 'Đến', EXPIRED: 'Đã hết ·' },
+  { ACTIVE: ['green', Unlock], EXPIRED: ['gray', Lock], REVOKED: ['red', Lock] },
+  { ACTIVE: 'Đến', EXPIRED: 'Đã hết ·', REVOKED: 'Kết thúc sớm ·' },
 );
 
-/** Label shown on every AI draft (GBR-AI: never official until the teacher confirms). */
-export function AiDraftTag() {
-  return (
-    <span className="chip chip--purple">
-      <Sparkles size={14} /> {AI_DRAFT_LABEL}
-    </span>
-  );
-}
+// Nhãn bản nháp AI dùng chung (components/ui/AiDraftTag)
+export { AiDraftTag } from '@/components/ui/AiDraftTag';

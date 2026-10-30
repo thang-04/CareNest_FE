@@ -83,7 +83,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
       });
       return next;
     });
-    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([id]) => !ids.includes(id))));
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([id]) => id !== '_form' && !ids.includes(id))));
   };
   const applyWholeClass = () =>
     patchRows(
@@ -118,8 +118,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
       toast.success('Đã lưu xếp lớp (dự kiến).', from.name);
       onSaved();
     } catch (err) {
-      if (err.details) setErrors(err.details);
-      toast.error(err, 'Không lưu được xếp lớp');
+      setErrors(err.details || { _form: err.message });
     } finally {
       setSaving(false);
     }
@@ -127,6 +126,11 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
 
   return (
     <div className="sc-plc__panel">
+      {errors._form && (
+        <div className="alert alert--danger mb-12" role="alert">
+          {errors._form}
+        </div>
+      )}
       {/* Tên lớp và "Cả lớp lên" chung một hàng để bảng trẻ có nhiều chỗ hơn */}
       <div className="sc-plc__toolbar">
         {heading}

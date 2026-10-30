@@ -28,3 +28,7 @@ Thumbs.db
 # Ghi chú/worktree tạm của phiên AI (không thuộc source)
 .commit-worktrees/
 .continues-handoff.md
+
+# Playwright (tests/e2e)
+test-results/
+playwright-report/

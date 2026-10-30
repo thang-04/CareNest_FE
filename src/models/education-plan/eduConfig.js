@@ -5,7 +5,7 @@
  */
 import { DOMAINS, STANDARD_DOMAINS, setDomainLabelOverrides, setDomains } from '@/models/education-plan/educationPlanConstants';
 
-export const SIGN_ROLES = { TEAM_LEADER: 'Tổ trưởng', VICE_PRINCIPAL: 'Phó Hiệu trưởng', PRINCIPAL: 'Hiệu trưởng' };
+export const SIGN_ROLES = { TEAM_LEADER: 'Tổ trưởng', VICE_PRINCIPAL: 'Phó hiệu trưởng', PRINCIPAL: 'Hiệu trưởng' };
 
 /** Trạng thái chờ của từng vai trò duyệt. */
 export const PENDING_OF = { TEAM_LEADER: 'PENDING_TL', VICE_PRINCIPAL: 'PENDING_VP', PRINCIPAL: 'PENDING_HT' };
@@ -29,9 +29,16 @@ export const DEFAULT_WEEK_ROWS = [
   { key: 'tro_chuyen', label: 'Trò chuyện', canMerge: true, allWeek: true },
   { key: 'the_duc', label: 'Thể dục sáng', canMerge: true, allWeek: true },
   { key: 'hoc', label: 'Hoạt động học', canMerge: false, allWeek: false },
-  { key: 'ngoai_troi', label: 'Chơi, hoạt động ngoài trời', canMerge: false, allWeek: false },
+  // extraLabel: dòng có thêm phần chung cả tuần dưới 5 ô ngày (mẫu Thái Dương: "Chơi tự do", "Chơi tự chọn", "Nêu gương")
+  { key: 'ngoai_troi', label: 'Chơi, hoạt động ngoài trời', canMerge: false, allWeek: false, extraLabel: 'Chơi tự do (cả tuần)' },
   { key: 'goc', label: 'Chơi, hoạt động ở các góc', canMerge: true, allWeek: true },
-  { key: 'chieu', label: 'Chơi, hoạt động buổi chiều', canMerge: false, allWeek: false },
+  {
+    key: 'chieu',
+    label: 'Chơi, hoạt động buổi chiều',
+    canMerge: false,
+    allWeek: false,
+    extraLabel: 'Chơi tự chọn; nêu gương cuối ngày (cả tuần)',
+  },
   { key: 'tra_tre', label: 'Trả trẻ', canMerge: true, allWeek: true },
 ];
 
@@ -54,7 +61,10 @@ export const withDefaults = (cfg) => ({
   domainLabels: { ...DEFAULT_EDU_CONFIG.domainLabels, ...(cfg?.domainLabels || {}) },
   extraDomains: (cfg?.extraDomains || []).filter((d) => d?.trim() && !STANDARD_DOMAINS.includes(d)),
   signers: { ...DEFAULT_EDU_CONFIG.signers, ...(cfg?.signers || {}) },
-  weekRows: cfg?.weekRows?.length ? cfg.weekRows : DEFAULT_WEEK_ROWS,
+  // Cấu hình đã lưu trước khi có phần chung cả tuần: lấy extraLabel mặc định theo khóa dòng
+  weekRows: cfg?.weekRows?.length
+    ? cfg.weekRows.map((r) => ('extraLabel' in r ? r : { ...r, extraLabel: DEFAULT_WEEK_ROWS.find((d) => d.key === r.key)?.extraLabel }))
+    : DEFAULT_WEEK_ROWS,
 });
 
 // Cấu hình đang dùng: các màn hình và file xuất đọc cùng một bản (nạp khi mở module kế hoạch giáo dục)

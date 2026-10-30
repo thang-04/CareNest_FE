@@ -17,7 +17,6 @@ import { Check, FileDown, Plus } from '@/components/ui/icons';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
-import { useClasses } from '@/hooks/useSchool';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
@@ -33,9 +32,7 @@ import {
 
 /** /education/class, /education/branches: mở lớp đầu tiên người dùng được xem (lớp mình dạy trước). */
 export function ClassPlanRedirect({ toOf = (id) => `/education/class/${id}` }) {
-  const { user } = useEducationPlan();
-  const { classes, loading } = useClasses();
-  if (loading) return <LoadingState />;
+  const { user, classes } = useEducationPlan();
   const own = classes.find((c) => (c.teacherIds || []).includes(user.id)) || classes[0];
   if (!own) return <EmptyState title="Bạn chưa được phân công lớp nào" />;
   return <Navigate to={toOf(own.id)} replace />;
@@ -122,7 +119,7 @@ export default function ClassPlanPage() {
             week: w,
             branchNo: i + 1,
             branchName: branch?.names?.[w.start] || '',
-            doc: weekPlans.find((x) => x.classId === classId && x.weekStart === w.start),
+            doc: weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start),
           }))
           .filter((w) => w.doc),
       },
@@ -275,7 +272,8 @@ export default function ClassPlanPage() {
                               </td>
                             </tr>
                           );
-                        const wdoc = weekPlans.find((w) => w.classId === classId && w.weekStart === r.start) || null;
+                        const wdoc =
+                          weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.weekStart === r.start) || null;
                         const name = branch?.names?.[r.start]?.trim();
                         const lock = !wdoc && weekLock;
                         return (

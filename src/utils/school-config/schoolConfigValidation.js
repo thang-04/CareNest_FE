@@ -9,12 +9,58 @@ import { MEAL_SESSION_OPTIONS, TEACHERS_PER_CLASS } from '@/models/school-config
 const same = (a, b) => normalizeText((a || '').trim()) === normalizeText((b || '').trim());
 const YEAR_NAME = /^(\d{4})-(\d{4})$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
-const PHONE = /^[0-9 +().-]{8,20}$/;
+// Số điện thoại Việt Nam (như CampusRequest.phone của BE): di động 10 số 03/05/07/08/09, cố định 11 số 02x
+const VN_PHONE = /^0(?:[35789]\d{8}|2\d{9})$/;
+export const PHONE_MESSAGE = 'Số điện thoại không đúng định dạng Việt Nam (VD: 0912345678)';
+/** Bỏ dấu cách, dấu chấm, gạch ngang; +84 / 84 đầu số đổi thành 0. */
+export const normalizePhone = (raw) => {
+  const digits = String(raw ?? '').replace(/[\s.\-()]/g, '');
+  return digits.replace(/^\+?84(?=\d{9,10}$)/, '0');
+};
+export const isVnPhone = (raw) => VN_PHONE.test(normalizePhone(raw));
+// Số nguyên lớn nhất BE nhận cho sĩ số / sức chứa (@Max(Short.MAX_VALUE))
+export const MAX_SIZE = 32767;
+
+// Độ dài tối đa theo DTO BE (@Size): ô nhập không chặn gõ, vượt thì báo lỗi dưới ô
+export const CAMPUS_LIMITS = {
+  code: [30, 'Mã điểm trường'],
+  shortName: [50, 'Tên ngắn'],
+  name: [150, 'Tên đầy đủ'],
+  address: [255, 'Địa chỉ'],
+};
+export const ROOM_LIMITS = { room: [20, 'Mã phòng'], name: [50, 'Tên phòng'], note: [500, 'Ghi chú'] };
+export const AGE_GROUP_LIMITS = { name: [50, 'Tên nhóm tuổi'], shortName: [50, 'Tên ngắn'], nutritionNote: [500, 'Ghi chú dinh dưỡng'] };
+export const CLASS_LIMITS = { name: [50, 'Tên lớp'] };
+export const CUTOFF_LIMITS = { note: [500, 'Ghi chú'] };
+
+/** Lỗi vượt độ dài của các field trong `limits`. */
+export const lengthErrors = (form, limits) =>
+  Object.fromEntries(
+    Object.entries(limits)
+      .filter(([field, [max]]) => String(form[field] ?? '').trim().length > max)
+      .map(([field, [max, label]]) => [field, `${label} tối đa ${max} ký tự (đang ${String(form[field]).trim().length})`]),
+  );
+const withLength = (e, form, limits) => ({ ...lengthErrors(form, limits), ...e });
+
+/**
+ * Lỗi sau khi người dùng sửa các field trong `patch`: xóa lỗi cũ của field đó, báo ngay nếu vượt độ dài
+ * (các lỗi khác vẫn báo khi rời ô / bấm lưu). Lỗi chung của form (`_form`) cũng xóa.
+ */
+export const errorsAfterChange = (prev, patch, nextForm, limits) => {
+  const live = lengthErrors(nextForm, limits);
+  const next = { ...prev };
+  delete next._form;
+  Object.keys(patch).forEach((k) => {
+    if (live[k]) next[k] = live[k];
+    else delete next[k];
+  });
+  return next;
+};
 
 export const hasErrors = (e) => Object.keys(e).length > 0;
 export const firstError = (e) => Object.values(e)[0];
 
-export const validateSchoolYear = (form, others = []) => {
+export const validateSchoolYear = (form, others = [], { creating = false } = {}) => {
   const e = {};
   const name = (form.name || '').trim();
   const m = YEAR_NAME.exec(name);
@@ -32,6 +78,15 @@ export const validateSchoolYear = (form, others = []) => {
     if (overlap)
       e.endDate = `Khoảng thời gian trùng với năm học ${overlap.name} (${formatDate(overlap.startDate)} – ${formatDate(overlap.endDate)})`;
   }
+  // CFG-YR-03: năm mới nối tiếp năm mới nhất (tên = năm mới nhất + 1, bắt đầu sau ngày kết thúc năm đó)
+  const latest = creating ? [...others].sort((a, b) => b.startDate.localeCompare(a.startDate))[0] : null;
+  const latestName = latest && YEAR_NAME.exec(latest.name);
+  if (latestName && !e.name && m && Number(m[1]) !== Number(latestName[1]) + 1) {
+    const from = Number(latestName[1]) + 1;
+    e.name = `Năm học tiếp theo phải là ${from}-${from + 1} (sau năm ${latest.name})`;
+  }
+  if (latest && !e.startDate && !e.endDate && form.startDate <= latest.endDate)
+    e.startDate = `Ngày bắt đầu phải sau ngày kết thúc năm học ${latest.name} (${formatDate(latest.endDate)})`;
   return e;
 };
 
@@ -45,7 +100,6 @@ export const validateAgeGroup = (form, others = [], { blockingClasses = [] } = {
   const e = {};
   const name = (form.name || '').trim();
   if (!name) e.name = 'Nhập tên nhóm tuổi';
-  else if (name.length > 50) e.name = 'Tên nhóm tuổi tối đa 50 ký tự';
   else if (others.some((g) => same(g.name, name))) e.name = 'Tên nhóm tuổi đã tồn tại';
   if (!form.shortName?.trim()) e.shortName = 'Nhập tên ngắn';
   if (!form.mealSessions?.length) e.mealSessions = 'Chọn ít nhất một bữa ăn trong ngày';
@@ -61,13 +115,13 @@ export const validateAgeGroup = (form, others = [], { blockingClasses = [] } = {
     if (overlap)
       e.ageToMonths = `Độ tuổi trùng với nhóm ${overlap.shortName || overlap.name} (${overlap.ageFromMonths}–${overlap.ageToMonths} tháng)`;
   }
-  if (!isInt(form.maxClassSize, 1, Number.MAX_SAFE_INTEGER)) e.maxClassSize = 'Sĩ số tối đa / lớp là số nguyên lớn hơn 0';
+  if (!isInt(form.maxClassSize, 1, MAX_SIZE)) e.maxClassSize = `Sĩ số tối đa / lớp là số nguyên từ 1 đến ${MAX_SIZE}`;
   else {
     const over = blockingClasses.filter((c) => Math.max(c.capacity, c.childCount || 0) > Number(form.maxClassSize));
     if (over.length)
       e.maxClassSize = `Không hạ được: ${over.map((c) => `${c.name} (${c.childCount || 0}/${c.capacity})`).join(', ')} đang vượt ${form.maxClassSize} trẻ. Giảm sĩ số các lớp đó trước.`;
   }
-  return e;
+  return withLength(e, form, AGE_GROUP_LIMITS);
 };
 
 /**
@@ -79,7 +133,6 @@ export const validateClass = (form, others = [], { ageGroup = null, room = null,
   const e = {};
   const name = (form.name || '').trim();
   if (!name) e.name = 'Nhập tên lớp';
-  else if (name.length > 50) e.name = 'Tên lớp tối đa 50 ký tự';
   else if (others.some((c) => c.schoolYear === form.schoolYear && c.campusId === form.campusId && same(c.name, name)))
     e.name = 'Điểm trường đã có lớp cùng tên trong năm học này';
   if (!form.campusId) e.campusId = 'Chọn điểm trường';
@@ -93,14 +146,14 @@ export const validateClass = (form, others = [], { ageGroup = null, room = null,
   if (!isInt(form.capacity, min, max))
     e.capacity = enrolled > 0 ? `Sĩ số tối đa từ ${min} (số trẻ đang học) ${range}` : `Sĩ số tối đa từ 1 ${range}`;
   else if (room?.capacity && enrolled > room.capacity) e.locationId = `Sức chứa phòng là ${room.capacity}, lớp đang có ${enrolled} trẻ`;
-  return e;
+  return withLength(e, form, CLASS_LIMITS);
 };
 
 /** Max size of a class = min(age group max per class, room capacity), with the reason shown to the user. */
 export const classSizeLimit = (ageGroup, room) => {
   const g = ageGroup?.maxClassSize || null;
   const r = room?.capacity || null;
-  if (!g && !r) return { max: Number.MAX_SAFE_INTEGER, reason: '' };
+  if (!g && !r) return { max: MAX_SIZE, reason: '' };
   const max = Math.min(g || Infinity, r || Infinity);
   const parts = [g && `nhóm ${ageGroup.shortName} tối đa ${g}`, r && `phòng ${room.room} sức chứa ${r}`].filter(Boolean);
   const by = g && (!r || g <= r) ? 'theo nhóm tuổi' : 'theo sức chứa phòng';
@@ -114,22 +167,20 @@ export const validateCutoff = (form, year) => {
   if (!form.effectiveFrom) e.effectiveFrom = 'Chọn ngày áp dụng';
   else if (year && (form.effectiveFrom < year.startDate || form.effectiveFrom > year.endDate))
     e.effectiveFrom = `Ngày áp dụng phải nằm trong năm học ${year.name}`;
-  const reopen = String(form.reopenWindowMinutes ?? '').trim();
-  if (!reopen) e.reopenWindowMinutes = 'Nhập số phút được mở lại sau giờ chốt (0 = không cho mở lại)';
-  else if (!/^\d+$/.test(reopen) || Number(reopen) > 600) e.reopenWindowMinutes = 'Nhập số phút nguyên từ 0 đến 600';
-  return e;
+  return withLength(e, form, CUTOFF_LIMITS);
 };
 
 export const validateCampus = (form, others = []) => {
   const e = {};
   if (!form.code?.trim()) e.code = 'Nhập mã điểm trường';
+  else if (form.code.trim().length > 30) e.code = 'Mã điểm trường tối đa 30 ký tự';
   else if (others.some((c) => same(c.code, form.code))) e.code = 'Mã điểm trường đã tồn tại';
   if (!form.name?.trim()) e.name = 'Nhập tên điểm trường';
   else if (others.some((c) => same(c.name, form.name))) e.name = 'Tên điểm trường đã tồn tại';
   if (!form.shortName?.trim()) e.shortName = 'Nhập tên ngắn';
   if (!form.address?.trim()) e.address = 'Nhập địa chỉ';
-  if (form.phone && !PHONE.test(form.phone.trim())) e.phone = 'Số điện thoại chỉ gồm chữ số, dài 8–20 ký tự';
-  return e;
+  if (form.phone?.trim() && !isVnPhone(form.phone)) e.phone = PHONE_MESSAGE;
+  return withLength(e, form, CAMPUS_LIMITS);
 };
 
 export const validateVpAssignment = (form) => {
@@ -138,12 +189,16 @@ export const validateVpAssignment = (form) => {
   return e;
 };
 
-/** Mỗi lớp đúng 2 giáo viên, chủ nhiệm do người phân công tự chọn trong 2 người đó. */
-export const validateClassTeachers = (form) => {
+/**
+ * Lớp có 0–2 giáo viên. Hộp phân công bắt buộc tích chủ nhiệm khi có giáo viên; gỡ giáo viên thì lớp được để trống
+ * chủ nhiệm (`requireHomeroom: false`). Kích hoạt năm học cần mọi lớp có giáo viên và chủ nhiệm.
+ */
+export const validateClassTeachers = (form, { requireHomeroom = true } = {}) => {
   const e = {};
-  if ((form.teacherIds?.length || 0) !== TEACHERS_PER_CLASS) e.teacherIds = `Chọn đủ ${TEACHERS_PER_CLASS} giáo viên cho lớp`;
-  if (form.teacherIds?.length && !form.homeroomTeacherId) e.homeroomTeacherId = 'Chọn giáo viên chủ nhiệm';
-  if (form.homeroomTeacherId && !form.teacherIds?.includes(form.homeroomTeacherId))
+  const count = form.teacherIds?.length || 0;
+  if (count > TEACHERS_PER_CLASS) e.teacherIds = `Mỗi lớp tối đa ${TEACHERS_PER_CLASS} giáo viên`;
+  if (requireHomeroom && count > 0 && !form.homeroomTeacherId) e.homeroomTeacherId = 'Chọn giáo viên chủ nhiệm';
+  else if (form.homeroomTeacherId && !form.teacherIds?.includes(form.homeroomTeacherId))
     e.homeroomTeacherId = 'Giáo viên chủ nhiệm phải nằm trong danh sách giáo viên của lớp';
   return e;
 };
@@ -165,52 +220,51 @@ export const validateRoom = (form, others = [], { minCapacity = 0 } = {}) => {
   const name = (form.name || '').trim();
   if (!form.campusId) e.campusId = 'Chọn điểm trường';
   if (!code) e.room = 'Nhập mã/số phòng, ví dụ P.101';
-  else if (code.length > 20) e.room = 'Mã phòng tối đa 20 ký tự';
   else if (others.some((l) => l.campusId === form.campusId && same(l.room, code))) e.room = 'Điểm trường đã có phòng cùng mã';
   if (!name) e.name = 'Nhập tên phòng';
-  else if (name.length > 50) e.name = 'Tên phòng tối đa 50 ký tự';
   // Cùng mã / tên được phép ở hai điểm trường khác nhau (Phòng 101 Campus 1 và Campus 2)
   else if (others.some((l) => l.campusId === form.campusId && same(l.name, name))) e.name = 'Điểm trường đã có phòng cùng tên';
   if (!form.type) e.type = 'Chọn loại phòng';
   if (form.type === 'CLASS' || (form.capacity !== '' && form.capacity != null)) {
     if (form.capacity === '' || form.capacity == null) e.capacity = 'Nhập sức chứa của phòng học';
-    else if (!isInt(form.capacity, 1, Number.MAX_SAFE_INTEGER)) e.capacity = 'Sức chứa là số nguyên lớn hơn 0';
+    else if (!isInt(form.capacity, 1, MAX_SIZE)) e.capacity = `Sức chứa là số nguyên từ 1 đến ${MAX_SIZE}`;
     else if (form.type === 'CLASS' && Number(form.capacity) < minCapacity)
       e.capacity = `Lớp đang dùng phòng có sĩ số tối đa ${minCapacity}, sức chứa không được nhỏ hơn`;
   }
-  if ((form.note || '').length > 500) e.note = 'Ghi chú tối đa 500 ký tự';
-  return e;
+  return withLength(e, form, ROOM_LIMITS);
 };
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Email có tên miền cấp cao ≥ 2 chữ cái (vd. .vn, .com)
+const EMAIL = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[A-Za-z]{2,}$/;
+// Họ tên: chữ cái (gồm tiếng Việt có dấu) và dấu cách
+const PERSON_NAME = /^[\p{L}\s]+$/u;
+export const STAFF_LIMITS = { fullName: [100, 'Họ tên'], email: [255, 'Email'] };
+const checkStaffCommon = (form, others, e) => {
+  const name = (form.fullName || '').trim().replace(/\s+/g, ' ');
+  if (!name) e.fullName = 'Nhập họ tên';
+  else if (!PERSON_NAME.test(name)) e.fullName = 'Họ tên chỉ gồm chữ cái và dấu cách';
+  else if (name.length < 2) e.fullName = 'Họ tên tối thiểu 2 ký tự';
+  const email = (form.email || '').trim().toLowerCase();
+  if (!email) e.email = 'Nhập email';
+  else if (!EMAIL.test(email)) e.email = 'Email không đúng định dạng (VD: ten@truong.edu.vn)';
+  else if (others.some((u) => (u.email || '').trim().toLowerCase() === email)) e.email = 'Email đã được dùng cho tài khoản khác';
+  if (form.phone?.trim() && !isVnPhone(form.phone)) e.phone = PHONE_MESSAGE;
+  return withLength(e, form, STAFF_LIMITS);
+};
 /** Staff account (PROPOSED): roles the Principal may give; Teacher and Kitchen staff need a campus. */
 export const STAFF_ROLE_OPTIONS = ['VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF'];
 export const validateStaffAccount = (form, others = []) => {
   const e = {};
-  if (!form.fullName?.trim()) e.fullName = 'Nhập họ tên';
-  else if (form.fullName.trim().length > 100) e.fullName = 'Họ tên tối đa 100 ký tự';
-  const email = (form.email || '').trim().toLowerCase();
-  if (!email) e.email = 'Nhập email';
-  else if (!EMAIL.test(email)) e.email = 'Email không hợp lệ';
-  else if (others.some((u) => (u.email || '').toLowerCase() === email)) e.email = 'Email đã được dùng cho tài khoản khác';
-  if (form.phone && !PHONE.test(form.phone.trim())) e.phone = 'Số điện thoại chỉ gồm chữ số, dài 8–20 ký tự';
   if (!STAFF_ROLE_OPTIONS.includes(form.role)) e.role = 'Chọn vai trò';
   if (form.role !== 'VICE_PRINCIPAL' && !form.campusId) e.campusId = 'Chọn điểm trường';
-  return e;
+  return checkStaffCommon(form, others, e);
 };
 
 /** Hồ sơ nhân sự (PHT được sửa): họ tên, email, SĐT, ngày sinh, trình độ, ghi chú. */
 export const validateStaffProfile = (form, others = []) => {
   const e = {};
-  if (!form.fullName?.trim()) e.fullName = 'Nhập họ tên';
-  else if (form.fullName.trim().length > 100) e.fullName = 'Họ tên tối đa 100 ký tự';
-  const email = (form.email || '').trim().toLowerCase();
-  if (!email) e.email = 'Nhập email';
-  else if (!EMAIL.test(email)) e.email = 'Email không hợp lệ';
-  else if (others.some((u) => (u.email || '').toLowerCase() === email)) e.email = 'Email đã được dùng cho tài khoản khác';
-  if (form.phone && !PHONE.test(form.phone.trim())) e.phone = 'Số điện thoại chỉ gồm chữ số, dài 8–20 ký tự';
   if (form.dateOfBirth && !isIsoDate(form.dateOfBirth)) e.dateOfBirth = 'Ngày sinh không hợp lệ, nhập dạng dd/mm/yyyy';
   if ((form.qualification || '').length > 200) e.qualification = 'Trình độ tối đa 200 ký tự';
   if ((form.note || '').length > 500) e.note = 'Ghi chú tối đa 500 ký tự';
-  return e;
+  return checkStaffCommon(form, others, e);
 };
