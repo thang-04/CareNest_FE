@@ -88,10 +88,11 @@ const ITEMS = {
 
   assessDaily: { label: 'Đánh giá hằng ngày', to: '/assessment/daily' },
   assessOverview: { label: 'Tổng quan đánh giá lớp', to: '/assessment/overview' },
+  assessQuality: { label: 'Chất lượng tháng', to: '/assessment/quality-report' },
   assessDayUnlocks: { label: 'Mở lại ngày đánh giá', to: '/assessment/day-unlocks' },
   assessProfiles: { label: 'Hồ sơ phát triển', to: '/assessment/children' },
   assessProgress: { label: 'Tiến độ phát triển', to: '/assessment/children' },
-  assessPeriodic: { label: 'Đánh giá tuần / tháng', to: '/assessment/periodic' },
+  assessPeriodic: { label: 'Đánh giá tháng', to: '/assessment/periodic' },
   assessYearEnd: { label: 'Đánh giá cuối năm', to: '/assessment/year-end' },
   assessTickets: { label: 'Phiếu bé ngoan', to: '/assessment/tickets' },
   assessRewards: { label: 'Đề xuất khen thưởng', to: '/assessment/rewards' },
@@ -152,6 +153,7 @@ const MENUS = {
     group('attendance', ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('assessment', [
       'assessOverview',
+      'assessQuality',
       'assessProgress',
       'assessPeriodic',
       'assessYearEnd',
@@ -193,6 +195,7 @@ const MENUS = {
     group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
+      'assessQuality',
       'assessProgress',
       'assessPeriodic',
       'assessYearEnd',

@@ -598,6 +598,61 @@
 .dg-class-comments {
   padding: var(--space-4);
 }
+/* Tổng quan đánh giá lớp: bảng lớp kèm nhận xét chung; chi tiết lớp: nhận xét chung, các mục đánh giá, từng trẻ */
+/* Thanh lọc, bảng và khối trong màn tổng quan cùng lề trái/phải với bảng (.card > .table-wrap) */
+.dg-ov-toolbar {
+  align-items: center;
+  padding-left: var(--space-6);
+  padding-right: var(--space-6);
+}
+.dg-ov-toolbar .field,
+.dg-ov-toolbar .tabs {
+  margin: 0;
+}
+.dg-ov-block {
+  margin: 0 var(--space-6);
+  border: 1px solid var(--border);
+}
+.dg-ov-comment-cell {
+  max-width: 480px;
+}
+.dg-ov-comment-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dg-ov-empty {
+  margin: 0;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+.dg-ov-table tbody tr {
+  cursor: pointer;
+}
+.dg-class-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  border: 1px solid var(--border);
+  margin: var(--space-3) var(--space-6) 0;
+}
+.dg-class-summary__item {
+  padding: var(--space-3);
+  border-right: 1px solid var(--border);
+}
+.dg-class-summary__item:last-child {
+  border-right: 0;
+}
+.dg-class-summary__value {
+  font-size: var(--text-lg, 1.25rem);
+  font-weight: 600;
+}
+.dg-class-comment-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
 .dg-class-comment-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -671,4 +726,9 @@
 }
 .dg-day-table .dg-head-goal .dg-cell-btn--icon {
   flex: none;
+}
+
+/* ---------- Chất lượng tháng (sổ chỉ đạo chuyên môn 4.1 + 4.2) ---------- */
+.dg-qr-table .dg-qr-total td {
+  font-weight: 700;
 }

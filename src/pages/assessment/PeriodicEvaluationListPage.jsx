@@ -9,7 +9,7 @@ export default function PeriodicEvaluationListPage() {
   return (
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.periodic)} />
-      <h1 className="page__title">Đánh giá tuần / tháng</h1>
+      <h1 className="page__title">Đánh giá tháng</h1>
       <EvaluationListView kind={EVAL_KIND.PERIODIC} />
     </div>
   );

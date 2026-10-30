@@ -16,12 +16,9 @@ export function ClassCommentField({ value, onChange, comment, disabled, error })
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         aria-invalid={!!error}
-        aria-describedby={error ? 'daily-class-comment-error' : 'daily-class-comment-hint'}
-        placeholder="Tình hình hoạt động, ăn ngủ, nề nếp và điều cần Ban giám hiệu hỗ trợ…"
+        aria-describedby={error ? 'daily-class-comment-error' : undefined}
+        placeholder="Tình hình chung của lớp hôm nay"
       />
-      <div className="row row--wrap text-xs text-2" id="daily-class-comment-hint">
-        <span>PHT/HT xem nhận xét này trong Tổng quan đánh giá lớp.</span>
-      </div>
       {error && (
         <p className="field__error" id="daily-class-comment-error">
           {error}

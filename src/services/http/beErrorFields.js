@@ -60,7 +60,16 @@ export const BE_ERROR_FIELDS = {
   7307: 'row', // ASSESSMENT_CHILD_NOT_PRESENT
   7311: 'comment', // ASSESSMENT_DIAGNOSTIC_TERM
   7322: 'classComment', // CLASS_COMMENT_TOO_LONG
+  7325: 'month', // QUALITY_REPORT_MONTH_OUT_OF_YEAR
+  7326: 'month', // QUALITY_REPORT_FUTURE_MONTH
   7323: 'classComment', // CLASS_COMMENT_DIAGNOSTIC_TERM
+  // Đánh giá tháng / cuối năm: nội dung đánh giá
+  7340: 'content', // EVALUATION_CONTENT_REQUIRED
+  7341: 'content', // EVALUATION_CONTENT_TOO_SHORT
+  7342: 'content', // EVALUATION_CONTENT_TOO_LONG
+  7343: 'content', // EVALUATION_DIAGNOSTIC_TERM
+  7345: 'programCompleted', // EVALUATION_PROGRAM_NOT_APPLICABLE
+  7346: 'programCompleted', // EVALUATION_PROGRAM_REQUIRED
   // Mở lại ngày đánh giá
   7314: 'date', // ASSESSMENT_UNLOCK_DATE_OUT_OF_RANGE
   7315: 'date', // ASSESSMENT_DAY_NOT_LOCKED_YET

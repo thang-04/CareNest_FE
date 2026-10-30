@@ -14,6 +14,7 @@ export const EvaluationStatusBadge = createStatusBadge(
 
 export const RewardStatusBadge = createStatusBadge(
   {
+    NONE: ['gray', null],
     DRAFT: ['gray', FileEdit],
     PENDING_VP: ['purple', Clock],
     PENDING_PRINCIPAL: ['purple', Clock],

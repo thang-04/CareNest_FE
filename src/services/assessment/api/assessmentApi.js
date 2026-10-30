@@ -33,19 +33,21 @@ export const assessmentApi = {
   getTicketOverview: (params) => axiosClient.get('/assessment/behaviour-tickets/overview', { params }),
   getClassAssessmentOverview: ({ schoolYear, ...params }) =>
     axiosClient.get('/assessment/overview', { params: { ...params, schoolYearId: schoolYear } }),
-  getClassAssessmentDetail: ({ classId, period }) => axiosClient.get(`/assessment/overview/classes/${classId}`, { params: { period } }),
+  getQualityReport: ({ schoolYear, month, campusId } = {}) =>
+    axiosClient.get('/assessment/quality-report', { params: { schoolYearId: schoolYear, month, campusId } }),
+  getProgramCompletion: ({ schoolYear, campusId } = {}) =>
+    axiosClient.get('/assessment/program-completion', { params: { schoolYearId: schoolYear, campusId } }),
+  markProgramCompletion: (id, completed) => axiosClient.put(`/assessment/evaluations/${id}/program-completion`, { completed }),
+  getClassAssessmentDetail: ({ classId, period, date }) =>
+    axiosClient.get(`/assessment/overview/classes/${classId}`, { params: { period, date } }),
   issueTickets: (body) => axiosClient.post('/assessment/behaviour-tickets', body),
 
-  listRewardProposals: (params) => axiosClient.get('/assessment/reward-proposals', { params }),
-  getRewardProposal: (id) => axiosClient.get(`/assessment/reward-proposals/${id}`),
-  getRewardCandidates: (schoolYear) => axiosClient.get('/assessment/reward-proposals/candidates', { params: { schoolYear } }),
-  saveRewardProposal: (id, payload, { submit = false } = {}) =>
-    id
-      ? axiosClient.put(`/assessment/reward-proposals/${id}`, payload, { params: { submit } })
-      : axiosClient.post('/assessment/reward-proposals', payload, { params: { submit } }),
-  deleteRewardProposal: (id) => axiosClient.delete(`/assessment/reward-proposals/${id}`),
-  reviewRewardProposal: (id, body) => axiosClient.post(`/assessment/reward-proposals/${id}/review`, body),
-  decideRewardProposal: (id, body) => axiosClient.post(`/assessment/reward-proposals/${id}/decision`, body),
+  getRewardLists: ({ schoolYear } = {}) => axiosClient.get('/assessment/reward-lists', { params: { schoolYearId: schoolYear } }),
+  getRewardList: (classId) => axiosClient.get(`/assessment/reward-lists/classes/${classId}`),
+  saveRewardList: (classId, items, { submit = false } = {}) =>
+    axiosClient.put(`/assessment/reward-lists/classes/${classId}`, { items }, { params: { submit } }),
+  reviewRewardList: (id, body) => axiosClient.post(`/assessment/reward-lists/${id}/review`, body),
+  decideRewardList: (id, body) => axiosClient.post(`/assessment/reward-lists/${id}/decision`, body),
 };
 
 /* ---------------- Dev (VITE_SCHOOL_CONFIG_API): đánh giá hằng ngày, mở lại ngày, tổng quan nối BE thật ---------------- */
@@ -75,6 +77,8 @@ export const withNames = (overview, campuses = [], ageGroups = []) => ({
   ...overview,
   campuses: (overview.campuses || []).map((c) => ({ ...c, name: nameOf(campuses, c) })),
   ageGroups: (overview.ageGroups || []).map((g) => ({ ...g, name: nameOf(ageGroups, g) })),
+  // Đủ danh mục điểm trường cho ô lọc của Hiệu trưởng (kể cả điểm trường chưa có lớp)
+  allCampuses: campuses.map((c) => ({ id: c.id, name: c.name })),
 });
 
 const pickGoals = (a) => Object.fromEntries(GOAL_LISTS.map((k) => [k, a[k] || []]));
@@ -131,11 +135,12 @@ export const createAssessmentBeApi = (client) => ({
     client.post('/assessment/day-unlocks', { classId, date, validUntil, reason }),
   revokeAssessmentDayUnlock: (id) => client.post(`/assessment/day-unlocks/${id}/revoke`),
   // BE không trả tên điểm trường / nhóm tuổi (name null): ghép tên từ danh mục của BE
-  getClassAssessmentOverview: async ({ period, schoolYear, campusId, ageGroupId, classId } = {}) => {
+  getClassAssessmentOverview: async ({ period, date, schoolYear, campusId, ageGroupId, classId } = {}) => {
     const [overview, campuses, ageGroups] = await Promise.all([
       client.get('/assessment/overview', {
         params: {
           period,
+          date: date || undefined,
           schoolYearId: schoolYear || undefined,
           campusId: campusId || undefined,
           ageGroupId: ageGroupId || undefined,
@@ -147,5 +152,82 @@ export const createAssessmentBeApi = (client) => ({
     ]);
     return withNames(overview, campuses, ageGroups);
   },
-  getClassAssessmentDetail: ({ classId, period }) => client.get(`/assessment/overview/classes/${classId}`, { params: { period } }),
+  getClassAssessmentDetail: ({ classId, period, date }) =>
+    client.get(`/assessment/overview/classes/${classId}`, { params: { period, date: date || undefined } }),
+  getQualityReport: async ({ schoolYear, month, campusId } = {}) => {
+    const [report, campuses] = await Promise.all([
+      client.get('/assessment/quality-report', {
+        params: { schoolYearId: schoolYear || undefined, month: month || undefined, campusId: campusId || undefined },
+      }),
+      client.get('/campuses').catch(() => []),
+    ]);
+    return {
+      ...report,
+      campuses: (report.campusIds || []).map((id) => ({ id, name: campuses.find((c) => String(c.id) === String(id))?.name || id })),
+      allCampuses: campuses.map((c) => ({ id: c.id, name: c.name })),
+    };
+  },
+  // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: từ tháng cuối năm học)
+  getEvaluations: (kind, { schoolYear, classId } = {}) =>
+    client.get('/assessment/evaluations', {
+      params: {
+        periodType: kind === 'year-end' ? 'YEAR' : 'MONTH',
+        schoolYearId: schoolYear || undefined,
+        classId: classId || undefined,
+      },
+    }),
+  getEvaluation: (kind, id) => client.get(`/assessment/evaluations/${id}`),
+  saveEvaluationDraft: (kind, id, content) => client.put(`/assessment/evaluations/${id}/content`, { content }),
+  confirmEvaluation: (kind, id, content) => client.post(`/assessment/evaluations/${id}/confirm`, { content }),
+  regenerateEvaluationDraft: (kind, id) => client.post(`/assessment/evaluations/${id}/redraft`),
+  markProgramCompletion: (id, completed) => client.put(`/assessment/evaluations/${id}/program-completion`, { completed }),
+  // Hồ sơ / tiến độ phát triển: trẻ trong phạm vi của năm học, số liệu của trẻ theo khoảng ngày
+  getDevelopmentChildren: ({ schoolYear, classId } = {}) =>
+    client.get('/assessment/children', { params: { schoolYearId: schoolYear || undefined, classId: classId || undefined } }),
+  getChildDevelopment: (childId, { start, end }) => client.get(`/assessment/children/${childId}/development`, { params: { start, end } }),
+  // Trẻ lớp 5–6 tuổi hoàn thành chương trình (sổ chỉ đạo chuyên môn mục 8): ghép tên điểm trường
+  getProgramCompletion: async ({ schoolYear, campusId } = {}) => {
+    const [report, campuses] = await Promise.all([
+      client.get('/assessment/program-completion', {
+        params: { schoolYearId: schoolYear || undefined, campusId: campusId || undefined },
+      }),
+      client.get('/campuses').catch(() => []),
+    ]);
+    return {
+      ...report,
+      campuses: (report.campusIds || []).map((id) => ({ id, name: campuses.find((c) => String(c.id) === String(id))?.name || id })),
+    };
+  },
+  // Đề xuất khen thưởng theo danh sách lớp: ghép tên điểm trường cho HT lọc
+  getRewardLists: async ({ schoolYear } = {}) => {
+    const [rows, campuses] = await Promise.all([
+      client.get('/assessment/reward-lists', { params: { schoolYearId: schoolYear || undefined } }),
+      client.get('/campuses').catch(() => []),
+    ]);
+    return rows.map((r) => ({ ...r, campusName: campuses.find((c) => String(c.id) === String(r.campusId))?.name || '' }));
+  },
+  getRewardList: (classId) => client.get(`/assessment/reward-lists/classes/${classId}`),
+  saveRewardList: (classId, items, { submit = false } = {}) =>
+    client.put(`/assessment/reward-lists/classes/${classId}`, { items }, { params: { submit } }),
+  reviewRewardList: (id, body) => client.post(`/assessment/reward-lists/${id}/review`, body),
+  decideRewardList: (id, body) => client.post(`/assessment/reward-lists/${id}/decision`, body),
+  // Phiếu bé ngoan: BE tính điều kiện từ điểm danh và Cờ của đánh giá ngày
+  getTicketBoard: ({ classId, type, periodStart }) =>
+    client.get('/assessment/behaviour-tickets/board', { params: { classId, type, periodStart: periodStart || undefined } }),
+  issueTickets: ({ classId, type, periodStart, childIds }) =>
+    client.post('/assessment/behaviour-tickets', { classId, type, periodStart, childIds }),
+  getTicketSummary: ({ classId, month }) =>
+    client.get('/assessment/behaviour-tickets/summary', { params: { classId, month: month || undefined } }),
+  getTicketOverview: async ({ schoolYear, month, campusId } = {}) => {
+    const [overview, campuses] = await Promise.all([
+      client.get('/assessment/behaviour-tickets/overview', {
+        params: { schoolYearId: schoolYear || undefined, month: month || undefined, campusId: campusId || undefined },
+      }),
+      client.get('/campuses').catch(() => []),
+    ]);
+    return {
+      ...overview,
+      campuses: (overview.campusIds || []).map((id) => ({ id, name: campuses.find((c) => String(c.id) === String(id))?.name || id })),
+    };
+  },
 });

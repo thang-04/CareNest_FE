@@ -56,7 +56,7 @@ const ROWS = [
   ['health', 'health.view', 'Hồ sơ & xu hướng sức khỏe', 'Xem', 'FRRRNR', []],
   ['assessment', 'assessment.record', 'Đánh giá hằng ngày', 'Ghi', 'NNRRNN', []],
   ['assessment', 'activities.view', 'Hoạt động & đánh giá hằng ngày', 'Xem', 'NNRRNR', []],
-  ['assessment', 'evaluation.confirm', 'Đánh giá tuần / tháng / cuối năm', 'Xem lại & xác nhận (bản nháp AI)', 'NNRRNN', []],
+  ['assessment', 'evaluation.confirm', 'Đánh giá tháng / cuối năm', 'Xem lại & xác nhận (bản nháp AI)', 'NNRRNN', []],
   ['assessment', 'development.view', 'Hồ sơ phát triển của trẻ', 'Xem', 'NNRRNR', []],
   ['assessment', 'reward.create', 'Đề xuất khen thưởng cuối năm', 'Tạo', 'NNRRNN', []],
   ['assessment', 'reward.review', 'Đề xuất khen thưởng cuối năm', 'Xem xét / trả lại', 'NRNNNN', []],

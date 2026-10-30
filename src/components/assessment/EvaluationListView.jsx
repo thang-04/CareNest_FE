@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, FileCheck2, Flag, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { useAssessmentClasses, useEvaluations } from '@/hooks/assessment/useAssessment';
+import { useDailyAssessmentClasses, useEvaluations } from '@/hooks/assessment/useAssessment';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
@@ -31,10 +31,10 @@ export function EvaluationListView({ kind }) {
   const leader = isLeader(user);
   const { schoolYear } = useSchoolYear();
   const yearEnd = kind === EVAL_KIND.YEAR_END;
-  const { classes } = useAssessmentClasses();
-  // Mặc định xem tuần gần nhất (cả năm có ~35 tuần): chọn chủ đề rồi tuần, hoặc bấm ‹ › để lùi / tới.
-  // Bộ lọc lưu trên URL để mở đánh giá rồi Back vẫn giữ; period '' = tự chọn kỳ mới nhất
-  const defaultPeriodType = yearEnd ? '' : PERIOD_TYPE.WEEK;
+  const { classes } = useDailyAssessmentClasses();
+  // Đánh giá định kỳ chỉ theo tháng (Cần 30/10/2026, theo sổ chỉ đạo chuyên môn: tháng và học kỳ, bỏ tuần).
+  // Mặc định xem tháng gần nhất, bấm ‹ › để lùi / tới. Bộ lọc lưu trên URL; period '' = tự chọn kỳ mới nhất
+  const defaultPeriodType = yearEnd ? '' : PERIOD_TYPE.MONTH;
   const [f, setFilters, , activeKeys] = useFilterParams({
     tab: leader ? 'ALL' : 'TODO',
     classId: '',
@@ -43,7 +43,8 @@ export function EvaluationListView({ kind }) {
     period: '',
     keyword: '',
   });
-  const { tab, classId, periodType, theme, keyword } = f;
+  const { tab, classId, theme, keyword } = f;
+  const periodType = defaultPeriodType;
   const period = f.period || null;
   const [page, setPage] = useState(1);
   const applyFilters = (patch) => {
@@ -81,7 +82,7 @@ export function EvaluationListView({ kind }) {
   const rows = current ? base.filter(current.match) : base;
   // Tab (Chờ xem xét / Đã xác nhận) không phải bộ lọc: đặt lại giữ nguyên tab
   const reset = () => applyFilters({ classId: '', periodType: defaultPeriodType, theme: '', period: '', keyword: '' });
-  const filterKeys = activeKeys.filter((k) => k !== 'tab');
+  const filterKeys = activeKeys.filter((k) => k !== 'tab' && k !== 'periodType');
   const filtered = filterKeys.length > 0;
   const periodWord = periodType === PERIOD_TYPE.WEEK ? 'tuần' : 'tháng';
   const chipLabels = {
@@ -100,7 +101,6 @@ export function EvaluationListView({ kind }) {
   };
   const chips = filterKeys.map((k) => ({ key: k, label: chipLabels[k], onRemove: () => applyFilters(chipPatch[k]) }));
   // Hiệu trưởng xem tuần / tháng có đủ 5 ô lọc: loại kỳ và chủ đề gom vào "Lọc thêm"
-  const moreFilters = leader && !yearEnd;
   const moreCount = filterKeys.filter((k) => k === 'periodType' || k === 'theme').length;
   const inField = (label, control) =>
     control && (
@@ -109,17 +109,8 @@ export function EvaluationListView({ kind }) {
         {control}
       </label>
     );
-  const periodTypeSelect = !yearEnd && (
-    <select
-      className="select"
-      value={periodType}
-      onChange={(e) => applyFilters({ periodType: e.target.value, theme: '', period: '' })}
-      aria-label="Loại kỳ"
-    >
-      <option value={PERIOD_TYPE.WEEK}>Theo tuần</option>
-      <option value={PERIOD_TYPE.MONTH}>Theo tháng</option>
-    </select>
-  );
+  // Chỉ còn loại kỳ Tháng: không cần ô chọn loại kỳ
+  const periodTypeSelect = null;
   const themeSelect = !yearEnd && periodType === PERIOD_TYPE.WEEK && themes.length > 0 && (
     <select className="select" value={theme} onChange={(e) => applyFilters({ theme: e.target.value, period: '' })} aria-label="Chủ đề">
       <option value="">Tất cả chủ đề</option>
@@ -130,6 +121,8 @@ export function EvaluationListView({ kind }) {
       ))}
     </select>
   );
+  // Khai báo sau themeSelect (dùng themeSelect)
+  const moreFilters = leader && !yearEnd && !!themeSelect;
   // Giáo viên chỉ dạy 1 lớp (mỗi lớp 2 cô): bỏ lọc và cột Lớp; đánh giá tuần / tháng hiện số cờ bé ngoan của kỳ
   const showClass = leader;
   const showFlags = !leader && !yearEnd;
@@ -260,7 +253,7 @@ export function EvaluationListView({ kind }) {
                             ? 'Không có hồ sơ nào trong phạm vi hoặc kỳ đã chọn.'
                             : yearEnd
                               ? 'Bản nháp cuối năm được tạo khi năm học kết thúc.'
-                              : 'Bản nháp được tạo tự động khi tuần hoặc tháng kết thúc.'
+                              : 'Bản nháp được tạo tự động khi tháng kết thúc.'
                         }
                         action={
                           filtered && (

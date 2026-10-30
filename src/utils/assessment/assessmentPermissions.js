@@ -33,7 +33,8 @@ export const ASSESSMENT_ROUTE_ROLES = {
 const has = (user, roles) => !!user && roles.includes(user.role);
 
 /** Footnote 2: a team leader acts as a teacher only for classes they teach, not their whole age group. */
-export const isClassTeacher = (cls, user) => !!cls && has(user, CLASS_ROLES) && (cls.teacherIds || []).includes(user.id);
+// BE trả cờ teaches theo phân công thật; mock dùng teacherIds của lớp
+export const isClassTeacher = (cls, user) => !!cls && has(user, CLASS_ROLES) && (cls.teaches ?? (cls.teacherIds || []).includes(user.id));
 
 export const isLeader = (user) => has(user, LEADER_ROLES);
 export const isPrincipal = (user) => user?.role === ROLES.PRINCIPAL;
@@ -54,7 +55,9 @@ export const canViewDevelopmentProfile = (cls, user) => isClassTeacher(cls, user
 export const canViewDevelopmentProgress = (child, user) => !!child && inLeaderScope(child.campusId, user);
 
 /* ---------- Evaluations ---------- */
-export const canReviewEvaluation = (ev, cls, user) => !!ev && ev.status !== EVAL_STATUS.CONFIRMED && isClassTeacher(cls, user);
+// BE: canEdit = GV đang phụ trách lớp của năm đang hoạt động
+export const canReviewEvaluation = (ev, cls, user) =>
+  !!ev && ev.status !== EVAL_STATUS.CONFIRMED && (cls?.canEdit ?? isClassTeacher(cls, user));
 
 export const canViewEvaluation = (ev, cls, user) =>
   !!ev && (isClassTeacher(cls, user) || (ev.status === EVAL_STATUS.CONFIRMED && inLeaderScope(ev.campusId, user)));

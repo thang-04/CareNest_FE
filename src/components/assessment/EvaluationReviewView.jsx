@@ -5,7 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useEvaluation } from '@/hooks/assessment/useAssessment';
-import { confirmEvaluation, regenerateEvaluationDraft, saveEvaluationDraft } from '@/services/assessment/assessmentService';
+import {
+  confirmEvaluation,
+  markProgramCompletion,
+  regenerateEvaluationDraft,
+  saveEvaluationDraft,
+} from '@/services/assessment/assessmentService';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
@@ -35,6 +40,7 @@ export function EvaluationReviewView({ kind, id }) {
   const { detail, loading, error, reload } = useEvaluation(kind, id, { live: false });
   const [content, setContent] = useState('');
   const [contentError, setContentError] = useState('');
+  const [programError, setProgramError] = useState('');
   const [busy, setBusy] = useState('');
   const { run: runAi } = useAiRun();
   const [fresh, setFresh] = useState(null);
@@ -69,12 +75,31 @@ export function EvaluationReviewView({ kind, id }) {
   const showDraft = canViewAiDraft(ev, detail.cls, user);
   const confirmed = ev.status === EVAL_STATUS.CONFIRMED;
   const label = evaluationPeriodLabel(ev);
-  const name = (uid) => md.userById(uid)?.fullName || 'Hệ thống';
+  // BE gửi kèm tên người xử lý; mock tra danh mục người dùng
+  const name = (uid, shown) => shown || md.userById(uid)?.fullName || 'Hệ thống';
 
   const check = () => {
     const errors = validateEvaluationContent(content);
     setContentError(errors.content || '');
     return !hasErrors(errors);
+  };
+  // Lớp 5–6 tuổi: đánh giá cuối năm phải chọn Hoàn thành / Chưa hoàn thành chương trình trước khi xác nhận
+  const checkProgram = () => {
+    const missing = ev.programApplicable && ev.programCompleted == null;
+    setProgramError(missing ? 'Chọn Hoàn thành hoặc Chưa hoàn thành chương trình cho trẻ.' : '');
+    return !missing;
+  };
+  const markProgram = async (completed) => {
+    setProgramError('');
+    setBusy('program');
+    try {
+      await markProgramCompletion(ev.id, completed);
+      await reload({ silent: true });
+    } catch (err) {
+      setProgramError(err.details?.programCompleted || err.message || 'Chưa lưu được.');
+    } finally {
+      setBusy('');
+    }
   };
 
   const run = async (key, fn, success) => {
@@ -86,6 +111,9 @@ export function EvaluationReviewView({ kind, id }) {
       return res;
     } catch (err) {
       toast.error(err, 'Không thực hiện được');
+      // Lỗi nội dung từ BE (7340–7343) hiện đỏ dưới ô nhập
+      if (err.details?.content) setContentError(err.details.content);
+      if (err.details?.programCompleted) setProgramError(err.details.programCompleted);
       if (err.status === 409) reload({ silent: true });
       return null;
     } finally {
@@ -145,14 +173,14 @@ export function EvaluationReviewView({ kind, id }) {
               {!yearEnd && <span>Đánh giá hằng ngày {detail.summary.assessedDays} ngày</span>}
               {confirmed && (
                 <span>
-                  Xác nhận bởi {name(ev.confirmedBy)} · {formatDateTime(ev.confirmedAt)}
+                  Xác nhận bởi {name(ev.confirmedBy, ev.confirmedByName)} · {formatDateTime(ev.confirmedAt)}
                 </span>
               )}
             </div>
           </div>
         </div>
         {yearEnd && confirmed && isClassTeacher(detail.cls, user) && (
-          <Link className="btn btn--outline-primary" to={`/assessment/rewards/new?childId=${ev.childId}&classId=${ev.classId}`}>
+          <Link className="btn btn--outline-primary" to={`/assessment/rewards/${ev.classId}`}>
             <Award size={16} /> Đề xuất khen thưởng
           </Link>
         )}
@@ -233,6 +261,27 @@ export function EvaluationReviewView({ kind, id }) {
                 />
               </FormField>
               <div className="muted text-xs dg-right">{content.length}/3000</div>
+              {ev.programApplicable && (
+                <FormField label="Hoàn thành chương trình GDMN" required error={programError}>
+                  <div className="row gap-4" role="radiogroup" aria-label="Hoàn thành chương trình GDMN">
+                    {[
+                      [true, 'Hoàn thành'],
+                      [false, 'Chưa hoàn thành'],
+                    ].map(([value, text]) => (
+                      <label key={text} className="radio">
+                        <input
+                          type="radio"
+                          name={`program-${ev.id}`}
+                          checked={ev.programCompleted === value}
+                          disabled={!!busy}
+                          onChange={() => markProgram(value)}
+                        />
+                        {text}
+                      </label>
+                    ))}
+                  </div>
+                </FormField>
+              )}
             </div>
           </div>
         </div>
@@ -247,8 +296,13 @@ export function EvaluationReviewView({ kind, id }) {
             {confirmed ? (
               <>
                 <div className="dg-final">{ev.finalContent}</div>
+                {ev.programApplicable && (
+                  <div className="mt-12">
+                    Chương trình GDMN: <b>{ev.programCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}</b>
+                  </div>
+                )}
                 <div className="muted text-sm mt-12">
-                  Xác nhận bởi {name(ev.confirmedBy)} · {formatDateTime(ev.confirmedAt)}
+                  Xác nhận bởi {name(ev.confirmedBy, ev.confirmedByName)} · {formatDateTime(ev.confirmedAt)}
                 </div>
               </>
             ) : (
@@ -316,7 +370,7 @@ export function EvaluationReviewView({ kind, id }) {
                   <div className="history-list__dot" />
                   <div>
                     <div>
-                      <b>{EVAL_HISTORY_LABELS[h.action] || h.action}</b> · {name(h.userId)}
+                      <b>{EVAL_HISTORY_LABELS[h.action] || h.action}</b> · {name(h.userId, h.userName)}
                     </div>
                     {h.note && <div className="text-2">“{h.note}”</div>}
                     <div className="muted text-xs">{formatDateTime(h.at)}</div>
@@ -337,7 +391,11 @@ export function EvaluationReviewView({ kind, id }) {
             <button className="btn" onClick={save} disabled={!!busy}>
               {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
             </button>
-            <button className="btn btn--primary" onClick={() => check() && setConfirmOpen(true)} disabled={!!busy}>
+            <button
+              className="btn btn--primary"
+              onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
+              disabled={!!busy}
+            >
               <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
             </button>
           </div>

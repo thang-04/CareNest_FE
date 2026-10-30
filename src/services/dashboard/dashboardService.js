@@ -3,7 +3,7 @@ import { formatDate } from '@/utils/format';
 import { getUsers } from '@/services/masterDataService';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
 import { getIssues, getRequests, getProposals } from '@/services/facility/facilityService';
-import { getRewardProposals } from '@/services/assessment/assessmentService';
+import { getRewardLists } from '@/services/assessment/assessmentService';
 import { getInspections } from '@/services/inventory-inspection/inspectionService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getStockIssue } from '@/services/kitchen/kitchenService';
@@ -18,7 +18,6 @@ import {
   ISSUE_STATUS_LABELS as STOCK_LABELS,
 } from '@/models/kitchen/kitchenConstants';
 import { canDecideIssue, canReviewRequest, canPrincipalDecideRequest, canDecideProposal } from '@/utils/facility/facilityPermissions';
-import { canReviewRewardProposal, canDecideRewardProposal } from '@/utils/assessment/assessmentPermissions';
 import { canReviewSheet, canApproveRound } from '@/utils/inventory-inspection/inspectionPermissions';
 import { canConfirmMealCount } from '@/utils/attendance/attendancePermissions';
 import { canApproveStockIssue } from '@/utils/kitchen/kitchenPermissions';
@@ -98,11 +97,16 @@ const SOURCES = {
       }));
   },
 
-  [APPROVAL_TYPE.REWARD_REVIEW]: async (user, { users, schoolYear }) =>
-    (await getRewardProposals({ schoolYear }, user)).filter((p) => canReviewRewardProposal(p, user)).map((p) => rewardRow(p, users)),
+  // Danh sách khen thưởng của lớp: PHT xem xét bản chờ PHT; HT phê duyệt bản chờ HT (BE cho HT xử lý cả bản chờ PHT)
+  [APPROVAL_TYPE.REWARD_REVIEW]: async (user, { schoolYear }) =>
+    user?.role === ROLES.VICE_PRINCIPAL
+      ? (await getRewardLists({ schoolYear })).filter((r) => r.status === 'PENDING_VP').map(rewardRow)
+      : [],
 
-  [APPROVAL_TYPE.REWARD_DECISION]: async (user, { users, schoolYear }) =>
-    (await getRewardProposals({ schoolYear }, user)).filter((p) => canDecideRewardProposal(p, user)).map((p) => rewardRow(p, users)),
+  [APPROVAL_TYPE.REWARD_DECISION]: async (user, { schoolYear }) =>
+    user?.role === ROLES.PRINCIPAL
+      ? (await getRewardLists({ schoolYear })).filter((r) => r.status === 'PENDING_PRINCIPAL').map(rewardRow)
+      : [],
 
   [APPROVAL_TYPE.FACILITY_ISSUE]: async (user, { users }) =>
     (await getIssues({ status: ISSUE_STATUS.SUBMITTED }, user))
@@ -219,16 +223,16 @@ const SOURCES = {
   },
 };
 
-function rewardRow(p, users) {
+function rewardRow(r) {
   return {
-    id: p.id,
-    code: p.code,
-    title: `${p.rewardTitle} – ${p.childName} (${p.className})`,
-    by: users[p.createdBy] || '—',
-    at: p.submittedAt || p.createdAt,
-    campusId: p.campusId,
-    statusLabel: REWARD_STATUS_LABELS[p.status],
-    to: `/assessment/rewards/${p.id}`,
+    id: r.listId,
+    code: r.className,
+    title: `Danh sách khen thưởng lớp ${r.className} (${r.awarded ?? 0}/${r.children} trẻ)`,
+    by: '—',
+    at: r.submittedAt,
+    campusId: r.campusId,
+    statusLabel: REWARD_STATUS_LABELS[r.status],
+    to: `/assessment/rewards/${r.classId}`,
   };
 }
 

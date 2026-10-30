@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { ArrowLeft, Award, BadgeCheck, Download, Ticket } from '@/components/ui/icons';
-import { CampusFilter } from '@/components/ui/CampusFilter';
+import { ArrowLeft, Download } from '@/components/ui/icons';
 import { RowActions } from '@/components/ui/RowActions';
 import { Pagination, paginate } from '@/components/ui/Pagination';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { TicketSummary } from '@/components/assessment/TicketSummary';
 import { useTicketOverview } from '@/hooks/assessment/useAssessment';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
 import { periodLabel } from '@/utils/assessment/assessmentPeriods';
 import { downloadCsv } from '@/utils/exportCsv';
@@ -15,19 +14,26 @@ const monthText = (m) => periodLabel(PERIOD_TYPE.MONTH, m, m);
 
 /**
  * Phiếu bé ngoan các lớp cho PHT (điểm trường mình) và Hiệu trưởng (toàn trường, lọc điểm trường):
- * thẻ tổng, bảng theo lớp; bấm Xem một lớp để thấy tổng hợp từng trẻ. Chỉ xem, phát phiếu do giáo viên lớp.
+ * bảng theo lớp; bấm Xem một lớp để thấy tổng hợp từng trẻ. Chỉ xem, phát phiếu do giáo viên lớp.
  */
 export function TicketOverview() {
-  const [month, setMonth] = useState('');
+  const { schoolYear } = useSchoolYear();
+  // Tháng đã chọn gắn với năm học ở header: đổi năm thì về cả năm học
+  const [picked, setPicked] = useState({ year: schoolYear, month: '' });
+  const month = picked.year === schoolYear ? picked.month : '';
+  const setMonth = (value) => setPicked({ year: schoolYear, month: value });
   const [campusId, setCampusId] = useState('');
   const [classId, setClassId] = useState('');
   const [page, setPage] = useState(1);
   const PAGE = 10;
-  const { overview, loading, error, reload } = useTicketOverview({ month: month || undefined, campusId: campusId || undefined });
+  const { overview, loading, error, reload } = useTicketOverview({
+    schoolYear,
+    month: month || undefined,
+    campusId: campusId || undefined,
+  });
   const rows = overview?.rows || [];
-  const t = overview?.totals;
   const rangeText = month ? monthText(month) : 'cả năm học';
-  const campusName = (id) => overview?.campuses.find((c) => c.id === id)?.name || id;
+  const campusName = (id) => overview?.campuses.find((c) => String(c.id) === String(id))?.name || id;
   const multiCampus = (overview?.campuses.length || 0) > 1;
 
   if (classId) {
@@ -45,20 +51,11 @@ export function TicketOverview() {
     );
   }
 
-  const kpis = t
-    ? [
-        { key: 'weekly', tone: 'teal', icon: Ticket, value: t.weekly, label: 'Phiếu tuần' },
-        { key: 'monthly', tone: 'blue', icon: Award, value: t.monthly, label: 'Phiếu tháng' },
-        { key: 'total', tone: 'gray', icon: BadgeCheck, value: t.weekly + t.monthly, label: 'Tổng phiếu đã phát' },
-        { key: 'children', tone: 'green', value: `${t.withTicket}/${t.children}`, label: 'Trẻ có phiếu' },
-      ]
-    : [];
-
   const exportCsv = () =>
     downloadCsv(
       [
         [`Phiếu bé ngoan các lớp – ${rangeText}`],
-        ['Điểm trường', 'Lớp', 'Sĩ số', 'Phiếu tuần', 'Phiếu tháng', 'Trẻ có phiếu'],
+        ['Điểm trường', 'Lớp', 'Sĩ số', 'Bé ngoan', 'Bé ngoan toàn diện', 'Trẻ có phiếu'],
         ...rows.map((r) => [campusName(r.campusId), r.className, r.children, r.weekly, r.monthly, r.withTicket]),
       ],
       `phieu-be-ngoan-cac-lop-${month || 'nam-hoc'}.csv`,
@@ -66,21 +63,17 @@ export function TicketOverview() {
 
   return (
     <>
-      {kpis.length > 0 && (
-        <div className="stat-grid dg-ticket-kpis">
-          {kpis.map((k) => (
-            <div key={k.key} className={`stat-card stat-card--${k.tone}`}>
-              <div className="stat-card__value">{k.value}</div>
-              <div className="stat-card__label">
-                {k.label} · {rangeText}
-              </div>
-              <StatCardIcon tone={k.tone} icon={k.icon} />
-            </div>
-          ))}
-        </div>
-      )}
       <div className="filter-bar dg-ticket-bar">
-        <CampusFilter campuses={overview?.campuses} value={campusId} onChange={setCampusId} />
+        {multiCampus && (
+          <select className="select" aria-label="Điểm trường" value={campusId} onChange={(e) => setCampusId(e.target.value)}>
+            <option value="">Tất cả điểm trường</option>
+            {overview.campuses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
         <select className="select" aria-label="Khoảng thời gian" value={month} onChange={(e) => setMonth(e.target.value)}>
           <option value="">Cả năm học</option>
           {(overview?.months || []).map((m) => (
@@ -106,8 +99,8 @@ export function TicketOverview() {
                 <th>Lớp</th>
                 {multiCampus && <th>Điểm trường</th>}
                 <th className="num">Sĩ số</th>
-                <th className="num">Phiếu tuần</th>
-                <th className="num">Phiếu tháng</th>
+                <th className="num">Bé ngoan</th>
+                <th className="num">Bé ngoan toàn diện</th>
                 <th className="num">Trẻ có phiếu</th>
                 <th className="cell--actions">Thao tác</th>
               </tr>

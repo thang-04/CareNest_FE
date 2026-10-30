@@ -153,9 +153,9 @@ const YearEndEvaluationListPage = lazy(() => import('@/pages/assessment/YearEndE
 const YearEndEvaluationDetailPage = lazy(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
 const GoodBehaviourTicketsPage = lazy(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
 const ClassAssessmentOverviewPage = lazy(() => import('@/pages/assessment/ClassAssessmentOverviewPage'));
-const RewardProposalListPage = lazy(() => import('@/pages/assessment/RewardProposalListPage'));
-const RewardProposalFormPage = lazy(() => import('@/pages/assessment/RewardProposalFormPage'));
-const RewardProposalDetailPage = lazy(() => import('@/pages/assessment/RewardProposalDetailPage'));
+const QualityReportPage = lazy(() => import('@/pages/assessment/QualityReportPage'));
+const RewardListPage = lazy(() => import('@/pages/assessment/RewardListPage'));
+const RewardClassPage = lazy(() => import('@/pages/assessment/RewardClassPage'));
 
 const PendingApprovalsPage = lazy(() => import('@/pages/dashboard/PendingApprovalsPage'));
 
@@ -473,6 +473,7 @@ export function AppRoutes() {
             <Route path="daily/skills" element={only(CLASS_STAFF, <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={only(LEADERS, <AssessmentDayUnlockPage />)} />
             <Route path="overview" element={only(LEADERS, <ClassAssessmentOverviewPage />)} />
+            <Route path="quality-report" element={only(LEADERS, <QualityReportPage />)} />
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />
@@ -483,10 +484,8 @@ export function AppRoutes() {
             <Route path="year-end/:id" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationDetailPage />)} />
             <Route path="year-end/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
             <Route path="tickets" element={only([...LEADERS, ...CLASS_STAFF], <GoodBehaviourTicketsPage />)} />
-            <Route path="rewards" element={only([...LEADERS, ...CLASS_STAFF], <RewardProposalListPage />)} />
-            <Route path="rewards/new" element={only(CLASS_STAFF, <RewardProposalFormPage />)} />
-            <Route path="rewards/:id" element={only([...LEADERS, ...CLASS_STAFF], <RewardProposalDetailPage />)} />
-            <Route path="rewards/:id/edit" element={only(CLASS_STAFF, <RewardProposalFormPage />)} />
+            <Route path="rewards" element={only([...LEADERS, ...CLASS_STAFF], <RewardListPage />)} />
+            <Route path="rewards/:classId" element={only([...LEADERS, ...CLASS_STAFF], <RewardClassPage />)} />
           </Route>
           <Route path="attendance">
             <Route path="day-unlocks" element={only(LEADERS, <AttendanceDayUnlockPage />)} />

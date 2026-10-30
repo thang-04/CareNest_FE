@@ -229,7 +229,7 @@ export function ClassTodayPanel() {
               key: 'evaluations',
               to: '/assessment/periodic',
               icon: Star,
-              title: 'Đánh giá tuần / tháng / cuối năm',
+              title: 'Đánh giá tháng / cuối năm',
               meta: metaOf(evaluationsQ, 'Bản nháp AI chờ giáo viên duyệt hoặc chưa có bản nháp'),
               end: endOf(evaluationsQ, evaluationsToReview),
             },

@@ -36,7 +36,7 @@ export function TicketSummary({ classId }) {
     downloadCsv(
       [
         [`Tổng hợp phiếu bé ngoan ${summary.cls.name} – ${rangeText}`],
-        ['Mã trẻ', 'Họ tên', 'Phiếu tuần', 'Phiếu tháng', 'Cờ bé ngoan'],
+        ['Mã trẻ', 'Họ tên', 'Bé ngoan', 'Bé ngoan toàn diện', 'Cờ bé ngoan'],
         ...rows.map((r) => [r.child.code, r.child.fullName, r.weekly, r.monthly, r.flags]),
       ],
       `phieu-be-ngoan-${summary.cls.name}-${month || 'nam-hoc'}.csv`,
@@ -45,8 +45,8 @@ export function TicketSummary({ classId }) {
   // Thẻ tổng số phiếu của khoảng đang chọn (số do service tính)
   const kpis = t
     ? [
-        { key: 'weekly', tone: 'teal', icon: Ticket, value: t.weekly, label: 'Phiếu tuần' },
-        { key: 'monthly', tone: 'blue', icon: Award, value: t.monthly, label: 'Phiếu tháng' },
+        { key: 'weekly', tone: 'teal', icon: Ticket, value: t.weekly, label: 'Bé ngoan' },
+        { key: 'monthly', tone: 'blue', icon: Award, value: t.monthly, label: 'Bé ngoan toàn diện' },
         { key: 'total', tone: 'gray', icon: BadgeCheck, value: t.weekly + t.monthly, label: 'Tổng phiếu đã phát' },
         { key: 'children', tone: 'green', value: `${t.children}/${t.total}`, label: 'Trẻ có phiếu' },
       ]
@@ -100,8 +100,8 @@ export function TicketSummary({ classId }) {
               <tr>
                 <th className="center dg-col-no">STT</th>
                 <th>Trẻ</th>
-                <th className="num">Phiếu tuần</th>
-                <th className="num">Phiếu tháng</th>
+                <th className="num">Bé ngoan</th>
+                <th className="num">Bé ngoan toàn diện</th>
                 <th className="num">Cờ bé ngoan</th>
               </tr>
             </thead>
