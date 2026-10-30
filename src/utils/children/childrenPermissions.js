@@ -78,8 +78,12 @@ export const canRecordMeasurement = (child, user, cls) =>
 
 export const canEditMeasurement = canRecordMeasurement;
 
-/* ---- Đợt khám sức khỏe (user chốt 2026-10-15, PROPOSED): Hiệu trưởng quản lý; PHT, giáo viên xem theo điểm trường ---- */
-export const canManageHealthCheck = (user) => isPrincipal(user);
+/*
+ * Đợt khám, kỳ cân đo (user chốt 2026-10-31, PROPOSED): Hiệu trưởng mọi điểm trường, PHT điểm trường của mình; giáo viên xem.
+ * Không nêu campusId ⇒ có điểm trường nào quản lý được không (ẩn/hiện nút Tạo).
+ */
+export const canManageHealthCheck = (user, campusId) =>
+  isPrincipal(user) || (isVicePrincipal(user) && !!user.campusId && (!campusId || user.campusId === campusId));
 
 export const canViewHealthChecks = (user) => isPrincipal(user) || isVicePrincipal(user) || isTeacherRole(user);
 

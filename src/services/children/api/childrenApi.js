@@ -51,6 +51,10 @@ import { axiosClient } from '@/services/http/axiosClient';
  * Phụ huynh (user chốt 2026-10-28, D-5a B, D-5b A): relation một trong Bố, Mẹ, Ông, Bà, Anh/chị, Người giám hộ (khác ⇒ 422
  * guardians.i.relation; file nhập so không dấu); mỗi trẻ tối đa 3 phụ huynh (⇒ 422 guardians). Liên kết tài khoản dùng 6 mã tương
  * ứng (FATHER, MOTHER, GRANDFATHER, GRANDMOTHER, SIBLING, GUARDIAN).
+ * Kỳ cân đo (user chốt 2026-10-31, docs/plans/completed/2026-10-31-health-measurement-rounds.md): POST .../health/measurements bắt buộc
+ * campaignId của kỳ cân đo (kind MEASUREMENT) cùng điểm trường của trẻ, thiếu/sai/đợt khám ⇒ 422 campaignId; trẻ đã có số đo
+ * trong kỳ ⇒ 422 campaignId; kỳ chưa bắt đầu, đã đóng hoặc hủy ⇒ 409; ngày ngoài khoảng của kỳ ⇒ 422 date. PUT sửa được số đo
+ * cũ ngoài đợt (campaignId null). GET health trả openCampaign.kind; kỳ cân đo có resultStatus RECORDED khi trẻ đã có số đo.
  */
 const PAGE_SIZE = 100;
 

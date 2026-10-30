@@ -15,7 +15,7 @@ import {
   MEASUREMENT_FIELD_LABELS,
   PARENT_ACCOUNT_STATUS,
 } from '@/models/children/childrenConstants';
-import { CAMPAIGN_STATUS, FOLLOW_UP_CLOSE_OUTCOME } from '@/models/children/healthCheckConstants';
+import { CAMPAIGN_KIND, CAMPAIGN_STATUS, FOLLOW_UP_CLOSE_OUTCOME } from '@/models/children/healthCheckConstants';
 import { EXAM_STATUS, FOLLOW_UP_FINDING } from '@/models/children/healthExamForm';
 import { PERMISSION_SCOPE } from '@/models/school-config/schoolConfigConstants';
 import {
@@ -57,6 +57,7 @@ import { headCircumferenceUntil, screenMeasurement } from './healthScreeningRule
 import {
   addDays,
   applyFollowUpReminders,
+  campaignKindOf,
   campaignStatusOf,
   closeFollowUpsOfWithdrawnChild,
   dueFollowUpReminders,
@@ -94,7 +95,8 @@ const nowIso = () => new Date().toISOString();
 // v10: có nguy cơ lao/có vấn đề thì không "Không cần tư vấn hay chuyển khám"; "Vấn đề này" chỉ hỏi trẻ có vấn đề đã biết.
 // v11: phiếu mẫu lấy hành chính, tiền sử từ hồ sơ trẻ; người đi cùng là phụ huynh trong hồ sơ.
 // v12: mọi kết quả đã kết luận đều đã công bố; phiếu mức Cần theo dõi sát có người đi cùng có ý kiến phụ huynh.
-const HEALTH_SEED_VERSION = 12;
+// v13: đợt sắp diễn ra ở c2 thành kỳ cân đo đang diễn ra (kỳ cân đo, user chốt 2026-10-31).
+const HEALTH_SEED_VERSION = 13;
 const SEED_MANAGED_FIELDS = ['headCircumferenceCm', 'grossMotor', 'fineMotor', 'campaignId', 'note', 'exam', 'examStatus'];
 
 // Dữ liệu demo lưu bằng seed cũ: cập nhật bản ghi seed chưa bị sửa, thêm bản ghi seed còn thiếu; không xóa gì.
@@ -117,12 +119,22 @@ const upgradeSeedMeasurements = (d, seedMeasurements) => {
 };
 
 // Đợt seed còn thiếu được thêm; đợt seed đã đóng mà người dùng chưa sửa/mở lại thì nhận thông tin seed mới.
+// Đợt seed chưa đóng đổi loại (v13) mà người dùng chưa thao tác, chưa có kết quả thì thay bằng bản seed mới.
 const upgradeSeedCampaigns = (d, seedCampaigns) => {
   seedCampaigns.forEach((s) => {
     const cur = d.healthCheckCampaigns.find((c) => c.id === s.id);
+    const untouched = (c) => !(c.history || []).some((h) => h.action !== 'CREATED');
     if (!cur) d.healthCheckCampaigns.push(s);
     else if (cur.closedAt && s.closedAt && !(cur.history || []).some((h) => ['UPDATED', 'REOPENED'].includes(h.action)))
       Object.assign(cur, { examiner: s.examiner, note: s.note, absentChildIds: s.absentChildIds });
+    else if (
+      !cur.closedAt &&
+      !cur.cancelledAt &&
+      campaignKindOf(cur) !== campaignKindOf(s) &&
+      untouched(cur) &&
+      !d.healthMeasurements.some((m) => m.campaignId === cur.id)
+    )
+      Object.assign(cur, s);
   });
 };
 
@@ -883,10 +895,12 @@ export const toMeasurementView = (db, m) => {
     ...fields,
     ...screen,
     campaignName: campaign?.name || null,
+    // EXAM: kết quả của đợt khám (mở phiếu khám) · MEASUREMENT: số đo của kỳ cân đo · null: ngoài đợt.
+    campaignKind: campaign ? campaignKindOf(campaign) : null,
     followUpId: followUp?.id || null,
     followUpEffect: followUpEffectOf(followUp, m.id),
     parentContact: parentContactOf(db, m, screen.followUpLevel),
-    // Kết quả của đợt đã đóng/hủy bị khóa tới khi Hiệu trưởng mở lại đợt.
+    // Kết quả của đợt/kỳ đã đóng/hủy bị khóa tới khi HT/PHT mở lại.
     locked: !!campaign && !isOpenForEntry(campaign),
     measuredByName: userName(db, m.measuredBy),
     edits: (m.edits || []).map((e) => ({ ...e, userName: userName(db, e.userId) })),
@@ -1362,12 +1376,17 @@ export const childrenMockRepository = {
       openCampaign: open
         ? {
             id: open.id,
+            kind: campaignKindOf(open),
             name: open.name,
             startDate: open.startDate,
             endDate: open.endDate,
             resultMeasurementId: openResult?.id || null,
-            // DRAFT: đang khám · CONCLUDED: đã có kết luận · LEGACY: nhập theo mẫu cũ.
-            resultStatus: openResult ? openResult.examStatus || 'LEGACY' : null,
+            // Đợt khám: DRAFT đang khám · CONCLUDED đã có kết luận · LEGACY nhập theo mẫu cũ. Kỳ cân đo: RECORDED đã cân đo.
+            resultStatus: !openResult
+              ? null
+              : campaignKindOf(open) === CAMPAIGN_KIND.MEASUREMENT
+                ? 'RECORDED'
+                : openResult.examStatus || 'LEGACY',
           }
         : null,
       openFollowUp: followUp ? followUpBrief(followUp) : null,
@@ -1399,20 +1418,25 @@ export const childrenMockRepository = {
     if (!canRecordMeasurement(child, user, classOf(db, child))) forbid();
     const existing = measurementId ? db.healthMeasurements.find((m) => m.id === measurementId && m.childId === childId) : null;
     if (measurementId && !existing) throw new ApiError(404, 'Không tìm thấy lần đo này.');
-    // Kết quả trong đợt khám nhập bằng phiếu Phụ lục II; API này chỉ cân đo ngoài đợt và sửa số đo mẫu cũ (user chốt 2026-10-17).
+    // Kết quả trong đợt khám nhập bằng phiếu Phụ lục II (user chốt 2026-10-17). API này: số đo của kỳ cân đo, sửa số đo cũ
+    // ngoài đợt và mẫu cũ. Tạo mới chỉ trong kỳ cân đo đang diễn ra của điểm trường (user chốt 2026-10-31).
     if (existing?.exam) throw new ApiError(409, 'Kết quả này là phiếu khám. Sửa ở trang phiếu khám của đợt.');
-    if (!existing && payload.campaignId)
-      throw new ApiError(409, 'Kết quả trong đợt khám nhập bằng phiếu khám, mở từ danh sách lớp của đợt.');
-    const campaignId = existing ? (existing.campaignId ?? null) : null;
+    const campaignId = existing ? (existing.campaignId ?? null) : payload.campaignId || null;
     const campaign = campaignId ? db.healthCheckCampaigns.find((c) => c.id === campaignId) : null;
-    if (campaignId && !campaign) throw new ApiError(404, 'Không tìm thấy đợt khám.');
+    if (!existing) {
+      const isRound = campaign && campaign.campusId === child.campusId && campaignKindOf(campaign) === CAMPAIGN_KIND.MEASUREMENT;
+      if (!isRound) invalid({ campaignId: 'Chỉ nhập số đo trong kỳ cân đo của điểm trường. Kết quả đợt khám nhập bằng phiếu khám.' });
+      if (db.healthMeasurements.some((m) => m.childId === childId && m.campaignId === campaignId))
+        invalid({ campaignId: 'Trẻ đã có số đo trong kỳ này. Sửa lần đo đã có thay vì tạo mới.' });
+    }
+    if (campaignId && !campaign) throw new ApiError(404, 'Không tìm thấy đợt khám hoặc kỳ cân đo.');
     if (campaign && campaign.campusId !== child.campusId) forbid();
     if (campaign && !isOpenForEntry(campaign))
       throw new ApiError(
         409,
         campaignStatusOf(campaign) === CAMPAIGN_STATUS.CLOSED
-          ? 'Đợt khám đã đóng. Hiệu trưởng mở lại đợt nếu cần sửa kết quả.'
-          : 'Đợt khám chưa bắt đầu hoặc đã hủy, chưa nhập được kết quả.',
+          ? 'Đợt/kỳ đã đóng. Hiệu trưởng hoặc Phó hiệu trưởng mở lại nếu cần sửa kết quả.'
+          : 'Đợt/kỳ chưa bắt đầu hoặc đã hủy, chưa nhập được kết quả.',
       );
     const until = headCircumferenceUntil(child.dateOfBirth);
     // GBR-GEN-06: a published (confirmed) result needs a reason to change.
@@ -1422,7 +1446,7 @@ export const childrenMockRepository = {
       headCircumferenceUntil: until,
     });
     if (!errors.date && campaign && (payload.date < campaign.startDate || payload.date > campaign.endDate))
-      errors.date = 'Chọn ngày đo trong khoảng ngày khám của đợt';
+      errors.date = 'Chọn ngày đo trong khoảng ngày của đợt/kỳ';
     if (hasErrors(errors)) invalid(errors);
     if (db.healthMeasurements.some((m) => m.childId === childId && m.date === payload.date && m.id !== measurementId))
       invalid({ date: 'Ngày này đã có kết quả đo. Sửa lần đo đã có thay vì tạo mới.' });
@@ -1446,7 +1470,7 @@ export const childrenMockRepository = {
           fineMotor: null,
           exam: null,
           examStatus: null,
-          campaignId: null,
+          campaignId,
           measuredBy: user.id,
           // Mọi kết quả công bố cho phụ huynh ngay khi lưu (user chốt 2026-10-23).
           published: true,

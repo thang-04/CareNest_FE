@@ -125,12 +125,34 @@ test('AC-5: không có người đi cùng ⇒ "Chưa trao đổi" tới khi giá
   assert.equal(view.measurement.parentContact.on, todayInput());
 });
 
-test('AC-2, AC-3: cân đo ngoài đợt công bố khi lưu; sửa thì công bố lại, có lịch sử; không còn API công bố riêng', async () => {
+test('AC-2, AC-3: số đo của kỳ cân đo công bố khi lưu; sửa thì công bố lại, có lịch sử; không còn API công bố riêng', async () => {
   assert.equal(children.publishMeasurement, undefined);
   const db = readDb();
   const used = new Set(db.healthMeasurements.filter((m) => m.childId === 'ch_008').map((m) => m.date));
   const date = ['2026-10-01', '2026-10-02', '2026-10-03'].find((d) => !used.has(d));
-  const created = await children.saveMeasurement('ch_008', null, { date, heightCm: 101, weightKg: 16.2, note: '' }, MINH_ANH);
+  // Từ 2026-10-31 chỉ nhập số đo trong kỳ cân đo: thêm thẳng một kỳ đang diễn ra ở c1 (dữ liệu giả).
+  writeDb((d) => {
+    d.healthCheckCampaigns.push({
+      id: 'hc_c1_round_test',
+      kind: 'MEASUREMENT',
+      name: 'Cân đo thử (giả)',
+      campusId: 'c1',
+      startDate: '2026-10-01',
+      endDate: todayInput(),
+      examiner: '',
+      note: '',
+      closedAt: null,
+      cancelledAt: null,
+      absentChildIds: [],
+      history: [],
+    });
+  });
+  const created = await children.saveMeasurement(
+    'ch_008',
+    null,
+    { campaignId: 'hc_c1_round_test', date, heightCm: 101, weightKg: 16.2, note: '' },
+    MINH_ANH,
+  );
   assert.equal(created.published, true);
   const first = created.publishedAt;
   await new Promise((r) => setTimeout(r, 5));

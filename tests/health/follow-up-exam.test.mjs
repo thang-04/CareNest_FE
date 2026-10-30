@@ -99,7 +99,7 @@ const openC2Campaign = async () => {
 test('seed v11: phiếu khám mẫu FOLLOW_UP và phiếu đóng có kết quả', async () => {
   ensureChildRecordsSeeded();
   const db = readDb();
-  assert.equal(db.healthSeedVersion, 12);
+  assert.equal(db.healthSeedVersion, 13);
   // ch_019: "Chưa ghi nhận thêm bất thường" ⇒ phiếu giữ trạng thái có kết quả chuyên khoa, không mở vòng.
   const f019 = followUpOf('ch_019');
   const added = f019.history.find((e) => e.action === 'MEASUREMENT_ADDED');
@@ -347,9 +347,31 @@ test('AC-9: đóng với "chuyên khoa xác định có vấn đề" ghi tiền 
   assert.equal(again.split(condition).length - 1, 1);
 });
 
-test('AC-5: cân đo ngoài đợt không đổi phiếu theo dõi đang mở', async () => {
+test('AC-5: số đo của kỳ cân đo không đổi phiếu theo dõi đang mở', async () => {
   const f = followUpOf('ch_019');
-  await children.saveMeasurement('ch_019', null, { date: todayInput(), heightCm: 112, weightKg: 19, note: 'Cân đo tại lớp (giả).' }, HOA);
+  // Từ 2026-10-31 chỉ nhập số đo trong kỳ cân đo: thêm thẳng một kỳ đang diễn ra ở c1 (dữ liệu giả).
+  writeDb((d) => {
+    d.healthCheckCampaigns.push({
+      id: 'hc_c1_round_test',
+      kind: 'MEASUREMENT',
+      name: 'Cân đo thử (giả)',
+      campusId: 'c1',
+      startDate: todayInput(),
+      endDate: todayInput(),
+      examiner: '',
+      note: '',
+      closedAt: null,
+      cancelledAt: null,
+      absentChildIds: [],
+      history: [],
+    });
+  });
+  await children.saveMeasurement(
+    'ch_019',
+    null,
+    { campaignId: 'hc_c1_round_test', date: todayInput(), heightCm: 112, weightKg: 19, note: 'Cân đo tại lớp (giả).' },
+    HOA,
+  );
   const after = followUpOf('ch_019');
   assert.equal(after.history.length, f.history.length);
   assert.equal(after.status, f.status);
@@ -366,5 +388,5 @@ test('AC-12: DB cũ chưa có cờ newFinding được gắn khi nâng cấp', a
   ensureChildRecordsSeeded();
   const f = followUpOf('ch_019');
   assert.equal(f.history.find((x) => x.action === 'MEASUREMENT_ADDED').newFinding, false);
-  assert.equal(readDb().healthSeedVersion, 12);
+  assert.equal(readDb().healthSeedVersion, 13);
 });

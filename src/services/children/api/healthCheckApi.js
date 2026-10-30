@@ -24,9 +24,16 @@ import { axiosClient } from '@/services/http/axiosClient';
  * Năm học (user chốt 2026-10-28, Y-4): GET /health-checks và /health-follow-ups nhận schoolYear (năm chọn ở header). Đợt khám thuộc
  * năm học của ngày bắt đầu (ngày thuộc năm gần nhất đã bắt đầu, hè tính vào năm vừa qua). Phiếu theo dõi đang mở luôn trả; phiếu đã
  * đóng trả khi khoảng mở–đóng giao năm đó; counts tính trên cùng phạm vi.
+ * Kỳ cân đo (user chốt 2026-10-31, docs/plans/completed/2026-10-31-health-measurement-rounds.md): đợt có kind EXAM | MEASUREMENT
+ * (đợt cũ không có ⇒ EXAM); POST nhận kind, PUT không đổi kind; GET list lọc kind. HT mọi điểm trường, PHT điểm trường của mình
+ * (khác điểm trường ⇒ 422 campusId). Mỗi điểm trường 1 đợt/kỳ chưa đóng, tính chung hai loại. GET schedule-warnings
+ * { campusId, kind, startDate, excludeId? } trả { warnings: [{ code: TOO_CLOSE | EXAM_IN_SCHOOL_YEAR, campaignId, name, kind,
+ * startDate }] }: kỳ/đợt chưa hủy cùng điểm trường bắt đầu cách dưới 2 tháng 15 ngày; đợt khám khi năm học đã có đợt khám.
+ * Không chặn lưu. Danh sách lớp của kỳ cân đo: result NOT_RECORDED | RECORDED | ABSENT.
  */
 export const healthCheckApi = {
   listHealthChecks: (filters) => axiosClient.get('/health-checks', { params: filters }),
+  scheduleWarnings: (params) => axiosClient.get('/health-checks/schedule-warnings', { params }),
   getHealthCheck: (id) => axiosClient.get(`/health-checks/${id}`),
   getHealthCheckClass: (id, classId) => axiosClient.get(`/health-checks/${id}/classes/${classId}/children`),
   createHealthCheck: (payload) => axiosClient.post('/health-checks', payload),

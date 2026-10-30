@@ -85,13 +85,21 @@ const pastHistory = (id, createdOn, closedOn) => {
   ];
 };
 
+/** Kỳ cân đo đang diễn ra ở c2 (user chốt 2026-10-31): giáo viên nhập số đo cho lớp mình, chưa ai nhập. */
+const C2_ROUND_FIELDS = {
+  id: 'hc_c2_next',
+  kind: 'MEASUREMENT',
+  campusId: 'c2',
+  examiner: '',
+  note: 'Giáo viên cân đo tại lớp, nhập số đo cho từng trẻ.',
+};
+
 /**
  * measurements/children: kết quả và trẻ seed — trẻ seed đang học chưa có kết quả trong đợt đã đóng là "Vắng khám".
  */
 export const buildSeedHealthChecks = ({ today = todayInput(), measurements = [], children = [] } = {}) => {
   const open = openCampaignDates(today);
-  const upcomingStart = addDays(today, 7);
-  const base = { examiner: EXAMINER, note: '', createdBy: PRINCIPAL_ID, cancelledAt: null, absentChildIds: [] };
+  const base = { kind: 'EXAM', examiner: EXAMINER, note: '', createdBy: PRINCIPAL_ID, cancelledAt: null, absentChildIds: [] };
   const seedChildren = children.filter((c) => /^ch_\d+$/.test(c.id) && c.status === 'ACTIVE');
   const past = ['c1', 'c2'].flatMap((campusId) =>
     PAST.map((p) => {
@@ -152,15 +160,14 @@ export const buildSeedHealthChecks = ({ today = todayInput(), measurements = [],
     },
     {
       ...base,
-      id: 'hc_c2_next',
-      name: `Khám sức khỏe định kỳ ${monthName(upcomingStart)}`,
-      campusId: 'c2',
-      startDate: upcomingStart,
-      endDate: addDays(upcomingStart, 2),
-      createdAt: `${today}T01:00:00.000Z`,
+      ...C2_ROUND_FIELDS,
+      name: `Cân đo định kỳ ${monthName(open.startDate)}`,
+      startDate: open.startDate,
+      endDate: open.endDate,
+      createdAt: `${addDays(open.startDate, -3)}T01:00:00.000Z`,
       closedAt: null,
       closedBy: null,
-      history: [event(today, 'CREATED')],
+      history: [event(addDays(open.startDate, -3), 'CREATED')],
     },
   ];
 };

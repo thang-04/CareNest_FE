@@ -1,11 +1,15 @@
 import { pushNotification } from '@/mocks/notificationMockRepository';
+import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { ROLES } from '@/models/User';
 import { FOLLOW_UP_LEVEL } from '@/models/children/childrenConstants';
 import {
+  CAMPAIGN_KIND,
   CAMPAIGN_STATUS,
   EXTERNAL_RESULT_DUE_DAYS,
   FOLLOW_UP_FIELD_LIMITS,
   FOLLOW_UP_STATUS,
+  SCHEDULE_MIN_GAP,
+  SCHEDULE_WARNING,
 } from '@/models/children/healthCheckConstants';
 import { CONCLUSION_ACTION, EXAM_STATUS, FOLLOW_UP_FINDING } from '@/models/children/healthExamForm';
 import { formatDate, localDateOf as localDate, todayInput } from '@/utils/format';
@@ -23,9 +27,43 @@ export const campaignStatusOf = (c, today = todayInput()) => {
 
 export const isOpenForEntry = (c) => !!c && campaignStatusOf(c) === CAMPAIGN_STATUS.IN_PROGRESS;
 
-/** Đợt chưa đóng (sắp diễn ra hoặc đang diễn ra) của điểm trường: tối đa 1. */
+/** Đợt chưa đóng (sắp diễn ra hoặc đang diễn ra) của điểm trường: tối đa 1, tính chung đợt khám và kỳ cân đo (M3). */
 export const unclosedCampaignOf = (db, campusId, excludeId) =>
   (db.healthCheckCampaigns || []).find((c) => c.campusId === campusId && c.id !== excludeId && !c.closedAt && !c.cancelledAt) || null;
+
+/** Đợt lưu trước khi có kỳ cân đo không có kind: là đợt khám. */
+export const campaignKindOf = (c) => c?.kind || CAMPAIGN_KIND.EXAM;
+export const isExamCampaign = (c) => campaignKindOf(c) === CAMPAIGN_KIND.EXAM;
+
+const addMonths = (date, n) => {
+  const [y, m, d] = date.split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + n, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, lastDay));
+  return target.toISOString().slice(0, 10);
+};
+
+/** Ngày bắt đầu sớm nhất không còn "sát" ngày date: date + 2 tháng + 15 ngày (user chốt 2026-10-31). */
+const gapEndOf = (date) => addDays(addMonths(date, SCHEDULE_MIN_GAP.months), SCHEDULE_MIN_GAP.days);
+
+/**
+ * Cảnh báo khi tạo/sửa kỳ hoặc đợt (user chốt 2026-10-31; M1, M2): kỳ/đợt khác cùng điểm trường, chưa hủy, có ngày bắt đầu
+ * cách dưới 2 tháng 15 ngày (cả trước lẫn sau); đợt khám thêm cảnh báo năm học đã có đợt khám. Không chặn lưu.
+ */
+export const scheduleWarningsOf = (db, { campusId, kind, startDate, excludeId }) => {
+  const others = (db.healthCheckCampaigns || []).filter((c) => c.campusId === campusId && c.id !== excludeId && !c.cancelledAt);
+  const brief = (code, c) => ({ code, campaignId: c.id, name: c.name, kind: campaignKindOf(c), startDate: c.startDate });
+  const tooClose = others
+    .filter((c) => c.startDate < gapEndOf(startDate) && startDate < gapEndOf(c.startDate))
+    .map((c) => brief(SCHEDULE_WARNING.TOO_CLOSE, c));
+  const yearId = kind === CAMPAIGN_KIND.EXAM ? schoolYearIdOfDate(db, startDate) : null;
+  const examInYear = yearId
+    ? others
+        .filter((c) => isExamCampaign(c) && schoolYearIdOfDate(db, c.startDate) === yearId)
+        .map((c) => brief(SCHEDULE_WARNING.EXAM_IN_SCHOOL_YEAR, c))
+    : [];
+  return [...tooClose, ...examInYear].sort((a, b) => a.startDate.localeCompare(b.startDate));
+};
 
 /*
  * Phiếu theo dõi dài hạn (user chốt 2026-10-16, PROPOSED — đề xuất HLT-09 cho BE).
