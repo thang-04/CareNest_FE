@@ -16,6 +16,10 @@ const toOption = (y) => ({
   statusLabel: STATUS_LABELS[y.status] || '',
   startDate: y.startDate || null,
   endDate: y.endDate || null,
+  semester1Start: y.semester1Start || null,
+  semester1End: y.semester1End || null,
+  semester2Start: y.semester2Start || null,
+  semester2End: y.semester2End || null,
 });
 
 /**
@@ -43,7 +47,13 @@ export function SchoolYearProvider({ children }) {
     const load = () =>
       getSchoolYears(user)
         .then((list) => {
-          if (!alive || !list?.length) return;
+          if (!alive || !Array.isArray(list)) return;
+          // DB chưa có năm học nào (vd. vừa xóa sạch để test): header trống, không hiện danh sách năm demo cứng
+          if (!list.length) {
+            setSchoolYears([]);
+            setChosenYear('');
+            return;
+          }
           const options = list.map(toOption);
           setSchoolYears(options);
           // Mặc định: năm đang hoạt động; chưa có thì năm sắp diễn ra sớm nhất (năm sẽ kích hoạt tiếp)

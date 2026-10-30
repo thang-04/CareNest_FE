@@ -57,7 +57,7 @@ const ITEMS = {
   schoolRooms: { label: 'Phòng ban', to: '/school/rooms' },
   schoolStaff: { label: 'Tài khoản nhân sự', to: '/school/staff' },
   schoolStaffView: { label: 'Nhân sự điểm trường', to: '/school/staff' },
-  schoolCutoff: { label: 'Giờ chốt điểm danh', to: '/school/cutoff' },
+  schoolCutoff: { label: 'Cấu hình thời gian', to: '/school/cutoff' },
   schoolCampuses: { label: 'Điểm trường', to: '/school/campuses' },
   schoolVps: { label: 'Phân công Phó hiệu trưởng', to: '/school/vice-principals' },
   schoolTeachers: { label: 'Phân công giáo viên', to: '/school/teachers' },

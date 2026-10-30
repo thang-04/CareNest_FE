@@ -1937,6 +1937,18 @@ tr.sortable-item--moved > td {
   color: var(--text);
   font-weight: 700;
 }
+/* Bước đã làm xong (Thiết lập năm học): xanh lá */
+.stepper__item--ok .stepper__dot {
+  border-color: var(--green-500);
+  color: var(--green-500);
+}
+.stepper__item--ok.stepper__item--current .stepper__dot {
+  background: var(--green-500);
+  color: var(--text-inverse);
+}
+.stepper__item--ok .stepper__label {
+  color: var(--green-700);
+}
 
 /* ---------- Wizard layout ---------- */
 .wizard-card {

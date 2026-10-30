@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Trash2, Info, Copy, Crown, UserCheck } from '@/components/ui/icons';
+import { Plus, Trash2, Info, Copy, UserCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfigYear } from '@/hooks/school-config/useConfigYear';
@@ -32,7 +32,8 @@ import '@/styles/modules/school-config.css';
  * #18 Age Groups & Classes (SRS 4.1.3, UC 2.2). Principal configures; VP / team leader / teacher view their scope.
  * Teachers and team leaders are assigned on Teacher Assignment and only shown here.
  */
-export default function AgeGroupsClassesPage() {
+/** embedded: nằm trong Thiết lập năm học, bỏ nút dẫn sang màn phân công (đã là bước kế tiếp) */
+export default function AgeGroupsClassesPage({ embedded = false }) {
   const { user } = useAuth();
   const toast = useToast();
   const [params] = useSearchParams();
@@ -115,12 +116,6 @@ export default function AgeGroupsClassesPage() {
       </div>
 
       {yearsError && <ErrorState error={yearsError} />}
-      {year && (
-        <p className="sc-summary text-2">
-          Năm học <b>{year.name}</b> · {ageGroups.length} nhóm tuổi · {classes.length} lớp
-          {campusId ? ` ở ${md.campusById(campusId)?.shortName || ''}` : ''}
-        </p>
-      )}
       {year?.status === YEAR_STATUS.CLOSED && (
         <div className="alert alert--info mb-16">
           <Info size={18} />
@@ -138,15 +133,15 @@ export default function AgeGroupsClassesPage() {
             <div className="card__header">
               <h2 className="card__title">Nhóm tuổi</h2>
               <div className="row row--wrap">
-                {/* Giáo viên và tổ trưởng phân công ở màn Phân công giáo viên; mỗi nút theo quyền riêng */}
-                {canAssignTeacherArea && (
-                  <Link className="btn btn--sm" to={assignUrl()}>
-                    <UserCheck size={15} /> Phân công giáo viên
-                  </Link>
-                )}
-                {canLeaders && (
-                  <Link className="btn btn--sm" to={assignUrl('#to-truong')}>
-                    <Crown size={15} /> Phân công tổ trưởng
+                {/* Giáo viên và tổ trưởng cùng ở màn Phân công giáo viên ⇒ một nút (Cần 30/10/2026); nhãn theo quyền đang có */}
+                {!embedded && (canAssignTeacherArea || canLeaders) && (
+                  <Link className="btn btn--sm" to={canAssignTeacherArea ? assignUrl() : assignUrl('#to-truong')}>
+                    <UserCheck size={15} />{' '}
+                    {canAssignTeacherArea && canLeaders
+                      ? 'Phân công giáo viên & tổ trưởng'
+                      : canAssignTeacherArea
+                        ? 'Phân công giáo viên'
+                        : 'Phân công tổ trưởng'}
                   </Link>
                 )}
                 {editable && (

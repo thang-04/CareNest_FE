@@ -108,7 +108,7 @@ export default function SchoolYearListPage() {
         <h1 className="page__title">Năm học</h1>
         {canConfigureSchool(user) && (
           <Link to="/school/years/new" className="btn btn--primary btn--lg">
-            <Plus size={18} /> Thêm năm học
+            <Plus size={18} /> Tạo năm học
           </Link>
         )}
       </div>
@@ -151,7 +151,7 @@ export default function SchoolYearListPage() {
                         action={
                           canConfigureSchool(user) && (
                             <Link className="btn btn--primary" to="/school/years/new">
-                              <Plus size={16} /> Thêm năm học
+                              <Plus size={16} /> Tạo năm học
                             </Link>
                           )
                         }
@@ -192,7 +192,10 @@ export default function SchoolYearListPage() {
                             edit={canEditYear(y, user) ? { to: `/school/years/${y.id}/edit`, label: 'Sửa năm học' } : null}
                             menu={[
                               ...(canConfigureSchool(user) && y.status === YEAR_STATUS.PLANNED
-                                ? [{ label: 'Chuẩn bị năm học', icon: ListChecks, onClick: () => prepare(y) }]
+                                ? [
+                                    { label: 'Thiết lập từng bước', icon: ListChecks, to: `/school/years/${y.id}/setup` },
+                                    { label: 'Chuẩn bị năm học', icon: ListChecks, onClick: () => prepare(y) },
+                                  ]
                                 : []),
                               { label: 'Nhóm tuổi & lớp', icon: Shapes, to: `/school/classes?year=${y.id}` },
                               ...(canConfigureSchool(user) && y.status !== YEAR_STATUS.CLOSED

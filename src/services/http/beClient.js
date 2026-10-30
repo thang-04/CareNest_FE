@@ -4,6 +4,7 @@ import { BE_ERROR_FIELDS } from './beErrorFields';
 import { translateBeError } from './beErrorMessages';
 import { getDevAccessToken, tokenForRetry } from './devKeycloakAuth';
 import { UNAUTHORIZED_EVENT } from './tokenStorage';
+import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 
 /*
  * Client cho API BE thật của Cấu hình trường (VITE_SCHOOL_CONFIG_API=true). Tách khỏi axiosClient chung để module
@@ -148,7 +149,14 @@ const call = async (method, url, { params, data, preserveEmptyStrings = [] } = {
       data: toBe(data, undefined, preserveEmptyStrings),
     });
     // Năm học thay đổi ⇒ nạp lại bảng tên <-> id
-    if (method !== 'get' && url.startsWith('/school-years')) await ensureYears(true);
+    if (method !== 'get' && url.startsWith('/school-years')) {
+      await ensureYears(true);
+      // Header (SchoolYearContext) và các màn nghe sự kiện này để nạp lại danh sách năm, như khi dùng mock
+      window.dispatchEvent(new CustomEvent(DB_CHANGED_EVENT));
+    } else if (method !== 'get' && /^\/(locations|classes)\b/.test(url)) {
+      // Phòng / lớp đổi ⇒ các màn đang mở cùng lúc (Thiết lập năm học bước 2) nạp lại
+      window.dispatchEvent(new CustomEvent(DB_CHANGED_EVENT));
+    }
     return toUi(response.data.data);
   } catch (error) {
     // Token bị BE từ chối ⇒ luồng hết phiên chung (AuthContext đăng xuất)

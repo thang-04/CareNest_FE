@@ -6,6 +6,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useRooms } from '@/hooks/school-config/useSchoolConfig';
+import { useConfigYear } from '@/hooks/school-config/useConfigYear';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -33,6 +34,8 @@ const ROOM_PAGE_SIZE = 10;
 export default function RoomListPage() {
   const { user } = useAuth();
   const toast = useToast();
+  // ?year= (từ Chuẩn bị năm học) chọn luôn năm trên header
+  useConfigYear();
   const { schoolYear, yearReadOnly } = useSchoolYear();
   const md = useMasterData();
   const { rooms, loading, error, reload } = useRooms(schoolYear);

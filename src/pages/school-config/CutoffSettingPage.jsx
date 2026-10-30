@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Clock4, Save, Info, Lock } from '@/components/ui/icons';
+import { useSearchParams } from 'react-router-dom';
+import { Clock4, Save, Lock } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfigYear } from '@/hooks/school-config/useConfigYear';
@@ -11,15 +12,22 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FormField } from '@/components/form/FormField';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
+import { SemesterSetting } from '@/components/school-config/SemesterSetting';
+import { Tabs } from '@/components/ui/Tabs';
 import { saveCutoffSetting } from '@/services/school-config/schoolConfigService';
-import { CUTOFF_DEFAULT_HINT, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
+import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { canConfigureCutoff } from '@/utils/school-config/schoolConfigPermissions';
 import { validateCutoff, hasErrors, errorsAfterChange, CUTOFF_LIMITS } from '@/utils/school-config/schoolConfigValidation';
 import { cutoffCrumbs } from '@/utils/school-config/breadcrumbs';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import '@/styles/modules/school-config.css';
 
-/** #19 Cutoff Setting (UC 2.7, GBR-CFG-02/03). Principal only. */
+const TABS = [
+  { key: 'cutoff', label: 'Giờ chốt điểm danh' },
+  { key: 'semester', label: 'Học kỳ' },
+];
+
+/** #19 Cấu hình thời gian: giờ chốt (UC 2.7, GBR-CFG-02/03) và học kỳ I, II. Principal only. */
 export default function CutoffSettingPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -31,6 +39,18 @@ export default function CutoffSettingPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'semester' ? 'semester' : 'cutoff';
+  const changeTab = (key) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (key === 'cutoff') next.delete('tab');
+        else next.set('tab', key);
+        return next;
+      },
+      { replace: true },
+    );
 
   // New values apply from today at the earliest: retroactive changes are not specified (UC 2.7).
   useEffect(() => {
@@ -45,8 +65,8 @@ export default function CutoffSettingPage() {
     return (
       <div className="page">
         <Breadcrumb items={cutoffCrumbs()} />
-        <h1 className="page__title">Giờ chốt điểm danh & suất ăn</h1>
-        <ScNoAccess description="Chỉ Hiệu trưởng được cấu hình giờ chốt điểm danh và suất ăn." />
+        <h1 className="page__title">Cấu hình thời gian</h1>
+        <ScNoAccess description="Chỉ Hiệu trưởng được cấu hình thời gian." />
       </div>
     );
 
@@ -82,47 +102,33 @@ export default function CutoffSettingPage() {
   return (
     <div className="page">
       <Breadcrumb items={cutoffCrumbs()} />
-      <h1 className="page__title">Giờ chốt điểm danh & suất ăn</h1>
+      <h1 className="page__title">Cấu hình thời gian</h1>
+      <div className="mb-16">
+        <Tabs items={TABS} value={tab} onChange={changeTab} ariaLabel="Cấu hình thời gian" />
+      </div>
 
-      {error ? (
+      {tab === 'semester' ? (
+        <SemesterSetting yearId={yearId} />
+      ) : error ? (
         <ErrorState error={error} onRetry={reload} />
       ) : loading || !year ? (
         <LoadingState />
       ) : (
         <>
-          <div className="split-2">
-            <section className="card">
-              <div className="card__header">
-                <h2 className="card__title">Giờ chốt đang áp dụng</h2>
-              </div>
-              <div className="card__body">
-                {setting ? (
-                  <div className="sc-cutoff">
-                    <div className="sc-cutoff__icon" aria-hidden="true">
-                      <Clock4 size={28} />
-                    </div>
-                    <div>
-                      <div className="sc-cutoff__time">{setting.time}</div>
-                      <div className="text-sm text-2">
-                        Áp dụng từ {formatDate(setting.effectiveFrom)} · năm học {year.name}
-                      </div>
-                      <div className="text-xs muted mt-8">
-                        Cập nhật bởi {setting.updatedByName || md.userById(setting.updatedBy)?.fullName || setting.updatedBy} lúc{' '}
-                        {formatDateTime(setting.updatedAt)}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="alert alert--warning">
-                    <Info size={18} />
-                    <div>Năm học {year.name} chưa có giờ chốt. Hãy nhập giờ chốt trước khi giáo viên bắt đầu điểm danh.</div>
-                  </div>
-                )}
-                <p className="text-sm text-2 mt-12">
-                  Sau giờ chốt, điểm danh và đăng ký suất ăn trong ngày bị khóa; hệ thống tổng hợp suất ăn theo lớp để Phó hiệu trưởng xác
-                  nhận. Trẻ đến sau giờ chốt không được tính vào suất ăn của ngày đó.
-                </p>
-              </div>
+          <div className="stack">
+            <section className="card sc-cutoff-now">
+              {setting ? (
+                <div className="sc-cutoff">
+                  <Clock4 size={20} className="text-primary" aria-hidden="true" />
+                  <span>Giờ chốt đang áp dụng</span>
+                  <b className="sc-cutoff__time">{setting.time}</b>
+                  <span className="text-sm text-2">
+                    từ {formatDate(setting.effectiveFrom)} · năm học {year.name}
+                  </span>
+                </div>
+              ) : (
+                <div className="muted">Chưa có giờ chốt.</div>
+              )}
             </section>
 
             <section className="card">
@@ -143,10 +149,10 @@ export default function CutoffSettingPage() {
                       </div>
                     )}
                     <div className="grid-2">
-                      <FormField label="Giờ chốt" required error={errors.time} hint={CUTOFF_DEFAULT_HINT}>
+                      <FormField label="Giờ chốt" required error={errors.time}>
                         <input className="input" type="time" value={form.time} onChange={(e) => set({ time: e.target.value })} />
                       </FormField>
-                      <FormField label="Áp dụng từ ngày" required error={errors.effectiveFrom} hint="Trong năm học, từ hôm nay trở đi">
+                      <FormField label="Áp dụng từ ngày" required error={errors.effectiveFrom}>
                         <input
                           className="input"
                           type="date"
@@ -238,8 +244,7 @@ export default function CutoffSettingPage() {
         title="Lưu giờ chốt"
         message={
           <>
-            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học. Các Phó hiệu
-            trưởng sẽ nhận được thông báo.
+            Giờ chốt <b>{form.time}</b> áp dụng từ ngày <b>{formatDate(form.effectiveFrom)}</b>.
           </>
         }
         confirmLabel="Lưu giờ chốt"

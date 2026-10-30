@@ -174,10 +174,6 @@ export function ClassListSection({
       <div className="card__header">
         <h2 className="card__title">Lớp năm học {year?.name}</h2>
         <span className="row sc-classes__tools">
-          <span className="muted text-sm">
-            {q || group || status ? `Hiển thị ${shown.length}/${classes.length} lớp` : `${classes.length} lớp`}
-            {campus ? ` · ${md.campusById(campus)?.shortName || ''}` : ''}
-          </span>
           {groups.length > 0 && (
             <>
               <button className="link-btn text-sm" onClick={() => setExpanded(new Set(groups.map((g) => g.id)))}>

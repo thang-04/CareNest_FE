@@ -25,6 +25,7 @@ export function Header({ role, showMenuButton, menuOpen, onToggleSidebar }) {
           value={schoolYear}
           onChange={(e) => setSchoolYear(e.target.value)}
         >
+          {schoolYears.length === 0 && <option value="">Chưa có năm học</option>}
           {schoolYears.map((y) => (
             <option key={y.id} value={y.id}>
               {y.statusLabel ? `${y.label} · ${y.statusLabel}` : y.label}

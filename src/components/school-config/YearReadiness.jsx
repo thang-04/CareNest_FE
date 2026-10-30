@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Play } from '@/components/ui/icons';
+import { AlertTriangle, CheckCircle2, ListChecks, Play } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
@@ -16,8 +16,10 @@ import { formatDate } from '@/utils/format';
 const STEP_LINK = Object.fromEntries(READINESS_STEPS.map((s) => [s.key, s]));
 
 /** "Chuẩn bị năm học" card of a planned year: steps computed by the backend, each with a link to its screen. */
-export function YearReadinessCard({ year, blockedBy, onActivate }) {
+/** showSetup: nút mở Thiết lập năm học từng bước (ẩn khi card đã nằm trong bước cuối của luồng đó). */
+export function YearReadinessCard({ year, blockedBy, onActivate, showSetup = true }) {
   const { readiness, loading, error, reload } = useYearReadiness(year.id);
+  const toast = useToast();
   if (error) return <ErrorState error={error} onRetry={reload} />;
   const steps = readiness?.steps || [];
   const required = steps.filter((s) => s.required);
@@ -43,10 +45,19 @@ export function YearReadinessCard({ year, blockedBy, onActivate }) {
           </span>
         </div>
         <div className="sc-ready__activate">
-          <button className="btn btn--primary" disabled={!canActivate} title={reason} onClick={() => onActivate(year)}>
+          {showSetup && (
+            <Link className="btn" to={`/school/years/${year.id}/setup`}>
+              <ListChecks size={16} /> Thiết lập từng bước
+            </Link>
+          )}
+          {/* Nút luôn bấm được; chưa đủ điều kiện thì báo lý do khi bấm, không chiếm chỗ bằng dòng chữ (Cần 30/10/2026) */}
+          <button
+            className="btn btn--primary"
+            disabled={!readiness}
+            onClick={() => (canActivate ? onActivate(year) : toast.warning(reason, 'Chưa kích hoạt được'))}
+          >
             <Play size={16} /> Kích hoạt năm học
           </button>
-          <span className="muted text-xs">{reason}</span>
         </div>
       </div>
       {loading && !readiness ? (

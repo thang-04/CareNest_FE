@@ -203,7 +203,8 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
 }
 
 /** #23 Vice Principal Assignment (UC 2.5, GBR-GEN-03, GBR-GEN-10). Principal only. */
-export default function VicePrincipalAssignmentPage() {
+/** embedded: nằm trong Thiết lập năm học (năm học do bước thiết lập chọn, không hiện bộ chọn năm). */
+export default function VicePrincipalAssignmentPage({ embedded = false }) {
   const { user } = useAuth();
   const { schoolYear: headerYear } = useSchoolYear();
   const [params, setParams] = useSearchParams();
@@ -235,11 +236,13 @@ export default function VicePrincipalAssignmentPage() {
       <Breadcrumb items={vpCrumbs()} />
       <h1 className="page__title">Phân công Phó hiệu trưởng</h1>
 
-      <div className="card mb-16">
-        <div className="filter-bar">
-          <YearPicker years={years} value={yearId} onChange={(v) => setParams({ year: v })} />
+      {!embedded && (
+        <div className="card mb-16">
+          <div className="filter-bar">
+            <YearPicker years={years} value={yearId} onChange={(v) => setParams({ year: v })} />
+          </div>
         </div>
-      </div>
+      )}
 
       {!loading && year && !readOnly && uncovered.length > 0 && (
         <div className="alert alert--warning mb-16">

@@ -77,6 +77,7 @@ const PickupResultPage = lazy(() => import('@/pages/pickup/PickupResultPage'));
 
 const SchoolYearListPage = lazy(() => import('@/pages/school-config/SchoolYearListPage'));
 const SchoolYearFormPage = lazy(() => import('@/pages/school-config/SchoolYearFormPage'));
+const SchoolYearSetupPage = lazy(() => import('@/pages/school-config/SchoolYearSetupPage'));
 const AgeGroupsClassesPage = lazy(() => import('@/pages/school-config/AgeGroupsClassesPage'));
 const RoomListPage = lazy(() => import('@/pages/school-config/RoomListPage'));
 const StaffAccountsPage = lazy(() => import('@/pages/school-config/StaffAccountsPage'));
@@ -324,7 +325,10 @@ export function AppRoutes() {
           </Route>
           <Route path="school">
             <Route path="years" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <SchoolYearListPage />)} />
-            <Route path="years/new" element={only([R.PRINCIPAL], <SchoolYearFormPage />)} />
+            {/* Tạo năm học = Thiết lập năm học từng bước (Cần 30/10/2026) */}
+            <Route path="years/new" element={only([R.PRINCIPAL], <SchoolYearSetupPage />)} />
+            <Route path="years/:id/setup" element={only([R.PRINCIPAL], <SchoolYearSetupPage />)} />
+            <Route path="years/:id/setup/:step" element={only([R.PRINCIPAL], <SchoolYearSetupPage />)} />
             <Route path="years/:id/edit" element={only([R.PRINCIPAL], <SchoolYearFormPage />)} />
             <Route path="classes" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AgeGroupsClassesPage />)} />
             <Route path="rooms" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <RoomListPage />)} />

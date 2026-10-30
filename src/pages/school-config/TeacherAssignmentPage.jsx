@@ -208,11 +208,6 @@ export default function TeacherAssignmentPage() {
                 <Crown size={18} /> Tổ trưởng nhóm tuổi
               </h2>
             </div>
-            <p className="text-sm muted sc-leader-note">
-              Mỗi nhóm tuổi có 1 tổ trưởng cho cả trường (mọi điểm trường), không phụ thuộc bộ lọc điểm trường. Chọn được giáo viên ở bất kỳ
-              điểm trường nào.
-              {leaderReadOnly && !closed && ' Bạn chỉ xem; quyền phân công tổ trưởng do Hiệu trưởng giao.'}
-            </p>
             <div className="table-wrap sc-table-flat">
               <table className="table table--grid table--compact">
                 <thead>
@@ -379,7 +374,7 @@ export default function TeacherAssignmentPage() {
                           {c.teacherIds
                             .map((id) => teacherName(c, id))
                             .filter(Boolean)
-                            .join(', ') || <span className="muted">—</span>}
+                            .join(', ') || <span className="muted">Chưa phân công</span>}
                           {c.teacherIds.length > 0 && !c.homeroomTeacherId && (
                             <>
                               {' '}

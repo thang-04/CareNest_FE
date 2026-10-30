@@ -69,7 +69,8 @@ export const READINESS_STEPS = [
   { key: 'info', label: 'Thông tin năm học', required: true, to: (y) => `/school/years/${y}/edit`, action: 'Sửa' },
   { key: 'ageGroups', label: 'Nhóm tuổi & bữa ăn', required: true, to: (y) => `/school/classes?year=${y}`, action: 'Xem' },
   { key: 'classes', label: 'Lớp học', required: true, to: (y) => `/school/classes?year=${y}`, action: 'Thêm lớp' },
-  { key: 'rooms', label: 'Phòng & sức chứa', required: true, to: (y) => `/school/classes?year=${y}`, action: 'Xếp phòng' },
+  // Cần 30/10/2026: Phòng & sức chứa mở màn Phòng ban đúng năm học đang chuẩn bị
+  { key: 'rooms', label: 'Phòng & sức chứa', required: true, to: (y) => `/school/rooms?year=${y}`, action: 'Xếp phòng' },
   {
     key: 'vicePrincipals',
     label: 'Phó hiệu trưởng từng điểm trường',
