@@ -95,7 +95,8 @@ export const themeGoalLabel = (domains, numbers, theme) => {
     .map((id) => numbers[id])
     .filter(Boolean)
     .sort((a, b) => a - b);
-  return nos.length ? `${mtList(nos)} (${nos.length} MT)` : '';
+  // Chỉ liệt kê MT, không thêm số đếm (Tiền 31/10: ít chữ)
+  return nos.length ? mtList(nos) : '';
 };
 
 /* ---------- Ngày tháng (yyyy-mm-dd, tính theo UTC để không lệch múi giờ) ---------- */

@@ -4,21 +4,20 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useGoalImportSources } from '@/hooks/education-plan/useGoalImportSources';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
 import { getImportGoals } from '@/models/education-plan/importGoals.mjs';
-import { ROLES } from '@/models/User';
 import { EmptyState, Modal, Notice, YearPlanStatusBadge } from '@/components/education-plan/eduUi';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { GoalPicker } from '@/components/education-plan/GoalPicker';
 import { versionOf } from '@/models/education-plan/planVersions.mjs';
 
-export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose, onImport }) {
+export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, defaultYear, onClose, onImport }) {
   const { schoolYears, user } = useEducationPlan();
-  const [year, setYear] = useState(schoolYears[1] || schoolYears[0] || '');
+  // Mặc định năm học của kế hoạch đang soạn (Tiền 31/10)
+  const [year, setYear] = useState(schoolYears.includes(defaultYear) ? defaultYear : schoolYears[1] || schoolYears[0] || '');
   const [ageGroupId, setAgeGroupId] = useState(defaultAgeGroupId || '');
   const [sourceId, setSourceId] = useState('');
   const [picked, setPicked] = useState({ key: '', ids: [] });
   const [checking, setChecking] = useState(false);
   const [confirmError, setConfirmError] = useState('');
-  const isLeader = user.role === ROLES.TEAM_LEADER;
   const query = useGoalImportSources({
     schoolYear: year,
     ageGroupId,
@@ -172,7 +171,6 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose
           </select>
         </div>
       </div>
-      {isLeader && <p className="muted text-sm">Nhóm tuổi khác chỉ hiện kế hoạch đã ban hành.</p>}
       {confirmError && <Notice tone="warn">{confirmError}</Notice>}
       {query.loadingList ? (
         <LoadingState />
@@ -185,7 +183,7 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, onClose
           }}
         />
       ) : !query.sources.length ? (
-        <EmptyState title="Không có bộ mục tiêu phù hợp" />
+        <EmptyState title="Không có kế hoạch phù hợp" />
       ) : (
         <>
           <div className="field">

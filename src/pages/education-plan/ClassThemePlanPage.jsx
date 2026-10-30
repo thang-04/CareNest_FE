@@ -20,15 +20,14 @@ import {
   themeGoalBlocks,
   yearWeeks,
 } from '@/models/education-plan/classPlan';
-import { exportThemeFile } from '@/utils/education-plan/classPlanDoc';
+import { leaderNameOf, themeFile } from '@/utils/education-plan/classPlanDoc';
 import { ThemePlanBody, themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { ActivityResources } from '@/components/education-plan/ActivityResources';
 import { themeActivities } from '@/models/education-plan/classPlan';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
-
-const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
+import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 /**
  * Kế hoạch giáo dục chủ đề của lớp theo mẫu MN Thái Dương: TT | Mục tiêu (giữ số MT năm) | Nội dung | Hoạt động giáo dục,
@@ -41,7 +40,8 @@ export default function ClassThemePlanPage() {
 
 function ThemePlanInner() {
   const { classId, themeId } = useParams();
-  const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, toast } = useEducationPlan();
+  const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, toast, staff } = useEducationPlan();
+  const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, isClassTeacher } = ctx;
   const theme = yearPlan?.themes.find((t) => t.id === themeId);
@@ -165,16 +165,25 @@ function ThemePlanInner() {
             >
               Dạy học / Trình chiếu
             </button>
-            <button type="button" className="btn btn--ghost" onClick={() => exportThemeFile(exportArgs, 'doc')}>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() =>
+                setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
+              }
+            >
               <FileDown size={16} aria-hidden /> Xuất Word
             </button>
             <button
               type="button"
               className="btn btn--ghost"
-              onClick={() => exportThemeFile(exportArgs, 'print') || toast(POPUP_BLOCKED, 'warn')}
+              onClick={() =>
+                setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
+              }
             >
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
+            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
             {editable && (
               <>
                 <span className="muted text-sm">{saver.label}</span>

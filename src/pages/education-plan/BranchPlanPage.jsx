@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { Check, FileDown, Lightbulb, Printer, Save, Wand2, X } from '@/components/ui/icons';
-import { exportBranchFile } from '@/utils/education-plan/classPlanDoc';
+import { branchFile, leaderNameOf } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
 import { Card, DraftRecoveryNotice, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
 import { Cell, docReview, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
@@ -21,6 +21,7 @@ import { WEEKDAY_LABELS, ddmm, emptyBranchPlan, isEditableStatus, monthOf, yearW
 import { SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
+import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 /**
  * "Dự kiến chủ đề nhánh và thời gian thực hiện" theo mẫu MN Thái Dương.
@@ -33,7 +34,6 @@ export default function BranchPlanPage() {
   return <BranchPlanInner key={classId} classId={classId} />;
 }
 
-const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 // Bản gửi đi khi lưu: ô AI chưa ✓ / ✗ vẫn lưu tên trước đó, chỉ lưu khi giáo viên đã giữ
 const payloadOf = (draft, pending) =>
   draft && { ...draft, names: { ...draft.names, ...Object.fromEntries(Object.entries(pending).map(([w, p]) => [w, p.prev])) } };
@@ -45,7 +45,8 @@ export function BranchPlanLegacyRedirect() {
 }
 
 function BranchPlanInner({ classId }) {
-  const { user, branchPlans, saveClassDoc, actOnClassDoc, toast, eduConfig } = useEducationPlan();
+  const { user, branchPlans, saveClassDoc, actOnClassDoc, toast, eduConfig, staff } = useEducationPlan();
+  const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, teachers, isClassTeacher } = ctx;
   const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null : null;
@@ -220,7 +221,7 @@ function BranchPlanInner({ classId }) {
       run: rejectAll,
     });
   const aiBusy = !!aiTheme || !!rewriting;
-  const printArgs = { doc: saved || draft, cls, yearPlan, teachers };
+  const printArgs = { doc: saved || draft, cls, yearPlan, teachers, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) };
   // Hỏi trước khi chạy AI; kết quả là bản nháp để giáo viên giữ / bỏ
   const confirmSuggest = (theme) => {
     const n = rows.filter((r) => r.type === 'week' && (!theme || r.theme.id === theme.id) && !draft.names[r.start]?.trim()).length;
@@ -281,16 +282,13 @@ function BranchPlanInner({ classId }) {
         actions={
           <>
             {/* Xuất / in ở mọi bước; đã duyệt thì Phó HT in ra ký, giáo viên in để dùng hằng ngày */}
-            <button type="button" className="btn btn--ghost" onClick={() => exportBranchFile(printArgs, 'doc')}>
+            <button type="button" className="btn btn--ghost" onClick={() => setPreview(branchFile(printArgs))}>
               <FileDown size={16} aria-hidden /> Xuất Word
             </button>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => exportBranchFile(printArgs, 'print') || toast(POPUP_BLOCKED, 'warn')}
-            >
+            <button type="button" className="btn btn--ghost" onClick={() => setPreview(branchFile(printArgs))}>
               <Printer size={16} aria-hidden /> In / Lưu PDF
             </button>
+            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
             {ctx.canPickClass && (
               <select
                 className="select"

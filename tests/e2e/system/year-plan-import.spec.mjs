@@ -485,7 +485,6 @@ test('EDU-06/43 Tổ trưởng: nhóm tuổi khác chỉ thấy bản đã ban h
     await page.getByRole('tab', { name: /Chủ đề và sự kiện/ }).click();
     await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Lấy chủ đề từ kế hoạch có sẵn' });
-    await expect(dialog.getByText('Nhóm tuổi khác chỉ hiện kế hoạch đã ban hành.')).toBeVisible();
     await dialog.locator('#imt-year').selectOption(uiYear(sourceYear));
     await dialog.locator('#imt-age').selectOption(sourceGroup.code);
     await dialog.locator('#imt-src').selectOption(String(source.id));

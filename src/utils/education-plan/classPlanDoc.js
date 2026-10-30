@@ -6,7 +6,7 @@
 import { commune, docShell, downloadDoc, esc, fileTitle, fmt, printDoc } from '@/utils/education-plan/yearPlanDoc';
 import { domainRoman } from '@/models/education-plan/goalTable';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
-import { SIGN_ROLES, getEduConfig } from '@/models/education-plan/eduConfig';
+import { SIGN_ROLES, getEduConfig, soleSignerName } from '@/models/education-plan/eduConfig';
 import {
   DAY_SECTIONS,
   WEEKDAY_LABELS,
@@ -25,17 +25,30 @@ const domainTitle = (name) => `${domainRoman(name)}. Giáo dục ${domainLabel(n
 const BLANK_DATE = 'Ngày……tháng……năm……';
 
 /**
- * Khung duyệt cuối mỗi tuần theo mẫu Thái Dương: "Duyệt giáo án từ ngày … đến ngày …", ngày ký, Người duyệt.
- * Một ô cho mỗi người duyệt (đã duyệt thì in sẵn họ tên); ngày và chữ ký để trống cho ký tay.
+ * Người ký theo chuỗi duyệt đã cấu hình: chức danh và họ tên (người đã duyệt; Tổ trưởng chưa duyệt thì lấy Tổ trưởng
+ * của nhóm tuổi; còn lại để trống cho viết tay). approvals ghi vai trò bằng nhãn ("Tổ trưởng"…) như BE.
  */
-const approvalBox = (doc, week) => {
-  const approvals = doc.approvals || [];
-  const people = approvals.length ? approvals : getEduConfig().signers.week.map((r) => ({ role: SIGN_ROLES[r] }));
-  const cells = (people.length ? people : [{}])
-    .map(
-      (a) =>
-        `<td class="c"><i>${BLANK_DATE}</i><br/><b>Người duyệt${a.role ? ` (${esc(a.role)})` : ''}</b><br/><div class="sign"></div><b>${esc(a.name || '')}</b></td>`,
-    )
+const signersOf = (chain, approvals = [], leaderName = '') =>
+  chain.map((r) => ({
+    title: SIGN_ROLES[r],
+    name: approvals.find((a) => a.role === SIGN_ROLES[r])?.name || (r === 'TEAM_LEADER' ? leaderName : soleSignerName(r)) || '',
+  }));
+/** Họ tên Tổ trưởng của nhóm tuổi (staff BE trả kèm tài liệu lớp: { fullName, role, ageGroupId }). */
+// staff là Tổ trưởng của năm học đang xem (đúng năm của tài liệu lớp); không có thì lấy theo cấu hình của năm schoolYear
+export const leaderNameOf = (staff = [], ageGroupId, schoolYear) =>
+  staff.find((s) => s.role === 'TEAM_LEADER' && s.ageGroupId === ageGroupId)?.fullName ||
+  soleSignerName('TEAM_LEADER', ageGroupId, schoolYear) ||
+  '';
+const signCell = (x, top = '') => `<td class="c">${top}<b>${esc(x.title)}</b><br/><div class="sign"></div>${esc(x.name)}</td>`;
+
+/**
+ * Khung duyệt cuối mỗi tuần theo mẫu Thái Dương: "Duyệt giáo án từ ngày … đến ngày …", ngày ký, người duyệt theo chuỗi
+ * đã cấu hình (chức danh, chỗ ký tay, họ tên).
+ */
+const approvalBox = (doc, week, leaderName) => {
+  const people = signersOf(getEduConfig().signers.week, doc.approvals, leaderName);
+  const cells = (people.length ? people : [{ title: 'Người duyệt', name: '' }])
+    .map((x) => signCell(x, `<i>${BLANK_DATE}</i><br/>`))
     .join('');
   return `<p>&nbsp;</p><p><b>Duyệt giáo án từ ngày ${fmt(week.start)} đến ngày ${fmt(week.end)}</b></p>
 <table class="plain sign-block"><tr><td style="width:50%"></td>${cells}</tr></table>`;
@@ -73,7 +86,7 @@ const themeSection = ({ doc, theme, themeNo, weeks, blocks, rowOf }) => {
 };
 
 /** Giáo án một tuần: kế hoạch tuần (bảng hoạt động × Thứ 2–6) rồi 5 kế hoạch ngày, khung duyệt cả tuần ở cuối. */
-const weekSection = ({ doc, week, branchNo, branchName }) => {
+const weekSection = ({ doc, week, branchNo, branchName, leaderName }) => {
   const grid = weekRows()
     .map((r) => {
       const g = rowCell(doc, r);
@@ -125,18 +138,18 @@ ${i === 0 ? '<h1>KẾ HOẠCH NGÀY</h1>' : ''}<p class="c"><b>${esc(longDay(d.d
 <table class="grid"><colgroup><col style="width:14%"/>${WEEKDAY_LABELS.map(() => '<col style="width:17.2%"/>').join('')}</colgroup>
 <thead><tr><th>Thứ</th>${WEEKDAY_LABELS.map((l, i) => `<th>${l}<br/>${fmt(addDays(week.start, i))}${week.offDays?.[i] ? `<br/>Nghỉ: ${esc(week.offDays[i])}` : ''}</th>`).join('')}</tr></thead><tbody>${grid}</tbody></table>
 ${days}
-${approvalBox(doc, week)}`;
+${approvalBox(doc, week, leaderName)}`;
 };
 
 /**
  * Hồ sơ chủ đề đúng thứ tự file của trường: kế hoạch giáo dục chủ đề → từng tuần nhánh (kế hoạch tuần, 5 kế hoạch ngày,
  * khung "Duyệt giáo án từ ngày … đến ngày …" để ký tay). weekDocs: [{ week, branchNo, branchName, doc }] (tuần chưa soạn bỏ qua).
  */
-export const themeFileHtml = ({ themeDoc, theme, themeNo, cls, weeks, blocks, rowOf, weekDocs }) =>
+export const themeFileHtml = ({ themeDoc, theme, themeNo, cls, weeks, blocks, rowOf, weekDocs, leaderName }) =>
   docShell(
     `KHGD chủ đề ${themeNo} ${theme.name} ${cls.name}`,
     `${themeDoc ? themeSection({ doc: themeDoc, theme, themeNo, weeks, blocks, rowOf }) : ''}
-${weekDocs.map((w) => weekSection(w)).join('')}
+${weekDocs.map((w) => weekSection({ ...w, leaderName })).join('')}
 <p class="c"><i>KHGD - ${esc(cls.name)}</i></p>`,
   );
 
@@ -148,7 +161,7 @@ export const weekFileHtml = ({ cls, ...w }) =>
  * "Dự kiến các chủ đề nhánh và thời gian thực hiện" theo mẫu Thái Dương: Tháng | Chủ đề | Chủ đề nhánh | Số tuần | Ghi chú,
  * tháng và chủ đề gộp theo chủ đề, dòng nghỉ riêng; cuối trang Người duyệt kế hoạch (Phó HT) và Người xây dựng (giáo viên).
  */
-export const branchFileHtml = ({ doc, cls, yearPlan, teachers }) => {
+export const branchFileHtml = ({ doc, cls, yearPlan, teachers, leaderName }) => {
   const rows = yearWeeks(yearPlan);
   const weeks = rows.filter((r) => r.type === 'week');
   const year = (yearPlan.schoolYear || '').replace(/\s*[-–]\s*/, ' - ');
@@ -174,7 +187,7 @@ export const branchFileHtml = ({ doc, cls, yearPlan, teachers }) => {
       return `<tr>${head}<td>- Nhánh ${no}: ${esc(doc.names?.[r.start] || '')}</td><td>Tuần ${r.no}: ${fmt(r.start)}<br/>${fmt(r.end)}</td><td>${esc(doc.notes?.[r.start] || '')}</td></tr>`;
     })
     .join('');
-  const approver = (doc.approvals || []).at(-1);
+  const approvers = signersOf(getEduConfig().signers.branch, doc.approvals, leaderName);
   const people = teachers.length ? teachers : [{ fullName: '' }];
   return docShell(
     `Dự kiến các chủ đề nhánh ${cls.name}`,
@@ -183,14 +196,26 @@ export const branchFileHtml = ({ doc, cls, yearPlan, teachers }) => {
 <table class="grid"><colgroup><col style="width:9%"/><col style="width:19%"/><col style="width:38%"/><col style="width:18%"/><col style="width:16%"/></colgroup>
 <thead><tr><th>Tháng</th><th>Chủ đề</th><th>Chủ đề nhánh</th><th>Số tuần</th><th>Ghi chú</th></tr></thead><tbody>${body}</tbody></table>
 <table class="plain sign-block"><tr>
-<td class="c" style="width:40%"><br/><b>Người duyệt kế hoạch</b><br/><div class="sign"></div><b>${esc(approver?.name || '')}</b></td>
-<td class="c" style="width:60%"><i>${esc(commune)}, ngày …… tháng …… năm ……</i><br/><b>Người xây dựng kế hoạch</b>
-<table class="plain"><tr>${people.map((t) => `<td class="c"><b>Giáo viên</b><br/><div class="sign"></div><b>${esc(t.fullName || '')}</b></td>`).join('')}</tr></table></td>
+<td class="c" style="width:50%"><br/><b>Người duyệt kế hoạch</b>
+<table class="plain"><tr>${approvers.map((x) => signCell(x)).join('')}</tr></table></td>
+<td class="c" style="width:50%"><i>${esc(commune)}, ngày …… tháng …… năm ……</i><br/><b>Người xây dựng kế hoạch</b>
+<table class="plain"><tr>${people.map((t) => signCell({ title: 'Giáo viên', name: t.fullName || '' })).join('')}</tr></table></td>
 </tr></table>`,
   );
 };
 
 const output = (html, name, mode) => (mode === 'print' ? printDoc(html) : (downloadDoc(html, fileTitle(name)), true));
+
+/** Tài liệu lớp để xem trước rồi xuất / in: { html, name } (xem trước dùng đúng HTML sẽ xuất). */
+export const branchFile = (args) => ({
+  html: branchFileHtml(args),
+  name: fileTitle(`2. DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH VÀ THỜI GIAN THỰC HIỆN - ${args.cls.name}`),
+});
+export const themeFile = (args) => ({
+  html: themeFileHtml(args),
+  name: fileTitle(`3. KHGD CĐ ${args.themeNo} ${args.theme.name} - ${args.cls.name}`),
+});
+export const weekFile = (args) => ({ html: weekFileHtml(args), name: fileTitle(`Giáo án tuần ${args.week.no} - ${args.cls.name}`) });
 
 // Tên file theo bộ file mẫu của trường: "2. DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH…", "3. KHGD CĐ n …"
 export const exportBranchFile = (args, mode) =>

@@ -525,11 +525,15 @@
   .ga-goal-table--themes .ga-goal-table__theme {
     width: var(--space-10);
   }
+  /* Nhiều cột chủ đề + cột Xóa: thu cột nhóm / mục tiêu để cột nội dung không bị bóp còn 1 từ / dòng (rà UI 31/10) */
   .ga-goal-table--themes .ga-goal-table__group {
-    width: 15%;
+    width: 13%;
   }
   .ga-goal-table--themes .ga-goal-table__goaltext {
-    width: 20%;
+    width: 18%;
+  }
+  .ga-goal-table--themes .ga-goal-table__del {
+    width: calc(var(--space-12) + var(--space-2));
   }
   .ga-goal-table--themes .ga-goal-table__code {
     width: var(--space-16);
@@ -707,8 +711,11 @@
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
 }
-/* Hàng tiêu đề thứ 2 (tên viết tắt chủ đề, cột hẹp): giữ chữ nhỏ, lề hẹp để vừa cột */
-.table.ga-goal-table thead tr + tr th {
+/* Hàng tiêu đề thứ 2 (tên viết tắt chủ đề, cột hẹp): giữ chữ nhỏ, lề hẹp để vừa cột; gồm cả ô đầu/cuối hàng
+   (luật th:first-child/last-child lề rộng ở trên ưu tiên hơn, làm "MN", "TN" bị ngắt từng chữ — Tiền 31/10) */
+.table.ga-goal-table thead tr + tr th,
+.table.ga-goal-table thead tr + tr th:first-child,
+.table.ga-goal-table thead tr + tr th:last-child {
   padding-left: var(--space-1);
   padding-right: var(--space-1);
   font-size: var(--fs-2xs);
@@ -1265,7 +1272,13 @@ h2.ga-cur-domain__head {
   width: calc(var(--space-16) + var(--space-2));
 }
 .ga-col-date {
-  width: calc(var(--space-16) * 1.75);
+  width: calc(var(--space-16) * 2);
+}
+/* Điện thoại: bảng chủ đề nhiều cột cố định (ngày, số tuần, sắp xếp, xóa) ⇒ giữ đủ rộng cho cột chữ, cuộn ngang trong khung */
+@media (max-width: 767px) {
+  .table.ga-goal-table:has(col.ga-col-weeks) {
+    min-width: 1000px;
+  }
 }
 .ga-col-weeks {
   width: var(--space-16);
@@ -1286,4 +1299,20 @@ h2.ga-cur-domain__head {
 }
 .table.ga-goal-table th.ga-stt .stt-head {
   align-items: center;
+}
+/* Ô tích chủ đề trong thân bảng mục tiêu (cột hẹp): lề hẹp, viết tắt không ngắt từng chữ như "M/N", "Đ/C/a" (Tiền 31/10) */
+.table.ga-goal-table td .ga-theme-tick {
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* Xem trước tài liệu trước khi xuất / in: khung trang trắng cuộn được, hiển thị đúng HTML sẽ xuất (Tiền 31/10) */
+.ga-doc-preview {
+  display: block;
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
 }

@@ -5,7 +5,6 @@ import { CURRICULUM_SEED } from '../../src/mocks/curriculumSeed.js';
 import {
   addSuggestedContents,
   curriculumAsSourcePlan,
-  curriculumBadge,
   curriculumSourceLink,
   curriculumTree,
   goalTargets,
@@ -129,11 +128,7 @@ test('gợi ý nội dung: thêm vào mục tiêu đích, bỏ trùng; chỉ m�
   );
 });
 
-test('nhãn Theo Bộ / Đã sửa từ Bộ và đường dẫn trang nguồn', () => {
-  const row = { curriculumGoalId: 7, curriculumGoalText: 'Câu gốc.', curriculumSectionRef: 'Phần ba › D › I', text: ' Câu gốc. ' };
-  assert.equal(curriculumBadge(row).label, 'Theo Bộ');
-  assert.equal(curriculumBadge({ ...row, text: 'Trẻ câu đã sửa.' }).label, 'Đã sửa từ Bộ');
-  assert.equal(curriculumBadge({ text: 'x' }), null);
+test('đường dẫn trang nguồn', () => {
   assert.equal(curriculumSourceLink('ag-3', 7), '/education/curriculum-sources?ageGroup=ag-3#cg-7');
 });
 
@@ -225,12 +220,7 @@ test('3 tầng: lấy từ Bộ gắn liên kết cho lĩnh vực con và nhóm;
   assert.equal(copied.find((r) => r.kind === 'group').curriculumExpectedResultId, goals[0].expectedResultId);
 });
 
-test('3 tầng: nhãn và đường dẫn nguồn cho lĩnh vực con/nhóm; cây dùng id tầng', () => {
-  const group = { kind: 'group', text: 'Nhóm gốc', curriculumExpectedResultId: 12, curriculumText: 'Nhóm gốc' };
-  assert.equal(curriculumBadge(group).label, 'Theo Bộ');
-  assert.equal(curriculumBadge({ ...group, text: 'Nhóm đã sửa' }).label, 'Đã sửa từ Bộ');
-  assert.equal(curriculumBadge(group).anchor, 'cgr-12');
-  assert.equal(curriculumBadge({ kind: 'sub', text: 'x', curriculumSubDomainId: 4, curriculumText: 'x' }).anchor, 'cs-4');
+test('3 tầng: đường dẫn nguồn cho nhóm; cây dùng id tầng', () => {
   assert.equal(curriculumSourceLink('ag-3', null, 'cgr-12'), '/education/curriculum-sources?ageGroup=ag-3#cgr-12');
   const tree = curriculumTree(withTierIds(goalsOf('ag-5')));
   assert.ok(tree[0].subs[0].id);

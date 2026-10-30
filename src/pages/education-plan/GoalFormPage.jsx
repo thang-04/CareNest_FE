@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams, useLocation } from 'react-rout
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
 import { ArrowLeft, ArrowRight, Download, FileDown, Printer, Save, Upload } from '@/components/ui/icons';
-import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
+import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useYearPlanAutosave } from '@/hooks/education-plan/useYearPlanAutosave';
 import { recoveryText } from '@/models/education-plan/yearPlanAutosave.mjs';
@@ -37,6 +37,7 @@ import { mergeImportedThemes } from '@/models/education-plan/importThemes.mjs';
 import CurriculumGoalsModal from '@/components/education-plan/CurriculumGoalsModal';
 import { addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
 import { Card, DraftRecoveryNotice, Field, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
+import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 const suggestTitle = (year, ageGroupId) => {
   const ag = AGE_GROUPS.find((a) => a.id === ageGroupId);
@@ -80,7 +81,6 @@ const formOf = (goal) => ({
   breaks: goal.breaks || [],
 });
 
-const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 const NO_THEME_NOTE = 'Chưa có chủ đề. Thêm chủ đề ở tab "Chủ đề và sự kiện" để có cột tích chủ đề trong bảng này.';
 
 /** Lập / sửa kế hoạch giáo dục năm học của một nhóm tuổi theo mẫu MN Thái Dương (Phó HT và tổ trưởng cùng soạn). */
@@ -94,7 +94,8 @@ export default function GoalFormPage() {
     if (id && handoffKey) editHandoffs.delete(handoffKey);
   }, [id, handoffKey]);
   const [params] = useSearchParams();
-  const { goals, schoolYear, saveGoal, startEditingGoal, finishEditingGoal, heartbeatGoal, toast, user } = useEducationPlan();
+  const { goals, schoolYear, saveGoal, startEditingGoal, finishEditingGoal, heartbeatGoal, toast, user, staff } = useEducationPlan();
+  const [preview, setPreview] = useState(null);
   const { schoolYears: yearOptions } = useSchoolYear();
   const navigate = useNavigate();
   const existing = goals.find((g) => g.id === id);
@@ -174,13 +175,14 @@ export default function GoalFormPage() {
       const abbrs = themes.map((t) => t.abbr.trim().toLowerCase());
       if (themes.some((t) => !t.name.trim() || !t.abbr.trim()))
         e.themes = 'Mỗi chủ đề cần có tên và tên viết tắt (dùng làm cột "Chủ đề thực hiện" ở bảng mục tiêu).';
-      else if (abbrs.some((a, i) => abbrs.indexOf(a) !== i)) e.themes = 'Tên viết tắt của các chủ đề bị trùng.';
+      // Viết tắt trùng: chặn bước tiếp nhưng chỉ báo đỏ tại ô (EDU-42), không hiện khung thông báo
+      else if (abbrs.some((a, i) => abbrs.indexOf(a) !== i)) e.themeAbbr = true;
       else if (themes.some((t) => t.start && t.end && t.end < t.start)) e.themes = 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.';
       else if (outOfYear) e.themes = outOfYearMsg;
       else if (scheduleIssue) e.themes = scheduleIssue;
       else if (totalGoals === 0) e.domains = 'Nhập ít nhất một mục tiêu';
       // Mở đúng tab đang có lỗi
-      if (e.themes) setTab('themes');
+      if (e.themes || e.themeAbbr) setTab('themes');
       else if (e.domains) setTab('goals');
     }
     setErrors(e);
@@ -188,16 +190,14 @@ export default function GoalFormPage() {
   };
 
   // Lỗi bảng chủ đề tính ngay khi gõ để báo tại chỗ; khi bấm Tiếp theo / Gửi vẫn kiểm lại đầy đủ
-  const themeAbbrs = themes.map((t) => t.abbr.trim().toLowerCase()).filter(Boolean);
+  // Viết tắt trùng không vào đây: chỉ báo đỏ tại ô (EDU-42)
   const themeIssue = themes.some((t) => !t.name.trim() || !t.abbr.trim())
     ? 'Có chủ đề chưa có tên hoặc tên viết tắt.'
-    : themeAbbrs.some((a, i) => themeAbbrs.indexOf(a) !== i)
-      ? 'Tên viết tắt của các chủ đề bị trùng.'
-      : themes.some((t) => t.start && t.end && t.end < t.start)
-        ? 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.'
-        : outOfYear
-          ? outOfYearMsg
-          : scheduleIssue;
+    : themes.some((t) => t.start && t.end && t.end < t.start)
+      ? 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.'
+      : outOfYear
+        ? outOfYearMsg
+        : scheduleIssue;
 
   const next = () => {
     if (!validate(step)) return;
@@ -808,6 +808,7 @@ export default function GoalFormPage() {
           <ImportThemesModal
             excludeId={form.id}
             defaultAgeGroupId={form.ageGroupId}
+            defaultYear={form.schoolYear}
             form={form}
             onClose={() => setImportingThemes(false)}
             onImport={importThemes}
@@ -818,6 +819,7 @@ export default function GoalFormPage() {
           <ImportGoalsModal
             excludeId={form.id}
             defaultAgeGroupId={form.ageGroupId}
+            defaultYear={form.schoolYear}
             onClose={() => setImporting(false)}
             onImport={importGoals}
           />
@@ -827,24 +829,25 @@ export default function GoalFormPage() {
           <>
             <Card
               title="Duyệt lại nội dung"
-              num="4"
+              num="3"
               actions={
-                // Bước cuối (Xác nhận) mới xuất / in file (Tiền 30/10)
+                // Bước cuối (Xác nhận) mới xuất / in file (Tiền 30/10), nút ở đầu bước (Tiền 31/10)
                 <div className="row">
                   <button
                     type="button"
                     className="btn btn--sm btn--ghost"
-                    onClick={() => downloadYearPlanDoc(build(existing?.status || EDU_STATUS.DRAFT), numbers)}
+                    onClick={() => setPreview(yearPlanFile(build(existing?.status || EDU_STATUS.DRAFT), numbers, staff))}
                   >
                     <FileDown size={16} aria-hidden /> Xuất Word
                   </button>
                   <button
                     type="button"
                     className="btn btn--sm btn--ghost"
-                    onClick={() => printYearPlan(build(existing?.status || EDU_STATUS.DRAFT), numbers) || toast(POPUP_BLOCKED, 'warn')}
+                    onClick={() => setPreview(yearPlanFile(build(existing?.status || EDU_STATUS.DRAFT), numbers, staff))}
                   >
                     <Printer size={16} aria-hidden /> In / Lưu PDF
                   </button>
+                  {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
                 </div>
               }
             >
@@ -872,7 +875,8 @@ export default function GoalFormPage() {
           </>
         )}
       </fieldset>
-      <div className="page-actions">
+      {/* Thanh nút dính đáy ở mọi bước, kể cả bước cuối không có nút chính (Tiền 31/10) */}
+      <div className="page-actions page-actions--sticky">
         {/* Đóng: còn thay đổi chưa lưu thì hỏi lưu / rời / ở lại */}
         <button
           type="button"

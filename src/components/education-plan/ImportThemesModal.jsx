@@ -5,7 +5,6 @@ import { useGoalImportSources } from '@/hooks/education-plan/useGoalImportSource
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
 import { breakExists, themeExists } from '@/models/education-plan/importThemes.mjs';
 import { versionOf } from '@/models/education-plan/planVersions.mjs';
-import { ROLES } from '@/models/User';
 import { EmptyState, Modal, Notice, YearPlanStatusBadge, fmtDate } from '@/components/education-plan/eduUi';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 
@@ -16,15 +15,15 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
 
 const range = (start, end) => (start || end ? `${start ? fmtDate(start) : '…'} – ${end ? fmtDate(end) : '…'}` : '—');
 
-export default function ImportThemesModal({ excludeId, defaultAgeGroupId, form, onClose, onImport }) {
+export default function ImportThemesModal({ excludeId, defaultAgeGroupId, defaultYear, form, onClose, onImport }) {
   const { schoolYears, user } = useEducationPlan();
-  const [year, setYear] = useState(schoolYears[1] || schoolYears[0] || '');
+  // Mặc định năm học của kế hoạch đang soạn (Tiền 31/10)
+  const [year, setYear] = useState(schoolYears.includes(defaultYear) ? defaultYear : schoolYears[1] || schoolYears[0] || '');
   const [ageGroupId, setAgeGroupId] = useState(defaultAgeGroupId || '');
   const [sourceId, setSourceId] = useState('');
   const [picked, setPicked] = useState({ key: '', ids: [] });
   const [checking, setChecking] = useState(false);
   const [confirmError, setConfirmError] = useState('');
-  const isLeader = user.role === ROLES.TEAM_LEADER;
   const query = useGoalImportSources({
     schoolYear: year,
     ageGroupId,
@@ -211,7 +210,6 @@ export default function ImportThemesModal({ excludeId, defaultAgeGroupId, form, 
           </div>
         )}
       </div>
-      {isLeader && <p className="muted text-sm">Nhóm tuổi khác chỉ hiện kế hoạch đã ban hành.</p>}
       {confirmError && <Notice tone="warn">{confirmError}</Notice>}
       {query.loadingList ? (
         <LoadingState />
