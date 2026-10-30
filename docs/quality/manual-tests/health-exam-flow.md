@@ -13,21 +13,21 @@ Nghiệp vụ: [plan phiếu khám Phụ lục II](../../plans/completed/2026-10
 | Vai | Tài khoản | Phạm vi |
 | --- | --- | --- |
 | Hiệu trưởng | `hung.pham@carenest.edu.vn` | Cả 2 điểm trường |
-| Phó hiệu trưởng Campus 2 | `duc.trinh@carenest.edu.vn` | Chỉ xem Campus 2 |
+| Phó hiệu trưởng Campus 2 | `duc.trinh@carenest.edu.vn` | Tạo, sửa, đóng đợt khám và kỳ cân đo của Campus 2 (từ 2026-10-31) |
 | Giáo viên Lớp Mầm 1 (Campus 2) | `tuan.hoang@carenest.edu.vn` | Trẻ T1–T6 |
 | Giáo viên Lớp Lá A (Campus 2) | `ngoc.vu@carenest.edu.vn` | Trẻ T7–T12 |
 
-Kịch bản dùng Campus 2: Campus 1 đã có đợt đang diễn ra với dữ liệu mẫu.
+Kịch bản dùng Campus 2: Campus 1 đã có đợt khám đang diễn ra với dữ liệu mẫu; Campus 2 có kỳ cân đo "Cân đo định kỳ tháng …" đang diễn ra, chưa ai nhập (từ 2026-10-31, [plan kỳ cân đo](../../plans/completed/2026-10-31-health-measurement-rounds.md)).
 
 ## A. Hiệu trưởng tạo đợt
 
 | Bước | Thao tác | Kết quả mong đợi |
 | --- | --- | --- |
-| A1 | **Đợt khám sức khỏe → Tạo đợt khám**. Điểm trường Campus 2, nhập đủ các ô như A3, bấm **Tạo đợt khám** | Không tạo được. Ô điểm trường báo: *Điểm trường đang có đợt "Khám sức khỏe định kỳ tháng …" chưa đóng. Đóng hoặc hủy đợt đó trước khi tạo đợt mới.* |
-| A2 | Để trống tên, chọn ngày kết thúc trước ngày bắt đầu, bấm **Tạo đợt khám** | Lỗi *Nhập tên đợt khám* và *Ngày kết thúc không được trước ngày bắt đầu* |
-| A3 | Mở đợt "Khám sức khỏe định kỳ tháng …" của Campus 2 (Sắp diễn ra) → **Hủy đợt** → xác nhận | *Đã hủy đợt khám.* (Đợt chưa có kết quả nên hủy được.) |
-| A4 | **Tạo đợt khám**: tên `Khám sức khỏe đợt thử luồng` · Campus 2 · bắt đầu **hôm nay** · kết thúc **hôm nay + 3** · đơn vị khám `Trạm Y tế phường – BS. Đỗ Minh Khôi` · ghi chú `Giáo viên có mặt cùng bác sĩ, nhập phiếu Phụ lục II từng trẻ.` | Đợt ở trạng thái **Đang diễn ra**. Giáo viên Campus 2 nhận thông báo *Đợt khám sức khỏe mới*. |
-| A5 | Đăng nhập Phó hiệu trưởng Campus 2, mở đợt | Thấy tiến độ, không có nút tạo, sửa, đóng |
+| A1 | **Đợt khám, kỳ cân đo → Tạo đợt khám**. Điểm trường Campus 2, nhập đủ các ô như A4, bấm **Tạo đợt khám sức khỏe** | Hộp *Lịch sát với đợt khám, kỳ cân đo khác* hiện trước (xem A4). Bấm **Vẫn tạo**: không tạo được, ô điểm trường báo *Điểm trường đang có kỳ cân đo "Cân đo định kỳ tháng …" chưa đóng. Đóng hoặc hủy trước khi tạo mới.* |
+| A2 | Để trống tên, chọn ngày kết thúc trước ngày bắt đầu, bấm **Tạo đợt khám sức khỏe** | Lỗi *Nhập tên đợt khám* và *Ngày kết thúc không được trước ngày bắt đầu* |
+| A3 | Mở kỳ "Cân đo định kỳ tháng …" của Campus 2 (Đang diễn ra) → **Hủy kỳ** → xác nhận | *Đã hủy kỳ cân đo.* (Kỳ chưa có kết quả nên hủy được.) |
+| A4 | **Tạo đợt khám**: tên `Khám sức khỏe đợt thử luồng` · Campus 2 · bắt đầu **hôm nay** · kết thúc **hôm nay + 3** · đơn vị khám `Trạm Y tế phường – BS. Đỗ Minh Khôi` · ghi chú `Giáo viên có mặt cùng bác sĩ, nhập phiếu Phụ lục II từng trẻ.` | Hộp cảnh báo nêu *Năm học này đã có đợt khám "Khám sức khỏe đầu năm học 2026–2027"* và các đợt bắt đầu cách chưa tới 2 tháng 15 ngày; kỳ đã hủy ở A3 không có trong danh sách. Bấm **Vẫn tạo**: đợt ở trạng thái **Đang diễn ra**. Giáo viên Campus 2 nhận thông báo *Đợt khám sức khỏe mới*. |
+| A5 | Đăng nhập Phó hiệu trưởng Campus 2, mở đợt | Thấy tiến độ và các nút **Sửa thông tin**, **Đóng đợt khám** (PHT quản lý điểm trường của mình). Form tạo chỉ chọn được Campus 2 |
 
 ## B. Giáo viên nhập phiếu cùng bác sĩ
 
@@ -233,12 +233,17 @@ Lần 2, sửa cho đúng:
 | E3 | Thầy Tuấn | T6 → **Tiếp tục khám** → bước 3 chọn Có, Có / Có, Có, Có → bước 5 Bình thường → **Lưu kết luận** | Nguyễn Bảo Ngọc **Đã có kết luận** |
 | E4 | Hiệu trưởng | **Đóng đợt khám** | Chỉ còn 1 trẻ vắng khám, 0 phiếu chưa kết luận |
 
-## F. Cân đo ngoài đợt (không có bác sĩ)
+## F. Kỳ cân đo (giáo viên cân đo, không có bác sĩ)
+
+Từ 2026-10-31 không còn cân đo lẻ ngoài đợt: số đo chỉ nhập trong kỳ cân đo đang diễn ra. Làm sau E4 (đợt khám đã đóng).
 
 | Bước | Ai | Thao tác | Kết quả mong đợi |
 | --- | --- | --- | --- |
-| F1 | Cô Ngọc | Đỗ Gia Bảo → **Sổ sức khỏe → Nhập cân đo ngoài đợt**: chiều cao `160` | Lỗi *Nhập chiều cao từ 40 đến 150 cm* |
-| F2 | Cô Ngọc | Chiều cao `115.2` · cân nặng `19.8` · ghi chú `Cân đo tại lớp.` (không có ô vòng đầu vì trẻ trên 60 tháng) → **Lưu số đo** | *Cân đo, chưa có kết luận bác sĩ*; không mở phiếu theo dõi; mức *Chưa có kết luận bác sĩ* |
+| F1 | Cô Ngọc | Đỗ Gia Bảo → **Sổ sức khỏe** | Không có nút **Nhập số đo** (Campus 2 chưa có kỳ cân đo đang diễn ra). Mở thẳng `/children/<mã trẻ>/health/new`: *Điểm trường chưa có kỳ cân đo đang diễn ra* |
+| F2 | Phó hiệu trưởng Campus 2 | **Đợt khám, kỳ cân đo → Tạo kỳ cân đo**: bắt đầu **hôm nay**, kết thúc **hôm nay + 3** → **Tạo kỳ cân đo** | Form không có ô đơn vị khám. Hộp cảnh báo nêu đợt "Khám sức khỏe đợt thử luồng" (bắt đầu hôm nay) và các đợt khám tháng 9, 10; không có cảnh báo năm học. Bấm **Vẫn tạo**: kỳ **Đang diễn ra**, giáo viên Campus 2 nhận *Kỳ cân đo mới* |
+| F3 | Cô Ngọc | Mở kỳ → Lớp Lá A → **Nhập số đo** cạnh Đỗ Gia Bảo: chiều cao `160` | Lỗi *Nhập chiều cao từ 40 đến 150 cm*. Ô ngày đo chỉ chọn được trong khoảng ngày của kỳ |
+| F4 | Cô Ngọc | Chiều cao `115.2` · cân nặng `19.8` · ghi chú `Cân đo tại lớp.` (không có ô vòng đầu vì trẻ trên 60 tháng) → **Lưu và nhập trẻ tiếp theo** | Sang form của trẻ chưa cân kế tiếp. Danh sách lớp của kỳ: Đỗ Gia Bảo *Đã cân đo*, 115.2 / 19.8. Sổ sức khỏe: dòng ghi tên kỳ, *Cân đo, chưa có kết luận bác sĩ*; không mở phiếu theo dõi; không còn nút **Nhập số đo** |
+| F5 | Phó hiệu trưởng Campus 2 | Mở kỳ → **Đóng kỳ cân đo** → xác nhận | Trẻ chưa cân thành *Vắng cân đo*; số đo của kỳ bị khóa (cô Ngọc không còn nút **Sửa số đo**) |
 
 ## G. Phạm vi xem
 
