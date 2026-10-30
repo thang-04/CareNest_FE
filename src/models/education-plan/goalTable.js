@@ -54,6 +54,15 @@ export const initialsOf = (name = '') =>
     .map((w) => w[0].toUpperCase())
     .join('');
 
+/** Id các chủ đề có tên viết tắt trùng chủ đề khác (bỏ khoảng trắng, không phân biệt hoa thường; ô trống không tính) — BE:EDU-42 (7012). */
+export const duplicateAbbrThemeIds = (themes) => {
+  const key = (t) => (t.abbr || '').trim().toLowerCase();
+  const count = new Map();
+  themes.forEach((t) => key(t) && count.set(key(t), (count.get(key(t)) || 0) + 1));
+  return new Set(themes.filter((t) => count.get(key(t)) > 1).map((t) => t.id));
+};
+export const DUPLICATE_ABBR_MESSAGE = 'Tên viết tắt đã có';
+
 /** Dòng chủ đề / đợt nghỉ chưa gõ gì (dòng vừa thêm bằng Enter): không lưu, không thành cột tích ở bảng mục tiêu. */
 export const isBlankTheme = (t) => ![t.name, t.abbr, t.festivals, t.note].some((v) => v?.trim()) && !t.start && !t.end;
 export const isBlankBreak = (b) => !b.label?.trim() && !b.start && !b.end;

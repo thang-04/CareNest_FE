@@ -72,6 +72,15 @@ test('ST-01 kế hoạch năm: sửa không tự ghi lên hệ thống, chỉ Ct
   await desc.fill('Mô tả sửa bằng tay (ST-01)');
   await expect(saveStatus(page)).toHaveText('Có thay đổi chưa lưu');
   await expectNoAutosaveWording(page);
+  // Trang soạn theo bước: chỉ bước cuối "Xác nhận" có Xuất Word / In PDF
+  const exportButtons = page.getByRole('button', { name: /^(Xuất Word|In \/ Lưu PDF)$/ });
+  await expect(exportButtons).toHaveCount(0);
+  await page.getByRole('button', { name: /Mục tiêu, nội dung và chủ đề/ }).click();
+  await expect(exportButtons).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xuất file' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Nhập file' })).toBeVisible();
+  await page.getByRole('button', { name: /Xác nhận/ }).click();
+  await expect(exportButtons).toHaveCount(2);
   await page.waitForTimeout(4000);
   expect((await goal()).description).not.toBe('Mô tả sửa bằng tay (ST-01)');
   await page.keyboard.press('Control+s');
@@ -98,6 +107,39 @@ test('ST-02 rời màn khi chưa lưu: hỏi Hủy · Không lưu · Lưu; Khôn
   await expect(page).toHaveURL(/\/education\/goals$/);
   expect(await storageKeys(page, 'year-plan-recovery')).toEqual([]);
   expect((await goal()).description).toBe('Mô tả sửa bằng tay (ST-01)');
+  await leave(page);
+});
+
+test('ST-02b viết tắt chủ đề trùng: báo ngay tại ô, Enter không thêm chủ đề, Ctrl+S không lưu (BE:EDU-42)', async ({ page }) => {
+  await login(page, USERS.teacher1);
+  await page.goto(`/education/goals/${planId}/edit`);
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.getByRole('button', { name: /Mục tiêu, nội dung và chủ đề/ }).click();
+  await page.getByRole('tab', { name: /Chủ đề và sự kiện/ }).click();
+  const before = (await goal()).themes.length;
+  const firstAbbr = (await goal()).themes[0].abbr;
+  await page.getByLabel('Thêm chủ đề').pressSequentially('Chủ đề thử');
+  const abbr = page.getByLabel(`Viết tắt chủ đề ${before + 1}`);
+  await abbr.fill(` ${firstAbbr.toLowerCase()} `);
+  await expect(abbr).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByRole('alert').filter({ hasText: 'Tên viết tắt đã có' }).first()).toBeVisible();
+  // Rời sang ô tên: con trỏ quay lại ô viết tắt; Enter ở ô tên không chèn dòng mới
+  await page.getByLabel(`Tên chủ đề ${before + 1}`).click();
+  await expect(abbr).toBeFocused();
+  await page.getByLabel(`Tên chủ đề ${before + 1}`).press('Enter');
+  await expect(page.getByLabel(`Tên chủ đề ${before + 2}`)).toHaveCount(0);
+  await expect(abbr).toBeFocused();
+  await page.keyboard.press('Control+s');
+  await page.waitForTimeout(1500);
+  await expect(saveStatus(page)).not.toHaveText(/Đã lưu lúc/);
+  expect((await goal()).themes.length).toBe(before);
+  // Sửa khác đi thì hết lỗi
+  await abbr.fill('CĐT');
+  await expect(abbr).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByText('Tên viết tắt đã có')).toHaveCount(0);
+  await page.locator('nav, aside').getByRole('link', { name: 'Mục tiêu năm học' }).first().click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Không lưu' }).click();
+  await expect(page).toHaveURL(/\/education\/goals$/);
   await leave(page);
 });
 
@@ -129,7 +171,9 @@ test('ST-03 đóng tab khi chưa lưu: trình duyệt hỏi; mở lại mời kh
   await leave(again);
 });
 
-test('ST-03b mất điện rồi mở lại cùng tài khoản: nhận quyền ngay, Khôi phục bấm được; tab cũ còn sống thì mất quyền và giữ bản giữ', async ({ context }) => {
+test('ST-03b mất điện rồi mở lại cùng tài khoản: nhận quyền ngay, Khôi phục bấm được; tab cũ còn sống thì mất quyền và giữ bản giữ', async ({
+  context,
+}) => {
   const old = await context.newPage();
   await login(old, USERS.teacher1);
   await old.goto(`/education/goals/${planId}/edit`);
@@ -182,9 +226,9 @@ test('ST-05 Phó HT trả lại phải ghi lý do; Tổ trưởng thấy lý do'
 // Mã kế hoạch (mục cuối breadcrumb) không được chồng lên nút hành động đầu trang
 async function headerOverlaps(page) {
   const code = await page.locator('.breadcrumb > :last-child').boundingBox();
-  const boxes = await page.locator('.page__head .page__actions > *').evaluateAll((els) =>
-    els.map((e) => e.getBoundingClientRect().toJSON()),
-  );
+  const boxes = await page
+    .locator('.page__head .page__actions > *')
+    .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
   return boxes.some((b) => b.x < code.x + code.width && code.x < b.x + b.width && b.y < code.y + code.height && code.y < b.y + b.height);
 }
 
@@ -203,8 +247,7 @@ test('ST-05b chi tiết bản Bị trả lại: mã kế hoạch không chồng 
       } catch {
         continue; // stylesheet khác origin (font) không đọc được
       }
-      for (let i = rules.length - 1; i >= 0; i--)
-        if (rules[i].cssText.includes('.ga-goal-detail .breadcrumb')) sheet.deleteRule(i);
+      for (let i = rules.length - 1; i >= 0; i--) if (rules[i].cssText.includes('.ga-goal-detail .breadcrumb')) sheet.deleteRule(i);
     }
   });
   if (process.env.E2E_SHOTS) await tl.screenshot({ path: 'docs/test-reports/assets/b1-before-1280.png' });

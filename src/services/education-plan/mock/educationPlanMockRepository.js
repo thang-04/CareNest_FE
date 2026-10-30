@@ -3,7 +3,7 @@ import { eduError } from './eduMockErrors';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { ROLES } from '@/models/User';
-import { toRows } from '@/models/education-plan/goalTable';
+import { duplicateAbbrThemeIds, toRows } from '@/models/education-plan/goalTable';
 import { chainOf, currentPlanOf, diffPlans, versionOf } from '@/models/education-plan/planVersions.mjs';
 
 /*
@@ -13,12 +13,13 @@ import { chainOf, currentPlanOf, diffPlans, versionOf } from '@/models/education
  */
 const COLLECTIONS = { goals: 'eduGoals', themes: 'eduThemes', lessons: 'eduLessons' };
 
-// BE:EDU-06/24 — BE giả chỉ cho Phó HT lấy khác nhóm, Tổ trưởng lấy nhóm mình.
+// BE:EDU-06/24 — Phó HT lấy mọi bản; Tổ trưởng lấy mọi bản nhóm mình và bản đã ban hành của nhóm khác.
 const sourceGroup = (actor, requested) => {
-  if (actor?.role === ROLES.VICE_PRINCIPAL) return requested;
-  if (actor?.role === ROLES.TEAM_LEADER && actor.ageGroupId) return actor.ageGroupId;
+  if (actor?.role === ROLES.VICE_PRINCIPAL || (actor?.role === ROLES.TEAM_LEADER && actor.ageGroupId)) return requested;
   throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
 };
+const sourceVisible = (actor, goal) =>
+  actor.role !== ROLES.TEAM_LEADER || goal.ageGroupId === actor.ageGroupId || goal.status === EDU_STATUS.APPROVED;
 const sourceGoals = () => {
   const db = readDb();
   if (db.eduSeedVersion !== EDU_SEED_VERSION) writeDb(ensureSeeded);
@@ -98,6 +99,8 @@ const editGoal = (apply) => async (id, user, edit) => {
 const saveGoal = async (item, options = {}) => {
   await delay();
   if (!item?.id) throw eduError('REQUIRED_FIELD_MISSING', 'mã bản ghi');
+  // BE:EDU-42 viết tắt chủ đề trùng bị chặn ngay khi lưu
+  if (duplicateAbbrThemeIds(item.themes || []).size) throw eduError('THEME_ABBR_DUPLICATE');
   return writeDb((db) => {
     const list = ensureSeeded(db).eduGoals;
     const prev = list.find((x) => x.id === item.id);
@@ -217,16 +220,19 @@ export const educationPlanMockRepository = {
     return sourceGoals()
       .filter(
         (goal) =>
-          (!schoolYear || goal.schoolYear === schoolYear) && (!group || goal.ageGroupId === group) && String(goal.id) !== String(excludeId),
+          (!schoolYear || goal.schoolYear === schoolYear) &&
+          (!group || goal.ageGroupId === group) &&
+          sourceVisible(actor, goal) &&
+          String(goal.id) !== String(excludeId),
       )
       .map(sourceSummary);
   },
   async getGoalSource(id, actor) {
-    const group = sourceGroup(actor);
+    sourceGroup(actor);
     await delay();
     const goal = sourceGoals().find((item) => String(item.id) === String(id));
     if (!goal) throw eduError('YEAR_PLAN_NOT_FOUND');
-    if (group && goal.ageGroupId !== group) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
+    if (!sourceVisible(actor, goal)) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
     return clone({ ...goal, id: String(goal.id), revision: goal.revision ?? 0, goalCount: goalCount(goal) });
   },
   async getAll() {
