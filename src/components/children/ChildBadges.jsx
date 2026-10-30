@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   Info,
   Send,
+  Scale,
 } from '@/components/ui/icons';
 import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
 import { CHILD_STATUS_LABELS } from '@/models/School';
@@ -31,7 +32,13 @@ import {
   PARENT_ACCOUNT_STATUS_LABELS,
   SMS_STATUS_LABELS,
 } from '@/models/children/childrenConstants';
-import { CAMPAIGN_STATUS_LABELS, CHILD_RESULT_STATUS_LABELS, FOLLOW_UP_STATUS_LABELS } from '@/models/children/healthCheckConstants';
+import {
+  CAMPAIGN_KIND_LABELS,
+  CAMPAIGN_STATUS_LABELS,
+  CHILD_RESULT_STATUS_LABELS,
+  FOLLOW_UP_STATUS_LABELS,
+  MEASUREMENT_RESULT_STATUS_LABELS,
+} from '@/models/children/healthCheckConstants';
 import { CONCLUSION_CATEGORY_LABELS } from '@/models/children/healthExamForm';
 import { formatDate } from '@/utils/format';
 
@@ -133,6 +140,25 @@ export const ChildResultBadge = createStatusBadge(
     NOT_CONCLUDED: ['gray', MinusCircle],
   },
   CHILD_RESULT_STATUS_LABELS,
+);
+
+/* Trẻ trong kỳ cân đo: không có nháp, kết luận (user chốt 2026-10-31). */
+export const MeasurementResultBadge = createStatusBadge(
+  {
+    NOT_RECORDED: ['orange', Clock],
+    RECORDED: ['green', CheckCircle2],
+    ABSENT: ['gray', UserX],
+  },
+  MEASUREMENT_RESULT_STATUS_LABELS,
+);
+
+/* Loại: đợt khám (bác sĩ khám) hay kỳ cân đo (giáo viên cân đo). Chỉ là nhãn phân loại, tone trung tính. */
+export const CampaignKindBadge = createStatusBadge(
+  {
+    EXAM: ['blue', Stethoscope],
+    MEASUREMENT: ['gray', Scale],
+  },
+  CAMPAIGN_KIND_LABELS,
 );
 
 /* Kết luận bác sĩ (BE trả nhóm): chuyển khám, nguy cơ lao, bất thường mới khi đang theo dõi = cần xử lý (red);

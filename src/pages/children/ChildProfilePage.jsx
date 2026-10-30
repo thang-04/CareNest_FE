@@ -251,7 +251,7 @@ export default function ChildProfilePage() {
                 <h2 className="card__title">Sức khỏe & theo dõi</h2>
                 {canRecordMeasurement(child, user, cls) && (
                   <Link className="btn btn--sm" to={`/children/${child.id}/health/new`}>
-                    Nhập cân đo ngoài đợt
+                    Nhập số đo
                   </Link>
                 )}
               </div>

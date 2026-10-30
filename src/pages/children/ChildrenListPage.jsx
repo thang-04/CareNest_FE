@@ -242,7 +242,7 @@ export default function ChildrenListPage() {
               <select
                 className="select"
                 value={healthLevel}
-                title="Theo lần khám gần nhất có kết luận; cân đo ngoài đợt không tính"
+                title="Theo lần khám gần nhất có kết luận; số đo của kỳ cân đo, cân đo ngoài đợt không tính"
                 onChange={(e) => setFilter({ healthLevel: e.target.value })}
               >
                 <option value="">Tất cả mức theo dõi</option>
@@ -264,8 +264,8 @@ export default function ChildrenListPage() {
           <div className="alert alert--info tr-alert-flat">
             <Info size={18} />
             <div>
-              Mức theo dõi theo lần khám gần nhất có kết luận của bác sĩ (hoặc kết quả mẫu cũ). Cân đo ngoài đợt không đánh giá lại nên
-              không tính; trẻ giữ mức tới lần khám sau.
+              Mức theo dõi theo lần khám gần nhất có kết luận của bác sĩ (hoặc kết quả mẫu cũ). Số đo của kỳ cân đo và cân đo ngoài đợt
+              không đánh giá lại nên không tính; trẻ giữ mức tới lần khám sau.
             </div>
           </div>
         )}

@@ -22,7 +22,7 @@ import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { ImageUploader } from '@/components/upload/ImageUploader';
 import { DECLARATION_STATE, MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children/childrenConstants';
 import { EXAM_STATUS } from '@/models/children/healthExamForm';
-import { FOLLOW_UP_STATUS } from '@/models/children/healthCheckConstants';
+import { CAMPAIGN_KIND, FOLLOW_UP_STATUS } from '@/models/children/healthCheckConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { formatMeasurementChange, formatNumber } from '@/utils/children/childrenHelpers';
 import { canEditMeasurement, canRecordMeasurement } from '@/utils/children/childrenPermissions';
@@ -68,6 +68,11 @@ export default function ChildHealthRecordPage() {
   const canRecord = canRecordMeasurement(child, user, cls);
   const canEdit = canEditMeasurement(child, user, cls);
   const filtered = !!(from || to);
+  const open = record.openCampaign;
+  // Số đo chỉ nhập trong kỳ cân đo đang diễn ra; mỗi trẻ một lần đo trong kỳ (user chốt 2026-10-31).
+  const round = open?.kind === CAMPAIGN_KIND.MEASUREMENT ? open : null;
+  const canMeasure = canRecord && !!round && !round.resultMeasurementId;
+  const measureLink = round ? `/children/${child.id}/health/new?campaignId=${round.id}` : '';
 
   return (
     <div className="page">
@@ -78,32 +83,41 @@ export default function ChildHealthRecordPage() {
           <Link className="btn" to={`/children/health-trends?childId=${child.id}`}>
             <LineChart size={16} /> Xem xu hướng
           </Link>
-          {canRecord && (
-            <Link className="btn" to={`/children/${child.id}/health/new`}>
-              <Plus size={16} /> Nhập cân đo ngoài đợt
+          {canMeasure && (
+            <Link className="btn" to={measureLink}>
+              <Plus size={16} /> Nhập số đo
             </Link>
           )}
         </div>
       </div>
 
-      {canRecord &&
-        record.openCampaign &&
-        record.openCampaign.resultStatus !== EXAM_STATUS.CONCLUDED &&
-        record.openCampaign.resultStatus !== 'LEGACY' && (
-          <div className="alert alert--info mb-16">
-            <Stethoscope size={18} />
-            <div>
-              Đợt <b>{record.openCampaign.name}</b> đang diễn ra ({formatDate(record.openCampaign.startDate)} –{' '}
-              {formatDate(record.openCampaign.endDate)}).{' '}
-              <Link
-                className="text-primary fw-600"
-                to={`/children/health-checks/${record.openCampaign.id}/exam/${child.id}?classId=${child.classId}`}
-              >
-                {record.openCampaign.resultStatus === EXAM_STATUS.DRAFT ? 'Tiếp tục phiếu khám' : 'Khám trong đợt (phiếu Phụ lục II)'}
-              </Link>
-            </div>
+      {canMeasure && (
+        <div className="alert alert--info mb-16">
+          <Info size={18} />
+          <div>
+            Kỳ cân đo <b>{round.name}</b> đang diễn ra ({formatDate(round.startDate)} – {formatDate(round.endDate)}).{' '}
+            <Link className="text-primary fw-600" to={measureLink}>
+              Nhập số đo của kỳ
+            </Link>
           </div>
-        )}
+        </div>
+      )}
+
+      {canRecord && open?.kind === CAMPAIGN_KIND.EXAM && open.resultStatus !== EXAM_STATUS.CONCLUDED && open.resultStatus !== 'LEGACY' && (
+        <div className="alert alert--info mb-16">
+          <Stethoscope size={18} />
+          <div>
+            Đợt <b>{record.openCampaign.name}</b> đang diễn ra ({formatDate(record.openCampaign.startDate)} –{' '}
+            {formatDate(record.openCampaign.endDate)}).{' '}
+            <Link
+              className="text-primary fw-600"
+              to={`/children/health-checks/${record.openCampaign.id}/exam/${child.id}?classId=${child.classId}`}
+            >
+              {record.openCampaign.resultStatus === EXAM_STATUS.DRAFT ? 'Tiếp tục phiếu khám' : 'Khám trong đợt (phiếu Phụ lục II)'}
+            </Link>
+          </div>
+        </div>
+      )}
 
       {record.openFollowUp && (
         <div className={`alert ${record.openFollowUp.overdueDays > 0 ? 'alert--danger' : 'alert--warning'} mb-16`}>
@@ -253,9 +267,7 @@ export default function ChildHealthRecordPage() {
           <EmptyState
             icon={HeartPulse}
             title={filtered ? 'Không có lần đo trong khoảng thời gian này' : 'Chưa có kết quả khám'}
-            description={
-              filtered ? 'Chọn khoảng thời gian khác.' : 'Giáo viên phụ trách lớp nhập kết quả ở mỗi đợt khám hoặc khi cân đo tại lớp.'
-            }
+            description={filtered ? 'Chọn khoảng thời gian khác.' : 'Giáo viên phụ trách lớp nhập kết quả ở mỗi đợt khám hoặc kỳ cân đo.'}
             action={
               filtered ? (
                 <button
@@ -268,9 +280,9 @@ export default function ChildHealthRecordPage() {
                   <RotateCcw size={15} /> Đặt lại bộ lọc
                 </button>
               ) : (
-                canRecord && (
-                  <Link className="btn btn--primary" to={`/children/${child.id}/health/new`}>
-                    <Plus size={16} /> Nhập cân đo ngoài đợt
+                canMeasure && (
+                  <Link className="btn btn--primary" to={measureLink}>
+                    <Plus size={16} /> Nhập số đo
                   </Link>
                 )
               )

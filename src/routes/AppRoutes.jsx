@@ -364,12 +364,13 @@ export function AppRoutes() {
             <Route path="activation" element={only(LEADERS, <ParentActivationPage />)} />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
             <Route path="health-checks" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckListPage />)} />
-            <Route path="health-checks/new" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />
+            {/* Đợt khám, kỳ cân đo: Hiệu trưởng và PHT điểm trường quản lý (user chốt 2026-10-31) */}
+            <Route path="health-checks/new" element={only(LEADERS, <HealthCheckFormPage />)} />
             <Route
               path="health-checks/:campaignId"
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckDetailPage />)}
             />
-            <Route path="health-checks/:campaignId/edit" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />
+            <Route path="health-checks/:campaignId/edit" element={only(LEADERS, <HealthCheckFormPage />)} />
             <Route
               path="health-checks/:campaignId/exam/:childId"
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthExamFormPage />)}

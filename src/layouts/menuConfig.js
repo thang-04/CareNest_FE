@@ -67,7 +67,7 @@ const ITEMS = {
   childEnroll: { label: 'Tiếp nhận trẻ', to: '/children/new' },
   childPlacement: { label: 'Xếp lớp', to: '/children/placement' },
   parentActivation: { label: 'Tài khoản phụ huynh', to: '/children/activation' },
-  healthChecks: { label: 'Đợt khám sức khỏe', to: '/children/health-checks' },
+  healthChecks: { label: 'Đợt khám, kỳ cân đo', to: '/children/health-checks' },
   healthFollowUps: { label: 'Phiếu theo dõi sức khỏe', to: '/children/health-follow-ups' },
   healthTrends: { label: 'Xu hướng sức khỏe', to: '/children/health-trends' },
 

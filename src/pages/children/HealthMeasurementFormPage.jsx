@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Send, CheckCircle2, Info, LineChart, FileCheck2, Stethoscope } from '@/components/ui/icons';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Save, Send, CheckCircle2, Info, LineChart, FileCheck2, Scale, ChevronRight } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
+import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { MeasurementSummary } from '@/components/children/MeasurementSummary';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
+import { measurementFormLink } from '@/components/children/MeasurementRoundRoster';
 import { saveMeasurement } from '@/services/children/childrenService';
 import { MEASUREMENT_SOURCE } from '@/models/children/childrenConstants';
-import { EXAM_STATUS } from '@/models/children/healthExamForm';
+import { CAMPAIGN_KIND, CHILD_RESULT_STATUS } from '@/models/children/healthCheckConstants';
 import { ageLabel } from '@/models/School';
 import { formatDate, todayInput } from '@/utils/format';
 import { hasErrors, validateMeasurement } from '@/utils/children/childrenValidation';
@@ -23,11 +25,14 @@ import '@/styles/modules/children.css';
 const emptyForm = () => ({ date: todayInput(), heightCm: '', weightKg: '', headCircumferenceCm: '', note: '', reason: '' });
 
 /**
- * Cân đo ngoài đợt khám (ví dụ tại lớp, không có bác sĩ): chỉ chiều cao, cân nặng, vòng đầu, ghi chú; không kết luận,
- * không mở phiếu theo dõi (user chốt 2026-10-17). Cũng dùng để sửa số đo của kết quả mẫu cũ. Kết quả trong đợt nhập ở phiếu khám.
+ * Số đo trong kỳ cân đo (user chốt 2026-10-31): chỉ chiều cao, cân nặng, vòng đầu, ghi chú; không kết luận, không mở phiếu
+ * theo dõi (user chốt 2026-10-17). Chỉ nhập mới khi điểm trường có kỳ cân đo đang diễn ra. Cũng dùng để sửa số đo cũ ngoài đợt
+ * và số đo của kết quả mẫu cũ. Kết quả của đợt khám nhập ở phiếu khám.
  */
 export default function HealthMeasurementFormPage() {
   const { id, measurementId } = useParams();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const { record, loading, error, reload } = useHealthRecord(id, { live: false });
@@ -37,6 +42,14 @@ export default function HealthMeasurementFormPage() {
   const [saved, setSaved] = useState(null);
 
   const existing = measurementId ? record?.measurements.find((m) => m.id === measurementId) : null;
+  const open = record?.openCampaign?.kind === CAMPAIGN_KIND.MEASUREMENT ? record.openCampaign : null;
+  // Kỳ đang mở của điểm trường; sửa số đo thì chỉ dùng khi số đo thuộc chính kỳ đó (để giới hạn ngày).
+  const round = open && (existing ? existing.campaignId === open.id : true) ? open : null;
+  const classId = params.get('classId') || '';
+  const fromRoster = !!params.get('campaignId') && !!classId;
+  // Danh sách lớp của kỳ cho nút "Lưu và nhập trẻ tiếp theo".
+  const { roster } = useHealthCheckClass(!measurementId && round && fromRoster ? round.id : null, classId);
+  const next = roster?.children.find((r) => r.result === CHILD_RESULT_STATUS.NOT_RECORDED && r.childId !== id) || null;
 
   useEffect(() => {
     setForm(emptyForm());
@@ -57,12 +70,13 @@ export default function HealthMeasurementFormPage() {
   }, [existing]);
 
   const child = record?.child;
-  const title = measurementId ? 'Sửa số đo' : 'Nhập cân đo ngoài đợt';
+  const title = measurementId ? 'Sửa số đo' : 'Nhập số đo';
   const crumbs = childrenCrumbs(childCrumb(child), child ? { label: 'Sổ sức khỏe', to: `/children/${child.id}/health` } : null, title);
-  const backTo = `/children/${id}/health`;
+  const backTo = fromRoster ? `/children/health-checks/${params.get('campaignId')}?classId=${classId}` : `/children/${id}/health`;
+  const backLabel = fromRoster ? 'Về kỳ cân đo' : 'Về sổ sức khỏe';
   const backLink = (
     <Link className="btn" to={backTo}>
-      <ArrowLeft size={16} /> Về sổ sức khỏe
+      <ArrowLeft size={16} /> {backLabel}
     </Link>
   );
 
@@ -126,10 +140,48 @@ export default function HealthMeasurementFormPage() {
         <h1 className="page__title">{title}</h1>
         <StatusPage
           kind="403"
-          title="Kết quả thuộc đợt khám đã đóng"
-          description="Kết quả của đợt khám đã đóng bị khóa. Hiệu trưởng mở lại đợt nếu cần sửa."
+          title="Kết quả thuộc đợt khám hoặc kỳ cân đo đã đóng"
+          description="Kết quả của đợt, kỳ đã đóng bị khóa. Hiệu trưởng hoặc Phó hiệu trưởng mở lại nếu cần sửa."
           action={backLink}
         />
+      </div>
+    );
+  // Chỉ nhập mới trong kỳ cân đo đang diễn ra (user chốt 2026-10-31).
+  if (!measurementId && !round)
+    return (
+      <div className="page">
+        <Breadcrumb items={crumbs} />
+        <h1 className="page__title">{title}</h1>
+        <div className="card">
+          <EmptyState
+            icon={Scale}
+            title="Điểm trường chưa có kỳ cân đo đang diễn ra"
+            description="Số đo chỉ nhập trong kỳ cân đo. Hiệu trưởng hoặc Phó hiệu trưởng tạo kỳ cân đo; kết quả đợt khám nhập ở phiếu khám."
+            action={backLink}
+          />
+        </div>
+      </div>
+    );
+  if (!measurementId && round.resultMeasurementId)
+    return (
+      <div className="page">
+        <Breadcrumb items={crumbs} />
+        <h1 className="page__title">{title}</h1>
+        <div className="card">
+          <EmptyState
+            icon={CheckCircle2}
+            title={`Trẻ đã có số đo trong ${round.name}`}
+            description="Mỗi trẻ một lần đo trong kỳ. Sửa lần đo đã có nếu cần."
+            action={
+              <Link
+                className="btn btn--primary"
+                to={measurementFormLink(round.id, classId || child.classId, child.id, round.resultMeasurementId)}
+              >
+                Sửa số đo
+              </Link>
+            }
+          />
+        </div>
       </div>
     );
 
@@ -137,11 +189,12 @@ export default function HealthMeasurementFormPage() {
   const headUntil = record.rules?.headCircumferenceUntil;
   const rules = { dateOfBirth: child.dateOfBirth, requireReason, headCircumferenceUntil: headUntil };
   const headApplies = !headUntil || !form.date || form.date <= headUntil;
-  const openCampaign = record.openCampaign;
+  const minDate = round && round.startDate > child.dateOfBirth ? round.startDate : child.dateOfBirth;
+  const maxDate = round && round.endDate < todayInput() ? round.endDate : todayInput();
   const set = (field, value) => {
-    const next = { ...form, [field]: value };
-    setForm(next);
-    const nextErrors = validateMeasurement(next, rules);
+    const nextForm = { ...form, [field]: value };
+    setForm(nextForm);
+    const nextErrors = validateMeasurement(nextForm, rules);
     setErrors((prev) => {
       const kept = { ...prev };
       Object.keys(kept).forEach((k) => {
@@ -155,13 +208,19 @@ export default function HealthMeasurementFormPage() {
     if (e) setErrors((prev) => ({ ...prev, [field]: e }));
   };
 
-  const save = async () => {
+  const save = async (goNext = false) => {
     const errs = validateMeasurement(form, rules);
     setErrors(errs);
     if (hasErrors(errs)) return;
     setBusy(true);
     try {
-      const m = await saveMeasurement(child.id, measurementId || null, form, user);
+      const payload = measurementId ? form : { ...form, campaignId: round.id };
+      const m = await saveMeasurement(child.id, measurementId || null, payload, user);
+      if (goNext && next) {
+        toast.success(`Đã lưu số đo của ${child.fullName} và công bố cho phụ huynh.`);
+        navigate(measurementFormLink(round.id, classId, next.childId));
+        return;
+      }
       setSaved(m);
       toast.success('Đã lưu số đo và công bố cho phụ huynh.');
     } catch (err) {
@@ -171,6 +230,8 @@ export default function HealthMeasurementFormPage() {
       setBusy(false);
     }
   };
+
+  const inRound = !!round || existing?.campaignKind === CAMPAIGN_KIND.MEASUREMENT;
 
   if (saved)
     return (
@@ -189,7 +250,7 @@ export default function HealthMeasurementFormPage() {
               {requireReason
                 ? 'Đã công bố lại bản mới cho phụ huynh; phụ huynh nhận thông báo kết quả đã cập nhật.'
                 : 'Đã công bố cho phụ huynh khi lưu; phụ huynh nhận thông báo trên ứng dụng.'}{' '}
-              {existing?.campaignId ? '' : 'Cân đo ngoài đợt khám không có kết luận của bác sĩ và không mở phiếu theo dõi.'}
+              {saved.campaignKind === CAMPAIGN_KIND.EXAM ? '' : 'Số đo không có kết luận của bác sĩ và không mở phiếu theo dõi.'}
             </div>
           </div>
         </section>
@@ -203,7 +264,7 @@ export default function HealthMeasurementFormPage() {
             </Link>
           </div>
           <Link className="btn btn--primary" to={backTo}>
-            Về sổ sức khỏe
+            {backLabel}
           </Link>
         </div>
       </div>
@@ -221,31 +282,25 @@ export default function HealthMeasurementFormPage() {
       <div className="alert alert--info mb-16">
         <Info size={18} />
         <div>
-          {existing?.campaignId ? (
+          {inRound ? (
+            <>
+              {round ? (
+                <>
+                  Kỳ cân đo <b>{round.name}</b> ({formatDate(round.startDate)} – {formatDate(round.endDate)}):
+                </>
+              ) : (
+                <>Số đo của kỳ cân đo:</>
+              )}{' '}
+              chỉ chiều cao, cân nặng, vòng đầu, ghi chú; không có kết luận bác sĩ, không mở phiếu theo dõi.
+            </>
+          ) : existing?.campaignId ? (
             <>Kết quả nhập theo mẫu cũ trong đợt khám: chỉ sửa được số đo và ghi chú.</>
           ) : (
-            <>
-              Cân đo <b>ngoài đợt khám</b> (ví dụ tại lớp, không có bác sĩ): không có kết luận, không mở phiếu theo dõi.
-            </>
+            <>Số đo cũ ngoài đợt khám (trước khi có kỳ cân đo): không có kết luận, không mở phiếu theo dõi.</>
           )}{' '}
           Lưu là công bố cho phụ huynh ngay; phụ huynh xem được số đo và ghi chú trên ứng dụng.
         </div>
       </div>
-      {!existing && openCampaign && openCampaign.resultStatus !== EXAM_STATUS.CONCLUDED && openCampaign.resultStatus !== 'LEGACY' && (
-        <div className="alert alert--info mb-16">
-          <Stethoscope size={18} />
-          <div>
-            Đợt <b>{openCampaign.name}</b> đang diễn ra. Khám cùng bác sĩ thì nhập{' '}
-            <Link
-              className="text-primary fw-600"
-              to={`/children/health-checks/${openCampaign.id}/exam/${child.id}?classId=${child.classId}`}
-            >
-              phiếu khám của đợt
-            </Link>
-            .
-          </div>
-        </div>
-      )}
       {requireReason && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
@@ -255,13 +310,18 @@ export default function HealthMeasurementFormPage() {
       <section className="card wizard-card">
         <h2 className="card__title mb-12">Số đo</h2>
         <div className="grid-2">
-          <FormField label="Ngày đo" required error={errors.date}>
+          <FormField
+            label="Ngày đo"
+            required
+            error={errors.date}
+            hint={round ? `Trong khoảng ngày của kỳ: ${formatDate(round.startDate)} – ${formatDate(round.endDate)}` : undefined}
+          >
             <input
               type="date"
               className="input"
               value={form.date}
-              min={child.dateOfBirth}
-              max={todayInput()}
+              min={minDate}
+              max={maxDate}
               onChange={(e) => set('date', e.target.value)}
               onBlur={() => blur('date')}
             />
@@ -313,6 +373,12 @@ export default function HealthMeasurementFormPage() {
             />
           </FormField>
         </div>
+        {/* Lỗi của kỳ (BE trả theo campaignId): hiện ngay trên form, không có ô riêng. */}
+        {errors.campaignId && (
+          <div className="alert alert--danger mt-12" role="alert">
+            {errors.campaignId}
+          </div>
+        )}
         <FormField label="Ghi chú" error={errors.note} hint="Ví dụ: cân đo tại lớp. Không ghi chẩn đoán." className="mt-12">
           <textarea className="textarea" rows={2} maxLength={500} value={form.note} onChange={(e) => set('note', e.target.value)} />
         </FormField>
@@ -333,9 +399,16 @@ export default function HealthMeasurementFormPage() {
         <Link className="btn wizard-actions__back" to={backTo}>
           <ArrowLeft size={16} /> Hủy
         </Link>
-        <button className="btn btn--primary" onClick={save} disabled={busy}>
-          {busy ? <Spinner small /> : <Save size={16} />} Lưu số đo
-        </button>
+        <div className="row gap-2">
+          {next && (
+            <button className="btn" onClick={() => save(true)} disabled={busy}>
+              Lưu và nhập trẻ tiếp theo <ChevronRight size={16} />
+            </button>
+          )}
+          <button className="btn btn--primary" onClick={() => save(false)} disabled={busy}>
+            {busy ? <Spinner small /> : <Save size={16} />} Lưu số đo
+          </button>
+        </div>
       </div>
     </div>
   );
