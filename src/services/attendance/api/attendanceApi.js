@@ -26,10 +26,11 @@ export const attendanceApi = {
 
 /** BE trả thông tin ngày trong `day`, trẻ chỉ có id/họ tên/ngày sinh: đổi về dạng mock để màn hình dùng chung. */
 const toSheet = (data) => {
-  const children = data.children.map(({ child, record, health }) => ({
+  const children = data.children.map(({ child, record, health, leave }) => ({
     child: { ...child, code: '', gender: null, allergies: [], photoUrl: null },
     record,
-    leaveRequest: null,
+    // Đơn nghỉ phụ huynh còn hiệu lực ngày này (ATT-04): nhãn "Phụ huynh báo nghỉ" ở dòng trẻ
+    leaveRequest: leave ? { id: leave.requestId, fromDate: leave.fromDate, toDate: leave.toDate, reason: leave.reason } : null,
     healthSummary: dailyHealthSummaryFromBe(health),
   }));
   const status = (row) => row.record?.status;

@@ -69,3 +69,17 @@ test('nhãn ngắn: mức thân nhiệt khác bình thường ghi tên mức, C�
   assert.equal(healthFlag({ observation: 'NO_CONCERN', temperature: 36.8, symptoms: [] }), c(36.8));
   assert.equal(healthFlag(null), '');
 });
+
+test('bảng điểm danh từ BE: đơn nghỉ phụ huynh thành nhãn "Phụ huynh báo nghỉ" ở dòng trẻ', async () => {
+  const leave = { requestId: '7', fromDate: '2026-10-28', toDate: '2026-10-29', reason: 'Bé ốm' };
+  const client = {
+    get: async () =>
+      sheetFrom([
+        { child: child(1), record: { status: 'EXCUSED', meals: {} }, health: notChecked, leave },
+        { child: child(2), record: null, health: notChecked, leave: null },
+      ]),
+  };
+  const sheet = await createAttendanceBeApi(client).getClassAttendance(1, '2026-10-28');
+  assert.deepEqual(sheet.children[0].leaveRequest, { id: '7', fromDate: '2026-10-28', toDate: '2026-10-29', reason: 'Bé ốm' });
+  assert.equal(sheet.children[1].leaveRequest, null);
+});
