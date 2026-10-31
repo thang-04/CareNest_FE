@@ -11,7 +11,8 @@ import { ROLES } from '@/models/User';
 import { useClassAssessmentDetail, useClassAssessmentOverview } from '@/hooks/assessment/useAssessment';
 import { OVERVIEW_PERIOD, OVERVIEW_PERIOD_LABELS } from '@/models/assessment/assessmentConstants';
 import { HEALTH_SYMPTOMS } from '@/utils/dailyHealthValidation';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { DateInput } from '@/components/form/DateInput';
+import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import { todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
@@ -240,6 +241,7 @@ export default function ClassAssessmentOverviewPage() {
   const changeDate = (value) => {
     setDateInput(value);
     if (!value) return setDateError('Vui lòng chọn ngày');
+    if (!isIsoDate(value)) return setDateError('Ngày không hợp lệ');
     if (value > today) return setDateError('Không chọn ngày trong tương lai');
     setDateError('');
     filter(setDate)(value);
@@ -257,15 +259,14 @@ export default function ClassAssessmentOverviewPage() {
             <div className="filter-bar dg-ov-toolbar">
               <Tabs items={PERIODS} value={period} onChange={filter(setPeriod)} ariaLabel="Kỳ tổng hợp" />
               <div className="field">
-                <input
-                  type="date"
-                  className={`input ${dateError ? 'input--error' : ''}`}
+                <DateInput
+                  className={dateError ? 'input--error' : ''}
                   aria-label="Ngày xem"
                   aria-invalid={!!dateError}
                   aria-describedby={dateError ? 'ov-date-error' : undefined}
                   value={dateInput}
                   max={today}
-                  onChange={(e) => changeDate(e.target.value)}
+                  onChange={changeDate}
                 />
                 {dateError && (
                   <p className="field__error" id="ov-date-error">

@@ -15,7 +15,8 @@ import { BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/Da
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { createGeneralDraft, getGeneralSaveEntries } from '@/utils/assessment/dailyGeneralDraft';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { DateInput } from '@/components/form/DateInput';
+import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import { addDays, isSchoolDay, todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
@@ -133,14 +134,12 @@ export default function DailyAssessmentPage() {
               <label className="field__label" htmlFor="dg-date">
                 Ngày
               </label>
-              <input
+              <DateInput
                 id="dg-date"
-                type="date"
-                className="input"
                 value={date}
                 min={sheet?.yearStart || undefined}
                 max={sheet?.today || todayIso()}
-                onChange={(e) => e.target.value && setDate(e.target.value)}
+                onChange={(v) => isIsoDate(v) && setDate(v)}
               />
             </div>
             <DailyModeSelect mode="general" classId={currentClassId} date={date} />
