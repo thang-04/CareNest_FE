@@ -1,13 +1,37 @@
 name: Deploy production
 
+# Chỉ main chạy CI: push main = verify + deploy, PR vào main = chỉ verify; thay đổi chỉ tài liệu không chạy
 on:
   push:
-    branches: [dev]
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.ai/**'
+      - '.claude/**'
+      - '.agents/**'
+      - '.githooks/**'
+      - 'mockups/**'
+      - 'ui-review/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.ai/**'
+      - '.claude/**'
+      - '.agents/**'
+      - '.githooks/**'
+      - 'mockups/**'
+      - 'ui-review/**'
   workflow_dispatch:
 
 concurrency:
-  group: deploy-production
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
   verify:
@@ -24,6 +48,8 @@ jobs:
 
   deploy:
     needs: verify
+    # PR hoặc chạy tay trên nhánh khác chỉ verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     env:
