@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Plus, LineChart, History, ArrowLeft, Info, HeartPulse, RotateCcw, Stethoscope, ClipboardCheck } from '@/components/ui/icons';
+import { Plus, LineChart, History, ArrowLeft, Info, HeartPulse, RotateCcw, Stethoscope } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -10,19 +10,18 @@ import { RowActions } from '@/components/ui/RowActions';
 import {
   AllergyStateBadge,
   ConclusionCategoryBadge,
-  FollowUpDueBadge,
   FollowUpLevelShortBadge,
-  FollowUpStatusBadge,
   MotorResultBadge,
   PublishStatusBadge,
 } from '@/components/children/ChildBadges';
+import { HealthFollowUpCard } from '@/components/children/HealthFollowUpCard';
 import { MeasurementSummary } from '@/components/children/MeasurementSummary';
 import { MeasurementDetailModal } from '@/components/children/MeasurementDetailModal';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { ImageUploader } from '@/components/upload/ImageUploader';
 import { DECLARATION_STATE, MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children/childrenConstants';
 import { EXAM_STATUS } from '@/models/children/healthExamForm';
-import { CAMPAIGN_KIND, FOLLOW_UP_STATUS } from '@/models/children/healthCheckConstants';
+import { CAMPAIGN_KIND } from '@/models/children/healthCheckConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { formatMeasurementChange, formatNumber } from '@/utils/children/childrenHelpers';
 import { canEditMeasurement, canRecordMeasurement } from '@/utils/children/childrenPermissions';
@@ -119,21 +118,8 @@ export default function ChildHealthRecordPage() {
         </div>
       )}
 
-      {record.openFollowUp && (
-        <div className={`alert ${record.openFollowUp.overdueDays > 0 ? 'alert--danger' : 'alert--warning'} mb-16`}>
-          <ClipboardCheck size={18} />
-          <div className="row row--wrap gap-2">
-            <span>Trẻ đang có phiếu theo dõi sức khỏe từ ngày {formatDate(record.openFollowUp.openedAt.slice(0, 10))}:</span>
-            <FollowUpStatusBadge status={record.openFollowUp.status} />
-            {record.openFollowUp.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT && (
-              <FollowUpDueBadge dueOn={record.openFollowUp.dueOn} overdueDays={record.openFollowUp.overdueDays} />
-            )}
-            <Link className="text-primary fw-600" to={`/children/health-follow-ups/${record.openFollowUp.id}`}>
-              Mở phiếu theo dõi
-            </Link>
-          </div>
-        </div>
-      )}
+      {/* Theo dõi sức khỏe hiện tại: chuyển từ danh sách trẻ sang đây (user yêu cầu 2026-10-31) */}
+      <HealthFollowUpCard health={child.latestHealth} openFollowUp={record.openFollowUp} />
 
       <div className="grid-2">
         <section className="card">

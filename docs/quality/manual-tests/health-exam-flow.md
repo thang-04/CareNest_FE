@@ -265,15 +265,18 @@ Các trường hợp sau phụ thuộc tuổi hoặc ngày nên không dựng tr
 
 Danh sách đầy đủ: bảng `EXAM_CASES` trong `src/mocks/childrenSeed.js`.
 
-## H. Danh sách trẻ cần theo dõi qua mọi đợt
+## H. Theo dõi sức khỏe của trẻ (Sổ sức khỏe)
+
+Từ 2026-10-31 mức theo dõi không còn ở danh sách trẻ (cột, bộ lọc) mà ở thẻ **Theo dõi sức khỏe** đầu Sổ sức khỏe của từng trẻ. Xem tổng hợp trẻ cần theo dõi ở **Xu hướng sức khỏe** (danh sách trẻ xếp Cần theo dõi sát → Cần theo dõi → Vấn đề đã biết) hoặc **Phiếu theo dõi sức khỏe**.
 
 | Bước | Ai | Thao tác | Kết quả mong đợi |
 | --- | --- | --- | --- |
-| H1 | Hiệu trưởng | **Hồ sơ trẻ → Danh sách trẻ**, bộ lọc **Cần theo dõi** | Chỉ còn trẻ có lần khám gần nhất ở mức Cần theo dõi, ví dụ T2, T7, T10 của kịch bản. Cột **Theo dõi sức khỏe** có nhãn mức và ngày khám (bấm ngày mở Sổ sức khỏe) |
-| H2 | Hiệu trưởng | Đổi bộ lọc sang **Cần theo dõi sát** | Có T3, T4, T5 và trẻ còn phiếu theo dõi mở (dòng *Đang có phiếu theo dõi*). T1, T9 không còn: đã đóng phiếu ở bước C |
-| H2b | Hiệu trưởng | Đổi bộ lọc sang **Vấn đề đã biết, ổn định** | Có T1 (*Nghe kém nhẹ tai phải – theo dõi tại nhà* · *Theo kết quả chuyên khoa …*) và Ngô Bảo Ngọc, Lớp Lá 1 (cận thị, theo lần khám) |
-| H3 | Cô Ngọc | Sau bước F (cân đo ngoài đợt cho Đỗ Gia Bảo) xem cột Theo dõi sức khỏe | Mức vẫn theo lần khám có kết luận trước đó: cân đo ngoài đợt và phiếu nháp không tính |
-| H4 | Hiệu trưởng | Bộ lọc **Chưa có kết quả khám** | Trẻ chưa có lần khám nào được xếp mức, ví dụ trẻ mới tiếp nhận Lý Gia Phúc |
+| H1 | Hiệu trưởng | **Hồ sơ trẻ → Danh sách trẻ** | Không có cột Theo dõi sức khỏe, không có bộ lọc mức theo dõi |
+| H2 | Hiệu trưởng | Sổ sức khỏe của T2 | Thẻ **Theo dõi sức khỏe**: nhãn *Cần theo dõi*; Căn cứ *Lần khám ngày … · Khám sức khỏe đợt thử luồng*; Phiếu theo dõi *Không có phiếu đang mở* |
+| H3 | Hiệu trưởng | Sổ sức khỏe của T4 | Nhãn *Cần theo dõi sát – đề nghị khám chuyên khoa*; Căn cứ *Phiếu theo dõi đang mở, từ lần khám ngày …*; trạng thái phiếu, hạn trao đổi và **Mở phiếu theo dõi** |
+| H4 | Hiệu trưởng | Sổ sức khỏe của T1 | Nhãn *Vấn đề đã biết, ổn định*; Căn cứ *Kết quả khám chuyên khoa ngày …, phiếu theo dõi đã đóng*; Vấn đề đã biết *Nghe kém nhẹ tai phải – theo dõi tại nhà*; Phiếu theo dõi *Đã đóng · Xem phiếu* |
+| H5 | Cô Ngọc | Sau bước F, Sổ sức khỏe của Đỗ Gia Bảo | Mức vẫn theo lần khám có kết luận trước đó: số đo của kỳ cân đo và phiếu nháp không tính |
+| H6 | Hiệu trưởng | Sổ sức khỏe của Lý Gia Phúc (trẻ mới tiếp nhận) | *Chưa có kết quả khám có kết luận của bác sĩ.* |
 
 ## I. Hành chính, tiền sử nhập khi tiếp nhận; phiếu khám chỉ xem hành chính (Campus 1)
 
