@@ -3320,6 +3320,8 @@ button.stat-card .stat-card__label::after {
   position: fixed;
   z-index: var(--z-dropdown);
   display: grid;
+  /* Rộng theo nội dung (không bị chỗ trống bên trái nút bóp xuống dòng); chỉ xuống dòng khi chạm max-width */
+  width: max-content;
   min-width: 180px;
   max-width: calc(100vw - 2 * var(--space-2));
   padding: var(--space-1);

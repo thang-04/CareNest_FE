@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { FileDown, Plus, Printer, Save } from '@/components/ui/icons';
+import { FileDown, Plus, Save } from '@/components/ui/icons';
 import { Card, EduStatusBadge, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { docReview, useClassPlanContext } from '@/components/education-plan/planUi';
@@ -252,16 +252,7 @@ function DossierInner({ classId, themeId }) {
                 setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
               }
             >
-              <FileDown size={16} aria-hidden /> Xuất Word
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() =>
-                setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
-              }
-            >
-              <Printer size={16} aria-hidden /> In / Lưu PDF
+              <FileDown size={16} aria-hidden /> Xuất
             </button>
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
             <ReviewActions

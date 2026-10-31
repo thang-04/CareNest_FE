@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
-import { ArrowLeft, ArrowRight, Download, FileDown, Printer, Save, Upload } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Download, FileDown, Save, Upload } from '@/components/ui/icons';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useYearPlanAutosave } from '@/hooks/education-plan/useYearPlanAutosave';
@@ -23,14 +23,14 @@ import {
   goalIdsToTicks,
   isBlankBreak,
   isBlankTheme,
-  nestUnderFirstSub,
   numberGoals,
   themeScheduleIssue,
   toRows,
 } from '@/models/education-plan/goalTable';
 import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
-import { parseGoalsCsv } from '@/utils/education-plan/goalCsv';
+import { mergeFileGoals } from '@/models/education-plan/importGoalFile.mjs';
+import { ImportGoalFileModal } from '@/components/education-plan/ImportGoalFileModal';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
 import ImportThemesModal from '@/components/education-plan/ImportThemesModal';
 import { mergeImportedThemes } from '@/models/education-plan/importThemes.mjs';
@@ -38,6 +38,8 @@ import CurriculumGoalsModal from '@/components/education-plan/CurriculumGoalsMod
 import { addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
 import { Card, DraftRecoveryNotice, Field, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
+import { RowMenu } from '@/components/ui/RowMenu';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 const suggestTitle = (year, ageGroupId) => {
   const ag = AGE_GROUPS.find((a) => a.id === ageGroupId);
@@ -96,6 +98,7 @@ export default function GoalFormPage() {
   const [params] = useSearchParams();
   const { goals, schoolYear, saveGoal, startEditingGoal, finishEditingGoal, heartbeatGoal, toast, user, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
+  const phone = useMediaQuery('(max-width: 767px)');
   const { schoolYears: yearOptions } = useSchoolYear();
   const navigate = useNavigate();
   const existing = goals.find((g) => g.id === id);
@@ -120,7 +123,7 @@ export default function GoalFormPage() {
   const [importingThemes, setImportingThemes] = useState(false);
   const [ministryOpen, setMinistryOpen] = useState(false);
   const [importReport, setImportReport] = useState(null);
-  const fileRef = useRef(null);
+  const [fileOpen, setFileOpen] = useState(false);
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -267,6 +270,7 @@ export default function GoalFormPage() {
     if (id) handingOff.current = false;
   }, [id]);
   const leaseTimer = useRef(null);
+  const pendingHide = useRef(null);
   const retryLease = useRef(() => {});
   const lockId = existing?.id || (goals.some((g) => g.id === form.id) ? form.id : null);
   const saveReady = canEdit && leaseReady && !!form.ageGroupId && !!form.schoolYear && !dupGoal;
@@ -299,6 +303,8 @@ export default function GoalFormPage() {
   leaseLatest.current = { startEditingGoal, finishEditingGoal, heartbeatGoal, saver, form, permitted };
   useEffect(() => {
     clearTimeout(leaseTimer.current);
+    if (pendingHide.current) window.removeEventListener('pagehide', pendingHide.current);
+    pendingHide.current = null;
     if (!lockId || !permitted) return undefined;
     let alive = true;
     const generation = ++leaseGeneration.current;
@@ -392,12 +398,16 @@ export default function GoalFormPage() {
       alive = false;
       clearInterval(interval);
       window.removeEventListener('online', pulse);
-      window.removeEventListener('pagehide', hide);
+      // Rời màn soạn rồi tải/đóng trang ngay: giữ pagehide tới khi nhả xong và gửi keepalive, không thì phiên
+      // sửa bị giữ tới hết TTL (BE:EDU-10)
+      pendingHide.current = hide;
       leaseTimer.current = setTimeout(async () => {
         await leaseLatest.current.saver.settle();
         if (heldId.current && !finished.current && !handingOff.current)
-          await leaseLatest.current.finishEditingGoal(heldId.current, { edit: currentEdit });
+          await leaseLatest.current.finishEditingGoal(heldId.current, { keepalive: true, edit: currentEdit });
         heldId.current = null;
+        window.removeEventListener('pagehide', hide);
+        if (pendingHide.current === hide) pendingHide.current = null;
       }, 0);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -407,11 +417,13 @@ export default function GoalFormPage() {
       handingOff.current = true;
       const handoff = crypto.randomUUID();
       editHandoffs.set(handoff, { id: lockId, sessionId: editRef.current.sessionId });
-      navigate(`/education/goals/${lockId}/edit`, { replace: true, state: { yearPlanHandoff: handoff } });
+      navigate(`/education/goals/${lockId}/edit`, { replace: true, state: { yearPlanHandoff: handoff, backTo: location.state?.backTo } });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, lockId, saver.unsaved]);
   const guard = useLeaveGuard({ when: saver.unsaved && !finished.current, onSave: saver.save });
+  // Rời màn soạn không để lại mục lịch sử: về đúng trang đã mở màn soạn thì lùi lại, trang khác thì thay chỗ (Back từ chi tiết ra danh sách)
+  const exitArgs = (to) => (location.state?.backTo === to ? [-1] : [to, { replace: true }]);
   const switchTab = (nextTab) => {
     if (nextTab !== tab) {
       setTab(nextTab);
@@ -472,48 +484,25 @@ export default function GoalFormPage() {
     }
     saver.clearRecovery();
     toast(action === 'submit' ? 'Đã gửi Phó hiệu trưởng duyệt' : 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
-    guard.leaveNow(`/education/goals/${saved.id}`);
+    guard.leaveNow(...exitArgs(`/education/goals/${saved.id}`));
     return saved;
   };
 
   /* ---------- Nhập dữ liệu ---------- */
 
-  const abbrToId = (themes) => Object.fromEntries(themes.map((t) => [t.abbr.trim().toLowerCase(), t.id]));
-
-  // Nhập file CSV (mẫu giống file xuất): thêm các hàng chưa có; cột chủ đề khớp theo tên viết tắt ở phần B.
-  const importCsv = async (file) => {
-    if (!file) return;
-    const { domains: parsed, skipped } = parseGoalsCsv(await file.text());
-    const ids = abbrToId(themes);
-    const toIds = (abbrs) => abbrs.map((a) => ids[a.toLowerCase()]).filter(Boolean);
-    let added = 0;
-    const nextDomains = form.domains.map((d) => {
-      const src = parsed.find((p) => p.domain === d.name);
-      if (!src) return d;
-      const fresh = src.rows
-        .filter((r) => !d.rows.some((x) => x.kind === r.kind && x.text.trim().toLowerCase() === r.text.toLowerCase()))
-        .map((r) =>
-          r.kind === 'goal'
-            ? {
-                id: uid(),
-                kind: 'goal',
-                text: r.text,
-                contents: r.contents.map((c) => ({ id: uid(), text: c.text, themes: toIds(c.themes) })),
-              }
-            : { id: uid(), kind: r.kind, text: r.text },
-        );
-      added += fresh.filter((r) => r.kind === 'goal').length;
-      const kept = d.rows.filter((r) => r.text.trim() || r.kind !== 'goal' || r.contents.length);
-      return { ...d, rows: nestUnderFirstSub([...kept, ...fresh]) };
-    });
-    set({ domains: nextDomains });
-    if (fileRef.current) fileRef.current.value = '';
-    const skipNote = skipped ? `. Bỏ qua ${skipped} dòng không hợp lệ` : '';
-    toast(added ? `Đã nhập ${added} mục tiêu từ file${skipNote}` : 'File không có mục tiêu mới để thêm', skipped ? 'warn' : 'ok');
-  };
-
   const importState = useRef(null);
   importState.current = { form, allowed: canEdit && leaseReady && !saver.recovery && !finishing && !leaseError };
+  // BE:EDU-46 — bản xem trước của file: bổ sung như EDU-24, giữ dấu tích khớp viết tắt chủ đề đang có
+  const importFile = (preview) => {
+    const current = importState.current;
+    if (!current.allowed) return false;
+    const { domains, report } = mergeFileGoals(current.form, preview, () => `file-${uid()}`);
+    if (report.added) set({ domains });
+    const skipped = report.duplicates ? ` · bỏ qua ${report.duplicates} mục tiêu trùng` : '';
+    const unavailable = report.unavailable.length ? ` · ${report.unavailable.length} mục tiêu chưa thêm được` : '';
+    toast(`Đã thêm ${report.added} mục tiêu từ file${skipped}${unavailable}`, report.added ? 'ok' : 'warn');
+    return true;
+  };
   const importGoals = ({ source, selectedGoalIds }) => {
     const current = importState.current;
     if (!current.allowed) return false;
@@ -660,28 +649,45 @@ export default function GoalFormPage() {
                 ) : (
                   <div className="row">
                     <span className="muted text-xs nowrap">{totalGoals} mục tiêu</span>
-                    <button type="button" className="btn btn--sm btn--ghost" onClick={() => fileRef.current?.click()}>
-                      <Upload size={16} aria-hidden /> Nhập file
-                    </button>
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept=".csv,text/csv"
-                      hidden
-                      aria-label="Chọn file CSV kế hoạch năm học"
-                      onChange={(e) => importCsv(e.target.files?.[0])}
-                    />
-                    <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
-                      <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--outline-primary"
-                      disabled={!form.ageGroupId}
-                      onClick={() => setMinistryOpen(true)}
-                    >
-                      <Download size={16} aria-hidden /> Lấy từ Chương trình của Bộ
-                    </button>
+                    {phone && (
+                      // Điện thoại: gom 3 cách lấy mục tiêu vào 1 nút mở danh sách (Tiền 31/10)
+                      <RowMenu
+                        label="Lấy mục tiêu"
+                        text="Lấy mục tiêu"
+                        icon={<Download size={16} aria-hidden />}
+                        className="btn btn--sm btn--outline-primary"
+                        items={[
+                          { label: 'Nhập file', icon: Upload, onClick: () => setFileOpen(true) },
+                          { label: 'Lấy từ kế hoạch có sẵn', icon: Download, onClick: () => setImporting(true) },
+                          {
+                            label: 'Lấy từ Chương trình của Bộ',
+                            icon: Download,
+                            disabled: !form.ageGroupId,
+                            onClick: () => setMinistryOpen(true),
+                          },
+                        ]}
+                      />
+                    )}
+                    {!phone && (
+                      <button type="button" className="btn btn--sm btn--ghost" onClick={() => setFileOpen(true)}>
+                        <Upload size={16} aria-hidden /> Nhập file
+                      </button>
+                    )}
+                    {!phone && (
+                      <>
+                        <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
+                          <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--outline-primary"
+                          disabled={!form.ageGroupId}
+                          onClick={() => setMinistryOpen(true)}
+                        >
+                          <Download size={16} aria-hidden /> Lấy từ Chương trình của Bộ
+                        </button>
+                      </>
+                    )}
                   </div>
                 )
               }
@@ -721,7 +727,7 @@ export default function GoalFormPage() {
                 </select>
               </Field>
               <Field label="Người soạn" inline>
-                <input className="input" value={`${user.name} (${user.title})`} readOnly />
+                <input className="input" value={user.name} readOnly />
               </Field>
             </div>
             <div className="stack mt-16">
@@ -815,6 +821,8 @@ export default function GoalFormPage() {
           />
         )}
 
+        {fileOpen && <ImportGoalFileModal themes={themes} onImport={importFile} onClose={() => setFileOpen(false)} />}
+
         {importing && (
           <ImportGoalsModal
             excludeId={form.id}
@@ -838,14 +846,7 @@ export default function GoalFormPage() {
                     className="btn btn--sm btn--ghost"
                     onClick={() => setPreview(yearPlanFile(build(existing?.status || EDU_STATUS.DRAFT), numbers, staff))}
                   >
-                    <FileDown size={16} aria-hidden /> Xuất Word
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--sm btn--ghost"
-                    onClick={() => setPreview(yearPlanFile(build(existing?.status || EDU_STATUS.DRAFT), numbers, staff))}
-                  >
-                    <Printer size={16} aria-hidden /> In / Lưu PDF
+                    <FileDown size={16} aria-hidden /> Xuất
                   </button>
                   {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
                 </div>
@@ -881,7 +882,7 @@ export default function GoalFormPage() {
         <button
           type="button"
           className="btn"
-          onClick={() => guard.leave(goals.some((g) => g.id === form.id) ? `/education/goals/${form.id}` : '/education/goals')}
+          onClick={() => guard.leave(...exitArgs(goals.some((g) => g.id === form.id) ? `/education/goals/${form.id}` : '/education/goals'))}
         >
           Đóng
         </button>

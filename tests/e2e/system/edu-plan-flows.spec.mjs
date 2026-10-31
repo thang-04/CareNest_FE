@@ -73,8 +73,8 @@ test('ST-01 kế hoạch năm: sửa không tự ghi lên hệ thống, chỉ Ct
   await desc.fill('Mô tả sửa bằng tay (ST-01)');
   await expect(saveStatus(page)).toHaveText('Có thay đổi chưa lưu');
   await expectNoAutosaveWording(page);
-  // Trang soạn theo bước: chỉ bước cuối "Xác nhận" có Xuất Word / In PDF
-  const exportButtons = page.getByRole('button', { name: /^(Xuất Word|In \/ Lưu PDF)$/ });
+  // Trang soạn theo bước: chỉ bước cuối "Xác nhận" có nút Xuất (mở xem trước, trong đó mới Xuất Word / In PDF)
+  const exportButtons = page.getByRole('button', { name: 'Xuất', exact: true });
   await expect(exportButtons).toHaveCount(0);
   await page.getByRole('button', { name: /Mục tiêu, nội dung và chủ đề/ }).click();
   await expect(exportButtons).toHaveCount(0);
@@ -94,21 +94,32 @@ test('ST-01 kế hoạch năm: sửa không tự ghi lên hệ thống, chỉ Ct
     await tick.click();
     await expect(tick).toHaveAttribute('aria-pressed', 'false');
   }
+  // Ô cao (nội dung dài cùng hàng): bấm sát đáy ô, dưới nút, vẫn tích/bỏ tích (Tiền 31/10)
+  const tickCell = page.locator('td.ga-theme-tick-cell').first();
+  await tickCell.evaluate((td) => (td.parentElement.style.height = '160px'));
+  const box = await tickCell.boundingBox();
+  const before = await tick.getAttribute('aria-pressed');
+  const after = before === 'true' ? 'false' : 'true';
+  await tickCell.click({ position: { x: box.width / 2, y: box.height - 6 } });
+  await expect(tick).toHaveAttribute('aria-pressed', after);
+  await expect(tick).toBeFocused();
+  await tickCell.click({ position: { x: box.width / 2, y: box.height - 6 } });
+  await expect(tick).toHaveAttribute('aria-pressed', before);
   await expect(page.getByRole('button', { name: 'Nhập file' })).toBeVisible();
   await page.getByRole('button', { name: /Xác nhận/ }).click();
-  await expect(exportButtons).toHaveCount(2);
+  await expect(exportButtons).toHaveCount(1);
   // Thanh nút bước cuối dính đáy như bước 1–2: luôn trong màn hình khi trang dài (1280px và 375px)
   for (const width of [1280, 375]) {
     await page.setViewportSize({ width, height: 800 });
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect(page.locator('.page-actions')).toBeInViewport();
-    await expect(page.getByRole('button', { name: 'Xuất Word' })).toBeInViewport();
+    await expect(exportButtons).toBeInViewport();
     if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: `${process.env.E2E_SHOT_DIR}/step3-${width}.png` });
   }
   await page.setViewportSize({ width: 1280, height: 720 });
-  // Xuất Word / In PDF mở bản xem trước trước (Tiền 31/10): đúng tài liệu sẽ xuất, có tên Tổ trưởng dưới chỗ ký
+  // Nút Xuất mở bản xem trước (Tiền 31/10): đúng tài liệu sẽ xuất, có tên Tổ trưởng dưới chỗ ký
   const leaderName = sql(`select full_name from user_accounts where username = 'teacher1'`).trim();
-  await page.getByRole('button', { name: 'Xuất Word' }).click();
+  await exportButtons.click();
   const preview = page.getByRole('dialog', { name: 'Xem trước' });
   const doc = preview.frameLocator('iframe.ga-doc-preview').locator('body');
   await expect(doc).toContainText('KẾ HOẠCH GIÁO DỤC');
@@ -125,6 +136,56 @@ test('ST-01 kế hoạch năm: sửa không tự ghi lên hệ thống, chỉ Ct
   await page.keyboard.press('Control+s');
   await expect(saveStatus(page)).toHaveText(/Đã lưu lúc \d\d:\d\d/);
   expect((await goal()).description).toBe('Mô tả sửa bằng tay (ST-01)');
+  await leave(page);
+});
+
+test('ST-01b điện thoại: nút "Lấy mục tiêu" mở danh sách 3 cách lấy, chọn được (không sập trang)', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const page = await ctx.newPage();
+  await login(page, USERS.teacher1);
+  await page.goto(`/education/goals/${planId}/edit`);
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.getByRole('button', { name: /Mục tiêu, nội dung và chủ đề/ }).click();
+  await page.getByRole('button', { name: 'Lấy mục tiêu' }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Nhập file', 'Lấy từ kế hoạch có sẵn', 'Lấy từ Chương trình của Bộ']);
+  await page.getByRole('menuitem', { name: 'Lấy từ kế hoạch có sẵn' }).click();
+  await expect(page.getByRole('dialog', { name: 'Lấy mục tiêu từ kế hoạch có sẵn' })).toBeVisible();
+  await expect(page.getByText('Hệ thống gặp sự cố')).toHaveCount(0);
+  await page.getByRole('dialog').getByRole('button', { name: 'Hủy', exact: true }).click();
+  // Nhập file (BE:EDU-46) mở hộp xem trước, không mở thẳng ô chọn file
+  await page.getByRole('button', { name: 'Lấy mục tiêu' }).click();
+  await page.getByRole('menuitem', { name: 'Nhập file' }).click();
+  await expect(page.getByRole('dialog', { name: 'Nhập file mục tiêu' })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Hủy', exact: true }).click();
+  await leave(page);
+  await ctx.close();
+});
+
+test('ST-01c danh sách → chi tiết → Chỉnh sửa → Đóng: nút Back của trình duyệt về danh sách, không vào lại màn soạn (Tiền 31/10)', async ({
+  page,
+}) => {
+  await login(page, USERS.teacher1);
+  await pickYear(page, E2E.schoolYear);
+  await spaGo(page, '/education/goals');
+  await page.locator('tr.row-click').filter({ hasText: E2E.titlePrefix }).first().click();
+  await page.waitForURL(`**/education/goals/${planId}`);
+  await page.getByRole('link', { name: /Chỉnh sửa|Sửa trước khi duyệt/ }).click();
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
+  await page.goBack();
+  await page.waitForURL((u) => u.pathname === '/education/goals');
+  await expect(page.locator('#desc')).toHaveCount(0);
+  // Có thay đổi chưa lưu: Đóng → Không lưu cũng không để lại mục lịch sử của màn soạn
+  await page.locator('tr.row-click').filter({ hasText: E2E.titlePrefix }).first().click();
+  await page.getByRole('link', { name: /Chỉnh sửa|Sửa trước khi duyệt/ }).click();
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.locator('#desc').fill('Sửa rồi bỏ (ST-01c)');
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' }).getByRole('button', { name: 'Không lưu' }).click();
+  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
+  await page.goBack();
+  await page.waitForURL((u) => u.pathname === '/education/goals');
   await leave(page);
 });
 
@@ -319,28 +380,13 @@ async function headerOverlaps(page) {
   return boxes.some((b) => b.x < code.x + code.width && code.x < b.x + b.width && b.y < code.y + code.height && code.y < b.y + b.height);
 }
 
-test('ST-05b chi tiết bản Bị trả lại: mã kế hoạch không chồng lên "Xuất Word / In PDF" (desktop và 375px)', async ({ browser }) => {
+test('ST-05b chi tiết bản Bị trả lại: mã kế hoạch không chồng lên nút ở đầu trang (desktop và 375px)', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const tl = await ctx.newPage();
   await login(tl, USERS.teacher1);
   await tl.goto(`/education/goals/${planId}`);
   await expect(tl.getByRole('button', { name: 'Gửi Phó HT duyệt' })).toBeVisible();
-  // Bỏ quy tắc CSS sửa lỗi ⇒ tái hiện lỗi cũ (chứng minh phép kiểm bắt được lỗi)
-  await tl.evaluate(() => {
-    for (const sheet of document.styleSheets) {
-      let rules;
-      try {
-        rules = [...sheet.cssRules];
-      } catch {
-        continue; // stylesheet khác origin (font) không đọc được
-      }
-      for (let i = rules.length - 1; i >= 0; i--) if (rules[i].cssText.includes('.ga-goal-detail .breadcrumb')) sheet.deleteRule(i);
-    }
-  });
-  if (process.env.E2E_SHOTS) await tl.screenshot({ path: 'docs/test-reports/assets/b1-before-1280.png' });
-  expect(await headerOverlaps(tl)).toBe(true);
-  await tl.reload();
-  await expect(tl.getByRole('button', { name: 'Gửi Phó HT duyệt' })).toBeVisible();
+  // Đầu trang giờ chỉ còn 1 nút Xuất nên không tái hiện được lỗi chồng cũ (cần 3 nút); chỉ kiểm không chồng
   expect(await headerOverlaps(tl)).toBe(false);
   if (process.env.E2E_SHOTS) await tl.screenshot({ path: 'docs/test-reports/assets/b1-after-1280.png' });
   await ctx.close();
@@ -386,6 +432,10 @@ async function openClassPage(page, email, path) {
 test('ST-07 giáo viên đặt tên chủ đề nhánh, lưu tay và gửi duyệt', async ({ page }) => {
   await openClassPage(page, USERS.teacher2, `/education/branches/${ref.classroom}`);
   const name = page.getByPlaceholder('Nhập tên chủ đề nhánh').first();
+  await expect(name).toBeEditable();
+  // F5 ở trang lớp của năm không phải năm đang hoạt động: giữ năm đã chọn, không báo "Không tìm thấy lớp" (Tiền 31/10)
+  await page.reload();
+  await expect(page.locator('header select').first()).toHaveValue(E2E.schoolYear);
   await expect(name).toBeEditable();
   await name.fill('Bé vui đến trường (ST-07)');
   await expect(saveStatus(page)).toHaveText('Có thay đổi chưa lưu');

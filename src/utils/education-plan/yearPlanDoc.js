@@ -219,5 +219,19 @@ export const printDoc = (html) => {
 
 /** Tài liệu kế hoạch năm để xem trước rồi xuất / in: { html, name } (xem trước dùng đúng HTML sẽ xuất). */
 export const yearPlanFile = (plan, numbers, staff) => ({ html: yearPlanHtml(plan, numbers, staff), name: yearPlanFileName(plan) });
+/** File mẫu nhập mục tiêu (BE:EDU-46): bảng A chỉ có dòng lĩnh vực và cột chủ đề của bản đang soạn, điền rồi nhập lại. */
+export const goalTemplateFile = (themes) => ({
+  html: docShell(
+    'Mẫu bảng mục tiêu năm học',
+    `<p><b>Mẫu bảng mục tiêu năm học</b></p>
+<p>Thêm dòng dưới mỗi lĩnh vực: "*…" là lĩnh vực con, "- …" là nhóm kết quả mong đợi; mỗi nội dung một dòng, ô mục tiêu gộp các dòng nội dung của nó; ô chủ đề ghi chữ viết tắt hoặc "x". Lưu thành Word (.docx) rồi Nhập file.</p>
+${partA(
+  DOMAINS.map((name) => ({ name, rows: [] })),
+  themes || [],
+  {},
+)}`,
+  ),
+  name: 'Mẫu bảng mục tiêu năm học',
+});
 export const downloadYearPlanDoc = (plan, numbers, staff) => downloadDoc(yearPlanHtml(plan, numbers, staff), yearPlanFileName(plan));
 export const printYearPlan = (plan, numbers, staff) => printDoc(yearPlanHtml(plan, numbers, staff));

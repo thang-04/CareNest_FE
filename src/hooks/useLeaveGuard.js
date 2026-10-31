@@ -11,7 +11,7 @@ let active = null;
  * - bấm link/menu: chặn click trên thẻ <a> nội bộ rồi hỏi;
  * - nút quay lại: khi có thay đổi thì đặt thêm 1 mục lịch sử cùng URL; bấm quay lại chỉ gỡ mục đó rồi hỏi;
  * - navigate() ở header/thông báo/menu user: đi qua useGuardedNavigate();
- * - rời bằng nút trong màn: leave(to) thay cho navigate(to) (to nhận cả -1); vừa lưu/gửi xong thì leaveNow(to).
+ * - rời bằng nút trong màn: leave(to, options?) thay cho navigate(to, options?) (to nhận cả -1); vừa lưu/gửi xong thì leaveNow(to, options?).
  * onSave() trả true khi lưu được.
  */
 export function useLeaveGuard({ when, onSave }) {
@@ -42,7 +42,7 @@ export function useLeaveGuard({ when, onSave }) {
     }
   };
   // target: { to } (đường dẫn hoặc số như -1) | { back: true } | { run } (vd. đăng xuất)
-  const perform = (target) => withoutSentinel(() => (target.run ? target.run() : latest.current.navigate(target.to)));
+  const perform = (target) => withoutSentinel(() => (target.run ? target.run() : latest.current.navigate(target.to, target.options)));
 
   useEffect(() => {
     if (when && !sentinel.current) pushSentinel();
@@ -105,10 +105,10 @@ export function useLeaveGuard({ when, onSave }) {
 
   return {
     // Rời sau khi đã lưu/gửi xong (không hỏi)
-    leaveNow: (to) => perform({ to }),
-    leave: (to) => {
-      if (latest.current.when) setPending({ to });
-      else perform({ to });
+    leaveNow: (to, options) => perform({ to, options }),
+    leave: (to, options) => {
+      if (latest.current.when) setPending({ to, options });
+      else perform({ to, options });
     },
     modal: {
       open: !!pending,

@@ -109,6 +109,21 @@ test('ST-14 phiên bản mới: lấy mục tiêu và gợi ý nội dung từ C
     .first()
     .getAttribute('value');
   await target.selectOption(value);
+  // Mục tiêu dài: ô chọn 1 dòng, cắt "…", không tràn khỏi ô; đủ chữ ở title (Tiền 01/11)
+  await expect(target).toHaveAttribute('title', new RegExp(ministryGoal.goalText.slice(0, 20)));
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 800 });
+    const box = await target.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const field = el.closest('.field').getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return { nowrap: cs.whiteSpace, h: Math.round(r.height), inField: r.right <= field.right + 1 && r.left >= field.left - 1 };
+    });
+    expect(box.nowrap).toBe('nowrap');
+    expect(box.h).toBeLessThanOrEqual(44);
+    expect(box.inField).toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
   await dialog.locator('label.ga-cur-row', { hasText: suggestion.text }).first().locator('input').check();
   await dialog.getByRole('button', { name: /Thêm 1 nội dung/ }).click();
   await dialog.getByRole('button', { name: 'Đóng', exact: true }).last().click();

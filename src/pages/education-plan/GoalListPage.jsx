@@ -64,7 +64,7 @@ export default function GoalListPage() {
         title="Mục tiêu năm học"
         actions={
           canCreate && (
-            <Link to="/education/goals/new" className="btn btn--primary">
+            <Link to="/education/goals/new" state={{ backTo: '/education/goals' }} className="btn btn--primary">
               <Plus size={16} aria-hidden /> Lập kế hoạch năm học
             </Link>
           )
@@ -132,7 +132,7 @@ export default function GoalListPage() {
             }
             action={
               canCreate && (
-                <Link to="/education/goals/new" className="btn btn--primary">
+                <Link to="/education/goals/new" state={{ backTo: '/education/goals' }} className="btn btn--primary">
                   <Plus size={16} aria-hidden /> Lập kế hoạch năm học
                 </Link>
               )

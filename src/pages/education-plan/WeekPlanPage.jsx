@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, FileDown, Printer, Save } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, FileDown, Save } from '@/components/ui/icons';
 import { Card, DraftRecoveryNotice, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
@@ -55,6 +55,7 @@ function WeekReviewRedirect() {
 }
 
 function WeekPlanInner() {
+  const tabId = useId();
   const { classId, weekStart } = useParams();
   const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, saveClassDocAdjustments, toast, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
@@ -170,51 +171,66 @@ function WeekPlanInner() {
   const branchNo = branchNumber(yearPlan, weekStart);
   const exportArgs = { doc: draft, week, cls, branchNo, branchName, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) };
 
+  const moveTab = (event) => {
+    const tabs = [...event.currentTarget.querySelectorAll('[role="tab"]')];
+    const current = tabs.indexOf(event.target);
+    if (current < 0) return;
+    const nextTab = {
+      ArrowRight: (current + 1) % tabs.length,
+      ArrowLeft: (current + tabs.length - 1) % tabs.length,
+      Home: 0,
+      End: tabs.length - 1,
+    }[event.key];
+    if (nextTab === undefined) return;
+    event.preventDefault();
+    setTab(nextTab === 0 ? 'week' : String(nextTab - 1));
+    tabs[nextTab].focus({ preventScroll: true });
+  };
+
   return (
-    <div className="page ga-page">
-      <PageHead
-        crumbs={crumbs}
-        title={`Giáo án tuần ${week.no}`}
-        desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`}
-        actions={
-          <>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={!saved || !themeDoc}
-              onClick={() =>
-                guard.leave(
-                  `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}${day >= 0 ? `&date=${encodeURIComponent(draft.days[day].date)}` : ''}`,
-                )
-              }
-            >
-              Dạy học{day >= 0 ? ' ngày này' : ' tuần này'}
-            </button>
-            {/* In giáo án tuần ở mọi bước (đã duyệt thì in để dạy hằng ngày) */}
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPreview(weekFile(exportArgs))}>
-              <FileDown size={16} aria-hidden /> Xuất Word
-            </button>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPreview(weekFile(exportArgs))}>
-              <Printer size={16} aria-hidden /> In / Lưu PDF
-            </button>
-            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
-            {(editable || adjustEditable) && (
-              <>
-                <span className="muted text-sm">{saver.label}</span>
-                <button
-                  type="button"
-                  className="btn btn--primary btn--sm"
-                  onClick={saver.save}
-                  disabled={saver.saving || (!saver.unsaved && !saver.error)}
-                  title="Lưu (Ctrl+S)"
-                >
-                  <Save size={16} aria-hidden /> Lưu
-                </button>
-              </>
-            )}
-          </>
-        }
-      />
+    <div className="page ga-page ga-class-editor">
+      <div className="ga-sticky-head">
+        <PageHead
+          crumbs={crumbs}
+          title={`Giáo án tuần ${week.no}`}
+          desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`}
+          actions={
+            <>
+              <button
+                type="button"
+                className="btn btn--outline-primary"
+                disabled={!saved || !themeDoc}
+                onClick={() =>
+                  guard.leave(
+                    `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}${day >= 0 ? `&date=${encodeURIComponent(draft.days[day].date)}` : ''}`,
+                  )
+                }
+              >
+                Dạy học{day >= 0 ? ' ngày này' : ' tuần này'}
+              </button>
+              {/* In giáo án tuần ở mọi bước (đã duyệt thì in để dạy hằng ngày) */}
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPreview(weekFile(exportArgs))}>
+                <FileDown size={16} aria-hidden /> Xuất
+              </button>
+              {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
+              {(editable || adjustEditable) && (
+                <>
+                  <span className="muted text-sm">{saver.label}</span>
+                  <button
+                    type="button"
+                    className="btn btn--primary btn--sm"
+                    onClick={saver.save}
+                    disabled={saver.saving || (!saver.unsaved && !saver.error)}
+                    title="Lưu (Ctrl+S)"
+                  >
+                    <Save size={16} aria-hidden /> Lưu
+                  </button>
+                </>
+              )}
+            </>
+          }
+        />
+      </div>
       <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
       {!saved && version.finished && <FinishedThemeNote />}
       {!saved && !version.finished && version.prevDoc && !dirty && (
@@ -286,10 +302,13 @@ function WeekPlanInner() {
           </>
         }
       >
-        <div className="tabs" role="tablist">
+        <div className="tabs ga-class-tabs" role="tablist" aria-label="Kế hoạch tuần và ngày" onKeyDown={moveTab}>
           <button
             type="button"
             role="tab"
+            id={`${tabId}-week`}
+            aria-controls={`${tabId}-panel-week`}
+            tabIndex={tab === 'week' ? 0 : -1}
             aria-selected={tab === 'week'}
             className={`tab ${tab === 'week' ? 'tab--active' : ''}`}
             onClick={() => setTab('week')}
@@ -301,16 +320,23 @@ function WeekPlanInner() {
               key={d.date}
               type="button"
               role="tab"
+              id={`${tabId}-${i}`}
+              aria-controls={`${tabId}-panel-${i}`}
+              tabIndex={tab === String(i) ? 0 : -1}
               aria-selected={tab === String(i)}
               className={`tab ${tab === String(i) ? 'tab--active' : ''}`}
               onClick={() => setTab(String(i))}
             >
-              {WEEKDAY_LABELS[i]} · {ddmm(d.date)}
-              {week?.offDays?.[i] ? ' · Nghỉ' : ''}
+              {WEEKDAY_LABELS[i]}
+              <span className="ga-class-tab__sep"> · </span>
+              <span className="ga-class-tab__date">
+                {ddmm(d.date)}
+                {week?.offDays?.[i] ? ' · Nghỉ' : ''}
+              </span>
             </button>
           ))}
         </div>
-        <div className="card__body stack">
+        <div className="card__body stack" role="tabpanel" id={`${tabId}-panel-${tab}`} aria-labelledby={`${tabId}-${tab}`}>
           {day < 0 ? (
             <WeekTab
               draft={draft}
