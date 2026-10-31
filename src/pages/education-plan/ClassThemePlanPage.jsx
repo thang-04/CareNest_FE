@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { FileDown, Printer, Save } from '@/components/ui/icons';
+import { FileDown, Save } from '@/components/ui/icons';
 import { Card, DraftRecoveryNotice, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
@@ -150,57 +150,50 @@ function ThemePlanInner() {
   };
 
   return (
-    <div className="page ga-page">
-      <PageHead
-        crumbs={crumbs}
-        title={`Kế hoạch giáo dục chủ đề: ${theme.name}`}
-        desc={<EduStatusBadge status={status} size="lg" />}
-        actions={
-          <>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={!saved}
-              onClick={() => guard.leave(`${base}/themes/${themeId}/teach`)}
-            >
-              Dạy học / Trình chiếu
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() =>
-                setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
-              }
-            >
-              <FileDown size={16} aria-hidden /> Xuất Word
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() =>
-                setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
-              }
-            >
-              <Printer size={16} aria-hidden /> In / Lưu PDF
-            </button>
-            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
-            {editable && (
-              <>
-                <span className="muted text-sm">{saver.label}</span>
-                <button
-                  type="button"
-                  className="btn btn--primary btn--sm"
-                  onClick={saver.save}
-                  disabled={saver.saving || (!saver.unsaved && !saver.error)}
-                  title="Lưu (Ctrl+S)"
-                >
-                  <Save size={16} aria-hidden /> Lưu
-                </button>
-              </>
-            )}
-          </>
-        }
-      />
+    <div className="page ga-page ga-class-editor">
+      <div className="ga-sticky-head">
+        <PageHead
+          crumbs={crumbs}
+          title={`Kế hoạch giáo dục chủ đề: ${theme.name}`}
+          desc={<EduStatusBadge status={status} size="lg" />}
+          actions={
+            <>
+              <button
+                type="button"
+                className="btn btn--outline-primary"
+                disabled={!saved}
+                onClick={() => guard.leave(`${base}/themes/${themeId}/teach`)}
+              >
+                Dạy học / Trình chiếu
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() =>
+                  setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
+                }
+              >
+                <FileDown size={16} aria-hidden /> Xuất
+              </button>
+              {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
+              {editable && (
+                <>
+                  <span className="muted text-sm">{saver.label}</span>
+                  <button
+                    type="button"
+                    className="btn btn--primary btn--sm"
+                    onClick={saver.save}
+                    disabled={saver.saving || (!saver.unsaved && !saver.error)}
+                    title="Lưu (Ctrl+S)"
+                  >
+                    <Save size={16} aria-hidden /> Lưu
+                  </button>
+                </>
+              )}
+            </>
+          }
+        />
+      </div>
       <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
       {!saved && version.finished && <FinishedThemeNote />}
       {!saved && !version.finished && version.prevDoc && !dirty && (
@@ -235,11 +228,16 @@ function ThemePlanInner() {
       <Card title="Chủ đề nhánh" bodyClass={null}>
         <div className="card__body">
           {weeks.length ? (
-            <ul className="stack">
+            <ul className="ga-theme-weeks">
               {weeks.map((w) => (
                 <li key={w.start}>
-                  <Link to={`/education/class/${classId}/weeks/${w.start}`}>
-                    Tuần {w.no} ({ddmm(w.start)} → {ddmm(w.end)}): {branch?.names?.[w.start] || 'chưa đặt tên nhánh'}
+                  <Link className="ga-theme-weeks__link" to={`/education/class/${classId}/weeks/${w.start}`}>
+                    <span className="fw-600">
+                      Tuần {w.no}: {branch?.names?.[w.start] || 'chưa đặt tên nhánh'}
+                    </span>
+                    <span className="muted text-sm">
+                      {ddmm(w.start)} → {ddmm(w.end)}
+                    </span>
                   </Link>
                 </li>
               ))}

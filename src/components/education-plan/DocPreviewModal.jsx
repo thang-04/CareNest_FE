@@ -31,7 +31,9 @@ export default function DocPreviewModal({ file, onClose }) {
         </>
       }
     >
-      <iframe className="ga-doc-preview" title={`Xem trước ${file.name}`} srcDoc={file.html} />
+      <div className="ga-doc-preview-scroll">
+        <iframe className="ga-doc-preview" title={`Xem trước ${file.name}`} srcDoc={file.html} />
+      </div>
     </Modal>
   );
 }

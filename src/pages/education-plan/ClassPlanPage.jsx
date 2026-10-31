@@ -206,7 +206,7 @@ export default function ClassPlanPage() {
                     className="btn btn--outline-primary btn--sm"
                     onClick={() => exportTheme(t, ti + 1, doc, themeWeeks)}
                   >
-                    <FileDown size={16} aria-hidden /> Xuất Word
+                    <FileDown size={16} aria-hidden /> Xuất
                   </button>
                 </>
               }

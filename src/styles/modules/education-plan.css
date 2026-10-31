@@ -381,6 +381,86 @@
   font-size: var(--fs-md);
 }
 
+/* Màn soạn của lớp giữ thao tác và độ gọn như màn mục tiêu năm học. */
+.ga-class-editor .ga-sticky-head {
+  padding-top: var(--space-2);
+}
+/* Như chi tiết kế hoạch năm: nhiều nút nằm trên hàng riêng, không đè đường dẫn. */
+.ga-class-editor .ga-sticky-head .breadcrumb + .page__head > .page__actions {
+  position: static;
+  min-height: 0;
+}
+.ga-class-editor .ga-week-hero {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+.ga-class-editor .ga-week-hero__label {
+  color: var(--color-text-muted);
+}
+.ga-class-editor .ga-week-hero__name {
+  font-size: var(--fs-lg);
+  color: var(--color-text);
+}
+.ga-theme-weeks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 4)), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ga-theme-weeks__link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  height: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+.ga-theme-weeks__link:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.ga-theme-weeks__link:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+.ga-class-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: var(--space-1);
+  overflow: visible;
+}
+.ga-class-tabs .tab {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+  white-space: normal;
+  text-align: center;
+}
+@media (max-width: 1100px) {
+  .ga-class-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .ga-class-tabs .tab {
+    min-height: var(--btn-height-lg);
+    padding: var(--space-2);
+  }
+  /* Cột nhãn/ghi chú không chiếm gần hết bảng hai hoặc ba cột trên điện thoại. */
+  .ga-class-editor .ga-plan-table:has(colgroup > :last-child:nth-child(2)) .ga-goal-table__group {
+    width: 30%;
+  }
+  .ga-class-editor .ga-plan-table:has(colgroup > :last-child:nth-child(3)) .ga-goal-table__group {
+    width: 20%;
+  }
+}
+
 /* Bảng mục tiêu năm học kiểu Word: kẻ đủ hàng/cột, độ rộng cột cố định, ô nhập không viền */
 .table.ga-goal-table {
   table-layout: fixed;
@@ -517,8 +597,9 @@
 /* Bảng mục tiêu năm có các cột tích chủ đề (lấy từ phần B): màn rộng vừa khung (cột chủ đề hẹp, cột chữ theo %),
    điện thoại cuộn ngang trong khung bảng vì không đủ chỗ cho mọi cột chủ đề (Tiền 30/10) */
 @media (max-width: 767px) {
-  .table.ga-goal-table--themes {
-    min-width: 960px;
+  /* Cột nhóm, STT, mục tiêu, chủ đề, Xóa cố định đã ~1000px ⇒ chừa ~200px cho cột nội dung (rà UI 31/10) */
+  .table.ga-plan-table.ga-goal-table--themes:has(tr > :nth-child(4)) {
+    min-width: calc(var(--space-16) * 19);
   }
 }
 @media (min-width: 768px) {
@@ -1013,6 +1094,12 @@
     padding: var(--space-4);
   }
 }
+/* Điện thoại không có phím mũi tên: ẩn gợi ý phím (chữ thừa giữa 2 nút điều hướng) */
+@media (max-width: 767px) {
+  .ga-teaching-hint {
+    display: none;
+  }
+}
 
 /* Chi tiết kế hoạch năm: từ 3 nút hành động trở lên thì không đặt lên hàng breadcrumb (đè mã kế hoạch), để cùng hàng nhãn trạng thái */
 @media (min-width: 1024px) {
@@ -1315,4 +1402,18 @@ h2.ga-cur-domain__head {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
+}
+/* Điện thoại: khung xem trước giữ bề rộng trang A4 ngang để chữ không bị ép từng từ, cuộn ngang trong khung (Tiền 31/10) */
+@media (max-width: 767px) {
+  .ga-doc-preview-scroll {
+    overflow-x: auto;
+  }
+  .ga-doc-preview {
+    min-width: calc(var(--space-16) * 16);
+  }
+  /* Bảng mục tiêu: tiêu đề canh trên để hàng tiêu đề không cao bất thường; ô STT/TT cũng canh trên cho thẳng hàng */
+  .table.ga-goal-table thead th,
+  .table.ga-goal-table thead th.ga-stt {
+    vertical-align: top;
+  }
 }

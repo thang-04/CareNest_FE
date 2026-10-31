@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Copy, FileDown, Pencil, Printer, Trash2 } from '@/components/ui/icons';
+import { Copy, FileDown, Pencil, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
@@ -136,10 +136,7 @@ export default function GoalDetailPage() {
           <>
             {/* Xuất / in ở mọi bước; bản đã ban hành thì Phó HT in ra ký, giáo viên in để dùng */}
             <button className="btn btn--ghost" onClick={() => setPreview(yearPlanFile(plan, numbers, staff))}>
-              <FileDown size={16} aria-hidden /> Xuất Word
-            </button>
-            <button className="btn btn--ghost" onClick={() => setPreview(yearPlanFile(plan, numbers, staff))}>
-              <Printer size={16} aria-hidden /> In / Lưu PDF
+              <FileDown size={16} aria-hidden /> Xuất
             </button>
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
             {canDelete && (

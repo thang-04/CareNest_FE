@@ -17,8 +17,9 @@ const stop = (e) => e.stopPropagation();
  * items: [{ label, icon?, to? | onClick?, danger?, disabled?, confirm?: { title, message, confirmLabel } }]
  * Mục `danger` có `confirm` thì hỏi lại bằng ConfirmationModal trước khi chạy onClick.
  * Menu render ra body (position: fixed) để không bị khung cuộn của bảng cắt mất.
+ * text (+ icon, className): nút có chữ thay cho nút "…" (vd. gom nhiều nút thao tác trên điện thoại).
  */
-export function RowMenu({ label, items }) {
+export function RowMenu({ label, items, text, icon, className }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(null);
   const btnRef = useRef(null);
@@ -87,9 +88,9 @@ export function RowMenu({ label, items }) {
       <button
         ref={btnRef}
         type="button"
-        className="icon-btn row-menu__btn"
+        className={text ? className || 'btn btn--sm' : 'icon-btn row-menu__btn'}
         aria-label={label}
-        title="Thao tác khác"
+        title={text || 'Thao tác khác'}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={(e) => {
@@ -98,7 +99,13 @@ export function RowMenu({ label, items }) {
         }}
         onKeyDown={stop}
       >
-        <MoreHorizontal size={18} />
+        {text ? (
+          <>
+            {icon} {text}
+          </>
+        ) : (
+          <MoreHorizontal size={18} />
+        )}
       </button>
       {open &&
         createPortal(

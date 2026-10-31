@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
-import { ArrowLeft, ArrowRight, Download, FileDown, Printer, Save, Upload } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Download, FileDown, Save, Upload } from '@/components/ui/icons';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useYearPlanAutosave } from '@/hooks/education-plan/useYearPlanAutosave';
@@ -38,6 +38,8 @@ import CurriculumGoalsModal from '@/components/education-plan/CurriculumGoalsMod
 import { addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
 import { Card, DraftRecoveryNotice, Field, Notice, PageHead, Stepper, fmtDate } from '@/components/education-plan/eduUi';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
+import { RowMenu } from '@/components/ui/RowMenu';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 const suggestTitle = (year, ageGroupId) => {
   const ag = AGE_GROUPS.find((a) => a.id === ageGroupId);
@@ -96,6 +98,7 @@ export default function GoalFormPage() {
   const [params] = useSearchParams();
   const { goals, schoolYear, saveGoal, startEditingGoal, finishEditingGoal, heartbeatGoal, toast, user, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
+  const phone = useMediaQuery('(max-width: 767px)');
   const { schoolYears: yearOptions } = useSchoolYear();
   const navigate = useNavigate();
   const existing = goals.find((g) => g.id === id);
@@ -660,9 +663,30 @@ export default function GoalFormPage() {
                 ) : (
                   <div className="row">
                     <span className="muted text-xs nowrap">{totalGoals} mục tiêu</span>
-                    <button type="button" className="btn btn--sm btn--ghost" onClick={() => fileRef.current?.click()}>
-                      <Upload size={16} aria-hidden /> Nhập file
-                    </button>
+                    {phone && (
+                      // Điện thoại: gom 3 cách lấy mục tiêu vào 1 nút mở danh sách (Tiền 31/10)
+                      <RowMenu
+                        label="Lấy mục tiêu"
+                        text="Lấy mục tiêu"
+                        icon={<Download size={16} aria-hidden />}
+                        className="btn btn--sm btn--outline-primary"
+                        items={[
+                          { label: 'Nhập file', icon: Upload, onClick: () => fileRef.current?.click() },
+                          { label: 'Lấy từ kế hoạch có sẵn', icon: Download, onClick: () => setImporting(true) },
+                          {
+                            label: 'Lấy từ Chương trình của Bộ',
+                            icon: Download,
+                            disabled: !form.ageGroupId,
+                            onClick: () => setMinistryOpen(true),
+                          },
+                        ]}
+                      />
+                    )}
+                    {!phone && (
+                      <button type="button" className="btn btn--sm btn--ghost" onClick={() => fileRef.current?.click()}>
+                        <Upload size={16} aria-hidden /> Nhập file
+                      </button>
+                    )}
                     <input
                       ref={fileRef}
                       type="file"
@@ -671,17 +695,21 @@ export default function GoalFormPage() {
                       aria-label="Chọn file CSV kế hoạch năm học"
                       onChange={(e) => importCsv(e.target.files?.[0])}
                     />
-                    <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
-                      <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--outline-primary"
-                      disabled={!form.ageGroupId}
-                      onClick={() => setMinistryOpen(true)}
-                    >
-                      <Download size={16} aria-hidden /> Lấy từ Chương trình của Bộ
-                    </button>
+                    {!phone && (
+                      <>
+                        <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
+                          <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--outline-primary"
+                          disabled={!form.ageGroupId}
+                          onClick={() => setMinistryOpen(true)}
+                        >
+                          <Download size={16} aria-hidden /> Lấy từ Chương trình của Bộ
+                        </button>
+                      </>
+                    )}
                   </div>
                 )
               }
@@ -721,7 +749,7 @@ export default function GoalFormPage() {
                 </select>
               </Field>
               <Field label="Người soạn" inline>
-                <input className="input" value={`${user.name} (${user.title})`} readOnly />
+                <input className="input" value={user.name} readOnly />
               </Field>
             </div>
             <div className="stack mt-16">
@@ -838,14 +866,7 @@ export default function GoalFormPage() {
                     className="btn btn--sm btn--ghost"
                     onClick={() => setPreview(yearPlanFile(build(existing?.status || EDU_STATUS.DRAFT), numbers, staff))}
                   >
-                    <FileDown size={16} aria-hidden /> Xuất Word
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--sm btn--ghost"
-                    onClick={() => setPreview(yearPlanFile(build(existing?.status || EDU_STATUS.DRAFT), numbers, staff))}
-                  >
-                    <Printer size={16} aria-hidden /> In / Lưu PDF
+                    <FileDown size={16} aria-hidden /> Xuất
                   </button>
                   {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
                 </div>

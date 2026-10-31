@@ -209,7 +209,7 @@ function Presentation() {
                   <button type="button" className="btn" disabled={safeIndex === 0} onClick={() => move(-1)}>
                     ← Hoạt động trước
                   </button>
-                  <span className="muted">Phím ← → khi không thao tác với học liệu</span>
+                  <span className="muted ga-teaching-hint">Phím ← → khi không thao tác với học liệu</span>
                   <button type="button" className="btn btn--primary" disabled={safeIndex >= activities.length - 1} onClick={() => move(1)}>
                     Hoạt động tiếp →
                   </button>
