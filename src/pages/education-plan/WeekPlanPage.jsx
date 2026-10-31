@@ -327,8 +327,12 @@ function WeekPlanInner() {
               className={`tab ${tab === String(i) ? 'tab--active' : ''}`}
               onClick={() => setTab(String(i))}
             >
-              {WEEKDAY_LABELS[i]} · {ddmm(d.date)}
-              {week?.offDays?.[i] ? ' · Nghỉ' : ''}
+              {WEEKDAY_LABELS[i]}
+              <span className="ga-class-tab__sep"> · </span>
+              <span className="ga-class-tab__date">
+                {ddmm(d.date)}
+                {week?.offDays?.[i] ? ' · Nghỉ' : ''}
+              </span>
             </button>
           ))}
         </div>

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { FileDown, Save } from '@/components/ui/icons';
 import { Card, DraftRecoveryNotice, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
-import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
+import { DocReviewButton, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
+import { RejectedNotice } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
@@ -166,6 +167,17 @@ function ThemePlanInner() {
               >
                 Dạy học / Trình chiếu
               </button>
+              {/* Gửi / duyệt cả hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) ở trang hồ sơ */}
+              <DocReviewButton
+                kind="theme"
+                doc={saved}
+                ctx={ctx}
+                user={user}
+                dirty={saver.unsaved || saver.saving}
+                reviewTo={`${base}/themes/${themeId}/review`}
+                onGo={guard.leave}
+                className="btn btn--outline-primary"
+              />
               <button
                 type="button"
                 className="btn btn--ghost"
@@ -215,16 +227,7 @@ function ThemePlanInner() {
         onDrop={(f) => flagEdit((d) => dropReference('theme', d, f))}
       />
       {editable && saver.recovery && <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />}
-      {/* Gửi / duyệt cả hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) ở trang hồ sơ */}
-      <DocStatusStrip
-        kind="theme"
-        doc={saved}
-        ctx={ctx}
-        user={user}
-        dirty={saver.unsaved || saver.saving}
-        reviewTo={`${base}/themes/${themeId}/review`}
-        onGo={guard.leave}
-      />
+      <RejectedNotice status={saved?.status} history={saved?.history} />
       <Card title="Chủ đề nhánh" bodyClass={null}>
         <div className="card__body">
           {weeks.length ? (

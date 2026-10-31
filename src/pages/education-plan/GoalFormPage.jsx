@@ -270,6 +270,7 @@ export default function GoalFormPage() {
     if (id) handingOff.current = false;
   }, [id]);
   const leaseTimer = useRef(null);
+  const pendingHide = useRef(null);
   const retryLease = useRef(() => {});
   const lockId = existing?.id || (goals.some((g) => g.id === form.id) ? form.id : null);
   const saveReady = canEdit && leaseReady && !!form.ageGroupId && !!form.schoolYear && !dupGoal;
@@ -302,6 +303,8 @@ export default function GoalFormPage() {
   leaseLatest.current = { startEditingGoal, finishEditingGoal, heartbeatGoal, saver, form, permitted };
   useEffect(() => {
     clearTimeout(leaseTimer.current);
+    if (pendingHide.current) window.removeEventListener('pagehide', pendingHide.current);
+    pendingHide.current = null;
     if (!lockId || !permitted) return undefined;
     let alive = true;
     const generation = ++leaseGeneration.current;
@@ -395,12 +398,16 @@ export default function GoalFormPage() {
       alive = false;
       clearInterval(interval);
       window.removeEventListener('online', pulse);
-      window.removeEventListener('pagehide', hide);
+      // Rời màn soạn rồi tải/đóng trang ngay: giữ pagehide tới khi nhả xong và gửi keepalive, không thì phiên
+      // sửa bị giữ tới hết TTL (BE:EDU-10)
+      pendingHide.current = hide;
       leaseTimer.current = setTimeout(async () => {
         await leaseLatest.current.saver.settle();
         if (heldId.current && !finished.current && !handingOff.current)
-          await leaseLatest.current.finishEditingGoal(heldId.current, { edit: currentEdit });
+          await leaseLatest.current.finishEditingGoal(heldId.current, { keepalive: true, edit: currentEdit });
         heldId.current = null;
+        window.removeEventListener('pagehide', hide);
+        if (pendingHide.current === hide) pendingHide.current = null;
       }, 0);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

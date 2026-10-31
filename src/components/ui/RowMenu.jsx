@@ -38,7 +38,13 @@ export function RowMenu({ label, items, text, icon, className }) {
     const b = btn.getBoundingClientRect();
     const h = panel.offsetHeight;
     const top = b.bottom + GAP + h <= window.innerHeight ? b.bottom + GAP : Math.max(GAP, b.top - GAP - h);
-    Object.assign(panel.style, { top: `${top}px`, right: `${window.innerWidth - b.right}px` });
+    // Căn mép phải nút; menu rộng hơn chỗ trống bên trái (nút sát trái màn) thì căn mép trái nút
+    const fitsRight = b.right - panel.offsetWidth >= GAP;
+    Object.assign(panel.style, {
+      top: `${top}px`,
+      right: fitsRight ? `${window.innerWidth - b.right}px` : 'auto',
+      left: fitsRight ? 'auto' : `${Math.max(GAP, Math.min(b.left, window.innerWidth - panel.offsetWidth - GAP))}px`,
+    });
   }, []);
 
   useLayoutEffect(() => {

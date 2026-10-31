@@ -390,6 +390,14 @@
   position: static;
   min-height: 0;
 }
+/* Điện thoại: nút đầu trang (đang dính) cỡ nhỏ như .btn--sm để gọn 2 hàng, không chiếm nửa màn khi cuộn */
+@media (max-width: 767px) {
+  .ga-class-editor .ga-sticky-head .page__actions .btn {
+    height: var(--btn-height-sm);
+    padding: 0 var(--space-3);
+    font-size: var(--fs-sm);
+  }
+}
 .ga-class-editor .ga-week-hero {
   border-color: var(--color-border);
   background: var(--color-surface);
@@ -451,6 +459,17 @@
   .ga-class-tabs .tab {
     min-height: var(--btn-height-lg);
     padding: var(--space-2);
+  }
+  /* Tab ngày 2 dòng gọn: thứ / ngày (không gãy giữa "Thứ 2 · / 07/09") */
+  .ga-class-tabs .tab {
+    flex-direction: column;
+    gap: 0;
+  }
+  .ga-class-tab__sep {
+    display: none;
+  }
+  .ga-class-tab__date {
+    white-space: nowrap;
   }
   /* Cột nhãn/ghi chú không chiếm gần hết bảng hai hoặc ba cột trên điện thoại. */
   .ga-class-editor .ga-plan-table:has(colgroup > :last-child:nth-child(2)) .ga-goal-table__group {

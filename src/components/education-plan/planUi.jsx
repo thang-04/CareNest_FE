@@ -111,11 +111,34 @@ export function docReview(kind, doc, ctx, user, eduConfig) {
  * Dòng trạng thái ở trang soạn: trạng thái, lý do bị trả lại và nút sang trang gửi / duyệt.
  * Giáo án tuần và kế hoạch chủ đề đi theo cả tập kế hoạch giáo dục chủ đề (bản ghi kế hoạch chủ đề).
  */
+/** Nút sang trang hồ sơ để xem / gửi / duyệt; chưa lưu thì khóa. */
+export function DocReviewButton({ kind, doc, dossier, ctx, user, reviewTo, dirty, onGo, className = 'btn btn--outline-primary btn--sm' }) {
+  const holder = kind === 'week' ? dossier : doc;
+  const label = reviewLabel(holder, ctx, user, kind === 'branch' ? 'branch' : 'theme');
+  const blocked = dirty || (kind !== 'week' && !doc?.id);
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={blocked}
+      title={blocked ? 'Lưu trước khi sang trang khác' : undefined}
+      onClick={() => onGo(reviewTo)}
+    >
+      {label.startsWith('Duyệt') ? (
+        <Check size={16} aria-hidden />
+      ) : label.includes('gửi') || label.startsWith('Gửi') ? (
+        <Send size={16} aria-hidden />
+      ) : (
+        <Eye size={16} aria-hidden />
+      )}{' '}
+      {label}
+    </button>
+  );
+}
+
 export function DocStatusStrip({ kind, doc, dossier, ctx, user, reviewTo, dirty, onGo }) {
   const holder = kind === 'week' ? dossier : doc;
   const status = holder?.status || EDU_STATUS.DRAFT;
-  const label = reviewLabel(holder, ctx, user, kind === 'branch' ? 'branch' : 'theme');
-  const blocked = dirty || (kind !== 'week' && !doc?.id);
   return (
     <Card>
       <div className="stack">
@@ -129,22 +152,7 @@ export function DocStatusStrip({ kind, doc, dossier, ctx, user, reviewTo, dirty,
           ) : (
             <span />
           )}
-          <button
-            type="button"
-            className="btn btn--outline-primary btn--sm"
-            disabled={blocked}
-            title={blocked ? 'Lưu trước khi sang trang khác' : undefined}
-            onClick={() => onGo(reviewTo)}
-          >
-            {label.startsWith('Duyệt') ? (
-              <Check size={16} aria-hidden />
-            ) : label.includes('gửi') || label.startsWith('Gửi') ? (
-              <Send size={16} aria-hidden />
-            ) : (
-              <Eye size={16} aria-hidden />
-            )}{' '}
-            {label}
-          </button>
+          <DocReviewButton kind={kind} doc={doc} dossier={dossier} ctx={ctx} user={user} reviewTo={reviewTo} dirty={dirty} onGo={onGo} />
         </div>
         <RejectedNotice status={holder?.status} history={holder?.history} />
       </div>

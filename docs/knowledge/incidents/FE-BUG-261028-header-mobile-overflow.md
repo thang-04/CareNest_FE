@@ -4,7 +4,7 @@ type: bug
 screens: [layout-header, education-plan]
 be_modules: []
 rules: []
-status: open
+status: fixed
 date: 2026-10-28
 keywords: [header, mobile, overflow, 390px, notification]
 similar_to: [FE-BUG-261020-layout-css-loaded-before-components]
@@ -29,12 +29,12 @@ Browser context riêng, dữ liệu giả; mở danh sách `/education/goals` ho
 
 ## Root cause
 
-Chưa xác định đầy đủ. Phần tử gây tràn nhìn thấy là nút thông báo/header. Chưa khẳng định cùng nguyên nhân CSS với incident liên quan.
+Chip năm học `.header__year` để `flex: none`, ô chọn bên trong rộng theo lựa chọn dài nhất ("2027 - 2028 · Sắp diễn ra") nên không co; nút Tạo nhanh và chuông bị đẩy ra ngoài màn (đo 2026-10-31: document 424px ở 360/375/390px).
 
 ## Fix
 
-Chưa sửa; cần xử lý header dùng chung ở task riêng. Task preview không sửa layout chung.
+`src/layouts/layout.css` khối ≤640px: chip `flex: 0 1 auto; min-width: 0`, ô chọn `width: 100%`, cắt chữ một dòng; `.header__center` `flex: 1 0 auto` để kính lúp không bị ép về 0 và chip co trước. Máy tính không đổi.
 
 ## Regression test
 
-Kiểm Chromium với mock tại 390px: so scrollWidth/clientWidth trên chi tiết và danh sách. Mục tiêu khi sửa header: scrollWidth không vượt clientWidth; bảng nhiều cột vẫn cuộn bên trong `.table-wrap`.
+Mock (tests/e2e/ui) và BE thật ở 360/375/390px: scrollWidth = clientWidth trên trang chủ và danh sách kế hoạch; bảng nhiều cột vẫn cuộn trong `.table-wrap`.
