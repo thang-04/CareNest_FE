@@ -4,6 +4,7 @@ import { AlertCircle, ArrowLeft, Send } from '@/components/ui/icons';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { FormField, Spinner } from '@/components';
 import { requestPasswordReset } from '@/services/account/accountService';
+import { setOtpRequest, clearPasswordChallenge } from '@/services/authChallengeStore';
 import { validateEmailForm } from '@/utils/account/accountValidation';
 import '@/styles/modules/account.css';
 
@@ -25,8 +26,9 @@ export default function ForgotPasswordPage() {
     setServerError('');
     try {
       const request = await requestPasswordReset({ email: email.trim() });
-      // Request data goes through router state, never the URL (no email / ids in the address bar).
-      navigate('/verify-otp', { state: { request, email: email.trim() } });
+      clearPasswordChallenge();
+      setOtpRequest(request);
+      navigate('/verify-otp', { state: { email: email.trim() } });
     } catch (err) {
       if (err.details?.email) setErrors({ email: err.details.email });
       else setServerError(err.message || 'Chưa gửi được mã xác thực. Vui lòng thử lại.');
@@ -36,7 +38,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <AuthLayout title="Quên mật khẩu" subtitle="Nhập email đã đăng ký, chúng tôi sẽ gửi mã xác thực (OTP) để bạn đặt lại mật khẩu.">
+    <AuthLayout title="Quên mật khẩu" subtitle="Nhập email đã đăng ký. Nếu tài khoản hợp lệ, bạn sẽ nhận được mã xác thực (OTP).">
       <form className="auth-form" onSubmit={submit} noValidate>
         {serverError && (
           <div className="alert alert--danger" role="alert">

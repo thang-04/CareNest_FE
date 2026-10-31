@@ -9,8 +9,11 @@ import {
   globToRegExp,
   isSkeleton,
   parseFrontmatter,
+  siblingPath,
   stripYamlComment,
 } from "../ai-layer/lib.mjs";
+import { join } from "node:path";
+import { makeRepo, makeWorkspace } from "./helpers.mjs";
 
 test("globToRegExp: **, *, ?, {a,b}", () => {
   assert.ok(globToRegExp("src/**").test("src/main/A.java"));
@@ -47,6 +50,19 @@ test("crossRepoRef", () => {
   assert.deepEqual(crossRepoRef("BE:docs/a.md"), { repo: "BE", rel: "docs/a.md" });
   assert.deepEqual(crossRepoRef("../CareNest_APP/docs/a.md"), { repo: "APP", rel: "docs/a.md" });
   assert.equal(crossRepoRef("docs/a.md"), null);
+});
+
+test("siblingPath thử mọi checkout sibling, không có file thì trỏ checkout đầu", () => {
+  const workspace = makeWorkspace();
+  const root = makeRepo({}, { workspace, name: "CareNest_FE" });
+  const main = makeRepo({ "docs/old.md": "x" }, { workspace, name: "CareNest_BE-main" });
+  const dev = makeRepo({ "docs/new.md": "x" }, { workspace, name: "CareNest_BE" });
+  const config = { repo: "FE", siblings: { BE: ["../CareNest_BE-main", "../CareNest_BE"], APP: ["../CareNest_APP"] } };
+  assert.equal(siblingPath(root, config, "BE", "docs/new.md"), join(dev, "docs/new.md"));
+  assert.equal(siblingPath(root, config, "BE", "docs/old.md"), join(main, "docs/old.md"));
+  assert.equal(siblingPath(root, config, "BE", "docs/none.md"), join(main, "docs/none.md"));
+  assert.equal(siblingPath(root, config, "APP", "docs/a.md"), null);
+  assert.equal(siblingPath(root, config, "FE", "docs/a.md"), join(root, "docs/a.md"));
 });
 
 test("deepMerge ghép object lồng, thay array", () => {

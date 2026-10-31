@@ -1,6 +1,6 @@
 # Backend Integration
 
-**CareNest_BE là owner của API contract.** File này mô tả cách Web tiêu thụ contract; khi khác với BE ⇒ BE thắng, cập nhật file này. Nguồn theo thứ tự: source BE (`../CareNest_BE/src/main/java/com/carenest/` — `utils/ResponseJson.java`, `utils/ApiCode.java`, `dto/common/PageResponse.java`, `exception/GlobalExceptionHandler.java`) → Swagger UI của BE đang chạy (springdoc, `/swagger-ui/index.html`) → `BE:docs/contracts/API_CONVENTIONS.md`, `ERROR_CONTRACT.md` → `BE:docs/backend-coding-guide.md`. File OpenAPI export (`BE:docs/api/`) chưa có.
+**CareNest_BE là owner của API contract.** File này mô tả cách Web tiêu thụ contract; khi khác với BE ⇒ BE thắng, cập nhật file này. Nguồn theo thứ tự: source BE (`../CareNest_BE/src/main/java/com/carenest/` — `utils/ResponseJson.java`, `utils/ApiCode.java`, `dto/common/PageResponse.java`, `exception/GlobalExceptionHandler.java`) → Swagger UI của BE đang chạy (springdoc, `/swagger-ui/index.html`) → `BE:docs/contracts/API_CONVENTIONS.md`, `ERROR_CONTRACT.md` → `BE:docs/backend-coding-guide.md`. OpenAPI snapshot hiện có tại `BE:docs/api/openapi.yaml`; auth gateway Web theo `docs/integration/AUTH_FLOW.md`.
 
 ## Base URL & prefix
 
@@ -58,7 +58,7 @@ Không tự bịa response. Mô tả thay đổi cần thống nhất (endpoint,
 
 ## Mục tiêu năm học (đã nối BE, G94-226)
 
-- API: `GET/POST /education-plans/goals`, `GET/PUT/DELETE /education-plans/goals/{id}`, `POST …/{id}/submit|issue|return`, `GET /education-plans/config` (BE `docs/api/openapi.yaml`).
+- API: `GET/POST /education-plans/goals`, `GET/PUT/DELETE /education-plans/goals/{id}`, `POST …/{id}/submit|issue|return`, `GET /education-plans/config` (`BE:docs/api/openapi.yaml`).
 - `services/education-plan/api/yearPlanMapper.js` đổi dữ liệu UI ↔ DTO: id chuỗi ↔ số, `ag-3` ↔ id nhóm tuổi, "2026 – 2027" ↔ id năm học, lĩnh vực theo tên ↔ id; dòng / nội dung / chủ đề mới gửi id `null`, nội dung tích chủ đề qua `themeKeys` = id chủ đề phía UI.
 - Màn hình vẫn lưu cả văn bản kèm trạng thái mới; `educationPlanApi.saveGoal` đổi thành POST/PUT + endpoint hành động theo trạng thái trước–sau (`planSteps`). Trang chi tiết dùng cờ `permissions` của BE.
 - Chưa nối: đăng nhập thật (FE vẫn gọi `/auth/login` PROPOSED), lưu cấu hình (`PUT /education-plans/config`), kế hoạch chủ đề / giáo án / tài liệu của lớp.

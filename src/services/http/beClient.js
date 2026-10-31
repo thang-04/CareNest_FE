@@ -1,13 +1,14 @@
 import axios from 'axios';
-import { DEV_BE_BASE_URL } from '@/config/env';
+import { API_BASE_URL, AUTH_MODE, DEV_BE_BASE_URL } from '@/config/env';
+import { refreshSession } from './authTransport';
 import { BE_ERROR_FIELDS } from './beErrorFields';
 import { translateBeError } from './beErrorMessages';
 import { getDevAccessToken, tokenForRetry } from './devKeycloakAuth';
-import { UNAUTHORIZED_EVENT } from './tokenStorage';
+import { tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 
 /*
- * Client cho API BE thật của Cấu hình trường (VITE_SCHOOL_CONFIG_API=true). Tách khỏi axiosClient chung để module
+ * Client cho API BE thật của các màn đã nối (SCHOOL_CONFIG_API trong env.js). Tách khỏi axiosClient chung để module
  * khác (vẫn mock) không bị ảnh hưởng. Chuyển đổi giữa dạng BE và dạng UI đang dùng:
  * - BE bọc { code, errorCode, desc, data } ⇒ trả về data. Lỗi có errorCode: desc đã là câu tiếng Việt, gắn vào ô theo
  *   BE_ERROR_FIELDS; lỗi validation (9001) data=[{field,message}] ⇒ details {field: message}.
@@ -23,16 +24,34 @@ let years = null; // [{ id: number, name: string }]
 const yearName = (id) => years?.find((y) => y.id === Number(id))?.name ?? id;
 const yearId = (name) => years?.find((y) => y.name === name)?.id ?? name;
 
-const raw = axios.create({ baseURL: DEV_BE_BASE_URL, timeout: 15000, headers: { 'Content-Type': 'application/json' } });
+const GATEWAY = AUTH_MODE === 'gateway';
+// Gateway: access token chỉ nằm trong bộ nhớ, làm mới qua POST /auth/refresh (cookie phiên); dev: Keycloak carenest-dev
+const accessToken = () => (GATEWAY ? tokenStorage.get() : getDevAccessToken());
+const retryToken = async (sentAuthorization) => {
+  if (!GATEWAY) return tokenForRetry(sentAuthorization);
+  const current = tokenStorage.get();
+  if (current && `Bearer ${current}` !== sentAuthorization) return current;
+  try {
+    return (await refreshSession()).accessToken;
+  } catch {
+    return null;
+  }
+};
+
+const raw = axios.create({
+  baseURL: GATEWAY ? API_BASE_URL : DEV_BE_BASE_URL,
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+});
 raw.interceptors.request.use(async (config) => {
-  const token = await getDevAccessToken();
+  const token = await accessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 // 401 giữa chừng: làm mới token (chung với axiosClient) rồi gửi lại một lần; vẫn 401 thì call() báo hết phiên
 raw.interceptors.response.use(undefined, async (error) => {
   if (error.response?.status === 401 && error.config && !error.config.devRetried) {
-    const fresh = await tokenForRetry(error.config.headers?.Authorization);
+    const fresh = await retryToken(error.config.headers?.Authorization);
     if (fresh) {
       error.config.devRetried = true;
       error.config.headers.Authorization = `Bearer ${fresh}`;

@@ -5,6 +5,7 @@ import { AuthLayout } from '@/layouts/AuthLayout';
 import { useToast } from '@/contexts/ToastContext';
 import { FormField, Spinner } from '@/components';
 import { IS_OTP_DEMO, getDemoOtp, resendOtp, verifyOtp } from '@/services/account/accountService';
+import { getOtpRequest, setOtpRequest, clearOtpRequest, setPasswordChallenge } from '@/services/authChallengeStore';
 import { validateOtp } from '@/utils/account/accountValidation';
 import { OTP_LENGTH } from '@/models/account/accountConstants';
 import { formatCountdown, useSecondsLeft } from '@/hooks/account/useAccount';
@@ -28,7 +29,7 @@ function DemoOtpHint({ requestId, version }) {
         <b>Mã OTP demo</b>
         <code className="ac-demo-otp">{code}</code>
       </div>
-      <div className="muted text-sm mt-8">Chỉ hiện khi VITE_USE_MOCK=true. Bản thật gửi mã qua email.</div>
+      <div className="muted text-sm mt-8">Chỉ hiện khi VITE_AUTH_MODE=mock. Bản thật gửi mã qua email.</div>
     </div>
   );
 }
@@ -38,7 +39,7 @@ export default function VerifyOtpPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
-  const [request, setRequest] = useState(location.state?.request || null);
+  const [request, setRequest] = useState(() => getOtpRequest());
   const email = location.state?.email || '';
   const [otp, setOtp] = useState('');
   const [errors, setErrors] = useState({});
@@ -51,8 +52,16 @@ export default function VerifyOtpPage() {
   const expired = !!request && expiresIn === 0;
 
   const handleError = (err) => {
-    if (err.status === 410) setGone(err.message);
-    else setErrors({ otp: err.details?.otp || err.message || 'Chưa xác thực được mã. Vui lòng thử lại.' });
+    if ([404, 410].includes(err.status)) {
+      clearOtpRequest();
+      setGone('Yêu cầu khôi phục không còn hiệu lực. Vui lòng bắt đầu lại.');
+    } else
+      setErrors({
+        otp:
+          err.details?.otp ||
+          (err.status === 409 ? 'Yêu cầu đã hết lượt xác thực hoặc đang chờ gửi lại. Hãy chờ hoặc bắt đầu lại.' : err.message) ||
+          'Chưa xác thực được mã. Vui lòng thử lại.',
+      });
   };
 
   const submit = async (event) => {
@@ -63,7 +72,9 @@ export default function VerifyOtpPage() {
     setBusy(true);
     try {
       const { resetToken } = await verifyOtp({ requestId: request.requestId, otp: otp.trim() });
-      navigate('/reset-password', { replace: true, state: { token: resetToken, mode: 'reset', email } });
+      setPasswordChallenge({ token: resetToken, mode: 'reset', email });
+      clearOtpRequest();
+      navigate('/reset-password', { replace: true, state: { mode: 'reset', email } });
     } catch (err) {
       handleError(err);
       setOtp('');
@@ -77,13 +88,20 @@ export default function VerifyOtpPage() {
     setErrors({});
     try {
       const next = await resendOtp(request.requestId);
+      setOtpRequest(next);
       setRequest(next);
       setVersion((v) => v + 1);
       setOtp('');
-      toast.success(`Đã gửi mã mới tới ${next.maskedDestination}`);
+      toast.success('Nếu tài khoản hợp lệ, mã mới sẽ được gửi tới email đã đăng ký.');
     } catch (err) {
-      if (err.status === 410) setGone(err.message);
-      else toast.error(err, 'Chưa gửi lại được mã');
+      if ([404, 410].includes(err.status)) {
+        clearOtpRequest();
+        setGone('Yêu cầu khôi phục không còn hiệu lực. Vui lòng bắt đầu lại.');
+      } else
+        toast.error(
+          err.status === 409 ? 'Chưa thể gửi lại mã. Hãy chờ hết thời gian hoặc bắt đầu lại nếu đã hết lượt.' : err,
+          'Chưa gửi lại được mã',
+        );
     } finally {
       setResending(false);
     }
@@ -111,14 +129,14 @@ export default function VerifyOtpPage() {
   return (
     <AuthLayout
       title="Xác thực OTP"
-      subtitle="Nhập mã gồm 6 chữ số đã gửi tới email của bạn."
+      subtitle="Nếu tài khoản hợp lệ, nhập mã gồm 6 chữ số được gửi tới email đã đăng ký."
       footer={IS_OTP_DEMO ? <DemoOtpHint requestId={request.requestId} version={version} /> : null}
     >
       <form className="auth-form" onSubmit={submit} noValidate>
         <div className="alert alert--info">
           <MailCheck size={18} />
           <div>
-            Mã đã được gửi tới <b>{request.maskedDestination}</b>.{' '}
+            Nếu tài khoản hợp lệ, mã sẽ được gửi tới email đã đăng ký.{' '}
             {expired ? (
               <span className="text-danger fw-600">Mã đã hết hạn, vui lòng gửi lại mã mới.</span>
             ) : (
