@@ -9,6 +9,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Stepper } from '@/components/ui/Stepper';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { DateInput } from '@/components/form/DateInput';
 import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
@@ -21,6 +22,7 @@ import AgeGroupsClassesPage from '@/pages/school-config/AgeGroupsClassesPage';
 import TeacherAssignmentPage from '@/pages/school-config/TeacherAssignmentPage';
 import { copyYear, saveSchoolYear, saveSemester } from '@/services/school-config/schoolConfigService';
 import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
+import { formatDate } from '@/utils/format';
 import { canConfigureSchool } from '@/utils/school-config/schoolConfigPermissions';
 import {
   SEMESTER_FIELDS,
@@ -74,12 +76,13 @@ function InfoStep({ year, years, user, onSaved }) {
     () => (planned ? copySourcesFor(years, { id: year?.id ?? null, startDate: form.startDate }) : []),
     [planned, years, year?.id, form.startDate],
   );
-  // Năm mới: mặc định chép từ năm gần nhất; năm đã tạo (quay lại bước 1) thì mặc định không chép lại
-  const [sourceId, setSourceId] = useState(() => (year ? NO_COPY : sources[0]?.id || NO_COPY));
+  // Không tự bật sao chép: người dùng chọn năm nguồn nếu muốn (QA 31/10/2026)
+  const [sourceId, setSourceId] = useState(NO_COPY);
   const [parts, setParts] = useState(() => new Set(COPY_PARTS.map((p) => p.key)));
   const [semesterTouched, setSemesterTouched] = useState(!!year?.semester1Start);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const source = sources.find((y) => y.id === sourceId) || null;
 
   // Học kỳ điền sẵn (theo năm nguồn, không có thì theo ngày bắt đầu/kết thúc năm học) cho tới khi người dùng tự sửa
@@ -117,10 +120,17 @@ function InfoStep({ year, years, user, onSaved }) {
     setErrors(({ parts: _p, ...rest }) => rest);
   };
 
-  const submit = async () => {
+  // Tạo năm mới hoặc sao chép là thao tác ghi lớn: hỏi xác nhận kèm tóm tắt trước khi gọi BE
+  const submit = () => {
     const e = validate();
     setErrors(e);
     if (hasErrors(e)) return;
+    if (!year || (source && parts.size)) setConfirming(true);
+    else save();
+  };
+
+  const save = async () => {
+    setConfirming(false);
     setSaving(true);
     try {
       const changed = !year || form.name !== year.name || form.startDate !== year.startDate || form.endDate !== year.endDate;
@@ -233,6 +243,32 @@ function InfoStep({ year, years, user, onSaved }) {
           )}
         </section>
       )}
+
+      <ConfirmationModal
+        open={confirming}
+        title={year ? `Xác nhận sao chép vào năm học ${form.name}` : `Xác nhận tạo năm học ${form.name}`}
+        confirmLabel={year ? 'Sao chép' : 'Tạo năm học'}
+        onConfirm={save}
+        onClose={() => setConfirming(false)}
+      >
+        <ul className="sc-setup__confirm">
+          {!year && (
+            <li>
+              Năm học <b>{form.name}</b>: {formatDate(form.startDate)} – {formatDate(form.endDate)}
+            </li>
+          )}
+          {source && parts.size ? (
+            <li>
+              Sao chép từ <b>{source.name}</b>:{' '}
+              {COPY_PARTS.filter((p) => parts.has(p.key))
+                .map((p) => p.label)
+                .join(', ')}
+            </li>
+          ) : (
+            <li>Không sao chép, nhập từ đầu</li>
+          )}
+        </ul>
+      </ConfirmationModal>
 
       <div className="page-actions">
         <Link className="btn wizard-actions__back" to="/school/years">
