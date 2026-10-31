@@ -158,3 +158,26 @@ export const getTeamLeaderHistory = (ageGroupId, schoolYear, user) => repo.getTe
 
 export const getRolePermissions = (user) => repo.getRolePermissions(user);
 export const saveRolePermissions = (role, payload, user) => repo.saveRolePermissions(role, payload, user);
+
+/*
+ * Tài khoản nhân sự trên BE thật (API tài khoản của dev, G94-60): danh sách phân trang theo phạm vi người xem, tạo kèm
+ * phân công, khóa / mở, cấp lại mật khẩu tạm. BE chưa có API sửa hồ sơ / đổi vai trò nên màn không cho làm hai việc đó.
+ */
+export const STAFF_ACCOUNTS_ON_BE = SCHOOL_CONFIG_API;
+export const searchStaffAccounts = ({ role, status, campusId, q, page = 0, size = 10 } = {}) =>
+  beClient.get('/accounts', {
+    params: { role: role || undefined, status: status || undefined, campusId: campusId || undefined, q: q || undefined, page, size },
+  });
+/** Toàn bộ tài khoản trong phạm vi (xuất Excel, kiểm trùng khi nhập): đọc lần lượt từng trang 100. */
+export const listAllStaffAccounts = async (filters = {}) => {
+  const all = [];
+  for (let page = 0; page < 50; page += 1) {
+    const res = await searchStaffAccounts({ ...filters, page, size: 100 });
+    all.push(...(res?.items || []));
+    if (page + 1 >= (res?.totalPages || 0)) break;
+  }
+  return all;
+};
+export const createStaffAccount = (payload) => beClient.post('/accounts', payload);
+export const setStaffAccountStatus = (id, status) => beClient.patch(`/accounts/${id}/status`, { status });
+export const resetStaffPassword = (id, temporaryPassword) => beClient.post(`/accounts/${id}/temporary-password`, { temporaryPassword });

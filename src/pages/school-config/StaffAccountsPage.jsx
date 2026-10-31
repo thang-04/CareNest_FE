@@ -21,6 +21,8 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 
 const STAFF_PAGE_SIZE = 10;
 import { YearReadOnlyNotice } from '@/components/school-config/YearReadOnlyNotice';
+import { StaffAccountsBeView } from '@/components/school-config/StaffAccountsBeView';
+import { STAFF_ACCOUNTS_ON_BE } from '@/services/school-config/schoolConfigService';
 import '@/styles/modules/school-config.css';
 
 const ROLE_FILTERS = [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.TEACHER, ROLES.KITCHEN_STAFF];
@@ -30,7 +32,12 @@ const roleOf = (u) => (u.role === ROLES.TEAM_LEADER ? ROLES.TEACHER : u.role);
  * Staff accounts (PROPOSED 10/10/2026; SRS 4.4 "User account – Create / Edit / Deactivate: Principal ⁸", to confirm).
  * Changing role or campus ends the old assignments of open school years immediately (history kept).
  */
+/** Nối BE thật (VITE_SCHOOL_CONFIG_API / gateway) thì dùng API tài khoản của dev; còn lại giữ bản demo. */
 export default function StaffAccountsPage() {
+  return STAFF_ACCOUNTS_ON_BE ? <StaffAccountsBeView tabs={<PeopleTabs embedded />} /> : <StaffAccountsMockView />;
+}
+
+function StaffAccountsMockView() {
   const { user } = useAuth();
   const md = useMasterData();
   const { accounts, loading, error, reload } = useStaffAccounts();

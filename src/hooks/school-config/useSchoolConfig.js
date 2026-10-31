@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import {
+  searchStaffAccounts,
   getCampusDetail,
   getCampusesWithStats,
   getCutoffSetting,
@@ -137,4 +138,14 @@ export function usePlacements(yearId, { live = true } = {}) {
     enabled: !!yearId,
   });
   return { plan: data, loading: !!yearId && loading, error, reload };
+}
+
+/** Tài khoản nhân sự trên BE: 1 trang 10 dòng theo bộ lọc (page bắt đầu từ 1). */
+export function useStaffAccountPage(filters, page) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(
+    () => searchStaffAccounts({ ...filters, page: page - 1, size: 10 }),
+    [user?.id, filters.role, filters.status, filters.campusId, filters.q, page],
+  );
+  return { data, loading, error, reload };
 }
