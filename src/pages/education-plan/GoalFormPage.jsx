@@ -417,11 +417,13 @@ export default function GoalFormPage() {
       handingOff.current = true;
       const handoff = crypto.randomUUID();
       editHandoffs.set(handoff, { id: lockId, sessionId: editRef.current.sessionId });
-      navigate(`/education/goals/${lockId}/edit`, { replace: true, state: { yearPlanHandoff: handoff } });
+      navigate(`/education/goals/${lockId}/edit`, { replace: true, state: { yearPlanHandoff: handoff, backTo: location.state?.backTo } });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, lockId, saver.unsaved]);
   const guard = useLeaveGuard({ when: saver.unsaved && !finished.current, onSave: saver.save });
+  // Rời màn soạn không để lại mục lịch sử: về đúng trang đã mở màn soạn thì lùi lại, trang khác thì thay chỗ (Back từ chi tiết ra danh sách)
+  const exitArgs = (to) => (location.state?.backTo === to ? [-1] : [to, { replace: true }]);
   const switchTab = (nextTab) => {
     if (nextTab !== tab) {
       setTab(nextTab);
@@ -482,7 +484,7 @@ export default function GoalFormPage() {
     }
     saver.clearRecovery();
     toast(action === 'submit' ? 'Đã gửi Phó hiệu trưởng duyệt' : 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
-    guard.leaveNow(`/education/goals/${saved.id}`);
+    guard.leaveNow(...exitArgs(`/education/goals/${saved.id}`));
     return saved;
   };
 
@@ -909,7 +911,7 @@ export default function GoalFormPage() {
         <button
           type="button"
           className="btn"
-          onClick={() => guard.leave(goals.some((g) => g.id === form.id) ? `/education/goals/${form.id}` : '/education/goals')}
+          onClick={() => guard.leave(...exitArgs(goals.some((g) => g.id === form.id) ? `/education/goals/${form.id}` : '/education/goals'))}
         >
           Đóng
         </button>

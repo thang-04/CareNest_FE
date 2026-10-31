@@ -199,7 +199,20 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
       const on = !!c && c.themes.includes(t.id);
       const abbr = themeAbbr(t);
       return (
-        <td key={t.id} className="center">
+        <td
+          key={t.id}
+          className={c && edit ? 'center ga-theme-tick-cell' : 'center'}
+          // Ô cao theo hàng: bấm phần trống dưới nút cũng tick (bàn phím vẫn dùng nút)
+          onClick={
+            c && edit
+              ? (e) => {
+                  if (e.target !== e.currentTarget) return;
+                  e.currentTarget.querySelector('button')?.focus();
+                  toggleTick(di, r, c, t.id);
+                }
+              : undefined
+          }
+        >
           {c && edit ? (
             <button
               type="button"

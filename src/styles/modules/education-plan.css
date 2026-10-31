@@ -1407,6 +1407,9 @@ h2.ga-cur-domain__head {
   align-items: center;
 }
 /* Ô tích chủ đề trong thân bảng mục tiêu (cột hẹp): lề hẹp, viết tắt không ngắt từng chữ như "M/N", "Đ/C/a" (Tiền 31/10) */
+.table.ga-goal-table td.ga-theme-tick-cell {
+  cursor: pointer;
+}
 .table.ga-goal-table td .ga-theme-tick {
   padding-left: var(--space-1);
   padding-right: var(--space-1);

@@ -94,6 +94,17 @@ test('ST-01 kế hoạch năm: sửa không tự ghi lên hệ thống, chỉ Ct
     await tick.click();
     await expect(tick).toHaveAttribute('aria-pressed', 'false');
   }
+  // Ô cao (nội dung dài cùng hàng): bấm sát đáy ô, dưới nút, vẫn tích/bỏ tích (Tiền 31/10)
+  const tickCell = page.locator('td.ga-theme-tick-cell').first();
+  await tickCell.evaluate((td) => (td.parentElement.style.height = '160px'));
+  const box = await tickCell.boundingBox();
+  const before = await tick.getAttribute('aria-pressed');
+  const after = before === 'true' ? 'false' : 'true';
+  await tickCell.click({ position: { x: box.width / 2, y: box.height - 6 } });
+  await expect(tick).toHaveAttribute('aria-pressed', after);
+  await expect(tick).toBeFocused();
+  await tickCell.click({ position: { x: box.width / 2, y: box.height - 6 } });
+  await expect(tick).toHaveAttribute('aria-pressed', before);
   await expect(page.getByRole('button', { name: 'Nhập file' })).toBeVisible();
   await page.getByRole('button', { name: /Xác nhận/ }).click();
   await expect(exportButtons).toHaveCount(1);
@@ -143,6 +154,34 @@ test('ST-01b điện thoại: nút "Lấy mục tiêu" mở danh sách 3 cách l
   await page.getByRole('dialog').getByRole('button', { name: 'Hủy', exact: true }).click();
   await leave(page);
   await ctx.close();
+});
+
+test('ST-01c danh sách → chi tiết → Chỉnh sửa → Đóng: nút Back của trình duyệt về danh sách, không vào lại màn soạn (Tiền 31/10)', async ({
+  page,
+}) => {
+  await login(page, USERS.teacher1);
+  await pickYear(page, E2E.schoolYear);
+  await spaGo(page, '/education/goals');
+  await page.locator('tr.row-click').filter({ hasText: E2E.titlePrefix }).first().click();
+  await page.waitForURL(`**/education/goals/${planId}`);
+  await page.getByRole('link', { name: /Chỉnh sửa|Sửa trước khi duyệt/ }).click();
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
+  await page.goBack();
+  await page.waitForURL((u) => u.pathname === '/education/goals');
+  await expect(page.locator('#desc')).toHaveCount(0);
+  // Có thay đổi chưa lưu: Đóng → Không lưu cũng không để lại mục lịch sử của màn soạn
+  await page.locator('tr.row-click').filter({ hasText: E2E.titlePrefix }).first().click();
+  await page.getByRole('link', { name: /Chỉnh sửa|Sửa trước khi duyệt/ }).click();
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.locator('#desc').fill('Sửa rồi bỏ (ST-01c)');
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' }).getByRole('button', { name: 'Không lưu' }).click();
+  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
+  await page.goBack();
+  await page.waitForURL((u) => u.pathname === '/education/goals');
+  await leave(page);
 });
 
 test('ST-02 rời màn khi chưa lưu: hỏi Hủy · Không lưu · Lưu; Không lưu xóa bản giữ ẩn', async ({ page }) => {

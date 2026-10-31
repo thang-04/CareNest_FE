@@ -98,7 +98,7 @@ export default function GoalDetailPage() {
     setModal(null);
     if (plan) {
       toast(`Đã tạo ${plan.code}. Sửa rồi gửi / ban hành như kế hoạch mới.`);
-      navigate(`/education/goals/${plan.id}/edit`);
+      navigate(`/education/goals/${plan.id}/edit`, { state: { backTo: `/education/goals/${g.id}` } });
     }
   };
 
@@ -150,7 +150,11 @@ export default function GoalDetailPage() {
               </button>
             )}
             {canEditNow && (
-              <Link className="btn btn--outline-primary" to={`/education/goals/${g.id}/edit`}>
+              <Link
+                className="btn btn--outline-primary"
+                to={`/education/goals/${g.id}/edit`}
+                state={{ backTo: `/education/goals/${g.id}` }}
+              >
                 <Pencil size={16} aria-hidden /> {pending ? 'Sửa trước khi duyệt' : 'Chỉnh sửa'}
               </Link>
             )}
