@@ -152,6 +152,11 @@ test('ST-01b điện thoại: nút "Lấy mục tiêu" mở danh sách 3 cách l
   await expect(page.getByRole('dialog', { name: 'Lấy mục tiêu từ kế hoạch có sẵn' })).toBeVisible();
   await expect(page.getByText('Hệ thống gặp sự cố')).toHaveCount(0);
   await page.getByRole('dialog').getByRole('button', { name: 'Hủy', exact: true }).click();
+  // Nhập file (BE:EDU-46) mở hộp xem trước, không mở thẳng ô chọn file
+  await page.getByRole('button', { name: 'Lấy mục tiêu' }).click();
+  await page.getByRole('menuitem', { name: 'Nhập file' }).click();
+  await expect(page.getByRole('dialog', { name: 'Nhập file mục tiêu' })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Hủy', exact: true }).click();
   await leave(page);
   await ctx.close();
 });

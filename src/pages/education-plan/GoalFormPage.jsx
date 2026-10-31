@@ -23,14 +23,14 @@ import {
   goalIdsToTicks,
   isBlankBreak,
   isBlankTheme,
-  nestUnderFirstSub,
   numberGoals,
   themeScheduleIssue,
   toRows,
 } from '@/models/education-plan/goalTable';
 import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
-import { parseGoalsCsv } from '@/utils/education-plan/goalCsv';
+import { mergeFileGoals } from '@/models/education-plan/importGoalFile.mjs';
+import { ImportGoalFileModal } from '@/components/education-plan/ImportGoalFileModal';
 import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
 import ImportThemesModal from '@/components/education-plan/ImportThemesModal';
 import { mergeImportedThemes } from '@/models/education-plan/importThemes.mjs';
@@ -123,7 +123,7 @@ export default function GoalFormPage() {
   const [importingThemes, setImportingThemes] = useState(false);
   const [ministryOpen, setMinistryOpen] = useState(false);
   const [importReport, setImportReport] = useState(null);
-  const fileRef = useRef(null);
+  const [fileOpen, setFileOpen] = useState(false);
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -490,42 +490,19 @@ export default function GoalFormPage() {
 
   /* ---------- Nhập dữ liệu ---------- */
 
-  const abbrToId = (themes) => Object.fromEntries(themes.map((t) => [t.abbr.trim().toLowerCase(), t.id]));
-
-  // Nhập file CSV (mẫu giống file xuất): thêm các hàng chưa có; cột chủ đề khớp theo tên viết tắt ở phần B.
-  const importCsv = async (file) => {
-    if (!file) return;
-    const { domains: parsed, skipped } = parseGoalsCsv(await file.text());
-    const ids = abbrToId(themes);
-    const toIds = (abbrs) => abbrs.map((a) => ids[a.toLowerCase()]).filter(Boolean);
-    let added = 0;
-    const nextDomains = form.domains.map((d) => {
-      const src = parsed.find((p) => p.domain === d.name);
-      if (!src) return d;
-      const fresh = src.rows
-        .filter((r) => !d.rows.some((x) => x.kind === r.kind && x.text.trim().toLowerCase() === r.text.toLowerCase()))
-        .map((r) =>
-          r.kind === 'goal'
-            ? {
-                id: uid(),
-                kind: 'goal',
-                text: r.text,
-                contents: r.contents.map((c) => ({ id: uid(), text: c.text, themes: toIds(c.themes) })),
-              }
-            : { id: uid(), kind: r.kind, text: r.text },
-        );
-      added += fresh.filter((r) => r.kind === 'goal').length;
-      const kept = d.rows.filter((r) => r.text.trim() || r.kind !== 'goal' || r.contents.length);
-      return { ...d, rows: nestUnderFirstSub([...kept, ...fresh]) };
-    });
-    set({ domains: nextDomains });
-    if (fileRef.current) fileRef.current.value = '';
-    const skipNote = skipped ? `. Bỏ qua ${skipped} dòng không hợp lệ` : '';
-    toast(added ? `Đã nhập ${added} mục tiêu từ file${skipNote}` : 'File không có mục tiêu mới để thêm', skipped ? 'warn' : 'ok');
-  };
-
   const importState = useRef(null);
   importState.current = { form, allowed: canEdit && leaseReady && !saver.recovery && !finishing && !leaseError };
+  // BE:EDU-46 — bản xem trước của file: bổ sung như EDU-24, giữ dấu tích khớp viết tắt chủ đề đang có
+  const importFile = (preview) => {
+    const current = importState.current;
+    if (!current.allowed) return false;
+    const { domains, report } = mergeFileGoals(current.form, preview, () => `file-${uid()}`);
+    if (report.added) set({ domains });
+    const skipped = report.duplicates ? ` · bỏ qua ${report.duplicates} mục tiêu trùng` : '';
+    const unavailable = report.unavailable.length ? ` · ${report.unavailable.length} mục tiêu chưa thêm được` : '';
+    toast(`Đã thêm ${report.added} mục tiêu từ file${skipped}${unavailable}`, report.added ? 'ok' : 'warn');
+    return true;
+  };
   const importGoals = ({ source, selectedGoalIds }) => {
     const current = importState.current;
     if (!current.allowed) return false;
@@ -680,7 +657,7 @@ export default function GoalFormPage() {
                         icon={<Download size={16} aria-hidden />}
                         className="btn btn--sm btn--outline-primary"
                         items={[
-                          { label: 'Nhập file', icon: Upload, onClick: () => fileRef.current?.click() },
+                          { label: 'Nhập file', icon: Upload, onClick: () => setFileOpen(true) },
                           { label: 'Lấy từ kế hoạch có sẵn', icon: Download, onClick: () => setImporting(true) },
                           {
                             label: 'Lấy từ Chương trình của Bộ',
@@ -692,18 +669,10 @@ export default function GoalFormPage() {
                       />
                     )}
                     {!phone && (
-                      <button type="button" className="btn btn--sm btn--ghost" onClick={() => fileRef.current?.click()}>
+                      <button type="button" className="btn btn--sm btn--ghost" onClick={() => setFileOpen(true)}>
                         <Upload size={16} aria-hidden /> Nhập file
                       </button>
                     )}
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept=".csv,text/csv"
-                      hidden
-                      aria-label="Chọn file CSV kế hoạch năm học"
-                      onChange={(e) => importCsv(e.target.files?.[0])}
-                    />
                     {!phone && (
                       <>
                         <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
@@ -851,6 +820,8 @@ export default function GoalFormPage() {
             onImport={importThemes}
           />
         )}
+
+        {fileOpen && <ImportGoalFileModal themes={themes} onImport={importFile} onClose={() => setFileOpen(false)} />}
 
         {importing && (
           <ImportGoalsModal

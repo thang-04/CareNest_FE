@@ -1,5 +1,6 @@
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { eduError } from './eduMockErrors';
+import { parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { ROLES } from '@/models/User';
@@ -188,6 +189,18 @@ const copyPlan = (source, user, versionNo, code) => {
 };
 
 export const educationPlanMockRepository = {
+  // BE giả cho BE:EDU-46: chỉ đọc CSV mẫu cũ (Word/Excel cần BE thật)
+  async previewGoalFile(file) {
+    await delay();
+    if (!/\.csv$/i.test(file?.name || '')) throw eduError('GOAL_FILE_UNSUPPORTED');
+    const { domains, skipped } = parseGoalsCsv(await file.text());
+    const themeAbbrs = [...new Set(domains.flatMap((d) => d.rows.flatMap((r) => (r.contents || []).flatMap((c) => c.themes))))];
+    return {
+      domains: domains.map((d) => ({ name: d.domain, rows: d.rows })),
+      themeAbbrs,
+      warnings: skipped ? [{ row: 0, message: `Bỏ qua ${skipped} dòng không hợp lệ` }] : [],
+    };
+  },
   async createGoalVersion(id, user) {
     await delay();
     return writeDb((db) => {
