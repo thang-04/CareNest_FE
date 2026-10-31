@@ -179,6 +179,7 @@ test('BE: tổng quan ghép tên điểm trường / nhóm tuổi (BE trả name
     campusId: undefined,
     ageGroupId: undefined,
     classId: undefined,
+    date: undefined,
   });
   assert.equal(o.campuses[0].name, 'Điểm chính');
   assert.equal(o.ageGroups[0].name, 'Mẫu giáo nhỡ');

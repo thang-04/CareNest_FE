@@ -330,7 +330,7 @@ export default function ClassAssessmentOverviewPage() {
                       <th className="num">Đã đánh giá</th>
                       <th>{multiDay ? 'Nhận xét chung mới nhất' : 'Nhận xét chung hôm nay'}</th>
                       <th className="num">Cập nhật</th>
-                      <th className="num">Thao tác</th>
+                      <th className="cell--actions">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -362,7 +362,7 @@ export default function ClassAssessmentOverviewPage() {
                               )}
                             </td>
                             <td className="num">{timeOf(latest?.updatedAt, multiDay)}</td>
-                            <td className="num">
+                            <td className="cell--actions">
                               <button
                                 type="button"
                                 className="btn btn--sm btn--outline-primary"
