@@ -28,7 +28,7 @@ test('bảng điểm danh từ BE: nhãn sức khỏe theo lần ghi nhận mớ
             checked: true,
             entryCount: 2,
             observation: 'NOTED',
-            temperature: 39.0,
+            temperature: 40.0,
             temperatureLevel: 'VERY_HIGH',
             symptoms: ['FEVER'],
             note: '',
@@ -45,7 +45,7 @@ test('bảng điểm danh từ BE: nhãn sức khỏe theo lần ghi nhận mớ
   assert.equal(fever.healthSummary.checked, true);
   assert.equal(fever.healthSummary.flagged, true);
   assert.equal(fever.healthSummary.reminder, null);
-  assert.equal(healthFlag(fever.healthSummary.latest), `${(39).toLocaleString('vi-VN')} °C · Sốt rất cao`);
+  assert.equal(healthFlag(fever.healthSummary.latest), `${(40).toLocaleString('vi-VN')} °C · Sốt rất cao`);
   assert.equal(sheet.receptionStats.noted, 1);
 
   // Chưa khám: BE trả checked = false; trang chỉ ẩn nhãn khi trẻ đã lưu Vắng
@@ -60,9 +60,9 @@ test('bảng điểm danh từ BE: nhãn sức khỏe theo lần ghi nhận mớ
 
 test('nhãn ngắn: mức thân nhiệt khác bình thường ghi tên mức, Có dấu hiệu mà thân nhiệt bình thường ghi "Cần chú ý"', () => {
   const c = (t) => `${t.toLocaleString('vi-VN')} °C`;
-  assert.equal(healthFlag({ observation: 'NOTED', temperature: 38.2, symptoms: [] }), `${c(38.2)} · Sốt`);
+  assert.equal(healthFlag({ observation: 'NOTED', temperature: 38.2, symptoms: [] }), `${c(38.2)} · Sốt vừa`);
   assert.equal(healthFlag({ observation: 'NO_CONCERN', temperature: 37.6, symptoms: [] }), `${c(37.6)} · Sốt nhẹ`);
-  assert.equal(healthFlag({ observation: 'NO_CONCERN', temperature: 38.6, symptoms: [] }), `${c(38.6)} · Sốt cao`);
+  assert.equal(healthFlag({ observation: 'NO_CONCERN', temperature: 39.2, symptoms: [] }), `${c(39.2)} · Sốt cao`);
   assert.equal(healthFlag({ observation: 'NO_CONCERN', temperature: 35.2, symptoms: [] }), `${c(35.2)} · Thân nhiệt thấp`);
   assert.equal(healthFlag({ observation: 'NOTED', temperature: 36.8, symptoms: ['COUGH'] }), `${c(36.8)} · Cần chú ý`);
   assert.equal(healthFlag({ observation: 'NOTED', temperature: null, symptoms: ['COUGH'] }), 'Cần chú ý');
