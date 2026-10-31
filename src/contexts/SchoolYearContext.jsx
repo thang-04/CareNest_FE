@@ -2,12 +2,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { DEFAULT_SCHOOL_YEAR, SCHOOL_YEARS } from '@/config/app';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSchoolYears } from '@/services/school-config/schoolConfigService';
+import { readPickedSchoolYear, savePickedSchoolYear } from '@/services/school-config/schoolYearPick';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 
 const SchoolYearContext = createContext(null);
 
 // Nhãn trạng thái cạnh năm học ở header: biết ngay năm đang xem còn sửa được hay chỉ xem
 const STATUS_LABELS = { ACTIVE: 'Đang hoạt động', PLANNED: 'Sắp diễn ra', CLOSED: 'Đã kết thúc' };
+
+// Năm tự chọn giữ qua F5 trong cùng tab, không thì tải lại trang về năm đang hoạt động và trang của năm khác
+// (vd. lớp năm sau) báo "Không tìm thấy"; tab mới vẫn theo năm đang hoạt động
+const readPicked = (user) => readPickedSchoolYear(user?.id);
+const savePicked = (user, id) => savePickedSchoolYear(user?.id, id);
 
 const toOption = (y) => ({
   id: y.id,
@@ -31,9 +37,12 @@ export function SchoolYearProvider({ children }) {
   const picked = useRef(false);
   const optionsRef = useRef(schoolYears);
   optionsRef.current = schoolYears;
+  const userRef = useRef(user);
+  userRef.current = user;
   // Ô chọn ở header trả id dạng chuỗi; giữ đúng kiểu id của danh sách năm (BE: số) để các màn so khớp được
   const setSchoolYear = useCallback((id) => {
     picked.current = true;
+    savePicked(userRef.current, id);
     setChosenYear(optionsRef.current.find((o) => String(o.id) === String(id))?.id ?? id);
   }, []);
 
@@ -51,7 +60,13 @@ export function SchoolYearProvider({ children }) {
             .filter((o) => o.status === 'PLANNED')
             .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))[0];
           const active = (options.find((o) => o.status === 'ACTIVE') || nextPlanned || options[0]).id;
-          setChosenYear((current) => (picked.current && options.some((o) => o.id === current) ? current : active));
+          // Chưa chọn trong lần mở này ⇒ lấy năm đã chọn trước F5 (nếu còn trong danh sách)
+          const saved = picked.current ? null : options.find((o) => String(o.id) === readPicked(user));
+          if (saved) picked.current = true;
+          setChosenYear((current) => {
+            if (saved) return saved.id;
+            return picked.current && options.some((o) => o.id === current) ? current : active;
+          });
         })
         .catch(() => {
           /* role without access to the configuration: keep the static list */

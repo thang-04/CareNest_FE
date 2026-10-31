@@ -2,9 +2,11 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 
 /* Ô nhập trong bảng kiểu bảng mục tiêu năm / giáo án (lớp CSS ga-cell-input, ga-cell-text trong education-plan.css). */
 
-// Ô nhập tự cao theo nội dung để đọc đủ đoạn dài, không cuộn trong ô
-const fitHeight = (el) => {
-  if (!el) return;
+// Ô nhập tự cao theo nội dung để đọc đủ đoạn dài, không cuộn trong ô: trình duyệt có `field-sizing: content`
+// (education-plan.css) thì CSS tự lo, không đo bằng JS; trình duyệt cũ mới đo
+export const NATIVE_FIT = typeof CSS !== 'undefined' && !!CSS.supports?.('field-sizing', 'content');
+export const fitHeight = (el) => {
+  if (!el || NATIVE_FIT) return;
   el.style.height = 'auto';
   el.style.height = `${el.scrollHeight}px`;
 };
@@ -15,11 +17,13 @@ export function Cell({ value, onChange, editable, label, placeholder, onKeyDown 
   // Đo lại chiều cao sau khi bảng có độ rộng thật (lần vẽ đầu cột còn hẹp nên ô bị cao) và khi đổi cỡ cửa sổ;
   // chỉ đo khi chữ đổi hoặc đổi chế độ sửa, vì trang dài có hàng trăm ô, đo mỗi lần vẽ lại sẽ giật
   useLayoutEffect(() => {
+    if (NATIVE_FIT) return undefined;
     fitHeight(ref.current);
     const id = requestAnimationFrame(() => fitHeight(ref.current));
     return () => cancelAnimationFrame(id);
   }, [value, editable]);
   useEffect(() => {
+    if (NATIVE_FIT) return undefined;
     const onResize = () => fitHeight(ref.current);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);

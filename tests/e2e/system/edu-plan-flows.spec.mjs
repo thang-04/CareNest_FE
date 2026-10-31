@@ -428,6 +428,10 @@ test('ST-07 giáo viên đặt tên chủ đề nhánh, lưu tay và gửi duy�
   await openClassPage(page, USERS.teacher2, `/education/branches/${ref.classroom}`);
   const name = page.getByPlaceholder('Nhập tên chủ đề nhánh').first();
   await expect(name).toBeEditable();
+  // F5 ở trang lớp của năm không phải năm đang hoạt động: giữ năm đã chọn, không báo "Không tìm thấy lớp" (Tiền 31/10)
+  await page.reload();
+  await expect(page.locator('header select').first()).toHaveValue(E2E.schoolYear);
+  await expect(name).toBeEditable();
   await name.fill('Bé vui đến trường (ST-07)');
   await expect(saveStatus(page)).toHaveText('Có thay đổi chưa lưu');
   await expectNoAutosaveWording(page);

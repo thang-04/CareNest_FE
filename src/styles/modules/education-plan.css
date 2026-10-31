@@ -565,6 +565,12 @@
   resize: none;
   overflow: hidden;
 }
+/* Ô chữ tự cao theo nội dung bằng CSS (Chrome/Edge 123, Safari 26.2, Firefox 152); trình duyệt cũ đo bằng JS (TableCell.jsx) */
+@supports (field-sizing: content) {
+  textarea.ga-cell-input {
+    field-sizing: content;
+  }
+}
 .ga-cell-input:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
@@ -1157,6 +1163,19 @@
 .ga-cur-filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+/* Mục tiêu đang chọn dài: 1 dòng, cắt "…" (đủ chữ ở title và danh sách thả xuống), không tràn khỏi ô (Tiền 01/11) */
+.ga-cur-filters > .field {
+  min-width: 0;
+}
+/* Không dùng base-select (components.css) cho ô này: base-select đặt chữ trong phần tử nội bộ, không cắt "…" được */
+.select.ga-cur-target:not([multiple]):not([size]) {
+  appearance: none;
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ga-cur-search {
   position: relative;

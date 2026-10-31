@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Trash2, X } from '@/components/ui/icons';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import {
@@ -22,6 +22,7 @@ import DatePickerCell from '@/components/education-plan/DatePickerCell';
 import { expectedResultsFor } from '@/models/education-plan/expectedResults';
 import { normalizeText } from '@/utils/format';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { NATIVE_FIT, fitHeight } from '@/components/ui/TableCell';
 import { moveItem } from '@/hooks/useSortableList';
 import { RenumberButton, SortButtons, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
 
@@ -44,15 +45,19 @@ const pastedLines = (e) =>
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-// Ô nhập trong bảng tự cao theo nội dung để đọc đủ câu dài, không cần cuộn trong ô.
-const fitHeight = (el) => {
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight}px`;
-};
-const cellInput = (props) => (
-  <textarea className="ga-cell-input" rows={1} ref={(el) => fitHeight(el)} onInput={(e) => fitHeight(e.target)} {...props} />
-);
+// Chỉ đo lại ô có chữ đổi (đo mọi ô mỗi lần vẽ lại = hàng trăm lần tính lại bố cục mỗi phím, bước 2 giật vài giây);
+// thêm 1 nhịp sau lần vẽ đầu vì lúc đó cột chưa có độ rộng thật
+function CellInput(props) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    if (NATIVE_FIT) return undefined;
+    fitHeight(ref.current);
+    const id = requestAnimationFrame(() => fitHeight(ref.current));
+    return () => cancelAnimationFrame(id);
+  }, [props.value]);
+  return <textarea className="ga-cell-input" rows={1} ref={ref} onInput={(e) => fitHeight(e.target)} {...props} />;
+}
+const cellInput = (props) => <CellInput {...props} />;
 
 /** Đặt con trỏ vào ô vừa tạo sau lần vẽ lại; ô trong bảng đo lại chiều cao khi đổi cỡ cửa sổ. */
 function useCellFocus() {
@@ -66,11 +71,11 @@ function useCellFocus() {
     setFocusId(null);
   }, [focusId]);
   useEffect(() => {
+    if (NATIVE_FIT) return undefined;
     const fitAll = () => document.querySelectorAll('.ga-cell-input').forEach(fitHeight);
-    fitAll();
     window.addEventListener('resize', fitAll);
     return () => window.removeEventListener('resize', fitAll);
-  });
+  }, []);
   return setFocusId;
 }
 
