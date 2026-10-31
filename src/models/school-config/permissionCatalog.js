@@ -17,7 +17,6 @@ const ROWS = [
   ],
   ['account', 'permission.manage', 'Quyền theo vai trò', 'Quản lý', 'FNNNNN', [], 'UC 2.4'],
   ['account', 'permission.assignVicePrincipal', 'Phân quyền', 'Phân công Phó hiệu trưởng', 'FNNNNN', []],
-  ['account', 'permission.assignTeacher', 'Phân quyền', 'Phân công giáo viên', 'NRNNNN', []],
   ['account', 'profile.manage', 'Hồ sơ cá nhân & mật khẩu', 'Xem / đổi', 'FFFFFF', []],
   ['account', 'notification.receive', 'Thông báo', 'Nhận', 'FFFFFF', []],
   ['schoolConfig', 'campus.manage', 'Điểm trường', 'Tạo / sửa', 'FNNNNN', []],

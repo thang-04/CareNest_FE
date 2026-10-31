@@ -17,12 +17,11 @@ import { CopyClassesModal, copySourcesFor } from '@/components/school-config/Cop
 import { ClassListSection } from '@/components/school-config/ClassListSection';
 import { deleteAgeGroup, deleteClass } from '@/services/school-config/schoolConfigService';
 import {
-  ASSIGN_TEACHER,
   canManageClasses,
   canViewSchoolStructure,
   canViewTeamLeaders,
   isPrincipal,
-  permissionAccess,
+  teacherAssignmentAccess,
 } from '@/utils/school-config/schoolConfigPermissions';
 import { classCrumbs } from '@/utils/school-config/breadcrumbs';
 import { PERMISSION_ACCESS, YEAR_STATUS, ageRangeLabel, mealSessionsLabel } from '@/models/school-config/schoolConfigConstants';
@@ -56,7 +55,7 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   // Năm học đã kết thúc: chỉ xem, ẩn Thêm / Sửa / Xóa / Sao chép (SRS 4.1.3)
   const editable = canManageClasses(year, user);
   // Nút sang màn Phân công giáo viên: theo từng quyền (phân công giáo viên / phân công tổ trưởng)
-  const canAssignTeacherArea = permissionAccess(user, ASSIGN_TEACHER).access !== PERMISSION_ACCESS.NONE;
+  const canAssignTeacherArea = teacherAssignmentAccess(user).access !== PERMISSION_ACCESS.NONE;
   const canLeaders = canViewTeamLeaders(user);
   const assignUrl = (hash = '') => `/school/teachers${yearId ? `?year=${yearId}` : ''}${hash}`;
   const principal = isPrincipal(user);

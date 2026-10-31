@@ -241,29 +241,6 @@ export const VP_AREAS = [
     manageHint: 'Lập, sửa, xóa thực đơn, món ăn, giá suất ăn',
   },
   {
-    key: 'teacherAssignment',
-    label: 'Phân công giáo viên',
-    hint: 'Xếp giáo viên vào lớp, chọn chủ nhiệm',
-    scopes: ['CAMPUS', 'ALL'],
-    code: 'permission.assignTeacher',
-    actions: ['view', 'create', 'update'],
-    actionHints: { create: 'Phân công lớp chưa có giáo viên', update: 'Đổi giáo viên, chủ nhiệm' },
-  },
-  {
-    // Tách khỏi "Phân công giáo viên" (người dùng chốt 14/10/2026): Hiệu trưởng mở cho PHT nào thì PHT đó phân công tổ trưởng.
-    // Tổ trưởng là 1 người / nhóm tuổi cho cả trường nên phạm vi luôn là toàn trường.
-    key: 'teamLeaders',
-    label: 'Phân công tổ trưởng nhóm tuổi',
-    hint: 'Chọn 1 tổ trưởng cho mỗi nhóm tuổi (toàn trường)',
-    scopes: ['ALL'],
-    actions: AREA_ACTIONS,
-    actionHints: {
-      create: 'Chọn tổ trưởng cho nhóm chưa có người',
-      update: 'Đổi tổ trưởng',
-      delete: 'Gỡ tổ trưởng nhóm tuổi',
-    },
-  },
-  {
     key: 'facility',
     label: 'Cơ sở vật chất',
     hint: 'Sự cố, yêu cầu, đề xuất, luân chuyển, kiểm kê',

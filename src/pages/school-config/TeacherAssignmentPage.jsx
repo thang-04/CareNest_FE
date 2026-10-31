@@ -20,12 +20,11 @@ import { AssignmentHistoryModal } from '@/components/school-config/AssignmentHis
 import { TEACHERS_PER_CLASS, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { ROLES } from '@/models/User';
 import {
-  ASSIGN_TEACHER,
   canAssignClass,
   canAssignTeachers,
   canViewTeacherAssignments,
   canViewTeamLeaders,
-  permissionAccess,
+  teacherAssignmentAccess,
   teamLeaderActions,
 } from '@/utils/school-config/schoolConfigPermissions';
 import { teacherCrumbs } from '@/utils/school-config/breadcrumbs';
@@ -99,7 +98,7 @@ export default function TeacherAssignmentPage() {
   const md = useMasterData();
   const [params, setParams] = useSearchParams();
   const yearId = useConfigYear();
-  const access = permissionAccess(user, ASSIGN_TEACHER);
+  const access = teacherAssignmentAccess(user);
   const fullScope = access.scope === 'ALL';
   // Phạm vi toàn trường: chọn "Toàn trường" (mặc định của Hiệu trưởng, ?campus=all) hoặc 1 điểm trường;
   // phạm vi điểm trường: đúng điểm trường được giao (có thể khác điểm trường của PHT)
