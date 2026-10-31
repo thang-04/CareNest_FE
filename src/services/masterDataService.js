@@ -32,13 +32,22 @@ const roomsRepo = SCHOOL_CONFIG_API
 // Dev nối thử: điểm trường, phòng lấy từ BE để màn Phòng ban/Cấu hình trường dùng đúng id BE (module mock khác sẽ thấy id mới)
 export const getCampuses = () => (SCHOOL_CONFIG_API ? beClient.get('/campuses') : repo.getCampuses());
 export const getLocations = () => (SCHOOL_CONFIG_API ? beClient.get('/locations') : repo.getLocations());
+// Năm để đọc danh sách GV: năm đang hoạt động, chưa có thì năm sắp tới (BE không nhận năm nào ⇒ 404 khi chưa kích hoạt)
+const teacherListYear = (years) => years.find((y) => y.status === 'ACTIVE') || years.find((y) => y.status === 'PLANNED') || null;
+
 // Dev nối thử: thêm giáo viên từ BE (id số) vào danh sách user mock để màn phân công/lớp hiện tên
 export const getUsers = () =>
   SCHOOL_CONFIG_API
     ? Promise.all([
         repo.getUsers(),
-        // Không có năm đang hoạt động (vd. vừa kết thúc năm học) thì BE trả 404: vẫn dùng danh sách mock, không làm hỏng dữ liệu nền
-        beClient.get('/teacher-assignments', { params: { campusId: 'all' } }).catch(() => ({ teachers: [] })),
+        // Không có năm mở (vd. mới kết thúc năm học) thì BE báo lỗi: vẫn dùng danh sách mock, không làm hỏng dữ liệu nền
+        beClient
+          .get('/school-years')
+          .then((years) => {
+            const year = teacherListYear(years || []);
+            return year ? beClient.get('/teacher-assignments', { params: { schoolYearId: year.id, campusId: 'all' } }) : { teachers: [] };
+          })
+          .catch(() => ({ teachers: [] })),
       ]).then(([users, { teachers }]) => [...users, ...teachers.map((t) => ({ ...t, role: 'TEACHER', status: 'ACTIVE' }))])
     : repo.getUsers();
 export const getAssetCategories = () => repo.getAssetCategories();
