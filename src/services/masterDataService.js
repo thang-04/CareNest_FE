@@ -39,7 +39,10 @@ const readsTeachersFromBe = (user) =>
 export const getCampuses = (user) => (SCHOOL_CONFIG_API && readsOrgFromBe(user) ? beClient.get('/campuses') : repo.getCampuses());
 export const getLocations = (user) => (SCHOOL_CONFIG_API && readsOrgFromBe(user) ? beClient.get('/locations') : repo.getLocations());
 // Năm để đọc danh sách GV: năm đang hoạt động, chưa có thì năm sắp tới (BE không nhận năm nào ⇒ 404 khi chưa kích hoạt)
-const teacherListYear = (years) => years.find((y) => y.status === 'ACTIVE') || years.find((y) => y.status === 'PLANNED') || null;
+const teacherListYear = (years) =>
+  years.find((y) => y.status === 'ACTIVE') ||
+  [...years].filter((y) => y.status === 'PLANNED').sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))[0] ||
+  null;
 
 // Dev nối thử: thêm giáo viên từ BE (id số) vào danh sách user mock để màn phân công/lớp hiện tên
 export const getUsers = (user) =>
