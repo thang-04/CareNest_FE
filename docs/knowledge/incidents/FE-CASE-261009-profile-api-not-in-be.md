@@ -4,7 +4,7 @@ type: case
 screens: [account/profile]
 be_modules: [identity-access]
 rules: []
-status: open
+status: workaround
 date: 2026-10-09
 keywords: [hồ sơ cá nhân, ProfilePage, /me/profile, /accounts/me, MyAccountResponse, assignments, username, contract]
 similar_to: []
@@ -32,8 +32,12 @@ FE dựng màn theo SRS 1.5 trước khi BE có API hồ sơ; BE chưa có trư�
 
 ## Fix
 
-Chưa. Cần thống nhất với BE: (a) thêm API đọc/sửa hồ sơ nhân sự, hoặc (b) FE đọc `GET /accounts/me` và tra tên điểm trường/lớp từ id. Mock đã trả `assignments` cùng dạng `StaffAssignmentSummaryResponse` (staffRole theo enum BE) kèm tên để hiển thị. Đề xuất ghi `BE:docs/knowledge/CROSS_MODULE_ISSUES.md` khi user cho phép sửa repo BE.
+Phase3 workaround2026-10-12: auth gateway đọc GET /accounts/me và map actualrole/assignment, không inferfield thiếu; UI read-only, không gọi PATCH chưa có. Extra profilefields vẫn chưa có API. Đề xuất còn lại với BE: (a) thêm API đọc/sửa hồ sơ nhân sự, hoặc (b) FE đọc `GET /accounts/me` và tra tên điểm trường/lớp từ id. Mock đã trả `assignments` cùng dạng `StaffAssignmentSummaryResponse` (staffRole theo enum BE) kèm tên để hiển thị. Đề xuất ghi `BE:docs/knowledge/CROSS_MODULE_ISSUES.md` khi user cho phép sửa repo BE.
 
 ## Regression test
 
 Khi nối API thật: `/account/profile` hiện tên, email, vai trò, phân công đang hiệu lực với ngày bắt đầu/kết thúc; trường BE chưa có hiện "Chưa cập nhật".
+
+## Phase 3 follow-up 2026-10-12
+
+FE đọc `GET /accounts/me` cho auth thật, ánh xạ role/phân công từ BE và giữ form hồ sơ ở chế độ chỉ đọc. Không gọi endpoint sửa hồ sơ chưa có. Dữ liệu SĐT/ngày sinh/địa chỉ vẫn chờ contract BE, nên incident ở trạng thái workaround, chưa đóng.

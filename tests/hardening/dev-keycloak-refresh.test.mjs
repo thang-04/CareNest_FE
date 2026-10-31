@@ -4,6 +4,8 @@ import axios, { AxiosError } from 'axios';
 
 // Phiên Keycloak dev (VITE_SCHOOL_CONFIG_API): access token 5 phút. Mọi request qua axiosClient phải tự làm mới,
 // gặp 401 thì làm mới một lần rồi gửi lại; chỉ hết phiên khi làm mới thất bại (lỗi cũ: tự đăng xuất sau ~5 phút).
+// Đăng nhập Keycloak dev chỉ chạy khi VITE_AUTH_MODE=mock (gateway có luồng làm mới riêng)
+process.env.CARENEST_TEST_AUTH_MODE = 'mock';
 globalThis.window = new EventTarget();
 const memoryStorage = () => {
   const data = new Map();
@@ -61,7 +63,7 @@ axiosClient.defaults.adapter = async (config) => {
 };
 
 const signIn = ({ expired }) => {
-  localStorage.setItem('carenest.accessToken', 'access-0');
+  localStorage.setItem('carenest.mock.accessToken', 'access-0');
   localStorage.setItem('carenest.kcRefreshToken', 'refresh-0');
   localStorage.setItem('carenest.kcAccessExp', String(Date.now() + (expired ? -1000 : 300_000)));
   // Token đã quá hạn thì BE từ chối
@@ -112,7 +114,7 @@ test('làm mới thất bại (phiên Keycloak đã hết): báo hết phiên đ
 });
 
 test('không có phiên Keycloak dev: 401 vẫn báo hết phiên ngay, không gọi Keycloak', async () => {
-  localStorage.setItem('carenest.accessToken', 'gateway-token');
+  localStorage.setItem('carenest.mock.accessToken', 'plain-token');
   await assert.rejects(axiosClient.get('/children'), { status: 401 });
   assert.equal(refreshCalls, 0);
   assert.equal(events, 1);
@@ -121,11 +123,11 @@ test('không có phiên Keycloak dev: 401 vẫn báo hết phiên ngay, không g
 // Tab mở bằng link target=_blank / nhân bản tab: trình duyệt chép sessionStorage ⇒ hai tab giữ cùng refresh token
 const copyOfTab = () => {
   const snapshot = new Map();
-  ['carenest.accessToken', 'carenest.kcRefreshToken', 'carenest.kcAccessExp'].forEach((k) => snapshot.set(k, sessionStorage.getItem(k)));
+  ['carenest.mock.accessToken', 'carenest.kcRefreshToken', 'carenest.kcAccessExp'].forEach((k) => snapshot.set(k, sessionStorage.getItem(k)));
   return () => snapshot.forEach((v, k) => (v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v)));
 };
 const signInSession = () => {
-  sessionStorage.setItem('carenest.accessToken', 'access-0');
+  sessionStorage.setItem('carenest.mock.accessToken', 'access-0');
   sessionStorage.setItem('carenest.kcRefreshToken', 'refresh-0');
   sessionStorage.setItem('carenest.kcAccessExp', String(Date.now() - 1000));
   validToken = 'not-issued-yet';

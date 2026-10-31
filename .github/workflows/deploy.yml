@@ -59,9 +59,10 @@ jobs:
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api' }}
           VITE_USE_MOCK: ${{ vars.VITE_USE_MOCK || 'true' }}
+          VITE_AUTH_MODE: ${{ vars.VITE_AUTH_MODE || 'mock' }}
         run: |
           ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
-            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' bash -s" <<'EOF'
+            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' VITE_AUTH_MODE='$VITE_AUTH_MODE' bash -s" <<'EOF'
           set -e
           docker compose up -d --build --remove-orphans
           docker image prune -f
