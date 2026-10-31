@@ -20,7 +20,7 @@ Nghiệp vụ, rule, contract, kiến trúc hệ thống **không nằm ở đâ
 | | `features/daily-reception.md` | Demo tiếp nhận trẻ, sức khỏe nhiều lần/ngày, giới hạn tích hợp | FULL |
 | | `features/daily-assessment.md` | Đánh giá hằng ngày 3 nhóm, ô tích, giáo án tuần, tổng hợp cho AI | FULL |
 | integration | `integration/BACKEND_INTEGRATION.md` | Envelope, lỗi, 403/404, phân quyền phía client | FULL (theo BE hiện tại) |
-| | `integration/AUTH_FLOW.md` | Đăng nhập, token, phiên: hiện thực mock + phần chờ BE | PROPOSED |
+| | `integration/AUTH_FLOW.md` | Đăng nhập, token, phiên: mock mặc định + gateway qua BE | FULL (UI browser pending) |
 | | `integration/DEPLOYMENT.md` | Deploy Web lên VPS: Docker, subdomain qua Caddy (HTTPS tự động), GitHub Actions, rollback | FULL |
 | knowledge | `knowledge/ISSUE_INDEX.md` | **Search đầu tiên khi debug** (bug UI/client, kể cả bug đang `open`) | FULL (chưa có issue) |
 | | `knowledge/incidents/_TEMPLATE.md` | Mẫu incident (có Attempts) | FULL |

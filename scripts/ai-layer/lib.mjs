@@ -226,6 +226,14 @@ export function siblingRoot(root, config, name) {
   return null;
 }
 
+// File ở repo sibling: lấy checkout đầu tiên có file (CareNest_BE-main chưa có tài liệu mới của BE dev); không có sibling ⇒ null
+export function siblingPath(root, config, name, rel) {
+  if (name === config.repo) return join(root, rel);
+  const bases = (config.siblings?.[name] ?? []).map((candidate) => join(root, candidate)).filter((abs) => existsSync(abs));
+  if (bases.length === 0) return null;
+  return bases.map((base) => join(base, rel)).find((abs) => existsSync(abs)) ?? join(bases[0], rel);
+}
+
 // Đường dẫn trỏ sang repo khác: `BE:x`, `../CareNest_FE/x` ⇒ {repo, rel}
 export function crossRepoRef(token) {
   const prefixed = token.match(/^(BE|FE|APP):(.+)$/);
