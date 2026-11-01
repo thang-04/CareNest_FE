@@ -161,7 +161,7 @@ export default function SchoolPlansPage() {
           ))}
         </div>
         <div className="filter-bar">
-          <SearchSubmit value={q} placeholder="Tìm theo tên, mã hoặc người lập" label="Tìm kế hoạch" onSearch={setQ} />
+          <SearchSubmit value={q} placeholder="Tìm tên, mã, người lập" label="Tìm kế hoạch" onSearch={setQ} />
           <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
             <option value="">Tất cả nhóm tuổi</option>
             {AGE_GROUPS.map((a) => (

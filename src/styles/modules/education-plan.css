@@ -381,6 +381,105 @@
   font-size: var(--fs-md);
 }
 
+/* Màn soạn của lớp giữ thao tác và độ gọn như màn mục tiêu năm học. */
+.ga-class-editor .ga-sticky-head {
+  padding-top: var(--space-2);
+}
+/* Như chi tiết kế hoạch năm: nhiều nút nằm trên hàng riêng, không đè đường dẫn. */
+.ga-class-editor .ga-sticky-head .breadcrumb + .page__head > .page__actions {
+  position: static;
+  min-height: 0;
+}
+/* Điện thoại: nút đầu trang (đang dính) cỡ nhỏ như .btn--sm để gọn 2 hàng, không chiếm nửa màn khi cuộn */
+@media (max-width: 767px) {
+  .ga-class-editor .ga-sticky-head .page__actions .btn {
+    height: var(--btn-height-sm);
+    padding: 0 var(--space-3);
+    font-size: var(--fs-sm);
+  }
+}
+.ga-class-editor .ga-week-hero {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+.ga-class-editor .ga-week-hero__label {
+  color: var(--color-text-muted);
+}
+.ga-class-editor .ga-week-hero__name {
+  font-size: var(--fs-lg);
+  color: var(--color-text);
+}
+.ga-theme-weeks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 4)), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ga-theme-weeks__link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  height: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+.ga-theme-weeks__link:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.ga-theme-weeks__link:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+.ga-class-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: var(--space-1);
+  overflow: visible;
+}
+.ga-class-tabs .tab {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+  white-space: normal;
+  text-align: center;
+}
+@media (max-width: 1100px) {
+  .ga-class-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .ga-class-tabs .tab {
+    min-height: var(--btn-height-lg);
+    padding: var(--space-2);
+  }
+  /* Tab ngày 2 dòng gọn: thứ / ngày (không gãy giữa "Thứ 2 · / 07/09") */
+  .ga-class-tabs .tab {
+    flex-direction: column;
+    gap: 0;
+  }
+  .ga-class-tab__sep {
+    display: none;
+  }
+  .ga-class-tab__date {
+    white-space: nowrap;
+  }
+  /* Cột nhãn/ghi chú không chiếm gần hết bảng hai hoặc ba cột trên điện thoại. */
+  .ga-class-editor .ga-plan-table:has(colgroup > :last-child:nth-child(2)) .ga-goal-table__group {
+    width: 30%;
+  }
+  .ga-class-editor .ga-plan-table:has(colgroup > :last-child:nth-child(3)) .ga-goal-table__group {
+    width: 20%;
+  }
+}
+
 /* Bảng mục tiêu năm học kiểu Word: kẻ đủ hàng/cột, độ rộng cột cố định, ô nhập không viền */
 .table.ga-goal-table {
   table-layout: fixed;
@@ -466,6 +565,12 @@
   resize: none;
   overflow: hidden;
 }
+/* Ô chữ tự cao theo nội dung bằng CSS (Chrome/Edge 123, Safari 26.2, Firefox 152); trình duyệt cũ đo bằng JS (TableCell.jsx) */
+@supports (field-sizing: content) {
+  textarea.ga-cell-input {
+    field-sizing: content;
+  }
+}
 .ga-cell-input:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
@@ -517,19 +622,24 @@
 /* Bảng mục tiêu năm có các cột tích chủ đề (lấy từ phần B): màn rộng vừa khung (cột chủ đề hẹp, cột chữ theo %),
    điện thoại cuộn ngang trong khung bảng vì không đủ chỗ cho mọi cột chủ đề (Tiền 30/10) */
 @media (max-width: 767px) {
-  .table.ga-goal-table--themes {
-    min-width: 960px;
+  /* Cột nhóm, STT, mục tiêu, chủ đề, Xóa cố định đã ~1000px ⇒ chừa ~200px cho cột nội dung (rà UI 31/10) */
+  .table.ga-plan-table.ga-goal-table--themes:has(tr > :nth-child(4)) {
+    min-width: calc(var(--space-16) * 19);
   }
 }
 @media (min-width: 768px) {
   .ga-goal-table--themes .ga-goal-table__theme {
     width: var(--space-10);
   }
+  /* Nhiều cột chủ đề + cột Xóa: thu cột nhóm / mục tiêu để cột nội dung không bị bóp còn 1 từ / dòng (rà UI 31/10) */
   .ga-goal-table--themes .ga-goal-table__group {
-    width: 15%;
+    width: 13%;
   }
   .ga-goal-table--themes .ga-goal-table__goaltext {
-    width: 20%;
+    width: 18%;
+  }
+  .ga-goal-table--themes .ga-goal-table__del {
+    width: calc(var(--space-12) + var(--space-2));
   }
   .ga-goal-table--themes .ga-goal-table__code {
     width: var(--space-16);
@@ -707,8 +817,11 @@
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
 }
-/* Hàng tiêu đề thứ 2 (tên viết tắt chủ đề, cột hẹp): giữ chữ nhỏ, lề hẹp để vừa cột */
-.table.ga-goal-table thead tr + tr th {
+/* Hàng tiêu đề thứ 2 (tên viết tắt chủ đề, cột hẹp): giữ chữ nhỏ, lề hẹp để vừa cột; gồm cả ô đầu/cuối hàng
+   (luật th:first-child/last-child lề rộng ở trên ưu tiên hơn, làm "MN", "TN" bị ngắt từng chữ — Tiền 31/10) */
+.table.ga-goal-table thead tr + tr th,
+.table.ga-goal-table thead tr + tr th:first-child,
+.table.ga-goal-table thead tr + tr th:last-child {
   padding-left: var(--space-1);
   padding-right: var(--space-1);
   font-size: var(--fs-2xs);
@@ -1006,6 +1119,12 @@
     padding: var(--space-4);
   }
 }
+/* Điện thoại không có phím mũi tên: ẩn gợi ý phím (chữ thừa giữa 2 nút điều hướng) */
+@media (max-width: 767px) {
+  .ga-teaching-hint {
+    display: none;
+  }
+}
 
 /* Chi tiết kế hoạch năm: từ 3 nút hành động trở lên thì không đặt lên hàng breadcrumb (đè mã kế hoạch), để cùng hàng nhãn trạng thái */
 @media (min-width: 1024px) {
@@ -1044,6 +1163,19 @@
 .ga-cur-filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+/* Mục tiêu đang chọn dài: 1 dòng, cắt "…" (đủ chữ ở title và danh sách thả xuống), không tràn khỏi ô (Tiền 01/11) */
+.ga-cur-filters > .field {
+  min-width: 0;
+}
+/* Không dùng base-select (components.css) cho ô này: base-select đặt chữ trong phần tử nội bộ, không cắt "…" được */
+.select.ga-cur-target:not([multiple]):not([size]) {
+  appearance: none;
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ga-cur-search {
   position: relative;
@@ -1265,7 +1397,13 @@ h2.ga-cur-domain__head {
   width: calc(var(--space-16) + var(--space-2));
 }
 .ga-col-date {
-  width: calc(var(--space-16) * 1.75);
+  width: calc(var(--space-16) * 2);
+}
+/* Điện thoại: bảng chủ đề nhiều cột cố định (ngày, số tuần, sắp xếp, xóa) ⇒ giữ đủ rộng cho cột chữ, cuộn ngang trong khung */
+@media (max-width: 767px) {
+  .table.ga-goal-table:has(col.ga-col-weeks) {
+    min-width: 1000px;
+  }
 }
 .ga-col-weeks {
   width: var(--space-16);
@@ -1286,4 +1424,37 @@ h2.ga-cur-domain__head {
 }
 .table.ga-goal-table th.ga-stt .stt-head {
   align-items: center;
+}
+/* Ô tích chủ đề trong thân bảng mục tiêu (cột hẹp): lề hẹp, viết tắt không ngắt từng chữ như "M/N", "Đ/C/a" (Tiền 31/10) */
+.table.ga-goal-table td.ga-theme-tick-cell {
+  cursor: pointer;
+}
+.table.ga-goal-table td .ga-theme-tick {
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* Xem trước tài liệu trước khi xuất / in: khung trang trắng cuộn được, hiển thị đúng HTML sẽ xuất (Tiền 31/10) */
+.ga-doc-preview {
+  display: block;
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+/* Điện thoại: khung xem trước giữ bề rộng trang A4 ngang để chữ không bị ép từng từ, cuộn ngang trong khung (Tiền 31/10) */
+@media (max-width: 767px) {
+  .ga-doc-preview-scroll {
+    overflow-x: auto;
+  }
+  .ga-doc-preview {
+    min-width: calc(var(--space-16) * 16);
+  }
+  /* Bảng mục tiêu: tiêu đề canh trên để hàng tiêu đề không cao bất thường; ô STT/TT cũng canh trên cho thẳng hàng */
+  .table.ga-goal-table thead th,
+  .table.ga-goal-table thead th.ga-stt {
+    vertical-align: top;
+  }
 }

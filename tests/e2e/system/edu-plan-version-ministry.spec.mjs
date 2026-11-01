@@ -15,7 +15,7 @@ import {
 import { login, review, saveStatus } from '../support/ui.mjs';
 
 // System: sửa kế hoạch đã ban hành bằng phiên bản điều chỉnh (BE:EDU-25, specs/004) rồi lấy mục tiêu, gợi ý nội dung
-// từ Chương trình GDMN của Bộ (BE:EDU-28, specs/005) và gửi / ban hành; nhãn "Theo Bộ" mở đúng mục ở trang nguồn.
+// từ Chương trình GDMN của Bộ (BE:EDU-28, specs/005) và gửi / ban hành; mục tiêu của Bộ không hiện nhãn (Tiền 31/10).
 test.describe.configure({ mode: 'serial' });
 test.setTimeout(180_000);
 
@@ -96,10 +96,9 @@ test('ST-14 phiên bản mới: lấy mục tiêu và gợi ý nội dung từ C
   await dialog.locator('label.ga-cur-row', { hasText: ministryGoal.goalText }).first().locator('input').check();
   await dialog.getByRole('button', { name: /Thêm 1 mục tiêu/ }).click();
   await expect(dialog).toBeHidden();
-  // Dòng lĩnh vực con / nhóm lấy từ Bộ cũng có nhãn Theo Bộ (3cdc993) ⇒ xét nhãn của đúng mục tiêu
-  const badge = page.getByRole('link', { name: 'Theo Bộ' }).and(page.locator(`a[href$="#cg-${ministryGoal.id}"]`));
-  await expect(badge).toHaveCount(1);
-  await expect(badge).toHaveAttribute('href', new RegExp(`#cg-${ministryGoal.id}$`));
+  // Mục tiêu lấy từ Bộ thêm như mục tiêu thường, không còn nhãn "Theo Bộ" / "Đã sửa từ Bộ" (Tiền 31/10)
+  await expect.poll(() => page.locator('textarea').evaluateAll((els) => els.map((el) => el.value))).toContain(ministryGoal.goalText);
+  await expect(page.getByText(/^(Theo Bộ|Đã sửa từ Bộ)$/)).toHaveCount(0);
 
   // Gợi ý nội dung (mục C) gắn vào mục tiêu vừa lấy
   await page.getByRole('button', { name: 'Lấy từ Chương trình của Bộ' }).click();
@@ -110,6 +109,21 @@ test('ST-14 phiên bản mới: lấy mục tiêu và gợi ý nội dung từ C
     .first()
     .getAttribute('value');
   await target.selectOption(value);
+  // Mục tiêu dài: ô chọn 1 dòng, cắt "…", không tràn khỏi ô; đủ chữ ở title (Tiền 01/11)
+  await expect(target).toHaveAttribute('title', new RegExp(ministryGoal.goalText.slice(0, 20)));
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 800 });
+    const box = await target.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const field = el.closest('.field').getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return { nowrap: cs.whiteSpace, h: Math.round(r.height), inField: r.right <= field.right + 1 && r.left >= field.left - 1 };
+    });
+    expect(box.nowrap).toBe('nowrap');
+    expect(box.h).toBeLessThanOrEqual(44);
+    expect(box.inField).toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
   await dialog.locator('label.ga-cur-row', { hasText: suggestion.text }).first().locator('input').check();
   await dialog.getByRole('button', { name: /Thêm 1 nội dung/ }).click();
   await dialog.getByRole('button', { name: 'Đóng', exact: true }).last().click();
@@ -126,7 +140,7 @@ test('ST-14 phiên bản mới: lấy mục tiêu và gợi ý nội dung từ C
   await leave(page, v2Id);
 });
 
-test('ST-15 gửi Phó HT duyệt; Phó HT ban hành phiên bản mới; nhãn Theo Bộ mở đúng mục ở trang nguồn', async ({ browser }) => {
+test('ST-15 gửi Phó HT duyệt; Phó HT ban hành phiên bản mới; không hiện nhãn Theo Bộ; trang nguồn mở đúng mục', async ({ browser }) => {
   const tl = await (await browser.newContext()).newPage();
   await login(tl, USERS.teacher1);
   await tl.goto(`/education/goals/${v2Id}/edit`);
@@ -144,11 +158,11 @@ test('ST-15 gửi Phó HT duyệt; Phó HT ban hành phiên bản mới; nhãn T
   expect((await plan(v1.id)).current).toBe(false);
 
   await vp.reload();
-  const badge = vp.getByRole('link', { name: 'Theo Bộ' }).and(vp.locator(`a[href$="#cg-${ministryGoal.id}"]`));
-  await expect(badge).toHaveCount(1);
-  const [source] = await Promise.all([ctx.waitForEvent('page'), badge.click()]);
-  await source.waitForLoadState();
-  expect(source.url()).toContain(`ageGroup=${E2E.ageGroupCode}`);
+  await expect(vp.locator('main')).toContainText(ministryGoal.goalText);
+  await expect(vp.getByText(/^(Theo Bộ|Đã sửa từ Bộ)$/)).toHaveCount(0);
+  // Trang nguồn vẫn cuộn tới đúng mục tiêu khi mở bằng đường dẫn có #cg-{id}
+  const source = await ctx.newPage();
+  await source.goto(`/education/curriculum-sources?ageGroup=${E2E.ageGroupCode}#cg-${ministryGoal.id}`);
   await expect(source.locator('main')).toContainText('01/VBHN-BGDĐT');
   const item = source.locator(`#cg-${ministryGoal.id}`);
   await expect(item).toContainText(ministryGoal.goalText);

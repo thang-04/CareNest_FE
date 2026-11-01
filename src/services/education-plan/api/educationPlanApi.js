@@ -83,6 +83,12 @@ const curriculumOf = async (path, ageGroupCode, options = {}) => {
 };
 
 export const educationPlanApi = {
+  // BE:EDU-46 — BE đọc file bảng mục tiêu (Word/Excel/CSV) thành bản xem trước, không lưu
+  previewGoalFile: (file) => {
+    const data = new FormData();
+    data.append('file', file);
+    return axiosClient.post(`${GOALS}/file-preview`, data, { headers: { 'Content-Type': undefined }, timeout: 60000 });
+  },
   getCurriculumSources: (options = {}) => axiosClient.get('/education-plans/curriculum/sources', { signal: options.signal }),
   getCurriculumGoals: (ageGroupCode, options) => curriculumOf('goals', ageGroupCode, options),
   getCurriculumContents: (ageGroupCode, options) => curriculumOf('contents', ageGroupCode, options),

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -6,7 +6,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { LoadingState, ErrorState } from '@/components/ui/States';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import * as service from '@/services/education-plan/educationPlanService';
-import { AGE_GROUPS, CLASSES, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, CLASSES, EDU_STATUS, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
 import { applyEduConfig, withDefaults } from '@/models/education-plan/eduConfig';
 
 const EducationPlanContext = createContext(null);
@@ -35,6 +35,7 @@ const titleOf = (u) => {
 };
 
 const TOAST_TYPES = { ok: 'success', err: 'error', warn: 'warning', info: 'info' };
+const LOCK_POLL_MS = 5000;
 
 const upsert = (list, item) => {
   const i = list.findIndex((x) => x.id === item.id);
@@ -84,6 +85,22 @@ export function EducationPlanProvider({ children }) {
       classId: authUser.classId == null ? authUser.classId : String(authUser.classId),
     };
   }, [authUser, data?.staff]);
+
+  // BE:EDU-10 — có kế hoạch đang do người khác sửa thì tải lại im lặng 5 giây/lần (tab đang mở) và khi quay lại tab,
+  // để thấy ngay lúc họ thôi sửa mà không phải tải lại trang (Tiền 31/10); không ai khác đang sửa thì không hỏi
+  const lockedByOther = (data?.goals || []).some((g) => g.status === EDU_STATUS.EDITING && g.editing && g.editing.userId !== user.id);
+  useEffect(() => {
+    if (!lockedByOther) return undefined;
+    const refresh = () => !document.hidden && reload({ silent: true });
+    const timer = setInterval(refresh, LOCK_POLL_MS);
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [lockedByOther, reload]);
 
   const value = useMemo(() => {
     const yearName = (id) => {

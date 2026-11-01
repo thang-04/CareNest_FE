@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { E2E, api, USERS, beReachable, cleanup, editHeaders, newSession, sql, suspendOtherTeamLeads } from '../support/realBe.mjs';
 import { login, saveStatus } from '../support/ui.mjs';
+import { goalTableDocx } from '../support/docx.mjs';
 
 // EDU-24: fixture riêng, BE/Keycloak thật; response giả chỉ dùng để kiểm race/lỗi.
 test.describe.configure({ mode: 'serial' });
@@ -485,7 +486,6 @@ test('EDU-06/43 Tổ trưởng: nhóm tuổi khác chỉ thấy bản đã ban h
     await page.getByRole('tab', { name: /Chủ đề và sự kiện/ }).click();
     await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Lấy chủ đề từ kế hoạch có sẵn' });
-    await expect(dialog.getByText('Nhóm tuổi khác chỉ hiện kế hoạch đã ban hành.')).toBeVisible();
     await dialog.locator('#imt-year').selectOption(uiYear(sourceYear));
     await dialog.locator('#imt-age').selectOption(sourceGroup.code);
     await dialog.locator('#imt-src').selectOption(String(source.id));
@@ -499,4 +499,76 @@ test('EDU-06/43 Tổ trưởng: nhóm tuổi khác chỉ thấy bản đã ban h
   } finally {
     cleanup();
   }
+});
+
+test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đổi, Thêm giữ dấu tích khớp viết tắt, chỉ lưu khi bấm Lưu', async ({
+  page,
+}) => {
+  const domainName = config.domains.filter((domain) => domain.standard !== false)[0].name;
+  const goalText = `${marker} mục tiêu từ file`;
+  const docx = goalTableDocx([
+    [
+      { text: 'STT', merge: 'restart' },
+      { text: 'Mục tiêu giáo dục năm', merge: 'restart' },
+      { text: 'Nội dung giáo dục năm', merge: 'restart' },
+      { text: 'Chủ đề thực hiện', span: 2 },
+    ],
+    [{ merge: 'continue' }, { merge: 'continue' }, { merge: 'continue' }, 'Đích', 'ZZZ'],
+    ['', { text: `I. Giáo dục ${domainName}`, span: 2 }, '', ''],
+    [{ text: '1', merge: 'restart' }, { text: `1. ${goalText}`, merge: 'restart' }, '- Nội dung file 1', 'x', ''],
+    [{ merge: 'continue' }, { merge: 'continue' }, '- Nội dung file 2', '', 'x'],
+  ]);
+  const wordFile = {
+    name: 'bang-muc-tieu.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: docx,
+  };
+  const values = () => page.locator('textarea').evaluateAll((els) => els.map((el) => el.value));
+  const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu' });
+  const choose = async (file) => {
+    await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
+    await dialog.locator('input[type="file"]').setInputFiles(file);
+  };
+
+  await login(page, USERS.vp);
+  await page.goto(`/education/goals/${target.id}/edit`);
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
+
+  // Word đời cũ (.doc nhị phân): báo lưu lại thành .docx, bảng không đổi
+  await choose({ name: 'cu.doc', mimeType: 'application/msword', buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0, 0, 0]) });
+  await expect(dialog).toContainText('Lưu thành .docx');
+  await expect(dialog.getByRole('button', { name: /^Thêm.*mục tiêu$/ })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+
+  // Xem trước rồi Hủy: bảng không đổi
+  await choose(wordFile);
+  await expect(dialog).toContainText('bang-muc-tieu.docx');
+  await expect(dialog).toContainText('Chưa có chủ đề ZZZ');
+  await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(await values()).not.toContain(goalText);
+
+  // Thêm: có trong bảng, chưa ghi lên hệ thống tới khi Lưu
+  await choose(wordFile);
+  await dialog.getByRole('button', { name: 'Thêm 1 mục tiêu', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(values).toContain(goalText);
+  await expect(saveStatus(page)).toHaveText('Có thay đổi chưa lưu');
+  expect(logicalRows(await read(target.id)).some((row) => row.text === goalText)).toBe(false);
+
+  // Nhập lại cùng file: mục tiêu trùng câu được bỏ qua
+  await choose(wordFile);
+  await dialog.getByRole('button', { name: 'Thêm 1 mục tiêu', exact: true }).click();
+  await expect.poll(async () => (await values()).filter((v) => v === goalText).length).toBe(1);
+
+  await page.keyboard.press('Control+s');
+  await expect(saveStatus(page)).toHaveText(/Đã lưu lúc \d\d:\d\d/);
+  const saved = await read(target.id);
+  const theme = saved.themes.find((t) => t.abbr === 'Đích');
+  const row = saved.domains.flatMap((d) => d.rows).find((r) => r.text === goalText);
+  expect(row.contents.map((c) => c.text)).toEqual(['Nội dung file 1', 'Nội dung file 2']);
+  expect(row.contents[0].themeIds || []).toEqual([theme.id]);
+  expect(row.contents[1].themeIds || []).toEqual([]);
+  await page.goto('/');
 });

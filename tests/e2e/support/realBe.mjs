@@ -118,7 +118,7 @@ export function cleanup() {
       `delete from edu_year_plans where title like '${E2E.titlePrefix}%' and school_year_id = ${year} and age_group_id = ${ageGroup};` +
       `delete from staff_assignments where valid_from = '${E2E.markerDate}' and staff_role = 'AGE_GROUP_TEAM_LEADER';` +
       // Khôi phục phân công Tổ trưởng bị tạm ngưng (dời valid_from +100 năm) về đúng ngày cũ
-      `update staff_assignments set valid_from = valid_from - interval '100 years' where staff_role = 'AGE_GROUP_TEAM_LEADER' and valid_from >= '2100-01-01';`,
+      `update staff_assignments set valid_from = valid_from - interval '100 years', valid_to = valid_to - interval '100 years' where staff_role = 'AGE_GROUP_TEAM_LEADER' and valid_from >= '2100-01-01';`,
   );
 }
 
@@ -134,7 +134,8 @@ export function addTeamLeader(user) {
 export function suspendOtherTeamLeads(user) {
   const id = user === 'teacher1' ? ids().teacher1 : ids().teacher2;
   sql(
-    `update staff_assignments set valid_from = valid_from + interval '100 years' where user_id = ${id} and staff_role = 'AGE_GROUP_TEAM_LEADER' and valid_from <> '${E2E.markerDate}' and valid_from < '2100-01-01'`,
+    // Dời cả valid_to (nếu có) để giữ ràng buộc valid_from ≤ valid_to
+    `update staff_assignments set valid_from = valid_from + interval '100 years', valid_to = valid_to + interval '100 years' where user_id = ${id} and staff_role = 'AGE_GROUP_TEAM_LEADER' and valid_from <> '${E2E.markerDate}' and valid_from < '2100-01-01'`,
   );
 }
 
