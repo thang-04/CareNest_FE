@@ -9,6 +9,7 @@ Bài học tổng quát, mỗi pattern có nguồn. Pattern lấy từ thiết k
 | FP-REFETCH-AFTER-MUTATION | Sau lưu/xác nhận/duyệt ⇒ invalidate và lấy lại từ BE, không tự sửa cache số liệu dẫn xuất | `.claude/rules/state.md` |
 | FP-AI-DRAFT-UI | Nội dung AI hiển thị nhãn DRAFT, có bước duyệt theo quyền; màn hình dùng được khi AI trả 503/504 | BE ADR-0008, PAT-AI-DRAFT |
 | FP-NO-PARSE-DESC | Phân nhánh theo HTTP status; `desc` chỉ để hiển thị; cần phân biệt hơn ⇒ đề xuất BE thêm mã | `BE:docs/contracts/ERROR_CONTRACT.md`, FE-KI-002 |
+| FP-AI-CONTEXT-MATCHES-SOURCE | Lớp AI context phải mô tả source thật: glob `paths:` của rule khớp đuôi file thật (sai: `*.ts` trong repo JSX ⇒ rule không bao giờ nạp, E7 nay là lỗi); scaffold xong ⇒ bỏ "chưa có source"/skeleton ngay; luật design/ranh giới module phải có cổng tự động (lint, `check-design`), không chỉ nằm trong doc | plan `docs/plans/active/2026-10-20-ai-context-design-sync.md` |
 
 ## Format pattern từ incident
 

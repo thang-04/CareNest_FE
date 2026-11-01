@@ -1,0 +1,280 @@
+/* Biểu đồ nhỏ (MiniCharts.jsx) — chỉ dùng token */
+.mc-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.mc-bars__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  padding: var(--space-2) var(--space-3);
+  margin: 0 calc(var(--space-3) * -1);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: background var(--duration-fast) ease;
+}
+a.mc-bars__row:hover {
+  background: var(--color-primary-soft);
+  text-decoration: none;
+}
+.mc-bars__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.mc-bars__label {
+  font-weight: var(--fw-medium);
+}
+.mc-bars__value {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+}
+.mc-bars__value--zero {
+  color: var(--color-text-muted);
+  font-weight: var(--fw-regular);
+}
+.mc-bars__meta {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+.mc-bars__meta--error {
+  font-size: var(--fs-sm);
+  color: var(--color-danger-fg);
+}
+.mc-bars__track {
+  display: block;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-secondary);
+  overflow: hidden;
+}
+.mc-bars__fill {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: var(--radius-full);
+  transition: width var(--duration-slow) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mc-bars__fill {
+    transition: none;
+  }
+}
+
+/* Cột xếp hạng theo tỷ lệ (RankBars.jsx): đáy 0%, cột dưới mức chung tô cam, đường đứt = mức chung */
+.mc-rank {
+  --mc-col-base: color-mix(in srgb, var(--tone-gray) 35%, transparent);
+}
+.mc-rank__note {
+  margin: 0 0 var(--space-3);
+}
+.mc-cols__legend {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+.mc-cols__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+.mc-cols__swatch {
+  width: var(--space-2-5);
+  height: var(--space-2-5);
+  border-radius: var(--radius-xs);
+  background: var(--mc-col-base);
+}
+.mc-cols__swatch--low {
+  background: var(--tone-orange);
+}
+.mc-cols__swatch--line {
+  width: var(--space-4);
+  height: 0;
+  border-radius: 0;
+  background: none;
+  border-top: 2px dashed var(--color-text);
+}
+.mc-cols__swatch--pending,
+.mc-cols__bar--pending {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--tone-orange) 22%, transparent) 0 var(--space-1-5),
+    transparent var(--space-1-5) var(--space-3)
+  );
+  border: 1px dashed var(--tone-orange);
+}
+.mc-cols__scroll {
+  overflow-x: auto;
+}
+.mc-cols {
+  /* Chiều cao vùng cột và nhãn trục cố định để đường mức chung khớp với đỉnh cột */
+  --mc-plot-h: calc(var(--space-16) * 2.5);
+  --mc-value-h: var(--space-5);
+  --mc-x-h: var(--space-10);
+  position: relative;
+  min-width: min-content;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(var(--space-10), 1fr);
+  gap: var(--space-1);
+}
+.mc-cols__avg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--mc-x-h) + var(--mc-plot-h) * var(--avg) / 100);
+  border-top: 2px dashed var(--color-text);
+  pointer-events: none;
+  z-index: 1;
+}
+.mc-cols__col {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+}
+a.mc-cols__col:hover {
+  background: var(--color-primary-soft);
+  text-decoration: none;
+}
+a.mc-cols__col:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.mc-cols__plot {
+  height: calc(var(--mc-plot-h) + var(--mc-value-h));
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 var(--space-1);
+}
+.mc-cols__value {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+  font-size: var(--fs-2xs);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  line-height: var(--mc-value-h);
+}
+.mc-cols__bar {
+  display: block;
+  height: calc(var(--mc-plot-h) * var(--rate) / 100);
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  background: var(--mc-col-base);
+  transition: height var(--duration-slow) var(--ease-out);
+}
+.mc-cols__bar--low {
+  background: var(--tone-orange);
+}
+.mc-cols__bar--pending {
+  height: var(--mc-plot-h);
+  border-bottom: 0;
+}
+.mc-cols__label {
+  height: var(--mc-x-h);
+  padding-top: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: var(--fs-2xs);
+  line-height: 1.25;
+  text-align: center;
+  color: var(--color-text-muted);
+  overflow: hidden;
+}
+.mc-cols__label small {
+  font-size: var(--fs-2xs);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mc-cols__bar {
+    transition: none;
+  }
+}
+.mc-rank__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.mc-rank__toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Biểu đồ vòng tỷ lệ */
+.mc-donut {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+.mc-donut__ring {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.mc-donut__center {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+.mc-donut__legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 180px;
+}
+.mc-donut__legend li {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+.mc-donut__legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.mc-donut__legend b {
+  font-variant-numeric: tabular-nums;
+}

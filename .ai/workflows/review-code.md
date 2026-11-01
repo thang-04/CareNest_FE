@@ -11,8 +11,9 @@ Làn S: tự kiểm 3 điểm (đúng phạm vi, không đổi contract, có tes
 5. **State & async:** race condition, stale cache sau mutation, double submit, cleanup effect, loading/empty/error đầy đủ.
 6. **UX/accessibility:** label, focus, keyboard, thông báo lỗi dễ hiểu (tiếng Việt), responsive cho bảng/form.
 7. **Test:** có test hành vi chính, lỗi API, ẩn/hiện theo permission, regression cho bug fix?
-8. **Convention:** `.claude/rules/`, quy tắc comment/commit trong `AGENTS.md`.
-9. **Memory:** fix bug không hiển nhiên có incident + dòng `ISSUE_INDEX.md` chưa (theo `update-knowledge.md` T2)? Đối chiếu `docs/knowledge/PATTERNS.md`.
+8. **Design system & ranh giới module:** dựng lại component/class đã có ở `DESIGN.md` §6.3 hoặc mẫu trùng lặp §14.1? Import code riêng module khác (kể cả thêm dòng vào `CROSS_MODULE_DEBT`)? Bọc component chung chỉ để đổi tên prop? Hàm ngày/số viết lại thay vì `utils/format.js`? So `user.role` trực tiếp thay `canXxx`?
+9. **Convention:** `.claude/rules/`, quy tắc comment/commit trong `AGENTS.md`.
+10. **Memory:** fix bug không hiển nhiên có incident + dòng `ISSUE_INDEX.md` chưa (theo `update-knowledge.md` T2)? Đối chiếu `docs/knowledge/PATTERNS.md`.
 
 ## Phát hiện
 `[Severity] file:line — kịch bản lỗi — cách sửa — đã chứng minh | giả thuyết`. Severity: **Critical** (lộ dữ liệu trẻ/token, vượt quyền, sai nghiệp vụ lõi) · **High** (vd. làm theo rule chưa CONFIRMED hoặc lệch tài liệu mà không hỏi) · **Medium** · **Low**. Spec không rõ ⇒ ghi là câu hỏi. Mỗi phát hiện: vị trí, kịch bản gây lỗi, cách sửa. Phân biệt lỗi đã chứng minh với câu hỏi/giả định. Không tuyên bố đã chạy runtime/trình duyệt nếu chỉ đọc tĩnh.

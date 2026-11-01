@@ -1,0 +1,392 @@
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AlertOctagon, ArrowLeft, Award, CheckCircle2, Copy, History, RefreshCw, Save } from '@/components/ui/icons';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useMasterData } from '@/hooks/useMasterData';
+import { useEvaluation } from '@/hooks/assessment/useAssessment';
+import { confirmEvaluation, regenerateEvaluationDraft, saveEvaluationDraft } from '@/services/assessment/assessmentService';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
+import { FormField } from '@/components/form/FormField';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { Modal } from '@/components/ui/Modal';
+import { useAiRun } from '@/hooks/useAiRun';
+import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
+import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
+import { Pagination, paginate } from '@/components/ui/Pagination';
+import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
+import { formatDateTime } from '@/utils/format';
+import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
+import { canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
+import { ChildAvatar } from '@/components/ChildAvatar';
+import { validateEvaluationContent, hasErrors } from '@/utils/assessment/assessmentValidation';
+
+const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp tục viết đánh giá thủ công.';
+
+/** Shared body of #56 Periodic Evaluation Detail and #59 Year-end Evaluation Detail (UC 4.5, 4.6). */
+export function EvaluationReviewView({ kind, id }) {
+  const { user } = useAuth();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const md = useMasterData();
+  const { detail, loading, error, reload } = useEvaluation(kind, id, { live: false });
+  const [content, setContent] = useState('');
+  const [contentError, setContentError] = useState('');
+  const [busy, setBusy] = useState('');
+  const { run: runAi } = useAiRun();
+  const [fresh, setFresh] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dayPage, setDayPage] = useState(1);
+  const yearEnd = kind === EVAL_KIND.YEAR_END;
+  const base = `/assessment/${yearEnd ? 'year-end' : 'periodic'}`;
+
+  const ev = detail?.evaluation;
+  useEffect(() => {
+    if (ev) setContent(ev.finalContent || ev.aiDraft?.content || '');
+  }, [ev]);
+
+  if (loading) return <LoadingState />;
+  if (error) {
+    if (error.status === 403 || error.status === 404)
+      return (
+        <div className="card">
+          <StatusPage
+            bare
+            kind={String(error.status)}
+            title="Không xem được đánh giá"
+            description="Đánh giá không tồn tại hoặc nằm ngoài phạm vi của bạn."
+          />
+        </div>
+      );
+    return <ErrorState error={error} onRetry={reload} />;
+  }
+  if (!detail) return null;
+
+  const canReview = canReviewEvaluation(ev, detail.cls, user);
+  const showDraft = canViewAiDraft(ev, detail.cls, user);
+  const confirmed = ev.status === EVAL_STATUS.CONFIRMED;
+  const label = evaluationPeriodLabel(ev);
+  const name = (uid) => md.userById(uid)?.fullName || 'Hệ thống';
+
+  const check = () => {
+    const errors = validateEvaluationContent(content);
+    setContentError(errors.content || '');
+    return !hasErrors(errors);
+  };
+
+  const run = async (key, fn, success) => {
+    setBusy(key);
+    try {
+      const res = await fn();
+      if (success) toast.success(success(res));
+      await reload({ silent: true });
+      return res;
+    } catch (err) {
+      toast.error(err, 'Không thực hiện được');
+      if (err.status === 409) reload({ silent: true });
+      return null;
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const save = () =>
+    check() &&
+    run(
+      'save',
+      () => saveEvaluationDraft(kind, ev.id, content, user),
+      () => 'Đã lưu chỉnh sửa. Đánh giá vẫn chờ bạn xác nhận.',
+    );
+
+  const redraft = async () => {
+    setBusy('redraft');
+    let res = null;
+    try {
+      res = await runAi(() => regenerateEvaluationDraft(kind, ev.id, user));
+      if (res.status === EVAL_STATUS.AI_FAILED) toast.warning(res.aiError || MSG30, 'AI chưa tạo được bản nháp');
+      await reload({ silent: true });
+    } catch (err) {
+      toast.error(err.message || MSG30, 'AI chưa tạo được bản nháp');
+    } finally {
+      setBusy('');
+    }
+    // Mở modal sau khi lớp phủ tắt (trang tải lại xong) để lớp phủ không đè lên modal
+    if (res && res.status !== EVAL_STATUS.AI_FAILED) setFresh(res.aiDraft);
+  };
+
+  const doConfirm = async () => {
+    const res = await run(
+      'confirm',
+      () => confirmEvaluation(kind, ev.id, content, user),
+      () => 'Đánh giá đã được xác nhận thành công.',
+    );
+    setConfirmOpen(false);
+    return res;
+  };
+
+  return (
+    <>
+      <div className="page__head">
+        <div className="dg-eval-head">
+          <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
+          <div>
+            <h1 className="page__title">
+              Đánh giá {PERIOD_TYPE_LABELS[ev.periodType].toLowerCase()} – {ev.childName}
+            </h1>
+            <div className="dg-eval-meta">
+              <EvaluationStatusBadge status={ev.status} />
+              <span>{ev.className}</span>
+              <span>{label}</span>
+              {ev.themeName && <span>Chủ đề: {ev.themeName}</span>}
+              <span>Có mặt {detail.summary.presentDays} ngày</span>
+              {!yearEnd && <span>Đánh giá hằng ngày {detail.summary.assessedDays} ngày</span>}
+              {confirmed && (
+                <span>
+                  Xác nhận bởi {name(ev.confirmedBy)} · {formatDateTime(ev.confirmedAt)}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        {yearEnd && confirmed && isClassTeacher(detail.cls, user) && (
+          <Link className="btn btn--outline-primary" to={`/assessment/rewards/new?childId=${ev.childId}&classId=${ev.classId}`}>
+            <Award size={16} /> Đề xuất khen thưởng
+          </Link>
+        )}
+      </div>
+
+      {ev.status === EVAL_STATUS.AI_FAILED && canReview && (
+        <div className="alert alert--danger mt-16">
+          <AlertOctagon size={20} />
+          <div className="flex-1">
+            <div className="fw-600">{MSG30}</div>
+            <div className="mt-8 text-sm">{ev.aiError}</div>
+          </div>
+          <button className="btn" onClick={redraft} disabled={!!busy}>
+            <RefreshCw size={16} /> Yêu cầu tạo lại bản nháp
+          </button>
+        </div>
+      )}
+
+      {canReview ? (
+        <div className="split-2 mt-16">
+          <div className="card">
+            <div className="card__header">
+              <div className="card__title">Bản nháp AI</div>
+              <AiDraftTag />
+            </div>
+            <div className="card__body">
+              {ev.aiDraft ? (
+                <>
+                  <div className="dg-ai-box text-sm">{ev.aiDraft.content}</div>
+                  <div className="muted text-xs mt-8">
+                    {yearEnd
+                      ? `Tổng hợp từ ${detail.monthlyEvaluations.length} đánh giá tháng đã xác nhận`
+                      : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày`}{' '}
+                    · tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
+                  </div>
+                  <div className="row row--wrap gap-2 mt-12">
+                    <button
+                      className="btn btn--sm"
+                      onClick={() => setContent(ev.aiDraft.content)}
+                      disabled={!!busy || content === ev.aiDraft.content}
+                    >
+                      <Copy size={14} /> Dùng bản nháp này
+                    </button>
+                    <button className="btn btn--sm" onClick={redraft} disabled={!!busy}>
+                      <RefreshCw size={14} /> Tạo lại bản nháp
+                    </button>
+                    <Link className="btn btn--sm btn--ghost" to={`${base}/${ev.id}/ai-draft`}>
+                      Dữ liệu AI đã dùng
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <div className="muted">Chưa có bản nháp AI. Cô tự viết đánh giá ở khung bên cạnh.</div>
+              )}
+            </div>
+          </div>
+          <div className="card">
+            <div className="card__header">
+              <div className="card__title">Đánh giá chính thức</div>
+            </div>
+            <div className="card__body">
+              <FormField
+                label="Nội dung đánh giá"
+                required
+                error={contentError}
+                hint="Sửa, bổ sung theo quan sát thực tế. Không dùng thuật ngữ chẩn đoán."
+              >
+                <textarea
+                  className="textarea dg-editor"
+                  rows={10}
+                  value={content}
+                  maxLength={3000}
+                  onChange={(e) => {
+                    setContent(e.target.value);
+                    setContentError('');
+                  }}
+                  onBlur={() => content && check()}
+                />
+              </FormField>
+              <div className="muted text-xs dg-right">{content.length}/3000</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="card mt-16">
+          <div className="card__header">
+            <div className="card__title">
+              <CheckCircle2 size={18} className="text-success" /> Đánh giá chính thức
+            </div>
+          </div>
+          <div className="card__body">
+            {confirmed ? (
+              <>
+                <div className="dg-final">{ev.finalContent}</div>
+                <div className="muted text-sm mt-12">
+                  Xác nhận bởi {name(ev.confirmedBy)} · {formatDateTime(ev.confirmedAt)}
+                </div>
+              </>
+            ) : (
+              <div className="muted">Đánh giá chưa được giáo viên xác nhận.</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <PeriodSummaryTable data={detail.summary.structured} />
+
+      <div className="card mt-16">
+        <div className="card__header">
+          <div className="card__title">{yearEnd ? 'Đánh giá tháng đã xác nhận trong năm học' : 'Đánh giá hằng ngày trong kỳ'}</div>
+          {!yearEnd && <span className="muted text-sm">Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>}
+        </div>
+        <div className="card__body">
+          {yearEnd ? (
+            detail.monthlyEvaluations.length ? (
+              <div className="stack">
+                {detail.monthlyEvaluations.map((m) => (
+                  <div key={m.id}>
+                    <div className="fw-600">{periodLabel(m.periodType, m.periodStart, m.periodEnd)}</div>
+                    <div className="dg-final text-sm text-2">{m.finalContent}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="muted">Chưa có đánh giá tháng nào được xác nhận. Thiếu dữ liệu nguồn – hãy xem lại các hồ sơ hiện có.</div>
+            )
+          ) : (
+            <>
+              {/* Kỳ tháng tới ~22 ngày: 10 ngày / trang như bảng này ở Hồ sơ phát triển */}
+              <DailyDaysTable
+                days={paginate(detail.days, Math.min(dayPage, Math.max(1, Math.ceil(detail.days.length / 10))), 10)}
+                mealSessions={detail.mealSessions}
+                classId={ev.classId}
+                linkDays={canReview}
+              />
+              {detail.days.length > 10 && (
+                <Pagination
+                  page={Math.min(dayPage, Math.ceil(detail.days.length / 10))}
+                  total={detail.days.length}
+                  pageSize={10}
+                  onChange={setDayPage}
+                  unit="ngày"
+                />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {showDraft && (
+        <div className="card mt-16">
+          <div className="card__header">
+            <div className="card__title">
+              <History size={18} /> Lịch sử xử lý
+            </div>
+          </div>
+          <div className="card__body">
+            <ul className="history-list">
+              {[...ev.history].reverse().map((h) => (
+                <li key={h.id}>
+                  <div className="history-list__dot" />
+                  <div>
+                    <div>
+                      <b>{EVAL_HISTORY_LABELS[h.action] || h.action}</b> · {name(h.userId)}
+                    </div>
+                    {h.note && <div className="text-2">“{h.note}”</div>}
+                    <div className="muted text-xs">{formatDateTime(h.at)}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      <div className="page-actions">
+        <button className="btn" onClick={() => navigate(base)}>
+          <ArrowLeft size={16} /> Về danh sách
+        </button>
+        {canReview && (
+          <div className="row gap-2">
+            <button className="btn" onClick={save} disabled={!!busy}>
+              {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
+            </button>
+            <button className="btn btn--primary" onClick={() => check() && setConfirmOpen(true)} disabled={!!busy}>
+              <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <ConfirmationModal
+        open={confirmOpen}
+        title={yearEnd ? 'Xác nhận đánh giá cuối năm?' : 'Xác nhận và công bố đánh giá?'}
+        message={
+          yearEnd
+            ? 'Đánh giá sẽ trở thành chính thức, dùng cho Ban giám hiệu và đề xuất khen thưởng. Sau khi xác nhận không sửa được.'
+            : 'Đánh giá sẽ trở thành chính thức và được công bố cho phụ huynh, Phó hiệu trưởng và Hiệu trưởng. Sau khi xác nhận không sửa được.'
+        }
+        confirmLabel={yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+        onConfirm={doConfirm}
+        onClose={() => setConfirmOpen(false)}
+      />
+      {/* AI xong ⇒ bản nháp mới mở trong modal; đóng thì vẫn dùng được ở khung "Bản nháp AI" (user chốt) */}
+      <Modal
+        open={!!fresh}
+        onClose={() => setFresh(null)}
+        size="lg"
+        title="Bản nháp AI mới"
+        footer={
+          <>
+            <button type="button" className="btn" onClick={() => setFresh(null)}>
+              Đóng
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => {
+                setContent(fresh.content);
+                setFresh(null);
+              }}
+            >
+              <Copy size={16} /> Dùng bản nháp này
+            </button>
+          </>
+        }
+      >
+        <div className="row gap-2 mb-12">
+          <AiDraftTag />
+          {fresh && <span className="muted text-sm">Tạo lúc {formatDateTime(fresh.generatedAt)}</span>}
+        </div>
+        <div className="dg-ai-box text-sm">{fresh?.content}</div>
+      </Modal>
+      {busy === 'redraft' && <AiWorkingOverlay text="Đang soạn bản nháp đánh giá…" />}
+    </>
+  );
+}

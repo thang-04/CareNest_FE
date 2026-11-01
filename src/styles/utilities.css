@@ -1,0 +1,231 @@
+/*
+ * Utilities
+ * Small single-purpose helpers (spacing, text color, flex rows).
+ */
+
+/* ---------- Layout helpers ---------- */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.row--between {
+  justify-content: space-between;
+}
+.row--center {
+  justify-content: center;
+}
+.row--wrap {
+  flex-wrap: wrap;
+}
+/* Điện thoại: hàng nút/nhãn quá dài thì xuống dòng thay vì đẩy trang tràn ngang */
+@media (max-width: 640px) {
+  .row {
+    flex-wrap: wrap;
+  }
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+/* Điện thoại: 2 cột ô nhập/khối thông tin quá chật và đẩy trang tràn ngang */
+@media (max-width: 640px) {
+  .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+@media (max-width: 640px) {
+  .grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.muted {
+  color: var(--color-text-muted);
+}
+.text-2 {
+  color: var(--text-2);
+}
+.fw-600 {
+  font-weight: var(--fw-semibold);
+}
+.text-primary {
+  color: var(--primary);
+}
+.text-danger {
+  color: var(--danger-700);
+}
+.text-warning {
+  color: var(--color-warning-fg);
+}
+.text-success {
+  color: var(--success-700);
+}
+.mt-8 {
+  margin-top: var(--space-2);
+}
+.mt-12 {
+  margin-top: var(--space-3);
+}
+.mt-16 {
+  margin-top: var(--space-4);
+}
+.mt-24 {
+  margin-top: var(--space-6);
+}
+.mb-8 {
+  margin-bottom: var(--space-2);
+}
+.mb-12 {
+  margin-bottom: var(--space-3);
+}
+.mb-16 {
+  margin-bottom: var(--space-4);
+}
+.spacer {
+  flex: 1;
+}
+.nowrap {
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* Phần tử cha giữ ô ẩn trong khung: thiếu dòng này, ô ẩn trong bảng có thanh cuộn thoát khỏi khung cắt
+   và kéo dài trang (khoảng trắng dưới footer). :where = độ ưu tiên 0, position khác (sticky...) vẫn thắng */
+:where(*:has(> .sr-only)) {
+  position: relative;
+}
+
+/* Font size helpers (use instead of style={{ fontSize }}) */
+.text-2xs {
+  font-size: var(--fs-2xs);
+}
+.text-xs {
+  font-size: var(--fs-xs);
+}
+.text-sm {
+  font-size: var(--fs-sm);
+}
+.text-md {
+  font-size: var(--fs-md);
+}
+.text-h2 {
+  font-size: var(--fs-h2);
+}
+.text-lg {
+  font-size: var(--fs-lg);
+}
+
+/* Gap helpers (thay style={{ gap: N }}); dùng cùng .row / .stack */
+.gap-0 {
+  gap: 0;
+}
+.gap-0-5 {
+  gap: 2px;
+}
+.gap-1 {
+  gap: var(--space-1);
+}
+.gap-1-5 {
+  gap: 6px;
+}
+.gap-2 {
+  gap: var(--space-2);
+}
+.gap-2-5 {
+  gap: var(--space-2-5);
+}
+.gap-3 {
+  gap: var(--space-3);
+}
+.gap-3-5 {
+  gap: var(--space-3-5);
+}
+.gap-4 {
+  gap: var(--space-4);
+}
+.gap-5 {
+  gap: var(--space-5);
+}
+.gap-6 {
+  gap: var(--space-6);
+}
+
+/* Width helpers cho ô lọc / cột bảng (thay style={{ width|minWidth: N }}) */
+.w-full {
+  width: 100%;
+}
+.w-110 {
+  width: 110px;
+}
+.w-120 {
+  width: 120px;
+}
+.w-130 {
+  width: 130px;
+}
+.w-150 {
+  width: 150px;
+}
+.w-160 {
+  width: 160px;
+}
+.min-w-0 {
+  min-width: 0;
+}
+.min-w-150 {
+  min-width: 150px;
+}
+.min-w-200 {
+  min-width: 200px;
+}
+.min-w-220 {
+  min-width: 220px;
+}
+.flex-1 {
+  flex: 1;
+}
+.m-0 {
+  margin: 0;
+}
+.text-muted {
+  color: var(--color-text-muted);
+}
+.text-xl {
+  font-size: var(--fs-xl);
+}
+.fw-500 {
+  font-weight: var(--fw-medium);
+}
+.fw-700 {
+  font-weight: var(--fw-bold);
+}
+
+/* Motion helpers (tắt bởi prefers-reduced-motion trong base.css) */
+.anim-slide-up {
+  animation: slideInUp var(--duration-slow) var(--ease-out) both;
+}
+.anim-fade-in {
+  animation: fadeIn 0.2s var(--ease-out) both;
+}
+
+.text-right {
+  text-align: right;
+}

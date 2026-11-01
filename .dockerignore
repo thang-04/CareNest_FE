@@ -1,0 +1,17 @@
+# Dùng chung cho docker build và rsync lên VPS (.github/workflows/deploy.yml --exclude-from)
+node_modules
+dist
+.git
+.env
+.env.*
+.claude
+.agents
+.ai
+.commit-worktrees
+.github
+docs
+mockups
+ui-review
+tests
+deploy
+*.log

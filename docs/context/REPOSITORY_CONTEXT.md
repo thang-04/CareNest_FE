@@ -19,11 +19,11 @@ Nền tảng Web + Mobile hỗ trợ vận hành và quản lý thông tin trẻ
 | Actor | Ghi chú | Chi tiết quyền |
 | --- | --- | --- |
 | System Admin | Tài khoản, role, phân công, cấu hình. Mặc định không xem dữ liệu trẻ (AUTH-06, PENDING P-16) | `../CareNest_BE/docs/business/USER_ROLES.md` |
-| Principal | Tổng hợp 2 campus, xác nhận/duyệt trong quyền | như trên |
-| Vice Principal | Như Principal nhưng **trong campus được phân công** (AUTH-02) | như trên |
-| Teacher | Lớp được phân công (Web + App) | như trên |
+| Principal | Tổng hợp 2 campus, xác nhận/duyệt trong quyền; chỉ Web (AUTH-21) | như trên |
+| Vice Principal | Như Principal nhưng **trong campus được phân công** (AUTH-02); mảng phụ trách = mã quyền HT bật/tắt, không chia mức (AUTH-20); chỉ Web (AUTH-21) | như trên |
+| Teacher | Lớp được phân công (Web + App). Tổ trưởng = phân công trên tài khoản GV, không phải role đăng nhập (AUTH-23) | như trên |
 
-Parent dùng APP — màn hình của họ không thuộc repo này. Kitchen Staff dùng APP; Kitchen trên Web: chỉ khi được yêu cầu (`BE:docs/business/USER_ROLES.md`).
+Parent dùng APP — màn hình của họ không thuộc repo này. Kitchen Staff **chỉ dùng APP**, gateway Web từ chối đăng nhập (AUTH-21); tổ bếp mỗi cơ sở dùng chung một tài khoản (AUTH-22). Lệch BE (28/10): UI mock còn route/dashboard cho `KITCHEN_STAFF` và `TEAM_LEADER` như role đăng nhập — cần sửa UI khi tích hợp (`BE:docs/business/USER_ROLES.md`).
 
 ## FE sở hữu
 
@@ -39,8 +39,8 @@ Màn hình, route/navigation, client state, tích hợp API, UX/accessibility, �
 
 ## Ngoài scope V1 (liên quan Web)
 
-Quản lý tài sản (khấu hao, bảo trì, kiểm kê) — CSVC chỉ **báo và theo dõi sự cố** · kho/NCC (OPEN — `BE:docs/decisions/ADR-0009-nutrition-inventory-scope.md`, chưa làm) · chat thay Zalo · giáo án · chẩn đoán y tế/tâm lý · payroll/kế toán. Ngữ cảnh hoạt động/học tập: OPEN (BE ADR-0006) — không làm màn hình cho tới khi chốt.
+CSVC: cả báo/theo dõi sự cố lẫn tài sản, luân chuyển, kiểm kê (BE FAC REMOVED 29/10; code ẩn sau `FACILITY_ENABLED=false`) · kho/NCC ngoài phạm vi rút gọn của ADR-0009 (ACCEPTED 28/10 — `BE:docs/decisions/ADR-0009-nutrition-inventory-scope.md`: chỉ nhập kho khô, trừ tự động, xem tồn, kiểm nhận hàng tươi, danh mục NCC; FE hiện UI mock theo BA, `docs/features/nutrition-inventory.md`; không kiểm kê kho thực phẩm) · chat thay Zalo · chẩn đoán y tế/tâm lý · payroll/kế toán. Kế hoạch giáo dục **trong scope** (BE EDU-01..28, ADR-0020); ngữ cảnh hoạt động = MT giáo án tuần/ngày đã duyệt (OBS-07, EDU-19).
 
 ## Stack Web
 
-React + TypeScript (Next.js) — **PROPOSED**, chưa chốt. Router, state/cache, UI kit, cách lưu token, auth flow: chưa quyết định ⇒ hỏi trước khi chọn.
+React 18 + Vite, JavaScript/JSX — đã có source. Bảng quyết định: `docs/architecture/FRONTEND_ARCHITECTURE.md`; code: `docs/architecture/CODING_GUIDE.md`; giao diện: `DESIGN.md`. Auth thật / lưu token: PROPOSED (`docs/integration/AUTH_FLOW.md`) ⇒ hỏi trước khi đổi.

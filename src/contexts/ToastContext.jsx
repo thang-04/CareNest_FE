@@ -1,0 +1,83 @@
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { CheckCircle2, AlertTriangle, Info, XCircle, X } from '@/components/ui/icons';
+import { toastContent, toastStatusText } from '@/utils/toastStatus';
+import { LottiePlayer } from '@/components/ui/LottiePlayer';
+
+// Toast thành công: dấu tick vẽ nét chạy một lần (user chọn 2026-10-21); chưa tải xong thì icon tĩnh như các loại khác
+const loadCheckmark = () => import('@/assets/lottie/checkmark.json');
+
+const ToastContext = createContext(null);
+
+const ICONS = { success: CheckCircle2, error: XCircle, warning: AlertTriangle, info: Info };
+const FADE_MS = 280; // thời gian hiệu ứng mờ dần trước khi gỡ toast
+
+export function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+
+  const remove = useCallback((id) => setToasts((list) => list.filter((t) => t.id !== id)), []);
+  // Đánh dấu "leaving" để chạy hiệu ứng mờ dần, rồi mới gỡ khỏi danh sách
+  const dismiss = useCallback(
+    (id) => {
+      setToasts((list) => list.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+      setTimeout(() => remove(id), FADE_MS);
+    },
+    [remove],
+  );
+
+  // message: chuỗi hoặc object lỗi (lấy mã từ err.status để ghi "Thất bại · Mã 403")
+  const show = useCallback(
+    (type, message, title) => {
+      const id = `${Date.now()}${Math.random()}`;
+      const duration = type === 'error' ? 6000 : 3500;
+      const { text, code } = toastContent(message);
+      const status = toastStatusText(type, code);
+      setToasts((list) => [...list.slice(-3), { id, type, status, message: text, title, duration }]);
+      setTimeout(() => dismiss(id), duration);
+    },
+    [dismiss],
+  );
+
+  const api = useMemo(
+    () => ({
+      success: (m, t) => show('success', m, t),
+      error: (m, t) => show('error', m, t),
+      warning: (m, t) => show('warning', m, t),
+      info: (m, t) => show('info', m, t),
+    }),
+    [show],
+  );
+
+  return (
+    <ToastContext.Provider value={api}>
+      {children}
+      <div className="toast-stack" role="status" aria-live="polite">
+        {toasts.map((t) => {
+          const Icon = ICONS[t.type];
+          return (
+            <div key={t.id} className={`toast toast--${t.type} ${t.leaving ? 'toast--leaving' : ''}`}>
+              <span className="toast__icon" aria-hidden="true">
+                {t.type === 'success' ? (
+                  <LottiePlayer load={loadCheckmark} loop={false} className="toast__check" fallback={<Icon size={18} />} />
+                ) : (
+                  <Icon size={18} />
+                )}
+              </span>
+              <div className="toast__body">
+                <div className="toast__status">{t.status}</div>
+                {t.title && <div className="toast__title">{t.title}</div>}
+                <div className={`toast__msg ${t.title ? '' : 'toast__msg--lead'}`}>{t.message}</div>
+              </div>
+              <button className="icon-btn toast__close" onClick={() => dismiss(t.id)} aria-label="Đóng thông báo">
+                <X size={16} />
+              </button>
+              {/* Thanh đếm ngược thời gian hiển thị */}
+              <span className="toast__timer" style={{ animationDuration: `${t.duration}ms` }} aria-hidden="true" />
+            </div>
+          );
+        })}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+export const useToast = () => useContext(ToastContext);

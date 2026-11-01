@@ -1,0 +1,123 @@
+import { useNavigate } from 'react-router-dom';
+import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
+import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { ROLES } from '@/models/User';
+import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { CLASS_DOC_LABELS, themeNumber, themeWeeksOf } from '@/models/education-plan/classPlan';
+import { PENDING_OF } from '@/models/education-plan/eduConfig';
+import { clickableRowProps } from '@/utils/clickableRow';
+
+/**
+ * Hộp duyệt: tổ trưởng thấy chủ đề nhánh, hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ tổ trưởng;
+ * Phó HT thấy chủ đề nhánh, hồ sơ chủ đề chờ Phó HT và kế hoạch năm chờ ban hành. Danh sách chỉ để mở nhanh; quyền duyệt do service kiểm.
+ */
+export default function PlanReviewQueuePage() {
+  const { user, goals, branchPlans, classThemePlans, classes } = useEducationPlan();
+  const navigate = useNavigate();
+
+  const isVp = user.role === ROLES.VICE_PRINCIPAL;
+  // Trạng thái chờ đúng vai trò người dùng (thứ tự duyệt theo cấu hình của trường)
+  const waiting = PENDING_OF[user.role];
+  const classOf = (id) => classes.find((c) => c.id === id);
+  const mine = (doc) => {
+    const cls = classOf(doc.classId);
+    return !!cls && doc.status === waiting && (user.role !== ROLES.TEAM_LEADER || cls.ageGroupId === user.ageGroupId);
+  };
+  const themeName = (doc) => goals.find((g) => g.id === doc.yearPlanId)?.themes?.find((t) => t.id === doc.themeId)?.name || '—';
+  const sentAt = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
+  const items = [
+    ...(isVp
+      ? goals
+          .filter((g) => g.status === EDU_STATUS.PENDING_VP)
+          .map((g) => ({
+            key: `y-${g.id}`,
+            kind: 'year',
+            doc: g,
+            cls: '—',
+            what: `Khối ${AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name || ''}, năm học ${g.schoolYear}`,
+            to: `/education/goals/${g.id}`,
+            by: g.sentBy?.name || [...(g.history || [])].reverse().find((h) => h.action?.startsWith('Gửi'))?.by,
+            at: g.sentAt,
+          }))
+      : []),
+    ...branchPlans.filter(mine).map((d) => ({ kind: 'branch', doc: d, what: 'Cả năm học', to: `/education/branches/${d.classId}` })),
+    // Hồ sơ chủ đề gửi và duyệt một lần (kế hoạch chủ đề + giáo án các nhánh)
+    ...classThemePlans.filter(mine).map((d) => {
+      const plan = goals.find((g) => g.id === d.yearPlanId);
+      return {
+        kind: 'theme',
+        doc: d,
+        what: `Kế hoạch giáo dục chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · ${themeWeeksOf(plan, d.themeId).length} nhánh`,
+        to: `/education/class/${d.classId}/themes/${d.themeId}/review`,
+      };
+    }),
+  ].map((it) => ({
+    key: `${it.kind}-${it.doc.id}`,
+    cls: classOf(it.doc.classId)?.name || '—',
+    by: sentAt(it.doc)?.by,
+    at: sentAt(it.doc)?.at,
+    ...it,
+  }));
+
+  return (
+    <div className="page ga-page">
+      <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Duyệt kế hoạch, giáo án' }]} title="Duyệt kế hoạch, giáo án" />
+      <Card bodyClass={null}>
+        {items.length === 0 ? (
+          <EmptyState title="Không có tài liệu chờ duyệt" desc="Khi giáo viên gửi kế hoạch hoặc giáo án, tài liệu sẽ hiện ở đây." />
+        ) : (
+          <div className="card__body">
+            <div className="table-wrap">
+              <table className="table ga-plan-table ga-goal-table">
+                <colgroup>
+                  <col className="ga-goal-table__group" />
+                  <col className="ga-goal-table__code" />
+                  <col />
+                  <col className="ga-goal-table__group" />
+                  <col className="ga-goal-table__group" />
+                  <col className="ga-goal-table__group" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th className="cell--fixed">Loại</th>
+                    <th>Lớp</th>
+                    <th>Nội dung</th>
+                    <th>Người gửi</th>
+                    <th>Gửi lúc</th>
+                    <th className="center">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it) => (
+                    <tr key={it.key} className="row-click" {...clickableRowProps(() => navigate(it.to))}>
+                      <td className="cell--fixed">
+                        <div className="ga-goal-table__pad fw-600">{CLASS_DOC_LABELS[it.kind]}</div>
+                      </td>
+                      <td>
+                        <div className="ga-goal-table__pad">{it.cls}</div>
+                      </td>
+                      <td>
+                        <div className="ga-goal-table__pad">{it.what}</div>
+                      </td>
+                      <td>
+                        <div className="ga-goal-table__pad">{it.by || '—'}</div>
+                      </td>
+                      <td>
+                        <div className="ga-goal-table__pad">{it.at ? fmtDateTime(it.at) : '—'}</div>
+                      </td>
+                      <td>
+                        <div className="ga-goal-table__pad">
+                          {it.kind === 'year' ? <YearPlanStatusBadge status={it.doc.status} /> : <EduStatusBadge status={it.doc.status} />}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}

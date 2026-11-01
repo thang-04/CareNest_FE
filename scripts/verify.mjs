@@ -160,10 +160,12 @@ function runToLog(root, exe, args, logFile) {
     // JVM ghi stdout UTF-8 khi bị pipe (mặc định theo code page Windows ⇒ lỗi font tiếng Việt)
     const utf8 = "-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8";
     const env = { ...process.env, MAVEN_OPTS: `${process.env.MAVEN_OPTS ?? ""} ${utf8}`.trim() };
-    // .cmd cần shell trên Windows; args do script tự sinh (không lấy từ input) nên ghép chuỗi an toàn
+    // .cmd cần shell trên Windows; args do script tự sinh (không lấy từ input) nên ghép chuỗi an toàn.
+    // Chỉ bọc ngoặc khi có dấu cách: "npm.cmd" trong ngoặc làm %~dp0 trỏ về thư mục repo, npm-cli.js không tìm thấy
+    const cmd = /\s/.test(exe) ? `"${exe}"` : exe;
     const child =
       process.platform === "win32"
-        ? spawn(`"${exe}" ${args.join(" ")}`, { cwd: root, shell: true, env })
+        ? spawn(`${cmd} ${args.join(" ")}`, { cwd: root, shell: true, env })
         : spawn(exe, args, { cwd: root, env });
     const collect = (chunk) => {
       log.write(chunk);

@@ -1,0 +1,23 @@
+# VPS: CI rsync source vào /data/thangnd/CAPSTONE/CareNest_FE rồi chạy `docker compose up -d --build`.
+# Local (không dùng mạng host): `docker build -t carenest-web . && docker run --rm -p 3000:80 carenest-web` rồi mở http://localhost:3000.
+name: carenest-fe
+
+services:
+  web:
+    build:
+      context: .
+      # VPS chặn đường ra Internet của mạng bridge (npm ci lỗi EAI_AGAIN) ⇒ chỉ bước build dùng mạng host
+      network: host
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        # BE chưa deploy ⇒ mặc định mock; BE lên thì đặt VITE_USE_MOCK=false
+        VITE_USE_MOCK: ${VITE_USE_MOCK:-true}
+        VITE_AUTH_MODE: ${VITE_AUTH_MODE:-mock}
+    image: carenest-web:latest
+    container_name: carenest-web
+    restart: unless-stopped
+    # VPS mất chain iptables của Docker (không tạo được network bridge) ⇒ chạy mạng host,
+    # nginx trong container chỉ nghe localhost; ra ngoài qua Caddy host (/data/thangnd/CAPSTONE/caddy/carenest-web.caddy)
+    network_mode: host
+    environment:
+      NGINX_LISTEN: 127.0.0.1:18300

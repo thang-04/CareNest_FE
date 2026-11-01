@@ -1,0 +1,214 @@
+import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { CalendarDays, ClipboardList, School, UserCheck } from '@/components/ui/icons';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
+import { PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
+import { usePickupBoard, usePickupClasses } from '@/hooks/pickup/usePickups';
+import { PICKUP_REASON_LABELS, PICKUP_STATUS, VERIFICATION } from '@/models/pickup/pickupConstants';
+import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
+import { formatDate, normalizeText, todayInput } from '@/utils/format';
+import '@/styles/modules/pickup.css';
+
+const TABS = [
+  { key: PICKUP_STATUS.WAITING, label: 'Chờ đón' },
+  { key: PICKUP_STATUS.PICKED_UP, label: 'Đã đón' },
+  { key: 'ALL', label: 'Tất cả' },
+];
+
+const timeOf = (iso) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—');
+
+/** #99 Pickup List: children of the class waiting to be picked up (UC 3.15 entry point). */
+export default function PickupListPage() {
+  const [params, setParams] = useSearchParams();
+  const today = todayInput();
+  const date = params.get('date') || today;
+  const { classes, loading: loadingClasses, error: classError, reload: reloadClasses } = usePickupClasses();
+  const classId = params.get('classId') || classes[0]?.id || '';
+  const { board, loading, error, reload } = usePickupBoard(classId, date);
+  const [tab, setTab] = useState(PICKUP_STATUS.WAITING);
+  const [keyword, setKeyword] = useState('');
+
+  const setParam = (key, value) => {
+    const next = new URLSearchParams(params);
+    next.set(key, value);
+    if (!next.get('classId') && classId) next.set('classId', classId);
+    setParams(next, { replace: true });
+  };
+
+  const rows = board?.rows || [];
+  const count = (k) => (k === 'ALL' ? rows.length : rows.filter((r) => r.status === k).length);
+  const visible = rows
+    .filter((r) => tab === 'ALL' || r.status === tab)
+    .filter((r) => !keyword || normalizeText(r.child.fullName).includes(normalizeText(keyword)));
+  const isToday = date === today;
+
+  if (loadingClasses) return <LoadingState />;
+
+  return (
+    <div className="page">
+      <Breadcrumb items={pickupCrumbs()} />
+      <h1 className="page__title">Đón trẻ</h1>
+      {classError ? (
+        <ErrorState error={classError} onRetry={reloadClasses} />
+      ) : classes.length === 0 ? (
+        <div className="card">
+          <EmptyState icon={ClipboardList} title="Bạn chưa được phân công lớp" description="Chỉ giáo viên của lớp trả trẻ cho người đón." />
+        </div>
+      ) : (
+        <>
+          <div className="card">
+            <div className="filter-bar dt-bar">
+              <div className="dt-field">
+                <label className="field__label" htmlFor="dt-class">
+                  <School size={15} /> Lớp
+                </label>
+                <select id="dt-class" className="select" value={classId} onChange={(e) => setParam('classId', e.target.value)}>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="dt-field">
+                <label className="field__label" htmlFor="dt-date">
+                  <CalendarDays size={15} /> Ngày
+                </label>
+                <input
+                  id="dt-date"
+                  type="date"
+                  className="input"
+                  value={date}
+                  max={today}
+                  onChange={(e) => e.target.value && setParam('date', e.target.value)}
+                />
+              </div>
+              <SearchSubmit className="dt-search" value={keyword} placeholder="Tìm tên trẻ..." label="Tìm tên trẻ" onSearch={setKeyword} />
+            </div>
+            <div className="tabs" role="tablist">
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  role="tab"
+                  aria-selected={tab === t.key}
+                  className={`tab ${tab === t.key ? 'tab--active' : ''}`}
+                  onClick={() => setTab(t.key)}
+                >
+                  {t.label} <span className="tab__count">{count(t.key)}</span>
+                </button>
+              ))}
+            </div>
+            {error ? (
+              <ErrorState error={error} onRetry={reload} />
+            ) : (
+              <div className="table-wrap dt-table-wrap">
+                <table className="table table--grid">
+                  <thead>
+                    <tr>
+                      <th>Trẻ</th>
+                      <th className="center">Trạng thái</th>
+                      <th>Người đón</th>
+                      <th>Giờ trả</th>
+                      <th>Xác minh</th>
+                      <th className="cell--actions">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading || !board ? (
+                      <SkeletonRows rows={5} cols={6} />
+                    ) : visible.length === 0 ? (
+                      <tr>
+                        <td colSpan={6}>
+                          <EmptyState
+                            icon={UserCheck}
+                            title={tab === PICKUP_STATUS.WAITING && rows.length > 0 ? 'Đã trả hết trẻ của lớp' : 'Không có trẻ phù hợp'}
+                            description={`Ngày ${formatDate(date)}`}
+                          />
+                        </td>
+                      </tr>
+                    ) : (
+                      visible.map((r) => {
+                        const failed = r.attempts.filter((a) => a.outcome !== 'HANDED_OVER').length;
+                        // Lần gần nhất là "không liên lạc được": người đón đang chờ phụ huynh gọi lại
+                        const last = r.attempts[r.attempts.length - 1];
+                        const awaitingCall = r.status === PICKUP_STATUS.WAITING && last?.verification === VERIFICATION.PHONE_UNREACHABLE;
+                        return (
+                          <tr key={r.child.id}>
+                            <td>
+                              <div className="fw-600">{r.child.fullName}</div>
+                              <div className="text-xs muted">
+                                {r.child.code}
+                                {!r.attendanceStatus && r.status === PICKUP_STATUS.WAITING ? ' · chưa điểm danh' : ''}
+                              </div>
+                            </td>
+                            <td className="center">
+                              <PickupStatusBadge status={r.status} />
+                              {/* Cô đã báo phụ huynh đón về sớm ở Sức khỏe trong ngày: trả trẻ khi phụ huynh đến, giờ ghi lúc trả */}
+                              {r.earlyRequest && r.status === PICKUP_STATUS.WAITING && (
+                                <div className="mt-8">
+                                  <Link
+                                    className="chip chip--orange"
+                                    to={`/attendance?classId=${classId}&date=${date}&childId=${r.child.id}`}
+                                    title="Xem sức khỏe trong ngày của trẻ"
+                                  >
+                                    Chờ đón sớm · sức khỏe
+                                  </Link>
+                                </div>
+                              )}
+                              {failed > 0 && r.status === PICKUP_STATUS.WAITING && (
+                                <div className="text-xs text-danger mt-8">{failed} lần không trả trẻ</div>
+                              )}
+                            </td>
+                            <td>
+                              {r.pickup ? (
+                                <>
+                                  <div>{r.pickup.pickupPersonName}</div>
+                                  <div className="text-xs muted">{r.pickup.pickupPersonRelation}</div>
+                                </>
+                              ) : (
+                                <span className="muted">—</span>
+                              )}
+                            </td>
+                            <td className="nowrap">{timeOf(r.pickup?.handedOverAt)}</td>
+                            <td className="text-sm">
+                              {r.pickup ? <VerificationBadge status={r.pickup.verification} /> : <span className="muted">—</span>}
+                              {r.pickup?.reason && (
+                                <div className="text-xs">
+                                  <Link
+                                    to={`/attendance?classId=${classId}&date=${date}&childId=${r.child.id}`}
+                                    title="Xem sức khỏe trong ngày của trẻ"
+                                  >
+                                    {PICKUP_REASON_LABELS[r.pickup.reason]}
+                                  </Link>
+                                </div>
+                              )}
+                            </td>
+                            <td className="cell--actions">
+                              {isToday && r.status === PICKUP_STATUS.WAITING && (
+                                <Link className="btn btn--sm btn--primary" to={`/pickup/${r.child.id}/verify`}>
+                                  <UserCheck size={15} /> {awaitingCall ? 'Xác minh lại' : 'Trả trẻ'}
+                                </Link>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <div className="page-actions">
+            <span />
+            <Link className="btn" to="/pickup/result">
+              <ClipboardList size={16} /> Kết quả trả trẻ hôm nay
+            </Link>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

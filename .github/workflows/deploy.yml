@@ -1,0 +1,122 @@
+name: Deploy production
+
+# Chỉ main chạy CI: push main = verify + deploy, PR vào main = chỉ verify; thay đổi chỉ tài liệu không chạy
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.ai/**'
+      - '.claude/**'
+      - '.agents/**'
+      - '.githooks/**'
+      - 'mockups/**'
+      - 'ui-review/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.ai/**'
+      - '.claude/**'
+      - '.agents/**'
+      - '.githooks/**'
+      - 'mockups/**'
+      - 'ui-review/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Giống Dockerfile: plugin-react 4.x chưa khai báo peer vite 8
+      - run: npm ci --legacy-peer-deps
+      - run: npm run verify
+
+  deploy:
+    needs: verify
+    # PR hoặc chạy tay trên nhánh khác chỉ verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      APP_DIR: /data/thangnd/CAPSTONE/CareNest_FE
+      CADDY_DIR: /data/thangnd/CAPSTONE/caddy
+      SITE_URL: https://web.carenest.edu.vn/
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      # File bị loại theo .dockerignore không bị --delete xoá ở VPS (vd. .env đặt tay)
+      - name: Upload source
+        run: |
+          rsync -az --delete --exclude-from=.dockerignore \
+            -e "ssh -p $VPS_PORT" ./ "$VPS_USER@$VPS_HOST:$APP_DIR/"
+
+      # deploy/ bị loại theo .dockerignore nên gửi riêng; đuôi .new không khớp `import *.caddy`
+      - name: Upload Caddy site
+        run: |
+          rsync -z -e "ssh -p $VPS_PORT" deploy/caddy/carenest-web.caddy \
+            "$VPS_USER@$VPS_HOST:$CADDY_DIR/carenest-web.caddy.new"
+
+      - name: Build and restart on VPS
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api' }}
+          VITE_USE_MOCK: ${{ vars.VITE_USE_MOCK || 'true' }}
+          VITE_AUTH_MODE: ${{ vars.VITE_AUTH_MODE || 'mock' }}
+        run: |
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' VITE_AUTH_MODE='$VITE_AUTH_MODE' bash -s" <<'EOF'
+          set -e
+          docker compose up -d --build --remove-orphans
+          docker image prune -f
+          sleep 2
+          curl -fsS -o /dev/null http://127.0.0.1:18300/
+          EOF
+
+      # Caddy dùng chung với site khác: reload lỗi thì Caddy giữ cấu hình đang chạy,
+      # nhưng file lỗi còn trên đĩa sẽ làm Caddy không lên sau reboot ⇒ khôi phục file cũ
+      - name: Apply Caddy site
+        run: |
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "cd '$CADDY_DIR' && bash -s" <<'EOF'
+          set -e
+          rm -f carenest-web.caddy.bak
+          if cmp -s carenest-web.caddy.new carenest-web.caddy; then
+            rm carenest-web.caddy.new
+            echo "Caddy site unchanged"
+            exit 0
+          fi
+          if [ -f carenest-web.caddy ]; then cp -p carenest-web.caddy carenest-web.caddy.bak; fi
+          mv carenest-web.caddy.new carenest-web.caddy
+          if ! sudo -n systemctl reload caddy; then
+            if [ -f carenest-web.caddy.bak ]; then mv carenest-web.caddy.bak carenest-web.caddy; else rm carenest-web.caddy; fi
+            sudo -n systemctl reload caddy || true
+            echo "Caddy reload failed, previous site file restored" >&2
+            exit 1
+          fi
+          EOF
+
+      - name: Smoke test HTTPS
+        run: curl -fsSI -o /dev/null --retry 5 --retry-delay 3 --retry-all-errors "$SITE_URL"

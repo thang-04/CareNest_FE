@@ -1,0 +1,666 @@
+/* Assessment module (đánh giá trẻ) – class prefix dg-. Shared classes live in styles/components.css. */
+
+/* ---------- Daily assessment sheet ---------- */
+/* Bảng cuộn trong khung: tiêu đề 2 tầng và cột tên trẻ dính khi cuộn dọc / ngang */
+.dg-sheet-wrap,
+.card > .dg-sheet-wrap,
+.table-wrap.dg-sheet-wrap:has(> .table--grid) {
+  max-height: calc(100vh - 13rem);
+  overflow: auto;
+  /* Khung ngoài đủ 4 cạnh, cùng màu vạch trong (giống table--grid); khung đứng yên khi bảng cuộn */
+  border: 1px solid var(--color-text-disabled);
+  border-radius: 0;
+}
+.dg-sheet-wrap > .table.table--grid {
+  border: 0;
+}
+/* Bảng nhập dày (nhiều ô chọn mỗi hàng): lề ô gọn hơn table--grid để cột tên trẻ, nhận xét không bị ép */
+.table.table--grid.dg-sheet th,
+.table.table--grid.dg-sheet td {
+  padding: var(--space-1);
+}
+.table.table--grid.dg-sheet th:first-child,
+.table.table--grid.dg-sheet td:first-child {
+  padding-left: var(--space-3);
+}
+.table.table--grid.dg-sheet th:last-child,
+.table.table--grid.dg-sheet td:last-child {
+  padding-right: var(--space-2);
+}
+.dg-sheet thead th {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+}
+.dg-sheet thead .dg-sticky-col {
+  z-index: 4;
+}
+.dg-sticky-col {
+  position: sticky;
+  z-index: 2;
+  left: 0;
+  background: var(--surface);
+}
+.dg-col-child {
+  min-width: 124px;
+}
+.dg-col-goals {
+  min-width: 112px;
+}
+.dg-col-note {
+  position: relative;
+  min-width: 64px;
+}
+.dg-head-goal {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px var(--space-1);
+}
+.dg-head-goal .dg-cell-btn--icon {
+  justify-content: center;
+  width: var(--space-6);
+  min-width: 0;
+  height: var(--space-6);
+  padding: 0;
+  color: var(--color-success-fg);
+}
+
+/* Trạng thái dòng: viền trái mỏng */
+.dg-row td:first-child {
+  box-shadow: inset 3px 0 0 transparent;
+}
+.dg-row--new td:first-child {
+  box-shadow: inset 3px 0 0 var(--warning-border-strong);
+}
+.dg-row--saved td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-success-border);
+}
+.dg-row--dirty td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+.dg-sheet tbody tr.dg-row--error td {
+  background: var(--danger-25);
+}
+.dg-row--error td:first-child {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+/* Ô khác mặc định */
+.dg-sheet tbody tr td.dg-cell--warn,
+.dg-days tbody tr td.dg-cell--warn {
+  background: var(--warning-25);
+}
+.dg-sheet tbody tr td.dg-cell--bad {
+  background: var(--danger-25);
+}
+.dg-col-health {
+  min-width: 104px;
+}
+.dg-hint {
+  margin-top: 2px;
+  color: var(--color-warning-fg);
+  font-size: var(--fs-xs);
+  line-height: 1.3;
+}
+.dg-link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: inherit;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.dg-tick--bad {
+  color: var(--color-danger-fg);
+}
+.dg-child {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.dg-col-child .dg-child {
+  display: flex;
+}
+.dg-child__info {
+  min-width: 0;
+}
+.dg-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Điều khiển gọn (~32px) */
+.dg-select,
+.dg-input {
+  min-width: 0;
+  width: 100%;
+  height: var(--space-8);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-xs);
+}
+.dg-select {
+  min-width: 92px;
+  padding-right: var(--space-4);
+  background-position: right var(--space-1) center;
+}
+.dg-note:focus {
+  position: absolute;
+  z-index: 3;
+  top: var(--space-1);
+  right: var(--space-2);
+  width: 16rem;
+}
+.dg-cell-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  width: 100%;
+  min-width: 92px;
+  max-width: 128px;
+  height: var(--space-8);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  text-align: left;
+  cursor: pointer;
+}
+.dg-col-meals .dg-cell-btn,
+.dg-col-nap .dg-select {
+  min-width: 80px;
+}
+.dg-cell-btn__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dg-cell-btn--good {
+  border-color: var(--color-success-border);
+  color: var(--color-success-fg);
+}
+.dg-cell-btn--warn {
+  border-color: var(--warning-border-strong);
+  color: var(--color-warning-fg);
+}
+.dg-cell-btn--bad {
+  border-color: var(--color-danger-border);
+  color: var(--color-danger-fg);
+}
+.dg-cell-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Khung mở từ ô */
+.dg-pop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+.dg-pop__title {
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+.dg-pop__ticks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1) var(--space-3);
+}
+.dg-tick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.dg-tick--good {
+  color: var(--color-success-fg);
+}
+.dg-tick--warn {
+  color: var(--color-warning-fg);
+}
+.dg-pop__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dg-pop__label {
+  min-width: 64px;
+  font-size: var(--fs-sm);
+}
+.dg-pop__action {
+  justify-content: flex-start;
+}
+
+/* Nhóm nút chọn một giá trị */
+.dg-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+.dg-seg__opt {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dg-seg__opt--on {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+}
+.dg-seg__opt--on.dg-seg__opt--warn {
+  border-color: var(--warning-border-strong);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.dg-seg__opt--on.dg-seg__opt--bad {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+}
+.dg-seg__opt:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Mục tiêu theo giáo án */
+.dg-criteria {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.dg-crit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.dg-crit:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.dg-crit--on {
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.dg-crit--bad {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+}
+.dg-crit:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.dg-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-7);
+  height: var(--space-7);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-3);
+  cursor: pointer;
+}
+.dg-flag--on {
+  border-color: var(--warning-border-strong);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.dg-flag:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.dg-plan {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ---------- Mở lại ngày đánh giá ---------- */
+.dg-unlock-filters {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.dg-unlock-filters .select,
+.dg-unlock-filters .input {
+  width: auto;
+}
+
+/* Bảng số liệu kỳ: cột nhãn vừa chữ, cột số liệu chiếm phần còn lại */
+.dg-summary th[scope='row'] {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* ---------- Hồ sơ phát triển ---------- */
+.dg-profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ---------- Phiếu bé ngoan ---------- */
+.dg-ticket-bar {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.dg-ticket-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.dg-ticket-kpis {
+  padding: var(--space-4) var(--space-4) 0;
+  margin: 0;
+}
+.dg-ticket-table {
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+.dg-col-no {
+  width: 1%;
+  white-space: nowrap;
+}
+/* Ô tên trẻ: avatar + họ tên (ChildNameCell) */
+.dg-child-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dg-child-cell > .avatar {
+  flex-shrink: 0;
+}
+/* Họ tên không xuống dòng giữa chừng ở bảng hẹp */
+.dg-child-cell .fw-600 {
+  white-space: nowrap;
+}
+
+/* ---------- Đánh giá tuần / tháng ---------- */
+.dg-flag-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: var(--fw-semibold);
+}
+.dg-flag-count svg {
+  color: var(--color-warning-fg);
+}
+.dg-period-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.dg-period-nav .select {
+  min-width: 220px;
+}
+.dg-eval-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.dg-eval-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+}
+.dg-days td {
+  vertical-align: top;
+}
+.dg-days__goals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-width: 160px;
+}
+.dg-days__comment {
+  min-width: 180px;
+  white-space: normal;
+}
+
+/* ---------- AI draft ---------- */
+.dg-ai-box {
+  border: 1px dashed var(--purple-border);
+  background: var(--purple-25);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  white-space: pre-line;
+  line-height: 1.6;
+}
+.dg-final {
+  white-space: pre-line;
+  line-height: 1.6;
+}
+.dg-editor {
+  min-height: 220px;
+  line-height: 1.6;
+}
+
+/* ---------- Charts (plain SVG) ---------- */
+.dg-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+.dg-chart__grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.dg-chart__axis {
+  fill: var(--text-3);
+  font-size: var(--fs-2xs);
+}
+.dg-chart__bar {
+  fill: var(--primary);
+}
+.dg-chart__bar--muted {
+  fill: var(--line-muted);
+}
+.dg-chart__line {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+.dg-chart__dot {
+  fill: var(--primary);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+.dg-chart__hit {
+  fill: transparent;
+  cursor: default;
+}
+.dg-chart__hit:hover + .dg-chart__bar,
+.dg-chart__hit:hover + .dg-chart__dot {
+  opacity: 0.75;
+}
+.dg-chart__value {
+  fill: var(--text-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+}
+.dg-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.dg-chart-card {
+  min-width: 0;
+}
+.dg-domain {
+  display: grid;
+  grid-template-columns: minmax(120px, 200px) 1fr 48px;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.dg-domain__bar {
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-secondary);
+  overflow: hidden;
+}
+.dg-domain__fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+}
+
+/* ---------- Misc ---------- */
+.dg-period-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-end;
+}
+.dg-period-bar .field {
+  min-width: 160px;
+}
+.dg-pre {
+  white-space: pre-line;
+}
+.dg-field-activity {
+  min-width: 240px;
+}
+.dg-filter-count {
+  align-self: center;
+}
+/* Cảnh báo nằm trong card, thụt vào cùng lề thanh lọc */
+.alert.dg-alert-inset {
+  margin: 0 var(--space-4) var(--space-3);
+}
+.card.dg-card-steps {
+  padding: var(--space-5) var(--space-6);
+}
+.card.dg-card-flat {
+  box-shadow: none;
+}
+/* Nút hành động cạnh tiêu đề ẩn của đầu trang */
+.dg-head-action {
+  margin-top: var(--space-1-5);
+}
+.dg-col-check {
+  width: var(--space-12);
+}
+.dg-plain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dg-bullets {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+.dg-cell-wrap {
+  white-space: normal;
+}
+
+@media (max-width: 1280px) {
+  .dg-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.dg-right {
+  text-align: right;
+}
+
+/* Dòng tên trẻ vắng / chưa điểm danh phía trên bảng đánh giá ngày */
+.dg-absent-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0 var(--space-4) var(--space-3);
+}
+
+/* Bảng đánh giá hằng ngày (2 màn, Tiền 21/10): ô chọn / nút cách viền ô ít nhất 20px hai bên, rộng hết phần còn lại để
+   các cột đều nhau; cờ giữa ô */
+.table.ga-goal-table.dg-day-table td.dg-day-cell {
+  padding: var(--space-2) var(--space-5);
+  vertical-align: middle;
+}
+.dg-day-table td.dg-day-cell .dg-cell-btn,
+.dg-day-table td.dg-day-cell .ga-cell-input {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+/* Ô đã cách viền 20px nên ô chọn không cần lề trong, để đủ chỗ cho chữ */
+.dg-day-table td.dg-day-cell select.ga-cell-input {
+  padding-inline: 0;
+}
+.table.ga-goal-table.dg-day-table td.dg-day-cell.center {
+  padding-inline: 0;
+  text-align: center;
+}
+.dg-day-table td.dg-day-cell.center .dg-flag {
+  margin: 0 auto;
+}
+/* Màn Kiến thức kỹ năng: tiêu đề cột giờ 1 dòng, cột giờ vừa tiêu đề; Nhận xét lấy phần còn lại */
+.table.ga-goal-table.dg-day-table--skills {
+  table-layout: auto;
+}
+.table.ga-goal-table.dg-day-table--skills thead th {
+  padding-inline: var(--space-2);
+  white-space: nowrap;
+}
+.dg-day-table.dg-day-table--skills .dg-head-goal {
+  flex-wrap: nowrap;
+}
+.dg-day-table--skills col.dg-skill-note {
+  width: 100%;
+}
+.table.ga-goal-table.dg-day-table--skills thead th:first-child {
+  min-width: calc(var(--space-16) * 3);
+}
+.table.ga-goal-table.dg-day-table--skills thead th:last-child {
+  min-width: calc(var(--space-16) * 3);
+}
+/* Ô kết quả giờ: chữ màu theo mức đang chọn, danh sách sổ xuống giữ màu chữ thường */
+.dg-day-table--skills select.dg-select {
+  width: 100%;
+}
+.dg-day-table--skills select.dg-select option {
+  color: var(--color-text);
+}
+/* Cột giờ hẹp lại nên lề trong nhỏ hơn để "Chưa đạt" nằm 1 dòng */
+.table.ga-goal-table.dg-day-table--skills td.dg-day-cell {
+  padding-inline: var(--space-2);
+}
+/* Tiêu đề cột giờ ở màn Kiến thức kỹ năng: tên giờ xuống dòng được, nút sổ xuống MT giữ đủ cỡ */
+.dg-day-table .dg-head-goal {
+  flex-wrap: wrap;
+}
+.dg-day-table .dg-head-goal .dg-cell-btn--icon {
+  flex: none;
+}

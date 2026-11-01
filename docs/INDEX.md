@@ -11,12 +11,17 @@ Nghiệp vụ, rule, contract, kiến trúc hệ thống **không nằm ở đâ
 | context | `context/REPOSITORY_CONTEXT.md` | Trách nhiệm Web, actor phục vụ, FE không sở hữu gì | FULL |
 | | `context/CURRENT_STATE.md` | Trạng thái source/màn hình | FULL |
 | architecture | `architecture/ROUTE_MAP.md` | Role → screen group (actor PENDING được đánh dấu) | FULL (mức screen group) |
-| | `architecture/STATE_MANAGEMENT.md` | Nguyên tắc server state / UI state | SKELETON + nguyên tắc |
-| | `architecture/FRONTEND_ARCHITECTURE.md` | Kiến trúc client | SKELETON + ràng buộc đã biết |
-| | `architecture/FOLDER_STRUCTURE.md` | Cấu trúc thư mục `src/` | SKELETON |
+| | `architecture/CODING_GUIDE.md` | **Nguồn chính về code:** chạy dự án, thư mục, CSS, luồng dữ liệu, ranh giới module, chung/riêng, thêm module, checklist PR | FULL |
+| | `architecture/FRONTEND_ARCHITECTURE.md` | Bảng quyết định kiến trúc theo source | FULL |
+| | `architecture/STATE_MANAGEMENT.md` | Server state (`useAsync`) / UI state (Context) | FULL |
+| | `architecture/FOLDER_STRUCTURE.md` | Tóm quy tắc đặt file, trỏ CODING_GUIDE §2 | FULL |
+| design | `../DESIGN.md` (gốc repo) | Design system chung web + app: token, component, bố cục, câu chữ, tự kiểm | FULL (PROPOSED) |
 | features | `features/README.md` | Feature nghiệp vụ → màn hình Web → BE card/flow; template doc feature | FULL |
+| | `features/daily-reception.md` | Demo tiếp nhận trẻ, sức khỏe nhiều lần/ngày, giới hạn tích hợp | FULL |
+| | `features/daily-assessment.md` | Đánh giá hằng ngày 3 nhóm, ô tích, giáo án tuần, tổng hợp cho AI | FULL |
 | integration | `integration/BACKEND_INTEGRATION.md` | Envelope, lỗi, 403/404, phân quyền phía client | FULL (theo BE hiện tại) |
-| | `integration/AUTH_FLOW.md` | Đăng nhập, token, phiên | SKELETON |
+| | `integration/AUTH_FLOW.md` | Đăng nhập, token, phiên: mock mặc định + gateway qua BE | FULL (UI browser pending) |
+| | `integration/DEPLOYMENT.md` | Deploy Web lên VPS: Docker, subdomain qua Caddy (HTTPS tự động), GitHub Actions, rollback | FULL |
 | knowledge | `knowledge/ISSUE_INDEX.md` | **Search đầu tiên khi debug** (bug UI/client, kể cả bug đang `open`) | FULL (chưa có issue) |
 | | `knowledge/incidents/_TEMPLATE.md` | Mẫu incident (có Attempts) | FULL |
 | | `knowledge/KNOWN_ISSUES.md` | Known Limitations: giới hạn cố ý/chưa làm (không phải bug) | FULL |
@@ -24,6 +29,7 @@ Nghiệp vụ, rule, contract, kiến trúc hệ thống **không nằm ở đâ
 | | `knowledge/PATTERNS.md` | Bài học tổng quát hóa | FULL |
 | quality | `quality/DEFINITION_OF_DONE.md` | Tiêu chí hoàn thành FE + memory checklist | FULL |
 | | `quality/VERIFICATION.md` | Bằng chứng trước khi báo xong (Iron Law, theo làn) | FULL |
+| | `quality/manual-tests/health-exam-flow.md` | Kịch bản thử tay đợt khám + phiếu Phụ lục II (tạo đợt → nhập phiếu → đóng), bộ số đủ trường hợp | FULL |
 | plans | `plans/_TEMPLATE.md`, `plans/active/`, `plans/completed/` | Plan làn L (`.ai/workflows/plan-change.md`) | FULL |
 
 ## Đọc ở BE (thường dùng)

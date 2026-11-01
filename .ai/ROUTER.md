@@ -11,6 +11,7 @@ Làn S (`AGENTS.md`) không cần đọc file này.
 | Task | Profile | Workflow | Skill | Mức đầu |
 | --- | --- | --- | --- | --- |
 | Bug UI, hiển thị sai, state lỗi, validation form, console error | `profiles/code.md` | `workflows/fix-bug.md` | fix-bug | L1 |
+| Sửa giao diện: màu, component, bảng, bộ lọc, bố cục, responsive | `profiles/code.md` + `DESIGN.md` (§2, §6.3, §8, §13) | `workflows/implement-feature.md` | implement-feature | L1 |
 | Refactor nhỏ, sửa cục bộ component/hook | `profiles/code.md` | `workflows/implement-feature.md` (rút gọn) | implement-feature | L1 |
 | Màn hình / chức năng Web mới, đổi luồng màn hình | `profiles/feature.md` | `workflows/implement-feature.md` | implement-feature | L2 |
 | Review code / PR | `profiles/code.md` | `workflows/review-code.md` | review-code | L1→L2 |
@@ -27,7 +28,7 @@ Chạm bất kỳ mục nào: số suất ăn / MealCount (xác nhận, điều 
 
 ## Bảng 3 — Ngoài scope
 
-Kho/NCC, tài sản/khấu hao/bảo trì/kiểm kê, chat, giáo án, chẩn đoán, multi-school, payroll/kế toán, màn hình Phụ huynh (thuộc APP) ⇒ **dừng**, đối chiếu `../CareNest_BE/docs/context/PROJECT_CONTEXT.md` (Exclusions) và hỏi người dùng. Kitchen trên Web: chỉ khi được yêu cầu (`BE:docs/business/USER_ROLES.md`).
+Kho/NCC ngoài phạm vi rút gọn của ADR-0009 (kiểm kê, chuyển liên cơ sở, dự báo tuần), CSVC (sự cố, tài sản, luân chuyển, kiểm kê — BE FAC REMOVED 29/10; code ẩn), đăng ký trước người đón hộ (PCK-03), chat, chẩn đoán, multi-school, payroll/kế toán, màn hình Phụ huynh (thuộc APP) ⇒ **dừng**, đối chiếu `../CareNest_BE/docs/context/PROJECT_CONTEXT.md` (Exclusions) và hỏi người dùng. Kitchen: chỉ App, gateway Web từ chối (AUTH-21, `BE:docs/business/USER_ROLES.md`).
 
 ## Cập nhật tri thức (song song với mọi task)
 

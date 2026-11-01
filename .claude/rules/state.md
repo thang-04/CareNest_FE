@@ -1,22 +1,20 @@
 ---
 paths:
-  - "src/**/*store*.ts"
-  - "src/**/*store*.tsx"
-  - "src/**/*state*.ts"
-  - "src/**/*query*.ts"
-  - "src/**/hooks/**/*.ts"
-  - "src/**/use*.ts"
-  - "src/**/use*.tsx"
+  - "src/hooks/**/*.js"
+  - "src/hooks/**/*.jsx"
+  - "src/contexts/**/*.jsx"
+  - "src/services/**/*Store.js"
 ---
 
 # State rules
 
-> Thư viện state/cache: chưa chốt (hỏi trước). Nguyên tắc: `docs/architecture/STATE_MANAGEMENT.md`.
+> Hiện thực: server state bằng `useAsync` (`src/hooks/useAsync.js`), UI state toàn cục bằng Context (`src/contexts/`), không thư viện cache — `docs/architecture/STATE_MANAGEMENT.md`. Thêm thư viện state/cache ⇒ làn L, hỏi trước.
 
-- **Server state** (dữ liệu từ BE) và **UI state** (form, filter, tab, modal) tách riêng. BE là nguồn sự thật của server state; không sao chép server state vào global store rồi sửa tay.
-- Sau mutation (lưu điểm danh, xác nhận suất, duyệt thực đơn/summary...) ⇒ refetch/invalidate dữ liệu liên quan từ BE; không tự cập nhật số liệu dẫn xuất ở client. Optimistic update chỉ cho thay đổi không có hệ quả nghiệp vụ, và phải rollback khi lỗi.
-- Không lưu dữ liệu trẻ/sức khỏe vào `localStorage`/`sessionStorage`/IndexedDB. Token: theo `docs/integration/AUTH_FLOW.md` (chưa chốt).
-- Đổi user/logout ⇒ xóa toàn bộ cache server state và UI state của user cũ.
-- Filter đang chọn (campus, lớp, ngày) là UI state; danh sách campus/lớp được phép chọn lấy từ BE, không tự suy luận theo role.
-- Request phụ thuộc filter phải chống race (bỏ response cũ khi filter đổi).
-- Effect phải cleanup (abort request, unsubscribe) khi unmount.
+- Hook đọc dữ liệu mới **dùng `useAsync(loader, deps, { refreshOnDataChange, enabled })`**, không tự viết lại epoch/sự kiện/loading. Hook module nhận `{ live }`; trang đang nhập liệu dùng `live: false` để không mất dữ liệu đang gõ.
+- **Server state** (từ BE/service) và **UI state** (form, filter, tab, modal) tách riêng; không sao chép server state vào Context rồi sửa tay.
+- Sau mutation ⇒ `reload({ silent: true })` / refetch từ service; không tự cập nhật số liệu dẫn xuất ở client. Optimistic update chỉ cho thay đổi không có hệ quả nghiệp vụ, phải rollback khi lỗi.
+- Không lưu dữ liệu trẻ/sức khỏe vào `localStorage`/`sessionStorage`/IndexedDB. Token chỉ qua `services/http/tokenStorage.js`; gateway: token thật chỉ trong memory (`docs/integration/AUTH_FLOW.md`).
+- Đổi user/logout ⇒ xóa toàn bộ state của user cũ.
+- Filter đang chọn (campus, lớp, ngày) là UI state; cần giữ khi quay lại ⇒ `useFilterParams`. Danh sách campus/lớp được chọn lấy từ service, không tự suy theo role.
+- Request phụ thuộc filter phải chống race (`useAsync` đã bỏ response cũ); effect tự viết phải cleanup khi unmount.
+- Hook/context không import `@/mocks/*` (đi qua service).

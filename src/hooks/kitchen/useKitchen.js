@@ -1,0 +1,168 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAsync } from '@/hooks/useAsync';
+import { loadWithHold } from '@/hooks/loadingTiming';
+import { isPrincipal } from '@/utils/kitchen/kitchenPermissions';
+import { resolveKitchenCampusId } from '@/utils/kitchen/kitchenCampus';
+import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
+import { readSeenMealCounts, saveSeenMealCounts } from '@/services/kitchen/mealCountSeenStore';
+import {
+  getConfirmedMealCount,
+  getFoodCatalog,
+  getFoodSampleLog,
+  getKitchenDay,
+  getFreshReceipt,
+  getPublishedMenu,
+  getDryStock,
+  getDryStockItem,
+  getStockReceipt,
+  getStockReceipts,
+  getStockIssues,
+  getSupplier,
+  getSuppliers,
+  getWeeklyForecast,
+  getMealPreparations,
+} from '@/services/kitchen/kitchenService';
+
+/** Campus shown by a kitchen page: the Principal may pick any campus, everyone else stays on the assigned one. */
+export function useKitchenCampus(firstCampusId = '') {
+  const { user } = useAuth();
+  const [picked, setPicked] = useState(user?.campusId || '');
+  const canPick = isPrincipal(user);
+  const campusId = resolveKitchenCampusId(user, picked, firstCampusId);
+  return { campusId, setCampusId: setPicked, canPick };
+}
+
+/* Read hooks refresh silently when the mock backend changes, unless { live: false } (forms being typed in). */
+const useKitchenQuery = (loader, deps, { live = true, enabled = true } = {}) => {
+  const { user } = useAuth();
+  return useAsync(() => loader(user), [user?.id, ...deps], { refreshOnDataChange: live, enabled: enabled && !!user });
+};
+
+export const useKitchenDay = (campusId, date) =>
+  useKitchenQuery((user) => getKitchenDay({ campusId, date }, user), [campusId, date], { enabled: !!campusId && !!date });
+
+export const useFoodSampleLog = (campusId, date) =>
+  useKitchenQuery((user) => getFoodSampleLog({ campusId, date }, user), [campusId, date], { enabled: !!campusId && !!date, live: false });
+
+export const useFoodCatalog = () => {
+  const { data, ...rest } = useKitchenQuery((user) => getFoodCatalog(user), [], { live: false });
+  return { foods: data || [], ...rest };
+};
+
+export const useDryStock = () => useKitchenQuery((user) => getDryStock(user), []);
+
+export const useDryStockItem = (foodId) => useKitchenQuery((user) => getDryStockItem({ foodId }, user), [foodId], { enabled: !!foodId });
+
+export const useStockReceipts = (campusId) => useKitchenQuery((user) => getStockReceipts({ campusId }, user), [campusId]);
+
+export const useStockReceipt = (id) => useKitchenQuery((user) => getStockReceipt({ id }, user), [id], { enabled: !!id, live: false });
+
+export const useSuppliers = ({ keyword = '', status = '' } = {}) =>
+  useKitchenQuery((user) => getSuppliers({ keyword, status }, user), [keyword, status]);
+
+export const useSupplier = (id, { live = true } = {}) =>
+  useKitchenQuery((user) => getSupplier({ id }, user), [id], { enabled: !!id, live });
+
+export const useStockIssues = (campusId) =>
+  useKitchenQuery((user) => getStockIssues({ campusId }, user), [campusId], { enabled: !!campusId });
+
+export const usePublishedMenu = (date, view, campusId) => {
+  const { user } = useAuth();
+  const [version, setVersion] = useState(0);
+  const [result, setResult] = useState({ key: '', days: [], loading: true, error: null });
+  // Dữ liệu mock đổi ⇒ tải lại im lặng, giữ bảng cũ (không chớp khung chờ mỗi lần ghi DB)
+  const silentNext = useRef(false);
+  const reload = useCallback(() => setVersion((v) => v + 1), []);
+  const refresh = useCallback(() => {
+    silentNext.current = true;
+    setVersion((v) => v + 1);
+  }, []);
+  const key = `${user?.id}|${user?.role}|${user?.campusId}|${campusId}|${date}|${view}`;
+  const enabled = !!user && !!date && !!campusId;
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let cancelled = false;
+    const silent = silentNext.current;
+    silentNext.current = false;
+    if (!silent) setResult({ key, days: [], loading: true, error: null });
+    const load = () => getPublishedMenu({ date, view, campusId }, user);
+    (silent ? load() : loadWithHold(load)).then(
+      (days) => !cancelled && setResult({ key, days, loading: false, error: null }),
+      (error) => !cancelled && setResult({ key, days: [], loading: false, error }),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [date, view, campusId, user, version, key, enabled]);
+
+  useEffect(() => {
+    window.addEventListener(DB_CHANGED_EVENT, refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener(DB_CHANGED_EVENT, refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, [refresh]);
+
+  // Không để response cũ đưa danh sách trẻ của campus trước trở lại màn hình.
+  return {
+    days: enabled && result.key === key ? result.days : [],
+    loading: enabled && (result.key !== key || result.loading),
+    error: enabled && result.key === key ? result.error : null,
+    reload,
+  };
+};
+
+export const useConfirmedMealCount = (campusId, date) => {
+  const { data, ...rest } = useKitchenQuery((user) => getConfirmedMealCount({ campusId, date }, user), [campusId, date], {
+    enabled: !!campusId && !!date,
+  });
+  return { sessions: data || [], ...rest };
+};
+
+/**
+ * Bữa có số mới với bếp (vừa xác nhận hoặc xác nhận lại) so với lần xem trước trên máy này. Thay thông báo
+ * khi chưa có module thông báo (Cần chốt 24/10/2026).
+ */
+export const useNewMealCounts = (campusId, date, sessions) => {
+  const [fresh, setFresh] = useState(() => new Set());
+  const shownDay = useRef('');
+  const signature = sessions.map((s) => `${s.session}:${s.changedAt || ''}`).join('|');
+  useEffect(() => {
+    if (!campusId || !date || !signature) return;
+    const seen = readSeenMealCounts();
+    const next = new Set();
+    signature.split('|').forEach((part) => {
+      const [session, changedAt] = part.split(/:(.*)/s);
+      const key = `${campusId}|${date}|${session}`;
+      if (changedAt && seen[key] !== changedAt) {
+        next.add(session);
+        seen[key] = changedAt;
+      }
+    });
+    // Đổi ngày/điểm trường: chỉ giữ nhãn của ngày đang xem; cùng ngày: giữ nhãn đã hiện tới khi rời trang
+    const day = `${campusId}|${date}`;
+    const sameDay = shownDay.current === day;
+    shownDay.current = day;
+    setFresh((prev) => (sameDay ? new Set([...prev, ...next]) : next));
+    saveSeenMealCounts(seen);
+  }, [campusId, date, signature]);
+  return fresh;
+};
+
+export const useWeeklyForecast = (campusId, weekStart) =>
+  useKitchenQuery((user) => getWeeklyForecast({ campusId, weekStart }, user), [campusId, weekStart], {
+    enabled: !!campusId && !!weekStart,
+  });
+
+export const useFreshReceipt = (campusId, date, opts) =>
+  useKitchenQuery((user) => getFreshReceipt({ campusId, date }, user), [campusId, date], { enabled: !!campusId && !!date, ...opts });
+
+export const useMealPreparations = (campusId, date) => {
+  const { data, ...rest } = useKitchenQuery((user) => getMealPreparations({ campusId, date }, user), [campusId, date], {
+    enabled: !!campusId && !!date,
+  });
+  return { sessions: data || [], ...rest };
+};
