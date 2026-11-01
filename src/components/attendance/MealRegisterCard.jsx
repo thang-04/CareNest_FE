@@ -14,6 +14,8 @@ import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { ROLE_LABELS } from '@/models/User';
 
+// NUT-02: BE từ chối xác nhận khi còn lớp trong cơ sở–ngày có trẻ chưa điểm danh
+const BLOCKED_HINT = 'Còn lớp chưa điểm danh xong, chưa xác nhận được.';
 // OPEN: chưa tới giờ chốt (sổ tạm tính)
 const STATUS_ORDER = ['OPEN', MEAL_COUNT_STATUS.PENDING_CONFIRMATION, MEAL_COUNT_STATUS.CONFIRMED];
 const DAY = 'DAY';
@@ -52,9 +54,8 @@ const confirmerLabel = (count, md) => {
   return name || role || 'Phó hiệu trưởng';
 };
 
-/** Bảng lớp của một bữa: số suất theo bữa BE trả, sửa riêng bữa này, xác nhận riêng bữa này. */
-function MealPanel({ count, user, md, onConfirm, onAdjust, counts }) {
-  const confirmable = count.id && canConfirmMealCount(count, user);
+/** Bảng lớp của một bữa: số suất theo bữa BE trả, sửa riêng bữa này. Xác nhận theo cả ngày (BE NUT-02, D10). */
+function MealPanel({ count, user, md, onAdjust, counts }) {
   const adjustable = canAdjustMealCount(count, user);
   return (
     <>
@@ -67,12 +68,6 @@ function MealPanel({ count, user, md, onConfirm, onAdjust, counts }) {
               ? 'Đang báo ăn, chưa tới giờ chốt'
               : 'Chưa xác nhận'}
         </span>
-        <div className="spacer" />
-        {confirmable && (
-          <button className="btn btn--primary btn--sm" onClick={() => onConfirm({ counts: [count], scope: mealName(count.session) })}>
-            <CheckCircle2 size={15} /> {count.needsReconfirmation ? 'Xác nhận lại' : 'Xác nhận'} {mealName(count.session)}
-          </button>
-        )}
       </div>
       <div className="table-wrap mt-12">
         <table className="table table--grid table--compact table--wrap-head">
@@ -100,7 +95,7 @@ function MealPanel({ count, user, md, onConfirm, onAdjust, counts }) {
                   <td className="cell--actions">
                     <RowActions
                       edit={{
-                        label: `Sửa số suất ${mealName(count.session)}`,
+                        label: `Sửa suất thay thế ${mealName(count.session)}`,
                         onClick: () => onAdjust({ counts, line: l, session: count.session }),
                       }}
                       name={l.className}
@@ -118,7 +113,7 @@ function MealPanel({ count, user, md, onConfirm, onAdjust, counts }) {
 
 /**
  * Sổ báo ăn ngày của một điểm trường: tab "Cả ngày" (mỗi lớp một dòng suất/ngày, BA) và mỗi bữa một tab
- * (lớp nào ăn bữa đó, số suất, xác nhận riêng bữa). Nút "Xác nhận tất cả" chốt mọi bữa còn chờ.
+ * (lớp nào ăn bữa đó, số suất). Nút "Xác nhận tất cả" chốt mọi bữa còn chờ: BE xác nhận theo cơ sở–ngày (NUT-02).
  */
 export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAdjust }) {
   const [tab, setTab] = useState(DAY);
@@ -133,7 +128,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
   const incomplete = register.rows.filter((l) => l.missing > 0);
   const classById = Object.fromEntries(register.rows.map((l) => [l.classId, l.className]));
   const adjustments = groupAdjustments(counts.flatMap((c) => c.adjustments.map((a) => ({ ...a, session: c.session }))));
-  // PHT điểm trường / Hiệu trưởng sửa số suất của lớp (có lý do) sau giờ chốt
+  // NUT-02: PHT điểm trường chỉ điều chỉnh suất thay thế của lớp (có lý do) sau giờ chốt
   const adjustable = counts.some((c) => canAdjustMealCount(c, user));
   const meal = counts.find((c) => c.session === tab);
   const lastConfirmed = counts.filter((c) => c.confirmedAt).sort((x, y) => (x.confirmedAt < y.confirmedAt ? 1 : -1))[0];
@@ -167,12 +162,12 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
             <div>Giáo viên đang điểm danh và báo ăn. Số liệu dưới đây là tạm tính đến giờ chốt.</div>
           </div>
         )}
-        {status !== MEAL_COUNT_STATUS.CONFIRMED && incomplete.length > 0 && (
-          <div className="alert alert--warning mb-12">
+        {(status !== MEAL_COUNT_STATUS.CONFIRMED || confirmable.length > 0) && incomplete.length > 0 && (
+          <div className="alert alert--warning mb-12" role="status">
             <AlertTriangle size={18} />
             <div>
-              Lớp chưa hoàn thành điểm danh: <b>{incomplete.map((l) => l.className).join(', ')}</b>. Trẻ chưa điểm danh không được tính
-              suất; kiểm tra với giáo viên trước khi xác nhận.
+              Lớp chưa hoàn thành điểm danh: <b>{incomplete.map((l) => `${l.className} (${l.missing} trẻ)`).join(', ')}</b>. Chưa xác nhận
+              được sổ báo ăn tới khi giáo viên điểm danh đủ (mở lại điểm danh nếu đã qua giờ chốt).
             </div>
           </div>
         )}
@@ -214,7 +209,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
           )}
         </div>
         {meal ? (
-          <MealPanel count={meal} counts={counts} user={user} md={md} onConfirm={onConfirm} onAdjust={onAdjust} />
+          <MealPanel count={meal} counts={counts} user={user} md={md} onAdjust={onAdjust} />
         ) : (
           <div className="table-wrap mt-12">
             <table className="table table--grid table--compact table--wrap-head">
@@ -253,7 +248,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
                     {adjustable && (
                       <td className="cell--actions">
                         <RowActions
-                          edit={{ label: 'Sửa số suất cả ngày', onClick: () => onAdjust({ counts, line: lineOf[l.classId] }) }}
+                          edit={{ label: 'Sửa suất thay thế cả ngày', onClick: () => onAdjust({ counts, line: lineOf[l.classId] }) }}
                           name={l.className}
                         />
                       </td>
@@ -292,6 +287,8 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
           <div className="row mt-12 dd-count__actions">
             <button
               className="btn btn--primary"
+              disabled={incomplete.length > 0}
+              title={incomplete.length > 0 ? BLOCKED_HINT : undefined}
               onClick={() =>
                 onConfirm({
                   counts: confirmable,
@@ -312,33 +309,31 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
 }
 
 /**
- * Sửa số suất của một lớp (bắt buộc lý do, lưu lịch sử): từ tab "Cả ngày" áp cho mọi bữa của lớp,
- * từ tab một bữa chỉ áp cho bữa đó; bữa đã xác nhận chuyển sang chờ xác nhận lại.
+ * NUT-02: điều chỉnh suất thay thế của một lớp (bắt buộc lý do, lưu lịch sử); suất thường chỉ đổi qua điểm danh.
+ * Từ tab "Cả ngày" áp cho mọi bữa của lớp, từ tab một bữa chỉ bữa đó; bữa đã xác nhận chuyển sang chờ xác nhận lại.
  */
 export function MealAdjustModal({ target, user, onClose, onSaved }) {
   const toast = useToast();
   const { counts, line, session } = target;
   const scoped = session ? counts.filter((c) => c.session === session) : counts;
   const confirmed = scoped.some((c) => c.status === MEAL_COUNT_STATUS.CONFIRMED);
-  const [form, setForm] = useState({ normal: String(line.normal), substitute: String(line.substitute), note: '' });
+  const [form, setForm] = useState({ substitute: String(line.substitute), note: '' });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const save = async () => {
-    const normal = Number(form.normal);
     const substitute = Number(form.substitute);
     const errs = {};
-    if (!Number.isInteger(normal) || normal < 0) errs.normal = 'Nhập số nguyên ≥ 0.';
-    if (!Number.isInteger(substitute) || substitute < 0) errs.substitute = 'Nhập số nguyên ≥ 0.';
+    if (form.substitute.trim() === '' || !Number.isInteger(substitute) || substitute < 0) errs.substitute = 'Nhập số nguyên ≥ 0.';
     if (!form.note.trim()) errs.note = 'Nhập lý do điều chỉnh.';
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setBusy(true);
     try {
       await adjustMealDay(
-        { campusId: counts[0].campusId, date: counts[0].date, session, classId: line.classId, normal, substitute, note: form.note },
+        { campusId: counts[0].campusId, date: counts[0].date, session, classId: line.classId, substitute, note: form.note },
         user,
       );
-      toast.success(confirmed ? `Đã sửa số suất ${line.className}. Chờ xác nhận lại.` : `Đã sửa số suất ${line.className}.`);
+      toast.success(confirmed ? `Đã sửa suất thay thế ${line.className}. Chờ xác nhận lại.` : `Đã sửa suất thay thế ${line.className}.`);
       onSaved();
     } catch (err) {
       if (err.details) setErrors(err.details);
@@ -357,7 +352,7 @@ export function MealAdjustModal({ target, user, onClose, onSaved }) {
   return (
     <Modal
       open
-      title={`Sửa số suất – ${line.className}${session ? ` · ${MEAL_SESSION_LABELS[session]}` : ''}`}
+      title={`Sửa suất thay thế – ${line.className}${session ? ` · ${MEAL_SESSION_LABELS[session]}` : ''}`}
       onClose={busy ? undefined : onClose}
       footer={
         <>
@@ -365,26 +360,22 @@ export function MealAdjustModal({ target, user, onClose, onSaved }) {
             Hủy
           </button>
           <button className="btn btn--primary" onClick={save} disabled={busy}>
-            {busy ? <Spinner small /> : <Save size={16} />} Lưu số suất
+            {busy ? <Spinner small /> : <Save size={16} />} Lưu suất thay thế
           </button>
         </>
       }
     >
       <p className="muted text-sm mb-12">
         Ngày {formatDate(counts[0].date)} · đang tính {line.normal} suất thường, {line.substitute} suất thay thế (có mặt {line.present}).{' '}
-        {session ? `Chỉ áp cho ${mealName(session)} của lớp.` : 'Số mới áp cho mọi bữa của lớp trong ngày.'}
+        {session ? `Chỉ áp cho ${mealName(session)} của lớp.` : 'Số mới áp cho mọi bữa của lớp trong ngày.'} Suất thường tính từ điểm danh;
+        số sai thì mở lại điểm danh để giáo viên sửa.
         {confirmed && ' Bữa đã xác nhận: sửa xong cần xác nhận lại, bếp dùng số cũ đến khi xác nhận.'}
       </p>
-      <div className="dd-adjust-form">
-        <FormField label="Suất thường" required error={errors.normal}>
-          <input type="number" min={0} step={1} className="input" {...field('normal')} />
-        </FormField>
-        <FormField label="Suất thay thế" required error={errors.substitute}>
-          <input type="number" min={0} step={1} className="input" {...field('substitute')} />
-        </FormField>
-      </div>
+      <FormField label="Suất thay thế" required error={errors.substitute}>
+        <input type="number" min={0} step={1} className="input" {...field('substitute')} />
+      </FormField>
       <FormField label="Lý do" required error={errors.note}>
-        <input className="input" maxLength={200} placeholder="Ví dụ: 2 trẻ đến muộn, cô báo thêm suất" {...field('note')} />
+        <input className="input" maxLength={200} placeholder="Ví dụ: 1 trẻ dị ứng nặng cần suất riêng" {...field('note')} />
       </FormField>
     </Modal>
   );

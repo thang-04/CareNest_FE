@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Trash2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -7,6 +7,8 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useCampusDetail } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FormField } from '@/components/form/FormField';
@@ -21,10 +23,8 @@ const EMPTY = { code: '', name: '', shortName: '', address: '', phone: '', isMai
 
 function CampusForm({ campus, others, user }) {
   const toast = useToast();
-  const navigate = useNavigate();
-  const [form, setForm] = useState(() =>
-    campus ? { ...EMPTY, ...campus, isMain: !!campus.isMain } : { ...EMPTY, isMain: others.length === 0 },
-  );
+  const [initial] = useState(() => (campus ? { ...EMPTY, ...campus, isMain: !!campus.isMain } : { ...EMPTY, isMain: others.length === 0 }));
+  const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -40,17 +40,23 @@ function CampusForm({ campus, others, user }) {
     else if (field === 'phone' && form.phone) setForm((f) => ({ ...f, phone: normalizePhone(f.phone) }));
   };
 
-  const submit = async () => {
+  const dirty = Object.keys(EMPTY).some((key) => form[key] !== initial[key]);
+  const guard = useLeaveGuard({ when: dirty && !saving, onSave: () => submit({ stay: true }) });
+
+  // Trả true khi lưu được; stay: lưu từ hộp rời màn (hộp tự chuyển tới nơi người dùng bấm)
+  const submit = async ({ stay = false } = {}) => {
     const e = validateCampus(form, others);
     setErrors(e);
-    if (hasErrors(e)) return;
+    if (hasErrors(e)) return false;
     setSaving(true);
     try {
       const saved = await saveCampus(campus?.id || null, { ...form, phone: normalizePhone(form.phone) }, user);
       toast.success('Đã lưu thay đổi.', saved.shortName);
-      navigate(`/school/campuses/${saved.id}`);
+      if (!stay) guard.leaveNow(`/school/campuses/${saved.id}`);
+      return true;
     } catch (err) {
       setErrors(err.details || { _form: err.message });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -60,7 +66,7 @@ function CampusForm({ campus, others, user }) {
     try {
       await deleteCampus(campus.id, user);
       toast.success('Đã xóa bản ghi.');
-      navigate('/school/campuses');
+      guard.leaveNow('/school/campuses');
     } catch (err) {
       setDeleteError(err.message);
     }
@@ -132,7 +138,7 @@ function CampusForm({ campus, others, user }) {
               <Trash2 size={16} /> Xóa điểm trường
             </button>
           )}
-          <button className="btn btn--primary" onClick={submit} disabled={saving}>
+          <button className="btn btn--primary" onClick={() => submit()} disabled={saving}>
             {saving ? <Spinner small /> : <Save size={16} />} {campus ? 'Lưu điểm trường' : 'Tạo điểm trường'}
           </button>
         </div>
@@ -155,6 +161,7 @@ function CampusForm({ campus, others, user }) {
           setDeleteError('');
         }}
       />
+      <LeaveConfirmModal {...guard.modal} />
     </>
   );
 }

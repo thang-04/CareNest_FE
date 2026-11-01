@@ -176,7 +176,7 @@ export default function TeacherAssignmentPage() {
   const onSaveLeader = async (group, userId) => {
     try {
       await saveTeamLeader({ schoolYear: yearId, ageGroupId: group.id, userId }, user);
-      toast.success(userId ? 'Đã lưu thay đổi. Tổ trưởng đã nhận thông báo.' : 'Đã bỏ phân công tổ trưởng.', group.name);
+      toast.success(userId ? 'Đã lưu. Hãy báo trực tiếp cho tổ trưởng.' : 'Đã bỏ phân công tổ trưởng.', group.name);
       leaders.reload({ silent: true });
       return true;
     } catch (err) {

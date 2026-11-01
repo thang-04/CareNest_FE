@@ -11,11 +11,14 @@ import {
   School,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useWidget } from '@/hooks/dashboard/useDashboard';
 import { Spinner } from '@/components/ui/States';
 import { Widget, KpiCard, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
-import { getClasses, getChildren } from '@/services/schoolService';
-import { getClassAttendance, getMealHandovers } from '@/services/attendance/attendanceService';
+import { getChildren } from '@/services/schoolService';
+import { getAttendanceClasses, getClassAttendance, getMealHandovers } from '@/services/attendance/attendanceService';
+import { isClassTeacher } from '@/utils/attendance/attendancePermissions';
+import { ROLES } from '@/models/User';
 import { getPickupBoard } from '@/services/pickup/pickupService';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
 import { getEvaluations } from '@/services/assessment/assessmentService';
@@ -44,10 +47,12 @@ const metaOf = (q, text) => (q.error ? 'Không tải được – mở chức n�
 export function ClassTodayPanel() {
   const { user } = useAuth();
   const date = todayInput();
-  const showHandover = user.role !== 'TEACHER';
-  // Chỉ lớp của năm học đang hoạt động (năm cũ đã kết thúc vẫn còn teacherIds)
-  const classesQ = useWidget((u) =>
-    getClasses({ activeYear: true }, u).then((list) => list.filter((c) => (c.teacherIds || []).includes(u.id))),
+  const { schoolYear } = useSchoolYear();
+  const showHandover = user.role !== ROLES.TEACHER;
+  // Lớp được phân công lấy từ module điểm danh (BE: GET /attendance/classes, cờ teaches) — cùng nguồn màn Điểm danh
+  const classesQ = useWidget(
+    (u) => getAttendanceClasses(u, schoolYear).then((list) => list.filter((c) => isClassTeacher(c, u))),
+    [schoolYear],
   );
   const classes = classesQ.data || [];
   const [picked, setPicked] = useState('');
@@ -117,7 +122,7 @@ export function ClassTodayPanel() {
       {needsDemoLabel('school-lookup') && (
         <div className="alert alert--warning mb-16" role="status">
           <span>
-            <strong>Dữ liệu demo</strong> — danh sách lớp, trẻ, đón trẻ trong khung này là dữ liệu mẫu, chưa nối hệ thống CareNest.
+            <strong>Dữ liệu demo</strong> — số trẻ dị ứng, đón trẻ trong khung này là dữ liệu mẫu, chưa nối hệ thống CareNest.
           </span>
         </div>
       )}

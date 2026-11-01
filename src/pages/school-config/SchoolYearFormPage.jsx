@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Shapes, UserCog } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYearItem, useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { DateInput } from '@/components/form/DateInput';
@@ -29,12 +31,10 @@ const suggestNext = (years) => {
 
 function YearForm({ year, years, user }) {
   const toast = useToast();
-  const navigate = useNavigate();
   const md = useMasterData();
   const others = years.filter((y) => y.id !== year?.id);
-  const [form, setForm] = useState(() =>
-    year ? { name: year.name, startDate: year.startDate, endDate: year.endDate } : suggestNext(years),
-  );
+  const [initial] = useState(() => (year ? { name: year.name, startDate: year.startDate, endDate: year.endDate } : suggestNext(years)));
+  const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(null);
@@ -55,15 +55,24 @@ function YearForm({ year, years, user }) {
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
   };
 
-  const submit = async () => {
+  const dirty = !saved && (form.name !== initial.name || form.startDate !== initial.startDate || form.endDate !== initial.endDate);
+  // Rời màn khi đang sửa ⇒ hỏi; "Lưu" trong hộp lưu rồi đi tiếp tới nơi người dùng bấm
+  const guard = useLeaveGuard({ when: dirty && !saving, onSave: () => submit({ stay: true }) });
+
+  // Trả true khi lưu được; stay: lưu từ hộp rời màn (không tự chuyển trang, không mở bước tiếp)
+  const submit = async ({ stay = false } = {}) => {
     const e = validateSchoolYear(form, others, { creating: !year });
     setErrors(e);
-    if (hasErrors(e)) return;
+    if (hasErrors(e)) return false;
     setSaving(true);
     try {
       const result = await saveSchoolYear(year?.id || null, form, user);
       toast.success('Đã lưu thay đổi.', `Năm học ${result.name}`);
-      if (year) return navigate('/school/years');
+      if (stay) return true;
+      if (year) {
+        guard.leaveNow('/school/years');
+        return true;
+      }
       let copyNote = '';
       if (copyOn && copySource) {
         try {
@@ -73,10 +82,15 @@ function YearForm({ year, years, user }) {
           toast.error(err, 'Không sao chép được lớp');
         }
       }
-      if (openVp) return navigate(`/school/vice-principals?year=${result.id}`);
+      if (openVp) {
+        guard.leaveNow(`/school/vice-principals?year=${result.id}`);
+        return true;
+      }
       setSaved({ ...result, copyNote });
+      return true;
     } catch (err) {
       setErrors(err.details || { _form: err.message });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -195,10 +209,11 @@ function YearForm({ year, years, user }) {
         <Link className="btn" to="/school/years">
           <ArrowLeft size={16} /> Quay lại
         </Link>
-        <button className="btn btn--primary" onClick={submit} disabled={saving}>
+        <button className="btn btn--primary" onClick={() => submit()} disabled={saving}>
           {saving ? <Spinner small /> : <Save size={16} />} {year ? 'Lưu năm học' : 'Tạo năm học'}
         </button>
       </div>
+      <LeaveConfirmModal {...guard.modal} />
     </>
   );
 }

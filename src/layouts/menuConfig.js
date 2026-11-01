@@ -17,6 +17,8 @@ import {
 import { ROLES } from '@/models/User';
 import { FACILITY_ENABLED } from '@/config/app';
 import { areaAccess, canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
+import { hasBePermission } from '@/utils/account/accountPermissions';
+import { PERMISSIONS } from '@/models/account/permissionConstants';
 
 /*
  * Sidebar menu – single source of truth.
@@ -147,7 +149,7 @@ const MENUS = {
       'schoolVps',
       'schoolRoles',
     ]),
-    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
+    group('children', ['childList', 'parentActivation', 'healthChecks', 'healthFollowUps', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('assessment', ['assessProgress', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards', 'assessDayUnlocks']),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
@@ -255,7 +257,23 @@ const withVpAreas = (menu, user) => {
     .map((e) => (e.children ? { ...e, children: e.children.filter((c) => !hiddenItems.includes(c.key)) } : e));
 };
 
+// Mục gắn với mã quyền BE thật: người dùng BE bị thu hồi quyền thì ẩn mục (BE vẫn chặn khi mở thẳng đường dẫn)
+const ITEM_BE_PERMISSIONS = {
+  parentActivation: [PERMISSIONS.PARENT_ACCOUNT_MANAGE],
+  schoolRoles: [PERMISSIONS.PERMISSION_MANAGE],
+};
+const withBePermissions = (menu, user) =>
+  menu
+    .map((e) =>
+      e.children
+        ? { ...e, children: e.children.filter((c) => !ITEM_BE_PERMISSIONS[c.key] || hasBePermission(user, ...ITEM_BE_PERMISSIONS[c.key])) }
+        : e,
+    )
+    .filter((e) => !e.children || e.children.length > 0);
+
 const withFacility = (menu) => (FACILITY_ENABLED ? menu : menu.filter((e) => e.key !== 'facility'));
 
 export const getMenuForRole = (role, user) =>
-  withFacility(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user));
+  withFacility(
+    withBePermissions(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user), user),
+  );

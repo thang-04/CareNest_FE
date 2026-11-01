@@ -13,9 +13,7 @@ import {
   MEAL_SESSIONS,
   MEAL_SESSION_LABELS,
   allMeals,
-  eatsAny,
   isAbsent,
-  mealsIn,
   needsSubstitute,
   orderSessions,
 } from '@/models/attendance/attendanceConstants';
@@ -45,9 +43,12 @@ import { kidAvatar } from '@/mocks/kidAvatars';
  * Fake backend for attendance, meal participation, meal counts and meal handover.
  * Business rules that the Spring Boot backend must re-implement live here:
  *  - lock at the configured cut-off (GBR-ATT-02/04/08), absent => no meal (GBR-ATT-03);
- *  - present = eats every meal session of the class's age group (set by the Principal); "Tham gia ăn" off = no meal;
+ *  - ATT-02: present = eats every meal session of the class's age group; `meals` from the client is ignored;
+ *  - ATT-09: "Vắng có phép" only comes from a parent's leave request; the teacher cannot send EXCUSED without one;
  *  - meal count aggregated per campus/date/session at the cut-off (GBR-ATT-07), confirmed by the VP only (GBR-ATT-06);
- *  - later corrections update the count and notify the kitchen without a new approval (UC 6.10 alt flow);
+ *  - NUT-02: confirm is blocked while a class of the campus-day still has children not marked; only the substitute
+ *    servings can be adjusted by hand and attendance changes keep that adjustment;
+ *  - NUT-03: changes after confirmation go to "needs reconfirmation" instead of silently changing confirmed figures;
  *  - meal handover per class: confirm or report shortage, kitchen supplements (UC 6.26).
  * The "scheduled job" at the cut-off is emulated lazily: counts are built the first time a locked day is read.
  */
@@ -145,16 +146,17 @@ const ensureLeaveDemo = (db) => {
   return db;
 };
 
-/** Totals of one class for a date and meal session, built from the attendance records. */
-const classLine = (db, cls, date, session) => {
+/** Totals of one class for a date, built from the attendance records (same for every meal session of the class, ATT-02). */
+const classLine = (db, cls, date) => {
   const line = { classId: cls.id, className: cls.name, present: 0, absent: 0, missing: 0, normal: 0, substitute: 0 };
   activeChildrenOf(db, cls.id).forEach((ch) => {
     const rec = recordOf(db, ch.id, date);
     if (!rec) line.missing += 1;
     else if (isAbsent(rec.status)) line.absent += 1;
     else {
+      // ATT-02: có mặt là ăn mọi bữa của nhóm tuổi (buildCount chỉ gọi với bữa của lớp), không xét meals cũ
       line.present += 1;
-      if (rec.meals?.[session]) line[needsSubstitute(ch) ? 'substitute' : 'normal'] += 1;
+      line[needsSubstitute(ch) ? 'substitute' : 'normal'] += 1;
     }
   });
   return line;
@@ -163,9 +165,17 @@ const classLine = (db, cls, date, session) => {
 const buildCount = (db, campusId, date, session) => {
   const classes = currentClasses(db)
     .filter((c) => c.campusId === campusId && classSessions(db, c).includes(session))
-    .map((c) => classLine(db, c, date, session));
+    .map((c) => classLine(db, c, date));
   return { campusId, date, session, classes };
 };
+
+// NUT-02: suất thay thế PHT đã điều chỉnh không bị điểm danh ghi đè
+const withSubstituteOverrides = (count, classes) =>
+  classes.map((line) =>
+    count.substituteOverrides && line.classId in count.substituteOverrides
+      ? { ...line, substitute: count.substituteOverrides[line.classId] }
+      : line,
+  );
 
 const withTotals = (count) => ({
   ...count,
@@ -263,6 +273,21 @@ const confirmOneIn = (db, id, user) => {
   if (count.status === MEAL_COUNT_STATUS.CONFIRMED && !count.needsReconfirmation)
     throw new ApiError(409, 'Sĩ số suất ăn này đã được xác nhận.');
   if (!canConfirmMealCount(mealCountForUser(count, user), user)) throw forbidden();
+  // NUT-02: chặn xác nhận khi còn lớp trong cơ sở–ngày có trẻ chưa điểm danh
+  const incomplete = [
+    ...new Set(
+      db.mealCounts
+        .filter((m) => m.campusId === count.campusId && m.date === count.date)
+        .flatMap((m) => buildCount(db, m.campusId, m.date, m.session).classes)
+        .filter((line) => line.missing > 0)
+        .map((line) => line.className),
+    ),
+  ];
+  if (incomplete.length)
+    throw new ApiError(
+      409,
+      `Chưa xác nhận được: lớp ${incomplete.join(', ')} còn trẻ chưa điểm danh. Liên hệ giáo viên điểm danh đủ trước.`,
+    );
   if (count.pendingClasses) {
     if (count.confirmedAt) {
       count.confirmedSnapshots ||= [];
@@ -477,15 +502,13 @@ const classSummary = (db, cls, from, to) => {
       const key = rec.status === ATTENDANCE_STATUS.PRESENT ? 'present' : rec.status === ATTENDANCE_STATUS.EXCUSED ? 'excused' : 'unexcused';
       row[key] += 1;
       perChild[ch.id][key] += 1;
-      const participates = rec.status === ATTENDANCE_STATUS.PRESENT && eatsAny(rec.meals, sessions);
-      if (participates) {
+      // ATT-02: có mặt là ăn đủ các bữa của nhóm tuổi
+      if (rec.status === ATTENDANCE_STATUS.PRESENT) {
         row.mealTotal += 1;
         perChild[ch.id].meals += 1;
         if (needsSubstitute(ch)) row.substitute += 1;
+        sessions.forEach((s) => (row.meals[s] += 1));
       }
-      Object.entries(mealsIn(rec.meals, sessions)).forEach(([s, eats]) => {
-        if (eats) row.meals[s] += 1;
-      });
     });
     return row;
   });
@@ -665,6 +688,13 @@ export const attendanceMockRepository = {
       const sessions = classSessions(db, cls);
       const errors = validateClassAttendance(entries, { sessions });
       if (Object.keys(errors).length) throw new ApiError(422, 'Dữ liệu điểm danh chưa hợp lệ. Kiểm tra các dòng được đánh dấu.', errors);
+      // ATT-09: GV không tự chọn Vắng có phép; trạng thái này chỉ do báo nghỉ của phụ huynh đặt
+      const excused = Object.fromEntries(
+        entries
+          .filter((e) => e.status === ATTENDANCE_STATUS.EXCUSED && !leaveOf(db, e.childId, date))
+          .map((e) => [e.childId, { status: 'Vắng có phép chỉ áp dụng khi phụ huynh đã gửi báo nghỉ. Chọn Vắng.' }]),
+      );
+      if (Object.keys(excused).length) throw new ApiError(422, 'Không chọn được Vắng có phép khi chưa có báo nghỉ.', excused);
       entries.forEach((entry) => {
         const leave = leaveOf(db, entry.childId, date);
         if (
@@ -679,7 +709,8 @@ export const attendanceMockRepository = {
       const at = new Date().toISOString();
       let attendanceChanged = false;
       entries.forEach((e) => {
-        const meals = Object.fromEntries(sessions.map((s) => [s, !isAbsent(e.status) && !!e.meals?.[s]]));
+        // ATT-02: có mặt là ăn đủ các bữa của nhóm tuổi, bỏ qua meals client gửi
+        const meals = Object.fromEntries(sessions.map((s) => [s, e.status === ATTENDANCE_STATUS.PRESENT]));
         const existing = recordOf(db, e.childId, date);
         if (existing) {
           const changed = existing.status !== e.status || sessions.some((s) => !!existing.meals?.[s] !== meals[s]);
@@ -710,7 +741,7 @@ export const attendanceMockRepository = {
         db.mealCounts
           .filter((count) => count.campusId === cls.campusId && count.date === date)
           .forEach((count) => {
-            const pending = buildCount(db, count.campusId, date, count.session).classes;
+            const pending = withSubstituteOverrides(count, buildCount(db, count.campusId, date, count.session).classes);
             const baseline = count.pendingClasses || count.classes;
             if (JSON.stringify(pending) === JSON.stringify(baseline)) return;
             count.pendingClasses = pending;
@@ -816,47 +847,42 @@ export const attendanceMockRepository = {
   },
 
   /**
-   * PHT điểm trường / Hiệu trưởng sửa số suất / ngày của một lớp (bắt buộc lý do, lưu lịch sử): áp cho mọi bữa của lớp
-   * trong ngày vì báo ăn đánh dấu mọi bữa cùng lúc. Bữa đã xác nhận không sửa ngầm số bếp đang dùng, chuyển sang chờ
-   * xác nhận lại (NUT-03, ADR-0005). PENDING BE: POST /meal-counts/adjustments.
+   * NUT-02: PHT điểm trường chỉ điều chỉnh suất thay thế của một lớp (trẻ dị ứng nặng, bắt buộc lý do, lưu lịch sử);
+   * suất thường chỉ đổi qua điểm danh (`normal` phải null). Có session: chỉ bữa đó, không có: mọi bữa của lớp trong ngày.
+   * Bữa đã xác nhận không sửa ngầm số bếp đang dùng, chuyển sang chờ xác nhận lại (NUT-03, ADR-0005).
    */
-  async adjustMealDay({ campusId, date, session, classId, normal, substitute, note }, user) {
+  async adjustMealDay({ campusId, date, session, classId, normal = null, substitute, note }, user) {
     await delay();
     return writeDb((db) => {
       ensureSeeded(db);
-      // Có session: chỉ sửa bữa đó (tab theo bữa); không có: mọi bữa của lớp trong ngày
       const counts = db.mealCounts.filter((m) => m.campusId === campusId && m.date === date && (!session || m.session === session));
       if (!counts.length) throw new ApiError(404, 'Không tìm thấy sổ báo ăn của ngày này');
       if (!counts.every((c) => canAdjustMealCount(c, user))) throw forbidden();
+      if (normal != null) throw new ApiError(422, 'Suất thường chỉ thay đổi qua điểm danh (mở lại điểm danh để giáo viên sửa).');
       const reason = String(note || '').trim();
       const details = {};
       if (!reason) details.note = 'Nhập lý do điều chỉnh.';
       else if (reason.length > 200) details.note = 'Lý do tối đa 200 ký tự.';
-      [
-        ['normal', normal],
-        ['substitute', substitute],
-      ].forEach(([k, v]) => {
-        if (!Number.isInteger(v) || v < 0 || v > 200) details[k] = 'Nhập số nguyên từ 0 đến 200.';
-      });
+      if (!Number.isInteger(substitute) || substitute < 0 || substitute > 200) details.substitute = 'Nhập số nguyên từ 0 đến 200.';
       if (Object.keys(details).length) throw new ApiError(422, 'Dữ liệu điều chỉnh chưa hợp lệ.', details);
       const at = new Date().toISOString();
       let changed = 0;
       counts.forEach((count) => {
         const current = (count.pendingClasses || count.classes).find((l) => l.classId === classId);
-        if (!current || (current.normal === normal && current.substitute === substitute)) return;
+        if (!current || current.substitute === substitute) return;
         if (count.status === MEAL_COUNT_STATUS.CONFIRMED && !count.pendingClasses) {
           count.pendingClasses = clone(count.classes);
           count.needsReconfirmation = true;
         }
         const line = count.pendingClasses ? count.pendingClasses.find((l) => l.classId === classId) : current;
-        const delta = { normal: normal - line.normal, substitute: substitute - line.substitute };
-        line.normal = normal;
+        const delta = { normal: 0, substitute: substitute - line.substitute };
         line.substitute = substitute;
+        count.substituteOverrides = { ...count.substituteOverrides, [classId]: substitute };
         count.adjustments.push({ at, userId: user.id, classId, ...delta, note: reason, byLeader: true });
         count.history.push({ at, userId: user.id, action: 'ADJUSTED', note: `${line.className}: ${reason}` });
         changed += 1;
       });
-      if (!changed) throw new ApiError(422, 'Số suất chưa thay đổi.', { normal: 'Số suất chưa thay đổi.' });
+      if (!changed) throw new ApiError(422, 'Số suất thay thế chưa thay đổi.', { substitute: 'Số suất thay thế chưa thay đổi.' });
       return counts.map((c) => mealCountForUser(clone(c), user));
     });
   },

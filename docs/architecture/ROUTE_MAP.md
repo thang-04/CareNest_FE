@@ -11,6 +11,12 @@ Nguyên tắc:
 
 `BE:<path>` = `../CareNest_BE/<path>` (xem `AGENTS.md`).
 
+## Ẩn menu/route theo mã quyền BE (2026-11-01)
+
+- `hasBePermission(user, ...codes)` (`src/utils/account/accountPermissions.js`) đọc `user.bePermissions` từ `/accounts/me`; chế độ mock không có dữ liệu này ⇒ không lọc thêm, menu theo vai trò như cũ.
+- Mục menu gắn mã quyền (`ITEM_BE_PERMISSIONS` trong `src/layouts/menuConfig.js`): `parentActivation` → `PARENT_ACCOUNT_MANAGE`, `schoolRoles` → `PERMISSION_MANAGE`. Bị thu hồi quyền ⇒ đăng nhập lại không thấy mục; mở thẳng đường dẫn ⇒ 403 chuẩn.
+- `/children/activation` (Tài khoản phụ huynh): Hiệu trưởng và Phó hiệu trưởng có `PARENT_ACCOUNT_MANAGE` (AUTH-18); Hiệu trưởng có mục menu trong nhóm Trẻ.
+
 ## Route thực tế bổ sung — ghép chọn lọc 2026-10-19
 
 User chốt ngoại lệ sidebar nhóm Thực đơn sau Phase 2: menu PHT mở trực tiếp `/menu/flow` và `/menu/setup`, rồi foods/dishes/menus/weekly theo thứ tự nguồn. Principal có setup/weekly theo guard cũ. Không đổi nhóm khác hoặc logic giới hạn mảng phụ trách của PHT. Các route legacy còn nguyên, không xóa màn khi bỏ mục sidebar trùng chức năng.

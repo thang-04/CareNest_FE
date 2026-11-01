@@ -26,7 +26,6 @@ export const kitchenApi = {
   getStockIssues: ({ campusId, from, to }) => axiosClient.get('/kitchen/stock-issues', { params: { campusId, from, to } }),
   allocateIssueLots: ({ id, allocations }) => axiosClient.post(`/kitchen/stock-issues/${id}/allocations`, { allocations }),
   getPublishedMenu: ({ date, view }) => axiosClient.get('/kitchen/published-menus', { params: { date, view } }),
-  getConfirmedMealCount: ({ campusId, date }) => axiosClient.get('/kitchen/meal-counts', { params: { campusId, date } }),
   getWeeklyForecast: ({ campusId, weekStart }) => axiosClient.get('/kitchen/weekly-forecasts', { params: { campusId, weekStart } }),
   saveWeeklyForecast: ({ campusId, weekStart, cells }) => axiosClient.put('/kitchen/weekly-forecasts', { campusId, weekStart, cells }),
   markWeeklyOrderSent: ({ campusId, weekStart }) => axiosClient.post('/kitchen/weekly-forecasts/sent', { campusId, weekStart }),

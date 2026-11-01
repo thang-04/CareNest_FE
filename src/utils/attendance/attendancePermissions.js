@@ -6,7 +6,7 @@ import { MEAL_COUNT_STATUS, HANDOVER_STATUS } from '@/models/attendance/attendan
  *  - Attendance & meal participation, Record/Edit: Teacher and Team Leader acting as teacher, own class only, before the cut-off (²,⁶).
  *  - Attendance & meal participation, View: Principal full, Vice Principal own campus (¹), Teacher/Team Leader own class (²).
  *  - Meal count by class, View: Principal full, Vice Principal own campus, Kitchen Staff own campus read-only (⁵).
- *  - Confirm meal count: Vice Principal of the campus (UC 6.10, GBR-ATT-06). Adjust with reason: VP of the campus or Principal (PROPOSED 20/10/2026).
+ *  - Confirm meal count: Vice Principal of the campus (UC 6.10, GBR-ATT-06). Adjust substitute servings only, with reason: VP of the campus (NUT-02).
  *  - Meal handover: Teacher of the class confirms, Kitchen Staff of the campus supplements (UC 6.26).
  */
 
@@ -60,7 +60,7 @@ export const canConfirmMealCount = (count, user) =>
 /** Cảnh báo "cần xác nhận lại" chỉ cho người duyệt; bếp chỉ thấy số đã xác nhận. */
 export const canSeeMealReconfirmNotice = (user) => !!user && user.role !== ROLES.KITCHEN_STAFF;
 
-/** Sửa số suất từng lớp để chốt (ghi lý do): sau giờ khóa, cả khi đã xác nhận (chuyển sang chờ xác nhận lại). */
+/** NUT-02: điều chỉnh suất thay thế từng lớp (ghi lý do): sau giờ khóa, cả khi đã xác nhận (chuyển sang chờ xác nhận lại). */
 export const canAdjustMealCount = (count, user) =>
   (count?.canAdjust ?? true) &&
   !!count?.id &&

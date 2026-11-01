@@ -17,7 +17,7 @@ export function DayLockAlert({ sheet }) {
         <Unlock size={18} />
         <div>
           <b>{sheet.unlock.unlockedByName}</b> đã mở lại điểm danh lớp này đến <b>{formatDateTime(sheet.unlock.validUntil)}</b>.
-          <div>Thay đổi báo ăn sau giờ chốt cần được kiểm tra/xác nhận lại; không tự thay số suất bếp đã nhận.</div>
+          <div>Thay đổi điểm danh sau giờ chốt cần Phó hiệu trưởng xác nhận lại sổ báo ăn; số đã xác nhận không tự thay đổi.</div>
         </div>
       </div>
     );

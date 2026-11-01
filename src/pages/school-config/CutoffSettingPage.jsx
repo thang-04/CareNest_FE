@@ -8,6 +8,8 @@ import { useCutoffSetting } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { FormField } from '@/components/form/FormField';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
@@ -27,6 +29,7 @@ export default function CutoffSettingPage() {
   const yearId = useConfigYear();
   const { year, setting, loading, error, reload } = useCutoffSetting(yearId, { live: false });
   const [form, setForm] = useState({ time: '', effectiveFrom: '', note: '' });
+  const [initial, setInitial] = useState(null);
   const [errors, setErrors] = useState({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -37,9 +40,15 @@ export default function CutoffSettingPage() {
     if (!year) return;
     const today = todayInput();
     const from = today < year.startDate ? year.startDate : today;
-    setForm({ time: setting?.time || '', effectiveFrom: from, note: '' });
+    const next = { time: setting?.time || '', effectiveFrom: from, note: '' };
+    setForm(next);
+    setInitial(next);
     setErrors({});
   }, [year, setting]);
+
+  const dirty = !!initial && ['time', 'effectiveFrom', 'note'].some((key) => form[key] !== initial[key]);
+  // Rời màn khi đang sửa giờ chốt ⇒ hỏi; "Lưu" trong hộp kiểm tra rồi lưu như nút Lưu giờ chốt
+  const guard = useLeaveGuard({ when: dirty && !saving, onSave: () => (validate() ? persist() : false) });
 
   if (!canConfigureCutoff(user))
     return (
@@ -56,24 +65,31 @@ export default function CutoffSettingPage() {
     setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, CUTOFF_LIMITS));
   };
 
-  const ask = () => {
+  const validate = () => {
     const e = validateCutoff(form, year);
     if (!e.time && setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
       e.time = 'Giờ chốt và ngày áp dụng chưa thay đổi';
     setErrors(e);
-    if (!hasErrors(e)) setConfirmOpen(true);
+    return !hasErrors(e);
+  };
+  const ask = () => {
+    if (validate()) setConfirmOpen(true);
   };
 
-  const save = async () => {
+  // Trả true khi lưu được
+  const persist = async () => {
     setSaving(true);
     try {
       await saveCutoffSetting(yearId, form, user);
-      toast.success('Đã lưu giờ chốt điểm danh và suất ăn.');
+      toast.success('Đã lưu giờ chốt. Hãy báo trực tiếp cho các Phó hiệu trưởng và giáo viên.');
       setConfirmOpen(false);
+      setInitial(form);
       reload({ silent: true });
+      return true;
     } catch (err) {
       setConfirmOpen(false);
       setErrors(err.details || { _form: err.message });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -238,14 +254,15 @@ export default function CutoffSettingPage() {
         title="Lưu giờ chốt"
         message={
           <>
-            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học. Các Phó hiệu
-            trưởng sẽ nhận được thông báo.
+            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học. Hệ thống chưa
+            gửi thông báo; hãy báo trực tiếp cho các Phó hiệu trưởng và giáo viên.
           </>
         }
         confirmLabel="Lưu giờ chốt"
-        onConfirm={save}
+        onConfirm={persist}
         onClose={() => setConfirmOpen(false)}
       />
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }
