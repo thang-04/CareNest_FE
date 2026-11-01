@@ -161,7 +161,7 @@ test('ST-01b điện thoại: nút "Lấy mục tiêu" mở danh sách 3 cách l
   await ctx.close();
 });
 
-test('ST-01c danh sách → chi tiết → Chỉnh sửa → Đóng: nút Back của trình duyệt về danh sách, không vào lại màn soạn (Tiền 31/10)', async ({
+test('ST-01c danh sách → chi tiết → Chỉnh sửa → Đóng: về thẳng danh sách, Back không vào lại màn soạn hay chi tiết (Tiền 01/11)', async ({
   page,
 }) => {
   await login(page, USERS.teacher1);
@@ -172,10 +172,12 @@ test('ST-01c danh sách → chi tiết → Chỉnh sửa → Đóng: nút Back c
   await page.getByRole('link', { name: /Chỉnh sửa|Sửa trước khi duyệt/ }).click();
   await expect(page.locator('#desc')).toBeEditable();
   await page.getByRole('button', { name: 'Đóng', exact: true }).click();
-  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
-  await page.goBack();
   await page.waitForURL((u) => u.pathname === '/education/goals');
   await expect(page.locator('#desc')).toHaveCount(0);
+  // Đóng lùi về đúng mục danh sách: Back tiếp không vào lại màn soạn hay chi tiết
+  await page.goBack();
+  await page.waitForURL((u) => !u.pathname.startsWith('/education/goals/'));
+  await spaGo(page, '/education/goals');
   // Có thay đổi chưa lưu: Đóng → Không lưu cũng không để lại mục lịch sử của màn soạn
   await page.locator('tr.row-click').filter({ hasText: E2E.titlePrefix }).first().click();
   await page.getByRole('link', { name: /Chỉnh sửa|Sửa trước khi duyệt/ }).click();
@@ -183,9 +185,9 @@ test('ST-01c danh sách → chi tiết → Chỉnh sửa → Đóng: nút Back c
   await page.locator('#desc').fill('Sửa rồi bỏ (ST-01c)');
   await page.getByRole('button', { name: 'Đóng', exact: true }).click();
   await page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' }).getByRole('button', { name: 'Không lưu' }).click();
-  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
-  await page.goBack();
   await page.waitForURL((u) => u.pathname === '/education/goals');
+  await page.goBack();
+  await page.waitForURL((u) => !u.pathname.startsWith('/education/goals/'));
   await leave(page);
 });
 
@@ -239,15 +241,15 @@ test('ST-01d nút Back/Forward của trình duyệt đi giữa các bước 1–
   await page.goBack();
   await page.waitForURL((u) => u.pathname === '/education/goals');
 
-  // Đóng ở bước 3: không để lại mục lịch sử của các bước
+  // Đóng ở bước 3: về thẳng danh sách, không để lại mục lịch sử của các bước hay chi tiết
   await openEditor();
   await page.getByRole('button', { name: /Tiếp theo/ }).click();
   await page.getByRole('button', { name: /Tiếp theo/ }).click();
   await atStep(3);
   await page.getByRole('button', { name: 'Đóng', exact: true }).click();
-  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
-  await page.goBack();
   await page.waitForURL((u) => u.pathname === '/education/goals');
+  await page.goBack();
+  await page.waitForURL((u) => !u.pathname.startsWith('/education/goals/'));
   await leave(page);
 });
 

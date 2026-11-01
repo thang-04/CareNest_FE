@@ -450,11 +450,12 @@ export default function GoalFormPage() {
     guard.step({ search: `?${search}` }, { state: { ...location.state, cnStepDepth: stepDepth() + 1 } });
     window.scrollTo({ top: 0 });
   };
-  // Rời màn soạn không để lại mục lịch sử nào (kể cả các bước): về đúng trang đã mở màn soạn thì lùi qua hết,
-  // trang khác thì lùi về mục đầu của màn rồi thay chỗ (Back từ chi tiết ra danh sách)
+  // Rời màn soạn không để lại mục lịch sử nào (kể cả các bước): đích là trang đã mở màn soạn (backTo) hoặc trang trước
+  // nó (backToPrev, vd. danh sách → chi tiết → sửa) thì lùi đúng về mục đó; không thì lùi về mục đầu của màn rồi thay chỗ
   const exitTo = (to) => () => {
     const depth = stepDepth();
     if (location.state?.backTo === to) return navigate(-(depth + 1));
+    if (location.state?.backToPrev === to) return navigate(-(depth + 2));
     if (!depth) return navigate(to, { replace: true });
     const arrived = () => {
       window.removeEventListener('popstate', arrived);
@@ -921,7 +922,8 @@ export default function GoalFormPage() {
         <button
           type="button"
           className="btn"
-          onClick={() => guard.leave(exitTo(goals.some((g) => g.id === form.id) ? `/education/goals/${form.id}` : '/education/goals'))}
+          // Đóng ở bước nào cũng về danh sách (Tiền 01/11)
+          onClick={() => guard.leave(exitTo('/education/goals'))}
         >
           Đóng
         </button>
