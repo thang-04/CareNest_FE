@@ -31,7 +31,7 @@ const CONTENT_TYPES =
   '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
   '</Types>';
 
-function zipStore(files) {
+export function zipStore(files) {
   const locals = [];
   const centrals = [];
   let offset = 0;

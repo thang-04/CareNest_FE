@@ -8,6 +8,7 @@ import { CLASS_DOC, createBlocker, dossierWeekDocs, isEditableStatus, submitBloc
 import { PENDING_OF, SIGN_ROLES, withDefaults } from '@/models/education-plan/eduConfig';
 import { toRows } from '@/models/education-plan/goalTable';
 import { currentPlanOf, diffPlans, unresolvedFlags, versionFlags, versionOf } from '@/models/education-plan/planVersions.mjs';
+import { parseCsv } from '@/utils/csv';
 
 /*
  * Fake backend cho tài liệu kế hoạch của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần).
@@ -74,6 +75,64 @@ const unresolvedOf = (db, kind, doc) => {
 const decorate = (db, doc) => ({ ...doc, superseded: isSuperseded(db, doc.yearPlanId), adjustments: doc.adjustments || {} });
 
 export const classPlanMockRepository = {
+  // BE:EDU-47 — demo CSV; Word/Excel được đọc bởi BE thật.
+  async previewBranchFile(file, { classId, yearPlanId }, user) {
+    await delay();
+    const db = readDb();
+    const cls = classOf(db, classId);
+    if (user?.role !== ROLES.TEACHER || !teachesClass(cls, user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
+    const plan = (db.eduGoals || []).find((g) => g.id === yearPlanId);
+    if (!plan) throw eduError('YEAR_PLAN_NOT_FOUND');
+    if (plan.ageGroupId !== cls.ageGroupId || plan.schoolYear?.replace(' – ', '-') !== cls.schoolYear)
+      throw eduError('YEAR_PLAN_CLASS_MISMATCH');
+    if (plan.status !== EDU_STATUS.APPROVED) throw eduError('YEAR_PLAN_NOT_ISSUED');
+    if (isSuperseded(db, yearPlanId)) throw eduError('YEAR_PLAN_SUPERSEDED');
+    const doc = (db.eduClassBranch || []).find((d) => d.classId === classId && d.yearPlanId === yearPlanId);
+    if (doc && !isEditableStatus(doc.status)) throw eduError('CLASS_DOC_SUBMITTED');
+    if (!file || !file.size) throw eduError('BRANCH_FILE_UNSUPPORTED');
+    if (file.size > 2 * 1024 * 1024) throw eduError('BRANCH_FILE_TOO_LARGE');
+    if (!/\.csv$/i.test(file.name)) throw eduError('BRANCH_FILE_UNSUPPORTED');
+    const table = parseCsv(await file.text());
+    if (table.length > 2000) throw eduError('BRANCH_FILE_TOO_LARGE');
+    const norm = (text) =>
+      String(text || '')
+        .normalize('NFC')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLocaleLowerCase('vi');
+    const header = table.findIndex((row) => row.some((c) => norm(c) === 'chủ đề') && row.some((c) => norm(c) === 'chủ đề nhánh'));
+    if (header < 0) throw eduError('BRANCH_FILE_NO_TABLE');
+    const themeCol = table[header].findIndex((c) => norm(c) === 'chủ đề');
+    const nameCol = table[header].findIndex((c) => norm(c) === 'chủ đề nhánh');
+    const weeks = yearWeeks(plan).filter((r) => r.type === 'week');
+    const used = new Map();
+    const matches = [];
+    const warnings = [];
+    let themeName = '';
+    table.slice(header + 1).forEach((row, i) => {
+      themeName = row[themeCol]?.trim() || themeName;
+      const text = row[nameCol]?.trim() || '';
+      const lower = norm(text);
+      if (
+        !text ||
+        lower.startsWith('nghỉ') ||
+        lower.startsWith('ôn tập') ||
+        (/^(từ\s+)?\d/u.test(lower) && (lower.includes('nghỉ') || lower.includes('ôn tập')))
+      )
+        return;
+      const name = text.replace(/^[-–•]?\s*nhánh\s*\d+\s*[:.)-]?\s*/iu, '').trim();
+      if (!name) return;
+      const themes = (plan.themes || []).filter((t) => norm(t.name) === norm(themeName));
+      const target = themes.length === 1 ? weeks.filter((w) => w.theme.id === themes[0].id) : [];
+      const index = used.get(norm(themeName)) || 0;
+      if (!target[index]) warnings.push({ row: header + i + 2, message: 'Chủ đề không khớp, mơ hồ hoặc tên nhánh vượt số tuần' });
+      else {
+        matches.push({ row: header + i + 2, themeId: themes[0].id, themeName: themes[0].name, weekStart: target[index].start, name });
+        used.set(norm(themeName), index + 1);
+      }
+    });
+    return { matches, warnings };
+  },
   /** BE:EDU-27 — "Kế hoạch điều chỉnh và bổ sung" ghi được ở mọi trạng thái, chỉ giáo viên của lớp. */
   async saveAdjustments(id, adjustments, user) {
     await delay();

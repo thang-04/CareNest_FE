@@ -28,6 +28,8 @@ export function ReviewActions({
   approveLabel = 'Duyệt',
   can = {},
   sendBlocked,
+  showSend = false,
+  sendDisabledReason,
   beforeOpen,
   notes = {},
   onAct,
@@ -60,12 +62,13 @@ export function ReviewActions({
 
   return (
     <>
-      {can.send && (
+      {(can.send || showSend) && (
         <button
           type="button"
           className={btn('btn--primary')}
-          disabled={!!sendBlocked}
-          title={sendBlocked || undefined}
+          disabled={!can.send || !!sendBlocked}
+          title={(!can.send ? sendDisabledReason || 'Bạn chưa thể gửi tài liệu này' : sendBlocked) || undefined}
+          aria-description={(!can.send ? sendDisabledReason || 'Bạn chưa thể gửi tài liệu này' : sendBlocked) || undefined}
           onClick={() => open('submit')}
         >
           <Send size={16} aria-hidden /> Gửi {sendTo} duyệt

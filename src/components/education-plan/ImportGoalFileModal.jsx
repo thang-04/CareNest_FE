@@ -54,7 +54,7 @@ export function ImportGoalFileModal({ themes, onImport, onClose }) {
         </>
       }
     >
-      <p className="muted text-sm">Word (.docx), Excel (.xlsx), CSV hoặc file Word CareNest xuất. Mục tiêu trùng câu được bỏ qua.</p>
+      <p className="muted text-sm">Word (.doc, .docx), Excel (.xlsx) hoặc CSV. Mục tiêu trùng câu được bỏ qua.</p>
       <div className="row row--wrap gap-2">
         <button type="button" className="btn btn--outline-primary" onClick={() => fileRef.current?.click()}>
           <Upload size={16} aria-hidden /> Chọn file

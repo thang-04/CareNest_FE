@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
-import { Check, FileDown, Lightbulb, Save, Wand2, X } from '@/components/ui/icons';
+import { Check, FileDown, Lightbulb, Save, Upload, Wand2, X } from '@/components/ui/icons';
 import { branchFile, leaderNameOf } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
 import { Card, DraftRecoveryNotice, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
@@ -22,6 +22,8 @@ import { SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/component
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
+import { ImportBranchFileModal } from '@/components/education-plan/ImportBranchFileModal';
+import { applyBranchFile, branchPayload } from '@/models/education-plan/importBranchFile.mjs';
 
 /**
  * "Dự kiến chủ đề nhánh và thời gian thực hiện" theo mẫu MN Thái Dương.
@@ -35,8 +37,7 @@ export default function BranchPlanPage() {
 }
 
 // Bản gửi đi khi lưu: ô AI chưa ✓ / ✗ vẫn lưu tên trước đó, chỉ lưu khi giáo viên đã giữ
-const payloadOf = (draft, pending) =>
-  draft && { ...draft, names: { ...draft.names, ...Object.fromEntries(Object.entries(pending).map(([w, p]) => [w, p.prev])) } };
+const payloadOf = branchPayload;
 
 /** Đường dẫn cũ /education/class/:classId/branches(/review). */
 export function BranchPlanLegacyRedirect() {
@@ -47,6 +48,7 @@ export function BranchPlanLegacyRedirect() {
 function BranchPlanInner({ classId }) {
   const { user, branchPlans, saveClassDoc, actOnClassDoc, toast, eduConfig, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
+  const [importContext, setImportContext] = useState(null);
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, teachers, isClassTeacher } = ctx;
   const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null : null;
@@ -264,6 +266,33 @@ function BranchPlanInner({ classId }) {
   };
   const act = (action, note) => actOnClassDoc('branch', draft.id, { action, note });
   const review = docReview('branch', saved, ctx, user, eduConfig);
+  const editReason = !isClassTeacher
+    ? 'Chỉ giáo viên được phân công vào lớp mới được sửa'
+    : ctx.superseded
+      ? 'Đang xem phiên bản kế hoạch năm cũ'
+      : !canEdit
+        ? 'Tài liệu đang chờ duyệt hoặc đã duyệt'
+        : null;
+  const saveReason = editReason || (saver.saving ? 'Đang lưu' : !saver.unsaved && !saver.error ? 'Không có thay đổi cần lưu' : null);
+  const sendReason = editReason || (!saved ? 'Lưu bản nháp trước khi gửi' : !review.can.send ? 'Bạn chưa thể gửi tài liệu này' : null);
+  const importFile = (result, context) => {
+    if (
+      !canEdit ||
+      aiBusy ||
+      saver.saving ||
+      context.classId !== classId ||
+      context.yearPlanId !== yearPlan.id ||
+      draft.yearPlanId !== yearPlan.id
+    ) {
+      toast('Lớp, kế hoạch năm hoặc quyền sửa đã thay đổi. Hãy mở lại bản xem trước.', 'warn');
+      return false;
+    }
+    const next = applyBranchFile(draft, pending, result);
+    setDraft(next.draft);
+    setPending(next.pending);
+    setDirty(true);
+    return true;
+  };
   // Ô tháng và ô chủ đề gộp các dòng liên tiếp cùng tháng / cùng chủ đề như bảng của trường
   const spanFrom = (i, same) => {
     let n = 1;
@@ -301,31 +330,35 @@ function BranchPlanInner({ classId }) {
                   ))}
                 </select>
               )}
-              {editable && (
-                <>
-                  <span className="muted text-sm">{saver.label}</span>
-                  <button
-                    type="button"
-                    className="btn btn--primary btn--sm"
-                    onClick={saver.save}
-                    disabled={saver.saving || (!saver.unsaved && !saver.error)}
-                    title="Lưu (Ctrl+S)"
-                  >
-                    <Save size={16} aria-hidden /> Lưu
-                  </button>
-                </>
-              )}
+              <span className="muted text-sm">{saver.label}</span>
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={saver.save}
+                disabled={!!saveReason}
+                title={saveReason || 'Lưu (Ctrl+S)'}
+                aria-description={saveReason || undefined}
+              >
+                <Save size={16} aria-hidden /> Lưu
+              </button>
               <ReviewActions
                 name="chủ đề nhánh"
                 sendTo={review.sendTo}
                 can={review.can}
+                showSend
+                sendDisabledReason={sendReason}
                 sendBlocked={
-                  saver.unsaved || saver.saving
+                  sendReason ||
+                  (saver.unsaved || saver.saving
                     ? 'Lưu trước khi gửi'
                     : // BE:EDU-26 — còn mục đỏ thì chưa gửi (BE cũng kiểm lại)
                       version.unresolved.length
                       ? `Còn ${version.unresolved.length} mục đổi theo kế hoạch năm mới cần sửa`
-                      : null
+                      : hasPending
+                        ? 'Còn tên AI chưa giữ hoặc bỏ'
+                        : empty
+                          ? `Còn ${empty} tuần chưa đặt tên chủ đề nhánh`
+                          : null)
                 }
                 beforeOpen={checkBeforeOpen}
                 notes={{ submit: 'Chủ đề nhánh sẽ bị khóa cho tới khi được duyệt hoặc bị trả lại.' }}
@@ -366,6 +399,14 @@ function BranchPlanInner({ classId }) {
         actions={
           editable && (
             <span className="row row--wrap gap-2">
+              <button
+                type="button"
+                className="btn btn--outline-primary btn--sm"
+                disabled={aiBusy || saver.saving}
+                onClick={() => setImportContext({ classId, yearPlanId: yearPlan.id })}
+              >
+                <Upload size={16} aria-hidden /> Nhập file
+              </button>
               {pendingWeeks.length > 0 ? (
                 <>
                   <button type="button" className="btn btn--sm" onClick={confirmRejectAll}>
@@ -549,6 +590,16 @@ function BranchPlanInner({ classId }) {
           </div>
         </div>
       </Card>
+      {importContext && (
+        <ImportBranchFileModal
+          {...importContext}
+          user={user}
+          draft={draft}
+          weeks={rows.filter((row) => row.type === 'week')}
+          onImport={importFile}
+          onClose={() => setImportContext(null)}
+        />
+      )}
       <ConfirmationModal
         open={!!confirm}
         danger={!!confirm?.danger}

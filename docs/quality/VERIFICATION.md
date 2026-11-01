@@ -1,5 +1,18 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Bổ sung 02/11/2026 — tải mẫu và đồng bộ modal nhập nhánh
+
+- Tải mẫu Word bằng helper/khung xuất hiện có, tên chủ đề theo tuần hiển thị, tên nhánh trống; không mang lịch/nháp/người ký. Modal cùng size/hàng nút/footer/cách rút cảnh báo với nhập mục tiêu, giữ preview/xác nhận.
+- RED template0/2, modal0/2; GREEN4/4. FE `node scripts/verify.mjs`: VERIFY PASS full, 346 tests, fail0/skip0, lint/format/design/build đạt.
+- Browser component source/CSS thật: tải Word đúng tên/header/3 dòng trống, không ngày/tên nháp, chiều rộng bằng modal mục tiêu và các nút cùng hàng; mobile375 không tràn, 0 lỗi JS. Không chạy lại full E2E BE trong lượt UI này; không sửa API/DB/quyền. [Chi tiết](../../../CareNest_BE/specs/008-branch-plan-file-import/quickstart.md).
+
+## Feature008 — nhập chủ đề nhánh, bàn giao 02/11/2026
+
+- User cho phép hoàn thành không dừng giữa phase; [nguồn nghiệp vụ/contract/quy trình](../../../CareNest_BE/specs/008-branch-plan-file-import/quickstart.md). Nhập theo matches server, xem trước/xác nhận thay tên/lưu tay, giữ dữ liệu ngoài matches/AI pending còn lại; Lưu/gửi luôn hiện và khóa đúng quyền/trạng thái.
+- Sau source cuối: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`, 342 tests, fail0/skip0; lint/format/design/build đạt. Có14test mới, mock CSV dùng đúng7124–26 và scope, parser CSV chung giữ export tuyển sinh.
+- Real-BE jar cuối: branch3/3 gồm mobile375/chuỗi duyệt và goal17/17 gồm .doc bước2; edu-plan-flows19/19 đạt lượt trước bản vá decoder. Các lần thử lỗi/helper/ID-domain và kết quả cuối được phân biệt trong quickstart BE, không gộp thành một lượt39/39.
+- Cấu hình không đổi, local USE_MOCK=false; Word/Excel cần BE thật, mock CSV có hướng dẫn. Không commit/push/deploy; runtime kiểm thử riêng đã dọn.
+
 ## Iron Law
 Không nói "xong / pass / đã sửa" khi chưa có **output lệnh chạy trong lượt này, sau lần sửa cuối**. Suy luận, kết quả lượt trước không phải bằng chứng. **Skip hoặc chưa chạy = chưa kiểm chứng** — báo đúng (`Verify: chưa chạy — <lý do>`).
 

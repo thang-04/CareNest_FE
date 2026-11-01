@@ -83,6 +83,19 @@ const curriculumOf = async (path, ageGroupCode, options = {}) => {
 };
 
 export const educationPlanApi = {
+  previewBranchFile: (file, { classId, yearPlanId }) => {
+    const cls = serverId(classId);
+    const plan = serverId(yearPlanId);
+    if (cls == null || plan == null) throw sourceError(400, 'Lớp hoặc kế hoạch năm không hợp lệ.');
+    const data = new FormData();
+    data.append('file', file);
+    data.append('classId', String(cls));
+    data.append('yearPlanId', String(plan));
+    return axiosClient.post('/education-plans/class-docs/branch/file-preview', data, {
+      headers: { 'Content-Type': undefined },
+      timeout: 60000,
+    });
+  },
   // BE:EDU-46 — BE đọc file bảng mục tiêu (Word/Excel/CSV) thành bản xem trước, không lưu
   previewGoalFile: (file) => {
     const data = new FormData();

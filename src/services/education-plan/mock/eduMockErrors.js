@@ -16,10 +16,15 @@ const SPECS = {
   YEAR_PLAN_REVISION_STALE: [409, 'Kế hoạch đã được thay đổi ở nơi khác. Tải lại để đối chiếu'],
   RETURN_REASON_REQUIRED: [400, 'Cần ghi lý do trả lại'],
   THEME_ABBR_DUPLICATE: [400, 'Tên viết tắt của chủ đề không được trùng'],
-  GOAL_FILE_UNSUPPORTED: [
+  GOAL_FILE_UNSUPPORTED: [400, 'Không đọc được file. Chỉ nhận Word (.doc, .docx), Excel (.xlsx) hoặc CSV; file không được đặt mật khẩu'],
+  BRANCH_FILE_UNSUPPORTED: [
     400,
-    'Chỉ nhận file Word (.docx), Excel (.xlsx), CSV hoặc file Word do CareNest xuất. File Word đời cũ: mở bằng Word rồi Lưu thành .docx',
+    'Không đọc được file chủ đề nhánh. Chỉ nhận Word (.doc, .docx), Excel (.xlsx) hoặc CSV; file không được đặt mật khẩu',
   ],
+  BRANCH_FILE_NO_TABLE: [400, 'Không tìm thấy bảng chủ đề nhánh trong file (cần cột Chủ đề và Chủ đề nhánh)'],
+  BRANCH_FILE_TOO_LARGE: [400, 'File chủ đề nhánh quá lớn: tối đa 2 MB và 2.000 dòng'],
+  YEAR_PLAN_CLASS_MISMATCH: [400, 'Kế hoạch năm học không khớp với lớp'],
+  YEAR_PLAN_NOT_ISSUED: [409, 'Kế hoạch năm học của nhóm tuổi chưa được ban hành'],
   CLASS_DOC_NOT_FOUND: [404, 'Không tìm thấy tài liệu. Lưu bản nháp trước khi gửi'],
   CLASS_DOC_TEACHER_ONLY: [403, 'Chỉ giáo viên được phân công vào lớp mới sửa hoặc gửi được tài liệu'],
   CLASS_DOC_SUBMITTED: [409, 'Tài liệu đã gửi duyệt, không sửa được'],

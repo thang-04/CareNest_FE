@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { E2E, api, USERS, beReachable, cleanup, editHeaders, newSession, sql, suspendOtherTeamLeads } from '../support/realBe.mjs';
 import { login, saveStatus } from '../support/ui.mjs';
 import { goalTableDocx } from '../support/docx.mjs';
@@ -378,13 +379,14 @@ test('EDU-24/22 double confirm imports once; only manual Save persists hierarchy
   expect(oldGoal.contents).toEqual(targetBefore.domains[0].rows.find((row) => row.kind === 'goal').contents);
   const imported = saved.domains.flatMap((domain) => domain.rows.filter((row) => row.kind === 'goal' && row.text.startsWith('Nguồn')));
   expect(imported).toHaveLength(10);
-  const sourceIds = new Set(
-    source.domains.flatMap((domain) => domain.rows.flatMap((row) => [row.id, ...(row.contents || []).map((item) => item.id)])),
+  const sourceRowIds = new Set(source.domains.flatMap((domain) => domain.rows.map((row) => row.id)));
+  const sourceContentIds = new Set(
+    source.domains.flatMap((domain) => domain.rows.flatMap((row) => (row.contents || []).map((item) => item.id))),
   );
   for (const row of imported) {
-    expect(sourceIds.has(row.id)).toBe(false);
+    expect(sourceRowIds.has(row.id)).toBe(false);
     for (const content of row.contents) {
-      expect(sourceIds.has(content.id)).toBe(false);
+      expect(sourceContentIds.has(content.id)).toBe(false);
       expect(content.themeIds).toEqual([]);
     }
   }
@@ -535,9 +537,9 @@ test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đ�
   await expect(page.locator('#desc')).toBeEditable();
   await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
 
-  // Word đời cũ (.doc nhị phân): báo lưu lại thành .docx, bảng không đổi
+  // .doc hỏng bị từ chối; .doc nhị phân hợp lệ được kiểm riêng bên dưới.
   await choose({ name: 'cu.doc', mimeType: 'application/msword', buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0, 0, 0]) });
-  await expect(dialog).toContainText('Lưu thành .docx');
+  await expect(dialog).toContainText('Không đọc được file');
   await expect(dialog.getByRole('button', { name: /^Thêm.*mục tiêu$/ })).toBeDisabled();
   await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
 
@@ -570,5 +572,48 @@ test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đ�
   expect(row.contents.map((c) => c.text)).toEqual(['Nội dung file 1', 'Nội dung file 2']);
   expect(row.contents[0].themeIds || []).toEqual([theme.id]);
   expect(row.contents[1].themeIds || []).toEqual([]);
+  await page.goto('/');
+});
+
+test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thêm/bỏ trùng, lưu và mở lại', async ({ page }) => {
+  const fixture = fileURLToPath(new URL('../fixtures/goals-merged.doc', import.meta.url));
+  const goalText = 'Trẻ thực hiện vận động';
+  const before = await read(target.id);
+  await login(page, USERS.vp);
+  await page.goto(`/education/goals/${target.id}/edit`);
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu', exact: true });
+  const choose = async () => {
+    await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
+    const response = page.waitForResponse((res) => res.url().endsWith('/education-plans/goals/file-preview'));
+    await dialog.locator('input[type=file]').setInputFiles(fixture);
+    expect((await response).status()).toBe(200);
+    await expect(dialog.getByRole('button', { name: 'Thêm 2 mục tiêu', exact: true })).toBeEnabled();
+  };
+  await choose();
+  await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+  expect(logicalRows(await read(target.id))).toEqual(logicalRows(before));
+  await choose();
+  await dialog.getByRole('button', { name: 'Thêm 2 mục tiêu', exact: true }).click();
+  await expect.poll(() => page.locator('textarea').evaluateAll((els) => els.map((el) => el.value))).toContain(goalText);
+  expect(logicalRows(await read(target.id))).toEqual(logicalRows(before));
+  await choose();
+  await dialog.getByRole('button', { name: 'Thêm 2 mục tiêu', exact: true }).click();
+  await expect
+    .poll(() => page.locator('textarea').evaluateAll((els) => els.filter((el) => el.value === 'Trẻ thực hiện vận động').length))
+    .toBe(1);
+  await page.keyboard.press('Control+s');
+  await expect(saveStatus(page)).toHaveText(/Đã lưu lúc/);
+  const saved = await read(target.id);
+  const imported = saved.domains.flatMap((domain) => domain.rows).find((row) => row.text === goalText);
+  expect(imported.contents.map((content) => content.text)).toEqual(['Tập động tác', 'Đi bước dồn']);
+  expect(saved.themes).toEqual(before.themes);
+  expect(saved.breaks).toEqual(before.breaks);
+  await page.goto('/');
+  await page.goto(`/education/goals/${target.id}/edit`);
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
+  await expect.poll(() => page.locator('textarea').evaluateAll((els) => els.map((el) => el.value))).toContain(goalText);
   await page.goto('/');
 });
