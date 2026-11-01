@@ -11,15 +11,18 @@ let active = null;
  * - bấm link/menu: chặn click trên thẻ <a> nội bộ rồi hỏi;
  * - nút quay lại: khi có thay đổi thì đặt thêm 1 mục lịch sử cùng URL; bấm quay lại chỉ gỡ mục đó rồi hỏi;
  * - navigate() ở header/thông báo/menu user: đi qua useGuardedNavigate();
- * - rời bằng nút trong màn: leave(to, options?) thay cho navigate(to, options?) (to nhận cả -1); vừa lưu/gửi xong thì leaveNow(to, options?).
+ * - rời bằng nút trong màn: leave(to, options?) thay cho navigate(to, options?) (to nhận cả -1 hoặc hàm tự điều hướng);
+ *   vừa lưu/gửi xong thì leaveNow(to, options?);
+ * - màn nhiều bước trong cùng trang: đổi bước bằng step(to, options) (không hỏi); inPageBack() trả true khi Back còn lùi
+ *   được về bước trước trong màn ⇒ Back gỡ mục phụ rồi lùi tiếp tới bước đó thay vì hỏi.
  * onSave() trả true khi lưu được.
  */
-export function useLeaveGuard({ when, onSave }) {
+export function useLeaveGuard({ when, onSave, inPageBack }) {
   const navigate = useNavigate();
   const [pending, setPending] = useState(null);
   const [busy, setBusy] = useState(false);
   const latest = useRef({});
-  latest.current = { when, onSave, navigate };
+  latest.current = { when, onSave, navigate, inPageBack };
   const sentinel = useRef(false);
   const leaving = useRef(false);
   const afterPop = useRef(null);
@@ -41,7 +44,8 @@ export function useLeaveGuard({ when, onSave }) {
       next?.();
     }
   };
-  // target: { to } (đường dẫn hoặc số như -1) | { back: true } | { run } (vd. đăng xuất)
+  // target: { to } (đường dẫn hoặc số như -1) | { back: true } | { run } (vd. đăng xuất, hàm tự điều hướng)
+  const target = (to, options) => (typeof to === 'function' ? { run: to } : { to, options });
   const perform = (target) => withoutSentinel(() => (target.run ? target.run() : latest.current.navigate(target.to, target.options)));
 
   useEffect(() => {
@@ -61,9 +65,18 @@ export function useLeaveGuard({ when, onSave }) {
         next?.();
         return;
       }
+      // Tới chính mục phụ từ mục phía sau: vẫn đang chặn, không làm gì
+      if (window.history.state?.[MARK]) return;
       if (!sentinel.current) return;
       // Người dùng bấm quay lại: mục phụ vừa bị gỡ, URL vẫn là trang này
       sentinel.current = false;
+      if (latest.current.inPageBack?.()) {
+        // Còn bước trước trong màn: lùi tiếp tới bước đó (dữ liệu đang sửa giữ nguyên) rồi đặt lại mục phụ
+        leaving.current = true;
+        afterPop.current = () => latest.current.when && !sentinel.current && pushSentinel();
+        window.history.back();
+        return;
+      }
       if (latest.current.when) setPending({ back: true });
     };
     const onClick = (e) => {
@@ -105,10 +118,19 @@ export function useLeaveGuard({ when, onSave }) {
 
   return {
     // Rời sau khi đã lưu/gửi xong (không hỏi)
-    leaveNow: (to, options) => perform({ to, options }),
+    leaveNow: (to, options) => perform(target(to, options)),
     leave: (to, options) => {
-      if (latest.current.when) setPending({ to, options });
-      else perform({ to, options });
+      if (latest.current.when) setPending(target(to, options));
+      else perform(target(to, options));
+    },
+    // Đổi bước trong cùng màn (không hỏi). Đang có mục phụ thì thay nó bằng bước mới rồi đặt lại phía trên,
+    // để mục phụ luôn là mục cuối (đếm đúng số mục lịch sử khi rời màn)
+    step: (to, options) => {
+      if (sentinel.current && window.history.state?.[MARK]) {
+        latest.current.navigate(to, { ...options, replace: true });
+        sentinel.current = false;
+        if (latest.current.when) pushSentinel();
+      } else latest.current.navigate(to, options);
     },
     modal: {
       open: !!pending,

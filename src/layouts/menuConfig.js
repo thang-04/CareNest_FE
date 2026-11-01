@@ -79,7 +79,7 @@ const ITEMS = {
   pickup: { label: 'Đón trẻ', to: '/pickup' },
 
   eduSchool: { label: 'Kế hoạch toàn trường', to: '/education/school' },
-  eduGoals: { label: 'Mục tiêu năm học', to: '/education/goals' },
+  eduGoals: { label: 'Kế hoạch năm học', to: '/education/goals' },
   eduBranch: { label: 'Chủ đề nhánh', to: '/education/branches' },
   eduClass: { label: 'Kế hoạch chủ đề', to: '/education/class' },
   eduPlanReviews: { label: 'Duyệt kế hoạch, giáo án', to: '/education/plan-reviews' },

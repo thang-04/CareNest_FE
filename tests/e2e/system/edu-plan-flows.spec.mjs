@@ -189,6 +189,68 @@ test('ST-01c danh sách → chi tiết → Chỉnh sửa → Đóng: nút Back c
   await leave(page);
 });
 
+test('ST-01d nút Back/Forward của trình duyệt đi giữa các bước 1–2–3; bước 1 Back ra chi tiết; đang sửa dở thì đổi bước không hỏi (Tiền 01/11)', async ({
+  page,
+}) => {
+  const atStep = (n) => page.waitForURL((u) => u.pathname.endsWith('/edit') && (u.searchParams.get('buoc') || '1') === String(n));
+  const openEditor = async () => {
+    await page.locator('tr.row-click').filter({ hasText: E2E.titlePrefix }).first().click();
+    await page.waitForURL(`**/education/goals/${planId}`);
+    await page.getByRole('link', { name: /Chỉnh sửa|Sửa trước khi duyệt/ }).click();
+    await expect(page.locator('#desc')).toBeEditable();
+  };
+  await login(page, USERS.teacher1);
+  await pickYear(page, E2E.schoolYear);
+  await spaGo(page, '/education/goals');
+  await openEditor();
+  await page.getByRole('button', { name: /Tiếp theo/ }).click();
+  await atStep(2);
+  await expect(page.getByRole('tab', { name: /Mục tiêu, nội dung giáo dục/ })).toBeVisible();
+  await page.getByRole('button', { name: /Tiếp theo/ }).click();
+  await atStep(3);
+  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible();
+  await page.goBack();
+  await atStep(2);
+  await expect(page.getByRole('tab', { name: /Mục tiêu, nội dung giáo dục/ })).toBeVisible();
+  await page.goForward();
+  await atStep(3);
+  await page.goBack();
+  await atStep(2);
+  await page.goBack();
+  await atStep(1);
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.goBack();
+  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
+  await page.goBack();
+  await page.waitForURL((u) => u.pathname === '/education/goals');
+
+  // Đang sửa dở: Back đổi bước không hỏi, giữ chữ đang gõ; ở bước 1 Back mới hỏi rời màn
+  await openEditor();
+  await page.locator('#desc').fill('Sửa dở (ST-01d)');
+  await page.getByRole('button', { name: /Tiếp theo/ }).click();
+  await atStep(2);
+  await page.goBack();
+  await atStep(1);
+  await expect(page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' })).toHaveCount(0);
+  await expect(page.locator('#desc')).toHaveValue('Sửa dở (ST-01d)');
+  await page.goBack();
+  await page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' }).getByRole('button', { name: 'Không lưu' }).click();
+  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
+  await page.goBack();
+  await page.waitForURL((u) => u.pathname === '/education/goals');
+
+  // Đóng ở bước 3: không để lại mục lịch sử của các bước
+  await openEditor();
+  await page.getByRole('button', { name: /Tiếp theo/ }).click();
+  await page.getByRole('button', { name: /Tiếp theo/ }).click();
+  await atStep(3);
+  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
+  await page.goBack();
+  await page.waitForURL((u) => u.pathname === '/education/goals');
+  await leave(page);
+});
+
 test('ST-02 rời màn khi chưa lưu: hỏi Hủy · Không lưu · Lưu; Không lưu xóa bản giữ ẩn', async ({ page }) => {
   await login(page, USERS.teacher1);
   await page.goto(`/education/goals/${planId}/edit`);
@@ -196,13 +258,13 @@ test('ST-02 rời màn khi chưa lưu: hỏi Hủy · Không lưu · Lưu; Khôn
   await page.locator('#desc').fill('Sửa rồi bỏ (ST-02)');
   await page.waitForTimeout(1200);
   expect((await storageKeys(page, 'year-plan-recovery')).length).toBeGreaterThan(0);
-  await page.locator('nav, aside').getByRole('link', { name: 'Mục tiêu năm học' }).first().click();
+  await page.locator('nav, aside').getByRole('link', { name: 'Kế hoạch năm học' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button')).toHaveText(['Hủy', 'Không lưu', 'Lưu']);
   await dialog.getByRole('button', { name: 'Hủy' }).click();
   await expect(page).toHaveURL(new RegExp(`/goals/${planId}/edit`));
-  await page.locator('nav, aside').getByRole('link', { name: 'Mục tiêu năm học' }).first().click();
+  await page.locator('nav, aside').getByRole('link', { name: 'Kế hoạch năm học' }).first().click();
   await page.getByRole('dialog').getByRole('button', { name: 'Không lưu' }).click();
   await expect(page).toHaveURL(/\/education\/goals$/);
   expect(await storageKeys(page, 'year-plan-recovery')).toEqual([]);
@@ -258,7 +320,7 @@ test('ST-02b viết tắt chủ đề trùng: chỉ báo đỏ tại ô, Enter �
   await abbr.press('Enter');
   await expect(page.getByLabel(`Viết tắt chủ đề ${n + 1}`)).toBeFocused();
   await expect(page.getByLabel('Thêm chủ đề')).toHaveAttribute('placeholder', 'Nhập tên chủ đề mới');
-  await page.locator('nav, aside').getByRole('link', { name: 'Mục tiêu năm học' }).first().click();
+  await page.locator('nav, aside').getByRole('link', { name: 'Kế hoạch năm học' }).first().click();
   await page.getByRole('dialog').getByRole('button', { name: 'Không lưu' }).click();
   await expect(page).toHaveURL(/\/education\/goals$/);
   await leave(page);
@@ -282,7 +344,7 @@ test('ST-02c Phó HT đang xem bản do Tổ trưởng giữ quyền sửa: Tổ
   b.on('framenavigated', (frame) => frame === b.mainFrame() && navigations.push(frame.url()));
 
   // A rời trang soạn (không đổi gì) ⇒ nhả quyền; B tự thấy trong vài giây, không tải lại trang
-  await a.locator('nav, aside').getByRole('link', { name: 'Mục tiêu năm học' }).first().click();
+  await a.locator('nav, aside').getByRole('link', { name: 'Kế hoạch năm học' }).first().click();
   await expect(a).toHaveURL(/\/education\/goals$/);
   await expect(b.getByRole('link', { name: 'Chỉnh sửa' })).toBeVisible({ timeout: 15_000 });
   await expect(b.getByText(/^Đang được .+ sửa từ/)).toHaveCount(0);
