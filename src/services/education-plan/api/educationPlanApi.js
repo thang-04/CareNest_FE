@@ -51,7 +51,7 @@ const fetchGoal = async (id, refs) => remember(await axiosClient.get(`${GOALS}/$
 const editHeaders = (edit) => ({
   'X-Edit-Session': edit.sessionId,
   'X-Plan-Revision': String(edit.revision ?? 0),
-  'X-Request-Id': edit.requestId || crypto.randomUUID(),
+  'Idempotency-Key': edit.requestId || crypto.randomUUID(),
 });
 
 const runSteps = async (goal, refs, edit, forceSave = false) => {
