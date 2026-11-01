@@ -153,7 +153,11 @@ export default function GoalListPage() {
               </thead>
               <tbody>
                 {rows.map((g) => (
-                  <tr key={g.id} className="row-click" {...clickableRowProps(() => navigate(`/education/goals/${g.id}`))}>
+                  <tr
+                    key={g.id}
+                    className="row-click"
+                    {...clickableRowProps(() => navigate(`/education/goals/${g.id}`, { state: { backTo: '/education/goals' } }))}
+                  >
                     <td>
                       <div className="ga-cell-title">{g.title}</div>
                       <div className="ga-cell-sub">{g.code}</div>

@@ -47,7 +47,7 @@ Mọi service CareNest trên VPS (FE, sau này BE, Keycloak, Postgres, AI) chạ
 
 ## Chế độ build: mock hoặc BE thật
 
-Mặc định (chưa đặt Variables) image build với `VITE_AUTH_MODE=mock`, `VITE_USE_MOCK=true`: đăng nhập bằng tài khoản demo trong `README.md`, dữ liệu mock lưu localStorage của trình duyệt. `VITE_*` nhúng vào bundle lúc build, đổi giá trị ⇒ chạy lại workflow.
+Mặc định (chưa đặt Variables) image build với `VITE_AUTH_MODE=mock`, `VITE_USE_MOCK=true`: đăng nhập bằng tài khoản demo (chip dưới form đăng nhập, danh sách đủ ở `src/mocks/seed.js`), dữ liệu mock lưu localStorage của trình duyệt. `VITE_*` nhúng vào bundle lúc build, đổi giá trị ⇒ chạy lại workflow.
 
 Nối BE thật (BE chạy ở `127.0.0.1:18310`, đã bật gateway `CARENEST_AUTH_ENABLED=true` theo `BE:docs/system/DEPLOYMENT.md`): GitHub › Settings › Secrets and variables › Actions › **Variables** › đặt `VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api` (khớp `handle /api/*` của Caddy, cùng origin nên cookie phiên gateway path `/api/auth` dùng được), rồi chạy lại workflow. `gateway` đăng nhập qua `/api/auth/*` (`docs/integration/AUTH_FLOW.md`) và bật luôn các màn đã nối BE qua `beClient` (`SCHOOL_CONFIG_API` trong `src/config/env.js`). Kiểm tra: `curl -s https://web.carenest.edu.vn/api/auth/csrf` trả 200 `{code, desc, data}`. Phía BE: `CARENEST_AUTH_WEB_ORIGIN=https://web.carenest.edu.vn`.
 

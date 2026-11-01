@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Copy, FileDown, Pencil, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
@@ -27,6 +27,8 @@ export default function GoalDetailPage() {
   const { goals, themes: themePlans, user, saveGoal, deleteGoal, createGoalVersion, toast, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const navigate = useNavigate();
+  // Mắt xích lịch sử cho màn soạn: biết trang trước chi tiết (vd. danh sách) để Đóng lùi đúng về đó
+  const cameFrom = useLocation().state?.backTo;
   const [modal, setModal] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -119,7 +121,7 @@ export default function GoalDetailPage() {
     setModal(null);
     if (plan) {
       toast(`Đã tạo ${plan.code}. Sửa rồi gửi / ban hành như kế hoạch mới.`);
-      navigate(`/education/goals/${plan.id}/edit`, { state: { backTo: `/education/goals/${g.id}` } });
+      navigate(`/education/goals/${plan.id}/edit`, { state: { backTo: `/education/goals/${g.id}`, backToPrev: cameFrom } });
     }
   };
 
@@ -174,7 +176,7 @@ export default function GoalDetailPage() {
               <Link
                 className="btn btn--outline-primary"
                 to={`/education/goals/${g.id}/edit`}
-                state={{ backTo: `/education/goals/${g.id}` }}
+                state={{ backTo: `/education/goals/${g.id}`, backToPrev: cameFrom }}
               >
                 <Pencil size={16} aria-hidden /> {pending ? 'Sửa trước khi duyệt' : 'Chỉnh sửa'}
               </Link>
