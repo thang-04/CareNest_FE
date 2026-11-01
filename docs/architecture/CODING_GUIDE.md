@@ -300,7 +300,8 @@ Vai trò đến từ tài khoản đăng nhập (mục 6.1). Ẩn nút người 
 
 ## 8. Nối Spring Boot (bỏ mock)
 
-1. `.env`: `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=http://<host>/api`.
+1. `.env`: `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=http://<host>/api`. `VITE_USE_MOCK=false` **không** bật BE cho mọi màn: nguồn từng module theo `src/config/integrationModules.js` (`api` = BE, `demo` = dữ liệu mẫu, màn vẫn hiện kèm nhãn "Dữ liệu demo" — user chốt 2026-11-01). Facade module demo chọn nguồn qua `sourceOf('<module>', mock, api)` (`src/services/demoSource.js`); không fallback mock lặng lẽ.
+   - Thêm/đổi lời gọi HTTP ⇒ khai file vào module; module `api` gọi endpoint BE chưa có ⇒ khai `pending` hoặc giữ `demo`. Cổng `npm run check:api` (trong `verify`) so với `docs/integration/be-api-routes.json`; BE đổi API ⇒ `node scripts/check-api-contract.mjs --sync` (đọc `BE:docs/api/openapi.yaml`). Đủ endpoint ⇒ đổi module sang `api`.
 2. Mỗi module có sẵn `services/<module>/api/*Api.js` với đường dẫn đề xuất; backend làm theo, hoặc sửa đường dẫn trong file này (UI không phải sửa). Contract thật: `docs/integration/BACKEND_INTEGRATION.md` và BE.
 3. Làm 3 endpoint đăng nhập ở mục 6.1. `axiosClient` tự gắn `Authorization: Bearer <token>`, chuẩn hóa lỗi về `{ status, message }` – backend trả `{ message }` khi lỗi, `401` khi token hết hạn.
 4. Luật nghiệp vụ cần làm lại ở backend nằm trong các file `services/<module>/mock/*MockRepository.js`.

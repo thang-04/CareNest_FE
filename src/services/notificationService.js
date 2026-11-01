@@ -1,4 +1,4 @@
-import { USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { axiosClient } from '@/services/http/axiosClient';
 import { notificationMockRepository } from '@/mocks/notificationMockRepository';
 
@@ -8,6 +8,8 @@ const api = {
   markAllRead: () => axiosClient.patch('/notifications/me/read-all'),
 };
 
-export const getNotifications = (userId) => (USE_MOCK ? notificationMockRepository.list(userId) : api.list());
-export const markNotificationRead = (id) => (USE_MOCK ? notificationMockRepository.markRead(id) : api.markRead(id));
-export const markAllNotificationsRead = (userId) => (USE_MOCK ? notificationMockRepository.markAllRead(userId) : api.markAllRead());
+const repo = sourceOf('notifications', notificationMockRepository, api);
+
+export const getNotifications = (userId) => repo.list(userId);
+export const markNotificationRead = (id) => repo.markRead(id);
+export const markAllNotificationsRead = (userId) => repo.markAllRead(userId);

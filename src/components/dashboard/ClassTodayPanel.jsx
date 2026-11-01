@@ -27,6 +27,7 @@ import { EVAL_KIND, EVAL_STATUS } from '@/models/assessment/assessmentConstants'
 import { ISSUE_STATUS, REQUEST_STATUS } from '@/models/facility/facilityConstants';
 import { todayInput } from '@/utils/format';
 import { FACILITY_ENABLED } from '@/config/app';
+import { needsDemoLabel } from '@/services/demoSource';
 
 const OPEN_REPORT = [ISSUE_STATUS.SUBMITTED, REQUEST_STATUS.SUBMITTED, REQUEST_STATUS.PENDING_PRINCIPAL];
 
@@ -113,6 +114,13 @@ export function ClassTodayPanel() {
 
   return (
     <>
+      {needsDemoLabel('school-lookup') && (
+        <div className="alert alert--warning mb-16" role="status">
+          <span>
+            <strong>Dữ liệu demo</strong> — danh sách lớp, trẻ, đón trẻ trong khung này là dữ liệu mẫu, chưa nối hệ thống CareNest.
+          </span>
+        </div>
+      )}
       {classes.length > 1 && (
         <div className="db-head__filters mb-16">
           <div className="field">

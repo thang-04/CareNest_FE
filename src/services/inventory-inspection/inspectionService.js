@@ -1,9 +1,9 @@
-import { USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { inspectionMockRepository as mock } from '@/services/inventory-inspection/mock/inspectionMockRepository';
 import { inspectionApi as api } from '@/services/inventory-inspection/api/inspectionApi';
 
-/** Facade used by hooks/pages. VITE_USE_MOCK=false switches to Spring Boot. */
-const repo = USE_MOCK ? mock : api;
+/** Facade used by hooks/pages. Nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js). */
+const repo = sourceOf('inventory-inspection', mock, api);
 
 export const getInspections = (filters, user) => repo.list(filters, user);
 export const getInspectionById = (id, user) => repo.getById(id, user);

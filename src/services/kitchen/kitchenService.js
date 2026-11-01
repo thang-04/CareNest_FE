@@ -1,11 +1,14 @@
 import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
+import { demoActorOf, isDemoModule, sourceOf } from '@/services/demoSource';
 import { kitchenMockRepository as mock } from '@/services/kitchen/mock/kitchenMockRepository';
 import { syncBeMealCounts } from '@/services/kitchen/mock/beMealCountBridge';
 import { kitchenApi as api } from '@/services/kitchen/api/kitchenApi';
 import { readLegacyKitchenRows } from './mock/legacyDashboardRepository';
 
-/** Facade used by hooks/pages. VITE_USE_MOCK=false switches to Spring Boot. */
-const repo = USE_MOCK ? mock : api;
+/** Facade used by hooks/pages. Nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js). */
+const repo = sourceOf('kitchen', mock, api);
+// Hàm bếp cũ chưa có trong API đề xuất: chỉ chạy được khi module còn demo
+const LEGACY_UNAVAILABLE = { status: 501, message: 'Cần thống nhất contract bếp.' };
 
 // Dev: số suất HT/PHT đã xác nhận lấy từ BE trước khi bếp (mock) tính định lượng
 const withBeMealCounts = (load) => async (filters, user) => {
@@ -56,11 +59,9 @@ export const reviewFreshReceipt = (payload, user) => repo.reviewFreshReceipt(pay
 export const setFreshSupplierNotified = (payload, user) => repo.setFreshSupplierNotified(payload, user);
 
 export const getMealPreparations = withBeMealCounts((filters, user) =>
-  USE_MOCK ? mock.getLegacyMealPreparations(filters, user) : Promise.reject({ status: 501, message: 'Cần thống nhất contract bếp.' }),
+  isDemoModule('kitchen') ? repo.getLegacyMealPreparations(filters, user) : Promise.reject(LEGACY_UNAVAILABLE),
 );
 export const updateMealPreparation = (payload, user) =>
-  USE_MOCK ? mock.updateLegacyMealPreparation(payload, user) : Promise.reject({ status: 501, message: 'Cần thống nhất contract bếp.' });
+  isDemoModule('kitchen') ? repo.updateLegacyMealPreparation(payload, user) : Promise.reject(LEGACY_UNAVAILABLE);
 export const getMissingFoodReports = (filters, user) =>
-  USE_MOCK
-    ? readLegacyKitchenRows('missingFoodReports', filters, user)
-    : Promise.reject({ status: 501, message: 'Cần thống nhất contract bếp.' });
+  isDemoModule('kitchen') ? readLegacyKitchenRows('missingFoodReports', filters, demoActorOf(user)) : Promise.reject(LEGACY_UNAVAILABLE);

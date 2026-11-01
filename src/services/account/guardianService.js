@@ -1,12 +1,12 @@
-import { USE_MOCK } from '@/config/env';
+import { isDemoModule, sourceOf } from '@/services/demoSource';
 import { guardianMockRepository as mock } from './mock/guardianMockRepository';
 import { guardianApi as api } from './api/guardianApi';
 
-/** Facade tài khoản phụ huynh. VITE_USE_MOCK=false gọi BE GuardianController. */
-const repo = USE_MOCK ? mock : api;
+/** Facade tài khoản phụ huynh; nguồn theo INTEGRATION_MODULES (api = BE GuardianController). */
+const repo = sourceOf('guardian', mock, api);
 const call = (method, ...args) => repo[method](...args);
 // Mock: còn ô email (BE không lưu) và banner demo
-export const IS_GUARDIAN_DEMO = USE_MOCK;
+export const IS_GUARDIAN_DEMO = isDemoModule('guardian');
 export const listGuardians = (id, user) => call('listGuardians', id, user);
 export const lookupGuardian = (childId, phone, user) => call('lookupGuardian', childId, phone, user);
 export const addGuardian = (id, form, user) => call('addGuardian', id, form, user);

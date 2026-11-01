@@ -1,9 +1,9 @@
-import { USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { assessmentMockRepository as mock } from '@/services/assessment/mock/assessmentMockRepository';
 import { assessmentApi as api } from '@/services/assessment/api/assessmentApi';
 
-/** Facade used by hooks / pages. VITE_USE_MOCK=false switches to Spring Boot. */
-const repo = USE_MOCK ? mock : api;
+/** Facade used by hooks / pages. Nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js). */
+const repo = sourceOf('assessment', mock, api);
 
 export const getAssessmentCriteria = () => repo.getCriteria();
 

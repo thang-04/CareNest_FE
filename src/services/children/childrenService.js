@@ -1,9 +1,9 @@
-import { USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { childrenMockRepository as mock } from '@/services/children/mock/childrenMockRepository';
 import { childrenApi as api } from '@/services/children/api/childrenApi';
 
-/** Facade for child records & child health. VITE_USE_MOCK=false switches to Spring Boot. */
-const repo = USE_MOCK ? mock : api;
+/** Facade for child records & child health. Nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js). */
+const repo = sourceOf('children', mock, api);
 
 export const getChildren = (filters, user) => repo.listChildren(filters, user);
 export const getChildDetail = (id, user) => repo.getChildDetail(id, user);

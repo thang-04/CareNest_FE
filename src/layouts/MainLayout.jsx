@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoadingState } from '@/components/ui/States';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AreaGate } from '@/routes/RoleGuard';
+import { DemoDataBanner } from './DemoDataBanner';
 import { useMediaQuery } from '@/hooks';
 import './layout.css';
 
@@ -62,6 +63,7 @@ export function MainLayout() {
       <div className="app-main">
         <Header role={user.role} showMenuButton={isNarrow} menuOpen={drawerOpen} onToggleSidebar={toggleSidebar} />
         <main className="app-content">
+          <DemoDataBanner pathname={pathname} />
           {/* Lazy pages load inside the layout so sidebar/header never flash. Lỗi trang chỉ thay vùng nội dung, đổi route thì tự xóa. */}
           <ErrorBoundary resetKey={pathname} wrap>
             <Suspense

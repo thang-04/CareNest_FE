@@ -1,4 +1,5 @@
-import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
+import { SCHOOL_CONFIG_API } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { beClient } from '@/services/http/beClient';
 import { axiosClient } from '@/services/http/axiosClient';
 import { masterDataMockRepository } from '@/mocks/masterDataMockRepository';
@@ -17,7 +18,10 @@ const api = {
   deleteRoom: (id) => axiosClient.delete(`/locations/${id}`),
 };
 
-const repo = USE_MOCK ? masterDataMockRepository : api;
+const repo = sourceOf('master-data', masterDataMockRepository, api);
+// BE chưa có GET /users, /asset-categories ⇒ danh bạ người dùng, danh mục tài sản lấy dữ liệu demo
+const usersRepo = sourceOf('master-data-users', masterDataMockRepository, api);
+const assetRepo = sourceOf('facility', masterDataMockRepository, api);
 
 // Dev: màn Phòng ban gọi BE thật khi nối thử Cấu hình trường; danh mục chung khác vẫn theo repo trên
 const roomsRepo = SCHOOL_CONFIG_API
@@ -36,12 +40,12 @@ export const getLocations = () => (SCHOOL_CONFIG_API ? beClient.get('/locations'
 export const getUsers = () =>
   SCHOOL_CONFIG_API
     ? Promise.all([
-        repo.getUsers(),
+        usersRepo.getUsers(),
         // Không có năm đang hoạt động (vd. vừa kết thúc năm học) thì BE trả 404: vẫn dùng danh sách mock, không làm hỏng dữ liệu nền
         beClient.get('/teacher-assignments', { params: { campusId: 'all' } }).catch(() => ({ teachers: [] })),
       ]).then(([users, { teachers }]) => [...users, ...teachers.map((t) => ({ ...t, role: 'TEACHER', status: 'ACTIVE' }))])
-    : repo.getUsers();
-export const getAssetCategories = () => repo.getAssetCategories();
+    : usersRepo.getUsers();
+export const getAssetCategories = () => assetRepo.getAssetCategories();
 
 /** Rooms (= locations) management, Principal only. */
 export const getRooms = (filters, user) => roomsRepo.getRooms(filters, user);

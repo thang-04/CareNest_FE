@@ -1,4 +1,4 @@
-import { USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { axiosClient } from '@/services/http/axiosClient';
 import { signatureMockRepository } from '@/mocks/signatureMockRepository';
 
@@ -10,7 +10,7 @@ const api = {
   remove: (_user, id) => axiosClient.delete(`/signatures/me/${id}`),
 };
 
-const repo = USE_MOCK ? signatureMockRepository : api;
+const repo = sourceOf('signatures', signatureMockRepository, api);
 
 export const getMySignatures = (user) => repo.listMine(user);
 export const saveSignature = (user, body) => repo.save(user, body);

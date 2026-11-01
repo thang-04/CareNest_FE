@@ -1,4 +1,4 @@
-import { USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { menuPlanningMockRepository as mock } from '@/services/menu-planning/mock/menuPlanningMockRepository';
 import { menuPlanningApi as api } from '@/services/menu-planning/api/menuPlanningApi';
 
@@ -6,7 +6,7 @@ import { menuPlanningApi as api } from '@/services/menu-planning/api/menuPlannin
  * Facade of menu planning. Every function takes the signed-in `user` last (the mock checks it,
  * the real API reads the token). Errors: { status, message, details? } (details = field errors).
  */
-const repo = USE_MOCK ? mock : api;
+const repo = sourceOf('menu-planning', mock, api);
 
 /** { sharedService } – whether the Vice Principal holds the shared school-service assignment (GBR-GEN-10). */
 export const getMenuAccess = (user) => repo.getAccess(user);

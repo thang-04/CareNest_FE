@@ -22,6 +22,11 @@
   flex: 1;
 }
 
+/* Nhãn "Dữ liệu demo" phía trên trang: thẳng lề với .page */
+.app-content__notice {
+  margin: var(--space-2) var(--page-padding) 0;
+}
+
 /* Sidebar nổi: tách mép, bo lớn, nền trắng đặc trên tranh nền */
 .sidebar {
   width: var(--sidebar-width);

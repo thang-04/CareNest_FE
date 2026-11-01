@@ -1,33 +1,38 @@
-import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
+import { SCHOOL_CONFIG_API } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { beClient } from '@/services/http/beClient';
 import { schoolConfigMockRepository } from '@/services/school-config/mock/schoolConfigMockRepository';
 import { createSchoolConfigApi, schoolConfigApi } from '@/services/school-config/api/schoolConfigApi';
 
-// BE chưa có (Tài khoản nhân sự, Phân công PHT, Vai trò & quyền): khi nối thử vẫn dùng mock
-const NOT_IN_BE = [
-  'getStaffAccounts',
-  'getStaffImpact',
-  'saveStaffAccount',
-  'updateStaffProfile',
-  'setStaffStatus',
-  'getViceAssignments',
-  'saveViceAssignment',
-  'getRolePermissions',
-  'saveRolePermissions',
-];
-
-const devBeRepo = () => {
-  const api = createSchoolConfigApi(beClient);
-  return Object.fromEntries(
-    Object.keys(schoolConfigMockRepository).map((name) => [
-      name,
-      NOT_IN_BE.includes(name) || !api[name] ? schoolConfigMockRepository[name].bind(schoolConfigMockRepository) : api[name],
-    ]),
-  );
+// BE chưa có: hàm thuộc module demo (src/config/integrationModules.js), màn hiện nhãn "Dữ liệu demo"
+const DEMO_FUNCTIONS = {
+  getStaffAccounts: 'staff-accounts',
+  getStaffImpact: 'staff-accounts',
+  saveStaffAccount: 'staff-accounts',
+  updateStaffProfile: 'staff-accounts',
+  setStaffStatus: 'staff-accounts',
+  getViceAssignments: 'vice-principal-assignments',
+  saveViceAssignment: 'vice-principal-assignments',
 };
 
+// apiFirst: gateway/nối thử (beClient) dùng BE cho hàm không demo kể cả khi dữ liệu nghiệp vụ khác còn mock
+const buildRepo = (api, apiFirst) =>
+  Object.fromEntries(
+    Object.keys(schoolConfigMockRepository).map((name) => {
+      const demoKey = DEMO_FUNCTIONS[name];
+      const source = demoKey
+        ? sourceOf(demoKey, schoolConfigMockRepository, api)
+        : apiFirst
+          ? api
+          : sourceOf('school-config', schoolConfigMockRepository, api);
+      const fn = source[name];
+      // API thiếu hàm ⇒ báo lỗi rõ, không lặng lẽ dùng mock
+      return [name, typeof fn === 'function' ? fn.bind(source) : () => Promise.reject({ status: 501, message: `Chưa nối BE: ${name}` })];
+    }),
+  );
+
 /** Facade of school configuration: UI only calls these functions. */
-const repo = SCHOOL_CONFIG_API ? devBeRepo() : USE_MOCK ? schoolConfigMockRepository : schoolConfigApi;
+const repo = SCHOOL_CONFIG_API ? buildRepo(createSchoolConfigApi(beClient), true) : buildRepo(schoolConfigApi, false);
 
 export const getSchoolYears = (user) => repo.getSchoolYears(user);
 export const getSchoolYearById = (id, user) => repo.getSchoolYearById(id, user);
