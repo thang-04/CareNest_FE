@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 const source = await readFile(new URL('../../src/components/education-plan/ImportGoalFileModal.jsx', import.meta.url), 'utf8');
 const isolated = source.replace(/^import .*;\r?\n/gm, '');
 const stubs = `import React from 'react';
-import {prepareFileImport,previewSummary} from '${new URL('../../src/models/education-plan/importGoalFile.mjs', import.meta.url).href}';
+import {prepareFileImport,previewSummary,FILE_IMPORT_MODES} from '${new URL('../../src/models/education-plan/importGoalFile.mjs', import.meta.url).href}';
 import {AGE_GROUPS,domainLabel} from '${new URL('../../src/models/education-plan/educationPlanConstants.js', import.meta.url).href}';
 export const h={states:[],refs:[],si:0,ri:0,started:false,cleanup:null,reader:()=>Promise.resolve(null)};
 const useState=(initial)=>{const i=h.si++;if(!(i in h.states))h.states[i]=initial;return [h.states[i],v=>{h.states[i]=typeof v==='function'?v(h.states[i]):v;}];};
@@ -20,7 +20,15 @@ const { code } = await transformWithOxc(stubs + isolated, 'ImportGoalFileModal.j
 const { ImportGoalFileModal, h } = await import(
   `data:text/javascript;base64,${Buffer.from(code.replace('from "react"', `from ${JSON.stringify(import.meta.resolve('react'))}`)).toString('base64')}`
 );
-const form = { title: 'Nhập tay', ageGroupId: 'ag-3', schoolYear: '2026 – 2027', themes: [], breaks: [], domains: [] };
+const form = {
+  title: 'Nhập tay',
+  ageGroupId: 'ag-3',
+  schoolYear: '2026 – 2027',
+  description: 'Mô tả tay',
+  themes: [],
+  breaks: [],
+  domains: [{ id: 'd', name: 'Phát triển thể chất', rows: [] }],
+};
 const preview = {
   metadata: { title: 'Từ file', schoolYear: '2025-2026', ageFromMonths: 36, ageToMonths: 48 },
   themes: [{ name: 'Trường', abbr: 'MN', start: '2025-09-08', end: '2025-09-26' }],
@@ -42,7 +50,13 @@ const reset = () => {
 const render = (props) => {
   h.si = 0;
   h.ri = 0;
-  return ImportGoalFileModal({ form, onImport: () => true, onClose: () => {}, ...props });
+  return ImportGoalFileModal({
+    form,
+    yearRange: { start: '2026-09-01', end: '2027-05-31' },
+    onImport: () => true,
+    onClose: () => {},
+    ...props,
+  });
 };
 const find = (node, predicate) => {
   if (!node || typeof node !== 'object') return null;
@@ -53,7 +67,7 @@ const find = (node, predicate) => {
   }
   return null;
 };
-const input = (tree) => find(tree, (node) => node.type === 'input');
+const input = (tree) => find(tree, (node) => node.type === 'input' && node.props.type === 'file');
 const confirm = (tree) => find(tree, (node) => node.type === 'button' && node.props.className === 'btn btn--primary');
 
 test('file cũ phản hồi sau file mới không ghi đè preview; lỗi đọc khóa xác nhận', async () => {
@@ -117,11 +131,11 @@ test('preview đủ thông tin/dời năm, xác nhận chỉ một lần; callba
   const tree = render(props),
     html = renderToStaticMarkup(tree);
   assert.match(html, /Thông tin chung/);
-  assert.match(html, /Chủ đề trong file/);
-  assert.match(html, /Đợt nghỉ trong file/);
+  assert.match(html, /Chủ đề sau khi áp dụng/);
+  assert.match(html, /Đợt nghỉ sau khi áp dụng/);
   assert.match(html, /2026-09-08/);
-  assert.match(html, /Nhập tay/);
-  assert.match(html, /Bổ sung vào kế hoạch/);
+  assert.match(html, /Từ file/);
+  assert.match(html, /Áp dụng vào kế hoạch/);
   const button = confirm(tree);
   button.props.onClick();
   button.props.onClick();
@@ -132,7 +146,7 @@ test('preview đủ thông tin/dời năm, xác nhận chỉ một lần; callba
   await input(render()).props.onChange({ target: { files: [{ name: 'a' }] } });
   confirm(render({ onImport: () => false, onClose: () => closed++ })).props.onClick();
   assert.equal(closed, 1);
-  assert.match(renderToStaticMarkup(render()), /Chưa thể bổ sung/);
+  assert.match(renderToStaticMarkup(render()), /Chưa thể áp dụng/);
 });
 
 test('khác nhóm tuổi khóa xác nhận, không gọi onImport dù handler bị gọi trực tiếp', async () => {
@@ -146,4 +160,61 @@ test('khác nhóm tuổi khóa xác nhận, không gọi onImport dù handler b�
   confirm(tree).props.onClick();
   assert.equal(count, 0);
   assert.match(renderToStaticMarkup(tree), /khác nhóm tuổi/);
+});
+
+test('radio mặc định full, đổi mode cập nhật preview title/description và confirm mode mới nhất', async () => {
+  reset();
+  h.reader = () => Promise.resolve({ domains: preview.domains });
+  const calls = [];
+  const props = {
+    onImport: (raw, mode) => {
+      calls.push([raw, mode]);
+      return true;
+    },
+  };
+  await input(render(props)).props.onChange({ target: { files: [{ name: 'legacy.docx' }] } });
+  let tree = render(props);
+  const radio = (tree, value) => find(tree, (n) => n.type === 'input' && n.props.type === 'radio' && n.props.value === value);
+  assert.equal(radio(tree, 'replace-all').props.checked, true);
+  assert.match(renderToStaticMarkup(tree), /Để trống/);
+  radio(tree, 'replace-present').props.onChange();
+  tree = render(props);
+  assert.equal(radio(tree, 'replace-present').props.checked, true);
+  assert.match(renderToStaticMarkup(tree), /Nhập tay/);
+  assert.match(renderToStaticMarkup(tree), /Mô tả tay/);
+  confirm(tree).props.onClick();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][1], 'replace-present');
+});
+
+test('đổi mode trong khi đọc vẫn áp dụng mode mới; không mutate form trước xác nhận', async () => {
+  reset();
+  const wait = deferred();
+  h.reader = () => wait.promise;
+  const before = structuredClone(form);
+  let modeApplied;
+  const props = {
+    onImport: (_, mode) => {
+      modeApplied = mode;
+      return true;
+    },
+  };
+  const task = input(render(props)).props.onChange({ target: { files: [{ name: 'a' }] } });
+  find(render(props), (n) => n.type === 'input' && n.props.value === 'replace-present').props.onChange();
+  wait.resolve(preview);
+  await task;
+  assert.deepEqual(form, before);
+  confirm(render(props)).props.onClick();
+  assert.equal(modeApplied, 'replace-present');
+});
+
+test('thiếu ngày hệ thống hoặc preview rỗng khóa confirm', async () => {
+  reset();
+  h.reader = () => Promise.resolve(preview);
+  await input(render()).props.onChange({ target: { files: [{ name: 'a' }] } });
+  assert.equal(confirm(render({ yearRange: undefined })).props.disabled, true);
+  assert.match(renderToStaticMarkup(render({ yearRange: undefined })), /ngày bắt đầu/);
+  h.reader = () => Promise.resolve({ domains: [], themes: [], breaks: [] });
+  await input(render()).props.onChange({ target: { files: [{ name: 'empty' }] } });
+  assert.equal(confirm(render()).props.disabled, true);
 });

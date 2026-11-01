@@ -1,12 +1,10 @@
 import { getImportGoals, mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
-import { breakExists, mergeImportedThemes, shiftYears, yearShift } from '@/models/education-plan/importThemes.mjs';
-import { themeScheduleIssue } from '@/models/education-plan/goalTable';
+import { shiftYears, yearShift } from '@/models/education-plan/importThemes.mjs';
+import { duplicateAbbrThemeIds, themeScheduleIssue } from '@/models/education-plan/goalTable';
 
-/*
- * Nhập file bảng mục tiêu (BE:EDU-46): BE trả bản xem trước; Web ghép bằng luật bổ sung của EDU-24 (thêm cuối lĩnh vực
- * cùng tên, bỏ mục tiêu trùng câu, giữ lĩnh vực con/nhóm) và giữ dấu tích khớp viết tắt chủ đề đang có.
- */
+// EDU-46: preview/apply cùng chế độ thay nội dung, giữ năm hệ thống và các trường cố định.
+export const FILE_IMPORT_MODES = { ALL: 'replace-all', PRESENT: 'replace-present' };
 
 /** Bản xem trước dựng thành kế hoạch nguồn như mergeImportedGoals cần. */
 export const fileAsSourcePlan = (preview) => ({
@@ -87,102 +85,158 @@ const sourceGroup = (metadata) => {
     return match && Number(match[1]) * factor === metadata.ageFromMonths && Number(match[2]) * factor === metadata.ageToMonths;
   });
 };
-const matchingThemes = (theme, themes) =>
-  themes.filter(
-    (existing) =>
-      (abbrKey(theme.name) && abbrKey(theme.name) === abbrKey(existing.name)) ||
-      (abbrKey(theme.abbr) && abbrKey(theme.abbr) === abbrKey(existing.abbr)),
-  );
+const contentTicks = (domains) => (domains || []).flatMap((d) => (d.rows || []).flatMap((r) => r.contents || []));
 
-// BE:EDU-46 — kiểm preview bằng dữ liệu đích hiện tại, trước khi tạo ID hoặc đổi form.
-export function prepareFileImport(form, preview, { allowedAgeGroupIds, yearRange } = {}) {
+export function prepareFileImport(form, preview, { allowedAgeGroupIds, yearRange, mode = FILE_IMPORT_MODES.ALL } = {}) {
   const metadata = preview?.metadata;
-  const group = sourceGroup(metadata);
-  let error = '';
-  if (group === undefined) error = 'Không nhận diện được nhóm tuổi trong file. Kiểm tra lại file trước khi nhập.';
-  else if (group && form.ageGroupId && form.ageGroupId !== group.id)
-    error = `File thuộc nhóm tuổi ${group.name}, khác nhóm tuổi đang mở. Không thể nhập.`;
-  const ageGroupId = form.ageGroupId || group?.id || '';
-  if (!error && ageGroupId && allowedAgeGroupIds && !allowedAgeGroupIds.includes(ageGroupId))
-    error = 'Bạn không có quyền nhập vào nhóm tuổi của file.';
-  const source = {
-    schoolYear: metadata?.schoolYear || form.schoolYear,
-    themes: (preview?.themes || []).map((theme, i) => ({ ...theme, id: `file-theme-${i}` })),
-    breaks: (preview?.breaks || []).map((item, i) => ({ ...item, id: `file-break-${i}`, label: item.name || item.label || '' })),
+  const all = mode === FILE_IMPORT_MODES.ALL;
+  const present = {
+    title: !!metadata?.title?.trim(),
+    domains: !!preview?.domains?.some((d) => d.rows?.length),
+    themes: !!preview?.themes?.length,
+    breaks: !!preview?.breaks?.length,
   };
-  const shifted = yearShift(source.schoolYear, form.schoolYear);
+  const replace = Object.fromEntries(Object.entries(present).map(([key, has]) => [key, all || has]));
+  replace.description = all;
+  let error = Object.values(FILE_IMPORT_MODES).includes(mode) ? '' : 'Cách nhập file không hợp lệ.';
+  const group = sourceGroup(metadata);
+  if (group === undefined) error ||= 'Không nhận diện được nhóm tuổi trong file. Kiểm tra lại file trước khi nhập.';
+  else if (group && form.ageGroupId && form.ageGroupId !== group.id)
+    error ||= `File thuộc nhóm tuổi ${group.name}, khác nhóm tuổi đang mở. Không thể nhập.`;
+  const ageGroupId = form.ageGroupId || group?.id || '';
+  if (ageGroupId && allowedAgeGroupIds && !allowedAgeGroupIds.includes(ageGroupId))
+    error ||= 'Bạn không có quyền nhập vào nhóm tuổi của file.';
+  if (!yearRange?.start || !yearRange?.end || yearRange.start > yearRange.end)
+    error ||= 'Chưa có ngày bắt đầu, kết thúc năm học từ hệ thống. Kiểm tra cấu hình năm học trước khi nhập.';
+  if (preview && !Object.values(present).some(Boolean)) error ||= 'File không có nội dung hợp lệ để thay vào kế hoạch.';
+  if ((preview?.domains || []).some((d) => d.rows?.length && !form.domains?.some((t) => t.name === d.name && t.active !== false)))
+    error ||= 'Có lĩnh vực trong file không thuộc danh mục đang dùng. Kiểm tra file trước khi thay nội dung.';
+
+  const shifted = yearShift(metadata?.schoolYear || form.schoolYear, form.schoolYear);
+  const themes = replace.themes
+    ? (preview?.themes || []).map((t, i) => ({
+        ...t,
+        id: `file-theme-${i}`,
+        start: shiftYears(t.start, shifted),
+        end: shiftYears(t.end, shifted),
+      }))
+    : form.themes || [];
+  const breaks = replace.breaks
+    ? (preview?.breaks || []).map((b, i) => ({
+        ...b,
+        id: `file-break-${i}`,
+        label: b.name || b.label || '',
+        start: shiftYears(b.start, shifted),
+        end: shiftYears(b.end, shifted),
+      }))
+    : form.breaks || [];
+  if (duplicateAbbrThemeIds(themes).size) error ||= 'Chủ đề có viết tắt trùng nhau. Kiểm tra trước khi ghép dấu tích.';
   const warnings = [...(preview?.warnings || [])];
-  const projected = [...(form.themes || [])];
-  const themes = source.themes.map((theme) => {
-    const matches = matchingThemes(theme, projected);
-    if (matches.length > 1) error ||= `Chủ đề "${theme.name}" khớp với nhiều chủ đề đang có. Kiểm tra tên và viết tắt trước khi nhập.`;
-    const existing = matches[0];
-    if (!existing) projected.push(theme);
-    return {
-      ...theme,
-      start: shiftYears(theme.start, shifted),
-      end: shiftYears(theme.end, shifted),
-      existing: !!existing,
-      targetAbbr: existing?.abbr || theme.abbr,
-    };
-  });
-  const aliases = source.themes.filter((t) => matchingThemes(t, projected).length === 1).map((t) => t.abbr);
-  const breaks = source.breaks.map((item) => ({
-    ...item,
-    start: shiftYears(item.start, shifted),
-    end: shiftYears(item.end, shifted),
-    existing: breakExists(item, form.breaks || []),
-  }));
-  const issue = themeScheduleIssue([...(form.themes || []), ...themes.filter((t) => !t.existing)]);
+  const issue = themeScheduleIssue(themes);
   if (issue) warnings.push({ row: 0, message: issue });
   if (
-    yearRange &&
-    [...themes, ...breaks].some((item) => [item.start, item.end].some((date) => date && (date < yearRange.start || date > yearRange.end)))
+    yearRange?.start &&
+    yearRange?.end &&
+    [...themes, ...breaks].some((t) => [t.start, t.end].some((d) => d && (d < yearRange.start || d > yearRange.end)))
   )
-    warnings.push({ row: 0, message: 'Có chủ đề hoặc đợt nghỉ nằm ngoài năm học đang mở. Kiểm tra lại ngày sau khi bổ sung.' });
-  if (source.themes.length && !metadata?.schoolYear)
+    warnings.push({ row: 0, message: 'Có chủ đề hoặc đợt nghỉ nằm ngoài năm học đang mở. Kiểm tra lại ngày trước khi gửi / ban hành.' });
+  if (present.themes && !metadata?.schoolYear)
     warnings.push({ row: 0, message: 'File không xác định được năm học nguồn. Kiểm tra ngày chủ đề trước khi nhập.' });
+  const oldAbbrs = new Map((form.themes || []).map((t) => [t.id, abbrKey(t.abbr)]));
+  const newAbbrs = new Set(themes.map((t) => abbrKey(t.abbr)).filter(Boolean));
+  const removedTicks =
+    replace.themes && !replace.domains
+      ? contentTicks(form.domains).reduce((n, c) => n + (c.themes || []).filter((id) => !newAbbrs.has(oldAbbrs.get(id))).length, 0)
+      : 0;
+  if (removedTicks) warnings.push({ row: 0, message: `${removedTicks} dấu tích đang có sẽ bỏ vì chủ đề tương ứng không còn trong file.` });
   return {
-    source,
+    mode,
+    replace,
+    present,
+    error,
     ageGroupId,
     sourceAgeGroupId: group?.id || '',
-    error,
+    shifted,
     themes,
     breaks,
-    shifted,
     warnings,
-    missingThemes: missingThemeAbbrs(preview, projected, aliases),
+    removedTicks,
+    title: replace.title ? metadata?.title?.trim() || '' : form.title || '',
+    description: replace.description ? '' : form.description || '',
+    missingThemes: missingThemeAbbrs(preview, themes),
   };
 }
 
 export function mergeFilePlan(form, preview, makeId, options = {}) {
   const prepared = prepareFileImport(form, preview, options);
   if (prepared.error) return { patch: null, report: null, error: prepared.error };
-  const originalThemes = form.themes || [];
-  const originalBreaks = form.breaks || [];
-  const merged = mergeImportedThemes(
-    { ...form, themes: originalThemes, breaks: originalBreaks },
-    prepared.source,
-    { themeIds: prepared.source.themes.map((t) => t.id), breakIds: prepared.source.breaks.map((t) => t.id) },
-    makeId,
-  );
-  const oldThemeIds = new Set(originalThemes.map((t) => t.id));
-  const oldBreakIds = new Set(originalBreaks.map((t) => t.id));
-  const themes = [...originalThemes, ...merged.themes.filter((t) => !oldThemeIds.has(t.id))];
-  const breaks = [...originalBreaks, ...merged.breaks.filter((t) => !oldBreakIds.has(t.id))];
-  const themeAliases = prepared.source.themes.map((t) => [t.abbr, matchingThemes(t, themes)[0]?.id]).filter(([, id]) => id);
-  const goals = mergeFileGoals({ ...form, themes }, preview, makeId, { themeAliases });
-  const patch = { domains: goals.domains, themes, breaks };
+  const usedIds = new Set([
+    ...(form.themes || []).map((t) => String(t.id)),
+    ...(form.breaks || []).map((b) => String(b.id)),
+    ...(form.domains || []).flatMap((d) => [
+      String(d.id),
+      ...(d.rows || []).flatMap((r) => [String(r.id), ...(r.contents || []).map((c) => String(c.id))]),
+    ]),
+  ]);
+  let suffix = 0;
+  const nextId = () => {
+    const raw = String(makeId());
+    let id = raw;
+    while (usedIds.has(id)) id = `${raw}-${++suffix}`;
+    usedIds.add(id);
+    return id;
+  };
+  const themes = prepared.replace.themes ? prepared.themes.map((t) => ({ ...t, id: nextId() })) : prepared.themes;
+  const breaks = prepared.replace.breaks ? prepared.breaks.map((b) => ({ ...b, id: nextId() })) : prepared.breaks;
+  let domains;
+  let report = { added: 0, duplicates: 0, unavailable: [], ticks: 0, missingThemes: prepared.missingThemes };
+  if (prepared.replace.domains) {
+    const empty = (form.domains || []).map((d) => ({ ...d, rows: [], items: [] }));
+    const result = mergeFileGoals({ ...form, domains: empty, themes }, preview, nextId);
+    if (result.report.unavailable.length)
+      return {
+        patch: null,
+        report: null,
+        error: 'Có mục tiêu trong file chưa nhập được. Kiểm tra lĩnh vực và nội dung trước khi thay kế hoạch.',
+      };
+    domains = result.domains;
+    report = result.report;
+  } else if (prepared.replace.themes) {
+    const oldAbbrs = new Map((form.themes || []).map((t) => [t.id, abbrKey(t.abbr)]));
+    const newIds = new Map(themes.filter((t) => abbrKey(t.abbr)).map((t) => [abbrKey(t.abbr), t.id]));
+    domains = (form.domains || []).map((d) => ({
+      ...d,
+      rows: (d.rows || []).map((r) =>
+        r.kind !== 'goal'
+          ? r
+          : {
+              ...r,
+              contents: (r.contents || []).map((c) => ({
+                ...c,
+                themes: [
+                  ...new Set(
+                    (c.themes || []).flatMap((id) => {
+                      const target = newIds.get(oldAbbrs.get(id));
+                      return target ? [target] : [];
+                    }),
+                  ),
+                ],
+              })),
+            },
+      ),
+    }));
+  } else domains = form.domains || [];
+  const patch = { domains, themes, breaks, title: prepared.title, description: prepared.description };
   if (!form.ageGroupId && prepared.ageGroupId) patch.ageGroupId = prepared.ageGroupId;
-  if (!form.title?.trim() && preview?.metadata?.title?.trim()) patch.title = preview.metadata.title.trim();
   return {
     patch,
     error: '',
     report: {
-      ...goals.report,
-      themes: merged.report.themes,
-      breaks: merged.report.breaks,
-      skippedThemes: merged.report.skipped,
+      ...report,
+      mode: prepared.mode,
+      themes: prepared.replace.themes ? themes.length : 0,
+      breaks: prepared.replace.breaks ? breaks.length : 0,
+      removedTicks: prepared.removedTicks,
       shifted: prepared.shifted,
       warnings: prepared.warnings,
     },

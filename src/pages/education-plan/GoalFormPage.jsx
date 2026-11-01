@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
 import { Download, FileDown, Save, Upload } from '@/components/ui/icons';
@@ -125,7 +125,8 @@ export default function GoalFormPage() {
     });
   };
   // Ngày bắt đầu, kết thúc năm học của kế hoạch: lịch chỉ cho chọn ngày trong khoảng này (BE kiểm lại khi lưu)
-  const yearOption = yearOptions.find((y) => y.label.replace(' - ', '-') === form.schoolYear.replace(' – ', '-'));
+  const yearOption = yearOptions.find((y) => y.label.replace(/\s*[-–]\s*/g, '-') === form.schoolYear.replace(/\s*[-–]\s*/g, '-'));
+  const fileYearRange = { start: yearOption?.startDate, end: yearOption?.endDate };
   const yearRange = {
     start: yearOption?.startDate || `${form.schoolYear.slice(0, 4)}-09-01`,
     end: yearOption?.endDate || `${Number(form.schoolYear.slice(0, 4)) + 1}-05-31`,
@@ -460,24 +461,29 @@ export default function GoalFormPage() {
   /* ---------- Nhập dữ liệu ---------- */
 
   const importState = useRef(null);
-  importState.current = { form, allowed: canEdit && leaseReady && !saver.recovery && !finishing && !leaseError };
-  // BE:EDU-46 — bản xem trước của file: bổ sung như EDU-24, giữ dấu tích khớp viết tắt chủ đề đang có
-  const importFile = (preview) => {
+  importState.current = { form, yearRange: fileYearRange, allowed: canEdit && leaseReady && !saver.recovery && !finishing && !leaseError };
+  // EDU-46: áp dụng nguyên tử theo chế độ, dùng khoảng năm học cấu hình của hệ thống.
+  const importFile = (preview, mode) => {
     const current = importState.current;
     if (!current.allowed) return false;
-    const { patch, report, error } = mergeFilePlan(current.form, preview, () => `file-${uid()}`, { allowedAgeGroupIds });
+    const { patch, report, error } = mergeFilePlan(current.form, preview, () => `file-${uid()}`, {
+      allowedAgeGroupIds,
+      yearRange: current.yearRange,
+      mode,
+    });
     if (error) {
       toast(error, 'warn');
       return false;
     }
     set(patch);
     setImportReport(report);
-    const parts = [`${report.added} mục tiêu`, report.themes && `${report.themes} chủ đề`, report.breaks && `${report.breaks} đợt nghỉ`]
-      .filter(Boolean)
-      .join(', ');
-    const skipped = report.duplicates ? ` · bỏ qua ${report.duplicates} mục tiêu trùng` : '';
-    const unavailable = report.unavailable.length ? ` · ${report.unavailable.length} mục tiêu chưa thêm được` : '';
-    toast(`Đã bổ sung ${parts} từ file${skipped}${unavailable}`, report.added || report.themes || report.breaks ? 'ok' : 'warn');
+    const warnings = report.warnings.length || report.missingThemes.length;
+    toast(
+      warnings
+        ? 'Đã áp dụng file. Kiểm tra cảnh báo và nội dung rồi bấm Lưu.'
+        : 'Đã áp dụng file vào bản đang soạn. Bấm Lưu để ghi thay đổi.',
+      warnings ? 'warn' : 'ok',
+    );
     return true;
   };
 
@@ -541,7 +547,7 @@ export default function GoalFormPage() {
     );
 
   return (
-    <div className="page ga-page ga-class-editor">
+    <div className="page ga-page ga-class-editor ga-year-page">
       {leaseError && (
         <Notice tone="warn">
           {leaseError}{' '}
@@ -583,58 +589,69 @@ export default function GoalFormPage() {
             title={existing ? 'Chỉnh sửa kế hoạch giáo dục năm học' : 'Lập kế hoạch giáo dục năm học'}
           />
           <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch năm học">
-            <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setFileOpen(true)}>
-              <Upload size={16} aria-hidden /> Nhập file
-            </button>
-            <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
-              <Download size={16} aria-hidden /> Lấy từ kế hoạch có sẵn
-            </button>
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
-              disabled={!form.ageGroupId}
-              onClick={() => setMinistryOpen(true)}
-            >
-              <Download size={16} aria-hidden /> Lấy từ Chương trình của Bộ
-            </button>
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
-              onClick={saver.save}
-              disabled={!saveReady || saver.saving || (!saver.unsaved && !saver.error)}
-              title="Lưu (Ctrl+S)"
-            >
-              <Save size={16} aria-hidden /> Lưu
-            </button>
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
-              onClick={() => setPreview(yearPlanFile(build(existing?.status || EDU_STATUS.DRAFT), numbers, staff))}
-            >
-              <FileDown size={16} aria-hidden /> Xuất
-            </button>
-            <ReviewActions
-              name="kế hoạch năm học"
-              sendTo="Phó HT"
-              approveLabel={pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
-              can={{ send: isLeader && !pendingEdit, approve: isVp }}
-              variant="btn--outline-primary"
-              beforeOpen={checkBeforeFinish}
-              notes={{
-                submit: `Gửi "${form.title}" cho Phó hiệu trưởng duyệt? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`,
-                approve: `Ban hành "${form.title}"? Giáo viên trong khối sẽ thấy kế hoạch này. Sau đó xuất file để in và ký.`,
-              }}
-              onAct={finish}
-            />
+            <div className="ga-year-toolbar__group">
+              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
+                <Download size={16} aria-hidden /> Lấy từ kế hoạch năm học
+              </button>
+              <button
+                type="button"
+                className="btn btn--sm btn--outline-primary"
+                disabled={!form.ageGroupId}
+                onClick={() => setMinistryOpen(true)}
+              >
+                <Download size={16} aria-hidden /> Lấy từ Chương trình của Bộ
+              </button>
+              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setFileOpen(true)}>
+                <Upload size={16} aria-hidden /> Nhập file
+              </button>
+            </div>
+            <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+              <p className="muted text-sm ga-year-save-status" aria-live="polite">
+                {saveReady ? saver.label : leaseError || 'Chọn năm học và nhóm tuổi; đang chờ quyền sửa'}
+              </p>
+              <button
+                type="button"
+                className="btn btn--sm btn--outline-primary"
+                onClick={saver.save}
+                disabled={!saveReady || saver.saving || (!saver.unsaved && !saver.error)}
+                title="Lưu (Ctrl+S)"
+              >
+                <Save size={16} aria-hidden /> Lưu
+              </button>
+              <ReviewActions
+                name="kế hoạch năm học"
+                sendTo="Phó HT"
+                approveLabel={pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
+                can={{ send: isLeader && !pendingEdit, approve: isVp }}
+                variant="btn--outline-primary"
+                beforeOpen={checkBeforeFinish}
+                notes={{
+                  submit: `Gửi "${form.title}" cho Phó hiệu trưởng duyệt? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`,
+                  approve: `Ban hành "${form.title}"? Giáo viên trong khối sẽ thấy kế hoạch này. Sau đó xuất file để in và ký.`,
+                }}
+                onAct={finish}
+              />
+              <button
+                type="button"
+                className="btn btn--sm btn--outline-primary"
+                onClick={() => setPreview(yearPlanFile(build(existing?.status || EDU_STATUS.DRAFT), numbers, staff))}
+              >
+                <FileDown size={16} aria-hidden /> Xuất file
+              </button>
+            </div>
           </div>
-          <p className="muted text-sm ga-year-save-status" aria-live="polite">
-            {saveReady ? saver.label : leaseError || 'Chọn năm học và nhóm tuổi; đang chờ quyền sửa'}
-          </p>
         </div>
+
+        {!existing && dupGoal && (
+          <Notice tone="warn">
+            Nhóm tuổi này đã có kế hoạch trong năm học, kể cả bản chưa ban hành. <Link to="/education/goals">Mở danh sách kế hoạch</Link> để
+            tiếp tục bản hiện có.
+          </Notice>
+        )}
 
         <Card title="Thông tin chung" num="1">
           <div className="table-wrap">
-            <table className="table ga-plan-table ga-year-info" aria-label="Thông tin chung">
+            <table className="table ga-plan-table ga-goal-table ga-year-info" aria-label="Thông tin chung">
               <thead>
                 <tr>
                   <th>Thông tin</th>
@@ -681,11 +698,15 @@ export default function GoalFormPage() {
                       }}
                     >
                       <option value="">Chọn nhóm tuổi</option>
-                      {AGE_GROUPS.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
+                      {AGE_GROUPS.map((a) => {
+                        const taken = !existing && goals.some((g) => g.schoolYear === form.schoolYear && g.ageGroupId === a.id);
+                        return (
+                          <option key={a.id} value={a.id} disabled={taken}>
+                            {a.name}
+                            {taken ? ' — Đã có kế hoạch' : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                     {errors.ageGroupId && (
                       <span id="ag-error" className="field__error" role="alert">
@@ -823,6 +844,7 @@ export default function GoalFormPage() {
             form={form}
             themes={themes}
             allowedAgeGroupIds={allowedAgeGroupIds}
+            yearRange={fileYearRange}
             onImport={importFile}
             onClose={() => setFileOpen(false)}
           />

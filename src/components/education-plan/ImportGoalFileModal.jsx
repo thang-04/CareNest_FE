@@ -3,7 +3,7 @@ import { Download, Upload } from '@/components/ui/icons';
 import { Modal, Notice, fmtDate } from '@/components/education-plan/eduUi';
 import { LoadingState } from '@/components/ui/States';
 import { previewGoalFile } from '@/services/education-plan/educationPlanService';
-import { prepareFileImport, previewSummary } from '@/models/education-plan/importGoalFile.mjs';
+import { prepareFileImport, previewSummary, FILE_IMPORT_MODES } from '@/models/education-plan/importGoalFile.mjs';
 import { AGE_GROUPS, domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { downloadDoc, goalTemplateFile } from '@/utils/education-plan/yearPlanDoc';
 
@@ -17,6 +17,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
   const applying = useRef(false);
   const [state, setState] = useState({ status: 'idle' });
   const [applyError, setApplyError] = useState('');
+  const [mode, setMode] = useState(FILE_IMPORT_MODES.ALL);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -26,16 +27,13 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
   }, []);
   const target = form || { themes, breaks: [], domains: [], ageGroupId: '', schoolYear: '' };
   const preview = state.status === 'ready' ? state.preview : null;
-  const prepared = prepareFileImport(target, preview, { allowedAgeGroupIds, yearRange });
+  const prepared = prepareFileImport(target, preview, { allowedAgeGroupIds, yearRange, mode });
   const summary = preview ? previewSummary(preview) : [];
   const goals = summary.reduce((n, d) => n + d.goals, 0);
-  const full = !!preview?.metadata || !!preview?.themes?.length || !!preview?.breaks?.length;
   const metadata = preview?.metadata;
   const groupName = (id) => AGE_GROUPS.find((group) => group.id === id)?.name || 'Chưa xác định';
-  const canAdd =
-    !!preview &&
-    !prepared.error &&
-    (goals || prepared.themes.length || prepared.breaks.length || (!target.title?.trim() && metadata?.title));
+  const canAdd = !!preview && !prepared.error;
+  const actionFor = (key) => (prepared.replace[key] ? (prepared.present[key] ? 'Thay theo file' : 'Để trống') : 'Giữ hiện có');
   const close = () => {
     if (applying.current) return;
     alive.current = false;
@@ -61,10 +59,10 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
     if (!alive.current || applying.current || !canAdd) return;
     applying.current = true;
     try {
-      if (onImport(preview)) {
+      if (onImport(preview, mode)) {
         applying.current = false;
         close();
-      } else setApplyError('Chưa thể bổ sung. Kiểm tra quyền sửa và thông tin kế hoạch hiện tại.');
+      } else setApplyError('Chưa thể áp dụng. Kiểm tra quyền sửa và thông tin kế hoạch hiện tại.');
     } finally {
       applying.current = false;
     }
@@ -84,15 +82,52 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             Hủy
           </button>
           <button type="button" className="btn btn--primary" disabled={!canAdd} onClick={apply}>
-            <Download size={16} aria-hidden /> {full ? 'Bổ sung vào kế hoạch' : `Thêm ${goals || ''} mục tiêu`}
+            <Download size={16} aria-hidden /> Áp dụng vào kế hoạch
           </button>
         </>
       }
     >
       <p className="muted text-sm">
-        Word (.doc, .docx), Excel (.xlsx) hoặc CSV, tối đa 2 MB. Xem trước rồi bổ sung; dữ liệu đã nhập giữ nguyên. Chỉ ghi lên hệ thống khi
-        bấm Lưu.
+        Word (.doc, .docx), Excel (.xlsx) hoặc CSV, tối đa 2 MB. Xem trước phần thay, xóa hoặc giữ theo cách nhập đã chọn. Chỉ ghi lên hệ
+        thống khi bấm Lưu.
       </p>
+      <fieldset className="ga-edit-fieldset stack">
+        <legend className="field__label">Cách nhập file</legend>
+        <label className="radio">
+          <input
+            type="radio"
+            name="goal-file-mode"
+            value={FILE_IMPORT_MODES.ALL}
+            checked={mode === FILE_IMPORT_MODES.ALL}
+            onChange={() => {
+              setMode(FILE_IMPORT_MODES.ALL);
+              setApplyError('');
+            }}
+          />
+          <span>
+            <b>Thay toàn bộ theo file</b>
+            <br />
+            <span className="muted text-sm">Phần file không có sẽ để trống.</span>
+          </span>
+        </label>
+        <label className="radio">
+          <input
+            type="radio"
+            name="goal-file-mode"
+            value={FILE_IMPORT_MODES.PRESENT}
+            checked={mode === FILE_IMPORT_MODES.PRESENT}
+            onChange={() => {
+              setMode(FILE_IMPORT_MODES.PRESENT);
+              setApplyError('');
+            }}
+          />
+          <span>
+            <b>Chỉ thay phần có trong file</b>
+            <br />
+            <span className="muted text-sm">Phần file có thay nguyên phần cũ; phần thiếu giữ hiện có.</span>
+          </span>
+        </label>
+      </fieldset>
       <div className="row row--wrap gap-2">
         <button
           type="button"
@@ -123,6 +158,53 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             <b>{state.name}</b>
           </p>
           {prepared.error && <Notice tone="err">{prepared.error}</Notice>}
+          <h3 className="text-md">Kế hoạch sau khi áp dụng</h3>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Phần nội dung</th>
+                  <th>Cách xử lý</th>
+                  <th>Kết quả</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Tên kế hoạch</th>
+                  <td>{actionFor('title')}</td>
+                  <td>{prepared.title || 'Để trống'}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Mô tả</th>
+                  <td>{prepared.replace.description ? 'Để trống' : 'Giữ hiện có'}</td>
+                  <td>{prepared.description || 'Để trống'}</td>
+                </tr>
+                <tr>
+                  <th scope="row">Chủ đề</th>
+                  <td>{actionFor('themes')}</td>
+                  <td>{prepared.themes.length} chủ đề</td>
+                </tr>
+                <tr>
+                  <th scope="row">Đợt nghỉ</th>
+                  <td>{actionFor('breaks')}</td>
+                  <td>{prepared.breaks.length} đợt nghỉ</td>
+                </tr>
+                <tr>
+                  <th scope="row">Mục tiêu, nội dung</th>
+                  <td>{actionFor('domains')}</td>
+                  <td>{prepared.replace.domains ? `${goals} mục tiêu từ file` : 'Giữ mục tiêu và nội dung hiện có'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="muted text-sm">
+            Mô tả chưa được đọc từ file. Năm học, khoảng ngày hệ thống, nhóm tuổi đã khóa, người soạn và trạng thái kế hoạch được giữ
+            nguyên.
+          </p>
+          <p className="text-sm">
+            Năm học: {target.schoolYear || '—'} · Từ {fmtDate(yearRange?.start)} đến {fmtDate(yearRange?.end)}
+          </p>
+
           {metadata && (
             <>
               <h3 className="text-md">Thông tin chung</h3>
@@ -132,17 +214,14 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
                     <tr>
                       <th>Thông tin</th>
                       <th>Trong file</th>
-                      <th>Khi bổ sung</th>
+                      <th>Khi áp dụng</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
                       <th scope="row">Tên kế hoạch</th>
                       <td>{metadata.title || '—'}</td>
-                      <td>
-                        {target.title?.trim() || metadata.title || '—'}
-                        {target.title?.trim() && <span className="muted text-sm"> · Giữ tên đang có</span>}
-                      </td>
+                      <td>{prepared.title || 'Để trống'}</td>
                     </tr>
                     <tr>
                       <th scope="row">Năm học</th>
@@ -162,12 +241,12 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
           {!!prepared.shifted && (
             <Notice>
               Ngày chủ đề, đợt nghỉ được dời {Math.abs(prepared.shifted)} năm {prepared.shifted > 0 ? 'về sau' : 'về trước'} theo năm học
-              đang mở. Kiểm tra lịch dưới đây trước khi bổ sung.
+              đang mở. Kiểm tra lịch dưới đây trước khi áp dụng.
             </Notice>
           )}
           {prepared.themes.length > 0 && (
             <>
-              <h3 className="text-md">Chủ đề trong file</h3>
+              <h3 className="text-md">Chủ đề sau khi áp dụng</h3>
               <div className="table-wrap">
                 <table className="table">
                   <thead>
@@ -178,7 +257,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
                       <th>Đến ngày sau dời</th>
                       <th>Lễ hội</th>
                       <th>Ghi chú</th>
-                      <th>Khi bổ sung</th>
+                      <th>Khi áp dụng</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -190,7 +269,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
                         <td>{fmtDate(t.end)}</td>
                         <td>{t.festivals || '—'}</td>
                         <td>{t.note || '—'}</td>
-                        <td>{t.existing ? `Giữ chủ đề đã có (${t.targetAbbr || t.abbr})` : 'Thêm mới'}</td>
+                        <td>{prepared.replace.themes ? 'Theo file' : 'Giữ hiện có'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -200,7 +279,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
           )}
           {prepared.breaks.length > 0 && (
             <>
-              <h3 className="text-md">Đợt nghỉ trong file</h3>
+              <h3 className="text-md">Đợt nghỉ sau khi áp dụng</h3>
               <div className="table-wrap">
                 <table className="table">
                   <thead>
@@ -209,7 +288,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
                       <th>Từ ngày sau dời</th>
                       <th>Đến ngày sau dời</th>
                       <th>Ghi chú</th>
-                      <th>Khi bổ sung</th>
+                      <th>Khi áp dụng</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -219,7 +298,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
                         <td>{fmtDate(b.start)}</td>
                         <td>{fmtDate(b.end)}</td>
                         <td>{b.note || '—'}</td>
-                        <td>{b.existing ? 'Giữ đợt nghỉ đã có' : 'Thêm mới'}</td>
+                        <td>{prepared.replace.breaks ? 'Theo file' : 'Giữ hiện có'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -252,12 +331,12 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
               </table>
             </div>
           ) : (
-            <Notice tone="warn">File không có mục tiêu nào để thêm.</Notice>
+            <Notice tone="warn">File không có mục tiêu. Phần này sẽ được xử lý theo cách nhập đã chọn ở trên.</Notice>
           )}
           {prepared.missingThemes.length > 0 && (
             <Notice tone="warn">
-              Chưa có chủ đề {prepared.missingThemes.join(', ')}: dấu tích ở các cột này chưa ghép được. Thêm hoặc sửa chủ đề ở phần 2 rồi
-              nhập lại nếu cần.
+              Chưa có chủ đề {prepared.missingThemes.join(', ')}: không ghép được dấu tích tương ứng. Kiểm tra chủ đề trong file; nếu file
+              thiếu danh sách chủ đề và muốn dùng chủ đề đang có, chọn “Chỉ thay phần có trong file”.
             </Notice>
           )}
           {prepared.warnings.length > 0 && (

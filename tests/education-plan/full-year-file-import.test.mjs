@@ -34,117 +34,189 @@ const ids = () => {
   return () => `new-${++n}`;
 };
 
-test('full file bổ sung chủ đề trước ticks, dời ngày, giữ dữ liệu tay/id/lineage và hàng trống', () => {
-  const target = base(),
-    snapshot = structuredClone(target);
-  assert.equal(typeof imports.mergeFilePlan, 'function');
-  const { patch, report, error } = imports.mergeFilePlan(target, file(), ids());
+const range = { start: '2026-09-01', end: '2027-05-31' };
+const apply = (form, preview, options = {}, makeId = ids()) =>
+  imports.mergeFilePlan(form, preview, makeId, { yearRange: range, ...options });
+
+test('full thay toàn bộ phần editable, giữ fixed fields và không mutate form/file', () => {
+  const target = {
+    ...base(),
+    id: 'plan',
+    owner: { id: 'owner' },
+    status: 'EDITING',
+    revision: 7,
+    versionNo: 2,
+    history: [{ action: 'old' }],
+  };
+  const preview = file(),
+    before = structuredClone({ target, preview });
+  const { patch, report, error } = apply(target, preview);
   assert.equal(error, '');
-  assert.equal(patch.title, undefined);
-  assert.equal(patch.description, undefined);
-  assert.deepEqual(target, snapshot);
-  assert.deepEqual(patch.domains[0].rows[0], target.domains[0].rows[0]);
-  assert.equal(patch.themes[1].id, 'blank');
-  assert.equal(patch.breaks[0].id, 'blank-break');
-  const added = patch.themes.find((t) => t.abbr === 'MN');
-  assert.equal(added.start, '2026-09-08');
-  assert.equal(patch.breaks[1].start, '2027-02-16');
-  assert.deepEqual(patch.domains[0].rows[1].contents[0].themes, [added.id]);
-  assert.equal(report.themes, 1);
-  assert.equal(report.breaks, 1);
+  assert.equal(patch.title, 'Tên file');
+  assert.equal(patch.description, '');
+  assert.equal(patch.themes.length, 1);
+  assert.equal(patch.breaks.length, 1);
+  assert.equal(patch.themes[0].start, '2026-09-08');
+  assert.equal(patch.breaks[0].start, '2027-02-16');
+  assert.deepEqual(
+    patch.domains[0].rows.filter((r) => r.kind === 'goal').map((r) => r.text),
+    ['Mới'],
+  );
+  assert.deepEqual(patch.domains[0].rows[0].contents[0].themes, [patch.themes[0].id]);
+  for (const key of [
+    'id',
+    'owner',
+    'status',
+    'revision',
+    'versionNo',
+    'history',
+    'schoolYear',
+    'ageGroupId',
+    'scope',
+    'startDate',
+    'endDate',
+  ])
+    assert.equal(patch[key], undefined, key);
   assert.equal(report.added, 1);
+  assert.deepEqual({ target, preview }, before);
 });
 
-test('khác nhóm tuổi bị chặn, không sinh patch', () => {
-  const target = { ...base(), ageGroupId: 'ag-4' };
-  assert.equal(typeof imports.mergeFilePlan, 'function');
-  const result = imports.mergeFilePlan(target, file(), ids());
-  assert.match(result.error, /nhóm tuổi/);
-  assert.equal(result.patch, null);
-});
-
-test('nhóm tuổi trống nhận từ file chỉ khi trong danh sách được phép; metadata chỉ điền ô trống', () => {
-  const target = { ...base(), ageGroupId: '', title: '' };
-  assert.equal(typeof imports.mergeFilePlan, 'function');
-  const ok = imports.mergeFilePlan(target, file(), ids(), { allowedAgeGroupIds: ['ag-3'] });
-  assert.equal(ok.patch.ageGroupId, 'ag-3');
-  assert.equal(ok.patch.title, 'Tên file');
-  assert.equal(ok.patch.schoolYear, undefined);
-  assert.match(imports.mergeFilePlan(target, file(), ids(), { allowedAgeGroupIds: ['ag-4'] }).error, /quyền/);
-  const unknown = file();
-  unknown.metadata.ageFromMonths = 37;
-  assert.match(imports.mergeFilePlan(target, unknown, ids()).error, /nhóm tuổi/);
-});
-
-test('chủ đề trùng tên khác viết tắt giữ nguyên tên/mã tay, ticks nguồn ghép đúng id cũ', () => {
+test('full file chỉ mục tiêu xóa lịch/mô tả/title thiếu, present giữ phần thiếu nhưng thay nguyên cây', () => {
   const target = base();
-  target.themes[0] = { id: 'manual', name: 'Trường mầm non', abbr: 'TMN', note: 'tay' };
-  assert.equal(typeof imports.mergeFilePlan, 'function');
-  const result = imports.mergeFilePlan(target, file(), ids());
-  assert.equal(result.report.themes, 0);
-  assert.deepEqual(result.patch.themes, target.themes);
-  assert.deepEqual(result.patch.domains[0].rows[1].contents[0].themes, ['manual']);
-  assert.deepEqual(result.report.missingThemes, []);
+  target.themes = [{ id: 'manual', name: 'Tay', abbr: 'MN' }];
+  const preview = { domains: file().domains };
+  const full = apply(target, preview),
+    present = apply(target, preview, { mode: 'replace-present' });
+  assert.equal(full.error, '');
+  assert.equal(present.error, '');
+  assert.deepEqual(full.patch.themes, []);
+  assert.deepEqual(full.patch.breaks, []);
+  assert.equal(full.patch.title, '');
+  assert.equal(full.patch.description, '');
+  assert.deepEqual(full.patch.domains[0].rows[0].contents[0].themes, []);
+  assert.deepEqual(full.report.missingThemes, ['MN']);
+  assert.deepEqual(present.patch.themes, target.themes);
+  assert.deepEqual(present.patch.breaks, target.breaks);
+  assert.equal(present.patch.title, target.title);
+  assert.equal(present.patch.description, target.description);
+  assert.deepEqual(
+    present.patch.domains[0].rows.map((r) => r.text),
+    ['Mới'],
+  );
+  assert.deepEqual(present.patch.domains[0].rows[0].contents[0].themes, ['manual']);
 });
 
-test('mã nguồn trỏ sang hai chủ đề đang có khác nhau thì chặn thay vì ghép sai', () => {
+test('present thay title hoặc lịch riêng, phần thiếu giữ nguyên', () => {
+  const target = base();
+  const result = apply(target, { metadata: { title: 'Đổi tên' } }, { mode: 'replace-present' });
+  assert.equal(result.error, '');
+  assert.equal(result.patch.title, 'Đổi tên');
+  for (const key of ['domains', 'themes', 'breaks', 'description']) assert.deepEqual(result.patch[key], target[key]);
+  const onlyBreak = apply(target, { breaks: file().breaks }, { mode: 'replace-present' });
+  assert.equal(onlyBreak.patch.breaks.length, 1);
+  assert.deepEqual(onlyBreak.patch.domains, target.domains);
+});
+
+test('present giữ mục tiêu khi thay chủ đề: remap mã duy nhất, bỏ tick không còn đích và báo', () => {
+  const target = base();
+  target.themes = [
+    { id: 'manual', name: 'Tay', abbr: 'mn' },
+    { id: 'gone', name: 'Bỏ', abbr: 'OLD' },
+  ];
+  target.domains[0].rows[0].contents[0].themes = ['manual', 'gone'];
+  const result = apply(target, { themes: file().themes }, { mode: 'replace-present' });
+  assert.equal(result.error, '');
+  assert.equal(result.patch.domains[0].rows[0].id, 'old');
+  assert.deepEqual(result.patch.domains[0].rows[0].contents[0].themes, [result.patch.themes[0].id]);
+  assert.equal(result.report.removedTicks, 1);
+  assert.ok(result.report.warnings.some((w) => w.message.includes('dấu tích')));
+});
+
+test('tên/mã tay cũ không giữ lại hay gây mơ hồ khi thay chủ đề từ file', () => {
   const target = base();
   target.themes = [
     { id: 'a', name: 'Trường mầm non', abbr: 'TMN' },
     { id: 'b', name: 'Khác', abbr: 'MN' },
   ];
-  assert.equal(typeof imports.mergeFilePlan, 'function');
-  assert.match(imports.mergeFilePlan(target, file(), ids()).error, /chủ đề/);
+  for (const mode of ['replace-all', 'replace-present']) {
+    const result = apply(target, file(), { mode });
+    assert.equal(result.error, '');
+    assert.equal(result.patch.themes.length, 1);
+    assert.equal(result.patch.themes[0].name, 'Trường mầm non');
+    assert.deepEqual(result.patch.domains[0].rows[0].contents[0].themes, [result.patch.themes[0].id]);
+  }
 });
 
-test('preview cho thấy lịch đã dời, cảnh báo trọn tuần; không đổi năm và file cũ vẫn bổ sung như trước', () => {
-  assert.equal(typeof imports.prepareFileImport, 'function');
-  const prepared = imports.prepareFileImport(base(), file());
-  assert.equal(prepared.themes[0].start, '2026-09-08');
-  assert.equal(prepared.shifted, 1);
-  assert.ok(prepared.warnings.length > 0);
-  const legacy = file();
-  delete legacy.metadata;
-  delete legacy.themes;
-  delete legacy.breaks;
-  const merged = imports.mergeFilePlan(base(), legacy, ids());
-  assert.deepEqual(merged.patch.themes, base().themes);
-  assert.deepEqual(merged.report.missingThemes, ['MN']);
+test('khác/không nhận diện/không có quyền nhóm tuổi bị chặn trước sinh ID', () => {
+  for (const [target, preview, options] of [
+    [{ ...base(), ageGroupId: 'ag-4' }, file(), {}],
+    [base(), { ...file(), metadata: { ageFromMonths: 37, ageToMonths: 48 } }, {}],
+    [{ ...base(), ageGroupId: '' }, file(), { allowedAgeGroupIds: ['ag-4'] }],
+  ]) {
+    const result = apply(target, preview, options, () => {
+      throw new Error('must not allocate');
+    });
+    assert.match(result.error, /nhóm tuổi|quyền/);
+    assert.equal(result.patch, null);
+  }
+  const result = apply({ ...base(), ageGroupId: '' }, file(), { allowedAgeGroupIds: ['ag-3'] });
+  assert.equal(result.patch.ageGroupId, 'ag-3');
 });
 
-test('nhập lại bỏ trùng, không đổi mục tiêu/ticks cũ hoặc chép owner/năm/phạm vi từ metadata', () => {
-  assert.equal(typeof imports.mergeFilePlan, 'function');
-  const target = base();
-  const preview = file();
-  preview.metadata.owner = 'ignored';
-  preview.metadata.scope = 'ignored';
-  const first = imports.mergeFilePlan(target, preview, ids());
-  const next = { ...target, ...first.patch };
-  const again = imports.mergeFilePlan(next, preview, ids());
-  assert.equal(again.report.added, 0);
-  assert.equal(again.report.duplicates, 1);
-  assert.equal(again.report.themes, 0);
-  assert.deepEqual(again.patch.domains, next.domains);
-  assert.equal(again.patch.owner, undefined);
-  assert.equal(again.patch.scope, undefined);
+test('thiếu range hệ thống, range đảo, mode lạ hoặc file rỗng không tạo patch', () => {
+  for (const options of [{ yearRange: undefined }, { yearRange: { start: range.end, end: range.start } }, { mode: 'append' }]) {
+    const result = apply(base(), file(), options);
+    assert.equal(result.patch, null);
+    assert.ok(result.error);
+  }
+  for (const mode of ['replace-all', 'replace-present'])
+    assert.equal(apply(base(), { domains: [], themes: [], breaks: [] }, { mode }).patch, null);
 });
 
-test('preview dùng đúng khoảng năm học được truyền vào để cảnh báo ngày ngoài năm', () => {
+test('preview và apply cùng dời lịch, dùng range hệ thống để cảnh báo', () => {
   const preview = file();
   preview.themes[0].start = '2025-08-04';
   preview.themes[0].end = '2025-08-08';
-  const prepared = imports.prepareFileImport(base(), preview, { yearRange: { start: '2026-09-01', end: '2027-05-31' } });
+  const prepared = imports.prepareFileImport(base(), preview, { yearRange: range });
+  const result = apply(base(), preview);
+  assert.equal(prepared.themes[0].start, '2026-08-04');
+  assert.equal(result.patch.themes[0].start, prepared.themes[0].start);
   assert.ok(prepared.warnings.some((w) => w.message.includes('ngoài năm')));
+  assert.equal(result.patch.schoolYear, undefined);
 });
 
-test('trùng mã nhưng khác tên báo rõ chủ đề tay được giữ và đích ghép dấu tích', () => {
+test('mã nguồn trùng chặn nhập, mã không có đích báo thiếu, IDs không trùng ID cũ', () => {
+  const preview = file();
+  preview.themes.push({ ...preview.themes[0], name: 'Khác', abbr: 'mn' });
+  assert.equal(apply(base(), preview).patch, null);
   const target = base();
-  target.themes[0] = { id: 'manual', name: 'Chủ đề gõ tay', abbr: 'MN', note: 'tay' };
-  const prepared = imports.prepareFileImport(target, file());
-  assert.equal(prepared.error, '');
-  assert.equal(prepared.themes[0].targetName, 'Chủ đề gõ tay');
-  assert.ok(prepared.warnings.some(w => w.message.includes('Chủ đề gõ tay') && w.message.includes('Trường mầm non')));
-  const result = imports.mergeFilePlan(target, file(), ids());
-  assert.deepEqual(result.patch.themes, target.themes);
-  assert.deepEqual(result.patch.domains[0].rows[1].contents[0].themes, ['manual']);
+  target.themes[0].id = 'new';
+  target.domains[0].rows[0].id = 'new-1';
+  const result = apply(target, file(), {}, () => 'new');
+  assert.equal(result.error, '');
+  const all = [
+    ...result.patch.themes,
+    ...result.patch.breaks,
+    ...result.patch.domains.flatMap((d) => d.rows.flatMap((r) => [r, ...(r.contents || [])])),
+  ].map((x) => x.id);
+  assert.equal(new Set(all).size, all.length);
+  assert.ok(!all.includes('new'));
+  assert.ok(!all.includes('new-1'));
+});
+
+test('nguồn không có lĩnh vực đích hợp lệ không âm thầm xóa kế hoạch', () => {
+  const preview = file();
+  preview.domains[0].name = 'Ngoài danh mục';
+  const result = apply(base(), preview);
+  assert.equal(result.patch, null);
+  assert.ok(result.error);
+});
+
+test('nhập lại là thay, không nhân đôi mục tiêu hoặc tích nhầm ID cũ', () => {
+  const first = apply(base(), file());
+  const next = { ...base(), ...first.patch };
+  const again = apply(next, file());
+  assert.equal(again.error, '');
+  assert.equal(again.patch.domains[0].rows.filter((r) => r.kind === 'goal').length, 1);
+  assert.deepEqual(again.patch.domains[0].rows[0].contents[0].themes, [again.patch.themes[0].id]);
 });

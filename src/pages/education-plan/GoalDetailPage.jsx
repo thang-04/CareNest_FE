@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Copy, FileDown, Pencil, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
 import { goalIdsToTicks, numberGoals, toRows } from '@/models/education-plan/goalTable';
-import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { GoalTable, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { Card, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
@@ -26,11 +26,8 @@ export default function GoalDetailPage() {
   const { goals, themes: themePlans, user, saveGoal, deleteGoal, createGoalVersion, toast, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const navigate = useNavigate();
-  // Mắt xích lịch sử cho màn soạn: biết trang trước chi tiết (vd. danh sách) để Đóng lùi đúng về đó
-  const cameFrom = useLocation().state?.backTo;
   const [modal, setModal] = useState(null);
   const [creating, setCreating] = useState(false);
-  const [tab, setTab] = useState('goals');
   const found = goals.find((x) => x.id === id);
   // Giáo viên chỉ xem kế hoạch năm đã ban hành
   const g = user.role === ROLES.TEACHER && found?.status !== EDU_STATUS.APPROVED ? null : found;
@@ -100,7 +97,7 @@ export default function GoalDetailPage() {
     setModal(null);
     if (plan) {
       toast(`Đã tạo ${plan.code}. Sửa rồi gửi / ban hành như kế hoạch mới.`);
-      navigate(`/education/goals/${plan.id}/edit`, { state: { backTo: `/education/goals/${g.id}`, backToPrev: cameFrom } });
+      navigate(`/education/goals/${plan.id}/edit`, { replace: true, state: { backTo: '/education/goals' } });
     }
   };
 
@@ -124,47 +121,49 @@ export default function GoalDetailPage() {
   };
 
   return (
-    <div className="page ga-page ga-goal-detail">
-      <PageHead
-        crumbs={[
-          { label: 'Kế hoạch giáo dục' },
-          isPrincipal ? { label: 'Kế hoạch toàn trường', to: '/education/school' } : { label: 'Mục tiêu năm học', to: '/education/goals' },
-          { label: g.code },
-        ]}
-        title={g.title}
-        // Đầu trang chỉ giữ nhãn phiên bản, bỏ nhãn trạng thái riêng (Tiền 31/10); trạng thái vẫn quyết định quyền và nút
-        desc={<VersionBadge plan={g} goals={goals} />}
-        actions={
-          <>
-            {/* Xuất / in ở mọi bước; bản đã ban hành thì Phó HT in ra ký, giáo viên in để dùng */}
-            <button className="btn btn--ghost" onClick={() => setPreview(yearPlanFile(plan, numbers, staff))}>
-              <FileDown size={16} aria-hidden /> Xuất
-            </button>
-            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
+    <div className="page ga-page ga-goal-detail ga-year-page ga-class-editor">
+      <div className="ga-sticky-head">
+        <PageHead
+          crumbs={[
+            { label: 'Kế hoạch giáo dục' },
+            isPrincipal
+              ? { label: 'Kế hoạch toàn trường', to: '/education/school' }
+              : { label: 'Mục tiêu năm học', to: '/education/goals' },
+            { label: g.code },
+          ]}
+          title={g.title}
+          // Đầu trang chỉ giữ nhãn phiên bản, bỏ nhãn trạng thái riêng (Tiền 31/10); trạng thái vẫn quyết định quyền và nút
+          desc={<VersionBadge plan={g} goals={goals} />}
+        />
+        <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch năm học">
+          <div className="ga-year-toolbar__group">
             {canDelete && (
-              <button className="btn btn--outline-danger" onClick={() => setModal('delete')}>
+              <button className="btn btn--sm btn--outline-danger" onClick={() => setModal('delete')}>
                 <Trash2 size={16} aria-hidden /> Xóa
               </button>
             )}
             {canCreateVersion && (
-              <button className="btn btn--outline-primary" onClick={() => setModal('version')}>
+              <button className="btn btn--sm btn--outline-primary" onClick={() => setModal('version')}>
                 <Copy size={16} aria-hidden /> Tạo phiên bản điều chỉnh
               </button>
             )}
             {canEditNow && (
               <Link
-                className="btn btn--outline-primary"
+                className="btn btn--sm btn--outline-primary"
                 to={`/education/goals/${g.id}/edit`}
-                state={{ backTo: `/education/goals/${g.id}`, backToPrev: cameFrom }}
+                replace
+                state={{ backTo: '/education/goals' }}
               >
                 <Pencil size={16} aria-hidden /> {pending ? 'Sửa trước khi duyệt' : 'Chỉnh sửa'}
               </Link>
             )}
+          </div>
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             <ReviewActions
               name="kế hoạch năm học"
               sendTo="Phó HT"
               approveLabel="Ban hành"
-              size=""
+              variant="btn--outline-primary"
               can={{ send: canSend, reject: canReturn, approve: canIssue }}
               notes={{
                 submit: 'Kế hoạch sẽ bị khóa cho tới khi Phó hiệu trưởng ban hành hoặc trả lại.',
@@ -172,9 +171,12 @@ export default function GoalDetailPage() {
               }}
               onAct={act}
             />
-          </>
-        }
-      />
+            <button className="btn btn--sm btn--outline-primary" onClick={() => setPreview(yearPlanFile(plan, numbers, staff))}>
+              <FileDown size={16} aria-hidden /> Xuất file
+            </button>
+          </div>
+        </div>
+      </div>
 
       {g.status === EDU_STATUS.REJECTED && (
         <div className="mb-16">
@@ -194,7 +196,7 @@ export default function GoalDetailPage() {
         </div>
       )}
 
-      <Card title="Thông tin chung">
+      <Card title="Thông tin chung" num="1">
         <dl className="info-list">
           <dt>Năm học</dt>
           <dd>{g.schoolYear}</dd>
@@ -215,15 +217,15 @@ export default function GoalDetailPage() {
         </dl>
       </Card>
 
-      <Card className="mt-16" bodyClass={null}>
-        <PlanTabs tab={tab} onTab={setTab} counts={{ themes: themes.length, goals: Object.keys(numbers).length }} />
-        <div className="card__body">
-          {tab === 'themes' ? (
-            <ThemeEventTable themes={themes} breaks={g.breaks || []} domains={domains} numbers={numbers} readOnly />
-          ) : (
-            <GoalTable domains={domains} themes={themes} numbers={numbers} ageGroupId={g.ageGroupId} readOnly />
-          )}
-        </div>
+      <Card title="Chủ đề, sự kiện trong năm" num="2">
+        <ThemeEventTable themes={themes} breaks={g.breaks || []} domains={domains} numbers={numbers} readOnly />
+      </Card>
+      <Card
+        title="Mục tiêu, nội dung giáo dục"
+        num="3"
+        actions={<span className="muted text-xs nowrap">{Object.keys(numbers).length} mục tiêu</span>}
+      >
+        <GoalTable domains={domains} themes={themes} numbers={numbers} ageGroupId={g.ageGroupId} readOnly />
       </Card>
 
       <YearPlanVersionPanel plan={g} goals={goals} />
@@ -231,6 +233,7 @@ export default function GoalDetailPage() {
       <div className="mt-16">
         <ReviewHistory items={history} />
       </div>
+      {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
 
       {modal === 'version' && (
         <Modal

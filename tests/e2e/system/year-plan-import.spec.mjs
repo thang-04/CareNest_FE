@@ -523,6 +523,7 @@ test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đ�
   const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu' });
   const choose = async (file) => {
     await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
+    await dialog.getByRole('radio', { name: /^Chỉ thay phần có trong file/ }).check();
     await dialog.locator('input[type="file"]').setInputFiles(file);
   };
 
@@ -533,7 +534,7 @@ test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đ�
   // .doc hỏng bị từ chối; .doc nhị phân hợp lệ được kiểm riêng bên dưới.
   await choose({ name: 'cu.doc', mimeType: 'application/msword', buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0, 0, 0]) });
   await expect(dialog).toContainText('Không đọc được file');
-  await expect(dialog.getByRole('button', { name: /^Thêm.*mục tiêu$/ })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Áp dụng vào kế hoạch', exact: true })).toBeDisabled();
   await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
 
   // Xem trước rồi Hủy: bảng không đổi
@@ -544,17 +545,17 @@ test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đ�
   await expect(dialog).toBeHidden();
   expect(await values()).not.toContain(goalText);
 
-  // Thêm: có trong bảng, chưa ghi lên hệ thống tới khi Lưu
+  // Chỉ thay phần có: thay cây mục tiêu, giữ lịch đang có, chưa ghi tới khi Lưu
   await choose(wordFile);
-  await dialog.getByRole('button', { name: 'Thêm 1 mục tiêu', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Áp dụng vào kế hoạch', exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect.poll(values).toContain(goalText);
   await expect(saveStatus(page)).toHaveText('Có thay đổi chưa lưu');
   expect(logicalRows(await read(target.id)).some((row) => row.text === goalText)).toBe(false);
 
-  // Nhập lại cùng file: mục tiêu trùng câu được bỏ qua
+  // Nhập lại cùng file thay lại cây, không nhân đôi mục tiêu
   await choose(wordFile);
-  await dialog.getByRole('button', { name: 'Thêm 1 mục tiêu', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Áp dụng vào kế hoạch', exact: true }).click();
   await expect.poll(async () => (await values()).filter((v) => v === goalText).length).toBe(1);
 
   await page.keyboard.press('Control+s');
@@ -568,7 +569,7 @@ test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đ�
   await page.goto('/');
 });
 
-test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thêm/bỏ trùng, lưu và mở lại', async ({ page }) => {
+test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thay phần có/lặp lại, lưu và mở lại', async ({ page }) => {
   const fixture = fileURLToPath(new URL('../fixtures/goals-merged.doc', import.meta.url));
   const goalText = 'Trẻ thực hiện vận động';
   const before = await read(target.id);
@@ -578,20 +579,21 @@ test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thêm/bỏ trù
   const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu', exact: true });
   const choose = async () => {
     await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
+    await dialog.getByRole('radio', { name: /^Chỉ thay phần có trong file/ }).check();
     const response = page.waitForResponse((res) => res.url().endsWith('/education-plans/goals/file-preview'));
     await dialog.locator('input[type=file]').setInputFiles(fixture);
     expect((await response).status()).toBe(200);
-    await expect(dialog.getByRole('button', { name: 'Thêm 2 mục tiêu', exact: true })).toBeEnabled();
+    await expect(dialog.getByRole('button', { name: 'Áp dụng vào kế hoạch', exact: true })).toBeEnabled();
   };
   await choose();
   await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
   expect(logicalRows(await read(target.id))).toEqual(logicalRows(before));
   await choose();
-  await dialog.getByRole('button', { name: 'Thêm 2 mục tiêu', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Áp dụng vào kế hoạch', exact: true }).click();
   await expect.poll(() => page.locator('textarea').evaluateAll((els) => els.map((el) => el.value))).toContain(goalText);
   expect(logicalRows(await read(target.id))).toEqual(logicalRows(before));
   await choose();
-  await dialog.getByRole('button', { name: 'Thêm 2 mục tiêu', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Áp dụng vào kế hoạch', exact: true }).click();
   await expect
     .poll(() => page.locator('textarea').evaluateAll((els) => els.filter((el) => el.value === 'Trẻ thực hiện vận động').length))
     .toBe(1);
@@ -606,5 +608,45 @@ test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thêm/bỏ trù
   await page.goto(`/education/goals/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   await expect.poll(() => page.locator('textarea').evaluateAll((els) => els.map((el) => el.value))).toContain(goalText);
+  await page.goto('/');
+});
+
+test('EDU-46 thay toàn bộ: xóa phần thiếu, lưu và mở lại đúng dữ liệu từ file', async ({ page }) => {
+  const fixture = fileURLToPath(new URL('../fixtures/goals-merged.doc', import.meta.url));
+  const before = await read(target.id);
+  await login(page, USERS.vp);
+  await page.goto(`/education/goals/${target.id}/edit`);
+  await expect(page.locator('#desc')).toBeEditable();
+  await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu', exact: true });
+  await expect(dialog.getByRole('radio', { name: /^Thay toàn bộ theo file/ })).toBeChecked();
+  await dialog.locator('input[type=file]').setInputFiles(fixture);
+  await expect(dialog.getByRole('button', { name: 'Áp dụng vào kế hoạch', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Áp dụng vào kế hoạch', exact: true }).click();
+  await expect(page.locator('#title')).toHaveValue('');
+  await expect(page.locator('#desc')).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: /^Tên chủ đề \d+$/ })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: /^Tên đợt nghỉ \d+$/ })).toHaveCount(0);
+  expect(logicalRows(await read(target.id))).toEqual(logicalRows(before));
+  const title = `${marker} Full replacement`;
+  await page.locator('#title').fill(title);
+  await page.keyboard.press('Control+s');
+  await expect(saveStatus(page)).toHaveText(/Đã lưu lúc/);
+  const saved = await read(target.id);
+  expect(saved.title).toBe(title);
+  expect(saved.description || '').toBe('');
+  expect(saved.schoolYearId).toBe(before.schoolYearId);
+  expect(saved.ageGroupId).toBe(before.ageGroupId);
+  expect(saved.themes).toEqual([]);
+  expect(saved.breaks).toEqual([]);
+  const goals = saved.domains.flatMap((d) => d.rows).filter((row) => row.kind === 'goal');
+  expect(goals).toHaveLength(2);
+  expect(goals.some((row) => row.text === 'Trẻ thực hiện vận động')).toBe(true);
+  expect(goals.flatMap((row) => row.contents).every((c) => !(c.themeIds || []).length)).toBe(true);
+  await page.goto('/');
+  await page.goto(`/education/goals/${target.id}/edit`);
+  await expect(page.locator('#title')).toHaveValue(title);
+  await expect(page.locator('#desc')).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: /^Tên chủ đề \d+$/ })).toHaveCount(0);
   await page.goto('/');
 });
