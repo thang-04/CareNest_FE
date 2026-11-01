@@ -65,6 +65,8 @@ export default function VicePrincipalDashboard() {
   const health = todayQ.data?.health;
   const counts = countsQ.data?.counts || [];
   const lunch = counts.find((c) => c.session === 'LUNCH');
+  // Cờ BE: số suất đổi sau khi xác nhận (mở lại điểm danh / điều chỉnh) ⇒ PHT cần xác nhận lại (NUT-03)
+  const reconfirm = counts.some((c) => c.needsReconfirmation);
   const preps = (prepQ.data || []).filter((p) => p.hasMenu);
   const campus = md.campusById(campusId);
   const shortcuts = SHORTCUTS.map((s) =>
@@ -135,12 +137,16 @@ export default function VicePrincipalDashboard() {
             <KpiCard
               icon={Utensils}
               to={`/attendance/meal-count?date=${date}`}
-              tone="blue"
+              tone={reconfirm ? 'orange' : 'blue'}
               label="Suất ăn trưa đã báo"
               value={lunch ? lunch.totals.normal + lunch.totals.substitute : '—'}
               unit={lunch ? 'suất' : undefined}
               hint={
-                lunch ? `Sĩ số suất ăn: ${MEAL_COUNT_STATUS_LABELS[lunch.status] || lunch.status}` : 'Hôm nay không có bữa trưa bán trú'
+                reconfirm
+                  ? 'Sổ báo ăn đã thay đổi sau khi xác nhận – cần xác nhận lại'
+                  : lunch
+                    ? `Sĩ số suất ăn: ${MEAL_COUNT_STATUS_LABELS[lunch.status] || lunch.status}`
+                    : 'Hôm nay không có bữa trưa bán trú'
               }
               loading={firstLoad(countsQ)}
               error={countsQ.error}

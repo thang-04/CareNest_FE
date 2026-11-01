@@ -10,6 +10,7 @@ import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { Card, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { StatusPage } from '@/components/ui/StatusPage';
+import { Spinner } from '@/components/ui/States';
 import { VersionBadge, YearPlanVersionPanel } from '@/components/education-plan/VersionWidgets';
 import { chainOf, currentPlanOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
@@ -29,6 +30,8 @@ export default function GoalDetailPage() {
   // Mắt xích lịch sử cho màn soạn: biết trang trước chi tiết (vd. danh sách) để Đóng lùi đúng về đó
   const cameFrom = useLocation().state?.backTo;
   const [modal, setModal] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [creating, setCreating] = useState(false);
   const [tab, setTab] = useState('goals');
   const found = goals.find((x) => x.id === id);
@@ -93,6 +96,24 @@ export default function GoalDetailPage() {
     ((isVp || isLeader) &&
       currentPlanOf(goals, g.ageGroupId, g.schoolYear)?.id === g.id &&
       chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED));
+  const closeDelete = () => {
+    setModal(null);
+    setDeleteError('');
+  };
+  // Chỉ báo "Đã xóa" và rời màn khi BE đã xóa; lỗi (403/409/5xx) hiện trong hộp, ở lại màn
+  const removePlan = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteGoal(g.id);
+      navigate('/education/goals');
+      toast('Đã xóa kế hoạch năm học');
+    } catch (err) {
+      setDeleteError(err.message || 'Không xóa được kế hoạch năm học. Thử lại sau.');
+      setDeleting(false);
+    }
+  };
   const newVersion = async () => {
     setCreating(true);
     const plan = await createGoalVersion(g.id);
@@ -258,26 +279,19 @@ export default function GoalDetailPage() {
       {modal === 'delete' && (
         <Modal
           title={`Xóa “${g.title}”?`}
-          onClose={() => setModal(null)}
+          onClose={deleting ? undefined : closeDelete}
           footer={
             <>
-              <button className="btn" onClick={() => setModal(null)}>
+              <button className="btn" onClick={closeDelete} disabled={deleting}>
                 Giữ lại
               </button>
-              <button
-                className="btn btn--outline-danger"
-                disabled={usedBy.length > 0}
-                onClick={() => {
-                  deleteGoal(g.id);
-                  toast('Đã xóa kế hoạch năm học');
-                  navigate('/education/goals');
-                }}
-              >
-                <Trash2 size={16} aria-hidden /> Xóa kế hoạch
+              <button className="btn btn--outline-danger" disabled={usedBy.length > 0 || deleting} onClick={removePlan}>
+                {deleting ? <Spinner small /> : <Trash2 size={16} aria-hidden />} Xóa kế hoạch
               </button>
             </>
           }
         >
+          {deleteError && <Notice tone="err">{deleteError}</Notice>}
           {usedBy.length > 0 ? (
             <Notice tone="err">Không xóa được vì đã có kế hoạch chủ đề sử dụng kế hoạch này.</Notice>
           ) : (

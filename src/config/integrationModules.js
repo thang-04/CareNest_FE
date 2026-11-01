@@ -121,6 +121,13 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/menu-planning/api/menuPlanningApi.js'],
     facades: ['src/services/menu-planning/menuPlanningService.js'],
   },
+  // Sổ báo ăn đã xác nhận: BE có GET /meal-counts ⇒ màn này dùng số thật, các màn bếp khác còn demo
+  'kitchen-meal-count': {
+    source: 'api',
+    routes: ['/kitchen/meal-count'],
+    files: ['src/services/kitchen/api/confirmedMealCountApi.js'],
+    facades: ['src/services/kitchen/kitchenService.js'],
+  },
   kitchen: {
     source: 'demo',
     routes: ['/kitchen'],

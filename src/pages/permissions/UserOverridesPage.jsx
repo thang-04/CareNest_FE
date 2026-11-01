@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, RotateCcw, ShieldCheck } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { RowActions } from '@/components/ui/RowActions';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Avatar } from '@/components/ui/Avatar';
@@ -37,6 +39,13 @@ export default function UserOverridesPage() {
   const [wizardStaff, setWizardStaff] = useState(null); // null = đóng, {} = chọn người mới, staff = sửa người này
   const [resetStaff, setResetStaff] = useState(null);
   const [savingReset, setSavingReset] = useState(false);
+  const [wizardDirty, setWizardDirty] = useState(false);
+  // Đang gán ngoại lệ dở trong hộp (đã tick hoặc tới bước nhập lý do) ⇒ hỏi trước khi rời màn; lưu cần lý do nên không có nút Lưu
+  const guard = useLeaveGuard({ when: !!wizardStaff && wizardDirty });
+  const closeWizard = () => {
+    setWizardStaff(null);
+    setWizardDirty(false);
+  };
 
   const filteredAccounts = useMemo(() => {
     const list = accounts || [];
@@ -246,13 +255,20 @@ export default function UserOverridesPage() {
         <OverrideWizardModal
           open
           initialStaff={wizardStaff.userId ? wizardStaff : null}
-          onClose={() => setWizardStaff(null)}
+          onClose={closeWizard}
+          onDirty={setWizardDirty}
           onSaved={() => {
-            setWizardStaff(null);
+            closeWizard();
             reload({ silent: true });
           }}
         />
       )}
+
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave={false}
+        message="Quyền ngoại lệ đang gán chưa được lưu. Bấm Hủy để quay lại hoàn tất (cần nhập lý do); Không lưu thì bỏ các thay đổi."
+      />
 
       {/* Modal xác nhận đặt lại về mặc định */}
       {resetStaff && (

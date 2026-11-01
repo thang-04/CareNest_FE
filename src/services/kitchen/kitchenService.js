@@ -3,6 +3,7 @@ import { demoActorOf, isDemoModule, sourceOf } from '@/services/demoSource';
 import { kitchenMockRepository as mock } from '@/services/kitchen/mock/kitchenMockRepository';
 import { syncBeMealCounts } from '@/services/kitchen/mock/beMealCountBridge';
 import { kitchenApi as api } from '@/services/kitchen/api/kitchenApi';
+import { confirmedMealCountApi } from '@/services/kitchen/api/confirmedMealCountApi';
 import { readLegacyKitchenRows } from './mock/legacyDashboardRepository';
 
 /** Facade used by hooks/pages. Nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js). */
@@ -46,7 +47,9 @@ export const getStockIssue = async ({ campusId, date }, user) => {
   return { state: issue?.status || view.today?.state || 'WAITING_MEAL_COUNT', issue };
 };
 export const getPublishedMenu = (filters, user) => repo.getPublishedMenu(filters, user);
-export const getConfirmedMealCount = withBeMealCounts((filters, user) => repo.getConfirmedMealCount(filters, user));
+// Sổ báo ăn đã xác nhận đã có BE: build nối BE đọc số thật dù các màn bếp khác còn demo
+const mealCountRepo = sourceOf('kitchen-meal-count', mock, confirmedMealCountApi);
+export const getConfirmedMealCount = withBeMealCounts((filters, user) => mealCountRepo.getConfirmedMealCount(filters, user));
 /** Dự trù tuần: { status, days, classes, fresh, dry, changes, pendingChanges, sent, canEdit }. */
 export const getWeeklyForecast = (filters, user) => repo.getWeeklyForecast(filters, user);
 export const saveWeeklyForecast = (payload, user) => repo.saveWeeklyForecast(payload, user);

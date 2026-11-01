@@ -7,7 +7,8 @@ import { axiosClient } from '@/services/http/axiosClient';
 export const attendanceApi = {
   getDayInfo: (date) => axiosClient.get('/attendance/day-info', { params: { date } }),
   getClassAttendance: (classId, date) => axiosClient.get(`/classes/${classId}/attendance`, { params: { date } }),
-  saveClassAttendance: ({ classId, date, entries }) => axiosClient.put(`/classes/${classId}/attendance`, { date, entries }),
+  saveClassAttendance: ({ classId, date, entries }) =>
+    axiosClient.put(`/classes/${classId}/attendance`, { date, entries: entries.map(({ childId, status }) => ({ childId, status })) }),
   // PENDING BE: không có classId = tổng hợp nhiều lớp trong phạm vi người gọi (campusId tùy chọn, BE tự giới hạn phạm vi)
   getAttendanceSummary: ({ classId, campusId, from, to }) =>
     classId
@@ -15,8 +16,9 @@ export const attendanceApi = {
       : axiosClient.get('/attendance/summary', { params: { from, to, ...(campusId ? { campusId } : {}) } }),
   getMealCounts: ({ date }) => axiosClient.get('/meal-counts', { params: { date } }),
   confirmMealCount: (id) => axiosClient.post(`/meal-counts/${id}/confirm`),
-  // PENDING BE: sửa số suất / ngày của một lớp (kèm lý do), áp cho mọi bữa trong ngày
-  adjustMealDay: (body) => axiosClient.post('/meal-counts/adjustments', body),
+  // NUT-02: chỉ suất thay thế (kèm lý do); suất thường chỉ đổi qua điểm danh
+  adjustMealDay: ({ campusId, date, session, classId, substitute, note }) =>
+    axiosClient.post('/meal-counts/adjustments', { campusId, date, session: session || null, classId, normal: null, substitute, note }),
   getMealHandovers: ({ date }) => axiosClient.get('/meal-handovers', { params: { date } }),
   confirmHandover: (id, body) => axiosClient.post(`/meal-handovers/${id}/confirm`, body),
   reportHandoverShortage: (id, body) => axiosClient.post(`/meal-handovers/${id}/shortage`, body),
@@ -64,10 +66,11 @@ export const createAttendanceBeApi = (client) => ({
   unlockAttendanceDay: (body) => client.post('/attendance/day-unlocks', body),
   revokeAttendanceDayUnlock: (id) => client.post(`/attendance/day-unlocks/${id}/revoke`),
   getClassAttendance: async (classId, date) => toSheet(await client.get(`/classes/${classId}/attendance`, { params: { date } })),
+  // ATT-02: BE tự tính suất từ status (bỏ qua meals) ⇒ chỉ gửi trẻ + trạng thái
   saveClassAttendance: ({ classId, date, entries }) =>
     client.put(`/classes/${classId}/attendance`, {
       date,
-      entries: entries.map(({ childId, status, meals }) => ({ childId, status, meals })),
+      entries: entries.map(({ childId, status }) => ({ childId, status })),
     }),
   getAttendanceSummary: async ({ classId, campusId, schoolYear, from, to }) =>
     classId
@@ -80,6 +83,7 @@ export const createAttendanceBeApi = (client) => ({
         ),
   getMealCounts: ({ date, schoolYear }) => client.get('/meal-counts', { params: { date, schoolYearId: schoolYear || undefined } }),
   confirmMealCount: (id) => client.post(`/meal-counts/${id}/confirm`),
-  adjustMealDay: ({ campusId, date, session, classId, normal, substitute, note }) =>
-    client.post('/meal-counts/adjustments', { campusId, date, session: session || null, classId, normal, substitute, note }),
+  // NUT-02: chỉ điều chỉnh suất thay thế; suất thường chỉ đổi qua điểm danh ⇒ normal luôn null
+  adjustMealDay: ({ campusId, date, session, classId, substitute, note }) =>
+    client.post('/meal-counts/adjustments', { campusId, date, session: session || null, classId, normal: null, substitute, note }),
 });

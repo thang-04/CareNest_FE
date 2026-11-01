@@ -11,6 +11,7 @@ import ComingSoonPage from '@/pages/ComingSoonPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import { canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
+import { canManageParentAccounts } from '@/utils/account/accountPermissions';
 
 // Thư viện UI chỉ cho bản dev: bản build prod bỏ cả route lẫn chunk.
 const UiKitPage = import.meta.env.DEV ? lazy(() => import('@/pages/UiKitPage')) : null;
@@ -360,7 +361,14 @@ export function AppRoutes() {
             <Route path="new" element={only(VP_ONLY, <EnrollChildPage />)} />
             <Route path="import" element={only(VP_ONLY, <ImportChildrenPage />)} />
             <Route path="placement" element={only(VP_ONLY, <ClassPlacementPage />)} />
-            <Route path="activation" element={only(VP_ONLY, <ParentActivationPage />)} />
+            <Route
+              path="activation"
+              element={
+                <RoleGuard allow={canManageParentAccounts} description={DENIED}>
+                  <ParentActivationPage />
+                </RoleGuard>
+              }
+            />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
             <Route path="health-checks" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckListPage />)} />
             <Route path="health-checks/new" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />

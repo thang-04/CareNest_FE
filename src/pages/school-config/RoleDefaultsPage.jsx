@@ -3,6 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useRolePermissionMatrix } from '@/hooks/account/usePermissions';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { ReasonModal } from '@/components/permissions/ReasonModal';
 import { PermissionTabs } from '@/components/permissions/PermissionTabs';
@@ -54,6 +56,8 @@ export default function RoleDefaultsPage() {
   };
 
   const changedRoles = PERMISSION_MATRIX_ROLES.filter((role) => role in drafts);
+  // Lưu cần lý do (ReasonModal) ⇒ hộp rời màn không có nút Lưu; Hủy giữ nguyên các tick chưa lưu
+  const guard = useLeaveGuard({ when: changedRoles.length > 0 });
   const allChanges = changedRoles.flatMap((role) => {
     const { added, removed } = codeDiff(originalOf(role), codesOf(role));
     const roleName = PERMISSION_ROLE_LABELS[role];
@@ -198,6 +202,11 @@ export default function RoleDefaultsPage() {
           )}
 
           {asking && <ReasonModal saving={saving} changes={allChanges} onClose={() => setAsking(false)} onSubmit={saveAll} />}
+          <LeaveConfirmModal
+            {...guard.modal}
+            canSave={false}
+            message="Bạn còn thay đổi phân quyền chưa lưu. Bấm Hủy để ở lại và Lưu phân quyền (cần nhập lý do); Không lưu thì bỏ các thay đổi."
+          />
         </>
       )}
     </div>

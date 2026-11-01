@@ -85,6 +85,7 @@ export default function MealCountPage() {
   const date = params.get('date') || today;
   const { data, loading, error, reload } = useMealCounts(date);
   const [confirming, setConfirming] = useState(null);
+  const [confirmError, setConfirmError] = useState('');
   const [adjusting, setAdjusting] = useState(null);
   const kitchen = user?.role === ROLES.KITCHEN_STAFF;
   // Hiệu trưởng xem cả trường: lọc điểm trường
@@ -96,11 +97,13 @@ export default function MealCountPage() {
   const doConfirm = async () => {
     try {
       for (const c of confirming.counts) await confirmMealCount(c.id, user);
-      toast.success(`Đã xác nhận ${confirming.scope}. Bếp đã nhận được số liệu.`, 'Xác nhận thành công');
+      toast.success(`Đã xác nhận ${confirming.scope}. Đây là số bếp sẽ dùng.`, 'Xác nhận thành công');
       setConfirming(null);
       reload({ silent: true });
     } catch (err) {
-      toast.error(err, 'Không xác nhận được');
+      // Lỗi BE (vd. còn lớp chưa điểm danh – NUT-02) hiện ngay trong hộp, giữ hộp mở; tải lại để thấy số mới nhất
+      setConfirmError(err.message);
+      reload({ silent: true });
     }
   };
 
@@ -210,7 +213,11 @@ export default function MealCountPage() {
         }
         confirmLabel={confirming?.counts.length > 1 ? `Xác nhận ${confirming.counts.length} bữa` : 'Xác nhận'}
         onConfirm={doConfirm}
-        onClose={() => setConfirming(null)}
+        error={confirmError}
+        onClose={() => {
+          setConfirming(null);
+          setConfirmError('');
+        }}
       />
       {adjusting && (
         <MealAdjustModal

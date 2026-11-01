@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Save, Search } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/form/FormField';
@@ -21,7 +21,7 @@ const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER'];
 const taskLabel = (code) => PERMISSION_TASKS[code]?.label || code;
 const WIZARD_STEPS = ['Chọn người', 'Thiết lập quyền', 'Xác nhận & Lý do'];
 
-export function OverrideWizardModal({ open, initialStaff = null, onClose, onSaved }) {
+export function OverrideWizardModal({ open, initialStaff = null, onClose, onSaved, onDirty }) {
   const { user } = useAuth();
   const toast = useToast();
 
@@ -32,6 +32,12 @@ export function OverrideWizardModal({ open, initialStaff = null, onClose, onSave
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [ticked, setTicked] = useState(false);
+  // Báo màn cha còn thay đổi chưa lưu (đã tick ở bước 2 hoặc đang ở bước nhập lý do) để hỏi khi rời màn
+  const dirty = step === 3 || (step === 2 && ticked);
+  useEffect(() => {
+    onDirty?.(dirty);
+  }, [dirty, onDirty]);
 
   // Load danh sách nhân sự cho Bước 1
   const { data: staffData, loading: loadingStaff, error: staffError } = usePermissionStaff({ enabled: open && step === 1 });
@@ -49,6 +55,7 @@ export function OverrideWizardModal({ open, initialStaff = null, onClose, onSave
   }, [staffData?.items, filterRole, searchQuery, user]);
 
   const handleSelectStaff = (staff) => {
+    setTicked(false);
     setSelectedStaff(staff);
     setStep(2);
   };
@@ -85,6 +92,7 @@ export function OverrideWizardModal({ open, initialStaff = null, onClose, onSave
         <StepConfigurePermissions
           staff={selectedStaff}
           onBack={initialStaff ? null : () => setStep(1)}
+          onChange={setTicked}
           onNext={(overridesPayload, formattedChanges) => {
             setSelectedStaff((curr) => ({
               ...curr,
@@ -198,7 +206,7 @@ function StepSelectStaff({ loading, error, staffList, searchQuery, onSearchChang
 }
 
 /** Bước 2: Thiết lập quyền ngoại lệ */
-function StepConfigurePermissions({ staff, onBack, onNext }) {
+function StepConfigurePermissions({ staff, onBack, onNext, onChange }) {
   const staffId = staff.userId || staff.id;
   const matrix = useRolePermissionMatrix({ live: false });
   const overridesQuery = usePermissionOverrides(staffId, { live: false });
@@ -236,6 +244,7 @@ function StepConfigurePermissions({ staff, onBack, onNext }) {
   const toggle = (code, on) => {
     const result = toggleWithRequires(catalog, personCodes, code, on, isConfigurable);
     setValues(Object.fromEntries(configurableCodes.map((c) => [c, result.codes.includes(c)])));
+    onChange?.(true);
     if (result.added.length) setNotice(`Đã tự tick “${result.added.map(taskLabel).join('”, “')}” vì “${taskLabel(code)}” cần quyền xem.`);
     else if (result.removed.length)
       setNotice(`Đã tự bỏ tick “${result.removed.map(taskLabel).join('”, “')}” vì cần quyền “${taskLabel(code)}”.`);
