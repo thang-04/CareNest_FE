@@ -9,7 +9,7 @@ export const learningResourceApi = {
     const data = new FormData();
     data.append('file', file);
     Object.entries(binding).forEach(([k, v]) => data.append(k, v));
-    return axiosClient.post(base(key), data, { headers: { 'Content-Type': undefined, 'X-Request-Id': requestId }, timeout: 120000 });
+    return axiosClient.post(base(key), data, { headers: { 'Content-Type': undefined, 'Idempotency-Key': requestId }, timeout: 120000 });
   },
   bind: (_user, key, id, binding) => axiosClient.patch(`${base(key)}/${id}/activity`, binding),
   detach: (_user, key, id) => axiosClient.delete(`${base(key)}/${id}`),
