@@ -89,7 +89,6 @@ test('ST-14 phiên bản mới: lấy mục tiêu và gợi ý nội dung từ C
   await login(page, USERS.teacher1);
   await page.goto(`/education/goals/${v2Id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: /Tiếp theo/ }).click();
   await page.getByRole('button', { name: 'Lấy từ Chương trình của Bộ' }).click();
   const dialog = page.getByRole('dialog', { name: 'Lấy từ Chương trình của Bộ' });
   await expect(dialog).toContainText('01/VBHN-BGDĐT');

@@ -26,3 +26,10 @@ test('send giữ người nhận và khóa vì chưa lưu, không đổi nút du
   assert.match(html, /Trả lại/);
   assert.match(html, /Duyệt/);
 });
+
+test('review action cho phép đồng bộ kiểu viền ở màn năm học, caller cũ giữ primary', () => {
+  assert.match(render({ can: { approve: true } }), /btn--primary/);
+  const html = render({ can: { approve: true, send: true }, variant: 'btn--outline-primary' });
+  assert.equal((html.match(/btn--outline-primary/g) || []).length, 2);
+  assert.doesNotMatch(html, /btn--primary/);
+});

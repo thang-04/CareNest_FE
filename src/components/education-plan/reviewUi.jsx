@@ -34,6 +34,7 @@ export function ReviewActions({
   notes = {},
   onAct,
   size = 'btn--sm',
+  variant = 'btn--primary',
 }) {
   const [action, setAction] = useState(null);
   const [note, setNote] = useState('');
@@ -65,7 +66,7 @@ export function ReviewActions({
       {(can.send || showSend) && (
         <button
           type="button"
-          className={btn('btn--primary')}
+          className={btn(variant)}
           disabled={!can.send || !!sendBlocked}
           title={(!can.send ? sendDisabledReason || 'Bạn chưa thể gửi tài liệu này' : sendBlocked) || undefined}
           aria-description={(!can.send ? sendDisabledReason || 'Bạn chưa thể gửi tài liệu này' : sendBlocked) || undefined}
@@ -80,7 +81,7 @@ export function ReviewActions({
         </button>
       )}
       {can.approve && (
-        <button type="button" className={btn('btn--primary')} onClick={() => open('approve')}>
+        <button type="button" className={btn(variant)} onClick={() => open('approve')}>
           <Check size={16} aria-hidden /> {approveLabel}
         </button>
       )}

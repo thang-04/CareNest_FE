@@ -150,7 +150,6 @@ async function openEditor(page) {
   await login(page, USERS.vp);
   await page.goto(`/education/goals/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
   await page.getByRole('button', { name: /Lấy từ kế hoạch có sẵn/ }).click();
   const dialog = importDialog(page);
   await dialog.locator('#imp-year').selectOption(uiYear(sourceYear));
@@ -395,7 +394,6 @@ test('EDU-24/22 double confirm imports once; only manual Save persists hierarchy
   await page.goto('/');
   await page.goto(`/education/goals/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
   await expect.poll(() => page.locator('textarea').evaluateAll((nodes) => nodes.map((node) => node.value))).toContain('Nguồn mục tiêu 0-0');
   await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
   await page.keyboard.press('Control+s');
@@ -414,8 +412,6 @@ test('EDU-43 lấy chủ đề, đợt nghỉ từ kế hoạch khác năm/nhóm
   await login(page, USERS.vp);
   await page.goto(`/education/goals/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
-  await page.getByRole('tab', { name: /Chủ đề và sự kiện/ }).click();
   await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Lấy chủ đề từ kế hoạch có sẵn' });
   await dialog.locator('#imt-year').selectOption(uiYear(sourceYear));
@@ -484,8 +480,6 @@ test('EDU-06/43 Tổ trưởng: nhóm tuổi khác chỉ thấy bản đã ban h
     await login(page, USERS.teacher1);
     await page.goto(`/education/goals/${target.id}/edit`);
     await expect(page.locator('#desc')).toBeEditable();
-    await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
-    await page.getByRole('tab', { name: /Chủ đề và sự kiện/ }).click();
     await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Lấy chủ đề từ kế hoạch có sẵn' });
     await dialog.locator('#imt-year').selectOption(uiYear(sourceYear));
@@ -535,7 +529,6 @@ test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đ�
   await login(page, USERS.vp);
   await page.goto(`/education/goals/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
 
   // .doc hỏng bị từ chối; .doc nhị phân hợp lệ được kiểm riêng bên dưới.
   await choose({ name: 'cu.doc', mimeType: 'application/msword', buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0, 0, 0]) });
@@ -582,7 +575,6 @@ test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thêm/bỏ trù
   await login(page, USERS.vp);
   await page.goto(`/education/goals/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu', exact: true });
   const choose = async () => {
     await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
@@ -613,7 +605,6 @@ test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thêm/bỏ trù
   await page.goto('/');
   await page.goto(`/education/goals/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: 'Tiếp theo', exact: true }).click();
   await expect.poll(() => page.locator('textarea').evaluateAll((els) => els.map((el) => el.value))).toContain(goalText);
   await page.goto('/');
 });

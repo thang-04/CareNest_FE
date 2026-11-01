@@ -1,5 +1,11 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Mục tiêu năm học một trang — 02/11/2026
+
+- User chốt [bố cục một trang](../features/year-plan-preview-edit.md): nhập/lấy dữ liệu ở đầu, thông tin chung → chủ đề (2) → mục tiêu (3); bỏ bước/tab/duyệt lại/thanh Đóng. Giữ lưu/gửi/ban hành/phiên sửa và guard; không đổi BE/APP/API/dependency.
+- Test render bố cục RED thiếu nút nhập trên đầu → GREEN 1/1; cổng FE đạt `VERIFY PASS full`, 347 tests, fail0/skip0; chạy lại sau thay đổi cuối, đối chiếu output bàn giao/verify.log. Cập nhật ba suite E2E bỏ thao tác bước/tab và kiểm Back/cảnh báo chưa lưu theo một trang.
+- Browser harness dùng source/CSS thật, dữ liệu tổng hợp và hook dữ liệu/lưu giả lập: 1440px/375px đủ ba phần đúng thứ tự, không tab/footer, scrollWidth bằng viewport, 0 lỗi JavaScript; mở được hộp Nhập file. Lượt harness đầu thiếu CSS module nên báo tràn ngang, nạp đủ CSS và kiểm lại đạt. Chưa chạy E2E với BE/Keycloak thật, chưa kiểm lưu/ban hành thật.
+
 ## Bổ sung 02/11/2026 — tải mẫu và đồng bộ modal nhập nhánh
 
 - Tải mẫu Word bằng helper/khung xuất hiện có, tên chủ đề theo tuần hiển thị, tên nhánh trống; không mang lịch/nháp/người ký. Modal cùng size/hàng nút/footer/cách rút cảnh báo với nhập mục tiêu, giữ preview/xác nhận.

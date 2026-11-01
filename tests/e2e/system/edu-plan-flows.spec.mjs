@@ -73,11 +73,8 @@ test('ST-01 kế hoạch năm: sửa không tự ghi lên hệ thống, chỉ Ct
   await desc.fill('Mô tả sửa bằng tay (ST-01)');
   await expect(saveStatus(page)).toHaveText('Có thay đổi chưa lưu');
   await expectNoAutosaveWording(page);
-  // Trang soạn theo bước: chỉ bước cuối "Xác nhận" có nút Xuất (mở xem trước, trong đó mới Xuất Word / In PDF)
   const exportButtons = page.getByRole('button', { name: 'Xuất', exact: true });
-  await expect(exportButtons).toHaveCount(0);
-  await page.getByRole('button', { name: /Mục tiêu, nội dung và chủ đề/ }).click();
-  await expect(exportButtons).toHaveCount(0);
+  await expect(exportButtons).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Xuất file' })).toHaveCount(0);
   // Ô tích chủ đề (cột hẹp): viết tắt "TMN" nằm trên 1 dòng, không ngắt từng chữ; tự tích thì bỏ lại cho như cũ
   const tick = page.locator('button.ga-theme-tick').first();
@@ -106,15 +103,14 @@ test('ST-01 kế hoạch năm: sửa không tự ghi lên hệ thống, chỉ Ct
   await tickCell.click({ position: { x: box.width / 2, y: box.height - 6 } });
   await expect(tick).toHaveAttribute('aria-pressed', before);
   await expect(page.getByRole('button', { name: 'Nhập file' })).toBeVisible();
-  await page.getByRole('button', { name: /Xác nhận/ }).click();
   await expect(exportButtons).toHaveCount(1);
-  // Thanh nút bước cuối dính đáy như bước 1–2: luôn trong màn hình khi trang dài (1280px và 375px)
+  // Các thao tác ở đầu trang, không còn thanh nút đáy.
   for (const width of [1280, 375]) {
     await page.setViewportSize({ width, height: 800 });
     await page.evaluate(() => window.scrollTo(0, 0));
-    await expect(page.locator('.page-actions')).toBeInViewport();
+    await expect(page.locator('.page-actions')).toHaveCount(0);
     await expect(exportButtons).toBeInViewport();
-    if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: `${process.env.E2E_SHOT_DIR}/step3-${width}.png` });
+    if (process.env.E2E_SHOT_DIR) await page.screenshot({ path: `${process.env.E2E_SHOT_DIR}/year-plan-${width}.png` });
   }
   await page.setViewportSize({ width: 1280, height: 720 });
   // Nút Xuất mở bản xem trước (Tiền 31/10): đúng tài liệu sẽ xuất, có tên Tổ trưởng dưới chỗ ký
@@ -145,7 +141,6 @@ test('ST-01b điện thoại: nút "Lấy mục tiêu" mở danh sách 3 cách l
   await login(page, USERS.teacher1);
   await page.goto(`/education/goals/${planId}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: /Mục tiêu, nội dung và chủ đề/ }).click();
   await page.getByRole('button', { name: 'Lấy mục tiêu' }).click();
   await expect(page.getByRole('menuitem')).toHaveText(['Nhập file', 'Lấy từ kế hoạch có sẵn', 'Lấy từ Chương trình của Bộ']);
   await page.getByRole('menuitem', { name: 'Lấy từ kế hoạch có sẵn' }).click();
@@ -161,9 +156,23 @@ test('ST-01b điện thoại: nút "Lấy mục tiêu" mở danh sách 3 cách l
   await ctx.close();
 });
 
-test('ST-01c danh sách → chi tiết → Chỉnh sửa → Đóng: về thẳng danh sách, Back không vào lại màn soạn hay chi tiết (Tiền 01/11)', async ({
-  page,
-}) => {
+test('ST-01c một trang đủ ba phần, không còn bước/tab/thanh Đóng; liên kết bước cũ vẫn mở đầy đủ', async ({ page }) => {
+  await login(page, USERS.teacher1);
+  await page.goto(`/education/goals/${planId}/edit?buoc=3`);
+  await expect(page.locator('#desc')).toBeEditable();
+  const cards = page.locator('fieldset > .card');
+  await expect(cards).toHaveCount(3);
+  await expect(cards.nth(0)).toContainText('Thông tin chung');
+  await expect(cards.nth(1)).toContainText('Chủ đề, sự kiện trong năm');
+  await expect(cards.nth(2)).toContainText('Mục tiêu, nội dung giáo dục');
+  await expect(page.getByRole('tablist')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Tiếp theo', exact: true })).toHaveCount(0);
+  await expect(page.locator('.page-actions')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Nhập file' })).toBeVisible();
+  await leave(page);
+});
+
+test('ST-01d Back rời màn soạn một trang, vẫn hỏi khi chưa lưu và giữ nội dung khi Hủy', async ({ page }) => {
   await login(page, USERS.teacher1);
   await pickYear(page, E2E.schoolYear);
   await spaGo(page, '/education/goals');
@@ -171,85 +180,15 @@ test('ST-01c danh sách → chi tiết → Chỉnh sửa → Đóng: về thẳn
   await page.waitForURL(`**/education/goals/${planId}`);
   await page.getByRole('link', { name: /Chỉnh sửa|Sửa trước khi duyệt/ }).click();
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
-  await page.waitForURL((u) => u.pathname === '/education/goals');
-  await expect(page.locator('#desc')).toHaveCount(0);
-  // Đóng lùi về đúng mục danh sách: Back tiếp không vào lại màn soạn hay chi tiết
-  await page.goBack();
-  await page.waitForURL((u) => !u.pathname.startsWith('/education/goals/'));
-  await spaGo(page, '/education/goals');
-  // Có thay đổi chưa lưu: Đóng → Không lưu cũng không để lại mục lịch sử của màn soạn
-  await page.locator('tr.row-click').filter({ hasText: E2E.titlePrefix }).first().click();
-  await page.getByRole('link', { name: /Chỉnh sửa|Sửa trước khi duyệt/ }).click();
-  await expect(page.locator('#desc')).toBeEditable();
-  await page.locator('#desc').fill('Sửa rồi bỏ (ST-01c)');
-  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' }).getByRole('button', { name: 'Không lưu' }).click();
-  await page.waitForURL((u) => u.pathname === '/education/goals');
-  await page.goBack();
-  await page.waitForURL((u) => !u.pathname.startsWith('/education/goals/'));
-  await leave(page);
-});
-
-test('ST-01d nút Back/Forward của trình duyệt đi giữa các bước 1–2–3; bước 1 Back ra chi tiết; đang sửa dở thì đổi bước không hỏi (Tiền 01/11)', async ({
-  page,
-}) => {
-  const atStep = (n) => page.waitForURL((u) => u.pathname.endsWith('/edit') && (u.searchParams.get('buoc') || '1') === String(n));
-  const openEditor = async () => {
-    await page.locator('tr.row-click').filter({ hasText: E2E.titlePrefix }).first().click();
-    await page.waitForURL(`**/education/goals/${planId}`);
-    await page.getByRole('link', { name: /Chỉnh sửa|Sửa trước khi duyệt/ }).click();
-    await expect(page.locator('#desc')).toBeEditable();
-  };
-  await login(page, USERS.teacher1);
-  await pickYear(page, E2E.schoolYear);
-  await spaGo(page, '/education/goals');
-  await openEditor();
-  await page.getByRole('button', { name: /Tiếp theo/ }).click();
-  await atStep(2);
-  await expect(page.getByRole('tab', { name: /Mục tiêu, nội dung giáo dục/ })).toBeVisible();
-  await page.getByRole('button', { name: /Tiếp theo/ }).click();
-  await atStep(3);
-  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toBeVisible();
-  await page.goBack();
-  await atStep(2);
-  await expect(page.getByRole('tab', { name: /Mục tiêu, nội dung giáo dục/ })).toBeVisible();
-  await page.goForward();
-  await atStep(3);
-  await page.goBack();
-  await atStep(2);
-  await page.goBack();
-  await atStep(1);
-  await expect(page.locator('#desc')).toBeEditable();
-  await page.goBack();
-  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
-  await page.goBack();
-  await page.waitForURL((u) => u.pathname === '/education/goals');
-
-  // Đang sửa dở: Back đổi bước không hỏi, giữ chữ đang gõ; ở bước 1 Back mới hỏi rời màn
-  await openEditor();
   await page.locator('#desc').fill('Sửa dở (ST-01d)');
-  await page.getByRole('button', { name: /Tiếp theo/ }).click();
-  await atStep(2);
   await page.goBack();
-  await atStep(1);
-  await expect(page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' })).toHaveCount(0);
+  const dialog = page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
   await expect(page.locator('#desc')).toHaveValue('Sửa dở (ST-01d)');
   await page.goBack();
-  await page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' }).getByRole('button', { name: 'Không lưu' }).click();
+  await dialog.getByRole('button', { name: 'Không lưu', exact: true }).click();
   await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
-  await page.goBack();
-  await page.waitForURL((u) => u.pathname === '/education/goals');
-
-  // Đóng ở bước 3: về thẳng danh sách, không để lại mục lịch sử của các bước hay chi tiết
-  await openEditor();
-  await page.getByRole('button', { name: /Tiếp theo/ }).click();
-  await page.getByRole('button', { name: /Tiếp theo/ }).click();
-  await atStep(3);
-  await page.getByRole('button', { name: 'Đóng', exact: true }).click();
-  await page.waitForURL((u) => u.pathname === '/education/goals');
-  await page.goBack();
-  await page.waitForURL((u) => !u.pathname.startsWith('/education/goals/'));
   await leave(page);
 });
 
@@ -280,8 +219,6 @@ test('ST-02b viết tắt chủ đề trùng: chỉ báo đỏ tại ô, Enter �
   await login(page, USERS.teacher1);
   await page.goto(`/education/goals/${planId}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: /Mục tiêu, nội dung và chủ đề/ }).click();
-  await page.getByRole('tab', { name: /Chủ đề và sự kiện/ }).click();
   const before = (await goal()).themes.length;
   const firstAbbr = (await goal()).themes[0].abbr;
   await page.getByLabel('Thêm chủ đề').pressSequentially('Chủ đề thử');
