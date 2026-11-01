@@ -12,8 +12,8 @@ import { setPasswordChallenge } from '@/services/authChallengeStore';
 
 const validate = ({ email, password }) => {
   const e = {};
-  if (!email.trim()) e.email = 'Vui lòng nhập tên tài khoản hoặc email';
-  else if (email.trim().length > 255) e.email = 'Tên tài khoản hoặc email tối đa 255 ký tự';
+  if (!email.trim()) e.email = 'Vui lòng nhập SĐT hoặc email';
+  else if (email.trim().length > 255) e.email = 'SĐT hoặc email tối đa 255 ký tự';
   if (!password) e.password = 'Vui lòng nhập mật khẩu';
   return e;
 };
@@ -138,14 +138,14 @@ export default function LoginPage() {
           </div>
         )}
 
-        <FormField label="Tên tài khoản hoặc email" required error={errors.email}>
+        <FormField label="SĐT hoặc email" required error={errors.email}>
           <input
             className="input"
             type="text"
             maxLength={255}
             autoComplete="username"
             autoFocus
-            placeholder="Tên tài khoản hoặc email"
+            placeholder="SĐT hoặc email"
             value={form.email}
             onChange={(e) => set({ email: e.target.value })}
           />

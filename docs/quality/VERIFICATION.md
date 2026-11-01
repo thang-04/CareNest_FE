@@ -57,3 +57,9 @@ Làn S (≤3 dòng):  Đã làm: … · Verify: <dòng VERIFY | chưa chạy —
 Làn M (≤8 dòng):  Đã làm · Rule/AC · Verify · Chưa kiểm chứng (trình duyệt, BE thật) · Chờ BE · Memory
 Làn L:            ghi đủ vào Progress log của plan; chat chỉ tóm tắt + link plan
 ```
+
+## Lấy mục tiêu từ kế hoạch năm có sẵn — 28/10/2026
+
+- VERIFY PASS full | npm run verify | log verify.log sau lần sửa test cuối; 59/59 education-plan tests.
+- E2E feature003 trên BE/Keycloak thật: 13 passed (1.0m), zero fail/skip; chọn/reset, quyền/lease, source freshness, lỗi/race, 200 goals/responsive, manual-save retry/reopen/preservation đều qua. Dọn 0 fixture import còn sót.
+- Converge cuối 22/22 task, không actionable gap; [bằng chứng/command/giới hạn](../../../CareNest_BE/specs/003-import-year-plan-goals/quickstart.md). Không tuyên bố toàn bộ E2E feature khác đã chạy; không commit hoặc đưa secret vào log.

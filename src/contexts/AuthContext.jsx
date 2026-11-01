@@ -116,7 +116,8 @@ export function AuthProvider({ children }) {
       endSession,
       isAuthenticated: status === 'authenticated',
       hasRole: (...roles) => !!user && roles.some((role) => (user.roles || [user.role]).includes(role)),
-      hasPermission: (...codes) => !!user && codes.some((code) => (user.permissions || []).includes(code)),
+      // Mã quyền BE (ADR-0017); user.permissions của UI là quyền demo theo vai trò
+      hasPermission: (...codes) => !!user && codes.some((code) => (user.bePermissions || []).includes(code)),
     }),
     [user, status, sessionMessage, sessionError, login, logout, refreshUser, retrySession, endSession],
   );

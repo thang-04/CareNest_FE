@@ -1,6 +1,7 @@
 import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ErrorState, LoadingState } from '@/components/ui/States';
+import { ROLE_LABELS } from '@/models/User';
 
 export function ProtectedRoute() {
   const { status, user, sessionError, retrySession, logout } = useAuth();
@@ -14,7 +15,8 @@ export function ProtectedRoute() {
       </div>
     );
   if (status !== 'authenticated') return <Navigate to="/login" replace state={{ from: location }} />;
-  if (!user.role)
+  // ADMIN đăng nhập Web được nhưng chưa có màn riêng (ROLE_LABELS chỉ gồm vai trò có màn hình)
+  if (!ROLE_LABELS[user.role])
     return (
       <div className="page">
         <div className="card">

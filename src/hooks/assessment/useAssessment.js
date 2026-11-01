@@ -4,6 +4,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useClasses } from '@/hooks/useSchool';
 import {
   getChildDevelopment,
+  getDailyDaySheet,
   getDailySheet,
   getEvaluation,
   getEvaluations,
@@ -11,6 +12,8 @@ import {
   getRewardProposal,
   getRewardProposals,
   getTicketBoard,
+  getTicketSummary,
+  getTicketOverview,
 } from '@/services/assessment/assessmentService';
 import { isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
 
@@ -31,6 +34,16 @@ export function useDailySheet(params, { live = false } = {}) {
   const key = JSON.stringify(params || {});
   const { data, loading, error, reload } = useAsync(() => getDailySheet(params, user), [key, user?.id], {
     refreshOnDataChange: live,
+    enabled: !!params?.classId && !!params?.date,
+  });
+  return { sheet: data, loading, error, reload };
+}
+
+/** Bảng đánh giá cả ngày của lớp (mọi giờ có MT trong kế hoạch ngày). */
+export function useDailyDaySheet(params) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getDailyDaySheet(params, user), [key, user?.id], {
     enabled: !!params?.classId && !!params?.date,
   });
   return { sheet: data, loading, error, reload };
@@ -62,6 +75,27 @@ export function useEvaluation(kind, id, { live = true } = {}) {
     enabled: !!id,
   });
   return { detail: data, loading, error, reload };
+}
+
+/** Phiếu bé ngoan các lớp (PHT, Hiệu trưởng). */
+export function useTicketOverview(params) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getTicketOverview(params, user), [key, user?.id], {
+    refreshOnDataChange: true,
+  });
+  return { overview: data, loading, error, reload };
+}
+
+/** Tổng hợp phiếu bé ngoan theo trẻ của lớp (năm học hoặc một tháng). */
+export function useTicketSummary(params) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getTicketSummary(params, user), [key, user?.id], {
+    refreshOnDataChange: true,
+    enabled: !!params?.classId,
+  });
+  return { summary: data, loading, error, reload };
 }
 
 export function useTicketBoard(params) {

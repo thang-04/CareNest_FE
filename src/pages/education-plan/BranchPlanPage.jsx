@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Check, FileDown, Lightbulb, Printer, Wand2, X } from '@/components/ui/icons';
-import { exportBranchFile } from '@/utils/education-plan/classPlanDoc';
+import { useEffect, useState } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
+import { Check, FileDown, Lightbulb, Save, Wand2, X } from '@/components/ui/icons';
+import { branchFile, leaderNameOf } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
-import { Card, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
-import { Cell, SignPanel, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import { Card, DraftRecoveryNotice, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
+import { Cell, docReview, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { Modal } from '@/components/ui/Modal';
@@ -12,8 +13,15 @@ import { useAiRun } from '@/hooks/useAiRun';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useManualSave } from '@/hooks/education-plan/useManualSave';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { ddmm, emptyBranchPlan, isEditableStatus, monthOf, yearWeeks } from '@/models/education-plan/classPlan';
+import { WEEKDAY_LABELS, ddmm, emptyBranchPlan, isEditableStatus, monthOf, yearWeeks } from '@/models/education-plan/classPlan';
+import { SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
+import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
+import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
+import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 /**
  * "Dự kiến chủ đề nhánh và thời gian thực hiện" theo mẫu MN Thái Dương.
@@ -26,13 +34,9 @@ export default function BranchPlanPage() {
   return <BranchPlanInner key={classId} classId={classId} />;
 }
 
-const AUTOSAVE_MS = 1200;
-const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
-// Bản gửi đi khi tự lưu: ô AI chưa ✓ / ✗ vẫn lưu tên trước đó, chỉ lưu khi giáo viên đã giữ
+// Bản gửi đi khi lưu: ô AI chưa ✓ / ✗ vẫn lưu tên trước đó, chỉ lưu khi giáo viên đã giữ
 const payloadOf = (draft, pending) =>
   draft && { ...draft, names: { ...draft.names, ...Object.fromEntries(Object.entries(pending).map(([w, p]) => [w, p.prev])) } };
-const keyOf = (doc) => (doc ? JSON.stringify([doc.names, doc.notes || {}]) : '');
-const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 /** Đường dẫn cũ /education/class/:classId/branches(/review). */
 export function BranchPlanLegacyRedirect() {
@@ -41,8 +45,8 @@ export function BranchPlanLegacyRedirect() {
 }
 
 function BranchPlanInner({ classId }) {
-  const navigate = useNavigate();
-  const { user, branchPlans, saveClassDoc, actOnClassDoc, toast } = useEducationPlan();
+  const { user, branchPlans, saveClassDoc, actOnClassDoc, toast, eduConfig, staff } = useEducationPlan();
+  const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, teachers, isClassTeacher } = ctx;
   const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null : null;
@@ -59,64 +63,51 @@ function BranchPlanInner({ classId }) {
   const [tries, setTries] = useState({});
   // Hộp xác nhận trước mỗi lần dùng AI: { title, message, confirmLabel, run }
   const [confirm, setConfirm] = useState(null);
-  // Tự lưu: lastKey = nội dung đã lưu gần nhất; chỉ gửi khi khác và sau khi ngừng sửa AUTOSAVE_MS (gom nhiều lần gõ thành 1 lần lưu)
-  const [lastKey, setLastKey] = useState(null);
-  const [saveState, setSaveState] = useState({ phase: 'idle', at: null });
-  const inFlight = useRef(false);
+  const [copying, setCopying] = useState(false);
+  const version = useDocVersion('branch', saved, ctx, branchPlans);
+  const autoOk = isClassTeacher && !ctx.superseded && isEditableStatus(saved?.status || EDU_STATUS.DRAFT);
+  const payload = payloadOf(draft, pending);
+  const hasPending = Object.keys(pending).length > 0;
+  // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
+  const saver = useManualSave({
+    doc: payload,
+    enabled: autoOk,
+    save: (doc) => saveClassDoc('branch', doc),
+    // Còn ô AI chờ ✓ / ✗ thì giữ bản đang sửa, không nạp lại từ bản đã lưu
+    onSaved: (same) => same && !hasPending && setDirty(false),
+    backup: { userId: user?.id, key: yearPlan && `branch:${classId}:${yearPlan.id}` },
+    onRestore: (doc) => {
+      setDraft(doc);
+      setDirty(true);
+    },
+  });
+  const guard = useLeaveGuard({ when: autoOk && saver.unsaved, onSave: saver.save });
 
   useEffect(() => {
     if (dirty) return;
     const doc = saved || (yearPlan ? emptyBranchPlan({ classId, yearPlanId: yearPlan.id }) : null);
     setDraft(doc);
-    setLastKey(keyOf(doc));
+    saver.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.status, saved?.history?.length, yearPlan?.id, classId]);
-
-  const autoOk = isClassTeacher && isEditableStatus(saved?.status || EDU_STATUS.DRAFT);
-  const payload = payloadOf(draft, pending);
-  const key = keyOf(payload);
-  const unsaved = !!draft && lastKey !== null && key !== lastKey;
-  const latest = useRef({});
-  latest.current = { payload, key, unsaved, autoOk, hasPending: Object.keys(pending).length > 0 };
-  const flush = async () => {
-    const { payload: doc, key: k, unsaved: u, autoOk: ok } = latest.current;
-    if (!ok || !u || inFlight.current) return;
-    inFlight.current = true;
-    setSaveState((s) => ({ ...s, phase: 'saving' }));
-    const res = await saveClassDoc('branch', doc);
-    inFlight.current = false;
-    if (res) {
-      setLastKey(k);
-      setSaveState({ phase: 'saved', at: new Date() });
-      // Còn ô AI chờ ✓ / ✗ thì giữ bản đang sửa, không nạp lại từ bản đã lưu
-      if (latest.current.key === k && !latest.current.hasPending) setDirty(false);
-    } else setSaveState((s) => ({ ...s, phase: 'error' }));
-  };
-  useEffect(() => {
-    if (!autoOk || !unsaved || saveState.phase === 'error') return undefined;
-    const t = setTimeout(flush, AUTOSAVE_MS);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, lastKey, autoOk, saveState.phase]);
-  // Rời trang khi còn thay đổi chưa kịp lưu: lưu nốt; đóng tab thì trình duyệt hỏi lại
-  useEffect(() => {
-    const warn = (e) => {
-      if (latest.current.unsaved) e.preventDefault();
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => {
-      window.removeEventListener('beforeunload', warn);
-      flush();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan) return <StatusPage kind="404" title="Không tìm thấy lớp hoặc kế hoạch năm của lớp chưa được ban hành" />;
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;
-  const canEdit = isClassTeacher && isEditableStatus(status);
+  const canEdit = autoOk;
+  // Chép chủ đề nhánh của phiên bản trước sang phiên bản mới (BE:EDU-26)
+  const copyOld = async () => {
+    setCopying(true);
+    const doc = await saveClassDoc('branch', version.copy());
+    setCopying(false);
+    if (doc) toast('Đã chép chủ đề nhánh cũ. Sửa các mục đỏ rồi gửi duyệt lại.');
+  };
+  const flagEdit = (fn) => {
+    setDraft((d) => fn(d));
+    setDirty(true);
+  };
   const editable = canEdit;
   const rows = yearWeeks(yearPlan);
   const weekCount = rows.filter((r) => r.type === 'week').length;
@@ -220,8 +211,17 @@ function BranchPlanInner({ classId }) {
     pendingWeeks.forEach((w) => set('names', w, pending[w].prev));
     setPending({});
   };
+  // Bỏ nhiều gợi ý một lần: hỏi trước như mọi thao tác xóa (quy tắc trang kế hoạch năm)
+  const confirmRejectAll = () =>
+    setConfirm({
+      danger: true,
+      title: `Bỏ cả ${pendingWeeks.length} tên AI điền?`,
+      message: 'Các tuần này trở về tên trước khi AI điền (để trống nếu trước đó chưa có tên).',
+      confirmLabel: 'Bỏ tất cả',
+      run: rejectAll,
+    });
   const aiBusy = !!aiTheme || !!rewriting;
-  const printArgs = { doc: saved || draft, cls, yearPlan, teachers };
+  const printArgs = { doc: saved || draft, cls, yearPlan, teachers, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) };
   // Hỏi trước khi chạy AI; kết quả là bản nháp để giáo viên giữ / bỏ
   const confirmSuggest = (theme) => {
     const n = rows.filter((r) => r.type === 'week' && (!theme || r.theme.id === theme.id) && !draft.names[r.start]?.trim()).length;
@@ -249,18 +249,21 @@ function BranchPlanInner({ classId }) {
       confirmLabel: 'Dùng AI viết lại',
       run: () => rewrite(r),
     });
-  // Chỉ nhắc khi gửi (thông báo nhỏ ở góc), không hiện sẵn trên trang
-  const act = (action, body) => {
-    if (action === 'submit' && pendingWeeks.length) {
+  // Chưa đủ điều kiện gửi: chỉ nhắc ở góc màn hình khi bấm, không mở hộp gửi
+  const checkBeforeOpen = (action) => {
+    if (action !== 'submit') return true;
+    if (pendingWeeks.length) {
       toast(`Còn ${pendingWeeks.length} tên do AI điền chưa giữ hoặc bỏ. Bấm ✓ / ✗ hoặc "Giữ tất cả" trước khi gửi.`, 'warn');
-      return null;
+      return false;
     }
-    if (action === 'submit' && empty > 0) {
+    if (empty > 0) {
       toast(`Còn ${empty} tuần chưa đặt tên chủ đề nhánh. Đặt tên đủ các tuần rồi mới gửi duyệt.`, 'warn');
-      return null;
+      return false;
     }
-    return actOnClassDoc('branch', draft.id, { action, ...body });
+    return true;
   };
+  const act = (action, note) => actOnClassDoc('branch', draft.id, { action, note });
+  const review = docReview('branch', saved, ctx, user, eduConfig);
   // Ô tháng và ô chủ đề gộp các dòng liên tiếp cùng tháng / cùng chủ đề như bảng của trường
   const spanFrom = (i, same) => {
     let n = 1;
@@ -271,55 +274,92 @@ function BranchPlanInner({ classId }) {
   const sameTheme = (a, b) => a.theme.id === b.theme.id;
 
   return (
-    <div className="page ga-page">
-      <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Chủ đề nhánh' }]}
-        title={`Chủ đề nhánh ${cls.name}`}
-        desc={<EduStatusBadge status={status} size="lg" />}
-        actions={
-          <>
-            {/* Xuất / in ở mọi bước; đã duyệt thì Phó HT in ra ký, giáo viên in để dùng hằng ngày */}
-            <button type="button" className="btn btn--ghost" onClick={() => exportBranchFile(printArgs, 'doc')}>
-              <FileDown size={16} aria-hidden /> Xuất Word
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => exportBranchFile(printArgs, 'print') || toast(POPUP_BLOCKED, 'warn')}
-            >
-              <Printer size={16} aria-hidden /> In / Lưu PDF
-            </button>
-            {ctx.canPickClass && (
-              <select
-                className="select"
-                aria-label="Chọn lớp"
-                value={classId}
-                onChange={(e) => navigate(`/education/branches/${e.target.value}`)}
-              >
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            )}
-            {editable &&
-              (saveState.phase === 'error' ? (
-                <button type="button" className="btn btn--outline-primary" onClick={() => setSaveState((x) => ({ ...x, phase: 'idle' }))}>
-                  Chưa lưu được, thử lại
-                </button>
-              ) : (
-                <span className="muted text-sm">
-                  {saveState.phase === 'saving' || unsaved
-                    ? 'Đang lưu…'
-                    : saveState.at
-                      ? `Đã tự lưu lúc ${hhmm(saveState.at)}`
-                      : 'Tự lưu khi bạn sửa'}
-                </span>
-              ))}
-          </>
-        }
+    <div className="page ga-page ga-class-editor">
+      <div className="ga-sticky-head">
+        <PageHead
+          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Chủ đề nhánh' }]}
+          title={`Chủ đề nhánh ${cls.name}`}
+          desc={<EduStatusBadge status={status} size="lg" />}
+          actions={
+            <>
+              {/* Xuất / in ở mọi bước; đã duyệt thì Phó HT in ra ký, giáo viên in để dùng hằng ngày */}
+              <button type="button" className="btn btn--ghost" onClick={() => setPreview(branchFile(printArgs))}>
+                <FileDown size={16} aria-hidden /> Xuất
+              </button>
+              {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
+              {ctx.canPickClass && (
+                <select
+                  className="select"
+                  aria-label="Chọn lớp"
+                  value={classId}
+                  onChange={(e) => guard.leave(`/education/branches/${e.target.value}`)}
+                >
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {editable && (
+                <>
+                  <span className="muted text-sm">{saver.label}</span>
+                  <button
+                    type="button"
+                    className="btn btn--primary btn--sm"
+                    onClick={saver.save}
+                    disabled={saver.saving || (!saver.unsaved && !saver.error)}
+                    title="Lưu (Ctrl+S)"
+                  >
+                    <Save size={16} aria-hidden /> Lưu
+                  </button>
+                </>
+              )}
+              <ReviewActions
+                name="chủ đề nhánh"
+                sendTo={review.sendTo}
+                can={review.can}
+                sendBlocked={
+                  saver.unsaved || saver.saving
+                    ? 'Lưu trước khi gửi'
+                    : // BE:EDU-26 — còn mục đỏ thì chưa gửi (BE cũng kiểm lại)
+                      version.unresolved.length
+                      ? `Còn ${version.unresolved.length} mục đổi theo kế hoạch năm mới cần sửa`
+                      : null
+                }
+                beforeOpen={checkBeforeOpen}
+                notes={{ submit: 'Chủ đề nhánh sẽ bị khóa cho tới khi được duyệt hoặc bị trả lại.' }}
+                onAct={act}
+              />
+            </>
+          }
+        />
+      </div>
+      <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
+      {!saved && version.prevDoc && !dirty && (
+        <VersionCopyOffer
+          plan={yearPlan}
+          previous={ctx.previousPlan}
+          prevDoc={version.prevDoc}
+          canCreate={editable}
+          busy={copying}
+          onTemplate={() => setDirty(true)}
+          onCopy={copyOld}
+        />
+      )}
+      <VersionFlagsPanel
+        flags={version.flags}
+        doc={draft}
+        editable={editable}
+        onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
+        onDrop={(f) => flagEdit((d) => dropReference('branch', d, f))}
       />
+      {editable && saver.recovery && <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />}
+      {status === EDU_STATUS.REJECTED && (
+        <div className="mb-16">
+          <RejectedNotice status={status} history={saved?.history} />
+        </div>
+      )}
       <Card
         title="Chủ đề nhánh"
         bodyClass={null}
@@ -328,7 +368,7 @@ function BranchPlanInner({ classId }) {
             <span className="row row--wrap gap-2">
               {pendingWeeks.length > 0 ? (
                 <>
-                  <button type="button" className="btn btn--sm" onClick={rejectAll}>
+                  <button type="button" className="btn btn--sm" onClick={confirmRejectAll}>
                     <X size={16} aria-hidden /> Bỏ tất cả
                   </button>
                   <button type="button" className="btn btn--success btn--sm" onClick={() => setPending({})}>
@@ -392,6 +432,9 @@ function BranchPlanInner({ classId }) {
                         <span className="text-xs">
                           {ddmm(r.theme.start)} → {ddmm(r.theme.end)}
                         </span>
+                        {version.unresolved.some((f) => f.ref === `theme:${r.theme.id}`) && (
+                          <span className="field__error">Chủ đề đổi ở kế hoạch năm mới — kiểm tra tên nhánh</span>
+                        )}
                         {editable && (
                           <span>
                             <button
@@ -472,6 +515,15 @@ function BranchPlanInner({ classId }) {
                       <td className="cell--fixed">
                         <div className="ga-goal-table__pad">
                           Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
+                          {r.offDays?.some(Boolean) && (
+                            <div className="text-xs text-warning">
+                              Nghỉ{' '}
+                              {r.offDays
+                                .map((label, i) => (label ? `${WEEKDAY_LABELS[i]} (${label})` : null))
+                                .filter(Boolean)
+                                .join(', ')}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td>
@@ -499,6 +551,7 @@ function BranchPlanInner({ classId }) {
       </Card>
       <ConfirmationModal
         open={!!confirm}
+        danger={!!confirm?.danger}
         title={confirm?.title}
         message={confirm?.message}
         confirmLabel={confirm?.confirmLabel}
@@ -511,7 +564,7 @@ function BranchPlanInner({ classId }) {
         onClose={() => setConfirm(null)}
       />
       {/* Ký, gửi, duyệt ngay cuối trang như trang mục tiêu năm; không mở hộp thoại */}
-      <SignPanel kind="branch" doc={saved} ctx={ctx} user={user} dirty={unsaved || saveState.phase === 'saving'} onAct={act} />
+      <ReviewHistory items={saved?.history} />
       {/* AI xong ⇒ tên AI điền mở trong modal để giữ/bỏ; đóng modal thì ✓/✗ cạnh từng ô vẫn còn (user chốt) */}
       <Modal
         open={showPending && editable && pendingWeeks.length > 0}
@@ -523,7 +576,14 @@ function BranchPlanInner({ classId }) {
             <button type="button" className="btn btn--ghost" onClick={() => setShowPending(false)}>
               Đóng, xử lý sau
             </button>
-            <button type="button" className="btn" onClick={rejectAll}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setShowPending(false);
+                confirmRejectAll();
+              }}
+            >
               <X size={16} aria-hidden /> Bỏ tất cả
             </button>
             <button type="button" className="btn btn--success" onClick={() => setPending({})}>
@@ -570,6 +630,13 @@ function BranchPlanInner({ classId }) {
       {aiBusy && (
         <AiWorkingOverlay text={aiTheme === 'rewrite' || rewriting ? 'Đang viết lại tên chủ đề nhánh…' : 'Đang gợi ý tên chủ đề nhánh…'} />
       )}
+      <LeaveConfirmModal
+        {...guard.modal}
+        onDiscard={() => {
+          saver.discardBackup();
+          guard.modal.onDiscard();
+        }}
+      />
     </div>
   );
 }

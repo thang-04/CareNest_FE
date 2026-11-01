@@ -8,12 +8,14 @@ import { ChildAvatar } from '@/components/ChildAvatar';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { RowActions } from '@/components/ui/RowActions';
+import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DailyHealthHistoryModal } from '@/components/attendance/DailyHealthHistoryModal';
 import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
 import { useChildDailyHealthHistory, useDailyHealthOverview } from '@/hooks/attendance/useDailyHealthOverview';
 import { ROLES } from '@/models/User';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
+import { useAttendanceYear } from '@/hooks/attendance/useAttendance';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { symptomLabels } from '@/utils/dailyHealthValidation';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
@@ -138,13 +140,19 @@ function ClassTable({ rows, loading, showCampus, campusName, filters, groupOf })
   );
 }
 
+const ATTENTION_PAGE = 10;
+
 function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
+  const [page, setPage] = useState(1);
+  // Đổi ngày / bộ lọc làm danh sách ngắn lại thì không đứng ở trang rỗng
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(items.length / ATTENTION_PAGE)));
   return (
     <div className="card">
       <div className="card__header">
         <h2 className="card__title">
           <HeartPulse size={20} /> Trẻ cần chú ý
         </h2>
+        {items.length > 0 && <span className="muted text-sm">{items.length} trẻ</span>}
       </div>
       {items.length === 0 ? (
         filtered ? (
@@ -180,7 +188,7 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {paginate(items, currentPage, ATTENTION_PAGE).map((item) => (
                 // Bấm cả dòng để xem chi tiết; nút cuối dòng giữ cho bàn phím
                 <tr key={item.childId} className="dd-hov__row" onClick={() => onOpen(item)}>
                   <td className="nowrap">
@@ -231,18 +239,22 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
           </table>
         </div>
       )}
+      {items.length > ATTENTION_PAGE && (
+        <Pagination page={currentPage} total={items.length} pageSize={ATTENTION_PAGE} onChange={setPage} unit="trẻ" />
+      )}
     </div>
   );
 }
 
-/** Sức khỏe đầu ngày: Hiệu trưởng xem toàn trường, Phó hiệu trưởng xem điểm trường của mình; chỉ xem. */
+/** Sức khỏe trong ngày: Hiệu trưởng xem toàn trường, Phó hiệu trưởng xem điểm trường của mình; chỉ xem. */
 export default function DailyHealthOverviewPage() {
   const { user } = useAuth();
   const md = useMasterData();
   const [params, setParams] = useSearchParams();
   const today = schoolToday();
+  const { defaultDate } = useAttendanceYear();
   const paramDate = params.get('date');
-  const date = isIsoDate(paramDate) && paramDate <= today ? paramDate : today;
+  const date = isIsoDate(paramDate) && paramDate <= today ? paramDate : defaultDate;
   const isPrincipal = user?.role === ROLES.PRINCIPAL;
   const campusId = isPrincipal ? params.get('campusId') || '' : '';
   const ageGroupId = params.get('ageGroupId') || '';
@@ -325,9 +337,9 @@ export default function DailyHealthOverviewPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={attendanceCrumbs('Sức khỏe đầu ngày', { linkParent: false })} />
+      <Breadcrumb items={attendanceCrumbs('Sức khỏe trong ngày', { linkParent: false })} />
       <div className="page__head">
-        <h1 className="page__title">Sức khỏe đầu ngày</h1>
+        <h1 className="page__title">Sức khỏe trong ngày</h1>
       </div>
       <ClassDateBar date={date} maxDate={today} onDateChange={(value) => update({ date: value })}></ClassDateBar>
 
@@ -339,7 +351,7 @@ export default function DailyHealthOverviewPage() {
         </div>
       ) : overview && !overview.schoolDay ? (
         <div className="card">
-          <EmptyState title="Ngày đã chọn không phải ngày học" description="Chọn một ngày học khác để xem sức khỏe đầu ngày." />
+          <EmptyState title="Ngày đã chọn không phải ngày học" description="Chọn một ngày học khác để xem sức khỏe trong ngày." />
         </div>
       ) : overview && overview.classes.length === 0 ? (
         <div className="card">

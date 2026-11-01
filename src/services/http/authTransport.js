@@ -50,8 +50,21 @@ const getCsrf = () => {
   return pending;
 };
 
-// /auth/** là permitAll nên 403 "Forbidden" từ security filter chỉ có thể là CSRF; 403 nghiệp vụ có desc riêng.
-const isCsrfRejection = (error) => error.response?.status === 403 && error.response?.data?.desc === 'Forbidden';
+// CSRF sai và chặn role Web cùng trả 403 errorCode 1101 (AUTH_CONTRACT) ⇒ lấy CSRF mới rồi gửi lại 1 lần để phân biệt
+const FORBIDDEN = 1101;
+const isForbidden = (error) => error.response?.status === 403 && error.response?.data?.errorCode === FORBIDDEN;
+// Vẫn 1101 với CSRF mới ở đăng nhập, làm mới phiên, đổi mật khẩu lần đầu ⇒ tài khoản bếp/phụ huynh (AUTH-21)
+const APP_ONLY_PATHS = ['/auth/login', '/auth/refresh', '/auth/password/reset'];
+export const APP_ONLY_MESSAGE = 'Tài khoản này chỉ dùng trên ứng dụng di động CareNest, không đăng nhập được trên trang Web.';
+
+const toAuthError = (path, error) => {
+  const normalized = normalizeApiError(error);
+  if (isForbidden(error) && APP_ONLY_PATHS.includes(path)) {
+    normalized.message = APP_ONLY_MESSAGE;
+    normalized.appOnly = true;
+  }
+  return normalized;
+};
 
 export const authPost = async (path, body) => {
   const currentGeneration = transportGeneration;
@@ -62,8 +75,8 @@ export const authPost = async (path, body) => {
       return unwrapResponse((await transport.post(path, body, { headers: { [csrfValue.headerName]: csrfValue.token } })).data);
     } catch (error) {
       if (error.response?.status === 403 && currentGeneration === transportGeneration) csrf = null;
-      if (attempt === 0 && isCsrfRejection(error) && currentGeneration === transportGeneration) continue;
-      throw normalizeApiError(error);
+      if (attempt === 0 && isForbidden(error) && currentGeneration === transportGeneration) continue;
+      throw toAuthError(path, error);
     }
   }
 };

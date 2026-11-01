@@ -1,8 +1,15 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { yearDefaultDate } from '@/utils/attendance/attendanceTime';
 import { useAsync } from '@/hooks/useAsync';
-import { useClasses } from '@/hooks/useSchool';
-import { getAttendanceSummary, getClassAttendance, getMealCounts, getMealHandovers } from '@/services/attendance/attendanceService';
+import {
+  getAttendanceClasses,
+  getAttendanceSummary,
+  getClassAttendance,
+  getMealCounts,
+  getMealHandovers,
+} from '@/services/attendance/attendanceService';
 import { canViewAttendance, isClassTeacher } from '@/utils/attendance/attendancePermissions';
 
 /**
@@ -11,13 +18,16 @@ import { canViewAttendance, isClassTeacher } from '@/utils/attendance/attendance
  */
 export function useAttendanceClasses({ own = false } = {}) {
   const { user } = useAuth();
-  const { classes, loading, error, reload } = useClasses({ activeYear: true });
+  const { schoolYear } = useSchoolYear();
+  const { data, loading, error, reload } = useAsync(() => getAttendanceClasses(user, schoolYear), [user?.id, schoolYear], {
+    refreshOnDataChange: true,
+  });
   const list = useMemo(
     () =>
-      classes
+      (data || [])
         .filter((c) => (own ? isClassTeacher(c, user) : canViewAttendance(c, user)))
         .sort((a, b) => a.campusId.localeCompare(b.campusId) || a.name.localeCompare(b.name, 'vi')),
-    [classes, own, user],
+    [data, own, user],
   );
   return { classes: list, loading, error, reload };
 }
@@ -35,10 +45,11 @@ export function useClassAttendance(classId, date, { live = true } = {}) {
 /** Một lớp (classId) hoặc nhiều lớp trong phạm vi (multi: campusId tùy chọn, rỗng = toàn trường). */
 export function useAttendanceSummary({ classId, campusId, multi = false, from, to }) {
   const { user } = useAuth();
+  const { schoolYear } = useSchoolYear();
   const enabled = (!!classId || multi) && !!from && !!to && from <= to;
   const { data, loading, error, reload } = useAsync(
-    () => getAttendanceSummary({ classId: classId || undefined, campusId: campusId || undefined, from, to }, user),
-    [classId, campusId, multi, from, to, user?.id],
+    () => getAttendanceSummary({ classId: classId || undefined, campusId: campusId || undefined, schoolYear, from, to }, user),
+    [classId, campusId, multi, from, to, user?.id, schoolYear],
     { enabled, refreshOnDataChange: true },
   );
   return { summary: data, loading: loading && enabled, error, reload };
@@ -46,7 +57,8 @@ export function useAttendanceSummary({ classId, campusId, multi = false, from, t
 
 export function useMealCounts(date) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getMealCounts({ date }, user), [date, user?.id], {
+  const { schoolYear } = useSchoolYear();
+  const { data, loading, error, reload } = useAsync(() => getMealCounts({ date, schoolYear }, user), [date, user?.id, schoolYear], {
     enabled: !!date,
     refreshOnDataChange: true,
   });
@@ -60,4 +72,11 @@ export function useMealHandovers(date) {
     refreshOnDataChange: true,
   });
   return { data, loading, error, reload };
+}
+
+/** Năm học chọn ở header (Cần chốt 23/10/2026: mọi màn theo năm ở header) và ngày mặc định trong năm đó. */
+export function useAttendanceYear() {
+  const { schoolYear, schoolYears, yearReadOnly } = useSchoolYear();
+  const year = schoolYears.find((o) => o.id === schoolYear) || null;
+  return { schoolYear, year, yearReadOnly, defaultDate: yearDefaultDate(year) };
 }

@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, CalendarRange, ClipboardList, FileText, Flag, Ticket } from '@/components/ui/icons';
+import { Award, CalendarCheck, CalendarRange, ClipboardList, FileText, Flag, Ticket } from '@/components/ui/icons';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useChildDevelopment } from '@/hooks/assessment/useAssessment';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { DevelopmentCharts } from '@/components/assessment/DevelopmentCharts';
+import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
+import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
+import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { formatDate } from '@/utils/format';
 import { ageLabel, GENDER_LABELS } from '@/models/School';
-import { EMOTION_LABELS, HEALTH_STATUS_LABELS, PERIOD_TYPE_LABELS, TICKET_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
+import { PERIOD_TYPE_LABELS, TICKET_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import {
   monthEnd,
   monthsBetween,
@@ -48,15 +52,6 @@ const periodOptions = (scope, schoolYear) => {
     .reverse();
 };
 
-function Kpi({ value, label }) {
-  return (
-    <div className="dg-kpi">
-      <div className="dg-kpi__value">{value}</div>
-      <div className="dg-kpi__label">{label}</div>
-    </div>
-  );
-}
-
 /**
  * Shared body of #53 Child Development Profile (teacher) and #54 Child Development Progress (Principal / VP).
  * Read-only: built from source records (GBR-DEV-01); only confirmed evaluations and approved rewards are shown.
@@ -84,8 +79,9 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
     return <ErrorState error={error} onRetry={reload} />;
   }
 
-  const crit = d ? Object.fromEntries(d.criteria.map((c) => [c.id, c.name])) : {};
   const daily = d?.dailyAssessments || [];
+  const days = d?.days || [];
+  const PAGE = 10;
   const finishedWeeks = d?.weeks.filter((w) => w.finished) || [];
   const missing = finishedWeeks.filter((w) => !w.evaluationConfirmed);
 
@@ -94,10 +90,17 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
       <div className="card mb-16">
         <div className="card__body dg-period-bar">
           {d && (
-            <div className="flex-1 min-w-220">
-              <div className="fw-600 text-lg">{d.child.fullName}</div>
-              <div className="text-2 text-sm">
-                {d.child.code} · {GENDER_LABELS[d.child.gender]} · {ageLabel(d.child.dateOfBirth)} · {d.cls?.name || 'Chưa xếp lớp'}
+            <div className="dg-profile-head flex-1 min-w-220">
+              <ChildAvatar child={d.child} size="lg" />
+              <div>
+                <div className="fw-600 text-lg">{d.child.fullName}</div>
+                <div className="text-2 text-sm">
+                  {d.child.code} · {GENDER_LABELS[d.child.gender]} · {ageLabel(d.child.dateOfBirth)}
+                  {d.child.dateOfBirth ? ` (sinh ${formatDate(d.child.dateOfBirth)})` : ''} · {d.cls?.name || 'Chưa xếp lớp'}
+                </div>
+                <div className="muted text-xs">
+                  Hồ sơ {period ? period.label.toLowerCase() : ''} · chỉ gồm dữ liệu đã ghi nhận và đánh giá đã công bố
+                </div>
               </div>
             </div>
           )}
@@ -154,14 +157,23 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
         <LoadingState />
       ) : (
         <>
-          <div className="dg-kpis mb-16">
-            <Kpi value={daily.length} label="Lượt đánh giá hằng ngày" />
-            <Kpi value={daily.filter((a) => a.flag).length} label="Cờ bé ngoan" />
-            <Kpi value={d.tickets.length} label="Phiếu bé ngoan" />
-            <Kpi value={d.evaluations.length + d.yearEnd.length} label="Đánh giá đã công bố" />
+          <div className="stat-grid mb-16">
+            {[
+              { key: 'present', tone: 'green', icon: CalendarCheck, value: d.presentDays, label: 'Ngày có mặt' },
+              { key: 'days', tone: 'blue', icon: ClipboardList, value: days.length, label: 'Ngày được đánh giá' },
+              { key: 'flags', tone: 'orange', icon: Flag, value: d.flagCount, label: 'Cờ bé ngoan' },
+              { key: 'tickets', tone: 'teal', icon: Ticket, value: d.tickets.length, label: 'Phiếu bé ngoan' },
+              { key: 'evals', tone: 'gray', icon: FileText, value: d.evaluations.length + d.yearEnd.length, label: 'Đánh giá đã công bố' },
+            ].map((k) => (
+              <div key={k.key} className={`stat-card stat-card--${k.tone}`}>
+                <div className="stat-card__value">{k.value}</div>
+                <div className="stat-card__label">{k.label}</div>
+                <StatCardIcon tone={k.tone} icon={k.icon} />
+              </div>
+            ))}
           </div>
 
-          {daily.length === 0 && d.evaluations.length === 0 ? (
+          {days.length === 0 && daily.length === 0 && d.evaluations.length === 0 ? (
             <div className="card">
               <EmptyState
                 icon={ClipboardList}
@@ -171,22 +183,17 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
             </div>
           ) : (
             <>
-              {missing.length > 0 && (
-                <div className="alert alert--info mb-16">
-                  <CalendarRange size={18} />
-                  <div>
-                    {missing.length} tuần đã kết thúc chưa có đánh giá tuần được công bố:{' '}
-                    {missing.map((w) => formatDate(w.weekStart)).join(', ')}. Hồ sơ chỉ hiển thị dữ liệu đã có, không suy đoán kết quả cho
-                    các tuần này.
-                  </div>
+              <PeriodSummaryTable data={d.summary} />
+              {d.weeks.length > 1 && (
+                <div className="mt-16">
+                  <DevelopmentCharts weeks={d.weeks} />
                 </div>
               )}
-              {d.weeks.length > 1 && <DevelopmentCharts weeks={d.weeks} />}
 
-              <div className="split-2 mt-16">
+              <div className="grid-2 mt-16">
                 <div className="card">
                   <div className="card__header">
-                    <div className="card__title">Tiêu chí đạt theo lĩnh vực</div>
+                    <div className="card__title">Mục tiêu đạt theo lĩnh vực</div>
                   </div>
                   <div className="card__body">
                     {d.domainStats.map((s) => {
@@ -201,7 +208,8 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                         </div>
                       );
                     })}
-                    <div className="muted text-xs">Tỉ lệ = số lượt đạt tiêu chí / số lượt đánh giá trong kỳ.</div>
+                    {d.domainStats.length === 0 && <div className="muted">Chưa có mục tiêu được đánh giá trong kỳ.</div>}
+                    <div className="muted text-xs">Tỉ lệ = số lượt đạt / số lượt được đánh giá trong kỳ.</div>
                   </div>
                 </div>
                 <div className="card">
@@ -242,6 +250,11 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                   <div className="card__title">
                     <FileText size={18} /> Đánh giá đã công bố
                   </div>
+                  {missing.length > 0 && (
+                    <span className="muted text-sm">
+                      {missing.length} tuần chưa có đánh giá công bố: {missing.map((w) => formatDate(w.weekStart)).join(', ')}
+                    </span>
+                  )}
                 </div>
                 <div className="card__body">
                   {d.evaluations.length + d.yearEnd.length === 0 ? (
@@ -276,42 +289,17 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                   <div className="card__title">
                     <ClipboardList size={18} /> Đánh giá hằng ngày
                   </div>
-                  <span className="muted text-sm">{daily.length} lượt</span>
+                  <span className="muted text-sm">{days.length} ngày · Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>
                 </div>
-                <div className="table-wrap">
-                  <table className="table table--grid table--compact">
-                    <thead>
-                      <tr>
-                        <th>Ngày</th>
-                        <th>Hoạt động</th>
-                        <th>Sức khỏe</th>
-                        <th>Cảm xúc</th>
-                        <th>Tiêu chí đạt</th>
-                        <th className="center">Cờ</th>
-                        <th>Nhận xét</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginate(daily, page).map((a) => (
-                        <tr key={a.id}>
-                          <td className="nowrap">{formatDate(a.date)}</td>
-                          <td>{a.activity}</td>
-                          <td>{HEALTH_STATUS_LABELS[a.healthStatus] || '—'}</td>
-                          <td>{EMOTION_LABELS[a.emotion]}</td>
-                          <td className="text-sm dg-cell-wrap min-w-200">
-                            {a.criteriaMet
-                              .map((id) => crit[id])
-                              .filter(Boolean)
-                              .join(', ') || '—'}
-                          </td>
-                          <td className="center">{a.flag ? <Flag size={16} className="text-primary" aria-label="Có cờ" /> : '—'}</td>
-                          <td className="text-sm dg-days__comment">{a.comment || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="card__body">
+                  <DailyDaysTable
+                    days={paginate([...days].reverse(), page, PAGE)}
+                    mealSessions={d.mealSessions}
+                    classId={d.cls?.id}
+                    linkDays={mode === 'profile'}
+                  />
                 </div>
-                {daily.length > 0 && <Pagination page={page} total={daily.length} onChange={setPage} unit="lượt" />}
+                {days.length > PAGE && <Pagination page={page} total={days.length} pageSize={PAGE} onChange={setPage} unit="ngày" />}
               </div>
             </>
           )}

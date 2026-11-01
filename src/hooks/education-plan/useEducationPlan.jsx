@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -6,7 +6,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { LoadingState, ErrorState } from '@/components/ui/States';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import * as service from '@/services/education-plan/educationPlanService';
-import { AGE_GROUPS, CLASSES, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, CLASSES, EDU_STATUS, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
 import { applyEduConfig, withDefaults } from '@/models/education-plan/eduConfig';
 
 const EducationPlanContext = createContext(null);
@@ -35,6 +35,7 @@ const titleOf = (u) => {
 };
 
 const TOAST_TYPES = { ok: 'success', err: 'error', warn: 'warning', info: 'info' };
+const LOCK_POLL_MS = 5000;
 
 const upsert = (list, item) => {
   const i = list.findIndex((x) => x.id === item.id);
@@ -55,31 +56,58 @@ export function EducationPlanProvider({ children }) {
   // Kế hoạch năm, chủ đề, giáo án cũ và tài liệu của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần) tải một lần
   const { data, setData, loading, error, reload } = useAsync(
     () =>
-      Promise.all([service.getEducationPlans(), service.getClassPlans(), service.getEduConfig()]).then(([plans, classDocs, eduConfig]) => {
-        // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
-        applyEduConfig(eduConfig);
-        return { ...plans, ...classDocs, eduConfig };
-      }),
-    [],
+      Promise.all([service.getEducationPlans(), service.getClassPlans(yearId), service.getEduConfig()]).then(
+        ([plans, classDocs, eduConfig]) => {
+          // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
+          applyEduConfig(eduConfig);
+          return { ...plans, ...classDocs, eduConfig };
+        },
+      ),
+    [yearId],
     { refreshOnDataChange: true },
   );
 
   const toast = useCallback((message, tone = 'ok') => toastApi[TOAST_TYPES[tone] || 'success'](message), [toastApi]);
 
-  const user = useMemo(
-    () => ({
-      id: authUser.id,
+  const user = useMemo(() => {
+    // Đăng nhập Keycloak dev (beClient) trả id dạng chuỗi số, nhóm tuổi theo id; module so id số như class-docs BE
+    // và dùng mã nhóm tuổi ("ag-3") ⇒ đổi về đúng dạng, mã lấy từ danh sách tổ trưởng BE trả
+    const numeric = (v) => (/^\d+$/.test(String(v ?? '')) ? Number(v) : v);
+    const id = numeric(authUser.id);
+    const leader = (data?.staff || []).find((s) => s.id === id && s.role === ROLES.TEAM_LEADER);
+    return {
+      id,
       role: authUser.role,
       name: authUser.fullName,
       title: titleOf(authUser),
       initials: initialsOf(authUser.fullName),
-      ageGroupId: authUser.ageGroupId,
-      classId: authUser.classId,
-    }),
-    [authUser],
-  );
+      ageGroupId: /^\d+$/.test(String(authUser.ageGroupId ?? '')) ? (leader?.ageGroupId ?? authUser.ageGroupId) : authUser.ageGroupId,
+      classId: authUser.classId == null ? authUser.classId : String(authUser.classId),
+    };
+  }, [authUser, data?.staff]);
+
+  // BE:EDU-10 — có kế hoạch đang do người khác sửa thì tải lại im lặng 5 giây/lần (tab đang mở) và khi quay lại tab,
+  // để thấy ngay lúc họ thôi sửa mà không phải tải lại trang (Tiền 31/10); không ai khác đang sửa thì không hỏi
+  const lockedByOther = (data?.goals || []).some((g) => g.status === EDU_STATUS.EDITING && g.editing && g.editing.userId !== user.id);
+  useEffect(() => {
+    if (!lockedByOther) return undefined;
+    const refresh = () => !document.hidden && reload({ silent: true });
+    const timer = setInterval(refresh, LOCK_POLL_MS);
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [lockedByOther, reload]);
 
   const value = useMemo(() => {
+    const yearName = (id) => {
+      const option = schoolYears.find((y) => y.id === id);
+      return option ? option.label.replace(' - ', '-') : String(id ?? '');
+    };
+
     const write = (key, call, apply) => async (arg) => {
       setData((prev) => (prev ? { ...prev, [key]: apply(prev[key], arg) } : prev));
       try {
@@ -114,6 +142,9 @@ export function EducationPlanProvider({ children }) {
       branchPlans: data?.branchPlans || [],
       classThemePlans: data?.classThemePlans || [],
       weekPlans: data?.weekPlans || [],
+      // Lớp, giáo viên và tổ trưởng của năm đang chọn (cùng nguồn với tài liệu của lớp)
+      classes: data?.classes || [],
+      staff: data?.staff || [],
       eduConfig: withDefaults(data?.eduConfig),
       saveEduConfig: async (cfg) => {
         try {
@@ -127,16 +158,103 @@ export function EducationPlanProvider({ children }) {
         }
       },
       saveClassDoc: classCall(service.saveClassDoc),
-      actOnClassDoc: classCall(service.actOnClassDoc),
+      // BE:EDU-27 — ô điều chỉnh của kế hoạch ngày; trả bản đã lưu, lỗi thì báo và trả null
+      saveClassDocAdjustments: async (id, adjustments) => {
+        try {
+          const saved = await service.saveClassDocAdjustments(id, adjustments, actor);
+          setData((prev) => (prev ? { ...prev, weekPlans: upsert(prev.weekPlans || [], saved) } : prev));
+          return saved;
+        } catch (err) {
+          toastApi.error(err.message, 'Không lưu được kế hoạch điều chỉnh');
+          return null;
+        }
+      },
+      // BE:EDU-25 — tạo phiên bản điều chỉnh của kế hoạch năm đã ban hành
+      createGoalVersion: async (id) => {
+        try {
+          const edit = {
+            sessionId: crypto.randomUUID(),
+            revision: data?.goals.find((g) => g.id === id)?.revision ?? 0,
+            requestId: crypto.randomUUID(),
+          };
+          const plan = await service.createGoalVersion(id, actor, edit);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, plan) } : prev));
+          return plan;
+        } catch (err) {
+          toastApi.error(err.message, 'Không tạo được phiên bản');
+          return null;
+        }
+      },
+      getGoalChanges: service.getGoalChanges,
+      // Gửi / duyệt hồ sơ chủ đề đổi trạng thái cả giáo án các tuần: nạp lại để các tuần không giữ trạng thái cũ
+      actOnClassDoc: async (kind, ...args) => {
+        const saved = await classCall(service.actOnClassDoc)(kind, ...args);
+        if (saved && kind === 'theme') reload({ silent: true });
+        return saved;
+      },
       role: user.role,
       user,
       toast,
-      schoolYear: toEduYear(yearId),
-      schoolYears: schoolYears.map((y) => toEduYear(y.id)),
-      setYear: (label) => setSchoolYear(fromEduYear(label)),
+      // Header giữ id năm (số khi nối BE thật); module này dùng tên năm ('2026-2027') nên đổi qua nhãn của lựa chọn
+      schoolYear: toEduYear(yearName(yearId)),
+      schoolYears: schoolYears.map((y) => toEduYear(yearName(y.id))),
+      setYear: (label) => setSchoolYear(schoolYears.find((y) => yearName(y.id) === fromEduYear(label))?.id ?? fromEduYear(label)),
       historyEntry: (action, extra = {}) => ({ action, by: user.name, role: ROLE_LABELS[user.role], at: now(), tone: '', ...extra }),
-      saveGoal: saveIn('goals', service.saveGoal),
-      deleteGoal: deleteIn('goals', service.deleteGoal),
+      // Trả bản đã lưu (API thật: id do BE cấp, thay bản tạm cùng id cũ); lỗi thì báo, nạp lại và trả null
+      saveGoal: async (item, options = {}) => {
+        if (!options.silent) setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, item) } : prev));
+        try {
+          const res = await service.saveGoal(item, options);
+          const saved = res?.id ? res : item;
+          setData((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  goals: upsert(
+                    prev.goals.filter((g) => g.id !== item.id || g.id === saved.id),
+                    saved,
+                  ),
+                }
+              : prev,
+          );
+          return saved;
+        } catch (err) {
+          if (options.silent) throw err;
+          toastApi.error(err.message, 'Không lưu được');
+          reload({ silent: true });
+          return null;
+        }
+      },
+      // Khóa "Đang sửa" (BE:EDU-10): trả kế hoạch mới nhất; người khác đang giữ khóa thì trả null, không báo lỗi
+      startEditingGoal: async (id, edit, strict = false) => {
+        try {
+          const goal = await service.startEditingGoal(id, actor, edit);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
+          return goal;
+        } catch (err) {
+          if (strict) throw err;
+          if (err.status !== 409) toastApi.error(err.message, 'Không mở được trang soạn');
+          reload({ silent: true });
+          return null;
+        }
+      },
+      heartbeatGoal: (id, edit) => service.heartbeatGoal(id, edit, actor),
+      // Thoát trang soạn; lỗi mạng thì để BE tự nhả khóa sau thời hạn
+      finishEditingGoal: async (id, opts) => {
+        try {
+          await service.finishEditingGoal(id, actor, opts);
+        } catch {
+          reload({ silent: true });
+        }
+      },
+      deleteGoal: async (id) => {
+        try {
+          await service.deleteGoal(id, data?.goals.find((goal) => goal.id === id)?.revision);
+          setData((prev) => (prev ? { ...prev, goals: prev.goals.filter((goal) => goal.id !== id) } : prev));
+        } catch (error) {
+          toastApi.error(error.message, 'Không xóa được');
+        }
+      },
       saveTheme: saveIn('themes', service.saveTheme),
       deleteTheme: deleteIn('themes', service.deleteTheme),
       saveLesson: saveIn('lessons', service.saveLesson),

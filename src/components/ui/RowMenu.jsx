@@ -14,11 +14,12 @@ const stop = (e) => e.stopPropagation();
 
 /**
  * Nút "…" cuối dòng bảng mở danh sách thao tác (chuẩn hành động hàng, DESIGN §6.4).
- * items: [{ label, icon?, to? | onClick?, danger?, confirm?: { title, message, confirmLabel } }]
+ * items: [{ label, icon?, to? | onClick?, danger?, disabled?, confirm?: { title, message, confirmLabel } }]
  * Mục `danger` có `confirm` thì hỏi lại bằng ConfirmationModal trước khi chạy onClick.
  * Menu render ra body (position: fixed) để không bị khung cuộn của bảng cắt mất.
+ * text (+ icon, className): nút có chữ thay cho nút "…" (vd. gom nhiều nút thao tác trên điện thoại).
  */
-export function RowMenu({ label, items }) {
+export function RowMenu({ label, items, text, icon, className }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(null);
   const btnRef = useRef(null);
@@ -37,7 +38,13 @@ export function RowMenu({ label, items }) {
     const b = btn.getBoundingClientRect();
     const h = panel.offsetHeight;
     const top = b.bottom + GAP + h <= window.innerHeight ? b.bottom + GAP : Math.max(GAP, b.top - GAP - h);
-    Object.assign(panel.style, { top: `${top}px`, right: `${window.innerWidth - b.right}px` });
+    // Căn mép phải nút; menu rộng hơn chỗ trống bên trái (nút sát trái màn) thì căn mép trái nút
+    const fitsRight = b.right - panel.offsetWidth >= GAP;
+    Object.assign(panel.style, {
+      top: `${top}px`,
+      right: fitsRight ? `${window.innerWidth - b.right}px` : 'auto',
+      left: fitsRight ? 'auto' : `${Math.max(GAP, Math.min(b.left, window.innerWidth - panel.offsetWidth - GAP))}px`,
+    });
   }, []);
 
   useLayoutEffect(() => {
@@ -87,9 +94,9 @@ export function RowMenu({ label, items }) {
       <button
         ref={btnRef}
         type="button"
-        className="icon-btn row-menu__btn"
+        className={text ? className || 'btn btn--sm' : 'icon-btn row-menu__btn'}
         aria-label={label}
-        title="Thao tác khác"
+        title={text || 'Thao tác khác'}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={(e) => {
@@ -98,7 +105,13 @@ export function RowMenu({ label, items }) {
         }}
         onKeyDown={stop}
       >
-        <MoreHorizontal size={18} />
+        {text ? (
+          <>
+            {icon} {text}
+          </>
+        ) : (
+          <MoreHorizontal size={18} />
+        )}
       </button>
       {open &&
         createPortal(
@@ -112,8 +125,8 @@ export function RowMenu({ label, items }) {
             onKeyDown={onPanelKey}
           >
             {items.map((item) => {
-              const { label: text, to, icon: Icon, danger } = item;
-              const cls = `row-menu__item${danger ? ' row-menu__item--danger' : ''}`;
+              const { label: text, to, icon: Icon, danger, disabled } = item;
+              const cls = `row-menu__item${danger && !disabled ? ' row-menu__item--danger' : ''}`;
               const body = (
                 <>
                   {Icon && <Icon size={16} />} {text}
@@ -124,7 +137,7 @@ export function RowMenu({ label, items }) {
                   {body}
                 </Link>
               ) : (
-                <button key={text} type="button" role="menuitem" className={cls} onClick={() => run(item)}>
+                <button key={text} type="button" role="menuitem" className={cls} disabled={disabled} onClick={() => run(item)}>
                   {body}
                 </button>
               );

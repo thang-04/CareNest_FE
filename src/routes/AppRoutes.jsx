@@ -57,10 +57,12 @@ const BranchPlanLegacyRedirect = lazy(() =>
   import('@/pages/education-plan/BranchPlanPage').then((m) => ({ default: m.BranchPlanLegacyRedirect })),
 );
 const ClassThemePlanPage = lazy(() => import('@/pages/education-plan/ClassThemePlanPage'));
+const TeachingPresentationPage = lazy(() => import('@/pages/education-plan/TeachingPresentationPage'));
 const ThemeDossierPage = lazy(() => import('@/pages/education-plan/ThemeDossierPage'));
 const WeekPlanPage = lazy(() => import('@/pages/education-plan/WeekPlanPage'));
 const PlanReviewQueuePage = lazy(() => import('@/pages/education-plan/PlanReviewQueuePage'));
 const EduConfigPage = lazy(() => import('@/pages/education-plan/EduConfigPage'));
+const CurriculumSourcesPage = lazy(() => import('@/pages/education-plan/CurriculumSourcesPage'));
 const SchoolPlansPage = lazy(() => import('@/pages/education-plan/SchoolPlansPage'));
 
 const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'));
@@ -138,6 +140,7 @@ const MissingFoodReportPage = lazy(() => import('@/pages/kitchen/MissingFoodRepo
 const MealPreparationUpdatePage = lazy(() => import('@/pages/kitchen/MealPreparationUpdatePage'));
 
 const DailyAssessmentPage = lazy(() => import('@/pages/assessment/DailyAssessmentPage'));
+const DailyGoalAssessmentPage = lazy(() => import('@/pages/assessment/DailyGoalAssessmentPage'));
 const AssessmentDayUnlockPage = lazy(() => import('@/pages/assessment/AssessmentDayUnlockPage'));
 const ChildDevelopmentListPage = lazy(() => import('@/pages/assessment/ChildDevelopmentListPage'));
 const ChildDevelopmentProfilePage = lazy(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
@@ -200,8 +203,8 @@ const EDU_DENIED =
   'Chức năng này dành cho Hiệu trưởng (chỉ xem), Phó hiệu trưởng, tổ trưởng nhóm tuổi hoặc giáo viên theo từng bước của kế hoạch giáo dục.';
 
 /** Route element guarded for education-plan roles. */
-const edu = (roles, page) => (
-  <RoleGuard roles={roles} description={EDU_DENIED}>
+const edu = (roles, page, description = EDU_DENIED) => (
+  <RoleGuard roles={roles} description={description}>
     {page}
   </RoleGuard>
 );
@@ -303,11 +306,20 @@ export function AppRoutes() {
             <Route path="class/:classId/branches" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
             <Route path="class/:classId/branches/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
             <Route path="class/:classId/themes/:themeId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassThemePlanPage />)} />
+            <Route path="class/:classId/themes/:themeId/teach" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <TeachingPresentationPage />)} />
             <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeDossierPage />)} />
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
             <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />
             <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />
-            <Route path="settings" element={edu([ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL], <EduConfigPage />)} />
+            <Route path="curriculum-sources" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <CurriculumSourcesPage />)} />
+            <Route
+              path="settings"
+              element={edu(
+                [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
+                <EduConfigPage />,
+                'Cấu hình kế hoạch giáo dục dành cho Hiệu trưởng và Phó hiệu trưởng.',
+              )}
+            />
           </Route>
           <Route path="school">
             <Route path="years" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <SchoolYearListPage />)} />
@@ -316,7 +328,7 @@ export function AppRoutes() {
             <Route path="classes" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AgeGroupsClassesPage />)} />
             <Route path="rooms" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <RoomListPage />)} />
             <Route path="staff" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <StaffAccountsPage />)} />
-            <Route path="placement" element={only([R.PRINCIPAL], <YearPlacementPage />)} />
+            <Route path="placement" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <YearPlacementPage />)} />
             <Route path="cutoff" element={only([R.PRINCIPAL], <CutoffSettingPage />)} />
             <Route path="campuses" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <CampusListPage />)} />
             <Route path="campuses/new" element={only([R.PRINCIPAL], <CampusFormPage />)} />
@@ -453,6 +465,7 @@ export function AppRoutes() {
           </Route>
           <Route path="assessment">
             <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
+            <Route path="daily/skills" element={only(CLASS_STAFF, <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={only(LEADERS, <AssessmentDayUnlockPage />)} />
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
@@ -463,14 +476,14 @@ export function AppRoutes() {
             <Route path="year-end" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationListPage />)} />
             <Route path="year-end/:id" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationDetailPage />)} />
             <Route path="year-end/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
-            <Route path="tickets" element={only(CLASS_STAFF, <GoodBehaviourTicketsPage />)} />
+            <Route path="tickets" element={only([...LEADERS, ...CLASS_STAFF], <GoodBehaviourTicketsPage />)} />
             <Route path="rewards" element={only([...LEADERS, ...CLASS_STAFF], <RewardProposalListPage />)} />
             <Route path="rewards/new" element={only(CLASS_STAFF, <RewardProposalFormPage />)} />
             <Route path="rewards/:id" element={only([...LEADERS, ...CLASS_STAFF], <RewardProposalDetailPage />)} />
             <Route path="rewards/:id/edit" element={only(CLASS_STAFF, <RewardProposalFormPage />)} />
           </Route>
           <Route path="attendance">
-            <Route path="day-unlocks" element={only(VP_ONLY, <AttendanceDayUnlockPage />)} />
+            <Route path="day-unlocks" element={only(LEADERS, <AttendanceDayUnlockPage />)} />
             <Route index element={only(CLASS_STAFF, <AttendancePage />)} />
             <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
             <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MealCountPage />)} />

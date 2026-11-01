@@ -9,9 +9,13 @@ export const assessmentApi = {
 
   getDailySheet: (params) => axiosClient.get('/assessment/daily-sheet', { params }),
   saveDailyAssessments: (body) => axiosClient.put('/assessment/daily-assessments', body),
+  getDailyDaySheet: (params) => axiosClient.get('/assessment/daily-day-sheet', { params }),
+  saveDailyDay: (body) => axiosClient.put('/assessment/daily-days', body),
   // PENDING BE: mở lại ngày đánh giá đã khóa (PHT điểm trường / Hiệu trưởng), hiệu lực đến hết ngày mở
   listAssessmentDayUnlocks: () => axiosClient.get('/assessment/day-unlocks'),
   unlockAssessmentDay: (body) => axiosClient.post('/assessment/day-unlocks', body),
+  // PENDING BE: kết thúc sớm lần mở lại
+  revokeAssessmentDayUnlock: (id) => axiosClient.post(`/assessment/day-unlocks/${id}/revoke`),
 
   getChildDevelopment: (childId, params) => axiosClient.get(`/assessment/children/${childId}/development`, { params }),
 
@@ -22,6 +26,9 @@ export const assessmentApi = {
   regenerateEvaluationDraft: (kind, id) => axiosClient.post(`/assessment/evaluations/${kind}/${id}/ai-draft`),
 
   getTicketBoard: (params) => axiosClient.get('/assessment/behaviour-tickets/board', { params }),
+  // PENDING BE: tổng hợp phiếu bé ngoan theo trẻ
+  getTicketSummary: (params) => axiosClient.get('/assessment/behaviour-tickets/summary', { params }),
+  getTicketOverview: (params) => axiosClient.get('/assessment/behaviour-tickets/overview', { params }),
   issueTickets: (body) => axiosClient.post('/assessment/behaviour-tickets', body),
 
   listRewardProposals: (params) => axiosClient.get('/assessment/reward-proposals', { params }),

@@ -86,7 +86,7 @@ export const READINESS_STEPS = [
   },
   {
     key: 'teachers',
-    label: 'Giáo viên lớp (2 giáo viên / lớp)',
+    label: 'Giáo viên lớp',
     required: true,
     to: (y) => `/school/teachers?year=${y}`,
     action: 'Phân công',
@@ -288,6 +288,15 @@ export const VP_AREAS = [
     actionHints: { create: 'Tiếp nhận trẻ mới', update: 'Sửa hồ sơ, xếp lớp, khai báo sức khỏe, kích hoạt phụ huynh' },
   },
   {
+    // Hiệu trưởng giao PHT xếp lớp năm học mới cho 1 điểm trường hoặc toàn trường (Cần đề xuất 20/10/2026, PROPOSED)
+    key: 'yearPlacement',
+    label: 'Xếp lớp năm học mới',
+    hint: 'Chuyển trẻ lên lớp của năm học sắp diễn ra: tự xếp, xếp tay, ở lại, ra trường',
+    scopes: ['CAMPUS', 'ALL'],
+    actions: ['view', 'update'],
+    actionHints: { update: 'Tự xếp, xếp tay, đổi kết quả xếp lớp' },
+  },
+  {
     key: 'staff',
     label: 'Hồ sơ nhân sự',
     hint: 'Giáo viên, tổ trưởng, nhân viên bếp; tạo, khóa tài khoản do Hiệu trưởng',
@@ -305,6 +314,7 @@ export const defaultVpAreas = (assignment, roleGrants = {}) => ({
   facility: PERMISSION_LEVEL.RESTRICTED,
   rooms: PERMISSION_LEVEL.VIEW_RESTRICTED,
   children: PERMISSION_LEVEL.RESTRICTED,
+  yearPlacement: PERMISSION_LEVEL.NONE,
   staff: PERMISSION_LEVEL.VIEW_RESTRICTED,
 });
 

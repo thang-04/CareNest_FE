@@ -47,7 +47,7 @@ const deferred = () => {
   return { promise, resolve };
 };
 const { tokenStorage, UNAUTHORIZED_EVENT } = await import('../../src/services/http/tokenStorage.js');
-const { authPost, authGet, refreshSession, resetAuthTransport } = await import('../../src/services/http/authTransport.js');
+const { APP_ONLY_MESSAGE, authPost, authGet, refreshSession, resetAuthTransport } = await import('../../src/services/http/authTransport.js');
 const { axiosClient } = await import('../../src/services/http/axiosClient.js');
 const { normalizeApiError } = await import('../../src/services/http/apiError.js');
 delete axios.defaults.headers.common.Authorization;
@@ -284,7 +284,7 @@ test('a stale CSRF token is refetched once and the gateway write is retried', as
       csrfCalls += 1;
       return success(config, { code: 'OK', data: { token: `csrf-${csrfCalls}`, headerName: 'X-XSRF-TOKEN' } });
     }
-    if (config.headers['X-XSRF-TOKEN'] === 'csrf-1') return failure(config, 403, { code: 403, desc: 'Forbidden', data: null });
+    if (config.headers['X-XSRF-TOKEN'] === 'csrf-1') return failure(config, 403, { code: 403, errorCode: 1101, desc: 'Không có quyền', data: null });
     return success(config, { code: 'OK', data: { ok: true } });
   };
   assert.deepEqual(await authPost('/auth/logout', {}), { ok: true });
@@ -299,8 +299,12 @@ test('business 403 on a gateway write is not retried', async () => {
   respond = (config) =>
     config.url === '/auth/csrf'
       ? success(config, { code: 'OK', data: { token: 'csrf-test', headerName: 'X-XSRF-TOKEN' } })
-      : failure(config, 403, { code: 403, desc: 'Account is inactive', data: null });
-  await assert.rejects(authPost('/auth/login', { identifier: 'a', password: 'b' }), { status: 403, desc: 'Account is inactive' });
+      : failure(config, 403, { code: 403, errorCode: 1015, desc: 'Account is inactive', data: null });
+  await assert.rejects(authPost('/auth/login', { identifier: 'a', password: 'b' }), {
+    status: 403,
+    errorCode: 1015,
+    desc: 'Account is inactive',
+  });
   assert.equal(requests.filter((config) => config.url === '/auth/login').length, 1);
 });
 
@@ -308,8 +312,22 @@ test('CSRF rejection after one refetch surfaces the 403 without looping', async 
   respond = (config) =>
     config.url === '/auth/csrf'
       ? success(config, { code: 'OK', data: { token: 'csrf-test', headerName: 'X-XSRF-TOKEN' } })
-      : failure(config, 403, { code: 403, desc: 'Forbidden', data: null });
-  await assert.rejects(authPost('/auth/logout', {}), { status: 403 });
+      : failure(config, 403, { code: 403, errorCode: 1101, desc: 'Không có quyền', data: null });
+  await assert.rejects(authPost('/auth/logout', {}), (error) => error.status === 403 && error.errorCode === 1101 && !error.appOnly);
   assert.equal(requests.filter((config) => config.url === '/auth/logout').length, 2);
   assert.equal(requests.filter((config) => config.url === '/auth/csrf').length, 2);
+});
+
+test('403 1101 sent again with a fresh CSRF at login means an app-only account', async () => {
+  respond = (config) =>
+    config.url === '/auth/csrf'
+      ? success(config, { code: 'OK', data: { token: 'csrf-test', headerName: 'X-XSRF-TOKEN' } })
+      : failure(config, 403, { code: 403, errorCode: 1101, desc: 'Không có quyền', data: null });
+  await assert.rejects(authPost('/auth/login', { identifier: 'a', password: 'b' }), {
+    status: 403,
+    errorCode: 1101,
+    appOnly: true,
+    message: APP_ONLY_MESSAGE,
+  });
+  assert.equal(requests.filter((config) => config.url === '/auth/login').length, 2);
 });

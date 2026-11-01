@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
 
-// 00:30 thứ Ba: trước giờ khóa 8:45, luồng thật chưa có số suất
+// 00:30 thứ Ba: trước giờ khóa 8:45. Số suất hôm nay chạy như thật (Cần chốt 21/10/2026):
+// trước giờ chốt là sổ tạm tính, tới giờ chốt mới tổng hợp, PHT bấm xác nhận thì bếp mới nhận số.
 mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-20T00:30:00+07:00') });
 const TODAY = '2026-10-20';
 
@@ -13,22 +14,23 @@ globalThis.localStorage = {
 };
 globalThis.window = new EventTarget();
 
-const { readDb, writeDb } = await import('@/mocks/mockDatabase');
+const { readDb } = await import('@/mocks/mockDatabase');
 const { attendanceMockRepository: attendance } = await import('@/services/attendance/mock/attendanceMockRepository');
 
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL', campusId: 'c1' };
 const COOK = { id: 'u_cook_a', role: 'KITCHEN_STAFF', campusId: 'c1' };
 
-test('demo: số suất hôm nay đã được Phó HT xác nhận ngay khi mở app, bếp thấy suất cần bàn giao', async () => {
+test('demo: trước giờ chốt sổ hôm nay chỉ tạm tính, chưa ai xác nhận, bếp chưa có suất bàn giao', async () => {
   const { counts } = await attendance.getMealCounts({ date: TODAY }, VP);
   assert.ok(counts.length > 0);
   assert.ok(
-    counts.every((c) => c.status === 'CONFIRMED'),
-    'mọi bữa hôm nay đã xác nhận',
+    counts.every((c) => c.status === 'OPEN' && !c.id),
+    'không tự tổng hợp / xác nhận trước giờ chốt',
   );
-  assert.ok(counts.every((c) => c.totals.normal + c.totals.substitute > 0));
+  assert.ok(counts.some((c) => c.totals.normal + c.totals.substitute > 0), 'đã có điểm danh mẫu nên có số tạm tính');
+  assert.equal(readDb().mealCounts.filter((m) => m.date === TODAY).length, 0);
   const { handovers } = await attendance.getMealHandovers({ date: TODAY }, COOK);
-  assert.ok(handovers.length > 0);
+  assert.equal(handovers.length, 0);
 });
 
 test('demo: lớp Chồi 1 của giáo viên demo vẫn để trống điểm danh hôm nay', () => {
@@ -41,26 +43,25 @@ test('demo: lớp Chồi 1 của giáo viên demo vẫn để trống điểm da
   assert.ok(db.attendance.some((r) => r.date === TODAY && r.classId === 'cls_c1_m1'));
 });
 
-test('demo: mở lại nhiều lần không tạo trùng số suất hay điểm danh', async () => {
-  const before = readDb();
-  const counts = before.mealCounts.filter((m) => m.date === TODAY).length;
-  const records = before.attendance.filter((r) => r.date === TODAY).length;
+test('demo: mở lại nhiều lần không tạo trùng điểm danh', async () => {
+  const records = readDb().attendance.filter((r) => r.date === TODAY).length;
   await attendance.getMealCounts({ date: TODAY }, VP);
-  const after = readDb();
-  assert.equal(after.mealCounts.filter((m) => m.date === TODAY).length, counts);
-  assert.equal(after.attendance.filter((r) => r.date === TODAY).length, records);
+  assert.equal(readDb().attendance.filter((r) => r.date === TODAY).length, records);
 });
 
-test('demo: sang ngày mới, bếp mở app trước vẫn thấy số suất hôm nay đã xác nhận', async () => {
-  // DB lưu từ hôm trước: chưa có điểm danh / số suất của ngày hôm nay
-  writeDb((db) => {
-    db.mealCounts = db.mealCounts.filter((m) => m.date !== TODAY);
-    db.mealHandovers = db.mealHandovers.filter((h) => h.date !== TODAY);
-    db.attendance = db.attendance.filter((r) => r.date !== TODAY);
-    db.todayMealDemoDate = '2026-10-19';
-  });
+test('tới giờ chốt: sổ chờ PHT xác nhận; PHT bấm xác nhận thì bếp mới thấy số và suất bàn giao', async () => {
+  mock.timers.tick(9 * 3600 * 1000); // 09:30
+  const { counts } = await attendance.getMealCounts({ date: TODAY }, VP);
+  const c1 = counts.filter((c) => c.campusId === 'c1');
+  assert.ok(c1.length > 0);
+  assert.ok(c1.every((c) => c.status === 'PENDING_CONFIRMATION'));
   const { kitchenMockRepository: kitchen } = await import('@/services/kitchen/mock/kitchenMockRepository');
-  const sessions = await kitchen.getConfirmedMealCount({ campusId: 'c1', date: TODAY }, COOK);
-  assert.ok(sessions.length > 0);
-  assert.ok(sessions.every((s) => s.status === 'CONFIRMED'));
+  const before = await kitchen.getConfirmedMealCount({ campusId: 'c1', date: TODAY }, COOK);
+  assert.ok(before.every((s) => s.status !== 'CONFIRMED'), 'bếp chưa nhận số khi PHT chưa xác nhận');
+  for (const c of c1) await attendance.confirmMealCount(c.id, VP);
+  const after = await kitchen.getConfirmedMealCount({ campusId: 'c1', date: TODAY }, COOK);
+  assert.ok(after.length > 0);
+  assert.ok(after.every((s) => s.status === 'CONFIRMED'));
+  const { handovers } = await attendance.getMealHandovers({ date: TODAY }, COOK);
+  assert.ok(handovers.length > 0);
 });

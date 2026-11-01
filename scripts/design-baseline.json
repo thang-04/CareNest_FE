@@ -45,6 +45,7 @@
     "src/components/ui/Avatar.jsx": 1,
     "src/components/ui/ProgressBar.jsx": 1,
     "src/components/ui/ProgressSteps.jsx": 1,
+    "src/components/ui/Sortable.jsx": 1,
     "src/components/ui/States.jsx": 2,
     "src/components/ui/Stepper.jsx": 1,
     "src/contexts/ToastContext.jsx": 1,

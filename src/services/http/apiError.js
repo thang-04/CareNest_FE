@@ -15,6 +15,8 @@ export const normalizeApiError = (error) => {
   normalized.isApiError = true;
   normalized.status = status;
   normalized.desc = desc || message;
+  // Mã lỗi nghiệp vụ của BE (ApiCode): phân biệt lỗi theo errorCode, không so desc (câu tiếng Việt)
+  normalized.errorCode = body?.errorCode ?? error.errorCode ?? null;
   const details = body?.data ?? body?.errors ?? error.details;
   normalized.details = Array.isArray(details)
     ? Object.fromEntries(details.filter((item) => item?.field).map((item) => [item.field, item.message]))

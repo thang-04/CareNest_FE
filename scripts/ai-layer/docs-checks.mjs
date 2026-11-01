@@ -1,7 +1,7 @@
 // E1 mirror skills · E2 link/đường dẫn trong markdown · E7 frontmatter `paths` của rules
 import { existsSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { crossRepoRef, globToRegExp, isGitIgnored, matchAny, parseFrontmatter, readText, siblingRoot } from "./lib.mjs";
+import { crossRepoRef, globToRegExp, isGitIgnored, matchAny, parseFrontmatter, readText, siblingPath } from "./lib.mjs";
 
 // E1 — `.agents/skills` phải là bản sao y hệt `.claude/skills` (Codex đọc bản .agents)
 export function checkSkillsMirror(root, files, report) {
@@ -32,20 +32,21 @@ function isCandidate(token) {
 }
 
 function resolveToken(root, config, file, token) {
+  const stripLine = (p) => p.replace(/#.*$/, "").replace(/:\d+(-\d+)?$/, "");
   const ref = crossRepoRef(token);
   if (ref) {
-    const base = siblingRoot(root, config, ref.repo);
-    return base ? (existsSync(join(base, ref.rel)) ? "ok" : "missing") : "skip";
+    const abs = siblingPath(root, config, ref.repo, stripLine(ref.rel));
+    return abs ? (existsSync(abs) ? "ok" : "missing") : "skip";
   }
-  const clean = token.replace(/#.*$/, "").replace(/:\d+(-\d+)?$/, "");
+  const clean = stripLine(token);
   const bases = [dirname(file)];
   for (let dir = dirname(file); dir !== "." && dir; dir = dirname(dir)) bases.push(dirname(dir));
   bases.push(".", ...config.checkAiLayer.pathRoots);
   if (bases.some((b) => existsSync(join(root, b, clean)))) return "ok";
   // Có ở repo sibling (vd. README_AI mô tả FE/APP) ⇒ không tính lỗi
   for (const repo of ["BE", "FE", "APP"]) {
-    const base = repo === config.repo ? null : siblingRoot(root, config, repo);
-    if (base && existsSync(join(base, clean))) return "ok";
+    const abs = repo === config.repo ? null : siblingPath(root, config, repo, clean);
+    if (abs && existsSync(abs)) return "ok";
   }
   return isGitIgnored(root, clean) ? "ok" : "missing";
 }
@@ -91,7 +92,18 @@ export function checkLinks(root, config, files, planned, report) {
   }
 }
 
-// E7 — rule path-scoped phải có `paths` hợp lệ, nếu không Claude nạp rule cho mọi file (tốn token)
+const ADR_0016 = "docs/decisions/ADR-0016-simple-start-end-logging.md";
+// Entrypoint và rule controller/service phải cùng mô tả quy ước log, tránh agent đọc bản lệch nhau
+const ADR_0016_REFERENCES = {
+  "AGENTS.md": ["LOG_PREFIX", "ADR-0016"],
+  "docs/backend-coding-guide.md": ["LOG_PREFIX", "RuntimeException"],
+  ".claude/rules/controller.md": ["LOG_PREFIX"],
+  ".claude/rules/service.md": ["LOG_PREFIX", "RuntimeException"],
+  ".claude/rules/java.md": ["LOG_PREFIX"],
+};
+
+// E7 — rule path-scoped phải có `paths` hợp lệ, nếu không Claude nạp rule cho mọi file (tốn token);
+// entrypoint và rule controller/service cùng tham chiếu quy ước log ADR-0016 (chỉ repo có ADR này).
 export function checkRules(root, files, report) {
   for (const file of files.filter((f) => /^\.claude\/rules\/[^/]+\.md$/.test(f))) {
     const fm = parseFrontmatter(readText(root, file));
@@ -121,6 +133,17 @@ export function checkRules(root, files, report) {
       report("error", file, 1, `rule chết — không glob nào khớp file: ${unmatched.join(", ")}`);
     } else {
       for (const glob of unmatched) report("warn", file, 1, `glob không khớp file nào: ${glob}`);
+    }
+  }
+  if (!files.includes(ADR_0016)) return;
+  for (const [file, markers] of Object.entries(ADR_0016_REFERENCES)) {
+    if (!files.includes(file)) {
+      report("error", file, 1, `thiếu entrypoint/rule cho ${ADR_0016}`);
+      continue;
+    }
+    const content = readText(root, file);
+    for (const marker of markers) {
+      if (!content.includes(marker)) report("error", file, 1, `thiếu tham chiếu quy ước ADR-0016: ${marker}`);
     }
   }
 }

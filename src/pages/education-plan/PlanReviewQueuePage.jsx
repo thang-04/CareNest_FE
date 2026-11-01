@@ -1,7 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
-import { LoadingState } from '@/components/ui/States';
-import { useClasses } from '@/hooks/useSchool';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
@@ -14,10 +12,8 @@ import { clickableRowProps } from '@/utils/clickableRow';
  * Phó HT thấy chủ đề nhánh, hồ sơ chủ đề chờ Phó HT và kế hoạch năm chờ ban hành. Danh sách chỉ để mở nhanh; quyền duyệt do service kiểm.
  */
 export default function PlanReviewQueuePage() {
-  const { user, goals, branchPlans, classThemePlans } = useEducationPlan();
+  const { user, goals, branchPlans, classThemePlans, classes } = useEducationPlan();
   const navigate = useNavigate();
-  const { classes, loading } = useClasses();
-  if (loading) return <LoadingState />;
 
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   // Trạng thái chờ đúng vai trò người dùng (thứ tự duyệt theo cấu hình của trường)
@@ -65,17 +61,7 @@ export default function PlanReviewQueuePage() {
 
   return (
     <div className="page ga-page">
-      <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Duyệt kế hoạch, giáo án' }]}
-        title="Duyệt kế hoạch, giáo án"
-        desc={
-          isVp
-            ? 'Tài liệu của các lớp đang chờ Phó hiệu trưởng duyệt, và kế hoạch năm chờ ban hành.'
-            : user.role === ROLES.PRINCIPAL
-              ? 'Tài liệu của các lớp đang chờ Hiệu trưởng duyệt (theo cấu hình người ký).'
-              : 'Chủ đề nhánh và kế hoạch giáo dục chủ đề của các lớp trong khối chờ tổ trưởng duyệt. Tài liệu bạn duyệt chuyển tiếp tới Phó hiệu trưởng.'
-        }
-      />
+      <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Duyệt kế hoạch, giáo án' }]} title="Duyệt kế hoạch, giáo án" />
       <Card bodyClass={null}>
         {items.length === 0 ? (
           <EmptyState title="Không có tài liệu chờ duyệt" desc="Khi giáo viên gửi kế hoạch hoặc giáo án, tài liệu sẽ hiện ở đây." />
