@@ -369,7 +369,7 @@ function StepConfirmAndReason({ staff, reason, reasonError, saving, onReasonChan
         label="Lý do thay đổi phân quyền"
         required
         error={reasonError}
-        hint={`Lý do được ghi nhận vào lịch sử demo (tối đa ${REASON_MAX_LENGTH} ký tự).`}
+        hint={`Lý do được ghi vào lịch sử thay đổi quyền (tối đa ${REASON_MAX_LENGTH} ký tự).`}
       >
         <textarea
           className="textarea"

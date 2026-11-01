@@ -1,10 +1,10 @@
 import { USE_MOCK } from '@/config/env';
 import { permissionMockRepository as mock } from './mock/permissionMockRepository';
+import { permissionApi as api } from './api/permissionApi';
 
-const call = (method, ...args) =>
-  USE_MOCK
-    ? mock[method](...args)
-    : Promise.reject({ status: 501, message: 'Màn phân quyền này chỉ là demo; cần thống nhất contract BE.' });
+/** Facade màn phân quyền. VITE_USE_MOCK=false gọi BE PermissionController. */
+const repo = USE_MOCK ? mock : api;
+const call = (method, ...args) => repo[method](...args);
 
 export const getPermissionCatalog = (user) => call('getPermissionCatalog', user);
 export const getPermissionStaff = (user) => call('getPermissionStaff', user);

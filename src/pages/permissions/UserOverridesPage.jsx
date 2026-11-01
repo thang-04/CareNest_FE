@@ -94,7 +94,7 @@ export default function UserOverridesPage() {
               ? 'Đang tìm nhân sự…'
               : targetStaff
                 ? `Đang xem: ${targetStaff.fullName}`
-                : 'Nhân sự này không còn nằm trong danh sách cấu hình demo.'}
+                : 'Nhân sự này không còn nằm trong danh sách được cấu hình quyền.'}
           </span>
           {targetStaff && (
             <button className="btn btn--sm" onClick={() => setWizardStaff(targetStaff)}>

@@ -277,13 +277,18 @@ test('helper công tắc chỉ tạo ngoại lệ khác mặc định', () => {
   ]);
 });
 
-test('đường sidebar cũ mở UI mới, không có endpoint API giả hoặc sửa auth', () => {
+test('đường sidebar cũ mở UI mới, non-mock chỉ gọi endpoint BE đã có', () => {
   const routes = readFileSync(new URL('../../../src/routes/AppRoutes.jsx', import.meta.url), 'utf8');
   assert.match(routes, /path="roles" element=\{only\(\[R.PRINCIPAL\], <RoleDefaultsPage/);
   assert.match(routes, /path="overrides"/);
   const facade = readFileSync(new URL('../../../src/services/account/permissionService.js', import.meta.url), 'utf8');
-  assert.match(facade, /status: 501/);
-  assert.doesNotMatch(facade, /permissionApi|axios|fetch\(/);
+  assert.doesNotMatch(facade, /status: 501|axios|fetch\(/);
+  const api = readFileSync(new URL('../../../src/services/account/api/permissionApi.js', import.meta.url), 'utf8');
+  // Endpoint của BE PermissionController, AccountController, SchoolStructureController; không tự chế
+  const paths = [...api.matchAll(/axiosClient\.\w+\(\s*[`'"]([^`'"]+)/g)].map((m) => m[1].replace(/\$\{[^}]+\}/g, '{id}'));
+  const known = ['/permissions', '/role-permissions', '/role-permissions/{id}', '/accounts', '/accounts/{id}/permission-overrides', '/permission-change-logs', '/campuses/options'];
+  assert.ok(paths.length > 0);
+  assert.deepEqual(paths.filter((path) => !known.includes(path)), []);
 });
 
 test('wizard 2→3→2→3 giữ payload và giữ được draft reset rỗng', () => {
