@@ -47,7 +47,7 @@ Muốn thử vai trò khác: menu tài khoản → _Đăng xuất_ → đăng nh
 ```
 (gốc dự án)
   DESIGN.md            design system chung web + app
-  README.md            cách chạy, tài khoản demo, routes
+  README.md            giới thiệu, tech stack, kiến trúc, cách chạy, quy ước
   docs/                tài liệu (file này: docs/architecture/CODING_GUIDE.md)
   mockups/             ảnh thiết kế gốc theo module (chuẩn để code giao diện, không import vào code)
     brand/             logo gốc

@@ -1,6 +1,15 @@
 # Current State — CareNest_FE
 
-Cập nhật: 2026-10-20 (bảng screen group theo source; mọi màn chạy trên mock, chưa nối BE thật); 2026-10-28 và 2026-10-29 đồng bộ rule BE. Cập nhật file này khi một screen group bắt đầu có code hoặc hoàn thành.
+Cập nhật: 2026-11-01 (mục "Trạng thái 2026-11-01": auth gateway, nguồn dữ liệu từng module, CI; cột Status bảng screen group). Trước đó: 2026-10-20 bảng screen group theo source; 2026-10-28 và 2026-10-29 đồng bộ rule BE. Cập nhật file này khi một screen group bắt đầu có code, đổi nguồn dữ liệu (`demo` ⇄ `api`) hoặc hoàn thành.
+
+## Trạng thái 2026-11-01
+
+- **Build mặc định chạy mock:** `VITE_AUTH_MODE=mock`, `VITE_USE_MOCK=true` (`src/config/env.js`, `Dockerfile`, `compose.yaml`, Variables của CI) ⇒ mọi màn dùng dữ liệu mẫu trong localStorage.
+- **Auth đã chốt và có code:** gateway qua BE `/api/auth/*` (ADR-0013, ADR-0015), bật bằng `VITE_AUTH_MODE=gateway`; access token chỉ trong memory, refresh token trong cookie HttpOnly của BE. Bếp, phụ huynh bị chặn Web (AUTH-21, ADR-0022, `errorCode` 1101). Chi tiết: `docs/integration/AUTH_FLOW.md`.
+- **Nguồn dữ liệu khi `VITE_USE_MOCK=false`** khai ở `src/config/integrationModules.js` (`api` = BE thật; `demo` = dữ liệu mẫu kèm nhãn "Dữ liệu demo"), kiểm bằng `node scripts/check-api-contract.mjs` trong `npm run check`.
+  - `api`: account, permission, guardian (kích hoạt tài khoản phụ huynh), school-config, attendance (gồm số suất), daily-health, education-plan, master-data.
+  - `demo`: staff-accounts, vice-principal-assignments, meal-handover, children, pickup, assessment, menu-planning, kitchen, notifications, signatures, appearance; facility, facility-transfer, inventory-inspection còn ẩn (`FACILITY_ENABLED=false`).
+- **CI:** `.github/workflows/deploy.yml` chỉ chạy trên `main` (từ 2026-10-31); push/PR vào `dev` không có CI ⇒ tự chạy `node scripts/verify.mjs`.
 
 ## Đồng bộ nghiệp vụ BE 2026-10-29
 
@@ -21,7 +30,9 @@ Nguồn: `BE:docs/business/BUSINESS_RULES.md` (khảo sát team 27/10, user ch�
 
 UI mock còn theo quyết định cũ; **lệch BE (28/10), cần sửa UI khi tích hợp**: công tắc Tham gia ăn (ATT-02), bàn giao suất + trạng thái nấu (NUT-14/15 REMOVED), route bếp trên Web (AUTH-21), giờ chốt mặc định cứng khi chưa cấu hình (ATT-06), kho/hàng tươi/NCC/thực đơn thay thế dị ứng. Chi tiết: [nutrition-inventory](../features/nutrition-inventory.md) mục "Lệch BE", [daily-reception](../features/daily-reception.md).
 
-## Cập nhật phạm vi 2026-10-19
+## Cập nhật phạm vi 2026-10-19 (lịch sử)
+
+Đợt ghép này đã vào `dev`; màn phân quyền và tài khoản phụ huynh đã nối BE thật từ 2026-11-01 (mục "Trạng thái 2026-11-01"). Nội dung dưới giữ làm lịch sử.
 
 Phase 2 đã nhận UI phân quyền G94-209: ba tab, wizard và lịch sử; user chọn lưu demo riêng, không áp vào quyền thật hoặc nguồn assignment. Entry `/school/roles` giữ sidebar cũ. Xem [feature và giới hạn](../features/permission-center-demo.md). Phase 3 phụ huynh/hồ sơ trẻ vẫn chưa bắt đầu.
 
@@ -36,24 +47,24 @@ Source thực tế hiện có React/JS, router, mock và build; mô tả baselin
 
 ## Screen group
 
-Status: `—` chưa bắt đầu · `đang làm` · `xong`. Định nghĩa group: `docs/architecture/ROUTE_MAP.md`.
+Status: `UI mock` = chỉ dữ liệu mẫu · `BE + UI` = gọi BE thật khi `VITE_USE_MOCK=false` (theo `src/config/integrationModules.js`). Định nghĩa group: `docs/architecture/ROUTE_MAP.md`.
 
 | Screen group                               | Actor                                         | Module BE                         | Status        |
 | ------------------------------------------ | --------------------------------------------- | --------------------------------- | ------------- |
-| Đăng nhập / phiên                          | Tất cả                                        | identity-access                   | UI mock (`pages/auth`) |
-| Quản trị tài khoản, role, phân công        | System Admin                                  | identity-access, school-structure | UI mock (`school-config`, `account`, `permissions`) |
-| Cấu trúc trường: campus, lớp, năm học      | System Admin                                  | school-structure                  | UI mock (`school-config`) |
+| Đăng nhập / phiên                          | Tất cả                                        | identity-access                   | BE + UI (`pages/auth`, gateway khi `VITE_AUTH_MODE=gateway`; mặc định mock) |
+| Quản trị tài khoản, role, phân công        | System Admin                                  | identity-access, school-structure | BE + UI: `account`, `permissions`; UI mock: nhân sự, phân công PHT (`school-config`) |
+| Cấu trúc trường: campus, lớp, năm học      | System Admin                                  | school-structure                  | BE + UI (`school-config`) |
 | Cấu hình hệ thống / master data            | System Admin                                  | nhiều                             | một phần (`school-config`, `menu-planning`) |
-| Hồ sơ trẻ / ghi danh                       | Vice Principal mảng chuyên môn (CHD-01)       | child                             | UI mock (`children`) |
+| Hồ sơ trẻ / ghi danh                       | Vice Principal mảng chuyên môn (CHD-01)       | child                             | UI mock (`children`); kích hoạt tài khoản phụ huynh: BE + UI |
 | Dashboard báo cáo lớp/campus/trường        | Principal, Vice Principal                     | reporting                         | UI mock (`dashboard`) |
-| Xác nhận số suất ăn                        | Vice Principal tại cơ sở; Principal thay khi vắng (NUT-02) | nutrition                         | UI mock (`attendance`, `kitchen`) |
+| Xác nhận số suất ăn                        | Vice Principal tại cơ sở; Principal thay khi vắng (NUT-02) | nutrition                         | BE + UI: số suất (`attendance`); UI mock: bàn giao suất, bếp (`kitchen`) |
 | Xuất bản thực đơn tuần (BA: PHT công bố)   | Vice Principal mảng dinh dưỡng (NUT-08: công bố = duyệt; còn lệch, xem features/nutrition-inventory.md) | nutrition                         | UI mock (`menu-planning`) |
 | Xem nhận xét định kỳ / hồ sơ phát triển    | Principal, Vice Principal                     | learning-observation              | UI mock (`assessment`) |
 | Kế hoạch giáo dục: duyệt, ban hành         | Phó HT ban hành mục tiêu năm (EDU-05); chủ đề nhánh, hồ sơ chủ đề theo chuỗi người ký, Tổ trưởng chỉ lớp nhóm tuổi mình (EDU-18) | education-plan | BE + UI (`education`) |
 | Tổng quan sức khỏe                         | Principal, Vice Principal                     | health                            | UI mock (`children`, `attendance`) |
 | ~~Theo dõi sự cố CSVC~~                    | —                                             | — (FAC REMOVED 29/10)             | UI mock, ẩn (`FACILITY_ENABLED=false`) |
 | Báo nghỉ của campus (chỉ xem, không duyệt) | Principal, Vice Principal                     | attendance                        | hiển thị trong điểm danh |
-| Điểm danh + báo ăn                         | Teacher                                       | attendance                        | UI mock (`attendance`) |
+| Điểm danh + báo ăn                         | Teacher                                       | attendance                        | BE + UI (`attendance`, sức khỏe trong ngày) |
 | Đánh giá hằng ngày                         | Teacher                                       | learning-observation              | UI mock (`assessment`), lệch BE 29/10 |
 | Nhận xét định kỳ (GV xác nhận — OBS-05)    | Teacher                                       | learning-observation              | UI mock (`assessment`) |
 | Kế hoạch giáo dục lớp (chủ đề nhánh, tuần, ngày) | Teacher của lớp (EDU-12..17)            | education-plan                    | BE + UI (`education`) |
@@ -67,7 +78,7 @@ Status: `—` chưa bắt đầu · `đang làm` · `xong`. Định nghĩa group
 | Chủ đề                                 | Status               | Nguồn                                                                 |
 | -------------------------------------- | -------------------- | --------------------------------------------------------------------- |
 | Framework/router/state/UI kit          | Đã chốt theo source (2026-10-20) | `docs/architecture/FRONTEND_ARCHITECTURE.md`                          |
-| Auth flow, lưu token                   | chưa chốt            | `docs/integration/AUTH_FLOW.md`, `BE:docs/contracts/AUTH_CONTRACT.md` |
+| Auth flow, lưu token                   | Đã chốt: gateway qua BE, token trong memory, refresh cookie HttpOnly (ADR-0013, ADR-0015) | `docs/integration/AUTH_FLOW.md`, `BE:docs/contracts/AUTH_CONTRACT.md` |
 | Actor xác nhận suất ăn                 | Đã chốt NUT-02 (đóng P-05, 2026-10-28) | `BE:docs/business/BUSINESS_RULES.md`                                  |
 | Người nhập đo sức khỏe                 | Đã chốt HLT-09: GV (2026-10-29) | `BE:docs/modules/health.md`                                           |
 | Ngữ cảnh hoạt động                     | Đã chốt OBS-07: MT của giáo án tuần/ngày đã duyệt (EDU-19, ADR-0006) | `BE:docs/modules/education-plan.md`                                   |
