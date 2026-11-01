@@ -21,7 +21,7 @@ import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { normalizeText, formatDate, formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { flagTone, healthFlag } from '@/utils/attendance/healthFlag';
+import { flagTone, healthFlag, healthReminder } from '@/utils/attendance/healthFlag';
 import '@/styles/modules/attendance.css';
 
 // Bữa của lớp = bữa Hiệu trưởng cấu hình cho nhóm tuổi; Có mặt mặc định ăn đủ các bữa đó
@@ -76,7 +76,6 @@ export default function AttendancePage() {
       <Breadcrumb items={attendanceCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Điểm danh & sức khỏe</h1>
-        <p className="muted">Tiếp nhận từng trẻ và theo dõi sức khỏe trong ngày.</p>
       </div>
       {loading ? (
         <LoadingState />
@@ -452,6 +451,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                   visibleRows.map((row) => {
                     const entry = draft[row.child.id] || { status: '', meals: {} };
                     const absent = isAbsent(entry.status);
+                    const reminder = healthReminder(row);
                     return (
                       <tr
                         key={row.child.id}
@@ -495,17 +495,17 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy }) {
                                   />
                                 </button>
                               )}
-                              {/* Chưa khám: trẻ chưa điểm danh hoặc đã lưu Có mặt; đã lưu Vắng thì không hiện */}
-                              {row.healthSummary?.reminder && !isAbsent(row.record?.status) && (
+                              {/* Nhắc bổ sung kiểm tra cho trẻ đã lưu Có mặt. */}
+                              {reminder && (
                                 <button
                                   className="dd-reception__flag"
                                   type="button"
                                   disabled={busy}
-                                  title={row.healthSummary.reminder}
-                                  aria-label={`${row.healthSummary.reminder}: ${row.child.fullName}. Mở sức khỏe`}
+                                  title={reminder}
+                                  aria-label={`${reminder}: ${row.child.fullName}. Mở sức khỏe`}
                                   onClick={() => selectChild(row.child.id)}
                                 >
-                                  <StatusBadge tone="orange" icon={HeartPulse} label={row.healthSummary.reminder} />
+                                  <StatusBadge tone="orange" icon={HeartPulse} label={reminder} />
                                 </button>
                               )}
                               {row.leaveRequest && (

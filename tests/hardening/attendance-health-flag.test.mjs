@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 const { createAttendanceBeApi } = await import('@/services/attendance/api/attendanceApi');
-const { healthFlag } = await import('@/utils/attendance/healthFlag');
+const { healthFlag, healthReminder } = await import('@/utils/attendance/healthFlag');
 
 const sheetFrom = (children) => ({
   day: { date: '2026-10-28', today: '2026-10-28', schoolDay: true, locked: false },
@@ -82,4 +82,16 @@ test('bảng điểm danh từ BE: đơn nghỉ phụ huynh thành nhãn "Phụ 
   const sheet = await createAttendanceBeApi(client).getClassAttendance(1, '2026-10-28');
   assert.deepEqual(sheet.children[0].leaveRequest, { id: '7', fromDate: '2026-10-28', toDate: '2026-10-29', reason: 'Bé ốm' });
   assert.equal(sheet.children[1].leaveRequest, null);
+});
+
+test('nhắc kiểm tra sau lưu Có mặt, phân biệt chưa khám và thiếu thân nhiệt', () => {
+  const summary = { checked: true, latest: { temperature: null } };
+  const row = (status, healthSummary = summary) => ({ record: status ? { status } : null, healthSummary });
+  assert.equal(healthReminder(row(null)), '');
+  assert.equal(healthReminder(row('EXCUSED')), '');
+  assert.equal(healthReminder(row('UNEXCUSED')), '');
+  assert.equal(healthReminder(row('PRESENT', { checked: false, reminder: 'Chưa khám' })), 'Chưa khám');
+  assert.equal(healthReminder(row('PRESENT')), 'Chưa đo thân nhiệt');
+  assert.equal(healthReminder(row('PRESENT', { checked: true, latest: { temperature: 36.8 } })), '');
+  assert.equal(healthReminder(row('PRESENT', { checked: null, latest: null })), '');
 });

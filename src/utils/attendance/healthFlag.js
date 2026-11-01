@@ -30,3 +30,11 @@ export const flagTone = (latest) => {
   if (latest?.observation === 'NOTED') return 'red';
   return level?.chip?.replace('chip--', '') || 'gray';
 };
+
+// Nhắc bổ sung số đo sau khi điểm danh Có mặt đã được lưu; không kết luận khi thiếu dữ liệu sức khỏe.
+export const healthReminder = ({ record, healthSummary }) => {
+  if (record?.status !== 'PRESENT') return '';
+  if (healthSummary?.reminder) return healthSummary.reminder;
+  if (healthSummary?.checked && healthSummary.latest && !Number.isFinite(healthSummary.latest.temperature)) return 'Chưa đo thân nhiệt';
+  return '';
+};
