@@ -1,5 +1,12 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Sửa trùng lĩnh vực con khi lấy lại mục tiêu Bộ — 02/11/2026
+
+- User cho phép sửa CareNest_FE trong chat. Phạm vi một nhóm giáo dục: helper dùng lại lĩnh vực con/nhóm theo ID nguồn Bộ, fallback câu chỉ khi cả hai thiếu ID cha; chèn vào đúng đoạn cha, giữ normalize guard và dữ liệu cũ. Không đổi giao diện chọn hoặc tự dọn tiêu đề đã trùng.
+- RED trước sửa: curriculum 16 tests, pass12/fail4/skip0; lỗi đúng ở sub/group mới được tạo. Thêm regression hỗn hợp từ review: RED added1/unavailable manual thay vì added2. GREEN sau source cuối: 39/39 targeted curriculum/import-goals/import-goal-file; reviewer độc lập chạy lại đạt exit0 và không còn finding. Sáu ca mới bao phủ nhập lại ba chu kỳ, cha sửa tên/cùng tên khác ID, nhóm mới/sub cũ, mock thiếu ID, nhóm không-sub và chép nguồn Bộ/tự gõ.
+- Cổng cuối chạy sau hồ sơ bằng `node scripts/verify.mjs`; log `verify.log`, dòng VERIFY trong output bàn giao. Prettier đã chạy trực tiếp cho hai file .mjs vì glob format chung chỉ quét js/jsx/css. Đối chiếu DoD: đúng phạm vi, regression RED/GREEN, review và cổng thực tế; không có component/API mới cần kiểm role/responsive.
+- Tri thức: [incident](../knowledge/incidents/FE-BUG-261102-curriculum-reimport-headings.md), ISSUE_INDEX và bẫy trong year-plan-import. Chỉ sửa FE; incident BE trước đây giữ nguyên vì lượt này không có quyền sửa BE. Chưa kiểm trình duyệt/lưu-mở lại với BE thật; không commit/push/deploy.
+
 ## Phase2 hai chế độ nhập file —02/11/2026
 
 - User duyệt phase1 bằng “duyệt”; triển khai T013..T017 theo spec009/EDU-46. Modal radio full/present, mặc định full; preview phần thay/xóa/giữ và callback mang mode mới nhất. Model thay nguyên phần/clear hoặc keep phần thiếu, không mutate form/file, không patch fixed fields; ID mới không trùng, remap tick khi giữ cây nhưng thay chủ đề và báo liên kết mất. Page truyền range cấu hình thật vào preview/apply, thiếu range khóa apply; giữ parser/API/DB/lease/save/khôi phục/guard và nút lấy từ kế hoạch/Bộ.

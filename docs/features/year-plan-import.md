@@ -19,6 +19,8 @@ Xác nhận đọc lại nguồn. Nguồn đã đổi hoặc mất quyền thì 
 
 Nguồn và đích dùng flat rows với heading. Helper kiểm round-trip qua normalizer, tránh thêm sub đầu tiên làm đổi cha row đích cũ. Trường hợp không biểu diễn được báo chưa thêm, không tạo tên cha giả. Xem [case](../../../CareNest_BE/docs/knowledge/incidents/CASE-261028-year-plan-import-first-sub-reparent.md).
 
+Mục tiêu có liên kết Bộ phải dùng lại cha nguồn trong đúng lĩnh vực/sub và chèn trong đoạn của cha đó; không append cuối bảng rồi bỏ tiêu đề trùng. Xem [incident nhập lại](../knowledge/incidents/FE-BUG-261102-curriculum-reimport-headings.md).
+
 ## Kiểm chứng
 
 Node tests tại import-goals.test.mjs, import-goal-sources.test.mjs và year-plan-api.test.mjs; browser E2E ở tests/e2e/system/year-plan-import.spec.mjs. Kết quả cuối và giới hạn nằm trong [quickstart](../../../CareNest_BE/specs/003-import-year-plan-goals/quickstart.md). Chưa coi các lệnh dự kiến trong quickstart là bằng chứng đã chạy.
