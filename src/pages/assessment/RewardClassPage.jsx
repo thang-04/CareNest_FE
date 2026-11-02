@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, Download, History, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
@@ -39,6 +40,7 @@ const toForm = (detail) =>
 
 /** Danh sách đề xuất khen thưởng cuối năm của một lớp: GV chọn danh hiệu từng trẻ (có gợi ý), PHT xem xét, HT phê duyệt. */
 export default function RewardClassPage() {
+  const { user } = useAuth();
   const { classId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
@@ -142,7 +144,7 @@ export default function RewardClassPage() {
     }
     setBusy(send ? 'send' : 'save');
     try {
-      await saveRewardList(d.classId, items(), { submit: send });
+      await saveRewardList(d.classId, items(), { submit: send }, user);
       toast.success(send ? 'Đã gửi danh sách khen thưởng cho Phó hiệu trưởng.' : 'Đã lưu danh sách.');
       reload({ silent: true });
     } catch (err) {
@@ -162,8 +164,8 @@ export default function RewardClassPage() {
       return;
     }
     try {
-      if (d.canReview) await reviewRewardList(d.listId, { decision, comment });
-      else await decideRewardList(d.listId, { decision, comment });
+      if (d.canReview) await reviewRewardList(d.listId, { decision, comment }, user);
+      else await decideRewardList(d.listId, { decision, comment }, user);
       toast.success('Đã ghi nhận quyết định.');
       setDecision(null);
       reload({ silent: true });

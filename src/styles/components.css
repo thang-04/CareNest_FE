@@ -1855,29 +1855,6 @@ tr.sortable-item--moved > td {
   }
 }
 
-/* ---------- Asset thumbnail ---------- */
-.asset-thumb {
-  width: 64px;
-  height: 44px;
-  border-radius: var(--radius-xs);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--primary-25);
-  color: var(--asset-icon);
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-.asset-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.asset-thumb--sm {
-  width: 48px;
-  height: 32px;
-}
-
 /* ---------- Stepper (wizard header) ---------- */
 /* Thanh bước gọn (~70px) như form Lập kế hoạch năm học — mẫu chung cho mọi luồng nhiều bước (góp ý 20/10) */
 .stepper-card {

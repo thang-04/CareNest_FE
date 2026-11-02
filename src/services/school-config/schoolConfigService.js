@@ -2,29 +2,10 @@ import { sourceOf } from '@/services/demoSource';
 import { SCHOOL_CONFIG_API } from '@/config/env';
 import { beClient } from '@/services/http/beClient';
 import { schoolConfigMockRepository } from '@/services/school-config/mock/schoolConfigMockRepository';
-import { grantWrites } from '@/models/school-config/schoolConfigConstants';
 import { createSchoolConfigApi, schoolConfigApi } from '@/services/school-config/api/schoolConfigApi';
 
 // BE chưa có (Tài khoản nhân sự, Vai trò & quyền): khi nối thử vẫn dùng mock
 const NOT_IN_BE = ['getStaffAccounts', 'getStaffImpact', 'saveStaffAccount', 'updateStaffProfile', 'setStaffStatus'];
-
-const VP_AREAS_KEY = 'carenest.dev.vpAreas';
-const readVpAreas = () => {
-  try {
-    return JSON.parse(localStorage.getItem(VP_AREAS_KEY)) || {};
-  } catch {
-    return {};
-  }
-};
-const withVpAreas = (assignment, areas = {}) => ({
-  ...assignment,
-  areas,
-  sharedService: grantWrites(areas.menu, assignment.campusId),
-  areasV2: true,
-  staffArea: true,
-  areaActions: true,
-  teamLeaderArea: true,
-});
 
 const devBeRepo = () => {
   const api = createSchoolConfigApi(beClient);
@@ -38,26 +19,6 @@ const devBeRepo = () => {
         : api[name] || (() => Promise.reject({ status: 501, message: `Chưa nối BE: ${name}` })),
     ]),
   );
-  // Phân công PHT: điểm trường lưu ở BE; quyền theo chức năng BE chưa có nên còn lưu demo trên trình duyệt
-  repo.getViceAssignments = async (schoolYear, user) => {
-    const data = await api.getViceAssignments(schoolYear, user);
-    const areas = readVpAreas()[schoolYear] || {};
-    return {
-      ...data,
-      rows: data.rows.map((r) => ({ ...r, assignment: r.assignment && withVpAreas(r.assignment, areas[r.user.id]) })),
-    };
-  };
-  repo.saveViceAssignment = async (schoolYear, userId, form, user) => {
-    const result = await api.saveViceAssignment(schoolYear, userId, { campusId: form.campusId || null }, user);
-    const all = readVpAreas();
-    all[schoolYear] = { ...all[schoolYear], [userId]: form.areas || {} };
-    try {
-      localStorage.setItem(VP_AREAS_KEY, JSON.stringify(all));
-    } catch {
-      /* chỉ là demo quyền, không lưu được thì bỏ qua */
-    }
-    return result;
-  };
   return repo;
 };
 

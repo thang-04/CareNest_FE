@@ -9,8 +9,7 @@ import { withRoomManagers } from './roomManagers';
 /*
  * Rooms (= locations) management – PROPOSED 10/10/2026, outside SRS (decision to record in the Decision Log):
  * - Principal creates / edits / deletes; a Vice Principal views the rooms of the assigned campus;
- * - a room that still holds assets, is used by a class of an open year, is in an open inventory round or has an unfinished
- *   transfer can be neither deactivated nor deleted: the campus VP first moves the assets out with a transfer;
+ * - a room used by a class of an open year cannot be deleted or deactivated;
  * - delete is a soft delete (status DELETED): hidden from the list and every picker, kept so history still shows its name.
  */
 
@@ -43,11 +42,11 @@ const refersTo = (record, id) =>
   (Array.isArray(record?.locationIds) && record.locationIds.includes(id)) ||
   (Array.isArray(record?.sheets) && record.sheets.some((s) => s.locationId === id));
 
-/** Which collections reference the room: { classes: 2, assets: 5, ... }. */
+/** Which collections reference the room: { classes: 2 }. */
 const usageOf = (db, id) => {
   const usage = {};
   Object.entries(db).forEach(([key, list]) => {
-    if (key === 'locations' || !Array.isArray(list)) return;
+    if (!['classes'].includes(key) || !Array.isArray(list)) return;
     const n = list.filter((r) => refersTo(r, id)).length;
     if (n) usage[key] = n;
   });
@@ -97,10 +96,6 @@ export const masterDataMockRepository = {
   async getUsers() {
     await delay(60);
     return clone(readDb().users);
-  },
-  async getAssetCategories() {
-    await delay(60);
-    return clone(readDb().categories);
   },
 
   /** Rooms with usage for the Room List: classes of `schoolYear`, blockers. */

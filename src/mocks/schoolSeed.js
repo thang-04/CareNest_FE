@@ -164,7 +164,7 @@ export const buildSeedSchool = () => ({
   classes: seedClasses,
   children: [
     ...buildChildren(),
-    ...buildM1ExtraChildren(),
+    ...buildM1ExtraChildren().filter((child) => child.id !== 'ch_037'),
     {
       id: 'ch_new_1',
       code: 'HS26901',

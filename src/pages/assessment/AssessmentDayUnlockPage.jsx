@@ -1,3 +1,4 @@
+import { defaultUnlockUntil as defaultUntil, parseUnlockUntil } from '@/utils/assessment/unlockTime';
 import { useMemo, useState } from 'react';
 import { Lock, RotateCcw, Unlock } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,25 +18,15 @@ import { FilterMore } from '@/components/ui/FilterMore';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
-import { addDays, isSchoolDay, toIso, todayIso } from '@/utils/assessment/assessmentPeriods';
+import { addDays, isSchoolDay, todayIso } from '@/utils/assessment/assessmentPeriods';
 import { canUnlockAssessmentDay } from '@/utils/assessment/assessmentPermissions';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
-
-const pad = (n) => String(n).padStart(2, '0');
 
 const lastLockedDay = (yearStart) => {
   let d = addDays(todayIso(), -1);
   while (!isSchoolDay(d)) d = addDays(d, -1);
   return yearStart && d < yearStart ? '' : d;
-};
-
-/** "Mở đến" mặc định: 1 giờ sau hiện tại, không quá cuối ngày kết thúc năm học. */
-const defaultUntil = (yearEnd) => {
-  const d = new Date(Date.now() + 3600000);
-  const date = toIso(d);
-  if (yearEnd && date > yearEnd) return { untilDate: yearEnd, untilTime: '23:59' };
-  return { untilDate: date, untilTime: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
 };
 
 const EMPTY_FILTERS = { campusId: '', classId: '', active: '', from: '', to: '' };
@@ -111,7 +102,7 @@ export default function AssessmentDayUnlockPage() {
     const errs = {};
     if (!form.classId) errs.classId = 'Chọn lớp.';
     if (!isIsoDate(form.date)) errs.date = 'Chọn ngày cần mở lại.';
-    const until = new Date(`${form.untilDate}T${form.untilTime || ''}:00+07:00`);
+    const until = parseUnlockUntil(form.untilDate, form.untilTime);
     if (!isIsoDate(form.untilDate) || !form.untilTime || Number.isNaN(until.getTime())) errs.validUntil = 'Chọn ngày giờ hết hạn.';
     if (!form.reason.trim()) errs.reason = 'Nhập lý do mở lại.';
     setErrors(errs);

@@ -1,15 +1,5 @@
 import { useState } from 'react';
-import {
-  ClipboardCheck,
-  UtensilsCrossed,
-  Baby,
-  BookOpenCheck,
-  Star,
-  HeartPulse,
-  Building2,
-  CalendarCheck,
-  School,
-} from '@/components/ui/icons';
+import { ClipboardCheck, UtensilsCrossed, Baby, BookOpenCheck, Star, HeartPulse, CalendarCheck, School } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useWidget } from '@/hooks/dashboard/useDashboard';
@@ -22,18 +12,12 @@ import { ROLES } from '@/models/User';
 import { getPickupBoard } from '@/services/pickup/pickupService';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
 import { getEvaluations } from '@/services/assessment/assessmentService';
-import { getMyReports } from '@/services/facility/facilityService';
 import { ATTENDANCE_STATUS, HANDOVER_STATUS } from '@/models/attendance/attendanceConstants';
 import { PICKUP_STATUS } from '@/models/pickup/pickupConstants';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { EVAL_KIND, EVAL_STATUS } from '@/models/assessment/assessmentConstants';
-import { ISSUE_STATUS, REQUEST_STATUS } from '@/models/facility/facilityConstants';
 import { todayInput } from '@/utils/format';
-import { FACILITY_ENABLED } from '@/config/app';
 import { needsDemoLabel } from '@/services/demoSource';
-
-const OPEN_REPORT = [ISSUE_STATUS.SUBMITTED, REQUEST_STATUS.SUBMITTED, REQUEST_STATUS.PENDING_PRINCIPAL];
-
 /** Value at the end of a task row: spinner while loading, dash on error, else the count. */
 const endOf = (q, count) =>
   q.loading && q.data == null ? <Spinner small deferred /> : q.error ? <span className="muted">—</span> : <TaskCount value={count} />;
@@ -41,7 +25,7 @@ const metaOf = (q, text) => (q.error ? 'Không tải được – mở chức n�
 
 /**
  * Today's class tasks of a Teacher (#12) and of a Team Leader for their own class (#13):
- * attendance & meals, meal handover, pickup, lesson plans, evaluations, health, facilities.
+ * attendance & meals, meal handover, pickup, lesson plans, evaluations, health.
  * Only classes the user teaches (SRS 4.4 footnote ²); each figure comes from its own service call.
  */
 export function ClassTodayPanel() {
@@ -58,22 +42,74 @@ export function ClassTodayPanel() {
   const [picked, setPicked] = useState('');
   const classId = picked || classes[0]?.id || '';
   const cls = classes.find((c) => c.id === classId);
-
-  const attendanceQ = useWidget((u) => getClassAttendance(classId, date, u), [classId, date], { enabled: !!classId });
-  const handoverQ = useWidget((u) => getMealHandovers({ date }, u), [date], { enabled: !!classId && showHandover });
-  const pickupQ = useWidget((u) => getPickupBoard({ classId, date }, u), [classId, date], { enabled: !!classId });
-  const childrenQ = useWidget((u) => getChildren({ classId, status: 'ACTIVE' }, u), [classId], { enabled: !!classId });
+  const attendanceQ = useWidget((u) => getClassAttendance(classId, date, u), [classId, date], {
+    enabled: !!classId,
+  });
+  const handoverQ = useWidget(
+    (u) =>
+      getMealHandovers(
+        {
+          date,
+        },
+        u,
+      ),
+    [date],
+    {
+      enabled: !!classId && showHandover,
+    },
+  );
+  const pickupQ = useWidget(
+    (u) =>
+      getPickupBoard(
+        {
+          classId,
+          date,
+        },
+        u,
+      ),
+    [classId, date],
+    {
+      enabled: !!classId,
+    },
+  );
+  const childrenQ = useWidget(
+    (u) =>
+      getChildren(
+        {
+          classId,
+          status: 'ACTIVE',
+        },
+        u,
+      ),
+    [classId],
+    {
+      enabled: !!classId,
+    },
+  );
   const lessonsQ = useWidget(() => getEducationPlans().then((d) => d.lessons.filter((l) => l.classId === user.classId)), [user.classId]);
   const evaluationsQ = useWidget(
     (u) =>
-      Promise.all([getEvaluations(EVAL_KIND.PERIODIC, { classId }, u), getEvaluations(EVAL_KIND.YEAR_END, { classId }, u)]).then(
-        ([a, b]) => [...a, ...b],
-      ),
+      Promise.all([
+        getEvaluations(
+          EVAL_KIND.PERIODIC,
+          {
+            classId,
+          },
+          u,
+        ),
+        getEvaluations(
+          EVAL_KIND.YEAR_END,
+          {
+            classId,
+          },
+          u,
+        ),
+      ]).then(([a, b]) => [...a, ...b]),
     [classId],
-    { enabled: !!classId },
+    {
+      enabled: !!classId,
+    },
   );
-  const reportsQ = useWidget((u) => getMyReports(u), [], { enabled: FACILITY_ENABLED });
-
   if (classesQ.loading && !classesQ.data) {
     return <Widget title="Việc hôm nay của lớp" icon={School} loading />;
   }
@@ -91,7 +127,6 @@ export function ClassTodayPanel() {
       />
     );
   }
-
   const sheet = attendanceQ.data;
   const rows = sheet?.children || [];
   const recorded = rows.filter((r) => r.record).length;
@@ -105,9 +140,6 @@ export function ClassTodayPanel() {
   const lessonsWaiting = lessons.filter((l) => [EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP].includes(l.status)).length;
   const evaluationsToReview = (evaluationsQ.data || []).filter((e) => e.status !== EVAL_STATUS.CONFIRMED).length;
   const allergic = (childrenQ.data || []).filter((c) => (c.allergies || []).length).length;
-  const reports = reportsQ.data ? [...reportsQ.data.issues, ...reportsQ.data.requests] : [];
-  const openReports = reports.filter((r) => OPEN_REPORT.includes(r.status)).length;
-
   const schoolDay = sheet ? sheet.schoolDay : true;
   const attendanceHint = !sheet
     ? undefined
@@ -116,7 +148,6 @@ export function ClassTodayPanel() {
       : sheet.locked
         ? `Đã chốt lúc ${sheet.cutoff}`
         : `Chốt điểm danh lúc ${sheet.cutoff}`;
-
   return (
     <>
       {needsDemoLabel('school-lookup') && (
@@ -253,18 +284,6 @@ export function ClassTodayPanel() {
               title: 'Sức khỏe của trẻ',
               meta: 'Ghi số đo, theo dõi xu hướng cân nặng – chiều cao',
             },
-            ...(FACILITY_ENABLED
-              ? [
-                  {
-                    key: 'facility',
-                    to: '/facility/my-reports',
-                    icon: Building2,
-                    title: 'Báo sự cố & đề nghị CSVC',
-                    meta: metaOf(reportsQ, 'Báo cáo, đề nghị của bạn đang chờ xử lý'),
-                    end: endOf(reportsQ, openReports),
-                  },
-                ]
-              : []),
           ]}
         />
       </Widget>

@@ -1,5 +1,10 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Pre-PR review fixes — 02/11/2026
+
+- User requested fixing four findings in `2026-11-02-pre-pr-flow-review.md`. RED three demo regressions → GREEN nine focused tests. Full `node scripts/verify.mjs` passes, 487 tests, zero failures/skips, after final source edits.
+- Chrome 9/9 demo pages pass with runtime-error and duplicate-key-warning checks. Fresh seed 413 unique children; persisted duplicates archived without storage reset. Mock rewards count ticket periods without a missing schoolYear field. Backend monthly roster fix verified separately in sibling BE; no browser-to-real-BE/mobile E2E claim.
+
 ## Phase2 hai chế độ nhập file —02/11/2026
 
 - User duyệt phase1 bằng “duyệt”; triển khai T013..T017 theo spec009/EDU-46. Modal radio full/present, mặc định full; preview phần thay/xóa/giữ và callback mang mode mới nhất. Model thay nguyên phần/clear hoặc keep phần thiếu, không mutate form/file, không patch fixed fields; ID mới không trùng, remap tick khi giữ cây nhưng thay chủ đề và báo liên kết mất. Page truyền range cấu hình thật vào preview/apply, thiếu range khóa apply; giữ parser/API/DB/lease/save/khôi phục/guard và nút lấy từ kế hoạch/Bộ.
