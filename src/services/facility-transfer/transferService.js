@@ -1,13 +1,13 @@
-import { USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { transferMockRepository as mock } from '@/services/facility-transfer/mock/transferMockRepository';
 import { transferApi as api } from '@/services/facility-transfer/api/transferApi';
 
 /**
  * Facade used by hooks/pages. Components call these functions only;
- * switch to Spring Boot by setting VITE_USE_MOCK=false.
+ * nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js).
  * `user` is passed so the mock can enforce role rules (the API uses the JWT).
  */
-const repo = USE_MOCK ? mock : api;
+const repo = sourceOf('facility-transfer', mock, api);
 
 /* Transfers */
 export const getTransfers = (filters, user) => repo.list(filters, user);

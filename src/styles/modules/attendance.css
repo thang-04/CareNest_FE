@@ -71,9 +71,6 @@
 .dd-reception__col-status {
   width: calc(var(--space-16) * 2.625); /* đủ badge có icon "Chưa điểm danh" */
 }
-.dd-reception__col-meal {
-  width: calc(var(--space-16) * 1.625);
-}
 .dd-reception__table td:first-child {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -116,13 +113,6 @@
 .dd-reception__table th {
   white-space: nowrap;
 }
-.dd-reception__mealcell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
 .dd-reception__row {
   cursor: pointer;
 }
@@ -159,45 +149,8 @@
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
-.dd-reception__meal {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  cursor: pointer;
-}
-.dd-reception__meal .dd-check {
-  appearance: none;
-  position: relative;
-  width: var(--space-10);
-  height: var(--space-6);
-  margin: 0;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-full);
-  background: var(--color-secondary);
-  cursor: pointer;
-}
-.dd-reception__meal .dd-check::after {
-  content: '';
-  position: absolute;
-  top: var(--space-1);
-  left: var(--space-1);
-  width: var(--space-3-5);
-  height: var(--space-3-5);
-  border-radius: var(--radius-full);
-  background: var(--color-text-muted);
-}
-.dd-reception__meal .dd-check:checked {
-  background: var(--color-success-bg);
-  border-color: var(--color-success-fg);
-}
-.dd-reception__meal .dd-check:checked::after {
-  left: var(--space-5);
-  background: var(--color-success-fg);
-}
-.dd-reception__meal .dd-check:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.dd-reception__note {
+  margin: var(--space-2) 0 0;
 }
 .dd-reception__footer {
   /* Dính đáy màn hình: lớp đông trẻ vẫn thấy nút Lưu mà không phải cuộn xuống */
@@ -575,11 +528,6 @@
 .dd-count .card__body > .tabs {
   margin: var(--space-3) 0 0;
 }
-.dd-adjust-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
 .dd-count__actions {
   justify-content: flex-end;
 }
@@ -760,11 +708,7 @@
 .dd-reception__table td:last-child {
   padding-right: var(--space-3);
 }
-.dd-reception__table .dd-reception__meal {
-  flex-direction: row;
-  white-space: nowrap;
-}
-.dd-reception__table .dd-reception__status .dd-seg__item {
+.dd-reception__table .dd-reception__table .dd-reception__status .dd-seg__item {
   min-height: var(--space-8);
   padding-top: var(--space-1);
   padding-bottom: var(--space-1);

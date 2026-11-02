@@ -1,4 +1,4 @@
-import { PERMISSION_FEATURES } from '@/models/account/permissionConstants';
+import { PERMISSION_FEATURES, PERMISSION_GROUPS } from '@/models/account/permissionConstants';
 
 // Cột HT chỉ để đối chiếu: quyền HT cố định trong code BE, không có hàng trong ma trận (ADR-0017).
 export const PERMISSION_MATRIX_ROLES = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF'];
@@ -39,7 +39,10 @@ export const permissionFeatures = (catalog = []) => {
 };
 
 export const permissionFeatureLabel = (feature, catalog = []) =>
-  PERMISSION_FEATURES[feature.key]?.label || catalog.find((permission) => permission.feature === feature.key)?.description || feature.key;
+  PERMISSION_FEATURES[feature.key]?.label ||
+  PERMISSION_GROUPS[feature.key]?.label ||
+  catalog.find((permission) => permission.feature === feature.key)?.description ||
+  feature.key;
 
 /** Dòng bảng: mã xem đứng đầu nhóm, mã cần mã khác (`requires`) thụt vào dưới. */
 export const permissionTableRows = (catalog = [], features = permissionFeatures(catalog)) =>

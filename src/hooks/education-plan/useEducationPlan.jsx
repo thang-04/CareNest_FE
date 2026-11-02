@@ -247,13 +247,10 @@ export function EducationPlanProvider({ children }) {
           reload({ silent: true });
         }
       },
+      // Ném lỗi BE (403/409/5xx) cho màn gọi hiển thị; chỉ bỏ khỏi danh sách khi BE đã xóa
       deleteGoal: async (id) => {
-        try {
-          await service.deleteGoal(id, data?.goals.find((goal) => goal.id === id)?.revision);
-          setData((prev) => (prev ? { ...prev, goals: prev.goals.filter((goal) => goal.id !== id) } : prev));
-        } catch (error) {
-          toastApi.error(error.message, 'Không xóa được');
-        }
+        await service.deleteGoal(id, data?.goals.find((goal) => goal.id === id)?.revision);
+        setData((prev) => (prev ? { ...prev, goals: prev.goals.filter((goal) => goal.id !== id) } : prev));
       },
       saveTheme: saveIn('themes', service.saveTheme),
       deleteTheme: deleteIn('themes', service.deleteTheme),

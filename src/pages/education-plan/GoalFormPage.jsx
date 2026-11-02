@@ -47,6 +47,15 @@ const suggestTitle = (year, ageGroupId) => {
 };
 
 const STEPS = ['Thông tin chung', 'Mục tiêu, nội dung và chủ đề', 'Xác nhận'];
+// Bước nằm trên URL (?buoc=1..3; "ky" = bước Xác nhận) để Back/Forward của trình duyệt đi giữa các bước (Tiền 01/11)
+const stepOfUrl = (params) => {
+  const v = params.get('buoc');
+  if (v === 'ky') return STEPS.length - 1;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 && n <= STEPS.length ? n - 1 : 0;
+};
+// Số mục lịch sử bước đã đẩy dưới mục hiện tại của màn soạn
+const stepDepth = () => window.history.state?.usr?.cnStepDepth ?? 0;
 const uid = () => Math.random().toString(36).slice(2, 9);
 const editHandoffs = new Map();
 // BE:EDU-10 — phiên sửa hết hạn sau 90 giây không có tín hiệu
@@ -113,8 +122,9 @@ export default function GoalFormPage() {
   );
   // Mục tiêu là tab đầu (Tiền chọn 14/10); cột "Chủ đề thực hiện" hiện khi đã thêm chủ đề ở tab sau
   const [tab, setTab] = useState('goals');
-  const [step, setStep] = useState(() => (params.get('buoc') === 'ky' ? 2 : 0));
   const [maxReached, setMaxReached] = useState(existing ? 2 : 0);
+  // Mở thẳng bước sau (liên kết có ?buoc=) vẫn không vượt bước đã tới được
+  const step = Math.min(stepOfUrl(params), maxReached);
   const [errors, setErrors] = useState({});
   // BE:EDU-25 — phiên bản điều chỉnh dùng chung (năm học, nhóm tuổi) với các bản trước nên không tính là trùng
   const sameScope = existing && existing.schoolYear === form.schoolYear && existing.ageGroupId === form.ageGroupId;
@@ -205,9 +215,8 @@ export default function GoalFormPage() {
   const next = () => {
     if (!validate(step)) return;
     const n = Math.min(step + 1, STEPS.length - 1);
-    setStep(n);
     setMaxReached((m) => Math.max(m, n));
-    window.scrollTo({ top: 0 });
+    goStep(n);
   };
 
   const today = () => new Date().toISOString().slice(0, 10);
@@ -417,13 +426,44 @@ export default function GoalFormPage() {
       handingOff.current = true;
       const handoff = crypto.randomUUID();
       editHandoffs.set(handoff, { id: lockId, sessionId: editRef.current.sessionId });
-      navigate(`/education/goals/${lockId}/edit`, { replace: true, state: { yearPlanHandoff: handoff, backTo: location.state?.backTo } });
+      const to = `/education/goals/${lockId}/edit${location.search}`;
+      const state = { yearPlanHandoff: handoff, backTo: location.state?.backTo };
+      // Các mục bước của /new không còn dùng được (Back sẽ mở form tạo mới): lùi về mục đầu rồi thay bằng địa chỉ thật
+      const depth = stepDepth();
+      if (!depth) navigate(to, { replace: true, state });
+      else {
+        const arrived = () => {
+          window.removeEventListener('popstate', arrived);
+          navigate(to, { replace: true, state });
+        };
+        window.addEventListener('popstate', arrived);
+        window.history.go(-depth);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, lockId, saver.unsaved]);
-  const guard = useLeaveGuard({ when: saver.unsaved && !finished.current, onSave: saver.save });
-  // Rời màn soạn không để lại mục lịch sử: về đúng trang đã mở màn soạn thì lùi lại, trang khác thì thay chỗ (Back từ chi tiết ra danh sách)
-  const exitArgs = (to) => (location.state?.backTo === to ? [-1] : [to, { replace: true }]);
+  const guard = useLeaveGuard({ when: saver.unsaved && !finished.current, onSave: saver.save, inPageBack: () => stepDepth() > 0 });
+  const goStep = (n) => {
+    if (n === step) return;
+    const search = new URLSearchParams(params);
+    search.set('buoc', String(n + 1));
+    guard.step({ search: `?${search}` }, { state: { ...location.state, cnStepDepth: stepDepth() + 1 } });
+    window.scrollTo({ top: 0 });
+  };
+  // Rời màn soạn không để lại mục lịch sử nào (kể cả các bước): đích là trang đã mở màn soạn (backTo) hoặc trang trước
+  // nó (backToPrev, vd. danh sách → chi tiết → sửa) thì lùi đúng về mục đó; không thì lùi về mục đầu của màn rồi thay chỗ
+  const exitTo = (to) => () => {
+    const depth = stepDepth();
+    if (location.state?.backTo === to) return navigate(-(depth + 1));
+    if (location.state?.backToPrev === to) return navigate(-(depth + 2));
+    if (!depth) return navigate(to, { replace: true });
+    const arrived = () => {
+      window.removeEventListener('popstate', arrived);
+      navigate(to, { replace: true });
+    };
+    window.addEventListener('popstate', arrived);
+    window.history.go(-depth);
+  };
   const switchTab = (nextTab) => {
     if (nextTab !== tab) {
       setTab(nextTab);
@@ -443,8 +483,8 @@ export default function GoalFormPage() {
   const checkBeforeFinish = () => {
     for (const s of [0, 1]) {
       if (!validate(s)) {
-        setStep(s);
         setMaxReached((m) => Math.max(m, s));
+        goStep(s);
         return false;
       }
     }
@@ -484,7 +524,7 @@ export default function GoalFormPage() {
     }
     saver.clearRecovery();
     toast(action === 'submit' ? 'Đã gửi Phó hiệu trưởng duyệt' : 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
-    guard.leaveNow(...exitArgs(`/education/goals/${saved.id}`));
+    guard.leaveNow(exitTo(`/education/goals/${saved.id}`));
     return saved;
   };
 
@@ -635,7 +675,7 @@ export default function GoalFormPage() {
               )
             }
           />
-          <Stepper steps={STEPS} current={step} maxReached={maxReached} onStep={(i) => i <= maxReached && setStep(i)} />
+          <Stepper steps={STEPS} current={step} maxReached={maxReached} onStep={(i) => i <= maxReached && goStep(i)} />
           {step === 1 && (
             <Card
               title={tab === 'themes' ? 'Chủ đề, sự kiện trong năm' : 'Mục tiêu, nội dung giáo dục'}
@@ -882,13 +922,14 @@ export default function GoalFormPage() {
         <button
           type="button"
           className="btn"
-          onClick={() => guard.leave(...exitArgs(goals.some((g) => g.id === form.id) ? `/education/goals/${form.id}` : '/education/goals'))}
+          // Đóng ở bước nào cũng về danh sách (Tiền 01/11)
+          onClick={() => guard.leave(exitTo('/education/goals'))}
         >
           Đóng
         </button>
         <div className="row">
           {step > 0 && (
-            <button type="button" className="btn" onClick={() => setStep(step - 1)}>
+            <button type="button" className="btn" onClick={() => goStep(step - 1)}>
               <ArrowLeft size={16} aria-hidden /> Quay lại
             </button>
           )}

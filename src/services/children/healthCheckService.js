@@ -1,11 +1,11 @@
-import { USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { healthCheckMockRepository as mock } from '@/services/children/mock/healthCheckMockRepository';
 import { healthExamMockRepository as examMock } from '@/services/children/mock/healthExamMockRepository';
 import { healthCheckApi as api } from '@/services/children/api/healthCheckApi';
 
-/** Facade đợt khám sức khỏe, phiếu khám Phụ lục II và phiếu theo dõi. VITE_USE_MOCK=false chuyển sang Spring Boot. */
-const repo = USE_MOCK ? mock : api;
-const examRepo = USE_MOCK ? examMock : api;
+/** Facade đợt khám sức khỏe, phiếu khám Phụ lục II và phiếu theo dõi. Nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js). */
+const repo = sourceOf('children', mock, api);
+const examRepo = sourceOf('children', examMock, api);
 
 export const getHealthChecks = (filters, user) => repo.listHealthChecks(filters, user);
 export const getHealthCheck = (id, user) => repo.getHealthCheck(id, user);

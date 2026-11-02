@@ -1,19 +1,12 @@
-import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
+import { SCHOOL_CONFIG_API } from '@/config/env';
 import { beClient } from '@/services/http/beClient';
 import { schoolConfigMockRepository } from '@/services/school-config/mock/schoolConfigMockRepository';
 import { grantWrites } from '@/models/school-config/schoolConfigConstants';
 import { createSchoolConfigApi, schoolConfigApi } from '@/services/school-config/api/schoolConfigApi';
 
 // BE chưa có (Tài khoản nhân sự, Vai trò & quyền): khi nối thử vẫn dùng mock
-const NOT_IN_BE = [
-  'getStaffAccounts',
-  'getStaffImpact',
-  'saveStaffAccount',
-  'updateStaffProfile',
-  'setStaffStatus',
-  'getRolePermissions',
-  'saveRolePermissions',
-];
+const NOT_IN_BE = ['getStaffAccounts', 'getStaffImpact', 'saveStaffAccount', 'updateStaffProfile', 'setStaffStatus'];
 
 const VP_AREAS_KEY = 'carenest.dev.vpAreas';
 const readVpAreas = () => {
@@ -38,7 +31,11 @@ const devBeRepo = () => {
   const repo = Object.fromEntries(
     Object.keys(schoolConfigMockRepository).map((name) => [
       name,
-      NOT_IN_BE.includes(name) || !api[name] ? schoolConfigMockRepository[name].bind(schoolConfigMockRepository) : api[name],
+      NOT_IN_BE.includes(name)
+        ? sourceOf('staff-accounts', schoolConfigMockRepository, api)[name].bind(
+            sourceOf('staff-accounts', schoolConfigMockRepository, api),
+          )
+        : api[name] || (() => Promise.reject({ status: 501, message: `Chưa nối BE: ${name}` })),
     ]),
   );
   // Phân công PHT: điểm trường lưu ở BE; quyền theo chức năng BE chưa có nên còn lưu demo trên trình duyệt
@@ -65,7 +62,7 @@ const devBeRepo = () => {
 };
 
 /** Facade of school configuration: UI only calls these functions. */
-const repo = SCHOOL_CONFIG_API ? devBeRepo() : USE_MOCK ? schoolConfigMockRepository : schoolConfigApi;
+const repo = SCHOOL_CONFIG_API ? devBeRepo() : sourceOf('school-config', schoolConfigMockRepository, schoolConfigApi);
 
 export const getSchoolYears = (user) => repo.getSchoolYears(user);
 export const getSchoolYearById = (id, user) => repo.getSchoolYearById(id, user);

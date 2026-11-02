@@ -1,12 +1,13 @@
-import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
+import { SCHOOL_CONFIG_API } from '@/config/env';
 import { beClient } from '@/services/http/beClient';
 import { getChildren, getClasses } from '@/services/schoolService';
 import { isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
+import { sourceOf } from '@/services/demoSource';
 import { assessmentMockRepository as mock } from '@/services/assessment/mock/assessmentMockRepository';
 import { assessmentApi as api, createAssessmentBeApi } from '@/services/assessment/api/assessmentApi';
 
 /** Facade used by hooks / pages. VITE_USE_MOCK=false switches to Spring Boot. */
-const repo = USE_MOCK ? mock : api;
+const repo = sourceOf('assessment', mock, api);
 // Dev: đánh giá hằng ngày (2 view), mở lại ngày đánh giá, tổng quan đánh giá lớp dùng BE thật; phần còn lại vẫn mock
 const be = SCHOOL_CONFIG_API ? createAssessmentBeApi(beClient) : null;
 

@@ -1,6 +1,6 @@
-# Trung tâm phân quyền — UI G94-209, demo độc lập
+# Trung tâm phân quyền — UI G94-209
 
-Status: UI đã ghép, chờ BE · Nguồn user: chọn phương án 1 ngày 2026-10-19. Plan: [ghép chọn lọc](../plans/active/2026-10-18-selective-nutrition-permission-merge.md).
+Status: UI đã ghép; non-mock nối BE `PermissionController` từ 2026-11-01 (user yêu cầu) · Nguồn user: chọn phương án 1 ngày 2026-10-19. Plan: [ghép chọn lọc](../plans/active/2026-10-18-selective-nutrition-permission-merge.md).
 
 ## Actor & permission
 
@@ -17,13 +17,19 @@ Giữ guard Principal hiện tại cho cả route và mock repository. Không l�
 
 ## Dữ liệu và giới hạn
 
-Banner trên cả ba màn ghi rõ đây là **demo độc lập**, chưa tác động đăng nhập, quyền truy cập hay phân công đang chạy. Chỉ ghi `permissionCenterRoleRows`, `permissionCenterOverrides`, `permissionCenterChangeLogs` và version migration riêng. Không ghi `rolePermissions`, users, classes, vpAssignments hoặc dữ liệu sức khỏe/điểm danh. Các collection rỗng đã lưu không seed lại.
+Mock (`USE_MOCK=true`) là **demo độc lập**, chưa tác động đăng nhập, quyền truy cập hay phân công đang chạy; chỉ ghi `permissionCenterRoleRows`, `permissionCenterOverrides`, `permissionCenterChangeLogs` và version migration riêng. Không ghi `rolePermissions`, users, classes, vpAssignments hoặc dữ liệu sức khỏe/điểm danh. Các collection rỗng đã lưu không seed lại.
 
 Đây là lựa chọn UI demo theo user, không phải tính năng phân quyền thật hoặc mapping sang catalog cũ. Danh sách nhân sự chỉ chứa ID, tên demo, vai trò, trạng thái, số liên hệ demo và tên campus; không trả credential hoặc hồ sơ trẻ.
 
 ## API dùng
 
-Chưa có contract xác nhận để nối màn này. Service gọi mock khi USE_MOCK=true; non-mock trả lỗi 501 “cần thống nhất contract BE”, không tạo endpoint giả. BE cần thống nhất catalog, ma trận, ngoại lệ, lịch sử, hiệu lực và mapping scope trước khi áp vào hệ thống. Không sửa BE/App.
+Non-mock gọi `src/services/account/api/permissionApi.js` (chỉ PRINCIPAL; thay đổi có hiệu lực thật trên BE): `GET /permissions`, `GET`/`PUT /role-permissions/{role}`, `GET`/`PUT /accounts/{id}/permission-overrides`, `GET /permission-change-logs`; danh sách nhân sự = `GET /accounts?role=VICE_PRINCIPAL|TEACHER` (đọc hết trang, SĐT = `username`) + tên điểm trường từ `GET /campuses/options`. Contract: `BE:src/main/java/com/carenest/controller/account/PermissionController.java`.
+
+Lệch contract đã xử lý ở lớp API, UI không đổi:
+- Catalog BE chưa có `feature/action/requires` (đề xuất FE, BE chưa duyệt) ⇒ gom dòng theo `PERMISSION_TASKS[code].group`, `action` theo hậu tố `_VIEW`, `requires = []` (quan hệ cần-có để BE kiểm, FE không tự đặt).
+- BE chưa có API "người có ngoại lệ" ⇒ đọc ngoại lệ của từng nhân sự (1 request/người).
+- Override BE có `scope` (AUTH-20) nhưng UI chưa chọn ⇒ khi lưu giữ `scope` đang có của cùng mã + effect, mã mới để BE mặc định CAMPUS.
+- Lịch sử BE chưa trả `actorName`/`targetUserName` ⇒ UI hiện "Tài khoản #id".
 
 ## Trạng thái UI và state
 
@@ -41,6 +47,6 @@ Wizard phải hydrate draft sau 2→3→2, cả draft rỗng; lịch sử không
 
 ## Test
 
-`tests/integration/selective-merge/permission-center.test.mjs`: catalog, role/default/override/reset/history, input sai, 403/404, pagination, migration, TEAM_LEADER, snapshot dữ liệu protected, refresh phiên object/scope cũ, draft roundtrip. `npm run test:merge` bao gồm cả hồi quy bếp Phase 1; cổng đầy đủ `node scripts/verify.mjs`.
+`tests/integration/selective-merge/permission-center.test.mjs`: catalog, role/default/override/reset/history, input sai, 403/404, pagination, migration, TEAM_LEADER, snapshot dữ liệu protected, refresh phiên object/scope cũ, draft roundtrip. `npm run test:merge` bao gồm cả hồi quy bếp Phase 1; cổng đầy đủ `node scripts/verify.mjs`. `tests/auth/permission-api.test.mjs`: lớp API với BE giả (chuẩn hóa catalog, đọc hết trang tài khoản, lọc người có ngoại lệ, giữ scope, lỗi BE).
 
 Browser smoke mock riêng tại 127.0.0.1:5192 bằng Principal: mở URL/menu cũ, lưu mặc định kèm lý do, tạo ngoại lệ, quay lại wizard giữ draft, hiển thị dữ liệu đã lưu và lịch sử. Chưa kiểm BE thật, role khác trên browser, mobile hoặc lỗi mạng thật; không suy luận quyền thật từ mock.

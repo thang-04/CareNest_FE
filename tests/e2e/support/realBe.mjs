@@ -69,11 +69,11 @@ export async function api(email, method, path, { body, headers } = {}) {
   }
 }
 
-/** Header phiên sửa kế hoạch năm (EDU-10): X-Edit-Session, X-Plan-Revision, X-Request-Id. */
+/** Header phiên sửa kế hoạch năm (EDU-10): X-Edit-Session, X-Plan-Revision, Idempotency-Key. */
 export const editHeaders = (session, revision) => ({
   'X-Edit-Session': session,
   'X-Plan-Revision': String(revision ?? 0),
-  'X-Request-Id': randomUUID(),
+  'Idempotency-Key': randomUUID(),
 });
 export const newSession = () => randomUUID();
 

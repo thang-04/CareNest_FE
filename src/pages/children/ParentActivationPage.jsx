@@ -17,7 +17,7 @@ import { ParentAccountBadge } from '@/components/children/ChildBadges';
 import { AccountSlip, GuardianPanel } from '@/components/account/GuardianPanel';
 import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { StatCardIcon } from '@/components/ui/StatCardIcon';
-import { resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
+import { IS_GUARDIAN_DEMO, resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
 import { getChildDetail } from '@/services/children/childrenService';
 import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
 import { groupChildrenByClass, missingAccount, NO_CLASS, sortMissingFirst } from '@/utils/account/guardianCoverage';
@@ -177,9 +177,11 @@ export default function ParentActivationPage() {
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tài khoản phụ huynh')} />
-      <div className="alert alert--info">
-        Bản demo Web: thao tác tài khoản chưa kết nối BE/App thật. Giữ phạm vi quản lý phụ huynh hiện tại của bạn.
-      </div>
+      {IS_GUARDIAN_DEMO && (
+        <div className="alert alert--info">
+          Bản demo Web: thao tác tài khoản chưa kết nối BE/App thật. Giữ phạm vi quản lý phụ huynh hiện tại của bạn.
+        </div>
+      )}
       <div className="pa-head">
         <div className="pa-head__title">
           <h1 className="page__title">Tài khoản phụ huynh</h1>
@@ -492,8 +494,8 @@ export default function ParentActivationPage() {
             confirmModal.type === 'password'
               ? `Hệ thống sẽ tạo một mật khẩu tạm ngẫu nhiên mới và vô hiệu mật khẩu cũ của phụ huynh ${confirmModal.guardian.fullName}. Bạn có thể in hoặc sao chép phiếu mật khẩu ngay sau thao tác.`
               : confirmModal.guardian.status === 'ACTIVE'
-                ? `Khóa tài khoản phụ huynh ${confirmModal.guardian.fullName} trong dữ liệu demo? Chưa tác động App thật.`
-                : `Mở khóa tài khoản cho phụ huynh ${confirmModal.guardian.fullName} trong dữ liệu demo? Chưa tác động App thật.`
+                ? `Khóa tài khoản phụ huynh ${confirmModal.guardian.fullName}? Phụ huynh không đăng nhập được App cho tới khi mở khóa.`
+                : `Mở khóa tài khoản cho phụ huynh ${confirmModal.guardian.fullName}?`
           }
           danger={confirmModal.type === 'status' && confirmModal.guardian.status === 'ACTIVE'}
           confirmLabel={

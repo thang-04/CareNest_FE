@@ -1,9 +1,9 @@
-import { USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { facilityMockRepository as mock } from '@/services/facility/mock/facilityMockRepository';
 import { facilityApi as api } from '@/services/facility/api/facilityApi';
 
-/** Facade used by hooks/pages. VITE_USE_MOCK=false switches to Spring Boot. */
-const repo = USE_MOCK ? mock : api;
+/** Facade used by hooks/pages. Nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js). */
+const repo = sourceOf('facility', mock, api);
 
 export const getFacilityAssets = (filters, user) => repo.listAssets(filters, user);
 export const getFacilityLocations = (user) => repo.getScopeLocations(user);

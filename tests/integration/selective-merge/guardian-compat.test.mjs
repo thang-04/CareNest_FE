@@ -82,3 +82,12 @@ test('thông báo legacy giữ email key, không phát trùng và không nhận 
   db.parentAccounts[0].childIds = [];
   assert.equal(healthNotificationRecipients(db, canonical).length, 0);
 });
+test('tra SĐT trước khi thêm: chưa có, đã có tài khoản (tên che), đã liên kết với bé', async () => {
+  assert.equal((await repo.lookupGuardian(child.id, '0987654321', vp)).exists, false);
+  const added = await repo.addGuardian(child.id, form(), vp);
+  const linked = await repo.lookupGuardian(child.id, '0987654321', vp);
+  assert.deepEqual([linked.exists, linked.alreadyLinked, linked.userId], [true, true, added.userId]);
+  assert.ok(!linked.maskedFullName.includes('Liên hệ minh họa'));
+  const other = (await repo.searchChildren({ campusId: 'c1' }, vp)).items.find((row) => row.canManage && row.id !== child.id);
+  assert.equal((await repo.lookupGuardian(other.id, '0987654321', vp)).alreadyLinked, false);
+});
