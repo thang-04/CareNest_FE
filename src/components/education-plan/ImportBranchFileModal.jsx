@@ -8,8 +8,8 @@ import { branchFileChanges } from '@/models/education-plan/importBranchFile.mjs'
 import { USE_MOCK } from '@/config/env';
 import { branchTemplateFile } from '@/utils/education-plan/classPlanDoc';
 import { downloadDoc } from '@/utils/education-plan/yearPlanDoc';
+import { PLAN_IMPORT_ACCEPT as ACCEPT, validatePlanImportFile } from '@/utils/education-plan/planImportFile';
 
-const ACCEPT = '.docx,.doc,.xlsx,.csv';
 const SHOWN_WARNINGS = 8;
 
 export function ImportBranchFileModal({ classId, yearPlanId, user, draft, weeks, onImport, onClose }) {
@@ -23,6 +23,8 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, weeks,
     if (!file) return;
     setState({ status: 'loading', name: file.name });
     try {
+      const validation = validatePlanImportFile(file);
+      if (validation) throw new Error(validation);
       setState({ status: 'ready', name: file.name, preview: await previewBranchFile(file, { classId, yearPlanId }, user) });
     } catch (error) {
       setState({ status: 'error', message: error.message || 'Không đọc được file' });
