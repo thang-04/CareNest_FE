@@ -12,6 +12,8 @@ import {
   ClipboardText,
   Star,
   ListChecks,
+  CalendarCheck,
+  ShieldCheck,
 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { areaAccess, canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
@@ -67,22 +69,30 @@ const GROUPS = {
     label: 'Đánh giá trẻ',
     icon: Star,
   },
-  // Bốn nhóm dinh dưỡng – kho theo luồng BA (docs/features/nutrition-inventory.md)
-  catalog: {
-    label: 'Danh mục thực phẩm',
-    icon: Carrot,
+  // Sáu nhóm bán trú theo việc của PHT dinh dưỡng (BE docs/business/flows/meal-management-permissions.md mục 1)
+  boardingToday: {
+    label: 'Bán trú hôm nay',
+    icon: CalendarCheck,
   },
   nutrition: {
-    label: 'Dinh dưỡng',
+    label: 'Thực đơn & dinh dưỡng',
     icon: ForkKnife,
+  },
+  kitchenOps: {
+    label: 'Vận hành bếp',
+    icon: ChefHat,
   },
   stock: {
     label: 'Kho thực phẩm',
     icon: Boxes,
   },
-  foodReport: {
-    label: 'Báo cáo bếp',
-    icon: ChefHat,
+  foodSafety: {
+    label: 'An toàn thực phẩm',
+    icon: ShieldCheck,
+  },
+  catalog: {
+    label: 'Danh mục & thiết lập',
+    icon: Carrot,
   },
   system: {
     label: 'Hệ thống',
@@ -177,7 +187,7 @@ const ITEMS = {
     to: '/attendance/day-unlocks',
   },
   mealCount: {
-    label: 'Sổ báo ăn',
+    label: 'Sổ suất ăn',
     to: '/attendance/meal-count',
   },
   dailyHealthOverview: {
@@ -257,11 +267,11 @@ const ITEMS = {
     to: '/assessment/rewards',
   },
   menuFlow: {
-    label: 'Quy trình',
+    label: 'Quy trình thực đơn',
     to: '/menu/flow',
   },
   nutritionSetup: {
-    label: 'Thiết lập dinh dưỡng',
+    label: 'Cấu hình nhóm tuổi',
     to: '/menu/setup',
   },
   foods: {
@@ -277,11 +287,11 @@ const ITEMS = {
     to: '/menu/prices',
   },
   menus: {
-    label: 'Thực đơn mẫu (ngày)',
+    label: 'Thực đơn mẫu',
     to: '/menu/menus',
   },
   weeklyMenus: {
-    label: 'Thực đơn tuần',
+    label: 'Kế hoạch tuần & công bố',
     to: '/menu/weekly',
   },
   nutrition: {
@@ -289,21 +299,17 @@ const ITEMS = {
     to: '/menu/nutrition',
   },
   publishedMenu: {
-    label: 'Thực đơn đã công bố',
+    label: 'Thực đơn bếp nhận',
     to: '/kitchen/published-menu',
-  },
-  confirmedMealCount: {
-    label: 'Sổ báo ăn',
-    to: '/kitchen/meal-count',
   },
   // `exact`: /kitchen là tiền tố của mọi trang kho, chỉ sáng khi đúng trang quy trình
   kitchenDay: {
-    label: 'Quy trình bếp hôm nay',
+    label: 'Việc hôm nay',
     to: '/kitchen',
     exact: true,
   },
   stockReceipts: {
-    label: 'Nhập kho',
+    label: 'Phiếu nhập kho',
     to: '/kitchen/stock-receipts',
   },
   suppliers: {
@@ -311,15 +317,11 @@ const ITEMS = {
     to: '/kitchen/suppliers',
   },
   dryStock: {
-    label: 'Tồn kho',
+    label: 'Tồn kho khô',
     to: '/kitchen/dry-stock',
   },
-  stockIssues: {
-    label: 'Xuất kho',
-    to: '/kitchen/stock-issues',
-  },
   freshReceipts: {
-    label: 'Hàng tươi',
+    label: 'Kiểm nhận hàng tươi',
     to: '/kitchen/fresh-receipts',
   },
   foodSamples: {
@@ -327,7 +329,7 @@ const ITEMS = {
     to: '/kitchen/food-samples',
   },
   forecast: {
-    label: 'Dự trù thực phẩm',
+    label: 'Bản dự trù hàng tươi',
     to: '/kitchen/forecast',
   },
   profile: {
@@ -352,6 +354,18 @@ const group = (key, itemKeys) => ({
   })),
 });
 const account = group('system', ['profile', 'password']);
+// Thứ tự cố định của sáu nhóm bán trú; nhóm không có mục nào thì bỏ
+const boardingGroups = ({ today = [], nutrition = [], kitchenOps = [], stock = [], foodSafety = [], catalog = [] }) =>
+  [
+    ['boardingToday', today],
+    ['nutrition', nutrition],
+    ['kitchenOps', kitchenOps],
+    ['stock', stock],
+    ['foodSafety', foodSafety],
+    ['catalog', catalog],
+  ]
+    .filter(([, keys]) => keys.length)
+    .map(([key, keys]) => group(key, keys));
 const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
@@ -368,7 +382,7 @@ const MENUS = {
       'schoolRoles',
     ]),
     group('children', ['childList', 'parentActivation', 'healthChecks', 'healthFollowUps', 'healthTrends']),
-    group('attendance', ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('attendance', ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -380,10 +394,14 @@ const MENUS = {
       'assessDayUnlocks',
     ]),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
-    group('catalog', ['suppliers']),
-    group('nutrition', ['nutritionSetup', 'weeklyMenus', 'publishedMenu']),
-    group('stock', ['dryStock', 'stockIssues', 'freshReceipts']),
-    group('foodReport', ['foodSamples', 'forecast']),
+    ...boardingGroups({
+      today: ['kitchenDay'],
+      nutrition: ['weeklyMenus'],
+      kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
+      stock: ['dryStock'],
+      foodSafety: ['foodSamples'],
+      catalog: ['nutritionSetup', 'suppliers'],
+    }),
     account,
     link('notifications'),
   ],
@@ -408,7 +426,7 @@ const MENUS = {
       'healthFollowUps',
       'healthTrends',
     ]),
-    group('attendance', ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('attendance', ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
@@ -420,10 +438,14 @@ const MENUS = {
       'assessRewards',
       'assessDayUnlocks',
     ]),
-    group('catalog', ['foods', 'dishes']),
-    group('nutrition', ['menuFlow', 'nutritionSetup', 'menus', 'weeklyMenus', 'nutrition']),
-    group('stock', ['kitchenDay', 'stockReceipts', 'suppliers', 'dryStock', 'stockIssues', 'freshReceipts']),
-    group('foodReport', ['foodSamples', 'forecast']),
+    ...boardingGroups({
+      today: ['kitchenDay', 'menuFlow'],
+      nutrition: ['weeklyMenus', 'menus', 'nutrition'],
+      kitchenOps: ['mealCount', 'forecast', 'freshReceipts'],
+      stock: ['stockReceipts', 'dryStock'],
+      foodSafety: ['foodSamples'],
+      catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
+    }),
     account,
     link('notifications'),
   ],
@@ -446,14 +468,8 @@ const MENUS = {
     account,
     link('notifications'),
   ],
-  [ROLES.KITCHEN_STAFF]: [
-    link('home'),
-    group('nutrition', ['publishedMenu', 'confirmedMealCount']),
-    group('stock', ['kitchenDay', 'stockIssues', 'freshReceipts']),
-    group('foodReport', ['foodSamples', 'forecast']),
-    account,
-    link('notifications'),
-  ],
+  // AUTH-21: bếp chỉ dùng App, Web không có màn bán trú cho bếp
+  [ROLES.KITCHEN_STAFF]: [link('home'), account, link('notifications')],
 };
 
 /** "Phân công giáo viên" follows the permission of the Role & Permission screen; every other item stays role-based. */
@@ -496,10 +512,12 @@ const withTeacherAssignment = (menu, user) => {
 
 /** Mảng chưa được thêm cho Phó hiệu trưởng (Không có): ẩn nhóm / mục menu tương ứng. */
 const AREA_GROUPS = {
-  menu: ['catalog', 'nutrition'],
+  menu: ['nutrition'],
   children: ['children'],
 };
 const AREA_ITEMS = {
+  // NCC vẫn hiện để PHT lập phiếu nhập kho khi chưa được giao mảng thực đơn
+  menu: ['foods', 'dishes', 'nutritionSetup', 'menuFlow'],
   rooms: ['schoolRooms'],
   staff: ['schoolStaffView'],
   yearPlacement: ['schoolPlacement'],

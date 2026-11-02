@@ -17,11 +17,9 @@ import {
   getDryStockItem,
   getStockReceipt,
   getStockReceipts,
-  getStockIssues,
   getSupplier,
   getSuppliers,
   getWeeklyForecast,
-  getMealPreparations,
 } from '@/services/kitchen/kitchenService';
 
 /** Campus shown by a kitchen page: the Principal may pick any campus, everyone else stays on the assigned one. */
@@ -63,9 +61,6 @@ export const useSuppliers = ({ keyword = '', status = '' } = {}) =>
 
 export const useSupplier = (id, { live = true } = {}) =>
   useKitchenQuery((user) => getSupplier({ id }, user), [id], { enabled: !!id, live });
-
-export const useStockIssues = (campusId) =>
-  useKitchenQuery((user) => getStockIssues({ campusId }, user), [campusId], { enabled: !!campusId });
 
 export const usePublishedMenu = (date, view, campusId) => {
   const { user } = useAuth();
@@ -159,10 +154,3 @@ export const useWeeklyForecast = (campusId, weekStart) =>
 
 export const useFreshReceipt = (campusId, date, opts) =>
   useKitchenQuery((user) => getFreshReceipt({ campusId, date }, user), [campusId, date], { enabled: !!campusId && !!date, ...opts });
-
-export const useMealPreparations = (campusId, date) => {
-  const { data, ...rest } = useKitchenQuery((user) => getMealPreparations({ campusId, date }, user), [campusId, date], {
-    enabled: !!campusId && !!date,
-  });
-  return { sessions: data || [], ...rest };
-};

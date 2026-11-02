@@ -132,8 +132,8 @@ const buildSteps = (day, user, date) => {
           : issue.state === ISSUE_STATUS.AWAITING_LOT_ALLOCATION
             ? `${issue.code} · đủ hàng, bếp chọn lô để ghi xuất`
             : 'Tính nguyên liệu khi các bữa đã được chốt',
-      to: issue.code && canOpen('stockIssues') ? '/kitchen/stock-issues' : null,
-      linkLabel: 'Xem phiếu xuất',
+      to: canOpen('dryStock') ? KITCHEN_PAGES.dryStock.to : null,
+      linkLabel: 'Xem kho khô',
     },
     {
       key: 'samples',
@@ -183,7 +183,7 @@ const todoRows = (day, user) => {
       },
       {
         key: 'short',
-        to: '/kitchen/stock-issues',
+        to: KITCHEN_PAGES.dryStock.to,
         icon: Scale,
         title: 'Đồ khô xuất thiếu tồn',
         meta: 'Phiếu xuất ngày này có dòng thiếu',
@@ -280,14 +280,6 @@ export default function KitchenFlowPage({ asHome = false }) {
         )}
       </div>
 
-      {day?.legacyPreparation && isKitchenStaff(user) && (
-        <div className="alert alert--info">
-          <span>Dữ liệu cũ còn luồng chế biến để hoàn tất bàn giao đã có.</span>
-          <Link className="btn" to={`/kitchen/preparation/update?date=${date}`}>
-            Xử lý dữ liệu cũ
-          </Link>
-        </div>
-      )}
       <div className="db-board mb-16">
         <div className="db-board__main">
           <Widget
