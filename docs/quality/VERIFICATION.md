@@ -1,5 +1,69 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Phase2 hai chế độ nhập file —02/11/2026
+
+- User duyệt phase1 bằng “duyệt”; triển khai T013..T017 theo spec009/EDU-46. Modal radio full/present, mặc định full; preview phần thay/xóa/giữ và callback mang mode mới nhất. Model thay nguyên phần/clear hoặc keep phần thiếu, không mutate form/file, không patch fixed fields; ID mới không trùng, remap tick khi giữ cây nhưng thay chủ đề và báo liên kết mất. Page truyền range cấu hình thật vào preview/apply, thiếu range khóa apply; giữ parser/API/DB/lease/save/khôi phục/guard và nút lấy từ kế hoạch/Bộ.
+- RED model10fail/11 → GREEN11/11; modal RED3fail/7 → GREEN7/7; targeted28/28; toàn suite giáo dục133/133. Cổng đầu sau source cuối: `VERIFY PASS full | npm run verify | log verify.log`,369tests fail0/skip0, lint/format/design/build đạt (1cảnh báo lint hiện hữu). Expectation targetName/additive được thay theo quyết định mới, vẫn giữ ca trùng mã/khác tên để kiểm thay nguyên danh sách; incident đóng vì nhánh cũ không còn áp dụng, không thêm getter giả.
+- Browser harness source/CSS thật, đọc file/lease/save giả: full/present tại1440/375 đúng title/description/goals/themes/ticks, preview không đổi form, Hủy giữ form, missing yearRange khóa apply, readonly QH-DN-BH3dòng, keyboard tick giữ mã,0lỗi JS và không tràn body. Ảnh file-full/file-present ở node_modules/.cache/goal-ui-shots; log goal-import-browser.log. Hai test EDU-46 E2E đổi sang mode present để chủ động giữ lịch và expectation thay cây; thêm ca full clear/lưu/mở lại khi có BE credential. `node --check` đạt; cả ba E2E chưa chạy vì môi trường thiếu credential.
+- Review độc lập read-only không thấy Critical/Important/Minor mới có đủ bằng chứng trong delta; reviewer chạy lại model/modal18/18 và kiểm save mapper. Review không thay kiểm BE thật và không khẳng định full verify độc lập.
+- BE/Keycloak có listener8080/8180 nhưng E2E_DEV_PASSWORD không được cấu hình; không chạy E2E BE thật hoặc tuyên bố đã lưu/mở lại server. Chỉ sửa tài liệu BE, không source/schema/API/DB/dependency. Theo plan, dừng review phase2 trước phase3/converge; T018..20 không tự đánh dấu đã xong. Check-ai-layer và cổng FE chạy lại sau hồ sơ cuối; output bàn giao là bằng chứng cuối.
+
+
+## Mã tick xuống dòng, kế hoạch hai chế độ nhập — 02/11/2026
+
+- Sửa trình bày độc lập: GoalTables hiển thị từng thành phần mã ghép theo dòng, CSS pre-line/overflow-wrap thay nowrap/hidden; giữ abbr dữ liệu và hành vi tick. Browser source/CSS thật/dịch vụ giả: QH-DN-BH hiển thị đúng QH\nDN\nBH, hàng tự cao74.5px (scrollHeight75 làm tròn), 0 lỗi JavaScript; các ca card/nhập dòng/Back giữ đạt trong cùng harness.
+- Hai chế độ nhập theo yêu cầu mới chưa code: user đã duyệt [plan](../plans/active/2026-11-02-year-plan-file-replacement.md) và quyền tài liệu BE. Phase1 đã cập nhật Domain14/spec/clarify/plan/model/research/contract/tasks và EDU-46/module/impact; constitution giữ1.0.0. Analyze manual13/13 FR có task,0critical/high blockers, script kiểm14mục/20task IDs unique/9task delta/16quality items. T012 hoàn tất tài liệu; T013..20 còn mở. Theo cổng phase1 đã duyệt, chờ review trước logic nhập; chưa có test/converge hai mode mới.
+- Verify/check-ai-layer và lint/format/design/build chạy sau thay đổi cuối; kết quả ở output bàn giao/verify.log. Lỗi targetName cũ không được coi đã sửa. Không commit/push, chưa kiểm BE thật.
+
+## Thu cột nhãn, tách ô nhập dòng mới — 02/11/2026
+
+- Cột nhãn Thông tin chung máy tính192px, mobile40%, giữ card rộng. Dòng thêm chủ đề/đợt nghỉ bỏ ô colspan, chia đủ cột, ô tên nằm riêng cột2; không đổi logic tạo dòng, nhập ngày, sắp xếp/xóa.
+- Browser source/CSS thật/dịch vụ giả: RED phát hiện dòng thêm gộp cột → GREEN chủ đề11ô, đợt nghỉ6ô, mọi colspan1 và textbox ở cột2; nhập tên tạo dòng tương ứng và giữ đúng giá trị, label-width192px, không lỗi JS. Các kiểm tra đồng nhất card/bảng, Back và responsive hiện có vẫn chạy cùng harness.
+- BE updateYearPlan chỉ updateInfo(title,description) và saveContent, không đổi ageGroupId. Sau khi được giải thích tác động, user chốt Phó HT chỉ chọn nhóm lúc lập mới, bản đã lưu giữ cố định; giữ select khóa khi sửa, không sửa BE/APP.
+- User bổ sung: tổ trưởng chỉ một nhóm, nhóm đã có kế hoạch dù chưa ban hành phải khóa khi lập mới. Theo EDU-01/02, FE làm mờ option có nhãn “Đã có kế hoạch” trong cùng năm cho mọi người lập; tổ trưởng vẫn cố định nhóm, có thông báo mở danh sách nếu trùng. RED option chưa khóa → GREEN render4/4, bao phủ DRAFT/PENDING_VP/APPROVED, khác năm không khóa, tổ trưởng cố định. Browser lập mới Phó HT: select bật, ag-5 có bản nháp bị khóa, ag-4 trống chọn được, 0 lỗi JS.
+- Cổng verify/check-ai-layer và lint/format/design/build chạy sau thay đổi cuối; kết quả thực tế ở output/verify.log. Lỗi targetName hiện hữu ngoài phần bố cục vẫn được ghi riêng; chưa kiểm BE thật.
+
+## Bổ sung cuối — viền bảng và đồng nhất card chi tiết, 02/11/2026
+
+- User tiếp tục chốt tuần tự: bảng Thông tin chung dùng viền đậm như phần 2/3; card chi tiết cũng dài bằng hai phần sau. Bỏ giới hạn width riêng của card chi tiết, dùng Card chung; bảng nhập thêm lớp ga-goal-table có sẵn, không sao chép CSS viền.
+- Browser computed-style RED: viền bảng chung nhạt rgb(227,233,242), wrapper bo12px, header12px/lề12–20px; sau dùng chung lớp, header/ô nhãn/khung và bảng phần2/3 khớp solid1px rgb(163,174,189), góc0, header13px/700/lề8px12px. So các ô trong lưới cùng loại, không nhầm ô cuối hàng hoặc ô gộp lĩnh vực (border-right/bottom khác do cấu trúc).
+- Browser source/CSS thật, dữ liệu/phiên sửa giả: cả chi tiết và chỉnh sửa, ba card bằng nhau về width/left/background/border/radius/shadow/padding header-body/font title. Desktop1440: mỗi card1400px, mobile375:351px; radius20px, title18px/700; 0 lỗi JS và không tràn trang. Các ca Back sạch/Không lưu/Lưu giả lập vẫn đạt. Ảnh/log kiểm tra ở node_modules/.cache/goal-ui-shots và goal-browser-results.log (artifact cục bộ, không commit).
+- Cổng kiểm tra được chạy sau bản cuối; không báo toàn bộ pass khi test nhập file targetName hiện hữu vẫn thất bại. Chưa kiểm lưu/ban hành với BE thật.
+
+## Bổ sung mới nhất — Back Chrome và card chỉnh sửa, 02/11/2026
+
+- User yêu cầu bỏ nút Thoát ở cả hai trang, trạng thái lưu bên trái nút Lưu trên máy tính; card Thông tin chung khi chỉnh sửa rộng bằng phần 2/3. Thay quyết định thu hẹp bảng nhập của lượt trước; card chi tiết vẫn gọn.
+- Root cause Back: `state.backTo` không sửa browser history; liên kết sửa trước đây push nên Back vẫn gặp detail. Cả Chỉnh sửa/Tạo phiên bản từ detail nay replace, giữ nguyên guard dùng chung. Browser RED: Back → Không lưu không về list; GREEN: danh sách → chi tiết → sửa → Back về list khi sạch, khi chọn Không lưu (1440/375), và khi chọn Lưu (giả lập lưu thành công). Không tuyên bố lưu BE thật.
+- Harness source/CSS thật, dịch vụ/phiên sửa giả: không nút Thoát, ba card form đều 1400px ở viewport1440, trạng thái lưu đứng bên trái và cùng hàng nút Lưu, mobile375 không tràn trang; sticky top64px, 0 lỗi JS. Ban đầu harness markClean rỗng làm ca sạch bị coi là bẩn; mô phỏng đúng markClean rồi chạy lại toàn bộ đạt. Test render 3/3, kiểm cả vị trí trạng thái và replace của liên kết sửa.
+- Cổng đầy đủ, lint/format/design/build và check-ai-layer chạy lại sau thay đổi cuối; kết quả cuối ở output bàn giao/verify.log. Lỗi nhập file targetName nêu dưới vẫn ngoài phạm vi; chưa kiểm BE/Keycloak thật, không commit/push.
+
+## Đồng bộ chi tiết/chỉnh sửa mục tiêu năm học — 02/11/2026
+
+- Làn M, user cho phép sửa FE và chốt [bố cục](../features/year-plan-preview-edit.md): cùng ba phần, không tab chi tiết, header cố định/nút outline, Nhập file bên trái, Lưu/Ban hành/Xuất bên phải; thông tin chung cả hai trang 448px theo token, bảng nhập xám trắng; Thoát form về danh sách qua guard.
+- Test render `year-plan-layout.test.mjs`: RED chi tiết còn tab → GREEN 3/3, gồm thứ tự phần, kiểu nút, nhóm nhập/xuất và đích thoát của liên kết sửa. Browser harness dùng source/CSS thật và dữ liệu/phiên sửa giả lập: 1440px/375px không tràn trang, cả hai summary 448px/351px; sticky form top64px khi cuộn; sửa mô tả → Thoát → Không lưu về danh sách ở cả hai kích thước, 0 lỗi JS.
+- `npm run check` đạt lint/format/design/build; còn 1 cảnh báo lint hiện hữu trong ImportGoalFileModal. `check-ai-layer` đạt 0 lỗi/14 cảnh báo sau khi bổ sung memory.
+- Cổng đầy đủ chưa đạt: `node scripts/verify.mjs` báo `VERIFY FAIL full`, suite education-plan 126/127, lỗi targetName khi chủ đề nhập trùng mã khác tên; test/model liên quan không thuộc diff này. Test riêng tái hiện cùng lỗi. Đã ghi [incident đang mở](../knowledge/incidents/FE-BUG-261102-import-target-name.md); không sửa logic nhập file trong task UI. Chạy lại cổng sau tài liệu cuối, kết quả bàn giao và verify.log là bằng chứng cuối.
+- Chưa chạy E2E với BE/Keycloak thật, chưa xác minh lưu/ban hành thật. Không commit/push.
+
+## Mục tiêu năm học một trang — 02/11/2026
+
+- User chốt [bố cục một trang](../features/year-plan-preview-edit.md): nhập/lấy dữ liệu ở đầu, thông tin chung → chủ đề (2) → mục tiêu (3); bỏ bước/tab/duyệt lại/thanh Đóng. Giữ lưu/gửi/ban hành/phiên sửa và guard; không đổi BE/APP/API/dependency.
+- Test render bố cục RED thiếu nút nhập trên đầu → GREEN 1/1; cổng FE đạt `VERIFY PASS full`, 347 tests, fail0/skip0; chạy lại sau thay đổi cuối, đối chiếu output bàn giao/verify.log. Cập nhật ba suite E2E bỏ thao tác bước/tab và kiểm Back/cảnh báo chưa lưu theo một trang.
+- Browser harness dùng source/CSS thật, dữ liệu tổng hợp và hook dữ liệu/lưu giả lập: 1440px/375px đủ ba phần đúng thứ tự, không tab/footer, scrollWidth bằng viewport, 0 lỗi JavaScript; mở được hộp Nhập file. Lượt harness đầu thiếu CSS module nên báo tràn ngang, nạp đủ CSS và kiểm lại đạt. Chưa chạy E2E với BE/Keycloak thật, chưa kiểm lưu/ban hành thật.
+
+## Bổ sung 02/11/2026 — tải mẫu và đồng bộ modal nhập nhánh
+
+- Tải mẫu Word bằng helper/khung xuất hiện có, tên chủ đề theo tuần hiển thị, tên nhánh trống; không mang lịch/nháp/người ký. Modal cùng size/hàng nút/footer/cách rút cảnh báo với nhập mục tiêu, giữ preview/xác nhận.
+- RED template0/2, modal0/2; GREEN4/4. FE `node scripts/verify.mjs`: VERIFY PASS full, 346 tests, fail0/skip0, lint/format/design/build đạt.
+- Browser component source/CSS thật: tải Word đúng tên/header/3 dòng trống, không ngày/tên nháp, chiều rộng bằng modal mục tiêu và các nút cùng hàng; mobile375 không tràn, 0 lỗi JS. Không chạy lại full E2E BE trong lượt UI này; không sửa API/DB/quyền. [Chi tiết](../../../CareNest_BE/specs/008-branch-plan-file-import/quickstart.md).
+
+## Feature008 — nhập chủ đề nhánh, bàn giao 02/11/2026
+
+- User cho phép hoàn thành không dừng giữa phase; [nguồn nghiệp vụ/contract/quy trình](../../../CareNest_BE/specs/008-branch-plan-file-import/quickstart.md). Nhập theo matches server, xem trước/xác nhận thay tên/lưu tay, giữ dữ liệu ngoài matches/AI pending còn lại; Lưu/gửi luôn hiện và khóa đúng quyền/trạng thái.
+- Sau source cuối: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`, 342 tests, fail0/skip0; lint/format/design/build đạt. Có14test mới, mock CSV dùng đúng7124–26 và scope, parser CSV chung giữ export tuyển sinh.
+- Real-BE jar cuối: branch3/3 gồm mobile375/chuỗi duyệt và goal17/17 gồm .doc bước2; edu-plan-flows19/19 đạt lượt trước bản vá decoder. Các lần thử lỗi/helper/ID-domain và kết quả cuối được phân biệt trong quickstart BE, không gộp thành một lượt39/39.
+- Cấu hình không đổi, local USE_MOCK=false; Word/Excel cần BE thật, mock CSV có hướng dẫn. Không commit/push/deploy; runtime kiểm thử riêng đã dọn.
+
 ## Iron Law
 Không nói "xong / pass / đã sửa" khi chưa có **output lệnh chạy trong lượt này, sau lần sửa cuối**. Suy luận, kết quả lượt trước không phải bằng chứng. **Skip hoặc chưa chạy = chưa kiểm chứng** — báo đúng (`Verify: chưa chạy — <lý do>`).
 

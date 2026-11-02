@@ -39,7 +39,7 @@ export const storageKeys = (page, part) => page.evaluate((p) => Object.keys(loca
 
 /** Bấm nút hành động duyệt (ReviewActions) rồi xác nhận trong hộp; note cho Trả lại. */
 export async function review(page, button, confirm, note) {
-  await page.getByRole('button', { name: button }).first().click();
+  await page.getByRole('button', { name: button, exact: typeof button === 'string' }).first().click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   if (note !== undefined) await dialog.locator('#review-note').fill(note);
