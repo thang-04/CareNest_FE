@@ -1,5 +1,8 @@
 import { Check, WarningCircle, AlertOctagon, RefreshCw, Lock, SearchX } from '@/components/ui/icons';
 import { useAppearance } from '@/contexts/AppearanceContext';
+import { LottiePlayer } from './LottiePlayer';
+
+const loadCheckmark = () => import('@/assets/lottie/checkmark.json');
 
 /** Ba chấm màu logo nảy lần lượt; trong nút thì theo màu chữ của nút. `deferred`: chờ tải dữ liệu, chỉ hiện khi tải lâu. */
 export const Spinner = ({ small, deferred }) => (
@@ -94,9 +97,16 @@ export function SubmitOverlay({ state = 'sending', text, sub, onRetry, onClose }
     <div className={`submit-veil submit-veil--${state}`} role="status" aria-live="polite">
       {state === 'sending' && <Spinner />}
       {state === 'done' && (
-        <span className="submit-veil__icon" aria-hidden="true">
-          <Check size={24} />
-        </span>
+        <LottiePlayer
+          load={loadCheckmark}
+          loop={false}
+          className="submit-veil__check"
+          fallback={
+            <span className="submit-veil__icon">
+              <Check size={24} />
+            </span>
+          }
+        />
       )}
       {state === 'error' && (
         <span className="submit-veil__icon" aria-hidden="true">

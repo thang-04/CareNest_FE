@@ -5,7 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useEvaluation } from '@/hooks/assessment/useAssessment';
-import { confirmEvaluation, regenerateEvaluationDraft, saveEvaluationDraft } from '@/services/assessment/assessmentService';
+import {
+  confirmEvaluation,
+  markProgramCompletion,
+  regenerateEvaluationDraft,
+  saveEvaluationDraft,
+} from '@/services/assessment/assessmentService';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
@@ -15,94 +20,16 @@ import { Modal } from '@/components/ui/Modal';
 import { useAiRun } from '@/hooks/useAiRun';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
-import { EMOTION_LABELS, EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
-import { BEHAVIORS, NAP, NAP_LABELS } from '@/models/assessment/dailyObservationOptions';
-import { HEALTH_SYMPTOMS } from '@/utils/dailyHealthValidation';
-import { mealsText } from '@/components/assessment/DailyAssessmentCells';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
+import { Pagination, paginate } from '@/components/ui/Pagination';
+import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
+import { formatDateTime } from '@/utils/format';
 import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
 import { canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { validateEvaluationContent, hasErrors } from '@/utils/assessment/assessmentValidation';
 
 const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp tục viết đánh giá thủ công.';
-
-const GoalChip = ({ goal, tone }) => (
-  <span className={`chip chip--${tone}`} title={goal.description || goal.name}>
-    {goal.name}
-  </span>
-);
-
-/** Đánh giá hằng ngày trong kỳ, mỗi ngày một dòng, cùng cột với màn Đánh giá hằng ngày (căn cứ của bản nháp AI). */
-function DayTable({ days, mealSessions, classId, linkDays }) {
-  if (!days.length) return <div className="muted">Không có đánh giá hằng ngày nào trong kỳ.</div>;
-  const dash = <span className="muted">—</span>;
-  return (
-    <div className="table-wrap">
-      <table className="table table--grid dg-days">
-        <thead>
-          <tr>
-            <th>Ngày</th>
-            <th>Sức khỏe</th>
-            <th>Ăn</th>
-            <th>Ngủ</th>
-            <th>Cảm xúc</th>
-            <th>Hành vi</th>
-            <th>Kiến thức, kỹ năng</th>
-            <th>Nhận xét</th>
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((d) => (
-            <tr key={d.date}>
-              <td className="nowrap">
-                {linkDays ? (
-                  <Link to={`/assessment/daily?classId=${classId}&date=${d.date}`} title="Mở đánh giá hằng ngày của ngày này">
-                    {formatDate(d.date)}
-                  </Link>
-                ) : (
-                  formatDate(d.date)
-                )}
-              </td>
-              <td className={d.health?.signs.length ? 'dg-cell--warn' : ''}>
-                {d.health ? (
-                  <>
-                    {d.health.signs.length ? d.health.signs.map((x) => HEALTH_SYMPTOMS[x] || x).join(', ') : 'Bình thường'}
-                    {d.health.note && <div className="muted text-xs">{d.health.note}</div>}
-                  </>
-                ) : (
-                  dash
-                )}
-              </td>
-              <td>{d.meals ? mealsText(d.meals, mealSessions) : dash}</td>
-              <td className={d.nap && d.nap !== NAP.NGU_TOT ? 'dg-cell--warn' : ''}>{d.nap ? NAP_LABELS[d.nap] : dash}</td>
-              <td>{d.emotion ? EMOTION_LABELS[d.emotion] : dash}</td>
-              <td>
-                {d.behaviors.length ? d.behaviors.map((x) => BEHAVIORS[x] || x).join(', ') : dash}
-                {d.behaviorNote && <div className="muted text-xs">{d.behaviorNote}</div>}
-              </td>
-              <td>
-                {d.met.length || d.notMet.length ? (
-                  <div className="dg-days__goals">
-                    {d.met.map((g) => (
-                      <GoalChip key={g.id} goal={g} tone="green" />
-                    ))}
-                    {d.notMet.map((g) => (
-                      <GoalChip key={g.id} goal={g} tone="orange" />
-                    ))}
-                  </div>
-                ) : (
-                  dash
-                )}
-              </td>
-              <td className="dg-days__comment">{d.comment || dash}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 /** Shared body of #56 Periodic Evaluation Detail and #59 Year-end Evaluation Detail (UC 4.5, 4.6). */
 export function EvaluationReviewView({ kind, id }) {
@@ -113,10 +40,12 @@ export function EvaluationReviewView({ kind, id }) {
   const { detail, loading, error, reload } = useEvaluation(kind, id, { live: false });
   const [content, setContent] = useState('');
   const [contentError, setContentError] = useState('');
+  const [programError, setProgramError] = useState('');
   const [busy, setBusy] = useState('');
   const { run: runAi } = useAiRun();
   const [fresh, setFresh] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dayPage, setDayPage] = useState(1);
   const yearEnd = kind === EVAL_KIND.YEAR_END;
   const base = `/assessment/${yearEnd ? 'year-end' : 'periodic'}`;
 
@@ -146,12 +75,31 @@ export function EvaluationReviewView({ kind, id }) {
   const showDraft = canViewAiDraft(ev, detail.cls, user);
   const confirmed = ev.status === EVAL_STATUS.CONFIRMED;
   const label = evaluationPeriodLabel(ev);
-  const name = (uid) => md.userById(uid)?.fullName || 'Hệ thống';
+  // BE gửi kèm tên người xử lý; mock tra danh mục người dùng
+  const name = (uid, shown) => shown || md.userById(uid)?.fullName || 'Hệ thống';
 
   const check = () => {
     const errors = validateEvaluationContent(content);
     setContentError(errors.content || '');
     return !hasErrors(errors);
+  };
+  // Lớp 5–6 tuổi: đánh giá cuối năm phải chọn Hoàn thành / Chưa hoàn thành chương trình trước khi xác nhận
+  const checkProgram = () => {
+    const missing = ev.programApplicable && ev.programCompleted == null;
+    setProgramError(missing ? 'Chọn Hoàn thành hoặc Chưa hoàn thành chương trình cho trẻ.' : '');
+    return !missing;
+  };
+  const markProgram = async (completed) => {
+    setProgramError('');
+    setBusy('program');
+    try {
+      await markProgramCompletion(ev.id, completed, user);
+      await reload({ silent: true });
+    } catch (err) {
+      setProgramError(err.details?.programCompleted || err.message || 'Chưa lưu được.');
+    } finally {
+      setBusy('');
+    }
   };
 
   const run = async (key, fn, success) => {
@@ -163,6 +111,9 @@ export function EvaluationReviewView({ kind, id }) {
       return res;
     } catch (err) {
       toast.error(err, 'Không thực hiện được');
+      // Lỗi nội dung từ BE (7340–7343) hiện đỏ dưới ô nhập
+      if (err.details?.content) setContentError(err.details.content);
+      if (err.details?.programCompleted) setProgramError(err.details.programCompleted);
       if (err.status === 409) reload({ silent: true });
       return null;
     } finally {
@@ -222,14 +173,14 @@ export function EvaluationReviewView({ kind, id }) {
               {!yearEnd && <span>Đánh giá hằng ngày {detail.summary.assessedDays} ngày</span>}
               {confirmed && (
                 <span>
-                  Xác nhận bởi {name(ev.confirmedBy)} · {formatDateTime(ev.confirmedAt)}
+                  Xác nhận bởi {name(ev.confirmedBy, ev.confirmedByName)} · {formatDateTime(ev.confirmedAt)}
                 </span>
               )}
             </div>
           </div>
         </div>
         {yearEnd && confirmed && isClassTeacher(detail.cls, user) && (
-          <Link className="btn btn--outline-primary" to={`/assessment/rewards/new?childId=${ev.childId}&classId=${ev.classId}`}>
+          <Link className="btn btn--outline-primary" to={`/assessment/rewards/${ev.classId}`}>
             <Award size={16} /> Đề xuất khen thưởng
           </Link>
         )}
@@ -310,6 +261,27 @@ export function EvaluationReviewView({ kind, id }) {
                 />
               </FormField>
               <div className="muted text-xs dg-right">{content.length}/3000</div>
+              {ev.programApplicable && (
+                <FormField label="Hoàn thành chương trình GDMN" required error={programError}>
+                  <div className="row gap-4" role="radiogroup" aria-label="Hoàn thành chương trình GDMN">
+                    {[
+                      [true, 'Hoàn thành'],
+                      [false, 'Chưa hoàn thành'],
+                    ].map(([value, text]) => (
+                      <label key={text} className="radio">
+                        <input
+                          type="radio"
+                          name={`program-${ev.id}`}
+                          checked={ev.programCompleted === value}
+                          disabled={!!busy}
+                          onChange={() => markProgram(value)}
+                        />
+                        {text}
+                      </label>
+                    ))}
+                  </div>
+                </FormField>
+              )}
             </div>
           </div>
         </div>
@@ -324,8 +296,13 @@ export function EvaluationReviewView({ kind, id }) {
             {confirmed ? (
               <>
                 <div className="dg-final">{ev.finalContent}</div>
+                {ev.programApplicable && (
+                  <div className="mt-12">
+                    Chương trình GDMN: <b>{ev.programCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}</b>
+                  </div>
+                )}
                 <div className="muted text-sm mt-12">
-                  Xác nhận bởi {name(ev.confirmedBy)} · {formatDateTime(ev.confirmedAt)}
+                  Xác nhận bởi {name(ev.confirmedBy, ev.confirmedByName)} · {formatDateTime(ev.confirmedAt)}
                 </div>
               </>
             ) : (
@@ -340,7 +317,7 @@ export function EvaluationReviewView({ kind, id }) {
       <div className="card mt-16">
         <div className="card__header">
           <div className="card__title">{yearEnd ? 'Đánh giá tháng đã xác nhận trong năm học' : 'Đánh giá hằng ngày trong kỳ'}</div>
-          {!yearEnd && <span className="muted text-sm">Xanh: đạt · Cam: chưa đạt</span>}
+          {!yearEnd && <span className="muted text-sm">Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>}
         </div>
         <div className="card__body">
           {yearEnd ? (
@@ -357,7 +334,24 @@ export function EvaluationReviewView({ kind, id }) {
               <div className="muted">Chưa có đánh giá tháng nào được xác nhận. Thiếu dữ liệu nguồn – hãy xem lại các hồ sơ hiện có.</div>
             )
           ) : (
-            <DayTable days={detail.days} mealSessions={detail.mealSessions} classId={ev.classId} linkDays={canReview} />
+            <>
+              {/* Kỳ tháng tới ~22 ngày: 10 ngày / trang như bảng này ở Hồ sơ phát triển */}
+              <DailyDaysTable
+                days={paginate(detail.days, Math.min(dayPage, Math.max(1, Math.ceil(detail.days.length / 10))), 10)}
+                mealSessions={detail.mealSessions}
+                classId={ev.classId}
+                linkDays={canReview}
+              />
+              {detail.days.length > 10 && (
+                <Pagination
+                  page={Math.min(dayPage, Math.ceil(detail.days.length / 10))}
+                  total={detail.days.length}
+                  pageSize={10}
+                  onChange={setDayPage}
+                  unit="ngày"
+                />
+              )}
+            </>
           )}
         </div>
       </div>
@@ -376,7 +370,7 @@ export function EvaluationReviewView({ kind, id }) {
                   <div className="history-list__dot" />
                   <div>
                     <div>
-                      <b>{EVAL_HISTORY_LABELS[h.action] || h.action}</b> · {name(h.userId)}
+                      <b>{EVAL_HISTORY_LABELS[h.action] || h.action}</b> · {name(h.userId, h.userName)}
                     </div>
                     {h.note && <div className="text-2">“{h.note}”</div>}
                     <div className="muted text-xs">{formatDateTime(h.at)}</div>
@@ -397,7 +391,11 @@ export function EvaluationReviewView({ kind, id }) {
             <button className="btn" onClick={save} disabled={!!busy}>
               {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
             </button>
-            <button className="btn btn--primary" onClick={() => check() && setConfirmOpen(true)} disabled={!!busy}>
+            <button
+              className="btn btn--primary"
+              onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
+              disabled={!!busy}
+            >
               <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
             </button>
           </div>

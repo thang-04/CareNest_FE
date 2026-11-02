@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Info, KeyRound } from '@/components/ui/icons';
+import { AUTH_USE_MOCK } from '@/config/env';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb, FormField, LoadingState, PasswordInput, Spinner } from '@/components';
@@ -17,7 +18,7 @@ const EMPTY = { currentPassword: '', newPassword: '', confirmPassword: '' };
 
 /** Screen 6 – Password Change (SRS 1.2) for a signed-in user. */
 export default function ChangePasswordPage() {
-  const { user } = useAuth();
+  const { user, endSession } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,9 +57,16 @@ export default function ChangePasswordPage() {
       await changePassword(values, user);
       setValues(EMPTY);
       toast.success('Mật khẩu của bạn đã được thay đổi thành công.');
-      navigate(backTo, { replace: true });
+      if (AUTH_USE_MOCK) navigate(backTo, { replace: true });
+      else {
+        const notice = 'Mật khẩu mới đã được lưu. Vui lòng đăng nhập lại.';
+        endSession(notice);
+        navigate('/login', { replace: true, state: { notice } });
+      }
     } catch (err) {
-      if (err.details && typeof err.details === 'object') setErrors(err.details);
+      if (Object.keys(err.details || {}).length) setErrors(err.details);
+      else if (err.status === 401 && !err.sessionExpired)
+        setErrors({ currentPassword: 'Mật khẩu hiện tại chưa đúng. Vui lòng kiểm tra lại.' });
       else setServerError(err.message || 'Chưa đổi được mật khẩu. Vui lòng thử lại.');
       setValues((v) => ({ ...v, currentPassword: '' }));
     } finally {

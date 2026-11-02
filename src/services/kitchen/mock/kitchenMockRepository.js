@@ -338,9 +338,12 @@ const normalizeMealCount = (mc) => ({
   status: mc.status,
   confirmedAt: mc.confirmedAt || null,
   confirmedBy: mc.confirmedBy || null,
+  // Lần cuối số bếp dùng đổi (xác nhận / xác nhận lại) để đánh dấu "Mới"
+  changedAt: mc.confirmedAt || null,
   classes: (mc.classes || []).map((r) => ({
     classId: r.classId,
     className: r.className || '',
+    ...(r.ageGroupId ? { ageGroupId: r.ageGroupId } : {}),
     normal: Number(r.normal ?? r.normalServings ?? 0),
     substitute: Number(r.substitute ?? r.substituteServings ?? 0),
   })),
@@ -402,7 +405,7 @@ const computeSession = (db, cat, campusId, date, session) => {
     });
   };
   mealCount.classes.forEach((row) => {
-    const ageGroupId = classById[row.classId]?.ageGroupId || null;
+    const ageGroupId = row.ageGroupId || classById[row.classId]?.ageGroupId || null;
     const className = row.className || classById[row.classId]?.name || row.classId;
     const normalMenu = menuFor(menus, session, ageGroupId, MENU_TYPE.NORMAL);
     if (!normalMenu) {
@@ -968,7 +971,8 @@ const issueKeysToSync = (db) => {
   const keys = new Set();
   db.mealCounts.forEach((m) => {
     const key = `${m.campusId}|${m.date}`;
-    if (m.status !== 'CONFIRMED' || keys.has(key)) return;
+    // Sổ đồng bộ từ BE (dev): kho mock chỉ có điểm trường mock, chưa lập phiếu xuất cho điểm trường BE
+    if (m.source === 'BE' || m.status !== 'CONFIRMED' || keys.has(key)) return;
     const issue = db.stockIssues.find((i) => i.campusId === m.campusId && i.date === m.date);
     if (!issue && db.kitchenLegacyConfirmedKeys?.includes(key)) return;
     if (!dayConfirmed(db, m.campusId, m.date)) return;
@@ -1862,6 +1866,7 @@ const kitchenRepository = {
           hasMenu: r.hasMenu,
           status: r.mealCountStatus,
           confirmedAt: r.confirmedAt,
+          changedAt: confirmed ? snapshot?.changedAt || r.confirmedAt : null,
           classes: confirmed
             ? (snapshot?.classes || []).map((row) => ({
                 ...row,

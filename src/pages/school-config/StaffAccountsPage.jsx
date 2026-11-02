@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus, UserCog, Users, PauseCircle, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useStaffAccounts } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -19,6 +20,9 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 
 const STAFF_PAGE_SIZE = 10;
+import { YearReadOnlyNotice } from '@/components/school-config/YearReadOnlyNotice';
+import { StaffAccountsBeView } from '@/components/school-config/StaffAccountsBeView';
+import { STAFF_ACCOUNTS_ON_BE } from '@/services/school-config/schoolConfigService';
 import '@/styles/modules/school-config.css';
 
 const ROLE_FILTERS = [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.TEACHER, ROLES.KITCHEN_STAFF];
@@ -28,7 +32,12 @@ const roleOf = (u) => (u.role === ROLES.TEAM_LEADER ? ROLES.TEACHER : u.role);
  * Staff accounts (PROPOSED 10/10/2026; SRS 4.4 "User account – Create / Edit / Deactivate: Principal ⁸", to confirm).
  * Changing role or campus ends the old assignments of open school years immediately (history kept).
  */
+/** Nối BE thật (VITE_SCHOOL_CONFIG_API / gateway) thì dùng API tài khoản của dev; còn lại giữ bản demo. */
 export default function StaffAccountsPage() {
+  return STAFF_ACCOUNTS_ON_BE ? <StaffAccountsBeView tabs={<PeopleTabs embedded />} /> : <StaffAccountsMockView />;
+}
+
+function StaffAccountsMockView() {
   const { user } = useAuth();
   const md = useMasterData();
   const { accounts, loading, error, reload } = useStaffAccounts();
@@ -48,11 +57,14 @@ export default function StaffAccountsPage() {
   }, [accounts, filters]);
 
   // PHT theo quyền "Hồ sơ nhân sự": xem nhân sự trong phạm vi, có "Được sửa" thì sửa hồ sơ; tạo / khóa / đổi vai trò chỉ Hiệu trưởng
-  const manage = canManageStaff(user);
-  const scopeCampuses = manage ? md.campuses : md.campuses.filter((c) => areaAllows(user, 'staff', c.id));
-  const vpEdits = !manage && accounts.some((u) => canEditStaffProfile(u, user));
+  const { yearReadOnly } = useSchoolYear();
+  const principalScope = canManageStaff(user);
+  // Năm đang chọn đã kết thúc: chỉ xem
+  const manage = principalScope && !yearReadOnly;
+  const scopeCampuses = principalScope ? md.campuses : md.campuses.filter((c) => areaAllows(user, 'staff', c.id));
+  const vpEdits = !principalScope && !yearReadOnly && accounts.some((u) => canEditStaffProfile(u, user));
   const cols = manage || vpEdits ? 7 : 6;
-  const title = manage ? 'Tài khoản nhân sự' : 'Nhân sự điểm trường';
+  const title = principalScope ? 'Tài khoản nhân sự' : 'Nhân sự điểm trường';
   if (!canViewStaff(user))
     return (
       <div className="page">
@@ -94,6 +106,7 @@ export default function StaffAccountsPage() {
           </button>
         )}
       </div>
+      <YearReadOnlyNotice />
 
       <div className="card mb-16">
         <PeopleTabs embedded />
@@ -200,7 +213,7 @@ export default function StaffAccountsPage() {
                         </td>
                         {vpEdits && (
                           <td className="cell--actions">
-                            {canEditStaffProfile(u, user) && (
+                            {!yearReadOnly && canEditStaffProfile(u, user) && (
                               <RowActions edit={{ onClick: () => setProfileOf(u), label: 'Sửa hồ sơ' }} name={u.fullName} />
                             )}
                           </td>

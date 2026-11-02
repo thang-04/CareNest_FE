@@ -46,7 +46,7 @@ test('lịch sử mở lại ngày điểm danh và đánh giá có dữ liệu 
     ...(await attendance.listAttendanceDayUnlocks({ id: 'u_duc', role: 'VICE_PRINCIPAL', campusId: 'c2' })),
   ];
   assert.deepEqual([...new Set(att.map((u) => u.campusId))].sort(), ['c1', 'c2']);
-  const asm = await assessment.listAssessmentDayUnlocks(HT);
+  const asm = await assessment.listAssessmentDayUnlocks({}, HT);
   assert.ok(asm.length >= 2);
 });
 

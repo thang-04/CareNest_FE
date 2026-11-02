@@ -10,9 +10,9 @@ import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DateInput } from '@/components/form/DateInput';
 import { paginate } from '@/components/ui/Pagination';
-import { useAttendanceClasses, useAttendanceSummary } from '@/hooks/attendance/useAttendance';
+import { useAttendanceClasses, useAttendanceSummary, useAttendanceYear } from '@/hooks/attendance/useAttendance';
 import { validateSummaryRange } from '@/utils/attendance/attendanceValidation';
-import { addDays, schoolToday } from '@/utils/attendance/attendanceTime';
+import { addDays } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { downloadCsv } from '@/utils/exportCsv';
 import { formatDate, isIsoDate } from '@/utils/format';
@@ -29,7 +29,7 @@ export default function AttendanceSummaryPage() {
   const { user } = useAuth();
   const md = useMasterData();
   const [params, setParams] = useSearchParams();
-  const today = schoolToday();
+  const { defaultDate: today } = useAttendanceYear();
   const { classes, loading: loadingClasses, error: classError, reload: reloadClasses } = useAttendanceClasses();
   const manager = [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL].includes(user?.role);
   // Điểm trường chọn được = điểm trường có lớp trong phạm vi xem (PHT thường chỉ điểm trường của mình)

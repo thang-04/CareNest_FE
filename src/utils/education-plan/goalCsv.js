@@ -1,5 +1,5 @@
 import { downloadCsv } from '@/utils/exportCsv';
-import { parseCsv } from '@/services/children/mock/enrollmentImport';
+import { parseCsv } from '@/utils/csv';
 import { DOMAINS, DOMAIN_PREFIX } from '@/models/education-plan/educationPlanConstants';
 import { HEADING_LABEL } from '@/models/education-plan/goalTable';
 

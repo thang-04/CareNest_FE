@@ -38,8 +38,9 @@ const publicUser = (u) => {
   const { password: _password, ...rest } = u; // carenest:allow-secret – tên field, không phải giá trị bí mật
   return clone(rest);
 };
-// Người đăng nhập mang theo quyền của vai trò (PENDING BE: GET /me trả permissions)
-const withPermissions = (u) => {
+// Người đăng nhập mang theo quyền của vai trò (PENDING BE: GET /me trả permissions).
+// Đăng nhập Keycloak dev cũng lấy quyền mặc định của vai trò ở đây vì "Vai trò & quyền" vẫn là demo.
+export const withPermissions = (u) => {
   const db = readDb();
   const permissions = grantsOf(db.rolePermissions, u.role);
   if (u.role !== 'VICE_PRINCIPAL') return { ...publicUser(u), permissions };

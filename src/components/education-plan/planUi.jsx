@@ -1,15 +1,14 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Check, Eye, Send, Undo2 } from '@/components/ui/icons';
-import { Card, EduStatusBadge, Field, History, Notice, fmtDateTime } from '@/components/education-plan/eduUi';
-import { useAsync } from '@/hooks/useAsync';
-import { useClasses } from '@/hooks/useSchool';
-import { getUsers } from '@/services/masterDataService';
+import { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Check, Eye, Send } from '@/components/ui/icons';
+import { Card, EduStatusBadge } from '@/components/education-plan/eduUi';
+import { RejectedNotice, SIGNER_SHORT } from '@/components/education-plan/reviewUi';
 import { ROLES } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { toRows } from '@/models/education-plan/goalTable';
-import { submitBlocker } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
+import { currentPlanOf, previousPlanOf } from '@/models/education-plan/planVersions.mjs';
 
 /** Bước còn thiếu khi tài liệu chưa thể bắt đầu (lock = kết quả createBlocker). */
 export const lockTarget = (lock, base, themeId) =>
@@ -17,73 +16,29 @@ export const lockTarget = (lock, base, themeId) =>
     ? { to: base.replace('/class/', '/branches/'), label: 'Mở Chủ đề nhánh' }
     : { to: `${base}/themes/${themeId}`, label: 'Mở kế hoạch chủ đề' };
 
-/* ---------- Ô nhập trong bảng (cùng kiểu ô của bảng mục tiêu năm) ---------- */
-
-// Ô nhập tự cao theo nội dung để đọc đủ đoạn dài, không cuộn trong ô
-const fitHeight = (el) => {
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight}px`;
-};
-
-/** Ô chữ trong bảng: gõ thẳng khi sửa được, chữ thường (giữ xuống dòng) khi chỉ xem. */
-export function Cell({ value, onChange, editable, label, placeholder, onKeyDown }) {
-  const ref = useRef(null);
-  // Đo lại chiều cao sau khi bảng có độ rộng thật (lần vẽ đầu cột còn hẹp nên ô bị cao) và khi đổi cỡ cửa sổ;
-  // chỉ đo khi chữ đổi hoặc đổi chế độ sửa, vì trang dài có hàng trăm ô, đo mỗi lần vẽ lại sẽ giật
-  useLayoutEffect(() => {
-    fitHeight(ref.current);
-    const id = requestAnimationFrame(() => fitHeight(ref.current));
-    return () => cancelAnimationFrame(id);
-  }, [value, editable]);
-  useEffect(() => {
-    const onResize = () => fitHeight(ref.current);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-  if (!editable) return <div className="ga-goal-table__pad ga-cell-text">{value?.trim() ? value : <span className="muted">—</span>}</div>;
-  return (
-    <textarea
-      className="ga-cell-input"
-      rows={1}
-      ref={ref}
-      onInput={(e) => fitHeight(e.target)}
-      aria-label={label}
-      placeholder={placeholder}
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={onKeyDown}
-    />
-  );
-}
-
-/** Bấm vào phần trống của ô (dưới ô nhập khi hàng cao hơn) cũng đặt con trỏ vào ô nhập, như bảng tính. */
-export const focusCell = (e) => {
-  if (e.target.tagName !== 'TD') return;
-  const input = e.target.querySelector('.ga-cell-input');
-  if (!input) return;
-  e.preventDefault();
-  input.focus();
-};
+// Ô nhập trong bảng đã chuyển lên phần chung (dùng cả ở Đánh giá hằng ngày)
+export { Cell, focusCell } from '@/components/ui/TableCell';
 
 /* ---------- Lớp, kế hoạch năm đã ban hành và vai trò của người dùng với lớp ---------- */
 
 /** Dữ liệu dùng chung của màn lớp. Kế hoạch năm chỉ dùng bản đã được Phó HT ban hành. */
 export function useClassPlanContext(classId) {
-  const { user, goals, schoolYear } = useEducationPlan();
-  const { classes, loading } = useClasses();
-  const usersQ = useAsync(() => getUsers(), []);
-  const users = useMemo(() => usersQ.data || [], [usersQ.data]);
+  // Lớp, giáo viên, tổ trưởng nạp cùng tài liệu của lớp (theo phạm vi người xem)
+  const { user, goals, schoolYear, classes, staff: users } = useEducationPlan();
   const cls = classes.find((c) => c.id === classId) || null;
-  const raw = cls
-    ? goals.find((g) => g.ageGroupId === cls.ageGroupId && g.schoolYear === schoolYear && g.status === EDU_STATUS.APPROVED)
-    : null;
+  // Phiên bản hiện hành = bản đã ban hành mới nhất (BE:EDU-25); phiên bản trước để chép tài liệu cũ
+  const current = cls ? currentPlanOf(goals, cls.ageGroupId, schoolYear) : null;
+  // ?plan=<id>: xem tài liệu của một phiên bản cũ đã ban hành cùng nhóm tuổi (chỉ xem, BE:EDU-26)
+  const [params] = useSearchParams();
+  const pinned =
+    current && goals.find((g) => g.id === params.get('plan') && g.status === EDU_STATUS.APPROVED && g.ageGroupId === current.ageGroupId);
+  const raw = pinned || current;
+  const rawPrevious = raw ? previousPlanOf(goals, raw) : null;
+  const asRows = (p) =>
+    p ? { ...p, domains: p.domains.map((d) => ({ ...d, rows: toRows(d, () => Math.random().toString(36).slice(2, 9)) })) } : null;
   // Kế hoạch năm dạng hàng của bảng (giống trang mục tiêu năm)
-  const yearPlan = useMemo(
-    () =>
-      raw ? { ...raw, domains: raw.domains.map((d) => ({ ...d, rows: toRows(d, () => Math.random().toString(36).slice(2, 9)) })) } : null,
-    [raw],
-  );
+  const yearPlan = useMemo(() => asRows(raw), [raw]);
+  const previousPlan = useMemo(() => asRows(rawPrevious), [rawPrevious]);
   const pending = cls ? goals.find((g) => g.ageGroupId === cls.ageGroupId && g.schoolYear === schoolYear) : null;
   const teachers = cls ? (cls.teacherIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) : [];
   const leaders = cls ? users.filter((u) => u.role === ROLES.TEAM_LEADER && u.ageGroupId === cls.ageGroupId) : [];
@@ -97,8 +52,11 @@ export function useClassPlanContext(classId) {
   return {
     cls,
     classes,
-    loading: loading || usersQ.loading,
+    loading: false,
     yearPlan,
+    previousPlan,
+    // Đang xem phiên bản đã bị thay thế: mọi tài liệu chỉ xem
+    superseded: !!raw && raw.id !== current?.id,
     pendingYearPlan: pending,
     teachers,
     users,
@@ -134,102 +92,53 @@ export function reviewLabel(doc, ctx, user, kind = 'branch') {
 }
 
 /**
- * Phần gửi / duyệt ở CUỐI trang, không có chữ ký trong hệ thống (duyệt xong in ra ký tay):
- * - giáo viên của lớp: "Gửi duyệt" (chủ đề nhánh, hồ sơ chủ đề) khi còn nháp hoặc bị trả lại;
- * - người đến lượt duyệt: nhận xét rồi "Duyệt", hoặc ghi lý do rồi "Trả lại".
- * kind: branch | theme. onAct(action, body) trả tài liệu mới hoặc null. actions: nút thêm (vd. xuất / in khi đã duyệt).
+ * Quyền hiển thị nút gửi / duyệt tài liệu của lớp theo mẫu chung (reviewUi) và người duyệt đầu tiên của chuỗi:
+ * chủ đề nhánh theo eduConfig.signers.branch, hồ sơ chủ đề theo signers.week; bỏ Tổ trưởng khi ctx.skipLeader.
+ * Chỉ là UX, service quyết định khi gửi.
  */
-export function SignPanel({ kind, doc, ctx, user, dirty, onAct, title = 'Gửi duyệt và duyệt', actions }) {
-  const { branchPlans, weekPlans, classThemePlans, toast } = useEducationPlan();
-  const [note, setNote] = useState('');
-  const [tried, setTried] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const status = doc?.status || EDU_STATUS.DRAFT;
-  const canReview = isMyReviewTurn(doc, ctx, user);
-  const canSend = ctx.isClassTeacher && !!doc && isOpen(doc);
-  const lastReject = [...(doc?.history || [])].reverse().find((h) => h.tone === 'err');
-  const orderBlock = canSend ? submitBlocker(kind, doc, { branchPlans, weekPlans, classThemePlans, yearPlan: ctx.yearPlan }) : null;
-  const blocked = dirty || !doc?.id;
-  const run = async (action) => {
-    setTried(action);
-    if (action === 'reject' && !note.trim()) return;
-    // Chưa đủ điều kiện gửi: chỉ nhắc ở góc màn hình khi bấm, không hiện sẵn trên trang
-    if (action === 'submit' && orderBlock) return toast(orderBlock, 'warn');
-    setBusy(true);
-    const res = await onAct(action, { note: note.trim() || undefined });
-    setBusy(false);
-    if (res) {
-      setNote('');
-      setTried(null);
-    }
-  };
-
-  return (
-    <Card title={title}>
-      <div className="stack">
-        <div className="row row--wrap gap-2">
-          <EduStatusBadge status={status} />
-        </div>
-        {status === EDU_STATUS.REJECTED && lastReject?.note && (
-          <Notice tone="err">
-            Bị trả lại bởi {lastReject.by} ({fmtDateTime(lastReject.at)}): {lastReject.note}
-          </Notice>
-        )}
-        {(canSend || canReview) && (
-          <Field
-            label={canReview ? 'Nhận xét (bắt buộc khi trả lại)' : 'Ghi chú gửi kèm'}
-            error={tried === 'reject' && !note.trim() ? 'Vui lòng ghi lý do trả lại' : undefined}
-          >
-            <textarea className="textarea" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
-          </Field>
-        )}
-        {(canSend || canReview || actions) && (
-          <div className="row row--wrap gap-2">
-            {canSend && (
-              <button
-                type="button"
-                className="btn btn--warning"
-                disabled={busy || blocked}
-                title={blocked ? 'Chờ lưu xong rồi gửi' : undefined}
-                onClick={() => run('submit')}
-              >
-                <Send size={16} aria-hidden /> {kind === 'branch' ? 'Gửi duyệt' : 'Gửi duyệt kế hoạch chủ đề'}
-              </button>
-            )}
-            {canReview && (
-              <>
-                <button type="button" className="btn btn--outline-danger" disabled={busy} onClick={() => run('reject')}>
-                  <Undo2 size={16} aria-hidden /> Trả lại
-                </button>
-                <button type="button" className="btn btn--success" disabled={busy} onClick={() => run('approve')}>
-                  <Check size={16} aria-hidden /> Duyệt
-                </button>
-              </>
-            )}
-            {actions}
-          </div>
-        )}
-        <details>
-          <summary className="muted text-sm">Lịch sử xử lý ({doc?.history?.length || 0})</summary>
-          <div className="mt-8">
-            <History items={doc?.history} />
-          </div>
-        </details>
-      </div>
-    </Card>
+export function docReview(kind, doc, ctx, user, eduConfig) {
+  const chain = (eduConfig?.signers?.[kind === 'branch' ? 'branch' : 'week'] || []).filter(
+    (r) => r !== ROLES.TEAM_LEADER || !ctx.skipLeader,
   );
+  const myTurn = isMyReviewTurn(doc, ctx, user);
+  return {
+    can: { send: ctx.isClassTeacher && !!doc && isOpen(doc), reject: myTurn, approve: myTurn },
+    sendTo: chain.length ? SIGNER_SHORT[chain[0]] : 'đi',
+  };
 }
 
 /**
  * Dòng trạng thái ở trang soạn: trạng thái, lý do bị trả lại và nút sang trang gửi / duyệt.
  * Giáo án tuần và kế hoạch chủ đề đi theo cả tập kế hoạch giáo dục chủ đề (bản ghi kế hoạch chủ đề).
  */
+/** Nút sang trang hồ sơ để xem / gửi / duyệt; chưa lưu thì khóa. */
+export function DocReviewButton({ kind, doc, dossier, ctx, user, reviewTo, dirty, onGo, className = 'btn btn--outline-primary btn--sm' }) {
+  const holder = kind === 'week' ? dossier : doc;
+  const label = reviewLabel(holder, ctx, user, kind === 'branch' ? 'branch' : 'theme');
+  const blocked = dirty || (kind !== 'week' && !doc?.id);
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={blocked}
+      title={blocked ? 'Lưu trước khi sang trang khác' : undefined}
+      onClick={() => onGo(reviewTo)}
+    >
+      {label.startsWith('Duyệt') ? (
+        <Check size={16} aria-hidden />
+      ) : label.includes('gửi') || label.startsWith('Gửi') ? (
+        <Send size={16} aria-hidden />
+      ) : (
+        <Eye size={16} aria-hidden />
+      )}{' '}
+      {label}
+    </button>
+  );
+}
+
 export function DocStatusStrip({ kind, doc, dossier, ctx, user, reviewTo, dirty, onGo }) {
   const holder = kind === 'week' ? dossier : doc;
   const status = holder?.status || EDU_STATUS.DRAFT;
-  const lastReject = [...(holder?.history || [])].reverse().find((h) => h.tone === 'err');
-  const label = reviewLabel(holder, ctx, user, kind === 'branch' ? 'branch' : 'theme');
-  const blocked = dirty || (kind !== 'week' && !doc?.id);
   return (
     <Card>
       <div className="stack">
@@ -243,28 +152,9 @@ export function DocStatusStrip({ kind, doc, dossier, ctx, user, reviewTo, dirty,
           ) : (
             <span />
           )}
-          <button
-            type="button"
-            className="btn btn--outline-primary btn--sm"
-            disabled={blocked}
-            title={blocked ? 'Lưu trước khi sang trang khác' : undefined}
-            onClick={() => onGo(reviewTo)}
-          >
-            {label.startsWith('Duyệt') ? (
-              <Check size={16} aria-hidden />
-            ) : label.includes('gửi') || label.startsWith('Gửi') ? (
-              <Send size={16} aria-hidden />
-            ) : (
-              <Eye size={16} aria-hidden />
-            )}{' '}
-            {label}
-          </button>
+          <DocReviewButton kind={kind} doc={doc} dossier={dossier} ctx={ctx} user={user} reviewTo={reviewTo} dirty={dirty} onGo={onGo} />
         </div>
-        {holder?.status === EDU_STATUS.REJECTED && lastReject?.note && (
-          <Notice tone="err">
-            Bị trả lại bởi {lastReject.by} ({fmtDateTime(lastReject.at)}): {lastReject.note}
-          </Notice>
-        )}
+        <RejectedNotice status={holder?.status} history={holder?.history} />
       </div>
     </Card>
   );

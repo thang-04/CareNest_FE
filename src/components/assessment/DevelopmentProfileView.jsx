@@ -7,9 +7,12 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { DevelopmentCharts } from '@/components/assessment/DevelopmentCharts';
+import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
+import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { formatDate } from '@/utils/format';
 import { ageLabel, GENDER_LABELS } from '@/models/School';
-import { EMOTION_LABELS, HEALTH_STATUS_LABELS, PERIOD_TYPE_LABELS, TICKET_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
+import { PERIOD_TYPE_LABELS, TICKET_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import {
   monthEnd,
   monthsBetween,
@@ -27,18 +30,35 @@ const SCOPES = [
   { key: 'WEEK', label: 'Tuần' },
 ];
 
-/** Period options of the school year (semesters assumed: Sep–Dec and Jan–May). */
-const periodOptions = (scope, schoolYear) => {
-  const { start, end } = schoolYearRange(schoolYear);
+const nextDay = (iso) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Kỳ của năm học đang chọn, chỉ kỳ đã bắt đầu. Ngày năm học và 2 học kỳ lấy từ Cấu hình thời gian;
+ * chưa cấu hình học kỳ thì tạm tách HK I hết 31/12.
+ */
+const periodOptions = (scope, schoolYear, year) => {
+  const { start, end } = year?.startDate && year?.endDate ? { start: year.startDate, end: year.endDate } : schoolYearRange(schoolYear);
   const today = todayIso();
   const until = end < today ? end : today;
-  if (scope === 'YEAR') return [{ start, end, label: periodLabel('YEAR', start, end) }];
-  if (scope === 'SEMESTER')
-    return [
-      { start, end: `${start.slice(0, 4)}-12-31`, label: 'Học kỳ I' },
-      { start: `${end.slice(0, 4)}-01-01`, end, label: 'Học kỳ II' },
-    ];
   if (until < start) return [];
+  if (scope === 'YEAR') return [{ start, end, label: periodLabel('YEAR', start, end) }];
+  if (scope === 'SEMESTER') {
+    const s1End = `${start.slice(0, 4)}-12-31`;
+    const semesters = year?.semester1Start
+      ? [
+          { start: year.semester1Start, end: year.semester1End, label: 'Học kỳ I' },
+          { start: year.semester2Start, end: year.semester2End, label: 'Học kỳ II' },
+        ]
+      : [
+          { start, end: s1End, label: 'Học kỳ I' },
+          { start: nextDay(s1End), end, label: 'Học kỳ II' },
+        ];
+    return semesters.filter((o) => o.start <= today).reverse();
+  }
   if (scope === 'MONTH')
     return monthsBetween(start, until)
       .map((m) => ({ start: m, end: monthEnd(m), label: periodLabel('MONTH', m) }))
@@ -48,23 +68,15 @@ const periodOptions = (scope, schoolYear) => {
     .reverse();
 };
 
-function Kpi({ value, label }) {
-  return (
-    <div className="dg-kpi">
-      <div className="dg-kpi__value">{value}</div>
-      <div className="dg-kpi__label">{label}</div>
-    </div>
-  );
-}
-
 /**
  * Shared body of #53 Child Development Profile (teacher) and #54 Child Development Progress (Principal / VP).
  * Read-only: built from source records (GBR-DEV-01); only confirmed evaluations and approved rewards are shown.
  */
 export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, schoolYears } = useSchoolYear();
+  const year = schoolYears.find((y) => String(y.id) === String(schoolYear));
   const [scope, setScope] = useState('YEAR');
-  const options = useMemo(() => periodOptions(scope, schoolYear), [scope, schoolYear]);
+  const options = useMemo(() => periodOptions(scope, schoolYear, year), [scope, schoolYear, year]);
   const [periodIndex, setPeriodIndex] = useState(0);
   const period = options[Math.min(periodIndex, options.length - 1)] || null;
   const params = useMemo(() => (period ? { mode, start: period.start, end: period.end } : null), [mode, period]);
@@ -84,20 +96,39 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
     return <ErrorState error={error} onRetry={reload} />;
   }
 
-  const crit = d ? Object.fromEntries(d.criteria.map((c) => [c.id, c.name])) : {};
   const daily = d?.dailyAssessments || [];
-  const finishedWeeks = d?.weeks.filter((w) => w.finished) || [];
-  const missing = finishedWeeks.filter((w) => !w.evaluationConfirmed);
+  const days = d?.days || [];
+  const PAGE = 10;
+  const tickets = d?.tickets || [];
+  const rewards = d?.rewards || [];
+  const published = d ? [...(d.yearEnd || []), ...(d.evaluations || [])] : [];
+  const domainStats = d?.domainStats || [];
 
   return (
     <>
       <div className="card mb-16">
         <div className="card__body dg-period-bar">
           {d && (
-            <div className="flex-1 min-w-220">
-              <div className="fw-600 text-lg">{d.child.fullName}</div>
-              <div className="text-2 text-sm">
-                {d.child.code} · {GENDER_LABELS[d.child.gender]} · {ageLabel(d.child.dateOfBirth)} · {d.cls?.name || 'Chưa xếp lớp'}
+            <div className="dg-profile-head flex-1 min-w-220">
+              <ChildAvatar child={d.child} size="lg" />
+              <div>
+                <div className="fw-600 text-lg">{d.child.fullName}</div>
+                <div className="text-2 text-sm">
+                  {[
+                    d.child.code,
+                    GENDER_LABELS[d.child.gender],
+                    d.child.dateOfBirth && `${ageLabel(d.child.dateOfBirth)} (sinh ${formatDate(d.child.dateOfBirth)})`,
+                    d.cls?.name || 'Chưa xếp lớp',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </div>
+                {!loading && (
+                  <div className="muted text-sm">
+                    Có mặt {d.presentDays} ngày · Được đánh giá {days.length} ngày · {d.flagCount} cờ · {tickets.length} phiếu bé ngoan ·{' '}
+                    {published.length} đánh giá đã xác nhận
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -154,14 +185,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
         <LoadingState />
       ) : (
         <>
-          <div className="dg-kpis mb-16">
-            <Kpi value={daily.length} label="Lượt đánh giá hằng ngày" />
-            <Kpi value={daily.filter((a) => a.flag).length} label="Cờ bé ngoan" />
-            <Kpi value={d.tickets.length} label="Phiếu bé ngoan" />
-            <Kpi value={d.evaluations.length + d.yearEnd.length} label="Đánh giá đã công bố" />
-          </div>
-
-          {daily.length === 0 && d.evaluations.length === 0 ? (
+          {days.length === 0 && daily.length === 0 && published.length === 0 && tickets.length === 0 ? (
             <div className="card">
               <EmptyState
                 icon={ClipboardList}
@@ -171,39 +195,36 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
             </div>
           ) : (
             <>
-              {missing.length > 0 && (
-                <div className="alert alert--info mb-16">
-                  <CalendarRange size={18} />
-                  <div>
-                    {missing.length} tuần đã kết thúc chưa có đánh giá tuần được công bố:{' '}
-                    {missing.map((w) => formatDate(w.weekStart)).join(', ')}. Hồ sơ chỉ hiển thị dữ liệu đã có, không suy đoán kết quả cho
-                    các tuần này.
-                  </div>
+              <PeriodSummaryTable data={d.summary} />
+              {(d.weeks || []).length > 1 && (
+                <div className="mt-16">
+                  <DevelopmentCharts weeks={d.weeks} />
                 </div>
               )}
-              {d.weeks.length > 1 && <DevelopmentCharts weeks={d.weeks} />}
 
-              <div className="split-2 mt-16">
-                <div className="card">
-                  <div className="card__header">
-                    <div className="card__title">Tiêu chí đạt theo lĩnh vực</div>
-                  </div>
-                  <div className="card__body">
-                    {d.domainStats.map((s) => {
-                      const pct = s.possible ? Math.round((s.met / s.possible) * 100) : 0;
-                      return (
-                        <div key={s.domain} className="dg-domain">
-                          <span className="text-sm">{s.domain}</span>
-                          <div className="dg-domain__bar" role="img" aria-label={`${s.domain}: ${pct}%`}>
-                            <div className="dg-domain__fill" style={{ width: `${pct}%` }} />
+              <div className={domainStats.length ? 'grid-2 mt-16' : 'mt-16'}>
+                {domainStats.length > 0 && (
+                  <div className="card">
+                    <div className="card__header">
+                      <div className="card__title">Mục tiêu đạt theo lĩnh vực</div>
+                    </div>
+                    <div className="card__body">
+                      {domainStats.map((s) => {
+                        const pct = s.possible ? Math.round((s.met / s.possible) * 100) : 0;
+                        return (
+                          <div key={s.domain} className="dg-domain">
+                            <span className="text-sm">{s.domain}</span>
+                            <div className="dg-domain__bar" role="img" aria-label={`${s.domain}: ${pct}%`}>
+                              <div className="dg-domain__fill" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-sm dg-right">{s.possible ? `${pct}%` : '—'}</span>
                           </div>
-                          <span className="text-sm dg-right">{s.possible ? `${pct}%` : '—'}</span>
-                        </div>
-                      );
-                    })}
-                    <div className="muted text-xs">Tỉ lệ = số lượt đạt tiêu chí / số lượt đánh giá trong kỳ.</div>
+                        );
+                      })}
+                      <div className="muted text-xs">Tỉ lệ = số lượt đạt / số lượt được đánh giá trong kỳ.</div>
+                    </div>
                   </div>
-                </div>
+                )}
                 <div className="card">
                   <div className="card__header">
                     <div className="card__title">
@@ -211,11 +232,11 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                     </div>
                   </div>
                   <div className="card__body">
-                    {d.tickets.length === 0 && d.rewards.length === 0 ? (
+                    {tickets.length === 0 && rewards.length === 0 ? (
                       <div className="muted">Chưa có phiếu bé ngoan hoặc khen thưởng trong kỳ.</div>
                     ) : (
                       <ul className="stack dg-plain-list">
-                        {d.rewards.map((r) => (
+                        {rewards.map((r) => (
                           <li key={r.id} className="row">
                             <Award size={16} className="text-success" /> <b>{r.rewardTitle}</b>
                             <span className="muted text-sm">
@@ -223,7 +244,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                             </span>
                           </li>
                         ))}
-                        {d.tickets.map((t) => (
+                        {tickets.map((t) => (
                           <li key={t.id} className="row">
                             <Flag size={16} className="text-primary" /> {TICKET_TYPE_LABELS[t.type]}
                             <span className="muted text-sm">
@@ -240,15 +261,15 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
               <div className="card mt-16">
                 <div className="card__header">
                   <div className="card__title">
-                    <FileText size={18} /> Đánh giá đã công bố
+                    <FileText size={18} /> Đánh giá đã xác nhận
                   </div>
                 </div>
                 <div className="card__body">
-                  {d.evaluations.length + d.yearEnd.length === 0 ? (
-                    <div className="muted">Chưa có đánh giá tuần, tháng hoặc cuối năm được giáo viên xác nhận trong kỳ.</div>
+                  {published.length === 0 ? (
+                    <div className="muted">Chưa có đánh giá tháng hoặc cuối năm được giáo viên xác nhận trong kỳ.</div>
                   ) : (
                     <div className="stack">
-                      {[...d.yearEnd, ...d.evaluations].map((e) => (
+                      {published.map((e) => (
                         <div key={e.id} className="card dg-card-flat">
                           <div className="card__body">
                             <div className="row row--between mb-8">
@@ -276,42 +297,17 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                   <div className="card__title">
                     <ClipboardList size={18} /> Đánh giá hằng ngày
                   </div>
-                  <span className="muted text-sm">{daily.length} lượt</span>
+                  <span className="muted text-sm">{days.length} ngày · Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>
                 </div>
-                <div className="table-wrap">
-                  <table className="table table--grid table--compact">
-                    <thead>
-                      <tr>
-                        <th>Ngày</th>
-                        <th>Hoạt động</th>
-                        <th>Sức khỏe</th>
-                        <th>Cảm xúc</th>
-                        <th>Tiêu chí đạt</th>
-                        <th className="center">Cờ</th>
-                        <th>Nhận xét</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginate(daily, page).map((a) => (
-                        <tr key={a.id}>
-                          <td className="nowrap">{formatDate(a.date)}</td>
-                          <td>{a.activity}</td>
-                          <td>{HEALTH_STATUS_LABELS[a.healthStatus] || '—'}</td>
-                          <td>{EMOTION_LABELS[a.emotion]}</td>
-                          <td className="text-sm dg-cell-wrap min-w-200">
-                            {a.criteriaMet
-                              .map((id) => crit[id])
-                              .filter(Boolean)
-                              .join(', ') || '—'}
-                          </td>
-                          <td className="center">{a.flag ? <Flag size={16} className="text-primary" aria-label="Có cờ" /> : '—'}</td>
-                          <td className="text-sm dg-days__comment">{a.comment || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="card__body">
+                  <DailyDaysTable
+                    days={paginate([...days].reverse(), page, PAGE)}
+                    mealSessions={d.mealSessions}
+                    classId={d.cls?.id}
+                    linkDays={mode === 'profile'}
+                  />
                 </div>
-                {daily.length > 0 && <Pagination page={page} total={daily.length} onChange={setPage} unit="lượt" />}
+                {days.length > PAGE && <Pagination page={page} total={days.length} pageSize={PAGE} onChange={setPage} unit="ngày" />}
               </div>
             </>
           )}

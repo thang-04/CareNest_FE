@@ -38,6 +38,7 @@
     "display": "node scripts/verify.mjs"
   },
   "guard": {
+    "autonomous": true,
     "dependencyGlobs": [
       "package.json",
       "package-lock.json",

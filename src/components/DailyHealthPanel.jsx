@@ -4,7 +4,7 @@ import { HeartPulse, Save, ArrowRight, Clock, CheckCircle2, Phone, ChevronDown, 
 import { FormField } from '@/components/form/FormField';
 import { EmptyState, ErrorState, LoadingState, SubmitOverlay } from '@/components/ui/States';
 import { useAsync } from '@/hooks/useAsync';
-import { getDailyHealth, notifyDailyHealth } from '@/services/dailyHealthService';
+import { getDailyHealth, notifyDailyHealth, PARENT_NOTIFY_ENABLED } from '@/services/dailyHealthService';
 import { HEALTH_ACTIONS, HEALTH_SYMPTOMS, actionSummary, validateDailyHealth } from '@/utils/dailyHealthValidation';
 import { temperatureLevel } from '@/utils/attendance/temperatureLevels';
 import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
@@ -27,7 +27,6 @@ const nowTime = () => new Date().toTimeString().slice(0, 5);
 export function DailyHealthPanel({
   child,
   classId,
-  className,
   date,
   user,
   presentSaved,
@@ -80,7 +79,9 @@ export function DailyHealthPanel({
     // Tích đón về sớm / chuyển cơ sở y tế thì điền sẵn giờ hiện tại
     if (checked && value === 'REFERRAL' && !form.referral.time) set('referral', { ...form.referral, time: nowTime() });
   };
-  const editable = presentDraft && ((canDraft && !error) || (presentSaved && data?.canRecord)) && !loading && !error;
+  // Đã trả trẻ cho phụ huynh ⇒ khóa ghi sức khỏe của trẻ trong ngày (Cần chốt 24/10/2026)
+  const handedOverAt = data?.handedOverAt || null;
+  const editable = !handedOverAt && presentDraft && ((canDraft && !error) || (presentSaved && data?.canRecord)) && !loading && !error;
   const showForm = editable && (adding || dirty || !data?.entries.length || attendanceDirty);
   const save = async (next) => {
     if (submitRef.current || parentBusy || !editable) return;
@@ -98,7 +99,13 @@ export function DailyHealthPanel({
       requestId.current = crypto.randomUUID();
       onDirty(false);
       toast.success(
-        attendanceDirty ? 'Đã lưu điểm danh, sức khỏe và gửi thông báo phụ huynh.' : 'Đã lưu lần ghi nhận và gửi thông báo phụ huynh.',
+        PARENT_NOTIFY_ENABLED
+          ? attendanceDirty
+            ? 'Đã lưu điểm danh, sức khỏe và gửi thông báo phụ huynh.'
+            : 'Đã lưu lần ghi nhận và gửi thông báo phụ huynh.'
+          : attendanceDirty
+            ? 'Đã lưu điểm danh và sức khỏe.'
+            : 'Đã lưu lần ghi nhận sức khỏe.',
       );
       await reload({ silent: true });
       if (next) onNext();
@@ -158,9 +165,7 @@ export function DailyHealthPanel({
         <ChildAvatar child={child} size="lg" />
         <div>
           <h3 className="dd-health__name">{child.fullName}</h3>
-          <div className="muted text-sm">
-            {child.code} · {className}
-          </div>
+          {child.code && <div className="muted text-sm">{child.code}</div>}
         </div>
       </div>
       {loading ? (
@@ -169,15 +174,19 @@ export function DailyHealthPanel({
         <ErrorState error={error} onRetry={reload} />
       ) : (
         <>
-          {!editable && (
-            <div className="alert alert--info">
-              <HeartPulse size={18} />
-              <div>
-                {presentDraft
-                  ? 'Chỉ thêm ghi nhận cho ngày hôm nay. Bạn vẫn có thể xem lịch sử.'
-                  : 'Chọn Có mặt trong danh sách để nhập sức khỏe ngay.'}
+          {handedOverAt ? (
+            <p className="muted text-sm mb-12">Đã trả trẻ lúc {formatDateTime(handedOverAt).split(' ')[1]}</p>
+          ) : (
+            !editable && (
+              <div className="alert alert--info">
+                <HeartPulse size={18} />
+                <div>
+                  {presentDraft
+                    ? 'Chỉ thêm ghi nhận cho ngày hôm nay. Bạn vẫn có thể xem lịch sử.'
+                    : 'Chọn Có mặt trong danh sách để nhập sức khỏe ngay.'}
+                </div>
               </div>
-            </div>
+            )
           )}
           {saveError && (
             <div className="alert alert--danger mb-12" role="alert">
@@ -199,9 +208,6 @@ export function DailyHealthPanel({
             >
               {busy && <SubmitOverlay state="sending" />}
               <fieldset disabled={busy || parentBusy} className="dd-health__fields">
-                {attendanceDirty && (
-                  <p className="muted text-sm">Chưa lưu điểm danh của trẻ. Nút bên dưới sẽ lưu điểm danh trước, rồi lưu sức khỏe.</p>
-                )}
                 <FormField label="Thân nhiệt (°C)" error={errors.temperature}>
                   <input
                     className="input"

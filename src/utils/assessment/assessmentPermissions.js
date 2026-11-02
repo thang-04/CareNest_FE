@@ -33,13 +33,18 @@ export const ASSESSMENT_ROUTE_ROLES = {
 const has = (user, roles) => !!user && roles.includes(user.role);
 
 /** Footnote 2: a team leader acts as a teacher only for classes they teach, not their whole age group. */
-export const isClassTeacher = (cls, user) => !!cls && has(user, CLASS_ROLES) && (cls.teacherIds || []).includes(user.id);
+// BE trả cờ teaches theo phân công thật; mock dùng teacherIds của lớp
+export const isClassTeacher = (cls, user) => !!cls && has(user, CLASS_ROLES) && (cls.teaches ?? (cls.teacherIds || []).includes(user.id));
 
 export const isLeader = (user) => has(user, LEADER_ROLES);
 export const isPrincipal = (user) => user?.role === ROLES.PRINCIPAL;
 export const isVicePrincipal = (user) => user?.role === ROLES.VICE_PRINCIPAL;
 
 /** Leader scope: Principal whole school, Vice Principal own campus. */
+/** PHT (điểm trường mình) và Hiệu trưởng xem phiếu bé ngoan các lớp; phát phiếu vẫn là giáo viên lớp. */
+export const canViewTicketOverview = (user) => isLeader(user);
+/** Tổng quan đánh giá lớp: chỉ PHT (điểm trường mình) và Hiệu trưởng; giáo viên không xem. */
+export const canViewClassAssessmentOverview = (user) => isLeader(user);
 export const inLeaderScope = (campusId, user) => isPrincipal(user) || (isVicePrincipal(user) && user.campusId === campusId);
 
 /* ---------- Daily assessment / profile ---------- */
@@ -50,7 +55,9 @@ export const canViewDevelopmentProfile = (cls, user) => isClassTeacher(cls, user
 export const canViewDevelopmentProgress = (child, user) => !!child && inLeaderScope(child.campusId, user);
 
 /* ---------- Evaluations ---------- */
-export const canReviewEvaluation = (ev, cls, user) => !!ev && ev.status !== EVAL_STATUS.CONFIRMED && isClassTeacher(cls, user);
+// BE: canEdit = GV đang phụ trách lớp của năm đang hoạt động
+export const canReviewEvaluation = (ev, cls, user) =>
+  !!ev && ev.status !== EVAL_STATUS.CONFIRMED && (cls?.canEdit ?? isClassTeacher(cls, user));
 
 export const canViewEvaluation = (ev, cls, user) =>
   !!ev && (isClassTeacher(cls, user) || (ev.status === EVAL_STATUS.CONFIRMED && inLeaderScope(ev.campusId, user)));

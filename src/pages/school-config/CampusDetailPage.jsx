@@ -13,6 +13,7 @@ import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { StaffQuickPanel } from '@/components/school-config/StaffQuickPanel';
 import { canAssignVicePrincipal, canManageCampus } from '@/utils/school-config/schoolConfigPermissions';
 import { campusCrumbs } from '@/utils/school-config/breadcrumbs';
+import { YearReadOnlyNotice } from '@/components/school-config/YearReadOnlyNotice';
 import '@/styles/modules/school-config.css';
 
 function PersonRow({ person, sub }) {
@@ -31,7 +32,7 @@ function PersonRow({ person, sub }) {
 export default function CampusDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, yearReadOnly } = useSchoolYear();
   const md = useMasterData();
   const { detail, loading, error, reload } = useCampusDetail(id, schoolYear);
   const [staffId, setStaffId] = useState(null);
@@ -66,12 +67,13 @@ export default function CampusDetailPage() {
                 </span>
               )}
             </div>
-            {canManageCampus(user) && (
+            {canManageCampus(user) && !yearReadOnly && (
               <Link className="btn" to={`/school/campuses/${campus.id}/edit`}>
                 <Pencil size={16} /> Sửa điểm trường
               </Link>
             )}
           </div>
+          <YearReadOnlyNotice />
 
           <div className="split-2">
             <section className="card">
@@ -206,9 +208,9 @@ export default function CampusDetailPage() {
                         </td>
                         <td>
                           {/* Bấm tên giáo viên chủ nhiệm để xem nhanh thông tin, không rời trang */}
-                          {md.userById(c.homeroomTeacherId) ? (
+                          {c.homeroomTeacherId ? (
                             <button type="button" className="link-btn" onClick={() => setStaffId(c.homeroomTeacherId)}>
-                              {md.userById(c.homeroomTeacherId).fullName}
+                              {c.homeroomTeacherName || md.userById(c.homeroomTeacherId)?.fullName || c.homeroomTeacherId}
                             </button>
                           ) : (
                             <span className="muted">Chưa phân công</span>

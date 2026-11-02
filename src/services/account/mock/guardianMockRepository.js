@@ -107,6 +107,24 @@ export const guardianMockRepository = {
     const db = await initialize(actor);
     return clone(guardiansOf(db, loadChild(db, childId, actor)));
   },
+  // Cùng shape BE GuardianCandidateResponse; SĐT nhân sự vẫn để addGuardian từ chối như trước
+  async lookupGuardian(childId, phone, actor) {
+    const db = await initialize(actor);
+    loadChild(db, childId, actor, true);
+    const account = db.parentAccounts.find((row) => normalizePhone(row.phone) === normalizePhone(phone));
+    if (!account) return { exists: false, userId: null, maskedFullName: null, staffAccount: false, alreadyLinked: false, status: null };
+    return {
+      exists: true,
+      userId: account.id,
+      maskedFullName: account.fullName
+        .split(/\s+/)
+        .map((word) => `${word[0]}***`)
+        .join(' '),
+      staffAccount: false,
+      alreadyLinked: (account.childIds || []).includes(childId),
+      status: account.status,
+    };
+  },
   async addGuardian(childId, form, actor) {
     await initialize(actor);
     const errors = validateGuardian(form);

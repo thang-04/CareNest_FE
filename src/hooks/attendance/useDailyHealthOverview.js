@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
 import { getChildDailyHealthHistory, getDailyHealthOverview } from '@/services/dailyHealthService';
 
@@ -12,15 +13,16 @@ function useKeyedAsync(key, loader, deps, enabled) {
   return { data: current, loading: enabled && (loading || (!current && !error)), error, reload };
 }
 
-/** Tổng hợp sức khỏe đầu ngày (Hiệu trưởng: toàn trường hoặc một điểm trường; Phó hiệu trưởng: điểm trường của mình). */
+/** Tổng hợp sức khỏe trong ngày (Hiệu trưởng: toàn trường hoặc một điểm trường; Phó hiệu trưởng: điểm trường của mình). */
 export function useDailyHealthOverview({ date, campusId = '', ageGroupId = '', classId = '' }) {
   const { user } = useAuth();
-  const key = `${date}|${campusId}|${ageGroupId}|${classId}|${user?.id}`;
+  const { schoolYear } = useSchoolYear();
+  const key = `${date}|${campusId}|${ageGroupId}|${classId}|${user?.id}|${schoolYear}`;
   const { data, loading, error, reload } = useKeyedAsync(
     key,
     () =>
       getDailyHealthOverview(
-        { date, campusId: campusId || undefined, ageGroupId: ageGroupId || undefined, classId: classId || undefined },
+        { date, schoolYear, campusId: campusId || undefined, ageGroupId: ageGroupId || undefined, classId: classId || undefined },
         user,
       ),
     [key],

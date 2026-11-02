@@ -45,11 +45,13 @@ export function CopyClassesModal({ open, onClose, target, years }) {
   const [sourceId, setSourceId] = useState('');
   const [selected, setSelected] = useState(new Set());
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const source = useSchoolStructure(open ? sourceId : '', '');
   const current = useSchoolStructure(open ? target?.id : '', '');
 
   useEffect(() => {
     if (open) setSourceId(sources[0]?.id || '');
+    setError('');
   }, [open, sources]);
 
   const existing = useMemo(() => new Set((current.structure?.classes || []).map(key)), [current.structure]);
@@ -87,7 +89,7 @@ export function CopyClassesModal({ open, onClose, target, years }) {
       toast.success(copyResultMessage(result), `Sao chép lớp vào năm học ${target.name}`);
       onClose(true);
     } catch (err) {
-      toast.error(err, 'Không sao chép được');
+      setError(err.message);
     } finally {
       setSaving(false);
     }
@@ -112,6 +114,11 @@ export function CopyClassesModal({ open, onClose, target, years }) {
         </>
       }
     >
+      {error && (
+        <div className="alert alert--danger mb-12" role="alert">
+          {error}
+        </div>
+      )}
       {sources.length === 0 ? (
         <p className="text-2">Chưa có năm học nào khác để sao chép.</p>
       ) : (

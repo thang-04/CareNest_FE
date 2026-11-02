@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { BarChart3, Table2 } from '@/components/ui/icons';
-import { WeekPublishBadge } from '@/components/assessment/AssessmentBadges';
 import { formatDate } from '@/utils/format';
 
 /*
@@ -14,6 +13,8 @@ const PAD = { top: 16, right: 12, bottom: 30, left: 32 };
 const plotW = W - PAD.left - PAD.right;
 const plotH = H - PAD.top - PAD.bottom;
 const dm = (s) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
+// Cả năm học (~40 tuần): thưa nhãn trục và bỏ số trên cột để không chồng chữ
+const labelEvery = (n) => Math.max(1, Math.ceil(n / 10));
 
 function Axis({ max, ticks, suffix = '' }) {
   return ticks.map((t) => {
@@ -31,6 +32,7 @@ function Axis({ max, ticks, suffix = '' }) {
 }
 
 function FlagBars({ weeks }) {
+  const every = labelEvery(weeks.length);
   const max = Math.max(5, ...weeks.map((w) => w.flags));
   const step = plotW / Math.max(weeks.length, 1);
   const barW = Math.min(28, step - 8);
@@ -55,14 +57,16 @@ function FlagBars({ weeks }) {
                 pointerEvents="none"
               />
             )}
-            {w.flags > 0 && (
+            {w.flags > 0 && weeks.length <= 20 && (
               <text className="dg-chart__value" x={x + barW / 2} y={y - 4} textAnchor="middle">
                 {w.flags}
               </text>
             )}
-            <text className="dg-chart__axis" x={PAD.left + i * step + step / 2} y={H - 10} textAnchor="middle">
-              {dm(w.weekStart)}
-            </text>
+            {i % every === 0 && (
+              <text className="dg-chart__axis" x={PAD.left + i * step + step / 2} y={H - 10} textAnchor="middle">
+                {dm(w.weekStart)}
+              </text>
+            )}
           </g>
         );
       })}
@@ -71,6 +75,7 @@ function FlagBars({ weeks }) {
 }
 
 function RateLine({ weeks }) {
+  const every = labelEvery(weeks.length);
   const step = plotW / Math.max(weeks.length, 1);
   const pts = weeks
     .map((w, i) =>
@@ -79,13 +84,13 @@ function RateLine({ weeks }) {
     .filter(Boolean);
   const last = pts[pts.length - 1];
   return (
-    <svg className="dg-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Tỉ lệ tiêu chí đạt theo tuần">
+    <svg className="dg-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Tỉ lệ mục tiêu đạt theo tuần">
       <Axis max={100} ticks={[0, 50, 100]} suffix="%" />
       {pts.length > 1 && <polyline className="dg-chart__line" points={pts.map((p) => `${p.x},${p.y}`).join(' ')} />}
       {pts.map((p) => (
         <g key={p.w.weekStart}>
           <circle className="dg-chart__hit" cx={p.x} cy={p.y} r={14}>
-            <title>{`Tuần ${formatDate(p.w.weekStart)}: đạt ${p.w.criteriaRate}% tiêu chí`}</title>
+            <title>{`Tuần ${formatDate(p.w.weekStart)}: đạt ${p.w.criteriaRate}% lượt đánh giá mục tiêu`}</title>
           </circle>
           <circle className="dg-chart__dot" cx={p.x} cy={p.y} r={5} pointerEvents="none" />
         </g>
@@ -95,11 +100,14 @@ function RateLine({ weeks }) {
           {last.w.criteriaRate}%
         </text>
       )}
-      {weeks.map((w, i) => (
-        <text key={w.weekStart} className="dg-chart__axis" x={PAD.left + i * step + step / 2} y={H - 10} textAnchor="middle">
-          {dm(w.weekStart)}
-        </text>
-      ))}
+      {weeks.map(
+        (w, i) =>
+          i % every === 0 && (
+            <text key={w.weekStart} className="dg-chart__axis" x={PAD.left + i * step + step / 2} y={H - 10} textAnchor="middle">
+              {dm(w.weekStart)}
+            </text>
+          ),
+      )}
     </svg>
   );
 }
@@ -135,7 +143,7 @@ export function DevelopmentCharts({ weeks }) {
               <FlagBars weeks={weeks} />
             </div>
             <div className="dg-chart-card">
-              <div className="subsection-title">Tỉ lệ tiêu chí đạt (%)</div>
+              <div className="subsection-title">Tỉ lệ mục tiêu đạt (%)</div>
               <RateLine weeks={weeks} />
             </div>
           </div>
@@ -148,8 +156,7 @@ export function DevelopmentCharts({ weeks }) {
                   <th className="num">Ngày có mặt</th>
                   <th className="num">Lượt đánh giá</th>
                   <th className="num">Cờ bé ngoan</th>
-                  <th className="num">Tiêu chí đạt</th>
-                  <th>Đánh giá tuần</th>
+                  <th className="num">Mục tiêu đạt</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,15 +169,6 @@ export function DevelopmentCharts({ weeks }) {
                     <td className="num">{w.assessments}</td>
                     <td className="num">{w.flags}</td>
                     <td className="num">{w.criteriaRate == null ? '—' : `${w.criteriaRate}%`}</td>
-                    <td>
-                      {w.evaluationConfirmed ? (
-                        <WeekPublishBadge status="PUBLISHED" />
-                      ) : w.finished ? (
-                        <WeekPublishBadge status="MISSING" />
-                      ) : (
-                        <span className="muted">Tuần đang diễn ra</span>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>

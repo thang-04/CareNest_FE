@@ -4,14 +4,22 @@ import { useAsync } from '@/hooks/useAsync';
 import { useClasses } from '@/hooks/useSchool';
 import {
   getChildDevelopment,
-  getDailySheet,
+  getDevelopmentChildren,
+  getDailyAssessment,
+  getDailyAssessmentClasses,
   getEvaluation,
   getEvaluations,
-  getRewardCandidates,
-  getRewardProposal,
-  getRewardProposals,
+  getRewardList,
+  getRewardLists,
   getTicketBoard,
+  getTicketSummary,
+  getTicketOverview,
+  getClassAssessmentOverview,
+  getQualityReport,
+  getProgramCompletion,
+  getClassAssessmentDetail,
 } from '@/services/assessment/assessmentService';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
 
 /**
@@ -25,15 +33,39 @@ export function useAssessmentClasses() {
   return { classes: list, loading, error, reload };
 }
 
-/** live=false on pages with unsaved input so background refreshes never reset what the user typed. */
-export function useDailySheet(params, { live = false } = {}) {
+/**
+ * Lớp của đánh giá hằng ngày / mở lại ngày đánh giá theo năm học ở header. BE trả lớp trong phạm vi kèm cờ teaches /
+ * canUnlock; mock dùng phân công lớp. Giáo viên chỉ thấy lớp mình dạy, PHT / Hiệu trưởng thấy lớp trong phạm vi.
+ */
+export function useDailyAssessmentClasses() {
+  const { user } = useAuth();
+  const { schoolYear } = useSchoolYear();
+  const { data, loading, error, reload } = useAsync(() => getDailyAssessmentClasses(schoolYear, user), [schoolYear, user?.id]);
+  const classes = useMemo(
+    () => (isLeader(user) ? data || [] : (data || []).filter((c) => c.teaches ?? isClassTeacher(c, user))),
+    [data, user],
+  );
+  return { classes, loading, error, reload };
+}
+
+/** Phiếu đánh giá một lớp / ngày (dùng chung 2 view). Không tự tải lại nền để không mất phần cô đang nhập. */
+export function useDailyAssessment(params) {
   const { user } = useAuth();
   const key = JSON.stringify(params || {});
-  const { data, loading, error, reload } = useAsync(() => getDailySheet(params, user), [key, user?.id], {
-    refreshOnDataChange: live,
+  const { data, loading, error, reload } = useAsync(() => getDailyAssessment(params, user), [key, user?.id], {
     enabled: !!params?.classId && !!params?.date,
   });
   return { sheet: data, loading, error, reload };
+}
+
+/** Trẻ trong phạm vi (GV: lớp mình, PHT: điểm trường, HT: toàn trường) theo năm học ở header. */
+export function useDevelopmentChildren() {
+  const { user } = useAuth();
+  const { schoolYear } = useSchoolYear();
+  const { data, loading, error, reload } = useAsync(() => getDevelopmentChildren({ schoolYear }, user), [schoolYear, user?.id], {
+    refreshOnDataChange: true,
+  });
+  return { children: data || [], loading, error, reload };
 }
 
 export function useChildDevelopment(childId, params) {
@@ -64,6 +96,27 @@ export function useEvaluation(kind, id, { live = true } = {}) {
   return { detail: data, loading, error, reload };
 }
 
+/** Phiếu bé ngoan các lớp (PHT, Hiệu trưởng). */
+export function useTicketOverview(params) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getTicketOverview(params, user), [key, user?.id], {
+    refreshOnDataChange: true,
+  });
+  return { overview: data, loading, error, reload };
+}
+
+/** Tổng hợp phiếu bé ngoan theo trẻ của lớp (năm học hoặc một tháng). */
+export function useTicketSummary(params) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getTicketSummary(params, user), [key, user?.id], {
+    refreshOnDataChange: true,
+    enabled: !!params?.classId,
+  });
+  return { summary: data, loading, error, reload };
+}
+
 export function useTicketBoard(params) {
   const { user } = useAuth();
   const key = JSON.stringify(params || {});
@@ -74,28 +127,59 @@ export function useTicketBoard(params) {
   return { board: data, loading, error, reload };
 }
 
-export function useRewardProposals(filters) {
+/** Các lớp trong phạm vi và trạng thái danh sách khen thưởng của năm học ở header. */
+export function useRewardLists() {
   const { user } = useAuth();
-  const key = JSON.stringify(filters || {});
-  const { data, loading, error, reload } = useAsync(() => getRewardProposals(filters, user), [key, user?.id], {
+  const { schoolYear } = useSchoolYear();
+  const { data, loading, error, reload } = useAsync(() => getRewardLists({ schoolYear }, user), [schoolYear, user?.id], {
     refreshOnDataChange: true,
   });
-  return { proposals: data || [], loading, error, reload };
+  return { rows: data || [], loading, error, reload };
 }
 
-export function useRewardProposal(id, { live = true } = {}) {
+export function useRewardList(classId) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getRewardProposal(id, user), [id, user?.id], {
-    refreshOnDataChange: live,
-    enabled: !!id,
-  });
+  const { data, loading, error, reload } = useAsync(() => getRewardList(classId, user), [classId, user?.id], { enabled: !!classId });
   return { detail: data, loading, error, reload };
 }
 
-export function useRewardCandidates(schoolYear) {
+/** Tổng quan đánh giá các lớp theo kỳ (PHT / Hiệu trưởng). */
+export function useClassAssessmentOverview(params) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getRewardCandidates(schoolYear, user), [schoolYear, user?.id], {
-    enabled: !!schoolYear,
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getClassAssessmentOverview(params, user), [key, user?.id], {
+    refreshOnDataChange: true,
   });
-  return { groups: data || [], loading, error, reload };
+  return { overview: data, loading, error, reload };
+}
+
+/** Báo cáo chất lượng tháng (sổ chỉ đạo chuyên môn 4.1 + 4.2) cho PHT / Hiệu trưởng. */
+/** Trẻ lớp 5–6 tuổi hoàn thành chương trình theo lớp (PHT / Hiệu trưởng). */
+export function useProgramCompletion(params, { enabled = true } = {}) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getProgramCompletion(params, user), [key, user?.id], {
+    refreshOnDataChange: true,
+    enabled,
+  });
+  return { report: data, loading, error, reload };
+}
+
+export function useQualityReport(params) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getQualityReport(params, user), [key, user?.id], {
+    refreshOnDataChange: true,
+  });
+  return { report: data, loading, error, reload };
+}
+
+/** Chi tiết đánh giá một lớp trong kỳ: từng trẻ và nhận xét. */
+export function useClassAssessmentDetail(params) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getClassAssessmentDetail(params, user), [key, user?.id], {
+    refreshOnDataChange: true,
+  });
+  return { detail: data, loading, error, reload };
 }

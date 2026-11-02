@@ -4,7 +4,6 @@ import { Modal } from '@/components/ui/Modal';
 
 /**
  * Shown when a room cannot be deactivated / deleted yet: lists the reasons (the room is used by a class of an open year).
- * Phần tài sản / luân chuyển / kiểm kê của cơ sở vật chất tạm bỏ (người dùng 13/10/2026: làm sau).
  */
 export function RoomBlockedModal({ room, actionLabel, onClose }) {
   if (!room) return null;

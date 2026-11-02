@@ -1,5 +1,6 @@
 /*
- * Danh mục demo từ UI G94-209; chưa phải contract của BE hiện tại.
+ * Nhãn hiển thị cho mã quyền BE (BE:src/main/java/com/carenest/utils/enums/Permission.java);
+ * STAFF_ACCOUNT_VIEW, PARENT_ACCOUNT_VIEW là đề xuất của UI G94-209, BE chưa có.
  * Không dùng các mã này để thay quyền hoặc scope đang chạy.
  */
 
@@ -56,6 +57,7 @@ export const PERMISSION_GROUPS = {
   child: { key: 'child', label: 'Hồ sơ trẻ & Phát triển' },
   staff: { key: 'staff', label: 'Quản trị nhân sự & Phân công' },
   parent: { key: 'parent', label: 'Tài khoản phụ huynh' },
+  meals: { key: 'meals', label: 'Suất ăn' },
   system: { key: 'system', label: 'Quản lý hệ thống' },
 };
 
@@ -98,6 +100,11 @@ export const PERMISSION_TASKS = {
     label: 'Kích hoạt, gắn/gỡ trẻ, khóa/mở tài khoản phụ huynh',
     hint: 'Kích hoạt theo SĐT, gắn hoặc gỡ liên kết trẻ, khóa/mở, cấp mật khẩu tạm',
     group: 'parent',
+  },
+  MEAL_COUNT_CONFIRM: {
+    label: 'Xác nhận, điều chỉnh số suất ăn',
+    hint: 'Số suất của điểm trường phụ trách',
+    group: 'meals',
   },
   PERMISSION_MANAGE: {
     label: 'Phân quyền toàn trường',

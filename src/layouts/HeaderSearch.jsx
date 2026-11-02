@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Plus, Search, X } from '@/components/ui/icons';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { getMenuForRole } from './menuConfig';
 import { getQuickActionsForRole } from './quickActions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGuardedNavigate } from '@/hooks/useLeaveGuard';
 
 // Bỏ dấu tiếng Việt từng ký tự để chỉ số trong chuỗi gốc và chuỗi đã chuẩn hoá khớp nhau (dùng để tô chữ khớp)
 const fold = (s) =>
@@ -41,7 +41,7 @@ const COMPACT_QUERY = '(max-width: 640px)';
 
 /** Ô tìm chức năng ở header (phương án A): gõ để lọc, Ctrl K để mở, ↑↓ chọn, Enter mở, Esc đóng. */
 export function HeaderSearch({ role }) {
-  const navigate = useNavigate();
+  const navigate = useGuardedNavigate();
   const listId = useId();
   const ref = useRef(null);
   const inputRef = useRef(null);

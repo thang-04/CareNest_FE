@@ -1,32 +1,59 @@
-import { USE_MOCK } from '@/config/env';
+import { SCHOOL_CONFIG_API } from '@/config/env';
+import { beClient } from '@/services/http/beClient';
+import { getChildren, getClasses } from '@/services/schoolService';
+import { isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
+import { sourceOf } from '@/services/demoSource';
 import { assessmentMockRepository as mock } from '@/services/assessment/mock/assessmentMockRepository';
-import { assessmentApi as api } from '@/services/assessment/api/assessmentApi';
+import { assessmentApi as api, createAssessmentBeApi } from '@/services/assessment/api/assessmentApi';
 
 /** Facade used by hooks / pages. VITE_USE_MOCK=false switches to Spring Boot. */
-const repo = USE_MOCK ? mock : api;
+const repo = sourceOf('assessment', mock, api);
+// Dev: đánh giá hằng ngày (2 view), mở lại ngày đánh giá, tổng quan đánh giá lớp dùng BE thật; phần còn lại vẫn mock
+const be = SCHOOL_CONFIG_API ? createAssessmentBeApi(beClient) : null;
 
 export const getAssessmentCriteria = () => repo.getCriteria();
 
-export const getDailySheet = (params, user) => repo.getDailySheet(params, user);
-export const saveDailyAssessments = (body, user) => repo.saveDailyAssessments(body, user);
-export const getAssessmentDayUnlocks = (user) => repo.listAssessmentDayUnlocks(user);
-export const unlockAssessmentDay = (body, user) => repo.unlockAssessmentDay(body, user);
+/** Lớp cho đánh giá hằng ngày / mở lại ngày: BE kèm cờ teaches, canUnlock; mock: lớp năm đang hoạt động. */
+export const getDailyAssessmentClasses = (schoolYear, user) =>
+  be ? be.getDailyAssessmentClasses(schoolYear) : getClasses({ activeYear: true }, user);
+// Phiếu đánh giá ngày dùng chung 2 view (Hoạt động chung, Kiến thức kỹ năng); lưu riêng từng view
+export const getDailyAssessment = (params, user) => (be || repo).getDailyAssessment(params, user);
+export const saveDailyGeneral = (body, user) => (be || repo).saveDailyGeneral(body, user);
+export const saveDailySkills = (body, user) => (be || repo).saveDailySkills(body, user);
+export const getAssessmentDayUnlocks = (filters, user) => (be || repo).listAssessmentDayUnlocks(filters, user);
+export const unlockAssessmentDay = (body, user) => (be || repo).unlockAssessmentDay(body, user);
+export const revokeAssessmentDayUnlock = (id, user) => (be || repo).revokeAssessmentDayUnlock(id, user);
 
-export const getChildDevelopment = (childId, params, user) => repo.getChildDevelopment(childId, params, user);
+export const getChildDevelopment = (childId, params, user) => (be || repo).getChildDevelopment(childId, params, user);
+/** Trẻ cho Hồ sơ / Tiến độ phát triển: BE trả trẻ trong phạm vi; mock lọc trẻ đang học theo lớp của người dùng. */
+export const getDevelopmentChildren = async (params, user) => {
+  if (be) return be.getDevelopmentChildren(params);
+  const [classes, children] = await Promise.all([getClasses({ activeYear: true }, user), getChildren({ status: 'ACTIVE' }, user)]);
+  const mine = new Map(classes.filter((c) => isLeader(user) || isClassTeacher(c, user)).map((c) => [c.id, c]));
+  return children
+    .filter((ch) => mine.has(ch.classId))
+    .map((ch) => ({ ...ch, className: mine.get(ch.classId).name, campusId: mine.get(ch.classId).campusId }));
+};
 
-export const getEvaluations = (kind, filters, user) => repo.listEvaluations(kind, filters, user);
-export const getEvaluation = (kind, id, user) => repo.getEvaluation(kind, id, user);
-export const saveEvaluationDraft = (kind, id, content, user) => repo.saveEvaluationDraft(kind, id, content, user);
-export const confirmEvaluation = (kind, id, content, user) => repo.confirmEvaluation(kind, id, content, user);
-export const regenerateEvaluationDraft = (kind, id, user) => repo.regenerateEvaluationDraft(kind, id, user);
+export const getEvaluations = (kind, filters, user) => (be ? be.getEvaluations(kind, filters) : repo.listEvaluations(kind, filters, user));
+export const getEvaluation = (kind, id, user) => (be || repo).getEvaluation(kind, id, user);
+export const saveEvaluationDraft = (kind, id, content, user) => (be || repo).saveEvaluationDraft(kind, id, content, user);
+export const confirmEvaluation = (kind, id, content, user) => (be || repo).confirmEvaluation(kind, id, content, user);
+export const regenerateEvaluationDraft = (kind, id, user) => (be || repo).regenerateEvaluationDraft(kind, id, user);
+export const markProgramCompletion = (id, completed, user) => (be || repo).markProgramCompletion(id, completed, user);
+export const getProgramCompletion = (params, user) => (be || repo).getProgramCompletion(params, user);
 
-export const getTicketBoard = (params, user) => repo.getTicketBoard(params, user);
-export const issueTickets = (body, user) => repo.issueTickets(body, user);
+export const getTicketBoard = (params, user) => (be || repo).getTicketBoard(params, user);
+export const getTicketSummary = (params, user) => (be || repo).getTicketSummary(params, user);
+export const getTicketOverview = (params, user) => (be || repo).getTicketOverview(params, user);
+// Tổng quan đánh giá các lớp cho PHT / Hiệu trưởng
+export const getClassAssessmentOverview = (params, user) => (be || repo).getClassAssessmentOverview(params, user);
+export const getQualityReport = (params, user) => (be || repo).getQualityReport(params, user);
+export const getClassAssessmentDetail = (params, user) => (be || repo).getClassAssessmentDetail(params, user);
+export const issueTickets = (body, user) => (be || repo).issueTickets(body, user);
 
-export const getRewardProposals = (filters, user) => repo.listRewardProposals(filters, user);
-export const getRewardProposal = (id, user) => repo.getRewardProposal(id, user);
-export const getRewardCandidates = (schoolYear, user) => repo.getRewardCandidates(schoolYear, user);
-export const saveRewardProposal = (id, payload, options, user) => repo.saveRewardProposal(id, payload, options, user);
-export const deleteRewardProposal = (id, user) => repo.deleteRewardProposal(id, user);
-export const reviewRewardProposal = (id, body, user) => repo.reviewRewardProposal(id, body, user);
-export const decideRewardProposal = (id, body, user) => repo.decideRewardProposal(id, body, user);
+export const getRewardLists = (params, user) => (be || repo).getRewardLists(params, user);
+export const getRewardList = (classId, user) => (be || repo).getRewardList(classId, user);
+export const saveRewardList = (classId, items, options, user) => (be || repo).saveRewardList(classId, items, options, user);
+export const reviewRewardList = (id, body, user) => (be || repo).reviewRewardList(id, body, user);
+export const decideRewardList = (id, body, user) => (be || repo).decideRewardList(id, body, user);

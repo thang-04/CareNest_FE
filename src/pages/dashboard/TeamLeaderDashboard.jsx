@@ -5,15 +5,12 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, KpiCard, ShortList } from '@/components/dashboard/DashboardWidgets';
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { ClassTodayPanel } from '@/components/dashboard/ClassTodayPanel';
-import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
-import { FACILITY_ENABLED } from '@/config/app';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
 import { EduStatusBadge } from '@/components/education-plan/eduUi';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { ageGroupById } from '@/models/School';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
-
 const TO_FIX = [EDU_STATUS.DRAFT, EDU_STATUS.REJECTED];
 
 /**
@@ -29,10 +26,12 @@ export default function TeamLeaderDashboard() {
   );
   const themes = themesQ.data || [];
   const count = (statuses) => themes.filter((t) => statuses.includes(t.status)).length;
-  const kpi = { loading: themesQ.loading && !themesQ.data, error: themesQ.error };
+  const kpi = {
+    loading: themesQ.loading && !themesQ.data,
+    error: themesQ.error,
+  };
   const toFix = themes.filter((t) => TO_FIX.includes(t.status));
   const group = ageGroupById(user.ageGroupId);
-
   return (
     <div className="page">
       <DashboardHeader subtitle={group ? `Nhóm tuổi ${group.shortName}` : undefined} />
@@ -118,11 +117,7 @@ export default function TeamLeaderDashboard() {
 
       <h2 className="section-title mt-24">Lớp của bạn</h2>
       <ClassTodayPanel />
-      {FACILITY_ENABLED && (
-        <div className="db-board mt-16">
-          <FacilityTasksWidget />
-        </div>
-      )}
+      {false}
     </div>
   );
 }

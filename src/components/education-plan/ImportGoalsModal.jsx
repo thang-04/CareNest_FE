@@ -1,62 +1,134 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useGoalImportSources } from '@/hooks/education-plan/useGoalImportSources';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
-import { EmptyState, Modal } from '@/components/education-plan/eduUi';
+import { getImportGoals } from '@/models/education-plan/importGoals.mjs';
+import { EmptyState, Modal, Notice, YearPlanStatusBadge } from '@/components/education-plan/eduUi';
+import { ErrorState, LoadingState } from '@/components/ui/States';
+import { GoalPicker } from '@/components/education-plan/GoalPicker';
+import { versionOf } from '@/models/education-plan/planVersions.mjs';
 
-/** Chọn mục tiêu (kèm nội dung, dấu tích chủ đề) từ kế hoạch năm học khác để thêm vào kế hoạch đang soạn. */
-export default function ImportGoalsModal({ goals, excludeId, defaultAgeGroupId, onClose, onImport }) {
-  const { schoolYears } = useEducationPlan();
-  // Default to the previous school year (list is newest first)
-  const [year, setYear] = useState(schoolYears[1] || schoolYears[0]);
+export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, defaultYear, onClose, onImport }) {
+  const { schoolYears, user } = useEducationPlan();
+  // Mặc định năm học của kế hoạch đang soạn (Tiền 31/10)
+  const [year, setYear] = useState(schoolYears.includes(defaultYear) ? defaultYear : schoolYears[1] || schoolYears[0] || '');
   const [ageGroupId, setAgeGroupId] = useState(defaultAgeGroupId || '');
-  const sources = useMemo(
-    () => goals.filter((g) => g.id !== excludeId && g.schoolYear === year && (!ageGroupId || g.ageGroupId === ageGroupId)),
-    [goals, excludeId, year, ageGroupId],
-  );
   const [sourceId, setSourceId] = useState('');
-  const source = sources.find((g) => g.id === sourceId) || sources[0];
-  const [picked, setPicked] = useState({});
-
-  const key = (di, ii) => `${source?.id}:${di}:${ii}`;
-  const allKeys = source ? source.domains.flatMap((d, di) => d.items.map((_, ii) => key(di, ii))) : [];
-  const count = allKeys.filter((k) => picked[k]).length;
-
-  const toggle = (k) => setPicked((p) => ({ ...p, [k]: !p[k] }));
-  const toggleDomain = (di) => {
-    const keys = source.domains[di].items.map((_, ii) => key(di, ii));
-    const on = !keys.every((k) => picked[k]);
-    setPicked((p) => ({ ...p, ...Object.fromEntries(keys.map((k) => [k, on])) }));
+  const [picked, setPicked] = useState({ key: '', ids: [] });
+  const [checking, setChecking] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
+  const query = useGoalImportSources({
+    schoolYear: year,
+    ageGroupId,
+    excludeId,
+    sourceId,
+    actor: user,
+  });
+  const source = query.source;
+  const goals = useMemo(() => (source ? getImportGoals(source) : []), [source]);
+  // Dạng cây của danh sách chọn dùng chung (GoalPicker): lĩnh vực → lĩnh vực con → nhóm kết quả mong đợi → MT
+  const pickTree = useMemo(() => {
+    const domains = [];
+    goals.forEach((goal) => {
+      let d = domains.find((x) => x.name === goal.domainName);
+      if (!d) domains.push((d = { name: goal.domainName, subs: [] }));
+      const subKey = goal.sub?.id || '-';
+      let sub = d.subs.find((x) => x.key === subKey);
+      if (!sub) d.subs.push((sub = { key: subKey, name: goal.sub?.text || '', groups: [] }));
+      const groupKey = goal.group?.id || '-';
+      let group = sub.groups.find((x) => x.key === groupKey);
+      if (!group) sub.groups.push((group = { key: groupKey, title: goal.group?.text || '', goals: [] }));
+      group.goals.push({ id: goal.id, code: goal.code, text: goal.text, contents: goal.contents.map((c) => c.text) });
+    });
+    return domains;
+  }, [goals]);
+  const key = `${query.sourceKey}:${source?.revision ?? 0}:${source?.status || ''}`;
+  const selected = new Set(picked.key === key ? picked.ids : []);
+  const selectedIds = goals.filter((goal) => selected.has(goal.id)).map((goal) => goal.id);
+  const count = selectedIds.length;
+  const busy = useRef(false);
+  const generation = useRef(0);
+  const alive = useRef(true);
+  const latest = useRef({});
+  latest.current = { key, onImport, onClose };
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  const reset = () => {
+    generation.current++;
+    busy.current = false;
+    setChecking(false);
+    setConfirmError('');
+    setPicked({ key: '', ids: [] });
   };
-  const toggleAll = () => {
-    const on = count !== allKeys.length;
-    setPicked((p) => ({ ...p, ...Object.fromEntries(allKeys.map((k) => [k, on])) }));
+  const close = () => {
+    generation.current++;
+    onClose();
   };
-
-  const confirm = () => {
-    const domains = source.domains
-      .map((d, di) => ({ name: d.name, items: d.items.filter((_, ii) => picked[key(di, ii)]) }))
-      .filter((d) => d.items.length);
-    onImport(domains, source);
+  const toggle = (ids) => {
+    setConfirmError('');
+    const on = !ids.every((id) => selected.has(id));
+    const next = new Set(selected);
+    ids.forEach((id) => (on ? next.add(id) : next.delete(id)));
+    setPicked({ key, ids: [...next] });
   };
-
+  const confirm = async () => {
+    if (busy.current || !source || !count || query.loadingSource) return;
+    busy.current = true;
+    setChecking(true);
+    setConfirmError('');
+    const token = ++generation.current;
+    const valid = () => alive.current && token === generation.current && latest.current.key === key;
+    try {
+      const fresh = await query.readFresh();
+      if (!valid()) return;
+      const freshIds = new Set(getImportGoals(fresh).map((goal) => goal.id));
+      if (
+        fresh.id !== source.id ||
+        fresh.status !== source.status ||
+        (fresh.revision ?? 0) !== (source.revision ?? 0) ||
+        selectedIds.some((id) => !freshIds.has(id))
+      ) {
+        setPicked({ key: '', ids: [] });
+        setConfirmError('Kế hoạch nguồn đã thay đổi. Xem lại nội dung và chọn lại mục tiêu.');
+        query.reloadSource();
+        return;
+      }
+      const applied = await latest.current.onImport({ source: fresh, selectedGoalIds: selectedIds });
+      if (applied && valid()) latest.current.onClose();
+      else if (valid()) setConfirmError('Chưa thêm được mục tiêu. Kiểm tra lại quyền sửa và phiên sửa kế hoạch.');
+    } catch (error) {
+      if (valid()) setConfirmError(error.message || 'Không đọc được kế hoạch nguồn. Vui lòng thử lại.');
+    } finally {
+      if (valid()) {
+        busy.current = false;
+        setChecking(false);
+      }
+    }
+  };
+  const ready = source && !query.loadingSource && !query.sourceError && !query.loadingList && !query.listError;
   return (
     <Modal
       title="Lấy mục tiêu từ kế hoạch có sẵn"
-      width={760}
-      onClose={onClose}
+      width={1100}
+      className="ga-cur-modal"
+      onClose={close}
       footer={
         <>
-          <button className="btn" onClick={onClose}>
+          <button className="btn" onClick={close}>
             Hủy
           </button>
-          <button className="btn btn--primary" disabled={!count} onClick={confirm}>
-            <Download size={16} aria-hidden /> Thêm {count || ''} mục tiêu
+          <button className="btn btn--primary" disabled={!ready || !count || checking} onClick={confirm}>
+            <Download size={16} aria-hidden /> {checking ? 'Đang kiểm tra…' : `Thêm ${count || ''} mục tiêu`}
           </button>
         </>
       }
     >
-      <div className="grid-2 gap-3">
+      <div className="ga-cur-filters gap-3">
         <div className="field">
           <label className="field__label" htmlFor="imp-year">
             Năm học
@@ -65,14 +137,14 @@ export default function ImportGoalsModal({ goals, excludeId, defaultAgeGroupId, 
             id="imp-year"
             className="select"
             value={year}
-            onChange={(e) => {
-              setYear(e.target.value);
+            onChange={(event) => {
+              reset();
+              setYear(event.target.value);
               setSourceId('');
-              setPicked({});
             }}
           >
-            {schoolYears.map((y) => (
-              <option key={y}>{y}</option>
+            {schoolYears.map((item) => (
+              <option key={item}>{item}</option>
             ))}
           </select>
         </div>
@@ -84,79 +156,84 @@ export default function ImportGoalsModal({ goals, excludeId, defaultAgeGroupId, 
             id="imp-age"
             className="select"
             value={ageGroupId}
-            onChange={(e) => {
-              setAgeGroupId(e.target.value);
+            onChange={(event) => {
+              reset();
+              setAgeGroupId(event.target.value);
               setSourceId('');
-              setPicked({});
             }}
           >
             <option value="">Tất cả nhóm tuổi</option>
-            {AGE_GROUPS.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
+            {AGE_GROUPS.map((age) => (
+              <option key={age.id} value={age.id}>
+                {age.name}
               </option>
             ))}
           </select>
         </div>
       </div>
-
-      {sources.length === 0 ? (
-        <EmptyState title="Không có bộ mục tiêu phù hợp" desc="Thử chọn năm học hoặc nhóm tuổi khác." />
+      {confirmError && <Notice tone="warn">{confirmError}</Notice>}
+      {query.loadingList ? (
+        <LoadingState />
+      ) : query.listError ? (
+        <ErrorState
+          error={query.listError}
+          onRetry={() => {
+            reset();
+            query.reloadList();
+          }}
+        />
+      ) : !query.sources.length ? (
+        <EmptyState title="Không có kế hoạch phù hợp" />
       ) : (
         <>
-          {sources.length > 1 && (
-            <div className="field">
-              <label className="field__label" htmlFor="imp-src">
-                Bộ mục tiêu
-              </label>
-              <select
-                id="imp-src"
-                className="select"
-                value={source.id}
-                onChange={(e) => {
-                  setSourceId(e.target.value);
-                  setPicked({});
-                }}
-              >
-                {sources.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="row row--between">
-            <span className="fw-600">{source.title}</span>
-            <button type="button" className="btn btn--sm" onClick={toggleAll}>
-              {count === allKeys.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-            </button>
+          <div className="field">
+            <label className="field__label" htmlFor="imp-src">
+              Bộ mục tiêu
+            </label>
+            <select
+              id="imp-src"
+              className="select"
+              value={query.sourceId}
+              onChange={(event) => {
+                reset();
+                setSourceId(event.target.value);
+              }}
+            >
+              {query.sources.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="ga-pick-list">
-            {source.domains.map((d, di) => {
-              const keys = d.items.map((_, ii) => key(di, ii));
-              const all = keys.every((k) => picked[k]);
-              return (
-                <div key={d.name} className="mb-8">
-                  <label className="ga-goal-check ga-goal-check--head">
-                    <input type="checkbox" checked={all} onChange={() => toggleDomain(di)} />
-                    <span className="fw-600">{d.name}</span>
-                  </label>
-                  {d.items.map((it, ii) => (
-                    <label key={it.id} className="ga-goal-check ga-goal-check--child">
-                      <input type="checkbox" checked={!!picked[key(di, ii)]} onChange={() => toggle(key(di, ii))} />
-                      <span className="ga-goal-code">{it.code}</span>
-                      <span className="text-sm">{it.text}</span>
-                    </label>
-                  ))}
+          {query.loadingSource ? (
+            <LoadingState />
+          ) : query.sourceError ? (
+            <ErrorState
+              error={query.sourceError}
+              onRetry={() => {
+                reset();
+                query.reloadSource();
+              }}
+            />
+          ) : (
+            ready && (
+              <>
+                <div className="ga-cur-meta">
+                  <span className="chip chip--blue">{AGE_GROUPS.find((age) => age.id === source.ageGroupId)?.name}</span>
+                  <span className="muted text-sm">
+                    {source.schoolYear} · Phiên bản {versionOf(source)}
+                  </span>
+                  <YearPlanStatusBadge status={source.status} />
                 </div>
-              );
-            })}
-          </div>
-          <p className="muted text-xs">
-            Mục tiêu được thêm vào cuối lĩnh vực cùng tên, kèm nội dung và dấu tích chủ đề (khớp theo tên viết tắt). Nếu kế hoạch đang soạn
-            chưa có chủ đề, bảng chủ đề và đợt nghỉ của kế hoạch nguồn được chép theo. Mục tiêu trùng nội dung sẽ bỏ qua.
-          </p>
+                {!goals.length ? (
+                  <EmptyState title="Kế hoạch nguồn chưa có mục tiêu" />
+                ) : (
+                  <GoalPicker tree={pickTree} picked={selected} onToggle={toggle} disabled={checking} />
+                )}
+              </>
+            )
+          )}
         </>
       )}
     </Modal>

@@ -9,6 +9,7 @@ Nguyên tắc (server vs UI state, refetch sau mutation, không persist dữ li�
 | Server state | `useAsync(loader, deps, { refreshOnDataChange, enabled })`; hook module bọc lại (`useXxx(id, { live })`) | `src/hooks/useAsync.js`, `src/hooks/<module>/` |
 | Sau khi ghi | Gọi facade rồi `reload({ silent: true })`; không sửa tay số liệu dẫn xuất | CODING_GUIDE §4 |
 | Chống race | `useAsync` bỏ response cũ (`latestRequest.js`) | `src/hooks/latestRequest.js` |
+| Đổi phạm vi (deps) | `data` = null tới khi deps mới tải xong (cũ ở `stale`); `loading` bật ngay render đầu; thêm `initialLoading` (chưa có gì để hiện) / `refreshing` (đang tải, còn dữ liệu cùng phạm vi hoặc `stale`); lỗi gắn theo phạm vi. Tải lại cùng phạm vi giữ `data` như cũ | `src/hooks/asyncState.js` (test `tests/hardening/use-async-scope.test.mjs`) |
 | UI state toàn cục | Context: user/phiên, toast, năm học, giao diện | `src/contexts/` |
 | Bộ lọc giữ khi quay lại | `useFilterParams` (lưu lên URL khi cần) | `src/hooks/useFilterParams.js` |
 | Thư viện cache (React Query…) | Không dùng; thêm ⇒ làn L, hỏi trước | — |

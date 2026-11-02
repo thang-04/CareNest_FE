@@ -24,7 +24,6 @@ export { SignaturePicker } from './signature/SignaturePicker';
 export { SignatureUploader } from './signature/SignatureUploader';
 export { FileUploader } from './upload/FileUploader';
 export { ImageUploader } from './upload/ImageUploader';
-export { AssetThumb, ConditionBadge, ConditionSelect, categoryIcon } from './asset/AssetVisuals';
 export { PrintHeader } from './print/PrintHeader';
 export { PrintToolbar } from './print/PrintToolbar';
 export { FormField } from './form/FormField';
