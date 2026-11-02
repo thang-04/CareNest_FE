@@ -32,16 +32,10 @@ import {
   RowActions,
   StatusPage,
 } from '@/components';
-import { TransferStatusBadge } from '@/components/facility-transfer/TransferStatusBadge';
-import { RoundStatusBadge, SheetStatusBadge } from '@/components/inventory-inspection/InspectionBadges';
-import { TRANSFER_STATUS } from '@/models/facility-transfer/transferConstants';
-import { ROUND_STATUS, SHEET_STATUS } from '@/models/inventory-inspection/inspectionConstants';
-import { CONDITION_OPTIONS } from '@/models/Asset';
 import './ui-kit.css';
 import { NutritionPrimitivesDemo } from '@/components/ui/NutritionPrimitivesDemo';
 import { Tabs } from '@/components/ui/Tabs';
 import { CampusFilter } from '@/components/ui/CampusFilter';
-
 const COLOR_GROUPS = [
   {
     title: 'Primitive — xanh thương hiệu (700 = logo)',
@@ -121,7 +115,6 @@ const COLOR_GROUPS = [
     ],
   },
 ];
-
 const RADIUS_TOKENS = ['--radius-xs', '--radius-sm', '--radius-md', '--radius-lg', '--radius-xl', '--radius-full'];
 const SHADOW_TOKENS = ['--shadow-xs', '--shadow-sm', '--shadow-md', '--shadow-lg', '--shadow-xl'];
 const SPACE_TOKENS = [
@@ -140,7 +133,6 @@ const SPACE_TOKENS = [
 ];
 // Câu có đủ dấu tiếng Việt để kiểm tra font hiển thị đúng
 const VI_SAMPLE = 'Hiệu trưởng, Phó hiệu trưởng, Tổ trưởng — ỹ ữ ặ ộ ở ợ ẫ ễ ờ ự Ằ Ẵ Ổ Ữ';
-
 const TONE_MEANING = {
   gray: 'Nháp, đã hủy, không hoạt động',
   orange: 'Đang chờ người khác (chờ bàn giao, chờ kiểm kê)',
@@ -150,9 +142,7 @@ const TONE_MEANING = {
   green: 'Hoàn thành, đã duyệt',
   teal: 'Nhãn thông tin (vai trò)',
 };
-
 const tokenValue = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-
 function Section({ id, title, children, code }) {
   return (
     <section className="card uikit-section" id={id}>
@@ -173,7 +163,6 @@ function Section({ id, title, children, code }) {
     </section>
   );
 }
-
 const NAV = [
   ['colors', 'Màu sắc'],
   ['typography', 'Chữ'],
@@ -194,7 +183,6 @@ const NAV = [
 
 /** Living style guide: every shared token / component with a copy-paste snippet. */
 const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
-
 export default function UiKitPage() {
   const toast = useToast();
   const ai = useAiRun();
@@ -215,10 +203,19 @@ export default function UiKitPage() {
   const [step, setStep] = useState(1);
   const [page, setPage] = useState(1);
   const onSignature = useCallback(({ url }) => setSignature(url), []);
-
   return (
     <div className="page">
-      <Breadcrumb items={[{ label: 'Trang chủ', to: '/' }, { label: 'Thư viện giao diện (UI Kit)' }]} />
+      <Breadcrumb
+        items={[
+          {
+            label: 'Trang chủ',
+            to: '/',
+          },
+          {
+            label: 'Thư viện giao diện (UI Kit)',
+          },
+        ]}
+      />
       <h1 className="page__title">Thư viện giao diện CareNest</h1>
       <div className="alert alert--info mb-16">
         <Info size={18} />
@@ -236,7 +233,12 @@ export default function UiKitPage() {
         ))}
       </nav>
 
-      <div className="stack" style={{ gap: 16 }}>
+      <div
+        className="stack"
+        style={{
+          gap: 16,
+        }}
+      >
         <Section
           id="colors"
           title="Màu sắc (design tokens)"
@@ -248,7 +250,12 @@ export default function UiKitPage() {
               <div className="uikit-swatches">
                 {g.tokens.map((t) => (
                   <div key={t} className="uikit-swatch">
-                    <div className="uikit-swatch__color" style={{ background: `var(${t})` }} />
+                    <div
+                      className="uikit-swatch__color"
+                      style={{
+                        background: `var(${t})`,
+                      }}
+                    />
                     <code>{t}</code>
                     <span className="muted">{tokenValue(t)}</span>
                   </div>
@@ -263,22 +270,48 @@ export default function UiKitPage() {
           title="Chữ"
           code={`<h1 className="page__title">Tiêu đề trang</h1>\n<h2 className="section-title">Tiêu đề khối</h2>\n<div className="subsection-title">Tiêu đề nhỏ</div>\n<span className="muted">Chữ phụ</span>`}
         >
-          <div className="page__title" style={{ margin: 0 }}>
+          <div
+            className="page__title"
+            style={{
+              margin: 0,
+            }}
+          >
             Tiêu đề trang – 28px / 700
           </div>
           <div className="section-title">Tiêu đề khối – 18px / 600</div>
           <div className="subsection-title">Tiêu đề nhỏ – 15px / 600</div>
-          <p style={{ margin: '4px 0' }}>Nội dung – 14px / 400, font Be Vietnam Pro</p>
-          <p className="text-2" style={{ margin: '4px 0' }}>
+          <p
+            style={{
+              margin: '4px 0',
+            }}
+          >
+            Nội dung – 14px / 400, font Be Vietnam Pro
+          </p>
+          <p
+            className="text-2"
+            style={{
+              margin: '4px 0',
+            }}
+          >
             Chữ phụ .text-2
           </p>
-          <p className="muted" style={{ margin: '4px 0' }}>
+          <p
+            className="muted"
+            style={{
+              margin: '4px 0',
+            }}
+          >
             Chữ mờ .muted
           </p>
           <div className="subsection-title mt-16">Kiểm tra dấu tiếng Việt</div>
           <div className="uikit-vi-sample">
             {[400, 500, 600, 700].map((w) => (
-              <p key={w} style={{ fontWeight: w }}>
+              <p
+                key={w}
+                style={{
+                  fontWeight: w,
+                }}
+              >
                 {w} · {VI_SAMPLE}
               </p>
             ))}
@@ -296,7 +329,12 @@ export default function UiKitPage() {
             {SPACE_TOKENS.map((t) => (
               <div key={t} className="uikit-scale__row">
                 <code>{t}</code>
-                <span className="uikit-scale__bar" style={{ width: `var(${t})` }} />
+                <span
+                  className="uikit-scale__bar"
+                  style={{
+                    width: `var(${t})`,
+                  }}
+                />
                 <span className="muted">{tokenValue(t)}</span>
               </div>
             ))}
@@ -305,7 +343,12 @@ export default function UiKitPage() {
           <div className="uikit-swatches">
             {RADIUS_TOKENS.map((t) => (
               <div key={t} className="uikit-swatch">
-                <div className="uikit-tile" style={{ borderRadius: `var(${t})` }} />
+                <div
+                  className="uikit-tile"
+                  style={{
+                    borderRadius: `var(${t})`,
+                  }}
+                />
                 <code>{t}</code>
                 <span className="muted">{tokenValue(t)}</span>
               </div>
@@ -315,7 +358,12 @@ export default function UiKitPage() {
           <div className="uikit-swatches">
             {SHADOW_TOKENS.map((t) => (
               <div key={t} className="uikit-swatch">
-                <div className="uikit-tile uikit-tile--surface" style={{ boxShadow: `var(${t})` }} />
+                <div
+                  className="uikit-tile uikit-tile--surface"
+                  style={{
+                    boxShadow: `var(${t})`,
+                  }}
+                />
                 <code>{t}</code>
               </div>
             ))}
@@ -419,8 +467,14 @@ export default function UiKitPage() {
                 onChange={setSelect}
                 placeholder="Chọn giáo viên..."
                 options={[
-                  { value: 'a', label: 'Nguyễn Văn An' },
-                  { value: 'b', label: 'Trần Thị Mai' },
+                  {
+                    value: 'a',
+                    label: 'Nguyễn Văn An',
+                  },
+                  {
+                    value: 'b',
+                    label: 'Trần Thị Mai',
+                  },
                 ]}
               />
             </div>
@@ -435,7 +489,12 @@ export default function UiKitPage() {
               <textarea id="uk-text" className="textarea" rows={2} />
             </div>
           </div>
-          <div className="row row--wrap mt-12" style={{ gap: 20 }}>
+          <div
+            className="row row--wrap mt-12"
+            style={{
+              gap: 20,
+            }}
+          >
             <label className="radio">
               <input type="radio" name="uk-r" defaultChecked /> Radio
             </label>
@@ -471,27 +530,16 @@ export default function UiKitPage() {
             </table>
           </div>
           <div className="subsection-title">Ví dụ đang dùng</div>
-          <div className="row row--wrap mb-8">
-            {Object.values(TRANSFER_STATUS).map((s) => (
-              <TransferStatusBadge key={s} status={s} />
-            ))}
-          </div>
-          <div className="row row--wrap mb-8">
-            {Object.values(ROUND_STATUS).map((s) => (
-              <RoundStatusBadge key={s} status={s} />
-            ))}
-          </div>
-          <div className="row row--wrap mb-8">
-            {Object.values(SHEET_STATUS).map((s) => (
-              <SheetStatusBadge key={s} status={s} />
-            ))}
-          </div>
-          <div className="row row--wrap">
-            {CONDITION_OPTIONS.map((c) => (
-              <ConditionBadge key={c.value} value={c.value} />
-            ))}
-          </div>
-          <div className="mt-12" style={{ maxWidth: 320 }}>
+          <div className="row row--wrap mb-8"></div>
+          <div className="row row--wrap mb-8"></div>
+          <div className="row row--wrap mb-8"></div>
+          <div className="row row--wrap"></div>
+          <div
+            className="mt-12"
+            style={{
+              maxWidth: 320,
+            }}
+          >
             <ProgressBar value={7} total={10} />
             <ProgressBar value={10} total={10} />
             <ProgressBar value={0} total={0} />
@@ -503,7 +551,12 @@ export default function UiKitPage() {
           title="Thông báo trong trang"
           code={`<div className="alert alert--warning"><AlertTriangle size={18} /><div>Nội dung</div></div>`}
         >
-          <div className="stack" style={{ gap: 8 }}>
+          <div
+            className="stack"
+            style={{
+              gap: 8,
+            }}
+          >
             <div className="alert alert--info">
               <Info size={18} />
               <div>
@@ -570,17 +623,28 @@ export default function UiKitPage() {
                       </td>
                       <td className="cell--actions">
                         <RowActions
-                          view={{ onClick: () => toast.info('Xem Bàn học mầm non') }}
-                          edit={{ onClick: () => toast.info('Sửa Bàn học mầm non') }}
+                          view={{
+                            onClick: () => toast.info('Xem Bàn học mầm non'),
+                          }}
+                          edit={{
+                            onClick: () => toast.info('Sửa Bàn học mầm non'),
+                          }}
                           name="Bàn học mầm non"
                           menu={[
-                            { label: 'In nhãn', icon: Printer, onClick: () => toast.info('In nhãn') },
+                            {
+                              label: 'In nhãn',
+                              icon: Printer,
+                              onClick: () => toast.info('In nhãn'),
+                            },
                             {
                               label: 'Xóa',
                               icon: Trash2,
                               danger: true,
                               onClick: () => toast.success('Đã xóa (minh họa)'),
-                              confirm: { title: 'Xóa tài sản?', message: 'Dữ liệu minh họa, không lưu.' },
+                              confirm: {
+                                title: 'Xóa tài sản?',
+                                message: 'Dữ liệu minh họa, không lưu.',
+                              },
                             },
                           ]}
                         />
@@ -596,17 +660,28 @@ export default function UiKitPage() {
                       </td>
                       <td className="cell--actions">
                         <RowActions
-                          view={{ onClick: () => toast.info('Xem Ghế nhựa') }}
-                          edit={{ onClick: () => toast.info('Sửa Ghế nhựa') }}
+                          view={{
+                            onClick: () => toast.info('Xem Ghế nhựa'),
+                          }}
+                          edit={{
+                            onClick: () => toast.info('Sửa Ghế nhựa'),
+                          }}
                           name="Ghế nhựa"
                           menu={[
-                            { label: 'In nhãn', icon: Printer, onClick: () => toast.info('In nhãn') },
+                            {
+                              label: 'In nhãn',
+                              icon: Printer,
+                              onClick: () => toast.info('In nhãn'),
+                            },
                             {
                               label: 'Xóa',
                               icon: Trash2,
                               danger: true,
                               onClick: () => toast.success('Đã xóa (minh họa)'),
-                              confirm: { title: 'Xóa tài sản?', message: 'Dữ liệu minh họa, không lưu.' },
+                              confirm: {
+                                title: 'Xóa tài sản?',
+                                message: 'Dữ liệu minh họa, không lưu.',
+                              },
                             },
                           ]}
                         />
@@ -617,7 +692,12 @@ export default function UiKitPage() {
               </div>
             </div>
           </div>
-          <div className="stat-grid mt-16" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div
+            className="stat-grid mt-16"
+            style={{
+              gridTemplateColumns: 'repeat(4, 1fr)',
+            }}
+          >
             <div className="stat-card stat-card--primary">
               <div className="stat-card__value">24</div>
               <div className="stat-card__label">stat-card--primary (thẻ nổi bật)</div>
@@ -662,20 +742,38 @@ export default function UiKitPage() {
               />
             </div>
             <div className="card">
-              <ErrorState error={{ message: 'Không kết nối được máy chủ' }} onRetry={() => toast.info('Thử lại')} />
+              <ErrorState
+                error={{
+                  message: 'Không kết nối được máy chủ',
+                }}
+                onRetry={() => toast.info('Thử lại')}
+              />
             </div>
           </div>
           {/* Trạng thái chặn: icon, không tranh; 403/404 không có "Thử lại" */}
           <div className="grid-3 mt-12">
             <div className="card">
-              <ErrorState error={{ status: 403, message: 'Dữ liệu nằm ngoài lớp bạn phụ trách.' }} onRetry={() => toast.info('Thử lại')} />
+              <ErrorState
+                error={{
+                  status: 403,
+                  message: 'Dữ liệu nằm ngoài lớp bạn phụ trách.',
+                }}
+                onRetry={() => toast.info('Thử lại')}
+              />
             </div>
             <StatusPage kind="404" />
             <StatusPage kind="500" action={null} />
           </div>
           <div className="grid-3 mt-12">
             {['sending', 'done', 'error'].map((state) => (
-              <div key={state} className="card card__body" style={{ position: 'relative', minHeight: 180 }}>
+              <div
+                key={state}
+                className="card card__body"
+                style={{
+                  position: 'relative',
+                  minHeight: 180,
+                }}
+              >
                 <div className="field__label">Lý do từ chối</div>
                 <SubmitOverlay
                   state={state}
@@ -688,7 +786,14 @@ export default function UiKitPage() {
           {/* Lớp phủ AI: cả màn khi bấm nút AI; `scoped` khi AI tự chạy trong một card */}
           <div className="grid-3 mt-12">
             {['cooking', 'writing'].map((kind) => (
-              <div key={kind} className="card card__body" style={{ position: 'relative', minHeight: 200 }}>
+              <div
+                key={kind}
+                className="card card__body"
+                style={{
+                  position: 'relative',
+                  minHeight: 200,
+                }}
+              >
                 <AiWorkingOverlay scoped kind={kind} text={kind === 'cooking' ? 'Đang nấu thực đơn…' : 'Đang phân tích xu hướng…'} />
               </div>
             ))}
@@ -717,9 +822,19 @@ export default function UiKitPage() {
           <Tabs
             ariaLabel="Mẫu tab"
             items={[
-              { key: 'week', label: 'Phiếu tuần', count: 3 },
-              { key: 'month', label: 'Phiếu tháng' },
-              { key: 'sum', label: 'Tổng hợp' },
+              {
+                key: 'week',
+                label: 'Phiếu tuần',
+                count: 3,
+              },
+              {
+                key: 'month',
+                label: 'Phiếu tháng',
+              },
+              {
+                key: 'sum',
+                label: 'Tổng hợp',
+              },
             ]}
             value={demoTab}
             onChange={setDemoTab}
@@ -727,8 +842,14 @@ export default function UiKitPage() {
           <div className="mt-12">
             <CampusFilter
               campuses={[
-                { id: 'c1', name: 'Campus 1' },
-                { id: 'c2', name: 'Campus 2' },
+                {
+                  id: 'c1',
+                  name: 'Campus 1',
+                },
+                {
+                  id: 'c2',
+                  name: 'Campus 2',
+                },
               ]}
               value={demoCampus}
               onChange={setDemoCampus}
@@ -747,10 +868,24 @@ export default function UiKitPage() {
           <div className="card card__body mb-16">
             <ProgressSteps
               steps={[
-                { label: 'Tạo phiếu', sub: 'Nguyễn Thị Lan · 06/10/2026', done: true },
-                { label: 'Bàn giao', sub: 'Nguyễn Văn An · 07/10/2026', done: true },
-                { label: 'Xác nhận nhận', sub: 'Có chênh lệch', warn: true },
-                { label: 'Hoàn thành' },
+                {
+                  label: 'Tạo phiếu',
+                  sub: 'Nguyễn Thị Lan · 06/10/2026',
+                  done: true,
+                },
+                {
+                  label: 'Bàn giao',
+                  sub: 'Nguyễn Văn An · 07/10/2026',
+                  done: true,
+                },
+                {
+                  label: 'Xác nhận nhận',
+                  sub: 'Có chênh lệch',
+                  warn: true,
+                },
+                {
+                  label: 'Hoàn thành',
+                },
               ]}
             />
           </div>
@@ -786,7 +921,14 @@ export default function UiKitPage() {
             </button>
             <button
               className="btn"
-              onClick={() => toast.error(Object.assign(new Error('Số lượng vượt tồn kho'), { status: 409 }), 'Không gửi được')}
+              onClick={() =>
+                toast.error(
+                  Object.assign(new Error('Số lượng vượt tồn kho'), {
+                    status: 409,
+                  }),
+                  'Không gửi được',
+                )
+              }
             >
               Toast error
             </button>
@@ -859,13 +1001,30 @@ export default function UiKitPage() {
           title="Logo"
           code={`<Logo />            // sidebar\n<Logo collapsed />  // chỉ biểu tượng\n<LogoFull width={160} />  // logo gốc (đăng nhập, splash)\n<PrintHeader />     // đầu mọi bản in A4`}
         >
-          <div className="row row--wrap" style={{ gap: 40, alignItems: 'center' }}>
+          <div
+            className="row row--wrap"
+            style={{
+              gap: 40,
+              alignItems: 'center',
+            }}
+          >
             <Logo />
             <Logo collapsed />
             <LogoFull width={140} />
             <div className="row">
-              <Avatar user={{ fullName: 'Nguyễn Thị Lan', avatarColor: '#7c5cff' }} size="lg" />
-              <Avatar user={{ fullName: 'Nguyễn Văn An', avatarColor: '#1f6feb' }} />
+              <Avatar
+                user={{
+                  fullName: 'Nguyễn Thị Lan',
+                  avatarColor: '#7c5cff',
+                }}
+                size="lg"
+              />
+              <Avatar
+                user={{
+                  fullName: 'Nguyễn Văn An',
+                  avatarColor: '#1f6feb',
+                }}
+              />
             </div>
           </div>
         </Section>

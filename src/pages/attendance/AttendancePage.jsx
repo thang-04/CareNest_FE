@@ -147,11 +147,10 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   const [clock, setClock] = useState(null);
   const [confirmAll, setConfirmAll] = useState(false);
   const [leaveFor, setLeaveFor] = useState(null);
-  const [confirmArrival, setConfirmArrival] = useState(null);
   const initialized = useRef(false);
   const submitRef = useRef(false);
   const rows = useMemo(() => sheet?.children || [], [sheet]);
-  const dirtyRows = rows.filter((row) => changed(draft[row.child.id], row.record));
+  const dirtyRows = rows.filter((row) => !row.leaveRequest && changed(draft[row.child.id], row.record));
   const busy = saving || healthBusy;
   useEffect(() => {
     onUnsaved({ attendance: dirtyRows.length > 0, health: healthDirty });
@@ -217,23 +216,14 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     else setSelectedId(id);
   };
   const update = (row, patch) => {
-    if (!editable || busy) return;
+    if (!editable || busy || row.leaveRequest) return;
     setDraft((current) => ({ ...current, [row.child.id]: { ...current[row.child.id], ...patch } }));
     setRowErrors((current) => ({ ...current, [row.child.id]: null }));
     selectChild(row.child.id);
   };
-  const setStatus = (row, present, confirmed = false) => {
-    const current = draft[row.child.id];
-    if (present && row.leaveRequest && current?.status !== 'PRESENT' && !confirmed) {
-      setConfirmArrival(row);
-      return;
-    }
-    // ATT-09: Vắng có phép chỉ do báo nghỉ của phụ huynh đặt; GV không tự chọn
-    const status = present ? ATTENDANCE_STATUS.PRESENT : row.leaveRequest ? ATTENDANCE_STATUS.EXCUSED : ATTENDANCE_STATUS.UNEXCUSED;
-    update(row, {
-      status,
-      confirmedLeaveRequestId: present && row.leaveRequest ? row.leaveRequest.id : null,
-    });
+  const setStatus = (row, present) => {
+    if (row.leaveRequest) return;
+    update(row, { status: present ? ATTENDANCE_STATUS.PRESENT : ATTENDANCE_STATUS.UNEXCUSED });
   };
   const markAllPresent = () => {
     setConfirmAll(false);
@@ -516,7 +506,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                           </div>
                         </td>
                         <td>
-                          {editable ? (
+                          {editable && !row.leaveRequest ? (
                             <div className="dd-seg dd-reception__status" role="radiogroup" aria-label={`Điểm danh ${row.child.fullName}`}>
                               {[true, false].map((present) => (
                                 <label
@@ -555,7 +545,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
               <div className="dd-health__actions">
                 <button
                   className="btn"
-                  disabled={busy || !selected || !changed(draft[selectedId], selected.record)}
+                  disabled={busy || !selected || !!selected.leaveRequest || !changed(draft[selectedId], selected.record)}
                   onClick={() => save(selectedId)}
                 >
                   <CheckCircle2 size={16} /> Lưu trẻ đang chọn
@@ -612,25 +602,10 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
               {formatDate(leaveFor.leaveRequest.fromDate)} – {formatDate(leaveFor.leaveRequest.toDate)}
             </p>
             <p>{leaveFor.leaveRequest.reason || 'Không có ghi chú.'}</p>
-            <p className="muted text-sm">Báo nghỉ đã gửi, không cần duyệt.</p>
+            <p className="muted text-sm">Phụ huynh cần hủy đơn trước giờ chốt để giáo viên điểm danh lại.</p>
           </>
         )}
       </Modal>
-      <ConfirmationModal
-        open={!!confirmArrival}
-        title="Trẻ vẫn đến lớp?"
-        message={
-          confirmArrival
-            ? `${confirmArrival.child.fullName} đã có báo nghỉ từ phụ huynh. Chỉ đổi sang Có mặt khi trẻ thực tế đến lớp; trẻ có mặt được tính suất đủ các bữa của nhóm tuổi.`
-            : ''
-        }
-        confirmLabel="Xác nhận trẻ có mặt"
-        onClose={() => setConfirmArrival(null)}
-        onConfirm={() => {
-          if (confirmArrival) setStatus(confirmArrival, true, true);
-          setConfirmArrival(null);
-        }}
-      />
       <ConfirmationModal
         open={pendingId !== null}
         title="Chuyển sang trẻ khác?"

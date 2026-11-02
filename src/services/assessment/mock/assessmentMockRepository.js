@@ -1,3 +1,5 @@
+import { createAssessmentReportsMock } from './assessmentReportsMock';
+import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import { activeYearEnd, activeYearId, activeYearStart } from '@/mocks/roomManagers';
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
@@ -697,6 +699,13 @@ const backfillDemoObservations = (db) => {
 /** Seeds once, then runs the period jobs whenever a week or month has ended since the last visit. */
 const ensureReady = () => {
   ensureSchoolSeeded();
+  if (!readDb().schoolYears || !readDb().ageGroups) {
+    writeDb((db) => {
+      const seed = buildSeedSchoolConfig();
+      db.schoolYears ||= clone(seed.schoolYears);
+      db.ageGroups ||= clone(seed.ageGroups);
+    });
+  }
   let db = readDb();
   // Đánh giá hằng ngày đọc giáo án ngày, nên cần dữ liệu kế hoạch giáo dục kể cả khi chưa mở module đó.
   if (db.eduSeedVersion !== EDU_SEED_VERSION) {
@@ -1030,6 +1039,7 @@ const classCommentsOf = (db, classId, days) =>
 /* ---------------- repository ---------------- */
 
 export const assessmentMockRepository = {
+  ...createAssessmentReportsMock(ensureReady),
   async getCriteria() {
     await delay(60);
     return clone(ensureReady().assessmentCriteria);

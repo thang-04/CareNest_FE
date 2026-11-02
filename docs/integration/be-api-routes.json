@@ -110,6 +110,7 @@
     "POST /children/{x}/guardians/lookup",
     "POST /classes",
     "POST /daily-health-entries",
+    "POST /education-plans/class-docs/branch/file-preview",
     "POST /education-plans/class-docs/theme/{x}/learning-resources",
     "POST /education-plans/class-docs/{x}/{x}/actions",
     "POST /education-plans/goals",

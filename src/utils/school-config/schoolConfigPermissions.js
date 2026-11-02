@@ -82,7 +82,7 @@ export const permissionLevel = (user, code) => {
   return user.permissions?.[code] || 'NONE';
 };
 
-/** { access, scope } of a Vice Principal's area (menu, teacherAssignment, facility). Principal: EDIT whole school. */
+/** { access, scope } of a Vice Principal's area (menu, teacherAssignment, rooms). Principal: EDIT whole school. */
 export const areaAccess = (user, key) => {
   if (isPrincipal(user)) return parseAreaGrant(`EDIT@${AREA_SCOPE_ALL}`);
   if (!isVicePrincipal(user)) return parseAreaGrant(PERMISSION_LEVEL.NONE);

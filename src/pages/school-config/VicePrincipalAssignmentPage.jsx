@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { SCHOOL_CONFIG_API } from '@/config/env';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { UserCog, AlertTriangle, Save, Utensils } from '@/components/ui/icons';
@@ -32,7 +34,6 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
     campusId: row.assignment?.campusId || row.user.campusId || '',
     note: '',
   });
-  // Giữ cả mảng đang ẩn (CSVC khi tắt) để lưu không làm mất quyền cũ
   const [grants, setGrants] = useState(() => vpGrantsOf(row.assignment));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -70,8 +71,8 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
 
   const submit = async () => {
     const e = validateVpAssignment(form);
-    if (Object.values(grants).some((g) => !g.campusId)) e.areas = 'Chọn "Ở đâu" cho từng công việc được giao';
-    if (menuClash)
+    if (!SCHOOL_CONFIG_API && Object.values(grants).some((g) => !g.campusId)) e.areas = 'Chọn "Ở đâu" cho từng công việc được giao';
+    if (!SCHOOL_CONFIG_API && menuClash)
       e.areas = `Thực đơn & dịch vụ bán trú đang do ${sharedHolder.fullName} quản lý. Mỗi năm học chỉ một Phó hiệu trưởng được lập, sửa, xóa thực đơn.`;
     setErrors(e);
     if (hasErrors(e)) return;
@@ -83,8 +84,8 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
           composeAreaGrant({ actions: g.actions, campusId: g.campusId === AREA_SCOPE_ALL ? null : g.campusId }),
         ]),
       );
-      await saveViceAssignment(year.id, row.user.id, { ...form, areas }, user);
-      toast.success(`Đã lưu thay đổi. ${row.user.fullName} đã được thông báo.`, 'Phân công Phó hiệu trưởng');
+      await saveViceAssignment(year.id, row.user.id, { ...form, ...(!SCHOOL_CONFIG_API ? { areas } : {}) }, user);
+      toast.success(`Đã lưu phân công cho ${row.user.fullName}.`, 'Phân công Phó hiệu trưởng');
       onClose(true);
     } catch (err) {
       if (err.details) setErrors(err.details);
@@ -125,67 +126,75 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
       </FormField>
 
       <div className="mt-16">
-        <span className="field__label">Công việc được giao</span>
-        <div className="field__hint mb-8">
-          Chọn &quot;Ở đâu&quot; cho từng việc; chọn &quot;Không giao&quot; thì Phó hiệu trưởng không thấy việc đó. Không tích ô nào = chỉ
-          được xem.
-        </div>
-        <div className="sc-vp-edit">
-          {visibleVpAreas.map((area) => {
-            const g = grants[area.key];
-            const lockMenu = area.key === 'menu' && menuHeldByOther;
-            return (
-              <div key={area.key} className={`sc-vp-edit__row ${g ? '' : 'is-off'}`}>
-                <div className="sc-vp-edit__name">
-                  <div className="fw-600">{area.label}</div>
-                  <div className="text-xs muted">{area.hint}</div>
-                </div>
-                <select
-                  className={`select ${errors.areas && g && !g.campusId ? 'is-invalid' : ''}`}
-                  aria-label={`Ở đâu: ${area.label}`}
-                  value={g ? g.campusId : NOT_GIVEN}
-                  onChange={(e) => setScope(area, e.target.value)}
-                >
-                  <option value={NOT_GIVEN}>Không giao</option>
-                  {g && !g.campusId && <option value="">Chọn nơi…</option>}
-                  {area.scopes.includes('CAMPUS') &&
-                    campuses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.shortName || c.name}
-                      </option>
-                    ))}
-                  {area.scopes.includes('ALL') && <option value={AREA_SCOPE_ALL}>Toàn trường</option>}
-                </select>
-                <div className="sc-vp-edit__tasks" role="group" aria-label={`Việc được làm: ${area.label}`}>
-                  {g ? (
-                    <>
-                      {areaTasks(area).map((t) => {
-                        const on = taskOn(t, g.actions);
-                        return (
-                          <label key={t.id} className={`sc-vp-task ${lockMenu && !on ? 'is-off' : ''}`}>
-                            <input type="checkbox" checked={on} disabled={lockMenu && !on} onChange={() => toggleTask(area, t)} />
-                            {t.label}
-                          </label>
-                        );
-                      })}
-                      {lockMenu && (
-                        <span className="sc-vp-edit__warn text-xs">
-                          <AlertTriangle size={13} /> {sharedHolder.fullName} đang quản lý thực đơn. Mỗi năm học chỉ 1 người.
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="muted text-sm">—</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {errors.areas && (
-          <p className="field__error mt-8" role="alert">
-            {errors.areas}
+        {SCHOOL_CONFIG_API ? (
+          <p className="text-sm muted">
+            Cấp quyền tại <Link to="/school/roles">Vai trò & quyền</Link>.
           </p>
+        ) : (
+          <>
+            <span className="field__label">Công việc được giao</span>
+            <div className="field__hint mb-8">
+              Chọn &quot;Ở đâu&quot; cho từng việc; chọn &quot;Không giao&quot; thì Phó hiệu trưởng không thấy việc đó. Không tích ô nào =
+              chỉ được xem.
+            </div>
+            <div className="sc-vp-edit">
+              {visibleVpAreas.map((area) => {
+                const g = grants[area.key];
+                const lockMenu = area.key === 'menu' && menuHeldByOther;
+                return (
+                  <div key={area.key} className={`sc-vp-edit__row ${g ? '' : 'is-off'}`}>
+                    <div className="sc-vp-edit__name">
+                      <div className="fw-600">{area.label}</div>
+                      <div className="text-xs muted">{area.hint}</div>
+                    </div>
+                    <select
+                      className={`select ${errors.areas && g && !g.campusId ? 'is-invalid' : ''}`}
+                      aria-label={`Ở đâu: ${area.label}`}
+                      value={g ? g.campusId : NOT_GIVEN}
+                      onChange={(e) => setScope(area, e.target.value)}
+                    >
+                      <option value={NOT_GIVEN}>Không giao</option>
+                      {g && !g.campusId && <option value="">Chọn nơi…</option>}
+                      {area.scopes.includes('CAMPUS') &&
+                        campuses.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.shortName || c.name}
+                          </option>
+                        ))}
+                      {area.scopes.includes('ALL') && <option value={AREA_SCOPE_ALL}>Toàn trường</option>}
+                    </select>
+                    <div className="sc-vp-edit__tasks" role="group" aria-label={`Việc được làm: ${area.label}`}>
+                      {g ? (
+                        <>
+                          {areaTasks(area).map((t) => {
+                            const on = taskOn(t, g.actions);
+                            return (
+                              <label key={t.id} className={`sc-vp-task ${lockMenu && !on ? 'is-off' : ''}`}>
+                                <input type="checkbox" checked={on} disabled={lockMenu && !on} onChange={() => toggleTask(area, t)} />
+                                {t.label}
+                              </label>
+                            );
+                          })}
+                          {lockMenu && (
+                            <span className="sc-vp-edit__warn text-xs">
+                              <AlertTriangle size={13} /> {sharedHolder.fullName} đang quản lý thực đơn. Mỗi năm học chỉ 1 người.
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="muted text-sm">—</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {errors.areas && (
+              <p className="field__error mt-8" role="alert">
+                {errors.areas}
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -250,7 +259,7 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
           <div>Chưa có Phó hiệu trưởng phụ trách: {uncovered.map((c) => c.shortName).join(', ')}.</div>
         </div>
       )}
-      {!loading && year && !readOnly && !sharedRow && rows.length > 0 && (
+      {!SCHOOL_CONFIG_API && !loading && year && !readOnly && !sharedRow && rows.length > 0 && (
         <div className="alert alert--warning mb-16">
           <Utensils size={18} />
           <div>Chưa có Phó hiệu trưởng phụ trách dịch vụ chung (bán trú toàn trường).</div>

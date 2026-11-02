@@ -46,7 +46,11 @@ export const INTEGRATION_MODULES = {
       'PATCH /users/{x}/status',
     ],
   },
-  'staff-accounts': { source: 'demo', routes: ['/school/staff'], facades: ['src/services/school-config/schoolConfigService.js'] },
+  'staff-accounts': {
+    source: 'demo',
+    routes: ['/school/staff'],
+    facades: ['src/services/school-config/schoolConfigService.js'],
+  },
   'vice-principal-assignments': {
     source: 'api',
     routes: ['/school/vice-principals'],
@@ -65,7 +69,11 @@ export const INTEGRATION_MODULES = {
       'POST /meal-handovers/{x}/supplement',
     ],
   },
-  'meal-handover': { source: 'demo', routes: ['/attendance/meal-handover'], facades: ['src/services/attendance/attendanceService.js'] },
+  'meal-handover': {
+    source: 'demo',
+    routes: ['/attendance/meal-handover'],
+    facades: ['src/services/attendance/attendanceService.js'],
+  },
   'daily-health': {
     source: 'api',
     routes: ['/attendance/health'],
@@ -92,13 +100,20 @@ export const INTEGRATION_MODULES = {
     source: 'api',
     files: ['src/services/masterDataService.js'],
     facades: ['src/services/masterDataService.js'],
-    // Danh bạ user dùng master-data-users (demo); danh mục tài sản thuộc CSVC (demo, ngoài V1)
-    pending: ['GET /users', 'GET /asset-categories'],
+    // Danh bạ người dùng demo
+    pending: ['GET /users'],
   },
   // Danh bạ người dùng cho các màn demo; màn thật chỉ chọn user có id BE (RoomFormModal)
-  'master-data-users': { source: 'demo', facades: ['src/services/masterDataService.js'] },
+  'master-data-users': {
+    source: 'demo',
+    facades: ['src/services/masterDataService.js'],
+  },
   // Lớp, trẻ dùng chung cho các màn demo (BE chưa có GET /classes)
-  'school-lookup': { source: 'demo', files: ['src/services/schoolService.js'], facades: ['src/services/schoolService.js'] },
+  'school-lookup': {
+    source: 'demo',
+    files: ['src/services/schoolService.js'],
+    facades: ['src/services/schoolService.js'],
+  },
   children: {
     source: 'demo',
     routes: ['/children'],
@@ -136,24 +151,6 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/kitchen/api/kitchenApi.js'],
     facades: ['src/services/kitchen/kitchenService.js'],
   },
-  facility: {
-    source: 'demo',
-    routes: ['/facility'],
-    files: ['src/services/facility/api/facilityApi.js'],
-    facades: ['src/services/facility/facilityService.js', 'src/services/masterDataService.js'],
-  },
-  'facility-transfer': {
-    source: 'demo',
-    routes: ['/facility/transfers'],
-    files: ['src/services/facility-transfer/api/transferApi.js'],
-    facades: ['src/services/facility-transfer/transferService.js'],
-  },
-  'inventory-inspection': {
-    source: 'demo',
-    routes: ['/facility/inspections'],
-    files: ['src/services/inventory-inspection/api/inspectionApi.js', 'src/services/facilityLockService.js'],
-    facades: ['src/services/inventory-inspection/inspectionService.js', 'src/services/facilityLockService.js'],
-  },
   notifications: {
     source: 'demo',
     routes: ['/notifications'],
@@ -161,7 +158,11 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/notificationService.js'],
   },
   // Nhãn ở SignaturePicker (dùng trong màn kế hoạch giáo dục)
-  signatures: { source: 'demo', files: ['src/services/signatureService.js'], facades: ['src/services/signatureService.js'] },
+  signatures: {
+    source: 'demo',
+    files: ['src/services/signatureService.js'],
+    facades: ['src/services/signatureService.js'],
+  },
   appearance: {
     source: 'demo',
     routes: ['/settings/appearance'],

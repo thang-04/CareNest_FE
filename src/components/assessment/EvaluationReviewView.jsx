@@ -93,7 +93,7 @@ export function EvaluationReviewView({ kind, id }) {
     setProgramError('');
     setBusy('program');
     try {
-      await markProgramCompletion(ev.id, completed);
+      await markProgramCompletion(ev.id, completed, user);
       await reload({ silent: true });
     } catch (err) {
       setProgramError(err.details?.programCompleted || err.message || 'Chưa lưu được.');

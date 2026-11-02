@@ -131,7 +131,7 @@ export function useTicketBoard(params) {
 export function useRewardLists() {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();
-  const { data, loading, error, reload } = useAsync(() => getRewardLists({ schoolYear }), [schoolYear, user?.id], {
+  const { data, loading, error, reload } = useAsync(() => getRewardLists({ schoolYear }, user), [schoolYear, user?.id], {
     refreshOnDataChange: true,
   });
   return { rows: data || [], loading, error, reload };
@@ -139,7 +139,7 @@ export function useRewardLists() {
 
 export function useRewardList(classId) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getRewardList(classId), [classId, user?.id], { enabled: !!classId });
+  const { data, loading, error, reload } = useAsync(() => getRewardList(classId, user), [classId, user?.id], { enabled: !!classId });
   return { detail: data, loading, error, reload };
 }
 

@@ -211,6 +211,18 @@ export const branchFile = (args) => ({
   html: branchFileHtml(args),
   name: fileTitle(`2. DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH VÀ THỜI GIAN THỰC HIỆN - ${args.cls.name}`),
 });
+export const branchTemplateFile = (weeks = []) => ({
+  html: docShell(
+    'Mẫu nhập chủ đề nhánh',
+    `<p><b>Mẫu nhập chủ đề nhánh</b></p>
+<p>Điền tên chủ đề nhánh vào từng dòng, giữ tên chủ đề tương ứng. Ngày và tuần thực hiện do hệ thống xác định; không cần nhập thời gian trong file. Lưu file rồi chọn Nhập file để xem trước.</p>
+<table class="grid"><colgroup><col style="width:40%"/><col style="width:60%"/></colgroup>
+<thead><tr><th>Chủ đề</th><th>Chủ đề nhánh</th></tr></thead><tbody>${(weeks.length ? weeks : [{ theme: { name: '' } }])
+      .map((week) => `<tr><td>${esc(week.theme.name)}</td><td>&nbsp;</td></tr>`)
+      .join('')}</tbody></table>`,
+  ),
+  name: 'Mẫu nhập chủ đề nhánh',
+});
 export const themeFile = (args) => ({
   html: themeFileHtml(args),
   name: fileTitle(`3. KHGD CĐ ${args.themeNo} ${args.theme.name} - ${args.cls.name}`),

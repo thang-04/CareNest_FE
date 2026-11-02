@@ -75,18 +75,15 @@ const ROWS = [
     ['⁷ Tổ trưởng duyệt trước, sau đó Phó hiệu trưởng.'],
   ],
   ['education', 'lessonPlan.view', 'Kế hoạch giáo dục', 'Xem', 'FRRRNN', []],
-  ['facility', 'facilityIssue.submit', 'Báo cáo sự cố cơ sở vật chất', 'Gửi', 'NNRRRN', []],
-  ['facility', 'facilityIssue.approve', 'Báo cáo sự cố cơ sở vật chất', 'Duyệt / từ chối', 'NRNNNN', []],
-  ['facility', 'facilityIssue.view', 'Sự cố cơ sở vật chất', 'Xem', 'FRNNNN', []],
-  ['facility', 'facilityProposal.create', 'Đề xuất cơ sở vật chất', 'Tạo', 'NRNNNN', []],
-  ['facility', 'facilityProposal.approve', 'Đề xuất cơ sở vật chất', 'Phê duyệt / từ chối', 'FNNNNN', []],
   ['monitoring', 'dashboard.view', 'Bảng tổng quan toàn trường', 'Xem', 'FNNNNN', []],
   ['monitoring', 'approvals.view', 'Yêu cầu chờ phê duyệt', 'Xem', 'FRNRNN', []],
 ];
-
-const LEVEL = { F: 'FULL', R: 'RESTRICTED', N: 'NONE' };
+const LEVEL = {
+  F: 'FULL',
+  R: 'RESTRICTED',
+  N: 'NONE',
+};
 const MATRIX_COLUMNS = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'TEAM_LEADER', 'KITCHEN_STAFF', 'PARENT'];
-
 export const PERMISSION_CATALOG = ROWS.map(([module, code, entity, action, defaults, notes, source]) => ({
   module,
   code,
@@ -96,14 +93,15 @@ export const PERMISSION_CATALOG = ROWS.map(([module, code, entity, action, defau
   source: source || 'SRS 4.4',
   defaults: Object.fromEntries(MATRIX_COLUMNS.map((role, i) => [role, LEVEL[defaults[i]]])),
 }));
-
 export const permissionByCode = (code) => PERMISSION_CATALOG.find((p) => p.code === code) || null;
 
 /** Grants of one role as defined by the SRS matrix. */
 export const defaultGrants = (role) => Object.fromEntries(PERMISSION_CATALOG.map((p) => [p.code, p.defaults[role] || 'NONE']));
 
 /** Principal must keep the right to manage permissions, otherwise nobody can fix the configuration. */
-export const LOCKED_GRANTS = { PRINCIPAL: ['permission.manage'] };
+export const LOCKED_GRANTS = {
+  PRINCIPAL: ['permission.manage'],
+};
 
 /**
  * Effective grants of a role: the saved entry of the Role & Permission screen, else the matrix defaults.
@@ -112,6 +110,8 @@ export const LOCKED_GRANTS = { PRINCIPAL: ['permission.manage'] };
 export const grantsOf = (rolePermissions, role) =>
   role === 'PRINCIPAL'
     ? Object.fromEntries(PERMISSION_CATALOG.map((p) => [p.code, 'FULL']))
-    : { ...defaultGrants(role), ...((rolePermissions || []).find((r) => r.role === role)?.grants || {}) };
-
+    : {
+        ...defaultGrants(role),
+        ...((rolePermissions || []).find((r) => r.role === role)?.grants || {}),
+      };
 export const isLockedGrant = (role, code) => (LOCKED_GRANTS[role] || []).includes(code);
