@@ -7,6 +7,7 @@ import { AuthLayout } from '@/layouts/AuthLayout';
 import { Avatar, FormField, PasswordInput, Spinner } from '@/components';
 import { IS_DEMO_MODE, DEMO_LOGIN_PASSWORD, getDemoAccounts } from '@/services/authService';
 import { ROLE_LABELS } from '@/models/User';
+import { returnPath } from '@/routes/ProtectedRoute';
 
 import { setPasswordChallenge } from '@/services/authChallengeStore';
 
@@ -79,7 +80,7 @@ export default function LoginPage() {
     try {
       const user = await login({ email: form.email.trim(), password: form.password, remember: form.remember }); // carenest:allow-secret – tên field, không phải giá trị bí mật
       toast.success(`Xin chào ${user.fullName}`, 'Đăng nhập thành công');
-      navigate(location.state?.from?.pathname || '/', { replace: true });
+      navigate(returnPath(location.state?.from), { replace: true });
     } catch (err) {
       // Issued password (SRS 1.1 step 7): no session yet, the user must set a new password first.
       if (err.details?.passwordChangeRequired && err.details?.changeToken) {

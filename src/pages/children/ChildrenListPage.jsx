@@ -31,7 +31,7 @@ import {
 } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 
 // Lọc theo mức của lần khám gần nhất có xếp mức (BE trả latestHealth); NO_RESULT: chưa có lần khám nào được xếp mức.
 const NO_RESULT = 'NO_RESULT';
@@ -162,16 +162,15 @@ export default function ChildrenListPage() {
 
       <div className="stat-grid">
         {stats.map((s) => (
-          <button
+          <StatCard
             key={s.key || 'all'}
-            className={`stat-card stat-card--${s.tone} ${status === s.key ? 'stat-card--active' : ''}`}
-            aria-pressed={status === s.key}
+            tone={s.tone}
+            label={s.label}
+            value={s.value}
+            loading={loading}
+            active={status === s.key}
             onClick={() => setFilter({ status: s.key })}
-          >
-            <div className="stat-card__value">{s.value}</div>
-            <div className="stat-card__label">{s.label}</div>
-            <StatCardIcon tone={s.tone} />
-          </button>
+          />
         ))}
       </div>
 

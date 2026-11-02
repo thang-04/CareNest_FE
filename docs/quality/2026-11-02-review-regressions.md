@@ -18,7 +18,7 @@ Verification after source edits:
 - Six new regression tests cover reward role chain/privacy/validation, mock reports, CSV, school timezone, removed feature entry points and no localStorage VP grants.
 - Headless installed Chrome smoke: 9/9 pages opened without runtime errors: HT rewards/quality/rooms/VP assignments; PHT rewards/quality; GV attendance/rewards/daily assessment. Temporary isolated Vite port 5196, demo accounts only. Script/log retained locally under `.git/review-browser.cjs` and `.git/review-browser.log`.
 - Existing ImportGoalFileModal ref warning remains; unused route REPORTERS warning also remains. Neither is a failed lint check. Build has dependency deprecation/lottie warnings.
-- BE full verification: 729 tests, zero failures/errors/skips; real PostgreSQL containers. See sibling BE plan `docs/plans/active/2026-11-02-review-regressions.md`.
+- BE full verification: 729 tests, zero failures/errors/skips; real PostgreSQL containers. See sibling BE plan `BE:docs/plans/active/2026-11-02-review-regressions.md`.
 
 Limits: Chrome checks verify page loading, not every click path. Full role transitions validated at mock-service level. Browser against real BE, APP notification rendering and production deployment were not tested. Development BE remains running its existing bytecode until restart. No production data or user databases reset.
 
