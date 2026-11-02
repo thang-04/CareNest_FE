@@ -4,7 +4,7 @@ import { ArrowLeft, PackagePlus, Plus, Save, Trash2 } from '@/components/ui/icon
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useFoodCatalog, useStockReceipt, useSuppliers } from '@/hooks/kitchen/useKitchen';
+import { useFoodCatalog, useReceiptSuppliers, useStockReceipt } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, ConfirmationModal, ErrorState, FormField, LoadingState, SearchSelect, Spinner } from '@/components';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { saveStockReceipt } from '@/services/kitchen/kitchenService';
@@ -85,7 +85,7 @@ export default function StockReceiptFormPage() {
 
   const foodById = useMemo(() => Object.fromEntries(foods.map((f) => [f.id, f])), [foods]);
   const options = useMemo(() => foods.map((f) => ({ value: f.id, label: `${f.name} (${f.unit})` })), [foods]);
-  const suppliers = useSuppliers();
+  const suppliers = useReceiptSuppliers();
   // Chỉ NCC đang dùng; NCC đã gắn trên phiếu trước khi ngừng dùng vẫn hiện để giữ lựa chọn cũ
   const supplierOptions = useMemo(
     () =>

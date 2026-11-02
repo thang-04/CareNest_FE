@@ -9,6 +9,23 @@ export const NORM_COLUMNS = [
   { key: 'lipid', label: 'Béo' },
   { key: 'glucid', label: 'Tinh bột' },
 ];
+/** Định mức cơ cấu (không bắt buộc): phần động vật trong tổng đạm, tổng béo (%). */
+export const SHARE_NORM_COLUMNS = [
+  { key: 'animalProteinPct', label: 'Đạm động vật / tổng đạm' },
+  { key: 'animalLipidPct', label: 'Béo động vật / tổng béo' },
+];
+export const ALL_NORM_COLUMNS = [...NORM_COLUMNS, ...SHARE_NORM_COLUMNS];
+
+// Khóa định mức cũ (trước khi khớp tên BE animalProteinPct*, animalLipidPct*) còn trong localStorage
+const LEGACY_NORM_KEYS = { animalProteinShare: 'animalProteinPct', animalLipidShare: 'animalLipidPct' };
+export const hasLegacyNormKeys = (norms) => Object.keys(norms || {}).some((k) => k in LEGACY_NORM_KEYS);
+/** Đổi khóa định mức cũ sang khóa mới; khóa mới đã có thì giữ. */
+export const migrateNormKeys = (norms = {}) =>
+  Object.entries(norms).reduce((out, [k, range]) => {
+    const key = LEGACY_NORM_KEYS[k] || k;
+    if (!(key in out) || key === k) out[key] = range;
+    return out;
+  }, {});
 
 /** Tên viết tắt nhóm tuổi dùng trong bảng (Nhà trẻ, MG bé, MG nhỡ, MG lớn). */
 export const ageAbbr = (ageGroupId) => (ageGroupById(ageGroupId)?.shortName || ageGroupId).replace('Mẫu giáo', 'MG');
@@ -26,6 +43,12 @@ export const mealsOf = (setups, ageGroupId) => {
 };
 
 export const mealCodesOf = (setups, ageGroupId) => mealsOf(setups, ageGroupId).map((m) => m.code);
+
+/** Định mức áp cho phạm vi các bữa trường phục vụ của nhóm tuổi: chỉ giữ các bữa đã cấu hình khi so định mức. */
+export const normScopeMeals = (meals, setups, ageGroupId) => {
+  const codes = mealCodesOf(setups, ageGroupId);
+  return (meals || []).filter((m) => codes.includes(m.session));
+};
 
 /** Tên bữa: theo nhóm tuổi nếu biết, không thì tìm ở mọi nhóm, cuối cùng là tên bữa gốc. */
 export const mealLabel = (setups, ageGroupId, code) =>
@@ -57,7 +80,7 @@ export const toSetupForm = (setups, today) => ({
     enabled: s.enabled,
     price: String(s.price ?? ''),
     meals: s.meals.map((m) => ({ code: m.code, name: m.name, countAs: m.countAs })),
-    norms: Object.fromEntries(NORM_COLUMNS.map(({ key }) => [key, (s.norms?.[key] || ['', '']).map(String)])),
+    norms: Object.fromEntries(ALL_NORM_COLUMNS.map(({ key }) => [key, (s.norms?.[key] || ['', '']).map(String)])),
   })),
 });
 

@@ -33,10 +33,20 @@ test('kiểm tra tự động: lời thường, số liệu để riêng; thiế
   assert.ok(full.checks.every((c) => !/ : |–/.test(c.text)));
   assert.deepEqual(
     full.numbers.map((n) => n.label),
-    ['Năng lượng', 'Đạm · béo · tinh bột', 'Tiền ăn'],
+    [
+      'Năng lượng',
+      'Đạm động vật · thực vật',
+      'Béo động vật · thực vật',
+      'Tinh bột',
+      'Tỷ lệ năng lượng đạm · béo · bột',
+      'Đạm động vật / tổng đạm',
+      'Béo động vật / tổng béo',
+      '% đạt định mức năng lượng · đạm · béo · bột',
+      'Tiền ăn',
+    ],
   );
   assert.equal(full.numbers[0].norm, '615–726 kcal');
-  assert.equal(full.numbers[2].norm, 'tối đa 30.000 đ');
+  assert.equal(full.numbers.at(-1).norm, 'tối đa 30.000 đ');
   assert.notEqual(full.status.label, 'Thiếu bữa');
   const half = checkDayMenu({ meals: [menu.meals[0]], ageGroupId: 'ag-4', catalog, date: TODAY });
   assert.deepEqual(half.status, { tone: 'red', label: 'Thiếu bữa' });

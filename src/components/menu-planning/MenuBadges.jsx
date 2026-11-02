@@ -30,7 +30,7 @@ export const WeeklyStatusBadge = createStatusBadge(
 );
 
 export const NormStatusChip = createStatusBadge(
-  { OK: ['green', null], LOW: ['orange', null], HIGH: ['orange', null], NA: ['gray', null] },
+  { OK: ['green', null], LOW: ['orange', null], HIGH: ['orange', null], NA: ['gray', null], INCOMPLETE: ['gray', null] },
   NORM_STATUS_LABELS,
 );
 

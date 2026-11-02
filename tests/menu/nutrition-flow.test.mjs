@@ -30,7 +30,11 @@ test('HT: thực đơn tuần, sổ suất, kho chỉ xem; bếp không có mụ
   assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'nutrition'), ['weeklyMenus']);
   assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts']);
   assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'stock'), ['dryStock']);
-  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'catalog'), ['nutritionSetup', 'suppliers']);
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'catalog'), ['foods', 'dishes', 'nutritionSetup', 'suppliers']);
+  assert.deepEqual(
+    menuGroup(ROLES.PRINCIPAL, 'catalog').children.map((c) => c.to),
+    ['/menu/foods', '/menu/dishes', '/menu/setup', '/menu/suppliers'],
+  );
   assert.equal(menuGroup(ROLES.KITCHEN_STAFF, 'kitchenOps'), undefined);
 });
 

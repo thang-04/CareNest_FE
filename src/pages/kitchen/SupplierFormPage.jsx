@@ -5,13 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSupplier } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, ErrorState, FormField, LoadingState, Spinner } from '@/components';
-import { saveSupplier } from '@/services/kitchen/kitchenService';
+import { saveSupplier, suppliersUseApi } from '@/services/kitchen/kitchenService';
 import { validateSupplier } from '@/utils/kitchen/kitchenValidation';
-import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
+import { supplierCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { SUPPLIER_STATUS, SUPPLIER_STATUS_LABELS } from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/kitchen.css';
 
-const EMPTY = { name: '', address: '', contactName: '', phone: '', taxCode: '', status: SUPPLIER_STATUS.ACTIVE };
+const EMPTY = { name: '', address: '', contactName: '', phone: '', taxCode: '', idCard: '', status: SUPPLIER_STATUS.ACTIVE };
+// BE: không có mã NCC, mã số thuế; có CCCD người giao hàng
+const VIA_API = suppliersUseApi();
 const pick = (s) => Object.fromEntries(Object.keys(EMPTY).map((k) => [k, s[k] ?? '']));
 
 /** Thêm/sửa nhà cung cấp (BA 01 Supplier Form): chỉ HT; mã do hệ thống sinh, bắt buộc tên. */
@@ -39,7 +41,7 @@ export default function SupplierFormPage() {
     setServerErrors(({ [k]: _drop, ...rest }) => rest);
   };
   const blur = (k) => () => setTouched((t) => ({ ...t, [k]: true }));
-  const backTo = id ? `/kitchen/suppliers/${id}` : '/kitchen/suppliers';
+  const backTo = id ? `/menu/suppliers/${id}` : '/menu/suppliers';
   const title = id ? `Sửa nhà cung cấp ${existing.data?.code || ''}` : 'Thêm nhà cung cấp';
 
   const submit = async (e) => {
@@ -49,8 +51,8 @@ export default function SupplierFormPage() {
     setBusy(true);
     try {
       const saved = await saveSupplier({ ...form, id: id || null }, user);
-      toast.success(id ? 'Lưu thay đổi thành công.' : `Đã thêm nhà cung cấp ${saved.code}.`);
-      navigate(`/kitchen/suppliers/${saved.id}`);
+      toast.success(id ? 'Lưu thay đổi thành công.' : `Đã thêm nhà cung cấp ${saved.code || saved.name}.`);
+      navigate(`/menu/suppliers/${saved.id}`);
     } catch (err) {
       if (err.details) setServerErrors(err.details);
       toast.error(err.message || 'Không lưu được thay đổi. Vui lòng thử lại.', 'Không lưu được nhà cung cấp');
@@ -59,7 +61,7 @@ export default function SupplierFormPage() {
     }
   };
 
-  const crumbs = kitchenCrumbs(KITCHEN_PAGES.suppliers, id ? 'Sửa' : 'Thêm mới');
+  const crumbs = supplierCrumbs(id ? 'Sửa' : 'Thêm mới');
   if (id && existing.loading) return <LoadingState />;
   if (id && existing.error)
     return (
@@ -79,9 +81,11 @@ export default function SupplierFormPage() {
             <div className="card__title">Thông tin nhà cung cấp</div>
           </div>
           <div className="card__body grid-2">
-            <FormField label="Mã nhà cung cấp" hint="Hệ thống tự sinh, không sửa được">
-              <input className="input" value={existing.data?.code || 'Tự sinh khi lưu'} readOnly disabled />
-            </FormField>
+            {!VIA_API && (
+              <FormField label="Mã nhà cung cấp" hint="Hệ thống tự sinh, không sửa được">
+                <input className="input" value={existing.data?.code || 'Tự sinh khi lưu'} readOnly disabled />
+              </FormField>
+            )}
             <FormField label="Tên nhà cung cấp" required error={show('name')}>
               <input
                 className="input"
@@ -91,7 +95,7 @@ export default function SupplierFormPage() {
                 onBlur={blur('name')}
               />
             </FormField>
-            <FormField label="Người liên hệ" error={show('contactName')}>
+            <FormField label={VIA_API ? 'Người giao hàng' : 'Người liên hệ'} error={show('contactName')}>
               <input
                 className="input"
                 value={form.contactName}
@@ -111,15 +115,28 @@ export default function SupplierFormPage() {
                 onBlur={blur('phone')}
               />
             </FormField>
-            <FormField label="Mã số thuế" error={show('taxCode')} hint="Không bắt buộc">
-              <input
-                className="input"
-                value={form.taxCode}
-                maxLength={14}
-                onChange={(e) => set('taxCode', e.target.value)}
-                onBlur={blur('taxCode')}
-              />
-            </FormField>
+            {VIA_API ? (
+              <FormField label="CCCD người giao hàng" error={show('idCard')} hint="9–12 chữ số, không bắt buộc">
+                <input
+                  className="input"
+                  inputMode="numeric"
+                  value={form.idCard}
+                  maxLength={12}
+                  onChange={(e) => set('idCard', e.target.value)}
+                  onBlur={blur('idCard')}
+                />
+              </FormField>
+            ) : (
+              <FormField label="Mã số thuế" error={show('taxCode')} hint="Không bắt buộc">
+                <input
+                  className="input"
+                  value={form.taxCode}
+                  maxLength={14}
+                  onChange={(e) => set('taxCode', e.target.value)}
+                  onBlur={blur('taxCode')}
+                />
+              </FormField>
+            )}
             <FormField label="Trạng thái" hint="Ngừng dùng: không chọn được cho phiếu nhập mới">
               <select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
                 {Object.entries(SUPPLIER_STATUS_LABELS).map(([k, v]) => (

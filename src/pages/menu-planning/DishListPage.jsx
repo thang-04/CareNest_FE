@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, BookOpen, CircleCheck, Copy, Eye, Pencil, Plus, RotateCcw, Soup } from '@/components/ui/icons';
-import { useDishes, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
+import { useDishes, useCatalogAccess, useCatalogLookups } from '@/hooks/menu-planning/useMenuPlanning';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
@@ -26,8 +26,8 @@ const FILTER_DEFAULTS = { type: '', keyword: '', portion: '', allergen: '', stat
 /** Bước 2 luồng dinh dưỡng – danh mục món ăn: loại món bên trái, bảng bên phải; bấm món để mở trang sửa. */
 export default function DishListPage() {
   const navigate = useNavigate();
-  const { canManage } = useMenuAccess();
-  const { catalog } = useMenuCatalog();
+  const { canManage } = useCatalogAccess();
+  const { catalog } = useCatalogLookups();
   // Bộ lọc lưu trên URL: mở món rồi Back vẫn giữ loại món, từ khóa và bộ lọc phụ
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, type, portion, allergen, status } = filters;

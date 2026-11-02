@@ -18,6 +18,7 @@ import {
   getStockReceipt,
   getStockReceipts,
   getSupplier,
+  getReceiptSuppliers,
   getSuppliers,
   getWeeklyForecast,
 } from '@/services/kitchen/kitchenService';
@@ -58,6 +59,9 @@ export const useStockReceipt = (id) => useKitchenQuery((user) => getStockReceipt
 
 export const useSuppliers = ({ keyword = '', status = '' } = {}) =>
   useKitchenQuery((user) => getSuppliers({ keyword, status }, user), [keyword, status]);
+
+/** NCC để chọn trên phiếu nhập kho (cùng nguồn dữ liệu với phiếu). */
+export const useReceiptSuppliers = () => useKitchenQuery((user) => getReceiptSuppliers({}, user), []);
 
 export const useSupplier = (id, { live = true } = {}) =>
   useKitchenQuery((user) => getSupplier({ id }, user), [id], { enabled: !!id, live });

@@ -282,10 +282,6 @@ const ITEMS = {
     label: 'Món ăn',
     to: '/menu/dishes',
   },
-  mealPrices: {
-    label: 'Giá suất ăn',
-    to: '/menu/prices',
-  },
   menus: {
     label: 'Thực đơn mẫu',
     to: '/menu/menus',
@@ -314,7 +310,7 @@ const ITEMS = {
   },
   suppliers: {
     label: 'Nhà cung cấp',
-    to: '/kitchen/suppliers',
+    to: '/menu/suppliers',
   },
   dryStock: {
     label: 'Tồn kho khô',
@@ -400,7 +396,7 @@ const MENUS = {
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock'],
       foodSafety: ['foodSamples'],
-      catalog: ['nutritionSetup', 'suppliers'],
+      catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
     link('notifications'),

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { MainLayout } from '@/layouts/MainLayout';
 import { RoleGuard } from './RoleGuard';
 import { ProtectedRoute, GuestRoute } from './ProtectedRoute';
@@ -11,6 +11,7 @@ import NotificationsPage from '@/pages/NotificationsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import { canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
 import { canManageParentAccounts } from '@/utils/account/accountPermissions';
+import { isDemoModule } from '@/services/demoSource';
 
 // Thư viện UI chỉ cho bản dev: bản build prod bỏ cả route lẫn chunk.
 const UiKitPage = import.meta.env.DEV ? lazy(() => import('@/pages/UiKitPage')) : null;
@@ -139,8 +140,6 @@ const FoodFormPage = lazy(() => import('@/pages/menu-planning/FoodFormPage'));
 const DishListPage = lazy(() => import('@/pages/menu-planning/DishListPage'));
 const DishDetailPage = lazy(() => import('@/pages/menu-planning/DishDetailPage'));
 const DishFormPage = lazy(() => import('@/pages/menu-planning/DishFormPage'));
-const MealPriceListPage = lazy(() => import('@/pages/menu-planning/MealPriceListPage'));
-const MealPriceFormPage = lazy(() => import('@/pages/menu-planning/MealPriceFormPage'));
 const MenuListPage = lazy(() => import('@/pages/menu-planning/MenuListPage'));
 const MenuDetailPage = lazy(() => import('@/pages/menu-planning/MenuDetailPage'));
 const MenuFormPage = lazy(() => import('@/pages/menu-planning/MenuFormPage'));
@@ -158,8 +157,17 @@ const VP_ONLY = [ROLES.VICE_PRINCIPAL];
 const R = ROLES;
 const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
 const LEADERS = [R.PRINCIPAL, R.VICE_PRINCIPAL];
-const REPORTERS = [...CLASS_STAFF, R.KITCHEN_STAFF];
+// Danh mục bán trú: HT, PHT đều xem; nút sửa theo NUTRITION_MANAGE khi dùng BE (BE vẫn kiểm). Form bản demo giữ phân quyền cũ.
+const CATALOG_API = !isDemoModule('nutrition-catalog');
+const CATALOG_READERS = LEADERS;
+const CATALOG_EDITORS = CATALOG_API ? LEADERS : VP_ONLY;
+const SUPPLIER_EDITORS = CATALOG_API ? LEADERS : [R.PRINCIPAL];
 const DENIED = 'Chức năng này không thuộc quyền của vai trò hiện tại (theo ma trận phân quyền của hệ thống).';
+
+function SupplierRedirect({ suffix = '' }) {
+  const { id } = useParams();
+  return <Navigate to={`/menu/suppliers/${id}${suffix}`} replace />;
+}
 
 /** Route element limited to the roles allowed by the SRS permission matrix. */
 const only = (roles, page) => (
@@ -317,17 +325,18 @@ export function AppRoutes() {
           <Route path="menu">
             <Route path="flow" element={only(VP_ONLY, <NutritionFlowPage />)} />
             <Route path="setup" element={only(LEADERS, <NutritionSetupPage />)} />
-            <Route path="foods" element={only(VP_ONLY, <FoodListPage />)} />
-            <Route path="foods/new" element={only(VP_ONLY, <FoodFormPage />)} />
-            <Route path="foods/:id" element={only(VP_ONLY, <FoodDetailPage />)} />
-            <Route path="foods/:id/edit" element={only(VP_ONLY, <FoodFormPage />)} />
-            <Route path="dishes" element={only(VP_ONLY, <DishListPage />)} />
-            <Route path="dishes/new" element={only(VP_ONLY, <DishFormPage />)} />
-            <Route path="dishes/:id" element={only(VP_ONLY, <DishDetailPage />)} />
-            <Route path="dishes/:id/edit" element={only(VP_ONLY, <DishFormPage />)} />
-            <Route path="prices" element={only(VP_ONLY, <MealPriceListPage />)} />
-            <Route path="prices/new" element={only(VP_ONLY, <MealPriceFormPage />)} />
-            <Route path="prices/:id/edit" element={only(VP_ONLY, <MealPriceFormPage />)} />
+            <Route path="foods" element={only(CATALOG_READERS, <FoodListPage />)} />
+            <Route path="foods/new" element={only(CATALOG_EDITORS, <FoodFormPage />)} />
+            <Route path="foods/:id" element={only(CATALOG_READERS, <FoodDetailPage />)} />
+            <Route path="foods/:id/edit" element={only(CATALOG_EDITORS, <FoodFormPage />)} />
+            <Route path="dishes" element={only(CATALOG_READERS, <DishListPage />)} />
+            <Route path="dishes/new" element={only(CATALOG_EDITORS, <DishFormPage />)} />
+            <Route path="dishes/:id" element={only(CATALOG_READERS, <DishDetailPage />)} />
+            <Route path="dishes/:id/edit" element={only(CATALOG_EDITORS, <DishFormPage />)} />
+            <Route path="suppliers" element={only(LEADERS, <SupplierListPage />)} />
+            <Route path="suppliers/new" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
+            <Route path="suppliers/:id" element={only(LEADERS, <SupplierDetailPage />)} />
+            <Route path="suppliers/:id/edit" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
             <Route path="menus" element={only(VP_ONLY, <MenuListPage />)} />
             <Route path="menus/new" element={only(VP_ONLY, <MenuFormPage />)} />
             <Route path="menus/:id" element={only(VP_ONLY, <MenuDetailPage />)} />
@@ -354,10 +363,11 @@ export function AppRoutes() {
             <Route path="stock-receipts" element={only(VP_ONLY, <StockReceiptListPage />)} />
             <Route path="stock-receipts/new" element={only(VP_ONLY, <StockReceiptFormPage />)} />
             <Route path="stock-receipts/:id/edit" element={only(VP_ONLY, <StockReceiptFormPage />)} />
-            <Route path="suppliers" element={only(LEADERS, <SupplierListPage />)} />
-            <Route path="suppliers/new" element={only([R.PRINCIPAL], <SupplierFormPage />)} />
-            <Route path="suppliers/:id" element={only(LEADERS, <SupplierDetailPage />)} />
-            <Route path="suppliers/:id/edit" element={only([R.PRINCIPAL], <SupplierFormPage />)} />
+            {/* Nhà cung cấp chuyển sang Danh mục (/menu/suppliers): giữ đường dẫn cũ */}
+            <Route path="suppliers" element={<Navigate to="/menu/suppliers" replace />} />
+            <Route path="suppliers/new" element={<Navigate to="/menu/suppliers/new" replace />} />
+            <Route path="suppliers/:id" element={<SupplierRedirect />} />
+            <Route path="suppliers/:id/edit" element={<SupplierRedirect suffix="/edit" />} />
             <Route path="published-menu" element={only(LEADERS, <PublishedMenuPage />)} />
             <Route path="meal-count" element={only(LEADERS, <ConfirmedMealCountPage />)} />
             <Route path="required-quantity" element={only(VP_ONLY, <RequiredFoodQuantityPage />)} />

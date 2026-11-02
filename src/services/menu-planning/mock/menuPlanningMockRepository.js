@@ -1,11 +1,11 @@
 import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from '@/mocks/mockDatabase';
 import { pushNotification } from '@/mocks/notificationMockRepository';
-import { buildSeedMenuPlanning, topUpRecentWeeklyMenus } from '@/mocks/menuPlanningSeed';
+import { DEMO_NUTRIENT_SOURCE, buildSeedMenuPlanning, topUpRecentWeeklyMenus } from '@/mocks/menuPlanningSeed';
 import { buildReferenceLibrary } from '@/mocks/menuReferenceSeed';
 import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import { uid } from '@/utils/id';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
-import { activeAgeGroups, ageAbbr, mealsOf } from '@/utils/menu-planning/nutritionSetup';
+import { activeAgeGroups, ageAbbr, hasLegacyNormKeys, mealsOf, migrateNormKeys } from '@/utils/menu-planning/nutritionSetup';
 import { foodUnits, purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
 import { ROLES } from '@/models/User';
 import { ageGroupById, isNurseryAgeGroup } from '@/models/School';
@@ -14,9 +14,11 @@ import {
   AI_DRAFT_STATUS,
   DISH_STATUS,
   DISH_TYPE,
+  FOOD_ORIGIN_LABELS,
   RECORD_STATUS,
   WEEKLY_STATUS,
   addDays,
+  defaultOriginOf,
   defaultStorageOf,
   mondayOf,
   weekDates,
@@ -76,6 +78,14 @@ const ensure = (db) => {
 const seeded = () => {
   const db = readDb();
   if (needsMockSeedMigration(db, 'menu-planning', 1, COLLECTIONS)) writeDb(ensure);
+  // Dữ liệu mẫu lưu trước khi có nguồn số liệu dinh dưỡng (NUT-05): gán nguồn mẫu một lần
+  if ((readDb().foods || []).some((f) => f.nutrientSource == null))
+    writeDb((d) => d.foods.forEach((f) => (f.nutrientSource ??= DEMO_NUTRIENT_SOURCE)));
+  // Thực phẩm lưu trước khi có nguồn gốc động vật/thực vật: gán theo nhóm một lần
+  if ((readDb().foods || []).some((f) => f.origin == null)) writeDb((d) => d.foods.forEach((f) => (f.origin ??= defaultOriginOf(f.group))));
+  // Định mức lưu với khóa cũ animal*Share: đổi sang khóa khớp BE một lần
+  if ((readDb().nutritionSetups || []).some((x) => hasLegacyNormKeys(x.norms)))
+    writeDb((d) => d.nutritionSetups.forEach((x) => (x.norms = migrateNormKeys(x.norms))));
   // Bổ sung thực đơn tuần mẫu của những tuần gần đây (một lần mỗi tuần, khi còn thiếu)
   if (topUpRecentWeeklyMenus(clone(readDb()), todayInput())) writeDb((d) => topUpRecentWeeklyMenus(d, todayInput()));
   return readDb();
@@ -179,6 +189,9 @@ const sanitizeFood = (p) => ({
     lipid: numOrNull(p.nutrition?.lipid),
     glucid: numOrNull(p.nutrition?.glucid),
   },
+  origin: FOOD_ORIGIN_LABELS[p.origin] ? p.origin : '',
+  nutrientSource: String(p.nutrientSource || '').trim(),
+  nutrientSourceVersion: String(p.nutrientSourceVersion || '').trim(),
   allergens: [...new Set((p.allergens || []).map((a) => String(a).trim()).filter(Boolean))],
   note: String(p.note || '').trim(),
   status: p.status === RECORD_STATUS.INACTIVE ? RECORD_STATUS.INACTIVE : RECORD_STATUS.ACTIVE,
@@ -923,6 +936,8 @@ export const menuPlanningMockRepository = {
             favorite: false,
             storage: defaultStorageOf(src.group),
             nutrition: { ...src.nutrition },
+            origin: src.origin,
+            nutrientSource: DEMO_NUTRIENT_SOURCE,
             allergens: [...src.allergens],
             note: 'Thêm từ thư viện món tham khảo – cần bổ sung đơn giá.',
             status: RECORD_STATUS.ACTIVE,

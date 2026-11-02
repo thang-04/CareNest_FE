@@ -27,6 +27,8 @@ export const validateSupplier = (payload) => {
   if (phone && !PHONE.test(phone)) errors.phone = 'Số điện thoại gồm 10–11 chữ số, bắt đầu bằng 0 hoặc +84.';
   const taxCode = String(payload.taxCode || '').trim();
   if (taxCode && !TAX_CODE.test(taxCode)) errors.taxCode = 'Mã số thuế gồm 10 chữ số, chi nhánh thêm "-" và 3 chữ số.';
+  const idCard = String(payload.idCard || '').trim();
+  if (idCard && !/^\d{9,12}$/.test(idCard)) errors.idCard = 'Số CCCD gồm 9–12 chữ số.';
   return errors;
 };
 

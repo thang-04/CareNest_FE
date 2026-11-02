@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, Bowl, Copy, Pencil, Trash2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useDish, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
+import { useDish, useCatalogAccess, useCatalogLookups } from '@/hooks/menu-planning/useMenuPlanning';
 import { deleteDish } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -13,7 +13,7 @@ import { NutrientBars } from '@/components/menu-planning/NutrientBars';
 import { dishAllergens, ingredientBreakdown, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { dishCrumbs } from '@/utils/menu-planning/breadcrumbs';
-import { DISH_TYPE_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { DISH_TYPE_LABELS, FOOD_ORIGIN_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
 const n1 = (v) => (Math.round(v * 10) / 10).toLocaleString('vi-VN');
@@ -27,8 +27,8 @@ export default function DishDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
-  const { canManage } = useMenuAccess();
-  const { catalog, loading: catLoading } = useMenuCatalog();
+  const { canManage, softDelete } = useCatalogAccess();
+  const { catalog, loading: catLoading } = useCatalogLookups();
   const { item: d, loading, error, reload } = useDish(id);
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -46,7 +46,7 @@ export default function DishDetailPage() {
   const remove = async () => {
     try {
       await deleteDish(id, user);
-      toast.success('Đã xóa bản ghi.');
+      toast.success(softDelete ? 'Đã chuyển sang Ngừng sử dụng.' : 'Đã xóa bản ghi.');
       navigate('/menu/dishes');
     } catch (err) {
       setConfirm(false);
@@ -57,7 +57,8 @@ export default function DishDetailPage() {
   const groups = activeAgeGroups(catalog.nutritionSetups);
   const ag = groups.find((g) => g.id === picked) || groups.find((g) => g.id === 'ag-4') || groups[0];
   const { rows, total } = ingredientBreakdown(d, catalog.foodById, ag?.id);
-  const noData = rows.some((r) => r.qty != null && r.noNutrition);
+  // Thiếu số liệu dinh dưỡng hoặc nguồn gốc ⇒ món chưa đủ dữ liệu cân đối
+  const noData = rows.some((r) => r.qty != null && (r.noNutrition || r.noOrigin));
   // Thành phần chưa nhập định lượng ở nhóm tuổi đang áp dụng
   const gaps = d.ingredients
     .map((ing) => ({
@@ -96,7 +97,7 @@ export default function DishDetailPage() {
             {d.description && <p className="text-sm muted td-flat">{d.description}</p>}
             {ag && (
               <>
-                <NutrientBars values={total} title={`Một suất ${ag.shortName}`} missing={noData} />
+                <NutrientBars values={total} title={`Một suất ${ag.shortName}`} missing={noData} split />
                 <div className="td-profile__cost">
                   <span className="muted">Chi phí một suất</span>
                   <b>{formatMoney(total.cost)}</b>
@@ -111,9 +112,11 @@ export default function DishDetailPage() {
                 <Link className="btn" to={`/menu/dishes/new?from=${id}`}>
                   <Copy size={16} /> Nhân bản
                 </Link>
-                <button type="button" className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
-                  <Trash2 size={16} /> Xóa
-                </button>
+                {!(softDelete && d.status === 'INACTIVE') && (
+                  <button type="button" className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
+                    <Trash2 size={16} /> {softDelete ? 'Ngừng sử dụng' : 'Xóa'}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -156,10 +159,12 @@ export default function DishDetailPage() {
                     <th className="money">Đơn giá</th>
                     <th className="num">Thải bỏ</th>
                     <th className="num">Lượng ăn 1 trẻ</th>
-                    <th className="num">kcal</th>
-                    <th className="num">Đạm (g)</th>
-                    <th className="num">Béo (g)</th>
+                    <th className="num">Đạm ĐV (g)</th>
+                    <th className="num">Đạm TV (g)</th>
+                    <th className="num">Béo ĐV (g)</th>
+                    <th className="num">Béo TV (g)</th>
                     <th className="num">Tinh bột (g)</th>
+                    <th className="num">kcal</th>
                     <th className="money">Thành tiền</th>
                   </tr>
                 </thead>
@@ -168,10 +173,12 @@ export default function DishDetailPage() {
                     <td>Tổng</td>
                     <td colSpan={3} />
                     <td className="num nowrap">{n1(total.qty)}</td>
-                    <td className="num">{n1(total.kcal)}</td>
-                    <td className="num">{n1(total.protein)}</td>
-                    <td className="num">{n1(total.lipid)}</td>
+                    <td className="num">{n1(total.animalProtein)}</td>
+                    <td className="num">{n1(total.plantProtein)}</td>
+                    <td className="num">{n1(total.animalLipid)}</td>
+                    <td className="num">{n1(total.plantLipid)}</td>
                     <td className="num">{n1(total.glucid)}</td>
+                    <td className="num">{n1(total.kcal)}</td>
                     <td className="money nowrap">{formatMoney(total.cost)}</td>
                   </tr>
                   {rows.map((r) => (
@@ -179,6 +186,11 @@ export default function DishDetailPage() {
                       <td>
                         {r.food ? <Link to={`/menu/foods/${r.food.id}`}>{r.food.name}</Link> : 'Thực phẩm đã xóa'}{' '}
                         <AllergenChips allergens={r.food?.allergens} empty="" />
+                        {r.food && (
+                          <div className="text-xs muted">
+                            {r.noOrigin ? <span className="td-warn">Chưa có nguồn gốc</span> : FOOD_ORIGIN_LABELS[r.food.origin]}
+                          </div>
+                        )}
                       </td>
                       <td className="text-sm">{r.food?.purchaseUnit || '—'}</td>
                       <td className="money nowrap">{r.food?.unitPrice == null ? '—' : formatMoney(r.food.unitPrice)}</td>
@@ -188,7 +200,7 @@ export default function DishDetailPage() {
                           <td className="num">
                             <span className="td-warn">Chưa nhập</span>
                           </td>
-                          <td colSpan={5} className="muted text-sm">
+                          <td colSpan={7} className="muted text-sm">
                             Chưa tính được
                           </td>
                         </>
@@ -198,15 +210,28 @@ export default function DishDetailPage() {
                             {n1(r.qty)} {r.food?.unit || 'g'}
                           </td>
                           {r.noNutrition ? (
-                            <td colSpan={4} className="td-warn text-sm">
+                            <td colSpan={6} className="td-warn text-sm">
                               Chưa có số liệu dinh dưỡng
                             </td>
+                          ) : r.noOrigin ? (
+                            <>
+                              <td colSpan={2} className="num">
+                                {n1(r.protein)} <span className="td-warn text-xs">chưa rõ nguồn gốc</span>
+                              </td>
+                              <td colSpan={2} className="num">
+                                {n1(r.lipid)}
+                              </td>
+                              <td className="num">{n1(r.glucid)}</td>
+                              <td className="num">{n1(r.kcal)}</td>
+                            </>
                           ) : (
                             <>
-                              <td className="num">{n1(r.kcal)}</td>
-                              <td className="num">{n1(r.protein)}</td>
-                              <td className="num">{n1(r.lipid)}</td>
+                              <td className="num">{n1(r.animalProtein)}</td>
+                              <td className="num">{n1(r.plantProtein)}</td>
+                              <td className="num">{n1(r.animalLipid)}</td>
+                              <td className="num">{n1(r.plantLipid)}</td>
                               <td className="num">{n1(r.glucid)}</td>
+                              <td className="num">{n1(r.kcal)}</td>
                             </>
                           )}
                           <td className="money nowrap">{formatMoney(Math.round(r.cost))}</td>
@@ -248,9 +273,13 @@ export default function DishDetailPage() {
       <ConfirmationModal
         open={confirm}
         danger
-        title="Xóa món ăn"
-        message={`Xóa món "${d.name}"? Món đã nằm trong thực đơn sẽ không xóa được.`}
-        confirmLabel="Xóa món ăn"
+        title={softDelete ? 'Ngừng sử dụng món ăn' : 'Xóa món ăn'}
+        message={
+          softDelete
+            ? `Chuyển món "${d.name}" sang Ngừng sử dụng? Thực đơn đã có giữ nguyên; thực đơn mới không chọn được món này.`
+            : `Xóa món "${d.name}"? Món đã nằm trong thực đơn sẽ không xóa được.`
+        }
+        confirmLabel={softDelete ? 'Ngừng sử dụng' : 'Xóa món ăn'}
         onConfirm={remove}
         onClose={() => setConfirm(false)}
       />

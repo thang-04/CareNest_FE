@@ -10,7 +10,6 @@ export const flowCrumbs = () => menuCrumbs('Quản lý dinh dưỡng');
 export const setupCrumbs = () => menuCrumbs('Thiết lập dinh dưỡng');
 export const foodCrumbs = (last) => menuCrumbs('Thực phẩm', '/menu/foods', last);
 export const dishCrumbs = (last) => menuCrumbs('Món ăn', '/menu/dishes', last);
-export const priceCrumbs = (last) => menuCrumbs('Giá suất ăn', '/menu/prices', last);
 export const sampleMenuCrumbs = (last) => menuCrumbs('Thực đơn mẫu', '/menu/menus', last);
 export const allergyMenuCrumbs = (last) => menuCrumbs('Thực đơn thay thế', '/menu/allergy-menus', last);
 export const weeklyCrumbs = (last) => menuCrumbs('Thực đơn tuần', '/menu/weekly', last);
