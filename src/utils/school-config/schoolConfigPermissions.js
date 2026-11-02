@@ -9,6 +9,8 @@ import {
   defaultVpAreas,
   parseAreaGrant,
 } from '@/models/school-config/schoolConfigConstants';
+// Mã quyền BE (ma trận ADR-0017); tên khớp PERMISSIONS ở module account
+const STAFF_ASSIGNMENT_MANAGE = 'STAFF_ASSIGNMENT_MANAGE';
 
 /*
  * Who may do what in school configuration – SRS 4.4 Permission Matrix + UC 2.1–2.7 (GBR-CFG-01).
@@ -123,34 +125,44 @@ const inScope = ({ scope, campusId: granted }, campusId, user) =>
   !!campusId && (scope === PERMISSION_SCOPE.ALL || (granted || user.campusId) === campusId);
 
 /**
- * "Phân công giáo viên" follows the Role & Permission screen (tổ trưởng: quyền riêng bên dưới):
- * NONE = no menu / page; VIEW = see assignments read only; EDIT = assign. Scope ALL = every campus, CAMPUS = own campus.
+ * Phân công giáo viên / tổ trưởng theo quyền thật STAFF_ASSIGNMENT_MANAGE của BE (ma trận quyền của dev, ADR-0017).
+ * HT toàn trường; PHT chỉ điểm trường mình phụ trách (AUTH-16). Tổ trưởng: PHT xem, chỉ HT phân công.
+ * Đăng nhập demo (không có quyền BE): HT, PHT mặc định có quyền này.
  */
-export const ASSIGN_TEACHER = 'permission.assignTeacher';
-/** Màn "Phân công giáo viên" mở khi có quyền phân công giáo viên hoặc phân công tổ trưởng (mỗi phần hiện theo quyền riêng). */
-export const canOpenTeacherAssignment = (user) =>
-  permissionAccess(user, ASSIGN_TEACHER).access !== PERMISSION_ACCESS.NONE || canViewTeamLeaders(user);
+const hasStaffAssignPermission = (user) =>
+  Array.isArray(user?.bePermissions) ? user.bePermissions.includes(STAFF_ASSIGNMENT_MANAGE) : isPrincipal(user) || isVicePrincipal(user);
+const teacherAssignAccess = (user) => {
+  if (!hasStaffAssignPermission(user) || !(isPrincipal(user) || isVicePrincipal(user))) {
+    return { access: PERMISSION_ACCESS.NONE, scope: PERMISSION_SCOPE.CAMPUS, campusId: null, actions: {} };
+  }
+  return {
+    access: PERMISSION_ACCESS.EDIT,
+    scope: isPrincipal(user) ? PERMISSION_SCOPE.ALL : PERMISSION_SCOPE.CAMPUS,
+    campusId: isPrincipal(user) ? null : user?.campusId || null,
+    actions: { create: true, update: true, delete: true },
+  };
+};
+export const teacherAssignmentAccess = teacherAssignAccess;
+/** Màn "Phân công giáo viên" mở khi có quyền phân công nhân sự. */
+export const canOpenTeacherAssignment = (user) => teacherAssignAccess(user).access !== PERMISSION_ACCESS.NONE;
 export const canViewTeacherAssignments = (campusId, user) => {
-  const p = permissionAccess(user, ASSIGN_TEACHER);
+  const p = teacherAssignAccess(user);
   return p.access !== PERMISSION_ACCESS.NONE && inScope(p, campusId, user);
 };
-/** action: 'create' phân công mới, 'update' đổi, 'delete' gỡ tổ trưởng; true = có ít nhất 1 thao tác ghi. */
+/** action: 'create' phân công mới, 'update' đổi, 'delete' gỡ; true = có ít nhất 1 thao tác ghi. */
 export const canAssignTeachers = (campusId, user, action = true) => {
-  const p = permissionAccess(user, ASSIGN_TEACHER);
+  const p = teacherAssignAccess(user);
   const ok = action === true ? p.access === PERMISSION_ACCESS.EDIT : !!p.actions?.[action];
   return ok && inScope(p, campusId, user);
 };
 
-/**
- * Tổ trưởng nhóm tuổi: 1 người cho cả trường mỗi năm học (người dùng chốt 14/10/2026).
- * Hiệu trưởng luôn được; PHT theo quyền riêng "Phân công tổ trưởng nhóm tuổi" (tách khỏi phân công giáo viên, chốt 14/10/2026).
- */
+/** Tổ trưởng nhóm tuổi: 1 người cho cả trường mỗi năm học (chốt 14/10/2026). */
 export function canViewTeamLeaders(user) {
-  return areaAccess(user, 'teamLeaders').access !== PERMISSION_ACCESS.NONE;
+  return teacherAssignAccess(user).access !== PERMISSION_ACCESS.NONE;
 }
 export const teamLeaderActions = (user) => {
-  const p = areaAccess(user, 'teamLeaders');
-  return Object.fromEntries(['create', 'update', 'delete'].map((k) => [k, !!p.actions?.[k]]));
+  const ok = isPrincipal(user) && hasStaffAssignPermission(user);
+  return { create: ok, update: ok, delete: ok };
 };
 
 /** Thao tác phân công được làm ở điểm trường: { create, update, delete }. */

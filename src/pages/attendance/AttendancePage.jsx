@@ -23,8 +23,7 @@ import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { normalizeText, formatDate, formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { formatTemperature, symptomLabels } from '@/utils/dailyHealthValidation';
-import { temperatureLevel } from '@/utils/attendance/temperatureLevels';
+import { flagTone, healthFlag, healthReminder } from '@/utils/attendance/healthFlag';
 import '@/styles/modules/attendance.css';
 
 // ATT-02: có mặt là ăn đủ các bữa của nhóm tuổi; số suất do BE tính từ trạng thái, GV chỉ ghi Có mặt / Vắng
@@ -32,32 +31,6 @@ const toDraft = (sheet) =>
   Object.fromEntries((sheet?.children || []).map(({ child, record }) => [child.id, { childId: child.id, status: record?.status || '' }]));
 const NOTHING_UNSAVED = { attendance: false, health: false };
 const changed = (entry, record) => !!entry?.status && entry.status !== (record?.status || '');
-
-/**
- * Thẻ trên dòng trẻ (một thẻ ngắn): "38 °C · Cần chú ý" / "Cần chú ý" / "38 °C"; không có lần ghi nhận thì không hiện.
- * full = nội dung đầy đủ cho tooltip (mức, biểu hiện, ghi chú); chi tiết xem ở khung sức khỏe bên phải.
- */
-const healthFlag = (latest, full = false) => {
-  if (!latest) return '';
-  const noted = latest.observation === 'NOTED';
-  const level = temperatureLevel(latest.temperature);
-  const temp = Number.isFinite(latest.temperature) ? formatTemperature(latest.temperature) : '';
-  if (!full) return [temp, noted ? 'Cần chú ý' : ''].filter(Boolean).join(' · ');
-  const parts = noted ? ['Cần chú ý'] : [];
-  if (temp) parts.push(`${temp}${level?.chip ? ` ${level.label}` : ''}`);
-  const signs = symptomLabels(latest.symptoms);
-  if (signs) parts.push(signs);
-  if (latest.note) parts.push(latest.note);
-  return parts.join(' · ');
-};
-
-/** Màu thẻ: theo mức thân nhiệt; có dấu hiệu mà thân nhiệt bình thường / thấp / chưa đo thì đỏ; không dấu hiệu, bình thường thì xám. */
-const flagTone = (latest) => {
-  const level = temperatureLevel(latest?.temperature);
-  if (level?.chip && level.key !== 'LOW') return level.chip.replace('chip--', '');
-  if (latest?.observation === 'NOTED') return 'red';
-  return level?.chip?.replace('chip--', '') || 'gray';
-};
 
 export default function AttendancePage() {
   const { user } = useAuth();
@@ -93,7 +66,6 @@ export default function AttendancePage() {
       <Breadcrumb items={attendanceCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Điểm danh & sức khỏe</h1>
-        <p className="muted">Tiếp nhận từng trẻ và theo dõi sức khỏe trong ngày.</p>
       </div>
       {loading ? (
         <LoadingState />
@@ -473,6 +445,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                   visibleRows.map((row) => {
                     const entry = draft[row.child.id] || { status: '' };
                     const absent = isAbsent(entry.status);
+                    const reminder = healthReminder(row);
                     return (
                       <tr
                         key={row.child.id}
@@ -516,16 +489,17 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                   />
                                 </button>
                               )}
-                              {entry.status === 'PRESENT' && row.record?.status === 'PRESENT' && row.healthSummary?.reminder && (
+                              {/* Nhắc bổ sung kiểm tra cho trẻ đã lưu Có mặt. */}
+                              {reminder && (
                                 <button
                                   className="dd-reception__flag"
                                   type="button"
                                   disabled={busy}
-                                  title={row.healthSummary.reminder}
-                                  aria-label={`${row.healthSummary.reminder}: ${row.child.fullName}. Mở sức khỏe`}
+                                  title={reminder}
+                                  aria-label={`${reminder}: ${row.child.fullName}. Mở sức khỏe`}
                                   onClick={() => selectChild(row.child.id)}
                                 >
-                                  <StatusBadge tone="orange" icon={HeartPulse} label={row.healthSummary.reminder} />
+                                  <StatusBadge tone="orange" icon={HeartPulse} label={reminder} />
                                 </button>
                               )}
                               {row.leaveRequest && (

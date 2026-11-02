@@ -32,7 +32,7 @@ const QUICK_ACTIONS = [
   { label: 'Soạn giáo án', to: '/education/class', group: 'Kế hoạch giáo dục', icon: BookOpen, roles: CLASS_STAFF },
   { label: 'Báo sự cố CSVC', to: '/facility/issues/new', group: 'Cơ sở vật chất', icon: AlertTriangle, roles: REPORTERS },
   { label: 'Đề nghị bổ sung', to: '/facility/requests/new', group: 'Cơ sở vật chất', icon: PackagePlus, roles: REPORTERS },
-  { label: 'Đề xuất khen thưởng', to: '/assessment/rewards/new', group: 'Đánh giá trẻ', icon: Award, roles: CLASS_STAFF },
+  { label: 'Đề xuất khen thưởng', to: '/assessment/rewards', group: 'Đánh giá trẻ', icon: Award, roles: CLASS_STAFF },
   { label: 'Kế hoạch chủ đề', to: '/education/class', group: 'Kế hoạch giáo dục', icon: PenLine, roles: [R.TEAM_LEADER] },
   { label: 'Tiếp nhận trẻ', to: '/children/new', group: 'Quản lý trẻ', icon: Baby, roles: VP_ONLY, area: 'children' },
   {

@@ -69,7 +69,8 @@ export const READINESS_STEPS = [
   { key: 'info', label: 'Thông tin năm học', required: true, to: (y) => `/school/years/${y}/edit`, action: 'Sửa' },
   { key: 'ageGroups', label: 'Nhóm tuổi & bữa ăn', required: true, to: (y) => `/school/classes?year=${y}`, action: 'Xem' },
   { key: 'classes', label: 'Lớp học', required: true, to: (y) => `/school/classes?year=${y}`, action: 'Thêm lớp' },
-  { key: 'rooms', label: 'Phòng & sức chứa', required: true, to: (y) => `/school/classes?year=${y}`, action: 'Xếp phòng' },
+  // Cần 30/10/2026: Phòng & sức chứa mở màn Phòng ban đúng năm học đang chuẩn bị
+  { key: 'rooms', label: 'Phòng & sức chứa', required: true, to: (y) => `/school/rooms?year=${y}`, action: 'Xếp phòng' },
   {
     key: 'vicePrincipals',
     label: 'Phó hiệu trưởng từng điểm trường',
@@ -238,29 +239,6 @@ export const VP_AREAS = [
     actions: AREA_ACTIONS,
     linked: true,
     manageHint: 'Lập, sửa, xóa thực đơn, món ăn, giá suất ăn',
-  },
-  {
-    key: 'teacherAssignment',
-    label: 'Phân công giáo viên',
-    hint: 'Xếp giáo viên vào lớp, chọn chủ nhiệm',
-    scopes: ['CAMPUS', 'ALL'],
-    code: 'permission.assignTeacher',
-    actions: ['view', 'create', 'update'],
-    actionHints: { create: 'Phân công lớp chưa có giáo viên', update: 'Đổi giáo viên, chủ nhiệm' },
-  },
-  {
-    // Tách khỏi "Phân công giáo viên" (người dùng chốt 14/10/2026): Hiệu trưởng mở cho PHT nào thì PHT đó phân công tổ trưởng.
-    // Tổ trưởng là 1 người / nhóm tuổi cho cả trường nên phạm vi luôn là toàn trường.
-    key: 'teamLeaders',
-    label: 'Phân công tổ trưởng nhóm tuổi',
-    hint: 'Chọn 1 tổ trưởng cho mỗi nhóm tuổi (toàn trường)',
-    scopes: ['ALL'],
-    actions: AREA_ACTIONS,
-    actionHints: {
-      create: 'Chọn tổ trưởng cho nhóm chưa có người',
-      update: 'Đổi tổ trưởng',
-      delete: 'Gỡ tổ trưởng nhóm tuổi',
-    },
   },
   {
     key: 'facility',

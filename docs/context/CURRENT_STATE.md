@@ -34,6 +34,10 @@ UI mock còn theo quyết định cũ; **lệch BE (28/10), cần sửa UI khi t
 
 Đợt ghép này đã vào `dev`; màn phân quyền và tài khoản phụ huynh đã nối BE thật từ 2026-11-01 (mục "Trạng thái 2026-11-01"). Nội dung dưới giữ làm lịch sử.
 
+### Bổ sung 29/10/2026 — Nhận xét chung lớp
+
+`/assessment/daily` thêm nhận xét chung lớp, cùng nút Lưu và lưu riêng khi không sửa trẻ. `/assessment/overview` cho PHT/HT đọc nhận xét từng ngày trong kỳ ngày/tuần/tháng, kèm người ghi/thời gian. Adapter BE + mock cùng contract (BE:OBS-19, V33 sau merge Tiền); baseline trước merge: FE dashboard/hardening 56/56 và BE full 403/403, snapshot đạt, full FE lỗi seed menu cũ. Kết quả mới ở [plan merge](../plans/active/2026-10-29-merge-tien-education.md); chưa kiểm browser/DB dev hoặc commit/push WIP. [Plan nhận xét](../plans/active/2026-10-29-class-daily-comments.md). Các mô tả mọi màn mock trong phần cũ là lịch sử; chế độ `SCHOOL_CONFIG_API` đã có các cầu nối riêng theo source.
+
 Phase 2 đã nhận UI phân quyền G94-209: ba tab, wizard và lịch sử; user chọn lưu demo riêng, không áp vào quyền thật hoặc nguồn assignment. Entry `/school/roles` giữ sidebar cũ. Xem [feature và giới hạn](../features/permission-center-demo.md). Phase 3 phụ huynh/hồ sơ trẻ vẫn chưa bắt đầu.
 
 Source thực tế hiện có React/JS, router, mock và build; mô tả baseline 2026-10-04 bên dưới là lịch sử, không phải trạng thái source hiện tại. Không thay stack/auth trong đợt ghép này. Phase 1 dinh dưỡng/bếp và Phase 2 UI phân quyền demo độc lập đã ghép vào working tree, giữ attendance/sức khỏe/suất ăn, login/sidebar và phân công. Phase 3 phụ huynh/hồ sơ trẻ chưa bắt đầu. Chưa commit/push; xem [plan, cổng kiểm tra và giới hạn](../plans/active/2026-10-18-selective-nutrition-permission-merge.md). Các endpoint dinh dưỡng mới vẫn PROPOSED; màn quyền non-mock trả 501, không chứng minh BE đã tích hợp.

@@ -124,6 +124,7 @@ export {
   IconMail as Mail,
   IconMailCheck as MailCheck,
   IconMapPin as MapPin,
+  IconMessage2 as MessageSquareText,
   IconMinus as MinusCircle,
   IconDeviceDesktop as Monitor,
   IconDots as MoreHorizontal,

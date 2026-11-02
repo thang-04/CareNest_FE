@@ -1,4 +1,5 @@
 import { axiosClient } from '@/services/http/axiosClient';
+import { dailyHealthSummaryFromBe } from '@/mocks/dailyHealthSummary';
 
 /*
  * PROPOSED endpoints only – the backend contract is not agreed yet (CareNest_BE owns it).
@@ -27,11 +28,12 @@ export const attendanceApi = {
 
 /** BE trả thông tin ngày trong `day`, trẻ chỉ có id/họ tên/ngày sinh: đổi về dạng mock để màn hình dùng chung. */
 const toSheet = (data) => {
-  const children = data.children.map(({ child, record }) => ({
+  const children = data.children.map(({ child, record, health, leave }) => ({
     child: { ...child, code: '', gender: null, allergies: [], photoUrl: null },
     record,
-    leaveRequest: null,
-    healthSummary: null,
+    // Đơn nghỉ phụ huynh còn hiệu lực ngày này (ATT-04): nhãn "Phụ huynh báo nghỉ" ở dòng trẻ
+    leaveRequest: leave ? { id: leave.requestId, fromDate: leave.fromDate, toDate: leave.toDate, reason: leave.reason } : null,
+    healthSummary: dailyHealthSummaryFromBe(health),
   }));
   const status = (row) => row.record?.status;
   return {
@@ -48,7 +50,7 @@ const toSheet = (data) => {
       present: children.filter((row) => status(row) === 'PRESENT').length,
       absent: children.filter((row) => row.record && status(row) !== 'PRESENT').length,
       missing: children.filter((row) => !row.record).length,
-      noted: 0,
+      noted: children.filter((row) => row.healthSummary.flagged).length,
     },
   };
 };

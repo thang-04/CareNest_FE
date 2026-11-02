@@ -107,58 +107,54 @@ function TickList({ options, selected, onToggle, tone }) {
   );
 }
 
-const signsText = (signs) => (signs.length ? signs.map((x) => HEALTH_SYMPTOMS[x] || x).join(', ') : 'Bình thường');
+// Thứ tự hiển thị đã chốt: Bình thường, Mệt mỏi, Sốt, Ho, Sổ mũi, Cảm cúm, Khác
+const SIGN_ORDER = ['TIRED', 'FEVER', 'COUGH', 'RUNNY_NOSE', 'FLU', 'OTHER'];
+const SIGN_OPTIONS = Object.fromEntries(SIGN_ORDER.map((k) => [k, HEALTH_SYMPTOMS[k]]));
+const signsText = (signs) =>
+  signs.length
+    ? SIGN_ORDER.filter((k) => signs.includes(k))
+        .map((k) => HEALTH_SYMPTOMS[k])
+        .join(', ')
+    : 'Bình thường';
 
 /**
- * Sức khỏe trong ngày: Bình thường hoặc các biểu hiện (danh mục của khám sức khỏe). Điền sẵn từ lần khám sức khỏe
- * mới nhất; cô sửa thì giữ lựa chọn của cô, khám sức khỏe có lần mới khác thì hiện gợi ý "Áp dụng".
+ * Sức khỏe trong ngày: Bình thường hoặc các biểu hiện (danh mục của sức khỏe trong ngày). BE điền sẵn theo sức khỏe
+ * trong ngày (prefillSigns) khi cô chưa chỉnh; cô chọn lại thì giữ lựa chọn của cô. Không hiển thị thân nhiệt.
  */
 export function HealthCell({ health, draft: d, name, disabled, onChange }) {
   const set = (healthSigns) => onChange({ healthSigns, healthOverridden: true });
-  const update = d.healthOverridden ? health?.update : null;
+  const prefill = health?.prefillSigns || [];
   return (
-    <>
-      <CellPopover
-        label={`Sức khỏe của ${name}`}
-        text={signsText(d.healthSigns)}
-        title={d.healthNote ? `${signsText(d.healthSigns)}: ${d.healthNote}` : undefined}
-        tone={d.healthSigns.length ? 'bad' : ''}
-        disabled={disabled}
-        minWidth={280}
-      >
-        <div className="dg-pop__title">
-          {health?.check
-            ? `Điền sẵn theo khám sức khỏe lúc ${health.check.time}; sửa nếu cô thấy khác`
-            : 'Chưa có khám sức khỏe trong ngày'}
-        </div>
-        <label className={`dg-tick ${!d.healthSigns.length ? 'dg-tick--good' : ''}`}>
-          <input type="checkbox" checked={!d.healthSigns.length} onChange={() => set([])} />
-          Bình thường
-        </label>
-        <TickList
-          options={HEALTH_SYMPTOMS}
-          selected={d.healthSigns}
-          tone={() => 'dg-tick--bad'}
-          onToggle={(k) => set(toggle(d.healthSigns, k))}
-        />
-        <input
-          className="input dg-input"
-          value={d.healthNote}
-          maxLength={500}
-          placeholder="Ghi chú điều quan sát được (không chẩn đoán)"
-          aria-label={`Ghi chú sức khỏe của ${name}`}
-          onChange={(e) => onChange({ healthNote: e.target.value })}
-        />
-      </CellPopover>
-      {update && !disabled && (
-        <div className="dg-hint">
-          Khám SK {update.time}: {signsText(update.signs)} ·{' '}
-          <button type="button" className="dg-link-btn" onClick={() => onChange({ healthSigns: update.signs, healthOverridden: false })}>
-            Áp dụng
-          </button>
-        </div>
-      )}
-    </>
+    <CellPopover
+      label={`Sức khỏe của ${name}`}
+      text={signsText(d.healthSigns)}
+      title={d.healthNote ? `${signsText(d.healthSigns)}: ${d.healthNote}` : undefined}
+      tone={d.healthSigns.length ? 'bad' : ''}
+      disabled={disabled}
+      minWidth={280}
+    >
+      <div className="dg-pop__title">
+        {prefill.length ? `Sức khỏe trong ngày: ${signsText(prefill)}; sửa nếu cô thấy khác` : 'Sức khỏe trong ngày chưa ghi dấu hiệu'}
+      </div>
+      <label className={`dg-tick ${!d.healthSigns.length ? 'dg-tick--good' : ''}`}>
+        <input type="checkbox" checked={!d.healthSigns.length} onChange={() => set([])} />
+        Bình thường
+      </label>
+      <TickList
+        options={SIGN_OPTIONS}
+        selected={d.healthSigns}
+        tone={() => 'dg-tick--bad'}
+        onToggle={(k) => set(toggle(d.healthSigns, k))}
+      />
+      <input
+        className="input dg-input"
+        value={d.healthNote}
+        maxLength={500}
+        placeholder="Ghi chú điều quan sát được (không chẩn đoán)"
+        aria-label={`Ghi chú sức khỏe của ${name}`}
+        onChange={(e) => onChange({ healthNote: e.target.value })}
+      />
+    </CellPopover>
   );
 }
 

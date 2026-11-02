@@ -30,7 +30,11 @@ export const INTEGRATION_MODULES = {
   'school-config': {
     source: 'api',
     routes: ['/school'],
-    files: ['src/services/school-config/api/schoolConfigApi.js', 'src/services/http/beClient.js'],
+    files: [
+      'src/services/school-config/api/schoolConfigApi.js',
+      'src/services/school-config/schoolConfigService.js',
+      'src/services/http/beClient.js',
+    ],
     facades: ['src/services/school-config/schoolConfigService.js'],
     // Hàm của staff-accounts, vice-principal-assignments (đang demo) nằm chung file API này
     pending: [
@@ -40,13 +44,11 @@ export const INTEGRATION_MODULES = {
       'POST /users',
       'PATCH /users/{x}/profile',
       'PATCH /users/{x}/status',
-      'GET /school-years/{x}/vice-principal-assignments',
-      'PUT /school-years/{x}/vice-principal-assignments/{x}',
     ],
   },
   'staff-accounts': { source: 'demo', routes: ['/school/staff'], facades: ['src/services/school-config/schoolConfigService.js'] },
   'vice-principal-assignments': {
-    source: 'demo',
+    source: 'api',
     routes: ['/school/vice-principals'],
     facades: ['src/services/school-config/schoolConfigService.js'],
   },

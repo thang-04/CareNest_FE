@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { CalendarRange, ChevronLeft, ChevronRight, Flag, Ticket } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useAssessmentClasses, useTicketBoard } from '@/hooks/assessment/useAssessment';
+import { useDailyAssessmentClasses, useTicketBoard } from '@/hooks/assessment/useAssessment';
 import { issueTickets } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -24,7 +24,7 @@ const periodText = (pType, p) =>
 
 /** Lý do chưa đủ điều kiện, nói rõ còn thiếu bao nhiêu (thay cho khung giải thích quy tắc). */
 const missingText = (r, rules, weekly) => {
-  if (!weekly) return `Thiếu ${rules.MONTH_MIN_WEEKLY_TICKETS - r.weeklyTickets} phiếu tuần`;
+  if (!weekly) return `Thiếu ${rules.MONTH_MIN_WEEKLY_TICKETS - r.weeklyTickets} phiếu Bé ngoan`;
   const parts = [
     r.presentDays < rules.WEEK_MIN_PRESENT_DAYS && `thiếu ${rules.WEEK_MIN_PRESENT_DAYS - r.presentDays} ngày có mặt`,
     r.flagCount < rules.WEEK_MIN_FLAGS && `thiếu ${rules.WEEK_MIN_FLAGS - r.flagCount} cờ`,
@@ -62,7 +62,7 @@ export default function GoodBehaviourTicketsPage() {
 function TeacherTicketsPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const { classes, loading: classesLoading, error: classesError } = useAssessmentClasses();
+  const { classes, loading: classesLoading, error: classesError } = useDailyAssessmentClasses();
   const [classId, setClassId] = useState('');
   const [type, setType] = useState(TICKET_TYPE.WEEKLY);
   const [periodStart, setPeriodStart] = useState('');
@@ -81,7 +81,7 @@ function TeacherTicketsPage() {
   const periods = board?.periods || [];
   const periodIndex = periods.findIndex((p) => p.start === board?.period?.start);
   // Giáo viên dạy một lớp: không cần chọn lớp
-  const cls = classes.find((c) => c.id === currentClassId);
+  const cls = classes.find((c) => String(c.id) === String(currentClassId));
   const issuable = rows.filter((r) => r.eligible && !r.ticket);
   const issued = rows.filter((r) => r.ticket).length;
   const weekly = type === TICKET_TYPE.WEEKLY;
@@ -103,7 +103,7 @@ function TeacherTicketsPage() {
   const doIssue = async () => {
     try {
       const res = await issueTickets({ classId: currentClassId, type, periodStart: board.period.start, childIds: [...selected] }, user);
-      toast.success(`Đã phát ${res.length} ${(TICKET_TYPE_LABELS[type] || '').toLowerCase()}. Phụ huynh đã được thông báo.`);
+      toast.success(`Đã phát ${res.length} ${(TICKET_TYPE_LABELS[type] || '').toLowerCase()}.`);
       setSelected(new Set());
       setConfirmOpen(false);
       reload({ silent: true });
@@ -243,8 +243,8 @@ function TeacherTicketsPage() {
                             </th>
                           </>
                         ) : (
-                          <th className="num" title={`Cần ít nhất ${board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3} phiếu tuần`}>
-                            Phiếu tuần trong tháng <span className="muted">(cần {board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3})</span>
+                          <th className="num" title={`Cần ít nhất ${board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3} phiếu Bé ngoan`}>
+                            Bé ngoan trong tháng <span className="muted">(cần {board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3})</span>
                           </th>
                         )}
                         <th className="center">Điều kiện</th>
@@ -338,7 +338,7 @@ function TeacherTicketsPage() {
       <ConfirmationModal
         open={confirmOpen}
         title={`Phát ${(TICKET_TYPE_LABELS[type] || '').toLowerCase()}?`}
-        message={`Phát phiếu cho ${selected.size} trẻ – ${board?.period ? periodText(pType, board.period) : ''}. Kết quả được công bố cho phụ huynh và không thu hồi được.`}
+        message={`Phát phiếu cho ${selected.size} trẻ – ${board?.period ? periodText(pType, board.period) : ''}. Phiếu đã phát không thu hồi được.`}
         confirmLabel="Phát phiếu"
         onConfirm={doIssue}
         onClose={() => setConfirmOpen(false)}

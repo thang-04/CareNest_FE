@@ -1,17 +1,18 @@
-import { activeYearEnd, activeYearStart } from '@/mocks/roomManagers';
+import { activeYearEnd, activeYearId, activeYearStart } from '@/mocks/roomManagers';
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { buildAssessmentSeed } from '@/mocks/assessmentSeed';
 import { EDU_SEED_VERSION, ensureEduDemo, seedTodayAttendance } from '@/mocks/educationPlanSeed';
 import { EDU_STATUS, goalRequirements } from '@/models/education-plan/educationPlanConstants';
-import { DAY_SECTIONS, cellKey, hocTitle, longDay, rowCell, weekRows, yearWeeks } from '@/models/education-plan/classPlan';
+import { cellKey, rowCell, weekRows, yearWeeks } from '@/models/education-plan/classPlan';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { remapCriteriaToPlan } from '@/models/education-plan/planVersions.mjs';
 import { ROLES } from '@/models/User';
 import {
   EVAL_KIND,
   EVAL_STATUS,
+  OVERVIEW_PERIOD,
   PERIOD_TYPE,
   REWARD_STATUS,
   TICKET_RULES,
@@ -59,7 +60,7 @@ import {
 } from '@/utils/assessment/assessmentPermissions';
 import {
   hasErrors,
-  validateDailyEntry,
+  findDiagnosticTerms,
   validateDecision,
   validateEvaluationContent,
   validateRewardProposal,
@@ -206,38 +207,6 @@ const planTopic = (plan, activity) => {
   return typeof v === 'string' ? v : [v?.subject, v?.topic].filter(Boolean).join(': ');
 };
 
-/*
- * Phần của kế hoạch ngày ứng với giờ đang đánh giá (HĐ học, ngoài trời, buổi chiều): tên mục, dòng mục đích yêu cầu
- * của hoạt động đó, các hoạt động của cô. Giờ không có mục riêng trong kế hoạch ngày thì null.
- */
-const AIM_HEAD = {
-  hoc: /^-?\s*Hoạt động học/i,
-  ngoai_troi: /^-?\s*Chơi, hoạt động ngoài trời/i,
-  chieu: /^-?\s*Chơi, hoạt động (theo ý thích )?buổi chiều/i,
-};
-const longDayOf = (plan) => {
-  const day = plan?.doc.days?.[plan.day];
-  return day ? longDay(day.date, plan.day) : '';
-};
-const planDayPart = (plan, activity) => {
-  const key = rowKeyOf(activity);
-  const section = DAY_SECTIONS.find((x) => x.key === key);
-  const day = plan?.doc.days?.[plan.day];
-  if (!section || !day) return null;
-  const hoc = plan.doc.grid.hoc?.days?.[plan.day] || {};
-  const lines = (t) =>
-    String(t || '')
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
-  return {
-    dayLabel: longDay(day.date, plan.day),
-    title: `${section.label}${key === 'hoc' && hocTitle(hoc) ? `: ${hocTitle(hoc)}` : ''}`,
-    aims: lines(day.aims).filter((l) => AIM_HEAD[key]?.test(l)),
-    steps: section.parts.flatMap((x) => lines(day.steps?.[`${section.key}.${x.key}`]?.teacher)).filter((l) => /^Hoạt động \d+/.test(l)),
-  };
-};
-
 /** Tiêu chí của một giờ sinh hoạt = các mục tiêu (MT) của hoạt động đã chọn ở ô đó trong giáo án tuần. */
 const planCriteria = (db, plan, activity) => {
   const c = planCell(plan, activity);
@@ -249,20 +218,17 @@ const planCriteria = (db, plan, activity) => {
   return ids.map((id) => known[id]).filter(Boolean);
 };
 
-/*
- * Gợi ý cờ bé ngoan của ngày (Tiền 21/10, phương án 1): trẻ được gợi ý cờ khi mọi giờ ở Kiến thức kỹ năng đều Đạt, mức tham
- * gia không "Chưa tích cực", hành vi không có mục cần lưu ý và cảm xúc không Buồn / Quấy khóc. Cô vẫn bỏ / cắm được; mỗi trẻ
- * 1 cờ / ngày. PROPOSED rule: BE phải sở hữu và chốt lại tiêu chí.
- */
-const flagSuggestionOf = (db, childId, date) => {
-  const obs = observationOf(db, childId, date);
-  const records = db.dailyAssessments.filter((a) => a.childId === childId && a.date === date);
-  const reasons = [];
-  if (records.some((a) => (a.criteriaNotMet || []).length)) reasons.push('Có giờ chưa đạt ở Kiến thức kỹ năng');
-  if (records.some((a) => a.participation === 'CHUA_TICH_CUC')) reasons.push('Có giờ tham gia chưa tích cực');
-  if ((obs?.behaviors || []).some((b) => !POSITIVE_BEHAVIORS.includes(b))) reasons.push('Hành vi có mục cần lưu ý');
-  if (['SAD', 'UPSET'].includes(obs?.emotion)) reasons.push('Cảm xúc buồn hoặc quấy khóc');
-  return { eligible: reasons.length === 0, reasons };
+const projectedAssessment = (db, plan, stored) => {
+  const assessment = toPlanCriteria(db, plan, stored);
+  if (!plan) return assessment;
+  const offered = new Set(planCriteria(db, plan, assessment.activity).map((g) => g.id));
+  const kept = (ids) => (ids || []).filter((id) => offered.has(id));
+  return {
+    ...assessment,
+    criteriaMet: kept(assessment.criteriaMet),
+    criteriaEffort: kept(assessment.criteriaEffort),
+    criteriaNotMet: kept(assessment.criteriaNotMet),
+  };
 };
 
 /* ---------------- 3 nhóm đánh giá ngày: điền sẵn, tổng hợp theo kỳ ---------------- */
@@ -321,12 +287,6 @@ const dayHealthOf = (db, childId, date) => {
   // Ghi chú: cô đã ghi thì giữ, chưa ghi thì lấy ghi chú của lần khám mới nhất
   const note = obs?.healthNote || (!overridden && check?.note) || '';
   return { signs, note, overridden, check, update: changed ? { time: check.time, signs: check.prefill } : null };
-};
-
-/** Bữa cô đã tắt "Tham gia ăn" khi điểm danh: cố định Không ăn. */
-const skippedMealsOf = (db, childId, date, sessions) => {
-  const rec = (db.attendance || []).find((r) => r.childId === childId && r.date === date);
-  return rec?.meals ? sessions.filter((m) => rec.meals[m] === false) : [];
 };
 
 /** Bản ghi trước 3 nhóm chỉ có healthStatus / emotion ở từng hoạt động: quy về một ngày. */
@@ -875,12 +835,197 @@ const fmtDeadline = (iso) => {
 
 const dayLocked = (db, classId, date) => isAssessmentLocked(date) && !activeUnlockOf(db, classId, date);
 
+/* ---------------- đánh giá hằng ngày: luật như BE (DailyAssessmentService, mã 7301–7312) ---------------- */
+
+const fail = (status, message, field = '_form') => {
+  throw new ApiError(status, message, { [field]: message });
+};
+
+const checkAssessmentDate = (db, date) => {
+  if (date > todayIso()) fail(400, 'Chỉ đánh giá cho hôm nay hoặc ngày đã qua.');
+  if (!isSchoolDay(date)) fail(400, 'Ngày đã chọn không phải ngày học.');
+  const start = activeYearStart(db);
+  if (start && date < start) fail(400, 'Chọn ngày trong năm học của lớp, từ đầu năm học đến hôm nay.');
+};
+
+/** Thứ tự như BE: giáo viên lớp → năm học → ngày → khóa / mở lại. */
+const checkWritableDay = (db, classId, date, user) => {
+  const cls = classOf(db, classId);
+  if (!cls) fail(404, 'Không tìm thấy lớp.');
+  if (!canRecordDailyAssessment(cls, user)) forbid();
+  if (cls.schoolYear && cls.schoolYear !== activeYearId(db)) fail(409, 'Lớp thuộc năm học đã kết thúc hoặc chưa bắt đầu, chỉ xem được.');
+  checkAssessmentDate(db, date);
+  if (dayLocked(db, classId, date)) fail(409, 'Ngày này đã khóa. Gửi mail cho Phó hiệu trưởng điểm trường hoặc Hiệu trưởng để mở lại.');
+  return cls;
+};
+
+const requirePresentChild = (db, classId, date, childId) => {
+  const child = activeChildrenOf(db, classId).find((c) => c.id === childId);
+  const present = (db.attendance || []).some((r) => r.childId === childId && r.date === date && r.status === 'PRESENT');
+  if (!child || !present) fail(409, 'Trẻ chưa được điểm danh có mặt nên chưa đánh giá được.', 'row');
+};
+
+// GBR-OBS-05: không dùng thuật ngữ chẩn đoán trong nhận xét / ghi chú
+const checkDayText = (...texts) => {
+  const found = [...new Set(texts.flatMap((t) => findDiagnosticTerms(t)))];
+  if (found.length) fail(400, `Không dùng thuật ngữ chẩn đoán ("${found.join('", "')}"). Hãy mô tả hành vi quan sát được.`, 'comment');
+};
+
+/** Kế hoạch ngày của giáo án tuần đã duyệt, cùng dạng ApprovedDayLessonResponse: hoạt động có MT trong ngày. */
+const dayLessonOf = (db, cls, date) => {
+  const plan = approvedDayPlan(db, cls, date);
+  if (!plan || plan.day < 0) return null;
+  const activities = assessableActivities(cls.ageGroupId)
+    .map((activity) => ({
+      key: activity,
+      label: activity,
+      topic: planTopic(plan, activity),
+      goals: planCriteria(db, plan, activity).map((g) => ({
+        id: g.id,
+        goalNo: Number(String(g.name).replace(/\D/g, '')) || null,
+        text: g.description,
+      })),
+    }))
+    .filter((a) => a.goals.length);
+  return { classDocId: plan.id, weekStart: plan.doc.weekStart, date, weekLabel: plan.code, activities };
+};
+
+/* ---------------- tổng quan đánh giá theo lớp (PHT / Hiệu trưởng) ---------------- */
+
+/** Kỳ: hôm nay, tuần học (T2–T6) hoặc tháng dương lịch chứa ngày neo; không tính ngày sau ngày neo. */
+const overviewRange = (period, anchor) => {
+  const [start, end] =
+    period === OVERVIEW_PERIOD.WEEK
+      ? [weekStart(anchor), weekEnd(anchor)]
+      : period === OVERVIEW_PERIOD.MONTH
+        ? [monthStart(anchor), monthEnd(anchor)]
+        : [anchor, anchor];
+  return { start, end, days: schoolDaysBetween(start, end < anchor ? end : anchor) };
+};
+
+// Năm đang chạy neo hôm nay; năm đã qua neo ngày cuối năm, năm chưa tới neo ngày đầu năm
+const overviewAnchor = (schoolYear) => {
+  const today = todayIso();
+  if (!schoolYear) return today;
+  const { start, end } = schoolYearRange(schoolYear);
+  return today > end ? end : today < start ? start : today;
+};
+
+/** Từng trẻ của lớp trong các ngày của kỳ: có mặt, đã đánh giá, sức khỏe, kiến thức kỹ năng, cờ, nhận xét. */
+const classPeriodStats = (db, cls, days) => {
+  const att = attendanceIndex(db);
+  const daySet = new Set(days);
+  const children = activeChildrenOf(db, cls.id);
+  const ids = new Set(children.map((c) => c.id));
+  const records = db.dailyAssessments.filter((a) => ids.has(a.childId) && daySet.has(a.date));
+  const observations = (db.dailyObservations || []).filter((o) => ids.has(o.childId) && daySet.has(o.date));
+  const assessedOn = new Set([...records, ...observations].map((r) => `${r.date}|${r.childId}`));
+  const perChild = children.map((ch) => {
+    const row = {
+      childId: ch.id,
+      fullName: ch.fullName,
+      presentDays: 0,
+      assessedDays: 0,
+      healthDays: 0,
+      signs: {},
+      dat: 0,
+      canCoGang: 0,
+      chuaDat: 0,
+      flags: 0,
+      comments: [],
+    };
+    days.forEach((d) => {
+      const key = `${d}|${ch.id}`;
+      const status = att.get(key);
+      // Chưa điểm danh mà đã có đánh giá thì coi là có mặt (như countPresentDays)
+      if (!(status ? status === 'PRESENT' : assessedOn.has(key))) return;
+      row.presentDays += 1;
+      if (assessedOn.has(key)) row.assessedDays += 1;
+      const signs = dayHealthOf(db, ch.id, d).signs;
+      if (signs.length) {
+        row.healthDays += 1;
+        signs.forEach((x) => (row.signs[x] = (row.signs[x] || 0) + 1));
+      }
+      const dayRecords = records.filter((a) => a.childId === ch.id && a.date === d);
+      const plan = approvedDayPlan(db, cls, d);
+      dayRecords.forEach((stored) => {
+        const a = projectedAssessment(db, plan, stored);
+        row.dat += (a.criteriaMet || []).length;
+        row.canCoGang += (a.criteriaEffort || []).length;
+        row.chuaDat += (a.criteriaNotMet || []).length;
+      });
+      const obs = observations.find((o) => o.childId === ch.id && o.date === d);
+      const comment =
+        obs?.comment ||
+        dayRecords
+          .map((a) => a.comment)
+          .filter(Boolean)
+          .join('; ');
+      if (comment) row.comments.push({ date: d, text: comment });
+    });
+    row.flags = days.length ? flagDaysOf(db, ch.id, days[0], days[days.length - 1]) : 0;
+    return row;
+  });
+  return { children, perChild, assessedOn };
+};
+
+const sumOf = (rows, key) => rows.reduce((n, r) => n + r[key], 0);
+
+const overviewRow = (db, cls, days, today) => {
+  const { children, perChild, assessedOn } = classPeriodStats(db, cls, days);
+  return {
+    classId: cls.id,
+    className: cls.name,
+    campusId: cls.campusId,
+    ageGroupId: cls.ageGroupId,
+    size: children.length,
+    present: sumOf(perChild, 'presentDays'),
+    assessed: sumOf(perChild, 'assessedDays'),
+    healthChildren: perChild.filter((r) => r.healthDays > 0).length,
+    dat: sumOf(perChild, 'dat'),
+    canCoGang: sumOf(perChild, 'canCoGang'),
+    chuaDat: sumOf(perChild, 'chuaDat'),
+    flags: sumOf(perChild, 'flags'),
+    schoolDays: days.length,
+    assessedDays: days.filter((d) => children.some((c) => assessedOn.has(`${d}|${c.id}`))).length,
+    lockedDays: days.filter((d) => isAssessmentLocked(d, today) && !activeUnlockOf(db, cls.id, d)).length,
+    reopenedDays: days.filter((d) => !!activeUnlockOf(db, cls.id, d)).length,
+  };
+};
+
+const overviewClasses = (db, user, schoolYear) =>
+  (db.classes || []).filter(
+    (c) =>
+      inLeaderScope(c.campusId, user) &&
+      (!schoolYear || !c.schoolYear || sameYear(c.schoolYear, schoolYear)) &&
+      activeChildrenOf(db, c.id).length > 0,
+  );
+
 const unlockView = (db, u) => ({
   ...u,
   className: classOf(db, u.classId)?.name || '—',
   unlockedByName: (db.users || []).find((x) => x.id === u.unlockedBy)?.fullName || '—',
   revokedByName: u.revokedBy ? (db.users || []).find((x) => x.id === u.revokedBy)?.fullName || '—' : null,
+  active: isUnlockActive(u),
 });
+
+const classCommentView = (db, note) =>
+  note
+    ? {
+        classId: note.classId,
+        date: note.date,
+        text: note.text,
+        recordedBy: note.recordedBy,
+        recordedByName: db.users.find((u) => u.id === note.recordedBy)?.fullName || 'Giáo viên',
+        updatedAt: note.updatedAt,
+      }
+    : null;
+// BE:OBS-19 — nhận xét lớp theo đúng lớp/ngày, không cộng vào số trẻ đã đánh giá.
+const classCommentsOf = (db, classId, days) =>
+  (db.classDailyComments || [])
+    .filter((note) => note.classId === classId && days.includes(note.date) && note.text.trim())
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((note) => classCommentView(db, note));
 
 /* ---------------- repository ---------------- */
 
@@ -890,189 +1035,121 @@ export const assessmentMockRepository = {
     return clone(ensureReady().assessmentCriteria);
   },
 
-  /* ----- #52 Daily assessment ----- */
-  async getDailySheet({ classId, date, activity }, user) {
+  /* ----- #52 Đánh giá hằng ngày: cùng dạng DailySheetResponse của BE (GET /classes/{id}/daily-assessment) ----- */
+  async getDailyAssessment({ classId, date }, user) {
     await delay();
     const db = ensureReady();
-    const cls = requireClassTeacher(db, classId, user);
-    if (!date || date > todayIso()) throw new ApiError(422, 'Chỉ đánh giá cho hôm nay hoặc ngày đã qua.');
-    if (!isSchoolDay(date)) throw new ApiError(422, 'Ngày đã chọn không phải ngày học.');
-    const activities = assessableActivities(cls.ageGroupId);
-    const current = activities.includes(activity) ? activity : activities.find((a) => a === 'Hoạt động học') || activities[0];
+    const cls = classOf(db, classId);
+    if (!cls) throw new ApiError(404, 'Không tìm thấy lớp.');
+    if (!isClassTeacher(cls, user) && !canUnlockAssessmentDay(cls, user)) forbid();
+    const day = date || todayIso();
+    checkAssessmentDate(db, day);
     const att = attendanceIndex(db);
-    const plan = approvedDayPlan(db, cls, date);
-    const mealSessions = mealSessionsOf(db, cls);
-    const rows = activeChildrenOf(db, classId).map((child) => {
-      const attendanceStatus = att.get(`${date}|${child.id}`) || null;
-      const assessment = toPlanCriteria(
+    const plan = approvedDayPlan(db, cls, day);
+    const kids = activeChildrenOf(db, classId);
+    const yearReadOnly = !!cls.schoolYear && cls.schoolYear !== activeYearId(db);
+    const unlock = isAssessmentLocked(day) && !yearReadOnly ? activeUnlockOf(db, cls.id, day) : null;
+    const rows = kids
+      .filter((child) => att.get(`${day}|${child.id}`) === 'PRESENT')
+      .map((child) => {
+        const obs = observationOf(db, child.id, day);
+        const records = db.dailyAssessments.filter((a) => a.childId === child.id && a.date === day);
+        const h = dayHealthOf(db, child.id, day);
+        return {
+          childId: child.id,
+          fullName: child.fullName,
+          attendanceStatus: 'PRESENT',
+          health: { signs: h.signs, note: h.note, overridden: h.overridden, prefillSigns: h.check?.prefill || [] },
+          meals: obs?.meals || {},
+          nap: obs?.nap || null,
+          emotion: obs?.emotion || null,
+          participation: obs?.participation || null,
+          behaviors: obs?.behaviors || [],
+          behaviorNote: obs?.behaviorNote || '',
+          flag: obs?.flag ?? null,
+          comment: obs?.comment || '',
+          recorded: !!obs || records.length > 0,
+          activities: records.map((stored) => {
+            // EDU-26: giữ mức đã chấm qua lineage khi giáo án ngày dùng phiên bản mới.
+            const a = projectedAssessment(db, plan, stored);
+            return {
+              key: a.activity,
+              participation: a.participation || null,
+              goalsMet: a.criteriaMet || [],
+              goalsEffort: a.criteriaEffort || [],
+              goalsNotMet: a.criteriaNotMet || [],
+              updatedAt: a.updatedAt || a.recordedAt,
+            };
+          }),
+        };
+      });
+    return clone({
+      classId: cls.id,
+      className: cls.name,
+      campusId: cls.campusId,
+      date: day,
+      today: todayIso(),
+      yearStart: activeYearStart(db),
+      canRecord: canRecordDailyAssessment(cls, user) && !yearReadOnly,
+      yearReadOnly,
+      locked: isAssessmentLocked(day) && !unlock,
+      unlock: unlock ? unlockView(db, unlock) : null,
+      attendanceTaken: kids.some((child) => att.has(`${day}|${child.id}`)),
+      mealSessions: mealSessionsOf(db, cls),
+      lesson: dayLessonOf(db, cls, day),
+      rows,
+      classComment: classCommentView(
         db,
-        plan,
-        db.dailyAssessments.find((a) => a.childId === child.id && a.date === date && a.activity === current) || null,
-      );
-      // Sức khỏe, ăn ngủ, cảm xúc – hành vi ghi một lần cho cả ngày; bản ghi cũ lấy từ các hoạt động trong ngày
-      const observation =
-        observationOf(db, child.id, date) || legacyDay(db.dailyAssessments.filter((a) => a.childId === child.id && a.date === date));
-      // Chỉ trẻ đã điểm danh Có mặt mới được đánh giá; chưa điểm danh coi như chưa đánh giá được
-      return {
-        child,
-        attendanceStatus,
-        present: attendanceStatus === 'PRESENT',
-        assessment,
-        observation,
-        // Cờ của ngày (1 cờ / ngày); cô chưa quyết thì theo gợi ý
-        flag: observation?.flag ?? null,
-        flagSuggestion: flagSuggestionOf(db, child.id, date),
-        health: dayHealthOf(db, child.id, date),
-        skippedMeals: skippedMealsOf(db, child.id, date, mealSessions),
-      };
-    });
-    return clone({
-      cls,
-      date,
-      activity: current,
-      activities,
-      locked: dayLocked(db, cls.id, date),
-      unlock: (() => {
-        const u = activeUnlockOf(db, cls.id, date);
-        return u && isAssessmentLocked(date) ? unlockView(db, u) : null;
-      })(),
-      attendanceTaken: rows.some((r) => r.attendanceStatus),
-      mealSessions,
-      plan: plan
-        ? {
-            id: plan.id,
-            code: plan.code,
-            themeId: plan.themeId || null,
-            topic: planTopic(plan, current),
-            dayPart: planDayPart(plan, current),
-          }
-        : null,
-      criteria: planCriteria(db, plan, current),
-      // Tiêu chí đã chấm trước đây (bộ cũ) vẫn hiện tên khi xem lại.
-      legacyCriteria: db.assessmentCriteria,
-      rows,
+        (db.classDailyComments || []).find((note) => note.classId === classId && note.date === day),
+      ),
     });
   },
 
-  /*
-   * Đánh giá cả ngày trên một bảng (Tiền 20/10): mỗi giờ có MT trong kế hoạch ngày là một cột; nhóm ngày (sức khỏe, ăn,
-   * ngủ, cảm xúc, hành vi), cờ (1 lần / ngày) và nhận xét ghi một lần. Cô chấm giờ nào lúc nào cũng được.
-   */
-  async getDailyDaySheet({ classId, date }, user) {
-    await delay();
-    const db = ensureReady();
-    const cls = requireClassTeacher(db, classId, user);
-    if (!date || date > todayIso()) throw new ApiError(422, 'Chỉ đánh giá cho hôm nay hoặc ngày đã qua.');
-    if (!isSchoolDay(date)) throw new ApiError(422, 'Ngày đã chọn không phải ngày học.');
-    const plan = approvedDayPlan(db, cls, date);
-    const activities = assessableActivities(cls.ageGroupId).map((activity) => ({
-      activity,
-      topic: plan ? planTopic(plan, activity) : '',
-      dayPart: plan ? planDayPart(plan, activity) : null,
-      criteria: planCriteria(db, plan, activity),
-    }));
-    const att = attendanceIndex(db);
-    const mealSessions = mealSessionsOf(db, cls);
-    const rows = activeChildrenOf(db, classId).map((child) => {
-      const attendanceStatus = att.get(`${date}|${child.id}`) || null;
-      const records = db.dailyAssessments.filter((a) => a.childId === child.id && a.date === date);
-      const observation = observationOf(db, child.id, date) || legacyDay(records);
-      return {
-        child,
-        attendanceStatus,
-        present: attendanceStatus === 'PRESENT',
-        observation,
-        assessments: Object.fromEntries(
-          activities.map(({ activity }) => [activity, toPlanCriteria(db, plan, records.find((a) => a.activity === activity) || null)]),
-        ),
-        // Cờ, nhận xét của ngày: bản ghi ngày; bản cũ lấy từ các hoạt động trong ngày
-        flag: observation?.flag ?? records.some((a) => a.flag),
-        comment:
-          observation?.comment ??
-          records
-            .map((a) => a.comment)
-            .filter(Boolean)
-            .join(' '),
-        health: dayHealthOf(db, child.id, date),
-        skippedMeals: skippedMealsOf(db, child.id, date, mealSessions),
-      };
-    });
-    return clone({
-      cls,
-      date,
-      locked: dayLocked(db, cls.id, date),
-      unlock: (() => {
-        const u = activeUnlockOf(db, cls.id, date);
-        return u && isAssessmentLocked(date) ? unlockView(db, u) : null;
-      })(),
-      attendanceTaken: rows.some((r) => r.attendanceStatus),
-      mealSessions,
-      plan: plan ? { id: plan.id, code: plan.code, themeId: plan.themeId || null, dayLabel: longDayOf(plan) } : null,
-      activities,
-      legacyCriteria: db.assessmentCriteria,
-      rows,
-    });
-  },
-
-  /** Lưu cả ngày: entries [{ childId, ...nhóm ngày, flag, comment, activities: { [giờ]: { participation, criteriaMet, criteriaNotMet } } }]. */
-  async saveDailyDay({ classId, date, entries }, user) {
+  /** View Hoạt động chung (PUT .../daily-assessment/general): sức khỏe, ăn, ngủ, cảm xúc, hành vi, cờ, nhận xét. */
+  async saveDailyGeneral({ classId, date, entries = [], classComment }, user) {
     await delay();
     ensureReady();
     return writeDb((db) => {
-      const cls = requireClassTeacher(db, classId, user);
-      if (!canRecordDailyAssessment(cls, user)) forbid();
-      if (!date || date > todayIso() || !isSchoolDay(date)) throw new ApiError(422, 'Ngày đánh giá không hợp lệ.');
-      if (!entries?.length) throw new ApiError(422, 'Chưa có thay đổi nào để lưu.');
-      if (dayLocked(db, classId, date))
-        throw new ApiError(409, 'Ngày này đã khóa. Gửi mail cho Phó hiệu trưởng điểm trường hoặc Hiệu trưởng để mở lại.');
-      const allowed = assessableActivities(cls.ageGroupId);
-      const reopened = isAssessmentLocked(date);
-      const att = attendanceIndex(db);
-      const kids = new Map(activeChildrenOf(db, classId).map((c) => [c.id, c]));
-      const details = {};
+      const cls = checkWritableDay(db, classId, date, user);
+      if (!entries?.length && classComment == null)
+        throw new ApiError(400, 'Chưa có thay đổi nào để lưu.', { _form: 'Chưa có thay đổi nào để lưu.' });
+      if (classComment != null) {
+        if (typeof classComment !== 'string') fail(400, 'Nhận xét chung của lớp phải là văn bản.', 'classComment');
+        if (findDiagnosticTerms(classComment).length)
+          fail(400, 'Nhận xét chung của lớp không dùng thuật ngữ chẩn đoán, hãy mô tả điều quan sát được.', 'classComment');
+      }
       entries.forEach((e) => {
-        const child = kids.get(e.childId);
-        if (!child) return (details[e.childId] = { childId: 'Trẻ không thuộc lớp này.' });
-        const status = att.get(`${date}|${e.childId}`);
-        if (!status) return (details[e.childId] = { childId: `${child.fullName} chưa được điểm danh ngày này.` });
-        if (status !== 'PRESENT') return (details[e.childId] = { childId: `${child.fullName} vắng ngày này nên không thể đánh giá.` });
-        const obs = observationOf(db, e.childId, date);
-        if (obs && obs.recordedBy !== user.id)
-          return (details[e.childId] = { childId: 'Chỉ giáo viên đã ghi nhận được sửa đánh giá này.' });
-        if (Object.keys(e.activities || {}).some((a) => !allowed.includes(a)))
-          return (details[e.childId] = { childId: 'Hoạt động không thuộc thời khóa biểu của lớp.' });
-        const errors = validateDailyEntry(e);
-        Object.values(e.activities || {}).forEach((a) => Object.assign(errors, validateDailyEntry({ ...e, ...a })));
-        if (hasErrors(errors)) details[e.childId] = errors;
-        return null;
+        requirePresentChild(db, classId, date, e.childId);
+        checkDayText(e.comment, e.healthNote, e.behaviorNote);
       });
-      if (Object.keys(details).length) throw new ApiError(422, 'Một số dòng chưa hợp lệ. Kiểm tra các dòng được đánh dấu.', details);
-
       const at = nowIso();
-      const plan = approvedDayPlan(db, cls, date);
-      const sessions = mealSessionsOf(db, cls);
+      if (classComment != null) {
+        db.classDailyComments ||= [];
+        const note = db.classDailyComments.find((n) => n.classId === classId && n.date === date);
+        const values = { classId, campusId: cls.campusId, date, text: classComment.trim(), recordedBy: user.id, updatedAt: at };
+        if (note) Object.assign(note, values);
+        else db.classDailyComments.push({ id: uid('cc'), ...values });
+      }
       db.dailyObservations ||= [];
       entries.forEach((e) => {
-        const skipped = skippedMealsOf(db, e.childId, date, sessions);
         const prev = observationOf(db, e.childId, date);
         const overridden = !!e.healthOverridden;
         const signs = Object.keys(HEALTH_SYMPTOMS).filter((k) => (e.healthSigns || []).includes(k));
-        const reselected = !prev?.healthOverridden || signs.join() !== (prev.healthSigns || []).join();
-        const dayValues = {
+        const values = {
           healthOverridden: overridden,
           healthSigns: overridden ? signs : [],
           healthNote: (e.healthNote || '').trim(),
-          healthSetAt: overridden ? (reselected ? at : prev.healthSetAt) : null,
-          meals: Object.fromEntries(sessions.map((m) => [m, skipped.includes(m) ? EATING.KHONG_AN : e.meals?.[m] || EATING.AN_HET])),
-          nap: e.nap || NAP.NGU_TOT,
-          emotion: e.emotion,
+          healthSetAt: overridden ? at : null,
+          meals: e.meals || {},
+          nap: e.nap || null,
+          emotion: e.emotion || null,
+          participation: e.participation || null,
           behaviors: [...new Set(e.behaviors || [])],
           behaviorNote: (e.behaviorNote || '').trim(),
-          // Cờ chỉ cắm ở màn Hoạt động chung: giữ nguyên cờ đã có
-          ...(e.flag === undefined ? {} : { flag: !!e.flag }),
+          flag: e.flag ?? null,
           comment: (e.comment || '').trim(),
         };
-        if (prev) Object.assign(prev, dayValues, { updatedAt: at });
+        if (prev) Object.assign(prev, values, { updatedAt: at });
         else
           db.dailyObservations.push({
             id: uid('do'),
@@ -1080,198 +1157,133 @@ export const assessmentMockRepository = {
             classId,
             campusId: cls.campusId,
             childId: e.childId,
-            ...dayValues,
+            ...values,
             recordedBy: user.id,
             recordedAt: at,
             updatedAt: null,
           });
-        Object.entries(e.activities || {}).forEach(([activity, a]) => {
-          const offered = planCriteria(db, plan, activity).map((c) => c.id);
+      });
+      return { saved: entries.length, savedAt: at };
+    });
+  },
+
+  /**
+   * View Kiến thức kỹ năng (PUT .../daily-assessment/skills): kết quả MT từng hoạt động của giáo án đã duyệt. Không tự ghi
+   * Đạt; hoạt động không chấm gì thì xóa bản cũ. comment null = giữ nhận xét đang có (1 nhận xét / trẻ / ngày).
+   */
+  async saveDailySkills({ classId, date, entries }, user) {
+    await delay();
+    ensureReady();
+    return writeDb((db) => {
+      const cls = checkWritableDay(db, classId, date, user);
+      const lesson = dayLessonOf(db, cls, date);
+      if (!lesson) throw new ApiError(409, 'Chưa có giáo án duyệt cho ngày này.', { _form: 'Chưa có giáo án duyệt cho ngày này.' });
+      const offered = Object.fromEntries(lesson.activities.map((a) => [a.key, a.goals.map((g) => g.id)]));
+      (entries || []).forEach((e) => {
+        requirePresentChild(db, classId, date, e.childId);
+        checkDayText(e.comment);
+        (e.activities || []).forEach((a) => {
+          if (!offered[a.key])
+            throw new ApiError(400, 'Hoạt động không có trong giáo án đã duyệt của ngày.', {
+              _form: 'Hoạt động không có trong giáo án đã duyệt của ngày.',
+            });
+          const ids = [...(a.goalsMet || []), ...(a.goalsEffort || []), ...(a.goalsNotMet || [])];
+          if (ids.some((id) => !offered[a.key].includes(id)))
+            throw new ApiError(400, 'Mục tiêu không thuộc hoạt động này của giáo án.', {
+              _form: 'Mục tiêu không thuộc hoạt động này của giáo án.',
+            });
+          if (new Set(ids).size !== ids.length)
+            throw new ApiError(400, 'Một mục tiêu chỉ chọn một mức Đạt, Cần cố gắng hoặc Chưa đạt.', {
+              _form: 'Một mục tiêu chỉ chọn một mức Đạt, Cần cố gắng hoặc Chưa đạt.',
+            });
+        });
+      });
+      const at = nowIso();
+      const plan = approvedDayPlan(db, cls, date);
+      let saved = 0;
+      (entries || []).forEach((e) => {
+        let changed = false;
+        (e.activities || []).forEach((a) => {
+          const idx = db.dailyAssessments.findIndex((x) => x.childId === e.childId && x.date === date && x.activity === a.key);
+          const empty = !a.participation && ![a.goalsMet, a.goalsEffort, a.goalsNotMet].some((l) => l?.length);
+          if (empty) {
+            if (idx >= 0) {
+              db.dailyAssessments.splice(idx, 1);
+              changed = true;
+            }
+            return;
+          }
           const values = {
-            emotion: e.emotion,
-            participation: plan ? a.participation || 'BINH_THUONG' : null,
-            criteriaMet: (a.criteriaMet || []).filter((id) => offered.includes(id)),
-            criteriaNotMet: (a.criteriaNotMet || []).filter((id) => offered.includes(id) && !(a.criteriaMet || []).includes(id)),
-            // Cần cố gắng: mức giữa (PROPOSED, BE chốt)
-            criteriaEffort: (a.criteriaEffort || []).filter(
-              (id) => offered.includes(id) && !(a.criteriaMet || []).includes(id) && !(a.criteriaNotMet || []).includes(id),
-            ),
-            criteriaOffered: offered,
+            participation: a.participation || null,
+            criteriaMet: a.goalsMet || [],
+            criteriaEffort: a.goalsEffort || [],
+            criteriaNotMet: a.goalsNotMet || [],
+            criteriaOffered: offered[a.key],
             lessonPlanId: plan?.id || null,
             themeId: plan?.themeId || null,
-            // Cờ, nhận xét ghi ở bản ghi ngày
+            emotion: observationOf(db, e.childId, date)?.emotion || null,
             flag: false,
             comment: '',
           };
-          const existing = db.dailyAssessments.find((x) => x.childId === e.childId && x.date === date && x.activity === activity);
-          if (existing) {
-            Object.assign(existing, values, { updatedAt: at, parentNotifiedAt: at });
-            if (reopened) {
-              const u = activeUnlockOf(db, classId, date);
-              existing.corrections.push({
-                at,
-                userId: user.id,
-                reason: `Mở lại ngày bởi ${unlockView(db, u).unlockedByName}`,
-                unlockId: u.id,
-              });
-            }
-          } else
+          if (idx >= 0) Object.assign(db.dailyAssessments[idx], values, { updatedAt: at });
+          else
             db.dailyAssessments.push({
               id: uid('da'),
               date,
               classId,
               campusId: cls.campusId,
               childId: e.childId,
-              activity,
+              activity: a.key,
               ...values,
               recordedBy: user.id,
               recordedAt: at,
               updatedAt: null,
               corrections: [],
-              parentNotifiedAt: at,
             });
+          changed = true;
         });
-      });
-      return { saved: entries.length, at };
-    });
-  },
-
-  async saveDailyAssessments({ classId, date, activity, entries }, user) {
-    await delay();
-    ensureReady();
-    return writeDb((db) => {
-      const cls = requireClassTeacher(db, classId, user);
-      if (!canRecordDailyAssessment(cls, user)) forbid();
-      if (!date || date > todayIso() || !isSchoolDay(date)) throw new ApiError(422, 'Ngày đánh giá không hợp lệ.');
-      if (!assessableActivities(cls.ageGroupId).includes(activity))
-        throw new ApiError(422, 'Hoạt động không thuộc thời khóa biểu của lớp.');
-      if (!entries?.length) throw new ApiError(422, 'Chưa có thay đổi nào để lưu.');
-      if (dayLocked(db, classId, date))
-        throw new ApiError(409, 'Ngày này đã khóa. Gửi mail cho Phó hiệu trưởng điểm trường hoặc Hiệu trưởng để mở lại.');
-      const reopened = isAssessmentLocked(date);
-      const att = attendanceIndex(db);
-      const kids = new Map(activeChildrenOf(db, classId).map((c) => [c.id, c]));
-      const details = {};
-      entries.forEach((e) => {
-        const child = kids.get(e.childId);
-        if (!child) {
-          details[e.childId] = { childId: 'Trẻ không thuộc lớp này.' };
-          return;
-        }
-        const status = att.get(`${date}|${e.childId}`);
-        if (!status) {
-          details[e.childId] = { childId: `${child.fullName} chưa được điểm danh ngày này. Điểm danh trước rồi mới đánh giá.` };
-          return;
-        }
-        if (status !== 'PRESENT') {
-          details[e.childId] = { childId: `${child.fullName} vắng ngày này nên không thể đánh giá.` };
-          return;
-        }
-        const existing = db.dailyAssessments.find((a) => a.childId === e.childId && a.date === date && a.activity === activity);
-        if (existing && existing.recordedBy !== user.id) {
-          details[e.childId] = { childId: 'Chỉ giáo viên đã ghi nhận được sửa đánh giá này.' };
-          return;
-        }
-        const errors = validateDailyEntry(e);
-        if (hasErrors(errors)) details[e.childId] = errors;
-      });
-      if (Object.keys(details).length) throw new ApiError(422, 'Một số dòng chưa hợp lệ. Kiểm tra các dòng được đánh dấu.', details);
-
-      const at = nowIso();
-      const plan = approvedDayPlan(db, cls, date);
-      const offered = planCriteria(db, plan, activity).map((c) => c.id);
-      const sessions = mealSessionsOf(db, cls);
-      db.dailyObservations ||= [];
-      entries.forEach((e) => {
-        const skipped = skippedMealsOf(db, e.childId, date, sessions);
-        // Sức khỏe, ăn, ngủ và Cảm xúc – hành vi: một bản ghi / trẻ / ngày. Ô Sức khỏe cô chưa sửa thì không chốt,
-        // vẫn theo khám sức khỏe mới nhất; cô đã sửa thì lưu lựa chọn và thời điểm chọn.
-        const prev = observationOf(db, e.childId, date);
-        const overridden = !!e.healthOverridden;
-        const signs = Object.keys(HEALTH_SYMPTOMS).filter((k) => (e.healthSigns || []).includes(k));
-        // Thời điểm cô chọn: chỉ đổi khi cô chọn lại, để gợi ý "khám sức khỏe cập nhật" không tự mất khi lưu dòng vì ô khác
-        const reselected = !prev?.healthOverridden || signs.join() !== (prev.healthSigns || []).join();
-        const dayValues = {
-          healthOverridden: overridden,
-          healthSigns: overridden ? signs : [],
-          healthNote: (e.healthNote || '').trim(),
-          healthSetAt: overridden ? (reselected ? at : prev.healthSetAt) : null,
-          meals: Object.fromEntries(sessions.map((m) => [m, skipped.includes(m) ? EATING.KHONG_AN : e.meals?.[m] || EATING.AN_HET])),
-          nap: e.nap || NAP.NGU_TOT,
-          emotion: e.emotion,
-          behaviors: [...new Set(e.behaviors || [])],
-          behaviorNote: (e.behaviorNote || '').trim(),
-          // Cờ bé ngoan: 1 cờ / ngày, chỉ cắm ở màn Hoạt động chung
-          flag: !!e.flag,
-        };
-        const obs = observationOf(db, e.childId, date);
-        if (obs) Object.assign(obs, dayValues, { updatedAt: at });
-        else
-          db.dailyObservations.push({
-            id: uid('do'),
-            date,
-            classId,
-            campusId: cls.campusId,
-            childId: e.childId,
-            ...dayValues,
-            recordedBy: user.id,
-            recordedAt: at,
-            updatedAt: null,
-          });
-        // Nhóm Kiến thức, kỹ năng theo hoạt động của giáo án; giữ healthStatus cũ cho màn hồ sơ, phiếu bé ngoan
-        const values = {
-          emotion: e.emotion,
-          participation: plan ? e.participation || 'BINH_THUONG' : null,
-          criteriaMet: (e.criteriaMet || []).filter((id) => offered.includes(id)),
-          criteriaNotMet: (e.criteriaNotMet || []).filter((id) => offered.includes(id) && !(e.criteriaMet || []).includes(id)),
-          criteriaOffered: offered,
-          lessonPlanId: plan?.id || null,
-          themeId: plan?.themeId || null,
-          flag: false,
-          comment: (e.comment || '').trim(),
-        };
-        const existing = db.dailyAssessments.find((a) => a.childId === e.childId && a.date === date && a.activity === activity);
-        if (existing) {
-          Object.assign(existing, values, { updatedAt: at, parentNotifiedAt: at });
-          // Sửa trong ngày được mở lại: ghi vết kèm người mở
-          if (reopened) {
-            const u = activeUnlockOf(db, classId, date);
-            existing.corrections.push({
-              at,
-              userId: user.id,
-              reason: `Mở lại ngày bởi ${unlockView(db, u).unlockedByName}`,
-              unlockId: u.id,
+        if (e.comment != null) {
+          db.dailyObservations ||= [];
+          const obs = observationOf(db, e.childId, date);
+          if (obs) Object.assign(obs, { comment: e.comment.trim(), updatedAt: at });
+          else
+            db.dailyObservations.push({
+              id: uid('do'),
+              date,
+              classId,
+              campusId: cls.campusId,
+              childId: e.childId,
+              comment: e.comment.trim(),
+              recordedBy: user.id,
+              recordedAt: at,
+              updatedAt: null,
             });
-          }
-        } else {
-          db.dailyAssessments.push({
-            id: uid('da'),
-            date,
-            classId,
-            campusId: cls.campusId,
-            childId: e.childId,
-            activity,
-            ...values,
-            recordedBy: user.id,
-            recordedAt: at,
-            updatedAt: null,
-            corrections: [],
-            // Parents use the mobile app: the backend notifies the linked parents here (UC 4.4 step 7).
-            parentNotifiedAt: at,
-          });
+          changed = true;
         }
+        if (changed) saved += 1;
       });
-      return { saved: entries.length };
+      if (!saved) throw new ApiError(400, 'Chưa có thay đổi nào để lưu.', { _form: 'Chưa có thay đổi nào để lưu.' });
+      return { saved, savedAt: at };
     });
   },
 
   /* ----- Mở lại ngày đánh giá đã khóa (PHT điểm trường / Hiệu trưởng) ----- */
-  async listAssessmentDayUnlocks(user) {
+  /** Lọc như BE (GET /assessment/day-unlocks?campusId&classId&active&from&to); mới nhất trước. */
+  async listAssessmentDayUnlocks({ campusId, classId, active, from, to } = {}, user) {
     await delay();
     const db = ensureReady();
+    const wantActive = active === undefined || active === '' ? null : active === true || active === 'true';
     return clone(
       db.assessmentDayUnlocks
         .filter((u) => canUnlockAssessmentDay(classOf(db, u.classId), user))
+        .filter(
+          (u) =>
+            (!campusId || u.campusId === campusId) &&
+            (!classId || u.classId === classId) &&
+            (wantActive === null || isUnlockActive(u) === wantActive) &&
+            (!from || u.date >= from) &&
+            (!to || u.date <= to),
+        )
         .sort((a, b) => (a.unlockedAt < b.unlockedAt ? 1 : -1))
         .map((u) => unlockView(db, u)),
     );
@@ -1289,7 +1301,7 @@ export const assessmentMockRepository = {
       if (!u) throw new ApiError(404, 'Không tìm thấy lần mở lại.');
       const cls = classOf(db, u.classId);
       if (!canUnlockAssessmentDay(cls, user)) forbid();
-      if (!isUnlockActive(u)) throw new ApiError(409, 'Lần mở lại này đã hết hiệu lực.');
+      if (!isUnlockActive(u)) fail(409, 'Lần mở lại này đã hết hiệu lực.');
       const at = nowIso();
       Object.assign(u, { validUntil: at, revokedAt: at, revokedBy: user.id });
       cls.teacherIds.forEach((userId) =>
@@ -1312,21 +1324,19 @@ export const assessmentMockRepository = {
       const cls = classOf(db, classId);
       if (!cls) throw new ApiError(404, 'Không tìm thấy lớp.');
       if (!canUnlockAssessmentDay(cls, user)) forbid();
-      if (!date || !isSchoolDay(date)) throw new ApiError(422, 'Chọn một ngày học.');
-      // Lùi được tới ngày bắt đầu năm học (Cần chốt 21/10/2026)
+      if (cls.schoolYear && cls.schoolYear !== activeYearId(db)) fail(409, 'Chỉ mở lại lớp thuộc năm học đang hoạt động.');
+      // Ngày học từ đầu năm học đến hôm qua (Cần chốt 21/10/2026)
       const yearStart = activeYearStart(db);
-      if (yearStart && date < yearStart) throw new ApiError(422, 'Chỉ mở lại ngày từ đầu năm học.');
-      if (!isAssessmentLocked(date)) throw new ApiError(422, 'Ngày này chưa khóa, giáo viên vẫn đánh giá được.');
-      if ((reason || '').length > 300) throw new ApiError(422, 'Lý do tối đa 300 ký tự.');
+      if (!date || !isSchoolDay(date) || (yearStart && date < yearStart) || date >= todayIso())
+        fail(400, 'Chọn một ngày học từ đầu năm học đến hôm qua.', 'date');
+      if (!(reason || '').trim() || reason.length > 300) fail(400, 'Nhập lý do mở lại, tối đa 300 ký tự.', 'reason');
       const until = new Date(validUntil || '');
-      if (Number.isNaN(until.getTime())) throw new ApiError(422, 'Chọn ngày giờ hết hạn mở lại.');
-      if (until <= new Date()) throw new ApiError(422, 'Hạn mở lại phải sau thời điểm hiện tại.');
-      // Hạn do HT / PHT chọn, không quá hết ngày kết thúc năm học
+      // Hạn do HT / PHT chọn: sau hiện tại, không quá hết ngày kết thúc năm học
       const yearEnd = activeYearEnd(db);
-      if (yearEnd && until > new Date(`${yearEnd}T23:59:59+07:00`))
-        throw new ApiError(422, 'Hạn mở lại không được quá ngày kết thúc năm học.');
+      if (Number.isNaN(until.getTime()) || until <= new Date() || (yearEnd && until > new Date(`${yearEnd}T23:59:59+07:00`)))
+        fail(400, 'Chọn hạn mở lại sau thời điểm hiện tại và không quá ngày kết thúc năm học.', 'validUntil');
       const active = activeUnlockOf(db, classId, date);
-      if (active) throw new ApiError(409, `Ngày này đã được mở lại cho lớp, còn hiệu lực đến ${fmtDeadline(active.validUntil)}.`);
+      if (active) fail(409, `Lớp / ngày này đang có lần mở lại còn hiệu lực đến ${fmtDeadline(active.validUntil)}.`, 'date');
       const at = nowIso();
       const unlock = {
         id: uid('du'),
@@ -1614,6 +1624,68 @@ export const assessmentMockRepository = {
    * Phiếu bé ngoan các lớp cho PHT (điểm trường mình) và Hiệu trưởng (toàn trường): mỗi lớp số phiếu tuần, phiếu tháng,
    * số trẻ có phiếu trong năm học hoặc một tháng. PENDING BE: GET /assessment/behaviour-tickets/overview.
    */
+  /** Tổng quan đánh giá các lớp theo kỳ (hôm nay / tuần / tháng): PHT điểm trường mình, Hiệu trưởng toàn trường. */
+  async getClassAssessmentOverview({ period = OVERVIEW_PERIOD.DAY, campusId, ageGroupId, classId, schoolYear } = {}, user) {
+    await delay();
+    const db = ensureReady();
+    if (!isLeader(user)) forbid();
+    const today = todayIso();
+    const range = overviewRange(period, overviewAnchor(schoolYear));
+    const scoped = overviewClasses(db, user, schoolYear);
+    const rows = scoped
+      .filter(
+        (c) => (!campusId || c.campusId === campusId) && (!ageGroupId || c.ageGroupId === ageGroupId) && (!classId || c.id === classId),
+      )
+      .map((c) => ({ ...overviewRow(db, c, range.days, today), classComments: classCommentsOf(db, c.id, range.days) }))
+      .sort((a, b) => a.campusId.localeCompare(b.campusId) || a.className.localeCompare(b.className, 'vi'));
+    const graded = sumOf(rows, 'dat') + sumOf(rows, 'canCoGang') + sumOf(rows, 'chuaDat');
+    const mostNotMet = [...rows].sort((a, b) => b.chuaDat - a.chuaDat)[0];
+    return clone({
+      period,
+      start: range.start,
+      end: range.end,
+      schoolDays: range.days.length,
+      campuses: [...new Set(scoped.map((c) => c.campusId))].map((id) => ({ id, name: campusName(db, id) })),
+      ageGroups: [...new Set(scoped.map((c) => c.ageGroupId))]
+        .filter(Boolean)
+        .map((id) => ({ id, name: (db.ageGroups || []).find((g) => g.id === id)?.name || id })),
+      classes: scoped.map((c) => ({ id: c.id, name: c.name, campusId: c.campusId, ageGroupId: c.ageGroupId })),
+      rows,
+      totals: {
+        classes: rows.length,
+        complete: rows.filter((r) => r.present > 0 && r.assessed >= r.present).length,
+        present: sumOf(rows, 'present'),
+        assessed: sumOf(rows, 'assessed'),
+        healthChildren: sumOf(rows, 'healthChildren'),
+        flags: sumOf(rows, 'flags'),
+        datRate: graded ? Math.round((sumOf(rows, 'dat') * 100) / graded) : null,
+        mostNotMet: mostNotMet?.chuaDat ? { className: mostNotMet.className, chuaDat: mostNotMet.chuaDat } : null,
+      },
+    });
+  },
+
+  /** Chi tiết một lớp trong kỳ: từng trẻ, tổng hợp tiêu chí và nhận xét. */
+  async getClassAssessmentDetail({ classId, period = OVERVIEW_PERIOD.DAY, schoolYear } = {}, user) {
+    await delay();
+    const db = ensureReady();
+    const cls = classOf(db, classId);
+    if (!cls) throw new ApiError(404, 'Không tìm thấy lớp');
+    if (!isLeader(user) || !inLeaderScope(cls.campusId, user)) forbid();
+    const range = overviewRange(period, overviewAnchor(schoolYear));
+    const { perChild } = classPeriodStats(db, cls, range.days);
+    return clone({
+      classId: cls.id,
+      className: cls.name,
+      campusId: cls.campusId,
+      period,
+      start: range.start,
+      end: range.end,
+      schoolDays: range.days.length,
+      children: perChild.sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi')),
+      classComments: classCommentsOf(db, cls.id, range.days),
+    });
+  },
+
   async getTicketOverview({ month, campusId }, user) {
     await delay();
     const db = ensureReady();

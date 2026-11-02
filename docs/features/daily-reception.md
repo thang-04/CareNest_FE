@@ -88,3 +88,8 @@ Cần chốt 2026-10-15, căn cứ TTLT 13/2016/TTLT-BYT-BGDĐT Điều 9 (theo 
 - Liên kết: Sức khỏe trong ngày (BGH, đổi tên từ "Sức khỏe đầu ngày" ngày 21/10/2026) có cột Xử trí và lịch sử trong ngày; Đánh giá hằng ngày hiện xử trí dưới ô Sức khỏe; tổng hợp tuần/tháng và bản nháp AI đếm số ngày theo xử trí.
 - PENDING BE: `POST /daily-health-entries` thêm `actions[]`, `referral { place, time, escort }`; bảng trả trẻ trả `earlyRequest`, bản ghi trả trẻ thêm `reason`, `healthEntryId`.
 - Báo phụ huynh (Cần chốt 2026-10-16): **mọi lần lưu ghi nhận sức khỏe** đều gửi thông báo, kể cả "Không ghi nhận bất thường" (vd. "16/10/2026 lúc 14:00: nhà trường cập nhật sức khỏe của … : không ghi nhận bất thường. Thân nhiệt 36,8 °C."). Bản ghi cũ trạng thái `NOT_REQUIRED` giữ nguyên. Trẻ chưa có tài khoản phụ huynh hoạt động thì báo "Chưa gửi được" và có nút Gửi lại.
+
+
+## Nhãn nhắc bổ sung sau lưu — user chốt 02/11/2026
+
+Web bỏ hai câu hướng dẫn tiếp nhận và thứ tự lưu khỏi màn điểm danh. Nhãn nhắc chỉ hiện cho trẻ đã lưu Có mặt: dùng nhắc chưa khám từ dữ liệu sức khỏe; nếu đã ghi nhận nhưng lần mới nhất thiếu thân nhiệt thì hiện “Chưa đo thân nhiệt”. Dữ liệu tóm tắt chỉ có lần mới nhất nên nhãn phản ánh lần ghi nhận đó, không suy ra toàn bộ lịch sử. Trẻ chưa lưu, trẻ vắng hoặc response chưa có dữ liệu sức khỏe không được gắn nhãn thiếu số đo. Nhãn mở khung sức khỏe để bổ sung, không chặn lưu, không đổi contract hay tính bắt buộc của API (tham chiếu BE HLT-07).
