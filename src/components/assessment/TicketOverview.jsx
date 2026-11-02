@@ -3,7 +3,7 @@ import { ArrowLeft, Award, BadgeCheck, Download, Ticket } from '@/components/ui/
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { RowActions } from '@/components/ui/RowActions';
 import { Pagination, paginate } from '@/components/ui/Pagination';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { TicketSummary } from '@/components/assessment/TicketSummary';
 import { useTicketOverview } from '@/hooks/assessment/useAssessment';
@@ -69,13 +69,7 @@ export function TicketOverview() {
       {kpis.length > 0 && (
         <div className="stat-grid dg-ticket-kpis">
           {kpis.map((k) => (
-            <div key={k.key} className={`stat-card stat-card--${k.tone}`}>
-              <div className="stat-card__value">{k.value}</div>
-              <div className="stat-card__label">
-                {k.label} · {rangeText}
-              </div>
-              <StatCardIcon tone={k.tone} icon={k.icon} />
-            </div>
+            <StatCard key={k.key} tone={k.tone} icon={k.icon} label={`${k.label} · ${rangeText}`} value={k.value} />
           ))}
         </div>
       )}

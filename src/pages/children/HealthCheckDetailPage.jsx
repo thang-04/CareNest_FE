@@ -27,6 +27,7 @@ import { CONCLUSION_CATEGORY, CONCLUSION_CATEGORY_LABELS } from '@/models/childr
 import { formatDate, formatDateTime } from '@/utils/format';
 import { canManageHealthCheck, isTeacherRole } from '@/utils/children/childrenPermissions';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
+import { StatCard } from '@/components/ui/StatCard';
 import '@/styles/modules/children.css';
 
 const STAT_TONES = [
@@ -220,19 +221,19 @@ export default function HealthCheckDetailPage() {
           </section>
           <div className="stat-grid mt-16">
             {STAT_TONES.filter((s) => !s.hideZero || campaign.progress[s.key] > 0).map((s) => (
-              <div key={s.key} className={`stat-card stat-card--${s.tone}`}>
-                <div className="stat-card__value">{campaign.progress[s.key]}</div>
-                <div className="stat-card__label">{s.label}</div>
-              </div>
+              <StatCard key={s.key} tone={s.tone} icon={false} label={s.label} value={campaign.progress[s.key]} />
             ))}
           </div>
           <h2 className="subsection-title mt-16">Theo kết luận của bác sĩ</h2>
           <div className="stat-grid">
             {CONCLUSION_TONES.map((s) => (
-              <div key={s.key} className={`stat-card stat-card--${s.tone}`}>
-                <div className="stat-card__value">{campaign.progress.byConclusion?.[s.key] ?? 0}</div>
-                <div className="stat-card__label">{CONCLUSION_CATEGORY_LABELS[s.key]}</div>
-              </div>
+              <StatCard
+                key={s.key}
+                tone={s.tone}
+                icon={false}
+                label={CONCLUSION_CATEGORY_LABELS[s.key]}
+                value={campaign.progress.byConclusion?.[s.key] ?? 0}
+              />
             ))}
           </div>
         </div>

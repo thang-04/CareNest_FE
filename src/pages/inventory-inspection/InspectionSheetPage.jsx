@@ -28,6 +28,7 @@ import { inspectionCrumbs } from '@/utils/inventory-inspection/breadcrumbs';
 import { formatDate, formatDateTime, normalizeText } from '@/utils/format';
 import { locationLabel } from '@/models/Location';
 import { ROLE_LABELS } from '@/models/User';
+import { StatCard } from '@/components/ui/StatCard';
 import '@/styles/modules/inventory-inspection.css';
 
 const FILTERS = [
@@ -99,24 +100,10 @@ function SummaryStats({ items }) {
   const s = sheetSummary({ items });
   return (
     <div className="stat-grid mt-16">
-      <div className="stat-card stat-card--gray">
-        <div className="stat-card__label">Tài sản cần kiểm</div>
-        <div className="stat-card__value">{s.total}</div>
-      </div>
-      <div className={`stat-card ${s.counted === s.total ? 'stat-card--green' : 'stat-card--blue'}`}>
-        <div className="stat-card__label">Đã kiểm</div>
-        <div className="stat-card__value">
-          {s.counted}/{s.total}
-        </div>
-      </div>
-      <div className={`stat-card ${s.variance ? 'stat-card--orange' : 'stat-card--gray'}`}>
-        <div className="stat-card__label">Lệch sổ sách</div>
-        <div className="stat-card__value">{s.variance}</div>
-      </div>
-      <div className={`stat-card ${s.damaged ? 'stat-card--red' : 'stat-card--gray'}`}>
-        <div className="stat-card__label">Hư hỏng / cần sửa</div>
-        <div className="stat-card__value">{s.damaged}</div>
-      </div>
+      <StatCard tone="gray" icon={false} label="Tài sản cần kiểm" value={s.total} />
+      <StatCard tone={s.counted === s.total ? 'green' : 'blue'} icon={false} label="Đã kiểm" value={`${s.counted}/${s.total}`} />
+      <StatCard tone={s.variance ? 'orange' : 'gray'} icon={false} label="Lệch sổ sách" value={s.variance} />
+      <StatCard tone={s.damaged ? 'red' : 'gray'} icon={false} label="Hư hỏng / cần sửa" value={s.damaged} />
     </div>
   );
 }

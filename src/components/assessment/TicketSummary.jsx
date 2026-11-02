@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Award, BadgeCheck, Download, Flag, Ticket } from '@/components/ui/icons';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 import { ChildNameCell } from '@/components/assessment/ChildNameCell';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { useTicketSummary } from '@/hooks/assessment/useAssessment';
@@ -57,13 +57,7 @@ export function TicketSummary({ classId }) {
       {kpis.length > 0 && (
         <div className="stat-grid dg-ticket-kpis">
           {kpis.map((k) => (
-            <div key={k.key} className={`stat-card stat-card--${k.tone}`}>
-              <div className="stat-card__value">{k.value}</div>
-              <div className="stat-card__label">
-                {k.label} · {rangeText}
-              </div>
-              <StatCardIcon tone={k.tone} icon={k.icon} />
-            </div>
+            <StatCard key={k.key} tone={k.tone} icon={k.icon} label={`${k.label} · ${rangeText}`} value={k.value} />
           ))}
         </div>
       )}

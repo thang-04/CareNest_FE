@@ -2561,6 +2561,13 @@ button.stat-card .stat-card__label::after {
   color: color-mix(in srgb, var(--stat-tone) 70%, var(--color-text));
   font-variant-numeric: tabular-nums;
 }
+/* Đang tải: vạch cao bằng dòng số để thẻ không nhảy khi số về */
+.stat-card__skeleton {
+  display: block;
+  width: 3ch;
+  height: 1em;
+  border-radius: var(--radius-md);
+}
 .stat-card__icon {
   position: absolute;
   right: calc(var(--space-2) * -1);

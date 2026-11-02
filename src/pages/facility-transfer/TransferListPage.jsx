@@ -35,7 +35,7 @@ import {
 } from '@/utils/facility-transfer/transferPermissions';
 import { transferCrumbs } from '@/utils/facility-transfer/breadcrumbs';
 import '@/styles/modules/facility-transfer.css';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 
 const EMPTY_FILTERS = { keyword: '', status: 'ALL', type: 'ALL', fromDate: '', toDate: '' };
 
@@ -114,15 +114,15 @@ function VicePrincipalList({ user, md }) {
 
       <div className="stat-grid">
         {stats.map((s) => (
-          <button
+          <StatCard
             key={s.status}
-            className={`stat-card stat-card--${s.tone} ${filters.status === s.status ? 'stat-card--active' : ''}`}
+            tone={s.tone}
+            label={s.label}
+            value={s.value}
+            loading={loading}
+            active={filters.status === s.status}
             onClick={() => set({ status: s.status })}
-          >
-            <div className="stat-card__value">{s.value}</div>
-            <div className="stat-card__label">{s.label}</div>
-            <StatCardIcon tone={s.tone} />
-          </button>
+          />
         ))}
       </div>
 

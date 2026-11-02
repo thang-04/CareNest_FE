@@ -9,7 +9,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { DevelopmentCharts } from '@/components/assessment/DevelopmentCharts';
 import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { formatDate } from '@/utils/format';
 import { ageLabel, GENDER_LABELS } from '@/models/School';
@@ -165,11 +165,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
               { key: 'tickets', tone: 'teal', icon: Ticket, value: d.tickets.length, label: 'Phiếu bé ngoan' },
               { key: 'evals', tone: 'gray', icon: FileText, value: d.evaluations.length + d.yearEnd.length, label: 'Đánh giá đã công bố' },
             ].map((k) => (
-              <div key={k.key} className={`stat-card stat-card--${k.tone}`}>
-                <div className="stat-card__value">{k.value}</div>
-                <div className="stat-card__label">{k.label}</div>
-                <StatCardIcon tone={k.tone} icon={k.icon} />
-              </div>
+              <StatCard key={k.key} tone={k.tone} icon={k.icon} label={k.label} value={k.value} />
             ))}
           </div>
 

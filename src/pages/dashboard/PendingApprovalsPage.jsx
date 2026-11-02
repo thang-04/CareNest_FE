@@ -12,7 +12,7 @@ import { FACILITY_ENABLED } from '@/config/app';
 import { approvalsCrumbs } from '@/utils/dashboard/breadcrumbs';
 import { formatWhen } from '@/utils/dashboard/dashboardFormat';
 import '@/styles/modules/dashboard.css';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 
 const DESCRIPTIONS = {
   PRINCIPAL: FACILITY_ENABLED
@@ -63,28 +63,22 @@ export default function PendingApprovalsPage() {
       ) : (
         <>
           <div className="stat-grid">
-            <button
-              type="button"
-              className={`stat-card stat-card--purple ${!type ? 'stat-card--active' : ''}`}
-              aria-pressed={!type}
+            <StatCard
+              tone="purple"
+              label="Tất cả yêu cầu chờ bạn"
+              value={scoped.reduce((n, g) => n + g.items.length, 0)}
+              active={!type}
               onClick={() => setFilter('type', '')}
-            >
-              <div className="stat-card__value">{scoped.reduce((n, g) => n + g.items.length, 0)}</div>
-              <div className="stat-card__label">Tất cả yêu cầu chờ bạn</div>
-              <StatCardIcon tone="purple" />
-            </button>
+            />
             {scoped.map((g) => (
-              <button
+              <StatCard
                 key={g.type}
-                type="button"
-                className={`stat-card stat-card--${APPROVAL_TYPE_META[g.type].tone} ${type === g.type ? 'stat-card--active' : ''}`}
-                aria-pressed={type === g.type}
+                tone={APPROVAL_TYPE_META[g.type].tone}
+                label={APPROVAL_TYPE_META[g.type].short}
+                value={g.error ? '—' : g.items.length}
+                active={type === g.type}
                 onClick={() => setFilter('type', type === g.type ? '' : g.type)}
-              >
-                <div className="stat-card__value">{g.error ? '—' : g.items.length}</div>
-                <div className="stat-card__label">{APPROVAL_TYPE_META[g.type].short}</div>
-                <StatCardIcon tone={APPROVAL_TYPE_META[g.type].tone} />
-              </button>
+              />
             ))}
           </div>
 

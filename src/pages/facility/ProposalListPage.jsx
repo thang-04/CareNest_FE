@@ -20,7 +20,7 @@ import { formatMoney, proposalTotal } from '@/utils/facility/facilityFormat';
 import { formatDate } from '@/utils/format';
 import { activeFilterKeys } from '@/utils/filterParams';
 import '@/styles/modules/facility.css';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 
 const EMPTY = { status: 'ALL', keyword: '', campusId: '' };
 
@@ -83,16 +83,15 @@ export default function ProposalListPage() {
       )}
       <div className="stat-grid">
         {stats.map((s) => (
-          <button
+          <StatCard
             key={s.key}
-            className={`stat-card stat-card--${s.tone} ${filters.status === s.key ? 'stat-card--active' : ''}`}
+            tone={s.tone}
+            label={s.label}
+            value={s.value}
+            loading={loading}
+            active={filters.status === s.key}
             onClick={() => set({ status: s.key })}
-            aria-pressed={filters.status === s.key}
-          >
-            <div className="stat-card__value">{s.value}</div>
-            <div className="stat-card__label">{s.label}</div>
-            <StatCardIcon tone={s.tone} />
-          </button>
+          />
         ))}
       </div>
       <div className="card">

@@ -8,6 +8,7 @@ export { ConfirmationModal } from './ui/ConfirmationModal';
 export { Spinner, LoadingState, SkeletonRows, EmptyState, ErrorState, SubmitOverlay } from './ui/States';
 export { AiWorkingOverlay } from './ui/AiWorkingOverlay';
 export { StatusPage } from './ui/StatusPage';
+export { StatCard } from './ui/StatCard';
 export { RowMenu } from './ui/RowMenu';
 export { RowActions } from './ui/RowActions';
 export { ErrorBoundary } from './ui/ErrorBoundary';

@@ -18,7 +18,7 @@ import { ASSET_CONDITION_LABELS } from '@/models/Asset';
 import { isPrincipal, isManager, canReportIssue, canCreateRequest } from '@/utils/facility/facilityPermissions';
 import { assetCrumbs } from '@/utils/facility/breadcrumbs';
 import '@/styles/modules/facility.css';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 
 const EMPTY_FILTERS = { keyword: '', campusId: '', locationId: '', categoryId: '', condition: '' };
 
@@ -176,16 +176,15 @@ export default function FacilityAssetListPage() {
 
       <div className="stat-grid">
         {stats.map((s) => (
-          <button
+          <StatCard
             key={s.key}
-            className={`stat-card stat-card--${s.tone} ${s.active ? 'stat-card--active' : ''}`}
+            tone={s.tone}
+            label={s.label}
+            value={s.value}
+            loading={loading}
+            active={s.active}
             onClick={() => pickStat(s.key)}
-            aria-pressed={s.active}
-          >
-            <div className="stat-card__value">{s.value}</div>
-            <div className="stat-card__label">{s.label}</div>
-            <StatCardIcon tone={s.tone} />
-          </button>
+          />
         ))}
       </div>
 

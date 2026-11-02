@@ -19,7 +19,7 @@ import { canManageRounds, canCountSheet, isVicePrincipal } from '@/utils/invento
 import { inspectionCrumbs } from '@/utils/inventory-inspection/breadcrumbs';
 import { describeScope } from '@/utils/inventory-inspection/inspectionScope';
 import '@/styles/modules/inventory-inspection.css';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 
 const roundProgress = (r) => {
   const active = r.sheets.filter((s) => s.status !== SHEET_STATUS.CANCELLED);
@@ -84,17 +84,15 @@ function RoundList({ user, md }) {
       )}
       <div className="stat-grid">
         {stats.map((s) => (
-          <button
+          <StatCard
             key={s.key}
-            type="button"
-            aria-pressed={status === s.key}
-            className={`stat-card stat-card--${s.tone} ${status === s.key ? 'stat-card--active' : ''}`}
+            tone={s.tone}
+            label={s.label}
+            value={s.value}
+            loading={loading}
+            active={status === s.key}
             onClick={() => filter({ status: s.key })}
-          >
-            <div className="stat-card__value">{s.value}</div>
-            <div className="stat-card__label">{s.label}</div>
-            <StatCardIcon tone={s.tone} />
-          </button>
+          />
         ))}
       </div>
       <div className="card">
