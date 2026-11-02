@@ -35,6 +35,7 @@ import {
 import './ui-kit.css';
 import { NutritionPrimitivesDemo } from '@/components/ui/NutritionPrimitivesDemo';
 import { Tabs } from '@/components/ui/Tabs';
+import { StatCard } from '@/components/ui/StatCard';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 const COLOR_GROUPS = [
   {
@@ -692,28 +693,11 @@ export default function UiKitPage() {
               </div>
             </div>
           </div>
-          <div
-            className="stat-grid mt-16"
-            style={{
-              gridTemplateColumns: 'repeat(4, 1fr)',
-            }}
-          >
-            <div className="stat-card stat-card--primary">
-              <div className="stat-card__value">24</div>
-              <div className="stat-card__label">stat-card--primary (thẻ nổi bật)</div>
-            </div>
-            <div className="stat-card stat-card--blue stat-card--active">
-              <div className="stat-card__value">12</div>
-              <div className="stat-card__label">stat-card--blue</div>
-            </div>
-            <div className="stat-card stat-card--orange">
-              <div className="stat-card__value">3</div>
-              <div className="stat-card__label">stat-card--orange</div>
-            </div>
-            <div className="stat-card stat-card--green">
-              <div className="stat-card__value">8</div>
-              <div className="stat-card__label">stat-card--green</div>
-            </div>
+          <div className="stat-grid mt-16" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+            <StatCard tone="primary" icon={false} label="tone primary (thẻ nổi bật)" value={24} />
+            <StatCard tone="blue" label="onClick + active (nút lọc)" value={12} active onClick={() => {}} />
+            <StatCard tone="orange" label="loading (chưa có số)" value={0} loading />
+            <StatCard tone="green" label="tone green" value={8} />
           </div>
           <div className="card mt-16">
             <div className="card__header">

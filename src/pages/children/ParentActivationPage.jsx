@@ -16,7 +16,7 @@ import { AccountStatusBadge } from '@/components/account/AccountStatusBadge';
 import { ParentAccountBadge } from '@/components/children/ChildBadges';
 import { AccountSlip, GuardianPanel } from '@/components/account/GuardianPanel';
 import { PeopleTabs } from '@/components/account/PeopleTabs';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 import { IS_GUARDIAN_DEMO, resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
 import { getChildDetail } from '@/services/children/childrenService';
 import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
@@ -197,14 +197,10 @@ export default function ParentActivationPage() {
         />
       </div>
 
-      {!loading && !error && !structure.loading && !structure.error && (
+      {!error && !structure.error && (
         <div className="stat-grid people-stats" aria-label="Tổng quan tài khoản phụ huynh">
           {stats.map((stat) => (
-            <div key={stat.label} className={`stat-card stat-card--${stat.tone}`}>
-              <span className="stat-card__value">{stat.value}</span>
-              <span className="stat-card__label">{stat.label}</span>
-              <StatCardIcon tone={stat.tone} />
-            </div>
+            <StatCard key={stat.label} tone={stat.tone} label={stat.label} value={stat.value} loading={loading || structure.loading} />
           ))}
         </div>
       )}
