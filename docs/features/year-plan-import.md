@@ -23,6 +23,12 @@ Mục tiêu có liên kết Bộ phải dùng lại cha nguồn trong đúng lĩ
 
 ## Kiểm chứng
 
+### Giao diện chọn từ Bộ — user duyệt 02/11/2026
+
+Ảnh minh họa thứ hai là hướng trình bày được user duyệt, chỉ dùng chức năng đã có theo BE:EDU-28. GoalPicker dùng chung với lấy từ kế hoạch: ô tìm toàn chiều rộng, chip lĩnh vực, nút Chọn tất cả/Bỏ chọn tất cả có tông nhấn và ghi số mục đang hiển thị; giữ lựa chọn ngoài bộ lọc. Nhóm/lĩnh vực có trạng thái chọn một phần; nội dung đi kèm chỉ mở xem, không tick riêng. Viền và thụt cấp trong hộp chọn phân biệt lĩnh vực, lĩnh vực con, nhóm và mục tiêu; dòng đã chọn có nền nhấn.
+
+Thẻ Gợi ý nội dung có ba ô chọn đích/lĩnh vực/lĩnh vực con, xếp ngang trên desktop và dọc trên mobile; tick từng nội dung. Không thêm tìm kiếm, chọn tất cả nội dung, bộ lọc đã có/chưa có hoặc màn xem lại lựa chọn. Footer nhắc lưu tay; quyền, callback nhập, nguồn, đối chiếu, trạng thái và thông báo bỏ trùng giữ luồng cũ. CSS phân cấp mới giới hạn trong modal để trang nguồn không đổi bố cục.
+
 Node tests tại import-goals.test.mjs, import-goal-sources.test.mjs và year-plan-api.test.mjs; browser E2E ở tests/e2e/system/year-plan-import.spec.mjs. Kết quả cuối và giới hạn nằm trong [quickstart](../../../CareNest_BE/specs/003-import-year-plan-goals/quickstart.md). Chưa coi các lệnh dự kiến trong quickstart là bằng chứng đã chạy.
 
 Node test:edu 59/59 và Web verify đầy đủ đã đạt; browser mock happy/edge QA đạt. Real-BE E2E 13 ca chưa chạy vì chưa có E2E_DEV_PASSWORD; không coi vòng converge đã sạch khi T019/T021 còn mở.

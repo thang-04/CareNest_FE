@@ -1,5 +1,13 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Giao diện chọn mục tiêu/nội dung Bộ — 02/11/2026
+
+- User duyệt ảnh chức năng hiện có và cho triển khai/commit/push FE/BE. Bản fix LVC đã tách commit 994002c, push thành công trước sửa UI. Delta UI: GoalPicker, CurriculumGoalsModal và CSS module; không đổi callback/quyền, contract, nguồn danh mục hoặc logic ghép. Phạm vi/tính năng được duyệt ghi trong year-plan-import.md.
+- Browser source/CSS/Modal/Tabs thật, dữ liệu giáo dục tổng hợp từ mock seed và hook/callback giả: 84 mục tiêu; chọn/bỏ tất cả; chọn theo lĩnh vực và giữ lựa chọn qua bộ lọc; tìm không dấu; checkbox nhóm/lĩnh vực; mở nội dung đi kèm; khóa khi chưa có đích; lọc/thêm hai gợi ý giữ hộp mở và bỏ lựa chọn sau thêm; chọn mục tiêu bằng Space rồi nhập bằng helper thật. Các trạng thái loading/error/retry/empty/no-target được kiểm. Không tràn body/modal tại360/390/768/1440;0lỗi JavaScript.
+- Artifacts cục bộ: node_modules/.cache/curriculum-ui-review.mjs và curriculum-ui-shots. Lượt baseline phát hiện nút chọn tất cả còn tông thường; điều chỉnh kiểm màu theo token outline chung (viền nhạt không bằng màu chữ). Fixture nhập ban đầu có goal ngoài sub nên helper chặn đúng EDU-28; sửa fixture thành nhánh có sub/group rồi harness PASS. Đây là chỉnh kỳ vọng/fixture, không vá production để lách guard. Không thêm test chỉ soi markup cho delta trình bày có thể hoàn tác.
+- Review độc lập read-only không thấy finding trong delta; đã truy caller ImportGoalsModal/CurriculumSourcesPage/ImportThemesModal, phạm vi selector và mobile/accessibility; reviewer không tự chạy browser/full verify. Check-design đạt baseline44hex/16cssPx/37inlineStyle. Cổng cuối `node scripts/verify.mjs` và check-ai-layer chạy sau hồ sơ; output bàn giao/log verify.log là bằng chứng cuối.
+- Chưa kiểm API/lưu-mở lại với BE thật; browser dùng dữ liệu/callback giả, chỉ bước ghép mục tiêu dùng helper thật. Không tự dọn dữ liệu trùng cũ, không triển khai lại các chức năng chỉ có trong đề xuất đầu. Chỉ tài liệu BE được đồng bộ trong lượt này.
+
 ## Sửa trùng lĩnh vực con khi lấy lại mục tiêu Bộ — 02/11/2026
 
 - User cho phép sửa CareNest_FE trong chat. Phạm vi một nhóm giáo dục: helper dùng lại lĩnh vực con/nhóm theo ID nguồn Bộ, fallback câu chỉ khi cả hai thiếu ID cha; chèn vào đúng đoạn cha, giữ normalize guard và dữ liệu cũ. Không đổi giao diện chọn hoặc tự dọn tiêu đề đã trùng.

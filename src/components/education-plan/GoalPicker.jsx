@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Search } from '@/components/ui/icons';
 
 /*
@@ -33,6 +33,7 @@ function GroupCheck({ ids, picked, onToggle, label, disabled }) {
 }
 
 export function GoalPicker({ tree, picked, onToggle, disabled = false }) {
+  const scopeId = useId();
   const [query, setQuery] = useState('');
   const [domainPick, setDomainPick] = useState('');
   const q = fold(query.trim());
@@ -91,17 +92,30 @@ export function GoalPicker({ tree, picked, onToggle, disabled = false }) {
             ))}
           </div>
         )}
-        <div className="row row--between gap-2">
-          <span className="fw-600" aria-live="polite">
-            Đã chọn {tree.reduce((n, d) => n + idsOf(d).filter((id) => picked.has(id)).length, 0)}/{total} mục tiêu
-          </span>
-          <button type="button" className="btn btn--sm" disabled={!shownIds.length || disabled} onClick={() => onToggle(shownIds)}>
+        <div className="ga-cur-selection">
+          <div>
+            <p className="fw-600" aria-live="polite">
+              Đã chọn {tree.reduce((n, d) => n + idsOf(d).filter((id) => picked.has(id)).length, 0)}/{total} mục tiêu
+            </p>
+            <p className="muted text-sm" id={scopeId}>
+              Chọn tất cả áp dụng cho {shownIds.length} mục tiêu đang hiển thị.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn--outline-primary btn--sm"
+            aria-describedby={scopeId}
+            disabled={!shownIds.length || disabled}
+            onClick={() => onToggle(shownIds)}
+          >
             {allShownPicked ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
           </button>
         </div>
       </div>
       {!shown.length ? (
-        <p className="muted">Không có mục tiêu khớp.</p>
+        <p className="muted" role="status">
+          Không có mục tiêu khớp.
+        </p>
       ) : (
         <div className="ga-cur-list">
           {shown.map((domain) => (
@@ -143,7 +157,7 @@ export function GoalPicker({ tree, picked, onToggle, disabled = false }) {
                           </label>
                           {goal.contents.length > 0 && (
                             <details className="ga-cur-contents">
-                              <summary className="muted text-sm">{goal.contents.length} nội dung</summary>
+                              <summary className="text-sm">{goal.contents.length} nội dung đi kèm</summary>
                               <ul className="text-sm">
                                 {goal.contents.map((c, i) => (
                                   <li key={`${i}-${c}`}>{c}</li>
