@@ -141,7 +141,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
                 </label>
                 <select
                   id="cur-target"
-                  className="select ga-cur-target"
+                  className="select ga-cur-select--ellipsis"
                   value={target}
                   title={targetTitle}
                   onChange={(e) => {
@@ -163,8 +163,9 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
                 </label>
                 <select
                   id="cur-domain"
-                  className="select"
+                  className="select ga-cur-select--ellipsis"
                   value={domainFilter}
+                  title={domainFilter || (targetDomain ? `Theo mục tiêu (${targetDomain})` : 'Tất cả lĩnh vực')}
                   onChange={(e) => {
                     setDomainFilter(e.target.value);
                     setSubFilter('');

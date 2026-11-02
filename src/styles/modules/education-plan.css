@@ -1164,12 +1164,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
-/* Mục tiêu đang chọn dài: 1 dòng, cắt "…" (đủ chữ ở title và danh sách thả xuống), không tràn khỏi ô (Tiền 01/11) */
+/* Tên mục tiêu/lĩnh vực dài chỉ cắt phần hiển thị; title và danh sách chọn vẫn đủ chữ. */
 .ga-cur-filters > .field {
   min-width: 0;
 }
 /* Không dùng base-select (components.css) cho ô này: base-select đặt chữ trong phần tử nội bộ, không cắt "…" được */
-.select.ga-cur-target:not([multiple]):not([size]) {
+.select.ga-cur-select--ellipsis:not([multiple]):not([size]) {
   appearance: none;
   display: block;
   min-width: 0;

@@ -1,5 +1,15 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## EDU-48 xóa nhánh và Lĩnh vực ellipsis — 02/11/2026
+
+- Convergence ảnh cuối phát hiện ordinal xác nhận dùng subNo mutable: appendT023, local RED1→2 rồi capture const theo block. Local browser GREEN và real E2E chạy lại1/1passed20.3s, cleanupAPI0; assertion số thứ tự trong E2E. Review lại không gap. Các mốc386tests/15.7s bên dưới là vòng trước T023; cổng full cuối được chạy sau hồ sơ và source T023, output bàn giao là kết quả sau cùng.
+
+- User chốt nghiệp vụ và duyệt delta plan L006 bằng “Duyệt kế hoạch và triển khai tới khi sạch”. Helper subDomainBranch lấy đoạn theo ID/boundary; GoalTables xác nhận số nhóm/goal/content/tick rồi bỏ đủ nhánh, giữ read-only/normalize/manual save. Cur-domain/cur-target dùng ga-cur-select--ellipsis, title domain đầy đủ, không cắt value/options. Không đổi API/schema/dependency/quyền.
+- RED11unit thiếu helper; baseline browser dùng GoalTables cũ từ Git chứng minh con sống sót/đổi cha sau xóa. GREEN11unit,44targeted; full sau source386tests fail0/skip0, VERIFY PASS full, lint/format/design/build đạt. Local browser source/CSS thật: counts2/3/4/5, Quay lại không đổi form, chỉ xóa đúng nhánh/ticks, read-only,4viewport360/390/768/1440, keyboard/ellipsis/title/value/target/filter,0lỗiJS.
+- Real-BE/Keycloak: tests/e2e/system/year-plan-subdomain-delete.spec.mjs dùng API-only fixture marker riêng, slot trống, cleanup xác minh marker rồi DELETE đúng ownedID; không SQL/cấu hình DB hay bỏ guard suite cũ. Lệnh node --env-file=.env.e2e.local node_modules/@playwright/test/cli.js test tests/e2e/system/year-plan-subdomain-delete.spec.mjs --project=system --no-deps --reporter=line →1passed(15.7s). Chưa PUT trước Lưu; sau lưu/mở lại chỉ3hàng nhánh giữ, cùngID/content/tick, goalNo1, themes/breaks giữ; select4viewport. Kiểm API sau cleanup:0ownedtestplans. Lượt trước vướng selector Đóng trùng icon/footer, đã sửa test vào footer; suite nhập file cũ giữ byte như HEAD.
+- Review độc lập không blocker source/test/API-only cleanup; reviewer chạy11unit đạt. Trace/ảnh real E2E ở test-results; log node_modules/.cache/subdomain-real-e2e.log; harness/ảnh local subdomain-delete-review.mjs/subdomain-delete-shots cùng cache. Tham chiếu BE:specs/006-year-plan-goal-hierarchy/quickstart.md cho analyze/task/converge và Attempts.
+- Cổng cuối sau hồ sơ: node scripts/verify.mjs và check-ai-layer; output bàn giao/log verify.log. Không commit/push/deploy. Fixture tổng hợp; không sửa kế hoạch/người dùng có sẵn hoặc dọn tiêu đề trùng cũ.
+
 ## Giao diện chọn mục tiêu/nội dung Bộ — 02/11/2026
 
 - User duyệt ảnh chức năng hiện có và cho triển khai/commit/push FE/BE. Bản fix LVC đã tách commit 994002c, push thành công trước sửa UI. Delta UI: GoalPicker, CurriculumGoalsModal và CSS module; không đổi callback/quyền, contract, nguồn danh mục hoặc logic ghép. Phạm vi/tính năng được duyệt ghi trong year-plan-import.md.

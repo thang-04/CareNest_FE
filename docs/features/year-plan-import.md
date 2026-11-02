@@ -17,6 +17,10 @@ Xác nhận đọc lại nguồn. Nguồn đã đổi hoặc mất quyền thì 
 
 ## Bẫy phân cấp
 
+EDU-48 (user chốt02/11): nút xóa lĩnh vực con trong GoalTable xóa đúng toàn nhánh sau xác nhận tên/số nhóm/mục tiêu/nội dung/dấu tích, không chỉ xóa heading. Quay lại giữ bản soạn, Lưu mới ghi; nhánh khác và danh sách chủ đề/đợt nghỉ giữ nguyên. Đặc tả và evidence tại BE:specs/006-year-plan-goal-hierarchy. Ô Lĩnh vực lấy từ Bộ dùng cùng native-select ellipsis với ô Thêm vào mục tiêu, có title đủ nhãn, không cắt value/options.
+
+Counter đánh số sub trong vòng render cần const snapshot cho callback xóa; không đóng trên biến đếm mutable. [Regression ordinal](../knowledge/incidents/FE-BUG-261102-subdomain-delete-ordinal.md).
+
 Nguồn và đích dùng flat rows với heading. Helper kiểm round-trip qua normalizer, tránh thêm sub đầu tiên làm đổi cha row đích cũ. Trường hợp không biểu diễn được báo chưa thêm, không tạo tên cha giả. Xem [case](../../../CareNest_BE/docs/knowledge/incidents/CASE-261028-year-plan-import-first-sub-reparent.md).
 
 Mục tiêu có liên kết Bộ phải dùng lại cha nguồn trong đúng lĩnh vực/sub và chèn trong đoạn của cha đó; không append cuối bảng rồi bỏ tiêu đề trùng. Xem [incident nhập lại](../knowledge/incidents/FE-BUG-261102-curriculum-reimport-headings.md).
