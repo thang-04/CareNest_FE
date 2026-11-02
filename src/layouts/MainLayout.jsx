@@ -1,10 +1,11 @@
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingState } from '@/components/ui/States';
+import { AppSplash } from '@/components/ui/AppSplash';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AreaGate } from '@/routes/RoleGuard';
 import { DemoDataBanner } from './DemoDataBanner';
@@ -13,6 +14,12 @@ import './layout.css';
 
 const COLLAPSED_KEY = 'carenest.sidebar.collapsed';
 const NARROW_QUERY = '(max-width: 1023px)';
+
+/** Chạy khi Suspense đã hiện trang thật (chunk tải xong) — đánh dấu hết giai đoạn khởi động. */
+function PageShown({ onShown }) {
+  useEffect(onShown, [onShown]);
+  return null;
+}
 
 const readCollapsed = () => {
   try {
@@ -29,6 +36,10 @@ export function MainLayout() {
   // Dưới 1024px sidebar thành drawer: ẩn mặc định, mở bằng nút menu
   const isNarrow = useMediaQuery(NARROW_QUERY);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const pageShown = useRef(false);
+  const markPageShown = useRef(() => {
+    pageShown.current = true;
+  }).current;
 
   useEffect(() => {
     try {
@@ -64,18 +75,24 @@ export function MainLayout() {
         <Header role={user.role} showMenuButton={isNarrow} menuOpen={drawerOpen} onToggleSidebar={toggleSidebar} />
         <main className="app-content">
           <DemoDataBanner pathname={pathname} />
-          {/* Lazy pages load inside the layout so sidebar/header never flash. Lỗi trang chỉ thay vùng nội dung, đổi route thì tự xóa. */}
+          {/* Mở app/tải lại tab: splash phủ cả màn tới khi trang đầu có chunk (không lộ vỏ trống). Đổi trang sau đó: chờ giữa vùng nội dung, giữ sidebar.
+              Lỗi trang chỉ thay vùng nội dung, đổi route thì tự xóa. */}
           <ErrorBoundary resetKey={pathname} wrap>
             <Suspense
               fallback={
-                <div className="page">
-                  <LoadingState />
-                </div>
+                pageShown.current ? (
+                  <div className="page">
+                    <LoadingState />
+                  </div>
+                ) : (
+                  <AppSplash />
+                )
               }
             >
               <AreaGate path={pathname}>
                 <Outlet />
               </AreaGate>
+              <PageShown onShown={markPageShown} />
             </Suspense>
           </ErrorBoundary>
         </main>

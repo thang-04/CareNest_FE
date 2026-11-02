@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { MainLayout } from '@/layouts/MainLayout';
 import { RoleGuard } from './RoleGuard';
 import { ProtectedRoute, GuestRoute } from './ProtectedRoute';
-import { LoadingState } from '@/components/ui/States';
+import { AppSplash } from '@/components/ui/AppSplash';
 import { ROLES } from '@/models/User';
 import { FACILITY_ENABLED } from '@/config/app';
 import HomePage from '@/pages/HomePage';
@@ -27,7 +27,7 @@ const AppearancePage = lazy(() => import('@/pages/settings/AppearancePage'));
 /** Public page for signed-out users only (login, password recovery). */
 const guest = (page) => (
   <GuestRoute>
-    <Suspense fallback={<LoadingState />}>{page}</Suspense>
+    <Suspense fallback={<AppSplash />}>{page}</Suspense>
   </GuestRoute>
 );
 
@@ -218,7 +218,7 @@ export function AppRoutes() {
         path="login"
         element={
           <GuestRoute>
-            <Suspense fallback={<LoadingState />}>
+            <Suspense fallback={<AppSplash />}>
               <LoginPage />
             </Suspense>
           </GuestRoute>

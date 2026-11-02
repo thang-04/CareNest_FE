@@ -1370,6 +1370,11 @@ tr.sortable-item--moved > td {
     background: color-mix(in srgb, var(--color-text) 3%, transparent);
   }
 }
+/* Chờ cả trang (con trực tiếp của .page / vùng nội dung): cao bằng vùng nội dung, ba chấm giữa — không dính lên đầu trang */
+.page > .state--loading,
+.app-content > .state--loading {
+  min-height: max(320px, calc(100dvh - var(--header-height) - 3 * var(--space-16)));
+}
 /* Khung chờ tải dữ liệu trong suốt suốt --loading-reveal-delay đầu rồi hiện dần: dữ liệu về nhanh thì không chớp,
    màn tải nối tiếp (khung chờ đã hiện lâu hơn hook đếm) chỉ thoáng mờ. Vẫn giữ chỗ nên nội dung không nhảy.
    Spinner trong nút gửi không hoãn. */
