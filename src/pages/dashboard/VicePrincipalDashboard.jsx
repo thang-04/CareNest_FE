@@ -1,6 +1,5 @@
 import {
   BookOpenCheck,
-  Building2,
   CalendarCheck,
   ChefHat,
   CookingPot,
@@ -19,8 +18,6 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, KpiCard, Shortcuts, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { AttentionWidget, ClassRankWidget } from '@/components/dashboard/TodayWidgets';
-import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
-import { FACILITY_ENABLED } from '@/config/app';
 import { getChildren, getParentAccounts } from '@/services/children/childrenService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getMealPreparations, getMissingFoodReports } from '@/services/kitchen/kitchenService';
@@ -30,16 +27,29 @@ import { MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstant
 import { MEAL_SESSION_LABELS, MISSING_STATUS, PREP_STATUS_LABELS } from '@/models/kitchen/kitchenConstants';
 import { todayInput } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
-
 const firstLoad = (q) => q.loading && q.data == null;
-
 const SHORTCUTS = [
-  { to: '/school/teachers', label: 'Phân công giáo viên', icon: UserCog },
-  { to: '/education/plan-reviews', label: 'Kế hoạch giáo dục', icon: BookOpenCheck },
-  { to: '/approvals', label: 'Chờ duyệt', icon: ListChecks },
-  { to: '/facility/issues', label: 'Vận hành điểm trường', icon: Building2 },
-  { to: '/kitchen/preparation', label: 'Dịch vụ bán trú', icon: ChefHat },
-].filter((s) => FACILITY_ENABLED || !s.to.startsWith('/facility'));
+  {
+    to: '/school/teachers',
+    label: 'Phân công giáo viên',
+    icon: UserCog,
+  },
+  {
+    to: '/education/plan-reviews',
+    label: 'Kế hoạch giáo dục',
+    icon: BookOpenCheck,
+  },
+  {
+    to: '/approvals',
+    label: 'Chờ duyệt',
+    icon: ListChecks,
+  },
+  {
+    to: '/kitchen/preparation',
+    label: 'Dịch vụ bán trú',
+    icon: ChefHat,
+  },
+];
 
 /**
  * #11 Vice Principal Dashboard (wireframe A, plan 2026-10-20): số hôm nay có so sánh, việc cần xử lý,
@@ -53,13 +63,56 @@ export default function VicePrincipalDashboard() {
   const campusId = user.campusId;
   const approvals = usePendingApprovals();
   const todayQ = useDashboardToday();
-
-  const childrenQ = useWidget((u) => getChildren({ schoolYear }, u), [schoolYear]);
-  const parentsQ = useWidget((u) => getParentAccounts({ status: 'NOT_ACTIVATED' }, u));
-  const countsQ = useWidget((u) => getMealCounts({ date }, u), [date]);
-  const prepQ = useWidget((u) => getMealPreparations({ campusId, date }, u), [campusId, date]);
-  const missingQ = useWidget((u) => getMissingFoodReports({ campusId, status: MISSING_STATUS.SUBMITTED }, u), [campusId]);
-
+  const childrenQ = useWidget(
+    (u) =>
+      getChildren(
+        {
+          schoolYear,
+        },
+        u,
+      ),
+    [schoolYear],
+  );
+  const parentsQ = useWidget((u) =>
+    getParentAccounts(
+      {
+        status: 'NOT_ACTIVATED',
+      },
+      u,
+    ),
+  );
+  const countsQ = useWidget(
+    (u) =>
+      getMealCounts(
+        {
+          date,
+        },
+        u,
+      ),
+    [date],
+  );
+  const prepQ = useWidget(
+    (u) =>
+      getMealPreparations(
+        {
+          campusId,
+          date,
+        },
+        u,
+      ),
+    [campusId, date],
+  );
+  const missingQ = useWidget(
+    (u) =>
+      getMissingFoodReports(
+        {
+          campusId,
+          status: MISSING_STATUS.SUBMITTED,
+        },
+        u,
+      ),
+    [campusId],
+  );
   const pendingPlacement = (childrenQ.data || []).filter((c) => c.status === CHILD_STATUS.PENDING_PLACEMENT).length;
   const att = todayQ.data?.attendance;
   const health = todayQ.data?.health;
@@ -81,7 +134,6 @@ export default function VicePrincipalDashboard() {
         }
       : s,
   );
-
   return (
     <div className="page">
       <DashboardHeader subtitle={campus ? campus.name : undefined} />
@@ -250,7 +302,6 @@ export default function VicePrincipalDashboard() {
               })}
             />
           </Widget>
-          {FACILITY_ENABLED && <FacilityTasksWidget />}
         </div>
       </div>
     </div>

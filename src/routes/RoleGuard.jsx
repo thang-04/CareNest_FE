@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StandaloneStatus } from '@/components/ui/StandaloneStatus';
 import { ROLE_LABELS } from '@/models/User';
 import { areaAccess } from '@/utils/school-config/schoolConfigPermissions';
-
 const DEFAULT_DESCRIPTION = 'Chức năng này chỉ dành cho Phó hiệu trưởng. Giáo viên / nhân viên chỉ xử lý phiếu được phân công cho mình.';
 
 /** Renders children only for allowed roles, or when `allow(user)` says so (permission-driven pages). */
@@ -49,12 +48,10 @@ export function AccessDenied({ kind = '403', title, description }) {
 /** Đường dẫn theo mảng phụ trách của Phó hiệu trưởng: mảng "Không có" thì chặn cả nhóm route. */
 const AREA_PREFIXES = [
   ['/menu', 'menu'],
-  ['/facility', 'facility'],
   ['/children', 'children'],
   ['/school/rooms', 'rooms'],
   ['/school/staff', 'staff'],
 ];
-
 export function AreaGate({ path, children }) {
   const { user } = useAuth();
   const hit = AREA_PREFIXES.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));

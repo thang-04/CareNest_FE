@@ -12,9 +12,9 @@
  */
 
 export const DEFAULT_PRINT_TEMPLATE = {
-  id: 'tpl_transfer',
-  code: 'FACILITY_TRANSFER',
-  title: 'PHIẾU LUÂN CHUYỂN TÀI SẢN',
+  id: 'tpl_school',
+  code: 'SCHOOL_DOCUMENT',
+  title: 'TRƯỜNG MẦM NON THƯỢNG HỒNG',
   schoolName: 'TRƯỜNG MẦM NON THƯỢNG HỒNG',
   address: 'Thôn Thượng Hồng, xã Thượng Hồng, tỉnh Hưng Yên',
   phone: '0221 3 888 999',

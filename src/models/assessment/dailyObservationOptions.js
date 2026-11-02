@@ -9,7 +9,7 @@
  * khám sức khỏe. Điền sẵn từ lần khám sức khỏe mới nhất trong ngày; thân nhiệt từ các mức dưới đây trở lên điền thêm "Sốt".
  * Không hiển thị thân nhiệt ở màn Đánh giá (Cần chốt 15/10/2026).
  */
-export const PREFILL_FEVER_LEVELS = ['FEVER', 'HIGH', 'VERY_HIGH'];
+export const PREFILL_FEVER_LEVELS = ['MODERATE', 'HIGH', 'VERY_HIGH'];
 
 /** Ăn: theo từng bữa của nhóm tuổi (ageGroup.mealSessions), mặc định Ăn hết. */
 export const EATING = { AN_HET: 'AN_HET', AN_IT: 'AN_IT', KHONG_AN: 'KHONG_AN' };

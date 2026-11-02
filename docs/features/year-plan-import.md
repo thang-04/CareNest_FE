@@ -1,10 +1,10 @@
 # Lấy mục tiêu từ kế hoạch có sẵn
 
-Nguồn nghiệp vụ và quyền: [EDU-24 và EDU-06](../../../CareNest_BE/docs/business/BUSINESS_RULES.md); [đặc tả](../../../CareNest_BE/specs/003-import-year-plan-goals/spec.md), [plan](../../../CareNest_BE/specs/003-import-year-plan-goals/plan.md). Không thay đổi quy trình lập/sửa kế hoạch năm hiện có.
+Nguồn nghiệp vụ và quyền: [EDU-24 và EDU-06](../../../CareNest_BE/docs/business/BUSINESS_RULES.md); [đặc tả](../../../CareNest_BE/specs/003-import-year-plan-goals/spec.md), [plan](../../../CareNest_BE/specs/003-import-year-plan-goals/plan.md). Quy trình lập/sửa dùng [bố cục một trang chốt 02/11/2026](year-plan-preview-edit.md); quyền và cách ghép dữ liệu giữ nguyên.
 
 ## Giao diện
 
-Tại bước 2, mở Lấy từ kế hoạch có sẵn; chọn năm học và nhóm tuổi trong phạm vi được phép mà không đổi header. Xem tên nguồn, trạng thái, ngữ cảnh cha và nội dung giáo dục rồi tích từng mục tiêu, theo lĩnh vực hoặc tất cả. Đổi bộ lọc/nguồn bỏ lựa chọn cũ. Hủy không đổi bản đang soạn.
+Ở đầu trang soạn, mở Lấy từ kế hoạch có sẵn; chọn năm học và nhóm tuổi trong phạm vi được phép mà không đổi header. Xem tên nguồn, trạng thái, ngữ cảnh cha và nội dung giáo dục rồi tích từng mục tiêu, theo lĩnh vực hoặc tất cả. Đổi bộ lọc/nguồn bỏ lựa chọn cũ. Hủy không đổi bản đang soạn.
 
 Xác nhận đọc lại nguồn. Nguồn đã đổi hoặc mất quyền thì báo lỗi để xem/chọn lại; phản hồi sau khi đóng/đổi nguồn không được thêm dữ liệu. Kết quả thêm và bỏ qua được thông báo; mục không thể biểu diễn đúng phân cấp được liệt kê rõ. Lưu/Ctrl+S và cảnh báo rời màn tiếp tục qua hook hiện có.
 

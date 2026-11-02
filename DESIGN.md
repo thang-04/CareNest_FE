@@ -711,7 +711,7 @@ Rồi `node scripts/verify.mjs`.
 | Tabs / segmented            | ~16 trang tự viết `role="tablist"`; `.sc-seg`, `.dd-seg`, `.dg-seg`, `.pa-seg`, `.people-tabs`; `account/PeopleTabs`, `permissions/PermissionTabs` | `ui/Tabs` + class `.tabs`     |
 | Ô chọn điểm trường          | ~22 trang tự `campuses.map`; `kitchen/KitchenFilters` (`KbCampusFilter`)                                                                           | `ui/CampusFilter`             |
 | Thẻ KPI                     | `.dd-stat`, `.kb-kpi`, `.dg-kpi`, `.db-kpis`, `dashboard/DashboardWidgets` (`KpiCard`)                                                             | `.stat-card` + `StatCardIcon` |
-| Lịch sử thao tác            | `.history-list` dựng lại ở education-plan, facility, kitchen, menu-planning, assessment                                                            | `ui/HistoryList`              |
+| Lịch sử thao tác            | `.history-list` dựng lại ở education-plan, kitchen, menu-planning, assessment                                                            | `ui/HistoryList`              |
 | Nhãn bản nháp AI            | `assessment/AssessmentBadges` (`AiDraftTag`), `menu-planning/MenuBadges` (`AiDraftLabel`)                                                          | `ui/AiDraftBadge`             |
 | Thanh lọc / đầu trang riêng | `.kb-toolbar`, `.kk-toolbar`, `.permission-filter-bar`; `.db-head`, `.pa-head`, `.permission-page-head`                                            | `.filter-bar`, `.page__head`  |
 | Kit riêng module            | `education-plan/eduUi.jsx` bọc lại Modal, EmptyState, Stepper, FormField… đổi tên prop                                                             | dùng thẳng component chung    |

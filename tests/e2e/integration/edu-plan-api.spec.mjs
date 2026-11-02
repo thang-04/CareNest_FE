@@ -324,7 +324,7 @@ test('IT-14 Tổ trưởng dạy chính lớp ⇒ hồ sơ chủ đề bỏ bư�
 test('IT-15 học liệu: hồ sơ chủ đề đã duyệt thì không tải học liệu lên được', async ({ request }) => {
   // Tải lên thành công cần kho S3 (CARENEST_EDUCATION_MEDIA_*); BE dev chưa cấu hình nên chỉ kiểm quy tắc khóa (Draft/Returned mới sửa)
   const res = await request.post(`${BE_URL}${DOCS}/theme/${themeKey()}/learning-resources`, {
-    headers: { Authorization: `Bearer ${await tokenOf(USERS.teacher2)}`, 'X-Request-Id': crypto.randomUUID() },
+    headers: { Authorization: `Bearer ${await tokenOf(USERS.teacher2)}`, 'Idempotency-Key': crypto.randomUUID() },
     multipart: {
       file: { name: 'e2e.txt', mimeType: 'text/plain', buffer: Buffer.from('E2E') },
       activityKey: 'e2e',
@@ -339,7 +339,7 @@ test('IT-15 học liệu: hồ sơ chủ đề đã duyệt thì không tải h�
 
 test('IT-16 học liệu: thiếu một phần multipart ⇒ 400 kèm câu rõ ràng (không 500)', async ({ request }) => {
   const res = await request.post(`${BE_URL}${DOCS}/theme/${themeKey()}/learning-resources`, {
-    headers: { Authorization: `Bearer ${await tokenOf(USERS.teacher2)}`, 'X-Request-Id': crypto.randomUUID() },
+    headers: { Authorization: `Bearer ${await tokenOf(USERS.teacher2)}`, 'Idempotency-Key': crypto.randomUUID() },
     multipart: {
       file: { name: 'e2e.txt', mimeType: 'text/plain', buffer: Buffer.from('E2E') },
       activityKey: 'e2e',
