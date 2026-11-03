@@ -894,7 +894,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
               <col className="ga-col-stt" />
               <col />
               <col className="ga-col-abbr" />
-              <col />
+              <col className="ga-col-mt" />
               <col />
               <col className="ga-col-date" />
               <col className="ga-col-date" />

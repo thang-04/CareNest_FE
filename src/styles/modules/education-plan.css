@@ -1471,27 +1471,32 @@ h2.ga-cur-domain__head {
    ngang bên trong khung bảng (.table-wrap), trang không cuộn ngang */
 @media (max-width: 767px) {
   .table.ga-plan-table:has(tr > :nth-child(4)) {
-    min-width: 600px;
+    min-width: 760px;
   }
 }
 /* Cột hẹp có độ rộng cố định; cột chữ (tên, mục tiêu, lễ hội, ghi chú) chia phần còn lại */
 .ga-col-stt {
-  width: calc(var(--space-12) + var(--space-2));
-}
-.ga-col-abbr {
   width: calc(var(--space-16) + var(--space-2));
 }
-.ga-col-date {
-  width: calc(var(--space-16) * 2);
+.ga-col-abbr {
+  width: calc(var(--space-16) + var(--space-6));
 }
-/* Điện thoại: bảng chủ đề nhiều cột cố định (ngày, số tuần, sắp xếp, xóa) ⇒ giữ đủ rộng cho cột chữ, cuộn ngang trong khung */
-@media (max-width: 767px) {
-  .table.ga-goal-table:has(col.ga-col-weeks) {
-    min-width: 1000px;
-  }
+.ga-col-date {
+  width: calc(var(--space-16) + var(--space-12));
+}
+.ga-col-flag {
+  width: calc(var(--space-16) * 2 + var(--space-2));
+}
+.ga-col-mt {
+  width: calc(var(--space-16) * 2 + var(--space-6));
+}
+/* Bảng chủ đề 11 cột: tiêu đề một dòng không cắt chữ cần ~1220px ⇒ khung hẹp hơn thì cuộn ngang trong khung bảng,
+   cột giữ độ rộng cố định (Tiền 03/11; trước chỉ áp cho điện thoại) */
+.table.ga-goal-table:has(col.ga-col-weeks) {
+  min-width: 1220px;
 }
 .ga-col-weeks {
-  width: var(--space-16);
+  width: calc(var(--space-16) + var(--space-4));
 }
 /* STT / số MT nằm chính giữa cột, cả ngang lẫn dọc */
 .table.ga-goal-table th.ga-stt,
@@ -1537,11 +1542,6 @@ h2.ga-cur-domain__head {
   }
   .ga-doc-preview {
     min-width: calc(var(--space-16) * 16);
-  }
-  /* Bảng mục tiêu: tiêu đề canh trên để hàng tiêu đề không cao bất thường; ô STT/TT cũng canh trên cho thẳng hàng */
-  .table.ga-goal-table thead th,
-  .table.ga-goal-table thead th.ga-stt {
-    vertical-align: top;
   }
 }
 
@@ -1715,4 +1715,84 @@ h2.ga-cur-domain__head {
 .ga-history-foot {
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+/* Thẻ thu gọn được ở màn kế hoạch năm (Tiền 03/11): tiêu đề là nút, mũi tên xoay khi thu gọn */
+.ga-card-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ga-card-toggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+.ga-card-toggle__icon {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  transition: transform var(--duration-fast) ease;
+}
+.ga-card--collapsed .ga-card-toggle__icon {
+  transform: rotate(-90deg);
+}
+.ga-card--collapsed .card__header {
+  padding-bottom: var(--space-6);
+}
+
+/* Hộp xem trước xuất file: tên file + chỗ ký sửa được (Tiền 03/11) */
+.ga-export-form {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.ga-export-signers {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.ga-export-signer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) var(--space-8);
+  gap: var(--space-2);
+  align-items: center;
+}
+@media (max-width: 767px) {
+  .ga-export-signer {
+    grid-template-columns: minmax(0, 1fr) var(--space-8);
+  }
+  .ga-export-signer > input:nth-child(2) {
+    grid-column: 1;
+  }
+  .ga-doc-preview {
+    height: 55vh;
+  }
+}
+
+/* Tiêu đề cột mọi bảng kế hoạch giáo dục (Tiền 03/11): chữ một dòng, cùng canh giữa với ô STT; bảng giữ độ rộng cố định,
+   cột quá hẹp thì cắt "…" (ô có title đầy đủ) thay vì xuống dòng. Ô STT: chữ và nút đánh số lại nằm cùng một dòng */
+.table.ga-plan-table thead th {
+  white-space: nowrap;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.table.ga-plan-table thead th.ga-stt {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+.table.ga-plan-table thead th .stt-head {
+  flex-direction: row;
+  justify-content: center;
+  gap: var(--space-1);
 }
