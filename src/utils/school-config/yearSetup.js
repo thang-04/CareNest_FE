@@ -68,7 +68,8 @@ export const stepOfCheck = (key) => STEP_CHECKS.findIndex((keys) => keys.include
 
 /** Các bước đã xong (chỉ số 0..6) theo readiness của BE; bước 5 cần thêm học kỳ đã đặt. */
 export const completedSteps = (readiness, year) => {
-  const ok = Object.fromEntries((readiness?.steps || []).map((s) => [s.key, s.ok]));
+  // Bước BE đánh dấu không bắt buộc (vd. tổ trưởng) không làm bước wizard "chưa xong"
+  const ok = Object.fromEntries((readiness?.steps || []).filter((s) => s.required !== false).map((s) => [s.key, s.ok]));
   const done = new Set();
   STEP_CHECKS.forEach((keys, i) => {
     const known = keys.filter((k) => k in ok);
