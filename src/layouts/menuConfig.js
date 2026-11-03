@@ -246,6 +246,10 @@ const ITEMS = {
     label: 'Chất lượng tháng',
     to: '/assessment/quality-report',
   },
+  assessClassRatings: {
+    label: 'Xếp loại nhóm lớp',
+    to: '/assessment/class-ratings',
+  },
   assessDayUnlocks: {
     label: 'Mở lại ngày đánh giá',
     to: '/assessment/day-unlocks',
@@ -261,6 +265,10 @@ const ITEMS = {
   assessPeriodic: {
     label: 'Đánh giá tháng',
     to: '/assessment/periodic',
+  },
+  assessSemester: {
+    label: 'Đánh giá học kỳ',
+    to: '/assessment/semester',
   },
   assessYearEnd: {
     label: 'Đánh giá cuối năm',
@@ -400,8 +408,10 @@ const MENUS = {
     group('assessment', [
       'assessOverview',
       'assessQuality',
+      'assessClassRatings',
       'assessProgress',
       'assessPeriodic',
+      'assessSemester',
       'assessYearEnd',
       'assessTickets',
       'assessRewards',
@@ -445,8 +455,10 @@ const MENUS = {
     group('assessment', [
       'assessOverview',
       'assessQuality',
+      'assessClassRatings',
       'assessProgress',
       'assessPeriodic',
+      'assessSemester',
       'assessYearEnd',
       'assessTickets',
       'assessRewards',
@@ -473,8 +485,10 @@ const MENUS = {
       'assessDaily',
       'assessProfiles',
       'assessPeriodic',
+      'assessSemester',
       'assessYearEnd',
       'assessQuality',
+      'assessClassRatings',
       'assessTickets',
       'assessRewards',
     ]),
@@ -490,8 +504,10 @@ const MENUS = {
       'assessDaily',
       'assessProfiles',
       'assessPeriodic',
+      'assessSemester',
       'assessYearEnd',
       'assessQuality',
+      'assessClassRatings',
       'assessTickets',
       'assessRewards',
     ]),

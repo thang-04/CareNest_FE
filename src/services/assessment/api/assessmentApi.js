@@ -121,11 +121,25 @@ export const createAssessmentBeApi = (client) => ({
       allCampuses: campuses.map((c) => ({ id: c.id, name: c.shortName || c.name })),
     };
   },
+  // Xếp loại nhóm lớp: ghép tên ngắn điểm trường cho cột / bộ lọc
+  getClassRatings: async ({ schoolYear, period, campusId } = {}) => {
+    const [result, campuses] = await Promise.all([
+      client.get('/assessment/class-ratings', {
+        params: { period, schoolYearId: schoolYear || undefined, campusId: campusId || undefined },
+      }),
+      client.get('/campuses').catch(() => []),
+    ]);
+    return {
+      ...result,
+      campuses: (result.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
+    };
+  },
+  saveClassRatings: ({ period, items }) => client.put('/assessment/class-ratings', { period, items }),
   // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: từ tháng cuối năm học)
   getEvaluations: (kind, { schoolYear, classId } = {}) =>
     client.get('/assessment/evaluations', {
       params: {
-        periodType: kind === 'year-end' ? 'YEAR' : 'MONTH',
+        periodType: { 'year-end': 'YEAR', semester: 'SEMESTER' }[kind] || 'MONTH',
         schoolYearId: schoolYear || undefined,
         classId: classId || undefined,
       },

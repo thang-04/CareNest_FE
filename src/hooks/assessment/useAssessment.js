@@ -16,6 +16,7 @@ import {
   getTicketOverview,
   getClassAssessmentOverview,
   getQualityReport,
+  getClassRatings,
   getProgramCompletion,
   getClassAssessmentDetail,
 } from '@/services/assessment/assessmentService';
@@ -165,6 +166,15 @@ export function useProgramCompletion(params, { enabled = true } = {}) {
     enabled,
   });
   return { report: data, loading, error, reload };
+}
+
+export function useClassRatings(params) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getClassRatings(params, user), [key, user?.id], {
+    refreshOnDataChange: true,
+  });
+  return { ratings: data, loading, error, reload };
 }
 
 export function useQualityReport(params) {

@@ -732,3 +732,21 @@
 .dg-qr-table .dg-qr-total td {
   font-weight: 700;
 }
+
+/* ---------- Xếp loại nhóm lớp (sổ chỉ đạo chuyên môn mục 7) ---------- */
+/* 10 cột: tiêu đề xuống dòng, ô chọn gọn để cả bảng vừa màn hình laptop */
+.dg-rating-table th {
+  white-space: normal;
+  font-size: var(--fs-xs);
+  vertical-align: bottom;
+}
+.dg-rating-table td {
+  padding-inline: var(--space-1-5);
+}
+.dg-rating-table select.select {
+  min-width: 84px;
+  padding-inline: var(--space-2);
+}
+.dg-rating-table .input {
+  min-width: 140px;
+}

@@ -257,6 +257,53 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     totals.completedRate = pct(totals.completed, totals.children);
     return clone({ campusIds: campuses(db, classes).map((c) => c.id), campuses: campuses(db, classes), rows, totals });
   },
+  // BE giả OBS-24: HT, PHT xem mọi lớp; chấm: HT mọi lớp, PHT điểm trường mình; GV xem lớp mình
+  async getClassRatings(params = {}, user) {
+    const db = ensureReady();
+    const leader = isLeader(user);
+    if (!leader && !['TEACHER', 'TEAM_LEADER'].includes(user?.role)) deny();
+    const classes = scoped(db, params.schoolYear, user).filter((c) => leader || isClassTeacher(c, user));
+    const shown = classes.filter((c) => !params.campusId || c.campusId === params.campusId);
+    const saved = (db.classRatings || []).filter((r) => r.period === params.period);
+    return clone({
+      period: params.period,
+      campuses: campuses(db, classes).map((c) => ({ id: c.id, name: c.shortName || c.name })),
+      rows: shown.map((c) => {
+        const r = saved.find((x) => x.classId === c.id);
+        return {
+          classId: c.id,
+          className: c.name,
+          campusId: c.campusId,
+          ageGroupId: c.ageGroupId,
+          levels: r?.levels || {},
+          note: r?.note || null,
+          ratedAt: r?.ratedAt || null,
+          ratedByName: r?.ratedByName || null,
+          canEdit: inLeaderEditScope(c.campusId, user),
+        };
+      }),
+    });
+  },
+  async saveClassRatings({ period, items }, user) {
+    const db = ensureReady();
+    items.forEach((i) => {
+      const cls = db.classes.find((c) => c.id === i.classId);
+      if (!cls || !inLeaderEditScope(cls.campusId, user)) deny();
+    });
+    db.classRatings = [
+      ...(db.classRatings || []).filter((r) => r.period !== period || !items.some((i) => i.classId === r.classId)),
+      ...items.map((i) => ({
+        period,
+        classId: i.classId,
+        levels: i.levels,
+        note: i.note?.trim() || null,
+        ratedAt: new Date().toISOString(),
+        ratedByName: user.fullName,
+      })),
+    ];
+    writeDb(db);
+    return this.getClassRatings({ period }, user);
+  },
   async getQualityReport(params = {}, user) {
     const db = ensureReady();
     // GV, tổ trưởng: lớp mình (BE thêm lớp nhóm tuổi của tổ trưởng); không có dòng tổng

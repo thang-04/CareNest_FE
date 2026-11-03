@@ -59,7 +59,7 @@ export function EvaluationReviewView({ kind, id }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dayPage, setDayPage] = useState(1);
   const yearEnd = kind === EVAL_KIND.YEAR_END;
-  const base = `/assessment/${yearEnd ? 'year-end' : 'periodic'}`;
+  const base = `/assessment/${kind}`;
 
   const ev = detail?.evaluation;
   const savedContent = ev ? ev.finalContent || ev.aiDraft?.content || '' : '';
@@ -267,7 +267,9 @@ export function EvaluationReviewView({ kind, id }) {
                   <div className="muted text-xs mt-8">
                     {yearEnd
                       ? `Tổng hợp từ ${detail.monthlyEvaluations.length} đánh giá tháng đã xác nhận`
-                      : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày`}{' '}
+                      : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày${
+                          detail.monthlyEvaluations?.length ? ` và ${detail.monthlyEvaluations.length} đánh giá tháng` : ''
+                        }`}{' '}
                     · tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
                   </div>
                   <div className="row row--wrap gap-2 mt-12">
@@ -368,14 +370,14 @@ export function EvaluationReviewView({ kind, id }) {
 
       <PeriodSummaryTable data={detail.summary.structured} />
 
-      <div className="card mt-16">
-        <div className="card__header">
-          <div className="card__title">{yearEnd ? 'Đánh giá tháng đã xác nhận trong năm học' : 'Đánh giá hằng ngày trong kỳ'}</div>
-          {!yearEnd && <span className="muted text-sm">Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>}
-        </div>
-        <div className="card__body">
-          {yearEnd ? (
-            detail.monthlyEvaluations.length ? (
+      {/* Học kỳ, cuối năm: các đánh giá tháng cô đã xác nhận trong kỳ để viết nhận xét chung */}
+      {kind !== EVAL_KIND.PERIODIC && (
+        <div className="card mt-16">
+          <div className="card__header">
+            <div className="card__title">Đánh giá tháng đã xác nhận trong {yearEnd ? 'năm học' : 'học kỳ'}</div>
+          </div>
+          <div className="card__body">
+            {detail.monthlyEvaluations.length ? (
               <div className="stack">
                 {detail.monthlyEvaluations.map((m) => (
                   <div key={m.id}>
@@ -385,30 +387,38 @@ export function EvaluationReviewView({ kind, id }) {
                 ))}
               </div>
             ) : (
-              <div className="muted">Chưa có đánh giá tháng nào được xác nhận. Thiếu dữ liệu nguồn – hãy xem lại các hồ sơ hiện có.</div>
-            )
-          ) : (
-            <>
-              {/* Kỳ tháng tới ~22 ngày: 10 ngày / trang như bảng này ở Hồ sơ phát triển */}
-              <DailyDaysTable
-                days={paginate(detail.days, Math.min(dayPage, Math.max(1, Math.ceil(detail.days.length / 10))), 10)}
-                mealSessions={detail.mealSessions}
-                classId={ev.classId}
-                linkDays={canReview}
-              />
-              {detail.days.length > 10 && (
-                <Pagination
-                  page={Math.min(dayPage, Math.ceil(detail.days.length / 10))}
-                  total={detail.days.length}
-                  pageSize={10}
-                  onChange={setDayPage}
-                  unit="ngày"
-                />
-              )}
-            </>
-          )}
+              <div className="muted">Chưa có đánh giá tháng nào được xác nhận trong kỳ này.</div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {!yearEnd && (
+        <div className="card mt-16">
+          <div className="card__header">
+            <div className="card__title">Đánh giá hằng ngày trong kỳ</div>
+            <span className="muted text-sm">Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>
+          </div>
+          <div className="card__body">
+            {/* 10 ngày / trang như bảng này ở Hồ sơ phát triển */}
+            <DailyDaysTable
+              days={paginate(detail.days, Math.min(dayPage, Math.max(1, Math.ceil(detail.days.length / 10))), 10)}
+              mealSessions={detail.mealSessions}
+              classId={ev.classId}
+              linkDays={canReview}
+            />
+            {detail.days.length > 10 && (
+              <Pagination
+                page={Math.min(dayPage, Math.ceil(detail.days.length / 10))}
+                total={detail.days.length}
+                pageSize={10}
+                onChange={setDayPage}
+                unit="ngày"
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {showDraft && (
         <div className="card mt-16">

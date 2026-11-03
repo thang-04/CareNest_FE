@@ -52,6 +52,9 @@ export const getTicketOverview = (params, user) => (be || repo).getTicketOvervie
 // Tổng quan đánh giá các lớp cho PHT / Hiệu trưởng
 export const getClassAssessmentOverview = (params, user) => (be || repo).getClassAssessmentOverview(params, user);
 export const getQualityReport = (params, user) => (be || repo).getQualityReport(params, user);
+/** Xếp loại nhóm lớp theo kỳ: { rows: [{ classId, levels, note, canEdit, … }], campuses }. */
+export const getClassRatings = (params, user) => (be || repo).getClassRatings(params, user);
+export const saveClassRatings = (body, user) => (be || repo).saveClassRatings(body, user);
 export const getClassAssessmentDetail = (params, user) => (be || repo).getClassAssessmentDetail(params, user);
 export const issueTickets = (body, user) => (be || repo).issueTickets(body, user);
 

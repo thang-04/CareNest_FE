@@ -34,7 +34,8 @@ export function EvaluationListView({ kind }) {
   const { classes } = useDailyAssessmentClasses();
   // Đánh giá định kỳ chỉ theo tháng (Cần 30/10/2026, theo sổ chỉ đạo chuyên môn: tháng và học kỳ, bỏ tuần).
   // Mặc định xem tháng gần nhất, bấm ‹ › để lùi / tới. Bộ lọc lưu trên URL; period '' = tự chọn kỳ mới nhất
-  const defaultPeriodType = yearEnd ? '' : PERIOD_TYPE.MONTH;
+  const semester = kind === EVAL_KIND.SEMESTER;
+  const defaultPeriodType = yearEnd ? '' : semester ? PERIOD_TYPE.SEMESTER : PERIOD_TYPE.MONTH;
   const [f, setFilters, , activeKeys] = useFilterParams({
     tab: leader ? 'ALL' : 'TODO',
     classId: '',
@@ -84,7 +85,8 @@ export function EvaluationListView({ kind }) {
   const reset = () => applyFilters({ classId: '', periodType: defaultPeriodType, theme: '', period: '', keyword: '' });
   const filterKeys = activeKeys.filter((k) => k !== 'tab' && k !== 'periodType');
   const filtered = filterKeys.length > 0;
-  const periodWord = periodType === PERIOD_TYPE.WEEK ? 'tuần' : 'tháng';
+  const periodWord = { [PERIOD_TYPE.WEEK]: 'tuần', [PERIOD_TYPE.SEMESTER]: 'học kỳ' }[periodType] || 'tháng';
+  const PeriodWord = periodWord.charAt(0).toUpperCase() + periodWord.slice(1);
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
     classId: `Lớp: ${classes.find((c) => String(c.id) === classId)?.name || classId}`,
@@ -127,7 +129,7 @@ export function EvaluationListView({ kind }) {
   const showClass = leader;
   const showFlags = !leader && !yearEnd;
   const cols = 5 + (showClass ? 1 : 0) + (showFlags ? 1 : 0);
-  const link = (e) => `/assessment/${yearEnd ? 'year-end' : 'periodic'}/${e.id}`;
+  const link = (e) => `/assessment/${kind}/${e.id}`;
 
   return (
     <>
@@ -172,15 +174,15 @@ export function EvaluationListView({ kind }) {
               <button
                 type="button"
                 className="icon-btn"
-                aria-label={periodType === PERIOD_TYPE.WEEK ? 'Tuần trước' : 'Tháng trước'}
-                title={periodType === PERIOD_TYPE.WEEK ? 'Tuần trước' : 'Tháng trước'}
+                aria-label={`${PeriodWord} trước`}
+                title={`${PeriodWord} trước`}
                 disabled={periodIndex < 0 || periodIndex >= periods.length - 1}
                 onClick={() => pickPeriod(periods[periodIndex + 1].key)}
               >
                 <ChevronLeft size={16} />
               </button>
               <select className="select" value={activePeriod} onChange={(e) => pickPeriod(e.target.value)} aria-label="Kỳ đánh giá">
-                <option value="ALL">{periodType === PERIOD_TYPE.WEEK ? 'Tất cả tuần' : 'Tất cả tháng'}</option>
+                <option value="ALL">Tất cả {periodWord}</option>
                 {themeGroups
                   ? themes.map((t) => (
                       <optgroup key={t} label={`Chủ đề: ${t}`}>
@@ -203,8 +205,8 @@ export function EvaluationListView({ kind }) {
               <button
                 type="button"
                 className="icon-btn"
-                aria-label={periodType === PERIOD_TYPE.WEEK ? 'Tuần sau' : 'Tháng sau'}
-                title={periodType === PERIOD_TYPE.WEEK ? 'Tuần sau' : 'Tháng sau'}
+                aria-label={`${PeriodWord} sau`}
+                title={`${PeriodWord} sau`}
                 disabled={periodIndex <= 0}
                 onClick={() => pickPeriod(periods[periodIndex - 1].key)}
               >
@@ -252,8 +254,10 @@ export function EvaluationListView({ kind }) {
                           filtered
                             ? 'Không có hồ sơ nào trong phạm vi hoặc kỳ đã chọn.'
                             : yearEnd
-                              ? 'Bản nháp cuối năm được tạo khi năm học kết thúc.'
-                              : 'Bản nháp được tạo tự động khi tháng kết thúc.'
+                              ? 'Bản nháp cuối năm được tạo từ ngày 1 tháng cuối của năm học.'
+                              : semester
+                                ? 'Bản nháp được tạo khi học kỳ kết thúc. Nếu học kỳ đã kết thúc mà chưa có, kiểm tra ngày học kỳ ở Cấu hình thời gian.'
+                                : 'Bản nháp được tạo tự động khi tháng kết thúc.'
                         }
                         action={
                           filtered && (

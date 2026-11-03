@@ -270,7 +270,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                 </div>
                 <div className="card__body">
                   {published.length === 0 ? (
-                    <div className="muted">Chưa có đánh giá tháng hoặc cuối năm được giáo viên xác nhận trong kỳ.</div>
+                    <div className="muted">Chưa có đánh giá tháng, học kỳ hoặc cuối năm được giáo viên xác nhận trong kỳ.</div>
                   ) : (
                     <div className="stack">
                       {published.map((e) => (

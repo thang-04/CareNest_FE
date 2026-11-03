@@ -124,10 +124,26 @@ export const DEFAULT_CRITERIA = [
 /** Timetable slots that are not assessed (arrival, meals and nap, going home). */
 export const NON_ASSESSED_SLOT_KEYWORDS = ['Đón trẻ', 'Ăn', 'Trả trẻ'];
 
-export const PERIOD_TYPE = { WEEK: 'WEEK', MONTH: 'MONTH', YEAR: 'YEAR' };
-export const PERIOD_TYPE_LABELS = { WEEK: 'Tuần', MONTH: 'Tháng', YEAR: 'Cả năm học' };
+export const PERIOD_TYPE = { WEEK: 'WEEK', MONTH: 'MONTH', SEMESTER: 'SEMESTER', YEAR: 'YEAR' };
+export const PERIOD_TYPE_LABELS = { WEEK: 'Tuần', MONTH: 'Tháng', SEMESTER: 'Học kỳ', YEAR: 'Cả năm học' };
 
-export const EVAL_KIND = { PERIODIC: 'periodic', YEAR_END: 'year-end' };
+// Xếp loại nhóm lớp (sổ chỉ đạo chuyên môn mục 7, BE OBS-24): kỳ, mức và 7 tiêu chí (key = field BE `levels`)
+export const CLASS_RATING_PERIOD = { SEMESTER_1: 'SEMESTER_1', SEMESTER_2: 'SEMESTER_2', YEAR: 'YEAR' };
+export const CLASS_RATING_PERIOD_LABELS = { SEMESTER_1: 'Học kỳ I', SEMESTER_2: 'Học kỳ II', YEAR: 'Cuối năm' };
+export const CLASS_RATING_LEVELS = ['TOT', 'KHA', 'DAT', 'CHUA_DAT'];
+export const CLASS_RATING_LEVEL_LABELS = { TOT: 'Tốt', KHA: 'Khá', DAT: 'Đạt', CHUA_DAT: 'Chưa đạt' };
+export const CLASS_RATING_CRITERIA = [
+  { key: 'records', label: 'Hồ sơ sổ sách' },
+  { key: 'program', label: 'Thực hiện chương trình' },
+  { key: 'theme', label: 'Thực hiện chủ đề' },
+  { key: 'environment', label: 'Tạo môi trường ĐDĐC' },
+  { key: 'routine', label: 'Nền nếp trẻ' },
+  { key: 'health', label: 'Sức khỏe' },
+  { key: 'parents', label: 'Kết hợp với cha mẹ' },
+];
+
+// Giá trị = đoạn đường dẫn /assessment/<kind>
+export const EVAL_KIND = { PERIODIC: 'periodic', SEMESTER: 'semester', YEAR_END: 'year-end' };
 
 export const EVAL_STATUS = { AWAITING_REVIEW: 'AWAITING_REVIEW', AI_FAILED: 'AI_FAILED', CONFIRMED: 'CONFIRMED' };
 export const EVAL_STATUS_LABELS = {

@@ -35,3 +35,17 @@ test('teachers and team leaders see the monthly quality report in the assessment
     assert.ok(keys(getMenuForRole(role, { role })).includes('assessQuality'), role);
   }
 });
+
+test('teachers and leaders see semester evaluations next to monthly ones', () => {
+  for (const role of ['TEACHER', 'TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINCIPAL']) {
+    const menu = keys(getMenuForRole(role, { role }));
+    assert.ok(menu.indexOf('assessSemester') === menu.indexOf('assessPeriodic') + 1, role);
+  }
+});
+
+test('class ratings sit after the monthly quality report for teachers and leaders', () => {
+  for (const role of ['TEACHER', 'TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINCIPAL']) {
+    const menu = keys(getMenuForRole(role, { role }));
+    assert.equal(menu.indexOf('assessClassRatings'), menu.indexOf('assessQuality') + 1, role);
+  }
+});
