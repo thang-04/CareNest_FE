@@ -231,7 +231,8 @@ test('AC-6: giáo viên nhập số đo trong kỳ; đóng kỳ thì trẻ chưa
   );
 });
 
-test('AC-7: không nhập lẻ ngoài kỳ; kết quả cũ ngoài đợt vẫn sửa được', async () => {
+// Khóa lần đo cũ ngoài đợt như BE (user chọn 2026-11-04, thay "kết quả cũ ngoài đợt vẫn sửa được" của 2026-10-31).
+test('AC-7: không nhập lẻ ngoài kỳ; kết quả cũ ngoài đợt chỉ xem, không sửa', async () => {
   const child = tuanChild();
   const base = { date: todayInput(), heightCm: 105, weightKg: 17.5, note: '' };
   await rejects(children.saveMeasurement(child.id, null, base, TUAN), 422, 'campaignId');
@@ -242,15 +243,17 @@ test('AC-7: không nhập lẻ ngoài kỳ; kết quả cũ ngoài đợt vẫn 
   assert.equal(record.openCampaign.kind, 'MEASUREMENT');
 
   const old = readDb().healthMeasurements.find((m) => !m.campaignId && !m.exam && m.childId === child.id);
-  if (old) {
-    const edited = await children.saveMeasurement(
+  assert.ok(old, 'seed có lần đo cũ ngoài đợt');
+  assert.equal(record.measurements.find((m) => m.id === old.id).locked, true);
+  await rejects(
+    children.saveMeasurement(
       child.id,
       old.id,
       { date: old.date, heightCm: old.heightCm, weightKg: old.weightKg + 0.1, note: old.note || '', reason: 'Sửa số (giả).' },
       TUAN,
-    );
-    assert.equal(edited.campaignId, null);
-  }
+    ),
+    409,
+  );
 });
 
 test('AC-8: lần đo của kỳ cân đo không là lần khám trước', async () => {

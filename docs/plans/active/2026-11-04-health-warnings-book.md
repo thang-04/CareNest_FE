@@ -132,3 +132,14 @@ Không còn câu hỏi chặn. Giả định tự chọn ghi ở Key decisions (
 - Verify: `VERIFY PASS full | npm run verify | log verify.log`. Lint 0 lỗi (1 cảnh báo có sẵn ở `src/components/education-plan/ImportGoalFileModal.jsx`); `check-design: ok · hex 22/43 · cssPx 16/16 · inlineStyle 37/37`; `check-api-contract (FE): 0 lỗi, 1 cảnh báo` (`be-api-routes.json` khác openapi BE cạnh bên; chưa chạy `--sync` vì BE đang sửa song song); `check-ai-layer (FE): 0 lỗi, 20 cảnh báo` (không cảnh báo nào của plan này).
 - Commit: chưa commit (coordinator quyết).
 - Tiếp: coordinator soát và commit. Khi BE xong: nối API (module `children` vẫn `demo`), chạy `node scripts/check-api-contract.mjs --sync`, so `watchList`, `knownCondition`, `latestBmi` với BE, rồi chuyển plan sang `completed/`. APP đồng bộ mức BMI theo ghi chú DESIGN 3.4.
+
+### 2026-11-04 — Commit, push; Sổ sức khỏe tối giản (user yêu cầu)
+- Commit/push theo yêu cầu user: BE `e7e07f4`, FE `80ef05f` (nhánh G94-180). Đã chạy `check-api-contract --sync` (bỏ route `/health-follow-ups`, thêm route sức khỏe còn thiếu).
+- User: "UI đang quá rối, muốn tối giản; bỏ hết phần thông tin trên, chỉ còn bảng `Tên đợt khám | Ngày khám | Người nhập | Kết luận sức khỏe | Thao tác`; bấm xem hiện thông tin đầy đủ theo loại". Đã bỏ thẻ "Cảnh báo sức khỏe" (xóa `HealthWarningsCard.jsx` và CSS `tr-warn-*`), "Lần đo gần nhất", "Thông tin sức khỏe khi tiếp nhận", hộp thông báo; nút "Khám trong đợt"/"Tiếp tục phiếu khám", "Nhập số đo" lên đầu trang. Thêm `ExamDetailModal` (phiếu Phụ lục II đầy đủ từ API phiếu khám); kỳ cân đo dùng `MeasurementDetailModal`. `HealthWarningCell` thêm `variant="conclusion"`.
+- Giữ (agent chọn): bộ lọc ngày và "Chỉ lần có cảnh báo"; BE vẫn trả `latestExam`, `latestBmi` (Web không hiện, để APP/phụ huynh dùng sau).
+- Kiểm trên trình duyệt (BE giả): vai Giáo viên (Trần Khánh An) và Hiệu trưởng (Đỗ Phương Linh): bảng 5 cột, hộp số đo, hộp phiếu khám, 375px không tràn trang; không lỗi console.
+
+### 2026-11-04 — Nút sửa theo loại; khóa lần đo ngoài đợt (user chọn cả hai)
+- User hỏi vì sao phiếu khám tháng 11 không sửa được mà dòng `Ngoài đợt khám` sửa được. Phiếu khám: cố ý sửa ở trang phiếu (BE chặn 5034); dòng ngoài đợt: BE giả không khóa lần đo không có đợt, khác BE thật (`locked = c == null || …`, `campaign_id NOT NULL`).
+- (a) BE giả: lần đo không thuộc đợt luôn `locked`, lưu ⇒ 409; trang sửa số đo báo "Lần đo không thuộc đợt khám, kỳ cân đo nào". Test `AC-7` đổi theo (thay quyết định 2026-10-31 M4).
+- (b) Sổ sức khỏe: dòng phiếu khám có nút sửa (GV lớp, đợt đang diễn ra) mở `/children/health-checks/{id}/exam/{childId}?classId=…&edit=1`; trang phiếu khám vào thẳng chế độ sửa phiếu đã kết luận (một lần), link quay về bỏ `edit`.

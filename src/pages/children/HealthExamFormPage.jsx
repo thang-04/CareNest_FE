@@ -158,8 +158,21 @@ export default function HealthExamFormPage() {
     setMaxReached(m?.examStatus === EXAM_STATUS.CONCLUDED ? 4 : draftStep);
   }, [view, form]);
 
+  // Mở từ nút "Sửa phiếu khám" ở Sổ sức khỏe (?edit=1): phiếu đã kết luận vào thẳng chế độ sửa, chỉ một lần.
+  const editRequested = params.get('edit') === '1';
+  const [editApplied, setEditApplied] = useState(false);
+  useEffect(() => {
+    if (!editRequested || editApplied || !view?.canEdit || view.measurement?.examStatus !== EXAM_STATUS.CONCLUDED) return;
+    setEditApplied(true);
+    setEditing(true);
+    setPreviewPoints(null);
+    setStep(0);
+    setMaxReached(4);
+  }, [editRequested, editApplied, view]);
+
   // Giữ lớp và bộ lọc danh sách lớp (keyword, result…) khi qua lại giữa đợt khám và phiếu.
   const listParams = new URLSearchParams(params);
+  listParams.delete('edit');
   if (classIdParam) listParams.set('classId', classIdParam);
   const listQuery = listParams.toString() ? `?${listParams}` : '';
   const campaignLink = `/children/health-checks/${campaignId}${listQuery}`;

@@ -6,7 +6,7 @@ import { MeasurementSummary } from './MeasurementSummary';
 
 /**
  * Xem một lần đo (số đo của kỳ cân đo kèm mức BMI theo tuổi, cân đo cũ ngoài đợt, mẫu cũ) ở Sổ sức khỏe, chỉ đọc: lần đo của đợt
- * đã đóng vẫn xem được (user yêu cầu 2026-10-23), không có nút sửa. Phiếu khám Phụ lục II xem ở trang phiếu khám.
+ * đã đóng vẫn xem được (user yêu cầu 2026-10-23), không có nút sửa. Phiếu khám Phụ lục II xem ở ExamDetailModal.
  */
 export function MeasurementDetailModal({ measurement: m, ageText, onClose }) {
   return (

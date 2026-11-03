@@ -147,8 +147,12 @@ export default function HealthMeasurementFormPage() {
         <h1 className="page__title">{title}</h1>
         <StatusPage
           kind="403"
-          title="Kết quả thuộc đợt khám hoặc kỳ cân đo đã đóng"
-          description="Kết quả của đợt, kỳ đã đóng bị khóa. Hiệu trưởng hoặc Phó hiệu trưởng mở lại nếu cần sửa."
+          title={existing.campaignId ? 'Kết quả thuộc đợt khám hoặc kỳ cân đo đã đóng' : 'Lần đo không thuộc đợt khám, kỳ cân đo nào'}
+          description={
+            existing.campaignId
+              ? 'Kết quả của đợt, kỳ đã đóng bị khóa. Hiệu trưởng hoặc Phó hiệu trưởng mở lại nếu cần sửa.'
+              : 'Số đo chỉ nhập, sửa trong kỳ cân đo đang diễn ra; lần đo cũ ngoài đợt chỉ xem được.'
+          }
           action={backLink}
         />
       </div>

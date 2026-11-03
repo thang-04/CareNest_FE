@@ -856,8 +856,9 @@ export const toMeasurementView = (db, m) => {
     campaignName: campaign?.name || null,
     // EXAM: kết quả của đợt khám (mở phiếu khám) · MEASUREMENT: số đo của kỳ cân đo · null: ngoài đợt.
     campaignKind: campaign ? campaignKindOf(campaign) : null,
-    // Kết quả của đợt/kỳ đã đóng/hủy bị khóa tới khi HT/PHT mở lại.
-    locked: !!campaign && !isOpenForEntry(campaign),
+    // Như BE: chỉ sửa trong đợt/kỳ đang diễn ra; đợt/kỳ đóng/hủy khóa tới khi HT/PHT mở lại, lần đo cũ ngoài đợt luôn khóa
+    // (HLT-01: không cân đo lẻ, user chọn 2026-11-04).
+    locked: !campaign || !isOpenForEntry(campaign),
     measuredByName: userName(db, m.measuredBy),
     edits: (m.edits || []).map((e) => ({ ...e, userName: userName(db, e.userId) })),
   };
@@ -1354,9 +1355,12 @@ export const childrenMockRepository = {
     if (!canRecordMeasurement(child, user, classOf(db, child))) forbid();
     const existing = measurementId ? db.healthMeasurements.find((m) => m.id === measurementId && m.childId === childId) : null;
     if (measurementId && !existing) throw new ApiError(404, 'Không tìm thấy lần đo này.');
-    // Kết quả trong đợt khám nhập bằng phiếu Phụ lục II (user chốt 2026-10-17). API này: số đo của kỳ cân đo, sửa số đo cũ
-    // ngoài đợt và mẫu cũ. Tạo mới chỉ trong kỳ cân đo đang diễn ra của điểm trường (user chốt 2026-10-31).
+    // Kết quả trong đợt khám nhập bằng phiếu Phụ lục II (user chốt 2026-10-17). API này: số đo của kỳ cân đo (cả mẫu cũ của
+    // đợt/kỳ còn mở). Tạo mới chỉ trong kỳ cân đo đang diễn ra của điểm trường (user chốt 2026-10-31); lần đo cũ ngoài đợt chỉ
+    // xem, như BE (user chọn 2026-11-04).
     if (existing?.exam) throw new ApiError(409, 'Kết quả này là phiếu khám. Sửa ở trang phiếu khám của đợt.');
+    if (existing && !existing.campaignId)
+      throw new ApiError(409, 'Lần đo không thuộc đợt khám, kỳ cân đo nào nên chỉ xem được, không sửa.');
     const campaignId = existing ? (existing.campaignId ?? null) : payload.campaignId || null;
     const campaign = campaignId ? db.healthCheckCampaigns.find((c) => c.id === campaignId) : null;
     if (!existing) {
