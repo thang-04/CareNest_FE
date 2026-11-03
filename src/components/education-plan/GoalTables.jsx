@@ -908,8 +908,8 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                 <th className="cell--fixed ga-stt">
                   <span className="stt-head">STT {!readOnly && <RenumberButton />}</span>
                 </th>
-                <th>Tên chủ đề</th>
-                <th className="center">Viết tắt</th>
+                <th>Tên chủ đề{!readOnly && <span className="req">*</span>}</th>
+                <th className="center">Viết tắt{!readOnly && <span className="req">*</span>}</th>
                 <th className="cell--fixed">Mục tiêu giáo dục</th>
                 <th>Ngày lễ hội</th>
                 <th>Từ ngày</th>

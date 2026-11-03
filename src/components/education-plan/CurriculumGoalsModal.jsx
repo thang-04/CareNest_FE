@@ -137,7 +137,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
             <div className="ga-cur-toolbar ga-cur-filters ga-cur-content-filters">
               <div className="field">
                 <label className="field__label" htmlFor="cur-target">
-                  Thêm vào mục tiêu
+                  Thêm vào mục tiêu <span className="req">*</span>
                 </label>
                 <select
                   id="cur-target"

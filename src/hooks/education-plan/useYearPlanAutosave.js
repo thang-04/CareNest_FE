@@ -1,36 +1,44 @@
 import { useEffect, useRef, useState } from 'react';
-import { createSaveQueue, reconcileYearPlanIds, recoveryKey, yearPlanContentKey } from '@/models/education-plan/yearPlanAutosave.mjs';
-import { findYearPlanRecovery, storeYearPlanRecovery, removeYearPlanRecovery } from '@/services/education-plan/yearPlanRecovery';
+import { createSaveQueue, reconcileYearPlanIds, yearPlanContentKey } from '@/models/education-plan/yearPlanAutosave.mjs';
+import {
+  findYearPlanDrafts,
+  pruneYearPlanDrafts,
+  removeYearPlanRecovery,
+  storeYearPlanRecovery,
+} from '@/services/education-plan/yearPlanRecovery';
 
 const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 /**
  * Kế hoạch năm học: chỉ ghi lên hệ thống khi bấm Lưu/Ctrl+S hoặc gửi/ban hành (Tiền chốt 27/10).
- * Còn khác bản đã lưu thì giữ ẩn một bản trên máy (750ms + pagehide) để khôi phục khi mất điện/đóng tab.
+ * Còn khác bản đã lưu thì giữ ẩn một mốc trên máy (750ms + pagehide) cho lần soạn này; giữ 2 lần soạn mới nhất
+ * ⇒ drafts cho Lịch sử phiên bản (Tiền 03/11), restore(entry) thay toàn bộ nội dung đang soạn.
  */
 export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, userId, planKey, onConflict }) {
   const latest = useRef({});
   latest.current = { doc, setDoc, enabled, mayBackup, save, onConflict };
   const [state, setState] = useState({ phase: 'idle', at: null });
-  const [recovery, setRecovery] = useState(() => {
+  const [drafts, setDrafts] = useState(() => {
     try {
-      return findYearPlanRecovery(userId, planKey, doc);
+      return findYearPlanDrafts(userId, planKey, doc);
     } catch {
-      return null;
+      return [];
     }
   });
+  // Bản đã lưu hiện tại (bản nạp lúc mở hoặc vừa lưu); kế hoạch mới chưa lưu lần nào ⇒ null
+  const savedDoc = useRef(doc?.id && !String(planKey).startsWith('new-') ? doc : null);
+  const pruned = useRef(false);
   const mounted = useRef(true);
   const stopBackup = useRef(false);
   const hasOwnedLease = useRef(false);
   const slot = useRef(crypto.randomUUID());
   const restoredSource = useRef(null);
   if (mayBackup) hasOwnedLease.current = true;
-  latest.current.recovery = recovery;
   const queue = useRef(null);
   if (!queue.current) {
     queue.current = createSaveQueue({
       read: () => latest.current.doc,
-      enabled: () => latest.current.enabled && !latest.current.recovery && navigator.onLine,
+      enabled: () => latest.current.enabled && navigator.onLine,
       write: (snapshot, requestId) => latest.current.save(snapshot, requestId),
       accept: (saved, snapshot) => {
         const current = reconcileYearPlanIds(latest.current.doc, snapshot, saved);
@@ -48,6 +56,7 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
           }
         }
         latest.current.doc = current;
+        savedDoc.current = baseline;
         if (mounted.current) latest.current.setDoc(current);
         else if (hasOwnedLease.current) {
           try {
@@ -71,12 +80,6 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
       },
     });
   }
-  // Bản giữ được ghi cả theo planKey lẫn theo ID kế hoạch (cùng slot) ⇒ khôi phục/bỏ thì dọn cả hai
-  const sourcesOf = (entry) => {
-    const source = entry.sourceKey;
-    const sibling = entry.doc?.id ? `${recoveryKey(userId, entry.doc.id)}:${source.split(':').pop()}` : null;
-    return [source, sibling].filter(Boolean);
-  };
   const saveNow = async () => {
     if (!navigator.onLine && queue.current.dirty()) {
       setState({ phase: 'error', at: null });
@@ -86,7 +89,7 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
   };
   // Bản giữ ẩn trên máy (không báo trên UI): phòng mất điện/đóng tab khi chưa bấm Lưu
   const backup = () => {
-    if (recovery || stopBackup.current || !hasOwnedLease.current) return;
+    if (stopBackup.current || !hasOwnedLease.current) return;
     try {
       const current = latest.current.doc;
       if (!queue.current.dirty()) {
@@ -97,6 +100,10 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
       const entry = { doc: current, baseRevision: current.revision ?? 0, savedAt: Date.now() };
       storeYearPlanRecovery(userId, planKey, slot.current, entry);
       if (current.id) storeYearPlanRecovery(userId, current.id, slot.current, entry);
+      if (!pruned.current) {
+        pruned.current = true;
+        pruneYearPlanDrafts(userId, planKey, current);
+      }
       if (restoredSource.current) {
         restoredSource.current.forEach((source) => removeYearPlanRecovery(userId, planKey, null, source));
         restoredSource.current = null;
@@ -108,9 +115,7 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
   useEffect(() => {
     mounted.current = true;
     queue.current.resume();
-    const interval = setInterval(() => {
-      if (!recovery) backup();
-    }, 750);
+    const interval = setInterval(backup, 750);
     const warn = (event) => {
       if (queue.current.dirty()) event.preventDefault();
     };
@@ -134,28 +139,27 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
       document.removeEventListener('keydown', key);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, planKey, !!recovery]);
+  }, [userId, planKey]);
   const dirty = queue.current.dirty();
   return {
     unsaved: dirty,
     saving: state.phase === 'saving',
     error: state.phase === 'error' || state.phase === 'conflict',
-    recovery,
-    markClean: (value) => queue.current.markClean(value),
+    drafts,
+    saved: () => savedDoc.current,
+    markClean: (value) => {
+      savedDoc.current = value;
+      queue.current.markClean(value);
+    },
     current: () => latest.current.doc,
     save: saveNow,
     settle: () => queue.current.settle(),
-    restore() {
-      if (!recovery) return;
-      restoredSource.current = sourcesOf(recovery);
-      latest.current.doc = recovery.doc;
-      setDoc(recovery.doc);
-      setRecovery(null);
-    },
-    dismissRecovery() {
-      removeYearPlanRecovery(userId, planKey, slot.current);
-      if (recovery) sourcesOf(recovery).forEach((source) => removeYearPlanRecovery(userId, planKey, null, source));
-      setRecovery(null);
+    // Dùng mốc (hoặc bản đã lưu): thay toàn bộ nội dung; mốc gốc thành lần soạn này, dọn khi ghi mốc mới
+    restore(entry) {
+      if (entry.keys) restoredSource.current = entry.keys;
+      latest.current.doc = entry.doc;
+      setDoc(entry.doc);
+      setDrafts((list) => list.filter((x) => x !== entry));
     },
     clearRecovery() {
       stopBackup.current = true;
