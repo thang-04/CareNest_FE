@@ -21,7 +21,7 @@ import {
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { downloadXlsx } from '@/utils/exportXlsx';
-import { formatDateTime } from '@/utils/format';
+import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/assessment.css';
 
 const PERIODS = Object.values(CLASS_RATING_PERIOD).map((key) => ({ key, label: CLASS_RATING_PERIOD_LABELS[key] }));
@@ -192,6 +192,14 @@ export default function ClassRatingsPage() {
             </button>
           )}
         </div>
+        {/* Kỳ chưa mở chấm (BE OBS-24): HK theo ngày học kỳ, cuối năm từ tháng cuối năm học */}
+        {leader && !loading && rows.length > 0 && editable.length === 0 && (
+          <div className="alert alert--info mb-12">
+            {ratings?.openFrom
+              ? `${CLASS_RATING_PERIOD_LABELS[period]} xếp loại được từ ngày ${formatDate(ratings.openFrom)}.`
+              : 'Chưa đặt ngày học kỳ ở Cấu hình thời gian nên chưa xếp loại được kỳ này.'}
+          </div>
+        )}
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
