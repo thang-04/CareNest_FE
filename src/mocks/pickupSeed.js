@@ -2,6 +2,7 @@
  * Fictional pickup history (no real child data): built from the seeded attendance of the last two school days,
  * so only children who were present have a pickup record. Collection: db.pickups.
  */
+import { DEMO_CLASS_IDS } from './demoClasses';
 
 const NAMES = { Bố: 'Văn', Mẹ: 'Thị', Ông: 'Văn', Bà: 'Thị' };
 
@@ -15,7 +16,8 @@ export const buildPickupSeed = ({ attendance = [], children = [], classes = [], 
   const records = [];
 
   attendance
-    .filter((r) => days.includes(r.date) && r.status === 'PRESENT')
+    // Chỉ lớp demo: lịch sử đón của mọi lớp làm lần ghi đầu vượt hạn mức localStorage (2026-10-23)
+    .filter((r) => days.includes(r.date) && r.status === 'PRESENT' && DEMO_CLASS_IDS.has(r.classId))
     .forEach((r, i) => {
       const child = childById[r.childId];
       if (!child) return;

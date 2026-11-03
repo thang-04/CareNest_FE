@@ -99,6 +99,19 @@ const leaveOf = (db, childId, date) =>
     (leave) => leave.childId === childId && leave.status === 'SUBMITTED' && leave.fromDate <= date && leave.toDate >= date,
   );
 
+/** Đơn báo nghỉ phủ `today` sẽ được ghi thành điểm danh; ready() dùng cùng điều kiện để không ghi DB lặp mỗi lần đọc. */
+const leavesToRecord = (db, today) => {
+  if (!isSchoolDay(today)) return [];
+  return (db.leaveRequests || []).flatMap((leave) => {
+    if (leave.status !== 'SUBMITTED' || leave.fromDate > today || leave.toDate < today) return [];
+    const child = db.children.find((ch) => ch.id === leave.childId && ch.status === 'ACTIVE');
+    if (!child || recordOf(db, child.id, today)) return [];
+    // Luồng sau khóa chưa có contract: không âm thầm sửa sĩ số đã tổng hợp.
+    if (db.mealCounts.some((count) => count.campusId === child.campusId && count.date === today)) return [];
+    return [{ leave, child }];
+  });
+};
+
 const ensureLeaveDemo = (db) => {
   const today = schoolNow().date;
   if (!db.leaveRequests) {
@@ -123,12 +136,7 @@ const ensureLeaveDemo = (db) => {
         : [];
     });
   }
-  db.leaveRequests.forEach((leave) => {
-    if (leave.status !== 'SUBMITTED' || leave.fromDate > today || leave.toDate < today || !isSchoolDay(today)) return;
-    const child = db.children.find((ch) => ch.id === leave.childId && ch.status === 'ACTIVE');
-    if (!child || recordOf(db, child.id, today)) return;
-    // Luồng sau khóa chưa có contract: không âm thầm sửa sĩ số đã tổng hợp.
-    if (db.mealCounts.some((count) => count.campusId === child.campusId && count.date === today)) return;
+  leavesToRecord(db, today).forEach(({ leave, child }) => {
     db.attendance.push({
       id: uid('att'),
       childId: child.id,
@@ -380,25 +388,37 @@ const ensureDemoToday = (db) => {
   return db;
 };
 
+// Lớp để giáo viên tự điểm danh vẫn luôn có một trẻ có mặt hôm nay, để thử các màn cần trẻ đã đến lớp (kể cả sau giờ chốt).
+// Như leavesToRecord: bỏ qua campus đã tổng hợp suất ăn hôm nay; ready() dùng cùng điều kiện để không ghi DB lặp.
+const demoPresentToRecord = (db, today) => {
+  if (!isSchoolDay(today)) return [];
+  return currentClasses(db)
+    .filter((cls) => DEMO_OPEN_CLASSES.includes(cls.id))
+    .filter((cls) => !db.mealCounts.some((count) => count.campusId === cls.campusId && count.date === today))
+    .filter((cls) => !db.attendance.some((r) => r.classId === cls.id && r.date === today && r.status === ATTENDANCE_STATUS.PRESENT))
+    .map((cls) => activeChildrenOf(db, cls.id).find((ch) => !recordOf(db, ch.id, today) && !leaveOf(db, ch.id, today)))
+    .filter(Boolean);
+};
+
+const ensureDemoPresent = (db, today) => {
+  db.attendance.push(
+    ...buildDayAttendance({
+      classes: db.classes,
+      children: demoPresentToRecord(db, today),
+      date: today,
+      sessionsOf: (cls) => classSessions(db, cls),
+      status: ATTENDANCE_STATUS.PRESENT,
+    }),
+  );
+  return db;
+};
+
 const ready = () => {
   ensureSchoolSeeded();
   const db = readDb();
   if (!db.attendance || !db.mealCounts || !db.mealHandovers) writeDb(ensureSeeded);
   const current = readDb();
-  const now = schoolNow().date;
-  // Cùng điều kiện với ensureLeaveDemo: ngày nghỉ hoặc sổ đã tổng hợp thì không ghi (ghi mãi ⇒ màn hình tải lại vô hạn)
-  const leaveToApply = (leave) => {
-    const child = current.children?.find((ch) => ch.id === leave.childId && ch.status === 'ACTIVE');
-    return (
-      !!child &&
-      leave.status === 'SUBMITTED' &&
-      leave.fromDate <= now &&
-      leave.toDate >= now &&
-      !recordOf(current, leave.childId, now) &&
-      !(current.mealCounts || []).some((count) => count.campusId === child.campusId && count.date === now)
-    );
-  };
-  if (!current.leaveRequests || (isSchoolDay(now) && current.leaveRequests.some(leaveToApply))) writeDb(ensureLeaveDemo);
+  if (!current.leaveRequests || leavesToRecord(current, schoolNow().date).length) writeDb(ensureLeaveDemo);
   if (needsMockSeedMigration(readDb(), 'attendanceUnlocks', 1, ['attendanceDayUnlocks']))
     writeDb((d) => {
       const has = new Set(d.attendanceDayUnlocks.map((u) => u.id));
@@ -418,6 +438,7 @@ const ready = () => {
     });
   const today = schoolNow().date;
   if (isSchoolDay(today) && readDb().todayMealDemoDate !== today) writeDb(ensureDemoToday);
+  if (demoPresentToRecord(readDb(), today).length) writeDb((d) => ensureDemoPresent(d, today));
   return readDb();
 };
 

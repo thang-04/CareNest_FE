@@ -1,4 +1,5 @@
 import { GUARDIAN_RELATIONSHIPS } from '@/models/account/guardianConstants';
+import { citizenIdError } from '@/utils/citizenId';
 
 // Chuẩn hóa số điện thoại cho dữ liệu demo; BE vẫn kiểm tra lại.
 export const normalizePhone = (raw) => {
@@ -19,5 +20,7 @@ export const validateGuardian = (form) => {
   if (form.fullName?.trim().length > 150) e.fullName = 'Họ tên tối đa 150 ký tự';
   if (form.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = 'Email không hợp lệ';
   if (!GUARDIAN_RELATIONSHIPS.includes(form.relationship)) e.relationship = 'Chọn quan hệ với trẻ';
+  const idError = citizenIdError(form.idNumber);
+  if (idError) e.idNumber = idError;
   return e;
 };

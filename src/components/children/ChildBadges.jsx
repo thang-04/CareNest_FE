@@ -4,7 +4,7 @@ import {
   UserX,
   AlertTriangle,
   MinusCircle,
-  KeyRound,
+  Lock,
   UserCheck,
   UserPlus,
   Eye,
@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   Info,
   Send,
+  Scale,
 } from '@/components/ui/icons';
 import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
 import { CHILD_STATUS_LABELS } from '@/models/School';
@@ -31,7 +32,13 @@ import {
   PARENT_ACCOUNT_STATUS_LABELS,
   SMS_STATUS_LABELS,
 } from '@/models/children/childrenConstants';
-import { CAMPAIGN_STATUS_LABELS, CHILD_RESULT_STATUS_LABELS, FOLLOW_UP_STATUS_LABELS } from '@/models/children/healthCheckConstants';
+import {
+  CAMPAIGN_KIND_LABELS,
+  CAMPAIGN_STATUS_LABELS,
+  CHILD_RESULT_STATUS_LABELS,
+  FOLLOW_UP_STATUS_LABELS,
+  MEASUREMENT_RESULT_STATUS_LABELS,
+} from '@/models/children/healthCheckConstants';
 import { CONCLUSION_CATEGORY_LABELS } from '@/models/children/healthExamForm';
 import { formatDate } from '@/utils/format';
 
@@ -64,8 +71,10 @@ export const MotorResultBadge = createStatusBadge(
   MOTOR_RESULT_LABELS,
 );
 
+// Vấn đề đã biết, ổn định là nhãn thông tin (teal), không phải cảnh báo (user chốt 2026-10-21).
 const FOLLOW_UP_STYLE = {
   NONE: ['green', CheckCircle2],
+  KNOWN_STABLE: ['teal', Info],
   WATCH: ['orange', Eye],
   CLOSE_WATCH: ['red', AlertTriangle],
   UNAVAILABLE: ['gray', MinusCircle],
@@ -80,8 +89,8 @@ export const FollowUpLevelShortBadge = createStatusBadge(FOLLOW_UP_STYLE, FOLLOW
 export const ParentAccountBadge = createStatusBadge(
   {
     NOT_ACTIVATED: ['gray', UserPlus],
-    PENDING_ACTIVATION: ['orange', KeyRound],
     ACTIVE: ['green', UserCheck],
+    INACTIVE: ['gray', Lock],
     NO_ACCOUNT: ['orange', UserPlus],
   },
   { ...PARENT_ACCOUNT_STATUS_LABELS, NO_ACCOUNT: 'Chưa có tài khoản' },
@@ -133,13 +142,35 @@ export const ChildResultBadge = createStatusBadge(
   CHILD_RESULT_STATUS_LABELS,
 );
 
-/* Kết luận bác sĩ (BE trả nhóm): chuyển khám, nguy cơ lao = cần xử lý (red); có vấn đề, tư vấn = cần để ý (orange). */
+/* Trẻ trong kỳ cân đo: không có nháp, kết luận (user chốt 2026-10-31). */
+export const MeasurementResultBadge = createStatusBadge(
+  {
+    NOT_RECORDED: ['orange', Clock],
+    RECORDED: ['green', CheckCircle2],
+    ABSENT: ['gray', UserX],
+  },
+  MEASUREMENT_RESULT_STATUS_LABELS,
+);
+
+/* Loại: đợt khám (bác sĩ khám) hay kỳ cân đo (giáo viên cân đo). Chỉ là nhãn phân loại, tone trung tính. */
+export const CampaignKindBadge = createStatusBadge(
+  {
+    EXAM: ['blue', Stethoscope],
+    MEASUREMENT: ['gray', Scale],
+  },
+  CAMPAIGN_KIND_LABELS,
+);
+
+/* Kết luận bác sĩ (BE trả nhóm): chuyển khám, nguy cơ lao, bất thường mới khi đang theo dõi = cần xử lý (red);
+   có vấn đề, tư vấn = cần để ý (orange); đang theo dõi, chưa ghi nhận thêm = đang thực hiện (blue). */
 export const ConclusionCategoryBadge = createStatusBadge(
   {
     NORMAL: ['green', CheckCircle2],
     ISSUE: ['orange', Eye],
     REFERRAL: ['red', AlertTriangle],
     TB_RISK: ['red', ShieldAlert],
+    FOLLOWING_NO_NEW: ['blue', Eye],
+    FOLLOWING_NEW: ['red', AlertTriangle],
   },
   CONCLUSION_CATEGORY_LABELS,
 );
@@ -155,14 +186,22 @@ export const FollowUpStatusBadge = createStatusBadge(
   FOLLOW_UP_STATUS_LABELS,
 );
 
-/* Công bố kết quả cho phụ huynh: đã công bố = hoàn tất (green), chưa công bố = chưa có (gray). */
+/* Công bố kết quả cho phụ huynh (BE công bố khi lưu, 2026-10-23): đã công bố = hoàn tất (green), chưa công bố = chưa có (gray). */
 export const PublishStatusBadge = createStatusBadge(
   {
     PUBLISHED: ['green', CheckCircle2],
-    PUBLISHED_ON_SAVE: ['green', CheckCircle2],
     UNPUBLISHED: ['gray', MinusCircle],
   },
-  { PUBLISHED: 'Đã công bố', PUBLISHED_ON_SAVE: 'Đã công bố khi lưu kết luận', UNPUBLISHED: 'Chưa công bố' },
+  { PUBLISHED: 'Đã công bố', UNPUBLISHED: 'Chưa công bố' },
+);
+
+/* Phiếu khám mức Cần theo dõi sát đã trao đổi với phụ huynh chưa: chưa = việc của giáo viên (orange). */
+export const ParentContactBadge = createStatusBadge(
+  {
+    CONTACTED: ['green', Handshake],
+    NOT_CONTACTED: ['orange', Clock],
+  },
+  { CONTACTED: 'Đã trao đổi phụ huynh', NOT_CONTACTED: 'Chưa trao đổi phụ huynh' },
 );
 
 /** Hạn trao đổi của vòng theo dõi (BE trả dueOn, overdueDays). Quá hạn = cần xử lý (red). */
