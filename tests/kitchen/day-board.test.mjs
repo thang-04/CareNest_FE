@@ -57,6 +57,22 @@ test('AC-3 NUT-11, P-38: kho khô đã trừ n thực phẩm, link lịch sử n
   assert.equal(withOpen.actions[0].to, '/kitchen/stock-history?campusId=1');
 });
 
+test('P-38: trừ kho sau xác nhận suất từng lỗi ⇒ báo chưa trừ, nút đồng bộ kho kèm link lịch sử', () => {
+  const row = rowOf(
+    buildDayBoardRows(campus({ dryStock: { status: 'NOT_SYNCED', foodCount: 2, shortfallFoodCount: 0, openShortfallCount: 0 } })),
+    'dryStock',
+  );
+  assert.deepEqual([row.tone, row.status], ['red', 'Chưa trừ 2 thực phẩm']);
+  assert.match(row.detail, /Đồng bộ kho/);
+  assert.deepEqual(
+    row.actions.map((a) => [a.label, !!a.syncStock]),
+    [
+      ['Đồng bộ kho', true],
+      ['Lịch sử nhập/trừ', false],
+    ],
+  );
+});
+
 test('AC-3: kho khô thiếu n thực phẩm, link phần thiếu chờ bổ sung', () => {
   const row = rowOf(
     buildDayBoardRows(campus({ dryStock: { status: 'SHORTFALL', foodCount: 8, shortfallFoodCount: 3, openShortfallCount: 4 } })),
@@ -137,6 +153,13 @@ test('adapter: GET /nutrition/day-board với date, campusId tùy chọn; thiế
   await api.getDayBoard({ date: DATE, campusId: '2' });
   assert.deepEqual(calls[1].params, { date: DATE, campusId: '2' });
   assert.deepEqual((await api.getDayBoard({ date: DATE })).campuses, []);
+});
+
+test('adapter: đồng bộ kho gọi POST /nutrition/stock/days/{date}/sync?campusId=', async () => {
+  const calls = [];
+  const client = { post: async (url, body, config) => calls.push({ url, body, params: config.params }) };
+  await createDayBoardApi({ client }).syncStockDay({ date: DATE, campusId: '1' });
+  assert.deepEqual(calls, [{ url: `/nutrition/stock/days/${DATE}/sync`, body: null, params: { campusId: '1' } }]);
 });
 
 test('module day-board khai source api cho /boarding', () => {

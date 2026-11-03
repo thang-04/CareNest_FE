@@ -154,6 +154,7 @@
     "POST /nutrition/foods",
     "POST /nutrition/foods/import",
     "POST /nutrition/meal-plans/{x}/publish",
+    "POST /nutrition/stock/days/{x}/sync",
     "POST /nutrition/stock/receipts",
     "POST /nutrition/stock/receipts/{x}/cancel",
     "POST /nutrition/stock/receipts/{x}/confirm",

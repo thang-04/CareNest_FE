@@ -1,15 +1,18 @@
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight } from '@/components/ui/icons';
+import { ArrowRight, RefreshCw } from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { CampusFilter } from '@/components/ui/CampusFilter';
+import { useToast } from '@/contexts/ToastContext';
 import { DateInput } from '@/components/form/DateInput';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useDayBoard } from '@/hooks/boarding/useDayBoard';
+import { dayBoardApi } from '@/services/dayBoardApi';
 import { buildDayBoardRows } from '@/utils/boarding/dayBoardRows';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/boarding.css';
 
-function CampusBoard({ campus, date }) {
+function CampusBoard({ campus, date, syncing, onSyncStock }) {
   const rows = buildDayBoardRows(campus, { date });
   return (
     <section className="card" aria-label={campus.campusName}>
@@ -40,11 +43,23 @@ function CampusBoard({ campus, date }) {
                 <td className="bd-detail">{row.detail}</td>
                 <td>
                   <div className="bd-actions">
-                    {row.actions.map((action, i) => (
-                      <Link key={action.to} className={`btn btn--sm ${i ? 'btn--ghost' : ''}`} to={action.to}>
-                        {action.label} <ArrowRight size={14} />
-                      </Link>
-                    ))}
+                    {row.actions.map((action, i) =>
+                      action.syncStock ? (
+                        <button
+                          key={action.key}
+                          type="button"
+                          className="btn btn--sm btn--primary"
+                          disabled={syncing}
+                          onClick={() => onSyncStock(campus)}
+                        >
+                          <RefreshCw size={14} /> {action.label}
+                        </button>
+                      ) : (
+                        <Link key={action.to} className={`btn btn--sm ${i ? 'btn--ghost' : ''}`} to={action.to}>
+                          {action.label} <ArrowRight size={14} />
+                        </Link>
+                      ),
+                    )}
                   </div>
                 </td>
               </tr>
@@ -66,6 +81,21 @@ export default function BoardingTodayPage() {
   const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
   const campusId = params.get('campusId') || '';
   const board = useDayBoard(date, campusId);
+  const toast = useToast();
+  const [syncing, setSyncing] = useState(false);
+
+  const syncStock = async (campus) => {
+    setSyncing(true);
+    try {
+      await dayBoardApi.syncStockDay({ date: board.data?.date || date, campusId: campus.campusId });
+      toast.success(`Đã đồng bộ kho khô ${campus.campusName}.`);
+      board.reload();
+    } catch (err) {
+      toast.error(err, 'Chưa đồng bộ được kho');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const setFilter = (key, value) =>
     setParams(
@@ -91,7 +121,7 @@ export default function BoardingTodayPage() {
     body = (
       <div className="bd-stack">
         {board.data.campuses.map((campus) => (
-          <CampusBoard key={campus.campusId} campus={campus} date={board.data.date || date} />
+          <CampusBoard key={campus.campusId} campus={campus} date={board.data.date || date} syncing={syncing} onSyncStock={syncStock} />
         ))}
       </div>
     );

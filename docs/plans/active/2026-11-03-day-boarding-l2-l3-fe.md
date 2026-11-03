@@ -91,3 +91,9 @@ Chuyển dữ liệu → dòng bằng hàm thuần `src/utils/boarding/dayBoardR
 - Giả định agent cũ đã xử lý: (1) `percent` = % năng lượng (đạm/béo/bột), `target` không hiện; (5) BE `GET /nutrition/foods` có tham số `storage` nhưng lọc phía FE vẫn đúng — giữ.
 - Kiểm E2E dữ liệu thật (user yêu cầu 03/11 "test dữ liệu thật, không mock"): stack docker riêng `carenest_l3` (Postgres :5433, Keycloak :8181 import user dev, API :8081 build từ nhánh) + FE build `VITE_USE_MOCK=false VITE_SCHOOL_CONFIG_API=true`, đăng nhập HT dev. Luồng đã chạy: phiếu nhập 2 điểm trường (API) → lập lưới tuần 02/11 → công bố trên UI → sổ suất tổng hợp từ điểm danh thật, HT xác nhận trên UI → event trừ kho: CS-A gạo 166 g lấy lô hạn 30/11 trước, dầu 10 g, sữa thiếu 360 ml; CS-B trừ đủ 3 thực phẩm (khớp tính tay) → phiếu nhập bổ sung sữa trên UI ⇒ `SHORTFALL_DEDUCT` −2 hộp, hub CS-A "Đã trừ"; hủy phiếu có lô đã trừ ⇒ 409 6032; tuần 09/11 lập trên UI, thứ Ba trống ⇒ hộp thoại 2 lỗi chặn, `POST /publish` ⇒ 409 6039.
 - Ảnh: `docs/plans/active/day-boarding-screens/l3-*.jpg` (hub 3 trạng thái, kế hoạch tuần đã công bố/nháp, bảng kiểm, hộp thoại công bố), `l2-*.jpg` (tồn theo lô, lịch sử, phần thiếu, hủy bị chặn).
+
+### 2026-11-03 — Hub: trạng thái "chưa trừ kho" + nút "Đồng bộ kho" (theo sửa lỗi review BE)
+- Commit: chưa commit
+- Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`
+- BE thêm `dryStock.status = NOT_SYNCED` và `POST /nutrition/stock/days/{date}/sync?campusId`. FE: `dayBoardApi.syncStockDay`, `dayBoardRows` (đỏ "Chưa trừ n thực phẩm", nút đồng bộ + link lịch sử), nút trên `BoardingTodayPage` (toast, nạp lại). `be-api-routes.json` thêm route. Test `tests/kitchen/day-board.test.mjs` +2.
+- Kiểm stack `carenest_l3`: hub CS-A 05/11 "Chưa trừ 3 thực phẩm" → "Đồng bộ kho" → "Đã trừ 3 thực phẩm".

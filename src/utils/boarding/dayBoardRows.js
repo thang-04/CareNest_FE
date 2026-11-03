@@ -59,6 +59,11 @@ const DRY_STOCK_STATUS = {
   DAY_OFF: ['gray', () => 'Ngày nghỉ', () => 'Hôm nay không trừ kho.'],
   NO_MENU: ['gray', () => 'Không có thực đơn', () => 'Chưa có thực đơn đã công bố cho ngày này nên chưa trừ kho.'],
   WAITING_COUNT: ['orange', () => 'Chờ suất', () => 'Chờ số suất ăn được xác nhận.'],
+  NOT_SYNCED: [
+    'red',
+    (d) => `Chưa trừ ${d.foodCount ?? 0} thực phẩm`,
+    () => 'Suất đã xác nhận nhưng kho chưa trừ đủ (lần trừ tự động bị lỗi). Bấm "Đồng bộ kho" để trừ lại.',
+  ],
   NOTHING_TO_DEDUCT: ['gray', () => 'Không có hàng khô cần trừ', () => 'Thực đơn hôm nay không có thực phẩm khô.'],
   DEDUCTED: [
     'green',
@@ -76,17 +81,17 @@ const dryStockRow = (campus) => {
   const stock = campus.dryStock || {};
   const [tone, statusOf, detailOf] = DRY_STOCK_STATUS[stock.status] || ['gray', () => UNKNOWN[1], () => ''];
   const shortfall = stock.status === 'SHORTFALL';
+  const link = shortfall
+    ? { label: 'Phần thiếu', to: withQuery('/kitchen/stock-shortfalls', { campusId: campus.campusId }) }
+    : { label: 'Lịch sử nhập/trừ', to: withQuery('/kitchen/stock-history', { campusId: campus.campusId }) };
   return {
     key: 'dryStock',
     title: 'Kho khô',
     tone,
     status: statusOf(stock),
     detail: detailOf(stock),
-    actions: [
-      shortfall
-        ? { label: 'Phần thiếu', to: withQuery('/kitchen/stock-shortfalls', { campusId: campus.campusId }) }
-        : { label: 'Lịch sử nhập/trừ', to: withQuery('/kitchen/stock-history', { campusId: campus.campusId }) },
-    ],
+    // NOT_SYNCED: nút gọi BE trừ lại (BE kiểm quyền), không phải link
+    actions: stock.status === 'NOT_SYNCED' ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, link] : [link],
   };
 };
 

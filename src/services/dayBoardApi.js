@@ -14,6 +14,10 @@ export const createDayBoardApi = ({ client = beClient } = {}) => ({
     const board = await client.get('/nutrition/day-board', { params: params({ date, campusId }) });
     return { ...board, campuses: board?.campuses || [] };
   },
+  /** Trừ lại kho khô của điểm trường–ngày khi lần trừ sau xác nhận suất bị lỗi (BE idempotent). */
+  async syncStockDay({ date, campusId }) {
+    await client.post(`/nutrition/stock/days/${date}/sync`, null, { params: { campusId } });
+  },
 });
 
 export const dayBoardApi = createDayBoardApi();
