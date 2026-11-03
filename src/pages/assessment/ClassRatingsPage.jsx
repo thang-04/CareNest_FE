@@ -1,15 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Download, Save, Wand2 } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
+import { VersionHistory } from '@/components/ui/VersionHistory';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useClassRatings } from '@/hooks/assessment/useAssessment';
+import { useDraftBackup } from '@/hooks/assessment/useDraftBackup';
 import { saveClassRatings } from '@/services/assessment/assessmentService';
 import {
   CLASS_RATING_CRITERIA,
@@ -31,7 +33,8 @@ const label = (level) => CLASS_RATING_LEVEL_LABELS[level] || '';
 
 /**
  * Xếp loại nhóm lớp học kỳ I, II, cuối năm (sổ chỉ đạo chuyên môn mục 7, BE OBS-24). Một bảng cho cả trường: HT chấm
- * mọi lớp, PHT lớp điểm trường mình (BE trả canEdit từng lớp); GV xem lớp mình. Sửa nhiều ô rồi lưu một lần.
+ * mọi lớp, PHT lớp điểm trường mình (BE trả canEdit từng lớp); GV xem lớp mình. Sửa nhiều ô rồi lưu một lần; đang sửa
+ * thì giữ ẩn trên máy và có Lịch sử phiên bản như kế hoạch giáo dục.
  */
 export default function ClassRatingsPage() {
   const { user } = useAuth();
@@ -94,6 +97,7 @@ export default function ClassRatingsPage() {
         user,
       );
       toast.success(`Đã lưu xếp loại ${changed.length} lớp.`);
+      backup.clear();
       setDrafts({});
       await reload({ silent: true });
       return true;
@@ -104,6 +108,32 @@ export default function ClassRatingsPage() {
       setSaving(false);
     }
   };
+
+  // Bản giữ trên máy: các lớp được chấm, classId -> { levels, note }
+  const snapshot = (pick) => (editable.length ? Object.fromEntries(editable.map((r) => [r.classId, pick(r)])) : null);
+  const savedDoc = snapshot((r) => ({ levels: r.levels || {}, note: r.note || '' }));
+  const currentDoc = snapshot(valueOf);
+  const backup = useDraftBackup({
+    userId: user?.id,
+    docKey: schoolYear ? `class-ratings:${schoolYear}:${period}:${campusId || 'all'}` : null,
+    doc: currentDoc,
+    saved: savedDoc,
+    base: editable.map((r) => `${r.classId}@${r.ratedAt || ''}`).join(','),
+    enabled: changed.length > 0,
+  });
+  const linesOf = useCallback(
+    (doc) =>
+      rows
+        .filter((r) => doc?.[r.classId])
+        .flatMap((r) => {
+          const v = doc[r.classId];
+          const levels = FIELDS.map(
+            (f) => `${f === 'overall' ? 'Chung' : CLASS_RATING_CRITERIA.find((c) => c.key === f).label}: ${label(v.levels?.[f]) || '—'}`,
+          );
+          return [`${r.className} – ${levels.join('; ')}`, ...(v.note ? [`${r.className} – Ghi chú: ${v.note}`] : [])];
+        }),
+    [rows],
+  );
 
   const guard = useLeaveGuard({ when: changed.length > 0, onSave: save });
   // Đổi kỳ / điểm trường khi còn thay đổi chưa lưu: hỏi trước
@@ -185,6 +215,19 @@ export default function ClassRatingsPage() {
             <span className="muted text-sm">
               Đã xếp loại {rated}/{rows.length} lớp
             </span>
+          )}
+          {editable.length > 0 && (
+            <VersionHistory
+              drafts={backup.drafts}
+              saved={savedDoc}
+              current={currentDoc}
+              unsaved={changed.length > 0}
+              linesOf={linesOf}
+              onUse={(entry, doc) => {
+                setDrafts(doc || {});
+                if (entry) backup.used(entry);
+              }}
+            />
           )}
           {editable.length > 0 && (
             <button className="btn" onClick={fillEmpty} title="Điền Tốt vào các tiêu chí còn trống; xếp loại chung bạn tự chọn">
@@ -283,7 +326,15 @@ export default function ClassRatingsPage() {
         </div>
       )}
 
-      <LeaveConfirmModal {...guard.modal} canSave message="Xếp loại nhóm lớp có thay đổi chưa lưu." />
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave
+        message="Xếp loại nhóm lớp có thay đổi chưa lưu."
+        onDiscard={() => {
+          backup.clear({ pause: true });
+          guard.modal.onDiscard();
+        }}
+      />
       <ConfirmationModal
         open={!!pending}
         title="Bỏ các thay đổi chưa lưu?"
@@ -291,6 +342,7 @@ export default function ClassRatingsPage() {
         confirmLabel="Bỏ thay đổi và chuyển"
         onClose={() => setPending(null)}
         onConfirm={() => {
+          backup.clear();
           setDrafts({});
           pending?.();
           setPending(null);

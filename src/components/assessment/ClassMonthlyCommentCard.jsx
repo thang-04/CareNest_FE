@@ -1,16 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { useDraftBackup } from '@/hooks/assessment/useDraftBackup';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { VersionHistory } from '@/components/ui/VersionHistory';
+import { docLines } from '@/models/draftHistory.mjs';
 import { ErrorState, Spinner } from '@/components/ui/States';
 import { confirmClassMonthlyComment, getClassMonthlyComment, saveClassMonthlyComment } from '@/services/assessment/assessmentService';
 import { formatDateTime } from '@/utils/format';
 
 /**
  * Nhận xét chung cả lớp của một tháng (BE OBS-26), đặt trên danh sách Đánh giá tháng: GV lớp sửa bản nháp hệ thống viết
- * rồi xác nhận; BGH xem bản đã xác nhận. month = ngày 1 của tháng (yyyy-MM-01).
+ * rồi xác nhận; BGH xem bản đã xác nhận. month = ngày 1 của tháng (yyyy-MM-01). Đang soạn: giữ ẩn trên máy và Lịch sử
+ * phiên bản như kế hoạch giáo dục; rời màn khi chưa lưu thì hỏi.
  */
 export function ClassMonthlyCommentCard({ classId, month }) {
   const { user } = useAuth();
@@ -21,7 +27,20 @@ export function ClassMonthlyCommentCard({ classId, month }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
-  useEffect(() => setText(data?.content || data?.draft || ''), [data]);
+  const savedText = data ? data.content || data.draft || '' : null;
+  useEffect(() => setText(savedText || ''), [savedText]);
+  const editable = !!data?.canEdit;
+  const unsaved = editable && text !== savedText;
+  const backup = useDraftBackup({
+    userId: user?.id,
+    docKey: classId && month ? `class-monthly-comment:${classId}:${month}` : null,
+    doc: text,
+    saved: savedText,
+    base: data ? `${data.status}|${data.updatedAt || ''}` : null,
+    enabled: editable,
+  });
+  const saveRef = useRef(null);
+  const guard = useLeaveGuard({ when: unsaved, onSave: () => saveRef.current?.() ?? false });
 
   if (!classId || !month) return null;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -32,20 +51,37 @@ export function ClassMonthlyCommentCard({ classId, month }) {
     setBusy(key);
     try {
       await fn({ classId, month, content: text }, user);
+      backup.clear();
       toast.success(message);
       reload({ silent: true });
+      return true;
     } catch (err) {
       toast.error(err, 'Chưa lưu được nhận xét chung');
+      return false;
     } finally {
       setBusy('');
       setConfirmOpen(false);
     }
   };
+  saveRef.current = () => run('save', saveClassMonthlyComment, 'Đã lưu nhận xét chung.');
 
   return (
     <div className="card mb-16">
       <div className="card__header">
         <div className="card__title">{label}</div>
+        {data.canEdit && (
+          <VersionHistory
+            drafts={backup.drafts}
+            saved={savedText}
+            current={text}
+            unsaved={unsaved}
+            linesOf={docLines}
+            onUse={(entry, doc) => {
+              setText(doc);
+              if (entry) backup.used(entry);
+            }}
+          />
+        )}
         {data.status === 'CONFIRMED' && (
           <span className="chip chip--green">Đã xác nhận{data.confirmedAt ? ` · ${formatDateTime(data.confirmedAt)}` : ''}</span>
         )}
@@ -85,6 +121,15 @@ export function ClassMonthlyCommentCard({ classId, month }) {
         confirmLabel="Xác nhận"
         onConfirm={() => run('confirm', confirmClassMonthlyComment, 'Đã xác nhận nhận xét chung của lớp.')}
         onClose={() => setConfirmOpen(false)}
+      />
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave
+        message="Nhận xét chung của lớp có chỉnh sửa chưa lưu."
+        onDiscard={() => {
+          backup.clear({ pause: true });
+          guard.modal.onDiscard();
+        }}
       />
     </div>
   );
