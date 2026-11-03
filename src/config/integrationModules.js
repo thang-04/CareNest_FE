@@ -160,8 +160,14 @@ export const INTEGRATION_MODULES = {
   // Kế hoạch tuần theo khối + công bố trên BE /nutrition/meal-plans; thắng '/menu' của thực đơn mẫu còn demo
   'meal-plan': {
     source: 'api',
-    routes: ['/menu/weekly'],
+    routes: ['/menu/weekly', '/menu/statistics'],
     files: ['src/services/mealPlanApi.js'],
+  },
+  // Bộ thực đơn mẫu 4 tuần theo khối trên BE /nutrition/menu-templates (NUT-13)
+  'menu-template': {
+    source: 'api',
+    routes: ['/menu/templates'],
+    files: ['src/services/menuTemplateApi.js'],
   },
   // Bán trú hôm nay trên BE GET /nutrition/day-board
   'day-board': {

@@ -161,6 +161,9 @@ const WeeklyMenuDetailPage = lazy(() => import('@/pages/menu-planning/WeeklyMenu
 const WeeklyMenuFormPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuFormPage'));
 const NutritionBalancePage = lazy(() => import('@/pages/menu-planning/NutritionBalancePage'));
 const WeeklyPlanPage = lazy(() => import('@/pages/menu-planning/WeeklyPlanPage'));
+const MenuTemplateListPage = lazy(() => import('@/pages/menu-planning/MenuTemplateListPage'));
+const MenuTemplateEditorPage = lazy(() => import('@/pages/menu-planning/MenuTemplateEditorPage'));
+const MenuStatisticsPage = lazy(() => import('@/pages/menu-planning/MenuStatisticsPage'));
 const MenuPlanListPage = lazy(() => import('@/pages/menu-planning/MenuPlanListPage'));
 const MenuPlanDetailPage = lazy(() => import('@/pages/menu-planning/MenuPlanDetailPage'));
 const VP_ONLY = [ROLES.VICE_PRINCIPAL];
@@ -175,6 +178,7 @@ const SUPPLIER_EDITORS = CATALOG_API ? LEADERS : [R.PRINCIPAL];
 // Bán trú nối BE (hub, kế hoạch tuần, kho khô): build mock (VITE_USE_MOCK mặc định) giữ màn demo cũ, không có mock cho contract mới.
 const BOARDING_API = !isDemoModule('day-board');
 const MEAL_PLAN_API = !isDemoModule('meal-plan');
+const TEMPLATE_API = !isDemoModule('menu-template');
 const DRY_STOCK_API = !isDemoModule('dry-stock');
 const FRESH_GOODS_API = !isDemoModule('fresh-goods');
 const KITCHEN_RECORDS_API = !isDemoModule('kitchen-records');
@@ -358,7 +362,24 @@ export function AppRoutes() {
             <Route path="suppliers/new" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
             <Route path="suppliers/:id" element={only(LEADERS, <SupplierDetailPage />)} />
             <Route path="suppliers/:id/edit" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
-            <Route path="menus" element={only(VP_ONLY, <MenuListPage />)} />
+            {/* Bộ thực đơn mẫu 4 tuần trên BE (NUT-13) thay thực đơn mẫu một ngày của bản demo */}
+            <Route
+              path="templates"
+              element={TEMPLATE_API ? only(LEADERS, <MenuTemplateListPage />) : <Navigate to="/menu/menus" replace />}
+            />
+            <Route
+              path="templates/new"
+              element={TEMPLATE_API ? only(LEADERS, <MenuTemplateEditorPage />) : <Navigate to="/menu/menus" replace />}
+            />
+            <Route
+              path="templates/:id"
+              element={TEMPLATE_API ? only(LEADERS, <MenuTemplateEditorPage />) : <Navigate to="/menu/menus" replace />}
+            />
+            <Route
+              path="statistics"
+              element={MEAL_PLAN_API ? only(LEADERS, <MenuStatisticsPage />) : <Navigate to="/menu/weekly" replace />}
+            />
+            <Route path="menus" element={TEMPLATE_API ? <Navigate to="/menu/templates" replace /> : only(VP_ONLY, <MenuListPage />)} />
             <Route path="menus/new" element={only(VP_ONLY, <MenuFormPage />)} />
             <Route path="menus/:id" element={only(VP_ONLY, <MenuDetailPage />)} />
             <Route path="menus/:id/edit" element={only(VP_ONLY, <MenuFormPage />)} />

@@ -209,14 +209,17 @@ test('form thực phẩm bắt buộc nguồn gốc; định mức tỷ lệ đ�
     norms,
   });
   const core = { kcal: ['600', '700'], protein: ['13', '20'], lipid: ['25', '35'], glucid: ['52', '60'] };
-  const blank = { animalProteinPct: ['', ''], animalLipidPct: ['', ''] };
+  const blank = { animalProteinG: ['', ''], plantLipidG: ['', ''], lunchKcalPct: ['', ''] };
   assert.deepEqual(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group({ ...core, ...blank })] }, '2026-10-20'), {});
-  const partial = { ...core, ...blank, animalProteinPct: ['50', ''] };
+  const partial = { ...core, ...blank, animalProteinG: ['12', ''] };
   assert.ok(
-    validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(partial)] }, '2026-10-20')['ag-4.norms.animalProteinPct'],
+    validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(partial)] }, '2026-10-20')['ag-4.norms.animalProteinG'],
   );
-  const over = { ...core, ...blank, animalLipidPct: ['50', '120'] };
-  assert.ok(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(over)] }, '2026-10-20')['ag-4.norms.animalLipidPct']);
+  // Gam không giới hạn 100; % năng lượng bữa thì có
+  const grams = { ...core, ...blank, plantLipidG: ['90', '120'] };
+  assert.deepEqual(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(grams)] }, '2026-10-20'), {});
+  const over = { ...core, ...blank, lunchKcalPct: ['50', '120'] };
+  assert.ok(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(over)] }, '2026-10-20')['ag-4.norms.lunchKcalPct']);
 });
 
 test('dữ liệu mẫu: mọi thực phẩm (cả thư viện tham khảo) có nguồn gốc; thịt, thủy sản, trứng sữa là động vật', () => {

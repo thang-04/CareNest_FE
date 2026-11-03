@@ -128,6 +128,12 @@ export const evaluationGroups = (plan, block) => {
   return [...groups.values()];
 };
 
+/** Bữa có kết quả % năng lượng (`sessions` BE trả) trong các ngày của một nhóm tuổi, theo thứ tự trong ngày. */
+export const evaluationSessions = (group) => {
+  const found = new Set(Object.values(group?.byDate || {}).flatMap((e) => (e.sessions || []).map((r) => r.session)));
+  return SESSION_ORDER.filter((session) => found.has(session));
+};
+
 /* ---------- lỗi / cảnh báo công bố ---------- */
 const SEVERITY_ORDER = ['BLOCKING', 'WARNING', 'INFO'];
 

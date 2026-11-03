@@ -12,6 +12,7 @@ const {
   dayResult,
   draftFromPlan,
   evaluationGroups,
+  evaluationSessions,
   gridSections,
   groupIssuesByDate,
   isDirty,
@@ -75,6 +76,10 @@ const bePlan = (over = {}) => ({
       cost: 29000,
       mealPrice: 30000,
       rows: [],
+      sessions: [
+        { session: 'AFTERNOON', kcal: 180, percent: 30, min: 25, max: 35, status: 'OK' },
+        { session: 'LUNCH', kcal: 420, percent: 70, min: 40, max: 50, status: 'HIGH' },
+      ],
     },
     {
       date: DAYS[0],
@@ -192,6 +197,8 @@ test('đồng bộ BE: khối, bữa từng khối theo thứ tự trong ngày, 
   assert.equal(groups.length, 1);
   assert.equal(groups[0].ageGroupName, 'Mẫu giáo 4-5 tuổi');
   assert.deepEqual(Object.keys(groups[0].byDate), [DAYS[0], DAYS[1]]);
+  assert.deepEqual(evaluationSessions(groups[0]), ['LUNCH', 'AFTERNOON'], 'bữa có % năng lượng (NUT-25), theo thứ tự trong ngày');
+  assert.deepEqual(evaluationSessions(evaluationGroups(plan, 'NURSERY')[0]), []);
   assert.deepEqual(planBlocks(null), []);
 });
 
@@ -296,9 +303,9 @@ test('công bố bị BE từ chối (409) thì lỗi giữ nguyên status để
   assert.equal(groupIssuesByDate(issuesBySeverity(refreshed.issues).blocking).length, 1);
 });
 
-test('module meal-plan khai source api cho /menu/weekly', () => {
+test('module meal-plan khai source api cho /menu/weekly và /menu/statistics', () => {
   const mod = INTEGRATION_MODULES['meal-plan'];
   assert.equal(mod.source, 'api');
-  assert.deepEqual(mod.routes, ['/menu/weekly']);
+  assert.deepEqual(mod.routes, ['/menu/weekly', '/menu/statistics']);
   assert.deepEqual(mod.files, ['src/services/mealPlanApi.js']);
 });

@@ -181,17 +181,40 @@ export const MEAL_BLOCK_LABELS = { NURSERY: 'Nhà trẻ', KINDERGARTEN: 'Mẫu g
 export const MEAL_PLAN_STATUS = { NONE: 'NONE', DRAFT: 'DRAFT', PUBLISHED: 'PUBLISHED' };
 export const MEAL_PLAN_STATUS_LABELS = { NONE: 'Chưa lập', DRAFT: 'Bản nháp', PUBLISHED: 'Đã công bố' };
 export const PLAN_ISSUE_SEVERITY_LABELS = { BLOCKING: 'Cần sửa trước khi công bố', WARNING: 'Cảnh báo', INFO: 'Lưu ý' };
-// Sáu dòng kiểm tra từng ngày của một nhóm tuổi, theo thứ tự hiển thị
-export const EVAL_ROW_KEYS = ['kcal', 'protein', 'lipid', 'glucid', 'animalProteinPct', 'animalLipidPct'];
+// Dòng kiểm tra từng ngày của một nhóm tuổi (khóa `rows[].key` BE trả), theo thứ tự bảng dinh dưỡng PMS
+export const EVAL_ROW_KEYS = [
+  'kcal',
+  'animalProteinG',
+  'plantProteinG',
+  'animalLipidG',
+  'plantLipidG',
+  'glucidG',
+  'protein',
+  'lipid',
+  'glucid',
+];
 export const EVAL_ROW_LABELS = {
   kcal: 'Năng lượng',
-  protein: 'Chất đạm (protein)',
-  lipid: 'Chất béo (lipid)',
-  glucid: 'Tinh bột (glucid)',
-  animalProteinPct: 'Đạm động vật / tổng đạm',
-  animalLipidPct: 'Béo động vật / tổng béo',
+  animalProteinG: 'Đạm động vật',
+  plantProteinG: 'Đạm thực vật',
+  animalLipidG: 'Béo động vật',
+  plantLipidG: 'Béo thực vật',
+  glucidG: 'Bột đường',
+  protein: 'Cơ cấu đạm (P)',
+  lipid: 'Cơ cấu béo (L)',
+  glucid: 'Cơ cấu bột đường (G)',
 };
-export const EVAL_ROW_UNITS = { kcal: 'kcal', protein: 'g', lipid: 'g', glucid: 'g', animalProteinPct: '%', animalLipidPct: '%' };
+export const EVAL_ROW_UNITS = {
+  kcal: 'kcal',
+  animalProteinG: 'g',
+  plantProteinG: 'g',
+  animalLipidG: 'g',
+  plantLipidG: 'g',
+  glucidG: 'g',
+  protein: 'g',
+  lipid: 'g',
+  glucid: 'g',
+};
 
 export const WEEKLY_STATUS = { DRAFT: 'DRAFT', PUBLISHED: 'PUBLISHED', REPLACED: 'REPLACED' };
 export const WEEKLY_STATUS_LABELS = { DRAFT: 'Bản nháp', PUBLISHED: 'Đã xuất bản', REPLACED: 'Đã thay thế' };

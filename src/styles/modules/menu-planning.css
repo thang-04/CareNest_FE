@@ -544,6 +544,17 @@
   vertical-align: middle;
 }
 
+.td-norm--meals {
+  min-width: 420px;
+}
+
+.td-norm__title {
+  margin: 0;
+  padding: var(--space-4) var(--space-6) var(--space-2);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+
 .td-meal-cell {
   display: grid;
   gap: var(--space-1);
@@ -1973,4 +1984,58 @@
 .td-issue__text {
   flex: 1 1 260px;
   min-width: 0;
+}
+
+/* Thống kê định lượng một ngày thực đơn */
+.td-stat-filters {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.td-stat-filters__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.td-stat-filters__row > * {
+  flex: 0 1 220px;
+}
+
+.td-stat-dishes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+
+.td-stat-dishes__title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.td-stat-dishes ol {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--fs-sm);
+}
+
+.td-stat-table td.td-stat--ok {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+
+.td-stat-table td.td-stat--off {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+
+.td-stat-table tfoot td {
+  border-top: 1px solid var(--border-strong);
+}
+
+.td-daily-kcal {
+  max-width: calc(320px + 2 * var(--space-6));
+  padding: 0 var(--space-6) var(--space-3);
 }

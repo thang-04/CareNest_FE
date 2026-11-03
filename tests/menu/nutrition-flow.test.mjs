@@ -27,8 +27,8 @@ test('PHT: sáu nhóm bán trú theo việc', () => {
   );
 });
 
-test('HT: thực đơn tuần, sổ suất, kho chỉ xem; bếp không có mục bán trú trên Web', () => {
-  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'nutrition'), ['weeklyMenus']);
+test('HT: thực đơn tuần, bộ thực đơn mẫu, sổ suất, kho; bếp không có mục bán trú trên Web', () => {
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'nutrition'), ['weeklyMenus', 'menus']);
   assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts']);
   assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'stock'), ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls']);
   assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'catalog'), ['foods', 'dishes', 'nutritionSetup', 'suppliers']);

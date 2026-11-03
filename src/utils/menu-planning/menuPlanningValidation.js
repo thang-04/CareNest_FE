@@ -96,9 +96,10 @@ export const validateDish = (form, others = [], { requireGroups = null } = {}) =
 
 const overlaps = (a, b) => a.effectiveFrom <= (b.effectiveTo || '9999-12-31') && b.effectiveFrom <= (a.effectiveTo || '9999-12-31');
 
-const PERCENT_KEYS = ['protein', 'lipid', 'glucid', 'animalProteinPct', 'animalLipidPct'];
-// Định mức cơ cấu động vật/thực vật không bắt buộc: để trống cả khoảng là chưa đặt
-const OPTIONAL_NORM_KEYS = ['animalProteinPct', 'animalLipidPct'];
+const SESSION_PCT_KEYS = ['morningKcalPct', 'lunchKcalPct', 'afternoonKcalPct'];
+const PERCENT_KEYS = ['protein', 'lipid', 'glucid', ...SESSION_PCT_KEYS];
+// Định mức gam theo chất và % năng lượng từng bữa không bắt buộc: để trống cả khoảng là chưa đặt
+const OPTIONAL_NORM_KEYS = ['animalProteinG', 'plantProteinG', 'animalLipidG', 'plantLipidG', 'glucidG', ...SESSION_PCT_KEYS];
 
 /**
  * Thiết lập dinh dưỡng (hỗ trợ nhập liệu; BE kiểm tra lại). Khóa lỗi: effectiveFrom,

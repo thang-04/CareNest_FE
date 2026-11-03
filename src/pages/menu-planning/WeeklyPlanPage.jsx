@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Lock, Save, Send } from '@/components/ui/icons';
+import { CopyPlus, Lock, Save, Send } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { CopyTemplateDialog } from '@/components/menu-planning/CopyTemplateDialog';
 import { MealPlanEvaluations } from '@/components/menu-planning/MealPlanEvaluations';
 import { MealPlanGrid } from '@/components/menu-planning/MealPlanGrid';
 import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList';
@@ -15,6 +16,8 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { mealPlanApi } from '@/services/mealPlanApi';
 import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, mondayOf } from '@/models/menu-planning/menuPlanningConstants';
 import { blockSessions, draftFromPlan, isDirty, planBlocks, resolveWeekStart } from '@/utils/menu-planning/mealPlanGrid';
+import { copyTemplateWeek } from '@/utils/menu-planning/menuTemplateGrid';
+import { statisticsHref } from '@/utils/menu-planning/menuStatistics';
 import { weeklyCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDateTime, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
@@ -37,6 +40,7 @@ export default function WeeklyPlanPage() {
   const [busy, setBusy] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishError, setPublishError] = useState('');
+  const [copyOpen, setCopyOpen] = useState(false);
 
   // Kế hoạch mới về (đổi tuần, sau khi lưu, nạp lại) ⇒ bản nháp trên màn lấy lại từ BE
   useEffect(() => setDraft(saved), [saved]);
@@ -155,6 +159,11 @@ export default function WeeklyPlanPage() {
           )}
         </div>
         <div className="row td-week-toolbar__actions">
+          {editable && block && (
+            <button type="button" className="btn" disabled={busy} onClick={() => setCopyOpen(true)}>
+              <CopyPlus size={16} /> Sao từ bộ mẫu
+            </button>
+          )}
           {editable && (
             <button type="button" className="btn" disabled={busy || !dirty} onClick={save}>
               <Save size={16} /> Lưu nháp
@@ -199,6 +208,7 @@ export default function WeeklyPlanPage() {
               editable={editable}
               busy={busy}
               onEdit={(fn) => setDraft((d) => fn(d))}
+              dayLink={plan.status === MEAL_PLAN_STATUS.NONE ? undefined : (day) => statisticsHref({ week, date: day.date })}
             />
           </section>
           {plan.issues.length > 0 && (
@@ -231,6 +241,18 @@ export default function WeeklyPlanPage() {
         onConfirm={publish}
         onClose={() => setPublishOpen(false)}
       />
+      {copyOpen && (
+        <CopyTemplateDialog
+          open
+          block={block}
+          onClose={() => setCopyOpen(false)}
+          onConfirm={(template, weekNo) => {
+            setDraft((d) => copyTemplateWeek(d, template, weekNo));
+            setCopyOpen(false);
+            toast.success(`Đã sao tuần ${weekNo} của "${template.name}". Xem lại rồi bấm Lưu nháp.`);
+          }}
+        />
+      )}
       <LeaveConfirmModal {...guard.modal} />
     </div>
   );

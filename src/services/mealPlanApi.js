@@ -34,6 +34,27 @@ export const createMealPlanApi = ({ client = beClient } = {}) => ({
     return toPlan(await client.put(`/nutrition/meal-plans/${weekStart}`, toPlanRequest(draft)));
   },
 
+  /**
+   * Thống kê một ngày thực đơn cho N trẻ của một nhóm tuổi (không lưu): bảng thực phẩm (lượng ăn, thải bỏ, lượng mua, tiền),
+   * bảng kiểm dinh dưỡng, % năng lượng từng bữa. `children` trống ⇒ BE lấy suất đã xác nhận, không có thì sĩ số đang học.
+   */
+  async getMenuStatistics({ ageGroupId, date, campusId, children, items }) {
+    const body = {
+      ageGroupId,
+      ...(date ? { date } : {}),
+      ...(campusId ? { campusId } : {}),
+      ...(children === '' || children == null ? {} : { children: Number(children) }),
+      items: items.map(({ session, dishId }) => ({ session, dishId })),
+    };
+    const stats = await client.post('/nutrition/menu-statistics', body);
+    return { ...stats, dishes: stats?.dishes || [], ingredients: stats?.ingredients || [] };
+  },
+
+  /** Nhóm tuổi của trường (id BE, tên) để chọn nhóm khi xem thống kê. */
+  async listAgeGroups() {
+    return (await client.get('/age-groups')) || [];
+  },
+
   /** Công bố cả tuần; còn lỗi chặn thì BE trả 409 (màn nạp lại kế hoạch để hiện `issues`). */
   async publishPlan(weekStart) {
     return toPlan(await client.post(`/nutrition/meal-plans/${weekStart}/publish`));

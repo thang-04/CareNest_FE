@@ -281,7 +281,7 @@ const ITEMS = {
     to: '/menu/dishes',
   },
   menus: {
-    label: 'Thực đơn mẫu',
+    label: 'Bộ thực đơn mẫu',
     to: '/menu/menus',
   },
   weeklyMenus: {
@@ -404,7 +404,7 @@ const MENUS = {
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     ...boardingGroups({
       today: ['boardingToday'],
-      nutrition: ['weeklyMenus'],
+      nutrition: ['weeklyMenus', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],

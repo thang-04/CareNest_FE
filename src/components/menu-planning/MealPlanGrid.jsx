@@ -1,4 +1,5 @@
 import { Fragment, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, X } from '@/components/ui/icons';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
@@ -21,8 +22,21 @@ const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
  * Bảng kế hoạch tuần của một khối như sổ thực đơn: cột là các thứ, mỗi bữa một dải tiêu đề, bữa trưa tách hàng theo loại món,
  * hàng cuối "Suất dị ứng". Đầu cột: ngày, nhãn kết quả BE đã kiểm ("N lưu ý" / "Đạt"), ô ngày nghỉ.
  * `onEdit(fn)` nhận hàm biến đổi bản nháp; `editable` false ⇒ chỉ xem (đã công bố hoặc không có quyền sửa).
+ * Bộ thực đơn mẫu dùng lại lưới với `hideDates` (ngày của bản nháp là ngày giả) và `allowOff={false}` (bộ mẫu không có ngày nghỉ).
  */
-export function MealPlanGrid({ draft, plan, block, sessions, dishes, editable, busy, onEdit }) {
+export function MealPlanGrid({
+  draft,
+  plan,
+  block,
+  sessions,
+  dishes,
+  editable,
+  busy,
+  onEdit,
+  hideDates = false,
+  allowOff = true,
+  dayLink,
+}) {
   const dishById = useMemo(() => Object.fromEntries(dishes.map((dish) => [String(dish.id), dish])), [dishes]);
   const sections = gridSections(draft, block, sessions, { keepEmpty: !!editable });
   const notesOf = (day) => (day.off ? [] : dayAllergenNotes(day, block, dishById));
@@ -72,7 +86,7 @@ export function MealPlanGrid({ draft, plan, block, sessions, dishes, editable, b
               className="td-week__add td-week__add-select"
               value=""
               disabled={busy || choices.length === 0}
-              aria-label={`Thêm món ${MEAL_SESSION_LABELS[session]} ${row.label} ${ddmm(day.date)}`}
+              aria-label={`Thêm món ${MEAL_SESSION_LABELS[session]} ${row.label} ${hideDates ? WEEKDAY_LABELS[draft.days.indexOf(day)] : ddmm(day.date)}`}
               onChange={(e) => {
                 const dish = dishById[e.target.value];
                 if (dish) onEdit((d) => addDish(d, day.date, block, session, dish));
@@ -105,7 +119,7 @@ export function MealPlanGrid({ draft, plan, block, sessions, dishes, editable, b
                 <th key={day.date}>
                   <div className="td-week__day">
                     <b>
-                      {WEEKDAY_LABELS[i]} <span className="muted td-week__date">{ddmm(day.date)}</span>
+                      {WEEKDAY_LABELS[i]} {!hideDates && <span className="muted td-week__date">{ddmm(day.date)}</span>}
                     </b>
                     {day.off &&
                       (editable ? (
@@ -123,7 +137,12 @@ export function MealPlanGrid({ draft, plan, block, sessions, dishes, editable, b
                       ))}
                     <div className="td-week__day-foot">
                       {result && <StatusBadge tone={result.tone} label={result.label} />}
-                      {editable && (
+                      {dayLink && !day.off && (
+                        <Link className="text-xs" to={dayLink(day, i)} aria-label={`Thống kê định lượng ${WEEKDAY_LABELS[i]}`}>
+                          Thống kê
+                        </Link>
+                      )}
+                      {editable && allowOff && (
                         <label className="checkbox text-xs">
                           <input
                             type="checkbox"
