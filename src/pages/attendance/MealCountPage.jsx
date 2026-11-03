@@ -127,7 +127,7 @@ export default function MealCountPage() {
       const counts = shownCounts.filter((c) => c.campusId === campusId);
       dayBySession(counts).rows.forEach((l) =>
         rows.push([
-          md.campusById?.(campusId)?.name || campusId,
+          md.campusById?.(campusId)?.shortName || md.campusById?.(campusId)?.name || campusId,
           l.className,
           l.present,
           l.absent,
@@ -156,7 +156,7 @@ export default function MealCountPage() {
       <ClassDateBar date={date} maxDate={today} onDateChange={(v) => setParams({ date: v }, { replace: true })}>
         <CampusFilter
           className="dd-bar__field"
-          campuses={allCampuses.map((id) => ({ id, name: md.campusById?.(id)?.name || id }))}
+          campuses={allCampuses.map((id) => ({ id, name: md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id }))}
           value={campusFilter}
           onChange={setCampusFilter}
         />
@@ -191,7 +191,9 @@ export default function MealCountPage() {
             <section key={campusId} className="mb-16">
               <MealRegisterCard
                 counts={shownCounts.filter((c) => c.campusId === campusId)}
-                campusName={allCampuses.length > 1 ? md.campusById?.(campusId)?.name || campusId : ''}
+                campusName={
+                  allCampuses.length > 1 ? md.campusById?.(campusId)?.shortName || md.campusById?.(campusId)?.name || campusId : ''
+                }
                 user={user}
                 md={md}
                 onConfirm={setConfirming}

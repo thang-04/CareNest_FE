@@ -45,7 +45,10 @@ export default function LeaveRequestsPage() {
     setFilters((f) => ({ ...f, ...patch, ...(patch.campusId !== undefined ? { classId: '' } : {}) }));
     setPage(1);
   };
-  const campusName = (id) => (campuses || []).find((c) => c.id === id)?.name || '';
+  const campusName = (id) => {
+    const c = (campuses || []).find((x) => x.id === id);
+    return c?.shortName || c?.name || '';
+  };
   // Hủy một phần: BE giữ ACTIVE, effectiveTo là ngày cuối còn hiệu lực
   const cancelledFrom = (r) =>
     r.status === 'ACTIVE' && r.effectiveTo && r.effectiveTo < r.toDate ? formatDate(addDays(r.effectiveTo, 1)) : '';

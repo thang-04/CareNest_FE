@@ -189,8 +189,12 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
             <div className="card">
               <EmptyState
                 icon={ClipboardList}
-                title="Chưa có dữ liệu trong kỳ"
-                description="Không có hồ sơ nào trong phạm vi hoặc kỳ đã chọn. Hãy chọn kỳ khác."
+                title={d.presentDays > 0 ? 'Chưa có đánh giá hằng ngày trong kỳ' : 'Chưa có dữ liệu trong kỳ'}
+                description={
+                  d.presentDays > 0
+                    ? `Trẻ có mặt ${d.presentDays} ngày nhưng chưa được đánh giá hằng ngày, chưa có nhận xét đã xác nhận hay phiếu bé ngoan trong kỳ này.`
+                    : 'Trẻ chưa có điểm danh, đánh giá hay nhận xét trong kỳ đã chọn. Hãy chọn kỳ khác.'
+                }
               />
             </div>
           ) : (
