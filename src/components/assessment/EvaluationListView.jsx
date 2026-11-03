@@ -18,6 +18,8 @@ import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE, PERIOD_TYPE_LABELS } from '@/model
 import { formatDateTime, normalizeText } from '@/utils/format';
 import { evaluationPeriodLabel } from '@/utils/assessment/assessmentPeriods';
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
+import { monthInSemester } from '@/utils/semesters';
+import { SemesterSelect } from '@/components/form/SemesterSelect';
 
 const TEACHER_TABS = [
   { key: 'TODO', label: 'Chờ xem xét', match: (e) => e.status !== EVAL_STATUS.CONFIRMED },
@@ -69,7 +71,12 @@ export function EvaluationListView({ kind }) {
     return [...map.values()].sort((a, b) => b.start.localeCompare(a.start));
   }, [evaluations]);
   const themes = [...new Set(allPeriods.map((p) => p.theme).filter(Boolean))];
-  const periods = allPeriods.filter((p) => !theme || p.theme === theme);
+  // Đánh giá tháng: lọc các tháng theo học kỳ (Cấu hình thời gian)
+  const [semKey, setSemKey] = useState('');
+  const [sem, setSem] = useState(null);
+  const monthly = !yearEnd && !semester;
+  const inSem = (start) => !monthly || monthInSemester(start.slice(0, 7), sem);
+  const periods = allPeriods.filter((p) => (!theme || p.theme === theme) && inSem(p.start));
   // null = tự chọn kỳ mới nhất trong danh sách; 'ALL' = mọi kỳ
   const activePeriod = period === null ? periods[0]?.key || 'ALL' : period;
   const periodIndex = periods.findIndex((p) => p.key === activePeriod);
@@ -80,6 +87,7 @@ export function EvaluationListView({ kind }) {
   const current = tabs.find((t) => t.key === tab);
   const base = evaluations
     .filter((e) => yearEnd || activePeriod === 'ALL' || `${e.periodType}|${e.periodStart}` === activePeriod)
+    .filter((e) => inSem(e.periodStart))
     .filter((e) => !keyword || normalizeText(`${e.childName} ${e.childCode}`).includes(normalizeText(keyword)));
   const rows = current ? base.filter(current.match) : base;
   // Tab (Chờ xem xét / Đã xác nhận) không phải bộ lọc: đặt lại giữ nguyên tab
@@ -175,6 +183,16 @@ export function EvaluationListView({ kind }) {
           )}
           {!moreFilters && periodTypeSelect}
           {!moreFilters && themeSelect}
+          {monthly && (
+            <SemesterSelect
+              value={semKey}
+              onChange={(key, value) => {
+                setSemKey(key);
+                setSem(value);
+                pickPeriod('');
+              }}
+            />
+          )}
           {!yearEnd && (
             <div className="dg-period-nav">
               <button

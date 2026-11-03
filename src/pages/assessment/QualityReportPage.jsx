@@ -10,6 +10,8 @@ import { useProgramCompletion, useQualityReport } from '@/hooks/assessment/useAs
 import { downloadXlsx } from '@/utils/exportXlsx';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
+import { SemesterSelect } from '@/components/form/SemesterSelect';
+import { monthInSemester } from '@/utils/semesters';
 
 const VIEWS = [
   { key: 'month', label: 'Theo tháng' },
@@ -57,7 +59,10 @@ export default function QualityReportPage() {
   const monthError = error?.details?.month;
   const rows = report?.rows || [];
   const totals = report?.totals || [];
-  const months = report?.months || [];
+  // Tab Cả năm: lọc cột tháng theo học kỳ (Cấu hình thời gian)
+  const [semKey, setSemKey] = useState('');
+  const [sem, setSem] = useState(null);
+  const months = (report?.months || []).filter((m) => view !== 'year' || monthInSemester(m, sem));
   const campusOptions = leader && report?.allCampuses?.length ? report.allCampuses : report?.campuses || [];
   const multiCampus = leader && (campusOptions.length > 1 || !!report?.allCampuses?.length);
   const showCampus = multiCampus && !campusId && (report?.campuses?.length || 0) > 1;
@@ -163,6 +168,16 @@ export default function QualityReportPage() {
       <div className="card">
         <div className="filter-bar dg-ov-toolbar">
           <Tabs items={views} value={view} onChange={setView} ariaLabel="Kiểu xem" />
+          {view === 'year' && (
+            <SemesterSelect
+              value={semKey}
+              emptyLabel="Cả năm học"
+              onChange={(key, value) => {
+                setSemKey(key);
+                setSem(value);
+              }}
+            />
+          )}
           {view === 'month' && (
             <div className="field">
               <select

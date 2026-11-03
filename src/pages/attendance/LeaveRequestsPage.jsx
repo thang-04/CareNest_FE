@@ -5,6 +5,8 @@ import { LeaveStatusBadge } from '@/components/attendance/AttendanceBadges';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { DateInput } from '@/components/form/DateInput';
+import { SemesterSelect } from '@/components/form/SemesterSelect';
+import { semesterRange } from '@/utils/semesters';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useAttendanceClasses } from '@/hooks/attendance/useAttendance';
@@ -26,6 +28,8 @@ export default function LeaveRequestsPage() {
   const today = schoolToday();
   const [filters, setFilters] = useState(() => ({ ...monthRangeOf(today), campusId: '', classId: '' }));
   const [page, setPage] = useState(1);
+  // Lọc nhanh theo học kỳ: đặt khoảng ngày theo học kỳ; sửa ngày tay thì bỏ chọn
+  const [semester, setSemester] = useState('');
   const classesQuery = useAttendanceClasses();
   const { data: campuses } = useAsync(() => getCampuses(user), [user?.id]);
   const leader = canFilterLeaveByCampus(user);
@@ -107,12 +111,40 @@ export default function LeaveRequestsPage() {
       <div className="card">
         <div className="filter-bar">
           <div className="field">
+            <span className="field__label">Học kỳ</span>
+            <SemesterSelect
+              value={semester}
+              emptyLabel="Chọn ngày"
+              onChange={(key, sem) => {
+                const next = semesterRange(sem, today);
+                setSemester(next ? key : '');
+                if (next) setFilter(next);
+              }}
+            />
+          </div>
+          <div className="field">
             <span className="field__label">Từ ngày</span>
-            <DateInput aria-label="Từ ngày" value={filters.from} max={filters.to || undefined} onChange={(from) => setFilter({ from })} />
+            <DateInput
+              aria-label="Từ ngày"
+              value={filters.from}
+              max={filters.to || undefined}
+              onChange={(from) => {
+                setSemester('');
+                setFilter({ from });
+              }}
+            />
           </div>
           <div className="field">
             <span className="field__label">Đến ngày</span>
-            <DateInput aria-label="Đến ngày" value={filters.to} min={filters.from || undefined} onChange={(to) => setFilter({ to })} />
+            <DateInput
+              aria-label="Đến ngày"
+              value={filters.to}
+              min={filters.from || undefined}
+              onChange={(to) => {
+                setSemester('');
+                setFilter({ to });
+              }}
+            />
           </div>
           {leader && campusIds.size > 1 && (
             <select
