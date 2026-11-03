@@ -35,7 +35,7 @@ test('UI structure/scope giữ campus legacy; teacher không ghi tài khoản, H
   const other = readDb().children.find((row) => row.campusId === 'c2');
   await assert.rejects(repo.listGuardians(other.id, vp), rejectStatus(403));
 });
-// User chốt 2026-10-28: tài khoản nhân sự tách riêng; email chỉ là liên hệ, tài khoản phụ huynh tìm theo SĐT.
+// User chốt lại 2026-10-29 (như 2026-10-28): trùng nhân sự vẫn tạo tài khoản phụ huynh riêng; email chỉ là liên hệ, tài khoản tìm theo SĐT.
 test('SĐT/email nhân sự không chặn; email của tài khoản khác không ghép, tài khoản tìm theo SĐT', async () => {
   const staff = readDb().users.find((row) => row.role === 'TEACHER' && row.phone && row.email);
   assert.ok((await addAndActivate(child.id, form({ phone: staff.phone, email: staff.email }), vp)).newAccount);

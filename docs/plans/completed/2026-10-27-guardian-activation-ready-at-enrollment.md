@@ -5,10 +5,10 @@ owner: carenestg94@gmail.com
 jira: G94-180 / FE-FEAT-43   # tạm theo nhánh; xác nhận task Jira trước khi commit
 branch: feature/G94-180-FE-FEAT-43-child-health-pickup
 modules: [child, identity-access]
-rules: [AUTH-18]     # lệch: user bỏ "SĐT của nhân sự ⇒ từ chối" (2026-10-28) — đề xuất BE ở Phase 3
+rules: [AUTH-18]     # 2026-10-28 user bỏ "SĐT của nhân sự ⇒ từ chối"; 2026-10-29 chốt lại: vẫn tạo, không có màn chọn tài khoản (Progress log)
 risk: high
 created: 2026-10-27
-updated: 2026-10-28
+updated: 2026-10-29
 ---
 # Tiếp nhận trẻ kiểm đủ điều kiện kích hoạt tài khoản phụ huynh
 
@@ -35,7 +35,7 @@ BE (bản local `D:\project_capstone\project\be\CareNest_BE`, commit `aa64480` 2
 
 ## Quyết định đã chốt
 1. Mọi điều kiện dữ liệu để kích hoạt tài khoản phụ huynh phải kiểm ngay khi tiếp nhận (form, nhập Excel) và khi Sửa hồ sơ; bấm kích hoạt không còn lỗi do dữ liệu đã nhập — user, 2026-10-27.
-2. Bỏ kiểm trùng nhân sự: nhân sự có tài khoản riêng, không liên quan SĐT phụ huynh (Q1) — user, 2026-10-28. PROPOSED — chờ BE (lệch AUTH-18).
+2. Bỏ kiểm trùng nhân sự: nhân sự có tài khoản riêng, không liên quan SĐT phụ huynh (Q1) — user, 2026-10-28. PROPOSED — chờ BE (lệch AUTH-18). **2026-10-29:** sáng user giữ lại kiểm (chặn 409), cùng ngày chốt lại: vẫn tạo tài khoản phụ huynh; không có màn chọn tài khoản, mỗi cách đăng nhập vào đúng một tài khoản (user bỏ màn chọn 2026-10-29; PROPOSED — chờ BE; `docs/integration/CHILD_ENROLLMENT_BE_GAPS.md` L-18). Xem Progress log 2026-10-29.
 3. Email phụ huynh chỉ là thông tin liên hệ, không dùng nhận diện tài khoản (Q2-A) — user, 2026-10-28.
 4. Form tiếp nhận báo lỗi CCCD/SĐT phụ huynh ngay khi bấm "Tiếp tục" ở bước 1, lưu thì kiểm lại (Q3-A) — user, 2026-10-28.
 5. Sửa hồ sơ luôn kiểm phụ huynh chưa có tài khoản (Q4-A) — user, 2026-10-28.
@@ -163,3 +163,36 @@ BE (bản local `D:\project_capstone\project\be\CareNest_BE`, commit `aa64480` 2
 - Đề xuất BE cho Q1, Q2 đã có ở `docs/integration/CHILD_ENROLLMENT_BE_GAPS.md` L-17, L-18 (phiên khác soạn, dẫn plan này); đề xuất `POST /children/guardian-check` ghi ở `docs/features/README.md`. Chưa sửa repo BE.
 - Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`.
 - Khác plan: không tự soạn mục `BE:docs/knowledge/CROSS_MODULE_ISSUES.md` riêng vì file lệch BE–FE ở trên đã gom; ký tự họ tên Keycloak vẫn là đề xuất mở (chưa ghi ở file đó).
+
+### 2026-10-29 — User đổi lại Q1: giữ kiểm trùng tài khoản nhân sự
+- User: "hôm nay tôi có đổi nghiệp vụ trùng tài khoản nhân viên, nhưng bây giờ tôi muốn chuyển lại như cũ và không thay đổi gì" ⇒ bỏ quyết định 2 (Q1); quyết định 1, 3–7 giữ nguyên. Làn M, không mở plan mới; ghi tại đây vì Q1 chốt ở plan này.
+- BE giả: `STAFF_CONTACT_TAKEN` + `staffContactField` (`src/mocks/guardianIdentity.js`, so SĐT/email với `db.users` không phải PARENT như K1 cũ); `linkGuardian` (`src/mocks/parentAccountMock.js`) chặn 409 "Số điện thoại hoặc email thuộc tài khoản nhân sự." trước khi tìm tài khoản — kích hoạt ở màn Tài khoản phụ huynh và khi lưu form tiếp nhận đều qua đây. Vì quyết định 1 còn hiệu lực (tiếp nhận kiểm bằng kích hoạt), `guardianConflicts` (`src/services/children/mock/childrenMockRepository.js`) báo cùng lỗi theo ô `guardians.i.phone` / `.email` ở bước 1, khi lưu, Sửa hồ sơ và dòng Excel; `throwConflicts` dùng câu lỗi nhân sự làm toast khi mọi lỗi đều là lỗi này. Khác bản trước 2026-10-28 (K1 chỉ ở kích hoạt): chặn sớm hơn, không còn luồng lưu được rồi kích hoạt mới lỗi.
+- Test: AC-1 `tests/children/guardian-activation-ready.test.mjs` đổi thành chặn (bước 1, lưu, Excel, kích hoạt; không tạo tài khoản, nhân sự giữ nguyên); `tests/integration/selective-merge/guardian-compat.test.mjs` trả về "nhân sự bị chặn 409". Không cần lọc `notStaff` ở test khác vì dữ liệu mẫu không trùng (`seed-integrity`).
+- Tài liệu: `docs/features/README.md` mục "Tiếp nhận được thì kích hoạt được"; `docs/integration/CHILD_ENROLLMENT_BE_GAPS.md` L-18 (bảng, mục riêng, kết quả chốt); incident FE-BUG-261021 (cập nhật 2026-10-29).
+- Repo BE không sửa (CLAUDE.md): commit `482e8e1` (đã push) vẫn theo bản 2026-10-28 — AUTH-18 bỏ câu từ chối, `POST /accounts` chặn tên đăng nhập dạng SĐT ⇒ L-18 lệch lại, chờ user chốt BE.
+- Verify: `npm run test:children` 81/81; `npm run test:merge` 46/46; `node scripts/verify.mjs` → `VERIFY PASS full`; `node scripts/check-ai-layer.mjs` 14 lỗi, 14 cảnh báo — đều ở dòng không sửa (`CHILD_ENROLLMENT_BE_GAPS.md:34-114` tham chiếu dòng BE đã trôi sau các commit BE 28/10; `.ai/CONTEXT_MAP.yaml:41`), có từ trước. Chưa thử trên trình duyệt.
+- Commit: chưa commit.
+
+### 2026-10-29 — User chốt lại Q1: vẫn tạo, chọn tài khoản khi đăng nhập app
+- User: "bây giờ nếu tài khoản phụ huynh trùng tài khoản nhân sự thì vẫn cho tạo nhưng nếu sau khi tạo đăng nhập vào hệ thống (trên app) thì sẽ cho chọn là vào tài khoản nhân sự hoặc vào tài khoản phụ huynh" ⇒ thay mục 2026-10-29 ngay trên (chặn 409).
+- BE giả: hoàn lại phần chặn vừa thêm bằng bản vá ngược (`git apply -R`); 5 file về đúng `989c2a2`, sau đó chỉ sửa comment ở `src/mocks/parentAccountMock.js` và 2 file test. Tiếp nhận, nhập Excel, Sửa hồ sơ, kích hoạt không chặn SĐT/email trùng nhân sự; tài khoản phụ huynh tạo riêng, tài khoản nhân sự giữ nguyên.
+- Chọn tài khoản khi đăng nhập: Web không có (mock đăng nhập Web chỉ tìm `db.users` theo email, không có phụ huynh). APP, BE chưa làm (CLAUDE.md: không sửa repo BE/APP khi user chưa cho phép): đề xuất A/B/C ở `docs/integration/CHILD_ENROLLMENT_BE_GAPS.md` L-18, khuyến nghị A; điểm cần thống nhất ghi ở `docs/integration/CHILD_ENROLLMENT_BE_SPEC.md` mục 7.
+- Giả định chờ user soát: chỉ SĐT trùng mới nối hai tài khoản; email trùng chỉ là liên hệ.
+- Phát hiện: APP chưa nối đăng nhập BE, ô đăng nhập chỉ hỏi số điện thoại cho mọi vai, trong khi tên đăng nhập nhân sự ở BE không là SĐT ⇒ APP phải sửa khi nối đăng nhập, dù chọn cách nào.
+- Verify: `npm run test:children` 81/81, `npm run test:merge` 46/46; `node scripts/verify.mjs`, `node scripts/check-ai-layer.mjs` chạy sau lần ghi này (kết quả ở báo cáo bàn giao). Chưa thử trên trình duyệt.
+- Commit: chưa commit.
+
+### 2026-10-29 — User chọn cách A, BE làm AUTH-22
+- User: "A cho phép sửa BE". BE: plan `BE:docs/plans/completed/2026-10-29-staff-parent-linked-accounts.md` (done) — V11 `user_accounts.phone` (SĐT nhân sự), `POST /accounts` nhận `phone`, `PATCH /accounts/{userId}/phone`, `linkedAccounts` ở `GET /accounts/me`; AUTH-18 sửa, AUTH-22 mới. BE verify: `VERIFY PASS full | tests 339 fail 0 err 0 skip 0 | archunit ok | snapshot ok | spotless ok`.
+- FE: BE giả chặn SĐT nhân sự trùng nhân sự khác (`src/utils/school-config/schoolConfigValidation.js`, test staff-phone-unique — viết sau code, chưa thấy đỏ; gỡ cùng ngày, xem mục dưới); cập nhật L-18 (`docs/integration/CHILD_ENROLLMENT_BE_GAPS.md`), `docs/features/README.md`, `docs/integration/CHILD_ENROLLMENT_BE_SPEC.md` mục 7.
+- APP chưa làm (user chưa cho sửa repo APP): màn chọn tài khoản; ô đăng nhập nhận cả tên đăng nhập nhân sự.
+- Verify FE: `node scripts/verify.mjs`, `node scripts/check-ai-layer.mjs` chạy sau lần ghi này (kết quả ở báo cáo bàn giao).
+- Commit: chưa commit (FE, BE).
+
+### 2026-10-29 — Bỏ màn chọn tài khoản
+- User: "bỏ màn chọn" — mỗi cách đăng nhập vào đúng một tài khoản: app đăng nhập bằng SĐT là tài khoản phụ huynh, bằng email hoặc tên đăng nhập là tài khoản nhân sự (realm Keycloak bật đăng nhập bằng email, không cho trùng email; email phụ huynh không có trên Keycloak). Muốn đổi thì đăng xuất rồi đăng nhập tài khoản kia.
+- FE: gỡ phần chặn SĐT nhân sự trùng ở BE giả và test của nó (thêm trong ngày chỉ để nối tài khoản); L-18, `docs/features/README.md`, `docs/integration/CHILD_ENROLLMENT_BE_SPEC.md` mục 7, `docs/quality/VERIFICATION.md` ghi trạng thái cuối.
+- BE: không sửa trong lượt này. User tự code BE phần tiếp nhận trẻ; phần nối tài khoản đã làm trong ngày (AUTH-22, chưa commit) chờ user gỡ hoặc giữ SĐT nhân sự làm liên hệ. Bản sao các thay đổi đó lưu ngoài repo trước khi bàn giao.
+- APP còn phải làm: ô đăng nhập nhận SĐT hoặc email/tên đăng nhập nhân sự.
+- Verify: `node scripts/verify.mjs`, `node scripts/check-ai-layer.mjs` chạy sau lần ghi này (kết quả ở báo cáo bàn giao).
+- Commit: chưa commit.

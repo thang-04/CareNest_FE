@@ -21,7 +21,8 @@ const { filledImportColumns, filledMedicalHistory, filledProfile } = await impor
 
 /*
  * Tiếp nhận xong thì kích hoạt được (plan docs/plans/completed/2026-10-27-guardian-activation-ready-at-enrollment.md, user chốt
- * 2026-10-28): không kiểm trùng nhân sự, email chỉ là liên hệ, định dạng phụ huynh ở tiếp nhận chặt bằng kích hoạt.
+ * 2026-10-28; trùng nhân sự chốt lại 2026-10-29: vẫn tạo, không có màn chọn tài khoản): không chặn trùng nhân sự, email chỉ là
+ * liên hệ, định dạng phụ huynh ở tiếp nhận chặt bằng kích hoạt.
  * Mọi CCCD, SĐT, email là dữ liệu giả (CCCD bắt đầu bằng 999).
  */
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL', campusId: 'c1' };

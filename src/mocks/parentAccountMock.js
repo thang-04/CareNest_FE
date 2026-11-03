@@ -76,8 +76,8 @@ export const linkGuardian = (db, child, form, relationLabel) => {
   const childId = child.id;
   const phone = normalizePhone(form.phone);
   child.guardians ||= [];
-  // Tài khoản nhân sự tách riêng, không chặn SĐT/email phụ huynh; email chỉ là liên hệ nên chỉ tìm tài khoản theo SĐT
-  // (user chốt 2026-10-28, PROPOSED — chờ BE, lệch AUTH-18 "SĐT của nhân sự ⇒ từ chối").
+  // SĐT/email trùng tài khoản nhân sự vẫn tạo tài khoản phụ huynh riêng; không có màn chọn tài khoản, mỗi cách đăng nhập
+  // vào đúng một tài khoản (user chốt 2026-10-29, PROPOSED — chờ BE). Email chỉ là liên hệ nên chỉ tìm tài khoản theo SĐT.
   let account = db.parentAccounts.find((row) => normalizePhone(row.phone) === phone);
   if (account && (account.childIds || []).includes(childId)) throw new ApiError(409, 'Phụ huynh đã liên kết với trẻ.');
   // CCCD bắt buộc; 1 người 1 tài khoản: lệch tài khoản/hồ sơ khác hoặc trùng phụ huynh khác của trẻ ⇒ 409 (user chốt 2026-10-21).

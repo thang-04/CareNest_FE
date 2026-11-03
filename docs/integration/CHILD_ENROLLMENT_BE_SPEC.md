@@ -8,6 +8,8 @@ Cập nhật 2026-10-28. **PROPOSED** — FE viết theo BE giả đã chạy v�
 - Ca kiểm thử dùng làm tiêu chí nghiệm thu: `tests/children/*.test.mjs` (chạy `npm run test:children`).
 - BE hiện có (`aa64480` + thay đổi chưa commit 28/10): bảng `children` (id, họ tên, ngày sinh), `enrollments`, `guardian_child_links`; `GET /children`, `GET /children/{id}`, `GET|POST /children/{id}/guardians`, `DELETE /children/{id}/guardians/{userId}`, `PATCH /parent-accounts/{userId}/status`, `POST /parent-accounts/{userId}/temporary-password`; email phụ huynh chỉ để liên hệ (L-17); tên đăng nhập nhân sự không là SĐT (L-18).
 
+- **BE đã làm (29/10/2026, nhánh BE G94-180, chưa commit):** Phase 1–3 của bản BE — `GET /children/duplicate-check`, `POST /children/guardian-check`, `GET /children/parent-accounts/by-citizen-id`, `GET /children/placement-classes`, `POST /children/enrollments` (tạo/liên kết tài khoản, SMS qua cổng giả), `POST /children/{id}/readmit`. Khác đặc tả, FE đổi khi nối API: quan hệ theo mã `FATHER|MOTHER|GRANDFATHER|GRANDMOTHER|SIBLING|GUARDIAN` ở mọi nơi; hồ sơ trẻ trả `schoolYearId` (số) thay `schoolYear`; lỗi theo ô 400 (`errorCode` 9001) và 409 (`errorCode` 3008) với `data [{field, message}]`, trùng hồ sơ 409 `errorCode` 3007, mở lại hồ sơ trẻ chưa nghỉ 409 `errorCode` 3009; `history[]` chưa có `changes`. Tạm thời (tới Phase 4 của BE): phụ huynh khớp tài khoản có sẵn ⇒ hồ sơ ghi thông tin của tài khoản, `phoneChanged` luôn false. Chi tiết: `BE:docs/plans/active/2026-10-28-child-enrollment-guardian-accounts.md` Progress log 2026-10-29.
+
 ## 1. Thứ tự làm đề xuất
 
 1. **Quyền** (mục 2) và **migration** (mục 3).
@@ -250,8 +252,8 @@ Câu trung tính, không chẩn đoán (CHD-07). Đường dẫn: hồ sơ trẻ
 - Đổi tên đăng nhập (AUTH-21): realm cần cho đổi username (Keycloak "Edit username", `editUsernameAllowed`) để Admin API đổi `username`; sau đó đặt mật khẩu tạm mới, hủy phiên, cập nhật `user_accounts.username`; lỗi giữa chừng thì trả lại username cũ. BE cần thử trên bản Keycloak đang dùng.
 
 ## 7. Điểm cần thống nhất và kết quả chốt
-Chốt 28/10/2026: C-5 (mục 2), D-1 (mục 1), D-2 (mục 4), D-4 (mục 5), D-5 (mục 6–8), D-6 (mục 9). Còn mở: mục 3 (việc kỹ thuật) và phần "toàn trường" của mục 1.
-1. **Mã quyền — đã chốt (D-1 A).** Bảng ở mục 2. Còn mở: FE cho HT giao PHT "Hồ sơ trẻ" phạm vi toàn trường (nhánh G94-179) trong khi AUTH-02 ghi PHT theo campus được phân công ⇒ thống nhất khi làm ma trận quyền.
+Chốt 28/10/2026: C-5 (mục 2), D-1, D-7 (mục 1), D-2 (mục 4), D-4 (mục 5), D-5 (mục 6–8), D-6 (mục 9). Mục 3 là việc kỹ thuật (Phase 4 của plan BE).
+1. **Mã quyền — đã chốt (D-1 A).** Bảng ở mục 2. **Phạm vi PHT — đã chốt (D-7 A):** PHT chỉ trong campus được phân công (AUTH-02), "Hồ sơ trẻ" toàn trường chỉ HT có. FE còn phải bỏ lựa chọn "toàn trường" khi HT giao "Hồ sơ trẻ" cho PHT (màn Phân công Phó hiệu trưởng, nhánh G94-179) — làm khi nối API.
 2. **Lỗi theo ô — đã chốt 28/10 (C-5 A).** BE: 400 + `data` danh sách `{ field, message }` (`BE:docs/contracts/ERROR_CONTRACT.md`, không có 422). FE (13 file BE giả, các trang tiếp nhận): 422 + `details` map; trang tiếp nhận chỉ đọc lỗi ô khi 422/409. Chốt: BE giữ 400, `field` theo đường dẫn ô ở mục 4 (không tiền tố `child.`, chỉ số dạng `guardians.0.phone`), 409 trùng cũng trả danh sách; FE đổi danh sách thành map ở `axiosClient` và coi 400 như 422 (`docs/knowledge/KNOWN_ISSUES.md` FE-KI-003).
 3. **Đổi tên đăng nhập Keycloak** (mục 6.3) — việc kỹ thuật, BE thử khi làm; không làm được thì báo user chọn cách khác.
 4. **Nhà cung cấp SMS — đã chốt (D-2 A):** cổng SMS giả trước, chọn nhà cung cấp trước khi dùng thật (mục 6.1).
@@ -260,13 +262,14 @@ Chốt 28/10/2026: C-5 (mục 2), D-1 (mục 1), D-2 (mục 4), D-4 (mục 5), D
 7. **Số phụ huynh tối đa — đã chốt (D-5b A):** BE chặn quá 3 (422 `guardians`); BE giả đã kiểm.
 8. **Trẻ có trước tính năng — đã chốt (D-5c B):** nhập đầy đủ thông tin trẻ, không có hồ sơ thiếu (mục 3.9).
 9. **Giả định đang chạy ở BE giả — user đồng ý 28/10 (D-6, C-2):** Excel không sửa tài khoản có sẵn; không đổi cùng lúc CCCD và SĐT của phụ huynh đã có tài khoản; phụ huynh có tài khoản không xóa ở hồ sơ (gỡ liên kết ở màn Tài khoản phụ huynh); người không có quyền kích hoạt không sửa tài khoản có sẵn (mục 5.5).
+10. **Người vừa là nhân sự vừa là phụ huynh — đã chốt 29/10 (L-18):** tạo tài khoản phụ huynh như thường, không chặn SĐT/email trùng nhân sự. Không có màn chọn tài khoản: app đăng nhập bằng SĐT vào tài khoản phụ huynh, bằng email hoặc tên đăng nhập vào tài khoản nhân sự. Phần nối tài khoản BE làm thử trong ngày (AUTH-22, chưa commit) không dùng nữa.
 
 ## 8. Ngoài phạm vi tài liệu này
 Ngoài phần năm học ở mục 9, contract vẫn ở chú thích các file API: danh sách trẻ (`listChildren`, `latestHealth`), sổ sức khỏe, cân đo, phân tích xu hướng AI (`src/services/children/api/childrenApi.js`), đợt khám, phiếu khám, phiếu theo dõi (`src/services/children/api/healthCheckApi.js`), đón trẻ (`src/services/pickup/api/pickupApi.js`). Quyền theo mảng của PHT (nhánh G94-179) chỉ ghi ở mục 7.1.
 
 ## 9. Năm học (user chốt 2026-10-28, Y-1..Y-5)
 
-Header có ô chọn năm học (mặc định năm đang hoạt động). Dữ liệu xem theo năm đang chọn; việc trong ngày và việc ghi (tiếp nhận, xếp lớp, đón trẻ) luôn ở năm đang hoạt động. Rule BE: CHD-09 (Y-2), CHD-10 (Y-3, Y-5), HLT-07 (Y-4), ATT-08 (Y-1). Plan: `docs/plans/completed/2026-10-28-school-year-scope.md`; BE giả dùng chung `src/mocks/schoolYearScope.js`.
+Header có ô chọn năm học (mặc định năm đang hoạt động). Dữ liệu xem theo năm đang chọn; việc trong ngày và việc ghi (tiếp nhận, xếp lớp, đón trẻ) luôn ở năm đang hoạt động. Rule BE: CHD-09 (Y-2), CHD-10 (Y-3, Y-5), HLT-08 (Y-4), ATT-09 (Y-1) — đổi số 29/10/2026 khi BE gộp nhánh G94-236 (HLT-07, ATT-08 của BE là sức khỏe trong ngày, khóa điểm danh). Plan: `docs/plans/completed/2026-10-28-school-year-scope.md`; BE giả dùng chung `src/mocks/schoolYearScope.js`.
 
 - **Ngày thuộc năm nào:** năm học gần nhất đã bắt đầu tính tới ngày đó (kỳ hè giữa hai năm tính vào năm vừa qua) — để ngày nào cũng thuộc đúng một năm (BE giả `schoolYearIdOfDate`).
 - **Y-2 · Danh sách trẻ `GET /children?schoolYear=X`:** trẻ có lớp thuộc năm X, trả `classId`, `className`, `ageGroupId`, `schoolYear`, `campusId` của lớp cuối cùng trong năm X (BE lấy từ `enrollments`; CMR-04). Trẻ chờ xếp lớp chỉ có ở năm đang hoạt động; trẻ nghỉ khi chưa có lớp ở năm của ngày nghỉ. `status` vẫn là trạng thái hiện tại; phạm vi xem theo điểm trường hiện tại của trẻ. Không có `schoolYear` ⇒ mọi trẻ trong phạm vi. BE giả: `classInYear`, `inSchoolYear` (lấy lịch sử từ `childPlacements` và lịch sử chuyển năm của Xếp lớp năm học mới). Bảng tổng quan HT/PHT đếm số trẻ theo cùng tham số.

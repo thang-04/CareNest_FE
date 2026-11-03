@@ -40,3 +40,6 @@ DB demo mới (`resetDb()`): 52 bản ghi phụ huynh mẫu có SĐT trùng SĐT
 
 ## Cập nhật 2026-10-28
 User bỏ kiểm trùng nhân sự, email phụ huynh chỉ là liên hệ (plan `docs/plans/completed/2026-10-27-guardian-activation-ready-at-enrollment.md`): SĐT/email phụ huynh trùng nhân sự không còn chặn kích hoạt, lỗi `409` của incident này không còn xuất hiện. Dữ liệu mẫu (giáo viên `08`, phụ huynh `09`) và test `seed-integrity` giữ nguyên; test kích hoạt bỏ lọc `notStaff`.
+
+## Cập nhật 2026-10-29
+Sáng 29/10 user giữ lại kiểm trùng nhân sự (chặn 409); cùng ngày chốt lại: SĐT/email phụ huynh trùng nhân sự vẫn tạo tài khoản phụ huynh; không có màn chọn tài khoản (user bỏ cùng ngày): app đăng nhập bằng SĐT vào tài khoản phụ huynh, bằng email hoặc tên đăng nhập nhân sự vào tài khoản nhân sự (`docs/integration/CHILD_ENROLLMENT_BE_GAPS.md` L-18). BE giả không chặn như bản 28/10 nên lỗi `409` của incident này không xuất hiện; regression `tests/children/guardian-activation-ready.test.mjs` AC-1.

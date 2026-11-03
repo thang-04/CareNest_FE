@@ -25,7 +25,7 @@ User chốt hết ngày 28/10/2026 (bảng "Kết quả chốt" cuối tài li�
 | L-15 | Gửi mật khẩu tạm: SMS hay in phiếu | `4867b60` | 1 | A — SMS |
 | L-16 | Nhận diện phụ huynh: CCCD hay SĐT | `7232ae0`, `5e7f4a5` | 1 | A — CCCD; thông tin phụ huynh sửa được, đổi SĐT thì đổi tên đăng nhập + mật khẩu mới gửi SMS số mới |
 | L-17 | Email phụ huynh | plan 28/10 | — | Chỉ để liên hệ; BE đã sửa |
-| L-18 | SĐT phụ huynh trùng tài khoản nhân sự | plan 28/10 | — | Bỏ kiểm; BE đã sửa |
+| L-18 | SĐT phụ huynh trùng tài khoản nhân sự | plan 28/10 | — | Vẫn tạo; không có màn chọn tài khoản (bỏ 29/10) |
 
 ## A. Quyền và điểm trường
 
@@ -122,8 +122,17 @@ User chốt hết ngày 28/10/2026 (bảng "Kết quả chốt" cuối tài li�
 - **Hết lệch — BE đã sửa 28/10 (user cho phép, chưa commit; plan `BE:docs/plans/completed/2026-10-28-guardian-contact-email.md`):** `POST /children/{childId}/guardians` nhận `email` tùy chọn (đúng định dạng, ≤255 ký tự), lưu chữ thường vào `user_accounts.email`, không gửi Keycloak (không đăng nhập bằng email này, không bị chặn trùng email nhân sự). SĐT đã có tài khoản ⇒ giữ email của tài khoản. `GET /children/{childId}/guardians` và response thêm phụ huynh trả `email`. Quên mật khẩu web bỏ qua tài khoản phụ huynh.
 - FE chưa gọi các API này (`src/services/account/guardianService.js` trả 501 khi không chạy mock) ⇒ khi nối API thật: gửi `email` khi thêm phụ huynh, đọc `email` từ danh sách phụ huynh.
 
-### L-18 — SĐT phụ huynh trùng tài khoản nhân sự — **Đã chốt**
-- Chốt 28/10 (Q1, cùng plan): bỏ kiểm; nhân sự có tài khoản riêng (`guardianMockRepository.js:114-115`).
+### L-18 — SĐT phụ huynh trùng tài khoản nhân sự — **Chốt 29/10: vẫn tạo, không có màn chọn tài khoản**
+- Chốt 28/10 (Q1, cùng plan): bỏ kiểm; nhân sự có tài khoản riêng. Sáng 29/10 user đổi lại "giữ luật cũ" (chặn 409); cùng ngày chốt lại như dưới.
+- **Chốt 29/10/2026 (user):** "nếu tài khoản phụ huynh trùng tài khoản nhân sự thì vẫn cho tạo nhưng nếu sau khi tạo đăng nhập vào hệ thống (trên app) thì sẽ cho chọn là vào tài khoản nhân sự hoặc vào tài khoản phụ huynh". BE giả FE: tiếp nhận, nhập Excel, kích hoạt không chặn SĐT/email trùng nhân sự (như `989c2a2`); tài khoản phụ huynh tạo riêng, tài khoản nhân sự giữ nguyên. Web không có bước chọn: chỉ nhân sự đăng nhập Web.
+- **Chọn tài khoản khi đăng nhập app — user chọn A rồi bỏ cùng ngày 29/10 (giữ để biết lịch sử, không làm):**
+  - Hiện trạng: BE không lưu SĐT nhân sự (`BE:src/main/java/com/carenest/entity/account/UserAccount.java`), tên đăng nhập nhân sự không là SĐT (AUTH-18) ⇒ BE chưa biết hai tài khoản là một người. APP chưa nối đăng nhập BE; ô đăng nhập chỉ hỏi "số điện thoại" cho mọi vai (`APP:lib/features/auth/presentation/screens/login_screen.dart`), nhân sự chưa có chỗ nhập tên đăng nhập nhân sự.
+  - **A — đề xuất:** hai tài khoản riêng, nối theo SĐT. BE thêm SĐT cho tài khoản nhân sự (không phải tên đăng nhập); SĐT đăng nhập phụ huynh = SĐT nhân sự ⇒ cùng người. `GET /accounts/me` trả thêm `linkedAccounts` [{ userId, username, fullName, role }]. APP: có tài khoản liên kết ⇒ màn "Chọn tài khoản"; chọn tài khoản đang đăng nhập ⇒ vào ngay; chọn tài khoản kia lần đầu ⇒ nhập mật khẩu tài khoản đó, sau đó đổi qua lại không hỏi lại tới khi hết phiên. Email trùng không nối (email chỉ là liên hệ, chưa xác minh). Giữ AUTH-18; mỗi tài khoản khóa/mở riêng; mật khẩu phụ huynh không mở được tài khoản nhân sự. Nhược: hai mật khẩu.
+  - **B:** một đăng nhập, hai vai. SĐT trùng nhân sự ⇒ không tạo người dùng Keycloak mới; thêm role `PARENT` và liên kết trẻ vào tài khoản nhân sự (BE đã tính trường hợp "GV kiêm phụ huynh", `BE:docs/modules/identity-access.md` Known pitfalls). Đăng nhập một lần rồi chọn vai. Nhược: không có tài khoản phụ huynh riêng, tên đăng nhập không là SĐT (lệch AUTH-18), khóa tài khoản nhân sự khi nghỉ việc thì mất quyền phụ huynh.
+  - **C — không đề xuất:** hai tài khoản, chọn tự do không cần mật khẩu thứ hai. Mật khẩu phụ huynh gửi qua SMS mở được tài khoản nhân sự, kể cả HT/PHT; Keycloak phải đổi token sang người dùng khác (impersonation).
+- **Bỏ màn chọn (user chốt 29/10):** mỗi cách đăng nhập vào đúng một tài khoản. Keycloak chỉ có email của nhân sự (realm bật đăng nhập bằng email, không cho trùng email); email phụ huynh chỉ lưu ở CareNest. App đăng nhập bằng SĐT vào tài khoản phụ huynh, bằng email hoặc tên đăng nhập vào tài khoản nhân sự; muốn đổi thì đăng xuất rồi đăng nhập tài khoản kia.
+  - Phần BE nối tài khoản làm trong ngày (SĐT nhân sự V11, `PATCH /accounts/{userId}/phone`, `linkedAccounts`, AUTH-22) chưa commit, không dùng nữa; user tự code BE phần tiếp nhận trẻ và quyết gỡ hay giữ SĐT nhân sự làm thông tin liên hệ.
+  - BE giả FE bỏ chặn SĐT nhân sự trùng (thêm trong ngày cho việc nối). APP còn phải làm: ô đăng nhập nhận SĐT hoặc email/tên đăng nhập nhân sự (hiện chỉ SĐT).
 - **Hết lệch — BE đã sửa 28/10 (user cho phép, chưa commit; plan `BE:docs/plans/completed/2026-10-28-staff-username-not-phone.md`; verify có Docker pass, 0 skip):** AUTH-18 bỏ "SĐT của nhân sự ⇒ từ chối"; `POST /accounts` từ chối tên đăng nhập nhân sự dạng SĐT (400 `Staff username must not be a phone number`). 409 `This phone number belongs to a staff account` chỉ còn với tài khoản nhân sự tạo trước quy ước hoặc tạo thẳng trên Keycloak.
 
 ## Kết quả chốt
@@ -141,7 +150,7 @@ User chốt hết ngày 28/10/2026 (bảng "Kết quả chốt" cuối tài li�
 | L-15 | A (SMS) | user | 2026-10-28 | BE: sửa AUTH-18, chọn nhà cung cấp SMS |
 | L-16 | A; sửa được thông tin, đổi SĐT ⇒ tên đăng nhập + mật khẩu mới gửi SMS số mới | user | 2026-10-28 | FE xong; BE: AUTH-18, AUTH-21 (đã ghi), cách đổi tên đăng nhập Keycloak |
 | L-17 | Email chỉ để liên hệ (Q2-A) | user | 2026-10-28 | BE đã nhận, lưu email phụ huynh (28/10, chưa commit); FE gửi/đọc `email` khi nối API phụ huynh |
-| L-18 | Bỏ kiểm trùng nhân sự (Q1) | user | 2026-10-28 | BE đã sửa AUTH-18 + chặn tên đăng nhập nhân sự dạng SĐT (28/10, chưa commit) |
+| L-18 | Vẫn tạo tài khoản phụ huynh; không có màn chọn tài khoản (chốt 29/10, thay Q1 28/10, "chặn 409" và cách A cùng ngày) | user | 2026-10-29 | FE xong; BE: bỏ phần nối tài khoản chưa commit (AUTH-22) khi code BE; APP: ô đăng nhập nhận SĐT hoặc email |
 
 ## Đã ghi vào BE
 
