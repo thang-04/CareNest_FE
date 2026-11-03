@@ -792,3 +792,31 @@
 .kb-span-all {
   grid-column: 1 / -1;
 }
+
+/* Kho khô (BE): thanh lọc trong thẻ, dòng gom theo thực phẩm, lô thụt vào */
+.kb-toolbar--card {
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.kb-field-food {
+  min-width: 220px;
+}
+.kb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--btn-height);
+  font-size: var(--fs-sm);
+}
+.table.table--grid .kb-group-row th {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
+.table.table--grid .kb-group-row th.num {
+  text-align: center;
+}
+.kb-lot-name {
+  padding-left: var(--space-6);
+}

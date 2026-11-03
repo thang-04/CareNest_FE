@@ -45,7 +45,7 @@ const SHORTCUTS = [
     icon: ListChecks,
   },
   {
-    to: '/kitchen',
+    to: '/boarding/today',
     label: 'Bán trú hôm nay',
     icon: ChefHat,
   },
@@ -271,7 +271,7 @@ export default function VicePrincipalDashboard() {
           <Widget
             title="Số liệu khác"
             icon={CookingPot}
-            to="/kitchen"
+            to="/boarding/today"
             linkLabel="Bán trú hôm nay"
             loading={firstLoad(countsQ) || firstLoad(prepQ)}
             error={countsQ.error && prepQ.error ? countsQ.error : null}

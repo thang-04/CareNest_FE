@@ -1,4 +1,4 @@
-import { CheckCircle2, FileEdit, PauseCircle, Replace, Sparkles } from '@/components/ui/icons';
+import { CheckCircle2, FileEdit, FileQuestion, PauseCircle, Replace, Sparkles } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -7,6 +7,7 @@ import {
   AI_LABEL,
   DISH_STATUS_LABELS,
   HISTORY_LABELS,
+  MEAL_PLAN_STATUS_LABELS,
   NORM_STATUS_LABELS,
   RECORD_STATUS_LABELS,
   WEEKLY_STATUS_LABELS,
@@ -29,8 +30,21 @@ export const WeeklyStatusBadge = createStatusBadge(
   WEEKLY_STATUS_LABELS,
 );
 
+// Kế hoạch tuần theo khối (BE): chưa lập / nháp cùng tông xám, đã công bố xanh
+export const MealPlanStatusBadge = createStatusBadge(
+  { NONE: ['gray', FileQuestion], DRAFT: ['gray', FileEdit], PUBLISHED: ['green', CheckCircle2] },
+  MEAL_PLAN_STATUS_LABELS,
+);
+
 export const NormStatusChip = createStatusBadge(
-  { OK: ['green', null], LOW: ['orange', null], HIGH: ['orange', null], NA: ['gray', null], INCOMPLETE: ['gray', null] },
+  {
+    OK: ['green', null],
+    LOW: ['orange', null],
+    HIGH: ['orange', null],
+    NA: ['gray', null],
+    INCOMPLETE: ['gray', null],
+    NO_DISHES: ['gray', null],
+  },
   NORM_STATUS_LABELS,
 );
 

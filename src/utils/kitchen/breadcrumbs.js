@@ -9,6 +9,8 @@ export const KITCHEN_PAGES = {
   kitchenDay: { label: 'Quy trình bếp hôm nay', to: '/kitchen' },
   dryStock: { label: 'Kho khô', to: '/kitchen/dry-stock' },
   stockReceipts: { label: 'Phiếu nhập kho', to: '/kitchen/stock-receipts' },
+  stockHistory: { label: 'Lịch sử nhập/trừ', to: '/kitchen/stock-history' },
+  stockShortfalls: { label: 'Phần thiếu chờ bổ sung', to: '/kitchen/stock-shortfalls' },
   suppliers: { label: 'Nhà cung cấp', to: '/menu/suppliers' },
   publishedMenu: { label: 'Thực đơn đã công bố', to: '/kitchen/published-menu' },
   mealCount: { label: 'Sổ báo ăn đã xác nhận', to: '/kitchen/meal-count' },

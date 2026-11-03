@@ -139,7 +139,25 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/nutritionCatalogApi.js'],
     facades: ['src/services/menu-planning/menuPlanningService.js', 'src/services/kitchen/kitchenService.js'],
   },
-  // Thực đơn tuần/mẫu, thư viện tham khảo còn tham chiếu id món/thực phẩm mẫu ⇒ còn demo
+  // Kho khô trên BE /nutrition/stock/*: tồn theo lô, phiếu nhập, lịch sử nhập/trừ, phần thiếu; route dài hơn nên thắng '/kitchen'
+  'dry-stock': {
+    source: 'api',
+    routes: ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls'],
+    files: ['src/services/dryStockApi.js'],
+  },
+  // Kế hoạch tuần theo khối + công bố trên BE /nutrition/meal-plans; thắng '/menu' của thực đơn mẫu còn demo
+  'meal-plan': {
+    source: 'api',
+    routes: ['/menu/weekly'],
+    files: ['src/services/mealPlanApi.js'],
+  },
+  // Bán trú hôm nay trên BE GET /nutrition/day-board
+  'day-board': {
+    source: 'api',
+    routes: ['/boarding'],
+    files: ['src/services/dayBoardApi.js'],
+  },
+  // Thực đơn mẫu, thư viện tham khảo còn tham chiếu id món/thực phẩm mẫu ⇒ còn demo
   'menu-planning': {
     source: 'demo',
     routes: ['/menu'],

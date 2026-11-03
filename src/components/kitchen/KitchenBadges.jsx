@@ -1,4 +1,15 @@
-import { CheckCircle2, Clock, FileQuestion, Hourglass, PackageCheck, PackageX, PauseCircle, Timer, Trash2 } from '@/components/ui/icons';
+import {
+  CheckCircle2,
+  CircleX,
+  Clock,
+  FileQuestion,
+  Hourglass,
+  PackageCheck,
+  PackageX,
+  PauseCircle,
+  Timer,
+  Trash2,
+} from '@/components/ui/icons';
 import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
 import {
   FRESH_RECEIPT_STATUS_LABELS,
@@ -6,6 +17,7 @@ import {
   MEAL_COUNT_STATUS_LABELS,
   PREP_STATUS_LABELS,
   RECEIPT_STATUS_LABELS,
+  STOCK_MOVEMENT_LABELS,
   SUPPLIER_STATUS_LABELS,
 } from '@/models/kitchen/kitchenConstants';
 
@@ -32,7 +44,22 @@ export const FreshReceiptStatusBadge = createStatusBadge(
   FRESH_RECEIPT_STATUS_LABELS,
 );
 
-export const ReceiptStatusBadge = createStatusBadge({ DRAFT: ['blue', Clock], CONFIRMED: ['green', CheckCircle2] }, RECEIPT_STATUS_LABELS);
+export const ReceiptStatusBadge = createStatusBadge(
+  { DRAFT: ['blue', Clock], CONFIRMED: ['green', CheckCircle2], CANCELLED: ['gray', CircleX] },
+  RECEIPT_STATUS_LABELS,
+);
+
+// Biến động kho khô: nhập vào = xanh lá, trừ theo suất = xanh dương, điều chỉnh / trừ phần thiếu = cam, hủy phiếu = xám
+export const StockMovementBadge = createStatusBadge(
+  {
+    RECEIPT: ['green', PackageCheck],
+    DEDUCT: ['blue', null],
+    ADJUST: ['orange', null],
+    SHORTFALL_DEDUCT: ['orange', null],
+    RECEIPT_CANCEL: ['gray', CircleX],
+  },
+  STOCK_MOVEMENT_LABELS,
+);
 
 export const SupplierStatusBadge = createStatusBadge(
   { ACTIVE: ['green', CheckCircle2], INACTIVE: ['gray', PauseCircle] },

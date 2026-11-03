@@ -303,13 +303,24 @@ test('nhà cung cấp: người giao hàng ↔ contactName; BE không trả CCCD
   assert.equal(calls.length, 1, 'trạng thái không đổi ⇒ không PATCH');
 });
 
-test('build nối BE: màn danh mục dùng BE (không nhãn demo); thực đơn, bếp khác vẫn demo', () => {
+test('build nối BE: danh mục, kế hoạch tuần, kho khô, bán trú hôm nay dùng BE (không nhãn demo); thực đơn mẫu, bếp khác vẫn demo', () => {
   const source = createDemoSource({ useMock: false, modules: INTEGRATION_MODULES, loadUsers: () => [] });
   ['/menu/foods', '/menu/foods/7/edit', '/menu/dishes/new', '/menu/setup', '/menu/suppliers', '/menu/suppliers/3'].forEach((path) =>
     assert.equal(source.demoModuleOfPath(path), null, path),
   );
-  assert.equal(source.demoModuleOfPath('/menu/weekly'), 'menu-planning');
-  assert.equal(source.demoModuleOfPath('/kitchen/dry-stock'), 'kitchen');
+  [
+    '/menu/weekly',
+    '/kitchen/dry-stock',
+    '/kitchen/stock-receipts',
+    '/kitchen/stock-receipts/new',
+    '/kitchen/stock-receipts/9',
+    '/kitchen/stock-history',
+    '/kitchen/stock-shortfalls',
+    '/boarding/today',
+  ].forEach((path) => assert.equal(source.demoModuleOfPath(path), null, path));
+  assert.equal(source.demoModuleOfPath('/menu/menus'), 'menu-planning');
+  assert.equal(source.demoModuleOfPath('/kitchen/fresh-receipts'), 'kitchen');
+  assert.equal(source.demoModuleOfPath('/kitchen/food-samples'), 'kitchen');
   const mock = {};
   const real = {};
   assert.equal(source.sourceOf('nutrition-catalog', mock, real), real);

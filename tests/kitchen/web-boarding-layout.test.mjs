@@ -39,3 +39,49 @@ test('PHT, HT: sáu nhóm bán trú theo đúng thứ tự', () => {
     assert.deepEqual(keys, BOARDING_GROUPS, role);
   }
 });
+
+test('Bán trú hôm nay: HT, PHT có một mục tới /boarding/today; bếp không có (AUTH-21)', () => {
+  for (const role of [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL]) {
+    const group = getMenuForRole(role).find((entry) => entry.key === 'boardingToday');
+    assert.deepEqual(
+      group.children.map((child) => [child.key, child.label, child.to]),
+      [['boardingToday', 'Bán trú hôm nay', '/boarding/today']],
+      role,
+    );
+  }
+  const kitchenItems = getMenuForRole(ROLES.KITCHEN_STAFF).flatMap((entry) => (entry.children || []).map((child) => child.to));
+  assert.ok(
+    !kitchenItems.some((to) => to.startsWith('/boarding') || to.startsWith('/kitchen') || to.startsWith('/menu')),
+    kitchenItems.join(','),
+  );
+});
+
+test('Kho thực phẩm: HT, PHT có bốn mục tồn kho, phiếu nhập, lịch sử, phần thiếu', () => {
+  for (const role of [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL]) {
+    const group = getMenuForRole(role).find((entry) => entry.key === 'stock');
+    assert.deepEqual(
+      group.children.map((child) => [child.label, child.to]),
+      [
+        ['Tồn kho khô', '/kitchen/dry-stock'],
+        ['Phiếu nhập', '/kitchen/stock-receipts'],
+        ['Lịch sử nhập/trừ', '/kitchen/stock-history'],
+        ['Phần thiếu chờ bổ sung', '/kitchen/stock-shortfalls'],
+      ],
+      role,
+    );
+  }
+});
+
+test('route bán trú chọn trang theo isDemoModule: build BE dùng trang mới, build mock giữ trang demo cũ', () => {
+  assert.match(routes, /const BOARDING_API = !isDemoModule\('day-board'\);/);
+  assert.match(routes, /const MEAL_PLAN_API = !isDemoModule\('meal-plan'\);/);
+  assert.match(routes, /const DRY_STOCK_API = !isDemoModule\('dry-stock'\);/);
+  assert.match(routes, /BOARDING_API \? <BoardingTodayPage \/> : <KitchenFlowPage \/>/);
+  assert.match(routes, /MEAL_PLAN_API \? <WeeklyPlanPage \/> : <WeeklyMenuListPage \/>/);
+  // /kitchen và /menu/flow chuyển về hub ở build BE
+  assert.match(routes, /path="flow"\s+element=\{BOARDING_API \? <Navigate to="\/boarding\/today" replace \/>/);
+  assert.match(routes, /<Route index element=\{BOARDING_API \? <Navigate to="\/boarding\/today" replace \/>/);
+  for (const tab of ['stock', 'receipts', 'history', 'shortfalls'])
+    assert.match(routes, new RegExp(`<DryStockLedgerPage tab="${tab}" />`), tab);
+  assert.match(routes, /<Route path="stock-receipts\/:id" element=\{only\(STOCK_RECEIPT_ROLES, <StockReceiptEditorPage \/>\)\} \/>/);
+});

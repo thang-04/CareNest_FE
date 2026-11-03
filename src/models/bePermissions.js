@@ -8,4 +8,7 @@ export const PERMISSIONS = {
   PERMISSION_MANAGE: 'PERMISSION_MANAGE',
   // Sửa danh mục bán trú (thực phẩm, món, nhà cung cấp); HT luôn có, PHT khi được cấp
   NUTRITION_MANAGE: 'NUTRITION_MANAGE',
+  // Lập, sửa kế hoạch tuần và công bố; lập phiếu nhập kho khô (theo điểm trường)
+  MENU_MANAGE: 'MENU_MANAGE',
+  STOCK_MANAGE: 'STOCK_MANAGE',
 };

@@ -266,10 +266,6 @@ const ITEMS = {
     label: 'Đề xuất khen thưởng',
     to: '/assessment/rewards',
   },
-  menuFlow: {
-    label: 'Quy trình thực đơn',
-    to: '/menu/flow',
-  },
   nutritionSetup: {
     label: 'Cấu hình nhóm tuổi',
     to: '/menu/setup',
@@ -298,15 +294,21 @@ const ITEMS = {
     label: 'Thực đơn bếp nhận',
     to: '/kitchen/published-menu',
   },
-  // `exact`: /kitchen là tiền tố của mọi trang kho, chỉ sáng khi đúng trang quy trình
-  kitchenDay: {
-    label: 'Việc hôm nay',
-    to: '/kitchen',
-    exact: true,
+  boardingToday: {
+    label: 'Bán trú hôm nay',
+    to: '/boarding/today',
   },
   stockReceipts: {
-    label: 'Phiếu nhập kho',
+    label: 'Phiếu nhập',
     to: '/kitchen/stock-receipts',
+  },
+  stockHistory: {
+    label: 'Lịch sử nhập/trừ',
+    to: '/kitchen/stock-history',
+  },
+  stockShortfalls: {
+    label: 'Phần thiếu chờ bổ sung',
+    to: '/kitchen/stock-shortfalls',
   },
   suppliers: {
     label: 'Nhà cung cấp',
@@ -391,10 +393,10 @@ const MENUS = {
     ]),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     ...boardingGroups({
-      today: ['kitchenDay'],
+      today: ['boardingToday'],
       nutrition: ['weeklyMenus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
-      stock: ['dryStock'],
+      stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['foodSamples'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
@@ -435,10 +437,10 @@ const MENUS = {
       'assessDayUnlocks',
     ]),
     ...boardingGroups({
-      today: ['kitchenDay', 'menuFlow'],
+      today: ['boardingToday'],
       nutrition: ['weeklyMenus', 'menus', 'nutrition'],
       kitchenOps: ['mealCount', 'forecast', 'freshReceipts'],
-      stock: ['stockReceipts', 'dryStock'],
+      stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['foodSamples'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
@@ -513,7 +515,7 @@ const AREA_GROUPS = {
 };
 const AREA_ITEMS = {
   // NCC vẫn hiện để PHT lập phiếu nhập kho khi chưa được giao mảng thực đơn
-  menu: ['foods', 'dishes', 'nutritionSetup', 'menuFlow'],
+  menu: ['foods', 'dishes', 'nutritionSetup'],
   rooms: ['schoolRooms'],
   staff: ['schoolStaffView'],
   yearPlacement: ['schoolPlacement'],
