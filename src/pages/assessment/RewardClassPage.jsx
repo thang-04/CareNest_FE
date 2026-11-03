@@ -1,9 +1,12 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, Download, History, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
+import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, Check, Download, History, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
-import { useRewardList } from '@/hooks/assessment/useAssessment';
+import { useRewardList, useRewardLists } from '@/hooks/assessment/useAssessment';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { isLeader, isPrincipal, isVicePrincipal } from '@/utils/assessment/assessmentPermissions';
 import { decideRewardList, reviewRewardList, saveRewardList } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -37,12 +40,18 @@ const noteError = (note) => {
 
 const toForm = (detail) =>
   Object.fromEntries((detail?.children || []).map((c) => [c.childId, { titles: c.titles || [], note: c.note || '' }]));
+// So bản đang sửa với bản đã lưu (không phụ thuộc thứ tự chọn danh hiệu, khoảng trắng ghi chú)
+const formKey = (form) =>
+  JSON.stringify(
+    Object.entries(form)
+      .map(([id, f]) => [id, [...f.titles].sort(), f.note.trim()])
+      .sort(([a], [b]) => String(a).localeCompare(String(b))),
+  );
 
 /** Danh sách đề xuất khen thưởng cuối năm của một lớp: GV chọn danh hiệu từng trẻ (có gợi ý), PHT xem xét, HT phê duyệt. */
 export default function RewardClassPage() {
   const { user } = useAuth();
   const { classId } = useParams();
-  const navigate = useNavigate();
   const toast = useToast();
   const { detail: d, loading, error, reload } = useRewardList(classId);
   const [form, setForm] = useState({});
@@ -62,6 +71,15 @@ export default function RewardClassPage() {
   }, [d]);
 
   const awarded = useMemo(() => Object.values(form).filter((f) => f.titles.length > 0).length, [form]);
+  const changed = !!d?.canEdit && formKey(form) !== formKey(toForm(d));
+  const guard = useLeaveGuard({ when: changed, onSave: () => save(false) });
+
+  // PHT/HT: lớp kế tiếp đang chờ mình xem xét / phê duyệt (cùng điều kiện nút chính ở danh sách)
+  const leader = isLeader(user);
+  const { rows: lists } = useRewardLists({ enabled: leader });
+  const waitingForMe = (r) =>
+    (isVicePrincipal(user) && r.status === S.PENDING_VP) || (isPrincipal(user) && [S.PENDING_VP, S.PENDING_PRINCIPAL].includes(r.status));
+  const nextWaiting = leader ? lists.find((r) => String(r.classId) !== String(classId) && waitingForMe(r)) : null;
 
   const crumbs = <Breadcrumb items={assessmentCrumbs(SECTIONS.rewards, d ? `Lớp ${d.className}` : 'Danh sách lớp')} />;
   if (loading && !d)
@@ -140,16 +158,18 @@ export default function RewardClassPage() {
   const save = async (send) => {
     if (!check(send)) {
       setSubmitOpen(false);
-      return;
+      return false;
     }
     setBusy(send ? 'send' : 'save');
     try {
       await saveRewardList(d.classId, items(), { submit: send }, user);
       toast.success(send ? 'Đã gửi danh sách khen thưởng cho Phó hiệu trưởng.' : 'Đã lưu danh sách.');
       reload({ silent: true });
+      return true;
     } catch (err) {
       setListError(err.message);
       toast.error(err, 'Không lưu được danh sách');
+      return false;
     } finally {
       setBusy('');
       setSubmitOpen(false);
@@ -404,9 +424,14 @@ export default function RewardClassPage() {
       )}
 
       <div className="page-actions">
-        <button className="btn" onClick={() => navigate('/assessment/rewards')} disabled={!!busy}>
+        <button className="btn" onClick={() => guard.leave('/assessment/rewards')} disabled={!!busy}>
           <ArrowLeft size={16} /> Về danh sách lớp
         </button>
+        {nextWaiting && !d.canReview && !d.canDecide && (
+          <Link className="btn" to={`/assessment/rewards/${nextWaiting.classId}`}>
+            Lớp chờ duyệt tiếp theo: {nextWaiting.className} <ArrowRight size={16} />
+          </Link>
+        )}
         {edit && (
           <div className="row gap-2">
             <button className="btn" onClick={() => save(false)} disabled={!!busy}>
@@ -481,6 +506,11 @@ export default function RewardClassPage() {
           </div>
         </ConfirmationModal>
       )}
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave
+        message="Danh sách khen thưởng có thay đổi chưa lưu. Lưu nháp trước khi rời màn hoặc bỏ các thay đổi."
+      />
     </div>
   );
 }

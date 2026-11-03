@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { Flag, Lock, Save, UserX } from '@/components/ui/icons';
+import { ArrowRight, Flag, Lock, Save, UserX } from '@/components/ui/icons';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDailyAssessment, useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
@@ -64,6 +67,11 @@ export default function DailyAssessmentPage() {
   const classCommentDirty = !!sheet && classComment !== (sheet.classComment?.text || '');
   const hasChanges = saveEntries.length > 0 || classCommentDirty;
 
+  // Còn thay đổi chưa lưu: hỏi khi rời màn, đổi chế độ, đổi lớp hoặc ngày
+  const guard = useLeaveGuard({ when: writable && hasChanges, onSave: () => save() });
+  const [pendingChange, setPendingChange] = useState(null);
+  const confirmChange = (apply) => (writable && hasChanges ? setPendingChange(() => apply) : apply());
+
   const update = (childId, patch) => {
     setDrafts((prev) => ({ ...prev, [childId]: { ...prev[childId], ...patch } }));
     setDirty((prev) => new Set(prev).add(childId));
@@ -71,7 +79,7 @@ export default function DailyAssessmentPage() {
   };
 
   const save = async () => {
-    if (saving || !writable || loading || classesLoading || error || !hasChanges) return;
+    if (saving || !writable || loading || classesLoading || error || !hasChanges) return false;
     setSaving(true);
     setSaveError(null);
     try {
@@ -90,9 +98,11 @@ export default function DailyAssessmentPage() {
           : 'Đã lưu nhận xét chung của lớp.',
       );
       await reload({ silent: true });
+      return true;
     } catch (err) {
       setSaveError(err);
       toast.error(err, 'Không lưu được đánh giá');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -122,7 +132,15 @@ export default function DailyAssessmentPage() {
               <label className="field__label" htmlFor="dg-class">
                 Lớp
               </label>
-              <select id="dg-class" className="select" value={currentClassId} onChange={(e) => setClassId(e.target.value)}>
+              <select
+                id="dg-class"
+                className="select"
+                value={currentClassId}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  confirmChange(() => setClassId(next));
+                }}
+              >
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -139,7 +157,7 @@ export default function DailyAssessmentPage() {
                 value={date}
                 min={sheet?.yearStart || undefined}
                 max={sheet?.today || todayIso()}
-                onChange={(v) => isIsoDate(v) && setDate(v)}
+                onChange={(v) => isIsoDate(v) && confirmChange(() => setDate(v))}
               />
             </div>
             <DailyModeSelect mode="general" classId={currentClassId} date={date} />
@@ -365,6 +383,10 @@ export default function DailyAssessmentPage() {
 
       {writable && (
         <div className="page-actions">
+          {/* Xong Hoạt động chung thì sang Kiến thức kỹ năng cùng lớp, ngày (hỏi nếu còn thay đổi chưa lưu) */}
+          <Link className="btn" to={`/assessment/daily/skills?classId=${currentClassId}&date=${date}`}>
+            Sang Kiến thức kỹ năng <ArrowRight size={16} />
+          </Link>
           <div className="spacer" />
           <div className="row gap-2">
             {(dirty.size > 0 || classCommentDirty) && (
@@ -378,6 +400,22 @@ export default function DailyAssessmentPage() {
           </div>
         </div>
       )}
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave
+        message="Đánh giá hằng ngày có thay đổi chưa lưu. Lưu trước khi rời màn hoặc bỏ các thay đổi."
+      />
+      <ConfirmationModal
+        open={!!pendingChange}
+        title="Đổi lớp hoặc ngày?"
+        message="Các đánh giá chưa lưu sẽ bị bỏ."
+        confirmLabel="Bỏ thay đổi và chuyển"
+        onClose={() => setPendingChange(null)}
+        onConfirm={() => {
+          pendingChange?.();
+          setPendingChange(null);
+        }}
+      />
     </div>
   );
 }

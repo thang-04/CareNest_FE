@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Save, Lock, HeartPulse, CheckCircle2, BarChart3 } from '@/components/ui/icons';
+import { Save, Lock, HeartPulse, CheckCircle2, BarChart3, ArrowRight } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { AttendanceRowBadge } from '@/components/attendance/AttendanceBadges';
@@ -88,6 +88,10 @@ export default function AttendancePage() {
             <div className="spacer" />
             <Link className="btn" to={`/attendance/summary?classId=${classId}`}>
               <BarChart3 size={16} /> Tổng hợp lớp
+            </Link>
+            {/* Điểm danh xong thì sang đánh giá cùng lớp, ngày (hỏi nếu còn thay đổi chưa lưu) */}
+            <Link className="btn" to={`/assessment/daily?classId=${classId}&date=${date}`}>
+              Tiếp: Đánh giá hằng ngày <ArrowRight size={16} />
             </Link>
           </ClassDateBar>
           <ReceptionWorkbench

@@ -1,10 +1,23 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { AlertOctagon, ArrowLeft, Award, CheckCircle2, Copy, History, RefreshCw, Save } from '@/components/ui/icons';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  AlertOctagon,
+  ArrowLeft,
+  Award,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  History,
+  RefreshCw,
+  Save,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useEvaluation } from '@/hooks/assessment/useAssessment';
+import { useEvaluation, useEvaluations } from '@/hooks/assessment/useAssessment';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import {
   confirmEvaluation,
   markProgramCompletion,
@@ -35,7 +48,6 @@ const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp t
 export function EvaluationReviewView({ kind, id }) {
   const { user } = useAuth();
   const toast = useToast();
-  const navigate = useNavigate();
   const md = useMasterData();
   const { detail, loading, error, reload } = useEvaluation(kind, id, { live: false });
   const [content, setContent] = useState('');
@@ -50,9 +62,35 @@ export function EvaluationReviewView({ kind, id }) {
   const base = `/assessment/${yearEnd ? 'year-end' : 'periodic'}`;
 
   const ev = detail?.evaluation;
+  const savedContent = ev ? ev.finalContent || ev.aiDraft?.content || '' : '';
   useEffect(() => {
-    if (ev) setContent(ev.finalContent || ev.aiDraft?.content || '');
-  }, [ev]);
+    if (ev) setContent(savedContent);
+  }, [ev, savedContent]);
+
+  // Trẻ cùng lớp, cùng kỳ (xếp theo tên) để chuyển ‹ › và mở trẻ chưa xác nhận tiếp theo
+  const { evaluations } = useEvaluations(kind, ev ? { classId: ev.classId, schoolYear: ev.schoolYearId || undefined } : null, {
+    enabled: !!ev,
+  });
+  const siblings = useMemo(
+    () =>
+      ev
+        ? evaluations
+            .filter((e) => e.periodType === ev.periodType && e.periodStart === ev.periodStart)
+            .sort((a, b) => a.childName.localeCompare(b.childName, 'vi'))
+        : [],
+    [evaluations, ev],
+  );
+  const at = siblings.findIndex((e) => String(e.id) === String(ev?.id));
+  const prev = at > 0 ? siblings[at - 1] : null;
+  const next = at >= 0 && at < siblings.length - 1 ? siblings[at + 1] : null;
+  const nextPending =
+    at >= 0 ? [...siblings.slice(at + 1), ...siblings.slice(0, at)].find((e) => e.status !== EVAL_STATUS.CONFIRMED) : null;
+  const linkOf = (e) => `${base}/${e.id}`;
+
+  // Sửa nội dung chưa lưu mà rời màn / sang trẻ khác: hỏi trước
+  const saveRef = useRef(null);
+  const editing = !!ev && ev.status !== EVAL_STATUS.CONFIRMED && content !== savedContent;
+  const guard = useLeaveGuard({ when: editing, onSave: () => saveRef.current?.() ?? false });
 
   if (loading) return <LoadingState />;
   if (error) {
@@ -128,6 +166,16 @@ export function EvaluationReviewView({ kind, id }) {
       () => saveEvaluationDraft(kind, ev.id, content, user),
       () => 'Đã lưu chỉnh sửa. Đánh giá vẫn chờ bạn xác nhận.',
     );
+  saveRef.current = async () => {
+    if (!check()) return false;
+    let ok = false;
+    await run('save', async () => {
+      const res = await saveEvaluationDraft(kind, ev.id, content, user);
+      ok = true;
+      return res;
+    });
+    return ok;
+  };
 
   const redraft = async () => {
     setBusy('redraft');
@@ -152,6 +200,8 @@ export function EvaluationReviewView({ kind, id }) {
       () => 'Đánh giá đã được xác nhận thành công.',
     );
     setConfirmOpen(false);
+    // Xác nhận xong thì mở luôn trẻ chưa xác nhận tiếp theo cùng lớp, cùng kỳ
+    if (res && nextPending) guard.leaveNow(linkOf(nextPending));
     return res;
   };
 
@@ -387,9 +437,22 @@ export function EvaluationReviewView({ kind, id }) {
       )}
 
       <div className="page-actions">
-        <button className="btn" onClick={() => navigate(base)}>
+        <button className="btn" onClick={() => guard.leave(base)}>
           <ArrowLeft size={16} /> Về danh sách
         </button>
+        {siblings.length > 1 && at >= 0 && (
+          <div className="row gap-2" aria-label="Chuyển trẻ cùng lớp, cùng kỳ">
+            <button className="btn" onClick={() => prev && guard.leave(linkOf(prev))} disabled={!prev} title={prev?.childName}>
+              <ChevronLeft size={16} /> Trẻ trước
+            </button>
+            <span className="muted text-sm">
+              {at + 1}/{siblings.length}
+            </span>
+            <button className="btn" onClick={() => next && guard.leave(linkOf(next))} disabled={!next} title={next?.childName}>
+              Trẻ sau <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
         {canReview && (
           <div className="row gap-2">
             <button className="btn" onClick={save} disabled={!!busy}>
@@ -414,7 +477,7 @@ export function EvaluationReviewView({ kind, id }) {
             ? 'Đánh giá sẽ trở thành chính thức, dùng cho Ban giám hiệu và đề xuất khen thưởng. Sau khi xác nhận không sửa được.'
             : 'Đánh giá sẽ trở thành chính thức và được công bố cho phụ huynh, Phó hiệu trưởng và Hiệu trưởng. Sau khi xác nhận không sửa được.'
         }
-        confirmLabel={yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+        confirmLabel={`${yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}${nextPending ? ', mở trẻ tiếp theo' : ''}`}
         onConfirm={doConfirm}
         onClose={() => setConfirmOpen(false)}
       />
@@ -449,6 +512,7 @@ export function EvaluationReviewView({ kind, id }) {
         <div className="dg-ai-box text-sm">{fresh?.content}</div>
       </Modal>
       {busy === 'redraft' && <AiWorkingOverlay text="Đang soạn bản nháp đánh giá…" />}
+      <LeaveConfirmModal {...guard.modal} canSave message="Nội dung đánh giá có chỉnh sửa chưa lưu." />
     </>
   );
 }

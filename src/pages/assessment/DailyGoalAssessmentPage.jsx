@@ -10,6 +10,9 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { DailyModeSelect } from '@/components/assessment/DailyModeSelect';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { CellPopover } from '@/components/assessment/DailyAssessmentCells';
 import { Cell, focusCell } from '@/components/ui/TableCell';
@@ -122,7 +125,7 @@ export default function DailyGoalAssessmentPage() {
     });
 
   const save = async () => {
-    if (!dirtyIds.length || inFlight.current) return;
+    if (!dirtyIds.length || inFlight.current) return false;
     const entries = dirtyIds.map((childId) => {
       const parts = dirty[childId];
       const d = drafts[childId];
@@ -140,16 +143,22 @@ export default function DailyGoalAssessmentPage() {
       setSaveState({ phase: 'saved', at: new Date() });
       toast.success(`Đã lưu đánh giá của ${entries.length} trẻ.`);
       reload({ silent: true });
+      return true;
     } catch (err) {
       setSaveError(err);
       setSaveState((s) => ({ ...s, phase: 'error' }));
       toast.error(err, 'Không lưu được đánh giá');
+      return false;
     } finally {
       inFlight.current = false;
     }
   };
   // Đóng tab / tải lại khi còn thay đổi chưa lưu: trình duyệt hỏi lại
   const hasDirty = dirtyIds.length > 0;
+  // Rời màn, đổi chế độ, đổi lớp hoặc ngày khi còn thay đổi chưa lưu: hỏi trước
+  const guard = useLeaveGuard({ when: hasDirty, onSave: () => save() });
+  const [pendingChange, setPendingChange] = useState(null);
+  const confirmChange = (apply) => (hasDirty ? setPendingChange(() => apply) : apply());
   useEffect(() => {
     if (!hasDirty) return undefined;
     const warn = (e) => e.preventDefault();
@@ -205,7 +214,15 @@ export default function DailyGoalAssessmentPage() {
               <label className="field__label" htmlFor="dg-class">
                 Lớp
               </label>
-              <select id="dg-class" className="select" value={currentClassId} onChange={(e) => setClassId(e.target.value)}>
+              <select
+                id="dg-class"
+                className="select"
+                value={currentClassId}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  confirmChange(() => setClassId(next));
+                }}
+              >
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -222,7 +239,7 @@ export default function DailyGoalAssessmentPage() {
                 value={date}
                 min={sheet?.yearStart || undefined}
                 max={sheet?.today || todayIso()}
-                onChange={(v) => isIsoDate(v) && setDate(v)}
+                onChange={(v) => isIsoDate(v) && confirmChange(() => setDate(v))}
               />
             </div>
             <DailyModeSelect mode="skills" classId={currentClassId} date={date} />
@@ -473,6 +490,22 @@ export default function DailyGoalAssessmentPage() {
             );
           })()}
       </SidePanel>
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave
+        message="Đánh giá kiến thức kỹ năng có thay đổi chưa lưu. Lưu trước khi rời màn hoặc bỏ các thay đổi."
+      />
+      <ConfirmationModal
+        open={!!pendingChange}
+        title="Đổi lớp hoặc ngày?"
+        message="Các đánh giá chưa lưu sẽ bị bỏ."
+        confirmLabel="Bỏ thay đổi và chuyển"
+        onClose={() => setPendingChange(null)}
+        onConfirm={() => {
+          pendingChange?.();
+          setPendingChange(null);
+        }}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useGuardedNavigate } from '@/hooks/useLeaveGuard';
 
 const MODES = [
   { key: 'general', label: 'Hoạt động chung', path: '/assessment/daily' },
@@ -10,7 +10,8 @@ const MODES = [
  * "Kiến thức kỹ năng" là bảng Đạt / Chưa đạt theo giờ của kế hoạch ngày. Đổi màn giữ nguyên lớp và ngày đang chọn.
  */
 export function DailyModeSelect({ mode, classId, date }) {
-  const navigate = useNavigate();
+  // Đổi màn khi còn thay đổi chưa lưu thì hỏi trước (useLeaveGuard của màn đang mở)
+  const navigate = useGuardedNavigate();
   const go = (key) => {
     const m = MODES.find((x) => x.key === key);
     const q = new URLSearchParams({ ...(classId ? { classId } : {}), ...(date ? { date } : {}) });
