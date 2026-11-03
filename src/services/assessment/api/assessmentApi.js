@@ -135,6 +135,11 @@ export const createAssessmentBeApi = (client) => ({
     };
   },
   saveClassRatings: ({ period, items }) => client.put('/assessment/class-ratings', { period, items }),
+  // Nhận xét chung cả lớp theo tháng (BE OBS-26); month = ngày 1 của tháng
+  getClassMonthlyComment: ({ classId, month }) => client.get('/assessment/class-monthly-comments', { params: { classId, month } }),
+  saveClassMonthlyComment: ({ classId, month, content }) => client.put('/assessment/class-monthly-comments', { classId, month, content }),
+  confirmClassMonthlyComment: ({ classId, month, content }) =>
+    client.post('/assessment/class-monthly-comments/confirm', { classId, month, content }),
   // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: từ tháng cuối năm học)
   getEvaluations: (kind, { schoolYear, classId } = {}) =>
     client.get('/assessment/evaluations', {

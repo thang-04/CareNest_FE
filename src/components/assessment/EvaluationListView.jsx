@@ -13,6 +13,7 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { FilterMore } from '@/components/ui/FilterMore';
 import { EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { ClassMonthlyCommentCard } from '@/components/assessment/ClassMonthlyCommentCard';
 import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime, normalizeText } from '@/utils/format';
 import { evaluationPeriodLabel } from '@/utils/assessment/assessmentPeriods';
@@ -131,8 +132,13 @@ export function EvaluationListView({ kind }) {
   const cols = 5 + (showClass ? 1 : 0) + (showFlags ? 1 : 0);
   const link = (e) => `/assessment/${kind}/${e.id}`;
 
+  // Đánh giá tháng: nhận xét chung của lớp cho tháng đang xem (GV lớp mình; BGH khi đã chọn lớp)
+  const monthKey = !yearEnd && !semester && activePeriod !== 'ALL' ? activePeriod.split('|')[1] : null;
+  const commentClassId = leader ? classId : classes.find((c) => c.teaches)?.id || classes[0]?.id;
+
   return (
     <>
+      {monthKey && commentClassId && <ClassMonthlyCommentCard classId={commentClassId} month={monthKey} />}
       <div className="card">
         {tabs.length > 0 && (
           <div className="tabs" role="tablist">
