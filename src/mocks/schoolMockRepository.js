@@ -57,6 +57,21 @@ export const ensureSchoolSeeded = () => {
       d.childIdFix037 = true;
     });
   }
+  // Sau khi tách ch_037: id trẻ còn trùng ⇒ giữ bản đầu như các phép tra cứu cũ, lưu bản xung đột để không mất dữ liệu demo đã nhập.
+  const current = readDb();
+  if (current.children && new Set(current.children.map((c) => c.id)).size !== current.children.length) {
+    writeDb((d) => {
+      const seen = new Set();
+      d.children = d.children.filter((row) => {
+        if (!seen.has(row.id)) {
+          seen.add(row.id);
+          return true;
+        }
+        (d.demoIdentityConflicts ||= []).push({ collection: 'children', row: clone(row) });
+        return false;
+      });
+    });
+  }
   if (db.classes && db.children) return readDb();
   writeDb((d) => {
     const seed = buildSeedSchool();

@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, ChevronDown, Copy, Plus, Save, Trash2, X } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useDish, useDishes, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
-import { saveDish } from '@/services/menu-planning/menuPlanningService';
+import { useDish, useDishes, useCatalogAccess, useCatalogLookups } from '@/hooks/menu-planning/useMenuPlanning';
+import { catalogUsesApi, saveDish } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
@@ -13,7 +13,8 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { NoManageAccess } from '@/components/menu-planning/MenuBadges';
 import { EditHead } from '@/components/ui/EditHead';
 import { AutoChecks } from '@/components/menu-planning/AutoChecks';
-import { dishAllergens, dishTotals, hasNutrition } from '@/utils/menu-planning/menuCalculations';
+import { DishPortionTable } from '@/components/menu-planning/DishPortionTable';
+import { dishAllergens, dishTotals, hasNutrition, hasOrigin } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups, ageAbbr } from '@/utils/menu-planning/nutritionSetup';
 import { validateDish, hasErrors } from '@/utils/menu-planning/menuPlanningValidation';
 import { copyPortions, countReplacedCells, duplicateDishForm, recipeRow } from '@/utils/menu-planning/recipeCopy';
@@ -25,13 +26,15 @@ import {
   FOOD_GROUP_LABELS,
   RECORD_STATUS,
   RECORD_STATUS_LABELS,
-  formatMoney,
 } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
 const emptyRow = () => ({ isNew: true, foodId: '', portions: Object.fromEntries(AGE_GROUPS.map((a) => [a.id, ''])) });
 const AGE_IDS = AGE_GROUPS.map((a) => a.id);
-const EMPTY = { name: '', type: '', description: '', status: DISH_STATUS.DRAFT, ingredients: [emptyRow()] };
+// BE chưa có trạng thái Nháp của món ⇒ khi danh mục dùng BE, món mới lưu là Đang sử dụng / Ngừng sử dụng
+const HAS_DRAFT = !catalogUsesApi();
+const NEW_STATUS = HAS_DRAFT ? DISH_STATUS.DRAFT : DISH_STATUS.ACTIVE;
+const EMPTY = { name: '', type: '', description: '', status: NEW_STATUS, ingredients: [emptyRow()] };
 const toRow = (ing) => recipeRow(ing, AGE_IDS);
 const g = (v) => v.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 
@@ -41,8 +44,8 @@ export default function DishFormPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
-  const access = useMenuAccess();
-  const { catalog, loading: catLoading } = useMenuCatalog({ live: false });
+  const access = useCatalogAccess();
+  const { catalog, loading: catLoading } = useCatalogLookups({ live: false });
   const { item, loading, error, reload } = useDish(id, { live: false });
   // "?from=<id>": nhân bản món (BA 03) — form món mới điền sẵn từ món gốc, chỉ tạo khi bấm lưu
   const [params] = useSearchParams();
@@ -61,7 +64,7 @@ export default function DishFormPage() {
   const [statusError, setStatusError] = useState('');
 
   useEffect(() => {
-    if (source.item) setForm(duplicateDishForm(source.item, AGE_IDS, DISH_STATUS.DRAFT));
+    if (source.item) setForm(duplicateDishForm(source.item, AGE_IDS, NEW_STATUS));
   }, [source.item]);
 
   useEffect(() => {
@@ -87,7 +90,7 @@ export default function DishFormPage() {
 
   const title = id ? 'Sửa món ăn' : fromId ? 'Nhân bản món ăn' : 'Thêm món ăn';
   // Món mới hoặc món Nháp: chọn Lưu nháp / Lưu và dùng cho thực đơn (user chốt 20/10/2026)
-  const draftMode = !id || item?.status === DISH_STATUS.DRAFT;
+  const draftMode = HAS_DRAFT && (!id || item?.status === DISH_STATUS.DRAFT);
   const requireGroups = groups.map((a) => ({ id: a.id, name: ageAbbr(a.id) }));
   const errors = { ...validateDish({ ...form, id }, others), ...serverErrors };
   const show = (k) => (submitted || touched[k] ? errors[k] : undefined);
@@ -119,22 +122,14 @@ export default function DishFormPage() {
   const usedFoods = preview.ingredients.map((r) => catalog.foodById[r.foodId]).filter(Boolean);
   const noQtyGroups = groups.filter((a) => dishTotals(preview, catalog.foodById, 1, a.id).noQuantity);
   const noNutrition = usedFoods.filter((f) => !hasNutrition(f)).map((f) => f.name);
+  const noOrigin = usedFoods.filter((f) => hasNutrition(f) && !hasOrigin(f)).map((f) => f.name);
   const noPrice = usedFoods.filter((f) => !f.unitPrice).map((f) => f.name);
   const allergens = dishAllergens(preview, catalog.foodById);
   const appliedGroups = preview.ingredients.length ? groups.filter((a) => !noQtyGroups.includes(a)) : [];
-  const g1 = (v) => v.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
-  const portionItems = groups.map((a) => {
-    const t = dishTotals(preview, catalog.foodById, 1, a.id);
-    return t.noQuantity || !preview.ingredients.length
-      ? { tone: 'bad', text: `${ageAbbr(a.id)}: chưa có định lượng` }
-      : {
-          tone: 'ok',
-          text: `${ageAbbr(a.id)}: ${g1(t.totals.kcal)} kcal · đạm ${g1(t.totals.protein)} g · béo ${g1(t.totals.lipid)} g · bột ${g1(t.totals.glucid)} g · ${formatMoney(t.cost)}`,
-        };
-  });
   const checks = [
     ...noQtyGroups.map((a) => ({ tone: 'bad', text: `Cột ${ageAbbr(a.id)} chưa có định lượng: món chưa dùng được cho ${ageAbbr(a.id)}.` })),
     ...(noNutrition.length ? [{ tone: 'warn', text: `Thiếu số liệu dinh dưỡng: ${noNutrition.join(', ')}.` }] : []),
+    ...(noOrigin.length ? [{ tone: 'warn', text: `Chưa có nguồn gốc động vật / thực vật: ${noOrigin.join(', ')}.` }] : []),
     ...(noPrice.length ? [{ tone: 'warn', text: `Chưa có đơn giá: ${noPrice.join(', ')}.` }] : []),
   ];
   if (!checks.length && preview.ingredients.length)
@@ -467,11 +462,15 @@ export default function DishFormPage() {
             </div>
           </section>
 
-          <div className="td-aside-stack">
-            <AutoChecks title="Dinh dưỡng 1 suất" items={portionItems} />
-            {checks.length > 0 && <AutoChecks items={checks} />}
-          </div>
+          <div className="td-aside-stack">{checks.length > 0 && <AutoChecks items={checks} />}</div>
         </div>
+        <section className="card">
+          <div className="card__header">
+            <h2 className="card__title">Dinh dưỡng và chi phí 1 suất</h2>
+            <span className="text-sm muted">Theo định lượng đang nhập; chi phí đã cộng hệ số thải bỏ</span>
+          </div>
+          <DishPortionTable dish={preview} foodById={catalog.foodById} groups={groups} />
+        </section>
       </form>
       <ConfirmationModal
         open={!!pendingCopy}

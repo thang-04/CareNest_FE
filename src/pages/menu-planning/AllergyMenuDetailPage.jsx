@@ -17,7 +17,7 @@ import { allergyMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
 import { ageGroupById } from '@/models/School';
 import { ALLERGY_GROUP_LABELS } from '@/models/menu-planning/menuPlanningConstants';
-import { mealLabel } from '@/utils/menu-planning/nutritionSetup';
+import { mealLabel, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import '@/styles/modules/menu-planning.css';
 
 /** Screen #82 – one alternative menu. */
@@ -46,7 +46,12 @@ export default function AllergyMenuDetailPage() {
   const base = catalog.menuById[a.baseMenuId];
   const effective = base ? applyReplacements(base.meals, a.replacements) : [];
   const conflicts = restrictedConflicts(effective, a.restrictions, catalog.dishById, catalog.foodById);
-  const result = mealsTotals(effective, catalog.dishById, catalog.foodById, a.ageGroupId);
+  const result = mealsTotals(
+    normScopeMeals(effective, catalog.nutritionSetups, a.ageGroupId),
+    catalog.dishById,
+    catalog.foodById,
+    a.ageGroupId,
+  );
   const affected = allergyRows.filter((r) => a.restrictions.some((x) => sameAllergen(x, r.allergen)));
   const remove = async () => {
     try {
@@ -204,6 +209,7 @@ export default function AllergyMenuDetailPage() {
               result={result}
               ageGroupId={a.ageGroupId}
               norms={catalog.norms}
+              setups={catalog.nutritionSetups}
               price={priceOn(catalog.mealPrices, a.ageGroupId, todayInput())?.price}
             />
           </div>

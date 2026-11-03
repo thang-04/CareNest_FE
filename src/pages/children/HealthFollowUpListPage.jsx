@@ -9,7 +9,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import { FollowUpDueBadge, FollowUpStatusBadge } from '@/components/children/ChildBadges';
@@ -105,16 +105,15 @@ export default function HealthFollowUpListPage() {
 
       <div className="stat-grid">
         {STATS.map((s) => (
-          <button
+          <StatCard
             key={s.key}
-            className={`stat-card stat-card--${s.tone} ${statActive(s.key) ? 'stat-card--active' : ''}`}
-            aria-pressed={statActive(s.key)}
+            tone={s.tone}
+            label={s.label || FOLLOW_UP_STATUS_LABELS[s.key]}
+            value={counts[s.key] ?? 0}
+            loading={loading}
+            active={statActive(s.key)}
             onClick={() => toggleStat(s.key)}
-          >
-            <div className="stat-card__value">{counts[s.key] ?? 0}</div>
-            <div className="stat-card__label">{s.label || FOLLOW_UP_STATUS_LABELS[s.key]}</div>
-            <StatCardIcon tone={s.tone} />
-          </button>
+          />
         ))}
       </div>
 

@@ -7,12 +7,21 @@ import {
   repeatedMainDishes,
   sameAllergen,
 } from '@/utils/menu-planning/menuCalculations';
-import { mealsOf } from '@/utils/menu-planning/nutritionSetup';
+import { mealsOf, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 
 const fmt = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) : '—');
 const round10 = (n) => Math.max(10, Math.round(n / 10) * 10);
-const NUTRIENT_WORD = { protein: 'chất đạm', lipid: 'chất béo', glucid: 'tinh bột' };
+const NUTRIENT_WORD = {
+  protein: 'chất đạm',
+  lipid: 'chất béo',
+  glucid: 'tinh bột',
+  animalProteinPct: 'đạm động vật',
+  animalLipidPct: 'béo động vật',
+};
+const RATIO_KEYS = ['protein', 'lipid', 'glucid', 'animalProteinPct', 'animalLipidPct'];
+const pctOf = (v) => (typeof v === 'number' ? `${fmt(v)}%` : '—');
+const rangeOf = (r, unit = '%') => (r?.min != null ? `${r.min}–${r.max}${unit === '%' ? '%' : ` ${unit}`}` : 'Chưa đặt định mức');
 const WEEKDAY = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -29,7 +38,8 @@ export const dayLabel = (iso) => {
  * allergyRows: số trẻ dị ứng tổng hợp của nhóm tuổi; allergyMenus: suất thay thế đã có của thực đơn này.
  */
 export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [], allergyMenus = [] }) {
-  const result = mealsTotals(meals, catalog.dishById, catalog.foodById, ageGroupId);
+  // Định mức áp cho phạm vi các bữa trường phục vụ của nhóm tuổi
+  const result = mealsTotals(normScopeMeals(meals, catalog.nutritionSetups, ageGroupId), catalog.dishById, catalog.foodById, ageGroupId);
   const rows = compareToNorm(result.totals, ageGroupId, result.missing.length > 0, catalog.norms);
   const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
   const price = priceOn(catalog.mealPrices, ageGroupId, date)?.price ?? null;
@@ -42,7 +52,8 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
   const normSet = isNormConfigured(catalog.norms?.[ageGroupId]);
   emptyMeals.forEach((m) => problems.push({ tone: 'bad', text: `${m.name} chưa có món` }));
   if (!normSet) problems.push({ tone: 'warn', text: 'Chưa nhập chuẩn tạm của nhóm tuổi, chưa đánh giá được dinh dưỡng' });
-  if (result.missing.length) problems.push({ tone: 'warn', text: `Chưa đủ số liệu dinh dưỡng của: ${result.missing.join(', ')}` });
+  if (result.missing.length)
+    problems.push({ tone: 'warn', text: `Chưa đủ số liệu dinh dưỡng hoặc nguồn gốc của: ${result.missing.join(', ')}` });
 
   const kcal = byKey.kcal;
   if (kcal?.status === 'LOW')
@@ -51,8 +62,7 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
     problems.push({ tone: 'warn', text: `Hơi nhiều năng lượng (thừa khoảng ${round10(kcal.value - kcal.max)} kcal)` });
   else if (kcal?.status === 'OK') oks.push({ tone: 'ok', text: 'Đủ năng lượng' });
 
-  const ratio = ['protein', 'lipid', 'glucid']
-    .map((k) => byKey[k])
+  const ratio = RATIO_KEYS.map((k) => byKey[k])
     .filter((r) => r?.status === 'LOW' || r?.status === 'HIGH')
     .map((r) => `${r.status === 'LOW' ? 'ít' : 'nhiều'} ${NUTRIENT_WORD[r.key]}`);
   if (ratio.length) problems.push({ tone: 'warn', text: cap(ratio.join(', ')) });
@@ -80,25 +90,35 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
   else if (price != null && result.cost > price) status = { tone: 'orange', label: 'Vượt tiền ăn' };
   else if (ratio.length) status = { tone: 'orange', label: 'Chưa cân đối' };
 
-  const pct = ['protein', 'lipid', 'glucid'].map((k) => fmt(byKey[k]?.percent));
+  const t = result.totals;
+  const plg = ['protein', 'lipid', 'glucid'];
   return {
     status,
     problems,
     checks: [...problems, ...oks],
+    // Ba loại số tách riêng: lượng thực tế (g, kcal) · tỷ lệ cơ cấu (%) · % đạt định mức
     numbers: [
+      { label: 'Năng lượng', value: `${fmt(t.kcal)} kcal`, norm: kcal?.min != null ? `${kcal.min}–${kcal.max} kcal` : 'Chưa đặt định mức' },
+      { label: 'Đạm động vật · thực vật', value: `${fmt(t.animalProtein)} g · ${fmt(t.plantProtein)} g`, norm: '—' },
+      { label: 'Béo động vật · thực vật', value: `${fmt(t.animalLipid)} g · ${fmt(t.plantLipid)} g`, norm: '—' },
+      { label: 'Tinh bột', value: `${fmt(t.glucid)} g`, norm: '—' },
       {
-        label: 'Năng lượng',
-        value: `${fmt(result.totals.kcal)} kcal`,
-        norm: kcal?.min != null ? `${kcal.min}–${kcal.max} kcal` : '—',
+        label: 'Tỷ lệ năng lượng đạm · béo · bột',
+        value: plg.map((k) => pctOf(byKey[k]?.percent)).join(' · '),
+        norm: byKey.protein?.min != null ? plg.map((k) => `${byKey[k].min}–${byKey[k].max}%`).join(' · ') : 'Chưa đặt định mức',
       },
+      { label: 'Đạm động vật / tổng đạm', value: pctOf(byKey.animalProteinPct?.value), norm: rangeOf(byKey.animalProteinPct) },
+      { label: 'Béo động vật / tổng béo', value: pctOf(byKey.animalLipidPct?.value), norm: rangeOf(byKey.animalLipidPct) },
       {
-        label: 'Đạm · béo · tinh bột',
-        value: `${pct[0]}% · ${pct[1]}% · ${pct[2]}%`,
-        norm: ['protein', 'lipid', 'glucid'].map((k) => (byKey[k]?.min != null ? `${byKey[k].min}–${byKey[k].max}%` : '—')).join(' · '),
+        label: '% đạt định mức năng lượng · đạm · béo · bột',
+        value: ['kcal', ...plg].map((k) => pctOf(byKey[k]?.attainment)).join(' · '),
+        norm: kcal?.target != null ? '100% = giữa khoảng định mức' : 'Chưa đặt định mức',
       },
       { label: 'Tiền ăn', value: formatMoney(result.cost), norm: price != null ? `tối đa ${formatMoney(price)}` : '—' },
     ],
+    rows,
     totals: result.totals,
+    missing: result.missing,
     cost: result.cost,
     price,
     mealCount: (meals || []).filter((m) => m.items?.length).length,
@@ -148,4 +168,41 @@ export function weekIssues({ wm, catalog, previousDays = [], allergyRows = [], a
     }),
   );
   return issues.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
+/**
+ * Kiểm tra tiền ăn của thực đơn tuần. days: [{ date, cost }] các ngày học. Trả { level: 'ok'|'warn', text }.
+ * Giá BE tính theo ngày (`catalog.pricePerDay`, NUT-19) ⇒ so chi phí từng ngày với giá áp dụng ngày đó;
+ * dữ liệu mẫu giữ cách cũ: tổng tuần so với giá × số ngày học.
+ */
+export function weekBudgetCheck({ days, ageGroupId, weekStart, catalog }) {
+  if (catalog.pricePerDay) {
+    const rows = days.map((d) => ({ ...d, price: priceOn(catalog.mealPrices, ageGroupId, d.date)?.price ?? null }));
+    const priced = rows.filter((r) => r.price != null);
+    if (!priced.length) return { level: 'warn', text: 'Chưa có giá suất ăn áp dụng cho tuần này nên chưa kiểm tra được tiền ăn.' };
+    const over = priced.filter((r) => r.cost > r.price);
+    const unpriced = rows.length - priced.length;
+    const note = unpriced ? ` ${unpriced} ngày chưa có giá suất ăn áp dụng.` : '';
+    if (over.length)
+      return {
+        level: 'warn',
+        text: `${over.length} ngày vượt tiền ăn / ngày: ${over
+          .map((r) => `${dayLabel(r.date)} (${formatMoney(r.cost)} / ${formatMoney(r.price)})`)
+          .join(', ')}.${note}`,
+      };
+    return {
+      level: unpriced ? 'warn' : 'ok',
+      text: `Chi phí thực phẩm ước tính từng ngày đều trong tiền ăn / ngày (${formatMoney(priced[0].price)} / trẻ).${note}`,
+    };
+  }
+  const price = priceOn(catalog.mealPrices, ageGroupId, weekStart)?.price;
+  const cost = days.reduce((s, d) => s + d.cost, 0);
+  const budget = price ? price * days.length : null;
+  if (!budget) return { level: 'warn', text: 'Chưa có giá suất ăn áp dụng cho tuần này nên chưa kiểm tra được ngân sách.' };
+  return {
+    level: cost > budget ? 'warn' : 'ok',
+    text: `Chi phí thực phẩm ước tính ${formatMoney(cost)} / ngân sách tuần ${formatMoney(budget)} (${formatMoney(price)} × ${days.length} ngày)${
+      cost > budget ? ' – vượt ngân sách.' : '.'
+    }`,
+  };
 }

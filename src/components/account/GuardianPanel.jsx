@@ -14,7 +14,7 @@ import { avatarTone, formatDate, initials } from '@/utils/format';
 /** Kết quả gửi SMS mật khẩu tạm (BE trả smsStatus): không hiện, không in mật khẩu (user bỏ màn in phiếu 2026-10-23). */
 const smsFailed = (rows) => rows.filter((r) => r.smsStatus === 'FAILED');
 
-// Quản lý tài khoản demo qua adapter legacy; chưa nối hợp đồng BE/App.
+// Tài khoản phụ huynh của một trẻ (AUTH-18, AUTH-19, AUTH-20), qua guardianService (mock hoặc BE).
 /**
  * Phụ huynh của bé: tài khoản đã liên kết (cấp mật khẩu, gỡ, khóa) và phụ huynh trên hồ sơ trẻ chưa có tài khoản.
  * Thông tin phụ huynh lấy từ hồ sơ trẻ, không sửa ở đây; có từ 2 phụ huynh thì chọn xem từng người, kích hoạt tạo cho tất cả
@@ -112,7 +112,7 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
       : confirm.type === 'password'
         ? {
             title: 'Cấp mật khẩu mới',
-            message: `Gửi mật khẩu tạm mới qua SMS tới ${target.username} (${target.fullName})? Mật khẩu cũ hết hiệu lực.`,
+            message: `Gửi mật khẩu tạm mới qua SMS tới ${target.username} (${target.fullName})? Mật khẩu cũ hết hiệu lực và các phiên đăng nhập hiện có bị đăng xuất.`,
             confirmLabel: 'Gửi mật khẩu mới',
           }
         : {

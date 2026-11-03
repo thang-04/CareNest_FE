@@ -31,6 +31,7 @@ export async function load(url, context, nextLoad) {
         export const USE_MOCK = true;
         export const MOCK_LATENCY_MS = 0;
         export const SCHOOL_CONFIG_API = false;
+        export const KEYCLOAK_DEV_LOGIN = false;
         export const DEV_SKIP_YEAR_DATES = false;
         export const DEV_BE_BASE_URL = '/be-api';
         export const DEV_KEYCLOAK_URL = '/kc';

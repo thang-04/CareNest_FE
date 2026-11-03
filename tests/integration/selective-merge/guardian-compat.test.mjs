@@ -20,7 +20,7 @@ const addAndActivate = async (childId, f, actor) => {
 beforeEach(async () => {
   resetDb();
   const user = readDb().users.find((row) => row.role === 'VICE_PRINCIPAL' && row.campusId === 'c1');
-  vp = (await auth.login({ email: user.email, password: DEMO_PASSWORD })).user;
+  vp = (await auth.login({ email: user.email, password: DEMO_PASSWORD })).user; // carenest:allow-secret
   const rows = await repo.searchChildren({ campusId: 'c1' }, vp);
   child = rows.items.find((row) => row.canManage);
   assert.ok(child);
@@ -98,4 +98,13 @@ test('thông báo legacy giữ email key, không phát trùng và không nhận 
   assert.deepEqual(healthNotificationRecipients(db, canonical).map((row) => row.recipientKey), [guardian.email]);
   db.parentAccounts[0].childIds = [];
   assert.equal(healthNotificationRecipients(db, canonical).length, 0);
+});
+test('tra SĐT trước khi thêm: chưa có, đã có tài khoản (tên che), đã liên kết với bé', async () => {
+  assert.equal((await repo.lookupGuardian(child.id, '0987654321', vp)).exists, false);
+  const added = await addAndActivate(child.id, form(), vp);
+  const linked = await repo.lookupGuardian(child.id, '0987654321', vp);
+  assert.deepEqual([linked.exists, linked.alreadyLinked, linked.userId], [true, true, added.userId]);
+  assert.ok(!linked.maskedFullName.includes('Liên hệ minh họa'));
+  const other = (await repo.searchChildren({ campusId: 'c1' }, vp)).items.find((row) => row.canManage && row.id !== child.id);
+  assert.equal((await repo.lookupGuardian(other.id, '0987654321', vp)).alreadyLinked, false);
 });

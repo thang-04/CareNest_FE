@@ -27,7 +27,6 @@ const nowTime = () => new Date().toTimeString().slice(0, 5);
 export function DailyHealthPanel({
   child,
   classId,
-  className,
   date,
   user,
   presentSaved,
@@ -166,9 +165,7 @@ export function DailyHealthPanel({
         <ChildAvatar child={child} size="lg" />
         <div>
           <h3 className="dd-health__name">{child.fullName}</h3>
-          <div className="muted text-sm">
-            {child.code} · {className}
-          </div>
+          {child.code && <div className="muted text-sm">{child.code}</div>}
         </div>
       </div>
       {loading ? (
@@ -211,9 +208,6 @@ export function DailyHealthPanel({
             >
               {busy && <SubmitOverlay state="sending" />}
               <fieldset disabled={busy || parentBusy} className="dd-health__fields">
-                {attendanceDirty && (
-                  <p className="muted text-sm">Chưa lưu điểm danh của trẻ. Nút bên dưới sẽ lưu điểm danh trước, rồi lưu sức khỏe.</p>
-                )}
                 <FormField label="Thân nhiệt (°C)" error={errors.temperature}>
                   <input
                     className="input"

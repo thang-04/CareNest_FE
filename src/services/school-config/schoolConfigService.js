@@ -1,33 +1,29 @@
-import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
+import { SCHOOL_CONFIG_API } from '@/config/env';
 import { beClient } from '@/services/http/beClient';
 import { schoolConfigMockRepository } from '@/services/school-config/mock/schoolConfigMockRepository';
 import { createSchoolConfigApi, schoolConfigApi } from '@/services/school-config/api/schoolConfigApi';
 
-// BE chưa có (Tài khoản nhân sự, Phân công PHT, Vai trò & quyền): khi nối thử vẫn dùng mock
-const NOT_IN_BE = [
-  'getStaffAccounts',
-  'getStaffImpact',
-  'saveStaffAccount',
-  'updateStaffProfile',
-  'setStaffStatus',
-  'getViceAssignments',
-  'saveViceAssignment',
-  'getRolePermissions',
-  'saveRolePermissions',
-];
+// BE chưa có (Tài khoản nhân sự, Vai trò & quyền): khi nối thử vẫn dùng mock
+const NOT_IN_BE = ['getStaffAccounts', 'getStaffImpact', 'saveStaffAccount', 'updateStaffProfile', 'setStaffStatus'];
 
 const devBeRepo = () => {
   const api = createSchoolConfigApi(beClient);
-  return Object.fromEntries(
+  const repo = Object.fromEntries(
     Object.keys(schoolConfigMockRepository).map((name) => [
       name,
-      NOT_IN_BE.includes(name) || !api[name] ? schoolConfigMockRepository[name].bind(schoolConfigMockRepository) : api[name],
+      NOT_IN_BE.includes(name)
+        ? sourceOf('staff-accounts', schoolConfigMockRepository, api)[name].bind(
+            sourceOf('staff-accounts', schoolConfigMockRepository, api),
+          )
+        : api[name] || (() => Promise.reject({ status: 501, message: `Chưa nối BE: ${name}` })),
     ]),
   );
+  return repo;
 };
 
 /** Facade of school configuration: UI only calls these functions. */
-const repo = SCHOOL_CONFIG_API ? devBeRepo() : USE_MOCK ? schoolConfigMockRepository : schoolConfigApi;
+const repo = SCHOOL_CONFIG_API ? devBeRepo() : sourceOf('school-config', schoolConfigMockRepository, schoolConfigApi);
 
 export const getSchoolYears = (user) => repo.getSchoolYears(user);
 export const getSchoolYearById = (id, user) => repo.getSchoolYearById(id, user);
@@ -51,9 +47,45 @@ export const deleteClass = (id, user) => repo.deleteClass(id, user);
 /** payload: { sourceYearId, classIds? } -> { copied: string[], skipped: { name, reason }[] } */
 export const copyClasses = (targetYearId, payload, user) => repo.copyClasses(targetYearId, payload, user);
 
+/**
+ * Thiết lập năm học: payload { sourceYearId, parts } -> { copiedClasses, withoutRoom, teacherClasses, teamLeaders,
+ * vicePrincipals, cutoffTime, semesterCopied, skipped: [{ part, name, reason }] }.
+ * Phân công PHT chưa có ở BE nên chép ở đây qua get/saveViceAssignment (PHT đã khóa tài khoản bị bỏ, kèm lý do).
+ */
+export const copyYear = async (targetYearId, { sourceYearId, parts }, user) => {
+  const beParts = parts.filter((p) => p !== 'VICE_PRINCIPALS');
+  const result = beParts.length
+    ? await repo.copyYear(targetYearId, { sourceYearId, parts: beParts }, user)
+    : { copiedClasses: [], withoutRoom: [], teacherClasses: 0, teamLeaders: 0, cutoffTime: null, semesterCopied: false, skipped: [] };
+  result.vicePrincipals = 0;
+  if (!parts.includes('VICE_PRINCIPALS')) return result;
+  const [source, target] = await Promise.all([repo.getViceAssignments(sourceYearId, user), repo.getViceAssignments(targetYearId, user)]);
+  const assigned = new Set(target.rows.filter((r) => r.assignment).map((r) => r.user.id));
+  for (const row of source.rows) {
+    if (!row.assignment || assigned.has(row.user.id)) continue;
+    if (row.user.status === 'INACTIVE') {
+      result.skipped.push({ part: 'VICE_PRINCIPALS', name: row.user.fullName, reason: 'Tài khoản đã khóa / nghỉ việc' });
+      continue;
+    }
+    try {
+      await repo.saveViceAssignment(
+        targetYearId,
+        row.user.id,
+        { campusId: row.assignment.campusId, areas: row.assignment.areas || {}, note: `Sao chép từ năm học ${source.year.name}` },
+        user,
+      );
+      result.vicePrincipals += 1;
+    } catch (err) {
+      result.skipped.push({ part: 'VICE_PRINCIPALS', name: row.user.fullName, reason: err.message });
+    }
+  }
+  return result;
+};
+
 /** Also for attendance / meal modules: the active cutoff of a school year. */
 export const getCutoffSetting = (schoolYear) => repo.getCutoffSetting(schoolYear);
 export const saveCutoffSetting = (schoolYear, form, user) => repo.saveCutoffSetting(schoolYear, form, user);
+export const saveSemester = (schoolYear, form, user) => repo.saveSemester(schoolYear, form, user);
 
 export const getCampusesWithStats = (schoolYear, user) => repo.getCampuses(schoolYear, user);
 export const getCampusDetail = (id, schoolYear, user) => repo.getCampusDetail(id, schoolYear, user);
@@ -84,3 +116,26 @@ export const getTeamLeaderHistory = (ageGroupId, schoolYear, user) => repo.getTe
 
 export const getRolePermissions = (user) => repo.getRolePermissions(user);
 export const saveRolePermissions = (role, payload, user) => repo.saveRolePermissions(role, payload, user);
+
+/*
+ * Tài khoản nhân sự trên BE thật (API tài khoản của dev, G94-60): danh sách phân trang theo phạm vi người xem, tạo kèm
+ * phân công, khóa / mở, cấp lại mật khẩu tạm. BE chưa có API sửa hồ sơ / đổi vai trò nên màn không cho làm hai việc đó.
+ */
+export const STAFF_ACCOUNTS_ON_BE = SCHOOL_CONFIG_API;
+export const searchStaffAccounts = ({ role, status, campusId, q, page = 0, size = 10 } = {}) =>
+  beClient.get('/accounts', {
+    params: { role: role || undefined, status: status || undefined, campusId: campusId || undefined, q: q || undefined, page, size },
+  });
+/** Toàn bộ tài khoản trong phạm vi (xuất Excel, kiểm trùng khi nhập): đọc lần lượt từng trang 100. */
+export const listAllStaffAccounts = async (filters = {}) => {
+  const all = [];
+  for (let page = 0; page < 50; page += 1) {
+    const res = await searchStaffAccounts({ ...filters, page, size: 100 });
+    all.push(...(res?.items || []));
+    if (page + 1 >= (res?.totalPages || 0)) break;
+  }
+  return all;
+};
+export const createStaffAccount = (payload) => beClient.post('/accounts', payload);
+export const setStaffAccountStatus = (id, status) => beClient.patch(`/accounts/${id}/status`, { status });
+export const resetStaffPassword = (id, temporaryPassword) => beClient.post(`/accounts/${id}/temporary-password`, { temporaryPassword });

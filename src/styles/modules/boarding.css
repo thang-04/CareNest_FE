@@ -1,0 +1,32 @@
+/* Bán trú hôm nay – class prefix bd- */
+
+.bd-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.bd-stack {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.table.table--grid .bd-title {
+  text-align: left;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.bd-detail {
+  color: var(--color-text-secondary);
+}
+
+.bd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

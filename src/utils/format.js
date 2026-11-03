@@ -61,6 +61,13 @@ export const localDateOf = (value) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
+/** 1500000 -> '1.500.000 đ'; không phải số -> '—'. */
+export const formatMoney = (n) => (typeof n === 'number' && !Number.isNaN(n) ? `${Math.round(n).toLocaleString('vi-VN')} đ` : '—');
+
+/** Số lượng tối đa 3 số lẻ theo định dạng Việt Nam (2,4); không phải số -> '—'. */
+export const formatQty = (n) =>
+  n === null || n === undefined || Number.isNaN(Number(n)) ? '—' : Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+
 /** Lower-case and strip Vietnamese accents for search. */
 export const normalizeText = (text) =>
   String(text || '')

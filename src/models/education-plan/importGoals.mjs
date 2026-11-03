@@ -54,7 +54,9 @@ const contexts = (rows) => {
   );
 };
 
-export const mergeImportedGoals = (target, source, selectedGoalIds, makeId) => {
+// Nhập file (BE:EDU-46): themesOf giữ dấu tích khớp viết tắt; freeContext — dòng file không ghi lĩnh vực con/nhóm thì
+// nằm cuối lĩnh vực như gõ tay, không bắt buộc khớp ngữ cảnh. Mặc định (EDU-24): bỏ dấu tích, ngữ cảnh phải khớp.
+export const mergeImportedGoals = (target, source, selectedGoalIds, makeId, { themesOf = () => [], freeContext = false } = {}) => {
   const selected = new Set(selectedGoalIds);
   const domains = [...(target.domains || [])];
   const report = { added: 0, duplicates: 0, unavailable: [] };
@@ -130,7 +132,7 @@ export const mergeImportedGoals = (target, source, selectedGoalIds, makeId) => {
             curriculumSectionRef: incoming.curriculumSectionRef,
           }
         : {}),
-      contents: incoming.contents.map((content) => ({ id: nextId(), text: content.text, themes: [] })),
+      contents: incoming.contents.map((content) => ({ id: nextId(), text: content.text, themes: themesOf(content) })),
     };
     additions.push(row);
     const candidate = [...state.rows, ...additions];
@@ -138,7 +140,8 @@ export const mergeImportedGoals = (target, source, selectedGoalIds, makeId) => {
     const expected = [incoming.sub ? subId : null, incoming.group ? groupId : null];
     // Bộ chuẩn hóa có thể kéo sub đầu tiên lên trước các dòng đích cũ.
     const preservesPaths = [...state.paths].every(([id, path]) => candidatePaths.get(id)?.every((parent, i) => parent === path[i]));
-    if (!preservesPaths || !candidatePaths.get(row.id)?.every((parent, i) => parent === expected[i])) {
+    const fits = (parent, i) => parent === expected[i] || (freeContext && expected[i] === null);
+    if (!preservesPaths || !candidatePaths.get(row.id)?.every(fits)) {
       unavailable('Không thể giữ nguyên lĩnh vực con/nhóm của mục tiêu và dữ liệu đích; vui lòng đặt lại ngữ cảnh thủ công.');
       continue;
     }

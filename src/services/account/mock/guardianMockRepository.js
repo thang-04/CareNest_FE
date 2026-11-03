@@ -2,7 +2,7 @@ import { readDb, writeDb, clone, ApiError, delay } from '@/mocks/mockDatabase';
 import { childrenMockRepository as children } from '@/services/children/mock/childrenMockRepository';
 import { canActivateParent, canViewChild, canViewChildren, canViewParentAccounts } from '@/utils/children/childrenPermissions';
 import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
-import { validateGuardian } from '@/utils/account/guardianValidation';
+import { normalizePhone, validateGuardian } from '@/utils/account/guardianValidation';
 import { issuePassword } from '@/mocks/authMockRepository';
 // Thêm phụ huynh kèm tạo tài khoản ngay (POST /children/{id}/guardians) đã bỏ: phụ huynh nhập ở hồ sơ trẻ rồi kích hoạt
 // (AUTH-20; user chốt 2026-10-28, C-4 A). Phần tạo/liên kết tài khoản dùng chung ở parentAccountMock.
@@ -125,6 +125,24 @@ export const guardianMockRepository = {
       if (!pendingGuardiansOf(db, child).length) throw new ApiError(409, 'Mọi phụ huynh trên hồ sơ của trẻ đã có tài khoản.');
       return clone(activatePendingGuardians(db, child));
     });
+  },
+  // Cùng shape BE GuardianCandidateResponse
+  async lookupGuardian(childId, phone, actor) {
+    const db = await initialize(actor);
+    loadChild(db, childId, actor, true);
+    const account = db.parentAccounts.find((row) => normalizePhone(row.phone) === normalizePhone(phone));
+    if (!account) return { exists: false, userId: null, maskedFullName: null, staffAccount: false, alreadyLinked: false, status: null };
+    return {
+      exists: true,
+      userId: account.id,
+      maskedFullName: account.fullName
+        .split(/\s+/)
+        .map((word) => `${word[0]}***`)
+        .join(' '),
+      staffAccount: false,
+      alreadyLinked: (account.childIds || []).includes(childId),
+      status: account.status,
+    };
   },
   async removeGuardian(childId, id, actor) {
     await initialize(actor);

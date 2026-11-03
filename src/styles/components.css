@@ -73,8 +73,10 @@
   gap: var(--space-3);
   margin-top: var(--space-4);
 }
-/* Form (F1): thanh nút có nút chính dính đáy màn để luôn bấm được Lưu / Tiếp tục */
-.page-actions:has(.btn--primary) {
+/* Form (F1): thanh nút có nút chính dính đáy màn để luôn bấm được Lưu / Tiếp tục;
+   .page-actions--sticky: form nhiều bước giữ thanh dính đáy cả ở bước không có nút chính */
+.page-actions:has(.btn--primary),
+.page-actions--sticky {
   position: sticky;
   bottom: var(--space-3);
   z-index: var(--z-sticky);
@@ -84,6 +86,20 @@
   background: color-mix(in srgb, var(--color-surface) 88%, transparent);
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-blur);
+}
+/* Điện thoại: thanh dính đáy của form nhiều bước gọn trên 1 hàng (nút sát hơn, không xuống dòng — Tiền 31/10) */
+@media (max-width: 767px) {
+  .page-actions--sticky,
+  .page-actions--sticky > .row {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+  .page-actions--sticky {
+    padding: var(--space-2) var(--space-3);
+  }
+  .page-actions--sticky .btn {
+    padding: 0 var(--space-3);
+  }
 }
 
 /* ---------- Buttons ---------- */
@@ -1358,6 +1374,11 @@ tr.sortable-item--moved > td {
     background: color-mix(in srgb, var(--color-text) 3%, transparent);
   }
 }
+/* Chờ cả trang (con trực tiếp của .page / vùng nội dung): cao bằng vùng nội dung, ba chấm giữa — không dính lên đầu trang */
+.page > .state--loading,
+.app-content > .state--loading {
+  min-height: max(320px, calc(100dvh - var(--header-height) - 3 * var(--space-16)));
+}
 /* Khung chờ tải dữ liệu trong suốt suốt --loading-reveal-delay đầu rồi hiện dần: dữ liệu về nhanh thì không chớp,
    màn tải nối tiếp (khung chờ đã hiện lâu hơn hook đếm) chỉ thoáng mờ. Vẫn giữ chỗ nên nội dung không nhảy.
    Spinner trong nút gửi không hoãn. */
@@ -1843,29 +1864,6 @@ tr.sortable-item--moved > td {
   }
 }
 
-/* ---------- Asset thumbnail ---------- */
-.asset-thumb {
-  width: 64px;
-  height: 44px;
-  border-radius: var(--radius-xs);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--primary-25);
-  color: var(--asset-icon);
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-.asset-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.asset-thumb--sm {
-  width: 48px;
-  height: 32px;
-}
-
 /* ---------- Stepper (wizard header) ---------- */
 /* Thanh bước gọn (~70px) như form Lập kế hoạch năm học — mẫu chung cho mọi luồng nhiều bước (góp ý 20/10) */
 .stepper-card {
@@ -1940,6 +1938,18 @@ tr.sortable-item--moved > td {
 .stepper__item--current .stepper__label {
   color: var(--text);
   font-weight: 700;
+}
+/* Bước đã làm xong (Thiết lập năm học): xanh lá */
+.stepper__item--ok .stepper__dot {
+  border-color: var(--green-500);
+  color: var(--green-500);
+}
+.stepper__item--ok.stepper__item--current .stepper__dot {
+  background: var(--green-500);
+  color: var(--text-inverse);
+}
+.stepper__item--ok .stepper__label {
+  color: var(--green-700);
 }
 
 /* ---------- Wizard layout ---------- */
@@ -2543,6 +2553,13 @@ button.stat-card .stat-card__label::after {
   letter-spacing: -0.02em;
   color: color-mix(in srgb, var(--stat-tone) 70%, var(--color-text));
   font-variant-numeric: tabular-nums;
+}
+/* Đang tải: vạch cao bằng dòng số để thẻ không nhảy khi số về */
+.stat-card__skeleton {
+  display: block;
+  width: 3ch;
+  height: 1em;
+  border-radius: var(--radius-md);
 }
 .stat-card__icon {
   position: absolute;
@@ -3319,6 +3336,8 @@ button.stat-card .stat-card__label::after {
   position: fixed;
   z-index: var(--z-dropdown);
   display: grid;
+  /* Rộng theo nội dung (không bị chỗ trống bên trái nút bóp xuống dòng); chỉ xuống dòng khi chạm max-width */
+  width: max-content;
   min-width: 180px;
   max-width: calc(100vw - 2 * var(--space-2));
   padding: var(--space-1);

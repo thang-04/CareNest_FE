@@ -30,7 +30,7 @@ import {
 } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 
 // Theo dõi sức khỏe (mức, phiếu theo dõi) xem ở Sổ sức khỏe của từng trẻ, không ở danh sách (user yêu cầu 2026-10-31).
 const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
@@ -152,16 +152,15 @@ export default function ChildrenListPage() {
 
       <div className="stat-grid">
         {stats.map((s) => (
-          <button
+          <StatCard
             key={s.key || 'all'}
-            className={`stat-card stat-card--${s.tone} ${status === s.key ? 'stat-card--active' : ''}`}
-            aria-pressed={status === s.key}
+            tone={s.tone}
+            label={s.label}
+            value={s.value}
+            loading={loading}
+            active={status === s.key}
             onClick={() => setFilter({ status: s.key })}
-          >
-            <div className="stat-card__value">{s.value}</div>
-            <div className="stat-card__label">{s.label}</div>
-            <StatCardIcon tone={s.tone} />
-          </button>
+          />
         ))}
       </div>
 

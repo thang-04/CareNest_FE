@@ -1,6 +1,6 @@
 /*
  * Danh mục Chương trình GDMN của Bộ (BE:EDU-28, specs/005-ministry-goal-catalog): dựng "kế hoạch nguồn" để dùng lại
- * hàm ghép mục tiêu EDU-24, thêm gợi ý nội dung vào một mục tiêu, nhãn "Theo Bộ" / "Đã sửa từ Bộ".
+ * hàm ghép mục tiêu EDU-24, thêm gợi ý nội dung vào một mục tiêu. Liên kết nguồn chỉ để bỏ trùng, không hiện nhãn (Tiền 31/10).
  * Danh mục có 3 tầng như kế hoạch (BE V37): lĩnh vực con, nhóm kết quả mong đợi, mục tiêu — tầng nào cũng giữ liên kết nguồn.
  */
 
@@ -111,27 +111,6 @@ export function addSuggestedContents(form, goalRowId, suggestions, makeId) {
     }),
   }));
   return { domains, added, duplicates };
-}
-
-/** Nhãn nguồn của dòng lĩnh vực con/nhóm/mục tiêu: null | { label, edited, sectionRef, curriculumGoalId, anchor }. */
-export function curriculumBadge(row) {
-  const anchor = row?.curriculumGoalId
-    ? `cg-${row.curriculumGoalId}`
-    : row?.curriculumSubDomainId
-      ? `cs-${row.curriculumSubDomainId}`
-      : row?.curriculumExpectedResultId
-        ? `cgr-${row.curriculumExpectedResultId}`
-        : null;
-  if (!anchor) return null;
-  const original = row.curriculumGoalId ? row.curriculumGoalText : row.curriculumText;
-  const edited = !!original && norm(row.text) !== norm(original);
-  return {
-    label: edited ? 'Đã sửa từ Bộ' : 'Theo Bộ',
-    edited,
-    sectionRef: row.curriculumSectionRef || '',
-    curriculumGoalId: row.curriculumGoalId || null,
-    anchor,
-  };
 }
 
 /** Đường dẫn trang nguồn tới đúng dòng (anchor `cg-`/`cs-`/`cgr-`; chỉ có id mục tiêu thì tới mục tiêu). */

@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Copy, FileDown, Pencil, Printer, Trash2 } from '@/components/ui/icons';
+import { Copy, FileDown, Pencil, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
 import { goalIdsToTicks, numberGoals, toRows } from '@/models/education-plan/goalTable';
-import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
-import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
-import { Card, YearPlanStatusBadge, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { GoalTable, ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
+import { Card, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { StatusPage } from '@/components/ui/StatusPage';
+import { Spinner } from '@/components/ui/States';
 import { VersionBadge, YearPlanVersionPanel } from '@/components/education-plan/VersionWidgets';
 import { chainOf, currentPlanOf } from '@/models/education-plan/planVersions.mjs';
+import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const ISSUE_NOTE =
@@ -19,15 +21,16 @@ const ISSUE_NOTE =
 const editable = (s) => s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED || s === EDU_STATUS.EDITING;
 
 /** Kế hoạch giáo dục năm học của một nhóm tuổi: bảng mục tiêu (A), chủ đề, sự kiện (B), người xây dựng và ban hành. */
-const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 
 export default function GoalDetailPage() {
   const { id } = useParams();
-  const { goals, themes: themePlans, user, saveGoal, deleteGoal, createGoalVersion, toast } = useEducationPlan();
+  const { goals, themes: themePlans, user, saveGoal, deleteGoal, createGoalVersion, toast, staff } = useEducationPlan();
+  const [preview, setPreview] = useState(null);
   const navigate = useNavigate();
   const [modal, setModal] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [creating, setCreating] = useState(false);
-  const [tab, setTab] = useState('goals');
   const found = goals.find((x) => x.id === id);
   // Giáo viên chỉ xem kế hoạch năm đã ban hành
   const g = user.role === ROLES.TEACHER && found?.status !== EDU_STATUS.APPROVED ? null : found;
@@ -90,6 +93,24 @@ export default function GoalDetailPage() {
     ((isVp || isLeader) &&
       currentPlanOf(goals, g.ageGroupId, g.schoolYear)?.id === g.id &&
       chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED));
+  const closeDelete = () => {
+    setModal(null);
+    setDeleteError('');
+  };
+  // Chỉ báo "Đã xóa" và rời màn khi BE đã xóa; lỗi (403/409/5xx) hiện trong hộp, ở lại màn
+  const removePlan = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteGoal(g.id);
+      navigate('/education/goals');
+      toast('Đã xóa kế hoạch năm học');
+    } catch (err) {
+      setDeleteError(err.message || 'Không xóa được kế hoạch năm học. Thử lại sau.');
+      setDeleting(false);
+    }
+  };
   const newVersion = async () => {
     setCreating(true);
     const plan = await createGoalVersion(g.id);
@@ -97,7 +118,7 @@ export default function GoalDetailPage() {
     setModal(null);
     if (plan) {
       toast(`Đã tạo ${plan.code}. Sửa rồi gửi / ban hành như kế hoạch mới.`);
-      navigate(`/education/goals/${plan.id}/edit`);
+      navigate(`/education/goals/${plan.id}/edit`, { replace: true, state: { backTo: '/education/goals' } });
     }
   };
 
@@ -121,49 +142,49 @@ export default function GoalDetailPage() {
   };
 
   return (
-    <div className="page ga-page ga-goal-detail">
-      <PageHead
-        crumbs={[
-          { label: 'Kế hoạch giáo dục' },
-          isPrincipal ? { label: 'Kế hoạch toàn trường', to: '/education/school' } : { label: 'Mục tiêu năm học', to: '/education/goals' },
-          { label: g.code },
-        ]}
-        title={g.title}
-        desc={
-          <span className="row row--wrap gap-2">
-            <YearPlanStatusBadge status={g.status} size="lg" />
-            <VersionBadge plan={g} goals={goals} />
-          </span>
-        }
-        actions={
-          <>
-            {/* Xuất / in ở mọi bước; bản đã ban hành thì Phó HT in ra ký, giáo viên in để dùng */}
-            <button className="btn btn--ghost" onClick={() => downloadYearPlanDoc(plan, numbers)}>
-              <FileDown size={16} aria-hidden /> Xuất Word
-            </button>
-            <button className="btn btn--ghost" onClick={() => printYearPlan(plan, numbers) || toast(POPUP_BLOCKED, 'warn')}>
-              <Printer size={16} aria-hidden /> In / Lưu PDF
-            </button>
+    <div className="page ga-page ga-goal-detail ga-year-page ga-class-editor">
+      <div className="ga-sticky-head">
+        <PageHead
+          crumbs={[
+            { label: 'Kế hoạch giáo dục' },
+            isPrincipal
+              ? { label: 'Kế hoạch toàn trường', to: '/education/school' }
+              : { label: 'Mục tiêu năm học', to: '/education/goals' },
+            { label: g.code },
+          ]}
+          title={g.title}
+          // Đầu trang chỉ giữ nhãn phiên bản, bỏ nhãn trạng thái riêng (Tiền 31/10); trạng thái vẫn quyết định quyền và nút
+          desc={<VersionBadge plan={g} goals={goals} />}
+        />
+        <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch năm học">
+          <div className="ga-year-toolbar__group">
             {canDelete && (
-              <button className="btn btn--outline-danger" onClick={() => setModal('delete')}>
+              <button className="btn btn--sm btn--outline-danger" onClick={() => setModal('delete')}>
                 <Trash2 size={16} aria-hidden /> Xóa
               </button>
             )}
             {canCreateVersion && (
-              <button className="btn btn--outline-primary" onClick={() => setModal('version')}>
+              <button className="btn btn--sm btn--outline-primary" onClick={() => setModal('version')}>
                 <Copy size={16} aria-hidden /> Tạo phiên bản điều chỉnh
               </button>
             )}
             {canEditNow && (
-              <Link className="btn btn--outline-primary" to={`/education/goals/${g.id}/edit`}>
+              <Link
+                className="btn btn--sm btn--outline-primary"
+                to={`/education/goals/${g.id}/edit`}
+                replace
+                state={{ backTo: '/education/goals' }}
+              >
                 <Pencil size={16} aria-hidden /> {pending ? 'Sửa trước khi duyệt' : 'Chỉnh sửa'}
               </Link>
             )}
+          </div>
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             <ReviewActions
               name="kế hoạch năm học"
               sendTo="Phó HT"
               approveLabel="Ban hành"
-              size=""
+              variant="btn--outline-primary"
               can={{ send: canSend, reject: canReturn, approve: canIssue }}
               notes={{
                 submit: 'Kế hoạch sẽ bị khóa cho tới khi Phó hiệu trưởng ban hành hoặc trả lại.',
@@ -171,9 +192,12 @@ export default function GoalDetailPage() {
               }}
               onAct={act}
             />
-          </>
-        }
-      />
+            <button className="btn btn--sm btn--outline-primary" onClick={() => setPreview(yearPlanFile(plan, numbers, staff))}>
+              <FileDown size={16} aria-hidden /> Xuất file
+            </button>
+          </div>
+        </div>
+      </div>
 
       {g.status === EDU_STATUS.REJECTED && (
         <div className="mb-16">
@@ -193,7 +217,7 @@ export default function GoalDetailPage() {
         </div>
       )}
 
-      <Card title="Thông tin chung">
+      <Card title="Thông tin chung" num="1">
         <dl className="info-list">
           <dt>Năm học</dt>
           <dd>{g.schoolYear}</dd>
@@ -214,15 +238,15 @@ export default function GoalDetailPage() {
         </dl>
       </Card>
 
-      <Card className="mt-16" bodyClass={null}>
-        <PlanTabs tab={tab} onTab={setTab} counts={{ themes: themes.length, goals: Object.keys(numbers).length }} />
-        <div className="card__body">
-          {tab === 'themes' ? (
-            <ThemeEventTable themes={themes} breaks={g.breaks || []} domains={domains} numbers={numbers} readOnly />
-          ) : (
-            <GoalTable domains={domains} themes={themes} numbers={numbers} ageGroupId={g.ageGroupId} readOnly />
-          )}
-        </div>
+      <Card title="Chủ đề, sự kiện trong năm" num="2">
+        <ThemeEventTable themes={themes} breaks={g.breaks || []} domains={domains} numbers={numbers} readOnly />
+      </Card>
+      <Card
+        title="Mục tiêu, nội dung giáo dục"
+        num="3"
+        actions={<span className="muted text-xs nowrap">{Object.keys(numbers).length} mục tiêu</span>}
+      >
+        <GoalTable domains={domains} themes={themes} numbers={numbers} ageGroupId={g.ageGroupId} readOnly />
       </Card>
 
       <YearPlanVersionPanel plan={g} goals={goals} />
@@ -230,6 +254,7 @@ export default function GoalDetailPage() {
       <div className="mt-16">
         <ReviewHistory items={history} />
       </div>
+      {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
 
       {modal === 'version' && (
         <Modal
@@ -257,26 +282,19 @@ export default function GoalDetailPage() {
       {modal === 'delete' && (
         <Modal
           title={`Xóa “${g.title}”?`}
-          onClose={() => setModal(null)}
+          onClose={deleting ? undefined : closeDelete}
           footer={
             <>
-              <button className="btn" onClick={() => setModal(null)}>
+              <button className="btn" onClick={closeDelete} disabled={deleting}>
                 Giữ lại
               </button>
-              <button
-                className="btn btn--outline-danger"
-                disabled={usedBy.length > 0}
-                onClick={() => {
-                  deleteGoal(g.id);
-                  toast('Đã xóa kế hoạch năm học');
-                  navigate('/education/goals');
-                }}
-              >
-                <Trash2 size={16} aria-hidden /> Xóa kế hoạch
+              <button className="btn btn--outline-danger" disabled={usedBy.length > 0 || deleting} onClick={removePlan}>
+                {deleting ? <Spinner small /> : <Trash2 size={16} aria-hidden />} Xóa kế hoạch
               </button>
             </>
           }
         >
+          {deleteError && <Notice tone="err">{deleteError}</Notice>}
           {usedBy.length > 0 ? (
             <Notice tone="err">Không xóa được vì đã có kế hoạch chủ đề sử dụng kế hoạch này.</Notice>
           ) : (

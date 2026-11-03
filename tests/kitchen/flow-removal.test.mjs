@@ -13,6 +13,7 @@ globalThis.window = new EventTarget();
 const { readDb } = await import('@/mocks/mockDatabase');
 const { kitchenMockRepository: kitchen } = await import('@/services/kitchen/mock/kitchenMockRepository');
 const { attendanceMockRepository: attendance } = await import('@/services/attendance/mock/attendanceMockRepository');
+const { completeAttendance } = await import('./complete-attendance.mjs');
 
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL', campusId: 'c1' };
 
@@ -44,6 +45,9 @@ test('PHT tiếp tục chốt từng bữa qua API hiện tại; bếp không x�
   assert.ok(pending, 'cần một sĩ số chờ xác nhận trong 30 ngày gần nhất');
 
   const before = structuredClone(readDb().mealHandovers);
+  // NUT-02: còn trẻ chưa điểm danh thì chưa xác nhận được
+  await assert.rejects(attendance.confirmMealCount(pending.id, VP), (err) => err.status === 409);
+  completeAttendance({ campusId: pending.campusId, date: pending.date });
   const confirmed = await attendance.confirmMealCount(pending.id, VP);
   assert.equal(confirmed.status, 'CONFIRMED');
   await kitchen.getKitchenDay({ campusId: pending.campusId, date: pending.date }, VP);

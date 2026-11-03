@@ -19,7 +19,7 @@ export default function CurriculumSourcesPage() {
   const tree = useMemo(() => curriculumTree(data.goals), [data.goals]);
   const source = data.sources[0];
 
-  // Mở từ nhãn "Theo Bộ" (#cg-{id}): cuộn tới đúng mục tiêu
+  // Mở bằng đường dẫn có #cg-{id}: cuộn tới đúng mục tiêu
   useEffect(() => {
     if (!data.loading && hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'center' });
   }, [data.loading, hash]);

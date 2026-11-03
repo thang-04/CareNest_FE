@@ -1,4 +1,4 @@
-import { USE_MOCK } from '@/config/env';
+import { sourceOf } from '@/services/demoSource';
 import { axiosClient } from '@/services/http/axiosClient';
 import { schoolMockRepository } from '@/mocks/schoolMockRepository';
 import { getAgeGroups as getConfiguredAgeGroups } from '@/services/school-config/schoolConfigService';
@@ -16,7 +16,7 @@ const api = {
   getChildById: (id) => axiosClient.get(`/children/${id}`),
 };
 
-const repo = USE_MOCK ? schoolMockRepository : api;
+const repo = sourceOf('school-lookup', schoolMockRepository, api);
 
 export const getClasses = (filters, user) => repo.getClasses(filters, user);
 export const getClassById = (id, user) => repo.getClassById(id, user);

@@ -20,23 +20,18 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
-import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
-import { FACILITY_ENABLED } from '@/config/app';
 import { FreshReceiptStatusBadge, IssueStatusBadge, MealCountStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { AllergyMenuChanges } from '@/components/kitchen/AllergyMenuChanges';
 import { useKitchenCampus, useKitchenDay, usePublishedMenu } from '@/hooks/kitchen/useKitchen';
 import { ISSUE_STATUS, KITCHEN_DAY_TIMES, MEAL_SESSION_LABELS, MENU_TYPE, isIssuePosted } from '@/models/kitchen/kitchenConstants';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
-import { ROLES } from '@/models/User';
 import { KITCHEN_ROUTE_ROLES, isKitchenStaff, isVicePrincipal } from '@/utils/kitchen/kitchenPermissions';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
 import '@/styles/modules/kitchen.css';
-
 const firstLoad = (q) => q.loading && q.data == null;
-
 const groupOrder = (id) => (id ? AGE_GROUPS.findIndex((a) => a.id === id) : -1);
 
 // Hàng theo nhóm tuổi, chỉ ghi phần thay món ngay trong bữa liên quan.
@@ -47,24 +42,42 @@ const buildMenuGrid = (sessionsMenu) => {
     for (const m of s.menus) {
       if (m.type !== MENU_TYPE.NORMAL) continue;
       const key = `${m.ageGroupId || ''}_${m.type}`;
-      if (!rows.has(key)) rows.set(key, { key, ageGroupId: m.ageGroupId, type: m.type, bySession: {} });
+      if (!rows.has(key))
+        rows.set(key, {
+          key,
+          ageGroupId: m.ageGroupId,
+          type: m.type,
+          bySession: {},
+        });
       rows.get(key).bySession[s.session] = m;
     }
   }
   const sorted = [...rows.values()].sort(
     (a, b) => groupOrder(a.ageGroupId) - groupOrder(b.ageGroupId) || (a.type === MENU_TYPE.ALLERGY) - (b.type === MENU_TYPE.ALLERGY),
   );
-  return { sessions, rows: sorted };
+  return {
+    sessions,
+    rows: sorted,
+  };
 };
-
 const mealCountStatusOf = ({ sessions, confirmed }) => {
   if (!sessions.length) return 'NONE';
   if (confirmed === sessions.length) return 'CONFIRMED';
   return sessions.some((s) => s.status === 'PENDING_CONFIRMATION' || s.status === 'CONFIRMED') ? 'PENDING_CONFIRMATION' : 'NONE';
 };
-
-const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '');
-const SAMPLE_SHORT = { MORNING: 'Sáng', LUNCH: 'Trưa', AFTERNOON: 'Chiều' };
+const hhmm = (iso) =>
+  iso
+    ? new Date(iso).toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+    : '';
+const SAMPLE_SHORT = {
+  MORNING: 'Sáng',
+  LUNCH: 'Trưa',
+  AFTERNOON: 'Chiều',
+};
 
 /** Các mốc trong ngày (khảo sát 18/10/2026); giờ là giờ dự kiến, chỉ để nhìn (KITCHEN_DAY_TIMES). */
 const buildSteps = (day, user, date) => {
@@ -119,8 +132,8 @@ const buildSteps = (day, user, date) => {
           : issue.state === ISSUE_STATUS.AWAITING_LOT_ALLOCATION
             ? `${issue.code} · đủ hàng, bếp chọn lô để ghi xuất`
             : 'Tính nguyên liệu khi các bữa đã được chốt',
-      to: issue.code && canOpen('stockIssues') ? '/kitchen/stock-issues' : null,
-      linkLabel: 'Xem phiếu xuất',
+      to: canOpen('dryStock') ? KITCHEN_PAGES.dryStock.to : null,
+      linkLabel: 'Xem kho khô',
     },
     {
       key: 'samples',
@@ -141,16 +154,13 @@ const buildSteps = (day, user, date) => {
       title: 'Dự trù ngày mai',
       state: !forecast.nextDate ? 'skip' : forecast.pendingChanges ? 'now' : 'todo',
       meta: forecast.nextDate
-        ? `${formatDate(forecast.nextDate)}: ${forecast.nextTotal} suất${
-            forecast.nextSentTotal != null && forecast.nextSentTotal !== forecast.nextTotal ? ` (phiếu tuần ${forecast.nextSentTotal})` : ''
-          }${forecast.pendingChanges ? ` · ${forecast.pendingChanges} dòng chưa báo NCC` : ''}`
+        ? `${formatDate(forecast.nextDate)}: ${forecast.nextTotal} suất${forecast.nextSentTotal != null && forecast.nextSentTotal !== forecast.nextTotal ? ` (phiếu tuần ${forecast.nextSentTotal})` : ''}${forecast.pendingChanges ? ` · ${forecast.pendingChanges} dòng chưa báo NCC` : ''}`
         : 'Chưa có dự trù',
       to: canOpen('forecast') ? `/kitchen/forecast?week=${forecast.nextDate || date}${forecast.pendingChanges ? '&tab=ncc' : ''}` : null,
       linkLabel: forecast.pendingChanges ? 'Báo NCC thay đổi' : 'Mở dự trù tuần',
     },
   ];
 };
-
 const todoRows = (day, user) => {
   const count = (n) => <TaskCount value={n} />;
   if (isVicePrincipal(user)) {
@@ -173,7 +183,7 @@ const todoRows = (day, user) => {
       },
       {
         key: 'short',
-        to: '/kitchen/stock-issues',
+        to: KITCHEN_PAGES.dryStock.to,
         icon: Scale,
         title: 'Đồ khô xuất thiếu tồn',
         meta: 'Phiếu xuất ngày này có dòng thiếu',
@@ -233,7 +243,6 @@ export default function KitchenFlowPage({ asHome = false }) {
   const day = dayQ.data;
   const menuGrid = buildMenuGrid(menuQ.days?.[0]?.sessions || []);
   const showTodo = isVicePrincipal(user) || isKitchenStaff(user);
-
   return (
     <div className="page">
       {asHome ? (
@@ -250,7 +259,19 @@ export default function KitchenFlowPage({ asHome = false }) {
         </>
       )}
       <div className="kb-toolbar">
-        <KbDateFilter value={date} onChange={(d) => setParams({ date: d }, { replace: true })} />
+        <KbDateFilter
+          value={date}
+          onChange={(d) =>
+            setParams(
+              {
+                date: d,
+              },
+              {
+                replace: true,
+              },
+            )
+          }
+        />
         <KbCampusFilter campusId={campusId} onChange={setCampusId} canPick={canPick} />
         {KITCHEN_ROUTE_ROLES.dryStock.includes(user.role) && (
           <Link className="btn" to="/kitchen/dry-stock">
@@ -259,14 +280,6 @@ export default function KitchenFlowPage({ asHome = false }) {
         )}
       </div>
 
-      {day?.legacyPreparation && isKitchenStaff(user) && (
-        <div className="alert alert--info">
-          <span>Dữ liệu cũ còn luồng chế biến để hoàn tất bàn giao đã có.</span>
-          <Link className="btn" to={`/kitchen/preparation/update?date=${date}`}>
-            Xử lý dữ liệu cũ
-          </Link>
-        </div>
-      )}
       <div className="db-board mb-16">
         <div className="db-board__main">
           <Widget
@@ -310,7 +323,7 @@ export default function KitchenFlowPage({ asHome = false }) {
               {day && <ShortList rows={todoRows(day, user)} />}
             </Widget>
           )}
-          {FACILITY_ENABLED && asHome && user.role === ROLES.KITCHEN_STAFF && <FacilityTasksWidget />}
+          {false}
         </div>
       </div>
       <Widget

@@ -65,7 +65,29 @@ export const withDefaults = (cfg) => ({
   weekRows: cfg?.weekRows?.length
     ? cfg.weekRows.map((r) => ('extraLabel' in r ? r : { ...r, extraLabel: DEFAULT_WEEK_ROWS.find((d) => d.key === r.key)?.extraLabel }))
     : DEFAULT_WEEK_ROWS,
+  signerNames: {
+    principals: cfg?.signerNames?.principals || [],
+    vicePrincipals: cfg?.signerNames?.vicePrincipals || [],
+    teamLeaders: cfg?.signerNames?.teamLeaders || {},
+  },
 });
+
+/**
+ * Họ tên in sẵn cho vai trò khi chưa có người ban hành, duyệt (BE:EDU-21): Tổ trưởng của nhóm tuổi trong năm học đó;
+ * Hiệu trưởng / Phó HT chỉ khi trường có đúng một người giữ vai trò đó (nhiều Phó HT thì để trống cho ký tay — Tiền 31/10).
+ */
+export const soleSignerName = (role, ageGroupId, schoolYear = '') => {
+  const { principals, vicePrincipals, teamLeaders } = current.signerNames;
+  const list =
+    role === 'PRINCIPAL'
+      ? principals
+      : role === 'VICE_PRINCIPAL'
+        ? vicePrincipals
+        : role === 'TEAM_LEADER'
+          ? teamLeaders[String(schoolYear).replace(/\s*[-–]\s*/, '-')]?.[ageGroupId] || []
+          : [];
+  return list.length === 1 ? list[0] : '';
+};
 
 // Cấu hình đang dùng: các màn hình và file xuất đọc cùng một bản (nạp khi mở module kế hoạch giáo dục)
 let current = withDefaults(null);

@@ -16,6 +16,7 @@ globalThis.window = new EventTarget();
 
 const { readDb } = await import('@/mocks/mockDatabase');
 const { attendanceMockRepository: attendance } = await import('@/services/attendance/mock/attendanceMockRepository');
+const { completeAttendance } = await import('./complete-attendance.mjs');
 
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL', campusId: 'c1' };
 const COOK = { id: 'u_cook_a', role: 'KITCHEN_STAFF', campusId: 'c1' };
@@ -58,6 +59,9 @@ test('tới giờ chốt: sổ chờ PHT xác nhận; PHT bấm xác nhận thì
   const { kitchenMockRepository: kitchen } = await import('@/services/kitchen/mock/kitchenMockRepository');
   const before = await kitchen.getConfirmedMealCount({ campusId: 'c1', date: TODAY }, COOK);
   assert.ok(before.every((s) => s.status !== 'CONFIRMED'), 'bếp chưa nhận số khi PHT chưa xác nhận');
+  // NUT-02: lớp Chồi 1 chưa điểm danh ⇒ chặn xác nhận, nêu tên lớp; điểm danh đủ rồi mới xác nhận được
+  await assert.rejects(attendance.confirmMealCount(c1[0].id, VP), (err) => err.status === 409 && /Chồi 1/.test(err.message));
+  completeAttendance({ campusId: 'c1', date: TODAY });
   for (const c of c1) await attendance.confirmMealCount(c.id, VP);
   const after = await kitchen.getConfirmedMealCount({ campusId: 'c1', date: TODAY }, COOK);
   assert.ok(after.length > 0);

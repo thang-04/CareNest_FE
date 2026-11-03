@@ -24,6 +24,8 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
   const [suggested, setSuggested] = useState(() => new Set());
   const tree = useMemo(() => curriculumTree(data.goals), [data.goals]);
   const targets = useMemo(() => goalTargets(form), [form]);
+  const chosenTarget = targets.find((t) => t.id === target);
+  const targetTitle = chosenTarget ? `${chosenTarget.domainName} · ${chosenTarget.text}` : undefined;
   const targetDomain = targets.find((t) => t.id === target)?.domainName || '';
   const filterDomain = domainFilter || targetDomain;
   const inDomain = data.contents.filter((c) => !filterDomain || c.domainName === filterDomain);
@@ -138,8 +140,9 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
                 </label>
                 <select
                   id="cur-target"
-                  className="select"
+                  className="select ga-cur-target"
                   value={target}
+                  title={targetTitle}
                   onChange={(e) => {
                     setTarget(e.target.value);
                     setSubFilter('');

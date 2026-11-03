@@ -20,12 +20,11 @@ import { AssignmentHistoryModal } from '@/components/school-config/AssignmentHis
 import { TEACHERS_PER_CLASS, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { ROLES } from '@/models/User';
 import {
-  ASSIGN_TEACHER,
   canAssignClass,
   canAssignTeachers,
   canViewTeacherAssignments,
   canViewTeamLeaders,
-  permissionAccess,
+  teacherAssignmentAccess,
   teamLeaderActions,
 } from '@/utils/school-config/schoolConfigPermissions';
 import { teacherCrumbs } from '@/utils/school-config/breadcrumbs';
@@ -99,7 +98,7 @@ export default function TeacherAssignmentPage() {
   const md = useMasterData();
   const [params, setParams] = useSearchParams();
   const yearId = useConfigYear();
-  const access = permissionAccess(user, ASSIGN_TEACHER);
+  const access = teacherAssignmentAccess(user);
   const fullScope = access.scope === 'ALL';
   // Phạm vi toàn trường: chọn "Toàn trường" (mặc định của Hiệu trưởng, ?campus=all) hoặc 1 điểm trường;
   // phạm vi điểm trường: đúng điểm trường được giao (có thể khác điểm trường của PHT)
@@ -176,7 +175,7 @@ export default function TeacherAssignmentPage() {
   const onSaveLeader = async (group, userId) => {
     try {
       await saveTeamLeader({ schoolYear: yearId, ageGroupId: group.id, userId }, user);
-      toast.success(userId ? 'Đã lưu thay đổi. Tổ trưởng đã nhận thông báo.' : 'Đã bỏ phân công tổ trưởng.', group.name);
+      toast.success(userId ? 'Đã lưu. Hãy báo trực tiếp cho tổ trưởng.' : 'Đã bỏ phân công tổ trưởng.', group.name);
       leaders.reload({ silent: true });
       return true;
     } catch (err) {
@@ -208,11 +207,6 @@ export default function TeacherAssignmentPage() {
                 <Crown size={18} /> Tổ trưởng nhóm tuổi
               </h2>
             </div>
-            <p className="text-sm muted sc-leader-note">
-              Mỗi nhóm tuổi có 1 tổ trưởng cho cả trường (mọi điểm trường), không phụ thuộc bộ lọc điểm trường. Chọn được giáo viên ở bất kỳ
-              điểm trường nào.
-              {leaderReadOnly && !closed && ' Bạn chỉ xem; quyền phân công tổ trưởng do Hiệu trưởng giao.'}
-            </p>
             <div className="table-wrap sc-table-flat">
               <table className="table table--grid table--compact">
                 <thead>
@@ -379,7 +373,7 @@ export default function TeacherAssignmentPage() {
                           {c.teacherIds
                             .map((id) => teacherName(c, id))
                             .filter(Boolean)
-                            .join(', ') || <span className="muted">—</span>}
+                            .join(', ') || <span className="muted">Chưa phân công</span>}
                           {c.teacherIds.length > 0 && !c.homeroomTeacherId && (
                             <>
                               {' '}
