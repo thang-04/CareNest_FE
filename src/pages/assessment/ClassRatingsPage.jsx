@@ -5,7 +5,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
-import { VersionHistory } from '@/components/ui/VersionHistory';
+import { VersionHistory } from '@/components/assessment/VersionHistory';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';

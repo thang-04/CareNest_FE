@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { upsertDraft } from '@/models/draftHistory.mjs';
+import { upsertDraft } from '@/models/assessment/draftHistory.mjs';
 import { readDrafts, writeDrafts } from '@/services/assessment/draftStore';
 
 /**

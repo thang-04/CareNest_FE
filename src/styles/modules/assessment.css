@@ -426,6 +426,12 @@
   align-items: flex-start;
   gap: var(--space-3);
 }
+.dg-eval-name {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  line-height: 1.3;
+  margin-bottom: var(--space-1);
+}
 .dg-eval-meta {
   display: flex;
   flex-wrap: wrap;
@@ -749,4 +755,112 @@
 }
 .dg-rating-table .input {
   min-width: 140px;
+}
+
+/* Lịch sử phiên bản: nhận xét chung tháng, xếp loại nhóm lớp (làm theo .ga-history-* của kế hoạch giáo dục) */
+/* Lịch sử phiên bản khi soạn (Tiền 03/11): nút đồng hồ + chấm xanh khi có bản chưa lưu, panel so khác biệt */
+.dg-history-btn {
+  position: relative;
+  flex: 0 0 auto;
+}
+.dg-history-btn__dot {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+.dg-history-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+.dg-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dg-history-item:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+.dg-history-item:disabled {
+  cursor: default;
+}
+.dg-history-item--active {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+}
+.dg-history-item__title {
+  font-weight: var(--fw-semibold);
+}
+.dg-history-preview {
+  display: grid;
+  gap: var(--space-2);
+}
+.dg-history-preview > p {
+  margin: 0;
+}
+.dg-history-count--add {
+  color: var(--color-success-fg);
+}
+.dg-history-count--del {
+  color: var(--color-danger-fg);
+}
+.dg-history-diff {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+}
+.dg-history-line {
+  display: grid;
+  grid-template-columns: var(--space-4) minmax(0, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.dg-history-line + .dg-history-line {
+  border-top: 1px solid var(--color-border);
+}
+.dg-history-line--add {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.dg-history-line--del {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+}
+.dg-history-line ins,
+.dg-history-line del {
+  text-decoration-thickness: 1px;
+}
+.dg-history-line ins {
+  text-decoration: none;
+}
+.dg-history-line--gap {
+  display: block;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.dg-history-foot {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }

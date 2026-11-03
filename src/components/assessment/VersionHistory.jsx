@@ -3,7 +3,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { AlertTriangle, History } from '@/components/ui/icons';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { diffLines } from '@/models/draftHistory.mjs';
+import { diffLines } from '@/models/assessment/draftHistory.mjs';
 
 const pad = (n) => String(n).padStart(2, '0');
 const at = (ms) => {
@@ -36,7 +36,8 @@ function collapse(ops) {
 }
 
 /**
- * Lịch sử phiên bản khi soạn (Tiền 03/11, giống Docs; dùng chung cho kế hoạch giáo dục và đánh giá trẻ): bản đã lưu hiện tại + tối đa 2 mốc chưa lưu trên máy.
+ * Lịch sử phiên bản khi soạn cho nhận xét/xếp loại cấp lớp, làm theo bản của kế hoạch giáo dục (Tiền 03/11; bản riêng
+ * theo Cần chốt 03/11): bản đã lưu hiện tại + tối đa 2 mốc chưa lưu trên máy.
  * Chọn một bản ⇒ so với nội dung đang mở (thêm xanh, bỏ đỏ gạch); "Dùng bản này" thay toàn bộ nội dung, vẫn phải bấm Lưu.
  * blockedReason(entry) trả lý do không dùng được (entry = null là bản đã lưu); actions(entry) thêm nút ở chân panel.
  */
@@ -70,13 +71,13 @@ export function VersionHistory({ drafts, saved, current, unsaved, linesOf, onUse
     <>
       <button
         type="button"
-        className="icon-btn ga-history-btn"
+        className="icon-btn dg-history-btn"
         aria-label={drafts.length ? 'Lịch sử phiên bản (có bản chưa lưu)' : 'Lịch sử phiên bản'}
         title="Lịch sử phiên bản"
         onClick={() => setOpen(true)}
       >
         <History size={20} aria-hidden />
-        {drafts.length > 0 && <span className="ga-history-btn__dot" aria-hidden />}
+        {drafts.length > 0 && <span className="dg-history-btn__dot" aria-hidden />}
       </button>
       <SidePanel
         open={open}
@@ -85,7 +86,7 @@ export function VersionHistory({ drafts, saved, current, unsaved, linesOf, onUse
         wide
         footer={
           chosen && (
-            <div className="row gap-2 ga-history-foot">
+            <div className="row gap-2 dg-history-foot">
               {actions?.(chosen.entry, chosen.doc)}
               <button
                 type="button"
@@ -99,17 +100,17 @@ export function VersionHistory({ drafts, saved, current, unsaved, linesOf, onUse
           )
         }
       >
-        <ul className="ga-history-list">
+        <ul className="dg-history-list">
           {items.map((x) => (
             <li key={x.id}>
               <button
                 type="button"
-                className={`ga-history-item ${pick === x.id ? 'ga-history-item--active' : ''}`}
+                className={`dg-history-item ${pick === x.id ? 'dg-history-item--active' : ''}`}
                 aria-pressed={pick === x.id}
                 disabled={!x.doc}
                 onClick={() => setPick(x.id)}
               >
-                <span className="ga-history-item__title">{x.title}</span>
+                <span className="dg-history-item__title">{x.title}</span>
                 {x.entry ? (
                   <StatusBadge tone="orange" label="Chưa lưu" size="sm" />
                 ) : x.doc ? (
@@ -123,13 +124,13 @@ export function VersionHistory({ drafts, saved, current, unsaved, linesOf, onUse
         </ul>
         {drafts.length === 0 && <p className="muted text-sm">Không có bản chưa lưu nào trên máy này.</p>}
         {chosen ? (
-          <section className="ga-history-preview" aria-label={`Khác biệt: ${chosen.title}`}>
+          <section className="dg-history-preview" aria-label={`Khác biệt: ${chosen.title}`}>
             <p className="text-sm">
               So với nội dung đang mở:{' '}
               {added || removed ? (
                 <>
-                  <span className="ga-history-count--add">+{added} dòng</span> ·{' '}
-                  <span className="ga-history-count--del">−{removed} dòng</span>
+                  <span className="dg-history-count--add">+{added} dòng</span> ·{' '}
+                  <span className="dg-history-count--del">−{removed} dòng</span>
                 </>
               ) : (
                 'giống nhau.'
@@ -141,15 +142,15 @@ export function VersionHistory({ drafts, saved, current, unsaved, linesOf, onUse
                 <div>{reason}</div>
               </div>
             )}
-            <ol className="ga-history-diff">
+            <ol className="dg-history-diff">
               {collapse(ops).map((op, i) =>
                 op.type === 'gap' ? (
-                  <li key={i} className="ga-history-line ga-history-line--gap">
+                  <li key={i} className="dg-history-line dg-history-line--gap">
                     … {op.count} dòng giống nhau
                   </li>
                 ) : (
-                  <li key={i} className={`ga-history-line ga-history-line--${op.type}`}>
-                    <span className="ga-history-line__mark" aria-hidden>
+                  <li key={i} className={`dg-history-line dg-history-line--${op.type}`}>
+                    <span className="dg-history-line__mark" aria-hidden>
                       {op.type === 'add' ? '+' : op.type === 'del' ? '−' : ''}
                     </span>
                     {op.type === 'add' ? <ins>{op.text}</ins> : op.type === 'del' ? <del>{op.text}</del> : op.text}

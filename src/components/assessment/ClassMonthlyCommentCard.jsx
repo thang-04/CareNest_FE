@@ -7,8 +7,8 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useDraftBackup } from '@/hooks/assessment/useDraftBackup';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { VersionHistory } from '@/components/ui/VersionHistory';
-import { docLines } from '@/models/draftHistory.mjs';
+import { VersionHistory } from '@/components/assessment/VersionHistory';
+import { docLines } from '@/models/assessment/draftHistory.mjs';
 import { ErrorState, Spinner } from '@/components/ui/States';
 import { confirmClassMonthlyComment, getClassMonthlyComment, saveClassMonthlyComment } from '@/services/assessment/assessmentService';
 import { formatDateTime } from '@/utils/format';
@@ -28,9 +28,14 @@ export function ClassMonthlyCommentCard({ classId, month }) {
   const [busy, setBusy] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const savedText = data ? data.content || data.draft || '' : null;
-  useEffect(() => setText(savedText || ''), [savedText]);
+  // Bản trên hệ thống mà ô nhập đang dựa vào: chỉ so "đã sửa" sau khi đã nạp (không hỏi lưu khi vừa mở màn)
+  const [loadedFrom, setLoadedFrom] = useState(null);
+  useEffect(() => {
+    setText(savedText || '');
+    setLoadedFrom(savedText);
+  }, [savedText]);
   const editable = !!data?.canEdit;
-  const unsaved = editable && text !== savedText;
+  const unsaved = editable && savedText != null && loadedFrom === savedText && text !== savedText;
   const backup = useDraftBackup({
     userId: user?.id,
     docKey: classId && month ? `class-monthly-comment:${classId}:${month}` : null,

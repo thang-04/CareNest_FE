@@ -1,5 +1,5 @@
-// Lịch sử phiên bản khi soạn (Tiền chốt 03/11, dùng chung từ 03/11 cho đánh giá trẻ): bản đã lưu + tối đa 2 mốc chưa lưu
-// trên máy, so khác biệt theo dòng.
+// Lịch sử phiên bản cho nội dung cấp lớp của đánh giá trẻ, làm theo kế hoạch giáo dục (Tiền chốt 03/11; bản riêng theo
+// Cần chốt 03/11): bản đã lưu + tối đa 2 mốc chưa lưu trên máy, so khác biệt theo dòng.
 export const MAX_DRAFTS = 2;
 
 /** Mỗi lần soạn (session) một mốc, cập nhật tại chỗ; mới nhất trước, quá MAX_DRAFTS thì bỏ mốc cũ nhất. */
