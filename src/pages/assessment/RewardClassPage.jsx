@@ -15,14 +15,21 @@ import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { RewardStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { ChildNameCell } from '@/components/assessment/ChildNameCell';
-import { REWARD_HISTORY_LABELS, REWARD_NOTE_MAX, REWARD_STATUS as S } from '@/models/assessment/assessmentConstants';
+import {
+  REWARD_HISTORY_LABELS,
+  REWARD_NOTE_MAX,
+  REWARD_STATUS as S,
+  REWARD_GENERAL_TITLES,
+  REWARD_PROGRAM_TITLES,
+} from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { downloadXlsx } from '@/utils/exportXlsx';
 import { findDiagnosticTerms, validateDecision } from '@/utils/assessment/assessmentValidation';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 
-const PROGRAM = 'Hoàn thành chương trình GDMN';
+// Mỗi nhóm chỉ chọn một danh hiệu: chọn danh hiệu khác cùng nhóm thì thay danh hiệu đang chọn (BE kiểm lại)
+const groupOf = (title) => (REWARD_PROGRAM_TITLES.includes(title) ? REWARD_PROGRAM_TITLES : REWARD_GENERAL_TITLES);
 
 /* PHT: chuyển HT / trả lại; HT: phê duyệt / trả lại. Trả lại bắt buộc nêu lý do. */
 const DECISIONS = {
@@ -110,7 +117,10 @@ export default function RewardClassPage() {
   const toggle = (childId, title) => {
     setForm((f) => {
       const cur = f[childId] || { titles: [], note: '' };
-      const titles = cur.titles.includes(title) ? cur.titles.filter((t) => t !== title) : [...cur.titles, title];
+      const group = groupOf(title);
+      const titles = cur.titles.includes(title)
+        ? cur.titles.filter((t) => t !== title)
+        : [...cur.titles.filter((t) => !group.includes(t)), title];
       return { ...f, [childId]: { ...cur, titles } };
     });
     setListError('');
@@ -124,7 +134,10 @@ export default function RewardClassPage() {
       Object.fromEntries(
         d.children.map((c) => {
           const cur = f[c.childId] || { titles: [], note: '' };
-          return [c.childId, { ...cur, titles: [...new Set([...cur.titles, ...(c.suggested || [])])] }];
+          // Gợi ý thay danh hiệu cùng nhóm đang chọn
+          const groups = (c.suggested || []).map(groupOf);
+          const kept = cur.titles.filter((t) => !groups.some((g) => g.includes(t)));
+          return [c.childId, { ...cur, titles: [...kept, ...(c.suggested || [])] }];
         }),
       ),
     );
@@ -338,7 +351,7 @@ export default function RewardClassPage() {
                           {edit ? (
                             <div className="stack gap-1">
                               {d.titleOptions.map((t) => {
-                                const disabled = !c.yearEnd || (t === PROGRAM && c.programCompleted !== true);
+                                const disabled = !c.yearEnd || (REWARD_PROGRAM_TITLES.includes(t) && c.programCompleted !== true);
                                 return (
                                   <label key={t} className={`dg-tick ${disabled ? 'muted' : ''}`}>
                                     <input

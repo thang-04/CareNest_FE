@@ -1,6 +1,12 @@
 import { ApiError, clone, writeDb } from '@/mocks/mockDatabase';
 import { activeYearId } from '@/mocks/roomManagers';
-import { REWARD_TITLES, DIAGNOSTIC_TERMS, TICKET_RULES } from '@/models/assessment/assessmentConstants';
+import {
+  REWARD_GENERAL_TITLES,
+  REWARD_PROGRAM_TITLES,
+  REWARD_TITLES,
+  DIAGNOSTIC_TERMS,
+  TICKET_RULES,
+} from '@/models/assessment/assessmentConstants';
 import { inLeaderEditScope, inLeaderScope, isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
 import { addDays, monthEnd, monthsBetween, schoolDaysBetween, todayIso, weekStart } from '@/utils/assessment/assessmentPeriods';
 import { uid } from '@/utils/id';
@@ -68,13 +74,17 @@ const detailOf = (db, cls, user) => {
       monthly = countTickets(db, cls, c.id, 'MONTHLY');
     const suggested = [];
     if (ye) {
-      if (days.size && present * 100 >= 90 * days.size) suggested.push(REWARD_TITLES[0]);
+      // BE giả OBS-14: gợi ý một danh hiệu bé ngoan cao nhất đạt được, lớp 5–6 tuổi thêm hoàn thành tốt chương trình
+      const diligent = days.size && present * 100 >= 90 * days.size;
       const elapsed = [...days].sort();
       const weeks = new Set(elapsed.map(weekStart)).size;
       const months = new Set(elapsed.map((d) => d.slice(0, 7))).size;
-      if (weeks && weekly * 2 >= weeks) suggested.push(REWARD_TITLES[1]);
-      if (months && monthly * 2 >= months) suggested.push(REWARD_TITLES[2]);
-      if (programClass(db, cls) && ye.programCompleted) suggested.push(REWARD_TITLES[3]);
+      const good = weeks && weekly * 2 >= weeks;
+      const allRound = months && monthly * 2 >= months;
+      if (diligent && allRound) suggested.push(REWARD_GENERAL_TITLES[3]);
+      else if (diligent && good) suggested.push(REWARD_GENERAL_TITLES[1]);
+      else if (good) suggested.push(REWARD_GENERAL_TITLES[0]);
+      if (programClass(db, cls) && ye.programCompleted) suggested.push(REWARD_PROGRAM_TITLES[1]);
     }
     const item = show && list?.items.find((r) => r.childId === c.id);
     return {
@@ -102,7 +112,7 @@ const detailOf = (db, cls, user) => {
     schoolYearId: cls.schoolYear,
     programClass: programClass(db, cls),
     status: list?.status || null,
-    titleOptions: REWARD_TITLES.filter((t) => t !== REWARD_TITLES[3] || programClass(db, cls)),
+    titleOptions: programClass(db, cls) ? REWARD_TITLES : REWARD_GENERAL_TITLES,
     children,
     history: list?.history || [],
     canEdit,
@@ -154,7 +164,12 @@ export const createAssessmentReportsMock = (ensureReady) => ({
         if (note.length > 300 || DIAGNOSTIC_TERMS.some((term) => note.toLowerCase().includes(term))) invalid('Ghi chú không hợp lệ.');
         if (!titles.length) return [];
         if (!c.yearEnd) invalid('Cần xác nhận đánh giá cuối năm trước.');
-        if (titles.includes(REWARD_TITLES[3]) && !c.programCompleted) invalid('Trẻ chưa hoàn thành chương trình.');
+        if (
+          titles.filter((t) => REWARD_GENERAL_TITLES.includes(t)).length > 1 ||
+          titles.filter((t) => REWARD_PROGRAM_TITLES.includes(t)).length > 1
+        )
+          invalid('Mỗi trẻ chọn một danh hiệu bé ngoan và tối đa một danh hiệu hoàn thành chương trình.');
+        if (titles.some((t) => REWARD_PROGRAM_TITLES.includes(t)) && !c.programCompleted) invalid('Trẻ chưa hoàn thành chương trình.');
         return [{ childId: item.childId, titles, note }];
       });
       if (submit && !rows.length) invalid('Chọn ít nhất một trẻ được khen thưởng.');

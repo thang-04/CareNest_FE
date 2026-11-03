@@ -199,15 +199,13 @@ export const REWARD_HISTORY_LABELS = {
   REJECTED: 'Hiệu trưởng từ chối',
 };
 
-/** Danh hiệu khen thưởng cuối năm (như BE RewardListServiceImpl.TITLES); BE trả danh sách áp dụng cho từng lớp. */
-export const REWARD_TITLES = [
-  'Bé chăm',
-  'Bé ngoan',
-  'Bé ngoan toàn diện',
-  'Hoàn thành chương trình GDMN',
-  'Bé khỏe – Bé đẹp',
-  'Bé có năng khiếu nghệ thuật',
-];
+/**
+ * Danh hiệu khen thưởng cuối năm (như BE RewardListServiceImpl, OBS-14): mỗi trẻ một danh hiệu bé ngoan và, lớp 5–6
+ * tuổi đã hoàn thành chương trình, tối đa một danh hiệu hoàn thành chương trình. BE trả danh sách áp dụng cho từng lớp.
+ */
+export const REWARD_GENERAL_TITLES = ['Bé ngoan', 'Bé chăm ngoan', 'Bé khỏe, bé ngoan', 'Bé chăm ngoan xuất sắc'];
+export const REWARD_PROGRAM_TITLES = ['Hoàn thành xuất sắc chương trình giáo dục mầm non', 'Hoàn thành tốt chương trình giáo dục mầm non'];
+export const REWARD_TITLES = [...REWARD_GENERAL_TITLES, ...REWARD_PROGRAM_TITLES];
 export const REWARD_NOTE_MAX = 300;
 
 /** Words that must not appear in criteria or evaluations (GBR-OBS-05). Lower case, accents kept. */
