@@ -82,7 +82,7 @@ function TeacherTicketsPage() {
   const periodIndex = periods.findIndex((p) => p.start === board?.period?.start);
   // Giáo viên dạy một lớp: không cần chọn lớp
   const cls = classes.find((c) => String(c.id) === String(currentClassId));
-  const issuable = rows.filter((r) => r.eligible && !r.ticket);
+  const issuable = rows.filter((r) => r.eligible && r.canIssue !== false && !r.ticket);
   const issued = rows.filter((r) => r.ticket).length;
   const weekly = type === TICKET_TYPE.WEEKLY;
   const pType = weekly ? 'WEEK' : 'MONTH';
@@ -210,6 +210,11 @@ function TeacherTicketsPage() {
                   </div>
                 )}
               </div>
+              {weekly && !error && board?.period && (
+                <p className="muted text-sm">
+                  Ngày có mặt và cờ trong tuần đi theo trẻ, bao gồm trước khi chuyển lớp. Mỗi trẻ chỉ nhận một phiếu trong kỳ.
+                </p>
+              )}
               {error ? (
                 <ErrorState error={error} onRetry={reload} />
               ) : !loading && board && !board.period ? (
@@ -268,7 +273,7 @@ function TeacherTicketsPage() {
                                 type="checkbox"
                                 aria-label={`Chọn ${r.child.fullName}`}
                                 checked={selected.has(r.child.id)}
-                                disabled={!r.eligible || !!r.ticket}
+                                disabled={!r.eligible || r.canIssue === false || !!r.ticket}
                                 onChange={() => toggle(r.child.id)}
                               />
                             </td>
@@ -292,7 +297,11 @@ function TeacherTicketsPage() {
                               </td>
                             )}
                             <td>
-                              {r.eligible ? (
+                              {r.ticket ? (
+                                <span className="text-sm muted">Đã có phiếu trong kỳ</span>
+                              ) : r.canIssue === false ? (
+                                <span className="text-sm muted">Chỉ xem lịch sử · Trẻ không thuộc lớp cuối kỳ</span>
+                              ) : r.eligible ? (
                                 <TicketBadge status="ELIGIBLE" />
                               ) : (
                                 <span className="text-sm muted">{missingText(r, board.rules, weekly)}</span>
@@ -300,7 +309,10 @@ function TeacherTicketsPage() {
                             </td>
                             <td className="text-sm">
                               {r.ticket ? (
-                                <TicketBadge status="ISSUED" detail={formatDateTime(r.ticket.issuedAt)} />
+                                <>
+                                  <TicketBadge status="ISSUED" detail={formatDateTime(r.ticket.issuedAt)} />
+                                  {r.issuedElsewhere && <div className="muted text-xs">Đã phát tại lớp khác</div>}
+                                </>
                               ) : (
                                 <span className="muted">Chưa phát</span>
                               )}

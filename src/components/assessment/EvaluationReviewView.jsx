@@ -186,6 +186,10 @@ export function EvaluationReviewView({ kind, id }) {
         )}
       </div>
 
+      {confirmed && !detail.cls?.teaches && (
+        <div className="alert alert--info mt-16">Đánh giá đã xác nhận · Chỉ xem lịch sử của trẻ, không chỉnh sửa nội dung.</div>
+      )}
+
       {ev.status === EVAL_STATUS.AI_FAILED && canReview && (
         <div className="alert alert--danger mt-16">
           <AlertOctagon size={20} />
