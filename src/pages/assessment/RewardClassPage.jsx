@@ -14,7 +14,7 @@ import { RewardStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { ChildNameCell } from '@/components/assessment/ChildNameCell';
 import { REWARD_HISTORY_LABELS, REWARD_NOTE_MAX, REWARD_STATUS as S } from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { downloadCsv } from '@/utils/exportCsv';
+import { downloadXlsx } from '@/utils/exportXlsx';
 import { findDiagnosticTerms, validateDecision } from '@/utils/assessment/assessmentValidation';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
@@ -175,14 +175,14 @@ export default function RewardClassPage() {
   };
 
   const exportCsv = () =>
-    downloadCsv(
+    downloadXlsx(
       [
         ['STT', 'Họ tên', 'Ngày sinh', 'Danh hiệu', 'Ghi chú'],
         ...d.children
           .filter((c) => (form[c.childId]?.titles || []).length)
           .map((c, i) => [i + 1, c.fullName, formatDate(c.dateOfBirth), form[c.childId].titles.join('; '), form[c.childId].note || '']),
       ],
-      `khen-thuong-${d.className}.csv`,
+      `khen-thuong-${d.className}.xlsx`,
     );
 
   const vp = d.vpReview;
@@ -243,7 +243,7 @@ export default function RewardClassPage() {
             )}
             {awarded > 0 && (
               <button className="btn btn--sm" onClick={exportCsv}>
-                <Download size={15} /> Xuất CSV
+                <Download size={15} /> Xuất Excel
               </button>
             )}
           </div>

@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ROLES } from '@/models/User';
 import { useProgramCompletion, useQualityReport } from '@/hooks/assessment/useAssessment';
-import { downloadCsv } from '@/utils/exportCsv';
+import { downloadXlsx } from '@/utils/exportXlsx';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 
@@ -83,19 +83,19 @@ export default function QualityReportPage() {
         x.notCompleted,
         x.unmarked,
       ];
-      downloadCsv(
+      downloadXlsx(
         [
           [`Trẻ 5 tuổi hoàn thành chương trình GDMN${campusText}`],
           ['Lớp', ...(showCampus ? ['Điểm trường'] : []), 'Số trẻ', 'Hoàn thành', 'Tỷ lệ', 'Chưa hoàn thành', 'Chưa đánh giá'],
           ...programRows.map((r) => line(r.className, campusName(r.campusId), r)),
           ...(programReport ? [line(totalLabel({}), '', programReport.totals)] : []),
         ],
-        'tre-5-tuoi-hoan-thanh-chuong-trinh.csv',
+        'tre-5-tuoi-hoan-thanh-chuong-trinh.xlsx',
       );
       return;
     }
     if (view === 'year') {
-      downloadCsv(
+      downloadXlsx(
         [
           [`Trẻ đến lớp hằng tháng${campusText}`],
           ['Lớp', ...(showCampus ? ['Điểm trường'] : []), ...months.map(monthLabel)],
@@ -106,7 +106,7 @@ export default function QualityReportPage() {
           ]),
           ...totals.map((t) => [totalLabel(t), ...(showCampus ? [''] : []), ...months.map((m) => num(t.avgPresentByMonth?.[m]))]),
         ],
-        `tre-den-lop-hang-thang.csv`,
+        `tre-den-lop-hang-thang.xlsx`,
       );
       return;
     }
@@ -125,7 +125,7 @@ export default function QualityReportPage() {
       x.allRoundChildren,
       pct(x.allRoundRate),
     ];
-    downloadCsv(
+    downloadXlsx(
       [
         [`Theo dõi chất lượng ${monthLabel(report?.month).toLowerCase()}${campusText}`],
         [
@@ -146,7 +146,7 @@ export default function QualityReportPage() {
         ...rows.map((r) => line(r.className, campusName(r.campusId), r)),
         ...totals.map((t) => line(totalLabel(t), '', t)),
       ],
-      `chat-luong-thang-${report?.month || ''}.csv`,
+      `chat-luong-thang-${report?.month || ''}.xlsx`,
     );
   };
 

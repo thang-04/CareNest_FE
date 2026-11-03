@@ -26,7 +26,7 @@ import {
 } from '@/services/school-config/schoolConfigService';
 import { STAFF_ROLES, normalizePhone, staffExportRows, toCreatePayload, validateStaffAccount } from '@/utils/school-config/staffImport';
 import { staffCrumbs } from '@/utils/school-config/breadcrumbs';
-import { downloadCsv } from '@/utils/exportCsv';
+import { downloadXlsx } from '@/utils/exportXlsx';
 import { todayInput } from '@/utils/format';
 
 const PAGE_SIZE = 10;
@@ -103,7 +103,7 @@ export function StaffAccountsBeView({ tabs = null }) {
     setExporting(true);
     try {
       const all = (await listAllStaffAccounts(filters)).map((a) => toStaffRow(a, lookups));
-      downloadCsv(staffExportRows(all), `tai-khoan-nhan-su-${todayInput()}.csv`);
+      downloadXlsx(staffExportRows(all), `tai-khoan-nhan-su-${todayInput()}.xlsx`);
     } catch (err) {
       toast.error(err, 'Không xuất được danh sách');
     } finally {

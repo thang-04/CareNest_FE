@@ -14,11 +14,11 @@ import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { useMealCounts } from '@/hooks/attendance/useAttendance';
 import { confirmMealCount } from '@/services/attendance/attendanceService';
 import { ROLES } from '@/models/User';
-import { MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
+import { MEAL_SESSION_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
-import { downloadCsv } from '@/utils/exportCsv';
+import { downloadXlsx } from '@/utils/exportXlsx';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -135,11 +135,11 @@ export default function MealCountPage() {
           ...sessions.map((sKey) => (l.meals[sKey] ? l.meals[sKey].normal + l.meals[sKey].substitute : '')),
           l.normal + l.substitute,
           l.substitute,
-          dayStatus(counts),
+          MEAL_COUNT_STATUS_LABELS[dayStatus(counts)] || dayStatus(counts),
         ]),
       );
     });
-    downloadCsv([[`Sổ báo ăn ngày ${formatDate(date)}`], ...rows], `so-bao-an-${date}.csv`);
+    downloadXlsx([[`Sổ báo ăn ngày ${formatDate(date)}`], ...rows], `so-bao-an-${date}.xlsx`);
   };
 
   return (
