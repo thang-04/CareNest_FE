@@ -231,7 +231,8 @@ export default function ClassAssessmentOverviewPage() {
   const rows = sortRows(overview?.rows || []);
   // Hiệu trưởng luôn lọc được theo điểm trường; PHT chỉ xem điểm trường của mình
   const campusOptions = isPrincipal && overview?.allCampuses?.length ? overview.allCampuses : overview?.campuses || [];
-  const multiCampus = isPrincipal || campusOptions.length > 1;
+  // Tổ trưởng xem các lớp nhóm tuổi mình: không lọc / không hiện điểm trường
+  const multiCampus = isLeader(user) && (isPrincipal || campusOptions.length > 1);
   const multiDay = (overview?.schoolDays || 0) > 1;
   const canUnlock = isLeader(user);
   const campusName = (id) => campusOptions.find((c) => String(c.id) === String(id))?.name || id;

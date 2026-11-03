@@ -12,7 +12,7 @@ import { ChildNameCell } from '@/components/assessment/ChildNameCell';
 import { TicketSummary } from '@/components/assessment/TicketSummary';
 import { Tabs } from '@/components/ui/Tabs';
 import { TicketOverview } from '@/components/assessment/TicketOverview';
-import { canViewTicketOverview } from '@/utils/assessment/assessmentPermissions';
+import { canViewTicketOverview, isTeamLeader } from '@/utils/assessment/assessmentPermissions';
 import { TicketBadge } from '@/components/assessment/AssessmentBadges';
 import { TICKET_TYPE, TICKET_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
@@ -34,6 +34,8 @@ const missingText = (r, rules, weekly) => {
 };
 
 const SUMMARY = 'SUMMARY';
+// Tổ trưởng chuyên môn: xem phiếu các lớp nhóm tuổi mình (chỉ xem, BE lọc theo nhóm tuổi)
+const GROUP = 'GROUP';
 
 // Đủ điều kiện chưa phát lên đầu, rồi đã phát, cuối cùng chưa đủ điều kiện
 const rank = (r) => (r.ticket ? 1 : r.eligible ? 0 : 2);
@@ -70,7 +72,8 @@ function TeacherTicketsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const currentClassId = classId || classes[0]?.id || '';
   // Tab "Tổng hợp": số phiếu bé ngoan theo trẻ (không tải bảng phát phiếu)
-  const summaryView = type === SUMMARY;
+  const groupView = type === GROUP;
+  const summaryView = type === SUMMARY || groupView;
   const params = useMemo(
     () => ({ classId: summaryView ? '' : currentClassId, type, periodStart: periodStart || undefined }),
     [summaryView, currentClassId, type, periodStart],
@@ -130,6 +133,7 @@ function TeacherTicketsPage() {
               { key: TICKET_TYPE.WEEKLY, label: TICKET_TYPE_LABELS.WEEKLY },
               { key: TICKET_TYPE.MONTHLY, label: TICKET_TYPE_LABELS.MONTHLY },
               { key: SUMMARY, label: 'Tổng hợp' },
+              ...(isTeamLeader(user) ? [{ key: GROUP, label: 'Các lớp nhóm tuổi' }] : []),
             ]}
             value={type}
             onChange={(t) =>
@@ -139,7 +143,9 @@ function TeacherTicketsPage() {
               })
             }
           />
-          {summaryView ? (
+          {groupView ? (
+            <TicketOverview />
+          ) : summaryView ? (
             <TicketSummary classId={currentClassId} />
           ) : (
             <>

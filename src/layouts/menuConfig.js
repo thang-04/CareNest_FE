@@ -491,6 +491,7 @@ const MENUS = {
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', [
+      'assessOverview',
       'assessDaily',
       'assessProfiles',
       'assessPeriodic',

@@ -42,8 +42,10 @@ export const isVicePrincipal = (user) => user?.role === ROLES.VICE_PRINCIPAL;
 
 /** PHT và Hiệu trưởng xem phiếu bé ngoan các lớp; phát phiếu vẫn là giáo viên lớp. */
 export const canViewTicketOverview = (user) => isLeader(user);
-/** Tổng quan đánh giá lớp: chỉ PHT và Hiệu trưởng; giáo viên không xem. */
-export const canViewClassAssessmentOverview = (user) => isLeader(user);
+/** Tổ trưởng chuyên môn: xem (chỉ xem) tổng quan, phiếu bé ngoan các lớp nhóm tuổi mình — BE lọc theo nhóm tuổi (Cần chốt 04/11). */
+export const isTeamLeader = (user) => user?.role === ROLES.TEAM_LEADER;
+/** Tổng quan đánh giá lớp: PHT, Hiệu trưởng; tổ trưởng xem các lớp nhóm tuổi mình. */
+export const canViewClassAssessmentOverview = (user) => isLeader(user) || isTeamLeader(user);
 // AUTH-20 (Cần chốt 03/11/2026): HT, PHT xem dữ liệu đánh giá mọi điểm trường; ghi theo inLeaderEditScope
 export const inLeaderScope = (campusId, user) => isLeader(user);
 /** Mở lại ngày, xét duyệt: Hiệu trưởng cả trường, PHT điểm trường mình. */

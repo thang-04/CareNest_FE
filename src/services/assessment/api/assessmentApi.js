@@ -1,3 +1,4 @@
+import { isLeader } from '@/utils/assessment/assessmentPermissions';
 // API đánh giá trẻ của BE (client = beClient: bóc envelope, đổi id/năm học giữa dạng BE và UI)
 
 // Tên ngắn của điểm trường dùng trong bảng, bộ lọc (Tên ngắn ở Cấu hình điểm trường), thiếu thì tên đầy đủ
@@ -89,7 +90,7 @@ export const createAssessmentBeApi = (client) => ({
     client.post('/assessment/day-unlocks', { classId, date, validUntil, reason }),
   revokeAssessmentDayUnlock: (id) => client.post(`/assessment/day-unlocks/${id}/revoke`),
   // BE không trả tên điểm trường / nhóm tuổi (name null): ghép tên từ danh mục của BE
-  getClassAssessmentOverview: async ({ period, date, schoolYear, campusId, ageGroupId, classId } = {}) => {
+  getClassAssessmentOverview: async ({ period, date, schoolYear, campusId, ageGroupId, classId } = {}, user) => {
     const [overview, campuses, ageGroups] = await Promise.all([
       client.get('/assessment/overview', {
         params: {
@@ -101,20 +102,21 @@ export const createAssessmentBeApi = (client) => ({
           classId: classId || undefined,
         },
       }),
-      client.get('/campuses').catch(() => []),
+      // Tổ trưởng không đọc được danh mục điểm trường (màn không lọc điểm trường cho tổ trưởng)
+      isLeader(user) ? client.get('/campuses').catch(() => []) : [],
       client.get('/age-groups').catch(() => []),
     ]);
     return withNames(overview, campuses, ageGroups);
   },
   getClassAssessmentDetail: ({ classId, period, date }) =>
     client.get(`/assessment/overview/classes/${classId}`, { params: { period, date: date || undefined } }),
-  getQualityReport: async ({ schoolYear, month, campusId } = {}) => {
-    const [report, campuses] = await Promise.all([
-      client.get('/assessment/quality-report', {
-        params: { schoolYearId: schoolYear || undefined, month: month || undefined, campusId: campusId || undefined },
-      }),
-      client.get('/campuses').catch(() => []),
-    ]);
+  getQualityReport: async ({ schoolYear, month, campusId } = {}, user) => {
+    const report = await client.get('/assessment/quality-report', {
+      params: { schoolYearId: schoolYear || undefined, month: month || undefined, campusId: campusId || undefined },
+    });
+    // GV, tổ trưởng không đọc được danh mục điểm trường (màn không hiện cột điểm trường); BGH lọc thì vẫn cần đủ danh sách
+    const campuses =
+      isLeader(user) && (campusId || (report.campusIds || []).length > 1) ? await client.get('/campuses').catch(() => []) : [];
     return {
       ...report,
       campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
@@ -122,13 +124,12 @@ export const createAssessmentBeApi = (client) => ({
     };
   },
   // Xếp loại nhóm lớp: ghép tên ngắn điểm trường cho cột / bộ lọc
-  getClassRatings: async ({ schoolYear, period, campusId } = {}) => {
-    const [result, campuses] = await Promise.all([
-      client.get('/assessment/class-ratings', {
-        params: { period, schoolYearId: schoolYear || undefined, campusId: campusId || undefined },
-      }),
-      client.get('/campuses').catch(() => []),
-    ]);
+  getClassRatings: async ({ schoolYear, period, campusId } = {}, user) => {
+    const result = await client.get('/assessment/class-ratings', {
+      params: { period, schoolYearId: schoolYear || undefined, campusId: campusId || undefined },
+    });
+    // GV (1 điểm trường) không có quyền đọc danh mục điểm trường: chỉ tra tên khi có nhiều điểm trường
+    const campuses = isLeader(user) && (result.campusIds || []).length > 1 ? await client.get('/campuses').catch(() => []) : [];
     return {
       ...result,
       campuses: (result.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
@@ -173,10 +174,8 @@ export const createAssessmentBeApi = (client) => ({
   },
   // Đề xuất khen thưởng theo danh sách lớp: ghép tên điểm trường cho HT lọc
   getRewardLists: async ({ schoolYear } = {}) => {
-    const [rows, campuses] = await Promise.all([
-      client.get('/assessment/reward-lists', { params: { schoolYearId: schoolYear || undefined } }),
-      client.get('/campuses').catch(() => []),
-    ]);
+    const rows = await client.get('/assessment/reward-lists', { params: { schoolYearId: schoolYear || undefined } });
+    const campuses = new Set(rows.map((r) => r.campusId)).size > 1 ? await client.get('/campuses').catch(() => []) : [];
     return rows.map((r) => ({ ...r, campusName: campusLabel(campuses, r.campusId) || '' }));
   },
   getRewardList: (classId) => client.get(`/assessment/reward-lists/classes/${classId}`),
