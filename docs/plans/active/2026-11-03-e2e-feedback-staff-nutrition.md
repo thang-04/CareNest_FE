@@ -139,8 +139,8 @@ Plan A không còn câu hỏi mở. Cần hỏi trước khi bắt đầu Plan B
 | AC-4 | — | Playwright chunk chậm 3 s | 2 | trước: fail (trang cũ đứng 3 s); sau: thanh tiến trình sau 80 ms, 3 lần bấm ⇒ 1 lượt điều hướng (03/11) |
 | AC-5, AC-6 | — | `tests/hardening/route-prefetch.test.mjs`, `tests/menu/nutrition-catalog-api.test.mjs` | 2 | pass; Playwright: rê chuột nhóm "Danh mục & thiết lập" tải trước 4 trang (03/11) |
 | Phase 2b | — | chạy workflow deploy | 2b | chưa chạy (chỉ chạy khi push `main`) |
-| AC-7, AC-11 | NUT-18, NUT-24 | `tests/menu/food-micronutrients.test.mjs`, `food-bulk-import.test.mjs`, `nutrition-six-indicators.test.mjs` | 3–4 | chưa chạy |
-| AC-8..10 | NUT-18, NUT-24 | `tests/menu/dish-detail.test.mjs` + test mới + ảnh | 5 | chưa chạy |
+| AC-7, AC-11 | NUT-18, NUT-24, NUT-26 | FE `tests/menu/food-micronutrients.test.mjs` (8), `nutrition-catalog-api.test.mjs`, `nutrition-six-indicators.test.mjs`; BE `FoodServiceImplTest`, `AgeGroupMealConfigServiceImplTest`, `DishServiceImplTest`, `MealPlanEvaluatorTest` | 3–4 | FE pass; BE pass phần không cần Docker, 273 test Docker chưa chạy (03/11) |
+| AC-8..10 | NUT-18, NUT-24 | `tests/menu/dish-detail.test.mjs` + Playwright đo tràn ngang + ảnh | 5 | pass; 1280 px: chi tiết món, thực phẩm, định mức không tràn; tổng quan cấu hình cuộn ngang 125 px có cột Nhóm tuổi cố định (03/11) |
 
 ## Rủi ro & rollback
 
@@ -163,6 +163,16 @@ Plan A không còn câu hỏi mở. Cần hỏi trước khi bắt đầu Plan B
 - [x] Tự review: không placeholder · không mâu thuẫn · scope theo plan tách · sidebar xác định file khi làm Phase 2
 
 ## Progress log
+
+### 2026-11-03 — Plan B (Phase 3, 4, 5) done, chờ user soát
+- Commit: chưa commit (FE trên nhánh hiện tại; BE ở worktree tách rời `../CareNest_BE-micronutrients`, HEAD `origin/dev` `7a4b4cf`, không tạo nhánh — cần nhánh + mã Jira, Q9).
+- Verify FE: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`.
+- Verify BE (worktree): `node scripts/verify.mjs` → `VERIFY PASS full | tests 819 fail 0 err 0 skip 273 | archunit ok | snapshot SKIP | spotless ok` — 273 test cần Docker (Docker Desktop lỗi trên máy) **chưa kiểm chứng**: migration `V63__add_food_micronutrients.sql`, seed dev, ánh xạ JPA, `docs/api/openapi.yaml` sửa tay.
+- Phase 3 (BE, subagent): 8 vi chất trên `foods`, cặp min/max trong `age_group_meal_configs`, tổng vi chất trong chi tiết món và đánh giá thực đơn (`NormRow` optional), rule `NUT-26`, seed dev theo bảng số liệu AI ước (cần soát).
+- Phase 4 (FE): `MICRONUTRIENT_*` trong `menuPlanningConstants.js`; tính tổng trong `menuCalculations.js` (null khi thiếu số liệu, làm tròn 0,01 khớp BE); kiểm/lưu mock, map `nutritionCatalogApi.js`; form thực phẩm 2 nhóm ô; nhập Excel thêm 8 cột tùy chọn + file mẫu `thuc-pham-mau.xlsx`; bảng vi chất ở `NutritionTable`; dòng vi chất ở bảng kiểm thực đơn tuần; seed mock 28 thực phẩm + định mức mẫu, bổ sung dữ liệu localStorage cũ một lần.
+- Phase 5 (FE): `NutrientTable` (chi tiết thực phẩm: Chất · Hàm lượng · Đơn vị, chia nhóm); chi tiết món bỏ cột hồ sơ trái, bảng theo nhóm tuổi có tab "Năng lượng và P : L : G" (ô P/L/G xanh/cam + chữ Đạt/Thấp/Cao, tham khảo) / "Khoáng chất và vitamin", bảng thành phần chia 4 nhóm cột; cấu hình nhóm tuổi: tổng quan mỗi chỉ số một cột + "Chưa nhập chuẩn" vàng, bảng định mức dạng dọc (Tối thiểu · Tối đa · Đơn vị); `Tabs` thêm `variant="pill"` (DESIGN §6.3).
+- Quyết định agent (chờ soát): vi chất lệch định mức **chỉ cảnh báo**, không đổi trạng thái ngày, không chặn công bố (BE `MICRONUTRIENT_OFF` WARNING, `MICRONUTRIENT_INCOMPLETE` INFO) — vì định mức vi chất còn là số ước, chặn sẽ làm thực đơn demo không công bố được. Vitamin A theo đương lượng retinol (retinol + β-caroten/6). Định mức mẫu đặt cho cả 4 nhóm tuổi ở BE seed; mock FE đặt cho nhóm có chuẩn tạm (ag-2..ag-4).
+- Khác plan: tổng quan cấu hình còn cuộn ngang 125 px ở 1280 px (11 cột, cột đầu cố định, tiêu đề xuống dòng) thay vì vừa khung. Nhãn BE "photpho", FE "Phospho" (theo bảng Viện Dinh dưỡng) — thống nhất khi soát.
 
 ### 2026-11-03 — Plan A (Phase 1, 2, 2b) done, chờ user soát
 - User duyệt Plan A 03/11. Commit: chưa commit.
