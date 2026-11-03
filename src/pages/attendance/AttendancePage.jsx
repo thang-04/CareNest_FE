@@ -17,7 +17,8 @@ import { saveReception } from '@/services/receptionService';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DayLockAlert } from '@/components/attendance/DayLockAlert';
 import { useAttendanceClasses, useAttendanceYear, useClassAttendance } from '@/hooks/attendance/useAttendance';
-import { getDayInfo, saveClassAttendance } from '@/services/attendance/attendanceService';
+import { getClassAttendance, getDayInfo, saveClassAttendance } from '@/services/attendance/attendanceService';
+import { createAttendanceRefresh, leaveStateChanged, reconcileAttendanceDraft } from '@/utils/attendance/reconcileAttendance';
 import { ATTENDANCE_STATUS, isAbsent } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
@@ -156,6 +157,9 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   const rows = useMemo(() => sheet?.children || [], [sheet]);
   const dirtyRows = rows.filter((row) => !row.leaveRequest && changed(draft[row.child.id], row.record));
   const busy = saving || healthBusy;
+  const latest = useRef({});
+  latest.current = { sheet, busy, user, toast };
+  const reconciliation = useRef(null);
   useEffect(() => {
     onUnsaved({ attendance: dirtyRows.length > 0, health: healthDirty });
   }, [healthDirty, dirtyRows.length, onUnsaved]);
@@ -173,6 +177,32 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     const wanted = search.get('childId');
     setSelectedId(sheet.children.find((c) => c.child.id === wanted)?.child.id || sheet.children[0]?.child.id || '');
   }, [sheet, search]);
+  useEffect(() => {
+    const controller = createAttendanceRefresh({
+      read: () => getClassAttendance(classId, date, latest.current.user),
+      busy: () => !initialized.current || submitRef.current || latest.current.busy,
+      apply: (fresh, savedIds) => {
+        const previous = latest.current.sheet;
+        setDraft((current) => reconcileAttendanceDraft(current, previous, fresh, savedIds));
+        latest.current.sheet = fresh;
+        setSheet(fresh);
+        if (leaveStateChanged(previous, fresh)) {
+          latest.current.toast.info('Đơn nghỉ đã thay đổi. Đã cập nhật trẻ liên quan; giữ các thay đổi chưa lưu của trẻ khác.');
+        }
+      },
+    });
+    reconciliation.current = controller;
+    const refresh = () => {
+      controller.refresh().catch(() => null);
+    };
+    const timer = setInterval(refresh, 30000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      controller.dispose();
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [classId, date, user?.id, setSheet]);
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
@@ -247,21 +277,31 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     if (submitRef.current || !editable) return false;
     const entries = dirtyRows.filter((row) => !singleId || row.child.id === singleId).map((row) => draft[row.child.id]);
     if (!entries.length) return true;
+    reconciliation.current?.invalidate();
     submitRef.current = true;
     setSaving(true);
     setRowErrors({});
     try {
       await saveClassAttendance({ classId, date, entries }, user);
-      const fresh = await reload({ silent: true });
-      if (fresh) {
-        const saved = toDraft(fresh);
-        setDraft((current) => ({ ...current, ...Object.fromEntries(entries.map((entry) => [entry.childId, saved[entry.childId]])) }));
+      const fresh = await reconciliation.current
+        ?.refresh({ force: true, savedIds: entries.map((entry) => entry.childId) })
+        .catch(() => null);
+      if (!fresh) {
+        setDraft((current) => ({ ...current, ...Object.fromEntries(entries.map((entry) => [entry.childId, entry])) }));
+        setSheet((current) => ({
+          ...current,
+          children: current.children.map((row) => {
+            const saved = entries.find((entry) => entry.childId === row.child.id);
+            return saved ? { ...row, record: { ...row.record, ...saved } } : row;
+          }),
+        }));
       }
       toast.success(singleId ? 'Đã lưu điểm danh của trẻ. Có thể ghi nhận sức khỏe bên phải.' : 'Đã lưu các thay đổi điểm danh.');
       return true;
     } catch (err) {
       setRowErrors(err.details || {});
       toast.error(err, 'Chưa lưu được điểm danh');
+      await reconciliation.current?.refresh({ force: true }).catch(() => null);
       const info = await getDayInfo(date, classId, user).catch(() => null);
       if (info) setClock(info);
       return false;
@@ -283,6 +323,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     const entry = draft[selectedId];
     const needsAttendance = changed(entry, selected?.record);
     if (needsAttendance && !editable) throw new Error('Điểm danh đã khóa. Bản nháp chưa lưu không thể ghi nhận sức khỏe.');
+    reconciliation.current?.invalidate();
     submitRef.current = true;
     let attendanceSaved = false;
     let healthSaved = false;
@@ -302,6 +343,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
       attendanceSaved = !!err.attendanceSaved;
       healthSaved = !!err.healthSaved;
       if (err.receptionStage === 'attendance') setRowErrors(err.details || {});
+      if (err.receptionStage === 'attendance') await reconciliation.current?.refresh({ force: true }).catch(() => null);
       throw err;
     } finally {
       if (attendanceSaved && needsAttendance) {
@@ -313,8 +355,9 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
         setDraft((current) => ({ ...current, [selectedId]: entry }));
       }
       if ((attendanceSaved && needsAttendance) || healthSaved) {
-        const fresh = await reload({ silent: true });
-        if (fresh && attendanceSaved && needsAttendance) setDraft((current) => ({ ...current, [selectedId]: toDraft(fresh)[selectedId] }));
+        await reconciliation.current
+          ?.refresh({ force: true, savedIds: attendanceSaved && needsAttendance ? [selectedId] : [] })
+          .catch(() => null);
       }
       const info = await getDayInfo(date, classId, user).catch(() => null);
       if (info) setClock(info);
@@ -330,7 +373,11 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
       {error && (
         <div className="alert alert--danger mb-12" role="alert">
           Chưa làm mới được danh sách: {error.message}. Bản nháp sức khỏe vẫn được giữ.
-          <button className="btn btn--sm" onClick={() => reload({ silent: true })} disabled={busy}>
+          <button
+            className="btn btn--sm"
+            onClick={() => reconciliation.current?.refresh({ force: true }).catch(() => null)}
+            disabled={busy}
+          >
             Thử tải lại
           </button>
         </div>
