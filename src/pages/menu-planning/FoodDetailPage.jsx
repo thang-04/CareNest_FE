@@ -9,7 +9,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
-import { NutrientBars } from '@/components/menu-planning/NutrientBars';
+import { NutrientTable } from '@/components/menu-planning/NutrientTable';
 import { hasNutrition, hasOrigin, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { foodUnits } from '@/utils/menu-planning/foodUnits';
@@ -115,7 +115,7 @@ export default function FoodDetailPage() {
         </div>
       )}
       {/* Trái: thông tin chung rồi định lượng trong món; phải: dinh dưỡng rồi lịch sử (cùng bố cục trang chi tiết món) */}
-      <div className="td-split-aside">
+      <div className="td-split-aside td-split-aside--nutrients">
         <div className="td-aside-stack">
           <section className="card">
             <div className="card__header">
@@ -204,20 +204,15 @@ export default function FoodDetailPage() {
         <div className="td-aside-stack">
           <section className="card">
             <div className="card__header">
-              <h2 className="card__title">Dinh dưỡng</h2>
+              <h2 className="card__title">Thành phần dinh dưỡng</h2>
+              <span className="text-sm muted">Trong 100 {f.unit} ăn được</span>
             </div>
             <div className="card__body">
-              {hasNutrition(f) ? (
-                <>
-                  <NutrientBars values={nut} title={`Trong 100 ${f.unit} ăn được`} />
-                  {hasOrigin(f) && (
-                    <p className="text-sm muted mt-8">
-                      Đạm, béo tính vào phần {FOOD_ORIGIN_LABELS[f.origin].toLowerCase()} khi cân đối khẩu phần.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <span className="td-warn">Chưa đủ số liệu dinh dưỡng.</span>
+              <NutrientTable values={nut} />
+              {hasNutrition(f) && hasOrigin(f) && (
+                <p className="text-sm muted mt-8">
+                  Đạm, béo tính vào phần {FOOD_ORIGIN_LABELS[f.origin].toLowerCase()} khi cân đối khẩu phần.
+                </p>
               )}
               <p className="text-sm muted mt-8">
                 Nguồn: {f.nutrientSource || 'chưa ghi'}
