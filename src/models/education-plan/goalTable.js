@@ -18,6 +18,13 @@ export const nestUnderFirstSub = (rows) => {
   return i > 0 ? [rows[i], ...rows.slice(0, i), ...rows.slice(i + 1)] : rows;
 };
 
+export const subDomainBranch = (rows, subId) => {
+  const start = rows.findIndex((row) => row.kind === 'sub' && row.id === subId);
+  if (start < 0) return [];
+  const end = rows.findIndex((row, i) => i > start && row.kind === 'sub');
+  return rows.slice(start, end < 0 ? rows.length : end);
+};
+
 /** Bộ mục tiêu đã lưu → hàng của bảng. Bộ cũ (mục tiêu + YCCĐ có mã) được đổi YCCĐ thành nội dung, bỏ mã. */
 export const toRows = (domain, uid) => {
   if (domain.rows) return nestUnderFirstSub(domain.rows.map((r) => (r.kind === 'goal' ? { ...r, contents: r.contents || [] } : r)));

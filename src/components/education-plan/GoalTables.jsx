@@ -9,6 +9,7 @@ import {
   isBlankBreak,
   isBlankTheme,
   nestUnderFirstSub,
+  subDomainBranch,
   themeAbbr,
   themeGoalIds,
   themeGoalLabel,
@@ -195,6 +196,19 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
   // Mọi nút xóa trong bảng mục tiêu đều hỏi lại trước khi xóa (như bảng chủ đề)
   const [pendingDelete, setPendingDelete] = useState(null);
   const askDelete = (title, message, run) => setPendingDelete({ title, message: `${message} Thay đổi chỉ lưu khi bấm Lưu.`, run });
+  const askDeleteSubDomain = (di, sub, subNo) => {
+    const branch = subDomainBranch(domains[di].rows, sub.id);
+    const ids = new Set(branch.map((row) => row.id));
+    const groupCount = branch.filter((row) => row.kind === 'group').length;
+    const goals = branch.filter((row) => row.kind === 'goal');
+    const contents = goals.flatMap((row) => row.contents || []);
+    const ticks = contents.reduce((n, content) => n + (content.themes || []).length, 0);
+    askDelete(
+      'Xóa lĩnh vực con',
+      `Xóa lĩnh vực con ${subNo}${quoted(sub.text)}? ${groupCount} nhóm kết quả mong đợi, ${goals.length} mục tiêu, ${contents.length} nội dung và ${ticks} dấu tích chủ đề thuộc nhánh này cũng bị xóa.`,
+      () => updRows(di, (rows) => rows.filter((row) => !ids.has(row.id))),
+    );
+  };
   const flip = (list, id) => (list.includes(id) ? list.filter((t) => t !== id) : [...list, id]);
   const toggleTick = (di, r, c, themeId) =>
     mapContents(di, r.id, (cs) => cs.map((x) => (x.id === c.id ? { ...x, themes: flip(x.themes, themeId) } : x)));
@@ -506,23 +520,18 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
     toTiers(rows).forEach((b, bi) => {
       if (b.sub) {
         subNo += 1;
+        const currentSubNo = subNo;
         out.push(
           <tr key={b.sub.id}>
             <td colSpan={cols} className="ga-goal-table__subband">
               <div className="ga-goal-table__subname">
-                {subNo}. {edit ? subInput(di, b, `Lĩnh vực con ${subNo}`) : b.sub.text}
+                {currentSubNo}. {edit ? subInput(di, b, `Lĩnh vực con ${currentSubNo}`) : b.sub.text}
                 {edit && (
                   <button
                     type="button"
                     className="icon-btn icon-btn--danger"
-                    onClick={() =>
-                      askDelete(
-                        'Xóa lĩnh vực con',
-                        `Xóa lĩnh vực con ${subNo}${quoted(b.sub.text)}? Nhóm kết quả mong đợi và mục tiêu bên dưới không bị xóa.`,
-                        () => removeRow(di, b.sub.id),
-                      )
-                    }
-                    aria-label={`Xóa lĩnh vực con ${subNo}`}
+                    onClick={() => askDeleteSubDomain(di, b.sub, currentSubNo)}
+                    aria-label={`Xóa lĩnh vực con ${currentSubNo}`}
                     title="Xóa lĩnh vực con"
                   >
                     <Trash2 size={16} aria-hidden />
