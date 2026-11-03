@@ -4,17 +4,11 @@ import { getUsers } from '@/services/masterDataService';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
 import { getRewardLists } from '@/services/assessment/assessmentService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
-import { getStockIssue } from '@/services/kitchen/kitchenService';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
 import { MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
-import {
-  MEAL_SESSION_LABELS,
-  ISSUE_STATUS as STOCK_ISSUE_STATUS,
-  ISSUE_STATUS_LABELS as STOCK_LABELS,
-} from '@/models/kitchen/kitchenConstants';
+import { MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
 import { canConfirmMealCount } from '@/utils/attendance/attendancePermissions';
-import { canApproveStockIssue } from '@/utils/kitchen/kitchenPermissions';
 import { APPROVAL_TYPE, APPROVAL_TYPES_BY_ROLE } from '@/models/dashboard/dashboardConstants';
 import { canViewPendingApprovals } from '@/utils/dashboard/dashboardPermissions';
 import { sortKey } from '@/utils/dashboard/dashboardFormat';
@@ -112,29 +106,6 @@ const SOURCES = {
         statusLabel: MEAL_COUNT_STATUS_LABELS.PENDING_CONFIRMATION,
         to: `/attendance/meal-count?date=${c.date}`,
       }));
-  },
-  [APPROVAL_TYPE.STOCK_ISSUE]: async (user, { date }) => {
-    const view = await getStockIssue(
-      {
-        campusId: user.campusId,
-        date,
-      },
-      user,
-    );
-    const issue = view?.issue;
-    if (view?.state !== STOCK_ISSUE_STATUS.PENDING_APPROVAL || !issue || !canApproveStockIssue(issue, user)) return [];
-    return [
-      {
-        id: issue.code,
-        code: issue.code,
-        title: `Xuất ${issue.items.length} loại thực phẩm cho bếp`,
-        by: 'Lập từ sĩ số suất ăn đã xác nhận',
-        at: date,
-        campusId: issue.campusId,
-        statusLabel: STOCK_LABELS.PENDING_APPROVAL,
-        to: '/kitchen/stock-issues',
-      },
-    ];
   },
 };
 function rewardRow(r) {

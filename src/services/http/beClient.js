@@ -184,7 +184,26 @@ const call = async (method, url, { params, data, preserveEmptyStrings = [] } = {
   }
 };
 
+/** Tải tệp nhị phân (ảnh) qua client có token; lỗi trả JSON trong blob được đọc lại để có errorCode/desc. */
+const getBlob = async (url) => {
+  try {
+    const response = await raw.request({ method: 'get', url, responseType: 'blob' });
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 401) window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+    if (typeof Blob !== 'undefined' && error.response?.data instanceof Blob) {
+      try {
+        error.response.data = JSON.parse(await error.response.data.text());
+      } catch {
+        error.response.data = undefined; // thân lỗi không phải JSON: dùng thông điệp theo status
+      }
+    }
+    throw normalizeError(error);
+  }
+};
+
 export const beClient = {
+  getBlob,
   get: (url, config = {}) => call('get', url, { params: config.params }),
   post: (url, data, config = {}) => call('post', url, { data, params: config.params }),
   put: (url, data, config = {}) => call('put', url, { data, params: config.params, preserveEmptyStrings: config.preserveEmptyStrings }),

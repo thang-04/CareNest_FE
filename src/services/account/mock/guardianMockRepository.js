@@ -147,7 +147,7 @@ export const guardianMockRepository = {
       let account = byPhone || byEmail;
       if (account && (account.childIds || []).includes(childId)) throw new ApiError(409, 'Phụ huynh đã liên kết với trẻ.');
       const newAccount = !account;
-      const password = newAccount ? temporaryPassword() : null;
+      const password = newAccount ? temporaryPassword() : null; // carenest:allow-secret
       if (!account) {
         account = {
           id: uid('pa'),
@@ -178,7 +178,7 @@ export const guardianMockRepository = {
       if (old) Object.assign(old, guardian);
       else child.guardians.push(guardian);
       if (newAccount) issuePassword(db, account.id, password);
-      return clone({ ...viewOf(account, guardian), newAccount, temporaryPassword: password });
+      return clone({ ...viewOf(account, guardian), newAccount, temporaryPassword: password }); // carenest:allow-secret
     });
   },
   async removeGuardian(childId, id, actor) {
@@ -210,9 +210,9 @@ export const guardianMockRepository = {
     return writeDb((db) => {
       const account = loadAccount(db, id, actor);
       account.mustChangePassword = true;
-      const password = temporaryPassword();
+      const password = temporaryPassword(); // carenest:allow-secret
       issuePassword(db, account.id, password);
-      return { userId: account.id, username: account.username, temporaryPassword: password };
+      return { userId: account.id, username: account.username, temporaryPassword: password }; // carenest:allow-secret
     });
   },
 };

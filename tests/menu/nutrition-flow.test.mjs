@@ -13,63 +13,69 @@ const price = (ageGroupId) => ({ ageGroupId, effectiveFrom: '2026-01-01', effect
 const keysOf = (role, key) => menuGroup(role, key).children.map((c) => c.key);
 const menuGroupOf = (entries, key) => entries.find((m) => m.key === key);
 
-test('PHT: sidebar dinh dưỡng – kho theo bốn nhóm của BA', () => {
-  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'catalog'), ['foods', 'dishes']);
-  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'nutrition'), ['menuFlow', 'nutritionSetup', 'menus', 'weeklyMenus', 'nutrition']);
-  // NCC của PHT ở nhóm Kho: nhóm Danh mục bị ẩn khi PHT không có mảng thực đơn nhưng vẫn lập phiếu nhập
-  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'stock'), [
-    'kitchenDay',
-    'stockReceipts',
-    'suppliers',
-    'dryStock',
-    'stockIssues',
-    'freshReceipts',
-  ]);
-  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'foodReport'), ['foodSamples', 'forecast']);
+test('PHT: sáu nhóm bán trú theo việc', () => {
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'boardingToday'), ['boardingToday']);
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'nutrition'), ['weeklyMenus', 'menus', 'nutrition']);
+  // PHT xem Bếp hôm nay như HT (GET /nutrition/kitchen/day cho HT, PHT)
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts']);
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'stock'), ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls']);
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'foodSafety'), ['foodSamples']);
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'catalog'), ['foods', 'dishes', 'nutritionSetup', 'suppliers']);
   assert.deepEqual(
     menuGroup(ROLES.VICE_PRINCIPAL).children.map((entry) => entry.to),
-    ['/menu/flow', '/menu/setup', '/menu/menus', '/menu/weekly', '/menu/nutrition'],
+    ['/menu/weekly', '/menu/menus', '/menu/nutrition'],
   );
 });
 
-test('HT: thiết lập, thực đơn tuần, kho chỉ xem; bếp: thực đơn công bố, sổ báo ăn, xuất kho', () => {
-  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'nutrition'), ['nutritionSetup', 'weeklyMenus', 'publishedMenu']);
-  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'stock'), ['dryStock', 'stockIssues', 'freshReceipts']);
-  // BA 01: HT quản lý NCC trong nhóm Danh mục; thực phẩm, món là của PHT
-  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'catalog'), ['suppliers']);
-  assert.deepEqual(keysOf(ROLES.KITCHEN_STAFF, 'nutrition'), ['publishedMenu', 'confirmedMealCount']);
-  assert.deepEqual(keysOf(ROLES.KITCHEN_STAFF, 'stock'), ['kitchenDay', 'stockIssues', 'freshReceipts']);
+test('HT: thực đơn tuần, bộ thực đơn mẫu, sổ suất, kho; bếp không có mục bán trú trên Web', () => {
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'nutrition'), ['weeklyMenus', 'menus']);
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts']);
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'stock'), ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls']);
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'catalog'), ['foods', 'dishes', 'nutritionSetup', 'suppliers']);
+  assert.deepEqual(
+    menuGroup(ROLES.PRINCIPAL, 'catalog').children.map((c) => c.to),
+    ['/menu/foods', '/menu/dishes', '/menu/setup', '/menu/suppliers'],
+  );
+  assert.equal(menuGroup(ROLES.KITCHEN_STAFF, 'kitchenOps'), undefined);
 });
 
-test('không còn nhãn Duyệt xuất kho, mục kiểm kê kho hay luồng chế biến/bàn giao cũ trên sidebar', () => {
+test('không còn mục xuất kho, kiểm kê kho hay luồng chế biến/bàn giao cũ trên sidebar', () => {
   for (const role of Object.values(ROLES)) {
     const items = getMenuForRole(role).flatMap((m) => m.children || []);
-    assert.ok(!items.some((c) => c.label === 'Duyệt xuất kho'), role);
+    assert.ok(!items.some((c) => c.label === 'Duyệt xuất kho' || c.label === 'Xuất kho'), role);
     assert.ok(
-      !items.some((c) => ['/kitchen/stock-counts', '/kitchen/preparation/update', '/attendance/meal-handover'].includes(c.to)),
+      !items.some((c) =>
+        ['/kitchen/stock-issues', '/kitchen/stock-counts', '/kitchen/preparation/update', '/attendance/meal-handover'].includes(c.to),
+      ),
       role,
     );
   }
 });
 
-test('ẩn Danh mục và Dinh dưỡng khi PHT chưa được giao mảng; giữ nhóm điểm danh đã duyệt', () => {
+test('PHT chưa được giao mảng thực đơn: ẩn nhóm thực đơn và các mục danh mục, giữ NCC và sổ suất', () => {
   const user = { role: ROLES.VICE_PRINCIPAL, campusId: 'c1', areas: { menu: 'NONE' } };
   const entries = getMenuForRole(user.role, user);
-  assert.ok(!entries.some((entry) => ['catalog', 'nutrition'].includes(entry.key)));
-  assert.ok(
-    menuGroupOf(entries, 'stock').children.some((c) => c.key === 'suppliers'),
+  assert.ok(!entries.some((entry) => entry.key === 'nutrition'));
+  assert.deepEqual(
+    menuGroupOf(entries, 'catalog').children.map((c) => c.key),
+    ['suppliers'],
     'vẫn xem được NCC khi lập phiếu nhập',
   );
   assert.deepEqual(
+    menuGroupOf(entries, 'boardingToday').children.map((c) => c.key),
+    ['boardingToday'],
+  );
+  assert.ok(menuGroupOf(entries, 'kitchenOps').children.some((c) => c.key === 'mealCount'));
+  assert.deepEqual(
     entries.find((entry) => entry.key === 'attendance').children.map((entry) => entry.key),
-    ['attendanceSummary', 'leaveRequests', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview'],
+    ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview'],
   );
 });
 
-test('HT và bếp không thấy mục Quy trình', () => {
-  for (const role of [ROLES.PRINCIPAL, ROLES.KITCHEN_STAFF]) {
+test('không còn mục Quy trình thực đơn và Việc hôm nay: "Bán trú hôm nay" thay cho cả hai', () => {
+  for (const role of Object.values(ROLES)) {
     const keys = getMenuForRole(role).flatMap((m) => (m.children || []).map((c) => c.key));
-    assert.ok(!keys.includes('menuFlow'), role);
+    assert.ok(!keys.includes('menuFlow') && !keys.includes('kitchenDay'), role);
   }
 });
 

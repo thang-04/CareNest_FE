@@ -26,7 +26,6 @@ export const APPROVAL_TYPE = {
   REWARD_REVIEW: 'REWARD_REVIEW',
   REWARD_DECISION: 'REWARD_DECISION',
   MEAL_COUNT: 'MEAL_COUNT',
-  STOCK_ISSUE: 'STOCK_ISSUE',
 };
 
 /** label: group title · tone: stat-card tone · listTo: the owning module's own list (link "Xem tất cả"). */
@@ -67,24 +66,12 @@ export const APPROVAL_TYPE_META = {
     tone: 'orange',
     listTo: '/attendance/meal-count',
   },
-  STOCK_ISSUE: {
-    label: 'Phiếu xuất kho thực phẩm chờ duyệt',
-    short: 'Xuất kho',
-    tone: 'orange',
-    listTo: '/kitchen/stock-issues',
-  },
 };
 
 /** Display order of the groups per role (SRS #126 lists plans and rewards first). */
 export const APPROVAL_TYPES_BY_ROLE = {
   // NUT-02: HT xác nhận được số suất thay PHT (BE trả canConfirm) ⇒ có mục sổ báo ăn chờ xác nhận
   PRINCIPAL: [APPROVAL_TYPE.REWARD_DECISION, APPROVAL_TYPE.MEAL_COUNT],
-  VICE_PRINCIPAL: [
-    APPROVAL_TYPE.THEME_PLAN,
-    APPROVAL_TYPE.LESSON_PLAN,
-    APPROVAL_TYPE.REWARD_REVIEW,
-    APPROVAL_TYPE.MEAL_COUNT,
-    APPROVAL_TYPE.STOCK_ISSUE,
-  ],
+  VICE_PRINCIPAL: [APPROVAL_TYPE.THEME_PLAN, APPROVAL_TYPE.LESSON_PLAN, APPROVAL_TYPE.REWARD_REVIEW, APPROVAL_TYPE.MEAL_COUNT],
   TEAM_LEADER: [APPROVAL_TYPE.LESSON_REVIEW],
 };

@@ -4,6 +4,10 @@ import { kitchenMockRepository as mock } from '@/services/kitchen/mock/kitchenMo
 import { syncBeMealCounts } from '@/services/kitchen/mock/beMealCountBridge';
 import { kitchenApi as api } from '@/services/kitchen/api/kitchenApi';
 import { confirmedMealCountApi } from '@/services/kitchen/api/confirmedMealCountApi';
+import { nutritionCatalogApi } from '@/services/nutritionCatalogApi';
+import { canManageSuppliers } from '@/utils/kitchen/kitchenPermissions';
+import { hasBePermission } from '@/utils/bePermissions';
+import { PERMISSIONS } from '@/models/bePermissions';
 import { readLegacyKitchenRows } from './mock/legacyDashboardRepository';
 
 /** Facade used by hooks/pages. Nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js). */
@@ -32,11 +36,22 @@ export const createStockReceipt = (payload, user) => repo.createStockReceipt(pay
 export const getStockReceipts = (filters, user) => repo.getStockReceipts(filters, user);
 export const getStockReceipt = (filters, user) => repo.getStockReceipt(filters, user);
 export const saveStockReceipt = (payload, user) => repo.saveStockReceipt(payload, user);
-/** NCC: danh sách ({ keyword, status }), chi tiết kèm phiếu nhập liên kết, tạo/sửa ({ id?, ... }), xóa khi chưa có phiếu. */
-export const getSuppliers = (filters, user) => repo.getSuppliers(filters, user);
-export const getSupplier = (filters, user) => repo.getSupplier(filters, user);
-export const saveSupplier = (payload, user) => repo.saveSupplier(payload, user);
-export const deleteSupplier = (payload, user) => repo.deleteSupplier(payload, user);
+/*
+ * NCC thuộc danh mục bán trú (BE /nutrition/suppliers, module nutrition-catalog): danh sách ({ keyword, status }), chi tiết,
+ * tạo/sửa ({ id?, ... }), xóa (mock: khi chưa có phiếu; BE: chuyển Ngừng dùng).
+ */
+const supplierRepo = sourceOf('nutrition-catalog', mock, nutritionCatalogApi);
+/** Danh mục NCC dùng BE: không có mã NCC, số phiếu nhập; có CCCD người giao hàng. */
+export const suppliersUseApi = () => !isDemoModule('nutrition-catalog');
+/** Ẩn/hiện nút sửa NCC: BE theo NUTRITION_MANAGE (HT luôn có, PHT khi được cấp); mock theo vai trò. */
+export const canEditSuppliers = (user) =>
+  suppliersUseApi() ? hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE) : canManageSuppliers(user);
+export const getSuppliers = (filters, user) => supplierRepo.getSuppliers(filters, user);
+export const getSupplier = (filters, user) => supplierRepo.getSupplier(filters, user);
+export const saveSupplier = (payload, user) => supplierRepo.saveSupplier(payload, user);
+export const deleteSupplier = (payload, user) => supplierRepo.deleteSupplier(payload, user);
+// Phiếu nhập kho còn demo ⇒ chọn NCC trong dữ liệu mẫu cùng nguồn với phiếu
+export const getReceiptSuppliers = (filters, user) => repo.getSuppliers(filters, user);
 /** Phiếu xuất kho đồ khô của một cơ sở: { issues, today } (today = trạng thái hôm nay khi chưa có phiếu). */
 export const getStockIssues = (filters, user) => repo.getStockIssues(filters, user);
 /** Bếp chọn lô cho phiếu chờ chọn lô ({ id, allocations: { [foodId]: [{ lotId, qty }] } }) ⇒ hệ thống ghi xuất. */

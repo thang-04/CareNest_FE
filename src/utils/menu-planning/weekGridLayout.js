@@ -4,7 +4,7 @@ import { DISH_TYPE } from '@/models/menu-planning/menuPlanningConstants';
 
 // Bữa trưa tách hàng theo loại món như sổ thực đơn; bữa khác mỗi bữa một hàng
 export const LUNCH_TYPES = [DISH_TYPE.CARB, DISH_TYPE.MAIN, DISH_TYPE.SOUP, DISH_TYPE.VEGETABLE, DISH_TYPE.DESSERT];
-const LUNCH_LABELS = { CARB: 'Cơm', MAIN: 'Món mặn', SOUP: 'Canh', VEGETABLE: 'Món rau', DESSERT: 'Tráng miệng' };
+export const LUNCH_LABELS = { CARB: 'Cơm', MAIN: 'Món mặn', SOUP: 'Canh', VEGETABLE: 'Món rau', DESSERT: 'Tráng miệng' };
 
 /** Hàng của bảng tuần theo bữa ở Thiết lập. */
 export const weekRows = (setups, ageGroupId, days, dishById) =>
