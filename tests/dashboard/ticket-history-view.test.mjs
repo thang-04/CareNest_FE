@@ -13,7 +13,7 @@ const CalendarRange=()=>null,ChevronLeft=()=>null,ChevronRight=()=>null,Flag=()=
 const Breadcrumb=()=>null,ConfirmationModal=()=>null,EmptyState=()=>null,ErrorState=()=>null,SkeletonRows=()=>null,StatusPage=()=>null,TicketSummary=()=>null,Tabs=()=>null,TicketOverview=()=>null;
 const ChildNameCell=({child})=>React.createElement('span',{},child.fullName);
 const TicketBadge=({status,detail})=>React.createElement('span',{},status,' ',detail);
-const canViewTicketOverview=()=>false,assessmentCrumbs=()=>[],SECTIONS={},TICKET_TYPE={WEEKLY:'WEEKLY',MONTHLY:'MONTHLY'},TICKET_TYPE_LABELS={WEEKLY:'Phiếu tuần'};
+const canViewTicketOverview=()=>false,isTeamLeader=()=>false,assessmentCrumbs=()=>[],SECTIONS={},TICKET_TYPE={WEEKLY:'WEEKLY',MONTHLY:'MONTHLY'},TICKET_TYPE_LABELS={WEEKLY:'Phiếu tuần'};
 const formatDateTime=x=>x,periodLabel=(_type,start,end)=>start+' - '+end,issueTickets=()=>[];
 `;
 const { code } = await transformWithOxc(stubs + source.replace(/^import .*;\r?\n/gm, '') + '\nexport {TeacherTicketsPage};', 'GoodBehaviourTicketsPage.jsx', {

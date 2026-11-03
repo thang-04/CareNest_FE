@@ -2,6 +2,7 @@ import { ApiError, clone, writeDb } from '@/mocks/mockDatabase';
 import { activeYearId } from '@/mocks/roomManagers';
 import {
   REWARD_GENERAL_TITLES,
+  REWARD_CLASS_TITLES,
   REWARD_PROGRAM_TITLES,
   REWARD_TITLES,
   DIAGNOSTIC_TERMS,
@@ -81,9 +82,9 @@ const detailOf = (db, cls, user) => {
       const months = new Set(elapsed.map((d) => d.slice(0, 7))).size;
       const good = weeks && weekly * 2 >= weeks;
       const allRound = months && monthly * 2 >= months;
-      if (diligent && allRound) suggested.push(REWARD_GENERAL_TITLES[3]);
-      else if (diligent && good) suggested.push(REWARD_GENERAL_TITLES[1]);
-      else if (good) suggested.push(REWARD_GENERAL_TITLES[0]);
+      if (diligent && allRound) suggested.push('Bé chăm ngoan xuất sắc');
+      else if (diligent && good) suggested.push('Bé chăm ngoan');
+      else if (good) suggested.push('Bé ngoan');
       if (programClass(db, cls) && ye.programCompleted) suggested.push(REWARD_PROGRAM_TITLES[1]);
     }
     const item = show && list?.items.find((r) => r.childId === c.id);
@@ -112,7 +113,7 @@ const detailOf = (db, cls, user) => {
     schoolYearId: cls.schoolYear,
     programClass: programClass(db, cls),
     status: list?.status || null,
-    titleOptions: programClass(db, cls) ? REWARD_TITLES : REWARD_GENERAL_TITLES,
+    titleOptions: programClass(db, cls) ? REWARD_TITLES : REWARD_CLASS_TITLES,
     children,
     history: list?.history || [],
     canEdit,

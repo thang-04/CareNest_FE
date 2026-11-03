@@ -51,9 +51,11 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
   const [bulkAction, setBulkAction] = useState('');
   const actions = from.graduating ? [GRADUATE, STAY, LEAVE] : [PROMOTE, STAY, LEAVE];
   const saved = useMemo(() => initialRows(from, targets), [from, targets]);
+  // Chỉ tính là sửa khi người dùng đổi so với bản đã lưu / gợi ý ban đầu; trẻ chưa xếp chỉ là gợi ý, chưa hỏi khi rời màn
   const dirty = from.children.some(
-    (ch) => !ch.placement || rows[ch.id]?.action !== saved[ch.id]?.action || rows[ch.id]?.toClassId !== saved[ch.id]?.toClassId,
+    (ch) => rows[ch.id]?.action !== saved[ch.id]?.action || rows[ch.id]?.toClassId !== saved[ch.id]?.toClassId,
   );
+  const suggested = from.children.filter((ch) => !ch.placement).length;
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
 
   // Số chỗ đã dùng sau khi lưu: chỗ của các lớp cũ khác + lựa chọn đang sửa ở lớp này
@@ -298,6 +300,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
         <div className="row row--wrap">
           {[PROMOTE, STAY, LEAVE, GRADUATE].map((a) => (count(a) ? <PlacementActionBadge key={a} action={a} count={count(a)} /> : null))}
           {dirty && <span className="chip chip--orange">Có thay đổi chưa lưu</span>}
+          {!dirty && suggested > 0 && <span className="chip">{suggested} trẻ đang là gợi ý, bấm Lưu để xếp</span>}
         </div>
         <div className="row">
           <button className="btn" type="button" disabled={!dirty || saving} onClick={reset}>

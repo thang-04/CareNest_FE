@@ -20,6 +20,7 @@ import {
   REWARD_NOTE_MAX,
   REWARD_STATUS as S,
   REWARD_GENERAL_TITLES,
+  REWARD_UNCLE_HO_TITLE,
   REWARD_PROGRAM_TITLES,
 } from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
@@ -29,7 +30,13 @@ import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 
 // Mỗi nhóm chỉ chọn một danh hiệu: chọn danh hiệu khác cùng nhóm thì thay danh hiệu đang chọn (BE kiểm lại)
-const groupOf = (title) => (REWARD_PROGRAM_TITLES.includes(title) ? REWARD_PROGRAM_TITLES : REWARD_GENERAL_TITLES);
+// Mỗi nhóm chọn tối đa một: bé ngoan, hoàn thành chương trình; Cháu ngoan Bác Hồ là nhóm riêng
+const groupOf = (title) =>
+  REWARD_PROGRAM_TITLES.includes(title)
+    ? REWARD_PROGRAM_TITLES
+    : title === REWARD_UNCLE_HO_TITLE
+      ? [REWARD_UNCLE_HO_TITLE]
+      : REWARD_GENERAL_TITLES;
 
 /* PHT: chuyển HT / trả lại; HT: phê duyệt / trả lại. Trả lại bắt buộc nêu lý do. */
 const DECISIONS = {
@@ -45,8 +52,15 @@ const noteError = (note) => {
   return terms.length ? `Không dùng từ mang tính chẩn đoán “${terms[0]}”, hãy mô tả điều cô quan sát được.` : '';
 };
 
+// Trẻ chưa có danh hiệu đã lưu (lớp chưa lập hoặc chưa chọn cho trẻ): tích sẵn danh hiệu BE gợi ý, GV bỏ tích nếu
+// không đồng ý rồi Lưu
 const toForm = (detail) =>
-  Object.fromEntries((detail?.children || []).map((c) => [c.childId, { titles: c.titles || [], note: c.note || '' }]));
+  Object.fromEntries(
+    (detail?.children || []).map((c) => [
+      c.childId,
+      { titles: c.titles?.length ? c.titles : detail.canEdit ? c.suggested || [] : [], note: c.note || '' },
+    ]),
+  );
 // So bản đang sửa với bản đã lưu (không phụ thuộc thứ tự chọn danh hiệu, khoảng trắng ghi chú)
 const formKey = (form) =>
   JSON.stringify(
@@ -62,6 +76,8 @@ export default function RewardClassPage() {
   const toast = useToast();
   const { detail: d, loading, error, reload } = useRewardList(classId);
   const [form, setForm] = useState({});
+  // Danh sách mà form đang dựa vào: chỉ so "đã sửa" sau khi đã nạp (không hỏi lưu khi vừa mở màn)
+  const [formOf, setFormOf] = useState(null);
   const [errors, setErrors] = useState({});
   const [listError, setListError] = useState('');
   const [open, setOpen] = useState(null);
@@ -73,12 +89,13 @@ export default function RewardClassPage() {
 
   useEffect(() => {
     setForm(toForm(d));
+    setFormOf(d);
     setErrors({});
     setListError('');
   }, [d]);
 
   const awarded = useMemo(() => Object.values(form).filter((f) => f.titles.length > 0).length, [form]);
-  const changed = !!d?.canEdit && formKey(form) !== formKey(toForm(d));
+  const changed = !!d?.canEdit && formOf === d && formKey(form) !== formKey(toForm(d));
   const guard = useLeaveGuard({ when: changed, onSave: () => save(false) });
 
   // PHT/HT: lớp kế tiếp đang chờ mình xem xét / phê duyệt (cùng điều kiện nút chính ở danh sách)
@@ -324,7 +341,8 @@ export default function RewardClassPage() {
                           </div>
                         </td>
                         <td className="num nowrap">
-                          {c.weeklyTickets} tuần · {c.monthlyTickets} tháng
+                          {c.weeklyTickets} phiếu Bé ngoan
+                          <div className="muted text-xs">{c.monthlyTickets} phiếu Bé ngoan toàn diện</div>
                         </td>
                         <td>
                           {c.yearEnd ? (
@@ -437,9 +455,12 @@ export default function RewardClassPage() {
       )}
 
       <div className="page-actions">
-        <button className="btn" onClick={() => guard.leave('/assessment/rewards')} disabled={!!busy}>
-          <ArrowLeft size={16} /> Về danh sách lớp
-        </button>
+        {/* GV một lớp mở thẳng màn này (danh sách lớp tự chuyển về đây), không cần nút quay lại danh sách */}
+        {leader && (
+          <button className="btn" onClick={() => guard.leave('/assessment/rewards')} disabled={!!busy}>
+            <ArrowLeft size={16} /> Về danh sách lớp
+          </button>
+        )}
         {nextWaiting && !d.canReview && !d.canDecide && (
           <Link className="btn" to={`/assessment/rewards/${nextWaiting.classId}`}>
             Lớp chờ duyệt tiếp theo: {nextWaiting.className} <ArrowRight size={16} />

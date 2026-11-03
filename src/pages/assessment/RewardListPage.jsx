@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Award, FileCheck2, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRewardLists } from '@/hooks/assessment/useAssessment';
@@ -47,6 +47,9 @@ export default function RewardListPage() {
     return { primary: false, label: 'Xem danh sách' };
   };
   const hasFilter = !!(keyword || status || campusId);
+
+  // GV chỉ dạy một lớp: mở thẳng danh sách khen thưởng của lớp mình, không qua bảng chọn lớp
+  if (!leader && !loading && !error && rows.length === 1) return <Navigate to={`/assessment/rewards/${rows[0].classId}`} replace />;
 
   return (
     <div className="page">

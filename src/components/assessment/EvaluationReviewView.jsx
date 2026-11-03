@@ -36,7 +36,7 @@ import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
 import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
-import { formatDateTime } from '@/utils/format';
+import { formatDate, formatDateTime } from '@/utils/format';
 import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
 import { canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
 import { ChildAvatar } from '@/components/ChildAvatar';
@@ -51,6 +51,8 @@ export function EvaluationReviewView({ kind, id }) {
   const md = useMasterData();
   const { detail, loading, error, reload } = useEvaluation(kind, id, { live: false });
   const [content, setContent] = useState('');
+  // Bản trên hệ thống mà ô nhập đang dựa vào; khác null mới so được "đã sửa" (không hỏi lưu khi vừa mở màn)
+  const [loadedFrom, setLoadedFrom] = useState(null);
   const [contentError, setContentError] = useState('');
   const [programError, setProgramError] = useState('');
   const [busy, setBusy] = useState('');
@@ -64,7 +66,9 @@ export function EvaluationReviewView({ kind, id }) {
   const ev = detail?.evaluation;
   const savedContent = ev ? ev.finalContent || ev.aiDraft?.content || '' : '';
   useEffect(() => {
-    if (ev) setContent(savedContent);
+    if (!ev) return;
+    setContent(savedContent);
+    setLoadedFrom(savedContent);
   }, [ev, savedContent]);
 
   // Trẻ cùng lớp, cùng kỳ (xếp theo tên) để chuyển ‹ › và mở trẻ chưa xác nhận tiếp theo
@@ -89,7 +93,7 @@ export function EvaluationReviewView({ kind, id }) {
 
   // Sửa nội dung chưa lưu mà rời màn / sang trẻ khác: hỏi trước
   const saveRef = useRef(null);
-  const editing = !!ev && ev.status !== EVAL_STATUS.CONFIRMED && content !== savedContent;
+  const editing = !!ev && ev.status !== EVAL_STATUS.CONFIRMED && loadedFrom === savedContent && content !== savedContent;
   const guard = useLeaveGuard({ when: editing, onSave: () => saveRef.current?.() ?? false });
 
   if (loading) return <LoadingState />;
@@ -214,6 +218,11 @@ export function EvaluationReviewView({ kind, id }) {
             <h1 className="page__title">
               Đánh giá {PERIOD_TYPE_LABELS[ev.periodType].toLowerCase()} – {ev.childName}
             </h1>
+            {/* Tiêu đề h1 chỉ cho trình đọc màn hình: hiện rõ họ tên, ngày sinh để GV biết đang đánh giá bé nào */}
+            <div className="dg-eval-name">
+              {detail.child?.fullName || ev.childName}
+              {detail.child?.dateOfBirth && <span className="muted text-sm"> · Sinh ngày {formatDate(detail.child.dateOfBirth)}</span>}
+            </div>
             <div className="dg-eval-meta">
               <EvaluationStatusBadge status={ev.status} />
               <span>{ev.className}</span>
@@ -487,7 +496,7 @@ export function EvaluationReviewView({ kind, id }) {
             ? 'Đánh giá sẽ trở thành chính thức, dùng cho Ban giám hiệu và đề xuất khen thưởng. Sau khi xác nhận không sửa được.'
             : 'Đánh giá sẽ trở thành chính thức và được công bố cho phụ huynh, Phó hiệu trưởng và Hiệu trưởng. Sau khi xác nhận không sửa được.'
         }
-        confirmLabel={`${yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}${nextPending ? ', mở trẻ tiếp theo' : ''}`}
+        confirmLabel={nextPending ? 'Xác nhận, trẻ tiếp' : yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
         onConfirm={doConfirm}
         onClose={() => setConfirmOpen(false)}
       />

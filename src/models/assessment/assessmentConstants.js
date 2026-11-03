@@ -204,8 +204,11 @@ export const REWARD_HISTORY_LABELS = {
  * tuổi đã hoàn thành chương trình, tối đa một danh hiệu hoàn thành chương trình. BE trả danh sách áp dụng cho từng lớp.
  */
 export const REWARD_GENERAL_TITLES = ['Bé ngoan', 'Bé chăm ngoan', 'Bé khỏe, bé ngoan', 'Bé chăm ngoan xuất sắc'];
+// Cháu ngoan Bác Hồ: mọi lớp, chọn thêm độc lập với danh hiệu bé ngoan (GV tự tích, không gợi ý)
+export const REWARD_UNCLE_HO_TITLE = 'Cháu ngoan Bác Hồ';
 export const REWARD_PROGRAM_TITLES = ['Hoàn thành xuất sắc chương trình giáo dục mầm non', 'Hoàn thành tốt chương trình giáo dục mầm non'];
-export const REWARD_TITLES = [...REWARD_GENERAL_TITLES, ...REWARD_PROGRAM_TITLES];
+export const REWARD_CLASS_TITLES = [...REWARD_GENERAL_TITLES, REWARD_UNCLE_HO_TITLE];
+export const REWARD_TITLES = [...REWARD_CLASS_TITLES, ...REWARD_PROGRAM_TITLES];
 export const REWARD_NOTE_MAX = 300;
 
 /** Words that must not appear in criteria or evaluations (GBR-OBS-05). Lower case, accents kept. */
