@@ -70,7 +70,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
     }
   };
   const template = () => {
-    const file = goalTemplateFile(target.themes || themes);
+    const file = goalTemplateFile();
     downloadDoc(file.html, file.name);
   };
   return (
@@ -92,6 +92,11 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
       <p className="muted text-sm">
         Word (.doc, .docx), Excel (.xlsx) hoặc CSV, tối đa 2 MB. Xem trước phần thay, xóa hoặc giữ theo cách nhập đã chọn. Chỉ ghi lên hệ
         thống khi bấm Lưu.
+      </p>
+      <p className="muted text-sm">
+        File mẫu theo bố cục kế hoạch năm của trường: điền năm học, khối, tên viết tắt chủ đề ở hàng tiêu đề; dưới mỗi lĩnh vực ghi
+        &quot;*…&quot; lĩnh vực con, &quot;- …&quot; kết quả mong đợi, mục tiêu gộp các dòng nội dung; ô chủ đề ghi chữ viết tắt. Cột chủ đề
+        thừa để trống.
       </p>
       <fieldset className="ga-edit-fieldset stack">
         <legend className="field__label">Cách nhập file</legend>
