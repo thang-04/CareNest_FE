@@ -128,7 +128,7 @@ export default function GoalListPage() {
           />
         ) : (
           <div className="table-wrap">
-            <table className="table table--grid">
+            <table className="table ga-plan-table ga-list-table">
               <thead>
                 <tr>
                   <th>Kế hoạch</th>

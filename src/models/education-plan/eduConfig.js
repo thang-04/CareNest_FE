@@ -100,6 +100,9 @@ export const applyEduConfig = (cfg) => {
   setDomainLabelOverrides(Object.fromEntries(DOMAINS.map((d) => [d, current.domainLabels[d]]).filter(([, v]) => v?.trim())));
 };
 
+/** Hiệu trưởng có trong chuỗi ký của ít nhất một loại tài liệu (kế hoạch năm, chủ đề nhánh, giáo án tuần). */
+export const principalSigns = (cfg) => Object.values(withDefaults(cfg).signers).some((chain) => chain.includes('PRINCIPAL'));
+
 /** Vai trò của người ký đã lưu (bản ký cũ chỉ có chức danh). */
 export const roleOfSigner = (s) =>
   s?.roleKey ||

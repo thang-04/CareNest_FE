@@ -588,7 +588,10 @@ const withApiOnlyItems = (menu) =>
   API_ONLY_ITEMS.length
     ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))
     : menu;
-export const getMenuForRole = (role, user) =>
+// hiddenItems: mục cần ẩn theo dữ liệu tải sau (vd. "Duyệt kế hoạch, giáo án" của Hiệu trưởng khi Hiệu trưởng không ký)
+export const getMenuForRole = (role, user, hiddenItems = []) =>
   withApiOnlyItems(
     withBePermissions(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user), user),
-  );
+  )
+    .map((e) => (e.children && hiddenItems.length ? { ...e, children: e.children.filter((c) => !hiddenItems.includes(c.key)) } : e))
+    .filter((e) => !e.children || e.children.length > 0);

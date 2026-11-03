@@ -196,6 +196,7 @@ export default function ImportThemesModal({ excludeId, defaultAgeGroupId, defaul
               id="imt-src"
               className="select"
               value={query.sourceId}
+              title={query.sources.find((item) => String(item.id) === String(query.sourceId))?.title}
               onChange={(event) => {
                 reset();
                 setSourceId(event.target.value);

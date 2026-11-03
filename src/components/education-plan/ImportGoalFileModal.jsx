@@ -89,15 +89,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
         </>
       }
     >
-      <p className="muted text-sm">
-        Word (.doc, .docx), Excel (.xlsx) hoặc CSV, tối đa 2 MB. Xem trước phần thay, xóa hoặc giữ theo cách nhập đã chọn. Chỉ ghi lên hệ
-        thống khi bấm Lưu.
-      </p>
-      <p className="muted text-sm">
-        File mẫu theo bố cục kế hoạch năm của trường: điền năm học, khối, tên viết tắt chủ đề ở hàng tiêu đề; dưới mỗi lĩnh vực ghi
-        &quot;*…&quot; lĩnh vực con, &quot;- …&quot; kết quả mong đợi, mục tiêu gộp các dòng nội dung; ô chủ đề ghi chữ viết tắt. Cột chủ đề
-        thừa để trống.
-      </p>
+      <p className="muted text-sm">Word, Excel hoặc CSV, tối đa 2 MB.</p>
       <fieldset className="ga-edit-fieldset stack">
         <legend className="field__label">Cách nhập file</legend>
         <label className="radio">
@@ -167,7 +159,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
           {prepared.error && <Notice tone="err">{prepared.error}</Notice>}
           <h3 className="text-md">Kế hoạch sau khi áp dụng</h3>
           <div className="table-wrap">
-            <table className="table">
+            <table className="table ga-plan-table ga-list-table">
               <thead>
                 <tr>
                   <th>Phần nội dung</th>
@@ -216,7 +208,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             <>
               <h3 className="text-md">Thông tin chung</h3>
               <div className="table-wrap">
-                <table className="table">
+                <table className="table ga-plan-table ga-list-table">
                   <thead>
                     <tr>
                       <th>Thông tin</th>
@@ -255,7 +247,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             <>
               <h3 className="text-md">Chủ đề sau khi áp dụng</h3>
               <div className="table-wrap">
-                <table className="table">
+                <table className="table ga-plan-table ga-list-table">
                   <thead>
                     <tr>
                       <th>Chủ đề</th>
@@ -288,7 +280,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             <>
               <h3 className="text-md">Đợt nghỉ sau khi áp dụng</h3>
               <div className="table-wrap">
-                <table className="table">
+                <table className="table ga-plan-table ga-list-table">
                   <thead>
                     <tr>
                       <th>Đợt nghỉ</th>
@@ -316,7 +308,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
           <h3 className="text-md">Mục tiêu và dấu tích</h3>
           {goals ? (
             <div className="table-wrap">
-              <table className="table">
+              <table className="table ga-plan-table ga-list-table">
                 <thead>
                   <tr>
                     <th>Lĩnh vực</th>

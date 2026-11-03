@@ -36,33 +36,63 @@ export function YearPlanVersionPanel({ plan, goals }) {
       .map((g) => ({
         key: `g${g.lineageId}`,
         change: g.change,
+        code: `MT${g.change === CHANGE.REMOVED ? g.fromGoalNo : g.goalNo}`,
         text:
           g.change === CHANGE.REMOVED
-            ? `MT${g.fromGoalNo}: ${g.fromText}`
-            : `MT${g.goalNo}: ${g.text}${g.change === CHANGE.CHANGED && !g.fields.includes('text') ? ' (nội dung giáo dục)' : ''}`,
+            ? g.fromText
+            : `${g.text}${g.change === CHANGE.CHANGED && !g.fields.includes('text') ? ' (nội dung giáo dục)' : ''}`,
       })),
     ...(changes?.themes || [])
       .filter((t) => t.change !== CHANGE.UNCHANGED)
-      .map((t) => ({ key: `t${t.lineageId}`, change: t.change, text: `Chủ đề ${t.name || t.fromName}` })),
+      .map((t) => ({ key: `t${t.lineageId}`, change: t.change, code: 'Chủ đề', text: t.name || t.fromName })),
   ];
   return (
     <Card title="Phiên bản" className="mt-16">
       <div className="stack">
         {chain.length > 1 && (
-          <ul className="stack">
-            {chain.map((v) => (
-              <li key={v.id} className="row row--wrap gap-2">
-                {v.id === plan.id ? <strong>{v.code}</strong> : <Link to={`/education/goals/${v.id}`}>{v.code}</Link>}
-                <VersionBadge plan={v} goals={goals} />
-                <YearPlanStatusBadge status={v.status} />
-                <span className="muted text-sm">
-                  Tạo {fmtDate(v.createdAt)}
-                  {v.createdBy ? ` · ${v.createdBy}` : ''}
-                  {v.issued?.at ? ` · ban hành ${fmtDate(v.issued.at)}` : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
+          // Chia cột cho thẳng hàng giữa các phiên bản (Tiền 03/11)
+          <div className="table-wrap">
+            <table className="table ga-plan-table ga-version-table">
+              <colgroup>
+                <col className="ga-version-table__code" />
+                <col className="ga-version-table__version" />
+                <col className="ga-version-table__status" />
+                <col className="ga-version-table__date" />
+                <col />
+                <col className="ga-version-table__date" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Mã</th>
+                  <th>Phiên bản</th>
+                  <th>Trạng thái</th>
+                  <th>Ngày tạo</th>
+                  <th>Người tạo</th>
+                  <th>Ngày ban hành</th>
+                </tr>
+              </thead>
+              <tbody>
+                {chain.map((v) => (
+                  <tr key={v.id}>
+                    <td title={v.code}>
+                      {v.id === plan.id ? <strong>{v.code}</strong> : <Link to={`/education/goals/${v.id}`}>{v.code}</Link>}
+                    </td>
+                    <td>
+                      <VersionBadge plan={v} goals={goals} />
+                    </td>
+                    <td>
+                      <YearPlanStatusBadge status={v.status} />
+                    </td>
+                    <td>{fmtDate(v.createdAt)}</td>
+                    <td className="ga-version-table__text" title={v.createdBy || undefined}>
+                      {v.createdBy || '—'}
+                    </td>
+                    <td>{v.issued?.at ? fmtDate(v.issued.at) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {plan.sourcePlanId && (
           <>
@@ -78,14 +108,33 @@ export function YearPlanVersionPanel({ plan, goals }) {
             )}
             {changes && !changed.length && <span className="muted">Chưa có thay đổi.</span>}
             {changed.length > 0 && (
-              <ul className="stack">
-                {changed.map((c) => (
-                  <li key={c.key} className="row gap-2">
-                    <StatusBadge tone={CHANGE_TONE[c.change]} label={CHANGE_LABEL[c.change]} size="sm" />
-                    <span>{c.text}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="table-wrap">
+                <table className="table ga-plan-table ga-change-table">
+                  <colgroup>
+                    <col className="ga-change-table__kind" />
+                    <col className="ga-change-table__code" />
+                    <col />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th className="center">Thay đổi</th>
+                      <th>Mã</th>
+                      <th>Nội dung</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {changed.map((c) => (
+                      <tr key={c.key}>
+                        <td className="center">
+                          <StatusBadge tone={CHANGE_TONE[c.change]} label={CHANGE_LABEL[c.change]} size="sm" />
+                        </td>
+                        <td className="nowrap">{c.code}</td>
+                        <td>{c.text}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}

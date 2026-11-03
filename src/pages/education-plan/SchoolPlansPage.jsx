@@ -180,7 +180,7 @@ export default function SchoolPlansPage() {
           />
         ) : (
           <div className="table-wrap">
-            <table className="table table--grid">
+            <table className="table ga-plan-table ga-list-table">
               <thead>
                 <tr>
                   <th>{TABS.find((t) => t.key === tab).label}</th>

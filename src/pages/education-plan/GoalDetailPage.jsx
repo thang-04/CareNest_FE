@@ -28,6 +28,9 @@ export default function GoalDetailPage() {
   const [preview, setPreview] = useState(null);
   const navigate = useNavigate();
   const [modal, setModal] = useState(null);
+  // Thẻ thu gọn được như trang sửa (Tiền 03/11)
+  const [folded, setFolded] = useState({});
+  const fold = (key) => ({ collapsed: !!folded[key], onToggle: () => setFolded((f) => ({ ...f, [key]: !f[key] })) });
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [creating, setCreating] = useState(false);
@@ -217,7 +220,7 @@ export default function GoalDetailPage() {
         </div>
       )}
 
-      <Card title="Thông tin chung" num="1">
+      <Card title="1. Thông tin chung" {...fold('info')}>
         <dl className="info-list">
           <dt>Năm học</dt>
           <dd>{g.schoolYear}</dd>
@@ -238,12 +241,12 @@ export default function GoalDetailPage() {
         </dl>
       </Card>
 
-      <Card title="Chủ đề, sự kiện trong năm" num="2">
+      <Card title="2. Chủ đề, sự kiện trong năm" {...fold('themes')}>
         <ThemeEventTable themes={themes} breaks={g.breaks || []} domains={domains} numbers={numbers} readOnly />
       </Card>
       <Card
-        title="Mục tiêu, nội dung giáo dục"
-        num="3"
+        title="3. Mục tiêu, nội dung giáo dục"
+        {...fold('goals')}
         actions={<span className="muted text-xs nowrap">{Object.keys(numbers).length} mục tiêu</span>}
       >
         <GoalTable domains={domains} themes={themes} numbers={numbers} ageGroupId={g.ageGroupId} readOnly />

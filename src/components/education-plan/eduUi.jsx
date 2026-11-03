@@ -260,7 +260,7 @@ export function SignatureView({ sig, name }) {
 export function Modal({ title, children, onClose, footer, width, className }) {
   const size = width > 760 ? 'xl' : width > 560 ? 'lg' : 'md';
   return (
-    <SharedModal open title={title} onClose={onClose} footer={footer} size={size} className={className}>
+    <SharedModal open title={title} onClose={onClose} footer={footer} size={size} className={`ga-modal ${className || ''}`}>
       <div className="stack">{children}</div>
     </SharedModal>
   );

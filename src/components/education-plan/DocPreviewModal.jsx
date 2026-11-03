@@ -49,36 +49,45 @@ export default function DocPreviewModal({ file, onClose }) {
         {original.length > 0 && (
           <fieldset className="ga-export-signers">
             <legend className="field__label">Chỗ ký</legend>
-            {signers.map((s, i) => (
-              <div className="ga-export-signer" key={i}>
-                <input
-                  className="input"
-                  value={s.title}
-                  placeholder="Chức danh"
-                  aria-label={`Chức danh người ký ${i + 1}`}
-                  onChange={(e) => edit(i, 'title', e.target.value)}
-                />
-                <input
-                  className="input"
-                  value={s.name}
-                  placeholder="Họ tên (để trống để ký tay)"
-                  aria-label={`Họ tên người ký ${i + 1}`}
-                  onChange={(e) => edit(i, 'name', e.target.value)}
-                />
-                {i >= original.length ? (
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn--danger"
-                    aria-label={`Bỏ người ký ${i + 1}`}
-                    onClick={() => setSigners((list) => list.filter((_, k) => k !== i))}
-                  >
-                    <Trash2 size={16} aria-hidden />
-                  </button>
-                ) : (
-                  <span aria-hidden />
-                )}
-              </div>
-            ))}
+            <div className="ga-export-signer-list">
+              {signers.map((s, i) => (
+                // Mỗi người ký một khung: chức danh + họ tên đi cùng nhau (Tiền 03/11)
+                <div className="ga-export-signer" key={i} role="group" aria-label={`Người ký ${i + 1}`}>
+                  <div className="ga-export-signer__head">
+                    <span>Người ký {i + 1}</span>
+                    {i >= original.length && (
+                      <button
+                        type="button"
+                        className="icon-btn icon-btn--danger"
+                        aria-label={`Bỏ người ký ${i + 1}`}
+                        onClick={() => setSigners((list) => list.filter((_, k) => k !== i))}
+                      >
+                        <Trash2 size={16} aria-hidden />
+                      </button>
+                    )}
+                  </div>
+                  <label className="ga-export-signer__field">
+                    <span>Chức danh</span>
+                    <input
+                      className="input"
+                      value={s.title}
+                      aria-label={`Chức danh người ký ${i + 1}`}
+                      onChange={(e) => edit(i, 'title', e.target.value)}
+                    />
+                  </label>
+                  <label className="ga-export-signer__field">
+                    <span>Họ tên</span>
+                    <input
+                      className="input"
+                      value={s.name}
+                      placeholder="Để trống để ký tay"
+                      aria-label={`Họ tên người ký ${i + 1}`}
+                      onChange={(e) => edit(i, 'name', e.target.value)}
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
             <div>
               <button
                 type="button"
