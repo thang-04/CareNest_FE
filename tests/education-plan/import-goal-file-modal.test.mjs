@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 const source = await readFile(new URL('../../src/components/education-plan/ImportGoalFileModal.jsx', import.meta.url), 'utf8');
 const isolated = source.replace(/^import .*;\r?\n/gm, '');
 const stubs = `import React from 'react';
+import {PLAN_IMPORT_ACCEPT as ACCEPT,validatePlanImportFile} from '${new URL('../../src/utils/education-plan/planImportFile.js', import.meta.url).href}';
 import {prepareFileImport,previewSummary,FILE_IMPORT_MODES} from '${new URL('../../src/models/education-plan/importGoalFile.mjs', import.meta.url).href}';
 import {AGE_GROUPS,domainLabel} from '${new URL('../../src/models/education-plan/educationPlanConstants.js', import.meta.url).href}';
 export const h={states:[],refs:[],si:0,ri:0,started:false,cleanup:null,reader:()=>Promise.resolve(null)};
@@ -70,22 +71,40 @@ const find = (node, predicate) => {
 const input = (tree) => find(tree, (node) => node.type === 'input' && node.props.type === 'file');
 const confirm = (tree) => find(tree, (node) => node.type === 'button' && node.props.className === 'btn btn--primary');
 
+test('file không hợp lệ bị chặn trước API; đúng đuôi và sát 2 MB được đọc', async () => {
+  reset();
+  let calls = 0;
+  h.reader = () => { calls++; return Promise.resolve(preview); };
+  for (const file of [
+    { name: 'plan.exe', size: 100 }, { name: 'plan.docx.exe', size: 100 },
+    { name: 'plan.docx', size: 0 }, { name: 'plan.docx', size: 2 * 1024 * 1024 + 1 },
+  ]) {
+    await input(render()).props.onChange({ target: { files: [file] } });
+    assert.equal(h.states[0].status, 'error');
+    assert.equal(confirm(render()).props.disabled, true);
+  }
+  assert.equal(calls, 0);
+  await input(render()).props.onChange({ target: { files: [{ name: 'PLAN.DOCX', size: 2 * 1024 * 1024 }] } });
+  assert.equal(calls, 1);
+  assert.equal(h.states[0].status, 'ready');
+});
+
 test('file cũ phản hồi sau file mới không ghi đè preview; lỗi đọc khóa xác nhận', async () => {
   reset();
   const a = deferred(),
     b = deferred();
-  h.reader = (f) => (f.name === 'a' ? a.promise : b.promise);
+  h.reader = (f) => (f.name === 'a.docx' ? a.promise : b.promise);
   const tree = render();
-  const first = input(tree).props.onChange({ target: { files: [{ name: 'a' }] } });
-  const second = input(tree).props.onChange({ target: { files: [{ name: 'b' }] } });
+  const first = input(tree).props.onChange({ target: { files: [{ name: 'a.docx', size: 1024 }] } });
+  const second = input(tree).props.onChange({ target: { files: [{ name: 'b.docx', size: 1024 }] } });
   b.resolve(preview);
   await second;
   a.resolve({ ...preview, metadata: { ...preview.metadata, title: 'Sai cũ' } });
   await first;
-  assert.equal(h.states[0].name, 'b');
+  assert.equal(h.states[0].name, 'b.docx');
   assert.equal(h.states[0].preview.metadata.title, 'Từ file');
   h.reader = () => Promise.reject(new Error('Không đọc được'));
-  await input(render()).props.onChange({ target: { files: [{ name: 'error' }] } });
+  await input(render()).props.onChange({ target: { files: [{ name: 'error.docx', size: 1024 }] } });
   assert.equal(confirm(render()).props.disabled, true);
 });
 
@@ -103,7 +122,7 @@ test('đóng hoặc unmount khi đọc: phản hồi muộn không trở thành 
         return true;
       },
     });
-    const task = input(tree).props.onChange({ target: { files: [{ name: 'a' }] } });
+    const task = input(tree).props.onChange({ target: { files: [{ name: 'a.docx', size: 1024 }] } });
     if (unmount) h.cleanup();
     else tree.props.onClose();
     pending.resolve(preview);
@@ -127,7 +146,7 @@ test('preview đủ thông tin/dời năm, xác nhận chỉ một lần; callba
     },
     onClose: () => closed++,
   };
-  await input(render(props)).props.onChange({ target: { files: [{ name: 'plan.doc' }] } });
+  await input(render(props)).props.onChange({ target: { files: [{ name: 'plan.doc', size: 1024 }] } });
   const tree = render(props),
     html = renderToStaticMarkup(tree);
   assert.match(html, /Thông tin chung/);
@@ -143,7 +162,7 @@ test('preview đủ thông tin/dời năm, xác nhận chỉ một lần; callba
   assert.equal(closed, 1);
   reset();
   h.reader = () => Promise.resolve(preview);
-  await input(render()).props.onChange({ target: { files: [{ name: 'a' }] } });
+  await input(render()).props.onChange({ target: { files: [{ name: 'a.docx', size: 1024 }] } });
   confirm(render({ onImport: () => false, onClose: () => closed++ })).props.onClick();
   assert.equal(closed, 1);
   assert.match(renderToStaticMarkup(render()), /Chưa thể áp dụng/);
@@ -154,7 +173,7 @@ test('khác nhóm tuổi khóa xác nhận, không gọi onImport dù handler b�
   h.reader = () => Promise.resolve(preview);
   let count = 0;
   const props = { form: { ...form, ageGroupId: 'ag-4' }, onImport: () => count++ };
-  await input(render(props)).props.onChange({ target: { files: [{ name: 'a' }] } });
+  await input(render(props)).props.onChange({ target: { files: [{ name: 'a.docx', size: 1024 }] } });
   const tree = render(props);
   assert.equal(confirm(tree).props.disabled, true);
   confirm(tree).props.onClick();
@@ -172,7 +191,7 @@ test('radio mặc định full, đổi mode cập nhật preview title/descripti
       return true;
     },
   };
-  await input(render(props)).props.onChange({ target: { files: [{ name: 'legacy.docx' }] } });
+  await input(render(props)).props.onChange({ target: { files: [{ name: 'legacy.docx', size: 1024 }] } });
   let tree = render(props);
   const radio = (tree, value) => find(tree, (n) => n.type === 'input' && n.props.type === 'radio' && n.props.value === value);
   assert.equal(radio(tree, 'replace-all').props.checked, true);
@@ -199,7 +218,7 @@ test('đổi mode trong khi đọc vẫn áp dụng mode mới; không mutate fo
       return true;
     },
   };
-  const task = input(render(props)).props.onChange({ target: { files: [{ name: 'a' }] } });
+  const task = input(render(props)).props.onChange({ target: { files: [{ name: 'a.docx', size: 1024 }] } });
   find(render(props), (n) => n.type === 'input' && n.props.value === 'replace-present').props.onChange();
   wait.resolve(preview);
   await task;
@@ -211,10 +230,10 @@ test('đổi mode trong khi đọc vẫn áp dụng mode mới; không mutate fo
 test('thiếu ngày hệ thống hoặc preview rỗng khóa confirm', async () => {
   reset();
   h.reader = () => Promise.resolve(preview);
-  await input(render()).props.onChange({ target: { files: [{ name: 'a' }] } });
+  await input(render()).props.onChange({ target: { files: [{ name: 'a.docx', size: 1024 }] } });
   assert.equal(confirm(render({ yearRange: undefined })).props.disabled, true);
   assert.match(renderToStaticMarkup(render({ yearRange: undefined })), /ngày bắt đầu/);
   h.reader = () => Promise.resolve({ domains: [], themes: [], breaks: [] });
-  await input(render()).props.onChange({ target: { files: [{ name: 'empty' }] } });
+  await input(render()).props.onChange({ target: { files: [{ name: 'empty.docx', size: 1024 }] } });
   assert.equal(confirm(render()).props.disabled, true);
 });

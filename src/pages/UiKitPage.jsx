@@ -23,8 +23,6 @@ import {
   SignaturePicker,
   FileUploader,
   ImageUploader,
-  ConditionBadge,
-  ConditionSelect,
   Avatar,
   ProgressSteps,
   Stepper,
@@ -178,7 +176,7 @@ const NAV = [
   ['tabs', 'Tab & chọn điểm trường'],
   ['flow', 'Tiến trình & phân trang'],
   ['overlays', 'Modal & Toast'],
-  ['domain', 'Chữ ký, upload, tài sản'],
+  ['domain', 'Chữ ký, upload, mục minh họa'],
   ['brand', 'Logo'],
 ];
 
@@ -197,7 +195,6 @@ export default function UiKitPage() {
   const [demoCampus, setDemoCampus] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [select, setSelect] = useState(null);
-  const [condition, setCondition] = useState('GOOD');
   const [signature, setSignature] = useState(null);
   const [files, setFiles] = useState([]);
   const [images, setImages] = useState([]);
@@ -480,10 +477,6 @@ export default function UiKitPage() {
               />
             </div>
             <div className="field">
-              <span className="field__label">ConditionSelect</span>
-              <ConditionSelect value={condition} onChange={setCondition} />
-            </div>
-            <div className="field">
               <label className="field__label" htmlFor="uk-text">
                 Textarea
               </label>
@@ -594,11 +587,11 @@ export default function UiKitPage() {
         <Section
           id="table"
           title="Bảng & thẻ"
-          code={`<div className="card card--soft-header">\n  <div className="card__header"><div className="card__title">Tiêu đề</div></div>\n  <div className="card__body">\n    <div className="table-wrap"><table className="table table--grid">...</table></div>\n  </div>\n</div>\n\n/* Cột Thao tác: ≤2 icon + menu "…" (Xóa luôn vào menu, có hỏi lại) */\n<td className="cell--actions">\n  <RowActions view={{ to }} edit={{ to }} name={row.name}\n    menu={[{ label: 'Xóa', icon: Trash2, danger: true, onClick: remove,\n             confirm: { title: 'Xóa tài sản?', message: '...' } }]} />\n</td>`}
+          code={`<div className="card card--soft-header">\n  <div className="card__header"><div className="card__title">Tiêu đề</div></div>\n  <div className="card__body">\n    <div className="table-wrap"><table className="table table--grid">...</table></div>\n  </div>\n</div>\n\n/* Cột Thao tác: ≤2 icon + menu "…" (Xóa luôn vào menu, có hỏi lại) */\n<td className="cell--actions">\n  <RowActions view={{ to }} edit={{ to }} name={row.name}\n    menu={[{ label: 'Xóa', icon: Trash2, danger: true, onClick: remove,\n             confirm: { title: 'Xóa mục minh họa?', message: '...' } }]} />\n</td>`}
         >
           <div className="card card--soft-header">
             <div className="card__header">
-              <div className="card__title">Danh sách tài sản</div>
+              <div className="card__title">Danh sách mục minh họa</div>
             </div>
             <div className="card__body">
               <div className="table-wrap">
@@ -607,7 +600,7 @@ export default function UiKitPage() {
                     <tr>
                       <th className="center">STT</th>
                       <th>Mã</th>
-                      <th>Tên tài sản</th>
+                      <th>Tên mục minh họa</th>
                       <th className="center">Số lượng</th>
                       <th className="center">Tình trạng</th>
                       <th className="cell--actions">Thao tác</th>
@@ -616,11 +609,11 @@ export default function UiKitPage() {
                   <tbody>
                     <tr>
                       <td className="center">1</td>
-                      <td>TS0001</td>
+                      <td>DEMO001</td>
                       <td>Bàn học mầm non</td>
                       <td className="center">5</td>
                       <td className="center">
-                        <ConditionBadge value="GOOD" />
+                        <StatusBadge tone="green" label="Đang hoạt động" />
                       </td>
                       <td className="cell--actions">
                         <RowActions
@@ -643,7 +636,7 @@ export default function UiKitPage() {
                               danger: true,
                               onClick: () => toast.success('Đã xóa (minh họa)'),
                               confirm: {
-                                title: 'Xóa tài sản?',
+                                title: 'Xóa mục minh họa?',
                                 message: 'Dữ liệu minh họa, không lưu.',
                               },
                             },
@@ -653,11 +646,11 @@ export default function UiKitPage() {
                     </tr>
                     <tr>
                       <td className="center">2</td>
-                      <td>TS0002</td>
+                      <td>DEMO002</td>
                       <td>Ghế nhựa</td>
                       <td className="center">10</td>
                       <td className="center">
-                        <ConditionBadge value="NEED_REPAIR" />
+                        <StatusBadge tone="gray" label="Ngừng hoạt động" />
                       </td>
                       <td className="cell--actions">
                         <RowActions
@@ -680,7 +673,7 @@ export default function UiKitPage() {
                               danger: true,
                               onClick: () => toast.success('Đã xóa (minh họa)'),
                               confirm: {
-                                title: 'Xóa tài sản?',
+                                title: 'Xóa mục minh họa?',
                                 message: 'Dữ liệu minh họa, không lưu.',
                               },
                             },
@@ -876,7 +869,7 @@ export default function UiKitPage() {
           <div className="subsection-title">Stepper (wizard)</div>
           <div className="card stepper-card mb-16">
             <Stepper
-              steps={['Thông tin chung', 'Chọn tài sản', 'Chọn người thực hiện', 'Xác nhận và gửi']}
+              steps={['Thông tin chung', 'Chọn mục minh họa', 'Chọn người thực hiện', 'Xác nhận và gửi']}
               current={step}
               maxReached={2}
               onStepClick={setStep}
@@ -953,7 +946,7 @@ export default function UiKitPage() {
 
         <Section
           id="domain"
-          title="Chữ ký, upload, tài sản"
+          title="Chữ ký, upload, mục minh họa"
           code={`<SignaturePicker value={url} onChange={({ url }) => setUrl(url)} />            // dạng tab (PHT)\n<SignaturePicker variant="compact" value={url} onChange={onSignature} />   // dạng gọn (giáo viên)\n<FileUploader files={files} onChange={setFiles} />\n<ImageUploader images={images} onChange={setImages} max={3} />`}
         >
           <div className="grid-2">
