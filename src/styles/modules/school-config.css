@@ -1106,3 +1106,17 @@
 .sc-setup__import {
   justify-content: flex-end;
 }
+
+/* Chọn Phó hiệu trưởng cho điểm trường còn thiếu */
+.sc-vp-pick {
+  display: grid;
+  gap: var(--space-2);
+}
+.sc-vp-pick__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  text-align: left;
+}

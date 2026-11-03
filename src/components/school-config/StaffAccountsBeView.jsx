@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Download, FileSpreadsheet, KeyRound, PauseCircle, Plus, RotateCcw, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -70,6 +71,8 @@ export function StaffAccountsBeView({ tabs = null }) {
   const [page, setPage] = useState(1);
   const { data, loading, error, reload } = useStaffAccountPage(filters, page);
   const [creating, setCreating] = useState(false);
+  // PHT vừa tạo: BE đã phân công điểm trường kèm theo ⇒ dẫn sang màn Phân công để xem / điều chỉnh
+  const [createdVice, setCreatedVice] = useState(null);
   const [statusOf, setStatusOf] = useState(null);
   const [passwordOf, setPasswordOf] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -137,6 +140,18 @@ export function StaffAccountsBeView({ tabs = null }) {
           )}
         </div>
       </div>
+      {createdVice && (
+        <div className="alert alert--info mb-12" role="status">
+          <span>
+            Đã tạo Phó hiệu trưởng {createdVice.fullName}
+            {createdVice.assignment ? ' và phân công điểm trường kèm theo' : ''}.{' '}
+            <Link to="/school/vice-principals">{createdVice.assignment ? 'Xem / điều chỉnh phân công' : 'Phân công ngay'}</Link>
+          </span>
+          <button type="button" className="btn btn--sm btn--ghost" onClick={() => setCreatedVice(null)}>
+            Đóng
+          </button>
+        </div>
+      )}
 
       <div className="card mb-16">
         {tabs}
@@ -272,7 +287,16 @@ export function StaffAccountsBeView({ tabs = null }) {
         )}
       </div>
 
-      {creating && <StaffCreateModal campuses={md.campuses} classes={classes} onClose={done(setCreating)} />}
+      {creating && (
+        <StaffCreateModal
+          campuses={md.campuses}
+          classes={classes}
+          onClose={(changed, created) => {
+            done(setCreating)(changed);
+            if (created?.role === ROLES.VICE_PRINCIPAL) setCreatedVice(created);
+          }}
+        />
+      )}
       {statusOf && <StaffStatusConfirm account={statusOf} onClose={done(setStatusOf)} />}
       {passwordOf && <StaffPasswordModal account={passwordOf} onClose={done(setPasswordOf)} />}
       <StaffImportPanel
@@ -312,7 +336,7 @@ function StaffCreateModal({ campuses, classes, onClose }) {
         res?.setupEmailSent ? 'Đã gửi email đặt mật khẩu cho nhân sự.' : 'Chưa gửi được email: hãy cấp mật khẩu tạm cho nhân sự.',
         `Đã tạo tài khoản ${form.fullName}`,
       );
-      onClose(true);
+      onClose(true, res);
     } catch (err) {
       setErrors(err.details || { _form: err.message });
       setSaving(false);

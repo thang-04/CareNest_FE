@@ -21,7 +21,8 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
           <div className="sc-person__text">
             <div className="fw-600">{row.user.fullName}</div>
             <div className="text-xs muted">
-              {a ? `Phân công ${formatDateTime(a.assignedAt)}${assignerName ? ` · bởi ${assignerName}` : ''}` : row.user.email}
+              {/* BE chưa trả thời điểm phân công (dữ liệu cũ) thì hiện email thay vì "Phân công —" */}
+              {a?.assignedAt ? `Phân công ${formatDateTime(a.assignedAt)}${assignerName ? ` · bởi ${assignerName}` : ''}` : row.user.email}
             </div>
           </div>
         </div>
