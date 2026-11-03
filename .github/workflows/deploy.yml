@@ -120,3 +120,20 @@ jobs:
 
       - name: Smoke test HTTPS
         run: curl -fsSI -o /dev/null --retry 5 --retry-delay 3 --retry-all-errors "$SITE_URL"
+
+      # Proxy trước VPS (header x-cache-status) cache được /assets, nhưng file mới của mỗi bản deploy đều MISS và về VPS
+      # (đường ra chậm, đo 03/11/2026: ~13–18 KB/s). Gọi trước từng file từ VPS để người dùng gặp HIT; lỗi không chặn deploy.
+      - name: Warm asset cache
+        continue-on-error: true
+        run: |
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "SITE_URL='$SITE_URL' bash -s" <<'EOF'
+          enc='Accept-Encoding: gzip, deflate, br, zstd'
+          files=$(docker exec carenest-web ls /usr/share/nginx/html/assets)
+          echo "$files" | xargs -P 4 -I{} curl -s -o /dev/null -H "$enc" "${SITE_URL}assets/{}"
+          hit=0; total=0
+          for f in $(echo "$files" | head -20); do
+            total=$((total + 1))
+            if curl -s -o /dev/null -D - -H "$enc" "${SITE_URL}assets/$f" | grep -qi '^x-cache-status: *HIT'; then hit=$((hit + 1)); fi
+          done
+          echo "Asset cache: $hit/$total HIT (20 file đầu)"
+          EOF
