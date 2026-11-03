@@ -13,6 +13,7 @@ import { MealsView } from '@/components/menu-planning/MealsView';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
 import { AllergenWarnings } from '@/components/menu-planning/AllergenWarnings';
 import { mealsTotals, priceOn } from '@/utils/menu-planning/menuCalculations';
+import { normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import { sampleMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
 import { ageGroupById } from '@/models/School';
@@ -41,7 +42,12 @@ export default function MenuDetailPage() {
       </div>
     );
 
-  const result = mealsTotals(m.meals, catalog.dishById, catalog.foodById, m.ageGroupId);
+  const result = mealsTotals(
+    normScopeMeals(m.meals, catalog.nutritionSetups, m.ageGroupId),
+    catalog.dishById,
+    catalog.foodById,
+    m.ageGroupId,
+  );
   const price = priceOn(catalog.mealPrices, m.ageGroupId, todayInput())?.price;
   const remove = async () => {
     try {
@@ -104,7 +110,7 @@ export default function MenuDetailPage() {
             baseMenuId={m.id}
             canCreate={canManage}
           />
-          <NutritionTable result={result} ageGroupId={m.ageGroupId} norms={catalog.norms} price={price} />
+          <NutritionTable result={result} ageGroupId={m.ageGroupId} norms={catalog.norms} setups={catalog.nutritionSetups} price={price} />
         </div>
       </div>
       <div className="td-split mt-16">

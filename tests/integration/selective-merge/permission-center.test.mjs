@@ -240,7 +240,7 @@ test('không seed lại mảng quyền demo đã chủ động lưu rỗng', asy
 });
 
 test('refresh phiên vẫn trả permissions object và scope/phân công cũ', async () => {
-  const session = await auth.login({ email: vp.email, password: DEMO_PASSWORD, remember: false });
+  const session = await auth.login({ email: vp.email, password: DEMO_PASSWORD, remember: false }); // carenest:allow-secret
   const before = await auth.me(session.accessToken);
   await repo.updateRolePermissions('VICE_PRINCIPAL', { permissions: [], reason: 'Demo độc lập' }, principal);
   await repo.updatePermissionOverrides(vp.id, payload('GRANT'), principal);

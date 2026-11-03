@@ -4,15 +4,8 @@
  * Không dùng các mã này để thay quyền hoặc scope đang chạy.
  */
 
-/** Mã quyền FE dùng để ẩn/hiện menu, route. Quyết định thật vẫn ở BE. */
-export const PERMISSIONS = {
-  CHILD_PROFILE_VIEW: 'CHILD_PROFILE_VIEW',
-  ACCOUNT_MANAGE: 'ACCOUNT_MANAGE',
-  ACCOUNT_STATUS_MANAGE: 'ACCOUNT_STATUS_MANAGE',
-  STAFF_ASSIGNMENT_MANAGE: 'STAFF_ASSIGNMENT_MANAGE',
-  PARENT_ACCOUNT_MANAGE: 'PARENT_ACCOUNT_MANAGE',
-  PERMISSION_MANAGE: 'PERMISSION_MANAGE',
-};
+/** Mã quyền FE dùng để ẩn/hiện menu, route (dùng chung nhiều module). */
+export { PERMISSIONS } from '@/models/bePermissions';
 
 /** Thứ tự cột của ma trận: cả 6 role của BE. */
 export const PERMISSION_ROLES = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF', 'PARENT', 'ADMIN'];

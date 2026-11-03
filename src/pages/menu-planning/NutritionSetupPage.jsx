@@ -3,7 +3,7 @@ import { ArrowRight, ChevronDown, History, Lock, Plus, Question, Save, Trash2, X
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMenuAccess, useNutritionSetups } from '@/hooks/menu-planning/useMenuPlanning';
-import { saveNutritionSetups } from '@/services/menu-planning/menuPlanningService';
+import { catalogUsesApi, saveNutritionSetups } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -12,9 +12,17 @@ import { Switch } from '@/components/ui/Switch';
 import { FormField } from '@/components/form/FormField';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ageGroupById, isNurseryAgeGroup } from '@/models/School';
-import { MEAL_SESSION_LABELS, formatMoney, sessionsOf } from '@/models/menu-planning/menuPlanningConstants';
+import { MEAL_SESSION_LABELS, addDays, formatMoney, sessionsOf } from '@/models/menu-planning/menuPlanningConstants';
 import { hasErrors, validateNutritionSetup } from '@/utils/menu-planning/menuPlanningValidation';
-import { NORM_COLUMNS, isBaseMeal, priceStatus, toSetupForm, toSetupPayload } from '@/utils/menu-planning/nutritionSetup';
+import {
+  ALL_NORM_COLUMNS,
+  NORM_COLUMNS,
+  SHARE_NORM_COLUMNS,
+  isBaseMeal,
+  priceStatus,
+  toSetupForm,
+  toSetupPayload,
+} from '@/utils/menu-planning/nutritionSetup';
 import { setupCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
@@ -25,9 +33,16 @@ const TABS = [
   { key: 'meals', label: 'Bữa ăn & chuẩn tạm' },
 ];
 const NORM_TONE = { protein: 'td-col-p', lipid: 'td-col-l', glucid: 'td-col-g' };
-const NORM_SHORT_LABELS = { kcal: 'Kcal', protein: 'Đạm', lipid: 'Béo', glucid: 'Tinh bột' };
+const NORM_SHORT_LABELS = {
+  kcal: 'Kcal',
+  protein: 'Đạm',
+  lipid: 'Béo',
+  glucid: 'Tinh bột',
+  animalProteinPct: 'Đạm ĐV/tổng',
+  animalLipidPct: 'Béo ĐV/tổng',
+};
 const DESC =
-  'Bữa ăn, giá suất ăn một ngày và chuẩn tạm (nhập tay) một ngày cho mỗi nhóm tuổi. Trường chưa chốt bộ chuẩn dinh dưỡng: để trống thì thực đơn hiện "Chưa đủ dữ liệu đánh giá". Không dùng AI.';
+  'Bữa ăn, giá suất ăn một ngày và chuẩn tạm (nhập tay) một ngày cho mỗi nhóm tuổi. Trường chưa chốt bộ chuẩn dinh dưỡng: để trống thì thực đơn hiện "Chưa đặt định mức". Định mức áp cho các bữa trường phục vụ của nhóm tuổi; phần động vật trong tổng đạm, tổng béo không bắt buộc. Không dùng AI.';
 // Tên ngắn và độ tuổi tách từ tên nhóm "Nhà trẻ (24–36 tháng)"
 const groupInfo = (ageGroupId) => {
   const g = ageGroupById(ageGroupId);
@@ -64,6 +79,43 @@ function RangeInput({ value, onChange, readOnly, label, invalid }) {
   );
 }
 
+const versionState = (v, today) =>
+  v.editable
+    ? { tone: 'blue', label: 'Chưa áp dụng — sửa được' }
+    : { tone: 'gray', label: v.effectiveFrom <= today ? 'Đã áp dụng — chỉ xem' : 'Chỉ xem' };
+
+/** Bản mới nhất của nhóm tuổi trên BE: đã hiệu lực thì khóa, thay đổi lưu thành bản mới từ ngày sau hôm nay. */
+function VersionNote({ versions, today }) {
+  const latest = versions?.[0];
+  if (!latest) return <p className="text-sm muted td-card-note">Chưa có cấu hình: bản đầu tiên áp dụng từ ngày bạn chọn khi lưu.</p>;
+  const state = versionState(latest, today);
+  return (
+    <p className="text-sm td-card-note">
+      <StatusBadge tone={state.tone} label={state.label} /> Bản áp dụng từ {formatDate(latest.effectiveFrom)}.{' '}
+      {latest.editable ? 'Lưu cùng ngày này để sửa bản đó.' : 'Thay đổi sẽ lưu thành bản mới từ một ngày sau hôm nay.'}
+    </p>
+  );
+}
+
+function VersionHistory({ versions, today }) {
+  if (!versions?.length) return <EmptyState title="Chưa có phiên bản cấu hình" />;
+  return (
+    <ul className="td-price-history">
+      {versions.map((v) => {
+        const state = versionState(v, today);
+        return (
+          <li key={v.id}>
+            <b className="nowrap">{v.price == null ? '—' : formatMoney(v.price)}</b>
+            <span>Từ {formatDate(v.effectiveFrom)}</span>
+            <span className="text-sm muted">{v.norms.kcal ? `${rangeLabel(v.norms.kcal)} kcal` : 'Chưa đặt định mức'}</span>
+            <StatusBadge tone={state.tone} label={state.label} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /** Bước 1 của luồng dinh dưỡng: bữa ăn, đơn giá từng bữa và khoảng định mức một ngày cho mỗi nhóm tuổi. */
 export default function NutritionSetupPage() {
   const { user } = useAuth();
@@ -82,6 +134,13 @@ export default function NutritionSetupPage() {
   const [expanded, setExpanded] = useState([]);
   const toggle = (id) => setExpanded((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
   const canEdit = access.canManage;
+  // Nối BE: mỗi nhóm tuổi có các bản cấu hình theo ngày hiệu lực; bữa ăn chỉnh ở Cấu hình trường; không có bật/tắt nhóm
+  const usesApi = catalogUsesApi();
+  const tomorrow = addDays(today, 1);
+  const hasVersions = items.some((s) => s.versions?.length);
+  const firstDate = usesApi && hasVersions ? tomorrow : today;
+  const validateOpts = usesApi ? { mealsReadOnly: true, minDate: hasVersions ? tomorrow : undefined } : {};
+  const tabs = usesApi ? TABS.filter((t) => t.key !== 'groups') : TABS;
 
   // Dữ liệu tải lại nền không ghi đè khi đang sửa dở
   useEffect(() => {
@@ -136,7 +195,7 @@ export default function NutritionSetupPage() {
       </div>
     );
 
-  const errors = { ...(submitted ? validateNutritionSetup(form, today) : {}), ...serverErrors };
+  const errors = { ...(submitted ? validateNutritionSetup(form, today, validateOpts) : {}), ...serverErrors };
   const err = (k) => errors[k];
   const update = (fn) => {
     setForm((f) => fn(structuredClone(f)));
@@ -157,15 +216,24 @@ export default function NutritionSetupPage() {
   // Kiểm các ô trên bảng trước; ngày áp dụng và lý do nhập trong hộp xác nhận
   const submit = () => {
     setSubmitted(true);
-    const tableErrors = Object.keys(validateNutritionSetup({ ...form, effectiveFrom: today }, today));
+    const tableErrors = Object.keys(validateNutritionSetup({ ...form, effectiveFrom: firstDate }, today, validateOpts));
     if (tableErrors.length) {
       toast.error('Hãy kiểm tra các ô được đánh dấu.', 'Chưa lưu được');
       return;
     }
+    if (usesApi) {
+      // Mặc định: ngày của bản chưa hiệu lực sớm nhất (sửa thẳng bản đó), không có thì bản mới từ ngày mai
+      const upcoming = items
+        .flatMap((s) => s.versions || [])
+        .filter((v) => v.editable)
+        .map((v) => v.effectiveFrom)
+        .sort()[0];
+      setForm((f) => ({ ...f, effectiveFrom: upcoming || firstDate }));
+    }
     setConfirm(true);
   };
   const save = async () => {
-    if (hasErrors(validateNutritionSetup(form, today))) return;
+    if (hasErrors(validateNutritionSetup(form, today, validateOpts))) return;
     try {
       await saveNutritionSetups(toSetupPayload(form), user);
       toast.success('Đã lưu thiết lập dinh dưỡng.');
@@ -213,7 +281,7 @@ export default function NutritionSetupPage() {
       {header}
       <div className="td-setup-bar">
         <div className="tabs tabs--pill" role="tablist" aria-label="Phần thiết lập">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.key}
               type="button"
@@ -292,7 +360,7 @@ export default function NutritionSetupPage() {
                       </td>
                       <td>
                         <div className="td-overview__norms">
-                          {NORM_COLUMNS.map(({ key }) => (
+                          {ALL_NORM_COLUMNS.map(({ key }) => (
                             <span key={key}>
                               <b>{NORM_SHORT_LABELS[key]}</b> {rangeLabel(g.norms[key], key === 'kcal' ? '' : '%')}
                             </span>
@@ -366,7 +434,7 @@ export default function NutritionSetupPage() {
                   <span className="td-acc__title">
                     <b>{info.short}</b>
                     <span className="td-title-sub">
-                      {info.range} · {childCountOf(g.ageGroupId) ?? 0} trẻ
+                      {info.range} · {childCountOf(g.ageGroupId) ?? '—'} trẻ
                     </span>
                   </span>
                   <span className="td-acc__summary">
@@ -376,21 +444,23 @@ export default function NutritionSetupPage() {
                   </span>
                 </button>
                 <div className="row td-card-tools">
-                  {upcoming && (
+                  {upcoming && !usesApi && (
                     <span className="text-sm muted">{`Giá mới ${formatMoney(upcoming.price)} từ ${formatDate(upcoming.effectiveFrom)}`}</span>
                   )}
                   <button type="button" className="link-btn text-sm" onClick={() => setHistoryOf(g.ageGroupId)}>
-                    <History size={15} /> Lịch sử giá
+                    <History size={15} /> {usesApi ? 'Lịch sử phiên bản' : 'Lịch sử giá'}
                   </button>
-                  <span className="row td-switch-row fw-600 text-sm">
-                    Áp dụng
-                    <Switch
-                      checked={g.enabled}
-                      disabled={!canEdit}
-                      label={`Áp dụng ${info.short}`}
-                      onChange={(v) => setGroup(g.ageGroupId, (x) => (x.enabled = v))}
-                    />
-                  </span>
+                  {!usesApi && (
+                    <span className="row td-switch-row fw-600 text-sm">
+                      Áp dụng
+                      <Switch
+                        checked={g.enabled}
+                        disabled={!canEdit}
+                        label={`Áp dụng ${info.short}`}
+                        onChange={(v) => setGroup(g.ageGroupId, (x) => (x.enabled = v))}
+                      />
+                    </span>
+                  )}
                 </div>
               </div>
               {open && (
@@ -404,6 +474,7 @@ export default function NutritionSetupPage() {
                     <p className="td-muted-line td-card-note">Nhóm này đang tắt: không dùng khi soạn thực đơn.</p>
                   ) : (
                     <>
+                      {usesApi && <VersionNote versions={items.find((s) => s.ageGroupId === g.ageGroupId)?.versions} today={today} />}
                       <div className="td-day-price">
                         <span className="field__label">Giá suất ăn / trẻ / ngày</span>
                         {canEdit ? (
@@ -434,10 +505,18 @@ export default function NutritionSetupPage() {
                               <th colSpan={3} className="center">
                                 Tỷ lệ năng lượng từ các chất (%)
                               </th>
+                              <th colSpan={2} className="center">
+                                Phần động vật (%) – không bắt buộc
+                              </th>
                             </tr>
                             <tr>
                               {NORM_COLUMNS.slice(1).map((c) => (
                                 <th key={c.key} className={`center ${NORM_TONE[c.key]}`}>
+                                  {c.label}
+                                </th>
+                              ))}
+                              {SHARE_NORM_COLUMNS.map((c) => (
+                                <th key={c.key} className="center">
                                   {c.label}
                                 </th>
                               ))}
@@ -450,7 +529,7 @@ export default function NutritionSetupPage() {
                               return (
                                 <tr key={m.code || `new-${i}`}>
                                   <td>
-                                    {canEdit ? (
+                                    {canEdit && !usesApi ? (
                                       <div className="td-meal-cell">
                                         <div className="row">
                                           <input
@@ -496,7 +575,7 @@ export default function NutritionSetupPage() {
                                     )}
                                   </td>
                                   {i === 0 &&
-                                    NORM_COLUMNS.map((c) => (
+                                    ALL_NORM_COLUMNS.map((c) => (
                                       <td key={c.key} rowSpan={g.meals.length} className="center td-norm__range">
                                         <RangeInput
                                           value={g.norms[c.key]}
@@ -516,7 +595,8 @@ export default function NutritionSetupPage() {
                           </tbody>
                         </table>
                       </div>
-                      {canEdit && (
+                      {usesApi && <p className="text-sm muted td-card-note">Bữa ăn chỉnh ở Cấu hình trường.</p>}
+                      {canEdit && !usesApi && (
                         <div className="td-add-meal">
                           <button
                             type="button"
@@ -539,29 +619,35 @@ export default function NutritionSetupPage() {
       <ConfirmationModal
         open={confirm}
         title="Lưu thiết lập dinh dưỡng"
-        message="Định mức và bữa ăn áp dụng ngay cho các kiểm tra thực đơn. Giá đã đổi áp dụng từ ngày bạn chọn."
+        message={
+          usesApi
+            ? 'Giá suất ăn và định mức đã đổi được lưu thành bản cấu hình áp dụng từ ngày bạn chọn. Bản đã áp dụng giữ nguyên.'
+            : 'Định mức và bữa ăn áp dụng ngay cho các kiểm tra thực đơn. Giá đã đổi áp dụng từ ngày bạn chọn.'
+        }
         confirmLabel="Lưu"
         onConfirm={save}
         onClose={() => setConfirm(false)}
       >
         <div className="td-confirm-fields">
-          <FormField label="Giá mới áp dụng từ ngày" required error={err('effectiveFrom')}>
+          <FormField label={usesApi ? 'Áp dụng từ ngày' : 'Giá mới áp dụng từ ngày'} required error={err('effectiveFrom')}>
             <input
               type="date"
               className="input"
-              min={today}
+              min={firstDate}
               value={form.effectiveFrom}
               onChange={(e) => update((f) => ({ ...f, effectiveFrom: e.target.value }))}
             />
           </FormField>
-          <FormField label="Lý do thay đổi" error={err('reason')} hint="Bắt buộc khi sửa giá đã áp dụng">
-            <input
-              className="input"
-              maxLength={200}
-              value={form.reason}
-              onChange={(e) => update((f) => ({ ...f, reason: e.target.value }))}
-            />
-          </FormField>
+          {!usesApi && (
+            <FormField label="Lý do thay đổi" error={err('reason')} hint="Bắt buộc khi sửa giá đã áp dụng">
+              <input
+                className="input"
+                maxLength={200}
+                value={form.reason}
+                onChange={(e) => update((f) => ({ ...f, reason: e.target.value }))}
+              />
+            </FormField>
+          )}
         </div>
       </ConfirmationModal>
 
@@ -595,10 +681,12 @@ export default function NutritionSetupPage() {
 
       <SidePanel
         open={!!historyGroup}
-        title={`Lịch sử giá · ${historyGroup ? groupInfo(historyOf).short : ''}`}
+        title={`${usesApi ? 'Lịch sử phiên bản' : 'Lịch sử giá'} · ${historyGroup ? groupInfo(historyOf).short : ''}`}
         onClose={() => setHistoryOf(null)}
       >
-        {historyGroup?.prices.length ? (
+        {usesApi ? (
+          <VersionHistory versions={historyGroup?.versions} today={today} />
+        ) : historyGroup?.prices.length ? (
           <ul className="td-price-history">
             {historyGroup.prices.map((p) => (
               <li key={p.id}>

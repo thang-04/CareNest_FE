@@ -45,8 +45,8 @@ const SHORTCUTS = [
     icon: ListChecks,
   },
   {
-    to: '/kitchen/preparation',
-    label: 'Dịch vụ bán trú',
+    to: '/kitchen',
+    label: 'Bán trú hôm nay',
     icon: ChefHat,
   },
 ];
@@ -271,8 +271,8 @@ export default function VicePrincipalDashboard() {
           <Widget
             title="Số liệu khác"
             icon={CookingPot}
-            to="/kitchen/preparation"
-            linkLabel="Tình trạng chế biến"
+            to="/kitchen"
+            linkLabel="Bán trú hôm nay"
             loading={firstLoad(countsQ) || firstLoad(prepQ)}
             error={countsQ.error && prepQ.error ? countsQ.error : null}
             onRetry={() => {

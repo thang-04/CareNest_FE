@@ -21,6 +21,7 @@
  * @property {number} stockUnitSize     số g/ml trong 1 đơn vị kho
  * @property {number} unitPrice         VND per purchase unit
  * @property {Nutrition} nutrition
+ * @property {'ANIMAL'|'PLANT'|''} origin  nguồn gốc: đạm/béo của thực phẩm tính vào phần động vật hay thực vật
  * @property {string[]} allergens       labels from ALLERGENS
  * @property {'ACTIVE'|'INACTIVE'} status
  *
@@ -99,6 +100,12 @@ export const FOOD_GROUP_LABELS = {
   OTHER: 'Khác',
 };
 
+/** Nguồn gốc thực phẩm: đạm, béo của thực phẩm tính vào phần động vật hay thực vật. */
+export const FOOD_ORIGIN = { ANIMAL: 'ANIMAL', PLANT: 'PLANT' };
+export const FOOD_ORIGIN_LABELS = { ANIMAL: 'Động vật', PLANT: 'Thực vật' };
+/** Nguồn gốc mặc định theo nhóm (chỉ dùng khi bổ sung dữ liệu cũ, nhập file thiếu cột): thịt, thủy sản, trứng sữa là động vật. */
+export const defaultOriginOf = (group) => (['MEAT', 'SEAFOOD', 'EGG_DAIRY'].includes(group) ? FOOD_ORIGIN.ANIMAL : FOOD_ORIGIN.PLANT);
+
 export const FOOD_UNIT_LABELS = { g: 'gam (g)', ml: 'mililít (ml)' };
 /** Cách bảo quản: tươi (giao trong ngày) hay khô (lấy từ kho); dùng khi tách phiếu đi chợ. */
 export const FOOD_STORAGE = { FRESH: 'FRESH', DRY: 'DRY' };
@@ -140,12 +147,29 @@ export const NUTRIENT_LABELS = {
 };
 export const NUTRIENT_UNITS = { kcal: 'kcal', protein: 'g', lipid: 'g', glucid: 'g' };
 
-export const NORM_STATUS = { LOW: 'LOW', OK: 'OK', HIGH: 'HIGH', NA: 'NA' };
+/** Sáu chỉ số cân đối khẩu phần (lượng thực tế, g hoặc kcal). */
+export const INDICATOR_LABELS = {
+  animalProtein: 'Đạm động vật',
+  plantProtein: 'Đạm thực vật',
+  animalLipid: 'Béo động vật',
+  plantLipid: 'Béo thực vật',
+  glucid: 'Tinh bột (glucid)',
+  kcal: 'Năng lượng',
+};
+/** Tỷ lệ cơ cấu (%): phần động vật trong tổng đạm, tổng béo. */
+export const SHARE_LABELS = {
+  animalProteinPct: 'Đạm động vật / tổng đạm',
+  animalLipidPct: 'Béo động vật / tổng béo',
+};
+
+// NA = dòng chưa đặt định mức; INCOMPLETE = thiếu số liệu thực phẩm nên không đánh giá
+export const NORM_STATUS = { LOW: 'LOW', OK: 'OK', HIGH: 'HIGH', NA: 'NA', INCOMPLETE: 'INCOMPLETE' };
 export const NORM_STATUS_LABELS = {
   LOW: 'Thấp hơn định mức',
   OK: 'Trong định mức',
   HIGH: 'Cao hơn định mức',
-  NA: 'Chưa đủ dữ liệu đánh giá',
+  NA: 'Chưa đặt định mức',
+  INCOMPLETE: 'Chưa đủ dữ liệu',
 };
 
 export const ALLERGY_GROUP_LABELS = { ALLERGY: 'Dị ứng thực phẩm', DIET: 'Chế độ ăn đặc biệt' };

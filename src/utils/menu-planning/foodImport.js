@@ -1,5 +1,11 @@
 import { normalizeText } from '@/utils/format';
-import { ALLERGENS, FOOD_GROUP_LABELS, FOOD_STORAGE_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import {
+  ALLERGENS,
+  FOOD_GROUP_LABELS,
+  FOOD_ORIGIN_LABELS,
+  FOOD_STORAGE_LABELS,
+  defaultOriginOf,
+} from '@/models/menu-planning/menuPlanningConstants';
 import { validateFood } from '@/utils/menu-planning/menuPlanningValidation';
 
 /** Cột của file mẫu `public/templates/thuc-pham-mau.xlsx`, theo thứ tự. */
@@ -18,7 +24,13 @@ export const IMPORT_COLUMNS = [
   ['glucid', 'Tinh bột'],
   ['allergens', 'Dị ứng'],
   ['storage', 'Bảo quản'],
+  ['nutrientSource', 'Nguồn số liệu'],
+  ['nutrientSourceVersion', 'Phiên bản nguồn'],
+  ['origin', 'Nguồn gốc'],
 ];
+// File mẫu cũ chưa có hai cột nguồn số liệu (NUT-05) ⇒ vẫn đọc được, dòng thêm mới sẽ báo thiếu nguồn.
+// Cột Nguồn gốc trống/thiếu ⇒ dòng thêm mới lấy theo nhóm (thịt, thủy sản, trứng sữa là động vật)
+const OPTIONAL_COLUMNS = ['nutrientSource', 'nutrientSourceVersion', 'origin'];
 export const IMPORT_TEMPLATE_URL = '/templates/thuc-pham-mau.xlsx';
 // File mẫu tải trước khi đổi tên cột vẫn ghi "Bột" nên vẫn nhận tên cũ
 const HEADER_ALIASES = { glucid: ['Bột'] };
@@ -43,7 +55,9 @@ export async function readFoodFile(file) {
 export function matchFoodRows(rows, foods) {
   const [header, ...body] = rows || [];
   const expected = IMPORT_COLUMNS.map(([key, label]) => [label, ...(HEADER_ALIASES[key] || [])].map(norm));
-  if (!header || expected.some((labels, i) => !labels.includes(norm(header[i]))))
+  const missingHeader = (labels, i) =>
+    !labels.includes(norm(header[i])) && !(OPTIONAL_COLUMNS.includes(IMPORT_COLUMNS[i][0]) && blank(header[i]));
+  if (!header || expected.some(missingHeader))
     return { creates: [], updates: [], errors: [{ row: 1, reason: 'Dòng tiêu đề không đúng file mẫu. Hãy tải file mẫu và điền lại.' }] };
 
   const creates = [];
@@ -92,6 +106,13 @@ export function matchFoodRows(rows, foods) {
       if (unknown.length) problems.push(`Dị ứng không có trong danh sách: ${unknown.join(', ')}`);
       else data.allergens = list.map((a) => ALLERGENS.find((x) => norm(x) === norm(a)));
     }
+    if (!blank(raw.nutrientSource)) data.nutrientSource = String(raw.nutrientSource).trim();
+    if (!blank(raw.nutrientSourceVersion)) data.nutrientSourceVersion = String(raw.nutrientSourceVersion).trim();
+    if (!blank(raw.origin)) {
+      const o = byLabel(FOOD_ORIGIN_LABELS, raw.origin);
+      if (o) data.origin = o;
+      else problems.push('Nguồn gốc phải là Động vật hoặc Thực vật');
+    }
     if (!blank(raw.storage)) {
       const s = byLabel(FOOD_STORAGE_LABELS, raw.storage);
       if (s) data.storage = s;
@@ -101,6 +122,7 @@ export function matchFoodRows(rows, foods) {
     const code = blank(raw.code) ? '' : String(raw.code).trim();
     const before = code ? foods.find((f) => norm(f.code) === norm(code)) : null;
     if (code && !before) problems.push(`Mã ${code} không có trong danh mục`);
+    if (!code && !data.origin && data.group) data.origin = defaultOriginOf(data.group);
     const name = data.name || before?.name;
     const inCatalog = name && foods.some((f) => f.id !== before?.id && norm(f.name) === norm(name));
     if (inCatalog) problems.push('Danh mục đã có thực phẩm cùng tên — điền Mã TP để cập nhật thực phẩm đó');

@@ -132,6 +132,14 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/assessment/api/assessmentApi.js'],
     facades: ['src/services/assessment/assessmentService.js'],
   },
+  // Danh mục bán trú (thực phẩm, món, cấu hình nhóm tuổi, nhà cung cấp) trên BE /nutrition/*; route dài hơn nên thắng '/menu'
+  'nutrition-catalog': {
+    source: 'api',
+    routes: ['/menu/foods', '/menu/dishes', '/menu/setup', '/menu/suppliers'],
+    files: ['src/services/nutritionCatalogApi.js'],
+    facades: ['src/services/menu-planning/menuPlanningService.js', 'src/services/kitchen/kitchenService.js'],
+  },
+  // Thực đơn tuần/mẫu, thư viện tham khảo còn tham chiếu id món/thực phẩm mẫu ⇒ còn demo
   'menu-planning': {
     source: 'demo',
     routes: ['/menu'],

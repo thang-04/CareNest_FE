@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useFood, useFoods, useMenuAccess } from '@/hooks/menu-planning/useMenuPlanning';
+import { useFood, useFoods, useCatalogAccess } from '@/hooks/menu-planning/useMenuPlanning';
 import { saveFood } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { FormField } from '@/components/form/FormField';
@@ -15,6 +15,7 @@ import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import {
   ALLERGENS,
   FOOD_GROUP_LABELS,
+  FOOD_ORIGIN_LABELS,
   FOOD_UNIT_LABELS,
   RECORD_STATUS_LABELS,
   FOOD_STORAGE_LABELS,
@@ -36,6 +37,9 @@ const EMPTY = {
   favorite: false,
   storage: '',
   nutrition: { kcal: '', protein: '', lipid: '', glucid: '' },
+  origin: '',
+  nutrientSource: '',
+  nutrientSourceVersion: '',
   allergens: [],
   note: '',
   status: 'ACTIVE',
@@ -46,6 +50,9 @@ const toForm = (f) => ({
   ...foodUnits(f),
   unit: f.unit,
   unitPrice: f.unitPrice ?? '',
+  origin: f.origin ?? '',
+  nutrientSource: f.nutrientSource ?? '',
+  nutrientSourceVersion: f.nutrientSourceVersion ?? '',
   nutrition: Object.fromEntries(Object.entries(f.nutrition || {}).map(([k, v]) => [k, v ?? ''])),
 });
 
@@ -55,7 +62,7 @@ export default function FoodFormPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
-  const access = useMenuAccess();
+  const access = useCatalogAccess();
   const { item, loading, error, reload } = useFood(id, { live: false });
   const { items: others } = useFoods({});
   const [form, setForm] = useState(EMPTY);
@@ -290,6 +297,23 @@ export default function FoodFormPage() {
             <div className="card__title">Giá trị dinh dưỡng trên 100 {form.unit}</div>
           </div>
           <div className="card__body">
+            <div className="td-form-grid mb-12">
+              <FormField
+                label="Nguồn gốc"
+                required
+                error={show('origin')}
+                hint="Đạm, béo của thực phẩm tính vào phần động vật hay thực vật khi cân đối khẩu phần"
+              >
+                <select className="select" value={form.origin} onChange={(e) => set('origin', e.target.value)} onBlur={blur('origin')}>
+                  <option value="">Chọn nguồn gốc</option>
+                  {Object.entries(FOOD_ORIGIN_LABELS).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            </div>
             <div className="td-form-grid td-form-grid--4">
               {[
                 ['kcal', 'Năng lượng (kcal)'],
@@ -313,6 +337,31 @@ export default function FoodFormPage() {
             <p className="text-xs muted mt-8">
               Để trống nếu chưa có số liệu – các thực đơn dùng thực phẩm này sẽ được báo là tính toán chưa đầy đủ.
             </p>
+            <div className="td-form-grid mt-16">
+              <FormField
+                label="Nguồn số liệu dinh dưỡng"
+                required
+                error={show('nutrientSource')}
+                hint="Ví dụ: Bảng thành phần thực phẩm Việt Nam, Viện Dinh dưỡng"
+              >
+                <input
+                  className="input"
+                  value={form.nutrientSource}
+                  maxLength={200}
+                  onChange={(e) => set('nutrientSource', e.target.value)}
+                  onBlur={blur('nutrientSource')}
+                />
+              </FormField>
+              <FormField label="Phiên bản nguồn" error={show('nutrientSourceVersion')} hint="Năm hoặc lần xuất bản, nếu có">
+                <input
+                  className="input"
+                  value={form.nutrientSourceVersion}
+                  maxLength={50}
+                  onChange={(e) => set('nutrientSourceVersion', e.target.value)}
+                  onBlur={blur('nutrientSourceVersion')}
+                />
+              </FormField>
+            </div>
           </div>
         </div>
 

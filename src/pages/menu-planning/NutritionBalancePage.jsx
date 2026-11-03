@@ -3,8 +3,15 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Save, RotateCcw, Info, Scale, CopyPlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useAllergyContext, useMenuAccess, useMenuCatalog, useWeeklyMenu, useWeeklyMenus } from '@/hooks/menu-planning/useMenuPlanning';
-import { saveDayAdjustment } from '@/services/menu-planning/menuPlanningService';
+import {
+  useAllergyContext,
+  useCatalogAccess,
+  useMenuAccess,
+  useMenuCatalog,
+  useWeeklyMenu,
+  useWeeklyMenus,
+} from '@/hooks/menu-planning/useMenuPlanning';
+import { menuDishesSavable, saveDayAdjustment, saveDish } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { NormStatusChip, WeeklyStatusBadge } from '@/components/menu-planning/MenuBadges';
@@ -12,15 +19,30 @@ import { MealEditor } from '@/components/menu-planning/MealEditor';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
 import { AllergenWarnings } from '@/components/menu-planning/AllergenWarnings';
 import { dayNormStatus } from '@/components/menu-planning/WeekDaysView';
-import { mealsTotals, normalizeMeals, priceOn } from '@/utils/menu-planning/menuCalculations';
+import {
+  badPortionQty as badQty,
+  ingredientBreakdown,
+  ingredientQty,
+  mealsTotals,
+  normalizeMeals,
+  priceOn,
+  withPortionDraft as withDraftQty,
+} from '@/utils/menu-planning/menuCalculations';
 import { daySummary } from '@/utils/menu-planning/daySummary';
 import { validateMenu } from '@/utils/menu-planning/menuPlanningValidation';
 import { canEditWeeklyMenu, canReplaceWeeklyMenu } from '@/utils/menu-planning/menuPlanningPermissions';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
-import { WEEKDAY_LABELS, WEEKLY_STATUS, formatMoney, mondayOf, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
-import { mealCodesOf, mealLabel, mealsOf } from '@/utils/menu-planning/nutritionSetup';
+import {
+  FOOD_ORIGIN_LABELS,
+  WEEKDAY_LABELS,
+  WEEKLY_STATUS,
+  formatMoney,
+  mondayOf,
+  weekLabel,
+} from '@/models/menu-planning/menuPlanningConstants';
+import { mealCodesOf, mealLabel, mealsOf, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import '@/styles/modules/menu-planning.css';
 
 const clone = (v) => JSON.parse(JSON.stringify(v || []));
@@ -29,13 +51,15 @@ const num = (v) => (Number(v) || 0).toLocaleString('vi-VN', { maximumFractionDig
 /**
  * Screen #87 – nutrition of each day of a weekly menu against the age-group reference; the Vice Principal
  * (shared services) adjusts dishes or portions of a draft day and the values are recalculated (UC 6.11).
+ * Định lượng từng thực phẩm của món đang xem sửa thử được ngay trên màn (chỉ tính ở trình duyệt); lưu vào món khi bấm lưu.
  */
 export default function NutritionBalancePage() {
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
   const toast = useToast();
   const access = useMenuAccess();
-  const { catalog, loading: catLoading } = useMenuCatalog();
+  const catalogAccess = useCatalogAccess();
+  const { catalog: savedCatalog, loading: catLoading, reload: reloadCatalog } = useMenuCatalog();
   const [ageGroupId, setAgeGroupId] = useState(params.get('ageGroupId') || '');
   const { items: weeks, loading: weeksLoading } = useWeeklyMenus({ ageGroupId });
   const candidates = useMemo(() => weeks.filter((w) => w.status !== WEEKLY_STATUS.REPLACED), [weeks]);
@@ -45,6 +69,10 @@ export default function NutritionBalancePage() {
   const [meals, setMeals] = useState([]);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState('');
+  // Định lượng thử: { [dishId]: { [foodId]: chuỗi g/trẻ } } cho nhóm tuổi của thực đơn tuần
+  const [qtyDrafts, setQtyDrafts] = useState({});
+  const [reviewDishId, setReviewDishId] = useState('');
+  const [dishBusy, setDishBusy] = useState(false);
   const { rows: allergyRows } = useAllergyContext(wm?.ageGroupId || '');
 
   // Default: the coming draft, else this week's published menu.
@@ -66,8 +94,18 @@ export default function NutritionBalancePage() {
       setDate(day.date);
       setMeals(clone(day.meals));
     }
+    setQtyDrafts({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wm]);
+
+  // Danh mục dùng để tính: món có định lượng thử thay cho món đã lưu (thẻ ngày, bảng cân đối đổi ngay)
+  const catalog = useMemo(() => {
+    const ids = Object.keys(qtyDrafts).filter((id) => savedCatalog.dishById[id]);
+    if (!wm || !ids.length) return savedCatalog;
+    const dishById = { ...savedCatalog.dishById };
+    ids.forEach((id) => (dishById[id] = withDraftQty(dishById[id], qtyDrafts[id], wm.ageGroupId)));
+    return { ...savedCatalog, dishById };
+  }, [savedCatalog, qtyDrafts, wm]);
 
   const selectDay = (d) => {
     setDate(d.date);
@@ -86,7 +124,10 @@ export default function NutritionBalancePage() {
     savedDay &&
     JSON.stringify(normalizeMeals(meals, mealCodesOf(catalog.nutritionSetups, wm.ageGroupId))) !==
       JSON.stringify(normalizeMeals(savedDay.meals, mealCodesOf(catalog.nutritionSetups, wm.ageGroupId)));
-  const result = wm && savedDay ? mealsTotals(meals, catalog.dishById, catalog.foodById, wm.ageGroupId) : null;
+  const result =
+    wm && savedDay
+      ? mealsTotals(normScopeMeals(meals, catalog.nutritionSetups, wm.ageGroupId), catalog.dishById, catalog.foodById, wm.ageGroupId)
+      : null;
   const errors = wm
     ? validateMenu(
         { name: 'x', ageGroupId: wm.ageGroupId, meals: normalizeMeals(meals, mealCodesOf(catalog.nutritionSetups, wm.ageGroupId)) },
@@ -94,6 +135,34 @@ export default function NutritionBalancePage() {
         mealsOf(catalog.nutritionSetups, wm.ageGroupId),
       )
     : {};
+
+  // Món của ngày đang xem để sửa thử định lượng
+  const dayDishIds = [...new Set(meals.flatMap((m) => (m.items || []).map((i) => i.dishId)).filter((id) => savedCatalog.dishById[id]))];
+  const reviewId = dayDishIds.includes(reviewDishId) ? reviewDishId : dayDishIds[0] || '';
+  const reviewDish = reviewId ? catalog.dishById[reviewId] : null;
+  const reviewDraft = qtyDrafts[reviewId] || {};
+  const reviewBreakdown = reviewDish && wm ? ingredientBreakdown(reviewDish, catalog.foodById, wm.ageGroupId) : null;
+  const reviewDirty = Object.keys(reviewDraft).length > 0;
+  const reviewInvalid = Object.values(reviewDraft).some(badQty);
+  const canSaveDish = catalogAccess.canManage && menuDishesSavable();
+
+  const setQty = (foodId, value) =>
+    setQtyDrafts((all) => {
+      const saved = savedCatalog.dishById[reviewId]?.ingredients.find((i) => i.foodId === foodId);
+      const before = ingredientQty(saved, wm.ageGroupId);
+      const d = { ...(all[reviewId] || {}) };
+      // Trả về đúng số đã lưu thì không còn là thay đổi
+      if (String(before ?? '') === value) delete d[foodId];
+      else d[foodId] = value;
+      const next = { ...all, [reviewId]: d };
+      if (!Object.keys(d).length) delete next[reviewId];
+      return next;
+    });
+  const resetDish = () =>
+    setQtyDrafts((all) => {
+      const { [reviewId]: _drop, ...rest } = all;
+      return rest;
+    });
 
   const save = async () => {
     setBusy(true);
@@ -109,12 +178,27 @@ export default function NutritionBalancePage() {
     }
   };
 
+  const saveDishQty = async () => {
+    const dish = savedCatalog.dishById[reviewId];
+    setDishBusy(true);
+    try {
+      await saveDish(reviewId, withDraftQty(dish, reviewDraft, wm.ageGroupId), user);
+      toast.success(`Đã lưu định lượng món ${dish.name}.`);
+      resetDish();
+      await reloadCatalog({ silent: true });
+    } catch (err) {
+      toast.error(err, 'Không lưu được định lượng');
+    } finally {
+      setDishBusy(false);
+    }
+  };
+
   if (access.loading || catLoading) return <LoadingState />;
 
   return (
     <div className="page">
       <Breadcrumb items={menuCrumbs('Cân đối dinh dưỡng')} />
-      <h1 className="page__title">Cân đối dinh dưỡng thực đơn ngày</h1>
+      <h1 className="page__title">Cân đối khẩu phần thực đơn ngày</h1>
       {/* Thanh chọn cùng kiểu Thực đơn tuần: tab nhóm tuổi + chọn thực đơn tuần */}
       <div className="td-week-toolbar">
         <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
@@ -184,6 +268,7 @@ export default function NutritionBalancePage() {
               // Ngày đang sửa tính theo món đang chỉnh (chưa lưu) để thẻ ngày đổi ngay
               const sum = daySummary(d.date === date ? { ...d, meals } : d, wm, catalog);
               const n = sum?.nutrients;
+              const t = sum?.totals;
               const status = n ? dayNormStatus(Object.values(n)) : null;
               return (
                 <button
@@ -206,13 +291,25 @@ export default function NutritionBalancePage() {
                     <>
                       <span className="td-kv">
                         <span>Năng lượng</span>
-                        <b>{num(n.kcal.value)} kcal</b>
+                        <b>
+                          {num(n.kcal.value)} kcal{n.kcal.attainment != null ? ` · ${n.kcal.attainment}%` : ''}
+                        </b>
                       </span>
                       <span className="td-kv">
-                        <span>Đạm / Béo / Tinh bột</span>
+                        <span>Đạm ĐV / TV</span>
                         <span>
-                          {num(n.protein.value)} / {num(n.lipid.value)} / {num(n.glucid.value)} g
+                          {num(t.animalProtein)} / {num(t.plantProtein)} g
                         </span>
+                      </span>
+                      <span className="td-kv">
+                        <span>Béo ĐV / TV</span>
+                        <span>
+                          {num(t.animalLipid)} / {num(t.plantLipid)} g
+                        </span>
+                      </span>
+                      <span className="td-kv">
+                        <span>Tinh bột</span>
+                        <span>{num(t.glucid)} g</span>
                       </span>
                       <span className="td-kv">
                         <span>Tiền ăn</span>
@@ -265,7 +362,7 @@ export default function NutritionBalancePage() {
               <div className="card">
                 <div className="card__header">
                   <div className="card__title">Kết quả tính lại</div>
-                  {dirty && <span className="chip chip--orange">Chưa lưu</span>}
+                  {(dirty || Object.keys(qtyDrafts).length > 0) && <span className="chip chip--orange">Chưa lưu</span>}
                 </div>
                 <div className="card__body">
                   <AllergenWarnings meals={meals} catalog={catalog} ageGroupId={wm.ageGroupId} contextRows={allergyRows} />
@@ -273,6 +370,7 @@ export default function NutritionBalancePage() {
                     result={result}
                     ageGroupId={wm.ageGroupId}
                     norms={catalog.norms}
+                    setups={catalog.nutritionSetups}
                     price={priceOn(catalog.mealPrices, wm.ageGroupId, date)?.price}
                   />
                   <div className="table-wrap mt-12">
@@ -281,7 +379,9 @@ export default function NutritionBalancePage() {
                         <tr>
                           <th>Bữa</th>
                           <th className="num">Năng lượng</th>
-                          <th className="num">Đạm / Béo / Tinh bột (g)</th>
+                          <th className="num">Đạm ĐV / TV (g)</th>
+                          <th className="num">Béo ĐV / TV (g)</th>
+                          <th className="num">Tinh bột (g)</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -290,8 +390,12 @@ export default function NutritionBalancePage() {
                             <td>{mealLabel(catalog.nutritionSetups, wm.ageGroupId, s)}</td>
                             <td className="num">{num(t.kcal)} kcal</td>
                             <td className="num">
-                              {num(t.protein)} / {num(t.lipid)} / {num(t.glucid)}
+                              {num(t.animalProtein)} / {num(t.plantProtein)}
                             </td>
+                            <td className="num">
+                              {num(t.animalLipid)} / {num(t.plantLipid)}
+                            </td>
+                            <td className="num">{num(t.glucid)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -300,6 +404,115 @@ export default function NutritionBalancePage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {savedDay && reviewBreakdown && (
+            <section className="card mt-16">
+              <div className="card__header td-wrap-head">
+                <h2 className="card__title">Định lượng món đang xem (g / trẻ · {ageGroupById(wm.ageGroupId)?.shortName})</h2>
+                <select className="select" value={reviewId} aria-label="Món đang xem" onChange={(e) => setReviewDishId(e.target.value)}>
+                  {dayDishIds.map((id) => (
+                    <option key={id} value={id}>
+                      {savedCatalog.dishById[id].name}
+                      {qtyDrafts[id] ? ' (đang sửa thử)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="card__body">
+                <p className="text-sm muted td-flat mb-8">
+                  Sửa thử định lượng để xem ngay kết quả cân đối (chưa lưu). Lưu định lượng sẽ đổi món ở mọi thực đơn dùng món này.
+                </p>
+                <div className="table-wrap">
+                  <table className="table table--grid table--compact">
+                    <thead>
+                      <tr>
+                        <th>Thực phẩm</th>
+                        <th>Nguồn gốc</th>
+                        <th className="num">Định lượng (g/trẻ)</th>
+                        <th className="num">Đạm ĐV</th>
+                        <th className="num">Đạm TV</th>
+                        <th className="num">Béo ĐV</th>
+                        <th className="num">Béo TV</th>
+                        <th className="num">Tinh bột</th>
+                        <th className="num">kcal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reviewBreakdown.rows.map((r) => {
+                        const draft = reviewDraft[r.foodId];
+                        const value = draft !== undefined ? draft : r.qty == null ? '' : String(r.qty);
+                        const missingData = r.noNutrition || r.noOrigin;
+                        return (
+                          <tr key={r.foodId}>
+                            <td>{r.food?.name || 'Thực phẩm đã xóa'}</td>
+                            <td>{FOOD_ORIGIN_LABELS[r.food?.origin] || <span className="td-warn">Chưa có</span>}</td>
+                            <td className="num">
+                              <input
+                                className={`input td-qty ${badQty(value) ? 'is-invalid' : ''}`}
+                                inputMode="decimal"
+                                value={value}
+                                aria-label={`Định lượng ${r.food?.name || ''}`}
+                                onChange={(e) => setQty(r.foodId, e.target.value.replace(',', '.'))}
+                              />
+                            </td>
+                            {missingData && r.qty != null ? (
+                              <td colSpan={6} className="td-warn text-sm">
+                                {r.noNutrition ? 'Chưa có số liệu dinh dưỡng' : 'Chưa có nguồn gốc'} – chưa đủ dữ liệu
+                              </td>
+                            ) : (
+                              <>
+                                <td className="num">{num(r.animalProtein)}</td>
+                                <td className="num">{num(r.plantProtein)}</td>
+                                <td className="num">{num(r.animalLipid)}</td>
+                                <td className="num">{num(r.plantLipid)}</td>
+                                <td className="num">{num(r.glucid)}</td>
+                                <td className="num">{num(r.kcal)}</td>
+                              </>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colSpan={2}>Một suất</td>
+                        <td className="num">{num(reviewBreakdown.total.qty)}</td>
+                        <td className="num">{num(reviewBreakdown.total.animalProtein)}</td>
+                        <td className="num">{num(reviewBreakdown.total.plantProtein)}</td>
+                        <td className="num">{num(reviewBreakdown.total.animalLipid)}</td>
+                        <td className="num">{num(reviewBreakdown.total.plantLipid)}</td>
+                        <td className="num">{num(reviewBreakdown.total.glucid)}</td>
+                        <td className="num">{num(reviewBreakdown.total.kcal)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                {reviewInvalid && <span className="field__error">Định lượng từ 0 đến 1000 g; ô sai không được tính.</span>}
+                {!canSaveDish && reviewDirty && (
+                  <p className="text-sm muted mt-8">
+                    {catalogAccess.canManage
+                      ? 'Thực đơn tuần còn dữ liệu demo nên chưa lưu định lượng ở đây được; hãy sửa ở danh mục Món ăn.'
+                      : 'Bạn chỉ sửa thử để xem số liệu; lưu định lượng món do người được giao quản lý danh mục thực hiện.'}
+                  </p>
+                )}
+                <div className="row mt-12">
+                  <button type="button" className="btn" disabled={!reviewDirty || dishBusy} onClick={resetDish}>
+                    <RotateCcw size={16} /> Bỏ định lượng thử
+                  </button>
+                  {canSaveDish && (
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      disabled={!reviewDirty || reviewInvalid || dishBusy}
+                      onClick={saveDishQty}
+                    >
+                      {dishBusy ? <Spinner small /> : <Save size={16} />} Lưu định lượng vào món
+                    </button>
+                  )}
+                </div>
+              </div>
+            </section>
           )}
 
           {saveError && (

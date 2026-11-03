@@ -1,34 +1,59 @@
-import { sourceOf } from '@/services/demoSource';
+import { isDemoModule, sourceOf } from '@/services/demoSource';
 import { menuPlanningMockRepository as mock } from '@/services/menu-planning/mock/menuPlanningMockRepository';
 import { menuPlanningApi as api } from '@/services/menu-planning/api/menuPlanningApi';
+import { nutritionCatalogApi } from '@/services/nutritionCatalogApi';
+import { todayInput } from '@/utils/format';
 
 /**
  * Facade of menu planning. Every function takes the signed-in `user` last (the mock checks it,
  * the real API reads the token). Errors: { status, message, details? } (details = field errors).
  */
 const repo = sourceOf('menu-planning', mock, api);
+// Danh mục thực phẩm, món, thiết lập dinh dưỡng (cấu hình nhóm tuổi) đã có BE (/nutrition/*); thực đơn vẫn theo module menu-planning
+const catalogRepo = sourceOf('nutrition-catalog', mock, nutritionCatalogApi);
+/** Build nối BE và danh mục dùng BE: quyền sửa theo NUTRITION_MANAGE, không có trạng thái Nháp của món. */
+export const catalogUsesApi = () => !isDemoModule('nutrition-catalog');
+/** Món trong thực đơn (module menu-planning) cùng nguồn với nơi lưu món ⇒ lưu được định lượng thử từ màn cân đối. */
+export const menuDishesSavable = () => isDemoModule('nutrition-catalog') === isDemoModule('menu-planning');
 
 /** { sharedService } – whether the Vice Principal holds the shared school-service assignment (GBR-GEN-10). */
 export const getMenuAccess = (user) => repo.getAccess(user);
-/** { foods, dishes, menus, allergyMenus, mealPrices, nutritionSetups, norms } for live calculations. */
-export const getMenuCatalog = (user) => repo.getCatalog(user);
+/**
+ * { foods, dishes, menus, allergyMenus, mealPrices, nutritionSetups, norms, pricePerDay? } for live calculations.
+ * Danh mục dùng BE ⇒ định mức, bữa, giá/ngày lấy từ cấu hình nhóm tuổi BE đang hiệu lực hôm nay (khớp màn Thiết lập);
+ * thực phẩm, món, thực đơn vẫn theo module menu-planning.
+ */
+export const loadMenuCatalog = async ({ user, menuRepo, catalogApi, usesApi, today }) => {
+  const catalog = await menuRepo.getCatalog(user);
+  if (!usesApi) return catalog;
+  return { ...catalog, ...(await catalogApi.getEffectiveSetups(today)) };
+};
+export const getMenuCatalog = (user) =>
+  loadMenuCatalog({ user, menuRepo: repo, catalogApi: nutritionCatalogApi, usesApi: catalogUsesApi(), today: todayInput() });
+/** Như getMenuCatalog nhưng thực phẩm lấy từ nguồn danh mục (màn thực phẩm, món): id thực phẩm khớp với món đang sửa. */
+export const getCatalogLookups = async (user) => {
+  const catalog = await getMenuCatalog(user);
+  if (!catalogUsesApi()) return catalog;
+  // Món của BE không nằm trong dữ liệu mẫu ⇒ không tra món theo id mẫu
+  return { ...catalog, foods: await catalogRepo.listFoods({}, user), dishes: [] };
+};
 /** [{ allergen, childCount, classes: [{ classId, className, campusId, ageGroupId, count }] }] – counts only. */
 export const getAllergyContext = (ageGroupId, user) => repo.getAllergyContext(ageGroupId, user);
 
 /* Foods (Food[]: see models/menu-planning/menuPlanningConstants.js). filters: { keyword, group, status, allergen } */
-export const getFoods = (filters, user) => repo.listFoods(filters, user);
-export const getFoodById = (id, user) => repo.getFood(id, user);
-export const saveFood = (id, payload, user) => repo.saveFood(id, payload, user);
+export const getFoods = (filters, user) => catalogRepo.listFoods(filters, user);
+export const getFoodById = (id, user) => catalogRepo.getFood(id, user);
+export const saveFood = (id, payload, user) => catalogRepo.saveFood(id, payload, user);
 /** Lưu nhiều thực phẩm một lần: [{ key, id?, data }] → { created, updated }; lỗi 422 theo `${key}.${field}`, không ghi dòng nào. */
-export const saveFoodsBulk = (items, user) => repo.saveFoodsBulk(items, user);
-export const setFoodFavorite = (id, favorite, user) => repo.setFoodFavorite(id, favorite, user);
-export const deleteFood = (id, user) => repo.deleteFood(id, user);
+export const saveFoodsBulk = (items, user) => catalogRepo.saveFoodsBulk(items, user);
+export const setFoodFavorite = (id, favorite, user) => catalogRepo.setFoodFavorite(id, favorite, user);
+export const deleteFood = (id, user) => catalogRepo.deleteFood(id, user);
 
 /* Dishes. filters: { keyword, type, status, allergen } */
-export const getDishes = (filters, user) => repo.listDishes(filters, user);
-export const getDishById = (id, user) => repo.getDish(id, user);
-export const saveDish = (id, payload, user) => repo.saveDish(id, payload, user);
-export const deleteDish = (id, user) => repo.deleteDish(id, user);
+export const getDishes = (filters, user) => catalogRepo.listDishes(filters, user);
+export const getDishById = (id, user) => catalogRepo.getDish(id, user);
+export const saveDish = (id, payload, user) => catalogRepo.saveDish(id, payload, user);
+export const deleteDish = (id, user) => catalogRepo.deleteDish(id, user);
 
 /* Meal prices. filters: { ageGroupId } */
 export const getMealPrices = (filters, user) => repo.listMealPrices(filters, user);
@@ -38,9 +63,9 @@ export const deleteMealPrice = (id, user) => repo.deleteMealPrice(id, user);
 
 /* Sample daily menus. filters: { keyword, ageGroupId, status } */
 /** [{ ageGroupId, enabled, basis, meals: [{ code, name, unitPrice, countAs }], norms, prices }] – một bản ghi mỗi nhóm tuổi. */
-export const getNutritionSetups = (user) => repo.listNutritionSetups(user);
-/** { effectiveFrom, reason, basis, groups } – giá mới áp dụng từ effectiveFrom, định mức áp dụng ngay. */
-export const saveNutritionSetups = (payload, user) => repo.saveNutritionSetups(payload, user);
+export const getNutritionSetups = (user) => catalogRepo.listNutritionSetups(user);
+/** { effectiveFrom, reason, basis, groups } – mock: giá mới từ effectiveFrom, định mức ngay; BE: bản cấu hình mới từ effectiveFrom. */
+export const saveNutritionSetups = (payload, user) => catalogRepo.saveNutritionSetups(payload, user);
 
 /** Thư viện món tham khảo (chỉ đọc): [{ id, name, type, ingredients: [{ foodName, unit, portions, inCatalog }], kcal, allergens, inCatalog }]. */
 export const getReferenceDishes = (filters, user) => repo.listReferenceDishes(filters, user);

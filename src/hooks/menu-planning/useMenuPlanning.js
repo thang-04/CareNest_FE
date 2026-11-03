@@ -3,16 +3,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import { byId } from '@/utils/menu-planning/menuCalculations';
 import { canManageMenuData } from '@/utils/menu-planning/menuPlanningPermissions';
+import { hasBePermission } from '@/utils/bePermissions';
+import { PERMISSIONS } from '@/models/bePermissions';
 import {
+  catalogUsesApi,
   getAllergyContext,
   getAllergyMenuById,
   getAllergyMenus,
+  getCatalogLookups,
   getDishById,
   getDishes,
   getFoodById,
   getFoods,
-  getMealPriceById,
-  getMealPrices,
   getMenuAccess,
   getMenuCatalog,
   getMenuPlans,
@@ -45,8 +47,6 @@ export const useFoods = listHook(getFoods);
 export const useFood = itemHook(getFoodById);
 export const useDishes = listHook(getDishes);
 export const useDish = itemHook(getDishById);
-export const useMealPrices = listHook(getMealPrices);
-export const useMealPrice = itemHook(getMealPriceById);
 export const useReferenceDishes = listHook(getReferenceDishes);
 export const useNutritionSetups = listHook((_, user) => getNutritionSetups(user));
 export const useSampleMenus = listHook(getSampleMenus);
@@ -64,16 +64,32 @@ export function useMenuAccess() {
   return { loading, sharedService: !!data?.sharedService, canManage: canManageMenuData(user, data) };
 }
 
-/** Foods, dishes, menus and prices with lookup maps, for live nutrition / allergen calculations. */
-export function useMenuCatalog({ live = true } = {}) {
+/**
+ * Quyền sửa danh mục thực phẩm, món. Danh mục dùng BE ⇒ theo mã quyền NUTRITION_MANAGE của /accounts/me;
+ * `softDelete`: BE không xóa cứng, nút xóa thành chuyển Ngừng sử dụng.
+ */
+export function useCatalogAccess() {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getMenuCatalog(user), [user?.id], { refreshOnDataChange: live });
-  const catalog = useMemo(() => {
-    const c = data || { foods: [], dishes: [], menus: [], allergyMenus: [], mealPrices: [], nutritionSetups: [], norms: {} };
-    return { ...c, foodById: byId(c.foods), dishById: byId(c.dishes), menuById: byId(c.menus) };
-  }, [data]);
-  return { catalog, loading, error, reload };
+  const menu = useMenuAccess();
+  if (!catalogUsesApi()) return { ...menu, softDelete: false };
+  return { loading: false, softDelete: true, canManage: hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE) };
 }
+
+const catalogHook = (loader) =>
+  function useCatalog({ live = true } = {}) {
+    const { user } = useAuth();
+    const { data, loading, error, reload } = useAsync(() => loader(user), [user?.id], { refreshOnDataChange: live });
+    const catalog = useMemo(() => {
+      const c = data || { foods: [], dishes: [], menus: [], allergyMenus: [], mealPrices: [], nutritionSetups: [], norms: {} };
+      return { ...c, foodById: byId(c.foods), dishById: byId(c.dishes), menuById: byId(c.menus) };
+    }, [data]);
+    return { catalog, loading, error, reload };
+  };
+
+/** Foods, dishes, menus and prices with lookup maps, for live nutrition / allergen calculations. */
+export const useMenuCatalog = catalogHook(getMenuCatalog);
+/** Như useMenuCatalog cho màn thực phẩm, món: thực phẩm cùng nguồn với danh mục (BE khi đã nối). */
+export const useCatalogLookups = catalogHook(getCatalogLookups);
 
 /** Allergens recorded for children of an age group (counts and classes only). */
 export function useAllergyContext(ageGroupId) {
