@@ -135,7 +135,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
       <div className="sc-plc__toolbar">
         {heading}
         {from.graduating ? (
-          <span className="chip chip--blue">Nhóm tuổi lớn nhất: mặc định ra trường</span>
+          <span className="chip chip--blue">Nhóm tuổi lớn nhất: trẻ hoàn thành chương trình ra trường, trẻ khác bạn chọn</span>
         ) : (
           <>
             <label className="field__label" htmlFor="plc-whole">
@@ -232,6 +232,18 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
                   <td className="nowrap sc-plc__child">
                     <ChildAvatar child={ch} size="sm" />
                     <span className="fw-600">{ch.fullName}</span>
+                    {/* Lớp ra trường: kết quả hoàn thành chương trình ở đánh giá cuối năm (BE OBS-14) */}
+                    {from.graduating && (
+                      <span
+                        className={`chip ${ch.programCompleted === true ? 'chip--green' : ch.programCompleted === false ? 'chip--orange' : 'chip--gray'}`}
+                      >
+                        {ch.programCompleted === true
+                          ? 'Hoàn thành CT'
+                          : ch.programCompleted === false
+                            ? 'Chưa hoàn thành CT'
+                            : 'Chưa đánh giá cuối năm'}
+                      </span>
+                    )}
                     <span className="muted text-xs">
                       {ch.code}
                       {!ch.placement && <span className="sc-plc__new"> · chưa lưu</span>}

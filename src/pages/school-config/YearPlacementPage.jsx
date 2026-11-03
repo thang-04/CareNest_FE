@@ -97,7 +97,13 @@ export default function YearPlacementPage() {
       const r = await autoPlace(yearId, user, { campusId: campusId || undefined, ageGroupId: groupId || undefined });
       setConfirmAuto(false);
       const left = r.unplaced.map((u) => `${u.className}: ${u.count} trẻ`).join(', ');
-      toast.success(`${r.promoted} trẻ lên lớp, ${r.graduated} trẻ ra trường.${left ? ` Chưa đủ chỗ: ${left}.` : ''}`, 'Đã xếp tự động');
+      const undecided = r.undecided
+        ? ` ${r.undecided} trẻ lớp ra trường chưa hoàn thành chương trình / chưa đánh giá: chọn ra trường hoặc ở lại.`
+        : '';
+      toast.success(
+        `${r.promoted} trẻ lên lớp, ${r.graduated} trẻ ra trường.${undecided}${left ? ` Chưa đủ chỗ: ${left}.` : ''}`,
+        'Đã xếp tự động',
+      );
       const fresh = await reload({ silent: true });
       // Mở ngay lớp còn trẻ chưa xếp để Hiệu trưởng xử lý tiếp
       const todo = classes.map((c) => fresh?.classes.find((x) => x.id === c.id)).find((c) => c && placedOf(c) < c.children.length);
