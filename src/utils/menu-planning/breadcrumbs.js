@@ -14,3 +14,4 @@ export const sampleMenuCrumbs = (last) => menuCrumbs('Thực đơn mẫu', '/men
 export const allergyMenuCrumbs = (last) => menuCrumbs('Thực đơn thay thế', '/menu/allergy-menus', last);
 export const weeklyCrumbs = (last) => menuCrumbs('Thực đơn tuần', '/menu/weekly', last);
 export const planCrumbs = (last) => menuCrumbs('Kế hoạch thực đơn', '/menu/plans', last);
+export const templateCrumbs = (last) => menuCrumbs('Bộ thực đơn mẫu', '/menu/templates', last);

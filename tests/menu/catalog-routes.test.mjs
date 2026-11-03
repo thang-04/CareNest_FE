@@ -15,7 +15,7 @@ globalThis.window = new EventTarget();
 const { getMenuForRole } = await import('@/layouts/menuConfig');
 const { ROLES } = await import('@/models/User');
 const { INTEGRATION_MODULES } = await import('@/config/integrationModules');
-const { migrateNormKeys, hasLegacyNormKeys, SHARE_NORM_COLUMNS } = await import('@/utils/menu-planning/nutritionSetup');
+const { migrateNormKeys, hasLegacyNormKeys, GRAM_NORM_COLUMNS, SESSION_NORM_KEYS } = await import('@/utils/menu-planning/nutritionSetup');
 const { validateNutritionSetup } = await import('@/utils/menu-planning/menuPlanningValidation');
 const { readDb, writeDb } = await import('@/mocks/mockDatabase');
 const { menuPlanningMockRepository: repo } = await import('@/services/menu-planning/mock/menuPlanningMockRepository');
@@ -65,11 +65,12 @@ test('HT xem được thực phẩm, món, thiết lập, NCC (route mở cho PR
   assert.match(routes, /const CATALOG_READERS = LEADERS;/);
 });
 
-test('khóa định mức khớp BE: animalProteinPct, animalLipidPct; dữ liệu cũ animal*Share được đổi', () => {
+test('khóa định mức khớp BE: gam theo chất, % năng lượng từng bữa; dữ liệu cũ animal*Share được đổi', () => {
   assert.deepEqual(
-    SHARE_NORM_COLUMNS.map((c) => c.key),
-    ['animalProteinPct', 'animalLipidPct'],
+    GRAM_NORM_COLUMNS.map((c) => c.key),
+    ['animalProteinG', 'plantProteinG', 'animalLipidG', 'plantLipidG', 'glucidG'],
   );
+  assert.deepEqual(SESSION_NORM_KEYS, { MORNING: 'morningKcalPct', LUNCH: 'lunchKcalPct', AFTERNOON: 'afternoonKcalPct' });
   const legacy = { kcal: [600, 700], animalProteinShare: [50, 60], animalLipidShare: [40, 50] };
   assert.equal(hasLegacyNormKeys(legacy), true);
   assert.deepEqual(migrateNormKeys(legacy), { kcal: [600, 700], animalProteinPct: [50, 60], animalLipidPct: [40, 50] });

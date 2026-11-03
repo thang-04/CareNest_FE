@@ -19,6 +19,8 @@ import { ROLES } from '@/models/User';
 import { areaAccess, canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
 import { hasBePermission } from '@/utils/account/accountPermissions';
 import { PERMISSIONS } from '@/models/account/permissionConstants';
+import { USE_MOCK } from '@/config/env';
+import { INTEGRATION_MODULES } from '@/config/integrationModules';
 
 /*
  * Sidebar menu – single source of truth.
@@ -266,10 +268,6 @@ const ITEMS = {
     label: 'Đề xuất khen thưởng',
     to: '/assessment/rewards',
   },
-  menuFlow: {
-    label: 'Quy trình thực đơn',
-    to: '/menu/flow',
-  },
   nutritionSetup: {
     label: 'Cấu hình nhóm tuổi',
     to: '/menu/setup',
@@ -283,7 +281,7 @@ const ITEMS = {
     to: '/menu/dishes',
   },
   menus: {
-    label: 'Thực đơn mẫu',
+    label: 'Bộ thực đơn mẫu',
     to: '/menu/menus',
   },
   weeklyMenus: {
@@ -298,15 +296,29 @@ const ITEMS = {
     label: 'Thực đơn bếp nhận',
     to: '/kitchen/published-menu',
   },
-  // `exact`: /kitchen là tiền tố của mọi trang kho, chỉ sáng khi đúng trang quy trình
-  kitchenDay: {
-    label: 'Việc hôm nay',
-    to: '/kitchen',
-    exact: true,
+  mealPhotos: {
+    label: 'Ảnh bữa ăn',
+    to: '/kitchen/meal-photos',
+  },
+  photoWindows: {
+    label: 'Khung giờ ảnh bữa',
+    to: '/kitchen/photo-windows',
+  },
+  boardingToday: {
+    label: 'Bán trú hôm nay',
+    to: '/boarding/today',
   },
   stockReceipts: {
-    label: 'Phiếu nhập kho',
+    label: 'Phiếu nhập',
     to: '/kitchen/stock-receipts',
+  },
+  stockHistory: {
+    label: 'Lịch sử nhập/trừ',
+    to: '/kitchen/stock-history',
+  },
+  stockShortfalls: {
+    label: 'Phần thiếu chờ bổ sung',
+    to: '/kitchen/stock-shortfalls',
   },
   suppliers: {
     label: 'Nhà cung cấp',
@@ -391,11 +403,11 @@ const MENUS = {
     ]),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     ...boardingGroups({
-      today: ['kitchenDay'],
-      nutrition: ['weeklyMenus'],
+      today: ['boardingToday'],
+      nutrition: ['weeklyMenus', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
-      stock: ['dryStock'],
-      foodSafety: ['foodSamples'],
+      stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
+      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -435,11 +447,11 @@ const MENUS = {
       'assessDayUnlocks',
     ]),
     ...boardingGroups({
-      today: ['kitchenDay', 'menuFlow'],
+      today: ['boardingToday'],
       nutrition: ['weeklyMenus', 'menus', 'nutrition'],
-      kitchenOps: ['mealCount', 'forecast', 'freshReceipts'],
-      stock: ['stockReceipts', 'dryStock'],
-      foodSafety: ['foodSamples'],
+      kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
+      stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
+      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -513,7 +525,7 @@ const AREA_GROUPS = {
 };
 const AREA_ITEMS = {
   // NCC vẫn hiện để PHT lập phiếu nhập kho khi chưa được giao mảng thực đơn
-  menu: ['foods', 'dishes', 'nutritionSetup', 'menuFlow'],
+  menu: ['foods', 'dishes', 'nutritionSetup'],
   rooms: ['schoolRooms'],
   staff: ['schoolStaffView'],
   yearPlacement: ['schoolPlacement'],
@@ -559,5 +571,15 @@ const withBePermissions = (menu, user) =>
         : e,
     )
     .filter((e) => !e.children || e.children.length > 0);
+// Màn chỉ có khi nối BE (build mock không có route) ⇒ ẩn mục ở build demo
+// Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
+const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
+const API_ONLY_ITEMS = !KITCHEN_RECORDS_API ? ['mealPhotos', 'photoWindows'] : [];
+const withApiOnlyItems = (menu) =>
+  API_ONLY_ITEMS.length
+    ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))
+    : menu;
 export const getMenuForRole = (role, user) =>
-  withBePermissions(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user), user);
+  withApiOnlyItems(
+    withBePermissions(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user), user),
+  );

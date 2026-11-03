@@ -10,6 +10,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, DishStatusBadge, HistoryCard } from '@/components/menu-planning/MenuBadges';
 import { NutrientBars } from '@/components/menu-planning/NutrientBars';
+import { DishPortionTable } from '@/components/menu-planning/DishPortionTable';
 import { dishAllergens, ingredientBreakdown, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { dishCrumbs } from '@/utils/menu-planning/breadcrumbs';
@@ -123,6 +124,12 @@ export default function DishDetailPage() {
         </aside>
 
         <div className="td-stack">
+          <section className="card">
+            <div className="card__header">
+              <h2 className="card__title">Dinh dưỡng và chi phí 1 suất theo nhóm tuổi</h2>
+            </div>
+            <DishPortionTable dish={d} foodById={catalog.foodById} groups={groups} />
+          </section>
           {gaps.length > 0 && (
             <div className="alert alert--warning">
               <AlertTriangle size={18} />
@@ -159,6 +166,7 @@ export default function DishDetailPage() {
                     <th className="money">Đơn giá</th>
                     <th className="num">Thải bỏ</th>
                     <th className="num">Lượng ăn 1 trẻ</th>
+                    <th className="num">Lượng mua 1 trẻ</th>
                     <th className="num">Đạm ĐV (g)</th>
                     <th className="num">Đạm TV (g)</th>
                     <th className="num">Béo ĐV (g)</th>
@@ -173,6 +181,7 @@ export default function DishDetailPage() {
                     <td>Tổng</td>
                     <td colSpan={3} />
                     <td className="num nowrap">{n1(total.qty)}</td>
+                    <td />
                     <td className="num">{n1(total.animalProtein)}</td>
                     <td className="num">{n1(total.plantProtein)}</td>
                     <td className="num">{n1(total.animalLipid)}</td>
@@ -200,7 +209,7 @@ export default function DishDetailPage() {
                           <td className="num">
                             <span className="td-warn">Chưa nhập</span>
                           </td>
-                          <td colSpan={7} className="muted text-sm">
+                          <td colSpan={8} className="muted text-sm">
                             Chưa tính được
                           </td>
                         </>
@@ -208,6 +217,9 @@ export default function DishDetailPage() {
                         <>
                           <td className="num nowrap">
                             {n1(r.qty)} {r.food?.unit || 'g'}
+                          </td>
+                          <td className="num nowrap">
+                            {n1(r.purchaseQty)} {r.food?.unit || 'g'}
                           </td>
                           {r.noNutrition ? (
                             <td colSpan={6} className="td-warn text-sm">

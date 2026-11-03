@@ -89,6 +89,14 @@ export const withPortionDraft = (dish, draft, ageGroupId) =>
 export const missingPortionGroups = (dish, ageGroupIds) =>
   ageGroupIds.filter((ag) => (dish?.ingredients || []).some((ing) => ingredientQty(ing, ag) == null));
 
+/** NUT-07/NUT-18: lượng mua = lượng ăn ÷ (1 − % thải bỏ) (user chốt 03/11/2026, cùng công thức BE). */
+export const purchaseQty = (qty, wastePct) => {
+  const w = Number(wastePct) || 0;
+  return w > 0 && w < 100 ? qty / (1 - w / 100) : qty;
+};
+const purchaseCost = (food, qty) =>
+  food.unitPrice && food.purchaseUnitSize ? (food.unitPrice / food.purchaseUnitSize) * purchaseQty(qty, food.wastePct) : 0;
+
 /**
  * Nutrition and cost of one dish for `multiplier` portions — of the age group when given, else of the standard portion.
  * totals: 6 chỉ số (animalProtein, plantProtein, animalLipid, plantLipid, glucid, kcal) + tổng protein, lipid.
@@ -114,7 +122,7 @@ export const dishTotals = (dish, foodById, multiplier = 1, ageGroupId) => {
     }
     if (hasNutrition(food)) addFood(acc, food, qty);
     if (!isNutritionComplete(food) && !missing.includes(food.name)) missing.push(food.name);
-    if (food.unitPrice && food.purchaseUnitSize) cost += (food.unitPrice / food.purchaseUnitSize) * qty;
+    cost += purchaseCost(food, qty);
   });
   return { totals: finalize(acc), missing, noQuantity, cost: Math.round(cost) };
 };
@@ -148,7 +156,8 @@ export const ingredientBreakdown = (dish, foodById, ageGroupId) => {
         plantLipid: one.plantLipid,
       });
     }
-    if (food.unitPrice && food.purchaseUnitSize) row.cost = (food.unitPrice / food.purchaseUnitSize) * qty;
+    row.purchaseQty = purchaseQty(qty, food.wastePct);
+    row.cost = purchaseCost(food, qty);
     qtySum += qty;
     costSum += row.cost;
     return row;

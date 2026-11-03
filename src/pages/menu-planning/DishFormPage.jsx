@@ -13,6 +13,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { NoManageAccess } from '@/components/menu-planning/MenuBadges';
 import { EditHead } from '@/components/ui/EditHead';
 import { AutoChecks } from '@/components/menu-planning/AutoChecks';
+import { DishPortionTable } from '@/components/menu-planning/DishPortionTable';
 import { dishAllergens, dishTotals, hasNutrition, hasOrigin } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups, ageAbbr } from '@/utils/menu-planning/nutritionSetup';
 import { validateDish, hasErrors } from '@/utils/menu-planning/menuPlanningValidation';
@@ -25,7 +26,6 @@ import {
   FOOD_GROUP_LABELS,
   RECORD_STATUS,
   RECORD_STATUS_LABELS,
-  formatMoney,
 } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
@@ -126,16 +126,6 @@ export default function DishFormPage() {
   const noPrice = usedFoods.filter((f) => !f.unitPrice).map((f) => f.name);
   const allergens = dishAllergens(preview, catalog.foodById);
   const appliedGroups = preview.ingredients.length ? groups.filter((a) => !noQtyGroups.includes(a)) : [];
-  const g1 = (v) => v.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
-  const portionItems = groups.map((a) => {
-    const t = dishTotals(preview, catalog.foodById, 1, a.id);
-    return t.noQuantity || !preview.ingredients.length
-      ? { tone: 'bad', text: `${ageAbbr(a.id)}: chưa có định lượng` }
-      : {
-          tone: 'ok',
-          text: `${ageAbbr(a.id)}: ${g1(t.totals.kcal)} kcal · đạm ĐV ${g1(t.totals.animalProtein)} g, TV ${g1(t.totals.plantProtein)} g · béo ĐV ${g1(t.totals.animalLipid)} g, TV ${g1(t.totals.plantLipid)} g · bột ${g1(t.totals.glucid)} g · ${formatMoney(t.cost)}`,
-        };
-  });
   const checks = [
     ...noQtyGroups.map((a) => ({ tone: 'bad', text: `Cột ${ageAbbr(a.id)} chưa có định lượng: món chưa dùng được cho ${ageAbbr(a.id)}.` })),
     ...(noNutrition.length ? [{ tone: 'warn', text: `Thiếu số liệu dinh dưỡng: ${noNutrition.join(', ')}.` }] : []),
@@ -472,11 +462,15 @@ export default function DishFormPage() {
             </div>
           </section>
 
-          <div className="td-aside-stack">
-            <AutoChecks title="Dinh dưỡng 1 suất" items={portionItems} />
-            {checks.length > 0 && <AutoChecks items={checks} />}
-          </div>
+          <div className="td-aside-stack">{checks.length > 0 && <AutoChecks items={checks} />}</div>
         </div>
+        <section className="card">
+          <div className="card__header">
+            <h2 className="card__title">Dinh dưỡng và chi phí 1 suất</h2>
+            <span className="text-sm muted">Theo định lượng đang nhập; chi phí đã cộng hệ số thải bỏ</span>
+          </div>
+          <DishPortionTable dish={preview} foodById={catalog.foodById} groups={groups} />
+        </section>
       </form>
       <ConfirmationModal
         open={!!pendingCopy}

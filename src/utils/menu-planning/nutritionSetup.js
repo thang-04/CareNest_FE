@@ -2,19 +2,30 @@ import { AGE_GROUPS, ageGroupById } from '@/models/School';
 import { MEAL_SESSION_LABELS, sessionsOf } from '@/models/menu-planning/menuPlanningConstants';
 import { priceOn } from '@/utils/menu-planning/menuCalculations';
 
-/** Các cột định mức một ngày: năng lượng (kcal) và tỷ lệ năng lượng từ đạm, béo, bột (%). */
-export const NORM_COLUMNS = [
-  { key: 'kcal', label: 'Năng lượng / ngày (kcal)' },
-  { key: 'protein', label: 'Đạm' },
-  { key: 'lipid', label: 'Béo' },
-  { key: 'glucid', label: 'Tinh bột' },
+/** Năng lượng một ngày (kcal) — bắt buộc cùng cơ cấu P:L:G để đánh giá ngày (BE NUT-24). */
+export const KCAL_NORM = { key: 'kcal', label: 'Năng lượng', unit: 'kcal' };
+/** Cơ cấu áp dụng P:L:G: tỷ lệ năng lượng từ đạm, béo, bột đường (%). */
+export const STRUCTURE_NORM_COLUMNS = [
+  { key: 'protein', label: 'Đạm', unit: '%' },
+  { key: 'lipid', label: 'Béo', unit: '%' },
+  { key: 'glucid', label: 'Bột đường', unit: '%' },
 ];
-/** Định mức cơ cấu (không bắt buộc): phần động vật trong tổng đạm, tổng béo (%). */
-export const SHARE_NORM_COLUMNS = [
-  { key: 'animalProteinPct', label: 'Đạm động vật / tổng đạm' },
-  { key: 'animalLipidPct', label: 'Béo động vật / tổng béo' },
+/** Định mức gam / trẻ / ngày theo chất (BE NUT-24); chất nào để trống thì không đánh giá chất đó. */
+export const GRAM_NORM_COLUMNS = [
+  { key: 'animalProteinG', label: 'Đạm động vật', unit: 'g' },
+  { key: 'plantProteinG', label: 'Đạm thực vật', unit: 'g' },
+  { key: 'animalLipidG', label: 'Béo động vật', unit: 'g' },
+  { key: 'plantLipidG', label: 'Béo thực vật', unit: 'g' },
+  { key: 'glucidG', label: 'Bột đường', unit: 'g' },
 ];
-export const ALL_NORM_COLUMNS = [...NORM_COLUMNS, ...SHARE_NORM_COLUMNS];
+/** Tỷ lệ năng lượng từng bữa gốc (% nhu cầu năng lượng cả ngày `dailyKcalNeed`, BE NUT-25). */
+export const SESSION_NORM_KEYS = { MORNING: 'morningKcalPct', LUNCH: 'lunchKcalPct', AFTERNOON: 'afternoonKcalPct' };
+export const ALL_NORM_COLUMNS = [
+  KCAL_NORM,
+  ...STRUCTURE_NORM_COLUMNS,
+  ...GRAM_NORM_COLUMNS,
+  ...Object.values(SESSION_NORM_KEYS).map((key) => ({ key, unit: '%' })),
+];
 
 // Khóa định mức cũ (trước khi khớp tên BE animalProteinPct*, animalLipidPct*) còn trong localStorage
 const LEGACY_NORM_KEYS = { animalProteinShare: 'animalProteinPct', animalLipidShare: 'animalLipidPct' };
@@ -81,6 +92,7 @@ export const toSetupForm = (setups, today) => ({
     price: String(s.price ?? ''),
     meals: s.meals.map((m) => ({ code: m.code, name: m.name, countAs: m.countAs })),
     norms: Object.fromEntries(ALL_NORM_COLUMNS.map(({ key }) => [key, (s.norms?.[key] || ['', '']).map(String)])),
+    dailyKcalNeed: String(s.dailyKcalNeed ?? ''),
   })),
 });
 
@@ -95,5 +107,6 @@ export const toSetupPayload = (form) => ({
     price: g.price,
     meals: g.meals.map(({ code, name, countAs }) => ({ code, name: name.trim(), countAs })),
     norms: g.norms,
+    dailyKcalNeed: g.dailyKcalNeed,
   })),
 });

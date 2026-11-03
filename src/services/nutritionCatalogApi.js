@@ -35,11 +35,18 @@ export const NORM_STEMS = {
   protein: 'proteinPct',
   lipid: 'lipidPct',
   glucid: 'glucidPct',
-  animalProteinPct: 'animalProteinPct',
-  animalLipidPct: 'animalLipidPct',
+  animalProteinG: 'animalProteinG',
+  plantProteinG: 'plantProteinG',
+  animalLipidG: 'animalLipidG',
+  plantLipidG: 'plantLipidG',
+  glucidG: 'glucidG',
+  morningKcalPct: 'morningKcalPct',
+  lunchKcalPct: 'lunchKcalPct',
+  afternoonKcalPct: 'afternoonKcalPct',
 };
 const configFieldOf = (key) => {
   if (key === 'mealPrice') return 'price';
+  if (key === 'dailyKcalNeed') return 'dailyKcalNeed';
   const norm = Object.entries(NORM_STEMS).find(([, stem]) => key === `${stem}Min` || key === `${stem}Max`);
   return norm ? `norms.${norm[0]}` : null;
 };
@@ -274,6 +281,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     effectiveFrom: v.effectiveFrom,
     price: v.mealPrice ?? null,
     basis: v.normBasis || '',
+    dailyKcalNeed: v.dailyKcalNeed ?? '',
     // Khoảng chưa đặt (cả hai đầu null) không có khóa ⇒ màn hiện "Chưa đặt định mức"
     norms: Object.fromEntries(
       Object.entries(NORM_STEMS)
@@ -288,6 +296,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     effectiveFrom,
     mealPrice: Number(g.price),
     normBasis: text(basis),
+    dailyKcalNeed: numOrNull(g.dailyKcalNeed),
     ...Object.fromEntries(
       Object.entries(NORM_STEMS).flatMap(([key, stem]) => {
         const [min, max] = g.norms?.[key] || [];
@@ -462,6 +471,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           price: latest?.price ?? '',
           meals: (g.mealSessions || []).map((code) => ({ code, name: MEAL_SESSION_LABELS[code] || code, countAs: code })),
           norms: latest?.norms || {},
+          dailyKcalNeed: latest?.dailyKcalNeed ?? '',
           childCount: null,
           versions,
           prices: versions.map((v) => ({ id: v.id, price: v.price, effectiveFrom: v.effectiveFrom })),
@@ -524,6 +534,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
             price: v?.price ?? '',
             meals: (g.mealSessions || []).map((code) => ({ code, name: MEAL_SESSION_LABELS[code] || code, countAs: code })),
             norms: v?.norms || {},
+            dailyKcalNeed: v?.dailyKcalNeed ?? '',
           };
         });
       const mealPrices = groups

@@ -127,7 +127,7 @@ export const DISH_TYPE_LABELS = {
 
 /* Same session codes as attendance (LUNCH, AFTERNOON); nursery groups have a third, morning snack. */
 export const MEAL_SESSION = { MORNING: 'MORNING', LUNCH: 'LUNCH', AFTERNOON: 'AFTERNOON' };
-export const MEAL_SESSION_LABELS = { MORNING: 'Bữa phụ sáng', LUNCH: 'Bữa trưa', AFTERNOON: 'Bữa chiều' };
+export { MEAL_SESSION_LABELS } from '@/models/mealSessions';
 export const SESSION_ORDER = [MEAL_SESSION.MORNING, MEAL_SESSION.LUNCH, MEAL_SESSION.AFTERNOON];
 
 /**
@@ -170,9 +170,51 @@ export const NORM_STATUS_LABELS = {
   HIGH: 'Cao hơn định mức',
   NA: 'Chưa đặt định mức',
   INCOMPLETE: 'Chưa đủ dữ liệu',
+  NO_DISHES: 'Chưa có món',
 };
 
 export const ALLERGY_GROUP_LABELS = { ALLERGY: 'Dị ứng thực phẩm', DIET: 'Chế độ ăn đặc biệt' };
+
+/* Kế hoạch tuần theo khối trên BE (/nutrition/meal-plans): công bố cả tuần, không có phiên bản thay thế. */
+export const MEAL_BLOCK = { NURSERY: 'NURSERY', KINDERGARTEN: 'KINDERGARTEN' };
+export const MEAL_BLOCK_LABELS = { NURSERY: 'Nhà trẻ', KINDERGARTEN: 'Mẫu giáo' };
+export const MEAL_PLAN_STATUS = { NONE: 'NONE', DRAFT: 'DRAFT', PUBLISHED: 'PUBLISHED' };
+export const MEAL_PLAN_STATUS_LABELS = { NONE: 'Chưa lập', DRAFT: 'Bản nháp', PUBLISHED: 'Đã công bố' };
+export const PLAN_ISSUE_SEVERITY_LABELS = { BLOCKING: 'Cần sửa trước khi công bố', WARNING: 'Cảnh báo', INFO: 'Lưu ý' };
+// Dòng kiểm tra từng ngày của một nhóm tuổi (khóa `rows[].key` BE trả), theo thứ tự bảng dinh dưỡng PMS
+export const EVAL_ROW_KEYS = [
+  'kcal',
+  'animalProteinG',
+  'plantProteinG',
+  'animalLipidG',
+  'plantLipidG',
+  'glucidG',
+  'protein',
+  'lipid',
+  'glucid',
+];
+export const EVAL_ROW_LABELS = {
+  kcal: 'Năng lượng',
+  animalProteinG: 'Đạm động vật',
+  plantProteinG: 'Đạm thực vật',
+  animalLipidG: 'Béo động vật',
+  plantLipidG: 'Béo thực vật',
+  glucidG: 'Bột đường',
+  protein: 'Cơ cấu đạm (P)',
+  lipid: 'Cơ cấu béo (L)',
+  glucid: 'Cơ cấu bột đường (G)',
+};
+export const EVAL_ROW_UNITS = {
+  kcal: 'kcal',
+  animalProteinG: 'g',
+  plantProteinG: 'g',
+  animalLipidG: 'g',
+  plantLipidG: 'g',
+  glucidG: 'g',
+  protein: 'g',
+  lipid: 'g',
+  glucid: 'g',
+};
 
 export const WEEKLY_STATUS = { DRAFT: 'DRAFT', PUBLISHED: 'PUBLISHED', REPLACED: 'REPLACED' };
 export const WEEKLY_STATUS_LABELS = { DRAFT: 'Bản nháp', PUBLISHED: 'Đã xuất bản', REPLACED: 'Đã thay thế' };
@@ -237,4 +279,4 @@ export const weekLabel = (weekStart) => {
   return `${d1}/${m1}${y1 !== y2 ? `/${y1}` : ''} – ${d2}/${m2}/${y2}`;
 };
 
-export const formatMoney = (n) => (typeof n === 'number' && !Number.isNaN(n) ? `${Math.round(n).toLocaleString('vi-VN')} đ` : '—');
+export { formatMoney } from '@/utils/format';

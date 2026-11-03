@@ -117,6 +117,14 @@ export const FRESH_RECEIPT_STATUS_LABELS = {
 export const FRESH_RESULT = { OK: 'OK', SHORT: 'SHORT', RETURNED: 'RETURNED' };
 export const FRESH_RESULT_LABELS = { OK: 'Đủ', SHORT: 'Thiếu', RETURNED: 'Trả lại' };
 
+/* Kiểm nhận hàng tươi trên BE (`/nutrition/fresh-checks`): hai lần trong ngày, kết quả theo từng thực phẩm. */
+export const FRESH_CHECK_RESULT = { ENOUGH: 'ENOUGH', SHORT: 'SHORT', OVER: 'OVER' };
+export const FRESH_CHECK_RESULT_LABELS = { ENOUGH: 'Đủ', SHORT: 'Thiếu', OVER: 'Thừa' };
+export const FRESH_ROUND_LABELS = { 1: 'Lần 1 — so bản dự trù', 2: 'Lần 2 — so suất đã xác nhận' };
+export const FRESH_ROUND_STATE_LABELS = { RECORDED: 'Đã ghi nhận', PENDING: 'Chờ kiểm nhận', UNAVAILABLE: 'Chưa kiểm nhận được' };
+// Thực đơn của từng ngày trong kỳ dự trù (`days[].planStatus`)
+export const FORECAST_DAY_PLAN_LABELS = { NONE: 'Chưa có thực đơn', DRAFT: 'Thực đơn nháp', PUBLISHED: 'Thực đơn đã công bố' };
+
 /* Meal count status as read from the attendance module. */
 export const MEAL_COUNT_STATUS_LABELS = {
   NONE: 'Chưa có số suất',
@@ -125,8 +133,18 @@ export const MEAL_COUNT_STATUS_LABELS = {
 };
 
 /* Phiếu nhập kho (BA): nháp không cộng tồn; xác nhận tạo lô, cộng tồn đúng một lần và khóa sửa. */
-export const RECEIPT_STATUS = { DRAFT: 'DRAFT', CONFIRMED: 'CONFIRMED' };
-export const RECEIPT_STATUS_LABELS = { DRAFT: 'Nháp', CONFIRMED: 'Đã xác nhận nhập' };
+export const RECEIPT_STATUS = { DRAFT: 'DRAFT', CONFIRMED: 'CONFIRMED', CANCELLED: 'CANCELLED' };
+export const RECEIPT_STATUS_LABELS = { DRAFT: 'Nháp', CONFIRMED: 'Đã xác nhận nhập', CANCELLED: 'Đã hủy' };
+
+// Loại biến động kho khô (BE StockMovementType)
+export const STOCK_MOVEMENT_TYPES = ['RECEIPT', 'DEDUCT', 'ADJUST', 'SHORTFALL_DEDUCT', 'RECEIPT_CANCEL'];
+export const STOCK_MOVEMENT_LABELS = {
+  RECEIPT: 'Nhập kho',
+  DEDUCT: 'Trừ theo suất',
+  ADJUST: 'Điều chỉnh (xác nhận lại suất)',
+  SHORTFALL_DEDUCT: 'Trừ phần thiếu',
+  RECEIPT_CANCEL: 'Hủy phiếu',
+};
 
 export const SUPPLIER_STATUS = { ACTIVE: 'ACTIVE', INACTIVE: 'INACTIVE' };
 export const SUPPLIER_STATUS_LABELS = { ACTIVE: 'Đang dùng', INACTIVE: 'Ngừng dùng' };

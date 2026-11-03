@@ -139,7 +139,43 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/nutritionCatalogApi.js'],
     facades: ['src/services/menu-planning/menuPlanningService.js', 'src/services/kitchen/kitchenService.js'],
   },
-  // Thực đơn tuần/mẫu, thư viện tham khảo còn tham chiếu id món/thực phẩm mẫu ⇒ còn demo
+  // Kho khô trên BE /nutrition/stock/*: tồn theo lô, phiếu nhập, lịch sử nhập/trừ, phần thiếu; route dài hơn nên thắng '/kitchen'
+  'dry-stock': {
+    source: 'api',
+    routes: ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls'],
+    files: ['src/services/dryStockApi.js'],
+  },
+  // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts và kiểm nhận hai lần /nutrition/fresh-checks; route dài hơn nên thắng '/kitchen'
+  'fresh-goods': {
+    source: 'api',
+    routes: ['/kitchen/forecast', '/kitchen/fresh-receipts'],
+    files: ['src/services/freshGoodsApi.js'],
+  },
+  // Bếp hôm nay (xem), lưu mẫu thức ăn (duyệt), ảnh bữa, khung giờ ảnh trên BE /nutrition/{kitchen/day,food-samples,meal-photos,meal-photo-windows}
+  'kitchen-records': {
+    source: 'api',
+    routes: ['/kitchen/published-menu', '/kitchen/food-samples', '/kitchen/meal-photos', '/kitchen/photo-windows'],
+    files: ['src/services/kitchenRecordsApi.js'],
+  },
+  // Kế hoạch tuần theo khối + công bố trên BE /nutrition/meal-plans; thắng '/menu' của thực đơn mẫu còn demo
+  'meal-plan': {
+    source: 'api',
+    routes: ['/menu/weekly', '/menu/statistics'],
+    files: ['src/services/mealPlanApi.js'],
+  },
+  // Bộ thực đơn mẫu 4 tuần theo khối trên BE /nutrition/menu-templates (NUT-13)
+  'menu-template': {
+    source: 'api',
+    routes: ['/menu/templates'],
+    files: ['src/services/menuTemplateApi.js'],
+  },
+  // Bán trú hôm nay trên BE GET /nutrition/day-board
+  'day-board': {
+    source: 'api',
+    routes: ['/boarding'],
+    files: ['src/services/dayBoardApi.js'],
+  },
+  // Thực đơn mẫu, thư viện tham khảo còn tham chiếu id món/thực phẩm mẫu ⇒ còn demo
   'menu-planning': {
     source: 'demo',
     routes: ['/menu'],
