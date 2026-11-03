@@ -164,6 +164,10 @@ Plan A không còn câu hỏi mở. Cần hỏi trước khi bắt đầu Plan B
 
 ## Progress log
 
+### 2026-11-03 — Kiểm chứng BE đầy đủ (Docker bật lại)
+- Verify BE (worktree `../CareNest_BE-micronutrients`): `node scripts/verify.mjs` → `VERIFY PASS full | tests 819 fail 0 err 0 skip 0 | archunit ok | snapshot ok | spotless ok | 508s` — migration V63, seed dev, ánh xạ JPA, OpenAPI snapshot đã chạy với Postgres.
+- FE: 3 commit `8b89cdc`, `6c5c349`, `7e8fb6f` (G94-272). BE: chưa commit, chờ nhánh + mã Jira (Q9).
+
 ### 2026-11-03 — Plan B (Phase 3, 4, 5) done, chờ user soát
 - Commit: chưa commit (FE trên nhánh hiện tại; BE ở worktree tách rời `../CareNest_BE-micronutrients`, HEAD `origin/dev` `7a4b4cf`, không tạo nhánh — cần nhánh + mã Jira, Q9).
 - Verify FE: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`.
