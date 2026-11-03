@@ -6,8 +6,8 @@ import { previewGoalFile } from '@/services/education-plan/educationPlanService'
 import { prepareFileImport, previewSummary, FILE_IMPORT_MODES } from '@/models/education-plan/importGoalFile.mjs';
 import { AGE_GROUPS, domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { downloadDoc, goalTemplateFile } from '@/utils/education-plan/yearPlanDoc';
+import { PLAN_IMPORT_ACCEPT as ACCEPT, validatePlanImportFile } from '@/utils/education-plan/planImportFile';
 
-const ACCEPT = '.docx,.doc,.xlsx,.csv';
 const SHOWN_WARNINGS = 8;
 
 export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yearRange, onImport, onClose }) {
@@ -46,6 +46,8 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
     setApplyError('');
     setState({ status: 'loading', name: file.name });
     try {
+      const validation = validatePlanImportFile(file);
+      if (validation) throw new Error(validation);
       const result = await previewGoalFile(file);
       if (alive.current && current === generation.current) setState({ status: 'ready', name: file.name, preview: result });
     } catch (error) {

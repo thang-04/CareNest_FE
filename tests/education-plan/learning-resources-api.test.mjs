@@ -18,7 +18,9 @@ test('media upload sends multipart fields and same request ID for retry', async 
     await learningResourceApi.upload(null, 'tp_1_2', file, binding, 'request-demo');
     assert.equal(calls[0].data.get('activityKey'), '9#0');
     assert.equal(calls[0].data.get('file').name, 'demo.pdf');
-    assert.equal(calls[1].headers.get('X-Request-Id'), calls[0].headers.get('X-Request-Id'));
+    assert.equal(calls[0].headers.get('Idempotency-Key'), 'request-demo');
+    assert.equal(calls[1].headers.get('Idempotency-Key'), 'request-demo');
+    assert.equal(calls[0].headers.get('X-Request-Id'), undefined);
     assert.equal(calls[0].timeout, 120000);
     assert.match(calls[0].url, /theme\/tp_1_2\/learning-resources$/);
   } finally {

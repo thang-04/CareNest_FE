@@ -62,6 +62,8 @@ import {
   validateClass,
   validateClassTeachers,
   validateCutoff,
+  semesterOf,
+  validateSemester,
   validatePermissionChange,
   validateSchoolYear,
   validateStaffAccount,
@@ -531,6 +533,8 @@ export const schoolConfigMockRepository = {
       const name = (form.name || '').trim();
       const errors = validateSchoolYear({ ...form, name }, others, { creating: !current });
       if (hasErrors(errors)) throw invalid(errors);
+      if (current?.semester1Start && (form.startDate > current.semester1Start || form.endDate < current.semester2End))
+        throw invalid({ endDate: `Học kỳ đã đặt phải nằm trong năm học (${formatDate(form.startDate)} – ${formatDate(form.endDate)})` });
       // The year id is used by classes and the header selector: it can change only before anything uses it.
       if (current && current.name !== name && current.status !== YEAR_STATUS.PLANNED)
         throw invalid({ name: 'Chỉ đổi được tên năm học khi năm học chưa bắt đầu' });
@@ -1038,12 +1042,59 @@ export const schoolConfigMockRepository = {
 
   /* ---------------- Cutoff (#19) ---------------- */
   /** Readable by every signed-in user: attendance and meal modules need the active cutoff. */
+  /** Bản demo của POST /school-years/{id}/copy: lớp, giờ chốt, học kỳ; GV/tổ trưởng chỉ có ở BE. */
+  async copyYear(targetYearId, { sourceYearId, parts = [] } = {}, user) {
+    const result = {
+      copiedClasses: [],
+      withoutRoom: [],
+      teacherClasses: 0,
+      teamLeaders: 0,
+      cutoffTime: null,
+      semesterCopied: false,
+      skipped: [],
+    };
+    if (!parts.length) throw invalid({ parts: 'Chọn ít nhất một phần để sao chép' });
+    if (parts.includes('CLASSES')) {
+      const r = await this.copyClasses(targetYearId, { sourceYearId }, user);
+      result.copiedClasses = r.copied;
+      result.withoutRoom = r.withoutRoom || [];
+      result.skipped.push(...r.skipped.map((s) => ({ part: 'CLASSES', ...s })));
+    }
+    ['TEACHERS', 'TEAM_LEADERS']
+      .filter((p) => parts.includes(p))
+      .forEach((part) => result.skipped.push({ part, name: 'Dữ liệu demo', reason: 'Chỉ sao chép được khi nối BE' }));
+    if (parts.includes('CUTOFF')) {
+      const [source, target] = await Promise.all([this.getCutoffSetting(sourceYearId), this.getCutoffSetting(targetYearId)]);
+      if (!target.setting && source.setting) {
+        const day = schoolNow().date;
+        const from = day > target.year.startDate ? day : target.year.startDate;
+        await this.saveCutoffSetting(targetYearId, { time: source.setting.time, effectiveFrom: from, note: '' }, user);
+        result.cutoffTime = source.setting.time;
+      }
+    }
+    return result;
+  },
+
   async getCutoffSetting(schoolYear) {
     await delay(80);
     const db = seeded();
     const year = findYear(db, schoolYear);
     const setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear) || null;
     return { year: clone(year), setting: clone(setting) };
+  },
+
+  async saveSemester(schoolYear, form, user) {
+    await delay();
+    if (!canConfigureSchool(user)) throw forbid();
+    seeded();
+    return writeDb((db) => {
+      const year = findYear(db, schoolYear);
+      assertOpenYear(year);
+      const errors = validateSemester(form, year);
+      if (hasErrors(errors)) throw invalid(errors);
+      Object.assign(year, semesterOf(form));
+      return clone(year);
+    });
   },
 
   async saveCutoffSetting(schoolYear, form, user) {
@@ -1377,17 +1428,21 @@ export const schoolConfigMockRepository = {
     return clone({ year, rows });
   },
 
-  async saveViceAssignment(schoolYear, userId, form, user) {
+  /** campusList: điểm trường hợp lệ; khi nối BE thì là danh sách điểm trường thật, mặc định là điểm trường demo. */
+  async saveViceAssignment(schoolYear, userId, form, user, campusList = null) {
     await delay();
     if (!canAssignVicePrincipal(user)) throw forbid();
     seeded();
     return writeDb((db) => {
+      const campuses = campusList || db.campuses;
+      const campusOf = (id) => campuses.find((c) => String(c.id) === String(id));
+      const knownCampus = (id) => !!campusOf(id);
       const year = findYear(db, schoolYear);
       assertOpenYear(year);
       const vp = db.users.find((u) => u.id === userId && u.role === ROLES.VICE_PRINCIPAL);
       if (!vp) throw notFound('Phó hiệu trưởng');
       const errors = validateVpAssignment(form);
-      if (form.campusId && !db.campuses.some((c) => c.id === form.campusId)) errors.campusId = 'Điểm trường không tồn tại';
+      if (form.campusId && !knownCampus(form.campusId)) errors.campusId = 'Điểm trường không tồn tại';
       if (hasErrors(errors)) throw invalid(errors);
       // Chỉ lưu các mảng được thêm; kiểm tra mức và điểm trường hợp lệ
       const areas = {};
@@ -1403,8 +1458,7 @@ export const schoolConfigMockRepository = {
         );
         // Mảng chỉ có phạm vi toàn trường (thực đơn, tổ trưởng nhóm tuổi)
         if (!area.scopes.includes('CAMPUS')) g.campusId = null;
-        if (g.campusId && !db.campuses.some((c) => c.id === g.campusId))
-          throw invalid({ areas: `${area.label}: điểm trường không tồn tại` });
+        if (g.campusId && !knownCampus(g.campusId)) throw invalid({ areas: `${area.label}: điểm trường không tồn tại` });
         areas[key] = composeAreaGrant(g);
       });
       // Sửa thực đơn = dịch vụ chung: chỉ một Phó hiệu trưởng mỗi năm (GBR-GEN-10)
@@ -1437,12 +1491,12 @@ export const schoolConfigMockRepository = {
       });
       a.history = [...(a.history || []), { before, userId: user.id, at: now(), note: (form.note || '').trim() }];
       syncAssignments(db, schoolYear);
-      const campus = db.campuses.find((c) => c.id === form.campusId);
+      const campus = campusOf(form.campusId) || {};
       notify(
         db,
         userId,
         'Bạn được phân công phụ trách điểm trường',
-        `Năm học ${year.name}: phụ trách ${campus.shortName || campus.name}${a.sharedService ? ', kèm dịch vụ chung (bán trú toàn trường)' : ''}.`,
+        `Năm học ${year.name}: phụ trách ${campus.shortName || campus.name || form.campusId}${a.sharedService ? ', kèm dịch vụ chung (bán trú toàn trường)' : ''}.`,
       );
       return clone(a);
     });

@@ -107,6 +107,24 @@ export const guardianMockRepository = {
     const db = await initialize(actor);
     return clone(guardiansOf(db, loadChild(db, childId, actor)));
   },
+  // Cùng shape BE GuardianCandidateResponse; SĐT nhân sự vẫn để addGuardian từ chối như trước
+  async lookupGuardian(childId, phone, actor) {
+    const db = await initialize(actor);
+    loadChild(db, childId, actor, true);
+    const account = db.parentAccounts.find((row) => normalizePhone(row.phone) === normalizePhone(phone));
+    if (!account) return { exists: false, userId: null, maskedFullName: null, staffAccount: false, alreadyLinked: false, status: null };
+    return {
+      exists: true,
+      userId: account.id,
+      maskedFullName: account.fullName
+        .split(/\s+/)
+        .map((word) => `${word[0]}***`)
+        .join(' '),
+      staffAccount: false,
+      alreadyLinked: (account.childIds || []).includes(childId),
+      status: account.status,
+    };
+  },
   async addGuardian(childId, form, actor) {
     await initialize(actor);
     const errors = validateGuardian(form);
@@ -129,7 +147,7 @@ export const guardianMockRepository = {
       let account = byPhone || byEmail;
       if (account && (account.childIds || []).includes(childId)) throw new ApiError(409, 'Phụ huynh đã liên kết với trẻ.');
       const newAccount = !account;
-      const password = newAccount ? temporaryPassword() : null;
+      const password = newAccount ? temporaryPassword() : null; // carenest:allow-secret
       if (!account) {
         account = {
           id: uid('pa'),
@@ -160,7 +178,7 @@ export const guardianMockRepository = {
       if (old) Object.assign(old, guardian);
       else child.guardians.push(guardian);
       if (newAccount) issuePassword(db, account.id, password);
-      return clone({ ...viewOf(account, guardian), newAccount, temporaryPassword: password });
+      return clone({ ...viewOf(account, guardian), newAccount, temporaryPassword: password }); // carenest:allow-secret
     });
   },
   async removeGuardian(childId, id, actor) {
@@ -192,9 +210,9 @@ export const guardianMockRepository = {
     return writeDb((db) => {
       const account = loadAccount(db, id, actor);
       account.mustChangePassword = true;
-      const password = temporaryPassword();
+      const password = temporaryPassword(); // carenest:allow-secret
       issuePassword(db, account.id, password);
-      return { userId: account.id, username: account.username, temporaryPassword: password };
+      return { userId: account.id, username: account.username, temporaryPassword: password }; // carenest:allow-secret
     });
   },
 };

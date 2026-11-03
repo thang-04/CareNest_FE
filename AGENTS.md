@@ -27,11 +27,11 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 5. **Không dữ liệu trẻ thật / sức khỏe / tài khoản / secret** trong prompt, log, console, fixture, mock, screenshot, commit.
 6. **Chưa rõ / PENDING / OPEN / lệch tài liệu ⇒ hỏi user tới khi rõ** (actor, field); cấu hình được chỉ khi user nói chưa chốt. AI chỉ tạo DRAFT; UI phải thể hiện trạng thái DRAFT và bước người duyệt.
 7. **Tri thức mới, bug không hiển nhiên** (kể cả cách thử thất bại) ⇒ `.ai/workflows/update-knowledge.md` ngay trong lượt; bug contract/nghiệp vụ ⇒ đề xuất ghi `BE:docs/knowledge/CROSS_MODULE_ISSUES.md`.
-8. **Không mở rộng scope V1:** không CSVC (cả sự cố lẫn tài sản — BE FAC REMOVED 29/10; màn cũ ẩn sau `FACILITY_ENABLED=false`), không chat thay Zalo, không chẩn đoán. Kế hoạch giáo dục, giáo án **có** trong V1 theo BE nhóm EDU, module education-plan (ADR-0020). Đối chiếu `BE:docs/context/PROJECT_CONTEXT.md` (Exclusions).
+8. **Không mở rộng scope V1:** không CSVC (cả sự cố lẫn tài sản — BE FAC REMOVED 29/10; mã nguồn Web đã loại bỏ theo yêu cầu 02/11), không chat thay Zalo, không chẩn đoán. Kế hoạch giáo dục, giáo án **có** trong V1 theo BE nhóm EDU, module education-plan (ADR-0020). Đối chiếu `BE:docs/context/PROJECT_CONTEXT.md` (Exclusions).
 
 ## Stack
 
-Đã có source: React 18 + Vite, **JavaScript/JSX** (không TypeScript), `react-router-dom` v7, axios, CSS thuần + `src/styles/tokens.css`, icon Tabler qua `src/components/ui/icons.js`; dữ liệu qua service facade → mock (localStorage, `VITE_USE_MOCK=true`) hoặc API thật. Server state bằng `useAsync`, không thư viện cache; test `node:test` (`tests/`).
+Đã có source: React 18 + Vite, **JavaScript/JSX** (không TypeScript), `react-router-dom` v7, axios, CSS thuần + `src/styles/tokens.css`, icon Tabler qua `src/components/ui/icons.js`; dữ liệu qua service facade → mock (localStorage, `VITE_USE_MOCK=true`) hoặc API thật. Auth: `VITE_AUTH_MODE=mock` mặc định, `gateway` đăng nhập qua BE theo `docs/integration/AUTH_FLOW.md` (token thật chỉ trong memory). Server state bằng `useAsync`, không thư viện cache; test `node:test` (`tests/`).
 - **Code** (thư mục, tầng, ranh giới module, thêm module 12 bước, CSS): `docs/architecture/CODING_GUIDE.md`.
 - **Giao diện** (token, danh mục component §6.3, công thức màn §8, trạng thái §9, tự kiểm §13): `DESIGN.md`. Không tự chế màu/nút/bảng/modal/badge — tra §6.3 trước, thiếu thì thêm vào phần dùng chung.
 - Đổi thư viện nền, cách lưu token/auth thật, thêm dependency ⇒ hỏi trước (làn L).

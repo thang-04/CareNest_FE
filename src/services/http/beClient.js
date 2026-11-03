@@ -1,12 +1,14 @@
 import axios from 'axios';
-import { DEV_BE_BASE_URL } from '@/config/env';
+import { API_BASE_URL, AUTH_MODE, DEV_BE_BASE_URL } from '@/config/env';
+import { refreshSession } from './authTransport';
 import { BE_ERROR_FIELDS } from './beErrorFields';
 import { translateBeError } from './beErrorMessages';
 import { getDevAccessToken, tokenForRetry } from './devKeycloakAuth';
-import { UNAUTHORIZED_EVENT } from './tokenStorage';
+import { tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
+import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 
 /*
- * Client cho API BE thật của Cấu hình trường (VITE_SCHOOL_CONFIG_API=true). Tách khỏi axiosClient chung để module
+ * Client cho API BE thật của các màn đã nối (SCHOOL_CONFIG_API trong env.js). Tách khỏi axiosClient chung để module
  * khác (vẫn mock) không bị ảnh hưởng. Chuyển đổi giữa dạng BE và dạng UI đang dùng:
  * - BE bọc { code, errorCode, desc, data } ⇒ trả về data. Lỗi có errorCode: desc đã là câu tiếng Việt, gắn vào ô theo
  *   BE_ERROR_FIELDS; lỗi validation (9001) data=[{field,message}] ⇒ details {field: message}.
@@ -22,16 +24,34 @@ let years = null; // [{ id: number, name: string }]
 const yearName = (id) => years?.find((y) => y.id === Number(id))?.name ?? id;
 const yearId = (name) => years?.find((y) => y.name === name)?.id ?? name;
 
-const raw = axios.create({ baseURL: DEV_BE_BASE_URL, timeout: 15000, headers: { 'Content-Type': 'application/json' } });
+const GATEWAY = AUTH_MODE === 'gateway';
+// Gateway: access token chỉ nằm trong bộ nhớ, làm mới qua POST /auth/refresh (cookie phiên); dev: Keycloak carenest-dev
+const accessToken = () => (GATEWAY ? tokenStorage.get() : getDevAccessToken());
+const retryToken = async (sentAuthorization) => {
+  if (!GATEWAY) return tokenForRetry(sentAuthorization);
+  const current = tokenStorage.get();
+  if (current && `Bearer ${current}` !== sentAuthorization) return current;
+  try {
+    return (await refreshSession()).accessToken;
+  } catch {
+    return null;
+  }
+};
+
+const raw = axios.create({
+  baseURL: GATEWAY ? API_BASE_URL : DEV_BE_BASE_URL,
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+});
 raw.interceptors.request.use(async (config) => {
-  const token = await getDevAccessToken();
+  const token = await accessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 // 401 giữa chừng: làm mới token (chung với axiosClient) rồi gửi lại một lần; vẫn 401 thì call() báo hết phiên
 raw.interceptors.response.use(undefined, async (error) => {
   if (error.response?.status === 401 && error.config && !error.config.devRetried) {
-    const fresh = await tokenForRetry(error.config.headers?.Authorization);
+    const fresh = await retryToken(error.config.headers?.Authorization);
     if (fresh) {
       error.config.devRetried = true;
       error.config.headers.Authorization = `Bearer ${fresh}`;
@@ -64,11 +84,12 @@ const ensureYears = async (refresh = false) => {
 const toNumberIfNumeric = (v) => (typeof v === 'string' && /^\d+$/.test(v) ? Number(v) : v);
 
 // UI -> BE (ô số / chọn để trống '' ⇒ null, BE không nhận chuỗi rỗng cho số/id)
-const toBe = (value, key) => {
-  if (value === '' && key) return null;
-  if (Array.isArray(value)) return value.map((v) => (isIdsKey(key || '') ? toNumberIfNumeric(v) : toBe(v)));
+const toBe = (value, key, preserveEmptyStrings = []) => {
+  if (value === '' && key && !preserveEmptyStrings.includes(key)) return null;
+  if (Array.isArray(value))
+    return value.map((v) => (isIdsKey(key || '') ? toNumberIfNumeric(v) : toBe(v, undefined, preserveEmptyStrings)));
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toBe(v, k)]));
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toBe(v, k, preserveEmptyStrings)]));
   }
   if (key && YEAR_KEYS.has(key) && typeof value === 'string' && YEAR_NAME.test(value)) return yearId(value);
   if (key && (isIdKey(key) || isIdsKey(key))) return toNumberIfNumeric(value);
@@ -136,13 +157,25 @@ const mapPath = (url) =>
 const hasUnknownYear = (...parts) =>
   (JSON.stringify(parts).match(/\d{4}-\d{4}/g) || []).some((name) => !years?.some((y) => y.name === name));
 
-const call = async (method, url, { params, data } = {}) => {
+const call = async (method, url, { params, data, preserveEmptyStrings = [] } = {}) => {
   try {
     await ensureYears();
     if (hasUnknownYear(decodeURIComponent(url), params, data)) await ensureYears(true);
-    const response = await raw.request({ method, url: mapPath(url), params: toBe(params), data: toBe(data) });
+    const response = await raw.request({
+      method,
+      url: mapPath(url),
+      params: toBe(params),
+      data: toBe(data, undefined, preserveEmptyStrings),
+    });
     // Năm học thay đổi ⇒ nạp lại bảng tên <-> id
-    if (method !== 'get' && url.startsWith('/school-years')) await ensureYears(true);
+    if (method !== 'get' && url.startsWith('/school-years')) {
+      await ensureYears(true);
+      // Header (SchoolYearContext) và các màn nghe sự kiện này để nạp lại danh sách năm, như khi dùng mock
+      window.dispatchEvent(new CustomEvent(DB_CHANGED_EVENT));
+    } else if (method !== 'get' && /^\/(locations|classes)\b/.test(url)) {
+      // Phòng / lớp đổi ⇒ các màn đang mở cùng lúc (Thiết lập năm học bước 2) nạp lại
+      window.dispatchEvent(new CustomEvent(DB_CHANGED_EVENT));
+    }
     return toUi(response.data.data);
   } catch (error) {
     // Token bị BE từ chối ⇒ luồng hết phiên chung (AuthContext đăng xuất)
@@ -151,10 +184,29 @@ const call = async (method, url, { params, data } = {}) => {
   }
 };
 
+/** Tải tệp nhị phân (ảnh) qua client có token; lỗi trả JSON trong blob được đọc lại để có errorCode/desc. */
+const getBlob = async (url) => {
+  try {
+    const response = await raw.request({ method: 'get', url, responseType: 'blob' });
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 401) window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+    if (typeof Blob !== 'undefined' && error.response?.data instanceof Blob) {
+      try {
+        error.response.data = JSON.parse(await error.response.data.text());
+      } catch {
+        error.response.data = undefined; // thân lỗi không phải JSON: dùng thông điệp theo status
+      }
+    }
+    throw normalizeError(error);
+  }
+};
+
 export const beClient = {
+  getBlob,
   get: (url, config = {}) => call('get', url, { params: config.params }),
   post: (url, data, config = {}) => call('post', url, { data, params: config.params }),
-  put: (url, data, config = {}) => call('put', url, { data, params: config.params }),
+  put: (url, data, config = {}) => call('put', url, { data, params: config.params, preserveEmptyStrings: config.preserveEmptyStrings }),
   patch: (url, data, config = {}) => call('patch', url, { data, params: config.params }),
   delete: (url, config = {}) => call('delete', url, { params: config.params }),
 };

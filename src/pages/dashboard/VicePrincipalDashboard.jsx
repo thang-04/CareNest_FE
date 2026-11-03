@@ -1,6 +1,5 @@
 import {
   BookOpenCheck,
-  Building2,
   CalendarCheck,
   ChefHat,
   CookingPot,
@@ -19,8 +18,6 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, KpiCard, Shortcuts, ShortList, TaskCount } from '@/components/dashboard/DashboardWidgets';
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { AttentionWidget, ClassRankWidget } from '@/components/dashboard/TodayWidgets';
-import { FacilityTasksWidget } from '@/components/dashboard/FacilityTasksWidget';
-import { FACILITY_ENABLED } from '@/config/app';
 import { getChildren, getParentAccounts } from '@/services/children/childrenService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getMealPreparations, getMissingFoodReports } from '@/services/kitchen/kitchenService';
@@ -30,16 +27,29 @@ import { MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstant
 import { MEAL_SESSION_LABELS, MISSING_STATUS, PREP_STATUS_LABELS } from '@/models/kitchen/kitchenConstants';
 import { todayInput } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
-
 const firstLoad = (q) => q.loading && q.data == null;
-
 const SHORTCUTS = [
-  { to: '/school/teachers', label: 'Phân công giáo viên', icon: UserCog },
-  { to: '/education/plan-reviews', label: 'Kế hoạch giáo dục', icon: BookOpenCheck },
-  { to: '/approvals', label: 'Chờ duyệt', icon: ListChecks },
-  { to: '/facility/issues', label: 'Vận hành điểm trường', icon: Building2 },
-  { to: '/kitchen/preparation', label: 'Dịch vụ bán trú', icon: ChefHat },
-].filter((s) => FACILITY_ENABLED || !s.to.startsWith('/facility'));
+  {
+    to: '/school/teachers',
+    label: 'Phân công giáo viên',
+    icon: UserCog,
+  },
+  {
+    to: '/education/plan-reviews',
+    label: 'Kế hoạch giáo dục',
+    icon: BookOpenCheck,
+  },
+  {
+    to: '/approvals',
+    label: 'Chờ duyệt',
+    icon: ListChecks,
+  },
+  {
+    to: '/boarding/today',
+    label: 'Bán trú hôm nay',
+    icon: ChefHat,
+  },
+];
 
 /**
  * #11 Vice Principal Dashboard (wireframe A, plan 2026-10-20): số hôm nay có so sánh, việc cần xử lý,
@@ -53,18 +63,63 @@ export default function VicePrincipalDashboard() {
   const campusId = user.campusId;
   const approvals = usePendingApprovals();
   const todayQ = useDashboardToday();
-
-  const childrenQ = useWidget((u) => getChildren({ schoolYear }, u), [schoolYear]);
-  const parentsQ = useWidget((u) => getParentAccounts({ status: 'NOT_ACTIVATED' }, u));
-  const countsQ = useWidget((u) => getMealCounts({ date }, u), [date]);
-  const prepQ = useWidget((u) => getMealPreparations({ campusId, date }, u), [campusId, date]);
-  const missingQ = useWidget((u) => getMissingFoodReports({ campusId, status: MISSING_STATUS.SUBMITTED }, u), [campusId]);
-
+  const childrenQ = useWidget(
+    (u) =>
+      getChildren(
+        {
+          schoolYear,
+        },
+        u,
+      ),
+    [schoolYear],
+  );
+  const parentsQ = useWidget((u) =>
+    getParentAccounts(
+      {
+        status: 'NOT_ACTIVATED',
+      },
+      u,
+    ),
+  );
+  const countsQ = useWidget(
+    (u) =>
+      getMealCounts(
+        {
+          date,
+        },
+        u,
+      ),
+    [date],
+  );
+  const prepQ = useWidget(
+    (u) =>
+      getMealPreparations(
+        {
+          campusId,
+          date,
+        },
+        u,
+      ),
+    [campusId, date],
+  );
+  const missingQ = useWidget(
+    (u) =>
+      getMissingFoodReports(
+        {
+          campusId,
+          status: MISSING_STATUS.SUBMITTED,
+        },
+        u,
+      ),
+    [campusId],
+  );
   const pendingPlacement = (childrenQ.data || []).filter((c) => c.status === CHILD_STATUS.PENDING_PLACEMENT).length;
   const att = todayQ.data?.attendance;
   const health = todayQ.data?.health;
   const counts = countsQ.data?.counts || [];
   const lunch = counts.find((c) => c.session === 'LUNCH');
+  // Cờ BE: số suất đổi sau khi xác nhận (mở lại điểm danh / điều chỉnh) ⇒ PHT cần xác nhận lại (NUT-03)
+  const reconfirm = counts.some((c) => c.needsReconfirmation);
   const preps = (prepQ.data || []).filter((p) => p.hasMenu);
   const campus = md.campusById(campusId);
   const shortcuts = SHORTCUTS.map((s) =>
@@ -79,7 +134,6 @@ export default function VicePrincipalDashboard() {
         }
       : s,
   );
-
   return (
     <div className="page">
       <DashboardHeader subtitle={campus ? campus.name : undefined} />
@@ -135,12 +189,16 @@ export default function VicePrincipalDashboard() {
             <KpiCard
               icon={Utensils}
               to={`/attendance/meal-count?date=${date}`}
-              tone="blue"
+              tone={reconfirm ? 'orange' : 'blue'}
               label="Suất ăn trưa đã báo"
               value={lunch ? lunch.totals.normal + lunch.totals.substitute : '—'}
               unit={lunch ? 'suất' : undefined}
               hint={
-                lunch ? `Sĩ số suất ăn: ${MEAL_COUNT_STATUS_LABELS[lunch.status] || lunch.status}` : 'Hôm nay không có bữa trưa bán trú'
+                reconfirm
+                  ? 'Sổ báo ăn đã thay đổi sau khi xác nhận – cần xác nhận lại'
+                  : lunch
+                    ? `Sĩ số suất ăn: ${MEAL_COUNT_STATUS_LABELS[lunch.status] || lunch.status}`
+                    : 'Hôm nay không có bữa trưa bán trú'
               }
               loading={firstLoad(countsQ)}
               error={countsQ.error}
@@ -213,8 +271,8 @@ export default function VicePrincipalDashboard() {
           <Widget
             title="Số liệu khác"
             icon={CookingPot}
-            to="/kitchen/preparation"
-            linkLabel="Tình trạng chế biến"
+            to="/boarding/today"
+            linkLabel="Bán trú hôm nay"
             loading={firstLoad(countsQ) || firstLoad(prepQ)}
             error={countsQ.error && prepQ.error ? countsQ.error : null}
             onRetry={() => {
@@ -244,7 +302,6 @@ export default function VicePrincipalDashboard() {
               })}
             />
           </Widget>
-          {FACILITY_ENABLED && <FacilityTasksWidget />}
         </div>
       </div>
     </div>

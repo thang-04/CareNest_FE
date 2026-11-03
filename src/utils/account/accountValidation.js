@@ -1,3 +1,4 @@
+import { AUTH_USE_MOCK } from '@/config/env';
 import { OTP_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, GENDER } from '@/models/account/accountConstants';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -12,9 +13,13 @@ export const passwordRules = (password = '') => [
     label: `Từ ${PASSWORD_MIN_LENGTH} đến ${PASSWORD_MAX_LENGTH} ký tự`,
     ok: password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH,
   },
-  { key: 'letter', label: 'Có ít nhất 1 chữ cái', ok: /[A-Za-z]/.test(password) },
-  { key: 'digit', label: 'Có ít nhất 1 chữ số', ok: /\d/.test(password) },
-  { key: 'space', label: 'Không chứa khoảng trắng', ok: password.length > 0 && !/\s/.test(password) },
+  ...(AUTH_USE_MOCK
+    ? [
+        { key: 'letter', label: 'Có ít nhất 1 chữ cái', ok: /[A-Za-z]/.test(password) },
+        { key: 'digit', label: 'Có ít nhất 1 chữ số', ok: /\d/.test(password) },
+        { key: 'space', label: 'Không chứa khoảng trắng', ok: password.length > 0 && !/\s/.test(password) },
+      ]
+    : []),
 ];
 
 export const validateEmailForm = ({ email }) => {
@@ -39,7 +44,8 @@ export const validatePasswordChange = ({ currentPassword, newPassword, confirmPa
   if (requireCurrent && !currentPassword) e.currentPassword = 'Vui lòng nhập mật khẩu hiện tại';
   if (!newPassword) e.newPassword = 'Vui lòng nhập mật khẩu mới';
   else if (passwordRules(newPassword).some((r) => !r.ok)) e.newPassword = 'Mật khẩu mới chưa đạt yêu cầu bên dưới';
-  else if (requireCurrent && currentPassword && newPassword === currentPassword) e.newPassword = 'Mật khẩu mới phải khác mật khẩu hiện tại';
+  else if (AUTH_USE_MOCK && requireCurrent && currentPassword && newPassword === currentPassword)
+    e.newPassword = 'Mật khẩu mới phải khác mật khẩu hiện tại';
   if (!confirmPassword) e.confirmPassword = 'Vui lòng nhập lại mật khẩu mới';
   else if (newPassword && confirmPassword !== newPassword) e.confirmPassword = 'Mật khẩu nhập lại không khớp';
   return e;

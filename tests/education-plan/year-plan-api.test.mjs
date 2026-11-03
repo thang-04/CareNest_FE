@@ -114,11 +114,15 @@ test('trạng thái UI → endpoint hành động của BE', () => {
 
 test('lưu kế hoạch mới: POST rồi trả bản BE (id thật), bóc envelope { code, desc, data }', async () => {
   const calls = [];
+  let createHeaders;
   axiosClient.defaults.adapter = async (config) => {
     calls.push(`${config.method.toUpperCase()} ${config.url}`);
     const envelope = (data, status = 200) => ({ status, statusText: 'OK', headers: {}, config, data: { code: status, desc: 'ok', data } });
     if (config.url === '/education-plans/config') return envelope(CONFIG);
-    if (config.method === 'post' && config.url === '/education-plans/goals') return envelope(detail(), 201);
+    if (config.method === 'post' && config.url === '/education-plans/goals') {
+      createHeaders = config.headers;
+      return envelope(detail(), 201);
+    }
     throw new AxiosError('Not found', AxiosError.ERR_BAD_REQUEST, config, null, {
       status: 404,
       statusText: 'Not Found',
@@ -133,6 +137,9 @@ test('lưu kế hoạch mới: POST rồi trả bản BE (id thật), bóc envel
 
   assert.equal(saved.id, '41');
   assert.deepEqual(calls, ['GET /education-plans/config', 'POST /education-plans/goals']);
+  // BE:BUG-261102 — proxy hosting ghi đè X-Request-Id; khóa chống gửi trùng đi ở Idempotency-Key (UUID)
+  assert.match(createHeaders.get('Idempotency-Key'), /^[0-9a-f-]{36}$/);
+  assert.equal(createHeaders.get('X-Request-Id'), undefined);
   // Lỗi của BE đọc từ desc
   await assert.rejects(axiosClient.get('/education-plans/goals/999'), { status: 404, message: 'Year plan not found' });
 });

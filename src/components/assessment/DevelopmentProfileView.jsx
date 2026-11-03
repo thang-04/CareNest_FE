@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, CalendarCheck, CalendarRange, ClipboardList, FileText, Flag, Ticket } from '@/components/ui/icons';
+import { Award, CalendarRange, ClipboardList, FileText, Flag, Ticket } from '@/components/ui/icons';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useChildDevelopment } from '@/hooks/assessment/useAssessment';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
@@ -9,7 +9,6 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { DevelopmentCharts } from '@/components/assessment/DevelopmentCharts';
 import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { formatDate } from '@/utils/format';
 import { ageLabel, GENDER_LABELS } from '@/models/School';
@@ -31,18 +30,35 @@ const SCOPES = [
   { key: 'WEEK', label: 'Tuần' },
 ];
 
-/** Period options of the school year (semesters assumed: Sep–Dec and Jan–May). */
-const periodOptions = (scope, schoolYear) => {
-  const { start, end } = schoolYearRange(schoolYear);
+const nextDay = (iso) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Kỳ của năm học đang chọn, chỉ kỳ đã bắt đầu. Ngày năm học và 2 học kỳ lấy từ Cấu hình thời gian;
+ * chưa cấu hình học kỳ thì tạm tách HK I hết 31/12.
+ */
+const periodOptions = (scope, schoolYear, year) => {
+  const { start, end } = year?.startDate && year?.endDate ? { start: year.startDate, end: year.endDate } : schoolYearRange(schoolYear);
   const today = todayIso();
   const until = end < today ? end : today;
-  if (scope === 'YEAR') return [{ start, end, label: periodLabel('YEAR', start, end) }];
-  if (scope === 'SEMESTER')
-    return [
-      { start, end: `${start.slice(0, 4)}-12-31`, label: 'Học kỳ I' },
-      { start: `${end.slice(0, 4)}-01-01`, end, label: 'Học kỳ II' },
-    ];
   if (until < start) return [];
+  if (scope === 'YEAR') return [{ start, end, label: periodLabel('YEAR', start, end) }];
+  if (scope === 'SEMESTER') {
+    const s1End = `${start.slice(0, 4)}-12-31`;
+    const semesters = year?.semester1Start
+      ? [
+          { start: year.semester1Start, end: year.semester1End, label: 'Học kỳ I' },
+          { start: year.semester2Start, end: year.semester2End, label: 'Học kỳ II' },
+        ]
+      : [
+          { start, end: s1End, label: 'Học kỳ I' },
+          { start: nextDay(s1End), end, label: 'Học kỳ II' },
+        ];
+    return semesters.filter((o) => o.start <= today).reverse();
+  }
   if (scope === 'MONTH')
     return monthsBetween(start, until)
       .map((m) => ({ start: m, end: monthEnd(m), label: periodLabel('MONTH', m) }))
@@ -57,9 +73,10 @@ const periodOptions = (scope, schoolYear) => {
  * Read-only: built from source records (GBR-DEV-01); only confirmed evaluations and approved rewards are shown.
  */
 export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, schoolYears } = useSchoolYear();
+  const year = schoolYears.find((y) => String(y.id) === String(schoolYear));
   const [scope, setScope] = useState('YEAR');
-  const options = useMemo(() => periodOptions(scope, schoolYear), [scope, schoolYear]);
+  const options = useMemo(() => periodOptions(scope, schoolYear, year), [scope, schoolYear, year]);
   const [periodIndex, setPeriodIndex] = useState(0);
   const period = options[Math.min(periodIndex, options.length - 1)] || null;
   const params = useMemo(() => (period ? { mode, start: period.start, end: period.end } : null), [mode, period]);
@@ -82,8 +99,10 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
   const daily = d?.dailyAssessments || [];
   const days = d?.days || [];
   const PAGE = 10;
-  const finishedWeeks = d?.weeks.filter((w) => w.finished) || [];
-  const missing = finishedWeeks.filter((w) => !w.evaluationConfirmed);
+  const tickets = d?.tickets || [];
+  const rewards = d?.rewards || [];
+  const published = d ? [...(d.yearEnd || []), ...(d.evaluations || [])] : [];
+  const domainStats = d?.domainStats || [];
 
   return (
     <>
@@ -95,12 +114,21 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
               <div>
                 <div className="fw-600 text-lg">{d.child.fullName}</div>
                 <div className="text-2 text-sm">
-                  {d.child.code} · {GENDER_LABELS[d.child.gender]} · {ageLabel(d.child.dateOfBirth)}
-                  {d.child.dateOfBirth ? ` (sinh ${formatDate(d.child.dateOfBirth)})` : ''} · {d.cls?.name || 'Chưa xếp lớp'}
+                  {[
+                    d.child.code,
+                    GENDER_LABELS[d.child.gender],
+                    d.child.dateOfBirth && `${ageLabel(d.child.dateOfBirth)} (sinh ${formatDate(d.child.dateOfBirth)})`,
+                    d.cls?.name || 'Chưa xếp lớp',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </div>
-                <div className="muted text-xs">
-                  Hồ sơ {period ? period.label.toLowerCase() : ''} · chỉ gồm dữ liệu đã ghi nhận và đánh giá đã công bố
-                </div>
+                {!loading && (
+                  <div className="muted text-sm">
+                    Có mặt {d.presentDays} ngày · Được đánh giá {days.length} ngày · {d.flagCount} cờ · {tickets.length} phiếu bé ngoan ·{' '}
+                    {published.length} đánh giá đã xác nhận
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -157,23 +185,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
         <LoadingState />
       ) : (
         <>
-          <div className="stat-grid mb-16">
-            {[
-              { key: 'present', tone: 'green', icon: CalendarCheck, value: d.presentDays, label: 'Ngày có mặt' },
-              { key: 'days', tone: 'blue', icon: ClipboardList, value: days.length, label: 'Ngày được đánh giá' },
-              { key: 'flags', tone: 'orange', icon: Flag, value: d.flagCount, label: 'Cờ bé ngoan' },
-              { key: 'tickets', tone: 'teal', icon: Ticket, value: d.tickets.length, label: 'Phiếu bé ngoan' },
-              { key: 'evals', tone: 'gray', icon: FileText, value: d.evaluations.length + d.yearEnd.length, label: 'Đánh giá đã công bố' },
-            ].map((k) => (
-              <div key={k.key} className={`stat-card stat-card--${k.tone}`}>
-                <div className="stat-card__value">{k.value}</div>
-                <div className="stat-card__label">{k.label}</div>
-                <StatCardIcon tone={k.tone} icon={k.icon} />
-              </div>
-            ))}
-          </div>
-
-          {days.length === 0 && daily.length === 0 && d.evaluations.length === 0 ? (
+          {days.length === 0 && daily.length === 0 && published.length === 0 && tickets.length === 0 ? (
             <div className="card">
               <EmptyState
                 icon={ClipboardList}
@@ -184,34 +196,35 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
           ) : (
             <>
               <PeriodSummaryTable data={d.summary} />
-              {d.weeks.length > 1 && (
+              {(d.weeks || []).length > 1 && (
                 <div className="mt-16">
                   <DevelopmentCharts weeks={d.weeks} />
                 </div>
               )}
 
-              <div className="grid-2 mt-16">
-                <div className="card">
-                  <div className="card__header">
-                    <div className="card__title">Mục tiêu đạt theo lĩnh vực</div>
-                  </div>
-                  <div className="card__body">
-                    {d.domainStats.map((s) => {
-                      const pct = s.possible ? Math.round((s.met / s.possible) * 100) : 0;
-                      return (
-                        <div key={s.domain} className="dg-domain">
-                          <span className="text-sm">{s.domain}</span>
-                          <div className="dg-domain__bar" role="img" aria-label={`${s.domain}: ${pct}%`}>
-                            <div className="dg-domain__fill" style={{ width: `${pct}%` }} />
+              <div className={domainStats.length ? 'grid-2 mt-16' : 'mt-16'}>
+                {domainStats.length > 0 && (
+                  <div className="card">
+                    <div className="card__header">
+                      <div className="card__title">Mục tiêu đạt theo lĩnh vực</div>
+                    </div>
+                    <div className="card__body">
+                      {domainStats.map((s) => {
+                        const pct = s.possible ? Math.round((s.met / s.possible) * 100) : 0;
+                        return (
+                          <div key={s.domain} className="dg-domain">
+                            <span className="text-sm">{s.domain}</span>
+                            <div className="dg-domain__bar" role="img" aria-label={`${s.domain}: ${pct}%`}>
+                              <div className="dg-domain__fill" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-sm dg-right">{s.possible ? `${pct}%` : '—'}</span>
                           </div>
-                          <span className="text-sm dg-right">{s.possible ? `${pct}%` : '—'}</span>
-                        </div>
-                      );
-                    })}
-                    {d.domainStats.length === 0 && <div className="muted">Chưa có mục tiêu được đánh giá trong kỳ.</div>}
-                    <div className="muted text-xs">Tỉ lệ = số lượt đạt / số lượt được đánh giá trong kỳ.</div>
+                        );
+                      })}
+                      <div className="muted text-xs">Tỉ lệ = số lượt đạt / số lượt được đánh giá trong kỳ.</div>
+                    </div>
                   </div>
-                </div>
+                )}
                 <div className="card">
                   <div className="card__header">
                     <div className="card__title">
@@ -219,11 +232,11 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                     </div>
                   </div>
                   <div className="card__body">
-                    {d.tickets.length === 0 && d.rewards.length === 0 ? (
+                    {tickets.length === 0 && rewards.length === 0 ? (
                       <div className="muted">Chưa có phiếu bé ngoan hoặc khen thưởng trong kỳ.</div>
                     ) : (
                       <ul className="stack dg-plain-list">
-                        {d.rewards.map((r) => (
+                        {rewards.map((r) => (
                           <li key={r.id} className="row">
                             <Award size={16} className="text-success" /> <b>{r.rewardTitle}</b>
                             <span className="muted text-sm">
@@ -231,7 +244,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                             </span>
                           </li>
                         ))}
-                        {d.tickets.map((t) => (
+                        {tickets.map((t) => (
                           <li key={t.id} className="row">
                             <Flag size={16} className="text-primary" /> {TICKET_TYPE_LABELS[t.type]}
                             <span className="muted text-sm">
@@ -248,20 +261,15 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
               <div className="card mt-16">
                 <div className="card__header">
                   <div className="card__title">
-                    <FileText size={18} /> Đánh giá đã công bố
+                    <FileText size={18} /> Đánh giá đã xác nhận
                   </div>
-                  {missing.length > 0 && (
-                    <span className="muted text-sm">
-                      {missing.length} tuần chưa có đánh giá công bố: {missing.map((w) => formatDate(w.weekStart)).join(', ')}
-                    </span>
-                  )}
                 </div>
                 <div className="card__body">
-                  {d.evaluations.length + d.yearEnd.length === 0 ? (
-                    <div className="muted">Chưa có đánh giá tuần, tháng hoặc cuối năm được giáo viên xác nhận trong kỳ.</div>
+                  {published.length === 0 ? (
+                    <div className="muted">Chưa có đánh giá tháng hoặc cuối năm được giáo viên xác nhận trong kỳ.</div>
                   ) : (
                     <div className="stack">
-                      {[...d.yearEnd, ...d.evaluations].map((e) => (
+                      {published.map((e) => (
                         <div key={e.id} className="card dg-card-flat">
                           <div className="card__body">
                             <div className="row row--between mb-8">

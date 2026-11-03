@@ -6,7 +6,13 @@
  */
 import { AGE_GROUPS } from '@/models/School';
 import { todayInput } from '@/utils/format';
-import { MEAL_SESSION_LABELS, defaultStorageOf, schoolWeekStart, sessionsOf } from '@/models/menu-planning/menuPlanningConstants';
+import {
+  MEAL_SESSION_LABELS,
+  defaultOriginOf,
+  defaultStorageOf,
+  schoolWeekStart,
+  sessionsOf,
+} from '@/models/menu-planning/menuPlanningConstants';
 
 /*
  * Số liệu demo nhập tay (BA: chuẩn dinh dưỡng chưa chốt, không hard-code ở constants):
@@ -72,6 +78,9 @@ const FAVORITE_FOODS = ['f01', 'f05', 'f07', 'f11'];
 // Đậu phụ, bún tươi thuộc nhóm khô theo mặc định nhưng phải mua tươi trong ngày
 const FRESH_EXCEPTIONS = ['f03', 'f14'];
 
+/** Nguồn số liệu dinh dưỡng của thực phẩm mẫu (NUT-05). */
+export const DEMO_NUTRIENT_SOURCE = 'Bảng thành phần thực phẩm Việt Nam (dữ liệu mẫu)';
+
 const buildFoods = () =>
   FOOD_ROWS.map(([id, name, group, unit, purchaseUnit, purchaseUnitSize, unitPrice, kcal, protein, lipid, glucid, allergens], i) => ({
     id,
@@ -84,6 +93,10 @@ const buildFoods = () =>
     ...(STOCK_UNITS[id] || { stockUnit: purchaseUnit, purchaseToStock: 1, stockUnitSize: purchaseUnitSize }),
     unitPrice,
     nutrition: { kcal, protein, lipid, glucid },
+    // Dầu ăn, đường là thực vật; thịt, thủy sản, trứng sữa là động vật
+    origin: defaultOriginOf(group),
+    nutrientSource: DEMO_NUTRIENT_SOURCE,
+    nutrientSourceVersion: '2017',
     wastePct: WASTE_BY_GROUP[group] ?? 0,
     favorite: FAVORITE_FOODS.includes(id),
     storage: FRESH_EXCEPTIONS.includes(id) ? 'FRESH' : defaultStorageOf(group),

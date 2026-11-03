@@ -9,6 +9,7 @@ import { SignatureUploader } from './SignatureUploader';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LoadingState } from '@/components/ui/States';
+import { needsDemoLabel } from '@/services/demoSource';
 
 function SavedSignatureCard({ sig, selected, ownerName, onSelect, onMakeDefault, onDelete }) {
   const [menu, setMenu] = useState(false);
@@ -200,6 +201,9 @@ export function SignaturePicker({ value, onChange, variant = 'full', error, disa
   return (
     <div className="sig-picker">
       {title && <div className="subsection-title">{title}</div>}
+      {needsDemoLabel('signatures') && (
+        <p className="text-sm text-2">Dữ liệu demo: chữ ký chỉ lưu trên trình duyệt này, chưa lưu vào hệ thống.</p>
+      )}
       <div className="sig-tabs" role="tablist">
         <button
           type="button"

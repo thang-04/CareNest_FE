@@ -8,6 +8,7 @@ const { attendanceMockRepository: repo } = await import('@/services/attendance/m
 const { isAttendanceUnlockActive } = await import('@/utils/attendance/attendanceUnlock');
 const { canUnlockAttendanceDay } = await import('@/utils/attendance/attendancePermissions');
 const { activeYearId } = await import('@/mocks/roomManagers');
+const { completeAttendance } = await import('../../kitchen/complete-attendance.mjs');
 const RealDate = Date;
 let clock;
 let cls;
@@ -83,6 +84,7 @@ test('xác nhận lại đồng bộ phiếu chưa nhận, giữ phiếu đã nh
   writeDb((db) => { db.mealCounts = db.mealCounts.filter((row) => row.date !== date); db.mealHandovers = db.mealHandovers.filter((row) => row.date !== date); });
   const counts = (await repo.getMealCounts({ date, campusId: cls.campusId }, vp)).counts;
   const target = counts.find((count) => count.classes.some((line) => line.classId === cls.id));
+  completeAttendance({ campusId: cls.campusId, date });
   await repo.confirmMealCount(target.id, vp);
   const original = structuredClone(readDb().mealCounts.find((count) => count.id === target.id).classes);
   writeDb((db) => {

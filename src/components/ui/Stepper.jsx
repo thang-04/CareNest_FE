@@ -4,8 +4,9 @@ import { Check } from '@/components/ui/icons';
 /**
  * Wizard header (Bước 1 → 2 → 3 → 4). Steps already reached are clickable.
  * <Stepper steps={['Thông tin chung', 'Chọn tài sản']} current={step} maxReached={max} onStepClick={goTo} />
+ * completed (tùy chọn): các bước đã làm xong theo dữ liệu thật ⇒ chấm xanh lá có dấu tích, kể cả bước đang mở.
  */
-export function Stepper({ steps, current, maxReached = current, onStepClick }) {
+export function Stepper({ steps, current, maxReached = current, onStepClick, completed }) {
   const ref = useRef(null);
 
   // Điện thoại: thanh bước cuộn ngang; đưa bước hiện tại vào giữa khung (không cuộn trang)
@@ -21,8 +22,13 @@ export function Stepper({ steps, current, maxReached = current, onStepClick }) {
       {steps.map((label, i) => {
         const state = i === current ? 'current' : i < current || i <= maxReached ? 'done' : 'todo';
         const clickable = i !== current && i <= maxReached && !!onStepClick;
+        const ok = completed?.has(i);
+        const check = completed ? ok : state === 'done' && i < current;
         return (
-          <li key={label} className={`stepper__item stepper__item--${state} ${i < current ? 'stepper__item--passed' : ''}`}>
+          <li
+            key={label}
+            className={`stepper__item stepper__item--${state} ${i < current ? 'stepper__item--passed' : ''} ${ok ? 'stepper__item--ok' : ''}`}
+          >
             <button
               type="button"
               className="stepper__btn"
@@ -30,7 +36,7 @@ export function Stepper({ steps, current, maxReached = current, onStepClick }) {
               disabled={!clickable}
               aria-current={i === current ? 'step' : undefined}
             >
-              <span className="stepper__dot">{state === 'done' && i < current ? <Check size={14} stroke={2.5} /> : i + 1}</span>
+              <span className="stepper__dot">{check ? <Check size={14} stroke={2.5} /> : i + 1}</span>
               <span className="stepper__label">{label}</span>
             </button>
           </li>

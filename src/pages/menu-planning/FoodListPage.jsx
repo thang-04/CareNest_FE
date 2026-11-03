@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Carrot, Eye, FileImport, Heart, HeartFilled, Pencil, Plus, RotateCcw, Table2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useFoods, useMenuAccess } from '@/hooks/menu-planning/useMenuPlanning';
+import { useFoods, useCatalogAccess } from '@/hooks/menu-planning/useMenuPlanning';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { saveFoodsBulk, setFoodFavorite } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -16,12 +16,13 @@ import { RowMenu } from '@/components/ui/RowMenu';
 import { AllergenChips, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { CategoryNav } from '@/components/menu-planning/CategoryNav';
 import { FoodImportPanel } from '@/components/menu-planning/FoodImportPanel';
-import { hasNutrition } from '@/utils/menu-planning/menuCalculations';
+import { hasNutrition, hasOrigin } from '@/utils/menu-planning/menuCalculations';
 import { foodUnits } from '@/utils/menu-planning/foodUnits';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import {
   ALLERGENS,
   FOOD_GROUP_LABELS,
+  FOOD_ORIGIN_LABELS,
   FOOD_STORAGE_LABELS,
   RECORD_STATUS,
   RECORD_STATUS_LABELS,
@@ -30,14 +31,14 @@ import '@/styles/modules/menu-planning.css';
 
 const PAGE = 8;
 const n = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN') : '—');
-const needsData = (f) => !hasNutrition(f) || !f.unitPrice;
+const needsData = (f) => !hasNutrition(f) || !hasOrigin(f) || !f.unitPrice;
 const QUICK = {
   '': () => true,
   MISSING: needsData,
   ALLERGEN: (f) => f.allergens.length > 0,
 };
-const QUICK_LABELS = { MISSING: 'Thiếu đơn giá hoặc dinh dưỡng', ALLERGEN: 'Có chất gây dị ứng' };
-const FILTER_DEFAULTS = { group: '', keyword: '', favorite: '', quick: '', allergen: '', status: '' };
+const QUICK_LABELS = { MISSING: 'Thiếu đơn giá, dinh dưỡng hoặc nguồn gốc', ALLERGEN: 'Có chất gây dị ứng' };
+const FILTER_DEFAULTS = { group: '', keyword: '', favorite: '', quick: '', allergen: '', status: '', origin: '' };
 // Ô sửa được ở chế độ sửa hàng loạt: [khóa, đọc giá trị hiện tại]
 const BULK_FIELDS = [
   ['unitPrice', (f) => f.unitPrice],
@@ -55,10 +56,10 @@ export default function FoodListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
-  const { canManage } = useMenuAccess();
+  const { canManage } = useCatalogAccess();
   // Bộ lọc lưu trên URL: mở thực phẩm rồi Back vẫn giữ nhóm, từ khóa và bộ lọc phụ
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
-  const { keyword, group, quick, allergen, status } = filters;
+  const { keyword, group, quick, allergen, status, origin } = filters;
   const favoriteOnly = filters.favorite === '1';
   const [page, setPage] = useState(1);
   const [bulk, setBulk] = useState(false);
@@ -69,7 +70,9 @@ export default function FoodListPage() {
   // Lọc nhóm ở client để danh mục bên trái đếm theo các bộ lọc còn lại
   const { items, loading, error, reload } = useFoods({ keyword, allergen, status });
   const { items: allFoods } = useFoods({});
-  const rows = items.filter((f) => (!group || f.group === group) && (!favoriteOnly || f.favorite) && QUICK[quick](f));
+  const rows = items.filter(
+    (f) => (!group || f.group === group) && (!origin || f.origin === origin) && (!favoriteOnly || f.favorite) && QUICK[quick](f),
+  );
   const filtered = activeKeys.length > 0;
   const safePage = Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE)));
   const changedCount = Object.values(drafts).reduce((sum, d) => sum + Object.keys(d).length, 0);
@@ -88,6 +91,7 @@ export default function FoodListPage() {
     quick: QUICK_LABELS[quick] || quick,
     allergen: `Dị ứng: ${allergen}`,
     status: `Trạng thái: ${RECORD_STATUS_LABELS[status] || status}`,
+    origin: `Nguồn gốc: ${FOOD_ORIGIN_LABELS[origin] || origin}`,
   };
   const chips = activeKeys.map((k) => ({ key: k, label: chipLabels[k], onRemove: () => change(k)('') }));
   const toggleFavorite = async (f) => {
@@ -201,7 +205,18 @@ export default function FoodListPage() {
               <input type="checkbox" checked={favoriteOnly} onChange={(e) => change('favorite')(e.target.checked ? '1' : '')} /> Chỉ hay
               dùng
             </label>
-            <FilterMore count={[quick, allergen, status].filter(Boolean).length}>
+            <FilterMore count={[quick, allergen, status, origin].filter(Boolean).length}>
+              <label className="field">
+                <span className="field__label">Nguồn gốc</span>
+                <select className="select" value={origin} onChange={(e) => change('origin')(e.target.value)}>
+                  <option value="">Động vật và thực vật</option>
+                  {Object.entries(FOOD_ORIGIN_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="field">
                 <span className="field__label">Số liệu</span>
                 <select className="select" value={quick} onChange={(e) => change('quick')(e.target.value)}>
@@ -251,6 +266,7 @@ export default function FoodListPage() {
                     <th>Đơn vị mua</th>
                     <th>Đơn vị kho</th>
                     <th className="num">Thải bỏ %</th>
+                    <th>Nguồn gốc</th>
                     <th className="num">Kcal</th>
                     <th className="num">Đạm</th>
                     <th className="num">Béo</th>
@@ -265,7 +281,7 @@ export default function FoodListPage() {
                     <SkeletonRows rows={5} cols={13} />
                   ) : rows.length === 0 ? (
                     <tr>
-                      <td colSpan={13}>
+                      <td colSpan={14}>
                         <EmptyState
                           icon={Carrot}
                           title={filtered ? 'Không có kết quả phù hợp' : 'Chưa có thực phẩm'}
@@ -320,6 +336,7 @@ export default function FoodListPage() {
                         <td>{f.unitPrice || bulk ? f.purchaseUnit : '—'}</td>
                         <td>{foodUnits(f).stockUnit}</td>
                         <td className="num">{bulk ? cell(f, ...BULK_FIELDS[1]) : n(f.wastePct ?? 0)}</td>
+                        <td className="nowrap">{FOOD_ORIGIN_LABELS[f.origin] || <span className="td-warn">Chưa có</span>}</td>
                         {BULK_FIELDS.slice(2).map(([key, read]) => (
                           <td key={key} className="num nowrap">
                             {bulk ? cell(f, key, read) : read(f) == null ? <span className="td-warn">—</span> : n(read(f))}

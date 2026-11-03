@@ -11,6 +11,20 @@ Nguyên tắc:
 
 `BE:<path>` = `../CareNest_BE/<path>` (xem `AGENTS.md`).
 
+## Ẩn menu/route theo mã quyền BE (2026-11-01)
+
+- `hasBePermission(user, ...codes)` (`src/utils/account/accountPermissions.js`) đọc `user.bePermissions` từ `/accounts/me`; chế độ mock không có dữ liệu này ⇒ không lọc thêm, menu theo vai trò như cũ.
+- Mục menu gắn mã quyền (`ITEM_BE_PERMISSIONS` trong `src/layouts/menuConfig.js`): `parentActivation` → `PARENT_ACCOUNT_MANAGE`, `schoolRoles` → `PERMISSION_MANAGE`. Bị thu hồi quyền ⇒ đăng nhập lại không thấy mục; mở thẳng đường dẫn ⇒ 403 chuẩn.
+- `/children/activation` (Tài khoản phụ huynh): Hiệu trưởng và Phó hiệu trưởng có `PARENT_ACCOUNT_MANAGE` (AUTH-18); Hiệu trưởng có mục menu trong nhóm Trẻ.
+
+## Bán trú nối BE — kho khô, kế hoạch tuần, Bán trú hôm nay (2026-11-03)
+
+[Plan](../plans/active/2026-11-03-day-boarding-l2-l3-fe.md). Chỉ HT, PHT; bếp không có route Web (AUTH-21). Build nối BE (`VITE_USE_MOCK=false`) dùng trang mới, build mock giữ màn demo cũ (chọn qua `isDemoModule`, `src/routes/AppRoutes.jsx`).
+
+- `/boarding/today` — Bán trú hôm nay (`GET /nutrition/day-board`): 5 việc mỗi điểm trường. Build mock vẫn là `KitchenFlowPage`. Sidebar nhóm "Bán trú hôm nay" thay hai mục "Việc hôm nay" (`/kitchen`) và "Quy trình thực đơn" (`/menu/flow`); hai đường dẫn cũ chuyển hướng về đây ở build BE.
+- `/menu/weekly` — kế hoạch tuần theo khối + công bố (`/nutrition/meal-plans`); `/menu/weekly/new`, `/menu/weekly/:id/edit`, `/menu/plans` chuyển về `/menu/weekly` ở build BE.
+- `/kitchen/dry-stock`, `/kitchen/stock-receipts`, `/kitchen/stock-history`, `/kitchen/stock-shortfalls` — một trang bốn tab (`/nutrition/stock/*`); `/kitchen/stock-receipts/new`, `/kitchen/stock-receipts/:id` là phiếu nhập (build mock: `/:id/edit`). Nút ghi theo cờ `canManage` của BE và mã quyền `STOCK_MANAGE`; `MENU_MANAGE` cho kế hoạch tuần.
+
 ## Route thực tế bổ sung — ghép chọn lọc 2026-10-19
 
 User chốt ngoại lệ sidebar nhóm Thực đơn sau Phase 2: menu PHT mở trực tiếp `/menu/flow` và `/menu/setup`, rồi foods/dishes/menus/weekly theo thứ tự nguồn. Principal có setup/weekly theo guard cũ. Không đổi nhóm khác hoặc logic giới hạn mảng phụ trách của PHT. Các route legacy còn nguyên, không xóa màn khi bỏ mục sidebar trùng chức năng.

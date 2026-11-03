@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { SCHOOL_CONFIG_API } from '@/config/env';
 import { UserCog, Utensils } from '@/components/ui/icons';
 import { Avatar } from '@/components/ui/Avatar';
 import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
@@ -32,14 +34,18 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
 
       <div className="sc-vp-card__tags">
         {a ? <span className="chip chip--blue">Phụ trách {campusName(a.campusId)}</span> : <UnassignedBadge />}
-        {a?.sharedService && (
+        {!SCHOOL_CONFIG_API && a?.sharedService && (
           <span className="chip chip--teal">
             <Utensils size={13} /> Phụ trách thực đơn bán trú
           </span>
         )}
       </div>
 
-      {a ? (
+      {a && SCHOOL_CONFIG_API ? (
+        <p className="text-sm muted">
+          Quyền thao tác được quản lý tại <Link to="/school/roles">Vai trò & quyền</Link>.
+        </p>
+      ) : a ? (
         <div className="table-wrap">
           <table className="table table--grid table--compact sc-vp-table">
             <thead>

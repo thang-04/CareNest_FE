@@ -36,7 +36,16 @@ test('BA 02: thực phẩm cũ chưa khai đơn vị kho ⇒ đơn vị kho = đ
 });
 
 test('BA 02: tỷ lệ quy đổi bằng 0, âm hoặc trống bị chặn; thiếu đơn vị kho bị chặn', () => {
-  const base = { name: 'Bột thử', group: 'GRAIN', unit: 'g', purchaseUnit: 'bao', purchaseUnitSize: 1000, stockUnit: 'kg' };
+  const base = {
+    name: 'Bột thử',
+    group: 'GRAIN',
+    unit: 'g',
+    purchaseUnit: 'bao',
+    purchaseUnitSize: 1000,
+    stockUnit: 'kg',
+    origin: 'PLANT',
+    nutrientSource: 'Bảng TPVN',
+  };
   assert.ok(validateFood({ ...base, purchaseToStock: 0, stockUnitSize: 1000 }).purchaseToStock);
   assert.ok(validateFood({ ...base, purchaseToStock: 10, stockUnitSize: -1 }).stockUnitSize);
   assert.ok(validateFood({ ...base, purchaseToStock: '', stockUnitSize: 1000 }).purchaseToStock);
@@ -55,10 +64,32 @@ test('lưu thực phẩm có đơn vị kho: g/ml của đơn vị mua = hai t�
     stockUnitSize: 1000,
     unitPrice: 500000,
     storage: 'DRY',
+    origin: 'PLANT',
+    nutrientSource: 'Bảng TPVN',
   };
   const saved = await menu.saveFood(null, payload, VP);
   assert.deepEqual([saved.stockUnit, saved.purchaseToStock, saved.stockUnitSize, saved.purchaseUnitSize], ['kg', 25, 1000, 25000]);
   await rejects(menu.saveFood(null, { ...payload, name: 'Bột sai', stockUnitSize: 0 }, VP), 422);
+});
+
+test('NUT-05: thiếu nguồn số liệu dinh dưỡng ⇒ form báo lỗi đúng ô, mock chặn lưu 422', async () => {
+  const payload = {
+    name: 'Bột ngô thử',
+    group: 'GRAIN',
+    origin: 'PLANT',
+    unit: 'g',
+    purchaseUnit: 'kg',
+    purchaseUnitSize: 1000,
+    nutrientSource: ' ',
+  };
+  assert.ok(validateFood(payload).nutrientSource);
+  await assert.rejects(menu.saveFood(null, payload, VP), (e) => e.status === 422 && !!e.details.nutrientSource);
+  const saved = await menu.saveFood(null, { ...payload, nutrientSource: 'Bảng TPVN', nutrientSourceVersion: '2017' }, VP);
+  assert.deepEqual([saved.nutrientSource, saved.nutrientSourceVersion], ['Bảng TPVN', '2017']);
+  assert.ok(
+    (await menu.listFoods({}, VP)).every((f) => f.nutrientSource),
+    'thực phẩm mẫu có nguồn số liệu',
+  );
 });
 
 test('đã có lô / phiếu nhập: khóa đơn vị kho và g/ml trong một đơn vị kho; đơn vị mua vẫn sửa được', async () => {

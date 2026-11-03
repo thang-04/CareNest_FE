@@ -131,7 +131,7 @@ export function StaffFormModal({ account, campuses, existing, onClose }) {
         </p>
         <p className="text-sm text-2">
           {saved.campusId
-            ? 'Quyền theo mảng đang theo mặc định của vai trò. Đặt quyền riêng (thực đơn, phân công giáo viên, CSVC) ở màn Phân công Phó hiệu trưởng.'
+            ? 'Quyền theo mảng đang theo mặc định của vai trò. Quản lý quyền tại màn Vai trò & quyền.'
             : 'Chưa có điểm trường nên chưa thấy dữ liệu theo điểm trường. Hãy phân công điểm trường và quyền ở màn Phân công Phó hiệu trưởng.'}
         </p>
         <div className="row row--wrap mt-12">

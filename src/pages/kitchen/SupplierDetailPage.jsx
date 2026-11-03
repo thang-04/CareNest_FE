@@ -6,9 +6,9 @@ import { useToast } from '@/contexts/ToastContext';
 import { useSupplier } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState } from '@/components';
 import { ReceiptStatusBadge, SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
-import { deleteSupplier, saveSupplier } from '@/services/kitchen/kitchenService';
-import { canManageStock, canManageSuppliers } from '@/utils/kitchen/kitchenPermissions';
-import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
+import { canEditSuppliers, deleteSupplier, saveSupplier } from '@/services/kitchen/kitchenService';
+import { canManageStock } from '@/utils/kitchen/kitchenPermissions';
+import { supplierCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate } from '@/utils/format';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
@@ -24,11 +24,11 @@ export default function SupplierDetailPage() {
   const { data: s, loading, error, reload } = useSupplier(id);
   const [ask, setAsk] = useState(null);
   const [actionError, setActionError] = useState('');
-  const canManage = canManageSuppliers(user);
+  const canManage = canEditSuppliers(user);
   // Phiếu nhập chỉ PHT mở được (route nhập kho dành cho PHT)
   const canOpenReceipt = canManageStock(user);
 
-  const crumbs = kitchenCrumbs(KITCHEN_PAGES.suppliers, s?.name || 'Chi tiết');
+  const crumbs = supplierCrumbs(s?.name || 'Chi tiết');
   if (loading && !s) return <LoadingState />;
   if (error || !s)
     return (
@@ -54,20 +54,22 @@ export default function SupplierDetailPage() {
     try {
       await deleteSupplier({ id }, user);
       toast.success(`Đã xóa nhà cung cấp ${s.name}.`);
-      navigate('/kitchen/suppliers');
+      navigate('/menu/suppliers');
     } catch (err) {
       setAsk(null);
       setActionError(err.message);
     }
   };
 
+  // Trường nguồn dữ liệu không có (BE: mã, mã số thuế; người chỉ xem không nhận CCCD) thì ẩn dòng
   const info = [
     ['Mã', s.code],
     ['Người liên hệ', s.contactName],
     ['Số điện thoại', s.phone],
     ['Mã số thuế', s.taxCode],
+    ['CCCD người giao hàng', s.idCard],
     ['Địa chỉ', s.address],
-  ];
+  ].filter(([, value]) => value !== undefined);
 
   return (
     <div className="page">
@@ -87,7 +89,7 @@ export default function SupplierDetailPage() {
             <button className="btn" onClick={() => setAsk('toggle')}>
               {active ? 'Ngừng dùng' : 'Dùng lại'}
             </button>
-            <Link className="btn btn--primary" to={`/kitchen/suppliers/${id}/edit`}>
+            <Link className="btn btn--primary" to={`/menu/suppliers/${id}/edit`}>
               <Pencil size={16} /> Sửa nhà cung cấp
             </Link>
           </div>

@@ -1,7 +1,7 @@
 // E1 mirror skills · E2 link/đường dẫn trong markdown · E7 frontmatter `paths` của rules
 import { existsSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { crossRepoRef, globToRegExp, isGitIgnored, matchAny, parseFrontmatter, readText, siblingRoot } from "./lib.mjs";
+import { crossRepoRef, globToRegExp, isGitIgnored, matchAny, parseFrontmatter, readText, siblingPath } from "./lib.mjs";
 
 // E1 — `.agents/skills` phải là bản sao y hệt `.claude/skills` (Codex đọc bản .agents)
 export function checkSkillsMirror(root, files, report) {
@@ -35,8 +35,8 @@ function resolveToken(root, config, file, token) {
   const stripLine = (p) => p.replace(/#.*$/, "").replace(/:\d+(-\d+)?$/, "");
   const ref = crossRepoRef(token);
   if (ref) {
-    const base = siblingRoot(root, config, ref.repo);
-    return base ? (existsSync(join(base, stripLine(ref.rel))) ? "ok" : "missing") : "skip";
+    const abs = siblingPath(root, config, ref.repo, stripLine(ref.rel));
+    return abs ? (existsSync(abs) ? "ok" : "missing") : "skip";
   }
   const clean = stripLine(token);
   const bases = [dirname(file)];
@@ -45,8 +45,8 @@ function resolveToken(root, config, file, token) {
   if (bases.some((b) => existsSync(join(root, b, clean)))) return "ok";
   // Có ở repo sibling (vd. README_AI mô tả FE/APP) ⇒ không tính lỗi
   for (const repo of ["BE", "FE", "APP"]) {
-    const base = repo === config.repo ? null : siblingRoot(root, config, repo);
-    if (base && existsSync(join(base, clean))) return "ok";
+    const abs = repo === config.repo ? null : siblingPath(root, config, repo, clean);
+    if (abs && existsSync(abs)) return "ok";
   }
   return isGitIgnored(root, clean) ? "ok" : "missing";
 }

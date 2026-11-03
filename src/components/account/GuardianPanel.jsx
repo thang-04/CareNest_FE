@@ -9,14 +9,21 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { PrintHeader } from '@/components/print/PrintHeader';
 import { AccountStatusBadge } from '@/components/account/AccountStatusBadge';
-import { addGuardian, removeGuardian, resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
+import {
+  addGuardian,
+  IS_GUARDIAN_DEMO,
+  lookupGuardian,
+  removeGuardian,
+  resetParentPassword,
+  updateParentStatus,
+} from '@/services/account/guardianService';
 import { GUARDIAN_RELATIONSHIPS, GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
 import { validateGuardian } from '@/utils/account/guardianValidation';
 import { avatarTone, formatDate, initials } from '@/utils/format';
 
 const EMPTY_FORM = { phone: '', fullName: '', email: '', relationship: 'MOTHER' };
 
-// Quản lý tài khoản demo qua adapter legacy; chưa nối hợp đồng BE/App.
+// Tài khoản phụ huynh của một trẻ (AUTH-18, AUTH-19), qua guardianService (mock hoặc BE).
 export function GuardianPanel({ child, classroomName, onChanged, initialAdding = false, _isModal = false }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -26,6 +33,7 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [candidate, setCandidate] = useState(null);
   const [slip, setSlip] = useState(null);
   const submitting = useRef(false);
 
@@ -39,6 +47,16 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
     onChanged();
   };
 
+  const submit = async (payload) => {
+    const created = await addGuardian(child.id, payload, user);
+    setForm(EMPTY_FORM);
+    setAdding(false);
+    refresh();
+    if (created.newAccount)
+      setSlip({ username: created.username, fullName: created.fullName, password: created.temporaryPassword }); // carenest:allow-secret
+    else toast.success('Đã liên kết bé với tài khoản sẵn có của số điện thoại này; mật khẩu giữ nguyên.');
+  };
+
   const add = async (e) => {
     e.preventDefault();
     if (submitting.current) return;
@@ -48,19 +66,28 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
     submitting.current = true;
     setSaving(true);
     try {
-      const created = await addGuardian(child.id, form, user);
-      setForm(EMPTY_FORM);
-      setAdding(false);
-      refresh();
-      if (created.newAccount)
-        setSlip({ username: created.username, fullName: created.fullName, password: created.temporaryPassword }); // carenest:allow-secret
-      else toast.success('Số điện thoại đã có tài khoản phụ huynh; đã liên kết thêm bé này, mật khẩu giữ nguyên.');
+      // AUTH-18: SĐT đã có tài khoản ⇒ người nhập xác nhận đúng người rồi mới liên kết
+      const existing = await lookupGuardian(child.id, form.phone, user);
+      if (existing.exists && existing.alreadyLinked) setErrors({ phone: 'Số điện thoại này đã liên kết với bé.' });
+      else if (existing.exists) setCandidate(existing);
+      else await submit(form);
     } catch (err) {
       if (err.details) setErrors(err.details);
       toast.error(err, 'Không thêm được phụ huynh');
     } finally {
       submitting.current = false;
       setSaving(false);
+    }
+  };
+
+  const confirmCandidate = async () => {
+    try {
+      await submit({ ...form, confirmUserId: candidate.userId });
+    } catch (err) {
+      if (err.details) setErrors(err.details);
+      toast.error(err, 'Không liên kết được phụ huynh');
+    } finally {
+      setCandidate(null);
     }
   };
 
@@ -108,7 +135,7 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
       : confirm.type === 'password'
         ? {
             title: 'Cấp mật khẩu mới và in phiếu',
-            message: `Cấp mật khẩu tạm demo mới cho ${target.fullName}? Chưa tác động phiên đăng nhập trên App thật.`,
+            message: `Cấp mật khẩu tạm mới cho ${target.fullName}? Mật khẩu cũ hết hiệu lực và các phiên đăng nhập hiện có bị đăng xuất.`,
           }
         : {
             title: target.status === 'ACTIVE' ? 'Khóa tài khoản phụ huynh' : 'Mở khóa tài khoản phụ huynh',
@@ -189,9 +216,17 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
                   ))}
                 </select>
               </FormField>
-              <FormField label="Email liên hệ" error={errors.email} hint="Không bắt buộc; giữ để liên hệ và thông báo demo.">
-                <input className="input" type="email" value={form.email} maxLength={150} onChange={(e) => set({ email: e.target.value })} />
-              </FormField>
+              {IS_GUARDIAN_DEMO && (
+                <FormField label="Email liên hệ" error={errors.email} hint="Không bắt buộc; giữ để liên hệ và thông báo demo.">
+                  <input
+                    className="input"
+                    type="email"
+                    value={form.email}
+                    maxLength={150}
+                    onChange={(e) => set({ email: e.target.value })}
+                  />
+                </FormField>
+              )}
               <div className="row gap-2">
                 {guardians.length > 0 && (
                   <button className="btn" type="button" onClick={() => setAdding(false)}>
@@ -220,12 +255,24 @@ export function GuardianPanel({ child, classroomName, onChanged, initialAdding =
         onConfirm={onConfirm}
         onClose={() => setConfirm(null)}
       />
+      <ConfirmationModal
+        open={!!candidate}
+        title="Số điện thoại đã có tài khoản"
+        message={
+          candidate &&
+          `Tài khoản của ${candidate.maskedFullName}${candidate.staffAccount ? ' (đang là tài khoản nhân sự, sẽ thêm vai trò phụ huynh)' : ''}. ` +
+            `Đúng người thì liên kết bé ${child.fullName} với tài khoản này; mật khẩu giữ nguyên.`
+        }
+        confirmLabel="Đúng người, liên kết"
+        onConfirm={confirmCandidate}
+        onClose={() => setCandidate(null)}
+      />
       {slip && <AccountSlip slip={slip} child={child} classroomName={classroomName} onClose={() => setSlip(null)} />}
     </>
   );
 }
 
-// Phiếu minh họa: không dùng thông tin thật, không xác nhận đăng nhập App.
+// Phiếu in một lần: mật khẩu tạm chỉ có lúc cấp (AUTH-18).
 export function AccountSlip({ slip, child, classroomName, onClose }) {
   return (
     <Modal
@@ -279,7 +326,8 @@ export function AccountSlip({ slip, child, classroomName, onClose }) {
           </table>
         </div>
         <div className="ps-section">
-          Phiếu minh họa giao diện Web, chưa kết nối đăng nhập ứng dụng CareNest. Chỉ sử dụng dữ liệu demo, không dùng mật khẩu thật.
+          Đăng nhập ứng dụng CareNest bằng tên đăng nhập và mật khẩu tạm trên; lần đăng nhập đầu phải đổi mật khẩu. Không chia sẻ phiếu này
+          cho người khác.
         </div>
       </div>
     </Modal>

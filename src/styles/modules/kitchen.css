@@ -792,3 +792,63 @@
 .kb-span-all {
   grid-column: 1 / -1;
 }
+
+/* Kho khô (BE): thanh lọc trong thẻ, dòng gom theo thực phẩm, lô thụt vào */
+.kb-toolbar--card {
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.kb-field-food {
+  min-width: 220px;
+}
+.kb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--btn-height);
+  font-size: var(--fs-sm);
+}
+.table.table--grid .kb-group-row th {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
+.table.table--grid .kb-group-row th.num {
+  text-align: center;
+}
+.kb-lot-name {
+  padding-left: var(--space-6);
+}
+
+/* Hàng tươi (BE): kết quả Đủ/Thiếu/Thừa, đầu cột ngày của bản dự trù, ô ghi chú trống khi in */
+.kb-res.kb-res--fresh button[aria-pressed='true'][data-r='ENOUGH'] {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+  font-weight: var(--fw-semibold);
+}
+.kb-res.kb-res--fresh button[aria-pressed='true'][data-r='SHORT'] {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+  font-weight: var(--fw-semibold);
+}
+.kb-res.kb-res--fresh button[aria-pressed='true'][data-r='OVER'] {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font-weight: var(--fw-semibold);
+}
+.kb-day-plan {
+  margin-top: var(--space-1);
+  font-weight: var(--fw-regular);
+}
+.kb-field-action {
+  display: flex;
+  align-items: flex-end;
+}
+.kb-stale {
+  opacity: 0.6;
+}
+.kb-print-note {
+  min-width: 40mm;
+  height: 10mm;
+}

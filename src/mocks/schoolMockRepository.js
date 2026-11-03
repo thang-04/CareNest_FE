@@ -9,6 +9,20 @@ import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 /** Databases saved before the school structure existed get the seed once. */
 export const ensureSchoolSeeded = () => {
   const db = readDb();
+  if (db.children && new Set(db.children.map((c) => c.id)).size !== db.children.length) {
+    writeDb((d) => {
+      const seen = new Set();
+      d.children = d.children.filter((row) => {
+        if (!seen.has(row.id)) {
+          seen.add(row.id);
+          return true;
+        }
+        // Giữ bản đầu như các phép tra cứu cũ; lưu bản xung đột để không mất dữ liệu demo đã nhập.
+        (d.demoIdentityConflicts ||= []).push({ collection: 'children', row: clone(row) });
+        return false;
+      });
+    });
+  }
   // Dữ liệu demo cũ: bổ sung trẻ Lớp Mầm 1 cho đủ 25 (một lần, theo id)
   if (db.children && !db.m1Children25) {
     writeDb((d) => {

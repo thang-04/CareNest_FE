@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Shapes, UserCog } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYearItem, useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { DateInput } from '@/components/form/DateInput';
@@ -17,24 +19,16 @@ import { YEAR_ACTION_LABELS, YEAR_STATUS } from '@/models/school-config/schoolCo
 import { canConfigureSchool, canEditYear } from '@/utils/school-config/schoolConfigPermissions';
 import { validateSchoolYear, hasErrors, errorsAfterChange } from '@/utils/school-config/schoolConfigValidation';
 import { yearCrumbs } from '@/utils/school-config/breadcrumbs';
-import { formatDateTime } from '@/utils/format';
+import { suggestNextYear } from '@/utils/school-config/yearSetup';
+import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/school-config.css';
-
-/** Suggest the year after the latest one so the Principal rarely has to type. */
-const suggestNext = (years) => {
-  const latest = [...years].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
-  const from = latest ? Number(latest.name.slice(5)) : new Date().getFullYear();
-  return { name: `${from}-${from + 1}`, startDate: `${from}-09-05`, endDate: `${from + 1}-05-31` };
-};
 
 function YearForm({ year, years, user }) {
   const toast = useToast();
-  const navigate = useNavigate();
   const md = useMasterData();
   const others = years.filter((y) => y.id !== year?.id);
-  const [form, setForm] = useState(() =>
-    year ? { name: year.name, startDate: year.startDate, endDate: year.endDate } : suggestNext(years),
-  );
+  const [initial] = useState(() => (year ? { name: year.name, startDate: year.startDate, endDate: year.endDate } : suggestNextYear(years)));
+  const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(null);
@@ -55,15 +49,31 @@ function YearForm({ year, years, user }) {
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
   };
 
-  const submit = async () => {
+  const dirty = !saved && (form.name !== initial.name || form.startDate !== initial.startDate || form.endDate !== initial.endDate);
+  // Rời màn khi đang sửa ⇒ hỏi; "Lưu" trong hộp lưu rồi đi tiếp tới nơi người dùng bấm
+  const guard = useLeaveGuard({ when: dirty && !saving, onSave: () => submit({ stay: true }) });
+
+  // Trả true khi lưu được; stay: lưu từ hộp rời màn (không tự chuyển trang, không mở bước tiếp)
+  const submit = async ({ stay = false } = {}) => {
     const e = validateSchoolYear(form, others, { creating: !year });
+    // Học kỳ đã đặt (Cấu hình thời gian) phải còn nằm trong năm sau khi đổi ngày, như BE SEMESTER_OUT_OF_YEAR
+    const s1 = year?.semester1Start;
+    const s2 = year?.semester2End;
+    if (s1 && !e.startDate && form.startDate > s1)
+      e.startDate = `Học kỳ I bắt đầu ngày ${formatDate(s1)}, ngày bắt đầu năm không được sau ngày này`;
+    if (s2 && !e.endDate && form.endDate < s2)
+      e.endDate = `Học kỳ II kết thúc ngày ${formatDate(s2)}, ngày kết thúc năm không được trước ngày này`;
     setErrors(e);
-    if (hasErrors(e)) return;
+    if (hasErrors(e)) return false;
     setSaving(true);
     try {
       const result = await saveSchoolYear(year?.id || null, form, user);
       toast.success('Đã lưu thay đổi.', `Năm học ${result.name}`);
-      if (year) return navigate('/school/years');
+      if (stay) return true;
+      if (year) {
+        guard.leaveNow('/school/years');
+        return true;
+      }
       let copyNote = '';
       if (copyOn && copySource) {
         try {
@@ -73,10 +83,16 @@ function YearForm({ year, years, user }) {
           toast.error(err, 'Không sao chép được lớp');
         }
       }
-      if (openVp) return navigate(`/school/vice-principals?year=${result.id}`);
+      if (openVp) {
+        guard.leaveNow(`/school/vice-principals?year=${result.id}`);
+        return true;
+      }
       setSaved({ ...result, copyNote });
+      return true;
     } catch (err) {
-      setErrors(err.details || { _form: err.message });
+      const d = err.details;
+      setErrors(d?.semester ? { endDate: d.semester } : d || { _form: err.message });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -195,10 +211,11 @@ function YearForm({ year, years, user }) {
         <Link className="btn" to="/school/years">
           <ArrowLeft size={16} /> Quay lại
         </Link>
-        <button className="btn btn--primary" onClick={submit} disabled={saving}>
+        <button className="btn btn--primary" onClick={() => submit()} disabled={saving}>
           {saving ? <Spinner small /> : <Save size={16} />} {year ? 'Lưu năm học' : 'Tạo năm học'}
         </button>
       </div>
+      <LeaveConfirmModal {...guard.modal} />
     </>
   );
 }

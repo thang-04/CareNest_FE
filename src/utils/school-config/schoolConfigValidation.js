@@ -170,6 +170,36 @@ export const validateCutoff = (form, year) => {
   return withLength(e, form, CUTOFF_LIMITS);
 };
 
+/** 4 ngày học kỳ do Hiệu trưởng chọn, theo thứ tự BE kiểm tra. */
+export const SEMESTER_FIELDS = [
+  ['semester1Start', 'ngày bắt đầu học kỳ I'],
+  ['semester1End', 'ngày kết thúc học kỳ I'],
+  ['semester2Start', 'ngày bắt đầu học kỳ II'],
+  ['semester2End', 'ngày kết thúc học kỳ II'],
+];
+
+export const semesterOf = (y) => Object.fromEntries(SEMESTER_FIELDS.map(([k]) => [k, y?.[k] || '']));
+
+/**
+ * Học kỳ: đủ 4 ngày, nằm trong năm học; mỗi học kỳ bắt đầu không sau kết thúc; HK II bắt đầu sau khi HK I kết thúc.
+ * Như BE SEMESTER_DATE_REQUIRED 2026, SEMESTER_OUT_OF_YEAR 2021, SEMESTER_START_AFTER_END 2024, SEMESTER_OVERLAP 2025.
+ */
+export const validateSemester = (form, year) => {
+  const e = {};
+  SEMESTER_FIELDS.forEach(([k, label]) => {
+    const v = form[k];
+    if (!v) e[k] = `Chọn ${label}`;
+    else if (!isIsoDate(v)) e[k] = 'Ngày không hợp lệ, nhập dạng dd/mm/yyyy';
+    else if (year && (v < year.startDate || v > year.endDate))
+      e[k] = `Phải nằm trong năm học (${formatDate(year.startDate)} – ${formatDate(year.endDate)})`;
+  });
+  const { semester1Start: s1s, semester1End: s1e, semester2Start: s2s, semester2End: s2e } = form;
+  if (!e.semester1Start && !e.semester1End && s1s > s1e) e.semester1End = 'Không được trước ngày bắt đầu học kỳ I';
+  if (!e.semester1End && !e.semester2Start && s2s <= s1e) e.semester2Start = `Phải sau ngày kết thúc học kỳ I (${formatDate(s1e)})`;
+  if (!e.semester2Start && !e.semester2End && s2s > s2e) e.semester2End = 'Không được trước ngày bắt đầu học kỳ II';
+  return e;
+};
+
 export const validateCampus = (form, others = []) => {
   const e = {};
   if (!form.code?.trim()) e.code = 'Nhập mã điểm trường';

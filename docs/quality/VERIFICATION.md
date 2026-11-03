@@ -25,6 +25,11 @@
 - Cổng cuối chạy sau hồ sơ bằng `node scripts/verify.mjs`; log `verify.log`, dòng VERIFY trong output bàn giao. Prettier đã chạy trực tiếp cho hai file .mjs vì glob format chung chỉ quét js/jsx/css. Đối chiếu DoD: đúng phạm vi, regression RED/GREEN, review và cổng thực tế; không có component/API mới cần kiểm role/responsive.
 - Tri thức: [incident](../knowledge/incidents/FE-BUG-261102-curriculum-reimport-headings.md), ISSUE_INDEX và bẫy trong year-plan-import. Chỉ sửa FE; incident BE trước đây giữ nguyên vì lượt này không có quyền sửa BE. Chưa kiểm trình duyệt/lưu-mở lại với BE thật; không commit/push/deploy.
 
+## Pre-PR review fixes — 02/11/2026
+
+- User requested fixing four findings in `2026-11-02-pre-pr-flow-review.md`. RED three demo regressions → GREEN nine focused tests. Full `node scripts/verify.mjs` passes, 487 tests, zero failures/skips, after final source edits.
+- Chrome 9/9 demo pages pass with runtime-error and duplicate-key-warning checks. Fresh seed 413 unique children; persisted duplicates archived without storage reset. Mock rewards count ticket periods without a missing schoolYear field. Backend monthly roster fix verified separately in sibling BE; no browser-to-real-BE/mobile E2E claim.
+
 ## Phase2 hai chế độ nhập file —02/11/2026
 
 - User duyệt phase1 bằng “duyệt”; triển khai T013..T017 theo spec009/EDU-46. Modal radio full/present, mặc định full; preview phần thay/xóa/giữ và callback mang mode mới nhất. Model thay nguyên phần/clear hoặc keep phần thiếu, không mutate form/file, không patch fixed fields; ID mới không trùng, remap tick khi giữ cây nhưng thay chủ đề và báo liên kết mất. Page truyền range cấu hình thật vào preview/apply, thiếu range khóa apply; giữ parser/API/DB/lease/save/khôi phục/guard và nút lấy từ kế hoạch/Bộ.

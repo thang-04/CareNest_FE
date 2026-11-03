@@ -8,19 +8,14 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ROLES } from '@/models/User';
 import { APPROVAL_TYPE_META } from '@/models/dashboard/dashboardConstants';
-import { FACILITY_ENABLED } from '@/config/app';
 import { approvalsCrumbs } from '@/utils/dashboard/breadcrumbs';
 import { formatWhen } from '@/utils/dashboard/dashboardFormat';
 import '@/styles/modules/dashboard.css';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 
 const DESCRIPTIONS = {
-  PRINCIPAL: FACILITY_ENABLED
-    ? 'Đề xuất khen thưởng cuối năm, đề xuất mua sắm – sửa chữa và đề nghị bổ sung CSVC đang chờ Hiệu trưởng quyết định.'
-    : 'Đề xuất khen thưởng cuối năm đang chờ Hiệu trưởng quyết định.',
-  VICE_PRINCIPAL: FACILITY_ENABLED
-    ? 'Kế hoạch chủ đề, giáo án, đề xuất khen thưởng, báo cáo sự cố, đề nghị bổ sung, kiểm kê, sĩ số suất ăn và phiếu xuất kho của điểm trường đang chờ bạn.'
-    : 'Kế hoạch chủ đề, giáo án, đề xuất khen thưởng, sĩ số suất ăn và phiếu xuất kho của điểm trường đang chờ bạn.',
+  PRINCIPAL: 'Đề xuất khen thưởng cuối năm đang chờ Hiệu trưởng quyết định.',
+  VICE_PRINCIPAL: 'Kế hoạch chủ đề, giáo án, đề xuất khen thưởng, sĩ số suất ăn và phiếu xuất kho của điểm trường đang chờ bạn.',
   TEAM_LEADER: 'Giáo án của giáo viên trong nhóm tuổi đang chờ tổ trưởng xem xét trước khi chuyển Phó hiệu trưởng.',
 };
 
@@ -36,20 +31,22 @@ export default function PendingApprovalsPage() {
   const type = params.get('type') || '';
   const campusId = params.get('campusId') || '';
   const principal = user.role === ROLES.PRINCIPAL;
-
   const setFilter = (key, value) => {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
-    setParams(next, { replace: true });
+    setParams(next, {
+      replace: true,
+    });
   };
-
   const inCampus = (i) => !campusId || !i.campusId || i.campusId === campusId;
-  const scoped = groups.map((g) => ({ ...g, items: g.items.filter(inCampus) }));
+  const scoped = groups.map((g) => ({
+    ...g,
+    items: g.items.filter(inCampus),
+  }));
   const shown = scoped.filter((g) => !type || g.type === type);
   const shownCount = shown.reduce((n, g) => n + g.items.length, 0);
   const filtered = !!(type || campusId);
-
   return (
     <div className="page">
       <Breadcrumb items={approvalsCrumbs()} />
@@ -63,28 +60,22 @@ export default function PendingApprovalsPage() {
       ) : (
         <>
           <div className="stat-grid">
-            <button
-              type="button"
-              className={`stat-card stat-card--purple ${!type ? 'stat-card--active' : ''}`}
-              aria-pressed={!type}
+            <StatCard
+              tone="purple"
+              label="Tất cả yêu cầu chờ bạn"
+              value={scoped.reduce((n, g) => n + g.items.length, 0)}
+              active={!type}
               onClick={() => setFilter('type', '')}
-            >
-              <div className="stat-card__value">{scoped.reduce((n, g) => n + g.items.length, 0)}</div>
-              <div className="stat-card__label">Tất cả yêu cầu chờ bạn</div>
-              <StatCardIcon tone="purple" />
-            </button>
+            />
             {scoped.map((g) => (
-              <button
+              <StatCard
                 key={g.type}
-                type="button"
-                className={`stat-card stat-card--${APPROVAL_TYPE_META[g.type].tone} ${type === g.type ? 'stat-card--active' : ''}`}
-                aria-pressed={type === g.type}
+                tone={APPROVAL_TYPE_META[g.type].tone}
+                label={APPROVAL_TYPE_META[g.type].short}
+                value={g.error ? '—' : g.items.length}
+                active={type === g.type}
                 onClick={() => setFilter('type', type === g.type ? '' : g.type)}
-              >
-                <div className="stat-card__value">{g.error ? '—' : g.items.length}</div>
-                <div className="stat-card__label">{APPROVAL_TYPE_META[g.type].short}</div>
-                <StatCardIcon tone={APPROVAL_TYPE_META[g.type].tone} />
-              </button>
+              />
             ))}
           </div>
 
@@ -119,7 +110,18 @@ export default function PendingApprovalsPage() {
                 </div>
               )}
               {filtered && (
-                <button type="button" className="btn btn--ghost" onClick={() => setParams({}, { replace: true })}>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() =>
+                    setParams(
+                      {},
+                      {
+                        replace: true,
+                      },
+                    )
+                  }
+                >
                   <RotateCcw size={16} /> Đặt lại bộ lọc
                 </button>
               )}
@@ -139,7 +141,18 @@ export default function PendingApprovalsPage() {
               <EmptyState
                 title="Không có yêu cầu phù hợp bộ lọc"
                 action={
-                  <button type="button" className="btn btn--sm" onClick={() => setParams({}, { replace: true })}>
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    onClick={() =>
+                      setParams(
+                        {},
+                        {
+                          replace: true,
+                        },
+                      )
+                    }
+                  >
                     <RotateCcw size={14} /> Đặt lại bộ lọc
                   </button>
                 }
@@ -163,7 +176,6 @@ export default function PendingApprovalsPage() {
     </div>
   );
 }
-
 function ApprovalGroup({ group, showCampus, campusName, onRetry }) {
   const meta = APPROVAL_TYPE_META[group.type];
   return (

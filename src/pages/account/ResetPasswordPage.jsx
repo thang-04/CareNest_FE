@@ -6,6 +6,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { Spinner } from '@/components';
 import { NewPasswordFields } from '@/components/account/NewPasswordFields';
 import { setPasswordWithToken } from '@/services/account/accountService';
+import { getPasswordChallenge, clearPasswordChallenge } from '@/services/authChallengeStore';
 import { validatePasswordChange } from '@/utils/account/accountValidation';
 import '@/styles/modules/account.css';
 
@@ -32,9 +33,10 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
-  const token = location.state?.token || '';
-  const mode = location.state?.mode === 'first-login' ? 'first-login' : 'reset';
-  const email = location.state?.email || '';
+  const [challenge] = useState(() => getPasswordChallenge());
+  const token = challenge?.token || '';
+  const mode = (challenge?.mode || location.state?.mode) === 'first-login' ? 'first-login' : 'reset';
+  const email = challenge?.email || location.state?.email || '';
   const copy = COPY[mode];
   const [values, setValues] = useState({ newPassword: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
@@ -65,14 +67,23 @@ export default function ResetPasswordPage() {
     setBusy(true);
     try {
       const result = await setPasswordWithToken({ token, ...values });
+      clearPasswordChallenge();
+      setValues({ newPassword: '', confirmPassword: '' });
       toast.success('Mật khẩu của bạn đã được thay đổi thành công.');
       navigate('/login', {
         replace: true,
         state: { email: result?.email || email, notice: 'Mật khẩu mới đã được lưu. Vui lòng đăng nhập bằng mật khẩu mới.' },
       });
     } catch (err) {
-      if (err.status === 410) setGone(err.message);
-      else if (err.details && typeof err.details === 'object') setErrors(err.details);
+      if ([404, 410, 503].includes(err.status) || !err.status) {
+        clearPasswordChallenge();
+        setValues({ newPassword: '', confirmPassword: '' });
+        setGone(
+          err.status === 503 || !err.status
+            ? 'Chưa xác định được kết quả đổi mật khẩu. Vui lòng đăng nhập bằng mật khẩu mới; nếu không được, bắt đầu lại.'
+            : 'Phiên đặt mật khẩu không còn hiệu lực. Vui lòng bắt đầu lại.',
+        );
+      } else if (Object.keys(err.details || {}).length) setErrors(err.details);
       else setServerError(err.message || 'Chưa lưu được mật khẩu mới. Vui lòng thử lại.');
     } finally {
       setBusy(false);
