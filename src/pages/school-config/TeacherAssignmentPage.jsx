@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Users, Info, UserCheck, UserMinus, UserPlus, Crown, Search, History } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Pagination, paginate } from '@/components/ui/Pagination';
@@ -25,6 +25,7 @@ import {
   canViewTeacherAssignments,
   canViewTeamLeaders,
   teacherAssignmentAccess,
+  isPrincipal,
   teamLeaderActions,
 } from '@/utils/school-config/schoolConfigPermissions';
 import { teacherCrumbs } from '@/utils/school-config/breadcrumbs';
@@ -355,6 +356,13 @@ export default function TeacherAssignmentPage() {
                             icon={Users}
                             title="Chưa có lớp để phân công"
                             description="Hiệu trưởng cần tạo lớp của điểm trường trong năm học này trước."
+                            action={
+                              isPrincipal(user) ? (
+                                <Link className="btn btn--primary" to={`/school/classes${yearId ? `?year=${yearId}` : ''}`}>
+                                  Thêm lớp
+                                </Link>
+                              ) : null
+                            }
                           />
                         )}
                       </td>

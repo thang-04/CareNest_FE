@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
@@ -66,6 +68,8 @@ export default function YearPlacementPage() {
     ),
   ];
   const onDirty = useCallback((value) => setDirty(value), []);
+  // Rời màn / đổi bước wizard khi lớp đang chọn còn thay đổi chưa lưu: hỏi trước (lưu ở khung lớp)
+  const guard = useLeaveGuard({ when: dirty });
 
   const setParam = (key, value) => {
     const next = new URLSearchParams(params);
@@ -238,7 +242,8 @@ export default function YearPlacementPage() {
               <nav className="card sc-plc__list" aria-label="Lớp năm học cũ" onKeyDown={onListKey}>
                 {missingTargets.length > 0 && (
                   <p className="sc-plc__missing text-xs" role="note">
-                    <AlertTriangle size={14} /> Năm {plan.year.name} chưa có lớp: {missingTargets.join(', ')}
+                    <AlertTriangle size={14} /> Năm {plan.year.name} chưa có lớp: {missingTargets.join(', ')}.{' '}
+                    <Link to={`/school/classes?year=${plan.year.id}`}>Thêm lớp</Link>
                   </p>
                 )}
                 {classes.map((c) => {
@@ -343,6 +348,11 @@ export default function YearPlacementPage() {
           setConfirmAuto(false);
           setAutoError('');
         }}
+      />
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave={false}
+        message="Lớp đang chọn có thay đổi xếp lớp chưa lưu. Rời màn sẽ bỏ các thay đổi này."
       />
     </div>
   );

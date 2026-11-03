@@ -63,6 +63,9 @@ const STEP_CHECKS = [
   ['placement'],
 ];
 
+/** Bước wizard (chỉ số 0..6) chứa mục kiểm tra `key` của readiness; -1 khi không thuộc bước nào. */
+export const stepOfCheck = (key) => STEP_CHECKS.findIndex((keys) => keys.includes(key));
+
 /** Các bước đã xong (chỉ số 0..6) theo readiness của BE; bước 5 cần thêm học kỳ đã đặt. */
 export const completedSteps = (readiness, year) => {
   const ok = Object.fromEntries((readiness?.steps || []).map((s) => [s.key, s.ok]));

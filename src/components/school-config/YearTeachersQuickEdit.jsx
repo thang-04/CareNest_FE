@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Save } from '@/components/ui/icons';
+import { Save, UserCheck } from '@/components/ui/icons';
+import { TeamLeaderModal } from '@/components/school-config/TeamLeaderModal';
+import { teamLeaderActions } from '@/utils/school-config/schoolConfigPermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -28,6 +30,7 @@ export function YearTeachersQuickEdit({ yearId }) {
   const leaders = useTeamLeaders(yearId);
   const [drafts, setDrafts] = useState({}); // classId → { teacherIds, homeroomTeacherId }; leader-{groupId} → userId
   const [errors, setErrors] = useState({});
+  const [leaderGroup, setLeaderGroup] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const savedClasses = useMemo(() => data?.classes || [], [data]);
@@ -147,26 +150,15 @@ export function YearTeachersQuickEdit({ yearId }) {
                   <td className="fw-600">{g.name}</td>
                   <td className="num">{g.classCount}</td>
                   <td>
-                    <FormField error={errors[leaderKey(g.id)]?.userId}>
-                      <select
-                        className="select"
-                        aria-label={`Tổ trưởng ${g.name}`}
-                        value={currentLeader(g)}
-                        onChange={(e) => {
-                          const key = leaderKey(g.id);
-                          setDrafts((d) => ({ ...d, [key]: e.target.value }));
-                          setErrors(({ [key]: _k, ...rest }) => rest);
-                        }}
-                      >
-                        <option value="">Chưa phân công</option>
-                        {candidates.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.fullName}
-                            {campusName(t.campusId) ? ` · ${campusName(t.campusId)}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </FormField>
+                    {/* Chọn tổ trưởng bằng bảng giáo viên như Thêm lớp; lưu ngay khi bấm Lưu trong hộp */}
+                    <div className="row row--wrap">
+                      <span>
+                        {candidates.find((t) => t.id === currentLeader(g))?.fullName || <span className="muted">Chưa phân công</span>}
+                      </span>
+                      <button type="button" className="btn btn--sm" onClick={() => setLeaderGroup(g)}>
+                        <UserCheck size={14} /> {currentLeader(g) ? 'Đổi tổ trưởng' : 'Chọn tổ trưởng'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -258,6 +250,27 @@ export function YearTeachersQuickEdit({ yearId }) {
           {saving ? <Spinner small /> : <Save size={16} />} Lưu tất cả{dirty ? ` (${dirty})` : ''}
         </button>
       </div>
+      {leaderGroup && (
+        <TeamLeaderModal
+          group={leaderGroup}
+          current={leaders.data?.teamLeaders.find((x) => x.ageGroupId === leaderGroup.id)}
+          teachers={candidates}
+          campuses={md.campuses}
+          campusName={campusName}
+          acts={teamLeaderActions(user)}
+          onSave={async (group, userId) => {
+            try {
+              await saveTeamLeader({ schoolYear: yearId, ageGroupId: group.id, userId }, user);
+              toast.success(userId ? 'Đã lưu tổ trưởng.' : 'Đã bỏ phân công tổ trưởng.', group.name);
+              leaders.reload({ silent: true });
+              return true;
+            } catch (err) {
+              return err.message;
+            }
+          }}
+          onClose={() => setLeaderGroup(null)}
+        />
+      )}
     </>
   );
 }

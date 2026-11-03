@@ -13,7 +13,8 @@ export function AssignClassTeachersDialog({ cls, schoolYear, onClose }) {
       </Modal>
     );
   const classes = data?.classes || [];
-  const current = classes.find((c) => c.id === cls.id) || cls;
+  // Lớp vừa tạo có thể chưa kèm danh sách giáo viên ⇒ mặc định rỗng
+  const current = classes.find((c) => String(c.id) === String(cls.id)) || { teacherIds: [], homeroomTeacherId: '', ...cls };
   return (
     <ClassTeachersModal
       cls={current}
