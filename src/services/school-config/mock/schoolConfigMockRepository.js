@@ -1083,6 +1083,30 @@ export const schoolConfigMockRepository = {
     return { year: clone(year), setting: clone(setting) };
   },
 
+  // BE giả AUTH-24: dạy thay chỉ ghi nhận, bản demo không đổi phân công chính
+  async assignSubstituteTeacher(body, user) {
+    await delay();
+    if (!canConfigureSchool(user) && user?.role !== 'VICE_PRINCIPAL') throw forbid();
+    return clone({ ...body, substitute: true });
+  },
+  // BE giả: bản demo không có đánh giá học kỳ nên học kỳ chưa khóa
+  async getSemesterLocks() {
+    await delay();
+    return { semester1Locked: false, semester2Locked: false };
+  },
+  // BE giả SCH-05: ngày nghỉ theo năm học, HT sửa
+  async getHolidays(schoolYear) {
+    await delay();
+    return clone((readDb().schoolHolidays || {})[schoolYear] || []);
+  },
+  async saveHolidays(schoolYear, holidays, user) {
+    await delay();
+    if (!canConfigureSchool(user)) throw forbid();
+    const db = readDb();
+    db.schoolHolidays = { ...(db.schoolHolidays || {}), [schoolYear]: [...holidays].sort((a, b) => a.date.localeCompare(b.date)) };
+    writeDb(db);
+    return clone(db.schoolHolidays[schoolYear]);
+  },
   async saveSemester(schoolYear, form, user) {
     await delay();
     if (!canConfigureSchool(user)) throw forbid();

@@ -14,6 +14,7 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { FormField } from '@/components/form/FormField';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
+import { HolidaySetting } from '@/components/school-config/HolidaySetting';
 import { SemesterSetting } from '@/components/school-config/SemesterSetting';
 import { Tabs } from '@/components/ui/Tabs';
 import { saveCutoffSetting } from '@/services/school-config/schoolConfigService';
@@ -27,6 +28,7 @@ import '@/styles/modules/school-config.css';
 const TABS = [
   { key: 'cutoff', label: 'Giờ chốt điểm danh' },
   { key: 'semester', label: 'Học kỳ' },
+  { key: 'holidays', label: 'Ngày nghỉ' },
 ];
 
 /** #19 Cấu hình thời gian: giờ chốt (UC 2.7, GBR-CFG-02/03) và học kỳ I, II. Principal only. */
@@ -43,7 +45,7 @@ export default function CutoffSettingPage() {
   const [saving, setSaving] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'semester' ? 'semester' : 'cutoff';
+  const tab = ['semester', 'holidays'].includes(params.get('tab')) ? params.get('tab') : 'cutoff';
   const changeTab = (key) =>
     setParams(
       (prev) => {
@@ -125,6 +127,8 @@ export default function CutoffSettingPage() {
 
       {tab === 'semester' ? (
         <SemesterSetting yearId={yearId} />
+      ) : tab === 'holidays' ? (
+        <HolidaySetting yearId={yearId} />
       ) : error ? (
         <ErrorState error={error} onRetry={reload} />
       ) : loading || !year ? (

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Users, Info, UserCheck, UserMinus, UserPlus, Crown, Search, History } from '@/components/ui/icons';
+import { Users, Info, UserCheck, UserMinus, UserPlus, Crown, Search, History, Repeat } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { normalizeText } from '@/utils/format';
@@ -30,6 +30,7 @@ import {
 } from '@/utils/school-config/schoolConfigPermissions';
 import { teacherCrumbs } from '@/utils/school-config/breadcrumbs';
 import { ClassTeachersModal } from '@/components/school-config/ClassTeachersModal';
+import { SubstituteTeacherModal } from '@/components/school-config/SubstituteTeacherModal';
 import { TeamLeaderModal } from '@/components/school-config/TeamLeaderModal';
 import '@/styles/modules/school-config.css';
 
@@ -126,6 +127,7 @@ export default function TeacherAssignmentPage() {
   const teacherName = (c, id) => c.teachers?.find((t) => t.id === id)?.fullName || md.userById(id)?.fullName || '';
   const [editing, setEditing] = useState(null);
   const [removing, setRemoving] = useState(null); // lớp đang chọn giáo viên để gỡ
+  const [substituting, setSubstituting] = useState(null); // lớp đang chọn giáo viên dạy thay
   const [history, setHistory] = useState(null); // { kind: 'class' | 'leader', id, name, schoolYear? }
   const [leaderGroup, setLeaderGroup] = useState(null);
 
@@ -430,6 +432,10 @@ export default function TeacherAssignmentPage() {
                                 ...(c.teacherIds.length > 0
                                   ? [{ label: 'Đổi giáo viên', icon: UserCheck, onClick: () => setEditing(c) }]
                                   : []),
+                                // Dạy thay khi năm đang học và lớp đã có giáo viên chính (AUTH-16)
+                                ...(c.teacherIds.length > 0 && year?.status === YEAR_STATUS.ACTIVE
+                                  ? [{ label: 'Dạy thay', icon: Repeat, onClick: () => setSubstituting(c) }]
+                                  : []),
                                 {
                                   label: 'Lịch sử phân công',
                                   icon: History,
@@ -474,6 +480,17 @@ export default function TeacherAssignmentPage() {
         />
       )}
       {history && <AssignmentHistoryModal target={history} onClose={() => setHistory(null)} />}
+      {substituting && (
+        <SubstituteTeacherModal
+          cls={substituting}
+          teachers={teachers.filter((t) => t.campusId === substituting.campusId || !t.campusId)}
+          yearEnd={year?.endDate}
+          onClose={(changed) => {
+            setSubstituting(null);
+            if (changed) reload({ silent: true });
+          }}
+        />
+      )}
       {removing && (
         <RemoveTeachersModal
           cls={removing}
@@ -490,7 +507,8 @@ export default function TeacherAssignmentPage() {
       {editing && (
         <ClassTeachersModal
           cls={editing}
-          teachers={teachers.filter((t) => t.campusId === editing.campusId)}
+          // HT xếp GV mọi điểm trường (AUTH-16); PHT chỉ GV điểm trường của lớp
+          teachers={isPrincipal(user) ? teachers : teachers.filter((t) => t.campusId === editing.campusId)}
           classesOf={classesOf}
           onClose={(changed) => {
             setEditing(null);
