@@ -238,10 +238,9 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             </>
           )}
           {!!prepared.shifted && (
-            <Notice>
-              Ngày chủ đề, đợt nghỉ được dời {Math.abs(prepared.shifted)} năm {prepared.shifted > 0 ? 'về sau' : 'về trước'} theo năm học
-              đang mở. Kiểm tra lịch dưới đây trước khi áp dụng.
-            </Notice>
+            <p className="text-danger text-sm text-right">
+              File thuộc năm học khác: ngày giữ như file, sau khi áp dụng bảng chủ đề sẽ gợi ý dời ngày.
+            </p>
           )}
           {prepared.themes.length > 0 && (
             <>
@@ -252,8 +251,8 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
                     <tr>
                       <th>Chủ đề</th>
                       <th>Viết tắt</th>
-                      <th>Từ ngày sau dời</th>
-                      <th>Đến ngày sau dời</th>
+                      <th>Từ ngày</th>
+                      <th>Đến ngày</th>
                       <th>Lễ hội</th>
                       <th>Ghi chú</th>
                       <th>Khi áp dụng</th>
@@ -284,8 +283,8 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
                   <thead>
                     <tr>
                       <th>Đợt nghỉ</th>
-                      <th>Từ ngày sau dời</th>
-                      <th>Đến ngày sau dời</th>
+                      <th>Từ ngày</th>
+                      <th>Đến ngày</th>
                       <th>Ghi chú</th>
                       <th>Khi áp dụng</th>
                     </tr>

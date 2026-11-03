@@ -1932,9 +1932,6 @@ h2.ga-cur-domain__head {
 .table.ga-list-table tbody tr td {
   background: var(--color-surface);
 }
-.table.ga-list-table tbody tr.row-click:hover td {
-  background: var(--table-row-hover);
-}
 /* Bảng phiên bản / thay đổi: ô một dòng (dài thì "…"), nền trắng không sọc để các cột đọc thẳng hàng;
    cột Trạng thái đủ chip dài nhất ("Chờ Hiệu trưởng duyệt"), chip không tràn sang cột bên */
 .table.ga-version-table td {
@@ -1946,10 +1943,6 @@ h2.ga-cur-domain__head {
 .table.ga-change-table tbody tr td {
   background: var(--color-surface);
 }
-.table.ga-version-table tbody tr:hover td,
-.table.ga-change-table tbody tr:hover td {
-  background: var(--table-row-hover);
-}
 
 /* Đầu trang cố định của các màn soạn: hàng nút sát breadcrumb hơn, đầu trang thấp 10px (Tiền 03/11) */
 .ga-sticky-head .page__head {
@@ -1959,4 +1952,27 @@ h2.ga-cur-domain__head {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Không tô nền khi rê chuột vào dòng ở mọi bảng của module (Tiền 04/11); ô có màu riêng (dòng lĩnh vực, cột cố định,
+   nhãn thông tin chung) giữ màu vì luật của chúng cụ thể hơn */
+.table.ga-plan-table tbody tr:nth-child(even) td,
+.table.ga-plan-table tbody tr:hover td,
+.table.ga-plan-table tbody tr:hover th {
+  background: var(--color-surface);
+}
+/* Đầu trang cố định các màn soạn: chừa ít nhất 10px dưới hàng nút trước nội dung (kể cả khi cuộn, nền đầu trang che nội dung) */
+.ga-sticky-head {
+  padding-bottom: var(--space-2-5);
+}
+/* Ô ngày lệch (không trọn tuần thứ 2 – thứ 6 hoặc khác năm học): chữ đỏ, gợi ý dời ngày ngay dưới (Tiền 04/11) */
+.table.ga-goal-table td.ga-date--bad .ga-cal__trigger {
+  color: var(--color-danger-fg);
+}
+.ga-date-sug .link-btn,
+.ga-date-sug-all .link-btn {
+  font-size: inherit;
+}
+.ga-date-sug-all {
+  margin: 0;
 }

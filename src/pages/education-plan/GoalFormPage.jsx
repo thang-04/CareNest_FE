@@ -526,7 +526,7 @@ export default function GoalFormPage() {
     if (report.themes || report.breaks) set({ themes: nextThemes, breaks: nextBreaks });
     const parts = [`Đã thêm ${report.themes} chủ đề`, report.breaks && `${report.breaks} đợt nghỉ`].filter(Boolean).join(', ');
     const shifted =
-      report.shifted && (report.themes || report.breaks) ? ` · đã dời ngày ${Math.abs(report.shifted)} năm, kiểm tra lại ngày` : '';
+      report.shifted && (report.themes || report.breaks) ? ' · ngày giữ như kế hoạch nguồn, xem gợi ý dời ngày ở bảng chủ đề' : '';
     toast(
       `${parts}${report.skipped ? ` · bỏ qua ${report.skipped} dòng đã có` : ''}${shifted}`,
       report.themes || report.breaks ? 'ok' : 'warn',

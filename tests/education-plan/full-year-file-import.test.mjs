@@ -56,8 +56,9 @@ test('full thay toàn bộ phần editable, giữ fixed fields và không mutate
   assert.equal(patch.description, '');
   assert.equal(patch.themes.length, 1);
   assert.equal(patch.breaks.length, 1);
-  assert.equal(patch.themes[0].start, '2026-09-08');
-  assert.equal(patch.breaks[0].start, '2027-02-16');
+  // Giữ ngày như file (Tiền 04/11); bảng chủ đề gợi ý dời ngày sau khi áp dụng
+  assert.equal(patch.themes[0].start, '2025-09-08');
+  assert.equal(patch.breaks[0].start, '2026-02-16');
   assert.deepEqual(
     patch.domains[0].rows.filter((r) => r.kind === 'goal').map((r) => r.text),
     ['Mới'],
@@ -179,7 +180,7 @@ test('preview và apply cùng dời lịch, dùng range hệ thống để cản
   preview.themes[0].end = '2025-08-08';
   const prepared = imports.prepareFileImport(base(), preview, { yearRange: range });
   const result = apply(base(), preview);
-  assert.equal(prepared.themes[0].start, '2026-08-04');
+  assert.equal(prepared.themes[0].start, '2025-08-04');
   assert.equal(result.patch.themes[0].start, prepared.themes[0].start);
   assert.ok(prepared.warnings.some((w) => w.message.includes('ngoài năm')));
   assert.equal(result.patch.schoolYear, undefined);
