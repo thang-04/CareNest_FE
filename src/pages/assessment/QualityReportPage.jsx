@@ -24,8 +24,8 @@ const pct = (v) => (v == null ? '—' : `${v}%`);
 const num = (v) => (v == null ? '—' : v);
 // Các mục tính theo số trẻ: mỗi mục 2 cột Số trẻ | Tỷ lệ như sổ chỉ đạo chuyên môn
 const GROUPS = [
-  // Trẻ ra lớp: số = bình quân trẻ có mặt mỗi ngày học; tỷ lệ = lượt có mặt / (sĩ số × ngày học)
-  ['Trẻ ra lớp', 'avgPresent', 'attendanceRate'],
+  // Trẻ ra lớp (BE OBS-23): trẻ thôi học hoặc chuyển khỏi lớp trong tháng; tỷ lệ trên sĩ số tháng
+  ['Trẻ ra lớp', 'leftChildren', 'leftRate'],
   ['Ăn bán trú', 'mealChildren', 'mealRate'],
   ['Bé chăm', 'diligentChildren', 'diligentRate'],
   ['Bé ngoan', 'goodChildren', 'goodRate'],
@@ -33,7 +33,7 @@ const GROUPS = [
 ];
 
 /**
- * Báo cáo chất lượng tháng theo Biểu sổ chỉ đạo chuyên môn PHT: mục 4.2 (Theo tháng) và 4.1 (Cả năm: trẻ ra lớp bình quân
+ * Báo cáo chất lượng tháng theo Biểu sổ chỉ đạo chuyên môn PHT: mục 4.2 (Theo tháng) và 4.1 (Cả năm: trẻ đến lớp bình quân
  * từng tháng). HT, PHT xem mọi điểm trường và lọc điểm trường (AUTH-20); GV xem lớp mình, tổ trưởng thêm lớp nhóm tuổi
  * mình (không có dòng tổng, không có tab HTCT). Chỉ xem, xuất Excel.
  */
@@ -117,8 +117,8 @@ export default function QualityReportPage() {
       label,
       ...(showCampus ? [campus] : []),
       x.children,
-      num(x.avgPresent),
-      pct(x.attendanceRate),
+      x.leftChildren,
+      pct(x.leftRate),
       x.mealChildren,
       pct(x.mealRate),
       x.diligentChildren,
@@ -135,7 +135,7 @@ export default function QualityReportPage() {
           'Lớp',
           ...(showCampus ? ['Điểm trường'] : []),
           'Sĩ số',
-          'Trẻ ra lớp (bình quân)',
+          'Trẻ ra lớp',
           'Tỷ lệ ra lớp',
           'Ăn bán trú',
           'Tỷ lệ bán trú',

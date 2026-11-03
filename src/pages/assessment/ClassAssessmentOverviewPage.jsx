@@ -20,7 +20,8 @@ import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 
 const PAGE_SIZE = 10;
-const PERIODS = Object.values(OVERVIEW_PERIOD).map((key) => ({ key, label: OVERVIEW_PERIOD_LABELS[key] }));
+// Chỉ xem theo ngày và tháng (user chốt 03/11/2026: bỏ "Tuần này" để không nhầm với đánh giá tuần đã bỏ)
+const PERIODS = [OVERVIEW_PERIOD.DAY, OVERVIEW_PERIOD.MONTH].map((key) => ({ key, label: OVERVIEW_PERIOD_LABELS[key] }));
 
 const rangeText = (o) => (o.start === o.end ? formatDate(o.start) : `${formatDate(o.start)} – ${formatDate(o.end)}`);
 const pct = (n, total) => (total ? `${Math.round((n * 100) / total)}%` : '–');

@@ -272,6 +272,49 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     totals.completedRate = pct(totals.completed, totals.children);
     return clone({ campusIds: campuses(db, classes).map((c) => c.id), campuses: campuses(db, classes), rows, totals });
   },
+  // BE giả OBS-26: GV lớp soạn, xác nhận nhận xét chung tháng (tháng đã kết thúc); BGH xem bản đã xác nhận
+  async getClassMonthlyComment({ classId, month }, user) {
+    const db = ensureReady();
+    const cls = db.classes.find((c) => c.id === classId);
+    if (!cls) throw new ApiError(404, 'Không tìm thấy lớp.');
+    const teacher = isClassTeacher(cls, user);
+    if (!teacher && !isLeader(user)) deny();
+    const ended = monthEnd(month) < todayIso();
+    const saved = (db.classMonthlyComments || []).find((c) => c.classId === classId && c.month === month);
+    const confirmed = !!saved?.confirmedAt;
+    return clone({
+      classId,
+      className: cls.name,
+      month,
+      status: !ended ? 'NOT_READY' : confirmed ? 'CONFIRMED' : 'AWAITING_REVIEW',
+      draft:
+        teacher && ended ? `Tháng ${month.slice(5, 7)}/${month.slice(0, 4)}, lớp ${cls.name}: cô bổ sung nhận xét chung của lớp.` : null,
+      content: teacher || confirmed ? saved?.content || null : null,
+      confirmedAt: saved?.confirmedAt || null,
+      confirmedByName: confirmed ? saved.confirmedByName : null,
+      canEdit: teacher && ended && !confirmed,
+    });
+  },
+  async saveClassMonthlyComment(body, user, confirm = false) {
+    const db = ensureReady();
+    const current = await this.getClassMonthlyComment(body, user);
+    if (!current.canEdit) deny();
+    if ((body.content || '').trim().length < 20) invalid('Nội dung đánh giá cần ít nhất 20 ký tự');
+    db.classMonthlyComments = [
+      ...(db.classMonthlyComments || []).filter((c) => c.classId !== body.classId || c.month !== body.month),
+      {
+        classId: body.classId,
+        month: body.month,
+        content: body.content.trim(),
+        ...(confirm ? { confirmedAt: new Date().toISOString(), confirmedByName: user.fullName } : {}),
+      },
+    ];
+    writeDb(db);
+    return this.getClassMonthlyComment(body, user);
+  },
+  async confirmClassMonthlyComment(body, user) {
+    return this.saveClassMonthlyComment(body, user, true);
+  },
   // BE giả OBS-24: HT, PHT xem mọi lớp; chấm: HT mọi lớp, PHT điểm trường mình; GV xem lớp mình
   async getClassRatings(params = {}, user) {
     const db = ensureReady();
@@ -372,6 +415,9 @@ export const createAssessmentReportsMock = (ensureReady) => ({
         presentDays,
         possibleDays,
         attendanceRate: pct(presentDays, possibleDays),
+        // Mock chỉ có danh sách lớp hiện tại, không có lịch sử thôi học / chuyển lớp
+        leftChildren: 0,
+        leftRate: pct(0, children.length),
         mealChildren: children.filter((c) => meals.has(c.id)).length,
         mealRate: pct(children.filter((c) => meals.has(c.id)).length, children.length),
         diligentChildren: diligent,
@@ -396,6 +442,7 @@ export const createAssessmentReportsMock = (ensureReady) => ({
         'avgPresent',
         'presentDays',
         'possibleDays',
+        'leftChildren',
         'mealChildren',
         'diligentChildren',
         'goodChildren',
@@ -404,6 +451,7 @@ export const createAssessmentReportsMock = (ensureReady) => ({
         t[k] = group.reduce((n, r) => n + r[k], 0);
       for (const [rate, n, d] of [
         ['attendanceRate', 'presentDays', 'possibleDays'],
+        ['leftRate', 'leftChildren', 'children'],
         ['mealRate', 'mealChildren', 'children'],
         ['diligentRate', 'diligentChildren', 'children'],
         ['goodRate', 'goodChildren', 'children'],
