@@ -8,6 +8,7 @@ const repo = sourceOf('children', mock, api);
 const examRepo = sourceOf('children', examMock, api);
 
 export const getHealthChecks = (filters, user) => repo.listHealthChecks(filters, user);
+export const getScheduleWarnings = (params, user) => repo.scheduleWarnings(params, user);
 export const getHealthCheck = (id, user) => repo.getHealthCheck(id, user);
 export const getHealthCheckClass = (id, classId, user) => repo.getHealthCheckClass(id, classId, user);
 export const createHealthCheck = (payload, user) => repo.createHealthCheck(payload, user);

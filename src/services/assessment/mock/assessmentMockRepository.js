@@ -5,7 +5,7 @@ import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { buildAssessmentSeed } from '@/mocks/assessmentSeed';
-import { EDU_SEED_VERSION, ensureEduDemo, seedTodayAttendance } from '@/mocks/educationPlanSeed';
+import { EDU_SEED_VERSION, childrenMissingTodayAttendance, ensureEduDemo, seedTodayAttendance } from '@/mocks/educationPlanSeed';
 import { EDU_STATUS, goalRequirements } from '@/models/education-plan/educationPlanConstants';
 import { cellKey, rowCell, weekRows, yearWeeks } from '@/models/education-plan/classPlan';
 import { numberGoals } from '@/models/education-plan/goalTable';
@@ -713,8 +713,8 @@ const ensureReady = () => {
     writeDb(ensureEduDemo);
     db = readDb();
   }
-  // Demo: lớp Chồi 1 đã điểm danh sẵn hôm nay để thử đánh giá theo kế hoạch ngày (mỗi ngày mới thêm một lần)
-  if (db.attendance && !db.attendance.some((r) => r.classId === 'cls_c1_c1' && r.date === todayIso())) {
+  // Demo: lớp Chồi 1 đã điểm danh sẵn hôm nay để thử đánh giá theo kế hoạch ngày (chỉ bù trẻ chưa có bản ghi)
+  if (childrenMissingTodayAttendance(db).length) {
     writeDb((d) => void seedTodayAttendance(d));
     db = readDb();
   }

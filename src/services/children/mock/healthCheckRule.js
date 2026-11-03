@@ -1,15 +1,19 @@
 import { pushNotification } from '@/mocks/notificationMockRepository';
+import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { ROLES } from '@/models/User';
+import { CHILD_STATUS } from '@/models/School';
 import { FOLLOW_UP_LEVEL } from '@/models/children/childrenConstants';
 import {
+  CAMPAIGN_KIND,
   CAMPAIGN_STATUS,
   EXTERNAL_RESULT_DUE_DAYS,
   FOLLOW_UP_FIELD_LIMITS,
   FOLLOW_UP_STATUS,
-  PUBLISH_BLOCKED,
+  SCHEDULE_MIN_GAP,
+  SCHEDULE_WARNING,
 } from '@/models/children/healthCheckConstants';
-import { CONCLUSION_ACTION } from '@/models/children/healthExamForm';
-import { formatDate, todayInput } from '@/utils/format';
+import { CONCLUSION_ACTION, EXAM_STATUS, FOLLOW_UP_FINDING } from '@/models/children/healthExamForm';
+import { formatDate, localDateOf as localDate, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 
 /*
@@ -24,9 +28,61 @@ export const campaignStatusOf = (c, today = todayInput()) => {
 
 export const isOpenForEntry = (c) => !!c && campaignStatusOf(c) === CAMPAIGN_STATUS.IN_PROGRESS;
 
-/** Đợt chưa đóng (sắp diễn ra hoặc đang diễn ra) của điểm trường: tối đa 1. */
+/** Đợt chưa đóng (sắp diễn ra hoặc đang diễn ra) của điểm trường: tối đa 1, tính chung đợt khám và kỳ cân đo (M3). */
 export const unclosedCampaignOf = (db, campusId, excludeId) =>
   (db.healthCheckCampaigns || []).find((c) => c.campusId === campusId && c.id !== excludeId && !c.closedAt && !c.cancelledAt) || null;
+
+/** Đợt lưu trước khi có kỳ cân đo không có kind: là đợt khám. */
+export const campaignKindOf = (c) => c?.kind || CAMPAIGN_KIND.EXAM;
+export const isExamCampaign = (c) => campaignKindOf(c) === CAMPAIGN_KIND.EXAM;
+
+// BE:docs/modules/health.md — tự đóng đợt khám quá hạn, kể cả đợt đã mở lại để nhập bù.
+export const expiredExamCampaignsOf = (db, today = todayInput()) =>
+  (db.healthCheckCampaigns || []).filter(
+    (campaign) => isExamCampaign(campaign) && !campaign.closedAt && !campaign.cancelledAt && campaign.endDate < today,
+  );
+
+// Đóng tay và tự đóng cùng chốt trẻ chưa có kết quả; phiếu nháp và phiếu theo dõi giữ nguyên.
+export const closeCampaign = (db, campaign, userId, at = new Date().toISOString()) => {
+  const classIds = new Set(db.classes.filter((cls) => cls.campusId === campaign.campusId).map((cls) => cls.id));
+  const recorded = new Set(db.healthMeasurements.filter((m) => m.campaignId === campaign.id).map((m) => m.childId));
+  campaign.absentChildIds = db.children
+    .filter((child) => classIds.has(child.classId) && child.status === CHILD_STATUS.ACTIVE && !recorded.has(child.id))
+    .map((child) => child.id);
+  campaign.closedAt = at;
+  campaign.closedBy = userId;
+  campaign.history = [...(campaign.history || []), { at, userId, action: 'CLOSED' }];
+};
+
+const addMonths = (date, n) => {
+  const [y, m, d] = date.split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + n, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, lastDay));
+  return target.toISOString().slice(0, 10);
+};
+
+/** Ngày bắt đầu sớm nhất không còn "sát" ngày date: date + 2 tháng + 15 ngày (user chốt 2026-10-31). */
+const gapEndOf = (date) => addDays(addMonths(date, SCHEDULE_MIN_GAP.months), SCHEDULE_MIN_GAP.days);
+
+/**
+ * Cảnh báo khi tạo/sửa kỳ hoặc đợt (user chốt 2026-10-31; M1, M2): kỳ/đợt khác cùng điểm trường, chưa hủy, có ngày bắt đầu
+ * cách dưới 2 tháng 15 ngày (cả trước lẫn sau); đợt khám thêm cảnh báo năm học đã có đợt khám. Không chặn lưu.
+ */
+export const scheduleWarningsOf = (db, { campusId, kind, startDate, excludeId }) => {
+  const others = (db.healthCheckCampaigns || []).filter((c) => c.campusId === campusId && c.id !== excludeId && !c.cancelledAt);
+  const brief = (code, c) => ({ code, campaignId: c.id, name: c.name, kind: campaignKindOf(c), startDate: c.startDate });
+  const tooClose = others
+    .filter((c) => c.startDate < gapEndOf(startDate) && startDate < gapEndOf(c.startDate))
+    .map((c) => brief(SCHEDULE_WARNING.TOO_CLOSE, c));
+  const yearId = kind === CAMPAIGN_KIND.EXAM ? schoolYearIdOfDate(db, startDate) : null;
+  const examInYear = yearId
+    ? others
+        .filter((c) => isExamCampaign(c) && schoolYearIdOfDate(db, c.startDate) === yearId)
+        .map((c) => brief(SCHEDULE_WARNING.EXAM_IN_SCHOOL_YEAR, c))
+    : [];
+  return [...tooClose, ...examInYear].sort((a, b) => a.startDate.localeCompare(b.startDate));
+};
 
 /*
  * Phiếu theo dõi dài hạn (user chốt 2026-10-16, PROPOSED — đề xuất HLT-09 cho BE).
@@ -36,12 +92,7 @@ export const unclosedCampaignOf = (db, campusId, excludeId) =>
 export const FOLLOW_UP_CONTACT_DUE_DAYS = 7;
 const S = FOLLOW_UP_STATUS;
 
-const pad = (n) => String(n).padStart(2, '0');
-const localDate = (iso) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-const addDays = (date, n) => {
+export const addDays = (date, n) => {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
@@ -58,7 +109,8 @@ export const followUpState = (f, today = todayInput()) => {
   const roundStarts = [];
   history.forEach((e) => {
     // Kết quả mới khi vòng hiện tại chưa trao đổi thì gộp vào vòng đó, không lùi hạn.
-    if (e.action === 'OPENED' || (e.action === 'MEASUREMENT_ADDED' && (!start || contacted))) {
+    // Lần khám không có bất thường mới (newFinding: false) chỉ vào dòng thời gian, không mở vòng.
+    if (e.action === 'OPENED' || (e.action === 'MEASUREMENT_ADDED' && e.newFinding !== false && (!start || contacted))) {
       start = e;
       contacted = false;
       firstContactOn = null;
@@ -142,33 +194,110 @@ const examContactNote = (measurement, companion) => {
   const c = measurement.exam.conclusion || {};
   const parts = [`Bác sĩ trao đổi kết luận với ${companion.fullName.trim()} (${companion.relation || 'người đi cùng'}) tại buổi khám.`];
   if (c.tbRisk) parts.push('Kết luận có nguy cơ mắc lao (tiền sử tiếp xúc).');
-  if (c.action === CONCLUSION_ACTION.REFERRAL) parts.push(`Đề nghị khám chuyên khoa: ${c.specialty.trim()}.`);
+  if (c.followUpFinding === FOLLOW_UP_FINDING.NEW_FINDING && c.issueText?.trim())
+    parts.push(`Bất thường mới: ${c.issueText.trim().replace(/[.!?]?$/, '.')}`);
+  if (c.specialty?.trim() && (c.action === CONCLUSION_ACTION.REFERRAL || c.followUpFinding))
+    parts.push(`Đề nghị khám chuyên khoa: ${c.specialty.trim()}.`);
   if (c.adviceText?.trim()) parts.push(`Lời dặn: ${c.adviceText.trim()}`);
+  // Ý kiến phụ huynh đặt trước để không bị cắt khi ghi chú dài (user chốt 2026-10-23).
+  if (c.parentOpinion?.trim()) parts.splice(1, 0, `Ý kiến phụ huynh: ${c.parentOpinion.trim().replace(/[.!?]?$/, '.')}`);
   return parts.join(' ').slice(0, FOLLOW_UP_FIELD_LIMITS.note);
+};
+
+const isMeasurementEvent = (e) => e.action === 'OPENED' || e.action === 'MEASUREMENT_ADDED';
+
+/** Lần khám trong phiếu không mở vòng: mẫu FOLLOW_UP "Chưa ghi nhận thêm bất thường" hoặc "Tư vấn" (user chốt 2026-10-21). */
+export const notedMeasurementIds = (f) =>
+  new Set((f.history || []).filter((e) => e.action === 'MEASUREMENT_ADDED' && e.newFinding === false).map((e) => e.measurementId));
+
+// Mẫu FOLLOW_UP: chỉ "Có thêm bất thường mới" hoặc nguy cơ lao đưa phiếu sang vòng mới; mẫu thường luôn là kết quả mới.
+const newFindingOf = (measurement) => {
+  const c = measurement.exam?.conclusion || {};
+  return !c.followUpFinding || c.followUpFinding === FOLLOW_UP_FINDING.NEW_FINDING || !!c.tbRisk;
+};
+
+/** Lần trao đổi tại buổi khám (có người đi cùng) và thông báo khi kết quả mở phiếu hoặc mở vòng mới. */
+const announceRound = (d, child, f, measurement, user, { isNew, reopened }) => {
+  const companion = examCompanionOf(measurement);
+  const contactedAtExam = f.history.some((e) => e.action === 'PARENT_CONTACTED' && e.atExam && e.measurementId === measurement.id);
+  if (companion && !contactedAtExam)
+    f.history.push({
+      at: new Date().toISOString(),
+      userId: user.id,
+      action: 'PARENT_CONTACTED',
+      on: measurement.date,
+      note: examContactNote(measurement, companion),
+      atExam: true,
+      measurementId: measurement.id,
+    });
+  const { status, round } = followUpState(f);
+  f.status = status;
+  const c = measurement.exam?.conclusion || {};
+  const tbRisk = !!c.tbRisk;
+  const newFinding = c.followUpFinding === FOLLOW_UP_FINDING.NEW_FINDING;
+  const specialty = c.specialty?.trim();
+  const action = specialty
+    ? `bác sĩ đề nghị khám chuyên khoa (${specialty})`
+    : newFinding
+      ? 'bác sĩ ghi nhận thêm bất thường mới trong lúc đang theo dõi'
+      : 'kết quả khám ở mức Cần theo dõi sát';
+  const message = companion
+    ? `${child.fullName}: ${action}, bác sĩ đã trao đổi với người đi cùng tại buổi khám. Giáo viên lớp hỏi lại phụ huynh kết quả khám chuyên khoa.`
+    : `${child.fullName}: ${action}. Giáo viên lớp trao đổi với phụ huynh trước ngày ${formatDate(round.dueOn)}.`;
+  // Nguy cơ lao luôn báo Hiệu trưởng, Phó hiệu trưởng điểm trường và giáo viên lớp (user chốt 2026-10-17).
+  if (isNew || reopened || tbRisk)
+    notify(
+      d,
+      recipients(d, child, { exclude: user.id }),
+      f,
+      tbRisk
+        ? 'Trẻ có nguy cơ mắc lao (tiền sử tiếp xúc)'
+        : isNew
+          ? 'Trẻ cần theo dõi sát'
+          : newFinding
+            ? 'Trẻ có thêm bất thường mới'
+            : 'Trẻ lại ở mức Cần theo dõi sát',
+      message,
+    );
 };
 
 /**
  * Kết quả "Cần theo dõi sát" ⇒ mở phiếu; trẻ đã có phiếu chưa đóng thì ghi kết quả vào phiếu đó (1 phiếu mở/trẻ).
- * Vòng trước đã trao đổi ⇒ phiếu vào vòng mới, về "Chờ trao đổi phụ huynh". Sửa lại kết quả đã thuộc phiếu không mở vòng mới;
- * sửa làm mức giảm không tự đóng phiếu.
- * Phiếu khám có người đi cùng ⇒ ghi sẵn lần trao đổi tại buổi khám: không có hạn 7 ngày, công bố được ngay (user chốt 2026-10-17).
+ * Vòng trước đã trao đổi ⇒ phiếu vào vòng mới, về "Chờ trao đổi phụ huynh". Lưu kết luận không bao giờ đóng phiếu.
+ * Mẫu FOLLOW_UP (trẻ đang có phiếu): "Chưa ghi nhận thêm" hoặc "Tư vấn" chỉ vào dòng thời gian; "Có thêm bất thường mới"
+ * mở vòng như chuyển khám; sửa đổi lựa chọn thì vòng tính lại (user chốt 2026-10-21).
+ * Phiếu khám có người đi cùng ⇒ ghi sẵn lần trao đổi tại buổi khám, kèm ý kiến phụ huynh: không có hạn 7 ngày (user chốt 2026-10-17,
+ * 2026-10-23). Sửa phiếu thì ghi chú của lần trao đổi đó theo kết luận mới.
  */
 export const trackFollowUp = (d, child, measurement, followUpLevel, user) => {
   d.healthFollowUps ||= [];
+  const newFinding = newFindingOf(measurement);
+  const followUpMode = !!measurement.exam?.conclusion?.followUpFinding;
   const linked = d.healthFollowUps.find((f) => f.measurementIds.includes(measurement.id));
   if (linked) {
-    const event = linked.history.find((e) => e.measurementId === measurement.id);
+    const event = linked.history.find((e) => isMeasurementEvent(e) && e.measurementId === measurement.id);
     if (event) event.examOn = measurement.date;
+    const contact = linked.history.find((e) => e.action === 'PARENT_CONTACTED' && e.atExam && e.measurementId === measurement.id);
+    const companion = examCompanionOf(measurement);
+    if (contact && companion) Object.assign(contact, { on: measurement.date, note: examContactNote(measurement, companion) });
+    const changed = event?.action === 'MEASUREMENT_ADDED' && followUpMode && (event.newFinding !== false) !== newFinding;
+    if (changed && !linked.closedAt) {
+      const reopened = newFinding && followUpState(linked).status !== S.WAITING_PARENT_CONTACT;
+      event.newFinding = newFinding;
+      linked.updatedAt = new Date().toISOString();
+      if (newFinding) announceRound(d, child, linked, measurement, user, { isNew: false, reopened });
+      else linked.status = followUpState(linked).status;
+    }
     return linked;
   }
   if (followUpLevel !== FOLLOW_UP_LEVEL.CLOSE_WATCH) return null;
   const at = new Date().toISOString();
   const event = { at, userId: user.id, measurementId: measurement.id, examOn: measurement.date };
   let f = d.healthFollowUps.find((x) => x.childId === child.id && !x.closedAt);
-  const reopened = !!f && f.status !== S.WAITING_PARENT_CONTACT;
+  const reopened = !!f && newFinding && f.status !== S.WAITING_PARENT_CONTACT;
   if (f) {
     f.measurementIds.push(measurement.id);
-    f.history.push({ ...event, action: 'MEASUREMENT_ADDED' });
+    f.history.push({ ...event, action: 'MEASUREMENT_ADDED', ...(followUpMode ? { newFinding } : {}) });
     f.updatedAt = at;
   } else {
     f = {
@@ -187,44 +316,37 @@ export const trackFollowUp = (d, child, measurement, followUpLevel, user) => {
     d.healthFollowUps.push(f);
   }
   const isNew = f.history.length === 1;
-  const companion = examCompanionOf(measurement);
-  if (companion)
-    f.history.push({
-      at,
-      userId: user.id,
-      action: 'PARENT_CONTACTED',
-      on: measurement.date,
-      note: examContactNote(measurement, companion),
-      atExam: true,
-      measurementId: measurement.id,
-    });
-  const { status, round } = followUpState(f);
-  f.status = status;
-  const tbRisk = !!measurement.exam?.conclusion?.tbRisk;
-  const specialty = measurement.exam?.conclusion?.specialty?.trim();
-  const action = specialty ? `bác sĩ đề nghị khám chuyên khoa (${specialty})` : 'kết quả khám ở mức Cần theo dõi sát';
-  const message = companion
-    ? `${child.fullName}: ${action}, bác sĩ đã trao đổi với người đi cùng tại buổi khám. Giáo viên lớp hỏi lại phụ huynh kết quả khám chuyên khoa.`
-    : `${child.fullName}: ${action}. Giáo viên lớp trao đổi với phụ huynh trước ngày ${formatDate(round.dueOn)}.`;
-  // Nguy cơ lao luôn báo Hiệu trưởng, Phó hiệu trưởng điểm trường và giáo viên lớp (user chốt 2026-10-17).
-  if (isNew || reopened || tbRisk)
-    notify(
-      d,
-      recipients(d, child, { exclude: user.id }),
-      f,
-      tbRisk ? 'Trẻ có nguy cơ mắc lao (tiền sử tiếp xúc)' : isNew ? 'Trẻ cần theo dõi sát' : 'Trẻ lại ở mức Cần theo dõi sát',
-      message,
-    );
+  if (!newFinding) {
+    f.status = followUpState(f).status;
+    return f;
+  }
+  announceRound(d, child, f, measurement, user, { isNew, reopened });
   return f;
 };
 
-/** Kết quả "Cần theo dõi sát" chỉ công bố sau khi giáo viên ghi trao đổi với phụ huynh (user chốt 2026-10-16). */
-export const publishBlockOf = (db, measurementId, followUpLevel) => {
-  if (followUpLevel !== FOLLOW_UP_LEVEL.CLOSE_WATCH) return null;
-  const f = (db.healthFollowUps || []).find((x) => x.measurementIds.includes(measurementId));
-  if (!f || f.closedAt) return null;
-  const from = f.history.findIndex((e) => e.measurementId === measurementId);
-  return f.history.slice(from + 1).some((e) => e.action === 'PARENT_CONTACTED') ? null : PUBLISH_BLOCKED.FOLLOW_UP_CONTACT_REQUIRED;
+/**
+ * Lần khám đã làm gì với phiếu theo dõi (màn kết quả sau khi lưu): OPENED mở phiếu · NEW_ROUND mở vòng mới · MERGED gộp vào
+ * vòng đang chờ trao đổi · NOTED chỉ ghi vào dòng thời gian (không có bất thường mới) · null không thuộc phiếu nào.
+ */
+export const followUpEffectOf = (f, measurementId) => {
+  const e = f && (f.history || []).find((x) => isMeasurementEvent(x) && x.measurementId === measurementId);
+  if (!e) return null;
+  if (e.action === 'OPENED') return 'OPENED';
+  if (e.newFinding === false) return 'NOTED';
+  return followUpState(f).roundStarts.includes(e.at) ? 'NEW_ROUND' : 'MERGED';
+};
+
+/**
+ * Phiếu khám mức "Cần theo dõi sát" đã trao đổi với phụ huynh chưa (user chốt 2026-10-23): có người đi cùng ⇒ đã trao đổi tại buổi
+ * khám; không có ⇒ chưa, tới khi giáo viên ghi trao đổi trong phiếu theo dõi sau lần khám này. Kết quả khác: null.
+ */
+export const parentContactOf = (db, m, followUpLevel) => {
+  if (m.examStatus !== EXAM_STATUS.CONCLUDED || followUpLevel !== FOLLOW_UP_LEVEL.CLOSE_WATCH) return null;
+  if (examCompanionOf(m)) return { contacted: true, atExam: true, on: m.date, opinion: m.exam.conclusion?.parentOpinion || '' };
+  const f = (db.healthFollowUps || []).find((x) => x.measurementIds.includes(m.id));
+  const from = f ? f.history.findIndex((e) => isMeasurementEvent(e) && e.measurementId === m.id) : -1;
+  const contact = from < 0 ? null : f.history.slice(from + 1).find((e) => e.action === 'PARENT_CONTACTED');
+  return { contacted: !!contact, atExam: false, on: contact ? contact.on || localDate(contact.at) : null, opinion: '' };
 };
 
 /** Cho trẻ nghỉ học ⇒ đóng phiếu đang mở của trẻ (user chốt 2026-10-16). Trả số phiếu đã đóng. */

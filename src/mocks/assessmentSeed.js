@@ -7,6 +7,7 @@
  */
 import { DEFAULT_CRITERIA, EMOTION, HEALTH_STATUS, REWARD_STATUS } from '@/models/assessment/assessmentConstants';
 import { addDays, schoolDaysBetween, schoolYearOf, weekStart } from '@/utils/assessment/assessmentPeriods';
+import { DEMO_CLASS_IDS } from './demoClasses';
 
 const COMMENTS = [
   'Bé hăng hái giơ tay trả lời câu hỏi của cô.',
@@ -29,9 +30,6 @@ const YEAR_END_DEMO = {
   // Lớp của tài khoản giáo viên demo (Lê Minh Anh)
   cls_c1_c1: ['CONFIRMED', 'CONFIRMED', 'AWAITING_REVIEW', 'AWAITING_REVIEW', 'AI_FAILED', 'AWAITING_REVIEW'],
 };
-
-// Chỉ các lớp có tài khoản giáo viên demo: seed cho cả 24 lớp (~410 trẻ) vượt hạn mức localStorage
-const DEMO_CLASS_IDS = new Set(['cls_c1_m1', 'cls_c1_c1', 'cls_c1_c2', 'cls_c1_l1', 'cls_c2_m1', 'cls_c2_la']);
 
 const buildDailyAssessments = (classes, children, today) => {
   const from = weekStart(addDays(today, -21));

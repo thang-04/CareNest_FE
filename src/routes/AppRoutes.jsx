@@ -307,9 +307,10 @@ export function AppRoutes() {
           </Route>
           <Route path="children">
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />
-            <Route path="new" element={only(VP_ONLY, <EnrollChildPage />)} />
-            <Route path="import" element={only(VP_ONLY, <ImportChildrenPage />)} />
-            <Route path="placement" element={only(VP_ONLY, <ClassPlacementPage />)} />
+            {/* Tiếp nhận, nhập Excel, xếp lớp: Hiệu trưởng như PHT (user chốt 2026-10-27) */}
+            <Route path="new" element={only(LEADERS, <EnrollChildPage />)} />
+            <Route path="import" element={only(LEADERS, <ImportChildrenPage />)} />
+            <Route path="placement" element={only(LEADERS, <ClassPlacementPage />)} />
             <Route
               path="activation"
               element={
@@ -320,12 +321,13 @@ export function AppRoutes() {
             />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
             <Route path="health-checks" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckListPage />)} />
-            <Route path="health-checks/new" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />
+            {/* Đợt khám, kỳ cân đo: Hiệu trưởng và PHT điểm trường quản lý (user chốt 2026-10-31) */}
+            <Route path="health-checks/new" element={only(LEADERS, <HealthCheckFormPage />)} />
             <Route
               path="health-checks/:campaignId"
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckDetailPage />)}
             />
-            <Route path="health-checks/:campaignId/edit" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />
+            <Route path="health-checks/:campaignId/edit" element={only(LEADERS, <HealthCheckFormPage />)} />
             <Route
               path="health-checks/:campaignId/exam/:childId"
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthExamFormPage />)}

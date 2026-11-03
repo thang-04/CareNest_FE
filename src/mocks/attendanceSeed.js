@@ -32,8 +32,15 @@ const statusFor = (dayIndex, childIndex) => {
 
 const teacherOf = (classes, classId) => classes.find((c) => c.id === classId)?.homeroomTeacherId || null;
 
-const attendanceRecord = ({ classes, sessionsOf }, date, dayIndex, ch, childIndex, recordedTime) => {
-  const status = statusFor(dayIndex, childIndex);
+const attendanceRecord = (
+  { classes, sessionsOf },
+  date,
+  dayIndex,
+  ch,
+  childIndex,
+  recordedTime,
+  status = statusFor(dayIndex, childIndex),
+) => {
   const cls = classes.find((c) => c.id === ch.classId);
   const meals = Object.fromEntries(sessionsOf(cls).map((s) => [s, status === 'PRESENT']));
   const recordedBy = teacherOf(classes, ch.classId);
@@ -52,9 +59,9 @@ const attendanceRecord = ({ classes, sessionsOf }, date, dayIndex, ch, childInde
   };
 };
 
-/** Điểm danh demo của một ngày cho các trẻ đưa vào (thứ tự trẻ quyết định trạng thái, ổn định giữa các lần chạy). */
-export const buildDayAttendance = ({ classes, children, date, sessionsOf, recordedTime = '07:55' }) =>
-  children.map((ch, ci) => attendanceRecord({ classes, sessionsOf }, date, 0, ch, ci, recordedTime));
+/** Điểm danh demo của một ngày cho các trẻ đưa vào (thứ tự trẻ quyết định trạng thái, trừ khi truyền `status`). */
+export const buildDayAttendance = ({ classes, children, date, sessionsOf, recordedTime = '07:55', status }) =>
+  children.map((ch, ci) => attendanceRecord({ classes, sessionsOf }, date, 0, ch, ci, recordedTime, status));
 
 export const buildAttendanceSeed = ({ classes, children, today, sessionsOf }) => {
   const active = children.filter((ch) => ch.classId && ch.status === 'ACTIVE');

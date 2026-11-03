@@ -165,7 +165,7 @@ const ITEMS = {
     to: '/children/activation',
   },
   healthChecks: {
-    label: 'Đợt khám sức khỏe',
+    label: 'Đợt khám, kỳ cân đo',
     to: '/children/health-checks',
   },
   healthFollowUps: {
@@ -403,7 +403,16 @@ const MENUS = {
       'schoolVps',
       'schoolRoles',
     ]),
-    group('children', ['childList', 'parentActivation', 'healthChecks', 'healthFollowUps', 'healthTrends']),
+    // Tiếp nhận trẻ, Xếp lớp như PHT trên mọi điểm trường (user chốt 2026-10-27)
+    group('children', [
+      'childList',
+      'childEnroll',
+      'childPlacement',
+      'parentActivation',
+      'healthChecks',
+      'healthFollowUps',
+      'healthTrends',
+    ]),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('assessment', [
       'assessOverview',

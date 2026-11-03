@@ -1,16 +1,18 @@
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { buildPickupSeed } from '@/mocks/pickupSeed';
+import { activeYearId, activeYearStart } from '@/mocks/roomManagers';
 import { PICKUP_OUTCOME, PICKUP_REASON, PICKUP_STATUS, outcomeOf } from '@/models/pickup/pickupConstants';
 import { canHandOverChildren, canOpenPickup } from '@/utils/pickup/pickupPermissions';
 import { validatePickupResult } from '@/utils/pickup/pickupValidation';
-import { todayInput } from '@/utils/format';
+import { formatDate, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 
 /*
  * Fake backend for child pickup (UC 3.15 / 3.16, GBR-CP-03).
  * Rules the backend must re-implement:
  *  - only the teacher of the class hands over its children, only today;
+ *  - only children marked present today (attendance PRESENT) can be handed over (user 2026-10-27);
  *  - a handover is completed only after photo match or the parent's phone agreement;
  *    a failed verification is stored but never counted as a handover;
  *  - one completed handover per child per day; the parent is notified of every result.
@@ -18,6 +20,7 @@ import { uid } from '@/utils/id';
  */
 
 const forbidden = () => new ApiError(403, 'Bạn không có quyền thực hiện thao tác này.');
+const PRESENT = 'PRESENT';
 const ABSENT = ['EXCUSED', 'UNEXCUSED'];
 
 const ensureSeeded = (db) => {
@@ -43,6 +46,24 @@ const findClass = (db, id) => {
   return cls;
 };
 
+/*
+ * Đón trẻ theo năm học đang hoạt động như điểm danh (user chốt 2026-10-28, Y-1): lớp của năm đó; ngày xem từ đầu năm tới hôm nay
+ * (năm chưa bắt đầu thì không chặn ngày cũ).
+ */
+const inActiveYear = (db, cls) => cls.schoolYear === activeYearId(db);
+const assertActiveYearClass = (db, cls) => {
+  if (!inActiveYear(db, cls))
+    throw new ApiError(422, 'Đón trẻ chỉ theo lớp của năm học đang hoạt động.', { classId: 'Chọn lớp của năm học đang hoạt động' });
+};
+const assertPickupDay = (db, day) => {
+  const today = todayInput();
+  const start = activeYearStart(db);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day > today)
+    throw new ApiError(422, 'Ngày xem không hợp lệ.', { date: 'Chọn ngày không ở tương lai' });
+  if (start && start <= today && day < start)
+    throw new ApiError(422, 'Ngày xem trước năm học đang hoạt động.', { date: `Chọn ngày từ ${formatDate(start)}` });
+};
+
 const attendanceOf = (db, childId, date) => (db.attendance || []).find((r) => r.childId === childId && r.date === date) || null;
 const recordsOf = (db, childId, date) =>
   (db.pickups || []).filter((p) => p.childId === childId && p.date === date).sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
@@ -55,11 +76,18 @@ const earlyRequestOf = (db, childId, date) => {
   return e ? { healthEntryId: e.id, requestedAt: e.recordedAt, symptoms: e.symptoms || [], note: e.note || '' } : null;
 };
 
+// Chờ đón chỉ khi trẻ điểm danh Có mặt; chưa điểm danh không coi là có mặt (user chốt 2026-10-27).
+const statusOf = (att, done) => {
+  if (done) return PICKUP_STATUS.PICKED_UP;
+  if (att?.status === PRESENT) return PICKUP_STATUS.WAITING;
+  return att && ABSENT.includes(att.status) ? PICKUP_STATUS.ABSENT : PICKUP_STATUS.UNMARKED;
+};
+
 const boardRow = (db, child, date) => {
   const att = attendanceOf(db, child.id, date);
   const attempts = recordsOf(db, child.id, date);
   const done = attempts.find((p) => p.outcome === PICKUP_OUTCOME.HANDED_OVER) || null;
-  const status = done ? PICKUP_STATUS.PICKED_UP : att && ABSENT.includes(att.status) ? PICKUP_STATUS.ABSENT : PICKUP_STATUS.WAITING;
+  const status = statusOf(att, done);
   return {
     child: { id: child.id, code: child.code, fullName: child.fullName, gender: child.gender },
     attendanceStatus: att?.status || null,
@@ -85,7 +113,9 @@ export const pickupMockRepository = {
     const db = ready();
     const cls = findClass(db, classId);
     if (!canHandOverChildren(cls, user)) throw forbidden();
+    assertActiveYearClass(db, cls);
     const day = date || todayInput();
+    assertPickupDay(db, day);
     const rows = db.children
       .filter((c) => c.classId === classId && c.status === 'ACTIVE')
       .map((c) => boardRow(db, c, day))
@@ -133,7 +163,8 @@ export const pickupMockRepository = {
         throw new ApiError(422, 'Người đón không có trong danh sách phụ huynh đã đăng ký ảnh. Hãy gọi điện xác nhận với phụ huynh.');
       const today = todayInput();
       const att = attendanceOf(db, child.id, today);
-      if (att && ABSENT.includes(att.status)) throw new ApiError(409, 'Trẻ được điểm danh vắng hôm nay.');
+      if (att?.status !== PRESENT)
+        throw new ApiError(409, att ? 'Trẻ được điểm danh vắng hôm nay.' : 'Trẻ chưa được điểm danh có mặt hôm nay.');
       if (recordsOf(db, child.id, today).some((p) => p.outcome === PICKUP_OUTCOME.HANDED_OVER))
         throw new ApiError(409, 'Trẻ đã được trả cho người đón hôm nay.');
 
@@ -173,7 +204,8 @@ export const pickupMockRepository = {
     if (!canOpenPickup(user)) throw forbidden();
     const db = ready();
     const day = date || todayInput();
-    const classes = db.classes.filter((c) => canHandOverChildren(c, user));
+    assertPickupDay(db, day);
+    const classes = db.classes.filter((c) => inActiveYear(db, c) && canHandOverChildren(c, user));
     const ids = new Set(classes.map((c) => c.id));
     const names = Object.fromEntries(db.children.map((c) => [c.id, c.fullName]));
     const classNames = Object.fromEntries(classes.map((c) => [c.id, c.name]));

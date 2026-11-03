@@ -26,6 +26,7 @@ export const INTEGRATION_MODULES = {
     routes: ['/children/activation'],
     files: ['src/services/account/api/guardianApi.js'],
     facades: ['src/services/account/guardianService.js'],
+    pending: ['GET /children/{x}/guardians/pending', 'POST /children/{x}/guardians/activate'],
   },
   'school-config': {
     source: 'api',

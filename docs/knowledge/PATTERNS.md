@@ -11,6 +11,13 @@ Bài học tổng quát, mỗi pattern có nguồn. Pattern lấy từ thiết k
 | FP-NO-PARSE-DESC | Phân nhánh theo HTTP status; `desc` chỉ để hiển thị; cần phân biệt hơn ⇒ đề xuất BE thêm mã | `BE:docs/contracts/ERROR_CONTRACT.md`, FE-KI-002 |
 | FP-AI-CONTEXT-MATCHES-SOURCE | Lớp AI context phải mô tả source thật: glob `paths:` của rule khớp đuôi file thật (sai: `*.ts` trong repo JSX ⇒ rule không bao giờ nạp, E7 nay là lỗi); scaffold xong ⇒ bỏ "chưa có source"/skeleton ngay; luật design/ranh giới module phải có cổng tự động (lint, `check-design`), không chỉ nằm trong doc | plan `docs/plans/active/2026-10-20-ai-context-design-sync.md` |
 
+## FP-MOCK-READY-IDEMPOTENT — `ready()`/`ensure*` của mock repo phải bất biến
+
+- Bối cảnh: `writeDb` phát `DB_CHANGED_EVENT`; mọi `useAsync` trên trang tải lại im lặng và gọi lại hàm đọc của mock repo.
+- Quy tắc: hàm đọc chỉ gọi `writeDb` khi điều kiện kiểm tra đúng bằng điều kiện mà mutator sẽ xử lý (dùng chung một hàm điều kiện); gọi lần hai thì không ghi.
+- Ví dụ sai: `ready()` kiểm "còn đơn báo nghỉ chưa có điểm danh" nhưng `ensureLeaveDemo` bỏ qua thứ Bảy ⇒ mỗi lần đọc đều ghi ⇒ tab treo.
+- Nguồn: FE-BUG-261024-attendance-ready-write-loop
+
 ## Format pattern từ incident
 
 ```markdown

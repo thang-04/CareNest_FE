@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Info, RotateCcw, Search, ClipboardCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useHealthFollowUps } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -38,7 +39,10 @@ export default function HealthFollowUpListPage() {
   const [overdue, setOverdue] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(1);
-  const { followUps, counts, loading, error, reload } = useHealthFollowUps({ campusId, status, overdue });
+  // Theo năm học ở header: phiếu đang mở luôn hiện, phiếu đã đóng theo năm phiếu còn mở (user chốt 2026-10-28, Y-4).
+  const { schoolYear, schoolYears } = useSchoolYear();
+  const yearLabel = schoolYears.find((y) => y.id === schoolYear)?.label || schoolYear;
+  const { followUps, counts, loading, error, reload } = useHealthFollowUps({ campusId, status, overdue, schoolYear });
   const rows = useMemo(() => {
     const kw = normalizeText(keyword).trim();
     return followUps.filter((f) => !kw || normalizeText(`${f.child.fullName} ${f.child.code}`).includes(kw));
@@ -94,7 +98,8 @@ export default function HealthFollowUpListPage() {
           {isTeacherRole(user)
             ? 'Bạn ghi lại các lần trao đổi với phụ huynh và kết quả bác sĩ chuyên khoa báo lại.'
             : 'Giáo viên phụ trách lớp cập nhật phiếu; Ban giám hiệu theo dõi tiến độ.'}{' '}
-          {FOLLOW_UP_CLOSE_MEANING} Hệ thống chỉ sàng lọc, không chẩn đoán.
+          {FOLLOW_UP_CLOSE_MEANING} Hệ thống chỉ sàng lọc, không chẩn đoán. Danh sách gồm mọi phiếu đang mở và phiếu đã đóng của năm học{' '}
+          {yearLabel}.
         </div>
       </div>
 

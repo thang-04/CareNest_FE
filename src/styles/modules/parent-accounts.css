@@ -265,12 +265,6 @@
   background: var(--color-warning-bg);
   color: var(--color-warning-fg);
 }
-/* Mật khẩu tạm trên phiếu: chữ đơn cách để dễ đọc từng ký tự */
-.pa-slip__password {
-  font-family: monospace;
-  font-size: var(--fs-xl);
-  letter-spacing: var(--tracking-wide);
-}
 .pa-panel__meta {
   margin: 0 0 var(--space-4);
 }

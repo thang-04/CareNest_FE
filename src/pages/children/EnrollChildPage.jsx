@@ -1,47 +1,51 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useParentAccountOptions, usePlacementClasses } from '@/hooks/children/useChildRecords';
+import { useCitizenIdAccounts, usePlacementClasses } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Stepper } from '@/components/ui/Stepper';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
+import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { ChildProfileFields } from '@/components/children/ChildProfileFields';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
-import { ExistingGuardianPicker } from '@/components/children/ExistingGuardianPicker';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
-import { checkDuplicateChild, enrollChild } from '@/services/children/childrenService';
+import { checkDuplicateChild, checkGuardianConflicts, enrollChild, readmitChild } from '@/services/children/childrenService';
+import { FormField } from '@/components/form/FormField';
 import { GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import { formatDate } from '@/utils/format';
-import { hasErrors, normalizePhone, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
-import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
-import { canEnrollChild } from '@/utils/children/childrenPermissions';
-import { emptyChildInfo, emptyDeclaration, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
+import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
+import { canActivateParentsAt, canEnrollChild, childCampusesOf } from '@/utils/children/childrenPermissions';
+import {
+  defaultCampusId,
+  emptyChildInfo,
+  emptyDeclaration,
+  suggestAgeGroupId,
+  withGuardianAccounts,
+} from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
 const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Khai báo sức khỏe', 'Xem lại & xác nhận'];
 
-const GUARDIAN_MODE = { EXISTING: 'EXISTING', NEW: 'NEW' };
-const GUARDIAN_MODE_LABELS = { EXISTING: 'Đã có tài khoản', NEW: 'Chưa có tài khoản' };
-const MAX_GUARDIANS = 3;
+const PLACEMENT_FIELDS = ['classId', 'campusId'];
 
-const stepOfField = (field) => (field.startsWith('declaration.') ? 2 : field === 'classId' ? 1 : 0);
+const stepOfField = (field) => (field.startsWith('declaration.') ? 2 : PLACEMENT_FIELDS.includes(field) ? 1 : 0);
 
 /** Splits '422' details from the service back into each step's error map. */
 const splitServerErrors = (details = {}) => {
   const out = { info: {}, placement: {}, declaration: {} };
   Object.entries(details).forEach(([k, v]) => {
     if (k.startsWith('declaration.')) out.declaration[k.slice(12)] = v;
-    else if (k === 'classId') out.placement.classId = v;
+    else if (PLACEMENT_FIELDS.includes(k)) out.placement[k] = v;
     else out.info[k] = v;
   });
   return out;
@@ -51,24 +55,31 @@ export default function EnrollChildPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, activeYear, yearReadOnly } = useSchoolYear();
   const md = useMasterData();
-  const { classes, loading: classesLoading } = usePlacementClasses(schoolYear);
-  const accountsQ = useParentAccountOptions({ enabled: canEnrollChild(user) });
+  const { classes, loading: classesLoading } = usePlacementClasses();
 
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
   const [info, setInfo] = useState(emptyChildInfo);
-  const [guardianMode, setGuardianMode] = useState(GUARDIAN_MODE.NEW);
-  const [linked, setLinked] = useState([]);
   const [ageGroupId, setAgeGroupId] = useState('');
   const [classId, setClassId] = useState('');
+  // null = chưa chọn: dùng điểm trường mặc định; giữ lựa chọn khi tiếp nhận trẻ khác.
+  const [campusPick, setCampusPick] = useState(null);
   const [declaration, setDeclaration] = useState(emptyDeclaration());
   const [errors, setErrors] = useState({ info: {}, placement: {}, declaration: {} });
   const [duplicate, setDuplicate] = useState(null);
+  const [readmitOpen, setReadmitOpen] = useState(false);
+  const [readmitReason, setReadmitReason] = useState('');
+  const [readmitError, setReadmitError] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  // CCCD trùng tài khoản phụ huynh có sẵn ⇒ dùng tài khoản đó (user chốt 2026-10-23); bỏ 2 tab Đã có / Chưa có tài khoản.
+  const accountOf = useCitizenIdAccounts(
+    info.guardians.map((g) => g.idNumber),
+    { enabled: canEnrollChild(user) },
+  );
 
   if (!canEnrollChild(user)) {
     return (
@@ -78,66 +89,36 @@ export default function EnrollChildPage() {
         <StatusPage
           kind="403"
           title="Bạn không có quyền tiếp nhận trẻ"
-          description="Chỉ Phó hiệu trưởng phụ trách điểm trường được tiếp nhận trẻ."
+          description="Chỉ Hiệu trưởng hoặc Phó hiệu trưởng được giao quyền tiếp nhận trẻ."
         />
       </div>
     );
   }
 
-  const suggested = suggestAgeGroupId(info.dateOfBirth, schoolYear);
+  // Xếp lớp khi tiếp nhận luôn vào năm học đang hoạt động (user chốt 2026-10-28, Y-3).
+  const yearId = activeYear?.id || schoolYear;
+  const yearLabel = activeYear?.label || schoolYear;
+  const suggested = suggestAgeGroupId(info.dateOfBirth, yearId);
   const selectedClass = classes.find((c) => c.id === classId);
-  const dirty = !!(info.fullName || info.dateOfBirth || linked.length || info.guardians.some((g) => g.fullName || g.phone));
+  // Hiệu trưởng, PHT toàn trường chọn điểm trường: trẻ chưa xếp lớp thuộc điểm trường này (BE kiểm lại).
+  const campusOptions = childCampusesOf(user, md.campuses);
+  const pickCampus = campusOptions.length > 1;
+  const campusId = campusPick ?? defaultCampusId(campusOptions, user);
+  // Không có quyền kích hoạt tài khoản phụ huynh ở điểm trường nhận trẻ ⇒ vẫn lưu, phụ huynh mới chờ kích hoạt; phụ huynh đã có
+  // tài khoản chỉ liên kết, thông tin theo tài khoản (P-18 A, user chốt 2026-10-28; BE kiểm lại).
+  const manageAccounts = canActivateParentsAt(selectedClass?.campusId || campusId, user);
+  const campusLabel = (id) => md.campusById(id)?.shortName || md.campusById(id)?.name || '';
+  const dirty = !!(info.fullName || info.dateOfBirth || info.guardians.some((g) => g.fullName || g.phone || g.idNumber));
 
-  // Chế độ "Đã có tài khoản": thông tin liên hệ lấy từ tài khoản; BE vẫn đọc lại theo accountId khi lưu.
-  const withGuardians = (base, mode, links) =>
-    mode === GUARDIAN_MODE.NEW
-      ? base
-      : {
-          ...base,
-          guardians: links.map((g) => {
-            const acc = accountsQ.accounts.find((a) => a.id === g.accountId);
-            return {
-              accountId: g.accountId,
-              relation: g.relation,
-              fullName: acc?.fullName || '',
-              phone: acc?.phone || '',
-              email: acc?.email || '',
-            };
-          }),
-        };
-  const effectiveInfo = withGuardians(info, guardianMode, linked);
-
-  const validateInfo = (value, mode = guardianMode) => {
-    const errs = validateChildInfo(value);
-    if (mode === GUARDIAN_MODE.EXISTING && !value.guardians.length) errs.guardians = 'Chọn ít nhất một tài khoản phụ huynh';
-    return errs;
-  };
-
-  const accountOfContact = (g) => {
-    const phone = normalizePhone(g?.phone);
-    const email = (g?.email || '').trim().toLowerCase();
-    return accountsQ.accounts.find((a) => (phone && a.phone === phone) || (email && a.email.toLowerCase() === email)) || null;
-  };
-
-  const switchMode = (mode) => {
-    setGuardianMode(mode);
-    setErrors((e) => ({ ...e, info: Object.fromEntries(Object.entries(e.info).filter(([k]) => !k.startsWith('guardians'))) }));
-  };
-
-  const pickSuggestedAccount = (g) => {
-    const acc = accountOfContact(g);
-    if (!acc) return;
-    setLinked((l) =>
-      l.some((x) => x.accountId === acc.id) || l.length >= MAX_GUARDIANS ? l : [...l, { accountId: acc.id, relation: g.relation }],
-    );
-    switchMode(GUARDIAN_MODE.EXISTING);
-  };
-
-  const changeLinked = (value) => {
-    setLinked(value);
-    const now = validateInfo(withGuardians(info, GUARDIAN_MODE.EXISTING, value), GUARDIAN_MODE.EXISTING);
-    setErrors((e) => ({ ...e, info: Object.fromEntries(Object.entries(e.info).filter(([k]) => now[k])) }));
-  };
+  // Phụ huynh có CCCD trùng tài khoản: họ tên, SĐT, email theo tài khoản; BE vẫn tự liên kết theo CCCD khi lưu.
+  const withAccounts = (value) => ({
+    ...value,
+    guardians: withGuardianAccounts(value.guardians, accountOf, { accountOnly: !manageAccounts }),
+  });
+  const effectiveInfo = withAccounts(info);
+  // Phụ huynh chưa có tài khoản (theo tra CCCD): báo trước ở bước Xem lại khi người lưu không có quyền kích hoạt.
+  const waitingNames = effectiveInfo.guardians.filter((g) => !accountOf(g.idNumber)).map((g) => g.fullName);
+  const validateInfo = (value) => validateChildInfo(value);
 
   const goTo = (i) => {
     setStep(i);
@@ -159,8 +140,28 @@ export default function EnrollChildPage() {
     setInfo(value);
     setDuplicate(null);
     // Clear errors as soon as the user fixes them; new errors only appear on blur / next.
-    const now = validateInfo(withGuardians(value, guardianMode, linked));
+    const now = validateInfo(withAccounts(value));
     setErrors((e) => ({ ...e, info: Object.fromEntries(Object.entries(e.info).filter(([k]) => now[k])) }));
+  };
+
+  const toPlacement = () => {
+    if (!ageGroupId) setAgeGroupId(suggested);
+    goTo(1);
+  };
+
+  const readmit = async () => {
+    try {
+      const child = await readmitChild(duplicate.id, { reason: readmitReason }, user);
+      toast.success(
+        `Đã mở lại hồ sơ ${child.fullName} (${child.code}): trẻ ở trạng thái Chờ xếp lớp. Cập nhật hồ sơ, khai báo sức khỏe nếu có thay đổi rồi xếp lớp.`,
+        'Tiếp nhận lại',
+      );
+      navigate(`/children/${child.id}`);
+    } catch (err) {
+      if (err.details?.reason) setReadmitError(err.details.reason);
+      else setReadmitOpen(false);
+      toast.error(err, 'Không mở lại được hồ sơ');
+    }
   };
 
   const next = async () => {
@@ -170,22 +171,38 @@ export default function EnrollChildPage() {
       if (hasErrors(errs)) return;
       setBusy(true);
       try {
-        const dup = await checkDuplicateChild({ fullName: info.fullName, dateOfBirth: info.dateOfBirth }, user);
+        // Trùng hồ sơ = cùng họ tên, ngày sinh và CCCD một phụ huynh (BE kiểm); trẻ đã nghỉ học thì gợi ý mở lại hồ sơ cũ.
+        const dup = await checkDuplicateChild(
+          {
+            fullName: info.fullName,
+            dateOfBirth: info.dateOfBirth,
+            guardianIdNumbers: effectiveInfo.guardians.map((g) => g.idNumber),
+          },
+          user,
+        );
         setDuplicate(dup);
         if (dup) return;
+        // CCCD/SĐT phụ huynh lệch phụ huynh đã có: báo ngay ở bước này, không đợi lưu; lưu vẫn kiểm lại (user chốt 2026-10-28).
+        await checkGuardianConflicts(effectiveInfo.guardians, user);
       } catch (err) {
-        toast.error(err, 'Không kiểm tra được hồ sơ trùng');
+        if (err.status === 409 && err.details) {
+          setErrors((e) => ({ ...e, info: err.details }));
+          toast.error(err, 'Thông tin phụ huynh chưa đúng');
+        } else toast.error(err, 'Không kiểm tra được hồ sơ');
         return;
       } finally {
         setBusy(false);
       }
-      if (!ageGroupId) setAgeGroupId(suggested);
-      goTo(1);
+      toPlacement();
     } else if (step === 1) {
-      // Lớp không bắt buộc khi tiếp nhận: bỏ trống thì trẻ ở trạng thái Chờ xếp lớp.
+      // Lớp không bắt buộc khi tiếp nhận: bỏ trống thì trẻ ở trạng thái Chờ xếp lớp của điểm trường đã chọn.
+      if (pickCampus && !campusId) {
+        setErrors((e) => ({ ...e, placement: { campusId: 'Chọn điểm trường tiếp nhận trẻ' } }));
+        return;
+      }
       goTo(2);
     } else if (step === 2) {
-      const errs = validateDeclaration(declaration);
+      const errs = validateDeclaration(declaration, { dateOfBirth: info.dateOfBirth });
       setErrors((e) => ({ ...e, declaration: errs }));
       if (!hasErrors(errs)) goTo(3);
     }
@@ -194,11 +211,12 @@ export default function EnrollChildPage() {
   const save = async () => {
     setBusy(true);
     try {
-      const child = await enrollChild({ child: effectiveInfo, classId, declaration }, user);
+      const child = await enrollChild({ child: effectiveInfo, classId, campusId: campusId || undefined, declaration }, user);
       setSaved(child);
       toast.success(`Đã lưu hồ sơ ${child.fullName} (${child.code}).`, 'Tiếp nhận thành công');
     } catch (err) {
-      if (err.status === 422 && err.details) {
+      // 409 trùng CCCD/SĐT với phụ huynh khác cũng trả lỗi theo ô (details).
+      if ((err.status === 422 || err.status === 409) && err.details) {
         setErrors(splitServerErrors(err.details));
         goTo(Math.min(...Object.keys(err.details).map(stepOfField)));
       }
@@ -209,8 +227,18 @@ export default function EnrollChildPage() {
   };
 
   if (saved) {
-    // Trạng thái tài khoản lấy từ BE trả về sau khi lưu, không suy từ lựa chọn trên form.
-    const needsActivation = (saved.guardians || []).some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED);
+    // Kết quả tài khoản phụ huynh lấy từ BE trả về sau khi lưu (form tiếp nhận kích hoạt ngay — user chốt 2026-10-28).
+    const accounts = saved.guardianAccounts || [];
+    const created = accounts.filter((a) => a.result === 'CREATED');
+    // Tài khoản có sẵn đổi SĐT ở form ⇒ tên đăng nhập mới, mật khẩu mới gửi SMS (user chốt 2026-10-28).
+    const renamed = accounts.filter((a) => a.result === 'LINKED' && a.phoneChanged);
+    const smsFailed = [...created, ...renamed].filter((a) => a.smsStatus === 'FAILED');
+    const smsSent = created.filter((a) => a.smsStatus !== 'FAILED');
+    const renamedSent = renamed.filter((a) => a.smsStatus !== 'FAILED');
+    const linked = accounts.filter((a) => a.result === 'LINKED');
+    const waiting = accounts.filter((a) => a.result === 'NOT_ACTIVATED');
+    const phones = (list) => list.map((a) => a.phone).join(', ');
+    const names = (list) => list.map((a) => a.fullName).join(', ');
     return (
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
@@ -225,10 +253,22 @@ export default function EnrollChildPage() {
               {saved.className ? ` vào ${saved.className}` : ' – chờ xếp lớp'}
             </div>
             <div className="muted tr-state-text">
-              Mã trẻ <b>{saved.code}</b>.{' '}
-              {needsActivation
-                ? 'Bước tiếp theo: kích hoạt tài khoản cho phụ huynh chưa có tài khoản để nhận tên đăng nhập và mật khẩu qua SMS.'
-                : 'Trẻ đã được liên kết vào tài khoản phụ huynh có sẵn; phụ huynh xem được trẻ trên ứng dụng, không cần mật khẩu mới.'}
+              <div>
+                Mã trẻ <b>{saved.code}</b>.
+              </div>
+              {smsSent.length > 0 && <div>Đã tạo tài khoản phụ huynh, mật khẩu tạm gửi qua SMS tới {phones(smsSent)}.</div>}
+              {renamedSent.length > 0 && (
+                <div>Tài khoản có sẵn đổi tên đăng nhập sang {phones(renamedSent)}; mật khẩu tạm mới đã gửi qua SMS tới số mới.</div>
+              )}
+              {smsFailed.length > 0 && (
+                <div>Chưa gửi được SMS mật khẩu tới {phones(smsFailed)}: gửi lại mật khẩu ở màn Tài khoản phụ huynh.</div>
+              )}
+              {linked.length > 0 && (
+                <div>Liên kết vào tài khoản có sẵn của {names(linked)}; phụ huynh xem được trẻ trên ứng dụng, không cần mật khẩu mới.</div>
+              )}
+              {waiting.length > 0 && (
+                <div>Chưa tạo tài khoản cho {names(waiting)}: người có quyền kích hoạt ở màn Tài khoản phụ huynh.</div>
+              )}
             </div>
             <div className="row row--wrap mt-12 gap-2 tr-state-actions">
               <button
@@ -236,8 +276,6 @@ export default function EnrollChildPage() {
                 onClick={() => {
                   setSaved(null);
                   setInfo(emptyChildInfo());
-                  setGuardianMode(GUARDIAN_MODE.NEW);
-                  setLinked([]);
                   setClassId('');
                   setAgeGroupId('');
                   setDeclaration(emptyDeclaration());
@@ -250,9 +288,9 @@ export default function EnrollChildPage() {
               <Link className="btn" to={`/children/${saved.id}`}>
                 <Eye size={16} /> Xem hồ sơ
               </Link>
-              {needsActivation && (
+              {(waiting.length > 0 || smsFailed.length > 0) && (
                 <Link className="btn btn--primary" to={`/children/activation?childId=${saved.id}`}>
-                  <KeyRound size={16} /> Kích hoạt tài khoản phụ huynh
+                  <KeyRound size={16} /> {waiting.length > 0 ? 'Kích hoạt tài khoản phụ huynh' : 'Gửi lại mật khẩu'}
                 </Link>
               )}
             </div>
@@ -261,6 +299,15 @@ export default function EnrollChildPage() {
       </div>
     );
   }
+
+  if (yearReadOnly)
+    return (
+      <div className="page">
+        <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
+        <h1 className="page__title">Tiếp nhận trẻ</h1>
+        <ActiveYearNotice action="Tiếp nhận trẻ" />
+      </div>
+    );
 
   return (
     <div className="page">
@@ -271,6 +318,7 @@ export default function EnrollChildPage() {
           Nhập nhiều trẻ từ Excel
         </Link>
       </div>
+      <ActiveYearNotice action="Tiếp nhận trẻ" />
       <div className="card stepper-card">
         <Stepper steps={STEPS} current={step} maxReached={maxReached} onStepClick={goTo} />
       </div>
@@ -283,57 +331,14 @@ export default function EnrollChildPage() {
             onChange={changeInfo}
             errors={errors.info}
             onBlurField={blurCheck}
-            guardianTabs={
-              <div className="tabs tr-guardian-mode" role="tablist" aria-label="Tài khoản phụ huynh">
-                {[GUARDIAN_MODE.EXISTING, GUARDIAN_MODE.NEW].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    role="tab"
-                    aria-selected={guardianMode === m}
-                    className={`tab ${guardianMode === m ? 'tab--active' : ''}`}
-                    onClick={() => switchMode(m)}
-                  >
-                    {GUARDIAN_MODE_LABELS[m]}
-                  </button>
-                ))}
-              </div>
-            }
-            guardiansOverride={
-              guardianMode === GUARDIAN_MODE.EXISTING && (
-                <ExistingGuardianPicker
-                  accounts={accountsQ.accounts}
-                  loading={accountsQ.loading}
-                  error={accountsQ.error}
-                  onRetry={accountsQ.reload}
-                  value={linked}
-                  onChange={changeLinked}
-                  errors={errors.info}
-                />
-              )
-            }
-            guardianNotice={(i) => {
-              const acc = accountOfContact(info.guardians[i]);
-              return (
-                acc && (
-                  <div className="alert alert--warning mt-12">
-                    <AlertTriangle size={18} />
-                    <div>
-                      Số điện thoại hoặc email này đã có tài khoản phụ huynh <b>{acc.fullName}</b>.{' '}
-                      <button type="button" className="btn btn--sm btn--ghost" onClick={() => pickSuggestedAccount(info.guardians[i])}>
-                        Chọn tài khoản này
-                      </button>
-                    </div>
-                  </div>
-                )
-              );
-            }}
+            accountOf={accountOf}
+            accountReadOnly={!manageAccounts}
           />
-          {duplicate && (
+          {duplicate?.kind === 'ACTIVE' && (
             <div className="alert alert--danger mt-16" role="alert">
               <AlertTriangle size={18} />
               <div>
-                Hồ sơ này đã tồn tại (trùng họ tên và ngày sinh). Xem lại hồ sơ đã có.{' '}
+                Hồ sơ này đã tồn tại (trùng họ tên, ngày sinh và phụ huynh). Xem lại hồ sơ đã có.{' '}
                 {duplicate.sameCampus ? (
                   <Link className="text-primary" to={`/children/${duplicate.id}`}>
                     {duplicate.fullName} ({duplicate.code})
@@ -341,6 +346,49 @@ export default function EnrollChildPage() {
                 ) : (
                   'Hồ sơ thuộc điểm trường khác – liên hệ Hiệu trưởng.'
                 )}
+              </div>
+            </div>
+          )}
+          {duplicate?.kind === 'LEFT' && (
+            <div className="alert alert--warning mt-16" role="alert">
+              <RotateCcw size={18} />
+              <div className="tr-cell-stack">
+                {duplicate.sameCampus ? (
+                  <span>
+                    Trẻ này từng học ở trường và đã nghỉ học{duplicate.leftAt ? ` từ ${formatDate(duplicate.leftAt)}` : ''}: hồ sơ cũ{' '}
+                    <Link className="text-primary" to={`/children/${duplicate.id}`}>
+                      {duplicate.fullName} ({duplicate.code})
+                    </Link>
+                    . Nên mở lại hồ sơ cũ để giữ mã trẻ, lịch sử sức khỏe, đánh giá và tài khoản phụ huynh.
+                  </span>
+                ) : (
+                  <span>Trẻ này có hồ sơ cũ (đã nghỉ học) ở điểm trường khác. Liên hệ Hiệu trưởng nếu cần mở lại hồ sơ cũ.</span>
+                )}
+                <div className="row row--wrap gap-2">
+                  {duplicate.canReadmit && (
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--primary"
+                      onClick={() => {
+                        setReadmitReason('');
+                        setReadmitError('');
+                        setReadmitOpen(true);
+                      }}
+                    >
+                      <RotateCcw size={15} /> Mở lại hồ sơ cũ
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    onClick={() => {
+                      setDuplicate(null);
+                      toPlacement();
+                    }}
+                  >
+                    Vẫn tạo hồ sơ mới
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -354,7 +402,7 @@ export default function EnrollChildPage() {
 
       {step === 1 && (
         <section className="card wizard-card">
-          <h2 className="card__title mb-12">Xếp lớp năm học {schoolYear}</h2>
+          <h2 className="card__title mb-12">Xếp lớp năm học {yearLabel}</h2>
           {classesLoading ? (
             <Spinner deferred />
           ) : (
@@ -374,6 +422,14 @@ export default function EnrollChildPage() {
               error={errors.placement.classId}
               userById={md.userById}
               required={false}
+              campuses={campusOptions}
+              campusId={campusId}
+              onCampusChange={(id) => {
+                setCampusPick(id);
+                if (classes.find((c) => c.id === classId)?.campusId !== id) setClassId('');
+                setErrors((e) => ({ ...e, placement: {} }));
+              }}
+              campusError={errors.placement.campusId}
             />
           )}
         </section>
@@ -383,6 +439,7 @@ export default function EnrollChildPage() {
         <section className="card wizard-card">
           <h2 className="card__title mb-12">Khai báo sức khỏe khi tiếp nhận</h2>
           <HealthDeclarationFields
+            dateOfBirth={info.dateOfBirth}
             value={declaration}
             onChange={(v) => {
               setDeclaration(v);
@@ -415,13 +472,32 @@ export default function EnrollChildPage() {
                 <div key={i} className="tr-dl-pair">
                   <dt>Phụ huynh {i + 1}</dt>
                   <dd>
-                    {g.fullName} ({g.relation}) · {g.phone}
+                    {g.fullName} ({g.relation}) · {g.phone} · CCCD {g.idNumber}
                     {g.email ? ` · ${g.email}` : ''}
-                    {g.accountId && <span className="muted"> · tài khoản có sẵn, liên kết khi lưu</span>}
+                    {accountOf(g.idNumber) && <span className="muted"> · tài khoản có sẵn, liên kết khi lưu</span>}
                   </dd>
                 </div>
               ))}
             </dl>
+            {manageAccounts ? (
+              <div className="alert alert--info mt-12">
+                <Info size={18} />
+                <div>
+                  Khi lưu, phụ huynh chưa có tài khoản được tạo tài khoản ngay và nhận mật khẩu tạm qua SMS; phụ huynh đã có tài khoản chỉ
+                  được liên kết thêm trẻ.
+                </div>
+              </div>
+            ) : (
+              waitingNames.length > 0 && (
+                <div className="alert alert--warning mt-12" role="status">
+                  <AlertTriangle size={18} />
+                  <div>
+                    Bạn không có quyền kích hoạt tài khoản phụ huynh ở điểm trường này. Khi lưu, {waitingNames.join(', ')} chưa có tài khoản
+                    sẽ ở trạng thái Chưa kích hoạt; người có quyền kích hoạt ở màn Tài khoản phụ huynh.
+                  </div>
+                </div>
+              )
+            )}
             <h3 className="subsection-title mt-16">Thông tin hành chính</h3>
             <ChildProfileSummary profile={info.profile} />
           </section>
@@ -432,9 +508,14 @@ export default function EnrollChildPage() {
                 Sửa
               </button>
             </div>
+            {pickCampus && (
+              <p className="mb-12">
+                Điểm trường: <b>{campusLabel(selectedClass?.campusId || campusId)}</b>
+              </p>
+            )}
             {selectedClass ? (
               <p>
-                <b>{selectedClass.name}</b> – {ageGroupById(selectedClass.ageGroupId)?.name} · năm học {schoolYear} · sĩ số hiện tại{' '}
+                <b>{selectedClass.name}</b> – {ageGroupById(selectedClass.ageGroupId)?.name} · năm học {yearLabel} · sĩ số hiện tại{' '}
                 {selectedClass.enrolledCount}/{selectedClass.capacity}
               </p>
             ) : (
@@ -473,6 +554,35 @@ export default function EnrollChildPage() {
           </button>
         )}
       </div>
+
+      <ConfirmationModal
+        open={readmitOpen}
+        title="Mở lại hồ sơ cũ?"
+        message={
+          duplicate?.kind === 'LEFT'
+            ? `${duplicate.fullName} (${duplicate.code}) về trạng thái Chờ xếp lớp, giữ mã trẻ và toàn bộ lịch sử. Thông tin vừa nhập ở form không được lưu; có thay đổi thì sửa ở hồ sơ trẻ.`
+            : ''
+        }
+        confirmLabel="Mở lại hồ sơ"
+        onConfirm={readmit}
+        onClose={() => setReadmitOpen(false)}
+      >
+        <div className="confirm__form mt-12">
+          <FormField label="Lý do tiếp nhận lại" required error={readmitError}>
+            <textarea
+              className="textarea"
+              rows={2}
+              maxLength={300}
+              value={readmitReason}
+              onChange={(e) => {
+                setReadmitReason(e.target.value);
+                if (readmitError) setReadmitError('');
+              }}
+              placeholder="Ví dụ: Gia đình chuyển về lại địa phương, xin cho trẻ học tiếp"
+            />
+          </FormField>
+        </div>
+      </ConfirmationModal>
 
       <ConfirmationModal
         open={confirmLeave}

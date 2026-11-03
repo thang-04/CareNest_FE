@@ -31,14 +31,21 @@
  * @property {FollowUpLevel} followUpLevel   phiếu: theo kết luận bác sĩ; mẫu cũ: theo 3 tiêu chí
  * @property {'NORMAL'|'ISSUE'|'REFERRAL'|'TB_RISK'|null} conclusionCategory
  * @property {{ code: string, label: string }} reference   reference standard used for the screening
- * @property {boolean} published         visible to linked parents (GBR-HLT-05)
+ * @property {boolean} published         visible to linked parents (GBR-HLT-05); BE công bố ngay khi lưu, trừ phiếu nháp (2026-10-23)
+ * @property {ParentContact|null} parentContact  phiếu khám mức Cần theo dõi sát: đã trao đổi với phụ huynh chưa (BE tính)
+ *
+ * @typedef {Object} ParentContact
+ * @property {boolean} contacted
+ * @property {boolean} atExam            trao đổi tại buổi khám (có người đi cùng)
+ * @property {string|null} on            ngày trao đổi
+ * @property {string} opinion            ý kiến phụ huynh tại buổi khám
  * @property {string} measuredBy / measuredByName
  * @property {{ at, userId, userName, reason, changes: { field, from, to }[] }[]} edits  (GBR-HLT-03)
  *
  * @typedef {'NO_ABNORMALITY'|'ABNORMAL'} MotorResult
  * @typedef {'NORMAL'|'SMALL'|'LARGE'|'NOT_MEASURED'} HeadCircumferenceStatus
  * @typedef {'HEAD_CIRCUMFERENCE'|'GROSS_MOTOR'|'FINE_MOTOR'} ScreeningCriterion
- * @typedef {'NONE'|'WATCH'|'CLOSE_WATCH'|'UNAVAILABLE'} FollowUpLevel
+ * @typedef {'NONE'|'KNOWN_STABLE'|'WATCH'|'CLOSE_WATCH'|'UNAVAILABLE'} FollowUpLevel
  * @typedef {'EXAM'|'LEGACY'|'MEASUREMENT_ONLY'} MeasurementSource
  */
 
@@ -95,10 +102,18 @@ export const SCREENING_CRITERIA_LABELS = {
   FINE_MOTOR: 'Vận động tinh có bất thường',
 };
 
-export const FOLLOW_UP_LEVEL = { NONE: 'NONE', WATCH: 'WATCH', CLOSE_WATCH: 'CLOSE_WATCH', UNAVAILABLE: 'UNAVAILABLE' };
+// KNOWN_STABLE: vấn đề đã biết, không thay đổi — không phải cảnh báo; "Cần theo dõi" là vấn đề có thể chuyển biến (user chốt 2026-10-21).
+export const FOLLOW_UP_LEVEL = {
+  NONE: 'NONE',
+  KNOWN_STABLE: 'KNOWN_STABLE',
+  WATCH: 'WATCH',
+  CLOSE_WATCH: 'CLOSE_WATCH',
+  UNAVAILABLE: 'UNAVAILABLE',
+};
 
 export const FOLLOW_UP_LEVEL_LABELS = {
   NONE: 'Không ghi nhận bất thường',
+  KNOWN_STABLE: 'Vấn đề đã biết, ổn định',
   WATCH: 'Cần theo dõi',
   CLOSE_WATCH: 'Cần theo dõi sát – đề nghị khám chuyên khoa',
   UNAVAILABLE: 'Chưa có kết luận bác sĩ',
@@ -111,24 +126,31 @@ export const FOLLOW_UP_LEVEL_SHORT_LABELS = { ...FOLLOW_UP_LEVEL_LABELS, CLOSE_W
 export const PARENT_VISIBLE_HEALTH_TEXT =
   'toàn bộ phiếu khám (số đo, các phần khám, kết luận, lời tư vấn, chuyển khám), biểu đồ và ghi chú khám';
 
-/** Parent account state as stored on child.guardians[i].accountStatus. */
+/**
+ * Parent account state as stored on child.guardians[i].accountStatus: chưa có tài khoản liên kết với trẻ, hoặc trạng thái
+ * tài khoản (`UserStatus` BE: ACTIVE / INACTIVE = bị khóa, AUTH-19).
+ */
 export const PARENT_ACCOUNT_STATUS = {
   NOT_ACTIVATED: 'NOT_ACTIVATED',
-  PENDING_ACTIVATION: 'PENDING_ACTIVATION',
   ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
 };
 
 export const PARENT_ACCOUNT_STATUS_LABELS = {
   NOT_ACTIVATED: 'Chưa kích hoạt',
-  PENDING_ACTIVATION: 'Chờ phụ huynh đổi mật khẩu',
   ACTIVE: 'Đang hoạt động',
+  INACTIVE: 'Đã khóa',
 };
 
 export const SMS_STATUS = { SENT: 'SENT', FAILED: 'FAILED' };
 
 export const SMS_STATUS_LABELS = { SENT: 'Đã gửi SMS', FAILED: 'Gửi SMS lỗi' };
 
+/** Quan hệ phụ huynh–trẻ trên hồ sơ; tài khoản dùng cùng 6 loại (user chốt 2026-10-28, D-5a B); file Excel chỉ nhận các giá trị này. */
 export const GUARDIAN_RELATIONS = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Anh/chị', 'Người giám hộ'];
+
+/** Số phụ huynh tối đa trên hồ sơ một trẻ; BE cũng chặn (user chốt 2026-10-28, D-5b A). */
+export const MAX_GUARDIANS = 3;
 
 export const AI_TREND_STATUS = { OK: 'OK', NOT_ENOUGH_DATA: 'NOT_ENOUGH_DATA', FAILED: 'FAILED' };
 
@@ -138,25 +160,28 @@ export const IMPORT_COLUMNS = [
   { key: 'dateOfBirth', label: 'Ngày sinh (dd/mm/yyyy)', required: true },
   { key: 'gender', label: 'Giới tính (Nam/Nữ)', required: true },
   { key: 'guardianName', label: 'Họ tên phụ huynh', required: true },
-  { key: 'relation', label: 'Quan hệ', required: true },
+  { key: 'relation', label: 'Quan hệ (Bố, Mẹ, Ông, Bà, Anh/chị, Người giám hộ)', required: true },
   { key: 'phone', label: 'Số điện thoại', required: true },
+  // CCCD phụ huynh bắt buộc cả khi nhập Excel (user chốt 2026-10-21); file mẫu cũ thiếu cột này không nhập được.
+  { key: 'guardianIdNumber', label: 'Số CCCD phụ huynh', required: true },
   { key: 'email', label: 'Email', required: false },
   { key: 'allergies', label: 'Dị ứng (để trống = chưa cung cấp, "Không" = không có)', required: false },
   { key: 'diet', label: 'Chế độ ăn (để trống = chưa cung cấp, "Không" = không có)', required: false },
-  // Hành chính và tiền sử dùng cho phiếu khám (user chốt 2026-10-17): đều không bắt buộc.
+  // Hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22); file mẫu cũ thiếu cột không nhập được.
   { key: 'idNumber', label: 'Số CCCD/mã định danh của trẻ', required: false },
-  { key: 'premature', label: 'Sinh non (Có/Không)', required: false },
-  { key: 'gestationWeeks', label: 'Tuần thai khi sinh', required: false },
-  { key: 'ethnicity', label: 'Dân tộc', required: false },
-  { key: 'beneficiary', label: 'Đối tượng', required: false },
-  { key: 'paymentSource', label: 'Nguồn chi trả', required: false },
+  { key: 'premature', label: 'Sinh non (Có/Không)', required: true },
+  { key: 'gestationWeeks', label: 'Tuần thai khi sinh (bắt buộc khi sinh non)', required: false },
+  { key: 'ethnicity', label: 'Dân tộc', required: true },
+  { key: 'beneficiary', label: 'Đối tượng', required: true },
   { key: 'bloodType', label: 'Nhóm máu', required: false },
-  { key: 'province', label: 'Nơi ở - Tỉnh/thành', required: false },
-  { key: 'ward', label: 'Nơi ở - Phường/xã', required: false },
-  { key: 'street', label: 'Nơi ở - Số nhà/thôn/xóm', required: false },
-  { key: 'selfHistory', label: 'Tiền sử bản thân (để trống = chưa cung cấp, "Không" = không có)', required: false },
-  { key: 'familyHistory', label: 'Tiền sử gia đình (để trống = chưa cung cấp, "Không" = không có)', required: false },
-  { key: 'tbContact', label: 'Tiếp xúc người bệnh lao (Có/Không, để trống = chưa cung cấp)', required: false },
+  { key: 'province', label: 'Nơi ở - Tỉnh/thành', required: true },
+  { key: 'ward', label: 'Nơi ở - Phường/xã', required: true },
+  { key: 'street', label: 'Nơi ở - Số nhà/thôn/xóm', required: true },
+  { key: 'selfHistory', label: 'Tiền sử bản thân ("Không" hoặc tên bệnh)', required: true },
+  { key: 'familyHistory', label: 'Tiền sử gia đình ("Không" hoặc tên bệnh)', required: true },
+  { key: 'tbContact', label: 'Tiếp xúc người bệnh lao (Có/Không)', required: true },
+  // Bắt buộc khi cột trên là "Có" (user chốt 2026-10-21); kiểm theo dòng.
+  { key: 'tbContactDate', label: 'Ngày tiếp xúc người bệnh lao gần nhất (dd/mm/yyyy)', required: false },
 ];
 
 export const MEASUREMENT_FIELD_LABELS = {

@@ -1,51 +1,30 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import {
-  Plus,
-  LineChart,
-  Send,
-  History,
-  ArrowLeft,
-  Info,
-  HeartPulse,
-  RotateCcw,
-  Lock,
-  Stethoscope,
-  ClipboardCheck,
-  Handshake,
-} from '@/components/ui/icons';
+import { Plus, LineChart, History, ArrowLeft, Info, HeartPulse, RotateCcw, Stethoscope } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToastContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
-import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, LoadingState } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import {
   AllergyStateBadge,
   ConclusionCategoryBadge,
-  FollowUpDueBadge,
   FollowUpLevelShortBadge,
-  FollowUpStatusBadge,
   MotorResultBadge,
   PublishStatusBadge,
 } from '@/components/children/ChildBadges';
+import { HealthFollowUpCard } from '@/components/children/HealthFollowUpCard';
 import { MeasurementSummary } from '@/components/children/MeasurementSummary';
+import { MeasurementDetailModal } from '@/components/children/MeasurementDetailModal';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { ImageUploader } from '@/components/upload/ImageUploader';
-import { publishMeasurement } from '@/services/children/childrenService';
-import {
-  DECLARATION_STATE,
-  MEASUREMENT_SOURCE,
-  MEASUREMENT_SOURCE_LABELS,
-  PARENT_VISIBLE_HEALTH_TEXT,
-} from '@/models/children/childrenConstants';
+import { DECLARATION_STATE, MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children/childrenConstants';
 import { EXAM_STATUS } from '@/models/children/healthExamForm';
-import { FOLLOW_UP_STATUS, PUBLISH_BLOCKED_TEXT } from '@/models/children/healthCheckConstants';
+import { CAMPAIGN_KIND } from '@/models/children/healthCheckConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { formatMeasurementChange, formatNumber } from '@/utils/children/childrenHelpers';
-import { canEditMeasurement, canPublishMeasurement, canRecordMeasurement } from '@/utils/children/childrenPermissions';
+import { canEditMeasurement, canRecordMeasurement } from '@/utils/children/childrenPermissions';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -55,12 +34,11 @@ const ageText = (months) =>
 export default function ChildHealthRecordPage() {
   const { id } = useParams();
   const { user } = useAuth();
-  const toast = useToast();
   const { record, loading, error, reload } = useHealthRecord(id);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [historyOf, setHistoryOf] = useState(null);
-  const [publishing, setPublishing] = useState(null);
+  const [viewing, setViewing] = useState(null);
 
   const measurements = useMemo(
     () => (record?.measurements || []).filter((m) => (!from || m.date >= from) && (!to || m.date <= to)),
@@ -88,19 +66,12 @@ export default function ChildHealthRecordPage() {
   const latest = record.measurements[0];
   const canRecord = canRecordMeasurement(child, user, cls);
   const canEdit = canEditMeasurement(child, user, cls);
-  const canPublish = canPublishMeasurement(child, user, cls);
   const filtered = !!(from || to);
-
-  const doPublish = async () => {
-    try {
-      await publishMeasurement(child.id, publishing.id, user);
-      toast.success(`Đã công bố kết quả ngày ${formatDate(publishing.date)} cho phụ huynh.`);
-    } catch (err) {
-      toast.error(err, 'Không công bố được');
-    } finally {
-      setPublishing(null);
-    }
-  };
+  const open = record.openCampaign;
+  // Số đo chỉ nhập trong kỳ cân đo đang diễn ra; mỗi trẻ một lần đo trong kỳ (user chốt 2026-10-31).
+  const round = open?.kind === CAMPAIGN_KIND.MEASUREMENT ? open : null;
+  const canMeasure = canRecord && !!round && !round.resultMeasurementId;
+  const measureLink = round ? `/children/${child.id}/health/new?campaignId=${round.id}` : '';
 
   return (
     <div className="page">
@@ -111,48 +82,44 @@ export default function ChildHealthRecordPage() {
           <Link className="btn" to={`/children/health-trends?childId=${child.id}`}>
             <LineChart size={16} /> Xem xu hướng
           </Link>
-          {canRecord && (
-            <Link className="btn" to={`/children/${child.id}/health/new`}>
-              <Plus size={16} /> Nhập cân đo ngoài đợt
+          {canMeasure && (
+            <Link className="btn" to={measureLink}>
+              <Plus size={16} /> Nhập số đo
             </Link>
           )}
         </div>
       </div>
 
-      {canRecord &&
-        record.openCampaign &&
-        record.openCampaign.resultStatus !== EXAM_STATUS.CONCLUDED &&
-        record.openCampaign.resultStatus !== 'LEGACY' && (
-          <div className="alert alert--info mb-16">
-            <Stethoscope size={18} />
-            <div>
-              Đợt <b>{record.openCampaign.name}</b> đang diễn ra ({formatDate(record.openCampaign.startDate)} –{' '}
-              {formatDate(record.openCampaign.endDate)}).{' '}
-              <Link
-                className="text-primary fw-600"
-                to={`/children/health-checks/${record.openCampaign.id}/exam/${child.id}?classId=${child.classId}`}
-              >
-                {record.openCampaign.resultStatus === EXAM_STATUS.DRAFT ? 'Tiếp tục phiếu khám' : 'Khám trong đợt (phiếu Phụ lục II)'}
-              </Link>
-            </div>
-          </div>
-        )}
-
-      {record.openFollowUp && (
-        <div className={`alert ${record.openFollowUp.overdueDays > 0 ? 'alert--danger' : 'alert--warning'} mb-16`}>
-          <ClipboardCheck size={18} />
-          <div className="row row--wrap gap-2">
-            <span>Trẻ đang có phiếu theo dõi sức khỏe từ ngày {formatDate(record.openFollowUp.openedAt.slice(0, 10))}:</span>
-            <FollowUpStatusBadge status={record.openFollowUp.status} />
-            {record.openFollowUp.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT && (
-              <FollowUpDueBadge dueOn={record.openFollowUp.dueOn} overdueDays={record.openFollowUp.overdueDays} />
-            )}
-            <Link className="text-primary fw-600" to={`/children/health-follow-ups/${record.openFollowUp.id}`}>
-              Mở phiếu theo dõi
+      {canMeasure && (
+        <div className="alert alert--info mb-16">
+          <Info size={18} />
+          <div>
+            Kỳ cân đo <b>{round.name}</b> đang diễn ra ({formatDate(round.startDate)} – {formatDate(round.endDate)}).{' '}
+            <Link className="text-primary fw-600" to={measureLink}>
+              Nhập số đo của kỳ
             </Link>
           </div>
         </div>
       )}
+
+      {canRecord && open?.kind === CAMPAIGN_KIND.EXAM && open.resultStatus !== EXAM_STATUS.CONCLUDED && open.resultStatus !== 'LEGACY' && (
+        <div className="alert alert--info mb-16">
+          <Stethoscope size={18} />
+          <div>
+            Đợt <b>{record.openCampaign.name}</b> đang diễn ra ({formatDate(record.openCampaign.startDate)} –{' '}
+            {formatDate(record.openCampaign.endDate)}).{' '}
+            <Link
+              className="text-primary fw-600"
+              to={`/children/health-checks/${record.openCampaign.id}/exam/${child.id}?classId=${child.classId}`}
+            >
+              {record.openCampaign.resultStatus === EXAM_STATUS.DRAFT ? 'Tiếp tục phiếu khám' : 'Khám trong đợt (phiếu Phụ lục II)'}
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Theo dõi sức khỏe hiện tại: chuyển từ danh sách trẻ sang đây (user yêu cầu 2026-10-31) */}
+      <HealthFollowUpCard health={child.latestHealth} openFollowUp={record.openFollowUp} />
 
       <div className="grid-2">
         <section className="card">
@@ -286,9 +253,7 @@ export default function ChildHealthRecordPage() {
           <EmptyState
             icon={HeartPulse}
             title={filtered ? 'Không có lần đo trong khoảng thời gian này' : 'Chưa có kết quả khám'}
-            description={
-              filtered ? 'Chọn khoảng thời gian khác.' : 'Giáo viên phụ trách lớp nhập kết quả ở mỗi đợt khám hoặc khi cân đo tại lớp.'
-            }
+            description={filtered ? 'Chọn khoảng thời gian khác.' : 'Giáo viên phụ trách lớp nhập kết quả ở mỗi đợt khám hoặc kỳ cân đo.'}
             action={
               filtered ? (
                 <button
@@ -301,9 +266,9 @@ export default function ChildHealthRecordPage() {
                   <RotateCcw size={15} /> Đặt lại bộ lọc
                 </button>
               ) : (
-                canRecord && (
-                  <Link className="btn btn--primary" to={`/children/${child.id}/health/new`}>
-                    <Plus size={16} /> Nhập cân đo ngoài đợt
+                canMeasure && (
+                  <Link className="btn btn--primary" to={measureLink}>
+                    <Plus size={16} /> Nhập số đo
                   </Link>
                 )
               )
@@ -374,37 +339,11 @@ export default function ChildHealthRecordPage() {
                       <PublishStatusBadge status={m.published ? 'PUBLISHED' : 'UNPUBLISHED'} />
                     </td>
                     <td className="cell--actions">
-                      {canEdit && m.locked && (
-                        <span
-                          className="icon-btn"
-                          title="Đợt khám đã đóng, kết quả bị khóa"
-                          role="img"
-                          aria-label="Kết quả bị khóa vì đợt khám đã đóng"
-                        >
-                          <Lock size={17} />
-                        </span>
-                      )}
-                      {canPublish &&
-                        !m.published &&
-                        (m.publishBlockedReason ? (
-                          <Link
-                            className="btn btn--primary btn--sm"
-                            to={`/children/health-follow-ups/${m.followUpId}`}
-                            title={PUBLISH_BLOCKED_TEXT[m.publishBlockedReason]}
-                            aria-label={`${PUBLISH_BLOCKED_TEXT[m.publishBlockedReason]} Mở phiếu theo dõi.`}
-                          >
-                            <Handshake size={14} /> Ghi trao đổi để công bố
-                          </Link>
-                        ) : (
-                          <button className="btn btn--primary btn--sm" onClick={() => setPublishing(m)}>
-                            <Send size={14} /> Công bố
-                          </button>
-                        ))}
                       <RowActions
                         view={
                           m.source === MEASUREMENT_SOURCE.EXAM
                             ? { to: `/children/health-checks/${m.campaignId}/exam/${child.id}`, label: 'Xem phiếu khám' }
-                            : null
+                            : { onClick: () => setViewing(m), label: 'Xem chi tiết' }
                         }
                         edit={
                           canEdit && !m.locked && m.source !== MEASUREMENT_SOURCE.EXAM
@@ -428,6 +367,8 @@ export default function ChildHealthRecordPage() {
           <ArrowLeft size={16} /> Về hồ sơ trẻ
         </Link>
       </div>
+
+      <MeasurementDetailModal measurement={viewing} ageText={ageText} onClose={() => setViewing(null)} />
 
       <Modal
         open={!!historyOf}
@@ -459,19 +400,6 @@ export default function ChildHealthRecordPage() {
           </ul>
         )}
       </Modal>
-
-      <ConfirmationModal
-        open={!!publishing}
-        title="Công bố kết quả cho phụ huynh?"
-        message={
-          publishing
-            ? `Phụ huynh của ${child.fullName} sẽ xem được ${PARENT_VISIBLE_HEALTH_TEXT} của ngày ${formatDate(publishing.date)} và nhận thông báo trên ứng dụng.`
-            : ''
-        }
-        confirmLabel="Công bố kết quả"
-        onConfirm={doPublish}
-        onClose={() => setPublishing(null)}
-      />
     </div>
   );
 }

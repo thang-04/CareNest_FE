@@ -23,27 +23,35 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Stepper } from '@/components/ui/Stepper';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { ChildAccessState, HEALTH_CHECK_ACCESS_TEXT } from '@/components/children/ChildAccessState';
-import { ChildResultBadge, ConclusionCategoryBadge, FollowUpLevelBadge, PublishStatusBadge } from '@/components/children/ChildBadges';
+import {
+  ChildResultBadge,
+  ConclusionCategoryBadge,
+  FollowUpLevelBadge,
+  ParentContactBadge,
+  PublishStatusBadge,
+} from '@/components/children/ChildBadges';
 import { ExamAdminStep } from '@/components/children/exam/ExamAdminStep';
 import { ExamMeasureStep } from '@/components/children/exam/ExamMeasureStep';
 import { ExamDevelopmentStep } from '@/components/children/exam/ExamDevelopmentStep';
 import { ExamClinicalStep } from '@/components/children/exam/ExamClinicalStep';
 import { ExamConclusionStep, ExamReviewPoints, reviewPointTexts } from '@/components/children/exam/ExamConclusionStep';
 import { ExamSummary } from '@/components/children/exam/ExamSummary';
-import { publishMeasurement } from '@/services/children/childrenService';
 import { previewHealthExamReview, saveHealthExam } from '@/services/children/healthCheckService';
 import {
   CONCLUSION_ACTION,
-  CONCLUSION_ACTION_LABELS,
   CONCLUSION_CATEGORY,
-  CONCLUSION_FLAGS,
+  CONCLUSION_MODE,
   EXAM_STATUS,
   EXAM_STEPS,
+  FOLLOW_UP_FINDING,
+  FOLLOW_UP_FINDING_LABELS,
   YES_NO,
+  conclusionActionLabelOf,
+  conclusionLabelOf,
   stepOfField,
 } from '@/models/children/healthExamForm';
 import { PARENT_VISIBLE_HEALTH_TEXT } from '@/models/children/childrenConstants';
-import { CHILD_RESULT_STATUS, PUBLISH_BLOCKED_TEXT } from '@/models/children/healthCheckConstants';
+import { CHILD_RESULT_STATUS, PARENT_CONTACT_STATUS } from '@/models/children/healthCheckConstants';
 import { ageLabel } from '@/models/School';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import { hasErrors } from '@/utils/children/childrenValidation';
@@ -77,6 +85,57 @@ const clearErrors = (errors, paths) => {
   return next;
 };
 
+// Câu tóm tắt kết luận cho màn kết quả và hộp hỏi lại.
+const conclusionSentence = (c) =>
+  [
+    `${conclusionLabelOf(c)}${c.issueText ? `: ${c.issueText}` : ''}`,
+    conclusionActionLabelOf(c),
+    c.adviceText ? `Lời dặn: ${c.adviceText}` : '',
+  ]
+    .map((s) => s.replace(/[.\s]+$/, ''))
+    .filter(Boolean)
+    .join('. ') + (c.doctorName ? ` — ${c.doctorName}` : '');
+
+/** Lần khám đã làm gì với phiếu theo dõi (BE trả followUpEffect): mở phiếu, vòng mới, gộp vòng, hay chỉ ghi vào dòng thời gian. */
+function FollowUpResultNotice({ m }) {
+  if (!m.followUpId || !m.followUpEffect) return null;
+  const link = (
+    <Link className="text-primary fw-600" to={`/children/health-follow-ups/${m.followUpId}`}>
+      Mở phiếu theo dõi
+    </Link>
+  );
+  if (m.followUpEffect === 'NOTED')
+    return (
+      <div className="alert alert--info mt-16">
+        <Info size={18} />
+        <div>Phiếu theo dõi giữ nguyên: lần khám được ghi vào dòng thời gian của phiếu, không mở vòng mới. {link}</div>
+      </div>
+    );
+  if (m.parentContact && !m.parentContact.contacted)
+    return (
+      <div className="alert alert--warning mt-16">
+        <AlertTriangle size={18} />
+        <div>
+          Không có người đi cùng nên phiếu ghi <b>Chưa trao đổi phụ huynh</b>. Trao đổi với phụ huynh về kết luận rồi ghi vào phiếu theo
+          dõi. {link}
+        </div>
+      </div>
+    );
+  const done = {
+    OPENED: 'Hệ thống đã mở phiếu theo dõi và ghi lần trao đổi tại buổi khám.',
+    NEW_ROUND: 'Phiếu theo dõi sang vòng mới và đã ghi lần trao đổi tại buổi khám.',
+    MERGED: 'Kết quả được ghi vào vòng theo dõi hiện tại và đã ghi lần trao đổi tại buổi khám.',
+  }[m.followUpEffect];
+  return (
+    <div className="alert alert--info mt-16">
+      <Handshake size={18} />
+      <div>
+        {done} Việc tiếp theo: hỏi phụ huynh kết quả khám chuyên khoa rồi ghi vào phiếu. {link}
+      </div>
+    </div>
+  );
+}
+
 const formOf = (m) => ({
   date: m.date,
   heightCm: m.heightCm ?? '',
@@ -98,9 +157,9 @@ function PreviousNotes({ view }) {
         {prev?.conclusion && (
           <span>
             Lần khám trước ({formatDate(prev.date)}
-            {prev.campaignName ? `, ${prev.campaignName}` : ''}): {prev.conclusion.issueText || 'không ghi vấn đề'}.{' '}
-            {CONCLUSION_ACTION_LABELS[prev.conclusion.action]}
-            {prev.conclusion.specialty ? `: ${prev.conclusion.specialty}` : ''}
+            {prev.campaignName ? `, ${prev.campaignName}` : ''}):{' '}
+            {prev.conclusion.followUpFinding ? `${FOLLOW_UP_FINDING_LABELS[prev.conclusion.followUpFinding]}. ` : ''}
+            {prev.conclusion.issueText || 'không ghi vấn đề'}. {conclusionActionLabelOf(prev.conclusion)}
             {prev.conclusion.adviceText ? `. Lời dặn: ${prev.conclusion.adviceText}` : ''}
           </span>
         )}
@@ -136,7 +195,6 @@ export default function HealthExamFormPage() {
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [reviewStale, setReviewStale] = useState(false);
-  const [confirmPublish, setConfirmPublish] = useState(false);
   // Sửa phiếu đã kết luận không lưu nháp: điểm cần xem lại lấy theo dữ liệu đang nhập (BE tính, không lưu).
   const [previewPoints, setPreviewPoints] = useState(null);
   const [confirmConclude, setConfirmConclude] = useState(null);
@@ -148,7 +206,6 @@ export default function HealthExamFormPage() {
     setEditing(false);
     setSaved(false);
     setReviewStale(false);
-    setConfirmPublish(false);
     setPreviewPoints(null);
     setConfirmConclude(null);
   }, [campaignId, childId]);
@@ -163,7 +220,11 @@ export default function HealthExamFormPage() {
     setMaxReached(m?.examStatus === EXAM_STATUS.CONCLUDED ? 4 : draftStep);
   }, [view, form]);
 
-  const campaignLink = `/children/health-checks/${campaignId}${classIdParam ? `?classId=${classIdParam}` : ''}`;
+  // Giữ lớp và bộ lọc danh sách lớp (keyword, result…) khi qua lại giữa đợt khám và phiếu.
+  const listParams = new URLSearchParams(params);
+  if (classIdParam) listParams.set('classId', classIdParam);
+  const listQuery = listParams.toString() ? `?${listParams}` : '';
+  const campaignLink = `/children/health-checks/${campaignId}${listQuery}`;
   const child = view?.child;
   const crumbs = healthCheckCrumbs(
     view ? { label: view.campaign.name, to: campaignLink } : null,
@@ -322,17 +383,20 @@ export default function HealthExamFormPage() {
         ?.childId || null
     );
   };
-  const examLink = (id) => `/children/health-checks/${campaignId}/exam/${id}${classIdParam ? `?classId=${classIdParam}` : ''}`;
+  const examLink = (id) => `/children/health-checks/${campaignId}/exam/${id}${listQuery}`;
 
   const reviewPoints = (concluded ? previewPoints : null) || m?.reviewPoints || null;
 
   const conclude = async (andNext = false, confirmed = false) => {
-    const payload = payloadOf({ exam: { ...form.exam, step: 4 }, conclude: true });
+    const payload = payloadOf({ exam: { ...form.exam, step: 4 }, conclude: true, conclusionMode: view.conclusionMode });
     const errs = validateHealthExam(payload, {
       dateOfBirth: child.dateOfBirth,
       campaign: view.campaign,
       reference: view.reference,
       requireReason: concluded,
+      conclusionMode: view.conclusionMode,
+      knownCondition: view.knownCondition,
+      guardianCount: child.guardians.length,
     });
     if (hasErrors(errs)) {
       setErrors(errs);
@@ -340,10 +404,15 @@ export default function HealthExamFormPage() {
       toast.error('Phiếu còn thiếu thông tin. Kiểm tra các ô được đánh dấu.', 'Chưa lưu được kết luận');
       return;
     }
-    // Bác sĩ không chuyển khám mà vẫn còn điểm cần xem lại ⇒ hỏi lại 1 lần, không chặn (user chốt 2026-10-17).
+    // Bác sĩ không chuyển khám (mẫu FOLLOW_UP: không ghi bất thường mới) mà vẫn còn điểm cần xem lại ⇒ hỏi lại 1 lần, không chặn.
     const c = form.exam.conclusion;
     const lines = reviewPointTexts(reviewPoints);
-    if (!confirmed && lines.length > 0 && !c.tbRisk && c.action !== CONCLUSION_ACTION.REFERRAL) {
+    const escalated =
+      c.tbRisk ||
+      (view.conclusionMode === CONCLUSION_MODE.FOLLOW_UP
+        ? c.followUpFinding === FOLLOW_UP_FINDING.NEW_FINDING
+        : c.action === CONCLUSION_ACTION.REFERRAL);
+    if (!confirmed && lines.length > 0 && !escalated) {
       setConfirmConclude({ andNext, lines });
       return;
     }
@@ -356,7 +425,7 @@ export default function HealthExamFormPage() {
       setErrors({});
       setReviewStale(false);
       if (andNext) {
-        toast.success(`Đã lưu kết luận của ${child.fullName}${res.measurement.autoPublished ? ' và công bố cho phụ huynh' : ''}.`);
+        toast.success(`Đã lưu kết luận của ${child.fullName} và công bố cho phụ huynh.`);
         const next = nextChildId();
         if (next) navigate(examLink(next));
         else {
@@ -366,7 +435,7 @@ export default function HealthExamFormPage() {
         return;
       }
       setSaved(true);
-      toast.success(res.measurement.autoPublished ? 'Đã lưu kết luận và công bố cho phụ huynh.' : 'Đã lưu kết luận phiếu khám.');
+      toast.success('Đã lưu kết luận và công bố cho phụ huynh.');
     } catch (err) {
       if (err.details) {
         setErrors(err.details);
@@ -377,41 +446,6 @@ export default function HealthExamFormPage() {
       setBusy(false);
     }
   };
-
-  const publish = async () => {
-    try {
-      await publishMeasurement(child.id, m.id, user);
-      toast.success('Đã công bố phiếu khám cho phụ huynh.');
-      setConfirmPublish(false);
-      reload();
-    } catch (err) {
-      toast.error(err, 'Không công bố được');
-      setConfirmPublish(false);
-    }
-  };
-
-  const publishAction =
-    concluded && view.canEdit && !m.published ? (
-      m.publishBlockedReason ? (
-        <Link className="btn btn--primary" to={`/children/health-follow-ups/${m.followUpId}`}>
-          <Handshake size={16} /> Ghi trao đổi trong phiếu theo dõi
-        </Link>
-      ) : (
-        <button className="btn btn--primary" onClick={() => setConfirmPublish(true)}>
-          <Send size={16} /> Công bố cho phụ huynh
-        </button>
-      )
-    ) : null;
-  const publishModal = concluded && (
-    <ConfirmationModal
-      open={confirmPublish}
-      title="Công bố phiếu khám cho phụ huynh?"
-      message={`Phụ huynh của ${child.fullName} sẽ xem được ${PARENT_VISIBLE_HEALTH_TEXT} của ngày ${formatDate(m.date)} và nhận thông báo trên ứng dụng.`}
-      confirmLabel="Công bố phiếu khám"
-      onConfirm={publish}
-      onClose={() => setConfirmPublish(false)}
-    />
-  );
 
   // Màn kết quả ngay sau khi lưu kết luận: hệ thống đã làm gì, việc tiếp theo.
   if (saved && concluded) {
@@ -426,17 +460,13 @@ export default function HealthExamFormPage() {
           </div>
           <div className="row row--wrap gap-2 mb-12">
             <ConclusionCategoryBadge status={m.conclusionCategory} size="lg" />
-            <FollowUpLevelBadge status={m.followUpLevel} />
+            {!m.exam.conclusion.followUpFinding && <FollowUpLevelBadge status={m.followUpLevel} />}
           </div>
-          <p className="m-0">
-            {CONCLUSION_ACTION_LABELS[m.exam.conclusion.action]}
-            {m.exam.conclusion.specialty ? `: ${m.exam.conclusion.specialty}` : ''}
-            {m.exam.conclusion.adviceText ? `. Lời dặn: ${m.exam.conclusion.adviceText}` : ''} — {m.exam.conclusion.doctorName}
-          </p>
-          {m.published && m.autoPublished && (
+          <p className="m-0">{conclusionSentence(m.exam.conclusion)}</p>
+          {m.published && (
             <div className="alert alert--success mt-16">
               <Send size={18} />
-              <div>Đã công bố cho phụ huynh khi lưu kết luận (có người đi cùng trẻ). Phụ huynh nhận thông báo trên ứng dụng.</div>
+              <div>Đã công bố cho phụ huynh khi lưu kết luận. Phụ huynh nhận thông báo trên ứng dụng.</div>
             </div>
           )}
           {m.conclusionCategory === CONCLUSION_CATEGORY.TB_RISK && (
@@ -447,30 +477,7 @@ export default function HealthExamFormPage() {
               </div>
             </div>
           )}
-          {m.followUpId &&
-            (m.publishBlockedReason ? (
-              <div className="alert alert--warning mt-16">
-                <AlertTriangle size={18} />
-                <div>
-                  Phiếu không có người đi cùng nên chưa ghi trao đổi với phụ huynh. Trao đổi trong 7 ngày và ghi vào phiếu theo dõi.{' '}
-                  {PUBLISH_BLOCKED_TEXT[m.publishBlockedReason]}{' '}
-                  <Link className="text-primary fw-600" to={`/children/health-follow-ups/${m.followUpId}`}>
-                    Mở phiếu theo dõi
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <div className="alert alert--info mt-16">
-                <Handshake size={18} />
-                <div>
-                  Hệ thống đã mở phiếu theo dõi và ghi lần trao đổi tại buổi khám. Việc tiếp theo: hỏi phụ huynh kết quả khám chuyên khoa
-                  rồi ghi vào phiếu.{' '}
-                  <Link className="text-primary fw-600" to={`/children/health-follow-ups/${m.followUpId}`}>
-                    Mở phiếu theo dõi
-                  </Link>
-                </div>
-              </div>
-            ))}
+          <FollowUpResultNotice m={m} />
         </section>
         <div className="page-actions">
           <div className="row gap-2">
@@ -480,7 +487,6 @@ export default function HealthExamFormPage() {
             {back}
           </div>
           <div className="row gap-2">
-            {publishAction}
             {next && (
               <Link className="btn" to={examLink(next)}>
                 Khám trẻ tiếp theo <ArrowRight size={16} />
@@ -488,7 +494,6 @@ export default function HealthExamFormPage() {
             )}
           </div>
         </div>
-        {publishModal}
       </div>
     );
   }
@@ -513,8 +518,13 @@ export default function HealthExamFormPage() {
         {concluded && (
           <div className="row row--wrap gap-2 mb-16">
             <ConclusionCategoryBadge status={m.conclusionCategory} size="lg" />
-            <FollowUpLevelBadge status={m.followUpLevel} />
-            <PublishStatusBadge status={m.published ? (m.autoPublished ? 'PUBLISHED_ON_SAVE' : 'PUBLISHED') : 'UNPUBLISHED'} />
+            {!m.exam.conclusion.followUpFinding && <FollowUpLevelBadge status={m.followUpLevel} />}
+            <PublishStatusBadge status={m.published ? 'PUBLISHED' : 'UNPUBLISHED'} />
+            {m.parentContact && (
+              <ParentContactBadge
+                status={m.parentContact.contacted ? PARENT_CONTACT_STATUS.CONTACTED : PARENT_CONTACT_STATUS.NOT_CONTACTED}
+              />
+            )}
             {m.followUpId && (
               <Link className="text-primary text-sm" to={`/children/health-follow-ups/${m.followUpId}`}>
                 Mở phiếu theo dõi
@@ -560,8 +570,8 @@ export default function HealthExamFormPage() {
         )}
         <div className="page-actions">
           {back}
-          <div className="row gap-2">
-            {concluded && view.canEdit && (
+          {concluded && view.canEdit && (
+            <div className="row gap-2">
               <button
                 className="btn"
                 onClick={() => {
@@ -573,11 +583,9 @@ export default function HealthExamFormPage() {
               >
                 <Pencil size={16} /> Sửa phiếu
               </button>
-            )}
-            {publishAction}
-          </div>
+            </div>
+          )}
         </div>
-        {publishModal}
       </div>
     );
 
@@ -589,8 +597,8 @@ export default function HealthExamFormPage() {
         <div className="alert alert--warning mb-16">
           <Info size={18} />
           <div>
-            Bạn đang sửa phiếu đã có kết luận. Lưu lại kết luận cần ghi lý do. Có người đi cùng thì phiếu tự công bố lại khi lưu; không có
-            người đi cùng thì bạn cần công bố lại.
+            Bạn đang sửa phiếu đã có kết luận. Lưu lại kết luận cần ghi lý do; phiếu tự công bố lại và phụ huynh nhận thông báo kết quả đã
+            cập nhật.
           </div>
         </div>
       )}
@@ -610,28 +618,21 @@ export default function HealthExamFormPage() {
             reviewStale={reviewStale}
             doctorNames={view.doctorNames}
             requireReason={concluded}
+            mode={view.conclusionMode}
+            openFollowUp={view.openFollowUp}
+            knownCondition={view.knownCondition}
           />
         )}
-        {step === 4 &&
-          (form.exam.admin.hasCompanion === YES_NO.YES ? (
-            <div className="alert alert--info mt-16">
-              <Send size={18} />
-              <div>
-                Có người đi cùng trẻ: khi lưu kết luận, phiếu được <b>công bố cho phụ huynh ngay</b>. Phụ huynh xem được{' '}
-                {PARENT_VISIBLE_HEALTH_TEXT} trên ứng dụng.
-              </div>
+        {step === 4 && (
+          <div className="alert alert--info mt-16">
+            <Send size={18} />
+            <div>
+              Lưu kết luận là <b>công bố cho phụ huynh ngay</b>; phụ huynh xem được {PARENT_VISIBLE_HEALTH_TEXT} trên ứng dụng.
+              {form.exam.admin.hasCompanion === YES_NO.NO &&
+                ' Không có người đi cùng: nếu bác sĩ đề nghị khám chuyên khoa, phiếu ghi Chưa trao đổi phụ huynh tới khi bạn ghi trao đổi trong phiếu theo dõi.'}
             </div>
-          ) : (
-            form.exam.admin.hasCompanion === YES_NO.NO && (
-              <div className="alert alert--warning mt-16">
-                <Info size={18} />
-                <div>
-                  Không có người đi cùng: lưu kết luận chưa công bố cho phụ huynh. Bạn công bố sau, khi đã trao đổi với phụ huynh nếu bác sĩ
-                  đề nghị khám chuyên khoa.
-                </div>
-              </div>
-            )
-          ))}
+          </div>
+        )}
       </div>
       <div className="page-actions">
         {step > 0 ? (
@@ -698,13 +699,9 @@ export default function HealthExamFormPage() {
               ))}
             </ul>
             <p className="mt-8 m-0">
-              Kết luận đang chọn:{' '}
-              <b>
-                {CONCLUSION_FLAGS.filter((f) => form.exam.conclusion[f.key])
-                  .map((f) => f.label)
-                  .join(', ')}
-              </b>{' '}
-              · {CONCLUSION_ACTION_LABELS[form.exam.conclusion.action]}. Gợi ý không phải kết luận; bác sĩ quyết định.
+              Kết luận đang chọn: <b>{conclusionLabelOf(form.exam.conclusion)}</b>
+              {conclusionActionLabelOf(form.exam.conclusion) ? ` · ${conclusionActionLabelOf(form.exam.conclusion)}` : ''}. Gợi ý không phải
+              kết luận; bác sĩ quyết định.
             </p>
           </>
         )}
