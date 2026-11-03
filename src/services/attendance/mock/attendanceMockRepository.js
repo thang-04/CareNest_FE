@@ -388,6 +388,31 @@ const ensureDemoToday = (db) => {
   return db;
 };
 
+// Lớp để giáo viên tự điểm danh vẫn luôn có một trẻ có mặt hôm nay, để thử các màn cần trẻ đã đến lớp (kể cả sau giờ chốt).
+// Như leavesToRecord: bỏ qua campus đã tổng hợp suất ăn hôm nay; ready() dùng cùng điều kiện để không ghi DB lặp.
+const demoPresentToRecord = (db, today) => {
+  if (!isSchoolDay(today)) return [];
+  return currentClasses(db)
+    .filter((cls) => DEMO_OPEN_CLASSES.includes(cls.id))
+    .filter((cls) => !db.mealCounts.some((count) => count.campusId === cls.campusId && count.date === today))
+    .filter((cls) => !db.attendance.some((r) => r.classId === cls.id && r.date === today && r.status === ATTENDANCE_STATUS.PRESENT))
+    .map((cls) => activeChildrenOf(db, cls.id).find((ch) => !recordOf(db, ch.id, today) && !leaveOf(db, ch.id, today)))
+    .filter(Boolean);
+};
+
+const ensureDemoPresent = (db, today) => {
+  db.attendance.push(
+    ...buildDayAttendance({
+      classes: db.classes,
+      children: demoPresentToRecord(db, today),
+      date: today,
+      sessionsOf: (cls) => classSessions(db, cls),
+      status: ATTENDANCE_STATUS.PRESENT,
+    }),
+  );
+  return db;
+};
+
 const ready = () => {
   ensureSchoolSeeded();
   const db = readDb();
@@ -413,6 +438,7 @@ const ready = () => {
     });
   const today = schoolNow().date;
   if (isSchoolDay(today) && readDb().todayMealDemoDate !== today) writeDb(ensureDemoToday);
+  if (demoPresentToRecord(readDb(), today).length) writeDb((d) => ensureDemoPresent(d, today));
   return readDb();
 };
 
