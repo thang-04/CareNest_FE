@@ -1,6 +1,7 @@
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { ROLES } from '@/models/User';
+import { CHILD_STATUS } from '@/models/School';
 import { FOLLOW_UP_LEVEL } from '@/models/children/childrenConstants';
 import {
   CAMPAIGN_KIND,
@@ -34,6 +35,24 @@ export const unclosedCampaignOf = (db, campusId, excludeId) =>
 /** Đợt lưu trước khi có kỳ cân đo không có kind: là đợt khám. */
 export const campaignKindOf = (c) => c?.kind || CAMPAIGN_KIND.EXAM;
 export const isExamCampaign = (c) => campaignKindOf(c) === CAMPAIGN_KIND.EXAM;
+
+// BE:docs/modules/health.md — tự đóng đợt khám quá hạn, kể cả đợt đã mở lại để nhập bù.
+export const expiredExamCampaignsOf = (db, today = todayInput()) =>
+  (db.healthCheckCampaigns || []).filter(
+    (campaign) => isExamCampaign(campaign) && !campaign.closedAt && !campaign.cancelledAt && campaign.endDate < today,
+  );
+
+// Đóng tay và tự đóng cùng chốt trẻ chưa có kết quả; phiếu nháp và phiếu theo dõi giữ nguyên.
+export const closeCampaign = (db, campaign, userId, at = new Date().toISOString()) => {
+  const classIds = new Set(db.classes.filter((cls) => cls.campusId === campaign.campusId).map((cls) => cls.id));
+  const recorded = new Set(db.healthMeasurements.filter((m) => m.campaignId === campaign.id).map((m) => m.childId));
+  campaign.absentChildIds = db.children
+    .filter((child) => classIds.has(child.classId) && child.status === CHILD_STATUS.ACTIVE && !recorded.has(child.id))
+    .map((child) => child.id);
+  campaign.closedAt = at;
+  campaign.closedBy = userId;
+  campaign.history = [...(campaign.history || []), { at, userId, action: 'CLOSED' }];
+};
 
 const addMonths = (date, n) => {
   const [y, m, d] = date.split('-').map(Number);

@@ -175,14 +175,17 @@ export const validateMeasurement = (m, { dateOfBirth, requireReason, headCircumf
 export const hasErrors = (errors) => Object.keys(errors || {}).length > 0;
 
 /** Đợt khám: chỉ hỗ trợ nhập liệu; luật 1 đợt chưa đóng mỗi điểm trường do BE kiểm. */
-export const validateHealthCheck = (c) => {
+export const validateHealthCheck = (c, { creating = false } = {}) => {
   const errors = {};
+  const minDate = creating ? today() : undefined;
   if (!c.name?.trim()) errors.name = 'Nhập tên đợt khám';
   else if (c.name.trim().length > 150) errors.name = 'Tên đợt tối đa 150 ký tự';
   if (!c.campusId) errors.campusId = 'Chọn điểm trường';
-  if (!c.startDate || !DATE_RE.test(c.startDate)) errors.startDate = 'Chọn ngày bắt đầu khám';
-  if (!c.endDate || !DATE_RE.test(c.endDate)) errors.endDate = 'Chọn ngày kết thúc khám';
-  else if (c.startDate && c.endDate < c.startDate) errors.endDate = 'Ngày kết thúc không được trước ngày bắt đầu';
+  if (!isIsoDate(c.startDate)) errors.startDate = 'Nhập ngày bắt đầu hợp lệ theo dd/mm/yyyy';
+  else if (minDate && c.startDate < minDate) errors.startDate = 'Ngày bắt đầu không được trước hôm nay';
+  if (!isIsoDate(c.endDate)) errors.endDate = 'Nhập ngày kết thúc hợp lệ theo dd/mm/yyyy';
+  else if (minDate && c.endDate < minDate) errors.endDate = 'Ngày kết thúc không được trước hôm nay';
+  else if (isIsoDate(c.startDate) && c.endDate < c.startDate) errors.endDate = 'Ngày kết thúc không được trước ngày bắt đầu';
   if ((c.examiner || '').length > 150) errors.examiner = 'Tối đa 150 ký tự';
   if ((c.note || '').length > 500) errors.note = 'Ghi chú tối đa 500 ký tự';
   return errors;

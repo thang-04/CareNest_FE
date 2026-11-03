@@ -76,6 +76,20 @@ Lệnh chuẩn: `node scripts/verify.mjs` — chưa có code (`package.json`) �
 
 ## Bằng chứng
 
+### Tự đóng đợt khám và hạn nhập bù — 2026-11-01
+
+- Theo yêu cầu user và `BE:docs/modules/health.md` (HLT-17): đợt khám hết ngày kết thúc sẽ tự đóng; kỳ cân đo giữ cách đóng hiện tại. Mock thực hiện đầy đủ đóng đợt khi đọc/ghi dữ liệu: chốt vắng, khóa phiếu, giữ nháp và phiếu theo dõi; ghi lịch sử "Hệ thống". Nút đóng đợt được đổi thành "Đóng sớm đợt khám".
+- User chốt đợt mở lại vẫn tự đóng: mở lại đợt khám hết hạn bắt ngày kết thúc mới từ hôm nay, nhập/hiển thị `dd/mm/yyyy`; gửi thêm `endDate` trong body reopen. Request chỉ có `reason` vẫn dùng cho đợt còn hạn và kỳ cân đo. Backend có migration V51 cho actor hệ thống.
+- `tests/health/auto-close-campaign.test.mjs`: 8/8 ca đạt (ranh giới nửa đêm Việt Nam khi UTC còn hôm trước, vắng/nháp/theo dõi, khóa ghi, idempotence, không đóng kỳ/hủy/đợt đã đóng, mở lại hạn mới và tự đóng tiếp). Chrome locale en-US: tự đóng sau nửa đêm → mở lại, ngày mặc định đúng `dd/mm/yyyy`, lỗi ngày cũ → lưu hạn mới → vẫn mở hết hạn mới → tự đóng lần hai, không có lỗi runtime. Dữ liệu giả, context riêng; chưa nối UI với API thật.
+- `node scripts/verify.mjs` → `VERIFY PASS full`: 468/468 test, không skip; lint, format, design và build đạt. `node scripts/check-ai-layer.mjs` → 0 lỗi; có cảnh báo tài liệu cũ. Không commit/push.
+
+### Ngày tạo đợt khám và kỳ cân đo — 2026-11-01
+
+- Dùng `DateInput` chung cho ngày bắt đầu/kết thúc, hiển thị và nhập `dd/mm/yyyy`. Khi tạo mới, lịch giới hạn từ hôm nay; kiểm tra ngày nhập tay trước khi hỏi cảnh báo và khi xác nhận lưu. Validation phân biệt tạo/sửa để đợt đang diễn ra giữ được ngày bắt đầu cũ; backend kiểm tra theo giờ trường (`BE:docs/modules/health.md`, Known pitfalls).
+- Regression: `tests/health/campaign-dates.test.mjs` 19/19, không skip; cả EXAM/MEASUREMENT, hôm qua bị chặn, hôm nay/tương lai hợp lệ, ngày không tồn tại/nhập dở, kết thúc trước bắt đầu, sửa đợt đã bắt đầu. Clock cố định 00:30 Việt Nam khi UTC vẫn là hôm qua.
+- Chrome với locale en-US và giờ Việt Nam: kiểm cả hai form hiển thị `dd/mm/yyyy`, min lịch, lỗi ngày quá khứ/không tồn tại/kết thúc trước bắt đầu, tạo hôm nay và sửa ngày bắt đầu cũ; không có lỗi runtime. Dùng dữ liệu giả trong browser context riêng, chưa nối UI với API thật.
+- `node scripts/verify.mjs` → `VERIFY PASS full`: 460/460 test, không skip; lint, format, design và build đạt. `node scripts/check-ai-layer.mjs` → 0 lỗi (cảnh báo tài liệu cũ). BE: `node scripts/verify.mjs --quick` → `VERIFY PASS quick`, 101/101 test, không skip (gồm 16 test health với PostgreSQL thật); ArchUnit và Spotless đạt, không chạy snapshot; log `BE:target/verify.log`. Không commit/push.
+
 ### Swimlane tiếp nhận trẻ bằng tiếng Anh từ PNG có mã gốc — 2026-10-26
 
 - Làn S: tạo `artifacts/enrollment-swimlane-eng.drawio` từ trang Tiếp nhận trẻ trong `tiep_nhan_tre.drawio.png` do người dùng cung cấp. PNG nhúng mxfile 5 trang; chỉ trích trang `oy8reLlU6jjIu4IcxXmV` và dịch 25 nhãn, kể cả ghi chú ngoài khung. Đầu ra một trang, 4 làn, 82 cell, 38 đường nối; không sửa luồng, vai trò hoặc ứng dụng.

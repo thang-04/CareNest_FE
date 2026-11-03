@@ -11,6 +11,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import { FormField } from '@/components/form/FormField';
+import { DateInput } from '@/components/form/DateInput';
 import {
   CampaignKindBadge,
   CampaignStatusBadge,
@@ -25,7 +26,7 @@ import { MeasurementRoundRoster } from '@/components/children/MeasurementRoundRo
 import { cancelHealthCheck, closeHealthCheck, reopenHealthCheck } from '@/services/children/healthCheckService';
 import { SCREENING_CRITERIA_LABELS } from '@/models/children/childrenConstants';
 import { CAMPAIGN_KIND, CAMPAIGN_STATUS, campaignActionLabelOf } from '@/models/children/healthCheckConstants';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { formatDate, formatDateTime, isIsoDate, todayInput } from '@/utils/format';
 import { canManageHealthCheck, isTeacherRole } from '@/utils/children/childrenPermissions';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import { StatCard } from '@/components/ui/StatCard';
@@ -55,19 +56,23 @@ const wordsOf = (isRound) =>
 function StatusBanner({ campaign, teacher, isRound }) {
   const w = wordsOf(isRound);
   if (campaign.status === CAMPAIGN_STATUS.IN_PROGRESS)
-    return teacher ? (
+    return teacher || !isRound ? (
       <div className="alert alert--info mb-16">
         <Info size={18} />
         <div>
-          {isRound ? (
-            <>
-              Bấm <b>Nhập số đo</b> cạnh tên trẻ ở danh sách lớp bên dưới để nhập chiều cao, cân nặng. Lưu là công bố cho phụ huynh ngay.
-            </>
-          ) : (
-            <>
-              Bấm <b>Khám</b> cạnh tên trẻ ở danh sách lớp bên dưới để nhập phiếu theo mẫu Phụ lục II cùng bác sĩ. Lưu kết luận là công bố
-              cho phụ huynh ngay.
-            </>
+          {teacher &&
+            (isRound ? (
+              <>
+                Bấm <b>Nhập số đo</b> cạnh tên trẻ ở danh sách lớp bên dưới để nhập chiều cao, cân nặng. Lưu là công bố cho phụ huynh ngay.
+              </>
+            ) : (
+              <>
+                Bấm <b>Khám</b> cạnh tên trẻ ở danh sách lớp bên dưới để nhập phiếu theo mẫu Phụ lục II cùng bác sĩ. Lưu kết luận là công bố
+                cho phụ huynh ngay.
+              </>
+            ))}
+          {!isRound && (
+            <> Đợt khám tự đóng sau ngày {formatDate(campaign.endDate)}; phiếu khám sẽ khóa khi đợt đóng, kể cả đợt mở lại để nhập bù.</>
           )}
         </div>
       </div>
@@ -78,6 +83,7 @@ function StatusBanner({ campaign, teacher, isRound }) {
         <Info size={18} />
         <div>
           {isRound ? 'Kỳ cân đo' : 'Đợt khám'} chưa bắt đầu. Giáo viên nhập kết quả từ ngày {formatDate(campaign.startDate)}.
+          {!isRound && <> Đợt khám tự đóng sau ngày {formatDate(campaign.endDate)}.</>}
         </div>
       </div>
     );
@@ -134,6 +140,7 @@ export default function HealthCheckDetailPage() {
   const manage = canManageHealthCheck(user, campaign.campusId);
   const teacher = isTeacherRole(user);
   const isRound = campaign.kind === CAMPAIGN_KIND.MEASUREMENT;
+  const reopenNeedsEndDate = !isRound && campaign.endDate < todayInput();
   const w = wordsOf(isRound);
   const Roster = isRound ? MeasurementRoundRoster : HealthCheckClassRoster;
   const unclosed = [CAMPAIGN_STATUS.UPCOMING, CAMPAIGN_STATUS.IN_PROGRESS].includes(campaign.status);
@@ -167,13 +174,18 @@ export default function HealthCheckDetailPage() {
       setReopen({ ...reopen, error: `Nhập lý do mở lại ${w.name}` });
       return;
     }
+    if (reopenNeedsEndDate && (!isIsoDate(reopen.endDate) || reopen.endDate < todayInput())) {
+      setReopen({ ...reopen, endDateError: 'Chọn ngày kết thúc mới từ hôm nay theo dd/mm/yyyy' });
+      return;
+    }
     setBusy(true);
     try {
-      await reopenHealthCheck(campaign.id, { reason: reopen.reason }, user);
+      await reopenHealthCheck(campaign.id, { reason: reopen.reason, ...(reopenNeedsEndDate ? { endDate: reopen.endDate } : {}) }, user);
       toast.success(`Đã mở lại ${w.name}. Giáo viên của điểm trường đã nhận thông báo.`);
       setReopen(null);
     } catch (err) {
-      if (err.details?.reason) setReopen({ ...reopen, error: err.details.reason });
+      if (err.details?.reason || err.details?.endDate)
+        setReopen({ ...reopen, error: err.details.reason || '', endDateError: err.details.endDate || '' });
       else toast.error(err, `Không mở lại được ${w.name}`);
     } finally {
       setBusy(false);
@@ -202,13 +214,13 @@ export default function HealthCheckDetailPage() {
               </button>
             )}
             {campaign.status === CAMPAIGN_STATUS.CLOSED && (
-              <button className="btn" onClick={() => setReopen({ reason: '', error: '' })}>
+              <button className="btn" onClick={() => setReopen({ reason: '', error: '', endDate: todayInput(), endDateError: '' })}>
                 <Unlock size={16} /> Mở lại {w.unit}
               </button>
             )}
             {campaign.status === CAMPAIGN_STATUS.IN_PROGRESS && (
               <button className="btn btn--primary" onClick={() => setConfirm('close')}>
-                <Lock size={16} /> Đóng {w.name}
+                <Lock size={16} /> {isRound ? 'Đóng kỳ cân đo' : 'Đóng sớm đợt khám'}
               </button>
             )}
           </div>
@@ -541,16 +553,27 @@ export default function HealthCheckDetailPage() {
         {reopen && (
           <>
             <p className="mb-12">
-              Giáo viên nhập hoặc sửa được {w.results} của {w.unit} cho tới khi bạn đóng lại. Trẻ đã ghi {w.absent} sẽ thành{' '}
-              {isRound ? 'Chưa cân đo' : 'Chưa khám'}.
+              {isRound
+                ? 'Giáo viên nhập hoặc sửa số đo của kỳ cho tới khi bạn đóng lại.'
+                : 'Giáo viên nhập hoặc sửa phiếu khám để nhập bù. Đợt sẽ tự đóng khi qua ngày kết thúc.'}{' '}
+              Trẻ đã ghi {w.absent} sẽ thành {isRound ? 'Chưa cân đo' : 'Chưa khám'}.
             </p>
+            {reopenNeedsEndDate && (
+              <FormField label="Ngày kết thúc mới" required error={reopen.endDateError} className="mb-12">
+                <DateInput
+                  value={reopen.endDate}
+                  min={todayInput()}
+                  onChange={(endDate) => setReopen({ ...reopen, endDate, endDateError: '' })}
+                />
+              </FormField>
+            )}
             <FormField label="Lý do mở lại" required error={reopen.error}>
               <textarea
                 className="textarea"
                 rows={3}
                 maxLength={300}
                 value={reopen.reason}
-                onChange={(e) => setReopen({ reason: e.target.value, error: '' })}
+                onChange={(e) => setReopen({ ...reopen, reason: e.target.value, error: '' })}
               />
             </FormField>
           </>

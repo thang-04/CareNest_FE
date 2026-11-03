@@ -13,7 +13,7 @@ import {
   FOLLOW_UP_STATUS,
   HEALTH_CHECK_FIELD_LIMITS,
 } from '@/models/children/healthCheckConstants';
-import { formatDate, localDateOf } from '@/utils/format';
+import { formatDate, isIsoDate, localDateOf, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import { hasErrors, validateFollowUpAction, validateHealthCheck } from '@/utils/children/childrenValidation';
 import {
@@ -35,6 +35,7 @@ import {
 import {
   campaignKindOf,
   campaignStatusOf,
+  closeCampaign,
   followUpBrief,
   followUpState,
   isExamCampaign,
@@ -231,12 +232,15 @@ const toCampaignView = (db, c, user) => {
     campusName: campusName(db, c.campusId),
     status: campaignStatusOf(c),
     createdByName: userName(db, c.createdBy),
-    closedByName: userName(db, c.closedBy),
+    closedByName: c.closedAt && c.closedBy == null ? 'Hệ thống' : userName(db, c.closedBy),
     hasResults: db.healthMeasurements.some((m) => m.campaignId === c.id),
     progress: summarize(rows),
     waitingFollowUpCount: waiting.length,
     overdueFollowUpCount: waiting.filter((r) => r.followUp.overdueDays > 0).length,
-    history: (c.history || []).map((h) => ({ ...h, userName: userName(db, h.userId) })),
+    history: (c.history || []).map((h) => ({
+      ...h,
+      userName: h.action === 'CLOSED' && h.userId == null ? 'Hệ thống' : userName(db, h.userId),
+    })),
   };
 };
 
@@ -507,7 +511,7 @@ export const healthCheckMockRepository = {
     const db = ensureChildRecordsSeeded();
     assertManage(user);
     const kind = payload.kind ?? CAMPAIGN_KIND.EXAM;
-    const errors = validateHealthCheck(payload);
+    const errors = validateHealthCheck(payload, { creating: true });
     if (!Object.values(CAMPAIGN_KIND).includes(kind)) errors.kind = 'Chọn đợt khám sức khỏe hoặc kỳ cân đo';
     if (hasErrors(errors)) invalid(errors);
     if (!db.campuses.some((c) => c.id === payload.campusId)) invalid({ campusId: 'Chọn điểm trường' });
@@ -598,11 +602,7 @@ export const healthCheckMockRepository = {
       const rows = d.classes.filter((cls) => cls.campusId === target.campusId).flatMap((cls) => rosterOf(d, target, cls));
       const view = summarize(rows);
       const waitingFollowUpCount = rows.filter((r) => r.followUp?.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT).length;
-      // Trẻ chưa có kết quả khi đóng đợt ⇒ "Vắng khám"; kết quả của đợt bị khóa tới khi mở lại.
-      target.absentChildIds = rows.filter((r) => r.result === CHILD_RESULT_STATUS.NOT_RECORDED).map((r) => r.childId);
-      target.closedAt = nowIso();
-      target.closedBy = user.id;
-      target.history = [...(target.history || []), { at: nowIso(), userId: user.id, action: 'CLOSED' }];
+      closeCampaign(d, target, user.id);
       // Phiếu còn nháp giữ nguyên, hiện "Chưa kết luận", không tính vắng khám (user chốt 2026-10-17).
       return {
         absentCount: view.notRecorded,
@@ -624,6 +624,12 @@ export const healthCheckMockRepository = {
     const reason = (body?.reason || '').trim();
     if (!reason) invalid({ reason: `Nhập lý do mở lại ${label.toLowerCase()}` });
     if (reason.length > HEALTH_CHECK_FIELD_LIMITS.reason) invalid({ reason: 'Lý do tối đa 300 ký tự' });
+    const extendExam = isExamCampaign(c) && (c.endDate < todayInput() || body?.endDate);
+    if (extendExam) {
+      if (!isIsoDate(body?.endDate)) invalid({ endDate: 'Chọn ngày kết thúc mới hợp lệ theo dd/mm/yyyy' });
+      if (body.endDate < todayInput()) invalid({ endDate: 'Ngày kết thúc mới không được trước hôm nay' });
+      if (body.endDate < c.startDate) invalid({ endDate: 'Ngày kết thúc không được trước ngày bắt đầu' });
+    }
     const unclosed = unclosedCampaignOf(db, c.campusId, id);
     if (unclosed)
       throw new ApiError(
@@ -634,6 +640,7 @@ export const healthCheckMockRepository = {
       const target = d.healthCheckCampaigns.find((x) => x.id === id);
       target.closedAt = null;
       target.closedBy = null;
+      if (extendExam) target.endDate = body.endDate;
       target.absentChildIds = [];
       target.history = [...(target.history || []), { at: nowIso(), userId: user.id, action: 'REOPENED', reason }];
       notifyCampus(d, target, `${label} được mở lại`, `${target.name} được mở lại để nhập hoặc sửa kết quả. Lý do: ${reason}`);

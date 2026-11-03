@@ -1,25 +1,46 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, Info } from '@/components/ui/icons';
+import { ArrowLeft, Save, Plus, Info, Stethoscope, Scale } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useHealthCheck } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { Tabs } from '@/components/ui/Tabs';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
+import { DateInput } from '@/components/form/DateInput';
 import { ChildAccessState, HEALTH_CHECK_ACCESS_TEXT } from '@/components/children/ChildAccessState';
 import { createHealthCheck, getScheduleWarnings, updateHealthCheck } from '@/services/children/healthCheckService';
 import { CAMPAIGN_KIND, CAMPAIGN_KIND_LABELS, CAMPAIGN_STATUS, SCHEDULE_WARNING } from '@/models/children/healthCheckConstants';
-import { formatDate, todayInput } from '@/utils/format';
+import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 import { hasErrors, validateHealthCheck } from '@/utils/children/childrenValidation';
 import { canManageHealthCheck, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
 const isRoundKind = (kind) => kind === CAMPAIGN_KIND.MEASUREMENT;
+
+const KIND_TABS = [
+  {
+    key: CAMPAIGN_KIND.EXAM,
+    label: (
+      <>
+        <Stethoscope size={16} /> Đợt khám
+      </>
+    ),
+  },
+  {
+    key: CAMPAIGN_KIND.MEASUREMENT,
+    label: (
+      <>
+        <Scale size={16} /> Kỳ cân đo
+      </>
+    ),
+  },
+];
 
 // Gợi ý tên theo loại và tháng của ngày bắt đầu; người tạo sửa được.
 const suggestName = (kind, startDate) =>
@@ -40,7 +61,7 @@ const warningText = (w) =>
 
 export default function HealthCheckFormPage() {
   const { campaignId } = useParams();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -49,7 +70,8 @@ export default function HealthCheckFormPage() {
   const { detail, loading, error, reload } = useHealthCheck(campaignId, { live: false });
   // PHT chỉ tạo cho điểm trường của mình (user chốt 2026-10-31): chọn sẵn, không đổi.
   const ownCampusId = isVicePrincipal(user) ? user.campusId : '';
-  const initialKind = params.get('kind') === CAMPAIGN_KIND.EXAM ? CAMPAIGN_KIND.EXAM : CAMPAIGN_KIND.MEASUREMENT;
+  // Nút "Tạo đợt khám" mở tab đợt khám; ?kind giữ tab đang chọn khi tải lại trang
+  const initialKind = params.get('kind') === CAMPAIGN_KIND.MEASUREMENT ? CAMPAIGN_KIND.MEASUREMENT : CAMPAIGN_KIND.EXAM;
   const [form, setForm] = useState(() => emptyForm(initialKind, ownCampusId || ''));
   const [nameTouched, setNameTouched] = useState(false);
   const [errors, setErrors] = useState({});
@@ -108,23 +130,43 @@ export default function HealthCheckFormPage() {
     );
   const locked = editing && [CAMPAIGN_STATUS.CLOSED, CAMPAIGN_STATUS.CANCELLED].includes(campaign.status);
   const campuses = ownCampusId ? md.campuses.filter((c) => c.id === ownCampusId) : md.campuses;
+  const minStartDate = editing ? undefined : todayInput();
+  const minEndDate = isIsoDate(form.startDate) && (!minStartDate || form.startDate > minStartDate) ? form.startDate : minStartDate;
+  const validate = (values) => validateHealthCheck(values, { creating: !editing });
 
   const set = (field, value) => {
     const next = { ...form, [field]: value };
     // Tên chưa sửa tay thì đi theo loại và ngày bắt đầu
-    if ((field === 'startDate' || field === 'kind') && !editing && !nameTouched) next.name = suggestName(next.kind, next.startDate);
-    if (field === 'startDate' && next.endDate < value) next.endDate = value;
+    if ((field === 'startDate' || field === 'kind') && !editing && !nameTouched && isIsoDate(next.startDate))
+      next.name = suggestName(next.kind, next.startDate);
+    if (field === 'startDate' && isIsoDate(value) && isIsoDate(next.endDate) && next.endDate < value) next.endDate = value;
     if (field === 'name') setNameTouched(true);
     setForm(next);
-    const nextErrors = validateHealthCheck(next);
-    setErrors((prev) => Object.fromEntries(Object.entries(prev).filter(([k]) => nextErrors[k])));
+    const nextErrors = validate(next);
+    setErrors((prev) =>
+      Object.fromEntries(
+        Object.keys(prev)
+          .filter((k) => nextErrors[k])
+          .map((k) => [k, nextErrors[k]]),
+      ),
+    );
+  };
+  const switchKind = (kind) => {
+    set('kind', kind);
+    setParams({ kind }, { replace: true });
   };
   const blur = (field) => {
-    const e = validateHealthCheck(form)[field];
+    const e = validate(form)[field];
     if (e) setErrors((prev) => ({ ...prev, [field]: e }));
   };
 
   const submit = async () => {
+    const errs = validate(form);
+    setErrors(errs);
+    if (hasErrors(errs)) {
+      setWarnings(null);
+      return;
+    }
     setBusy(true);
     try {
       const saved = editing ? await updateHealthCheck(campaign.id, form, user) : await createHealthCheck(form, user);
@@ -141,7 +183,7 @@ export default function HealthCheckFormPage() {
 
   // Hỏi BE cảnh báo trước khi lưu; có cảnh báo thì người dùng xác nhận mới lưu (không chặn).
   const save = async () => {
-    const errs = validateHealthCheck(form);
+    const errs = validate(form);
     setErrors(errs);
     if (hasErrors(errs)) return;
     setBusy(true);
@@ -165,6 +207,12 @@ export default function HealthCheckFormPage() {
     <div className="page">
       <Breadcrumb items={crumbs} />
       <h1 className="page__title">{title}</h1>
+      {/* Loại chỉ chọn khi tạo; sửa thì giữ loại đã tạo (tiêu đề ghi rõ loại) */}
+      {!editing && (
+        <div className="mb-16">
+          <Tabs items={KIND_TABS} value={form.kind} onChange={switchKind} ariaLabel="Loại đợt" />
+        </div>
+      )}
       {locked ? (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
@@ -176,25 +224,13 @@ export default function HealthCheckFormPage() {
           <div>
             {isRound
               ? 'Kỳ cân đo khoảng 3 tháng/lần: giáo viên phụ trách lớp nhập chiều cao, cân nặng của trẻ trong khoảng ngày cân đo.'
-              : 'Đợt khám sức khỏe thường 1 lần/năm học: giáo viên phụ trách lớp nhập phiếu khám cùng bác sĩ trong khoảng ngày khám.'}{' '}
+              : 'Đợt khám sức khỏe thường 1 lần/năm học: giáo viên phụ trách lớp nhập phiếu khám cùng bác sĩ trong khoảng ngày khám. Đợt khám tự đóng sau ngày kết thúc.'}{' '}
             Mỗi điểm trường chỉ có một đợt khám hoặc kỳ cân đo chưa đóng.
           </div>
         </div>
       )}
       <section className="card wizard-card">
         <div className="grid-2">
-          <FormField
-            label="Loại"
-            required
-            error={errors.kind}
-            className="tr-span-2"
-            hint={editing ? 'Không đổi được loại sau khi tạo.' : undefined}
-          >
-            <select className="select" value={form.kind} disabled={editing} onChange={(e) => set('kind', e.target.value)}>
-              <option value={CAMPAIGN_KIND.MEASUREMENT}>{CAMPAIGN_KIND_LABELS.MEASUREMENT} (giáo viên cân đo tại lớp)</option>
-              <option value={CAMPAIGN_KIND.EXAM}>{CAMPAIGN_KIND_LABELS.EXAM} (bác sĩ khám, phiếu Phụ lục II)</option>
-            </select>
-          </FormField>
           <FormField label={isRound ? 'Tên kỳ cân đo' : 'Tên đợt khám'} required error={errors.name} className="tr-span-2">
             <input
               className="input"
@@ -247,23 +283,20 @@ export default function HealthCheckFormPage() {
             </FormField>
           )}
           <FormField label={isRound ? 'Ngày bắt đầu cân đo' : 'Ngày bắt đầu khám'} required error={errors.startDate}>
-            <input
-              type="date"
-              className="input"
+            <DateInput
               value={form.startDate}
+              min={minStartDate}
               disabled={locked}
-              onChange={(e) => set('startDate', e.target.value)}
+              onChange={(value) => set('startDate', value)}
               onBlur={() => blur('startDate')}
             />
           </FormField>
           <FormField label={isRound ? 'Ngày kết thúc cân đo' : 'Ngày kết thúc khám'} required error={errors.endDate}>
-            <input
-              type="date"
-              className="input"
+            <DateInput
               value={form.endDate}
-              min={form.startDate || undefined}
+              min={minEndDate}
               disabled={locked}
-              onChange={(e) => set('endDate', e.target.value)}
+              onChange={(value) => set('endDate', value)}
               onBlur={() => blur('endDate')}
             />
           </FormField>

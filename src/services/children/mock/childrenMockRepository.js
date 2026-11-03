@@ -59,8 +59,10 @@ import {
   applyFollowUpReminders,
   campaignKindOf,
   campaignStatusOf,
+  closeCampaign,
   closeFollowUpsOfWithdrawnChild,
   dueFollowUpReminders,
+  expiredExamCampaignsOf,
   followUpBrief,
   followUpEffectOf,
   isOpenForEntry,
@@ -331,9 +333,19 @@ export const ensureChildRecordsSeeded = () => {
     writeDb(normalizeParentStatuses);
     db = readDb();
   }
+  const expired = expiredExamCampaignsOf(db);
   const due = dueFollowUpReminders(db);
-  if (due.length === 0) return db;
-  writeDb((d) => applyFollowUpReminders(d, due));
+  if (expired.length === 0 && due.length === 0) return db;
+  writeDb((d) => {
+    expired.forEach((campaign) =>
+      closeCampaign(
+        d,
+        d.healthCheckCampaigns.find((c) => c.id === campaign.id),
+        null,
+      ),
+    );
+    if (due.length > 0) applyFollowUpReminders(d, due);
+  });
   return readDb();
 };
 

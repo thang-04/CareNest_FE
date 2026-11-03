@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, RotateCcw, Info, Stethoscope, Search, Scale } from '@/components/ui/icons';
+import { Plus, RotateCcw, Info, Search, Scale } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -43,15 +43,11 @@ export default function HealthCheckListPage() {
     setStatus('');
     setPage(1);
   };
+  // Một nút tạo; trong form chuyển qua lại đợt khám / kỳ cân đo
   const createActions = manage && (
-    <>
-      <Link to={`/children/health-checks/new?kind=${CAMPAIGN_KIND.EXAM}`} className="btn">
-        <Stethoscope size={16} /> Tạo đợt khám
-      </Link>
-      <Link to={`/children/health-checks/new?kind=${CAMPAIGN_KIND.MEASUREMENT}`} className="btn btn--primary">
-        <Plus size={16} /> Tạo kỳ cân đo
-      </Link>
-    </>
+    <Link to="/children/health-checks/new" className="btn btn--primary">
+      <Plus size={16} /> Tạo đợt khám
+    </Link>
   );
 
   return (
