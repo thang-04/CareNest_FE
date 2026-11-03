@@ -56,22 +56,25 @@ export default function ChildDevelopmentListPage() {
               setPage(1);
             }}
           />
-          <select
-            className="select"
-            value={classId}
-            onChange={(e) => {
-              setClassId(e.target.value);
-              setPage(1);
-            }}
-            aria-label="Lớp"
-          >
-            <option value="">Tất cả lớp</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {/* Lọc lớp chỉ khi có từ 2 lớp (GV một lớp không cần) */}
+          {classes.length > 1 && (
+            <select
+              className="select"
+              value={classId}
+              onChange={(e) => {
+                setClassId(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Lớp"
+            >
+              <option value="">Tất cả lớp</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             className="select"
             value={state}

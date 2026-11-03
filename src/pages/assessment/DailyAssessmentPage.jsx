@@ -132,21 +132,28 @@ export default function DailyAssessmentPage() {
               <label className="field__label" htmlFor="dg-class">
                 Lớp
               </label>
-              <select
-                id="dg-class"
-                className="select"
-                value={currentClassId}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  confirmChange(() => setClassId(next));
-                }}
-              >
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              {/* GV chỉ dạy một lớp: hiện tên lớp, không bắt chọn */}
+              {classes.length === 1 ? (
+                <span id="dg-class" className="fw-600">
+                  {classes[0].name}
+                </span>
+              ) : (
+                <select
+                  id="dg-class"
+                  className="select"
+                  value={currentClassId}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    confirmChange(() => setClassId(next));
+                  }}
+                >
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="field">
               <label className="field__label" htmlFor="dg-date">

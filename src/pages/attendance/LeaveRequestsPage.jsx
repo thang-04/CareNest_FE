@@ -129,14 +129,21 @@ export default function LeaveRequestsPage() {
               ))}
             </select>
           )}
-          <select className="select" aria-label="Lọc lớp" value={filters.classId} onChange={(e) => setFilter({ classId: e.target.value })}>
-            <option value="">Tất cả lớp</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {classes.length > 1 && (
+            <select
+              className="select"
+              aria-label="Lọc lớp"
+              value={filters.classId}
+              onChange={(e) => setFilter({ classId: e.target.value })}
+            >
+              <option value="">Tất cả lớp</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button className="btn" type="button" onClick={() => setFilter({ ...monthRangeOf(today), campusId: '', classId: '' })}>
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
