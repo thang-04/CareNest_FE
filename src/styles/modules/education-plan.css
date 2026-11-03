@@ -1872,13 +1872,13 @@ h2.ga-cur-domain__head {
   vertical-align: middle;
 }
 .ga-version-table__code {
-  width: calc(var(--space-16) * 3);
+  width: calc(var(--space-16) * 2 + var(--space-12));
 }
 .ga-version-table__version {
-  width: calc(var(--space-16) * 3);
+  width: calc(var(--space-16) * 3 - var(--space-2));
 }
 .ga-version-table__status {
-  width: calc(var(--space-16) * 2 + var(--space-4));
+  width: calc(var(--space-16) * 3 + var(--space-3));
 }
 .ga-version-table__date {
   width: calc(var(--space-16) + var(--space-12));
@@ -1935,7 +1935,8 @@ h2.ga-cur-domain__head {
 .table.ga-list-table tbody tr.row-click:hover td {
   background: var(--table-row-hover);
 }
-/* Bảng phiên bản / thay đổi: ô một dòng (dài thì "…"), nền trắng không sọc để các cột đọc thẳng hàng */
+/* Bảng phiên bản / thay đổi: ô một dòng (dài thì "…"), nền trắng không sọc để các cột đọc thẳng hàng;
+   cột Trạng thái đủ chip dài nhất ("Chờ Hiệu trưởng duyệt"), chip không tràn sang cột bên */
 .table.ga-version-table td {
   white-space: nowrap;
   overflow: hidden;
@@ -1948,4 +1949,14 @@ h2.ga-cur-domain__head {
 .table.ga-version-table tbody tr:hover td,
 .table.ga-change-table tbody tr:hover td {
   background: var(--table-row-hover);
+}
+
+/* Đầu trang cố định của các màn soạn: hàng nút sát breadcrumb hơn, đầu trang thấp 10px (Tiền 03/11) */
+.ga-sticky-head .page__head {
+  margin-bottom: var(--space-1-5);
+}
+.table.ga-version-table td .chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
