@@ -1,15 +1,19 @@
 import { writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { pushNotification } from '@/mocks/notificationMockRepository';
+import { overlapsSchoolYear, schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { CHILD_STATUS } from '@/models/School';
 import { FOLLOW_UP_LEVEL } from '@/models/children/childrenConstants';
 import {
+  CAMPAIGN_KIND,
+  CAMPAIGN_KIND_LABELS,
   CAMPAIGN_STATUS,
   CHILD_RESULT_STATUS,
+  FOLLOW_UP_CLOSE_OUTCOME,
   FOLLOW_UP_FIELD_LIMITS,
   FOLLOW_UP_STATUS,
   HEALTH_CHECK_FIELD_LIMITS,
 } from '@/models/children/healthCheckConstants';
-import { formatDate } from '@/utils/format';
+import { formatDate, isIsoDate, localDateOf, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import { hasErrors, validateFollowUpAction, validateHealthCheck } from '@/utils/children/childrenValidation';
 import {
@@ -21,19 +25,38 @@ import {
   teachesClass,
 } from '@/utils/children/childrenPermissions';
 import { CONCLUSION_CATEGORY, EXAM_STATUS } from '@/models/children/healthExamForm';
-import { ensureChildRecordsSeeded, isExamDraft } from './childrenMockRepository';
-import { campaignStatusOf, followUpBrief, followUpState, isOpenForEntry, latestExternalOf, unclosedCampaignOf } from './healthCheckRule';
+import {
+  KNOWN_CONDITION_HISTORY_MAX,
+  ensureChildRecordsSeeded,
+  isExamDraft,
+  recordKnownCondition,
+  selfHistoryWith,
+} from './childrenMockRepository';
+import {
+  campaignKindOf,
+  campaignStatusOf,
+  closeCampaign,
+  followUpBrief,
+  followUpState,
+  isExamCampaign,
+  isOpenForEntry,
+  latestExternalOf,
+  notedMeasurementIds,
+  scheduleWarningsOf,
+  unclosedCampaignOf,
+} from './healthCheckRule';
 import { screenMeasurement } from './healthScreeningRule';
 
 /*
- * Backend giả của đợt khám sức khỏe (user chốt 2026-10-15, PROPOSED — chờ BE ghi HLT-07).
+ * Backend giả của đợt khám sức khỏe và kỳ cân đo (user chốt 2026-10-15, 2026-10-31; PROPOSED — đề xuất HLT-01, HLT-08 cho BE).
  * Owns db.healthCheckCampaigns và db.healthFollowUps (phiếu theo dõi, HLT-09 đề xuất); đọc db.healthMeasurements (nối qua campaignId).
- * Phạm vi: Hiệu trưởng mọi điểm trường; Phó hiệu trưởng điểm trường của mình; giáo viên/tổ trưởng điểm trường của lớp
- * được phân công và chỉ thấy lớp mình.
+ * Phạm vi: Hiệu trưởng mọi điểm trường; Phó hiệu trưởng điểm trường của mình (xem và quản lý); giáo viên/tổ trưởng điểm
+ * trường của lớp được phân công và chỉ thấy lớp mình.
  */
 
 const FORBIDDEN = 'Bạn không có quyền thực hiện thao tác này.';
-const NOT_FOUND = 'Không tìm thấy đợt khám.';
+const NOT_FOUND = 'Không tìm thấy đợt khám hoặc kỳ cân đo.';
+const kindLabelOf = (c) => CAMPAIGN_KIND_LABELS[campaignKindOf(c)];
 const nowIso = () => new Date().toISOString();
 
 const forbid = () => {
@@ -65,10 +88,18 @@ const findCampaign = (db, id, user) => {
   return c;
 };
 
-const latestBefore = (db, childId, date, excludeId) =>
-  db.healthMeasurements
-    .filter((m) => m.childId === childId && m.id !== excludeId && m.date < date && !isExamDraft(m))
-    .sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+/**
+ * Lần khám trước: chỉ lần khám trong đợt khám (có bác sĩ); bỏ phiếu nháp, cân đo ngoài đợt (user chốt 2026-10-22) và lần đo
+ * của kỳ cân đo (M7, 2026-10-31).
+ */
+export const previousExamOf = (db, childId, date, excludeId) => {
+  const inExam = (m) => !!m.campaignId && isExamCampaign((db.healthCheckCampaigns || []).find((c) => c.id === m.campaignId));
+  return (
+    db.healthMeasurements
+      .filter((m) => m.childId === childId && m.id !== excludeId && m.date < date && !isExamDraft(m) && inExam(m))
+      .sort((a, b) => b.date.localeCompare(a.date))[0] || null
+  );
+};
 
 /** Kết luận bác sĩ rút gọn (phiếu Phụ lục II) cho danh sách, phiếu theo dõi, đợt sau. */
 export const conclusionBrief = (m) => {
@@ -81,8 +112,37 @@ export const conclusionBrief = (m) => {
         action: c.action,
         adviceText: c.adviceText || '',
         specialty: c.specialty || '',
+        issueKind: c.issueKind || '',
+        followUpFinding: c.followUpFinding || '',
       }
     : null;
+};
+
+/** Kết quả mới nhất trong phiếu đã mở vòng (lần khám không có bất thường mới không phải đề nghị chuyển khám). */
+const referralExamOf = (db, f) => {
+  const noted = notedMeasurementIds(f);
+  return (
+    f.measurementIds
+      .map((id) => db.healthMeasurements.find((m) => m.id === id))
+      .filter((m) => m && conclusionBrief(m) && !noted.has(m.id))
+      .sort((a, b) => b.date.localeCompare(a.date))[0] || null
+  );
+};
+
+const tbRiskOf = (db, f) => f.measurementIds.some((id) => conclusionBrief(db.healthMeasurements.find((m) => m.id === id))?.tbRisk);
+
+/** Phiếu đang mở của trẻ cho bước Kết luận của phiếu khám (D1): chuyên khoa đề nghị gần nhất, kết quả chuyên khoa gần nhất. */
+export const openFollowUpBriefOf = (db, f) => {
+  const referral = referralExamOf(db, f);
+  const brief = conclusionBrief(referral);
+  return {
+    ...followUpBrief(f),
+    openedOn: f.history.find((e) => e.action === 'OPENED')?.examOn || localDateOf(f.openedAt),
+    tbRisk: tbRiskOf(db, f),
+    referral: referral
+      ? { date: referral.date, issueText: brief.issueText, specialty: brief.specialty, adviceText: brief.adviceText }
+      : null,
+  };
 };
 
 const resultStatusOf = (m, campaignStatus) => {
@@ -111,7 +171,7 @@ const rosterOf = (db, campaign, cls) => {
       const m = resultByChild[ch.id];
       const draft = !!m && isExamDraft(m);
       const screen = m && !draft ? screenMeasurement(m, ch.dateOfBirth) : null;
-      const prev = latestBefore(db, ch.id, m?.date || campaign.startDate, m?.id);
+      const prev = previousExamOf(db, ch.id, m?.date || campaign.startDate, m?.id);
       const prevCampaign = prev?.campaignId ? db.healthCheckCampaigns.find((c) => c.id === prev.campaignId) : null;
       const followUp = openFollowUpOf(db, ch.id);
       return {
@@ -124,6 +184,9 @@ const rosterOf = (db, campaign, cls) => {
         result: resultStatusOf(m, status),
         measurementId: m?.id || null,
         date: m?.date || null,
+        // Số đo hiện ở danh sách lớp của kỳ cân đo để giáo viên soát nhanh.
+        heightCm: m?.heightCm ?? null,
+        weightKg: m?.weightKg ?? null,
         examStatus: m?.examStatus || null,
         // Kết quả nhập theo mẫu cũ trong đợt (trước phiếu Phụ lục II): xem ở Sổ sức khỏe, không mở trang phiếu.
         source: screen?.source || (draft ? 'EXAM' : null),
@@ -165,23 +228,28 @@ const toCampaignView = (db, c, user) => {
   const waiting = rows.filter((r) => r.followUp?.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT);
   return {
     ...rest,
+    kind: campaignKindOf(c),
     campusName: campusName(db, c.campusId),
     status: campaignStatusOf(c),
     createdByName: userName(db, c.createdBy),
-    closedByName: userName(db, c.closedBy),
+    closedByName: c.closedAt && c.closedBy == null ? 'Hệ thống' : userName(db, c.closedBy),
     hasResults: db.healthMeasurements.some((m) => m.campaignId === c.id),
     progress: summarize(rows),
     waitingFollowUpCount: waiting.length,
     overdueFollowUpCount: waiting.filter((r) => r.followUp.overdueDays > 0).length,
-    history: (c.history || []).map((h) => ({ ...h, userName: userName(db, h.userId) })),
+    history: (c.history || []).map((h) => ({
+      ...h,
+      userName: h.action === 'CLOSED' && h.userId == null ? 'Hệ thống' : userName(db, h.userId),
+    })),
   };
 };
 
-const cleanPayload = (p) => ({
+// Kỳ cân đo không có đơn vị khám (giáo viên tự cân đo).
+const cleanPayload = (p, kind) => ({
   name: (p.name || '').trim().slice(0, HEALTH_CHECK_FIELD_LIMITS.name),
   startDate: p.startDate,
   endDate: p.endDate,
-  examiner: (p.examiner || '').trim().slice(0, HEALTH_CHECK_FIELD_LIMITS.examiner),
+  examiner: kind === CAMPAIGN_KIND.MEASUREMENT ? '' : (p.examiner || '').trim().slice(0, HEALTH_CHECK_FIELD_LIMITS.examiner),
   note: (p.note || '').trim().slice(0, HEALTH_CHECK_FIELD_LIMITS.note),
 });
 
@@ -193,8 +261,8 @@ const notifyCampus = (db, campaign, title, message) => {
   );
 };
 
-const assertManage = (user) => {
-  if (!canManageHealthCheck(user)) forbid();
+const assertManage = (user, campusId) => {
+  if (!canManageHealthCheck(user, campusId)) forbid();
 };
 
 /* ------------------------------ Phiếu theo dõi ------------------------------ */
@@ -219,6 +287,24 @@ const canSeeFollowUp = (db, user, f) => {
   if (isPrincipal(user)) return true;
   if (isVicePrincipal(user)) return child.campusId === user.campusId;
   return teachesClass(cls, user);
+};
+
+/**
+ * Kết quả đóng phiếu chọn được (user chốt 2026-10-21): "bác sĩ kết luận bình thường" cần kết quả chuyên khoa hoặc lần khám sau
+ * ngày mở phiếu; "chuyên khoa xác định có vấn đề" cần kết quả chuyên khoa; "không có kết quả chuyên khoa" luôn chọn được.
+ */
+const closeOutcomeOptionsOf = (db, f, child) => {
+  const O = FOLLOW_UP_CLOSE_OUTCOME;
+  const hasExternal = (f.history || []).some((e) => e.action === 'EXTERNAL_RESULT');
+  const openedOn = f.history.find((e) => e.action === 'OPENED')?.examOn || localDateOf(f.openedAt);
+  const examAfter = db.healthMeasurements.some(
+    (m) =>
+      m.childId === f.childId &&
+      m.date > openedOn &&
+      !isExamDraft(m) &&
+      screenMeasurement(m, child.dateOfBirth).followUpLevel !== FOLLOW_UP_LEVEL.UNAVAILABLE,
+  );
+  return [...(hasExternal || examAfter ? [O.DOCTOR_NORMAL] : []), ...(hasExternal ? [O.KNOWN_CONDITION] : []), O.NO_SPECIALIST_RESULT];
 };
 
 const toFollowUpView = (db, f, user, { full = false } = {}) => {
@@ -249,8 +335,8 @@ const toFollowUpView = (db, f, user, { full = false } = {}) => {
       conclusion: conclusionBrief(m),
     };
   };
-  // Kết luận bác sĩ của kết quả mới nhất có phiếu Phụ lục II trong phiếu theo dõi (chuyên khoa được chuyển, lời dặn).
-  const lastExam = [...measurements].reverse().find((m) => conclusionBrief(m));
+  // Kết luận bác sĩ của kết quả mới nhất đã mở vòng trong phiếu (chuyên khoa được chuyển, lời dặn).
+  const lastExam = referralExamOf(db, f);
   return {
     id: f.id,
     status,
@@ -259,6 +345,9 @@ const toFollowUpView = (db, f, user, { full = false } = {}) => {
     closedAt: f.closedAt,
     closedByName: userName(db, f.closedBy),
     closeReason: f.closeReason,
+    closeOutcome: f.closeOutcome || null,
+    closeConditionText: f.closeConditionText || null,
+    closeOutcomeOptions: canUpdate ? closeOutcomeOptionsOf(db, f, child) : [],
     child: {
       id: child.id,
       fullName: child.fullName,
@@ -278,7 +367,7 @@ const toFollowUpView = (db, f, user, { full = false } = {}) => {
           source: last.sc.source,
         }
       : null,
-    tbRisk: measurements.some((m) => conclusionBrief(m)?.tbRisk),
+    tbRisk: tbRiskOf(db, f),
     referral: lastExam ? { date: lastExam.date, measurementId: lastExam.id, ...conclusionBrief(lastExam) } : null,
     currentRound: round
       ? {
@@ -340,7 +429,7 @@ const updateFollowUp = (id, user, mutate) =>
   writeDb((d) => {
     const target = d.healthFollowUps.find((x) => x.id === id);
     const at = nowIso();
-    mutate(target, at);
+    mutate(target, at, d);
     target.status = followUpState(target).status;
     target.updatedAt = at;
     return toFollowUpView(d, target, user, { full: true });
@@ -353,9 +442,12 @@ export const healthCheckMockRepository = {
     await delay(150);
     const db = ensureChildRecordsSeeded();
     if (!canViewHealthChecks(user)) forbid();
+    // Đợt khám thuộc năm học của ngày bắt đầu khám (user chốt 2026-10-28, Y-4).
+    const inYear = (c) => !filters.schoolYear || schoolYearIdOfDate(db, c.startDate) === filters.schoolYear;
     return db.healthCheckCampaigns
-      .filter((c) => canSeeCampaign(db, user, c))
+      .filter((c) => canSeeCampaign(db, user, c) && inYear(c))
       .filter((c) => !filters.campusId || c.campusId === filters.campusId)
+      .filter((c) => !filters.kind || campaignKindOf(c) === filters.kind)
       .map((c) => toCampaignView(db, c, user))
       .filter((c) => !filters.status || c.status === filters.status)
       .sort((a, b) => {
@@ -406,23 +498,37 @@ export const healthCheckMockRepository = {
     };
   },
 
+  /** Cảnh báo trước khi lưu (M5): không chặn; FE hỏi người tạo xác nhận rồi mới gọi create/update. */
+  async scheduleWarnings(params, user) {
+    await delay(100);
+    const db = ensureChildRecordsSeeded();
+    assertManage(user, params.campusId);
+    return { warnings: scheduleWarningsOf(db, params) };
+  },
+
   async createHealthCheck(payload, user) {
     await delay();
     const db = ensureChildRecordsSeeded();
     assertManage(user);
-    const errors = validateHealthCheck(payload);
+    const kind = payload.kind ?? CAMPAIGN_KIND.EXAM;
+    const errors = validateHealthCheck(payload, { creating: true });
+    if (!Object.values(CAMPAIGN_KIND).includes(kind)) errors.kind = 'Chọn đợt khám sức khỏe hoặc kỳ cân đo';
     if (hasErrors(errors)) invalid(errors);
     if (!db.campuses.some((c) => c.id === payload.campusId)) invalid({ campusId: 'Chọn điểm trường' });
+    if (!canManageHealthCheck(user, payload.campusId)) invalid({ campusId: 'Chỉ tạo được cho điểm trường của bạn' });
     const unclosed = unclosedCampaignOf(db, payload.campusId);
     if (unclosed)
       invalid(
-        { campusId: `Điểm trường đang có đợt "${unclosed.name}" chưa đóng. Đóng hoặc hủy đợt đó trước khi tạo đợt mới.` },
-        'Mỗi điểm trường chỉ có một đợt khám chưa đóng.',
+        {
+          campusId: `Điểm trường đang có ${kindLabelOf(unclosed).toLowerCase()} "${unclosed.name}" chưa đóng. Đóng hoặc hủy trước khi tạo mới.`,
+        },
+        'Mỗi điểm trường chỉ có một đợt khám hoặc kỳ cân đo chưa đóng.',
       );
     return writeDb((d) => {
       const created = {
         id: uid('hc'),
-        ...cleanPayload(payload),
+        kind,
+        ...cleanPayload(payload, kind),
         campusId: payload.campusId,
         createdBy: user.id,
         createdAt: nowIso(),
@@ -433,11 +539,14 @@ export const healthCheckMockRepository = {
         history: [{ at: nowIso(), userId: user.id, action: 'CREATED' }],
       };
       d.healthCheckCampaigns.push(created);
+      const range = `từ ${formatDate(created.startDate)} đến ${formatDate(created.endDate)}`;
       notifyCampus(
         d,
         created,
-        'Đợt khám sức khỏe mới',
-        `${created.name}: khám từ ${formatDate(created.startDate)} đến ${formatDate(created.endDate)}. Giáo viên nhập kết quả cho lớp mình.`,
+        kind === CAMPAIGN_KIND.MEASUREMENT ? 'Kỳ cân đo mới' : 'Đợt khám sức khỏe mới',
+        kind === CAMPAIGN_KIND.MEASUREMENT
+          ? `${created.name}: cân đo ${range}. Giáo viên nhập số đo cho lớp mình.`
+          : `${created.name}: khám ${range}. Giáo viên nhập kết quả cho lớp mình.`,
       );
       return toCampaignView(d, created, user);
     });
@@ -448,14 +557,16 @@ export const healthCheckMockRepository = {
     const db = ensureChildRecordsSeeded();
     assertManage(user);
     const c = findCampaign(db, id, user);
-    if (c.closedAt || c.cancelledAt) throw new ApiError(409, 'Đợt khám đã đóng hoặc đã hủy, không sửa được thông tin.');
+    assertManage(user, c.campusId);
+    if (c.closedAt || c.cancelledAt) throw new ApiError(409, `${kindLabelOf(c)} đã đóng hoặc đã hủy, không sửa được thông tin.`);
     const errors = validateHealthCheck({ ...payload, campusId: c.campusId });
     if (hasErrors(errors)) invalid(errors);
     const outside = db.healthMeasurements.find((m) => m.campaignId === id && (m.date < payload.startDate || m.date > payload.endDate));
     if (outside) invalid({ startDate: `Đã có kết quả ngày ${formatDate(outside.date)} nằm ngoài khoảng ngày mới.` });
     return writeDb((d) => {
       const target = d.healthCheckCampaigns.find((x) => x.id === id);
-      Object.assign(target, cleanPayload(payload));
+      // Loại không đổi sau khi tạo: kết quả đã nhập theo loại đó.
+      Object.assign(target, cleanPayload(payload, campaignKindOf(target)));
       target.history = [...(target.history || []), { at: nowIso(), userId: user.id, action: 'UPDATED' }];
       return toCampaignView(d, target, user);
     });
@@ -466,9 +577,10 @@ export const healthCheckMockRepository = {
     const db = ensureChildRecordsSeeded();
     assertManage(user);
     const c = findCampaign(db, id, user);
-    if (c.closedAt || c.cancelledAt) throw new ApiError(409, 'Đợt khám đã đóng hoặc đã hủy.');
+    assertManage(user, c.campusId);
+    if (c.closedAt || c.cancelledAt) throw new ApiError(409, `${kindLabelOf(c)} đã đóng hoặc đã hủy.`);
     if (db.healthMeasurements.some((m) => m.campaignId === id))
-      throw new ApiError(409, 'Đợt khám đã có kết quả, không hủy được. Đóng đợt thay vì hủy.');
+      throw new ApiError(409, `${kindLabelOf(c)} đã có kết quả, không hủy được. Đóng thay vì hủy.`);
     return writeDb((d) => {
       const target = d.healthCheckCampaigns.find((x) => x.id === id);
       target.cancelledAt = nowIso();
@@ -482,17 +594,15 @@ export const healthCheckMockRepository = {
     const db = ensureChildRecordsSeeded();
     assertManage(user);
     const c = findCampaign(db, id, user);
-    if (campaignStatusOf(c) !== CAMPAIGN_STATUS.IN_PROGRESS) throw new ApiError(409, 'Chỉ đóng được đợt khám đang diễn ra.');
+    assertManage(user, c.campusId);
+    if (campaignStatusOf(c) !== CAMPAIGN_STATUS.IN_PROGRESS)
+      throw new ApiError(409, `Chỉ đóng được ${kindLabelOf(c).toLowerCase()} đang diễn ra.`);
     return writeDb((d) => {
       const target = d.healthCheckCampaigns.find((x) => x.id === id);
       const rows = d.classes.filter((cls) => cls.campusId === target.campusId).flatMap((cls) => rosterOf(d, target, cls));
       const view = summarize(rows);
       const waitingFollowUpCount = rows.filter((r) => r.followUp?.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT).length;
-      // Trẻ chưa có kết quả khi đóng đợt ⇒ "Vắng khám"; kết quả của đợt bị khóa tới khi mở lại.
-      target.absentChildIds = rows.filter((r) => r.result === CHILD_RESULT_STATUS.NOT_RECORDED).map((r) => r.childId);
-      target.closedAt = nowIso();
-      target.closedBy = user.id;
-      target.history = [...(target.history || []), { at: nowIso(), userId: user.id, action: 'CLOSED' }];
+      closeCampaign(d, target, user.id);
       // Phiếu còn nháp giữ nguyên, hiện "Chưa kết luận", không tính vắng khám (user chốt 2026-10-17).
       return {
         absentCount: view.notRecorded,
@@ -508,20 +618,32 @@ export const healthCheckMockRepository = {
     const db = ensureChildRecordsSeeded();
     assertManage(user);
     const c = findCampaign(db, id, user);
-    if (campaignStatusOf(c) !== CAMPAIGN_STATUS.CLOSED) throw new ApiError(409, 'Chỉ mở lại được đợt khám đã đóng.');
+    assertManage(user, c.campusId);
+    const label = kindLabelOf(c);
+    if (campaignStatusOf(c) !== CAMPAIGN_STATUS.CLOSED) throw new ApiError(409, `Chỉ mở lại được ${label.toLowerCase()} đã đóng.`);
     const reason = (body?.reason || '').trim();
-    if (!reason) invalid({ reason: 'Nhập lý do mở lại đợt khám' });
+    if (!reason) invalid({ reason: `Nhập lý do mở lại ${label.toLowerCase()}` });
     if (reason.length > HEALTH_CHECK_FIELD_LIMITS.reason) invalid({ reason: 'Lý do tối đa 300 ký tự' });
+    const extendExam = isExamCampaign(c) && (c.endDate < todayInput() || body?.endDate);
+    if (extendExam) {
+      if (!isIsoDate(body?.endDate)) invalid({ endDate: 'Chọn ngày kết thúc mới hợp lệ theo dd/mm/yyyy' });
+      if (body.endDate < todayInput()) invalid({ endDate: 'Ngày kết thúc mới không được trước hôm nay' });
+      if (body.endDate < c.startDate) invalid({ endDate: 'Ngày kết thúc không được trước ngày bắt đầu' });
+    }
     const unclosed = unclosedCampaignOf(db, c.campusId, id);
     if (unclosed)
-      throw new ApiError(409, `Điểm trường đang có đợt "${unclosed.name}" chưa đóng. Đóng hoặc hủy đợt đó trước khi mở lại đợt này.`);
+      throw new ApiError(
+        409,
+        `Điểm trường đang có ${kindLabelOf(unclosed).toLowerCase()} "${unclosed.name}" chưa đóng. Đóng hoặc hủy trước khi mở lại.`,
+      );
     return writeDb((d) => {
       const target = d.healthCheckCampaigns.find((x) => x.id === id);
       target.closedAt = null;
       target.closedBy = null;
+      if (extendExam) target.endDate = body.endDate;
       target.absentChildIds = [];
       target.history = [...(target.history || []), { at: nowIso(), userId: user.id, action: 'REOPENED', reason }];
-      notifyCampus(d, target, 'Đợt khám được mở lại', `${target.name} được mở lại để nhập hoặc sửa kết quả. Lý do: ${reason}`);
+      notifyCampus(d, target, `${label} được mở lại`, `${target.name} được mở lại để nhập hoặc sửa kết quả. Lý do: ${reason}`);
       return toCampaignView(d, target, user);
     });
   },
@@ -530,8 +652,10 @@ export const healthCheckMockRepository = {
     await delay(150);
     const db = ensureChildRecordsSeeded();
     if (!canViewHealthChecks(user)) forbid();
+    // Theo năm học (user chốt 2026-10-28, Y-4): phiếu đang mở luôn hiện; phiếu đã đóng ở mọi năm mà phiếu còn mở trong năm đó.
+    const inYear = (f) => !filters.schoolYear || !f.closedAt || overlapsSchoolYear(db, filters.schoolYear, f.openedAt, f.closedAt);
     const inScope = db.healthFollowUps
-      .filter((f) => canSeeFollowUp(db, user, f))
+      .filter((f) => canSeeFollowUp(db, user, f) && inYear(f))
       .map((f) => toFollowUpView(db, f, user))
       .filter((f) => !filters.campusId || f.child.campusId === filters.campusId);
     // Số đếm theo trạng thái tính trên phạm vi + điểm trường, trước khi lọc trạng thái.
@@ -597,19 +721,43 @@ export const healthCheckMockRepository = {
     });
   },
 
+  /** body: { outcome, conditionText?, reason }. Kết quả theo lời bác sĩ (user chốt 2026-10-21). */
   async closeFollowUp(id, body, user) {
     await delay();
     const db = ensureChildRecordsSeeded();
     const f = findFollowUp(db, id, user);
     assertUpdate(db, f, user);
+    const { child } = followUpContext(db, f);
+    const O = FOLLOW_UP_CLOSE_OUTCOME;
     const errors = validateFollowUpAction('close', body);
+    if (!errors.outcome && !closeOutcomeOptionsOf(db, f, child).includes(body.outcome))
+      errors.outcome =
+        body.outcome === O.KNOWN_CONDITION
+          ? 'Ghi kết quả khám chuyên khoa vào phiếu trước khi chọn kết quả này'
+          : 'Ghi kết quả khám chuyên khoa, hoặc chờ lần khám sau ngày mở phiếu, trước khi chọn kết quả này';
+    const conditionText = body.outcome === O.KNOWN_CONDITION ? (body.conditionText || '').trim() : null;
+    if (conditionText && !errors.conditionText && selfHistoryWith(db, child.id, conditionText).length > KNOWN_CONDITION_HISTORY_MAX)
+      errors.conditionText = `Tiền sử bản thân của trẻ đã dài; rút gọn tên vấn đề (cả tiền sử tối đa ${KNOWN_CONDITION_HISTORY_MAX} ký tự)`;
     if (hasErrors(errors)) invalid(errors);
     const reason = body.reason.trim().slice(0, FOLLOW_UP_FIELD_LIMITS.reason);
-    return updateFollowUp(id, user, (t, at) => {
-      t.closeReason = reason;
-      t.closedAt = at;
-      t.closedBy = user.id;
-      t.history.push({ at, userId: user.id, action: 'CLOSED', note: reason });
+    return updateFollowUp(id, user, (t, at, d) => {
+      Object.assign(t, {
+        closeReason: reason,
+        closedAt: at,
+        closedBy: user.id,
+        closeOutcome: body.outcome,
+        closeConditionText: conditionText,
+      });
+      t.history.push({
+        at,
+        userId: user.id,
+        action: 'CLOSED',
+        note: reason,
+        outcome: body.outcome,
+        ...(conditionText ? { conditionText } : {}),
+      });
+      if (conditionText)
+        recordKnownCondition(d, t.childId, conditionText, user, `Kết quả đóng phiếu theo dõi ngày ${formatDate(localDateOf(at))}`);
     });
   },
 };

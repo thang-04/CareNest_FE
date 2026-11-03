@@ -30,6 +30,7 @@ Cách xử lý nhanh lỗi môi trường, build, dev server, kết nối BE loc
 - Nguyên nhân: lockfile dùng `vite@8.3.3` + `@vitejs/plugin-react@4.7.0` (peer chỉ tới vite 7). npm 12 trên máy dev cho qua, npm 10 trong `node:22-alpine`/GitHub Actions Node 22 chặn.
 - Xử lý: `npm ci --legacy-peer-deps` trong `Dockerfile` và `.github/workflows/deploy.yml` (cài đúng như máy dev, không đổi version). Gốc: nâng `@vitejs/plugin-react` lên 6.x (peer `vite ^8`) — đổi dependency, cần team duyệt.
 - Đã thử không hiệu quả: —
+- Máy dev Windows (npm 10.9.8) cũng chặn ⇒ cài bằng `npm ci --legacy-peer-deps`. Đang chạy `npm run dev` thì `npm ci` xóa gần hết `node_modules` rồi lỗi `EPERM ... unlink ... rolldown-binding.win32-x64-msvc.node` (vite giữ file) ⇒ cài bù bằng `npm install --legacy-peer-deps` (giữ file đang khóa), sau đó `git restore package-lock.json` vì diff chỉ bỏ trường `libc`; dev server đang chạy cần khởi động lại.
 
 ### Deploy VPS: `failed to create network carenest-fe_default: ... Failed to Setup IP tables ... DOCKER-FORWARD ... No chain/target/match by that name`
 - Nguyên nhân: chain iptables của Docker trên VPS đã bị xoá (firewalld/k8s/script nạp lại iptables) ⇒ Docker không tạo được network bridge mới; cùng gốc với lỗi bridge không ra Internet ở trên.

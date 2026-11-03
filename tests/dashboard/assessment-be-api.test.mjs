@@ -199,12 +199,19 @@ test('mock cùng dạng BE: chỉ trẻ có mặt, lưu Kiến thức kỹ năng
   const date = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
   if ([0, 6].includes(today.getDay())) return;
   await repo.getDailyAssessment({ classId: 'cls_c1_c1', date }, TEACHER);
-  // Lớp có 2 trẻ: 1 có mặt, 1 vắng ⇒ phiếu chỉ có trẻ có mặt
+  // 1 trẻ có mặt, các trẻ còn lại vắng ⇒ phiếu chỉ có trẻ có mặt. Ghi đủ cả lớp vì demo tự bù trẻ chưa có bản ghi là có mặt
   const kids = readDb().children.filter((c) => c.classId === 'cls_c1_c1' && c.status === 'ACTIVE');
   writeDb((db) => {
     db.attendance = (db.attendance || []).filter((r) => !(r.classId === 'cls_c1_c1' && r.date === date));
-    db.attendance.push({ id: 'att_t1', classId: 'cls_c1_c1', childId: kids[0].id, date, status: 'PRESENT' });
-    db.attendance.push({ id: 'att_t2', classId: 'cls_c1_c1', childId: kids[1].id, date, status: 'ABSENT' });
+    kids.forEach((kid, i) =>
+      db.attendance.push({
+        id: `att_t${i + 1}`,
+        classId: 'cls_c1_c1',
+        childId: kid.id,
+        date,
+        status: i === 0 ? 'PRESENT' : 'ABSENT',
+      }),
+    );
   });
   const sheet = await repo.getDailyAssessment({ classId: 'cls_c1_c1', date }, TEACHER);
   assert.equal(sheet.attendanceTaken, true);

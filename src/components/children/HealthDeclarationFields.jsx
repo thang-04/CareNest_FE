@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Plus, X, Info } from '@/components/ui/icons';
+import { FormField } from '@/components/form/FormField';
 import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS, NOTE_STATE_LABELS } from '@/models/children/childrenConstants';
 import { MEDICAL_HISTORY_ITEMS, MEDICAL_HISTORY_STATE_LABELS, emptyMedicalHistory } from '@/models/children/childProfile';
+import { todayInput } from '@/utils/format';
 
-function StateRadios({ name, labels, value, onChange }) {
+function StateRadios({ name, labels, value, onChange, states = Object.values(DECLARATION_STATE) }) {
   return (
     <div className="row row--wrap gap-5">
-      {Object.values(DECLARATION_STATE).map((s) => (
+      {states.map((s) => (
         <label key={s} className="radio">
           <input type="radio" name={name} checked={value === s} onChange={() => onChange(s)} />
           {labels[s]}
@@ -18,12 +20,15 @@ function StateRadios({ name, labels, value, onChange }) {
 
 /**
  * Enrollment health declaration (SRS #30, UC 5.2): what the parent reported, "none reported",
- * or "not provided" – never assumed and never a diagnosis.
+ * or "not provided" – never assumed and never a diagnosis. dateOfBirth: chặn ngày tiếp xúc trước ngày sinh.
  */
-export function HealthDeclarationFields({ value, onChange, errors = {} }) {
+// Tiền sử chỉ Có/Không, không còn Chưa cung cấp (user chốt 2026-10-22): phiếu khám điền sẵn từ đây.
+const HISTORY_STATES = [DECLARATION_STATE.REPORTED, DECLARATION_STATE.NONE_REPORTED];
+
+export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBirth }) {
   const [item, setItem] = useState('');
   const set = (block, patch) => onChange({ ...value, [block]: { ...value[block], ...patch } });
-  // Khai báo cũ chưa có tiền sử ⇒ coi như Chưa cung cấp.
+  // Khai báo cũ chưa có tiền sử ⇒ chưa chọn, phải chọn Có/Không khi lưu.
   const history = value.medicalHistory || emptyMedicalHistory();
   const setHistory = (key, patch) => onChange({ ...value, medicalHistory: { ...history, [key]: { ...history[key], ...patch } } });
   const addItem = () => {
@@ -39,8 +44,8 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
       <div className="alert alert--info">
         <Info size={18} />
         <div>
-          Ghi đúng thông tin phụ huynh cung cấp. Nếu phụ huynh chưa cho biết, chọn <b>Chưa cung cấp</b> – không mặc định là không có. Thông
-          tin dị ứng có hiệu lực ngay khi lưu: bếp và điểm danh dùng danh sách này.
+          Ghi đúng thông tin phụ huynh cung cấp. Dị ứng, chế độ ăn: nếu phụ huynh chưa cho biết, chọn <b>Chưa cung cấp</b> – không mặc định
+          là không có. Tiền sử bắt buộc chọn Có hoặc Không. Thông tin dị ứng có hiệu lực ngay khi lưu: bếp và điểm danh dùng danh sách này.
         </div>
       </div>
 
@@ -154,7 +159,8 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
       <div>
         <h3 className="subsection-title">Tiền sử</h3>
         <p className="muted text-sm">
-          Như phần Tiền sử của phiếu khám sức khỏe; phiếu khám điền sẵn từ đây. Ghi đúng tên bệnh phụ huynh báo, không tự ghi chẩn đoán.
+          Như phần Tiền sử của phiếu khám sức khỏe; phiếu khám điền sẵn từ đây, giáo viên sửa ở phiếu thì lưu kết luận cập nhật lại đây. Ghi
+          đúng tên bệnh phụ huynh báo, không tự ghi chẩn đoán.
         </p>
       </div>
       {MEDICAL_HISTORY_ITEMS.map((it) => {
@@ -162,9 +168,13 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
         const error = errors[`medicalHistory.${it.key}`];
         return (
           <fieldset key={it.key} className="tr-fieldset">
-            <legend className="field__label">{it.label}</legend>
+            <legend className="field__label">
+              {it.label}
+              <span className="req">*</span>
+            </legend>
             <StateRadios
               name={`tr-history-${it.key}`}
+              states={HISTORY_STATES}
               labels={MEDICAL_HISTORY_STATE_LABELS}
               value={v.state}
               onChange={(state) => setHistory(it.key, { state })}
@@ -179,12 +189,31 @@ export function HealthDeclarationFields({ value, onChange, errors = {} }) {
                 onChange={(e) => setHistory(it.key, { text: e.target.value })}
               />
             )}
+            {it.dateLabel && v.state === DECLARATION_STATE.REPORTED && (
+              <FormField
+                className="mt-12"
+                label={it.dateLabel}
+                required
+                error={errors[`medicalHistory.${it.key}Date`]}
+                hint="Theo lời phụ huynh; không nhớ chính xác thì ghi ngày ước lượng."
+              >
+                <input
+                  type="date"
+                  className="input"
+                  value={v.contactDate || ''}
+                  min={dateOfBirth || undefined}
+                  max={todayInput()}
+                  onChange={(e) => setHistory(it.key, { contactDate: e.target.value })}
+                />
+              </FormField>
+            )}
             {it.key === 'tbContact' && v.state === DECLARATION_STATE.REPORTED && (
               <div className="alert alert--info mt-12">
                 <Info size={18} />
                 <div>
                   Khi lưu, hệ thống báo Hiệu trưởng, Phó hiệu trưởng điểm trường và giáo viên lớp để trao đổi với phụ huynh về việc đưa trẻ
-                  đi khám sàng lọc. Bác sĩ xem lại ở đợt khám tới.
+                  đi khám sàng lọc. Bác sĩ xem lại ở đợt khám tới. Sau này đổi ngày tiếp xúc (ở đây hoặc ở phiếu khám) thì hệ thống báo Hiệu
+                  trưởng, Phó hiệu trưởng điểm trường.
                 </div>
               </div>
             )}
