@@ -1,6 +1,5 @@
-import { Link } from 'react-router-dom';
 import { SCHOOL_CONFIG_API } from '@/config/env';
-import { UserCog, Utensils } from '@/components/ui/icons';
+import { KeyRound, UserCog, Utensils } from '@/components/ui/icons';
 import { Avatar } from '@/components/ui/Avatar';
 import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { areaTasks, scopeText, taskOn, visibleVpAreas, vpGrantsOf } from '@/utils/school-config/vpAssignmentView';
@@ -9,7 +8,7 @@ import { formatDateTime } from '@/utils/format';
 const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 
 /** Thẻ 1 Phó hiệu trưởng: điểm trường phụ trách + bảng công việc được giao, nói bằng lời thường. */
-export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onEdit }) {
+export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onEdit, onPermissions }) {
   const a = row.assignment;
   const grants = vpGrantsOf(a);
 
@@ -27,9 +26,16 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
           </div>
         </div>
         {!readOnly && (
-          <button className={`btn btn--sm ${a ? '' : 'btn--primary'}`} onClick={onEdit}>
-            <UserCog size={15} /> {a ? 'Đổi phân công' : 'Phân công'}
-          </button>
+          <div className="row gap-2">
+            {a && onPermissions && (
+              <button className="btn btn--sm" onClick={onPermissions}>
+                <KeyRound size={15} /> Chọn quyền
+              </button>
+            )}
+            <button className={`btn btn--sm ${a ? '' : 'btn--primary'}`} onClick={onEdit}>
+              <UserCog size={15} /> {a ? 'Đổi phân công' : 'Phân công'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -44,7 +50,7 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
 
       {a && SCHOOL_CONFIG_API ? (
         <p className="text-sm muted">
-          Quyền thao tác được quản lý tại <Link to="/school/roles">Vai trò & quyền</Link>.
+          Quyền thao tác: mặc định của vai trò Phó hiệu trưởng, bấm Chọn quyền để bật/tắt riêng cho người này.
         </p>
       ) : a ? (
         <div className="table-wrap">

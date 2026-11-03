@@ -54,6 +54,45 @@ export const createSchoolConfigApi = (axiosClient) => ({
   getViceAssignments: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/vice-principal-assignments`),
   saveViceAssignment: (schoolYear, userId, form) =>
     axiosClient.put(`/school-years/${schoolYear}/vice-principal-assignments/${userId}`, form),
+  // Quyền thao tác của một PHT = mặc định vai trò (ma trận) ± ngoại lệ theo người (BE PermissionController, AUTH-10)
+  getVicePermissions: async (userId) => {
+    const [catalog, roles, view] = await Promise.all([
+      axiosClient.get('/permissions'),
+      axiosClient.get('/role-permissions'),
+      axiosClient.get(`/accounts/${userId}/permission-overrides`),
+    ]);
+    const defaults = roles.find((r) => r.role === 'VICE_PRINCIPAL')?.permissions || [];
+    const overrides = view.overrides || [];
+    return {
+      overrides,
+      items: (view.configurablePermissions || []).map((code) => {
+        const roleOn = defaults.includes(code);
+        const effect = overrides.find((o) => o.permission === code)?.effect;
+        return {
+          code,
+          label: catalog.find((p) => p.code === code)?.description || code,
+          roleOn,
+          on: effect === 'GRANT' ? true : effect === 'REVOKE' ? false : roleOn,
+        };
+      }),
+    };
+  },
+  // Thay toàn bộ ngoại lệ: quyền khác mặc định vai trò mới lưu GRANT/REVOKE; giữ phạm vi (scope) đang có
+  saveVicePermissions: (userId, { current, values, reason }) => {
+    const scopeOf = (code) => current.overrides.find((o) => o.permission === code)?.scope ?? null;
+    const codes = current.items.map((i) => i.code);
+    return axiosClient.put(`/accounts/${userId}/permission-overrides`, {
+      reason,
+      overrides: [
+        ...current.overrides
+          .filter((o) => !codes.includes(o.permission))
+          .map((o) => ({ permission: o.permission, effect: o.effect, scope: o.scope ?? null })),
+        ...current.items
+          .filter((i) => values[i.code] !== i.roleOn)
+          .map((i) => ({ permission: i.code, effect: values[i.code] ? 'GRANT' : 'REVOKE', scope: scopeOf(i.code) })),
+      ],
+    });
+  },
 
   getTeacherAssignments: (filters) => axiosClient.get('/teacher-assignments', { params: filters }),
   saveClassTeachers: (classId, form) => axiosClient.put(`/classes/${classId}/teachers`, form),

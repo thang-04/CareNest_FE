@@ -1107,16 +1107,18 @@
   justify-content: flex-end;
 }
 
-/* Chọn Phó hiệu trưởng cho điểm trường còn thiếu */
-.sc-vp-pick {
+/* Quyền thao tác của Phó hiệu trưởng trong hộp phân công: 2 cột, nhãn chip ngay sau tên quyền */
+.sc-vp-perms {
   display: grid;
-  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-2) var(--space-4);
 }
-.sc-vp-pick__item {
-  display: flex;
-  flex-direction: column;
+.sc-vp-perms__item {
   align-items: flex-start;
-  gap: var(--space-1);
-  width: 100%;
-  text-align: left;
+}
+.sc-vp-perms__item input {
+  flex-shrink: 0;
+}
+.sc-vp-perms__item .chip {
+  margin-left: var(--space-2);
 }

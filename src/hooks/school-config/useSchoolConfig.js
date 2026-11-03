@@ -12,6 +12,7 @@ import {
   getTeacherAssignments,
   getTeamLeaders,
   getViceAssignments,
+  getVicePermissions,
   getStaffAccounts,
   getYearReadiness,
   getPlacements,
@@ -67,6 +68,14 @@ export function useCampusDetail(id, schoolYear) {
     enabled: !!id,
   });
   return { detail: data, loading, error, reload };
+}
+
+export function useVicePermissions(userId, { enabled = true } = {}) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getVicePermissions(userId, user), [userId, user?.id], {
+    enabled: enabled && !!userId,
+  });
+  return { permissions: data, loading, error, reload };
 }
 
 export function useViceAssignments(schoolYear) {

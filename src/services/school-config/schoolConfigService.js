@@ -104,6 +104,9 @@ export const setStaffStatus = (id, status, reason, user) => repo.setStaffStatus(
 
 export const getViceAssignments = (schoolYear, user) => repo.getViceAssignments(schoolYear, user);
 export const saveViceAssignment = (schoolYear, userId, form, user) => repo.saveViceAssignment(schoolYear, userId, form, user);
+/** Quyền thao tác của PHT: { items: [{ code, label, roleOn, on }], overrides }. */
+export const getVicePermissions = (userId, user) => repo.getVicePermissions(userId, user);
+export const saveVicePermissions = (userId, payload, user) => repo.saveVicePermissions(userId, payload, user);
 
 export const getTeacherAssignments = (filters, user) => repo.getTeacherAssignments(filters, user);
 export const saveClassTeachers = (classId, form, user) => repo.saveClassTeachers(classId, form, user);

@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useSchoolYears, useViceAssignments } from '@/hooks/school-config/useSchoolConfig';
+import { useSchoolYears, useViceAssignments, useVicePermissions } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
@@ -15,7 +15,7 @@ import { FormField } from '@/components/form/FormField';
 import { YearPicker } from '@/components/school-config/YearPicker';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { VicePrincipalCard } from '@/components/school-config/VicePrincipalCard';
-import { saveViceAssignment } from '@/services/school-config/schoolConfigService';
+import { saveViceAssignment, saveVicePermissions } from '@/services/school-config/schoolConfigService';
 import { AREA_SCOPE_ALL, YEAR_STATUS, composeAreaGrant } from '@/models/school-config/schoolConfigConstants';
 import { canAssignVicePrincipal } from '@/utils/school-config/schoolConfigPermissions';
 import { validateVpAssignment, hasErrors } from '@/utils/school-config/schoolConfigValidation';
@@ -37,6 +37,11 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
   const [grants, setGrants] = useState(() => vpGrantsOf(row.assignment));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  // Quyền thao tác (bản nối BE): tick theo quyền hiện có của người này; chỉ gửi khi có thay đổi
+  const perms = useVicePermissions(row.user.id, { enabled: SCHOOL_CONFIG_API });
+  const [permValues, setPermValues] = useState({});
+  const permOn = (item) => (item.code in permValues ? permValues[item.code] : item.on);
+  const permChanged = (perms.permissions?.items || []).some((i) => permOn(i) !== i.on);
   const menuHeldByOther = sharedHolder && sharedHolder.id !== row.user.id;
   const menuClash = menuHeldByOther && !!grants.menu && writes(grants.menu.actions);
 
@@ -85,6 +90,19 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
         ]),
       );
       await saveViceAssignment(year.id, row.user.id, { ...form, ...(!SCHOOL_CONFIG_API ? { areas } : {}) }, user);
+      if (SCHOOL_CONFIG_API && permChanged) {
+        const campus = campuses.find((c) => c.id === form.campusId);
+        await saveVicePermissions(
+          row.user.id,
+          {
+            current: perms.permissions,
+            values: Object.fromEntries(perms.permissions.items.map((i) => [i.code, permOn(i)])),
+            reason:
+              form.note.trim() || `Phân công Phó hiệu trưởng năm học ${year.name}${campus ? ` – ${campus.shortName || campus.name}` : ''}`,
+          },
+          user,
+        );
+      }
       toast.success(`Đã lưu phân công cho ${row.user.fullName}.`, 'Phân công Phó hiệu trưởng');
       onClose(true);
     } catch (err) {
@@ -114,7 +132,7 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
       <p className="text-sm text-2 mb-12">
         Năm học <b>{year.name}</b>.{' '}
         {SCHOOL_CONFIG_API
-          ? 'Chọn điểm trường Phó hiệu trưởng phụ trách; quyền thao tác cấp ở Vai trò & quyền.'
+          ? 'Chọn điểm trường Phó hiệu trưởng phụ trách và các quyền thao tác của người này.'
           : 'Phó hiệu trưởng chỉ thấy và làm được những công việc Hiệu trưởng giao dưới đây.'}
       </p>
       {row.assignment?.campusId && form.campusId && row.assignment.campusId !== form.campusId && (
@@ -139,9 +157,40 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
 
       <div className="mt-16">
         {SCHOOL_CONFIG_API ? (
-          <p className="text-sm muted">
-            Cấp quyền tại <Link to="/school/roles">Vai trò & quyền</Link>.
-          </p>
+          <>
+            <span className="field__label">Quyền thao tác</span>
+            <div className="field__hint mb-8">
+              Ô đã tick là quyền người này đang có (mặc định của vai trò Phó hiệu trưởng hoặc đã cấp riêng). Bỏ tick để thu hồi, tick để cấp
+              thêm; chỉ áp dụng cho người này.
+            </div>
+            {perms.error ? (
+              <ErrorState error={perms.error} onRetry={perms.reload} />
+            ) : perms.loading || !perms.permissions ? (
+              <Spinner />
+            ) : perms.permissions.items.length === 0 ? (
+              <p className="text-sm muted">Vai trò Phó hiệu trưởng chưa có quyền nào được cấu hình riêng.</p>
+            ) : (
+              <div className="sc-vp-perms">
+                {perms.permissions.items.map((item) => (
+                  <label key={item.code} className="checkbox sc-vp-perms__item">
+                    <input
+                      type="checkbox"
+                      checked={permOn(item)}
+                      onChange={(e) => setPermValues((v) => ({ ...v, [item.code]: e.target.checked }))}
+                    />
+                    <span>
+                      {item.label}
+                      {permOn(item) !== item.roleOn && (
+                        <span className={`chip ${permOn(item) ? 'chip--green' : 'chip--red'}`}>
+                          {permOn(item) ? 'Cấp riêng' : 'Thu hồi riêng'}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           <>
             <span className="field__label">Công việc được giao</span>
@@ -227,7 +276,7 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
 function ChooseViceModal({ campus, rows, campusName, onPick, onClose }) {
   const sorted = [...rows].sort((a, b) => Number(!!a.assignment) - Number(!!b.assignment));
   return (
-    <Modal open title={`Phân công Phó hiệu trưởng cho ${campus.shortName || campus.name}`} onClose={onClose}>
+    <Modal open size="lg" title={`Phân công Phó hiệu trưởng cho ${campus.shortName || campus.name}`} onClose={onClose}>
       {sorted.length === 0 ? (
         <EmptyState
           icon={UserCog}
@@ -241,16 +290,44 @@ function ChooseViceModal({ campus, rows, campusName, onPick, onClose }) {
         />
       ) : (
         <>
-          <p className="text-sm text-2 mb-12">Chọn người phụ trách. Mỗi Phó hiệu trưởng phụ trách một điểm trường trong năm học.</p>
-          <div className="sc-vp-pick">
-            {sorted.map((r) => (
-              <button key={r.user.id} type="button" className="btn sc-vp-pick__item" onClick={() => onPick(r)}>
-                <span className="fw-600">{r.user.fullName}</span>
-                <span className="text-xs muted">
-                  {r.assignment ? `Đang phụ trách ${campusName(r.assignment.campusId)}` : 'Chưa phân công năm học này'}
-                </span>
-              </button>
-            ))}
+          <p className="text-sm text-2 mb-12">
+            Chọn người phụ trách {campus.shortName || campus.name}. Mỗi Phó hiệu trưởng phụ trách một điểm trường trong năm học; bước sau
+            chọn quyền thao tác.
+          </p>
+          <div className="table-wrap">
+            <table className="table table--grid table--compact">
+              <thead>
+                <tr>
+                  <th>Phó hiệu trưởng</th>
+                  <th>Đang phụ trách</th>
+                  <th className="cell--actions">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((r) => (
+                  <tr key={r.user.id}>
+                    <td>
+                      <div className="fw-600">{r.user.fullName}</div>
+                      <div className="text-xs muted">{r.user.email}</div>
+                    </td>
+                    <td className="text-sm">
+                      {r.assignment ? (
+                        <span className="chip chip--orange">
+                          {campusName(r.assignment.campusId)} · chọn thì chuyển sang điểm trường này
+                        </span>
+                      ) : (
+                        <span className="chip chip--gray">Chưa phân công</span>
+                      )}
+                    </td>
+                    <td className="cell--actions">
+                      <button type="button" className="btn btn--sm btn--primary" onClick={() => onPick(r)}>
+                        Chọn
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           <p className="text-xs muted mt-12">
             Cần thêm người? Tạo tài khoản Phó hiệu trưởng ở <Link to="/school/staff">Tài khoản nhân sự</Link>.
@@ -363,6 +440,7 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
               assignerName={r.assignment ? md.userById(r.assignment.assignedBy)?.fullName : null}
               readOnly={readOnly}
               onEdit={() => setEditing(r)}
+              onPermissions={SCHOOL_CONFIG_API ? () => setEditing(r) : undefined}
             />
           ))}
         </div>
