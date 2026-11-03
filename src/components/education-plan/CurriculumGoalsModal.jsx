@@ -85,6 +85,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
       onClose={onClose}
       footer={
         <>
+          <p className="ga-cur-footnote muted text-sm">Chỉ cập nhật bản soạn. Bấm Lưu ở kế hoạch để lưu thay đổi.</p>
           <button className="btn" onClick={onClose}>
             Đóng
           </button>
@@ -133,14 +134,14 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
           {!targets.length ? (
             <Notice tone="warn">Bản đang soạn chưa có mục tiêu.</Notice>
           ) : (
-            <div className="ga-cur-toolbar ga-cur-filters">
+            <div className="ga-cur-toolbar ga-cur-filters ga-cur-content-filters">
               <div className="field">
                 <label className="field__label" htmlFor="cur-target">
-                  Thêm vào mục tiêu
+                  Thêm vào mục tiêu <span className="req">*</span>
                 </label>
                 <select
                   id="cur-target"
-                  className="select ga-cur-target"
+                  className="select ga-cur-select--ellipsis"
                   value={target}
                   title={targetTitle}
                   onChange={(e) => {
@@ -162,8 +163,9 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
                 </label>
                 <select
                   id="cur-domain"
-                  className="select"
+                  className="select ga-cur-select--ellipsis"
                   value={domainFilter}
+                  title={domainFilter || (targetDomain ? `Theo mục tiêu (${targetDomain})` : 'Tất cả lĩnh vực')}
                   onChange={(e) => {
                     setDomainFilter(e.target.value);
                     setSubFilter('');
@@ -194,13 +196,19 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
               )}
             </div>
           )}
-          <div className="ga-cur-list">
+          <p className="muted text-sm">Chọn mục tiêu đích, lọc lĩnh vực rồi tích từng nội dung để thêm.</p>
+          <div className="ga-cur-list ga-cur-content-list">
+            {!suggestions.length && (
+              <p className="muted" role="status">
+                Không có nội dung phù hợp với bộ lọc.
+              </p>
+            )}
             {suggestions.map((c, i) => {
               const head = `${c.subDomain ? `${c.subDomain} › ` : ''}${c.categoryNo ? `${c.categoryNo}. ` : ''}${c.category}`;
               const prev = suggestions[i - 1];
               const showHead = !prev || `${prev.subDomain}|${prev.category}` !== `${c.subDomain}|${c.category}`;
               return (
-                <div key={c.id}>
+                <div key={c.id} className="ga-cur-suggestion">
                   {showHead && <div className="ga-cur-sub__name">{head}</div>}
                   <label className="ga-cur-row">
                     <input type="checkbox" disabled={!target} checked={suggested.has(c.id)} onChange={() => toggleSuggestion(c.id)} />
