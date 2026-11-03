@@ -13,21 +13,21 @@ import { RowActions } from '@/components/ui/RowActions';
 import { FormField } from '@/components/form/FormField';
 import { DateInput } from '@/components/form/DateInput';
 import {
+  BmiStatusBadge,
   CampaignKindBadge,
   CampaignStatusBadge,
   ConclusionCategoryBadge,
-  FollowUpDueBadge,
   FollowUpLevelShortBadge,
-  FollowUpStatusBadge,
 } from '@/components/children/ChildBadges';
 import { ChildAccessState, HEALTH_CHECK_ACCESS_TEXT } from '@/components/children/ChildAccessState';
 import { HealthCheckClassRoster } from '@/components/children/HealthCheckClassRoster';
 import { MeasurementRoundRoster } from '@/components/children/MeasurementRoundRoster';
 import { cancelHealthCheck, closeHealthCheck, reopenHealthCheck } from '@/services/children/healthCheckService';
-import { SCREENING_CRITERIA_LABELS } from '@/models/children/childrenConstants';
+import { BMI_PROGRESS_KEYS, BMI_STATUS, BMI_STATUS_LABELS } from '@/models/children/childrenConstants';
 import { CAMPAIGN_KIND, CAMPAIGN_STATUS, campaignActionLabelOf } from '@/models/children/healthCheckConstants';
 import { formatDate, formatDateTime, isIsoDate, todayInput } from '@/utils/format';
 import { canManageHealthCheck, isTeacherRole } from '@/utils/children/childrenPermissions';
+import { formatNumber } from '@/utils/children/childrenHelpers';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import { StatCard } from '@/components/ui/StatCard';
 import '@/styles/modules/children.css';
@@ -46,6 +46,13 @@ const ROUND_STAT_TONES = [
   { key: 'notRecorded', label: 'Chưa cân đo', tone: 'gray' },
   { key: 'absent', label: 'Vắng cân đo', tone: 'gray' },
 ];
+
+// Số trẻ theo mức BMI của kỳ cân đo BE trả (progress.bmi, HLT-18); tông như badge mức BMI.
+const BMI_STAT_TONES = Object.entries(BMI_PROGRESS_KEYS).map(([status, key]) => ({
+  key,
+  label: BMI_STATUS_LABELS[status],
+  tone: status === BMI_STATUS.SEVERE_THINNESS || status === BMI_STATUS.OBESE ? 'red' : 'orange',
+}));
 
 /** Từ ngữ theo loại: đợt khám (bác sĩ khám) hay kỳ cân đo (giáo viên cân đo). */
 const wordsOf = (isRound) =>
@@ -268,6 +275,21 @@ export default function HealthCheckDetailPage() {
                 ))}
             </div>
           )}
+          {!teacher && isRound && (
+            <section className="mt-16" aria-labelledby="hc-bmi-title">
+              <h2 className="subsection-title" id="hc-bmi-title">
+                Cảnh báo BMI theo tuổi
+              </h2>
+              <div className="stat-grid">
+                {BMI_STAT_TONES.map((s) => (
+                  <StatCard key={s.key} tone={s.tone} icon={false} label={s.label} value={campaign.progress.bmi?.[s.key] ?? 0} />
+                ))}
+              </div>
+              <p className="muted text-xs m-0">
+                Hệ thống tính theo chuẩn WHO (BMI theo tuổi) từ số đo của kỳ, chỉ để sàng lọc, không phải chẩn đoán.
+              </p>
+            </section>
+          )}
         </div>
         <aside className="detail-layout__aside">
           <section className="card">
@@ -309,35 +331,28 @@ export default function HealthCheckDetailPage() {
         )
       ) : (
         <section className="card mt-16">
-          {/* Kỳ cân đo không có mức theo dõi: chỉ bảng tiến độ theo lớp. */}
-          {!isRound && (
-            <div className="tr-chart-toolbar">
-              <div className="tabs" role="tablist" aria-label="Nội dung đợt khám">
-                <button
-                  role="tab"
-                  aria-selected={tab === 'classes'}
-                  className={`tab ${tab === 'classes' ? 'tab--active' : ''}`}
-                  onClick={() => setTab('classes')}
-                >
-                  Tiến độ theo lớp
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={tab === 'watch'}
-                  className={`tab ${tab === 'watch' ? 'tab--active' : ''}`}
-                  onClick={() => setTab('watch')}
-                >
-                  Trẻ cần theo dõi <span className="tab__count">{watchList.length}</span>
-                </button>
-              </div>
+          {/* Trẻ cần chú ý BE trả (watchList): đợt khám theo mức theo dõi, kỳ cân đo theo mức BMI (HLT-19). */}
+          <div className="tr-chart-toolbar">
+            <div className="tabs" role="tablist" aria-label={`Nội dung ${w.name}`}>
+              <button
+                role="tab"
+                aria-selected={tab === 'classes'}
+                className={`tab ${tab === 'classes' ? 'tab--active' : ''}`}
+                onClick={() => setTab('classes')}
+              >
+                Tiến độ theo lớp
+              </button>
+              <button
+                role="tab"
+                aria-selected={tab === 'watch'}
+                className={`tab ${tab === 'watch' ? 'tab--active' : ''}`}
+                onClick={() => setTab('watch')}
+              >
+                {isRound ? 'Trẻ có cảnh báo BMI' : 'Trẻ cần theo dõi'} <span className="tab__count">{watchList.length}</span>
+              </button>
             </div>
-          )}
-          {isRound && (
-            <div className="card__header">
-              <h2 className="card__title">Tiến độ theo lớp</h2>
-            </div>
-          )}
-          {isRound || tab === 'classes' ? (
+          </div>
+          {tab === 'classes' ? (
             classes.length === 0 ? (
               <EmptyState
                 icon={Users}
@@ -354,6 +369,7 @@ export default function HealthCheckDetailPage() {
                       <th className="num">{isRound ? 'Vắng cân đo' : 'Vắng khám'}</th>
                       {!isRound && <th className="num">Cần theo dõi</th>}
                       {!isRound && <th className="num">Cần theo dõi sát</th>}
+                      {isRound && <th className="num">Cảnh báo BMI</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -393,10 +409,11 @@ export default function HealthCheckDetailPage() {
                             {!isRound && (
                               <td className="num">{c.closeWatch ? <span className="text-danger fw-600">{c.closeWatch}</span> : '—'}</td>
                             )}
+                            {isRound && <td className="num">{c.bmiWarning ? <span className="fw-600">{c.bmiWarning}</span> : '—'}</td>}
                           </tr>
                           {open && (
                             <tr id={panelId} className="tr-acc-panel">
-                              <td colSpan={isRound ? 3 : 5}>
+                              <td colSpan={isRound ? 4 : 5}>
                                 <Roster campaignId={campaign.id} classId={c.classId} embedded />
                               </td>
                             </tr>
@@ -411,9 +428,47 @@ export default function HealthCheckDetailPage() {
           ) : watchList.length === 0 ? (
             <EmptyState
               icon={CheckCircle2}
-              title="Chưa có trẻ cần theo dõi"
-              description="Trẻ ở mức Cần theo dõi hoặc Cần theo dõi sát trong đợt này sẽ hiện ở đây."
+              title={isRound ? 'Chưa có trẻ có cảnh báo BMI' : 'Chưa có trẻ cần theo dõi'}
+              description={
+                isRound
+                  ? 'Trẻ có số đo của kỳ ở mức gầy còm nặng, gầy còm, nguy cơ thừa cân, thừa cân hoặc béo phì sẽ hiện ở đây.'
+                  : 'Trẻ ở mức Cần theo dõi hoặc Cần theo dõi sát trong đợt này sẽ hiện ở đây.'
+              }
             />
+          ) : isRound ? (
+            <div className="table-wrap tr-table-flat">
+              <table className="table table--grid">
+                <thead>
+                  <tr>
+                    <th>Trẻ</th>
+                    <th>Lớp</th>
+                    <th>Ngày đo</th>
+                    <th className="num">BMI</th>
+                    <th>Cảnh báo BMI</th>
+                    <th className="cell--actions">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {watchList.map((r) => (
+                    <tr key={r.childId}>
+                      <td>
+                        <div className="fw-600">{r.fullName}</div>
+                        <div className="muted text-xs">{r.code}</div>
+                      </td>
+                      <td className="nowrap">{r.className}</td>
+                      <td className="nowrap">{r.date ? formatDate(r.date) : '—'}</td>
+                      <td className="num">{formatNumber(r.bmi)}</td>
+                      <td>
+                        <BmiStatusBadge status={r.bmiStatus} />
+                      </td>
+                      <td className="cell--actions">
+                        <RowActions view={{ to: `/children/${r.childId}/health`, label: 'Mở sổ sức khỏe' }} name={r.fullName} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div className="table-wrap tr-table-flat">
               <table className="table table--grid">
@@ -423,7 +478,6 @@ export default function HealthCheckDetailPage() {
                     <th>Lớp</th>
                     <th>Đợt này</th>
                     <th>Lần khám trước</th>
-                    <th>Phiếu theo dõi</th>
                     <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
@@ -436,24 +490,12 @@ export default function HealthCheckDetailPage() {
                       </td>
                       <td className="nowrap">{r.className}</td>
                       <td>
-                        {r.conclusionCategory ? (
-                          <div className="tr-cell-stack">
-                            <ConclusionCategoryBadge status={r.conclusionCategory} />
-                            <span className="muted text-xs tr-note">
-                              {r.conclusion?.specialty ? `Chuyển khám: ${r.conclusion.specialty}` : r.conclusion?.issueText}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="tr-cell-stack">
-                            <FollowUpLevelShortBadge status={r.followUpLevel} />
-                            <span className="muted text-xs">
-                              {r.criteria
-                                .filter((c) => c.flagged)
-                                .map((c) => SCREENING_CRITERIA_LABELS[c.key])
-                                .join(' · ')}
-                            </span>
-                          </div>
-                        )}
+                        <div className="tr-cell-stack">
+                          <ConclusionCategoryBadge status={r.conclusionCategory} />
+                          <span className="muted text-xs tr-note">
+                            {r.conclusion?.specialty ? `Chuyển khám: ${r.conclusion.specialty}` : r.conclusion?.issueText}
+                          </span>
+                        </div>
                       </td>
                       <td className="text-sm">
                         {r.previous ? (
@@ -466,24 +508,6 @@ export default function HealthCheckDetailPage() {
                           </div>
                         ) : (
                           <span className="muted">Chưa có</span>
-                        )}
-                      </td>
-                      <td>
-                        {r.followUp ? (
-                          <div className="tr-cell-stack">
-                            <Link to={`/children/health-follow-ups/${r.followUp.id}`} aria-label={`Mở phiếu theo dõi của ${r.fullName}`}>
-                              <FollowUpStatusBadge status={r.followUp.status} />
-                            </Link>
-                            <FollowUpDueBadge dueOn={r.followUp.dueOn} overdueDays={r.followUp.overdueDays} hideOnTime />
-                            {r.followUp.latestExternalResult && (
-                              <span className="muted text-xs tr-note">
-                                Bác sĩ chuyên khoa ({formatDate(r.followUp.latestExternalResult.on)}):{' '}
-                                {r.followUp.latestExternalResult.note}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="muted">—</span>
                         )}
                       </td>
                       <td className="cell--actions">
@@ -514,12 +538,6 @@ export default function HealthCheckDetailPage() {
         }${
           campaign.progress.inProgress
             ? ` ${campaign.progress.inProgress} phiếu đang khám chưa có kết luận sẽ giữ nguyên, hiện "Chưa kết luận".`
-            : ''
-        }${
-          campaign.waitingFollowUpCount
-            ? ` Còn ${campaign.waitingFollowUpCount} phiếu theo dõi chờ trao đổi với phụ huynh${
-                campaign.overdueFollowUpCount ? ` (${campaign.overdueFollowUpCount} phiếu đã quá hạn)` : ''
-              }; phiếu vẫn mở sau khi đóng đợt.`
             : ''
         } Bạn mở lại được ${w.unit} nếu cần sửa.`}
         confirmLabel={`Đóng ${w.name}`}

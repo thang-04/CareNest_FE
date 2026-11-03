@@ -3,7 +3,7 @@ import { healthCheckMockRepository as mock } from '@/services/children/mock/heal
 import { healthExamMockRepository as examMock } from '@/services/children/mock/healthExamMockRepository';
 import { healthCheckApi as api } from '@/services/children/api/healthCheckApi';
 
-/** Facade đợt khám sức khỏe, phiếu khám Phụ lục II và phiếu theo dõi. Nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js). */
+/** Facade đợt khám sức khỏe, kỳ cân đo và phiếu khám Phụ lục II. Nguồn mock/BE theo INTEGRATION_MODULES (src/config/integrationModules.js). */
 const repo = sourceOf('children', mock, api);
 const examRepo = sourceOf('children', examMock, api);
 
@@ -20,8 +20,3 @@ export const getHealthExam = (campaignId, childId, user) => examRepo.getHealthEx
 export const saveHealthExam = (campaignId, childId, payload, user) => examRepo.saveHealthExam(campaignId, childId, payload, user);
 export const previewHealthExamReview = (campaignId, childId, payload, user) =>
   examRepo.previewHealthExamReview(campaignId, childId, payload, user);
-export const getHealthFollowUps = (filters, user) => repo.listHealthFollowUps(filters, user);
-export const getHealthFollowUp = (id, user) => repo.getHealthFollowUp(id, user);
-export const recordFollowUpContact = (id, body, user) => repo.recordFollowUpContact(id, body, user);
-export const recordFollowUpExternalResult = (id, body, user) => repo.recordFollowUpExternalResult(id, body, user);
-export const closeFollowUp = (id, body, user) => repo.closeFollowUp(id, body, user);

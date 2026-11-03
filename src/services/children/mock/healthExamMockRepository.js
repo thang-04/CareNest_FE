@@ -36,16 +36,16 @@ import {
   notifyTbContactDateChanged,
   toMeasurementView,
 } from './childrenMockRepository';
-import { conclusionBrief, openFollowUpBriefOf, previousExamOf } from './healthCheckMockRepository';
-import { campaignStatusOf, isOpenForEntry, trackFollowUp } from './healthCheckRule';
-import { examReferenceFor, examReviewPoints, screenMeasurement } from './healthScreeningRule';
+import { previousExamOf } from './healthCheckMockRepository';
+import { campaignStatusOf, isOpenForEntry } from './healthCheckRule';
+import { conclusionBrief, examReferenceFor, examReviewPoints, screenMeasurement } from './healthScreeningRule';
 
 /*
  * Backend giả của phiếu kiểm tra sức khỏe Phụ lục II trong đợt khám (user chốt 2026-10-17, PROPOSED — chờ BE).
  * Phiếu là measurement có exam + examStatus (DRAFT/CONCLUDED); mỗi trẻ 1 phiếu mỗi đợt. Giáo viên phụ trách lớp nhập;
- * bác sĩ, nhân viên y tế không có tài khoản. Lưu kết luận ⇒ khóa phiếu, mức theo dõi theo kết luận, mở phiếu theo dõi.
- * Hành chính lấy từ hồ sơ trẻ, giáo viên không sửa; tiền sử giáo viên sửa được, lưu kết luận cập nhật vào khai báo sức khỏe
- * (user chốt 2026-10-22). Trẻ đang có phiếu theo dõi dùng mẫu kết luận FOLLOW_UP; lưu kết luận không đóng phiếu (2026-10-21).
+ * bác sĩ, nhân viên y tế không có tài khoản. Lưu kết luận ⇒ khóa phiếu; kết luận là cảnh báo của lần khám ở Sổ sức khỏe (HLT-19),
+ * không mở phiếu theo dõi (HLT-16 bỏ 2026-11-04). Hành chính lấy từ hồ sơ trẻ, giáo viên không sửa; tiền sử giáo viên sửa được,
+ * lưu kết luận cập nhật vào khai báo sức khỏe (user chốt 2026-10-22).
  * Phạm vi xem như Sổ sức khỏe. CCCD chỉ trả trong phiếu, không vào danh sách, thông báo, AI.
  */
 
@@ -76,17 +76,9 @@ const contextOf = (db, campaignId, childId, user) => {
 const clampDate = (campaign, today = todayInput()) =>
   today < campaign.startDate ? campaign.startDate : today > campaign.endDate ? campaign.endDate : today;
 
-const openFollowUpOfChild = (db, childId) => (db.healthFollowUps || []).find((f) => f.childId === childId && !f.closedAt) || null;
-
-/**
- * Mẫu kết luận (user chốt 2026-10-21): phiếu đã kết luận giữ mẫu đã lưu; phiếu mới hoặc nháp dùng mẫu FOLLOW_UP khi trẻ có
- * phiếu theo dõi đang mở mà phiếu khám này không thuộc phiếu đó (phiếu khám đã mở ra phiếu theo dõi dùng mẫu thường).
- */
-const conclusionModeOf = (m, openCase) => {
-  if (m?.examStatus === EXAM_STATUS.CONCLUDED)
-    return m.exam?.conclusion?.followUpFinding ? CONCLUSION_MODE.FOLLOW_UP : CONCLUSION_MODE.STANDARD;
-  return openCase && !openCase.measurementIds.includes(m?.id) ? CONCLUSION_MODE.FOLLOW_UP : CONCLUSION_MODE.STANDARD;
-};
+/** Mẫu kết luận: phiếu đã kết luận theo mẫu FOLLOW_UP (trước 2026-11-04) giữ mẫu đó; phiếu mới, phiếu nháp dùng mẫu thường. */
+const conclusionModeOf = (m) =>
+  m?.examStatus === EXAM_STATUS.CONCLUDED && m.exam?.conclusion?.followUpFinding ? CONCLUSION_MODE.FOLLOW_UP : CONCLUSION_MODE.STANDARD;
 
 const PROFILE_ADMIN_KEYS = Object.keys(profileToExamAdmin());
 const HISTORY_KEYS = [
@@ -358,24 +350,17 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
   const legacy = !!m && !m.exam;
   const date = m?.date || clampDate(campaign);
   const reference = examReferenceFor(child.dateOfBirth, date);
-  const followUps = (db.healthFollowUps || []).filter((f) => f.childId === child.id);
-  const latestExternal = followUps
-    .flatMap((f) => f.history.filter((e) => e.action === 'EXTERNAL_RESULT').map((e) => ({ ...e, followUpId: f.id })))
-    .sort((a, b) => b.on.localeCompare(a.on) || b.at.localeCompare(a.at))[0];
   const prev = previousExamOf(db, child.id, date, m?.id);
   const prevCampaign = prev?.campaignId ? db.healthCheckCampaigns.find((c) => c.id === prev.campaignId) : null;
   const view = m && !legacy ? toMeasurementView(db, m) : null;
   // Phiếu nháp: hành chính theo hồ sơ hiện tại (có thể đã sửa sau lần lưu nháp); tiền sử giữ theo phiếu, mục trống lấy từ khai báo.
   if (view && m.examStatus === EXAM_STATUS.DRAFT)
     view.exam = { ...withProfile(child, view.exam), history: withDeclaredHistory(db, child, view.exam.history) };
-  const openCase = openFollowUpOfChild(db, child.id);
   return {
     // Mẫu kết luận do BE chọn; UI chỉ vẽ theo (user chốt 2026-10-21).
-    conclusionMode: conclusionModeOf(m, openCase),
-    // Vấn đề đã biết của trẻ: có thì mẫu thường hỏi "Vấn đề này" mới hay đã biết (user chốt 2026-10-21).
+    conclusionMode: conclusionModeOf(m),
+    // Vấn đề đã biết của trẻ (lần khám gần nhất ở mức Vấn đề đã biết, ổn định): có thì mẫu thường hỏi "Vấn đề này" mới hay đã biết.
     knownCondition: knownConditionOf(db, child),
-    // Phiếu theo dõi đang mở (không phải phiếu do chính phiếu khám này mở), để bác sĩ thấy trước khi kết luận.
-    openFollowUp: openCase && !openCase.measurementIds.includes(m?.id) ? openFollowUpBriefOf(db, openCase) : null,
     campaign: {
       id: campaign.id,
       name: campaign.name,
@@ -411,17 +396,8 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
       ? {
           date: prev.date,
           campaignName: prevCampaign?.name || null,
-          followUpLevel: screenMeasurement(prev, child.dateOfBirth).followUpLevel,
+          followUpLevel: screenMeasurement(prev, child).followUpLevel,
           conclusion: conclusionBrief(prev),
-        }
-      : null,
-    latestExternalResult: latestExternal
-      ? {
-          followUpId: latestExternal.followUpId,
-          on: latestExternal.on,
-          note: latestExternal.note,
-          facility: latestExternal.facility || '',
-          nextVisitOn: latestExternal.nextVisitOn || null,
         }
       : null,
     // Gợi ý ô "Bác sĩ kết luận": các tên đã nhập trong đợt.
@@ -450,7 +426,7 @@ export const healthExamMockRepository = {
     const db = ensureChildRecordsSeeded();
     const { campaign, child, m } = contextOf(db, campaignId, childId, user);
     const date = /^\d{4}-\d{2}-\d{2}$/.test(payload?.date || '') ? payload.date : clampDate(campaign);
-    const mode = conclusionModeOf(m, openFollowUpOfChild(db, childId));
+    const mode = conclusionModeOf(m);
     const cleaned = cleanExam(payload?.exam, examReferenceFor(child.dateOfBirth, date), { concluded: false, mode });
     const exam = withProfile(child, cleaned, m?.examStatus === EXAM_STATUS.CONCLUDED ? m.exam : null);
     return { reviewPoints: examReviewPoints({ date, exam }, child.dateOfBirth) };
@@ -459,7 +435,7 @@ export const healthExamMockRepository = {
   /**
    * payload: { date, heightCm, weightKg, headCircumferenceCm, exam, conclude, reason, conclusionMode }.
    * conclude=false: lưu nháp (không bắt buộc ô nào). conclude=true: kiểm đủ, khóa phiếu; sửa phiếu đã kết luận cần lý do (D12).
-   * conclusionMode: mẫu UI đang vẽ; khác mẫu BE chọn (phiếu theo dõi vừa mở hoặc đóng) ⇒ 409 để tải lại phiếu.
+   * conclusionMode: mẫu UI đang vẽ; khác mẫu BE chọn (phiếu vừa được người khác kết luận) ⇒ 409 để tải lại phiếu.
    */
   async saveHealthExam(campaignId, childId, payload, user) {
     await delay(payload?.conclude ? 350 : 120);
@@ -474,9 +450,9 @@ export const healthExamMockRepository = {
     if (!payload.conclude && concluded) throw new ApiError(409, 'Phiếu đã có kết luận. Lưu lại kết luận kèm lý do sửa thay vì lưu nháp.');
     const date = payload.date || m?.date || clampDate(campaign);
     const reference = examReferenceFor(child.dateOfBirth, /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : clampDate(campaign));
-    const mode = conclusionModeOf(m, openFollowUpOfChild(db, childId));
+    const mode = conclusionModeOf(m);
     if (payload.conclude && payload.conclusionMode && payload.conclusionMode !== mode)
-      throw new ApiError(409, 'Phiếu theo dõi của trẻ vừa thay đổi nên mẫu kết luận đã đổi. Tải lại phiếu khám rồi lưu lại.');
+      throw new ApiError(409, 'Mẫu kết luận của phiếu đã thay đổi. Tải lại phiếu khám rồi lưu lại.');
     const knownCondition = knownConditionOf(db, child);
     const cleaned = cleanExam(payload.exam, reference, { concluded: !!payload.conclude, mode, knownCondition });
     const exam = withProfile(child, cleaned, concluded ? m.exam : null);
@@ -537,7 +513,6 @@ export const healthExamMockRepository = {
       } else Object.assign(target, values);
       if (payload.conclude) {
         if (!concluded) target.concludedAt = nowIso();
-        trackFollowUp(d, freshChild, target, toMeasurementView(d, target).followUpLevel, user);
         // Lưu lại phiếu đã kết luận mà không sửa tiền sử thì không ghi đè khai báo (khai báo có thể đã sửa sau đó).
         if (!concluded || JSON.stringify(m.exam.history) !== JSON.stringify(exam.history)) writeBackHistory(d, freshChild, target, user);
         // Lưu kết luận là công bố cho phụ huynh, kể cả lưu lại sau sửa (BE gửi thông báo cập nhật); nháp không công bố (2026-10-23).

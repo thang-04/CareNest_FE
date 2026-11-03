@@ -25,6 +25,16 @@ export const maskPhone = (phone) => {
 export const formatNumber = (value, digits = 1) =>
   value == null || Number.isNaN(Number(value)) ? '—' : Number(value).toLocaleString('vi-VN', { maximumFractionDigits: digits });
 
+/** Tuổi lúc đo theo tháng BE trả: dưới 36 tháng ghi tháng, từ 36 tháng ghi năm + tháng. */
+export const formatAgeMonths = (months) =>
+  months == null ? '—' : months < 36 ? `${months} tháng` : `${Math.floor(months / 12)} tuổi ${months % 12} tháng`;
+
+/** Mức theo dõi theo bác sĩ được tính là cảnh báo ở Sổ sức khỏe (bộ lọc "Chỉ lần có cảnh báo"), cùng mức BMI khác Bình thường. */
+const WARNING_FOLLOW_UP_LEVELS = ['WATCH', 'CLOSE_WATCH', 'KNOWN_STABLE'];
+
+/** Lần đo có cảnh báo, theo trường BE trả (chỉ để lọc hiển thị, không tính lại mức). */
+export const hasHealthWarning = (m) => (!!m.bmiStatus && m.bmiStatus !== 'NORMAL') || WARNING_FOLLOW_UP_LEVELS.includes(m.followUpLevel);
+
 /** Điểm trường chọn sẵn khi tiếp nhận / nhập Excel: chỉ 1 thì chọn luôn; nhiều thì điểm trường của tài khoản nếu có trong danh sách. */
 export const defaultCampusId = (campuses, user) =>
   campuses.length === 1 ? campuses[0].id : campuses.some((c) => c.id === user?.campusId) ? user.campusId : '';

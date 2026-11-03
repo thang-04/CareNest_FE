@@ -13,21 +13,28 @@ import { MeasurementSummary } from '@/components/children/MeasurementSummary';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { measurementFormLink } from '@/components/children/MeasurementRoundRoster';
 import { saveMeasurement } from '@/services/children/childrenService';
-import { MEASUREMENT_SOURCE } from '@/models/children/childrenConstants';
+import { BMI_STATUS_LABELS, MEASUREMENT_SOURCE } from '@/models/children/childrenConstants';
 import { CAMPAIGN_KIND, CHILD_RESULT_STATUS } from '@/models/children/healthCheckConstants';
 import { ageLabel } from '@/models/School';
 import { formatDate, todayInput } from '@/utils/format';
 import { hasErrors, validateMeasurement } from '@/utils/children/childrenValidation';
 import { canRecordMeasurement } from '@/utils/children/childrenPermissions';
+import { formatNumber } from '@/utils/children/childrenHelpers';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
 const emptyForm = () => ({ date: todayInput(), heightCm: '', weightKg: '', headCircumferenceCm: '', note: '', reason: '' });
 
+// Mức BMI BE trả sau khi lưu (HLT-18), ví dụ " BMI 18,9: Thừa cân."; chưa xếp mức thì chỉ số BMI.
+const bmiSentence = (m) => {
+  if (m?.bmi == null) return '';
+  return m.bmiStatus ? ` BMI ${formatNumber(m.bmi)}: ${BMI_STATUS_LABELS[m.bmiStatus]}.` : ` BMI ${formatNumber(m.bmi)}.`;
+};
+
 /**
- * Số đo trong kỳ cân đo (user chốt 2026-10-31): chỉ chiều cao, cân nặng, vòng đầu, ghi chú; không kết luận, không mở phiếu
- * theo dõi (user chốt 2026-10-17). Chỉ nhập mới khi điểm trường có kỳ cân đo đang diễn ra. Cũng dùng để sửa số đo cũ ngoài đợt
- * và số đo của kết quả mẫu cũ. Kết quả của đợt khám nhập ở phiếu khám.
+ * Số đo trong kỳ cân đo (user chốt 2026-10-31): chỉ chiều cao, cân nặng, vòng đầu, ghi chú; không có kết luận bác sĩ, BE xếp mức
+ * BMI theo tuổi (HLT-18). Chỉ nhập mới khi điểm trường có kỳ cân đo đang diễn ra. Cũng dùng để sửa số đo cũ ngoài đợt và số đo
+ * của kết quả mẫu cũ. Kết quả của đợt khám nhập ở phiếu khám.
  */
 export default function HealthMeasurementFormPage() {
   const { id, measurementId } = useParams();
@@ -217,12 +224,12 @@ export default function HealthMeasurementFormPage() {
       const payload = measurementId ? form : { ...form, campaignId: round.id };
       const m = await saveMeasurement(child.id, measurementId || null, payload, user);
       if (goNext && next) {
-        toast.success(`Đã lưu số đo của ${child.fullName} và công bố cho phụ huynh.`);
+        toast.success(`Đã lưu số đo của ${child.fullName} và công bố cho phụ huynh.${bmiSentence(m)}`);
         navigate(measurementFormLink(round.id, classId, next.childId));
         return;
       }
       setSaved(m);
-      toast.success('Đã lưu số đo và công bố cho phụ huynh.');
+      toast.success(`Đã lưu số đo và công bố cho phụ huynh.${bmiSentence(m)}`);
     } catch (err) {
       if (err.details) setErrors(err.details);
       toast.error(err, 'Không lưu được số đo');
@@ -249,8 +256,7 @@ export default function HealthMeasurementFormPage() {
             <div>
               {requireReason
                 ? 'Đã công bố lại bản mới cho phụ huynh; phụ huynh nhận thông báo kết quả đã cập nhật.'
-                : 'Đã công bố cho phụ huynh khi lưu; phụ huynh nhận thông báo trên ứng dụng.'}{' '}
-              {saved.campaignKind === CAMPAIGN_KIND.EXAM ? '' : 'Số đo không có kết luận của bác sĩ và không mở phiếu theo dõi.'}
+                : 'Đã công bố cho phụ huynh khi lưu; phụ huynh nhận thông báo trên ứng dụng.'}
             </div>
           </div>
         </section>
@@ -291,12 +297,13 @@ export default function HealthMeasurementFormPage() {
               ) : (
                 <>Số đo của kỳ cân đo:</>
               )}{' '}
-              chỉ chiều cao, cân nặng, vòng đầu, ghi chú; không có kết luận bác sĩ, không mở phiếu theo dõi.
+              chỉ chiều cao, cân nặng, vòng đầu, ghi chú; không có kết luận bác sĩ. Hệ thống xếp mức BMI theo tuổi theo chuẩn WHO để sàng
+              lọc.
             </>
           ) : existing?.campaignId ? (
             <>Kết quả nhập theo mẫu cũ trong đợt khám: chỉ sửa được số đo và ghi chú.</>
           ) : (
-            <>Số đo cũ ngoài đợt khám (trước khi có kỳ cân đo): không có kết luận, không mở phiếu theo dõi.</>
+            <>Số đo cũ ngoài đợt khám (trước khi có kỳ cân đo): không có kết luận bác sĩ.</>
           )}{' '}
           Lưu là công bố cho phụ huynh ngay; phụ huynh xem được số đo và ghi chú trên ứng dụng.
         </div>

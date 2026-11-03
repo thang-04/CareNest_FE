@@ -7,18 +7,13 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState } from '@/components/ui/States';
-import { ConclusionCategoryBadge, FollowUpLevelShortBadge, MotorResultBadge } from '@/components/children/ChildBadges';
 import { GrowthChart } from '@/components/children/GrowthChart';
+import { HealthWarningCell } from '@/components/children/HealthWarningCell';
 import { TrendChildList, sortByAttention } from '@/components/children/TrendChildList';
 import { AiTrendPanel } from '@/components/children/AiTrendPanel';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS, ageGroupById } from '@/models/School';
-import {
-  HEAD_CIRCUMFERENCE_STATUS_LABELS,
-  MEASUREMENT_SOURCE,
-  MEASUREMENT_SOURCE_LABELS,
-  growthAxesFor,
-} from '@/models/children/childrenConstants';
+import { HEAD_CIRCUMFERENCE_STATUS_LABELS, growthAxesFor } from '@/models/children/childrenConstants';
 import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/children/healthExamForm';
 import { formatDate } from '@/utils/format';
 import { formatNumber, screeningTone, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
@@ -304,8 +299,7 @@ export default function HealthTrendPage() {
                           <th className="num">Cân nặng (kg)</th>
                           <th className="num">Vòng đầu (cm)</th>
                           <th className="num">BMI</th>
-                          <th>Kết luận</th>
-                          <th>Mức theo dõi</th>
+                          <th>Cảnh báo</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -317,20 +311,7 @@ export default function HealthTrendPage() {
                             <td className="num">{formatNumber(m.headCircumferenceCm)}</td>
                             <td className="num">{formatNumber(m.bmi)}</td>
                             <td>
-                              {m.source === MEASUREMENT_SOURCE.EXAM ? (
-                                <ConclusionCategoryBadge status={m.conclusionCategory} />
-                              ) : m.source === MEASUREMENT_SOURCE.LEGACY ? (
-                                <div className="tr-cell-stack text-sm">
-                                  <span className="muted text-xs">{MEASUREMENT_SOURCE_LABELS.LEGACY}</span>
-                                  <span>Thô: {m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : '—'}</span>
-                                  <span>Tinh: {m.fineMotor ? <MotorResultBadge status={m.fineMotor} /> : '—'}</span>
-                                </div>
-                              ) : (
-                                <span className="muted text-xs tr-note">{MEASUREMENT_SOURCE_LABELS.MEASUREMENT_ONLY}</span>
-                              )}
-                            </td>
-                            <td className="center">
-                              <FollowUpLevelShortBadge status={m.followUpLevel} />
+                              <HealthWarningCell measurement={m} />
                             </td>
                           </tr>
                         ))}

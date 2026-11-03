@@ -1,35 +1,28 @@
 import { axiosClient } from '@/services/http/axiosClient';
 
 /**
- * PROPOSED Spring Boot contract cho đợt khám sức khỏe và phiếu theo dõi (chưa thống nhất với CareNest_BE — plan
- * docs/plans/completed/2026-10-15-health-check-campaign-assessment.md, phiếu dài hạn ở
- * docs/plans/completed/2026-10-16-health-follow-up-long-lived.md). Cùng tên, cùng dạng với mock; BE đọc scope từ JWT.
- * Phiếu ghi được nhiều lần trao đổi và nhiều kết quả khám bên ngoài nên dùng tài nguyên số nhiều.
- * Phiếu khám Phụ lục II (docs/plans/completed/2026-10-17-health-exam-form-doctor-conclusion.md): 1 phiếu/trẻ/đợt, PUT lưu nháp
- * (conclude=false) hoặc lưu kết luận (conclude=true, sửa phiếu đã kết luận cần reason). Kết quả khám bên ngoài thêm facility, images[].
- * Trẻ đang có phiếu theo dõi (docs/plans/completed/2026-10-21-health-follow-up-close-outcome.md): GET exam trả conclusionMode
- * (STANDARD | FOLLOW_UP) và openFollowUp; PUT exam gửi lại conclusionMode (khác ⇒ 409) và exam.conclusion.followUpFinding
- * (NO_NEW_FINDING | ADVICE | NEW_FINDING) hoặc issueKind (NEW | KNOWN). Lưu kết luận không đóng phiếu. Dòng thời gian có
- * MEASUREMENT_ADDED { newFinding }. POST close nhận { outcome (DOCTOR_NORMAL | KNOWN_CONDITION | NO_SPECIALIST_RESULT),
- * conditionText?, reason }; phiếu trả closeOutcome, closeConditionText, closeOutcomeOptions[]. KNOWN_CONDITION ⇒ BE ghi tiền sử bản thân.
- * Phần I (docs/plans/completed/2026-10-22-exam-admin-from-profile.md): BE điền exam.admin (trừ người đi cùng) từ hồ sơ trẻ,
- * bỏ qua giá trị client gửi; phiếu đã kết luận giữ bản chụp. Người đi cùng: client gửi hasCompanion + companion.guardianIndex,
- * BE chép chi tiết từ phụ huynh của hồ sơ; thiếu/sai ⇒ 422 exam.admin.companion. exam.history client gửi (điền sẵn từ khai báo);
- * lưu kết luận ⇒ BE cập nhật declaration.medicalHistory, có lịch sử; đổi ngày tiếp xúc lao ⇒ CHILD_TB_CONTACT_DATE_CHANGED.
- * previous (danh sách lớp, phiếu khám; 2026-10-22): lần khám trong đợt gần nhất trước ngày khám, không tính phiếu nháp và cân đo
- * ngoài đợt của giáo viên.
- * Công bố (2026-10-23, docs/plans/completed/2026-10-23-auto-publish-health-results.md): lưu kết luận (kể cả lưu lại sau sửa) ⇒ BE công bố
- * ngay; nháp không công bố. exam.conclusion.parentOpinion (≤500) bắt buộc khi có người đi cùng và kết luận mức Cần theo dõi sát
- * (422 exam.conclusion.parentOpinion), BE ghi vào lần trao đổi tại buổi khám; measurement trả parentContact.
- * Năm học (user chốt 2026-10-28, Y-4): GET /health-checks và /health-follow-ups nhận schoolYear (năm chọn ở header). Đợt khám thuộc
- * năm học của ngày bắt đầu (ngày thuộc năm gần nhất đã bắt đầu, hè tính vào năm vừa qua). Phiếu theo dõi đang mở luôn trả; phiếu đã
- * đóng trả khi khoảng mở–đóng giao năm đó; counts tính trên cùng phạm vi.
- * Kỳ cân đo (user chốt 2026-10-31, docs/plans/completed/2026-10-31-health-measurement-rounds.md): đợt có kind EXAM | MEASUREMENT
- * (đợt cũ không có ⇒ EXAM); POST nhận kind, PUT không đổi kind; GET list lọc kind. HT mọi điểm trường, PHT điểm trường của mình
- * (khác điểm trường ⇒ 422 campusId). Mỗi điểm trường 1 đợt/kỳ chưa đóng, tính chung hai loại. GET schedule-warnings
- * { campusId, kind, startDate, excludeId? } trả { warnings: [{ code: TOO_CLOSE | EXAM_IN_SCHOOL_YEAR, campaignId, name, kind,
- * startDate }] }: kỳ/đợt chưa hủy cùng điểm trường bắt đầu cách dưới 2 tháng 15 ngày; đợt khám khi năm học đã có đợt khám.
- * Không chặn lưu. Danh sách lớp của kỳ cân đo: result NOT_RECORDED | RECORDED | ABSENT.
+ * Contract đợt khám sức khỏe, kỳ cân đo, phiếu khám Phụ lục II (BE sở hữu: `BE:docs/modules/health.md`; mock cùng tên, cùng dạng).
+ * BE đọc scope từ JWT. Plan gốc: docs/plans/completed/2026-10-15-health-check-campaign-assessment.md,
+ * docs/plans/completed/2026-10-17-health-exam-form-doctor-conclusion.md, docs/plans/completed/2026-10-31-health-measurement-rounds.md.
+ * - Phiếu khám: 1 phiếu/trẻ/đợt; PUT lưu nháp (conclude=false) hoặc lưu kết luận (conclude=true; sửa phiếu đã kết luận cần reason).
+ *   BE điền exam.admin (trừ người đi cùng) từ hồ sơ trẻ; client gửi hasCompanion + companion.guardianIndex (sai ⇒ 422
+ *   exam.admin.companion). Lưu kết luận ⇒ BE cập nhật declaration.medicalHistory, công bố ngay; nháp không công bố.
+ *   exam.conclusion.parentOpinion (≤500) bắt buộc khi có người đi cùng và kết luận mức Cần theo dõi sát (422).
+ * - GET exam trả conclusionMode: STANDARD, trừ phiếu đã kết luận theo mẫu FOLLOW_UP trước 2026-11-04 (giữ mẫu khi xem/sửa;
+ *   exam.conclusion.followUpFinding NO_NEW_FINDING | ADVICE | NEW_FINDING); PUT gửi lại conclusionMode (khác ⇒ 409). knownCondition:
+ *   vấn đề của lần khám gần nhất có kết luận khi mức là KNOWN_STABLE (hỏi issueKind NEW | KNOWN). previous: lần khám trong đợt gần
+ *   nhất trước ngày khám (không tính phiếu nháp, số đo của kỳ cân đo).
+ * - Cảnh báo (2026-11-04, plan docs/plans/active/2026-11-04-health-warnings-book.md; HLT-16 bỏ, HLT-18, HLT-19): không còn phiếu
+ *   theo dõi, không còn /health-follow-ups. progress (danh sách, chi tiết) có watch, closeWatch theo kết luận bác sĩ và
+ *   bmi { severeThinness, thinness, overweightRisk, overweight, obese } (số trẻ theo mức BMI của kỳ cân đo; đợt khám luôn 0).
+ *   Chi tiết: classes[].bmiWarning; watchList = trẻ cần chú ý (đợt khám: WATCH/CLOSE_WATCH, theo dõi sát trước; kỳ cân đo: bmiStatus
+ *   khác NORMAL, gầy còm nặng/béo phì trước, rồi gầy còm/thừa cân, rồi nguy cơ thừa cân; cùng mức theo tên). Dòng trẻ có bmi,
+ *   bmiStatus (chỉ kỳ cân đo).
+ * - Năm học (user chốt 2026-10-28, Y-4): GET /health-checks nhận schoolYear; đợt thuộc năm học của ngày bắt đầu.
+ * - Kỳ cân đo (user chốt 2026-10-31): kind EXAM | MEASUREMENT (đợt cũ không có ⇒ EXAM); POST nhận kind, PUT không đổi kind. Mỗi điểm
+ *   trường 1 đợt/kỳ chưa đóng. GET schedule-warnings { campusId, kind, startDate, excludeId? } trả { warnings: [{ code: TOO_CLOSE |
+ *   EXAM_IN_SCHOOL_YEAR, campaignId, name, kind, startDate }] }, không chặn lưu. Danh sách lớp của kỳ: result NOT_RECORDED | RECORDED |
+ *   ABSENT.
  */
 export const healthCheckApi = {
   listHealthChecks: (filters) => axiosClient.get('/health-checks', { params: filters }),
@@ -45,9 +38,4 @@ export const healthCheckApi = {
   saveHealthExam: (campaignId, childId, payload) => axiosClient.put(`/health-checks/${campaignId}/children/${childId}/exam`, payload),
   previewHealthExamReview: (campaignId, childId, payload) =>
     axiosClient.post(`/health-checks/${campaignId}/children/${childId}/exam/review-preview`, payload),
-  listHealthFollowUps: (filters) => axiosClient.get('/health-follow-ups', { params: filters }),
-  getHealthFollowUp: (id) => axiosClient.get(`/health-follow-ups/${id}`),
-  recordFollowUpContact: (id, body) => axiosClient.post(`/health-follow-ups/${id}/parent-contacts`, body),
-  recordFollowUpExternalResult: (id, body) => axiosClient.post(`/health-follow-ups/${id}/external-results`, body),
-  closeFollowUp: (id, body) => axiosClient.post(`/health-follow-ups/${id}/close`, body),
 };

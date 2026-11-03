@@ -25,27 +25,20 @@
  * @property {'DRAFT'|'CONCLUDED'|null} examStatus   phiếu nháp không hiện ở Sổ sức khỏe, xu hướng
  * @property {MeasurementSource} source  computed by the service
  * @property {number} ageMonths          computed by the service
- * @property {number|null} bmi           computed by the service; không còn nhãn phân loại BMI (user chốt 2026-10-17)
+ * @property {number|null} bmi           computed by the service, 1 chữ số
+ * @property {BmiStatus|null} bmiStatus  mức BMI theo tuổi chuẩn WHO (HLT-18): chỉ số đo của kỳ cân đo; null với phiếu khám
+ * @property {number|null} bmiZScore     z-score BMI theo tuổi, 2 chữ số, đi cùng bmiStatus
  * @property {HeadCircumferenceStatus|null} headCircumferenceStatus
- * @property {{ key: ScreeningCriterion, flagged: boolean }[]} criteria   chỉ mẫu cũ
- * @property {FollowUpLevel} followUpLevel   phiếu: theo kết luận bác sĩ; mẫu cũ: theo 3 tiêu chí
- * @property {'NORMAL'|'ISSUE'|'REFERRAL'|'TB_RISK'|null} conclusionCategory
- * @property {{ code: string, label: string }} reference   reference standard used for the screening
+ * @property {FollowUpLevel} followUpLevel   theo kết luận bác sĩ (HLT-10); số đo của kỳ cân đo: UNAVAILABLE
+ * @property {'NORMAL'|'ISSUE'|'REFERRAL'|'TB_RISK'|'FOLLOWING_NO_NEW'|'FOLLOWING_NEW'|null} conclusionCategory
  * @property {boolean} published         visible to linked parents (GBR-HLT-05); BE công bố ngay khi lưu, trừ phiếu nháp (2026-10-23)
- * @property {ParentContact|null} parentContact  phiếu khám mức Cần theo dõi sát: đã trao đổi với phụ huynh chưa (BE tính)
- *
- * @typedef {Object} ParentContact
- * @property {boolean} contacted
- * @property {boolean} atExam            trao đổi tại buổi khám (có người đi cùng)
- * @property {string|null} on            ngày trao đổi
- * @property {string} opinion            ý kiến phụ huynh tại buổi khám
  * @property {string} measuredBy / measuredByName
  * @property {{ at, userId, userName, reason, changes: { field, from, to }[] }[]} edits  (GBR-HLT-03)
  *
  * @typedef {'NO_ABNORMALITY'|'ABNORMAL'} MotorResult
  * @typedef {'NORMAL'|'SMALL'|'LARGE'|'NOT_MEASURED'} HeadCircumferenceStatus
- * @typedef {'HEAD_CIRCUMFERENCE'|'GROSS_MOTOR'|'FINE_MOTOR'} ScreeningCriterion
  * @typedef {'NONE'|'KNOWN_STABLE'|'WATCH'|'CLOSE_WATCH'|'UNAVAILABLE'} FollowUpLevel
+ * @typedef {'SEVERE_THINNESS'|'THINNESS'|'NORMAL'|'OVERWEIGHT_RISK'|'OVERWEIGHT'|'OBESE'} BmiStatus
  * @typedef {'EXAM'|'LEGACY'|'MEASUREMENT_ONLY'} MeasurementSource
  */
 
@@ -85,8 +78,7 @@ export const MOTOR_RESULT = { NO_ABNORMALITY: 'NO_ABNORMALITY', ABNORMAL: 'ABNOR
 
 export const MOTOR_RESULT_LABELS = { NO_ABNORMALITY: 'Không ghi nhận bất thường', ABNORMAL: 'Có bất thường' };
 
-// Kết quả sàng lọc mẫu cũ do BE tính (user chốt 2026-10-15, PROPOSED); nhãn trung tính, không phải chẩn đoán.
-// Bỏ nhãn phân loại BMI (user chốt 2026-10-17): chỉ còn số BMI.
+// Vòng đầu do BE trả (phiếu khám theo lựa chọn bác sĩ; mẫu cũ theo khoảng tạm); nhãn trung tính, không phải chẩn đoán.
 export const HEAD_CIRCUMFERENCE_STATUS = { NORMAL: 'NORMAL', SMALL: 'SMALL', LARGE: 'LARGE', NOT_MEASURED: 'NOT_MEASURED' };
 
 export const HEAD_CIRCUMFERENCE_STATUS_LABELS = {
@@ -96,10 +88,32 @@ export const HEAD_CIRCUMFERENCE_STATUS_LABELS = {
   NOT_MEASURED: 'Không đo',
 };
 
-export const SCREENING_CRITERIA_LABELS = {
-  HEAD_CIRCUMFERENCE: 'Vòng đầu ngoài chuẩn',
-  GROSS_MOTOR: 'Vận động thô có bất thường',
-  FINE_MOTOR: 'Vận động tinh có bất thường',
+/** Mức BMI theo tuổi chuẩn WHO do BE xếp cho số đo của kỳ cân đo (HLT-18): chỉ đánh dấu sàng lọc, không chẩn đoán (HLT-12). */
+export const BMI_STATUS = {
+  SEVERE_THINNESS: 'SEVERE_THINNESS',
+  THINNESS: 'THINNESS',
+  NORMAL: 'NORMAL',
+  OVERWEIGHT_RISK: 'OVERWEIGHT_RISK',
+  OVERWEIGHT: 'OVERWEIGHT',
+  OBESE: 'OBESE',
+};
+
+export const BMI_STATUS_LABELS = {
+  SEVERE_THINNESS: 'Gầy còm nặng',
+  THINNESS: 'Gầy còm',
+  NORMAL: 'Bình thường',
+  OVERWEIGHT_RISK: 'Nguy cơ thừa cân',
+  OVERWEIGHT: 'Thừa cân',
+  OBESE: 'Béo phì',
+};
+
+/** Khóa của progress.bmi BE trả (số trẻ theo từng mức cảnh báo; không đếm mức bình thường), theo thứ tự hiển thị. */
+export const BMI_PROGRESS_KEYS = {
+  SEVERE_THINNESS: 'severeThinness',
+  THINNESS: 'thinness',
+  OVERWEIGHT_RISK: 'overweightRisk',
+  OVERWEIGHT: 'overweight',
+  OBESE: 'obese',
 };
 
 // KNOWN_STABLE: vấn đề đã biết, không thay đổi — không phải cảnh báo; "Cần theo dõi" là vấn đề có thể chuyển biến (user chốt 2026-10-21).

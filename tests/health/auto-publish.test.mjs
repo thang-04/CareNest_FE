@@ -12,14 +12,14 @@ globalThis.window = new EventTarget();
 
 const { readDb, writeDb } = await import('@/mocks/mockDatabase');
 const { healthExamMockRepository: exams } = await import('@/services/children/mock/healthExamMockRepository');
-const { healthCheckMockRepository: checks } = await import('@/services/children/mock/healthCheckMockRepository');
 const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
 const { buildEmptyExam } = await import('@/models/children/healthExamForm');
 const { todayInput } = await import('@/utils/format');
 
 /*
  * Kịch bản backend giả cho plan docs/plans/completed/2026-10-23-auto-publish-health-results.md (dữ liệu giả của seed).
- * Lớp Chồi 1 (cô Minh Anh) chưa có phiếu trong đợt hc_c1_open đang diễn ra.
+ * Lớp Chồi 1 (cô Minh Anh) chưa có phiếu trong đợt hc_c1_open đang diễn ra. Từ 2026-11-04 không còn phiếu theo dõi (HLT-16 bỏ):
+ * phiếu khám không còn trạng thái trao đổi phụ huynh; ý kiến phụ huynh tại buổi khám vẫn bắt buộc khi Cần theo dõi sát.
  */
 const MINH_ANH = { id: 'u_minhanh', role: 'TEACHER', campusId: 'c1' };
 const C1_OPEN = 'hc_c1_open';
@@ -61,8 +61,6 @@ const save = async (childId, conclusion, opts) => {
   return exams.saveHealthExam(C1_OPEN, childId, payloadOf(view, conclusion, opts), MINH_ANH);
 };
 
-const followUpOf = (childId) => readDb().healthFollowUps.find((f) => f.childId === childId && !f.closedAt);
-
 test('AC-6: DB demo — mọi kết quả đã kết luận/cân đo đã công bố, phiếu nháp chưa; DB cũ công bố bù một lần', () => {
   const db = ensureChildRecordsSeeded();
   const unpublished = db.healthMeasurements.filter((m) => !m.published);
@@ -91,38 +89,33 @@ test('AC-1: phiếu nháp chưa công bố; lưu kết luận không có ngườ
   const saved = await save('ch_009', {}, { companion: false });
   assert.equal(saved.measurement.published, true);
   assert.ok(saved.measurement.publishedAt);
-  assert.equal(saved.measurement.parentContact, null, 'không Cần theo dõi sát thì không có trạng thái trao đổi');
+  assert.equal('parentContact' in saved.measurement, false, 'không còn trạng thái trao đổi phụ huynh');
 });
 
-test('AC-4: có người đi cùng + Cần theo dõi sát ⇒ bắt buộc ý kiến phụ huynh, ghi vào lần trao đổi tại buổi khám', async () => {
+test('AC-4: có người đi cùng + Cần theo dõi sát ⇒ bắt buộc ý kiến phụ huynh, lưu trên phiếu khám', async () => {
   await rejects(save('ch_010', REFERRAL), 422, 'exam.conclusion.parentOpinion');
   const saved = await save('ch_010', { ...REFERRAL, parentOpinion: 'Mẹ đồng ý đưa trẻ khám mắt (giả).' });
   const m = saved.measurement;
   assert.equal(m.published, true);
+  assert.equal(m.followUpLevel, 'CLOSE_WATCH');
   assert.equal(m.exam.conclusion.parentOpinion, 'Mẹ đồng ý đưa trẻ khám mắt (giả).');
-  assert.deepEqual(m.parentContact, { contacted: true, atExam: true, on: m.date, opinion: 'Mẹ đồng ý đưa trẻ khám mắt (giả).' });
-  const contact = followUpOf('ch_010').history.find((e) => e.action === 'PARENT_CONTACTED' && e.atExam);
-  assert.match(contact.note, /Ý kiến phụ huynh: Mẹ đồng ý đưa trẻ khám mắt \(giả\)\./);
-  // Sửa ý kiến: ghi chú lần trao đổi tại buổi khám theo bản mới.
-  await save('ch_010', { ...REFERRAL, parentOpinion: 'Bố sẽ đưa trẻ đi khám (giả).' }, { reason: 'Ghi lại ý kiến (giả).' });
-  assert.match(followUpOf('ch_010').history.find((e) => e.atExam).note, /Bố sẽ đưa trẻ đi khám/);
+  assert.equal(readDb().healthFollowUps, undefined, 'không mở phiếu theo dõi');
+  // Sửa ý kiến: phiếu lưu bản mới.
+  const edited = await save('ch_010', { ...REFERRAL, parentOpinion: 'Bố sẽ đưa trẻ đi khám (giả).' }, { reason: 'Ghi lại ý kiến (giả).' });
+  assert.equal(edited.measurement.exam.conclusion.parentOpinion, 'Bố sẽ đưa trẻ đi khám (giả).');
 });
 
 test('AC-4: ý kiến phụ huynh bị bỏ khi không cần (kết luận bình thường)', async () => {
   const saved = await save('ch_012', { parentOpinion: 'Không cần (giả).' });
   assert.equal(saved.measurement.exam.conclusion.parentOpinion, '');
-  assert.equal(saved.measurement.parentContact, null);
 });
 
-test('AC-5: không có người đi cùng ⇒ "Chưa trao đổi" tới khi giáo viên ghi trao đổi trong phiếu theo dõi', async () => {
-  const saved = await save('ch_007', REFERRAL, { companion: false });
+test('AC-5: không có người đi cùng ⇒ chuyển khám vẫn công bố, không có ý kiến phụ huynh, không có việc trao đổi sau khám', async () => {
+  const saved = await save('ch_007', { ...REFERRAL, parentOpinion: 'Không dùng (giả).' }, { companion: false });
   assert.equal(saved.measurement.published, true, 'vẫn tự công bố');
-  assert.deepEqual(saved.measurement.parentContact, { contacted: false, atExam: false, on: null, opinion: '' });
-  const f = followUpOf('ch_007');
-  await checks.recordFollowUpContact(f.id, { contactedOn: todayInput(), note: 'Đã gọi mẹ (giả).' }, MINH_ANH);
-  const view = await exams.getHealthExam(C1_OPEN, 'ch_007', MINH_ANH);
-  assert.equal(view.measurement.parentContact.contacted, true);
-  assert.equal(view.measurement.parentContact.on, todayInput());
+  assert.equal(saved.measurement.exam.conclusion.parentOpinion, '');
+  assert.equal('parentContact' in saved.measurement, false);
+  assert.equal(readDb().healthFollowUps, undefined);
 });
 
 test('AC-2, AC-3: số đo của kỳ cân đo công bố khi lưu; sửa thì công bố lại, có lịch sử; không còn API công bố riêng', async () => {

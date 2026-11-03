@@ -3,10 +3,8 @@ import { axiosClient } from '@/services/http/axiosClient';
 /**
  * PROPOSED Spring Boot contract for child records & child health (not agreed with CareNest_BE yet).
  * Same names and shapes as the mock repository; the backend reads the user's scope from the JWT.
- * Mỗi trẻ trả thêm latestHealth { date, followUpLevel, campaignName, source, knownCondition, resultOn, followUpId,
- * closedWithoutResultOn } để danh sách lọc trẻ theo mức qua mọi đợt (2026-10-17): còn phiếu theo dõi mở ⇒ CLOSE_WATCH
- * (source FOLLOW_UP_OPEN); không thì mục mới hơn giữa lần khám có xếp mức (EXAM; bỏ phiếu nháp, cân đo ngoài đợt) và phiếu
- * đóng có kết quả theo lời bác sĩ (FOLLOW_UP_CLOSED). Mức KNOWN_STABLE "Vấn đề đã biết, ổn định" (2026-10-21).
+ * Danh sách trẻ (mock) trả thêm latestHealth { date, followUpLevel, campaignName } của lần khám gần nhất có kết luận, để Xu hướng sức
+ * khỏe xếp trẻ cần chú ý; BE chưa có trường này (đề xuất khi nối BE).
  * Hành chính, tiền sử (2026-10-17, `models/children/childProfile.js`): child.profile trong GET profile, POST enrollments,
  * PUT /children/{id} (danh sách không trả); declaration.medicalHistory trong PUT health-declaration; file nhập thêm cột.
  * Khai tiếp xúc người bệnh lao ⇒ BE gửi thông báo CHILD_TB_CONTACT (cả người lưu, 2026-10-27). Từ 2026-10-22: bắt buộc trừ idNumber, bloodType (422 theo ô
@@ -22,7 +20,6 @@ import { axiosClient } from '@/services/http/axiosClient';
  * phụ huynh có CCCD khác ⇒ 409 guardians.i.phone.
  * Công bố (2026-10-23, docs/plans/completed/2026-10-23-auto-publish-health-results.md): lưu/sửa cân đo ⇒ BE công bố ngay
  * (published, publishedAt), sửa thì gửi phụ huynh thông báo cập nhật; bỏ POST .../measurements/{id}/publish và publishBlockedReason.
- * Phiếu khám mức Cần theo dõi sát trả parentContact { contacted, atExam, on, opinion } | null.
  * Trùng hồ sơ (2026-10-23): cùng họ tên (giữ dấu), ngày sinh và CCCD của ít nhất một phụ huynh; duplicate-check nhận thêm
  * guardianIdNumbers, trả { kind: ACTIVE | LEFT, sameCampus, id?, code?, fullName?, leftAt?, canReadmit? } | null; LEFT ⇒ gợi ý
  * POST /children/{id}/readmit { reason } (về PENDING_PLACEMENT, giữ hồ sơ cũ). Enrollment/PUT/import 409 theo quy tắc mới.
@@ -55,6 +52,12 @@ import { axiosClient } from '@/services/http/axiosClient';
  * campaignId của kỳ cân đo (kind MEASUREMENT) cùng điểm trường của trẻ, thiếu/sai/đợt khám ⇒ 422 campaignId; trẻ đã có số đo
  * trong kỳ ⇒ 422 campaignId; kỳ chưa bắt đầu, đã đóng hoặc hủy ⇒ 409; ngày ngoài khoảng của kỳ ⇒ 422 date. PUT sửa được số đo
  * cũ ngoài đợt (campaignId null). GET health trả openCampaign.kind; kỳ cân đo có resultStatus RECORDED khi trẻ đã có số đo.
+ * Cảnh báo ở Sổ sức khỏe (2026-11-04, HLT-16 bỏ, HLT-18, HLT-19; docs/plans/active/2026-11-04-health-warnings-book.md): lần đo bỏ
+ * followUpId, followUpEffect, parentContact; thêm bmiStatus (SEVERE_THINNESS | THINNESS | NORMAL | OVERWEIGHT_RISK | OVERWEIGHT |
+ * OBESE) và bmiZScore (2 chữ số) cho số đo của kỳ cân đo (có chiều cao, cân nặng, 0–84 tháng), null với phiếu khám. GET health bỏ
+ * latestHealth, openFollowUp, externalResults; thêm latestExam { measurementId, campaignId, campaignName, date, followUpLevel,
+ * conclusionCategory, conclusion, knownCondition } và latestBmi { measurementId, campaignId, campaignName, date, ageMonths, bmi,
+ * bmiStatus, bmiZScore } (null khi chưa có).
  */
 const PAGE_SIZE = 100;
 

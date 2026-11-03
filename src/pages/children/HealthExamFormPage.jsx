@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
   FileCheck2,
-  Handshake,
   Info,
   Lock,
   Pencil,
@@ -23,13 +21,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Stepper } from '@/components/ui/Stepper';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { ChildAccessState, HEALTH_CHECK_ACCESS_TEXT } from '@/components/children/ChildAccessState';
-import {
-  ChildResultBadge,
-  ConclusionCategoryBadge,
-  FollowUpLevelBadge,
-  ParentContactBadge,
-  PublishStatusBadge,
-} from '@/components/children/ChildBadges';
+import { ChildResultBadge, ConclusionCategoryBadge, FollowUpLevelBadge, PublishStatusBadge } from '@/components/children/ChildBadges';
 import { ExamAdminStep } from '@/components/children/exam/ExamAdminStep';
 import { ExamMeasureStep } from '@/components/children/exam/ExamMeasureStep';
 import { ExamDevelopmentStep } from '@/components/children/exam/ExamDevelopmentStep';
@@ -45,13 +37,12 @@ import {
   EXAM_STEPS,
   FOLLOW_UP_FINDING,
   FOLLOW_UP_FINDING_LABELS,
-  YES_NO,
   conclusionActionLabelOf,
   conclusionLabelOf,
   stepOfField,
 } from '@/models/children/healthExamForm';
 import { PARENT_VISIBLE_HEALTH_TEXT } from '@/models/children/childrenConstants';
-import { CHILD_RESULT_STATUS, PARENT_CONTACT_STATUS } from '@/models/children/healthCheckConstants';
+import { CHILD_RESULT_STATUS } from '@/models/children/healthCheckConstants';
 import { ageLabel } from '@/models/School';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import { hasErrors } from '@/utils/children/childrenValidation';
@@ -96,46 +87,6 @@ const conclusionSentence = (c) =>
     .filter(Boolean)
     .join('. ') + (c.doctorName ? ` — ${c.doctorName}` : '');
 
-/** Lần khám đã làm gì với phiếu theo dõi (BE trả followUpEffect): mở phiếu, vòng mới, gộp vòng, hay chỉ ghi vào dòng thời gian. */
-function FollowUpResultNotice({ m }) {
-  if (!m.followUpId || !m.followUpEffect) return null;
-  const link = (
-    <Link className="text-primary fw-600" to={`/children/health-follow-ups/${m.followUpId}`}>
-      Mở phiếu theo dõi
-    </Link>
-  );
-  if (m.followUpEffect === 'NOTED')
-    return (
-      <div className="alert alert--info mt-16">
-        <Info size={18} />
-        <div>Phiếu theo dõi giữ nguyên: lần khám được ghi vào dòng thời gian của phiếu, không mở vòng mới. {link}</div>
-      </div>
-    );
-  if (m.parentContact && !m.parentContact.contacted)
-    return (
-      <div className="alert alert--warning mt-16">
-        <AlertTriangle size={18} />
-        <div>
-          Không có người đi cùng nên phiếu ghi <b>Chưa trao đổi phụ huynh</b>. Trao đổi với phụ huynh về kết luận rồi ghi vào phiếu theo
-          dõi. {link}
-        </div>
-      </div>
-    );
-  const done = {
-    OPENED: 'Hệ thống đã mở phiếu theo dõi và ghi lần trao đổi tại buổi khám.',
-    NEW_ROUND: 'Phiếu theo dõi sang vòng mới và đã ghi lần trao đổi tại buổi khám.',
-    MERGED: 'Kết quả được ghi vào vòng theo dõi hiện tại và đã ghi lần trao đổi tại buổi khám.',
-  }[m.followUpEffect];
-  return (
-    <div className="alert alert--info mt-16">
-      <Handshake size={18} />
-      <div>
-        {done} Việc tiếp theo: hỏi phụ huynh kết quả khám chuyên khoa rồi ghi vào phiếu. {link}
-      </div>
-    </div>
-  );
-}
-
 const formOf = (m) => ({
   date: m.date,
   heightCm: m.heightCm ?? '',
@@ -145,34 +96,21 @@ const formOf = (m) => ({
   reason: '',
 });
 
-/** Lần khám trước và lời bác sĩ chuyên khoa gần nhất, để bác sĩ tham khảo (D18). */
+/** Kết luận của lần khám trước, để bác sĩ tham khảo (D18). */
 function PreviousNotes({ view }) {
   const prev = view.previous;
-  const ext = view.latestExternalResult;
-  if (!prev?.conclusion && !ext) return null;
+  if (!prev?.conclusion) return null;
   return (
     <div className="alert alert--info mb-16">
       <FileCheck2 size={18} />
       <div className="tr-cell-stack">
-        {prev?.conclusion && (
-          <span>
-            Lần khám trước ({formatDate(prev.date)}
-            {prev.campaignName ? `, ${prev.campaignName}` : ''}):{' '}
-            {prev.conclusion.followUpFinding ? `${FOLLOW_UP_FINDING_LABELS[prev.conclusion.followUpFinding]}. ` : ''}
-            {prev.conclusion.issueText || 'không ghi vấn đề'}. {conclusionActionLabelOf(prev.conclusion)}
-            {prev.conclusion.adviceText ? `. Lời dặn: ${prev.conclusion.adviceText}` : ''}
-          </span>
-        )}
-        {ext && (
-          <span>
-            Kết quả khám chuyên khoa gần nhất (phụ huynh báo lại, {formatDate(ext.on)}
-            {ext.facility ? `, ${ext.facility}` : ''}): {ext.note}
-            {ext.nextVisitOn ? ` Hẹn khám lại ${formatDate(ext.nextVisitOn)}.` : ''}{' '}
-            <Link className="text-primary" to={`/children/health-follow-ups/${ext.followUpId}`}>
-              Mở phiếu theo dõi
-            </Link>
-          </span>
-        )}
+        <span>
+          Lần khám trước ({formatDate(prev.date)}
+          {prev.campaignName ? `, ${prev.campaignName}` : ''}):{' '}
+          {prev.conclusion.followUpFinding ? `${FOLLOW_UP_FINDING_LABELS[prev.conclusion.followUpFinding]}. ` : ''}
+          {prev.conclusion.issueText || 'không ghi vấn đề'}. {conclusionActionLabelOf(prev.conclusion)}
+          {prev.conclusion.adviceText ? `. Lời dặn: ${prev.conclusion.adviceText}` : ''}
+        </span>
       </div>
     </div>
   );
@@ -460,7 +398,7 @@ export default function HealthExamFormPage() {
           </div>
           <div className="row row--wrap gap-2 mb-12">
             <ConclusionCategoryBadge status={m.conclusionCategory} size="lg" />
-            {!m.exam.conclusion.followUpFinding && <FollowUpLevelBadge status={m.followUpLevel} />}
+            <FollowUpLevelBadge status={m.followUpLevel} />
           </div>
           <p className="m-0">{conclusionSentence(m.exam.conclusion)}</p>
           {m.published && (
@@ -469,15 +407,15 @@ export default function HealthExamFormPage() {
               <div>Đã công bố cho phụ huynh khi lưu kết luận. Phụ huynh nhận thông báo trên ứng dụng.</div>
             </div>
           )}
+          {/* Không còn phiếu theo dõi (HLT-16 bỏ): kết luận là cảnh báo ở Sổ sức khỏe, không có việc theo dõi sau khám. */}
           {m.conclusionCategory === CONCLUSION_CATEGORY.TB_RISK && (
             <div className="alert alert--danger mt-16">
               <ShieldAlert size={18} />
               <div>
-                Hiệu trưởng, Phó hiệu trưởng điểm trường và giáo viên lớp đã nhận thông báo trẻ có nguy cơ mắc lao (tiền sử tiếp xúc).
+                Trẻ có nguy cơ mắc lao (tiền sử tiếp xúc). Cảnh báo hiện ở Sổ sức khỏe của trẻ và danh sách trẻ cần theo dõi của đợt khám.
               </div>
             </div>
           )}
-          <FollowUpResultNotice m={m} />
         </section>
         <div className="page-actions">
           <div className="row gap-2">
@@ -518,18 +456,8 @@ export default function HealthExamFormPage() {
         {concluded && (
           <div className="row row--wrap gap-2 mb-16">
             <ConclusionCategoryBadge status={m.conclusionCategory} size="lg" />
-            {!m.exam.conclusion.followUpFinding && <FollowUpLevelBadge status={m.followUpLevel} />}
+            <FollowUpLevelBadge status={m.followUpLevel} />
             <PublishStatusBadge status={m.published ? 'PUBLISHED' : 'UNPUBLISHED'} />
-            {m.parentContact && (
-              <ParentContactBadge
-                status={m.parentContact.contacted ? PARENT_CONTACT_STATUS.CONTACTED : PARENT_CONTACT_STATUS.NOT_CONTACTED}
-              />
-            )}
-            {m.followUpId && (
-              <Link className="text-primary text-sm" to={`/children/health-follow-ups/${m.followUpId}`}>
-                Mở phiếu theo dõi
-              </Link>
-            )}
           </div>
         )}
         <section className="card wizard-card">
@@ -619,7 +547,6 @@ export default function HealthExamFormPage() {
             doctorNames={view.doctorNames}
             requireReason={concluded}
             mode={view.conclusionMode}
-            openFollowUp={view.openFollowUp}
             knownCondition={view.knownCondition}
           />
         )}
@@ -627,9 +554,8 @@ export default function HealthExamFormPage() {
           <div className="alert alert--info mt-16">
             <Send size={18} />
             <div>
-              Lưu kết luận là <b>công bố cho phụ huynh ngay</b>; phụ huynh xem được {PARENT_VISIBLE_HEALTH_TEXT} trên ứng dụng.
-              {form.exam.admin.hasCompanion === YES_NO.NO &&
-                ' Không có người đi cùng: nếu bác sĩ đề nghị khám chuyên khoa, phiếu ghi Chưa trao đổi phụ huynh tới khi bạn ghi trao đổi trong phiếu theo dõi.'}
+              Lưu kết luận là <b>công bố cho phụ huynh ngay</b>; phụ huynh xem được {PARENT_VISIBLE_HEALTH_TEXT} trên ứng dụng. Kết luận là
+              cảnh báo của lần khám ở Sổ sức khỏe.
             </div>
           </div>
         )}

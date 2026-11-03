@@ -1,6 +1,4 @@
-import { Link } from 'react-router-dom';
 import { GENDER_LABELS } from '@/models/School';
-import { PARENT_CONTACT_STATUS } from '@/models/children/healthCheckConstants';
 import {
   CLINICAL_GROUPS,
   DEVELOPMENT_ITEMS,
@@ -16,7 +14,6 @@ import {
 } from '@/models/children/healthExamForm';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { formatDecimal } from '@/utils/children/healthExamHints';
-import { ParentContactBadge } from '../ChildBadges';
 import { SplitInfoList } from './SplitInfoList';
 
 const isBlank = (v) => v === '' || v == null;
@@ -31,27 +28,6 @@ function Choice({ options, value }) {
 }
 
 const row = (key, label, value, className) => ({ key, label, value, className });
-
-/** Phiếu mức Cần theo dõi sát: đã trao đổi với phụ huynh chưa (BE trả parentContact, user chốt 2026-10-23). */
-function ParentContact({ contact, followUpId }) {
-  return (
-    <div className="tr-cell-stack">
-      <ParentContactBadge status={contact.contacted ? PARENT_CONTACT_STATUS.CONTACTED : PARENT_CONTACT_STATUS.NOT_CONTACTED} />
-      <span className="muted text-sm">
-        {contact.atExam
-          ? 'Tại buổi khám, với người đi cùng.'
-          : contact.contacted
-            ? `Ngày ${formatDate(contact.on)}, ghi trong phiếu theo dõi.`
-            : 'Không có người đi cùng: giáo viên trao đổi với phụ huynh rồi ghi vào phiếu theo dõi.'}{' '}
-        {followUpId && (
-          <Link className="text-primary" to={`/children/health-follow-ups/${followUpId}`}>
-            Mở phiếu theo dõi
-          </Link>
-        )}
-      </span>
-    </div>
-  );
-}
 
 /** Một phần của phiếu; màn rộng chia đôi danh sách cho đỡ trống (user yêu cầu 2026-10-22). */
 function Section({ title, rows }) {
@@ -212,8 +188,6 @@ export function ExamSummary({ measurement: m, child, campaign }) {
           row('action', 'Tư vấn / chuyển khám', conclusionActionLabelOf(c) || '—'),
           c.adviceText && row('adviceText', 'Lời tư vấn', c.adviceText),
           row('doctor', 'Người kết luận', c.doctorName || '—'),
-          m.parentContact &&
-            row('parentContact', 'Trao đổi phụ huynh', <ParentContact contact={m.parentContact} followUpId={m.followUpId} />),
           c.parentOpinion && row('parentOpinion', 'Ý kiến phụ huynh', c.parentOpinion),
           row(
             'measuredBy',

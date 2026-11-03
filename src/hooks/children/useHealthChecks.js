@@ -1,13 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
-import {
-  getHealthCheck,
-  getHealthCheckClass,
-  getHealthChecks,
-  getHealthExam,
-  getHealthFollowUp,
-  getHealthFollowUps,
-} from '@/services/children/healthCheckService';
+import { getHealthCheck, getHealthCheckClass, getHealthChecks, getHealthExam } from '@/services/children/healthCheckService';
 
 /** Đợt khám trong phạm vi người dùng. filters: { campusId, status, schoolYear } */
 export function useHealthChecks(filters = {}) {
@@ -51,24 +44,4 @@ export function useHealthExam(campaignId, childId) {
     },
   );
   return { examView: data, setExamView: setData, loading, error, reload };
-}
-
-/** Phiếu theo dõi trong phạm vi người dùng { items, counts }. filters: { campusId, status, overdue, schoolYear } */
-export function useHealthFollowUps(filters = {}) {
-  const { user } = useAuth();
-  const key = JSON.stringify(filters);
-  const { data, loading, error, reload } = useAsync(() => getHealthFollowUps(filters, user), [key, user?.id], {
-    refreshOnDataChange: true,
-  });
-  return { followUps: data?.items || [], counts: data?.counts || {}, loading, error, reload };
-}
-
-/** Chi tiết phiếu theo dõi (kèm các lần khám liên quan và dòng thời gian). */
-export function useHealthFollowUp(id) {
-  const { user } = useAuth();
-  const { data, setData, loading, error, reload } = useAsync(() => getHealthFollowUp(id, user), [id, user?.id], {
-    refreshOnDataChange: true,
-    enabled: !!id,
-  });
-  return { followUp: data, setFollowUp: setData, loading, error, reload };
 }

@@ -198,7 +198,8 @@ const filledPayload = (view, history) => {
 };
 
 test('AC-3, AC-5: phiếu khám điền sẵn ngày; "Có" bắt ngày, không sau ngày khám; đổi ngày khi lưu kết luận ⇒ báo BGH', async () => {
-  await checks.cancelHealthCheck('hc_c2_next', PRINCIPAL);
+  // Kỳ cân đo c2 đã có số đo seed (HLT-18) nên đóng kỳ thay vì hủy để tạo đợt khám mới.
+  await checks.closeHealthCheck('hc_c2_next', PRINCIPAL);
   const today = todayInput();
   const campaign = await checks.createHealthCheck(
     { name: 'Khám thử ngày tiếp xúc lao', campusId: 'c2', startDate: today, endDate: addDays(today, 3), examiner: 'Trạm Y tế (giả)' },

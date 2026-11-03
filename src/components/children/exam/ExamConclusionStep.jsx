@@ -1,8 +1,6 @@
 import { useId } from 'react';
-import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, ClipboardList, Info, Stethoscope } from '@/components/ui/icons';
+import { AlertTriangle, CheckCircle2, Info, Stethoscope } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
-import { FollowUpDueBadge, FollowUpStatusBadge } from '@/components/children/ChildBadges';
 import {
   CONCLUSION_ACTION,
   CONCLUSION_ACTION_LABELS,
@@ -13,8 +11,6 @@ import {
   FOLLOW_UP_FINDING_LABELS,
   ISSUE_KIND_LABELS,
 } from '@/models/children/healthExamForm';
-import { FOLLOW_UP_STATUS } from '@/models/children/healthCheckConstants';
-import { formatDate } from '@/utils/format';
 import { needsParentOpinion } from '@/utils/children/healthExamValidation';
 import { ExamCheckGroup, ExamChoiceField, ExamTextField } from './ExamFields';
 
@@ -23,45 +19,6 @@ const FLAG_OPTIONS = CONCLUSION_FLAGS.map((f) => ({ value: f.key, label: f.label
 const FINDING_OPTIONS = Object.values(FOLLOW_UP_FINDING).map((value) => ({ value, label: FOLLOW_UP_FINDING_LABELS[value] }));
 const ISSUE_KIND_OPTIONS = Object.entries(ISSUE_KIND_LABELS).map(([value, label]) => ({ value, label }));
 const TB_OPTION = FLAG_OPTIONS.filter((o) => o.value === 'tbRisk');
-
-/** Phiếu theo dõi đang mở của trẻ (BE trả), để bác sĩ thấy trước khi kết luận (user chốt 2026-10-21). */
-function OpenFollowUpNotice({ followUp }) {
-  const ext = followUp.latestExternalResult;
-  return (
-    <div className={`alert ${followUp.tbRisk ? 'alert--danger' : 'alert--warning'} mb-16`}>
-      <ClipboardList size={18} />
-      <div className="tr-cell-stack">
-        <div className="row row--wrap gap-2">
-          <b>Trẻ đang có phiếu theo dõi từ ngày {formatDate(followUp.openedOn)}</b>
-          <FollowUpStatusBadge status={followUp.status} />
-          {followUp.status === FOLLOW_UP_STATUS.WAITING_PARENT_CONTACT && (
-            <FollowUpDueBadge dueOn={followUp.dueOn} overdueDays={followUp.overdueDays} hideOnTime />
-          )}
-        </div>
-        {followUp.tbRisk && <span>Phiếu có nguy cơ mắc lao (tiền sử tiếp xúc).</span>}
-        {followUp.referral && (
-          <span>
-            Lần khám ngày {formatDate(followUp.referral.date)}: {followUp.referral.issueText || 'không ghi vấn đề'}
-            {followUp.referral.specialty ? `. Đề nghị khám chuyên khoa: ${followUp.referral.specialty}` : ''}.
-          </span>
-        )}
-        <span>
-          {ext
-            ? `Kết quả chuyên khoa gần nhất (${formatDate(ext.on)}${ext.facility ? `, ${ext.facility}` : ''}): ${ext.note}${
-                ext.nextVisitOn ? ` Hẹn khám lại ${formatDate(ext.nextVisitOn)}.` : ''
-              }`
-            : 'Chưa có kết quả khám chuyên khoa.'}
-        </span>
-        <span className="text-sm">
-          Kết luận dưới đây so với vấn đề đang theo dõi. Lưu kết luận không đóng phiếu; giáo viên đóng phiếu khi đã xong việc theo dõi.{' '}
-          <Link className="text-primary fw-600" to={`/children/health-follow-ups/${followUp.id}`}>
-            Mở phiếu theo dõi
-          </Link>
-        </span>
-      </div>
-    </div>
-  );
-}
 
 /** Các dòng của "Điểm cần bác sĩ xem lại" (BE trả), dùng cho hộp hỏi lại trước khi lưu kết luận. */
 export const reviewPointTexts = (points) =>
@@ -135,7 +92,10 @@ export function ExamReviewPoints({ points, stale }) {
   );
 }
 
-/** Mẫu FOLLOW_UP: một câu so với vấn đề đang theo dõi thay cho 2 nhóm Kết luận, Hướng xử lý (user chốt 2026-10-21). */
+/**
+ * Mẫu FOLLOW_UP, chỉ còn ở phiếu đã kết luận khi trẻ có phiếu theo dõi (trước 2026-11-04): sửa phiếu giữ mẫu này. Một câu so với vấn
+ * đề đang theo dõi thay cho 2 nhóm Kết luận, Hướng xử lý (user chốt 2026-10-21).
+ */
 function FollowUpConclusionFields({ c, set, setMany, errors, disabled }) {
   const finding = c.followUpFinding;
   const withIssue = finding === FOLLOW_UP_FINDING.ADVICE || finding === FOLLOW_UP_FINDING.NEW_FINDING;
@@ -165,7 +125,7 @@ function FollowUpConclusionFields({ c, set, setMany, errors, disabled }) {
           values={c.tbRisk ? ['tbRisk'] : []}
           onToggle={toggleTb}
           required={false}
-          hint={'Tích ô này thì phiếu theo dõi sang vòng mới như có bất thường mới; không chọn được "Chưa ghi nhận thêm bất thường".'}
+          hint={'Tích ô này thì không chọn được "Chưa ghi nhận thêm bất thường".'}
           disabled={disabled}
         />
       </div>
@@ -314,7 +274,8 @@ function StandardConclusionFields({ c, set, setMany, errors, disabled, knownCond
 
 /**
  * Bước 5 — Kết luận và tư vấn: nhập đúng lời bác sĩ. Mức theo dõi theo kết luận này (user chốt 2026-10-17).
- * mode do BE chọn (CONCLUSION_MODE); openFollowUp: phiếu theo dõi đang mở của trẻ; knownCondition: vấn đề đã biết (BE trả).
+ * mode do BE chọn (CONCLUSION_MODE: FOLLOW_UP chỉ ở phiếu cũ); knownCondition: vấn đề đã biết (BE trả: lần khám ổn định gần nhất
+ * hoặc tiền sử bản thân đã khai).
  */
 export function ExamConclusionStep({
   form,
@@ -327,7 +288,6 @@ export function ExamConclusionStep({
   requireReason,
   disabled,
   mode,
-  openFollowUp,
   knownCondition,
 }) {
   const c = form.exam.conclusion;
@@ -346,10 +306,13 @@ export function ExamConclusionStep({
 
       <section className="card wizard-card mt-16">
         <h2 className="card__title mb-12">Kết luận và tư vấn</h2>
-        {openFollowUp && <OpenFollowUpNotice followUp={openFollowUp} />}
         <div className="alert alert--info mb-16">
           <Info size={18} />
-          <div>Ghi đúng lời bác sĩ đã kết luận và đã nói với người đi cùng trẻ. Hệ thống không tự kết luận.</div>
+          <div>
+            Ghi đúng lời bác sĩ đã kết luận và đã nói với người đi cùng trẻ. Hệ thống không tự kết luận.
+            {mode === CONCLUSION_MODE.FOLLOW_UP &&
+              ' Phiếu này đã kết luận theo mẫu cũ (so với vấn đề đang theo dõi), sửa phiếu vẫn giữ mẫu đó.'}
+          </div>
         </div>
         {mode === CONCLUSION_MODE.FOLLOW_UP ? (
           <FollowUpConclusionFields {...fieldProps} />
@@ -383,7 +346,7 @@ export function ExamConclusionStep({
               value={c.parentOpinion}
               onChange={(v) => set('exam.conclusion.parentOpinion', v)}
               error={errors['exam.conclusion.parentOpinion']}
-              hint={`Kết quả ở mức Cần theo dõi sát: ghi ý kiến của ${form.exam.admin.companion?.fullName || 'người đi cùng'} sau khi nghe bác sĩ, ví dụ đồng ý đưa trẻ đi khám chuyên khoa. Ghi vào lần trao đổi tại buổi khám của phiếu theo dõi.`}
+              hint={`Kết quả ở mức Cần theo dõi sát: ghi ý kiến của ${form.exam.admin.companion?.fullName || 'người đi cùng'} sau khi nghe bác sĩ, ví dụ đồng ý đưa trẻ đi khám chuyên khoa.`}
               disabled={disabled}
             />
           </div>

@@ -1,5 +1,4 @@
 import { DECLARATION_STATE, GUARDIAN_RELATIONS, MAX_GUARDIANS } from '@/models/children/childrenConstants';
-import { FOLLOW_UP_CLOSE_OUTCOME, FOLLOW_UP_FIELD_LIMITS } from '@/models/children/healthCheckConstants';
 import { citizenIdError, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 
@@ -188,42 +187,5 @@ export const validateHealthCheck = (c, { creating = false } = {}) => {
   else if (isIsoDate(c.startDate) && c.endDate < c.startDate) errors.endDate = 'Ngày kết thúc không được trước ngày bắt đầu';
   if ((c.examiner || '').length > 150) errors.examiner = 'Tối đa 150 ký tự';
   if ((c.note || '').length > 500) errors.note = 'Ghi chú tối đa 500 ký tự';
-  return errors;
-};
-
-/** Cập nhật phiếu theo dõi. kind: 'contact' | 'external' | 'close'. */
-/** kind: 'contact' | 'external' | 'close'. contactFrom: ngày khám của kết quả mở vòng theo dõi (BE trả). */
-export const validateFollowUpAction = (kind, b = {}, { contactFrom } = {}) => {
-  const errors = {};
-  if (kind === 'close') {
-    // Đóng phiếu chọn kết quả theo lời bác sĩ, không chọn sẵn (user chốt 2026-10-21).
-    if (!Object.values(FOLLOW_UP_CLOSE_OUTCOME).includes(b.outcome)) errors.outcome = 'Chọn kết quả theo lời bác sĩ';
-    if (b.outcome === FOLLOW_UP_CLOSE_OUTCOME.KNOWN_CONDITION) {
-      if (!b.conditionText?.trim()) errors.conditionText = 'Nhập tên vấn đề, ví dụ Cận thị – đeo kính';
-      else if (b.conditionText.trim().length > FOLLOW_UP_FIELD_LIMITS.condition)
-        errors.conditionText = `Tên vấn đề tối đa ${FOLLOW_UP_FIELD_LIMITS.condition} ký tự`;
-    }
-    if (!b.reason?.trim()) errors.reason = 'Nhập lý do đóng phiếu';
-    else if (b.reason.trim().length > 300) errors.reason = 'Lý do tối đa 300 ký tự';
-    return errors;
-  }
-  const dateField = kind === 'contact' ? 'contactedOn' : 'resultOn';
-  if (!b[dateField] || !DATE_RE.test(b[dateField])) errors[dateField] = kind === 'contact' ? 'Chọn ngày trao đổi' : 'Chọn ngày khám';
-  else if (b[dateField] > today()) errors[dateField] = 'Ngày không được ở tương lai';
-  else if (kind === 'contact' && contactFrom && b.contactedOn < contactFrom)
-    errors.contactedOn = `Ngày trao đổi không được trước ngày khám ${formatDate(contactFrom)}`;
-  if (!b.note?.trim())
-    errors.note = kind === 'contact' ? 'Nhập nội dung đã trao đổi với phụ huynh' : 'Nhập kết quả bác sĩ chuyên khoa đã báo lại';
-  else if (b.note.trim().length > 500) errors.note = 'Nội dung tối đa 500 ký tự';
-  // Kết quả chuyên khoa ghi chữ tự do, kèm chuyên khoa / nơi khám và ảnh giấy kết quả (user chốt 2026-10-17).
-  if (kind === 'external') {
-    if (!b.facility?.trim()) errors.facility = 'Nhập chuyên khoa / nơi khám, ví dụ Mắt — Bệnh viện Nhi';
-    else if (b.facility.trim().length > 150) errors.facility = 'Tối đa 150 ký tự';
-    if ((b.images || []).length > 3) errors.images = 'Tối đa 3 ảnh';
-  }
-  if (kind === 'external' && b.nextVisitOn) {
-    if (!DATE_RE.test(b.nextVisitOn)) errors.nextVisitOn = 'Chọn ngày hẹn khám lại hợp lệ';
-    else if (DATE_RE.test(b.resultOn || '') && b.nextVisitOn <= b.resultOn) errors.nextVisitOn = 'Ngày hẹn khám lại phải sau ngày khám';
-  }
   return errors;
 };

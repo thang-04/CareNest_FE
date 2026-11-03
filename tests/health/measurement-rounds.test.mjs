@@ -196,7 +196,10 @@ test('AC-6: giáo viên nhập số đo trong kỳ; đóng kỳ thì trẻ chưa
   const round = readDb().healthCheckCampaigns.find((c) => c.id === C2_ROUND);
   const before = await checks.getHealthCheckClass(C2_ROUND, child.classId, TUAN);
   assert.equal(before.canRecord, true);
-  assert.ok(before.children.every((r) => r.result === 'NOT_RECORDED'));
+  // Seed có sẵn số đo của vài trẻ (cảnh báo BMI, 2026-11-04); trẻ thử chưa cân đo.
+  assert.equal(before.children.find((r) => r.childId === child.id).result, 'NOT_RECORDED');
+  const notYet = before.children.filter((r) => r.result === 'NOT_RECORDED' && r.childId !== child.id).map((r) => r.childId);
+  assert.ok(notYet.length > 0);
 
   const payload = { campaignId: C2_ROUND, date: todayInput(), heightCm: 105, weightKg: 17.5, note: '' };
   await rejects(children.saveMeasurement(child.id, null, { ...payload, date: addDays(round.startDate, -1) }, TUAN), 422, 'date');
@@ -220,7 +223,8 @@ test('AC-6: giáo viên nhập số đo trong kỳ; đóng kỳ thì trẻ chưa
   await checks.closeHealthCheck(C2_ROUND, DUC);
   const closed = await checks.getHealthCheckClass(C2_ROUND, child.classId, TUAN);
   assert.equal(closed.canRecord, false);
-  assert.ok(closed.children.filter((r) => r.childId !== child.id).every((r) => r.result === 'ABSENT'));
+  assert.ok(closed.children.filter((r) => notYet.includes(r.childId)).every((r) => r.result === 'ABSENT'));
+  assert.equal(closed.children.find((r) => r.childId === child.id).result, 'RECORDED');
   await rejects(
     children.saveMeasurement(child.id, saved.id, { ...payload, heightCm: 106, reason: 'Đo lại (giả).' }, TUAN),
     409,

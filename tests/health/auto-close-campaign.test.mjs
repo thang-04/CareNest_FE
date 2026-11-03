@@ -56,7 +56,7 @@ test('đợt khám vẫn mở hết ngày kết thúc, qua nửa đêm Việt Na
   );
 });
 
-test('tự đóng chốt vắng khám, giữ nháp chưa kết luận, khóa ghi phiếu và giữ phiếu theo dõi', async (context) => {
+test('tự đóng chốt vắng khám, giữ nháp chưa kết luận, khóa ghi phiếu', async (context) => {
   let draftId;
   let childId;
   let teacher;
@@ -76,8 +76,6 @@ test('tự đóng chốt vắng khám, giữ nháp chưa kết luận, khóa ghi
       .filter((item) => classIds.has(item.classId) && item.status === 'ACTIVE' && !measuredIds.has(item.id))
       .map((item) => item.id);
   });
-  const followUps = readDb().healthFollowUps.map((followUp) => ({ id: followUp.id, closedAt: followUp.closedAt }));
-
   nextDay(context);
   const view = await checks.getHealthCheck(EXAM, PRINCIPAL);
   assert.deepEqual(campaign().absentChildIds, absentIds);
@@ -89,10 +87,7 @@ test('tự đóng chốt vắng khám, giữ nháp chưa kết luận, khóa ghi
   const savedDraft = readDb().healthMeasurements.find((item) => item.id === draftId);
   assert.equal(savedDraft.examStatus, 'DRAFT');
   assert.equal(savedDraft.published, false);
-  assert.deepEqual(
-    readDb().healthFollowUps.map((followUp) => ({ id: followUp.id, closedAt: followUp.closedAt })),
-    followUps,
-  );
+  assert.equal(readDb().healthFollowUps, undefined, 'không còn phiếu theo dõi (HLT-16 bỏ)');
   await assert.rejects(exams.saveHealthExam(EXAM, childId, {}, teacher), (error) => error.status === 409);
 });
 

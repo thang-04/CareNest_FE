@@ -168,10 +168,6 @@ const ITEMS = {
     label: 'Đợt khám, kỳ cân đo',
     to: '/children/health-checks',
   },
-  healthFollowUps: {
-    label: 'Phiếu theo dõi sức khỏe',
-    to: '/children/health-follow-ups',
-  },
   healthTrends: {
     label: 'Xu hướng sức khỏe',
     to: '/children/health-trends',
@@ -390,15 +386,7 @@ const MENUS = {
       'schoolRoles',
     ]),
     // Tiếp nhận trẻ, Xếp lớp như PHT trên mọi điểm trường (user chốt 2026-10-27)
-    group('children', [
-      'childList',
-      'childEnroll',
-      'childPlacement',
-      'parentActivation',
-      'healthChecks',
-      'healthFollowUps',
-      'healthTrends',
-    ]),
+    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('assessment', [
       'assessOverview',
@@ -434,15 +422,7 @@ const MENUS = {
       'schoolTeachers',
       'schoolStaffView',
     ]),
-    group('children', [
-      'childList',
-      'childEnroll',
-      'childPlacement',
-      'parentActivation',
-      'healthChecks',
-      'healthFollowUps',
-      'healthTrends',
-    ]),
+    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
@@ -469,7 +449,7 @@ const MENUS = {
   [ROLES.TEAM_LEADER]: [
     link('home'),
     link('approvals'),
-    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
+    group('children', ['childList', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
@@ -478,7 +458,7 @@ const MENUS = {
   ],
   [ROLES.TEACHER]: [
     link('home'),
-    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
+    group('children', ['childList', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
     group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),

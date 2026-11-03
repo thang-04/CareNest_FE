@@ -47,8 +47,8 @@ const checkLength = (errors, key, value, max) => {
 };
 
 /**
- * Có người đi cùng và kết luận ở mức "Cần theo dõi sát" (nguy cơ lao, chuyển khám, hoặc mẫu FOLLOW_UP — mức theo kết luận D9)
- * ⇒ ghi ý kiến phụ huynh tại buổi khám (user chốt 2026-10-23). mode: conclusionMode BE trả.
+ * Có người đi cùng và kết luận ở mức "Cần theo dõi sát" (nguy cơ lao, chuyển khám, hoặc phiếu cũ mẫu FOLLOW_UP — mức theo kết luận
+ * D9) ⇒ ghi ý kiến phụ huynh tại buổi khám (user chốt 2026-10-23; BE vẫn kiểm sau khi bỏ phiếu theo dõi). mode: conclusionMode BE trả.
  */
 export const needsParentOpinion = (exam, mode) => {
   const c = exam?.conclusion || {};
@@ -56,7 +56,7 @@ export const needsParentOpinion = (exam, mode) => {
   return exam?.admin?.hasCompanion === YES_NO.YES && closeWatch;
 };
 
-/** Kết luận mẫu FOLLOW_UP: 1 câu so với vấn đề đang theo dõi (user chốt 2026-10-21). */
+/** Kết luận phiếu cũ mẫu FOLLOW_UP: 1 câu so với vấn đề đang theo dõi (user chốt 2026-10-21). */
 const validateFollowUpConclusion = (errors, c, L) => {
   if (!Object.values(FOLLOW_UP_FINDING).includes(c.followUpFinding))
     errors['exam.conclusion.followUpFinding'] = 'Chọn kết luận của bác sĩ so với vấn đề đang theo dõi';

@@ -8,7 +8,7 @@ import { RowActions } from '@/components/ui/RowActions';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
-import { ChildResultBadge, ConclusionCategoryBadge, FollowUpDueBadge, FollowUpLevelShortBadge, PublishStatusBadge } from './ChildBadges';
+import { ChildResultBadge, ConclusionCategoryBadge, FollowUpLevelShortBadge, PublishStatusBadge } from './ChildBadges';
 import { CHILD_RESULT_STATUS, CHILD_RESULT_STATUS_LABELS } from '@/models/children/healthCheckConstants';
 import { CONCLUSION_CATEGORY_LABELS } from '@/models/children/healthExamForm';
 import { MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children/childrenConstants';
@@ -140,18 +140,6 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
                     <td>
                       <div className="fw-600">{r.fullName}</div>
                       <div className="muted text-xs">{r.code}</div>
-                      {/* Trẻ đang có phiếu theo dõi: người nhập và bác sĩ khám biết để chú ý (user chốt 2026-10-16). */}
-                      {r.followUp && (
-                        <div className="tr-cell-stack mt-8">
-                          <Link className="text-primary text-xs" to={`/children/health-follow-ups/${r.followUp.id}`}>
-                            Đang có phiếu theo dõi
-                          </Link>
-                          <FollowUpDueBadge dueOn={r.followUp.dueOn} overdueDays={r.followUp.overdueDays} hideOnTime />
-                          {r.followUp.latestExternalResult && (
-                            <span className="muted text-xs tr-note">Bác sĩ chuyên khoa: {r.followUp.latestExternalResult.note}</span>
-                          )}
-                        </div>
-                      )}
                     </td>
                     <td className="text-sm">
                       {r.previous ? (
@@ -172,13 +160,12 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
                       {legacy && <div className="muted text-xs">{MEASUREMENT_SOURCE_LABELS.LEGACY}</div>}
                     </td>
                     <td>
+                      {/* Kết quả mẫu cũ không có kết luận bác sĩ: không còn mức theo ngưỡng tạm (2026-11-04). */}
                       {r.conclusionCategory ? (
                         <div className="tr-cell-stack">
                           <ConclusionCategoryBadge status={r.conclusionCategory} />
                           {conclusionNote(r.conclusion) && <span className="muted text-xs tr-note">{conclusionNote(r.conclusion)}</span>}
                         </div>
-                      ) : r.followUpLevel ? (
-                        <FollowUpLevelShortBadge status={r.followUpLevel} />
                       ) : (
                         <span className="muted">—</span>
                       )}

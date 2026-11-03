@@ -32,7 +32,7 @@ import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 import { StatCard } from '@/components/ui/StatCard';
 
-// Theo dõi sức khỏe (mức, phiếu theo dõi) xem ở Sổ sức khỏe của từng trẻ, không ở danh sách (user yêu cầu 2026-10-31).
+// Cảnh báo sức khỏe xem ở Sổ sức khỏe của từng trẻ, không ở danh sách (user yêu cầu 2026-10-31; HLT-19, 2026-11-04).
 const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
 
 export default function ChildrenListPage() {
