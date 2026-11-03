@@ -41,7 +41,7 @@ function PreviewTable({ title, head, rows, bad = false }) {
 }
 
 /** Nhập tài khoản nhân sự từ Excel (Cần 31/10/2026): xem trước, tạo lần lượt dòng hợp lệ qua POST /accounts, dòng BE từ chối hiện đỏ. */
-export function StaffImportPanel({ open, campuses, classes, onClose }) {
+export function StaffImportPanel({ open, campuses, teacherCampusOptional = false, onClose }) {
   const toast = useToast();
   const [fileName, setFileName] = useState('');
   const [result, setResult] = useState(null);
@@ -66,9 +66,13 @@ export function StaffImportPanel({ open, campuses, classes, onClose }) {
     try {
       const [sheets, accounts] = await Promise.all([readWorkbook(file, [STAFF_SHEET]), listAllStaffAccounts()]);
       const existing = accounts.map((a) => ({ phone: normalizePhone(a.username), email: a.email }));
-      setResult(matchStaffRows(sheets[STAFF_SHEET], { campuses, classes, existing }));
+      setResult(matchStaffRows(sheets[STAFF_SHEET], { campuses, existing, teacherCampusOptional }));
     } catch {
-      setResult({ items: [], errors: [{ row: '—', name: '—', reason: 'Không đọc được file. Hãy dùng file .xlsx theo file mẫu.' }] });
+      setResult({
+        items: [],
+        errors: [{ row: '—', name: '—', reason: 'Không đọc được file. Hãy dùng file .xlsx theo file mẫu.' }],
+        ignoredColumns: [],
+      });
     } finally {
       setReading(false);
     }
@@ -93,7 +97,7 @@ export function StaffImportPanel({ open, campuses, classes, onClose }) {
     }
     if (failed.length) {
       toast.error('Một số dòng chưa tạo được, xem lý do ở bảng lỗi.');
-      setResult({ items: [], errors: failed });
+      setResult({ items: [], errors: failed, ignoredColumns: [] });
     } else close(true);
   };
 
@@ -141,6 +145,14 @@ export function StaffImportPanel({ open, campuses, classes, onClose }) {
             <span className="chip chip--green">Hợp lệ {valid}</span>
             <span className={`chip ${result.errors.length ? 'chip--red' : 'chip--gray'}`}>Lỗi {result.errors.length}</span>
           </div>
+          {result.ignoredColumns.length > 0 && (
+            <div className="alert alert--info">
+              <div>
+                Bỏ qua cột {result.ignoredColumns.map((c) => `"${c}"`).join(', ')}. Giáo viên mới được xếp lớp sau ở màn Phân công giáo
+                viên.
+              </div>
+            </div>
+          )}
           <PreviewTable
             bad
             title="Dòng lỗi (không tạo)"
@@ -149,14 +161,14 @@ export function StaffImportPanel({ open, campuses, classes, onClose }) {
           />
           <PreviewTable
             title="Tài khoản sẽ tạo"
-            head={['Dòng', 'Họ tên', 'Số điện thoại', 'Email', 'Vai trò', 'Điểm trường / lớp']}
+            head={['Dòng', 'Họ tên', 'Số điện thoại', 'Email', 'Vai trò', 'Điểm trường']}
             rows={result.items.map((i) => [
               i.row,
               i.form.fullName,
               normalizePhone(i.form.phone),
               i.form.email || '—',
               ROLE_LABELS[i.form.role],
-              i.className || i.campusName,
+              i.campusName || '—',
             ])}
           />
         </div>
