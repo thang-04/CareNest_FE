@@ -1,7 +1,7 @@
 import { ApiError, clone, writeDb } from '@/mocks/mockDatabase';
 import { activeYearId } from '@/mocks/roomManagers';
 import { REWARD_TITLES, DIAGNOSTIC_TERMS, TICKET_RULES } from '@/models/assessment/assessmentConstants';
-import { inLeaderScope, isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
+import { inLeaderEditScope, inLeaderScope, isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
 import { addDays, monthEnd, monthsBetween, schoolDaysBetween, todayIso, weekStart } from '@/utils/assessment/assessmentPeriods';
 import { uid } from '@/utils/id';
 
@@ -106,7 +106,7 @@ const detailOf = (db, cls, user) => {
     children,
     history: list?.history || [],
     canEdit,
-    canReview: user?.role === 'VICE_PRINCIPAL' && inLeaderScope(cls.campusId, user) && list?.status === 'PENDING_VP',
+    canReview: user?.role === 'VICE_PRINCIPAL' && inLeaderEditScope(cls.campusId, user) && list?.status === 'PENDING_VP',
     canDecide: user?.role === 'PRINCIPAL' && ['PENDING_VP', 'PENDING_PRINCIPAL'].includes(list?.status),
   };
 };

@@ -19,16 +19,12 @@ const TEACHER = { id: 'u_t1', role: 'TEACHER', campusId: 'c1' };
 
 beforeEach(() => values.clear());
 
-test('tổng quan đánh giá lớp: PHT chỉ thấy lớp điểm trường mình, Hiệu trưởng thấy toàn trường và lọc được điểm trường', async () => {
+test('tổng quan đánh giá lớp: PHT và Hiệu trưởng thấy toàn trường và lọc được điểm trường', async () => {
   const vp = await repo.getClassAssessmentOverview({ period: OVERVIEW_PERIOD.WEEK }, VP);
   assert.ok(vp.rows.length > 0);
-  assert.ok(vp.rows.every((r) => r.campusId === 'c1'));
-  assert.deepEqual(
-    vp.campuses.map((c) => c.id),
-    ['c1'],
-  );
-
   const all = await repo.getClassAssessmentOverview({ period: OVERVIEW_PERIOD.WEEK }, PRINCIPAL);
+  // AUTH-20 (Cần chốt 03/11/2026): PHT xem mọi điểm trường như HT
+  assert.equal(vp.rows.length, all.rows.length);
   assert.ok(all.campuses.length > 1);
   const c2 = await repo.getClassAssessmentOverview({ period: OVERVIEW_PERIOD.WEEK, campusId: 'c2' }, PRINCIPAL);
   assert.ok(c2.rows.every((r) => r.campusId === 'c2'));
@@ -42,10 +38,13 @@ test('tổng quan: số đã đánh giá không vượt số có mặt; kỳ tu�
     if (period === OVERVIEW_PERIOD.WEEK) assert.ok(o.schoolDays <= 5);
     if (period === OVERVIEW_PERIOD.DAY) assert.ok(o.schoolDays <= 1);
   }
-  await assert.rejects(() => repo.getClassAssessmentOverview({ period: OVERVIEW_PERIOD.DAY }, TEACHER), (err) => err.status === 403);
+  await assert.rejects(
+    () => repo.getClassAssessmentOverview({ period: OVERVIEW_PERIOD.DAY }, TEACHER),
+    (err) => err.status === 403,
+  );
 });
 
-test('chi tiết lớp: từng trẻ khớp tổng của lớp; PHT không mở được lớp điểm trường khác', async () => {
+test('chi tiết lớp: từng trẻ khớp tổng của lớp; PHT xem được lớp điểm trường khác', async () => {
   const o = await repo.getClassAssessmentOverview({ period: OVERVIEW_PERIOD.MONTH }, PRINCIPAL);
   const row = o.rows[0];
   const detail = await repo.getClassAssessmentDetail({ classId: row.classId, period: OVERVIEW_PERIOD.MONTH }, PRINCIPAL);
@@ -54,11 +53,10 @@ test('chi tiết lớp: từng trẻ khớp tổng của lớp; PHT không mở 
     detail.children.reduce((n, c) => n + c.assessedDays, 0),
     row.assessed,
   );
+  // PHT mở được chi tiết lớp điểm trường khác (chỉ xem)
   const other = o.rows.find((r) => r.campusId !== 'c1');
   if (other) {
-    await assert.rejects(
-      () => repo.getClassAssessmentDetail({ classId: other.classId, period: OVERVIEW_PERIOD.DAY }, VP),
-      (err) => err.status === 403,
-    );
+    const d = await repo.getClassAssessmentDetail({ classId: other.classId, period: OVERVIEW_PERIOD.DAY }, VP);
+    assert.equal(d.classId, other.classId);
   }
 });
