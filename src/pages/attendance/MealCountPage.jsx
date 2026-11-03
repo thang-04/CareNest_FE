@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Download, UtensilsCrossed } from '@/components/ui/icons';
+import { useSearchParams } from 'react-router-dom';
+import { Download } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -161,11 +161,6 @@ export default function MealCountPage() {
           onChange={setCampusFilter}
         />
         <div className="spacer" />
-        {kitchen && (
-          <Link className="btn" to={`/attendance/meal-handover?date=${date}`}>
-            <UtensilsCrossed size={16} /> Bàn giao suất ăn
-          </Link>
-        )}
       </ClassDateBar>
       {error ? (
         <div className="card">
