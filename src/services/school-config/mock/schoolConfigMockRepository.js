@@ -738,7 +738,7 @@ export const schoolConfigMockRepository = {
       db.classPlacements ||= [];
       const done = new Set(placementsOf(db, target.id).map((p) => p.childId));
       const at = now();
-      const result = { promoted: 0, graduated: 0, unplaced: [] };
+      const result = { promoted: 0, graduated: 0, undecided: 0, unplaced: [] };
       // Có phạm vi (đang lọc trên màn hình) thì chỉ xếp các lớp năm cũ trong phạm vi đó
       const inScope = (c) => (!campusId || c.campusId === campusId) && (!ageGroupId || c.ageGroupId === ageGroupId);
       yearClasses(db, source.id)
@@ -1103,7 +1103,10 @@ export const schoolConfigMockRepository = {
     await delay();
     if (!canConfigureSchool(user)) throw forbid();
     const db = readDb();
-    db.schoolHolidays = { ...(db.schoolHolidays || {}), [schoolYear]: [...holidays].sort((a, b) => a.date.localeCompare(b.date)) };
+    db.schoolHolidays = {
+      ...(db.schoolHolidays || {}),
+      [schoolYear]: [...holidays].sort((a, b) => a.startDate.localeCompare(b.startDate)),
+    };
     writeDb(db);
     return clone(db.schoolHolidays[schoolYear]);
   },

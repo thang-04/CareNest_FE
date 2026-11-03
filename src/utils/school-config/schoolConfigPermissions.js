@@ -64,6 +64,8 @@ export const roomCampusIds = (user, campuses, need = false) =>
   campuses.filter((c) => areaAllows(user, 'rooms', c.id, need)).map((c) => c.id);
 
 /** UC 2.7 / GBR-CFG-03. */
+/** Cấu hình thời gian (giờ chốt, học kỳ, ngày nghỉ): chỉ Hiệu trưởng (user chốt 03/11/2026). */
+export const canManageSchoolCalendar = isPrincipal;
 export const canConfigureCutoff = isPrincipal;
 
 /** "Campus – Create / Edit": Principal only. */

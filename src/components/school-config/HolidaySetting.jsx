@@ -4,17 +4,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
 import { DateInput } from '@/components/form/DateInput';
+import { FormField } from '@/components/form/FormField';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { getHolidays, getSchoolYearById, saveHolidays } from '@/services/school-config/schoolConfigService';
 import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
-import { canConfigureSchool } from '@/utils/school-config/schoolConfigPermissions';
+import { canManageSchoolCalendar } from '@/utils/school-config/schoolConfigPermissions';
 import { formatDate, isIsoDate } from '@/utils/format';
+import { holidayDays, validateHoliday } from '@/utils/school-config/holidays';
 
 const NAME_MAX = 100;
+const EMPTY = { startDate: '', endDate: '', name: '' };
 
 /**
- * Cấu hình thời gian › Ngày nghỉ (BE SCH-05): ngày lễ, Tết… của năm học không tính là ngày học dù rơi vào thứ 2–6
- * (điểm danh, đơn nghỉ, đánh giá, báo cáo bỏ qua). Hiệu trưởng thêm / bớt rồi lưu cả danh sách.
+ * Cấu hình thời gian › Ngày nghỉ (BE SCH-05): đợt nghỉ lễ, Tết… từ ngày – đến ngày; các ngày trong đợt không tính là
+ * ngày học dù rơi vào thứ 2–6 (điểm danh, báo ăn, đánh giá, báo cáo bỏ qua). HT (hoặc PHT được cấp quyền) thêm / bớt rồi
+ * lưu cả danh sách; BE kiểm lại (trong năm học, không chồng đợt, không trùm ngày đã điểm danh).
  */
 export function HolidaySetting({ yearId }) {
   const { user } = useAuth();
@@ -22,7 +26,7 @@ export function HolidaySetting({ yearId }) {
   const { data: year } = useAsync(() => getSchoolYearById(yearId, user), [yearId, user?.id], { enabled: !!yearId });
   const { data, loading, error, reload } = useAsync(() => getHolidays(yearId, user), [yearId, user?.id], { enabled: !!yearId });
   const [rows, setRows] = useState([]);
-  const [draft, setDraft] = useState({ date: '', name: '' });
+  const [draft, setDraft] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -31,19 +35,20 @@ export function HolidaySetting({ yearId }) {
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (loading || !year) return <LoadingState />;
 
-  const editable = canConfigureSchool(user) && year.status !== YEAR_STATUS.CLOSED;
+  const editable = canManageSchoolCalendar(user) && year.status !== YEAR_STATUS.CLOSED;
   const changed = JSON.stringify(rows) !== JSON.stringify(data || []);
+  const setField = (patch) => {
+    setDraft((d) => ({ ...d, ...patch }));
+    setErrors(({ _form: _f, ...rest }) => Object.fromEntries(Object.entries(rest).filter(([k]) => !(k in patch))));
+  };
 
   const add = () => {
-    const e = {};
-    if (!isIsoDate(draft.date)) e.date = 'Chọn ngày';
-    else if (draft.date < year.startDate || draft.date > year.endDate) e.date = 'Ngày phải nằm trong năm học';
-    else if (rows.some((r) => r.date === draft.date)) e.date = 'Ngày này đã có trong danh sách';
-    if (!draft.name.trim()) e.name = 'Nhập tên ngày nghỉ';
+    const e = validateHoliday(draft, year, rows);
     setErrors(e);
     if (Object.keys(e).length) return;
-    setRows((all) => [...all, { date: draft.date, name: draft.name.trim() }].sort((a, b) => a.date.localeCompare(b.date)));
-    setDraft({ date: '', name: '' });
+    const item = { startDate: draft.startDate, endDate: draft.endDate, name: draft.name.trim() };
+    setRows((all) => [...all, item].sort((a, b) => a.startDate.localeCompare(b.startDate)));
+    setDraft(EMPTY);
   };
 
   const save = async () => {
@@ -51,6 +56,7 @@ export function HolidaySetting({ yearId }) {
     try {
       await saveHolidays(yearId, rows, user);
       toast.success('Đã lưu ngày nghỉ.');
+      setErrors({});
       reload({ silent: true });
     } catch (err) {
       setErrors({ _form: err.message });
@@ -76,31 +82,38 @@ export function HolidaySetting({ yearId }) {
         </div>
       )}
       {editable && (
-        <div className="card__body filter-bar">
-          <div className="field">
+        <div className="card__body sc-holiday-form">
+          <FormField label="Từ ngày" required error={errors.startDate}>
             <DateInput
-              aria-label="Ngày nghỉ"
+              aria-label="Nghỉ từ ngày"
               min={year.startDate}
               max={year.endDate}
-              value={draft.date}
-              onChange={(v) => setDraft((d) => ({ ...d, date: v }))}
+              value={draft.startDate}
+              onChange={(v) => setField({ startDate: v, ...(isIsoDate(v) && !draft.endDate ? { endDate: v } : {}) })}
             />
-            {errors.date && <p className="field__error">{errors.date}</p>}
-          </div>
-          <div className="field flex-1">
+          </FormField>
+          <FormField label="Đến ngày" required error={errors.endDate}>
+            <DateInput
+              aria-label="Nghỉ đến ngày"
+              min={draft.startDate || year.startDate}
+              max={year.endDate}
+              value={draft.endDate}
+              onChange={(v) => setField({ endDate: v })}
+            />
+          </FormField>
+          <FormField label="Tên đợt nghỉ" required error={errors.name} className="flex-1">
             <input
               className="input"
-              aria-label="Tên ngày nghỉ"
+              aria-label="Tên đợt nghỉ"
               placeholder="Vd. Quốc khánh, Tết Nguyên đán"
               maxLength={NAME_MAX}
               value={draft.name}
-              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              onChange={(e) => setField({ name: e.target.value })}
               onKeyDown={(e) => e.key === 'Enter' && add()}
             />
-            {errors.name && <p className="field__error">{errors.name}</p>}
-          </div>
-          <button className="btn" onClick={add}>
-            <Plus size={16} /> Thêm ngày nghỉ
+          </FormField>
+          <button className="btn sc-holiday-form__add" onClick={add}>
+            <Plus size={16} /> Thêm đợt nghỉ
           </button>
         </div>
       )}
@@ -111,22 +124,26 @@ export function HolidaySetting({ yearId }) {
           <table className="table table--grid">
             <thead>
               <tr>
-                <th>Ngày</th>
-                <th>Tên ngày nghỉ</th>
+                <th>Từ ngày</th>
+                <th>Đến ngày</th>
+                <th className="num">Số ngày học được nghỉ</th>
+                <th>Tên đợt nghỉ</th>
                 {editable && <th className="cell--actions">Thao tác</th>}
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.date}>
-                  <td className="nowrap">{formatDate(r.date)}</td>
+                <tr key={r.startDate}>
+                  <td className="nowrap">{formatDate(r.startDate)}</td>
+                  <td className="nowrap">{formatDate(r.endDate)}</td>
+                  <td className="num">{holidayDays(r)}</td>
                   <td>{r.name}</td>
                   {editable && (
                     <td className="cell--actions">
                       <button
                         className="btn btn--sm btn--ghost"
-                        aria-label={`Bỏ ngày nghỉ ${formatDate(r.date)}`}
-                        onClick={() => setRows((all) => all.filter((x) => x.date !== r.date))}
+                        aria-label={`Bỏ đợt nghỉ ${r.name}`}
+                        onClick={() => setRows((all) => all.filter((x) => x.startDate !== r.startDate))}
                       >
                         <Trash2 size={15} />
                       </button>

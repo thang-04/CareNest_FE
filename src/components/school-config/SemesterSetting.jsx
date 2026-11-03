@@ -11,6 +11,7 @@ import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { SEMESTER_FIELDS, hasErrors, semesterOf, validateSemester } from '@/utils/school-config/schoolConfigValidation';
 import { formatDate } from '@/utils/format';
 import { suggestSemesters } from '@/utils/school-config/yearSetup';
+import { canManageSchoolCalendar } from '@/utils/school-config/schoolConfigPermissions';
 
 const ROWS = [
   { label: 'Học kỳ I', start: 'semester1Start', end: 'semester1End' },
@@ -46,7 +47,8 @@ export function SemesterSetting({ yearId }) {
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (loading || !year) return <LoadingState />;
 
-  const closed = year.status === YEAR_STATUS.CLOSED;
+  // Không có quyền cấu hình thời gian hoặc năm đã kết thúc: chỉ xem
+  const closed = year.status === YEAR_STATUS.CLOSED || !canManageSchoolCalendar(user);
   const unchanged = SEMESTER_FIELDS.every(([k]) => form[k] === (year[k] || ''));
 
   const set = (key, value) => {
