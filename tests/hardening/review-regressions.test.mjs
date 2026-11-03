@@ -127,7 +127,7 @@ test('reward draft is private, rejects invalid children/titles and requires conf
   await assert.rejects(service.saveRewardList(cls.id, items, { submit: true }, teacher), { status: 422 });
 });
 
-test('mock quality/program reports load for both leaders across campuses and reject teacher', async () => {
+test('mock quality report: leaders all campuses, teacher own classes without totals; HTCT leaders only', async () => {
   for (const user of [vp, principal]) {
     const q = await service.getQualityReport({ schoolYear: year.id }, user);
     assert.ok(q.rows.length);
@@ -141,7 +141,11 @@ test('mock quality/program reports load for both leaders across campuses and rej
   const vpView = await service.getQualityReport({ schoolYear: year.id }, vp);
   const htView = await service.getQualityReport({ schoolYear: year.id }, principal);
   assert.equal(vpView.rows.length, htView.rows.length);
-  await assert.rejects(service.getQualityReport({ schoolYear: year.id }, teacher), { status: 403 });
+  // GV xem lớp mình (Cần chốt 03/11/2026), không có dòng tổng; HTCT vẫn chỉ BGH
+  const own = await service.getQualityReport({ schoolYear: year.id }, teacher);
+  assert.ok(own.rows.length <= htView.rows.length);
+  assert.deepEqual(own.totals, []);
+  await assert.rejects(service.getProgramCompletion({ schoolYear: year.id }, teacher), { status: 403 });
 });
 
 test('CSV guards formula prefixes and control characters, preserves numeric/quoted Vietnamese data', () => {

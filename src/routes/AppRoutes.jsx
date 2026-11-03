@@ -449,7 +449,7 @@ export function AppRoutes() {
             <Route path="daily/skills" element={only(CLASS_STAFF, <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={only(LEADERS, <AssessmentDayUnlockPage />)} />
             <Route path="overview" element={only(LEADERS, <ClassAssessmentOverviewPage />)} />
-            <Route path="quality-report" element={only(LEADERS, <QualityReportPage />)} />
+            <Route path="quality-report" element={only([...LEADERS, ...CLASS_STAFF], <QualityReportPage />)} />
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />

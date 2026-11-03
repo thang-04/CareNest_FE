@@ -5,7 +5,7 @@ import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { ROLES } from '@/models/User';
+import { isLeader } from '@/utils/assessment/assessmentPermissions';
 import { useProgramCompletion, useQualityReport } from '@/hooks/assessment/useAssessment';
 import { downloadXlsx } from '@/utils/exportXlsx';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
@@ -34,12 +34,15 @@ const GROUPS = [
 
 /**
  * Báo cáo chất lượng tháng theo Biểu sổ chỉ đạo chuyên môn PHT: mục 4.2 (Theo tháng) và 4.1 (Cả năm: trẻ ra lớp bình quân
- * từng tháng). PHT xem điểm trường mình, Hiệu trưởng toàn trường và lọc điểm trường. Chỉ xem, xuất Excel (CSV).
+ * từng tháng). HT, PHT xem mọi điểm trường và lọc điểm trường (AUTH-20); GV xem lớp mình, tổ trưởng thêm lớp nhóm tuổi
+ * mình (không có dòng tổng, không có tab HTCT). Chỉ xem, xuất Excel.
  */
 export default function QualityReportPage() {
   const { schoolYear } = useSchoolYear();
   const { user } = useAuth();
-  const isPrincipal = user?.role === ROLES.PRINCIPAL;
+  // HT, PHT xem mọi điểm trường (AUTH-20); GV, tổ trưởng chỉ lớp trong phạm vi BE trả về
+  const leader = isLeader(user);
+  const views = leader ? VIEWS : VIEWS.filter((v) => v.key !== 'program');
   const [view, setView] = useState('month');
   // Tháng đã chọn gắn với năm học: đổi năm ở header thì về tháng gần nhất của năm mới
   const [picked, setPicked] = useState({ year: schoolYear, month: '' });
@@ -55,11 +58,11 @@ export default function QualityReportPage() {
   const rows = report?.rows || [];
   const totals = report?.totals || [];
   const months = report?.months || [];
-  const campusOptions = isPrincipal && report?.allCampuses?.length ? report.allCampuses : report?.campuses || [];
-  const multiCampus = isPrincipal || campusOptions.length > 1;
+  const campusOptions = leader && report?.allCampuses?.length ? report.allCampuses : report?.campuses || [];
+  const multiCampus = leader && (campusOptions.length > 1 || !!report?.allCampuses?.length);
   const showCampus = multiCampus && !campusId && (report?.campuses?.length || 0) > 1;
   const campusName = (id) => campusOptions.find((c) => String(c.id) === String(id))?.name || id;
-  const totalLabel = (t) => LEVEL_LABELS[t.level] || (isPrincipal && !campusId ? 'Toàn trường' : 'Tổng cộng');
+  const totalLabel = (t) => LEVEL_LABELS[t.level] || (leader && !campusId ? 'Toàn trường' : 'Tổng cộng');
 
   // Mục 8 sổ chỉ đạo chuyên môn: trẻ lớp 5–6 tuổi hoàn thành chương trình (đánh giá cuối năm đã xác nhận)
   const program = view === 'program';
@@ -159,7 +162,7 @@ export default function QualityReportPage() {
       <h1 className="page__title">Chất lượng tháng</h1>
       <div className="card">
         <div className="filter-bar dg-ov-toolbar">
-          <Tabs items={VIEWS} value={view} onChange={setView} ariaLabel="Kiểu xem" />
+          <Tabs items={views} value={view} onChange={setView} ariaLabel="Kiểu xem" />
           {view === 'month' && (
             <div className="field">
               <select

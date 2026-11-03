@@ -258,8 +258,11 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     return clone({ campusIds: campuses(db, classes).map((c) => c.id), campuses: campuses(db, classes), rows, totals });
   },
   async getQualityReport(params = {}, user) {
-    const db = ensureReady(),
-      classes = leaderClasses(db, params, user);
+    const db = ensureReady();
+    // GV, tổ trưởng: lớp mình (BE thêm lớp nhóm tuổi của tổ trưởng); không có dòng tổng
+    const leader = isLeader(user);
+    if (!leader && !['TEACHER', 'TEAM_LEADER'].includes(user?.role)) deny();
+    const classes = leader ? leaderClasses(db, params, user) : scoped(db, params.schoolYear, user);
     const year = db.schoolYears.find((y) => y.id === (params.schoolYear || activeYearId(db)));
     if (!year) throw new ApiError(404, 'Không tìm thấy năm học.');
     const last = [todayIso(), year.endDate].sort()[0],
@@ -357,19 +360,20 @@ export const createAssessmentReportsMock = (ensureReady) => ({
       allCampuses: campuses(db, scoped(db, params.schoolYear, user)),
       campusIds: campuses(db, classes).map((c) => c.id),
       rows,
-      totals: rows.length
-        ? [
-            ...['NHA_TRE', 'MAU_GIAO']
-              .filter((level) => rows.some((r) => r.level === level))
-              .map((level) =>
-                total(
-                  rows.filter((r) => r.level === level),
-                  level,
+      totals:
+        leader && rows.length
+          ? [
+              ...['NHA_TRE', 'MAU_GIAO']
+                .filter((level) => rows.some((r) => r.level === level))
+                .map((level) =>
+                  total(
+                    rows.filter((r) => r.level === level),
+                    level,
+                  ),
                 ),
-              ),
-            total(rows, 'ALL'),
-          ]
-        : [],
+              total(rows, 'ALL'),
+            ]
+          : [],
     });
   },
 });

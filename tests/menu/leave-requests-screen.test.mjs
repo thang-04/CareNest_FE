@@ -29,3 +29,9 @@ test('leave list calls GET /leave-requests with the chosen filters', async () =>
   assert.equal(calls[0].url, '/leave-requests');
   assert.deepEqual(calls[0].config.params, { from: '2026-10-01', to: '2026-10-31', campusId: undefined, classId: '5' });
 });
+
+test('teachers and team leaders see the monthly quality report in the assessment menu', () => {
+  for (const role of ['TEACHER', 'TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINCIPAL']) {
+    assert.ok(keys(getMenuForRole(role, { role })).includes('assessQuality'), role);
+  }
+});
