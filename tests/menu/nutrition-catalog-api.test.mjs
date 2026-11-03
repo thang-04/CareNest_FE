@@ -539,6 +539,31 @@ test('kiểm tra thực đơn: danh mục BE ⇒ định mức, bữa, giá/ngà
   );
 });
 
+test('catalog nối BE: dữ liệu thực đơn và cấu hình nhóm tuổi tải song song, không chờ nối tiếp', async () => {
+  const { loadMenuCatalog } = await import('@/services/menu-planning/menuPlanningService');
+  const started = [];
+  let release;
+  const gate = new Promise((resolve) => (release = resolve));
+  const menuRepo = {
+    getCatalog: async () => {
+      started.push('menu');
+      await gate;
+      return { foods: [], dishes: [], menus: [] };
+    },
+  };
+  const catalogApi = {
+    getEffectiveSetups: async () => {
+      started.push('setups');
+      return { norms: {} };
+    },
+  };
+  const pending = loadMenuCatalog({ menuRepo, catalogApi, usesApi: true, today: '2026-11-03' });
+  await Promise.resolve();
+  assert.deepEqual(started.sort(), ['menu', 'setups'], 'cấu hình bắt đầu tải khi dữ liệu thực đơn chưa về');
+  release();
+  assert.deepEqual((await pending).norms, {});
+});
+
 test('kiểm tra tiền ăn tuần: giá BE theo ngày ⇒ so từng ngày; mock ⇒ tổng tuần so giá × số ngày', async () => {
   const { weekBudgetCheck } = await import('@/utils/menu-planning/menuChecks');
   const days = [

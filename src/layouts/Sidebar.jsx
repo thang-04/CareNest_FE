@@ -5,6 +5,7 @@ import { Logo } from '@/components/brand/Logo';
 import { getMenuForRole } from './menuConfig';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
+import { prefetchPath, prefetchWhenIdle } from '@/routes/routePrefetch';
 
 const OPEN_GROUPS_KEY = 'carenest.sidebar.openGroups';
 
@@ -62,6 +63,18 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
     }
   }, [open]);
 
+  // Nhóm đang mở: tải trước các trang trong nhóm khi rảnh ⇒ bấm mục kế tiếp không phải chờ chunk
+  useEffect(() => {
+    const group = menu.find((m) => m.children && open[m.label]);
+    return group ? prefetchWhenIdle(group.children.map((c) => c.to)) : undefined;
+  }, [menu, open]);
+  const prefetchGroup = (item) => () => item.children.forEach((c) => prefetchPath(c.to));
+  const prefetchItem = (to) => () => prefetchPath(to);
+  // URL đổi ngay khi bấm nhưng trang mới còn chờ chunk ⇒ bấm lại cùng mục không đẩy thêm lượt điều hướng
+  const skipIfOpening = (to) => (event) => {
+    if (window.location.pathname === to) event.preventDefault();
+  };
+
   const toggleGroup = (label) => {
     if (collapsed) {
       onExpand();
@@ -83,6 +96,9 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
           end={item.to === '/'}
           className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
           title={collapsed ? item.label : undefined}
+          onMouseEnter={prefetchItem(item.to)}
+          onFocus={prefetchItem(item.to)}
+          onClick={skipIfOpening(item.to)}
         >
           {iconChip(item)}
           <span className="nav-item__label">{item.label}</span>
@@ -102,6 +118,8 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
         <button
           type="button"
           className={`nav-item ${groupActive ? 'nav-item--group-active' : ''}`}
+          onMouseEnter={prefetchGroup(item)}
+          onFocus={prefetchGroup(item)}
           onClick={() => toggleGroup(item.label)}
           aria-expanded={expanded}
           aria-controls={subId}
@@ -118,6 +136,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
                 key={child.label}
                 to={child.to}
                 end={!!child.exact}
+                onClick={skipIfOpening(child.to)}
                 className={() => `nav-sub__item ${isActivePath(pathname, child.to, child.exact) ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
@@ -135,6 +154,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
                 to={child.to}
                 end={!!child.exact}
                 role="menuitem"
+                onClick={skipIfOpening(child.to)}
                 className={() => `nav-sub__item ${isActivePath(pathname, child.to, child.exact) ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}

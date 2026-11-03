@@ -58,9 +58,9 @@ export const useWeeklyMenu = itemHook(getWeeklyMenuById);
 export const useMenuPlans = listHook(getMenuPlans);
 
 /** Whether the signed-in user may change menu data (VP with shared school-service assignment). */
-export function useMenuAccess() {
+export function useMenuAccess({ enabled = true } = {}) {
   const { user } = useAuth();
-  const { data, loading } = useAsync(() => getMenuAccess(user), [user?.id]);
+  const { data, loading } = useAsync(() => getMenuAccess(user), [user?.id], { enabled });
   return { loading, sharedService: !!data?.sharedService, canManage: canManageMenuData(user, data) };
 }
 
@@ -70,8 +70,10 @@ export function useMenuAccess() {
  */
 export function useCatalogAccess() {
   const { user } = useAuth();
-  const menu = useMenuAccess();
-  if (!catalogUsesApi()) return { ...menu, softDelete: false };
+  const usesApi = catalogUsesApi();
+  // Danh mục dùng BE thì quyền lấy từ /accounts/me ⇒ không gọi quyền thực đơn của bản demo
+  const menu = useMenuAccess({ enabled: !usesApi });
+  if (!usesApi) return { ...menu, softDelete: false };
   return { loading: false, softDelete: true, canManage: hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE) };
 }
 

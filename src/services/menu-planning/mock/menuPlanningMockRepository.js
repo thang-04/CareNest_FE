@@ -74,6 +74,9 @@ const ensure = (db) => {
   return applyMockSeedMigration(db, 'menu-planning', 1, Object.fromEntries(COLLECTIONS.map((key) => [key, seed[key]])));
 };
 
+// Lần kiểm thực đơn tuần gần nhất: cùng ngày, cùng danh sách, cùng số phần tử ⇒ không kiểm lại
+let weeksChecked = {};
+
 /** Databases saved before this module existed get the demo data once. */
 const seeded = () => {
   const db = readDb();
@@ -86,8 +89,15 @@ const seeded = () => {
   // Định mức lưu với khóa cũ animal*Share: đổi sang khóa khớp BE một lần
   if ((readDb().nutritionSetups || []).some((x) => hasLegacyNormKeys(x.norms)))
     writeDb((d) => d.nutritionSetups.forEach((x) => (x.norms = migrateNormKeys(x.norms))));
-  // Bổ sung thực đơn tuần mẫu của những tuần gần đây (một lần mỗi tuần, khi còn thiếu)
-  if (topUpRecentWeeklyMenus(clone(readDb()), todayInput())) writeDb((d) => topUpRecentWeeklyMenus(d, todayInput()));
+  // Bổ sung thực đơn tuần mẫu của những tuần gần đây (một lần mỗi tuần, khi còn thiếu).
+  // Kiểm trên bản sao nông của danh sách thực đơn tuần (hàm chỉ thêm phần tử), không clone cả DB demo mỗi lần đọc
+  const today = todayInput();
+  const weeks = readDb().weeklyMenus;
+  if (weeksChecked.today !== today || weeksChecked.list !== weeks || weeksChecked.length !== weeks?.length) {
+    if (topUpRecentWeeklyMenus({ weeklyMenus: weeks ? [...weeks] : weeks }, today)) writeDb((d) => topUpRecentWeeklyMenus(d, today));
+    const list = readDb().weeklyMenus;
+    weeksChecked = { today, list, length: list?.length };
+  }
   return readDb();
 };
 
