@@ -134,7 +134,8 @@ test('dòng chưa đặt định mức ⇒ NA "chưa đặt định mức"; tỷ
   const s2 = withShare.find((r) => r.key === 'animalProteinPct');
   assert.deepEqual([s2.min, s2.max, s2.status], [70, 80, 'LOW']);
   // Có định mức tỷ lệ động vật nhưng chưa có 4 định mức chính: dòng đó vẫn được đánh giá riêng
-  assert.equal(compareToNorm(t, 'ag-4', false, { 'ag-4': { animalProteinPct: [50, 80] } }).at(-2).status, 'OK');
+  const onlyShare = compareToNorm(t, 'ag-4', false, { 'ag-4': { animalProteinPct: [50, 80] } });
+  assert.equal(onlyShare.find((r) => r.key === 'animalProteinPct').status, 'OK');
 });
 
 test('thiếu số liệu dinh dưỡng hoặc nguồn gốc ⇒ chưa đủ dữ liệu: vẫn cộng phần đã biết, liệt kê thực phẩm, không đánh giá', () => {
@@ -162,7 +163,8 @@ test('kiểm tra tự động (thực đơn mẫu, tuần, AI): thiếu nguồn 
   const sample = catalog.menus.find((m) => m.ageGroupId === 'ag-4' && m.meals.length);
   const ok = checkDayMenu({ meals: sample.meals, ageGroupId: 'ag-4', catalog, date: '2026-10-20' });
   assert.notEqual(ok.status.label, 'Chưa đủ dữ liệu đánh giá');
-  assert.equal(ok.rows.length, 6);
+  // 4 chỉ số chính + 2 tỷ lệ cơ cấu + 8 vi chất (NUT-26, không bắt buộc)
+  assert.equal(ok.rows.length, 14);
   const usedFoodId = catalog.dishById[sample.meals.find((m) => m.items.length).items[0].dishId].ingredients[0].foodId;
   const foodById = { ...catalog.foodById, [usedFoodId]: { ...catalog.foodById[usedFoodId], origin: '' } };
   const bad = checkDayMenu({ meals: sample.meals, ageGroupId: 'ag-4', catalog: { ...catalog, foodById }, date: '2026-10-20' });
@@ -212,9 +214,7 @@ test('form thực phẩm bắt buộc nguồn gốc; định mức tỷ lệ đ�
   const blank = { animalProteinG: ['', ''], plantLipidG: ['', ''], lunchKcalPct: ['', ''] };
   assert.deepEqual(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group({ ...core, ...blank })] }, '2026-10-20'), {});
   const partial = { ...core, ...blank, animalProteinG: ['12', ''] };
-  assert.ok(
-    validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(partial)] }, '2026-10-20')['ag-4.norms.animalProteinG'],
-  );
+  assert.ok(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(partial)] }, '2026-10-20')['ag-4.norms.animalProteinG']);
   // Gam không giới hạn 100; % năng lượng bữa thì có
   const grams = { ...core, ...blank, plantLipidG: ['90', '120'] };
   assert.deepEqual(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(grams)] }, '2026-10-20'), {});
@@ -250,7 +250,8 @@ test('localStorage cũ chưa có nguồn gốc: bổ sung theo nhóm một lần
 
 test('nhập file: cột Nguồn gốc đọc nhãn Động vật/Thực vật; trống thì dòng mới lấy theo nhóm', () => {
   const header = IMPORT_COLUMNS.map(([, label]) => label);
-  assert.equal(header.at(-1), 'Nguồn gốc');
+  // Sau cột Nguồn gốc là 8 cột vi chất không bắt buộc (NUT-26)
+  assert.equal(header.at(-9), 'Nguồn gốc');
   const row = (name, group, origin) => ['', name, group, 'g', 'kg', 1000, 10000, 0, 100, 10, 1, 1, '', 'Tươi', 'Bảng TPVN', '2017', origin];
   const r = matchFoodRows(
     [header, row('Cá trắm', 'Thủy hải sản', ''), row('Mỡ lợn', 'Dầu, đường', 'Động vật'), row('X', 'Rau, củ', 'Nấm')],

@@ -6,6 +6,7 @@ import {
   DISH_TYPE_LABELS,
   FOOD_GROUP_LABELS,
   FOOD_ORIGIN_LABELS,
+  MICRONUTRIENTS,
 } from '@/models/menu-planning/menuPlanningConstants';
 import { applyReplacements, byId, missingPortionGroups, restrictedConflicts } from '@/utils/menu-planning/menuCalculations';
 
@@ -53,6 +54,11 @@ export const validateFood = (form, others = []) => {
     if (!isNum(v) || Number(v) < 0) e[k] = 'Nhập số không âm.';
     else if (k !== 'kcal' && Number(v) > 100) e[k] = 'Tối đa 100 g trên 100 g thực phẩm.';
     else if (k === 'kcal' && Number(v) > 900) e[k] = 'Tối đa 900 kcal trên 100 g.';
+  });
+  // Vi chất không bắt buộc (BE NUT-26): để trống được, đã nhập thì phải là số không âm
+  MICRONUTRIENTS.forEach((k) => {
+    const v = form.nutrition?.[k];
+    if (v !== '' && v != null && (!isNum(v) || Number(v) < 0)) e[k] = 'Nhập số không âm.';
   });
   return e;
 };
@@ -131,8 +137,20 @@ export const validateNutritionSetup = (form, today, { mealsReadOnly = false, min
     const blank = (v) => v === '' || v == null;
     const norms = Object.entries(g.norms || {});
     if (norms.every(([, range]) => (range || []).every(blank))) return;
-    const coreBlank = norms.filter(([k]) => !OPTIONAL_NORM_KEYS.includes(k)).every(([, range]) => (range || []).every(blank));
+    const coreBlank = norms
+      .filter(([k]) => !OPTIONAL_NORM_KEYS.includes(k) && !MICRONUTRIENTS.includes(k))
+      .every(([, range]) => (range || []).every(blank));
     norms.forEach(([k, range]) => {
+      if (MICRONUTRIENTS.includes(k)) {
+        // Vi chất (BE NUT-26): không bắt buộc; có tối thiểu là đủ, tối đa để trống = chỉ cần đạt tối thiểu
+        const [min, max] = range || [];
+        if (blank(min) && blank(max)) return;
+        if (!isNum(min)) e[`${key}.norms.${k}`] = 'Nhập số tối thiểu.';
+        else if (!blank(max) && !isNum(max)) e[`${key}.norms.${k}`] = 'Nhập số hợp lệ.';
+        else if (Number(min) < 0 || (!blank(max) && Number(min) > Number(max)))
+          e[`${key}.norms.${k}`] = 'Số đầu phải nhỏ hơn hoặc bằng số sau.';
+        return;
+      }
       if (OPTIONAL_NORM_KEYS.includes(k) && (range || []).every(blank)) return;
       if (!OPTIONAL_NORM_KEYS.includes(k) && coreBlank) return;
       const [min, max] = range || [];

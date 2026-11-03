@@ -1,6 +1,12 @@
 import { readDb, writeDb, clone, delay, ApiError, applyMockSeedMigration, needsMockSeedMigration } from '@/mocks/mockDatabase';
 import { pushNotification } from '@/mocks/notificationMockRepository';
-import { DEMO_NUTRIENT_SOURCE, buildSeedMenuPlanning, topUpRecentWeeklyMenus } from '@/mocks/menuPlanningSeed';
+import {
+  DEMO_NUTRIENT_SOURCE,
+  buildSeedMenuPlanning,
+  seedMicroNormsOf,
+  seedMicronutrientsOf,
+  topUpRecentWeeklyMenus,
+} from '@/mocks/menuPlanningSeed';
 import { buildReferenceLibrary } from '@/mocks/menuReferenceSeed';
 import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import { uid } from '@/utils/id';
@@ -15,6 +21,7 @@ import {
   DISH_STATUS,
   DISH_TYPE,
   FOOD_ORIGIN_LABELS,
+  MICRONUTRIENTS,
   RECORD_STATUS,
   WEEKLY_STATUS,
   addDays,
@@ -86,6 +93,17 @@ const seeded = () => {
     writeDb((d) => d.foods.forEach((f) => (f.nutrientSource ??= DEMO_NUTRIENT_SOURCE)));
   // Thực phẩm lưu trước khi có nguồn gốc động vật/thực vật: gán theo nhóm một lần
   if ((readDb().foods || []).some((f) => f.origin == null)) writeDb((d) => d.foods.forEach((f) => (f.origin ??= defaultOriginOf(f.group))));
+  // Dữ liệu lưu trước khi có vi chất (BE NUT-26): thêm số liệu mẫu cho thực phẩm mẫu và định mức mẫu, một lần
+  if (Number(readDb().mockSeedVersions?.['menu-micronutrients'] || 0) < 1)
+    writeDb((d) => {
+      (d.foods || []).forEach((f) => {
+        if (f.nutrition && !('calcium' in f.nutrition)) Object.assign(f.nutrition, seedMicronutrientsOf(f.id));
+      });
+      (d.nutritionSetups || []).forEach((x) => {
+        if (x.norms && !('calcium' in x.norms)) Object.assign(x.norms, seedMicroNormsOf(x.ageGroupId));
+      });
+      d.mockSeedVersions = { ...(d.mockSeedVersions || {}), 'menu-micronutrients': 1 };
+    });
   // Định mức lưu với khóa cũ animal*Share: đổi sang khóa khớp BE một lần
   if ((readDb().nutritionSetups || []).some((x) => hasLegacyNormKeys(x.norms)))
     writeDb((d) => d.nutritionSetups.forEach((x) => (x.norms = migrateNormKeys(x.norms))));
@@ -198,6 +216,7 @@ const sanitizeFood = (p) => ({
     protein: numOrNull(p.nutrition?.protein),
     lipid: numOrNull(p.nutrition?.lipid),
     glucid: numOrNull(p.nutrition?.glucid),
+    ...Object.fromEntries(MICRONUTRIENTS.map((k) => [k, numOrNull(p.nutrition?.[k])])),
   },
   origin: FOOD_ORIGIN_LABELS[p.origin] ? p.origin : '',
   nutrientSource: String(p.nutrientSource || '').trim(),
@@ -228,7 +247,8 @@ const sanitizeSetup = (g) => ({
   norms: Object.fromEntries(
     Object.entries(g.norms || {})
       .filter(([, range]) => (range || []).some((v) => v !== '' && v != null))
-      .map(([k, range]) => [k, range.map(Number)]),
+      // Vi chất được để trống số sau (chỉ cần đạt tối thiểu) ⇒ giữ null, không thành 0
+      .map(([k, range]) => [k, range.map((v) => (v === '' || v == null ? null : Number(v)))]),
   ),
 });
 
