@@ -63,6 +63,7 @@ const AttendanceDayUnlockPage = lazy(() => import('@/pages/attendance/Attendance
 const AttendanceSummaryPage = lazy(() => import('@/pages/attendance/AttendanceSummaryPage'));
 const MealCountPage = lazy(() => import('@/pages/attendance/MealCountPage'));
 const MealHandoverPage = lazy(() => import('@/pages/attendance/MealHandoverPage'));
+const LeaveRequestsPage = lazy(() => import('@/pages/attendance/LeaveRequestsPage'));
 const DailyHealthOverviewPage = lazy(() => import('@/pages/attendance/DailyHealthOverviewPage'));
 const PickupListPage = lazy(() => import('@/pages/pickup/PickupListPage'));
 const PickupVerifyPage = lazy(() => import('@/pages/pickup/PickupVerifyPage'));
@@ -397,6 +398,7 @@ export function AppRoutes() {
             <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MealCountPage />)} />
             <Route path="meal-handover" element={only([...CLASS_STAFF, R.KITCHEN_STAFF], <MealHandoverPage />)} />
             <Route path="health" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <DailyHealthOverviewPage />)} />
+            <Route path="leave-requests" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <LeaveRequestsPage />)} />
           </Route>
           <Route path="pickup">
             <Route index element={only(CLASS_STAFF, <PickupListPage />)} />

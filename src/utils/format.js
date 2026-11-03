@@ -74,3 +74,11 @@ export const initials = (name) =>
 
 /** Chỉ số màu pastel 0–4 cố định theo tên (avatar chữ cái; chỉ trang trí). */
 export const avatarTone = (name) => [...String(name || '')].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 5;
+
+/** Ngày đầu, ngày cuối của tháng chứa ngày ISO `date` (YYYY-MM-DD), không qua múi giờ. */
+export const monthRangeOf = (date) => {
+  const [y, m] = String(date).split('-').map(Number);
+  const mm = String(m).padStart(2, '0');
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(last).padStart(2, '0')}` };
+};

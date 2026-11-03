@@ -14,7 +14,12 @@ import {
   Send,
 } from '@/components/ui/icons';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
-import { ATTENDANCE_STATUS_LABELS, HANDOVER_STATUS_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
+import {
+  ATTENDANCE_STATUS_LABELS,
+  HANDOVER_STATUS_LABELS,
+  LEAVE_STATUS_LABELS,
+  MEAL_COUNT_STATUS_LABELS,
+} from '@/models/attendance/attendanceConstants';
 
 /* Tones follow DESIGN.md §3.2 */
 export const AttendanceStatusBadge = createStatusBadge(
@@ -67,3 +72,5 @@ export const ParentNotifyBadge = createStatusBadge(PARENT_NOTIFY_STYLE, {
 
 /** Nhãn ngắn cho dòng thu gọn. */
 export const ParentNotifyShortBadge = createStatusBadge(PARENT_NOTIFY_STYLE, { PENDING: 'Chưa gửi PH', DEMO_QUEUED: 'Đã gửi PH' });
+
+export const LeaveStatusBadge = createStatusBadge({ ACTIVE: ['green', CheckCircle2], CANCELLED: ['gray', Clock] }, LEAVE_STATUS_LABELS);

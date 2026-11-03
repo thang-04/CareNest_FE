@@ -167,6 +167,8 @@ const ITEMS = {
   attendance: {
     label: 'Điểm danh & báo ăn',
     to: '/attendance',
+    // Chỉ sáng ở màn điểm danh, không sáng cùng các màn con /attendance/*
+    exact: true,
   },
   attendanceSummary: {
     label: 'Tổng hợp điểm danh',
@@ -183,6 +185,10 @@ const ITEMS = {
   dailyHealthOverview: {
     label: 'Sức khỏe trong ngày',
     to: '/attendance/health',
+  },
+  leaveRequests: {
+    label: 'Đơn nghỉ của phụ huynh',
+    to: '/attendance/leave-requests',
   },
   pickup: {
     label: 'Đón trẻ',
@@ -368,7 +374,7 @@ const MENUS = {
       'schoolRoles',
     ]),
     group('children', ['childList', 'parentActivation', 'healthChecks', 'healthFollowUps', 'healthTrends']),
-    group('attendance', ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('attendance', ['attendanceSummary', 'leaveRequests', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -408,7 +414,7 @@ const MENUS = {
       'healthFollowUps',
       'healthTrends',
     ]),
-    group('attendance', ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('attendance', ['attendanceSummary', 'leaveRequests', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
@@ -431,7 +437,7 @@ const MENUS = {
     link('home'),
     link('approvals'),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
-    group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
+    group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
     account,
@@ -440,7 +446,7 @@ const MENUS = {
   [ROLES.TEACHER]: [
     link('home'),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
-    group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
+    group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
     group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
     account,

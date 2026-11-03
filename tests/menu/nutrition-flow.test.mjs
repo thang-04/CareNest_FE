@@ -62,7 +62,7 @@ test('ẩn Danh mục và Dinh dưỡng khi PHT chưa được giao mảng; gi�
   );
   assert.deepEqual(
     entries.find((entry) => entry.key === 'attendance').children.map((entry) => entry.key),
-    ['attendanceSummary', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview'],
+    ['attendanceSummary', 'leaveRequests', 'mealCount', 'attendanceDayUnlocks', 'dailyHealthOverview'],
   );
 });
 
