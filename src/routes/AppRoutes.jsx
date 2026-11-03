@@ -114,7 +114,13 @@ const DryStockPage = lazy(() => import('@/pages/kitchen/DryStockPage'));
 const FoodSampleLogPage = lazy(() => import('@/pages/kitchen/FoodSampleLogPage'));
 const WeeklyForecastPage = lazy(() => import('@/pages/kitchen/WeeklyForecastPage'));
 const FreshReceiptPage = lazy(() => import('@/pages/kitchen/FreshReceiptPage'));
+const FreshForecastPage = lazy(() => import('@/pages/kitchen/FreshForecastPage'));
+const FreshCheckPage = lazy(() => import('@/pages/kitchen/FreshCheckPage'));
 const PublishedMenuPage = lazy(() => import('@/pages/kitchen/PublishedMenuPage'));
+const KitchenTodayPage = lazy(() => import('@/pages/kitchen/KitchenTodayPage'));
+const FoodSampleQueuePage = lazy(() => import('@/pages/kitchen/FoodSampleQueuePage'));
+const MealPhotosPage = lazy(() => import('@/pages/kitchen/MealPhotosPage'));
+const MealPhotoWindowsPage = lazy(() => import('@/pages/kitchen/MealPhotoWindowsPage'));
 const ConfirmedMealCountPage = lazy(() => import('@/pages/kitchen/ConfirmedMealCountPage'));
 const RequiredFoodQuantityPage = lazy(() => import('@/pages/kitchen/RequiredFoodQuantityPage'));
 const MissingFoodReportPage = lazy(() => import('@/pages/kitchen/MissingFoodReportPage'));
@@ -170,6 +176,8 @@ const SUPPLIER_EDITORS = CATALOG_API ? LEADERS : [R.PRINCIPAL];
 const BOARDING_API = !isDemoModule('day-board');
 const MEAL_PLAN_API = !isDemoModule('meal-plan');
 const DRY_STOCK_API = !isDemoModule('dry-stock');
+const FRESH_GOODS_API = !isDemoModule('fresh-goods');
+const KITCHEN_RECORDS_API = !isDemoModule('kitchen-records');
 const STOCK_RECEIPT_ROLES = DRY_STOCK_API ? LEADERS : VP_ONLY;
 const DENIED = 'Chức năng này không thuộc quyền của vai trò hiện tại (theo ma trận phân quyền của hệ thống).';
 
@@ -384,9 +392,13 @@ export function AppRoutes() {
               path="stock-shortfalls"
               element={only(LEADERS, DRY_STOCK_API ? <DryStockLedgerPage tab="shortfalls" /> : <DryStockPage />)}
             />
-            <Route path="food-samples" element={only(LEADERS, <FoodSampleLogPage />)} />
-            <Route path="forecast" element={only(LEADERS, <WeeklyForecastPage />)} />
-            <Route path="fresh-receipts" element={only(LEADERS, <FreshReceiptPage />)} />
+            <Route path="food-samples" element={only(LEADERS, KITCHEN_RECORDS_API ? <FoodSampleQueuePage /> : <FoodSampleLogPage />)} />
+            {KITCHEN_RECORDS_API && <Route path="meal-photos" element={only(LEADERS, <MealPhotosPage />)} />}
+            {KITCHEN_RECORDS_API && <Route path="photo-windows" element={only(LEADERS, <MealPhotoWindowsPage />)} />}
+            <Route path="forecast" element={only(LEADERS, FRESH_GOODS_API ? <FreshForecastPage /> : <WeeklyForecastPage />)} />
+            {FRESH_GOODS_API && <Route path="forecast/new" element={only(LEADERS, <FreshForecastPage mode="new" />)} />}
+            {FRESH_GOODS_API && <Route path="forecast/:id" element={only(LEADERS, <FreshForecastPage mode="detail" />)} />}
+            <Route path="fresh-receipts" element={only(LEADERS, FRESH_GOODS_API ? <FreshCheckPage /> : <FreshReceiptPage />)} />
             <Route
               path="stock-receipts"
               element={only(STOCK_RECEIPT_ROLES, DRY_STOCK_API ? <DryStockLedgerPage tab="receipts" /> : <StockReceiptListPage />)}
@@ -405,7 +417,7 @@ export function AppRoutes() {
             <Route path="suppliers/new" element={<Navigate to="/menu/suppliers/new" replace />} />
             <Route path="suppliers/:id" element={<SupplierRedirect />} />
             <Route path="suppliers/:id/edit" element={<SupplierRedirect suffix="/edit" />} />
-            <Route path="published-menu" element={only(LEADERS, <PublishedMenuPage />)} />
+            <Route path="published-menu" element={only(LEADERS, KITCHEN_RECORDS_API ? <KitchenTodayPage /> : <PublishedMenuPage />)} />
             <Route path="meal-count" element={only(LEADERS, <ConfirmedMealCountPage />)} />
             <Route path="required-quantity" element={only(VP_ONLY, <RequiredFoodQuantityPage />)} />
             <Route path="missing-food" element={only(VP_ONLY, <MissingFoodReportPage />)} />

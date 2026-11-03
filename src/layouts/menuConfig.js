@@ -19,6 +19,8 @@ import { ROLES } from '@/models/User';
 import { areaAccess, canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
 import { hasBePermission } from '@/utils/account/accountPermissions';
 import { PERMISSIONS } from '@/models/account/permissionConstants';
+import { USE_MOCK } from '@/config/env';
+import { INTEGRATION_MODULES } from '@/config/integrationModules';
 
 /*
  * Sidebar menu – single source of truth.
@@ -294,6 +296,14 @@ const ITEMS = {
     label: 'Thực đơn bếp nhận',
     to: '/kitchen/published-menu',
   },
+  mealPhotos: {
+    label: 'Ảnh bữa ăn',
+    to: '/kitchen/meal-photos',
+  },
+  photoWindows: {
+    label: 'Khung giờ ảnh bữa',
+    to: '/kitchen/photo-windows',
+  },
   boardingToday: {
     label: 'Bán trú hôm nay',
     to: '/boarding/today',
@@ -397,7 +407,7 @@ const MENUS = {
       nutrition: ['weeklyMenus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['foodSamples'],
+      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -439,9 +449,9 @@ const MENUS = {
     ...boardingGroups({
       today: ['boardingToday'],
       nutrition: ['weeklyMenus', 'menus', 'nutrition'],
-      kitchenOps: ['mealCount', 'forecast', 'freshReceipts'],
+      kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['foodSamples'],
+      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -561,5 +571,15 @@ const withBePermissions = (menu, user) =>
         : e,
     )
     .filter((e) => !e.children || e.children.length > 0);
+// Màn chỉ có khi nối BE (build mock không có route) ⇒ ẩn mục ở build demo
+// Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
+const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
+const API_ONLY_ITEMS = !KITCHEN_RECORDS_API ? ['mealPhotos', 'photoWindows'] : [];
+const withApiOnlyItems = (menu) =>
+  API_ONLY_ITEMS.length
+    ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))
+    : menu;
 export const getMenuForRole = (role, user) =>
-  withBePermissions(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user), user);
+  withApiOnlyItems(
+    withBePermissions(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user), user),
+  );

@@ -13,7 +13,6 @@ const MEAL_COUNT_STATUS = {
   NEEDS_RECONFIRMATION: ['red', 'Cần xác nhận lại'],
   CONFIRMED: ['green', 'Đã xác nhận'],
 };
-const NOT_AVAILABLE = ['gray', 'Chưa triển khai'];
 
 const withQuery = (path, query) => {
   const search = new URLSearchParams(Object.entries(query).filter(([, v]) => v != null && v !== '')).toString();
@@ -95,25 +94,64 @@ const dryStockRow = (campus) => {
   };
 };
 
-// Hàng tươi, lưu mẫu chưa nối BE: nút tới màn demo (màn đó tự có nhãn "Dữ liệu demo")
-const pendingRow = (key, title, code, detail, action) => {
-  const [tone, status] = code === 'NOT_AVAILABLE' ? NOT_AVAILABLE : UNKNOWN;
-  return { key, title, tone, status, detail: code === 'NOT_AVAILABLE' ? detail : '', actions: [{ ...action, demo: true }] };
+const FRESH_STATUS = {
+  NO_FORECAST: ['gray', 'Chưa có bản dự trù', 'Chưa có bản dự trù hàng tươi cho ngày này nên chưa kiểm nhận lần 1.'],
+  ROUND1_PENDING: ['orange', 'Chờ kiểm lần 1', 'Kiểm nhận hàng tươi lần 1 so với bản dự trù.'],
+  ROUND1_DONE: ['blue', 'Đã kiểm lần 1', 'Chờ số suất ăn được xác nhận để kiểm nhận lần 2.'],
+  ROUND2_PENDING: ['orange', 'Chờ kiểm lần 2', 'Kiểm nhận hàng tươi lần 2 so với suất đã xác nhận.'],
+  DONE: ['green', 'Đã kiểm đủ 2 lần', 'Hàng tươi hôm nay đã kiểm nhận cả hai lần.'],
+  DAY_OFF: ['gray', 'Ngày nghỉ', 'Hôm nay không nhận hàng tươi.'],
+};
+
+const freshReceiptRow = (campus, date) => {
+  const [tone, status, detail] = FRESH_STATUS[campus.freshReceiptStatus] || [...UNKNOWN, ''];
+  const noForecast = campus.freshReceiptStatus === 'NO_FORECAST';
+  return {
+    key: 'freshReceipt',
+    title: 'Hàng tươi lần 1/2',
+    tone,
+    status,
+    detail,
+    actions: [
+      noForecast
+        ? { label: 'Lập bản dự trù', to: withQuery('/kitchen/forecast', { campusId: campus.campusId }) }
+        : { label: 'Kiểm nhận', to: withQuery('/kitchen/fresh-receipts', { campusId: campus.campusId, date }) },
+    ],
+  };
+};
+
+const FOOD_SAMPLE_STATUS = {
+  UP_TO_DATE: ['green', 'Đã duyệt hết', 'Không còn bản lưu mẫu hay hủy mẫu chờ duyệt.'],
+  NONE: ['gray', 'Chưa có bản lưu mẫu', 'Bếp chưa ghi lưu mẫu nào cho ngày này.'],
+};
+
+const foodSampleRow = (campus, date) => {
+  const pending = campus.foodSampleStatus === 'PENDING_APPROVAL';
+  const [tone, status, detail] = pending
+    ? ['purple', `${campus.foodSamplePendingCount ?? 0} chờ duyệt`, 'Bản lưu mẫu hoặc hủy mẫu của điểm trường đang chờ duyệt (mọi ngày).']
+    : FOOD_SAMPLE_STATUS[campus.foodSampleStatus] || [...UNKNOWN, ''];
+  return {
+    key: 'foodSample',
+    title: 'Lưu mẫu chờ duyệt',
+    tone,
+    status,
+    detail,
+    actions: [
+      {
+        label: pending ? 'Duyệt lưu mẫu' : 'Sổ lưu mẫu',
+        to: withQuery('/kitchen/food-samples', {
+          campusId: campus.campusId,
+          ...(pending ? { status: 'pending' } : { to: date, from: date }),
+        }),
+      },
+    ],
+  };
 };
 
 export const buildDayBoardRows = (campus, { date } = {}) => [
   menuRow(campus || {}),
   mealCountRow(campus || {}, date),
   dryStockRow(campus || {}),
-  pendingRow(
-    'freshReceipt',
-    'Hàng tươi lần 1/2',
-    campus?.freshReceiptStatus,
-    'Kiểm nhận hàng tươi chưa nối hệ thống. Nút bên phải mở màn demo.',
-    { label: 'Kiểm nhận (demo)', to: '/kitchen/fresh-receipts' },
-  ),
-  pendingRow('foodSample', 'Lưu mẫu chờ duyệt', campus?.foodSampleStatus, 'Lưu mẫu thức ăn chưa nối hệ thống. Nút bên phải mở màn demo.', {
-    label: 'Lưu mẫu (demo)',
-    to: '/kitchen/food-samples',
-  }),
+  freshReceiptRow(campus || {}, date),
+  foodSampleRow(campus || {}, date),
 ];

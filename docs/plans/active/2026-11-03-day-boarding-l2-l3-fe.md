@@ -64,6 +64,12 @@ Chuyển dữ liệu → dòng bằng hàm thuần `src/utils/boarding/dayBoardR
 - Tests: AC-3, AC-5 → `tests/kitchen/day-board.test.mjs`, layout test
 - Exit mỗi phase: `node scripts/verify.mjs` → `VERIFY PASS`; Phase 3 thêm build `VITE_USE_MOCK=false`, chạy với BE docker local, ảnh chụp hub + kế hoạch tuần.
 
+## L5 (Web) — bếp hôm nay, lưu mẫu, ảnh bữa, khung giờ ảnh
+BE spec: `CareNest_BE-day-boarding:docs/plans/active/2026-11-03-day-boarding-l5-l6-kitchen-parent.md` (Phase 1). Bếp dùng App (AUTH-21), màn App để đợt sau; Web chỉ xem + duyệt.
+- Module `kitchen-records` (`source: api`) thắng `/kitchen` demo cho 4 route: `/kitchen/published-menu` (`KitchenTodayPage`, thay trang demo khi nối BE), `/kitchen/food-samples` (`FoodSampleQueuePage`: hàng chờ duyệt + in biểu mẫu chung qua `PrintToolbar`), `/kitchen/meal-photos` (`MealPhotosPage`), `/kitchen/photo-windows` (`MealPhotoWindowsPage`, HT sửa, PHT xem). Build mock giữ `PublishedMenuPage`/`FoodSampleLogPage` qua `isDemoModule`.
+- Files: C `src/services/kitchenRecordsApi.js`, `src/hooks/kitchen/useKitchenRecords.js`, `src/utils/kitchen/kitchenRecords.js`, `src/models/kitchen/kitchenRecordConstants.js`, `src/components/kitchen/{SampleRecordBadges,FoodSampleFormPrint}.jsx`, 4 trang trên, `src/styles/modules/kitchen-records.css` · M `beClient.js` (+`getBlob`), `dayBoardRows.js` (hàng lưu mẫu), `integrationModules.js`, `be-api-routes.json`, `AppRoutes.jsx`, `day-board.test.mjs`
+- Tests: `tests/kitchen/kitchen-records-api.test.mjs`, `day-board.test.mjs`.
+
 ## Rủi ro & rollback
 | Rủi ro | Tác động | Giảm thiểu | Rollback |
 | --- | --- | --- | --- |
@@ -97,3 +103,23 @@ Chuyển dữ liệu → dòng bằng hàm thuần `src/utils/boarding/dayBoardR
 - Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`
 - BE thêm `dryStock.status = NOT_SYNCED` và `POST /nutrition/stock/days/{date}/sync?campusId`. FE: `dayBoardApi.syncStockDay`, `dayBoardRows` (đỏ "Chưa trừ n thực phẩm", nút đồng bộ + link lịch sử), nút trên `BoardingTodayPage` (toast, nạp lại). `be-api-routes.json` thêm route. Test `tests/kitchen/day-board.test.mjs` +2.
 - Kiểm stack `carenest_l3`: hub CS-A 05/11 "Chưa trừ 3 thực phẩm" → "Đồng bộ kho" → "Đã trừ 3 thực phẩm".
+
+### 2026-11-03 — L4: hàng tươi (bản dự trù + kiểm nhận hai lần) nối BE
+- Commit: chưa commit
+- **Đã làm:** `src/services/freshGoodsApi.js` (factory nhận `client`; `toForecastRequest`, `toCheckRequest` đổi số thực nhận đơn vị mua → đơn vị gốc, thêm `purchase*` khi đọc) + module `fresh-goods` (`source: 'api'`, route `/kitchen/forecast`, `/kitchen/fresh-receipts`) + 7 route trong `be-api-routes.json` (thêm tay). Trang: `FreshForecastPage` (`/kitchen/forecast` danh sách, `/new` lập: chọn kỳ → xem trước BE → sửa số trẻ dự kiến → "Tính lại" → lưu, `/:id` xem, in danh sách đặt hàng qua `PrintToolbar`, xóa có xác nhận) và `FreshCheckPage` (`/kitchen/fresh-receipts`: ngày + điểm trường, hai thẻ lần 1/lần 2, Đủ/Thiếu/Thừa, chỉ xem khi `canManage` sai, lần chưa mở hiện `unavailableReason`). Build mock giữ `WeeklyForecastPage`/`FreshReceiptPage` qua `isDemoModule`. Hub `dayBoardRows`: 6 trạng thái hàng tươi (bỏ nhãn demo), NO_FORECAST trỏ `/kitchen/forecast?campusId=`. Thêm `BE_ERROR_FIELDS[6041] = 'periodTo'`; nhãn breadcrumb `forecast` đổi thành "Bản dự trù hàng tươi".
+- **Giả định cần BE/user soát:** (1) lần kiểm đã ghi nhận vẫn sửa lại được bằng PUT khi `canManage` (nút "Cập nhật kiểm nhận"); BE từ chối thì hiện lỗi BE. (2) Kỳ mặc định = hôm nay → hôm nay; thứ tự ngày và ≤ 31 ngày do BE kiểm (6041). (3) Lưu bản dự trù chỉ bấm được khi bảng khớp kỳ + số trẻ đang nhập (so khóa nhập, không tính lại số); đổi ghi chú không cần tính lại. (4) Nút "Lập bản dự trù" ẩn theo `STOCK_MANAGE` (chỉ ẩn/hiện), BE vẫn kiểm; chi tiết dùng `canManage` BE trả. (5) "Đánh dấu tất cả Đủ" chỉ điền ô kết quả hộ người dùng, không gửi tự động. (6) Tông kết quả: Đủ xanh lá, Thiếu đỏ, Thừa cam (DESIGN §3.2). (7) Hub: ROUND1_DONE tông xanh dương "Đã kiểm lần 1" kèm chi tiết chờ suất; DAY_OFF vẫn có nút "Kiểm nhận".
+- **Test:** `tests/kitchen/fresh-goods-api.test.mjs` (10 ca: path/body, đổi đơn vị, form, route), `day-board.test.mjs` sửa theo trạng thái hàng tươi mới.
+- **Chưa làm:** chạy với BE thật (BE L4 đang làm song song); chưa chụp ảnh.
+
+### 2026-11-03 — L5 (Web): bếp hôm nay, lưu mẫu, ảnh bữa, khung giờ ảnh, hub
+- Commit: chưa commit
+- Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`; `VITE_USE_MOCK=false npx vite build --outDir <temp>` qua. Chưa chạy với BE thật, chưa chụp ảnh.
+- **Đã làm:** xem mục "L5 (Web)" ở trên. `beClient.getBlob` tải ảnh qua client có token (đọc lại JSON lỗi trong blob); `useMealPhotoUrl` đổi sang object URL và thu hồi khi đổi ảnh/rời màn. Hub `dayBoardRows`: lưu mẫu `PENDING_APPROVAL` (tông tím, "n chờ duyệt", link `/kitchen/food-samples?campusId=&status=pending`), `UP_TO_DATE`, `NONE`; bỏ nhãn "Chưa triển khai / demo". Sửa `tests/menu/nutrition-catalog-api.test.mjs`: `/kitchen/published-menu`, `/food-samples`, `/meal-photos`, `/photo-windows` nay thuộc module api (đổi có chủ đích); demo còn lại kiểm bằng `/kitchen/missing-food`.
+- **Giả định (chờ soát):** (1) Nút duyệt theo cờ `canApprove` của từng bản ghi BE; 403/409 hiện thông điệp BE, 409 nạp lại. (2) Khoảng ngày mặc định 30 ngày gần nhất; hub trỏ `status=pending` (lọc chờ duyệt phía FE = `status RECORDED` hoặc `disposalStatus RECORDED`, cùng nghĩa số chờ ở hub, mọi ngày trong khoảng chọn — hub đếm mọi ngày nên bản cũ hơn 30 ngày không hiện, chỉnh "Từ ngày" để xem). (3) Biểu mẫu in = bản chung (P-26 mở), chỉ bản `APPROVED`, ô ký để trống. (4) Khung giờ: chỉ HT sửa (`isPrincipal`), bữa để trống cả hai ô = giữ nguyên (không gửi), BE là nơi kiểm quyền (6072). (5) Không tính tổng suất ở FE; chỉ hiện từng lớp × bữa BE trả. (6) Không thêm mục menu Web cho Ảnh bữa/Khung giờ ảnh (`menuConfig.js` thuộc phiên khác): vào qua nút trên Bếp hôm nay và Ảnh bữa; PHT chưa có mục menu "Bếp hôm nay" (vào qua hub).
+
+### 2026-11-03 — Menu Web cho màn L5
+- Commit: chưa commit
+- Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`
+- `menuConfig`: PHT thêm "Thực đơn bếp nhận" (`/kitchen/published-menu`, BE `GET /nutrition/kitchen/day` cho HT, PHT); nhóm an toàn thực phẩm HT, PHT thêm "Ảnh bữa ăn", "Khung giờ ảnh bữa" — chỉ khi `kitchen-records` nối BE (build mock không có route). Không import `demoSource` trong menu (kéo `mockDatabase` cần `window`, vỡ test node) ⇒ đọc `USE_MOCK` + `INTEGRATION_MODULES`.
+- Test: `tests/kitchen/web-boarding-layout.test.mjs` +1; `tests/menu/nutrition-flow.test.mjs` cập nhật kỳ vọng nhóm việc bếp của PHT.
+

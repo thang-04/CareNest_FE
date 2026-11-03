@@ -303,7 +303,7 @@ test('nhà cung cấp: người giao hàng ↔ contactName; BE không trả CCCD
   assert.equal(calls.length, 1, 'trạng thái không đổi ⇒ không PATCH');
 });
 
-test('build nối BE: danh mục, kế hoạch tuần, kho khô, bán trú hôm nay dùng BE (không nhãn demo); thực đơn mẫu, bếp khác vẫn demo', () => {
+test('build nối BE: danh mục, kế hoạch tuần, kho khô, hàng tươi, bếp hôm nay/lưu mẫu/ảnh bữa, bán trú hôm nay dùng BE (không nhãn demo); thực đơn mẫu, bếp khác vẫn demo', () => {
   const source = createDemoSource({ useMock: false, modules: INTEGRATION_MODULES, loadUsers: () => [] });
   ['/menu/foods', '/menu/foods/7/edit', '/menu/dishes/new', '/menu/setup', '/menu/suppliers', '/menu/suppliers/3'].forEach((path) =>
     assert.equal(source.demoModuleOfPath(path), null, path),
@@ -316,11 +316,18 @@ test('build nối BE: danh mục, kế hoạch tuần, kho khô, bán trú hôm 
     '/kitchen/stock-receipts/9',
     '/kitchen/stock-history',
     '/kitchen/stock-shortfalls',
+    '/kitchen/forecast',
+    '/kitchen/forecast/new',
+    '/kitchen/forecast/5',
+    '/kitchen/fresh-receipts',
     '/boarding/today',
+    '/kitchen/published-menu',
+    '/kitchen/food-samples',
+    '/kitchen/meal-photos',
+    '/kitchen/photo-windows',
   ].forEach((path) => assert.equal(source.demoModuleOfPath(path), null, path));
   assert.equal(source.demoModuleOfPath('/menu/menus'), 'menu-planning');
-  assert.equal(source.demoModuleOfPath('/kitchen/fresh-receipts'), 'kitchen');
-  assert.equal(source.demoModuleOfPath('/kitchen/food-samples'), 'kitchen');
+  assert.equal(source.demoModuleOfPath('/kitchen/missing-food'), 'kitchen');
   const mock = {};
   const real = {};
   assert.equal(source.sourceOf('nutrition-catalog', mock, real), real);
@@ -511,7 +518,12 @@ test('kiểm tra tiền ăn tuần: giá BE theo ngày ⇒ so từng ngày; mock
   const perDay = weekBudgetCheck({ days, ageGroupId: 'ag-4', weekStart: '2026-11-09', catalog: { mealPrices, pricePerDay: true } });
   assert.equal(perDay.level, 'warn', 'một ngày vượt giá/ngày dù tổng tuần không vượt');
   assert.match(perDay.text, /^1 ngày vượt tiền ăn \/ ngày: Thứ Ba 10\/11/);
-  const okDays = weekBudgetCheck({ days: [days[0]], ageGroupId: 'ag-4', weekStart: '2026-11-09', catalog: { mealPrices, pricePerDay: true } });
+  const okDays = weekBudgetCheck({
+    days: [days[0]],
+    ageGroupId: 'ag-4',
+    weekStart: '2026-11-09',
+    catalog: { mealPrices, pricePerDay: true },
+  });
   assert.equal(okDays.level, 'ok');
   const weekly = weekBudgetCheck({ days, ageGroupId: 'ag-4', weekStart: '2026-11-09', catalog: { mealPrices } });
   assert.equal(weekly.level, 'ok', 'mock: tổng 60.000 = 30.000 × 2 ngày');

@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   CheckCircle2,
   CircleX,
   Clock,
@@ -12,7 +13,10 @@ import {
 } from '@/components/ui/icons';
 import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
 import {
+  FORECAST_DAY_PLAN_LABELS,
+  FRESH_CHECK_RESULT_LABELS,
   FRESH_RECEIPT_STATUS_LABELS,
+  FRESH_ROUND_STATE_LABELS,
   ISSUE_STATUS_LABELS,
   MEAL_COUNT_STATUS_LABELS,
   PREP_STATUS_LABELS,
@@ -42,6 +46,22 @@ export const IssueStatusBadge = createStatusBadge(
 export const FreshReceiptStatusBadge = createStatusBadge(
   { NEW: ['gray', FileQuestion], DRAFT: ['blue', Clock], SUBMITTED: ['purple', Clock], CONFIRMED: ['green', CheckCircle2] },
   FRESH_RECEIPT_STATUS_LABELS,
+);
+
+// Kết quả kiểm nhận hàng tươi: thiếu = đỏ, thừa = cam (DESIGN §3.2 nhãn phân loại)
+export const FreshCheckResultBadge = createStatusBadge(
+  { ENOUGH: ['green', CheckCircle2], SHORT: ['red', PackageX], OVER: ['orange', AlertTriangle] },
+  FRESH_CHECK_RESULT_LABELS,
+);
+
+export const FreshRoundStateBadge = createStatusBadge(
+  { RECORDED: ['green', CheckCircle2], PENDING: ['orange', Clock], UNAVAILABLE: ['gray', FileQuestion] },
+  FRESH_ROUND_STATE_LABELS,
+);
+
+export const ForecastDayPlanBadge = createStatusBadge(
+  { NONE: ['gray', FileQuestion], DRAFT: ['orange', Clock], PUBLISHED: ['green', CheckCircle2] },
+  FORECAST_DAY_PLAN_LABELS,
 );
 
 export const ReceiptStatusBadge = createStatusBadge(

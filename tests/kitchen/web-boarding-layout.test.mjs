@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { getMenuForRole } from '@/layouts/menuConfig';
 import { ROLES } from '@/models/User';
+import { USE_MOCK } from '@/config/env';
+import { INTEGRATION_MODULES } from '@/config/integrationModules';
 
 const BOARDING_GROUPS = ['boardingToday', 'nutrition', 'kitchenOps', 'stock', 'foodSafety', 'catalog'];
 const routes = readFileSync('src/routes/AppRoutes.jsx', 'utf8');
@@ -84,4 +86,14 @@ test('route bán trú chọn trang theo isDemoModule: build BE dùng trang mới
   for (const tab of ['stock', 'receipts', 'history', 'shortfalls'])
     assert.match(routes, new RegExp(`<DryStockLedgerPage tab="${tab}" />`), tab);
   assert.match(routes, /<Route path="stock-receipts\/:id" element=\{only\(STOCK_RECEIPT_ROLES, <StockReceiptEditorPage \/>\)\} \/>/);
+});
+
+test('NUT-16, NUT-21: HT, PHT có mục bếp hôm nay, lưu mẫu, ảnh bữa, khung giờ ảnh khi nối BE', () => {
+  const apiBuild = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
+  for (const role of [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL]) {
+    const items = getMenuForRole(role).flatMap((entry) => (entry.children || []).map((child) => child.to));
+    assert.ok(items.includes('/kitchen/published-menu'), role);
+    assert.ok(items.includes('/kitchen/food-samples'), role);
+    for (const to of ['/kitchen/meal-photos', '/kitchen/photo-windows']) assert.equal(items.includes(to), apiBuild, `${role} ${to}`);
+  }
 });

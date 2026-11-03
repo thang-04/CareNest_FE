@@ -16,7 +16,8 @@ const menuGroupOf = (entries, key) => entries.find((m) => m.key === key);
 test('PHT: sáu nhóm bán trú theo việc', () => {
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'boardingToday'), ['boardingToday']);
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'nutrition'), ['weeklyMenus', 'menus', 'nutrition']);
-  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'kitchenOps'), ['mealCount', 'forecast', 'freshReceipts']);
+  // PHT xem Bếp hôm nay như HT (GET /nutrition/kitchen/day cho HT, PHT)
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts']);
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'stock'), ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls']);
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'foodSafety'), ['foodSamples']);
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'catalog'), ['foods', 'dishes', 'nutritionSetup', 'suppliers']);

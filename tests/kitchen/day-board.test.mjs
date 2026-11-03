@@ -23,8 +23,8 @@ const campus = (over = {}) => ({
     ],
   },
   dryStock: { status: 'DEDUCTED', foodCount: 8, shortfallFoodCount: 0, openShortfallCount: 0 },
-  freshReceiptStatus: 'NOT_AVAILABLE',
-  foodSampleStatus: 'NOT_AVAILABLE',
+  freshReceiptStatus: 'ROUND1_PENDING',
+  foodSampleStatus: 'NONE',
   ...over,
 });
 const rowOf = (rows, key) => rows.find((row) => row.key === key);
@@ -122,20 +122,44 @@ test('thực đơn tuần: tuần này / tuần sau, ngày nghỉ, link kế ho�
   assert.match(off.detail, /Tuần này: Chưa lập/);
 });
 
-test('hàng tươi và lưu mẫu chưa triển khai: nhãn rõ, nút tới màn demo', () => {
-  const rows = buildDayBoardRows(campus());
-  const fresh = rowOf(rows, 'freshReceipt');
-  const sample = rowOf(rows, 'foodSample');
-  [fresh, sample].forEach((row) => {
-    assert.deepEqual([row.tone, row.status], ['gray', 'Chưa triển khai']);
-    assert.equal(row.actions[0].demo, true);
-    assert.match(row.actions[0].label, /demo/);
-  });
-  assert.equal(fresh.actions[0].to, '/kitchen/fresh-receipts');
-  assert.equal(sample.actions[0].to, '/kitchen/food-samples');
-  const other = rowOf(buildDayBoardRows(campus({ freshReceiptStatus: 'WAITING' })), 'freshReceipt');
-  assert.equal(other.status, 'Chưa có thông tin');
-  assert.equal(other.detail, '');
+test('hàng tươi: nhãn, tông và nút theo từng trạng thái BE, không còn nhãn demo', () => {
+  const fresh = (status, date = DATE) => rowOf(buildDayBoardRows(campus({ freshReceiptStatus: status }), { date }), 'freshReceipt');
+  const expected = {
+    ROUND1_PENDING: ['orange', 'Chờ kiểm lần 1'],
+    ROUND1_DONE: ['blue', 'Đã kiểm lần 1'],
+    ROUND2_PENDING: ['orange', 'Chờ kiểm lần 2'],
+    DONE: ['green', 'Đã kiểm đủ 2 lần'],
+    DAY_OFF: ['gray', 'Ngày nghỉ'],
+    NO_FORECAST: ['gray', 'Chưa có bản dự trù'],
+  };
+  for (const [code, [tone, status]] of Object.entries(expected)) {
+    const row = fresh(code);
+    assert.deepEqual([row.tone, row.status], [tone, status], code);
+    assert.ok(!('demo' in row.actions[0]) && !/demo/.test(row.actions[0].label), code);
+    assert.ok(row.detail, code);
+  }
+  assert.deepEqual(fresh('ROUND1_PENDING').actions, [{ label: 'Kiểm nhận', to: '/kitchen/fresh-receipts?campusId=1&date=2026-11-03' }]);
+  assert.match(fresh('ROUND1_DONE').detail, /suất/);
+  assert.deepEqual(fresh('NO_FORECAST').actions, [{ label: 'Lập bản dự trù', to: '/kitchen/forecast?campusId=1' }]);
+  assert.equal(fresh('ROUND2_PENDING', null).actions[0].to, '/kitchen/fresh-receipts?campusId=1');
+  const unknown = fresh('MỚI');
+  assert.deepEqual([unknown.tone, unknown.status, unknown.detail], ['gray', 'Chưa có thông tin', '']);
+});
+
+test('lưu mẫu: chờ duyệt kèm số việc và link hàng chờ, đã duyệt hết, chưa có; không còn nhãn demo', () => {
+  const sample = (over, date = DATE) => rowOf(buildDayBoardRows(campus(over), { date }), 'foodSample');
+  const pending = sample({ foodSampleStatus: 'PENDING_APPROVAL', foodSamplePendingCount: 3 });
+  assert.deepEqual([pending.tone, pending.status], ['purple', '3 chờ duyệt']);
+  assert.deepEqual(pending.actions, [{ label: 'Duyệt lưu mẫu', to: '/kitchen/food-samples?campusId=1&status=pending' }]);
+  const upToDate = sample({ foodSampleStatus: 'UP_TO_DATE' });
+  assert.deepEqual([upToDate.tone, upToDate.status], ['green', 'Đã duyệt hết']);
+  assert.equal(upToDate.actions[0].to, '/kitchen/food-samples?campusId=1&to=2026-11-03&from=2026-11-03');
+  const none = sample({ foodSampleStatus: 'NONE' });
+  assert.deepEqual([none.tone, none.status], ['gray', 'Chưa có bản lưu mẫu']);
+  [pending, upToDate, none].forEach((row) => assert.ok(!('demo' in row.actions[0]) && !/demo/.test(row.actions[0].label)));
+  assert.equal(sample({ foodSampleStatus: 'NONE' }, null).actions[0].to, '/kitchen/food-samples?campusId=1');
+  const unknown = sample({ foodSampleStatus: 'MỚI' });
+  assert.deepEqual([unknown.tone, unknown.status, unknown.detail], ['gray', 'Chưa có thông tin', '']);
 });
 
 test('adapter: GET /nutrition/day-board với date, campusId tùy chọn; thiếu campuses thì rỗng', async () => {

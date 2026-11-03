@@ -64,6 +64,7 @@ export const BE_ERROR_FIELDS = {
   6022: 'effectiveFrom', // MEAL_CONFIG_DATE_INVALID
   6024: 'ingredients', // AGE_GROUP_INVALID
   6026: 'origin', // FOOD_ORIGIN_REQUIRED
+  6041: 'periodTo', // FRESH_FORECAST_PERIOD_INVALID
   // Đánh giá hằng ngày: lỗi theo dòng trẻ / ô nhận xét (BE chưa trả childId nên trang hiện ở đầu bảng)
   7307: 'row', // ASSESSMENT_CHILD_NOT_PRESENT
   7311: 'comment', // ASSESSMENT_DIAGNOSTIC_TERM

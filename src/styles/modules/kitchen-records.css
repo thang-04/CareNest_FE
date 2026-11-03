@@ -1,0 +1,46 @@
+/* Bếp hôm nay, lưu mẫu, ảnh bữa, khung giờ ảnh – tiền tố kr- */
+
+.kr-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.kr-table th,
+.kr-table td {
+  vertical-align: top;
+}
+.kr-dishes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.kr-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+.kr-photo__frame {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  background: var(--surface-muted, var(--surface));
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.kr-photo__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+  object-fit: cover;
+}
+
+.kr-window-time {
+  width: 140px;
+}
