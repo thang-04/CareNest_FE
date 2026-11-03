@@ -1106,19 +1106,3 @@
 .sc-setup__import {
   justify-content: flex-end;
 }
-
-/* Quyền thao tác của Phó hiệu trưởng trong hộp phân công: 2 cột, nhãn chip ngay sau tên quyền */
-.sc-vp-perms {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: var(--space-2) var(--space-4);
-}
-.sc-vp-perms__item {
-  align-items: flex-start;
-}
-.sc-vp-perms__item input {
-  flex-shrink: 0;
-}
-.sc-vp-perms__item .chip {
-  margin-left: var(--space-2);
-}

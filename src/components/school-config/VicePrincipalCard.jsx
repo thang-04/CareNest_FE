@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { SCHOOL_CONFIG_API } from '@/config/env';
 import { KeyRound, UserCog, Utensils } from '@/components/ui/icons';
 import { Avatar } from '@/components/ui/Avatar';
@@ -8,7 +9,7 @@ import { formatDateTime } from '@/utils/format';
 const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 
 /** Thẻ 1 Phó hiệu trưởng: điểm trường phụ trách + bảng công việc được giao, nói bằng lời thường. */
-export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onEdit, onPermissions }) {
+export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onEdit, permissionsLink }) {
   const a = row.assignment;
   const grants = vpGrantsOf(a);
 
@@ -27,10 +28,11 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
         </div>
         {!readOnly && (
           <div className="row gap-2">
-            {a && onPermissions && (
-              <button className="btn btn--sm" onClick={onPermissions}>
+            {/* Quyền thao tác thuộc màn Quyền ngoại lệ từng người (module phân quyền) */}
+            {a && permissionsLink && (
+              <Link className="btn btn--sm" to={permissionsLink}>
                 <KeyRound size={15} /> Chọn quyền
-              </button>
+              </Link>
             )}
             <button className={`btn btn--sm ${a ? '' : 'btn--primary'}`} onClick={onEdit}>
               <UserCog size={15} /> {a ? 'Đổi phân công' : 'Phân công'}

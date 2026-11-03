@@ -1428,16 +1428,6 @@ export const schoolConfigMockRepository = {
     return clone({ year, rows });
   },
 
-  // Bản demo giao việc theo mảng ngay trong phân công (areas) nên không có danh sách quyền riêng
-  async getVicePermissions() {
-    await delay();
-    return { items: [], overrides: [] };
-  },
-  async saveVicePermissions() {
-    await delay();
-    return null;
-  },
-
   /** campusList: điểm trường hợp lệ; khi nối BE thì là danh sách điểm trường thật, mặc định là điểm trường demo. */
   async saveViceAssignment(schoolYear, userId, form, user, campusList = null) {
     await delay();
