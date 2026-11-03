@@ -5,7 +5,7 @@ import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/components/education-plan/eduUi';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { VersionBadge } from '@/components/education-plan/VersionWidgets';
@@ -74,21 +74,9 @@ export default function GoalListPage() {
       {/* Tổ trưởng, giáo viên chỉ có 1–2 kế hoạch mỗi năm: không cần thẻ tổng quan, tìm kiếm, lọc */}
       {isVP && (
         <div className="stat-grid">
-          <div className="stat-card stat-card--blue">
-            <div className="stat-card__value">{scoped.length}</div>
-            <div className="stat-card__label">Kế hoạch trong năm học</div>
-            <StatCardIcon tone="blue" />
-          </div>
-          <div className="stat-card stat-card--green">
-            <div className="stat-card__value">{issued}</div>
-            <div className="stat-card__label">Đã ban hành</div>
-            <StatCardIcon tone="green" />
-          </div>
-          <div className="stat-card stat-card--orange">
-            <div className="stat-card__value">{pending}</div>
-            <div className="stat-card__label">Chờ duyệt ban hành</div>
-            <StatCardIcon tone="orange" />
-          </div>
+          <StatCard tone="blue" label="Kế hoạch trong năm học" value={scoped.length} />
+          <StatCard tone="green" label="Đã ban hành" value={issued} />
+          <StatCard tone="orange" label="Chờ duyệt ban hành" value={pending} />
         </div>
       )}
 

@@ -24,6 +24,8 @@ export const createGoalVersion = (id, user, edit) => (USE_MOCK ? repo.createGoal
 export const getGoalChanges = (id, fromId) => repo.getGoalChanges(id, fromId);
 // Nhập file bảng mục tiêu (BE:EDU-46): bản xem trước, không lưu
 export const previewGoalFile = (file) => repo.previewGoalFile(file);
+export const previewBranchFile = (file, context, user) =>
+  USE_MOCK ? classPlanMockRepository.previewBranchFile(file, context, user) : educationPlanApi.previewBranchFile(file, context);
 // Danh mục Chương trình GDMN của Bộ (BE:EDU-28): nguồn, mục tiêu và gợi ý nội dung theo nhóm tuổi (mã "ag-3")
 const curriculum = USE_MOCK ? curriculumMockRepository : educationPlanApi;
 export const getCurriculumSources = (options) => curriculum.getCurriculumSources(options);

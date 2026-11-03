@@ -1,51 +1,97 @@
 import { SCHOOL_CONFIG_API } from '@/config/env';
+import { ROLES } from '@/models/User';
 import { sourceOf } from '@/services/demoSource';
 import { beClient } from '@/services/http/beClient';
 import { axiosClient } from '@/services/http/axiosClient';
 import { masterDataMockRepository } from '@/mocks/masterDataMockRepository';
 
-/** Master data shared by every module: campuses, locations, users, asset categories. */
+/** Master data shared by every module: campuses, locations, users. */
 const api = {
   getCampuses: () => axiosClient.get('/campuses'),
   getLocations: () => axiosClient.get('/locations'),
   getUsers: () => axiosClient.get('/users'),
-  getAssetCategories: () => axiosClient.get('/asset-categories'),
   // PENDING BE: quản lý phòng học (đề xuất 10/10/2026, ngoài SRS)
-  getRooms: (filters) => axiosClient.get('/locations', { params: { ...filters, withUsage: true } }),
+  getRooms: (filters) =>
+    axiosClient.get('/locations', {
+      params: {
+        ...filters,
+        withUsage: true,
+      },
+    }),
   saveRoom: (id, form) => (id ? axiosClient.put(`/locations/${id}`, form) : axiosClient.post('/locations', form)),
-  setRoomStatus: (id, status) => axiosClient.patch(`/locations/${id}/status`, { status }),
+  setRoomStatus: (id, status) =>
+    axiosClient.patch(`/locations/${id}/status`, {
+      status,
+    }),
   // BE xóa mềm (status DELETED), giữ bản ghi cho lịch sử
   deleteRoom: (id) => axiosClient.delete(`/locations/${id}`),
 };
-
 const repo = sourceOf('master-data', masterDataMockRepository, api);
-// BE chưa có GET /users, /asset-categories ⇒ danh bạ người dùng, danh mục tài sản lấy dữ liệu demo
+// BE chưa có GET /users ⇒ danh bạ người dùng lấy dữ liệu demo
 const usersRepo = sourceOf('master-data-users', masterDataMockRepository, api);
-const assetRepo = sourceOf('facility', masterDataMockRepository, api);
 
 // Dev: màn Phòng ban gọi BE thật khi nối thử Cấu hình trường; danh mục chung khác vẫn theo repo trên
 const roomsRepo = SCHOOL_CONFIG_API
   ? {
-      getRooms: (filters) => beClient.get('/locations', { params: filters }),
+      getRooms: (filters) =>
+        beClient.get('/locations', {
+          params: filters,
+        }),
       saveRoom: (id, form) => (id ? beClient.put(`/locations/${id}`, form) : beClient.post('/locations', form)),
-      setRoomStatus: (id, status) => beClient.patch(`/locations/${id}/status`, { status }),
+      setRoomStatus: (id, status) =>
+        beClient.patch(`/locations/${id}/status`, {
+          status,
+        }),
       deleteRoom: (id) => beClient.delete(`/locations/${id}`),
     }
   : repo;
 
 // Dev nối thử: điểm trường, phòng lấy từ BE để màn Phòng ban/Cấu hình trường dùng đúng id BE (module mock khác sẽ thấy id mới)
-export const getCampuses = () => (SCHOOL_CONFIG_API ? beClient.get('/campuses') : repo.getCampuses());
-export const getLocations = () => (SCHOOL_CONFIG_API ? beClient.get('/locations') : repo.getLocations());
+// BE chỉ cho HT/PHT đọc điểm trường, phòng, phân công GV: vai trò khác dùng dữ liệu nền cũ, không gọi BE để khỏi 403
+const readsOrgFromBe = (user) => !user || user.role === ROLES.PRINCIPAL || user.role === ROLES.VICE_PRINCIPAL;
+const readsTeachersFromBe = (user) =>
+  readsOrgFromBe(user) && (!Array.isArray(user?.bePermissions) || user.bePermissions.includes('STAFF_ASSIGNMENT_MANAGE'));
+export const getCampuses = (user) => (SCHOOL_CONFIG_API && readsOrgFromBe(user) ? beClient.get('/campuses') : repo.getCampuses());
+export const getLocations = (user) => (SCHOOL_CONFIG_API && readsOrgFromBe(user) ? beClient.get('/locations') : repo.getLocations());
+// Năm để đọc danh sách GV: năm đang hoạt động, chưa có thì năm sắp tới (BE không nhận năm nào ⇒ 404 khi chưa kích hoạt)
+const teacherListYear = (years) =>
+  years.find((y) => y.status === 'ACTIVE') ||
+  [...years].filter((y) => y.status === 'PLANNED').sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))[0] ||
+  null;
+
 // Dev nối thử: thêm giáo viên từ BE (id số) vào danh sách user mock để màn phân công/lớp hiện tên
-export const getUsers = () =>
-  SCHOOL_CONFIG_API
+export const getUsers = (user) =>
+  SCHOOL_CONFIG_API && readsTeachersFromBe(user)
     ? Promise.all([
         usersRepo.getUsers(),
-        // Không có năm đang hoạt động (vd. vừa kết thúc năm học) thì BE trả 404: vẫn dùng danh sách mock, không làm hỏng dữ liệu nền
-        beClient.get('/teacher-assignments', { params: { campusId: 'all' } }).catch(() => ({ teachers: [] })),
-      ]).then(([users, { teachers }]) => [...users, ...teachers.map((t) => ({ ...t, role: 'TEACHER', status: 'ACTIVE' }))])
+        // Không có năm mở (vd. mới kết thúc năm học) thì BE báo lỗi: vẫn dùng danh sách mock, không làm hỏng dữ liệu nền
+        beClient
+          .get('/school-years')
+          .then((years) => {
+            const year = teacherListYear(years || []);
+            return year
+              ? beClient.get('/teacher-assignments', {
+                  params: {
+                    schoolYearId: year.id,
+                    campusId: 'all',
+                  },
+                })
+              : {
+                  teachers: [],
+                };
+          })
+          .catch(() => ({
+            teachers: [],
+          })),
+      ]).then(([users, { teachers }]) => [
+        ...users,
+        ...teachers.map((t) => ({
+          ...t,
+          role: 'TEACHER',
+          status: 'ACTIVE',
+        })),
+      ])
     : usersRepo.getUsers();
-export const getAssetCategories = () => assetRepo.getAssetCategories();
 
 /** Rooms (= locations) management, Principal only. */
 export const getRooms = (filters, user) => roomsRepo.getRooms(filters, user);

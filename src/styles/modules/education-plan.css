@@ -1425,15 +1425,16 @@ h2.ga-cur-domain__head {
 .table.ga-goal-table th.ga-stt .stt-head {
   align-items: center;
 }
-/* Ô tích chủ đề trong thân bảng mục tiêu (cột hẹp): lề hẹp, viết tắt không ngắt từng chữ như "M/N", "Đ/C/a" (Tiền 31/10) */
+/* Mã ghép chủ đề xuống dòng theo từng mã để không bị cắt trong cột hẹp. */
 .table.ga-goal-table td.ga-theme-tick-cell {
   cursor: pointer;
 }
 .table.ga-goal-table td .ga-theme-tick {
   padding-left: var(--space-1);
   padding-right: var(--space-1);
-  white-space: nowrap;
-  overflow: hidden;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  overflow: visible;
 }
 /* Xem trước tài liệu trước khi xuất / in: khung trang trắng cuộn được, hiển thị đúng HTML sẽ xuất (Tiền 31/10) */
 .ga-doc-preview {
@@ -1457,4 +1458,69 @@ h2.ga-cur-domain__head {
   .table.ga-goal-table thead th.ga-stt {
     vertical-align: top;
   }
+}
+
+.ga-year-page {
+  animation: none;
+}
+.ga-year-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+}
+.ga-year-toolbar__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.ga-year-toolbar__group--end {
+  margin-left: auto;
+}
+.ga-year-toolbar .btn {
+  flex: 0 0 auto;
+}
+.ga-year-page .table.ga-year-info th,
+.ga-year-page .table.ga-year-info tbody tr:nth-child(even) td {
+  background: var(--color-surface-muted);
+}
+.ga-year-info {
+  table-layout: fixed;
+}
+.table.ga-year-info th {
+  white-space: normal;
+}
+.ga-year-page .table.ga-year-info tbody tr:nth-child(odd) td {
+  background: var(--color-surface);
+}
+.ga-year-page .table.ga-year-info tbody tr:hover td {
+  transition: none;
+}
+.ga-year-save-status {
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .ga-year-save-status {
+    flex-basis: 100%;
+  }
+}
+.table.ga-year-info thead th:first-child,
+.table.ga-year-info th[scope='row'] {
+  width: calc(var(--space-16) * 3);
+  text-align: left;
+  vertical-align: middle;
+}
+@media (max-width: 767px) {
+  .table.ga-year-info thead th:first-child,
+  .table.ga-year-info th[scope='row'] {
+    width: 40%;
+  }
+}
+.ga-year-info .ga-field-meta,
+.ga-year-info .field__error {
+  padding-inline: var(--space-3);
 }

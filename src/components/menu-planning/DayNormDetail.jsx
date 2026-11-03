@@ -1,6 +1,7 @@
 import { Modal } from '@/components/ui/Modal';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
+import { IndicatorAmounts } from '@/components/menu-planning/NutritionTable';
 import { daySummary, fmtNum } from '@/utils/menu-planning/daySummary';
 import { dayLabel } from '@/utils/menu-planning/menuChecks';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
@@ -21,14 +22,17 @@ function Meter({ label, value, unit, min, max, status, badge }) {
         {value != null && <span className="td-day-norm__value" style={{ left: pct(value, scale) }} />}
       </div>
       <div className="td-day-norm__row text-xs muted">
-        <span>{max == null ? 'Chưa có định mức' : unit === 'đ' ? `Tối đa ${formatMoney(max)}` : `Định mức ${min}–${max} ${unit}`}</span>
+        <span>{max == null ? 'Chưa đặt định mức' : unit === 'đ' ? `Tối đa ${formatMoney(max)}` : `Định mức ${min}–${max} ${unit}`}</span>
         {badge || <NormStatusChip status={status} />}
       </div>
     </div>
   );
 }
 
-/** Chi tiết một ngày của thực đơn tuần: năng lượng, tỉ lệ đạm/béo/bột, tiền ăn so với định mức và các lưu ý của ngày. */
+/**
+ * Chi tiết một ngày của thực đơn tuần: lượng thực tế 6 chỉ số, năng lượng (kèm % đạt), tỷ lệ đạm/béo/bột và phần động vật,
+ * tiền ăn so với định mức và các lưu ý của ngày.
+ */
 export function DayNormDetail({ open, day, wm, catalog, menuName, issues = [], onClose }) {
   const sum = day ? daySummary(day, wm, catalog) : null;
   const n = sum?.nutrients;
@@ -47,8 +51,21 @@ export function DayNormDetail({ open, day, wm, catalog, menuName, issues = [], o
         <p className="muted">{day?.holiday ? `Nghỉ: ${day.note}` : 'Ngày này chưa có món.'}</p>
       ) : (
         <div className="td-day-norm">
-          <p className="text-sm muted td-flat">Tính cho 1 trẻ trong ngày, so với định mức ở Thiết lập.</p>
-          <Meter label="Năng lượng" value={n.kcal.value} unit="kcal" min={n.kcal.min} max={n.kcal.max} status={n.kcal.status} />
+          <p className="text-sm muted td-flat">Tính cho 1 trẻ trong ngày (các bữa trường phục vụ), so với định mức ở Thiết lập.</p>
+          {sum.missing.length > 0 && (
+            <p className="td-warn text-sm td-flat">
+              Chưa đủ dữ liệu: thiếu số liệu dinh dưỡng hoặc nguồn gốc của {sum.missing.join(', ')}. Số liệu chỉ cộng phần đã có.
+            </p>
+          )}
+          <IndicatorAmounts totals={sum.totals} title="Lượng thực tế / trẻ" />
+          <Meter
+            label={`Năng lượng${n.kcal.attainment != null ? ` (đạt ${n.kcal.attainment}% định mức)` : ''}`}
+            value={n.kcal.value}
+            unit="kcal"
+            min={n.kcal.min}
+            max={n.kcal.max}
+            status={n.kcal.status}
+          />
           <Meter
             label="Chất đạm (% năng lượng)"
             value={n.protein.percent}
@@ -72,6 +89,22 @@ export function DayNormDetail({ open, day, wm, catalog, menuName, issues = [], o
             min={n.glucid.min}
             max={n.glucid.max}
             status={n.glucid.status}
+          />
+          <Meter
+            label="Đạm động vật / tổng đạm"
+            value={n.animalProteinPct.value}
+            unit="%"
+            min={n.animalProteinPct.min}
+            max={n.animalProteinPct.max}
+            status={n.animalProteinPct.status}
+          />
+          <Meter
+            label="Béo động vật / tổng béo"
+            value={n.animalLipidPct.value}
+            unit="%"
+            min={n.animalLipidPct.min}
+            max={n.animalLipidPct.max}
+            status={n.animalLipidPct.status}
           />
           <Meter
             label="Tiền ăn"

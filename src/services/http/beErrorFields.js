@@ -12,6 +12,12 @@ export const BE_ERROR_FIELDS = {
   2014: 'confirmName', // ACTIVATION_CONFIRM_MISMATCH
   2019: 'name', // SCHOOL_YEAR_OUT_OF_SEQUENCE
   2020: 'startDate', // SCHOOL_YEAR_START_BEFORE_LATEST_END
+  2021: 'semester', // SEMESTER_OUT_OF_YEAR
+  2022: '_form', // YEAR_COPY_TARGET_NOT_PLANNED
+  2023: 'parts', // YEAR_COPY_PARTS_REQUIRED
+  2024: 'semester', // SEMESTER_START_AFTER_END
+  2025: 'semester2Start', // SEMESTER_OVERLAP
+  2026: 'semester', // SEMESTER_DATE_REQUIRED
   2105: 'code', // CAMPUS_CODE_EXISTS
   2106: 'name', // CAMPUS_NAME_EXISTS
   2113: 'campusId', // CAMPUS_INACTIVE
@@ -50,6 +56,34 @@ export const BE_ERROR_FIELDS = {
   5006: 'actions', // HEALTH_ACTIONS_NOT_ALLOWED
   5007: 'referral', // HEALTH_REFERRAL_INCOMPLETE
   6006: 'normal', // MEAL_COUNT_UNCHANGED
+  6012: 'nutrientSource', // NUTRIENT_SOURCE_REQUIRED
+  6013: 'allergens', // ALLERGEN_INVALID
+  6018: 'ingredients', // DISH_INGREDIENT_INVALID
+  6020: 'effectiveFrom', // MEAL_CONFIG_LOCKED
+  6021: 'effectiveFrom', // MEAL_CONFIG_DUPLICATED
+  6022: 'effectiveFrom', // MEAL_CONFIG_DATE_INVALID
+  6024: 'ingredients', // AGE_GROUP_INVALID
+  6026: 'origin', // FOOD_ORIGIN_REQUIRED
+  6041: 'periodTo', // FRESH_FORECAST_PERIOD_INVALID
+  // Đánh giá hằng ngày: lỗi theo dòng trẻ / ô nhận xét (BE chưa trả childId nên trang hiện ở đầu bảng)
+  7307: 'row', // ASSESSMENT_CHILD_NOT_PRESENT
+  7311: 'comment', // ASSESSMENT_DIAGNOSTIC_TERM
+  7322: 'classComment', // CLASS_COMMENT_TOO_LONG
+  7325: 'month', // QUALITY_REPORT_MONTH_OUT_OF_YEAR
+  7326: 'month', // QUALITY_REPORT_FUTURE_MONTH
+  7323: 'classComment', // CLASS_COMMENT_DIAGNOSTIC_TERM
+  // Đánh giá tháng / cuối năm: nội dung đánh giá
+  7340: 'content', // EVALUATION_CONTENT_REQUIRED
+  7341: 'content', // EVALUATION_CONTENT_TOO_SHORT
+  7342: 'content', // EVALUATION_CONTENT_TOO_LONG
+  7343: 'content', // EVALUATION_DIAGNOSTIC_TERM
+  7345: 'programCompleted', // EVALUATION_PROGRAM_NOT_APPLICABLE
+  7346: 'programCompleted', // EVALUATION_PROGRAM_REQUIRED
+  // Mở lại ngày đánh giá
+  7314: 'date', // ASSESSMENT_UNLOCK_DATE_OUT_OF_RANGE
+  7315: 'date', // ASSESSMENT_DAY_NOT_LOCKED_YET
+  7316: 'validUntil', // ASSESSMENT_UNLOCK_DEADLINE_INVALID
+  7317: 'date', // ASSESSMENT_UNLOCK_ALREADY_ACTIVE
   9005: 'to', // INVALID_DATE_RANGE
   9006: 'to', // DATE_RANGE_TOO_LONG
 };

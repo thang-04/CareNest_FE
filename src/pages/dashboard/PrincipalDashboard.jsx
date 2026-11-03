@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   BookOpenCheck,
-  Building2,
   CalendarCheck,
   CalendarDays,
   ListChecks,
@@ -9,7 +8,6 @@ import {
   UserRound,
   Utensils,
   UtensilsCrossed,
-  Wrench,
 } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -19,27 +17,37 @@ import { Widget, KpiCard, Shortcuts, ShortList, TaskCount } from '@/components/d
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { AttentionWidget, ClassRankWidget } from '@/components/dashboard/TodayWidgets';
 import { getMealCounts } from '@/services/attendance/attendanceService';
-import { getIssues } from '@/services/facility/facilityService';
 import { getPublishedMenu } from '@/services/kitchen/kitchenService';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
 import { attendanceCompareText } from '@/services/dashboard/dashboardSummaryService';
-import { ISSUE_STATUS } from '@/models/facility/facilityConstants';
 import { MENU_TYPE } from '@/models/kitchen/kitchenConstants';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { todayInput } from '@/utils/format';
-import { FACILITY_ENABLED } from '@/config/app';
 import '@/styles/modules/dashboard.css';
-
 const firstLoad = (q) => q.loading && q.data == null;
 const RANK_LIMIT = 6;
-
 const SHORTCUTS = [
-  { to: '/school/years', label: 'Cấu hình trường', icon: CalendarDays },
-  { to: '/children', label: 'Quản lý trẻ', icon: UserRound },
-  { to: '/approvals', label: 'Chờ duyệt', icon: ListChecks },
-  { to: '/facility/issues', label: 'Giám sát cơ sở vật chất', icon: Building2 },
-  { to: '/menu/plans', label: 'Kế hoạch thực đơn', icon: UtensilsCrossed },
-].filter((s) => FACILITY_ENABLED || !s.to.startsWith('/facility'));
+  {
+    to: '/school/years',
+    label: 'Cấu hình trường',
+    icon: CalendarDays,
+  },
+  {
+    to: '/children',
+    label: 'Quản lý trẻ',
+    icon: UserRound,
+  },
+  {
+    to: '/approvals',
+    label: 'Chờ duyệt',
+    icon: ListChecks,
+  },
+  {
+    to: '/menu/plans',
+    label: 'Kế hoạch thực đơn',
+    icon: UtensilsCrossed,
+  },
+];
 
 /**
  * #10 Principal Dashboard (UC 3.1, wireframe A plan 2026-10-20): số toàn trường hôm nay có so sánh, lọc theo điểm trường,
@@ -52,18 +60,33 @@ export default function PrincipalDashboard() {
   const date = todayInput();
   const approvals = usePendingApprovals();
   const todayQ = useDashboardToday(campusId);
-
-  const countsQ = useWidget((u) => getMealCounts({ date }, u), [date]);
-  const issuesQ = useWidget((u) => getIssues({ campusId }, u), [campusId], { enabled: FACILITY_ENABLED });
-  const menuQ = useWidget((u) => getPublishedMenu({ date, view: 'day' }, u), [date]);
+  const countsQ = useWidget(
+    (u) =>
+      getMealCounts(
+        {
+          date,
+        },
+        u,
+      ),
+    [date],
+  );
+  const menuQ = useWidget(
+    (u) =>
+      getPublishedMenu(
+        {
+          date,
+          view: 'day',
+        },
+        u,
+      ),
+    [date],
+  );
   const eduQ = useWidget(() => getEducationPlans());
-
   const att = todayQ.data?.attendance;
   const health = todayQ.data?.health;
   const lunches = (countsQ.data?.counts || []).filter((c) => c.session === 'LUNCH' && (!campusId || c.campusId === campusId));
   const lunchMeals = lunches.reduce((n, c) => n + c.totals.normal + c.totals.substitute, 0);
   const lunchConfirmed = lunches.filter((c) => c.status === 'CONFIRMED').length;
-  const openIssues = (issuesQ.data || []).filter((i) => i.status === ISSUE_STATUS.SUBMITTED).length;
   const approvalTotal = approvals.groups.reduce(
     (n, g) => n + g.items.filter((i) => !campusId || !i.campusId || i.campusId === campusId).length,
     0,
@@ -87,7 +110,6 @@ export default function PrincipalDashboard() {
         }
       : s,
   );
-
   return (
     <div className="page">
       <DashboardHeader subtitle={`Toàn trường · Năm học ${String(schoolYear || '').replace('-', ' – ')}`}>
@@ -188,19 +210,6 @@ export default function PrincipalDashboard() {
               loading={approvals.loading && !approvals.groups.length}
               error={approvals.error}
             />
-            {FACILITY_ENABLED && (
-              <KpiCard
-                unit="sự cố"
-                icon={Wrench}
-                to="/facility/issues"
-                tone="red"
-                action
-                label="Sự cố CSVC chờ xử lý"
-                value={openIssues}
-                loading={firstLoad(issuesQ)}
-                error={issuesQ.error}
-              />
-            )}
           </div>
         </section>
       </div>

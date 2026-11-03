@@ -40,7 +40,7 @@ keywords:
   "kế hoạch giáo dục|education plan|kế hoạch năm|mục tiêu năm|kế hoạch chủ đề|chủ đề nhánh|kế hoạch tuần|kế hoạch ngày|giáo án|hồ sơ chủ đề|hoạt động|activity|gokids":
     {be_module_card: ../CareNest_BE/docs/modules/education-plan.md, fe_docs: [docs/architecture/ROUTE_MAP.md, docs/features/README.md, ../CareNest_BE/docs/business/flows/education-plan.md], fe_code: [src/services/education-plan/]}   # EDU-01..28 theo code BE (ADR-0020); EDU-31/32/35/38 SUPERSEDED; ngữ cảnh hoạt động OBS-07, EDU-19
   "cơ sở vật chất|csvc|thiết bị|sự cố|facility|hỏng|thiếu|tài sản|asset|khấu hao|bảo trì|kiểm kê|luân chuyển":
-    {be_module_card: null, fe_docs: [docs/context/REPOSITORY_CONTEXT.md], fe_code: [src/services/facility/, src/services/inventory-inspection/, src/services/facility-transfer/]}   # BE FAC REMOVED 29/10 — ngoài scope; code ẩn sau FACILITY_ENABLED=false, không phát triển thêm
+    {be_module_card: null, fe_docs: [docs/context/REPOSITORY_CONTEXT.md], fe_code: []}   # BE FAC REMOVED 29/10 — ngoài scope; mã nguồn Web đã loại bỏ 02/11, không phát triển thêm
   "đón trẻ|pickup|người đón|trả trẻ|về sớm":
     {be_module_card: ../CareNest_BE/docs/modules/attendance.md, fe_docs: [docs/architecture/ROUTE_MAP.md, docs/features/README.md], fe_code: [src/services/pickup/]}   # PCK-01..04, flow BE pickup.md; ảnh đối chiếu P-33
   "đăng nhập|login|logout|token|session|refresh":

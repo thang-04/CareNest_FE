@@ -43,20 +43,16 @@ export const canViewStockIssue = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_
 // BA: nhân viên bếp của cơ sở chọn lô cho phiếu xuất; hệ thống ghi xuất khi đủ điều kiện.
 export const canAllocateIssueLots = (user, campusId) => isKitchenStaff(user) && canAccessCampus(user, campusId);
 
-// Widget chờ duyệt cũ không được bật lại luồng duyệt xuất đã thay bằng phiếu tự sinh.
-export const canApproveStockIssue = () => false;
-
-/** Roles per route, for the lead to register in AppRoutes. */
+/** Roles per route, for the lead to register in AppRoutes. Bếp chỉ dùng App (AUTH-21) nên không có màn Web nào. */
 export const KITCHEN_ROUTE_ROLES = {
-  kitchenDay: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
-  foodSamples: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
+  kitchenDay: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
+  foodSamples: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
   dryStock: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
   stockReceipts: [ROLES.VICE_PRINCIPAL],
   suppliers: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
   supplierForm: [ROLES.PRINCIPAL],
-  stockIssues: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
-  publishedMenu: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
-  mealCount: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
-  forecast: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
-  freshReceipts: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF],
+  publishedMenu: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
+  mealCount: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
+  forecast: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
+  freshReceipts: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
 };

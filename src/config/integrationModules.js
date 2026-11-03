@@ -30,7 +30,11 @@ export const INTEGRATION_MODULES = {
   'school-config': {
     source: 'api',
     routes: ['/school'],
-    files: ['src/services/school-config/api/schoolConfigApi.js', 'src/services/http/beClient.js'],
+    files: [
+      'src/services/school-config/api/schoolConfigApi.js',
+      'src/services/school-config/schoolConfigService.js',
+      'src/services/http/beClient.js',
+    ],
     facades: ['src/services/school-config/schoolConfigService.js'],
     // Hàm của staff-accounts, vice-principal-assignments (đang demo) nằm chung file API này
     pending: [
@@ -40,13 +44,15 @@ export const INTEGRATION_MODULES = {
       'POST /users',
       'PATCH /users/{x}/profile',
       'PATCH /users/{x}/status',
-      'GET /school-years/{x}/vice-principal-assignments',
-      'PUT /school-years/{x}/vice-principal-assignments/{x}',
     ],
   },
-  'staff-accounts': { source: 'demo', routes: ['/school/staff'], facades: ['src/services/school-config/schoolConfigService.js'] },
-  'vice-principal-assignments': {
+  'staff-accounts': {
     source: 'demo',
+    routes: ['/school/staff'],
+    facades: ['src/services/school-config/schoolConfigService.js'],
+  },
+  'vice-principal-assignments': {
+    source: 'api',
     routes: ['/school/vice-principals'],
     facades: ['src/services/school-config/schoolConfigService.js'],
   },
@@ -63,7 +69,11 @@ export const INTEGRATION_MODULES = {
       'POST /meal-handovers/{x}/supplement',
     ],
   },
-  'meal-handover': { source: 'demo', routes: ['/attendance/meal-handover'], facades: ['src/services/attendance/attendanceService.js'] },
+  'meal-handover': {
+    source: 'demo',
+    routes: ['/attendance/meal-handover'],
+    facades: ['src/services/attendance/attendanceService.js'],
+  },
   'daily-health': {
     source: 'api',
     routes: ['/attendance/health'],
@@ -90,13 +100,20 @@ export const INTEGRATION_MODULES = {
     source: 'api',
     files: ['src/services/masterDataService.js'],
     facades: ['src/services/masterDataService.js'],
-    // Danh bạ user dùng master-data-users (demo); danh mục tài sản thuộc CSVC (demo, ngoài V1)
-    pending: ['GET /users', 'GET /asset-categories'],
+    // Danh bạ người dùng demo
+    pending: ['GET /users'],
   },
   // Danh bạ người dùng cho các màn demo; màn thật chỉ chọn user có id BE (RoomFormModal)
-  'master-data-users': { source: 'demo', facades: ['src/services/masterDataService.js'] },
+  'master-data-users': {
+    source: 'demo',
+    facades: ['src/services/masterDataService.js'],
+  },
   // Lớp, trẻ dùng chung cho các màn demo (BE chưa có GET /classes)
-  'school-lookup': { source: 'demo', files: ['src/services/schoolService.js'], facades: ['src/services/schoolService.js'] },
+  'school-lookup': {
+    source: 'demo',
+    files: ['src/services/schoolService.js'],
+    facades: ['src/services/schoolService.js'],
+  },
   children: {
     source: 'demo',
     routes: ['/children'],
@@ -115,6 +132,50 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/assessment/api/assessmentApi.js'],
     facades: ['src/services/assessment/assessmentService.js'],
   },
+  // Danh mục bán trú (thực phẩm, món, cấu hình nhóm tuổi, nhà cung cấp) trên BE /nutrition/*; route dài hơn nên thắng '/menu'
+  'nutrition-catalog': {
+    source: 'api',
+    routes: ['/menu/foods', '/menu/dishes', '/menu/setup', '/menu/suppliers'],
+    files: ['src/services/nutritionCatalogApi.js'],
+    facades: ['src/services/menu-planning/menuPlanningService.js', 'src/services/kitchen/kitchenService.js'],
+  },
+  // Kho khô trên BE /nutrition/stock/*: tồn theo lô, phiếu nhập, lịch sử nhập/trừ, phần thiếu; route dài hơn nên thắng '/kitchen'
+  'dry-stock': {
+    source: 'api',
+    routes: ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls'],
+    files: ['src/services/dryStockApi.js'],
+  },
+  // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts và kiểm nhận hai lần /nutrition/fresh-checks; route dài hơn nên thắng '/kitchen'
+  'fresh-goods': {
+    source: 'api',
+    routes: ['/kitchen/forecast', '/kitchen/fresh-receipts'],
+    files: ['src/services/freshGoodsApi.js'],
+  },
+  // Bếp hôm nay (xem), lưu mẫu thức ăn (duyệt), ảnh bữa, khung giờ ảnh trên BE /nutrition/{kitchen/day,food-samples,meal-photos,meal-photo-windows}
+  'kitchen-records': {
+    source: 'api',
+    routes: ['/kitchen/published-menu', '/kitchen/food-samples', '/kitchen/meal-photos', '/kitchen/photo-windows'],
+    files: ['src/services/kitchenRecordsApi.js'],
+  },
+  // Kế hoạch tuần theo khối + công bố trên BE /nutrition/meal-plans; thắng '/menu' của thực đơn mẫu còn demo
+  'meal-plan': {
+    source: 'api',
+    routes: ['/menu/weekly', '/menu/statistics'],
+    files: ['src/services/mealPlanApi.js'],
+  },
+  // Bộ thực đơn mẫu 4 tuần theo khối trên BE /nutrition/menu-templates (NUT-13)
+  'menu-template': {
+    source: 'api',
+    routes: ['/menu/templates'],
+    files: ['src/services/menuTemplateApi.js'],
+  },
+  // Bán trú hôm nay trên BE GET /nutrition/day-board
+  'day-board': {
+    source: 'api',
+    routes: ['/boarding'],
+    files: ['src/services/dayBoardApi.js'],
+  },
+  // Thực đơn mẫu, thư viện tham khảo còn tham chiếu id món/thực phẩm mẫu ⇒ còn demo
   'menu-planning': {
     source: 'demo',
     routes: ['/menu'],
@@ -134,24 +195,6 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/kitchen/api/kitchenApi.js'],
     facades: ['src/services/kitchen/kitchenService.js'],
   },
-  facility: {
-    source: 'demo',
-    routes: ['/facility'],
-    files: ['src/services/facility/api/facilityApi.js'],
-    facades: ['src/services/facility/facilityService.js', 'src/services/masterDataService.js'],
-  },
-  'facility-transfer': {
-    source: 'demo',
-    routes: ['/facility/transfers'],
-    files: ['src/services/facility-transfer/api/transferApi.js'],
-    facades: ['src/services/facility-transfer/transferService.js'],
-  },
-  'inventory-inspection': {
-    source: 'demo',
-    routes: ['/facility/inspections'],
-    files: ['src/services/inventory-inspection/api/inspectionApi.js', 'src/services/facilityLockService.js'],
-    facades: ['src/services/inventory-inspection/inspectionService.js', 'src/services/facilityLockService.js'],
-  },
   notifications: {
     source: 'demo',
     routes: ['/notifications'],
@@ -159,7 +202,11 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/notificationService.js'],
   },
   // Nhãn ở SignaturePicker (dùng trong màn kế hoạch giáo dục)
-  signatures: { source: 'demo', files: ['src/services/signatureService.js'], facades: ['src/services/signatureService.js'] },
+  signatures: {
+    source: 'demo',
+    files: ['src/services/signatureService.js'],
+    facades: ['src/services/signatureService.js'],
+  },
   appearance: {
     source: 'demo',
     routes: ['/settings/appearance'],

@@ -307,26 +307,18 @@
 }
 
 /* ---------- Cutoff ---------- */
+.sc-cutoff-now {
+  padding: var(--space-3) var(--space-4);
+}
 .sc-cutoff {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-4);
-}
-.sc-cutoff__icon {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-lg);
-  display: grid;
-  place-items: center;
-  background: var(--primary-50);
-  color: var(--primary);
-  flex-shrink: 0;
+  gap: var(--space-2);
 }
 .sc-cutoff__time {
-  font-size: var(--fs-2xl);
-  font-weight: var(--fw-bold);
+  font-size: var(--fs-lg);
   color: var(--text);
-  line-height: 1.2;
 }
 
 /* ---------- Căn chỉnh nhỏ (thay style inline) ---------- */
@@ -1035,4 +1027,82 @@
 /* Năm học đang hiện ở card "Chuẩn bị năm học" */
 .sc-table-flat tr.is-selected td {
   background: var(--color-primary-soft);
+}
+
+/* ---------- Thiết lập năm học từng bước (30/10/2026) ---------- */
+/* Màn con nằm trong bước: bỏ breadcrumb và lề trang của màn gốc, nhóm nút về lại đầu nội dung */
+.sc-setup__embed > .page {
+  padding: 0;
+  animation: none;
+}
+.sc-setup__embed .breadcrumb {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .sc-setup__embed .breadcrumb + .page__head > :last-child:not(:first-child):not(p) {
+    position: static;
+    margin-left: auto;
+  }
+}
+/* Bước Phòng & lớp: nút của màn con (Thêm phòng, Thêm lớp...) lên cùng hàng với 2 tab, không chiếm một hàng riêng */
+.sc-setup__tabbed {
+  position: relative;
+}
+@media (min-width: 768px) {
+  .sc-setup__tabbed .sc-setup__embed .page__head {
+    position: static;
+    margin: 0;
+  }
+  .sc-setup__tabbed .sc-setup__embed .breadcrumb + .page__head > :last-child:not(:first-child):not(p) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: auto;
+    margin: 0;
+    display: flex;
+    gap: var(--space-2);
+  }
+  .sc-setup__tabbed .sc-setup__embed .page__head .btn--lg {
+    min-height: 0;
+    padding-block: var(--space-2);
+    font-size: var(--fs-sm);
+  }
+}
+.sc-setup__parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+.sc-setup__issues {
+  align-items: flex-start;
+}
+.sc-setup__issues ul {
+  margin: var(--space-1) 0 0;
+  padding-left: 18px;
+}
+.sc-setup__issues .btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Thiết lập năm học: bảng nhập nhanh */
+.sc-quick td {
+  vertical-align: top;
+}
+.sc-quick .field {
+  margin: 0;
+  min-width: 120px;
+}
+.sc-quick .input,
+.sc-quick .select {
+  width: 100%;
+}
+.sc-quick__num {
+  max-width: 90px;
+  text-align: right;
+}
+
+/* Thiết lập năm học: nút Nhập từ Excel ở bước Tổ trưởng & giáo viên nằm bên phải */
+.sc-setup__import {
+  justify-content: flex-end;
 }

@@ -1,7 +1,7 @@
 import { useMasterData } from '@/hooks/useMasterData';
 import { ALL_MEAL_SESSIONS, MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
 import { DateInput } from '@/components/form/DateInput';
-import { isIsoDate } from '@/utils/format';
+import { formatQty, isIsoDate } from '@/utils/format';
 
 /* Small filter controls shared by the kitchen pages (all labelled, DESIGN.md §10). */
 
@@ -10,6 +10,16 @@ export function KbDateFilter({ value, onChange, label = 'Ngày' }) {
     <label className="date-filter">
       {label}
       <DateInput value={value} onChange={(next) => isIsoDate(next) && onChange(next)} aria-label={label} />
+    </label>
+  );
+}
+
+/** Ngày lọc không bắt buộc: để trống = không lọc theo ngày; chỉ nhận ngày đủ hoặc rỗng. */
+export function KbOptionalDateFilter({ value, onChange, label }) {
+  return (
+    <label className="date-filter">
+      {label}
+      <DateInput value={value} onChange={(next) => (next === '' || isIsoDate(next)) && onChange(next)} aria-label={label} />
     </label>
   );
 }
@@ -60,5 +70,4 @@ export function KbCampusFilter({ campusId, onChange, canPick }) {
 }
 
 /** Number with up to 3 decimals in Vietnamese format, e.g. 2,4. */
-export const fmtQty = (n) =>
-  n === null || n === undefined || Number.isNaN(Number(n)) ? '—' : Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+export const fmtQty = formatQty;

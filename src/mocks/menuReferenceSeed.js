@@ -5,6 +5,7 @@
  */
 import { AGE_GROUPS } from '@/models/School';
 import { SEED_PORTION_FACTORS } from '@/mocks/menuPlanningSeed';
+import { defaultOriginOf } from '@/models/menu-planning/menuPlanningConstants';
 
 // [tên, nhóm, đơn vị, kcal, đạm, béo, bột (trên 100 g/ml), dị ứng]
 const FOODS = [
@@ -144,6 +145,7 @@ export const buildReferenceLibrary = () => ({
     group,
     unit,
     nutrition: { kcal, protein, lipid, glucid },
+    origin: defaultOriginOf(group),
     allergens,
   })),
   dishes: DISHES.map(([id, name, type, description, rows]) => ({

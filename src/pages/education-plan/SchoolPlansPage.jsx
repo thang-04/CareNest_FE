@@ -6,7 +6,7 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 import { clickableRowProps } from '@/utils/clickableRow';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
@@ -133,16 +133,7 @@ export default function SchoolPlansPage() {
       <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch toàn trường' }]} title="Kế hoạch giáo dục toàn trường" />
       <div className="stat-grid">
         {stats.map((s) => (
-          <button
-            key={s.label}
-            type="button"
-            className={`stat-card stat-card--${s.tone} ${tab === s.tab ? 'stat-card--active' : ''}`}
-            onClick={() => switchTab(s.tab)}
-          >
-            <div className="stat-card__value">{s.value}</div>
-            <div className="stat-card__label">{s.label}</div>
-            <StatCardIcon tone={s.tone} />
-          </button>
+          <StatCard key={s.label} tone={s.tone} label={s.label} value={s.value} active={tab === s.tab} onClick={() => switchTab(s.tab)} />
         ))}
       </div>
       <Card bodyClass={null}>

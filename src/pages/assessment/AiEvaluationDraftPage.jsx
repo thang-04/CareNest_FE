@@ -68,7 +68,7 @@ export default function AiEvaluationDraftPage() {
       return <StatusPage kind="403" title="Không xem được bản nháp" description="Bản nháp AI chỉ dành cho giáo viên của lớp." />;
     const canRedraft = canReviewEvaluation(ev, detail.cls, user);
     const src = ev.aiDraft?.source;
-    const critName = Object.fromEntries(detail.criteria.map((c) => [c.id, c.name]));
+    const critName = Object.fromEntries((detail.criteria || []).map((c) => [c.id, c.name]));
     return (
       <>
         <div className="page__head">

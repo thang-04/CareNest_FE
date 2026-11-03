@@ -1,5 +1,6 @@
 import { compareToNorm, mealsTotals, priceOn } from '@/utils/menu-planning/menuCalculations';
 import { checkDayMenu } from '@/utils/menu-planning/menuChecks';
+import { normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 
 export const fmtNum = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) : '—');
 
@@ -9,11 +10,13 @@ export const fmtNum = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN', 
  */
 export const daySummary = (day, { ageGroupId, weekStart }, catalog) => {
   if (day.holiday || !day.meals?.some((m) => m.items?.length)) return null;
-  const r = mealsTotals(day.meals, catalog.dishById, catalog.foodById, ageGroupId);
+  const r = mealsTotals(normScopeMeals(day.meals, catalog.nutritionSetups, ageGroupId), catalog.dishById, catalog.foodById, ageGroupId);
   const nutrients = Object.fromEntries(compareToNorm(r.totals, ageGroupId, r.missing.length > 0, catalog.norms).map((x) => [x.key, x]));
   const price = priceOn(catalog.mealPrices, ageGroupId, weekStart)?.price ?? null;
   return {
     nutrients,
+    totals: r.totals,
+    missing: r.missing,
     cost: r.cost,
     price,
     overPrice: price != null && r.cost > price,

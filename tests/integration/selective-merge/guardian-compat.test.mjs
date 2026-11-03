@@ -14,7 +14,7 @@ const rejectStatus = (status) => (error) => error.status === status;
 beforeEach(async () => {
   resetDb();
   const user = readDb().users.find((row) => row.role === 'VICE_PRINCIPAL' && row.campusId === 'c1');
-  vp = (await auth.login({ email: user.email, password: DEMO_PASSWORD })).user;
+  vp = (await auth.login({ email: user.email, password: DEMO_PASSWORD })).user; // carenest:allow-secret
   const rows = await repo.searchChildren({ campusId: 'c1' }, vp);
   child = rows.items.find((row) => row.canManage);
   assert.ok(child);

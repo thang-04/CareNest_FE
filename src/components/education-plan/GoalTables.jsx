@@ -203,6 +203,7 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
     themes.map((t) => {
       const on = !!c && c.themes.includes(t.id);
       const abbr = themeAbbr(t);
+      const tickLabel = abbr.split(/[-–]/).join('\n');
       return (
         <td
           key={t.id}
@@ -227,10 +228,10 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
               title={t.name}
               onClick={() => toggleTick(di, r, c, t.id)}
             >
-              {on ? abbr : ''}
+              {on ? tickLabel : ''}
             </button>
           ) : (
-            <div className="ga-goal-table__pad ga-theme-tick text-xs fw-600">{on ? abbr : ''}</div>
+            <div className="ga-goal-table__pad ga-theme-tick text-xs fw-600">{on ? tickLabel : ''}</div>
           )}
         </td>
       );
@@ -831,7 +832,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
   const newRow = (span, label, placeholder, create) => (
     <tr key="new">
       <td className="cell--fixed" />
-      <td colSpan={span}>
+      <td>
         {cellInput({
           'aria-label': label,
           placeholder,
@@ -840,6 +841,9 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
           onKeyDown: (e) => enterKey(e) && e.preventDefault(),
         })}
       </td>
+      {Array.from({ length: span - 1 }, (_, i) => (
+        <td key={i} />
+      ))}
     </tr>
   );
   const dateCell = (value, onValue, label, row, others) =>

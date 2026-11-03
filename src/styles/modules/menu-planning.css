@@ -544,6 +544,17 @@
   vertical-align: middle;
 }
 
+.td-norm--meals {
+  min-width: 420px;
+}
+
+.td-norm__title {
+  margin: 0;
+  padding: var(--space-4) var(--space-6) var(--space-2);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+
 .td-meal-cell {
   display: grid;
   gap: var(--space-1);
@@ -1879,4 +1890,152 @@
   display: block;
   width: fit-content;
   margin: var(--space-1) auto 0;
+}
+
+/* Kế hoạch tuần theo khối (BE): ngày nghỉ, bảng kiểm từng nhóm tuổi, lỗi / cảnh báo công bố */
+.td-off {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+}
+
+.td-week__dishes small {
+  display: block;
+}
+
+.td-eval-list {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+}
+
+.td-eval th,
+.td-eval td {
+  vertical-align: top;
+}
+
+.td-eval__cell {
+  text-align: center;
+  white-space: normal;
+}
+
+.td-eval__cell small {
+  display: block;
+  font-size: var(--fs-xs);
+}
+
+.td-eval__cell--ok small {
+  color: var(--tone-green-fg);
+}
+
+.td-eval__cell--warn small {
+  color: var(--tone-orange-fg);
+}
+
+.td-eval__cell--muted small {
+  color: var(--tone-gray-fg);
+}
+
+.td-publish {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.td-publish__title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-md);
+}
+
+.td-publish__hint {
+  margin: 0 0 var(--space-2);
+}
+
+.td-issue-groups {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.td-issue-day {
+  margin: 0 0 var(--space-1-5);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.td-issue-list {
+  display: grid;
+  gap: var(--space-1-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.td-issue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-secondary);
+}
+
+.td-issue__text {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+/* Thống kê định lượng một ngày thực đơn */
+.td-stat-filters {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.td-stat-filters__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.td-stat-filters__row > * {
+  flex: 0 1 220px;
+}
+
+.td-stat-dishes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+
+.td-stat-dishes__title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.td-stat-dishes ol {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--fs-sm);
+}
+
+.td-stat-table td.td-stat--ok {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+
+.td-stat-table td.td-stat--off {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+
+.td-stat-table tfoot td {
+  border-top: 1px solid var(--border-strong);
+}
+
+.td-daily-kcal {
+  max-width: calc(320px + 2 * var(--space-6));
+  padding: 0 var(--space-6) var(--space-3);
 }

@@ -19,21 +19,15 @@ import { YEAR_ACTION_LABELS, YEAR_STATUS } from '@/models/school-config/schoolCo
 import { canConfigureSchool, canEditYear } from '@/utils/school-config/schoolConfigPermissions';
 import { validateSchoolYear, hasErrors, errorsAfterChange } from '@/utils/school-config/schoolConfigValidation';
 import { yearCrumbs } from '@/utils/school-config/breadcrumbs';
-import { formatDateTime } from '@/utils/format';
+import { suggestNextYear } from '@/utils/school-config/yearSetup';
+import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/school-config.css';
-
-/** Suggest the year after the latest one so the Principal rarely has to type. */
-const suggestNext = (years) => {
-  const latest = [...years].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
-  const from = latest ? Number(latest.name.slice(5)) : new Date().getFullYear();
-  return { name: `${from}-${from + 1}`, startDate: `${from}-09-05`, endDate: `${from + 1}-05-31` };
-};
 
 function YearForm({ year, years, user }) {
   const toast = useToast();
   const md = useMasterData();
   const others = years.filter((y) => y.id !== year?.id);
-  const [initial] = useState(() => (year ? { name: year.name, startDate: year.startDate, endDate: year.endDate } : suggestNext(years)));
+  const [initial] = useState(() => (year ? { name: year.name, startDate: year.startDate, endDate: year.endDate } : suggestNextYear(years)));
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -62,6 +56,13 @@ function YearForm({ year, years, user }) {
   // Trả true khi lưu được; stay: lưu từ hộp rời màn (không tự chuyển trang, không mở bước tiếp)
   const submit = async ({ stay = false } = {}) => {
     const e = validateSchoolYear(form, others, { creating: !year });
+    // Học kỳ đã đặt (Cấu hình thời gian) phải còn nằm trong năm sau khi đổi ngày, như BE SEMESTER_OUT_OF_YEAR
+    const s1 = year?.semester1Start;
+    const s2 = year?.semester2End;
+    if (s1 && !e.startDate && form.startDate > s1)
+      e.startDate = `Học kỳ I bắt đầu ngày ${formatDate(s1)}, ngày bắt đầu năm không được sau ngày này`;
+    if (s2 && !e.endDate && form.endDate < s2)
+      e.endDate = `Học kỳ II kết thúc ngày ${formatDate(s2)}, ngày kết thúc năm không được trước ngày này`;
     setErrors(e);
     if (hasErrors(e)) return false;
     setSaving(true);
@@ -89,7 +90,8 @@ function YearForm({ year, years, user }) {
       setSaved({ ...result, copyNote });
       return true;
     } catch (err) {
-      setErrors(err.details || { _form: err.message });
+      const d = err.details;
+      setErrors(d?.semester ? { endDate: d.semester } : d || { _form: err.message });
       return false;
     } finally {
       setSaving(false);

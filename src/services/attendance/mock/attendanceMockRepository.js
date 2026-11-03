@@ -697,13 +697,7 @@ export const attendanceMockRepository = {
       if (Object.keys(excused).length) throw new ApiError(422, 'Không chọn được Vắng có phép khi chưa có báo nghỉ.', excused);
       entries.forEach((entry) => {
         const leave = leaveOf(db, entry.childId, date);
-        if (
-          leave &&
-          entry.status === ATTENDANCE_STATUS.PRESENT &&
-          recordOf(db, entry.childId, date)?.status !== ATTENDANCE_STATUS.PRESENT &&
-          entry.confirmedLeaveRequestId !== leave.id
-        )
-          throw new ApiError(409, 'Trẻ đã có báo nghỉ. Xác nhận trẻ thực tế đến lớp trước khi chọn Có mặt.');
+        if (leave) throw new ApiError(409, 'Phụ huynh cần hủy đơn nghỉ trước giờ chốt để điểm danh lại.');
       });
 
       const at = new Date().toISOString();
