@@ -870,6 +870,27 @@
 .dg-theme-table td {
   white-space: nowrap;
 }
+/* Kẻ ngang tách phần trẻ với dòng Tổng số trẻ đạt / Tỷ lệ; ô trống cuối giữ vạch Đ | KĐ như thân bảng */
+/* Tổng kết sát dưới bảng, các dòng liền nhau như mẫu giấy (góp ý 04/11) */
+.table-wrap:has(> .dg-theme-table) {
+  margin-bottom: 0;
+}
+.dg-theme-summary {
+  padding-top: var(--space-2);
+}
+.dg-theme-summary > p {
+  margin: 0 0 var(--space-1);
+}
+.dg-theme-summary > .field__label {
+  margin-top: var(--space-2);
+}
+/* Khung ngoài đậm như mẫu giấy (góp ý 04/11) */
+.table.table--grid.dg-theme-table {
+  border: 2px solid var(--color-text-muted);
+}
+.dg-theme-table tfoot tr:first-child > * {
+  border-top: 2px solid var(--color-text-muted);
+}
 .dg-theme-cell {
   min-width: var(--space-7);
   border: 1px solid transparent;

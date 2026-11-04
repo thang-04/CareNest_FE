@@ -308,7 +308,8 @@ export default function ThemeEvaluationPage() {
                           {g.metChildren}
                         </th>
                       ))}
-                      <th colSpan={2} />
+                      <th />
+                      <th />
                     </tr>
                     <tr>
                       <th colSpan={2}>Tỷ lệ (%)</th>
@@ -317,16 +318,22 @@ export default function ThemeEvaluationPage() {
                           {g.rate == null ? '' : g.rate}
                         </th>
                       ))}
-                      <th colSpan={2} />
+                      <th />
+                      <th />
                     </tr>
                   </tfoot>
                 </table>
               </div>
             )}
-            <div className="card__body">
+            <div className="card__body dg-theme-summary">
               <p className="text-sm">
-                Tổng số trẻ được đánh giá: <strong>{ev.assessedChildren}</strong> · Số trẻ đạt {ev.passPercent}% trở lên:{' '}
-                <strong>{ev.passedChildren}</strong> trẻ · Số trẻ đạt dưới {ev.passPercent}%: <strong>{ev.notPassedChildren}</strong> trẻ
+                Tổng số trẻ được đánh giá: <strong>{ev.assessedChildren}</strong> trẻ
+              </p>
+              <p className="text-sm">
+                Số trẻ đạt {ev.passPercent}% trở lên: <strong>{ev.passedChildren}</strong> trẻ
+              </p>
+              <p className="text-sm">
+                Số trẻ đạt dưới {ev.passPercent}%: <strong>{ev.notPassedChildren}</strong> trẻ
               </p>
               <label className="field__label" htmlFor="theme-note">
                 Một số lưu ý
