@@ -68,7 +68,7 @@ test('PHT chưa được giao mảng thực đơn: ẩn nhóm thực đơn và c
   assert.ok(menuGroupOf(entries, 'kitchenOps').children.some((c) => c.key === 'mealCount'));
   assert.deepEqual(
     entries.find((entry) => entry.key === 'attendance').children.map((entry) => entry.key),
-    ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview'],
+    ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview'],
   );
 });
 

@@ -80,3 +80,6 @@ export const canReceiveHandover = (handover, cls, user) =>
 
 export const canSupplementHandover = (handover, user) =>
   user?.role === ROLES.KITCHEN_STAFF && handover?.campusId === user.campusId && handover?.status === HANDOVER_STATUS.SHORTAGE_REPORTED;
+
+/** Bộ lọc điểm trường của danh sách đơn nghỉ chỉ cho HT, PHT (BE vẫn lọc theo phạm vi). */
+export const canFilterLeaveByCampus = (user) => [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL].includes(user?.role);

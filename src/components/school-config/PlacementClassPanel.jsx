@@ -51,9 +51,11 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
   const [bulkAction, setBulkAction] = useState('');
   const actions = from.graduating ? [GRADUATE, STAY, LEAVE] : [PROMOTE, STAY, LEAVE];
   const saved = useMemo(() => initialRows(from, targets), [from, targets]);
+  // Chỉ tính là sửa khi người dùng đổi so với bản đã lưu / gợi ý ban đầu; trẻ chưa xếp chỉ là gợi ý, chưa hỏi khi rời màn
   const dirty = from.children.some(
-    (ch) => !ch.placement || rows[ch.id]?.action !== saved[ch.id]?.action || rows[ch.id]?.toClassId !== saved[ch.id]?.toClassId,
+    (ch) => rows[ch.id]?.action !== saved[ch.id]?.action || rows[ch.id]?.toClassId !== saved[ch.id]?.toClassId,
   );
+  const suggested = from.children.filter((ch) => !ch.placement).length;
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
 
   // Số chỗ đã dùng sau khi lưu: chỗ của các lớp cũ khác + lựa chọn đang sửa ở lớp này
@@ -135,7 +137,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
       <div className="sc-plc__toolbar">
         {heading}
         {from.graduating ? (
-          <span className="chip chip--blue">Nhóm tuổi lớn nhất: mặc định ra trường</span>
+          <span className="chip chip--blue">Nhóm tuổi lớn nhất: trẻ hoàn thành chương trình ra trường, trẻ khác bạn chọn</span>
         ) : (
           <>
             <label className="field__label" htmlFor="plc-whole">
@@ -232,6 +234,18 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
                   <td className="nowrap sc-plc__child">
                     <ChildAvatar child={ch} size="sm" />
                     <span className="fw-600">{ch.fullName}</span>
+                    {/* Lớp ra trường: kết quả hoàn thành chương trình ở đánh giá cuối năm (BE OBS-14) */}
+                    {from.graduating && (
+                      <span
+                        className={`chip ${ch.programCompleted === true ? 'chip--green' : ch.programCompleted === false ? 'chip--orange' : 'chip--gray'}`}
+                      >
+                        {ch.programCompleted === true
+                          ? 'Hoàn thành CT'
+                          : ch.programCompleted === false
+                            ? 'Chưa hoàn thành CT'
+                            : 'Chưa đánh giá cuối năm'}
+                      </span>
+                    )}
                     <span className="muted text-xs">
                       {ch.code}
                       {!ch.placement && <span className="sc-plc__new"> · chưa lưu</span>}
@@ -286,6 +300,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
         <div className="row row--wrap">
           {[PROMOTE, STAY, LEAVE, GRADUATE].map((a) => (count(a) ? <PlacementActionBadge key={a} action={a} count={count(a)} /> : null))}
           {dirty && <span className="chip chip--orange">Có thay đổi chưa lưu</span>}
+          {!dirty && suggested > 0 && <span className="chip">{suggested} trẻ đang là gợi ý, bấm Lưu để xếp</span>}
         </div>
         <div className="row">
           <button className="btn" type="button" disabled={!dirty || saving} onClick={reset}>

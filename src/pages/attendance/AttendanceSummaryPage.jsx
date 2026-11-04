@@ -9,12 +9,14 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DateInput } from '@/components/form/DateInput';
+import { SemesterSelect } from '@/components/form/SemesterSelect';
+import { semesterRange } from '@/utils/semesters';
 import { paginate } from '@/components/ui/Pagination';
 import { useAttendanceClasses, useAttendanceSummary, useAttendanceYear } from '@/hooks/attendance/useAttendance';
 import { validateSummaryRange } from '@/utils/attendance/attendanceValidation';
 import { addDays } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { downloadCsv } from '@/utils/exportCsv';
+import { downloadXlsx } from '@/utils/exportXlsx';
 import { formatDate, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -37,9 +39,20 @@ export default function AttendanceSummaryPage() {
   const campusId = manager ? (campusOptions.length === 1 ? campusOptions[0].id : params.get('campus') || '') : '';
   const campusClasses = classes.filter((c) => !campusId || c.campusId === campusId);
   const paramClass = params.get('classId') || '';
-  const classId = manager ? (campusClasses.some((c) => c.id === paramClass) ? paramClass : '') : paramClass || classes[0]?.id || '';
-  const multi = manager && !classId;
+  // Tổ trưởng chuyên môn: xem lớp mình hoặc tổng hợp các lớp nhóm tuổi mình (BE lọc theo nhóm tuổi, Cần chốt 04/11)
+  const teamLeader = user?.role === ROLES.TEAM_LEADER;
+  const groupMode = teamLeader && params.get('scope') === 'group';
+  const classId = manager
+    ? campusClasses.some((c) => c.id === paramClass)
+      ? paramClass
+      : ''
+    : groupMode
+      ? ''
+      : paramClass || classes[0]?.id || '';
+  const multi = (manager || groupMode) && !classId;
   const [range, setRange] = useState({ from: params.get('from') || addDays(today, -13), to: params.get('to') || today });
+  // Lọc nhanh theo học kỳ: đặt Từ ngày – Đến ngày theo học kỳ (cắt tới hôm nay); sửa ngày tay thì bỏ chọn
+  const [semester, setSemester] = useState('');
   const [pageSize, setPageSize] = useState(20);
   const [pageState, setPageState] = useState({ key: '', value: 1 });
   const rangeErrors = validateSummaryRange(range);
@@ -51,17 +64,28 @@ export default function AttendanceSummaryPage() {
   const summary =
     valid && !loading && !error && sameScope && loadedSummary.from === range.from && loadedSummary.to === range.to ? loadedSummary : null;
   const campusName = (id) => md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || '';
-  const scopeName = classId ? summary?.className || '' : campusId ? campusName(campusId) : 'Toàn trường';
-  const query = (next) => Object.fromEntries(Object.entries({ campus: campusId, classId, ...range, ...next }).filter(([, v]) => v));
+  const scopeName = classId ? summary?.className || '' : groupMode ? 'Các lớp nhóm tuổi' : campusId ? campusName(campusId) : 'Toàn trường';
+  const query = (next) =>
+    Object.fromEntries(
+      Object.entries({ campus: campusId, classId, scope: groupMode ? 'group' : '', ...range, ...next }).filter(([, v]) => v),
+    );
   const pageKey = `${campusId}:${classId}:${range.from}:${range.to}:${pageSize}`;
   const pageCount = Math.max(1, Math.ceil((summary?.days.length || 0) / pageSize));
   const page = Math.min(pageState.key === pageKey ? pageState.value : 1, pageCount);
   const setPage = (value) => setPageState({ key: pageKey, value });
 
-  const setRangeValue = (key, value) => {
-    const next = { ...range, [key]: value };
+  const applyRange = (next) => {
     setRange(next);
     if (isIsoDate(next.from) && isIsoDate(next.to)) setParams(query(next), { replace: true });
+  };
+  const setRangeValue = (key, value) => {
+    setSemester('');
+    applyRange({ ...range, [key]: value });
+  };
+  const pickSemester = (key, sem) => {
+    const next = semesterRange(sem, today);
+    setSemester(next ? key : '');
+    if (next) applyRange(next);
   };
 
   const exportCsv = () => {
@@ -77,9 +101,9 @@ export default function AttendanceSummaryPage() {
         ]
       : [];
     const slug = (classId ? summary.className : campusId ? campusName(campusId) : 'toan-truong').replace(/\s+/g, '-');
-    downloadCsv(
+    downloadXlsx(
       [[`Tổng hợp điểm danh ${scopeName} ${formatDate(range.from)} – ${formatDate(range.to)}`], head, ...rows, ...byClass],
-      `diem-danh-${slug}-${range.from}-${range.to}.csv`,
+      `diem-danh-${slug}-${range.from}-${range.to}.xlsx`,
     );
   };
 
@@ -123,10 +147,26 @@ export default function AttendanceSummaryPage() {
       ) : (
         <>
           <ClassDateBar
-            classes={manager ? undefined : classes}
+            classes={manager || groupMode ? undefined : classes}
             classId={classId}
             onClassChange={(v) => setParams(query({ classId: v }), { replace: true })}
           >
+            {teamLeader && (
+              <div className="dd-bar__field">
+                <label className="field__label" htmlFor="dd-scope">
+                  <Buildings size={15} /> Phạm vi
+                </label>
+                <select
+                  id="dd-scope"
+                  className="select"
+                  value={groupMode ? 'group' : ''}
+                  onChange={(e) => setParams(query({ scope: e.target.value, classId: '' }), { replace: true })}
+                >
+                  <option value="">Lớp của tôi</option>
+                  <option value="group">Các lớp nhóm tuổi</option>
+                </select>
+              </div>
+            )}
             {manager && campusOptions.length > 1 && (
               <div className="dd-bar__field">
                 <label className="field__label" htmlFor="dd-campus">
@@ -168,6 +208,12 @@ export default function AttendanceSummaryPage() {
                 </select>
               </div>
             )}
+            <div className="dd-bar__field">
+              <label className="field__label" htmlFor="dd-semester">
+                Học kỳ
+              </label>
+              <SemesterSelect id="dd-semester" value={semester} onChange={pickSemester} emptyLabel="Chọn ngày" />
+            </div>
             <div className="dd-bar__field">
               <label className="field__label" htmlFor="dd-from">
                 Từ ngày

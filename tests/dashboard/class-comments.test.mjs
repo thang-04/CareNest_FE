@@ -60,7 +60,7 @@ test('lưu nhận xét chung cùng trẻ, sửa riêng và request cũ không x�
   assert.equal((await repo.getDailyAssessment({ classId: CLASS, date: TODAY }, TEACHER)).classComment.text, 'Đã ổn định nề nếp.');
 });
 
-test('nhận xét lớp không tăng số đã đánh giá; PHT đúng campus/HT đọc được, campus khác bị chặn', async () => {
+test('nhận xét lớp không tăng số đã đánh giá; PHT mọi điểm trường/HT đọc được, chỉ GV lớp ghi', async () => {
   const before = await repo.getClassAssessmentOverview({ period: 'DAY', classId: CLASS }, HT);
   await repo.saveDailyGeneral({ classId: CLASS, date: TODAY, entries: [], classComment: NOTE }, TEACHER);
   const after = await repo.getClassAssessmentOverview({ period: 'DAY', classId: CLASS }, VP);
@@ -70,10 +70,8 @@ test('nhận xét lớp không tăng số đã đánh giá; PHT đúng campus/HT
   const detail = await repo.getClassAssessmentDetail({ classId: CLASS, period: 'DAY' }, HT);
   assert.equal(detail.classComments[0].text, NOTE);
   assert.ok(detail.children.every((child) => child.comments.every((c) => c.text !== NOTE)));
-  await assert.rejects(
-    () => repo.getClassAssessmentDetail({ classId: CLASS, period: 'DAY' }, OTHER_VP),
-    (e) => e.status === 403,
-  );
+  // AUTH-20 (Cần chốt 03/11/2026): PHT điểm trường khác xem được (chỉ xem)
+  assert.equal((await repo.getClassAssessmentDetail({ classId: CLASS, period: 'DAY' }, OTHER_VP)).classComments[0].text, NOTE);
   await assert.rejects(
     () => repo.saveDailyGeneral({ classId: CLASS, date: TODAY, entries: [], classComment: 'Ghi thay' }, VP),
     (e) => e.status === 403,

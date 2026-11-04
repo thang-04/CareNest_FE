@@ -6,7 +6,7 @@ import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { useTicketSummary } from '@/hooks/assessment/useAssessment';
 import { periodLabel } from '@/utils/assessment/assessmentPeriods';
 import { PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
-import { downloadCsv } from '@/utils/exportCsv';
+import { downloadXlsx } from '@/utils/exportXlsx';
 
 const monthText = (m) => periodLabel(PERIOD_TYPE.MONTH, m, m);
 
@@ -33,13 +33,13 @@ export function TicketSummary({ classId }) {
   const rangeText = month ? monthText(month) : 'cả năm học';
 
   const exportCsv = () =>
-    downloadCsv(
+    downloadXlsx(
       [
         [`Tổng hợp phiếu bé ngoan ${summary.cls.name} – ${rangeText}`],
         ['Mã trẻ', 'Họ tên', 'Bé ngoan', 'Bé ngoan toàn diện', 'Cờ bé ngoan'],
         ...rows.map((r) => [r.child.code, r.child.fullName, r.weekly, r.monthly, r.flags]),
       ],
-      `phieu-be-ngoan-${summary.cls.name}-${month || 'nam-hoc'}.csv`,
+      `phieu-be-ngoan-${summary.cls.name}-${month || 'nam-hoc'}.xlsx`,
     );
 
   // Thẻ tổng số phiếu của khoảng đang chọn (số do service tính)

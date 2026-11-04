@@ -65,6 +65,8 @@ export const createAttendanceBeApi = (client) => ({
   getAttendanceClasses: (schoolYear) => client.get('/attendance/classes', { params: { schoolYearId: schoolYear || undefined } }),
   getDayInfo: (date, classId) => client.get('/attendance/day-info', { params: { date, classId: classId || undefined } }),
   listAttendanceDayUnlocks: () => client.get('/attendance/day-unlocks'),
+  // Đơn nghỉ phụ huynh gửi từ App: GV/PHT/HT chỉ xem trong phạm vi (ATT-05)
+  searchLeaveRequests: ({ from, to, campusId, classId } = {}) => client.get('/leave-requests', { params: { from, to, campusId, classId } }),
   unlockAttendanceDay: (body) => client.post('/attendance/day-unlocks', body),
   revokeAttendanceDayUnlock: (id) => client.post(`/attendance/day-unlocks/${id}/revoke`),
   getClassAttendance: async (classId, date) => toSheet(await client.get(`/classes/${classId}/attendance`, { params: { date } })),

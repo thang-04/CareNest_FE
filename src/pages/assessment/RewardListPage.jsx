@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Award, FileCheck2, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRewardLists } from '@/hooks/assessment/useAssessment';
@@ -48,57 +48,63 @@ export default function RewardListPage() {
   };
   const hasFilter = !!(keyword || status || campusId);
 
+  // GV chỉ dạy một lớp: mở thẳng danh sách khen thưởng của lớp mình, không qua bảng chọn lớp
+  if (!leader && !loading && !error && rows.length === 1) return <Navigate to={`/assessment/rewards/${rows[0].classId}`} replace />;
+
   return (
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.rewards)} />
       <h1 className="page__title">Đề xuất khen thưởng cuối năm</h1>
       <div className="card">
-        <div className="filter-bar">
-          <SearchSubmit
-            className="flex-1"
-            value={keyword}
-            placeholder="Tìm lớp..."
-            label="Tìm lớp"
-            onSearch={(text) => {
-              setKeyword(text);
-              setPage(1);
-            }}
-          />
-          {leader && multiCampus && (
+        {/* GV một lớp: không cần tìm / lọc lớp; tổ trưởng, BGH có nhiều lớp thì vẫn có bộ lọc */}
+        {rows.length > 1 && (
+          <div className="filter-bar">
+            <SearchSubmit
+              className="flex-1"
+              value={keyword}
+              placeholder="Tìm lớp..."
+              label="Tìm lớp"
+              onSearch={(text) => {
+                setKeyword(text);
+                setPage(1);
+              }}
+            />
+            {leader && multiCampus && (
+              <select
+                className="select"
+                value={campusId}
+                aria-label="Điểm trường"
+                onChange={(e) => {
+                  setCampusId(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">Tất cả điểm trường</option>
+                {campuses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <select
               className="select"
-              value={campusId}
-              aria-label="Điểm trường"
+              value={status}
+              aria-label="Trạng thái"
               onChange={(e) => {
-                setCampusId(e.target.value);
+                setStatus(e.target.value);
                 setPage(1);
               }}
             >
-              <option value="">Tất cả điểm trường</option>
-              {campuses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              <option value="">Tất cả trạng thái</option>
+              {STATUS_FILTERS.map((s) => (
+                <option key={s} value={s}>
+                  {REWARD_STATUS_LABELS[s]}
                 </option>
               ))}
             </select>
-          )}
-          <select
-            className="select"
-            value={status}
-            aria-label="Trạng thái"
-            onChange={(e) => {
-              setStatus(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Tất cả trạng thái</option>
-            {STATUS_FILTERS.map((s) => (
-              <option key={s} value={s}>
-                {REWARD_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </div>
+          </div>
+        )}
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
