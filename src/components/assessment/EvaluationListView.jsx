@@ -139,7 +139,8 @@ export function EvaluationListView({ kind }) {
   // Khai báo sau themeSelect (dùng themeSelect)
   const moreFilters = leader && !yearEnd && !!themeSelect;
   // Giáo viên chỉ dạy 1 lớp (mỗi lớp 2 cô): bỏ lọc và cột Lớp; đánh giá tuần / tháng hiện số cờ bé ngoan của kỳ
-  const showClass = leader;
+  // Tổ trưởng (GV) thấy đánh giá cuối năm của nhiều lớp trong tổ: hiện cột và ô lọc Lớp như BGH
+  const showClass = leader || !!classId || new Set(evaluations.map((e) => e.classId)).size > 1;
   const showFlags = !leader && !yearEnd;
   const cols = 5 + (showClass ? 1 : 0) + (showFlags ? 1 : 0);
   const link = (e) => `/assessment/${kind}/${e.id}`;
