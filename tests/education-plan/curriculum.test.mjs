@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import { CURRICULUM_SEED } from '../../src/mocks/curriculumSeed.js';
 import {
+  addContentsToExistingGoals,
   addSuggestedContents,
   curriculumAsSourcePlan,
   curriculumSourceLink,
@@ -422,4 +423,27 @@ test('3 tầng: mapper gửi id lĩnh vực con/nhóm đúng tầng và đọc l
   );
   assert.equal(ui.domains[0].rows[0].curriculumSubDomainId, 4);
   assert.equal(ui.domains[0].rows[1].curriculumText, 'Nhóm gốc');
+});
+
+test('EDU-28: lần 2 tích thêm nội dung cho mục tiêu Bộ đã có ⇒ thêm vào đúng mục tiêu, bỏ câu trùng', () => {
+  const g = goalsOf('ag-3').find((x) => (x.contents || []).length >= 2);
+  assert.ok(g, 'seed có mục tiêu kèm nội dung');
+  const empty = { domains: DOMAINS.map((name, i) => ({ id: `d${i}`, name, rows: [] })) };
+  let n = 0;
+  const makeId = () => `t-${++n}`;
+  const first = mergeImportedGoals(empty, curriculumAsSourcePlan([{ ...g, contents: [] }]), [`cg-${g.id}`], makeId);
+  assert.equal(first.report.added, 1);
+  const form = { domains: first.domains };
+  const once = addContentsToExistingGoals(form, [{ ...g, contents: [g.contents[0]] }], makeId);
+  assert.ok(once.matched.has(g.id));
+  assert.equal(once.added, 1);
+  const twice = addContentsToExistingGoals({ domains: once.domains }, [g], makeId);
+  assert.equal(twice.added, g.contents.length - 1);
+  const row = twice.domains.flatMap((d) => d.rows).find((r) => r.kind === 'goal' && r.curriculumGoalId === g.id);
+  assert.deepEqual(
+    row.contents.map((c) => c.text),
+    g.contents,
+  );
+  const other = addContentsToExistingGoals({ domains: twice.domains }, [{ ...g, id: -1, goalText: 'Câu khác' }], makeId);
+  assert.equal(other.matched.size, 0);
 });
