@@ -71,6 +71,7 @@
     "GET /education-plans/goals/{x}",
     "GET /education-plans/goals/{x}/changes",
     "GET /health-checks",
+    "GET /health-checks/growth-report",
     "GET /health-checks/schedule-warnings",
     "GET /health-checks/{x}",
     "GET /health-checks/{x}/children/{x}/exam",

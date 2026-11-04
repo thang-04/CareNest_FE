@@ -172,6 +172,11 @@ const ITEMS = {
     label: 'Xu hướng sức khỏe',
     to: '/children/health-trends',
   },
+  // Tổng hợp cân đo mẫu 5.1: chỉ Hiệu trưởng, PHT (coordinator chốt 2026-11-04)
+  growthReport: {
+    label: 'Tổng hợp cân đo',
+    to: '/children/growth-report',
+  },
   attendance: {
     label: 'Điểm danh & báo ăn',
     to: '/attendance',
@@ -386,7 +391,7 @@ const MENUS = {
       'schoolRoles',
     ]),
     // Tiếp nhận trẻ, Xếp lớp như PHT trên mọi điểm trường (user chốt 2026-10-27)
-    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
+    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends', 'growthReport']),
     group('attendance', ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('assessment', [
       'assessOverview',
@@ -422,7 +427,7 @@ const MENUS = {
       'schoolTeachers',
       'schoolStaffView',
     ]),
-    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
+    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends', 'growthReport']),
     group('attendance', ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [

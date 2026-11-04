@@ -21,6 +21,12 @@ import { axiosClient } from '@/services/http/axiosClient';
  *   khác NORMAL, gầy còm nặng/béo phì trước, rồi gầy còm/thừa cân, rồi nguy cơ thừa cân; cùng mức theo tên). Dòng trẻ có bmi,
  *   bmiStatus (chỉ kỳ cân đo).
  * - Năm học (user chốt 2026-10-28, Y-4): GET /health-checks nhận schoolYear; đợt thuộc năm học của ngày bắt đầu.
+ * - Tổng hợp cân đo mẫu 5.1 (2026-11-04, docs/plans/active/2026-11-04-health-growth-report.md): GET /health-checks/growth-report
+ *   { month: 'yyyy-MM', campusId? } — HT mọi điểm trường (campusId không có ⇒ 404), PHT điểm trường được giao (khác ⇒ 403), vai
+ *   trò khác 403, month thiếu/sai dạng ⇒ 400. Mọi lớp của điểm trường có dòng khi tháng có đợt/kỳ (lớp không có trẻ ⇒ số 0). Trả
+ *   { month, campuses: [{ campusId, campusName, campaigns, classes: [{ classId, className, ageGroupName, level, counts }], preschool,
+ *   nursery, total }], preschool, nursery, total }; counts = { enrolled, measured, weightNormal, underweight, heightNormal, stunted,
+ *   bmiNormal, wasted, overweight, obese, unclassified }.
  * - Kỳ cân đo (user chốt 2026-10-31): kind EXAM | MEASUREMENT (đợt cũ không có ⇒ EXAM); POST nhận kind, PUT không đổi kind. Mỗi điểm
  *   trường 1 đợt/kỳ chưa đóng. GET schedule-warnings { campusId, kind, startDate, excludeId? } trả { warnings: [{ code: TOO_CLOSE |
  *   EXAM_IN_SCHOOL_YEAR, campaignId, name, kind, startDate }] }, không chặn lưu. Danh sách lớp của kỳ: result NOT_RECORDED | RECORDED |
@@ -28,6 +34,7 @@ import { axiosClient } from '@/services/http/axiosClient';
  */
 export const healthCheckApi = {
   listHealthChecks: (filters) => axiosClient.get('/health-checks', { params: filters }),
+  getGrowthReport: (params) => axiosClient.get('/health-checks/growth-report', { params }),
   scheduleWarnings: (params) => axiosClient.get('/health-checks/schedule-warnings', { params }),
   getHealthCheck: (id) => axiosClient.get(`/health-checks/${id}`),
   getHealthCheckClass: (id, classId) => axiosClient.get(`/health-checks/${id}/classes/${classId}/children`),

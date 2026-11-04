@@ -98,6 +98,7 @@ const HealthTrendPage = lazy(() => import('@/pages/children/HealthTrendPage'));
 const HealthCheckListPage = lazy(() => import('@/pages/children/HealthCheckListPage'));
 const HealthCheckFormPage = lazy(() => import('@/pages/children/HealthCheckFormPage'));
 const HealthCheckDetailPage = lazy(() => import('@/pages/children/HealthCheckDetailPage'));
+const GrowthReportPage = lazy(() => import('@/pages/children/GrowthReportPage'));
 const HealthExamFormPage = lazy(() => import('@/pages/children/HealthExamFormPage'));
 const BoardingTodayPage = lazy(() => import('@/pages/boarding/BoardingTodayPage'));
 const DryStockLedgerPage = lazy(() => import('@/pages/kitchen/DryStockLedgerPage'));
@@ -316,6 +317,8 @@ export function AppRoutes() {
             />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
             <Route path="health-checks" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckListPage />)} />
+            {/* Tổng hợp cân đo mẫu 5.1: Hiệu trưởng mọi điểm trường, PHT điểm trường được giao (coordinator chốt 2026-11-04) */}
+            <Route path="growth-report" element={only(LEADERS, <GrowthReportPage />)} />
             {/* Đợt khám, kỳ cân đo: Hiệu trưởng và PHT điểm trường quản lý (user chốt 2026-10-31) */}
             <Route path="health-checks/new" element={only(LEADERS, <HealthCheckFormPage />)} />
             <Route

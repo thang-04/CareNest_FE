@@ -173,6 +173,9 @@ export const CampaignKindBadge = createStatusBadge(
   CAMPAIGN_KIND_LABELS,
 );
 
+/* Tổng hợp cân đo mẫu 5.1: điểm trường có kỳ/đợt chưa đóng trong tháng ⇒ số liệu còn thay đổi (đang xử lý = xanh dương, §3.2). */
+export const GrowthReportDataBadge = createStatusBadge({ PROVISIONAL: ['blue', Clock] }, { PROVISIONAL: 'Số liệu chưa chốt' });
+
 /* Kết luận bác sĩ (BE trả nhóm): chuyển khám, nguy cơ lao, bất thường mới khi đang theo dõi = cần xử lý (red);
    có vấn đề, tư vấn = cần để ý (orange); đang theo dõi, chưa ghi nhận thêm = đang thực hiện (blue). FOLLOWING_* chỉ ở dữ liệu cũ. */
 export const ConclusionCategoryBadge = createStatusBadge(

@@ -766,3 +766,145 @@
 .tr-review__full {
   grid-column: 1 / -1;
 }
+
+/* Tổng hợp cân đo mẫu 5.1 (plan docs/plans/active/2026-11-04-health-growth-report.md): bảng kẻ ô 4 tầng tiêu đề, cuộn ngang trong
+   .table-wrap, cột TT và Tên lớp đứng yên. Viền vẽ theo từng ô (border-collapse: separate) để cột đứng yên không mất vạch kẻ. */
+.card > .table-wrap.gr-table-wrap {
+  margin-bottom: var(--space-4);
+}
+.table.table--grid.gr-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 0;
+  border-top: 1px solid var(--color-text-disabled);
+}
+.table.table--grid.gr-table th,
+.table.table--grid.gr-table td {
+  border: 0;
+  border-right: 1px solid var(--color-text-disabled);
+  border-bottom: 1px solid var(--color-text-disabled);
+}
+/* Cạnh trái vẽ ở ô đầu dòng (cột TT đứng yên mang theo vạch khi cuộn ngang), không ở bảng */
+.table.table--grid.gr-table thead th.gr-col-tt,
+.table.table--grid.gr-table tbody td:first-child {
+  border-left: 1px solid var(--color-text-disabled);
+}
+.table.table--grid.gr-table thead th {
+  vertical-align: middle;
+}
+.table.gr-table .num {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* Tiêu đề dài của 3 cột số đầu xuống dòng trong cột hẹp thay vì kéo rộng bảng */
+.table.table--grid.gr-table th.gr-col-wrap {
+  min-width: calc(var(--space-16) * 1.25);
+  max-width: calc(var(--space-16) * 1.5);
+  white-space: normal;
+}
+.table.gr-table .gr-col-tt {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: var(--space-12);
+  min-width: var(--space-12);
+  max-width: var(--space-12);
+}
+.table.gr-table .gr-col-name {
+  position: sticky;
+  left: var(--space-12);
+  z-index: 1;
+  min-width: calc(var(--space-16) * 2.25);
+}
+.table.gr-table thead :is(.gr-col-tt, .gr-col-name) {
+  z-index: 2;
+  background: var(--table-header-bg);
+}
+.table.gr-table tbody :is(.gr-col-tt, .gr-col-name) {
+  background: var(--color-surface);
+}
+/* Dải điểm trường: xanh đậm chữ trắng như dải phần của phiếu khám; chữ đứng yên ở mép trái khi cuộn ngang */
+.table.table--grid.gr-table tbody tr.gr-band td {
+  padding-top: var(--space-1-5);
+  padding-bottom: var(--space-1-5);
+  background: var(--color-primary);
+  color: var(--text-inverse);
+}
+.gr-band__inner {
+  position: sticky;
+  left: var(--space-3);
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+.gr-band__name {
+  font-weight: var(--fw-bold);
+}
+.gr-band__meta {
+  font-size: var(--fs-xs);
+}
+/* Dòng Tổng MG, Tổng NT, tổng điểm trường, toàn trường: chữ đậm nền xanh nhạt (cả 2 cột đứng yên) */
+.table.table--grid.gr-table tbody tr.gr-row--total td {
+  background: var(--color-primary-soft);
+  font-weight: var(--fw-bold);
+}
+.table.table--grid.gr-table tbody tr.gr-row--grand td {
+  background: var(--color-primary-soft-hover);
+}
+/* Số trẻ suy dinh dưỡng, thừa cân, béo phì khác 0: chữ cảnh báo nhẹ, không tô nền */
+.table.gr-table td.gr-warn {
+  color: var(--color-warning-fg);
+  font-weight: var(--fw-semibold);
+}
+.gr-scope {
+  align-self: center;
+  font-size: var(--fs-sm);
+}
+/* 6 thẻ số liệu một hàng ở màn rộng (auto-fit chung để thẻ Béo phì rơi một mình xuống hàng 2); hẹp hơn 3 rồi 2 cột */
+.stat-grid.gr-stats {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+@media (max-width: 1100px) {
+  .stat-grid.gr-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+/* Thẻ số liệu: số trẻ to, tỉ lệ nhỏ bên cạnh */
+.gr-stat {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-1-5);
+}
+.gr-stat__sub {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+.gr-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0 var(--space-6) var(--space-6);
+}
+.gr-notes__sources {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+@media (max-width: 640px) {
+  .stat-grid.gr-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .table.gr-table .gr-col-name {
+    min-width: calc(var(--space-16) * 1.75);
+  }
+  /* Dải điểm trường xuống dòng trong phần bảng đang thấy (ô gộp rộng bằng cả bảng) */
+  .gr-band__inner {
+    max-width: calc(100vw - var(--space-16) * 1.5);
+  }
+  .gr-notes {
+    padding: 0 var(--space-4) var(--space-4);
+  }
+}

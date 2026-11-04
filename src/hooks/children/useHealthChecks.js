@@ -1,6 +1,12 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
-import { getHealthCheck, getHealthCheckClass, getHealthChecks, getHealthExam } from '@/services/children/healthCheckService';
+import {
+  getGrowthReport,
+  getHealthCheck,
+  getHealthCheckClass,
+  getHealthChecks,
+  getHealthExam,
+} from '@/services/children/healthCheckService';
 
 /** Đợt khám trong phạm vi người dùng. filters: { campusId, status, schoolYear } */
 export function useHealthChecks(filters = {}) {
@@ -8,6 +14,17 @@ export function useHealthChecks(filters = {}) {
   const key = JSON.stringify(filters);
   const { data, loading, error, reload } = useAsync(() => getHealthChecks(filters, user), [key, user?.id], { refreshOnDataChange: true });
   return { campaigns: data || [], loading, error, reload };
+}
+
+/** Tổng hợp cân đo mẫu 5.1 của một tháng { month, campuses, preschool, nursery, total }; chưa có tháng thì không gọi. */
+export function useGrowthReport({ month, campusId }) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(
+    () => getGrowthReport({ month, ...(campusId ? { campusId } : {}) }, user),
+    [month, campusId, user?.id],
+    { refreshOnDataChange: true, enabled: !!month },
+  );
+  return { report: data, loading, error, reload };
 }
 
 /** Chi tiết đợt { campaign, classes, watchList }. live=false ở trang sửa. */

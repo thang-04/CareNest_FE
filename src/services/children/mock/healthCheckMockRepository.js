@@ -108,8 +108,8 @@ const BMI_ATTENTION_RANK = {
 };
 const byName = (a, b) => a.fullName.localeCompare(b.fullName, 'vi');
 
-/** Danh sách trẻ của lớp trong đợt + kết quả (BE trả, UI không tự tính). */
-const rosterOf = (db, campaign, cls) => {
+/** Danh sách trẻ của lớp trong đợt + kết quả (BE trả, UI không tự tính). Báo cáo tổng hợp cân đo dùng chung. */
+export const rosterOf = (db, campaign, cls) => {
   const status = campaignStatusOf(campaign);
   const round = campaignKindOf(campaign) === CAMPAIGN_KIND.MEASUREMENT;
   const resultByChild = Object.fromEntries(db.healthMeasurements.filter((m) => m.campaignId === campaign.id).map((m) => [m.childId, m]));
