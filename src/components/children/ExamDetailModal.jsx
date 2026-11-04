@@ -40,7 +40,7 @@ export function ExamDetailModal({ measurement, childId, onClose }) {
             <FollowUpLevelBadge status={m.followUpLevel} />
             <PublishStatusBadge status={m.published ? 'PUBLISHED' : 'UNPUBLISHED'} />
           </div>
-          <ExamSummary measurement={m} child={view.child} campaign={view.campaign} />
+          <ExamSummary measurement={m} child={view.child} campaign={view.campaign} reference={view.reference} framed={false} />
         </>
       ) : null}
     </Modal>

@@ -17,7 +17,7 @@ import {
   PARENT_ACCOUNT_STATUS,
 } from '@/models/children/childrenConstants';
 import { CAMPAIGN_KIND, CAMPAIGN_STATUS } from '@/models/children/healthCheckConstants';
-import { EXAM_STATUS, YES_NO } from '@/models/children/healthExamForm';
+import { EXAM_STATUS } from '@/models/children/healthExamForm';
 import { PERMISSION_SCOPE } from '@/models/school-config/schoolConfigConstants';
 import {
   PROFILE_FIELDS,
@@ -25,7 +25,6 @@ import {
   emptyChildProfile,
   emptyMedicalHistory,
   formatAddress,
-  historyToExam,
 } from '@/models/children/childProfile';
 import { isValidCitizenId, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
@@ -355,17 +354,13 @@ const resultsOf = (db, child) =>
 
 const campaignNameOf = (db, campaignId) => (campaignId && (db.healthCheckCampaigns || []).find((c) => c.id === campaignId)?.name) || null;
 
-/**
- * Cảnh báo hiện tại theo bác sĩ (HLT-10, HLT-19): lần khám gần nhất có kết luận; null khi chưa có. knownCondition: vấn đề của lần
- * khám đó khi mức là "Vấn đề đã biết, ổn định" để phiếu khám sau hỏi vấn đề mới hay đã biết. Số đo của kỳ cân đo không tính.
- */
+/** Cảnh báo hiện tại theo bác sĩ (HLT-10, HLT-19): lần khám gần nhất có kết luận; null khi chưa có. Số đo của kỳ cân đo không tính. */
 const latestExamOf = (db, child) => {
   const found = resultsOf(db, child).find(
     ({ sc }) => sc.source === MEASUREMENT_SOURCE.EXAM && sc.followUpLevel !== FOLLOW_UP_LEVEL.UNAVAILABLE,
   );
   if (!found) return null;
   const { m, sc } = found;
-  const issue = String(m.exam?.conclusion?.issueText || '').trim();
   return {
     measurementId: m.id,
     campaignId: m.campaignId ?? null,
@@ -374,7 +369,6 @@ const latestExamOf = (db, child) => {
     followUpLevel: sc.followUpLevel,
     conclusionCategory: sc.conclusionCategory,
     conclusion: conclusionBrief(m),
-    knownCondition: sc.followUpLevel === FOLLOW_UP_LEVEL.KNOWN_STABLE && issue ? issue : null,
   };
 };
 
@@ -393,19 +387,6 @@ const latestBmiOf = (db, child) => {
     bmiStatus: sc.bmiStatus,
     bmiZScore: sc.bmiZScore,
   };
-};
-
-/**
- * Vấn đề đã biết cho phiếu khám, để hỏi "Vấn đề này" mới hay đã biết (BE chốt 2026-11-04): vấn đề của lần khám đã kết luận gần nhất
- * ở mức Vấn đề đã biết, ổn định; chưa có thì tiền sử bản thân đã khai (đọc như phần điền sẵn tiền sử của phiếu); không có thì null.
- */
-export const knownConditionOf = (db, child) => {
-  const known = resultsOf(db, child).find(
-    ({ m, sc }) => sc.followUpLevel === FOLLOW_UP_LEVEL.KNOWN_STABLE && String(m.exam?.conclusion?.issueText || '').trim(),
-  );
-  if (known) return known.m.exam.conclusion.issueText.trim();
-  const declared = historyToExam(declarationOf(db, child.id)?.medicalHistory || undefined);
-  return declared.self === YES_NO.YES && declared.selfText.trim() ? declared.selfText.trim() : null;
 };
 
 // Danh sách trẻ (phần thêm của mock cho Xu hướng sức khỏe): mức theo lần khám gần nhất có kết luận, để xếp trẻ cần chú ý.

@@ -56,7 +56,7 @@ import { axiosClient } from '@/services/http/axiosClient';
  * followUpId, followUpEffect, parentContact; thêm bmiStatus (SEVERE_THINNESS | THINNESS | NORMAL | OVERWEIGHT_RISK | OVERWEIGHT |
  * OBESE) và bmiZScore (2 chữ số) cho số đo của kỳ cân đo (có chiều cao, cân nặng, 0–84 tháng), null với phiếu khám. GET health bỏ
  * latestHealth, openFollowUp, externalResults; thêm latestExam { measurementId, campaignId, campaignName, date, followUpLevel,
- * conclusionCategory, conclusion, knownCondition } và latestBmi { measurementId, campaignId, campaignName, date, ageMonths, bmi,
+ * conclusionCategory, conclusion } và latestBmi { measurementId, campaignId, campaignName, date, ageMonths, bmi,
  * bmiStatus, bmiZScore } (null khi chưa có).
  */
 const PAGE_SIZE = 100;

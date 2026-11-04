@@ -18,6 +18,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheckClass, useHealthExam } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { RowMenu } from '@/components/ui/RowMenu';
 import { Stepper } from '@/components/ui/Stepper';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { ChildAccessState, HEALTH_CHECK_ACCESS_TEXT } from '@/components/children/ChildAccessState';
@@ -26,7 +27,7 @@ import { ExamAdminStep } from '@/components/children/exam/ExamAdminStep';
 import { ExamMeasureStep } from '@/components/children/exam/ExamMeasureStep';
 import { ExamDevelopmentStep } from '@/components/children/exam/ExamDevelopmentStep';
 import { ExamClinicalStep } from '@/components/children/exam/ExamClinicalStep';
-import { ExamConclusionStep, ExamReviewPoints, reviewPointTexts } from '@/components/children/exam/ExamConclusionStep';
+import { ExamConclusionStep, ExamReviewCard, reviewPointTexts } from '@/components/children/exam/ExamConclusionStep';
 import { ExamSummary } from '@/components/children/exam/ExamSummary';
 import { previewHealthExamReview, saveHealthExam } from '@/services/children/healthCheckService';
 import {
@@ -200,9 +201,11 @@ export default function HealthExamFormPage() {
   const m = view.measurement;
   const concluded = m?.examStatus === EXAM_STATUS.CONCLUDED;
   const editable = view.canEdit && (!concluded || editing);
+  // Bước Kết luận khi khám theo lớp có 2 nút lưu kết luận: điện thoại gom Lưu nháp, Lưu kết luận vào nút "…"
+  const saveMenu = step === 4 && !concluded && !!roster;
   const back = (
-    <Link className="btn" to={campaignLink}>
-      <ArrowLeft size={16} /> Về đợt khám
+    <Link className="btn btn--collapse" to={campaignLink}>
+      <ArrowLeft size={16} /> <span className="btn__collapse">Về đợt khám</span>
     </Link>
   );
   const head = (
@@ -346,7 +349,6 @@ export default function HealthExamFormPage() {
       reference: view.reference,
       requireReason: concluded,
       conclusionMode: view.conclusionMode,
-      knownCondition: view.knownCondition,
       guardianCount: child.guardians.length,
     });
     if (hasErrors(errs)) {
@@ -473,42 +475,40 @@ export default function HealthExamFormPage() {
             <PublishStatusBadge status={m.published ? 'PUBLISHED' : 'UNPUBLISHED'} />
           </div>
         )}
-        <section className="card wizard-card">
-          <ExamSummary measurement={m} child={child} campaign={view.campaign} />
-        </section>
-        <section className="card wizard-card mt-16">
-          <div className="row gap-2 mb-12">
-            <Stethoscope size={18} className="text-primary" />
-            <h2 className="card__title">Điểm cần bác sĩ xem lại</h2>
-          </div>
-          <ExamReviewPoints points={m.reviewPoints} />
-        </section>
-        {m.edits?.length > 0 && (
-          <section className="card wizard-card mt-16">
-            <h2 className="card__title mb-12">Lịch sử sửa phiếu</h2>
-            <ul className="history-list">
-              {[...m.edits].reverse().map((ed, i) => (
-                <li key={`${ed.at}${i}`}>
-                  <span className="history-list__dot" />
-                  <div>
-                    <div className="fw-600">
-                      {ed.userName || '—'} · {formatDateTime(ed.at)}
-                    </div>
-                    <div className="text-sm">Lý do: {ed.reason}</div>
-                    <ul className="tr-change-list text-sm">
-                      {ed.changes.map((c) => (
-                        <li key={c.field}>
-                          {c.label}: <s className="muted">{formatMeasurementChange(c.field, c.from)}</s> →{' '}
-                          <b>{formatMeasurementChange(c.field, c.to)}</b>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <div className="stack gap-4">
+          <ExamSummary measurement={m} child={child} campaign={view.campaign} reference={view.reference} />
+          <ExamReviewCard points={m.reviewPoints} />
+          {m.edits?.length > 0 && (
+            <section className="card">
+              <div className="card__header">
+                <h2 className="card__title">Lịch sử sửa phiếu</h2>
+              </div>
+              <div className="card__body">
+                <ul className="history-list">
+                  {[...m.edits].reverse().map((ed, i) => (
+                    <li key={`${ed.at}${i}`}>
+                      <span className="history-list__dot" />
+                      <div>
+                        <div className="fw-600">
+                          {ed.userName || '—'} · {formatDateTime(ed.at)}
+                        </div>
+                        <div className="text-sm">Lý do: {ed.reason}</div>
+                        <ul className="tr-change-list text-sm">
+                          {ed.changes.map((c) => (
+                            <li key={c.field}>
+                              {c.label}: <s className="muted">{formatMeasurementChange(c.field, c.from)}</s> →{' '}
+                              <b>{formatMeasurementChange(c.field, c.to)}</b>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          )}
+        </div>
         <div className="page-actions">
           {back}
           {concluded && view.canEdit && (
@@ -547,7 +547,7 @@ export default function HealthExamFormPage() {
       <div className="card stepper-card">
         <Stepper steps={STEP_LABELS} current={step} maxReached={maxReached} onStepClick={busy ? undefined : goTo} />
       </div>
-      <div className="mt-16">
+      <div className="stack gap-4 mt-16">
         {step === 0 && <ExamAdminStep {...stepProps} child={child} campaign={view.campaign} dateRange={dateRange} />}
         {step === 1 && <ExamMeasureStep {...stepProps} reference={view.reference} />}
         {step === 2 && <ExamDevelopmentStep {...stepProps} reference={view.reference} />}
@@ -560,11 +560,10 @@ export default function HealthExamFormPage() {
             doctorNames={view.doctorNames}
             requireReason={concluded}
             mode={view.conclusionMode}
-            knownCondition={view.knownCondition}
           />
         )}
         {step === 4 && (
-          <div className="alert alert--info mt-16">
+          <div className="alert alert--info">
             <Send size={18} />
             <div>
               Lưu kết luận là <b>công bố cho phụ huynh ngay</b>; phụ huynh xem được {PARENT_VISIBLE_HEALTH_TEXT} trên ứng dụng. Kết luận là
@@ -573,14 +572,16 @@ export default function HealthExamFormPage() {
           </div>
         )}
       </div>
-      <div className="page-actions">
+      {/* Điện thoại (user chọn 1 hàng, 2026-11-04): nút phụ chỉ còn biểu tượng, "Tiếp" bỏ tên bước; bước Kết luận khi khám theo lớp
+          gom Lưu nháp, Lưu kết luận vào nút "…" để nút chính "Lưu, khám trẻ tiếp" vừa một hàng */}
+      <div className="page-actions page-actions--sticky">
         {step > 0 ? (
-          <button className="btn wizard-actions__back" onClick={() => goTo(step - 1)} disabled={busy}>
-            <ArrowLeft size={16} /> Quay lại
+          <button className="btn btn--collapse wizard-actions__back" onClick={() => goTo(step - 1)} disabled={busy}>
+            <ArrowLeft size={16} /> <span className="btn__collapse">Quay lại</span>
           </button>
         ) : editing ? (
           <button
-            className="btn wizard-actions__back"
+            className="btn btn--collapse wizard-actions__back"
             onClick={() => {
               setForm(formOf(m));
               setErrors({});
@@ -588,29 +589,52 @@ export default function HealthExamFormPage() {
               setReviewStale(false);
             }}
           >
-            <ArrowLeft size={16} /> Hủy sửa
+            <ArrowLeft size={16} /> <span className="btn__collapse">Hủy sửa</span>
           </button>
         ) : (
           back
         )}
         <div className="row gap-2">
           {!concluded && (
-            <button className="btn" onClick={() => saveDraft(step, { notify: true })} disabled={busy}>
-              <Save size={16} /> Lưu nháp
+            <button
+              className={`btn btn--collapse${saveMenu ? ' page-actions__desk' : ''}`}
+              onClick={() => saveDraft(step, { notify: true })}
+              disabled={busy}
+            >
+              <Save size={16} /> <span className="btn__collapse">Lưu nháp</span>
             </button>
           )}
           {step < 4 ? (
             <button className="btn btn--primary" onClick={() => goTo(step + 1)} disabled={busy}>
-              {busy ? <Spinner small /> : null} Tiếp: {STEP_LABELS[step + 1]} <ArrowRight size={16} />
+              {/* Một span bao cả nhãn: "Tiếp" và phần tên bước không bị khoảng cách (gap) của nút tách ra */}
+              {busy ? <Spinner small /> : null}{' '}
+              <span>
+                Tiếp<span className="btn__collapse">: {STEP_LABELS[step + 1]}</span>
+              </span>{' '}
+              <ArrowRight size={16} />
             </button>
           ) : (
             <>
-              <button className={`btn ${!concluded && roster ? '' : 'btn--primary'}`} onClick={() => conclude(false)} disabled={busy}>
+              {saveMenu && (
+                <span className="page-actions__phone">
+                  <RowMenu
+                    label="Cách lưu khác"
+                    items={[
+                      { label: 'Lưu nháp', icon: Save, disabled: busy, onClick: () => saveDraft(step, { notify: true }) },
+                      { label: 'Lưu kết luận', icon: Save, disabled: busy, onClick: () => conclude(false) },
+                    ]}
+                  />
+                </span>
+              )}
+              <button className={`btn ${saveMenu ? 'page-actions__desk' : 'btn--primary'}`} onClick={() => conclude(false)} disabled={busy}>
                 {busy ? <Spinner small /> : <Save size={16} />} Lưu kết luận
               </button>
-              {!concluded && roster && (
+              {saveMenu && (
                 <button className="btn btn--primary" onClick={() => conclude(true)} disabled={busy}>
-                  {busy ? <Spinner small /> : <Save size={16} />} Lưu kết luận và khám trẻ tiếp theo
+                  {busy ? <Spinner small /> : <Save size={16} />} <span className="btn__collapse">Lưu kết luận và khám trẻ tiếp theo</span>
+                  <span className="btn__phone" aria-hidden="true">
+                    Lưu, khám trẻ tiếp
+                  </span>
                 </button>
               )}
             </>
@@ -632,7 +656,7 @@ export default function HealthExamFormPage() {
       >
         {confirmConclude && (
           <>
-            <ul className="tr-review__list mt-8">
+            <ul className="tr-review__signs mt-8">
               {confirmConclude.lines.map((t) => (
                 <li key={t}>{t}</li>
               ))}

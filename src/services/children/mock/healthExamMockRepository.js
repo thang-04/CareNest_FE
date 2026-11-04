@@ -29,13 +29,7 @@ import { uid } from '@/utils/id';
 import { hasErrors } from '@/utils/children/childrenValidation';
 import { needsParentOpinion, validateHealthExam } from '@/utils/children/healthExamValidation';
 import { canRecordMeasurement, canViewHealth } from '@/utils/children/childrenPermissions';
-import {
-  ensureChildRecordsSeeded,
-  ensureDeclarationOf,
-  knownConditionOf,
-  notifyTbContactDateChanged,
-  toMeasurementView,
-} from './childrenMockRepository';
+import { ensureChildRecordsSeeded, ensureDeclarationOf, notifyTbContactDateChanged, toMeasurementView } from './childrenMockRepository';
 import { previousExamOf } from './healthCheckMockRepository';
 import { campaignStatusOf, isOpenForEntry } from './healthCheckRule';
 import { conclusionBrief, examReferenceFor, examReviewPoints, screenMeasurement } from './healthScreeningRule';
@@ -180,7 +174,7 @@ const pick = (template, raw, max) =>
   Object.fromEntries(Object.keys(template).map((k) => [k, typeof template[k] === 'string' ? str(raw?.[k], max) : template[k]]));
 
 /** Kết luận chỉ giữ ô của mẫu đang dùng (thường hoặc FOLLOW_UP). */
-const cleanConclusion = (c, mode, knownCondition) => {
+const cleanConclusion = (c, mode, keepsIssueKind) => {
   const base = {
     tbRisk: !!c.tbRisk,
     issueText: str(c.issueText, EXAM_FIELD_LIMITS.note),
@@ -204,19 +198,20 @@ const cleanConclusion = (c, mode, knownCondition) => {
     };
   }
   const action = str(c.action);
-  // Câu "mới hay đã biết" chỉ hỏi trẻ có vấn đề đã biết, có vấn đề mà không chuyển khám, không nguy cơ lao (user chốt 2026-10-21).
-  const asksKind = !!knownCondition && !!c.healthIssue && !c.tbRisk && action !== CONCLUSION_ACTION.REFERRAL;
+  // Như BE: bỏ câu "mới hay đã biết" (user 2026-11-04); chỉ phiếu cũ đã kết luận có câu trả lời giữ khi sửa (còn vấn đề, không
+  // chuyển khám, không nguy cơ lao).
+  const keepsKind = !!keepsIssueKind && !!c.healthIssue && !c.tbRisk && action !== CONCLUSION_ACTION.REFERRAL;
   return {
     ...base,
     normal: !!c.normal,
     healthIssue: !!c.healthIssue,
-    issueKind: asksKind ? str(c.issueKind) : '',
+    issueKind: keepsKind ? str(c.issueKind) : '',
     followUpFinding: '',
     action,
   };
 };
 
-const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD, knownCondition = null }) => {
+const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD, keepsIssueKind = false }) => {
   const t = buildEmptyExam();
   const r = raw || {};
   const num = (v, digits) => (concluded ? roundTo(v, digits) : isBlank(v) ? '' : String(v).slice(0, 10));
@@ -252,7 +247,7 @@ const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD, known
   };
   const development = pick(t.development, r.development);
   if (!ref.autismQuestion) development.autismRisk = '';
-  const conclusion = cleanConclusion(r.conclusion || {}, mode, knownCondition);
+  const conclusion = cleanConclusion(r.conclusion || {}, mode, keepsIssueKind);
   // Ý kiến phụ huynh chỉ giữ khi có người đi cùng và kết luận mức Cần theo dõi sát (user chốt 2026-10-23).
   if (!needsParentOpinion({ admin, conclusion }, mode)) conclusion.parentOpinion = '';
   return {
@@ -359,8 +354,6 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
   return {
     // Mẫu kết luận do BE chọn; UI chỉ vẽ theo (user chốt 2026-10-21).
     conclusionMode: conclusionModeOf(m),
-    // Vấn đề đã biết của trẻ (lần khám gần nhất ở mức Vấn đề đã biết, ổn định): có thì mẫu thường hỏi "Vấn đề này" mới hay đã biết.
-    knownCondition: knownConditionOf(db, child),
     campaign: {
       id: campaign.id,
       name: campaign.name,
@@ -453,8 +446,9 @@ export const healthExamMockRepository = {
     const mode = conclusionModeOf(m);
     if (payload.conclude && payload.conclusionMode && payload.conclusionMode !== mode)
       throw new ApiError(409, 'Mẫu kết luận của phiếu đã thay đổi. Tải lại phiếu khám rồi lưu lại.');
-    const knownCondition = knownConditionOf(db, child);
-    const cleaned = cleanExam(payload.exam, reference, { concluded: !!payload.conclude, mode, knownCondition });
+    // Câu "vấn đề mới hay đã biết" đã bỏ (user 2026-11-04): chỉ phiếu cũ đã trả lời giữ câu trả lời khi sửa, như BE.
+    const keepsIssueKind = concluded && !!m.exam?.conclusion?.issueKind;
+    const cleaned = cleanExam(payload.exam, reference, { concluded: !!payload.conclude, mode, keepsIssueKind });
     const exam = withProfile(child, cleaned, concluded ? m.exam : null);
 
     if (payload.conclude) {
@@ -466,7 +460,6 @@ export const healthExamMockRepository = {
           reference,
           requireReason: concluded,
           conclusionMode: mode,
-          knownCondition,
           guardianCount: (child.guardians || []).length,
         },
       );

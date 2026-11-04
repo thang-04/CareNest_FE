@@ -9,8 +9,8 @@ import { axiosClient } from '@/services/http/axiosClient';
  *   exam.admin.companion). Lưu kết luận ⇒ BE cập nhật declaration.medicalHistory, công bố ngay; nháp không công bố.
  *   exam.conclusion.parentOpinion (≤500) bắt buộc khi có người đi cùng và kết luận mức Cần theo dõi sát (422).
  * - GET exam trả conclusionMode: STANDARD, trừ phiếu đã kết luận theo mẫu FOLLOW_UP trước 2026-11-04 (giữ mẫu khi xem/sửa;
- *   exam.conclusion.followUpFinding NO_NEW_FINDING | ADVICE | NEW_FINDING); PUT gửi lại conclusionMode (khác ⇒ 409). knownCondition:
- *   vấn đề của lần khám gần nhất có kết luận khi mức là KNOWN_STABLE (hỏi issueKind NEW | KNOWN). previous: lần khám trong đợt gần
+ *   exam.conclusion.followUpFinding NO_NEW_FINDING | ADVICE | NEW_FINDING); PUT gửi lại conclusionMode (khác ⇒ 409). Không còn
+ *   knownCondition và câu issueKind (bỏ 2026-11-04; phiếu cũ đã trả lời giữ issueKind khi sửa). previous: lần khám trong đợt gần
  *   nhất trước ngày khám (không tính phiếu nháp, số đo của kỳ cân đo).
  * - Cảnh báo (2026-11-04, plan docs/plans/active/2026-11-04-health-warnings-book.md; HLT-16 bỏ, HLT-18, HLT-19): không còn phiếu
  *   theo dõi, không còn /health-follow-ups. progress (danh sách, chi tiết) có watch, closeWatch theo kết luận bác sĩ và

@@ -143,3 +143,40 @@ Không còn câu hỏi chặn. Giả định tự chọn ghi ở Key decisions (
 - User hỏi vì sao phiếu khám tháng 11 không sửa được mà dòng `Ngoài đợt khám` sửa được. Phiếu khám: cố ý sửa ở trang phiếu (BE chặn 5034); dòng ngoài đợt: BE giả không khóa lần đo không có đợt, khác BE thật (`locked = c == null || …`, `campaign_id NOT NULL`).
 - (a) BE giả: lần đo không thuộc đợt luôn `locked`, lưu ⇒ 409; trang sửa số đo báo "Lần đo không thuộc đợt khám, kỳ cân đo nào". Test `AC-7` đổi theo (thay quyết định 2026-10-31 M4).
 - (b) Sổ sức khỏe: dòng phiếu khám có nút sửa (GV lớp, đợt đang diễn ra) mở `/children/health-checks/{id}/exam/{childId}?classId=…&edit=1`; trang phiếu khám vào thẳng chế độ sửa phiếu đã kết luận (một lần), link quay về bỏ `edit`.
+
+### 2026-11-04 — Khối "Điểm cần bác sĩ xem lại" dễ đọc hơn; bỏ câu "Vấn đề này" (user yêu cầu)
+- `ExamReviewPoints`: gợi ý gộp lên đầu thành khối có tiêu đề ngắn, số dấu hiệu, mỗi dấu hiệu một dòng; mục đã ghi dạng nhãn – giá trị (tách "Nhãn: giá trị" BE trả); dòng ngưỡng nhỏ có icon. CSS `tr-review__*` mới, bỏ `tr-review__list`.
+- Bỏ câu "Vấn đề này" ở bước Kết luận, validation FE, BE giả (như BE: không hỏi; phiếu cũ đã kết luận có `issueKind` giữ khi sửa); bỏ `knownCondition` ở phiếu khám và `latestExam`; xóa `knownConditionOf`. Test sức khỏe đổi theo (`health-warnings-book`).
+- Kiểm trên trình duyệt (phiếu nháp thử của Trần Khánh An, đã xóa sau khi xem): khối gợi ý mới, không còn câu "Vấn đề này" dù trẻ có tiền sử Hen phế quản.
+
+### 2026-11-04 — Phiếu khám dạng bảng như Kế hoạch chủ đề, Tổng hợp điểm danh (user yêu cầu, chỉ giao diện)
+- User: "ở toàn bộ phiếu đợt khám hãy xem UI của kế hoạch chủ đề hay các bảng tổng hợp điểm danh thiết kế sao cho phù hợp và đồng bộ".
+- Mỗi phần một card (`card__header` + `card__body`) chứa bảng `.table--grid` + `tr-exam-sheet` (`ExamSheetCard`, `ExamSheetTable`… trong `ExamFields.jsx`): I. hành chính 4 cột nhãn – giá trị, dòng nhóm Người đi cùng trẻ, Tiền sử; II. `Chỉ số | Kết quả | Trạng thái | Khoảng tham khảo`; III. `Chỉ số | Kết quả | Đánh giá / ghi chú`; IV–V, VI. `TT | Nội dung kiểm tra | Kết quả` (IV, V dải xanh đậm như dải lĩnh vực; nhóm lâm sàng nền `--color-primary-soft`); Kết luận 2 cột nhãn – ô nhập. Trang xem phiếu và hộp xem phiếu (Sổ sức khỏe, không khung card) dùng cùng bảng, giá trị là chữ; cột khoảng tham khảo lấy `reference` BE trả.
+- Ô cố định (nhãn, giá trị từ hồ sơ, TT, khoảng tham khảo) `.cell--fixed`, ô nhập trắng; lựa chọn bất thường tô nền cảnh báo cả ô (thay viền trái); lỗi dưới ô nhập trong ô bảng (`role="alert"`); nhóm radio, ô nhập đặt tên bằng `aria-labelledby` ô nhãn. Hướng dẫn dài: 1 banner đầu card + 1 dòng mờ dưới bảng.
+- Điện thoại (chọn cuộn ngang như các bảng khác): bảng nhiều cột (I, II, III) cuộn trong `.table-wrap`, bảng ít cột vừa khung; trang không tràn ở 375px.
+- Không đổi service, mock, model, validation, tên ô, khóa lỗi. Xóa `SplitInfoList.jsx`, `ExamCheckGroup`, CSS `tr-exam-grid/pair/group/section`; thêm `ExamReviewCard`. Hộp hỏi lại trước khi lưu dùng `tr-review__signs` (CSS `tr-review__list` đã bỏ ở lượt trước). Lệch nhỏ có comment trong `children.css`: nhãn đầu dòng (th) chữ thường, dòng nhóm lề trên dưới 4px.
+- Kiểm trên trình duyệt 1440px, 375px: Giáo viên (phiếu nháp Trần Khánh An; đã nhập thử số đo vào nháp mock), Hiệu trưởng (phiếu Đỗ Phương Linh, hộp xem phiếu), Nguyễn Văn An (phiếu mẫu FOLLOW_UP ở chế độ sửa, ngữ cảnh trình duyệt riêng); không lỗi console. Ảnh `../.playwright-mcp/exam-sheet-*.png` (ngoài repo).
+- Verify: `VERIFY PASS full`; test 752 đạt, 0 lỗi; lint 0 lỗi (1 cảnh báo có sẵn ở `ImportGoalFileModal.jsx`); `check-design: ok · hex 22/43 · cssPx 16/16 · inlineStyle 37/37`.
+- Commit: chưa commit.
+
+### 2026-11-04 — Toàn bộ phiếu khám theo kiểu bảng IV–V (user chọn, chỉ giao diện)
+- User (qua coordinator): "tôi thấy kiểu này đẹp hãy thiết kế toàn bộ phiếu khám theo ảnh" — ảnh là bảng bước 3. Thay bố cục nhiều kiểu cột của mục ngay trên.
+- Một kiểu bảng cho mọi phần: `TT | Nội dung kiểm tra | Kết quả` (TT 48px, nội dung 40%; điện thoại 40px / 36%), mọi ô nền trắng (bỏ `.cell--fixed` ở phiếu). Dải xanh đậm chữ in hoa cho phần I–VI và "Kết luận và tư vấn" (`EXAM_SECTIONS`); dải xanh nhạt cho nhóm con (Người đi cùng trẻ, Tiền sử, nhóm lâm sàng). TT đánh lại từ 1 sau mỗi dải (`ExamSheetRows`).
+- Tiêu đề card = tên bước (`EXAM_STEPS[].label`), số La Mã chỉ ở dải; bước 2 một card một bảng (II, III). Giữ banner đầu card, ghi chú dưới bảng.
+- Phần I: mỗi thông tin một dòng (sinh non và tuần thai hai dòng); tên bệnh / ngày tiếp xúc lao là ô nhập phụ có nhãn trong cùng ô kết quả. Phần II, vòng đầu: ô số và nhóm trạng thái cùng một dòng, dưới là lỗi, "Tham khảo: …", gợi ý (`ExamSheetMeasureCell`); tên nhóm trạng thái giữ "Trạng thái <chỉ số>" qua nhãn ẩn. Phần III: ô số, khoảng nhập dưới ô. Kết luận: mỗi trường một dòng; "Điểm cần bác sĩ xem lại" giữ nguyên ở trên.
+- Trang xem phiếu: một bảng liền I → VI → Kết luận trong một card "Phiếu kiểm tra sức khỏe"; hộp xem phiếu (Sổ sức khỏe) chỉ bảng. Giá trị là chữ, sinh tồn "36,8 · Bình thường" + dòng tham khảo, bất thường là chip cam.
+- Điện thoại 375px: bảng 3 cột vừa khung, không đặt min-width (ô kết quả đọc được, radio xuống dòng); nút chọn người đi cùng cho xuống dòng trong ô hẹp; TT không ngắt chữ.
+- Xóa `ExamSheetLabel`, `ExamSheetValue`, `SHEET_COLS`, `ITEM_HEAD`, `profileRows` thay `ExamProfileRows`; CSS bỏ các cột label/value/metric/result/status/field, `tr-exam-sheet--wide`. Giữ `ExamChoiceField`, `ExamNumberField`, `ExamTextField` (`ChildProfileFields` dùng).
+- Kiểm trên trình duyệt (dev server tự chạy cổng 5199): Giáo viên (phiếu nháp Trần Khánh An), Hiệu trưởng (phiếu Đỗ Phương Linh, hộp xem phiếu), Nguyễn Văn An (phiếu mẫu FOLLOW_UP ở chế độ sửa, ngữ cảnh riêng); 1440px và 375px, trang và hộp không tràn ngang, không lỗi console. Ảnh `../.playwright-mcp/exam-table-*.png` (ngoài repo).
+- Verify: `VERIFY PASS full`; test 752 đạt, 0 lỗi; lint 0 lỗi (1 cảnh báo có sẵn); `check-design: ok · hex 22/43 · cssPx 16/16 · inlineStyle 37/37`.
+- Commit: chưa commit.
+
+### 2026-11-04 — Bỏ dòng tiêu đề cột của phiếu khám (user yêu cầu, chỉ giao diện)
+- User: "bỏ phần TT | Nội dung | Kết quả". `ExamSheetTable` bỏ `<thead>` (và class `table--wrap-head`); độ rộng cột vẫn theo `<colgroup>` (`table-layout: fixed`), dải phần xanh đậm là tiêu đề của từng phần. Áp dụng cho 5 bước, trang xem phiếu, hộp xem phiếu ở Sổ sức khỏe.
+- Commit: chưa commit.
+
+### 2026-11-04 — Thanh nút điện thoại một hàng; chốt tiêu đề, cách đánh dấu bất thường (user chọn)
+- User chọn: (1) giữ tiêu đề "Phiếu kiểm tra sức khỏe" ở trang xem phiếu; (2) xem phiếu giữ nhãn cam ở chữ kết quả bất thường, không tô cả ô; (3) thanh nút đáy trên điện thoại một hàng.
+- `HealthExamFormPage`: thanh nút thêm `page-actions--sticky`. Điện thoại (≤767px): Quay lại / Hủy sửa / Về đợt khám và Lưu nháp chỉ còn biểu tượng (`btn--collapse`; chữ `btn__collapse` ẩn khỏi mắt, trình đọc màn hình vẫn đọc), "Tiếp" bỏ tên bước, nút chính giãn hết chỗ còn lại. Bước Kết luận khi khám theo lớp: Lưu nháp, Lưu kết luận gom vào nút "…" (`RowMenu`, nhãn "Cách lưu khác"), nút chính hiện "Lưu, khám trẻ tiếp". CSS trong khối điện thoại của `.page-actions--sticky` (`components.css`). Máy tính giữ nguyên.
+- Kiểm trên trình duyệt: 375px thanh nút cao 62px (trước khoảng 150px, 3 hàng), một hàng, trang không tràn ngang, menu "…" mở lên trên; 1440px như cũ.
+- Commit: commit, push các mục từ "Khối Điểm cần bác sĩ xem lại" tới đây (user cho phép 2026-11-04).

@@ -609,7 +609,7 @@
   }
 }
 
-/* Phiếu khám Phụ lục II: câu đang chọn lựa chọn bất thường có viền cảnh báo bên trái */
+/* Câu chọn dạng ô nhập rời (ExamChoiceField, form hồ sơ trẻ): lựa chọn bất thường đang chọn có viền cảnh báo bên trái */
 .tr-exam-choice {
   padding-left: var(--space-3);
   border-left: 3px solid transparent;
@@ -617,41 +617,150 @@
 .tr-exam-choice--flag {
   border-left-color: var(--color-warning);
 }
-.tr-exam-grid {
-  display: grid;
-  gap: var(--space-4);
+
+/* Phiếu khám Phụ lục II: một kiểu bảng cho mọi phần như bảng IV–V (user chọn 2026-11-04): 3 cột TT, nội dung kiểm tra, kết quả,
+   không dòng tiêu đề cột, mọi ô nền trắng; viền, lề ô theo .table--grid; ở đây chỉ độ rộng cột, dải phần/nhóm, ô cảnh báo, ô nhập. */
+.table.tr-exam-sheet {
+  table-layout: fixed;
 }
-.tr-exam-pair {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: var(--space-4);
-  align-items: start;
+/* Cột cố định độ rộng: từ dài (vd. "tư vấn/chuyển") xuống dòng trong ô thay vì tràn sang ô bên */
+.tr-exam-sheet :is(th, td) {
+  overflow-wrap: anywhere;
 }
-.tr-exam-group + .tr-exam-group {
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
+.tr-exam-sheet__col--tt {
+  width: var(--space-12);
 }
-.tr-exam-group {
-  margin-bottom: var(--space-4);
+.tr-exam-sheet__col--item {
+  width: 40%;
 }
+/* Số thứ tự không ngắt giữa chừng ("1|0", "T|T") khi cột hẹp */
+.table.tr-exam-sheet .num {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+/* Điện thoại: thu cột TT, nội dung để ô kết quả (ô nhập, lựa chọn) đủ rộng, không phải cuộn ngang */
+@media (max-width: 640px) {
+  .tr-exam-sheet__col--tt {
+    width: var(--space-10);
+  }
+  .tr-exam-sheet__col--item {
+    width: 36%;
+  }
+}
+/* Nhãn đầu dòng (th scope=row) nền trắng, chữ thường như ô nội dung */
+.table.table--grid.tr-exam-sheet tbody th {
+  background: var(--color-surface);
+  font-weight: var(--fw-regular);
+}
+/* Dải phần của mẫu (I–VI, Kết luận) xanh đậm chữ trắng in hoa như dải lĩnh vực của Kế hoạch chủ đề; nhóm con nền xanh nhạt */
+.table.table--grid.tr-exam-sheet tbody td.tr-exam-sheet__band {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+  background: var(--color-primary-soft);
+}
+.table.table--grid.tr-exam-sheet tbody td.tr-exam-sheet__band--primary {
+  background: var(--color-primary);
+  color: var(--text-inverse);
+}
+.tr-exam-sheet__band h3 {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+}
+.tr-exam-sheet__band--primary h3 {
+  text-transform: uppercase;
+}
+/* Lựa chọn bất thường đang chọn: nền cảnh báo cả ô kết quả, vạch cam bên trái (thay viền trái của mẫu cũ) */
+.table.table--grid.tr-exam-sheet tbody td.tr-exam-sheet__flag {
+  background: var(--color-warning-bg);
+  box-shadow: inset 3px 0 0 var(--color-warning);
+}
+/* Radio, ô tích xếp ngang trong ô, xuống dòng khi hẹp; lỗi, gợi ý, dòng tham khảo ngay dưới ô nhập */
+.tr-exam-sheet__options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  min-height: var(--btn-height-sm);
+}
+/* Nhãn lựa chọn dài xuống dòng trong ô hẹp: giữ nguyên cỡ nút tròn, ô tích */
+.tr-exam-sheet__options input {
+  flex-shrink: 0;
+}
+.tr-exam-sheet :is(.field__error, .field__hint) {
+  display: block;
+  margin-top: var(--space-1);
+}
+.tr-exam-sheet .textarea {
+  min-height: calc(var(--btn-height-sm) * 2);
+}
+.tr-exam-sheet__input--num {
+  max-width: calc(var(--space-16) * 2.5);
+}
+.tr-exam-sheet__input--date {
+  max-width: calc(var(--space-16) * 3);
+}
+.tr-exam-sheet__input--short {
+  max-width: calc(var(--space-16) * 6);
+}
+/* Số đo kèm trạng thái (sinh tồn, vòng đầu): ô số gọn và nhóm radio cùng một dòng, xuống dòng khi hẹp */
+.tr-exam-sheet__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+.tr-exam-sheet__line > .input {
+  flex: 0 1 calc(var(--space-16) * 2.25);
+  min-width: 0;
+}
+/* Ô nhập phụ khi trả lời "Có" (tên bệnh, ngày tiếp xúc lao): nhãn ngắn trước ô nhập, cùng ô kết quả */
+.tr-exam-sheet__detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-2);
+}
+.tr-exam-sheet__detail > .input {
+  flex: 1 1 calc(var(--space-16) * 2.5);
+  min-width: 0;
+}
+.tr-exam-sheet__detail > .field__error {
+  flex-basis: 100%;
+}
+.tr-exam-sheet__detail-label {
+  font-size: var(--fs-sm);
+}
+/* Nút chọn người đi cùng: tên phụ huynh dài xuống dòng trong ô hẹp (điện thoại) thay vì tràn ra ngoài bảng */
+.tr-exam-sheet__pick .btn {
+  max-width: 100%;
+  height: auto;
+  min-height: var(--btn-height-sm);
+  white-space: normal;
+  text-align: left;
+}
+.tr-exam-note {
+  margin: var(--space-2) 0 0;
+}
+
 .tr-review {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
-.tr-review__list {
+/* Điểm cần bác sĩ xem lại: gợi ý gộp = tiêu đề, số dấu hiệu, mỗi dấu hiệu một dòng; mục đã ghi = nhãn – giá trị */
+.tr-review__hint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.tr-review__signs {
   margin: 0;
   padding-left: var(--space-5);
 }
-.tr-exam-section + .tr-exam-section {
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
+.tr-review__items {
+  row-gap: var(--space-1-5);
 }
-
-@media (max-width: 900px) {
-  .tr-exam-pair {
-    grid-template-columns: 1fr;
-  }
+.tr-review__full {
+  grid-column: 1 / -1;
 }

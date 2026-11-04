@@ -100,6 +100,54 @@
   .page-actions--sticky .btn {
     padding: 0 var(--space-3);
   }
+  /* Phiếu khám (user chọn 1 hàng, 2026-11-04): nhóm nút bên phải và nút chính giãn hết chỗ còn lại; nút .btn--collapse chỉ còn
+     biểu tượng, chữ .btn__collapse ẩn khỏi mắt nhưng trình đọc màn hình vẫn đọc; .page-actions__desk / __phone đổi nút theo cỡ màn */
+  .page-actions--sticky > .row {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  .page-actions--sticky .btn--primary {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .page-actions--sticky .btn--collapse {
+    flex: none;
+    width: var(--btn-height);
+    min-width: 0;
+    padding: 0;
+  }
+  .page-actions--sticky .btn__collapse {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .page-actions--sticky .page-actions__desk {
+    display: none;
+  }
+  .page-actions--sticky .page-actions__phone {
+    display: inline-flex;
+  }
+  .page-actions--sticky .btn__phone {
+    display: inline;
+  }
+  /* Nút "…" (RowMenu) cùng cỡ, cùng viền với nút biểu tượng bên cạnh */
+  .page-actions--sticky .page-actions__phone .row-menu__btn {
+    width: var(--btn-height);
+    height: var(--btn-height);
+    border-color: var(--color-border-strong);
+    border-radius: var(--btn-radius);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+}
+/* Chỉ hiện trên điện thoại trong thanh dính đáy (xem khối trên) */
+.page-actions__phone,
+.btn__phone {
+  display: none;
 }
 
 /* ---------- Buttons ---------- */

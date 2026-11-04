@@ -80,14 +80,12 @@ test('AC-2 (HLT-19): Sổ sức khỏe trả latestExam, latestBmi; không còn 
     'conclusionCategory',
     'date',
     'followUpLevel',
-    'knownCondition',
     'measurementId',
   ]);
   assert.equal(record.latestExam.campaignId, C2_OCT);
   assert.equal(record.latestExam.followUpLevel, 'CLOSE_WATCH');
   assert.equal(record.latestExam.conclusionCategory, 'REFERRAL');
   assert.equal(record.latestExam.conclusion.specialty, 'Mắt');
-  assert.equal(record.latestExam.knownCondition, null);
   assert.deepEqual(Object.keys(record.latestBmi).sort(), [
     'ageMonths',
     'bmi',
@@ -222,32 +220,25 @@ test('AC-5: phiếu đã kết luận mẫu FOLLOW_UP giữ mẫu khi xem, sửa
   assert.equal((await exams.getHealthExam(C1_OPEN, 'ch_007', MINH_ANH)).conclusionMode, 'STANDARD', 'phiếu mới');
 });
 
-test('Vấn đề đã biết của phiếu khám: lần khám gần nhất ở mức Vấn đề đã biết, ổn định; chưa có thì tiền sử bản thân đã khai', async () => {
-  const record = await children.getHealthRecord('ch_023', PRINCIPAL);
-  assert.equal(record.latestExam.followUpLevel, 'KNOWN_STABLE');
-  assert.equal(record.latestExam.knownCondition, 'Cận thị – đeo kính, nhìn rõ khi đeo kính.');
-  assert.equal(
-    (await exams.getHealthExam(C1_OPEN, 'ch_023', PRINCIPAL)).knownCondition,
-    record.latestExam.knownCondition,
-    'lần khám ổn định đứng trước tiền sử khai báo',
-  );
-  // Không có lần khám ổn định: lấy tiền sử bản thân của khai báo (dữ liệu giả của seed).
-  assert.equal((await exams.getHealthExam(C2_OCT, 'ch_031', PRINCIPAL)).knownCondition, 'Bàn chân bẹt – mang giày chỉnh hình');
+// User bỏ câu "Vấn đề này" (mới hay đã biết) 2026-11-04, như BE: có vấn đề sức khỏe ⇒ Cần theo dõi; phiếu cũ đã trả lời giữ mức.
+test('HLT-10: phiếu không hỏi vấn đề mới hay đã biết; có vấn đề là Cần theo dõi; phiếu cũ đã trả lời giữ mức khi xem', async () => {
   const ch007 = await exams.getHealthExam(C1_OPEN, 'ch_007', MINH_ANH);
-  assert.equal(ch007.knownCondition, 'Hen phế quản');
-  assert.equal((await exams.getHealthExam(C1_OPEN, 'ch_009', MINH_ANH)).knownCondition, null, 'tiền sử "Không" ⇒ không hỏi');
-  // Có vấn đề đã biết ⇒ có vấn đề, tư vấn phải chọn "Vấn đề này"; chọn đã biết ⇒ mức Vấn đề đã biết, ổn định.
+  assert.equal('knownCondition' in ch007, false, 'API không còn knownCondition');
+  // Trẻ có tiền sử bản thân đã khai (Hen phế quản) vẫn kết luận được mà không chọn mới hay đã biết; gửi kèm "KNOWN" cũng bị bỏ.
   const issue = {
     normal: false,
     healthIssue: true,
     issueText: 'Hen phế quản, ổn định (giả).',
     action: 'ADVICE',
     adviceText: 'Giữ ấm (giả).',
+    issueKind: 'KNOWN',
   };
-  await rejects(exams.saveHealthExam(C1_OPEN, 'ch_007', examPayload(ch007, issue), MINH_ANH), 422);
-  const saved = await exams.saveHealthExam(C1_OPEN, 'ch_007', examPayload(ch007, { ...issue, issueKind: 'KNOWN' }), MINH_ANH);
-  assert.equal(saved.measurement.followUpLevel, 'KNOWN_STABLE');
-  assert.equal(saved.knownCondition, 'Hen phế quản, ổn định (giả).', 'từ nay lấy theo lần khám vừa kết luận');
+  const saved = await exams.saveHealthExam(C1_OPEN, 'ch_007', examPayload(ch007, issue), MINH_ANH);
+  assert.equal(saved.measurement.followUpLevel, 'WATCH');
+  assert.equal(saved.measurement.exam.conclusion.issueKind, '');
+  // Dữ liệu seed cũ: lần khám đã trả lời "Vấn đề đã biết" vẫn ở mức ổn định.
+  const record = await children.getHealthRecord('ch_023', PRINCIPAL);
+  assert.equal(record.latestExam.followUpLevel, 'KNOWN_STABLE');
 });
 
 test('HLT-16 bỏ: cho trẻ nghỉ học không còn đóng phiếu theo dõi', async () => {
