@@ -12,6 +12,7 @@ export const SECTIONS = {
   children: { label: 'Hồ sơ phát triển', to: '/assessment/children' },
   periodic: { label: 'Đánh giá tháng', to: '/assessment/periodic' },
   semester: { label: 'Đánh giá học kỳ', to: '/assessment/semester' },
+  themes: { label: 'Đánh giá cuối chủ đề', to: '/assessment/themes' },
   yearEnd: { label: 'Đánh giá cuối năm', to: '/assessment/year-end' },
   tickets: { label: 'Phiếu bé ngoan', to: '/assessment/tickets' },
   rewards: { label: 'Đề xuất khen thưởng', to: '/assessment/rewards' },

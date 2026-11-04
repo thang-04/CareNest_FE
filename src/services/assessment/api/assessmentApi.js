@@ -7,7 +7,7 @@ const campusLabel = (campuses, id) => {
   return c?.shortName || c?.name;
 };
 
-const GOAL_LISTS = ['goalsMet', 'goalsEffort', 'goalsNotMet'];
+const GOAL_LISTS = ['goalsMet', 'goalsNotMet'];
 // beClient đổi `id` số thành chuỗi nhưng không đổi phần tử của goalsMet/…: đưa về chuỗi để so với goals[].id
 const goalIdsToUi = (a) => ({ ...a, ...Object.fromEntries(GOAL_LISTS.map((k) => [k, (a[k] || []).map(String)])) });
 const goalIdsToBe = (a) => ({ ...a, ...Object.fromEntries(GOAL_LISTS.map((k) => [k, (a[k] || []).map(Number)])) });
@@ -136,6 +136,11 @@ export const createAssessmentBeApi = (client) => ({
     };
   },
   saveClassRatings: ({ period, items }) => client.put('/assessment/class-ratings', { period, items }),
+  // Đánh giá cuối chủ đề lớp mẫu giáo (BE OBS-27): chủ đề của kế hoạch năm học đã duyệt, bảng trẻ × MT
+  getThemeList: ({ classId }) => client.get('/assessment/theme-evaluations/themes', { params: { classId } }),
+  getThemeEvaluation: ({ classId, themeId }) => client.get('/assessment/theme-evaluations', { params: { classId, themeId } }),
+  saveThemeEvaluation: (body) => client.put('/assessment/theme-evaluations', body),
+  confirmThemeEvaluation: (body) => client.post('/assessment/theme-evaluations/confirm', body),
   // Nhận xét chung cả lớp theo tháng (BE OBS-26); month = ngày 1 của tháng
   getClassMonthlyComment: ({ classId, month }) => client.get('/assessment/class-monthly-comments', { params: { classId, month } }),
   saveClassMonthlyComment: ({ classId, month, content }) => client.put('/assessment/class-monthly-comments', { classId, month, content }),

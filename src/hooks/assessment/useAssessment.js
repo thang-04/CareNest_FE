@@ -17,6 +17,8 @@ import {
   getClassAssessmentOverview,
   getQualityReport,
   getClassRatings,
+  getThemeEvaluation,
+  getThemeList,
   getProgramCompletion,
   getClassAssessmentDetail,
 } from '@/services/assessment/assessmentService';
@@ -166,6 +168,22 @@ export function useProgramCompletion(params, { enabled = true } = {}) {
     enabled,
   });
   return { report: data, loading, error, reload };
+}
+
+export function useThemeList(classId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getThemeList({ classId }, user), [classId, user?.id], {
+    enabled: !!classId,
+  });
+  return { themes: data || [], loading, error, reload };
+}
+
+export function useThemeEvaluation(classId, themeId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getThemeEvaluation({ classId, themeId }, user), [classId, themeId, user?.id], {
+    enabled: !!classId && !!themeId,
+  });
+  return { evaluation: data, loading, error, reload };
 }
 
 export function useClassRatings(params) {

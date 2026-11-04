@@ -864,3 +864,27 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+/* Đánh giá cuối chủ đề: bảng trẻ × MT như mẫu giấy; ô bấm đổi + / − */
+.dg-theme-table th,
+.dg-theme-table td {
+  white-space: nowrap;
+}
+.dg-theme-cell {
+  min-width: var(--space-7);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-success);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.dg-theme-cell:hover {
+  background: var(--color-surface-muted);
+}
+.dg-theme-cell.is-not-met {
+  color: var(--color-danger);
+}
+.dg-theme-cell.is-manual {
+  border-color: var(--color-border-strong);
+}

@@ -144,7 +144,7 @@ test('BE: lưu Kiến thức kỹ năng chỉ gửi MT cô đã chọn (id số)
   assert.deepEqual(client.calls[0].body.entries[0], {
     childId: '21',
     comment: null,
-    activities: [{ key: 'hoc', participation: null, goalsMet: [], goalsEffort: [], goalsNotMet: [11] }],
+    activities: [{ key: 'hoc', participation: null, goalsMet: [], goalsNotMet: [11] }],
   });
 });
 
@@ -248,4 +248,20 @@ test('BE: tổ trưởng xem tổng quan không gọi danh mục điểm trườ
   });
   await createAssessmentBeApi(client).getClassAssessmentOverview({ period: 'DAY' }, { role: 'TEAM_LEADER' });
   assert.ok(!client.calls.some((c) => c.url === '/campuses'));
+});
+
+test('BE: đánh giá cuối chủ đề gọi đúng endpoint và gửi ô sửa tay', async () => {
+  const client = fakeClient({
+    'get /assessment/theme-evaluations/themes': [{ themeId: 9, name: 'Trường mầm non', period: 'ENDED', status: 'NONE' }],
+    'put /assessment/theme-evaluations': { status: 'DRAFT' },
+    'post /assessment/theme-evaluations/confirm': { status: 'CONFIRMED' },
+  });
+  const api = createAssessmentBeApi(client);
+  const themes = await api.getThemeList({ classId: 3 });
+  assert.equal(themes[0].themeId, 9);
+  assert.deepEqual(client.calls[0].params, { classId: 3 });
+  const body = { classId: 3, themeId: 9, note: 'Lưu ý', cells: [{ childId: 1, goalId: 5, met: false }] };
+  await api.saveThemeEvaluation(body);
+  assert.deepEqual(client.calls[1].body, body);
+  assert.equal((await api.confirmThemeEvaluation(body)).status, 'CONFIRMED');
 });
