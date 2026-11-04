@@ -539,7 +539,7 @@ test('ST-11 Tổ trưởng dạy chính lớp ⇒ gửi hồ sơ chủ đề th�
     await page.waitForTimeout(1200);
     await page.close();
     const dossier = await context.newPage();
-    await pickYearAfterReload(dossier, `/education/class/${ref.classroom}/themes/${themeId}/review`);
+    await pickYearAfterReload(dossier, `/education/class/${ref.classroom}/themes/${themeId}`);
     await review(dossier, 'Gửi Phó HT duyệt', 'Gửi');
     await expect.poll(() => docStatus(themeKey())).toBe('PENDING_VP');
     const week = await context.newPage();
@@ -555,7 +555,7 @@ test('ST-11 Tổ trưởng dạy chính lớp ⇒ gửi hồ sơ chủ đề th�
 
 test('ST-12 Phó HT duyệt hồ sơ chủ đề; giáo viên mở trình chiếu dạy học', async ({ browser }) => {
   const vp = await (await browser.newContext()).newPage();
-  await openClassPage(vp, USERS.vp, `/education/class/${ref.classroom}/themes/${themeId}/review`);
+  await openClassPage(vp, USERS.vp, `/education/class/${ref.classroom}/themes/${themeId}`);
   await review(vp, 'Duyệt', 'Duyệt');
   await expect.poll(() => docStatus(themeKey())).toMatch(/APPROVED|PENDING_HT/);
   const t2 = await (await browser.newContext()).newPage();

@@ -189,7 +189,7 @@ export default function ClassPlanPage() {
           const themeRows = rows.filter((r) => r.theme.id === t.id);
           const themeWeeks = themeRows.filter((r) => r.type === 'week');
           const sent = !!doc && doc.status !== EDU_STATUS.DRAFT;
-          const to = `${base}/themes/${t.id}/review`;
+          const to = `${base}/themes/${t.id}`;
           const weekLock = lockOf('week', t.id);
           return (
             <Card
@@ -206,7 +206,7 @@ export default function ClassPlanPage() {
                     className="btn btn--outline-primary btn--sm"
                     onClick={() => exportTheme(t, ti + 1, doc, themeWeeks)}
                   >
-                    <FileDown size={16} aria-hidden /> Xuất
+                    <FileDown size={16} aria-hidden /> Xuất file
                   </button>
                 </>
               }

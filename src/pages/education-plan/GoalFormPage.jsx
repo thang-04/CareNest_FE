@@ -674,6 +674,7 @@ export default function GoalFormPage() {
                 approveLabel={pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
                 can={{ send: isLeader && !pendingEdit, approve: isVp }}
                 variant="btn--outline-primary"
+                unsaved={saver.unsaved}
                 beforeOpen={checkBeforeFinish}
                 notes={{
                   submit: `Gửi "${form.title}" cho Phó hiệu trưởng duyệt? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`,

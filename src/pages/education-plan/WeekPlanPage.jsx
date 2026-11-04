@@ -1,10 +1,11 @@
 import { useEffect, useId, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, FileDown, Save } from '@/components/ui/icons';
-import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, EduStatusBadge, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
-import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
+import { DocReviewButton, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
+import { RejectedNotice } from '@/components/education-plan/reviewUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { LoadingState } from '@/components/ui/States';
@@ -53,7 +54,7 @@ function WeekReviewRedirect() {
   if (ctx.loading) return <LoadingState />;
   const week = ctx.yearPlan ? yearWeeks(ctx.yearPlan).find((w) => w.type === 'week' && w.start === weekStart) : null;
   if (!week) return <StatusPage kind="404" title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;
-  return <Navigate to={`/education/class/${classId}/themes/${week.theme.id}/review?week=${weekStart}`} replace />;
+  return <Navigate to={`/education/class/${classId}/weeks/${weekStart}`} replace />;
 }
 
 function WeekPlanInner() {
@@ -133,7 +134,8 @@ function WeekPlanInner() {
   const fromTemplate = () => setDirty(true);
   const flagEdit = (fn) => update((d) => fn(d));
   const base = `/education/class/${classId}`;
-  const dossierTo = `${base}/themes/${week.theme.id}/review?week=${weekStart}`;
+  // Gửi / duyệt cả kế hoạch chủ đề ở trang kế hoạch chủ đề (trang hồ sơ đã bỏ, Tiền 04/11)
+  const dossierTo = `${base}/themes/${week.theme.id}`;
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const branchName = branch?.names?.[weekStart] || '';
   const themeDoc = classThemePlans.find((t) => t.classId === classId && t.themeId === week.theme.id) || null;
@@ -192,54 +194,71 @@ function WeekPlanInner() {
   return (
     <div className="page ga-page ga-class-editor">
       <div className="ga-sticky-head">
-        <PageHead
-          crumbs={crumbs}
-          title={`Giáo án tuần ${week.no}`}
-          desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`}
-          actions={
-            <>
-              <button
-                type="button"
-                className="btn btn--outline-primary"
-                disabled={!saved || !themeDoc}
-                onClick={() =>
-                  guard.leave(
-                    `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}${day >= 0 ? `&date=${encodeURIComponent(draft.days[day].date)}` : ''}`,
-                  )
-                }
-              >
-                Dạy học{day >= 0 ? ' ngày này' : ' tuần này'}
-              </button>
-              {/* In giáo án tuần ở mọi bước (đã duyệt thì in để dạy hằng ngày) */}
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPreview(weekFile(exportArgs))}>
-                <FileDown size={16} aria-hidden /> Xuất
-              </button>
-              {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
-              {(editable || adjustEditable) && (
-                <>
-                  <span className="muted text-sm">{saver.label}</span>
-                  <VersionHistory
-                    drafts={saver.drafts}
-                    saved={saver.cleanDoc()}
-                    current={draft}
-                    unsaved={saver.unsaved}
-                    linesOf={docLines}
-                    onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn--primary btn--sm"
-                    onClick={saver.save}
-                    disabled={saver.saving || (!saver.unsaved && !saver.error)}
-                    title="Lưu (Ctrl+S)"
-                  >
-                    <Save size={16} aria-hidden /> Lưu
-                  </button>
-                </>
-              )}
-            </>
-          }
-        />
+        <PageHead crumbs={crumbs} title={`Giáo án tuần ${week.no}`} desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`} />
+        {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/xuất bên phải (Tiền 05/11) */}
+        <div className="ga-year-toolbar" role="group" aria-label="Thao tác giáo án tuần">
+          <div className="ga-year-toolbar__group">
+            {/* Trạng thái theo kế hoạch chủ đề (giáo án tuần gửi / duyệt cùng kế hoạch chủ đề), đặt ở header như mục tiêu năm học */}
+            <EduStatusBadge status={themeDoc?.status || EDU_STATUS.DRAFT} />
+            <button
+              type="button"
+              className="btn btn--sm btn--outline-primary"
+              disabled={!saved || !themeDoc}
+              onClick={() =>
+                guard.leave(
+                  `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}${day >= 0 ? `&date=${encodeURIComponent(draft.days[day].date)}` : ''}`,
+                )
+              }
+            >
+              Dạy học{day >= 0 ? ' ngày này' : ' tuần này'}
+            </button>
+          </div>
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            {(editable || adjustEditable) && (
+              <>
+                <p className="muted text-sm ga-year-save-status" aria-live="polite">
+                  {saver.label}
+                </p>
+                <VersionHistory
+                  drafts={saver.drafts}
+                  saved={saver.cleanDoc()}
+                  current={draft}
+                  unsaved={saver.unsaved}
+                  linesOf={docLines}
+                  onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
+                />
+                <button
+                  type="button"
+                  className="btn btn--sm btn--outline-primary"
+                  onClick={saver.save}
+                  disabled={saver.saving || (!saver.unsaved && !saver.error)}
+                  title="Lưu (Ctrl+S)"
+                >
+                  <Save size={16} aria-hidden /> Lưu
+                </button>
+              </>
+            )}
+            {/* Gửi / duyệt ở trang kế hoạch chủ đề: nút lưu rồi sang trang đó */}
+            <DocReviewButton
+              kind="week"
+              doc={saved}
+              dossier={themeDoc}
+              ctx={ctx}
+              user={user}
+              dirty={saver.unsaved || saver.saving}
+              reviewTo={dossierTo}
+              onGo={guard.leave}
+              onSave={editable || adjustEditable ? saver.save : undefined}
+              onGoNow={guard.leaveNow}
+              className="btn btn--sm btn--outline-primary"
+            />
+            {/* In giáo án tuần ở mọi bước (đã duyệt thì in để dạy hằng ngày) */}
+            <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setPreview(weekFile(exportArgs))}>
+              <FileDown size={16} aria-hidden /> Xuất file
+            </button>
+            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
+          </div>
+        </div>
       </div>
       <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
       {!saved && version.finished && <FinishedThemeNote />}
@@ -261,33 +280,7 @@ function WeekPlanInner() {
         onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
         onDrop={(f) => flagEdit((d) => dropReference('week', d, f))}
       />
-      {/* Tên chủ đề nhánh đặt ở trang chủ đề nhánh của lớp; đưa lên đầu để soạn đúng nhánh */}
-      <div className="ga-week-hero">
-        <div className="ga-week-hero__label">
-          Chủ đề nhánh {branchNo} · Tuần {week.no} của năm học
-        </div>
-        <div className={`ga-week-hero__name ${branchName ? '' : 'muted'}`}>{branchName || 'Chưa đặt tên chủ đề nhánh'}</div>
-        <div className="ga-week-hero__meta">
-          Chủ đề: {week.theme.name} · {fmtDate(week.start)} → {fmtDate(week.end)}
-          {!branchName && isClassTeacher && (
-            <>
-              {' · '}
-              <Link to={`/education/branches/${classId}`}>Đặt tên chủ đề nhánh</Link>
-            </>
-          )}
-        </div>
-      </div>
-      {/* Trạng thái theo hồ sơ chủ đề; gửi / duyệt ở trang hồ sơ chủ đề */}
-      <DocStatusStrip
-        kind="week"
-        doc={saved}
-        dossier={themeDoc}
-        ctx={ctx}
-        user={user}
-        dirty={saver.unsaved || saver.saving}
-        reviewTo={dossierTo}
-        onGo={guard.leave}
-      />
+      <RejectedNotice status={themeDoc?.status} history={themeDoc?.history} />
       <Card
         bodyClass={null}
         foot={
@@ -309,6 +302,22 @@ function WeekPlanInner() {
           </>
         }
       >
+        {/* Tên chủ đề nhánh nằm chung thẻ với tab tuần / ngày (Tiền 04/11) */}
+        <div className="card__body">
+          <div className="ga-week-hero__label">
+            Chủ đề nhánh {branchNo} · Tuần {week.no} của năm học
+          </div>
+          <div className={`ga-week-hero__name ${branchName ? '' : 'muted'}`}>{branchName || 'Chưa đặt tên chủ đề nhánh'}</div>
+          <div className="ga-week-hero__meta">
+            Chủ đề: {week.theme.name} · {fmtDate(week.start)} → {fmtDate(week.end)}
+            {!branchName && isClassTeacher && (
+              <>
+                {' · '}
+                <Link to={`/education/branches/${classId}`}>Đặt tên chủ đề nhánh</Link>
+              </>
+            )}
+          </div>
+        </div>
         <div className="tabs ga-class-tabs" role="tablist" aria-label="Kế hoạch tuần và ngày" onKeyDown={moveTab}>
           <button
             type="button"
