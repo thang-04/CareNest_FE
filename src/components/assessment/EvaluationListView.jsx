@@ -13,10 +13,13 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { FilterMore } from '@/components/ui/FilterMore';
 import { EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { ClassMonthlyCommentCard } from '@/components/assessment/ClassMonthlyCommentCard';
 import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime, normalizeText } from '@/utils/format';
 import { evaluationPeriodLabel } from '@/utils/assessment/assessmentPeriods';
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
+import { monthInSemester } from '@/utils/semesters';
+import { SemesterSelect } from '@/components/form/SemesterSelect';
 
 const TEACHER_TABS = [
   { key: 'TODO', label: 'Chờ xem xét', match: (e) => e.status !== EVAL_STATUS.CONFIRMED },
@@ -34,7 +37,8 @@ export function EvaluationListView({ kind }) {
   const { classes } = useDailyAssessmentClasses();
   // Đánh giá định kỳ chỉ theo tháng (Cần 30/10/2026, theo sổ chỉ đạo chuyên môn: tháng và học kỳ, bỏ tuần).
   // Mặc định xem tháng gần nhất, bấm ‹ › để lùi / tới. Bộ lọc lưu trên URL; period '' = tự chọn kỳ mới nhất
-  const defaultPeriodType = yearEnd ? '' : PERIOD_TYPE.MONTH;
+  const semester = kind === EVAL_KIND.SEMESTER;
+  const defaultPeriodType = yearEnd ? '' : semester ? PERIOD_TYPE.SEMESTER : PERIOD_TYPE.MONTH;
   const [f, setFilters, , activeKeys] = useFilterParams({
     tab: leader ? 'ALL' : 'TODO',
     classId: '',
@@ -67,7 +71,12 @@ export function EvaluationListView({ kind }) {
     return [...map.values()].sort((a, b) => b.start.localeCompare(a.start));
   }, [evaluations]);
   const themes = [...new Set(allPeriods.map((p) => p.theme).filter(Boolean))];
-  const periods = allPeriods.filter((p) => !theme || p.theme === theme);
+  // Đánh giá tháng: lọc các tháng theo học kỳ (Cấu hình thời gian)
+  const [semKey, setSemKey] = useState('');
+  const [sem, setSem] = useState(null);
+  const monthly = !yearEnd && !semester;
+  const inSem = (start) => !monthly || monthInSemester(start.slice(0, 7), sem);
+  const periods = allPeriods.filter((p) => (!theme || p.theme === theme) && inSem(p.start));
   // null = tự chọn kỳ mới nhất trong danh sách; 'ALL' = mọi kỳ
   const activePeriod = period === null ? periods[0]?.key || 'ALL' : period;
   const periodIndex = periods.findIndex((p) => p.key === activePeriod);
@@ -78,13 +87,15 @@ export function EvaluationListView({ kind }) {
   const current = tabs.find((t) => t.key === tab);
   const base = evaluations
     .filter((e) => yearEnd || activePeriod === 'ALL' || `${e.periodType}|${e.periodStart}` === activePeriod)
+    .filter((e) => inSem(e.periodStart))
     .filter((e) => !keyword || normalizeText(`${e.childName} ${e.childCode}`).includes(normalizeText(keyword)));
   const rows = current ? base.filter(current.match) : base;
   // Tab (Chờ xem xét / Đã xác nhận) không phải bộ lọc: đặt lại giữ nguyên tab
   const reset = () => applyFilters({ classId: '', periodType: defaultPeriodType, theme: '', period: '', keyword: '' });
   const filterKeys = activeKeys.filter((k) => k !== 'tab' && k !== 'periodType');
   const filtered = filterKeys.length > 0;
-  const periodWord = periodType === PERIOD_TYPE.WEEK ? 'tuần' : 'tháng';
+  const periodWord = { [PERIOD_TYPE.WEEK]: 'tuần', [PERIOD_TYPE.SEMESTER]: 'học kỳ' }[periodType] || 'tháng';
+  const PeriodWord = periodWord.charAt(0).toUpperCase() + periodWord.slice(1);
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
     classId: `Lớp: ${classes.find((c) => String(c.id) === classId)?.name || classId}`,
@@ -127,10 +138,15 @@ export function EvaluationListView({ kind }) {
   const showClass = leader;
   const showFlags = !leader && !yearEnd;
   const cols = 5 + (showClass ? 1 : 0) + (showFlags ? 1 : 0);
-  const link = (e) => `/assessment/${yearEnd ? 'year-end' : 'periodic'}/${e.id}`;
+  const link = (e) => `/assessment/${kind}/${e.id}`;
+
+  // Đánh giá tháng: nhận xét chung của lớp cho tháng đang xem (GV lớp mình; BGH khi đã chọn lớp)
+  const monthKey = !yearEnd && !semester && activePeriod !== 'ALL' ? activePeriod.split('|')[1] : null;
+  const commentClassId = leader ? classId : classes.find((c) => c.teaches)?.id || classes[0]?.id;
 
   return (
     <>
+      {monthKey && commentClassId && <ClassMonthlyCommentCard classId={commentClassId} month={monthKey} />}
       <div className="card">
         {tabs.length > 0 && (
           <div className="tabs" role="tablist">
@@ -167,20 +183,30 @@ export function EvaluationListView({ kind }) {
           )}
           {!moreFilters && periodTypeSelect}
           {!moreFilters && themeSelect}
+          {monthly && (
+            <SemesterSelect
+              value={semKey}
+              onChange={(key, value) => {
+                setSemKey(key);
+                setSem(value);
+                pickPeriod('');
+              }}
+            />
+          )}
           {!yearEnd && (
             <div className="dg-period-nav">
               <button
                 type="button"
                 className="icon-btn"
-                aria-label={periodType === PERIOD_TYPE.WEEK ? 'Tuần trước' : 'Tháng trước'}
-                title={periodType === PERIOD_TYPE.WEEK ? 'Tuần trước' : 'Tháng trước'}
+                aria-label={`${PeriodWord} trước`}
+                title={`${PeriodWord} trước`}
                 disabled={periodIndex < 0 || periodIndex >= periods.length - 1}
                 onClick={() => pickPeriod(periods[periodIndex + 1].key)}
               >
                 <ChevronLeft size={16} />
               </button>
               <select className="select" value={activePeriod} onChange={(e) => pickPeriod(e.target.value)} aria-label="Kỳ đánh giá">
-                <option value="ALL">{periodType === PERIOD_TYPE.WEEK ? 'Tất cả tuần' : 'Tất cả tháng'}</option>
+                <option value="ALL">Tất cả {periodWord}</option>
                 {themeGroups
                   ? themes.map((t) => (
                       <optgroup key={t} label={`Chủ đề: ${t}`}>
@@ -203,8 +229,8 @@ export function EvaluationListView({ kind }) {
               <button
                 type="button"
                 className="icon-btn"
-                aria-label={periodType === PERIOD_TYPE.WEEK ? 'Tuần sau' : 'Tháng sau'}
-                title={periodType === PERIOD_TYPE.WEEK ? 'Tuần sau' : 'Tháng sau'}
+                aria-label={`${PeriodWord} sau`}
+                title={`${PeriodWord} sau`}
                 disabled={periodIndex <= 0}
                 onClick={() => pickPeriod(periods[periodIndex - 1].key)}
               >
@@ -252,8 +278,10 @@ export function EvaluationListView({ kind }) {
                           filtered
                             ? 'Không có hồ sơ nào trong phạm vi hoặc kỳ đã chọn.'
                             : yearEnd
-                              ? 'Bản nháp cuối năm được tạo khi năm học kết thúc.'
-                              : 'Bản nháp được tạo tự động khi tháng kết thúc.'
+                              ? 'Bản nháp cuối năm được tạo từ ngày 1 tháng cuối của năm học.'
+                              : semester
+                                ? 'Bản nháp được tạo khi học kỳ kết thúc. Nếu học kỳ đã kết thúc mà chưa có, kiểm tra ngày học kỳ ở Cấu hình thời gian.'
+                                : 'Bản nháp được tạo tự động khi tháng kết thúc.'
                         }
                         action={
                           filtered && (

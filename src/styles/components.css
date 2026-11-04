@@ -1211,6 +1211,9 @@ tr.sortable-item--moved > td {
 }
 .modal--confirm .modal__footer > .btn {
   flex: 1;
+  /* Nhãn dài (vd. tên nút dài) xuống dòng trong nút thay vì đẩy nút tràn khỏi hộp */
+  min-width: 0;
+  white-space: normal;
 }
 /* Ô nhập trong hộp xác nhận (lý do, ghi chú): hộp căn giữa chữ, form căn trái */
 .confirm__form {

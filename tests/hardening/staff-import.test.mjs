@@ -21,7 +21,7 @@ test('SĐT di động Việt Nam: chuẩn hóa +84, dấu cách, mất số 0 đ
 });
 
 test('AUTH-15: form tạo bắt buộc họ tên, SĐT, vai trò, điểm trường; không còn chọn lớp; email đúng định dạng', () => {
-  const empty = validateStaffAccount({ role: 'TEACHER' }, { campuses });
+  const empty = validateStaffAccount({ role: 'TEACHER' }, { campuses, teacherCampusRequired: true });
   assert.deepEqual(Object.keys(empty).sort(), ['campusId', 'fullName', 'phone']);
   const vp = validateStaffAccount({ fullName: 'A', phone: '0912345678', email: 'x@', role: 'VICE_PRINCIPAL' }, { campuses });
   assert.deepEqual(Object.keys(vp).sort(), ['campusId', 'email']);
@@ -35,9 +35,9 @@ test('AUTH-15: form tạo bắt buộc họ tên, SĐT, vai trò, điểm trư�
 
 test('AUTH-15: Hiệu trưởng tạo GV được bỏ trống điểm trường; PHT, bếp vẫn bắt buộc', () => {
   const base = { fullName: 'A', phone: '0912345678' };
-  assert.deepEqual(validateStaffAccount({ ...base, role: 'TEACHER' }, { campuses, teacherCampusOptional: true }), {});
-  assert.ok(validateStaffAccount({ ...base, role: 'KITCHEN_STAFF' }, { campuses, teacherCampusOptional: true }).campusId);
-  assert.ok(validateStaffAccount({ ...base, role: 'TEACHER' }, { campuses, teacherCampusOptional: false }).campusId);
+  assert.deepEqual(validateStaffAccount({ ...base, role: 'TEACHER' }, { campuses }), {});
+  assert.ok(validateStaffAccount({ ...base, role: 'KITCHEN_STAFF' }, { campuses }).campusId);
+  assert.ok(validateStaffAccount({ ...base, role: 'TEACHER' }, { campuses, teacherCampusRequired: true }).campusId);
 });
 
 test('AUTH-15: payload POST /accounts chỉ gửi điểm trường, không có classroomId; SĐT chuẩn hóa, email trống thành null', () => {
@@ -94,8 +94,8 @@ test('AUTH-15: file mẫu cũ còn cột Lớp vẫn nhập được, cột Lớ
 
 test('nhập Excel: GV không có điểm trường hợp lệ khi người nhập là Hiệu trưởng', () => {
   const rows = [STAFF_COLUMNS, ['Nguyễn Lan', '0912345678', '', 'Giáo viên', '']];
-  assert.equal(matchStaffRows(rows, { campuses, teacherCampusOptional: true }).items.length, 1);
-  assert.equal(matchStaffRows(rows, { campuses }).errors.length, 1);
+  assert.equal(matchStaffRows(rows, { campuses }).items.length, 1);
+  assert.equal(matchStaffRows(rows, { campuses, teacherCampusRequired: true }).errors.length, 1);
 });
 
 test('nhập Excel: sai dòng tiêu đề hoặc thiếu sheet thì báo lỗi, không tạo gì', () => {

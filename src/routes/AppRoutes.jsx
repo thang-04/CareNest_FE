@@ -64,7 +64,7 @@ const AttendancePage = lazyPage(() => import('@/pages/attendance/AttendancePage'
 const AttendanceDayUnlockPage = lazyPage(() => import('@/pages/attendance/AttendanceDayUnlockPage'));
 const AttendanceSummaryPage = lazyPage(() => import('@/pages/attendance/AttendanceSummaryPage'));
 const MealCountPage = lazyPage(() => import('@/pages/attendance/MealCountPage'));
-const MealHandoverPage = lazyPage(() => import('@/pages/attendance/MealHandoverPage'));
+const LeaveRequestsPage = lazyPage(() => import('@/pages/attendance/LeaveRequestsPage'));
 const DailyHealthOverviewPage = lazyPage(() => import('@/pages/attendance/DailyHealthOverviewPage'));
 const PickupListPage = lazyPage(() => import('@/pages/pickup/PickupListPage'));
 const PickupVerifyPage = lazyPage(() => import('@/pages/pickup/PickupVerifyPage'));
@@ -134,6 +134,9 @@ const ChildDevelopmentProgressPage = lazyPage(() => import('@/pages/assessment/C
 const PeriodicEvaluationListPage = lazyPage(() => import('@/pages/assessment/PeriodicEvaluationListPage'));
 const PeriodicEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/PeriodicEvaluationDetailPage'));
 const AiEvaluationDraftPage = lazyPage(() => import('@/pages/assessment/AiEvaluationDraftPage'));
+const ClassRatingsPage = lazyPage(() => import('@/pages/assessment/ClassRatingsPage'));
+const SemesterEvaluationListPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationListPage'));
+const SemesterEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationDetailPage'));
 const YearEndEvaluationListPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationListPage'));
 const YearEndEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
 const GoodBehaviourTicketsPage = lazyPage(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
@@ -450,14 +453,18 @@ export function AppRoutes() {
             <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
             <Route path="daily/skills" element={only(CLASS_STAFF, <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={only(LEADERS, <AssessmentDayUnlockPage />)} />
-            <Route path="overview" element={only(LEADERS, <ClassAssessmentOverviewPage />)} />
-            <Route path="quality-report" element={only(LEADERS, <QualityReportPage />)} />
+            <Route path="overview" element={only([...LEADERS, R.TEAM_LEADER], <ClassAssessmentOverviewPage />)} />
+            <Route path="quality-report" element={only([...LEADERS, ...CLASS_STAFF], <QualityReportPage />)} />
+            <Route path="class-ratings" element={only([...LEADERS, ...CLASS_STAFF], <ClassRatingsPage />)} />
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />
             <Route path="periodic" element={only([...LEADERS, ...CLASS_STAFF], <PeriodicEvaluationListPage />)} />
             <Route path="periodic/:id" element={only([...LEADERS, ...CLASS_STAFF], <PeriodicEvaluationDetailPage />)} />
             <Route path="periodic/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
+            <Route path="semester" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationListPage />)} />
+            <Route path="semester/:id" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationDetailPage />)} />
+            <Route path="semester/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
             <Route path="year-end" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationListPage />)} />
             <Route path="year-end/:id" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationDetailPage />)} />
             <Route path="year-end/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
@@ -470,8 +477,8 @@ export function AppRoutes() {
             <Route index element={only(CLASS_STAFF, <AttendancePage />)} />
             <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
             <Route path="meal-count" element={only(LEADERS, <MealCountPage />)} />
-            <Route path="meal-handover" element={only([...CLASS_STAFF, R.KITCHEN_STAFF], <MealHandoverPage />)} />
             <Route path="health" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <DailyHealthOverviewPage />)} />
+            <Route path="leave-requests" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <LeaveRequestsPage />)} />
           </Route>
           <Route path="pickup">
             <Route index element={only(CLASS_STAFF, <PickupListPage />)} />

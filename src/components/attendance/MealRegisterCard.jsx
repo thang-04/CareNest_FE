@@ -239,7 +239,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
                     <td className={`num ${l.missing ? 'text-danger' : 'muted'}`}>{l.missing || '—'}</td>
                     {day.sessions.map((sKey) => (
                       <td key={sKey} className={`num ${l.meals[sKey] ? '' : 'muted'}`}>
-                        {l.meals[sKey] ? l.meals[sKey].normal + l.meals[sKey].substitute : '—'}
+                        {l.meals[sKey] ? <ServingCell meal={l.meals[sKey]} /> : '—'}
                       </td>
                     ))}
                     <td className="num fw-600">{l.normal + l.substitute}</td>
@@ -378,5 +378,16 @@ export function MealAdjustModal({ target, user, onClose, onSaved }) {
         <input className="input" maxLength={200} placeholder="Ví dụ: 1 trẻ dị ứng nặng cần suất riêng" {...field('note')} />
       </FormField>
     </Modal>
+  );
+}
+
+/** Số suất một bữa; đang chờ xác nhận lại mà khác số đã chốt thì hiện "cũ → mới" để người duyệt thấy thay đổi. */
+function ServingCell({ meal }) {
+  const now = meal.normal + meal.substitute;
+  if (meal.before == null || meal.before === now) return now;
+  return (
+    <span className="text-warning fw-600" title={`Đã chốt trước: ${meal.before} suất, nay: ${now} suất`}>
+      <s className="muted">{meal.before}</s> → {now}
+    </span>
   );
 }

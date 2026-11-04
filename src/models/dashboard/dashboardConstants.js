@@ -70,7 +70,8 @@ export const APPROVAL_TYPE_META = {
 
 /** Display order of the groups per role (SRS #126 lists plans and rewards first). */
 export const APPROVAL_TYPES_BY_ROLE = {
-  PRINCIPAL: [APPROVAL_TYPE.REWARD_DECISION],
+  // NUT-02: HT xác nhận được số suất thay PHT (BE trả canConfirm) ⇒ có mục sổ báo ăn chờ xác nhận
+  PRINCIPAL: [APPROVAL_TYPE.REWARD_DECISION, APPROVAL_TYPE.MEAL_COUNT],
   VICE_PRINCIPAL: [APPROVAL_TYPE.THEME_PLAN, APPROVAL_TYPE.LESSON_PLAN, APPROVAL_TYPE.REWARD_REVIEW, APPROVAL_TYPE.MEAL_COUNT],
   TEAM_LEADER: [APPROVAL_TYPE.LESSON_REVIEW],
 };

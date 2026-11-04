@@ -179,6 +179,8 @@ const ITEMS = {
   attendance: {
     label: 'Điểm danh & báo ăn',
     to: '/attendance',
+    // Chỉ sáng ở màn điểm danh, không sáng cùng các màn con /attendance/*
+    exact: true,
   },
   attendanceSummary: {
     label: 'Tổng hợp điểm danh',
@@ -195,6 +197,10 @@ const ITEMS = {
   dailyHealthOverview: {
     label: 'Sức khỏe trong ngày',
     to: '/attendance/health',
+  },
+  leaveRequests: {
+    label: 'Đơn nghỉ của phụ huynh',
+    to: '/attendance/leave-requests',
   },
   pickup: {
     label: 'Đón trẻ',
@@ -240,6 +246,10 @@ const ITEMS = {
     label: 'Chất lượng tháng',
     to: '/assessment/quality-report',
   },
+  assessClassRatings: {
+    label: 'Xếp loại nhóm lớp',
+    to: '/assessment/class-ratings',
+  },
   assessDayUnlocks: {
     label: 'Mở lại ngày đánh giá',
     to: '/assessment/day-unlocks',
@@ -255,6 +265,10 @@ const ITEMS = {
   assessPeriodic: {
     label: 'Đánh giá tháng',
     to: '/assessment/periodic',
+  },
+  assessSemester: {
+    label: 'Đánh giá học kỳ',
+    to: '/assessment/semester',
   },
   assessYearEnd: {
     label: 'Đánh giá cuối năm',
@@ -399,12 +413,14 @@ const MENUS = {
       'healthFollowUps',
       'healthTrends',
     ]),
-    group('attendance', ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
+      'assessClassRatings',
       'assessProgress',
       'assessPeriodic',
+      'assessSemester',
       'assessYearEnd',
       'assessTickets',
       'assessRewards',
@@ -443,13 +459,15 @@ const MENUS = {
       'healthFollowUps',
       'healthTrends',
     ]),
-    group('attendance', ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
+      'assessClassRatings',
       'assessProgress',
       'assessPeriodic',
+      'assessSemester',
       'assessYearEnd',
       'assessTickets',
       'assessRewards',
@@ -470,18 +488,39 @@ const MENUS = {
     link('home'),
     link('approvals'),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
-    group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
+    group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
-    group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
+    group('assessment', [
+      'assessOverview',
+      'assessDaily',
+      'assessProfiles',
+      'assessPeriodic',
+      'assessSemester',
+      'assessYearEnd',
+      'assessQuality',
+      'assessClassRatings',
+      'assessTickets',
+      'assessRewards',
+    ]),
     account,
     link('notifications'),
   ],
   [ROLES.TEACHER]: [
     link('home'),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
-    group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
+    group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
-    group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
+    group('assessment', [
+      'assessDaily',
+      'assessProfiles',
+      'assessPeriodic',
+      'assessSemester',
+      'assessYearEnd',
+      'assessQuality',
+      'assessClassRatings',
+      'assessTickets',
+      'assessRewards',
+    ]),
     account,
     link('notifications'),
   ],
