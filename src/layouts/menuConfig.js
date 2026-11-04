@@ -47,6 +47,12 @@ const LINKS = {
     icon: Bell,
     to: '/notifications',
   },
+  // BE meal-management-permissions.md mục 1: "Bán trú hôm nay" là một trang, không có mục con
+  boardingToday: {
+    label: 'Bán trú hôm nay',
+    icon: CalendarCheck,
+    to: '/boarding/today',
+  },
 };
 
 /** Groups: same label + icon for every role. */
@@ -71,11 +77,7 @@ const GROUPS = {
     label: 'Đánh giá trẻ',
     icon: Star,
   },
-  // Sáu nhóm bán trú theo việc của PHT dinh dưỡng (BE docs/business/flows/meal-management-permissions.md mục 1)
-  boardingToday: {
-    label: 'Bán trú hôm nay',
-    icon: CalendarCheck,
-  },
+  // Nhóm bán trú theo việc của PHT dinh dưỡng (BE docs/business/flows/meal-management-permissions.md mục 1)
   nutrition: {
     label: 'Thực đơn & dinh dưỡng',
     icon: ForkKnife,
@@ -318,10 +320,6 @@ const ITEMS = {
     label: 'Khung giờ ảnh bữa',
     to: '/kitchen/photo-windows',
   },
-  boardingToday: {
-    label: 'Bán trú hôm nay',
-    to: '/boarding/today',
-  },
   stockReceipts: {
     label: 'Phiếu nhập',
     to: '/kitchen/stock-receipts',
@@ -376,18 +374,22 @@ const group = (key, itemKeys) => ({
   })),
 });
 const account = group('system', ['profile', 'password']);
-// Thứ tự cố định của sáu nhóm bán trú; nhóm không có mục nào thì bỏ
-const boardingGroups = ({ today = [], nutrition = [], kitchenOps = [], stock = [], foodSafety = [], catalog = [] }) =>
+// Nhãn khu trên sidebar: các mục liền nhau cùng `section` được Sidebar gom dưới một nhãn
+const BOARDING_SECTION = 'Bán trú';
+// Khu bán trú: "Bán trú hôm nay" đứng đầu, rồi năm nhóm theo thứ tự cố định; nhóm không có mục nào thì bỏ
+const boardingSection = ({ nutrition = [], kitchenOps = [], stock = [], foodSafety = [], catalog = [] }) =>
   [
-    ['boardingToday', today],
-    ['nutrition', nutrition],
-    ['kitchenOps', kitchenOps],
-    ['stock', stock],
-    ['foodSafety', foodSafety],
-    ['catalog', catalog],
-  ]
-    .filter(([, keys]) => keys.length)
-    .map(([key, keys]) => group(key, keys));
+    link('boardingToday'),
+    ...[
+      ['nutrition', nutrition],
+      ['kitchenOps', kitchenOps],
+      ['stock', stock],
+      ['foodSafety', foodSafety],
+      ['catalog', catalog],
+    ]
+      .filter(([, keys]) => keys.length)
+      .map(([key, keys]) => group(key, keys)),
+  ].map((entry) => ({ ...entry, section: BOARDING_SECTION }));
 const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
@@ -427,8 +429,7 @@ const MENUS = {
       'assessDayUnlocks',
     ]),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
-    ...boardingGroups({
-      today: ['boardingToday'],
+    ...boardingSection({
       nutrition: ['weeklyMenus', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
@@ -473,8 +474,7 @@ const MENUS = {
       'assessRewards',
       'assessDayUnlocks',
     ]),
-    ...boardingGroups({
-      today: ['boardingToday'],
+    ...boardingSection({
       nutrition: ['weeklyMenus', 'menus', 'nutrition'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],

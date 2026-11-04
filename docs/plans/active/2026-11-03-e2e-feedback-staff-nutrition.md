@@ -211,3 +211,8 @@ Plan A không còn câu hỏi mở. Cần hỏi trước khi bắt đầu Plan B
 - Đo: xem Context mục 2. Ảnh bản `dev` (cấu hình nhóm tuổi, chi tiết thực phẩm, chi tiết món) dùng cho mục 4.
 - Bản plan đầu (cùng ngày) phân tích lỗi 2–4 trên code cũ (mock) — đã thay bằng nội dung này.
 - Tiếp: user trả lời Q6–Q8, duyệt Plan A.
+
+### 2026-11-04 — Sidebar khu Bán trú (phương án B, user chọn)
+- "Bán trú hôm nay" thành link thẳng (BE meal-management-permissions.md mục 1: một trang), không còn nhóm một mục; nhãn khu "Bán trú" trên link này và năm nhóm bán trú; thu gọn sidebar ⇒ vạch mảnh giữa các khu.
+- Quyết định tự chọn: giữ nhãn "Menu" cho khu đầu (có Trang chủ, Chờ duyệt, Cấu hình trường — "Lớp học & trẻ" không đúng).
+- Verify: `node scripts/verify.mjs` → `VERIFY PASS full` (161 test, 0 fail); soát trên trình duyệt bằng tài khoản PHT demo, mở rộng và thu gọn.

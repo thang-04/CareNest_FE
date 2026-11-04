@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { CaretDown, SidebarCollapse, SidebarExpand, X } from '@/components/ui/icons';
 import { Logo } from '@/components/brand/Logo';
@@ -87,6 +87,15 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
 
   // Mục "chung" (thông báo, tài khoản) tách xuống section dưới như design.md; danh sách mục vẫn theo role
   const isGeneral = (item) => item.to === '/notifications' || item.key === 'system';
+  // Mục liền nhau cùng `section` (vd. khu Bán trú) gom dưới một nhãn; mục không có section nằm dưới "Menu"
+  const sections = menu
+    .filter((item) => !isGeneral(item))
+    .reduce((acc, item) => {
+      const label = item.section || 'Menu';
+      if (acc.at(-1)?.label === label) acc.at(-1).items.push(item);
+      else acc.push({ label, items: [item] });
+      return acc;
+    }, []);
   const renderItem = (item) => {
     if (!item.children) {
       return (
@@ -187,12 +196,16 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
         </button>
       </div>
       <div className="sidebar__scroll">
-        <div className="sidebar__label" aria-hidden="true">
-          Menu
-        </div>
-        <nav className="sidebar__nav" aria-label="Menu chính">
-          {menu.filter((item) => !isGeneral(item)).map(renderItem)}
-        </nav>
+        {sections.map(({ label, items }, index) => (
+          <Fragment key={`${index}-${label}`}>
+            <div className="sidebar__label" aria-hidden="true">
+              {label}
+            </div>
+            <nav className="sidebar__nav" aria-label={label === 'Menu' ? 'Menu chính' : `Menu ${label.toLowerCase()}`}>
+              {items.map(renderItem)}
+            </nav>
+          </Fragment>
+        ))}
         {menu.some(isGeneral) && (
           <>
             <div className="sidebar__label" aria-hidden="true">

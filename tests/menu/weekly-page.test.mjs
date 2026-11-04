@@ -26,7 +26,7 @@ test('menu mới: HT có thực đơn tuần, PHT vào Bán trú hôm nay và Th
   assert.ok(keysOf(ROLES.PRINCIPAL).includes('weeklyMenus'));
   assert.ok(keysOf(ROLES.PRINCIPAL).includes('nutritionSetup'));
   const vp = keysOf(ROLES.VICE_PRINCIPAL);
-  assert.ok(vp.includes('boardingToday') && vp.includes('nutritionSetup'));
+  assert.ok(getMenuForRole(ROLES.VICE_PRINCIPAL).some((m) => m.key === 'boardingToday') && vp.includes('nutritionSetup'));
 });
 
 test('ngày cần xử lý: ngày chưa chọn thực đơn, món mặn lặp trong 7 ngày; ngày nghỉ bỏ qua', async () => {
