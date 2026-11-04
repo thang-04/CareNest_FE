@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download } from '@/components/ui/icons';
+import { AlertTriangle, Download } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
@@ -8,6 +8,7 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
 import { useProgramCompletion, useQualityReport } from '@/hooks/assessment/useAssessment';
 import { downloadXlsx } from '@/utils/exportXlsx';
+import { formatDate } from '@/utils/format';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
@@ -233,68 +234,84 @@ export default function QualityReportPage() {
         ) : !loading && rows.length === 0 ? (
           <EmptyState title="Chưa có lớp" description="Năm học này chưa có lớp trong phạm vi bạn xem." />
         ) : (
-          <div className="table-wrap">
-            <table className="table table--grid dg-qr-table">
-              <thead>
-                <tr>
-                  <th rowSpan={view === 'year' ? 1 : 2}>Lớp</th>
-                  {showCampus && <th rowSpan={view === 'year' ? 1 : 2}>Điểm trường</th>}
-                  {view === 'year' ? (
-                    months.map((m) => (
-                      <th key={m} className="num" title={monthLabel(m)}>
-                        {shortMonth(m)}
-                      </th>
-                    ))
+          <>
+            {/* Ngày học theo lịch năm học: ngày lớp quên điểm danh vẫn tính (BE OBS-23, Cần chốt 04/11) */}
+            {view !== 'year' && rows.some((r) => r.unrecordedDays?.length) && (
+              <div className="alert alert--warning dg-alert-inset" role="status">
+                <AlertTriangle size={18} />
+                <div>
+                  Lớp chưa điểm danh (vẫn tính là ngày học, trẻ chưa có mặt):{' '}
+                  {rows
+                    .filter((r) => r.unrecordedDays?.length)
+                    .map((r) => `${r.className}: ${r.unrecordedDays.map((d) => formatDate(d)).join(', ')}`)
+                    .join('; ')}
+                  . Giáo viên bổ sung qua mở lại điểm danh.
+                </div>
+              </div>
+            )}
+            <div className="table-wrap">
+              <table className="table table--grid dg-qr-table">
+                <thead>
+                  <tr>
+                    <th rowSpan={view === 'year' ? 1 : 2}>Lớp</th>
+                    {showCampus && <th rowSpan={view === 'year' ? 1 : 2}>Điểm trường</th>}
+                    {view === 'year' ? (
+                      months.map((m) => (
+                        <th key={m} className="num" title={monthLabel(m)}>
+                          {shortMonth(m)}
+                        </th>
+                      ))
+                    ) : (
+                      <>
+                        <th className="num" rowSpan={2}>
+                          Sĩ số
+                        </th>
+                        {GROUPS.map(([label]) => (
+                          <th key={label} className="center" colSpan={2}>
+                            {label}
+                          </th>
+                        ))}
+                      </>
+                    )}
+                  </tr>
+                  {view !== 'year' && (
+                    <tr>
+                      {GROUPS.map(([label]) => [
+                        <th key={`${label}-n`} className="num">
+                          Số trẻ
+                        </th>,
+                        <th key={`${label}-p`} className="num">
+                          Tỷ lệ
+                        </th>,
+                      ])}
+                    </tr>
+                  )}
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <SkeletonRows rows={6} cols={cols} />
                   ) : (
                     <>
-                      <th className="num" rowSpan={2}>
-                        Sĩ số
-                      </th>
-                      {GROUPS.map(([label]) => (
-                        <th key={label} className="center" colSpan={2}>
-                          {label}
-                        </th>
+                      {rows.map((r) => (
+                        <tr key={r.classId}>
+                          <td className="fw-600">{r.className}</td>
+                          {showCampus && <td>{campusName(r.campusId)}</td>}
+                          <Cells view={view} months={months} x={r} />
+                        </tr>
+                      ))}
+                      {totals.map((t) => (
+                        <tr key={t.level} className="dg-qr-total">
+                          <td>{totalLabel(t)}</td>
+                          {showCampus && <td />}
+                          <Cells view={view} months={months} x={t} />
+                        </tr>
                       ))}
                     </>
                   )}
-                </tr>
-                {view !== 'year' && (
-                  <tr>
-                    {GROUPS.map(([label]) => [
-                      <th key={`${label}-n`} className="num">
-                        Số trẻ
-                      </th>,
-                      <th key={`${label}-p`} className="num">
-                        Tỷ lệ
-                      </th>,
-                    ])}
-                  </tr>
-                )}
-              </thead>
-              <tbody>
-                {loading ? (
-                  <SkeletonRows rows={6} cols={cols} />
-                ) : (
-                  <>
-                    {rows.map((r) => (
-                      <tr key={r.classId}>
-                        <td className="fw-600">{r.className}</td>
-                        {showCampus && <td>{campusName(r.campusId)}</td>}
-                        <Cells view={view} months={months} x={r} />
-                      </tr>
-                    ))}
-                    {totals.map((t) => (
-                      <tr key={t.level} className="dg-qr-total">
-                        <td>{totalLabel(t)}</td>
-                        {showCampus && <td />}
-                        <Cells view={view} months={months} x={t} />
-                      </tr>
-                    ))}
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

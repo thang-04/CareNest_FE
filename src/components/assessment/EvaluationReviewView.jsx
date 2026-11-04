@@ -68,9 +68,17 @@ export function EvaluationReviewView({ kind, id }) {
   // Nạp lại ô nhập chỉ khi sang đánh giá khác hoặc nội dung đã lưu đổi (tải lại sau khi đánh dấu hoàn thành chương
   // trình không xóa phần cô đang gõ)
   const evId = ev?.id;
+  // Cùng một đánh giá mà cô đang gõ dở (vd. bấm "Tạo lại bản nháp" khi chưa lưu lần nào): giữ chữ của cô, bản nháp mới
+  // chỉ vào ô qua "Dùng bản nháp này"
+  const typed = useRef({ evId: null, content: '', loadedFrom: null });
+  typed.current.content = content;
+  typed.current.loadedFrom = loadedFrom;
   useEffect(() => {
     if (!evId) return;
-    setContent(savedContent);
+    const t = typed.current;
+    const dirty = t.evId === evId && t.loadedFrom !== null && t.content !== t.loadedFrom;
+    t.evId = evId;
+    if (!dirty) setContent(savedContent);
     setLoadedFrom(savedContent);
   }, [evId, savedContent]);
 

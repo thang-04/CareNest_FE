@@ -133,3 +133,14 @@ test('giữ mức tham gia đã lưu, không tự bổ sung giá trị cho bản
   }
   assert.equal(createGeneralDraft(row('saved', true), sessions).participation, '');
 });
+
+test('trẻ đã chấm KTKN (hoặc có nhận xét) nhưng chưa lưu Hoạt động chung vẫn được lưu giá trị mặc định', () => {
+  const graded = { ...row('k', true), generalRecorded: false, skillsRecorded: true };
+  const saved = { ...row('g', true), generalRecorded: true, nap: 'NGU_TOT', emotion: 'HAPPY' };
+  const entries = getGeneralSaveEntries([graded, saved], sessions, {}, new Set());
+  assert.deepEqual(
+    entries.map((entry) => entry.childId),
+    ['k'],
+  );
+  assert.equal(entries[0].nap, createGeneralDraft(graded, sessions).nap);
+});

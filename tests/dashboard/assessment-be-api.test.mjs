@@ -19,7 +19,7 @@ const { readDb, writeDb } = await import('@/mocks/mockDatabase');
 const fakeClient = (responses = {}) => {
   const calls = [];
   const respond = (method, url, body, config) => {
-    calls.push({ method, url, body, params: config?.params });
+    calls.push({ method, url, body, params: config?.params, config });
     const r = responses[`${method} ${url}`];
     return Promise.resolve(typeof r === 'function' ? r(body, config) : r);
   };
@@ -146,6 +146,17 @@ test('BE: lưu Kiến thức kỹ năng chỉ gửi MT cô đã chọn (id số)
     comment: null,
     activities: [{ key: 'hoc', participation: null, goalsMet: [], goalsNotMet: [11] }],
   });
+});
+
+test('BE: xóa nhận xét ở Kiến thức kỹ năng gửi chuỗi rỗng (xóa), không thành null (giữ)', async () => {
+  const client = fakeClient({ 'put /classes/5/daily-assessment/skills': { saved: 1 } });
+  await createAssessmentBeApi(client).saveDailySkills({
+    classId: '5',
+    date: '2026-10-27',
+    entries: [{ childId: '21', comment: '', activities: [] }],
+  });
+  assert.equal(client.calls[0].body.entries[0].comment, '');
+  assert.deepEqual(client.calls[0].config.preserveEmptyStrings, ['comment']);
 });
 
 test('BE: lịch sử mở lại gửi bộ lọc campusId / classId / active / from / to, bỏ ô trống', async () => {

@@ -17,18 +17,12 @@ import { StatusPage } from '@/components/ui/StatusPage';
 import { BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
-import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries } from '@/utils/assessment/dailyGeneralDraft';
+import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries, isGeneralRecorded } from '@/utils/assessment/dailyGeneralDraft';
 import { DateInput } from '@/components/form/DateInput';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
-import { addDays, isSchoolDay, todayIso } from '@/utils/assessment/assessmentPeriods';
+import { todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
-
-const lastSchoolDay = () => {
-  let d = todayIso();
-  while (!isSchoolDay(d)) d = addDays(d, -1);
-  return d;
-};
 
 const COLS = 9;
 // Ô khác giá trị mặc định được tô nhẹ để giáo viên thấy ngay ngoại lệ
@@ -41,10 +35,12 @@ export default function DailyAssessmentPage() {
   const { classes, loading: classesLoading, error: classesError } = useDailyAssessmentClasses();
   const [search] = useSearchParams();
   const [classId, setClassId] = useState(search.get('classId') || '');
-  const [date, setDate] = useState(() => search.get('date') || lastSchoolDay());
+  const [date, setDate] = useState(() => search.get('date') || '');
+  // Chưa chọn ngày: BE trả ngày học gần nhất theo ngày nghỉ trong cấu hình năm học (lễ, Tết…)
   const currentClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id || '';
-  const params = useMemo(() => ({ classId: currentClassId, date }), [currentClassId, date]);
+  const params = useMemo(() => ({ classId: currentClassId, date: date || undefined }), [currentClassId, date]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
+  const shownDate = date || sheet?.date || '';
 
   const [drafts, setDrafts] = useState({});
   const [loadedSheet, setLoadedSheet] = useState(null);
@@ -109,7 +105,7 @@ export default function DailyAssessmentPage() {
     }
   };
 
-  const recordedCount = sheet?.rows.filter((r) => r.recorded).length || 0;
+  const recordedCount = sheet?.rows.filter(isGeneralRecorded).length || 0;
   const commentError = saveError?.details?.comment;
   const classCommentError = saveError?.details?.classComment;
   // Lỗi không gắn được vào một ô (trẻ chưa có mặt, ngày đã khóa…): hiện ở đầu bảng
@@ -162,13 +158,13 @@ export default function DailyAssessmentPage() {
               </label>
               <DateInput
                 id="dg-date"
-                value={date}
+                value={shownDate}
                 min={sheet?.yearStart || undefined}
                 max={sheet?.today || todayIso()}
                 onChange={(v) => isIsoDate(v) && confirmChange(() => setDate(v))}
               />
             </div>
-            <DailyModeSelect mode="general" classId={currentClassId} date={date} />
+            <DailyModeSelect mode="general" classId={currentClassId} date={shownDate} />
             <div className="spacer" />
             {sheet && sheet.rows.length > 0 && (
               <div className="text-sm text-2 dg-filter-count">
@@ -259,7 +255,7 @@ export default function DailyAssessmentPage() {
                       // Viền trái của dòng: chưa lưu / đã ghi nhận / chưa đánh giá
                       const status = dirty.has(id)
                         ? ['dirty', 'Đã thay đổi, chưa lưu']
-                        : r.recorded
+                        : isGeneralRecorded(r)
                           ? ['saved', 'Đã ghi nhận']
                           : ['new', 'Chưa đánh giá'];
                       return (
@@ -392,7 +388,7 @@ export default function DailyAssessmentPage() {
       {writable && (
         <div className="page-actions">
           {/* Xong Hoạt động chung thì sang Kiến thức kỹ năng cùng lớp, ngày (hỏi nếu còn thay đổi chưa lưu) */}
-          <Link className="btn" to={`/assessment/daily/skills?classId=${currentClassId}&date=${date}`}>
+          <Link className="btn" to={`/assessment/daily/skills?classId=${currentClassId}&date=${shownDate}`}>
             Sang Kiến thức kỹ năng <ArrowRight size={16} />
           </Link>
           <div className="spacer" />

@@ -17,20 +17,26 @@ const assessmentCrumbs=()=>[],SECTIONS={},downloadXlsx=(rows)=>{globalThis.quali
 const {monthInSemester,semestersOf}=globalThis.qualitySemesterFns;
 `;
 const { code } = await transformWithOxc(stubs + source.replace(/^import[\s\S]*?;\r?\n/gm, ''), 'QualityReportPage.jsx', {
-  lang: 'jsx', jsx: { runtime: 'classic' },
+  lang: 'jsx',
+  jsx: { runtime: 'classic' },
 });
 const { default: QualityReportPage } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
-const walk = node => !React.isValidElement(node) ? [] : [node, ...React.Children.toArray(node.props.children).flatMap(walk)];
+const walk = (node) => (!React.isValidElement(node) ? [] : [node, ...React.Children.toArray(node.props.children).flatMap(walk)]);
 
 test('đổi năm học dùng mốc học kỳ năm mới cho cả bảng và Excel', () => {
   globalThis.qualityStateIndex = 0;
   globalThis.qualityOldSemester = { start: '2026-09-01', end: '2027-01-15', key: 'S1' };
-  globalThis.qualityYearFixture = { schoolYear: 'new', schoolYears: [{ id: 'new', startDate: '2027-09-01', endDate: '2028-05-31', semester1Start: '2027-09-01', semester1End: '2028-01-15' }] };
+  globalThis.qualityYearFixture = {
+    schoolYear: 'new',
+    schoolYears: [{ id: 'new', startDate: '2027-09-01', endDate: '2028-05-31', semester1Start: '2027-09-01', semester1End: '2028-01-15' }],
+  };
   const tree = QualityReportPage();
   const html = renderToStaticMarkup(tree);
   assert.match(html, /Tháng 9\/2027/);
   assert.match(html, /Tháng 10\/2027/);
   assert.doesNotMatch(html, /Tháng 2\/2028/);
-  walk(tree).find(n => n.type === 'button' && React.Children.toArray(n.props.children).includes(' Xuất Excel')).props.onClick();
+  walk(tree)
+    .find((n) => n.type === 'button' && React.Children.toArray(n.props.children).includes(' Xuất Excel'))
+    .props.onClick();
   assert.deepEqual(globalThis.qualityExport[1], ['Lớp', 'Tháng 9/2027', 'Tháng 10/2027']);
 });

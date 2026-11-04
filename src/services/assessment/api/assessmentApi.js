@@ -68,14 +68,19 @@ export const createAssessmentBeApi = (client) => ({
       { preserveEmptyStrings: ['classComment'] },
     ),
   saveDailySkills: ({ classId, date, entries }) =>
-    client.put(`/classes/${classId}/daily-assessment/skills`, {
-      date,
-      entries: entries.map((e) => ({
-        childId: e.childId,
-        comment: e.comment ?? null,
-        activities: (e.activities || []).map((a) => goalIdsToBe({ key: a.key, participation: blank(a.participation), ...pickGoals(a) })),
-      })),
-    }),
+    client.put(
+      `/classes/${classId}/daily-assessment/skills`,
+      {
+        date,
+        entries: entries.map((e) => ({
+          childId: e.childId,
+          comment: e.comment ?? null,
+          activities: (e.activities || []).map((a) => goalIdsToBe({ key: a.key, participation: blank(a.participation), ...pickGoals(a) })),
+        })),
+      },
+      // '' = xóa nhận xét (BE: null mới là giữ nguyên), không để tầng chung đổi thành null
+      { preserveEmptyStrings: ['comment'] },
+    ),
   listAssessmentDayUnlocks: ({ campusId, classId, active, from, to } = {}) =>
     client.get('/assessment/day-unlocks', {
       params: {

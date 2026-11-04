@@ -20,8 +20,9 @@ const NOTE_MAX = 1000;
 const STATUS_LABELS = { NONE: 'Chưa đánh giá', DRAFT: 'Đang đánh giá', CONFIRMED: 'Đã xác nhận' };
 const PERIOD_LABELS = { UPCOMING: 'Chưa bắt đầu', ONGOING: 'Đang diễn ra', ENDED: 'Đã kết thúc' };
 const mark = (met) => (met === true ? '+' : met === false ? '−' : '');
-// Ô hệ thống tính: bấm là sửa tay sang giá trị ngược lại (chưa chấm ⇒ Đạt); ô sửa tay: Đạt → Chưa đạt → về hệ thống tính
-const nextValue = (met, manual) => (!manual ? met !== true : met === true ? false : null);
+// Bấm ô: Đạt ↔ Chưa đạt (chưa chấm ⇒ Đạt); ô hệ thống chưa chấm thì Chưa đạt ⇒ về trống. Giá trị trùng kết quả hệ
+// thống tính (cell.auto, BE trả) thì không còn là sửa tay
+const nextValue = (met, auto) => (met === true ? false : met === false ? (auto == null ? null : true) : true);
 
 /**
  * Đánh giá cuối chủ đề của lớp mẫu giáo (BE OBS-27), theo mẫu "Bảng đánh giá sự phát triển của trẻ": hàng là trẻ, cột là
@@ -58,7 +59,8 @@ export default function ThemeEvaluationPage() {
 
   const valueOf = (childId, cell) => {
     const key = `${childId}:${cell.goalId}`;
-    return key in edits ? edits[key] : cell.met;
+    if (!(key in edits)) return cell.met;
+    return edits[key] === null ? (cell.auto ?? null) : edits[key];
   };
   const manualOf = (childId, cell) => {
     const key = `${childId}:${cell.goalId}`;
@@ -67,11 +69,12 @@ export default function ThemeEvaluationPage() {
   const toggle = (childId, cell) =>
     setEdits((all) => {
       const key = `${childId}:${cell.goalId}`;
-      const manual = key in all ? all[key] !== null : cell.manual;
-      const next = nextValue(key in all ? all[key] : cell.met, manual);
+      const current = key in all ? (all[key] === null ? (cell.auto ?? null) : all[key]) : cell.met;
+      const next = nextValue(current, cell.auto);
       const { [key]: _omit, ...rest } = all;
-      // Ô vốn do hệ thống tính mà bỏ sửa tay ⇒ không còn thay đổi gì
-      return next === null && !cell.manual ? rest : { ...all, [key]: next };
+      if (next !== (cell.auto ?? null)) return { ...all, [key]: next };
+      // Về đúng kết quả hệ thống: ô đã lưu sửa tay thì gửi null (bỏ sửa tay), ô chưa sửa thì không còn thay đổi
+      return cell.manual ? { ...all, [key]: null } : rest;
     });
   const cellsBody = () =>
     Object.entries(edits).map(([key, met]) => {
@@ -182,7 +185,7 @@ export default function ThemeEvaluationPage() {
               >
                 <Printer size={16} /> Xem trước & In
               </button>
-              <button className="btn" onClick={exportExcel}>
+              <button className="btn" disabled={changed} title={changed ? 'Lưu thay đổi trước khi xuất' : undefined} onClick={exportExcel}>
                 <Download size={16} /> Xuất Excel
               </button>
             </>
@@ -260,7 +263,8 @@ export default function ThemeEvaluationPage() {
                             const value = valueOf(r.childId, c);
                             const manual = manualOf(r.childId, c);
                             // Bỏ sửa tay ô đã lưu: chưa biết kết quả hệ thống tính tới khi lưu
-                            const reverting = c.manual && !manual;
+                            // BE cũ chưa trả kết quả tự tính: bỏ sửa tay ô đã lưu thì chưa biết giá trị tới khi lưu
+                            const reverting = c.manual && !manual && c.auto === undefined;
                             const label = `${r.fullName} – MT ${goalTitle[c.goalId] || ''}: ${
                               reverting
                                 ? 'về kết quả hệ thống tính khi lưu'

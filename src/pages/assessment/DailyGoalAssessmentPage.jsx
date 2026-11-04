@@ -19,17 +19,12 @@ import { Cell, focusCell } from '@/components/ui/TableCell';
 import { PARTICIPATION_LABELS, YCCD_RESULT, YCCD_RESULT_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { DateInput } from '@/components/form/DateInput';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
-import { addDays, isSchoolDay, todayIso } from '@/utils/assessment/assessmentPeriods';
+import { todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 // Bảng cùng kiểu bảng mục tiêu năm học / giáo án (Tiền 20/10)
 import '@/styles/modules/education-plan.css';
 
-const lastSchoolDay = () => {
-  let d = todayIso();
-  while (!isSchoolDay(d)) d = addDays(d, -1);
-  return d;
-};
 const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 const LEVEL_CLASS = { DAT: 'text-success', CHUA_DAT: 'text-danger fw-600' };
@@ -74,10 +69,12 @@ export default function DailyGoalAssessmentPage() {
   const { classes, loading: classesLoading, error: classesError } = useDailyAssessmentClasses();
   const [search] = useSearchParams();
   const [classId, setClassId] = useState(search.get('classId') || '');
-  const [date, setDate] = useState(() => search.get('date') || lastSchoolDay());
+  const [date, setDate] = useState(() => search.get('date') || '');
+  // Chưa chọn ngày: BE trả ngày học gần nhất theo ngày nghỉ trong cấu hình năm học (lễ, Tết…)
   const currentClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id || '';
-  const params = useMemo(() => ({ classId: currentClassId, date }), [currentClassId, date]);
+  const params = useMemo(() => ({ classId: currentClassId, date: date || undefined }), [currentClassId, date]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
+  const shownDate = date || sheet?.date || '';
 
   const [drafts, setDrafts] = useState({});
   // { [childId]: Set(activityKey | '_comment') } — chỉ gửi phần cô đã sửa
@@ -168,7 +165,9 @@ export default function DailyGoalAssessmentPage() {
   const saving = saveState.phase === 'saving';
 
   const rows = sheet?.rows || [];
-  const recordedCount = rows.filter((r) => r.recorded).length;
+  // Đếm theo phần KTKN (BE cũ chỉ có recorded)
+  const skillsRecorded = (r) => r.skillsRecorded ?? r.recorded;
+  const recordedCount = rows.filter(skillsRecorded).length;
   const commentError = saveError?.details?.comment;
   const formError = saveError && !commentError ? saveError.message : null;
   const panelRow = openChild && rows.find((r) => r.childId === openChild);
@@ -243,13 +242,13 @@ export default function DailyGoalAssessmentPage() {
               </label>
               <DateInput
                 id="dg-date"
-                value={date}
+                value={shownDate}
                 min={sheet?.yearStart || undefined}
                 max={sheet?.today || todayIso()}
                 onChange={(v) => isIsoDate(v) && confirmChange(() => setDate(v))}
               />
             </div>
-            <DailyModeSelect mode="skills" classId={currentClassId} date={date} />
+            <DailyModeSelect mode="skills" classId={currentClassId} date={shownDate} />
             <div className="spacer" />
             {sheet && rows.length > 0 && (
               <div className="text-sm text-2 dg-filter-count">
@@ -370,7 +369,7 @@ export default function DailyGoalAssessmentPage() {
                       const disabled = !writable || saving;
                       const commentInvalid = !!commentError && !!dirty[id]?.has('_comment');
                       return (
-                        <tr key={id} title={r.recorded ? 'Đã ghi nhận' : 'Chưa ghi nhận'}>
+                        <tr key={id} title={skillsRecorded(r) ? 'Đã ghi nhận' : 'Chưa ghi nhận'}>
                           <td className="cell--fixed">
                             <div className="ga-goal-table__pad dg-child">
                               <ChildAvatar child={r} size="sm" />

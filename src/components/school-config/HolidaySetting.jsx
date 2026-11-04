@@ -20,7 +20,8 @@ const EMPTY = { startDate: '', endDate: '', name: '' };
  * ngày học dù rơi vào thứ 2–6 (điểm danh, báo ăn, đánh giá, báo cáo bỏ qua). HT (hoặc PHT được cấp quyền) thêm / bớt rồi
  * lưu cả danh sách; BE kiểm lại (trong năm học, không chồng đợt, không trùm ngày đã điểm danh).
  */
-export function HolidaySetting({ yearId }) {
+/** onDirtyChange / saveRef: trang cha hỏi lưu khi đổi tab hoặc rời màn còn đợt nghỉ chưa lưu. */
+export function HolidaySetting({ yearId, onDirtyChange, saveRef }) {
   const { user } = useAuth();
   const toast = useToast();
   const {
@@ -35,13 +36,14 @@ export function HolidaySetting({ yearId }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => setRows(data || []), [data]);
+  const changed = !!data && JSON.stringify(rows) !== JSON.stringify(data);
+  useEffect(() => onDirtyChange?.(changed), [changed, onDirtyChange]);
 
   if (yearError) return <ErrorState error={yearError} onRetry={reloadYear} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (loading || !year) return <LoadingState />;
 
   const editable = canManageSchoolCalendar(user) && year.status !== YEAR_STATUS.CLOSED;
-  const changed = JSON.stringify(rows) !== JSON.stringify(data || []);
   const setField = (patch) => {
     setDraft((d) => ({ ...d, ...patch }));
     setErrors(({ _form: _f, ...rest }) => Object.fromEntries(Object.entries(rest).filter(([k]) => !(k in patch))));
@@ -62,14 +64,17 @@ export function HolidaySetting({ yearId }) {
       await saveHolidays(yearId, rows, user);
       toast.success('Đã lưu ngày nghỉ.');
       setErrors({});
-      reload({ silent: true });
+      await reload({ silent: true });
+      return true;
     } catch (err) {
       setErrors({ _form: err.message });
       toast.error(err, 'Chưa lưu được ngày nghỉ');
+      return false;
     } finally {
       setSaving(false);
     }
   };
+  if (saveRef) saveRef.current = save;
 
   return (
     <section className="card">

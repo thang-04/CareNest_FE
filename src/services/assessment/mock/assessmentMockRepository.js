@@ -1080,6 +1080,8 @@ export const assessmentMockRepository = {
           flag: obs?.flag ?? null,
           comment: obs?.comment || '',
           recorded: !!obs || records.length > 0,
+          generalRecorded: !!obs && !!(obs.nap || obs.emotion || Object.keys(obs.meals || {}).length),
+          skillsRecorded: records.length > 0,
           activities: records.map((stored) => {
             // EDU-26: giữ mức đã chấm qua lineage khi giáo án ngày dùng phiên bản mới.
             const a = projectedAssessment(db, plan, stored);

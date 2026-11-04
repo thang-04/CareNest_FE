@@ -57,7 +57,8 @@ export function useDailyAssessment(params) {
   const { user } = useAuth();
   const key = JSON.stringify(params || {});
   const { data, loading, error, reload } = useAsync(() => getDailyAssessment(params, user), [key, user?.id], {
-    enabled: !!params?.classId && !!params?.date,
+    // Không có ngày: BE chọn ngày học gần nhất (bỏ ngày nghỉ trong cấu hình năm học)
+    enabled: !!params?.classId,
   });
   return { sheet: data, loading, error, reload };
 }
