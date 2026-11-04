@@ -62,13 +62,10 @@ export function DailyDaysTable({ days, mealSessions, classId, linkDays }) {
                 {d.behaviorNote && <div className="muted text-xs">{d.behaviorNote}</div>}
               </td>
               <td>
-                {d.met.length || d.effort?.length || d.notMet.length ? (
+                {d.met.length || d.notMet.length ? (
                   <div className="dg-days__goals">
                     {d.met.map((g) => (
                       <GoalChip key={g.id} goal={g} tone="green" />
-                    ))}
-                    {(d.effort || []).map((g) => (
-                      <GoalChip key={g.id} goal={g} tone="orange" />
                     ))}
                     {d.notMet.map((g) => (
                       <GoalChip key={g.id} goal={g} tone="red" />

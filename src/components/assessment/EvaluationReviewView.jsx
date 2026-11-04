@@ -409,7 +409,7 @@ export function EvaluationReviewView({ kind, id }) {
         <div className="card mt-16">
           <div className="card__header">
             <div className="card__title">Đánh giá hằng ngày trong kỳ</div>
-            <span className="muted text-sm">Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>
+            <span className="muted text-sm">Xanh: đạt · Đỏ: chưa đạt</span>
           </div>
           <div className="card__body">
             {/* 10 ngày / trang như bảng này ở Hồ sơ phát triển */}

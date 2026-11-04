@@ -32,9 +32,9 @@ const lastSchoolDay = () => {
 };
 const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-const LEVEL_CLASS = { DAT: 'text-success', CAN_CO_GANG: 'text-warning fw-600', CHUA_DAT: 'text-danger fw-600' };
+const LEVEL_CLASS = { DAT: 'text-success', CHUA_DAT: 'text-danger fw-600' };
 // Mức của MT ↔ danh sách của BE
-const LISTS = { DAT: 'goalsMet', CAN_CO_GANG: 'goalsEffort', CHUA_DAT: 'goalsNotMet' };
+const LISTS = { DAT: 'goalsMet', CHUA_DAT: 'goalsNotMet' };
 const goalName = (g) => (g.goalNo ? `MT${g.goalNo}` : 'MT');
 
 /** Kết quả đã ghi của một trẻ: { [activityKey]: { participation, results: { [goalId]: level } } }; MT chưa chấm thì trống. */
@@ -65,7 +65,7 @@ const toActivity = (key, act) => ({
 
 /**
  * #52 Đánh giá hằng ngày – Kiến thức kỹ năng (EDU-19): hoạt động và MT lấy từ giáo án tuần đã duyệt (lesson của BE), mỗi
- * hoạt động một cột, mỗi MT chọn Đạt / Cần cố gắng / Chưa đạt. Không tự điền Đạt: chỉ gửi những gì cô đã chọn.
+ * hoạt động một cột, mỗi MT chọn Đạt / Chưa đạt. Không tự điền Đạt: chỉ gửi những gì cô đã chọn.
  * Chưa có giáo án duyệt thì khóa phần này. Bấm tên trẻ để ghi mức tham gia và xem đủ MT từng hoạt động.
  */
 export default function DailyGoalAssessmentPage() {

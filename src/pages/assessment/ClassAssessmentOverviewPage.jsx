@@ -33,16 +33,12 @@ const signsText = (signs) =>
     .map(([key, n]) => `${HEALTH_SYMPTOMS[key] || key} (${n})`)
     .join(', ');
 
-function SkillsCell({ dat, canCoGang, chuaDat }) {
-  const total = dat + canCoGang + chuaDat;
+function SkillsCell({ dat, chuaDat }) {
+  const total = dat + chuaDat;
   if (!total) return <span className="muted">–</span>;
   return (
-    <span
-      className="row gap-1 nowrap"
-      title={`Đạt ${pct(dat, total)} · Cần cố gắng ${pct(canCoGang, total)} · Chưa đạt ${pct(chuaDat, total)}`}
-    >
+    <span className="row gap-1 nowrap" title={`Đạt ${pct(dat, total)} · Chưa đạt ${pct(chuaDat, total)}`}>
       <span className="chip chip--green">{dat}</span>
-      <span className="chip chip--orange">{canCoGang}</span>
       <span className="chip chip--red">{chuaDat}</span>
     </span>
   );
@@ -128,7 +124,7 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
                 {CRITERIA.map((c) => (
                   <th key={c.key}>{c.label}</th>
                 ))}
-                <th>Đạt / Cần cố gắng / Chưa đạt</th>
+                <th>Đạt / Chưa đạt</th>
                 <th className="num">Cờ</th>
                 <th>Nhận xét</th>
               </tr>
