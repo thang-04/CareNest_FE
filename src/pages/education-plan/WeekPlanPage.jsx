@@ -1,7 +1,9 @@
 import { useEffect, useId, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, FileDown, Save } from '@/components/ui/icons';
-import { Card, DraftRecoveryNotice, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { VersionHistory } from '@/components/education-plan/VersionHistory';
+import { docLines } from '@/models/education-plan/planHistory.mjs';
 import { DocStatusStrip, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
@@ -216,6 +218,14 @@ function WeekPlanInner() {
               {(editable || adjustEditable) && (
                 <>
                   <span className="muted text-sm">{saver.label}</span>
+                  <VersionHistory
+                    drafts={saver.drafts}
+                    saved={saver.cleanDoc()}
+                    current={draft}
+                    unsaved={saver.unsaved}
+                    linesOf={docLines}
+                    onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
+                  />
                   <button
                     type="button"
                     className="btn btn--primary btn--sm"
@@ -251,9 +261,6 @@ function WeekPlanInner() {
         onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
         onDrop={(f) => flagEdit((d) => dropReference('week', d, f))}
       />
-      {(editable || adjustEditable) && saver.recovery && (
-        <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />
-      )}
       {/* Tên chủ đề nhánh đặt ở trang chủ đề nhánh của lớp; đưa lên đầu để soạn đúng nhánh */}
       <div className="ga-week-hero">
         <div className="ga-week-hero__label">

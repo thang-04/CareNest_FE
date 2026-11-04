@@ -18,7 +18,7 @@ Nguồn: `BE:docs/business/BUSINESS_RULES.md` (khảo sát team 210/210, user ch
 UI mock **lệch BE (29/10), cần sửa khi tích hợp**:
 - Kế hoạch giáo dục (`/education/*`): đủ luồng theo BE EDU-01..28, EDU-39..41 (mục tiêu năm học + phiên bản, cấu hình, tài liệu lớp, hồ sơ chủ đề, duyệt theo chuỗi người ký), gọi BE thật khi `VITE_USE_MOCK=false`. Trang "Kế hoạch toàn trường" của HT còn đọc dữ liệu chủ đề/giáo án kiểu cũ nên trống khi nối BE.
 - Đánh giá hằng ngày (`/assessment/daily`): mock 3 nhóm, kiến thức–kỹ năng Đạt/Chưa đạt, PHT/HT mở lại ngày đã khóa. BE: 7 mặt, mức Đạt / Cần cố gắng / Chưa đạt (OBS-02), hết ngày thì khóa, không có bước mở lại (OBS-12). Chi tiết: [daily-assessment](../features/daily-assessment.md) mục "Lệch BE".
-- Sức khỏe (`/children/health-*`): mock có phiếu khám Phụ lục II, mức theo dõi, phiếu theo dõi; bác sĩ chọn tình trạng dinh dưỡng thay nhãn tự tính. BE: tự phân loại theo WHO, GV chỉnh kèm lý do (HLT-03, HLT-10); suy dinh dưỡng/thừa cân chỉ đánh dấu, không có quy trình theo dõi (HLT-12, OBS-03); nội dung ghi từ đợt khám bác sĩ chưa có rule (HLT-08). Cần team chốt trước khi tích hợp.
+- Sức khỏe (`/children/health-*`): mock có phiếu khám Phụ lục II, mức theo dõi, phiếu theo dõi; bác sĩ chọn tình trạng dinh dưỡng thay nhãn tự tính. BE: tự phân loại theo WHO, GV chỉnh kèm lý do (HLT-03, HLT-10); suy dinh dưỡng/thừa cân chỉ đánh dấu, không có quy trình theo dõi (HLT-12, OBS-03); nội dung ghi từ đợt khám bác sĩ chưa có rule (HLT-08). Cần team chốt trước khi tích hợp. Từ 2026-10-31 mock có kỳ cân đo (HT/PHT mở, cảnh báo dưới 2 tháng 15 ngày), đợt khám 1 lần/năm, bỏ cân đo lẻ ngoài đợt — chờ BE sửa HLT-01 ("3 lần/năm, cấu hình được"), HLT-08 ("2 lần/năm"); plan `docs/plans/completed/2026-10-31-health-measurement-rounds.md`.
 - Đón trẻ (`/pickup/*`): mock xác minh bằng ảnh người giám hộ hoặc phụ huynh đồng ý qua điện thoại, gần PCK-02. Nguồn ảnh đối chiếu còn P-33; người lạ đón phải ghi lý do (PCK-02); không đăng ký trước người đón hộ (PCK-03).
 - CSVC (`/facility/*`): giữ ẩn (`FACILITY_ENABLED=false`), không phát triển thêm.
 
@@ -59,7 +59,7 @@ Status: `UI mock` = chỉ dữ liệu mẫu · `BE + UI` = gọi BE thật khi `
 | Quản trị tài khoản, role, phân công        | System Admin                                  | identity-access, school-structure | BE + UI: `account`, `permissions`; UI mock: nhân sự, phân công PHT (`school-config`) |
 | Cấu trúc trường: campus, lớp, năm học      | System Admin                                  | school-structure                  | BE + UI (`school-config`) |
 | Cấu hình hệ thống / master data            | System Admin                                  | nhiều                             | một phần (`school-config`, `menu-planning`) |
-| Hồ sơ trẻ / ghi danh                       | Vice Principal mảng chuyên môn (CHD-01)       | child                             | UI mock (`children`); kích hoạt tài khoản phụ huynh: BE + UI |
+| Hồ sơ trẻ / ghi danh                       | Vice Principal mảng chuyên môn (CHD-01); FE mock: Principal toàn trường, Vice Principal theo "Hồ sơ trẻ" — tiếp nhận, nhập Excel, xếp lớp (user chốt 2026-10-27) | child                             | UI mock (`children`); tài khoản phụ huynh: BE + UI, riêng kích hoạt theo hồ sơ trẻ (AUTH-20) BE chưa có |
 | Dashboard báo cáo lớp/campus/trường        | Principal, Vice Principal                     | reporting                         | UI mock (`dashboard`) |
 | Xác nhận số suất ăn                        | Vice Principal tại cơ sở; Principal thay khi vắng (NUT-02) | nutrition                         | BE + UI: số suất (`attendance`); UI mock: bàn giao suất, bếp (`kitchen`) |
 | Xuất bản thực đơn tuần (BA: PHT công bố)   | Vice Principal mảng dinh dưỡng (NUT-08: công bố = duyệt; còn lệch, xem features/nutrition-inventory.md) | nutrition                         | UI mock (`menu-planning`) |
@@ -86,6 +86,6 @@ Status: `UI mock` = chỉ dữ liệu mẫu · `BE + UI` = gọi BE thật khi `
 | Actor xác nhận suất ăn                 | Đã chốt NUT-02 (đóng P-05, 2026-10-28) | `BE:docs/business/BUSINESS_RULES.md`                                  |
 | Người nhập đo sức khỏe                 | Đã chốt HLT-09: GV (2026-10-29) | `BE:docs/modules/health.md`                                           |
 | Ngữ cảnh hoạt động                     | Đã chốt OBS-07: MT của giáo án tuần/ngày đã duyệt (EDU-19, ADR-0006) | `BE:docs/modules/education-plan.md`                                   |
-| Màn hình hồ sơ trẻ / ghi danh trên Web | Actor chốt CHD-01 (PHT chuyên môn, form/Excel); màn Web theo UI mock `children` | `docs/features/README.md`                                             |
+| Màn hình hồ sơ trẻ / ghi danh trên Web | Actor chốt CHD-01 (PHT chuyên môn, form/Excel); FE mock xong (`/children/new`, `/children/import`, `/children/placement`), chờ contract BE | `docs/features/README.md`                                             |
 
 Đã chốt gần đây: báo nghỉ = thông báo của phụ huynh qua app, **không có bước duyệt**; GV/BGH trong scope chỉ xem, GV không tạo thay phụ huynh (ATT-05, đóng 2026-10-02, bổ sung 27/10 — `BE:docs/business/flows/leave-request.md`).

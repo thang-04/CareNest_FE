@@ -12,6 +12,7 @@ import { HealthObservationBadge, ParentNotifyBadge, ParentNotifyShortBadge } fro
 import { formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { useToast } from '@/contexts/ToastContext';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
 const blank = () => ({
   temperature: '',
@@ -41,6 +42,7 @@ export function DailyHealthPanel({
 }) {
   const toast = useToast();
   const [form, setForm] = useState(blank);
+  const [discardOpen, setDiscardOpen] = useState(false);
   // Lần mới nhất hiện đầy đủ; các lần cũ mở từng lần một (accordion), quá 3 lần cũ thì ẩn bớt
   const [expanded, setExpanded] = useState(null);
   const [showAll, setShowAll] = useState(false);
@@ -82,7 +84,8 @@ export function DailyHealthPanel({
   // Đã trả trẻ cho phụ huynh ⇒ khóa ghi sức khỏe của trẻ trong ngày (Cần chốt 24/10/2026)
   const handedOverAt = data?.handedOverAt || null;
   const editable = !handedOverAt && presentDraft && ((canDraft && !error) || (presentSaved && data?.canRecord)) && !loading && !error;
-  const showForm = editable && (adding || dirty || !data?.entries.length || attendanceDirty);
+  const blockedDraft = dirty && !presentDraft;
+  const showForm = (editable || blockedDraft) && (adding || dirty || !data?.entries.length || attendanceDirty);
   const save = async (next) => {
     if (submitRef.current || parentBusy || !editable) return;
     const invalid = validateDailyHealth(form);
@@ -181,12 +184,19 @@ export function DailyHealthPanel({
               <div className="alert alert--info">
                 <HeartPulse size={18} />
                 <div>
-                  {presentDraft
-                    ? 'Chỉ thêm ghi nhận cho ngày hôm nay. Bạn vẫn có thể xem lịch sử.'
-                    : 'Chọn Có mặt trong danh sách để nhập sức khỏe ngay.'}
+                  {blockedDraft
+                    ? 'Điểm danh đã thay đổi. Nội dung sức khỏe đang soạn được giữ bên dưới và chưa thể lưu khi trẻ vắng.'
+                    : presentDraft
+                      ? 'Chỉ thêm ghi nhận cho ngày hôm nay. Bạn vẫn có thể xem lịch sử.'
+                      : 'Chọn Có mặt trong danh sách để nhập sức khỏe ngay.'}
                 </div>
               </div>
             )
+          )}
+          {blockedDraft && (
+            <button className="btn mt-8" type="button" disabled={busy || parentBusy} onClick={() => setDiscardOpen(true)}>
+              Bỏ nội dung sức khỏe đang soạn
+            </button>
           )}
           {saveError && (
             <div className="alert alert--danger mb-12" role="alert">
@@ -207,7 +217,7 @@ export function DailyHealthPanel({
               }}
             >
               {busy && <SubmitOverlay state="sending" />}
-              <fieldset disabled={busy || parentBusy} className="dd-health__fields">
+              <fieldset disabled={busy || parentBusy || !editable} className="dd-health__fields">
                 <FormField label="Thân nhiệt (°C)" error={errors.temperature}>
                   <input
                     className="input"
@@ -366,6 +376,22 @@ export function DailyHealthPanel({
               </fieldset>
             </form>
           )}
+          <ConfirmationModal
+            open={discardOpen}
+            title="Bỏ nội dung sức khỏe đang soạn?"
+            message="Chỉ bỏ nội dung chưa lưu của trẻ này; các lần ghi nhận đã lưu không thay đổi."
+            confirmLabel="Bỏ nội dung chưa lưu"
+            onClose={() => setDiscardOpen(false)}
+            onConfirm={() => {
+              setForm(blank());
+              setAdding(false);
+              setErrors({});
+              setSaveError('');
+              requestId.current = crypto.randomUUID();
+              onDirty(false);
+              setDiscardOpen(false);
+            }}
+          />
           <section className="dd-health__history" aria-labelledby="health-history-heading">
             <h3 id="health-history-heading" className="dd-health__name">
               Các lần ghi nhận trong ngày đã chọn
@@ -425,7 +451,9 @@ export function DailyHealthPanel({
                             Xử trí: {entry.actions.map((a) => HEALTH_ACTIONS[a]).join(', ')}
                             {entry.actions.includes('EARLY_PICKUP') &&
                               (entry.earlyPickup
-                                ? ` · ${entry.earlyPickup.relation} ${entry.earlyPickup.fullName} đã đón lúc ${entry.earlyPickup.time}`
+                                ? entry.earlyPickup.fullName
+                                  ? ` · ${entry.earlyPickup.relation} ${entry.earlyPickup.fullName} đã đón lúc ${entry.earlyPickup.time}`
+                                  : ` · đã trả trẻ lúc ${entry.earlyPickup.time}`
                                 : ' · chờ phụ huynh đến đón')}{' '}
                             {entry.actions.includes('EARLY_PICKUP') && (
                               <Link to={`/pickup?classId=${classId}&date=${date}`} className="text-sm">

@@ -150,7 +150,7 @@ async function openEditor(page) {
   await login(page, USERS.vp);
   await page.goto(`/education/goals/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: /Lấy từ kế hoạch có sẵn/ }).click();
+  await page.getByRole('button', { name: /Lấy từ kế hoạch (có sẵn|năm học)/ }).click();
   const dialog = importDialog(page);
   await dialog.locator('#imp-year').selectOption(uiYear(sourceYear));
   await dialog.locator('#imp-age').selectOption(sourceGroup.code);
@@ -218,7 +218,7 @@ test('EDU-24 canEdit=false disables import despite a successful edit lease', asy
   expect((await lease).status()).toBe(200);
   await expect(page.getByText('Bạn chỉ lập, sửa được kế hoạch năm học của nhóm tuổi mình phụ trách.', { exact: true })).toBeVisible();
   await expect(page.locator('#desc')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Lấy từ kế hoạch có sẵn/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Lấy từ kế hoạch (có sẵn|năm học)/ })).toHaveCount(0);
   expect(logicalRows(await read(target.id))).toEqual(logicalRows(targetBefore));
 });
 
@@ -314,7 +314,7 @@ test('EDU-24 200 goals select within one second and remain usable at 390/768/144
   ];
   await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
   await page.route(sourceRoute(), (route) => route.fulfill({ json: envelope(large) }));
-  await page.getByRole('button', { name: /Lấy từ kế hoạch có sẵn/ }).click();
+  await page.getByRole('button', { name: /Lấy từ kế hoạch (có sẵn|năm học)/ }).click();
   await dialog.locator('#imp-year').selectOption(uiYear(sourceYear));
   await dialog.locator('#imp-age').selectOption(sourceGroup.code);
   await dialog.locator('#imp-src').selectOption(String(source.id));

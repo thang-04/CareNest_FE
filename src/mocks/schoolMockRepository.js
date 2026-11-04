@@ -1,7 +1,8 @@
 import { readDb, writeDb, clone, delay, ApiError } from './mockDatabase';
 import { buildSeedSchool, buildM1ExtraChildren } from './schoolSeed';
-import { buildExtraTeachers } from './teacherSeed';
+import { buildExtraTeachers, legacyTeacherPhoneOf, teacherPhoneOf } from './teacherSeed';
 import { buildExtraClassData } from './classSeed';
+import { fixDuplicateSeedChildId } from './seedChildIdFix';
 import { ROLES } from '@/models/User';
 import { activeYearId } from './roomManagers';
 import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
@@ -9,20 +10,6 @@ import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 /** Databases saved before the school structure existed get the seed once. */
 export const ensureSchoolSeeded = () => {
   const db = readDb();
-  if (db.children && new Set(db.children.map((c) => c.id)).size !== db.children.length) {
-    writeDb((d) => {
-      const seen = new Set();
-      d.children = d.children.filter((row) => {
-        if (!seen.has(row.id)) {
-          seen.add(row.id);
-          return true;
-        }
-        // Giữ bản đầu như các phép tra cứu cũ; lưu bản xung đột để không mất dữ liệu demo đã nhập.
-        (d.demoIdentityConflicts ||= []).push({ collection: 'children', row: clone(row) });
-        return false;
-      });
-    });
-  }
   // Dữ liệu demo cũ: bổ sung trẻ Lớp Mầm 1 cho đủ 25 (một lần, theo id)
   if (db.children && !db.m1Children25) {
     writeDb((d) => {
@@ -51,6 +38,38 @@ export const ensureSchoolSeeded = () => {
       add(d.classes, extra.classes);
       add(d.children, extra.children);
       d.classes24 = true;
+    });
+  }
+  // Dữ liệu demo cũ: SĐT giáo viên mẫu trùng SĐT phụ huynh mẫu ⇒ đổi sang đầu số 08 (một lần, chỉ số còn theo công thức cũ)
+  if (readDb().users && !readDb().teacherPhones08) {
+    writeDb((d) => {
+      d.users.forEach((u) => {
+        const n = Number(/^u_gv(\d{3})$/.exec(u.id)?.[1]);
+        if (n && u.phone === legacyTeacherPhoneOf(n)) u.phone = teacherPhoneOf(n);
+      });
+      d.teacherPhones08 = true;
+    });
+  }
+  // Dữ liệu demo cũ: hai trẻ mẫu cùng id ch_037 ⇒ tách trẻ viết tay sang id mới (một lần)
+  if (readDb().children && !readDb().childIdFix037) {
+    writeDb((d) => {
+      fixDuplicateSeedChildId(d);
+      d.childIdFix037 = true;
+    });
+  }
+  // Sau khi tách ch_037: id trẻ còn trùng ⇒ giữ bản đầu như các phép tra cứu cũ, lưu bản xung đột để không mất dữ liệu demo đã nhập.
+  const current = readDb();
+  if (current.children && new Set(current.children.map((c) => c.id)).size !== current.children.length) {
+    writeDb((d) => {
+      const seen = new Set();
+      d.children = d.children.filter((row) => {
+        if (!seen.has(row.id)) {
+          seen.add(row.id);
+          return true;
+        }
+        (d.demoIdentityConflicts ||= []).push({ collection: 'children', row: clone(row) });
+        return false;
+      });
     });
   }
   if (db.classes && db.children) return readDb();

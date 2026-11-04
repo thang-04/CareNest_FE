@@ -142,7 +142,10 @@ export default function CampusDetailPage() {
                   ) : (
                     <div className="alert alert--warning mb-8">
                       <ChefHat size={18} />
-                      <div>Điểm trường chưa có bếp. Mỗi điểm trường cần đúng một bếp ăn.</div>
+                      <div>
+                        Điểm trường chưa có bếp. Mỗi điểm trường cần đúng một bếp ăn.{' '}
+                        <Link to={`/school/rooms?campus=${campus.id}`}>Thêm bếp ở Phòng ban</Link>
+                      </div>
                     </div>
                   )}
                   {detail.kitchen.staff.length ? (

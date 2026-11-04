@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Download, UtensilsCrossed } from '@/components/ui/icons';
+import { useSearchParams } from 'react-router-dom';
+import { Download } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -14,11 +14,11 @@ import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { useMealCounts } from '@/hooks/attendance/useAttendance';
 import { confirmMealCount } from '@/services/attendance/attendanceService';
 import { ROLES } from '@/models/User';
-import { MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
+import { MEAL_SESSION_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
-import { downloadCsv } from '@/utils/exportCsv';
+import { downloadXlsx } from '@/utils/exportXlsx';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -127,7 +127,7 @@ export default function MealCountPage() {
       const counts = shownCounts.filter((c) => c.campusId === campusId);
       dayBySession(counts).rows.forEach((l) =>
         rows.push([
-          md.campusById?.(campusId)?.name || campusId,
+          md.campusById?.(campusId)?.shortName || md.campusById?.(campusId)?.name || campusId,
           l.className,
           l.present,
           l.absent,
@@ -135,11 +135,11 @@ export default function MealCountPage() {
           ...sessions.map((sKey) => (l.meals[sKey] ? l.meals[sKey].normal + l.meals[sKey].substitute : '')),
           l.normal + l.substitute,
           l.substitute,
-          dayStatus(counts),
+          MEAL_COUNT_STATUS_LABELS[dayStatus(counts)] || dayStatus(counts),
         ]),
       );
     });
-    downloadCsv([[`Sổ báo ăn ngày ${formatDate(date)}`], ...rows], `so-bao-an-${date}.csv`);
+    downloadXlsx([[`Sổ báo ăn ngày ${formatDate(date)}`], ...rows], `so-bao-an-${date}.xlsx`);
   };
 
   return (
@@ -156,16 +156,11 @@ export default function MealCountPage() {
       <ClassDateBar date={date} maxDate={today} onDateChange={(v) => setParams({ date: v }, { replace: true })}>
         <CampusFilter
           className="dd-bar__field"
-          campuses={allCampuses.map((id) => ({ id, name: md.campusById?.(id)?.name || id }))}
+          campuses={allCampuses.map((id) => ({ id, name: md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id }))}
           value={campusFilter}
           onChange={setCampusFilter}
         />
         <div className="spacer" />
-        {kitchen && (
-          <Link className="btn" to={`/attendance/meal-handover?date=${date}`}>
-            <UtensilsCrossed size={16} /> Bàn giao suất ăn
-          </Link>
-        )}
       </ClassDateBar>
       {error ? (
         <div className="card">
@@ -191,7 +186,9 @@ export default function MealCountPage() {
             <section key={campusId} className="mb-16">
               <MealRegisterCard
                 counts={shownCounts.filter((c) => c.campusId === campusId)}
-                campusName={allCampuses.length > 1 ? md.campusById?.(campusId)?.name || campusId : ''}
+                campusName={
+                  allCampuses.length > 1 ? md.campusById?.(campusId)?.shortName || md.campusById?.(campusId)?.name || campusId : ''
+                }
                 user={user}
                 md={md}
                 onConfirm={setConfirming}

@@ -47,6 +47,12 @@ const LINKS = {
     icon: Bell,
     to: '/notifications',
   },
+  // BE meal-management-permissions.md mục 1: "Bán trú hôm nay" là một trang, không có mục con
+  boardingToday: {
+    label: 'Bán trú hôm nay',
+    icon: CalendarCheck,
+    to: '/boarding/today',
+  },
 };
 
 /** Groups: same label + icon for every role. */
@@ -71,11 +77,7 @@ const GROUPS = {
     label: 'Đánh giá trẻ',
     icon: Star,
   },
-  // Sáu nhóm bán trú theo việc của PHT dinh dưỡng (BE docs/business/flows/meal-management-permissions.md mục 1)
-  boardingToday: {
-    label: 'Bán trú hôm nay',
-    icon: CalendarCheck,
-  },
+  // Nhóm bán trú theo việc của PHT dinh dưỡng (BE docs/business/flows/meal-management-permissions.md mục 1)
   nutrition: {
     label: 'Thực đơn & dinh dưỡng',
     icon: ForkKnife,
@@ -165,7 +167,7 @@ const ITEMS = {
     to: '/children/activation',
   },
   healthChecks: {
-    label: 'Đợt khám sức khỏe',
+    label: 'Đợt khám, kỳ cân đo',
     to: '/children/health-checks',
   },
   healthFollowUps: {
@@ -179,6 +181,8 @@ const ITEMS = {
   attendance: {
     label: 'Điểm danh & báo ăn',
     to: '/attendance',
+    // Chỉ sáng ở màn điểm danh, không sáng cùng các màn con /attendance/*
+    exact: true,
   },
   attendanceSummary: {
     label: 'Tổng hợp điểm danh',
@@ -195,6 +199,10 @@ const ITEMS = {
   dailyHealthOverview: {
     label: 'Sức khỏe trong ngày',
     to: '/attendance/health',
+  },
+  leaveRequests: {
+    label: 'Đơn nghỉ của phụ huynh',
+    to: '/attendance/leave-requests',
   },
   pickup: {
     label: 'Đón trẻ',
@@ -240,6 +248,10 @@ const ITEMS = {
     label: 'Chất lượng tháng',
     to: '/assessment/quality-report',
   },
+  assessClassRatings: {
+    label: 'Xếp loại nhóm lớp',
+    to: '/assessment/class-ratings',
+  },
   assessDayUnlocks: {
     label: 'Mở lại ngày đánh giá',
     to: '/assessment/day-unlocks',
@@ -255,6 +267,10 @@ const ITEMS = {
   assessPeriodic: {
     label: 'Đánh giá tháng',
     to: '/assessment/periodic',
+  },
+  assessSemester: {
+    label: 'Đánh giá học kỳ',
+    to: '/assessment/semester',
   },
   assessYearEnd: {
     label: 'Đánh giá cuối năm',
@@ -303,10 +319,6 @@ const ITEMS = {
   photoWindows: {
     label: 'Khung giờ ảnh bữa',
     to: '/kitchen/photo-windows',
-  },
-  boardingToday: {
-    label: 'Bán trú hôm nay',
-    to: '/boarding/today',
   },
   stockReceipts: {
     label: 'Phiếu nhập',
@@ -362,18 +374,22 @@ const group = (key, itemKeys) => ({
   })),
 });
 const account = group('system', ['profile', 'password']);
-// Thứ tự cố định của sáu nhóm bán trú; nhóm không có mục nào thì bỏ
-const boardingGroups = ({ today = [], nutrition = [], kitchenOps = [], stock = [], foodSafety = [], catalog = [] }) =>
+// Nhãn khu trên sidebar: các mục liền nhau cùng `section` được Sidebar gom dưới một nhãn
+const BOARDING_SECTION = 'Bán trú';
+// Khu bán trú: "Bán trú hôm nay" đứng đầu, rồi năm nhóm theo thứ tự cố định; nhóm không có mục nào thì bỏ
+const boardingSection = ({ nutrition = [], kitchenOps = [], stock = [], foodSafety = [], catalog = [] }) =>
   [
-    ['boardingToday', today],
-    ['nutrition', nutrition],
-    ['kitchenOps', kitchenOps],
-    ['stock', stock],
-    ['foodSafety', foodSafety],
-    ['catalog', catalog],
-  ]
-    .filter(([, keys]) => keys.length)
-    .map(([key, keys]) => group(key, keys));
+    link('boardingToday'),
+    ...[
+      ['nutrition', nutrition],
+      ['kitchenOps', kitchenOps],
+      ['stock', stock],
+      ['foodSafety', foodSafety],
+      ['catalog', catalog],
+    ]
+      .filter(([, keys]) => keys.length)
+      .map(([key, keys]) => group(key, keys)),
+  ].map((entry) => ({ ...entry, section: BOARDING_SECTION }));
 const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
@@ -389,21 +405,31 @@ const MENUS = {
       'schoolVps',
       'schoolRoles',
     ]),
-    group('children', ['childList', 'parentActivation', 'healthChecks', 'healthFollowUps', 'healthTrends']),
-    group('attendance', ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    // Tiếp nhận trẻ, Xếp lớp như PHT trên mọi điểm trường (user chốt 2026-10-27)
+    group('children', [
+      'childList',
+      'childEnroll',
+      'childPlacement',
+      'parentActivation',
+      'healthChecks',
+      'healthFollowUps',
+      'healthTrends',
+    ]),
+    group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
+      'assessClassRatings',
       'assessProgress',
       'assessPeriodic',
+      'assessSemester',
       'assessYearEnd',
       'assessTickets',
       'assessRewards',
       'assessDayUnlocks',
     ]),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
-    ...boardingGroups({
-      today: ['boardingToday'],
+    ...boardingSection({
       nutrition: ['weeklyMenus', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
@@ -434,20 +460,21 @@ const MENUS = {
       'healthFollowUps',
       'healthTrends',
     ]),
-    group('attendance', ['attendanceSummary', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
+      'assessClassRatings',
       'assessProgress',
       'assessPeriodic',
+      'assessSemester',
       'assessYearEnd',
       'assessTickets',
       'assessRewards',
       'assessDayUnlocks',
     ]),
-    ...boardingGroups({
-      today: ['boardingToday'],
+    ...boardingSection({
       nutrition: ['weeklyMenus', 'menus', 'nutrition'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
@@ -461,18 +488,39 @@ const MENUS = {
     link('home'),
     link('approvals'),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
-    group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
+    group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
-    group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
+    group('assessment', [
+      'assessOverview',
+      'assessDaily',
+      'assessProfiles',
+      'assessPeriodic',
+      'assessSemester',
+      'assessYearEnd',
+      'assessQuality',
+      'assessClassRatings',
+      'assessTickets',
+      'assessRewards',
+    ]),
     account,
     link('notifications'),
   ],
   [ROLES.TEACHER]: [
     link('home'),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
-    group('attendance', ['attendance', 'attendanceSummary', 'pickup']),
+    group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
-    group('assessment', ['assessDaily', 'assessProfiles', 'assessPeriodic', 'assessYearEnd', 'assessTickets', 'assessRewards']),
+    group('assessment', [
+      'assessDaily',
+      'assessProfiles',
+      'assessPeriodic',
+      'assessSemester',
+      'assessYearEnd',
+      'assessQuality',
+      'assessClassRatings',
+      'assessTickets',
+      'assessRewards',
+    ]),
     account,
     link('notifications'),
   ],
@@ -579,7 +627,10 @@ const withApiOnlyItems = (menu) =>
   API_ONLY_ITEMS.length
     ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))
     : menu;
-export const getMenuForRole = (role, user) =>
+// hiddenItems: mục cần ẩn theo dữ liệu tải sau (vd. "Duyệt kế hoạch, giáo án" của Hiệu trưởng khi Hiệu trưởng không ký)
+export const getMenuForRole = (role, user, hiddenItems = []) =>
   withApiOnlyItems(
     withBePermissions(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user), user),
-  );
+  )
+    .map((e) => (e.children && hiddenItems.length ? { ...e, children: e.children.filter((c) => !hiddenItems.includes(c.key)) } : e))
+    .filter((e) => !e.children || e.children.length > 0);

@@ -73,9 +73,10 @@ test('ST-01 kế hoạch năm: sửa không tự ghi lên hệ thống, chỉ Ct
   await desc.fill('Mô tả sửa bằng tay (ST-01)');
   await expect(saveStatus(page)).toHaveText('Có thay đổi chưa lưu');
   await expectNoAutosaveWording(page);
-  const exportButtons = page.getByRole('button', { name: 'Xuất', exact: true });
+  // Một nút xuất duy nhất trên thanh thao tác (đổi tên "Xuất file" từ 02/11)
+  const exportButtons = page.getByRole('button', { name: 'Xuất file', exact: true });
   await expect(exportButtons).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Xuất file' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xuất', exact: true })).toHaveCount(0);
   // Ô tích chủ đề (cột hẹp): viết tắt "TMN" nằm trên 1 dòng, không ngắt từng chữ; tự tích thì bỏ lại cho như cũ
   const tick = page.locator('button.ga-theme-tick').first();
   const wasOn = (await tick.getAttribute('aria-pressed')) === 'true';
@@ -135,21 +136,19 @@ test('ST-01 kế hoạch năm: sửa không tự ghi lên hệ thống, chỉ Ct
   await leave(page);
 });
 
-test('ST-01b điện thoại: nút "Lấy mục tiêu" mở danh sách 3 cách lấy, chọn được (không sập trang)', async ({ browser }) => {
+test('ST-01b điện thoại: 3 nút lấy mục tiêu hiện thẳng trên thanh thao tác, mở đúng hộp (không sập trang)', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
   const page = await ctx.newPage();
   await login(page, USERS.teacher1);
   await page.goto(`/education/goals/${planId}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: 'Lấy mục tiêu' }).click();
-  await expect(page.getByRole('menuitem')).toHaveText(['Nhập file', 'Lấy từ kế hoạch có sẵn', 'Lấy từ Chương trình của Bộ']);
-  await page.getByRole('menuitem', { name: 'Lấy từ kế hoạch có sẵn' }).click();
+  // Từ 02/11 (format KHNH) không còn menu "Lấy mục tiêu": ba nút đứng riêng
+  await page.getByRole('button', { name: 'Lấy từ kế hoạch năm học' }).click();
   await expect(page.getByRole('dialog', { name: 'Lấy mục tiêu từ kế hoạch có sẵn' })).toBeVisible();
   await expect(page.getByText('Hệ thống gặp sự cố')).toHaveCount(0);
   await page.getByRole('dialog').getByRole('button', { name: 'Hủy', exact: true }).click();
   // Nhập file (BE:EDU-46) mở hộp xem trước, không mở thẳng ô chọn file
-  await page.getByRole('button', { name: 'Lấy mục tiêu' }).click();
-  await page.getByRole('menuitem', { name: 'Nhập file' }).click();
+  await page.getByRole('button', { name: 'Nhập file' }).click();
   await expect(page.getByRole('dialog', { name: 'Nhập file mục tiêu' })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Hủy', exact: true }).click();
   await leave(page);
@@ -188,7 +187,8 @@ test('ST-01d Back rời màn soạn một trang, vẫn hỏi khi chưa lưu và 
   await expect(page.locator('#desc')).toHaveValue('Sửa dở (ST-01d)');
   await page.goBack();
   await dialog.getByRole('button', { name: 'Không lưu', exact: true }).click();
-  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
+  // Nút Chỉnh sửa thay chỗ trang chi tiết trong lịch sử (02/11) ⇒ Back về danh sách kế hoạch
+  await page.waitForURL((u) => u.pathname === '/education/goals');
   await leave(page);
 });
 
@@ -292,7 +292,25 @@ test('ST-02c Phó HT đang xem bản do Tổ trưởng giữ quyền sửa: Tổ
   await b.context().close();
 });
 
-test('ST-03 đóng tab khi chưa lưu: trình duyệt hỏi; mở lại mời khôi phục, Khôi phục + Lưu thì xóa bản giữ', async ({ context }) => {
+const HISTORY_WITH_DRAFT = 'Lịch sử phiên bản (có bản chưa lưu)';
+
+// Lịch sử phiên bản (Tiền 03/11): mở panel, chọn bản chưa lưu mới nhất, thấy dòng khác tô màu, Dùng bản này
+async function useDraftFromHistory(page) {
+  await page.getByRole('button', { name: HISTORY_WITH_DRAFT }).click();
+  const panel = page.getByRole('dialog', { name: 'Lịch sử phiên bản' });
+  await expect(panel.getByRole('button', { name: /Bản đã lưu hiện tại/ })).toBeVisible();
+  await panel.getByRole('button', { name: /^Lúc / }).first().click();
+  await expect(panel.locator('.ga-history-line--add').first()).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Dùng bản này' })).toBeEnabled({ timeout: 10_000 });
+  await panel.getByRole('button', { name: 'Dùng bản này' }).click();
+  const confirm = page.getByRole('dialog', { name: 'Dùng bản này?' });
+  if (await confirm.isVisible().catch(() => false)) await confirm.getByRole('button', { name: 'Dùng bản này' }).click();
+  await expect(panel).toBeHidden();
+}
+
+test('ST-03 đóng tab khi chưa lưu: trình duyệt hỏi; mở lại không chặn, Lịch sử phiên bản có chấm, dùng bản cũ + Lưu thì xóa bản giữ', async ({
+  context,
+}) => {
   const page = await context.newPage();
   await login(page, USERS.teacher1);
   await page.goto(`/education/goals/${planId}/edit`);
@@ -308,9 +326,10 @@ test('ST-03 đóng tab khi chưa lưu: trình duyệt hỏi; mở lại mời kh
   await expect.poll(() => dialogType).toBe('beforeunload');
   const again = await context.newPage();
   await again.goto(`/education/goals/${planId}/edit`);
-  await expect(again.getByText('Có nội dung chưa lưu từ lần soạn trước.')).toBeVisible();
+  await expect(again.locator('#desc')).toBeEditable();
+  await expect(again.getByText('Có nội dung chưa lưu từ lần soạn trước.')).toHaveCount(0);
   await expectNoAutosaveWording(again);
-  await again.getByRole('button', { name: 'Khôi phục' }).click();
+  await useDraftFromHistory(again);
   await expect(again.locator('#desc')).toHaveValue('Nội dung trước khi mất điện (ST-03)');
   await expect(saveStatus(again)).toHaveText('Có thay đổi chưa lưu');
   await again.keyboard.press('Control+s');
@@ -320,7 +339,7 @@ test('ST-03 đóng tab khi chưa lưu: trình duyệt hỏi; mở lại mời kh
   await leave(again);
 });
 
-test('ST-03b mất điện rồi mở lại cùng tài khoản: nhận quyền ngay, Khôi phục bấm được; tab cũ còn sống thì mất quyền và giữ bản giữ', async ({
+test('ST-03b mất điện rồi mở lại cùng tài khoản: nhận quyền ngay, dùng được bản chưa lưu; tab cũ còn sống thì mất quyền và giữ bản giữ', async ({
   context,
 }) => {
   const old = await context.newPage();
@@ -332,13 +351,13 @@ test('ST-03b mất điện rồi mở lại cùng tài khoản: nhận quyền n
   // Tab cũ không nhả quyền (giống mất điện); mở lại ngay, không chờ 90 giây
   const again = await context.newPage();
   await again.goto(`/education/goals/${planId}/edit`);
-  await expect(again.getByText('Có nội dung chưa lưu từ lần soạn trước.')).toBeVisible({ timeout: 15_000 });
-  await expect(again.getByRole('button', { name: 'Khôi phục' })).toBeEnabled({ timeout: 10_000 });
+  await expect(again.getByRole('button', { name: HISTORY_WITH_DRAFT })).toBeVisible({ timeout: 15_000 });
+  await expect(again.locator('#desc')).toBeEditable({ timeout: 10_000 });
   // Tín hiệu kế tiếp của tab cũ (≤20 giây) bị từ chối ⇒ hiện mất quyền, không ghi đè
   await expect(old.locator('main')).toContainText('Đã mất quyền sửa', { timeout: 30_000 });
   await expect(old.locator('#desc')).not.toBeEditable();
   expect((await storageKeys(old, 'year-plan-recovery')).length).toBeGreaterThan(0);
-  await again.getByRole('button', { name: 'Khôi phục' }).click();
+  await useDraftFromHistory(again);
   await expect(again.locator('#desc')).toHaveValue('Nội dung trước khi mất điện (ST-03b)');
   await again.keyboard.press('Control+s');
   await expect(saveStatus(again)).toHaveText(/Đã lưu lúc/);
@@ -484,7 +503,7 @@ test('ST-09 kế hoạch chủ đề: lưu tay', async ({ page }) => {
   await expect.poll(async () => JSON.stringify(await classDocs())).toContain(themeKey());
 });
 
-test('ST-10 giáo án tuần: đóng tab khi chưa lưu ⇒ mở lại khôi phục được; Lưu xóa bản giữ', async ({ context }) => {
+test('ST-10 giáo án tuần: đóng tab khi chưa lưu ⇒ mở lại dùng lại được qua Lịch sử phiên bản; Lưu xóa bản giữ', async ({ context }) => {
   const path = `/education/class/${ref.classroom}/weeks/${E2E.weekStart}`;
   const page = await context.newPage();
   await openClassPage(page, USERS.teacher2, path);
@@ -496,9 +515,9 @@ test('ST-10 giáo án tuần: đóng tab khi chưa lưu ⇒ mở lại khôi ph�
   await page.close();
   const again = await context.newPage();
   await pickYearAfterReload(again, path);
-  await expect(again.getByText('Có nội dung chưa lưu từ lần soạn trước.')).toBeVisible();
-  await again.getByRole('button', { name: 'Khôi phục' }).click();
+  await useDraftFromHistory(again);
   await expect(again.locator('main textarea:not([disabled])').first()).toHaveValue('Trẻ biết tên lớp, tên cô (ST-10)');
+  await expect(saveStatus(again)).toHaveText('Có thay đổi chưa lưu');
   await again.keyboard.press('Control+s');
   await expect(saveStatus(again)).toHaveText(/Đã lưu lúc/);
   expect(await storageKeys(again, 'plan-backup')).toEqual([]);
@@ -510,9 +529,7 @@ async function pickYearAfterReload(page, path) {
   await spaGo(page, path);
 }
 
-test('ST-11 Tổ trưởng dạy chính lớp ⇒ gửi hồ sơ chủ đề thẳng Phó HT; bản giữ cũ không được mời khôi phục sau khi gửi', async ({
-  context,
-}) => {
+test('ST-11 Tổ trưởng dạy chính lớp ⇒ gửi hồ sơ chủ đề thẳng Phó HT; bản giữ cũ bị bỏ sau khi gửi', async ({ context }) => {
   addTeamLeader('teacher2');
   try {
     const weekPath = `/education/class/${ref.classroom}/weeks/${E2E.weekStart}`;
@@ -529,7 +546,7 @@ test('ST-11 Tổ trưởng dạy chính lớp ⇒ gửi hồ sơ chủ đề th�
     await pickYearAfterReload(week, weekPath);
     await expect(week.locator('main')).toBeVisible();
     await week.waitForTimeout(1500);
-    await expect(week.getByText('Có nội dung chưa lưu từ lần soạn trước.')).toHaveCount(0);
+    await expect(week.getByRole('button', { name: HISTORY_WITH_DRAFT })).toHaveCount(0);
     expect(await storageKeys(week, 'plan-backup')).toEqual([]);
   } finally {
     removeTeamLeader('teacher2');

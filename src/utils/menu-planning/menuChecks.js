@@ -8,7 +8,18 @@ import {
   sameAllergen,
 } from '@/utils/menu-planning/menuCalculations';
 import { mealsOf, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
-import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { MICRONUTRIENTS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+
+const MICRO_WORD = {
+  calcium: 'canxi',
+  phosphorus: 'phospho',
+  iron: 'sắt',
+  vitaminA: 'vitamin A',
+  vitaminB1: 'vitamin B1',
+  vitaminB2: 'vitamin B2',
+  vitaminPp: 'vitamin PP',
+  vitaminC: 'vitamin C',
+};
 
 const fmt = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) : '—');
 const round10 = (n) => Math.max(10, Math.round(n / 10) * 10);
@@ -67,6 +78,16 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
     .map((r) => `${r.status === 'LOW' ? 'ít' : 'nhiều'} ${NUTRIENT_WORD[r.key]}`);
   if (ratio.length) problems.push({ tone: 'warn', text: cap(ratio.join(', ')) });
   else if (kcal?.status === 'OK') oks.push({ tone: 'ok', text: 'Cân đối đạm, béo, tinh bột' });
+
+  // Vi chất chỉ đánh giá khi PHT đã đặt định mức; lệch chỉ cảnh báo, không đổi trạng thái ngày (BE NUT-26)
+  const micro = MICRONUTRIENTS.map((k) => byKey[k]).filter((r) => r?.status === 'LOW' || r?.status === 'HIGH');
+  const microText = (status) =>
+    micro
+      .filter((r) => r.status === status)
+      .map((r) => MICRO_WORD[r.key])
+      .join(', ');
+  if (micro.some((r) => r.status === 'LOW')) problems.push({ tone: 'warn', text: `Ít ${microText('LOW')}` });
+  if (micro.some((r) => r.status === 'HIGH')) problems.push({ tone: 'warn', text: `Nhiều ${microText('HIGH')}` });
 
   if (price != null) {
     if (result.cost > price) problems.push({ tone: 'warn', text: `Vượt tiền ăn ${formatMoney(result.cost - price)}` });

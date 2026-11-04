@@ -9,6 +9,7 @@ import {
   isBlankBreak,
   isBlankTheme,
   nestUnderFirstSub,
+  subDomainBranch,
   themeAbbr,
   themeGoalIds,
   themeGoalLabel,
@@ -19,6 +20,7 @@ import {
 import { fmtDate } from '@/components/education-plan/eduUi';
 import FloatingPanel from '@/components/education-plan/FloatingPanel';
 import DatePickerCell from '@/components/education-plan/DatePickerCell';
+import { suggestBreakDates, suggestThemeDates } from '@/models/education-plan/importThemes.mjs';
 import { expectedResultsFor } from '@/models/education-plan/expectedResults';
 import { normalizeText } from '@/utils/format';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -195,6 +197,19 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
   // Mọi nút xóa trong bảng mục tiêu đều hỏi lại trước khi xóa (như bảng chủ đề)
   const [pendingDelete, setPendingDelete] = useState(null);
   const askDelete = (title, message, run) => setPendingDelete({ title, message: `${message} Thay đổi chỉ lưu khi bấm Lưu.`, run });
+  const askDeleteSubDomain = (di, sub, subNo) => {
+    const branch = subDomainBranch(domains[di].rows, sub.id);
+    const ids = new Set(branch.map((row) => row.id));
+    const groupCount = branch.filter((row) => row.kind === 'group').length;
+    const goals = branch.filter((row) => row.kind === 'goal');
+    const contents = goals.flatMap((row) => row.contents || []);
+    const ticks = contents.reduce((n, content) => n + (content.themes || []).length, 0);
+    askDelete(
+      'Xóa lĩnh vực con',
+      `Xóa lĩnh vực con ${subNo}${quoted(sub.text)}? ${groupCount} nhóm kết quả mong đợi, ${goals.length} mục tiêu, ${contents.length} nội dung và ${ticks} dấu tích chủ đề thuộc nhánh này cũng bị xóa.`,
+      () => updRows(di, (rows) => rows.filter((row) => !ids.has(row.id))),
+    );
+  };
   const flip = (list, id) => (list.includes(id) ? list.filter((t) => t !== id) : [...list, id]);
   const toggleTick = (di, r, c, themeId) =>
     mapContents(di, r.id, (cs) => cs.map((x) => (x.id === c.id ? { ...x, themes: flip(x.themes, themeId) } : x)));
@@ -506,23 +521,18 @@ export function GoalTable({ domains, themes = [], numbers, onChange, readOnly = 
     toTiers(rows).forEach((b, bi) => {
       if (b.sub) {
         subNo += 1;
+        const currentSubNo = subNo;
         out.push(
           <tr key={b.sub.id}>
             <td colSpan={cols} className="ga-goal-table__subband">
               <div className="ga-goal-table__subname">
-                {subNo}. {edit ? subInput(di, b, `Lĩnh vực con ${subNo}`) : b.sub.text}
+                {currentSubNo}. {edit ? subInput(di, b, `Lĩnh vực con ${currentSubNo}`) : b.sub.text}
                 {edit && (
                   <button
                     type="button"
                     className="icon-btn icon-btn--danger"
-                    onClick={() =>
-                      askDelete(
-                        'Xóa lĩnh vực con',
-                        `Xóa lĩnh vực con ${subNo}${quoted(b.sub.text)}? Nhóm kết quả mong đợi và mục tiêu bên dưới không bị xóa.`,
-                        () => removeRow(di, b.sub.id),
-                      )
-                    }
-                    aria-label={`Xóa lĩnh vực con ${subNo}`}
+                    onClick={() => askDeleteSubDomain(di, b.sub, currentSubNo)}
+                    aria-label={`Xóa lĩnh vực con ${currentSubNo}`}
                     title="Xóa lĩnh vực con"
                   >
                     <Trash2 size={16} aria-hidden />
@@ -869,9 +879,34 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
   const takenForBreak = (b) => [...themeSpans, ...breakSpans.filter((x) => x.id !== b.id)];
   /** Chủ đề trùng thời gian (EDU-39) / không trọn tuần (EDU-40): báo tại chỗ, chặn ở bước gửi / ban hành. */
   const overlapOf = (t) => overlappingThemes(t, themes).map((x) => `chủ đề "${x.name || 'chưa đặt tên'}"`);
+  // Gợi ý dời ngày (Tiền 04/11): ngày lệch thứ 2 – thứ 6 hoặc khác năm học tô đỏ, đồng ý từng dòng / tất cả / tự sửa
+  const themeSug = new Map(readOnly ? [] : themes.map((t) => [t.id, suggestThemeDates(t, yearRange)]).filter(([, x]) => x));
+  const breakSug = new Map(readOnly ? [] : breaks.map((b) => [b.id, suggestBreakDates(b, yearRange)]).filter(([, x]) => x));
+  const applyAllSuggestions = () =>
+    onChange({
+      themes: themes.map((t) => (themeSug.has(t.id) ? { ...t, ...themeSug.get(t.id) } : t)),
+      breaks: breaks.map((b) => (breakSug.has(b.id) ? { ...b, ...breakSug.get(b.id) } : b)),
+    });
+  const suggestion = (sug, apply) => (
+    <div className="ga-goal-table__pad text-xs text-danger ga-date-sug">
+      Gợi ý: {fmtDate(sug.start)} – {fmtDate(sug.end)}{' '}
+      <button type="button" className="link-btn" onClick={apply}>
+        Áp dụng
+      </button>
+    </div>
+  );
+  const sugCount = themeSug.size + breakSug.size;
 
   return (
     <div className="stack">
+      {sugCount > 0 && (
+        <p className="text-danger text-sm text-right ga-date-sug-all">
+          {sugCount} dòng lệch ngày (cần trọn tuần thứ 2 – thứ 6, trong năm học).{' '}
+          <button type="button" className="link-btn" onClick={applyAllSuggestions}>
+            Áp dụng tất cả gợi ý
+          </button>
+        </p>
+      )}
       <div className="table-wrap">
         <SortableList
           ids={themes.map((t) => t.id)}
@@ -885,7 +920,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
               <col className="ga-col-stt" />
               <col />
               <col className="ga-col-abbr" />
-              <col />
+              <col className="ga-col-mt" />
               <col />
               <col className="ga-col-date" />
               <col className="ga-col-date" />
@@ -899,8 +934,8 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                 <th className="cell--fixed ga-stt">
                   <span className="stt-head">STT {!readOnly && <RenumberButton />}</span>
                 </th>
-                <th>Tên chủ đề</th>
-                <th className="center">Viết tắt</th>
+                <th>Tên chủ đề{!readOnly && <span className="req">*</span>}</th>
+                <th className="center">Viết tắt{!readOnly && <span className="req">*</span>}</th>
                 <th className="cell--fixed">Mục tiêu giáo dục</th>
                 <th>Ngày lễ hội</th>
                 <th>Từ ngày</th>
@@ -960,13 +995,16 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                       onKeyDown: themeKeys(t, i, 'fest-'),
                     })}
                   </td>
-                  <td>{dateCell(t.start, (start) => patchTheme(t.id, { start }), `Từ ngày chủ đề ${i + 1}`, t, takenForTheme(t))}</td>
-                  <td>
+                  <td className={themeSug.has(t.id) ? 'ga-date--bad' : undefined}>
+                    {dateCell(t.start, (start) => patchTheme(t.id, { start }), `Từ ngày chủ đề ${i + 1}`, t, takenForTheme(t))}
+                  </td>
+                  <td className={themeSug.has(t.id) ? 'ga-date--bad' : undefined}>
                     {dateCell(t.end, (end) => patchTheme(t.id, { end }), `Đến ngày chủ đề ${i + 1}`, t, takenForTheme(t))}
+                    {themeSug.has(t.id) && suggestion(themeSug.get(t.id), () => patchTheme(t.id, themeSug.get(t.id)))}
                     {!readOnly && overlapOf(t).length > 0 && (
                       <div className="ga-goal-table__pad text-xs text-danger">Trùng thời gian với {overlapOf(t).join(', ')}</div>
                     )}
-                    {!readOnly && !isWholeWeekTheme(t) && (
+                    {!readOnly && !isWholeWeekTheme(t) && !themeSug.has(t.id) && (
                       <div className="ga-goal-table__pad text-xs text-danger">Bắt đầu Thứ 2, kết thúc Thứ 6</div>
                     )}
                   </td>
@@ -1054,8 +1092,13 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                       onKeyDown: nameKeys(b, i, insertBreak, isBlankBreak),
                     })}
                   </td>
-                  <td>{dateCell(b.start, (start) => patchBreak(b.id, { start }), `Từ ngày đợt nghỉ ${i + 1}`, b, takenForBreak(b))}</td>
-                  <td>{dateCell(b.end, (end) => patchBreak(b.id, { end }), `Đến ngày đợt nghỉ ${i + 1}`, b, takenForBreak(b))}</td>
+                  <td className={breakSug.has(b.id) ? 'ga-date--bad' : undefined}>
+                    {dateCell(b.start, (start) => patchBreak(b.id, { start }), `Từ ngày đợt nghỉ ${i + 1}`, b, takenForBreak(b))}
+                  </td>
+                  <td className={breakSug.has(b.id) ? 'ga-date--bad' : undefined}>
+                    {dateCell(b.end, (end) => patchBreak(b.id, { end }), `Đến ngày đợt nghỉ ${i + 1}`, b, takenForBreak(b))}
+                    {breakSug.has(b.id) && suggestion(breakSug.get(b.id), () => patchBreak(b.id, breakSug.get(b.id)))}
+                  </td>
                   {!readOnly && sortCell(i, breakLabel(i))}
                   {!readOnly && (
                     <td className="center">

@@ -74,10 +74,15 @@ const confirm = (tree) => find(tree, (node) => node.type === 'button' && node.pr
 test('file không hợp lệ bị chặn trước API; đúng đuôi và sát 2 MB được đọc', async () => {
   reset();
   let calls = 0;
-  h.reader = () => { calls++; return Promise.resolve(preview); };
+  h.reader = () => {
+    calls++;
+    return Promise.resolve(preview);
+  };
   for (const file of [
-    { name: 'plan.exe', size: 100 }, { name: 'plan.docx.exe', size: 100 },
-    { name: 'plan.docx', size: 0 }, { name: 'plan.docx', size: 2 * 1024 * 1024 + 1 },
+    { name: 'plan.exe', size: 100 },
+    { name: 'plan.docx.exe', size: 100 },
+    { name: 'plan.docx', size: 0 },
+    { name: 'plan.docx', size: 2 * 1024 * 1024 + 1 },
   ]) {
     await input(render()).props.onChange({ target: { files: [file] } });
     assert.equal(h.states[0].status, 'error');
@@ -152,7 +157,8 @@ test('preview đủ thông tin/dời năm, xác nhận chỉ một lần; callba
   assert.match(html, /Thông tin chung/);
   assert.match(html, /Chủ đề sau khi áp dụng/);
   assert.match(html, /Đợt nghỉ sau khi áp dụng/);
-  assert.match(html, /2026-09-08/);
+  assert.match(html, /2025-09-08/);
+  assert.match(html, /gợi ý dời ngày/);
   assert.match(html, /Từ file/);
   assert.match(html, /Áp dụng vào kế hoạch/);
   const button = confirm(tree);

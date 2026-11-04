@@ -1,5 +1,7 @@
-import { DECLARATION_STATE } from '@/models/children/childrenConstants';
-import { formatDate, todayInput } from '@/utils/format';
+import { DECLARATION_STATE, GUARDIAN_RELATIONS, MAX_GUARDIANS } from '@/models/children/childrenConstants';
+import { FOLLOW_UP_CLOSE_OUTCOME, FOLLOW_UP_FIELD_LIMITS } from '@/models/children/healthCheckConstants';
+import { citizenIdError, normalizeCitizenId } from '@/utils/citizenId';
+import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 
 /*
  * Input checks shared by the forms (instant feedback) and the mock repository (422).
@@ -10,7 +12,11 @@ const PHONE_RE = /^(0|\+84)\d{9}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-export const normalizePhone = (phone) => String(phone || '').replace(/[\s.-]/g, '');
+// Như tên đăng nhập phụ huynh (SĐT chuẩn hóa 10 số bắt đầu 0, AUTH-18): "+84 912…" và "0912…" là một số.
+export const normalizePhone = (phone) =>
+  String(phone || '')
+    .replace(/[\s.\-()]/g, '')
+    .replace(/^\+84/, '0');
 
 export const isValidPhone = (phone) => PHONE_RE.test(normalizePhone(phone));
 
@@ -29,16 +35,32 @@ export const isValidIdNumber = (v) => {
 
 export const ID_NUMBER_MESSAGE = 'Nhập 12 chữ số (CCCD/mã định danh) hoặc số hộ chiếu 6–12 ký tự';
 
-/** Phần hành chính hỏi khi tiếp nhận: không bắt buộc, chỉ kiểm định dạng (user chốt 2026-10-17). Khóa lỗi 'profile.x'. */
+const PROFILE_REQUIRED_TEXT = [
+  ['ethnicity', 'Nhập dân tộc'],
+  ['beneficiary', 'Nhập đối tượng'],
+  ['address.province', 'Nhập tỉnh/thành nơi ở'],
+  ['address.ward', 'Nhập phường/xã nơi ở'],
+  ['address.street', 'Nhập số nhà/thôn/xóm nơi ở'],
+];
+
+/**
+ * Phần hành chính khi tiếp nhận, sửa hồ sơ: bắt buộc trừ CCCD trẻ và nhóm máu (user chốt 2026-10-22, thay 1a).
+ * Phiếu khám chỉ đọc phần này nên phải đủ từ lúc nhập học. Khóa lỗi 'profile.x'.
+ */
 export const validateChildProfile = (p = {}) => {
   const errors = {};
+  const value = (path) => path.split('.').reduce((o, k) => o?.[k], p);
   const tooLong = (v, max) => String(v ?? '').trim().length > max;
   if (String(p.idNumber ?? '').trim() && !isValidIdNumber(p.idNumber)) errors['profile.idNumber'] = ID_NUMBER_MESSAGE;
-  if (!['', 'YES', 'NO', undefined, null].includes(p.premature)) errors['profile.premature'] = 'Sinh non chọn Có hoặc Không';
+  if (!['YES', 'NO'].includes(p.premature)) errors['profile.premature'] = 'Chọn trẻ có sinh non hay không';
   const w = p.gestationWeeks;
-  if (w !== '' && w != null && (Number.isNaN(Number(w)) || Number(w) < 20 || Number(w) > 42))
-    errors['profile.gestationWeeks'] = 'Nhập tuần thai từ 20 đến 42';
-  ['ethnicity', 'beneficiary', 'paymentSource', 'bloodType'].forEach((k) => {
+  if (w === '' || w == null) {
+    if (p.premature === 'YES') errors['profile.gestationWeeks'] = 'Nhập tuần thai khi sinh của trẻ sinh non';
+  } else if (Number.isNaN(Number(w)) || Number(w) < 20 || Number(w) > 42) errors['profile.gestationWeeks'] = 'Nhập tuần thai từ 20 đến 42';
+  PROFILE_REQUIRED_TEXT.forEach(([path, message]) => {
+    if (!String(value(path) ?? '').trim()) errors[`profile.${path}`] = message;
+  });
+  ['ethnicity', 'beneficiary', 'bloodType'].forEach((k) => {
     if (tooLong(p[k], 100)) errors[`profile.${k}`] = 'Tối đa 100 ký tự';
   });
   if (tooLong(p.address?.province, 100)) errors['profile.address.province'] = 'Tối đa 100 ký tự';
@@ -60,20 +82,42 @@ export const validateChildInfo = (data) => {
   if (guardians.length === 0) errors.guardians = 'Thêm ít nhất một phụ huynh';
   guardians.forEach((g, i) => {
     if (!g.fullName?.trim()) errors[`guardians.${i}.fullName`] = 'Nhập họ tên phụ huynh';
+    // Bằng giới hạn khi kích hoạt tài khoản (BE AddGuardianRequest ≤150): tiếp nhận được thì kích hoạt được.
+    else if (g.fullName.trim().length > 150) errors[`guardians.${i}.fullName`] = 'Họ tên tối đa 150 ký tự';
     if (!g.relation) errors[`guardians.${i}.relation`] = 'Chọn quan hệ với trẻ';
+    // Tài khoản phụ huynh dùng cùng 6 loại quan hệ (user chốt 2026-10-28, D-5a B) ⇒ giá trị khác (vd. chữ tự do từ Excel) không nhận.
+    else if (!GUARDIAN_RELATIONS.includes(g.relation))
+      errors[`guardians.${i}.relation`] = `Quan hệ chỉ nhận: ${GUARDIAN_RELATIONS.join(', ')}`;
     if (!g.phone?.trim()) errors[`guardians.${i}.phone`] = 'Nhập số điện thoại để gửi tài khoản';
     else if (!isValidPhone(g.phone)) errors[`guardians.${i}.phone`] = 'Nhập số điện thoại hợp lệ, ví dụ 0912 345 678';
     if (g.email?.trim() && !isValidEmail(g.email)) errors[`guardians.${i}.email`] = 'Nhập email hợp lệ, ví dụ ten@example.com';
+    const idError = citizenIdError(g.idNumber);
+    if (idError) errors[`guardians.${i}.idNumber`] = idError;
   });
   const phones = guardians.map((g) => normalizePhone(g.phone)).filter(Boolean);
   if (new Set(phones).size !== phones.length) errors.guardians = 'Hai phụ huynh không được dùng chung số điện thoại';
+  const ids = guardians.map((g) => normalizeCitizenId(g.idNumber)).filter(Boolean);
+  if (new Set(ids).size !== ids.length) errors.guardians = 'Hai phụ huynh không được dùng chung số CCCD';
+  if (guardians.length > MAX_GUARDIANS) errors.guardians = `Mỗi trẻ tối đa ${MAX_GUARDIANS} phụ huynh`;
   return errors;
 };
 
 export const validatePlacement = ({ classId }) => (classId ? {} : { classId: 'Chọn lớp cho trẻ' });
 
+/**
+ * Ngày tiếp xúc người bệnh lao gần nhất (user chốt 2026-10-21): bắt buộc khi khai "Có"; không ở tương lai, không trước ngày
+ * sinh; ở phiếu khám không sau ngày khám (notAfter). Trả câu lỗi hoặc null.
+ */
+export const tbContactDateError = (value, { dateOfBirth, notAfter } = {}) => {
+  if (!isIsoDate(value)) return 'Chọn ngày tiếp xúc gần nhất';
+  if (value > today()) return 'Ngày tiếp xúc không được ở tương lai';
+  if (notAfter && value > notAfter) return `Ngày tiếp xúc không được sau ngày khám ${formatDate(notAfter)}`;
+  if (dateOfBirth && value < dateOfBirth) return 'Ngày tiếp xúc không được trước ngày sinh của trẻ';
+  return null;
+};
+
 /** Declaration: "Reported" needs content; the other states record absence or "not provided" (UC 5.2). */
-export const validateDeclaration = (d) => {
+export const validateDeclaration = (d, { dateOfBirth } = {}) => {
   const errors = {};
   if (!d) return { allergies: 'Khai báo sức khỏe còn thiếu' };
   if (!Object.values(DECLARATION_STATE).includes(d.allergies?.state)) errors.allergies = 'Chọn tình trạng dị ứng';
@@ -83,17 +127,21 @@ export const validateDeclaration = (d) => {
   else if (d.diet.state === DECLARATION_STATE.REPORTED && !d.diet.text?.trim()) errors.diet = 'Mô tả chế độ ăn riêng của trẻ';
   if (d.otherNotes?.state === DECLARATION_STATE.REPORTED && !d.otherNotes.text?.trim()) errors.otherNotes = 'Nhập thông tin sức khỏe khác';
   if ((d.diet?.text || '').length > 500 || (d.otherNotes?.text || '').length > 500) errors.otherNotes = 'Nội dung tối đa 500 ký tự';
-  // Tiền sử (user chốt 2026-10-17): không bắt buộc ("Chưa cung cấp"); "Có" thì ghi rõ tên bệnh.
-  const mh = d.medicalHistory;
-  if (mh) {
-    const states = Object.values(DECLARATION_STATE);
-    ['self', 'family'].forEach((k) => {
-      if (!states.includes(mh[k]?.state)) errors[`medicalHistory.${k}`] = 'Chọn Có, Không hoặc Chưa cung cấp';
-      else if (mh[k].state === DECLARATION_STATE.REPORTED && !mh[k].text?.trim()) errors[`medicalHistory.${k}`] = 'Ghi rõ tên bệnh';
-      else if ((mh[k].text || '').length > 300) errors[`medicalHistory.${k}`] = 'Tối đa 300 ký tự';
-    });
-    if (!states.includes(mh.tbContact?.state))
-      errors['medicalHistory.tbContact'] = 'Tiếp xúc người bệnh lao chọn Có, Không hoặc Chưa cung cấp';
+  // Tiền sử bắt buộc Có/Không, không còn "Chưa cung cấp" (user chốt 2026-10-22, thay 1a); "Có" thì ghi rõ tên bệnh.
+  const mh = d.medicalHistory || {};
+  const answered = [DECLARATION_STATE.REPORTED, DECLARATION_STATE.NONE_REPORTED];
+  [
+    ['self', 'tiền sử bản thân'],
+    ['family', 'tiền sử gia đình'],
+  ].forEach(([k, label]) => {
+    if (!answered.includes(mh[k]?.state)) errors[`medicalHistory.${k}`] = `Chọn Có hoặc Không cho ${label}`;
+    else if (mh[k].state === DECLARATION_STATE.REPORTED && !mh[k].text?.trim()) errors[`medicalHistory.${k}`] = 'Ghi rõ tên bệnh';
+    else if ((mh[k].text || '').length > 300) errors[`medicalHistory.${k}`] = 'Tối đa 300 ký tự';
+  });
+  if (!answered.includes(mh.tbContact?.state)) errors['medicalHistory.tbContact'] = 'Tiếp xúc người bệnh lao chọn Có hoặc Không';
+  else if (mh.tbContact.state === DECLARATION_STATE.REPORTED) {
+    const dateError = tbContactDateError(mh.tbContact.contactDate, { dateOfBirth });
+    if (dateError) errors['medicalHistory.tbContactDate'] = dateError;
   }
   return errors;
 };
@@ -127,14 +175,17 @@ export const validateMeasurement = (m, { dateOfBirth, requireReason, headCircumf
 export const hasErrors = (errors) => Object.keys(errors || {}).length > 0;
 
 /** Đợt khám: chỉ hỗ trợ nhập liệu; luật 1 đợt chưa đóng mỗi điểm trường do BE kiểm. */
-export const validateHealthCheck = (c) => {
+export const validateHealthCheck = (c, { creating = false } = {}) => {
   const errors = {};
+  const minDate = creating ? today() : undefined;
   if (!c.name?.trim()) errors.name = 'Nhập tên đợt khám';
   else if (c.name.trim().length > 150) errors.name = 'Tên đợt tối đa 150 ký tự';
   if (!c.campusId) errors.campusId = 'Chọn điểm trường';
-  if (!c.startDate || !DATE_RE.test(c.startDate)) errors.startDate = 'Chọn ngày bắt đầu khám';
-  if (!c.endDate || !DATE_RE.test(c.endDate)) errors.endDate = 'Chọn ngày kết thúc khám';
-  else if (c.startDate && c.endDate < c.startDate) errors.endDate = 'Ngày kết thúc không được trước ngày bắt đầu';
+  if (!isIsoDate(c.startDate)) errors.startDate = 'Nhập ngày bắt đầu hợp lệ theo dd/mm/yyyy';
+  else if (minDate && c.startDate < minDate) errors.startDate = 'Ngày bắt đầu không được trước hôm nay';
+  if (!isIsoDate(c.endDate)) errors.endDate = 'Nhập ngày kết thúc hợp lệ theo dd/mm/yyyy';
+  else if (minDate && c.endDate < minDate) errors.endDate = 'Ngày kết thúc không được trước hôm nay';
+  else if (isIsoDate(c.startDate) && c.endDate < c.startDate) errors.endDate = 'Ngày kết thúc không được trước ngày bắt đầu';
   if ((c.examiner || '').length > 150) errors.examiner = 'Tối đa 150 ký tự';
   if ((c.note || '').length > 500) errors.note = 'Ghi chú tối đa 500 ký tự';
   return errors;
@@ -145,6 +196,13 @@ export const validateHealthCheck = (c) => {
 export const validateFollowUpAction = (kind, b = {}, { contactFrom } = {}) => {
   const errors = {};
   if (kind === 'close') {
+    // Đóng phiếu chọn kết quả theo lời bác sĩ, không chọn sẵn (user chốt 2026-10-21).
+    if (!Object.values(FOLLOW_UP_CLOSE_OUTCOME).includes(b.outcome)) errors.outcome = 'Chọn kết quả theo lời bác sĩ';
+    if (b.outcome === FOLLOW_UP_CLOSE_OUTCOME.KNOWN_CONDITION) {
+      if (!b.conditionText?.trim()) errors.conditionText = 'Nhập tên vấn đề, ví dụ Cận thị – đeo kính';
+      else if (b.conditionText.trim().length > FOLLOW_UP_FIELD_LIMITS.condition)
+        errors.conditionText = `Tên vấn đề tối đa ${FOLLOW_UP_FIELD_LIMITS.condition} ký tự`;
+    }
     if (!b.reason?.trim()) errors.reason = 'Nhập lý do đóng phiếu';
     else if (b.reason.trim().length > 300) errors.reason = 'Lý do tối đa 300 ký tự';
     return errors;

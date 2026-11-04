@@ -1106,3 +1106,14 @@
 .sc-setup__import {
   justify-content: flex-end;
 }
+
+/* Cấu hình thời gian › Ngày nghỉ: từ ngày, đến ngày, tên đợt nghỉ, nút thêm trên một hàng */
+.sc-holiday-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.sc-holiday-form__add {
+  margin-top: calc(var(--fs-sm) * 1.5 + var(--space-1-5));
+}

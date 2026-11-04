@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { Search, Users } from '@/components/ui/icons';
 import { normalizeText } from '@/utils/format';
@@ -31,6 +32,11 @@ export function ClassTeachersPicker({ teachers, classesOf, classId, form, onTogg
         icon={Users}
         title="Điểm trường chưa có giáo viên"
         description="Cần có tài khoản giáo viên thuộc điểm trường để phân công."
+        action={
+          <Link className="btn btn--primary" to="/school/staff">
+            Tạo tài khoản giáo viên
+          </Link>
+        }
       />
     );
   return (

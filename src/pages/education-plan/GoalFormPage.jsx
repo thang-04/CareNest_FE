@@ -35,7 +35,9 @@ import ImportThemesModal from '@/components/education-plan/ImportThemesModal';
 import { mergeImportedThemes } from '@/models/education-plan/importThemes.mjs';
 import CurriculumGoalsModal from '@/components/education-plan/CurriculumGoalsModal';
 import { addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
-import { Card, DraftRecoveryNotice, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { VersionHistory } from '@/components/education-plan/VersionHistory';
+import { yearPlanLines } from '@/models/education-plan/planHistory.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 const suggestTitle = (year, ageGroupId) => {
@@ -334,7 +336,7 @@ export default function GoalFormPage() {
       }
     };
     retryLease.current = () => {
-      if (leaseLatest.current.saver.unsaved || leaseLatest.current.saver.recovery) return;
+      if (leaseLatest.current.saver.unsaved) return;
       contentConflict = false;
       acquire(true);
     };
@@ -408,8 +410,8 @@ export default function GoalFormPage() {
     if (location.state?.backToPrev === to) return navigate(-2);
     navigate(to, { replace: true });
   };
-  const downloadRecovery = () => {
-    const blob = new Blob([recoveryText(saver.recovery?.doc || form)], { type: 'text/plain;charset=utf-8' });
+  const downloadRecovery = (doc = form) => {
+    const blob = new Blob([recoveryText(doc)], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -418,8 +420,23 @@ export default function GoalFormPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Kiểm tra các phần đang hiển thị trước khi gửi / ban hành.
-  const checkBeforeFinish = () => validate(0) && validate(1);
+  // EDU-10: mốc giữ khi bản trên hệ thống đã đổi revision thì chỉ xem/đối chiếu, không ghi đè
+  const historyBlock = (entry) => {
+    if (!leaseReady || finishing) return 'Chưa có quyền sửa kế hoạch này nên chỉ xem được.';
+    if (entry && entry.baseRevision !== (form.revision ?? 0))
+      return 'Kế hoạch trên hệ thống đã thay đổi sau thời điểm này nên không dùng lại được. Tải nội dung để đối chiếu.';
+    return null;
+  };
+
+  // Thẻ 1, 2, 3 thu gọn được (Tiền 03/11); trạng thái chỉ giữ trong màn
+  const [folded, setFolded] = useState({});
+  const fold = (key) => ({ collapsed: !!folded[key], onToggle: () => setFolded((f) => ({ ...f, [key]: !f[key] })) });
+
+  // Kiểm tra trước khi gửi / ban hành; mở lại mọi thẻ để thấy chỗ báo lỗi
+  const checkBeforeFinish = () => {
+    setFolded({});
+    return validate(0) && validate(1);
+  };
 
   // submit: tổ trưởng gửi Phó HT duyệt; approve: Phó HT ban hành (bản mình soạn hoặc bản đang chờ)
   const finish = async (action, note) => {
@@ -461,7 +478,7 @@ export default function GoalFormPage() {
   /* ---------- Nhập dữ liệu ---------- */
 
   const importState = useRef(null);
-  importState.current = { form, yearRange: fileYearRange, allowed: canEdit && leaseReady && !saver.recovery && !finishing && !leaseError };
+  importState.current = { form, yearRange: fileYearRange, allowed: canEdit && leaseReady && !finishing && !leaseError };
   // EDU-46: áp dụng nguyên tử theo chế độ, dùng khoảng năm học cấu hình của hệ thống.
   const importFile = (preview, mode) => {
     const current = importState.current;
@@ -509,7 +526,7 @@ export default function GoalFormPage() {
     if (report.themes || report.breaks) set({ themes: nextThemes, breaks: nextBreaks });
     const parts = [`Đã thêm ${report.themes} chủ đề`, report.breaks && `${report.breaks} đợt nghỉ`].filter(Boolean).join(', ');
     const shifted =
-      report.shifted && (report.themes || report.breaks) ? ` · đã dời ngày ${Math.abs(report.shifted)} năm, kiểm tra lại ngày` : '';
+      report.shifted && (report.themes || report.breaks) ? ' · ngày giữ như kế hoạch nguồn, xem gợi ý dời ngày ở bảng chủ đề' : '';
     toast(
       `${parts}${report.skipped ? ` · bỏ qua ${report.skipped} dòng đã có` : ''}${shifted}`,
       report.themes || report.breaks ? 'ok' : 'warn',
@@ -527,7 +544,7 @@ export default function GoalFormPage() {
     return true;
   };
 
-  if (!permitted && !leaseError && !saver.recovery)
+  if (!permitted && !leaseError)
     return (
       <div className="page ga-page">
         <PageHead
@@ -551,34 +568,15 @@ export default function GoalFormPage() {
       {leaseError && (
         <Notice tone="warn">
           {leaseError}{' '}
-          <button type="button" className="btn" disabled={saver.unsaved || !!saver.recovery} onClick={() => retryLease.current()}>
+          <button type="button" className="btn" disabled={saver.unsaved} onClick={() => retryLease.current()}>
             Thử nhận quyền sửa
           </button>
-          <button type="button" className="btn" onClick={downloadRecovery}>
+          <button type="button" className="btn" onClick={() => downloadRecovery()}>
             Tải nội dung để đối chiếu
           </button>
         </Notice>
       )}
-      {saver.recovery && (
-        <DraftRecoveryNotice
-          onRestore={saver.restore}
-          onDismiss={saver.dismissRecovery}
-          restoreDisabled={!leaseReady || saver.recovery.baseRevision !== (form.revision ?? 0)}
-          note={
-            saver.recovery.baseRevision !== (form.revision ?? 0)
-              ? 'Kế hoạch trên hệ thống đã thay đổi sau đó nên không khôi phục được.'
-              : ''
-          }
-          actions={
-            saver.recovery.baseRevision !== (form.revision ?? 0) && (
-              <button type="button" className="btn" onClick={downloadRecovery}>
-                Tải nội dung để đối chiếu
-              </button>
-            )
-          }
-        />
-      )}
-      <fieldset disabled={!canEdit || !leaseReady || !!saver.recovery || finishing} className="ga-edit-fieldset">
+      <fieldset disabled={!canEdit || !leaseReady || finishing} className="ga-edit-fieldset">
         <div className="ga-sticky-head">
           <PageHead
             crumbs={[
@@ -609,6 +607,24 @@ export default function GoalFormPage() {
               <p className="muted text-sm ga-year-save-status" aria-live="polite">
                 {saveReady ? saver.label : leaseError || 'Chọn năm học và nhóm tuổi; đang chờ quyền sửa'}
               </p>
+              {canEdit && (
+                <VersionHistory
+                  drafts={saver.drafts}
+                  saved={saver.saved()}
+                  current={form}
+                  unsaved={saver.unsaved}
+                  linesOf={yearPlanLines}
+                  onUse={(entry, doc) => saver.restore(entry || { doc })}
+                  blockedReason={historyBlock}
+                  actions={(entry, doc) =>
+                    entry && (
+                      <button type="button" className="btn" onClick={() => downloadRecovery(doc)}>
+                        Tải nội dung để đối chiếu
+                      </button>
+                    )
+                  }
+                />
+              )}
               <button
                 type="button"
                 className="btn btn--sm btn--outline-primary"
@@ -649,7 +665,7 @@ export default function GoalFormPage() {
           </Notice>
         )}
 
-        <Card title="Thông tin chung" num="1">
+        <Card title="1. Thông tin chung" {...fold('info')}>
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table ga-year-info" aria-label="Thông tin chung">
               <thead>
@@ -776,8 +792,8 @@ export default function GoalFormPage() {
         </Card>
 
         <Card
-          title="Chủ đề, sự kiện trong năm"
-          num="2"
+          title="2. Chủ đề, sự kiện trong năm"
+          {...fold('themes')}
           actions={
             <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImportingThemes(true)}>
               <Download size={16} aria-hidden /> Lấy chủ đề từ kế hoạch có sẵn
@@ -794,7 +810,11 @@ export default function GoalFormPage() {
             onChange={(patch) => set(patch)}
           />
         </Card>
-        <Card title="Mục tiêu, nội dung giáo dục" num="3" actions={<span className="muted text-xs nowrap">{totalGoals} mục tiêu</span>}>
+        <Card
+          title="3. Mục tiêu, nội dung giáo dục"
+          {...fold('goals')}
+          actions={<span className="muted text-xs nowrap">{totalGoals} mục tiêu</span>}
+        >
           {importReport?.unavailable.length > 0 && (
             <Notice tone="warn">
               <span>Chưa thêm được các mục tiêu sau:</span>
@@ -808,7 +828,7 @@ export default function GoalFormPage() {
             </Notice>
           )}
           {errors.domains && <Notice tone="err">{errors.domains}</Notice>}
-          {themes.length === 0 && <Notice>{NO_THEME_NOTE}</Notice>}
+          {themes.length === 0 && <p className="text-danger text-sm text-right">{NO_THEME_NOTE}</p>}
           <GoalTable
             domains={form.domains}
             themes={themes}

@@ -9,7 +9,8 @@ import {
   curriculumTree,
   goalTargets,
 } from '../../src/models/education-plan/curriculum.mjs';
-import { mergeImportedGoals } from '../../src/models/education-plan/importGoals.mjs';
+import { getImportGoals, mergeImportedGoals } from '../../src/models/education-plan/importGoals.mjs';
+import { toRows } from '../../src/models/education-plan/goalTable.js';
 import { toYearPlanRequest, toUiGoal } from '../../src/services/education-plan/api/yearPlanMapper.js';
 
 // BE:EDU-28 — lấy mục tiêu từ Chương trình GDMN của Bộ (specs/005-ministry-goal-catalog)
@@ -196,6 +197,157 @@ const withTierIds = (goals) => {
     return { ...g, subDomainId: g.subDomain ? subs.get(subKey) : null, expectedResultId: groups.get(groupKey) };
   });
 };
+
+test('xóa rồi lấy lại mục tiêu Bộ: dùng lại cha, giữ dòng cũ và đúng nhóm sau normalize', () => {
+  const goals = withTierIds(goalsOf('ag-3'));
+  const source = curriculumAsSourcePlan(goals);
+  const first = mergeImportedGoals(
+    emptyPlan(),
+    source,
+    goals.map((g) => `cg-${g.id}`),
+    makeId,
+  );
+  const removed = goals.find((g) => g.subDomain);
+  const target = {
+    domains: first.domains.map((d) => ({ ...d, rows: d.rows.filter((r) => r.curriculumGoalId !== removed.id) })),
+  };
+  const snapshot = structuredClone(target);
+  const before = getImportGoals(target);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const result = mergeImportedGoals(target, curriculumAsSourcePlan([removed]), [`cg-${removed.id}`], makeId);
+    assert.deepEqual(result.report, { added: 1, duplicates: 0, unavailable: [] });
+    for (const [i, domain] of result.domains.entries()) {
+      assert.deepEqual(
+        domain.rows.filter((r) => r.kind !== 'goal'),
+        snapshot.domains[i].rows.filter((r) => r.kind !== 'goal'),
+      );
+    }
+    const reopened = { domains: result.domains.map((d) => ({ ...d, rows: toRows(d, makeId) })) };
+    const restored = getImportGoals(reopened);
+    for (const old of before) {
+      const current = restored.find((g) => g.id === old.id);
+      assert.deepEqual(current, old);
+    }
+    const incoming = restored.find((g) => g.curriculumGoalId === removed.id);
+    assert.equal(incoming.sub.curriculumSubDomainId, removed.subDomainId);
+    assert.equal(incoming.group.curriculumExpectedResultId, removed.expectedResultId);
+    assert.ok(incoming.contents.every((c) => c.themes.length === 0));
+    assert.deepEqual(target, snapshot);
+    target.domains = reopened.domains.map((d) => ({ ...d, rows: d.rows.filter((r) => r.id !== incoming.id) }));
+  }
+});
+
+test('lấy mục tiêu Bộ nhiều lượt: nhóm mới nằm trong lĩnh vực con cũ, không đổi các nhánh sau', () => {
+  const goals = withTierIds(goalsOf('ag-3'));
+  const firstGoal = goals.find((g) => g.subDomain);
+  const nextGoal = goals.find((g) => g.subDomainId === firstGoal.subDomainId && g.expectedResultId !== firstGoal.expectedResultId);
+  const otherSub = goals.find((g) => g.domainName === firstGoal.domainName && g.subDomainId !== firstGoal.subDomainId);
+  const first = mergeImportedGoals(
+    emptyPlan(),
+    curriculumAsSourcePlan([firstGoal, otherSub]),
+    [`cg-${firstGoal.id}`, `cg-${otherSub.id}`],
+    makeId,
+  );
+  const target = { domains: first.domains };
+  const snapshot = structuredClone(target);
+  const result = mergeImportedGoals(target, curriculumAsSourcePlan([nextGoal]), [`cg-${nextGoal.id}`], makeId);
+  assert.deepEqual(result.report, { added: 1, duplicates: 0, unavailable: [] });
+  const rows = result.domains[0].rows;
+  assert.equal(rows.filter((r) => r.kind === 'sub').length, 2);
+  const imported = getImportGoals({ domains: result.domains });
+  assert.deepEqual(
+    imported.map((g) => g.curriculumGoalId),
+    [firstGoal.id, nextGoal.id, otherSub.id],
+  );
+  assert.equal(imported[1].sub.id, imported[0].sub.id);
+  assert.notEqual(imported[1].group.id, imported[0].group.id);
+  assert.deepEqual(imported[2], getImportGoals(target)[1]);
+  assert.deepEqual(target, snapshot);
+});
+
+test('cha nguồn Bộ đã sửa tên vẫn được dùng lại theo ID; không gộp nhánh khác ID dù cùng tên', () => {
+  const [goal] = withTierIds(goalsOf('ag-3'));
+  const first = mergeImportedGoals(emptyPlan(), curriculumAsSourcePlan([goal]), [`cg-${goal.id}`], makeId);
+  const original = first.domains[0].rows.filter((r) => r.kind !== 'goal');
+  const target = emptyPlan();
+  target.domains[0].rows = [
+    { ...original[0], id: 'other-sub', curriculumSubDomainId: 9999 },
+    { ...original[1], id: 'other-group', curriculumExpectedResultId: 9998 },
+    ...original.map((r) => ({ ...r, text: `Đã sửa ${r.kind}` })),
+  ];
+  const snapshot = structuredClone(target);
+  const result = mergeImportedGoals(target, curriculumAsSourcePlan([goal]), [`cg-${goal.id}`], makeId);
+  assert.deepEqual(result.report, { added: 1, duplicates: 0, unavailable: [] });
+  assert.deepEqual(result.domains[0].rows.slice(0, -1), snapshot.domains[0].rows);
+  const [imported] = getImportGoals({ domains: result.domains });
+  assert.equal(imported.sub.id, original[0].id);
+  assert.equal(imported.group.id, original[1].id);
+  assert.deepEqual(target, snapshot);
+});
+
+test('dữ liệu Bộ mock chưa có ID cha: xóa và thêm lại không tạo trùng tiêu đề', () => {
+  const [goal] = goalsOf('ag-3');
+  const first = mergeImportedGoals(emptyPlan(), curriculumAsSourcePlan([goal]), [`cg-${goal.id}`], makeId);
+  const target = { domains: first.domains.map((d) => ({ ...d, rows: d.rows.filter((r) => r.kind !== 'goal') })) };
+  const result = mergeImportedGoals(target, curriculumAsSourcePlan([goal]), [`cg-${goal.id}`], makeId);
+  assert.deepEqual(result.report, { added: 1, duplicates: 0, unavailable: [] });
+  assert.deepEqual(
+    result.domains[0].rows.map((r) => r.kind),
+    ['sub', 'group', 'goal'],
+  );
+});
+
+test('lấy lại mục tiêu Bộ không có lĩnh vực con: dùng đúng nhóm cũ trước các nhóm khác', () => {
+  const goals = withTierIds(goalsOf('ag-3'));
+  const removed = goals.find((g) => !g.subDomain);
+  const first = mergeImportedGoals(
+    emptyPlan(),
+    curriculumAsSourcePlan(goals),
+    goals.map((g) => `cg-${g.id}`),
+    makeId,
+  );
+  const target = { domains: first.domains.map((d) => ({ ...d, rows: d.rows.filter((r) => r.curriculumGoalId !== removed.id) })) };
+  const before = getImportGoals(target);
+  const result = mergeImportedGoals(target, curriculumAsSourcePlan([removed]), [`cg-${removed.id}`], makeId);
+  assert.deepEqual(result.report, { added: 1, duplicates: 0, unavailable: [] });
+  const imported = getImportGoals({ domains: result.domains });
+  const restored = imported.find((g) => g.curriculumGoalId === removed.id);
+  assert.equal(restored.sub, null);
+  assert.equal(restored.group.curriculumExpectedResultId, removed.expectedResultId);
+  for (const old of before)
+    assert.deepEqual(
+      imported.find((g) => g.id === old.id),
+      old,
+    );
+  for (const [i, domain] of result.domains.entries()) {
+    assert.deepEqual(
+      domain.rows.filter((r) => r.kind !== 'goal'),
+      target.domains[i].rows.filter((r) => r.kind !== 'goal'),
+    );
+  }
+});
+
+test('chép kế hoạch có mục tiêu Bộ và tự gõ cùng nhóm: giữ cả hai trong nhánh cũ', () => {
+  const goals = withTierIds(goalsOf('ag-3'));
+  const ministry = goals.find((g) => g.subDomain);
+  const later = goals.find((g) => g.domainName === ministry.domainName && g.subDomainId !== ministry.subDomainId);
+  const source = curriculumAsSourcePlan([ministry]);
+  source.domains[0].rows.push({ id: 'manual', kind: 'goal', text: 'Mục tiêu tự gõ trong cùng nhóm', contents: [] });
+  const first = mergeImportedGoals(emptyPlan(), curriculumAsSourcePlan([ministry, later]), [`cg-${ministry.id}`, `cg-${later.id}`], makeId);
+  const target = { domains: first.domains.map((d) => ({ ...d, rows: d.rows.filter((r) => r.curriculumGoalId !== ministry.id) })) };
+  const snapshot = structuredClone(target);
+  const result = mergeImportedGoals(target, source, [`cg-${ministry.id}`, 'manual'], makeId);
+  assert.deepEqual(result.report, { added: 2, duplicates: 0, unavailable: [] });
+  const imported = getImportGoals({ domains: result.domains });
+  assert.deepEqual(
+    imported.map((g) => g.text),
+    [ministry.goalText, 'Mục tiêu tự gõ trong cùng nhóm', later.goalText],
+  );
+  assert.equal(imported[0].sub.id, imported[1].sub.id);
+  assert.equal(imported[0].group.id, imported[1].group.id);
+  assert.deepEqual(imported[2], getImportGoals(target)[0]);
+  assert.deepEqual(target, snapshot);
+});
 
 test('3 tầng: lấy từ Bộ gắn liên kết cho lĩnh vực con và nhóm; chép sang kế hoạch khác vẫn giữ', () => {
   const goals = withTierIds(goalsOf('ag-4').slice(0, 3));

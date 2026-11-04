@@ -3,6 +3,7 @@ import { ROLES } from '@/models/User';
 import { areaAccess } from '@/utils/school-config/schoolConfigPermissions';
 const R = ROLES;
 const VP_ONLY = [R.VICE_PRINCIPAL];
+const LEADERS = [R.PRINCIPAL, R.VICE_PRINCIPAL];
 const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
 
 /*
@@ -37,7 +38,7 @@ const QUICK_ACTIONS = [
     to: '/children/new',
     group: 'Quản lý trẻ',
     icon: Baby,
-    roles: VP_ONLY,
+    roles: LEADERS,
     area: 'children',
   },
   {

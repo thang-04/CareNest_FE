@@ -24,6 +24,9 @@ export const unlockAttendanceDay = (body, user) =>
   be ? be.unlockAttendanceDay(body) : USE_MOCK ? attendanceMockRepository.unlockAttendanceDay(body, user) : unlockUnavailable();
 export const revokeAttendanceDayUnlock = (id, user) =>
   be ? be.revokeAttendanceDayUnlock(id) : USE_MOCK ? attendanceMockRepository.revokeAttendanceDayUnlock(id, user) : unlockUnavailable();
+const leaveUnavailable = () =>
+  Promise.reject(Object.assign(new Error('Danh sách đơn nghỉ chỉ có khi đăng nhập hệ thống CareNest.'), { status: 501 }));
+export const getLeaveRequests = (query) => (be ? be.searchLeaveRequests(query) : leaveUnavailable());
 export const getClassAttendance = (classId, date, user) => (be || repo).getClassAttendance(classId, date, user);
 export const saveClassAttendance = (payload, user) => (be || repo).saveClassAttendance(payload, user);
 export const getAttendanceSummary = (query, user) => (be || repo).getAttendanceSummary(query, user);

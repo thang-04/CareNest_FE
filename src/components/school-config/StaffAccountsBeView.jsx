@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Download, FileSpreadsheet, KeyRound, PauseCircle, Plus, RotateCcw, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -26,7 +27,8 @@ import {
 } from '@/services/school-config/schoolConfigService';
 import { STAFF_ROLES, normalizePhone, staffExportRows, toCreatePayload, validateStaffAccount } from '@/utils/school-config/staffImport';
 import { staffCrumbs } from '@/utils/school-config/breadcrumbs';
-import { downloadCsv } from '@/utils/exportCsv';
+import { isPrincipal } from '@/utils/school-config/schoolConfigPermissions';
+import { downloadXlsx } from '@/utils/exportXlsx';
 import { todayInput } from '@/utils/format';
 
 const PAGE_SIZE = 10;
@@ -70,6 +72,8 @@ export function StaffAccountsBeView({ tabs = null }) {
   const [page, setPage] = useState(1);
   const { data, loading, error, reload } = useStaffAccountPage(filters, page);
   const [creating, setCreating] = useState(false);
+  // PHT vừa tạo: BE đã phân công điểm trường kèm theo ⇒ dẫn sang màn Phân công để xem / điều chỉnh
+  const [createdVice, setCreatedVice] = useState(null);
   const [statusOf, setStatusOf] = useState(null);
   const [passwordOf, setPasswordOf] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -103,7 +107,7 @@ export function StaffAccountsBeView({ tabs = null }) {
     setExporting(true);
     try {
       const all = (await listAllStaffAccounts(filters)).map((a) => toStaffRow(a, lookups));
-      downloadCsv(staffExportRows(all), `tai-khoan-nhan-su-${todayInput()}.csv`);
+      downloadXlsx(staffExportRows(all), `tai-khoan-nhan-su-${todayInput()}.xlsx`);
     } catch (err) {
       toast.error(err, 'Không xuất được danh sách');
     } finally {
@@ -137,6 +141,26 @@ export function StaffAccountsBeView({ tabs = null }) {
           )}
         </div>
       </div>
+      {createdVice && (
+        <div className="alert alert--info mb-12" role="status">
+          <span>
+            {createdVice.role === ROLES.TEACHER ? (
+              <>
+                Đã tạo giáo viên {createdVice.fullName}, chưa gắn lớp. <Link to="/school/teachers">Phân công lớp</Link>
+              </>
+            ) : (
+              <>
+                Đã tạo Phó hiệu trưởng {createdVice.fullName}
+                {createdVice.assignment ? ' và phân công điểm trường kèm theo' : ''}.{' '}
+                <Link to="/school/vice-principals">{createdVice.assignment ? 'Xem / điều chỉnh phân công' : 'Phân công ngay'}</Link>
+              </>
+            )}
+          </span>
+          <button type="button" className="btn btn--sm btn--ghost" onClick={() => setCreatedVice(null)}>
+            Đóng
+          </button>
+        </div>
+      )}
 
       <div className="card mb-16">
         {tabs}
@@ -272,13 +296,21 @@ export function StaffAccountsBeView({ tabs = null }) {
         )}
       </div>
 
-      {creating && <StaffCreateModal campuses={md.campuses} classes={classes} onClose={done(setCreating)} />}
+      {creating && (
+        <StaffCreateModal
+          campuses={md.campuses}
+          onClose={(changed, created) => {
+            done(setCreating)(changed);
+            if ([ROLES.VICE_PRINCIPAL, ROLES.TEACHER].includes(created?.role)) setCreatedVice(created);
+          }}
+        />
+      )}
       {statusOf && <StaffStatusConfirm account={statusOf} onClose={done(setStatusOf)} />}
       {passwordOf && <StaffPasswordModal account={passwordOf} onClose={done(setPasswordOf)} />}
       <StaffImportPanel
         open={importing}
         campuses={md.campuses}
-        classes={classes}
+        teacherCampusRequired={!isPrincipal(user)}
         onClose={(changed) => {
           setImporting(false);
           if (changed) reload({ silent: true });
@@ -288,8 +320,11 @@ export function StaffAccountsBeView({ tabs = null }) {
   );
 }
 
-function StaffCreateModal({ campuses, classes, onClose }) {
+function StaffCreateModal({ campuses, onClose }) {
   const toast = useToast();
+  const { user } = useAuth();
+  // PHT chỉ tạo GV trong điểm trường mình nên phải chọn điểm trường; HT có thể để trống (AUTH-15)
+  const teacherCampusRequired = !isPrincipal(user);
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -298,11 +333,11 @@ function StaffCreateModal({ campuses, classes, onClose }) {
     setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch))));
   };
   const blur = (field) => {
-    const e = validateStaffAccount(form, { campuses, classes });
+    const e = validateStaffAccount(form, { campuses, teacherCampusRequired });
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
   };
   const save = async () => {
-    const e = validateStaffAccount(form, { campuses, classes });
+    const e = validateStaffAccount(form, { campuses, teacherCampusRequired });
     setErrors(e);
     if (Object.keys(e).length) return;
     setSaving(true);
@@ -312,7 +347,7 @@ function StaffCreateModal({ campuses, classes, onClose }) {
         res?.setupEmailSent ? 'Đã gửi email đặt mật khẩu cho nhân sự.' : 'Chưa gửi được email: hãy cấp mật khẩu tạm cho nhân sự.',
         `Đã tạo tài khoản ${form.fullName}`,
       );
-      onClose(true);
+      onClose(true, res);
     } catch (err) {
       setErrors(err.details || { _form: err.message });
       setSaving(false);
@@ -379,23 +414,8 @@ function StaffCreateModal({ campuses, classes, onClose }) {
             ))}
           </select>
         </FormField>
-        {teacher ? (
-          <FormField label="Lớp" required error={errors.classroomId}>
-            <select
-              className="select"
-              value={form.classroomId}
-              onChange={(e) => set({ classroomId: e.target.value })}
-              onBlur={() => blur('classroomId')}
-            >
-              <option value="">Chọn lớp</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        ) : (
+        {teacher && <p className="text-sm muted">Giáo viên tạo xong chưa gắn lớp; xếp lớp ở Phân công giáo viên.</p>}
+        {(!teacher || teacherCampusRequired) && (
           <FormField label="Điểm trường" required error={errors.campusId}>
             <select
               className="select"

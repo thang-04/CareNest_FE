@@ -1,7 +1,14 @@
 import { ApiError, clone, writeDb } from '@/mocks/mockDatabase';
 import { activeYearId } from '@/mocks/roomManagers';
-import { REWARD_TITLES, DIAGNOSTIC_TERMS, TICKET_RULES } from '@/models/assessment/assessmentConstants';
-import { inLeaderScope, isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
+import {
+  REWARD_GENERAL_TITLES,
+  REWARD_CLASS_TITLES,
+  REWARD_PROGRAM_TITLES,
+  REWARD_TITLES,
+  DIAGNOSTIC_TERMS,
+  TICKET_RULES,
+} from '@/models/assessment/assessmentConstants';
+import { inLeaderEditScope, inLeaderScope, isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
 import { addDays, monthEnd, monthsBetween, schoolDaysBetween, todayIso, weekStart } from '@/utils/assessment/assessmentPeriods';
 import { uid } from '@/utils/id';
 
@@ -68,13 +75,17 @@ const detailOf = (db, cls, user) => {
       monthly = countTickets(db, cls, c.id, 'MONTHLY');
     const suggested = [];
     if (ye) {
-      if (days.size && present * 100 >= 90 * days.size) suggested.push(REWARD_TITLES[0]);
+      // BE giả OBS-14: gợi ý một danh hiệu bé ngoan cao nhất đạt được, lớp 5–6 tuổi thêm hoàn thành tốt chương trình
+      const diligent = days.size && present * 100 >= 90 * days.size;
       const elapsed = [...days].sort();
       const weeks = new Set(elapsed.map(weekStart)).size;
       const months = new Set(elapsed.map((d) => d.slice(0, 7))).size;
-      if (weeks && weekly * 2 >= weeks) suggested.push(REWARD_TITLES[1]);
-      if (months && monthly * 2 >= months) suggested.push(REWARD_TITLES[2]);
-      if (programClass(db, cls) && ye.programCompleted) suggested.push(REWARD_TITLES[3]);
+      const good = weeks && weekly * 2 >= weeks;
+      const allRound = months && monthly * 2 >= months;
+      if (diligent && allRound) suggested.push('Bé chăm ngoan xuất sắc');
+      else if (diligent && good) suggested.push('Bé chăm ngoan');
+      else if (good) suggested.push('Bé ngoan');
+      if (programClass(db, cls) && ye.programCompleted) suggested.push(REWARD_PROGRAM_TITLES[1]);
     }
     const item = show && list?.items.find((r) => r.childId === c.id);
     return {
@@ -102,11 +113,11 @@ const detailOf = (db, cls, user) => {
     schoolYearId: cls.schoolYear,
     programClass: programClass(db, cls),
     status: list?.status || null,
-    titleOptions: REWARD_TITLES.filter((t) => t !== REWARD_TITLES[3] || programClass(db, cls)),
+    titleOptions: programClass(db, cls) ? REWARD_TITLES : REWARD_CLASS_TITLES,
     children,
     history: list?.history || [],
     canEdit,
-    canReview: user?.role === 'VICE_PRINCIPAL' && inLeaderScope(cls.campusId, user) && list?.status === 'PENDING_VP',
+    canReview: user?.role === 'VICE_PRINCIPAL' && inLeaderEditScope(cls.campusId, user) && list?.status === 'PENDING_VP',
     canDecide: user?.role === 'PRINCIPAL' && ['PENDING_VP', 'PENDING_PRINCIPAL'].includes(list?.status),
   };
 };
@@ -154,7 +165,12 @@ export const createAssessmentReportsMock = (ensureReady) => ({
         if (note.length > 300 || DIAGNOSTIC_TERMS.some((term) => note.toLowerCase().includes(term))) invalid('Ghi chú không hợp lệ.');
         if (!titles.length) return [];
         if (!c.yearEnd) invalid('Cần xác nhận đánh giá cuối năm trước.');
-        if (titles.includes(REWARD_TITLES[3]) && !c.programCompleted) invalid('Trẻ chưa hoàn thành chương trình.');
+        if (
+          titles.filter((t) => REWARD_GENERAL_TITLES.includes(t)).length > 1 ||
+          titles.filter((t) => REWARD_PROGRAM_TITLES.includes(t)).length > 1
+        )
+          invalid('Mỗi trẻ chọn một danh hiệu bé ngoan và tối đa một danh hiệu hoàn thành chương trình.');
+        if (titles.some((t) => REWARD_PROGRAM_TITLES.includes(t)) && !c.programCompleted) invalid('Trẻ chưa hoàn thành chương trình.');
         return [{ childId: item.childId, titles, note }];
       });
       if (submit && !rows.length) invalid('Chọn ít nhất một trẻ được khen thưởng.');
@@ -257,9 +273,102 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     totals.completedRate = pct(totals.completed, totals.children);
     return clone({ campusIds: campuses(db, classes).map((c) => c.id), campuses: campuses(db, classes), rows, totals });
   },
+  // BE giả OBS-26: GV lớp soạn, xác nhận nhận xét chung tháng (tháng đã kết thúc); BGH xem bản đã xác nhận
+  async getClassMonthlyComment({ classId, month }, user) {
+    const db = ensureReady();
+    const cls = db.classes.find((c) => c.id === classId);
+    if (!cls) throw new ApiError(404, 'Không tìm thấy lớp.');
+    const teacher = isClassTeacher(cls, user);
+    if (!teacher && !isLeader(user)) deny();
+    const ended = monthEnd(month) < todayIso();
+    const saved = (db.classMonthlyComments || []).find((c) => c.classId === classId && c.month === month);
+    const confirmed = !!saved?.confirmedAt;
+    return clone({
+      classId,
+      className: cls.name,
+      month,
+      status: !ended ? 'NOT_READY' : confirmed ? 'CONFIRMED' : 'AWAITING_REVIEW',
+      draft:
+        teacher && ended ? `Tháng ${month.slice(5, 7)}/${month.slice(0, 4)}, lớp ${cls.name}: cô bổ sung nhận xét chung của lớp.` : null,
+      content: teacher || confirmed ? saved?.content || null : null,
+      confirmedAt: saved?.confirmedAt || null,
+      confirmedByName: confirmed ? saved.confirmedByName : null,
+      canEdit: teacher && ended && !confirmed,
+    });
+  },
+  async saveClassMonthlyComment(body, user, confirm = false) {
+    const db = ensureReady();
+    const current = await this.getClassMonthlyComment(body, user);
+    if (!current.canEdit) deny();
+    if ((body.content || '').trim().length < 20) invalid('Nội dung đánh giá cần ít nhất 20 ký tự');
+    db.classMonthlyComments = [
+      ...(db.classMonthlyComments || []).filter((c) => c.classId !== body.classId || c.month !== body.month),
+      {
+        classId: body.classId,
+        month: body.month,
+        content: body.content.trim(),
+        ...(confirm ? { confirmedAt: new Date().toISOString(), confirmedByName: user.fullName } : {}),
+      },
+    ];
+    writeDb(db);
+    return this.getClassMonthlyComment(body, user);
+  },
+  async confirmClassMonthlyComment(body, user) {
+    return this.saveClassMonthlyComment(body, user, true);
+  },
+  // BE giả OBS-24: HT, PHT xem mọi lớp; chấm: HT mọi lớp, PHT điểm trường mình; GV xem lớp mình
+  async getClassRatings(params = {}, user) {
+    const db = ensureReady();
+    const leader = isLeader(user);
+    if (!leader && !['TEACHER', 'TEAM_LEADER'].includes(user?.role)) deny();
+    const classes = scoped(db, params.schoolYear, user).filter((c) => leader || isClassTeacher(c, user));
+    const shown = classes.filter((c) => !params.campusId || c.campusId === params.campusId);
+    const saved = (db.classRatings || []).filter((r) => r.period === params.period);
+    return clone({
+      period: params.period,
+      campuses: campuses(db, classes).map((c) => ({ id: c.id, name: c.shortName || c.name })),
+      rows: shown.map((c) => {
+        const r = saved.find((x) => x.classId === c.id);
+        return {
+          classId: c.id,
+          className: c.name,
+          campusId: c.campusId,
+          ageGroupId: c.ageGroupId,
+          levels: r?.levels || {},
+          note: r?.note || null,
+          ratedAt: r?.ratedAt || null,
+          ratedByName: r?.ratedByName || null,
+          canEdit: inLeaderEditScope(c.campusId, user),
+        };
+      }),
+    });
+  },
+  async saveClassRatings({ period, items }, user) {
+    const db = ensureReady();
+    items.forEach((i) => {
+      const cls = db.classes.find((c) => c.id === i.classId);
+      if (!cls || !inLeaderEditScope(cls.campusId, user)) deny();
+    });
+    db.classRatings = [
+      ...(db.classRatings || []).filter((r) => r.period !== period || !items.some((i) => i.classId === r.classId)),
+      ...items.map((i) => ({
+        period,
+        classId: i.classId,
+        levels: i.levels,
+        note: i.note?.trim() || null,
+        ratedAt: new Date().toISOString(),
+        ratedByName: user.fullName,
+      })),
+    ];
+    writeDb(db);
+    return this.getClassRatings({ period }, user);
+  },
   async getQualityReport(params = {}, user) {
-    const db = ensureReady(),
-      classes = leaderClasses(db, params, user);
+    const db = ensureReady();
+    // GV, tổ trưởng: lớp mình (BE thêm lớp nhóm tuổi của tổ trưởng); không có dòng tổng
+    const leader = isLeader(user);
+    if (!leader && !['TEACHER', 'TEAM_LEADER'].includes(user?.role)) deny();
+    const classes = leader ? leaderClasses(db, params, user) : scoped(db, params.schoolYear, user);
     const year = db.schoolYears.find((y) => y.id === (params.schoolYear || activeYearId(db)));
     if (!year) throw new ApiError(404, 'Không tìm thấy năm học.');
     const last = [todayIso(), year.endDate].sort()[0],
@@ -307,6 +416,9 @@ export const createAssessmentReportsMock = (ensureReady) => ({
         presentDays,
         possibleDays,
         attendanceRate: pct(presentDays, possibleDays),
+        // Mock chỉ có danh sách lớp hiện tại, không có lịch sử thôi học / chuyển lớp
+        leftChildren: 0,
+        leftRate: pct(0, children.length),
         mealChildren: children.filter((c) => meals.has(c.id)).length,
         mealRate: pct(children.filter((c) => meals.has(c.id)).length, children.length),
         diligentChildren: diligent,
@@ -331,6 +443,7 @@ export const createAssessmentReportsMock = (ensureReady) => ({
         'avgPresent',
         'presentDays',
         'possibleDays',
+        'leftChildren',
         'mealChildren',
         'diligentChildren',
         'goodChildren',
@@ -339,6 +452,7 @@ export const createAssessmentReportsMock = (ensureReady) => ({
         t[k] = group.reduce((n, r) => n + r[k], 0);
       for (const [rate, n, d] of [
         ['attendanceRate', 'presentDays', 'possibleDays'],
+        ['leftRate', 'leftChildren', 'children'],
         ['mealRate', 'mealChildren', 'children'],
         ['diligentRate', 'diligentChildren', 'children'],
         ['goodRate', 'goodChildren', 'children'],
@@ -357,19 +471,20 @@ export const createAssessmentReportsMock = (ensureReady) => ({
       allCampuses: campuses(db, scoped(db, params.schoolYear, user)),
       campusIds: campuses(db, classes).map((c) => c.id),
       rows,
-      totals: rows.length
-        ? [
-            ...['NHA_TRE', 'MAU_GIAO']
-              .filter((level) => rows.some((r) => r.level === level))
-              .map((level) =>
-                total(
-                  rows.filter((r) => r.level === level),
-                  level,
+      totals:
+        leader && rows.length
+          ? [
+              ...['NHA_TRE', 'MAU_GIAO']
+                .filter((level) => rows.some((r) => r.level === level))
+                .map((level) =>
+                  total(
+                    rows.filter((r) => r.level === level),
+                    level,
+                  ),
                 ),
-              ),
-            total(rows, 'ALL'),
-          ]
-        : [],
+              total(rows, 'ALL'),
+            ]
+          : [],
     });
   },
 });

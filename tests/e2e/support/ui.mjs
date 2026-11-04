@@ -3,7 +3,7 @@ import { devPassword } from './realBe.mjs';
 
 export async function login(page, email, pw = devPassword()) {
   await page.goto('/login');
-  await page.getByPlaceholder('ten@carenest.edu.vn').fill(email);
+  await page.getByPlaceholder(/SĐT hoặc email|ten@carenest\.edu\.vn/).fill(email);
   await page.getByPlaceholder('Nhập mật khẩu').fill(pw);
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
   await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30_000 });

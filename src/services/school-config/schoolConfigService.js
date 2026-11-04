@@ -86,6 +86,11 @@ export const copyYear = async (targetYearId, { sourceYearId, parts }, user) => {
 export const getCutoffSetting = (schoolYear) => repo.getCutoffSetting(schoolYear);
 export const saveCutoffSetting = (schoolYear, form, user) => repo.saveCutoffSetting(schoolYear, form, user);
 export const saveSemester = (schoolYear, form, user) => repo.saveSemester(schoolYear, form, user);
+/** { semester1Locked, semester2Locked }: học kỳ đã có đánh giá học kỳ thì không đổi ngày. */
+export const getSemesterLocks = (schoolYear, user) => repo.getSemesterLocks(schoolYear, user);
+/** Ngày nghỉ của năm học: [{ date, name }]. */
+export const getHolidays = (schoolYear, user) => repo.getHolidays(schoolYear, user);
+export const saveHolidays = (schoolYear, holidays, user) => repo.saveHolidays(schoolYear, holidays, user);
 
 export const getCampusesWithStats = (schoolYear, user) => repo.getCampuses(schoolYear, user);
 export const getCampusDetail = (id, schoolYear, user) => repo.getCampusDetail(id, schoolYear, user);
@@ -107,6 +112,8 @@ export const saveViceAssignment = (schoolYear, userId, form, user) => repo.saveV
 
 export const getTeacherAssignments = (filters, user) => repo.getTeacherAssignments(filters, user);
 export const saveClassTeachers = (classId, form, user) => repo.saveClassTeachers(classId, form, user);
+/** GV dạy thay lớp trong khoảng ngày { userId, classroomId, validFrom, validTo }. */
+export const assignSubstituteTeacher = (body, user) => repo.assignSubstituteTeacher(body, user);
 export const saveTeamLeader = (payload, user) => repo.saveTeamLeader(payload, user);
 /** Tổ trưởng nhóm tuổi toàn trường của năm học + giáo viên chọn được. */
 export const getTeamLeaders = (filters, user) => repo.getTeamLeaders(filters, user);

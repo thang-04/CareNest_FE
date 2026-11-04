@@ -22,6 +22,33 @@
   flex: 1;
 }
 
+/* Đang tải chunk trang vừa bấm: trang cũ còn hiện nên cần dấu hiệu ngay đầu màn hình */
+.route-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--space-1);
+  z-index: var(--z-toast);
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--color-info-border);
+}
+.route-progress::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: var(--color-primary);
+  animation: route-progress-slide calc(var(--duration-slow) * 2) var(--ease-in-out) infinite;
+}
+@keyframes route-progress-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
 /* Nhãn "Dữ liệu demo" phía trên trang: thẳng lề với .page */
 .app-content__notice {
   margin: var(--space-2) var(--page-padding) 0;
@@ -270,6 +297,12 @@
 .sidebar--collapsed .nav-item__chev {
   display: none;
 }
+/* Thu gọn: nhãn khu ẩn ⇒ vạch mảnh giữa các khu (Menu · Bán trú · Chung) */
+.sidebar--collapsed .sidebar__nav + .sidebar__label + .sidebar__nav {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
 .sidebar--collapsed {
   padding: var(--space-4) var(--space-3);
 }
@@ -368,6 +401,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .drawer-backdrop {
+    animation: none;
+  }
+  .route-progress::before {
+    width: 100%;
     animation: none;
   }
   .sidebar,

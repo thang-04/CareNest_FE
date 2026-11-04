@@ -21,6 +21,7 @@ export function DailyDaysTable({ days, mealSessions, classId, linkDays }) {
         <thead>
           <tr>
             <th>Ngày</th>
+            <th>Lớp ghi nhận</th>
             <th>Sức khỏe</th>
             <th>Ăn</th>
             <th>Ngủ</th>
@@ -34,7 +35,7 @@ export function DailyDaysTable({ days, mealSessions, classId, linkDays }) {
           {days.map((d) => (
             <tr key={d.date}>
               <td className="nowrap">
-                {linkDays ? (
+                {linkDays && (!d.classId || String(d.classId) === String(classId)) ? (
                   <Link to={`/assessment/daily?classId=${classId}&date=${d.date}`} title="Mở đánh giá hằng ngày của ngày này">
                     {formatDate(d.date)}
                   </Link>
@@ -42,6 +43,7 @@ export function DailyDaysTable({ days, mealSessions, classId, linkDays }) {
                   formatDate(d.date)
                 )}
               </td>
+              <td>{d.className || dash}</td>
               <td className={d.health?.signs.length ? 'dg-cell--warn' : ''}>
                 {d.health ? (
                   <>
@@ -52,7 +54,7 @@ export function DailyDaysTable({ days, mealSessions, classId, linkDays }) {
                   dash
                 )}
               </td>
-              <td>{d.meals ? mealsText(d.meals, mealSessions) : dash}</td>
+              <td>{d.meals ? mealsText(d.meals, Object.keys(d.meals).length ? Object.keys(d.meals) : mealSessions) : dash}</td>
               <td className={d.nap && d.nap !== NAP.NGU_TOT ? 'dg-cell--warn' : ''}>{d.nap ? NAP_LABELS[d.nap] : dash}</td>
               <td>{d.emotion ? EMOTION_LABELS[d.emotion] : dash}</td>
               <td>
