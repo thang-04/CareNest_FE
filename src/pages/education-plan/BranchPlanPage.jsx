@@ -308,77 +308,83 @@ function BranchPlanInner({ classId }) {
     <div className="page ga-page ga-class-editor">
       <div className="ga-sticky-head">
         <PageHead
-          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Chủ đề nhánh' }]}
+          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Chủ đề nhánh' }, { label: cls.name }]}
           title={`Chủ đề nhánh ${cls.name}`}
-          desc={<EduStatusBadge status={status} size="lg" />}
-          actions={
-            <>
-              {/* Xuất / in ở mọi bước; đã duyệt thì Phó HT in ra ký, giáo viên in để dùng hằng ngày */}
-              <button type="button" className="btn btn--ghost" onClick={() => setPreview(branchFile(printArgs))}>
-                <FileDown size={16} aria-hidden /> Xuất
-              </button>
-              {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
-              {ctx.canPickClass && (
-                <select
-                  className="select"
-                  aria-label="Chọn lớp"
-                  value={classId}
-                  onChange={(e) => guard.leave(`/education/branches/${e.target.value}`)}
-                >
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <span className="muted text-sm">{saver.label}</span>
-              {editable && (
-                <VersionHistory
-                  drafts={saver.drafts}
-                  saved={saver.cleanDoc()}
-                  current={payload}
-                  unsaved={saver.unsaved}
-                  linesOf={docLines}
-                  onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
-                />
-              )}
-              <button
-                type="button"
-                className="btn btn--primary btn--sm"
-                onClick={saver.save}
-                disabled={!!saveReason}
-                title={saveReason || 'Lưu (Ctrl+S)'}
-                aria-description={saveReason || undefined}
-              >
-                <Save size={16} aria-hidden /> Lưu
-              </button>
-              <ReviewActions
-                name="chủ đề nhánh"
-                sendTo={review.sendTo}
-                can={review.can}
-                showSend
-                sendDisabledReason={sendReason}
-                sendBlocked={
-                  sendReason ||
-                  (saver.unsaved || saver.saving
-                    ? 'Lưu trước khi gửi'
-                    : // BE:EDU-26 — còn mục đỏ thì chưa gửi (BE cũng kiểm lại)
-                      version.unresolved.length
-                      ? `Còn ${version.unresolved.length} mục đổi theo kế hoạch năm mới cần sửa`
-                      : hasPending
-                        ? 'Còn tên AI chưa giữ hoặc bỏ'
-                        : empty
-                          ? `Còn ${empty} tuần chưa đặt tên chủ đề nhánh`
-                          : null)
-                }
-                beforeOpen={checkBeforeOpen}
-                notes={{ submit: 'Chủ đề nhánh sẽ bị khóa cho tới khi được duyệt hoặc bị trả lại.' }}
-                onAct={act}
-              />
-            </>
-          }
         />
+        {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 04/11) */}
+        <div className="ga-year-toolbar" role="group" aria-label="Thao tác chủ đề nhánh">
+          <div className="ga-year-toolbar__group">
+            <EduStatusBadge status={status} />
+            {ctx.canPickClass && (
+              <select
+                className="select"
+                aria-label="Chọn lớp"
+                value={classId}
+                onChange={(e) => guard.leave(`/education/branches/${e.target.value}`)}
+              >
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            <p className="muted text-sm ga-year-save-status" aria-live="polite">
+              {saver.label}
+            </p>
+            {editable && (
+              <VersionHistory
+                drafts={saver.drafts}
+                saved={saver.cleanDoc()}
+                current={payload}
+                unsaved={saver.unsaved}
+                linesOf={docLines}
+                onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
+              />
+            )}
+            <button
+              type="button"
+              className="btn btn--sm btn--outline-primary"
+              onClick={saver.save}
+              disabled={!!saveReason}
+              title={saveReason || 'Lưu (Ctrl+S)'}
+              aria-description={saveReason || undefined}
+            >
+              <Save size={16} aria-hidden /> Lưu
+            </button>
+            <ReviewActions
+              name="chủ đề nhánh"
+              sendTo={review.sendTo}
+              can={review.can}
+              showSend
+              sendDisabledReason={sendReason}
+              sendBlocked={
+                sendReason ||
+                (saver.unsaved || saver.saving
+                  ? 'Lưu trước khi gửi'
+                  : // BE:EDU-26 — còn mục đỏ thì chưa gửi (BE cũng kiểm lại)
+                    version.unresolved.length
+                    ? `Còn ${version.unresolved.length} mục đổi theo kế hoạch năm mới cần sửa`
+                    : hasPending
+                      ? 'Còn tên AI chưa giữ hoặc bỏ'
+                      : empty
+                        ? `Còn ${empty} tuần chưa đặt tên chủ đề nhánh`
+                        : null)
+              }
+              beforeOpen={checkBeforeOpen}
+              notes={{ submit: 'Chủ đề nhánh sẽ bị khóa cho tới khi được duyệt hoặc bị trả lại.' }}
+              onAct={act}
+              variant="btn--outline-primary"
+            />
+            {/* Xuất / in ở mọi bước; đã duyệt thì Phó HT in ra ký, giáo viên in để dùng hằng ngày */}
+            <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setPreview(branchFile(printArgs))}>
+              <FileDown size={16} aria-hidden /> Xuất file
+            </button>
+            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
+          </div>
+        </div>
       </div>
       <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
       {!saved && version.prevDoc && !dirty && (

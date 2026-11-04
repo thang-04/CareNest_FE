@@ -1,3 +1,4 @@
+import { useEduMenuHidden } from '@/hooks/education-plan/useEduMenuHidden';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { CaretDown, SidebarCollapse, SidebarExpand, X } from '@/components/ui/icons';
@@ -46,7 +47,8 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
   const { user } = useAuth();
   // Menu tính theo quyền nên mỗi lần gọi là mảng mới: giữ cố định theo vai trò / người dùng,
   // nếu không effect bên dưới chạy lại mỗi lần render và đóng nhóm vừa mở
-  const menu = useMemo(() => getMenuForRole(role, user), [role, user]);
+  const hiddenItems = useEduMenuHidden(role);
+  const menu = useMemo(() => getMenuForRole(role, user, hiddenItems), [role, user, hiddenItems]);
   const [open, setOpen] = useState(readOpenGroups);
 
   // Open the group that contains the current page when navigating.

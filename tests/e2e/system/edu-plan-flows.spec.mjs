@@ -136,21 +136,19 @@ test('ST-01 kế hoạch năm: sửa không tự ghi lên hệ thống, chỉ Ct
   await leave(page);
 });
 
-test('ST-01b điện thoại: nút "Lấy mục tiêu" mở danh sách 3 cách lấy, chọn được (không sập trang)', async ({ browser }) => {
+test('ST-01b điện thoại: 3 nút lấy mục tiêu hiện thẳng trên thanh thao tác, mở đúng hộp (không sập trang)', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
   const page = await ctx.newPage();
   await login(page, USERS.teacher1);
   await page.goto(`/education/goals/${planId}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: 'Lấy mục tiêu' }).click();
-  await expect(page.getByRole('menuitem')).toHaveText(['Nhập file', 'Lấy từ kế hoạch có sẵn', 'Lấy từ Chương trình của Bộ']);
-  await page.getByRole('menuitem', { name: 'Lấy từ kế hoạch có sẵn' }).click();
+  // Từ 02/11 (format KHNH) không còn menu "Lấy mục tiêu": ba nút đứng riêng
+  await page.getByRole('button', { name: 'Lấy từ kế hoạch năm học' }).click();
   await expect(page.getByRole('dialog', { name: 'Lấy mục tiêu từ kế hoạch có sẵn' })).toBeVisible();
   await expect(page.getByText('Hệ thống gặp sự cố')).toHaveCount(0);
   await page.getByRole('dialog').getByRole('button', { name: 'Hủy', exact: true }).click();
   // Nhập file (BE:EDU-46) mở hộp xem trước, không mở thẳng ô chọn file
-  await page.getByRole('button', { name: 'Lấy mục tiêu' }).click();
-  await page.getByRole('menuitem', { name: 'Nhập file' }).click();
+  await page.getByRole('button', { name: 'Nhập file' }).click();
   await expect(page.getByRole('dialog', { name: 'Nhập file mục tiêu' })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Hủy', exact: true }).click();
   await leave(page);
@@ -189,7 +187,8 @@ test('ST-01d Back rời màn soạn một trang, vẫn hỏi khi chưa lưu và 
   await expect(page.locator('#desc')).toHaveValue('Sửa dở (ST-01d)');
   await page.goBack();
   await dialog.getByRole('button', { name: 'Không lưu', exact: true }).click();
-  await page.waitForURL((u) => u.pathname === `/education/goals/${planId}`);
+  // Nút Chỉnh sửa thay chỗ trang chi tiết trong lịch sử (02/11) ⇒ Back về danh sách kế hoạch
+  await page.waitForURL((u) => u.pathname === '/education/goals');
   await leave(page);
 });
 

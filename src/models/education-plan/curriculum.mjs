@@ -118,3 +118,24 @@ export const curriculumSourceLink = (ageGroupId, curriculumGoalId, anchor) => {
   const hash = anchor || (curriculumGoalId ? `cg-${curriculumGoalId}` : '');
   return `/education/curriculum-sources${ageGroupId ? `?ageGroup=${encodeURIComponent(ageGroupId)}` : ''}${hash ? `#${hash}` : ''}`;
 };
+
+/**
+ * Cây cho danh sách GoalPicker (hộp Lấy từ Bộ và trang Nguồn chương trình — cùng giao diện, Tiền 03/11).
+ * Mã MT như bảng mục tiêu: số của Bộ ("2.1"); kết quả chỉ có một mục tiêu không đánh số ⇒ MT<số kết quả>.1.
+ */
+export const curriculumPickTree = (tree, anchorOf = (id) => `pick-cg-${id}`) =>
+  tree.map((d) => ({
+    name: d.name,
+    subs: d.subs.map((s) => ({
+      key: s.key,
+      name: s.name,
+      groups: s.groups.map((g) => ({
+        key: g.key,
+        title: `${g.no ? `${g.no}. ` : ''}${g.text}`,
+        goals: g.goals.map((x, i) => {
+          const no = x.goalNo || (g.no ? `${g.no}.${i + 1}` : '');
+          return { id: x.id, code: no ? `MT${no}` : '', text: x.goalText, contents: x.contents, anchor: anchorOf(x.id) };
+        }),
+      })),
+    })),
+  }));

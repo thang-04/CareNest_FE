@@ -32,7 +32,12 @@ function GroupCheck({ ids, picked, onToggle, label, disabled }) {
   );
 }
 
-export function GoalPicker({ tree, picked, onToggle, disabled = false }) {
+// Nhãn loại cấp lĩnh vực con, nhóm kết quả; mục tiêu nhận ra qua mã MT như bảng mục tiêu (Tiền 03/11)
+const KIND_LABELS = { sub: 'Lĩnh vực con', group: 'Kết quả mong đợi' };
+const Kind = ({ label, tone }) => <span className={`ga-cur-kind ga-cur-kind--${tone}`}>{label}</span>;
+
+/** readOnly: chỉ xem (trang Nguồn chương trình của Bộ) — cùng giao diện, không ô tích / chọn tất cả. */
+export function GoalPicker({ tree, picked = new Set(), onToggle, disabled = false, kindLabels = KIND_LABELS, readOnly = false }) {
   const scopeId = useId();
   const [query, setQuery] = useState('');
   const [domainPick, setDomainPick] = useState('');
@@ -92,25 +97,27 @@ export function GoalPicker({ tree, picked, onToggle, disabled = false }) {
             ))}
           </div>
         )}
-        <div className="ga-cur-selection">
-          <div>
-            <p className="fw-600" aria-live="polite">
-              Đã chọn {tree.reduce((n, d) => n + idsOf(d).filter((id) => picked.has(id)).length, 0)}/{total} mục tiêu
-            </p>
-            <p className="muted text-sm" id={scopeId}>
-              Chọn tất cả áp dụng cho {shownIds.length} mục tiêu đang hiển thị.
-            </p>
+        {!readOnly && (
+          <div className="ga-cur-selection">
+            <div>
+              <p className="fw-600" aria-live="polite">
+                Đã chọn {tree.reduce((n, d) => n + idsOf(d).filter((id) => picked.has(id)).length, 0)}/{total} mục tiêu
+              </p>
+              <p className="muted text-sm" id={scopeId}>
+                Chọn tất cả áp dụng cho {shownIds.length} mục tiêu đang hiển thị.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn--outline-primary btn--sm"
+              aria-describedby={scopeId}
+              disabled={!shownIds.length || disabled}
+              onClick={() => onToggle(shownIds)}
+            >
+              {allShownPicked ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn btn--outline-primary btn--sm"
-            aria-describedby={scopeId}
-            disabled={!shownIds.length || disabled}
-            onClick={() => onToggle(shownIds)}
-          >
-            {allShownPicked ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-          </button>
-        </div>
+        )}
       </div>
       {!shown.length ? (
         <p className="muted" role="status">
@@ -121,36 +128,55 @@ export function GoalPicker({ tree, picked, onToggle, disabled = false }) {
           {shown.map((domain) => (
             <section key={domain.name} className="ga-cur-domain">
               <label className="ga-cur-domain__head">
-                <GroupCheck
-                  ids={idsOf(domain)}
-                  picked={picked}
-                  onToggle={onToggle}
-                  disabled={disabled}
-                  label={`Chọn cả lĩnh vực ${domain.name}`}
-                />
+                {!readOnly && (
+                  <GroupCheck
+                    ids={idsOf(domain)}
+                    picked={picked}
+                    onToggle={onToggle}
+                    disabled={disabled}
+                    label={`Chọn cả lĩnh vực ${domain.name}`}
+                  />
+                )}
                 <span>{domain.name}</span>
               </label>
               {domain.subs.map((sub) => (
                 <div key={sub.key || '-'} className="ga-cur-sub">
-                  {sub.name && <div className="ga-cur-sub__name">{sub.name}</div>}
+                  {sub.name && (
+                    <div className="ga-cur-sub__name">
+                      <Kind label={kindLabels.sub} tone="sub" />
+                      {sub.name}
+                    </div>
+                  )}
                   {sub.groups.map((group) => (
                     <div key={group.key} className="ga-cur-group">
                       {group.title && (
                         <label className="ga-cur-group__head">
-                          <GroupCheck
-                            ids={group.goals.map((g) => g.id)}
-                            picked={picked}
-                            onToggle={onToggle}
-                            disabled={disabled}
-                            label={`Chọn cả nhóm ${group.title}`}
-                          />
-                          <span>{group.title}</span>
+                          {!readOnly && (
+                            <GroupCheck
+                              ids={group.goals.map((g) => g.id)}
+                              picked={picked}
+                              onToggle={onToggle}
+                              disabled={disabled}
+                              label={`Chọn cả nhóm ${group.title}`}
+                            />
+                          )}
+                          <span>
+                            <Kind label={kindLabels.group} tone="group" />
+                            {group.title}
+                          </span>
                         </label>
                       )}
                       {group.goals.map((goal) => (
                         <div key={goal.id} id={goal.anchor} className="ga-cur-item">
                           <label className="ga-cur-row">
-                            <input type="checkbox" disabled={disabled} checked={picked.has(goal.id)} onChange={() => onToggle([goal.id])} />
+                            {!readOnly && (
+                              <input
+                                type="checkbox"
+                                disabled={disabled}
+                                checked={picked.has(goal.id)}
+                                onChange={() => onToggle([goal.id])}
+                              />
+                            )}
                             <span className="ga-cur-row__text">
                               {goal.code && <span className="ga-goal-code">{goal.code}</span>} {goal.text}
                             </span>
