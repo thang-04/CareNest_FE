@@ -39,6 +39,9 @@ export const guardianApi = {
     return { ...result, items };
   },
   listGuardians,
+  // AUTH-20: phụ huynh trên hồ sơ trẻ chờ kích hoạt; BE chưa có (pending trong integrationModules, docs/integration/CHILD_ENROLLMENT_BE_SPEC.md)
+  listPendingGuardians: (childId) => axiosClient.get(`/children/${childId}/guardians/pending`),
+  activateGuardians: (childId) => axiosClient.post(`/children/${childId}/guardians/activate`),
   lookupGuardian: (childId, phone) => axiosClient.post(`/children/${childId}/guardians/lookup`, { phone }),
   // BE không lưu email phụ huynh; confirmUserId bắt buộc khi SĐT đã có tài khoản (AUTH-18)
   addGuardian: (childId, { phone, fullName, relationship, confirmUserId }) =>

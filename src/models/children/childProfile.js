@@ -1,8 +1,10 @@
+import { formatDate } from '@/utils/format';
 import { DECLARATION_STATE } from './childrenConstants';
 
 /**
- * Hành chính và tiền sử của trẻ, hỏi khi tiếp nhận (user chốt 2026-10-17, PROPOSED — chờ BE).
- * Phiếu khám Phụ lục II luôn điền sẵn từ đây; lưu kết luận thì cập nhật ngược, có ghi lịch sử. Không bắt buộc khi tiếp nhận.
+ * Hành chính và tiền sử của trẻ, nhập khi tiếp nhận (user chốt 2026-10-17, PROPOSED — chờ BE). Từ 2026-10-22: bắt buộc trừ
+ * idNumber, bloodType. Phiếu khám Phụ lục II: hành chính chỉ đọc từ đây; tiền sử điền sẵn, giáo viên sửa được, lưu kết luận cập
+ * nhật lại vào khai báo. Dữ liệu cũ có thể còn "" = chưa cung cấp.
  *
  * @typedef {Object} ChildProfile          child.profile
  * @property {string} idNumber              số CC/CCCD/hộ chiếu/mã định danh
@@ -17,7 +19,7 @@ import { DECLARATION_STATE } from './childrenConstants';
  * @typedef {Object} MedicalHistory        declaration.medicalHistory
  * @property {{ state: string, text: string }} self
  * @property {{ state: string, text: string }} family
- * @property {{ state: string }} tbContact
+ * @property {{ state: string, contactDate: string }} tbContact   contactDate: ngày tiếp xúc gần nhất YYYY-MM-DD, chỉ khi REPORTED
  */
 
 const S = DECLARATION_STATE;
@@ -36,13 +38,14 @@ export const emptyChildProfile = () => ({
 export const emptyMedicalHistory = () => ({
   self: { state: S.NOT_PROVIDED, text: '' },
   family: { state: S.NOT_PROVIDED, text: '' },
-  tbContact: { state: S.NOT_PROVIDED },
+  tbContact: { state: S.NOT_PROVIDED, contactDate: '' },
 });
 
 export const MEDICAL_HISTORY_ITEMS = [
   { key: 'self', label: 'Tiền sử bản thân', textLabel: 'Tên bệnh của trẻ', withText: true },
   { key: 'family', label: 'Tiền sử gia đình', textLabel: 'Tên bệnh trong gia đình', withText: true },
-  { key: 'tbContact', label: 'Tiền sử tiếp xúc với người bệnh lao', withText: false },
+  // "Có" thì kèm ngày tiếp xúc gần nhất (user chốt 2026-10-21).
+  { key: 'tbContact', label: 'Tiền sử tiếp xúc với người bệnh lao', withText: false, dateLabel: 'Ngày tiếp xúc gần nhất' },
 ];
 
 export const MEDICAL_HISTORY_STATE_LABELS = { REPORTED: 'Có', NONE_REPORTED: 'Không', NOT_PROVIDED: 'Chưa cung cấp' };
@@ -103,17 +106,20 @@ export const historyToExam = (mh = emptyMedicalHistory()) => ({
   family: toYesNo(mh.family?.state),
   familyText: mh.family?.state === S.REPORTED ? mh.family.text || '' : '',
   tbContact: toYesNo(mh.tbContact?.state),
+  tbContactDate: mh.tbContact?.state === S.REPORTED ? mh.tbContact.contactDate || '' : '',
 });
 
 export const examToHistory = (h) => ({
   self: { state: fromYesNo(h.self), text: h.self === 'YES' ? h.selfText || '' : '' },
   family: { state: fromYesNo(h.family), text: h.family === 'YES' ? h.familyText || '' : '' },
-  tbContact: { state: fromYesNo(h.tbContact) },
+  tbContact: { state: fromYesNo(h.tbContact), contactDate: h.tbContact === 'YES' ? h.tbContactDate || '' : '' },
 });
 
 /** Mô tả 1 mục tiền sử để hiển thị. */
 export const historyItemText = (item, mh) => {
   const v = mh?.[item.key];
   if (!v) return MEDICAL_HISTORY_STATE_LABELS.NOT_PROVIDED;
-  return v.state === S.REPORTED && item.withText && v.text ? `Có — ${v.text}` : MEDICAL_HISTORY_STATE_LABELS[v.state];
+  if (v.state === S.REPORTED && item.withText && v.text) return `Có — ${v.text}`;
+  if (v.state === S.REPORTED && item.dateLabel && v.contactDate) return `Có — gần nhất ngày ${formatDate(v.contactDate)}`;
+  return MEDICAL_HISTORY_STATE_LABELS[v.state];
 };

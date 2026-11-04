@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarDays, ClipboardList, School, UserCheck } from '@/components/ui/icons';
+import { CalendarDays, ClipboardList, Info, Phone, School, UserCheck } from '@/components/ui/icons';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { Modal } from '@/components/ui/Modal';
+import { PickupCallFlow, PickupPhotoFlow } from '@/components/pickup/PickupVerifyFlow';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
-import { PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
+import { PickupPerson, PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
 import { usePickupBoard, usePickupClasses } from '@/hooks/pickup/usePickups';
-import { PICKUP_REASON_LABELS, PICKUP_STATUS, VERIFICATION } from '@/models/pickup/pickupConstants';
+import { PICKUP_REASON_LABELS, PICKUP_STATUS } from '@/models/pickup/pickupConstants';
 import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
 import '@/styles/modules/pickup.css';
@@ -22,8 +25,11 @@ const timeOf = (iso) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour:
 /** #99 Pickup List: children of the class waiting to be picked up (UC 3.15 entry point). */
 export default function PickupListPage() {
   const [params, setParams] = useSearchParams();
+  const { schoolYear, activeYear } = useSchoolYear();
   const today = todayInput();
   const date = params.get('date') || today;
+  // Đón trẻ theo năm học đang hoạt động (user chốt 2026-10-28, Y-1): xem lại từ ngày đầu năm; năm chưa bắt đầu thì không chặn.
+  const minDate = activeYear?.startDate && activeYear.startDate <= today ? activeYear.startDate : undefined;
   const { classes, loading: loadingClasses, error: classError, reload: reloadClasses } = usePickupClasses();
   const classId = params.get('classId') || classes[0]?.id || '';
   const { board, loading, error, reload } = usePickupBoard(classId, date);
@@ -32,7 +38,19 @@ export default function PickupListPage() {
 
   const setParam = (key, value) => {
     const next = new URLSearchParams(params);
-    next.set(key, value);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    if (!next.get('classId') && classId) next.set('classId', classId);
+    setParams(next, { replace: true });
+  };
+  // "Trả trẻ" (so ảnh) và "Gọi phụ huynh" mở modal ngay trên danh sách (user yêu cầu 2026-10-23); trẻ đang mở ghi trên URL
+  // để trang ghi kết quả quay lại mở lại đúng modal.
+  const verifyId = params.get('verify') || '';
+  const callId = params.get('call') || '';
+  const closeModals = () => {
+    const next = new URLSearchParams(params);
+    next.delete('verify');
+    next.delete('call');
     if (!next.get('classId') && classId) next.set('classId', classId);
     setParams(next, { replace: true });
   };
@@ -43,6 +61,17 @@ export default function PickupListPage() {
     .filter((r) => tab === 'ALL' || r.status === tab)
     .filter((r) => !keyword || normalizeText(r.child.fullName).includes(normalizeText(keyword)));
   const isToday = date === today;
+  const nameOf = (id) => rows.find((r) => r.child.id === id)?.child.fullName || '';
+  // Tab Chờ đón trống: nói rõ vì sao không còn trẻ để trả (chỉ trẻ điểm danh Có mặt mới chờ đón, user chốt 2026-10-27)
+  const unmarked = count(PICKUP_STATUS.UNMARKED);
+  const waitingEmpty = tab === PICKUP_STATUS.WAITING && !keyword;
+  const emptyTitle = !waitingEmpty
+    ? 'Không có trẻ phù hợp'
+    : unmarked
+      ? `Còn ${unmarked} trẻ chưa điểm danh`
+      : count(PICKUP_STATUS.PICKED_UP)
+        ? 'Đã trả hết trẻ có mặt'
+        : 'Không có trẻ có mặt';
 
   if (loadingClasses) return <LoadingState />;
 
@@ -50,6 +79,12 @@ export default function PickupListPage() {
     <div className="page">
       <Breadcrumb items={pickupCrumbs()} />
       <h1 className="page__title">Đón trẻ</h1>
+      {activeYear && schoolYear !== activeYear.id && (
+        <div className="alert alert--info mb-16" role="status">
+          <Info size={18} />
+          <div>Đón trẻ luôn theo lớp của năm học đang hoạt động {activeYear.label}.</div>
+        </div>
+      )}
       {classError ? (
         <ErrorState error={classError} onRetry={reloadClasses} />
       ) : classes.length === 0 ? (
@@ -81,6 +116,7 @@ export default function PickupListPage() {
                   type="date"
                   className="input"
                   value={date}
+                  min={minDate}
                   max={today}
                   onChange={(e) => e.target.value && setParam('date', e.target.value)}
                 />
@@ -123,25 +159,32 @@ export default function PickupListPage() {
                         <td colSpan={6}>
                           <EmptyState
                             icon={UserCheck}
-                            title={tab === PICKUP_STATUS.WAITING && rows.length > 0 ? 'Đã trả hết trẻ của lớp' : 'Không có trẻ phù hợp'}
-                            description={`Ngày ${formatDate(date)}`}
+                            title={emptyTitle}
+                            description={
+                              waitingEmpty && unmarked
+                                ? `Chỉ trẻ được điểm danh Có mặt mới trả được. Ngày ${formatDate(date)}`
+                                : `Ngày ${formatDate(date)}`
+                            }
+                            action={
+                              waitingEmpty &&
+                              unmarked > 0 &&
+                              isToday && (
+                                <Link className="btn btn--primary" to={`/attendance?classId=${classId}&date=${date}`}>
+                                  Điểm danh ngay
+                                </Link>
+                              )
+                            }
                           />
                         </td>
                       </tr>
                     ) : (
                       visible.map((r) => {
                         const failed = r.attempts.filter((a) => a.outcome !== 'HANDED_OVER').length;
-                        // Lần gần nhất là "không liên lạc được": người đón đang chờ phụ huynh gọi lại
-                        const last = r.attempts[r.attempts.length - 1];
-                        const awaitingCall = r.status === PICKUP_STATUS.WAITING && last?.verification === VERIFICATION.PHONE_UNREACHABLE;
                         return (
                           <tr key={r.child.id}>
                             <td>
                               <div className="fw-600">{r.child.fullName}</div>
-                              <div className="text-xs muted">
-                                {r.child.code}
-                                {!r.attendanceStatus && r.status === PICKUP_STATUS.WAITING ? ' · chưa điểm danh' : ''}
-                              </div>
+                              <div className="text-xs muted">{r.child.code}</div>
                             </td>
                             <td className="center">
                               <PickupStatusBadge status={r.status} />
@@ -164,8 +207,10 @@ export default function PickupListPage() {
                             <td>
                               {r.pickup ? (
                                 <>
-                                  <div>{r.pickup.pickupPersonName}</div>
-                                  <div className="text-xs muted">{r.pickup.pickupPersonRelation}</div>
+                                  <PickupPerson pickup={r.pickup} />
+                                  {!r.pickup.pickupPersonName && r.pickup.note && (
+                                    <div className="text-xs muted dt-note">{r.pickup.note}</div>
+                                  )}
                                 </>
                               ) : (
                                 <span className="muted">—</span>
@@ -187,9 +232,19 @@ export default function PickupListPage() {
                             </td>
                             <td className="cell--actions">
                               {isToday && r.status === PICKUP_STATUS.WAITING && (
-                                <Link className="btn btn--sm btn--primary" to={`/pickup/${r.child.id}/verify`}>
-                                  <UserCheck size={15} /> {awaitingCall ? 'Xác minh lại' : 'Trả trẻ'}
-                                </Link>
+                                <div className="row-actions">
+                                  <button type="button" className="btn btn--sm btn--primary" onClick={() => setParam('verify', r.child.id)}>
+                                    <UserCheck size={15} /> Trả trẻ
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn--sm"
+                                    onClick={() => setParam('call', r.child.id)}
+                                    aria-label={`Gọi phụ huynh của ${r.child.fullName}`}
+                                  >
+                                    <Phone size={15} /> Gọi phụ huynh
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -207,6 +262,12 @@ export default function PickupListPage() {
               <ClipboardList size={16} /> Kết quả trả trẻ hôm nay
             </Link>
           </div>
+          <Modal open={!!verifyId} size="lg" title={`Trả trẻ: ${nameOf(verifyId)}`} onClose={closeModals}>
+            {verifyId && <PickupPhotoFlow key={verifyId} childId={verifyId} onDone={closeModals} />}
+          </Modal>
+          <Modal open={!!callId} title={`Gọi phụ huynh: ${nameOf(callId)}`} onClose={closeModals}>
+            {callId && <PickupCallFlow key={callId} childId={callId} onDone={closeModals} />}
+          </Modal>
         </>
       )}
     </div>

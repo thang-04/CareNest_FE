@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useChildDetail } from '@/hooks/children/useChildRecords';
+import { useChildDetail, useCitizenIdAccounts } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
@@ -16,6 +16,8 @@ import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { emptyChildProfile } from '@/models/children/childProfile';
 import { hasErrors, validateChildInfo } from '@/utils/children/childrenValidation';
 import { canEditChild } from '@/utils/children/childrenPermissions';
+import { withGuardianAccounts } from '@/utils/children/childrenHelpers';
+import { normalizeCitizenId } from '@/utils/citizenId';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -29,6 +31,8 @@ export default function EditChildPage() {
   const [reason, setReason] = useState('');
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  // Thêm phụ huynh có CCCD trùng tài khoản có sẵn ⇒ tự điền theo tài khoản, khóa; lưu thì liên kết (user chốt 2026-10-23).
+  const accountOf = useCitizenIdAccounts((form?.guardians || []).map((g) => g.idNumber));
 
   useEffect(() => {
     if (detail?.child) {
@@ -37,7 +41,13 @@ export default function EditChildPage() {
         fullName: c.fullName,
         dateOfBirth: c.dateOfBirth,
         gender: c.gender,
-        guardians: c.guardians.map((g) => ({ fullName: g.fullName, relation: g.relation, phone: g.phone, email: g.email || '' })),
+        guardians: c.guardians.map((g) => ({
+          fullName: g.fullName,
+          relation: g.relation,
+          phone: g.phone,
+          idNumber: g.idNumber || '',
+          email: g.email || '',
+        })),
         profile: { ...emptyChildProfile(), ...c.profile, gestationWeeks: c.profile?.gestationWeeks ?? '' },
       });
     }
@@ -73,18 +83,31 @@ export default function EditChildPage() {
       </div>
     );
 
-  const lockedPhones = child.guardians
-    .filter((g) => g.accountStatus && g.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED)
-    .map((g) => g.phone);
+  const withAccount = child.guardians.filter((g) => g.accountStatus && g.accountStatus !== PARENT_ACCOUNT_STATUS.NOT_ACTIVATED);
+  // Phụ huynh đã có tài khoản: sửa được thông tin (tài khoản đổi theo, user chốt 2026-10-28) nhưng không xóa ở form.
+  const accountPhones = withAccount.map((g) => g.phone);
+  const accountIds = withAccount.filter((g) => g.idNumber).map((g) => normalizeCitizenId(g.idNumber));
+
+  const effective = { ...form, guardians: withGuardianAccounts(form.guardians, accountOf) };
 
   const save = async () => {
-    const errs = validateChildInfo(form);
+    const errs = validateChildInfo(effective);
     if (!reason.trim()) errs.reason = 'Nhập lý do chỉnh sửa hồ sơ';
     setErrors(errs);
     if (hasErrors(errs)) return;
     setBusy(true);
     try {
-      await updateChild(id, { child: form, reason }, user);
+      const saved = await updateChild(id, { child: effective, reason }, user);
+      // Đổi SĐT phụ huynh đã có tài khoản ⇒ BE đổi tên đăng nhập, gửi mật khẩu mới qua SMS (user chốt 2026-10-28).
+      (saved.accountChanges || [])
+        .filter((c) => c.phoneChanged)
+        .forEach((c) =>
+          c.smsStatus === 'FAILED'
+            ? toast.warning(
+                `Tên đăng nhập của ${c.fullName} đã đổi sang ${c.phone} nhưng chưa gửi được SMS mật khẩu; gửi lại ở màn Tài khoản phụ huynh.`,
+              )
+            : toast.success(`Tên đăng nhập của ${c.fullName} đổi sang ${c.phone}; mật khẩu tạm mới đã gửi qua SMS tới số này.`),
+        );
       toast.success('Đã lưu thay đổi hồ sơ.');
       navigate(`/children/${id}`);
     } catch (err) {
@@ -97,7 +120,7 @@ export default function EditChildPage() {
 
   const change = (v) => {
     setForm(v);
-    const now = validateChildInfo(v);
+    const now = validateChildInfo({ ...v, guardians: withGuardianAccounts(v.guardians, accountOf) });
     setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k === 'reason' || now[k])));
   };
 
@@ -106,7 +129,15 @@ export default function EditChildPage() {
       <Breadcrumb items={crumbs} />
       <h1 className="page__title">Sửa hồ sơ: {child.fullName}</h1>
       <section className="card wizard-card">
-        <ChildInfoFields value={form} onChange={change} errors={errors} lockedGuardianPhones={lockedPhones} />
+        <ChildInfoFields
+          value={form}
+          onChange={change}
+          errors={errors}
+          accountGuardianPhones={accountPhones}
+          accountGuardianIds={accountIds}
+          accountOf={accountOf}
+          childId={id}
+        />
       </section>
       <section className="card wizard-card">
         <ChildProfileFields value={form.profile} onChange={(profile) => change({ ...form, profile })} errors={errors} />

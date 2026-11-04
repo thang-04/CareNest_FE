@@ -34,13 +34,16 @@ test('demo: trước giờ chốt sổ hôm nay chỉ tạm tính, chưa ai xác
   assert.equal(handovers.length, 0);
 });
 
-test('demo: lớp Chồi 1 của giáo viên demo vẫn để trống điểm danh hôm nay', () => {
+test('demo: lớp Chồi 1 của giáo viên demo chỉ có sẵn một trẻ có mặt, còn lại để trống điểm danh hôm nay', () => {
   const db = readDb();
-  // Chỉ còn bản ghi "phụ huynh báo nghỉ" của seed nghỉ phép, không có bản ghi giáo viên điểm danh
+  // Ngoài bản ghi "phụ huynh báo nghỉ" chỉ có một trẻ có mặt mẫu; các trẻ khác chờ giáo viên tự điểm danh
+  const records = db.attendance.filter((r) => r.date === TODAY && r.classId === 'cls_c1_c1' && !r.leaveRequestId);
   assert.deepEqual(
-    db.attendance.filter((r) => r.date === TODAY && r.classId === 'cls_c1_c1' && !r.leaveRequestId),
-    [],
+    records.map((r) => r.status),
+    ['PRESENT'],
   );
+  const children = db.children.filter((ch) => ch.classId === 'cls_c1_c1' && ch.status === 'ACTIVE');
+  assert.ok(db.attendance.filter((r) => r.date === TODAY && r.classId === 'cls_c1_c1').length < children.length);
   assert.ok(db.attendance.some((r) => r.date === TODAY && r.classId === 'cls_c1_m1'));
 });
 

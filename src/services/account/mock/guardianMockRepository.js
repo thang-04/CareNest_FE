@@ -3,14 +3,20 @@ import { childrenMockRepository as children } from '@/services/children/mock/chi
 import { canActivateParent, canViewChild, canViewChildren, canViewParentAccounts } from '@/utils/children/childrenPermissions';
 import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 import { normalizePhone, validateGuardian } from '@/utils/account/guardianValidation';
-import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
-import { uid } from '@/utils/id';
 import { issuePassword } from '@/mocks/authMockRepository';
+// Thêm phụ huynh kèm tạo tài khoản ngay (POST /children/{id}/guardians) đã bỏ: phụ huynh nhập ở hồ sơ trẻ rồi kích hoạt
+// (AUTH-20; user chốt 2026-10-28, C-4 A). Phần tạo/liên kết tài khoản dùng chung ở parentAccountMock.
+import {
+  activatePendingGuardians,
+  guardianForm,
+  parentAccountView,
+  pendingGuardiansOf,
+  sendPasswordSms,
+  temporaryPassword,
+} from '@/mocks/parentAccountMock';
 import { migrateGuardianAccounts, parentAccountOf } from './guardianCompatibility';
 import { activeYearId } from '@/mocks/roomManagers';
 
-const relationOf = (value) =>
-  Object.keys(GUARDIAN_RELATIONSHIP_LABELS).find((key) => GUARDIAN_RELATIONSHIP_LABELS[key] === value) || value || 'GUARDIAN';
 const accountOf = parentAccountOf;
 const clsOf = (db, child) => db.classes.find((cls) => cls.id === child.classId);
 const visible = (db, child, actor) => canViewChild(child, actor, clsOf(db, child));
@@ -34,18 +40,10 @@ const loadChild = (db, id, actor, writing = false) => {
   if (writing && !canActivateParent(child, actor)) forbid();
   return child;
 };
-const viewOf = (account, guardian) => ({
-  userId: account.id,
-  username: account.username || account.phone,
-  fullName: guardian.fullName || account.fullName,
-  relationship: relationOf(guardian.relation),
-  status: account.status,
-  linkedAt: guardian.linkedAt || account.createdAt,
-});
 const guardiansOf = (db, child) =>
   (child.guardians || []).flatMap((guardian) => {
     const account = accountOf(db, guardian);
-    return account && (account.childIds || []).includes(child.id) ? [viewOf(account, guardian)] : [];
+    return account && (account.childIds || []).includes(child.id) ? [parentAccountView(account, guardian)] : [];
   });
 const relatedChildren = (db, account) =>
   db.children.filter(
@@ -62,11 +60,6 @@ const syncStatus = (db, account) =>
       if (accountOf(db, guardian)?.id === account.id) guardian.accountStatus = account.status;
     }),
   );
-const temporaryPassword = () =>
-  `Cn${uid('demo')
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .slice(-8)}7`;
-
 export const guardianMockRepository = {
   async getStructure(actor) {
     const db = await initialize(actor);
@@ -107,7 +100,33 @@ export const guardianMockRepository = {
     const db = await initialize(actor);
     return clone(guardiansOf(db, loadChild(db, childId, actor)));
   },
-  // Cùng shape BE GuardianCandidateResponse; SĐT nhân sự vẫn để addGuardian từ chối như trước
+  /** Phụ huynh trên hồ sơ trẻ chưa có tài khoản liên kết với trẻ; thông tin lấy từ hồ sơ, không sửa ở màn này (user chốt 2026-10-23). */
+  async listPendingGuardians(childId, actor) {
+    const db = await initialize(actor);
+    const child = loadChild(db, childId, actor);
+    return clone(
+      pendingGuardiansOf(db, child).map((g) => ({
+        fullName: g.fullName,
+        relation: g.relation,
+        phone: g.phone,
+        idNumber: g.idNumber || '',
+        email: g.email || '',
+        // SĐT đã có tài khoản (trẻ khác): kích hoạt chỉ liên kết thêm trẻ, không cấp mật khẩu mới.
+        hasAccount: !!accountOf(db, g),
+        problems: Object.values(validateGuardian(guardianForm(g))),
+      })),
+    );
+  },
+  /** Kích hoạt một lần cho mọi phụ huynh chưa có tài khoản của trẻ (user chốt 2026-10-23); lỗi một người thì không tạo ai. */
+  async activateGuardians(childId, actor) {
+    await initialize(actor);
+    return writeDb((db) => {
+      const child = loadChild(db, childId, actor, true);
+      if (!pendingGuardiansOf(db, child).length) throw new ApiError(409, 'Mọi phụ huynh trên hồ sơ của trẻ đã có tài khoản.');
+      return clone(activatePendingGuardians(db, child));
+    });
+  },
+  // Cùng shape BE GuardianCandidateResponse
   async lookupGuardian(childId, phone, actor) {
     const db = await initialize(actor);
     loadChild(db, childId, actor, true);
@@ -124,62 +143,6 @@ export const guardianMockRepository = {
       alreadyLinked: (account.childIds || []).includes(childId),
       status: account.status,
     };
-  },
-  async addGuardian(childId, form, actor) {
-    await initialize(actor);
-    const errors = validateGuardian(form);
-    if (Object.keys(errors).length) throw new ApiError(400, 'Kiểm tra thông tin phụ huynh.', errors);
-    return writeDb((db) => {
-      const child = loadChild(db, childId, actor, true);
-      const phone = normalizePhone(form.phone);
-      child.guardians ||= [];
-      const email = (form.email || '').trim().toLowerCase();
-      if (
-        db.users.some(
-          (user) => user.role !== 'PARENT' && (normalizePhone(user.phone) === phone || (email && user.email?.toLowerCase() === email)),
-        )
-      )
-        throw new ApiError(409, 'Số điện thoại hoặc email thuộc tài khoản nhân sự.');
-      const byPhone = db.parentAccounts.find((row) => normalizePhone(row.phone) === phone);
-      const byEmail = email ? db.parentAccounts.find((row) => row.email?.toLowerCase() === email) : null;
-      if (byPhone && byEmail && byPhone.id !== byEmail.id)
-        throw new ApiError(409, 'Số điện thoại và email thuộc hai tài khoản phụ huynh khác nhau.');
-      let account = byPhone || byEmail;
-      if (account && (account.childIds || []).includes(childId)) throw new ApiError(409, 'Phụ huynh đã liên kết với trẻ.');
-      const newAccount = !account;
-      const password = newAccount ? temporaryPassword() : null; // carenest:allow-secret
-      if (!account) {
-        account = {
-          id: uid('pa'),
-          username: phone,
-          phone,
-          fullName: form.fullName.trim(),
-          email: (form.email || '').trim(),
-          status: 'ACTIVE',
-          childIds: [],
-          createdAt: new Date().toISOString(),
-          mustChangePassword: true,
-          sms: [],
-        };
-        db.parentAccounts.push(account);
-      }
-      (account.childIds ||= []).push(childId);
-      const old = child.guardians.find((guardian) => normalizePhone(guardian.phone) === phone);
-      const guardian = {
-        ...old,
-        accountId: account.id,
-        fullName: old?.fullName || account.fullName,
-        phone: account.phone,
-        email: old?.email || account.email || '',
-        relation: GUARDIAN_RELATIONSHIP_LABELS[form.relationship],
-        accountStatus: account.status,
-        linkedAt: new Date().toISOString(),
-      };
-      if (old) Object.assign(old, guardian);
-      else child.guardians.push(guardian);
-      if (newAccount) issuePassword(db, account.id, password);
-      return clone({ ...viewOf(account, guardian), newAccount, temporaryPassword: password }); // carenest:allow-secret
-    });
   },
   async removeGuardian(childId, id, actor) {
     await initialize(actor);
@@ -210,9 +173,9 @@ export const guardianMockRepository = {
     return writeDb((db) => {
       const account = loadAccount(db, id, actor);
       account.mustChangePassword = true;
-      const password = temporaryPassword(); // carenest:allow-secret
-      issuePassword(db, account.id, password);
-      return { userId: account.id, username: account.username, temporaryPassword: password }; // carenest:allow-secret
+      issuePassword(db, account.id, temporaryPassword());
+      const smsStatus = sendPasswordSms(db, account);
+      return { userId: account.id, username: account.username, phone: account.phone, smsStatus };
     });
   },
 };

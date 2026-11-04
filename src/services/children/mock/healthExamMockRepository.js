@@ -3,37 +3,49 @@ import { SCHOOL_NAME } from '@/config/app';
 import { CHILD_STATUS } from '@/models/School';
 import {
   CLINICAL_ITEMS,
+  CONCLUSION_ACTION,
   CONCLUSION_ACTION_LABELS,
   CONCLUSION_FLAGS,
+  CONCLUSION_MODE,
   DEVELOPMENT_ITEMS,
   EXAM_FIELD_LIMITS,
   EXAM_STATUS,
+  FOLLOW_UP_FINDING,
+  FOLLOW_UP_FINDING_LABELS,
   GUARDIAN_TO_COMPANION_RELATION,
   HEAD_STATUS_OPTIONS,
   HISTORY_ITEMS,
   IMMUNIZATION_ITEMS,
+  ISSUE_KIND_LABELS,
   NUTRITION_STATUS_OPTIONS,
   VITAL_ITEMS,
   YES_NO,
   buildEmptyExam,
   labelOf,
 } from '@/models/children/healthExamForm';
-import { examAdminToProfile, examToHistory, historyToExam, profileToExamAdmin } from '@/models/children/childProfile';
+import { examToHistory, historyToExam, profileToExamAdmin } from '@/models/children/childProfile';
 import { formatDate, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import { hasErrors } from '@/utils/children/childrenValidation';
-import { validateHealthExam } from '@/utils/children/healthExamValidation';
+import { needsParentOpinion, validateHealthExam } from '@/utils/children/healthExamValidation';
 import { canRecordMeasurement, canViewHealth } from '@/utils/children/childrenPermissions';
-import { cleanProfile, ensureChildRecordsSeeded, isExamDraft, profileChanges, toMeasurementView } from './childrenMockRepository';
-import { conclusionBrief } from './healthCheckMockRepository';
+import {
+  ensureChildRecordsSeeded,
+  ensureDeclarationOf,
+  knownConditionOf,
+  notifyTbContactDateChanged,
+  toMeasurementView,
+} from './childrenMockRepository';
+import { conclusionBrief, openFollowUpBriefOf, previousExamOf } from './healthCheckMockRepository';
 import { campaignStatusOf, isOpenForEntry, trackFollowUp } from './healthCheckRule';
 import { examReferenceFor, examReviewPoints, screenMeasurement } from './healthScreeningRule';
 
 /*
  * Backend giả của phiếu kiểm tra sức khỏe Phụ lục II trong đợt khám (user chốt 2026-10-17, PROPOSED — chờ BE).
  * Phiếu là measurement có exam + examStatus (DRAFT/CONCLUDED); mỗi trẻ 1 phiếu mỗi đợt. Giáo viên phụ trách lớp nhập;
- * bác sĩ, nhân viên y tế không có tài khoản. Lưu kết luận ⇒ khóa phiếu, mức theo dõi theo kết luận, mở phiếu theo dõi,
- * cập nhật ngược hành chính và tiền sử vào hồ sơ trẻ.
+ * bác sĩ, nhân viên y tế không có tài khoản. Lưu kết luận ⇒ khóa phiếu, mức theo dõi theo kết luận, mở phiếu theo dõi.
+ * Hành chính lấy từ hồ sơ trẻ, giáo viên không sửa; tiền sử giáo viên sửa được, lưu kết luận cập nhật vào khai báo sức khỏe
+ * (user chốt 2026-10-22). Trẻ đang có phiếu theo dõi dùng mẫu kết luận FOLLOW_UP; lưu kết luận không đóng phiếu (2026-10-21).
  * Phạm vi xem như Sổ sức khỏe. CCCD chỉ trả trong phiếu, không vào danh sách, thông báo, AI.
  */
 
@@ -64,87 +76,97 @@ const contextOf = (db, campaignId, childId, user) => {
 const clampDate = (campaign, today = todayInput()) =>
   today < campaign.startDate ? campaign.startDate : today > campaign.endDate ? campaign.endDate : today;
 
-const latestConcludedExam = (db, childId, excludeId) =>
-  db.healthMeasurements
-    .filter((x) => x.childId === childId && x.id !== excludeId && x.exam && x.examStatus === EXAM_STATUS.CONCLUDED)
-    .sort((a, b) => b.date.localeCompare(a.date))[0] || null;
-
-const blankValue = (v) => v === '' || v == null || (typeof v === 'object' && !Object.values(v).some((x) => String(x || '').trim()));
+const openFollowUpOfChild = (db, childId) => (db.healthFollowUps || []).find((f) => f.childId === childId && !f.closedAt) || null;
 
 /**
- * Hành chính, tiền sử luôn lấy từ hồ sơ trẻ và khai báo sức khỏe (user chốt 2026-10-17, 2b).
- * Ô hồ sơ còn trống (trẻ tiếp nhận từ trước) thì lấy từ phiếu khám gần nhất.
+ * Mẫu kết luận (user chốt 2026-10-21): phiếu đã kết luận giữ mẫu đã lưu; phiếu mới hoặc nháp dùng mẫu FOLLOW_UP khi trẻ có
+ * phiếu theo dõi đang mở mà phiếu khám này không thuộc phiếu đó (phiếu khám đã mở ra phiếu theo dõi dùng mẫu thường).
  */
-const prefillExam = (db, child) => {
-  const exam = buildEmptyExam();
-  const last = latestConcludedExam(db, child.id);
-  const guardian = child.guardians?.[0];
-  const fromProfile = profileToExamAdmin(child.profile || undefined);
-  Object.keys(fromProfile).forEach((k) => {
-    exam.admin[k] = blankValue(fromProfile[k]) && last ? clone(last.exam.admin[k]) : clone(fromProfile[k]);
-  });
-  const decl = db.healthDeclarations.find((x) => x.childId === child.id);
-  const fromDecl = historyToExam(decl?.medicalHistory || undefined);
-  [
-    ['self', 'selfText'],
-    ['family', 'familyText'],
-    ['tbContact', null],
-  ].forEach(([k, textKey]) => {
-    const useLast = !fromDecl[k] && last;
-    exam.history[k] = useLast ? last.exam.history[k] : fromDecl[k];
-    if (textKey) exam.history[textKey] = useLast ? last.exam.history[textKey] : fromDecl[textKey];
-  });
-  if (guardian) {
-    const prev = last?.exam.admin.companion;
-    const same = prev && prev.fullName === guardian.fullName;
-    exam.admin.hasCompanion = YES_NO.YES;
-    exam.admin.companion = {
-      guardianIndex: 0,
-      fullName: guardian.fullName,
-      relation: GUARDIAN_TO_COMPANION_RELATION[guardian.relation] || 'Khác',
-      phone: guardian.phone,
-      idNumber: same ? prev.idNumber || '' : '',
-    };
-  }
-  return exam;
+const conclusionModeOf = (m, openCase) => {
+  if (m?.examStatus === EXAM_STATUS.CONCLUDED)
+    return m.exam?.conclusion?.followUpFinding ? CONCLUSION_MODE.FOLLOW_UP : CONCLUSION_MODE.STANDARD;
+  return openCase && !openCase.measurementIds.includes(m?.id) ? CONCLUSION_MODE.FOLLOW_UP : CONCLUSION_MODE.STANDARD;
+};
+
+const PROFILE_ADMIN_KEYS = Object.keys(profileToExamAdmin());
+const HISTORY_KEYS = [
+  ['self', 'selfText'],
+  ['family', 'familyText'],
+  ['tbContact', 'tbContactDate'],
+];
+
+const declaredHistoryOf = (db, child) =>
+  historyToExam(db.healthDeclarations.find((x) => x.childId === child.id)?.medicalHistory || undefined);
+
+/** Người đi cùng là phụ huynh trong hồ sơ (user chốt 2026-10-22): chép họ tên, quan hệ, SĐT, CCCD theo guardianIndex. */
+const companionOf = (child, admin) => {
+  const index = admin.companion?.guardianIndex;
+  const g = admin.hasCompanion === YES_NO.YES && Number.isInteger(index) ? child.guardians?.[index] : null;
+  if (!g) return { ...buildEmptyExam().admin.companion };
+  return {
+    guardianIndex: index,
+    fullName: g.fullName,
+    relation: GUARDIAN_TO_COMPANION_RELATION[g.relation] || 'Khác',
+    phone: g.phone,
+    idNumber: g.idNumber || '',
+  };
 };
 
 /**
- * Lưu kết luận ⇒ cập nhật ngược hành chính vào hồ sơ trẻ, tiền sử vào khai báo sức khỏe (user chốt 2026-10-17, 2b).
- * Ghi lịch sử ở cả hai nơi; không gửi thông báo tiếp xúc lao (bác sĩ đã kết luận nguy cơ lao trên phiếu).
+ * Hành chính của phiếu do BE điền, không nhận giá trị client gửi (user chốt 2026-10-22): lấy từ hồ sơ trẻ; phiếu đã kết luận giữ
+ * bản chụp lúc lưu (snapshot = phiếu đã lưu). Người đi cùng chép từ phụ huynh của hồ sơ. Tiền sử giữ theo phiếu (giáo viên sửa được).
  */
-const writeBackProfile = (db, child, m, user) => {
-  const note = `Cập nhật từ phiếu khám ngày ${formatDate(m.date)}`;
-  const at = nowIso();
-  const nextProfile = cleanProfile(examAdminToProfile(m.exam.admin));
-  const changes = profileChanges(child.profile, nextProfile);
-  if (changes.length) {
-    child.profile = nextProfile;
-    child.history = [...(child.history || []), { action: 'UPDATED_FROM_EXAM', userId: user.id, at, note, measurementId: m.id, changes }];
-  }
+const withProfile = (child, exam, snapshot = null) => {
+  const src = snapshot ? snapshot.admin : profileToExamAdmin(child.profile || undefined);
+  const admin = { ...exam.admin, ...Object.fromEntries(PROFILE_ADMIN_KEYS.map((k) => [k, clone(src[k])])) };
+  admin.companion = companionOf(child, exam.admin);
+  return { ...exam, admin };
+};
+
+/** Mục tiền sử phiếu còn trống (phiếu mới, nháp chưa tới phần này) điền sẵn từ khai báo sức khỏe. */
+const withDeclaredHistory = (db, child, history) => {
+  const declared = declaredHistoryOf(db, child);
+  const out = { ...history };
+  HISTORY_KEYS.forEach(([k, extra]) => {
+    if (out[k]) return;
+    out[k] = declared[k];
+    out[extra] = declared[extra];
+  });
+  return out;
+};
+
+/** Phiếu mới: hành chính theo hồ sơ, tiền sử theo khai báo; người đi cùng mặc định là phụ huynh đầu tiên. */
+const prefillExam = (db, child) => {
+  const exam = buildEmptyExam();
+  if (child.guardians?.length)
+    exam.admin = { ...exam.admin, hasCompanion: YES_NO.YES, companion: { ...exam.admin.companion, guardianIndex: 0 } };
+  return { ...withProfile(child, exam), history: withDeclaredHistory(db, child, exam.history) };
+};
+
+/**
+ * Lưu kết luận ⇒ tiền sử của phiếu cập nhật vào khai báo sức khỏe, có lịch sử (user chốt 2026-10-22). Không báo khai lần đầu tiếp
+ * xúc lao (3b); ngày tiếp xúc đã có mà đổi thì báo Hiệu trưởng, Phó hiệu trưởng điểm trường (2026-10-21).
+ */
+const writeBackHistory = (db, child, m, user) => {
   const nextHistory = examToHistory(m.exam.history);
-  let decl = db.healthDeclarations.find((x) => x.childId === child.id);
-  const before = decl?.medicalHistory || null;
+  const before = db.healthDeclarations.find((x) => x.childId === child.id)?.medicalHistory || null;
   if (JSON.stringify(before ? historyToExam(before) : historyToExam()) === JSON.stringify(historyToExam(nextHistory))) return;
-  if (!decl) {
-    // Trẻ chưa có khai báo: chỉ tạo phần tiền sử, dị ứng và chế độ ăn để Chưa cung cấp.
-    decl = {
-      childId: child.id,
-      allergies: { state: 'NOT_PROVIDED', items: [] },
-      diet: { state: 'NOT_PROVIDED', text: '' },
-      otherNotes: { state: 'NOT_PROVIDED', text: '' },
-      history: [],
-    };
-    db.healthDeclarations.push(decl);
-  }
+  const decl = ensureDeclarationOf(db, child.id);
   decl.medicalHistory = nextHistory;
+  const source = `phiếu khám ngày ${formatDate(m.date)}`;
+  notifyTbContactDateChanged(
+    db,
+    child,
+    { from: before ? historyToExam(before).tbContactDate : '', to: historyToExam(nextHistory).tbContactDate, source },
+    user.id,
+  );
   decl.history = [
     ...(decl.history || []),
     {
       action: 'UPDATED_FROM_EXAM',
       userId: user.id,
-      at,
-      note,
+      at: nowIso(),
+      note: `Cập nhật từ phiếu khám ngày ${formatDate(m.date)}`,
       historyChange: { from: before ? clone(before) : null, to: clone(nextHistory) },
     },
   ];
@@ -165,7 +187,44 @@ const roundTo = (v, digits) => {
 const pick = (template, raw, max) =>
   Object.fromEntries(Object.keys(template).map((k) => [k, typeof template[k] === 'string' ? str(raw?.[k], max) : template[k]]));
 
-const cleanExam = (raw, ref, { concluded }) => {
+/** Kết luận chỉ giữ ô của mẫu đang dùng (thường hoặc FOLLOW_UP). */
+const cleanConclusion = (c, mode, knownCondition) => {
+  const base = {
+    tbRisk: !!c.tbRisk,
+    issueText: str(c.issueText, EXAM_FIELD_LIMITS.note),
+    adviceText: str(c.adviceText, EXAM_FIELD_LIMITS.note),
+    specialty: str(c.specialty, 150),
+    doctorName: str(c.doctorName, EXAM_FIELD_LIMITS.short),
+    parentOpinion: str(c.parentOpinion, EXAM_FIELD_LIMITS.note),
+  };
+  if (mode === CONCLUSION_MODE.FOLLOW_UP) {
+    const finding = Object.values(FOLLOW_UP_FINDING).includes(c.followUpFinding) ? c.followUpFinding : '';
+    const keepsIssue = finding === FOLLOW_UP_FINDING.ADVICE || finding === FOLLOW_UP_FINDING.NEW_FINDING;
+    return {
+      ...base,
+      normal: false,
+      healthIssue: false,
+      issueKind: '',
+      followUpFinding: finding,
+      action: '',
+      issueText: keepsIssue ? base.issueText : '',
+      specialty: finding === FOLLOW_UP_FINDING.NEW_FINDING ? base.specialty : '',
+    };
+  }
+  const action = str(c.action);
+  // Câu "mới hay đã biết" chỉ hỏi trẻ có vấn đề đã biết, có vấn đề mà không chuyển khám, không nguy cơ lao (user chốt 2026-10-21).
+  const asksKind = !!knownCondition && !!c.healthIssue && !c.tbRisk && action !== CONCLUSION_ACTION.REFERRAL;
+  return {
+    ...base,
+    normal: !!c.normal,
+    healthIssue: !!c.healthIssue,
+    issueKind: asksKind ? str(c.issueKind) : '',
+    followUpFinding: '',
+    action,
+  };
+};
+
+const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD, knownCondition = null }) => {
   const t = buildEmptyExam();
   const r = raw || {};
   const num = (v, digits) => (concluded ? roundTo(v, digits) : isBlank(v) ? '' : String(v).slice(0, 10));
@@ -201,7 +260,9 @@ const cleanExam = (raw, ref, { concluded }) => {
   };
   const development = pick(t.development, r.development);
   if (!ref.autismQuestion) development.autismRisk = '';
-  const c = r.conclusion || {};
+  const conclusion = cleanConclusion(r.conclusion || {}, mode, knownCondition);
+  // Ý kiến phụ huynh chỉ giữ khi có người đi cùng và kết luận mức Cần theo dõi sát (user chốt 2026-10-23).
+  if (!needsParentOpinion({ admin, conclusion }, mode)) conclusion.parentOpinion = '';
   return {
     step: Math.max(0, Math.min(4, Number(r.step) || 0)),
     admin,
@@ -211,16 +272,7 @@ const cleanExam = (raw, ref, { concluded }) => {
     development,
     immunization: pick(t.immunization, r.immunization),
     clinical: pick(t.clinical, r.clinical),
-    conclusion: {
-      normal: !!c.normal,
-      tbRisk: !!c.tbRisk,
-      healthIssue: !!c.healthIssue,
-      issueText: str(c.issueText, EXAM_FIELD_LIMITS.note),
-      action: str(c.action),
-      adviceText: str(c.adviceText, EXAM_FIELD_LIMITS.note),
-      specialty: str(c.specialty, 150),
-      doctorName: str(c.doctorName, EXAM_FIELD_LIMITS.short),
-    },
+    conclusion,
   };
 };
 
@@ -241,7 +293,6 @@ const examEntries = (m) => {
     ['exam.admin.gestationWeeks', 'Tuần thai khi sinh', e.admin.gestationWeeks],
     ['exam.admin.ethnicity', 'Dân tộc', e.admin.ethnicity],
     ['exam.admin.beneficiary', 'Đối tượng', e.admin.beneficiary],
-    ['exam.admin.paymentSource', 'Nguồn chi trả', e.admin.paymentSource],
     ['exam.admin.bloodType', 'Nhóm máu', e.admin.bloodType],
     [
       'exam.admin.address',
@@ -256,6 +307,7 @@ const examEntries = (m) => {
     ...HISTORY_ITEMS.flatMap((i) => [
       [`exam.history.${i.key}`, i.label, yn(e.history[i.key])],
       ...(i.textKey ? [[`exam.history.${i.textKey}`, i.textLabel, e.history[i.textKey]]] : []),
+      ...(i.dateKey ? [[`exam.history.${i.dateKey}`, i.dateLabel, e.history[i.dateKey] ? formatDate(e.history[i.dateKey]) : '']] : []),
     ]),
     ...VITAL_ITEMS.flatMap((i) => [
       [`exam.vitals.${i.key}`, i.label, e.vitals[i.key]],
@@ -277,11 +329,18 @@ const examEntries = (m) => {
         .map((f) => f.label)
         .join(', '),
     ],
+    [
+      'exam.conclusion.followUpFinding',
+      'Kết luận so với vấn đề đang theo dõi',
+      FOLLOW_UP_FINDING_LABELS[e.conclusion.followUpFinding] || '',
+    ],
     ['exam.conclusion.issueText', 'Vấn đề sức khỏe', e.conclusion.issueText],
+    ['exam.conclusion.issueKind', 'Vấn đề mới hay đã biết', ISSUE_KIND_LABELS[e.conclusion.issueKind] || ''],
     ['exam.conclusion.action', 'Hướng xử lý', CONCLUSION_ACTION_LABELS[e.conclusion.action] || ''],
     ['exam.conclusion.adviceText', 'Lời tư vấn', e.conclusion.adviceText],
     ['exam.conclusion.specialty', 'Chuyên khoa', e.conclusion.specialty],
     ['exam.conclusion.doctorName', 'Bác sĩ kết luận', e.conclusion.doctorName],
+    ['exam.conclusion.parentOpinion', 'Ý kiến phụ huynh', e.conclusion.parentOpinion],
   ];
   return out.map(([field, label, value]) => ({ field, label, value: value == null ? '' : value }));
 };
@@ -303,12 +362,20 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
   const latestExternal = followUps
     .flatMap((f) => f.history.filter((e) => e.action === 'EXTERNAL_RESULT').map((e) => ({ ...e, followUpId: f.id })))
     .sort((a, b) => b.on.localeCompare(a.on) || b.at.localeCompare(a.at))[0];
-  const prev = db.healthMeasurements
-    .filter((x) => x.childId === child.id && x.id !== m?.id && !isExamDraft(x) && x.date < date)
-    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const prev = previousExamOf(db, child.id, date, m?.id);
   const prevCampaign = prev?.campaignId ? db.healthCheckCampaigns.find((c) => c.id === prev.campaignId) : null;
   const view = m && !legacy ? toMeasurementView(db, m) : null;
+  // Phiếu nháp: hành chính theo hồ sơ hiện tại (có thể đã sửa sau lần lưu nháp); tiền sử giữ theo phiếu, mục trống lấy từ khai báo.
+  if (view && m.examStatus === EXAM_STATUS.DRAFT)
+    view.exam = { ...withProfile(child, view.exam), history: withDeclaredHistory(db, child, view.exam.history) };
+  const openCase = openFollowUpOfChild(db, child.id);
   return {
+    // Mẫu kết luận do BE chọn; UI chỉ vẽ theo (user chốt 2026-10-21).
+    conclusionMode: conclusionModeOf(m, openCase),
+    // Vấn đề đã biết của trẻ: có thì mẫu thường hỏi "Vấn đề này" mới hay đã biết (user chốt 2026-10-21).
+    knownCondition: knownConditionOf(db, child),
+    // Phiếu theo dõi đang mở (không phải phiếu do chính phiếu khám này mở), để bác sĩ thấy trước khi kết luận.
+    openFollowUp: openCase && !openCase.measurementIds.includes(m?.id) ? openFollowUpBriefOf(db, openCase) : null,
     campaign: {
       id: campaign.id,
       name: campaign.name,
@@ -326,13 +393,18 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
       classId: child.classId,
       className: cls?.name || '',
       schoolName: SCHOOL_NAME,
-      guardians: (child.guardians || []).map((g) => ({ fullName: g.fullName, relation: g.relation, phone: g.phone })),
+      guardians: (child.guardians || []).map((g) => ({
+        fullName: g.fullName,
+        relation: g.relation,
+        phone: g.phone,
+        idNumber: g.idNumber || '',
+      })),
     },
     measurement: view
       ? { ...view, reviewPoints: examReviewPoints(m, child.dateOfBirth), measuredByName: userName(db, m.measuredBy) }
       : null,
     legacyMeasurementId: legacy ? m.id : null,
-    // Phiếu mới: điền sẵn từ hồ sơ trẻ và phiếu gần nhất; số đo để trống.
+    // Phiếu mới: Phần I theo hồ sơ trẻ; số đo để trống.
     draft: m ? null : { date, heightCm: '', weightKg: '', headCircumferenceCm: '', exam: prefillExam(db, child) },
     reference,
     previous: prev
@@ -376,15 +448,18 @@ export const healthExamMockRepository = {
   async previewHealthExamReview(campaignId, childId, payload, user) {
     await delay(80);
     const db = ensureChildRecordsSeeded();
-    const { campaign, child } = contextOf(db, campaignId, childId, user);
+    const { campaign, child, m } = contextOf(db, campaignId, childId, user);
     const date = /^\d{4}-\d{2}-\d{2}$/.test(payload?.date || '') ? payload.date : clampDate(campaign);
-    const exam = cleanExam(payload?.exam, examReferenceFor(child.dateOfBirth, date), { concluded: false });
+    const mode = conclusionModeOf(m, openFollowUpOfChild(db, childId));
+    const cleaned = cleanExam(payload?.exam, examReferenceFor(child.dateOfBirth, date), { concluded: false, mode });
+    const exam = withProfile(child, cleaned, m?.examStatus === EXAM_STATUS.CONCLUDED ? m.exam : null);
     return { reviewPoints: examReviewPoints({ date, exam }, child.dateOfBirth) };
   },
 
   /**
-   * payload: { date, heightCm, weightKg, headCircumferenceCm, exam, conclude, reason }.
+   * payload: { date, heightCm, weightKg, headCircumferenceCm, exam, conclude, reason, conclusionMode }.
    * conclude=false: lưu nháp (không bắt buộc ô nào). conclude=true: kiểm đủ, khóa phiếu; sửa phiếu đã kết luận cần lý do (D12).
+   * conclusionMode: mẫu UI đang vẽ; khác mẫu BE chọn (phiếu theo dõi vừa mở hoặc đóng) ⇒ 409 để tải lại phiếu.
    */
   async saveHealthExam(campaignId, childId, payload, user) {
     await delay(payload?.conclude ? 350 : 120);
@@ -399,16 +474,24 @@ export const healthExamMockRepository = {
     if (!payload.conclude && concluded) throw new ApiError(409, 'Phiếu đã có kết luận. Lưu lại kết luận kèm lý do sửa thay vì lưu nháp.');
     const date = payload.date || m?.date || clampDate(campaign);
     const reference = examReferenceFor(child.dateOfBirth, /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : clampDate(campaign));
-    const exam = cleanExam(payload.exam, reference, { concluded: !!payload.conclude });
+    const mode = conclusionModeOf(m, openFollowUpOfChild(db, childId));
+    if (payload.conclude && payload.conclusionMode && payload.conclusionMode !== mode)
+      throw new ApiError(409, 'Phiếu theo dõi của trẻ vừa thay đổi nên mẫu kết luận đã đổi. Tải lại phiếu khám rồi lưu lại.');
+    const knownCondition = knownConditionOf(db, child);
+    const cleaned = cleanExam(payload.exam, reference, { concluded: !!payload.conclude, mode, knownCondition });
+    const exam = withProfile(child, cleaned, concluded ? m.exam : null);
 
     if (payload.conclude) {
       const errors = validateHealthExam(
-        { ...payload, date, exam },
+        { ...payload, date, exam: cleaned },
         {
           dateOfBirth: child.dateOfBirth,
           campaign: { startDate: campaign.startDate, endDate: campaign.endDate },
           reference,
           requireReason: concluded,
+          conclusionMode: mode,
+          knownCondition,
+          guardianCount: (child.guardians || []).length,
         },
       );
       if (db.healthMeasurements.some((x) => x.childId === childId && x.date === date && x.id !== m?.id))
@@ -448,18 +531,17 @@ export const healthExamMockRepository = {
       } else if (concluded) {
         const changes = diffExam(target, { ...target, ...values });
         if (changes.length === 0) return toExamView(d, { campaign, child: freshChild, cls, m: target }, user);
-        // GBR-HLT-03: lưu ai sửa, lúc nào, giá trị cũ và mới; phiếu đã công bố cần công bố lại.
+        // GBR-HLT-03: lưu ai sửa, lúc nào, giá trị cũ và mới.
         target.edits = [...(target.edits || []), { at: nowIso(), userId: user.id, reason: str(payload.reason), changes }];
-        Object.assign(target, values, { published: false, publishedAt: null, autoPublished: false });
+        Object.assign(target, values);
       } else Object.assign(target, values);
       if (payload.conclude) {
         if (!concluded) target.concludedAt = nowIso();
         trackFollowUp(d, freshChild, target, toMeasurementView(d, target).followUpLevel, user);
-        writeBackProfile(d, freshChild, target, user);
-        // Có người đi cùng: phụ huynh đã nghe bác sĩ tại buổi khám ⇒ lưu kết luận là công bố luôn, kể cả khi lưu lại sau sửa
-        // (user chốt 2026-10-17). Không có người đi cùng: giáo viên ghi trao đổi rồi tự công bố như cũ.
-        if (exam.admin.hasCompanion === YES_NO.YES && exam.admin.companion.fullName)
-          Object.assign(target, { published: true, publishedAt: nowIso(), publishedBy: user.id, autoPublished: true });
+        // Lưu lại phiếu đã kết luận mà không sửa tiền sử thì không ghi đè khai báo (khai báo có thể đã sửa sau đó).
+        if (!concluded || JSON.stringify(m.exam.history) !== JSON.stringify(exam.history)) writeBackHistory(d, freshChild, target, user);
+        // Lưu kết luận là công bố cho phụ huynh, kể cả lưu lại sau sửa (BE gửi thông báo cập nhật); nháp không công bố (2026-10-23).
+        Object.assign(target, { published: true, publishedAt: nowIso(), publishedBy: user.id });
       }
       return toExamView(d, { campaign, child: freshChild, cls, m: target }, user);
     });

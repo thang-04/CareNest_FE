@@ -85,13 +85,21 @@ const pastHistory = (id, createdOn, closedOn) => {
   ];
 };
 
+/** Kỳ cân đo đang diễn ra ở c2 (user chốt 2026-10-31): giáo viên nhập số đo cho lớp mình, chưa ai nhập. */
+const C2_ROUND_FIELDS = {
+  id: 'hc_c2_next',
+  kind: 'MEASUREMENT',
+  campusId: 'c2',
+  examiner: '',
+  note: 'Giáo viên cân đo tại lớp, nhập số đo cho từng trẻ.',
+};
+
 /**
  * measurements/children: kết quả và trẻ seed — trẻ seed đang học chưa có kết quả trong đợt đã đóng là "Vắng khám".
  */
 export const buildSeedHealthChecks = ({ today = todayInput(), measurements = [], children = [] } = {}) => {
   const open = openCampaignDates(today);
-  const upcomingStart = addDays(today, 7);
-  const base = { examiner: EXAMINER, note: '', createdBy: PRINCIPAL_ID, cancelledAt: null, absentChildIds: [] };
+  const base = { kind: 'EXAM', examiner: EXAMINER, note: '', createdBy: PRINCIPAL_ID, cancelledAt: null, absentChildIds: [] };
   const seedChildren = children.filter((c) => /^ch_\d+$/.test(c.id) && c.status === 'ACTIVE');
   const past = ['c1', 'c2'].flatMap((campusId) =>
     PAST.map((p) => {
@@ -152,15 +160,14 @@ export const buildSeedHealthChecks = ({ today = todayInput(), measurements = [],
     },
     {
       ...base,
-      id: 'hc_c2_next',
-      name: `Khám sức khỏe định kỳ ${monthName(upcomingStart)}`,
-      campusId: 'c2',
-      startDate: upcomingStart,
-      endDate: addDays(upcomingStart, 2),
-      createdAt: `${today}T01:00:00.000Z`,
+      ...C2_ROUND_FIELDS,
+      name: `Cân đo định kỳ ${monthName(open.startDate)}`,
+      startDate: open.startDate,
+      endDate: open.endDate,
+      createdAt: `${addDays(open.startDate, -3)}T01:00:00.000Z`,
       closedAt: null,
       closedBy: null,
-      history: [event(today, 'CREATED')],
+      history: [event(addDays(open.startDate, -3), 'CREATED')],
     },
   ];
 };
@@ -193,7 +200,11 @@ const SEED_FOLLOW_UPS = [
         note: 'Phụ huynh báo bác sĩ chuyên khoa hẹn khám lại khi có thay đổi.',
       },
     ],
-    closed: { on: '2026-05-05', reason: 'Phụ huynh đã cho trẻ khám chuyên khoa; nhà trường theo dõi tiếp ở các đợt khám sau.' },
+    closed: {
+      on: '2026-05-05',
+      reason: 'Phụ huynh đã cho trẻ khám chuyên khoa; nhà trường theo dõi tiếp ở các đợt khám sau.',
+      outcome: 'DOCTOR_NORMAL',
+    },
   },
   {
     // Đã đóng: trao đổi 2 lần, không có kết quả chuyên khoa.
@@ -205,7 +216,11 @@ const SEED_FOLLOW_UPS = [
       { on: '2026-06-17', note: 'Đã gọi điện cho bố của trẻ, gửi kết quả khám và đề nghị khám chuyên khoa trong kỳ nghỉ hè.' },
       { on: '2026-07-10', note: 'Nhắc lại phụ huynh lịch khám chuyên khoa; phụ huynh hẹn đưa trẻ đi khám trong tháng 8.' },
     ],
-    closed: { on: '2026-08-20', reason: 'Phụ huynh báo đã đưa trẻ đi khám; theo dõi tiếp ở đợt khám đầu năm học.' },
+    closed: {
+      on: '2026-08-20',
+      reason: 'Phụ huynh báo đã đưa trẻ đi khám nhưng không gửi kết quả; theo dõi tiếp ở đợt khám đầu năm học.',
+      outcome: 'NO_SPECIALIST_RESULT',
+    },
   },
   {
     // Đã trao đổi về kết quả tháng 9; phiếu khám mới (không có người đi cùng) mở vòng mới, chờ trao đổi lại.
@@ -240,16 +255,29 @@ const SEED_FOLLOW_UPS = [
     contacts: [{ on: '2026-09-16', note: 'Đã gọi điện cho bố của trẻ, đề nghị đưa trẻ đi khám chuyên khoa nhi.' }],
   },
   {
+    // Đóng với kết quả "chuyên khoa xác định có vấn đề" ⇒ danh sách trẻ hiện "Vấn đề đã biết, ổn định".
     childId: 'ch_031',
     campusId: 'c2',
     teacherId: 'u_ngoc',
     contacts: [{ on: '2026-09-23', note: 'Đã trao đổi với mẹ của trẻ qua điện thoại.' }],
-    closed: { on: '2026-10-05', reason: 'Phụ huynh đã cho trẻ khám; nhà trường tiếp tục theo dõi ở đợt khám sau.' },
+    externalResults: [
+      {
+        on: '2026-10-01',
+        facility: 'Chấn thương chỉnh hình – Bệnh viện Trẻ em Hải Phòng',
+        note: 'Phụ huynh báo bác sĩ chuyên khoa kết luận bàn chân bẹt, cho trẻ mang giày chỉnh hình; không hẹn khám lại.',
+      },
+    ],
+    closed: {
+      on: '2026-10-05',
+      reason: 'Đã khám chuyên khoa; trẻ mang giày chỉnh hình, không còn lịch khám lại.',
+      outcome: 'KNOWN_CONDITION',
+      conditionText: 'Bàn chân bẹt – mang giày chỉnh hình',
+    },
   },
   // Mở từ phiếu khám của đợt đang diễn ra (c1).
   { childId: 'ch_005', campusId: 'c1', teacherId: 'u_an', fromCampaign: OPEN_CAMPAIGN.id },
   { childId: 'ch_006', campusId: 'c1', teacherId: 'u_an', fromCampaign: OPEN_CAMPAIGN.id },
-  { childId: 'ch_037', campusId: 'c1', teacherId: 'u_an', fromCampaign: OPEN_CAMPAIGN.id },
+  { childId: 'ch_902', campusId: 'c1', teacherId: 'u_an', fromCampaign: OPEN_CAMPAIGN.id },
   { childId: 'ch_016', campusId: 'c1', teacherId: 'u_mai', fromCampaign: OPEN_CAMPAIGN.id },
   { childId: 'ch_021', campusId: 'c1', teacherId: 'u_hoa', fromCampaign: OPEN_CAMPAIGN.id },
   // Mở từ phiếu khám của đợt đã đóng đầu tháng 10 (c2).
@@ -280,6 +308,7 @@ const examContactNote = (m) => {
   const { companion } = m.exam.admin;
   const c = m.exam.conclusion;
   const parts = [`Bác sĩ trao đổi kết luận với ${companion.fullName} (${companion.relation}) tại buổi khám.`];
+  if (c.parentOpinion) parts.push(`Ý kiến phụ huynh: ${c.parentOpinion}`);
   if (c.tbRisk) parts.push('Kết luận có nguy cơ mắc lao (tiền sử tiếp xúc).');
   if (c.action === 'REFERRAL') parts.push(`Đề nghị khám chuyên khoa: ${c.specialty}.`);
   if (c.adviceText) parts.push(`Lời dặn: ${c.adviceText}`);
@@ -310,6 +339,17 @@ export const buildSeedFollowUps = (measurements = []) =>
     const { teacherId } = f;
     const opened = `${openedOn}T08:30:00.000Z`;
     const at = (on) => `${on}T03:00:00.000Z`;
+    // Phiếu khám mẫu FOLLOW_UP: chỉ "Có thêm bất thường mới" hoặc nguy cơ lao mở vòng (user chốt 2026-10-21).
+    const finding = current?.exam?.conclusion?.followUpFinding || null;
+    const newFinding = !finding || finding === 'NEW_FINDING' || !!current?.exam?.conclusion?.tbRisk;
+    const closedEvent = f.closed && {
+      at: at(f.closed.on),
+      userId: teacherId,
+      action: 'CLOSED',
+      note: f.closed.reason,
+      outcome: f.closed.outcome,
+      ...(f.closed.conditionText ? { conditionText: f.closed.conditionText } : {}),
+    };
     const history = [
       { at: opened, userId: teacherId, action: 'OPENED', measurementId: source.id, examOn: source.date },
       ...(hasExamCompanion(fromExam) ? [examContactEvent(fromExam, teacherId)] : []),
@@ -324,11 +364,18 @@ export const buildSeedFollowUps = (measurements = []) =>
         images: x.images || [],
         nextVisitOn: x.nextVisitOn || null,
       })),
-      ...(f.closed ? [{ at: at(f.closed.on), userId: teacherId, action: 'CLOSED', note: f.closed.reason }] : []),
+      ...(closedEvent ? [closedEvent] : []),
       ...(current
         ? [
-            { at: current.createdAt, userId: teacherId, action: 'MEASUREMENT_ADDED', measurementId: current.id, examOn: current.date },
-            ...(hasExamCompanion(current) ? [examContactEvent(current, teacherId)] : []),
+            {
+              at: current.createdAt,
+              userId: teacherId,
+              action: 'MEASUREMENT_ADDED',
+              measurementId: current.id,
+              examOn: current.date,
+              ...(finding ? { newFinding } : {}),
+            },
+            ...(newFinding && hasExamCompanion(current) ? [examContactEvent(current, teacherId)] : []),
           ]
         : []),
     ].sort((a, b) => a.at.localeCompare(b.at));
@@ -340,6 +387,8 @@ export const buildSeedFollowUps = (measurements = []) =>
       openedAt: opened,
       updatedAt: history[history.length - 1].at,
       closeReason: f.closed?.reason || null,
+      closeOutcome: f.closed?.outcome || null,
+      closeConditionText: f.closed?.conditionText || null,
       closedAt: f.closed ? at(f.closed.on) : null,
       closedBy: f.closed ? teacherId : null,
       history,

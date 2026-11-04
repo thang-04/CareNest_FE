@@ -507,33 +507,39 @@ export const ensureEduDemo = (db) => {
   return true;
 };
 
+/** Trẻ lớp Chồi 1 chưa có điểm danh hôm nay; dùng chung với ready của đánh giá để đọc lần hai không ghi DB. */
+export const childrenMissingTodayAttendance = (db) => {
+  const today = todayIso();
+  if (!db.attendance || [0, 6].includes(new Date(`${today}T00:00:00`).getDay())) return [];
+  return (db.children || []).filter(
+    (ch) => ch.classId === CLASS_ID && ch.status === 'ACTIVE' && !db.attendance.some((r) => r.childId === ch.id && r.date === today),
+  );
+};
+
 /*
  * Demo đánh giá hằng ngày cần lớp Chồi 1 đã điểm danh hôm nay (giờ khóa điểm danh 08:45 nên giáo viên không tự điểm danh
- * được khi thử buổi chiều). Chỉ thêm khi dữ liệu điểm danh đã có; dữ liệu mới thì attendanceSeed đã điểm danh sẵn lớp này.
+ * được khi thử buổi chiều). Chỉ bù trẻ chưa có bản ghi: module điểm danh luôn để sẵn một trẻ có mặt và trẻ báo nghỉ của lớp này.
  */
 export const seedTodayAttendance = (db) => {
+  const missing = childrenMissingTodayAttendance(db);
+  if (!missing.length) return false;
   const today = todayIso();
-  if (!db.attendance || [0, 6].includes(new Date(`${today}T00:00:00`).getDay())) return false;
-  if (db.attendance.some((r) => r.classId === CLASS_ID && r.date === today)) return false;
   const cls = (db.classes || []).find((c) => c.id === CLASS_ID);
   const sessions = (db.ageGroups || []).find((g) => g.id === cls?.ageGroupId)?.mealSessions || [];
-  (db.children || [])
-    .filter((ch) => ch.classId === CLASS_ID && ch.status === 'ACTIVE')
-    .filter((ch) => !db.attendance.some((r) => r.childId === ch.id && r.date === today))
-    .forEach((ch) => {
-      const at = new Date(`${today}T07:50:00+07:00`).toISOString();
-      db.attendance.push({
-        id: `att_${today.replace(/-/g, '')}_${ch.id}`,
-        date: today,
-        childId: ch.id,
-        classId: CLASS_ID,
-        campusId: ch.campusId,
-        status: 'PRESENT',
-        meals: Object.fromEntries(sessions.map((x) => [x, true])),
-        recordedBy: cls?.homeroomTeacherId || null,
-        recordedAt: at,
-        history: [{ at, userId: cls?.homeroomTeacherId || null, action: 'RECORDED' }],
-      });
+  missing.forEach((ch) => {
+    const at = new Date(`${today}T07:50:00+07:00`).toISOString();
+    db.attendance.push({
+      id: `att_${today.replace(/-/g, '')}_${ch.id}`,
+      date: today,
+      childId: ch.id,
+      classId: CLASS_ID,
+      campusId: ch.campusId,
+      status: 'PRESENT',
+      meals: Object.fromEntries(sessions.map((x) => [x, true])),
+      recordedBy: cls?.homeroomTeacherId || null,
+      recordedAt: at,
+      history: [{ at, userId: cls?.homeroomTeacherId || null, action: 'RECORDED' }],
     });
+  });
   return true;
 };

@@ -104,6 +104,7 @@ export const mergeImportedGoals = (target, source, selectedGoalIds, makeId, { th
       continue;
     }
     const additions = [];
+    let insertAt = state.rows.length;
     let { sub, group, subId, groupId } = state;
     const addHeading = (row) => {
       // Lĩnh vực con/nhóm lấy từ Bộ giữ liên kết nguồn khi chép (BE:EDU-28)
@@ -111,15 +112,46 @@ export const mergeImportedGoals = (target, source, selectedGoalIds, makeId, { th
       additions.push(heading);
       return heading.id;
     };
-    if (incoming.sub && (incoming.sub !== sub || (!incoming.group && group))) {
-      subId = addHeading(incoming.sub);
+    if (incoming.curriculumGoalId) {
+      const reuseHeading = (heading, parentId) => {
+        const field = heading.kind === 'sub' ? 'curriculumSubDomainId' : 'curriculumExpectedResultId';
+        const text = (value) => value.trim().replace(/\s+/g, ' ');
+        return state.rows.find(
+          (existing) =>
+            existing.kind === heading.kind &&
+            (heading.kind === 'sub' || state.paths.get(existing.id)?.[0] === parentId) &&
+            (heading[field] != null || existing[field] != null
+              ? heading[field] != null && existing[field] != null && String(heading[field]) === String(existing[field])
+              : text(existing.text) === text(heading.text)),
+        );
+      };
       sub = incoming.sub;
-      group = null;
-      groupId = null;
-    }
-    if (incoming.group && incoming.group !== group) {
-      groupId = addHeading(incoming.group);
       group = incoming.group;
+      const existingSub = sub && reuseHeading(sub, null);
+      subId = sub ? existingSub?.id || addHeading(sub) : null;
+      const existingGroup = group && reuseHeading(group, subId);
+      groupId = group ? existingGroup?.id || addHeading(group) : null;
+    } else {
+      if (incoming.sub && (incoming.sub !== sub || (!incoming.group && group))) {
+        subId = addHeading(incoming.sub);
+        sub = incoming.sub;
+        group = null;
+        groupId = null;
+      }
+      if (incoming.group && incoming.group !== group) {
+        groupId = addHeading(incoming.group);
+        group = incoming.group;
+      }
+    }
+    const anchor = state.rows.find((existing) => existing.id === groupId) || state.rows.find((existing) => existing.id === subId);
+    if (anchor) {
+      // Chèn vào đúng nhánh cha cũ, kể cả mục tiêu tự gõ đi cùng mục tiêu Bộ.
+      const start = state.rows.indexOf(anchor) + 1;
+      const boundary = state.rows.findIndex(
+        (existing, i) =>
+          i >= start && (existing.kind === 'sub' || ((anchor.kind === 'group' || !incoming.group) && existing.kind === 'group')),
+      );
+      insertAt = boundary < 0 ? state.rows.length : boundary;
     }
     const row = {
       id: nextId(),
@@ -135,7 +167,7 @@ export const mergeImportedGoals = (target, source, selectedGoalIds, makeId, { th
       contents: incoming.contents.map((content) => ({ id: nextId(), text: content.text, themes: themesOf(content) })),
     };
     additions.push(row);
-    const candidate = [...state.rows, ...additions];
+    const candidate = [...state.rows.slice(0, insertAt), ...additions, ...state.rows.slice(insertAt)];
     const candidatePaths = contexts(toRows({ rows: candidate }, nextId));
     const expected = [incoming.sub ? subId : null, incoming.group ? groupId : null];
     // Bộ chuẩn hóa có thể kéo sub đầu tiên lên trước các dòng đích cũ.

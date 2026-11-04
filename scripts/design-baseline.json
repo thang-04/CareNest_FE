@@ -15,7 +15,6 @@
     "src/pages/facility/RequestDetailPage.jsx": 1,
     "src/pages/facility/RequestFormPage.jsx": 1,
     "src/pages/pickup/PickupResultPage.jsx": 1,
-    "src/pages/pickup/PickupVerifyPage.jsx": 1,
     "src/pages/UiKitPage.jsx": 2,
     "src/services/dashboard/dashboardService.js": 2,
     "src/services/facility/mock/facilityMockRepository.js": 9,
