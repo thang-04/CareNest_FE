@@ -164,6 +164,17 @@ Plan A không còn câu hỏi mở. Cần hỏi trước khi bắt đầu Plan B
 
 ## Progress log
 
+### 2026-11-04 — Đưa nhánh nutrition lên `dev` mới (user cho phép rebase, tự gộp xung đột)
+- BE `dev` thêm PR #25, #26 (`6846546`): có V68–V72 ⇒ migration vi chất thành `V73__add_food_micronutrients.sql`; `dev` đã tự sửa fixture trẻ (`28791d3`) ⇒ bỏ commit `70ba25b` và file `.sql` chưa commit của phiên sửa test. Nhánh nutrition dựng lại: 1 commit `4d359be G94-192` trên `6846546` (hook cấm đổi tên migration đã commit ⇒ tạo lại commit từ `origin/dev`). Sao lưu commit cũ, thay đổi đang dở ở thư mục scratchpad.
+- Checkout BE chính `../CareNest_BE` lên `6846546`: cất tạm rồi lấy lại thay đổi đang dở của user, không xung đột, đối chiếu từng dòng với bản sao lưu.
+- FE gộp `origin/dev` lần 2 (`62833d6`): 4 file xung đột — `AppRoutes.jsx` lấy danh sách trang của `dev` đổi sang `lazyPage`; `staffImport.js` + `StaffAccountsBeView.jsx` dùng phần form và banner "Phân công lớp" G94-179 đã làm trên `dev` (tham số `teacherCampusRequired`), giữ phần nhập Excel bỏ cột Lớp của nhánh này; test chỉnh theo. FE `node scripts/verify.mjs` → `VERIFY PASS full`.
+
+### 2026-11-04 — Chuyển BE vi chất sang nhánh `feature/G94-254-BE-FEAT-27-day-boarding`
+- User chỉ định nhánh nutrition của BE (03/11). Nhánh fast-forward lên `origin/dev` `1e8761b` (không commit), chuyển 30 file từ worktree tạm; `dev` đã có V63–V67 ⇒ migration đổi thành `V68__add_food_micronutrients.sql` (chưa lên remote nên đổi số an toàn).
+- Verify BE trên nhánh: FAIL chỉ ở 4 class ngoài phạm vi (`AttendanceHistoryIntegrationTest`, `AssessmentContinuityIntegrationTest`, `AssessmentHistoryIntegrationTest`, `AssessmentManualFixtureTest`); các test vi chất, `FoodMicronutrientsMigrationTest`, `OpenApiSnapshotTest` pass.
+- Đã chứng minh 4 class đó fail y hệt trên `origin/dev` sạch (worktree tạm, đã xóa): test của G94-236 (PR #21) chèn `children` thiếu giới tính, vi phạm `ck_children_complete` của V63 G94-180 (PR #23) — `dev` hỏng do hai PR gộp chồng, không do vi chất.
+- BE: chưa commit (cần user cho phép, mã Jira theo nhánh `G94-254`). Worktree tạm `../CareNest_BE-micronutrients` còn giữ.
+
 ### 2026-11-03 — Kiểm chứng BE đầy đủ (Docker bật lại)
 - Verify BE (worktree `../CareNest_BE-micronutrients`): `node scripts/verify.mjs` → `VERIFY PASS full | tests 819 fail 0 err 0 skip 0 | archunit ok | snapshot ok | spotless ok | 508s` — migration V63, seed dev, ánh xạ JPA, OpenAPI snapshot đã chạy với Postgres.
 - FE: 3 commit `8b89cdc`, `6c5c349`, `7e8fb6f` (G94-272). BE: chưa commit, chờ nhánh + mã Jira (Q9).
