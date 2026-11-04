@@ -65,11 +65,14 @@ export function EvaluationReviewView({ kind, id }) {
 
   const ev = detail?.evaluation;
   const savedContent = ev ? ev.finalContent || ev.aiDraft?.content || '' : '';
+  // Nạp lại ô nhập chỉ khi sang đánh giá khác hoặc nội dung đã lưu đổi (tải lại sau khi đánh dấu hoàn thành chương
+  // trình không xóa phần cô đang gõ)
+  const evId = ev?.id;
   useEffect(() => {
-    if (!ev) return;
+    if (!evId) return;
     setContent(savedContent);
     setLoadedFrom(savedContent);
-  }, [ev, savedContent]);
+  }, [evId, savedContent]);
 
   // Trẻ cùng lớp, cùng kỳ (xếp theo tên) để chuyển ‹ › và mở trẻ chưa xác nhận tiếp theo
   const { evaluations } = useEvaluations(kind, ev ? { classId: ev.classId, schoolYear: ev.schoolYearId || undefined } : null, {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, Unlock } from '@/components/ui/icons';
-import { isLeader } from '@/utils/assessment/assessmentPermissions';
+import { inLeaderEditScope, isLeader } from '@/utils/assessment/assessmentPermissions';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ClassCommentList } from '@/components/assessment/ClassComments';
@@ -234,7 +234,8 @@ export default function ClassAssessmentOverviewPage() {
   // Tổ trưởng xem các lớp nhóm tuổi mình: không lọc / không hiện điểm trường
   const multiCampus = isLeader(user) && (isPrincipal || campusOptions.length > 1);
   const multiDay = (overview?.schoolDays || 0) > 1;
-  const canUnlock = isLeader(user);
+  // Mở lại ngày: HT mọi lớp, PHT lớp điểm trường mình (BE leadsCampus); tổ trưởng chỉ xem
+  const canUnlock = (campus) => inLeaderEditScope(campus, user);
   const campusName = (id) => campusOptions.find((c) => String(c.id) === String(id))?.name || id;
   const classOptions = (overview?.classes || []).filter(
     (c) => (!campusId || String(c.campusId) === String(campusId)) && (!ageGroupId || String(c.ageGroupId) === String(ageGroupId)),
@@ -374,7 +375,7 @@ export default function ClassAssessmentOverviewPage() {
                             </td>
                             <td className="num">{timeOf(latest?.updatedAt, multiDay)}</td>
                             <td className="cell--actions">
-                              {canUnlock && !multiDay && r.lockedDays > 0 && r.reopenedDays === 0 && (
+                              {canUnlock(r.campusId) && !multiDay && r.lockedDays > 0 && r.reopenedDays === 0 && (
                                 <Link
                                   className="btn btn--sm"
                                   to={`/assessment/day-unlocks?classId=${r.classId}&date=${date}`}

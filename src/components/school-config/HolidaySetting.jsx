@@ -23,7 +23,11 @@ const EMPTY = { startDate: '', endDate: '', name: '' };
 export function HolidaySetting({ yearId }) {
   const { user } = useAuth();
   const toast = useToast();
-  const { data: year } = useAsync(() => getSchoolYearById(yearId, user), [yearId, user?.id], { enabled: !!yearId });
+  const {
+    data: year,
+    error: yearError,
+    reload: reloadYear,
+  } = useAsync(() => getSchoolYearById(yearId, user), [yearId, user?.id], { enabled: !!yearId });
   const { data, loading, error, reload } = useAsync(() => getHolidays(yearId, user), [yearId, user?.id], { enabled: !!yearId });
   const [rows, setRows] = useState([]);
   const [draft, setDraft] = useState(EMPTY);
@@ -32,6 +36,7 @@ export function HolidaySetting({ yearId }) {
 
   useEffect(() => setRows(data || []), [data]);
 
+  if (yearError) return <ErrorState error={yearError} onRetry={reloadYear} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (loading || !year) return <LoadingState />;
 
