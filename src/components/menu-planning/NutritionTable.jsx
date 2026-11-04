@@ -2,12 +2,23 @@ import { AlertTriangle } from '@/components/ui/icons';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import { compareToNorm } from '@/utils/menu-planning/menuCalculations';
-import { SHARE_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import {
+  MICRONUTRIENTS,
+  MICRONUTRIENT_LABELS,
+  MICRONUTRIENT_UNITS,
+  SHARE_LABELS,
+  formatMoney,
+} from '@/models/menu-planning/menuPlanningConstants';
 import { mealsOf } from '@/utils/menu-planning/nutritionSetup';
 
 const fmt = (n) => (typeof n === 'number' ? n.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) : '—');
+// Vi chất có số nhỏ (vitamin B1 0,05 mg) ⇒ giữ 2 chữ số thập phân
+const fmt2 = (n) => (typeof n === 'number' ? n.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) : '—');
 const pct = (n) => (typeof n === 'number' ? `${fmt(n)}%` : '—');
 const range = (r) => (r.min == null ? 'Chưa đặt' : `${r.min}–${r.max}%`);
+// Vi chất: số sau trống = chỉ cần đạt tối thiểu
+const microRange = (r, unit) =>
+  r.min == null ? 'Chưa đặt' : r.max == null ? `≥ ${fmt2(r.min)} ${unit}` : `${fmt2(r.min)}–${fmt2(r.max)} ${unit}`;
 
 const ENERGY_LABELS = { protein: 'Năng lượng từ đạm (P)', lipid: 'Năng lượng từ béo (L)', glucid: 'Năng lượng từ tinh bột (G)' };
 const TARGET_LABELS = { kcal: 'Năng lượng', protein: 'Chất đạm', lipid: 'Chất béo', glucid: 'Tinh bột' };
@@ -161,6 +172,36 @@ export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
                 </td>
               </tr>
             )}
+          </tbody>
+        </table>
+      </div>
+      <div className="table-wrap mt-12">
+        <table className="table table--grid table--compact">
+          <thead>
+            <tr>
+              <th>Khoáng chất, vitamin</th>
+              <th className="num">Thực tế</th>
+              <th className="num">Định mức</th>
+              <th className="num">% đạt</th>
+              <th>Đánh giá</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MICRONUTRIENTS.map((k) => {
+              const r = byKey[k];
+              const unit = MICRONUTRIENT_UNITS[k];
+              return (
+                <tr key={k}>
+                  <td>{MICRONUTRIENT_LABELS[k]}</td>
+                  <td className="num nowrap">{r.value == null ? '—' : `${fmt2(r.value)} ${unit}`}</td>
+                  <td className="num nowrap">{microRange(r, unit)}</td>
+                  <td className="num">{pct(r.attainment)}</td>
+                  <td>
+                    <NormStatusChip status={r.status} />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

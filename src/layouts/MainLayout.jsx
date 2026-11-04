@@ -1,5 +1,6 @@
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { isPageLoading, subscribePageLoading } from '@/routes/routePrefetch';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Footer } from './Footer';
@@ -59,9 +60,11 @@ export function MainLayout() {
   }, [drawerOpen]);
 
   const toggleSidebar = () => (isNarrow ? setDrawerOpen((o) => !o) : setCollapsed((c) => !c));
+  const opening = useSyncExternalStore(subscribePageLoading, isPageLoading);
 
   return (
     <div className="app-shell">
+      {opening && <div className="route-progress no-print" role="progressbar" aria-label="Đang mở trang" />}
       <Sidebar
         role={user.role}
         collapsed={!isNarrow && collapsed}
@@ -73,7 +76,7 @@ export function MainLayout() {
       {isNarrow && drawerOpen && <div className="drawer-backdrop no-print" onClick={() => setDrawerOpen(false)} />}
       <div className="app-main">
         <Header role={user.role} showMenuButton={isNarrow} menuOpen={drawerOpen} onToggleSidebar={toggleSidebar} />
-        <main className="app-content">
+        <main className="app-content" aria-busy={opening || undefined}>
           <DemoDataBanner pathname={pathname} />
           {/* Mở app/tải lại tab: splash phủ cả màn tới khi trang đầu có chunk (không lộ vỏ trống). Đổi trang sau đó: chờ giữa vùng nội dung, giữ sidebar.
               Lỗi trang chỉ thay vùng nội dung, đổi route thì tự xóa. */}

@@ -8,6 +8,7 @@ import { AGE_GROUPS } from '@/models/School';
 import { todayInput } from '@/utils/format';
 import {
   MEAL_SESSION_LABELS,
+  MICRONUTRIENTS,
   defaultOriginOf,
   defaultStorageOf,
   schoolWeekStart,
@@ -27,6 +28,71 @@ const SEED_NORMS = {
   'ag-5': {},
 };
 const SEED_NORM_BASIS = 'Chuẩn tạm nhập tay (demo), chờ trường chốt nguồn chuẩn dinh dưỡng';
+
+/*
+ * Vi chất mẫu (BE NUT-26), trên 100 g ăn được: [canxi mg, phospho mg, sắt mg, vitamin A µg đương lượng retinol,
+ * B1 mg, B2 mg, PP mg, C mg]. AI ước theo Bảng thành phần thực phẩm Việt Nam — số demo, cần trường soát trước khi dùng thật.
+ */
+const MICRO_ROWS = {
+  f01: [30, 104, 1.3, 0, 0.1, 0.03, 1.6, 0],
+  f02: [32, 98, 1.2, 0, 0.14, 0.03, 1.4, 0],
+  f03: [12, 32, 0.2, 0, 0.04, 0.01, 0.4, 0],
+  f04: [40, 20, 1.0, 0, 0.01, 0, 0.2, 0],
+  f05: [7, 190, 0.96, 2, 0.9, 0.18, 4.4, 1],
+  f06: [12, 196, 3.1, 12, 0.1, 0.15, 4.0, 1],
+  f07: [12, 200, 1.5, 120, 0.15, 0.16, 8.1, 4],
+  f08: [10, 180, 0.5, 15, 0.05, 0.06, 2.0, 0],
+  f09: [1120, 150, 2.2, 15, 0.02, 0.03, 2.0, 0],
+  f10: [5040, 430, 4.7, 0, 0.01, 0.51, 2.1, 0],
+  f11: [55, 210, 2.7, 700, 0.16, 0.31, 0.2, 0],
+  f12: [120, 95, 0.1, 50, 0.05, 0.19, 0.1, 1],
+  f13: [120, 90, 0.1, 25, 0.04, 0.15, 0.1, 1],
+  f14: [24, 85, 2.2, 0, 0.02, 0.03, 0.2, 0],
+  f15: [64, 377, 4.8, 5, 0.72, 0.15, 2.4, 4],
+  f16: [68, 420, 2.2, 0, 0.44, 0.12, 16.4, 0],
+  f17: [24, 16, 0.5, 250, 0.06, 0.03, 0.4, 8],
+  f18: [89, 14, 1.9, 309, 0.06, 0.12, 0.7, 51],
+  f19: [100, 37, 1.4, 480, 0.1, 0.09, 0.7, 23],
+  f20: [43, 39, 0.8, 840, 0.06, 0.02, 0.4, 8],
+  f21: [13, 16, 0.4, 0, 0.03, 0.03, 0.5, 7],
+  f22: [12, 26, 1.4, 66, 0.06, 0.04, 0.5, 40],
+  f23: [48, 31, 1.1, 5, 0.06, 0.05, 0.4, 30],
+  f24: [8, 28, 0.6, 10, 0.04, 0.05, 0.7, 6],
+  f25: [8, 6, 1.0, 38, 0.04, 0.04, 0.2, 7],
+  f26: [0, 0, 0, 0, 0, 0, 0, 0],
+  f27: [0, 0, 0, 0, 0, 0, 0, 0],
+};
+/** Vi chất của thực phẩm mẫu theo id; thực phẩm chưa có số liệu (vd. nấm hương) ⇒ mọi chất null. */
+export const seedMicronutrientsOf = (id) =>
+  Object.fromEntries(MICRONUTRIENTS.map((k, i) => [k, MICRO_ROWS[id] ? MICRO_ROWS[id][i] : null]));
+// Định mức vi chất mẫu / trẻ / ngày cho các bữa ở trường (PHT sửa được); AI ước theo nhu cầu khuyến nghị, cần soát
+const SEED_MICRO_NORMS = {
+  nursery: {
+    calcium: [300, 500],
+    phosphorus: [250, 400],
+    iron: [5, 8],
+    vitaminA: [250, 400],
+    vitaminB1: [0.3, 0.6],
+    vitaminB2: [0.3, 0.6],
+    vitaminPp: [3, 6],
+    vitaminC: [20, 40],
+  },
+  kindergarten: {
+    calcium: [350, 600],
+    phosphorus: [300, 500],
+    iron: [6, 10],
+    vitaminA: [270, 450],
+    vitaminB1: [0.4, 0.7],
+    vitaminB2: [0.4, 0.7],
+    vitaminPp: [4, 8],
+    vitaminC: [25, 45],
+  },
+};
+/** Định mức vi chất mẫu của nhóm tuổi (nhóm chưa có chuẩn tạm thì không đặt). */
+export const seedMicroNormsOf = (ageGroupId) =>
+  Object.keys(SEED_NORMS[ageGroupId] || {}).length
+    ? JSON.parse(JSON.stringify(ageGroupId === 'ag-2' ? SEED_MICRO_NORMS.nursery : SEED_MICRO_NORMS.kindergarten))
+    : {};
 
 const at = (date, time = '08:00') => `${date}T${time}:00.000Z`;
 const VP = 'u_lan';
@@ -92,7 +158,7 @@ const buildFoods = () =>
     purchaseUnitSize,
     ...(STOCK_UNITS[id] || { stockUnit: purchaseUnit, purchaseToStock: 1, stockUnitSize: purchaseUnitSize }),
     unitPrice,
-    nutrition: { kcal, protein, lipid, glucid },
+    nutrition: { kcal, protein, lipid, glucid, ...seedMicronutrientsOf(id) },
     // Dầu ăn, đường là thực vật; thịt, thủy sản, trứng sữa là động vật
     origin: defaultOriginOf(group),
     nutrientSource: DEMO_NUTRIENT_SOURCE,
@@ -616,7 +682,7 @@ const buildNutritionSetups = () =>
     basis: Object.keys(SEED_NORMS[id]).length ? SEED_NORM_BASIS : '',
     price: DAY_PRICE[id],
     meals: sessionsOf(id).map((code) => ({ code, name: MEAL_SESSION_LABELS[code], countAs: code })),
-    norms: JSON.parse(JSON.stringify(SEED_NORMS[id])),
+    norms: { ...JSON.parse(JSON.stringify(SEED_NORMS[id])), ...seedMicroNormsOf(id) },
     updatedBy: VP,
     updatedAt: at('2026-08-20'),
     history: [{ id: `h_ns_${id}`, action: 'CREATED', userId: VP, at: at('2026-08-20'), note: '' }],

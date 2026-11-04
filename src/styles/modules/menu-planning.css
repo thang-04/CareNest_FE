@@ -392,7 +392,13 @@
 }
 .td-overview__table td {
   vertical-align: middle;
-  overflow-wrap: anywhere;
+}
+/* Mỗi chỉ số một cột ⇒ bảng rộng: tiêu đề được xuống dòng, phần còn thiếu cuộn ngang trong khung, không bẻ chữ giữa từ */
+.table.td-overview__table th {
+  white-space: normal;
+}
+.td-overview__table .td-overview__meal {
+  white-space: nowrap;
 }
 .td-overview__age,
 .td-overview__price {
@@ -2038,4 +2044,86 @@
 .td-daily-kcal {
   max-width: calc(320px + 2 * var(--space-6));
   padding: 0 var(--space-6) var(--space-3);
+}
+
+/* Bảng thành phần dinh dưỡng của thực phẩm: dòng tiêu đề nhóm chất, tên chất không in đậm như tiêu đề */
+.table.table--grid .td-nutrient-table__group th {
+  background: var(--table-header-bg);
+  color: var(--tone-gray-fg);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+}
+
+.td-nutrient-table tbody th[scope='row'] {
+  font-weight: var(--fw-regular);
+}
+
+/* Ô so định mức (đạt / chưa đạt): giữ màu khi bảng kẻ ô ép nền trắng */
+.table.table--grid td.td-tone--ok {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+
+.table.table--grid td.td-tone--off {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+
+/* Bảng rộng hơn khung: cột đầu (tên nhóm tuổi / thành phần) đứng yên khi cuộn ngang */
+.table.table--grid .td-sticky-first {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-base);
+  background: var(--color-surface);
+}
+
+/* Hàng tab chọn nhóm cột ngay dưới tiêu đề thẻ (chi tiết món) */
+.td-card-tabs {
+  padding: 0 var(--space-6) var(--space-3);
+}
+
+.td-tone__note {
+  display: block;
+  font-size: var(--fs-xs);
+}
+
+/* Bảng dinh dưỡng theo nhóm tuổi nhiều cột số: tiêu đề được xuống dòng để vừa khung 1280 px */
+.table.td-portion-table th {
+  white-space: normal;
+}
+
+/* Chi tiết thực phẩm: cột phải chứa bảng thành phần 3 cột (chất, hàm lượng, đơn vị) nên rộng hơn mặc định */
+.td-split-aside.td-split-aside--nutrients {
+  grid-template-columns: minmax(0, 1fr) calc(var(--space-16) * 5.625);
+}
+
+@media (max-width: 1100px) {
+  .td-split-aside.td-split-aside--nutrients {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Form thực phẩm: nhóm ô vi chất (khoáng chất, vitamin) không viền mặc định của fieldset */
+.td-micro-fieldset {
+  margin-inline: 0;
+  padding: 0;
+  border: 0;
+}
+
+.td-micro-fieldset legend {
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+/* Định mức theo hàng: bảng hẹp vừa đủ, ô nhập số không giãn hết cột */
+.table.td-norm--rows {
+  max-width: calc(var(--space-16) * 12);
+}
+
+.td-norm--rows .td-norm__input {
+  max-width: calc(var(--space-16) * 2);
+}
+
+.td-norm--rows tbody th[scope='row'] {
+  font-weight: var(--fw-regular);
 }

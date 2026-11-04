@@ -12,11 +12,12 @@ import { Switch } from '@/components/ui/Switch';
 import { FormField } from '@/components/form/FormField';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ageGroupById, isNurseryAgeGroup } from '@/models/School';
-import { MEAL_SESSION_LABELS, addDays, formatMoney, sessionsOf } from '@/models/menu-planning/menuPlanningConstants';
+import { MEAL_SESSION_LABELS, MICRONUTRIENTS, addDays, formatMoney, sessionsOf } from '@/models/menu-planning/menuPlanningConstants';
 import { hasErrors, validateNutritionSetup } from '@/utils/menu-planning/menuPlanningValidation';
 import {
   GRAM_NORM_COLUMNS,
   KCAL_NORM,
+  MICRO_NORM_GROUPS,
   SESSION_NORM_KEYS,
   STRUCTURE_NORM_COLUMNS,
   isBaseMeal,
@@ -42,14 +43,6 @@ const GRAM_TONE = {
   plantLipidG: 'td-col-l',
   glucidG: 'td-col-g',
 };
-const NORM_SHORT_LABELS = {
-  kcal: 'Kcal',
-  animalProteinG: 'Đạm ĐV',
-  plantProteinG: 'Đạm TV',
-  animalLipidG: 'Béo ĐV',
-  plantLipidG: 'Béo TV',
-  glucidG: 'Bột đường',
-};
 const DESC =
   'Bữa ăn, giá suất ăn một ngày và chuẩn tạm (nhập tay) cho mỗi nhóm tuổi: năng lượng và cơ cấu P:L:G (bắt buộc để đánh giá), định mức gam / trẻ / ngày theo chất và tỷ lệ năng lượng từng bữa (không bắt buộc). Để trống thì thực đơn hiện "Chưa đặt định mức". Định mức áp cho các bữa trường phục vụ của nhóm tuổi. Không dùng AI.';
 const isSet = (range) => rangeLabel(range) !== '—';
@@ -62,6 +55,86 @@ const money = (v) => (v === '' || Number.isNaN(Number(v)) ? v : Number(v).toLoca
 const digits = (v) => v.replace(/\D/g, '');
 const rangeLabel = (values, suffix = '') =>
   values?.[0] !== '' && values?.[0] != null && values?.[1] !== '' && values?.[1] != null ? `${values[0]}–${values[1]}${suffix}` : '—';
+// Số định mức đã đặt trong nhóm (gam theo chất, vi chất); vi chất chỉ cần số tối thiểu
+const filled = (v) => v !== '' && v != null;
+const setCount = (norms, keys, minOnly = false) => {
+  const n = keys.filter((k) => (minOnly ? filled(norms[k]?.[0]) : isSet(norms[k]))).length;
+  return n ? `Đã đặt ${n}/${keys.length}` : 'Chưa đặt';
+};
+// Trạng thái nhóm: chưa đủ năng lượng + P:L:G thì thực đơn chưa đánh giá được ⇒ báo vàng thay vì "Đang áp dụng"
+const groupStatus = (g) => {
+  if (!g.enabled) return { tone: 'gray', label: 'Không áp dụng' };
+  const coreSet = [KCAL_NORM, ...STRUCTURE_NORM_COLUMNS].every((c) => isSet(g.norms[c.key]));
+  return coreSet ? { tone: 'green', label: 'Đang áp dụng' } : { tone: 'orange', label: 'Chưa nhập chuẩn' };
+};
+
+// Định mức theo hàng: mỗi chỉ số một dòng, cột Tối thiểu / Tối đa / Đơn vị (không tràn ngang khi thêm chỉ số)
+const NORM_SECTIONS = [
+  {
+    key: 'core',
+    label: 'Năng lượng và cơ cấu P:L:G (bắt buộc)',
+    rows: [
+      KCAL_NORM,
+      ...STRUCTURE_NORM_COLUMNS.map((c) => ({ ...c, label: `Tỷ lệ năng lượng từ ${c.label.toLowerCase()}`, tone: NORM_TONE[c.key] })),
+    ],
+  },
+  { key: 'gram', label: 'Định lượng theo chất (không bắt buộc)', rows: GRAM_NORM_COLUMNS.map((c) => ({ ...c, tone: GRAM_TONE[c.key] })) },
+  ...MICRO_NORM_GROUPS.map((mg) => ({ key: mg.key, label: `${mg.label} (không bắt buộc)`, rows: mg.columns })),
+];
+
+function NormTable({ sections, norms, readOnly, errorOf, onChange }) {
+  return (
+    <div className="table-wrap">
+      <table className="table table--grid table--compact td-norm td-norm--rows">
+        <thead>
+          <tr>
+            <th>Chỉ số</th>
+            <th className="center">Tối thiểu</th>
+            <th className="center">Tối đa</th>
+            <th>Đơn vị</th>
+          </tr>
+        </thead>
+        {sections.map((s) => (
+          <tbody key={s.key}>
+            <tr className="td-nutrient-table__group">
+              <th scope="colgroup" colSpan={4}>
+                {s.label}
+              </th>
+            </tr>
+            {s.rows.map((c) => {
+              const value = norms[c.key] || ['', ''];
+              const error = errorOf(c.key);
+              const cell = (i) =>
+                readOnly ? (
+                  <span>{value[i] === '' ? '—' : value[i]}</span>
+                ) : (
+                  <input
+                    type="number"
+                    min="0"
+                    className={`input td-norm__input ${error ? 'is-invalid' : ''}`}
+                    value={value[i]}
+                    aria-label={`${c.label} ${i ? 'tối đa' : 'tối thiểu'}`}
+                    onChange={(e) => onChange(c.key, i ? [value[0], e.target.value] : [e.target.value, value[1]])}
+                  />
+                );
+              return (
+                <tr key={c.key}>
+                  <th scope="row" className={c.tone}>
+                    {c.label}
+                    {error && <span className="field__error">{error}</span>}
+                  </th>
+                  <td className="center">{cell(0)}</td>
+                  <td className="center">{cell(1)}</td>
+                  <td className="muted">{c.unit}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        ))}
+      </table>
+    </div>
+  );
+}
 
 function RangeInput({ value, onChange, readOnly, label, invalid }) {
   if (readOnly)
@@ -322,10 +395,15 @@ export default function NutritionSetupPage() {
             <table className="table table--grid td-overview__table">
               <thead>
                 <tr>
-                  <th>Nhóm tuổi</th>
+                  <th className="td-sticky-first">Nhóm tuổi</th>
                   <th>Bữa ăn</th>
                   <th className="money">Giá suất / trẻ / ngày</th>
-                  <th>Chuẩn tạm / ngày</th>
+                  <th className="num">Năng lượng (kcal)</th>
+                  <th className="num">Đạm P (%)</th>
+                  <th className="num">Béo L (%)</th>
+                  <th className="num">Tinh bột G (%)</th>
+                  <th className="center">Định mức gam</th>
+                  <th className="center">Vi chất</th>
                   <th className="center">Trạng thái</th>
                   <th className="cell--actions">Chi tiết</th>
                 </tr>
@@ -337,7 +415,7 @@ export default function NutritionSetupPage() {
                   const { upcoming } = priceStatus(items.find((s) => s.ageGroupId === g.ageGroupId)?.prices, g.ageGroupId, today);
                   return (
                     <tr key={g.ageGroupId}>
-                      <td>
+                      <td className="td-sticky-first">
                         <div className="td-overview__age">
                           <strong>{info.short}</strong>
                           <span className="text-sm text-2">
@@ -369,26 +447,21 @@ export default function NutritionSetupPage() {
                           )}
                         </div>
                       </td>
-                      <td>
-                        <div className="td-overview__norms">
-                          {[KCAL_NORM, ...GRAM_NORM_COLUMNS].map(({ key, unit }) => (
-                            <span key={key}>
-                              <b>{NORM_SHORT_LABELS[key]}</b> {rangeLabel(g.norms[key], unit === 'g' ? ' g' : '')}
-                            </span>
-                          ))}
-                          <span>
-                            <b>P:L:G</b>{' '}
-                            {STRUCTURE_NORM_COLUMNS.every((c) => isSet(g.norms[c.key]))
-                              ? `${STRUCTURE_NORM_COLUMNS.map((c) => rangeLabel(g.norms[c.key])).join(' : ')}%`
-                              : '—'}
-                          </span>
-                          <span>
-                            <b>Cả ngày</b> {g.dailyKcalNeed ? `${g.dailyKcalNeed} kcal` : '—'}
-                          </span>
-                        </div>
+                      <td className="num nowrap">{rangeLabel(g.norms.kcal)}</td>
+                      {STRUCTURE_NORM_COLUMNS.map((c) => (
+                        <td key={c.key} className="num nowrap">
+                          {rangeLabel(g.norms[c.key])}
+                        </td>
+                      ))}
+                      <td className="center nowrap">
+                        {setCount(
+                          g.norms,
+                          GRAM_NORM_COLUMNS.map((c) => c.key),
+                        )}
                       </td>
+                      <td className="center nowrap">{setCount(g.norms, MICRONUTRIENTS, true)}</td>
                       <td className="center">
-                        <StatusBadge tone={g.enabled ? 'green' : 'gray'} label={g.enabled ? 'Đang áp dụng' : 'Không áp dụng'} />
+                        <StatusBadge {...groupStatus(g)} />
                       </td>
                       <td className="cell--actions">
                         <button
@@ -515,63 +588,17 @@ export default function NutritionSetupPage() {
                         )}
                       </div>
                       <h3 className="td-norm__title">Định mức / trẻ / ngày</h3>
-                      <div className="table-wrap">
-                        <table className="table table--grid td-norm">
-                          <thead>
-                            <tr>
-                              <th aria-label="Mục định mức" />
-                              {GRAM_NORM_COLUMNS.map((c) => (
-                                <th key={c.key} className={`center ${GRAM_TONE[c.key]}`}>
-                                  {c.label} (g)
-                                </th>
-                              ))}
-                              <th className="center">{KCAL_NORM.label} (kcal)</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <th scope="row">Định mức một ngày</th>
-                              {[...GRAM_NORM_COLUMNS, KCAL_NORM].map((c) => (
-                                <td key={c.key} className="center td-norm__range">
-                                  <RangeInput
-                                    value={g.norms[c.key]}
-                                    readOnly={!canEdit}
-                                    label={`${c.label} (${c.unit})`}
-                                    invalid={!!err(`${g.ageGroupId}.norms.${c.key}`)}
-                                    onChange={(v) => setGroup(g.ageGroupId, (x) => (x.norms[c.key] = v))}
-                                  />
-                                  {err(`${g.ageGroupId}.norms.${c.key}`) && (
-                                    <span className="field__error">{err(`${g.ageGroupId}.norms.${c.key}`)}</span>
-                                  )}
-                                </td>
-                              ))}
-                            </tr>
-                            <tr>
-                              <th scope="row">Cơ cấu áp dụng P:L:G (% năng lượng)</th>
-                              {STRUCTURE_NORM_COLUMNS.map((c) => (
-                                <td
-                                  key={c.key}
-                                  colSpan={c.key === 'glucid' ? 1 : 2}
-                                  className={`center td-norm__range ${NORM_TONE[c.key]}`}
-                                >
-                                  <span className="text-xs muted">{c.label}</span>
-                                  <RangeInput
-                                    value={g.norms[c.key]}
-                                    readOnly={!canEdit}
-                                    label={`Cơ cấu ${c.label} (%)`}
-                                    invalid={!!err(`${g.ageGroupId}.norms.${c.key}`)}
-                                    onChange={(v) => setGroup(g.ageGroupId, (x) => (x.norms[c.key] = v))}
-                                  />
-                                  {err(`${g.ageGroupId}.norms.${c.key}`) && (
-                                    <span className="field__error">{err(`${g.ageGroupId}.norms.${c.key}`)}</span>
-                                  )}
-                                </td>
-                              ))}
-                              <td className="center muted">—</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
+                      <p className="text-xs muted td-card-note td-flat">
+                        Năng lượng và cơ cấu P:L:G bắt buộc để đánh giá thực đơn; các nhóm còn lại không bắt buộc. Khoáng chất, vitamin để
+                        trống số tối đa nếu chỉ cần đạt tối thiểu; lệch định mức chỉ cảnh báo.
+                      </p>
+                      <NormTable
+                        sections={NORM_SECTIONS}
+                        norms={g.norms}
+                        readOnly={!canEdit}
+                        errorOf={(k) => err(`${g.ageGroupId}.norms.${k}`)}
+                        onChange={(k, v) => setGroup(g.ageGroupId, (x) => (x.norms[k] = v))}
+                      />
                       <h3 className="td-norm__title">Bữa ăn và tỷ lệ năng lượng từng bữa</h3>
                       <div className="td-daily-kcal">
                         <FormField

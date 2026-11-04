@@ -1,10 +1,10 @@
 /**
  * Thanh tab dùng chung (DESIGN §6.3, §14.1): class `.tabs` / `.tab`, có số đếm tùy chọn.
- * items: [{ key, label, count? }]; value: key đang chọn; onChange(key).
+ * items: [{ key, label, count? }]; value: key đang chọn; onChange(key); variant 'pill' = tab dạng viên (`.tabs--pill`).
  */
-export function Tabs({ items, value, onChange, ariaLabel }) {
+export function Tabs({ items, value, onChange, ariaLabel, variant }) {
   return (
-    <div className="tabs" role="tablist" aria-label={ariaLabel}>
+    <div className={`tabs ${variant === 'pill' ? 'tabs--pill' : ''}`} role="tablist" aria-label={ariaLabel}>
       {items.map((t) => (
         <button
           key={t.key}
