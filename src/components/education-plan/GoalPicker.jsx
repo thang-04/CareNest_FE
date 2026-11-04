@@ -37,8 +37,19 @@ const KIND_LABELS = { sub: 'Lĩnh vực con', group: 'Kết quả mong đợi' }
 const Kind = ({ label, tone }) => <span className={`ga-cur-kind ga-cur-kind--${tone}`}>{label}</span>;
 
 /** readOnly: chỉ xem (trang Nguồn chương trình của Bộ) — cùng giao diện, không ô tích / chọn tất cả. */
-export function GoalPicker({ tree, picked = new Set(), onToggle, disabled = false, kindLabels = KIND_LABELS, readOnly = false }) {
+/** contentPicked + onToggleContent: tích từng nội dung đi kèm (khóa `${goalId}:${index}`); không truyền thì chỉ xem nội dung. */
+export function GoalPicker({
+  tree,
+  picked = new Set(),
+  onToggle,
+  disabled = false,
+  kindLabels = KIND_LABELS,
+  readOnly = false,
+  contentPicked,
+  onToggleContent,
+}) {
   const scopeId = useId();
+  const pickContents = !readOnly && contentPicked instanceof Set && typeof onToggleContent === 'function';
   const [query, setQuery] = useState('');
   const [domainPick, setDomainPick] = useState('');
   const q = fold(query.trim());
@@ -183,12 +194,32 @@ export function GoalPicker({ tree, picked = new Set(), onToggle, disabled = fals
                           </label>
                           {goal.contents.length > 0 && (
                             <details className="ga-cur-contents">
-                              <summary className="text-sm">{goal.contents.length} nội dung đi kèm</summary>
-                              <ul className="text-sm">
-                                {goal.contents.map((c, i) => (
-                                  <li key={`${i}-${c}`}>{c}</li>
-                                ))}
-                              </ul>
+                              <summary className="text-sm">
+                                {goal.contents.length} nội dung đi kèm
+                                {pickContents &&
+                                  ` · đã chọn ${goal.contents.filter((_, i) => contentPicked.has(`${goal.id}:${i}`)).length}`}
+                              </summary>
+                              {pickContents ? (
+                                <div className="text-sm">
+                                  {goal.contents.map((c, i) => (
+                                    <label key={`${i}-${c}`} className="ga-cur-row">
+                                      <input
+                                        type="checkbox"
+                                        disabled={disabled}
+                                        checked={contentPicked.has(`${goal.id}:${i}`)}
+                                        onChange={() => onToggleContent(goal.id, i)}
+                                      />
+                                      <span>{c}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              ) : (
+                                <ul className="text-sm">
+                                  {goal.contents.map((c, i) => (
+                                    <li key={`${i}-${c}`}>{c}</li>
+                                  ))}
+                                </ul>
+                              )}
                             </details>
                           )}
                         </div>

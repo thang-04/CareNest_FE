@@ -34,7 +34,7 @@ import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
 import ImportThemesModal from '@/components/education-plan/ImportThemesModal';
 import { mergeImportedThemes } from '@/models/education-plan/importThemes.mjs';
 import CurriculumGoalsModal from '@/components/education-plan/CurriculumGoalsModal';
-import { addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
+import { addContentsToExistingGoals, addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
 import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { yearPlanLines } from '@/models/education-plan/planHistory.mjs';
@@ -534,8 +534,26 @@ export default function GoalFormPage() {
     return true;
   };
   // BE:EDU-28 — mục tiêu của Bộ dựng thành kế hoạch nguồn để dùng chung cách ghép của EDU-24
-  const importMinistryGoals = (goals) =>
-    importGoals({ source: curriculumAsSourcePlan(goals), selectedGoalIds: goals.map((g) => `cg-${g.id}`) });
+  // Mục tiêu đã có trong bản soạn thì chỉ thêm nội dung mới tích vào đúng mục tiêu đó (Tiền 04/11)
+  const importMinistryGoals = (goals) => {
+    const current = importState.current;
+    if (!current.allowed) return false;
+    const makeId = () => `import-${uid()}`;
+    const existing = addContentsToExistingGoals(current.form, goals, makeId);
+    const rest = goals.filter((g) => !existing.matched.has(g.id));
+    const { domains, report } = mergeImportedGoals(
+      { ...current.form, domains: existing.domains },
+      curriculumAsSourcePlan(rest),
+      rest.map((g) => `cg-${g.id}`),
+      makeId,
+    );
+    if (report.added || existing.added) set({ domains });
+    setImportReport(report);
+    const contents = existing.added ? ` · thêm ${existing.added} nội dung vào mục tiêu đã có` : '';
+    const unavailable = report.unavailable.length ? ` · ${report.unavailable.length} mục tiêu chưa thêm được` : '';
+    toast(`Đã thêm ${report.added} mục tiêu${contents}${unavailable}`, report.added || existing.added ? 'ok' : 'warn');
+    return true;
+  };
   const addMinistryContents = (goalRowId, suggestions) => {
     if (!importState.current.allowed) return false;
     const { domains, added, duplicates } = addSuggestedContents(importState.current.form, goalRowId, suggestions, () => `import-${uid()}`);
