@@ -11,7 +11,7 @@ import { downloadXlsx } from '@/utils/exportXlsx';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
-import { monthInSemester } from '@/utils/semesters';
+import { monthInSemester, semestersOf } from '@/utils/semesters';
 
 const VIEWS = [
   { key: 'month', label: 'Theo tháng' },
@@ -40,7 +40,7 @@ const GROUPS = [
  * mình (không có dòng tổng, không có tab HTCT). Chỉ xem, xuất Excel.
  */
 export default function QualityReportPage() {
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, schoolYears } = useSchoolYear();
   const { user } = useAuth();
   // HT, PHT xem mọi điểm trường (AUTH-20); GV, tổ trưởng chỉ lớp trong phạm vi BE trả về
   const leader = isLeader(user);
@@ -61,7 +61,7 @@ export default function QualityReportPage() {
   const totals = report?.totals || [];
   // Tab Cả năm: lọc cột tháng theo học kỳ (Cấu hình thời gian)
   const [semKey, setSemKey] = useState('');
-  const [sem, setSem] = useState(null);
+  const sem = semestersOf(schoolYears.find((y) => String(y.id) === String(schoolYear))).find((s) => s.key === semKey) || null;
   const months = (report?.months || []).filter((m) => view !== 'year' || monthInSemester(m, sem));
   const campusOptions = leader && report?.allCampuses?.length ? report.allCampuses : report?.campuses || [];
   const multiCampus = leader && (campusOptions.length > 1 || !!report?.allCampuses?.length);
@@ -172,9 +172,8 @@ export default function QualityReportPage() {
             <SemesterSelect
               value={semKey}
               emptyLabel="Cả năm học"
-              onChange={(key, value) => {
+              onChange={(key) => {
                 setSemKey(key);
-                setSem(value);
               }}
             />
           )}
