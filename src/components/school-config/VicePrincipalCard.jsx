@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { SCHOOL_CONFIG_API } from '@/config/env';
-import { UserCog, Utensils } from '@/components/ui/icons';
+import { KeyRound, UserCog, Utensils } from '@/components/ui/icons';
 import { Avatar } from '@/components/ui/Avatar';
 import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { areaTasks, scopeText, taskOn, visibleVpAreas, vpGrantsOf } from '@/utils/school-config/vpAssignmentView';
@@ -9,7 +9,7 @@ import { formatDateTime } from '@/utils/format';
 const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 
 /** Thẻ 1 Phó hiệu trưởng: điểm trường phụ trách + bảng công việc được giao, nói bằng lời thường. */
-export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onEdit }) {
+export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onEdit, permissionsLink }) {
   const a = row.assignment;
   const grants = vpGrantsOf(a);
 
@@ -21,14 +21,23 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
           <div className="sc-person__text">
             <div className="fw-600">{row.user.fullName}</div>
             <div className="text-xs muted">
-              {a ? `Phân công ${formatDateTime(a.assignedAt)}${assignerName ? ` · bởi ${assignerName}` : ''}` : row.user.email}
+              {/* BE chưa trả thời điểm phân công (dữ liệu cũ) thì hiện email thay vì "Phân công —" */}
+              {a?.assignedAt ? `Phân công ${formatDateTime(a.assignedAt)}${assignerName ? ` · bởi ${assignerName}` : ''}` : row.user.email}
             </div>
           </div>
         </div>
         {!readOnly && (
-          <button className={`btn btn--sm ${a ? '' : 'btn--primary'}`} onClick={onEdit}>
-            <UserCog size={15} /> {a ? 'Đổi phân công' : 'Phân công'}
-          </button>
+          <div className="row gap-2">
+            {/* Quyền thao tác thuộc màn Quyền ngoại lệ từng người (module phân quyền) */}
+            {a && permissionsLink && (
+              <Link className="btn btn--sm" to={permissionsLink}>
+                <KeyRound size={15} /> Chọn quyền
+              </Link>
+            )}
+            <button className={`btn btn--sm ${a ? '' : 'btn--primary'}`} onClick={onEdit}>
+              <UserCog size={15} /> {a ? 'Đổi phân công' : 'Phân công'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -43,7 +52,7 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
 
       {a && SCHOOL_CONFIG_API ? (
         <p className="text-sm muted">
-          Quyền thao tác được quản lý tại <Link to="/school/roles">Vai trò & quyền</Link>.
+          Quyền thao tác: mặc định của vai trò Phó hiệu trưởng, bấm Chọn quyền để bật/tắt riêng cho người này.
         </p>
       ) : a ? (
         <div className="table-wrap">

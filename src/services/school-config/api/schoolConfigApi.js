@@ -36,6 +36,11 @@ export const createSchoolConfigApi = (axiosClient) => ({
   getCutoffSetting: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/cutoff`),
   saveCutoffSetting: (schoolYear, form) => axiosClient.put(`/school-years/${schoolYear}/cutoff`, form),
   saveSemester: (schoolYear, form) => axiosClient.put(`/school-years/${schoolYear}/semester`, form),
+  // Học kỳ đã có đánh giá học kỳ thì khóa ngày (BE OBS-25)
+  getSemesterLocks: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/semester-locks`),
+  // Ngày nghỉ của năm học (BE SCH-05): thay cả danh sách
+  getHolidays: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/holidays`),
+  saveHolidays: (schoolYear, holidays) => axiosClient.put(`/school-years/${schoolYear}/holidays`, { holidays }),
 
   getCampuses: (schoolYear) => axiosClient.get('/campuses', { params: { schoolYear, withStats: true } }),
   getCampusDetail: (id, schoolYear) => axiosClient.get(`/campuses/${id}`, { params: { schoolYear } }),
@@ -57,6 +62,9 @@ export const createSchoolConfigApi = (axiosClient) => ({
 
   getTeacherAssignments: (filters) => axiosClient.get('/teacher-assignments', { params: filters }),
   saveClassTeachers: (classId, form) => axiosClient.put(`/classes/${classId}/teachers`, form),
+  // GV dạy thay một lớp trong khoảng ngày (BE AUTH-24: substitute bắt buộc validTo)
+  assignSubstituteTeacher: ({ userId, classroomId, validFrom, validTo }) =>
+    axiosClient.post('/staff-assignments', { userId, classroomId, validFrom, validTo, substitute: true }),
   // PENDING BE: tổ trưởng 1 người / nhóm tuổi / năm học cho cả trường (không còn campusId trong payload)
   saveTeamLeader: (payload) => axiosClient.put('/team-leader-assignments', payload),
   getTeamLeaders: (filters) => axiosClient.get('/team-leader-assignments', { params: filters }),

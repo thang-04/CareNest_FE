@@ -47,9 +47,9 @@ export const INTEGRATION_MODULES = {
       'PATCH /users/{x}/status',
     ],
   },
+  // Màn /school/staff nối BE /accounts (school-config); các hàm sửa hồ sơ / đổi vai trò chưa có BE vẫn demo, không gắn route
   'staff-accounts': {
     source: 'demo',
-    routes: ['/school/staff'],
     facades: ['src/services/school-config/schoolConfigService.js'],
   },
   'vice-principal-assignments': {
@@ -128,7 +128,7 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/pickup/pickupService.js'],
   },
   assessment: {
-    source: 'demo',
+    source: 'api',
     routes: ['/assessment'],
     files: ['src/services/assessment/api/assessmentApi.js'],
     facades: ['src/services/assessment/assessmentService.js'],

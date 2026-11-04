@@ -24,9 +24,11 @@ test('SĐT di động Việt Nam: chuẩn hóa +84, dấu cách, mất số 0 đ
   assert.equal(normalizePhone('09123'), '');
 });
 
-test('form tạo: bắt buộc họ tên, SĐT, vai trò và điểm trường / lớp theo vai trò; email đúng định dạng', () => {
-  const empty = validateStaffAccount({ role: 'TEACHER' }, { campuses, classes });
-  assert.deepEqual(Object.keys(empty).sort(), ['classroomId', 'fullName', 'phone']);
+test('form tạo: bắt buộc họ tên, SĐT, vai trò; GV không chọn lớp (AUTH-15), PHT tạo GV phải chọn điểm trường', () => {
+  const empty = validateStaffAccount({ role: 'TEACHER' }, { campuses });
+  assert.deepEqual(Object.keys(empty).sort(), ['fullName', 'phone']);
+  const byVp = validateStaffAccount({ fullName: 'A', phone: '0912345678', role: 'TEACHER' }, { campuses, teacherCampusRequired: true });
+  assert.deepEqual(Object.keys(byVp), ['campusId']);
   const vp = validateStaffAccount({ fullName: 'A', phone: '0912345678', email: 'x@', role: 'VICE_PRINCIPAL' }, { campuses, classes });
   assert.deepEqual(Object.keys(vp).sort(), ['campusId', 'email']);
   assert.deepEqual(
@@ -37,14 +39,15 @@ test('form tạo: bắt buộc họ tên, SĐT, vai trò và điểm trường /
   );
 });
 
-test('payload POST /accounts: GV gắn lớp, PHT/bếp gắn điểm trường, SĐT chuẩn hóa, email trống thành null', () => {
+test('payload POST /accounts: GV không gắn lớp (chỉ kèm điểm trường nếu có), PHT/bếp gắn điểm trường, SĐT chuẩn hóa', () => {
   assert.deepEqual(toCreatePayload({ fullName: ' Lan ', phone: '+84912345678', email: '', role: 'TEACHER', classroomId: '11' }), {
     phone: '0912345678',
     fullName: 'Lan',
     email: null,
     role: 'TEACHER',
-    assignment: { classroomId: '11' },
+    assignment: null,
   });
+  assert.deepEqual(toCreatePayload({ fullName: 'C', phone: '0912345670', role: 'TEACHER', campusId: '1' }).assignment, { campusId: '1' });
   assert.deepEqual(toCreatePayload({ fullName: 'B', phone: '0912345679', role: 'KITCHEN_STAFF', campusId: '2' }).assignment, {
     campusId: '2',
   });

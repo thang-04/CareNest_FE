@@ -90,7 +90,8 @@ const forbid = (message = MSG10) => {
   throw new ApiError(403, message);
 };
 
-const evalCollection = (kind) => (kind === EVAL_KIND.YEAR_END ? 'yearEndEvaluations' : 'periodicEvaluations');
+const evalCollection = (kind) =>
+  ({ [EVAL_KIND.YEAR_END]: 'yearEndEvaluations', [EVAL_KIND.SEMESTER]: 'semesterEvaluations' })[kind] || 'periodicEvaluations';
 
 /* ---------------- source-record helpers ---------------- */
 
@@ -1451,7 +1452,7 @@ export const assessmentMockRepository = {
     const db = ensureReady();
     if (!user || user.role === ROLES.KITCHEN_STAFF) forbid();
     const mine = teacherClassIds(db, user);
-    let list = db[evalCollection(kind)].filter((ev) => {
+    let list = (db[evalCollection(kind)] || []).filter((ev) => {
       if (mine.has(ev.classId)) return true;
       return isLeader(user) && ev.status === EVAL_STATUS.CONFIRMED && inLeaderScope(ev.campusId, user);
     });

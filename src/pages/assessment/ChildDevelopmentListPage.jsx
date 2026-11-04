@@ -21,6 +21,8 @@ export default function ChildDevelopmentListPage() {
   const { children, loading, error, reload } = useDevelopmentChildren();
   const [classId, setClassId] = useState('');
   const [keyword, setKeyword] = useState('');
+  // Mặc định trẻ đang học; trẻ đã chuyển lớp / nghỉ vẫn mở được hồ sơ cũ (BE trả current = false)
+  const [state, setState] = useState('CURRENT');
   const [page, setPage] = useState(1);
   // Lớp lấy từ chính danh sách trẻ trong phạm vi (cùng thứ tự BE trả)
   const classes = useMemo(() => {
@@ -31,11 +33,12 @@ export default function ChildDevelopmentListPage() {
 
   const rows = children
     .filter((ch) => !classId || String(ch.classId) === classId)
+    .filter((ch) => !state || (state === 'CURRENT') === (ch.current !== false))
     .filter((ch) => !keyword || normalizeText(`${ch.fullName} ${ch.code || ''}`).includes(normalizeText(keyword)));
 
   const link = (ch) => (leader ? `/assessment/children/${ch.id}/progress` : `/assessment/children/${ch.id}`);
   const title = leader ? 'Tiến độ phát triển của trẻ' : 'Hồ sơ phát triển của trẻ';
-  const filtered = !!(keyword || classId);
+  const filtered = !!(keyword || classId || state !== 'CURRENT');
 
   return (
     <div className="page">
@@ -53,21 +56,37 @@ export default function ChildDevelopmentListPage() {
               setPage(1);
             }}
           />
+          {/* Lọc lớp chỉ khi có từ 2 lớp (GV một lớp không cần) */}
+          {classes.length > 1 && (
+            <select
+              className="select"
+              value={classId}
+              onChange={(e) => {
+                setClassId(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Lớp"
+            >
+              <option value="">Tất cả lớp</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             className="select"
-            value={classId}
+            value={state}
             onChange={(e) => {
-              setClassId(e.target.value);
+              setState(e.target.value);
               setPage(1);
             }}
-            aria-label="Lớp"
+            aria-label="Tình trạng học"
           >
-            <option value="">Tất cả lớp</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            <option value="CURRENT">Đang học</option>
+            <option value="LEFT">Đã chuyển lớp / nghỉ</option>
+            <option value="">Tất cả</option>
           </select>
         </div>
         {error ? (
@@ -107,6 +126,7 @@ export default function ChildDevelopmentListPage() {
                               onClick={() => {
                                 setKeyword('');
                                 setClassId('');
+                                setState('CURRENT');
                                 setPage(1);
                               }}
                             >
@@ -119,13 +139,16 @@ export default function ChildDevelopmentListPage() {
                   </tr>
                 ) : (
                   paginate(rows, page).map((ch) => (
-                    <tr key={ch.id}>
+                    <tr key={`${ch.id}-${ch.classId}`}>
                       <td>
                         <ChildNameCell child={ch} sub={null} />
                       </td>
                       <td className="nowrap">{ch.dateOfBirth ? formatDate(ch.dateOfBirth) : '—'}</td>
                       <td className="nowrap">{ch.dateOfBirth ? ageLabel(ch.dateOfBirth) : '—'}</td>
-                      <td>{ch.className || '—'}</td>
+                      <td>
+                        {ch.className || '—'}
+                        {ch.current === false && <div className="muted">Đã chuyển lớp / nghỉ</div>}
+                      </td>
                       <td className="cell--actions">
                         <RowActions view={{ to: link(ch), label: leader ? 'Xem tiến độ' : 'Xem hồ sơ' }} name={ch.fullName} />
                       </td>

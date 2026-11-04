@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -89,9 +90,9 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
     if (hasErrors(e)) return;
     setSaving(true);
     try {
-      await saveClass(cls?.id || null, { ...form, capacity: Number(form.capacity) }, user);
+      const saved = await saveClass(cls?.id || null, { ...form, capacity: Number(form.capacity) }, user);
       toast.success('Đã lưu thay đổi.', cls ? 'Cập nhật lớp' : 'Tạo lớp');
-      onClose(true);
+      onClose(true, cls ? null : saved);
     } catch (err) {
       setErrors(err.details || { _form: err.message });
     } finally {
@@ -171,7 +172,13 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
           label="Phòng học"
           required
           error={errors.locationId}
-          hint={form.campusId && !rooms.length ? 'Điểm trường chưa có phòng học (thêm ở màn Phòng học)' : undefined}
+          hint={
+            form.campusId && !rooms.length ? (
+              <>
+                Điểm trường chưa có phòng học. <Link to={`/school/rooms?campus=${form.campusId}`}>Thêm phòng ở Phòng ban</Link>
+              </>
+            ) : undefined
+          }
         >
           <select
             className="select"

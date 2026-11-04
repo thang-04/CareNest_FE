@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { FileDown, Save } from '@/components/ui/icons';
-import { Card, DraftRecoveryNotice, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { Card, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { VersionHistory } from '@/components/education-plan/VersionHistory';
+import { docLines } from '@/models/education-plan/planHistory.mjs';
 import { DocReviewButton, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
@@ -191,6 +193,14 @@ function ThemePlanInner() {
               {editable && (
                 <>
                   <span className="muted text-sm">{saver.label}</span>
+                  <VersionHistory
+                    drafts={saver.drafts}
+                    saved={saver.cleanDoc()}
+                    current={draft}
+                    unsaved={saver.unsaved}
+                    linesOf={docLines}
+                    onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
+                  />
                   <button
                     type="button"
                     className="btn btn--primary btn--sm"
@@ -226,7 +236,6 @@ function ThemePlanInner() {
         onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
         onDrop={(f) => flagEdit((d) => dropReference('theme', d, f))}
       />
-      {editable && saver.recovery && <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />}
       <RejectedNotice status={saved?.status} history={saved?.history} />
       <Card title="Chủ đề nhánh" bodyClass={null}>
         <div className="card__body">

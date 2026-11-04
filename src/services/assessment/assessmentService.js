@@ -1,14 +1,17 @@
-import { SCHOOL_CONFIG_API } from '@/config/env';
+import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
 import { beClient } from '@/services/http/beClient';
 import { getChildren, getClasses } from '@/services/schoolService';
 import { isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
-import { sourceOf } from '@/services/demoSource';
 import { assessmentMockRepository as mock } from '@/services/assessment/mock/assessmentMockRepository';
-import { assessmentApi as api, createAssessmentBeApi } from '@/services/assessment/api/assessmentApi';
+import { createAssessmentBeApi } from '@/services/assessment/api/assessmentApi';
 
-/** Facade used by hooks / pages. VITE_USE_MOCK=false switches to Spring Boot. */
-const repo = sourceOf('assessment', mock, api);
-// Dev: đánh giá hằng ngày (2 view), mở lại ngày đánh giá, tổng quan đánh giá lớp dùng BE thật; phần còn lại vẫn mock
+/** Facade used by hooks / pages: nối BE (SCHOOL_CONFIG_API) thì mọi màn đánh giá trẻ gọi BE thật, không thì mock. */
+// Build nối BE mà chưa bật SCHOOL_CONFIG_API: báo lỗi rõ thay vì lặng lẽ trả dữ liệu mẫu
+const notConnected = new Proxy(
+  {},
+  { get: () => () => Promise.reject(Object.assign(new Error('Đánh giá trẻ cần đăng nhập hệ thống CareNest.'), { status: 501 })) },
+);
+const repo = USE_MOCK ? mock : notConnected;
 const be = SCHOOL_CONFIG_API ? createAssessmentBeApi(beClient) : null;
 
 export const getAssessmentCriteria = () => repo.getCriteria();
@@ -49,6 +52,13 @@ export const getTicketOverview = (params, user) => (be || repo).getTicketOvervie
 // Tổng quan đánh giá các lớp cho PHT / Hiệu trưởng
 export const getClassAssessmentOverview = (params, user) => (be || repo).getClassAssessmentOverview(params, user);
 export const getQualityReport = (params, user) => (be || repo).getQualityReport(params, user);
+/** Nhận xét chung cả lớp theo tháng: { status, draft, content, canEdit, … }. */
+export const getClassMonthlyComment = (params, user) => (be || repo).getClassMonthlyComment(params, user);
+export const saveClassMonthlyComment = (body, user) => (be || repo).saveClassMonthlyComment(body, user);
+export const confirmClassMonthlyComment = (body, user) => (be || repo).confirmClassMonthlyComment(body, user);
+/** Xếp loại nhóm lớp theo kỳ: { rows: [{ classId, levels, note, canEdit, … }], campuses }. */
+export const getClassRatings = (params, user) => (be || repo).getClassRatings(params, user);
+export const saveClassRatings = (body, user) => (be || repo).saveClassRatings(body, user);
 export const getClassAssessmentDetail = (params, user) => (be || repo).getClassAssessmentDetail(params, user);
 export const issueTickets = (body, user) => (be || repo).issueTickets(body, user);
 

@@ -74,8 +74,15 @@ const dm = (s) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
 export const periodLabel = (type, start, end) => {
   if (type === PERIOD_TYPE.WEEK) return `Tuần ${dm(start)} – ${dm(end)}/${end.slice(0, 4)}`;
   if (type === PERIOD_TYPE.MONTH) return `Tháng ${start.slice(5, 7)}/${start.slice(0, 4)}`;
+  // Năm học bắt đầu tháng 8–9: học kỳ bắt đầu từ tháng 8 trở đi là học kỳ I
+  if (type === PERIOD_TYPE.SEMESTER)
+    return `Học kỳ ${Number(start.slice(5, 7)) >= 8 ? 'I' : 'II'} (${dm(start)} – ${dm(end)}/${end.slice(0, 4)})`;
   return `Năm học ${start.slice(0, 4)} – ${end.slice(0, 4)}`;
 };
+
+/** Trang chi tiết của một đánh giá theo loại kỳ. */
+export const evaluationPath = (e) =>
+  `/assessment/${{ [PERIOD_TYPE.YEAR]: 'year-end', [PERIOD_TYPE.SEMESTER]: 'semester' }[e.periodType] || 'periodic'}/${e.id}`;
 
 /** Kỳ của một đánh giá; tuần có số tuần theo kế hoạch năm thì ghi như giáo án: "Tuần 6 (12/10 – 16/10/2026)". */
 export const evaluationPeriodLabel = (e) =>

@@ -1,10 +1,23 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { AlertOctagon, ArrowLeft, Award, CheckCircle2, Copy, History, RefreshCw, Save } from '@/components/ui/icons';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  AlertOctagon,
+  ArrowLeft,
+  Award,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  History,
+  RefreshCw,
+  Save,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useEvaluation } from '@/hooks/assessment/useAssessment';
+import { useEvaluation, useEvaluations } from '@/hooks/assessment/useAssessment';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import {
   confirmEvaluation,
   markProgramCompletion,
@@ -23,7 +36,7 @@ import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
 import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
-import { formatDateTime } from '@/utils/format';
+import { formatDate, formatDateTime } from '@/utils/format';
 import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
 import { canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
 import { ChildAvatar } from '@/components/ChildAvatar';
@@ -35,10 +48,11 @@ const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp t
 export function EvaluationReviewView({ kind, id }) {
   const { user } = useAuth();
   const toast = useToast();
-  const navigate = useNavigate();
   const md = useMasterData();
   const { detail, loading, error, reload } = useEvaluation(kind, id, { live: false });
   const [content, setContent] = useState('');
+  // Bản trên hệ thống mà ô nhập đang dựa vào; khác null mới so được "đã sửa" (không hỏi lưu khi vừa mở màn)
+  const [loadedFrom, setLoadedFrom] = useState(null);
   const [contentError, setContentError] = useState('');
   const [programError, setProgramError] = useState('');
   const [busy, setBusy] = useState('');
@@ -47,12 +61,40 @@ export function EvaluationReviewView({ kind, id }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dayPage, setDayPage] = useState(1);
   const yearEnd = kind === EVAL_KIND.YEAR_END;
-  const base = `/assessment/${yearEnd ? 'year-end' : 'periodic'}`;
+  const base = `/assessment/${kind}`;
 
   const ev = detail?.evaluation;
+  const savedContent = ev ? ev.finalContent || ev.aiDraft?.content || '' : '';
   useEffect(() => {
-    if (ev) setContent(ev.finalContent || ev.aiDraft?.content || '');
-  }, [ev]);
+    if (!ev) return;
+    setContent(savedContent);
+    setLoadedFrom(savedContent);
+  }, [ev, savedContent]);
+
+  // Trẻ cùng lớp, cùng kỳ (xếp theo tên) để chuyển ‹ › và mở trẻ chưa xác nhận tiếp theo
+  const { evaluations } = useEvaluations(kind, ev ? { classId: ev.classId, schoolYear: ev.schoolYearId || undefined } : null, {
+    enabled: !!ev,
+  });
+  const siblings = useMemo(
+    () =>
+      ev
+        ? evaluations
+            .filter((e) => e.periodType === ev.periodType && e.periodStart === ev.periodStart)
+            .sort((a, b) => a.childName.localeCompare(b.childName, 'vi'))
+        : [],
+    [evaluations, ev],
+  );
+  const at = siblings.findIndex((e) => String(e.id) === String(ev?.id));
+  const prev = at > 0 ? siblings[at - 1] : null;
+  const next = at >= 0 && at < siblings.length - 1 ? siblings[at + 1] : null;
+  const nextPending =
+    at >= 0 ? [...siblings.slice(at + 1), ...siblings.slice(0, at)].find((e) => e.status !== EVAL_STATUS.CONFIRMED) : null;
+  const linkOf = (e) => `${base}/${e.id}`;
+
+  // Sửa nội dung chưa lưu mà rời màn / sang trẻ khác: hỏi trước
+  const saveRef = useRef(null);
+  const editing = !!ev && ev.status !== EVAL_STATUS.CONFIRMED && loadedFrom === savedContent && content !== savedContent;
+  const guard = useLeaveGuard({ when: editing, onSave: () => saveRef.current?.() ?? false });
 
   if (loading) return <LoadingState />;
   if (error) {
@@ -128,6 +170,16 @@ export function EvaluationReviewView({ kind, id }) {
       () => saveEvaluationDraft(kind, ev.id, content, user),
       () => 'Đã lưu chỉnh sửa. Đánh giá vẫn chờ bạn xác nhận.',
     );
+  saveRef.current = async () => {
+    if (!check()) return false;
+    let ok = false;
+    await run('save', async () => {
+      const res = await saveEvaluationDraft(kind, ev.id, content, user);
+      ok = true;
+      return res;
+    });
+    return ok;
+  };
 
   const redraft = async () => {
     setBusy('redraft');
@@ -152,6 +204,8 @@ export function EvaluationReviewView({ kind, id }) {
       () => 'Đánh giá đã được xác nhận thành công.',
     );
     setConfirmOpen(false);
+    // Xác nhận xong thì mở luôn trẻ chưa xác nhận tiếp theo cùng lớp, cùng kỳ
+    if (res && nextPending) guard.leaveNow(linkOf(nextPending));
     return res;
   };
 
@@ -164,6 +218,11 @@ export function EvaluationReviewView({ kind, id }) {
             <h1 className="page__title">
               Đánh giá {PERIOD_TYPE_LABELS[ev.periodType].toLowerCase()} – {ev.childName}
             </h1>
+            {/* Tiêu đề h1 chỉ cho trình đọc màn hình: hiện rõ họ tên, ngày sinh để GV biết đang đánh giá bé nào */}
+            <div className="dg-eval-name">
+              {detail.child?.fullName || ev.childName}
+              {detail.child?.dateOfBirth && <span className="muted text-sm"> · Sinh ngày {formatDate(detail.child.dateOfBirth)}</span>}
+            </div>
             <div className="dg-eval-meta">
               <EvaluationStatusBadge status={ev.status} />
               <span>{ev.className}</span>
@@ -185,6 +244,10 @@ export function EvaluationReviewView({ kind, id }) {
           </Link>
         )}
       </div>
+
+      {confirmed && !detail.cls?.teaches && (
+        <div className="alert alert--info mt-16">Đánh giá đã xác nhận · Chỉ xem lịch sử của trẻ, không chỉnh sửa nội dung.</div>
+      )}
 
       {ev.status === EVAL_STATUS.AI_FAILED && canReview && (
         <div className="alert alert--danger mt-16">
@@ -213,7 +276,9 @@ export function EvaluationReviewView({ kind, id }) {
                   <div className="muted text-xs mt-8">
                     {yearEnd
                       ? `Tổng hợp từ ${detail.monthlyEvaluations.length} đánh giá tháng đã xác nhận`
-                      : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày`}{' '}
+                      : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày${
+                          detail.monthlyEvaluations?.length ? ` và ${detail.monthlyEvaluations.length} đánh giá tháng` : ''
+                        }`}{' '}
                     · tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
                   </div>
                   <div className="row row--wrap gap-2 mt-12">
@@ -314,14 +379,14 @@ export function EvaluationReviewView({ kind, id }) {
 
       <PeriodSummaryTable data={detail.summary.structured} />
 
-      <div className="card mt-16">
-        <div className="card__header">
-          <div className="card__title">{yearEnd ? 'Đánh giá tháng đã xác nhận trong năm học' : 'Đánh giá hằng ngày trong kỳ'}</div>
-          {!yearEnd && <span className="muted text-sm">Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>}
-        </div>
-        <div className="card__body">
-          {yearEnd ? (
-            detail.monthlyEvaluations.length ? (
+      {/* Học kỳ, cuối năm: các đánh giá tháng cô đã xác nhận trong kỳ để viết nhận xét chung */}
+      {kind !== EVAL_KIND.PERIODIC && (
+        <div className="card mt-16">
+          <div className="card__header">
+            <div className="card__title">Đánh giá tháng đã xác nhận trong {yearEnd ? 'năm học' : 'học kỳ'}</div>
+          </div>
+          <div className="card__body">
+            {detail.monthlyEvaluations.length ? (
               <div className="stack">
                 {detail.monthlyEvaluations.map((m) => (
                   <div key={m.id}>
@@ -331,30 +396,38 @@ export function EvaluationReviewView({ kind, id }) {
                 ))}
               </div>
             ) : (
-              <div className="muted">Chưa có đánh giá tháng nào được xác nhận. Thiếu dữ liệu nguồn – hãy xem lại các hồ sơ hiện có.</div>
-            )
-          ) : (
-            <>
-              {/* Kỳ tháng tới ~22 ngày: 10 ngày / trang như bảng này ở Hồ sơ phát triển */}
-              <DailyDaysTable
-                days={paginate(detail.days, Math.min(dayPage, Math.max(1, Math.ceil(detail.days.length / 10))), 10)}
-                mealSessions={detail.mealSessions}
-                classId={ev.classId}
-                linkDays={canReview}
-              />
-              {detail.days.length > 10 && (
-                <Pagination
-                  page={Math.min(dayPage, Math.ceil(detail.days.length / 10))}
-                  total={detail.days.length}
-                  pageSize={10}
-                  onChange={setDayPage}
-                  unit="ngày"
-                />
-              )}
-            </>
-          )}
+              <div className="muted">Chưa có đánh giá tháng nào được xác nhận trong kỳ này.</div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {!yearEnd && (
+        <div className="card mt-16">
+          <div className="card__header">
+            <div className="card__title">Đánh giá hằng ngày trong kỳ</div>
+            <span className="muted text-sm">Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>
+          </div>
+          <div className="card__body">
+            {/* 10 ngày / trang như bảng này ở Hồ sơ phát triển */}
+            <DailyDaysTable
+              days={paginate(detail.days, Math.min(dayPage, Math.max(1, Math.ceil(detail.days.length / 10))), 10)}
+              mealSessions={detail.mealSessions}
+              classId={ev.classId}
+              linkDays={canReview}
+            />
+            {detail.days.length > 10 && (
+              <Pagination
+                page={Math.min(dayPage, Math.ceil(detail.days.length / 10))}
+                total={detail.days.length}
+                pageSize={10}
+                onChange={setDayPage}
+                unit="ngày"
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {showDraft && (
         <div className="card mt-16">
@@ -383,9 +456,22 @@ export function EvaluationReviewView({ kind, id }) {
       )}
 
       <div className="page-actions">
-        <button className="btn" onClick={() => navigate(base)}>
+        <button className="btn" onClick={() => guard.leave(base)}>
           <ArrowLeft size={16} /> Về danh sách
         </button>
+        {siblings.length > 1 && at >= 0 && (
+          <div className="row gap-2" aria-label="Chuyển trẻ cùng lớp, cùng kỳ">
+            <button className="btn" onClick={() => prev && guard.leave(linkOf(prev))} disabled={!prev} title={prev?.childName}>
+              <ChevronLeft size={16} /> Trẻ trước
+            </button>
+            <span className="muted text-sm">
+              {at + 1}/{siblings.length}
+            </span>
+            <button className="btn" onClick={() => next && guard.leave(linkOf(next))} disabled={!next} title={next?.childName}>
+              Trẻ sau <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
         {canReview && (
           <div className="row gap-2">
             <button className="btn" onClick={save} disabled={!!busy}>
@@ -410,7 +496,7 @@ export function EvaluationReviewView({ kind, id }) {
             ? 'Đánh giá sẽ trở thành chính thức, dùng cho Ban giám hiệu và đề xuất khen thưởng. Sau khi xác nhận không sửa được.'
             : 'Đánh giá sẽ trở thành chính thức và được công bố cho phụ huynh, Phó hiệu trưởng và Hiệu trưởng. Sau khi xác nhận không sửa được.'
         }
-        confirmLabel={yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+        confirmLabel={nextPending ? 'Xác nhận, trẻ tiếp' : yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
         onConfirm={doConfirm}
         onClose={() => setConfirmOpen(false)}
       />
@@ -445,6 +531,7 @@ export function EvaluationReviewView({ kind, id }) {
         <div className="dg-ai-box text-sm">{fresh?.content}</div>
       </Modal>
       {busy === 'redraft' && <AiWorkingOverlay text="Đang soạn bản nháp đánh giá…" />}
+      <LeaveConfirmModal {...guard.modal} canSave message="Nội dung đánh giá có chỉnh sửa chưa lưu." />
     </>
   );
 }

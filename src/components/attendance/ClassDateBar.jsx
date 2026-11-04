@@ -20,15 +20,22 @@ export function ClassDateBar({ classes, classId, onClassChange, date, onDateChan
           <label className="field__label" htmlFor={`${id}-class`}>
             <School size={15} /> Lớp
           </label>
-          <select id={`${id}-class`} className="select" value={classId || ''} onChange={(e) => onClassChange(e.target.value)}>
-            {classes.length === 0 && <option value="">Không có lớp</option>}
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {multiCampus ? ` – ${md.campusById?.(c.campusId)?.name || c.campusId}` : ''}
-              </option>
-            ))}
-          </select>
+          {/* GV chỉ dạy một lớp: hiện tên lớp, không bắt chọn */}
+          {classes.length === 1 ? (
+            <span id={`${id}-class`} className="fw-600 dd-bar__value">
+              {classes[0].name}
+            </span>
+          ) : (
+            <select id={`${id}-class`} className="select" value={classId || ''} onChange={(e) => onClassChange(e.target.value)}>
+              {classes.length === 0 && <option value="">Không có lớp</option>}
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {multiCampus ? ` – ${md.campusById?.(c.campusId)?.name || c.campusId}` : ''}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
       {onDateChange && (

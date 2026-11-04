@@ -35,7 +35,9 @@ import ImportThemesModal from '@/components/education-plan/ImportThemesModal';
 import { mergeImportedThemes } from '@/models/education-plan/importThemes.mjs';
 import CurriculumGoalsModal from '@/components/education-plan/CurriculumGoalsModal';
 import { addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
-import { Card, DraftRecoveryNotice, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { VersionHistory } from '@/components/education-plan/VersionHistory';
+import { yearPlanLines } from '@/models/education-plan/planHistory.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 const suggestTitle = (year, ageGroupId) => {
@@ -334,7 +336,7 @@ export default function GoalFormPage() {
       }
     };
     retryLease.current = () => {
-      if (leaseLatest.current.saver.unsaved || leaseLatest.current.saver.recovery) return;
+      if (leaseLatest.current.saver.unsaved) return;
       contentConflict = false;
       acquire(true);
     };
@@ -408,14 +410,22 @@ export default function GoalFormPage() {
     if (location.state?.backToPrev === to) return navigate(-2);
     navigate(to, { replace: true });
   };
-  const downloadRecovery = () => {
-    const blob = new Blob([recoveryText(saver.recovery?.doc || form)], { type: 'text/plain;charset=utf-8' });
+  const downloadRecovery = (doc = form) => {
+    const blob = new Blob([recoveryText(doc)], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = 'ke-hoach-nam-ban-khoi-phuc.txt';
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  // EDU-10: mốc giữ khi bản trên hệ thống đã đổi revision thì chỉ xem/đối chiếu, không ghi đè
+  const historyBlock = (entry) => {
+    if (!leaseReady || finishing) return 'Chưa có quyền sửa kế hoạch này nên chỉ xem được.';
+    if (entry && entry.baseRevision !== (form.revision ?? 0))
+      return 'Kế hoạch trên hệ thống đã thay đổi sau thời điểm này nên không dùng lại được. Tải nội dung để đối chiếu.';
+    return null;
   };
 
   // Kiểm tra các phần đang hiển thị trước khi gửi / ban hành.
@@ -461,7 +471,7 @@ export default function GoalFormPage() {
   /* ---------- Nhập dữ liệu ---------- */
 
   const importState = useRef(null);
-  importState.current = { form, yearRange: fileYearRange, allowed: canEdit && leaseReady && !saver.recovery && !finishing && !leaseError };
+  importState.current = { form, yearRange: fileYearRange, allowed: canEdit && leaseReady && !finishing && !leaseError };
   // EDU-46: áp dụng nguyên tử theo chế độ, dùng khoảng năm học cấu hình của hệ thống.
   const importFile = (preview, mode) => {
     const current = importState.current;
@@ -527,7 +537,7 @@ export default function GoalFormPage() {
     return true;
   };
 
-  if (!permitted && !leaseError && !saver.recovery)
+  if (!permitted && !leaseError)
     return (
       <div className="page ga-page">
         <PageHead
@@ -551,34 +561,15 @@ export default function GoalFormPage() {
       {leaseError && (
         <Notice tone="warn">
           {leaseError}{' '}
-          <button type="button" className="btn" disabled={saver.unsaved || !!saver.recovery} onClick={() => retryLease.current()}>
+          <button type="button" className="btn" disabled={saver.unsaved} onClick={() => retryLease.current()}>
             Thử nhận quyền sửa
           </button>
-          <button type="button" className="btn" onClick={downloadRecovery}>
+          <button type="button" className="btn" onClick={() => downloadRecovery()}>
             Tải nội dung để đối chiếu
           </button>
         </Notice>
       )}
-      {saver.recovery && (
-        <DraftRecoveryNotice
-          onRestore={saver.restore}
-          onDismiss={saver.dismissRecovery}
-          restoreDisabled={!leaseReady || saver.recovery.baseRevision !== (form.revision ?? 0)}
-          note={
-            saver.recovery.baseRevision !== (form.revision ?? 0)
-              ? 'Kế hoạch trên hệ thống đã thay đổi sau đó nên không khôi phục được.'
-              : ''
-          }
-          actions={
-            saver.recovery.baseRevision !== (form.revision ?? 0) && (
-              <button type="button" className="btn" onClick={downloadRecovery}>
-                Tải nội dung để đối chiếu
-              </button>
-            )
-          }
-        />
-      )}
-      <fieldset disabled={!canEdit || !leaseReady || !!saver.recovery || finishing} className="ga-edit-fieldset">
+      <fieldset disabled={!canEdit || !leaseReady || finishing} className="ga-edit-fieldset">
         <div className="ga-sticky-head">
           <PageHead
             crumbs={[
@@ -609,6 +600,24 @@ export default function GoalFormPage() {
               <p className="muted text-sm ga-year-save-status" aria-live="polite">
                 {saveReady ? saver.label : leaseError || 'Chọn năm học và nhóm tuổi; đang chờ quyền sửa'}
               </p>
+              {canEdit && (
+                <VersionHistory
+                  drafts={saver.drafts}
+                  saved={saver.saved()}
+                  current={form}
+                  unsaved={saver.unsaved}
+                  linesOf={yearPlanLines}
+                  onUse={(entry, doc) => saver.restore(entry || { doc })}
+                  blockedReason={historyBlock}
+                  actions={(entry, doc) =>
+                    entry && (
+                      <button type="button" className="btn" onClick={() => downloadRecovery(doc)}>
+                        Tải nội dung để đối chiếu
+                      </button>
+                    )
+                  }
+                />
+              )}
               <button
                 type="button"
                 className="btn btn--sm btn--outline-primary"
@@ -808,7 +817,7 @@ export default function GoalFormPage() {
             </Notice>
           )}
           {errors.domains && <Notice tone="err">{errors.domains}</Notice>}
-          {themes.length === 0 && <Notice>{NO_THEME_NOTE}</Notice>}
+          {themes.length === 0 && <p className="text-danger text-sm text-right">{NO_THEME_NOTE}</p>}
           <GoalTable
             domains={form.domains}
             themes={themes}

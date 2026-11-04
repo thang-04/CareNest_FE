@@ -29,7 +29,7 @@ export const normalizePhone = (raw) => {
 };
 
 /** Lỗi theo ô của một tài khoản (form tạo và từng dòng Excel dùng chung). */
-export function validateStaffAccount(form, { campuses = [], classes = [] } = {}) {
+export function validateStaffAccount(form, { campuses = [], teacherCampusRequired = false } = {}) {
   const e = {};
   const name = text(form.fullName);
   if (!name) e.fullName = 'Nhập họ tên';
@@ -39,21 +39,22 @@ export function validateStaffAccount(form, { campuses = [], classes = [] } = {})
   const email = text(form.email);
   if (email && (email.length > EMAIL_MAX || !EMAIL.test(email))) e.email = 'Email không đúng định dạng';
   if (!STAFF_ROLES.includes(form.role)) e.role = 'Chọn vai trò';
+  // AUTH-15: GV tạo chưa gắn lớp; điểm trường chỉ để BE kiểm PHT tạo trong điểm trường mình (PHT bắt buộc chọn)
   else if (form.role === ROLES.TEACHER) {
-    if (!form.classroomId) e.classroomId = 'Chọn lớp';
-    else if (!classes.some((c) => String(c.id) === String(form.classroomId))) e.classroomId = 'Lớp không có trong năm học';
+    if (!form.campusId && teacherCampusRequired) e.campusId = 'Chọn điểm trường';
+    else if (form.campusId && !campuses.some((c) => String(c.id) === String(form.campusId))) e.campusId = 'Điểm trường không tồn tại';
   } else if (!form.campusId) e.campusId = 'Chọn điểm trường';
   else if (!campuses.some((c) => String(c.id) === String(form.campusId))) e.campusId = 'Điểm trường không tồn tại';
   return e;
 }
 
-/** Body POST /accounts: PHT / bếp gắn điểm trường, GV gắn lớp (BE AUTH-15). */
+/** Body POST /accounts: PHT / bếp gắn điểm trường; GV chưa gắn lớp, chỉ kèm điểm trường nếu có (BE AUTH-15). */
 export const toCreatePayload = (form) => ({
   phone: normalizePhone(form.phone),
   fullName: text(form.fullName),
   email: text(form.email) || null,
   role: form.role,
-  assignment: form.role === ROLES.TEACHER ? { classroomId: form.classroomId } : { campusId: form.campusId },
+  assignment: form.role === ROLES.TEACHER && !form.campusId ? null : { campusId: form.campusId },
 });
 
 const findCampus = (campuses, v) => campuses.find((c) => [c.shortName, c.name, c.code].some((x) => x && key(x) === key(v))) || null;
@@ -82,8 +83,8 @@ export function matchStaffRows(rows, { campuses = [], classes = [], existing = [
     const cls = classText
       ? classes.find((c) => key(c.name) === key(classText) && (!campus || String(c.campusId) === String(campus.id))) || null
       : null;
-    const form = { fullName, phone, email, role, campusId: campus?.id || '', classroomId: cls?.id || '' };
-    const e = validateStaffAccount(form, { campuses, classes });
+    const form = { fullName, phone, email, role, campusId: campus?.id || cls?.campusId || '', classroomId: cls?.id || '' };
+    const e = validateStaffAccount(form, { campuses });
     if (roleText && !role) e.role = `Vai trò "${roleText}" không đúng (Phó hiệu trưởng, Giáo viên, Nhân viên bếp)`;
     if (campusText && !campus) e.campusId = `Không có điểm trường "${campusText}"`;
     if (classText && !cls) e.classroomId = `Không có lớp "${classText}"${campus ? ` ở ${campus.shortName || campus.name}` : ''}`;

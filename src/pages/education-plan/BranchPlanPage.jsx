@@ -3,7 +3,9 @@ import { Navigate, useParams } from 'react-router-dom';
 import { Check, FileDown, Lightbulb, Save, Upload, Wand2, X } from '@/components/ui/icons';
 import { branchFile, leaderNameOf } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
-import { Card, DraftRecoveryNotice, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
+import { Card, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
+import { VersionHistory } from '@/components/education-plan/VersionHistory';
+import { docLines } from '@/models/education-plan/planHistory.mjs';
 import { Cell, docReview, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
@@ -331,6 +333,16 @@ function BranchPlanInner({ classId }) {
                 </select>
               )}
               <span className="muted text-sm">{saver.label}</span>
+              {editable && (
+                <VersionHistory
+                  drafts={saver.drafts}
+                  saved={saver.cleanDoc()}
+                  current={payload}
+                  unsaved={saver.unsaved}
+                  linesOf={docLines}
+                  onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
+                />
+              )}
               <button
                 type="button"
                 className="btn btn--primary btn--sm"
@@ -387,7 +399,6 @@ function BranchPlanInner({ classId }) {
         onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
         onDrop={(f) => flagEdit((d) => dropReference('branch', d, f))}
       />
-      {editable && saver.recovery && <DraftRecoveryNotice onRestore={saver.restoreBackup} onDismiss={saver.dismissRecovery} />}
       {status === EDU_STATUS.REJECTED && (
         <div className="mb-16">
           <RejectedNotice status={status} history={saved?.history} />

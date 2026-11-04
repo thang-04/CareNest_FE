@@ -8,7 +8,7 @@ import { useTicketOverview } from '@/hooks/assessment/useAssessment';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
 import { periodLabel } from '@/utils/assessment/assessmentPeriods';
-import { downloadCsv } from '@/utils/exportCsv';
+import { downloadXlsx } from '@/utils/exportXlsx';
 
 const monthText = (m) => periodLabel(PERIOD_TYPE.MONTH, m, m);
 
@@ -52,13 +52,13 @@ export function TicketOverview() {
   }
 
   const exportCsv = () =>
-    downloadCsv(
+    downloadXlsx(
       [
         [`Phiếu bé ngoan các lớp – ${rangeText}`],
         ['Điểm trường', 'Lớp', 'Sĩ số', 'Bé ngoan', 'Bé ngoan toàn diện', 'Trẻ có phiếu'],
         ...rows.map((r) => [campusName(r.campusId), r.className, r.children, r.weekly, r.monthly, r.withTicket]),
       ],
-      `phieu-be-ngoan-cac-lop-${month || 'nam-hoc'}.csv`,
+      `phieu-be-ngoan-cac-lop-${month || 'nam-hoc'}.xlsx`,
     );
 
   return (

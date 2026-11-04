@@ -16,6 +16,7 @@ import {
   getTicketOverview,
   getClassAssessmentOverview,
   getQualityReport,
+  getClassRatings,
   getProgramCompletion,
   getClassAssessmentDetail,
 } from '@/services/assessment/assessmentService';
@@ -78,11 +79,12 @@ export function useChildDevelopment(childId, params) {
   return { development: data, loading, error, reload };
 }
 
-export function useEvaluations(kind, filters) {
+export function useEvaluations(kind, filters, { enabled = true } = {}) {
   const { user } = useAuth();
   const key = JSON.stringify(filters || {});
   const { data, loading, error, reload } = useAsync(() => getEvaluations(kind, filters, user), [kind, key, user?.id], {
     refreshOnDataChange: true,
+    enabled,
   });
   return { evaluations: data || [], loading, error, reload };
 }
@@ -128,11 +130,12 @@ export function useTicketBoard(params) {
 }
 
 /** Các lớp trong phạm vi và trạng thái danh sách khen thưởng của năm học ở header. */
-export function useRewardLists() {
+export function useRewardLists({ enabled = true } = {}) {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();
   const { data, loading, error, reload } = useAsync(() => getRewardLists({ schoolYear }, user), [schoolYear, user?.id], {
     refreshOnDataChange: true,
+    enabled,
   });
   return { rows: data || [], loading, error, reload };
 }
@@ -163,6 +166,15 @@ export function useProgramCompletion(params, { enabled = true } = {}) {
     enabled,
   });
   return { report: data, loading, error, reload };
+}
+
+export function useClassRatings(params) {
+  const { user } = useAuth();
+  const key = JSON.stringify(params || {});
+  const { data, loading, error, reload } = useAsync(() => getClassRatings(params, user), [key, user?.id], {
+    refreshOnDataChange: true,
+  });
+  return { ratings: data, loading, error, reload };
 }
 
 export function useQualityReport(params) {

@@ -12,6 +12,7 @@ import { useYearReadiness } from '@/hooks/school-config/useSchoolConfig';
 import { activateSchoolYear } from '@/services/school-config/schoolConfigService';
 import { READINESS_STEPS } from '@/models/school-config/schoolConfigConstants';
 import { formatDate } from '@/utils/format';
+import { stepOfCheck } from '@/utils/school-config/yearSetup';
 
 const STEP_LINK = Object.fromEntries(READINESS_STEPS.map((s) => [s.key, s]));
 
@@ -26,6 +27,11 @@ export function YearReadinessCard({ year, blockedBy, onActivate, showSetup = tru
   const done = required.filter((s) => s.ok).length;
   // Kích hoạt theo thứ tự: năm sau chỉ kích hoạt khi năm trước đó đã kích hoạt
   const canActivate = !!readiness?.canActivate && !blockedBy;
+  // Trong wizard (showSetup=false) dẫn về đúng bước của wizard thay vì màn riêng
+  const linkOf = (key) => {
+    const step = showSetup ? -1 : stepOfCheck(key);
+    return step >= 0 ? `/school/years/${year.id}/setup/${step + 1}` : STEP_LINK[key].to(year.id);
+  };
   const reason = blockedBy
     ? `Kích hoạt năm học ${blockedBy.name} trước.`
     : readiness?.canActivate
@@ -85,7 +91,7 @@ export function YearReadinessCard({ year, blockedBy, onActivate, showSetup = tru
                   {!s.required && <span className="muted text-xs"> · khuyến nghị</span>}
                 </b>
                 <span className="muted text-sm sc-ready__detail">{s.detail}</span>
-                <Link className={`btn btn--sm sc-ready__go ${s.ok ? '' : 'btn--outline-primary'}`} to={STEP_LINK[s.key].to(year.id)}>
+                <Link className={`btn btn--sm sc-ready__go ${s.ok ? '' : 'btn--outline-primary'}`} to={linkOf(s.key)}>
                   {s.ok ? 'Xem' : STEP_LINK[s.key].action}
                 </Link>
               </li>

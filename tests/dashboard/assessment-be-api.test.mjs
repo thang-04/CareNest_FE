@@ -172,7 +172,10 @@ test('BE: tổng quan ghép tên điểm trường / nhóm tuổi (BE trả name
     'get /campuses': [{ id: '1', name: 'Điểm chính' }],
     'get /age-groups': [{ id: '3', name: 'Mẫu giáo nhỡ' }],
   });
-  const o = await createAssessmentBeApi(client).getClassAssessmentOverview({ period: 'WEEK', schoolYear: '2026-2027', campusId: '' });
+  const o = await createAssessmentBeApi(client).getClassAssessmentOverview(
+    { period: 'WEEK', schoolYear: '2026-2027', campusId: '' },
+    { role: 'PRINCIPAL' },
+  );
   assert.deepEqual(client.calls[0].params, {
     period: 'WEEK',
     schoolYearId: '2026-2027',
@@ -236,4 +239,13 @@ test('mock cùng dạng BE: chỉ trẻ có mặt, lưu Kiến thức kỹ năng
   const saved = after.rows.find((r) => r.childId === row.childId).activities.find((a) => a.key === act.key);
   assert.deepEqual(saved.goalsNotMet, [goal.id]);
   assert.deepEqual(saved.goalsMet, []);
+});
+
+test('BE: tổ trưởng xem tổng quan không gọi danh mục điểm trường (không có quyền)', async () => {
+  const client = fakeClient({
+    'get /assessment/overview': { period: 'DAY', campuses: [{ id: '1', name: null }], ageGroups: [], classes: [], rows: [], totals: {} },
+    'get /age-groups': [],
+  });
+  await createAssessmentBeApi(client).getClassAssessmentOverview({ period: 'DAY' }, { role: 'TEAM_LEADER' });
+  assert.ok(!client.calls.some((c) => c.url === '/campuses'));
 });

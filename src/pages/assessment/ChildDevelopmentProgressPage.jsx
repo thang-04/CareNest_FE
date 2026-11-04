@@ -2,7 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { DevelopmentProfileView } from '@/components/assessment/DevelopmentProfileView';
-import { PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
+import { evaluationPath } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 
@@ -14,11 +14,7 @@ export default function ChildDevelopmentProgressPage() {
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.children, 'Tiến độ phát triển')} />
       <h1 className="page__title">Tiến độ phát triển của trẻ</h1>
-      <DevelopmentProfileView
-        childId={childId}
-        mode="progress"
-        evaluationLink={(e) => (e.periodType === PERIOD_TYPE.YEAR ? `/assessment/year-end/${e.id}` : `/assessment/periodic/${e.id}`)}
-      />
+      <DevelopmentProfileView childId={childId} mode="progress" evaluationLink={evaluationPath} />
       <div className="page-actions">
         <button className="btn" onClick={() => navigate('/assessment/children')}>
           <ArrowLeft size={16} /> Về danh sách trẻ

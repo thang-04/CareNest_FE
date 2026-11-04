@@ -104,3 +104,7 @@ export const HANDOVER_STATUS_LABELS = {
 
 /** A child with a recorded allergy gets a substitute serving (GBR-MEAL-03, GBR-CP-02). */
 export const needsSubstitute = (child) => (child?.allergies || []).length > 0;
+
+/** Đơn nghỉ của phụ huynh (BE LeaveRequestResponse.status). */
+export const LEAVE_STATUS = { ACTIVE: 'ACTIVE', CANCELLED: 'CANCELLED' };
+export const LEAVE_STATUS_LABELS = { ACTIVE: 'Đang hiệu lực', CANCELLED: 'Đã hủy' };
