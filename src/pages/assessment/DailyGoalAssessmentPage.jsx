@@ -45,6 +45,22 @@ const fromRow = (r) => ({
     ]),
   ),
 });
+// Trẻ đã chấm KTKN ngày đó (BE cũ chỉ có recorded)
+const isSkillsRecorded = (r) => r.skillsRecorded ?? r.recorded;
+// Trẻ chưa chấm: mọi MT của giáo án ngày mặc định Đạt (Cần chốt 04/11/2026), cô chỉ đổi trẻ Chưa đạt rồi Lưu
+const withDefaultMet = (draft, activities) => ({
+  ...draft,
+  activities: Object.fromEntries(
+    activities.map((a) => {
+      const act = draft.activities[a.key] || { participation: '', results: {} };
+      const results = { ...act.results };
+      a.goals.forEach((g) => {
+        if (!results[g.id]) results[g.id] = 'DAT';
+      });
+      return [a.key, { ...act, results }];
+    }),
+  ),
+});
 const toActivity = (key, act) => ({
   key,
   participation: act?.participation || null,
@@ -60,7 +76,7 @@ const toActivity = (key, act) => ({
 
 /**
  * #52 Đánh giá hằng ngày – Kiến thức kỹ năng (EDU-19): hoạt động và MT lấy từ giáo án tuần đã duyệt (lesson của BE), mỗi
- * hoạt động một cột, mỗi MT chọn Đạt / Chưa đạt. Không tự điền Đạt: chỉ gửi những gì cô đã chọn.
+ * hoạt động một cột, mỗi MT chọn Đạt / Chưa đạt. Trẻ chưa chấm hiện sẵn Đạt, chỉ ghi khi cô bấm Lưu.
  * Chưa có giáo án duyệt thì khóa phần này. Bấm tên trẻ để ghi mức tham gia và xem đủ MT từng hoạt động.
  */
 export default function DailyGoalAssessmentPage() {
@@ -86,7 +102,8 @@ export default function DailyGoalAssessmentPage() {
 
   useEffect(() => {
     if (!sheet) return;
-    setDrafts(Object.fromEntries(sheet.rows.map((r) => [r.childId, fromRow(r)])));
+    const acts = sheet.lesson?.activities || [];
+    setDrafts(Object.fromEntries(sheet.rows.map((r) => [r.childId, isSkillsRecorded(r) ? fromRow(r) : withDefaultMet(fromRow(r), acts)])));
     setDirty({});
     setSaveError(null);
     setSaveState({ phase: 'idle', at: null });
@@ -96,6 +113,9 @@ export default function DailyGoalAssessmentPage() {
   const activities = lesson?.activities || [];
   const writable = !!sheet && sheet.canRecord && !sheet.locked && !sheet.yearReadOnly && !!lesson;
   const dirtyIds = Object.keys(dirty);
+  // Lưu: trẻ cô đã sửa + trẻ chưa chấm (lưu cả giá trị Đạt mặc định); giá trị mặc định không bật hỏi rời màn
+  const pendingDefaultIds = writable ? (sheet?.rows || []).filter((r) => !isSkillsRecorded(r)).map((r) => String(r.childId)) : [];
+  const saveIds = [...new Set([...dirtyIds, ...pendingDefaultIds])];
 
   const touch = (childId, part) => {
     setDirty((prev) => ({ ...prev, [childId]: new Set([...(prev[childId] || []), part]) }));
@@ -122,15 +142,17 @@ export default function DailyGoalAssessmentPage() {
     });
 
   const save = async () => {
-    if (!dirtyIds.length || inFlight.current) return false;
-    const entries = dirtyIds.map((childId) => {
-      const parts = dirty[childId];
+    if (!saveIds.length || inFlight.current) return false;
+    const entries = saveIds.map((childId) => {
+      const parts = dirty[childId] || new Set();
       const d = drafts[childId];
+      // Trẻ chưa chấm: gửi đủ mọi hoạt động (kể cả MT để Đạt mặc định)
+      const keys = pendingDefaultIds.includes(childId) ? activities.map((a) => a.key) : [...parts].filter((k) => k !== '_comment');
       return {
         childId,
         // null = giữ nhận xét đang có (dùng chung với view Hoạt động chung)
         comment: parts.has('_comment') ? d.comment : null,
-        activities: [...parts].filter((k) => k !== '_comment').map((k) => toActivity(k, d.activities[k])),
+        activities: keys.map((k) => toActivity(k, d.activities[k])),
       };
     });
     inFlight.current = true;
@@ -166,7 +188,7 @@ export default function DailyGoalAssessmentPage() {
 
   const rows = sheet?.rows || [];
   // Đếm theo phần KTKN (BE cũ chỉ có recorded)
-  const skillsRecorded = (r) => r.skillsRecorded ?? r.recorded;
+  const skillsRecorded = isSkillsRecorded;
   const recordedCount = rows.filter(skillsRecorded).length;
   const commentError = saveError?.details?.comment;
   const formError = saveError && !commentError ? saveError.message : null;
@@ -260,9 +282,11 @@ export default function DailyGoalAssessmentPage() {
                       ? 'Đang lưu…'
                       : dirtyIds.length
                         ? `${dirtyIds.length} trẻ có thay đổi chưa lưu`
-                        : saveState.at
-                          ? `Đã lưu lúc ${hhmm(saveState.at)}`
-                          : 'Chưa có thay đổi'}
+                        : pendingDefaultIds.length
+                          ? `${pendingDefaultIds.length} trẻ chưa chấm đang để Đạt, bấm Lưu để ghi`
+                          : saveState.at
+                            ? `Đã lưu lúc ${hhmm(saveState.at)}`
+                            : 'Chưa có thay đổi'}
                   </>
                 )}
               </div>
@@ -365,7 +389,7 @@ export default function DailyGoalAssessmentPage() {
                   <tbody>
                     {rows.map((r) => {
                       const id = r.childId;
-                      const d = drafts[id] || fromRow(r);
+                      const d = drafts[id] || (isSkillsRecorded(r) ? fromRow(r) : withDefaultMet(fromRow(r), activities));
                       const disabled = !writable || saving;
                       const commentInvalid = !!commentError && !!dirty[id]?.has('_comment');
                       return (
@@ -415,8 +439,8 @@ export default function DailyGoalAssessmentPage() {
                 Hủy thay đổi
               </button>
             )}
-            <button className="btn btn--primary" onClick={save} disabled={saving || dirtyIds.length === 0}>
-              {saving ? <Spinner small /> : <Save size={16} />} Lưu đánh giá{dirtyIds.length ? ` (${dirtyIds.length})` : ''}
+            <button className="btn btn--primary" onClick={save} disabled={saving || saveIds.length === 0}>
+              {saving ? <Spinner small /> : <Save size={16} />} Lưu đánh giá{saveIds.length ? ` (${saveIds.length})` : ''}
             </button>
           </div>
         </div>
