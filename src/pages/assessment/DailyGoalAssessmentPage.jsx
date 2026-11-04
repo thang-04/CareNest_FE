@@ -115,7 +115,10 @@ export default function DailyGoalAssessmentPage() {
   const dirtyIds = Object.keys(dirty);
   // Lưu: trẻ cô đã sửa + trẻ chưa chấm (lưu cả giá trị Đạt mặc định); giá trị mặc định không bật hỏi rời màn
   const pendingDefaultIds = writable ? (sheet?.rows || []).filter((r) => !isSkillsRecorded(r)).map((r) => String(r.childId)) : [];
-  const saveIds = [...new Set([...dirtyIds, ...pendingDefaultIds])];
+  const changedIds = [...new Set([...dirtyIds, ...pendingDefaultIds])];
+  // Không có gì mới (cả lớp đã chấm): vẫn bấm Lưu được để xác nhận lại cả lớp như đang hiện
+  const resaveAll = changedIds.length === 0;
+  const saveIds = resaveAll ? (writable ? (sheet?.rows || []).map((r) => String(r.childId)) : []) : changedIds;
 
   const touch = (childId, part) => {
     setDirty((prev) => ({ ...prev, [childId]: new Set([...(prev[childId] || []), part]) }));
@@ -147,7 +150,8 @@ export default function DailyGoalAssessmentPage() {
       const parts = dirty[childId] || new Set();
       const d = drafts[childId];
       // Trẻ chưa chấm: gửi đủ mọi hoạt động (kể cả MT để Đạt mặc định)
-      const keys = pendingDefaultIds.includes(childId) ? activities.map((a) => a.key) : [...parts].filter((k) => k !== '_comment');
+      const keys =
+        resaveAll || pendingDefaultIds.includes(childId) ? activities.map((a) => a.key) : [...parts].filter((k) => k !== '_comment');
       return {
         childId,
         // null = giữ nhận xét đang có (dùng chung với view Hoạt động chung)

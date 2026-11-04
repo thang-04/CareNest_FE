@@ -60,7 +60,12 @@ export default function DailyAssessmentPage() {
   // Chỉ ghi khi BE cho phép: giáo viên lớp, năm học đang hoạt động, ngày chưa khóa (hoặc đã được mở lại)
   const writable = !!sheet && sheet.canRecord && !sheet.locked && !sheet.yearReadOnly;
   const dirty = loadedSheet === sheet ? getGeneralDirtyIds(sheet?.rows || [], sheet?.mealSessions || [], drafts) : new Set();
-  const saveEntries = getGeneralSaveEntries(sheet?.rows || [], sheet?.mealSessions || [], drafts, dirty);
+  const changedEntries = getGeneralSaveEntries(sheet?.rows || [], sheet?.mealSessions || [], drafts, dirty);
+  // Không có gì mới (cả lớp đã lưu): cô vẫn bấm Lưu được để xác nhận lại cả lớp như đang hiện
+  const saveEntries =
+    changedEntries.length || !writable
+      ? changedEntries
+      : (sheet?.rows || []).map((r) => ({ childId: r.childId, ...(drafts[r.childId] || createGeneralDraft(r, sheet.mealSessions)) }));
   const classCommentDirty = !!sheet && loadedSheet === sheet && classComment !== (sheet.classComment?.text || '');
   const canSave = saveEntries.length > 0 || classCommentDirty;
   const hasChanges = dirty.size > 0 || classCommentDirty;
