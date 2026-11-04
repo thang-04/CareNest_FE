@@ -172,7 +172,7 @@ export function useProgramCompletion(params, { enabled = true } = {}) {
   return { report: data, loading, error, reload };
 }
 
-/** Lớp mẫu giáo xem được ở đánh giá cuối chủ đề (BE trả theo phạm vi: GV lớp mình, tổ trưởng lớp nhóm tuổi, HT/PHT). */
+/** Lớp (mọi nhóm tuổi) xem được ở đánh giá cuối chủ đề (BE trả theo phạm vi: GV lớp mình, tổ trưởng lớp nhóm tuổi, HT/PHT). */
 export function useThemeClasses() {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();

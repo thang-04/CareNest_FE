@@ -25,7 +25,7 @@ const mark = (met) => (met === true ? '+' : met === false ? '−' : '');
 const nextValue = (met, auto) => (met === true ? false : met === false ? (auto == null ? null : true) : true);
 
 /**
- * Đánh giá cuối chủ đề của lớp mẫu giáo (BE OBS-27), theo mẫu "Bảng đánh giá sự phát triển của trẻ": hàng là trẻ, cột là
+ * Đánh giá cuối chủ đề của lớp mọi nhóm tuổi (BE OBS-27), theo mẫu "Bảng đánh giá sự phát triển của trẻ": hàng là trẻ, cột là
  * MT của chủ đề; hệ thống điền từ Kiến thức kỹ năng hằng ngày, GV sửa ô, ghi lưu ý, xác nhận. Số Đ/KĐ, tỷ lệ do BE tính.
  */
 export default function ThemeEvaluationPage() {
@@ -198,13 +198,13 @@ export default function ThemeEvaluationPage() {
           <LoadingState />
         ) : !currentClassId ? (
           <EmptyState
-            title="Chưa có lớp mẫu giáo để đánh giá"
-            description="Đánh giá cuối chủ đề chỉ dành cho lớp mẫu giáo; lớp nhà trẻ đánh giá hằng ngày và tròn tháng."
+            title="Chưa có lớp để đánh giá"
+            description="Đánh giá cuối chủ đề theo lớp giáo viên phụ trách, lớp trong nhóm tuổi (tổ trưởng) hoặc lớp trong phạm vi Ban giám hiệu."
           />
         ) : themes.length === 0 ? (
           <EmptyState
             title="Chưa có chủ đề để đánh giá"
-            description="Lớp mẫu giáo cần kế hoạch năm học đã duyệt có chủ đề (từ ngày – đến ngày) và mục tiêu tích cho chủ đề."
+            description="Lớp cần kế hoạch năm học đã duyệt có chủ đề (từ ngày – đến ngày) và mục tiêu tích cho chủ đề."
           />
         ) : error ? (
           <ErrorState error={error} onRetry={reload} />
