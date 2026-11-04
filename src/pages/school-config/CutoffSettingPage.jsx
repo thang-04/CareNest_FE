@@ -98,6 +98,9 @@ export default function CutoffSettingPage() {
 
   const validate = () => {
     const e = validateCutoff(form, year);
+    // Như BE CUTOFF_DATE_PAST: đã có giờ chốt thì lần đổi sau chỉ áp dụng từ hôm nay (gõ tay vượt được min của ô ngày)
+    if (!e.effectiveFrom && setting?.history?.length && form.effectiveFrom < todayInput())
+      e.effectiveFrom = 'Giờ chốt mới chỉ áp dụng từ hôm nay trở đi';
     if (!e.time && setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
       e.time = 'Giờ chốt và ngày áp dụng chưa thay đổi';
     setErrors(e);
@@ -149,7 +152,7 @@ export default function CutoffSettingPage() {
               {setting ? (
                 <div className="sc-cutoff">
                   <Clock4 size={20} className="text-primary" aria-hidden="true" />
-                  <span>Giờ chốt đang áp dụng</span>
+                  <span>{setting.effectiveFrom > todayInput() ? 'Giờ chốt sắp áp dụng' : 'Giờ chốt đang áp dụng'}</span>
                   <b className="sc-cutoff__time">{setting.time}</b>
                   <span className="text-sm text-2">
                     từ {formatDate(setting.effectiveFrom)} · năm học {year.name}
