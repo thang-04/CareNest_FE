@@ -17,7 +17,7 @@ import { StatusPage } from '@/components/ui/StatusPage';
 import { BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
-import { createGeneralDraft, getGeneralSaveEntries } from '@/utils/assessment/dailyGeneralDraft';
+import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries } from '@/utils/assessment/dailyGeneralDraft';
 import { DateInput } from '@/components/form/DateInput';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import { addDays, isSchoolDay, todayIso } from '@/utils/assessment/assessmentPeriods';
@@ -47,7 +47,7 @@ export default function DailyAssessmentPage() {
   const { sheet, loading, error, reload } = useDailyAssessment(params);
 
   const [drafts, setDrafts] = useState({});
-  const [dirty, setDirty] = useState(new Set());
+  const [loadedSheet, setLoadedSheet] = useState(null);
   const [saveError, setSaveError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [classComment, setClassComment] = useState('');
@@ -56,16 +56,18 @@ export default function DailyAssessmentPage() {
   useEffect(() => {
     if (!sheet) return;
     setDrafts(Object.fromEntries(sheet.rows.map((r) => [r.childId, createGeneralDraft(r, sheet.mealSessions)])));
-    setDirty(new Set());
+    setLoadedSheet(sheet);
     setClassComment(sheet.classComment?.text || '');
     setSaveError(null);
   }, [sheet]);
 
   // Chỉ ghi khi BE cho phép: giáo viên lớp, năm học đang hoạt động, ngày chưa khóa (hoặc đã được mở lại)
   const writable = !!sheet && sheet.canRecord && !sheet.locked && !sheet.yearReadOnly;
+  const dirty = loadedSheet === sheet ? getGeneralDirtyIds(sheet?.rows || [], sheet?.mealSessions || [], drafts) : new Set();
   const saveEntries = getGeneralSaveEntries(sheet?.rows || [], sheet?.mealSessions || [], drafts, dirty);
-  const classCommentDirty = !!sheet && classComment !== (sheet.classComment?.text || '');
-  const hasChanges = saveEntries.length > 0 || classCommentDirty;
+  const classCommentDirty = !!sheet && loadedSheet === sheet && classComment !== (sheet.classComment?.text || '');
+  const canSave = saveEntries.length > 0 || classCommentDirty;
+  const hasChanges = dirty.size > 0 || classCommentDirty;
 
   // Còn thay đổi chưa lưu: hỏi khi rời màn, đổi chế độ, đổi lớp hoặc ngày
   const guard = useLeaveGuard({ when: writable && hasChanges, onSave: () => save() });
@@ -74,12 +76,11 @@ export default function DailyAssessmentPage() {
 
   const update = (childId, patch) => {
     setDrafts((prev) => ({ ...prev, [childId]: { ...prev[childId], ...patch } }));
-    setDirty((prev) => new Set(prev).add(childId));
     setSaveError(null);
   };
 
   const save = async () => {
-    if (saving || !writable || loading || classesLoading || error || !hasChanges) return false;
+    if (saving || !writable || loading || classesLoading || error || !canSave) return false;
     setSaving(true);
     setSaveError(null);
     try {
@@ -401,7 +402,7 @@ export default function DailyAssessmentPage() {
                 Hủy thay đổi
               </button>
             )}
-            <button className="btn btn--primary" onClick={save} disabled={saving || loading || classesLoading || !!error || !hasChanges}>
+            <button className="btn btn--primary" onClick={save} disabled={saving || loading || classesLoading || !!error || !canSave}>
               {saving ? <Spinner small /> : <Save size={16} />} Lưu đánh giá{saveEntries.length ? ` (${saveEntries.length})` : ''}
             </button>
           </div>

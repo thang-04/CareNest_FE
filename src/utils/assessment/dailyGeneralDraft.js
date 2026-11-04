@@ -20,3 +20,14 @@ export const getGeneralSaveEntries = (rows, mealSessions, drafts, dirty) =>
   rows
     .filter((row) => !row.recorded || dirty.has(row.childId))
     .map((row) => ({ childId: row.childId, ...(drafts[row.childId] || createGeneralDraft(row, mealSessions)) }));
+
+const draftKey = (draft) =>
+  JSON.stringify({ ...draft, healthSigns: [...draft.healthSigns].sort(), behaviors: [...draft.behaviors].sort() });
+
+// Gợi ý ban đầu có thể lưu nhưng không phải thay đổi do cô nhập.
+export const getGeneralDirtyIds = (rows, mealSessions, drafts) =>
+  new Set(
+    rows
+      .filter((row) => drafts[row.childId] && draftKey(drafts[row.childId]) !== draftKey(createGeneralDraft(row, mealSessions)))
+      .map((row) => row.childId),
+  );
