@@ -14,10 +14,10 @@
  * @property {string} id
  * @property {string} childId
  * @property {string|null} campaignId   health-check campaign; null = recorded outside a campaign
- * @property {string} date               yyyy-mm-dd
+ * @property {string} date               yyyy-mm-dd; BE ghi (số đo mới = hôm nay, phiếu khám mới = hôm nay trong đợt), sửa giữ ngày (2026-11-04)
  * @property {number} heightCm
  * @property {number} weightKg
- * @property {number|null} headCircumferenceCm  null when not measured (over 60 months) or recorded before the field existed
+ * @property {number|null} headCircumferenceCm  phiếu khám (≤60 tháng) và dữ liệu cũ; kỳ cân đo không đo vòng đầu từ 2026-11-04
  * @property {MotorResult|null} grossMotor   mẫu cũ (trước phiếu Phụ lục II)
  * @property {MotorResult|null} fineMotor    mẫu cũ
  * @property {string} note               examination information, free text
@@ -184,7 +184,8 @@ export const IMPORT_COLUMNS = [
   // Hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22); file mẫu cũ thiếu cột không nhập được.
   { key: 'idNumber', label: 'Số CCCD/mã định danh của trẻ', required: false },
   { key: 'premature', label: 'Sinh non (Có/Không)', required: true },
-  { key: 'gestationWeeks', label: 'Tuần thai khi sinh (bắt buộc khi sinh non)', required: false },
+  // Bắt buộc mọi trẻ, khớp cột Sinh non (user chốt 2026-11-04); file cũ ghi "(bắt buộc khi sinh non)" vẫn khớp cột theo phần trước " (".
+  { key: 'gestationWeeks', label: 'Tuần thai khi sinh (20–42)', required: true },
   { key: 'ethnicity', label: 'Dân tộc', required: true },
   { key: 'beneficiary', label: 'Đối tượng', required: true },
   { key: 'bloodType', label: 'Nhóm máu', required: false },

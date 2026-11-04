@@ -54,7 +54,7 @@ import {
   isPrincipal,
   isVicePrincipal,
 } from '@/utils/children/childrenPermissions';
-import { conclusionBrief, headCircumferenceUntil, screenMeasurement } from './healthScreeningRule';
+import { conclusionBrief, screenMeasurement } from './healthScreeningRule';
 import { addDays, campaignKindOf, campaignStatusOf, closeCampaign, expiredExamCampaignsOf, isOpenForEntry } from './healthCheckRule';
 import { readEnrollmentCsv } from './enrollmentImport';
 
@@ -193,8 +193,9 @@ const backfillTbContactDates = (d) => {
 /**
  * DB demo (một lần): mọi trẻ đủ hành chính và tiền sử bắt buộc (user chốt 2026-10-22, "fill đầy ở hiện tại luôn").
  * Ô đã có giữ nguyên; ô trống, tiền sử "Chưa cung cấp" lấy giá trị giả của seed. Không ghi lịch sử, không gửi thông báo.
+ * v2: tuần thai bắt buộc mọi trẻ (2026-11-04) ⇒ tuần thai trống điền 35 (sinh non) hoặc 39.
  */
-const PROFILE_FILL_VERSION = 1;
+const PROFILE_FILL_VERSION = 2;
 const fillChildProfiles = (d) => {
   const blank = (v) => v === '' || v == null;
   const answered = [DECLARATION_STATE.REPORTED, DECLARATION_STATE.NONE_REPORTED];
@@ -615,7 +616,7 @@ const cleanDeclaration = (d) => ({
   medicalHistory: cleanMedicalHistory(d.medicalHistory),
 });
 
-/** Hành chính hỏi khi tiếp nhận (dùng cho phiếu khám); ô trống giữ chuỗi rỗng, tuần thai là số. */
+/** Hành chính hỏi khi tiếp nhận (dùng cho phiếu khám); ô trống giữ chuỗi rỗng, tuần thai là số và lưu cho mọi trẻ (2026-11-04). */
 export const cleanProfile = (p) => {
   const s = (v, max = 100) =>
     String(v ?? '')
@@ -1305,7 +1306,6 @@ export const childrenMockRepository = {
       cls: clone(classOf(db, child)),
       declaration: clone(decl),
       measurements,
-      rules: { headCircumferenceUntil: headCircumferenceUntil(child.dateOfBirth) },
       openCampaign: open
         ? {
             id: open.id,
@@ -1359,34 +1359,36 @@ export const childrenMockRepository = {
           ? 'Đợt/kỳ đã đóng. Hiệu trưởng hoặc Phó hiệu trưởng mở lại nếu cần sửa kết quả.'
           : 'Đợt/kỳ chưa bắt đầu hoặc đã hủy, chưa nhập được kết quả.',
       );
-    const until = headCircumferenceUntil(child.dateOfBirth);
     // GBR-GEN-06: a published (confirmed) result needs a reason to change.
-    const errors = validateMeasurement(payload, {
-      dateOfBirth: child.dateOfBirth,
-      requireReason: !!existing?.published,
-      headCircumferenceUntil: until,
-    });
-    if (!errors.date && campaign && (payload.date < campaign.startDate || payload.date > campaign.endDate))
-      errors.date = 'Chọn ngày đo trong khoảng ngày của đợt/kỳ';
+    const errors = validateMeasurement(payload, { requireReason: !!existing?.published });
     if (hasErrors(errors)) invalid(errors);
-    if (db.healthMeasurements.some((m) => m.childId === childId && m.date === payload.date && m.id !== measurementId))
-      invalid({ date: 'Ngày này đã có kết quả đo. Sửa lần đo đã có thay vì tạo mới.' });
+    // Ngày đo do BE ghi (user chốt 2026-11-04): số đo mới = hôm nay kẹp vào khoảng ngày của kỳ (kỳ cân đo đóng tay nên có thể
+    // còn mở sau ngày kết thúc ⇒ ghi ngày kết thúc, như phiếu khám), sửa giữ ngày; request không còn date, headCircumferenceCm.
+    const today = todayInput();
+    const date = existing
+      ? existing.date
+      : today < campaign.startDate
+        ? campaign.startDate
+        : today > campaign.endDate
+          ? campaign.endDate
+          : today;
+    if (!existing && db.healthMeasurements.some((m) => m.childId === childId && m.date === date))
+      throw new ApiError(409, `Ngày đo ${formatDate(date)} trẻ đã có kết quả đo khác. Báo Hiệu trưởng hoặc Phó hiệu trưởng`);
     return writeDb((d) => {
       const round1 = (v) => Math.round(Number(v) * 10) / 10;
-      const hasHead = payload.date <= until && payload.headCircumferenceCm !== '' && payload.headCircumferenceCm != null;
-      // Đánh giá vận động của mẫu cũ giữ nguyên khi sửa số đo.
+      // Kỳ cân đo không đo vòng đầu (HLT-01, 2026-11-04): số đo mới không có; sửa giữ vòng đầu, vận động của dữ liệu cũ.
       const values = {
-        date: payload.date,
         heightCm: round1(payload.heightCm),
         weightKg: round1(payload.weightKg),
-        headCircumferenceCm: hasHead ? round1(payload.headCircumferenceCm) : null,
         note: (payload.note || '').trim(),
       };
       if (!existing) {
         const created = {
           id: uid('hm'),
           childId,
+          date,
           ...values,
+          headCircumferenceCm: null,
           grossMotor: null,
           fineMotor: null,
           exam: null,

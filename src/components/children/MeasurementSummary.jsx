@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { HEAD_CIRCUMFERENCE_STATUS, MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children/childrenConstants';
+import { MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children/childrenConstants';
 import {
   ISSUE_KIND_LABELS,
   NUTRITION_STATUS_OPTIONS,
@@ -12,6 +12,8 @@ import { formatNumber } from '@/utils/children/childrenHelpers';
 import { BmiStatusBadge, ConclusionCategoryBadge, FollowUpLevelBadge, HeadCircumferenceBadge, MotorResultBadge } from './ChildBadges';
 
 const NOT_SET = <span className="muted">Chưa cập nhật</span>;
+
+const hasHead = (m) => m.headCircumferenceCm != null && m.headCircumferenceCm !== '';
 
 /** Kết luận bác sĩ của phiếu Phụ lục II (BE trả); mức theo dõi theo kết luận này (HLT-10). */
 function ExamConclusion({ m }) {
@@ -36,8 +38,12 @@ function ExamConclusion({ m }) {
       </dd>
       <dt>Tình trạng dinh dưỡng</dt>
       <dd>{m.exam.nutrition.statuses.map((s) => labelOf(NUTRITION_STATUS_OPTIONS, s)).join(', ') || NOT_SET}</dd>
-      <dt>Vòng đầu</dt>
-      <dd>{m.headCircumferenceStatus ? <HeadCircumferenceBadge status={m.headCircumferenceStatus} /> : NOT_SET}</dd>
+      {hasHead(m) && (
+        <>
+          <dt>Vòng đầu</dt>
+          <dd>{m.headCircumferenceStatus ? <HeadCircumferenceBadge status={m.headCircumferenceStatus} /> : NOT_SET}</dd>
+        </>
+      )}
       <dt>Bác sĩ kết luận</dt>
       <dd>{c.doctorName || NOT_SET}</dd>
       <dt>Mức theo dõi</dt>
@@ -76,18 +82,17 @@ function BmiResult({ m }) {
   );
 }
 
-/** Mẫu cũ (trước phiếu Phụ lục II, chỉ ở dữ liệu cũ): vòng đầu, vận động thô/tinh để xem lại; cảnh báo theo BMI như kỳ cân đo. */
+/** Mẫu cũ (trước phiếu Phụ lục II, chỉ ở dữ liệu cũ): vòng đầu (khi có số), vận động thô/tinh để xem lại; cảnh báo theo BMI như kỳ cân đo. */
 function LegacyResult({ m }) {
   return (
     <dl className="info-list mt-16">
       <BmiResult m={m} />
-      <dt>Vòng đầu</dt>
-      <dd>
-        {m.headCircumferenceStatus ? <HeadCircumferenceBadge status={m.headCircumferenceStatus} /> : NOT_SET}
-        {m.headCircumferenceStatus === HEAD_CIRCUMFERENCE_STATUS.NOT_MEASURED && (
-          <div className="muted text-sm mt-8">Trẻ trên 60 tháng tuổi tại ngày đo: không đo vòng đầu.</div>
-        )}
-      </dd>
+      {hasHead(m) && (
+        <>
+          <dt>Vòng đầu</dt>
+          <dd>{m.headCircumferenceStatus ? <HeadCircumferenceBadge status={m.headCircumferenceStatus} /> : NOT_SET}</dd>
+        </>
+      )}
       <dt>Vận động thô</dt>
       <dd>{m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : NOT_SET}</dd>
       <dt>Vận động tinh</dt>
@@ -98,11 +103,15 @@ function LegacyResult({ m }) {
   );
 }
 
-/** Một kết quả: số đo + kết luận bác sĩ (phiếu khám) hoặc mức BMI theo tuổi (kỳ cân đo, mẫu cũ). */
+/**
+ * Một kết quả: số đo + kết luận bác sĩ (phiếu khám) hoặc mức BMI theo tuổi (kỳ cân đo, mẫu cũ). Kỳ cân đo không đo vòng đầu
+ * (2026-11-04): ô vòng đầu chỉ hiện khi lần đo có số (phiếu khám, dữ liệu cũ).
+ */
 export function MeasurementSummary({ measurement: m }) {
+  const head = hasHead(m);
   return (
     <>
-      <div className="tr-metrics tr-metrics--4">
+      <div className={head ? 'tr-metrics tr-metrics--4' : 'tr-metrics'}>
         <div>
           <div className="tr-metric__value">{formatNumber(m.heightCm)}</div>
           <div className="muted text-sm">Chiều cao (cm)</div>
@@ -111,10 +120,12 @@ export function MeasurementSummary({ measurement: m }) {
           <div className="tr-metric__value">{formatNumber(m.weightKg)}</div>
           <div className="muted text-sm">Cân nặng (kg)</div>
         </div>
-        <div>
-          <div className="tr-metric__value">{formatNumber(m.headCircumferenceCm)}</div>
-          <div className="muted text-sm">Vòng đầu (cm)</div>
-        </div>
+        {head && (
+          <div>
+            <div className="tr-metric__value">{formatNumber(m.headCircumferenceCm)}</div>
+            <div className="muted text-sm">Vòng đầu (cm)</div>
+          </div>
+        )}
         <div>
           <div className="tr-metric__value">{formatNumber(m.bmi)}</div>
           <div className="muted text-sm">BMI</div>

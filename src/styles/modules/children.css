@@ -647,10 +647,12 @@
     width: 36%;
   }
 }
-/* Nhãn đầu dòng (th scope=row) nền trắng, chữ thường như ô nội dung */
+/* Nhãn đầu dòng (th scope=row) nền trắng, chữ thường như ô nội dung; xuống dòng trong cột (`.table th` mặc định nowrap làm nhãn dài
+   tràn sang ô kết quả trên điện thoại — FE-BUG-261104-exam-sheet-row-header-nowrap) */
 .table.table--grid.tr-exam-sheet tbody th {
   background: var(--color-surface);
   font-weight: var(--fw-regular);
+  white-space: normal;
 }
 /* Dải phần của mẫu (I–VI, Kết luận) xanh đậm chữ trắng in hoa như dải lĩnh vực của Kế hoạch chủ đề; nhóm con nền xanh nhạt */
 .table.table--grid.tr-exam-sheet tbody td.tr-exam-sheet__band {

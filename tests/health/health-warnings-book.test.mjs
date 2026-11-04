@@ -54,7 +54,6 @@ const examPayload = (view, conclusion, { companion = false } = {}) => {
   exam.immunization = { bcg: 'YES', hepB1: 'YES', fullSchedule: 'YES' };
   exam.conclusion = { ...buildEmptyExam().conclusion, doctorName: 'BS. Thử Nghiệm', ...conclusion };
   return {
-    date: view.measurement?.date || view.draft.date,
     heightCm: 100,
     weightKg: 16,
     headCircumferenceCm: view.reference.headApplies ? 49 : null,
@@ -176,7 +175,7 @@ test('AC-3 (HLT-16 bỏ): lưu số đo kỳ cân đo trả mức BMI; kết lu�
   const saved = await children.saveMeasurement(
     row.childId,
     null,
-    { campaignId: ROUND, date: todayInput(), heightCm: 98, weightKg: 22, note: '' },
+    { campaignId: ROUND, heightCm: 98, weightKg: 22, note: '' },
     TUAN,
   );
   assert.equal(saved.source, 'MEASUREMENT_ONLY');

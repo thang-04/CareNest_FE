@@ -45,7 +45,6 @@ const payloadOf = (view, conclusion, { companion = true, conclude = true, reason
   exam.immunization = { bcg: 'YES', hepB1: 'YES', fullSchedule: 'YES' };
   exam.conclusion = { ...buildEmptyExam().conclusion, normal: true, action: 'NONE', doctorName: 'BS. Thử Nghiệm', ...conclusion };
   return {
-    date: view.measurement?.date || view.draft.date,
     heightCm: 100,
     weightKg: 16,
     headCircumferenceCm: view.reference.headApplies ? 49 : null,
@@ -120,9 +119,6 @@ test('AC-5: không có người đi cùng ⇒ chuyển khám vẫn công bố, k
 
 test('AC-2, AC-3: số đo của kỳ cân đo công bố khi lưu; sửa thì công bố lại, có lịch sử; không còn API công bố riêng', async () => {
   assert.equal(children.publishMeasurement, undefined);
-  const db = readDb();
-  const used = new Set(db.healthMeasurements.filter((m) => m.childId === 'ch_008').map((m) => m.date));
-  const date = ['2026-10-01', '2026-10-02', '2026-10-03'].find((d) => !used.has(d));
   // Từ 2026-10-31 chỉ nhập số đo trong kỳ cân đo: thêm thẳng một kỳ đang diễn ra ở c1 (dữ liệu giả).
   writeDb((d) => {
     d.healthCheckCampaigns.push({
@@ -143,23 +139,26 @@ test('AC-2, AC-3: số đo của kỳ cân đo công bố khi lưu; sửa thì c
   const created = await children.saveMeasurement(
     'ch_008',
     null,
-    { campaignId: 'hc_c1_round_test', date, heightCm: 101, weightKg: 16.2, note: '' },
+    { campaignId: 'hc_c1_round_test', heightCm: 101, weightKg: 16.2, note: '' },
     MINH_ANH,
   );
   assert.equal(created.published, true);
+  // Ngày đo do BE ghi (user chốt 2026-11-04): số đo mới = hôm nay, sửa giữ ngày.
+  assert.equal(created.date, todayInput());
   const first = created.publishedAt;
   await new Promise((r) => setTimeout(r, 5));
   await rejects(
-    children.saveMeasurement('ch_008', created.id, { date, heightCm: 101.5, weightKg: 16.2, note: '' }, MINH_ANH),
+    children.saveMeasurement('ch_008', created.id, { heightCm: 101.5, weightKg: 16.2, note: '' }, MINH_ANH),
     422,
     'reason',
   );
   const edited = await children.saveMeasurement(
     'ch_008',
     created.id,
-    { date, heightCm: 101.5, weightKg: 16.2, note: '', reason: 'Đo lại (giả).' },
+    { heightCm: 101.5, weightKg: 16.2, note: '', reason: 'Đo lại (giả).' },
     MINH_ANH,
   );
+  assert.equal(edited.date, created.date);
   assert.equal(edited.published, true);
   assert.ok(edited.publishedAt > first, 'ngày công bố mới');
   assert.equal(edited.edits.length, 1);

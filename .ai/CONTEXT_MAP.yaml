@@ -31,8 +31,8 @@ keywords:
     {be_module_card: ../CareNest_BE/docs/modules/nutrition.md, fe_docs: [docs/features/nutrition-inventory.md], fe_code: [src/services/kitchen/]}   # BE ADR-0009 ACCEPTED 28/10 (NUT-11/12); UI FE theo BA (user chốt 2026-10-20), chỉ mock — lệch BE ở nutrition-inventory.md
   "dị ứng|allergy":
     {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md], fe_code: [src/services/children/, src/services/menu-planning/]}   # HLT-06, NUT-23: 2 mức; bếp không thấy tên trẻ
-  "trẻ|child|hồ sơ trẻ|ghi danh|tiếp nhận|enrollment|guardian|hành chính|tiền sử|cccd|mã định danh|tiếp xúc lao":
-    {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/children/, src/services/account/]}
+  "trẻ|child|hồ sơ trẻ|ghi danh|tiếp nhận|enrollment|guardian|hành chính|tiền sử|cccd|mã định danh|tiếp xúc lao|tuần thai|sinh non":
+    {be_module_card: ../CareNest_BE/docs/modules/child.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md], fe_code: [src/services/children/, src/services/account/]}   # CHD-05: tuần thai bắt buộc mọi trẻ, khớp Sinh non (2026-11-04) — plans/active/2026-11-04-intake-weeks-round-dates.md
   "sức khỏe|health|chiều cao|cân nặng|vòng đầu|vận động|đợt khám|kỳ cân đo|bmi|z-score|bmi theo tuổi|gầy còm|thừa cân|béo phì|cảnh báo sức khỏe|sổ sức khỏe|phiếu theo dõi|khám chuyên khoa|measurement|tăng trưởng|trend|biểu đồ|phiếu khám|phụ lục ii|kết luận bác sĩ|sinh tồn|mạch|nhịp thở|nhiệt độ|nguy cơ lao|cân đo|vấn đề đã biết|bất thường mới|chưa ghi nhận thêm":
     {be_module_card: ../CareNest_BE/docs/modules/health.md, fe_docs: [docs/features/README.md, docs/architecture/ROUTE_MAP.md, docs/quality/manual-tests/health-exam-flow.md], fe_code: [src/services/children/, tests/health/]}   # HLT-08..14 chốt 29/10 (GV cân đo — HLT-09); HLT-16 phiếu theo dõi REMOVED, HLT-18 BMI WHO, HLT-19 cảnh báo ở Sổ sức khỏe (2026-11-04) — plans/active/2026-11-04-health-warnings-book.md
   "quan sát|observation|tiêu chí|criteria|nhận xét|summary|đánh giá|assessment|phát triển|development profile|bé ngoan|khen thưởng":

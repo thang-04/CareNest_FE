@@ -45,7 +45,7 @@ import {
 import { PARENT_VISIBLE_HEALTH_TEXT } from '@/models/children/childrenConstants';
 import { CHILD_RESULT_STATUS } from '@/models/children/healthCheckConstants';
 import { ageLabel } from '@/models/School';
-import { formatDate, formatDateTime, todayInput } from '@/utils/format';
+import { formatDate, formatDateTime } from '@/utils/format';
 import { hasErrors } from '@/utils/children/childrenValidation';
 import { formatMeasurementChange } from '@/utils/children/childrenHelpers';
 import { validateHealthExam } from '@/utils/children/healthExamValidation';
@@ -88,8 +88,8 @@ const conclusionSentence = (c) =>
     .filter(Boolean)
     .join('. ') + (c.doctorName ? ` — ${c.doctorName}` : '');
 
+// Không có ngày khám: BE ghi (phiếu đã có giữ ngày, phiếu mới = hôm nay trong khoảng của đợt; user chốt 2026-11-04).
 const formOf = (m) => ({
-  date: m.date,
   heightCm: m.heightCm ?? '',
   weightKg: m.weightKg ?? '',
   headCircumferenceCm: m.headCircumferenceCm ?? '',
@@ -153,7 +153,8 @@ export default function HealthExamFormPage() {
     if (!view || form) return;
     const m = view.measurement;
     if (!m && !view.draft) return;
-    setForm(m ? formOf(m) : { ...clone(view.draft), reason: '' });
+    const { date: _date, ...draft } = view.draft || {};
+    setForm(m ? formOf(m) : { ...clone(draft), reason: '' });
     const draftStep = m?.examStatus === EXAM_STATUS.DRAFT ? Math.min(m.exam.step || 0, 4) : 0;
     setStep(draftStep);
     setMaxReached(m?.examStatus === EXAM_STATUS.CONCLUDED ? 4 : draftStep);
@@ -272,10 +273,8 @@ export default function HealthExamFormPage() {
       </div>
     );
 
-  const dateRange = {
-    min: view.campaign.startDate,
-    max: view.campaign.endDate < todayInput() ? view.campaign.endDate : todayInput(),
-  };
+  // Ngày khám chỉ hiện: phiếu đã lưu giữ ngày, phiếu mới hiện ngày BE điền sẵn (hôm nay trong khoảng của đợt); BE ghi khi lưu.
+  const examDate = m?.date || view.draft?.date || '';
   const update = (changes) => {
     setForm((f) => Object.entries(changes).reduce((acc, [p, v]) => setPath(acc, p, v), f));
     setErrors((e) => clearErrors(e, Object.keys(changes)));
@@ -283,7 +282,6 @@ export default function HealthExamFormPage() {
   };
   const set = (path, value) => update({ [path]: value });
   const payloadOf = (extra) => ({
-    date: form.date,
     heightCm: form.heightCm,
     weightKg: form.weightKg,
     headCircumferenceCm: form.headCircumferenceCm,
@@ -345,7 +343,7 @@ export default function HealthExamFormPage() {
     const payload = payloadOf({ exam: { ...form.exam, step: 4 }, conclude: true, conclusionMode: view.conclusionMode });
     const errs = validateHealthExam(payload, {
       dateOfBirth: child.dateOfBirth,
-      campaign: view.campaign,
+      examDate,
       reference: view.reference,
       requireReason: concluded,
       conclusionMode: view.conclusionMode,
@@ -548,7 +546,7 @@ export default function HealthExamFormPage() {
         <Stepper steps={STEP_LABELS} current={step} maxReached={maxReached} onStepClick={busy ? undefined : goTo} />
       </div>
       <div className="stack gap-4 mt-16">
-        {step === 0 && <ExamAdminStep {...stepProps} child={child} campaign={view.campaign} dateRange={dateRange} />}
+        {step === 0 && <ExamAdminStep {...stepProps} child={child} campaign={view.campaign} examDate={examDate} examSaved={!!m} />}
         {step === 1 && <ExamMeasureStep {...stepProps} reference={view.reference} />}
         {step === 2 && <ExamDevelopmentStep {...stepProps} reference={view.reference} />}
         {step === 3 && <ExamClinicalStep {...stepProps} />}

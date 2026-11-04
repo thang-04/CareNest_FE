@@ -42,9 +42,23 @@ const PROFILE_REQUIRED_TEXT = [
   ['address.street', 'Nhập số nhà/thôn/xóm nơi ở'],
 ];
 
+// Dưới 37 tuần là sinh non: tuần thai phải khớp ô Sinh non (CHD-05, user chốt 2026-11-04).
+const PRETERM_BEFORE_WEEKS = 37;
+
+/** Tuần thai khi sinh, bắt buộc mọi trẻ (user chốt 2026-11-04); câu lỗi như BE. Trả câu lỗi hoặc null. */
+const gestationWeeksError = (w, premature) => {
+  if (w === '' || w == null || String(w).trim() === '') return 'Nhập tuần thai khi sinh';
+  const n = Number(w);
+  if (Number.isNaN(n) || n < 20 || n > 42) return 'Nhập tuần thai từ 20 đến 42';
+  if (!Number.isInteger(n)) return 'Nhập số tuần nguyên, ví dụ 38';
+  if (premature === 'YES' && n >= PRETERM_BEFORE_WEEKS) return 'Trẻ sinh non có tuần thai dưới 37';
+  if (premature === 'NO' && n < PRETERM_BEFORE_WEEKS) return 'Dưới 37 tuần là sinh non: chọn Sinh non là Có hoặc sửa tuần thai';
+  return null;
+};
+
 /**
- * Phần hành chính khi tiếp nhận, sửa hồ sơ: bắt buộc trừ CCCD trẻ và nhóm máu (user chốt 2026-10-22, thay 1a).
- * Phiếu khám chỉ đọc phần này nên phải đủ từ lúc nhập học. Khóa lỗi 'profile.x'.
+ * Phần hành chính khi tiếp nhận, sửa hồ sơ: bắt buộc trừ CCCD trẻ và nhóm máu (user chốt 2026-10-22, thay 1a); tuần thai bắt
+ * buộc mọi trẻ (2026-11-04). Phiếu khám chỉ đọc phần này nên phải đủ từ lúc nhập học. Khóa lỗi 'profile.x'.
  */
 export const validateChildProfile = (p = {}) => {
   const errors = {};
@@ -52,10 +66,8 @@ export const validateChildProfile = (p = {}) => {
   const tooLong = (v, max) => String(v ?? '').trim().length > max;
   if (String(p.idNumber ?? '').trim() && !isValidIdNumber(p.idNumber)) errors['profile.idNumber'] = ID_NUMBER_MESSAGE;
   if (!['YES', 'NO'].includes(p.premature)) errors['profile.premature'] = 'Chọn trẻ có sinh non hay không';
-  const w = p.gestationWeeks;
-  if (w === '' || w == null) {
-    if (p.premature === 'YES') errors['profile.gestationWeeks'] = 'Nhập tuần thai khi sinh của trẻ sinh non';
-  } else if (Number.isNaN(Number(w)) || Number(w) < 20 || Number(w) > 42) errors['profile.gestationWeeks'] = 'Nhập tuần thai từ 20 đến 42';
+  const weeksError = gestationWeeksError(p.gestationWeeks, p.premature);
+  if (weeksError) errors['profile.gestationWeeks'] = weeksError;
   PROFILE_REQUIRED_TEXT.forEach(([path, message]) => {
     if (!String(value(path) ?? '').trim()) errors[`profile.${path}`] = message;
   });
@@ -148,24 +160,17 @@ export const validateDeclaration = (d, { dateOfBirth } = {}) => {
 const isBlank = (v) => v === '' || v == null;
 
 /**
- * Cân đo ngoài đợt khám (GBR-HLT-01; user chốt 2026-10-17: chỉ chiều cao, cân nặng, vòng đầu, ghi chú; không kết luận).
- * headCircumferenceUntil: ngày cuối còn đo vòng đầu, BE trả trong sổ sức khỏe. Vòng đầu không bắt buộc khi cân đo tại lớp.
+ * Số đo của kỳ cân đo (HLT-01): chỉ chiều cao, cân nặng, ghi chú; không kết luận. Từ 2026-11-04 không còn vòng đầu, ngày đo do BE
+ * ghi (số đo mới = hôm nay, sửa giữ ngày) nên không kiểm ngày ở đây.
  */
-export const validateMeasurement = (m, { dateOfBirth, requireReason, headCircumferenceUntil } = {}) => {
+export const validateMeasurement = (m, { requireReason } = {}) => {
   const errors = {};
-  if (!m.date || !DATE_RE.test(m.date)) errors.date = 'Chọn ngày đo';
-  else if (m.date > today()) errors.date = 'Ngày đo không được ở tương lai';
-  else if (dateOfBirth && m.date < dateOfBirth) errors.date = 'Ngày đo không được trước ngày sinh của trẻ';
   const h = Number(m.heightCm);
   if (isBlank(m.heightCm) || Number.isNaN(h)) errors.heightCm = 'Nhập chiều cao (cm)';
   else if (h < 40 || h > 150) errors.heightCm = 'Nhập chiều cao từ 40 đến 150 cm';
   const w = Number(m.weightKg);
   if (isBlank(m.weightKg) || Number.isNaN(w)) errors.weightKg = 'Nhập cân nặng (kg)';
   else if (w < 3 || w > 60) errors.weightKg = 'Nhập cân nặng từ 3 đến 60 kg';
-  const headApplies = !headCircumferenceUntil || !m.date || m.date <= headCircumferenceUntil;
-  const hc = Number(m.headCircumferenceCm);
-  if (headApplies && !isBlank(m.headCircumferenceCm) && (Number.isNaN(hc) || hc < 30 || hc > 60))
-    errors.headCircumferenceCm = 'Nhập vòng đầu từ 30 đến 60 cm';
   if ((m.note || '').length > 500) errors.note = 'Ghi chú tối đa 500 ký tự';
   if (requireReason && !m.reason?.trim()) errors.reason = 'Nhập lý do sửa kết quả đã công bố';
   return errors;

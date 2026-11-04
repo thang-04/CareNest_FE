@@ -187,7 +187,6 @@ const filledPayload = (view, history) => {
   exam.immunization = { bcg: 'YES', hepB1: 'YES', fullSchedule: 'YES' };
   exam.conclusion = { ...buildEmptyExam().conclusion, normal: true, action: 'NONE', doctorName: 'BS. Thử Nghiệm' };
   return {
-    date: view.measurement?.date || view.draft.date,
     heightCm: 100,
     weightKg: 16,
     headCircumferenceCm: view.reference.headApplies ? 49 : null,

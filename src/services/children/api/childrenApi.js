@@ -50,14 +50,20 @@ import { axiosClient } from '@/services/http/axiosClient';
  * ứng (FATHER, MOTHER, GRANDFATHER, GRANDMOTHER, SIBLING, GUARDIAN).
  * Kỳ cân đo (user chốt 2026-10-31, docs/plans/completed/2026-10-31-health-measurement-rounds.md): POST .../health/measurements bắt buộc
  * campaignId của kỳ cân đo (kind MEASUREMENT) cùng điểm trường của trẻ, thiếu/sai/đợt khám ⇒ 422 campaignId; trẻ đã có số đo
- * trong kỳ ⇒ 422 campaignId; kỳ chưa bắt đầu, đã đóng hoặc hủy ⇒ 409; ngày ngoài khoảng của kỳ ⇒ 422 date. PUT sửa được số đo
- * cũ ngoài đợt (campaignId null). GET health trả openCampaign.kind; kỳ cân đo có resultStatus RECORDED khi trẻ đã có số đo.
+ * trong kỳ ⇒ 422 campaignId; kỳ chưa bắt đầu, đã đóng hoặc hủy ⇒ 409 (ngày đo: mục 2026-11-04 bên dưới). Số đo cũ ngoài đợt
+ * (campaignId null) chỉ xem, PUT ⇒ 409 (2026-11-04). GET health trả openCampaign.kind; kỳ cân đo có resultStatus RECORDED khi trẻ
+ * đã có số đo.
  * Cảnh báo ở Sổ sức khỏe (2026-11-04, HLT-16 bỏ, HLT-18, HLT-19; docs/plans/active/2026-11-04-health-warnings-book.md): lần đo bỏ
  * followUpId, followUpEffect, parentContact; thêm bmiStatus (SEVERE_THINNESS | THINNESS | NORMAL | OVERWEIGHT_RISK | OVERWEIGHT |
  * OBESE) và bmiZScore (2 chữ số) cho số đo của kỳ cân đo (có chiều cao, cân nặng, 0–84 tháng), null với phiếu khám. GET health bỏ
  * latestHealth, openFollowUp, externalResults; thêm latestExam { measurementId, campaignId, campaignName, date, followUpLevel,
  * conclusionCategory, conclusion } và latestBmi { measurementId, campaignId, campaignName, date, ageMonths, bmi,
  * bmiStatus, bmiZScore } (null khi chưa có).
+ * Tuần thai, ngày đo (2026-11-04, docs/plans/active/2026-11-04-intake-weeks-round-dates.md): profile.gestationWeeks bắt buộc mọi
+ * trẻ, 20–42, khớp premature (422 profile.gestationWeeks), lưu cho mọi trẻ. POST/PUT .../health/measurements bỏ date,
+ * headCircumferenceCm: BE ghi ngày (mới = hôm nay, sửa giữ ngày), kỳ cân đo không ghi vòng đầu (response vẫn có
+ * headCircumferenceCm của dữ liệu cũ); không còn lỗi ngày ngoài kỳ (HEALTH_MEASUREMENT_DATE_OUTSIDE), trùng ngày đo ⇒ 409.
+ * GET health bỏ headCircumferenceUntil (mock: rules).
  */
 const PAGE_SIZE = 100;
 

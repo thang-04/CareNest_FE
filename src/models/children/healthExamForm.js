@@ -372,10 +372,10 @@ export const buildEmptyExam = () => ({
   },
 });
 
-/** Bước chứa một ô (theo khóa lỗi BE trả), để form mở đúng bước có lỗi. */
+/** Bước chứa một ô (theo khóa lỗi BE trả), để form mở đúng bước có lỗi. Lỗi `date` (BE ghi ngày khám) hiện ở dòng ngày của bước 1. */
 export const stepOfField = (key) => {
-  if (/^exam\.(admin|history)\b/.test(key)) return 0;
-  if (/^(date|heightCm|weightKg|headCircumferenceCm)$/.test(key) || /^exam\.(vitals|nutrition)\b/.test(key)) return 1;
+  if (key === 'date' || /^exam\.(admin|history)\b/.test(key)) return 0;
+  if (/^(heightCm|weightKg|headCircumferenceCm)$/.test(key) || /^exam\.(vitals|nutrition)\b/.test(key)) return 1;
   if (/^exam\.(development|immunization)\b/.test(key)) return 2;
   if (/^exam\.clinical\b/.test(key)) return 3;
   return 4;

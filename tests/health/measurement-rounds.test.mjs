@@ -201,18 +201,15 @@ test('AC-6: giáo viên nhập số đo trong kỳ; đóng kỳ thì trẻ chưa
   const notYet = before.children.filter((r) => r.result === 'NOT_RECORDED' && r.childId !== child.id).map((r) => r.childId);
   assert.ok(notYet.length > 0);
 
-  const payload = { campaignId: C2_ROUND, date: todayInput(), heightCm: 105, weightKg: 17.5, note: '' };
-  await rejects(children.saveMeasurement(child.id, null, { ...payload, date: addDays(round.startDate, -1) }, TUAN), 422, 'date');
-  const saved = await children.saveMeasurement(child.id, null, payload, TUAN);
+  // Ngày đo do BE ghi (user chốt 2026-11-04): ngày client gửi (kể cả trước kỳ) bị bỏ qua, không còn 422 date.
+  const payload = { campaignId: C2_ROUND, heightCm: 105, weightKg: 17.5, note: '' };
+  const saved = await children.saveMeasurement(child.id, null, { ...payload, date: addDays(round.startDate, -1) }, TUAN);
+  assert.equal(saved.date, todayInput());
   assert.equal(saved.campaignId, C2_ROUND);
   assert.equal(saved.campaignKind, 'MEASUREMENT', 'Sổ sức khỏe không mở phiếu khám cho số đo của kỳ');
   assert.equal(saved.source, 'MEASUREMENT_ONLY');
   assert.equal(saved.published, true);
-  await rejects(
-    children.saveMeasurement(child.id, null, { ...payload, date: round.startDate }, TUAN),
-    422,
-    'campaignId',
-  );
+  await rejects(children.saveMeasurement(child.id, null, payload, TUAN), 422, 'campaignId');
 
   const after = await checks.getHealthCheckClass(C2_ROUND, child.classId, TUAN);
   const row = after.children.find((r) => r.childId === child.id);
@@ -234,7 +231,7 @@ test('AC-6: giáo viên nhập số đo trong kỳ; đóng kỳ thì trẻ chưa
 // Khóa lần đo cũ ngoài đợt như BE (user chọn 2026-11-04, thay "kết quả cũ ngoài đợt vẫn sửa được" của 2026-10-31).
 test('AC-7: không nhập lẻ ngoài kỳ; kết quả cũ ngoài đợt chỉ xem, không sửa', async () => {
   const child = tuanChild();
-  const base = { date: todayInput(), heightCm: 105, weightKg: 17.5, note: '' };
+  const base = { heightCm: 105, weightKg: 17.5, note: '' };
   await rejects(children.saveMeasurement(child.id, null, base, TUAN), 422, 'campaignId');
   await rejects(children.saveMeasurement(child.id, null, { ...base, campaignId: C1_OPEN }, TUAN), 422, 'campaignId');
 
@@ -249,7 +246,7 @@ test('AC-7: không nhập lẻ ngoài kỳ; kết quả cũ ngoài đợt chỉ 
     children.saveMeasurement(
       child.id,
       old.id,
-      { date: old.date, heightCm: old.heightCm, weightKg: old.weightKg + 0.1, note: old.note || '', reason: 'Sửa số (giả).' },
+      { heightCm: old.heightCm, weightKg: old.weightKg + 0.1, note: old.note || '', reason: 'Sửa số (giả).' },
       TUAN,
     ),
     409,

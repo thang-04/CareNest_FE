@@ -5,6 +5,8 @@ import { axiosClient } from '@/services/http/axiosClient';
  * BE đọc scope từ JWT. Plan gốc: docs/plans/completed/2026-10-15-health-check-campaign-assessment.md,
  * docs/plans/completed/2026-10-17-health-exam-form-doctor-conclusion.md, docs/plans/completed/2026-10-31-health-measurement-rounds.md.
  * - Phiếu khám: 1 phiếu/trẻ/đợt; PUT lưu nháp (conclude=false) hoặc lưu kết luận (conclude=true; sửa phiếu đã kết luận cần reason).
+ *   Request không có date (2026-11-04): BE ghi ngày khám — phiếu đã có giữ ngày, phiếu mới = hôm nay kẹp vào [startDate, endDate];
+ *   GET trả draft.date (ngày sẽ ghi) để hiện. Trùng ngày đo khác ⇒ 422 date.
  *   BE điền exam.admin (trừ người đi cùng) từ hồ sơ trẻ; client gửi hasCompanion + companion.guardianIndex (sai ⇒ 422
  *   exam.admin.companion). Lưu kết luận ⇒ BE cập nhật declaration.medicalHistory, công bố ngay; nháp không công bố.
  *   exam.conclusion.parentOpinion (≤500) bắt buộc khi có người đi cùng và kết luận mức Cần theo dõi sát (422).

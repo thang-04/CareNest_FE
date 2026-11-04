@@ -20,7 +20,7 @@ import { classifyBmiForAge } from './bmiForAgeRule';
  * - Phiếu Phụ lục II (user chốt 2026-10-17): mức theo dõi theo kết luận bác sĩ (HLT-10); hệ thống chỉ lập "Điểm cần bác sĩ xem lại".
  * - Số đo của kỳ cân đo: mức BMI theo tuổi chuẩn WHO (HLT-18, bmiForAgeRule.js); không có kết luận bác sĩ nên không có mức theo dõi.
  * - Kết quả mẫu cũ (chỉ ở dữ liệu demo, trước phiếu Phụ lục II): như số đo của kỳ cân đo; ngưỡng tạm cũ không còn là cảnh báo.
- * Khoảng vòng đầu là TẠM: chỉ gợi ý ở phiếu khám và hiện lại ở kết quả mẫu cũ.
+ * Khoảng vòng đầu là TẠM: chỉ gợi ý ở phiếu khám và hiện lại ở kết quả mẫu cũ. Kỳ cân đo không đo vòng đầu (HLT-01, 2026-11-04).
  */
 
 // Mạch, nhịp thở theo AHA PALS 2020 (lúc thức); nhiệt độ đo ở nách. User chọn 2026-10-17, bác sĩ xác nhận trước khi dùng thật.
@@ -45,13 +45,6 @@ export const ageMonthsOn = (dateOfBirth, on) => {
   const [y1, m1, d1] = dateOfBirth.split('-').map(Number);
   const [y2, m2, d2] = on.split('-').map(Number);
   return (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);
-};
-
-/** Ngày cuối cùng trẻ còn đo vòng đầu (tròn 60 tháng tuổi), BE trả cho form. */
-export const headCircumferenceUntil = (dateOfBirth) => {
-  const [y, m, d] = dateOfBirth.split('-').map(Number);
-  const firstOver = Date.UTC(y, m - 1 + HEAD_MAX_AGE_MONTHS + 1, d);
-  return new Date(firstOver - 86400000).toISOString().slice(0, 10);
 };
 
 /** Khoảng tham khảo theo tuổi tại ngày khám, BE trả cho form phiếu khám. */

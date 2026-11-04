@@ -70,6 +70,9 @@ const contextOf = (db, campaignId, childId, user) => {
 const clampDate = (campaign, today = todayInput()) =>
   today < campaign.startDate ? campaign.startDate : today > campaign.endDate ? campaign.endDate : today;
 
+/** Ngày khám do BE ghi (user chốt 2026-11-04): phiếu đã có giữ ngày; phiếu mới = hôm nay kẹp vào khoảng ngày của đợt. */
+const examDateOf = (campaign, m) => m?.date || clampDate(campaign);
+
 /** Mẫu kết luận: phiếu đã kết luận theo mẫu FOLLOW_UP (trước 2026-11-04) giữ mẫu đó; phiếu mới, phiếu nháp dùng mẫu thường. */
 const conclusionModeOf = (m) =>
   m?.examStatus === EXAM_STATUS.CONCLUDED && m.exam?.conclusion?.followUpFinding ? CONCLUSION_MODE.FOLLOW_UP : CONCLUSION_MODE.STANDARD;
@@ -343,7 +346,7 @@ const diffExam = (before, after) => {
 const toExamView = (db, { campaign, child, cls, m }, user) => {
   const open = isOpenForEntry(campaign);
   const legacy = !!m && !m.exam;
-  const date = m?.date || clampDate(campaign);
+  const date = examDateOf(campaign, m);
   const reference = examReferenceFor(child.dateOfBirth, date);
   const prev = previousExamOf(db, child.id, date, m?.id);
   const prevCampaign = prev?.campaignId ? db.healthCheckCampaigns.find((c) => c.id === prev.campaignId) : null;
@@ -382,7 +385,7 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
       ? { ...view, reviewPoints: examReviewPoints(m, child.dateOfBirth), measuredByName: userName(db, m.measuredBy) }
       : null,
     legacyMeasurementId: legacy ? m.id : null,
-    // Phiếu mới: Phần I theo hồ sơ trẻ; số đo để trống.
+    // Phiếu mới: Phần I theo hồ sơ trẻ; số đo để trống; date = ngày BE sẽ ghi khi lưu (chỉ để hiện).
     draft: m ? null : { date, heightCm: '', weightKg: '', headCircumferenceCm: '', exam: prefillExam(db, child) },
     reference,
     previous: prev
@@ -418,7 +421,7 @@ export const healthExamMockRepository = {
     await delay(80);
     const db = ensureChildRecordsSeeded();
     const { campaign, child, m } = contextOf(db, campaignId, childId, user);
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(payload?.date || '') ? payload.date : clampDate(campaign);
+    const date = examDateOf(campaign, m);
     const mode = conclusionModeOf(m);
     const cleaned = cleanExam(payload?.exam, examReferenceFor(child.dateOfBirth, date), { concluded: false, mode });
     const exam = withProfile(child, cleaned, m?.examStatus === EXAM_STATUS.CONCLUDED ? m.exam : null);
@@ -426,7 +429,8 @@ export const healthExamMockRepository = {
   },
 
   /**
-   * payload: { date, heightCm, weightKg, headCircumferenceCm, exam, conclude, reason, conclusionMode }.
+   * payload: { heightCm, weightKg, headCircumferenceCm, exam, conclude, reason, conclusionMode } — không có date: BE ghi ngày khám
+   * (examDateOf), client gửi thì bỏ qua (user chốt 2026-11-04).
    * conclude=false: lưu nháp (không bắt buộc ô nào). conclude=true: kiểm đủ, khóa phiếu; sửa phiếu đã kết luận cần lý do (D12).
    * conclusionMode: mẫu UI đang vẽ; khác mẫu BE chọn (phiếu vừa được người khác kết luận) ⇒ 409 để tải lại phiếu.
    */
@@ -441,8 +445,8 @@ export const healthExamMockRepository = {
     if (m && !m.exam) throw new ApiError(409, 'Trẻ đã có kết quả nhập theo mẫu cũ trong đợt này. Xem ở Sổ sức khỏe.');
     const concluded = m?.examStatus === EXAM_STATUS.CONCLUDED;
     if (!payload.conclude && concluded) throw new ApiError(409, 'Phiếu đã có kết luận. Lưu lại kết luận kèm lý do sửa thay vì lưu nháp.');
-    const date = payload.date || m?.date || clampDate(campaign);
-    const reference = examReferenceFor(child.dateOfBirth, /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : clampDate(campaign));
+    const date = examDateOf(campaign, m);
+    const reference = examReferenceFor(child.dateOfBirth, date);
     const mode = conclusionModeOf(m);
     if (payload.conclude && payload.conclusionMode && payload.conclusionMode !== mode)
       throw new ApiError(409, 'Mẫu kết luận của phiếu đã thay đổi. Tải lại phiếu khám rồi lưu lại.');
@@ -450,23 +454,26 @@ export const healthExamMockRepository = {
     const keepsIssueKind = concluded && !!m.exam?.conclusion?.issueKind;
     const cleaned = cleanExam(payload.exam, reference, { concluded: !!payload.conclude, mode, keepsIssueKind });
     const exam = withProfile(child, cleaned, concluded ? m.exam : null);
+    // Mỗi trẻ một kết quả đo một ngày, cả phiếu nháp (như BE); ngày khám do BE ghi nên giáo viên không chọn lại được.
+    const dateTaken = db.healthMeasurements.some((x) => x.childId === childId && x.date === date && x.id !== m?.id)
+      ? `Ngày khám ${formatDate(date)} trẻ đã có kết quả đo khác. Báo Hiệu trưởng hoặc Phó hiệu trưởng.`
+      : null;
 
     if (payload.conclude) {
       const errors = validateHealthExam(
-        { ...payload, date, exam: cleaned },
+        { ...payload, exam: cleaned },
         {
           dateOfBirth: child.dateOfBirth,
-          campaign: { startDate: campaign.startDate, endDate: campaign.endDate },
+          examDate: date,
           reference,
           requireReason: concluded,
           conclusionMode: mode,
           guardianCount: (child.guardians || []).length,
         },
       );
-      if (db.healthMeasurements.some((x) => x.childId === childId && x.date === date && x.id !== m?.id))
-        errors.date ||= 'Ngày này trẻ đã có kết quả đo khác. Chọn ngày khám khác trong đợt.';
+      if (dateTaken) errors.date = dateTaken;
       if (hasErrors(errors)) invalid(errors);
-    }
+    } else if (dateTaken) invalid({ date: dateTaken }, dateTaken);
 
     return writeDb((d) => {
       const num = (v) =>

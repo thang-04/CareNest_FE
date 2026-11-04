@@ -14,7 +14,6 @@ import {
   VITAL_ITEMS,
   YES_NO,
 } from '@/models/children/healthExamForm';
-import { todayInput } from '@/utils/format';
 import { tbContactDateError } from './childrenValidation';
 
 /*
@@ -22,7 +21,6 @@ import { tbContactDateError } from './childrenValidation';
  * Chỉ hỗ trợ nhập liệu; phiếu nháp không bắt buộc ô nào. BE vẫn là chủ rule.
  */
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const YES_NO_VALUES = Object.values(YES_NO);
 
 const isBlank = (v) => v === '' || v == null;
@@ -91,21 +89,15 @@ const validateStandardConclusion = (errors, c, L) => {
 };
 
 /**
- * payload: { date, heightCm, weightKg, headCircumferenceCm, exam, reason }.
- * ctx: { dateOfBirth, campaign: { startDate, endDate }, reference (BE trả: headApplies, autismQuestion), requireReason,
- *   conclusionMode (BE trả: STANDARD | FOLLOW_UP), guardianCount }.
+ * payload: { heightCm, weightKg, headCircumferenceCm, exam, reason } — không có ngày khám: BE ghi (user chốt 2026-11-04).
+ * ctx: { dateOfBirth, examDate (ngày khám BE trả hoặc BE ghi, để kiểm ngày tiếp xúc lao), reference (BE trả: headApplies,
+ *   autismQuestion), requireReason, conclusionMode (BE trả: STANDARD | FOLLOW_UP), guardianCount }.
  */
-export const validateHealthExam = (payload, { dateOfBirth, campaign, reference, requireReason, conclusionMode, guardianCount } = {}) => {
+export const validateHealthExam = (payload, { dateOfBirth, examDate, reference, requireReason, conclusionMode, guardianCount } = {}) => {
   const errors = {};
   const exam = payload.exam || {};
   const a = exam.admin || {};
   const L = EXAM_FIELD_LIMITS;
-
-  if (!payload.date || !DATE_RE.test(payload.date)) errors.date = 'Chọn ngày khám';
-  else if (payload.date > todayInput()) errors.date = 'Ngày khám không được ở tương lai';
-  else if (dateOfBirth && payload.date < dateOfBirth) errors.date = 'Ngày khám không được trước ngày sinh của trẻ';
-  else if (campaign && (payload.date < campaign.startDate || payload.date > campaign.endDate))
-    errors.date = 'Chọn ngày khám trong khoảng ngày khám của đợt';
 
   // I. Hành chính lấy từ hồ sơ trẻ, giáo viên không sửa (user chốt 2026-10-22); kiểm người đi cùng và tiền sử.
   // Người đi cùng chọn trong phụ huynh của hồ sơ (guardianCount: số phụ huynh BE trả).
@@ -121,7 +113,7 @@ export const validateHealthExam = (payload, { dateOfBirth, campaign, reference, 
     if (item.textKey && v === YES_NO.YES && !text(exam.history[item.textKey])) errors[`exam.history.${item.textKey}`] = 'Ghi rõ tên bệnh';
     if (item.textKey) checkLength(errors, `exam.history.${item.textKey}`, exam.history?.[item.textKey], L.text);
     if (item.dateKey && v === YES_NO.YES) {
-      const dateError = tbContactDateError(exam.history[item.dateKey], { dateOfBirth, notAfter: payload.date });
+      const dateError = tbContactDateError(exam.history[item.dateKey], { dateOfBirth, notAfter: examDate });
       if (dateError) errors[`exam.history.${item.dateKey}`] = dateError;
     }
   });

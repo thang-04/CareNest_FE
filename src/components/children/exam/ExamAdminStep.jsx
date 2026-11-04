@@ -10,7 +10,6 @@ import {
   ExamSheetCard,
   ExamSheetChoiceCell,
   ExamSheetDetail,
-  ExamSheetInputCell,
   ExamSheetRows,
   ExamSheetTable,
 } from './ExamFields';
@@ -19,9 +18,9 @@ const missing = <span className="muted">Chưa cung cấp</span>;
 
 /**
  * Dòng phần I lấy từ hồ sơ trẻ (chỉ xem), mỗi thông tin một dòng; dùng chung cho form và trang xem phiếu. dateCell: ô ngày kiểm
- * tra (ô nhập ở form, chữ ở trang xem); blank: chữ khi hồ sơ để trống.
+ * tra (luôn là chữ: hệ thống ghi ngày khám, user chốt 2026-11-04); blank: chữ khi hồ sơ để trống.
  */
-export const profileRows = ({ child, admin: a, campaign, dateLabelId, dateRequired, dateCell, blank = missing, examinerBlank = blank }) => {
+export const profileRows = ({ child, admin: a, campaign, dateCell, blank = missing, examinerBlank = blank }) => {
   const show = (v) => (v === '' || v == null ? blank : v);
   const text = (key, label, value, className) => ({ key, label, cell: <td className={className}>{show(value)}</td> });
   return [
@@ -40,16 +39,18 @@ export const profileRows = ({ child, admin: a, campaign, dateLabelId, dateRequir
     text('bloodType', PROFILE_FIELD_LABELS.bloodType, a.bloodType),
     text('school', 'Cơ sở giáo dục', `${child.schoolName} · ${child.className}`),
     text('address', PROFILE_FIELD_LABELS.address, formatAddress(a.address)),
-    { key: 'date', label: 'Ngày kiểm tra sức khỏe', id: dateLabelId, required: dateRequired, cell: dateCell },
+    { key: 'date', label: 'Ngày kiểm tra sức khỏe', cell: dateCell },
     { key: 'examiner', label: 'Cơ sở kiểm tra sức khỏe', cell: <td>{campaign.examiner || examinerBlank}</td> },
   ];
 };
 
 /**
  * Bước 1 — Phần I (user chốt 2026-10-22). Hành chính lấy từ hồ sơ trẻ, chỉ xem; Hiệu trưởng, Phó hiệu trưởng sửa ở hồ sơ.
- * Giáo viên nhập ngày khám, chọn người đi cùng trong phụ huynh của hồ sơ; tiền sử điền sẵn từ khai báo, giáo viên sửa được.
+ * Ngày khám chỉ xem (user chốt 2026-11-04): examDate là ngày BE trả (phiếu đã lưu, hoặc ngày BE điền sẵn cho phiếu mới), BE ghi khi
+ * lưu; examSaved: phiếu đã lưu (nháp hoặc kết luận). Giáo viên chọn người đi cùng trong phụ huynh của hồ sơ; tiền sử điền sẵn từ
+ * khai báo, giáo viên sửa được.
  */
-export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, disabled }) {
+export function ExamAdminStep({ form, set, errors, child, campaign, examDate, examSaved, disabled }) {
   const uid = useId();
   const id = (key) => `${uid}-${key}`;
   const a = form.exam.admin;
@@ -171,7 +172,7 @@ export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, d
               required
               value={h[item.dateKey] || ''}
               min={child.dateOfBirth}
-              max={form.date && form.date < todayInput() ? form.date : todayInput()}
+              max={examDate && examDate < todayInput() ? examDate : todayInput()}
               onChange={(v) => set(`exam.history.${item.dateKey}`, v)}
               error={errors[`exam.history.${item.dateKey}`]}
               disabled={disabled}
@@ -198,21 +199,22 @@ export function ExamAdminStep({ form, set, errors, child, campaign, dateRange, d
             child,
             admin: a,
             campaign,
-            dateLabelId: id('date'),
-            dateRequired: true,
             examinerBlank: <span className="muted">Chưa cập nhật ở đợt khám</span>,
             dateCell: (
-              <ExamSheetInputCell
-                type="date"
-                size="date"
-                labelledBy={id('date')}
-                value={form.date}
-                min={dateRange.min}
-                max={dateRange.max}
-                error={errors.date}
-                disabled={disabled}
-                onChange={(v) => set('date', v)}
-              />
+              <td>
+                {examDate ? formatDate(examDate) : '—'}
+                {!disabled && (
+                  <span className="field__hint">
+                    {examSaved ? 'Ngày khám đã ghi, không sửa được.' : 'Hệ thống ghi ngày khám khi lưu phiếu.'}
+                  </span>
+                )}
+                {/* BE vẫn có thể báo lỗi ngày (vd. trẻ đã có kết quả đo khác cùng ngày) */}
+                {errors.date && (
+                  <span className="field__error" role="alert">
+                    {errors.date}
+                  </span>
+                )}
+              </td>
             ),
           })}
         />

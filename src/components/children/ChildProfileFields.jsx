@@ -7,7 +7,7 @@ const PREMATURE_CHOICES = [
 
 /**
  * Thông tin hành chính khi tiếp nhận (tiếp nhận bước 1, sửa hồ sơ). Bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22);
- * phiếu khám chỉ đọc từ đây, giáo viên không sửa.
+ * tuần thai bắt buộc mọi trẻ, khớp ô Sinh non (2026-11-04). Phiếu khám chỉ đọc từ đây, giáo viên không sửa.
  * value: child.profile; errors theo khóa 'profile.x'.
  */
 export function ChildProfileFields({ value, onChange, errors = {} }) {
@@ -49,11 +49,11 @@ export function ChildProfileFields({ value, onChange, errors = {} }) {
           value={value.gestationWeeks}
           onChange={(v) => set('gestationWeeks', v)}
           error={errors['profile.gestationWeeks']}
-          required={value.premature === 'YES'}
+          required
           min="20"
           max="42"
           step="1"
-          hint="Từ 20 đến 42 tuần"
+          hint="Từ 20 đến 42 tuần; dưới 37 tuần là sinh non"
         />
         {text('ethnicity', 'Dân tộc')}
         {text('beneficiary', 'Đối tượng')}

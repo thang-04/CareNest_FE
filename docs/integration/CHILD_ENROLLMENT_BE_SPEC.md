@@ -61,8 +61,8 @@ Tên bảng/cột là đề xuất; giữ nguyên ý nghĩa nếu BE đặt tên
 FE đọc `campusId` của trẻ = điểm trường hiện tại (theo lớp nếu có lớp, không thì `intake_campus_id`).
 
 ### 3.2 `child_profiles` — hành chính, 1–1 với trẻ (mới; dữ liệu nhạy cảm, CHD-05)
-`child_id` (PK, FK) · `id_number` VARCHAR(20) NULL (CCCD/mã định danh 12 số hoặc hộ chiếu 6–12 chữ và số) · `premature` (`YES`/`NO`) · `gestation_weeks` SMALLINT NULL (20–42, bắt buộc khi `YES`) · `ethnicity`, `beneficiary` VARCHAR(100) · `payment_source` = `BHYT` (luôn, không nhập) · `blood_type` VARCHAR(100) NULL · `address_province`, `address_ward` VARCHAR(100), `address_street` VARCHAR(300).
-Bắt buộc trừ `id_number`, `blood_type` (và `gestation_weeks` khi không sinh non): không có hồ sơ thiếu, nên cột bắt buộc để NOT NULL (mục 3.9). Danh sách trẻ không trả phần này; phiếu khám sức khỏe đọc từ đây.
+`child_id` (PK, FK) · `id_number` VARCHAR(20) NULL (CCCD/mã định danh 12 số hoặc hộ chiếu 6–12 chữ và số) · `premature` (`YES`/`NO`) · `gestation_weeks` SMALLINT (20–42, bắt buộc mọi trẻ và khớp `premature`: `YES` ⇒ dưới 37, `NO` ⇒ từ 37 — user chốt 2026-11-04; trước đó chỉ bắt buộc khi `YES`) · `ethnicity`, `beneficiary` VARCHAR(100) · `payment_source` = `BHYT` (luôn, không nhập) · `blood_type` VARCHAR(100) NULL · `address_province`, `address_ward` VARCHAR(100), `address_street` VARCHAR(300).
+Bắt buộc trừ `id_number`, `blood_type`: không có hồ sơ thiếu, nên cột bắt buộc để NOT NULL (mục 3.9; hồ sơ cũ chưa có tuần thai còn NULL tới khi sửa hồ sơ). Danh sách trẻ không trả phần này; phiếu khám sức khỏe đọc từ đây.
 
 ### 3.3 `child_guardians` — phụ huynh trên hồ sơ trẻ (mới, AUTH-20)
 Phụ huynh có trên hồ sơ trước khi có tài khoản.

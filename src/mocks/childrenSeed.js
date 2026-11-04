@@ -555,7 +555,7 @@ export const SEED_CHILD_PROFILES = {
     profile: {
       idNumber: '999222009901',
       premature: 'NO',
-      gestationWeeks: null,
+      gestationWeeks: 39,
       ethnicity: 'Kinh',
       beneficiary: 'Trẻ em dưới 6 tuổi',
       paymentSource: 'BHYT',
