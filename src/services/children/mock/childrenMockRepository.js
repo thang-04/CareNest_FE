@@ -55,7 +55,15 @@ import {
   isVicePrincipal,
 } from '@/utils/children/childrenPermissions';
 import { conclusionBrief, screenMeasurement } from './healthScreeningRule';
-import { addDays, campaignKindOf, campaignStatusOf, closeCampaign, expiredExamCampaignsOf, isOpenForEntry } from './healthCheckRule';
+import {
+  addDays,
+  autoCloseReasonOf,
+  campaignKindOf,
+  campaignStatusOf,
+  closeCampaign,
+  expiredCampaignsOf,
+  isOpenForEntry,
+} from './healthCheckRule';
 import { readEnrollmentCsv } from './enrollmentImport';
 
 /*
@@ -311,16 +319,14 @@ export const ensureChildRecordsSeeded = () => {
     writeDb(normalizeParentStatuses);
     db = readDb();
   }
-  const expired = expiredExamCampaignsOf(db);
+  // Như việc chạy lúc nửa đêm của BE (HLT-17): đợt khám, kỳ cân đo quá ngày kết thúc tự đóng, trẻ chưa có kết quả thành vắng.
+  const expired = expiredCampaignsOf(db);
   if (expired.length === 0) return db;
   writeDb((d) => {
-    expired.forEach((campaign) =>
-      closeCampaign(
-        d,
-        d.healthCheckCampaigns.find((c) => c.id === campaign.id),
-        null,
-      ),
-    );
+    expired.forEach((campaign) => {
+      const target = d.healthCheckCampaigns.find((c) => c.id === campaign.id);
+      closeCampaign(d, target, null, autoCloseReasonOf(target));
+    });
   });
   return readDb();
 };
@@ -1362,8 +1368,8 @@ export const childrenMockRepository = {
     // GBR-GEN-06: a published (confirmed) result needs a reason to change.
     const errors = validateMeasurement(payload, { requireReason: !!existing?.published });
     if (hasErrors(errors)) invalid(errors);
-    // Ngày đo do BE ghi (user chốt 2026-11-04): số đo mới = hôm nay kẹp vào khoảng ngày của kỳ (kỳ cân đo đóng tay nên có thể
-    // còn mở sau ngày kết thúc ⇒ ghi ngày kết thúc, như phiếu khám), sửa giữ ngày; request không còn date, headCircumferenceCm.
+    // Ngày đo do BE ghi (user chốt 2026-11-04): số đo mới = hôm nay kẹp vào khoảng ngày của kỳ, sửa giữ ngày; request không còn
+    // date, headCircumferenceCm. Kỳ cân đo tự đóng sau ngày kết thúc (HLT-17, 2026-11-04) nên phần kẹp chỉ còn là chốt chặn.
     const today = todayInput();
     const date = existing
       ? existing.date

@@ -197,8 +197,8 @@ export default function HealthMeasurementFormPage() {
 
   const requireReason = !!existing?.published;
   const rules = { requireReason };
-  // Chỉ hiển thị: nhập mới BE ghi ngày hôm nay, sửa giữ ngày đã lưu.
-  // Ngày đo BE ghi khi lưu (chỉ để hiện): hôm nay; kỳ còn mở sau ngày kết thúc (kỳ cân đo đóng tay) thì ngày kết thúc
+  // Ngày đo BE ghi khi lưu (chỉ để hiện): nhập mới là hôm nay, sửa giữ ngày đã lưu. Kỳ cân đo tự đóng sau ngày kết thúc
+  // (HLT-17, 2026-11-04) nên phần kẹp về ngày kết thúc chỉ là chốt chặn.
   const today = todayInput();
   const measureDate = existing ? existing.date : round && today > round.endDate ? round.endDate : today;
   const set = (field, value) => {

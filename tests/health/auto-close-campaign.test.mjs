@@ -13,14 +13,20 @@ globalThis.localStorage = {
 globalThis.window = new EventTarget();
 
 const { readDb, writeDb, resetDb } = await import('@/mocks/mockDatabase');
-const { ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
+const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
 const { healthCheckMockRepository: checks } = await import('@/services/children/mock/healthCheckMockRepository');
 const { healthExamMockRepository: exams } = await import('@/services/children/mock/healthExamMockRepository');
 
+/*
+ * HLT-17: đợt khám và kỳ cân đo (kỳ cân đo từ 2026-11-04, user quyết định) tự đóng khi qua ngày kết thúc theo giờ Việt Nam; ngày
+ * kết thúc vẫn nhập được; mở lại đợt/kỳ đã hết hạn phải có ngày kết thúc mới từ hôm nay. Dữ liệu giả của seed.
+ */
 const PRINCIPAL = { id: 'u_hung', role: 'PRINCIPAL', campusId: null };
+const TUAN = { id: 'u_tuan', role: 'TEACHER', campusId: 'c2' };
 const EXAM = 'hc_c1_open';
 const ROUND = 'hc_c2_next';
 const campaign = () => readDb().healthCheckCampaigns.find((item) => item.id === EXAM);
+const round = () => readDb().healthCheckCampaigns.find((item) => item.id === ROUND);
 const nextDay = (context) => context.mock.timers.setTime(new Date('2026-11-02T00:01:00+07:00').getTime());
 
 beforeEach((context) => {
@@ -50,6 +56,7 @@ test('đợt khám vẫn mở hết ngày kết thúc, qua nửa đêm Việt Na
   assert.equal(view.campaign.closedByName, 'Hệ thống');
   assert.equal(view.campaign.history.at(-1).action, 'CLOSED');
   assert.equal(view.campaign.history.at(-1).userName, 'Hệ thống');
+  assert.equal(view.campaign.history.at(-1).reason, 'Hệ thống tự đóng khi qua ngày kết thúc khám', 'lý do như BE');
   assert.equal(
     view.classes.every((cls) => !cls.canRecord),
     true,
@@ -108,7 +115,7 @@ test('đọc lại không lặp lịch sử đóng, đợt hết hạn không c�
   assert.equal(created.status, 'IN_PROGRESS');
 });
 
-test('không tự đóng kỳ cân đo, đợt đã hủy hoặc đợt đã đóng', async (context) => {
+test('không tự đóng đợt đã hủy hoặc đã đóng; kỳ cân đo hết hạn cũng tự đóng', async (context) => {
   writeDb((db) => {
     db.healthCheckCampaigns.find((item) => item.id === EXAM).cancelledAt = new Date().toISOString();
   });
@@ -117,9 +124,85 @@ test('không tự đóng kỳ cân đo, đợt đã hủy hoặc đợt đã đ�
   nextDay(context);
   const views = await checks.listHealthChecks({}, PRINCIPAL);
   assert.equal(views.find((item) => item.id === EXAM).status, 'CANCELLED');
-  assert.equal(views.find((item) => item.id === ROUND).status, 'IN_PROGRESS');
+  assert.equal(views.find((item) => item.id === ROUND).status, 'CLOSED');
   assert.equal(campaign().closedAt, null);
   assert.deepEqual(readDb().healthCheckCampaigns.find((item) => item.id === closed.id).history, previousHistory);
+});
+
+test('kỳ cân đo: ngày kết thúc vẫn nhập số đo; qua nửa đêm tự đóng, trẻ chưa cân đo thành vắng, khóa nhập', async (context) => {
+  const before = await checks.getHealthCheckClass(ROUND, 'cls_c2_m1', TUAN);
+  const [first, second] = before.children.filter((r) => r.result === 'NOT_RECORDED');
+  assert.ok(first && second, 'lớp Mầm 1 còn trẻ chưa cân đo');
+  const saved = await children.saveMeasurement(first.childId, null, { campaignId: ROUND, heightCm: 99, weightKg: 15.5, note: '' }, TUAN);
+  assert.equal(saved.date, '2026-11-01', 'ngày kết thúc vẫn nhập được, ngày đo = hôm nay');
+
+  nextDay(context);
+  const view = await checks.getHealthCheck(ROUND, PRINCIPAL);
+  assert.equal(view.campaign.status, 'CLOSED');
+  assert.equal(round().closedBy, null);
+  assert.equal(view.campaign.closedByName, 'Hệ thống');
+  const closing = view.campaign.history.at(-1);
+  assert.deepEqual(
+    [closing.action, closing.userName, closing.reason],
+    ['CLOSED', 'Hệ thống', 'Hệ thống tự đóng khi qua ngày kết thúc cân đo'],
+  );
+  assert.ok(view.classes.every((cls) => !cls.canRecord));
+
+  // Như đóng tay: trẻ đang học của điểm trường chưa có số đo thành vắng; trẻ vừa cân đo giữ kết quả.
+  const db = readDb();
+  const classIds = new Set(db.classes.filter((cls) => cls.campusId === 'c2').map((cls) => cls.id));
+  const measured = new Set(db.healthMeasurements.filter((m) => m.campaignId === ROUND).map((m) => m.childId));
+  const expectedAbsent = db.children
+    .filter((ch) => classIds.has(ch.classId) && ch.status === 'ACTIVE' && !measured.has(ch.id))
+    .map((ch) => ch.id);
+  assert.deepEqual(round().absentChildIds, expectedAbsent);
+  assert.equal(view.campaign.progress.absent, expectedAbsent.length);
+  assert.equal(view.campaign.progress.notRecorded, 0);
+  const after = await checks.getHealthCheckClass(ROUND, 'cls_c2_m1', TUAN);
+  assert.equal(after.canRecord, false);
+  assert.equal(after.children.find((r) => r.childId === first.childId).result, 'RECORDED');
+  assert.equal(after.children.find((r) => r.childId === second.childId).result, 'ABSENT');
+  await assert.rejects(
+    children.saveMeasurement(second.childId, null, { campaignId: ROUND, heightCm: 99, weightKg: 15.5, note: '' }, TUAN),
+    (error) => error.status === 409,
+  );
+  await assert.rejects(
+    children.saveMeasurement(first.childId, saved.id, { heightCm: 99.5, weightKg: 15.5, note: '', reason: 'Đo lại (giả)' }, TUAN),
+    (error) => error.status === 409,
+  );
+});
+
+test('kỳ cân đo hết hạn mở lại phải có ngày kết thúc mới từ hôm nay, rồi lại tự đóng khi qua hạn mới', async (context) => {
+  nextDay(context);
+  await checks.getHealthCheck(ROUND, PRINCIPAL);
+  assert.ok(round().closedAt);
+  for (const endDate of [undefined, '2026-11-01', '2026-11-31']) {
+    await assert.rejects(
+      checks.reopenHealthCheck(ROUND, { reason: 'Cân đo bù (giả)', endDate }, PRINCIPAL),
+      (error) => error.status === 422 && !!error.details?.endDate,
+    );
+    assert.ok(round().closedAt, 'chưa mở lại');
+  }
+  const reopened = await checks.reopenHealthCheck(ROUND, { reason: 'Cân đo bù (giả)', endDate: '2026-11-02' }, PRINCIPAL);
+  assert.deepEqual([reopened.status, reopened.endDate], ['IN_PROGRESS', '2026-11-02']);
+  assert.deepEqual(round().absentChildIds, [], 'trẻ vắng trở lại chưa cân đo');
+  context.mock.timers.setTime(new Date('2026-11-02T23:59:00+07:00').getTime());
+  assert.equal((await checks.getHealthCheck(ROUND, PRINCIPAL)).campaign.status, 'IN_PROGRESS');
+  context.mock.timers.setTime(new Date('2026-11-03T00:01:00+07:00').getTime());
+  assert.equal((await checks.getHealthCheck(ROUND, PRINCIPAL)).campaign.status, 'CLOSED');
+  assert.equal(round().history.filter((event) => event.action === 'CLOSED').length, 2);
+});
+
+test('kỳ cân đo vẫn đóng sớm được; mở lại trước khi hết hạn không cần ngày kết thúc mới', async (context) => {
+  const closed = await checks.closeHealthCheck(ROUND, PRINCIPAL);
+  assert.equal(closed.campaign.status, 'CLOSED');
+  assert.equal(round().closedBy, PRINCIPAL.id);
+  assert.equal(round().history.at(-1).reason, undefined, 'đóng tay không có lý do của hệ thống');
+  const reopened = await checks.reopenHealthCheck(ROUND, { reason: 'Còn trẻ chưa cân (giả)' }, PRINCIPAL);
+  assert.deepEqual([reopened.status, reopened.endDate], ['IN_PROGRESS', '2026-11-01']);
+  nextDay(context);
+  assert.equal((await checks.getHealthCheck(ROUND, PRINCIPAL)).campaign.status, 'CLOSED');
+  assert.equal(round().closedBy, null);
 });
 
 test('đợt tự đóng mở lại với hạn mới để nhập bù rồi tự đóng lại khi qua hạn mới', async (context) => {

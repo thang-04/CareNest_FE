@@ -94,18 +94,24 @@ test('AC-3 (HLT-01): số đo mới ngày = hôm nay, không lưu vòng đầu d
   assert.equal(saved.campaignId, ROUND);
 });
 
-test('AC-3 (HLT-01): kỳ cân đo còn mở sau ngày kết thúc (đóng tay) ⇒ số đo mới ghi ngày kết thúc của kỳ', async () => {
-  const endDate = addDays(todayInput(), -2);
-  writeDb((d) => {
-    const round = d.healthCheckCampaigns.find((c) => c.id === ROUND);
-    round.startDate = addDays(todayInput(), -20);
-    round.endDate = endDate;
-    return d;
-  });
+// Kỳ cân đo tự đóng sau ngày kết thúc (HLT-17, 2026-11-04): không còn kỳ mở sau ngày kết thúc để ghi ngày kết thúc thay hôm nay.
+test('AC-3 (HLT-01, HLT-17): ngày kết thúc của kỳ vẫn nhập, ngày đo = hôm nay; kỳ qua ngày kết thúc tự đóng, không nhập được', async () => {
+  const setEnd = (endDate) =>
+    writeDb((d) => {
+      Object.assign(
+        d.healthCheckCampaigns.find((c) => c.id === ROUND),
+        { startDate: addDays(todayInput(), -20), endDate },
+      );
+    });
+  setEnd(todayInput());
   const roster = await checks.getHealthCheckClass(ROUND, 'cls_c2_m1', TUAN);
-  const row = roster.children.find((r) => r.result === 'NOT_RECORDED');
-  const saved = await children.saveMeasurement(row.childId, null, { campaignId: ROUND, heightCm: 99, weightKg: 15.5, note: '' }, TUAN);
-  assert.equal(saved.date, endDate);
+  const [first, second] = roster.children.filter((r) => r.result === 'NOT_RECORDED');
+  const saved = await children.saveMeasurement(first.childId, null, { campaignId: ROUND, heightCm: 99, weightKg: 15.5, note: '' }, TUAN);
+  assert.equal(saved.date, todayInput());
+
+  setEnd(addDays(todayInput(), -1));
+  await rejects(children.saveMeasurement(second.childId, null, { campaignId: ROUND, heightCm: 99, weightKg: 15.5, note: '' }, TUAN), 409);
+  assert.equal((await checks.getHealthCheck(ROUND, PRINCIPAL)).campaign.status, 'CLOSED');
 });
 
 test('AC-3 (HLT-13): sửa số đo giữ ngày đo và vòng đầu cũ; lịch sử chỉ ghi ô đã sửa', async () => {

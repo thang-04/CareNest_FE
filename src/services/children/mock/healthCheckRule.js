@@ -4,8 +4,9 @@ import { CAMPAIGN_KIND, CAMPAIGN_STATUS, SCHEDULE_MIN_GAP, SCHEDULE_WARNING } fr
 import { todayInput } from '@/utils/format';
 
 /*
- * Backend giả: trạng thái đợt khám (user chốt 2026-10-15, PROPOSED — BE sở hữu rule thật).
- * Nhập/sửa kết quả chỉ khi đợt đang diễn ra; đợt đã đóng khóa kết quả tới khi Hiệu trưởng mở lại.
+ * Backend giả: trạng thái đợt khám, kỳ cân đo (user chốt 2026-10-15, PROPOSED — BE sở hữu rule thật).
+ * Nhập/sửa kết quả chỉ khi đợt/kỳ đang diễn ra; đợt/kỳ đã đóng (tay hoặc tự đóng sau ngày kết thúc) khóa kết quả tới khi Hiệu
+ * trưởng, Phó hiệu trưởng mở lại.
  */
 export const campaignStatusOf = (c, today = todayInput()) => {
   if (c.cancelledAt) return CAMPAIGN_STATUS.CANCELLED;
@@ -23,14 +24,18 @@ export const unclosedCampaignOf = (db, campusId, excludeId) =>
 export const campaignKindOf = (c) => c?.kind || CAMPAIGN_KIND.EXAM;
 export const isExamCampaign = (c) => campaignKindOf(c) === CAMPAIGN_KIND.EXAM;
 
-// BE:docs/modules/health.md — tự đóng đợt khám quá hạn, kể cả đợt đã mở lại để nhập bù.
-export const expiredExamCampaignsOf = (db, today = todayInput()) =>
-  (db.healthCheckCampaigns || []).filter(
-    (campaign) => isExamCampaign(campaign) && !campaign.closedAt && !campaign.cancelledAt && campaign.endDate < today,
-  );
+// HLT-17 (BE:docs/modules/health.md): đợt khám và kỳ cân đo (kỳ cân đo từ 2026-11-04) tự đóng khi qua ngày kết thúc, kể cả
+// đợt/kỳ đã mở lại để nhập bù; ngày kết thúc vẫn nhập được.
+export const expiredCampaignsOf = (db, today = todayInput()) =>
+  (db.healthCheckCampaigns || []).filter((campaign) => !campaign.closedAt && !campaign.cancelledAt && campaign.endDate < today);
 
-// Đóng tay và tự đóng cùng chốt trẻ chưa có kết quả; phiếu nháp giữ nguyên.
-export const closeCampaign = (db, campaign, userId, at = new Date().toISOString()) => {
+/** Lý do BE ghi vào lịch sử khi tự đóng. */
+export const autoCloseReasonOf = (campaign) =>
+  isExamCampaign(campaign) ? 'Hệ thống tự đóng khi qua ngày kết thúc khám' : 'Hệ thống tự đóng khi qua ngày kết thúc cân đo';
+
+// Đóng tay và tự đóng cùng chốt trẻ chưa có kết quả; phiếu nháp giữ nguyên. Tự đóng: userId null kèm lý do của hệ thống.
+export const closeCampaign = (db, campaign, userId, reason = '') => {
+  const at = new Date().toISOString();
   const classIds = new Set(db.classes.filter((cls) => cls.campusId === campaign.campusId).map((cls) => cls.id));
   const recorded = new Set(db.healthMeasurements.filter((m) => m.campaignId === campaign.id).map((m) => m.childId));
   campaign.absentChildIds = db.children
@@ -38,7 +43,7 @@ export const closeCampaign = (db, campaign, userId, at = new Date().toISOString(
     .map((child) => child.id);
   campaign.closedAt = at;
   campaign.closedBy = userId;
-  campaign.history = [...(campaign.history || []), { at, userId, action: 'CLOSED' }];
+  campaign.history = [...(campaign.history || []), { at, userId, action: 'CLOSED', ...(reason ? { reason } : {}) }];
 };
 
 const addMonths = (date, n) => {

@@ -57,13 +57,31 @@ const BMI_STAT_TONES = Object.entries(BMI_PROGRESS_KEYS).map(([status, key]) => 
 /** Từ ngữ theo loại: đợt khám (bác sĩ khám) hay kỳ cân đo (giáo viên cân đo). */
 const wordsOf = (isRound) =>
   isRound
-    ? { unit: 'kỳ', name: 'kỳ cân đo', date: 'Ngày cân đo', absent: 'vắng cân đo', notYet: 'chưa cân đo', results: 'số đo' }
-    : { unit: 'đợt', name: 'đợt khám', date: 'Ngày khám', absent: 'vắng khám', notYet: 'chưa khám', results: 'phiếu khám' };
+    ? {
+        unit: 'kỳ',
+        name: 'kỳ cân đo',
+        title: 'Kỳ cân đo',
+        date: 'Ngày cân đo',
+        absent: 'vắng cân đo',
+        notYet: 'chưa cân đo',
+        results: 'số đo',
+      }
+    : {
+        unit: 'đợt',
+        name: 'đợt khám',
+        title: 'Đợt khám',
+        date: 'Ngày khám',
+        absent: 'vắng khám',
+        notYet: 'chưa khám',
+        results: 'phiếu khám',
+      };
 
 function StatusBanner({ campaign, teacher, isRound }) {
   const w = wordsOf(isRound);
+  // Đợt khám và kỳ cân đo cùng tự đóng sau ngày kết thúc (HLT-17; kỳ cân đo từ 2026-11-04).
+  const autoClose = `${w.title} tự đóng sau ngày ${formatDate(campaign.endDate)}`;
   if (campaign.status === CAMPAIGN_STATUS.IN_PROGRESS)
-    return teacher || !isRound ? (
+    return (
       <div className="alert alert--info mb-16">
         <Info size={18} />
         <div>
@@ -77,20 +95,17 @@ function StatusBanner({ campaign, teacher, isRound }) {
                 Bấm <b>Khám</b> cạnh tên trẻ ở danh sách lớp bên dưới để nhập phiếu theo mẫu Phụ lục II cùng bác sĩ. Lưu kết luận là công bố
                 cho phụ huynh ngay.
               </>
-            ))}
-          {!isRound && (
-            <> Đợt khám tự đóng sau ngày {formatDate(campaign.endDate)}; phiếu khám sẽ khóa khi đợt đóng, kể cả đợt mở lại để nhập bù.</>
-          )}
+            ))}{' '}
+          {autoClose}; {w.results} sẽ khóa khi {w.unit} đóng, kể cả {w.unit} mở lại để nhập bù.
         </div>
       </div>
-    ) : null;
+    );
   if (campaign.status === CAMPAIGN_STATUS.UPCOMING)
     return (
       <div className="alert alert--info mb-16">
         <Info size={18} />
         <div>
-          {isRound ? 'Kỳ cân đo' : 'Đợt khám'} chưa bắt đầu. Giáo viên nhập kết quả từ ngày {formatDate(campaign.startDate)}.
-          {!isRound && <> Đợt khám tự đóng sau ngày {formatDate(campaign.endDate)}.</>}
+          {w.title} chưa bắt đầu. Giáo viên nhập kết quả từ ngày {formatDate(campaign.startDate)}. {autoClose}.
         </div>
       </div>
     );
@@ -147,7 +162,8 @@ export default function HealthCheckDetailPage() {
   const manage = canManageHealthCheck(user, campaign.campusId);
   const teacher = isTeacherRole(user);
   const isRound = campaign.kind === CAMPAIGN_KIND.MEASUREMENT;
-  const reopenNeedsEndDate = !isRound && campaign.endDate < todayInput();
+  // Đợt/kỳ đã qua ngày kết thúc: mở lại phải chọn ngày kết thúc mới từ hôm nay (HLT-17, cả kỳ cân đo từ 2026-11-04).
+  const reopenNeedsEndDate = campaign.endDate < todayInput();
   const w = wordsOf(isRound);
   const Roster = isRound ? MeasurementRoundRoster : HealthCheckClassRoster;
   const unclosed = [CAMPAIGN_STATUS.UPCOMING, CAMPAIGN_STATUS.IN_PROGRESS].includes(campaign.status);
@@ -227,7 +243,7 @@ export default function HealthCheckDetailPage() {
             )}
             {campaign.status === CAMPAIGN_STATUS.IN_PROGRESS && (
               <button className="btn btn--primary" onClick={() => setConfirm('close')}>
-                <Lock size={16} /> {isRound ? 'Đóng kỳ cân đo' : 'Đóng sớm đợt khám'}
+                <Lock size={16} /> Đóng sớm {w.name}
               </button>
             )}
           </div>
@@ -571,10 +587,8 @@ export default function HealthCheckDetailPage() {
         {reopen && (
           <>
             <p className="mb-12">
-              {isRound
-                ? 'Giáo viên nhập hoặc sửa số đo của kỳ cho tới khi bạn đóng lại.'
-                : 'Giáo viên nhập hoặc sửa phiếu khám để nhập bù. Đợt sẽ tự đóng khi qua ngày kết thúc.'}{' '}
-              Trẻ đã ghi {w.absent} sẽ thành {isRound ? 'Chưa cân đo' : 'Chưa khám'}.
+              Giáo viên nhập hoặc sửa {w.results} để nhập bù. {isRound ? 'Kỳ' : 'Đợt'} sẽ tự đóng khi qua ngày kết thúc. Trẻ đã ghi{' '}
+              {w.absent} sẽ thành {isRound ? 'Chưa cân đo' : 'Chưa khám'}.
             </p>
             {reopenNeedsEndDate && (
               <FormField label="Ngày kết thúc mới" required error={reopen.endDateError} className="mb-12">

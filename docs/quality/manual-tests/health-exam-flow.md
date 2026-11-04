@@ -43,7 +43,7 @@ Mức BMI theo tuổi do hệ thống tính theo chuẩn WHO (HLT-18), chỉ đ�
 | --- | --- | --- |
 | A1 | **Đợt khám, kỳ cân đo → Tạo đợt khám**. Điểm trường Campus 2, nhập đủ các ô như A4, bấm **Tạo đợt khám sức khỏe** | Hộp *Lịch sát với đợt khám, kỳ cân đo khác* hiện trước (xem A4). Bấm **Vẫn tạo**: không tạo được, ô điểm trường báo *Điểm trường đang có kỳ cân đo "Cân đo định kỳ tháng …" chưa đóng. Đóng hoặc hủy trước khi tạo mới.* |
 | A2 | Để trống tên, chọn ngày kết thúc trước ngày bắt đầu, bấm **Tạo đợt khám sức khỏe** | Lỗi *Nhập tên đợt khám* và *Ngày kết thúc không được trước ngày bắt đầu* |
-| A3 | Mở kỳ "Cân đo định kỳ tháng …" của Campus 2 (Đang diễn ra) → **Đóng kỳ cân đo** → xác nhận | Không có nút **Hủy kỳ** (kỳ đã có số đo). Hộp xác nhận báo số trẻ chưa cân đo sẽ ghi *Vắng cân đo*. Sau khi đóng: 4 trẻ chưa cân của Lớp Mầm 1 (và trẻ chưa cân của các lớp khác) *Vắng cân đo*; 8 số đo đã nhập giữ nguyên và vẫn là cảnh báo BMI ở Sổ sức khỏe |
+| A3 | Mở kỳ "Cân đo định kỳ tháng …" của Campus 2 (Đang diễn ra) → **Đóng sớm kỳ cân đo** → xác nhận | Không có nút **Hủy kỳ** (kỳ đã có số đo). Hộp xác nhận báo số trẻ chưa cân đo sẽ ghi *Vắng cân đo*. Sau khi đóng: 4 trẻ chưa cân của Lớp Mầm 1 (và trẻ chưa cân của các lớp khác) *Vắng cân đo*; 8 số đo đã nhập giữ nguyên và vẫn là cảnh báo BMI ở Sổ sức khỏe |
 | A4 | **Tạo đợt khám**: tên `Khám sức khỏe đợt thử luồng` · Campus 2 · bắt đầu **hôm nay** · kết thúc **hôm nay + 3** · đơn vị khám `Trạm Y tế phường – BS. Đỗ Minh Khôi` · ghi chú `Giáo viên có mặt cùng bác sĩ, nhập phiếu Phụ lục II từng trẻ.` | Hộp cảnh báo nêu *Năm học này đã có đợt khám "Khám sức khỏe đầu năm học 2026–2027"* và các đợt, kỳ bắt đầu cách chưa tới 2 tháng 15 ngày (gồm kỳ cân đo vừa đóng ở A3). Bấm **Vẫn tạo**: đợt ở trạng thái **Đang diễn ra**. Giáo viên Campus 2 nhận thông báo *Đợt khám sức khỏe mới*. |
 | A5 | Đăng nhập Phó hiệu trưởng Campus 2, mở đợt | Thấy tiến độ và các nút **Sửa thông tin**, **Đóng sớm đợt khám** (PHT quản lý điểm trường của mình). Form tạo chỉ chọn được Campus 2 |
 
@@ -236,7 +236,7 @@ Lần 2, sửa cho đúng:
 
 ## F. Kỳ cân đo mới (giáo viên cân đo, không có bác sĩ)
 
-Số đo chỉ nhập trong kỳ cân đo đang diễn ra. Làm sau E4 (đợt khám đã đóng).
+Số đo chỉ nhập trong kỳ cân đo đang diễn ra; kỳ cân đo tự đóng sau ngày kết thúc như đợt khám (user quyết định 2026-11-04), vẫn đóng sớm được. Làm sau E4 (đợt khám đã đóng).
 
 | Bước | Ai | Thao tác | Kết quả mong đợi |
 | --- | --- | --- | --- |
@@ -246,7 +246,8 @@ Số đo chỉ nhập trong kỳ cân đo đang diễn ra. Làm sau E4 (đợt k
 | F4 | Cô Ngọc | Chiều cao `115.2` · cân nặng `19.8` · ghi chú `Cân đo tại lớp.` → **Lưu và nhập trẻ tiếp theo** | Thông báo *Đã lưu số đo của Đỗ Gia Bảo và công bố cho phụ huynh. BMI 14,9: Bình thường.* Sang form của trẻ chưa cân kế tiếp. Danh sách lớp của kỳ: Đỗ Gia Bảo *Đã cân đo*, 115,2 / 19,8, BMI 14,9, *Bình thường* |
 | F5 | Cô Ngọc | Vũ Khánh An: chiều cao `112.0` · cân nặng `25.5` → **Lưu số đo** | Thông báo *Đã lưu số đo và công bố cho phụ huynh. BMI 20,3: Béo phì.* Màn kết quả: dòng **BMI theo tuổi** *Béo phì*, *Z-score +2,58* (ở 63 tháng; tuổi khác thì số lẻ đổi nhẹ. Trẻ từ 61 tháng: trên +2SD là béo phì). Sổ sức khỏe: khối BMI đổi sang lần đo này, nền đỏ nhạt |
 | F6 | Phó hiệu trưởng Campus 2 | Danh sách đợt và kỳ; mở kỳ mới | Cột **Cảnh báo** của kỳ mới: *1 trẻ có cảnh báo BMI*. Chi tiết kỳ: Béo phì 1; tab **Trẻ có cảnh báo BMI** có Vũ Khánh An |
-| F7 | Phó hiệu trưởng Campus 2 | Mở kỳ → **Đóng kỳ cân đo** → xác nhận | Trẻ chưa cân thành *Vắng cân đo*; số đo của kỳ bị khóa (cô Ngọc không còn nút **Sửa số đo**) |
+| F7 | Phó hiệu trưởng Campus 2 | Mở kỳ → **Đóng sớm kỳ cân đo** → xác nhận | Trẻ chưa cân thành *Vắng cân đo*; số đo của kỳ bị khóa (cô Ngọc không còn nút **Sửa số đo**) |
+| F8 | Phó hiệu trưởng Campus 2 | Khi một kỳ cân đo đã qua ngày kết thúc mà chưa đóng (đợi qua ngày, hoặc dữ liệu thử): mở kỳ → **Mở lại kỳ** | Kỳ đã **Đã đóng** (tự đóng sau ngày kết thúc như đợt khám, từ 2026-11-04); lịch sử *Đóng kỳ cân đo · Hệ thống*, lý do *Hệ thống tự đóng khi qua ngày kết thúc cân đo*; trẻ chưa cân thành *Vắng cân đo*. Hộp mở lại có ô bắt buộc **Ngày kết thúc mới** (từ hôm nay, `dd/mm/yyyy`); mở lại xong kỳ lại tự đóng sau ngày đó |
 
 ## G. Phạm vi xem
 

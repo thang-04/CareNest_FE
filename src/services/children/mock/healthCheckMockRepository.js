@@ -408,10 +408,11 @@ export const healthCheckMockRepository = {
     const reason = (body?.reason || '').trim();
     if (!reason) invalid({ reason: `Nhập lý do mở lại ${label.toLowerCase()}` });
     if (reason.length > HEALTH_CHECK_FIELD_LIMITS.reason) invalid({ reason: 'Lý do tối đa 300 ký tự' });
-    const extendExam = isExamCampaign(c) && (c.endDate < todayInput() || body?.endDate);
-    if (extendExam) {
+    // HLT-17: đợt khám, kỳ cân đo đã qua ngày kết thúc mở lại phải có ngày kết thúc mới từ hôm nay, rồi lại tự đóng sau ngày đó.
+    const extend = c.endDate < todayInput() || !!body?.endDate;
+    if (extend) {
       if (!isIsoDate(body?.endDate)) invalid({ endDate: 'Chọn ngày kết thúc mới hợp lệ theo dd/mm/yyyy' });
-      if (body.endDate < todayInput()) invalid({ endDate: 'Ngày kết thúc mới không được trước hôm nay' });
+      if (body.endDate < todayInput()) invalid({ endDate: 'Chọn ngày kết thúc mới từ hôm nay' });
       if (body.endDate < c.startDate) invalid({ endDate: 'Ngày kết thúc không được trước ngày bắt đầu' });
     }
     const unclosed = unclosedCampaignOf(db, c.campusId, id);
@@ -424,7 +425,7 @@ export const healthCheckMockRepository = {
       const target = d.healthCheckCampaigns.find((x) => x.id === id);
       target.closedAt = null;
       target.closedBy = null;
-      if (extendExam) target.endDate = body.endDate;
+      if (extend) target.endDate = body.endDate;
       target.absentChildIds = [];
       target.history = [...(target.history || []), { at: nowIso(), userId: user.id, action: 'REOPENED', reason }];
       notifyCampus(d, target, `${label} được mở lại`, `${target.name} được mở lại để nhập hoặc sửa kết quả. Lý do: ${reason}`);

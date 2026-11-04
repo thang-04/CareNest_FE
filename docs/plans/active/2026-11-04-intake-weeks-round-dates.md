@@ -5,7 +5,7 @@ owner: carenestg94@gmail.com
 jira: G94-180 / FE-FEAT-43   # cần xác nhận task Jira riêng trước khi commit
 branch: feature/G94-180-FE-FEAT-43-child-health-pickup
 modules: [child, health]
-rules: [CHD-05, HLT-01, HLT-08, HLT-13]
+rules: [CHD-05, HLT-01, HLT-08, HLT-13, HLT-17]
 risk: high
 created: 2026-11-04
 updated: 2026-11-04
@@ -128,3 +128,16 @@ Không còn câu hỏi chặn (chế độ tự chạy). Điểm cần BE xác n
 - BE chốt: số đo mới ghi hôm nay kẹp vào khoảng ngày của kỳ (kỳ cân đo còn mở sau ngày kết thúc ⇒ ghi ngày kết thúc; HLT-01 chờ user soát). BE giả và form số đo làm theo (thêm test kẹp ngày trong `tests/health/server-dates.test.mjs`); câu hỏi (1) ở mục trên đã trả lời.
 - Câu 5020 theo BE: "Ngày đo dd/MM/yyyy trẻ đã có kết quả đo khác. Báo Hiệu trưởng hoặc Phó hiệu trưởng"; BE bỏ mã 5021. `check-api-contract` 0 lỗi (route không đổi, không cần `--sync`).
 - Verify: FE `VERIFY PASS full`; BE `VERIFY PASS full | tests 1007 fail 0`.
+
+### 2026-11-04 — Kỳ cân đo tự đóng khi qua ngày kết thúc (user quyết định; chế độ tự chạy)
+- User (qua coordinator): "Kỳ cân đo cũng sẽ tự đóng khi qua ngày kết thúc", như đợt khám (HLT-17). BE sửa song song: việc chạy lúc nửa đêm đóng cả hai loại (endDate < hôm nay), trẻ chưa có kết quả thành vắng; mở lại đợt/kỳ đã hết hạn phải có endDate ≥ hôm nay rồi lại tự đóng sau ngày đó; vẫn đóng sớm được; ngày kết thúc vẫn nhập được.
+- BE giả: `healthCheckRule.expiredExamCampaignsOf` đổi thành `expiredCampaignsOf` (cả hai loại); `closeCampaign(db, campaign, userId, reason)` ghi lý do khi tự đóng (`autoCloseReasonOf`: đợt khám "Hệ thống tự đóng khi qua ngày kết thúc khám" như BE; kỳ cân đo "Hệ thống tự đóng khi qua ngày kết thúc cân đo"); `ensureChildRecordsSeeded` đóng mọi đợt/kỳ quá hạn, trẻ chưa có kết quả thành vắng như đóng tay; `reopenHealthCheck` bắt ngày kết thúc mới từ hôm nay cho cả hai loại khi đã quá hạn (hoặc khi client gửi). `updateHealthCheck` không có nhánh riêng của đợt khám nên giữ nguyên.
+- UI chi tiết đợt/kỳ: khung thông báo lúc đang diễn ra hiện cho mọi vai trò với cả kỳ cân đo ("Kỳ cân đo tự đóng sau ngày …; số đo sẽ khóa khi kỳ đóng, kể cả kỳ mở lại để nhập bù."), lúc sắp diễn ra cũng ghi ngày tự đóng; nút "Đóng sớm kỳ cân đo"; hộp mở lại kỳ đã hết hạn có ô bắt buộc "Ngày kết thúc mới", câu "Giáo viên nhập hoặc sửa số đo để nhập bù. Kỳ sẽ tự đóng khi qua ngày kết thúc.". Form tạo kỳ thêm "Kỳ cân đo tự đóng sau ngày kết thúc.". Danh sách đợt/kỳ không có câu riêng theo loại nên không đổi.
+- Form số đo, `saveMeasurement`: giữ phần kẹp ngày đo về ngày kết thúc làm chốt chặn, sửa comment.
+- Test: `tests/health/auto-close-campaign.test.mjs` — test "không tự đóng kỳ cân đo" đổi thành kỳ cân đo hết hạn cũng tự đóng; thêm 3 test kỳ cân đo (ngày kết thúc vẫn nhập, qua nửa đêm tự đóng, trẻ chưa cân đo thành vắng, khóa nhập và sửa; mở lại cần ngày kết thúc mới từ hôm nay rồi lại tự đóng; đóng sớm, mở lại trong hạn không cần ngày mới); kiểm lý do tự đóng của đợt khám. `tests/health/server-dates.test.mjs`: test kẹp ngày khi kỳ còn mở sau ngày kết thúc không còn xảy ra ⇒ thay bằng test ngày kết thúc vẫn nhập (ngày đo = hôm nay), qua ngày kết thúc thì 409 và kỳ đã đóng. `tests/health` 74/74.
+- Tài liệu: `docs/features/README.md` (dòng tự đóng, dòng ngày đo), `docs/quality/manual-tests/health-exam-flow.md` (mở đầu mục F, A3 và F7 "Đóng sớm kỳ cân đo", thêm F8 tự đóng/mở lại), plan (rules thêm HLT-17).
+- Kiểm trên trình duyệt (dev server tự chạy cổng 5199, BE giả, PHT Campus 2 Trịnh Văn Đức): đổi ngày kết thúc của kỳ `hc_c2_next` về hôm qua ngay trong DB demo ⇒ chi tiết kỳ: Đã đóng, lịch sử "Đóng kỳ cân đo · Hệ thống" kèm lý do, 204 trẻ vắng cân đo; Mở lại kỳ: ô Ngày kết thúc mới bắt buộc, 03/11 báo "Chọn ngày kết thúc mới từ hôm nay theo dd/mm/yyyy"; mở lại tới 06/11 ⇒ Đang diễn ra, khung "Kỳ cân đo tự đóng sau ngày 06/11/2026…", nút "Đóng sớm kỳ cân đo". DB demo khôi phục nguyên bản sau khi thử; trình duyệt để lại Lê Minh Anh. 1440px và 375px, không lỗi console. Ảnh `../.playwright-mcp/round-autoclose-*.png` (ngoài repo).
+- Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log` (768 test, 0 lỗi; lint 0 lỗi, 1 cảnh báo có sẵn; `check-design: ok`; `check-api-contract (FE): 0 lỗi, 1 cảnh báo` có sẵn về pickup).
+- BE cần khớp: lý do lịch sử khi tự đóng kỳ cân đo "Hệ thống tự đóng khi qua ngày kết thúc cân đo" (FE hiện "Lý do: …"; đợt khám giữ "… khám"); lỗi mở lại kỳ đã hết hạn trả theo ô `endDate` (FE hiện `details.endDate` dưới ô "Ngày kết thúc mới"); tự đóng để `closedBy` null (FE hiện "Hệ thống").
+- BE khớp (người điều phối đối chiếu): lý do tự đóng giống BE; câu lỗi mở lại kỳ hết hạn trong BE giả đổi theo BE "Chọn ngày kết thúc mới từ hôm nay". BE `VERIFY PASS full | tests 1014`.
+- Commit: commit, push lên nhánh feature (user cho phép 2026-11-04).
