@@ -165,6 +165,7 @@ test('ST-15 gửi Phó HT duyệt; Phó HT ban hành phiên bản mới; không 
   await expect(source.locator('main')).toContainText('01/VBHN-BGDĐT');
   const item = source.locator(`#cg-${ministryGoal.id}`);
   await expect(item).toContainText(ministryGoal.goalText);
-  await expect(item).toContainText(ministryGoal.sectionRef);
+  // Trang nguồn trình bày như hộp Lấy từ Bộ (03/11): mã MT, không còn đường dẫn mục văn bản
+  await expect(item).toContainText(/MT\d+\.\d+/);
   await expect(item).toBeInViewport();
 });

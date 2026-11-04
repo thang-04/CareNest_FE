@@ -64,8 +64,11 @@ const themeSection = ({ doc, theme, themeNo, weeks, blocks, rowOf }) => {
   const rows = blocks
     .map((b, i) => {
       const band =
-        i === 0 || blocks[i - 1].domain !== b.domain ? `<tr><td></td><td colspan="3"><b>${esc(domainTitle(b.domain))}</b></td></tr>` : '';
-      const sub = b.sub ? `<tr><td></td><td colspan="3"><b><i>*${esc(b.sub)}</i></b></td></tr>` : '';
+        // Không gộp ô ngang: đường kẻ dọc các cột liền tới cuối bảng (Tiền 03/11)
+        i === 0 || blocks[i - 1].domain !== b.domain
+          ? `<tr><td></td><td><b>${esc(domainTitle(b.domain))}</b></td><td></td><td></td></tr>`
+          : '';
+      const sub = b.sub ? `<tr><td></td><td><b><i>*${esc(b.sub)}</i></b></td><td></td><td></td></tr>` : '';
       const goals = b.goals
         .map((g) => {
           const r = rowOf(g);

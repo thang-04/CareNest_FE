@@ -5,7 +5,7 @@ import { GoalPicker } from '@/components/education-plan/GoalPicker';
 import { Tabs } from '@/components/ui/Tabs';
 import { useCurriculum } from '@/hooks/education-plan/useCurriculum';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
-import { curriculumSourceLink, curriculumTree, goalTargets } from '@/models/education-plan/curriculum.mjs';
+import { curriculumPickTree, curriculumSourceLink, curriculumTree, goalTargets } from '@/models/education-plan/curriculum.mjs';
 import { EmptyState, Modal, Notice } from '@/components/education-plan/eduUi';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 
@@ -34,23 +34,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
   const source = data.sources[0];
   const ageName = AGE_GROUPS.find((a) => a.id === ageGroupId)?.name || '';
 
-  // Dạng cây của danh sách chọn dùng chung (GoalPicker)
-  const pickTree = useMemo(
-    () =>
-      tree.map((d) => ({
-        name: d.name,
-        subs: d.subs.map((s) => ({
-          key: s.key,
-          name: s.name,
-          groups: s.groups.map((g) => ({
-            key: g.key,
-            title: `${g.no ? `${g.no}. ` : ''}${g.text}`,
-            goals: g.goals.map((x) => ({ id: x.id, code: x.goalNo, text: x.goalText, contents: x.contents, anchor: `pick-cg-${x.id}` })),
-          })),
-        })),
-      })),
-    [tree],
-  );
+  const pickTree = useMemo(() => curriculumPickTree(tree), [tree]);
 
   const toggle = (ids) => {
     const on = !ids.every((id) => picked.has(id));
@@ -85,7 +69,6 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
       onClose={onClose}
       footer={
         <>
-          <p className="ga-cur-footnote muted text-sm">Chỉ cập nhật bản soạn. Bấm Lưu ở kế hoạch để lưu thay đổi.</p>
           <button className="btn" onClick={onClose}>
             Đóng
           </button>
@@ -128,7 +111,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
       ) : !data.goals.length && !data.contents.length ? (
         <EmptyState title="Chưa có dữ liệu của Bộ cho nhóm tuổi này" />
       ) : tab === 'goals' ? (
-        <GoalPicker tree={pickTree} picked={picked} onToggle={toggle} />
+        <GoalPicker tree={pickTree} picked={picked} onToggle={toggle} kindLabels={{ sub: 'Lĩnh vực con', group: 'Kết quả cần đạt' }} />
       ) : (
         <>
           {!targets.length ? (
@@ -184,7 +167,13 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
                   <label className="field__label" htmlFor="cur-sub">
                     Lĩnh vực con
                   </label>
-                  <select id="cur-sub" className="select" value={subFilter} onChange={(e) => setSubFilter(e.target.value)}>
+                  <select
+                    id="cur-sub"
+                    className="select"
+                    value={subFilter}
+                    title={subFilter || 'Tất cả'}
+                    onChange={(e) => setSubFilter(e.target.value)}
+                  >
                     <option value="">Tất cả</option>
                     {subDomains.map((s) => (
                       <option key={s} value={s}>

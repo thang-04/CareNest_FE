@@ -428,8 +428,15 @@ export default function GoalFormPage() {
     return null;
   };
 
-  // Kiểm tra các phần đang hiển thị trước khi gửi / ban hành.
-  const checkBeforeFinish = () => validate(0) && validate(1);
+  // Thẻ 1, 2, 3 thu gọn được (Tiền 03/11); trạng thái chỉ giữ trong màn
+  const [folded, setFolded] = useState({});
+  const fold = (key) => ({ collapsed: !!folded[key], onToggle: () => setFolded((f) => ({ ...f, [key]: !f[key] })) });
+
+  // Kiểm tra trước khi gửi / ban hành; mở lại mọi thẻ để thấy chỗ báo lỗi
+  const checkBeforeFinish = () => {
+    setFolded({});
+    return validate(0) && validate(1);
+  };
 
   // submit: tổ trưởng gửi Phó HT duyệt; approve: Phó HT ban hành (bản mình soạn hoặc bản đang chờ)
   const finish = async (action, note) => {
@@ -519,7 +526,7 @@ export default function GoalFormPage() {
     if (report.themes || report.breaks) set({ themes: nextThemes, breaks: nextBreaks });
     const parts = [`Đã thêm ${report.themes} chủ đề`, report.breaks && `${report.breaks} đợt nghỉ`].filter(Boolean).join(', ');
     const shifted =
-      report.shifted && (report.themes || report.breaks) ? ` · đã dời ngày ${Math.abs(report.shifted)} năm, kiểm tra lại ngày` : '';
+      report.shifted && (report.themes || report.breaks) ? ' · ngày giữ như kế hoạch nguồn, xem gợi ý dời ngày ở bảng chủ đề' : '';
     toast(
       `${parts}${report.skipped ? ` · bỏ qua ${report.skipped} dòng đã có` : ''}${shifted}`,
       report.themes || report.breaks ? 'ok' : 'warn',
@@ -658,7 +665,7 @@ export default function GoalFormPage() {
           </Notice>
         )}
 
-        <Card title="Thông tin chung" num="1">
+        <Card title="1. Thông tin chung" {...fold('info')}>
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table ga-year-info" aria-label="Thông tin chung">
               <thead>
@@ -785,8 +792,8 @@ export default function GoalFormPage() {
         </Card>
 
         <Card
-          title="Chủ đề, sự kiện trong năm"
-          num="2"
+          title="2. Chủ đề, sự kiện trong năm"
+          {...fold('themes')}
           actions={
             <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImportingThemes(true)}>
               <Download size={16} aria-hidden /> Lấy chủ đề từ kế hoạch có sẵn
@@ -803,7 +810,11 @@ export default function GoalFormPage() {
             onChange={(patch) => set(patch)}
           />
         </Card>
-        <Card title="Mục tiêu, nội dung giáo dục" num="3" actions={<span className="muted text-xs nowrap">{totalGoals} mục tiêu</span>}>
+        <Card
+          title="3. Mục tiêu, nội dung giáo dục"
+          {...fold('goals')}
+          actions={<span className="muted text-xs nowrap">{totalGoals} mục tiêu</span>}
+        >
           {importReport?.unavailable.length > 0 && (
             <Notice tone="warn">
               <span>Chưa thêm được các mục tiêu sau:</span>
