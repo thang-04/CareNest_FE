@@ -63,6 +63,18 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
     }
     setPickedContents(next);
   };
+  // Lĩnh vực con bỏ tích: chỉ lấy mục tiêu, không lấy lĩnh vực con (Tiền 05/11). Chưa chọn mục tiêu nào ⇒ tích chọn cả lĩnh vực con
+  const [droppedSubs, setDroppedSubs] = useState(() => new Set());
+  const toggleSub = (key, ids) => {
+    const next = new Set(droppedSubs);
+    if (!ids.some((id) => picked.has(id))) {
+      toggle(ids);
+      next.delete(key);
+    } else if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setDroppedSubs(next);
+  };
+  const subKeyOf = (g) => `${g.domainName}|${g.subDomain ? (g.subDomainId ?? g.subDomain) : null}`;
   const toggleSuggestion = (id) => {
     const next = new Set(suggested);
     if (next.has(id)) next.delete(id);
@@ -72,7 +84,11 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
   const confirmGoals = () => {
     const goals = data.goals
       .filter((g) => picked.has(g.id))
-      .map((g) => ({ ...g, contents: (g.contents || []).filter((_, i) => pickedContents.has(`${g.id}:${i}`)) }));
+      .map((g) => ({
+        ...g,
+        ...(droppedSubs.has(subKeyOf(g)) ? { subDomain: null, subDomainId: null } : {}),
+        contents: (g.contents || []).filter((_, i) => pickedContents.has(`${g.id}:${i}`)),
+      }));
     if (onImportGoals(goals)) onClose();
   };
   const confirmContents = () => {
@@ -141,6 +157,8 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
           onToggle={toggle}
           contentPicked={pickedContents}
           onToggleContent={toggleContent}
+          droppedSubs={droppedSubs}
+          onToggleSub={toggleSub}
           kindLabels={{ sub: 'Lĩnh vực con', group: 'Kết quả cần đạt' }}
         />
       ) : (
