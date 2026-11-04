@@ -107,7 +107,8 @@ export default function DatePickerCell({ value, onChange, label, taken = [], ran
         onClick={toggle}
       >
         {value ? <span>{fmtDate(value)}</span> : <span className="muted">Chọn ngày</span>}
-        <CalendarDays size={15} className="muted" aria-hidden />
+        {/* Đã chọn ngày thì bỏ icon lịch cho gọn (Tiền 03/11); bấm / Enter vào ô vẫn mở lịch */}
+        {!value && <CalendarDays size={15} className="muted" aria-hidden />}
       </button>
       {open && (
         <FloatingPanel anchorRef={ref} panelRef={panelRef} minWidth={360}>

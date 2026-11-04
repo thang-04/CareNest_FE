@@ -261,7 +261,7 @@ export default function EduConfigPage() {
               <thead>
                 <tr>
                   {SIGN_DOCS.map((doc) => (
-                    <th key={doc.key} className="center">
+                    <th key={doc.key} className="center" title={doc.label}>
                       {doc.label}
                     </th>
                   ))}
@@ -325,10 +325,10 @@ export default function EduConfigPage() {
             >
               <table className="table ga-plan-table ga-goal-table ga-sortable-table" onMouseDown={focusCell}>
                 <colgroup>
-                  <col className="ga-goal-table__del" />
+                  <col className="ga-col-stt" />
                   <col />
-                  <col className="ga-goal-table__code" />
-                  <col className="ga-goal-table__code" />
+                  <col className="ga-col-flag" />
+                  <col className="ga-col-flag" />
                   {editing && <col className="ga-goal-table__sort" />}
                   {editing && <col className="ga-goal-table__del" />}
                 </colgroup>

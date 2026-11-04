@@ -69,7 +69,6 @@ export default function FoodListPage() {
   const [importOpen, setImportOpen] = useState(false);
   // Lọc nhóm ở client để danh mục bên trái đếm theo các bộ lọc còn lại
   const { items, loading, error, reload } = useFoods({ keyword, allergen, status });
-  const { items: allFoods } = useFoods({});
   const rows = items.filter(
     (f) => (!group || f.group === group) && (!origin || f.origin === origin) && (!favoriteOnly || f.favorite) && QUICK[quick](f),
   );
@@ -380,7 +379,7 @@ export default function FoodListPage() {
           )}
         </div>
       </section>
-      <FoodImportPanel open={importOpen} onClose={() => setImportOpen(false)} foods={allFoods} />
+      <FoodImportPanel open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );
 }

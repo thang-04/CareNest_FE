@@ -194,6 +194,7 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, default
               id="imp-src"
               className="select"
               value={query.sourceId}
+              title={query.sources.find((item) => String(item.id) === String(query.sourceId))?.title}
               onChange={(event) => {
                 reset();
                 setSourceId(event.target.value);

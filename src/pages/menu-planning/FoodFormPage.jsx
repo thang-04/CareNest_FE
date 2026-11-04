@@ -17,6 +17,10 @@ import {
   FOOD_GROUP_LABELS,
   FOOD_ORIGIN_LABELS,
   FOOD_UNIT_LABELS,
+  MICRONUTRIENT_GROUPS,
+  MICRONUTRIENT_LABELS,
+  MICRONUTRIENT_UNITS,
+  MICRONUTRIENTS,
   RECORD_STATUS_LABELS,
   FOOD_STORAGE_LABELS,
   defaultStorageOf,
@@ -36,7 +40,7 @@ const EMPTY = {
   wastePct: 0,
   favorite: false,
   storage: '',
-  nutrition: { kcal: '', protein: '', lipid: '', glucid: '' },
+  nutrition: { kcal: '', protein: '', lipid: '', glucid: '', ...Object.fromEntries(MICRONUTRIENTS.map((k) => [k, ''])) },
   origin: '',
   nutrientSource: '',
   nutrientSourceVersion: '',
@@ -337,6 +341,27 @@ export default function FoodFormPage() {
             <p className="text-xs muted mt-8">
               Để trống nếu chưa có số liệu – các thực đơn dùng thực phẩm này sẽ được báo là tính toán chưa đầy đủ.
             </p>
+            {/* Vi chất theo bảng PMS (BE NUT-26): không bắt buộc, trên 100 g ăn được */}
+            {MICRONUTRIENT_GROUPS.map((g) => (
+              <fieldset key={g.key} className="td-micro-fieldset mt-16">
+                <legend className="fw-600">{g.label} (trên 100 g ăn được, không bắt buộc)</legend>
+                <div className="td-form-grid td-form-grid--4">
+                  {g.items.map((k) => (
+                    <FormField key={k} label={`${MICRONUTRIENT_LABELS[k]} (${MICRONUTRIENT_UNITS[k]})`} error={show(k)}>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="input"
+                        value={form.nutrition[k] ?? ''}
+                        onChange={(e) => setNut(k, e.target.value)}
+                        onBlur={blur(k)}
+                      />
+                    </FormField>
+                  ))}
+                </div>
+              </fieldset>
+            ))}
             <div className="td-form-grid mt-16">
               <FormField
                 label="Nguồn số liệu dinh dưỡng"

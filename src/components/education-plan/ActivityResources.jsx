@@ -90,6 +90,7 @@ export function ActivityResources({ user, doc, activities, editable, exists, onS
             Hoạt động
             <select
               value={activity?.id || ''}
+              title={activity ? `MT${activity.goalNo}: ${activity.text}` : undefined}
               onChange={(e) => {
                 setSelected(e.target.value);
                 setPreview(null);

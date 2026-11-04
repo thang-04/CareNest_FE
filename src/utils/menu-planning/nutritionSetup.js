@@ -1,5 +1,11 @@
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
-import { MEAL_SESSION_LABELS, sessionsOf } from '@/models/menu-planning/menuPlanningConstants';
+import {
+  MEAL_SESSION_LABELS,
+  MICRONUTRIENT_GROUPS,
+  MICRONUTRIENT_LABELS,
+  MICRONUTRIENT_UNITS,
+  sessionsOf,
+} from '@/models/menu-planning/menuPlanningConstants';
 import { priceOn } from '@/utils/menu-planning/menuCalculations';
 
 /** Năng lượng một ngày (kcal) — bắt buộc cùng cơ cấu P:L:G để đánh giá ngày (BE NUT-24). */
@@ -20,11 +26,17 @@ export const GRAM_NORM_COLUMNS = [
 ];
 /** Tỷ lệ năng lượng từng bữa gốc (% nhu cầu năng lượng cả ngày `dailyKcalNeed`, BE NUT-25). */
 export const SESSION_NORM_KEYS = { MORNING: 'morningKcalPct', LUNCH: 'lunchKcalPct', AFTERNOON: 'afternoonKcalPct' };
+/** Định mức vi chất / trẻ / ngày (BE NUT-26), không bắt buộc; số sau trống = chỉ cần đạt tối thiểu. */
+export const MICRO_NORM_GROUPS = MICRONUTRIENT_GROUPS.map((g) => ({
+  ...g,
+  columns: g.items.map((key) => ({ key, label: MICRONUTRIENT_LABELS[key], unit: MICRONUTRIENT_UNITS[key] })),
+}));
 export const ALL_NORM_COLUMNS = [
   KCAL_NORM,
   ...STRUCTURE_NORM_COLUMNS,
   ...GRAM_NORM_COLUMNS,
   ...Object.values(SESSION_NORM_KEYS).map((key) => ({ key, unit: '%' })),
+  ...MICRO_NORM_GROUPS.flatMap((g) => g.columns),
 ];
 
 // Khóa định mức cũ (trước khi khớp tên BE animalProteinPct*, animalLipidPct*) còn trong localStorage
@@ -91,7 +103,10 @@ export const toSetupForm = (setups, today) => ({
     enabled: s.enabled,
     price: String(s.price ?? ''),
     meals: s.meals.map((m) => ({ code: m.code, name: m.name, countAs: m.countAs })),
-    norms: Object.fromEntries(ALL_NORM_COLUMNS.map(({ key }) => [key, (s.norms?.[key] || ['', '']).map(String)])),
+    // Số sau của vi chất có thể null (chỉ cần đạt tối thiểu) ⇒ ô trống, không thành chữ "null"
+    norms: Object.fromEntries(
+      ALL_NORM_COLUMNS.map(({ key }) => [key, (s.norms?.[key] || ['', '']).map((v) => (v == null ? '' : String(v)))]),
+    ),
     dailyKcalNeed: String(s.dailyKcalNeed ?? ''),
   })),
 });

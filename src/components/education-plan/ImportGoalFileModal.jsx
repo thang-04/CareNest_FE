@@ -70,7 +70,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
     }
   };
   const template = () => {
-    const file = goalTemplateFile(target.themes || themes);
+    const file = goalTemplateFile();
     downloadDoc(file.html, file.name);
   };
   return (
@@ -89,10 +89,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
         </>
       }
     >
-      <p className="muted text-sm">
-        Word (.doc, .docx), Excel (.xlsx) hoặc CSV, tối đa 2 MB. Xem trước phần thay, xóa hoặc giữ theo cách nhập đã chọn. Chỉ ghi lên hệ
-        thống khi bấm Lưu.
-      </p>
+      <p className="muted text-sm">Word, Excel hoặc CSV, tối đa 2 MB.</p>
       <fieldset className="ga-edit-fieldset stack">
         <legend className="field__label">Cách nhập file</legend>
         <label className="radio">
@@ -162,7 +159,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
           {prepared.error && <Notice tone="err">{prepared.error}</Notice>}
           <h3 className="text-md">Kế hoạch sau khi áp dụng</h3>
           <div className="table-wrap">
-            <table className="table">
+            <table className="table ga-plan-table ga-list-table">
               <thead>
                 <tr>
                   <th>Phần nội dung</th>
@@ -211,7 +208,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             <>
               <h3 className="text-md">Thông tin chung</h3>
               <div className="table-wrap">
-                <table className="table">
+                <table className="table ga-plan-table ga-list-table">
                   <thead>
                     <tr>
                       <th>Thông tin</th>
@@ -241,22 +238,21 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             </>
           )}
           {!!prepared.shifted && (
-            <Notice>
-              Ngày chủ đề, đợt nghỉ được dời {Math.abs(prepared.shifted)} năm {prepared.shifted > 0 ? 'về sau' : 'về trước'} theo năm học
-              đang mở. Kiểm tra lịch dưới đây trước khi áp dụng.
-            </Notice>
+            <p className="text-danger text-sm text-right">
+              File thuộc năm học khác: ngày giữ như file, sau khi áp dụng bảng chủ đề sẽ gợi ý dời ngày.
+            </p>
           )}
           {prepared.themes.length > 0 && (
             <>
               <h3 className="text-md">Chủ đề sau khi áp dụng</h3>
               <div className="table-wrap">
-                <table className="table">
+                <table className="table ga-plan-table ga-list-table">
                   <thead>
                     <tr>
                       <th>Chủ đề</th>
                       <th>Viết tắt</th>
-                      <th>Từ ngày sau dời</th>
-                      <th>Đến ngày sau dời</th>
+                      <th>Từ ngày</th>
+                      <th>Đến ngày</th>
                       <th>Lễ hội</th>
                       <th>Ghi chú</th>
                       <th>Khi áp dụng</th>
@@ -283,12 +279,12 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             <>
               <h3 className="text-md">Đợt nghỉ sau khi áp dụng</h3>
               <div className="table-wrap">
-                <table className="table">
+                <table className="table ga-plan-table ga-list-table">
                   <thead>
                     <tr>
                       <th>Đợt nghỉ</th>
-                      <th>Từ ngày sau dời</th>
-                      <th>Đến ngày sau dời</th>
+                      <th>Từ ngày</th>
+                      <th>Đến ngày</th>
                       <th>Ghi chú</th>
                       <th>Khi áp dụng</th>
                     </tr>
@@ -311,7 +307,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
           <h3 className="text-md">Mục tiêu và dấu tích</h3>
           {goals ? (
             <div className="table-wrap">
-              <table className="table">
+              <table className="table ga-plan-table ga-list-table">
                 <thead>
                   <tr>
                     <th>Lĩnh vực</th>

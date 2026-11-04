@@ -20,6 +20,7 @@ import {
 import { fmtDate } from '@/components/education-plan/eduUi';
 import FloatingPanel from '@/components/education-plan/FloatingPanel';
 import DatePickerCell from '@/components/education-plan/DatePickerCell';
+import { suggestBreakDates, suggestThemeDates } from '@/models/education-plan/importThemes.mjs';
 import { expectedResultsFor } from '@/models/education-plan/expectedResults';
 import { normalizeText } from '@/utils/format';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -878,9 +879,34 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
   const takenForBreak = (b) => [...themeSpans, ...breakSpans.filter((x) => x.id !== b.id)];
   /** Chủ đề trùng thời gian (EDU-39) / không trọn tuần (EDU-40): báo tại chỗ, chặn ở bước gửi / ban hành. */
   const overlapOf = (t) => overlappingThemes(t, themes).map((x) => `chủ đề "${x.name || 'chưa đặt tên'}"`);
+  // Gợi ý dời ngày (Tiền 04/11): ngày lệch thứ 2 – thứ 6 hoặc khác năm học tô đỏ, đồng ý từng dòng / tất cả / tự sửa
+  const themeSug = new Map(readOnly ? [] : themes.map((t) => [t.id, suggestThemeDates(t, yearRange)]).filter(([, x]) => x));
+  const breakSug = new Map(readOnly ? [] : breaks.map((b) => [b.id, suggestBreakDates(b, yearRange)]).filter(([, x]) => x));
+  const applyAllSuggestions = () =>
+    onChange({
+      themes: themes.map((t) => (themeSug.has(t.id) ? { ...t, ...themeSug.get(t.id) } : t)),
+      breaks: breaks.map((b) => (breakSug.has(b.id) ? { ...b, ...breakSug.get(b.id) } : b)),
+    });
+  const suggestion = (sug, apply) => (
+    <div className="ga-goal-table__pad text-xs text-danger ga-date-sug">
+      Gợi ý: {fmtDate(sug.start)} – {fmtDate(sug.end)}{' '}
+      <button type="button" className="link-btn" onClick={apply}>
+        Áp dụng
+      </button>
+    </div>
+  );
+  const sugCount = themeSug.size + breakSug.size;
 
   return (
     <div className="stack">
+      {sugCount > 0 && (
+        <p className="text-danger text-sm text-right ga-date-sug-all">
+          {sugCount} dòng lệch ngày (cần trọn tuần thứ 2 – thứ 6, trong năm học).{' '}
+          <button type="button" className="link-btn" onClick={applyAllSuggestions}>
+            Áp dụng tất cả gợi ý
+          </button>
+        </p>
+      )}
       <div className="table-wrap">
         <SortableList
           ids={themes.map((t) => t.id)}
@@ -894,7 +920,7 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
               <col className="ga-col-stt" />
               <col />
               <col className="ga-col-abbr" />
-              <col />
+              <col className="ga-col-mt" />
               <col />
               <col className="ga-col-date" />
               <col className="ga-col-date" />
@@ -969,13 +995,16 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                       onKeyDown: themeKeys(t, i, 'fest-'),
                     })}
                   </td>
-                  <td>{dateCell(t.start, (start) => patchTheme(t.id, { start }), `Từ ngày chủ đề ${i + 1}`, t, takenForTheme(t))}</td>
-                  <td>
+                  <td className={themeSug.has(t.id) ? 'ga-date--bad' : undefined}>
+                    {dateCell(t.start, (start) => patchTheme(t.id, { start }), `Từ ngày chủ đề ${i + 1}`, t, takenForTheme(t))}
+                  </td>
+                  <td className={themeSug.has(t.id) ? 'ga-date--bad' : undefined}>
                     {dateCell(t.end, (end) => patchTheme(t.id, { end }), `Đến ngày chủ đề ${i + 1}`, t, takenForTheme(t))}
+                    {themeSug.has(t.id) && suggestion(themeSug.get(t.id), () => patchTheme(t.id, themeSug.get(t.id)))}
                     {!readOnly && overlapOf(t).length > 0 && (
                       <div className="ga-goal-table__pad text-xs text-danger">Trùng thời gian với {overlapOf(t).join(', ')}</div>
                     )}
-                    {!readOnly && !isWholeWeekTheme(t) && (
+                    {!readOnly && !isWholeWeekTheme(t) && !themeSug.has(t.id) && (
                       <div className="ga-goal-table__pad text-xs text-danger">Bắt đầu Thứ 2, kết thúc Thứ 6</div>
                     )}
                   </td>
@@ -1063,8 +1092,13 @@ export function ThemeEventTable({ themes, breaks, domains, numbers, onChange, re
                       onKeyDown: nameKeys(b, i, insertBreak, isBlankBreak),
                     })}
                   </td>
-                  <td>{dateCell(b.start, (start) => patchBreak(b.id, { start }), `Từ ngày đợt nghỉ ${i + 1}`, b, takenForBreak(b))}</td>
-                  <td>{dateCell(b.end, (end) => patchBreak(b.id, { end }), `Đến ngày đợt nghỉ ${i + 1}`, b, takenForBreak(b))}</td>
+                  <td className={breakSug.has(b.id) ? 'ga-date--bad' : undefined}>
+                    {dateCell(b.start, (start) => patchBreak(b.id, { start }), `Từ ngày đợt nghỉ ${i + 1}`, b, takenForBreak(b))}
+                  </td>
+                  <td className={breakSug.has(b.id) ? 'ga-date--bad' : undefined}>
+                    {dateCell(b.end, (end) => patchBreak(b.id, { end }), `Đến ngày đợt nghỉ ${i + 1}`, b, takenForBreak(b))}
+                    {breakSug.has(b.id) && suggestion(breakSug.get(b.id), () => patchBreak(b.id, breakSug.get(b.id)))}
+                  </td>
                   {!readOnly && sortCell(i, breakLabel(i))}
                   {!readOnly && (
                     <td className="center">

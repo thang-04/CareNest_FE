@@ -62,8 +62,7 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, weeks,
       }
     >
       <p className="muted text-sm">
-        Word (.doc, .docx), Excel (.xlsx) hoặc CSV, tối đa 2 MB. Bảng cần cột Chủ đề và Chủ đề nhánh. Tuần học lấy từ hệ thống; ngày trong
-        file không thay lịch. Chỉ lưu khi bấm Lưu.
+        Word, Excel hoặc CSV, tối đa 2 MB. Bảng cần cột Chủ đề và Chủ đề nhánh; ngày trong file không thay lịch.
       </p>
       {USE_MOCK && <Notice tone="warn">Chế độ demo chỉ đọc CSV. Word và Excel cần kết nối máy chủ.</Notice>}
       <div className="row row--wrap gap-2">
@@ -96,7 +95,7 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, weeks,
           </p>
           {changes.length ? (
             <div className="table-wrap">
-              <table className="table">
+              <table className="table ga-plan-table ga-list-table">
                 <thead>
                   <tr>
                     <th>Chủ đề</th>

@@ -310,7 +310,7 @@ export function StaffAccountsBeView({ tabs = null }) {
       <StaffImportPanel
         open={importing}
         campuses={md.campuses}
-        classes={classes}
+        teacherCampusRequired={!isPrincipal(user)}
         onClose={(changed) => {
           setImporting(false);
           if (changed) reload({ silent: true });
