@@ -923,3 +923,20 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface);
 }
+
+/* Phiếu đánh giá sự phát triển cuối năm (BE OBS-28): như mẫu giấy, dòng lĩnh vực nền nhạt, mục tiêu xuống dòng */
+.dg-year-sheet .dg-year-sheet__domain th {
+  text-align: left;
+  background: var(--table-header-bg);
+}
+.dg-theme-table.dg-year-sheet td.dg-year-sheet__goal {
+  white-space: normal;
+  min-width: calc(var(--space-16) * 4);
+}
+.dg-year-sheet__note {
+  margin-bottom: var(--space-2);
+}
+.dg-year-sheet__note > label {
+  display: block;
+  margin-bottom: var(--space-1);
+}

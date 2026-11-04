@@ -291,6 +291,13 @@ export const createAssessmentReportsMock = (ensureReady) => ({
   async confirmThemeEvaluation() {
     throw new ApiError(404, 'Không tìm thấy chủ đề trong kế hoạch năm học đã duyệt của lớp');
   },
+  // BE giả OBS-28: mock chưa có kế hoạch năm học nên chưa có phiếu cuối năm
+  async getYearEndSheet() {
+    throw new ApiError(404, 'Chưa có phiếu đánh giá sự phát triển (bản demo)');
+  },
+  async saveYearEndSheet() {
+    throw new ApiError(404, 'Chưa có phiếu đánh giá sự phát triển (bản demo)');
+  },
   // BE giả OBS-26: GV lớp soạn, xác nhận nhận xét chung tháng (tháng đã kết thúc); BGH xem bản đã xác nhận
   async getClassMonthlyComment({ classId, month }, user) {
     const db = ensureReady();

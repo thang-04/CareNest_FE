@@ -33,6 +33,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useAiRun } from '@/hooks/useAiRun';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
+import { YearEndSheetCard } from '@/components/assessment/YearEndSheetCard';
 import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
@@ -104,8 +105,18 @@ export function EvaluationReviewView({ kind, id }) {
 
   // Sửa nội dung chưa lưu mà rời màn / sang trẻ khác: hỏi trước
   const saveRef = useRef(null);
+  // Phiếu cuối năm (OBS-28): lưu phiếu trước khi xác nhận, hỏi khi rời màn còn sửa chưa lưu
+  const sheetRef = useRef(null);
   const editing = !!ev && ev.status !== EVAL_STATUS.CONFIRMED && loadedFrom === savedContent && content !== savedContent;
-  const guard = useLeaveGuard({ when: editing, onSave: () => saveRef.current?.() ?? false });
+  const [sheetEdited, setSheetEdited] = useState(false);
+  const sheetDirty = () => !!sheetRef.current?.dirty;
+  const guard = useLeaveGuard({
+    when: editing || sheetEdited,
+    onSave: async () => {
+      if (sheetDirty() && !(await sheetRef.current.save())) return false;
+      return editing ? (saveRef.current?.() ?? false) : true;
+    },
+  });
 
   if (loading) return <LoadingState />;
   if (error) {
@@ -209,6 +220,11 @@ export function EvaluationReviewView({ kind, id }) {
   };
 
   const doConfirm = async () => {
+    // Phiếu cuối năm còn sửa chưa lưu: lưu trước để xác nhận chốt đúng phiếu cô thấy
+    if (sheetDirty() && !(await sheetRef.current.save())) {
+      setConfirmOpen(false);
+      return null;
+    }
     const res = await run(
       'confirm',
       () => confirmEvaluation(kind, ev.id, content, user),
@@ -386,6 +402,16 @@ export function EvaluationReviewView({ kind, id }) {
             )}
           </div>
         </div>
+      )}
+
+      {yearEnd && (
+        <YearEndSheetCard
+          evaluation={ev}
+          child={detail.child}
+          comment={canReview ? content : ev.finalContent}
+          sheetRef={sheetRef}
+          onDirtyChange={setSheetEdited}
+        />
       )}
 
       <PeriodSummaryTable data={detail.summary.structured} />

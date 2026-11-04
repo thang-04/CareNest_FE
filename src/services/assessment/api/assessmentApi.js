@@ -167,6 +167,9 @@ export const createAssessmentBeApi = (client) => ({
   confirmEvaluation: (kind, id, content) => client.post(`/assessment/evaluations/${id}/confirm`, { content }),
   regenerateEvaluationDraft: (kind, id) => client.post(`/assessment/evaluations/${id}/redraft`),
   markProgramCompletion: (id, completed) => client.put(`/assessment/evaluations/${id}/program-completion`, { completed }),
+  // Phiếu đánh giá sự phát triển cuối năm (BE OBS-28)
+  getYearEndSheet: (id) => client.get(`/assessment/evaluations/${id}/year-sheet`),
+  saveYearEndSheet: (id, body) => client.put(`/assessment/evaluations/${id}/year-sheet`, body),
   // Hồ sơ / tiến độ phát triển: trẻ trong phạm vi của năm học, số liệu của trẻ theo khoảng ngày
   getDevelopmentChildren: ({ schoolYear, classId } = {}) =>
     client.get('/assessment/children', { params: { schoolYearId: schoolYear || undefined, classId: classId || undefined } }),

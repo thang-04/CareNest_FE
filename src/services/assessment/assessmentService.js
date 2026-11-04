@@ -44,6 +44,8 @@ export const saveEvaluationDraft = (kind, id, content, user) => (be || repo).sav
 export const confirmEvaluation = (kind, id, content, user) => (be || repo).confirmEvaluation(kind, id, content, user);
 export const regenerateEvaluationDraft = (kind, id, user) => (be || repo).regenerateEvaluationDraft(kind, id, user);
 export const markProgramCompletion = (id, completed, user) => (be || repo).markProgramCompletion(id, completed, user);
+export const getYearEndSheet = (id, user) => (be || repo).getYearEndSheet(id, user);
+export const saveYearEndSheet = (id, body, user) => (be || repo).saveYearEndSheet(id, body, user);
 export const getProgramCompletion = (params, user) => (be || repo).getProgramCompletion(params, user);
 
 export const getTicketBoard = (params, user) => (be || repo).getTicketBoard(params, user);

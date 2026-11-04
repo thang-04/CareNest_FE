@@ -18,6 +18,7 @@ import {
   getQualityReport,
   getClassRatings,
   getThemeEvaluation,
+  getYearEndSheet,
   getThemeClasses,
   getThemeList,
   getProgramCompletion,
@@ -194,6 +195,15 @@ export function useThemeEvaluation(classId, themeId) {
     enabled: !!classId && !!themeId,
   });
   return { evaluation: data, loading, error, reload };
+}
+
+/** Phiếu đánh giá sự phát triển cuối năm của một đánh giá cuối năm. */
+export function useYearEndSheet(evaluationId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getYearEndSheet(evaluationId, user), [evaluationId, user?.id], {
+    enabled: !!evaluationId,
+  });
+  return { sheet: data, loading, error, reload };
 }
 
 export function useClassRatings(params) {
