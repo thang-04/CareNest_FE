@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Download, Save } from '@/components/ui/icons';
+import { CheckCircle2, Download, Printer, Save } from '@/components/ui/icons';
+import ThemeEvaluationPreviewModal from '@/components/assessment/ThemeEvaluationPreviewModal';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -7,9 +8,10 @@ import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/S
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
-import { useDailyAssessmentClasses, useThemeEvaluation, useThemeList } from '@/hooks/assessment/useAssessment';
+import { useThemeClasses, useThemeEvaluation, useThemeList } from '@/hooks/assessment/useAssessment';
 import { confirmThemeEvaluation, saveThemeEvaluation } from '@/services/assessment/assessmentService';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
+import { themeEvaluationFile } from '@/utils/assessment/themeEvaluationDoc';
 import { downloadXlsx } from '@/utils/exportXlsx';
 import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/assessment.css';
@@ -18,8 +20,8 @@ const NOTE_MAX = 1000;
 const STATUS_LABELS = { NONE: 'Chưa đánh giá', DRAFT: 'Đang đánh giá', CONFIRMED: 'Đã xác nhận' };
 const PERIOD_LABELS = { UPCOMING: 'Chưa bắt đầu', ONGOING: 'Đang diễn ra', ENDED: 'Đã kết thúc' };
 const mark = (met) => (met === true ? '+' : met === false ? '−' : '');
-// Ô bấm lần lượt: Đạt → Chưa đạt → bỏ sửa tay (về kết quả hệ thống tính)
-const nextValue = (met) => (met === true ? false : met === false ? null : true);
+// Ô hệ thống tính: bấm là sửa tay sang giá trị ngược lại (chưa chấm ⇒ Đạt); ô sửa tay: Đạt → Chưa đạt → về hệ thống tính
+const nextValue = (met, manual) => (!manual ? met !== true : met === true ? false : null);
 
 /**
  * Đánh giá cuối chủ đề của lớp mẫu giáo (BE OBS-27), theo mẫu "Bảng đánh giá sự phát triển của trẻ": hàng là trẻ, cột là
@@ -28,22 +30,23 @@ const nextValue = (met) => (met === true ? false : met === false ? null : true);
 export default function ThemeEvaluationPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const { classes, loading: classesLoading, error: classesError } = useDailyAssessmentClasses();
+  const { classes, loading: classesLoading, error: classesError } = useThemeClasses();
   const [classId, setClassId] = useState('');
   const [themeId, setThemeId] = useState('');
-  const currentClassId = classId || classes[0]?.id || '';
+  const currentClassId = classId || classes[0]?.classId || '';
   const { themes, loading: themesLoading, error: themesError } = useThemeList(currentClassId);
   // Mặc định chủ đề đã kết thúc gần nhất, chưa có thì chủ đề đang diễn ra
   const defaultTheme = [...themes].reverse().find((t) => t.period === 'ENDED') || themes.find((t) => t.period === 'ONGOING') || themes[0];
   const currentThemeId = themeId || defaultTheme?.themeId || '';
   const { evaluation: ev, loading, error, reload } = useThemeEvaluation(currentClassId, currentThemeId);
 
-  // Ô sửa trên màn: key `${childId}:${goalId}` → true / false / null (null = bỏ sửa tay)
+  // Ô sửa trên màn: key `${childId}:${goalId}` → true / false / null (null = bỏ sửa tay, về hệ thống tính khi lưu)
   const [edits, setEdits] = useState({});
   const [note, setNote] = useState('');
   const [loadedFrom, setLoadedFrom] = useState(null);
   const [busy, setBusy] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [preview, setPreview] = useState(null);
   useEffect(() => {
     setEdits({});
     setNote(ev?.note || '');
@@ -57,11 +60,18 @@ export default function ThemeEvaluationPage() {
     const key = `${childId}:${cell.goalId}`;
     return key in edits ? edits[key] : cell.met;
   };
+  const manualOf = (childId, cell) => {
+    const key = `${childId}:${cell.goalId}`;
+    return key in edits ? edits[key] !== null : cell.manual;
+  };
   const toggle = (childId, cell) =>
     setEdits((all) => {
       const key = `${childId}:${cell.goalId}`;
-      const next = nextValue(key in all ? all[key] : cell.met);
-      return { ...all, [key]: next };
+      const manual = key in all ? all[key] !== null : cell.manual;
+      const next = nextValue(key in all ? all[key] : cell.met, manual);
+      const { [key]: _omit, ...rest } = all;
+      // Ô vốn do hệ thống tính mà bỏ sửa tay ⇒ không còn thay đổi gì
+      return next === null && !cell.manual ? rest : { ...all, [key]: next };
     });
   const cellsBody = () =>
     Object.entries(edits).map(([key, met]) => {
@@ -136,8 +146,9 @@ export default function ThemeEvaluationPage() {
                 }
               >
                 {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
+                  <option key={c.classId} value={c.classId}>
                     {c.name}
+                    {c.teaches ? '' : ' (xem)'}
                   </option>
                 ))}
               </select>
@@ -162,9 +173,19 @@ export default function ThemeEvaluationPage() {
           )}
           <div className="spacer" />
           {ev && (
-            <button className="btn" onClick={exportExcel}>
-              <Download size={16} /> Xuất Excel
-            </button>
+            <>
+              <button
+                className="btn"
+                disabled={changed}
+                title={changed ? 'Lưu thay đổi trước khi in' : undefined}
+                onClick={() => setPreview(themeEvaluationFile(ev))}
+              >
+                <Printer size={16} /> Xem trước & In
+              </button>
+              <button className="btn" onClick={exportExcel}>
+                <Download size={16} /> Xuất Excel
+              </button>
+            </>
           )}
         </div>
 
@@ -173,7 +194,10 @@ export default function ThemeEvaluationPage() {
         ) : classesLoading || themesLoading ? (
           <LoadingState />
         ) : !currentClassId ? (
-          <EmptyState title="Bạn chưa được phân công lớp" description="Đánh giá cuối chủ đề theo lớp giáo viên phụ trách." />
+          <EmptyState
+            title="Chưa có lớp mẫu giáo để đánh giá"
+            description="Đánh giá cuối chủ đề chỉ dành cho lớp mẫu giáo; lớp nhà trẻ đánh giá hằng ngày và tròn tháng."
+          />
         ) : themes.length === 0 ? (
           <EmptyState
             title="Chưa có chủ đề để đánh giá"
@@ -197,8 +221,8 @@ export default function ThemeEvaluationPage() {
               </div>
               {ev.canEdit && (
                 <p className="muted text-sm mt-8">
-                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày (lần chấm cuối trong chủ đề). Bấm vào ô để đổi: + Đạt → − Chưa đạt → về kết
-                  quả hệ thống. Ô sửa tay có viền đậm.
+                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày (lần chấm cuối trong chủ đề). Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm
+                  tiếp tới khi về kết quả hệ thống. Ô sửa tay có viền đậm.
                 </p>
               )}
             </div>
@@ -234,19 +258,29 @@ export default function ThemeEvaluationPage() {
                           <td className="nowrap">{r.fullName}</td>
                           {r.cells.map((c) => {
                             const value = valueOf(r.childId, c);
-                            const edited = `${r.childId}:${c.goalId}` in edits;
-                            const label = `${r.fullName} – MT ${goalTitle[c.goalId] || ''}: ${value === true ? 'Đạt' : value === false ? 'Chưa đạt' : 'chưa chấm'}`;
+                            const manual = manualOf(r.childId, c);
+                            // Bỏ sửa tay ô đã lưu: chưa biết kết quả hệ thống tính tới khi lưu
+                            const reverting = c.manual && !manual;
+                            const label = `${r.fullName} – MT ${goalTitle[c.goalId] || ''}: ${
+                              reverting
+                                ? 'về kết quả hệ thống tính khi lưu'
+                                : value === true
+                                  ? 'Đạt'
+                                  : value === false
+                                    ? 'Chưa đạt'
+                                    : 'chưa chấm'
+                            }`;
                             return (
                               <td key={c.goalId} className="center">
                                 {ev.canEdit ? (
                                   <button
                                     type="button"
-                                    className={`dg-theme-cell ${c.manual || edited ? 'is-manual' : ''} ${value === false ? 'is-not-met' : ''}`}
+                                    className={`dg-theme-cell ${manual ? 'is-manual' : ''} ${value === false ? 'is-not-met' : ''}`}
                                     aria-label={label}
                                     title={label}
                                     onClick={() => toggle(r.childId, c)}
                                   >
-                                    {mark(value) || '·'}
+                                    {reverting ? '↺' : mark(value) || '·'}
                                   </button>
                                 ) : (
                                   <span className={value === false ? 'text-danger' : ''} title={label}>
@@ -328,12 +362,13 @@ export default function ThemeEvaluationPage() {
       <ConfirmationModal
         open={confirmOpen}
         title="Xác nhận đánh giá cuối chủ đề?"
-        message="Bảng sẽ được lưu cố định để in, ký và cho Ban giám hiệu xem. Đã xác nhận thì không sửa được."
+        message="Bảng sẽ được lưu cố định để in và cho tổ trưởng, Ban giám hiệu xem. Đã xác nhận thì không sửa được."
         confirmLabel="Xác nhận"
         onConfirm={() => run('confirm', confirmThemeEvaluation, 'Đã xác nhận đánh giá cuối chủ đề.')}
         onClose={() => setConfirmOpen(false)}
       />
       <LeaveConfirmModal {...guard.modal} canSave message="Đánh giá cuối chủ đề có thay đổi chưa lưu." />
+      {preview && <ThemeEvaluationPreviewModal file={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }

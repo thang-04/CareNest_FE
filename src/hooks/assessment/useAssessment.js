@@ -18,6 +18,7 @@ import {
   getQualityReport,
   getClassRatings,
   getThemeEvaluation,
+  getThemeClasses,
   getThemeList,
   getProgramCompletion,
   getClassAssessmentDetail,
@@ -168,6 +169,14 @@ export function useProgramCompletion(params, { enabled = true } = {}) {
     enabled,
   });
   return { report: data, loading, error, reload };
+}
+
+/** Lớp mẫu giáo xem được ở đánh giá cuối chủ đề (BE trả theo phạm vi: GV lớp mình, tổ trưởng lớp nhóm tuổi, HT/PHT). */
+export function useThemeClasses() {
+  const { user } = useAuth();
+  const { schoolYear } = useSchoolYear();
+  const { data, loading, error, reload } = useAsync(() => getThemeClasses({ schoolYear }, user), [schoolYear, user?.id]);
+  return { classes: data || [], loading, error, reload };
 }
 
 export function useThemeList(classId) {

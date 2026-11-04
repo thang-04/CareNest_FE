@@ -37,6 +37,7 @@
     "GET /assessment/reward-lists",
     "GET /assessment/reward-lists/classes/{x}",
     "GET /assessment/theme-evaluations",
+    "GET /assessment/theme-evaluations/classes",
     "GET /assessment/theme-evaluations/themes",
     "GET /attendance/classes",
     "GET /attendance/day-info",

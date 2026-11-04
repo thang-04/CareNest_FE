@@ -888,3 +888,17 @@
 .dg-theme-cell.is-manual {
   border-color: var(--color-border-strong);
 }
+
+/* Xem trước bản in đánh giá cuối chủ đề: khung A4 ngang, cuộn ngang trên màn hẹp */
+.dg-doc-preview-scroll {
+  overflow-x: auto;
+}
+.dg-doc-preview {
+  display: block;
+  width: 100%;
+  min-width: calc(var(--space-16) * 16);
+  height: 70vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}

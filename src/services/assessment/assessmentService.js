@@ -59,6 +59,7 @@ export const confirmClassMonthlyComment = (body, user) => (be || repo).confirmCl
 /** Xếp loại nhóm lớp theo kỳ: { rows: [{ classId, levels, note, canEdit, … }], campuses }. */
 export const getClassRatings = (params, user) => (be || repo).getClassRatings(params, user);
 /** Đánh giá cuối chủ đề (lớp mẫu giáo): danh sách chủ đề, bảng trẻ × MT, lưu ô sửa tay / ghi chú, xác nhận. */
+export const getThemeClasses = (params, user) => (be || repo).getThemeClasses(params, user);
 export const getThemeList = (params, user) => (be || repo).getThemeList(params, user);
 export const getThemeEvaluation = (params, user) => (be || repo).getThemeEvaluation(params, user);
 export const saveThemeEvaluation = (body, user) => (be || repo).saveThemeEvaluation(body, user);

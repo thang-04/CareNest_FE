@@ -137,6 +137,8 @@ export const createAssessmentBeApi = (client) => ({
   },
   saveClassRatings: ({ period, items }) => client.put('/assessment/class-ratings', { period, items }),
   // Đánh giá cuối chủ đề lớp mẫu giáo (BE OBS-27): chủ đề của kế hoạch năm học đã duyệt, bảng trẻ × MT
+  getThemeClasses: ({ schoolYear } = {}) =>
+    client.get('/assessment/theme-evaluations/classes', { params: { schoolYearId: schoolYear || undefined } }),
   getThemeList: ({ classId }) => client.get('/assessment/theme-evaluations/themes', { params: { classId } }),
   getThemeEvaluation: ({ classId, themeId }) => client.get('/assessment/theme-evaluations', { params: { classId, themeId } }),
   saveThemeEvaluation: (body) => client.put('/assessment/theme-evaluations', body),

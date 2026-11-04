@@ -274,6 +274,10 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     return clone({ campusIds: campuses(db, classes).map((c) => c.id), campuses: campuses(db, classes), rows, totals });
   },
   // BE giả OBS-27: bản demo chưa có kế hoạch năm học đã duyệt nên chưa có chủ đề để đánh giá cuối chủ đề
+  async getThemeClasses() {
+    ensureReady();
+    return [];
+  },
   async getThemeList() {
     ensureReady();
     return [];
