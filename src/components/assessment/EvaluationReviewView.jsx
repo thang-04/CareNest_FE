@@ -406,6 +406,8 @@ export function EvaluationReviewView({ kind, id }) {
 
       {yearEnd && (
         <YearEndSheetCard
+          // Xác nhận (đổi trạng thái) ⇒ tải lại phiếu: phiếu chuyển chỉ xem, có ngày ký trên bản in
+          key={`${ev.id}-${ev.status}`}
           evaluation={ev}
           child={detail.child}
           comment={canReview ? content : ev.finalContent}

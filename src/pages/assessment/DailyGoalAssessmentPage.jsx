@@ -99,6 +99,8 @@ export default function DailyGoalAssessmentPage() {
   const [saveState, setSaveState] = useState({ phase: 'idle', at: null });
   const [openChild, setOpenChild] = useState(null);
   const inFlight = useRef(false);
+  // Thời điểm vừa lưu: bảng tải lại sau khi lưu vẫn hiện "Đã lưu"
+  const savedAt = useRef(null);
 
   useEffect(() => {
     if (!sheet) return;
@@ -106,7 +108,8 @@ export default function DailyGoalAssessmentPage() {
     setDrafts(Object.fromEntries(sheet.rows.map((r) => [r.childId, isSkillsRecorded(r) ? fromRow(r) : withDefaultMet(fromRow(r), acts)])));
     setDirty({});
     setSaveError(null);
-    setSaveState({ phase: 'idle', at: null });
+    setSaveState(savedAt.current ? { phase: 'saved', at: savedAt.current } : { phase: 'idle', at: null });
+    savedAt.current = null;
   }, [sheet]);
 
   const lesson = sheet?.lesson || null;
@@ -163,11 +166,15 @@ export default function DailyGoalAssessmentPage() {
     setSaveState((s) => ({ ...s, phase: 'saving' }));
     try {
       await saveDailySkills({ classId: currentClassId, date: sheet.date, entries }, user);
-      setSaveState({ phase: 'saved', at: new Date() });
+      // Giữ khóa ô tới khi bảng tải lại xong: chọn thêm lúc đang tải sẽ bị bảng mới ghi đè
+      savedAt.current = new Date();
       toast.success(`Đã lưu đánh giá của ${entries.length} trẻ.`);
-      reload({ silent: true });
+      await reload({ silent: true });
+      const at = savedAt.current || new Date();
+      setSaveState((st) => (st.phase === 'saving' ? { phase: 'saved', at } : st));
       return true;
     } catch (err) {
+      savedAt.current = null;
       setSaveError(err);
       setSaveState((s) => ({ ...s, phase: 'error' }));
       toast.error(err, 'Không lưu được đánh giá');

@@ -172,6 +172,7 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                                 aria-pressed={value === option}
                                 aria-label={`${g.text}: ${option ? 'Đạt' : 'Chưa đạt'}`}
                                 onClick={() => pick(g, option)}
+                                disabled={busy}
                               >
                                 {value === option ? '✓' : '·'}
                               </button>
@@ -207,6 +208,7 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                   maxLength={NOTE_MAX}
                   value={notes[key]}
                   onChange={(e) => setNotes((prev) => ({ ...prev, [key]: e.target.value }))}
+                  disabled={busy}
                 />
               ) : (
                 <div id={`year-note-${key}`} className="text-sm">
