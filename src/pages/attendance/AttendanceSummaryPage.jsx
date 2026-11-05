@@ -1,5 +1,5 @@
 import { DonutChart } from '@/components/charts/MiniCharts';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, BarChart3, Buildings, School } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,18 +41,27 @@ export default function AttendanceSummaryPage() {
   const paramClass = params.get('classId') || '';
   // Tổ trưởng chuyên môn: xem lớp mình hoặc tổng hợp các lớp nhóm tuổi mình (BE lọc theo nhóm tuổi, Cần chốt 04/11)
   const teamLeader = user?.role === ROLES.TEAM_LEADER;
-  const groupMode = teamLeader && params.get('scope') === 'group';
+  // Tổ trưởng không dạy lớp nào thì chỉ có phạm vi các lớp nhóm tuổi
+  const groupMode = teamLeader && (params.get('scope') === 'group' || (!loadingClasses && classes.length === 0));
   const classId = manager
     ? campusClasses.some((c) => c.id === paramClass)
       ? paramClass
       : ''
     : groupMode
-      ? ''
+      ? paramClass // bấm một lớp trong bảng "Theo lớp" thì xem riêng lớp đó (BE cho tổ trưởng xem tổng hợp lớp nhóm mình)
       : paramClass || classes[0]?.id || '';
   const multi = (manager || groupMode) && !classId;
   const [range, setRange] = useState({ from: params.get('from') || addDays(today, -13), to: params.get('to') || today });
   // Lọc nhanh theo học kỳ: đặt Từ ngày – Đến ngày theo học kỳ (cắt tới hôm nay); sửa ngày tay thì bỏ chọn
   const [semester, setSemester] = useState('');
+  // Đổi năm học ở đầu trang: khoảng ngày và học kỳ về mặc định của năm mới (không gửi ngày của năm cũ)
+  const yearToday = useRef(today);
+  useEffect(() => {
+    if (yearToday.current === today) return;
+    yearToday.current = today;
+    setRange({ from: addDays(today, -13), to: today });
+    setSemester('');
+  }, [today]);
   const [pageSize, setPageSize] = useState(20);
   const [pageState, setPageState] = useState({ key: '', value: 1 });
   const rangeErrors = validateSummaryRange(range);
@@ -90,13 +99,13 @@ export default function AttendanceSummaryPage() {
 
   const exportCsv = () => {
     if (!summary) return;
-    const head = ['Ngày', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Chưa điểm danh', 'Suất ăn', 'Trong đó suất thay thế'];
+    const head = ['Ngày', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Chưa điểm danh', 'Lượt trẻ ăn', 'Trong đó ăn suất thay thế'];
     const rows = summary.days.map((d) => [formatDate(d.date), d.present, d.excused, d.unexcused, d.missing, d.mealTotal, d.substitute]);
     // Nhiều lớp: thêm bảng theo lớp sau bảng theo ngày
     const byClass = multi
       ? [
           [],
-          ['Lớp', 'Điểm trường', 'Sĩ số', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Suất ăn'],
+          ['Lớp', 'Điểm trường', 'Sĩ số', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn'],
           ...summary.classes.map((c) => [c.className, campusName(c.campusId), c.size, c.present, c.excused, c.unexcused, c.meals]),
         ]
       : [];
@@ -136,7 +145,7 @@ export default function AttendanceSummaryPage() {
       </div>
       {classError ? (
         <ErrorState error={classError} onRetry={reloadClasses} />
-      ) : classes.length === 0 ? (
+      ) : classes.length === 0 && !teamLeader ? (
         <div className="card">
           <EmptyState
             icon={BarChart3}
@@ -295,7 +304,12 @@ export default function AttendanceSummaryPage() {
                     </div>
                     <div className="dd-stat dd-stat--blue">
                       <span className="dd-stat__value">{totals.meals}</span>
-                      <span className="dd-stat__label">Suất ăn</span>
+                      <span
+                        className="dd-stat__label"
+                        title="Số lượt trẻ có ăn trong ngày (mỗi trẻ 1 lượt/ngày); số suất theo bữa xem ở Sổ báo ăn"
+                      >
+                        Lượt trẻ ăn
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -315,7 +329,9 @@ export default function AttendanceSummaryPage() {
                           <th className="num">Có phép</th>
                           <th className="num">Không phép</th>
                           <th className="num">Chưa ĐD</th>
-                          <th className="num">Suất ăn</th>
+                          <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                            Lượt trẻ ăn
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -394,7 +410,9 @@ export default function AttendanceSummaryPage() {
                             <th className="num">Có mặt</th>
                             <th className="num">Có phép</th>
                             <th className="num">Không phép</th>
-                            <th className="num">Suất ăn</th>
+                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                              Lượt trẻ ăn
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -452,7 +470,9 @@ export default function AttendanceSummaryPage() {
                             <th className="num">Có mặt</th>
                             <th className="num">Có phép</th>
                             <th className="num">Không phép</th>
-                            <th className="num">Suất ăn</th>
+                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                              Lượt trẻ ăn
+                            </th>
                           </tr>
                         </thead>
                         <tbody>

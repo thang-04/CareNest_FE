@@ -158,9 +158,10 @@ const teacherAssignAccess = (user) => {
 export const teacherAssignmentAccess = teacherAssignAccess;
 /** Màn "Phân công giáo viên" mở khi có quyền phân công nhân sự. */
 export const canOpenTeacherAssignment = (user) => teacherAssignAccess(user).access !== PERMISSION_ACCESS.NONE;
+// Xem: PHT xem phân công mọi điểm trường (BE AUTH-20); sửa vẫn chỉ điểm trường mình (canAssignTeachers)
 export const canViewTeacherAssignments = (campusId, user) => {
   const p = teacherAssignAccess(user);
-  return p.access !== PERMISSION_ACCESS.NONE && inScope(p, campusId, user);
+  return p.access !== PERMISSION_ACCESS.NONE && !!campusId;
 };
 /** action: 'create' phân công mới, 'update' đổi, 'delete' gỡ; true = có ít nhất 1 thao tác ghi. */
 export const canAssignTeachers = (campusId, user, action = true) => {

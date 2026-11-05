@@ -7,7 +7,7 @@ const campusLabel = (campuses, id) => {
   return c?.shortName || c?.name;
 };
 
-const GOAL_LISTS = ['goalsMet', 'goalsEffort', 'goalsNotMet'];
+const GOAL_LISTS = ['goalsMet', 'goalsNotMet'];
 // beClient đổi `id` số thành chuỗi nhưng không đổi phần tử của goalsMet/…: đưa về chuỗi để so với goals[].id
 const goalIdsToUi = (a) => ({ ...a, ...Object.fromEntries(GOAL_LISTS.map((k) => [k, (a[k] || []).map(String)])) });
 const goalIdsToBe = (a) => ({ ...a, ...Object.fromEntries(GOAL_LISTS.map((k) => [k, (a[k] || []).map(Number)])) });
@@ -68,14 +68,19 @@ export const createAssessmentBeApi = (client) => ({
       { preserveEmptyStrings: ['classComment'] },
     ),
   saveDailySkills: ({ classId, date, entries }) =>
-    client.put(`/classes/${classId}/daily-assessment/skills`, {
-      date,
-      entries: entries.map((e) => ({
-        childId: e.childId,
-        comment: e.comment ?? null,
-        activities: (e.activities || []).map((a) => goalIdsToBe({ key: a.key, participation: blank(a.participation), ...pickGoals(a) })),
-      })),
-    }),
+    client.put(
+      `/classes/${classId}/daily-assessment/skills`,
+      {
+        date,
+        entries: entries.map((e) => ({
+          childId: e.childId,
+          comment: e.comment ?? null,
+          activities: (e.activities || []).map((a) => goalIdsToBe({ key: a.key, participation: blank(a.participation), ...pickGoals(a) })),
+        })),
+      },
+      // '' = xóa nhận xét (BE: null mới là giữ nguyên), không để tầng chung đổi thành null
+      { preserveEmptyStrings: ['comment'] },
+    ),
   listAssessmentDayUnlocks: ({ campusId, classId, active, from, to } = {}) =>
     client.get('/assessment/day-unlocks', {
       params: {
@@ -136,6 +141,13 @@ export const createAssessmentBeApi = (client) => ({
     };
   },
   saveClassRatings: ({ period, items }) => client.put('/assessment/class-ratings', { period, items }),
+  // Đánh giá cuối chủ đề lớp mẫu giáo (BE OBS-27): chủ đề của kế hoạch năm học đã duyệt, bảng trẻ × MT
+  getThemeClasses: ({ schoolYear } = {}) =>
+    client.get('/assessment/theme-evaluations/classes', { params: { schoolYearId: schoolYear || undefined } }),
+  getThemeList: ({ classId }) => client.get('/assessment/theme-evaluations/themes', { params: { classId } }),
+  getThemeEvaluation: ({ classId, themeId }) => client.get('/assessment/theme-evaluations', { params: { classId, themeId } }),
+  saveThemeEvaluation: (body) => client.put('/assessment/theme-evaluations', body),
+  confirmThemeEvaluation: (body) => client.post('/assessment/theme-evaluations/confirm', body),
   // Nhận xét chung cả lớp theo tháng (BE OBS-26); month = ngày 1 của tháng
   getClassMonthlyComment: ({ classId, month }) => client.get('/assessment/class-monthly-comments', { params: { classId, month } }),
   saveClassMonthlyComment: ({ classId, month, content }) => client.put('/assessment/class-monthly-comments', { classId, month, content }),
@@ -155,6 +167,9 @@ export const createAssessmentBeApi = (client) => ({
   confirmEvaluation: (kind, id, content) => client.post(`/assessment/evaluations/${id}/confirm`, { content }),
   regenerateEvaluationDraft: (kind, id) => client.post(`/assessment/evaluations/${id}/redraft`),
   markProgramCompletion: (id, completed) => client.put(`/assessment/evaluations/${id}/program-completion`, { completed }),
+  // Phiếu đánh giá sự phát triển cuối năm (BE OBS-28)
+  getYearEndSheet: (id) => client.get(`/assessment/evaluations/${id}/year-sheet`),
+  saveYearEndSheet: (id, body) => client.put(`/assessment/evaluations/${id}/year-sheet`, body),
   // Hồ sơ / tiến độ phát triển: trẻ trong phạm vi của năm học, số liệu của trẻ theo khoảng ngày
   getDevelopmentChildren: ({ schoolYear, classId } = {}) =>
     client.get('/assessment/children', { params: { schoolYearId: schoolYear || undefined, classId: classId || undefined } }),

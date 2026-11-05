@@ -83,8 +83,7 @@ export function PeriodSummaryTable({ data }) {
                   ? 'Chưa có mục tiêu được chấm trong kỳ'
                   : goals.map(([g, c]) => (
                       <div key={g}>
-                        {g}: đạt {c.dat}
-                        {c.canCoGang ? ` · cần cố gắng ${c.canCoGang}` : ''} · chưa đạt {c.chuaDat}
+                        {g}: đạt {c.dat}· chưa đạt {c.chuaDat}
                       </div>
                     ))}
               </td>

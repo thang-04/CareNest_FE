@@ -137,7 +137,14 @@ export default function ClassRatingsPage() {
 
   const guard = useLeaveGuard({ when: changed.length > 0, onSave: save });
   // Đổi kỳ / điểm trường khi còn thay đổi chưa lưu: hỏi trước
-  const confirmChange = (apply) => (changed.length ? setPending(() => apply) : apply());
+  // Không còn thay đổi thật: vẫn bỏ các ô đã sửa rồi đổi lại (drafts theo lớp, không theo kỳ) trước khi đổi kỳ
+  const confirmChange = (apply) => {
+    if (changed.length) setPending(() => apply);
+    else {
+      setDrafts({});
+      apply();
+    }
+  };
 
   const exportExcel = () => {
     const title = `Xếp loại nhóm lớp – ${CLASS_RATING_PERIOD_LABELS[period]}${campusId ? ` – ${campusName(campusId)}` : ''}`;
