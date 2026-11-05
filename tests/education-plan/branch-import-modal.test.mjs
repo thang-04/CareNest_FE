@@ -14,7 +14,7 @@ const Modal=({children,footer,width})=>React.createElement('section',{'data-widt
 const Notice=({children})=>React.createElement('aside',{},children);
 export const reads=[];
 const USE_MOCK=false, previewBranchFile=async file=>{reads.push(file);return {matches:[],warnings:[]};}, branchFileChanges=(_draft,preview)=>preview.matches;
-const branchTemplateFile=weeks=>({html:'template-'+weeks.length,name:'Mẫu nhập chủ đề nhánh'});
+const branchTemplateFile=args=>({html:'template-'+args.cls.name,name:'Mẫu nhập chủ đề nhánh'});
 export const downloads=[]; const downloadDoc=(html,name)=>downloads.push({html,name});
 `;
 const { code } = await transformWithOxc(stubs + source.replace(/^import .*;\r?\n/gm, ''), 'ImportBranchFileModal.jsx', {
@@ -24,7 +24,7 @@ const { code } = await transformWithOxc(stubs + source.replace(/^import .*;\r?\n
 const module = await import(
   `data:text/javascript;base64,${Buffer.from(code.replace('from "react"', `from ${JSON.stringify(import.meta.resolve('react'))}`)).toString('base64')}`
 );
-const props = { classId: '1', yearPlanId: '2', weeks: [{ theme: { name: 'Mẫu' } }], draft: { names: {} }, onImport: () => true };
+const props = { classId: '1', yearPlanId: '2', templateArgs: { cls: { name: 'Mẫu' } }, draft: { names: {} }, onImport: () => true };
 const buttons = (element) => {
   if (!React.isValidElement(element)) return [];
   return [
@@ -41,7 +41,7 @@ test('modal giống mục tiêu: width720, chọn file và tải mẫu cùng hà
   assert.ok(download);
   assert.equal(download.props.className, 'btn btn--ghost');
   download.props.onClick();
-  assert.deepEqual(module.downloads.at(-1), { html: 'template-1', name: 'Mẫu nhập chủ đề nhánh' });
+  assert.deepEqual(module.downloads.at(-1), { html: 'template-Mẫu', name: 'Mẫu nhập chủ đề nhánh' });
   const html = renderToStaticMarkup(element);
   assert.match(html, /class="row row--wrap gap-2"/);
   assert.match(html, /Chọn file/);
@@ -69,7 +69,11 @@ test('nhập nhánh chặn file sai trước API và chấp nhận file hợp l�
     return React.Children.toArray(element.props.children).map(findInput).find(Boolean);
   };
   const before = module.reads.length;
-  for (const file of [{ name: 'plan.exe', size: 12 }, { name: 'plan.docx', size: 0 }, { name: 'plan.docx', size: 2097153 }]) {
+  for (const file of [
+    { name: 'plan.exe', size: 12 },
+    { name: 'plan.docx', size: 0 },
+    { name: 'plan.docx', size: 2097153 },
+  ]) {
     await findInput(module.ImportBranchFileModal(props)).props.onChange({ target: { files: [file] } });
   }
   assert.equal(module.reads.length, before);

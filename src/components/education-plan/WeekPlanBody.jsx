@@ -4,6 +4,7 @@ import { Check } from '@/components/ui/icons';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { suggestLessonSteps } from '@/services/education-plan/educationPlanService';
 import FloatingPanel from '@/components/education-plan/FloatingPanel';
+import { FoldSection } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import {
   DAY_SECTIONS,
@@ -218,168 +219,176 @@ export function WeekTab({
   });
   return (
     <>
-      <div className="section-title">I. Mục đích yêu cầu</div>
-      {/* Gợi ý ô Kiến thức từ câu MT của các hoạt động đã xếp trong tuần (chỉ khi ô còn trống), cô viết lại thành câu */}
-      {editable && !draft.aims.knowledge?.trim() && weekAimsFromGoals(draft, goals) && (
-        <div className="row row--wrap gap-2">
-          <button
-            type="button"
-            className="btn btn--outline-primary btn--sm"
-            onClick={() => update((d) => ((d.aims.knowledge = weekAimsFromGoals(d, goals)), d))}
-          >
-            Gợi ý Kiến thức từ MT đã xếp trong tuần
-          </button>
-        </div>
-      )}
-      <LabelTable
-        rows={AIMS.map((a) => ({
-          label: a.label,
-          cell: (
-            <Cell editable={editable} value={draft.aims[a.key]} label={a.label} onChange={(v) => update((d) => ((d.aims[a.key] = v), d))} />
-          ),
-        }))}
-      />
-      <div className="section-title">II. Chuẩn bị</div>
-      <LabelTable
-        rows={[
-          {
-            label: 'Chuẩn bị',
-            cell: <Cell editable={editable} value={draft.prep} label="Chuẩn bị" onChange={(v) => update((d) => ((d.prep = v), d))} />,
-          },
-        ]}
-      />
-      <div className="section-title">III. Tổ chức hoạt động</div>
-      {(coverage || (editable && prevWeek)) && (
-        <div className="row row--wrap gap-2">
-          {coverage && (
-            <span className="muted text-sm">
-              Cả chủ đề: đã xếp {coverage.placed}/{coverage.total} hoạt động, phủ {coverage.covered}/{coverage.goals} MT
-              {coverage.missingGoals.length > 0 && ` · còn thiếu ${mtList(coverage.missingGoals.map((g) => g.no))}`}
-            </span>
-          )}
-          {editable && prevWeek && (
+      <FoldSection title="I. Mục đích yêu cầu">
+        {/* Gợi ý ô Kiến thức từ câu MT của các hoạt động đã xếp trong tuần (chỉ khi ô còn trống), cô viết lại thành câu */}
+        {editable && !draft.aims.knowledge?.trim() && weekAimsFromGoals(draft, goals) && (
+          <div className="row row--wrap gap-2">
             <button
               type="button"
               className="btn btn--outline-primary btn--sm"
-              title="Chép các dòng cả tuần (Đón trẻ, Trò chuyện, Thể dục sáng, Chơi ở các góc, Trả trẻ…) còn trống từ tuần trước"
-              onClick={() => update((d) => copyMergedRows(d, prevWeek))}
+              onClick={() => update((d) => ((d.aims.knowledge = weekAimsFromGoals(d, goals)), d))}
             >
-              Lấy dòng cả tuần từ tuần trước
+              Gợi ý Kiến thức từ MT đã xếp trong tuần
             </button>
-          )}
-        </div>
-      )}
-      <div className="table-wrap">
-        <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
-          <colgroup>
-            <col className="ga-goal-table__group" />
-            {WEEKDAY_LABELS.map((l) => (
-              <col key={l} />
-            ))}
-          </colgroup>
-          <thead>
-            <tr>
-              <th className="cell--fixed">Tên hoạt động</th>
-              {WEEKDAY_LABELS.map((l, i) => (
-                <th key={l} className="center">
-                  {l} · {ddmm(addDays(week.start, i))}
-                  {week.offDays?.[i] && <div className="text-xs text-warning">Nghỉ: {week.offDays[i]}</div>}
-                </th>
+          </div>
+        )}
+        <LabelTable
+          rows={AIMS.map((a) => ({
+            label: a.label,
+            cell: (
+              <Cell
+                editable={editable}
+                value={draft.aims[a.key]}
+                label={a.label}
+                onChange={(v) => update((d) => ((d.aims[a.key] = v), d))}
+              />
+            ),
+          }))}
+        />
+      </FoldSection>
+      <FoldSection title="II. Chuẩn bị">
+        <LabelTable
+          rows={[
+            {
+              label: 'Chuẩn bị',
+              cell: <Cell editable={editable} value={draft.prep} label="Chuẩn bị" onChange={(v) => update((d) => ((d.prep = v), d))} />,
+            },
+          ]}
+        />
+      </FoldSection>
+      <FoldSection title="III. Tổ chức hoạt động">
+        {(coverage || (editable && prevWeek)) && (
+          <div className="row row--wrap gap-2">
+            {coverage && (
+              <span className="muted text-sm">
+                Cả chủ đề: đã xếp {coverage.placed}/{coverage.total} hoạt động, phủ {coverage.covered}/{coverage.goals} MT
+                {coverage.missingGoals.length > 0 && ` · còn thiếu ${mtList(coverage.missingGoals.map((g) => g.no))}`}
+              </span>
+            )}
+            {editable && prevWeek && (
+              <button
+                type="button"
+                className="btn btn--outline-primary btn--sm"
+                title="Chép các dòng cả tuần (Đón trẻ, Trò chuyện, Thể dục sáng, Chơi ở các góc, Trả trẻ…) còn trống từ tuần trước"
+                onClick={() => update((d) => copyMergedRows(d, prevWeek))}
+              >
+                Lấy dòng cả tuần từ tuần trước
+              </button>
+            )}
+          </div>
+        )}
+        <div className="table-wrap">
+          <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+            <colgroup>
+              <col className="ga-goal-table__group" />
+              {WEEKDAY_LABELS.map((l) => (
+                <col key={l} />
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {weekRows().map((r) => {
-              const g = rowCell(draft, r);
-              const merged = r.canMerge && g.allWeek;
-              return (
-                <Fragment key={r.key}>
-                  <tr>
-                    <td className="cell--fixed">
-                      <div className="ga-goal-table__pad stack">
-                        <span className="fw-600">{r.label}</span>
-                        {r.canMerge && editable && (
-                          <label className="row gap-2 text-xs">
-                            <input
-                              type="checkbox"
-                              checked={g.allWeek}
-                              onChange={(e) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).allWeek = e.target.checked), d))}
-                            />
-                            Cả tuần
-                          </label>
-                        )}
-                      </div>
-                    </td>
-                    {merged ? (
-                      <td colSpan={5}>
-                        <ActivityCell {...cellProps(r, 'all')}>
-                          <Cell
-                            editable={editable}
-                            value={g.common}
-                            label={`${r.label} cả tuần`}
-                            onChange={(v) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).common = v), d))}
-                          />
-                        </ActivityCell>
-                      </td>
-                    ) : (
-                      g.days.map((v, i) => (
-                        <td key={i}>
-                          <ActivityCell {...cellProps(r, i)}>
-                            {r.key === 'hoc' ? (
-                              <>
-                                <Cell
-                                  editable={editable}
-                                  value={v.subject}
-                                  label={`Môn ${WEEKDAY_LABELS[i]}`}
-                                  placeholder="Môn / lĩnh vực"
-                                  onChange={(x) => update((d) => ((d.grid.hoc.days[i].subject = x), d))}
-                                />
-                                <Cell
-                                  editable={editable}
-                                  value={v.topic}
-                                  label={`Đề tài ${WEEKDAY_LABELS[i]}`}
-                                  placeholder="Đề tài"
-                                  onChange={(x) => update((d) => ((d.grid.hoc.days[i].topic = x), d))}
-                                />
-                              </>
-                            ) : (
-                              <Cell
-                                editable={editable}
-                                value={v}
-                                label={`${r.label} ${WEEKDAY_LABELS[i]}`}
-                                onChange={(x) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).days[i] = x), d))}
-                              />
-                            )}
-                          </ActivityCell>
-                        </td>
-                      ))
-                    )}
-                  </tr>
-                  {/* Phần chung cả tuần dưới 5 ô ngày (mẫu Thái Dương: Chơi tự do, Chơi tự chọn, Nêu gương cuối ngày) */}
-                  {!merged && r.extraLabel && (editable || g.extra?.trim()) && (
+            </colgroup>
+            <thead>
+              <tr>
+                <th className="cell--fixed">Tên hoạt động</th>
+                {WEEKDAY_LABELS.map((l, i) => (
+                  <th key={l} className="center">
+                    {l} · {ddmm(addDays(week.start, i))}
+                    {week.offDays?.[i] && <div className="text-xs text-warning">Nghỉ: {week.offDays[i]}</div>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {weekRows().map((r) => {
+                const g = rowCell(draft, r);
+                const merged = r.canMerge && g.allWeek;
+                return (
+                  <Fragment key={r.key}>
                     <tr>
                       <td className="cell--fixed">
-                        <div className="ga-goal-table__pad text-sm">{r.label} (cả tuần)</div>
+                        <div className="ga-goal-table__pad stack">
+                          <span className="fw-600">{r.label}</span>
+                          {r.canMerge && editable && (
+                            <label className="row gap-2 text-xs">
+                              <input
+                                type="checkbox"
+                                checked={g.allWeek}
+                                onChange={(e) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).allWeek = e.target.checked), d))}
+                              />
+                              Cả tuần
+                            </label>
+                          )}
+                        </div>
                       </td>
-                      <td colSpan={5}>
-                        <ActivityCell {...cellProps(r, 'extra')}>
-                          <Cell
-                            editable={editable}
-                            value={g.extra}
-                            label={`${r.label} cả tuần`}
-                            placeholder={r.extraLabel}
-                            onChange={(v) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).extra = v), d))}
-                          />
-                        </ActivityCell>
-                      </td>
+                      {merged ? (
+                        <td colSpan={5}>
+                          <ActivityCell {...cellProps(r, 'all')}>
+                            <Cell
+                              editable={editable}
+                              value={g.common}
+                              label={`${r.label} cả tuần`}
+                              onChange={(v) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).common = v), d))}
+                            />
+                          </ActivityCell>
+                        </td>
+                      ) : (
+                        g.days.map((v, i) => (
+                          <td key={i}>
+                            <ActivityCell {...cellProps(r, i)}>
+                              {r.key === 'hoc' ? (
+                                <>
+                                  <Cell
+                                    editable={editable}
+                                    value={v.subject}
+                                    label={`Môn ${WEEKDAY_LABELS[i]}`}
+                                    placeholder="Môn / lĩnh vực"
+                                    onChange={(x) => update((d) => ((d.grid.hoc.days[i].subject = x), d))}
+                                  />
+                                  <Cell
+                                    editable={editable}
+                                    value={v.topic}
+                                    label={`Đề tài ${WEEKDAY_LABELS[i]}`}
+                                    placeholder="Đề tài"
+                                    onChange={(x) => update((d) => ((d.grid.hoc.days[i].topic = x), d))}
+                                  />
+                                </>
+                              ) : (
+                                <Cell
+                                  editable={editable}
+                                  value={v}
+                                  label={`${r.label} ${WEEKDAY_LABELS[i]}`}
+                                  onChange={(x) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).days[i] = x), d))}
+                                />
+                              )}
+                            </ActivityCell>
+                          </td>
+                        ))
+                      )}
                     </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    {/* Phần chung cả tuần dưới 5 ô ngày (mẫu Thái Dương: Chơi tự do, Chơi tự chọn, Nêu gương cuối ngày) */}
+                    {!merged && r.extraLabel && (editable || g.extra?.trim()) && (
+                      <tr>
+                        <td className="cell--fixed">
+                          <div className="ga-goal-table__pad text-sm">{r.label} (cả tuần)</div>
+                        </td>
+                        <td colSpan={5}>
+                          <ActivityCell {...cellProps(r, 'extra')}>
+                            <Cell
+                              editable={editable}
+                              value={g.extra}
+                              label={`${r.label} cả tuần`}
+                              placeholder={r.extraLabel}
+                              onChange={(v) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).extra = v), d))}
+                            />
+                          </ActivityCell>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </FoldSection>
     </>
   );
 }
@@ -561,116 +570,120 @@ export function DayTab({
           },
         ]}
       />
-      <div className="section-title">I. Mục đích yêu cầu</div>
-      <LabelTable
-        rows={[
-          {
-            label: 'Mục đích yêu cầu',
-            cell: <Cell editable={editable} value={d.aims} label="Mục đích yêu cầu" onChange={(v) => setDay('aims', v)} />,
-          },
-        ]}
-      />
-      <div className="section-title">II. Chuẩn bị</div>
-      <LabelTable
-        rows={[
-          {
-            label: 'Chuẩn bị',
-            cell: <Cell editable={editable} value={d.prep} label="Chuẩn bị của ngày" onChange={(v) => setDay('prep', v)} />,
-          },
-        ]}
-      />
-      <div className="section-title">III. Tiến trình hoạt động</div>
-      <div className="table-wrap">
-        <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
-          <colgroup>
-            <col />
-            <col />
-            <col className="ga-goal-table__group" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Hoạt động của cô</th>
-              <th>Hoạt động của trẻ</th>
-              <th>Ghi chú</th>
-            </tr>
-          </thead>
-          <tbody>
-            {DAY_SECTIONS.map((s) => (
-              <Fragment key={s.key}>
-                <tr>
-                  <td colSpan={3} className="cell--fixed">
-                    <div className="ga-goal-table__pad fw-600">
-                      {s.label}
-                      {s.key === 'hoc' && topic ? `: ${topic}` : ''}
-                    </div>
-                  </td>
-                </tr>
-                {s.parts.map((p) => {
-                  const key = `${s.key}.${p.key}`;
-                  const st = d.steps[key];
-                  return (
-                    <Fragment key={key}>
-                      {p.label && (
+      <FoldSection title="I. Mục đích yêu cầu">
+        <LabelTable
+          rows={[
+            {
+              label: 'Mục đích yêu cầu',
+              cell: <Cell editable={editable} value={d.aims} label="Mục đích yêu cầu" onChange={(v) => setDay('aims', v)} />,
+            },
+          ]}
+        />
+      </FoldSection>
+      <FoldSection title="II. Chuẩn bị">
+        <LabelTable
+          rows={[
+            {
+              label: 'Chuẩn bị',
+              cell: <Cell editable={editable} value={d.prep} label="Chuẩn bị của ngày" onChange={(v) => setDay('prep', v)} />,
+            },
+          ]}
+        />
+      </FoldSection>
+      <FoldSection title="III. Tiến trình hoạt động">
+        <div className="table-wrap">
+          <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+            <colgroup>
+              <col />
+              <col />
+              <col className="ga-goal-table__group" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Hoạt động của cô</th>
+                <th>Hoạt động của trẻ</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              {DAY_SECTIONS.map((s) => (
+                <Fragment key={s.key}>
+                  <tr>
+                    <td colSpan={3} className="cell--fixed">
+                      <div className="ga-goal-table__pad fw-600">
+                        {s.label}
+                        {s.key === 'hoc' && topic ? `: ${topic}` : ''}
+                      </div>
+                    </td>
+                  </tr>
+                  {s.parts.map((p) => {
+                    const key = `${s.key}.${p.key}`;
+                    const st = d.steps[key];
+                    return (
+                      <Fragment key={key}>
+                        {p.label && (
+                          <tr>
+                            <td colSpan={3}>
+                              <div className="ga-goal-table__pad">
+                                <i>{p.label}</i>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                         <tr>
-                          <td colSpan={3}>
-                            <div className="ga-goal-table__pad">
-                              <i>{p.label}</i>
-                            </div>
+                          <td>
+                            <Cell
+                              editable={editable}
+                              value={st.teacher}
+                              label={`${s.label} ${p.label} – hoạt động của cô`}
+                              onChange={(v) => setStep(key, 'teacher', v)}
+                            />
+                          </td>
+                          <td>
+                            <Cell
+                              editable={editable}
+                              value={st.child}
+                              label={`${s.label} ${p.label} – hoạt động của trẻ`}
+                              onChange={(v) => setStep(key, 'child', v)}
+                            />
+                          </td>
+                          <td>
+                            <Cell
+                              editable={editable}
+                              value={st.note}
+                              label={`${s.label} ${p.label} – ghi chú`}
+                              onChange={(v) => setStep(key, 'note', v)}
+                            />
                           </td>
                         </tr>
-                      )}
-                      <tr>
-                        <td>
-                          <Cell
-                            editable={editable}
-                            value={st.teacher}
-                            label={`${s.label} ${p.label} – hoạt động của cô`}
-                            onChange={(v) => setStep(key, 'teacher', v)}
-                          />
-                        </td>
-                        <td>
-                          <Cell
-                            editable={editable}
-                            value={st.child}
-                            label={`${s.label} ${p.label} – hoạt động của trẻ`}
-                            onChange={(v) => setStep(key, 'child', v)}
-                          />
-                        </td>
-                        <td>
-                          <Cell
-                            editable={editable}
-                            value={st.note}
-                            label={`${s.label} ${p.label} – ghi chú`}
-                            onChange={(v) => setStep(key, 'note', v)}
-                          />
-                        </td>
-                      </tr>
-                    </Fragment>
-                  );
-                })}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {/* Mẫu Thái Dương: cuối kế hoạch ngày; ghi được cả sau khi duyệt (BE:EDU-27) */}
-      <div className="section-title">*Kế hoạch điều chỉnh và bổ sung</div>
-      <LabelTable
-        rows={[
-          {
-            label: 'Kế hoạch điều chỉnh và bổ sung',
-            cell: (
-              <Cell
-                editable={adjustEditable}
-                value={draft.adjustments?.[d.date] || ''}
-                label="Kế hoạch điều chỉnh và bổ sung"
-                placeholder="Điều chỉnh, bổ sung cho ngày này (ghi được cả sau khi duyệt)"
-                onChange={(v) => update((x) => (((x.adjustments ||= {})[d.date] = v), x))}
-              />
-            ),
-          },
-        ]}
-      />
+                      </Fragment>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Mẫu Thái Dương: cuối kế hoạch ngày; ghi được cả sau khi duyệt (BE:EDU-27) */}
+      </FoldSection>
+      <FoldSection title="*Kế hoạch điều chỉnh và bổ sung">
+        <LabelTable
+          rows={[
+            {
+              label: 'Kế hoạch điều chỉnh và bổ sung',
+              cell: (
+                <Cell
+                  editable={adjustEditable}
+                  value={draft.adjustments?.[d.date] || ''}
+                  label="Kế hoạch điều chỉnh và bổ sung"
+                  placeholder="Điều chỉnh, bổ sung cho ngày này (ghi được cả sau khi duyệt)"
+                  onChange={(v) => update((x) => (((x.adjustments ||= {})[d.date] = v), x))}
+                />
+              ),
+            },
+          ]}
+        />
+      </FoldSection>
     </>
   );
 }

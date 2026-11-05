@@ -15,14 +15,16 @@ const render = (props) => renderToStaticMarkup(React.createElement(ReviewActions
 test('showSend mặc định false giữ caller cũ; nhánh luôn hiện và giải thích quyền thiếu', () => {
   assert.equal(render({ can: {} }), '');
   const html = render({ can: {}, showSend: true, sendDisabledReason: 'Chỉ được xem' });
-  assert.match(html, /disabled=""/);
+  // Tiền 05/11: nút gửi không bao giờ mờ; bấm thì báo lý do
+  assert.doesNotMatch(html, /disabled/);
   assert.match(html, /aria-description="Chỉ được xem"/);
   assert.match(html, /Gửi Tổ trưởng duyệt/);
 });
 test('send giữ người nhận và khóa vì chưa lưu, không đổi nút duyệt trả lại', () => {
   assert.doesNotMatch(render({ can: { send: true } }), /disabled/);
-  const html = render({ can: { send: true, approve: true, reject: true }, sendBlocked: 'Lưu trước khi gửi' });
-  assert.match(html, /title="Lưu trước khi gửi"/);
+  const html = render({ can: { send: true, approve: true, reject: true }, sendBlocked: 'Còn 2 tuần chưa đặt tên' });
+  assert.match(html, /title="Còn 2 tuần chưa đặt tên"/);
+  assert.doesNotMatch(html, /disabled/);
   assert.match(html, /Trả lại/);
   assert.match(html, /Duyệt/);
 });

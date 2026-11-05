@@ -84,7 +84,8 @@ export function useManualSave({ doc, enabled, save, onSaved, backup, onRestore }
     setState({ phase: 'saved', at: new Date() });
     // Không sửa thêm trong lúc lưu thì báo trang nạp lại từ bản đã lưu được
     latest.current.onSaved?.(latest.current.key === k);
-    return true;
+    // Trả bản đã lưu (nếu có) để "Lưu và gửi" dùng ngay id do BE cấp
+    return savedDoc || true;
   };
 
   useEffect(() => {

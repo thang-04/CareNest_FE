@@ -113,6 +113,43 @@ export function addSuggestedContents(form, goalRowId, suggestions, makeId) {
   return { domains, added, duplicates };
 }
 
+/**
+ * Mục tiêu Bộ đã có trong bản soạn (cùng lĩnh vực, cùng liên kết nguồn hoặc cùng câu): nội dung mới tích được thêm vào
+ * mục tiêu đó, bỏ câu đã có (Tiền 04/11). Trả { domains, added, matched: Set id mục tiêu Bộ đã khớp }.
+ */
+export function addContentsToExistingGoals(form, goals, makeId) {
+  const matched = new Set();
+  let added = 0;
+  const domains = (form.domains || []).map((d) => {
+    const mine = goals.filter((g) => g.domainName === d.name);
+    if (!mine.length) return d;
+    let changed = false;
+    const rows = (d.rows || []).map((r) => {
+      if (r.kind !== 'goal') return r;
+      const g = mine.find(
+        (x) =>
+          !matched.has(x.id) &&
+          ((r.curriculumGoalId != null && String(r.curriculumGoalId) === String(x.id)) || norm(r.text) === norm(x.goalText)),
+      );
+      if (!g) return r;
+      matched.add(g.id);
+      const have = new Set((r.contents || []).map((c) => norm(c.text)));
+      const extra = [];
+      for (const text of g.contents || []) {
+        if (have.has(norm(text))) continue;
+        have.add(norm(text));
+        extra.push({ id: makeId(), text, themes: [] });
+      }
+      if (!extra.length) return r;
+      added += extra.length;
+      changed = true;
+      return { ...r, contents: [...(r.contents || []), ...extra] };
+    });
+    return changed ? { ...d, rows } : d;
+  });
+  return { domains, added, matched };
+}
+
 /** Đường dẫn trang nguồn tới đúng dòng (anchor `cg-`/`cs-`/`cgr-`; chỉ có id mục tiêu thì tới mục tiêu). */
 export const curriculumSourceLink = (ageGroupId, curriculumGoalId, anchor) => {
   const hash = anchor || (curriculumGoalId ? `cg-${curriculumGoalId}` : '');

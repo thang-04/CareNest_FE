@@ -156,27 +156,46 @@ test('legacy items retain deterministic IDs and clone requirements without ticks
   assert.deepEqual(result.domains[0].rows[0].contents[0].themes, []);
 });
 
-test('first incoming sub cannot reparent existing root goals after reopen', () => {
+// Tiền 05/11: lĩnh vực có thể vừa có mục tiêu thẳng dưới lĩnh vực vừa có lĩnh vực con; lĩnh vực con mới không kéo mục tiêu cũ
+test('incoming sub is added after existing root goals and does not reparent them', () => {
   const target = plan([goal('old', 'Root target')]);
   const source = plan([heading('s', 'sub'), goal('a')]);
   const result = merge(target, source, ['a']);
-  assert.equal(result.report.added, 0);
-  assert.equal(result.report.unavailable.length, 1);
-  assert.equal(result.domains[0], target.domains[0]);
-  assert.deepEqual(goalPaths(result.domains[0]), [{ text: 'Root target', sub: null, group: null }]);
+  assert.equal(result.report.added, 1);
+  assert.equal(result.report.unavailable.length, 0);
+  assert.deepEqual(goalPaths(result.domains[0]), [
+    { text: 'Root target', sub: null, group: null },
+    { text: 'a', sub: 's', group: null },
+  ]);
 });
 
-test('source root goals cannot silently inherit target sub/group context', () => {
-  for (const rows of [
-    [heading('s', 'sub'), goal('old')],
-    [heading('g', 'group'), goal('old')],
-  ]) {
-    const target = plan(rows);
-    const result = merge(target, plan([goal('a')]), ['a']);
-    assert.equal(result.report.added, 0);
-    assert.equal(result.report.unavailable.length, 1);
-    assert.equal(result.domains[0], target.domains[0]);
-  }
+test('source root goals go before the first target sub and never inherit target group context', () => {
+  const withSub = merge(plan([heading('s', 'sub'), goal('old')]), plan([goal('a')]), ['a']);
+  assert.equal(withSub.report.added, 1);
+  assert.deepEqual(goalPaths(withSub.domains[0]), [
+    { text: 'a', sub: null, group: null },
+    { text: 'old', sub: 's', group: null },
+  ]);
+
+  const target = plan([heading('g', 'group'), goal('old')]);
+  const withGroup = merge(target, plan([goal('a')]), ['a']);
+  assert.equal(withGroup.report.added, 0);
+  assert.equal(withGroup.report.unavailable.length, 1);
+  assert.equal(withGroup.domains[0], target.domains[0]);
+});
+
+test('dropSubIds: chỉ lấy mục tiêu (kèm nhóm), không lấy lĩnh vực con nguồn', () => {
+  const source = plan([heading('s', 'sub'), heading('g', 'group'), goal('a'), goal('b')]);
+  const result = mergeImportedGoals(plan([heading('t', 'sub'), goal('old')]), source, ['a', 'b'], () => 'x', {
+    dropSubIds: ['s'],
+  });
+  assert.equal(result.report.added, 2);
+  assert.deepEqual(goalPaths(result.domains[0]), [
+    { text: 'a', sub: null, group: 'g' },
+    { text: 'b', sub: null, group: 'g' },
+    { text: 'old', sub: 't', group: null },
+  ]);
+  assert.equal(result.domains[0].rows.filter((r) => r.kind === 'sub').length, 1);
 });
 
 test('root source groups can append to root target and independent domains do not dedupe', () => {
@@ -240,11 +259,11 @@ test('failed first-sub candidate does not leave orphan headings before a later v
     ],
   };
   const result = merge(target, source, ['a', 'b']);
-  assert.equal(result.report.added, 1);
-  assert.equal(result.report.unavailable.length, 1);
+  assert.equal(result.report.added, 2);
+  assert.equal(result.report.unavailable.length, 0);
   assert.deepEqual(
     result.domains[0].rows.map((r) => r.text),
-    ['old', 'b'],
+    ['old', 'b', 's', 'a'],
   );
 });
 
