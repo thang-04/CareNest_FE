@@ -1,4 +1,5 @@
-import { Link, useInRouterContext } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useInRouterContext, useNavigate } from 'react-router-dom';
 import { AlertOctagon, Construction, Lock, RefreshCw, SearchX } from '@/components/ui/icons';
 
 /** Nội dung mặc định theo loại; trang gọi chỉ truyền thêm câu riêng khi cần. */
@@ -23,6 +24,38 @@ const KINDS = {
 };
 
 const reload = () => window.location.reload();
+const AUTO_BACK_SECONDS = 5;
+
+/**
+ * 403 khi đang đăng nhập: đếm ngược rồi tự quay lại màn trước (mở thẳng link, không có màn trước ⇒ về trang chủ).
+ * Có nút dừng đếm để người dùng kịp đọc (WCAG 2.2.1).
+ */
+function AutoBack() {
+  const navigate = useNavigate();
+  const [left, setLeft] = useState(AUTO_BACK_SECONDS);
+  const [stopped, setStopped] = useState(false);
+  // react-router ghi vị trí trong lịch sử của app ở history.state.idx; 0 = trang đầu tiên của tab
+  const hasPrevious = (window.history.state?.idx ?? 0) > 0;
+  useEffect(() => {
+    if (stopped) return undefined;
+    if (left <= 0) {
+      if (hasPrevious) navigate(-1);
+      else navigate('/', { replace: true });
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setLeft((n) => n - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [left, stopped, hasPrevious, navigate]);
+  if (stopped) return null;
+  return (
+    <div className="state__desc">
+      Tự quay lại {hasPrevious ? 'màn trước' : 'trang chủ'} sau <strong>{Math.max(left, 0)}</strong> giây.{' '}
+      <button type="button" className="link-btn" onClick={() => setStopped(true)}>
+        Ở lại trang này
+      </button>
+    </div>
+  );
+}
 
 /** Ngoài router (ErrorBoundary ngoài cùng) không dùng được <Link> nên dùng thẻ a. */
 function HomeLink({ className = 'btn' }) {
@@ -41,8 +74,10 @@ function HomeLink({ className = 'btn' }) {
 /**
  * Trang/khối trạng thái chặn: 404, 403, 500, lỗi tải phiên bản mới (chunk), chức năng chưa làm.
  * Dùng icon (không dùng tranh) theo DESIGN.md §9. `bare`: đã nằm trong card thì không bọc card nữa.
+ * `autoBack`: 403 mặc định tự quay lại màn trước sau 5 giây; tắt khi quay lại không giúp gì (mọi màn đều chặn).
  */
-export function StatusPage({ kind = '404', title, description, action, bare = false }) {
+export function StatusPage({ kind = '404', title, description, action, bare = false, autoBack = kind === '403' }) {
+  const inRouter = useInRouterContext();
   const preset = KINDS[kind] || KINDS[404];
   const Icon = preset.icon;
   const serverSide = kind === '500' || kind === 'chunk';
@@ -63,6 +98,7 @@ export function StatusPage({ kind = '404', title, description, action, bare = fa
       </div>
       <h2 className="state__title">{title || preset.title}</h2>
       <div className="state__desc">{description || preset.description}</div>
+      {autoBack && inRouter && <AutoBack />}
       {action === undefined ? defaultAction : action}
     </div>
   );
