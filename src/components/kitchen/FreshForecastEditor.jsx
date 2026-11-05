@@ -88,6 +88,14 @@ export function FreshForecastEditor({ campus }) {
       <div className="page__head">
         <h1 className="page__title">Lập bản dự trù hàng tươi</h1>
       </div>
+      <div className="page-actions page-actions--top">
+        <Link className="btn" to={listPath}>
+          <ArrowLeft size={16} /> Quay lại
+        </Link>
+        <button type="button" className="btn btn--primary" disabled={!data || stale || !!busy} onClick={save}>
+          {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu bản dự trù
+        </button>
+      </div>
       {errors._form && (
         <div className="alert alert--danger mb-16" role="alert">
           {errors._form}
@@ -144,15 +152,6 @@ export function FreshForecastEditor({ campus }) {
           </section>
         </>
       )}
-
-      <div className="page-actions">
-        <Link className="btn" to={listPath}>
-          <ArrowLeft size={16} /> Quay lại
-        </Link>
-        <button type="button" className="btn btn--primary" disabled={!data || stale || !!busy} onClick={save}>
-          {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu bản dự trù
-        </button>
-      </div>
     </div>
   );
 }

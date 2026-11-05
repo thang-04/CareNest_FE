@@ -5,24 +5,36 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb, ErrorState, LoadingState } from '@/components';
 import { FormField } from '@/components/form/FormField';
-import { MealPlanGrid } from '@/components/menu-planning/MealPlanGrid';
+import { SearchSelect } from '@/components/ui/SearchSelect';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
-import { useActiveDishes, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
+import { TemplateListPanel } from '@/components/menu-planning/TemplateListPanel';
+import { TemplateMealSection } from '@/components/menu-planning/TemplateMealSection';
+import { AddDishesModal } from '@/components/menu-planning/AddDishesModal';
+import { MealNutritionCard } from '@/components/menu-planning/MealNutritionCard';
+import { TemplateHead } from '@/pages/menu-planning/MenuTemplateListPage';
+import { useActiveDishes, useBeAgeGroups, useMealPlan, useMenuStatistics } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { menuTemplateApi } from '@/services/menuTemplateApi';
 import { PERMISSIONS } from '@/models/bePermissions';
-import { MEAL_BLOCK, MEAL_BLOCK_LABELS, RECORD_STATUS, mondayOf } from '@/models/menu-planning/menuPlanningConstants';
+import { MEAL_BLOCK, MEAL_BLOCK_LABELS, MEAL_SESSION_LABELS, RECORD_STATUS, mondayOf } from '@/models/menu-planning/menuPlanningConstants';
 import { hasBePermission } from '@/utils/bePermissions';
 import { templateCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { blockSessions } from '@/utils/menu-planning/mealPlanGrid';
+import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
+import { itemsBySession, toStatisticsItems, toTemplateRequest } from '@/utils/menu-planning/menuTemplateGrid';
 import { todayInput } from '@/utils/format';
-import { statisticsHref } from '@/utils/menu-planning/menuStatistics';
-import { applyWeekDraft, TEMPLATE_WEEKS, toTemplateRequest, weekDraft, weekItemCounts } from '@/utils/menu-planning/menuTemplateGrid';
 import '@/styles/modules/menu-planning.css';
 
 const EMPTY = { name: '', seasonLabel: '', block: MEAL_BLOCK.KINDERGARTEN, items: [] };
+const BLOCK_OPTIONS = Object.values(MEAL_BLOCK).map((b) => ({ value: b, label: MEAL_BLOCK_LABELS[b] }));
+const toForm = (data) => ({ ...data, items: data.items.map((item) => ({ ...item, dishId: String(item.dishId) })) });
 
-/** Lập/sửa bộ thực đơn mẫu 4 tuần (NUT-13): tên, nhãn mùa, khối; mỗi tuần một lưới thứ 2–6 × bữa như kế hoạch tuần. */
+/**
+ * Lập / sửa mẫu thực đơn một ngày (NUT-13): tên, nhãn mùa, khối; mỗi bữa của khối một khối món, mở món xem thành phần;
+ * bảng dinh dưỡng 1 trẻ / ngày theo nhóm tuổi do BE tính trên các món đang chọn (kể cả chưa lưu).
+ */
 export default function MenuTemplateEditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -30,48 +42,61 @@ export default function MenuTemplateEditorPage() {
   const toast = useToast();
   const { data, loading, error, reload } = useMenuTemplate(id);
   const { dishes } = useActiveDishes();
-  // Bộ mới chưa có bữa từ BE: lấy bữa của khối theo cấu hình trường qua kế hoạch tuần hiện tại
+  const { ageGroups } = useBeAgeGroups();
+  // Mẫu mới chưa có bữa / nhóm tuổi từ BE: lấy theo cấu hình trường qua kế hoạch tuần hiện tại
   const weekQ = useMealPlan(id ? null : mondayOf(todayInput()));
   const [form, setForm] = useState(EMPTY);
-  const [week, setWeek] = useState(1);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState({});
+  const [adding, setAdding] = useState(null);
+  const [ageGroupId, setAgeGroupId] = useState('');
 
   useEffect(() => {
-    if (data) setForm({ ...data, items: data.items.map((item) => ({ ...item, dishId: String(item.dishId) })) });
+    setForm(data ? toForm(data) : EMPTY);
   }, [data]);
 
   const editable = id ? !!data?.canEdit : hasBePermission(user, PERMISSIONS.MENU_MANAGE);
-  const sessions = data?.sessions?.length ? data.sessions : blockSessions(weekQ.data, form.block);
-  const draft = useMemo(() => weekDraft(form.items, week, form.block), [form.items, week, form.block]);
-  const counts = weekItemCounts(form.items);
+  const sessions = data?.sessions?.length && data.block === form.block ? data.sessions : blockSessions(weekQ.data, form.block);
+  const groupIds =
+    data?.ageGroupIds?.length && data.block === form.block
+      ? data.ageGroupIds
+      : (weekQ.data?.blocks || []).find((b) => b.block === form.block)?.ageGroupIds;
+  const groups = useMemo(() => ageGroupOptions(groupIds, ageGroups), [groupIds, ageGroups]);
+  const currentGroup = groups.some((g) => g.id === ageGroupId) ? ageGroupId : groups[0]?.id;
+  const bySession = itemsBySession(form.items);
+  const statsItems = useMemo(() => toStatisticsItems(form.items).map((i) => ({ ...i, dishId: Number(i.dishId) })), [form.items]);
+  const statsQ = useMenuStatistics(currentGroup && statsItems.length ? { ageGroupId: Number(currentGroup), items: statsItems } : null);
+  const dirty = JSON.stringify(toTemplateRequest(form)) !== JSON.stringify(toTemplateRequest(data ? toForm(data) : EMPTY));
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
   const save = async () => {
     const next = {};
-    if (!form.name.trim()) next.name = 'Nhập tên bộ thực đơn.';
+    if (!form.name.trim()) next.name = 'Nhập tên mẫu.';
     setErrors(next);
-    if (Object.keys(next).length) return;
+    if (Object.keys(next).length) return false;
     setBusy(true);
     try {
       const saved = await menuTemplateApi.saveTemplate(id, toTemplateRequest(form));
-      toast.success('Đã lưu bộ thực đơn mẫu.');
+      toast.success('Đã lưu mẫu thực đơn ngày.');
       if (id) reload({ silent: true });
       else navigate(`/menu/templates/${saved.id}`, { replace: true });
+      return true;
     } catch (err) {
       if (err.details) setErrors(err.details);
-      toast.error(err, 'Chưa lưu được bộ thực đơn mẫu');
+      toast.error(err, 'Chưa lưu được mẫu');
+      return false;
     } finally {
       setBusy(false);
     }
   };
+  const guard = useLeaveGuard({ when: dirty && !busy, onSave: save });
 
   const toggleStatus = async () => {
     setBusy(true);
     try {
       const next = data.status === RECORD_STATUS.ACTIVE ? RECORD_STATUS.INACTIVE : RECORD_STATUS.ACTIVE;
       await menuTemplateApi.setTemplateStatus(id, next);
-      toast.success(next === RECORD_STATUS.ACTIVE ? 'Đã dùng lại bộ mẫu.' : 'Đã ngừng dùng bộ mẫu.');
+      toast.success(next === RECORD_STATUS.ACTIVE ? 'Đã dùng lại mẫu.' : 'Đã ngừng dùng mẫu.');
       reload({ silent: true });
     } catch (err) {
       toast.error(err, 'Chưa đổi được trạng thái');
@@ -80,118 +105,129 @@ export default function MenuTemplateEditorPage() {
     }
   };
 
-  if (id && error)
+  // Lưu món đã chọn của một bữa: giữ thứ tự món cũ, thêm món mới ở cuối
+  const saveMeal = (session, picked) => {
+    setForm((f) => ({
+      ...f,
+      items: [
+        ...f.items.filter((i) => i.session !== session),
+        ...picked.map((d) => ({ session, dishId: String(d.id), dishName: d.name, dishType: d.type })),
+      ],
+    }));
+    setAdding(null);
+  };
+  const removeDish = (session, dishId) =>
+    set(
+      'items',
+      form.items.filter((i) => !(i.session === session && i.dishId === String(dishId))),
+    );
+
+  const crumbs = templateCrumbs(id ? data?.name || 'Mẫu ngày' : 'Tạo mẫu ngày');
+  const canCreate = hasBePermission(user, PERMISSIONS.MENU_MANAGE);
+  const body = () => {
+    if (id && error) return <ErrorState error={error} onRetry={reload} />;
+    if (id && (loading || !data)) return <LoadingState />;
     return (
-      <div className="page">
-        <Breadcrumb items={templateCrumbs('Bộ mẫu')} />
-        <ErrorState error={error} onRetry={reload} />
+      <div className="td-tpl-editor">
+        <section className="card">
+          <div className="card__header">
+            <div>
+              <h2 className="card__title">{id ? data.name : 'Mẫu ngày mới'}</h2>
+              <span className="text-sm muted">Sửa mẫu không đổi các tuần đã điền món từ mẫu.</span>
+            </div>
+            <div className="page__actions">
+              {id && data.status !== RECORD_STATUS.ACTIVE && <RecordStatusBadge status={data.status} />}
+              {!editable && (
+                <span className="chip chip--gray">
+                  <Lock size={14} /> Chỉ xem
+                </span>
+              )}
+              {editable && id && (
+                <button type="button" className="btn" disabled={busy} onClick={toggleStatus}>
+                  {data.status === RECORD_STATUS.ACTIVE ? 'Ngừng dùng' : 'Dùng lại'}
+                </button>
+              )}
+              {editable && (
+                <button type="button" className="btn btn--primary" disabled={busy || (id && !dirty)} onClick={save}>
+                  <Save size={16} /> Lưu mẫu
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="card__body td-tpl-form">
+            <FormField label="Tên mẫu" required error={errors.name}>
+              <input
+                className="input"
+                maxLength={100}
+                value={form.name}
+                disabled={!editable}
+                placeholder="Ví dụ: Mùa đông · Ngày 1"
+                onChange={(e) => set('name', e.target.value)}
+              />
+            </FormField>
+            <FormField label="Khối" required hint={id ? 'Không đổi được khối sau khi tạo' : undefined}>
+              <SearchSelect
+                options={BLOCK_OPTIONS}
+                value={form.block}
+                disabled={!editable || !!id}
+                ariaLabel="Khối"
+                onChange={(b) => setForm((f) => ({ ...f, block: b, items: [] }))}
+              />
+            </FormField>
+            <FormField label="Nhãn mùa" error={errors.seasonLabel} hint="Ví dụ: Mùa đông, Mùa hè">
+              <input
+                className="input"
+                maxLength={50}
+                value={form.seasonLabel}
+                disabled={!editable}
+                onChange={(e) => set('seasonLabel', e.target.value)}
+              />
+            </FormField>
+          </div>
+        </section>
+        {sessions.map((session) => (
+          <TemplateMealSection
+            key={session}
+            session={session}
+            items={bySession[session] || []}
+            ingredients={statsQ.data?.dishIngredients}
+            editable={editable}
+            onAdd={() => setAdding(session)}
+            onRemove={(dishId) => removeDish(session, dishId)}
+          />
+        ))}
       </div>
     );
-  if (id && (loading || !data))
-    return (
-      <div className="page">
-        <Breadcrumb items={templateCrumbs('Bộ mẫu')} />
-        <LoadingState />
-      </div>
-    );
+  };
 
   return (
     <div className="page td-sections">
-      <Breadcrumb items={templateCrumbs(id ? data.name : 'Thêm bộ mẫu')} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">{id ? data.name : 'Thêm bộ thực đơn mẫu'}</h1>
-          <p className="page__desc">Chọn món cho từng tuần, thứ và bữa của khối. Kế hoạch tuần sẽ sao một tuần của bộ này.</p>
-        </div>
-        <div className="page__actions">
-          {id && <RecordStatusBadge status={data.status} />}
-          {!editable && (
-            <span className="chip chip--gray">
-              <Lock size={14} /> Chỉ xem
-            </span>
-          )}
-          {editable && id && (
-            <button type="button" className="btn" disabled={busy} onClick={toggleStatus}>
-              {data.status === RECORD_STATUS.ACTIVE ? 'Ngừng dùng' : 'Dùng lại'}
-            </button>
-          )}
-          {editable && (
-            <button type="button" className="btn btn--primary" disabled={busy} onClick={save}>
-              <Save size={16} /> Lưu bộ mẫu
-            </button>
-          )}
-        </div>
+      <Breadcrumb items={crumbs} />
+      <TemplateHead canCreate={canCreate && !!id} />
+      <div className="td-tpl-split">
+        <TemplateListPanel currentId={id} />
+        {body()}
       </div>
-
-      <section className="card">
-        <div className="card__body td-form-grid">
-          <FormField label="Tên bộ thực đơn" required error={errors.name}>
-            <input
-              className="input"
-              maxLength={100}
-              value={form.name}
-              disabled={!editable}
-              onChange={(e) => set('name', e.target.value)}
-              placeholder="Ví dụ: Bộ 4 tuần học kỳ I"
-            />
-          </FormField>
-          <FormField label="Nhãn mùa" error={errors.seasonLabel} hint="Ví dụ: Mùa đông, Mùa hè">
-            <input
-              className="input"
-              maxLength={50}
-              value={form.seasonLabel}
-              disabled={!editable}
-              onChange={(e) => set('seasonLabel', e.target.value)}
-            />
-          </FormField>
-          <FormField label="Khối" required hint={id ? 'Không đổi được khối sau khi tạo' : undefined}>
-            <select
-              className="select"
-              value={form.block}
-              disabled={!editable || !!id}
-              onChange={(e) => setForm((f) => ({ ...f, block: e.target.value, items: [] }))}
-            >
-              {Object.values(MEAL_BLOCK).map((b) => (
-                <option key={b} value={b}>
-                  {MEAL_BLOCK_LABELS[b]}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        </div>
-      </section>
-
-      <section className="card">
-        <div className="card__header">
-          <div className="tabs tabs--pill" role="tablist" aria-label="Tuần trong bộ">
-            {TEMPLATE_WEEKS.map((w) => (
-              <button
-                key={w}
-                type="button"
-                role="tab"
-                aria-selected={w === week}
-                className={`tab ${w === week ? 'tab--active' : ''}`}
-                onClick={() => setWeek(w)}
-              >
-                Tuần {w} <span className="muted">({counts[w] || 0} món)</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <MealPlanGrid
-          draft={draft}
-          plan={null}
-          block={form.block}
-          sessions={sessions}
-          dishes={dishes}
-          editable={editable}
-          busy={busy}
-          hideDates
-          allowOff={false}
-          dayLink={id ? (_day, i) => statisticsHref({ template: id, weekNo: week, weekday: i + 1 }) : undefined}
-          onEdit={(fn) => setForm((f) => ({ ...f, items: applyWeekDraft(f.items, week, fn(weekDraft(f.items, week, f.block))) }))}
+      {(!id || data) && (
+        <MealNutritionCard
+          ageGroups={groups}
+          ageGroupId={currentGroup}
+          onAgeGroup={setAgeGroupId}
+          statsQ={statsQ}
+          hasItems={form.items.length > 0}
         />
-      </section>
+      )}
+      {adding && (
+        <AddDishesModal
+          title="Thêm món ăn"
+          subtitle={`${MEAL_SESSION_LABELS[adding] || adding} · ${form.name || 'Mẫu ngày mới'}`}
+          dishes={dishes}
+          selectedIds={(bySession[adding] || []).map((i) => i.dishId)}
+          onSave={(picked) => saveMeal(adding, picked)}
+          onClose={() => setAdding(null)}
+        />
+      )}
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

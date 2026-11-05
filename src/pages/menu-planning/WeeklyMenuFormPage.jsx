@@ -178,6 +178,14 @@ export default function WeeklyMenuFormPage() {
         </div>
       )}
       <form onSubmit={submit} noValidate>
+        <div className="page-actions page-actions--top">
+          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/weekly/${id}` : '/menu/weekly')}>
+            <ArrowLeft size={16} /> Hủy
+          </button>
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            {busy ? <Spinner small /> : <Save size={16} />} Lưu nháp
+          </button>
+        </div>
         <div className="card wizard-card">
           <div className="card__body td-form-grid">
             <FormField label="Nhóm tuổi" required error={show('ageGroupId')}>
@@ -273,15 +281,6 @@ export default function WeeklyMenuFormPage() {
             </div>
           </div>
         )}
-
-        <div className="page-actions">
-          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/weekly/${id}` : '/menu/weekly')}>
-            <ArrowLeft size={16} /> Hủy
-          </button>
-          <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? <Spinner small /> : <Save size={16} />} Lưu nháp
-          </button>
-        </div>
       </form>
     </div>
   );

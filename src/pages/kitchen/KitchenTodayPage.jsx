@@ -1,4 +1,6 @@
 import { Link, useSearchParams } from 'react-router-dom';
+import { Tabs } from '@/components/ui/Tabs';
+import { useTabParam } from '@/hooks/useTabParam';
 import { Camera, ClipboardCheck } from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { KbCampusFilter, KbDateFilter, fmtQty } from '@/components/kitchen/KitchenFilters';
@@ -123,6 +125,7 @@ function FoodsCard({ foods }) {
  * xác nhận theo lớp (không tên trẻ), lượng thực phẩm cần. Tất cả do BE trả (`GET /nutrition/kitchen/day`); bếp ghi nhận qua App.
  */
 export default function KitchenTodayPage() {
+  const [tab, setTab] = useTabParam(['menu', 'servings', 'foods']);
   const [params, setParams] = useSearchParams();
   const campus = useStockCampus();
   const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
@@ -170,24 +173,22 @@ export default function KitchenTodayPage() {
           </section>
         )}
         {published && (
+          // Chia tab (DESIGN §6.3): món · suất theo lớp · thực phẩm cần — mỗi tab một câu hỏi của bếp
           <>
-            <section className="card" aria-label="Món theo bữa">
-              <div className="card__header">
-                <h2 className="card__title">Món ăn theo bữa</h2>
-              </div>
-              <MenuCard menu={data.menu} />
-            </section>
-            <section className="card" aria-label="Suất đã xác nhận">
-              <div className="card__header">
-                <h2 className="card__title">Suất ăn đã xác nhận theo lớp</h2>
-              </div>
-              <ServingsCard servings={data.servings} />
-            </section>
-            <section className="card" aria-label="Thực phẩm cần">
-              <div className="card__header">
-                <h2 className="card__title">Thực phẩm cần cho ngày</h2>
-              </div>
-              <FoodsCard foods={data.foods} />
+            <Tabs
+              ariaLabel="Phần bếp hôm nay"
+              value={tab}
+              onChange={setTab}
+              items={[
+                { key: 'menu', label: 'Món ăn theo bữa' },
+                { key: 'servings', label: 'Suất ăn theo lớp' },
+                { key: 'foods', label: 'Thực phẩm cần', count: data.foods?.length },
+              ]}
+            />
+            <section className="card">
+              {tab === 'menu' && <MenuCard menu={data.menu} />}
+              {tab === 'servings' && <ServingsCard servings={data.servings} />}
+              {tab === 'foods' && <FoodsCard foods={data.foods} />}
             </section>
           </>
         )}
@@ -205,7 +206,6 @@ export default function KitchenTodayPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Bếp hôm nay</h1>
-          <p className="page__desc">Món, số suất đã xác nhận và lượng thực phẩm của ngày {formatDate(date)}.</p>
         </div>
         <div className="page__actions">
           <Link className="btn" to={linkTo(KITCHEN_RECORD_PAGES.foodSamples)}>

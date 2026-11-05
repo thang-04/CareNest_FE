@@ -24,7 +24,7 @@ import {
   REWARD_PROGRAM_TITLES,
 } from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { findDiagnosticTerms, validateDecision } from '@/utils/assessment/assessmentValidation';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
@@ -225,7 +225,7 @@ export default function RewardClassPage() {
   };
 
   const exportCsv = () =>
-    downloadXlsx(
+    exportWithPreview(
       [
         ['STT', 'Họ tên', 'Ngày sinh', 'Danh hiệu', 'Ghi chú'],
         ...d.children

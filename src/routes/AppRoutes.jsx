@@ -368,7 +368,7 @@ export function AppRoutes() {
             <Route path="suppliers/new" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
             <Route path="suppliers/:id" element={only(LEADERS, <SupplierDetailPage />)} />
             <Route path="suppliers/:id/edit" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
-            {/* Bộ thực đơn mẫu 4 tuần trên BE (NUT-13) thay thực đơn mẫu một ngày của bản demo */}
+            {/* Mẫu thực đơn một ngày trên BE (NUT-13) */}
             <Route
               path="templates"
               element={TEMPLATE_API ? only(LEADERS, <MenuTemplateListPage />) : <Navigate to="/menu/menus" replace />}

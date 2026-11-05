@@ -22,7 +22,7 @@ import {
 } from '@/models/assessment/assessmentConstants';
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/assessment.css';
 
@@ -141,7 +141,7 @@ export default function ClassRatingsPage() {
 
   const exportExcel = () => {
     const title = `Xếp loại nhóm lớp – ${CLASS_RATING_PERIOD_LABELS[period]}${campusId ? ` – ${campusName(campusId)}` : ''}`;
-    downloadXlsx(
+    exportWithPreview(
       [
         [title],
         ['STT', 'Tên nhóm, lớp', ...CLASS_RATING_CRITERIA.map((c) => c.label), 'Xếp loại chung', 'Ghi chú'],

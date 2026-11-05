@@ -227,7 +227,7 @@ export function YearClassesQuickEdit({ yearId, withRooms = false }) {
                   <th>Tên phòng</th>
                   <th className="num">Sức chứa</th>
                   <th>Lớp dùng phòng</th>
-                  <th className="cell--actions" aria-label="Bỏ dòng" />
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -318,7 +318,7 @@ export function YearClassesQuickEdit({ yearId, withRooms = false }) {
                 <th>Phòng</th>
                 <th className="num">Sĩ số tối đa</th>
                 <th className="num">Số trẻ</th>
-                <th className="cell--actions" aria-label="Bỏ dòng" />
+                <th className="cell--actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>

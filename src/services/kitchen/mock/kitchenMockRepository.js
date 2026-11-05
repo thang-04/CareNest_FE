@@ -121,6 +121,8 @@ const normalizeFood = (f) => {
     id: f.id,
     name: f.name || f.foodName || f.ingredientName || f.id,
     unit: u.stockUnit,
+    // Đơn vị định lượng món (g / ml một trẻ) — khác đơn vị kho (kg, lít) dùng khi đi chợ
+    baseUnit: f.unit || null,
     stockUnit: u.stockUnit,
     purchaseUnit: u.purchaseUnit,
     purchaseToStock: u.purchaseToStock,
@@ -1834,11 +1836,18 @@ const kitchenRepository = {
                     id,
                     name: dish?.name || id,
                     allergens: dish?.allergens || [],
-                    ingredients: (dish?.ingredients || []).map((i) => ({
-                      ...i,
-                      name: cat.foodById[i.foodId]?.name || i.foodId,
-                      unit: cat.foodById[i.foodId]?.unit || '',
-                    })),
+                    ingredients: (dish?.ingredients || []).map((i) => {
+                      const food = cat.foodById[i.foodId];
+                      // Món của Thực đơn: định lượng một trẻ theo nhóm tuổi của thực đơn (NUT định lượng món), đơn vị g / ml;
+                      // chưa nhập cho nhóm đó ⇒ null. Món mẫu của bếp (không có portions): khẩu phần chuẩn theo đơn vị kho.
+                      const qtyPerPortion = i.portions ? ingredientQty({ portions: i.portions }, m.ageGroupId) : i.qtyPerPortion;
+                      return {
+                        foodId: i.foodId,
+                        name: food?.name || i.foodId,
+                        qtyPerPortion,
+                        unit: (i.portions || cat.external ? food?.baseUnit : null) || food?.unit || '',
+                      };
+                    }),
                   };
                 }),
               })),

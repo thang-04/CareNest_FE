@@ -4,6 +4,7 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import { SchoolYearProvider } from '@/contexts/SchoolYearContext';
 import { AppearanceProvider } from '@/contexts/AppearanceContext';
 import { AppRoutes } from '@/routes/AppRoutes';
+import { ExportPreviewHost } from '@/components/ui/ExportPreview';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
           <SchoolYearProvider>
             <AppearanceProvider>
               <AppRoutes />
+              <ExportPreviewHost />
             </AppearanceProvider>
           </SchoolYearProvider>
         </AuthProvider>

@@ -66,15 +66,7 @@ export default function DryStockLedgerPage({ tab = 'stock' }) {
       <div className="page__head">
         <div>
           <h1 className="page__title">{current.label}</h1>
-          <p className="page__desc">{current.desc}</p>
         </div>
-        {canManage && campus.campusId && (
-          <div className="page__actions">
-            <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campus.campusId}`}>
-              <Plus size={16} /> Lập phiếu nhập
-            </Link>
-          </div>
-        )}
       </div>
       <div className="kb-toolbar">
         <Tabs
@@ -85,6 +77,12 @@ export default function DryStockLedgerPage({ tab = 'stock' }) {
         />
         <div className="kb-toolbar__end">
           {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
+          {/* Nút lập phiếu đứng cạnh tab và ô điểm trường, không treo riêng ở góc trên */}
+          {canManage && campus.campusId && (
+            <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campus.campusId}`}>
+              <Plus size={16} /> Lập phiếu nhập
+            </Link>
+          )}
         </div>
       </div>
       {body}

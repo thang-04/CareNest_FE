@@ -34,7 +34,6 @@ export default function MenuListPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Thực đơn mẫu</h1>
-          <p className="page__desc">Thực đơn một ngày theo từng bữa cho một nhóm tuổi. Dùng lại khi xếp thực đơn tuần.</p>
         </div>
         <div className="page__actions">
           <Link className="btn" to="/menu/setup">

@@ -41,9 +41,7 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
                       <th className="w-120">Hệ số khẩu phần</th>
                       <th className="num cell--fixed">Năng lượng</th>
                       <th className="cell--fixed">Chứa</th>
-                      <th className="center td-w-56">
-                        <span className="sr-only">Xóa</span>
-                      </th>
+                      <th className="cell--actions">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -94,7 +92,7 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
                           <td className="cell--fixed">
                             {dish ? <AllergenChips allergens={dishAllergens(dish, catalog.foodById)} /> : '—'}
                           </td>
-                          <td className="center">
+                          <td className="cell--actions">
                             <button
                               type="button"
                               className="icon-btn"

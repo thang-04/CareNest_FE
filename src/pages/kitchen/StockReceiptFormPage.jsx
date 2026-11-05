@@ -156,6 +156,21 @@ export default function StockReceiptFormPage() {
         <ErrorState error={error || existing.error} onRetry={error ? reload : existing.reload} />
       ) : (
         <>
+          <div className="page-actions page-actions--top">
+            <Link className="btn" to={backTo}>
+              <ArrowLeft size={16} /> Quay lại
+            </Link>
+            {!locked && (
+              <>
+                <button className="btn" onClick={() => save(false)} disabled={saving}>
+                  {saving ? <Spinner small /> : <Save size={16} />} Lưu nháp
+                </button>
+                <button className="btn btn--primary" onClick={openConfirm} disabled={saving}>
+                  {saving ? <Spinner small /> : <PackagePlus size={16} />} Xác nhận nhập kho
+                </button>
+              </>
+            )}
+          </div>
           {locked && (
             <p className="text-sm muted">
               Phiếu đã xác nhận nhập{existing.data.confirmedByName ? ` bởi ${existing.data.confirmedByName}` : ''}: tồn kho đã cộng, chỉ
@@ -247,9 +262,7 @@ export default function StockReceiptFormPage() {
                       </th>
                       <th className="num cell--fixed">Thành tiền</th>
                       <th className="min-w-200">Ghi chú kiểm tra</th>
-                      <th className="center">
-                        <span className="sr-only">Xóa dòng</span>
-                      </th>
+                      <th className="cell--actions">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -369,7 +382,7 @@ export default function StockReceiptFormPage() {
                             />
                             {err('note') && <div className="field__error">{err('note')}</div>}
                           </td>
-                          <td className="center">
+                          <td className="cell--actions">
                             <button
                               className="icon-btn"
                               onClick={() => removeLine(i)}
@@ -397,22 +410,6 @@ export default function StockReceiptFormPage() {
               </div>
             </div>
           </fieldset>
-
-          <div className="page-actions">
-            <Link className="btn" to={backTo}>
-              <ArrowLeft size={16} /> Quay lại
-            </Link>
-            {!locked && (
-              <>
-                <button className="btn" onClick={() => save(false)} disabled={saving}>
-                  {saving ? <Spinner small /> : <Save size={16} />} Lưu nháp
-                </button>
-                <button className="btn btn--primary" onClick={openConfirm} disabled={saving}>
-                  {saving ? <Spinner small /> : <PackagePlus size={16} />} Xác nhận nhập kho
-                </button>
-              </>
-            )}
-          </div>
         </>
       )}
       <ConfirmationModal

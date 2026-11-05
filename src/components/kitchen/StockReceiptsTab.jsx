@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus } from '@/components/ui/icons';
+import { Download, Plus } from '@/components/ui/icons';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { EmptyState, ErrorState, LoadingState } from '@/components';
 import { KbOptionalDateFilter } from '@/components/kitchen/KitchenFilters';
 import { ReceiptStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { useCanManageStock, useReceipts } from '@/hooks/kitchen/useDryStock';
 import { RECEIPT_STATUS_LABELS } from '@/models/kitchen/kitchenConstants';
 import { clickableRowProps } from '@/utils/clickableRow';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatMoney, todayInput } from '@/utils/format';
 
 /** Danh sách phiếu nhập kho của một điểm trường; mở phiếu để xem, sửa nháp, xác nhận hoặc hủy. */
 export function StockReceiptsTab({ campusId }) {
@@ -64,9 +65,27 @@ export function StockReceiptsTab({ campusId }) {
       </div>
     );
 
+  const exportCsv = () =>
+    exportWithPreview(
+      [
+        ['Ngày nhập', 'Nhà cung cấp', 'Số thực phẩm', 'Tổng tiền', 'Trạng thái'],
+        ...(receipts.data || []).map((r) => [
+          formatDate(r.receivedDate),
+          r.supplierName,
+          r.lines.length,
+          r.totalValue ?? '',
+          RECEIPT_STATUS_LABELS[r.status] || r.status,
+        ]),
+      ],
+      `phieu-nhap-kho-${todayInput()}.xlsx`,
+    );
+
   return (
     <section className="card">
       <div className="card__body kb-toolbar kb-toolbar--card">
+        <button type="button" className="btn btn--sm kb-export" onClick={exportCsv} disabled={!receipts.data?.length}>
+          <Download size={15} /> Xuất Excel
+        </button>
         <label className="date-filter">
           Trạng thái
           <select className="select" value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>

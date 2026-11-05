@@ -78,7 +78,6 @@ export default function MealPhotosPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Ảnh bữa ăn</h1>
-          <p className="page__desc">Ảnh các bữa ăn bếp đã đăng trong ngày {formatDate(date)}.</p>
         </div>
         <div className="page__actions">
           <Link className="btn" to={KITCHEN_RECORD_PAGES.photoWindows.to}>

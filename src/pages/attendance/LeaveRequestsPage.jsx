@@ -15,7 +15,7 @@ import { getLeaveRequests } from '@/services/attendance/attendanceService';
 import { canFilterLeaveByCampus } from '@/utils/attendance/attendancePermissions';
 import { addDays, schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime, isIsoDate, monthRangeOf } from '@/utils/format';
 import { LEAVE_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 import '@/styles/modules/attendance.css';
@@ -82,7 +82,7 @@ export default function LeaveRequestsPage() {
       r.createdByName || '',
       formatDateTime(r.createdAt),
     ]);
-    downloadXlsx(
+    exportWithPreview(
       [[`Đơn nghỉ của phụ huynh ${formatDate(filters.from)} – ${formatDate(filters.to)}`], head, ...body],
       `don-nghi-${filters.from}-${filters.to}.xlsx`,
     );

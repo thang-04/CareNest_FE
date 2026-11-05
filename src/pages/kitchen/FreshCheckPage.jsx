@@ -6,7 +6,7 @@ import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilter
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useFreshCheck } from '@/hooks/kitchen/useFreshGoods';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
-import { formatDate, isIsoDate, todayInput } from '@/utils/format';
+import { isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/kitchen.css';
 
 /**
@@ -64,9 +64,6 @@ export default function FreshCheckPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Kiểm nhận hàng tươi</h1>
-          <p className="page__desc">
-            Kiểm hàng tươi nhận trong ngày {formatDate(date)}: lần 1 so với bản dự trù, lần 2 so với suất đã xác nhận.
-          </p>
         </div>
         {campus.campusId && (
           <div className="page__actions">

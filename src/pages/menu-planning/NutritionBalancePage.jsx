@@ -255,6 +255,16 @@ export default function NutritionBalancePage() {
         <ErrorState error={error} onRetry={reload} />
       ) : (
         <>
+          {editable && savedDay && (
+            <div className="page-actions page-actions--top">
+              <button type="button" className="btn" disabled={!dirty || busy} onClick={() => selectDay(savedDay)}>
+                <RotateCcw size={16} /> Khôi phục số liệu đã lưu
+              </button>
+              <button type="button" className="btn btn--primary" disabled={!dirty || busy || Object.keys(errors).length > 0} onClick={save}>
+                {busy ? <Spinner small /> : <Save size={16} />} Lưu điều chỉnh
+              </button>
+            </div>
+          )}
           <div className="row td-week-bar">
             <div className="row td-week-status">
               <WeeklyStatusBadge status={wm.status} />
@@ -519,16 +529,6 @@ export default function NutritionBalancePage() {
             <div className="alert alert--danger mt-16">
               <Info size={18} />
               <div>Không lưu được thay đổi: {saveError}</div>
-            </div>
-          )}
-          {editable && savedDay && (
-            <div className="page-actions">
-              <button type="button" className="btn" disabled={!dirty || busy} onClick={() => selectDay(savedDay)}>
-                <RotateCcw size={16} /> Khôi phục số liệu đã lưu
-              </button>
-              <button type="button" className="btn btn--primary" disabled={!dirty || busy || Object.keys(errors).length > 0} onClick={save}>
-                {busy ? <Spinner small /> : <Save size={16} />} Lưu điều chỉnh
-              </button>
             </div>
           )}
         </>
