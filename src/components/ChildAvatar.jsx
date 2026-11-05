@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { PortraitImage } from '@/components/PortraitImage';
 import { avatarTone, initials } from '@/utils/format';
 
 /**
@@ -6,13 +6,12 @@ import { avatarTone, initials } from '@/utils/format';
  * size: '' (36px), 'lg' (40px), 'sm' (28px) — dùng chung lớp .avatar.
  */
 export function ChildAvatar({ child, size = '' }) {
-  const [broken, setBroken] = useState(false);
   const sizeClass = size ? ` avatar--${size}` : '';
-  if (child?.photoUrl && !broken)
-    return <img className={`avatar${sizeClass} avatar--photo`} src={child.photoUrl} alt="" onError={() => setBroken(true)} />;
   return (
-    <span className={`avatar${sizeClass} avatar--tone-${avatarTone(child?.fullName)}`} aria-hidden="true">
-      {initials(child?.fullName || '?')}
-    </span>
+    <PortraitImage source={child?.photoUrl} alt={`Ảnh của ${child?.fullName || 'trẻ'}`} className={`avatar${sizeClass} avatar--photo`}>
+      <span className={`avatar${sizeClass} avatar--tone-${avatarTone(child?.fullName)}`} aria-hidden="true">
+        {initials(child?.fullName || '?')}
+      </span>
+    </PortraitImage>
   );
 }

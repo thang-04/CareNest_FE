@@ -1,4 +1,6 @@
 import { axiosClient } from '@/services/http/axiosClient';
+import { enrollmentPhotoRequest } from '@/utils/children/enrollmentPhotos';
+import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
 
 /**
  * PROPOSED Spring Boot contract for child records & child health (not agreed with CareNest_BE yet).
@@ -92,7 +94,17 @@ export async function listAllChildren(filters = {}) {
 
 export const childrenApi = {
   listChildren: (filters) => listAllChildren(filters),
-  getChildDetail: (id) => axiosClient.get(`/children/${id}/profile`),
+  getChildDetail: async (id) => {
+    const result = await axiosClient.get(`/children/${id}/profile`);
+    const child = {
+      ...result.child,
+      guardians: (result.child?.guardians || []).map((g) => ({ ...g, relation: GUARDIAN_RELATIONSHIP_LABELS[g.relation] || g.relation })),
+    };
+    const cls = child?.classId
+      ? { id: child.classId, name: child.className, campusId: child.campusId, ageGroupId: child.ageGroupId }
+      : null;
+    return { cls, declaration: null, placements: [], ...result, child };
+  },
   checkDuplicate: (data, _user, excludeId) =>
     axiosClient.get('/children/duplicate-check', {
       params: {
@@ -106,7 +118,10 @@ export const childrenApi = {
   checkGuardianConflicts: (guardians) => axiosClient.post('/children/guardian-check', { guardians }),
   readmitChild: (childId, body) => axiosClient.post(`/children/${childId}/readmit`, body),
   getPlacementClasses: (filters) => axiosClient.get('/children/placement-classes', { params: filters }),
-  enrollChild: (payload) => axiosClient.post('/children/enrollments', payload),
+  enrollChild: (payload) => {
+    const { body, config } = enrollmentPhotoRequest(payload);
+    return axiosClient.post('/children/enrollments', body, config);
+  },
   updateChild: (id, body) => axiosClient.put(`/children/${id}`, body),
   previewImport: (file) => {
     const form = new FormData();

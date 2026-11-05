@@ -239,3 +239,11 @@ Agent: gặp bẫy UI đặc thù feature ⇒ thêm 1 dòng **Known pitfalls** v
 - **Gọi phụ huynh**: modal hiện số điện thoại phụ huynh, ô **Nội dung cuộc gọi** bắt buộc (cả trả và không trả; BE giả trả `422` `note`). "Không trả" (`PHONE_DECLINED`, nhãn "Gọi phụ huynh – không trả") và "Trả trẻ" (`PHONE_CONFIRMED`) đều hỏi xác nhận rồi ghi nhận ngay trong modal. Trả trẻ: giờ trả = lúc bấm, không nhập họ tên/quan hệ người đón; người đón ghi trong nội dung cuộc gọi, bảng hiện "Theo nội dung cuộc gọi" (user chốt 2026-10-24, bỏ bước sang `/pickup/result`).
 - Không liên lạc được phụ huynh cũng là "Không trả", lý do ghi trong nội dung cuộc gọi; bỏ trạng thái chờ phụ huynh gọi lại. `PHONE_UNREACHABLE` chỉ còn ở bản ghi cũ.
 - Đề xuất cho BE: `note` bắt buộc với `PHONE_CONFIRMED`, `PHONE_DECLINED`; không tạo mới `PHONE_UNREACHABLE`; `pickupPersonName`, `pickupPersonRelation` chỉ bắt buộc với `PHOTO_MATCH` (2026-10-24).
+
+## Ảnh trẻ và phụ huynh khi tiếp nhận — 05/11/2026
+
+User duyệt phương án làm FE/BE: bước Thông tin trẻ & phụ huynh có nút Tải ảnh lên/Thay ảnh/Bỏ ảnh riêng từng người; ảnh tùy chọn, JPG/PNG/WEBP ≤2 MiB. Bước xem lại hiển thị ảnh; tệp giữ trong bộ nhớ khi chuyển bước/lỗi, giải phóng URL khi thay/bỏ/rời form. API adapter gửi multipart cùng request tiếp nhận khi có tệp, giữ JSON khi không ảnh. BE lưu private S3, ảnh gắn Child/ChildGuardian; dùng avatar ở danh sách/hồ sơ/xem nhanh và ảnh phụ huynh ở hồ sơ/trả trẻ. Ảnh tài khoản APP được giữ riêng, fallback tại pickup.
+
+PortraitImage và usePhotoUrl dùng chung để đọc ảnh có token bằng blob, không gán endpoint private trực tiếp vào img. Mock nén ảnh trước khi lưu demo; giáo viên xem được ảnh nhưng không metadata quản trị tài khoản. Source của module children/pickup trong integrationModules vẫn giữ chế độ demo hiện có; không bật toàn bộ các endpoint chưa làm chỉ để đổi một chức năng. API adapter và BE có thể kiểm độc lập; chưa tuyên bố Web đang dùng BE hoặc S3 thật.
+
+Nguồn contract/policy: BE specs/012-child-enrollment-photos và docs/modules/child.md. Known pitfall: scope đọc và scope quản trị tài khoản tách biệt; photoUrl phải giữ khi chiếu dữ liệu cho giáo viên, xem BE docs/knowledge/incidents/BUG-261105-enrollment-photo-projection.md.

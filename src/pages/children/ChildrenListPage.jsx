@@ -1,3 +1,4 @@
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound } from '@/components/ui/icons';
@@ -19,7 +20,7 @@ import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
-import { avatarTone, formatDate, initials, normalizeText } from '@/utils/format';
+import { formatDate, normalizeText } from '@/utils/format';
 import {
   canEditChild,
   canEnrollChild,
@@ -260,9 +261,7 @@ export default function ChildrenListPage() {
                         <td>
                           {/* Mã trẻ đặt dưới tên như màn Nhân sự (email dưới tên) để bảng vừa khung 1440px */}
                           <span className="row gap-2-5">
-                            <span className={`avatar avatar--sm avatar--tone-${avatarTone(c.fullName)}`} aria-hidden="true">
-                              {initials(c.fullName)}
-                            </span>
+                            <ChildAvatar child={c} size="sm" />
                             <span className="stack gap-0">
                               {/* Bấm tên: xem nhanh trong panel; nút Xem ở cột thao tác mở trang hồ sơ đầy đủ */}
                               <button

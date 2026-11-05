@@ -1,5 +1,13 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Tải ảnh trẻ và phụ huynh khi tiếp nhận — 05/11/2026
+
+- User duyệt plan liên repo cùng ngày. Form có Tải ảnh lên/Thay ảnh/Bỏ ảnh và preview từng người; bước xem lại giữ File, adapter multipart gửi cùng request tiếp nhận, JSON không ảnh giữ tương thích. ChildAvatar/PortraitImage dùng blob có token; mock lưu ảnh demo đã nén, không lưu File vào localStorage.
+- `node scripts/verify.mjs` → VERIFY PASS full, 799 tests, 0 fail/skip; 7 ca mới kiểm payload/identity/limits/private blob/pickup/teacher projection/reorder.
+- Actual Chromium mock 1440/375: chọn ảnh, chặn >2 MiB, bỏ/chọn lại cùng file, thêm/xóa phụ huynh vẫn đúng ảnh, chuyển bước, lưu, mở hồ sơ và reload có ảnh; không tràn ngang, 0 lỗi JS. Object URL 9 tạo/9 thu hồi mỗi viewport. Artifacts cục bộ: node_modules/.cache/enrollment-photos/.
+- BE PostgreSQL integration và HTTP contract tests dùng storage/auth/SMS giả; chưa kiểm S3 thật hoặc Web nối BE thật. Module children/pickup giữ demo mode hiện có. Review độc lập đã sửa bốn findings, review lại không còn blocker. Không commit/push.
+
+
 ## Bỏ vòng đầu khỏi kỳ cân đo và xu hướng — 05/11/2026
 
 - Theo yêu cầu user, kết quả kỳ cân đo không hiện vòng đầu kể cả dữ liệu cũ còn số đo; Xu hướng sức khỏe bỏ biểu đồ, cột và chú giải vòng đầu. Phiếu khám bác sĩ và mẫu cũ ngoài kỳ cân đo vẫn hiện vòng đầu khi có số. Quyết định hiển thị ghi ở `docs/features/README.md`.

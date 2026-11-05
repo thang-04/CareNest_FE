@@ -1,4 +1,5 @@
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { prepareMockPortraits } from './enrollmentPhotoMock';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { buildSeedChildRecords, seedChildProfileOf, seedMedicalHistoryOf } from '@/mocks/childrenSeed';
 import { PHONE_HAS_OTHER_ID, createBatchIdentityCheck, fillMissingCitizenIds, identityConflict } from '@/mocks/guardianIdentity';
@@ -486,7 +487,14 @@ const toView = (db, child, user) => {
       const idNumber = g.idNumber || accountByPhone(db, g.phone)?.idNumber || '';
       return showAccounts
         ? { ...rest, idNumber, smsStatus, smsAt }
-        : { fullName: g.fullName, relation: g.relation, phone: g.phone, idNumber, email: g.email };
+        : {
+            fullName: g.fullName,
+            relation: g.relation,
+            phone: g.phone,
+            idNumber,
+            email: g.email,
+            ...(g.photoUrl ? { photoUrl: g.photoUrl } : {}),
+          };
     }),
     className: cls?.name || '',
     ageGroupId: cls?.ageGroupId || '',
@@ -591,6 +599,7 @@ const cleanGuardians = (guardians, previous = []) =>
       phone: g.phone.trim(),
       idNumber: normalizeCitizenId(g.idNumber),
       email: (g.email || '').trim(),
+      ...(g.photoUrl || old?.photoUrl ? { photoUrl: g.photoUrl || old.photoUrl } : {}),
       accountStatus: old?.accountStatus || PARENT_ACCOUNT_STATUS.NOT_ACTIVATED,
       ...(old?.smsStatus ? { smsStatus: old.smsStatus, smsAt: old.smsAt } : {}),
     };
@@ -781,6 +790,7 @@ const createChild = (db, { child, declaration }, { classId, campusId, user }) =>
     fullName: child.fullName.trim(),
     gender: child.gender,
     dateOfBirth: child.dateOfBirth,
+    ...(child.photoUrl ? { photoUrl: child.photoUrl } : {}),
     classId: classId || null,
     campusId,
     status: classId ? CHILD_STATUS.ACTIVE : CHILD_STATUS.PENDING_PLACEMENT,
@@ -983,11 +993,12 @@ export const childrenMockRepository = {
     // Phụ huynh trùng CCCD tài khoản thì chỉ liên kết, thông tin theo tài khoản như nhập Excel (user đồng ý 2026-10-28; chờ BE).
     const manageAccounts = canActivateParentsAt(targetCampusOf(db, payload), user);
     const guardians = (manageAccounts ? attachAccounts : withAccounts)(db, payload.child?.guardians);
-    const resolved = { ...payload, child: { ...payload.child, guardians } };
+    let resolved = { ...payload, child: { ...payload.child, guardians } };
     const { errors, dup, conflicts } = validateEnrollment(db, resolved);
     if (hasErrors(errors)) invalid(errors);
     if (dup) throw new ApiError(409, 'Hồ sơ trẻ này đã tồn tại (trùng họ tên, ngày sinh và phụ huynh). Xem lại hồ sơ đã có.');
     throwConflicts(conflicts);
+    resolved = { ...resolved, child: await prepareMockPortraits(resolved.child) };
     return writeDb((d) => {
       // Lớp không bắt buộc khi tiếp nhận; có lớp thì vẫn kiểm sức chứa và campus, trẻ thuộc điểm trường của lớp.
       const cls = payload.classId ? assertClassAvailable(d, payload.classId, user) : null;

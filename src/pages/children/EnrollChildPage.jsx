@@ -13,6 +13,7 @@ import { Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
+import { PortraitImage } from '@/components/PortraitImage';
 import { ChildProfileFields } from '@/components/children/ChildProfileFields';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
@@ -108,7 +109,12 @@ export default function EnrollChildPage() {
   // tài khoản chỉ liên kết, thông tin theo tài khoản (P-18 A, user chốt 2026-10-28; BE kiểm lại).
   const manageAccounts = canActivateParentsAt(selectedClass?.campusId || campusId, user);
   const campusLabel = (id) => md.campusById(id)?.shortName || md.campusById(id)?.name || '';
-  const dirty = !!(info.fullName || info.dateOfBirth || info.guardians.some((g) => g.fullName || g.phone || g.idNumber));
+  const dirty = !!(
+    info.fullName ||
+    info.dateOfBirth ||
+    info.photoFile ||
+    info.guardians.some((g) => g.fullName || g.phone || g.idNumber || g.photoFile)
+  );
 
   // Phụ huynh có CCCD trùng tài khoản: họ tên, SĐT, email theo tài khoản; BE vẫn tự liên kết theo CCCD khi lưu.
   const withAccounts = (value) => ({
@@ -216,7 +222,7 @@ export default function EnrollChildPage() {
       toast.success(`Đã lưu hồ sơ ${child.fullName} (${child.code}).`, 'Tiếp nhận thành công');
     } catch (err) {
       // 409 trùng CCCD/SĐT với phụ huynh khác cũng trả lỗi theo ô (details).
-      if ((err.status === 422 || err.status === 409) && err.details) {
+      if ([400, 422, 409].includes(err.status) && err.details) {
         setErrors(splitServerErrors(err.details));
         goTo(Math.min(...Object.keys(err.details).map(stepOfField)));
       }
@@ -327,6 +333,8 @@ export default function EnrollChildPage() {
         <section className="card wizard-card">
           <ChildInfoFields
             split
+            photosEnabled
+            disabled={busy}
             value={info}
             onChange={changeInfo}
             errors={errors.info}
@@ -461,7 +469,10 @@ export default function EnrollChildPage() {
             </div>
             <dl className="info-list info-list--wide">
               <dt>Họ và tên</dt>
-              <dd className="fw-600">{info.fullName}</dd>
+              <dd className="row gap-3 fw-600">
+                <PortraitImage source={info.photoFile} alt="Ảnh của trẻ" className="avatar avatar--xl avatar--photo" />
+                {info.fullName}
+              </dd>
               <dt>Ngày sinh</dt>
               <dd>
                 {formatDate(info.dateOfBirth)} <span className="muted">({ageLabel(info.dateOfBirth)})</span>
@@ -472,6 +483,7 @@ export default function EnrollChildPage() {
                 <div key={i} className="tr-dl-pair">
                   <dt>Phụ huynh {i + 1}</dt>
                   <dd>
+                    <PortraitImage source={g.photoFile} alt={`Ảnh phụ huynh ${i + 1}`} className="avatar avatar--xl avatar--photo" />
                     {g.fullName} ({g.relation}) · {g.phone} · CCCD {g.idNumber}
                     {g.email ? ` · ${g.email}` : ''}
                     {accountOf(g.idNumber) && <span className="muted"> · tài khoản có sẵn, liên kết khi lưu</span>}

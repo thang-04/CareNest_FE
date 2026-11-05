@@ -7,6 +7,7 @@ import { emptyGuardian, withGuardianAccounts } from '@/utils/children/childrenHe
 import { normalizePhone } from '@/utils/children/childrenValidation';
 import { normalizeCitizenId } from '@/utils/citizenId';
 import { todayInput } from '@/utils/format';
+import { PortraitPicker } from './PortraitPicker';
 
 /**
  * CCCD trùng tài khoản phụ huynh có sẵn (BE trả): ai, đang là phụ huynh của trẻ nào; lưu thì liên kết trẻ (user chốt 2026-10-23).
@@ -63,6 +64,8 @@ export function ChildInfoFields({
   accountReadOnly = false,
   childId = null,
   split = false,
+  photosEnabled = false,
+  disabled = false,
 }) {
   const set = (field, v) => onChange({ ...value, [field]: v });
   const setGuardian = (i, field, v) =>
@@ -74,6 +77,17 @@ export function ChildInfoFields({
   const childBlock = (
     <>
       <h2 className="card__title mb-12">Thông tin của trẻ</h2>
+      {photosEnabled && (
+        <div className="mb-16">
+          <PortraitPicker
+            label="Ảnh của trẻ"
+            file={value.photoFile}
+            onChange={(file) => set('photoFile', file)}
+            error={errors.photo}
+            disabled={disabled}
+          />
+        </div>
+      )}
       <div className={split ? 'stack gap-4' : 'grid-3'}>
         <FormField label="Họ và tên trẻ" required error={errors.fullName}>
           <input
@@ -160,6 +174,18 @@ export function ChildInfoFields({
                   </button>
                 )}
               </div>
+              {photosEnabled && (
+                <div className="mb-12">
+                  <PortraitPicker
+                    label={`Ảnh phụ huynh ${i + 1}`}
+                    identity={g}
+                    file={g.photoFile}
+                    onChange={(file) => setGuardian(i, 'photoFile', file)}
+                    error={errors[`guardians.${i}.photo`]}
+                    disabled={disabled}
+                  />
+                </div>
+              )}
               <div className="tr-guardian__grid">
                 <FormField
                   label="Số CCCD"

@@ -1,0 +1,70 @@
+import { useEffect, useId, useRef, useState } from 'react';
+import { Upload, Trash2 } from '@/components/ui/icons';
+import { PortraitImage } from '@/components/PortraitImage';
+import { PORTRAIT_ACCEPT, portraitFileError } from '@/utils/children/enrollmentPhotos';
+
+export function PortraitPicker({ label, file, identity, onChange, error, disabled }) {
+  const id = useId();
+  const input = useRef(null);
+  const [localError, setLocalError] = useState('');
+  useEffect(() => setLocalError(''), [file, identity]);
+  return (
+    <div className="field">
+      <label className="field__label" htmlFor={id}>
+        {label}
+      </label>
+      <div className="row row--wrap gap-3">
+        <PortraitImage source={file} alt={label} className="avatar avatar--xl avatar--photo">
+          <span className="avatar avatar--xl muted" aria-hidden="true">
+            —
+          </span>
+        </PortraitImage>
+        <div className="stack gap-2">
+          <input
+            ref={input}
+            id={id}
+            className="sr-only"
+            type="file"
+            accept={PORTRAIT_ACCEPT}
+            disabled={disabled}
+            aria-describedby={`${id}-hint${localError || error ? ` ${id}-error` : ''}`}
+            onChange={(event) => {
+              const selected = event.target.files?.[0];
+              event.target.value = '';
+              if (!selected) return;
+              const message = portraitFileError(selected);
+              setLocalError(message);
+              if (!message) onChange(selected);
+            }}
+          />
+          <div className="row row--wrap gap-2">
+            <button type="button" className="btn btn--sm" disabled={disabled} onClick={() => input.current?.click()}>
+              <Upload size={15} /> {file ? 'Thay ảnh' : 'Tải ảnh lên'}
+            </button>
+            {file && (
+              <button
+                type="button"
+                className="btn btn--sm"
+                disabled={disabled}
+                onClick={() => {
+                  setLocalError('');
+                  onChange(null);
+                }}
+              >
+                <Trash2 size={15} /> Bỏ ảnh
+              </button>
+            )}
+          </div>
+          <span id={`${id}-hint`} className="field__hint">
+            Không bắt buộc. JPG, PNG hoặc WEBP, tối đa 2 MB. Chọn ảnh rõ mặt.
+          </span>
+        </div>
+      </div>
+      {(localError || error) && (
+        <span id={`${id}-error`} className="field__error" role="alert">
+          {localError || error}
+        </span>
+      )}
+    </div>
+  );
+}
