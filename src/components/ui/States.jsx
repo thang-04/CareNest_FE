@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Check, WarningCircle, AlertOctagon, RefreshCw, Lock, SearchX } from '@/components/ui/icons';
+import { UNAUTHORIZED_EVENT } from '@/services/http/tokenStorage';
 import { useAppearance } from '@/contexts/AppearanceContext';
 import { LottiePlayer } from './LottiePlayer';
 
@@ -58,6 +60,12 @@ const BLOCKED = {
 };
 
 export function ErrorState({ error, onRetry }) {
+  const expired = error?.status === 401;
+  // 401 lọt tới màn hình (client không tự phát) vẫn đi luồng hết phiên chung: về trang đăng nhập ngay
+  useEffect(() => {
+    if (expired) window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+  }, [expired]);
+  if (expired) return <LoadingState text="Phiên đăng nhập đã hết hạn, đang chuyển tới trang đăng nhập..." />;
   const blocked = BLOCKED[error?.status];
   if (blocked) {
     const Icon = blocked.icon;

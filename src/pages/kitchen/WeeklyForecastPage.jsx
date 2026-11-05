@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarPlus, Check, Printer, Send, ShoppingBasket, Users } from '@/components/ui/icons';
+import { CalendarPlus, Check, Download, Printer, Send, ShoppingBasket, Users } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -14,6 +14,8 @@ import { DryOrderTable, FreshOrderTable, SupplierChangeCard, WeekForecastGrid, w
 import { WeeklyOrderPrint } from '@/components/kitchen/WeeklyOrderPrint';
 import { markWeeklyOrderSent, saveWeeklyForecast, setSupplierNotified } from '@/services/kitchen/kitchenService';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
+import { weeklyOrderCsvRows } from '@/utils/kitchen/kitchenExport';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import { addDays, mondayOf, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/kitchen.css';
@@ -139,13 +141,23 @@ export default function WeeklyForecastPage() {
     <div className="page__head">
       <div>
         <h1 className="page__title">Dự trù & đi chợ</h1>
-        <p className="page__desc">Dự trù cả tuần theo thực đơn tuần, gửi NCC trước tuần. Hằng ngày báo NCC phần thay đổi.</p>
       </div>
-      {canEdit && weekStart <= thisWeek && (
+      {(ready || (canEdit && weekStart <= thisWeek)) && (
         <div className="page__actions">
-          <button type="button" className="btn" onClick={() => go({ week: nextWeek, tab: 'tuan' })}>
-            <CalendarPlus size={16} /> Dự trù tuần sau · {formatDate(nextWeek).slice(0, 5)}–{formatDate(addDays(nextWeek, 4)).slice(0, 5)}
-          </button>
+          {ready && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => exportWithPreview(weeklyOrderCsvRows(data), `phieu-dat-hang-tuan-${weekStart}.xlsx`)}
+            >
+              <Download size={16} /> Xuất Excel
+            </button>
+          )}
+          {canEdit && weekStart <= thisWeek && (
+            <button type="button" className="btn" onClick={() => go({ week: nextWeek, tab: 'tuan' })}>
+              <CalendarPlus size={16} /> Dự trù tuần sau · {formatDate(nextWeek).slice(0, 5)}–{formatDate(addDays(nextWeek, 4)).slice(0, 5)}
+            </button>
+          )}
         </div>
       )}
     </div>

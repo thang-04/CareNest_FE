@@ -1,6 +1,8 @@
 import { Fragment, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, X } from '@/components/ui/icons';
+import { SearchSelect } from '@/components/ui/SearchSelect';
+import { dishTypeClass } from '@/utils/menu-planning/dishTypeClass';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import {
@@ -22,7 +24,7 @@ const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
  * Bảng kế hoạch tuần của một khối như sổ thực đơn: cột là các thứ, mỗi bữa một dải tiêu đề, bữa trưa tách hàng theo loại món,
  * hàng cuối "Suất dị ứng". Đầu cột: ngày, nhãn kết quả BE đã kiểm ("N lưu ý" / "Đạt"), ô ngày nghỉ.
  * `onEdit(fn)` nhận hàm biến đổi bản nháp; `editable` false ⇒ chỉ xem (đã công bố hoặc không có quyền sửa).
- * Bộ thực đơn mẫu dùng lại lưới với `hideDates` (ngày của bản nháp là ngày giả) và `allowOff={false}` (bộ mẫu không có ngày nghỉ).
+ * `templates` + `onPickTemplate(day, template)`: ô chọn mẫu ngày ở đầu mỗi cột (NUT-13).
  */
 export function MealPlanGrid({
   draft,
@@ -36,6 +38,8 @@ export function MealPlanGrid({
   hideDates = false,
   allowOff = true,
   dayLink,
+  templates,
+  onPickTemplate,
 }) {
   const dishById = useMemo(() => Object.fromEntries(dishes.map((dish) => [String(dish.id), dish])), [dishes]);
   const sections = gridSections(draft, block, sessions, { keepEmpty: !!editable });
@@ -56,7 +60,7 @@ export function MealPlanGrid({
         {items.length > 0 ? (
           <ul className="td-week__dishes">
             {items.map((item) => (
-              <li key={item.dishId}>
+              <li key={item.dishId} className={`td-dish ${dishTypeClass(item.dishType)}`}>
                 <span className="td-grow">{item.dishName || 'Món đã xóa'}</span>
                 {editable && (
                   <button
@@ -81,25 +85,32 @@ export function MealPlanGrid({
               Chưa có {row.type && row.type !== 'OTHER' ? DISH_TYPE_LABELS[row.type]?.toLowerCase() : 'món'} đang sử dụng.
             </span>
           ) : (
-            // "+ Thêm" là chính ô chọn gốc: một lần bấm mở danh sách của trình duyệt, không bị cắt trong bảng cuộn
-            <select
-              className="td-week__add td-week__add-select"
-              value=""
+            // Bộ chọn món có ô tìm, danh sách nổi ngoài bảng (không bị cắt khi bảng cuộn ngang)
+            <SearchSelect
+              variant="add"
+              placeholder={items.length ? 'Thêm' : 'Thêm món'}
+              className={items.length ? 'td-week__add--more' : ''}
               disabled={busy || choices.length === 0}
-              aria-label={`Thêm món ${MEAL_SESSION_LABELS[session]} ${row.label} ${hideDates ? WEEKDAY_LABELS[draft.days.indexOf(day)] : ddmm(day.date)}`}
-              onChange={(e) => {
-                const dish = dishById[e.target.value];
+              heading={`${hideDates ? WEEKDAY_LABELS[draft.days.indexOf(day)] : `${WEEKDAY_LABELS[draft.days.indexOf(day)]} ${ddmm(day.date)}`} · ${MEAL_SESSION_LABELS[session]} · ${row.label}`}
+              searchable
+              searchPlaceholder={`Tìm ${row.type && row.type !== 'OTHER' ? DISH_TYPE_LABELS[row.type]?.toLowerCase() : 'món'}`}
+              ariaLabel={`Thêm món ${MEAL_SESSION_LABELS[session]} ${row.label} ${hideDates ? WEEKDAY_LABELS[draft.days.indexOf(day)] : ddmm(day.date)}`}
+              options={choices.map((dish) => ({
+                value: String(dish.id),
+                label: dish.name,
+                render: () => <span className={`td-dish-opt ${dishTypeClass(dish.type)}`}>{dish.name}</span>,
+                hint: [
+                  row.type ? '' : DISH_TYPE_LABELS[dish.type] || dish.type,
+                  dish.allergens?.length ? `Có ${dish.allergens.join(', ').toLowerCase()}` : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+              }))}
+              onChange={(id) => {
+                const dish = dishById[id];
                 if (dish) onEdit((d) => addDish(d, day.date, block, session, dish));
               }}
-            >
-              <option value="">+ Thêm</option>
-              {choices.map((dish) => (
-                <option key={dish.id} value={dish.id}>
-                  {dish.name}
-                  {row.type ? '' : ` (${DISH_TYPE_LABELS[dish.type] || dish.type})`}
-                </option>
-              ))}
-            </select>
+            />
           ))}
       </td>
     );
@@ -135,6 +146,23 @@ export function MealPlanGrid({
                       ) : (
                         <span className="text-xs muted">Nghỉ{day.note ? `: ${day.note}` : ''}</span>
                       ))}
+                    {editable && !day.off && templates?.length > 0 && (
+                      // NUT-13: chọn mẫu một ngày ⇒ điền món của mẫu vào ngày này (trang hỏi trước nếu ngày đã có món)
+                      <SearchSelect
+                        size="sm"
+                        value=""
+                        placeholder="Chọn mẫu ngày"
+                        ariaLabel={`Chọn mẫu ngày cho ${WEEKDAY_LABELS[i]}`}
+                        disabled={busy}
+                        options={templates.map((t) => ({ value: String(t.id), label: t.name, hint: t.seasonLabel || undefined }))}
+                        onChange={(id) =>
+                          onPickTemplate?.(
+                            day,
+                            templates.find((t) => String(t.id) === id),
+                          )
+                        }
+                      />
+                    )}
                     <div className="td-week__day-foot">
                       {result && <StatusBadge tone={result.tone} label={result.label} />}
                       {dayLink && !day.off && (

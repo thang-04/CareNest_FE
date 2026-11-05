@@ -1,22 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTabParam } from '@/hooks/useTabParam';
+import { Tabs } from '@/components/ui/Tabs';
 import { useSearchParams } from 'react-router-dom';
-import { CopyPlus, Lock, Save, Send } from '@/components/ui/icons';
+import { Lock, Save, Send } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { CopyTemplateDialog } from '@/components/menu-planning/CopyTemplateDialog';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { Modal } from '@/components/ui/Modal';
+import { WeekDaySummary } from '@/components/menu-planning/WeekDaySummary';
 import { MealPlanEvaluations } from '@/components/menu-planning/MealPlanEvaluations';
 import { MealPlanGrid } from '@/components/menu-planning/MealPlanGrid';
 import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList';
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { PublishWeekDialog } from '@/components/menu-planning/PublishWeekDialog';
 import { useActiveDishes, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
+import { useMenuTemplates } from '@/hooks/menu-planning/useMenuTemplates';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { mealPlanApi } from '@/services/mealPlanApi';
 import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, mondayOf } from '@/models/menu-planning/menuPlanningConstants';
 import { blockSessions, draftFromPlan, isDirty, planBlocks, resolveWeekStart } from '@/utils/menu-planning/mealPlanGrid';
-import { copyTemplateWeek } from '@/utils/menu-planning/menuTemplateGrid';
+import { applyTemplateDay, dayBlockItemCount } from '@/utils/menu-planning/menuTemplateGrid';
 import { statisticsHref } from '@/utils/menu-planning/menuStatistics';
 import { weeklyCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDateTime, todayInput } from '@/utils/format';
@@ -27,6 +32,7 @@ import '@/styles/modules/menu-planning.css';
  * công bố cả tuần. Nút theo cờ `canEdit`/`canPublish` BE trả; đã công bố thì chỉ xem. Tuần chọn trên URL (?week=, thứ Hai).
  */
 export default function WeeklyPlanPage() {
+  const [tab, setTab] = useTabParam(['menu', 'check'], 'view');
   const toast = useToast();
   const [params] = useSearchParams();
   const today = todayInput();
@@ -40,7 +46,9 @@ export default function WeeklyPlanPage() {
   const [busy, setBusy] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishError, setPublishError] = useState('');
-  const [copyOpen, setCopyOpen] = useState(false);
+  // Mẫu ngày chờ xác nhận thay món: { day, template, count }
+  const [pending, setPending] = useState(null);
+  const [issuesOpen, setIssuesOpen] = useState(false);
 
   // Kế hoạch mới về (đổi tuần, sau khi lưu, nạp lại) ⇒ bản nháp trên màn lấy lại từ BE
   useEffect(() => setDraft(saved), [saved]);
@@ -49,6 +57,20 @@ export default function WeeklyPlanPage() {
   const block = blocks.includes(blockKey) ? blockKey : blocks[0];
   const editable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
   const dirty = !!draft && !!saved && isDirty(draft, saved);
+  const templatesQ = useMenuTemplates({ block, status: 'ACTIVE' });
+  const templates = editable ? templatesQ.data || [] : [];
+
+  const fillDay = (day, template) => {
+    setDraft((d) => applyTemplateDay(d, day.date, template));
+    toast.success(`Đã điền món theo mẫu "${template.name}". Sửa từng món nếu cần rồi bấm Lưu nháp.`);
+  };
+  // Ngày đã có món của khối ⇒ hỏi trước khi thay bằng mẫu (agent chọn 2026-11-04, xem plan)
+  const pickTemplate = (day, template) => {
+    if (!template) return;
+    const count = dayBlockItemCount(draft, day.date, block);
+    if (count > 0) setPending({ day, template, count });
+    else fillDay(day, template);
+  };
 
   const save = async () => {
     setBusy(true);
@@ -95,7 +117,6 @@ export default function WeeklyPlanPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Kế hoạch tuần</h1>
-          <p className="page__desc">Chọn món theo khối và bữa cho cả tuần, lưu nháp rồi công bố một lần.</p>
         </div>
       </div>
       <div className="td-week-toolbar">
@@ -159,11 +180,6 @@ export default function WeeklyPlanPage() {
           )}
         </div>
         <div className="row td-week-toolbar__actions">
-          {editable && block && (
-            <button type="button" className="btn" disabled={busy} onClick={() => setCopyOpen(true)}>
-              <CopyPlus size={16} /> Sao từ bộ mẫu
-            </button>
-          )}
           {editable && (
             <button type="button" className="btn" disabled={busy || !dirty} onClick={save}>
               <Save size={16} /> Lưu nháp
@@ -198,38 +214,44 @@ export default function WeeklyPlanPage() {
         </section>
       ) : (
         <>
-          <section className="card">
-            <MealPlanGrid
-              draft={draft}
-              plan={plan}
-              block={block}
-              sessions={blockSessions(plan, block)}
-              dishes={dishes}
-              editable={editable}
-              busy={busy}
-              onEdit={(fn) => setDraft((d) => fn(d))}
-              dayLink={plan.status === MEAL_PLAN_STATUS.NONE ? undefined : (day) => statisticsHref({ week, date: day.date })}
-            />
-          </section>
-          {plan.issues.length > 0 && (
+          <WeekDaySummary plan={plan} draft={draft} onShowAll={plan.issues.length ? () => setIssuesOpen(true) : undefined} />
+          {/* Chia tab (DESIGN §6.3): soạn món cả tuần | bảng kiểm dinh dưỡng; lưu ý của tuần ở dải tóm tắt phía trên */}
+          <Tabs
+            ariaLabel="Phần kế hoạch tuần"
+            value={tab}
+            onChange={setTab}
+            items={[
+              { key: 'menu', label: 'Thực đơn tuần' },
+              { key: 'check', label: 'Bảng kiểm dinh dưỡng' },
+            ]}
+          />
+          {tab === 'menu' ? (
+            <section className="card">
+              <MealPlanGrid
+                draft={draft}
+                plan={plan}
+                block={block}
+                sessions={blockSessions(plan, block)}
+                dishes={dishes}
+                editable={editable}
+                busy={busy}
+                onEdit={(fn) => setDraft((d) => fn(d))}
+                dayLink={plan.status === MEAL_PLAN_STATUS.NONE ? undefined : (day) => statisticsHref({ week, date: day.date })}
+                templates={templates}
+                onPickTemplate={pickTemplate}
+              />
+            </section>
+          ) : (
             <section className="card">
               <div className="card__header">
-                <h2 className="card__title">Lưu ý của tuần</h2>
+                <div>
+                  <h2 className="card__title">Bảng kiểm dinh dưỡng — {MEAL_BLOCK_LABELS[block] || block}</h2>
+                  <span className="text-sm muted">Hệ thống tính theo định mức và mức giá đang hiệu lực của từng nhóm tuổi.</span>
+                </div>
               </div>
-              <div className="card__body">
-                <MealPlanIssueList issues={plan.issues} />
-              </div>
+              <MealPlanEvaluations plan={plan} block={block} />
             </section>
           )}
-          <section className="card">
-            <div className="card__header">
-              <div>
-                <h2 className="card__title">Bảng kiểm dinh dưỡng — {MEAL_BLOCK_LABELS[block] || block}</h2>
-                <span className="text-sm muted">Hệ thống tính theo định mức và mức giá đang hiệu lực của từng nhóm tuổi.</span>
-              </div>
-            </div>
-            <MealPlanEvaluations plan={plan} block={block} />
-          </section>
         </>
       )}
 
@@ -241,18 +263,25 @@ export default function WeeklyPlanPage() {
         onConfirm={publish}
         onClose={() => setPublishOpen(false)}
       />
-      {copyOpen && (
-        <CopyTemplateDialog
-          open
-          block={block}
-          onClose={() => setCopyOpen(false)}
-          onConfirm={(template, weekNo) => {
-            setDraft((d) => copyTemplateWeek(d, template, weekNo));
-            setCopyOpen(false);
-            toast.success(`Đã sao tuần ${weekNo} của "${template.name}". Xem lại rồi bấm Lưu nháp.`);
-          }}
-        />
-      )}
+      <Modal open={issuesOpen} size="lg" title={`Lưu ý của tuần · ${plan.issues.length} lưu ý`} onClose={() => setIssuesOpen(false)}>
+        <MealPlanIssueList issues={plan.issues} />
+      </Modal>
+      <ConfirmationModal
+        open={!!pending}
+        title="Thay món của ngày này?"
+        message={
+          pending
+            ? `Ngày đang có ${pending.count} món của khối ${MEAL_BLOCK_LABELS[block] || block}. Dùng mẫu "${pending.template.name}" sẽ thay toàn bộ các món đó, kể cả món đã sửa tay.`
+            : ''
+        }
+        confirmLabel="Thay bằng mẫu"
+        cancelLabel="Giữ món hiện tại"
+        onConfirm={() => {
+          fillDay(pending.day, pending.template);
+          setPending(null);
+        }}
+        onClose={() => setPending(null)}
+      />
       <LeaveConfirmModal {...guard.modal} />
     </div>
   );

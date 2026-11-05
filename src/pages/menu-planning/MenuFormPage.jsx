@@ -318,7 +318,7 @@ export default function MenuFormPage() {
                             <th>Loại</th>
                             <th className="num">Kcal</th>
                             <th className="money">Thành tiền</th>
-                            <th className="td-num-col" aria-label="Bỏ món" />
+                            <th className="cell--actions">Thao tác</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -337,7 +337,7 @@ export default function MenuFormPage() {
                                       {t ? t.noQuantity ? <span className="td-warn">Thiếu</span> : kcalOf(t) : '—'}
                                     </td>
                                     <td className="money nowrap">{t ? formatMoney(t.cost) : '—'}</td>
-                                    <td className="td-num-col">
+                                    <td className="cell--actions">
                                       <button
                                         type="button"
                                         className="icon-btn"

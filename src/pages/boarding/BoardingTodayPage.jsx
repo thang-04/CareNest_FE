@@ -9,7 +9,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useDayBoard } from '@/hooks/boarding/useDayBoard';
 import { dayBoardApi } from '@/services/dayBoardApi';
 import { buildDayBoardRows } from '@/utils/boarding/dayBoardRows';
-import { formatDate, isIsoDate, todayInput } from '@/utils/format';
+import { isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/boarding.css';
 
 function CampusBoard({ campus, date, syncing, onSyncStock }) {
@@ -26,9 +26,7 @@ function CampusBoard({ campus, date, syncing, onSyncStock }) {
               <th>Việc</th>
               <th>Trạng thái</th>
               <th>Chi tiết</th>
-              <th>
-                <span className="sr-only">Mở việc</span>
-              </th>
+              <th className="cell--actions">Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -41,7 +39,7 @@ function CampusBoard({ campus, date, syncing, onSyncStock }) {
                   <StatusBadge tone={row.tone} label={row.status} />
                 </td>
                 <td className="bd-detail">{row.detail}</td>
-                <td>
+                <td className="cell--actions">
                   <div className="bd-actions">
                     {row.actions.map((action, i) =>
                       action.syncStock ? (
@@ -132,7 +130,6 @@ export default function BoardingTodayPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Bán trú hôm nay</h1>
-          <p className="page__desc">Việc bán trú trong ngày {formatDate(date)} của từng điểm trường và nơi xử lý.</p>
         </div>
       </div>
       <div className="bd-toolbar">

@@ -195,6 +195,40 @@ export const logout = async () => {
   }
 };
 
+/** Mock: token hết hạn trong lúc app đang mở (BE thật trả 401 ở request kế tiếp nên không cần kiểm). */
+export const isLocalSessionExpired = () => {
+  if (!AUTH_USE_MOCK || KEYCLOAK_DEV_LOGIN) return false;
+  const token = tokenStorage.get();
+  if (!token) return true;
+  try {
+    const { exp } = JSON.parse(decodeURIComponent(escape(atob(token.split('.')[1]))));
+    return !exp || exp < Date.now();
+  } catch {
+    return true;
+  }
+};
+
+/** Có token lưu sẵn trên máy (mock/Keycloak dev) ⇒ tải lại mà nhận 401 nghĩa là phiên đã hết hạn, không phải chưa đăng nhập. */
+export const hasStoredSession = () => !!tokenStorage.get();
+
+// "Ghi nhớ đăng nhập": chỉ nhớ SĐT/email để điền sẵn; mật khẩu để trình quản lý mật khẩu của trình duyệt lo
+const REMEMBERED_LOGIN_KEY = 'carenest.auth.rememberedLogin';
+export const getRememberedLogin = () => {
+  try {
+    return localStorage.getItem(REMEMBERED_LOGIN_KEY) || '';
+  } catch {
+    return '';
+  }
+};
+export const setRememberedLogin = (identifier, remember) => {
+  try {
+    if (remember && identifier) localStorage.setItem(REMEMBERED_LOGIN_KEY, identifier);
+    else localStorage.removeItem(REMEMBERED_LOGIN_KEY);
+  } catch {
+    /* storage bị chặn: chỉ mất phần điền sẵn, đăng nhập vẫn chạy */
+  }
+};
+
 // Đăng nhập Keycloak dev dùng tài khoản thật ⇒ không hiện tài khoản demo
 export const IS_DEMO_MODE = AUTH_USE_MOCK && !KEYCLOAK_DEV_LOGIN;
 export const DEMO_LOGIN_PASSWORD = IS_DEMO_MODE ? DEMO_PASSWORD : null; // carenest:allow-secret

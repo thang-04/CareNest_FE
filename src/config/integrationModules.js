@@ -164,7 +164,7 @@ export const INTEGRATION_MODULES = {
     routes: ['/menu/weekly', '/menu/statistics'],
     files: ['src/services/mealPlanApi.js'],
   },
-  // Bộ thực đơn mẫu 4 tuần theo khối trên BE /nutrition/menu-templates (NUT-13)
+  // Mẫu thực đơn một ngày theo khối trên BE /nutrition/menu-templates (NUT-13, đổi 04/11)
   'menu-template': {
     source: 'api',
     routes: ['/menu/templates'],

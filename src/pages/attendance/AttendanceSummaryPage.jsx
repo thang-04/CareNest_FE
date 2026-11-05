@@ -16,7 +16,7 @@ import { useAttendanceClasses, useAttendanceSummary, useAttendanceYear } from '@
 import { validateSummaryRange } from '@/utils/attendance/attendanceValidation';
 import { addDays } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -110,7 +110,7 @@ export default function AttendanceSummaryPage() {
         ]
       : [];
     const slug = (classId ? summary.className : campusId ? campusName(campusId) : 'toan-truong').replace(/\s+/g, '-');
-    downloadXlsx(
+    exportWithPreview(
       [[`Tổng hợp điểm danh ${scopeName} ${formatDate(range.from)} – ${formatDate(range.to)}`], head, ...rows, ...byClass],
       `diem-danh-${slug}-${range.from}-${range.to}.xlsx`,
     );

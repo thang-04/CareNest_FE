@@ -1,5 +1,25 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Đánh giá UI/UX chuyên sâu luồng bán trú — 04/11/2026
+
+- `ui-review/boarding-focus-2026-11-04/UI_AUDIT.md` đánh giá 20 màn/trạng thái (19 route bán trú chính và form tạo phiếu nhập), dùng 5 ảnh user đánh dấu lưu trong `user-evidence/` cùng báo cáo 38 ảnh trực tiếp. Phân biệt ảnh có nội dung, loading, empty và quan sát source; không tuyên bố đã thử bàn phím, submit hoặc App bếp.
+- Báo cáo HTML 38 ảnh được cập nhật để dẫn tới đánh giá chi tiết. `verify-boarding-report.mjs`: 38 ảnh JPEG hợp lệ, 38 card, không trùng ID, không có liên kết anchor đứt hoặc mật khẩu demo. Các liên kết tệp cục bộ trong `UI_AUDIT.md`: 0 thiếu. Trình duyệt tự động không được phép mở URL `file:`; QA giao diện của chính tệp báo cáo chưa thực hiện.
+- Các đề xuất giữ BE làm nguồn của rule/quyền, giữ brand CareNest. Chỉ đánh giá, chưa thay mã nguồn giao diện. `node scripts/check-ai-layer.mjs` → 0 lỗi, 20 cảnh báo tài liệu cũ; `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log` (chạy lại sau phiên công cụ ngắt giữa chừng).
+
+## Báo cáo chuyên đề luồng bán trú — 04/11/2026
+
+- Báo cáo HTML tự chứa ảnh: `ui-review/boarding-focus-2026-11-04/CareNest-luong-ban-tru-2026-11-04.html`. 38 màn theo vai trò (18 Hiệu trưởng, 19 Phó hiệu trưởng, 1 Giáo viên liên quan), 38 ảnh JPEG. Chụp lại trực tiếp màn Kế hoạch tuần của hai vai trò, Cân đối khẩu phần, Thiết lập dinh dưỡng và Dự trù hàng tươi của Phó hiệu trưởng sau khi trang tải xong; các ảnh còn tải từ lượt đầu được gắn nhãn.
+- Quan sát: Phó hiệu trưởng demo chỉ xem Kế hoạch tuần nhưng lời dẫn hướng dẫn sửa; Cân đối khẩu phần nằm trong cùng menu nhưng hiện banner dữ liệu demo cục bộ. Đã ghi `FE-BUG-261104-weekly-readonly-intro` và `FE-CASE-261104-nutrition-demo-route`. Không thực hiện lưu/công bố/xác nhận/duyệt/nhập kho; không kiểm tra App bếp/phụ huynh.
+- `node ui-review/boarding-focus-2026-11-04/verify-boarding-report.mjs`: 38/38 JPEG hợp lệ, 38 mục màn, không trùng ID hoặc liên kết nội bộ đứt, không có mật khẩu demo. Trình duyệt tự động chặn URL `file:` trong lượt trước; chưa xác nhận hiển thị HTML bằng browser, chỉ xác minh tĩnh.
+- Cổng repo: `node scripts/check-ai-layer.mjs` → 0 lỗi, 20 cảnh báo tài liệu cũ; `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`. Không commit/push/deploy.
+
+## Kiểm tra trực tiếp CareNest Web theo ba vai trò — 04/11/2026
+
+- Đăng nhập bản demo trực tiếp bằng Hiệu trưởng, Phó hiệu trưởng Cơ sở A và Giáo viên A. Báo cáo tự chứa ảnh: `ui-review/live-audit-2026-11-04/CareNest-web-3-vai-tro-2026-11-04.html`; 141 mục màn theo vai trò, 132 ảnh (gồm đăng nhập và lỗi 504), 11 mục không chụp được nội dung. Chỉ quan sát giao diện, không gửi/duyệt/xóa dữ liệu.
+- Nhiều route Kế hoạch giáo dục kẹt `Đang tải dữ liệu...`; cuối phiên trang chủ từng trả HTTP 504. Chưa có network trace/root cause; xem `FE-BUG-261104-live-education-loading`. Lời dẫn màn Chờ duyệt Hiệu trưởng không khớp 4 yêu cầu suất ăn; xem `FE-BUG-261104-approval-intro-mismatch`.
+- `node ui-review/live-audit-2026-11-04/verify-report.mjs`: 132 JPEG hợp lệ, 141 mục màn, không trùng ID/liên kết đứt, không có mật khẩu demo. Không mở được HTML trong browser automation vì chính sách chặn `file:`; kiểm tra cú pháp và tính toàn vẹn ở mức tệp, chưa xác nhận tương tác tìm kiếm trong trình duyệt.
+- Cổng chất lượng sau khi tạo báo cáo: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`; `node scripts/check-ai-layer.mjs` → 0 lỗi, 20 cảnh báo tài liệu cũ. Không commit/push/deploy.
+
 ## EDU-48 xóa nhánh và Lĩnh vực ellipsis — 02/11/2026
 
 - Convergence ảnh cuối phát hiện ordinal xác nhận dùng subNo mutable: appendT023, local RED1→2 rồi capture const theo block. Local browser GREEN và real E2E chạy lại1/1passed20.3s, cleanupAPI0; assertion số thứ tự trong E2E. Review lại không gap. Các mốc386tests/15.7s bên dưới là vòng trước T023; cổng full cuối được chạy sau hồ sơ và source T023, output bàn giao là kết quả sau cùng.

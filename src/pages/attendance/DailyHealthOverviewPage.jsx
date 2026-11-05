@@ -182,9 +182,7 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                 <th>Ghi chú</th>
                 <th>Xử trí</th>
                 <th>Người ghi</th>
-                <th className="cell--actions">
-                  <span className="sr-only">Thao tác</span>
-                </th>
+                <th className="cell--actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>

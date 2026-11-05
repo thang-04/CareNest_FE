@@ -4,6 +4,8 @@ import { AlertTriangle, CalendarDays } from '@/components/ui/icons';
 import { useKitchenCampus, usePublishedMenu } from '@/hooks/kitchen/useKitchen';
 import { useMasterData } from '@/hooks/useMasterData';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Tabs } from '@/components/ui/Tabs';
+import { useTabParam } from '@/hooks/useTabParam';
 import { KbCampusFilter, KbDateFilter, KbSessionFilter, fmtQty } from '@/components/kitchen/KitchenFilters';
 import { AllergyMenuChanges } from '@/components/kitchen/AllergyMenuChanges';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
@@ -35,87 +37,94 @@ function TypeLabel({ type, note }) {
 const AllergenChip = ({ dish }) =>
   dish.allergens.length > 0 && <span className="chip chip--red kb-menu-table__chip">Có {dish.allergens.join(', ')}</span>;
 
-/** Xem ngày của một nhóm tuổi: mỗi món một dòng; ô bữa và loại thực đơn gộp hàng, kèm định lượng một suất cho bếp. */
+/**
+ * Xem ngày của một nhóm tuổi: mỗi thực phẩm một dòng, cột riêng cho tên, lượng một suất và đơn vị (dễ dò hơn chuỗi gộp);
+ * ô bữa và món gộp hàng. Màn chỉ hiện thực đơn thường nên không cần cột loại thực đơn; hướng dẫn nằm dưới tên bữa.
+ */
 function DayTable({ day, menusOf, session, title }) {
   const sessions = day.sessions
     .filter((s) => session === 'ALL' || s.session === session)
     .map((s) => ({ ...s, menus: [...menusOf(s.menus)].sort(byType) }))
     .filter((s) => s.menus.length > 0);
-  const span = (m) => Math.max(m.dishes.length, 1);
-  const rowCount = (m) => span(m) + (m.allergyChanges?.length ? 1 : 0);
   if (sessions.length === 0) return null;
+  // Mỗi món chiếm số dòng = số thực phẩm (ít nhất 1); bữa có thay đổi dị ứng cộng thêm 1 dòng
+  const dishesOf = (m) => (m.dishes.length ? m.dishes : [null]);
+  const ingsOf = (dish) => (dish?.ingredients?.length ? dish.ingredients : [null]);
+  const sessionRows = (s) =>
+    s.menus.reduce((n, m) => n + dishesOf(m).reduce((k, d) => k + ingsOf(d).length, 0) + (m.allergyChanges?.length ? 1 : 0), 0);
 
   return (
-    <div className="card">
-      <div className="card__header">
-        <h2 className="card__title">{title}</h2>
-      </div>
-      <div className="table-wrap">
-        <table className="table table--grid table--compact kb-menu-table kb-menu-table--day">
-          <thead>
-            <tr>
-              <th className="kb-menu-table__session">Bữa</th>
-              <th className="kb-menu-table__group">Thực đơn</th>
-              <th className="kb-menu-table__dish">Món ăn</th>
-              <th>Định lượng / suất</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.map((s) =>
-              s.menus.map((m, mi) => {
-                const dishes = m.dishes.length ? m.dishes : [null];
+    <div className="table-wrap">
+      <table className="table table--grid table--compact kb-menu-table kb-menu-table--day">
+        <thead>
+          <tr>
+            <th className="kb-menu-table__session">Bữa</th>
+            <th className="kb-menu-table__dish">Món ăn</th>
+            <th>Thực phẩm</th>
+            <th className="num">Lượng / suất</th>
+            <th>Đơn vị</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sessions.map((s) => {
+            const note = s.menus.map((m) => m.note).find(Boolean);
+            const rows = s.menus.flatMap((m) => [
+              ...dishesOf(m).flatMap((dish) => ingsOf(dish).map((ing, ii) => ({ kind: 'ing', m, dish, ing, ii }))),
+              ...(m.allergyChanges?.length ? [{ kind: 'allergy', m }] : []),
+            ]);
+            return rows.map((r, ri) => {
+              const sessionCell = ri === 0 && (
+                <th scope="rowgroup" rowSpan={sessionRows(s)} className="kb-menu-table__session">
+                  {MEAL_SESSION_LABELS[s.session]}
+                  {note && <div className="text-xs text-2 kb-menu-table__note">Hướng dẫn: {note}</div>}
+                </th>
+              );
+              if (r.kind === 'allergy')
                 return (
-                  <Fragment key={`${s.session}_${m.id}`}>
-                    {dishes.map((dish, di) => (
-                      <tr
-                        key={`${s.session}_${m.id}_${dish?.id || 'none'}`}
-                        className={m.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}
-                      >
-                        {mi === 0 && di === 0 && (
-                          <th scope="rowgroup" rowSpan={s.menus.reduce((n, x) => n + rowCount(x), 0)} className="kb-menu-table__session">
-                            {MEAL_SESSION_LABELS[s.session]}
-                          </th>
-                        )}
-                        {di === 0 && (
-                          <td rowSpan={span(m)} className="kb-menu-table__group">
-                            <TypeLabel type={m.type} note={m.note} />
-                          </td>
-                        )}
-                        <td>
-                          {dish ? (
-                            <>
-                              <span className="fw-600">{dish.name}</span>
-                              <AllergenChip dish={dish} />
-                            </>
-                          ) : (
-                            <span className="muted">Chưa có món</span>
-                          )}
-                        </td>
-                        <td className="text-sm muted">
-                          {dish?.ingredients.length
-                            ? dish.ingredients.map((i) => `${i.name} ${fmtQty(i.qtyPerPortion)} ${i.unit}`).join(' · ')
-                            : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                    {!!m.allergyChanges?.length && (
-                      <tr className="kb-tr--allergy">
-                        <td colSpan={3}>
-                          <AllergyMenuChanges
-                            changes={m.allergyChanges}
-                            date={day.date}
-                            context={`${title} · ${MEAL_SESSION_LABELS[s.session]}`}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
+                  <tr key={`${s.session}_${r.m.id}_allergy`} className="kb-tr--allergy">
+                    {sessionCell}
+                    <td colSpan={4}>
+                      <AllergyMenuChanges
+                        changes={r.m.allergyChanges}
+                        date={day.date}
+                        context={`${title} · ${MEAL_SESSION_LABELS[s.session]}`}
+                      />
+                    </td>
+                  </tr>
                 );
-              }),
-            )}
-          </tbody>
-        </table>
-      </div>
+              const { dish, ing, ii } = r;
+              return (
+                <tr key={`${s.session}_${r.m.id}_${dish?.id || 'none'}_${ii}`}>
+                  {sessionCell}
+                  {ii === 0 && (
+                    <td rowSpan={ingsOf(dish).length} className="kb-menu-table__dish">
+                      {dish ? (
+                        <>
+                          <span className="fw-600">{dish.name}</span>
+                          <AllergenChip dish={dish} />
+                        </>
+                      ) : (
+                        <span className="muted">Chưa có món</span>
+                      )}
+                    </td>
+                  )}
+                  <td>{ing ? ing.name : <span className="muted">—</span>}</td>
+                  {ing && ing.qtyPerPortion == null ? (
+                    <td colSpan={2} className="text-sm text-warning">
+                      Chưa nhập cho nhóm tuổi này
+                    </td>
+                  ) : (
+                    <>
+                      <td className="num nowrap">{ing ? fmtQty(ing.qtyPerPortion) : ''}</td>
+                      <td className="muted">{ing?.unit || ''}</td>
+                    </>
+                  )}
+                </tr>
+              );
+            });
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -142,83 +151,78 @@ function WeekTable({ days, menusOf, session, title }) {
   for (const g of groups) g.hasChanges = days.some((d) => changesOf(d, g).length > 0);
 
   return (
-    <div className="card">
-      <div className="card__header">
-        <h2 className="card__title">{title}</h2>
-      </div>
-      <div className="table-wrap">
-        <table className="table table--grid table--compact kb-menu-table kb-menu-table--week">
-          <thead>
-            <tr>
-              <th className="kb-menu-table__session">Bữa</th>
-              <th className="kb-menu-table__group">Thực đơn</th>
-              {days.map((d) => (
-                <th key={d.date}>
-                  {dayName(d.date)}
-                  <small>{formatDate(d.date)}</small>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {groups.map((g) => (
-              <Fragment key={g.session}>
-                {g.rows.map((r, i) => (
-                  <tr key={r.type} className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
-                    {i === 0 && (
-                      <th scope="rowgroup" rowSpan={g.rows.length + (g.hasChanges ? 1 : 0)} className="kb-menu-table__session">
-                        {MEAL_SESSION_LABELS[g.session]}
-                      </th>
-                    )}
-                    <td>
-                      <TypeLabel type={r.type} />
-                    </td>
-                    {days.map((d) => {
-                      const m = cell(d, g, r);
-                      return (
-                        <td key={d.date}>
-                          {m ? (
-                            <ul className="kb-dishes text-sm">
-                              {m.dishes.map((dish) => (
-                                <li key={dish.id}>
-                                  {dish.name}
-                                  <AllergenChip dish={dish} />
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-                {g.hasChanges && (
-                  <tr className="kb-tr--allergy">
-                    <td>
-                      <div className="kb-menu-table__type kb-menu-table__type--change fw-600">
-                        <AlertTriangle size={14} aria-hidden="true" />
-                        Thay đổi cho trẻ dị ứng
-                      </div>
-                    </td>
-                    {days.map((d) => (
-                      <td key={d.date}>
-                        <AllergyMenuChanges
-                          compact
-                          changes={changesOf(d, g)}
-                          date={d.date}
-                          context={`${title} · ${MEAL_SESSION_LABELS[g.session]}`}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                )}
-              </Fragment>
+    <div className="table-wrap">
+      <table className="table table--grid table--compact kb-menu-table kb-menu-table--week">
+        <thead>
+          <tr>
+            <th className="kb-menu-table__session">Bữa</th>
+            <th className="kb-menu-table__group">Thực đơn</th>
+            {days.map((d) => (
+              <th key={d.date}>
+                {dayName(d.date)}
+                <small>{formatDate(d.date)}</small>
+              </th>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g) => (
+            <Fragment key={g.session}>
+              {g.rows.map((r, i) => (
+                <tr key={r.type} className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
+                  {i === 0 && (
+                    <th scope="rowgroup" rowSpan={g.rows.length + (g.hasChanges ? 1 : 0)} className="kb-menu-table__session">
+                      {MEAL_SESSION_LABELS[g.session]}
+                    </th>
+                  )}
+                  <td>
+                    <TypeLabel type={r.type} />
+                  </td>
+                  {days.map((d) => {
+                    const m = cell(d, g, r);
+                    return (
+                      <td key={d.date}>
+                        {m ? (
+                          <ul className="kb-dishes text-sm">
+                            {m.dishes.map((dish) => (
+                              <li key={dish.id}>
+                                {dish.name}
+                                <AllergenChip dish={dish} />
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              {g.hasChanges && (
+                <tr className="kb-tr--allergy">
+                  <td>
+                    <div className="kb-menu-table__type kb-menu-table__type--change fw-600">
+                      <AlertTriangle size={14} aria-hidden="true" />
+                      Thay đổi cho trẻ dị ứng
+                    </div>
+                  </td>
+                  {days.map((d) => (
+                    <td key={d.date}>
+                      <AllergyMenuChanges
+                        compact
+                        changes={changesOf(d, g)}
+                        date={d.date}
+                        context={`${title} · ${MEAL_SESSION_LABELS[g.session]}`}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              )}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -229,14 +233,13 @@ export default function PublishedMenuPage() {
   const date = params.get('date') || todayInput();
   const view = params.get('view') === 'week' ? 'week' : 'day';
   const [session, setSession] = useState('ALL');
-  const [ageGroup, setAgeGroup] = useState('ALL');
   const md = useMasterData();
   const { campusId, setCampusId, canPick } = useKitchenCampus(md.campuses[0]?.id);
   const { days, loading, error, reload } = usePublishedMenu(date, view, campusId);
-  const setParam = (key, value) => setParams({ date, view, [key]: value }, { replace: true });
+  // Giữ tham số khác (vd. nhóm tuổi đang mở) khi đổi ngày / kiểu xem
+  const setParam = (key, value) => setParams((prev) => ({ ...Object.fromEntries(prev), [key]: value }), { replace: true });
 
-  const filterMenus = (menus) =>
-    menus.filter((m) => m.type === MENU_TYPE.NORMAL && (ageGroup === 'ALL' || !m.ageGroupId || m.ageGroupId === ageGroup));
+  const filterMenus = (menus) => menus.filter((m) => m.type === MENU_TYPE.NORMAL);
   const groupIds = [
     ...new Set(
       days.flatMap((d) =>
@@ -246,6 +249,9 @@ export default function PublishedMenuPage() {
       ),
     ),
   ].sort((a, b) => groupOrder(a) - groupOrder(b));
+  const [groupParam, setGroup] = useTabParam(groupIds.length ? groupIds : [''], 'group');
+  const activeGroup = groupIds.includes(groupParam) ? groupParam : groupIds[0];
+  const menusOfActive = (menus) => filterMenus(menus).filter((m) => (m.ageGroupId || '') === activeGroup);
 
   return (
     <div className="page">
@@ -255,17 +261,6 @@ export default function PublishedMenuPage() {
         <KbCampusFilter campusId={campusId} onChange={setCampusId} canPick={canPick} />
         <KbDateFilter value={date} onChange={(d) => setParam('date', d)} />
         <KbSessionFilter value={session} onChange={setSession} withAll />
-        <label className="date-filter">
-          Nhóm tuổi
-          <select className="select" value={ageGroup} onChange={(e) => setAgeGroup(e.target.value)}>
-            <option value="ALL">Tất cả nhóm tuổi</option>
-            {AGE_GROUPS.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.shortName}
-              </option>
-            ))}
-          </select>
-        </label>
         <div className="kb-toolbar__end tabs" role="tablist" aria-label="Kiểu xem">
           {[
             ['day', 'Theo ngày'],
@@ -297,22 +292,32 @@ export default function PublishedMenuPage() {
           />
         </div>
       ) : (
-        <div className="kb-stack" key={`${date}_${view}_${campusId}_${session}_${ageGroup}`}>
-          {view === 'day' &&
-            days.map((d) => (
-              <div key={d.date} className="section-title">
-                {dayName(d.date)}, {formatDate(d.date)}
-              </div>
-            ))}
-          {/* Mỗi nhóm tuổi một bảng riêng để bếp đọc theo nhóm, không phải dò trong một bảng dài */}
-          {groupIds.map((gid) => {
-            const menusOf = (menus) => filterMenus(menus).filter((m) => (m.ageGroupId || '') === gid);
-            return view === 'week' ? (
-              <WeekTable key={gid} days={days} menusOf={menusOf} session={session} title={groupName(gid)} />
+        // Mỗi nhóm tuổi một tab (DESIGN §6.3 Chia tab màn dài) thay cho các bảng xếp chồng cả trang
+        <div className="kb-stack">
+          <Tabs
+            ariaLabel="Nhóm tuổi"
+            value={activeGroup}
+            onChange={setGroup}
+            items={groupIds.map((gid) => ({ key: gid, label: groupName(gid) }))}
+          />
+          <section className="card">
+            <div className="card__header">
+              <h2 className="card__title">
+                {groupName(activeGroup)}
+                {view === 'day' && days[0] && (
+                  <span className="text-sm muted">
+                    {' '}
+                    · {dayName(days[0].date)}, {formatDate(days[0].date)}
+                  </span>
+                )}
+              </h2>
+            </div>
+            {view === 'week' ? (
+              <WeekTable days={days} menusOf={menusOfActive} session={session} title={groupName(activeGroup)} />
             ) : (
-              days.map((d) => <DayTable key={`${gid}_${d.date}`} day={d} menusOf={menusOf} session={session} title={groupName(gid)} />)
-            );
-          })}
+              days.map((d) => <DayTable key={d.date} day={d} menusOf={menusOfActive} session={session} title={groupName(activeGroup)} />)
+            )}
+          </section>
         </div>
       )}
     </div>
