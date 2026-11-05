@@ -28,7 +28,9 @@ export function dayBySession(counts) {
   (counts || []).forEach((c) =>
     (c.classes || []).forEach((l) => {
       const row = byClass.get(l.classId) || { ...l, normal: 0, substitute: 0, meals: {} };
-      row.meals[c.session] = { normal: l.normal, substitute: l.substitute };
+      // before: số đã chốt trước khi cần xác nhận lại (BE trả khi sổ có số chờ, NUT-03); null nếu không đổi
+      const before = l.confirmedNormal == null ? null : l.confirmedNormal + (l.confirmedSubstitute || 0);
+      row.meals[c.session] = { normal: l.normal, substitute: l.substitute, before };
       row.normal += l.normal;
       row.substitute += l.substitute;
       byClass.set(l.classId, row);

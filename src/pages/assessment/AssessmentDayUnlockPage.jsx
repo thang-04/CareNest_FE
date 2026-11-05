@@ -1,5 +1,6 @@
 import { defaultUnlockUntil as defaultUntil, parseUnlockUntil } from '@/utils/assessment/unlockTime';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Lock, RotateCcw, Unlock } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -56,7 +57,15 @@ export default function AssessmentDayUnlockPage() {
   const yearStart = activeYear?.startDate || undefined;
   const yearEnd = activeYear?.endDate || undefined;
   const yesterday = addDays(todayIso(), -1);
-  const [form, setForm] = useState(() => ({ classId: '', date: lastLockedDay(yearStart), reason: '', ...defaultUntil(yearEnd) }));
+  // Mở từ Tổng quan đánh giá: điền sẵn lớp và ngày từ đường dẫn (?classId=&date=)
+  const [search] = useSearchParams();
+  const presetDate = search.get('date');
+  const [form, setForm] = useState(() => ({
+    classId: search.get('classId') || '',
+    date: isIsoDate(presetDate) ? presetDate : lastLockedDay(yearStart),
+    reason: '',
+    ...defaultUntil(yearEnd),
+  }));
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const set = (patch) => {

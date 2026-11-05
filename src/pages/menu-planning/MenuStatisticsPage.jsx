@@ -15,7 +15,6 @@ import { useBeAgeGroups, useMealPlan, useMenuStatistics } from '@/hooks/menu-pla
 import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
 import { WEEKDAY_LABELS, formatMoney, weekDates } from '@/models/menu-planning/menuPlanningConstants';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
-import { TEMPLATE_WEEKS } from '@/utils/menu-planning/menuTemplateGrid';
 import { ageGroupOptions, planDayItems, templateDayItems } from '@/utils/menu-planning/menuStatistics';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
@@ -28,15 +27,13 @@ const CHILDREN_SOURCE = {
 
 /*
  * Thống kê định lượng một ngày thực đơn: nguồn là kế hoạch tuần (`?week=&date=`) hoặc bộ mẫu
- * (`?template=&weekNo=&weekday=`). Số trẻ để trống ⇒ BE lấy suất đã xác nhận, không có thì sĩ số.
+ * (`?template=`, mẫu một ngày). Số trẻ để trống ⇒ BE lấy suất đã xác nhận, không có thì sĩ số.
  */
 export default function MenuStatisticsPage() {
   const [params, setParams] = useSearchParams();
   const templateId = params.get('template');
   const week = params.get('week');
   const date = params.get('date') || (week ? week : '');
-  const weekNo = Number(params.get('weekNo') || 1);
-  const weekday = Number(params.get('weekday') || 1);
 
   const planQ = useMealPlan(templateId ? null : week);
   const templateQ = useMenuTemplate(templateId || null);
@@ -57,8 +54,8 @@ export default function MenuStatisticsPage() {
   }, [options, ageGroupId]);
 
   const items = useMemo(
-    () => (templateId ? templateDayItems(source.data, weekNo, weekday) : planDayItems(source.data, date, ageGroupId)),
-    [templateId, source.data, weekNo, weekday, date, ageGroupId],
+    () => (templateId ? templateDayItems(source.data) : planDayItems(source.data, date, ageGroupId)),
+    [templateId, source.data, date, ageGroupId],
   );
   const query =
     ageGroupId && items.length
@@ -73,12 +70,11 @@ export default function MenuStatisticsPage() {
     setParams(next, { replace: true });
   };
 
+  // Ngữ cảnh (mẫu nào / ngày nào) nằm ở mục cuối breadcrumb thay cho dòng mô tả
+  const title = templateId ? `Mẫu ngày · ${source.data?.name || ''}` : `Thực đơn ngày ${formatDate(date)}`;
   const crumbs = templateId
-    ? menuCrumbs('Bộ thực đơn mẫu', `/menu/templates/${templateId}`, 'Thống kê định lượng')
-    : menuCrumbs('Thực đơn tuần', '/menu/weekly', 'Thống kê định lượng');
-  const title = templateId
-    ? `${source.data?.name || 'Bộ mẫu'} · Tuần ${weekNo} · ${WEEKDAY_LABELS[weekday - 1] || ''}`
-    : `Thực đơn ngày ${formatDate(date)}`;
+    ? menuCrumbs('Mẫu thực đơn ngày', `/menu/templates/${templateId}`, `Thống kê định lượng · ${title}`)
+    : menuCrumbs('Thực đơn tuần', '/menu/weekly', `Thống kê định lượng · ${title}`);
 
   if (!templateId && !week)
     return (
@@ -108,44 +104,12 @@ export default function MenuStatisticsPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Thống kê định lượng</h1>
-          <p className="page__desc">{title}. Lượng mua tính cả phần thải bỏ: lượng ăn ÷ (1 − % thải bỏ).</p>
         </div>
       </div>
 
       <section className="card">
         <div className="card__body td-stat-filters">
-          {templateId ? (
-            <>
-              <div className="tabs tabs--pill" role="tablist" aria-label="Tuần trong bộ">
-                {TEMPLATE_WEEKS.map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    role="tab"
-                    aria-selected={w === weekNo}
-                    className={`tab ${w === weekNo ? 'tab--active' : ''}`}
-                    onClick={() => setParam('weekNo', w)}
-                  >
-                    Tuần {w}
-                  </button>
-                ))}
-              </div>
-              <div className="tabs tabs--pill" role="tablist" aria-label="Thứ">
-                {WEEKDAY_LABELS.map((label, i) => (
-                  <button
-                    key={label}
-                    type="button"
-                    role="tab"
-                    aria-selected={i + 1 === weekday}
-                    className={`tab ${i + 1 === weekday ? 'tab--active' : ''}`}
-                    onClick={() => setParam('weekday', i + 1)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
+          {templateId ? null : (
             <div className="tabs tabs--pill" role="tablist" aria-label="Ngày trong tuần">
               {weekDates(week).map((d, i) => (
                 <button

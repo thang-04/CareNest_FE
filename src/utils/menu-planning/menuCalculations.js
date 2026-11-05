@@ -1,5 +1,5 @@
 import { normalizeText } from '@/utils/format';
-import { NORM_STATUS, REPEAT_WINDOW_DAYS, DISH_TYPE, addDays } from '@/models/menu-planning/menuPlanningConstants';
+import { MICRONUTRIENTS, NORM_STATUS, REPEAT_WINDOW_DAYS, DISH_TYPE, addDays } from '@/models/menu-planning/menuPlanningConstants';
 
 /*
  * Deterministic menu calculations (GBR-AI-04, GBR-MENU-02/03/04): nutrition totals, cost,
@@ -17,6 +17,16 @@ const OUT_KEYS = [...NUTRIENTS, 'animalProtein', 'plantProtein', 'animalLipid', 
 const acc0 = () => Object.fromEntries(SUM_KEYS.map((k) => [k, 0]));
 const zero = () => Object.fromEntries(OUT_KEYS.map((k) => [k, 0]));
 const round1 = (n) => Math.round(n * 10) / 10;
+
+// Vi chất (BE NUT-26) cộng riêng: một nguyên liệu có định lượng mà thiếu số liệu chất nào ⇒ tổng chất đó null (chưa đủ dữ liệu)
+const micro0 = () => Object.fromEntries(MICRONUTRIENTS.map((k) => [k, 0]));
+const addMicro = (acc, food, qty) =>
+  MICRONUTRIENTS.forEach((k) => {
+    const v = food?.nutrition?.[k];
+    acc[k] = acc[k] == null || typeof v !== 'number' ? null : acc[k] + (v * qty) / 100;
+  });
+const mergeMicro = (acc, part) => MICRONUTRIENTS.forEach((k) => (acc[k] = acc[k] == null || part[k] == null ? null : acc[k] + part[k]));
+const roundMicro = (acc) => Object.fromEntries(MICRONUTRIENTS.map((k) => [k, acc[k] == null ? null : Math.round(acc[k] * 100) / 100]));
 
 export const byId = (list) => Object.fromEntries((list || []).map((x) => [x.id, x]));
 
@@ -105,6 +115,7 @@ const purchaseCost = (food, qty) =>
  */
 export const dishTotals = (dish, foodById, multiplier = 1, ageGroupId) => {
   const acc = acc0();
+  const micro = micro0();
   const missing = [];
   let cost = 0;
   let noQuantity = false;
@@ -118,13 +129,15 @@ export const dishTotals = (dish, foodById, multiplier = 1, ageGroupId) => {
     const qty = base * multiplier;
     if (!food) {
       missing.push('Thực phẩm đã xóa');
+      MICRONUTRIENTS.forEach((k) => (micro[k] = null));
       return;
     }
     if (hasNutrition(food)) addFood(acc, food, qty);
+    if (qty > 0) addMicro(micro, food, qty);
     if (!isNutritionComplete(food) && !missing.includes(food.name)) missing.push(food.name);
     cost += purchaseCost(food, qty);
   });
-  return { totals: finalize(acc), missing, noQuantity, cost: Math.round(cost) };
+  return { totals: { ...finalize(acc), ...roundMicro(micro) }, missing, noQuantity, cost: Math.round(cost) };
 };
 
 /**
@@ -134,13 +147,22 @@ export const dishTotals = (dish, foodById, multiplier = 1, ageGroupId) => {
  */
 export const ingredientBreakdown = (dish, foodById, ageGroupId) => {
   const acc = acc0();
+  const microSum = micro0();
   let qtySum = 0;
   let costSum = 0;
   const rows = (dish?.ingredients || []).map((ing) => {
     const food = foodById[ing.foodId] || null;
     const qty = ingredientQty(ing, ageGroupId);
     const row = { foodId: ing.foodId, food, qty, ...zero(), cost: 0, noNutrition: !hasNutrition(food), noOrigin: !hasOrigin(food) };
-    if (qty == null || !food) return row;
+    if (qty == null || !food) {
+      Object.assign(row, Object.fromEntries(MICRONUTRIENTS.map((k) => [k, null])));
+      if (!food && qty) MICRONUTRIENTS.forEach((k) => (microSum[k] = null));
+      return row;
+    }
+    const microRow = micro0();
+    addMicro(microRow, food, qty);
+    Object.assign(row, roundMicro(microRow));
+    if (qty > 0) mergeMicro(microSum, microRow);
     if (!row.noNutrition) {
       const one = acc0();
       addFood(one, food, qty);
@@ -162,7 +184,7 @@ export const ingredientBreakdown = (dish, foodById, ageGroupId) => {
     costSum += row.cost;
     return row;
   });
-  return { rows, total: { qty: round1(qtySum), ...finalize(acc), cost: Math.round(costSum) } };
+  return { rows, total: { qty: round1(qtySum), ...finalize(acc), ...roundMicro(microSum), cost: Math.round(costSum) } };
 };
 
 /** Tỷ lệ năng lượng từ đạm, béo, bột (%), làm tròn; tổng năng lượng bằng 0 thì trả 0. */
@@ -179,20 +201,22 @@ export const structureShares = (totals) => ({
 
 /** Totals of a day (list of meals) for one child of the age group; bySession cùng dạng totals cho từng bữa. */
 export const mealsTotals = (meals, dishById, foodById, ageGroupId) => {
-  const totals = zero();
+  const totals = { ...zero(), ...micro0() };
   const missing = [];
   const bySession = {};
   let cost = 0;
   (meals || []).forEach((meal) => {
-    const s = zero();
+    const s = { ...zero(), ...micro0() };
     (meal.items || []).forEach((item) => {
       const dish = dishById[item.dishId];
       if (!dish) {
         if (!missing.includes('Món đã xóa')) missing.push('Món đã xóa');
+        MICRONUTRIENTS.forEach((k) => (s[k] = null));
         return;
       }
       const r = dishTotals(dish, foodById, Number(item.portion) || 0, ageGroupId);
       OUT_KEYS.forEach((k) => (s[k] += r.totals[k]));
+      mergeMicro(s, r.totals);
       r.missing.forEach((m) => !missing.includes(m) && missing.push(m));
       if (r.noQuantity && !missing.includes(`Định lượng ${dish.name}`)) missing.push(`Định lượng ${dish.name}`);
       cost += r.cost;
@@ -201,10 +225,11 @@ export const mealsTotals = (meals, dishById, foodById, ageGroupId) => {
       s[k] = round1(s[k]);
       totals[k] += s[k];
     });
-    bySession[meal.session] = s;
+    mergeMicro(totals, s);
+    bySession[meal.session] = { ...s, ...roundMicro(s) };
   });
   OUT_KEYS.forEach((k) => (totals[k] = round1(totals[k])));
-  return { totals, missing, bySession, cost: Math.round(cost) };
+  return { totals: { ...totals, ...roundMicro(totals) }, missing, bySession, cost: Math.round(cost) };
 };
 
 const isRange = (r) => Array.isArray(r) && r.length === 2 && r.every((v) => v !== '' && v != null && Number.isFinite(Number(v)));
@@ -271,7 +296,27 @@ export const compareToNorm = (totals, ageGroupId, incomplete = false, norms) => 
       optional: true,
     };
   });
-  return [...coreRows, ...shareRows];
+  // Vi chất (BE NUT-26): khoảng [min, max], max trống = chỉ cần đạt tối thiểu; không bắt buộc như dòng cơ cấu
+  const microRows = MICRONUTRIENTS.map((key) => {
+    const [min, max] = (Array.isArray(raw[key]) ? raw[key] : []).map((v) =>
+      v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v),
+    );
+    const value = totals?.[key] ?? null;
+    const target = min == null ? null : max == null ? min : (min + max) / 2;
+    let rowStatus = NORM_STATUS.NA;
+    if (min != null)
+      rowStatus =
+        value == null
+          ? NORM_STATUS.INCOMPLETE
+          : value < min
+            ? NORM_STATUS.LOW
+            : max != null && value > max
+              ? NORM_STATUS.HIGH
+              : NORM_STATUS.OK;
+    const attainment = target && value != null ? Math.round((value * 100) / target) : null;
+    return { key, value, percent: null, min, max: max ?? null, target, attainment, status: rowStatus, optional: true };
+  });
+  return [...coreRows, ...shareRows, ...microRows];
 };
 
 /** Đủ cả 4 khoảng định mức chính (năng lượng, tỷ lệ đạm/béo/bột) dạng số thì mới đánh giá được. */
@@ -284,7 +329,8 @@ export const normIssues = (rows) => rows.filter((r) => r.status === 'LOW' || r.s
  * Dòng tỷ lệ cơ cấu chưa đặt định mức (không bắt buộc) bị bỏ qua.
  */
 export const overallNormStatus = (rows) => {
-  const counted = (rows || []).filter((r) => !(r.optional && r.status === NORM_STATUS.NA));
+  // Vi chất chỉ cảnh báo, không đổi trạng thái chung của ngày (NUT-26, quyết định 03/11/2026)
+  const counted = (rows || []).filter((r) => !(r.optional && r.status === NORM_STATUS.NA) && !MICRONUTRIENTS.includes(r.key));
   if (counted.some((r) => r.status === NORM_STATUS.INCOMPLETE)) return NORM_STATUS.INCOMPLETE;
   if (counted.some((r) => r.status === NORM_STATUS.NA)) return NORM_STATUS.NA;
   return counted.find((r) => r.status === NORM_STATUS.LOW || r.status === NORM_STATUS.HIGH)?.status || NORM_STATUS.OK;

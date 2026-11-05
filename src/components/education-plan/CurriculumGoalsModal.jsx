@@ -5,7 +5,7 @@ import { GoalPicker } from '@/components/education-plan/GoalPicker';
 import { Tabs } from '@/components/ui/Tabs';
 import { useCurriculum } from '@/hooks/education-plan/useCurriculum';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
-import { curriculumSourceLink, curriculumTree, goalTargets } from '@/models/education-plan/curriculum.mjs';
+import { curriculumPickTree, curriculumSourceLink, curriculumTree, goalTargets } from '@/models/education-plan/curriculum.mjs';
 import { EmptyState, Modal, Notice } from '@/components/education-plan/eduUi';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 
@@ -34,30 +34,47 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
   const source = data.sources[0];
   const ageName = AGE_GROUPS.find((a) => a.id === ageGroupId)?.name || '';
 
-  // Dạng cây của danh sách chọn dùng chung (GoalPicker)
-  const pickTree = useMemo(
-    () =>
-      tree.map((d) => ({
-        name: d.name,
-        subs: d.subs.map((s) => ({
-          key: s.key,
-          name: s.name,
-          groups: s.groups.map((g) => ({
-            key: g.key,
-            title: `${g.no ? `${g.no}. ` : ''}${g.text}`,
-            goals: g.goals.map((x) => ({ id: x.id, code: x.goalNo, text: x.goalText, contents: x.contents, anchor: `pick-cg-${x.id}` })),
-          })),
-        })),
-      })),
-    [tree],
-  );
+  const pickTree = useMemo(() => curriculumPickTree(tree), [tree]);
 
+  // Nội dung đi kèm chọn theo khóa `${goalId}:${index}`: chọn mục tiêu ⇒ chọn hết nội dung, bỏ mục tiêu ⇒ bỏ hết;
+  // tích một nội dung khi mục tiêu chưa chọn ⇒ chọn luôn mục tiêu (Tiền 04/11).
+  const [pickedContents, setPickedContents] = useState(() => new Set());
+  const contentKeys = (id) => (data.goals.find((g) => g.id === id)?.contents || []).map((_, i) => `${id}:${i}`);
   const toggle = (ids) => {
     const on = !ids.every((id) => picked.has(id));
     const next = new Set(picked);
-    ids.forEach((id) => (on ? next.add(id) : next.delete(id)));
+    const nextContents = new Set(pickedContents);
+    ids.forEach((id) => {
+      if (on === next.has(id)) return;
+      if (on) next.add(id);
+      else next.delete(id);
+      contentKeys(id).forEach((k) => (on ? nextContents.add(k) : nextContents.delete(k)));
+    });
     setPicked(next);
+    setPickedContents(nextContents);
   };
+  const toggleContent = (goalId, index) => {
+    const key = `${goalId}:${index}`;
+    const next = new Set(pickedContents);
+    if (next.has(key)) next.delete(key);
+    else {
+      next.add(key);
+      if (!picked.has(goalId)) setPicked(new Set(picked).add(goalId));
+    }
+    setPickedContents(next);
+  };
+  // Lĩnh vực con bỏ tích: chỉ lấy mục tiêu, không lấy lĩnh vực con (Tiền 05/11). Chưa chọn mục tiêu nào ⇒ tích chọn cả lĩnh vực con
+  const [droppedSubs, setDroppedSubs] = useState(() => new Set());
+  const toggleSub = (key, ids) => {
+    const next = new Set(droppedSubs);
+    if (!ids.some((id) => picked.has(id))) {
+      toggle(ids);
+      next.delete(key);
+    } else if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setDroppedSubs(next);
+  };
+  const subKeyOf = (g) => `${g.domainName}|${g.subDomain ? (g.subDomainId ?? g.subDomain) : null}`;
   const toggleSuggestion = (id) => {
     const next = new Set(suggested);
     if (next.has(id)) next.delete(id);
@@ -65,7 +82,14 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
     setSuggested(next);
   };
   const confirmGoals = () => {
-    if (onImportGoals(data.goals.filter((g) => picked.has(g.id)))) onClose();
+    const goals = data.goals
+      .filter((g) => picked.has(g.id))
+      .map((g) => ({
+        ...g,
+        ...(droppedSubs.has(subKeyOf(g)) ? { subDomain: null, subDomainId: null } : {}),
+        contents: (g.contents || []).filter((_, i) => pickedContents.has(`${g.id}:${i}`)),
+      }));
+    if (onImportGoals(goals)) onClose();
   };
   const confirmContents = () => {
     if (
@@ -127,20 +151,29 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
       ) : !data.goals.length && !data.contents.length ? (
         <EmptyState title="Chưa có dữ liệu của Bộ cho nhóm tuổi này" />
       ) : tab === 'goals' ? (
-        <GoalPicker tree={pickTree} picked={picked} onToggle={toggle} />
+        <GoalPicker
+          tree={pickTree}
+          picked={picked}
+          onToggle={toggle}
+          contentPicked={pickedContents}
+          onToggleContent={toggleContent}
+          droppedSubs={droppedSubs}
+          onToggleSub={toggleSub}
+          kindLabels={{ sub: 'Lĩnh vực con', group: 'Kết quả cần đạt' }}
+        />
       ) : (
         <>
           {!targets.length ? (
             <Notice tone="warn">Bản đang soạn chưa có mục tiêu.</Notice>
           ) : (
-            <div className="ga-cur-toolbar ga-cur-filters">
+            <div className="ga-cur-toolbar ga-cur-filters ga-cur-content-filters">
               <div className="field">
                 <label className="field__label" htmlFor="cur-target">
-                  Thêm vào mục tiêu
+                  Thêm vào mục tiêu <span className="req">*</span>
                 </label>
                 <select
                   id="cur-target"
-                  className="select ga-cur-target"
+                  className="select ga-cur-select--ellipsis"
                   value={target}
                   title={targetTitle}
                   onChange={(e) => {
@@ -162,8 +195,9 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
                 </label>
                 <select
                   id="cur-domain"
-                  className="select"
+                  className="select ga-cur-select--ellipsis"
                   value={domainFilter}
+                  title={domainFilter || (targetDomain ? `Theo mục tiêu (${targetDomain})` : 'Tất cả lĩnh vực')}
                   onChange={(e) => {
                     setDomainFilter(e.target.value);
                     setSubFilter('');
@@ -182,7 +216,13 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
                   <label className="field__label" htmlFor="cur-sub">
                     Lĩnh vực con
                   </label>
-                  <select id="cur-sub" className="select" value={subFilter} onChange={(e) => setSubFilter(e.target.value)}>
+                  <select
+                    id="cur-sub"
+                    className="select"
+                    value={subFilter}
+                    title={subFilter || 'Tất cả'}
+                    onChange={(e) => setSubFilter(e.target.value)}
+                  >
                     <option value="">Tất cả</option>
                     {subDomains.map((s) => (
                       <option key={s} value={s}>
@@ -194,13 +234,19 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
               )}
             </div>
           )}
-          <div className="ga-cur-list">
+          <p className="muted text-sm">Chọn mục tiêu đích, lọc lĩnh vực rồi tích từng nội dung để thêm.</p>
+          <div className="ga-cur-list ga-cur-content-list">
+            {!suggestions.length && (
+              <p className="muted" role="status">
+                Không có nội dung phù hợp với bộ lọc.
+              </p>
+            )}
             {suggestions.map((c, i) => {
               const head = `${c.subDomain ? `${c.subDomain} › ` : ''}${c.categoryNo ? `${c.categoryNo}. ` : ''}${c.category}`;
               const prev = suggestions[i - 1];
               const showHead = !prev || `${prev.subDomain}|${prev.category}` !== `${c.subDomain}|${c.category}`;
               return (
-                <div key={c.id}>
+                <div key={c.id} className="ga-cur-suggestion">
                   {showHead && <div className="ga-cur-sub__name">{head}</div>}
                   <label className="ga-cur-row">
                     <input type="checkbox" disabled={!target} checked={suggested.has(c.id)} onChange={() => toggleSuggestion(c.id)} />

@@ -60,6 +60,8 @@ const beFood = {
   protein: 14.8,
   lipid: 11.6,
   glucid: 0.5,
+  calcium: 55,
+  iron: 2.7,
   nutrientSource: 'Bảng TPVN',
   nutrientSourceVersion: '2017',
   wastePct: 12,
@@ -127,7 +129,21 @@ test('thực phẩm BE → dạng FE: nhóm, dinh dưỡng, nguồn số liệu,
   const [food] = await api.listFoods({ group: 'EGG_DAIRY', keyword: '' });
   assert.deepEqual(calls[0], { method: 'get', url: '/nutrition/foods', body: { foodGroup: 'EGG_DAIRY' } });
   assert.equal(food.group, 'EGG_DAIRY');
-  assert.deepEqual(food.nutrition, { kcal: 166, protein: 14.8, lipid: 11.6, glucid: 0.5 });
+  assert.deepEqual(food.nutrition, {
+    kcal: 166,
+    protein: 14.8,
+    lipid: 11.6,
+    glucid: 0.5,
+    // NUT-26: BE có canxi, sắt; chất BE chưa có số liệu ⇒ null
+    calcium: 55,
+    phosphorus: null,
+    iron: 2.7,
+    vitaminA: null,
+    vitaminB1: null,
+    vitaminB2: null,
+    vitaminPp: null,
+    vitaminC: null,
+  });
   assert.deepEqual([food.nutrientSource, food.nutrientSourceVersion], ['Bảng TPVN', '2017']);
   assert.deepEqual(food.allergens, ['Trứng']);
   assert.deepEqual([food.stockUnit, food.purchaseToStock, food.stockUnitSize], ['quả', 1, 50]);
@@ -386,6 +402,8 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     animalProteinG: ['12', '16'],
     animalLipidG: ['10', '14'],
     lunchKcalPct: ['40', '50'],
+    calcium: ['350', ''],
+    vitaminA: ['270', '450'],
   };
   const group = (ageGroupId, over = {}) => ({
     ageGroupId,
@@ -440,13 +458,30 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     lunchKcalPctMax: 50,
     afternoonKcalPctMin: null,
     afternoonKcalPctMax: null,
+    // NUT-26: vi chất cùng tên trường BE; số sau để trống = chỉ cần đạt tối thiểu
+    calciumMin: 350,
+    calciumMax: null,
+    phosphorusMin: null,
+    phosphorusMax: null,
+    ironMin: null,
+    ironMax: null,
+    vitaminAMin: 270,
+    vitaminAMax: 450,
+    vitaminB1Min: null,
+    vitaminB1Max: null,
+    vitaminB2Min: null,
+    vitaminB2Max: null,
+    vitaminPpMin: null,
+    vitaminPpMax: null,
+    vitaminCMin: null,
+    vitaminCMax: null,
   });
   assert.equal(ag2.ageGroupId, '11');
   assert.equal(ag2.mealPrice, 28000);
   assert.equal(ag2.kcalMin, null, 'ô trống ⇒ null (chưa đặt)');
 
   calls = [];
-  const unchanged = { ...norms, animalProteinG: ['', ''] };
+  const unchanged = { ...norms, animalProteinG: ['', ''], calcium: ['', ''], vitaminA: ['', ''] };
   const none = await api.saveNutritionSetups({
     effectiveFrom: '2099-02-01',
     basis: 'TT 28/2016',
@@ -537,6 +572,31 @@ test('kiểm tra thực đơn: danh mục BE ⇒ định mức, bữa, giá/ngà
     live.nutritionSetups.find((x) => x.ageGroupId === 'ag-4').meals.map((m) => m.code),
     ['LUNCH', 'AFTERNOON'],
   );
+});
+
+test('catalog nối BE: dữ liệu thực đơn và cấu hình nhóm tuổi tải song song, không chờ nối tiếp', async () => {
+  const { loadMenuCatalog } = await import('@/services/menu-planning/menuPlanningService');
+  const started = [];
+  let release;
+  const gate = new Promise((resolve) => (release = resolve));
+  const menuRepo = {
+    getCatalog: async () => {
+      started.push('menu');
+      await gate;
+      return { foods: [], dishes: [], menus: [] };
+    },
+  };
+  const catalogApi = {
+    getEffectiveSetups: async () => {
+      started.push('setups');
+      return { norms: {} };
+    },
+  };
+  const pending = loadMenuCatalog({ menuRepo, catalogApi, usesApi: true, today: '2026-11-03' });
+  await Promise.resolve();
+  assert.deepEqual(started.sort(), ['menu', 'setups'], 'cấu hình bắt đầu tải khi dữ liệu thực đơn chưa về');
+  release();
+  assert.deepEqual((await pending).norms, {});
 });
 
 test('kiểm tra tiền ăn tuần: giá BE theo ngày ⇒ so từng ngày; mock ⇒ tổng tuần so giá × số ngày', async () => {

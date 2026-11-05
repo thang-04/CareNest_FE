@@ -64,8 +64,11 @@ const themeSection = ({ doc, theme, themeNo, weeks, blocks, rowOf }) => {
   const rows = blocks
     .map((b, i) => {
       const band =
-        i === 0 || blocks[i - 1].domain !== b.domain ? `<tr><td></td><td colspan="3"><b>${esc(domainTitle(b.domain))}</b></td></tr>` : '';
-      const sub = b.sub ? `<tr><td></td><td colspan="3"><b><i>*${esc(b.sub)}</i></b></td></tr>` : '';
+        // Không gộp ô ngang: đường kẻ dọc các cột liền tới cuối bảng (Tiền 03/11)
+        i === 0 || blocks[i - 1].domain !== b.domain
+          ? `<tr><td></td><td><b>${esc(domainTitle(b.domain))}</b></td><td></td><td></td></tr>`
+          : '';
+      const sub = b.sub ? `<tr><td></td><td><b><i>*${esc(b.sub)}</i></b></td><td></td><td></td></tr>` : '';
       const goals = b.goals
         .map((g) => {
           const r = rowOf(g);
@@ -161,7 +164,9 @@ export const weekFileHtml = ({ cls, ...w }) =>
  * "Dự kiến các chủ đề nhánh và thời gian thực hiện" theo mẫu Thái Dương: Tháng | Chủ đề | Chủ đề nhánh | Số tuần | Ghi chú,
  * tháng và chủ đề gộp theo chủ đề, dòng nghỉ riêng; cuối trang Người duyệt kế hoạch (Phó HT) và Người xây dựng (giáo viên).
  */
-export const branchFileHtml = ({ doc, cls, yearPlan, teachers, leaderName }) => {
+// blank: file mẫu để nhập (Tiền 05/11) — giữ nguyên bảng như file xuất (tháng, chủ đề, tuần, dòng nghỉ, chỗ ký),
+// bỏ dữ liệu đã có: tên nhánh, ghi chú, họ tên người ký
+export const branchFileHtml = ({ doc, cls, yearPlan, teachers, leaderName, blank = false }) => {
   const rows = yearWeeks(yearPlan);
   const weeks = rows.filter((r) => r.type === 'week');
   const year = (yearPlan.schoolYear || '').replace(/\s*[-–]\s*/, ' - ');
@@ -182,13 +187,16 @@ export const branchFileHtml = ({ doc, cls, yearPlan, teachers, leaderName }) => 
           ? `<td class="c" rowspan="${span(i)}">${months(r.theme)}</td><td class="c" rowspan="${span(i)}"><b>${esc(r.theme.name.toUpperCase())}</b></td>`
           : '';
       if (r.type === 'break')
-        return `<tr>${head}<td colspan="3"><i>Nghỉ ${esc(r.label || '')} từ ngày ${fmt(r.start)} đến hết ngày ${fmt(r.end)}</i></td></tr>`;
+        // Tên đợt nghỉ thường đã có chữ "Nghỉ" ("Nghỉ Tết Nguyên đán"): không lặp "Nghỉ Nghỉ"
+        return `<tr>${head}<td colspan="3"><i>Nghỉ ${esc((r.label || '').replace(/^\s*nghỉ\s*/i, ''))} từ ngày ${fmt(r.start)} đến hết ngày ${fmt(r.end)}</i></td></tr>`;
       const no = rows.slice(0, i + 1).filter((x) => x.type === 'week' && x.theme.id === r.theme.id).length;
-      return `<tr>${head}<td>- Nhánh ${no}: ${esc(doc.names?.[r.start] || '')}</td><td>Tuần ${r.no}: ${fmt(r.start)}<br/>${fmt(r.end)}</td><td>${esc(doc.notes?.[r.start] || '')}</td></tr>`;
+      return `<tr>${head}<td>- Nhánh ${no}: ${blank ? '' : esc(doc.names?.[r.start] || '')}</td><td>Tuần ${r.no}: ${fmt(r.start)}<br/>${fmt(r.end)}</td><td>${blank ? '' : esc(doc.notes?.[r.start] || '')}</td></tr>`;
     })
     .join('');
-  const approvers = signersOf(getEduConfig().signers.branch, doc.approvals, leaderName);
-  const people = teachers.length ? teachers : [{ fullName: '' }];
+  const approvers = signersOf(getEduConfig().signers.branch, blank ? [] : doc.approvals, leaderName).map((x) =>
+    blank ? { ...x, name: '' } : x,
+  );
+  const people = teachers.length && !blank ? teachers : [{ fullName: '' }];
   return docShell(
     `Dự kiến các chủ đề nhánh ${cls.name}`,
     `<h1>DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH VÀ THỜI GIAN THỰC HIỆN NĂM HỌC ${esc(year)} - ${esc(cls.name.toUpperCase())}</h1>
@@ -211,17 +219,10 @@ export const branchFile = (args) => ({
   html: branchFileHtml(args),
   name: fileTitle(`2. DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH VÀ THỜI GIAN THỰC HIỆN - ${args.cls.name}`),
 });
-export const branchTemplateFile = (weeks = []) => ({
-  html: docShell(
-    'Mẫu nhập chủ đề nhánh',
-    `<p><b>Mẫu nhập chủ đề nhánh</b></p>
-<p>Điền tên chủ đề nhánh vào từng dòng, giữ tên chủ đề tương ứng. Ngày và tuần thực hiện do hệ thống xác định; không cần nhập thời gian trong file. Lưu file rồi chọn Nhập file để xem trước.</p>
-<table class="grid"><colgroup><col style="width:40%"/><col style="width:60%"/></colgroup>
-<thead><tr><th>Chủ đề</th><th>Chủ đề nhánh</th></tr></thead><tbody>${(weeks.length ? weeks : [{ theme: { name: '' } }])
-      .map((week) => `<tr><td>${esc(week.theme.name)}</td><td>&nbsp;</td></tr>`)
-      .join('')}</tbody></table>`,
-  ),
-  name: 'Mẫu nhập chủ đề nhánh',
+/** File mẫu nhập chủ đề nhánh: đúng bảng của file xuất, để trống tên nhánh và ghi chú (Tiền 05/11). */
+export const branchTemplateFile = (args) => ({
+  html: branchFileHtml({ ...args, doc: { names: {}, notes: {} }, blank: true }),
+  name: fileTitle(`Mẫu nhập chủ đề nhánh - ${args.cls.name}`),
 });
 export const themeFile = (args) => ({
   html: themeFileHtml(args),

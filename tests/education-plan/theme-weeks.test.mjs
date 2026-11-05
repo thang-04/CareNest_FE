@@ -47,10 +47,15 @@ test('EDU-39/40: chủ đề phải trọn tuần Thứ 2 → Thứ 6 và không
   assert.equal(isWholeWeekTheme({ ...theme, start: '2098-09-07' }), false); // Chủ nhật
   assert.equal(themeScheduleIssue([theme, { id: 't2', name: 'Bản thân', start: '2098-09-29', end: '2098-10-17' }]), null);
   assert.match(themeScheduleIssue([{ ...theme, end: '2098-09-25' }]), /Thứ 2 và kết thúc vào Thứ 6/);
-  assert.match(
-    themeScheduleIssue([theme, { id: 't2', name: 'Bản thân', start: '2098-09-22', end: '2098-10-03' }]),
-    /trùng thời gian/,
-  );
+  assert.match(themeScheduleIssue([theme, { id: 't2', name: 'Bản thân', start: '2098-09-22', end: '2098-10-03' }]), /trùng thời gian/);
   // Ngày còn trống (nháp) không báo lỗi lịch
   assert.equal(themeScheduleIssue([{ id: 't3', name: 'Gia đình', start: '', end: '' }]), null);
+});
+
+test('ngày nghỉ liền nhau cùng lý do gộp thành "Thứ 2, 3 (…)" (Tiền 05/11)', async () => {
+  const { offDaysText } = await import('@/models/education-plan/classPlan');
+  assert.equal(offDaysText(['GPMN', 'GPMN', null, null, 'Lễ']), 'Thứ 2, 3 (GPMN), Thứ 6 (Lễ)');
+  assert.equal(offDaysText(['A', null, 'A', null, null]), 'Thứ 2 (A), Thứ 4 (A)');
+  assert.equal(offDaysText(['A', 'B', 'B', 'B', null]), 'Thứ 2 (A), Thứ 3, 4, 5 (B)');
+  assert.equal(offDaysText([]), '');
 });

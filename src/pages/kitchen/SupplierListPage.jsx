@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, Pencil, Plus, RotateCcw } from '@/components/ui/icons';
+import { Plus, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuppliers } from '@/hooks/kitchen/useKitchen';
 import { useFilterParams } from '@/hooks/useFilterParams';
-import { Breadcrumb, EmptyState, ErrorState, Pagination, RowMenu, SkeletonRows, paginate } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, Pagination, RowActions, SkeletonRows, paginate } from '@/components';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
@@ -47,11 +47,6 @@ export default function SupplierListPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Nhà cung cấp</h1>
-          <p className="page__desc">
-            {canManage
-              ? 'Thông tin cơ bản của nhà cung cấp; phó hiệu trưởng chọn nhà cung cấp đang dùng khi lập phiếu nhập kho.'
-              : 'Danh mục do người có quyền quản lý danh mục bán trú cập nhật; chọn nhà cung cấp đang dùng khi lập phiếu nhập kho.'}
-          </p>
         </div>
         {canManage && (
           <div className="page__actions">
@@ -96,7 +91,7 @@ export default function SupplierListPage() {
                   <th>Số điện thoại</th>
                   <th className="num">Số phiếu nhập</th>
                   <th className="center">Trạng thái</th>
-                  <th className="td-num-col cell--actions" aria-label="Thao tác" />
+                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,14 +136,8 @@ export default function SupplierListPage() {
                       <td className="center">
                         <SupplierStatusBadge status={s.status} />
                       </td>
-                      <td className="td-num-col cell--actions">
-                        <RowMenu
-                          label={`Thao tác ${s.name}`}
-                          items={[
-                            { label: 'Xem chi tiết', to: `/menu/suppliers/${s.id}`, icon: Eye },
-                            ...(canManage ? [{ label: 'Sửa', to: `/menu/suppliers/${s.id}/edit`, icon: Pencil }] : []),
-                          ]}
-                        />
+                      <td className="cell--actions">
+                        {canManage && <RowActions edit={{ to: `/menu/suppliers/${s.id}/edit` }} name={s.name} />}
                       </td>
                     </tr>
                   ))

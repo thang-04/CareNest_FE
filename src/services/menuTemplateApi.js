@@ -1,8 +1,8 @@
 import { beClient } from '@/services/http/beClient';
 
 /*
- * Bộ thực đơn mẫu 4 tuần theo khối trên BE `/nutrition/menu-templates` (NUT-13): lưu ghi đè cả lưới
- * items[{ weekNo 1–4, weekday 1–5, session, dishId }]; ngừng dùng bằng PATCH status. Cờ canEdit, các bữa của khối do BE trả.
+ * Mẫu thực đơn một ngày theo khối trên BE `/nutrition/menu-templates` (NUT-13): lưu ghi đè danh sách món
+ * items[{ session, dishId }]; ngừng dùng bằng PATCH status. Cờ canEdit, các bữa của khối, nhóm tuổi của khối do BE trả.
  */
 const blank = (v) => v === '' || v == null;
 const params = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => !blank(v)));
@@ -19,7 +19,7 @@ export const createMenuTemplateApi = ({ client = beClient } = {}) => ({
     return toTemplate(await client.get(`/nutrition/menu-templates/${id}`));
   },
 
-  /** `body` = { name, seasonLabel, block, items[{ weekNo, weekday, session, dishId }] }. */
+  /** `body` = { name, seasonLabel, block, items[{ session, dishId }] }. */
   async saveTemplate(id, body) {
     return toTemplate(
       id ? await client.put(`/nutrition/menu-templates/${id}`, body) : await client.post('/nutrition/menu-templates', body),

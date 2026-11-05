@@ -176,9 +176,6 @@ export default function DryStockPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Kho khô</h1>
-          <p className="page__desc">
-            Tồn đồ khô của hai cơ sở. Hàng không chuyển giữa cơ sở; "đủ dùng" tính theo lượng xuất trung bình 7 ngày.
-          </p>
         </div>
         <div className="page__actions">
           {canManageStock(user) && (

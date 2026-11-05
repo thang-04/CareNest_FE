@@ -16,6 +16,8 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, default
   const [ageGroupId, setAgeGroupId] = useState(defaultAgeGroupId || '');
   const [sourceId, setSourceId] = useState('');
   const [picked, setPicked] = useState({ key: '', ids: [] });
+  // Lĩnh vực con bỏ tích (khóa `${lĩnh vực}|${id dòng}`): chỉ lấy mục tiêu, không lấy lĩnh vực con (Tiền 05/11)
+  const [dropped, setDropped] = useState({ key: '', subs: [] });
   const [checking, setChecking] = useState(false);
   const [confirmError, setConfirmError] = useState('');
   const query = useGoalImportSources({
@@ -46,6 +48,14 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, default
   const key = `${query.sourceKey}:${source?.revision ?? 0}:${source?.status || ''}`;
   const selected = new Set(picked.key === key ? picked.ids : []);
   const selectedIds = goals.filter((goal) => selected.has(goal.id)).map((goal) => goal.id);
+  const droppedSubs = new Set(dropped.key === key ? dropped.subs : []);
+  const dropSubIds = [
+    ...new Set(
+      goals
+        .filter((goal) => selected.has(goal.id) && goal.sub && droppedSubs.has(`${goal.domainName}|${goal.sub.id}`))
+        .map((goal) => goal.sub.id),
+    ),
+  ];
   const count = selectedIds.length;
   const busy = useRef(false);
   const generation = useRef(0);
@@ -68,6 +78,15 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, default
   const close = () => {
     generation.current++;
     onClose();
+  };
+  const toggleSub = (subKey, ids) => {
+    const next = new Set(droppedSubs);
+    if (!ids.some((id) => selected.has(id))) {
+      toggle(ids);
+      next.delete(subKey);
+    } else if (next.has(subKey)) next.delete(subKey);
+    else next.add(subKey);
+    setDropped({ key, subs: [...next] });
   };
   const toggle = (ids) => {
     setConfirmError('');
@@ -98,7 +117,7 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, default
         query.reloadSource();
         return;
       }
-      const applied = await latest.current.onImport({ source: fresh, selectedGoalIds: selectedIds });
+      const applied = await latest.current.onImport({ source: fresh, selectedGoalIds: selectedIds, dropSubIds });
       if (applied && valid()) latest.current.onClose();
       else if (valid()) setConfirmError('Chưa thêm được mục tiêu. Kiểm tra lại quyền sửa và phiên sửa kế hoạch.');
     } catch (error) {
@@ -194,6 +213,7 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, default
               id="imp-src"
               className="select"
               value={query.sourceId}
+              title={query.sources.find((item) => String(item.id) === String(query.sourceId))?.title}
               onChange={(event) => {
                 reset();
                 setSourceId(event.target.value);
@@ -229,7 +249,14 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, default
                 {!goals.length ? (
                   <EmptyState title="Kế hoạch nguồn chưa có mục tiêu" />
                 ) : (
-                  <GoalPicker tree={pickTree} picked={selected} onToggle={toggle} disabled={checking} />
+                  <GoalPicker
+                    tree={pickTree}
+                    picked={selected}
+                    onToggle={toggle}
+                    disabled={checking}
+                    droppedSubs={droppedSubs}
+                    onToggleSub={toggleSub}
+                  />
                 )}
               </>
             )

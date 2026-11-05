@@ -33,23 +33,24 @@ test('NUT-11, NUT-14, NUT-15: không còn màn xuất kho thủ công, chế bi�
     assert.equal(existsSync(`src/pages/kitchen/${page}.jsx`), false, page);
 });
 
-test('PHT, HT: sáu nhóm bán trú theo đúng thứ tự', () => {
+test('PHT, HT: khu Bán trú liền nhau, đúng thứ tự, dưới một nhãn', () => {
   for (const role of [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL]) {
-    const keys = getMenuForRole(role)
-      .map((entry) => entry.key)
-      .filter((key) => BOARDING_GROUPS.includes(key));
-    assert.deepEqual(keys, BOARDING_GROUPS, role);
+    const menu = getMenuForRole(role);
+    const section = menu.filter((entry) => entry.section === 'Bán trú');
+    assert.deepEqual(
+      section.map((entry) => entry.key),
+      BOARDING_GROUPS,
+      role,
+    );
+    const start = menu.indexOf(section[0]);
+    assert.deepEqual(menu.slice(start, start + section.length), section, `${role}: khu bán trú không bị chen mục khác`);
   }
 });
 
-test('Bán trú hôm nay: HT, PHT có một mục tới /boarding/today; bếp không có (AUTH-21)', () => {
+test('Bán trú hôm nay: HT, PHT có link thẳng tới /boarding/today, không phải nhóm một mục; bếp không có (AUTH-21)', () => {
   for (const role of [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL]) {
-    const group = getMenuForRole(role).find((entry) => entry.key === 'boardingToday');
-    assert.deepEqual(
-      group.children.map((child) => [child.key, child.label, child.to]),
-      [['boardingToday', 'Bán trú hôm nay', '/boarding/today']],
-      role,
-    );
+    const entry = getMenuForRole(role).find((item) => item.key === 'boardingToday');
+    assert.deepEqual([entry.label, entry.to, entry.children], ['Bán trú hôm nay', '/boarding/today', undefined], role);
   }
   const kitchenItems = getMenuForRole(ROLES.KITCHEN_STAFF).flatMap((entry) => (entry.children || []).map((child) => child.to));
   assert.ok(

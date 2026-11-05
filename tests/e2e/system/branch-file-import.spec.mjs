@@ -198,13 +198,20 @@ test('EDU-47 lỗi file thật 7124/7125/7126 và người xem 403 không thay b
   expect(result.status).toBe(400);
   expect(result.body.errorCode).toBe(7125);
   await dialogOf(page).getByRole('button', { name: 'Hủy', exact: true }).click();
-  result = await choose(page, {
-    name: 'qua-lon.doc',
-    mimeType: 'application/msword',
-    buffer: Buffer.alloc(2 * 1024 * 1024 + 1),
-  });
-  expect(result.status).toBe(400);
-  expect(result.body.errorCode).toBe(7126);
+  // File > 2 MB: Web chặn trước khi gửi (G94-179, 02/11) nên không có yêu cầu 7126 lên BE
+  let oversizedPosted = false;
+  const watchOversized = (req) => {
+    if (req.method() === 'POST' && new URL(req.url()).pathname.endsWith(previewPath)) oversizedPosted = true;
+  };
+  page.on('request', watchOversized);
+  await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
+  await dialogOf(page)
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'qua-lon.doc', mimeType: 'application/msword', buffer: Buffer.alloc(2 * 1024 * 1024 + 1) });
+  await expect(dialogOf(page).getByText('File tối đa 2 MB. Vui lòng chọn file nhỏ hơn.')).toBeVisible();
+  await expect(dialogOf(page).getByRole('button', { name: /^Thêm.*tên nhánh$/ })).toBeDisabled();
+  page.off('request', watchOversized);
+  expect(oversizedPosted).toBe(false);
   await dialogOf(page).getByRole('button', { name: 'Hủy', exact: true }).click();
   result = await choose(page, {
     name: 'toa-do-qua-gioi-han.xlsx',

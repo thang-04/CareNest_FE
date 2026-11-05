@@ -1,3 +1,4 @@
+import { recipientError } from './accountRecipient';
 import { DECLARATION_STATE, GUARDIAN_RELATIONS, MAX_GUARDIANS } from '@/models/children/childrenConstants';
 import { citizenIdError, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
@@ -81,7 +82,7 @@ export const validateChildProfile = (p = {}) => {
 };
 
 /** Child + guardians block of the enrollment form (kèm phần hành chính). */
-export const validateChildInfo = (data) => {
+export const validateChildInfo = (data, { requireRecipient = true } = {}) => {
   const errors = { ...validateChildProfile(data.profile) };
   if (!data.fullName?.trim()) errors.fullName = 'Nhập họ tên trẻ';
   else if (data.fullName.trim().length > 100) errors.fullName = 'Họ tên tối đa 100 ký tự';
@@ -109,6 +110,8 @@ export const validateChildInfo = (data) => {
   if (new Set(phones).size !== phones.length) errors.guardians = 'Hai phụ huynh không được dùng chung số điện thoại';
   const ids = guardians.map((g) => normalizeCitizenId(g.idNumber)).filter(Boolean);
   if (new Set(ids).size !== ids.length) errors.guardians = 'Hai phụ huynh không được dùng chung số CCCD';
+  const selectionError = recipientError(guardians);
+  if (requireRecipient && selectionError) errors.accountRecipient = selectionError;
   if (guardians.length > MAX_GUARDIANS) errors.guardians = `Mỗi trẻ tối đa ${MAX_GUARDIANS} phụ huynh`;
   return errors;
 };

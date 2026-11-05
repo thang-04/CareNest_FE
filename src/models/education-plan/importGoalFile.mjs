@@ -1,6 +1,6 @@
 import { getImportGoals, mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
-import { shiftYears, yearShift } from '@/models/education-plan/importThemes.mjs';
+import { yearShift } from '@/models/education-plan/importThemes.mjs';
 import { duplicateAbbrThemeIds, themeScheduleIssue } from '@/models/education-plan/goalTable';
 
 // EDU-46: preview/apply cùng chế độ thay nội dung, giữ năm hệ thống và các trường cố định.
@@ -117,8 +117,7 @@ export function prepareFileImport(form, preview, { allowedAgeGroupIds, yearRange
     ? (preview?.themes || []).map((t, i) => ({
         ...t,
         id: `file-theme-${i}`,
-        start: shiftYears(t.start, shifted),
-        end: shiftYears(t.end, shifted),
+        // Giữ ngày như file (Tiền 04/11); bảng chủ đề gợi ý dời ngày sau khi áp dụng
       }))
     : form.themes || [];
   const breaks = replace.breaks
@@ -126,8 +125,6 @@ export function prepareFileImport(form, preview, { allowedAgeGroupIds, yearRange
         ...b,
         id: `file-break-${i}`,
         label: b.name || b.label || '',
-        start: shiftYears(b.start, shifted),
-        end: shiftYears(b.end, shifted),
       }))
     : form.breaks || [];
   if (duplicateAbbrThemeIds(themes).size) error ||= 'Chủ đề có viết tắt trùng nhau. Kiểm tra trước khi ghép dấu tích.';

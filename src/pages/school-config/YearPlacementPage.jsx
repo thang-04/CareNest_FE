@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
@@ -66,13 +68,22 @@ export default function YearPlacementPage() {
     ),
   ];
   const onDirty = useCallback((value) => setDirty(value), []);
+  // Rời màn / đổi bước wizard khi lớp đang chọn còn thay đổi chưa lưu: hỏi trước (lưu ở khung lớp)
+  const guard = useLeaveGuard({ when: dirty });
 
-  const setParam = (key, value) => {
+  const applyParam = (key, value) => {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
     setParams(next, { replace: true });
   };
+  // Đổi bộ lọc / xếp tự động làm khung lớp nạp lại: còn chọn chưa lưu thì hỏi trước (bỏ thay đổi mới làm tiếp)
+  const unlessDirty = (run) =>
+    guard.leave(() => {
+      setDirty(false);
+      run();
+    });
+  const setParam = (key, value) => unlessDirty(() => applyParam(key, value));
   // Đổi lớp khi đang sửa dở thì hỏi trước để không mất thay đổi
   const pick = (id) => {
     if (id === selected?.id) return;
@@ -93,7 +104,13 @@ export default function YearPlacementPage() {
       const r = await autoPlace(yearId, user, { campusId: campusId || undefined, ageGroupId: groupId || undefined });
       setConfirmAuto(false);
       const left = r.unplaced.map((u) => `${u.className}: ${u.count} trẻ`).join(', ');
-      toast.success(`${r.promoted} trẻ lên lớp, ${r.graduated} trẻ ra trường.${left ? ` Chưa đủ chỗ: ${left}.` : ''}`, 'Đã xếp tự động');
+      const undecided = r.undecided
+        ? ` ${r.undecided} trẻ lớp ra trường chưa hoàn thành chương trình / chưa đánh giá: chọn ra trường hoặc ở lại.`
+        : '';
+      toast.success(
+        `${r.promoted} trẻ lên lớp, ${r.graduated} trẻ ra trường.${undecided}${left ? ` Chưa đủ chỗ: ${left}.` : ''}`,
+        'Đã xếp tự động',
+      );
       const fresh = await reload({ silent: true });
       // Mở ngay lớp còn trẻ chưa xếp để Hiệu trưởng xử lý tiếp
       const todo = classes.map((c) => fresh?.classes.find((x) => x.id === c.id)).find((c) => c && placedOf(c) < c.children.length);
@@ -205,7 +222,7 @@ export default function YearPlacementPage() {
             </div>
             {/* Nút xếp tự động ở cuối hàng lọc: áp dụng đúng phạm vi đang lọc */}
             {plan?.editable && (
-              <button className="btn btn--primary sc-plc__auto" onClick={() => setConfirmAuto(true)}>
+              <button className="btn btn--primary sc-plc__auto" onClick={() => unlessDirty(() => setConfirmAuto(true))}>
                 <Wand2 size={16} /> {autoLabel}
               </button>
             )}
@@ -238,7 +255,8 @@ export default function YearPlacementPage() {
               <nav className="card sc-plc__list" aria-label="Lớp năm học cũ" onKeyDown={onListKey}>
                 {missingTargets.length > 0 && (
                   <p className="sc-plc__missing text-xs" role="note">
-                    <AlertTriangle size={14} /> Năm {plan.year.name} chưa có lớp: {missingTargets.join(', ')}
+                    <AlertTriangle size={14} /> Năm {plan.year.name} chưa có lớp: {missingTargets.join(', ')}.{' '}
+                    <Link to={`/school/classes?year=${plan.year.id}`}>Thêm lớp</Link>
                   </p>
                 )}
                 {classes.map((c) => {
@@ -335,7 +353,7 @@ export default function YearPlacementPage() {
       <ConfirmationModal
         open={confirmAuto}
         title={`${autoLabel}?`}
-        message={`${filtered ? `Chỉ các lớp đang hiện theo bộ lọc (${classes.length} lớp). ` : ''}Trẻ chưa xếp được chuyển cả lớp lên nhóm tuổi kế tiếp (lớp cùng điểm trường còn nhiều chỗ nhất); nhóm tuổi lớn nhất ra trường. Trẻ đã xếp giữ nguyên. Lớp mới hết chỗ thì trẻ còn lại để chưa xếp.`}
+        message={`${filtered ? `Chỉ các lớp đang hiện theo bộ lọc (${classes.length} lớp). ` : ''}Trẻ chưa xếp được chuyển cả lớp lên nhóm tuổi kế tiếp (lớp cùng điểm trường còn nhiều chỗ nhất); lớp nhóm tuổi lớn nhất: trẻ đã hoàn thành chương trình ra trường, trẻ chưa hoàn thành để chọn ra trường hoặc ở lại. Trẻ đã xếp giữ nguyên. Lớp mới hết chỗ thì trẻ còn lại để chưa xếp.`}
         confirmLabel="Xếp tự động"
         onConfirm={runAuto}
         error={autoError}
@@ -343,6 +361,11 @@ export default function YearPlacementPage() {
           setConfirmAuto(false);
           setAutoError('');
         }}
+      />
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave={false}
+        message="Lớp đang chọn có thay đổi xếp lớp chưa lưu. Rời màn sẽ bỏ các thay đổi này."
       />
     </div>
   );

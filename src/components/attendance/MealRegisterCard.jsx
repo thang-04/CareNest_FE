@@ -54,6 +54,10 @@ const confirmerLabel = (count, md) => {
   return name || role || 'Phó hiệu trưởng';
 };
 
+// Ngày đã qua mà sổ còn "đang báo ăn" (chưa ai lập sổ): chỉ xem, không phải "chưa tới giờ chốt" (BE NUT-03)
+const schoolToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+const pastOpen = (count) => count.status === 'OPEN' && !!count.date && count.date < schoolToday();
+
 /** Bảng lớp của một bữa: số suất theo bữa BE trả, sửa riêng bữa này. Xác nhận theo cả ngày (BE NUT-02, D10). */
 function MealPanel({ count, user, md, onAdjust, counts }) {
   const adjustable = canAdjustMealCount(count, user);
@@ -64,9 +68,11 @@ function MealPanel({ count, user, md, onAdjust, counts }) {
         <span className="muted text-sm">
           {count.confirmedAt
             ? `${count.needsReconfirmation ? 'Lần xác nhận trước' : 'Xác nhận'} bởi ${confirmerLabel(count, md)} lúc ${formatDateTime(count.confirmedAt)}`
-            : count.status === 'OPEN'
-              ? 'Đang báo ăn, chưa tới giờ chốt'
-              : 'Chưa xác nhận'}
+            : pastOpen(count)
+              ? 'Ngày đã qua, sổ chưa được xác nhận'
+              : count.status === 'OPEN'
+                ? 'Đang báo ăn, chưa tới giờ chốt'
+                : 'Chưa xác nhận'}
         </span>
       </div>
       <div className="table-wrap mt-12">
@@ -159,7 +165,11 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
         {status === 'OPEN' && (
           <div className="alert alert--info mb-12">
             <Info size={18} />
-            <div>Giáo viên đang điểm danh và báo ăn. Số liệu dưới đây là tạm tính đến giờ chốt.</div>
+            <div>
+              {pastOpen(first)
+                ? 'Ngày đã qua và sổ báo ăn chưa được xác nhận trong ngày: số liệu dưới đây tính từ điểm danh, chỉ để xem.'
+                : 'Giáo viên đang điểm danh và báo ăn. Số liệu dưới đây là tạm tính đến giờ chốt.'}
+            </div>
           </div>
         )}
         {(status !== MEAL_COUNT_STATUS.CONFIRMED || confirmable.length > 0) && incomplete.length > 0 && (
@@ -239,7 +249,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
                     <td className={`num ${l.missing ? 'text-danger' : 'muted'}`}>{l.missing || '—'}</td>
                     {day.sessions.map((sKey) => (
                       <td key={sKey} className={`num ${l.meals[sKey] ? '' : 'muted'}`}>
-                        {l.meals[sKey] ? l.meals[sKey].normal + l.meals[sKey].substitute : '—'}
+                        {l.meals[sKey] ? <ServingCell meal={l.meals[sKey]} /> : '—'}
                       </td>
                     ))}
                     <td className="num fw-600">{l.normal + l.substitute}</td>
@@ -323,7 +333,10 @@ export function MealAdjustModal({ target, user, onClose, onSaved }) {
   const save = async () => {
     const substitute = Number(form.substitute);
     const errs = {};
+    // Suất thay thế nằm trong số trẻ ăn bữa đó (BE 6075): 20 trẻ, 1 thay thế = 20 suất
+    const eating = line.normal + line.substitute;
     if (form.substitute.trim() === '' || !Number.isInteger(substitute) || substitute < 0) errs.substitute = 'Nhập số nguyên ≥ 0.';
+    else if (substitute > eating) errs.substitute = `Không quá ${eating} (số trẻ ăn của lớp).`;
     if (!form.note.trim()) errs.note = 'Nhập lý do điều chỉnh.';
     setErrors(errs);
     if (Object.keys(errs).length) return;
@@ -378,5 +391,16 @@ export function MealAdjustModal({ target, user, onClose, onSaved }) {
         <input className="input" maxLength={200} placeholder="Ví dụ: 1 trẻ dị ứng nặng cần suất riêng" {...field('note')} />
       </FormField>
     </Modal>
+  );
+}
+
+/** Số suất một bữa; đang chờ xác nhận lại mà khác số đã chốt thì hiện "cũ → mới" để người duyệt thấy thay đổi. */
+function ServingCell({ meal }) {
+  const now = meal.normal + meal.substitute;
+  if (meal.before == null || meal.before === now) return now;
+  return (
+    <span className="text-warning fw-600" title={`Đã chốt trước: ${meal.before} suất, nay: ${now} suất`}>
+      <s className="muted">{meal.before}</s> → {now}
+    </span>
   );
 }

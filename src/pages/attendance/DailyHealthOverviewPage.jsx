@@ -182,9 +182,7 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                 <th>Ghi chú</th>
                 <th>Xử trí</th>
                 <th>Người ghi</th>
-                <th className="cell--actions">
-                  <span className="sr-only">Thao tác</span>
-                </th>
+                <th className="cell--actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -318,15 +316,17 @@ export default function DailyHealthOverviewPage() {
           </option>
         ))}
       </select>
-      <select className="select" aria-label="Lớp" value={classId} onChange={(e) => update({ classId: e.target.value })}>
-        <option value="">Tất cả lớp</option>
-        {classOptions.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-            {isPrincipal && !campusId ? ` · ${md.campusById?.(c.campusId)?.shortName || ''}` : ''}
-          </option>
-        ))}
-      </select>
+      {classOptions.length > 1 && (
+        <select className="select" aria-label="Lớp" value={classId} onChange={(e) => update({ classId: e.target.value })}>
+          <option value="">Tất cả lớp</option>
+          {classOptions.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+              {isPrincipal && !campusId ? ` · ${md.campusById?.(c.campusId)?.shortName || ''}` : ''}
+            </option>
+          ))}
+        </select>
+      )}
       {filtered && (
         <button className="btn btn--sm" type="button" onClick={clearFilters}>
           Đặt lại bộ lọc

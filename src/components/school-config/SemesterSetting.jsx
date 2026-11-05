@@ -6,11 +6,12 @@ import { useAsync } from '@/hooks/useAsync';
 import { FormField } from '@/components/form/FormField';
 import { DateInput } from '@/components/form/DateInput';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
-import { getSchoolYearById, saveSemester } from '@/services/school-config/schoolConfigService';
+import { getSchoolYearById, getSemesterLocks, saveSemester } from '@/services/school-config/schoolConfigService';
 import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { SEMESTER_FIELDS, hasErrors, semesterOf, validateSemester } from '@/utils/school-config/schoolConfigValidation';
 import { formatDate } from '@/utils/format';
 import { suggestSemesters } from '@/utils/school-config/yearSetup';
+import { canManageSchoolCalendar } from '@/utils/school-config/schoolConfigPermissions';
 
 const ROWS = [
   { label: 'Học kỳ I', start: 'semester1Start', end: 'semester1End' },
@@ -19,7 +20,8 @@ const ROWS = [
 const LABELS = Object.fromEntries(SEMESTER_FIELDS);
 
 /** Cấu hình thời gian › Học kỳ: Hiệu trưởng chọn ngày bắt đầu và kết thúc của HK I, HK II, trong khoảng năm học. */
-export function SemesterSetting({ yearId }) {
+/** onDirtyChange / saveRef: trang cha hỏi lưu khi đổi tab hoặc rời màn còn học kỳ chưa lưu. */
+export function SemesterSetting({ yearId, onDirtyChange, saveRef }) {
   const { user } = useAuth();
   const toast = useToast();
   const {
@@ -28,6 +30,9 @@ export function SemesterSetting({ yearId }) {
     error,
     reload,
   } = useAsync(() => getSchoolYearById(yearId, user), [yearId, user?.id], {
+    enabled: !!yearId,
+  });
+  const { data: locks, reload: reloadLocks } = useAsync(() => getSemesterLocks(yearId, user), [yearId, user?.id], {
     enabled: !!yearId,
   });
   const [form, setForm] = useState(() => semesterOf(null));
@@ -39,11 +44,15 @@ export function SemesterSetting({ yearId }) {
     setForm(year?.semester1Start ? semesterOf(year) : suggestSemesters(year?.startDate, year?.endDate) || semesterOf(year));
     setErrors({});
   }, [year]);
+  const editableYear = !!year && year.status !== YEAR_STATUS.CLOSED && canManageSchoolCalendar(user);
+  const dirty = editableYear && !SEMESTER_FIELDS.every(([k]) => form[k] === (year[k] || ''));
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (loading || !year) return <LoadingState />;
 
-  const closed = year.status === YEAR_STATUS.CLOSED;
+  // Không có quyền cấu hình thời gian hoặc năm đã kết thúc: chỉ xem
+  const closed = year.status === YEAR_STATUS.CLOSED || !canManageSchoolCalendar(user);
   const unchanged = SEMESTER_FIELDS.every(([k]) => form[k] === (year[k] || ''));
 
   const set = (key, value) => {
@@ -59,21 +68,27 @@ export function SemesterSetting({ yearId }) {
     const e = validateSemester(form, year);
     if (!hasErrors(e) && unchanged) e.semester = 'Thời gian học kỳ chưa thay đổi';
     setErrors(e);
-    if (hasErrors(e)) return;
+    if (hasErrors(e)) return false;
     setSaving(true);
     try {
       await saveSemester(yearId, form, user);
       toast.success('Đã lưu thời gian học kỳ.');
       reload({ silent: true });
+      reloadLocks({ silent: true });
+      return true;
     } catch (err) {
       setErrors(err.details || { semester: err.message });
+      return false;
     } finally {
       setSaving(false);
     }
   };
+  if (saveRef) saveRef.current = save;
 
+  // Học kỳ đã có đánh giá học kỳ: khóa ô ngày ngay (BE vẫn kiểm khi lưu)
+  const lockedKey = (key) => (key.startsWith('semester1') ? locks?.semester1Locked : locks?.semester2Locked);
   const dateCell = (key) =>
-    closed ? (
+    closed || lockedKey(key) ? (
       formatDate(year[key])
     ) : (
       <FormField error={errors[key]}>
@@ -94,6 +109,7 @@ export function SemesterSetting({ yearId }) {
         <h2 className="card__title">
           Học kỳ năm học {year.name} ({formatDate(year.startDate)} – {formatDate(year.endDate)})
         </h2>
+        {!closed && <span className="muted text-sm">Học kỳ đã có đánh giá học kỳ thì không đổi được ngày.</span>}
       </div>
       {(errors.semester || errors._form) && (
         <div className="card__body">
@@ -114,7 +130,10 @@ export function SemesterSetting({ yearId }) {
           <tbody>
             {ROWS.map((r) => (
               <tr key={r.label}>
-                <td className="fw-600">{r.label}</td>
+                <td className="fw-600">
+                  {r.label}
+                  {!closed && lockedKey(r.start) && <span className="chip chip--gray ml-8">Đã có đánh giá, khóa ngày</span>}
+                </td>
                 <td>{dateCell(r.start)}</td>
                 <td>{dateCell(r.end)}</td>
               </tr>

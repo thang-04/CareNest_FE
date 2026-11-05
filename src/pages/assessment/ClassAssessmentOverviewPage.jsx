@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { ArrowLeft, ChevronRight } from '@/components/ui/icons';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, ChevronRight, Unlock } from '@/components/ui/icons';
+import { inLeaderEditScope, isLeader } from '@/utils/assessment/assessmentPermissions';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ClassCommentList } from '@/components/assessment/ClassComments';
@@ -18,7 +20,8 @@ import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 
 const PAGE_SIZE = 10;
-const PERIODS = Object.values(OVERVIEW_PERIOD).map((key) => ({ key, label: OVERVIEW_PERIOD_LABELS[key] }));
+// Chỉ xem theo ngày và tháng (user chốt 03/11/2026: bỏ "Tuần này" để không nhầm với đánh giá tuần đã bỏ)
+const PERIODS = [OVERVIEW_PERIOD.DAY, OVERVIEW_PERIOD.MONTH].map((key) => ({ key, label: OVERVIEW_PERIOD_LABELS[key] }));
 
 const rangeText = (o) => (o.start === o.end ? formatDate(o.start) : `${formatDate(o.start)} – ${formatDate(o.end)}`);
 const pct = (n, total) => (total ? `${Math.round((n * 100) / total)}%` : '–');
@@ -30,16 +33,12 @@ const signsText = (signs) =>
     .map(([key, n]) => `${HEALTH_SYMPTOMS[key] || key} (${n})`)
     .join(', ');
 
-function SkillsCell({ dat, canCoGang, chuaDat }) {
-  const total = dat + canCoGang + chuaDat;
+function SkillsCell({ dat, chuaDat }) {
+  const total = dat + chuaDat;
   if (!total) return <span className="muted">–</span>;
   return (
-    <span
-      className="row gap-1 nowrap"
-      title={`Đạt ${pct(dat, total)} · Cần cố gắng ${pct(canCoGang, total)} · Chưa đạt ${pct(chuaDat, total)}`}
-    >
+    <span className="row gap-1 nowrap" title={`Đạt ${pct(dat, total)} · Chưa đạt ${pct(chuaDat, total)}`}>
       <span className="chip chip--green">{dat}</span>
-      <span className="chip chip--orange">{canCoGang}</span>
       <span className="chip chip--red">{chuaDat}</span>
     </span>
   );
@@ -125,7 +124,7 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
                 {CRITERIA.map((c) => (
                   <th key={c.key}>{c.label}</th>
                 ))}
-                <th>Đạt / Cần cố gắng / Chưa đạt</th>
+                <th>Đạt / Chưa đạt</th>
                 <th className="num">Cờ</th>
                 <th>Nhận xét</th>
               </tr>
@@ -228,8 +227,11 @@ export default function ClassAssessmentOverviewPage() {
   const rows = sortRows(overview?.rows || []);
   // Hiệu trưởng luôn lọc được theo điểm trường; PHT chỉ xem điểm trường của mình
   const campusOptions = isPrincipal && overview?.allCampuses?.length ? overview.allCampuses : overview?.campuses || [];
-  const multiCampus = isPrincipal || campusOptions.length > 1;
+  // Tổ trưởng xem các lớp nhóm tuổi mình: không lọc / không hiện điểm trường
+  const multiCampus = isLeader(user) && (isPrincipal || campusOptions.length > 1);
   const multiDay = (overview?.schoolDays || 0) > 1;
+  // Mở lại ngày: HT mọi lớp, PHT lớp điểm trường mình (BE leadsCampus); tổ trưởng chỉ xem
+  const canUnlock = (campus) => inLeaderEditScope(campus, user);
   const campusName = (id) => campusOptions.find((c) => String(c.id) === String(id))?.name || id;
   const classOptions = (overview?.classes || []).filter(
     (c) => (!campusId || String(c.campusId) === String(campusId)) && (!ageGroupId || String(c.ageGroupId) === String(ageGroupId)),
@@ -351,6 +353,11 @@ export default function ClassAssessmentOverviewPage() {
                             <td>
                               <strong>{r.className}</strong>
                               {multiCampus && <div className="text-xs text-2">{campusName(r.campusId)}</div>}
+                              {/* Lớp có trẻ mà chưa ai có mặt: thường là chưa điểm danh, không phải "đủ 0/0" */}
+                              {!multiDay && r.size > 0 && r.present === 0 && <span className="chip chip--red">Chưa điểm danh</span>}
+                              {r.reopenedDays > 0 && (
+                                <span className="chip chip--blue">Đã mở lại {multiDay ? `${r.reopenedDays} ngày` : ''}</span>
+                              )}
                             </td>
                             <td className={`num ${missing(r) ? 'text-danger' : ''}`}>
                               {r.assessed}/{r.present}
@@ -364,6 +371,15 @@ export default function ClassAssessmentOverviewPage() {
                             </td>
                             <td className="num">{timeOf(latest?.updatedAt, multiDay)}</td>
                             <td className="cell--actions">
+                              {canUnlock(r.campusId) && !multiDay && r.lockedDays > 0 && r.reopenedDays === 0 && (
+                                <Link
+                                  className="btn btn--sm"
+                                  to={`/assessment/day-unlocks?classId=${r.classId}&date=${date}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Unlock size={14} /> Mở lại ngày
+                                </Link>
+                              )}
                               <button
                                 type="button"
                                 className="btn btn--sm btn--outline-primary"

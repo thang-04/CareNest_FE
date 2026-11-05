@@ -147,6 +147,36 @@ export const NUTRIENT_LABELS = {
 };
 export const NUTRIENT_UNITS = { kcal: 'kcal', protein: 'g', lipid: 'g', glucid: 'g' };
 
+/**
+ * Vi chất theo bảng PMS (BE NUT-26): trên 100 g ăn được của thực phẩm; trống = chưa có số liệu, không chặn tính toán.
+ * Vitamin A tính theo đương lượng retinol (µg).
+ */
+export const MICRONUTRIENT_GROUPS = [
+  { key: 'minerals', label: 'Khoáng chất', items: ['calcium', 'phosphorus', 'iron'] },
+  { key: 'vitamins', label: 'Vitamin', items: ['vitaminA', 'vitaminB1', 'vitaminB2', 'vitaminPp', 'vitaminC'] },
+];
+export const MICRONUTRIENTS = MICRONUTRIENT_GROUPS.flatMap((g) => g.items);
+export const MICRONUTRIENT_LABELS = {
+  calcium: 'Canxi',
+  phosphorus: 'Phospho',
+  iron: 'Sắt',
+  vitaminA: 'Vitamin A',
+  vitaminB1: 'Vitamin B1',
+  vitaminB2: 'Vitamin B2',
+  vitaminPp: 'Vitamin PP',
+  vitaminC: 'Vitamin C',
+};
+export const MICRONUTRIENT_UNITS = {
+  calcium: 'mg',
+  phosphorus: 'mg',
+  iron: 'mg',
+  vitaminA: 'µg',
+  vitaminB1: 'mg',
+  vitaminB2: 'mg',
+  vitaminPp: 'mg',
+  vitaminC: 'mg',
+};
+
 /** Sáu chỉ số cân đối khẩu phần (lượng thực tế, g hoặc kcal). */
 export const INDICATOR_LABELS = {
   animalProtein: 'Đạm động vật',
@@ -192,8 +222,10 @@ export const EVAL_ROW_KEYS = [
   'protein',
   'lipid',
   'glucid',
+  ...MICRONUTRIENTS,
 ];
 export const EVAL_ROW_LABELS = {
+  ...MICRONUTRIENT_LABELS,
   kcal: 'Năng lượng',
   animalProteinG: 'Đạm động vật',
   plantProteinG: 'Đạm thực vật',
@@ -205,6 +237,7 @@ export const EVAL_ROW_LABELS = {
   glucid: 'Cơ cấu bột đường (G)',
 };
 export const EVAL_ROW_UNITS = {
+  ...MICRONUTRIENT_UNITS,
   kcal: 'kcal',
   animalProteinG: 'g',
   plantProteinG: 'g',

@@ -1,18 +1,13 @@
 import { useState } from 'react';
-import { Download, Upload } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { saveFoodsBulk } from '@/services/menu-planning/menuPlanningService';
-import { SidePanel } from '@/components/ui/SidePanel';
-import { Spinner } from '@/components/ui/States';
+import { getFoods, saveFoodsBulk } from '@/services/menu-planning/menuPlanningService';
+import { ImportDialog } from '@/components/upload/ImportDialog';
 import { IMPORT_TEMPLATE_URL, importFieldLabel, matchFoodRows, readFoodFile } from '@/utils/menu-planning/foodImport';
 import { FOOD_GROUP_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
-import { LottiePlayer } from '@/components/ui/LottiePlayer';
 
-const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
-
-/** Nhập khẩu cập nhật thực phẩm từ file .xlsx: tải file mẫu → chọn file → xem trước Mới / Cập nhật / Lỗi → ghi các dòng hợp lệ. */
-export function FoodImportPanel({ open, onClose, foods }) {
+/** Nhập thực phẩm từ file .xlsx (hộp ImportDialog): tải tệp mẫu → chọn tệp → xem trước Mới / Cập nhật / Lỗi → ghi các dòng hợp lệ. */
+export function FoodImportPanel({ open, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
   const [fileName, setFileName] = useState('');
@@ -29,16 +24,25 @@ export function FoodImportPanel({ open, onClose, foods }) {
     reset();
     onClose();
   };
-  const pick = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const pick = async (file) => {
     setFileName(file.name);
     setReading(true);
+    // Danh mục hiện có lấy lúc chọn file (trang không tải sẵn) để đối chiếu Mới / Cập nhật với dữ liệu mới nhất
+    const foods = getFoods({}, user);
+    let rows;
     try {
-      setResult(matchFoodRows(await readFoodFile(file), foods));
+      rows = await readFoodFile(file);
     } catch {
+      foods.catch(() => {}); // file hỏng thì không cần danh mục nữa
       setResult({ creates: [], updates: [], errors: [{ row: '—', reason: 'Không đọc được file. Hãy dùng file .xlsx theo file mẫu.' }] });
+      setReading(false);
+      return;
+    }
+    try {
+      setResult(matchFoodRows(rows, await foods));
+    } catch (err) {
+      toast.error(err, 'Không tải được danh mục thực phẩm để đối chiếu');
+      setFileName('');
     } finally {
       setReading(false);
     }
@@ -60,51 +64,35 @@ export function FoodImportPanel({ open, onClose, foods }) {
   };
 
   return (
-    <SidePanel
+    <ImportDialog
       open={open}
-      title="Nhập khẩu cập nhật thực phẩm"
-      onClose={close}
-      wide
-      footer={
+      title="Nhập thực phẩm từ Excel"
+      guide={
         <>
-          <button type="button" className="btn" onClick={close} disabled={saving}>
-            Đóng
-          </button>
-          <button type="button" className="btn btn--primary" onClick={save} disabled={!valid.length || saving}>
-            {saving ? <Spinner small /> : <Upload size={16} />} Ghi {valid.length} dòng hợp lệ
-          </button>
+          Tải xuống <b>tệp mẫu</b>, điền mỗi dòng một thực phẩm rồi tải lên. Mã TP để trống là thực phẩm mới; có mã thì cập nhật các ô đã
+          điền (ô trống giữ nguyên).
         </>
       }
+      templateHref={IMPORT_TEMPLATE_URL}
+      fileName={fileName}
+      reading={reading}
+      onFile={pick}
+      confirmLabel={`Ghi ${valid.length} dòng hợp lệ`}
+      confirmDisabled={!valid.length}
+      busy={saving}
+      onConfirm={save}
+      onClose={close}
     >
-      <ol className="td-import-steps">
-        <li>
-          Tải file mẫu, điền mỗi dòng một thực phẩm. Mã TP để trống là thực phẩm mới; có mã thì cập nhật các ô đã điền (ô trống giữ nguyên).
-          <div>
-            <a className="btn btn--sm" href={IMPORT_TEMPLATE_URL} download>
-              <Download size={15} /> Tải file mẫu (.xlsx)
-            </a>
-          </div>
-        </li>
-        <li>
-          Chọn file đã điền để xem trước.
-          <div className="row td-import-file">
-            <label className="btn btn--sm btn--outline-primary">
-              <Upload size={15} /> Chọn file
-              <input type="file" accept=".xlsx" className="sr-only" onChange={pick} />
-            </label>
-            {reading && <LottiePlayer load={loadDocumentScan} speed={0.6} className="import-reading import-reading--inline" />}
-            <span className="text-sm muted">{reading ? 'Đang đọc file…' : fileName || 'Chưa chọn file'}</span>
-          </div>
-        </li>
-      </ol>
-
       {result && (
-        <div className="td-import-preview">
+        <div className="import-preview">
           <div className="row td-chips">
             <span className="chip chip--green">Thêm mới {result.creates.length}</span>
             <span className="chip chip--blue">Cập nhật {result.updates.length}</span>
             <span className={`chip ${result.errors.length ? 'chip--red' : 'chip--gray'}`}>Lỗi {result.errors.length}</span>
           </div>
+          {!valid.length && !result.errors.length && (
+            <p className="text-sm muted">Tệp chưa có dòng dữ liệu nào. Điền vào tệp mẫu rồi tải lên lại.</p>
+          )}
           {result.errors.length > 0 && (
             <section>
               <h3>Dòng lỗi (không ghi)</h3>
@@ -186,6 +174,6 @@ export function FoodImportPanel({ open, onClose, foods }) {
           )}
         </div>
       )}
-    </SidePanel>
+    </ImportDialog>
   );
 }

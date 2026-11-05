@@ -19,7 +19,7 @@ const { readDb, writeDb } = await import('@/mocks/mockDatabase');
 const fakeClient = (responses = {}) => {
   const calls = [];
   const respond = (method, url, body, config) => {
-    calls.push({ method, url, body, params: config?.params });
+    calls.push({ method, url, body, params: config?.params, config });
     const r = responses[`${method} ${url}`];
     return Promise.resolve(typeof r === 'function' ? r(body, config) : r);
   };
@@ -144,8 +144,19 @@ test('BE: lưu Kiến thức kỹ năng chỉ gửi MT cô đã chọn (id số)
   assert.deepEqual(client.calls[0].body.entries[0], {
     childId: '21',
     comment: null,
-    activities: [{ key: 'hoc', participation: null, goalsMet: [], goalsEffort: [], goalsNotMet: [11] }],
+    activities: [{ key: 'hoc', participation: null, goalsMet: [], goalsNotMet: [11] }],
   });
+});
+
+test('BE: xóa nhận xét ở Kiến thức kỹ năng gửi chuỗi rỗng (xóa), không thành null (giữ)', async () => {
+  const client = fakeClient({ 'put /classes/5/daily-assessment/skills': { saved: 1 } });
+  await createAssessmentBeApi(client).saveDailySkills({
+    classId: '5',
+    date: '2026-10-27',
+    entries: [{ childId: '21', comment: '', activities: [] }],
+  });
+  assert.equal(client.calls[0].body.entries[0].comment, '');
+  assert.deepEqual(client.calls[0].config.preserveEmptyStrings, ['comment']);
 });
 
 test('BE: lịch sử mở lại gửi bộ lọc campusId / classId / active / from / to, bỏ ô trống', async () => {
@@ -172,7 +183,10 @@ test('BE: tổng quan ghép tên điểm trường / nhóm tuổi (BE trả name
     'get /campuses': [{ id: '1', name: 'Điểm chính' }],
     'get /age-groups': [{ id: '3', name: 'Mẫu giáo nhỡ' }],
   });
-  const o = await createAssessmentBeApi(client).getClassAssessmentOverview({ period: 'WEEK', schoolYear: '2026-2027', campusId: '' });
+  const o = await createAssessmentBeApi(client).getClassAssessmentOverview(
+    { period: 'WEEK', schoolYear: '2026-2027', campusId: '' },
+    { role: 'PRINCIPAL' },
+  );
   assert.deepEqual(client.calls[0].params, {
     period: 'WEEK',
     schoolYearId: '2026-2027',
@@ -236,4 +250,33 @@ test('mock cùng dạng BE: chỉ trẻ có mặt, lưu Kiến thức kỹ năng
   const saved = after.rows.find((r) => r.childId === row.childId).activities.find((a) => a.key === act.key);
   assert.deepEqual(saved.goalsNotMet, [goal.id]);
   assert.deepEqual(saved.goalsMet, []);
+});
+
+test('BE: tổ trưởng xem tổng quan không gọi danh mục điểm trường (không có quyền)', async () => {
+  const client = fakeClient({
+    'get /assessment/overview': { period: 'DAY', campuses: [{ id: '1', name: null }], ageGroups: [], classes: [], rows: [], totals: {} },
+    'get /age-groups': [],
+  });
+  await createAssessmentBeApi(client).getClassAssessmentOverview({ period: 'DAY' }, { role: 'TEAM_LEADER' });
+  assert.ok(!client.calls.some((c) => c.url === '/campuses'));
+});
+
+test('BE: đánh giá cuối chủ đề gọi đúng endpoint và gửi ô sửa tay', async () => {
+  const client = fakeClient({
+    'get /assessment/theme-evaluations/classes': [{ classId: 3, name: 'MG A', teaches: false }],
+    'get /assessment/theme-evaluations/themes': [{ themeId: 9, name: 'Trường mầm non', period: 'ENDED', status: 'NONE' }],
+    'put /assessment/theme-evaluations': { status: 'DRAFT' },
+    'post /assessment/theme-evaluations/confirm': { status: 'CONFIRMED' },
+  });
+  const api = createAssessmentBeApi(client);
+  const classes = await api.getThemeClasses({ schoolYear: 8 });
+  assert.equal(classes[0].teaches, false);
+  assert.deepEqual(client.calls[0].params, { schoolYearId: 8 });
+  const themes = await api.getThemeList({ classId: 3 });
+  assert.equal(themes[0].themeId, 9);
+  assert.deepEqual(client.calls[1].params, { classId: 3 });
+  const body = { classId: 3, themeId: 9, note: 'Lưu ý', cells: [{ childId: 1, goalId: 5, met: false }] };
+  await api.saveThemeEvaluation(body);
+  assert.deepEqual(client.calls[2].body, body);
+  assert.equal((await api.confirmThemeEvaluation(body)).status, 'CONFIRMED');
 });

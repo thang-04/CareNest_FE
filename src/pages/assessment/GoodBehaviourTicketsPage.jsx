@@ -12,7 +12,7 @@ import { ChildNameCell } from '@/components/assessment/ChildNameCell';
 import { TicketSummary } from '@/components/assessment/TicketSummary';
 import { Tabs } from '@/components/ui/Tabs';
 import { TicketOverview } from '@/components/assessment/TicketOverview';
-import { canViewTicketOverview } from '@/utils/assessment/assessmentPermissions';
+import { canViewTicketOverview, isTeamLeader } from '@/utils/assessment/assessmentPermissions';
 import { TicketBadge } from '@/components/assessment/AssessmentBadges';
 import { TICKET_TYPE, TICKET_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
@@ -34,6 +34,8 @@ const missingText = (r, rules, weekly) => {
 };
 
 const SUMMARY = 'SUMMARY';
+// Tổ trưởng chuyên môn: xem phiếu các lớp nhóm tuổi mình (chỉ xem, BE lọc theo nhóm tuổi)
+const GROUP = 'GROUP';
 
 // Đủ điều kiện chưa phát lên đầu, rồi đã phát, cuối cùng chưa đủ điều kiện
 const rank = (r) => (r.ticket ? 1 : r.eligible ? 0 : 2);
@@ -70,7 +72,8 @@ function TeacherTicketsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const currentClassId = classId || classes[0]?.id || '';
   // Tab "Tổng hợp": số phiếu bé ngoan theo trẻ (không tải bảng phát phiếu)
-  const summaryView = type === SUMMARY;
+  const groupView = type === GROUP;
+  const summaryView = type === SUMMARY || groupView;
   const params = useMemo(
     () => ({ classId: summaryView ? '' : currentClassId, type, periodStart: periodStart || undefined }),
     [summaryView, currentClassId, type, periodStart],
@@ -82,7 +85,7 @@ function TeacherTicketsPage() {
   const periodIndex = periods.findIndex((p) => p.start === board?.period?.start);
   // Giáo viên dạy một lớp: không cần chọn lớp
   const cls = classes.find((c) => String(c.id) === String(currentClassId));
-  const issuable = rows.filter((r) => r.eligible && !r.ticket);
+  const issuable = rows.filter((r) => r.eligible && r.canIssue !== false && !r.ticket);
   const issued = rows.filter((r) => r.ticket).length;
   const weekly = type === TICKET_TYPE.WEEKLY;
   const pType = weekly ? 'WEEK' : 'MONTH';
@@ -120,6 +123,11 @@ function TeacherTicketsPage() {
       <h1 className="page__title">Phiếu bé ngoan</h1>
       {classesError ? (
         <ErrorState error={classesError} />
+      ) : !classesLoading && classes.length === 0 && isTeamLeader(user) ? (
+        // Tổ trưởng không dạy lớp nào: chỉ xem phiếu các lớp nhóm tuổi mình
+        <div className="card">
+          <TicketOverview />
+        </div>
       ) : !classesLoading && classes.length === 0 ? (
         <StatusPage kind="403" title="Bạn chưa được phân công lớp" description="Chỉ giáo viên của lớp mới phát phiếu bé ngoan." />
       ) : (
@@ -130,6 +138,7 @@ function TeacherTicketsPage() {
               { key: TICKET_TYPE.WEEKLY, label: TICKET_TYPE_LABELS.WEEKLY },
               { key: TICKET_TYPE.MONTHLY, label: TICKET_TYPE_LABELS.MONTHLY },
               { key: SUMMARY, label: 'Tổng hợp' },
+              ...(isTeamLeader(user) ? [{ key: GROUP, label: 'Các lớp nhóm tuổi' }] : []),
             ]}
             value={type}
             onChange={(t) =>
@@ -139,7 +148,9 @@ function TeacherTicketsPage() {
               })
             }
           />
-          {summaryView ? (
+          {groupView ? (
+            <TicketOverview />
+          ) : summaryView ? (
             <TicketSummary classId={currentClassId} />
           ) : (
             <>
@@ -210,6 +221,11 @@ function TeacherTicketsPage() {
                   </div>
                 )}
               </div>
+              {weekly && !error && board?.period && (
+                <p className="muted text-sm">
+                  Ngày có mặt và cờ trong tuần đi theo trẻ, bao gồm trước khi chuyển lớp. Mỗi trẻ chỉ nhận một phiếu trong kỳ.
+                </p>
+              )}
               {error ? (
                 <ErrorState error={error} onRetry={reload} />
               ) : !loading && board && !board.period ? (
@@ -268,7 +284,7 @@ function TeacherTicketsPage() {
                                 type="checkbox"
                                 aria-label={`Chọn ${r.child.fullName}`}
                                 checked={selected.has(r.child.id)}
-                                disabled={!r.eligible || !!r.ticket}
+                                disabled={!r.eligible || r.canIssue === false || !!r.ticket}
                                 onChange={() => toggle(r.child.id)}
                               />
                             </td>
@@ -292,7 +308,11 @@ function TeacherTicketsPage() {
                               </td>
                             )}
                             <td>
-                              {r.eligible ? (
+                              {r.ticket ? (
+                                <span className="text-sm muted">Đã có phiếu trong kỳ</span>
+                              ) : r.canIssue === false ? (
+                                <span className="text-sm muted">Chỉ xem lịch sử · Trẻ không thuộc lớp cuối kỳ</span>
+                              ) : r.eligible ? (
                                 <TicketBadge status="ELIGIBLE" />
                               ) : (
                                 <span className="text-sm muted">{missingText(r, board.rules, weekly)}</span>
@@ -300,7 +320,10 @@ function TeacherTicketsPage() {
                             </td>
                             <td className="text-sm">
                               {r.ticket ? (
-                                <TicketBadge status="ISSUED" detail={formatDateTime(r.ticket.issuedAt)} />
+                                <>
+                                  <TicketBadge status="ISSUED" detail={formatDateTime(r.ticket.issuedAt)} />
+                                  {r.issuedElsewhere && <div className="muted text-xs">Đã phát tại lớp khác</div>}
+                                </>
                               ) : (
                                 <span className="muted">Chưa phát</span>
                               )}

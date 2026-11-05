@@ -1,5 +1,17 @@
-import { useId } from 'react';
-import { AlertOctagon, AlertTriangle, CheckCircle2, Clock, FileEdit, FileText, Info, Lock, Send, XCircle } from '@/components/ui/icons';
+import { useId, useState } from 'react';
+import {
+  AlertOctagon,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  FileEdit,
+  FileText,
+  Info,
+  Lock,
+  Send,
+  XCircle,
+} from '@/components/ui/icons';
 import {
   Breadcrumb,
   EmptyState as SharedEmptyState,
@@ -84,27 +96,66 @@ export const YearPlanStatusBadge = createStatusBadge(
     PENDING_VP: ['purple', Clock],
     PENDING_HT: ['purple', Clock],
     APPROVED: ['green', CheckCircle2],
+    REPLACED: ['gray', FileText],
     REJECTED: ['red', XCircle],
   },
-  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành' },
+  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành', REPLACED: 'Đã thay thế' },
 );
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */
-export function Card({ title, num, actions, children, foot, bodyClass = 'card__body', className = '' }) {
+export function Card({ title, num, actions, children, foot, bodyClass = 'card__body', className = '', collapsed = false, onToggle }) {
+  const bodyId = useId();
+  const body = bodyClass === null ? children : <div className={bodyClass}>{children}</div>;
   return (
-    <section className={`card ${className}`}>
+    <section className={`card ${className} ${onToggle && collapsed ? 'ga-card--collapsed' : ''}`}>
       {title && (
         <div className="card__header">
           <h2 className="card__title">
             {num && <span className="ga-num">{num}</span>}
-            {title}
+            {onToggle ? (
+              // Bấm tiêu đề để thu gọn / mở thẻ (Tiền 03/11)
+              <button type="button" className="ga-card-toggle" aria-expanded={!collapsed} aria-controls={bodyId} onClick={onToggle}>
+                <ChevronDown size={18} aria-hidden className="ga-card-toggle__icon" />
+                {title}
+              </button>
+            ) : (
+              title
+            )}
           </h2>
           {actions}
         </div>
       )}
-      {bodyClass === null ? children : <div className={bodyClass}>{children}</div>}
-      {foot && <div className="ga-card-foot">{foot}</div>}
+      {onToggle ? (
+        <div id={bodyId} hidden={collapsed}>
+          {body}
+          {foot && <div className="ga-card-foot">{foot}</div>}
+        </div>
+      ) : (
+        <>
+          {body}
+          {foot && <div className="ga-card-foot">{foot}</div>}
+        </>
+      )}
     </section>
+  );
+}
+
+/** Mục có tiêu đề thu gọn / mở được trong thân thẻ (kế hoạch tuần, ngày), cùng kiểu nút với Card (Tiền 04/11). */
+export function FoldSection({ title, children }) {
+  const [open, setOpen] = useState(true);
+  const bodyId = useId();
+  return (
+    <>
+      <div className={`section-title ${open ? '' : 'ga-card--collapsed'}`}>
+        <button type="button" className="ga-card-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((o) => !o)}>
+          <ChevronDown size={18} aria-hidden className="ga-card-toggle__icon" />
+          {title}
+        </button>
+      </div>
+      <div id={bodyId} className="stack" hidden={!open}>
+        {children}
+      </div>
+    </>
   );
 }
 
@@ -229,7 +280,7 @@ export function SignatureView({ sig, name }) {
 export function Modal({ title, children, onClose, footer, width, className }) {
   const size = width > 760 ? 'xl' : width > 560 ? 'lg' : 'md';
   return (
-    <SharedModal open title={title} onClose={onClose} footer={footer} size={size} className={className}>
+    <SharedModal open title={title} onClose={onClose} footer={footer} size={size} className={`ga-modal ${className || ''}`}>
       <div className="stack">{children}</div>
     </SharedModal>
   );
@@ -254,24 +305,6 @@ export function Notice({ tone, children }) {
       <Icon size={18} />
       <div>{children}</div>
     </div>
-  );
-}
-
-/** Mở lại khi còn nội dung chưa lưu từ lần soạn trước (bản giữ ẩn trên máy): Khôi phục · Bỏ; note/actions thêm khi cần. */
-export function DraftRecoveryNotice({ onRestore, onDismiss, restoreDisabled = false, note, actions }) {
-  return (
-    <Notice tone="warn">
-      Có nội dung chưa lưu từ lần soạn trước.{note ? ` ${note}` : ''}
-      <div className="row">
-        <button type="button" className="btn" disabled={restoreDisabled} onClick={onRestore}>
-          Khôi phục
-        </button>
-        {actions}
-        <button type="button" className="btn" onClick={onDismiss}>
-          Bỏ
-        </button>
-      </div>
-    </Notice>
   );
 }
 

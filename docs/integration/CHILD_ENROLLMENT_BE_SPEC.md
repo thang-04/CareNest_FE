@@ -10,6 +10,10 @@ Cập nhật 2026-10-28. **PROPOSED** — FE viết theo BE giả đã chạy v�
 
 - **BE đã làm (29/10/2026, nhánh BE G94-180, chưa commit):** Phase 1–3 của bản BE — `GET /children/duplicate-check`, `POST /children/guardian-check`, `GET /children/parent-accounts/by-citizen-id`, `GET /children/placement-classes`, `POST /children/enrollments` (tạo/liên kết tài khoản, SMS qua cổng giả), `POST /children/{id}/readmit`. Khác đặc tả, FE đổi khi nối API: quan hệ theo mã `FATHER|MOTHER|GRANDFATHER|GRANDMOTHER|SIBLING|GUARDIAN` ở mọi nơi; hồ sơ trẻ trả `schoolYearId` (số) thay `schoolYear`; lỗi theo ô 400 (`errorCode` 9001) và 409 (`errorCode` 3008) với `data [{field, message}]`, trùng hồ sơ 409 `errorCode` 3007, mở lại hồ sơ trẻ chưa nghỉ 409 `errorCode` 3009; `history[]` chưa có `changes`. Tạm thời (tới Phase 4 của BE): phụ huynh khớp tài khoản có sẵn ⇒ hồ sơ ghi thông tin của tài khoản, `phoneChanged` luôn false. Chi tiết: `BE:docs/plans/active/2026-10-28-child-enrollment-guardian-accounts.md` Progress log 2026-10-29.
 
+### Delta đã triển khai 05/11/2026 — Spec013
+
+Một người nhận tài khoản: form kích hoạt khi lưu, Excel chỉ lưu hồ sơ/selection rồi kích hoạt sau. API import/recipient/pending/activation đã có BE và OpenAPI; trường accountRecipient/id ổn định trên guardian. Các mục lịch sử bên dưới ngoài delta này giữ trạng thái như đã ghi. Chi tiết nguồn chuẩn: BE specs/013-selected-parent-account/contracts/selected-parent-account.md.
+
 ## 1. Thứ tự làm đề xuất
 
 1. **Quyền** (mục 2) và **migration** (mục 3).
@@ -149,13 +153,13 @@ Kiểu dữ liệu dùng lại:
 
 ### 4.3 Nhập Excel
 **`POST /children/enrollments/import/preview`** multipart `file` (mới; BE giả `previewImport`, `enrollmentImport.js`)
-- Nhận `.xlsx` (BE đọc) và `.csv`; cột theo mẫu `IMPORT_COLUMNS` (`src/models/children/childrenConstants.js`, mỗi dòng 1 trẻ + 1 phụ huynh; cột bắt buộc có "Số CCCD phụ huynh", hành chính, tiền sử, tiếp xúc lao); ngày `dd/mm/yyyy`; "Không" = không có, để trống = chưa cung cấp. Cột quan hệ nhận 6 giá trị, so không dấu, không phân biệt hoa thường, bỏ khoảng trắng/dấu "/" ("anh chị" = "Anh/chị"); giá trị khác báo lỗi ở dòng đó (D-5a B; BE giả `toRelation`). Tối đa 500 dòng.
+- Nhận `.xlsx` (BE đọc) và `.csv`; cột theo mẫu `IMPORT_COLUMNS` (`src/models/children/childrenConstants.js`, mỗi dòng 1 trẻ + tối đa 3 phụ huynh, nhóm 2/3 tùy chọn; có cột CCCD phụ huynh nhận tài khoản tùy chọn; cột bắt buộc có "Số CCCD phụ huynh", hành chính, tiền sử, tiếp xúc lao); ngày `dd/mm/yyyy`; "Không" = không có, để trống = chưa cung cấp. Cột quan hệ nhận 6 giá trị, so không dấu, không phân biệt hoa thường, bỏ khoảng trắng/dấu "/" ("anh chị" = "Anh/chị"); giá trị khác báo lỗi ở dòng đó (D-5a B; BE giả `toRelation`). Tối đa 500 dòng.
 - Thiếu cột / không có dòng / quá 500 dòng / sai loại file ⇒ 422 `file`.
-- Trả `{ supported, fileName, rows: [{ rowNo, raw, payload: { child, declaration }, errors: [string], notes: [string] }] }`. `errors`: lỗi như tiếp nhận + trùng hồ sơ (CHD-04) + trùng dòng khác trong file + CCCD/SĐT lệch dòng trước trong file. `notes`: phụ huynh trùng CCCD tài khoản (dùng thông tin tài khoản, liên kết khi nhập); trẻ trùng hồ sơ đã nghỉ (nên mở lại hồ sơ cũ).
+- Trả `{ supported, fileName, rows: [{ rowNo, raw, payload: { child, declaration }, errors: [string], selectionError: string | null, notes: [string] }] }`. `errors`: lỗi như tiếp nhận + trùng hồ sơ (CHD-04) + trùng dòng khác trong file + CCCD/SĐT lệch dòng trước trong file. `notes`: phụ huynh trùng CCCD tài khoản (dùng thông tin tài khoản, liên kết khi kích hoạt sau khi nhập); trẻ trùng hồ sơ đã nghỉ (nên mở lại hồ sơ cũ).
 
 **`POST /children/enrollments/import`** body `{ rows: [{ child, declaration }], campusId }` (mới; BE giả `importChildren`)
 - `campusId` như tiếp nhận không có lớp. Kiểm lại mọi dòng; một dòng lỗi ⇒ 422 `file`, không nhập dòng nào.
-- Mỗi dòng: trẻ `PENDING_PLACEMENT` ở điểm trường đó, khai báo sức khỏe như nhập, thông báo lao như tiếp nhận. Phụ huynh trùng CCCD tài khoản ⇒ dùng họ tên/SĐT/email của tài khoản (không sửa tài khoản từ file), liên kết ngay; còn lại "Chưa kích hoạt" — **không tạo tài khoản, không gửi SMS** (AUTH-20).
+- Mỗi dòng: trẻ `PENDING_PLACEMENT` ở điểm trường đó, khai báo sức khỏe như nhập, thông báo lao như tiếp nhận. Phụ huynh trùng CCCD tài khoản ⇒ dùng họ tên/SĐT/email của tài khoản (không sửa tài khoản từ file), tất cả ở "Chưa kích hoạt" với trẻ vừa nhập — **không tạo/liên kết tài khoản, không gửi SMS** (AUTH-20).
 - Trả `{ created, ids }`.
 
 ### 4.4 Xếp lớp, cho nghỉ học, mở lại hồ sơ
@@ -181,14 +185,14 @@ Kiểu dữ liệu dùng lại:
 Trả `{ child: ChildView, cls, declaration (+ declaredByName), placements: [{ fromClassName, toClassName, userName, at, reason }] }` (BE giả `getChildDetail`). `GET /children/{id}` hiện có chỉ trả id, họ tên, ngày sinh, lớp.
 
 ### 4.7 Màn Tài khoản phụ huynh (`/children/activation`)
-Tên endpoint mới là đề xuất; FE chưa có file API cho màn này (`src/services/account/guardianService.js` trả 501 khi không chạy BE giả).
+Các API dưới đây đã triển khai cho Spec013. Chỉ recipient được chiếu vào danh sách tài khoản; ứng viên từ GET /children/{id}/account-recipient, thay lựa chọn qua PUT cùng endpoint với {guardianId} và lịch sử. Projection account dựa userId lưu trên guardian, không suy đoán theo SĐT/CCCD.
 
 | Endpoint | Việc | BE giả |
 | --- | --- | --- |
 | `GET /children?campusId&page&size` (đã có) | Thêm trẻ chờ xếp lớp của điểm trường (CHD-02), bỏ trẻ đã nghỉ; mỗi trẻ thêm `guardians[]` (như dòng dưới), `canManage` (người xem kích hoạt/gỡ/khóa được) | `searchChildren` |
 | `GET /children/{id}/guardians` (đã có) | Phụ huynh đã liên kết: thêm `idNumber`, `relation` (nhãn trên hồ sơ) cạnh `relationship` (mã) | `listGuardians` |
 | `GET /children/{id}/guardians/pending` (mới) | Phụ huynh trên hồ sơ chưa có tài khoản liên kết với trẻ: `[{ fullName, relation, phone, idNumber, email, hasAccount, problems[] }]`; `hasAccount` = đã có tài khoản (trẻ khác), kích hoạt chỉ liên kết; `problems` = thông tin còn thiếu/sai, sửa ở hồ sơ trẻ | `listPendingGuardians` |
-| `POST /children/{id}/guardians/activate` (mới) | Kích hoạt **mọi** phụ huynh chờ của trẻ một lần; một người sai thì không tạo ai. Trả `[{ userId, username, fullName, idNumber, relationship, relation, status, linkedAt, phone, newAccount, smsStatus }]`. Không có ai chờ ⇒ 409; thông tin trên hồ sơ thiếu/sai ⇒ 400; lệch danh tính ⇒ 409 `details.idNumber` | `activateGuardians` |
+| `POST /children/{id}/guardians/activate` (mới) | Body bắt buộc {guardianId}; chỉ kích hoạt người được chọn, stale selection hoặc ngoài scope bị chặn. Trả `[{ userId, username, fullName, idNumber, relationship, relation, status, linkedAt, phone, newAccount, smsStatus }]`. Retry đúng người đã liên kết không tạo lại hoặc gửi lại SMS; thông tin trên hồ sơ thiếu/sai ⇒ 400; lệch danh tính ⇒ 409 `details.idNumber` | `activateGuardians` |
 | `DELETE /children/{id}/guardians/{userId}` (đã có) | Gỡ liên kết: phụ huynh mất quyền xem trẻ ngay, tài khoản giữ nguyên, phụ huynh vẫn trên hồ sơ trẻ làm liên hệ (`accountStatus` `NOT_ACTIVATED`) — AUTH-19 | `removeGuardian` |
 | `PATCH /parent-accounts/{userId}/status` (đã có) | `ACTIVE` / `INACTIVE`; trạng thái phụ huynh trên mọi hồ sơ trẻ đổi theo | `updateParentStatus` |
 | `POST /parent-accounts/{userId}/temporary-password` (đã có, **đổi**) | Cấp mật khẩu tạm mới, gửi SMS, bắt đổi lần đầu, hủy mọi phiên; trả `{ userId, username, phone, smsStatus }`, **bỏ `temporaryPassword`** (L-15). Dùng cho "Gửi lại mật khẩu" | `resetParentPassword` |

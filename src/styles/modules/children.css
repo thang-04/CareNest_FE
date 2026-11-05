@@ -86,9 +86,96 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
 }
+
+/* Bố cục tiếp nhận dùng cùng bảng nhãn/ô nhập và dải phần của phiếu khám. */
+.tr-intake-person {
+  display: grid;
+  grid-template-columns: minmax(0, calc(var(--space-16) * 3)) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+.tr-intake-person > *,
+.tr-intake section {
+  min-width: 0;
+}
+.tr-intake-portrait > .field > .row {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.tr-intake-portrait .avatar--photo {
+  width: calc(var(--space-16) * 1.5);
+  height: calc(var(--space-16) * 1.75);
+  border-radius: var(--radius-sm);
+}
+.tr-intake .tr-exam-sheet .field {
+  margin: 0;
+}
+.tr-intake .tr-exam-sheet th label {
+  cursor: pointer;
+}
+.tr-intake .tr-exam-sheet input[type='date'] {
+  min-width: 0;
+  max-width: calc(var(--space-16) * 4);
+}
+.tr-intake-guardian {
+  background: var(--color-surface);
+  padding: var(--space-4);
+}
+.tr-intake-guardian--selected {
+  border-color: var(--color-primary);
+}
+.tr-intake-recipient {
+  width: fit-content;
+  max-width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.tr-intake-guardian--selected .tr-intake-recipient {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+}
+@media (max-width: 900px) {
+  .tr-intake-person {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+  .tr-intake-portrait > .field > .row {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+  .tr-intake-portrait .avatar--photo {
+    flex-shrink: 0;
+  }
+  .tr-intake-portrait .stack {
+    min-width: 0;
+  }
+}
 @media (max-width: 640px) {
   .tr-guardian__grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .tr-intake .tr-exam-sheet,
+  .tr-intake .tr-exam-sheet tbody,
+  .tr-intake .tr-exam-sheet tr,
+  .tr-intake .tr-exam-sheet th,
+  .tr-intake .tr-exam-sheet td {
+    display: block;
+    width: 100%;
+  }
+  .tr-intake .tr-exam-sheet colgroup,
+  .tr-intake .tr-exam-sheet .num {
+    display: none;
+  }
+  .tr-intake .tr-exam-sheet th {
+    padding-bottom: var(--space-1);
+    border-bottom: none;
+  }
+  .tr-intake .tr-exam-sheet th + td {
+    padding-top: var(--space-1);
+    border-top: none;
   }
 }
 

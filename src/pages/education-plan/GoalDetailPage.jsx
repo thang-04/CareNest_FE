@@ -4,7 +4,7 @@ import { Copy, FileDown, Pencil, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
-import { goalIdsToTicks, numberGoals, toRows } from '@/models/education-plan/goalTable';
+import { goalIdsToTicks, numberGoals, themeWithoutDates, toRows } from '@/models/education-plan/goalTable';
 import { GoalTable, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { Card, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
@@ -28,6 +28,9 @@ export default function GoalDetailPage() {
   const [preview, setPreview] = useState(null);
   const navigate = useNavigate();
   const [modal, setModal] = useState(null);
+  // Thẻ thu gọn được như trang sửa (Tiền 03/11)
+  const [folded, setFolded] = useState({});
+  const fold = (key) => ({ collapsed: !!folded[key], onToggle: () => setFolded((f) => ({ ...f, [key]: !f[key] })) });
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [creating, setCreating] = useState(false);
@@ -186,6 +189,16 @@ export default function GoalDetailPage() {
               approveLabel="Ban hành"
               variant="btn--outline-primary"
               can={{ send: canSend, reject: canReturn, approve: canIssue }}
+              // EDU-52: chủ đề chưa chọn ngày thì chưa ban hành được; sửa ngày ở màn chỉnh sửa
+              beforeOpen={(action) => {
+                const undated = action === 'approve' && themeWithoutDates(themes);
+                if (undated)
+                  toast(
+                    `Chủ đề "${undated.name || undated.abbr}" chưa chọn ngày. Bấm "Sửa trước khi duyệt" để chọn ngày rồi ban hành.`,
+                    'warn',
+                  );
+                return !undated;
+              }}
               notes={{
                 submit: 'Kế hoạch sẽ bị khóa cho tới khi Phó hiệu trưởng ban hành hoặc trả lại.',
                 approve: `Kế hoạch có ${Object.keys(numbers).length} mục tiêu, ${themes.length} chủ đề. ${ISSUE_NOTE}`,
@@ -217,7 +230,7 @@ export default function GoalDetailPage() {
         </div>
       )}
 
-      <Card title="Thông tin chung" num="1">
+      <Card title="1. Thông tin chung" {...fold('info')}>
         <dl className="info-list">
           <dt>Năm học</dt>
           <dd>{g.schoolYear}</dd>
@@ -238,12 +251,12 @@ export default function GoalDetailPage() {
         </dl>
       </Card>
 
-      <Card title="Chủ đề, sự kiện trong năm" num="2">
+      <Card title="2. Chủ đề, sự kiện trong năm" {...fold('themes')}>
         <ThemeEventTable themes={themes} breaks={g.breaks || []} domains={domains} numbers={numbers} readOnly />
       </Card>
       <Card
-        title="Mục tiêu, nội dung giáo dục"
-        num="3"
+        title="3. Mục tiêu, nội dung giáo dục"
+        {...fold('goals')}
         actions={<span className="muted text-xs nowrap">{Object.keys(numbers).length} mục tiêu</span>}
       >
         <GoalTable domains={domains} themes={themes} numbers={numbers} ageGroupId={g.ageGroupId} readOnly />

@@ -218,7 +218,6 @@ export default function FoodSampleLogPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Sổ lưu mẫu thức ăn</h1>
-          <p className="page__desc">Lưu mẫu từng bữa và hủy mẫu sau ít nhất 24 giờ.</p>
         </div>
       </div>
       <div className="kb-toolbar kb-toolbar--center">

@@ -10,6 +10,8 @@ export const domainRoman = (name) => DOMAIN_ROMAN[DOMAINS.indexOf(name)] || Stri
 export const HEADING_LABEL = { sub: 'Lĩnh vực con', group: 'Nhóm kết quả mong đợi' };
 
 /**
+ * (Không còn áp tự động từ 05/11 — Tiền: một lĩnh vực có thể có hoặc không có lĩnh vực con, các dòng đứng trước lĩnh vực
+ * con đầu tiên thuộc thẳng lĩnh vực; thêm/xóa lĩnh vực con không kéo các dòng khác lên.)
  * Lĩnh vực đã có lĩnh vực con thì mọi nhóm kết quả / mục tiêu phải nằm trong một lĩnh vực con:
  * các hàng đứng trước lĩnh vực con đầu tiên được đưa vào lĩnh vực con đó (đưa dòng lĩnh vực con lên đầu lĩnh vực).
  */
@@ -18,9 +20,16 @@ export const nestUnderFirstSub = (rows) => {
   return i > 0 ? [rows[i], ...rows.slice(0, i), ...rows.slice(i + 1)] : rows;
 };
 
+export const subDomainBranch = (rows, subId) => {
+  const start = rows.findIndex((row) => row.kind === 'sub' && row.id === subId);
+  if (start < 0) return [];
+  const end = rows.findIndex((row, i) => i > start && row.kind === 'sub');
+  return rows.slice(start, end < 0 ? rows.length : end);
+};
+
 /** Bộ mục tiêu đã lưu → hàng của bảng. Bộ cũ (mục tiêu + YCCĐ có mã) được đổi YCCĐ thành nội dung, bỏ mã. */
 export const toRows = (domain, uid) => {
-  if (domain.rows) return nestUnderFirstSub(domain.rows.map((r) => (r.kind === 'goal' ? { ...r, contents: r.contents || [] } : r)));
+  if (domain.rows) return domain.rows.map((r) => (r.kind === 'goal' ? { ...r, contents: r.contents || [] } : r));
   return (domain.items || []).map((it) => ({
     id: it.id || uid(),
     kind: 'goal',
@@ -62,6 +71,54 @@ export const duplicateAbbrThemeIds = (themes) => {
   return new Set(themes.filter((t) => count.get(key(t)) > 1).map((t) => t.id));
 };
 export const DUPLICATE_ABBR_MESSAGE = 'Tên viết tắt đã có';
+
+/** Khóa so trùng tên: bỏ khoảng trắng đầu/cuối, gộp khoảng trắng giữa, không phân biệt hoa thường (giữ dấu tiếng Việt). */
+export const nameKey = (text = '') => text.trim().replace(/\s+/g, ' ').toLowerCase();
+
+/**
+ * BE:EDU-51 (7036) — id các ô trùng tên ở bảng mục tiêu: lĩnh vực con trùng nhau trong một lĩnh vực; trong cùng một lĩnh vực con
+ * thì nhóm kết quả mong đợi trùng nhau, mục tiêu trùng nhau; nội dung trùng nhau trong cùng một mục tiêu. Ô trống không tính.
+ */
+export const duplicateNameIds = (domains) => {
+  const dup = new Set();
+  const mark = (items) => {
+    const byKey = new Map();
+    items.forEach((it) => {
+      const k = nameKey(it.text);
+      if (k) byKey.set(k, [...(byKey.get(k) || []), it.id]);
+    });
+    byKey.forEach((ids) => ids.length > 1 && ids.forEach((id) => dup.add(id)));
+  };
+  domains.forEach((d) => {
+    mark(d.rows.filter((r) => r.kind === 'sub'));
+    const branches = [[]];
+    d.rows.forEach((r) => (r.kind === 'sub' ? branches.push([]) : branches[branches.length - 1].push(r)));
+    branches.forEach((rows) => {
+      mark(rows.filter((r) => r.kind === 'group'));
+      const goals = rows.filter((r) => r.kind === 'goal');
+      mark(goals);
+      goals.forEach((r) => mark(r.contents || []));
+    });
+  });
+  return dup;
+};
+
+/**
+ * EDU-53 (Tiền 05/11): một lĩnh vực hoặc không có lĩnh vực con nào, hoặc mọi nhóm / mục tiêu đều thuộc một lĩnh vực con.
+ * Trả về tên các lĩnh vực đang lẫn: có lĩnh vực con (có tên) mà vẫn còn dòng có chữ nằm trước lĩnh vực con đầu tiên.
+ * Nháp vẫn lưu; gửi / ban hành bị chặn (BE 7038).
+ */
+const rowHasText = (r) => !!r.text?.trim() || (r.kind === 'goal' && (r.contents || []).some((c) => c.text?.trim()));
+export const mixedSubDomains = (domains) =>
+  domains
+    .filter((d) => {
+      const rows = d.rows.filter((r) => (r.kind === 'sub' ? r.text?.trim() : rowHasText(r)));
+      return rows.some((r) => r.kind === 'sub') && rows[0].kind !== 'sub';
+    })
+    .map((d) => d.name);
+
+/** BE:EDU-52 (7037) — chủ đề chưa chọn đủ Từ ngày, Đến ngày: chặn ban hành. */
+export const themeWithoutDates = (themes) => themes.find((t) => !t.start || !t.end) || null;
 
 /** Dòng chủ đề / đợt nghỉ chưa gõ gì (dòng vừa thêm bằng Enter): không lưu, không thành cột tích ở bảng mục tiêu. */
 export const isBlankTheme = (t) => ![t.name, t.abbr, t.festivals, t.note].some((v) => v?.trim()) && !t.start && !t.end;

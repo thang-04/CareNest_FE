@@ -368,7 +368,20 @@ export default function ParentActivationPage() {
                                       </div>
                                     ))
                                   ) : (
-                                    <div className="pa-line muted">Chưa có phụ huynh</div>
+                                    <div className="pa-line">
+                                      {child.accountRecipient ? (
+                                        <div className="pa-guardian-info">
+                                          <strong>{child.accountRecipient.fullName}</strong>
+                                          <div className="pa-guardian-meta">
+                                            {child.accountRecipient.relation} · {child.accountRecipient.phone}
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span className="muted">
+                                          {child.selectionRequired ? 'Cần chọn phụ huynh nhận tài khoản' : 'Chưa có phụ huynh'}
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
                                 </td>
                                 <td className="pa-col-status">

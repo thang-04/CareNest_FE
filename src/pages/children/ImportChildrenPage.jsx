@@ -1,3 +1,4 @@
+import { recipientError } from '@/utils/children/accountRecipient';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -49,6 +50,7 @@ const downloadTemplate = () =>
         ...['phuhuynh.mau@example.com', 'Không', ''],
         ...['', 'Không', '39', 'Kinh', 'Trẻ em dưới 6 tuổi', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu'],
         ...['Không', 'Không', 'Không', ''],
+        ...['', '', '', '', '', '', '', '', '', '', ''],
       ],
     ],
     'mau-tiep-nhan-tre.csv',
@@ -111,7 +113,23 @@ export default function ImportChildrenPage() {
     }
   };
 
-  const rows = preview?.rows || [];
+  const selectRecipient = (rowNo, idNumber) =>
+    setPreview((previous) => ({
+      ...previous,
+      rows: previous.rows.map((row) => {
+        if (row.rowNo !== rowNo) return row;
+        const guardians = row.payload.child.guardians.map((g) => ({ ...g, accountRecipient: g.idNumber === idNumber }));
+        return {
+          ...row,
+          selectionError: recipientError(guardians),
+          payload: { ...row.payload, child: { ...row.payload.child, guardians } },
+        };
+      }),
+    }));
+  const rows = (preview?.rows || []).map((row) => ({
+    ...row,
+    errors: [...row.errors, ...(row.selectionError ? [row.selectionError] : [])],
+  }));
   const errorRows = rows.filter((r) => r.errors.length > 0);
   const validRows = rows.filter((r) => r.errors.length === 0);
   const shown = onlyErrors ? errorRows : rows;
@@ -190,11 +208,12 @@ export default function ImportChildrenPage() {
         <div>
           Dùng file theo mẫu của trường (.xlsx hoặc .csv), mỗi dòng một trẻ. Hệ thống kiểm tra từng dòng: thông tin bắt buộc, số điện thoại,
           số CCCD phụ huynh (12 chữ số; để ô dạng chữ để Excel không bỏ số 0 đầu), email và hồ sơ trùng. File mẫu cũ chưa có cột &quot;Số
-          CCCD phụ huynh&quot; thì tải lại file mẫu. Sửa các dòng lỗi trong file rồi tải lên lại. Sau khi nhập, trẻ cần được xếp lớp để hoàn
+          CCCD phụ huynh&quot; thì tải lại file mẫu. Có thể nhập thêm phụ huynh 2, 3 và chọn một người nhận tài khoản ở bản xem trước hoặc
+          cột CCCD phụ huynh nhận tài khoản. Sửa các lỗi thông tin trong file rồi tải lên lại. Sau khi nhập, trẻ cần được xếp lớp để hoàn
           tất tiếp nhận. Số CCCD phụ huynh trùng tài khoản phụ huynh có sẵn thì dùng họ tên, số điện thoại, email của tài khoản và liên kết
-          trẻ vào tài khoản đó. Các cột hành chính và tiền sử bắt buộc (trừ CCCD trẻ, nhóm máu) vì phiếu khám sức khỏe lấy từ hồ sơ; file
-          mẫu cũ thiếu cột thì tải lại file mẫu. Trẻ khai có tiếp xúc với người bệnh lao thì phải ghi ngày tiếp xúc gần nhất (dd/mm/yyyy);
-          hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.
+          người được chọn với trẻ khi kích hoạt sau khi nhập. Các cột hành chính và tiền sử bắt buộc (trừ CCCD trẻ, nhóm máu) vì phiếu khám
+          sức khỏe lấy từ hồ sơ; file mẫu cũ thiếu cột thì tải lại file mẫu. Trẻ khai có tiếp xúc với người bệnh lao thì phải ghi ngày tiếp
+          xúc gần nhất (dd/mm/yyyy); hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.
         </div>
       </div>
 
@@ -316,6 +335,7 @@ export default function ImportChildrenPage() {
                   <th>Ngày sinh</th>
                   <th>Giới tính</th>
                   <th>Phụ huynh</th>
+                  <th>Phụ huynh nhận tài khoản</th>
                   <th>Số điện thoại</th>
                   <th>CCCD phụ huynh</th>
                   <th>Dị ứng</th>
@@ -336,10 +356,41 @@ export default function ImportChildrenPage() {
                       </td>
                       <td>{GENDER_LABELS[c.gender] || r.raw.gender || <span className="muted">(trống)</span>}</td>
                       <td>
-                        {g.fullName} {g.relation && <span className="muted">({g.relation})</span>}
+                        {c.guardians.map((guardian, index) => (
+                          <div key={index}>
+                            {guardian.fullName} <span className="muted">({guardian.relation})</span>
+                          </div>
+                        ))}
                       </td>
-                      <td className="nowrap">{g.phone}</td>
-                      <td className="nowrap">{g.idNumber || <span className="muted">(trống)</span>}</td>
+                      <td>
+                        <select
+                          className="input"
+                          aria-label={`Phụ huynh nhận tài khoản dòng ${r.rowNo}`}
+                          value={
+                            c.guardians.find((guardian) => guardian.accountRecipient)?.idNumber ||
+                            (c.guardians.length === 1 ? g.idNumber : '')
+                          }
+                          onChange={(e) => selectRecipient(r.rowNo, e.target.value)}
+                          disabled={c.guardians.length === 1}
+                        >
+                          <option value="">Chọn phụ huynh</option>
+                          {c.guardians.map((guardian, index) => (
+                            <option key={index} value={guardian.idNumber}>
+                              {guardian.fullName} · {guardian.relation}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="nowrap">
+                        {c.guardians.map((guardian, index) => (
+                          <div key={index}>{guardian.phone}</div>
+                        ))}
+                      </td>
+                      <td className="nowrap">
+                        {c.guardians.map((guardian, index) => (
+                          <div key={index}>{guardian.idNumber || <span className="muted">(trống)</span>}</div>
+                        ))}
+                      </td>
                       <td className="text-sm">
                         {a.state === DECLARATION_STATE.REPORTED ? a.items.join(', ') : <AllergyStateBadge status={a.state} />}
                       </td>

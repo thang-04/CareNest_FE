@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, ArrowRight, FileSpreadsheet, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useGuardedNavigate } from '@/hooks/useLeaveGuard';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useSchoolYearItem, useSchoolYears, useYearReadiness } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -427,7 +428,9 @@ export default function SchoolYearSetupPage() {
     if (id) setSchoolYear(id);
   }, [id, setSchoolYear]);
 
-  const goTo = (i) => navigate(`/school/years/${id}/setup/${i + 1}`);
+  // Đổi bước khi màn trong bước còn thay đổi chưa lưu (vd. Xếp lớp): hỏi trước
+  const guardedNavigate = useGuardedNavigate();
+  const goTo = (i) => guardedNavigate(`/school/years/${id}/setup/${i + 1}`);
   const dismiss = () => {
     const rest = copy && {
       ...copy,

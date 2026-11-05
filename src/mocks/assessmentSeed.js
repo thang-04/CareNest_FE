@@ -84,12 +84,12 @@ const buildRewardProposals = (classes, children, schoolYear) => {
   const at = (d, h = '09:00') => new Date(`${d}T${h}:00+07:00`).toISOString();
   const base = '2026-10-01';
   const specs = [
-    { classId: 'cls_c1_c2', i: 0, title: 'Bé ngoan toàn diện', status: REWARD_STATUS.APPROVED, by: 'u_mai' },
+    { classId: 'cls_c1_c2', i: 0, title: 'Bé chăm ngoan xuất sắc', status: REWARD_STATUS.APPROVED, by: 'u_mai' },
     { classId: 'cls_c1_c2', i: 1, title: 'Bé chăm ngoan, học giỏi', status: REWARD_STATUS.PENDING_PRINCIPAL, by: 'u_mai' },
     { classId: 'cls_c1_c2', i: 2, title: 'Bé tích cực tham gia hoạt động', status: REWARD_STATUS.PENDING_VP, by: 'u_mai' },
     { classId: 'cls_c1_c2', i: 3, title: 'Bé lễ phép, hòa đồng', status: REWARD_STATUS.RETURNED, by: 'u_mai' },
     { classId: 'cls_c1_c2', i: 4, title: 'Bé có năng khiếu nghệ thuật', status: REWARD_STATUS.DRAFT, by: 'u_mai' },
-    { classId: 'cls_c1_m1', i: 0, title: 'Bé ngoan toàn diện', status: REWARD_STATUS.PENDING_VP, by: 'u_an' },
+    { classId: 'cls_c1_m1', i: 0, title: 'Bé chăm ngoan xuất sắc', status: REWARD_STATUS.PENDING_VP, by: 'u_an' },
     { classId: 'cls_c1_m1', i: 1, title: 'Bé khỏe – Bé đẹp', status: REWARD_STATUS.REJECTED, by: 'u_an' },
     { classId: 'cls_c1_c1', i: 0, title: 'Bé chăm ngoan', status: REWARD_STATUS.PENDING_VP, by: 'u_minhanh' },
     { classId: 'cls_c1_c1', i: 1, title: 'Bé tự tin, mạnh dạn', status: REWARD_STATUS.DRAFT, by: 'u_minhanh' },

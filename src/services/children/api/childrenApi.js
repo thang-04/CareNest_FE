@@ -126,9 +126,25 @@ export const childrenApi = {
   previewImport: (file) => {
     const form = new FormData();
     form.append('file', file);
-    return axiosClient.post('/children/enrollments/import/preview', form);
+    return axiosClient.post('/children/enrollments/import/preview', form).then((preview) => ({
+      ...preview,
+      rows: preview.rows.map((row) => ({
+        ...row,
+        payload: {
+          ...row.payload,
+          child: {
+            ...row.payload.child,
+            guardians: row.payload.child.guardians.map((g) => ({
+              ...g,
+              relation: GUARDIAN_RELATIONSHIP_LABELS[g.relation] || g.relation,
+            })),
+          },
+        },
+      })),
+    }));
   },
-  importChildren: (rows, _user, campusId) => axiosClient.post('/children/enrollments/import', { rows, campusId }),
+  importChildren: (rows, _user, campusId) =>
+    axiosClient.post('/children/enrollments/import', { rows: rows.map((row) => enrollmentPhotoRequest(row).body), campusId }),
   placeChild: (childId, body) => axiosClient.post(`/children/${childId}/placement`, body),
   withdrawChild: (childId, body) => axiosClient.post(`/children/${childId}/withdraw`, body),
   saveDeclaration: (childId, body) => axiosClient.put(`/children/${childId}/health-declaration`, body),

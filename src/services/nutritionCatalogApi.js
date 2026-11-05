@@ -1,6 +1,6 @@
 import { beClient } from '@/services/http/beClient';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
-import { MEAL_SESSION_LABELS, defaultStorageOf } from '@/models/menu-planning/menuPlanningConstants';
+import { MEAL_SESSION_LABELS, MICRONUTRIENTS, defaultStorageOf } from '@/models/menu-planning/menuPlanningConstants';
 import { purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
 import { normalizeText } from '@/utils/format';
 
@@ -43,6 +43,8 @@ export const NORM_STEMS = {
   morningKcalPct: 'morningKcalPct',
   lunchKcalPct: 'lunchKcalPct',
   afternoonKcalPct: 'afternoonKcalPct',
+  // Vi chất (BE NUT-26): tên trường BE trùng khóa FE (calciumMin, vitaminAMax…)
+  ...Object.fromEntries(MICRONUTRIENTS.map((k) => [k, k])),
 };
 const configFieldOf = (key) => {
   if (key === 'mealPrice') return 'price';
@@ -135,7 +137,13 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     unitPrice: f.unitPrice ?? null,
     wastePct: f.wastePct ?? 0,
     storage: f.storage,
-    nutrition: { kcal: f.kcal ?? null, protein: f.protein ?? null, lipid: f.lipid ?? null, glucid: f.glucid ?? null },
+    nutrition: {
+      kcal: f.kcal ?? null,
+      protein: f.protein ?? null,
+      lipid: f.lipid ?? null,
+      glucid: f.glucid ?? null,
+      ...Object.fromEntries(MICRONUTRIENTS.map((k) => [k, f[k] ?? null])),
+    },
     origin: ['ANIMAL', 'PLANT'].includes(f.origin) ? f.origin : '',
     nutrientSource: f.nutrientSource || '',
     nutrientSourceVersion: f.nutrientSourceVersion || '',
@@ -173,6 +181,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       protein: numOrNull(p.nutrition?.protein),
       lipid: numOrNull(p.nutrition?.lipid),
       glucid: numOrNull(p.nutrition?.glucid),
+      ...Object.fromEntries(MICRONUTRIENTS.map((k) => [k, numOrNull(p.nutrition?.[k])])),
       origin: ['ANIMAL', 'PLANT'].includes(p.origin) ? p.origin : null,
       nutrientSource: text(p.nutrientSource),
       nutrientSourceVersion: text(p.nutrientSourceVersion),

@@ -124,7 +124,6 @@ export default function MealPhotoWindowsPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Khung giờ đăng ảnh bữa ăn</h1>
-          <p className="page__desc">Bếp chỉ đăng được ảnh mỗi bữa trong khung giờ này. Giờ theo múi giờ trường.</p>
         </div>
       </div>
       {body}

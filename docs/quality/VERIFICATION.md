@@ -1,18 +1,66 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Đánh giá UI/UX chuyên sâu luồng bán trú — 04/11/2026
+## UI tiếp nhận trẻ theo phiếu khám — 05/11/2026
+
+- Theo yêu cầu user: tham khảo HealthExamFormPage/ExamAdminStep, tái dùng ExamSheetTable/ExamSheetBand và FormField. Bước thông tin có ba phần trẻ/hành chính/phụ huynh, ảnh chân dung cạnh bảng, người nhận tài khoản có radio/viền/StatusBadge role. Mobile xếp nhãn trên input để không cắt CCCD và SĐT.
+- Thay đổi trình bày trong năm file source của children; không đổi trường, validation, quyền, bốn bước, upload hoặc tài khoản. Chế độ sheet chỉ dùng tiếp nhận, màn sửa hồ sơ giữ chế độ mặc định. Không sửa BE/APP hoặc dependency.
+- Sau source cuối: node scripts/verify.mjs → VERIFY PASS full, 808 tests, 0 fail/skip; lint/format/design/API/build đạt. node scripts/check-ai-layer.mjs: 0 lỗi, 20 cảnh báo cũ.
+- Chromium với app/mock tại 1440/375: nhãn liên kết đúng ô để điền dữ liệu, chọn/bỏ/thay ảnh, thêm/xóa phụ huynh, chọn người thứ hai, đi qua các bước/lưu/mở lại/reload giữ đúng ảnh và một tài khoản. CSV selection và activation sau cũng đạt. 0 lỗi JS, không tràn ngang; 12/12 object URL thu hồi mỗi viewport. Ảnh desktop/mobile đã xem trực tiếp; artifacts node_modules/.cache/intake-ui/.
+- Browser dùng dữ liệu tổng hợp; chưa kiểm FE nối BE thật trong thay đổi UI này. Không commit/push. Thiết kế tại docs/features/enrollment-intake-ui.md.
+
+## Chọn một phụ huynh nhận tài khoản — 05/11/2026
+
+- Đã triển khai radio trên form, giữ toàn bộ liên hệ/ảnh; chỉ người được chọn có kết quả tài khoản. Import CSV/XLSX có nhóm phụ huynh 2/3, cột CCCD chọn tùy chọn và dropdown từng dòng; giữ lỗi thông tin khi sửa lựa chọn. XLS có parser BE.
+- Màn tài khoản hiển thị recipient kể cả chưa kích hoạt, đếm đúng account được chọn, cho đổi người trước kích hoạt và chọn ở hồ sơ cũ mơ hồ; hiển thị số liên kết cũ để không hiểu nhầm là đã thu hồi quyền. Profile edit không tự đổi recipient hoặc tạo tài khoản cho liên hệ khác.
+- Sau source cuối: node scripts/verify.mjs → VERIFY PASS full, 808 tests, 0 fail/skip. API route snapshot đồng bộ từ OpenAPI BE, không khai pending để lách gate.
+- Chromium thực tế với app/mock tại 1440/375: chọn người thứ hai, lưu form tạo đúng một account, giữ ảnh cả hai người, nhập file chọn theo dòng, import chưa có account, mở panel và kích hoạt sau đúng người. 0 lỗi JS; 12/12 object URL ảnh được thu hồi mỗi viewport. Artifacts tại node_modules/.cache/selected-parent/; dùng dữ liệu tổng hợp.
+- Review độc lập đã xử lý các findings về scope/identity/CAS/projection/stale selection/batch; không còn blocker trực tiếp. Chưa kiểm browser nối BE/Keycloak/SMS/S3 thật; nguồn demo/API của module children/pickup giữ cấu hình hiện có. Không commit/push.
+
 ## Tải ảnh trẻ và phụ huynh khi tiếp nhận — 05/11/2026
 
-- User duyệt plan liên repo cùng ngày. Form có Tải ảnh lên/Thay ảnh/Bỏ ảnh và preview từng người; bước xem lại giữ File, adapter multipart gửi cùng request tiếp nhận, JSON không ảnh giữ tương thích. ChildAvatar/PortraitImage dùng blob có token; mock lưu ảnh demo đã nén, không lưu File vào localStorage.
-- `node scripts/verify.mjs` → VERIFY PASS full, 799 tests, 0 fail/skip; 7 ca mới kiểm payload/identity/limits/private blob/pickup/teacher projection/reorder.
-- Actual Chromium mock 1440/375: chọn ảnh, chặn >2 MiB, bỏ/chọn lại cùng file, thêm/xóa phụ huynh vẫn đúng ảnh, chuyển bước, lưu, mở hồ sơ và reload có ảnh; không tràn ngang, 0 lỗi JS. Object URL 9 tạo/9 thu hồi mỗi viewport. Artifacts cục bộ: node_modules/.cache/enrollment-photos/.
-- BE PostgreSQL integration và HTTP contract tests dùng storage/auth/SMS giả; chưa kiểm S3 thật hoặc Web nối BE thật. Module children/pickup giữ demo mode hiện có. Review độc lập đã sửa bốn findings, review lại không còn blocker. Không commit/push.
+- `ui-review/boarding-focus-2026-11-04/UI_AUDIT.md` đánh giá 20 màn/trạng thái (19 route bán trú chính và form tạo phiếu nhập), dùng 5 ảnh user đánh dấu lưu trong `user-evidence/` cùng báo cáo 38 ảnh trực tiếp. Phân biệt ảnh có nội dung, loading, empty và quan sát source; không tuyên bố đã thử bàn phím, submit hoặc App bếp.
+- Báo cáo HTML 38 ảnh được cập nhật để dẫn tới đánh giá chi tiết. `verify-boarding-report.mjs`: 38 ảnh JPEG hợp lệ, 38 card, không trùng ID, không có liên kết anchor đứt hoặc mật khẩu demo. Các liên kết tệp cục bộ trong `UI_AUDIT.md`: 0 thiếu. Trình duyệt tự động không được phép mở URL `file:`; QA giao diện của chính tệp báo cáo chưa thực hiện.
+- Các đề xuất giữ BE làm nguồn của rule/quyền, giữ brand CareNest. Chỉ đánh giá, chưa thay mã nguồn giao diện. `node scripts/check-ai-layer.mjs` → 0 lỗi, 20 cảnh báo tài liệu cũ; `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log` (chạy lại sau phiên công cụ ngắt giữa chừng).
 
+## Báo cáo chuyên đề luồng bán trú — 04/11/2026
 
-## Bỏ vòng đầu khỏi kỳ cân đo và xu hướng — 05/11/2026
+- Báo cáo HTML tự chứa ảnh: `ui-review/boarding-focus-2026-11-04/CareNest-luong-ban-tru-2026-11-04.html`. 38 màn theo vai trò (18 Hiệu trưởng, 19 Phó hiệu trưởng, 1 Giáo viên liên quan), 38 ảnh JPEG. Chụp lại trực tiếp màn Kế hoạch tuần của hai vai trò, Cân đối khẩu phần, Thiết lập dinh dưỡng và Dự trù hàng tươi của Phó hiệu trưởng sau khi trang tải xong; các ảnh còn tải từ lượt đầu được gắn nhãn.
+- Quan sát: Phó hiệu trưởng demo chỉ xem Kế hoạch tuần nhưng lời dẫn hướng dẫn sửa; Cân đối khẩu phần nằm trong cùng menu nhưng hiện banner dữ liệu demo cục bộ. Đã ghi `FE-BUG-261104-weekly-readonly-intro` và `FE-CASE-261104-nutrition-demo-route`. Không thực hiện lưu/công bố/xác nhận/duyệt/nhập kho; không kiểm tra App bếp/phụ huynh.
+- `node ui-review/boarding-focus-2026-11-04/verify-boarding-report.mjs`: 38/38 JPEG hợp lệ, 38 mục màn, không trùng ID hoặc liên kết nội bộ đứt, không có mật khẩu demo. Trình duyệt tự động chặn URL `file:` trong lượt trước; chưa xác nhận hiển thị HTML bằng browser, chỉ xác minh tĩnh.
+- Cổng repo: `node scripts/check-ai-layer.mjs` → 0 lỗi, 20 cảnh báo tài liệu cũ; `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`. Không commit/push/deploy.
 
-- Theo yêu cầu user, kết quả kỳ cân đo không hiện vòng đầu kể cả dữ liệu cũ còn số đo; Xu hướng sức khỏe bỏ biểu đồ, cột và chú giải vòng đầu. Phiếu khám bác sĩ và mẫu cũ ngoài kỳ cân đo vẫn hiện vòng đầu khi có số. Quyết định hiển thị ghi ở `docs/features/README.md`.
-- Kiểm thử render `tests/health/measurement-head-display.test.mjs`: 4/4 đạt, bao phủ các nguồn kết quả trong kỳ, dữ liệu cũ, phiếu khám, không có số vòng đầu, hai biểu đồ còn lại và bảng năm cột khớp năm ô dữ liệu.
-- Chạy `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs` sau thay đổi cuối; kết quả thực tế ở output bàn giao và `verify.log`. Chưa kiểm trực tiếp trên trình duyệt hoặc BE thật; không đổi API, dữ liệu đã lưu hoặc repo BE/APP.
+## Kiểm tra trực tiếp CareNest Web theo ba vai trò — 04/11/2026
+
+- Đăng nhập bản demo trực tiếp bằng Hiệu trưởng, Phó hiệu trưởng Cơ sở A và Giáo viên A. Báo cáo tự chứa ảnh: `ui-review/live-audit-2026-11-04/CareNest-web-3-vai-tro-2026-11-04.html`; 141 mục màn theo vai trò, 132 ảnh (gồm đăng nhập và lỗi 504), 11 mục không chụp được nội dung. Chỉ quan sát giao diện, không gửi/duyệt/xóa dữ liệu.
+- Nhiều route Kế hoạch giáo dục kẹt `Đang tải dữ liệu...`; cuối phiên trang chủ từng trả HTTP 504. Chưa có network trace/root cause; xem `FE-BUG-261104-live-education-loading`. Lời dẫn màn Chờ duyệt Hiệu trưởng không khớp 4 yêu cầu suất ăn; xem `FE-BUG-261104-approval-intro-mismatch`.
+- `node ui-review/live-audit-2026-11-04/verify-report.mjs`: 132 JPEG hợp lệ, 141 mục màn, không trùng ID/liên kết đứt, không có mật khẩu demo. Không mở được HTML trong browser automation vì chính sách chặn `file:`; kiểm tra cú pháp và tính toàn vẹn ở mức tệp, chưa xác nhận tương tác tìm kiếm trong trình duyệt.
+- Cổng chất lượng sau khi tạo báo cáo: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`; `node scripts/check-ai-layer.mjs` → 0 lỗi, 20 cảnh báo tài liệu cũ. Không commit/push/deploy.
+
+## EDU-48 xóa nhánh và Lĩnh vực ellipsis — 02/11/2026
+
+- Convergence ảnh cuối phát hiện ordinal xác nhận dùng subNo mutable: appendT023, local RED1→2 rồi capture const theo block. Local browser GREEN và real E2E chạy lại1/1passed20.3s, cleanupAPI0; assertion số thứ tự trong E2E. Review lại không gap. Các mốc386tests/15.7s bên dưới là vòng trước T023; cổng full cuối được chạy sau hồ sơ và source T023, output bàn giao là kết quả sau cùng.
+
+- User chốt nghiệp vụ và duyệt delta plan L006 bằng “Duyệt kế hoạch và triển khai tới khi sạch”. Helper subDomainBranch lấy đoạn theo ID/boundary; GoalTables xác nhận số nhóm/goal/content/tick rồi bỏ đủ nhánh, giữ read-only/normalize/manual save. Cur-domain/cur-target dùng ga-cur-select--ellipsis, title domain đầy đủ, không cắt value/options. Không đổi API/schema/dependency/quyền.
+- RED11unit thiếu helper; baseline browser dùng GoalTables cũ từ Git chứng minh con sống sót/đổi cha sau xóa. GREEN11unit,44targeted; full sau source386tests fail0/skip0, VERIFY PASS full, lint/format/design/build đạt. Local browser source/CSS thật: counts2/3/4/5, Quay lại không đổi form, chỉ xóa đúng nhánh/ticks, read-only,4viewport360/390/768/1440, keyboard/ellipsis/title/value/target/filter,0lỗiJS.
+- Real-BE/Keycloak: tests/e2e/system/year-plan-subdomain-delete.spec.mjs dùng API-only fixture marker riêng, slot trống, cleanup xác minh marker rồi DELETE đúng ownedID; không SQL/cấu hình DB hay bỏ guard suite cũ. Lệnh node --env-file=.env.e2e.local node_modules/@playwright/test/cli.js test tests/e2e/system/year-plan-subdomain-delete.spec.mjs --project=system --no-deps --reporter=line →1passed(15.7s). Chưa PUT trước Lưu; sau lưu/mở lại chỉ3hàng nhánh giữ, cùngID/content/tick, goalNo1, themes/breaks giữ; select4viewport. Kiểm API sau cleanup:0ownedtestplans. Lượt trước vướng selector Đóng trùng icon/footer, đã sửa test vào footer; suite nhập file cũ giữ byte như HEAD.
+- Review độc lập không blocker source/test/API-only cleanup; reviewer chạy11unit đạt. Trace/ảnh real E2E ở test-results; log node_modules/.cache/subdomain-real-e2e.log; harness/ảnh local subdomain-delete-review.mjs/subdomain-delete-shots cùng cache. Tham chiếu BE:specs/006-year-plan-goal-hierarchy/quickstart.md cho analyze/task/converge và Attempts.
+- Cổng cuối sau hồ sơ: node scripts/verify.mjs và check-ai-layer; output bàn giao/log verify.log. Không commit/push/deploy. Fixture tổng hợp; không sửa kế hoạch/người dùng có sẵn hoặc dọn tiêu đề trùng cũ.
+
+## Giao diện chọn mục tiêu/nội dung Bộ — 02/11/2026
+
+- User duyệt ảnh chức năng hiện có và cho triển khai/commit/push FE/BE. Bản fix LVC đã tách commit 994002c, push thành công trước sửa UI. Delta UI: GoalPicker, CurriculumGoalsModal và CSS module; không đổi callback/quyền, contract, nguồn danh mục hoặc logic ghép. Phạm vi/tính năng được duyệt ghi trong year-plan-import.md.
+- Browser source/CSS/Modal/Tabs thật, dữ liệu giáo dục tổng hợp từ mock seed và hook/callback giả: 84 mục tiêu; chọn/bỏ tất cả; chọn theo lĩnh vực và giữ lựa chọn qua bộ lọc; tìm không dấu; checkbox nhóm/lĩnh vực; mở nội dung đi kèm; khóa khi chưa có đích; lọc/thêm hai gợi ý giữ hộp mở và bỏ lựa chọn sau thêm; chọn mục tiêu bằng Space rồi nhập bằng helper thật. Các trạng thái loading/error/retry/empty/no-target được kiểm. Không tràn body/modal tại360/390/768/1440;0lỗi JavaScript.
+- Artifacts cục bộ: node_modules/.cache/curriculum-ui-review.mjs và curriculum-ui-shots. Lượt baseline phát hiện nút chọn tất cả còn tông thường; điều chỉnh kiểm màu theo token outline chung (viền nhạt không bằng màu chữ). Fixture nhập ban đầu có goal ngoài sub nên helper chặn đúng EDU-28; sửa fixture thành nhánh có sub/group rồi harness PASS. Đây là chỉnh kỳ vọng/fixture, không vá production để lách guard. Không thêm test chỉ soi markup cho delta trình bày có thể hoàn tác.
+- Review độc lập read-only không thấy finding trong delta; đã truy caller ImportGoalsModal/CurriculumSourcesPage/ImportThemesModal, phạm vi selector và mobile/accessibility; reviewer không tự chạy browser/full verify. Check-design đạt baseline44hex/16cssPx/37inlineStyle. Cổng cuối `node scripts/verify.mjs` và check-ai-layer chạy sau hồ sơ; output bàn giao/log verify.log là bằng chứng cuối.
+- Chưa kiểm API/lưu-mở lại với BE thật; browser dùng dữ liệu/callback giả, chỉ bước ghép mục tiêu dùng helper thật. Không tự dọn dữ liệu trùng cũ, không triển khai lại các chức năng chỉ có trong đề xuất đầu. Chỉ tài liệu BE được đồng bộ trong lượt này.
+
+## Sửa trùng lĩnh vực con khi lấy lại mục tiêu Bộ — 02/11/2026
+
+- User cho phép sửa CareNest_FE trong chat. Phạm vi một nhóm giáo dục: helper dùng lại lĩnh vực con/nhóm theo ID nguồn Bộ, fallback câu chỉ khi cả hai thiếu ID cha; chèn vào đúng đoạn cha, giữ normalize guard và dữ liệu cũ. Không đổi giao diện chọn hoặc tự dọn tiêu đề đã trùng.
+- RED trước sửa: curriculum 16 tests, pass12/fail4/skip0; lỗi đúng ở sub/group mới được tạo. Thêm regression hỗn hợp từ review: RED added1/unavailable manual thay vì added2. GREEN sau source cuối: 39/39 targeted curriculum/import-goals/import-goal-file; reviewer độc lập chạy lại đạt exit0 và không còn finding. Sáu ca mới bao phủ nhập lại ba chu kỳ, cha sửa tên/cùng tên khác ID, nhóm mới/sub cũ, mock thiếu ID, nhóm không-sub và chép nguồn Bộ/tự gõ.
+- Cổng cuối chạy sau hồ sơ bằng `node scripts/verify.mjs`; log `verify.log`, dòng VERIFY trong output bàn giao. Prettier đã chạy trực tiếp cho hai file .mjs vì glob format chung chỉ quét js/jsx/css. Đối chiếu DoD: đúng phạm vi, regression RED/GREEN, review và cổng thực tế; không có component/API mới cần kiểm role/responsive.
+- Tri thức: [incident](../knowledge/incidents/FE-BUG-261102-curriculum-reimport-headings.md), ISSUE_INDEX và bẫy trong year-plan-import. Chỉ sửa FE; incident BE trước đây giữ nguyên vì lượt này không có quyền sửa BE. Chưa kiểm trình duyệt/lưu-mở lại với BE thật; không commit/push/deploy.
 
 ## Pre-PR review fixes — 02/11/2026
 
@@ -102,7 +150,7 @@ Lệnh chuẩn: `node scripts/verify.mjs` — chưa có code (`package.json`) �
 - Dùng `DateInput` chung cho ngày bắt đầu/kết thúc, hiển thị và nhập `dd/mm/yyyy`. Khi tạo mới, lịch giới hạn từ hôm nay; kiểm tra ngày nhập tay trước khi hỏi cảnh báo và khi xác nhận lưu. Validation phân biệt tạo/sửa để đợt đang diễn ra giữ được ngày bắt đầu cũ; backend kiểm tra theo giờ trường (`BE:docs/modules/health.md`, Known pitfalls).
 - Regression: `tests/health/campaign-dates.test.mjs` 19/19, không skip; cả EXAM/MEASUREMENT, hôm qua bị chặn, hôm nay/tương lai hợp lệ, ngày không tồn tại/nhập dở, kết thúc trước bắt đầu, sửa đợt đã bắt đầu. Clock cố định 00:30 Việt Nam khi UTC vẫn là hôm qua.
 - Chrome với locale en-US và giờ Việt Nam: kiểm cả hai form hiển thị `dd/mm/yyyy`, min lịch, lỗi ngày quá khứ/không tồn tại/kết thúc trước bắt đầu, tạo hôm nay và sửa ngày bắt đầu cũ; không có lỗi runtime. Dùng dữ liệu giả trong browser context riêng, chưa nối UI với API thật.
-- `node scripts/verify.mjs` → `VERIFY PASS full`: 460/460 test, không skip; lint, format, design và build đạt. `node scripts/check-ai-layer.mjs` → 0 lỗi (cảnh báo tài liệu cũ). BE: `node scripts/verify.mjs --quick` → `VERIFY PASS quick`, 101/101 test, không skip (gồm 16 test health với PostgreSQL thật); ArchUnit và Spotless đạt, không chạy snapshot; log `BE:target/verify.log`. Không commit/push.
+- `node scripts/verify.mjs` → `VERIFY PASS full`: 460/460 test, không skip; lint, format, design và build đạt. `node scripts/check-ai-layer.mjs` → 0 lỗi (cảnh báo tài liệu cũ). BE: `node scripts/verify.mjs --quick` → `VERIFY PASS quick`, 101/101 test, không skip (gồm 16 test health với PostgreSQL thật); ArchUnit và Spotless đạt, không chạy snapshot; log target/verify.log của BE (file sinh khi chạy, không commit). Không commit/push.
 
 ### Trùng tài khoản nhân sự vẫn tạo tài khoản phụ huynh — 2026-10-29
 
@@ -210,3 +258,10 @@ Làn L:            ghi đủ vào Progress log của plan; chat chỉ tóm tắt
 - VERIFY PASS full | npm run verify | log verify.log sau lần sửa test cuối; 59/59 education-plan tests.
 - E2E feature003 trên BE/Keycloak thật: 13 passed (1.0m), zero fail/skip; chọn/reset, quyền/lease, source freshness, lỗi/race, 200 goals/responsive, manual-save retry/reopen/preservation đều qua. Dọn 0 fixture import còn sót.
 - Converge cuối 22/22 task, không actionable gap; [bằng chứng/command/giới hạn](../../../CareNest_BE/specs/003-import-year-plan-goals/quickstart.md). Không tuyên bố toàn bộ E2E feature khác đã chạy; không commit hoặc đưa secret vào log.
+# Nhãn trạng thái danh sách kế hoạch năm — 05/11/2026
+
+- User chốt: “Phiên bản N” dạng chữ nhỏ xanh nước biển, bỏ mã KHNH và badge phiên bản màu ở danh sách và bảng Phiên bản trên trang chi tiết; cột Trạng thái ghi “Đã thay thế” cho bản đã được thay bằng bản ban hành mới, “Đã ban hành” cho bản hiện hành. Rule: BE EDU-25 (CONFIRMED), không thay workflow/contract/DB. Phạm vi FE: GoalListPage, VersionWidgets, bảng nhãn YearPlanStatusBadge và xóa CSS cột mã không còn dùng.
+- Nguyên nhân: danh sách chỉ truyền status APPROVED cho cột trạng thái, thông tin hiện hành nằm ở VersionBadge riêng. UI nay ưu tiên current từ BE; mock dùng currentPlanOf hiện có trên toàn bộ goals trước bộ lọc. REPLACED chỉ là nhãn hiển thị, không ghi vào dữ liệu kế hoạch.
+- Regression: `node --import ./scripts/register-auth-test-loader.mjs --test tests/education-plan/goal-list-status.test.mjs`: RED 0/2 → GREEN 2/2. Bao phủ V1/V2 đã ban hành cùng V3 đang sửa, current=false khi thiếu bản hiện hành trong danh sách, current=true, khác nhóm tuổi/năm; số phiên bản hiển thị cả V1.
+- Bổ sung sau góp ý màu/mã và ảnh bảng chi tiết: regression màu/mã RED 1/2 → GREEN 2/2; thêm kiểm bảng chi tiết, tổng GREEN 3/3. Dùng class text-xs/text-primary của design system, liên kết mở bản khác chuyển từ cột mã sang số phiên bản; VersionBadge bỏ logic/tone cũ.
+- Cổng cuối: chạy `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs`; kết quả thực tế trong output lượt bàn giao và verify.log. Chưa kiểm giao diện trình duyệt hoặc E2E với BE thật. Không sửa BE/APP, không commit/push.

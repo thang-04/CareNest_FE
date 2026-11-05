@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { lazyPage, registerRouteTree } from './routePrefetch';
 import { MainLayout } from '@/layouts/MainLayout';
 import { RoleGuard } from './RoleGuard';
 import { ProtectedRoute, GuestRoute } from './ProtectedRoute';
@@ -14,15 +15,15 @@ import { canManageParentAccounts } from '@/utils/account/accountPermissions';
 import { isDemoModule } from '@/services/demoSource';
 
 // Thư viện UI chỉ cho bản dev: bản build prod bỏ cả route lẫn chunk.
-const UiKitPage = import.meta.env.DEV ? lazy(() => import('@/pages/UiKitPage')) : null;
-const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
-const ForgotPasswordPage = lazy(() => import('@/pages/account/ForgotPasswordPage'));
-const VerifyOtpPage = lazy(() => import('@/pages/account/VerifyOtpPage'));
-const ResetPasswordPage = lazy(() => import('@/pages/account/ResetPasswordPage'));
-const ProfilePage = lazy(() => import('@/pages/account/ProfilePage'));
-const ChangePasswordPage = lazy(() => import('@/pages/account/ChangePasswordPage'));
-const NotificationDetailPage = lazy(() => import('@/pages/account/NotificationDetailPage'));
-const AppearancePage = lazy(() => import('@/pages/settings/AppearancePage'));
+const UiKitPage = import.meta.env.DEV ? lazyPage(() => import('@/pages/UiKitPage')) : null;
+const LoginPage = lazyPage(() => import('@/pages/auth/LoginPage'));
+const ForgotPasswordPage = lazyPage(() => import('@/pages/account/ForgotPasswordPage'));
+const VerifyOtpPage = lazyPage(() => import('@/pages/account/VerifyOtpPage'));
+const ResetPasswordPage = lazyPage(() => import('@/pages/account/ResetPasswordPage'));
+const ProfilePage = lazyPage(() => import('@/pages/account/ProfilePage'));
+const ChangePasswordPage = lazyPage(() => import('@/pages/account/ChangePasswordPage'));
+const NotificationDetailPage = lazyPage(() => import('@/pages/account/NotificationDetailPage'));
+const AppearancePage = lazyPage(() => import('@/pages/settings/AppearancePage'));
 
 /** Public page for signed-out users only (login, password recovery). */
 const guest = (page) => (
@@ -30,141 +31,143 @@ const guest = (page) => (
     <Suspense fallback={<AppSplash />}>{page}</Suspense>
   </GuestRoute>
 );
-const EducationPlanLayout = lazy(() => import('@/components/education-plan/EducationPlanLayout'));
-const EducationHomeRedirect = lazy(() => import('@/pages/education-plan/EducationHomeRedirect'));
-const GoalsEntry = lazy(() =>
+const EducationPlanLayout = lazyPage(() => import('@/components/education-plan/EducationPlanLayout'));
+const EducationHomeRedirect = lazyPage(() => import('@/pages/education-plan/EducationHomeRedirect'));
+const GoalsEntry = lazyPage(() =>
   import('@/pages/education-plan/GoalListPage').then((m) => ({
     default: m.GoalsEntry,
   })),
 );
-const GoalFormPage = lazy(() => import('@/pages/education-plan/GoalFormPage'));
-const GoalDetailPage = lazy(() => import('@/pages/education-plan/GoalDetailPage'));
-const ClassPlanPage = lazy(() => import('@/pages/education-plan/ClassPlanPage'));
-const ClassPlanRedirect = lazy(() =>
+const GoalFormPage = lazyPage(() => import('@/pages/education-plan/GoalFormPage'));
+const GoalDetailPage = lazyPage(() => import('@/pages/education-plan/GoalDetailPage'));
+const ClassPlanPage = lazyPage(() => import('@/pages/education-plan/ClassPlanPage'));
+const ClassPlanRedirect = lazyPage(() =>
   import('@/pages/education-plan/ClassPlanPage').then((m) => ({
     default: m.ClassPlanRedirect,
   })),
 );
-const BranchPlanPage = lazy(() => import('@/pages/education-plan/BranchPlanPage'));
-const BranchPlanLegacyRedirect = lazy(() =>
+const BranchPlanPage = lazyPage(() => import('@/pages/education-plan/BranchPlanPage'));
+const BranchPlanLegacyRedirect = lazyPage(() =>
   import('@/pages/education-plan/BranchPlanPage').then((m) => ({
     default: m.BranchPlanLegacyRedirect,
   })),
 );
-const ClassThemePlanPage = lazy(() => import('@/pages/education-plan/ClassThemePlanPage'));
-const TeachingPresentationPage = lazy(() => import('@/pages/education-plan/TeachingPresentationPage'));
-const ThemeDossierPage = lazy(() => import('@/pages/education-plan/ThemeDossierPage'));
-const WeekPlanPage = lazy(() => import('@/pages/education-plan/WeekPlanPage'));
-const PlanReviewQueuePage = lazy(() => import('@/pages/education-plan/PlanReviewQueuePage'));
-const EduConfigPage = lazy(() => import('@/pages/education-plan/EduConfigPage'));
-const CurriculumSourcesPage = lazy(() => import('@/pages/education-plan/CurriculumSourcesPage'));
-const SchoolPlansPage = lazy(() => import('@/pages/education-plan/SchoolPlansPage'));
-const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'));
-const AttendanceDayUnlockPage = lazy(() => import('@/pages/attendance/AttendanceDayUnlockPage'));
-const AttendanceSummaryPage = lazy(() => import('@/pages/attendance/AttendanceSummaryPage'));
-const MealCountPage = lazy(() => import('@/pages/attendance/MealCountPage'));
-const MealHandoverPage = lazy(() => import('@/pages/attendance/MealHandoverPage'));
-const DailyHealthOverviewPage = lazy(() => import('@/pages/attendance/DailyHealthOverviewPage'));
-const PickupListPage = lazy(() => import('@/pages/pickup/PickupListPage'));
-const PickupVerifyPage = lazy(() => import('@/pages/pickup/PickupVerifyPage'));
-const PickupResultPage = lazy(() => import('@/pages/pickup/PickupResultPage'));
-const SchoolYearListPage = lazy(() => import('@/pages/school-config/SchoolYearListPage'));
-const SchoolYearFormPage = lazy(() => import('@/pages/school-config/SchoolYearFormPage'));
-const SchoolYearSetupPage = lazy(() => import('@/pages/school-config/SchoolYearSetupPage'));
-const AgeGroupsClassesPage = lazy(() => import('@/pages/school-config/AgeGroupsClassesPage'));
-const RoomListPage = lazy(() => import('@/pages/school-config/RoomListPage'));
-const StaffAccountsPage = lazy(() => import('@/pages/school-config/StaffAccountsPage'));
-const CutoffSettingPage = lazy(() => import('@/pages/school-config/CutoffSettingPage'));
-const CampusListPage = lazy(() => import('@/pages/school-config/CampusListPage'));
-const CampusFormPage = lazy(() => import('@/pages/school-config/CampusFormPage'));
-const CampusDetailPage = lazy(() => import('@/pages/school-config/CampusDetailPage'));
-const VicePrincipalAssignmentPage = lazy(() => import('@/pages/school-config/VicePrincipalAssignmentPage'));
-const RoleDefaultsPage = lazy(() => import('@/pages/school-config/RoleDefaultsPage'));
-const UserOverridesPage = lazy(() => import('@/pages/permissions/UserOverridesPage'));
-const PermissionHistoryPage = lazy(() => import('@/pages/school-config/PermissionHistoryPage'));
-const TeacherAssignmentPage = lazy(() => import('@/pages/school-config/TeacherAssignmentPage'));
-const YearPlacementPage = lazy(() => import('@/pages/school-config/YearPlacementPage'));
-const ChildrenListPage = lazy(() => import('@/pages/children/ChildrenListPage'));
-const EnrollChildPage = lazy(() => import('@/pages/children/EnrollChildPage'));
-const ImportChildrenPage = lazy(() => import('@/pages/children/ImportChildrenPage'));
-const ClassPlacementPage = lazy(() => import('@/pages/children/ClassPlacementPage'));
-const ParentActivationPage = lazy(() => import('@/pages/children/ParentActivationPage'));
-const ChildProfilePage = lazy(() => import('@/pages/children/ChildProfilePage'));
-const EditChildPage = lazy(() => import('@/pages/children/EditChildPage'));
-const HealthDeclarationPage = lazy(() => import('@/pages/children/HealthDeclarationPage'));
-const ChildHealthRecordPage = lazy(() => import('@/pages/children/ChildHealthRecordPage'));
-const HealthMeasurementFormPage = lazy(() => import('@/pages/children/HealthMeasurementFormPage'));
-const HealthTrendPage = lazy(() => import('@/pages/children/HealthTrendPage'));
-const HealthCheckListPage = lazy(() => import('@/pages/children/HealthCheckListPage'));
-const HealthCheckFormPage = lazy(() => import('@/pages/children/HealthCheckFormPage'));
-const HealthCheckDetailPage = lazy(() => import('@/pages/children/HealthCheckDetailPage'));
-const GrowthReportPage = lazy(() => import('@/pages/children/GrowthReportPage'));
-const HealthExamFormPage = lazy(() => import('@/pages/children/HealthExamFormPage'));
-const BoardingTodayPage = lazy(() => import('@/pages/boarding/BoardingTodayPage'));
-const DryStockLedgerPage = lazy(() => import('@/pages/kitchen/DryStockLedgerPage'));
-const StockReceiptEditorPage = lazy(() => import('@/pages/kitchen/StockReceiptEditorPage'));
-const StockReceiptListPage = lazy(() => import('@/pages/kitchen/StockReceiptListPage'));
-const StockReceiptFormPage = lazy(() => import('@/pages/kitchen/StockReceiptFormPage'));
-const SupplierListPage = lazy(() => import('@/pages/kitchen/SupplierListPage'));
-const SupplierDetailPage = lazy(() => import('@/pages/kitchen/SupplierDetailPage'));
-const SupplierFormPage = lazy(() => import('@/pages/kitchen/SupplierFormPage'));
-const KitchenFlowPage = lazy(() => import('@/pages/kitchen/KitchenFlowPage'));
-const DryStockPage = lazy(() => import('@/pages/kitchen/DryStockPage'));
-const FoodSampleLogPage = lazy(() => import('@/pages/kitchen/FoodSampleLogPage'));
-const WeeklyForecastPage = lazy(() => import('@/pages/kitchen/WeeklyForecastPage'));
-const FreshReceiptPage = lazy(() => import('@/pages/kitchen/FreshReceiptPage'));
-const FreshForecastPage = lazy(() => import('@/pages/kitchen/FreshForecastPage'));
-const FreshCheckPage = lazy(() => import('@/pages/kitchen/FreshCheckPage'));
-const PublishedMenuPage = lazy(() => import('@/pages/kitchen/PublishedMenuPage'));
-const KitchenTodayPage = lazy(() => import('@/pages/kitchen/KitchenTodayPage'));
-const FoodSampleQueuePage = lazy(() => import('@/pages/kitchen/FoodSampleQueuePage'));
-const MealPhotosPage = lazy(() => import('@/pages/kitchen/MealPhotosPage'));
-const MealPhotoWindowsPage = lazy(() => import('@/pages/kitchen/MealPhotoWindowsPage'));
-const ConfirmedMealCountPage = lazy(() => import('@/pages/kitchen/ConfirmedMealCountPage'));
-const RequiredFoodQuantityPage = lazy(() => import('@/pages/kitchen/RequiredFoodQuantityPage'));
-const MissingFoodReportPage = lazy(() => import('@/pages/kitchen/MissingFoodReportPage'));
-const DailyAssessmentPage = lazy(() => import('@/pages/assessment/DailyAssessmentPage'));
-const DailyGoalAssessmentPage = lazy(() => import('@/pages/assessment/DailyGoalAssessmentPage'));
-const AssessmentDayUnlockPage = lazy(() => import('@/pages/assessment/AssessmentDayUnlockPage'));
-const ChildDevelopmentListPage = lazy(() => import('@/pages/assessment/ChildDevelopmentListPage'));
-const ChildDevelopmentProfilePage = lazy(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
-const ChildDevelopmentProgressPage = lazy(() => import('@/pages/assessment/ChildDevelopmentProgressPage'));
-const PeriodicEvaluationListPage = lazy(() => import('@/pages/assessment/PeriodicEvaluationListPage'));
-const PeriodicEvaluationDetailPage = lazy(() => import('@/pages/assessment/PeriodicEvaluationDetailPage'));
-const AiEvaluationDraftPage = lazy(() => import('@/pages/assessment/AiEvaluationDraftPage'));
-const YearEndEvaluationListPage = lazy(() => import('@/pages/assessment/YearEndEvaluationListPage'));
-const YearEndEvaluationDetailPage = lazy(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
-const GoodBehaviourTicketsPage = lazy(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
-const ClassAssessmentOverviewPage = lazy(() => import('@/pages/assessment/ClassAssessmentOverviewPage'));
-const QualityReportPage = lazy(() => import('@/pages/assessment/QualityReportPage'));
-const RewardListPage = lazy(() => import('@/pages/assessment/RewardListPage'));
-const RewardClassPage = lazy(() => import('@/pages/assessment/RewardClassPage'));
-const PendingApprovalsPage = lazy(() => import('@/pages/dashboard/PendingApprovalsPage'));
-const FoodListPage = lazy(() => import('@/pages/menu-planning/FoodListPage'));
-const NutritionFlowPage = lazy(() => import('@/pages/menu-planning/NutritionFlowPage'));
-const NutritionSetupPage = lazy(() => import('@/pages/menu-planning/NutritionSetupPage'));
-const FoodDetailPage = lazy(() => import('@/pages/menu-planning/FoodDetailPage'));
-const FoodFormPage = lazy(() => import('@/pages/menu-planning/FoodFormPage'));
-const DishListPage = lazy(() => import('@/pages/menu-planning/DishListPage'));
-const DishDetailPage = lazy(() => import('@/pages/menu-planning/DishDetailPage'));
-const DishFormPage = lazy(() => import('@/pages/menu-planning/DishFormPage'));
-const MenuListPage = lazy(() => import('@/pages/menu-planning/MenuListPage'));
-const MenuDetailPage = lazy(() => import('@/pages/menu-planning/MenuDetailPage'));
-const MenuFormPage = lazy(() => import('@/pages/menu-planning/MenuFormPage'));
-const AllergyMenuListPage = lazy(() => import('@/pages/menu-planning/AllergyMenuListPage'));
-const AllergyMenuDetailPage = lazy(() => import('@/pages/menu-planning/AllergyMenuDetailPage'));
-const AllergyMenuFormPage = lazy(() => import('@/pages/menu-planning/AllergyMenuFormPage'));
-const AiMenuSuggestionPage = lazy(() => import('@/pages/menu-planning/AiMenuSuggestionPage'));
-const WeeklyMenuListPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuListPage'));
-const WeeklyMenuDetailPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuDetailPage'));
-const WeeklyMenuFormPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuFormPage'));
-const NutritionBalancePage = lazy(() => import('@/pages/menu-planning/NutritionBalancePage'));
-const WeeklyPlanPage = lazy(() => import('@/pages/menu-planning/WeeklyPlanPage'));
-const MenuTemplateListPage = lazy(() => import('@/pages/menu-planning/MenuTemplateListPage'));
-const MenuTemplateEditorPage = lazy(() => import('@/pages/menu-planning/MenuTemplateEditorPage'));
-const MenuStatisticsPage = lazy(() => import('@/pages/menu-planning/MenuStatisticsPage'));
-const MenuPlanListPage = lazy(() => import('@/pages/menu-planning/MenuPlanListPage'));
-const MenuPlanDetailPage = lazy(() => import('@/pages/menu-planning/MenuPlanDetailPage'));
+const ClassThemePlanPage = lazyPage(() => import('@/pages/education-plan/ClassThemePlanPage'));
+const TeachingPresentationPage = lazyPage(() => import('@/pages/education-plan/TeachingPresentationPage'));
+const WeekPlanPage = lazyPage(() => import('@/pages/education-plan/WeekPlanPage'));
+const PlanReviewQueuePage = lazyPage(() => import('@/pages/education-plan/PlanReviewQueuePage'));
+const EduConfigPage = lazyPage(() => import('@/pages/education-plan/EduConfigPage'));
+const CurriculumSourcesPage = lazyPage(() => import('@/pages/education-plan/CurriculumSourcesPage'));
+const SchoolPlansPage = lazyPage(() => import('@/pages/education-plan/SchoolPlansPage'));
+const AttendancePage = lazyPage(() => import('@/pages/attendance/AttendancePage'));
+const AttendanceDayUnlockPage = lazyPage(() => import('@/pages/attendance/AttendanceDayUnlockPage'));
+const AttendanceSummaryPage = lazyPage(() => import('@/pages/attendance/AttendanceSummaryPage'));
+const MealCountPage = lazyPage(() => import('@/pages/attendance/MealCountPage'));
+const LeaveRequestsPage = lazyPage(() => import('@/pages/attendance/LeaveRequestsPage'));
+const DailyHealthOverviewPage = lazyPage(() => import('@/pages/attendance/DailyHealthOverviewPage'));
+const PickupListPage = lazyPage(() => import('@/pages/pickup/PickupListPage'));
+const PickupVerifyPage = lazyPage(() => import('@/pages/pickup/PickupVerifyPage'));
+const PickupResultPage = lazyPage(() => import('@/pages/pickup/PickupResultPage'));
+const SchoolYearListPage = lazyPage(() => import('@/pages/school-config/SchoolYearListPage'));
+const SchoolYearFormPage = lazyPage(() => import('@/pages/school-config/SchoolYearFormPage'));
+const SchoolYearSetupPage = lazyPage(() => import('@/pages/school-config/SchoolYearSetupPage'));
+const AgeGroupsClassesPage = lazyPage(() => import('@/pages/school-config/AgeGroupsClassesPage'));
+const RoomListPage = lazyPage(() => import('@/pages/school-config/RoomListPage'));
+const StaffAccountsPage = lazyPage(() => import('@/pages/school-config/StaffAccountsPage'));
+const CutoffSettingPage = lazyPage(() => import('@/pages/school-config/CutoffSettingPage'));
+const CampusListPage = lazyPage(() => import('@/pages/school-config/CampusListPage'));
+const CampusFormPage = lazyPage(() => import('@/pages/school-config/CampusFormPage'));
+const CampusDetailPage = lazyPage(() => import('@/pages/school-config/CampusDetailPage'));
+const VicePrincipalAssignmentPage = lazyPage(() => import('@/pages/school-config/VicePrincipalAssignmentPage'));
+const RoleDefaultsPage = lazyPage(() => import('@/pages/school-config/RoleDefaultsPage'));
+const UserOverridesPage = lazyPage(() => import('@/pages/permissions/UserOverridesPage'));
+const PermissionHistoryPage = lazyPage(() => import('@/pages/school-config/PermissionHistoryPage'));
+const TeacherAssignmentPage = lazyPage(() => import('@/pages/school-config/TeacherAssignmentPage'));
+const YearPlacementPage = lazyPage(() => import('@/pages/school-config/YearPlacementPage'));
+const ChildrenListPage = lazyPage(() => import('@/pages/children/ChildrenListPage'));
+const EnrollChildPage = lazyPage(() => import('@/pages/children/EnrollChildPage'));
+const ImportChildrenPage = lazyPage(() => import('@/pages/children/ImportChildrenPage'));
+const ClassPlacementPage = lazyPage(() => import('@/pages/children/ClassPlacementPage'));
+const ParentActivationPage = lazyPage(() => import('@/pages/children/ParentActivationPage'));
+const ChildProfilePage = lazyPage(() => import('@/pages/children/ChildProfilePage'));
+const EditChildPage = lazyPage(() => import('@/pages/children/EditChildPage'));
+const HealthDeclarationPage = lazyPage(() => import('@/pages/children/HealthDeclarationPage'));
+const ChildHealthRecordPage = lazyPage(() => import('@/pages/children/ChildHealthRecordPage'));
+const HealthMeasurementFormPage = lazyPage(() => import('@/pages/children/HealthMeasurementFormPage'));
+const HealthTrendPage = lazyPage(() => import('@/pages/children/HealthTrendPage'));
+const HealthCheckListPage = lazyPage(() => import('@/pages/children/HealthCheckListPage'));
+const HealthCheckFormPage = lazyPage(() => import('@/pages/children/HealthCheckFormPage'));
+const HealthCheckDetailPage = lazyPage(() => import('@/pages/children/HealthCheckDetailPage'));
+const HealthExamFormPage = lazyPage(() => import('@/pages/children/HealthExamFormPage'));
+const BoardingTodayPage = lazyPage(() => import('@/pages/boarding/BoardingTodayPage'));
+const DryStockLedgerPage = lazyPage(() => import('@/pages/kitchen/DryStockLedgerPage'));
+const StockReceiptEditorPage = lazyPage(() => import('@/pages/kitchen/StockReceiptEditorPage'));
+const StockReceiptListPage = lazyPage(() => import('@/pages/kitchen/StockReceiptListPage'));
+const StockReceiptFormPage = lazyPage(() => import('@/pages/kitchen/StockReceiptFormPage'));
+const SupplierListPage = lazyPage(() => import('@/pages/kitchen/SupplierListPage'));
+const SupplierDetailPage = lazyPage(() => import('@/pages/kitchen/SupplierDetailPage'));
+const SupplierFormPage = lazyPage(() => import('@/pages/kitchen/SupplierFormPage'));
+const KitchenFlowPage = lazyPage(() => import('@/pages/kitchen/KitchenFlowPage'));
+const DryStockPage = lazyPage(() => import('@/pages/kitchen/DryStockPage'));
+const FoodSampleLogPage = lazyPage(() => import('@/pages/kitchen/FoodSampleLogPage'));
+const WeeklyForecastPage = lazyPage(() => import('@/pages/kitchen/WeeklyForecastPage'));
+const FreshReceiptPage = lazyPage(() => import('@/pages/kitchen/FreshReceiptPage'));
+const FreshForecastPage = lazyPage(() => import('@/pages/kitchen/FreshForecastPage'));
+const FreshCheckPage = lazyPage(() => import('@/pages/kitchen/FreshCheckPage'));
+const PublishedMenuPage = lazyPage(() => import('@/pages/kitchen/PublishedMenuPage'));
+const KitchenTodayPage = lazyPage(() => import('@/pages/kitchen/KitchenTodayPage'));
+const FoodSampleQueuePage = lazyPage(() => import('@/pages/kitchen/FoodSampleQueuePage'));
+const MealPhotosPage = lazyPage(() => import('@/pages/kitchen/MealPhotosPage'));
+const MealPhotoWindowsPage = lazyPage(() => import('@/pages/kitchen/MealPhotoWindowsPage'));
+const ConfirmedMealCountPage = lazyPage(() => import('@/pages/kitchen/ConfirmedMealCountPage'));
+const RequiredFoodQuantityPage = lazyPage(() => import('@/pages/kitchen/RequiredFoodQuantityPage'));
+const MissingFoodReportPage = lazyPage(() => import('@/pages/kitchen/MissingFoodReportPage'));
+const DailyAssessmentPage = lazyPage(() => import('@/pages/assessment/DailyAssessmentPage'));
+const DailyGoalAssessmentPage = lazyPage(() => import('@/pages/assessment/DailyGoalAssessmentPage'));
+const AssessmentDayUnlockPage = lazyPage(() => import('@/pages/assessment/AssessmentDayUnlockPage'));
+const ChildDevelopmentListPage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentListPage'));
+const ChildDevelopmentProfilePage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
+const ChildDevelopmentProgressPage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProgressPage'));
+const PeriodicEvaluationListPage = lazyPage(() => import('@/pages/assessment/PeriodicEvaluationListPage'));
+const PeriodicEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/PeriodicEvaluationDetailPage'));
+const AiEvaluationDraftPage = lazyPage(() => import('@/pages/assessment/AiEvaluationDraftPage'));
+const ClassRatingsPage = lazyPage(() => import('@/pages/assessment/ClassRatingsPage'));
+const SemesterEvaluationListPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationListPage'));
+const SemesterEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationDetailPage'));
+const YearEndEvaluationListPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationListPage'));
+const YearEndEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
+const GoodBehaviourTicketsPage = lazyPage(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
+const ClassAssessmentOverviewPage = lazyPage(() => import('@/pages/assessment/ClassAssessmentOverviewPage'));
+const ThemeEvaluationPage = lazyPage(() => import('@/pages/assessment/ThemeEvaluationPage'));
+const QualityReportPage = lazyPage(() => import('@/pages/assessment/QualityReportPage'));
+const RewardListPage = lazyPage(() => import('@/pages/assessment/RewardListPage'));
+const RewardClassPage = lazyPage(() => import('@/pages/assessment/RewardClassPage'));
+const PendingApprovalsPage = lazyPage(() => import('@/pages/dashboard/PendingApprovalsPage'));
+const FoodListPage = lazyPage(() => import('@/pages/menu-planning/FoodListPage'));
+const NutritionFlowPage = lazyPage(() => import('@/pages/menu-planning/NutritionFlowPage'));
+const NutritionSetupPage = lazyPage(() => import('@/pages/menu-planning/NutritionSetupPage'));
+const FoodDetailPage = lazyPage(() => import('@/pages/menu-planning/FoodDetailPage'));
+const FoodFormPage = lazyPage(() => import('@/pages/menu-planning/FoodFormPage'));
+const DishListPage = lazyPage(() => import('@/pages/menu-planning/DishListPage'));
+const DishDetailPage = lazyPage(() => import('@/pages/menu-planning/DishDetailPage'));
+const DishFormPage = lazyPage(() => import('@/pages/menu-planning/DishFormPage'));
+const MenuListPage = lazyPage(() => import('@/pages/menu-planning/MenuListPage'));
+const MenuDetailPage = lazyPage(() => import('@/pages/menu-planning/MenuDetailPage'));
+const MenuFormPage = lazyPage(() => import('@/pages/menu-planning/MenuFormPage'));
+const AllergyMenuListPage = lazyPage(() => import('@/pages/menu-planning/AllergyMenuListPage'));
+const AllergyMenuDetailPage = lazyPage(() => import('@/pages/menu-planning/AllergyMenuDetailPage'));
+const AllergyMenuFormPage = lazyPage(() => import('@/pages/menu-planning/AllergyMenuFormPage'));
+const AiMenuSuggestionPage = lazyPage(() => import('@/pages/menu-planning/AiMenuSuggestionPage'));
+const WeeklyMenuListPage = lazyPage(() => import('@/pages/menu-planning/WeeklyMenuListPage'));
+const WeeklyMenuDetailPage = lazyPage(() => import('@/pages/menu-planning/WeeklyMenuDetailPage'));
+const WeeklyMenuFormPage = lazyPage(() => import('@/pages/menu-planning/WeeklyMenuFormPage'));
+const NutritionBalancePage = lazyPage(() => import('@/pages/menu-planning/NutritionBalancePage'));
+const WeeklyPlanPage = lazyPage(() => import('@/pages/menu-planning/WeeklyPlanPage'));
+const MenuTemplateListPage = lazyPage(() => import('@/pages/menu-planning/MenuTemplateListPage'));
+const MenuTemplateEditorPage = lazyPage(() => import('@/pages/menu-planning/MenuTemplateEditorPage'));
+const MenuStatisticsPage = lazyPage(() => import('@/pages/menu-planning/MenuStatisticsPage'));
+const MenuPlanListPage = lazyPage(() => import('@/pages/menu-planning/MenuPlanListPage'));
+const MenuPlanDetailPage = lazyPage(() => import('@/pages/menu-planning/MenuPlanDetailPage'));
 const VP_ONLY = [ROLES.VICE_PRINCIPAL];
 const R = ROLES;
 const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
@@ -183,6 +186,12 @@ const FRESH_GOODS_API = !isDemoModule('fresh-goods');
 const KITCHEN_RECORDS_API = !isDemoModule('kitchen-records');
 const STOCK_RECEIPT_ROLES = DRY_STOCK_API ? LEADERS : VP_ONLY;
 const DENIED = 'Chức năng này không thuộc quyền của vai trò hiện tại (theo ma trận phân quyền của hệ thống).';
+
+/** Trang hồ sơ chủ đề đã bỏ (Tiền 04/11): link cũ .../review mở trang kế hoạch chủ đề. */
+function ThemeReviewRedirect() {
+  const { classId, themeId } = useParams();
+  return <Navigate to={`/education/class/${classId}/themes/${themeId}`} replace />;
+}
 
 function SupplierRedirect({ suffix = '' }) {
   const { id } = useParams();
@@ -250,7 +259,7 @@ export function AppRoutes() {
             <Route path="class/:classId/branches/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
             <Route path="class/:classId/themes/:themeId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassThemePlanPage />)} />
             <Route path="class/:classId/themes/:themeId/teach" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <TeachingPresentationPage />)} />
-            <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeDossierPage />)} />
+            <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeReviewRedirect />)} />
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
             <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />
             <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />
@@ -317,8 +326,6 @@ export function AppRoutes() {
             />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
             <Route path="health-checks" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckListPage />)} />
-            {/* Tổng hợp cân đo mẫu 5.1: Hiệu trưởng mọi điểm trường, PHT điểm trường được giao (coordinator chốt 2026-11-04) */}
-            <Route path="growth-report" element={only(LEADERS, <GrowthReportPage />)} />
             {/* Đợt khám, kỳ cân đo: Hiệu trưởng và PHT điểm trường quản lý (user chốt 2026-10-31) */}
             <Route path="health-checks/new" element={only(LEADERS, <HealthCheckFormPage />)} />
             <Route
@@ -360,7 +367,7 @@ export function AppRoutes() {
             <Route path="suppliers/new" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
             <Route path="suppliers/:id" element={only(LEADERS, <SupplierDetailPage />)} />
             <Route path="suppliers/:id/edit" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
-            {/* Bộ thực đơn mẫu 4 tuần trên BE (NUT-13) thay thực đơn mẫu một ngày của bản demo */}
+            {/* Mẫu thực đơn một ngày trên BE (NUT-13) */}
             <Route
               path="templates"
               element={TEMPLATE_API ? only(LEADERS, <MenuTemplateListPage />) : <Navigate to="/menu/menus" replace />}
@@ -445,14 +452,19 @@ export function AppRoutes() {
             <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
             <Route path="daily/skills" element={only(CLASS_STAFF, <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={only(LEADERS, <AssessmentDayUnlockPage />)} />
-            <Route path="overview" element={only(LEADERS, <ClassAssessmentOverviewPage />)} />
-            <Route path="quality-report" element={only(LEADERS, <QualityReportPage />)} />
+            <Route path="overview" element={only([...LEADERS, R.TEAM_LEADER], <ClassAssessmentOverviewPage />)} />
+            <Route path="quality-report" element={only([...LEADERS, ...CLASS_STAFF], <QualityReportPage />)} />
+            <Route path="class-ratings" element={only([...LEADERS, ...CLASS_STAFF], <ClassRatingsPage />)} />
+            <Route path="themes" element={only([...LEADERS, ...CLASS_STAFF], <ThemeEvaluationPage />)} />
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />
             <Route path="periodic" element={only([...LEADERS, ...CLASS_STAFF], <PeriodicEvaluationListPage />)} />
             <Route path="periodic/:id" element={only([...LEADERS, ...CLASS_STAFF], <PeriodicEvaluationDetailPage />)} />
             <Route path="periodic/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
+            <Route path="semester" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationListPage />)} />
+            <Route path="semester/:id" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationDetailPage />)} />
+            <Route path="semester/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
             <Route path="year-end" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationListPage />)} />
             <Route path="year-end/:id" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationDetailPage />)} />
             <Route path="year-end/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
@@ -465,8 +477,8 @@ export function AppRoutes() {
             <Route index element={only(CLASS_STAFF, <AttendancePage />)} />
             <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
             <Route path="meal-count" element={only(LEADERS, <MealCountPage />)} />
-            <Route path="meal-handover" element={only([...CLASS_STAFF, R.KITCHEN_STAFF], <MealHandoverPage />)} />
             <Route path="health" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <DailyHealthOverviewPage />)} />
+            <Route path="leave-requests" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <LeaveRequestsPage />)} />
           </Route>
           <Route path="pickup">
             <Route index element={only(CLASS_STAFF, <PickupListPage />)} />
@@ -488,3 +500,6 @@ export function AppRoutes() {
     </Routes>
   );
 }
+
+// Cây route không phụ thuộc state ⇒ đọc lại được để tải trước chunk theo đường dẫn menu
+registerRouteTree(() => AppRoutes().props.children);

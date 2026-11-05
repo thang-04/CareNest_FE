@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { Download, Upload } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
-import { SidePanel } from '@/components/ui/SidePanel';
-import { Spinner } from '@/components/ui/States';
+import { ImportDialog } from '@/components/upload/ImportDialog';
 import { ROLE_LABELS } from '@/models/User';
 import { createStaffAccount, listAllStaffAccounts } from '@/services/school-config/schoolConfigService';
 import { readWorkbook } from '@/utils/school-config/yearSetupImport';
@@ -41,7 +39,7 @@ function PreviewTable({ title, head, rows, bad = false }) {
 }
 
 /** Nhập tài khoản nhân sự từ Excel (Cần 31/10/2026): xem trước, tạo lần lượt dòng hợp lệ qua POST /accounts, dòng BE từ chối hiện đỏ. */
-export function StaffImportPanel({ open, campuses, classes, onClose }) {
+export function StaffImportPanel({ open, campuses, teacherCampusRequired = false, onClose }) {
   const toast = useToast();
   const [fileName, setFileName] = useState('');
   const [result, setResult] = useState(null);
@@ -57,18 +55,19 @@ export function StaffImportPanel({ open, campuses, classes, onClose }) {
     setChanged(false);
   };
 
-  const pick = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const pick = async (file) => {
     setFileName(file.name);
     setReading(true);
     try {
       const [sheets, accounts] = await Promise.all([readWorkbook(file, [STAFF_SHEET]), listAllStaffAccounts()]);
       const existing = accounts.map((a) => ({ phone: normalizePhone(a.username), email: a.email }));
-      setResult(matchStaffRows(sheets[STAFF_SHEET], { campuses, classes, existing }));
+      setResult(matchStaffRows(sheets[STAFF_SHEET], { campuses, existing, teacherCampusRequired }));
     } catch {
-      setResult({ items: [], errors: [{ row: '—', name: '—', reason: 'Không đọc được file. Hãy dùng file .xlsx theo file mẫu.' }] });
+      setResult({
+        items: [],
+        errors: [{ row: '—', name: '—', reason: 'Không đọc được file. Hãy dùng file .xlsx theo file mẫu.' }],
+        ignoredColumns: [],
+      });
     } finally {
       setReading(false);
     }
@@ -93,54 +92,46 @@ export function StaffImportPanel({ open, campuses, classes, onClose }) {
     }
     if (failed.length) {
       toast.error('Một số dòng chưa tạo được, xem lý do ở bảng lỗi.');
-      setResult({ items: [], errors: failed });
+      setResult({ items: [], errors: failed, ignoredColumns: [] });
     } else close(true);
   };
 
   return (
-    <SidePanel
+    <ImportDialog
       open={open}
-      title="Nhập tài khoản nhân sự từ Excel"
-      onClose={() => close()}
-      wide
-      footer={
+      title={'Nhập tài khoản nhân sự từ Excel'}
+      guide={
         <>
-          <button type="button" className="btn" onClick={() => close()} disabled={saving}>
-            Đóng
-          </button>
-          <button type="button" className="btn btn--primary" onClick={save} disabled={!valid || saving}>
-            {saving ? <Spinner small /> : <Upload size={16} />} Tạo {valid} tài khoản hợp lệ
-          </button>
+          Tải xuống <b>tệp mẫu</b>, điền sheet &quot;{STAFF_SHEET}&quot; rồi tải lên để xem trước.
         </>
       }
+      templateHref={STAFF_TEMPLATE_URL}
+      fileName={fileName}
+      reading={reading}
+      onFile={pick}
+      confirmLabel={`Tạo ${valid} tài khoản hợp lệ`}
+      confirmDisabled={!valid}
+      busy={saving}
+      onConfirm={save}
+      onClose={() => close()}
     >
-      <ol className="td-import-steps">
-        <li>
-          Tải file mẫu và điền sheet &quot;{STAFF_SHEET}&quot;.
-          <div>
-            <a className="btn btn--sm" href={STAFF_TEMPLATE_URL} download>
-              <Download size={15} /> Tải file mẫu (.xlsx)
-            </a>
-          </div>
-        </li>
-        <li>
-          Chọn file đã điền để xem trước.
-          <div className="row td-import-file">
-            <label className="btn btn--sm btn--outline-primary">
-              <Upload size={15} /> Chọn file
-              <input type="file" accept=".xlsx" className="sr-only" onChange={pick} />
-            </label>
-            <span className="text-sm muted">{reading ? 'Đang đọc file…' : fileName || 'Chưa chọn file'}</span>
-          </div>
-        </li>
-      </ol>
-
       {result && (
-        <div className="td-import-preview">
+        <div className="import-preview">
           <div className="row td-chips">
             <span className="chip chip--green">Hợp lệ {valid}</span>
             <span className={`chip ${result.errors.length ? 'chip--red' : 'chip--gray'}`}>Lỗi {result.errors.length}</span>
           </div>
+          {!valid && !result.errors.length && (
+            <p className="text-sm muted">Tệp chưa có dòng dữ liệu nào. Điền vào tệp mẫu rồi tải lên lại.</p>
+          )}
+          {result.ignoredColumns.length > 0 && (
+            <div className="alert alert--info">
+              <div>
+                Bỏ qua cột {result.ignoredColumns.map((c) => `"${c}"`).join(', ')}. Giáo viên mới được xếp lớp sau ở màn Phân công giáo
+                viên.
+              </div>
+            </div>
+          )}
           <PreviewTable
             bad
             title="Dòng lỗi (không tạo)"
@@ -149,18 +140,18 @@ export function StaffImportPanel({ open, campuses, classes, onClose }) {
           />
           <PreviewTable
             title="Tài khoản sẽ tạo"
-            head={['Dòng', 'Họ tên', 'Số điện thoại', 'Email', 'Vai trò', 'Điểm trường / lớp']}
+            head={['Dòng', 'Họ tên', 'Số điện thoại', 'Email', 'Vai trò', 'Điểm trường']}
             rows={result.items.map((i) => [
               i.row,
               i.form.fullName,
               normalizePhone(i.form.phone),
               i.form.email || '—',
               ROLE_LABELS[i.form.role],
-              i.className || i.campusName,
+              i.campusName || '—',
             ])}
           />
         </div>
       )}
-    </SidePanel>
+    </ImportDialog>
   );
 }

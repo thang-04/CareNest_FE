@@ -1,9 +1,12 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, Download, History, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
+import { Link, useParams } from 'react-router-dom';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Download, History, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
-import { useRewardList } from '@/hooks/assessment/useAssessment';
+import { useRewardList, useRewardLists } from '@/hooks/assessment/useAssessment';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { isLeader, isPrincipal, isVicePrincipal } from '@/utils/assessment/assessmentPermissions';
 import { decideRewardList, reviewRewardList, saveRewardList } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -12,14 +15,28 @@ import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { RewardStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { ChildNameCell } from '@/components/assessment/ChildNameCell';
-import { REWARD_HISTORY_LABELS, REWARD_NOTE_MAX, REWARD_STATUS as S } from '@/models/assessment/assessmentConstants';
+import {
+  REWARD_HISTORY_LABELS,
+  REWARD_NOTE_MAX,
+  REWARD_STATUS as S,
+  REWARD_GENERAL_TITLES,
+  REWARD_UNCLE_HO_TITLE,
+  REWARD_PROGRAM_TITLES,
+} from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { downloadCsv } from '@/utils/exportCsv';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { findDiagnosticTerms, validateDecision } from '@/utils/assessment/assessmentValidation';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 
-const PROGRAM = 'Hoàn thành chương trình GDMN';
+// Mỗi nhóm chỉ chọn một danh hiệu: chọn danh hiệu khác cùng nhóm thì thay danh hiệu đang chọn (BE kiểm lại)
+// Mỗi nhóm chọn tối đa một: bé ngoan, hoàn thành chương trình; Cháu ngoan Bác Hồ là nhóm riêng
+const groupOf = (title) =>
+  REWARD_PROGRAM_TITLES.includes(title)
+    ? REWARD_PROGRAM_TITLES
+    : title === REWARD_UNCLE_HO_TITLE
+      ? [REWARD_UNCLE_HO_TITLE]
+      : REWARD_GENERAL_TITLES;
 
 /* PHT: chuyển HT / trả lại; HT: phê duyệt / trả lại. Trả lại bắt buộc nêu lý do. */
 const DECISIONS = {
@@ -35,17 +52,34 @@ const noteError = (note) => {
   return terms.length ? `Không dùng từ mang tính chẩn đoán “${terms[0]}”, hãy mô tả điều cô quan sát được.` : '';
 };
 
-const toForm = (detail) =>
-  Object.fromEntries((detail?.children || []).map((c) => [c.childId, { titles: c.titles || [], note: c.note || '' }]));
+// Lớp chưa lập danh sách: tích sẵn danh hiệu BE gợi ý, GV bỏ tích nếu không đồng ý rồi Lưu. Đã lưu rồi thì giữ đúng
+// bản đã lưu (trẻ GV đã bỏ tích không bị tích lại); gợi ý vẫn hiện chữ và nút "Chọn theo gợi ý"
+const toForm = (detail) => {
+  const fresh = detail?.canEdit && (!detail.status || detail.status === 'NONE');
+  return Object.fromEntries(
+    (detail?.children || []).map((c) => [
+      c.childId,
+      { titles: c.titles?.length ? c.titles : fresh ? c.suggested || [] : [], note: c.note || '' },
+    ]),
+  );
+};
+// So bản đang sửa với bản đã lưu (không phụ thuộc thứ tự chọn danh hiệu, khoảng trắng ghi chú)
+const formKey = (form) =>
+  JSON.stringify(
+    Object.entries(form)
+      .map(([id, f]) => [id, [...f.titles].sort(), f.note.trim()])
+      .sort(([a], [b]) => String(a).localeCompare(String(b))),
+  );
 
 /** Danh sách đề xuất khen thưởng cuối năm của một lớp: GV chọn danh hiệu từng trẻ (có gợi ý), PHT xem xét, HT phê duyệt. */
 export default function RewardClassPage() {
   const { user } = useAuth();
   const { classId } = useParams();
-  const navigate = useNavigate();
   const toast = useToast();
   const { detail: d, loading, error, reload } = useRewardList(classId);
   const [form, setForm] = useState({});
+  // Danh sách mà form đang dựa vào: chỉ so "đã sửa" sau khi đã nạp (không hỏi lưu khi vừa mở màn)
+  const [formOf, setFormOf] = useState(null);
   const [errors, setErrors] = useState({});
   const [listError, setListError] = useState('');
   const [open, setOpen] = useState(null);
@@ -57,11 +91,21 @@ export default function RewardClassPage() {
 
   useEffect(() => {
     setForm(toForm(d));
+    setFormOf(d);
     setErrors({});
     setListError('');
   }, [d]);
 
   const awarded = useMemo(() => Object.values(form).filter((f) => f.titles.length > 0).length, [form]);
+  const changed = !!d?.canEdit && formOf === d && formKey(form) !== formKey(toForm(d));
+  const guard = useLeaveGuard({ when: changed, onSave: () => save(false) });
+
+  // PHT/HT: lớp kế tiếp đang chờ mình xem xét / phê duyệt (cùng điều kiện nút chính ở danh sách)
+  const leader = isLeader(user);
+  const { rows: lists } = useRewardLists({ enabled: leader });
+  const waitingForMe = (r) =>
+    (isVicePrincipal(user) && r.status === S.PENDING_VP) || (isPrincipal(user) && [S.PENDING_VP, S.PENDING_PRINCIPAL].includes(r.status));
+  const nextWaiting = leader ? lists.find((r) => String(r.classId) !== String(classId) && waitingForMe(r)) : null;
 
   const crumbs = <Breadcrumb items={assessmentCrumbs(SECTIONS.rewards, d ? `Lớp ${d.className}` : 'Danh sách lớp')} />;
   if (loading && !d)
@@ -92,7 +136,10 @@ export default function RewardClassPage() {
   const toggle = (childId, title) => {
     setForm((f) => {
       const cur = f[childId] || { titles: [], note: '' };
-      const titles = cur.titles.includes(title) ? cur.titles.filter((t) => t !== title) : [...cur.titles, title];
+      const group = groupOf(title);
+      const titles = cur.titles.includes(title)
+        ? cur.titles.filter((t) => t !== title)
+        : [...cur.titles.filter((t) => !group.includes(t)), title];
       return { ...f, [childId]: { ...cur, titles } };
     });
     setListError('');
@@ -106,7 +153,10 @@ export default function RewardClassPage() {
       Object.fromEntries(
         d.children.map((c) => {
           const cur = f[c.childId] || { titles: [], note: '' };
-          return [c.childId, { ...cur, titles: [...new Set([...cur.titles, ...(c.suggested || [])])] }];
+          // Gợi ý thay danh hiệu cùng nhóm đang chọn
+          const groups = (c.suggested || []).map(groupOf);
+          const kept = cur.titles.filter((t) => !groups.some((g) => g.includes(t)));
+          return [c.childId, { ...cur, titles: [...kept, ...(c.suggested || [])] }];
         }),
       ),
     );
@@ -123,7 +173,16 @@ export default function RewardClassPage() {
       .filter((i) => i.titles.length > 0);
 
   const check = (send) => {
-    const e = Object.fromEntries(d.children.map((c) => [c.childId, noteError(form[c.childId]?.note)]).filter(([, m]) => m));
+    // Ghi chú chỉ lưu kèm danh hiệu: trẻ có ghi chú mà chưa chọn danh hiệu thì báo, không bỏ ngầm
+    const e = Object.fromEntries(
+      d.children
+        .map((c) => {
+          const f = form[c.childId];
+          const lonely = f?.note.trim() && !f.titles.length ? 'Chọn danh hiệu cho trẻ hoặc xóa ghi chú.' : '';
+          return [c.childId, noteError(f?.note) || lonely];
+        })
+        .filter(([, m]) => m),
+    );
     setErrors(e);
     if (Object.keys(e).length) {
       setListError('Có ghi chú chưa hợp lệ, xem các ô báo đỏ.');
@@ -140,16 +199,18 @@ export default function RewardClassPage() {
   const save = async (send) => {
     if (!check(send)) {
       setSubmitOpen(false);
-      return;
+      return false;
     }
     setBusy(send ? 'send' : 'save');
     try {
       await saveRewardList(d.classId, items(), { submit: send }, user);
       toast.success(send ? 'Đã gửi danh sách khen thưởng cho Phó hiệu trưởng.' : 'Đã lưu danh sách.');
       reload({ silent: true });
+      return true;
     } catch (err) {
       setListError(err.message);
       toast.error(err, 'Không lưu được danh sách');
+      return false;
     } finally {
       setBusy('');
       setSubmitOpen(false);
@@ -175,14 +236,14 @@ export default function RewardClassPage() {
   };
 
   const exportCsv = () =>
-    downloadCsv(
+    exportWithPreview(
       [
         ['STT', 'Họ tên', 'Ngày sinh', 'Danh hiệu', 'Ghi chú'],
         ...d.children
           .filter((c) => (form[c.childId]?.titles || []).length)
           .map((c, i) => [i + 1, c.fullName, formatDate(c.dateOfBirth), form[c.childId].titles.join('; '), form[c.childId].note || '']),
       ],
-      `khen-thuong-${d.className}.csv`,
+      `khen-thuong-${d.className}.xlsx`,
     );
 
   const vp = d.vpReview;
@@ -221,6 +282,15 @@ export default function RewardClassPage() {
         <ProgressSteps steps={steps} />
       </div>
 
+      {d.unrecordedDays?.length > 0 && (
+        <div className="alert alert--warning mt-16" role="status">
+          <AlertTriangle size={18} />
+          <div>
+            Lớp chưa điểm danh {d.unrecordedDays.length} ngày học: {d.unrecordedDays.map((x) => formatDate(x)).join(', ')}. Những ngày này
+            vẫn tính là ngày học (trẻ chưa có mặt) khi xét Bé chăm; giáo viên bổ sung qua mở lại điểm danh.
+          </div>
+        </div>
+      )}
       {returnedBy && (
         <div className="alert alert--danger mt-16">
           <Undo2 size={18} />
@@ -243,7 +313,7 @@ export default function RewardClassPage() {
             )}
             {awarded > 0 && (
               <button className="btn btn--sm" onClick={exportCsv}>
-                <Download size={15} /> Xuất CSV
+                <Download size={15} /> Xuất Excel
               </button>
             )}
           </div>
@@ -291,7 +361,8 @@ export default function RewardClassPage() {
                           </div>
                         </td>
                         <td className="num nowrap">
-                          {c.weeklyTickets} tuần · {c.monthlyTickets} tháng
+                          {c.weeklyTickets} phiếu Bé ngoan
+                          <div className="muted text-xs">{c.monthlyTickets} phiếu Bé ngoan toàn diện</div>
                         </td>
                         <td>
                           {c.yearEnd ? (
@@ -318,7 +389,7 @@ export default function RewardClassPage() {
                           {edit ? (
                             <div className="stack gap-1">
                               {d.titleOptions.map((t) => {
-                                const disabled = !c.yearEnd || (t === PROGRAM && c.programCompleted !== true);
+                                const disabled = !c.yearEnd || (REWARD_PROGRAM_TITLES.includes(t) && c.programCompleted !== true);
                                 return (
                                   <label key={t} className={`dg-tick ${disabled ? 'muted' : ''}`}>
                                     <input
@@ -404,9 +475,17 @@ export default function RewardClassPage() {
       )}
 
       <div className="page-actions">
-        <button className="btn" onClick={() => navigate('/assessment/rewards')} disabled={!!busy}>
-          <ArrowLeft size={16} /> Về danh sách lớp
-        </button>
+        {/* GV một lớp mở thẳng màn này (danh sách lớp tự chuyển về đây), không cần nút quay lại danh sách */}
+        {leader && (
+          <button className="btn" onClick={() => guard.leave('/assessment/rewards')} disabled={!!busy}>
+            <ArrowLeft size={16} /> Về danh sách lớp
+          </button>
+        )}
+        {nextWaiting && !d.canReview && !d.canDecide && (
+          <Link className="btn" to={`/assessment/rewards/${nextWaiting.classId}`}>
+            Lớp chờ duyệt tiếp theo: {nextWaiting.className} <ArrowRight size={16} />
+          </Link>
+        )}
         {edit && (
           <div className="row gap-2">
             <button className="btn" onClick={() => save(false)} disabled={!!busy}>
@@ -481,6 +560,11 @@ export default function RewardClassPage() {
           </div>
         </ConfirmationModal>
       )}
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave
+        message="Danh sách khen thưởng có thay đổi chưa lưu. Lưu nháp trước khi rời màn hoặc bỏ các thay đổi."
+      />
     </div>
   );
 }

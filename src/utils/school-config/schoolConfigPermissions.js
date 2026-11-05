@@ -11,6 +11,11 @@ import {
 } from '@/models/school-config/schoolConfigConstants';
 // Mã quyền BE (ma trận ADR-0017); tên khớp PERMISSIONS ở module account
 const STAFF_ASSIGNMENT_MANAGE = 'STAFF_ASSIGNMENT_MANAGE';
+// Màn Nhân sự điểm trường mở được khi có 1 trong các quyền tài khoản / phân công (StaffAccountsBeView)
+const STAFF_VIEW_PERMISSIONS = ['ACCOUNT_MANAGE', 'ACCOUNT_STATUS_MANAGE', STAFF_ASSIGNMENT_MANAGE, 'PERMISSION_MANAGE'];
+// Đăng nhập BE: PHT xem phòng và xếp lớp năm mới của mọi điểm trường, chỉ HT sửa (AUTH-20; BE chặn ghi)
+const BE_VIEW_ALL_AREAS = ['rooms', 'yearPlacement'];
+const isBeUser = (user) => Array.isArray(user?.bePermissions);
 
 /*
  * Who may do what in school configuration – SRS 4.4 Permission Matrix + UC 2.1–2.7 (GBR-CFG-01).
@@ -59,6 +64,8 @@ export const roomCampusIds = (user, campuses, need = false) =>
   campuses.filter((c) => areaAllows(user, 'rooms', c.id, need)).map((c) => c.id);
 
 /** UC 2.7 / GBR-CFG-03. */
+/** Cấu hình thời gian (giờ chốt, học kỳ, ngày nghỉ): chỉ Hiệu trưởng (user chốt 03/11/2026). */
+export const canManageSchoolCalendar = isPrincipal;
 export const canConfigureCutoff = isPrincipal;
 
 /** "Campus – Create / Edit": Principal only. */
@@ -86,6 +93,12 @@ export const permissionLevel = (user, code) => {
 export const areaAccess = (user, key) => {
   if (isPrincipal(user)) return parseAreaGrant(`EDIT@${AREA_SCOPE_ALL}`);
   if (!isVicePrincipal(user)) return parseAreaGrant(PERMISSION_LEVEL.NONE);
+  // Người dùng BE: theo quyền BE, không theo mảng mock
+  if (isBeUser(user) && BE_VIEW_ALL_AREAS.includes(key)) return parseAreaGrant(`${PERMISSION_ACCESS.VIEW}@${AREA_SCOPE_ALL}`);
+  if (isBeUser(user) && key === 'staff') {
+    const allowed = user.bePermissions.some((code) => STAFF_VIEW_PERMISSIONS.includes(code));
+    return parseAreaGrant(allowed ? `${PERMISSION_ACCESS.VIEW}@${AREA_SCOPE_ALL}` : PERMISSION_LEVEL.NONE);
+  }
   const value = user.areas ? user.areas[key] : defaultVpAreas({ sharedService: user.sharedService }, user.permissions)[key];
   return parseAreaGrant(value, user.campusId);
 };
@@ -145,9 +158,10 @@ const teacherAssignAccess = (user) => {
 export const teacherAssignmentAccess = teacherAssignAccess;
 /** Màn "Phân công giáo viên" mở khi có quyền phân công nhân sự. */
 export const canOpenTeacherAssignment = (user) => teacherAssignAccess(user).access !== PERMISSION_ACCESS.NONE;
+// Xem: PHT xem phân công mọi điểm trường (BE AUTH-20); sửa vẫn chỉ điểm trường mình (canAssignTeachers)
 export const canViewTeacherAssignments = (campusId, user) => {
   const p = teacherAssignAccess(user);
-  return p.access !== PERMISSION_ACCESS.NONE && inScope(p, campusId, user);
+  return p.access !== PERMISSION_ACCESS.NONE && !!campusId;
 };
 /** action: 'create' phân công mới, 'update' đổi, 'delete' gỡ; true = có ít nhất 1 thao tác ghi. */
 export const canAssignTeachers = (campusId, user, action = true) => {

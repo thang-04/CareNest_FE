@@ -26,7 +26,6 @@ export const INTEGRATION_MODULES = {
     routes: ['/children/activation'],
     files: ['src/services/account/api/guardianApi.js'],
     facades: ['src/services/account/guardianService.js'],
-    pending: ['GET /children/{x}/guardians/pending', 'POST /children/{x}/guardians/activate'],
   },
   'school-config': {
     source: 'api',
@@ -47,9 +46,9 @@ export const INTEGRATION_MODULES = {
       'PATCH /users/{x}/status',
     ],
   },
+  // Màn /school/staff nối BE /accounts (school-config); các hàm sửa hồ sơ / đổi vai trò chưa có BE vẫn demo, không gắn route
   'staff-accounts': {
     source: 'demo',
-    routes: ['/school/staff'],
     facades: ['src/services/school-config/schoolConfigService.js'],
   },
   'vice-principal-assignments': {
@@ -128,7 +127,7 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/pickup/pickupService.js'],
   },
   assessment: {
-    source: 'demo',
+    source: 'api',
     routes: ['/assessment'],
     files: ['src/services/assessment/api/assessmentApi.js'],
     facades: ['src/services/assessment/assessmentService.js'],
@@ -164,7 +163,7 @@ export const INTEGRATION_MODULES = {
     routes: ['/menu/weekly', '/menu/statistics'],
     files: ['src/services/mealPlanApi.js'],
   },
-  // Bộ thực đơn mẫu 4 tuần theo khối trên BE /nutrition/menu-templates (NUT-13)
+  // Mẫu thực đơn một ngày theo khối trên BE /nutrition/menu-templates (NUT-13, đổi 04/11)
   'menu-template': {
     source: 'api',
     routes: ['/menu/templates'],

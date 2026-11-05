@@ -247,3 +247,11 @@ User duyệt phương án làm FE/BE: bước Thông tin trẻ & phụ huynh có
 PortraitImage và usePhotoUrl dùng chung để đọc ảnh có token bằng blob, không gán endpoint private trực tiếp vào img. Mock nén ảnh trước khi lưu demo; giáo viên xem được ảnh nhưng không metadata quản trị tài khoản. Source của module children/pickup trong integrationModules vẫn giữ chế độ demo hiện có; không bật toàn bộ các endpoint chưa làm chỉ để đổi một chức năng. API adapter và BE có thể kiểm độc lập; chưa tuyên bố Web đang dùng BE hoặc S3 thật.
 
 Nguồn contract/policy: BE specs/012-child-enrollment-photos và docs/modules/child.md. Known pitfall: scope đọc và scope quản trị tài khoản tách biệt; photoUrl phải giữ khi chiếu dữ liệu cho giáo viên, xem BE docs/knowledge/incidents/BUG-261105-enrollment-photo-projection.md.
+
+## Thiết kế chọn phụ huynh nhận tài khoản — 05/11/2026
+
+Thiết kế mới cho form tiếp nhận, file/preview Excel và màn tài khoản: [Chọn một phụ huynh nhận tài khoản](selected-parent-account.md). Nguồn quyết định user và nghiệp vụ tại BE Spec013; đã triển khai FE/BE.
+
+## Giao diện tiếp nhận theo phiếu khám — 05/11/2026
+
+Theo yêu cầu user: chia phần, bảng nhãn/ô nhập và bố trí ảnh tham khảo Phiếu khám sức khỏe; xem [giao diện tiếp nhận](enrollment-intake-ui.md). Giữ nguyên các trường, quyền và bốn bước tiếp nhận.

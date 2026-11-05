@@ -14,7 +14,6 @@ import { StatusPage } from '@/components/ui/StatusPage';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { PortraitImage } from '@/components/PortraitImage';
-import { ChildProfileFields } from '@/components/children/ChildProfileFields';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
@@ -123,7 +122,9 @@ export default function EnrollChildPage() {
   });
   const effectiveInfo = withAccounts(info);
   // Phụ huynh chưa có tài khoản (theo tra CCCD): báo trước ở bước Xem lại khi người lưu không có quyền kích hoạt.
-  const waitingNames = effectiveInfo.guardians.filter((g) => !accountOf(g.idNumber)).map((g) => g.fullName);
+  const waitingNames = effectiveInfo.guardians
+    .filter((g) => (effectiveInfo.guardians.length === 1 || g.accountRecipient) && !accountOf(g.idNumber))
+    .map((g) => g.fullName);
   const validateInfo = (value) => validateChildInfo(value);
 
   const goTo = (i) => {
@@ -319,7 +320,10 @@ export default function EnrollChildPage() {
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
       <div className="page__head">
-        <h1 className="page__title">Tiếp nhận trẻ</h1>
+        <div>
+          <h1 className="page__title">Tiếp nhận trẻ</h1>
+          <p className="muted text-sm mt-8">Lập hồ sơ theo thông tin gia đình cung cấp, làm căn cứ chăm sóc và khám sức khỏe cho trẻ.</p>
+        </div>
         <Link to="/children/import" className="btn">
           Nhập nhiều trẻ từ Excel
         </Link>
@@ -331,8 +335,12 @@ export default function EnrollChildPage() {
 
       {step === 0 && (
         <section className="card wizard-card">
+          <h2 className="card__title mb-8">Thông tin tiếp nhận</h2>
+          <p className="muted text-sm mb-16">
+            Điền lần lượt thông tin trẻ và gia đình. Các mục có dấu <span className="req">*</span> là bắt buộc.
+          </p>
           <ChildInfoFields
-            split
+            sheet
             photosEnabled
             disabled={busy}
             value={info}
@@ -402,12 +410,6 @@ export default function EnrollChildPage() {
           )}
         </section>
       )}
-      {step === 0 && (
-        <section className="card wizard-card">
-          <ChildProfileFields value={info.profile} onChange={(profile) => changeInfo({ ...info, profile })} errors={errors.info} />
-        </section>
-      )}
-
       {step === 1 && (
         <section className="card wizard-card">
           <h2 className="card__title mb-12">Xếp lớp năm học {yearLabel}</h2>
@@ -486,7 +488,10 @@ export default function EnrollChildPage() {
                     <PortraitImage source={g.photoFile} alt={`Ảnh phụ huynh ${i + 1}`} className="avatar avatar--xl avatar--photo" />
                     {g.fullName} ({g.relation}) · {g.phone} · CCCD {g.idNumber}
                     {g.email ? ` · ${g.email}` : ''}
-                    {accountOf(g.idNumber) && <span className="muted"> · tài khoản có sẵn, liên kết khi lưu</span>}
+                    {(effectiveInfo.guardians.length === 1 || g.accountRecipient) && <strong> · Nhận tài khoản phụ huynh</strong>}
+                    {accountOf(g.idNumber) && (effectiveInfo.guardians.length === 1 || g.accountRecipient) && (
+                      <span className="muted"> · tài khoản có sẵn, liên kết khi lưu</span>
+                    )}
                   </dd>
                 </div>
               ))}
@@ -495,8 +500,8 @@ export default function EnrollChildPage() {
               <div className="alert alert--info mt-12">
                 <Info size={18} />
                 <div>
-                  Khi lưu, phụ huynh chưa có tài khoản được tạo tài khoản ngay và nhận mật khẩu tạm qua SMS; phụ huynh đã có tài khoản chỉ
-                  được liên kết thêm trẻ.
+                  Khi lưu, phụ huynh được chọn sẽ nhận tài khoản và mật khẩu tạm qua SMS; nếu đã có tài khoản thì chỉ được liên kết thêm
+                  trẻ.
                 </div>
               </div>
             ) : (

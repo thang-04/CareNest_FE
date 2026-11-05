@@ -36,6 +36,27 @@ export const DAY_SECTIONS = [
 
 export const WEEKDAY_LABELS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
 
+/**
+ * Ngày nghỉ trong tuần thành một dòng; các ngày liền nhau cùng lý do gộp lại (Tiền 05/11):
+ * ['GPMN', 'GPMN', null, null, 'X'] → "Thứ 2, 3 (GPMN), Thứ 6 (X)".
+ */
+export const offDaysText = (offDays = []) => {
+  const groups = [];
+  offDays.forEach((label, i) => {
+    if (!label) return;
+    const last = groups[groups.length - 1];
+    if (last && last.label === label && last.end === i - 1) last.end = i;
+    else groups.push({ label, start: i, end: i });
+  });
+  return groups
+    .map((g) => {
+      const days = [];
+      for (let i = g.start; i <= g.end; i++) days.push(i === g.start ? WEEKDAY_LABELS[i] : WEEKDAY_LABELS[i].replace('Thứ ', ''));
+      return `${days.join(', ')} (${g.label})`;
+    })
+    .join(', ');
+};
+
 /* ---------- Ngày tháng (yyyy-mm-dd, tính theo UTC để không lệch múi giờ) ---------- */
 
 const toDate = (iso) => new Date(`${iso}T00:00:00Z`);

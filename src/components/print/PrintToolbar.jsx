@@ -8,7 +8,7 @@ import { Spinner } from '@/components/ui/States';
  * Standard actions for every printable document: Xuất Excel · Xuất PDF · In.
  * On a print page "In" is the main action (primary); elsewhere use plain buttons.
  *
- * <PrintToolbar sheetRef={ref} fileBase="Phieu_LC006" onCsv={() => downloadCsv(rows, 'x.csv')} printLabel="In phiếu" />
+ * <PrintToolbar sheetRef={ref} fileBase="Phieu_LC006" onCsv={() => exportWithPreview(rows, 'x.xlsx')} printLabel="In phiếu" />
  */
 export function PrintToolbar({ sheetRef, fileBase, onCsv, printLabel = 'In', compact = false }) {
   const toast = useToast();
@@ -27,15 +27,11 @@ export function PrintToolbar({ sheetRef, fileBase, onCsv, printLabel = 'In', com
     }
   };
 
-  const csv = () => {
-    onCsv();
-    toast.success('Đã xuất file Excel (CSV)');
-  };
-
   return (
     <div className="row gap-2 no-print">
+      {/* onCsv nên gọi exportWithPreview: hộp xem trước tự báo khi tải xong */}
       {onCsv && (
-        <button className={`btn ${size}`} onClick={csv}>
+        <button className={`btn ${size}`} onClick={onCsv}>
           <FileSpreadsheet size={16} /> Xuất Excel
         </button>
       )}

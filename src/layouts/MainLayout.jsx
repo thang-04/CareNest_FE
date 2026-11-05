@@ -1,5 +1,6 @@
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { isPageLoading, subscribePageLoading } from '@/routes/routePrefetch';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Footer } from './Footer';
@@ -28,6 +29,9 @@ const readCollapsed = () => {
     return false;
   }
 };
+
+// Khu bán trú dùng thẻ nền đặc, không kính: bảng số liệu dày, tranh nền làm khó đọc
+const BOARDING_AREA = /^\/(menu|kitchen|boarding)(\/|$)|^\/attendance\/meal-count/;
 
 export function MainLayout() {
   const { user } = useAuth();
@@ -59,9 +63,11 @@ export function MainLayout() {
   }, [drawerOpen]);
 
   const toggleSidebar = () => (isNarrow ? setDrawerOpen((o) => !o) : setCollapsed((c) => !c));
+  const opening = useSyncExternalStore(subscribePageLoading, isPageLoading);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-area={BOARDING_AREA.test(pathname) ? 'boarding' : undefined}>
+      {opening && <div className="route-progress no-print" role="progressbar" aria-label="Đang mở trang" />}
       <Sidebar
         role={user.role}
         collapsed={!isNarrow && collapsed}
@@ -73,7 +79,7 @@ export function MainLayout() {
       {isNarrow && drawerOpen && <div className="drawer-backdrop no-print" onClick={() => setDrawerOpen(false)} />}
       <div className="app-main">
         <Header role={user.role} showMenuButton={isNarrow} menuOpen={drawerOpen} onToggleSidebar={toggleSidebar} />
-        <main className="app-content">
+        <main className="app-content" aria-busy={opening || undefined}>
           <DemoDataBanner pathname={pathname} />
           {/* Mở app/tải lại tab: splash phủ cả màn tới khi trang đầu có chunk (không lộ vỏ trống). Đổi trang sau đó: chờ giữa vùng nội dung, giữ sidebar.
               Lỗi trang chỉ thay vùng nội dung, đổi route thì tự xóa. */}

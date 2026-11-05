@@ -1,5 +1,5 @@
 import { Fragment, useRef, useState } from 'react';
-import { Card, Notice } from '@/components/education-plan/eduUi';
+import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTable';
@@ -62,22 +62,36 @@ function ActivityCell({ value, onChange, editable, label }) {
  * Nội dung kế hoạch chủ đề (I. mục tiêu, nội dung, hoạt động; II. môi trường). Dùng ở trang soạn và chỉ đọc ở trang
  * duyệt giáo án tuần đầu của chủ đề (kế hoạch chủ đề duyệt chung với tuần đó).
  */
-export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setRow, setField, flagOf = () => null, added = null }) {
+export function ThemePlanBody({
+  yearPlan,
+  themeId,
+  draft,
+  editable = false,
+  setRow,
+  setField,
+  flagOf = () => null,
+  added = null,
+  heading = null,
+}) {
   const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId);
   const goals = blocks.flatMap((b) => b.goals);
   const rowOf = (g) => themeRowOf(draft, g);
+  // Một thẻ "CĐ n" chứa cả mục I và II; thu gọn / mở cả thẻ (Tiền 04/11)
+  const [folded, setFolded] = useState(false);
   return (
     <>
-      {goals.length === 0 && <Notice tone="warn">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</Notice>}
-      {/* MT chưa viết hoạt động thì kế hoạch tuần không có gợi ý, cuối chủ đề không phủ được MT đó */}
-      {editable && goals.some((g) => !rowOf(g).activities.trim()) && (
-        <Notice tone="warn">
-          {mtList(goals.filter((g) => !rowOf(g).activities.trim()).map((g) => g.no))} chưa có hoạt động giáo dục nên kế hoạch tuần sẽ không
-          có gợi ý cho các MT này.
-        </Notice>
-      )}
-      <Card title="I. Mục tiêu, nội dung và hoạt động giáo dục" bodyClass={null}>
+      <Card title={heading} bodyClass={null} collapsed={folded} onToggle={heading ? () => setFolded((v) => !v) : undefined}>
         <div className="card__body">
+          {/* Nhắc dạng chữ đỏ nhỏ, căn phải như bước tạo chủ đề ở mục tiêu năm học nằm trong thẻ CĐ (Tiền 04/11) */}
+          {goals.length === 0 && <p className="text-danger text-sm text-right">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</p>}
+          {/* MT chưa viết hoạt động thì kế hoạch tuần không có gợi ý, cuối chủ đề không phủ được MT đó */}
+          {editable && goals.some((g) => !rowOf(g).activities.trim()) && (
+            <p className="text-danger text-sm text-right">
+              {mtList(goals.filter((g) => !rowOf(g).activities.trim()).map((g) => g.no))} chưa có hoạt động giáo dục nên kế hoạch tuần sẽ
+              không có gợi ý cho các MT này.
+            </p>
+          )}
+          <h3 className="subsection-title">I. Mục tiêu, nội dung và hoạt động giáo dục</h3>
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
               <colgroup>
@@ -150,9 +164,8 @@ export function ThemePlanBody({ yearPlan, themeId, draft, editable = false, setR
             </table>
           </div>
         </div>
-      </Card>
-      <Card title="II. Môi trường giáo dục" bodyClass={null}>
-        <div className="card__body">
+        <div className="card__section">
+          <h3 className="subsection-title">II. Môi trường giáo dục</h3>
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
               <thead>

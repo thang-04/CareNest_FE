@@ -1,11 +1,8 @@
 import { useState } from 'react';
-import { Download, Upload } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { SidePanel } from '@/components/ui/SidePanel';
-import { Spinner } from '@/components/ui/States';
-import { LottiePlayer } from '@/components/ui/LottiePlayer';
+import { ImportDialog } from '@/components/upload/ImportDialog';
 import { saveRoom, getRooms } from '@/services/masterDataService';
 import {
   getStructure,
@@ -24,8 +21,6 @@ import {
   readWorkbook,
 } from '@/utils/school-config/yearSetupImport';
 import '@/styles/modules/menu-planning.css';
-
-const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
 
 const MODES = {
   rooms: { title: 'Nhập phòng và lớp từ Excel', template: ROOM_CLASS_TEMPLATE_URL, sheets: [SHEETS.rooms, SHEETS.classes] },
@@ -122,10 +117,7 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
     });
   };
 
-  const pick = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const pick = async (file) => {
     setFileName(file.name);
     setReading(true);
     try {
@@ -213,50 +205,33 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
 
   const errorRows = (result?.errors || []).map((e) => [e.sheet, e.row, e.name || '—', e.reason]);
   return (
-    <SidePanel
+    <ImportDialog
       open={open}
       title={cfg.title}
-      onClose={() => close()}
-      wide
-      footer={
+      guide={
         <>
-          <button type="button" className="btn" onClick={() => close()} disabled={saving}>
-            Đóng
-          </button>
-          <button type="button" className="btn btn--primary" onClick={save} disabled={!valid || saving}>
-            {saving ? <Spinner small /> : <Upload size={16} />} Lưu {valid} dòng hợp lệ
-          </button>
+          Tải xuống <b>tệp mẫu</b>, điền theo từng sheet rồi tải lên để xem trước.
         </>
       }
+      templateHref={cfg.template}
+      fileName={fileName}
+      reading={reading}
+      onFile={pick}
+      confirmLabel={`Lưu ${valid} dòng hợp lệ`}
+      confirmDisabled={!valid}
+      busy={saving}
+      onConfirm={save}
+      onClose={() => close()}
     >
-      <ol className="td-import-steps">
-        <li>
-          Tải file mẫu và điền theo từng sheet.
-          <div>
-            <a className="btn btn--sm" href={cfg.template} download>
-              <Download size={15} /> Tải file mẫu (.xlsx)
-            </a>
-          </div>
-        </li>
-        <li>
-          Chọn file đã điền để xem trước.
-          <div className="row td-import-file">
-            <label className="btn btn--sm btn--outline-primary">
-              <Upload size={15} /> Chọn file
-              <input type="file" accept=".xlsx" className="sr-only" onChange={pick} />
-            </label>
-            {reading && <LottiePlayer load={loadDocumentScan} speed={0.6} className="import-reading import-reading--inline" />}
-            <span className="text-sm muted">{reading ? 'Đang đọc file…' : fileName || 'Chưa chọn file'}</span>
-          </div>
-        </li>
-      </ol>
-
       {result && (
-        <div className="td-import-preview">
+        <div className="import-preview">
           <div className="row td-chips">
             <span className="chip chip--green">Hợp lệ {valid}</span>
             <span className={`chip ${result.errors.length ? 'chip--red' : 'chip--gray'}`}>Lỗi {result.errors.length}</span>
           </div>
+          {!valid && !result.errors.length && (
+            <p className="text-sm muted">Tệp chưa có dòng dữ liệu nào. Điền vào tệp mẫu rồi tải lên lại.</p>
+          )}
           <PreviewTable title="Dòng lỗi (không lưu)" head={['Sheet', 'Dòng', 'Tên', 'Lý do']} rows={errorRows} />
           {isRooms ? (
             <>
@@ -302,6 +277,6 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
           )}
         </div>
       )}
-    </SidePanel>
+    </ImportDialog>
   );
 }

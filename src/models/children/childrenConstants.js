@@ -197,6 +197,14 @@ export const IMPORT_COLUMNS = [
   { key: 'tbContact', label: 'Tiếp xúc người bệnh lao (Có/Không)', required: true },
   // Bắt buộc khi cột trên là "Có" (user chốt 2026-10-21); kiểm theo dòng.
   { key: 'tbContactDate', label: 'Ngày tiếp xúc người bệnh lao gần nhất (dd/mm/yyyy)', required: false },
+  ...[2, 3].flatMap((n) => [
+    { key: 'guardianName' + n, label: 'Họ tên phụ huynh ' + n, required: false },
+    { key: 'relation' + n, label: 'Quan hệ phụ huynh ' + n, required: false },
+    { key: 'phone' + n, label: 'Số điện thoại phụ huynh ' + n, required: false },
+    { key: 'guardianIdNumber' + n, label: 'Số CCCD phụ huynh ' + n, required: false },
+    { key: 'email' + n, label: 'Email phụ huynh ' + n, required: false },
+  ]),
+  { key: 'accountRecipientIdNumber', label: 'CCCD phụ huynh nhận tài khoản', required: false },
 ];
 
 export const MEASUREMENT_FIELD_LABELS = {

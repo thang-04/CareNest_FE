@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { Download } from '@/components/ui/icons';
+import { AlertTriangle, Download } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { ROLES } from '@/models/User';
+import { isLeader } from '@/utils/assessment/assessmentPermissions';
 import { useProgramCompletion, useQualityReport } from '@/hooks/assessment/useAssessment';
-import { downloadCsv } from '@/utils/exportCsv';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
+import { formatDate } from '@/utils/format';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
+import { SemesterSelect } from '@/components/form/SemesterSelect';
+import { monthInSemester, semestersOf } from '@/utils/semesters';
 
 const VIEWS = [
   { key: 'month', label: 'Theo tháng' },
@@ -24,8 +27,8 @@ const pct = (v) => (v == null ? '—' : `${v}%`);
 const num = (v) => (v == null ? '—' : v);
 // Các mục tính theo số trẻ: mỗi mục 2 cột Số trẻ | Tỷ lệ như sổ chỉ đạo chuyên môn
 const GROUPS = [
-  // Trẻ ra lớp: số = bình quân trẻ có mặt mỗi ngày học; tỷ lệ = lượt có mặt / (sĩ số × ngày học)
-  ['Trẻ ra lớp', 'avgPresent', 'attendanceRate'],
+  // Trẻ ra lớp (BE OBS-23): trẻ thôi học hoặc chuyển khỏi lớp trong tháng; tỷ lệ trên sĩ số tháng
+  ['Trẻ ra lớp', 'leftChildren', 'leftRate'],
   ['Ăn bán trú', 'mealChildren', 'mealRate'],
   ['Bé chăm', 'diligentChildren', 'diligentRate'],
   ['Bé ngoan', 'goodChildren', 'goodRate'],
@@ -33,13 +36,16 @@ const GROUPS = [
 ];
 
 /**
- * Báo cáo chất lượng tháng theo Biểu sổ chỉ đạo chuyên môn PHT: mục 4.2 (Theo tháng) và 4.1 (Cả năm: trẻ ra lớp bình quân
- * từng tháng). PHT xem điểm trường mình, Hiệu trưởng toàn trường và lọc điểm trường. Chỉ xem, xuất Excel (CSV).
+ * Báo cáo chất lượng tháng theo Biểu sổ chỉ đạo chuyên môn PHT: mục 4.2 (Theo tháng) và 4.1 (Cả năm: trẻ đến lớp bình quân
+ * từng tháng). HT, PHT xem mọi điểm trường và lọc điểm trường (AUTH-20); GV xem lớp mình, tổ trưởng thêm lớp nhóm tuổi
+ * mình (không có dòng tổng, không có tab HTCT). Chỉ xem, xuất Excel.
  */
 export default function QualityReportPage() {
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, schoolYears } = useSchoolYear();
   const { user } = useAuth();
-  const isPrincipal = user?.role === ROLES.PRINCIPAL;
+  // HT, PHT xem mọi điểm trường (AUTH-20); GV, tổ trưởng chỉ lớp trong phạm vi BE trả về
+  const leader = isLeader(user);
+  const views = leader ? VIEWS : VIEWS.filter((v) => v.key !== 'program');
   const [view, setView] = useState('month');
   // Tháng đã chọn gắn với năm học: đổi năm ở header thì về tháng gần nhất của năm mới
   const [picked, setPicked] = useState({ year: schoolYear, month: '' });
@@ -54,12 +60,15 @@ export default function QualityReportPage() {
   const monthError = error?.details?.month;
   const rows = report?.rows || [];
   const totals = report?.totals || [];
-  const months = report?.months || [];
-  const campusOptions = isPrincipal && report?.allCampuses?.length ? report.allCampuses : report?.campuses || [];
-  const multiCampus = isPrincipal || campusOptions.length > 1;
+  // Tab Cả năm: lọc cột tháng theo học kỳ (Cấu hình thời gian)
+  const [semKey, setSemKey] = useState('');
+  const sem = semestersOf(schoolYears.find((y) => String(y.id) === String(schoolYear))).find((s) => s.key === semKey) || null;
+  const months = (report?.months || []).filter((m) => view !== 'year' || monthInSemester(m, sem));
+  const campusOptions = leader && report?.allCampuses?.length ? report.allCampuses : report?.campuses || [];
+  const multiCampus = leader && (campusOptions.length > 1 || !!report?.allCampuses?.length);
   const showCampus = multiCampus && !campusId && (report?.campuses?.length || 0) > 1;
   const campusName = (id) => campusOptions.find((c) => String(c.id) === String(id))?.name || id;
-  const totalLabel = (t) => LEVEL_LABELS[t.level] || (isPrincipal && !campusId ? 'Toàn trường' : 'Tổng cộng');
+  const totalLabel = (t) => LEVEL_LABELS[t.level] || (leader && !campusId ? 'Toàn trường' : 'Tổng cộng');
 
   // Mục 8 sổ chỉ đạo chuyên môn: trẻ lớp 5–6 tuổi hoàn thành chương trình (đánh giá cuối năm đã xác nhận)
   const program = view === 'program';
@@ -83,19 +92,19 @@ export default function QualityReportPage() {
         x.notCompleted,
         x.unmarked,
       ];
-      downloadCsv(
+      exportWithPreview(
         [
           [`Trẻ 5 tuổi hoàn thành chương trình GDMN${campusText}`],
           ['Lớp', ...(showCampus ? ['Điểm trường'] : []), 'Số trẻ', 'Hoàn thành', 'Tỷ lệ', 'Chưa hoàn thành', 'Chưa đánh giá'],
           ...programRows.map((r) => line(r.className, campusName(r.campusId), r)),
           ...(programReport ? [line(totalLabel({}), '', programReport.totals)] : []),
         ],
-        'tre-5-tuoi-hoan-thanh-chuong-trinh.csv',
+        'tre-5-tuoi-hoan-thanh-chuong-trinh.xlsx',
       );
       return;
     }
     if (view === 'year') {
-      downloadCsv(
+      exportWithPreview(
         [
           [`Trẻ đến lớp hằng tháng${campusText}`],
           ['Lớp', ...(showCampus ? ['Điểm trường'] : []), ...months.map(monthLabel)],
@@ -106,7 +115,7 @@ export default function QualityReportPage() {
           ]),
           ...totals.map((t) => [totalLabel(t), ...(showCampus ? [''] : []), ...months.map((m) => num(t.avgPresentByMonth?.[m]))]),
         ],
-        `tre-den-lop-hang-thang.csv`,
+        `tre-den-lop-hang-thang.xlsx`,
       );
       return;
     }
@@ -114,8 +123,8 @@ export default function QualityReportPage() {
       label,
       ...(showCampus ? [campus] : []),
       x.children,
-      num(x.avgPresent),
-      pct(x.attendanceRate),
+      x.leftChildren,
+      pct(x.leftRate),
       x.mealChildren,
       pct(x.mealRate),
       x.diligentChildren,
@@ -125,14 +134,14 @@ export default function QualityReportPage() {
       x.allRoundChildren,
       pct(x.allRoundRate),
     ];
-    downloadCsv(
+    exportWithPreview(
       [
         [`Theo dõi chất lượng ${monthLabel(report?.month).toLowerCase()}${campusText}`],
         [
           'Lớp',
           ...(showCampus ? ['Điểm trường'] : []),
           'Sĩ số',
-          'Trẻ ra lớp (bình quân)',
+          'Trẻ ra lớp',
           'Tỷ lệ ra lớp',
           'Ăn bán trú',
           'Tỷ lệ bán trú',
@@ -146,7 +155,7 @@ export default function QualityReportPage() {
         ...rows.map((r) => line(r.className, campusName(r.campusId), r)),
         ...totals.map((t) => line(totalLabel(t), '', t)),
       ],
-      `chat-luong-thang-${report?.month || ''}.csv`,
+      `chat-luong-thang-${report?.month || ''}.xlsx`,
     );
   };
 
@@ -159,7 +168,16 @@ export default function QualityReportPage() {
       <h1 className="page__title">Chất lượng tháng</h1>
       <div className="card">
         <div className="filter-bar dg-ov-toolbar">
-          <Tabs items={VIEWS} value={view} onChange={setView} ariaLabel="Kiểu xem" />
+          <Tabs items={views} value={view} onChange={setView} ariaLabel="Kiểu xem" />
+          {view === 'year' && (
+            <SemesterSelect
+              value={semKey}
+              emptyLabel="Cả năm học"
+              onChange={(key) => {
+                setSemKey(key);
+              }}
+            />
+          )}
           {view === 'month' && (
             <div className="field">
               <select
@@ -216,68 +234,84 @@ export default function QualityReportPage() {
         ) : !loading && rows.length === 0 ? (
           <EmptyState title="Chưa có lớp" description="Năm học này chưa có lớp trong phạm vi bạn xem." />
         ) : (
-          <div className="table-wrap">
-            <table className="table table--grid dg-qr-table">
-              <thead>
-                <tr>
-                  <th rowSpan={view === 'year' ? 1 : 2}>Lớp</th>
-                  {showCampus && <th rowSpan={view === 'year' ? 1 : 2}>Điểm trường</th>}
-                  {view === 'year' ? (
-                    months.map((m) => (
-                      <th key={m} className="num" title={monthLabel(m)}>
-                        {shortMonth(m)}
-                      </th>
-                    ))
+          <>
+            {/* Ngày học theo lịch năm học: ngày lớp quên điểm danh vẫn tính (BE OBS-23, Cần chốt 04/11) */}
+            {view !== 'year' && rows.some((r) => r.unrecordedDays?.length) && (
+              <div className="alert alert--warning dg-alert-inset" role="status">
+                <AlertTriangle size={18} />
+                <div>
+                  Lớp chưa điểm danh (vẫn tính là ngày học, trẻ chưa có mặt):{' '}
+                  {rows
+                    .filter((r) => r.unrecordedDays?.length)
+                    .map((r) => `${r.className}: ${r.unrecordedDays.map((d) => formatDate(d)).join(', ')}`)
+                    .join('; ')}
+                  . Giáo viên bổ sung qua mở lại điểm danh.
+                </div>
+              </div>
+            )}
+            <div className="table-wrap">
+              <table className="table table--grid dg-qr-table">
+                <thead>
+                  <tr>
+                    <th rowSpan={view === 'year' ? 1 : 2}>Lớp</th>
+                    {showCampus && <th rowSpan={view === 'year' ? 1 : 2}>Điểm trường</th>}
+                    {view === 'year' ? (
+                      months.map((m) => (
+                        <th key={m} className="num" title={monthLabel(m)}>
+                          {shortMonth(m)}
+                        </th>
+                      ))
+                    ) : (
+                      <>
+                        <th className="num" rowSpan={2}>
+                          Sĩ số
+                        </th>
+                        {GROUPS.map(([label]) => (
+                          <th key={label} className="center" colSpan={2}>
+                            {label}
+                          </th>
+                        ))}
+                      </>
+                    )}
+                  </tr>
+                  {view !== 'year' && (
+                    <tr>
+                      {GROUPS.map(([label]) => [
+                        <th key={`${label}-n`} className="num">
+                          Số trẻ
+                        </th>,
+                        <th key={`${label}-p`} className="num">
+                          Tỷ lệ
+                        </th>,
+                      ])}
+                    </tr>
+                  )}
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <SkeletonRows rows={6} cols={cols} />
                   ) : (
                     <>
-                      <th className="num" rowSpan={2}>
-                        Sĩ số
-                      </th>
-                      {GROUPS.map(([label]) => (
-                        <th key={label} className="center" colSpan={2}>
-                          {label}
-                        </th>
+                      {rows.map((r) => (
+                        <tr key={r.classId}>
+                          <td className="fw-600">{r.className}</td>
+                          {showCampus && <td>{campusName(r.campusId)}</td>}
+                          <Cells view={view} months={months} x={r} />
+                        </tr>
+                      ))}
+                      {totals.map((t) => (
+                        <tr key={t.level} className="dg-qr-total">
+                          <td>{totalLabel(t)}</td>
+                          {showCampus && <td />}
+                          <Cells view={view} months={months} x={t} />
+                        </tr>
                       ))}
                     </>
                   )}
-                </tr>
-                {view !== 'year' && (
-                  <tr>
-                    {GROUPS.map(([label]) => [
-                      <th key={`${label}-n`} className="num">
-                        Số trẻ
-                      </th>,
-                      <th key={`${label}-p`} className="num">
-                        Tỷ lệ
-                      </th>,
-                    ])}
-                  </tr>
-                )}
-              </thead>
-              <tbody>
-                {loading ? (
-                  <SkeletonRows rows={6} cols={cols} />
-                ) : (
-                  <>
-                    {rows.map((r) => (
-                      <tr key={r.classId}>
-                        <td className="fw-600">{r.className}</td>
-                        {showCampus && <td>{campusName(r.campusId)}</td>}
-                        <Cells view={view} months={months} x={r} />
-                      </tr>
-                    ))}
-                    {totals.map((t) => (
-                      <tr key={t.level} className="dg-qr-total">
-                        <td>{totalLabel(t)}</td>
-                        {showCampus && <td />}
-                        <Cells view={view} months={months} x={t} />
-                      </tr>
-                    ))}
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
