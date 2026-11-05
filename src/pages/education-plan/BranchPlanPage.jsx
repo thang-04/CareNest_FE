@@ -19,7 +19,7 @@ import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { WEEKDAY_LABELS, ddmm, emptyBranchPlan, isEditableStatus, monthOf, yearWeeks } from '@/models/education-plan/classPlan';
+import { ddmm, emptyBranchPlan, isEditableStatus, monthOf, offDaysText, yearWeeks } from '@/models/education-plan/classPlan';
 import { SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -266,7 +266,8 @@ function BranchPlanInner({ classId }) {
     }
     return true;
   };
-  const act = (action, note) => actOnClassDoc('branch', draft.id, { action, note });
+  // savedDoc: bản vừa lưu ở "Lưu và gửi" (bản nháp đầu tiên chỉ có id sau khi lưu)
+  const act = (action, note, savedDoc) => actOnClassDoc('branch', savedDoc?.id || draft.id, { action, note });
   const review = docReview('branch', saved, ctx, user, eduConfig);
   const editReason = !isClassTeacher
     ? 'Chỉ giáo viên được phân công vào lớp mới được sửa'
@@ -276,7 +277,8 @@ function BranchPlanInner({ classId }) {
         ? 'Tài liệu đang chờ duyệt hoặc đã duyệt'
         : null;
   const saveReason = editReason || (saver.saving ? 'Đang lưu' : !saver.unsaved && !saver.error ? 'Không có thay đổi cần lưu' : null);
-  const sendReason = editReason || (!saved ? 'Lưu bản nháp trước khi gửi' : !review.can.send ? 'Bạn chưa thể gửi tài liệu này' : null);
+  // Chưa lưu lần nào vẫn bấm Gửi được: hộp xác nhận lưu trước rồi gửi (Tiền 05/11)
+  const sendReason = editReason || (saved && !review.can.send ? 'Bạn chưa thể gửi tài liệu này' : null);
   const importFile = (result, context) => {
     if (
       !canEdit ||
@@ -329,6 +331,16 @@ function BranchPlanInner({ classId }) {
                 ))}
               </select>
             )}
+            {editable && (
+              <button
+                type="button"
+                className="btn btn--sm btn--outline-primary"
+                disabled={aiBusy || saver.saving}
+                onClick={() => setImportContext({ classId, yearPlanId: yearPlan.id })}
+              >
+                <Upload size={16} aria-hidden /> Nhập file
+              </button>
+            )}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             <p className="muted text-sm ga-year-save-status" aria-live="polite">
@@ -357,22 +369,23 @@ function BranchPlanInner({ classId }) {
             <ReviewActions
               name="chủ đề nhánh"
               sendTo={review.sendTo}
-              can={review.can}
-              showSend
+              can={{ ...review.can, send: review.can.send || (!saved && !editReason) }}
+              // Nút gửi chỉ hiện cho giáo viên của lớp khi còn sửa được (nháp / bị trả lại); Phó HT, Tổ trưởng chỉ thấy Duyệt / Trả lại
+              showSend={!editReason}
               sendDisabledReason={sendReason}
               sendBlocked={
                 sendReason ||
-                (saver.unsaved || saver.saving
-                  ? 'Lưu trước khi gửi'
-                  : // BE:EDU-26 — còn mục đỏ thì chưa gửi (BE cũng kiểm lại)
-                    version.unresolved.length
-                    ? `Còn ${version.unresolved.length} mục đổi theo kế hoạch năm mới cần sửa`
-                    : hasPending
-                      ? 'Còn tên AI chưa giữ hoặc bỏ'
-                      : empty
-                        ? `Còn ${empty} tuần chưa đặt tên chủ đề nhánh`
-                        : null)
+                // BE:EDU-26 — còn mục đỏ thì chưa gửi (BE cũng kiểm lại)
+                (version.unresolved.length
+                  ? `Còn ${version.unresolved.length} mục đổi theo kế hoạch năm mới cần sửa`
+                  : hasPending
+                    ? 'Còn tên AI chưa giữ hoặc bỏ'
+                    : empty
+                      ? `Còn ${empty} tuần chưa đặt tên chủ đề nhánh`
+                      : null)
               }
+              unsaved={saver.unsaved || saver.saving || !saved}
+              onSave={saver.save}
               beforeOpen={checkBeforeOpen}
               notes={{ submit: 'Chủ đề nhánh sẽ bị khóa cho tới khi được duyệt hoặc bị trả lại.' }}
               onAct={act}
@@ -416,14 +429,6 @@ function BranchPlanInner({ classId }) {
         actions={
           editable && (
             <span className="row row--wrap gap-2">
-              <button
-                type="button"
-                className="btn btn--outline-primary btn--sm"
-                disabled={aiBusy || saver.saving}
-                onClick={() => setImportContext({ classId, yearPlanId: yearPlan.id })}
-              >
-                <Upload size={16} aria-hidden /> Nhập file
-              </button>
               {pendingWeeks.length > 0 ? (
                 <>
                   <button type="button" className="btn btn--sm" onClick={confirmRejectAll}>
@@ -573,15 +578,7 @@ function BranchPlanInner({ classId }) {
                       <td className="cell--fixed">
                         <div className="ga-goal-table__pad">
                           Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
-                          {r.offDays?.some(Boolean) && (
-                            <div className="text-xs text-warning">
-                              Nghỉ{' '}
-                              {r.offDays
-                                .map((label, i) => (label ? `${WEEKDAY_LABELS[i]} (${label})` : null))
-                                .filter(Boolean)
-                                .join(', ')}
-                            </div>
-                          )}
+                          {r.offDays?.some(Boolean) && <div className="text-xs text-warning">Nghỉ {offDaysText(r.offDays)}</div>}
                         </div>
                       </td>
                       <td>
@@ -612,7 +609,7 @@ function BranchPlanInner({ classId }) {
           {...importContext}
           user={user}
           draft={draft}
-          weeks={rows.filter((row) => row.type === 'week')}
+          templateArgs={printArgs}
           onImport={importFile}
           onClose={() => setImportContext(null)}
         />

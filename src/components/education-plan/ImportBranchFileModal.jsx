@@ -12,7 +12,7 @@ import { PLAN_IMPORT_ACCEPT as ACCEPT, validatePlanImportFile } from '@/utils/ed
 
 const SHOWN_WARNINGS = 8;
 
-export function ImportBranchFileModal({ classId, yearPlanId, user, draft, weeks, onImport, onClose }) {
+export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templateArgs, onImport, onClose }) {
   const fileRef = useRef(null);
   const [state, setState] = useState({ status: 'idle' });
   const [confirm, setConfirm] = useState(false);
@@ -37,7 +37,7 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, weeks,
     if (onImport(preview, { classId, yearPlanId })) onClose();
   };
   const template = () => {
-    const file = branchTemplateFile(weeks);
+    const file = branchTemplateFile(templateArgs);
     downloadDoc(file.html, file.name);
   };
   return (

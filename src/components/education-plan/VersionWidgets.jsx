@@ -59,7 +59,7 @@ export function YearPlanVersionPanel({ plan, goals }) {
                 <col className="ga-version-table__status" />
                 <col className="ga-version-table__date" />
                 <col />
-                <col className="ga-version-table__date" />
+                <col className="ga-version-table__issued" />
               </colgroup>
               <thead>
                 <tr>

@@ -38,6 +38,10 @@ const Kind = ({ label, tone }) => <span className={`ga-cur-kind ga-cur-kind--${t
 
 /** readOnly: chỉ xem (trang Nguồn chương trình của Bộ) — cùng giao diện, không ô tích / chọn tất cả. */
 /** contentPicked + onToggleContent: tích từng nội dung đi kèm (khóa `${goalId}:${index}`); không truyền thì chỉ xem nội dung. */
+/**
+ * droppedSubs + onToggleSub (Tiền 05/11): ô tích ở lĩnh vực con. Chọn mục tiêu thì lĩnh vực con tự tích; bỏ tích lĩnh vực con
+ * để chỉ lấy mục tiêu (không lấy lĩnh vực con). Khóa lĩnh vực con: `${tên lĩnh vực}|${sub.key}`.
+ */
 export function GoalPicker({
   tree,
   picked = new Set(),
@@ -47,7 +51,10 @@ export function GoalPicker({
   readOnly = false,
   contentPicked,
   onToggleContent,
+  droppedSubs,
+  onToggleSub,
 }) {
+  const pickSubs = !readOnly && droppedSubs instanceof Set && typeof onToggleSub === 'function';
   const scopeId = useId();
   const pickContents = !readOnly && contentPicked instanceof Set && typeof onToggleContent === 'function';
   const [query, setQuery] = useState('');
@@ -152,12 +159,32 @@ export function GoalPicker({
               </label>
               {domain.subs.map((sub) => (
                 <div key={sub.key || '-'} className="ga-cur-sub">
-                  {sub.name && (
-                    <div className="ga-cur-sub__name">
-                      <Kind label={kindLabels.sub} tone="sub" />
-                      {sub.name}
-                    </div>
-                  )}
+                  {sub.name &&
+                    (pickSubs ? (
+                      <label className="ga-cur-sub__name">
+                        <input
+                          type="checkbox"
+                          disabled={disabled}
+                          aria-label={`Lấy cả lĩnh vực con ${sub.name}`}
+                          checked={
+                            sub.groups.some((g) => g.goals.some((x) => picked.has(x.id))) && !droppedSubs.has(`${domain.name}|${sub.key}`)
+                          }
+                          onChange={() =>
+                            onToggleSub(
+                              `${domain.name}|${sub.key}`,
+                              sub.groups.flatMap((g) => g.goals.map((x) => x.id)),
+                            )
+                          }
+                        />
+                        <Kind label={kindLabels.sub} tone="sub" />
+                        {sub.name}
+                      </label>
+                    ) : (
+                      <div className="ga-cur-sub__name">
+                        <Kind label={kindLabels.sub} tone="sub" />
+                        {sub.name}
+                      </div>
+                    ))}
                   {sub.groups.map((group) => (
                     <div key={group.key} className="ga-cur-group">
                       {group.title && (

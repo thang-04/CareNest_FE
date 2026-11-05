@@ -20,7 +20,10 @@ export const lastRejection = (history) => [...(history || [])].reverse().find((h
  * - sendTo: người duyệt đầu tiên (vd. "Phó HT"); approveLabel: "Duyệt" hoặc "Ban hành".
  * - can: { send, reject, approve }; sendBlocked: lý do chưa gửi được (vd. còn thay đổi chưa lưu) để khóa nút.
  * - beforeOpen(action): trả false để không mở hộp (vd. kiểm tra form, nhắc thiếu dữ liệu).
- * - notes: câu giải thích thêm trong hộp theo action; onAct(action, note) trả kết quả (null khi lỗi thì hộp giữ lại).
+ * - notes: câu giải thích thêm trong hộp theo action; onAct(action, note, savedDoc) trả kết quả (null khi lỗi thì hộp giữ lại).
+ * - unsaved + onSave (Tiền 05/11): nút Gửi / Ban hành / Duyệt luôn bấm được; còn thay đổi chưa lưu thì hộp báo và nút xác
+ *   nhận thành "Lưu và …": lưu trước (onSave trả kết quả khác false), rồi mới gửi / duyệt. Lý do khác chưa gửi được
+ *   (sendBlocked, không có quyền) thì bấm vẫn được nhưng chỉ hiện thông báo lý do, không mờ nút.
  */
 export function ReviewActions({
   name,
@@ -35,8 +38,11 @@ export function ReviewActions({
   onAct,
   size = 'btn--sm',
   variant = 'btn--primary',
+  unsaved = false,
+  onSave,
 }) {
   const [action, setAction] = useState(null);
+  const [blocked, setBlocked] = useState(null);
   const [note, setNote] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -50,7 +56,16 @@ export function ReviewActions({
     setTried(true);
     if (action === 'reject' && !note.trim()) return;
     setBusy(true);
-    const res = await onAct(action, note.trim() || undefined);
+    let savedDoc = null;
+    if (unsaved && onSave && action !== 'reject') {
+      const res = await onSave();
+      if (!res) {
+        setBusy(false);
+        return;
+      }
+      savedDoc = typeof res === 'object' ? res : null;
+    }
+    const res = await onAct(action, note.trim() || undefined, savedDoc);
     setBusy(false);
     if (res) setAction(null);
   };
@@ -60,6 +75,9 @@ export function ReviewActions({
     approve: `${approveLabel} ${name}`,
   };
   const btn = (cls) => `btn ${cls} ${size}`.trim();
+  const sendReason = !can.send ? sendDisabledReason || 'Bạn chưa thể gửi tài liệu này' : sendBlocked;
+  // Nhãn nút xác nhận: còn thay đổi chưa lưu thì "Lưu và …" (nhãn đã có chữ Lưu thì giữ)
+  const withSave = (label) => (unsaved && !/^lưu/i.test(label) ? `Lưu và ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label);
 
   return (
     <>
@@ -67,10 +85,9 @@ export function ReviewActions({
         <button
           type="button"
           className={btn(variant)}
-          disabled={!can.send || !!sendBlocked}
-          title={(!can.send ? sendDisabledReason || 'Bạn chưa thể gửi tài liệu này' : sendBlocked) || undefined}
-          aria-description={(!can.send ? sendDisabledReason || 'Bạn chưa thể gửi tài liệu này' : sendBlocked) || undefined}
-          onClick={() => open('submit')}
+          title={sendReason || undefined}
+          aria-description={sendReason || undefined}
+          onClick={() => (sendReason ? setBlocked(sendReason) : open('submit'))}
         >
           <Send size={16} aria-hidden /> Gửi {sendTo} duyệt
         </button>
@@ -107,11 +124,16 @@ export function ReviewActions({
                 ) : (
                   <Check size={16} aria-hidden />
                 )}{' '}
-                {action === 'reject' ? 'Trả lại' : action === 'submit' ? 'Gửi' : approveLabel}
+                {action === 'reject' ? 'Trả lại' : withSave(action === 'submit' ? 'Gửi' : approveLabel)}
               </button>
             </>
           }
         >
+          {unsaved && action !== 'reject' && (
+            <Notice tone="warn">
+              Còn thay đổi chưa lưu. Bấm "{withSave(action === 'submit' ? 'Gửi' : approveLabel)}" để lưu rồi tiếp tục.
+            </Notice>
+          )}
           {notes[action] && <p>{notes[action]}</p>}
           <Field
             label={action === 'reject' ? 'Lý do trả lại' : 'Ghi chú (không bắt buộc)'}
@@ -121,6 +143,19 @@ export function ReviewActions({
           >
             <textarea id="review-note" className="textarea" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
+        </Modal>
+      )}
+      {blocked && (
+        <Modal
+          title={titles.submit}
+          onClose={() => setBlocked(null)}
+          footer={
+            <button type="button" className="btn btn--primary" onClick={() => setBlocked(null)}>
+              Đã hiểu
+            </button>
+          }
+        >
+          <p>{blocked}</p>
         </Modal>
       )}
     </>

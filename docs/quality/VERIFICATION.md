@@ -228,3 +228,10 @@ Làn L:            ghi đủ vào Progress log của plan; chat chỉ tóm tắt
 - BE full: 1039 tests, fail/error/skip 0, archunit/snapshot/spotless đạt. [Ca test và giới hạn](2026-11-05-attendance-health-ui-fixes.md).
 - Browser Chrome thật xác nhận nhập 385/38.5/38,5; tải workbook hai sheet đủ 44 ngày/15 trẻ, tổng 600 khớp UI. Chủ đề confirmed có dropdown/badge đồng nhất và khóa sửa. Có test response chậm cho handler.
 - Nhiệt độ: user chọn chờ thiết bị, không đóng lỗi 99°C. Chưa full browser E2E ba role, không thay runtime BE đang mở ở IntelliJ, không commit/push.
+
+
+## Chuẩn bị PR vào dev — 05/11/2026
+- Nhánh FE đã gộp origin/dev tại 840a0c1 bằng merge thường, không conflict source; giữ nguyên sửa điểm danh/sức khỏe/chủ đề đã kiểm chứng.
+- Sau gộp: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`; 847 tests, fail 0, skip 0. Không rerun browser ba role sau gộp.
+- PR FE: https://github.com/thang-04/CareNest_FE/pull/36 ; BE: https://github.com/thang-04/CareNest_BE/pull/32 . PR chờ review, chưa merge vào dev.
+- GitHub từng báo FE dirty dù git merge-tree local exit 0; gộp dev rõ ràng vào nhánh để loại bỏ khác biệt kiểm tra merge. BE xử lý .gitignore cùng pattern khác vị trí, không đổi nghiệp vụ.

@@ -48,7 +48,7 @@ export default function PlanReviewQueuePage() {
         kind: 'theme',
         doc: d,
         what: `Kế hoạch giáo dục chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · ${themeWeeksOf(plan, d.themeId).length} nhánh`,
-        to: `/education/class/${d.classId}/themes/${d.themeId}/review`,
+        to: `/education/class/${d.classId}/themes/${d.themeId}`,
       };
     }),
   ].map((it) => ({

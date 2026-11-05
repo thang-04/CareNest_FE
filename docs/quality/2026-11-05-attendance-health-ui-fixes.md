@@ -29,3 +29,7 @@ User duyệt các mục sửa và khóa sức khỏe sau trả. Không sửa vai
 - Học kỳ: tổng hợp điểm danh, đơn nghỉ, báo cáo chất lượng năm và đánh giá kỳ đã có. Màn theo ngày không cần thêm bộ lọc học kỳ. Tổng hợp phiếu hiện năm/tháng; muốn tổng theo học kỳ cần contract BE hỗ trợ khoảng kỳ, không cộng số liệu ở UI.
 - Không chạy lại toàn bộ ba role qua browser; test source/integration không được gọi là full E2E.
 - Chưa commit/push; giữ cấu hình và các file WIP có sẵn của user.
+
+
+## Bổ sung khi tạo PR
+Nhánh đã được gộp origin/dev 840a0c1 trước khi đẩy merge commit. Full FE gate sau gộp đạt 847 tests, fail/skip 0. Chưa test browser lại toàn bộ ba role trên kết quả merge. PR FE #36 và BE #32 vào dev; dữ liệu cấu hình local, script demo và tài liệu audit cũ không đưa vào commit.

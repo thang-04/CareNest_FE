@@ -86,15 +86,23 @@ test('lấy lại cùng mục tiêu: bỏ qua trùng, không ghi đè', () => {
   assert.equal(twice.report.duplicates, 5);
 });
 
-test('lĩnh vực có mục tiêu tự gõ ngoài lĩnh vực con: không thêm mục tiêu của Bộ có lĩnh vực con, báo lý do, giữ nguyên dữ liệu (Tiền chọn A)', () => {
+// Thay quyết định "Tiền chọn A" cũ (Tiền 05/11): lĩnh vực vừa có mục tiêu tự gõ thẳng dưới lĩnh vực vừa có lĩnh vực con
+test('lĩnh vực có mục tiêu tự gõ ngoài lĩnh vực con: mục tiêu Bộ có lĩnh vực con thêm phía sau, mục tiêu tự gõ giữ nguyên', () => {
   const goal = goalsOf('ag-3').find((g) => g.domainName === 'Phát triển thể chất' && g.subDomain);
   const plan = emptyPlan();
   plan.domains[0].rows = [{ id: 'own', kind: 'goal', text: 'Trẻ tự phục vụ', contents: [] }];
   const { domains, report } = mergeImportedGoals(plan, curriculumAsSourcePlan([goal]), [`cg-${goal.id}`], makeId);
-  assert.equal(report.added, 0);
-  assert.equal(report.unavailable.length, 1);
-  assert.match(report.unavailable[0].reason, /lĩnh vực con\/nhóm/);
-  assert.deepEqual(domains[0].rows, plan.domains[0].rows);
+  assert.equal(report.added, 1);
+  assert.equal(domains[0].rows[0].id, 'own');
+  assert.equal(domains[0].rows[1].kind, 'sub');
+});
+
+test('bỏ tích lĩnh vực con khi lấy từ Bộ: chỉ thêm nhóm và mục tiêu, không thêm lĩnh vực con', () => {
+  const goal = goalsOf('ag-3').find((g) => g.domainName === 'Phát triển thể chất' && g.subDomain);
+  const stripped = { ...goal, subDomain: null, subDomainId: null };
+  const { domains, report } = mergeImportedGoals(emptyPlan(), curriculumAsSourcePlan([stripped]), [`cg-${goal.id}`], makeId);
+  assert.equal(report.added, 1);
+  assert.equal(domains[0].rows.filter((r) => r.kind === 'sub').length, 0);
 });
 
 test('chép mục tiêu sang kế hoạch khác (EDU-24) vẫn giữ liên kết Bộ', () => {

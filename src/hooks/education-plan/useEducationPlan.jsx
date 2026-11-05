@@ -49,6 +49,21 @@ const upsert = (list, item) => {
  * Loads goals, theme plans and lesson plans once for every education-plan page and exposes
  * save/delete actions. Writes update the screen right away, then go to the service.
  */
+
+const NEXT_SIGNER = {
+  [EDU_STATUS.PENDING_TL]: 'Tổ trưởng',
+  [EDU_STATUS.PENDING_VP]: 'Phó hiệu trưởng',
+  [EDU_STATUS.PENDING_HT]: 'Hiệu trưởng',
+};
+/** Câu báo sau khi gửi / duyệt / trả lại tài liệu lớp, theo trạng thái mới. */
+export const actDoneText = (kind, action, status) => {
+  const name = kind === 'branch' ? 'chủ đề nhánh' : 'kế hoạch chủ đề';
+  const next = NEXT_SIGNER[status];
+  if (action === 'reject') return `Đã trả lại ${name}`;
+  if (action === 'submit') return next ? `Đã gửi ${next} duyệt ${name}` : `Đã gửi ${name}`;
+  return next ? `Đã duyệt ${name}, chuyển ${next} duyệt tiếp` : `Đã duyệt ${name}`;
+};
+
 export function EducationPlanProvider({ children }) {
   const { user: authUser } = useAuth();
   const toastApi = useToast();
@@ -190,6 +205,8 @@ export function EducationPlanProvider({ children }) {
       actOnClassDoc: async (kind, ...args) => {
         const saved = await classCall(service.actOnClassDoc)(kind, ...args);
         if (saved && kind === 'theme') reload({ silent: true });
+        // Báo kết quả sau khi gửi / duyệt / trả lại (Tiền 05/11)
+        if (saved) toast(actDoneText(kind, args[1]?.action, saved.status));
         return saved;
       },
       role: user.role,
