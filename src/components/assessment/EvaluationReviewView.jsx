@@ -33,6 +33,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useAiRun } from '@/hooks/useAiRun';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
+import { YearEndSheetCard } from '@/components/assessment/YearEndSheetCard';
 import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
@@ -65,11 +66,22 @@ export function EvaluationReviewView({ kind, id }) {
 
   const ev = detail?.evaluation;
   const savedContent = ev ? ev.finalContent || ev.aiDraft?.content || '' : '';
+  // Nạp lại ô nhập chỉ khi sang đánh giá khác hoặc nội dung đã lưu đổi (tải lại sau khi đánh dấu hoàn thành chương
+  // trình không xóa phần cô đang gõ)
+  const evId = ev?.id;
+  // Cùng một đánh giá mà cô đang gõ dở (vd. bấm "Tạo lại bản nháp" khi chưa lưu lần nào): giữ chữ của cô, bản nháp mới
+  // chỉ vào ô qua "Dùng bản nháp này"
+  const typed = useRef({ evId: null, content: '', loadedFrom: null });
+  typed.current.content = content;
+  typed.current.loadedFrom = loadedFrom;
   useEffect(() => {
-    if (!ev) return;
-    setContent(savedContent);
+    if (!evId) return;
+    const t = typed.current;
+    const dirty = t.evId === evId && t.loadedFrom !== null && t.content !== t.loadedFrom;
+    t.evId = evId;
+    if (!dirty) setContent(savedContent);
     setLoadedFrom(savedContent);
-  }, [ev, savedContent]);
+  }, [evId, savedContent]);
 
   // Trẻ cùng lớp, cùng kỳ (xếp theo tên) để chuyển ‹ › và mở trẻ chưa xác nhận tiếp theo
   const { evaluations } = useEvaluations(kind, ev ? { classId: ev.classId, schoolYear: ev.schoolYearId || undefined } : null, {
@@ -93,8 +105,18 @@ export function EvaluationReviewView({ kind, id }) {
 
   // Sửa nội dung chưa lưu mà rời màn / sang trẻ khác: hỏi trước
   const saveRef = useRef(null);
+  // Phiếu cuối năm (OBS-28): lưu phiếu trước khi xác nhận, hỏi khi rời màn còn sửa chưa lưu
+  const sheetRef = useRef(null);
   const editing = !!ev && ev.status !== EVAL_STATUS.CONFIRMED && loadedFrom === savedContent && content !== savedContent;
-  const guard = useLeaveGuard({ when: editing, onSave: () => saveRef.current?.() ?? false });
+  const [sheetEdited, setSheetEdited] = useState(false);
+  const sheetDirty = () => !!sheetRef.current?.dirty;
+  const guard = useLeaveGuard({
+    when: editing || sheetEdited,
+    onSave: async () => {
+      if (sheetDirty() && !(await sheetRef.current.save())) return false;
+      return editing ? (saveRef.current?.() ?? false) : true;
+    },
+  });
 
   if (loading) return <LoadingState />;
   if (error) {
@@ -198,6 +220,11 @@ export function EvaluationReviewView({ kind, id }) {
   };
 
   const doConfirm = async () => {
+    // Phiếu cuối năm còn sửa chưa lưu: lưu trước để xác nhận chốt đúng phiếu cô thấy
+    if (sheetDirty() && !(await sheetRef.current.save())) {
+      setConfirmOpen(false);
+      return null;
+    }
     const res = await run(
       'confirm',
       () => confirmEvaluation(kind, ev.id, content, user),
@@ -377,6 +404,18 @@ export function EvaluationReviewView({ kind, id }) {
         </div>
       )}
 
+      {yearEnd && (
+        <YearEndSheetCard
+          // Xác nhận (đổi trạng thái) ⇒ tải lại phiếu: phiếu chuyển chỉ xem, có ngày ký trên bản in
+          key={`${ev.id}-${ev.status}`}
+          evaluation={ev}
+          child={detail.child}
+          comment={canReview ? content : ev.finalContent}
+          sheetRef={sheetRef}
+          onDirtyChange={setSheetEdited}
+        />
+      )}
+
       <PeriodSummaryTable data={detail.summary.structured} />
 
       {/* Học kỳ, cuối năm: các đánh giá tháng cô đã xác nhận trong kỳ để viết nhận xét chung */}
@@ -406,7 +445,7 @@ export function EvaluationReviewView({ kind, id }) {
         <div className="card mt-16">
           <div className="card__header">
             <div className="card__title">Đánh giá hằng ngày trong kỳ</div>
-            <span className="muted text-sm">Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>
+            <span className="muted text-sm">Xanh: đạt · Đỏ: chưa đạt</span>
           </div>
           <div className="card__body">
             {/* 10 ngày / trang như bảng này ở Hồ sơ phát triển */}

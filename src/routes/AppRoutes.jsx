@@ -54,7 +54,6 @@ const BranchPlanLegacyRedirect = lazyPage(() =>
 );
 const ClassThemePlanPage = lazyPage(() => import('@/pages/education-plan/ClassThemePlanPage'));
 const TeachingPresentationPage = lazyPage(() => import('@/pages/education-plan/TeachingPresentationPage'));
-const ThemeDossierPage = lazyPage(() => import('@/pages/education-plan/ThemeDossierPage'));
 const WeekPlanPage = lazyPage(() => import('@/pages/education-plan/WeekPlanPage'));
 const PlanReviewQueuePage = lazyPage(() => import('@/pages/education-plan/PlanReviewQueuePage'));
 const EduConfigPage = lazyPage(() => import('@/pages/education-plan/EduConfigPage'));
@@ -141,6 +140,7 @@ const YearEndEvaluationListPage = lazyPage(() => import('@/pages/assessment/Year
 const YearEndEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
 const GoodBehaviourTicketsPage = lazyPage(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
 const ClassAssessmentOverviewPage = lazyPage(() => import('@/pages/assessment/ClassAssessmentOverviewPage'));
+const ThemeEvaluationPage = lazyPage(() => import('@/pages/assessment/ThemeEvaluationPage'));
 const QualityReportPage = lazyPage(() => import('@/pages/assessment/QualityReportPage'));
 const RewardListPage = lazyPage(() => import('@/pages/assessment/RewardListPage'));
 const RewardClassPage = lazyPage(() => import('@/pages/assessment/RewardClassPage'));
@@ -188,6 +188,12 @@ const FRESH_GOODS_API = !isDemoModule('fresh-goods');
 const KITCHEN_RECORDS_API = !isDemoModule('kitchen-records');
 const STOCK_RECEIPT_ROLES = DRY_STOCK_API ? LEADERS : VP_ONLY;
 const DENIED = 'Chức năng này không thuộc quyền của vai trò hiện tại (theo ma trận phân quyền của hệ thống).';
+
+/** Trang hồ sơ chủ đề đã bỏ (Tiền 04/11): link cũ .../review mở trang kế hoạch chủ đề. */
+function ThemeReviewRedirect() {
+  const { classId, themeId } = useParams();
+  return <Navigate to={`/education/class/${classId}/themes/${themeId}`} replace />;
+}
 
 function SupplierRedirect({ suffix = '' }) {
   const { id } = useParams();
@@ -255,7 +261,7 @@ export function AppRoutes() {
             <Route path="class/:classId/branches/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
             <Route path="class/:classId/themes/:themeId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassThemePlanPage />)} />
             <Route path="class/:classId/themes/:themeId/teach" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <TeachingPresentationPage />)} />
-            <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeDossierPage />)} />
+            <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeReviewRedirect />)} />
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
             <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />
             <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />
@@ -456,6 +462,7 @@ export function AppRoutes() {
             <Route path="overview" element={only([...LEADERS, R.TEAM_LEADER], <ClassAssessmentOverviewPage />)} />
             <Route path="quality-report" element={only([...LEADERS, ...CLASS_STAFF], <QualityReportPage />)} />
             <Route path="class-ratings" element={only([...LEADERS, ...CLASS_STAFF], <ClassRatingsPage />)} />
+            <Route path="themes" element={only([...LEADERS, ...CLASS_STAFF], <ThemeEvaluationPage />)} />
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />

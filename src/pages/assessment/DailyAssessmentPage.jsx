@@ -17,18 +17,12 @@ import { StatusPage } from '@/components/ui/StatusPage';
 import { BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
-import { createGeneralDraft, getGeneralSaveEntries } from '@/utils/assessment/dailyGeneralDraft';
+import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries, isGeneralRecorded } from '@/utils/assessment/dailyGeneralDraft';
 import { DateInput } from '@/components/form/DateInput';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
-import { addDays, isSchoolDay, todayIso } from '@/utils/assessment/assessmentPeriods';
+import { todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
-
-const lastSchoolDay = () => {
-  let d = todayIso();
-  while (!isSchoolDay(d)) d = addDays(d, -1);
-  return d;
-};
 
 const COLS = 9;
 // Ô khác giá trị mặc định được tô nhẹ để giáo viên thấy ngay ngoại lệ
@@ -41,13 +35,15 @@ export default function DailyAssessmentPage() {
   const { classes, loading: classesLoading, error: classesError } = useDailyAssessmentClasses();
   const [search] = useSearchParams();
   const [classId, setClassId] = useState(search.get('classId') || '');
-  const [date, setDate] = useState(() => search.get('date') || lastSchoolDay());
+  const [date, setDate] = useState(() => search.get('date') || '');
+  // Chưa chọn ngày: BE trả ngày học gần nhất theo ngày nghỉ trong cấu hình năm học (lễ, Tết…)
   const currentClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id || '';
-  const params = useMemo(() => ({ classId: currentClassId, date }), [currentClassId, date]);
+  const params = useMemo(() => ({ classId: currentClassId, date: date || undefined }), [currentClassId, date]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
+  const shownDate = date || sheet?.date || '';
 
   const [drafts, setDrafts] = useState({});
-  const [dirty, setDirty] = useState(new Set());
+  const [loadedSheet, setLoadedSheet] = useState(null);
   const [saveError, setSaveError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [classComment, setClassComment] = useState('');
@@ -56,16 +52,23 @@ export default function DailyAssessmentPage() {
   useEffect(() => {
     if (!sheet) return;
     setDrafts(Object.fromEntries(sheet.rows.map((r) => [r.childId, createGeneralDraft(r, sheet.mealSessions)])));
-    setDirty(new Set());
+    setLoadedSheet(sheet);
     setClassComment(sheet.classComment?.text || '');
     setSaveError(null);
   }, [sheet]);
 
   // Chỉ ghi khi BE cho phép: giáo viên lớp, năm học đang hoạt động, ngày chưa khóa (hoặc đã được mở lại)
   const writable = !!sheet && sheet.canRecord && !sheet.locked && !sheet.yearReadOnly;
-  const saveEntries = getGeneralSaveEntries(sheet?.rows || [], sheet?.mealSessions || [], drafts, dirty);
-  const classCommentDirty = !!sheet && classComment !== (sheet.classComment?.text || '');
-  const hasChanges = saveEntries.length > 0 || classCommentDirty;
+  const dirty = loadedSheet === sheet ? getGeneralDirtyIds(sheet?.rows || [], sheet?.mealSessions || [], drafts) : new Set();
+  const changedEntries = getGeneralSaveEntries(sheet?.rows || [], sheet?.mealSessions || [], drafts, dirty);
+  // Không có gì mới (cả lớp đã lưu): cô vẫn bấm Lưu được để xác nhận lại cả lớp như đang hiện
+  const saveEntries =
+    changedEntries.length || !writable
+      ? changedEntries
+      : (sheet?.rows || []).map((r) => ({ childId: r.childId, ...(drafts[r.childId] || createGeneralDraft(r, sheet.mealSessions)) }));
+  const classCommentDirty = !!sheet && loadedSheet === sheet && classComment !== (sheet.classComment?.text || '');
+  const canSave = saveEntries.length > 0 || classCommentDirty;
+  const hasChanges = dirty.size > 0 || classCommentDirty;
 
   // Còn thay đổi chưa lưu: hỏi khi rời màn, đổi chế độ, đổi lớp hoặc ngày
   const guard = useLeaveGuard({ when: writable && hasChanges, onSave: () => save() });
@@ -74,12 +77,11 @@ export default function DailyAssessmentPage() {
 
   const update = (childId, patch) => {
     setDrafts((prev) => ({ ...prev, [childId]: { ...prev[childId], ...patch } }));
-    setDirty((prev) => new Set(prev).add(childId));
     setSaveError(null);
   };
 
   const save = async () => {
-    if (saving || !writable || loading || classesLoading || error || !hasChanges) return false;
+    if (saving || !writable || loading || classesLoading || error || !canSave) return false;
     setSaving(true);
     setSaveError(null);
     try {
@@ -108,7 +110,7 @@ export default function DailyAssessmentPage() {
     }
   };
 
-  const recordedCount = sheet?.rows.filter((r) => r.recorded).length || 0;
+  const recordedCount = sheet?.rows.filter(isGeneralRecorded).length || 0;
   const commentError = saveError?.details?.comment;
   const classCommentError = saveError?.details?.classComment;
   // Lỗi không gắn được vào một ô (trẻ chưa có mặt, ngày đã khóa…): hiện ở đầu bảng
@@ -161,13 +163,13 @@ export default function DailyAssessmentPage() {
               </label>
               <DateInput
                 id="dg-date"
-                value={date}
+                value={shownDate}
                 min={sheet?.yearStart || undefined}
                 max={sheet?.today || todayIso()}
                 onChange={(v) => isIsoDate(v) && confirmChange(() => setDate(v))}
               />
             </div>
-            <DailyModeSelect mode="general" classId={currentClassId} date={date} />
+            <DailyModeSelect mode="general" classId={currentClassId} date={shownDate} />
             <div className="spacer" />
             {sheet && sheet.rows.length > 0 && (
               <div className="text-sm text-2 dg-filter-count">
@@ -258,7 +260,7 @@ export default function DailyAssessmentPage() {
                       // Viền trái của dòng: chưa lưu / đã ghi nhận / chưa đánh giá
                       const status = dirty.has(id)
                         ? ['dirty', 'Đã thay đổi, chưa lưu']
-                        : r.recorded
+                        : isGeneralRecorded(r)
                           ? ['saved', 'Đã ghi nhận']
                           : ['new', 'Chưa đánh giá'];
                       return (
@@ -391,7 +393,7 @@ export default function DailyAssessmentPage() {
       {writable && (
         <div className="page-actions">
           {/* Xong Hoạt động chung thì sang Kiến thức kỹ năng cùng lớp, ngày (hỏi nếu còn thay đổi chưa lưu) */}
-          <Link className="btn" to={`/assessment/daily/skills?classId=${currentClassId}&date=${date}`}>
+          <Link className="btn" to={`/assessment/daily/skills?classId=${currentClassId}&date=${shownDate}`}>
             Sang Kiến thức kỹ năng <ArrowRight size={16} />
           </Link>
           <div className="spacer" />
@@ -401,7 +403,7 @@ export default function DailyAssessmentPage() {
                 Hủy thay đổi
               </button>
             )}
-            <button className="btn btn--primary" onClick={save} disabled={saving || loading || classesLoading || !!error || !hasChanges}>
+            <button className="btn btn--primary" onClick={save} disabled={saving || loading || classesLoading || !!error || !canSave}>
               {saving ? <Spinner small /> : <Save size={16} />} Lưu đánh giá{saveEntries.length ? ` (${saveEntries.length})` : ''}
             </button>
           </div>

@@ -36,12 +36,45 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
 
   const pickTree = useMemo(() => curriculumPickTree(tree), [tree]);
 
+  // Nội dung đi kèm chọn theo khóa `${goalId}:${index}`: chọn mục tiêu ⇒ chọn hết nội dung, bỏ mục tiêu ⇒ bỏ hết;
+  // tích một nội dung khi mục tiêu chưa chọn ⇒ chọn luôn mục tiêu (Tiền 04/11).
+  const [pickedContents, setPickedContents] = useState(() => new Set());
+  const contentKeys = (id) => (data.goals.find((g) => g.id === id)?.contents || []).map((_, i) => `${id}:${i}`);
   const toggle = (ids) => {
     const on = !ids.every((id) => picked.has(id));
     const next = new Set(picked);
-    ids.forEach((id) => (on ? next.add(id) : next.delete(id)));
+    const nextContents = new Set(pickedContents);
+    ids.forEach((id) => {
+      if (on === next.has(id)) return;
+      if (on) next.add(id);
+      else next.delete(id);
+      contentKeys(id).forEach((k) => (on ? nextContents.add(k) : nextContents.delete(k)));
+    });
     setPicked(next);
+    setPickedContents(nextContents);
   };
+  const toggleContent = (goalId, index) => {
+    const key = `${goalId}:${index}`;
+    const next = new Set(pickedContents);
+    if (next.has(key)) next.delete(key);
+    else {
+      next.add(key);
+      if (!picked.has(goalId)) setPicked(new Set(picked).add(goalId));
+    }
+    setPickedContents(next);
+  };
+  // Lĩnh vực con bỏ tích: chỉ lấy mục tiêu, không lấy lĩnh vực con (Tiền 05/11). Chưa chọn mục tiêu nào ⇒ tích chọn cả lĩnh vực con
+  const [droppedSubs, setDroppedSubs] = useState(() => new Set());
+  const toggleSub = (key, ids) => {
+    const next = new Set(droppedSubs);
+    if (!ids.some((id) => picked.has(id))) {
+      toggle(ids);
+      next.delete(key);
+    } else if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setDroppedSubs(next);
+  };
+  const subKeyOf = (g) => `${g.domainName}|${g.subDomain ? (g.subDomainId ?? g.subDomain) : null}`;
   const toggleSuggestion = (id) => {
     const next = new Set(suggested);
     if (next.has(id)) next.delete(id);
@@ -49,7 +82,14 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
     setSuggested(next);
   };
   const confirmGoals = () => {
-    if (onImportGoals(data.goals.filter((g) => picked.has(g.id)))) onClose();
+    const goals = data.goals
+      .filter((g) => picked.has(g.id))
+      .map((g) => ({
+        ...g,
+        ...(droppedSubs.has(subKeyOf(g)) ? { subDomain: null, subDomainId: null } : {}),
+        contents: (g.contents || []).filter((_, i) => pickedContents.has(`${g.id}:${i}`)),
+      }));
+    if (onImportGoals(goals)) onClose();
   };
   const confirmContents = () => {
     if (
@@ -111,7 +151,16 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
       ) : !data.goals.length && !data.contents.length ? (
         <EmptyState title="Chưa có dữ liệu của Bộ cho nhóm tuổi này" />
       ) : tab === 'goals' ? (
-        <GoalPicker tree={pickTree} picked={picked} onToggle={toggle} kindLabels={{ sub: 'Lĩnh vực con', group: 'Kết quả cần đạt' }} />
+        <GoalPicker
+          tree={pickTree}
+          picked={picked}
+          onToggle={toggle}
+          contentPicked={pickedContents}
+          onToggleContent={toggleContent}
+          droppedSubs={droppedSubs}
+          onToggleSub={toggleSub}
+          kindLabels={{ sub: 'Lĩnh vực con', group: 'Kết quả cần đạt' }}
+        />
       ) : (
         <>
           {!targets.length ? (

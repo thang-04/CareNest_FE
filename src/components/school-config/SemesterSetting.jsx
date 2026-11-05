@@ -20,7 +20,8 @@ const ROWS = [
 const LABELS = Object.fromEntries(SEMESTER_FIELDS);
 
 /** Cấu hình thời gian › Học kỳ: Hiệu trưởng chọn ngày bắt đầu và kết thúc của HK I, HK II, trong khoảng năm học. */
-export function SemesterSetting({ yearId }) {
+/** onDirtyChange / saveRef: trang cha hỏi lưu khi đổi tab hoặc rời màn còn học kỳ chưa lưu. */
+export function SemesterSetting({ yearId, onDirtyChange, saveRef }) {
   const { user } = useAuth();
   const toast = useToast();
   const {
@@ -43,6 +44,9 @@ export function SemesterSetting({ yearId }) {
     setForm(year?.semester1Start ? semesterOf(year) : suggestSemesters(year?.startDate, year?.endDate) || semesterOf(year));
     setErrors({});
   }, [year]);
+  const editableYear = !!year && year.status !== YEAR_STATUS.CLOSED && canManageSchoolCalendar(user);
+  const dirty = editableYear && !SEMESTER_FIELDS.every(([k]) => form[k] === (year[k] || ''));
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (loading || !year) return <LoadingState />;
@@ -64,19 +68,22 @@ export function SemesterSetting({ yearId }) {
     const e = validateSemester(form, year);
     if (!hasErrors(e) && unchanged) e.semester = 'Thời gian học kỳ chưa thay đổi';
     setErrors(e);
-    if (hasErrors(e)) return;
+    if (hasErrors(e)) return false;
     setSaving(true);
     try {
       await saveSemester(yearId, form, user);
       toast.success('Đã lưu thời gian học kỳ.');
       reload({ silent: true });
       reloadLocks({ silent: true });
+      return true;
     } catch (err) {
       setErrors(err.details || { semester: err.message });
+      return false;
     } finally {
       setSaving(false);
     }
   };
+  if (saveRef) saveRef.current = save;
 
   // Học kỳ đã có đánh giá học kỳ: khóa ô ngày ngay (BE vẫn kiểm khi lưu)
   const lockedKey = (key) => (key.startsWith('semester1') ? locks?.semester1Locked : locks?.semester2Locked);

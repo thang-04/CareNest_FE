@@ -403,29 +403,16 @@
 }
 .ga-theme-weeks {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 4)), 1fr));
+  grid-template-columns: 1fr;
   gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.ga-theme-weeks__link {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  height: 100%;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  color: var(--color-text);
-  overflow-wrap: anywhere;
-}
-.ga-theme-weeks__link:hover {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-}
-.ga-theme-weeks__link:focus-visible {
-  box-shadow: var(--focus-ring);
+/* Tuần nhánh là chữ link thường, có gạch chân; ngày cách ra bên phải (Tiền 04/11) */
+.ga-theme-weeks a {
+  margin-right: var(--space-4);
+  text-decoration: underline;
 }
 .ga-class-tabs {
   display: flex;
@@ -573,6 +560,11 @@
 .ga-goal-line__text .icon-btn {
   margin: var(--space-1);
   flex-shrink: 0;
+}
+/* Ô nhóm kết quả mong đợi: ô nhập chiếm hết chiều ngang để nút xóa luôn ở góc trên bên phải (Tiền 05/11) */
+.ga-goal-line__text > .search-select {
+  flex: 1;
+  min-width: 0;
 }
 /* Bảng mục tiêu một màu nền, không đổi màu khi rê chuột (ô mục tiêu gộp nhiều hàng YCCĐ nên bỏ nền xen kẽ) */
 .table.ga-goal-table tbody tr td,
@@ -825,16 +817,6 @@
 }
 .table.ga-goal-table td:has(.ga-cell-input) {
   cursor: text;
-}
-
-/* Hồ sơ chủ đề (Tiền 16/10): thẻ chỉ có tiêu đề thì cách đều trên dưới; kế hoạch ngày thụt vào trong tuần, có vạch dọc */
-.ga-card--heading > .card__header {
-  padding-bottom: var(--space-6);
-}
-.ga-dossier-day {
-  margin-left: var(--space-4);
-  padding-left: var(--space-4);
-  border-left: 2px solid var(--color-border);
 }
 
 /* Ô kế hoạch tuần: nhãn MT / "Chưa gắn MT" là nút cùng kiểu, luôn ở góc trái dưới của ô dù hàng cao bao nhiêu (Tiền 20/10).
@@ -1275,6 +1257,13 @@
   text-transform: none;
   letter-spacing: normal;
 }
+/* Lĩnh vực con có ô tích (chỉ lấy mục tiêu khi bỏ tích, Tiền 05/11) */
+label.ga-cur-sub__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  cursor: pointer;
+}
 .ga-cur-group {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -1456,8 +1445,10 @@ h2.ga-cur-domain__head {
 .ga-col-date {
   width: calc(var(--space-16) + var(--space-12));
 }
+/* Cột "Cho gộp cả tuần" / "Mặc định cả tuần" (trang Cấu hình kế hoạch): đủ rộng để hiện trọn tiêu đề, không cắt "…";
+   cột Tên hoạt động co lại (Tiền 05/11) */
 .ga-col-flag {
-  width: calc(var(--space-16) * 2 + var(--space-2));
+  width: calc(var(--space-16) * 2 + var(--space-12));
 }
 .ga-col-mt {
   width: calc(var(--space-16) * 2 + var(--space-6));
@@ -1739,17 +1730,25 @@ h2.ga-cur-domain__head {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2) var(--space-3);
 }
+/* Gọn một dòng (Tiền 05/11): số thứ tự | Chức danh | Họ tên | nút bỏ */
 .ga-export-signer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-  gap: var(--space-1) var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 1fr) var(--space-6);
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-sm);
   background: var(--color-primary-soft);
 }
+.ga-export-signers__body {
+  display: grid;
+  gap: var(--space-2);
+}
+.ga-export-signers__body[hidden] {
+  display: none;
+}
 .ga-export-signer__head {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1758,12 +1757,14 @@ h2.ga-cur-domain__head {
   font-weight: var(--fw-semibold);
   color: var(--color-primary);
 }
-.ga-export-signer__head .icon-btn {
+.ga-export-signer .icon-btn {
   width: var(--space-6);
   height: var(--space-6);
 }
 .ga-export-signer__field {
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
   gap: var(--space-1);
   min-width: 0;
   font-size: var(--fs-xs);
@@ -1772,6 +1773,18 @@ h2.ga-cur-domain__head {
 @media (max-width: 767px) {
   .ga-export-signer-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+  /* Màn hẹp: Chức danh, Họ tên xuống hai dòng, số thứ tự và nút bỏ giữ ở dòng đầu */
+  .ga-export-signer {
+    grid-template-columns: auto minmax(0, 1fr) var(--space-6);
+  }
+  .ga-export-signer__field {
+    grid-column: 2;
+  }
+  .ga-export-signer > .icon-btn,
+  .ga-export-signer > span:last-child {
+    grid-column: 3;
+    grid-row: 1;
   }
   .ga-doc-preview {
     height: 55vh;
@@ -1882,6 +1895,10 @@ h2.ga-cur-domain__head {
 }
 .ga-version-table__date {
   width: calc(var(--space-16) + var(--space-12));
+}
+/* Cột "Ngày ban hành" đủ rộng để hiện trọn tiêu đề, không cắt "…"; cột Người tạo co lại (Tiền 05/11) */
+.ga-version-table__issued {
+  width: calc(var(--space-16) * 2 + var(--space-4));
 }
 .ga-version-table__text {
   overflow: hidden;

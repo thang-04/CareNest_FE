@@ -16,34 +16,56 @@ const TicketBadge=({status,detail})=>React.createElement('span',{},status,' ',de
 const canViewTicketOverview=()=>false,isTeamLeader=()=>false,assessmentCrumbs=()=>[],SECTIONS={},TICKET_TYPE={WEEKLY:'WEEKLY',MONTHLY:'MONTHLY'},TICKET_TYPE_LABELS={WEEKLY:'Phiếu tuần'};
 const formatDateTime=x=>x,periodLabel=(_type,start,end)=>start+' - '+end,issueTickets=()=>[];
 `;
-const { code } = await transformWithOxc(stubs + source.replace(/^import .*;\r?\n/gm, '') + '\nexport {TeacherTicketsPage};', 'GoodBehaviourTicketsPage.jsx', {
-  lang: 'jsx', jsx: { runtime: 'classic' },
-});
-const {TeacherTicketsPage} = await import(`data:text/javascript;base64,${Buffer.from(
-  code.replace('from "react"', `from ${JSON.stringify(import.meta.resolve('react'))}`),
-).toString('base64')}`);
+const { code } = await transformWithOxc(
+  stubs + source.replace(/^import .*;\r?\n/gm, '') + '\nexport {TeacherTicketsPage};',
+  'GoodBehaviourTicketsPage.jsx',
+  {
+    lang: 'jsx',
+    jsx: { runtime: 'classic' },
+  },
+);
+const { TeacherTicketsPage } = await import(
+  `data:text/javascript;base64,${Buffer.from(code.replace('from "react"', `from ${JSON.stringify(import.meta.resolve('react'))}`)).toString(
+    'base64',
+  )}`
+);
 const render = (row) => {
-  globalThis.ticketHistoryFixture={period:{start:'2026-10-26',end:'2026-10-30'},periods:[],rows:[{
-    child:{id:'test',fullName:'TEST lịch sử'},eligible:true,presentDays:5,flagCount:3,...row,
-  }],rules:{WEEK_MIN_PRESENT_DAYS:4,WEEK_MIN_FLAGS:3,MONTH_MIN_WEEKLY_TICKETS:3}};
-  try{return renderToStaticMarkup(TeacherTicketsPage());}finally{delete globalThis.ticketHistoryFixture;}
+  globalThis.ticketHistoryFixture = {
+    period: { start: '2026-10-26', end: '2026-10-30' },
+    periods: [],
+    rows: [
+      {
+        child: { id: 'test', fullName: 'TEST lịch sử' },
+        eligible: true,
+        presentDays: 5,
+        flagCount: 3,
+        ...row,
+      },
+    ],
+    rules: { WEEK_MIN_PRESENT_DAYS: 4, WEEK_MIN_FLAGS: 3, MONTH_MIN_WEEKLY_TICKETS: 3 },
+  };
+  try {
+    return renderToStaticMarkup(TeacherTicketsPage());
+  } finally {
+    delete globalThis.ticketHistoryFixture;
+  }
 };
-const childCheckbox = html => html.match(/<input[^>]*aria-label="Chọn TEST lịch sử"[^>]*>/)?.[0];
+const childCheckbox = (html) => html.match(/<input[^>]*aria-label="Chọn TEST lịch sử"[^>]*>/)?.[0];
 
-test('trẻ ở lịch sử lớp cũ không thể được chọn hoặc chọn tất cả để phát lại',()=>{
-  const html=render({canIssue:false});
-  assert.match(html,/Chỉ xem lịch sử/);
-  assert.match(childCheckbox(html),/disabled/);
+test('trẻ ở lịch sử lớp cũ không thể được chọn hoặc chọn tất cả để phát lại', () => {
+  const html = render({ canIssue: false });
+  assert.match(html, /Chỉ xem lịch sử/);
+  assert.match(childCheckbox(html), /disabled/);
   assert.match(html, /aria-label="Chọn tất cả trẻ đủ điều kiện"[^>]*disabled/);
 });
-test('lớp nhận trẻ thấy căn cứ xuyên lớp và được chọn trẻ đủ điều kiện chưa phát',()=>{
-  const html=render({canIssue:true});
-  assert.doesNotMatch(childCheckbox(html),/disabled/);
-  assert.match(html,/bao gồm trước khi chuyển lớp/);
+test('lớp nhận trẻ thấy căn cứ xuyên lớp và được chọn trẻ đủ điều kiện chưa phát', () => {
+  const html = render({ canIssue: true });
+  assert.doesNotMatch(childCheckbox(html), /disabled/);
+  assert.match(html, /bao gồm trước khi chuyển lớp/);
 });
-test('phiếu đã phát nơi khác có nhãn rõ ràng và khóa phát trùng',()=>{
-  const html=render({eligible:false,canIssue:false,issuedElsewhere:true,ticket:{issuedAt:'2026-11-03'}});
-  assert.match(html,/Đã phát tại lớp khác/);
-  assert.match(html,/Đã có phiếu trong kỳ/);
-  assert.match(childCheckbox(html),/disabled/);
+test('phiếu đã phát nơi khác có nhãn rõ ràng và khóa phát trùng', () => {
+  const html = render({ eligible: false, canIssue: false, issuedElsewhere: true, ticket: { issuedAt: '2026-11-03' } });
+  assert.match(html, /Đã phát tại lớp khác/);
+  assert.match(html, /Đã có phiếu trong kỳ/);
+  assert.match(childCheckbox(html), /disabled/);
 });

@@ -864,3 +864,79 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+/* Đánh giá cuối chủ đề: bảng trẻ × MT như mẫu giấy; ô bấm đổi + / − */
+.dg-theme-table th,
+.dg-theme-table td {
+  white-space: nowrap;
+}
+/* Kẻ ngang tách phần trẻ với dòng Tổng số trẻ đạt / Tỷ lệ; ô trống cuối giữ vạch Đ | KĐ như thân bảng */
+/* Tổng kết sát dưới bảng, các dòng liền nhau như mẫu giấy (góp ý 04/11) */
+.table-wrap:has(> .dg-theme-table) {
+  margin-bottom: 0;
+}
+.dg-theme-summary {
+  padding-top: var(--space-2);
+}
+.dg-theme-summary > p {
+  margin: 0 0 var(--space-1);
+}
+.dg-theme-summary > .field__label {
+  margin-top: var(--space-2);
+}
+/* Khung ngoài đậm như mẫu giấy (góp ý 04/11) */
+.table.table--grid.dg-theme-table {
+  border: 2px solid var(--color-text-muted);
+}
+.dg-theme-table tfoot tr:first-child > * {
+  border-top: 2px solid var(--color-text-muted);
+}
+.dg-theme-cell {
+  min-width: var(--space-7);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-success);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.dg-theme-cell:hover {
+  background: var(--color-surface-muted);
+}
+.dg-theme-cell.is-not-met {
+  color: var(--color-danger);
+}
+.dg-theme-cell.is-manual {
+  border-color: var(--color-border-strong);
+}
+
+/* Xem trước bản in đánh giá cuối chủ đề: khung A4 ngang, cuộn ngang trên màn hẹp */
+.dg-doc-preview-scroll {
+  overflow-x: auto;
+}
+.dg-doc-preview {
+  display: block;
+  width: 100%;
+  min-width: calc(var(--space-16) * 16);
+  height: 70vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+/* Phiếu đánh giá sự phát triển cuối năm (BE OBS-28): như mẫu giấy, dòng lĩnh vực nền nhạt, mục tiêu xuống dòng */
+.dg-year-sheet .dg-year-sheet__domain th {
+  text-align: left;
+  background: var(--table-header-bg);
+}
+.dg-theme-table.dg-year-sheet td.dg-year-sheet__goal {
+  white-space: normal;
+  min-width: calc(var(--space-16) * 4);
+}
+.dg-year-sheet__note {
+  margin-bottom: var(--space-2);
+}
+.dg-year-sheet__note > label {
+  display: block;
+  margin-bottom: var(--space-1);
+}
