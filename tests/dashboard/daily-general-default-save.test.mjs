@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createGeneralDraft, getGeneralSaveEntries } from '@/utils/assessment/dailyGeneralDraft';
+import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries } from '@/utils/assessment/dailyGeneralDraft';
 import { createAssessmentBeApi } from '@/services/assessment/api/assessmentApi';
 
 const row = (childId, recorded = false) => ({
@@ -17,6 +17,28 @@ const row = (childId, recorded = false) => ({
   comment: '',
 });
 const sessions = ['LUNCH', 'AFTERNOON'];
+
+test('gợi ý chưa lưu không bật guard; thay đổi thật bật và hoàn tác về ban đầu thì hết dirty', () => {
+  const rows = [row('test')];
+  const original = createGeneralDraft(rows[0], sessions);
+  assert.equal(getGeneralDirtyIds(rows, sessions, {}).size, 0);
+  assert.equal(getGeneralDirtyIds(rows, sessions, { test: original }).size, 0);
+  assert.deepEqual([...getGeneralDirtyIds(rows, sessions, { test: { ...original, emotion: 'SAD' } })], ['test']);
+  assert.equal(getGeneralDirtyIds(rows, sessions, { test: { ...original, emotion: 'HAPPY' } }).size, 0);
+  assert.equal(getGeneralSaveEntries(rows, sessions, { test: original }, new Set()).length, 1);
+});
+
+test('sắp lại thứ tự các dấu hiệu vẫn là cùng nội dung và bỏ qua draft của lớp cũ', () => {
+  const rows = [{ ...row('test', true), health: { signs: ['HO', 'MET'], note: '', overridden: false }, behaviors: ['A', 'B'] }];
+  const original = createGeneralDraft(rows[0], sessions);
+  assert.equal(
+    getGeneralDirtyIds(rows, sessions, {
+      test: { ...original, healthSigns: ['MET', 'HO'], behaviors: ['B', 'A'] },
+      old: { emotion: 'SAD' },
+    }).size,
+    0,
+  );
+});
 
 test('lần đầu có thể lưu cả ba trẻ với giá trị mặc định dù chưa chỉnh ô nào', () => {
   const rows = [row('1'), row('2'), row('3')];
@@ -110,4 +132,15 @@ test('giữ mức tham gia đã lưu, không tự bổ sung giá trị cho bản
     assert.equal(createGeneralDraft({ ...row('saved', true), participation }, sessions).participation, participation);
   }
   assert.equal(createGeneralDraft(row('saved', true), sessions).participation, '');
+});
+
+test('trẻ đã chấm KTKN (hoặc có nhận xét) nhưng chưa lưu Hoạt động chung vẫn được lưu giá trị mặc định', () => {
+  const graded = { ...row('k', true), generalRecorded: false, skillsRecorded: true };
+  const saved = { ...row('g', true), generalRecorded: true, nap: 'NGU_TOT', emotion: 'HAPPY' };
+  const entries = getGeneralSaveEntries([graded, saved], sessions, {}, new Set());
+  assert.deepEqual(
+    entries.map((entry) => entry.childId),
+    ['k'],
+  );
+  assert.equal(entries[0].nap, createGeneralDraft(graded, sessions).nap);
 });

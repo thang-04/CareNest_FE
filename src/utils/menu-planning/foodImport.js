@@ -4,6 +4,9 @@ import {
   FOOD_GROUP_LABELS,
   FOOD_ORIGIN_LABELS,
   FOOD_STORAGE_LABELS,
+  MICRONUTRIENT_LABELS,
+  MICRONUTRIENT_UNITS,
+  MICRONUTRIENTS,
   defaultOriginOf,
 } from '@/models/menu-planning/menuPlanningConstants';
 import { validateFood } from '@/utils/menu-planning/menuPlanningValidation';
@@ -27,10 +30,12 @@ export const IMPORT_COLUMNS = [
   ['nutrientSource', 'Nguồn số liệu'],
   ['nutrientSourceVersion', 'Phiên bản nguồn'],
   ['origin', 'Nguồn gốc'],
+  ...MICRONUTRIENTS.map((k) => [k, `${MICRONUTRIENT_LABELS[k]} (${MICRONUTRIENT_UNITS[k]})`]),
 ];
 // File mẫu cũ chưa có hai cột nguồn số liệu (NUT-05) ⇒ vẫn đọc được, dòng thêm mới sẽ báo thiếu nguồn.
 // Cột Nguồn gốc trống/thiếu ⇒ dòng thêm mới lấy theo nhóm (thịt, thủy sản, trứng sữa là động vật)
-const OPTIONAL_COLUMNS = ['nutrientSource', 'nutrientSourceVersion', 'origin'];
+// Cột vi chất (BE NUT-26) không bắt buộc: file mẫu cũ không có vẫn đọc được
+const OPTIONAL_COLUMNS = ['nutrientSource', 'nutrientSourceVersion', 'origin', ...MICRONUTRIENTS];
 export const IMPORT_TEMPLATE_URL = '/templates/thuc-pham-mau.xlsx';
 // File mẫu tải trước khi đổi tên cột vẫn ghi "Bột" nên vẫn nhận tên cũ
 const HEADER_ALIASES = { glucid: ['Bột'] };
@@ -38,7 +43,7 @@ const HEADER_ALIASES = { glucid: ['Bột'] };
 const norm = (v) => normalizeText(String(v ?? '')).trim();
 const blank = (v) => v === null || v === undefined || String(v).trim() === '';
 const byLabel = (labels, value) => Object.keys(labels).find((k) => norm(labels[k]) === norm(value));
-const NUTRIENTS = ['kcal', 'protein', 'lipid', 'glucid'];
+const NUTRIENTS = ['kcal', 'protein', 'lipid', 'glucid', ...MICRONUTRIENTS];
 const FIELD_LABELS = Object.fromEntries(IMPORT_COLUMNS);
 
 /** Đọc sheet đầu tiên của file .xlsx thành mảng dòng (thư viện chỉ tải khi dùng). */

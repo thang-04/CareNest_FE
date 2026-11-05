@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Download, Upload } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { saveFoodsBulk } from '@/services/menu-planning/menuPlanningService';
+import { getFoods, saveFoodsBulk } from '@/services/menu-planning/menuPlanningService';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { Spinner } from '@/components/ui/States';
 import { IMPORT_TEMPLATE_URL, importFieldLabel, matchFoodRows, readFoodFile } from '@/utils/menu-planning/foodImport';
@@ -12,7 +12,7 @@ import { LottiePlayer } from '@/components/ui/LottiePlayer';
 const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
 
 /** Nhập khẩu cập nhật thực phẩm từ file .xlsx: tải file mẫu → chọn file → xem trước Mới / Cập nhật / Lỗi → ghi các dòng hợp lệ. */
-export function FoodImportPanel({ open, onClose, foods }) {
+export function FoodImportPanel({ open, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
   const [fileName, setFileName] = useState('');
@@ -35,10 +35,22 @@ export function FoodImportPanel({ open, onClose, foods }) {
     if (!file) return;
     setFileName(file.name);
     setReading(true);
+    // Danh mục hiện có lấy lúc chọn file (trang không tải sẵn) để đối chiếu Mới / Cập nhật với dữ liệu mới nhất
+    const foods = getFoods({}, user);
+    let rows;
     try {
-      setResult(matchFoodRows(await readFoodFile(file), foods));
+      rows = await readFoodFile(file);
     } catch {
+      foods.catch(() => {}); // file hỏng thì không cần danh mục nữa
       setResult({ creates: [], updates: [], errors: [{ row: '—', reason: 'Không đọc được file. Hãy dùng file .xlsx theo file mẫu.' }] });
+      setReading(false);
+      return;
+    }
+    try {
+      setResult(matchFoodRows(rows, await foods));
+    } catch (err) {
+      toast.error(err, 'Không tải được danh mục thực phẩm để đối chiếu');
+      setFileName('');
     } finally {
       setReading(false);
     }

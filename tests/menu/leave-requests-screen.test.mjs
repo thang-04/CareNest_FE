@@ -25,9 +25,16 @@ test('teachers and leaders see the parent leave list in the attendance menu', ()
 test('leave list calls GET /leave-requests with the chosen filters', async () => {
   const calls = [];
   const api = createAttendanceBeApi({ get: async (url, config) => (calls.push({ url, config }), []) });
-  await api.searchLeaveRequests({ from: '2026-10-01', to: '2026-10-31', classId: '5' });
+  await api.searchLeaveRequests({ from: '2026-10-01', to: '2026-10-31', classId: '5', schoolYear: 7 });
   assert.equal(calls[0].url, '/leave-requests');
-  assert.deepEqual(calls[0].config.params, { from: '2026-10-01', to: '2026-10-31', campusId: undefined, classId: '5' });
+  // Năm học chọn ở đầu trang gửi kèm để xem lại đơn của năm cũ
+  assert.deepEqual(calls[0].config.params, {
+    from: '2026-10-01',
+    to: '2026-10-31',
+    campusId: undefined,
+    classId: '5',
+    schoolYearId: 7,
+  });
 });
 
 test('teachers and team leaders see the monthly quality report in the assessment menu', () => {

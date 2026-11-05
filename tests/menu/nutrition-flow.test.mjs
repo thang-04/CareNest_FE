@@ -13,8 +13,8 @@ const price = (ageGroupId) => ({ ageGroupId, effectiveFrom: '2026-01-01', effect
 const keysOf = (role, key) => menuGroup(role, key).children.map((c) => c.key);
 const menuGroupOf = (entries, key) => entries.find((m) => m.key === key);
 
-test('PHT: sáu nhóm bán trú theo việc', () => {
-  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'boardingToday'), ['boardingToday']);
+test('PHT: khu bán trú gồm Bán trú hôm nay và năm nhóm theo việc', () => {
+  assert.equal(menuGroup(ROLES.VICE_PRINCIPAL, 'boardingToday').to, '/boarding/today');
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'nutrition'), ['weeklyMenus', 'menus', 'nutrition']);
   // PHT xem Bếp hôm nay như HT (GET /nutrition/kitchen/day cho HT, PHT)
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts']);
@@ -61,10 +61,7 @@ test('PHT chưa được giao mảng thực đơn: ẩn nhóm thực đơn và c
     ['suppliers'],
     'vẫn xem được NCC khi lập phiếu nhập',
   );
-  assert.deepEqual(
-    menuGroupOf(entries, 'boardingToday').children.map((c) => c.key),
-    ['boardingToday'],
-  );
+  assert.equal(menuGroupOf(entries, 'boardingToday').to, '/boarding/today');
   assert.ok(menuGroupOf(entries, 'kitchenOps').children.some((c) => c.key === 'mealCount'));
   assert.deepEqual(
     entries.find((entry) => entry.key === 'attendance').children.map((entry) => entry.key),

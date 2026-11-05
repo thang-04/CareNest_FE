@@ -24,18 +24,19 @@ export const getMenuAccess = (user) => repo.getAccess(user);
  * thực phẩm, món, thực đơn vẫn theo module menu-planning.
  */
 export const loadMenuCatalog = async ({ user, menuRepo, catalogApi, usesApi, today }) => {
-  const catalog = await menuRepo.getCatalog(user);
-  if (!usesApi) return catalog;
-  return { ...catalog, ...(await catalogApi.getEffectiveSetups(today)) };
+  if (!usesApi) return menuRepo.getCatalog(user);
+  // Hai nguồn độc lập ⇒ tải song song, không chờ nối tiếp trên mạng chậm
+  const [catalog, setups] = await Promise.all([menuRepo.getCatalog(user), catalogApi.getEffectiveSetups(today)]);
+  return { ...catalog, ...setups };
 };
 export const getMenuCatalog = (user) =>
   loadMenuCatalog({ user, menuRepo: repo, catalogApi: nutritionCatalogApi, usesApi: catalogUsesApi(), today: todayInput() });
 /** Như getMenuCatalog nhưng thực phẩm lấy từ nguồn danh mục (màn thực phẩm, món): id thực phẩm khớp với món đang sửa. */
 export const getCatalogLookups = async (user) => {
-  const catalog = await getMenuCatalog(user);
-  if (!catalogUsesApi()) return catalog;
+  if (!catalogUsesApi()) return getMenuCatalog(user);
+  const [catalog, foods] = await Promise.all([getMenuCatalog(user), catalogRepo.listFoods({}, user)]);
   // Món của BE không nằm trong dữ liệu mẫu ⇒ không tra món theo id mẫu
-  return { ...catalog, foods: await catalogRepo.listFoods({}, user), dishes: [] };
+  return { ...catalog, foods, dishes: [] };
 };
 /** [{ allergen, childCount, classes: [{ classId, className, campusId, ageGroupId, count }] }] – counts only. */
 export const getAllergyContext = (ageGroupId, user) => repo.getAllergyContext(ageGroupId, user);

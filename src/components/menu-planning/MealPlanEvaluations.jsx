@@ -38,7 +38,7 @@ function RowCell({ row }) {
   return (
     <td className={`td-eval__cell td-eval__cell--${ROW_TONE[row.status] || 'muted'}`} title={rangeTitle(row, share ? '%' : unit)}>
       <span className="fw-600">
-        {formatQty(row.value)} {unit}
+        {row.value == null ? '—' : `${formatQty(row.value)} ${unit}`}
         {suffix}
       </span>
       <small>{statusNote(row)}</small>

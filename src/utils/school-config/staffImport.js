@@ -4,7 +4,8 @@ import { ROLES, ROLE_LABELS } from '@/models/User';
 /** Tài khoản nhân sự › nhập / xuất Excel (Cần 31/10/2026). Giới hạn khớp BE `CreateAccountRequest` (AUTH-15, AUTH-21). */
 export const STAFF_TEMPLATE_URL = '/templates/tai-khoan-nhan-su-mau.xlsx';
 export const STAFF_SHEET = 'Nhân sự';
-export const STAFF_COLUMNS = ['Họ tên', 'Số điện thoại', 'Email', 'Vai trò', 'Điểm trường', 'Lớp'];
+// GV không chọn lớp khi tạo (BE AUTH-15 từ 01/11/2026): file cũ còn cột "Lớp" phía sau thì bị bỏ qua
+export const STAFF_COLUMNS = ['Họ tên', 'Số điện thoại', 'Email', 'Vai trò', 'Điểm trường'];
 export const STAFF_ROLES = [ROLES.VICE_PRINCIPAL, ROLES.TEACHER, ROLES.KITCHEN_STAFF];
 export const NAME_MAX = 150;
 export const EMAIL_MAX = 255;
@@ -61,33 +62,35 @@ const findCampus = (campuses, v) => campuses.find((c) => [c.shortName, c.name, c
 const roleOf = (v) => STAFF_ROLES.find((r) => key(ROLE_LABELS[r]) === key(v) || key(r) === key(v)) || '';
 
 /**
- * Sheet "Nhân sự" → { items, errors }. Kiểm như form tạo; trùng SĐT / email trong file hoặc với tài khoản đã có thì báo lỗi dòng.
- * existing: [{ phone, email }] của tài khoản đang có. BE kiểm lại khi lưu.
+ * Sheet "Nhân sự" → { items, errors, ignoredColumns }. Kiểm như form tạo; trùng SĐT / email trong file hoặc với tài khoản đã có thì báo lỗi dòng.
+ * existing: [{ phone, email }] của tài khoản đang có. Cột thừa sau "Điểm trường" (vd. "Lớp" của file mẫu cũ) bị bỏ qua. BE kiểm lại khi lưu.
  */
-export function matchStaffRows(rows, { campuses = [], classes = [], existing = [] }) {
+export function matchStaffRows(rows, { campuses = [], existing = [], teacherCampusRequired = false }) {
   const errors = [];
   const items = [];
-  if (!rows) return { items, errors: [{ row: '—', name: '—', reason: `Thiếu sheet "${STAFF_SHEET}". Hãy tải file mẫu và điền lại.` }] };
+  if (!rows)
+    return {
+      items,
+      errors: [{ row: '—', name: '—', reason: `Thiếu sheet "${STAFF_SHEET}". Hãy tải file mẫu và điền lại.` }],
+      ignoredColumns: [],
+    };
   const [header, ...body] = rows;
   if (!header || STAFF_COLUMNS.some((c, i) => key(header[i]) !== key(c))) {
-    return { items, errors: [{ row: 1, name: '—', reason: 'Dòng tiêu đề không đúng file mẫu.' }] };
+    return { items, errors: [{ row: 1, name: '—', reason: 'Dòng tiêu đề không đúng file mẫu.' }], ignoredColumns: [] };
   }
+  const ignoredColumns = header.slice(STAFF_COLUMNS.length).map(text).filter(Boolean);
   const phones = new Set(existing.map((a) => normalizePhone(a.phone)).filter(Boolean));
   const emails = new Set(existing.map((a) => key(a.email)).filter(Boolean));
   body.forEach((cells = [], i) => {
-    const [fullName, phone, email, roleText, campusText, classText] = STAFF_COLUMNS.map((_, j) => text(cells[j]));
-    if (![fullName, phone, email, roleText, campusText, classText].some(Boolean)) return;
+    const [fullName, phone, email, roleText, campusText] = STAFF_COLUMNS.map((_, j) => text(cells[j]));
+    if (![fullName, phone, email, roleText, campusText].some(Boolean)) return;
     const row = i + 2;
     const campus = campusText ? findCampus(campuses, campusText) : null;
     const role = roleOf(roleText);
-    const cls = classText
-      ? classes.find((c) => key(c.name) === key(classText) && (!campus || String(c.campusId) === String(campus.id))) || null
-      : null;
-    const form = { fullName, phone, email, role, campusId: campus?.id || cls?.campusId || '', classroomId: cls?.id || '' };
-    const e = validateStaffAccount(form, { campuses });
+    const form = { fullName, phone, email, role, campusId: campus?.id || '' };
+    const e = validateStaffAccount(form, { campuses, teacherCampusRequired });
     if (roleText && !role) e.role = `Vai trò "${roleText}" không đúng (Phó hiệu trưởng, Giáo viên, Nhân viên bếp)`;
     if (campusText && !campus) e.campusId = `Không có điểm trường "${campusText}"`;
-    if (classText && !cls) e.classroomId = `Không có lớp "${classText}"${campus ? ` ở ${campus.shortName || campus.name}` : ''}`;
     const p = normalizePhone(phone);
     if (p && phones.has(p)) e.phone = `Số điện thoại ${p} đã có tài khoản hoặc trùng trong file`;
     if (email && emails.has(key(email))) e.email = `Email ${email} đã có tài khoản hoặc trùng trong file`;
@@ -98,14 +101,14 @@ export function matchStaffRows(rows, { campuses = [], classes = [], existing = [
     }
     if (p) phones.add(p);
     if (email) emails.add(key(email));
-    items.push({ row, form, campusName: campus?.shortName || campus?.name || '', className: cls?.name || '' });
+    items.push({ row, form, campusName: campus?.shortName || campus?.name || '' });
   });
-  return { items, errors };
+  return { items, errors, ignoredColumns };
 }
 
-/** Dòng xuất file theo cùng cột file mẫu (thêm Trạng thái), để sửa rồi nhập lại được. */
+/** Dòng xuất file: cột file mẫu trước (sửa rồi nhập lại được, cột sau bị bỏ qua), thêm lớp đang dạy và trạng thái để tra cứu. */
 export const staffExportRows = (accounts) => [
-  [...STAFF_COLUMNS, 'Trạng thái'],
+  [...STAFF_COLUMNS, 'Lớp đang dạy', 'Trạng thái'],
   ...accounts.map((a) => [
     a.fullName,
     a.phone || '',
