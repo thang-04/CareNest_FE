@@ -221,3 +221,10 @@ Làn L:            ghi đủ vào Progress log của plan; chat chỉ tóm tắt
 - VERIFY PASS full | npm run verify | log verify.log sau lần sửa test cuối; 59/59 education-plan tests.
 - E2E feature003 trên BE/Keycloak thật: 13 passed (1.0m), zero fail/skip; chọn/reset, quyền/lease, source freshness, lỗi/race, 200 goals/responsive, manual-save retry/reopen/preservation đều qua. Dọn 0 fixture import còn sót.
 - Converge cuối 22/22 task, không actionable gap; [bằng chứng/command/giới hạn](../../../CareNest_BE/specs/003-import-year-plan-goals/quickstart.md). Không tuyên bố toàn bộ E2E feature khác đã chạy; không commit hoặc đưa secret vào log.
+
+
+## Điểm danh, sức khỏe, chủ đề — 05/11/2026
+- `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`; 840 tests, fail 0, skip 0. Các lần fail trước do harness bỏ import một dòng và import chéo module đều đã sửa nguyên nhân, giữ lint/format gate.
+- BE full: 1039 tests, fail/error/skip 0, archunit/snapshot/spotless đạt. [Ca test và giới hạn](2026-11-05-attendance-health-ui-fixes.md).
+- Browser Chrome thật xác nhận nhập 385/38.5/38,5; tải workbook hai sheet đủ 44 ngày/15 trẻ, tổng 600 khớp UI. Chủ đề confirmed có dropdown/badge đồng nhất và khóa sửa. Có test response chậm cho handler.
+- Nhiệt độ: user chọn chờ thiết bị, không đóng lỗi 99°C. Chưa full browser E2E ba role, không thay runtime BE đang mở ở IntelliJ, không commit/push.
