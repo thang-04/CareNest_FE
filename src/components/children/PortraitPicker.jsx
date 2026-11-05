@@ -3,16 +3,19 @@ import { Upload, Trash2 } from '@/components/ui/icons';
 import { PortraitImage } from '@/components/PortraitImage';
 import { PORTRAIT_ACCEPT, portraitFileError } from '@/utils/children/enrollmentPhotos';
 
-export function PortraitPicker({ label, file, identity, onChange, error, disabled }) {
-  const id = useId();
+export function PortraitPicker({ label, file, identity, onChange, error, disabled, embedded = false, inputId, labelledBy }) {
+  const generatedId = useId();
+  const id = inputId || generatedId;
   const input = useRef(null);
   const [localError, setLocalError] = useState('');
   useEffect(() => setLocalError(''), [file, identity]);
   return (
-    <div className="field">
-      <label className="field__label" htmlFor={id}>
-        {label}
-      </label>
+    <div className={embedded ? 'tr-portrait-picker' : 'field'}>
+      {!embedded && (
+        <label className="field__label" htmlFor={id}>
+          {label}
+        </label>
+      )}
       <div className="row row--wrap gap-3">
         <PortraitImage source={file} alt={label} className="avatar avatar--xl avatar--photo">
           <span className="avatar avatar--xl muted" aria-hidden="true">
@@ -27,6 +30,7 @@ export function PortraitPicker({ label, file, identity, onChange, error, disable
             type="file"
             accept={PORTRAIT_ACCEPT}
             disabled={disabled}
+            aria-labelledby={labelledBy}
             aria-describedby={`${id}-hint${localError || error ? ` ${id}-error` : ''}`}
             onChange={(event) => {
               const selected = event.target.files?.[0];

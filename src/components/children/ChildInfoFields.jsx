@@ -1,7 +1,7 @@
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { normalizeRecipients } from '@/utils/children/accountRecipient';
 import { Plus, Trash2, UserCheck } from '@/components/ui/icons';
-import { IntakeChoiceField, IntakeField, IntakeSheet } from './IntakeSheet';
+import { IntakeChoiceField, IntakeField, IntakePortraitField, IntakeSheet } from './IntakeSheet';
 import { ChildProfileFields } from './ChildProfileFields';
 import { ParentAccountBadge } from './ChildBadges';
 import { GENDER_LABELS } from '@/models/School';
@@ -82,9 +82,9 @@ export function ChildInfoFields({
   const childBlock = (
     <>
       {!sheet && <h2 className="card__title mb-12">Thông tin của trẻ</h2>}
-      <div className={sheet ? 'tr-intake-person' : undefined}>
-        {photosEnabled && (
-          <div className={sheet ? 'tr-intake-portrait' : 'mb-16'}>
+      <div className={sheet ? undefined : 'tr-intake-person'}>
+        {photosEnabled && !sheet && (
+          <div className="mb-16">
             <PortraitPicker
               label="Ảnh của trẻ"
               file={value.photoFile}
@@ -95,6 +95,15 @@ export function ChildInfoFields({
           </div>
         )}
         <Fields {...(sheet ? { title: 'I. Thông tin của trẻ' } : { className: split ? 'stack gap-4' : 'grid-3' })}>
+          {photosEnabled && sheet && (
+            <IntakePortraitField
+              label="Ảnh của trẻ"
+              file={value.photoFile}
+              onChange={(file) => set('photoFile', file)}
+              error={errors.photo}
+              disabled={disabled}
+            />
+          )}
           <IntakeField sheet={sheet} label="Họ và tên trẻ" required error={errors.fullName}>
             <input
               className="input"
@@ -228,9 +237,9 @@ export function ChildInfoFields({
                   Nhận tài khoản phụ huynh
                 </label>
               )}
-              <div className={sheet ? 'tr-intake-person' : undefined}>
-                {photosEnabled && (
-                  <div className={sheet ? 'tr-intake-portrait' : 'mb-12'}>
+              <div className={sheet ? undefined : 'tr-intake-person'}>
+                {photosEnabled && !sheet && (
+                  <div className="mb-12">
                     <PortraitPicker
                       label={`Ảnh phụ huynh ${i + 1}`}
                       identity={g}
@@ -242,6 +251,16 @@ export function ChildInfoFields({
                   </div>
                 )}
                 <Fields {...(sheet ? { title: 'Thông tin phụ huynh ' + (i + 1) } : { className: 'tr-guardian__grid' })}>
+                  {photosEnabled && sheet && (
+                    <IntakePortraitField
+                      label={`Ảnh phụ huynh ${i + 1}`}
+                      identity={g}
+                      file={g.photoFile}
+                      onChange={(file) => setGuardian(i, 'photoFile', file)}
+                      error={errors[`guardians.${i}.photo`]}
+                      disabled={disabled}
+                    />
+                  )}
                   <IntakeField
                     sheet={sheet}
                     label="Số CCCD"

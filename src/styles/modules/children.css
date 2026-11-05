@@ -107,6 +107,25 @@
   height: calc(var(--space-16) * 1.75);
   border-radius: var(--radius-sm);
 }
+.tr-intake .tr-portrait-picker {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.tr-intake .tr-portrait-picker .row {
+  display: contents;
+}
+.tr-intake .tr-portrait-picker .avatar--photo {
+  width: calc(var(--space-16) * 1.5);
+  height: calc(var(--space-16) * 1.75);
+  flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+}
+.tr-intake .tr-portrait-picker .stack {
+  flex: 1 1 calc(var(--space-16) * 5);
+  min-width: min(100%, calc(var(--space-16) * 5));
+}
 .tr-intake .tr-exam-sheet .field {
   margin: 0;
 }
@@ -148,6 +167,9 @@
   }
   .tr-intake-portrait .avatar--photo {
     flex-shrink: 0;
+  }
+  .tr-intake .tr-portrait-picker {
+    align-items: center;
   }
   .tr-intake-portrait .stack {
     min-width: 0;
