@@ -31,7 +31,10 @@ const initialRows = (from, targets) => {
       ch.id,
       ch.placement
         ? { action: ch.placement.action, toClassId: ch.placement.toClassId || '' }
-        : { action: first, toClassId: defaultTarget(targets, from, first) },
+        : // BE CFG-YR-04: lớp ra trường chỉ gợi ý "Ra trường" khi trẻ đã hoàn thành chương trình; còn lại HT tự chọn
+          from.graduating && ch.programCompleted !== true
+          ? { action: '', toClassId: '' }
+          : { action: first, toClassId: defaultTarget(targets, from, first) },
     ]),
   );
 };
@@ -109,8 +112,8 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
   const submit = async () => {
     const missing = Object.fromEntries(
       Object.entries(rows)
-        .filter(([, r]) => PLACEMENT_IN_CLASS.includes(r.action) && !r.toClassId)
-        .map(([id]) => [id, 'Chọn lớp năm học mới']),
+        .filter(([, r]) => !r.action || (PLACEMENT_IN_CLASS.includes(r.action) && !r.toClassId))
+        .map(([id, r]) => [id, r.action ? 'Chọn lớp năm học mới' : 'Chọn ra trường hoặc ở lại']),
     );
     setErrors(missing);
     if (Object.keys(missing).length || over.length) return;

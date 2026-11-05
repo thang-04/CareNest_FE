@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Clock4, Save, Lock } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,7 +46,11 @@ export default function CutoffSettingPage() {
   const [historyPage, setHistoryPage] = useState(1);
   const [params, setParams] = useSearchParams();
   const tab = ['semester', 'holidays'].includes(params.get('tab')) ? params.get('tab') : 'cutoff';
-  const changeTab = (key) =>
+  // Tab Học kỳ / Ngày nghỉ báo còn thay đổi chưa lưu; đổi tab hay rời màn đều hỏi như tab giờ chốt
+  const [childDirty, setChildDirty] = useState(false);
+  const childSave = useRef(null);
+  const switchTab = (key) => {
+    setChildDirty(false);
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -56,6 +60,7 @@ export default function CutoffSettingPage() {
       },
       { replace: true },
     );
+  };
 
   // New values apply from today at the earliest: retroactive changes are not specified (UC 2.7).
   useEffect(() => {
@@ -70,7 +75,11 @@ export default function CutoffSettingPage() {
 
   const dirty = !!initial && ['time', 'effectiveFrom', 'note'].some((key) => form[key] !== initial[key]);
   // Rời màn khi đang sửa giờ chốt ⇒ hỏi; "Lưu" trong hộp kiểm tra rồi lưu như nút Lưu giờ chốt
-  const guard = useLeaveGuard({ when: dirty && !saving, onSave: () => (validate() ? persist() : false) });
+  const guard = useLeaveGuard({
+    when: (dirty && !saving) || childDirty,
+    onSave: () => (tab === 'cutoff' ? (validate() ? persist() : false) : (childSave.current?.() ?? false)),
+  });
+  const changeTab = (key) => key !== tab && guard.leave(() => switchTab(key));
 
   if (!canConfigureCutoff(user))
     return (
@@ -89,6 +98,9 @@ export default function CutoffSettingPage() {
 
   const validate = () => {
     const e = validateCutoff(form, year);
+    // Như BE CUTOFF_DATE_PAST: đã có giờ chốt thì lần đổi sau chỉ áp dụng từ hôm nay (gõ tay vượt được min của ô ngày)
+    if (!e.effectiveFrom && setting?.history?.length && form.effectiveFrom < todayInput())
+      e.effectiveFrom = 'Giờ chốt mới chỉ áp dụng từ hôm nay trở đi';
     if (!e.time && setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
       e.time = 'Giờ chốt và ngày áp dụng chưa thay đổi';
     setErrors(e);
@@ -126,9 +138,9 @@ export default function CutoffSettingPage() {
       </div>
 
       {tab === 'semester' ? (
-        <SemesterSetting yearId={yearId} />
+        <SemesterSetting yearId={yearId} onDirtyChange={setChildDirty} saveRef={childSave} />
       ) : tab === 'holidays' ? (
-        <HolidaySetting yearId={yearId} />
+        <HolidaySetting yearId={yearId} onDirtyChange={setChildDirty} saveRef={childSave} />
       ) : error ? (
         <ErrorState error={error} onRetry={reload} />
       ) : loading || !year ? (
@@ -140,7 +152,7 @@ export default function CutoffSettingPage() {
               {setting ? (
                 <div className="sc-cutoff">
                   <Clock4 size={20} className="text-primary" aria-hidden="true" />
-                  <span>Giờ chốt đang áp dụng</span>
+                  <span>{setting.effectiveFrom > todayInput() ? 'Giờ chốt sắp áp dụng' : 'Giờ chốt đang áp dụng'}</span>
                   <b className="sc-cutoff__time">{setting.time}</b>
                   <span className="text-sm text-2">
                     từ {formatDate(setting.effectiveFrom)} · năm học {year.name}

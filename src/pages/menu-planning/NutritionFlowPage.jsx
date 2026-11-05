@@ -24,7 +24,6 @@ export default function NutritionFlowPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Quản lý dinh dưỡng</h1>
-          <p className="page__desc">Đi lần lượt từ thiết lập tới đi chợ. Bấm vào một bước để mở.</p>
         </div>
       </div>
       <section className="card">

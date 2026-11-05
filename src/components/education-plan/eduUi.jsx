@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import {
   AlertOctagon,
   AlertTriangle,
@@ -96,9 +96,10 @@ export const YearPlanStatusBadge = createStatusBadge(
     PENDING_VP: ['purple', Clock],
     PENDING_HT: ['purple', Clock],
     APPROVED: ['green', CheckCircle2],
+    REPLACED: ['gray', FileText],
     REJECTED: ['red', XCircle],
   },
-  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành' },
+  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành', REPLACED: 'Đã thay thế' },
 );
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */
@@ -136,6 +137,25 @@ export function Card({ title, num, actions, children, foot, bodyClass = 'card__b
         </>
       )}
     </section>
+  );
+}
+
+/** Mục có tiêu đề thu gọn / mở được trong thân thẻ (kế hoạch tuần, ngày), cùng kiểu nút với Card (Tiền 04/11). */
+export function FoldSection({ title, children }) {
+  const [open, setOpen] = useState(true);
+  const bodyId = useId();
+  return (
+    <>
+      <div className={`section-title ${open ? '' : 'ga-card--collapsed'}`}>
+        <button type="button" className="ga-card-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((o) => !o)}>
+          <ChevronDown size={18} aria-hidden className="ga-card-toggle__icon" />
+          {title}
+        </button>
+      </div>
+      <div id={bodyId} className="stack" hidden={!open}>
+        {children}
+      </div>
+    </>
   );
 }
 

@@ -17,6 +17,10 @@ import {
   getClassAssessmentOverview,
   getQualityReport,
   getClassRatings,
+  getThemeEvaluation,
+  getYearEndSheet,
+  getThemeClasses,
+  getThemeList,
   getProgramCompletion,
   getClassAssessmentDetail,
 } from '@/services/assessment/assessmentService';
@@ -54,7 +58,8 @@ export function useDailyAssessment(params) {
   const { user } = useAuth();
   const key = JSON.stringify(params || {});
   const { data, loading, error, reload } = useAsync(() => getDailyAssessment(params, user), [key, user?.id], {
-    enabled: !!params?.classId && !!params?.date,
+    // Không có ngày: BE chọn ngày học gần nhất (bỏ ngày nghỉ trong cấu hình năm học)
+    enabled: !!params?.classId,
   });
   return { sheet: data, loading, error, reload };
 }
@@ -166,6 +171,39 @@ export function useProgramCompletion(params, { enabled = true } = {}) {
     enabled,
   });
   return { report: data, loading, error, reload };
+}
+
+/** Lớp (mọi nhóm tuổi) xem được ở đánh giá cuối chủ đề (BE trả theo phạm vi: GV lớp mình, tổ trưởng lớp nhóm tuổi, HT/PHT). */
+export function useThemeClasses() {
+  const { user } = useAuth();
+  const { schoolYear } = useSchoolYear();
+  const { data, loading, error, reload } = useAsync(() => getThemeClasses({ schoolYear }, user), [schoolYear, user?.id]);
+  return { classes: data || [], loading, error, reload };
+}
+
+export function useThemeList(classId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getThemeList({ classId }, user), [classId, user?.id], {
+    enabled: !!classId,
+  });
+  return { themes: data || [], loading, error, reload };
+}
+
+export function useThemeEvaluation(classId, themeId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getThemeEvaluation({ classId, themeId }, user), [classId, themeId, user?.id], {
+    enabled: !!classId && !!themeId,
+  });
+  return { evaluation: data, loading, error, reload };
+}
+
+/** Phiếu đánh giá sự phát triển cuối năm của một đánh giá cuối năm. */
+export function useYearEndSheet(evaluationId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getYearEndSheet(evaluationId, user), [evaluationId, user?.id], {
+    enabled: !!evaluationId,
+  });
+  return { sheet: data, loading, error, reload };
 }
 
 export function useClassRatings(params) {

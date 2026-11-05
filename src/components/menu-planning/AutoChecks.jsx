@@ -41,7 +41,7 @@ export function AutoChecks({
               <table className="table table--grid td-ai-meals">
                 <thead>
                   <tr>
-                    <th />
+                    <th>Chỉ số</th>
                     <th className="num">Thực đơn</th>
                     <th className="num">Định mức</th>
                   </tr>

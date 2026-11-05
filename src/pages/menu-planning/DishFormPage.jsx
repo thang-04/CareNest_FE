@@ -192,31 +192,35 @@ export default function DishFormPage() {
             null
           }
           actions={
-            draftMode ? (
-              <>
-                <Link className="btn" to="/menu/dishes">
-                  <X size={16} /> Hủy
-                </Link>
-                <button type="button" className="btn" disabled={busy} onClick={() => submit(null, false, DISH_STATUS.DRAFT)}>
-                  <Save size={16} /> Lưu nháp
-                </button>
-                <button type="button" className="btn btn--primary" disabled={busy} onClick={() => submit(null, false, DISH_STATUS.ACTIVE)}>
-                  {busy ? <Spinner small /> : <Save size={16} />} Lưu và dùng cho thực đơn
-                </button>
-              </>
-            ) : (
-              <>
-                <Link className="btn" to="/menu/dishes">
-                  <X size={16} /> Hủy
-                </Link>
-                <button type="button" className="btn" disabled={busy} onClick={() => submit(null, true)}>
-                  <Save size={16} /> Lưu & thêm mới
-                </button>
-                <button type="submit" className="btn btn--primary" disabled={busy}>
-                  {busy ? <Spinner small /> : <Save size={16} />} Lưu
-                </button>
-              </>
-            )
+            <>
+              <Link className="btn" to="/menu/dishes">
+                <X size={16} /> Hủy
+              </Link>
+              {draftMode ? (
+                <>
+                  <button type="button" className="btn" disabled={busy} onClick={() => submit(null, false, DISH_STATUS.DRAFT)}>
+                    <Save size={16} /> Lưu nháp
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    disabled={busy}
+                    onClick={() => submit(null, false, DISH_STATUS.ACTIVE)}
+                  >
+                    {busy ? <Spinner small /> : <Save size={16} />} Lưu và dùng cho thực đơn
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="btn" disabled={busy} onClick={() => submit(null, true)}>
+                    <Save size={16} /> Lưu & thêm mới
+                  </button>
+                  <button type="submit" className="btn btn--primary" disabled={busy}>
+                    {busy ? <Spinner small /> : <Save size={16} />} Lưu
+                  </button>
+                </>
+              )}
+            </>
           }
         />
 
@@ -365,9 +369,7 @@ export default function DishFormPage() {
                         )}
                       </th>
                     ))}
-                    <th className="center">
-                      <span className="sr-only">Xóa</span>
-                    </th>
+                    <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -415,7 +417,7 @@ export default function DishFormPage() {
                             </td>
                           );
                         })}
-                        <td className="center">
+                        <td className="cell--actions">
                           <button
                             type="button"
                             className="icon-btn"

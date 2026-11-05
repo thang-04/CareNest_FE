@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Download, History, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Download, History, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { useRewardList, useRewardLists } from '@/hooks/assessment/useAssessment';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
@@ -24,7 +24,7 @@ import {
   REWARD_PROGRAM_TITLES,
 } from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { findDiagnosticTerms, validateDecision } from '@/utils/assessment/assessmentValidation';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
@@ -52,15 +52,17 @@ const noteError = (note) => {
   return terms.length ? `Không dùng từ mang tính chẩn đoán “${terms[0]}”, hãy mô tả điều cô quan sát được.` : '';
 };
 
-// Trẻ chưa có danh hiệu đã lưu (lớp chưa lập hoặc chưa chọn cho trẻ): tích sẵn danh hiệu BE gợi ý, GV bỏ tích nếu
-// không đồng ý rồi Lưu
-const toForm = (detail) =>
-  Object.fromEntries(
+// Lớp chưa lập danh sách: tích sẵn danh hiệu BE gợi ý, GV bỏ tích nếu không đồng ý rồi Lưu. Đã lưu rồi thì giữ đúng
+// bản đã lưu (trẻ GV đã bỏ tích không bị tích lại); gợi ý vẫn hiện chữ và nút "Chọn theo gợi ý"
+const toForm = (detail) => {
+  const fresh = detail?.canEdit && (!detail.status || detail.status === 'NONE');
+  return Object.fromEntries(
     (detail?.children || []).map((c) => [
       c.childId,
-      { titles: c.titles?.length ? c.titles : detail.canEdit ? c.suggested || [] : [], note: c.note || '' },
+      { titles: c.titles?.length ? c.titles : fresh ? c.suggested || [] : [], note: c.note || '' },
     ]),
   );
+};
 // So bản đang sửa với bản đã lưu (không phụ thuộc thứ tự chọn danh hiệu, khoảng trắng ghi chú)
 const formKey = (form) =>
   JSON.stringify(
@@ -171,7 +173,16 @@ export default function RewardClassPage() {
       .filter((i) => i.titles.length > 0);
 
   const check = (send) => {
-    const e = Object.fromEntries(d.children.map((c) => [c.childId, noteError(form[c.childId]?.note)]).filter(([, m]) => m));
+    // Ghi chú chỉ lưu kèm danh hiệu: trẻ có ghi chú mà chưa chọn danh hiệu thì báo, không bỏ ngầm
+    const e = Object.fromEntries(
+      d.children
+        .map((c) => {
+          const f = form[c.childId];
+          const lonely = f?.note.trim() && !f.titles.length ? 'Chọn danh hiệu cho trẻ hoặc xóa ghi chú.' : '';
+          return [c.childId, noteError(f?.note) || lonely];
+        })
+        .filter(([, m]) => m),
+    );
     setErrors(e);
     if (Object.keys(e).length) {
       setListError('Có ghi chú chưa hợp lệ, xem các ô báo đỏ.');
@@ -225,7 +236,7 @@ export default function RewardClassPage() {
   };
 
   const exportCsv = () =>
-    downloadXlsx(
+    exportWithPreview(
       [
         ['STT', 'Họ tên', 'Ngày sinh', 'Danh hiệu', 'Ghi chú'],
         ...d.children
@@ -271,6 +282,15 @@ export default function RewardClassPage() {
         <ProgressSteps steps={steps} />
       </div>
 
+      {d.unrecordedDays?.length > 0 && (
+        <div className="alert alert--warning mt-16" role="status">
+          <AlertTriangle size={18} />
+          <div>
+            Lớp chưa điểm danh {d.unrecordedDays.length} ngày học: {d.unrecordedDays.map((x) => formatDate(x)).join(', ')}. Những ngày này
+            vẫn tính là ngày học (trẻ chưa có mặt) khi xét Bé chăm; giáo viên bổ sung qua mở lại điểm danh.
+          </div>
+        </div>
+      )}
       {returnedBy && (
         <div className="alert alert--danger mt-16">
           <Undo2 size={18} />

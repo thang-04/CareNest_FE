@@ -20,10 +20,13 @@ import {
 } from '@/models/education-plan/educationPlanConstants';
 import {
   duplicateAbbrThemeIds,
+  duplicateNameIds,
+  mixedSubDomains,
   goalIdsToTicks,
   isBlankTheme,
   numberGoals,
   themeScheduleIssue,
+  themeWithoutDates,
   toRows,
 } from '@/models/education-plan/goalTable';
 import { GoalTable, ThemeEventTable } from '@/components/education-plan/GoalTables';
@@ -34,7 +37,7 @@ import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
 import ImportThemesModal from '@/components/education-plan/ImportThemesModal';
 import { mergeImportedThemes } from '@/models/education-plan/importThemes.mjs';
 import CurriculumGoalsModal from '@/components/education-plan/CurriculumGoalsModal';
-import { addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
+import { addContentsToExistingGoals, addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
 import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { yearPlanLines } from '@/models/education-plan/planHistory.mjs';
@@ -159,7 +162,9 @@ export default function GoalFormPage() {
   );
   const outOfYearMsg = `Có chủ đề hoặc đợt nghỉ nằm ngoài năm học (${fmtDate(yearRange.start)} – ${fmtDate(yearRange.end)}).`;
   const scheduleIssue = themeScheduleIssue(themes);
-  const validate = (s) => {
+  // EDU-52: chỉ khi bấm Ban hành mới bắt buộc chọn ngày cho mọi chủ đề
+  const [requireDates, setRequireDates] = useState(false);
+  const validate = (s, action) => {
     const e = {};
     if (s === 0) {
       if (!form.title.trim()) e.title = 'Nhập tên kế hoạch';
@@ -175,7 +180,15 @@ export default function GoalFormPage() {
       else if (themes.some((t) => t.start && t.end && t.end < t.start)) e.themes = 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.';
       else if (outOfYear) e.themes = outOfYearMsg;
       else if (scheduleIssue) e.themes = scheduleIssue;
+      else if (action === 'approve' && themeWithoutDates(themes))
+        e.themes = `Chủ đề "${themeWithoutDates(themes).name || themeWithoutDates(themes).abbr}" chưa chọn Từ ngày, Đến ngày. Chọn ngày cho mọi chủ đề trước khi ban hành.`;
       else if (totalGoals === 0) e.domains = 'Nhập ít nhất một mục tiêu';
+      // EDU-51: tên trùng trong cùng lĩnh vực con đã báo đỏ tại ô
+      else if (duplicateNameIds(form.domains).size)
+        e.domains = 'Có tên bị trùng trong cùng lĩnh vực con (dòng báo đỏ). Sửa trước khi gửi hoặc ban hành.';
+      // EDU-53: lĩnh vực có lĩnh vực con thì mọi dòng phải thuộc một lĩnh vực con
+      else if (mixedSubDomains(form.domains).length)
+        e.domains = `Lĩnh vực ${mixedSubDomains(form.domains).join(', ')} đã có lĩnh vực con nhưng còn dòng chưa thuộc lĩnh vực con nào. Thêm lĩnh vực con ở ô trên cùng của lĩnh vực trước khi gửi hoặc ban hành.`;
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -433,9 +446,10 @@ export default function GoalFormPage() {
   const fold = (key) => ({ collapsed: !!folded[key], onToggle: () => setFolded((f) => ({ ...f, [key]: !f[key] })) });
 
   // Kiểm tra trước khi gửi / ban hành; mở lại mọi thẻ để thấy chỗ báo lỗi
-  const checkBeforeFinish = () => {
+  const checkBeforeFinish = (action) => {
     setFolded({});
-    return validate(0) && validate(1);
+    setRequireDates(action === 'approve');
+    return validate(0) && validate(1, action);
   };
 
   // submit: tổ trưởng gửi Phó HT duyệt; approve: Phó HT ban hành (bản mình soạn hoặc bản đang chờ)
@@ -504,10 +518,10 @@ export default function GoalFormPage() {
     return true;
   };
 
-  const importGoals = ({ source, selectedGoalIds }) => {
+  const importGoals = ({ source, selectedGoalIds, dropSubIds = [] }) => {
     const current = importState.current;
     if (!current.allowed) return false;
-    const { domains, report } = mergeImportedGoals(current.form, source, selectedGoalIds, () => `import-${uid()}`);
+    const { domains, report } = mergeImportedGoals(current.form, source, selectedGoalIds, () => `import-${uid()}`, { dropSubIds });
     if (report.added) set({ domains });
     setImportReport(report);
     const skipped = report.duplicates ? ` · bỏ qua ${report.duplicates} mục tiêu trùng` : '';
@@ -534,8 +548,26 @@ export default function GoalFormPage() {
     return true;
   };
   // BE:EDU-28 — mục tiêu của Bộ dựng thành kế hoạch nguồn để dùng chung cách ghép của EDU-24
-  const importMinistryGoals = (goals) =>
-    importGoals({ source: curriculumAsSourcePlan(goals), selectedGoalIds: goals.map((g) => `cg-${g.id}`) });
+  // Mục tiêu đã có trong bản soạn thì chỉ thêm nội dung mới tích vào đúng mục tiêu đó (Tiền 04/11)
+  const importMinistryGoals = (goals) => {
+    const current = importState.current;
+    if (!current.allowed) return false;
+    const makeId = () => `import-${uid()}`;
+    const existing = addContentsToExistingGoals(current.form, goals, makeId);
+    const rest = goals.filter((g) => !existing.matched.has(g.id));
+    const { domains, report } = mergeImportedGoals(
+      { ...current.form, domains: existing.domains },
+      curriculumAsSourcePlan(rest),
+      rest.map((g) => `cg-${g.id}`),
+      makeId,
+    );
+    if (report.added || existing.added) set({ domains });
+    setImportReport(report);
+    const contents = existing.added ? ` · thêm ${existing.added} nội dung vào mục tiêu đã có` : '';
+    const unavailable = report.unavailable.length ? ` · ${report.unavailable.length} mục tiêu chưa thêm được` : '';
+    toast(`Đã thêm ${report.added} mục tiêu${contents}${unavailable}`, report.added || existing.added ? 'ok' : 'warn');
+    return true;
+  };
   const addMinistryContents = (goalRowId, suggestions) => {
     if (!importState.current.allowed) return false;
     const { domains, added, duplicates } = addSuggestedContents(importState.current.form, goalRowId, suggestions, () => `import-${uid()}`);
@@ -567,13 +599,15 @@ export default function GoalFormPage() {
     <div className="page ga-page ga-class-editor ga-year-page">
       {leaseError && (
         <Notice tone="warn">
-          {leaseError}{' '}
-          <button type="button" className="btn" disabled={saver.unsaved} onClick={() => retryLease.current()}>
-            Thử nhận quyền sửa
-          </button>
-          <button type="button" className="btn" onClick={() => downloadRecovery()}>
-            Tải nội dung để đối chiếu
-          </button>
+          <div className="row row--wrap gap-2">
+            <span>{leaseError}</span>
+            <button type="button" className="btn" disabled={saver.unsaved} onClick={() => retryLease.current()}>
+              Thử nhận quyền sửa
+            </button>
+            <button type="button" className="btn" onClick={() => downloadRecovery()}>
+              Tải nội dung để đối chiếu
+            </button>
+          </div>
         </Notice>
       )}
       <fieldset disabled={!canEdit || !leaseReady || finishing} className="ga-edit-fieldset">
@@ -640,6 +674,7 @@ export default function GoalFormPage() {
                 approveLabel={pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
                 can={{ send: isLeader && !pendingEdit, approve: isVp }}
                 variant="btn--outline-primary"
+                unsaved={saver.unsaved}
                 beforeOpen={checkBeforeFinish}
                 notes={{
                   submit: `Gửi "${form.title}" cho Phó hiệu trưởng duyệt? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`,
@@ -807,6 +842,7 @@ export default function GoalFormPage() {
             breaks={form.breaks}
             domains={form.domains}
             numbers={numbers}
+            requireDates={requireDates}
             onChange={(patch) => set(patch)}
           />
         </Card>

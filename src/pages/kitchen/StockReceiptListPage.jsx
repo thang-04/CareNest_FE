@@ -7,7 +7,6 @@ import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate } from '@/utils/format';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
-import { RECEIPT_STATUS } from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/kitchen.css';
 
 /** Danh sách phiếu nhập kho (BA Receipt List): phiếu nháp mở lại để sửa/xác nhận, phiếu đã xác nhận chỉ xem. */
@@ -77,17 +76,12 @@ export default function StockReceiptListPage() {
       </section>
     );
 
-  const drafts = (data || []).filter((r) => r.status === RECEIPT_STATUS.DRAFT).length;
   return (
     <div className="page">
       <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.stockReceipts)} />
       <div className="page__head">
         <div>
           <h1 className="page__title">Phiếu nhập kho</h1>
-          <p className="page__desc">
-            Phiếu nháp chưa cộng tồn; xác nhận nhập thì cộng tồn theo lô và khóa sửa.
-            {drafts ? ` Đang có ${drafts} phiếu nháp.` : ''}
-          </p>
         </div>
         <div className="page__actions">
           <Link className="btn btn--primary" to="/kitchen/stock-receipts/new">

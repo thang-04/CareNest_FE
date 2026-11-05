@@ -13,7 +13,7 @@ import '@/layouts/auth.css';
  * link người khác gửi không hiện sidebar của vai trò không có màn đó.
  * Portal ra body + `inert` cho #root để bàn phím/trình đọc màn hình không lọt vào vỏ app phía sau.
  */
-export function StandaloneStatus({ kind = '404', title, description, action, note, pageTitle, children }) {
+export function StandaloneStatus({ kind = '404', title, description, action, note, pageTitle, autoBack, children }) {
   const { sceneId } = useAppearance();
   usePageTitle(pageTitle || title);
 
@@ -42,7 +42,7 @@ export function StandaloneStatus({ kind = '404', title, description, action, not
       </header>
       <main className="standalone__main">
         <div className="auth__card standalone__card">
-          {children || <StatusPage kind={kind} title={title} description={description} action={action} bare />}
+          {children || <StatusPage kind={kind} title={title} description={description} action={action} autoBack={autoBack} bare />}
           {note && <p className="standalone__note">{note}</p>}
         </div>
       </main>

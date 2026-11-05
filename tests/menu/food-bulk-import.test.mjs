@@ -56,6 +56,25 @@ test('đối chiếu file: mới, cập nhật ô có giá trị, lỗi có lý 
   assert.equal(matchFoodRows([['Sai'], []], foods).errors[0].row, 1);
 });
 
+test('cập nhật: ô điền lại đúng giá trị đang có không tính là thay đổi; dòng không đổi gì thì bỏ qua', async () => {
+  const foods = await repo.listFoods({}, VP);
+  const rice = foods.find((f) => f.name === 'Gạo tẻ');
+  const sticky = foods.find((f) => f.name === 'Gạo nếp');
+  const rows = [
+    HEADER,
+    // Điền lại tên, nhóm, đơn vị như cũ, chỉ đổi đơn giá
+    [rice.code, rice.name, 'Lương thực', rice.unit, rice.purchaseUnit, rice.purchaseUnitSize, (rice.unitPrice || 0) + 500],
+    // Toàn bộ giống cũ
+    [sticky.code, sticky.name, 'Lương thực', sticky.unit],
+  ];
+  const r = matchFoodRows(rows, foods);
+  assert.deepEqual(
+    r.updates.map((u) => u.changes),
+    [['unitPrice']],
+  );
+  assert.equal(r.errors.length, 0);
+});
+
 test('lưu hàng loạt: ghi cả thêm mới và cập nhật; một dòng lỗi thì không ghi dòng nào', async () => {
   const foods = await repo.listFoods({}, VP);
   const [a, b] = foods;

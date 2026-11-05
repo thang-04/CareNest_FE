@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, RotateCcw } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LeaveStatusBadge } from '@/components/attendance/AttendanceBadges';
@@ -8,6 +8,7 @@ import { DateInput } from '@/components/form/DateInput';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
 import { semesterRange } from '@/utils/semesters';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useAttendanceClasses } from '@/hooks/attendance/useAttendance';
 import { getCampuses } from '@/services/masterDataService';
@@ -15,7 +16,7 @@ import { getLeaveRequests } from '@/services/attendance/attendanceService';
 import { canFilterLeaveByCampus } from '@/utils/attendance/attendancePermissions';
 import { addDays, schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime, isIsoDate, monthRangeOf } from '@/utils/format';
 import { LEAVE_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 import '@/styles/modules/attendance.css';
@@ -31,6 +32,18 @@ export default function LeaveRequestsPage() {
   // Lọc nhanh theo học kỳ: đặt khoảng ngày theo học kỳ; sửa ngày tay thì bỏ chọn
   const [semester, setSemester] = useState('');
   const classesQuery = useAttendanceClasses();
+  // Năm học ở đầu trang: xem lại đơn của năm cũ. Đổi năm ⇒ bỏ lớp đã chọn; hôm nay ngoài năm đó thì xem tháng cuối năm
+  const { schoolYear, schoolYears } = useSchoolYear();
+  const yearRef = useRef(schoolYear);
+  useEffect(() => {
+    if (yearRef.current === schoolYear) return;
+    yearRef.current = schoolYear;
+    const y = schoolYears.find((o) => o.id === schoolYear);
+    const inYear = !y?.startDate || (today >= y.startDate && today <= y.endDate);
+    setFilters((f) => ({ ...f, ...monthRangeOf(inYear ? today : y.endDate), classId: '' }));
+    setSemester('');
+    setPage(1);
+  }, [schoolYear, schoolYears, today]);
   const { data: campuses } = useAsync(() => getCampuses(user), [user?.id]);
   const leader = canFilterLeaveByCampus(user);
   const classes = useMemo(
@@ -41,7 +54,13 @@ export default function LeaveRequestsPage() {
   const invalidRange = !isIsoDate(filters.from) || !isIsoDate(filters.to) || filters.from > filters.to;
   const query = invalidRange
     ? null
-    : { from: filters.from, to: filters.to, campusId: filters.campusId || undefined, classId: filters.classId || undefined };
+    : {
+        from: filters.from,
+        to: filters.to,
+        campusId: filters.campusId || undefined,
+        classId: filters.classId || undefined,
+        schoolYear: schoolYear || undefined,
+      };
   const leaves = useAsync(() => getLeaveRequests(query), [JSON.stringify(query)], { enabled: !invalidRange });
   const rows = invalidRange ? [] : leaves.data || [];
   const currentPage = Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE_SIZE)));
@@ -82,7 +101,7 @@ export default function LeaveRequestsPage() {
       r.createdByName || '',
       formatDateTime(r.createdAt),
     ]);
-    downloadXlsx(
+    exportWithPreview(
       [[`Đơn nghỉ của phụ huynh ${formatDate(filters.from)} – ${formatDate(filters.to)}`], head, ...body],
       `don-nghi-${filters.from}-${filters.to}.xlsx`,
     );

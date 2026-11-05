@@ -8,8 +8,7 @@ import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/comp
 import { StatCard } from '@/components/ui/StatCard';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { clickableRowProps } from '@/utils/clickableRow';
-import { VersionBadge } from '@/components/education-plan/VersionWidgets';
-import { versionOf } from '@/models/education-plan/planVersions.mjs';
+import { currentPlanOf, versionOf } from '@/models/education-plan/planVersions.mjs';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -148,8 +147,7 @@ export default function GoalListPage() {
                   >
                     <td>
                       <div className="ga-cell-title">{g.title}</div>
-                      <div className="ga-cell-sub">{g.code}</div>
-                      {versionOf(g) > 1 && <VersionBadge plan={g} goals={goals} />}
+                      <div className="text-xs text-primary">Phiên bản {versionOf(g)}</div>
                     </td>
                     <td>{ageName(g.ageGroupId)}</td>
                     <td>
@@ -160,7 +158,13 @@ export default function GoalListPage() {
                       <Owner plan={g} />
                     </td>
                     <td className="center">
-                      <YearPlanStatusBadge status={g.status} />
+                      <YearPlanStatusBadge
+                        status={
+                          g.status === EDU_STATUS.APPROVED && !(g.current ?? currentPlanOf(goals, g.ageGroupId, g.schoolYear)?.id === g.id)
+                            ? 'REPLACED'
+                            : g.status
+                        }
+                      />
                     </td>
                   </tr>
                 ))}

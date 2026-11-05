@@ -18,7 +18,7 @@ import { MEAL_SESSION_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendan
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -96,7 +96,14 @@ export default function MealCountPage() {
   // Xác nhận một bữa hoặc tất cả bữa còn chờ của điểm trường
   const doConfirm = async () => {
     try {
-      for (const c of confirming.counts) await confirmMealCount(c.id, user);
+      // Số suất (tổng, thay thế) cả ngày của điểm trường đang hiện: BE từ chối nếu đã đổi so với lúc xem
+      const campusId = confirming.counts[0]?.campusId;
+      const shown = (data?.counts || []).filter((c) => c.id && c.campusId === campusId);
+      const seen = {
+        servings: shown.reduce((sum, c) => sum + (c.totals?.normal || 0) + (c.totals?.substitute || 0), 0),
+        substitute: shown.reduce((sum, c) => sum + (c.totals?.substitute || 0), 0),
+      };
+      for (const c of confirming.counts) await confirmMealCount(c.id, user, seen);
       toast.success(`Đã xác nhận ${confirming.scope}. Đây là số bếp sẽ dùng.`, 'Xác nhận thành công');
       setConfirming(null);
       reload({ silent: true });
@@ -139,7 +146,7 @@ export default function MealCountPage() {
         ]),
       );
     });
-    downloadXlsx([[`Sổ báo ăn ngày ${formatDate(date)}`], ...rows], `so-bao-an-${date}.xlsx`);
+    exportWithPreview([[`Sổ báo ăn ngày ${formatDate(date)}`], ...rows], `so-bao-an-${date}.xlsx`);
   };
 
   return (

@@ -273,6 +273,31 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     totals.completedRate = pct(totals.completed, totals.children);
     return clone({ campusIds: campuses(db, classes).map((c) => c.id), campuses: campuses(db, classes), rows, totals });
   },
+  // BE giả OBS-27: bản demo chưa có kế hoạch năm học đã duyệt nên chưa có chủ đề để đánh giá cuối chủ đề
+  async getThemeClasses() {
+    ensureReady();
+    return [];
+  },
+  async getThemeList() {
+    ensureReady();
+    return [];
+  },
+  async getThemeEvaluation() {
+    throw new ApiError(404, 'Không tìm thấy chủ đề trong kế hoạch năm học đã duyệt của lớp');
+  },
+  async saveThemeEvaluation() {
+    throw new ApiError(404, 'Không tìm thấy chủ đề trong kế hoạch năm học đã duyệt của lớp');
+  },
+  async confirmThemeEvaluation() {
+    throw new ApiError(404, 'Không tìm thấy chủ đề trong kế hoạch năm học đã duyệt của lớp');
+  },
+  // BE giả OBS-28: mock chưa có kế hoạch năm học nên chưa có phiếu cuối năm
+  async getYearEndSheet() {
+    throw new ApiError(404, 'Chưa có phiếu đánh giá sự phát triển (bản demo)');
+  },
+  async saveYearEndSheet() {
+    throw new ApiError(404, 'Chưa có phiếu đánh giá sự phát triển (bản demo)');
+  },
   // BE giả OBS-26: GV lớp soạn, xác nhận nhận xét chung tháng (tháng đã kết thúc); BGH xem bản đã xác nhận
   async getClassMonthlyComment({ classId, month }, user) {
     const db = ensureReady();

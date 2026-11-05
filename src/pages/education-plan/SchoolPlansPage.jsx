@@ -86,7 +86,7 @@ export default function SchoolPlansPage() {
           const theme = (plan.themes || []).find((t) => t.id === d.themeId);
           return {
             ...classDoc(d),
-            to: `/education/class/${d.classId}/themes/${d.themeId}/review`,
+            to: `/education/class/${d.classId}/themes/${d.themeId}`,
             title: `Chủ đề ${themeNumber(plan, d.themeId)}: ${theme?.name || '—'}`,
             detail: `${fmtDate(theme?.start)} – ${fmtDate(theme?.end)} · ${themeWeeksOf(plan, d.themeId).length} nhánh`,
           };

@@ -144,7 +144,13 @@ export function matchFoodRows(rows, foods) {
     }
     if (problems.length) errors.push({ row, name: name || '', reason: problems.join('; ') });
     else if (before) {
-      const changes = [...Object.keys(data).filter((k) => k !== 'nutrition'), ...Object.keys(nutrition)];
+      // Chỉ liệt kê ô khác dữ liệu đang có (ô điền lại giá trị cũ không tính là thay đổi)
+      const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+      const changes = [
+        ...Object.keys(data).filter((k) => k !== 'nutrition' && !same(data[k], before[k])),
+        ...Object.keys(nutrition).filter((k) => !same(nutrition[k], before.nutrition?.[k])),
+      ];
+      // Dòng không đổi gì thì bỏ qua, không ghi lại
       if (changes.length) updates.push({ key: `r${row}`, id: before.id, data, row, code: before.code, name: before.name, changes });
     } else creates.push({ key: `r${row}`, data, row, name });
   });

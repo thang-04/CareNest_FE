@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus } from '@/components/ui/icons';
+import { Download, Plus } from '@/components/ui/icons';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { EmptyState, ErrorState, LoadingState, SearchSelect, StatusBadge } from '@/components';
 import { useCanManageStock, useDryFoods, useLots } from '@/hooks/kitchen/useDryStock';
 import { expiryStatus, groupLotsByFood } from '@/utils/kitchen/stockLots';
@@ -102,9 +103,33 @@ export function StockLotsTab({ campusId }) {
       </div>
     );
 
+  // Xuất tồn theo lô ra CSV (mở bằng Excel): số lượng theo đơn vị mua như trên bảng
+  const exportCsv = () =>
+    exportWithPreview(
+      [
+        ['Thực phẩm', 'Số lô', 'Hạn sử dụng', 'Ngày nhập', 'Nhà cung cấp', 'Đã nhập', 'Còn lại', 'Đơn giá'],
+        ...groups.flatMap((g) =>
+          g.lots.map((lot) => [
+            g.food?.name,
+            lot.lotNo,
+            formatDate(lot.expiryDate),
+            formatDate(lot.receivedDate),
+            lot.supplierName || '',
+            formatPurchaseQty(lot.quantity, lot.food),
+            formatPurchaseQty(lot.remaining, lot.food),
+            lot.unitPrice ?? '',
+          ]),
+        ),
+      ],
+      `ton-kho-kho-${todayInput()}.xlsx`,
+    );
+
   return (
     <section className="card">
       <div className="card__body kb-toolbar kb-toolbar--card">
+        <button type="button" className="btn btn--sm kb-export" onClick={exportCsv} disabled={!groups.length}>
+          <Download size={15} /> Xuất Excel
+        </button>
         <div className="field kb-field-food">
           <span className="field__label">Thực phẩm</span>
           <SearchSelect options={foodOptions} value={foodId} onChange={setFoodId} ariaLabel="Lọc theo thực phẩm" />

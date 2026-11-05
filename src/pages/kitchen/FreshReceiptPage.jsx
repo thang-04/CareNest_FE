@@ -343,7 +343,6 @@ export default function FreshReceiptPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Kiểm nhận hàng tươi</h1>
-          <p className="page__desc">Đối chiếu phiếu giao hàng với phiếu đặt hàng. PHT xác nhận kết quả cuối.</p>
         </div>
       </div>
       <div className="kb-toolbar kb-toolbar--center">

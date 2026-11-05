@@ -25,11 +25,7 @@ export function StockShortfallsTab({ campusId }) {
               <th>Thực phẩm</th>
               <th className="num">Cần dùng</th>
               <th className="num">Đang thiếu</th>
-              {canManage && (
-                <th className="center">
-                  <span className="sr-only">Nhập bổ sung</span>
-                </th>
-              )}
+              {canManage && <th className="cell--actions">Thao tác</th>}
             </tr>
           </thead>
           <tbody>
@@ -40,7 +36,7 @@ export function StockShortfallsTab({ campusId }) {
                 <td className="num nowrap">{formatPurchaseQty(row.requiredQty, row.food)}</td>
                 <td className="num nowrap kb-short">{formatPurchaseQty(row.shortfallQty, row.food)}</td>
                 {canManage && (
-                  <td className="center">
+                  <td className="cell--actions">
                     <Link className="btn btn--sm" to={`/kitchen/stock-receipts/new?campusId=${campusId}&foodId=${row.food?.id}`}>
                       <Plus size={14} /> Nhập bổ sung
                     </Link>

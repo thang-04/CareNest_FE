@@ -252,6 +252,10 @@ const ITEMS = {
     label: 'Xếp loại nhóm lớp',
     to: '/assessment/class-ratings',
   },
+  assessThemes: {
+    label: 'Đánh giá cuối chủ đề',
+    to: '/assessment/themes',
+  },
   assessDayUnlocks: {
     label: 'Mở lại ngày đánh giá',
     to: '/assessment/day-unlocks',
@@ -297,7 +301,7 @@ const ITEMS = {
     to: '/menu/dishes',
   },
   menus: {
-    label: 'Bộ thực đơn mẫu',
+    label: 'Mẫu thực đơn ngày',
     to: '/menu/menus',
   },
   weeklyMenus: {
@@ -423,6 +427,7 @@ const MENUS = {
       'assessProgress',
       'assessPeriodic',
       'assessSemester',
+      'assessThemes',
       'assessYearEnd',
       'assessTickets',
       'assessRewards',
@@ -469,6 +474,7 @@ const MENUS = {
       'assessProgress',
       'assessPeriodic',
       'assessSemester',
+      'assessThemes',
       'assessYearEnd',
       'assessTickets',
       'assessRewards',
@@ -496,6 +502,7 @@ const MENUS = {
       'assessProfiles',
       'assessPeriodic',
       'assessSemester',
+      'assessThemes',
       'assessYearEnd',
       'assessQuality',
       'assessClassRatings',
@@ -515,6 +522,7 @@ const MENUS = {
       'assessProfiles',
       'assessPeriodic',
       'assessSemester',
+      'assessThemes',
       'assessYearEnd',
       'assessQuality',
       'assessClassRatings',

@@ -30,6 +30,9 @@ const readCollapsed = () => {
   }
 };
 
+// Khu bán trú dùng thẻ nền đặc, không kính: bảng số liệu dày, tranh nền làm khó đọc
+const BOARDING_AREA = /^\/(menu|kitchen|boarding)(\/|$)|^\/attendance\/meal-count/;
+
 export function MainLayout() {
   const { user } = useAuth();
   const { pathname } = useLocation();
@@ -63,7 +66,7 @@ export function MainLayout() {
   const opening = useSyncExternalStore(subscribePageLoading, isPageLoading);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-area={BOARDING_AREA.test(pathname) ? 'boarding' : undefined}>
       {opening && <div className="route-progress no-print" role="progressbar" aria-label="Đang mở trang" />}
       <Sidebar
         role={user.role}

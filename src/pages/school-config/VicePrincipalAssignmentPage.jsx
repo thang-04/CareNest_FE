@@ -316,7 +316,8 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
   const rows = data?.rows || [];
   const readOnly = year?.status === YEAR_STATUS.CLOSED;
   const sharedRow = rows.find((r) => r.assignment?.sharedService);
-  const uncovered = md.campuses.filter((c) => !rows.some((r) => r.assignment?.campusId === c.id));
+  // Điểm trường đã ngừng hoạt động không phân công PHT (BE từ chối)
+  const uncovered = md.campuses.filter((c) => c.status !== 'INACTIVE' && !rows.some((r) => r.assignment?.campusId === c.id));
   const campusName = (id) => md.campusById(id)?.shortName || id;
 
   return (

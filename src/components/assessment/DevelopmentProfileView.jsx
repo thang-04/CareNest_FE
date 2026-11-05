@@ -301,7 +301,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                   <div className="card__title">
                     <ClipboardList size={18} /> Đánh giá hằng ngày
                   </div>
-                  <span className="muted text-sm">{days.length} ngày · Xanh: đạt · Cam: cần cố gắng · Đỏ: chưa đạt</span>
+                  <span className="muted text-sm">{days.length} ngày · Xanh: đạt · Đỏ: chưa đạt</span>
                 </div>
                 <div className="card__body">
                   <DailyDaysTable

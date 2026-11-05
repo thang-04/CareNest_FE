@@ -123,6 +123,11 @@ function TeacherTicketsPage() {
       <h1 className="page__title">Phiếu bé ngoan</h1>
       {classesError ? (
         <ErrorState error={classesError} />
+      ) : !classesLoading && classes.length === 0 && isTeamLeader(user) ? (
+        // Tổ trưởng không dạy lớp nào: chỉ xem phiếu các lớp nhóm tuổi mình
+        <div className="card">
+          <TicketOverview />
+        </div>
       ) : !classesLoading && classes.length === 0 ? (
         <StatusPage kind="403" title="Bạn chưa được phân công lớp" description="Chỉ giáo viên của lớp mới phát phiếu bé ngoan." />
       ) : (

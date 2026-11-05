@@ -56,8 +56,17 @@ const contexts = (rows) => {
 
 // Nhập file (BE:EDU-46): themesOf giữ dấu tích khớp viết tắt; freeContext — dòng file không ghi lĩnh vực con/nhóm thì
 // nằm cuối lĩnh vực như gõ tay, không bắt buộc khớp ngữ cảnh. Mặc định (EDU-24): bỏ dấu tích, ngữ cảnh phải khớp.
-export const mergeImportedGoals = (target, source, selectedGoalIds, makeId, { themesOf = () => [], freeContext = false } = {}) => {
+// dropSubIds (Tiền 05/11): id lĩnh vực con nguồn người dùng bỏ tích ⇒ chỉ lấy mục tiêu (kèm nhóm), không lấy lĩnh vực con;
+// mục tiêu không có lĩnh vực con được chèn trước lĩnh vực con đầu tiên của lĩnh vực đích (thuộc thẳng lĩnh vực).
+export const mergeImportedGoals = (
+  target,
+  source,
+  selectedGoalIds,
+  makeId,
+  { themesOf = () => [], freeContext = false, dropSubIds = [] } = {},
+) => {
   const selected = new Set(selectedGoalIds);
+  const dropSubs = new Set(dropSubIds);
   const domains = [...(target.domains || [])];
   const report = { added: 0, duplicates: 0, unavailable: [] };
   const states = new Map();
@@ -77,8 +86,9 @@ export const mergeImportedGoals = (target, source, selectedGoalIds, makeId, { th
     usedIds.add(id);
     return id;
   };
-  for (const incoming of getImportGoals(source)) {
-    if (!selected.has(incoming.id)) continue;
+  for (const raw of getImportGoals(source)) {
+    if (!selected.has(raw.id)) continue;
+    const incoming = raw.sub && dropSubs.has(raw.sub.id) ? { ...raw, sub: null } : raw;
     const unavailable = (reason) =>
       report.unavailable.push({ id: incoming.id, label: incoming.text, domainName: incoming.domainName, reason });
     const index = domains.findIndex((domain) => domain.name === incoming.domainName);
@@ -104,7 +114,8 @@ export const mergeImportedGoals = (target, source, selectedGoalIds, makeId, { th
       continue;
     }
     const additions = [];
-    let insertAt = state.rows.length;
+    const firstSub = state.rows.findIndex((existing) => existing.kind === 'sub');
+    let insertAt = !incoming.sub && !freeContext && firstSub >= 0 ? firstSub : state.rows.length;
     let { sub, group, subId, groupId } = state;
     const addHeading = (row) => {
       // Lĩnh vực con/nhóm lấy từ Bộ giữ liên kết nguồn khi chép (BE:EDU-28)
@@ -132,6 +143,13 @@ export const mergeImportedGoals = (target, source, selectedGoalIds, makeId, { th
       const existingGroup = group && reuseHeading(group, subId);
       groupId = group ? existingGroup?.id || addHeading(group) : null;
     } else {
+      // Mục tiêu không có lĩnh vực con sau một mục tiêu có lĩnh vực con: bắt đầu lại ngữ cảnh ở phần đầu lĩnh vực
+      if (!incoming.sub && subId) {
+        sub = null;
+        subId = null;
+        group = null;
+        groupId = null;
+      }
       if (incoming.sub && (incoming.sub !== sub || (!incoming.group && group))) {
         subId = addHeading(incoming.sub);
         sub = incoming.sub;

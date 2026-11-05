@@ -10,17 +10,8 @@ import { CHANGE, chainOf, currentPlanOf, unresolvedFlags, versionOf } from '@/mo
  * service quyết định. Màu đỏ dùng Notice tone err, nhãn đỏ và chữ lỗi có sẵn của UI kit.
  */
 
-/** Nhãn phiên bản: Hiện hành / Đã thay thế / Đang soạn. */
-export function VersionBadge({ plan, goals }) {
-  const current = currentPlanOf(goals, plan.ageGroupId, plan.schoolYear);
-  const label =
-    plan.status !== 'APPROVED'
-      ? `Phiên bản ${versionOf(plan)} · đang soạn`
-      : current?.id === plan.id
-        ? `Phiên bản ${versionOf(plan)} · hiện hành`
-        : `Phiên bản ${versionOf(plan)} · đã thay thế`;
-  const tone = plan.status !== 'APPROVED' ? 'purple' : current?.id === plan.id ? 'green' : 'gray';
-  return <StatusBadge tone={tone} label={label} />;
+export function VersionBadge({ plan }) {
+  return <span className="text-xs text-primary">Phiên bản {versionOf(plan)}</span>;
 }
 
 const CHANGE_LABEL = { CHANGED: 'Đổi', REMOVED: 'Bỏ', ADDED: 'Mới' };
@@ -54,16 +45,14 @@ export function YearPlanVersionPanel({ plan, goals }) {
           <div className="table-wrap">
             <table className="table ga-plan-table ga-version-table">
               <colgroup>
-                <col className="ga-version-table__code" />
                 <col className="ga-version-table__version" />
                 <col className="ga-version-table__status" />
                 <col className="ga-version-table__date" />
                 <col />
-                <col className="ga-version-table__date" />
+                <col className="ga-version-table__issued" />
               </colgroup>
               <thead>
                 <tr>
-                  <th>Mã</th>
                   <th>Phiên bản</th>
                   <th>Trạng thái</th>
                   <th>Ngày tạo</th>
@@ -74,14 +63,23 @@ export function YearPlanVersionPanel({ plan, goals }) {
               <tbody>
                 {chain.map((v) => (
                   <tr key={v.id}>
-                    <td title={v.code}>
-                      {v.id === plan.id ? <strong>{v.code}</strong> : <Link to={`/education/goals/${v.id}`}>{v.code}</Link>}
+                    <td>
+                      {v.id === plan.id ? (
+                        <VersionBadge plan={v} />
+                      ) : (
+                        <Link to={`/education/goals/${v.id}`}>
+                          <VersionBadge plan={v} />
+                        </Link>
+                      )}
                     </td>
                     <td>
-                      <VersionBadge plan={v} goals={goals} />
-                    </td>
-                    <td>
-                      <YearPlanStatusBadge status={v.status} />
+                      <YearPlanStatusBadge
+                        status={
+                          v.status === 'APPROVED' && !(v.current ?? currentPlanOf(goals, v.ageGroupId, v.schoolYear)?.id === v.id)
+                            ? 'REPLACED'
+                            : v.status
+                        }
+                      />
                     </td>
                     <td>{fmtDate(v.createdAt)}</td>
                     <td className="ga-version-table__text" title={v.createdBy || undefined}>

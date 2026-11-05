@@ -49,7 +49,8 @@ export const canViewClassAssessmentOverview = (user) => isLeader(user) || isTeam
 // AUTH-20 (Cần chốt 03/11/2026): HT, PHT xem dữ liệu đánh giá mọi điểm trường; ghi theo inLeaderEditScope
 export const inLeaderScope = (campusId, user) => isLeader(user);
 /** Mở lại ngày, xét duyệt: Hiệu trưởng cả trường, PHT điểm trường mình. */
-export const inLeaderEditScope = (campusId, user) => isPrincipal(user) || (isVicePrincipal(user) && user.campusId === campusId);
+export const inLeaderEditScope = (campusId, user) =>
+  isPrincipal(user) || (isVicePrincipal(user) && user.campusId != null && String(user.campusId) === String(campusId));
 
 /* ---------- Daily assessment / profile ---------- */
 export const canRecordDailyAssessment = (cls, user) => isClassTeacher(cls, user);
