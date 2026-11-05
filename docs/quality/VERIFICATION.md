@@ -1,5 +1,11 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Bỏ vòng đầu khỏi kỳ cân đo và xu hướng — 05/11/2026
+
+- Theo yêu cầu user, kết quả kỳ cân đo không hiện vòng đầu kể cả dữ liệu cũ còn số đo; Xu hướng sức khỏe bỏ biểu đồ, cột và chú giải vòng đầu. Phiếu khám bác sĩ và mẫu cũ ngoài kỳ cân đo vẫn hiện vòng đầu khi có số. Quyết định hiển thị ghi ở `docs/features/README.md`.
+- Kiểm thử render `tests/health/measurement-head-display.test.mjs`: 4/4 đạt, bao phủ các nguồn kết quả trong kỳ, dữ liệu cũ, phiếu khám, không có số vòng đầu, hai biểu đồ còn lại và bảng năm cột khớp năm ô dữ liệu.
+- Chạy `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs` sau thay đổi cuối; kết quả thực tế ở output bàn giao và `verify.log`. Chưa kiểm trực tiếp trên trình duyệt hoặc BE thật; không đổi API, dữ liệu đã lưu hoặc repo BE/APP.
+
 ## Pre-PR review fixes — 02/11/2026
 
 - User requested fixing four findings in `2026-11-02-pre-pr-flow-review.md`. RED three demo regressions → GREEN nine focused tests. Full `node scripts/verify.mjs` passes, 487 tests, zero failures/skips, after final source edits.

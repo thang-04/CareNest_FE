@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children/childrenConstants';
+import { CAMPAIGN_KIND } from '@/models/children/healthCheckConstants';
 import {
   ISSUE_KIND_LABELS,
   NUTRITION_STATUS_OPTIONS,
@@ -13,7 +14,11 @@ import { BmiStatusBadge, ConclusionCategoryBadge, FollowUpLevelBadge, HeadCircum
 
 const NOT_SET = <span className="muted">Chưa cập nhật</span>;
 
-const hasHead = (m) => m.headCircumferenceCm != null && m.headCircumferenceCm !== '';
+const hasHead = (m) =>
+  m.campaignKind !== CAMPAIGN_KIND.MEASUREMENT &&
+  m.source !== MEASUREMENT_SOURCE.MEASUREMENT_ONLY &&
+  m.headCircumferenceCm != null &&
+  m.headCircumferenceCm !== '';
 
 /** Kết luận bác sĩ của phiếu Phụ lục II (BE trả); mức theo dõi theo kết luận này (HLT-10). */
 function ExamConclusion({ m }) {
@@ -105,7 +110,7 @@ function LegacyResult({ m }) {
 
 /**
  * Một kết quả: số đo + kết luận bác sĩ (phiếu khám) hoặc mức BMI theo tuổi (kỳ cân đo, mẫu cũ). Kỳ cân đo không đo vòng đầu
- * (2026-11-04): ô vòng đầu chỉ hiện khi lần đo có số (phiếu khám, dữ liệu cũ).
+ * (2026-11-04): chỉ hiện vòng đầu của phiếu khám, mẫu cũ ngoài kỳ cân đo khi có số.
  */
 export function MeasurementSummary({ measurement: m }) {
   const head = hasHead(m);
