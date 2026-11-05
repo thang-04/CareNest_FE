@@ -191,10 +191,14 @@ export function useThemeList(classId) {
 
 export function useThemeEvaluation(classId, themeId) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getThemeEvaluation({ classId, themeId }, user), [classId, themeId, user?.id], {
-    enabled: !!classId && !!themeId,
-  });
-  return { evaluation: data, loading, error, reload };
+  const { data, loading, error, reload, setData } = useAsync(
+    () => getThemeEvaluation({ classId, themeId }, user),
+    [classId, themeId, user?.id],
+    {
+      enabled: !!classId && !!themeId,
+    },
+  );
+  return { evaluation: data, loading, error, reload, setEvaluation: setData };
 }
 
 /** Phiếu đánh giá sự phát triển cuối năm của một đánh giá cuối năm. */

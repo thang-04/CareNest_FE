@@ -35,11 +35,11 @@ export default function ThemeEvaluationPage() {
   const [classId, setClassId] = useState('');
   const [themeId, setThemeId] = useState('');
   const currentClassId = classId || classes[0]?.classId || '';
-  const { themes, loading: themesLoading, error: themesError } = useThemeList(currentClassId);
+  const { themes, loading: themesLoading, error: themesError, reload: reloadThemes } = useThemeList(currentClassId);
   // Mặc định chủ đề đã kết thúc gần nhất, chưa có thì chủ đề đang diễn ra
   const defaultTheme = [...themes].reverse().find((t) => t.period === 'ENDED') || themes.find((t) => t.period === 'ONGOING') || themes[0];
   const currentThemeId = themeId || defaultTheme?.themeId || '';
-  const { evaluation: ev, loading, error, reload } = useThemeEvaluation(currentClassId, currentThemeId);
+  const { evaluation: ev, loading, error, reload, setEvaluation } = useThemeEvaluation(currentClassId, currentThemeId);
 
   // Ô sửa trên màn: key `${childId}:${goalId}` → true / false / null (null = bỏ sửa tay, về hệ thống tính khi lưu)
   const [edits, setEdits] = useState({});
@@ -89,9 +89,13 @@ export default function ThemeEvaluationPage() {
     }
     setBusy(kind);
     try {
-      await fn({ classId: Number(currentClassId), themeId: Number(currentThemeId), note, cells: cellsBody() }, user);
+      const saved = await fn({ classId: Number(currentClassId), themeId: Number(currentThemeId), note, cells: cellsBody() }, user);
+      // Response lưu/xác nhận là nguồn trạng thái mới; không chờ GET rồi mới khóa phiếu.
+      setEvaluation(saved);
+      setEdits({});
+      setNote(saved.note || '');
+      await reloadThemes({ silent: true });
       toast.success(message);
-      await reload({ silent: true });
       return true;
     } catch (err) {
       toast.error(err, 'Chưa lưu được đánh giá cuối chủ đề');
@@ -141,6 +145,7 @@ export default function ThemeEvaluationPage() {
                 className="select"
                 aria-label="Lớp"
                 value={currentClassId}
+                disabled={!!busy}
                 onChange={(e) =>
                   guard.leave(() => {
                     setClassId(e.target.value);
@@ -164,6 +169,7 @@ export default function ThemeEvaluationPage() {
                 className="select"
                 aria-label="Chủ đề"
                 value={currentThemeId}
+                disabled={!!busy}
                 onChange={(e) => guard.leave(() => setThemeId(e.target.value))}
               >
                 {themes.map((t) => (
@@ -179,13 +185,18 @@ export default function ThemeEvaluationPage() {
             <>
               <button
                 className="btn"
-                disabled={changed}
+                disabled={changed || !!busy}
                 title={changed ? 'Lưu thay đổi trước khi in' : undefined}
                 onClick={() => setPreview(themeEvaluationFile(ev))}
               >
                 <Printer size={16} /> Xem trước & In
               </button>
-              <button className="btn" disabled={changed} title={changed ? 'Lưu thay đổi trước khi xuất' : undefined} onClick={exportExcel}>
+              <button
+                className="btn"
+                disabled={changed || !!busy}
+                title={changed ? 'Lưu thay đổi trước khi xuất' : undefined}
+                onClick={exportExcel}
+              >
                 <Download size={16} /> Xuất Excel
               </button>
             </>
@@ -278,6 +289,7 @@ export default function ThemeEvaluationPage() {
                               <td key={c.goalId} className="center">
                                 {ev.canEdit ? (
                                   <button
+                                    disabled={!!busy}
                                     type="button"
                                     className={`dg-theme-cell ${manual ? 'is-manual' : ''} ${value === false ? 'is-not-met' : ''}`}
                                     aria-label={label}
@@ -340,6 +352,7 @@ export default function ThemeEvaluationPage() {
               </label>
               {ev.canEdit ? (
                 <textarea
+                  disabled={!!busy}
                   id="theme-note"
                   className="textarea"
                   rows={3}
