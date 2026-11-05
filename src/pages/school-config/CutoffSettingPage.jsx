@@ -11,6 +11,7 @@ import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { DateInput } from '@/components/form/DateInput';
 import { FormField } from '@/components/form/FormField';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
@@ -185,13 +186,11 @@ export default function CutoffSettingPage() {
                         <input className="input" type="time" value={form.time} onChange={(e) => set({ time: e.target.value })} />
                       </FormField>
                       <FormField label="Áp dụng từ ngày" required error={errors.effectiveFrom}>
-                        <input
-                          className="input"
-                          type="date"
+                        <DateInput
                           min={todayInput() > year.startDate ? todayInput() : year.startDate}
                           max={year.endDate}
                           value={form.effectiveFrom}
-                          onChange={(e) => set({ effectiveFrom: e.target.value })}
+                          onChange={(value) => set({ effectiveFrom: value })}
                         />
                       </FormField>
                     </div>
