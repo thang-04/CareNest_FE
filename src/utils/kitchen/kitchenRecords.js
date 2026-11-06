@@ -106,3 +106,27 @@ export const toWindowsRequest = (form) => ({
     .filter((row) => row.startTime && row.endTime)
     .map((row) => ({ session: row.session, startTime: row.startTime, endTime: row.endTime })),
 });
+
+const LUNCH_ROWS = [
+  ['CARB', 'Cơm'],
+  ['MAIN', 'Món mặn'],
+  ['SOUP', 'Canh'],
+  ['VEGETABLE', 'Món rau'],
+  ['DESSERT', 'Tráng miệng'],
+];
+const LUNCH_TYPES = LUNCH_ROWS.map(([type]) => type);
+
+/**
+ * Hàng hiển thị của một bữa trong thực đơn ngày: bữa trưa tách theo loại món như thực đơn tuần, bữa khác một hàng "Món".
+ * BE chỉ trả id, mã, tên món nên loại món tra từ danh mục món (`typeOf`: id → loại); chưa có danh mục thì gộp một hàng.
+ */
+export const menuRowsOf = (row, blocks, typeOf) => {
+  const single = [{ key: row.session, label: 'Món', pick: () => true }];
+  if (row.session !== 'LUNCH' || !typeOf?.size) return single;
+  const type = (dish) => typeOf.get(String(dish.id));
+  const used = blocks.flatMap((block) => row.byBlock[block] || []).map(type);
+  const rows = LUNCH_ROWS.filter(([t]) => used.includes(t)).map(([t, label]) => ({ key: t, label, pick: (dish) => type(dish) === t }));
+  if (used.some((t) => !LUNCH_TYPES.includes(t)))
+    rows.push({ key: 'OTHER', label: 'Món khác', pick: (dish) => !LUNCH_TYPES.includes(type(dish)) });
+  return rows.length ? rows : single;
+};

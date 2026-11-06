@@ -8,8 +8,9 @@ import { TemplateMealSection } from '@/components/menu-planning/TemplateMealSect
 import { MealNutritionCard } from '@/components/menu-planning/MealNutritionCard';
 import { useBeAgeGroups, useMenuStatistics } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
+import { useDishes, useFoods } from '@/hooks/menu-planning/useMenuPlanning';
 import { MEAL_BLOCK_LABELS, SESSION_ORDER } from '@/models/menu-planning/menuPlanningConstants';
-import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
+import { ageGroupOptions, catalogIngredientLines } from '@/utils/menu-planning/menuStatistics';
 import { TemplateDayPicker } from '@/components/menu-planning/TemplateDayPicker';
 import {
   DEFAULT_DAY,
@@ -45,7 +46,19 @@ export function TemplatePreviewModal({ id, onClose }) {
   const bySession = itemsBySession(items);
   const sessions = data?.sessions?.length ? data.sessions : SESSION_ORDER.filter((s) => bySession[s]);
   // null = BE đã trả số liệu nhưng không kèm thành phần món (bản BE chưa hỗ trợ); undefined = đang tải
-  const ingredients = statsQ.data ? (statsQ.data.dishIngredients ?? null) : undefined;
+  // Đổi ngày/nhóm tuổi: giữ số liệu lần trước (làm mờ) tới khi BE trả số mới, không nhấp nháy khung chờ
+  const shownStats = statsQ.data ?? statsQ.stale;
+  const shownQ = { ...statsQ, data: shownStats };
+  const beIngredients = shownStats ? (shownStats.dishIngredients ?? null) : undefined;
+  // BE chưa trả thành phần món (bản máy chủ cũ): dùng định lượng trong danh mục món để vẫn xem được tên thực phẩm, lượng ăn, thải bỏ
+  const needFallback = beIngredients === null;
+  const { items: dishes } = useDishes({});
+  const { items: foods } = useFoods({});
+  const groupCode = ageGroups.find((g) => String(g.id) === String(currentGroup))?.code;
+  const ingredients = useMemo(
+    () => (needFallback ? catalogIngredientLines(items, dishes, foods, groupCode) : beIngredients),
+    [needFallback, items, dishes, foods, groupCode, beIngredients],
+  );
 
   return (
     <Modal
@@ -84,6 +97,7 @@ export function TemplatePreviewModal({ id, onClose }) {
               session={session}
               items={bySession[session] || []}
               ingredients={ingredients}
+              loading={statsQ.loading}
               editable={false}
             />
           ))}
@@ -91,7 +105,7 @@ export function TemplatePreviewModal({ id, onClose }) {
             ageGroups={groups}
             ageGroupId={currentGroup}
             onAgeGroup={setAgeGroupId}
-            statsQ={statsQ}
+            statsQ={shownQ}
             hasItems={items.length > 0}
           />
         </div>

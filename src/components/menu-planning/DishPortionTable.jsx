@@ -62,13 +62,13 @@ export function DishPortionTable({ dish, foodById, groups, norms = null, view = 
                   <th rowSpan={2} className="td-sticky-first">
                     Nhóm tuổi
                   </th>
-                  <th colSpan={2} className="center">
+                  <th colSpan={2} className="center td-col-p">
                     Đạm (g)
                   </th>
-                  <th colSpan={2} className="center">
+                  <th colSpan={2} className="center td-col-l">
                     Béo (g)
                   </th>
-                  <th rowSpan={2} className="num">
+                  <th rowSpan={2} className="num td-col-g">
                     Tinh bột (g)
                   </th>
                   <th rowSpan={2} className="num">
@@ -82,13 +82,13 @@ export function DishPortionTable({ dish, foodById, groups, norms = null, view = 
                   </th>
                 </tr>
                 <tr>
-                  <th className="num">Động vật</th>
-                  <th className="num">Thực vật</th>
-                  <th className="num">Động vật</th>
-                  <th className="num">Thực vật</th>
-                  <th className="num">Đạm (P)</th>
-                  <th className="num">Béo (L)</th>
-                  <th className="num">Tinh bột (G)</th>
+                  <th className="num td-col-p">Động vật</th>
+                  <th className="num td-col-p">Thực vật</th>
+                  <th className="num td-col-l">Động vật</th>
+                  <th className="num td-col-l">Thực vật</th>
+                  <th className="num td-col-p">Đạm (P)</th>
+                  <th className="num td-col-l">Béo (L)</th>
+                  <th className="num td-col-g">Tinh bột (G)</th>
                 </tr>
               </>
             )}
@@ -121,13 +121,17 @@ export function DishPortionTable({ dish, foodById, groups, norms = null, view = 
               const byKey = Object.fromEntries(rows.map((x) => [x.key, x]));
               return (
                 <tr key={a.id}>
-                  <td className="fw-600 td-sticky-first">{ageAbbr(a.id)}</td>
+                  <td className="td-sticky-first">
+                    <span className="td-tag td-tag--blue">{ageAbbr(a.id)}</span>
+                  </td>
                   <td className="num">{g1(t.animalProtein)}</td>
                   <td className="num">{g1(t.plantProtein)}</td>
                   <td className="num">{g1(t.animalLipid)}</td>
                   <td className="num">{g1(t.plantLipid)}</td>
                   <td className="num">{g1(t.glucid)}</td>
-                  <td className="num fw-600">{g1(t.kcal)}</td>
+                  <td className="num">
+                    <span className="td-tag td-tag--orange">{g1(t.kcal)}</span>
+                  </td>
                   {PLG.map((k) => {
                     const row = byKey[k];
                     return (
@@ -141,7 +145,9 @@ export function DishPortionTable({ dish, foodById, groups, norms = null, view = 
                       </td>
                     );
                   })}
-                  <td className="num money nowrap">{formatMoney(r.cost)}</td>
+                  <td className="num money nowrap">
+                    <span className="td-tag td-tag--green">{formatMoney(r.cost)}</span>
+                  </td>
                 </tr>
               );
             })}

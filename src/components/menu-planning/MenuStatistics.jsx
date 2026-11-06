@@ -108,13 +108,13 @@ export function StatisticsNutrition({ stats }) {
         <thead>
           <tr>
             <th rowSpan={2}>Một trẻ / ngày</th>
-            <th colSpan={2} className="center">
+            <th colSpan={2} className="center td-col-p">
               Đạm (g)
             </th>
-            <th colSpan={2} className="center">
+            <th colSpan={2} className="center td-col-l">
               Béo (g)
             </th>
-            <th rowSpan={2} className="num">
+            <th rowSpan={2} className="num td-col-g">
               Đường (g)
             </th>
             <th rowSpan={2} className="num">
@@ -125,10 +125,10 @@ export function StatisticsNutrition({ stats }) {
             </th>
           </tr>
           <tr>
-            <th className="num">Động vật</th>
-            <th className="num">Thực vật</th>
-            <th className="num">Động vật</th>
-            <th className="num">Thực vật</th>
+            <th className="num td-col-p">Động vật</th>
+            <th className="num td-col-p">Thực vật</th>
+            <th className="num td-col-l">Động vật</th>
+            <th className="num td-col-l">Thực vật</th>
           </tr>
         </thead>
         <tbody>
@@ -139,8 +139,12 @@ export function StatisticsNutrition({ stats }) {
                 {num(v)}
               </td>
             ))}
-            <td className="num">{num(t.kcal)}</td>
-            <td className="money nowrap">{formatMoney(stats.costPerChild)}</td>
+            <td className="num">
+              <span className="td-tag td-tag--orange">{num(t.kcal)}</span>
+            </td>
+            <td className="money nowrap">
+              <span className="td-tag td-tag--green">{formatMoney(stats.costPerChild)}</span>
+            </td>
           </tr>
           <tr>
             <td>Định mức một ngày</td>

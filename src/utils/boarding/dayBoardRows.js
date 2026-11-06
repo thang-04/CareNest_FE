@@ -155,3 +155,15 @@ export const buildDayBoardRows = (campus, { date } = {}) => [
   freshReceiptRow(campus || {}, date),
   foodSampleRow(campus || {}, date),
 ];
+
+// Nhóm hiển thị của tông trạng thái cho dải số liệu đầu trang (chỉ đếm số việc theo tông BE đã trả, không đánh giá lại)
+const TONE_BUCKET = { red: 'attention', orange: 'waiting', purple: 'waiting', blue: 'waiting', green: 'done', gray: 'idle' };
+
+/** Đếm số việc của mọi điểm trường theo nhóm: cần xử lý · đang chờ · hoàn tất · chưa có thông tin hoặc ngày nghỉ. */
+export const summarizeBoardRows = (rowsPerCampus) => {
+  const total = { attention: 0, waiting: 0, done: 0, idle: 0 };
+  rowsPerCampus.flat().forEach((row) => {
+    total[TONE_BUCKET[row.tone] || 'idle'] += 1;
+  });
+  return total;
+};

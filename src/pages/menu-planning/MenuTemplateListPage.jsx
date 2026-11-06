@@ -19,7 +19,7 @@ export default function MenuTemplateListPage() {
   return (
     <div className="page td-sections">
       <Breadcrumb items={templateCrumbs()} />
-      <TemplateHead canCreate={canCreate} />
+      <h1 className="page__title">Mẫu thực đơn ngày</h1>
       <TemplateCards canCreate={canCreate} onOpen={setOpenId} />
       {openId && <TemplatePreviewModal id={openId} onClose={() => setOpenId(null)} />}
     </div>

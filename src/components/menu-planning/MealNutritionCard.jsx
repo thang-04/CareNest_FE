@@ -31,24 +31,45 @@ export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, h
       <div className="card__header td-daynut__head">
         <h2 className="card__title">Thông tin dinh dưỡng 1 trẻ / ngày</h2>
         {ev.status && <NormStatusChip status={ev.status} />}
-        {ageGroups.length > 1 && (
-          <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
-            {ageGroups.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                role="tab"
-                aria-selected={g.id === ageGroupId}
-                className={`tab ${g.id === ageGroupId ? 'tab--active' : ''}`}
-                onClick={() => onAgeGroup(g.id)}
-              >
-                {g.name}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
-      <div className="card__body">
+      <div className={`card__body ${statsQ.loading && stats ? 'td-busy' : ''}`}>
+        {/* Một hàng công cụ: nhóm tuổi bên trái, cách xem bên phải; chú giải màu nằm dưới bảng */}
+        <div className="td-daynut__tabs">
+          {ageGroups.length > 1 ? (
+            <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
+              {ageGroups.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={g.id === ageGroupId}
+                  className={`tab ${g.id === ageGroupId ? 'tab--active' : ''}`}
+                  onClick={() => onAgeGroup(g.id)}
+                >
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span />
+          )}
+          {hasItems && stats && !statsQ.error && (
+            <div className="tabs tabs--pill" role="tablist" aria-label="Cách xem">
+              {TABS.map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === k}
+                  className={`tab ${tab === k ? 'tab--active' : ''}`}
+                  onClick={() => setTab(k)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {!hasItems ? (
           <p className="text-sm muted">Thêm món cho mẫu để xem dinh dưỡng.</p>
         ) : statsQ.error ? (
@@ -57,30 +78,6 @@ export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, h
           <LoadingState />
         ) : (
           <>
-            <div className="td-daynut__tabs">
-              <div className="tabs tabs--pill" role="tablist" aria-label="Cách xem">
-                {TABS.map(([k, label]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === k}
-                    className={`tab ${tab === k ? 'tab--active' : ''}`}
-                    onClick={() => setTab(k)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <span className="td-daynut__legend text-sm">
-                <span>
-                  <i className="td-eval__dot td-eval__dot--low" /> Thấp so với chuẩn
-                </span>
-                <span>
-                  <i className="td-eval__dot td-eval__dot--high" /> Cao so với chuẩn
-                </span>
-              </span>
-            </div>
             {tab === 'origin' ? (
               <StatisticsNutrition stats={stats} />
             ) : (
@@ -162,6 +159,16 @@ export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, h
                   </tbody>
                 </table>
               </div>
+            )}
+            {tab === 'meal' && (
+              <p className="td-daynut__legend text-sm">
+                <span>
+                  <i className="td-eval__dot td-eval__dot--low" /> Thấp so với chuẩn
+                </span>
+                <span>
+                  <i className="td-eval__dot td-eval__dot--high" /> Cao so với chuẩn
+                </span>
+              </p>
             )}
           </>
         )}

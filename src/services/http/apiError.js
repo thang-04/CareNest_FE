@@ -7,9 +7,9 @@ export const normalizeApiError = (error) => {
   const desc = body?.desc || body?.message || error.desc;
   const message =
     status === 503
-      ? 'Dịch vụ tạm thời không khả dụng. Vui lòng thử lại sau.'
+      ? 'Dịch vụ đang bận, vui lòng thử lại sau'
       : status === 0
-        ? 'Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối và thử lại.'
+        ? 'Không thể kết nối máy chủ'
         : desc || error.message || 'Yêu cầu không thành công';
   const normalized = new Error(message);
   normalized.isApiError = true;
