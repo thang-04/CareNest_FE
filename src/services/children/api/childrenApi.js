@@ -1,12 +1,12 @@
 import { axiosClient } from '@/services/http/axiosClient';
+import { enrollmentPhotoRequest } from '@/utils/children/enrollmentPhotos';
+import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
 
 /**
  * PROPOSED Spring Boot contract for child records & child health (not agreed with CareNest_BE yet).
  * Same names and shapes as the mock repository; the backend reads the user's scope from the JWT.
- * Mỗi trẻ trả thêm latestHealth { date, followUpLevel, campaignName, source, knownCondition, resultOn, followUpId,
- * closedWithoutResultOn } để danh sách lọc trẻ theo mức qua mọi đợt (2026-10-17): còn phiếu theo dõi mở ⇒ CLOSE_WATCH
- * (source FOLLOW_UP_OPEN); không thì mục mới hơn giữa lần khám có xếp mức (EXAM; bỏ phiếu nháp, cân đo ngoài đợt) và phiếu
- * đóng có kết quả theo lời bác sĩ (FOLLOW_UP_CLOSED). Mức KNOWN_STABLE "Vấn đề đã biết, ổn định" (2026-10-21).
+ * Danh sách trẻ (mock) trả thêm latestHealth { date, followUpLevel, campaignName } của lần khám gần nhất có kết luận, để Xu hướng sức
+ * khỏe xếp trẻ cần chú ý; BE chưa có trường này (đề xuất khi nối BE).
  * Hành chính, tiền sử (2026-10-17, `models/children/childProfile.js`): child.profile trong GET profile, POST enrollments,
  * PUT /children/{id} (danh sách không trả); declaration.medicalHistory trong PUT health-declaration; file nhập thêm cột.
  * Khai tiếp xúc người bệnh lao ⇒ BE gửi thông báo CHILD_TB_CONTACT (cả người lưu, 2026-10-27). Từ 2026-10-22: bắt buộc trừ idNumber, bloodType (422 theo ô
@@ -22,7 +22,6 @@ import { axiosClient } from '@/services/http/axiosClient';
  * phụ huynh có CCCD khác ⇒ 409 guardians.i.phone.
  * Công bố (2026-10-23, docs/plans/completed/2026-10-23-auto-publish-health-results.md): lưu/sửa cân đo ⇒ BE công bố ngay
  * (published, publishedAt), sửa thì gửi phụ huynh thông báo cập nhật; bỏ POST .../measurements/{id}/publish và publishBlockedReason.
- * Phiếu khám mức Cần theo dõi sát trả parentContact { contacted, atExam, on, opinion } | null.
  * Trùng hồ sơ (2026-10-23): cùng họ tên (giữ dấu), ngày sinh và CCCD của ít nhất một phụ huynh; duplicate-check nhận thêm
  * guardianIdNumbers, trả { kind: ACTIVE | LEFT, sameCampus, id?, code?, fullName?, leftAt?, canReadmit? } | null; LEFT ⇒ gợi ý
  * POST /children/{id}/readmit { reason } (về PENDING_PLACEMENT, giữ hồ sơ cũ). Enrollment/PUT/import 409 theo quy tắc mới.
@@ -53,8 +52,20 @@ import { axiosClient } from '@/services/http/axiosClient';
  * ứng (FATHER, MOTHER, GRANDFATHER, GRANDMOTHER, SIBLING, GUARDIAN).
  * Kỳ cân đo (user chốt 2026-10-31, docs/plans/completed/2026-10-31-health-measurement-rounds.md): POST .../health/measurements bắt buộc
  * campaignId của kỳ cân đo (kind MEASUREMENT) cùng điểm trường của trẻ, thiếu/sai/đợt khám ⇒ 422 campaignId; trẻ đã có số đo
- * trong kỳ ⇒ 422 campaignId; kỳ chưa bắt đầu, đã đóng hoặc hủy ⇒ 409; ngày ngoài khoảng của kỳ ⇒ 422 date. PUT sửa được số đo
- * cũ ngoài đợt (campaignId null). GET health trả openCampaign.kind; kỳ cân đo có resultStatus RECORDED khi trẻ đã có số đo.
+ * trong kỳ ⇒ 422 campaignId; kỳ chưa bắt đầu, đã đóng hoặc hủy ⇒ 409 (ngày đo: mục 2026-11-04 bên dưới). Số đo cũ ngoài đợt
+ * (campaignId null) chỉ xem, PUT ⇒ 409 (2026-11-04). GET health trả openCampaign.kind; kỳ cân đo có resultStatus RECORDED khi trẻ
+ * đã có số đo.
+ * Cảnh báo ở Sổ sức khỏe (2026-11-04, HLT-16 bỏ, HLT-18, HLT-19; docs/plans/active/2026-11-04-health-warnings-book.md): lần đo bỏ
+ * followUpId, followUpEffect, parentContact; thêm bmiStatus (SEVERE_THINNESS | THINNESS | NORMAL | OVERWEIGHT_RISK | OVERWEIGHT |
+ * OBESE) và bmiZScore (2 chữ số) cho số đo của kỳ cân đo (có chiều cao, cân nặng, 0–84 tháng), null với phiếu khám. GET health bỏ
+ * latestHealth, openFollowUp, externalResults; thêm latestExam { measurementId, campaignId, campaignName, date, followUpLevel,
+ * conclusionCategory, conclusion } và latestBmi { measurementId, campaignId, campaignName, date, ageMonths, bmi,
+ * bmiStatus, bmiZScore } (null khi chưa có).
+ * Tuần thai, ngày đo (2026-11-04, docs/plans/active/2026-11-04-intake-weeks-round-dates.md): profile.gestationWeeks bắt buộc mọi
+ * trẻ, 20–42, khớp premature (422 profile.gestationWeeks), lưu cho mọi trẻ. POST/PUT .../health/measurements bỏ date,
+ * headCircumferenceCm: BE ghi ngày (mới = hôm nay, sửa giữ ngày), kỳ cân đo không ghi vòng đầu (response vẫn có
+ * headCircumferenceCm của dữ liệu cũ); không còn lỗi ngày ngoài kỳ (HEALTH_MEASUREMENT_DATE_OUTSIDE), trùng ngày đo ⇒ 409.
+ * GET health bỏ headCircumferenceUntil (mock: rules).
  */
 const PAGE_SIZE = 100;
 
@@ -83,7 +94,17 @@ export async function listAllChildren(filters = {}) {
 
 export const childrenApi = {
   listChildren: (filters) => listAllChildren(filters),
-  getChildDetail: (id) => axiosClient.get(`/children/${id}/profile`),
+  getChildDetail: async (id) => {
+    const result = await axiosClient.get(`/children/${id}/profile`);
+    const child = {
+      ...result.child,
+      guardians: (result.child?.guardians || []).map((g) => ({ ...g, relation: GUARDIAN_RELATIONSHIP_LABELS[g.relation] || g.relation })),
+    };
+    const cls = child?.classId
+      ? { id: child.classId, name: child.className, campusId: child.campusId, ageGroupId: child.ageGroupId }
+      : null;
+    return { cls, declaration: null, placements: [], ...result, child };
+  },
   checkDuplicate: (data, _user, excludeId) =>
     axiosClient.get('/children/duplicate-check', {
       params: {
@@ -97,14 +118,33 @@ export const childrenApi = {
   checkGuardianConflicts: (guardians) => axiosClient.post('/children/guardian-check', { guardians }),
   readmitChild: (childId, body) => axiosClient.post(`/children/${childId}/readmit`, body),
   getPlacementClasses: (filters) => axiosClient.get('/children/placement-classes', { params: filters }),
-  enrollChild: (payload) => axiosClient.post('/children/enrollments', payload),
+  enrollChild: (payload) => {
+    const { body, config } = enrollmentPhotoRequest(payload);
+    return axiosClient.post('/children/enrollments', body, config);
+  },
   updateChild: (id, body) => axiosClient.put(`/children/${id}`, body),
   previewImport: (file) => {
     const form = new FormData();
     form.append('file', file);
-    return axiosClient.post('/children/enrollments/import/preview', form);
+    return axiosClient.post('/children/enrollments/import/preview', form).then((preview) => ({
+      ...preview,
+      rows: preview.rows.map((row) => ({
+        ...row,
+        payload: {
+          ...row.payload,
+          child: {
+            ...row.payload.child,
+            guardians: row.payload.child.guardians.map((g) => ({
+              ...g,
+              relation: GUARDIAN_RELATIONSHIP_LABELS[g.relation] || g.relation,
+            })),
+          },
+        },
+      })),
+    }));
   },
-  importChildren: (rows, _user, campusId) => axiosClient.post('/children/enrollments/import', { rows, campusId }),
+  importChildren: (rows, _user, campusId) =>
+    axiosClient.post('/children/enrollments/import', { rows: rows.map((row) => enrollmentPhotoRequest(row).body), campusId }),
   placeChild: (childId, body) => axiosClient.post(`/children/${childId}/placement`, body),
   withdrawChild: (childId, body) => axiosClient.post(`/children/${childId}/withdraw`, body),
   saveDeclaration: (childId, body) => axiosClient.put(`/children/${childId}/health-declaration`, body),

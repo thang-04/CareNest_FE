@@ -58,7 +58,6 @@ export const fixDuplicateSeedChildId = (db) => {
           if (typeof row.id === 'string' && row.id.includes(OLD)) row.id = renameId(row.id);
         }),
     );
-    (db.healthFollowUps || []).forEach((f) => (f.measurementIds = (f.measurementIds || []).map(renameId)));
     return;
   }
   // Phiếu khám mẫu "nguy cơ tự kỷ" (hm_ch_037_open) là của trẻ viết tay; bản gắn nhầm cho trẻ bổ sung thì bỏ.
@@ -69,17 +68,9 @@ export const fixDuplicateSeedChildId = (db) => {
   moveLaterCopies(measurements, (m) => (m.id === 'hm_ch_037_open' ? 'open-again' : m.id));
   const open = measurements.find((m) => m.id === 'hm_ch_037_open' && m.childId === OLD);
   if (open) Object.assign(open, { id: renameId(open.id), childId: NEW });
-  (db.healthFollowUps || []).forEach((f) => {
-    if (f.childId !== OLD || !(f.measurementIds || []).includes('hm_ch_037_open')) return;
-    f.childId = NEW;
-    f.measurementIds = f.measurementIds.map(renameId);
-    (f.history || []).forEach((e) => {
-      if (e.measurementId) e.measurementId = renameId(e.measurementId);
-    });
-  });
   moveLaterCopies(db.healthDeclarations || [], () => 'declaration');
   // Bản ghi theo ngày của các module khác (điểm danh, đón trẻ, đánh giá…): bản thứ hai cùng ngày là của trẻ viết tay.
-  const handled = new Set(['children', 'parentAccounts', 'healthMeasurements', 'healthFollowUps', 'healthDeclarations']);
+  const handled = new Set(['children', 'parentAccounts', 'healthMeasurements', 'healthDeclarations']);
   Object.entries(db).forEach(([name, list]) => {
     if (!handled.has(name) && Array.isArray(list)) moveLaterCopies(list, (row) => row.date ?? row.at ?? '');
   });

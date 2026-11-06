@@ -19,6 +19,9 @@ import '@/styles/modules/children.css';
 
 const COLS = 8;
 
+// Cộng 5 số BE trả ở progress.bmi (mỗi trẻ một mức) để hiện một dòng tổng ở danh sách; không tính lại từ số đo (HLT-18).
+const bmiWarningTotal = (progress) => Object.values(progress.bmi || {}).reduce((sum, n) => sum + n, 0);
+
 /**
  * Danh sách đợt khám sức khỏe và kỳ cân đo theo điểm trường (user chốt 2026-10-15, 2026-10-31; PROPOSED). Đợt khám thường
  * 1 lần/năm học, kỳ cân đo khoảng 3 tháng/lần; HT, PHT tạo.
@@ -137,7 +140,7 @@ export default function HealthCheckListPage() {
                   <th>Ngày</th>
                   <th className="center">Trạng thái</th>
                   <th>Đã nhập kết quả</th>
-                  <th>Cần theo dõi</th>
+                  <th>Cảnh báo</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
@@ -203,8 +206,15 @@ export default function HealthCheckListPage() {
                           </div>
                         )}
                       </td>
+                      {/* Đợt khám: theo kết luận bác sĩ; kỳ cân đo: số trẻ có cảnh báo BMI theo tuổi (HLT-19). */}
                       <td className="text-sm nowrap">
-                        {c.kind === CAMPAIGN_KIND.MEASUREMENT || c.progress.watch + c.progress.closeWatch === 0 ? (
+                        {c.kind === CAMPAIGN_KIND.MEASUREMENT ? (
+                          bmiWarningTotal(c.progress) > 0 ? (
+                            <div>{bmiWarningTotal(c.progress)} trẻ có cảnh báo BMI</div>
+                          ) : (
+                            <span className="muted">—</span>
+                          )
+                        ) : c.progress.watch + c.progress.closeWatch === 0 ? (
                           <span className="muted">—</span>
                         ) : (
                           <>

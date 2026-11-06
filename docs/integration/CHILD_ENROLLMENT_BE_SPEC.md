@@ -10,6 +10,10 @@ Cập nhật 2026-10-28. **PROPOSED** — FE viết theo BE giả đã chạy v�
 
 - **BE đã làm (29/10/2026, nhánh BE G94-180, chưa commit):** Phase 1–3 của bản BE — `GET /children/duplicate-check`, `POST /children/guardian-check`, `GET /children/parent-accounts/by-citizen-id`, `GET /children/placement-classes`, `POST /children/enrollments` (tạo/liên kết tài khoản, SMS qua cổng giả), `POST /children/{id}/readmit`. Khác đặc tả, FE đổi khi nối API: quan hệ theo mã `FATHER|MOTHER|GRANDFATHER|GRANDMOTHER|SIBLING|GUARDIAN` ở mọi nơi; hồ sơ trẻ trả `schoolYearId` (số) thay `schoolYear`; lỗi theo ô 400 (`errorCode` 9001) và 409 (`errorCode` 3008) với `data [{field, message}]`, trùng hồ sơ 409 `errorCode` 3007, mở lại hồ sơ trẻ chưa nghỉ 409 `errorCode` 3009; `history[]` chưa có `changes`. Tạm thời (tới Phase 4 của BE): phụ huynh khớp tài khoản có sẵn ⇒ hồ sơ ghi thông tin của tài khoản, `phoneChanged` luôn false. Chi tiết: `BE:docs/plans/active/2026-10-28-child-enrollment-guardian-accounts.md` Progress log 2026-10-29.
 
+### Delta đã triển khai 05/11/2026 — Spec013
+
+Một người nhận tài khoản: form kích hoạt khi lưu, Excel chỉ lưu hồ sơ/selection rồi kích hoạt sau. API import/recipient/pending/activation đã có BE và OpenAPI; trường accountRecipient/id ổn định trên guardian. Các mục lịch sử bên dưới ngoài delta này giữ trạng thái như đã ghi. Chi tiết nguồn chuẩn: BE specs/013-selected-parent-account/contracts/selected-parent-account.md.
+
 ## 1. Thứ tự làm đề xuất
 
 1. **Quyền** (mục 2) và **migration** (mục 3).
@@ -21,7 +25,7 @@ Cập nhật 2026-10-28. **PROPOSED** — FE viết theo BE giả đã chạy v�
 7. Khai báo sức khỏe `PUT /children/{id}/health-declaration`; `GET /children/{id}/profile` trả đủ trường mới.
 8. Màn Tài khoản phụ huynh (mục 4.7): danh sách chờ kích hoạt, kích hoạt cả nhà, gỡ, khóa/mở, cấp lại mật khẩu qua SMS.
 9. Thông báo (mục 6.2) khi có module notification; nhà cung cấp SMS (mục 6.1).
-10. Lọc theo năm học cho danh sách trẻ, đợt khám, phiếu theo dõi, đón trẻ (mục 9).
+10. Lọc theo năm học cho danh sách trẻ, đợt khám, đón trẻ (mục 9). Phiếu theo dõi đã bỏ (HLT-16 REMOVED, 2026-11-04).
 
 ## 2. Quyền và phạm vi (CHD-01, AUTH-18, AUTH-19)
 
@@ -61,8 +65,8 @@ Tên bảng/cột là đề xuất; giữ nguyên ý nghĩa nếu BE đặt tên
 FE đọc `campusId` của trẻ = điểm trường hiện tại (theo lớp nếu có lớp, không thì `intake_campus_id`).
 
 ### 3.2 `child_profiles` — hành chính, 1–1 với trẻ (mới; dữ liệu nhạy cảm, CHD-05)
-`child_id` (PK, FK) · `id_number` VARCHAR(20) NULL (CCCD/mã định danh 12 số hoặc hộ chiếu 6–12 chữ và số) · `premature` (`YES`/`NO`) · `gestation_weeks` SMALLINT NULL (20–42, bắt buộc khi `YES`) · `ethnicity`, `beneficiary` VARCHAR(100) · `payment_source` = `BHYT` (luôn, không nhập) · `blood_type` VARCHAR(100) NULL · `address_province`, `address_ward` VARCHAR(100), `address_street` VARCHAR(300).
-Bắt buộc trừ `id_number`, `blood_type` (và `gestation_weeks` khi không sinh non): không có hồ sơ thiếu, nên cột bắt buộc để NOT NULL (mục 3.9). Danh sách trẻ không trả phần này; phiếu khám sức khỏe đọc từ đây.
+`child_id` (PK, FK) · `id_number` VARCHAR(20) NULL (CCCD/mã định danh 12 số hoặc hộ chiếu 6–12 chữ và số) · `premature` (`YES`/`NO`) · `gestation_weeks` SMALLINT (20–42, bắt buộc mọi trẻ và khớp `premature`: `YES` ⇒ dưới 37, `NO` ⇒ từ 37 — user chốt 2026-11-04; trước đó chỉ bắt buộc khi `YES`) · `ethnicity`, `beneficiary` VARCHAR(100) · `payment_source` = `BHYT` (luôn, không nhập) · `blood_type` VARCHAR(100) NULL · `address_province`, `address_ward` VARCHAR(100), `address_street` VARCHAR(300).
+Bắt buộc trừ `id_number`, `blood_type`: không có hồ sơ thiếu, nên cột bắt buộc để NOT NULL (mục 3.9; hồ sơ cũ chưa có tuần thai còn NULL tới khi sửa hồ sơ). Danh sách trẻ không trả phần này; phiếu khám sức khỏe đọc từ đây.
 
 ### 3.3 `child_guardians` — phụ huynh trên hồ sơ trẻ (mới, AUTH-20)
 Phụ huynh có trên hồ sơ trước khi có tài khoản.
@@ -87,7 +91,7 @@ Trạng thái mỗi mục: `REPORTED` (Có) / `NONE_REPORTED` (Không có) / `NO
 - Tiền sử bản thân, gia đình: `*_state` chỉ `REPORTED`/`NONE_REPORTED` khi lưu, `*_text` (≤300, bắt buộc khi `REPORTED`).
 - Tiếp xúc người bệnh lao: `tb_contact_state` (`REPORTED`/`NONE_REPORTED`), `tb_contact_date` (bắt buộc khi `REPORTED`).
 - `declared_by`, `declared_at`.
-- Lịch sử `child_health_declaration_history`: `action` (`DECLARED` / `UPDATED` / `UPDATED_FROM_FOLLOW_UP`), `user_id`, `at`, `note` (lý do), `allergy_change`, `history_change` (JSON trước/sau).
+- Lịch sử `child_health_declaration_history`: `action` (`DECLARED` / `UPDATED` / `UPDATED_FROM_EXAM`; `UPDATED_FROM_FOLLOW_UP` chỉ còn ở dữ liệu cũ), `user_id`, `at`, `note` (lý do), `allergy_change`, `history_change` (JSON trước/sau).
 
 ### 3.7 `child_history` — lịch sử hồ sơ (mới)
 `child_id`, `action` (`ENROLLED` / `UPDATED` / `WITHDRAWN` / `READMITTED`), `user_id`, `at`, `note` (lý do), `changes` JSON `[{ field, label, from, to }]`. CCCD trẻ trong lịch sử chỉ hiện 3 số cuối (BE giả `profileChanges`).
@@ -149,13 +153,13 @@ Kiểu dữ liệu dùng lại:
 
 ### 4.3 Nhập Excel
 **`POST /children/enrollments/import/preview`** multipart `file` (mới; BE giả `previewImport`, `enrollmentImport.js`)
-- Nhận `.xlsx` (BE đọc) và `.csv`; cột theo mẫu `IMPORT_COLUMNS` (`src/models/children/childrenConstants.js`, mỗi dòng 1 trẻ + 1 phụ huynh; cột bắt buộc có "Số CCCD phụ huynh", hành chính, tiền sử, tiếp xúc lao); ngày `dd/mm/yyyy`; "Không" = không có, để trống = chưa cung cấp. Cột quan hệ nhận 6 giá trị, so không dấu, không phân biệt hoa thường, bỏ khoảng trắng/dấu "/" ("anh chị" = "Anh/chị"); giá trị khác báo lỗi ở dòng đó (D-5a B; BE giả `toRelation`). Tối đa 500 dòng.
+- Nhận `.xlsx` (BE đọc) và `.csv`; cột theo mẫu `IMPORT_COLUMNS` (`src/models/children/childrenConstants.js`, mỗi dòng 1 trẻ + tối đa 3 phụ huynh, nhóm 2/3 tùy chọn; có cột CCCD phụ huynh nhận tài khoản tùy chọn; cột bắt buộc có "Số CCCD phụ huynh", hành chính, tiền sử, tiếp xúc lao); ngày `dd/mm/yyyy`; "Không" = không có, để trống = chưa cung cấp. Cột quan hệ nhận 6 giá trị, so không dấu, không phân biệt hoa thường, bỏ khoảng trắng/dấu "/" ("anh chị" = "Anh/chị"); giá trị khác báo lỗi ở dòng đó (D-5a B; BE giả `toRelation`). Tối đa 500 dòng.
 - Thiếu cột / không có dòng / quá 500 dòng / sai loại file ⇒ 422 `file`.
-- Trả `{ supported, fileName, rows: [{ rowNo, raw, payload: { child, declaration }, errors: [string], notes: [string] }] }`. `errors`: lỗi như tiếp nhận + trùng hồ sơ (CHD-04) + trùng dòng khác trong file + CCCD/SĐT lệch dòng trước trong file. `notes`: phụ huynh trùng CCCD tài khoản (dùng thông tin tài khoản, liên kết khi nhập); trẻ trùng hồ sơ đã nghỉ (nên mở lại hồ sơ cũ).
+- Trả `{ supported, fileName, rows: [{ rowNo, raw, payload: { child, declaration }, errors: [string], selectionError: string | null, notes: [string] }] }`. `errors`: lỗi như tiếp nhận + trùng hồ sơ (CHD-04) + trùng dòng khác trong file + CCCD/SĐT lệch dòng trước trong file. `notes`: phụ huynh trùng CCCD tài khoản (dùng thông tin tài khoản, liên kết khi kích hoạt sau khi nhập); trẻ trùng hồ sơ đã nghỉ (nên mở lại hồ sơ cũ).
 
 **`POST /children/enrollments/import`** body `{ rows: [{ child, declaration }], campusId }` (mới; BE giả `importChildren`)
 - `campusId` như tiếp nhận không có lớp. Kiểm lại mọi dòng; một dòng lỗi ⇒ 422 `file`, không nhập dòng nào.
-- Mỗi dòng: trẻ `PENDING_PLACEMENT` ở điểm trường đó, khai báo sức khỏe như nhập, thông báo lao như tiếp nhận. Phụ huynh trùng CCCD tài khoản ⇒ dùng họ tên/SĐT/email của tài khoản (không sửa tài khoản từ file), liên kết ngay; còn lại "Chưa kích hoạt" — **không tạo tài khoản, không gửi SMS** (AUTH-20).
+- Mỗi dòng: trẻ `PENDING_PLACEMENT` ở điểm trường đó, khai báo sức khỏe như nhập, thông báo lao như tiếp nhận. Phụ huynh trùng CCCD tài khoản ⇒ dùng họ tên/SĐT/email của tài khoản (không sửa tài khoản từ file), tất cả ở "Chưa kích hoạt" với trẻ vừa nhập — **không tạo/liên kết tài khoản, không gửi SMS** (AUTH-20).
 - Trả `{ created, ids }`.
 
 ### 4.4 Xếp lớp, cho nghỉ học, mở lại hồ sơ
@@ -165,7 +169,7 @@ Kiểu dữ liệu dùng lại:
 
 **`POST /children/{id}/withdraw`** body `{ leftAt, reason }` (mới; BE giả `withdrawChild`)
 - `leftAt` ngày hợp lệ, không ở tương lai, không trước ngày tiếp nhận; `reason` bắt buộc ≤300 (422 `leftAt` / `reason`).
-- `status` = `LEFT`, đóng enrollment, lịch sử `WITHDRAWN`, không xóa dữ liệu; phiếu theo dõi sức khỏe đang mở tự đóng (module health); thông báo `CHILD_WITHDRAWN`. Trả `ChildView`.
+- `status` = `LEFT`, đóng enrollment, lịch sử `WITHDRAWN`, không xóa dữ liệu; thông báo `CHILD_WITHDRAWN` (không còn tự đóng phiếu theo dõi — HLT-16 bỏ 2026-11-04). Trả `ChildView`.
 
 **`POST /children/{id}/readmit`** body `{ reason }` (mới; BE giả `readmitChild`, quyền `canReadmitChild`)
 - Chỉ trẻ `LEFT` (khác ⇒ 409); `reason` bắt buộc ≤300 (422 `reason`); quyền tiếp nhận ở điểm trường của trẻ.
@@ -181,14 +185,14 @@ Kiểu dữ liệu dùng lại:
 Trả `{ child: ChildView, cls, declaration (+ declaredByName), placements: [{ fromClassName, toClassName, userName, at, reason }] }` (BE giả `getChildDetail`). `GET /children/{id}` hiện có chỉ trả id, họ tên, ngày sinh, lớp.
 
 ### 4.7 Màn Tài khoản phụ huynh (`/children/activation`)
-Tên endpoint mới là đề xuất; FE chưa có file API cho màn này (`src/services/account/guardianService.js` trả 501 khi không chạy BE giả).
+Các API dưới đây đã triển khai cho Spec013. Chỉ recipient được chiếu vào danh sách tài khoản; ứng viên từ GET /children/{id}/account-recipient, thay lựa chọn qua PUT cùng endpoint với {guardianId} và lịch sử. Projection account dựa userId lưu trên guardian, không suy đoán theo SĐT/CCCD.
 
 | Endpoint | Việc | BE giả |
 | --- | --- | --- |
 | `GET /children?campusId&page&size` (đã có) | Thêm trẻ chờ xếp lớp của điểm trường (CHD-02), bỏ trẻ đã nghỉ; mỗi trẻ thêm `guardians[]` (như dòng dưới), `canManage` (người xem kích hoạt/gỡ/khóa được) | `searchChildren` |
 | `GET /children/{id}/guardians` (đã có) | Phụ huynh đã liên kết: thêm `idNumber`, `relation` (nhãn trên hồ sơ) cạnh `relationship` (mã) | `listGuardians` |
 | `GET /children/{id}/guardians/pending` (mới) | Phụ huynh trên hồ sơ chưa có tài khoản liên kết với trẻ: `[{ fullName, relation, phone, idNumber, email, hasAccount, problems[] }]`; `hasAccount` = đã có tài khoản (trẻ khác), kích hoạt chỉ liên kết; `problems` = thông tin còn thiếu/sai, sửa ở hồ sơ trẻ | `listPendingGuardians` |
-| `POST /children/{id}/guardians/activate` (mới) | Kích hoạt **mọi** phụ huynh chờ của trẻ một lần; một người sai thì không tạo ai. Trả `[{ userId, username, fullName, idNumber, relationship, relation, status, linkedAt, phone, newAccount, smsStatus }]`. Không có ai chờ ⇒ 409; thông tin trên hồ sơ thiếu/sai ⇒ 400; lệch danh tính ⇒ 409 `details.idNumber` | `activateGuardians` |
+| `POST /children/{id}/guardians/activate` (mới) | Body bắt buộc {guardianId}; chỉ kích hoạt người được chọn, stale selection hoặc ngoài scope bị chặn. Trả `[{ userId, username, fullName, idNumber, relationship, relation, status, linkedAt, phone, newAccount, smsStatus }]`. Retry đúng người đã liên kết không tạo lại hoặc gửi lại SMS; thông tin trên hồ sơ thiếu/sai ⇒ 400; lệch danh tính ⇒ 409 `details.idNumber` | `activateGuardians` |
 | `DELETE /children/{id}/guardians/{userId}` (đã có) | Gỡ liên kết: phụ huynh mất quyền xem trẻ ngay, tài khoản giữ nguyên, phụ huynh vẫn trên hồ sơ trẻ làm liên hệ (`accountStatus` `NOT_ACTIVATED`) — AUTH-19 | `removeGuardian` |
 | `PATCH /parent-accounts/{userId}/status` (đã có) | `ACTIVE` / `INACTIVE`; trạng thái phụ huynh trên mọi hồ sơ trẻ đổi theo | `updateParentStatus` |
 | `POST /parent-accounts/{userId}/temporary-password` (đã có, **đổi**) | Cấp mật khẩu tạm mới, gửi SMS, bắt đổi lần đầu, hủy mọi phiên; trả `{ userId, username, phone, smsStatus }`, **bỏ `temporaryPassword`** (L-15). Dùng cho "Gửi lại mật khẩu" | `resetParentPassword` |
@@ -243,7 +247,7 @@ So với mọi tài khoản phụ huynh và mọi phụ huynh trên hồ sơ tr�
 | `CHILD_TB_CONTACT` | Khai Có tiếp xúc người bệnh lao (tiếp nhận, nhập Excel, sửa khai báo) | HT, PHT điểm trường, giáo viên lớp, người lưu | "Phụ huynh khai {tên trẻ} có tiền sử tiếp xúc với người bệnh lao (gần nhất ngày {ngày}). Nhà trường trao đổi với phụ huynh về việc đưa trẻ đi khám sàng lọc; bác sĩ xem lại ở đợt khám tới." |
 | `CHILD_TB_CONTACT_DATE_CHANGED` | Ngày tiếp xúc đã có đổi sang ngày khác (sửa khai báo, kết luận phiếu khám) | HT, PHT điểm trường, người lưu | "Ngày tiếp xúc gần nhất với người bệnh lao của {tên trẻ} đổi từ {ngày cũ} sang {ngày mới} ({nơi đổi})." |
 | `CHILD_PLACED` | Tiếp nhận có lớp, xếp/chuyển lớp | Giáo viên lớp mới | "{tên trẻ} đã được xếp vào {lớp}." |
-| `CHILD_WITHDRAWN` | Cho nghỉ học | Giáo viên lớp | "{tên trẻ} nghỉ học từ ngày {ngày}." (+ phiếu theo dõi đã tự đóng) |
+| `CHILD_WITHDRAWN` | Cho nghỉ học | Giáo viên lớp | "{tên trẻ} nghỉ học từ ngày {ngày}." |
 
 Câu trung tính, không chẩn đoán (CHD-07). Đường dẫn: hồ sơ trẻ hoặc trang khai báo sức khỏe.
 
@@ -265,7 +269,7 @@ Chốt 28/10/2026: C-5 (mục 2), D-1, D-7 (mục 1), D-2 (mục 4), D-4 (mục 
 10. **Người vừa là nhân sự vừa là phụ huynh — đã chốt 29/10 (L-18):** tạo tài khoản phụ huynh như thường, không chặn SĐT/email trùng nhân sự. Không có màn chọn tài khoản: app đăng nhập bằng SĐT vào tài khoản phụ huynh, bằng email hoặc tên đăng nhập vào tài khoản nhân sự. Phần nối tài khoản BE làm thử trong ngày (AUTH-22, chưa commit) không dùng nữa.
 
 ## 8. Ngoài phạm vi tài liệu này
-Ngoài phần năm học ở mục 9, contract vẫn ở chú thích các file API: danh sách trẻ (`listChildren`, `latestHealth`), sổ sức khỏe, cân đo, phân tích xu hướng AI (`src/services/children/api/childrenApi.js`), đợt khám, phiếu khám, phiếu theo dõi (`src/services/children/api/healthCheckApi.js`), đón trẻ (`src/services/pickup/api/pickupApi.js`). Quyền theo mảng của PHT (nhánh G94-179) chỉ ghi ở mục 7.1.
+Ngoài phần năm học ở mục 9, contract vẫn ở chú thích các file API: danh sách trẻ (`listChildren`, `latestHealth`), sổ sức khỏe, cân đo, phân tích xu hướng AI (`src/services/children/api/childrenApi.js`), đợt khám, kỳ cân đo, phiếu khám (`src/services/children/api/healthCheckApi.js`), đón trẻ (`src/services/pickup/api/pickupApi.js`). Quyền theo mảng của PHT (nhánh G94-179) chỉ ghi ở mục 7.1.
 
 ## 9. Năm học (user chốt 2026-10-28, Y-1..Y-5)
 
@@ -274,7 +278,7 @@ Header có ô chọn năm học (mặc định năm đang hoạt động). Dữ 
 - **Ngày thuộc năm nào:** năm học gần nhất đã bắt đầu tính tới ngày đó (kỳ hè giữa hai năm tính vào năm vừa qua) — để ngày nào cũng thuộc đúng một năm (BE giả `schoolYearIdOfDate`).
 - **Y-2 · Danh sách trẻ `GET /children?schoolYear=X`:** trẻ có lớp thuộc năm X, trả `classId`, `className`, `ageGroupId`, `schoolYear`, `campusId` của lớp cuối cùng trong năm X (BE lấy từ `enrollments`; CMR-04). Trẻ chờ xếp lớp chỉ có ở năm đang hoạt động; trẻ nghỉ khi chưa có lớp ở năm của ngày nghỉ. `status` vẫn là trạng thái hiện tại; phạm vi xem theo điểm trường hiện tại của trẻ. Không có `schoolYear` ⇒ mọi trẻ trong phạm vi. BE giả: `classInYear`, `inSchoolYear` (lấy lịch sử từ `childPlacements` và lịch sử chuyển năm của Xếp lớp năm học mới). Bảng tổng quan HT/PHT đếm số trẻ theo cùng tham số.
 - **Y-3 · Tiếp nhận, xếp lớp:** chỉ vào lớp của năm đang hoạt động — `placement-classes` chỉ trả lớp năm đó; `POST /children/enrollments`, `POST /children/{id}/placement` với lớp năm khác ⇒ 422 `classId` (mục 4.1, 4.4). Xếp lớp cho năm sau thuộc màn Xếp lớp năm học mới (module school-structure). Header ở năm đã kết thúc ⇒ FE chỉ hiện thông báo ở màn tiếp nhận, nhập Excel, xếp lớp (không cần BE).
-- **Y-4 · Đợt khám, phiếu theo dõi:** `GET /health-checks?schoolYear=X` trả đợt có ngày bắt đầu thuộc năm X. `GET /health-follow-ups?schoolYear=X` trả mọi phiếu đang mở và phiếu đã đóng có khoảng mở–đóng giao năm X; `counts` tính trên cùng tập (BE giả `listHealthChecks`, `listHealthFollowUps`).
+- **Y-4 · Đợt khám:** `GET /health-checks?schoolYear=X` trả đợt có ngày bắt đầu thuộc năm X (BE giả `listHealthChecks`). ~~`GET /health-follow-ups?schoolYear=X`~~ — bỏ cùng phiếu theo dõi (HLT-16 REMOVED, 2026-11-04).
 - **Y-1 · Đón trẻ:** danh sách lớp chỉ lớp của năm đang hoạt động (`GET /classes?activeYear=true`, như điểm danh); `GET /classes/{classId}/pickups?date` và `GET /pickups?date`: lớp năm khác ⇒ 422 `classId`; `date` ở tương lai, hoặc trước ngày bắt đầu năm đang hoạt động khi năm đã bắt đầu ⇒ 422 `date`. BE giả vẫn lấy trẻ theo lớp hiện tại như điểm danh; BE thật nên lấy theo enrollment tại ngày đó (CMR-04).
 - **Y-5 · Tài khoản phụ huynh:** không theo năm (một tài khoản dùng qua nhiều năm); màn Tài khoản phụ huynh, ô "phụ huynh chưa kích hoạt" ở bảng tổng quan không nhận tham số năm.
 - Y-2 = A: user xác nhận 28/10 (C-7).

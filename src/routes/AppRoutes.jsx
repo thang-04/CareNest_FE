@@ -99,8 +99,6 @@ const HealthCheckListPage = lazyPage(() => import('@/pages/children/HealthCheckL
 const HealthCheckFormPage = lazyPage(() => import('@/pages/children/HealthCheckFormPage'));
 const HealthCheckDetailPage = lazyPage(() => import('@/pages/children/HealthCheckDetailPage'));
 const HealthExamFormPage = lazyPage(() => import('@/pages/children/HealthExamFormPage'));
-const HealthFollowUpListPage = lazyPage(() => import('@/pages/children/HealthFollowUpListPage'));
-const HealthFollowUpDetailPage = lazyPage(() => import('@/pages/children/HealthFollowUpDetailPage'));
 const BoardingTodayPage = lazyPage(() => import('@/pages/boarding/BoardingTodayPage'));
 const DryStockLedgerPage = lazyPage(() => import('@/pages/kitchen/DryStockLedgerPage'));
 const StockReceiptEditorPage = lazyPage(() => import('@/pages/kitchen/StockReceiptEditorPage'));
@@ -338,11 +336,6 @@ export function AppRoutes() {
             <Route
               path="health-checks/:campaignId/exam/:childId"
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthExamFormPage />)}
-            />
-            <Route path="health-follow-ups" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthFollowUpListPage />)} />
-            <Route
-              path="health-follow-ups/:followUpId"
-              element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthFollowUpDetailPage />)}
             />
             <Route path=":id" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildProfilePage />)} />
             <Route path=":id/edit" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <EditChildPage />)} />

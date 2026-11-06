@@ -1,6 +1,23 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
 ## Đánh giá UI/UX chuyên sâu luồng bán trú — 04/11/2026
+## UI tiếp nhận trẻ theo phiếu khám — 05/11/2026
+
+- Theo yêu cầu user: tham khảo HealthExamFormPage/ExamAdminStep, tái dùng ExamSheetTable/ExamSheetBand và FormField. Bước thông tin có ba phần trẻ/hành chính/phụ huynh, ảnh chân dung cạnh bảng, người nhận tài khoản có radio/viền/StatusBadge role. Mobile xếp nhãn trên input để không cắt CCCD và SĐT.
+- Thay đổi trình bày trong năm file source của children; không đổi trường, validation, quyền, bốn bước, upload hoặc tài khoản. Chế độ sheet chỉ dùng tiếp nhận, màn sửa hồ sơ giữ chế độ mặc định. Không sửa BE/APP hoặc dependency.
+- Sau source cuối: node scripts/verify.mjs → VERIFY PASS full, 808 tests, 0 fail/skip; lint/format/design/API/build đạt. node scripts/check-ai-layer.mjs: 0 lỗi, 20 cảnh báo cũ.
+- Chromium với app/mock tại 1440/375: nhãn liên kết đúng ô để điền dữ liệu, chọn/bỏ/thay ảnh, thêm/xóa phụ huynh, chọn người thứ hai, đi qua các bước/lưu/mở lại/reload giữ đúng ảnh và một tài khoản. CSV selection và activation sau cũng đạt. 0 lỗi JS, không tràn ngang; 12/12 object URL thu hồi mỗi viewport. Ảnh desktop/mobile đã xem trực tiếp; artifacts node_modules/.cache/intake-ui/.
+- Browser dùng dữ liệu tổng hợp; chưa kiểm FE nối BE thật trong thay đổi UI này. Không commit/push. Thiết kế tại docs/features/enrollment-intake-ui.md.
+
+## Chọn một phụ huynh nhận tài khoản — 05/11/2026
+
+- Đã triển khai radio trên form, giữ toàn bộ liên hệ/ảnh; chỉ người được chọn có kết quả tài khoản. Import CSV/XLSX có nhóm phụ huynh 2/3, cột CCCD chọn tùy chọn và dropdown từng dòng; giữ lỗi thông tin khi sửa lựa chọn. XLS có parser BE.
+- Màn tài khoản hiển thị recipient kể cả chưa kích hoạt, đếm đúng account được chọn, cho đổi người trước kích hoạt và chọn ở hồ sơ cũ mơ hồ; hiển thị số liên kết cũ để không hiểu nhầm là đã thu hồi quyền. Profile edit không tự đổi recipient hoặc tạo tài khoản cho liên hệ khác.
+- Sau source cuối: node scripts/verify.mjs → VERIFY PASS full, 808 tests, 0 fail/skip. API route snapshot đồng bộ từ OpenAPI BE, không khai pending để lách gate.
+- Chromium thực tế với app/mock tại 1440/375: chọn người thứ hai, lưu form tạo đúng một account, giữ ảnh cả hai người, nhập file chọn theo dòng, import chưa có account, mở panel và kích hoạt sau đúng người. 0 lỗi JS; 12/12 object URL ảnh được thu hồi mỗi viewport. Artifacts tại node_modules/.cache/selected-parent/; dùng dữ liệu tổng hợp.
+- Review độc lập đã xử lý các findings về scope/identity/CAS/projection/stale selection/batch; không còn blocker trực tiếp. Chưa kiểm browser nối BE/Keycloak/SMS/S3 thật; nguồn demo/API của module children/pickup giữ cấu hình hiện có. Không commit/push.
+
+## Tải ảnh trẻ và phụ huynh khi tiếp nhận — 05/11/2026
 
 - `ui-review/boarding-focus-2026-11-04/UI_AUDIT.md` đánh giá 20 màn/trạng thái (19 route bán trú chính và form tạo phiếu nhập), dùng 5 ảnh user đánh dấu lưu trong `user-evidence/` cùng báo cáo 38 ảnh trực tiếp. Phân biệt ảnh có nội dung, loading, empty và quan sát source; không tuyên bố đã thử bàn phím, submit hoặc App bếp.
 - Báo cáo HTML 38 ảnh được cập nhật để dẫn tới đánh giá chi tiết. `verify-boarding-report.mjs`: 38 ảnh JPEG hợp lệ, 38 card, không trùng ID, không có liên kết anchor đứt hoặc mật khẩu demo. Các liên kết tệp cục bộ trong `UI_AUDIT.md`: 0 thiếu. Trình duyệt tự động không được phép mở URL `file:`; QA giao diện của chính tệp báo cáo chưa thực hiện.

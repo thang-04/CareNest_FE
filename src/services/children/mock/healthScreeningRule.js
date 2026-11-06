@@ -1,4 +1,4 @@
-import { FOLLOW_UP_LEVEL, HEAD_CIRCUMFERENCE_STATUS, MOTOR_RESULT } from '@/models/children/childrenConstants';
+import { FOLLOW_UP_LEVEL, HEAD_CIRCUMFERENCE_STATUS } from '@/models/children/childrenConstants';
 import {
   CLINICAL_ITEMS,
   CONCLUSION_ACTION,
@@ -13,14 +13,15 @@ import {
   VITAL_ITEMS,
 } from '@/models/children/healthExamForm';
 import { formatDecimal, vitalStatusFor } from '@/utils/children/healthExamHints';
+import { classifyBmiForAge } from './bmiForAgeRule';
 
 /*
  * Bản sao rule của backend giả (BE sở hữu rule thật).
- * - Phiếu Phụ lục II (user chốt 2026-10-17): mức theo dõi theo kết luận bác sĩ; hệ thống chỉ lập "Điểm cần bác sĩ xem lại".
- * - Kết quả mẫu cũ (vận động thô/tinh, user chốt 2026-10-15): giữ cách tính cũ để phiếu theo dõi đang mở không đổi.
- * Không chép bảng WHO vào FE: khoảng vòng đầu là TẠM; bỏ nhãn phân loại BMI, chỉ còn số BMI.
+ * - Phiếu Phụ lục II (user chốt 2026-10-17): mức theo dõi theo kết luận bác sĩ (HLT-10); hệ thống chỉ lập "Điểm cần bác sĩ xem lại".
+ * - Số đo của kỳ cân đo: mức BMI theo tuổi chuẩn WHO (HLT-18, bmiForAgeRule.js); không có kết luận bác sĩ nên không có mức theo dõi.
+ * - Kết quả mẫu cũ (chỉ ở dữ liệu demo, trước phiếu Phụ lục II): như số đo của kỳ cân đo; ngưỡng tạm cũ không còn là cảnh báo.
+ * Khoảng vòng đầu là TẠM: chỉ gợi ý ở phiếu khám và hiện lại ở kết quả mẫu cũ. Kỳ cân đo không đo vòng đầu (HLT-01, 2026-11-04).
  */
-export const SCREENING_REFERENCE = { code: 'PLACEHOLDER', label: 'ngưỡng tham chiếu tạm (chờ BE chốt chuẩn WHO)' };
 
 // Mạch, nhịp thở theo AHA PALS 2020 (lúc thức); nhiệt độ đo ở nách. User chọn 2026-10-17, bác sĩ xác nhận trước khi dùng thật.
 export const VITAL_REFERENCE = {
@@ -44,13 +45,6 @@ export const ageMonthsOn = (dateOfBirth, on) => {
   const [y1, m1, d1] = dateOfBirth.split('-').map(Number);
   const [y2, m2, d2] = on.split('-').map(Number);
   return (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);
-};
-
-/** Ngày cuối cùng trẻ còn đo vòng đầu (tròn 60 tháng tuổi), BE trả cho form. */
-export const headCircumferenceUntil = (dateOfBirth) => {
-  const [y, m, d] = dateOfBirth.split('-').map(Number);
-  const firstOver = Date.UTC(y, m - 1 + HEAD_MAX_AGE_MONTHS + 1, d);
-  return new Date(firstOver - 86400000).toISOString().slice(0, 10);
 };
 
 /** Khoảng tham khảo theo tuổi tại ngày khám, BE trả cho form phiếu khám. */
@@ -174,7 +168,7 @@ export const conclusionOutcome = (exam, examStatus) => {
   if (examStatus !== EXAM_STATUS.CONCLUDED) return { followUpLevel: FOLLOW_UP_LEVEL.UNAVAILABLE, category: null };
   const c = exam?.conclusion || {};
   if (c.tbRisk) return { followUpLevel: FOLLOW_UP_LEVEL.CLOSE_WATCH, category: CONCLUSION_CATEGORY.TB_RISK };
-  // Mẫu FOLLOW_UP: trẻ vẫn trong phiếu theo dõi nên giữ "Cần theo dõi sát" (user chốt 2026-10-21, 4a).
+  // Phiếu cũ mẫu FOLLOW_UP (kết luận khi trẻ còn phiếu theo dõi, trước 2026-11-04) giữ mức "Cần theo dõi sát" đã lưu.
   if (c.followUpFinding) {
     const category =
       c.followUpFinding === FOLLOW_UP_FINDING.NEW_FINDING
@@ -195,61 +189,23 @@ export const conclusionOutcome = (exam, examStatus) => {
   return { followUpLevel: FOLLOW_UP_LEVEL.NONE, category: CONCLUSION_CATEGORY.NORMAL };
 };
 
-const flaggedMotor = (value) => (value == null ? null : value === MOTOR_RESULT.ABNORMAL);
-
-// Mẫu cũ (trước 2026-10-17): 3 tiêu chí vòng đầu, vận động thô, vận động tinh.
-const screenLegacy = (m, ageMonths) => {
-  const headApplies = ageMonths <= HEAD_MAX_AGE_MONTHS;
-  let headCircumferenceStatus = HEAD_CIRCUMFERENCE_STATUS.NOT_MEASURED;
-  if (headApplies) {
-    const band = headBand(ageMonths);
-    const v = m.headCircumferenceCm;
-    headCircumferenceStatus =
-      v == null
-        ? null
-        : v < band.low
-          ? HEAD_CIRCUMFERENCE_STATUS.SMALL
-          : v > band.high
-            ? HEAD_CIRCUMFERENCE_STATUS.LARGE
-            : HEAD_CIRCUMFERENCE_STATUS.NORMAL;
-  }
-  const checks = [
-    ...(headApplies
-      ? [
-          {
-            key: 'HEAD_CIRCUMFERENCE',
-            flagged: headCircumferenceStatus == null ? null : headCircumferenceStatus !== HEAD_CIRCUMFERENCE_STATUS.NORMAL,
-          },
-        ]
-      : []),
-    { key: 'GROSS_MOTOR', flagged: flaggedMotor(m.grossMotor) },
-    { key: 'FINE_MOTOR', flagged: flaggedMotor(m.fineMotor) },
-  ];
-  // Lần đo trước khi có tiêu chí vòng đầu thiếu dữ liệu ⇒ không xếp mức.
-  const missing = checks.some((c) => c.flagged == null);
-  const count = checks.filter((c) => c.flagged).length;
-  const followUpLevel = missing
-    ? FOLLOW_UP_LEVEL.UNAVAILABLE
-    : count >= 2
-      ? FOLLOW_UP_LEVEL.CLOSE_WATCH
-      : count === 1
-        ? FOLLOW_UP_LEVEL.WATCH
-        : FOLLOW_UP_LEVEL.NONE;
-  return {
-    source: 'LEGACY',
-    headCircumferenceStatus,
-    criteria: missing ? [] : checks.map((c) => ({ key: c.key, flagged: c.flagged })),
-    followUpLevel,
-    reference: SCREENING_REFERENCE,
-  };
+// Mẫu cũ (trước 2026-10-17): vòng đầu theo khoảng tạm, chỉ để xem lại, không phải cảnh báo.
+const legacyHeadStatus = (m, ageMonths) => {
+  if (ageMonths > HEAD_MAX_AGE_MONTHS) return HEAD_CIRCUMFERENCE_STATUS.NOT_MEASURED;
+  const v = m.headCircumferenceCm;
+  if (v == null) return null;
+  const band = headBand(ageMonths);
+  if (v < band.low) return HEAD_CIRCUMFERENCE_STATUS.SMALL;
+  return v > band.high ? HEAD_CIRCUMFERENCE_STATUS.LARGE : HEAD_CIRCUMFERENCE_STATUS.NORMAL;
 };
 
 /**
- * Giá trị dẫn xuất của 1 kết quả khám. source:
- * EXAM = phiếu Phụ lục II · LEGACY = mẫu cũ có vận động thô/tinh · MEASUREMENT_ONLY = cân đo, chưa có kết luận bác sĩ (D19).
+ * Giá trị dẫn xuất của 1 kết quả, tính lại mỗi lần đọc. child: { dateOfBirth, gender }. source:
+ * EXAM = phiếu Phụ lục II · MEASUREMENT_ONLY = số đo của kỳ cân đo (hoặc cân đo cũ ngoài đợt) · LEGACY = mẫu cũ có vận động thô/tinh.
+ * bmiStatus, bmiZScore chỉ có khi không phải phiếu khám: đợt khám theo kết luận bác sĩ (HLT-18).
  */
-export const screenMeasurement = (m, dateOfBirth) => {
-  const ageMonths = ageMonthsOn(dateOfBirth, m.date);
+export const screenMeasurement = (m, child) => {
+  const ageMonths = ageMonthsOn(child.dateOfBirth, m.date);
   const bmi = bmiOf(m);
   if (m.exam) {
     const headApplies = ageMonths <= HEAD_MAX_AGE_MONTHS;
@@ -258,6 +214,8 @@ export const screenMeasurement = (m, dateOfBirth) => {
     return {
       ageMonths,
       bmi,
+      bmiStatus: null,
+      bmiZScore: null,
       source: 'EXAM',
       headCircumferenceStatus: !headApplies
         ? HEAD_CIRCUMFERENCE_STATUS.NOT_MEASURED
@@ -268,21 +226,41 @@ export const screenMeasurement = (m, dateOfBirth) => {
             : head === 'NORMAL'
               ? HEAD_CIRCUMFERENCE_STATUS.NORMAL
               : null,
-      criteria: [],
       followUpLevel,
       conclusionCategory: category,
-      reference: VITAL_REFERENCE,
     };
   }
-  if (m.grossMotor != null || m.fineMotor != null) return { ageMonths, bmi, conclusionCategory: null, ...screenLegacy(m, ageMonths) };
+  const legacy = m.grossMotor != null || m.fineMotor != null;
+  const result = classifyBmiForAge({ gender: child.gender, ageMonths, heightCm: m.heightCm, weightKg: m.weightKg });
   return {
     ageMonths,
     bmi,
-    source: 'MEASUREMENT_ONLY',
-    headCircumferenceStatus: ageMonths <= HEAD_MAX_AGE_MONTHS ? null : HEAD_CIRCUMFERENCE_STATUS.NOT_MEASURED,
-    criteria: [],
+    bmiStatus: result?.status ?? null,
+    bmiZScore: result?.zScore ?? null,
+    source: legacy ? 'LEGACY' : 'MEASUREMENT_ONLY',
+    headCircumferenceStatus: legacy
+      ? legacyHeadStatus(m, ageMonths)
+      : ageMonths <= HEAD_MAX_AGE_MONTHS
+        ? null
+        : HEAD_CIRCUMFERENCE_STATUS.NOT_MEASURED,
     followUpLevel: FOLLOW_UP_LEVEL.UNAVAILABLE,
     conclusionCategory: null,
-    reference: SCREENING_REFERENCE,
   };
+};
+
+/** Kết luận bác sĩ rút gọn của phiếu Phụ lục II đã kết luận (danh sách lớp, lần khám trước, cảnh báo ở Sổ sức khỏe). */
+export const conclusionBrief = (m) => {
+  const c = m?.examStatus === EXAM_STATUS.CONCLUDED ? m.exam?.conclusion : null;
+  return c
+    ? {
+        doctorName: c.doctorName,
+        issueText: c.issueText || '',
+        tbRisk: !!c.tbRisk,
+        action: c.action,
+        adviceText: c.adviceText || '',
+        specialty: c.specialty || '',
+        issueKind: c.issueKind || '',
+        followUpFinding: c.followUpFinding || '',
+      }
+    : null;
 };

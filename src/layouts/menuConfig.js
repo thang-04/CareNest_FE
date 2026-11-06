@@ -416,7 +416,6 @@ const MENUS = {
       'childPlacement',
       'parentActivation',
       'healthChecks',
-      'healthFollowUps',
       'healthTrends',
     ]),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
@@ -462,7 +461,6 @@ const MENUS = {
       'childPlacement',
       'parentActivation',
       'healthChecks',
-      'healthFollowUps',
       'healthTrends',
     ]),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
@@ -493,7 +491,7 @@ const MENUS = {
   [ROLES.TEAM_LEADER]: [
     link('home'),
     link('approvals'),
-    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
+    group('children', ['childList', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', [
@@ -514,7 +512,7 @@ const MENUS = {
   ],
   [ROLES.TEACHER]: [
     link('home'),
-    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
+    group('children', ['childList', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
     group('assessment', [

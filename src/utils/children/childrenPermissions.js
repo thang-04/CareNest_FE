@@ -86,7 +86,3 @@ export const canManageHealthCheck = (user, campusId) =>
   isPrincipal(user) || (isVicePrincipal(user) && !!user.campusId && (!campusId || user.campusId === campusId));
 
 export const canViewHealthChecks = (user) => isPrincipal(user) || isVicePrincipal(user) || isTeacherRole(user);
-
-/** Phiếu theo dõi: giáo viên phụ trách lớp hiện tại của trẻ cập nhật; BGH chỉ xem (user chốt 2026-10-15). */
-export const canUpdateFollowUp = (child, user, cls) =>
-  !!child && child.status !== CHILD_STATUS.LEFT && child.classId === cls?.id && teachesClass(cls, user);

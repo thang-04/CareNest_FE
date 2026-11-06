@@ -14,10 +14,10 @@
  * @property {string} id
  * @property {string} childId
  * @property {string|null} campaignId   health-check campaign; null = recorded outside a campaign
- * @property {string} date               yyyy-mm-dd
+ * @property {string} date               yyyy-mm-dd; BE ghi (số đo mới = hôm nay, phiếu khám mới = hôm nay trong đợt), sửa giữ ngày (2026-11-04)
  * @property {number} heightCm
  * @property {number} weightKg
- * @property {number|null} headCircumferenceCm  null when not measured (over 60 months) or recorded before the field existed
+ * @property {number|null} headCircumferenceCm  phiếu khám (≤60 tháng) và dữ liệu cũ; kỳ cân đo không đo vòng đầu từ 2026-11-04
  * @property {MotorResult|null} grossMotor   mẫu cũ (trước phiếu Phụ lục II)
  * @property {MotorResult|null} fineMotor    mẫu cũ
  * @property {string} note               examination information, free text
@@ -25,27 +25,20 @@
  * @property {'DRAFT'|'CONCLUDED'|null} examStatus   phiếu nháp không hiện ở Sổ sức khỏe, xu hướng
  * @property {MeasurementSource} source  computed by the service
  * @property {number} ageMonths          computed by the service
- * @property {number|null} bmi           computed by the service; không còn nhãn phân loại BMI (user chốt 2026-10-17)
+ * @property {number|null} bmi           computed by the service, 1 chữ số
+ * @property {BmiStatus|null} bmiStatus  mức BMI theo tuổi chuẩn WHO (HLT-18): chỉ số đo của kỳ cân đo; null với phiếu khám
+ * @property {number|null} bmiZScore     z-score BMI theo tuổi, 2 chữ số, đi cùng bmiStatus
  * @property {HeadCircumferenceStatus|null} headCircumferenceStatus
- * @property {{ key: ScreeningCriterion, flagged: boolean }[]} criteria   chỉ mẫu cũ
- * @property {FollowUpLevel} followUpLevel   phiếu: theo kết luận bác sĩ; mẫu cũ: theo 3 tiêu chí
- * @property {'NORMAL'|'ISSUE'|'REFERRAL'|'TB_RISK'|null} conclusionCategory
- * @property {{ code: string, label: string }} reference   reference standard used for the screening
+ * @property {FollowUpLevel} followUpLevel   theo kết luận bác sĩ (HLT-10); số đo của kỳ cân đo: UNAVAILABLE
+ * @property {'NORMAL'|'ISSUE'|'REFERRAL'|'TB_RISK'|'FOLLOWING_NO_NEW'|'FOLLOWING_NEW'|null} conclusionCategory
  * @property {boolean} published         visible to linked parents (GBR-HLT-05); BE công bố ngay khi lưu, trừ phiếu nháp (2026-10-23)
- * @property {ParentContact|null} parentContact  phiếu khám mức Cần theo dõi sát: đã trao đổi với phụ huynh chưa (BE tính)
- *
- * @typedef {Object} ParentContact
- * @property {boolean} contacted
- * @property {boolean} atExam            trao đổi tại buổi khám (có người đi cùng)
- * @property {string|null} on            ngày trao đổi
- * @property {string} opinion            ý kiến phụ huynh tại buổi khám
  * @property {string} measuredBy / measuredByName
  * @property {{ at, userId, userName, reason, changes: { field, from, to }[] }[]} edits  (GBR-HLT-03)
  *
  * @typedef {'NO_ABNORMALITY'|'ABNORMAL'} MotorResult
  * @typedef {'NORMAL'|'SMALL'|'LARGE'|'NOT_MEASURED'} HeadCircumferenceStatus
- * @typedef {'HEAD_CIRCUMFERENCE'|'GROSS_MOTOR'|'FINE_MOTOR'} ScreeningCriterion
  * @typedef {'NONE'|'KNOWN_STABLE'|'WATCH'|'CLOSE_WATCH'|'UNAVAILABLE'} FollowUpLevel
+ * @typedef {'SEVERE_THINNESS'|'THINNESS'|'NORMAL'|'OVERWEIGHT_RISK'|'OVERWEIGHT'|'OBESE'} BmiStatus
  * @typedef {'EXAM'|'LEGACY'|'MEASUREMENT_ONLY'} MeasurementSource
  */
 
@@ -85,8 +78,7 @@ export const MOTOR_RESULT = { NO_ABNORMALITY: 'NO_ABNORMALITY', ABNORMAL: 'ABNOR
 
 export const MOTOR_RESULT_LABELS = { NO_ABNORMALITY: 'Không ghi nhận bất thường', ABNORMAL: 'Có bất thường' };
 
-// Kết quả sàng lọc mẫu cũ do BE tính (user chốt 2026-10-15, PROPOSED); nhãn trung tính, không phải chẩn đoán.
-// Bỏ nhãn phân loại BMI (user chốt 2026-10-17): chỉ còn số BMI.
+// Vòng đầu do BE trả (phiếu khám theo lựa chọn bác sĩ; mẫu cũ theo khoảng tạm); nhãn trung tính, không phải chẩn đoán.
 export const HEAD_CIRCUMFERENCE_STATUS = { NORMAL: 'NORMAL', SMALL: 'SMALL', LARGE: 'LARGE', NOT_MEASURED: 'NOT_MEASURED' };
 
 export const HEAD_CIRCUMFERENCE_STATUS_LABELS = {
@@ -96,10 +88,32 @@ export const HEAD_CIRCUMFERENCE_STATUS_LABELS = {
   NOT_MEASURED: 'Không đo',
 };
 
-export const SCREENING_CRITERIA_LABELS = {
-  HEAD_CIRCUMFERENCE: 'Vòng đầu ngoài chuẩn',
-  GROSS_MOTOR: 'Vận động thô có bất thường',
-  FINE_MOTOR: 'Vận động tinh có bất thường',
+/** Mức BMI theo tuổi chuẩn WHO do BE xếp cho số đo của kỳ cân đo (HLT-18): chỉ đánh dấu sàng lọc, không chẩn đoán (HLT-12). */
+export const BMI_STATUS = {
+  SEVERE_THINNESS: 'SEVERE_THINNESS',
+  THINNESS: 'THINNESS',
+  NORMAL: 'NORMAL',
+  OVERWEIGHT_RISK: 'OVERWEIGHT_RISK',
+  OVERWEIGHT: 'OVERWEIGHT',
+  OBESE: 'OBESE',
+};
+
+export const BMI_STATUS_LABELS = {
+  SEVERE_THINNESS: 'Gầy còm nặng',
+  THINNESS: 'Gầy còm',
+  NORMAL: 'Bình thường',
+  OVERWEIGHT_RISK: 'Nguy cơ thừa cân',
+  OVERWEIGHT: 'Thừa cân',
+  OBESE: 'Béo phì',
+};
+
+/** Khóa của progress.bmi BE trả (số trẻ theo từng mức cảnh báo; không đếm mức bình thường), theo thứ tự hiển thị. */
+export const BMI_PROGRESS_KEYS = {
+  SEVERE_THINNESS: 'severeThinness',
+  THINNESS: 'thinness',
+  OVERWEIGHT_RISK: 'overweightRisk',
+  OVERWEIGHT: 'overweight',
+  OBESE: 'obese',
 };
 
 // KNOWN_STABLE: vấn đề đã biết, không thay đổi — không phải cảnh báo; "Cần theo dõi" là vấn đề có thể chuyển biến (user chốt 2026-10-21).
@@ -170,7 +184,8 @@ export const IMPORT_COLUMNS = [
   // Hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22); file mẫu cũ thiếu cột không nhập được.
   { key: 'idNumber', label: 'Số CCCD/mã định danh của trẻ', required: false },
   { key: 'premature', label: 'Sinh non (Có/Không)', required: true },
-  { key: 'gestationWeeks', label: 'Tuần thai khi sinh (bắt buộc khi sinh non)', required: false },
+  // Bắt buộc mọi trẻ, khớp cột Sinh non (user chốt 2026-11-04); file cũ ghi "(bắt buộc khi sinh non)" vẫn khớp cột theo phần trước " (".
+  { key: 'gestationWeeks', label: 'Tuần thai khi sinh (20–42)', required: true },
   { key: 'ethnicity', label: 'Dân tộc', required: true },
   { key: 'beneficiary', label: 'Đối tượng', required: true },
   { key: 'bloodType', label: 'Nhóm máu', required: false },
@@ -182,6 +197,14 @@ export const IMPORT_COLUMNS = [
   { key: 'tbContact', label: 'Tiếp xúc người bệnh lao (Có/Không)', required: true },
   // Bắt buộc khi cột trên là "Có" (user chốt 2026-10-21); kiểm theo dòng.
   { key: 'tbContactDate', label: 'Ngày tiếp xúc người bệnh lao gần nhất (dd/mm/yyyy)', required: false },
+  ...[2, 3].flatMap((n) => [
+    { key: 'guardianName' + n, label: 'Họ tên phụ huynh ' + n, required: false },
+    { key: 'relation' + n, label: 'Quan hệ phụ huynh ' + n, required: false },
+    { key: 'phone' + n, label: 'Số điện thoại phụ huynh ' + n, required: false },
+    { key: 'guardianIdNumber' + n, label: 'Số CCCD phụ huynh ' + n, required: false },
+    { key: 'email' + n, label: 'Email phụ huynh ' + n, required: false },
+  ]),
+  { key: 'accountRecipientIdNumber', label: 'CCCD phụ huynh nhận tài khoản', required: false },
 ];
 
 export const MEASUREMENT_FIELD_LABELS = {

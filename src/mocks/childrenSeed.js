@@ -5,7 +5,15 @@
 
 import { GUARDIAN_TO_COMPANION_RELATION, buildEmptyExam } from '@/models/children/healthExamForm';
 import { historyToExam, profileToExamAdmin } from '@/models/children/childProfile';
-import { C2_OCT_CAMPAIGN, OPEN_CAMPAIGN, SEED_CAMPAIGN_DATES, openCampaignDates, seedCampaignId } from './healthCheckSeed';
+import { bmiForZScore, bmiLmsOf } from '@/services/children/mock/bmiForAgeRule';
+import {
+  C2_OCT_CAMPAIGN,
+  MEASUREMENT_ROUND,
+  OPEN_CAMPAIGN,
+  SEED_CAMPAIGN_DATES,
+  openCampaignDates,
+  seedCampaignId,
+} from './healthCheckSeed';
 
 // Ngày khám của các đợt đã đóng (khớp healthCheckSeed); đợt tháng 9 là lần gần nhất.
 const DATES = ['2026-03-16', '2026-06-15', '2026-09-15'];
@@ -33,7 +41,7 @@ const PAST_ABNORMAL = {
   '2026-06-15': { 3: { fine: true }, 8: { head: 5.5 }, 19: { gross: true }, 25: { head: -3.2, gross: true } },
 };
 
-// Đợt tháng 9: vài trẻ đạt 1 hoặc 2 tiêu chí (phiếu theo dõi seed dựa vào các kết quả này).
+// Đợt tháng 9: vài trẻ có vòng đầu, vận động bất thường (kết quả mẫu cũ, chỉ để xem lại).
 const latestAbnormal = (n) => ({
   head: n % 8 === 3 ? -3.2 : n % 12 === 7 ? 5.5 : 0,
   fine: n % 8 === 3 || n % 10 === 5,
@@ -74,7 +82,7 @@ const EXAM_CASES = {
     edited: { weightFrom: 0.4, reason: 'Cân lại sau khi trẻ cởi áo khoác.' },
   },
   ch_003: {
-    case: 'Trẻ đang có phiếu theo dõi: "Có thêm bất thường mới", KHÔNG có người đi cùng ⇒ vòng mới, chờ trao đổi 7 ngày, phiếu ghi "Chưa trao đổi phụ huynh"; gợi ý kết hợp 2 dấu hiệu',
+    case: 'Phiếu cũ mẫu FOLLOW_UP (kết luận khi trẻ còn phiếu theo dõi): "Có thêm bất thường mới", không có người đi cùng; gợi ý kết hợp 2 dấu hiệu',
     headOffset: -3.4,
     noCompanion: true,
     headStatus: 'SMALL',
@@ -90,7 +98,7 @@ const EXAM_CASES = {
   },
   ch_004: { case: 'Phiếu nháp dừng ở bước 2 (sinh tồn, dinh dưỡng)', draft: 1, headOffset: 0.2 },
   ch_005: {
-    case: 'Chuyển khám có người đi cùng: trao đổi ghi tại buổi khám kèm ý kiến phụ huynh; sốt + mạch nhanh',
+    case: 'Chuyển khám có người đi cùng, có ý kiến phụ huynh; sốt + mạch nhanh',
     headOffset: 0.3,
     vitals: { temperatureC: 37.8, temperatureStatus: 'FEVER', pulse: 132, pulseStatus: 'FAST' },
     clinical: { strabismus: 'YES' },
@@ -191,7 +199,7 @@ const EXAM_CASES = {
   ch_018: { case: 'Kết quả mẫu cũ nhập trong đợt (trước phiếu Phụ lục II)', legacy: { gross: 'NO_ABNORMALITY', fine: 'ABNORMAL' } },
   /* ---------- Lớp Lá 1 (c1, cô Hoa; trẻ trên 60 tháng không đo vòng đầu, ví dụ ch_020) ---------- */
   ch_019: {
-    case: 'Trẻ đang có phiếu theo dõi (có kết quả chuyên khoa, hẹn khám lại): "Chưa ghi nhận thêm bất thường" ⇒ phiếu giữ nguyên',
+    case: 'Phiếu cũ mẫu FOLLOW_UP (kết luận khi trẻ còn phiếu theo dõi): "Chưa ghi nhận thêm bất thường", có ý kiến phụ huynh',
     clinical: { gait: 'ABNORMAL', asymmetricMotion: 'YES' },
     conclusion: {
       normal: false,
@@ -227,7 +235,7 @@ const EXAM_CASES = {
   ch_022: { case: 'Phiếu nháp dừng ở bước 1 (mới nhập hành chính)', draft: 0 },
   /* ---------- Đợt đã đóng đầu tháng 10 ở c2 (thầy Tuấn: Mầm 1; cô Ngọc: Lá A) ---------- */
   ch_025: {
-    case: 'Đợt đã đóng: chuyển khám có người đi cùng, đã có kết quả chuyên khoa (chuyên khoa, ảnh, hẹn khám lại)',
+    case: 'Đợt đã đóng: chuyển khám có người đi cùng',
     campaign: 'c2_oct',
     headOffset: 0.2,
     clinical: { hearing: 'ABNORMAL', earDischarge: 'YES' },
@@ -258,7 +266,7 @@ const EXAM_CASES = {
   },
   ch_032: { case: 'Đợt đã đóng: bình thường, trẻ trên 60 tháng', campaign: 'c2_oct' },
   ch_033: {
-    case: 'Đợt đã đóng: chuyển khám không có người đi cùng, quá hạn trao đổi',
+    case: 'Đợt đã đóng: chuyển khám không có người đi cùng; ở kỳ cân đo c2 trẻ có cảnh báo béo phì (thử Sổ sức khỏe có đủ 2 cảnh báo)',
     campaign: 'c2_oct',
     noCompanion: true,
     clinical: { eyelids: 'DISCHARGE' },
@@ -272,6 +280,13 @@ const EXAM_CASES = {
     },
   },
 };
+
+/*
+ * Số đo của kỳ cân đo đang diễn ra ở c2 (dữ liệu giả, HLT-18): cân nặng dựng theo z-score BMI mục tiêu tại ngày đo, gần mức của các
+ * lần đo trước của chính trẻ để biểu đồ liền mạch — Lớp Lá A đủ 6 trẻ (ch_033 gầy còm), Lớp Mầm 1 có 2 trẻ (ch_026 béo phì, ch_029
+ * nguy cơ thừa cân), còn lại để giáo viên nhập.
+ */
+const ROUND_BMI_Z = { ch_026: 3.2, ch_029: 1.2, ch_031: -0.4, ch_032: 0.5, ch_033: -2.6, ch_034: 0.6, ch_035: -1.6, ch_036: 0 };
 
 const pad5 = (n) => String(n).padStart(5, '0');
 
@@ -413,6 +428,33 @@ const buildMeasurements = (children, classes) => {
           edits: [],
         });
       }
+      const roundZ = ROUND_BMI_Z[ch.id];
+      if (roundZ != null && ch.campusId === MEASUREMENT_ROUND.campusId) {
+        const date = openCampaignDates().entryDate;
+        const age = ageMonthsOn(ch.dateOfBirth, date);
+        const lms = bmiLmsOf(ch.gender, age);
+        const heightCm = round1(heightAt(age) + 0.6);
+        if (lms)
+          list.push({
+            id: `hm_${ch.id}_round`,
+            childId: ch.id,
+            date,
+            heightCm,
+            weightKg: round1(bmiForZScore(roundZ, lms) * (heightCm / 100) ** 2),
+            headCircumferenceCm: null,
+            grossMotor: null,
+            fineMotor: null,
+            exam: null,
+            examStatus: null,
+            note: 'Cân đo tại lớp.',
+            campaignId: MEASUREMENT_ROUND.id,
+            measuredBy: teacherId,
+            published: true,
+            publishedAt: `${date}T09:00:00.000Z`,
+            createdAt: `${date}T08:30:00.000Z`,
+            edits: [],
+          });
+      }
       const spec = EXAM_CASES[ch.id];
       const campaign = spec?.campaign === 'c2_oct' ? C2_OCT_CAMPAIGN : { ...OPEN_CAMPAIGN, date: openCampaignDates().entryDate };
       if (spec && ch.campusId === campaign.campusId) {
@@ -498,7 +540,7 @@ export const SEED_CHILD_PROFILES = {
       tbContact: { state: 'REPORTED', contactDate: '2026-08-20' },
     },
   },
-  // Vấn đề đã biết: ch_023 khám đợt này chọn "đã biết"; ch_031 đóng phiếu với kết quả chuyên khoa xác định có vấn đề.
+  // Vấn đề đã biết: ch_023 khám đợt này chọn "đã biết"; ch_031 có vấn đề trong tiền sử bản thân (khai báo).
   ch_023: {
     medicalHistory: {
       self: { state: 'REPORTED', text: 'Cận thị – đeo kính' },
@@ -513,7 +555,7 @@ export const SEED_CHILD_PROFILES = {
     profile: {
       idNumber: '999222009901',
       premature: 'NO',
-      gestationWeeks: null,
+      gestationWeeks: 39,
       ethnicity: 'Kinh',
       beneficiary: 'Trẻ em dưới 6 tuổi',
       paymentSource: 'BHYT',

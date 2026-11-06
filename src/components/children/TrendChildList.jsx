@@ -4,7 +4,7 @@ import { FOLLOW_UP_LEVEL } from '@/models/children/childrenConstants';
 import { normalizeText } from '@/utils/format';
 import { FollowUpLevelShortBadge } from './ChildBadges';
 
-// Thứ tự "cần chú ý" theo mức theo dõi BE trả (user chọn 2026-10-23); chỉ sắp xếp để hiển thị, không tính lại mức.
+// Thứ tự "cần chú ý" theo mức theo dõi của lần khám gần nhất BE trả (user chọn 2026-10-23); chỉ sắp xếp để hiển thị, không tính lại mức.
 const ATTENTION_RANK = { [FOLLOW_UP_LEVEL.CLOSE_WATCH]: 0, [FOLLOW_UP_LEVEL.WATCH]: 1, [FOLLOW_UP_LEVEL.KNOWN_STABLE]: 2 };
 const rankOf = (child) => ATTENTION_RANK[child.latestHealth?.followUpLevel] ?? 3;
 
@@ -115,7 +115,7 @@ export function TrendChildList({
                   {c.latestHealth ? (
                     <FollowUpLevelShortBadge status={c.latestHealth.followUpLevel} />
                   ) : (
-                    <span className="muted text-xs nowrap">Chưa có kết quả khám</span>
+                    <span className="muted text-xs nowrap">Chưa có kết luận bác sĩ</span>
                   )}
                 </button>
               </li>

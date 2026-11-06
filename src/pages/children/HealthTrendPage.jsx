@@ -7,21 +7,16 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState } from '@/components/ui/States';
-import { ConclusionCategoryBadge, FollowUpLevelShortBadge, MotorResultBadge } from '@/components/children/ChildBadges';
 import { GrowthChart } from '@/components/children/GrowthChart';
+import { HealthWarningCell } from '@/components/children/HealthWarningCell';
 import { TrendChildList, sortByAttention } from '@/components/children/TrendChildList';
 import { AiTrendPanel } from '@/components/children/AiTrendPanel';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS, ageGroupById } from '@/models/School';
-import {
-  HEAD_CIRCUMFERENCE_STATUS_LABELS,
-  MEASUREMENT_SOURCE,
-  MEASUREMENT_SOURCE_LABELS,
-  growthAxesFor,
-} from '@/models/children/childrenConstants';
+import { growthAxesFor } from '@/models/children/childrenConstants';
 import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/children/healthExamForm';
 import { formatDate } from '@/utils/format';
-import { formatNumber, screeningTone, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
+import { formatNumber, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
@@ -107,15 +102,6 @@ export default function HealthTrendPage() {
       statusLabel: statuses.length ? statuses.map((s) => labelOf(NUTRITION_STATUS_OPTIONS, s)).join(', ') : 'Chưa có đánh giá của bác sĩ',
     };
   };
-  // Lần đo không có vòng đầu (dữ liệu cũ, trẻ trên 60 tháng) thì biểu đồ bỏ qua điểm đó
-  const headPoints = points
-    .filter((m) => m.headCircumferenceCm != null)
-    .map((m) => ({
-      date: m.date,
-      value: m.headCircumferenceCm,
-      tone: screeningTone(m.headCircumferenceStatus),
-      statusLabel: HEAD_CIRCUMFERENCE_STATUS_LABELS[m.headCircumferenceStatus],
-    }));
 
   return (
     <div className="page">
@@ -272,7 +258,6 @@ export default function HealthTrendPage() {
                         axis={axes.weight}
                         points={points.map((m) => nutritionPoint(m, m.weightKg))}
                       />
-                      {headPoints.length > 0 && <GrowthChart title="Vòng đầu" unit="cm" axis={axes.head} points={headPoints} />}
                     </div>
                     <div className="tr-legend text-sm">
                       <span>
@@ -284,10 +269,7 @@ export default function HealthTrendPage() {
                       <span>
                         <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa có đánh giá
                       </span>
-                      <span className="muted">
-                        Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám; vòng đầu theo lựa chọn ở phiếu khám
-                        (kết quả mẫu cũ: theo ngưỡng tham chiếu tạm, không phải chẩn đoán).
-                      </span>
+                      <span className="muted">Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám.</span>
                       {ageGroupById(ageGroupId) && (
                         <span className="muted">Thang đo dùng chung cho nhóm {ageGroupById(ageGroupId).shortName}.</span>
                       )}
@@ -302,10 +284,8 @@ export default function HealthTrendPage() {
                           <th>Ngày đo</th>
                           <th className="num">Chiều cao (cm)</th>
                           <th className="num">Cân nặng (kg)</th>
-                          <th className="num">Vòng đầu (cm)</th>
                           <th className="num">BMI</th>
-                          <th>Kết luận</th>
-                          <th>Mức theo dõi</th>
+                          <th>Cảnh báo</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -314,23 +294,9 @@ export default function HealthTrendPage() {
                             <td>{formatDate(m.date)}</td>
                             <td className="num">{formatNumber(m.heightCm)}</td>
                             <td className="num">{formatNumber(m.weightKg)}</td>
-                            <td className="num">{formatNumber(m.headCircumferenceCm)}</td>
                             <td className="num">{formatNumber(m.bmi)}</td>
                             <td>
-                              {m.source === MEASUREMENT_SOURCE.EXAM ? (
-                                <ConclusionCategoryBadge status={m.conclusionCategory} />
-                              ) : m.source === MEASUREMENT_SOURCE.LEGACY ? (
-                                <div className="tr-cell-stack text-sm">
-                                  <span className="muted text-xs">{MEASUREMENT_SOURCE_LABELS.LEGACY}</span>
-                                  <span>Thô: {m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : '—'}</span>
-                                  <span>Tinh: {m.fineMotor ? <MotorResultBadge status={m.fineMotor} /> : '—'}</span>
-                                </div>
-                              ) : (
-                                <span className="muted text-xs tr-note">{MEASUREMENT_SOURCE_LABELS.MEASUREMENT_ONLY}</span>
-                              )}
-                            </td>
-                            <td className="center">
-                              <FollowUpLevelShortBadge status={m.followUpLevel} />
+                              <HealthWarningCell measurement={m} />
                             </td>
                           </tr>
                         ))}

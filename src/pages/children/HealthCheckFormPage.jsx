@@ -223,7 +223,7 @@ export default function HealthCheckFormPage() {
           <Info size={18} />
           <div>
             {isRound
-              ? 'Kỳ cân đo khoảng 3 tháng/lần: giáo viên phụ trách lớp nhập chiều cao, cân nặng của trẻ trong khoảng ngày cân đo.'
+              ? 'Kỳ cân đo khoảng 3 tháng/lần: giáo viên phụ trách lớp nhập chiều cao, cân nặng của trẻ trong khoảng ngày cân đo. Kỳ cân đo tự đóng sau ngày kết thúc.'
               : 'Đợt khám sức khỏe thường 1 lần/năm học: giáo viên phụ trách lớp nhập phiếu khám cùng bác sĩ trong khoảng ngày khám. Đợt khám tự đóng sau ngày kết thúc.'}{' '}
             Mỗi điểm trường chỉ có một đợt khám hoặc kỳ cân đo chưa đóng.
           </div>

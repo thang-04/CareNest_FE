@@ -5,9 +5,8 @@ export const parentAccountOf = (db, guardian) => {
   const phone = normalizePhone(guardian.phone);
   const accounts = db.parentAccounts || [];
   return (
-    accounts.find(
-      (account) => guardian.accountId && account.id === guardian.accountId && (!phone || normalizePhone(account.phone) === phone),
-    ) || accounts.find((account) => phone && normalizePhone(account.phone) === phone)
+    accounts.find((account) => guardian.accountId && account.id === guardian.accountId) ||
+    accounts.find((account) => phone && normalizePhone(account.phone) === phone)
   );
 };
 

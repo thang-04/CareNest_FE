@@ -2,7 +2,7 @@
 
 |                             |                                                                                                                                                          |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phiên bản                   | 3.2 — 2026-10-19                                                                                                                                         |
+| Phiên bản                   | 3.4 — 2026-11-04                                                                                                                                         |
 | Trạng thái                  | **PROPOSED** — chờ team duyệt                                                                                                                            |
 | Áp cho                      | Web `CareNest_FE` (React, CSS thuần) và app `CareNest_APP` (Flutter)                                                                                     |
 | Bản gốc                     | `CareNest_FE/DESIGN.md` (file này). App chép nguyên thành `CareNest_APP/DESIGN.md` khi nối (Phụ lục A); sửa một bên thì chép sang bên kia trong cùng đợt |
@@ -184,6 +184,7 @@ App: `features/<feature>/presentation/<feature>_status.dart` trả `(label, tone
 | Thông báo nghỉ     | `CANCELLED`                        | Đã hủy                                     | `gray`                              |
 | Chứng từ có duyệt  | chờ duyệt                          | Chờ duyệt                                  | `approval`                          |
 | Tình trạng tài sản | Tốt · Bình thường · Cần sửa · Hỏng | (web `<ConditionBadge>`, class `.cond--*`) | `green` · `blue` · `orange` · `red` |
+| Mức BMI theo tuổi (kỳ cân đo, BE trả `bmiStatus` — HLT-18) | `SEVERE_THINNESS` · `THINNESS` · `NORMAL` · `OVERWEIGHT_RISK` · `OVERWEIGHT` · `OBESE` | Gầy còm nặng · Gầy còm · Bình thường · Nguy cơ thừa cân · Thừa cân · Béo phì (web `<BmiStatusBadge>`) | `red` · `orange` · `green` · `orange` (icon mắt, nhẹ hơn) · `orange` · `red`; không dùng `approval` (quy tắc 7) |
 
 **Nhãn phân loại** (không phải trạng thái) dùng cùng nghĩa màu: vai trò của tôi / người liên quan ("Người bàn giao", "Người nhận", "Tôi") `teal`; thiếu, hư hỏng, dị ứng `red`; thừa, lệch sổ sách `orange`; số đếm trong tab `.tab__count`.
 
@@ -457,6 +458,7 @@ Tông = tổng mã ký tự của tên mod 5 (web `avatarTone` trong `src/utils/
 | Thanh tab, chọn điểm trường                        | `components/ui/Tabs.jsx` (class `.tabs`; `variant="pill"` ⇒ `.tabs--pill`), `components/ui/CampusFilter.jsx` (ẩn khi chỉ 1 điểm trường)                         |
 | Chọn lớp có tìm, form một hàng                     | `components/ui/ClassPicker.jsx` (gõ tên + nút Tìm, nhóm theo nhóm tuổi, lọc điểm trường), class `.form-inline` (`__class` `__grow` `__pair` `__full`)           |
 | Avatar                                             | người dùng `components/ui/Avatar.jsx`; trẻ `components/ChildAvatar.jsx` (đúng §6.2, dự kiến gộp vào `ui/Avatar`)                                                |
+| Ảnh chân dung riêng tư | `components/PortraitImage.jsx` + `hooks/usePhotoUrl.js`: chọn File/ảnh demo hoặc đọc blob có token, fallback và thu hồi URL; `components/children/PortraitPicker.jsx` dùng riêng cho form tiếp nhận |
 | AI đang chạy                                       | `components/ui/AiWorkingOverlay.jsx`, `hooks/useAiRun.js`                                                                                                       |
 | Ô nhập                                             | `components/form/FormField.jsx`, `components/form/DateInput.jsx`, `components/form/PasswordInput.jsx`                                                           |
 | Biểu đồ nhỏ                                        | `components/charts/MiniCharts.jsx`, `components/charts/RankBars.jsx`                                                                                            |
@@ -768,6 +770,8 @@ Rồi `node scripts/verify.mjs`.
 Ghi chú 3.2 (2026-10-19): bổ sung primitive Web từ đợt ghép dinh dưỡng và mẫu `/ui-kit`; không đổi token. Chưa đồng bộ sang App vì đợt này chỉ được phép sửa FE.
 
 Ghi chú 3.3 (2026-10-20): Web hỗ trợ điện thoại 360–430px ở mức "dùng được" (mục 1, quy tắc 19, mục 7.1, 13.3); plan `docs/plans/completed/2026-10-20-mobile-responsive-baseline.md`. Không ảnh hưởng App.
+
+Ghi chú 3.4 (2026-11-04): thêm dòng "Mức BMI theo tuổi" vào bảng map mục 3.2 (BE trả nhãn đánh giá nên được tô màu theo quy tắc 8); plan `docs/plans/active/2026-11-04-health-warnings-book.md`. Chưa chép sang `CareNest_APP/DESIGN.md` vì đợt này chỉ được sửa FE — cần đồng bộ khi App hiện mức BMI.
 
 ## Phụ lục A — Nối vào repo để AI tự đọc
 
