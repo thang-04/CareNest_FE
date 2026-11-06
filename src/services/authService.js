@@ -33,7 +33,7 @@ const keycloakDevUser = async () => {
   const account = await beClient.get('/accounts/me');
   const role = roleOf(account);
   if (!role) {
-    const err = new Error('Tài khoản này không dùng được trên web (chỉ dành cho Hiệu trưởng, Phó hiệu trưởng, giáo viên, nhân viên bếp).');
+    const err = new Error('Tài khoản này không dùng được trên web');
     err.status = 403;
     throw err;
   }

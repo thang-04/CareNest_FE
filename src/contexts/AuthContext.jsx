@@ -11,7 +11,7 @@ import {
 import { UNAUTHORIZED_EVENT } from '@/services/http/tokenStorage';
 
 const AuthContext = createContext(null);
-const EXPIRED_MESSAGE = 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.';
+const EXPIRED_MESSAGE = 'Phiên đã hết hạn, hãy đăng nhập lại';
 const EXPIRY_CHECK_MS = 60_000;
 
 export function AuthProvider({ children }) {
@@ -81,9 +81,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setStatus('anonymous');
     setSessionError(null);
-    setSessionMessage(
-      error ? 'Đã thoát trên tab này nhưng chưa kết thúc được phiên trên máy chủ. Vui lòng thử lại khi có kết nối.' : message,
-    );
+    setSessionMessage(error ? 'Đã thoát trên tab này, chưa kết thúc được phiên trên máy chủ' : message);
   }, []);
 
   const refreshUser = useCallback(async () => {

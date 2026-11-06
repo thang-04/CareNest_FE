@@ -113,7 +113,7 @@ export const authMockRepository = {
     if (!normalized || !password) throw new ApiError(400, 'Vui lòng nhập email và mật khẩu');
     const user = readDb().users.find((u) => u.email.toLowerCase() === normalized);
     // Same message for wrong email or password (do not reveal which accounts exist).
-    if (!user) throw new ApiError(401, 'Email hoặc mật khẩu không đúng');
+    if (!user) throw new ApiError(401, 'Sai tài khoản hoặc mật khẩu');
 
     const cred = readDb().authCredentials?.[user.id];
     if (cred?.lockedUntil && cred.lockedUntil > Date.now()) {
@@ -136,7 +136,7 @@ export const authMockRepository = {
       if (lockedUntil) {
         throw new ApiError(423, `Tài khoản đang tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau ${clock(lockedUntil)}.`);
       }
-      throw new ApiError(401, 'Email hoặc mật khẩu không đúng');
+      throw new ApiError(401, 'Sai tài khoản hoặc mật khẩu');
     }
 
     if (user.status === 'LOCKED' || user.status === 'INACTIVE') {
