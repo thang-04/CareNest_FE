@@ -28,38 +28,43 @@ export function NutrientTable({ values, caption }) {
   const v = values || {};
   const shares = energyShares({ protein: v.protein || 0, lipid: v.lipid || 0, glucid: v.glucid || 0 });
   return (
-    <div className="table-wrap">
-      <table className="table table--grid table--compact td-nutrient-table">
-        {caption && <caption className="td-nutrient-table__caption">{caption}</caption>}
-        <thead>
-          <tr>
-            <th scope="col">Chất</th>
-            <th scope="col" className="num">
-              Hàm lượng
-            </th>
-            <th scope="col">Đơn vị</th>
-          </tr>
-        </thead>
+    <div>
+      {/* Mỗi nhóm một bảng, xếp cạnh nhau khi đủ rộng; tiêu đề nhóm có màu riêng (năng lượng · khoáng chất · vitamin) */}
+      <div className="td-nutrient-grid">
         {GROUPS.map((g) => (
-          <tbody key={g.key}>
-            <tr className="td-nutrient-table__group">
-              <th scope="colgroup" colSpan={3}>
-                {g.label}
-              </th>
-            </tr>
-            {g.items.map((k) => {
-              const value = fmt(v[k]);
-              return (
-                <tr key={k}>
-                  <th scope="row">{g.labels[k]}</th>
-                  <td className="num fw-600">{value ?? <span className="muted">Chưa có</span>}</td>
-                  <td className="muted">{g.units[k]}</td>
+          <div key={g.key} className={`table-wrap td-nutrient-group td-nutrient-group--${g.key}`}>
+            <table className="table table--grid table--compact td-nutrient-table">
+              {caption && g.key === 'energy' && <caption className="td-nutrient-table__caption">{caption}</caption>}
+              <thead>
+                <tr className="td-nutrient-table__group">
+                  <th scope="colgroup" colSpan={3}>
+                    {g.label}
+                  </th>
                 </tr>
-              );
-            })}
-          </tbody>
+                <tr>
+                  <th scope="col">Chất</th>
+                  <th scope="col" className="num">
+                    Hàm lượng
+                  </th>
+                  <th scope="col">Đơn vị</th>
+                </tr>
+              </thead>
+              <tbody>
+                {g.items.map((k) => {
+                  const value = fmt(v[k]);
+                  return (
+                    <tr key={k}>
+                      <th scope="row">{g.labels[k]}</th>
+                      <td className="num fw-600">{value ?? <span className="muted">Chưa có</span>}</td>
+                      <td className="muted">{g.units[k]}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ))}
-      </table>
+      </div>
       {typeof v.kcal === 'number' && (
         <p className="text-xs muted td-flat mt-8">Tỷ lệ năng lượng đạm : béo : tinh bột = {shares.join(' : ')} (%)</p>
       )}

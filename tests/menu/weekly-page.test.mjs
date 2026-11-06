@@ -56,11 +56,15 @@ test('ngày cần xử lý: ngày chưa chọn thực đơn, món mặn lặp tr
   );
 });
 
-test('HT chỉ đọc được bản đã xuất bản của nhóm tuổi', async () => {
+test('HT xem được cả bản nháp của nhóm tuổi; giáo viên không lưu được', async () => {
   const list = await repo.listWeeklyMenus({ ageGroupId: 'ag-4' }, HT);
   assert.ok(list.length > 0);
-  assert.ok(list.every((w) => w.status === 'PUBLISHED'));
-  await assert.rejects(repo.saveWeeklyMenu(null, { ageGroupId: 'ag-4', weekStart: '2026-11-02', days: [] }, HT), (e) => e.status === 403);
+  const asVp = await repo.listWeeklyMenus({ ageGroupId: 'ag-4' }, VP);
+  assert.equal(list.length, asVp.length, 'HT thấy đủ như PHT (cả bản nháp)');
+  await assert.rejects(
+    repo.saveWeeklyMenu(null, { ageGroupId: 'ag-4', weekStart: '2026-11-02', days: [] }, { id: 'u_teacher', role: 'TEACHER' }),
+    (e) => e.status === 403,
+  );
 });
 
 test('tóm tắt đầu cột ngày khớp bảng cân đối: kcal, tiền ăn, đánh giá; ngày nghỉ hoặc chưa có món thì không có số', async () => {

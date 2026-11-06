@@ -15,56 +15,43 @@ import '@/styles/modules/boarding.css';
 function CampusBoard({ campus, date, syncing, onSyncStock }) {
   const rows = buildDayBoardRows(campus, { date });
   return (
-    <section className="card" aria-label={campus.campusName}>
+    <section className="card bd-campus" aria-label={campus.campusName}>
       <div className="card__header">
         <h2 className="card__title">{campus.campusName}</h2>
       </div>
-      <div className="table-wrap">
-        <table className="table table--grid bd-table">
-          <thead>
-            <tr>
-              <th>Việc</th>
-              <th>Trạng thái</th>
-              <th>Chi tiết</th>
-              <th className="cell--actions">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.key}>
-                <th scope="row" className="bd-title">
-                  {row.title}
-                </th>
-                <td>
-                  <StatusBadge tone={row.tone} label={row.status} />
-                </td>
-                <td className="bd-detail">{row.detail}</td>
-                <td className="cell--actions">
-                  <div className="bd-actions">
-                    {row.actions.map((action, i) =>
-                      action.syncStock ? (
-                        <button
-                          key={action.key}
-                          type="button"
-                          className="btn btn--sm btn--primary"
-                          disabled={syncing}
-                          onClick={() => onSyncStock(campus)}
-                        >
-                          <RefreshCw size={14} /> {action.label}
-                        </button>
-                      ) : (
-                        <Link key={action.to} className={`btn btn--sm ${i ? 'btn--ghost' : ''}`} to={action.to}>
-                          {action.label} <ArrowRight size={14} />
-                        </Link>
-                      ),
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Mỗi việc một hàng: tên + trạng thái, chi tiết bên dưới, nút xử lý bên phải — hai điểm trường đặt cạnh nhau */}
+      <ul className="bd-tasks">
+        {rows.map((row) => (
+          <li key={row.key} className="bd-task">
+            <div className="bd-task__main">
+              <div className="bd-task__head">
+                <span className="bd-title">{row.title}</span>
+                <StatusBadge tone={row.tone} label={row.status} />
+              </div>
+              <p className="bd-detail">{row.detail}</p>
+            </div>
+            <div className="bd-actions">
+              {row.actions.map((action, i) =>
+                action.syncStock ? (
+                  <button
+                    key={action.key}
+                    type="button"
+                    className="btn btn--sm btn--primary"
+                    disabled={syncing}
+                    onClick={() => onSyncStock(campus)}
+                  >
+                    <RefreshCw size={14} /> {action.label}
+                  </button>
+                ) : (
+                  <Link key={action.to} className={`btn btn--sm ${i ? 'btn--ghost' : ''}`} to={action.to}>
+                    {action.label} <ArrowRight size={14} />
+                  </Link>
+                ),
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

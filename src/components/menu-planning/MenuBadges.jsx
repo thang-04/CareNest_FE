@@ -91,20 +91,28 @@ export function HistoryCard({ history }) {
         {list.length === 0 ? (
           <div className="muted">Chưa có lịch sử.</div>
         ) : (
-          <ul className="history-list">
-            {list.map((h) => (
-              <li key={h.id}>
-                <div className="history-list__dot" />
-                <div>
-                  <div className="fw-600">{HISTORY_LABELS[h.action] || h.action}</div>
-                  <div className="text-sm muted">
-                    {md.userById(h.userId)?.fullName || 'Người dùng'} · {formatDateTime(h.at)}
-                  </div>
-                  {h.note && <div className="text-sm">{h.note}</div>}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="table-wrap">
+            <table className="table table--grid table--compact td-history-table">
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th>Người thực hiện</th>
+                  <th>Hành động</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((h) => (
+                  <tr key={h.id}>
+                    <td className="nowrap">{formatDateTime(h.at)}</td>
+                    <td>{md.userById(h.userId)?.fullName || 'Người dùng'}</td>
+                    <td className="fw-600">{HISTORY_LABELS[h.action] || h.action}</td>
+                    <td>{h.note || <span className="muted">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

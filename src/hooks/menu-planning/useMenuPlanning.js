@@ -74,7 +74,8 @@ export function useCatalogAccess() {
   // Danh mục dùng BE thì quyền lấy từ /accounts/me ⇒ không gọi quyền thực đơn của bản demo
   const menu = useMenuAccess({ enabled: !usesApi });
   if (!usesApi) return { ...menu, softDelete: false };
-  return { loading: false, softDelete: true, canManage: hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE) };
+  // BE chưa có "hay dùng": dấu tim chỉ lưu ở trình duyệt, nên ai xem danh mục cũng đánh dấu riêng cho mình được
+  return { loading: false, softDelete: true, personalFavorite: true, canManage: hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE) };
 }
 
 const catalogHook = (loader) =>

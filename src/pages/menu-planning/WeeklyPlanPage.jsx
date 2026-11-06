@@ -21,7 +21,7 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { mealPlanApi } from '@/services/mealPlanApi';
 import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, mondayOf } from '@/models/menu-planning/menuPlanningConstants';
 import { blockSessions, draftFromPlan, isDirty, planBlocks, resolveWeekStart } from '@/utils/menu-planning/mealPlanGrid';
-import { applyTemplateDay, dayBlockItemCount } from '@/utils/menu-planning/menuTemplateGrid';
+import { applyTemplateDay, dayBlockItemCount, templateItemsForDate } from '@/utils/menu-planning/menuTemplateGrid';
 import { statisticsHref } from '@/utils/menu-planning/menuStatistics';
 import { weeklyCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDateTime, todayInput } from '@/utils/format';
@@ -67,6 +67,11 @@ export default function WeeklyPlanPage() {
   // Ngày đã có món của khối ⇒ hỏi trước khi thay bằng mẫu (agent chọn 2026-11-04, xem plan)
   const pickTemplate = (day, template) => {
     if (!template) return;
+    // Bộ 4 tuần lấy Tuần 1 cùng thứ; thứ này chưa có món thì không thay gì, báo rõ thay vì xóa món đang có
+    if (templateItemsForDate(template, day.date).length === 0) {
+      toast.error(`Mẫu "${template.name}" chưa có món cho ngày này (Tuần 1, cùng thứ).`, 'Chưa điền được theo mẫu');
+      return;
+    }
     const count = dayBlockItemCount(draft, day.date, block);
     if (count > 0) setPending({ day, template, count });
     else fillDay(day, template);
@@ -214,8 +219,7 @@ export default function WeeklyPlanPage() {
         </section>
       ) : (
         <>
-          <WeekDaySummary plan={plan} draft={draft} onShowAll={plan.issues.length ? () => setIssuesOpen(true) : undefined} />
-          {/* Chia tab (DESIGN §6.3): soạn món cả tuần | bảng kiểm dinh dưỡng; lưu ý của tuần ở dải tóm tắt phía trên */}
+          {/* Chia tab (DESIGN §6.3): soạn món cả tuần | bảng kiểm dinh dưỡng; lưu ý của tuần nằm dưới bảng */}
           <Tabs
             ariaLabel="Phần kế hoạch tuần"
             value={tab}
@@ -252,6 +256,14 @@ export default function WeeklyPlanPage() {
               <MealPlanEvaluations plan={plan} block={block} />
             </section>
           )}
+          <section className="card">
+            <div className="card__header">
+              <h2 className="card__title">Lưu ý của tuần</h2>
+            </div>
+            <div className="card__body">
+              <WeekDaySummary plan={plan} draft={draft} onShowAll={plan.issues.length ? () => setIssuesOpen(true) : undefined} />
+            </div>
+          </section>
         </>
       )}
 

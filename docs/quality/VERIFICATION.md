@@ -1,5 +1,11 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## G94-191 — chuyển thay đổi bán trú/dinh dưỡng sang nhánh tính năng, 06/11/2026
+
+- Nền `origin/dev` (`6a0554c`) trước khi chuyển diff: `node scripts/verify.mjs` thất bại ở 2 ca của `tests/health/growth-report-sheet.test.mjs` (dòng 158, 174: `rows.map is not a function`, `undefined is not a function`); đây là lỗi có sẵn, ngoài phần bán trú.
+- Sau khi chuyển diff: `node scripts/verify.mjs` vẫn thất bại đúng 2 ca trên; các nhóm auth, menu, kitchen, integration, hardening, dashboard trước bước health đều 0 lỗi. `npm.cmd run check` đạt (lint 0 lỗi, 1 cảnh báo ở `ImportGoalFileModal.jsx`; format, design, API contract, build đạt). `node scripts/check-ai-layer.mjs` đạt: 0 lỗi, 21 cảnh báo tài liệu cũ.
+- Chưa kiểm trình duyệt hoặc BE thật trong worktree G94-191 này. Các file phân quyền trường và công cụ cục bộ ở nhánh G94-272 không được chuyển.
+
 ## Đánh giá UI/UX chuyên sâu luồng bán trú — 04/11/2026
 ## UI tiếp nhận trẻ theo phiếu khám — 05/11/2026
 

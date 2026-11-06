@@ -308,6 +308,10 @@ const ITEMS = {
     label: 'Kế hoạch tuần & công bố',
     to: '/menu/weekly',
   },
+  menuStatistics: {
+    label: 'Thống kê định lượng',
+    to: '/menu/statistics',
+  },
   nutrition: {
     label: 'Cân đối khẩu phần',
     to: '/menu/nutrition',
@@ -410,14 +414,7 @@ const MENUS = {
       'schoolRoles',
     ]),
     // Tiếp nhận trẻ, Xếp lớp như PHT trên mọi điểm trường (user chốt 2026-10-27)
-    group('children', [
-      'childList',
-      'childEnroll',
-      'childPlacement',
-      'parentActivation',
-      'healthChecks',
-      'healthTrends',
-    ]),
+    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('assessment', [
       'assessOverview',
@@ -434,7 +431,7 @@ const MENUS = {
     ]),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     ...boardingSection({
-      nutrition: ['weeklyMenus', 'menus'],
+      nutrition: ['weeklyMenus', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
@@ -455,14 +452,7 @@ const MENUS = {
       'schoolTeachers',
       'schoolStaffView',
     ]),
-    group('children', [
-      'childList',
-      'childEnroll',
-      'childPlacement',
-      'parentActivation',
-      'healthChecks',
-      'healthTrends',
-    ]),
+    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
@@ -479,7 +469,7 @@ const MENUS = {
       'assessDayUnlocks',
     ]),
     ...boardingSection({
-      nutrition: ['weeklyMenus', 'menus', 'nutrition'],
+      nutrition: ['weeklyMenus', 'menuStatistics', 'menus', 'nutrition'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
@@ -628,7 +618,8 @@ const withBePermissions = (menu, user) =>
 // Màn chỉ có khi nối BE (build mock không có route) ⇒ ẩn mục ở build demo
 // Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
 const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
-const API_ONLY_ITEMS = !KITCHEN_RECORDS_API ? ['mealPhotos', 'photoWindows'] : [];
+const MEAL_PLAN_API = !USE_MOCK && INTEGRATION_MODULES['meal-plan']?.source === 'api';
+const API_ONLY_ITEMS = [...(!KITCHEN_RECORDS_API ? ['mealPhotos', 'photoWindows'] : []), ...(!MEAL_PLAN_API ? ['menuStatistics'] : [])];
 const withApiOnlyItems = (menu) =>
   API_ONLY_ITEMS.length
     ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))

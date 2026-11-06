@@ -1,5 +1,7 @@
+import { Fragment } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Tabs } from '@/components/ui/Tabs';
+import { dishTypeClass } from '@/utils/dishTypeClass';
 import { useTabParam } from '@/hooks/useTabParam';
 import { Camera, ClipboardCheck } from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
@@ -17,6 +19,7 @@ import {
 import { foodNeedRows, menuBlocks, menuBySession, servingsBySession } from '@/utils/kitchen/kitchenRecords';
 import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { formatDate, formatDateTime, isIsoDate, todayInput } from '@/utils/format';
+import '@/styles/modules/menu-planning.css';
 import '@/styles/modules/kitchen.css';
 import '@/styles/modules/kitchen-records.css';
 
@@ -25,11 +28,12 @@ function MenuCard({ menu }) {
   const rows = menuBySession(menu);
   if (!rows.length) return <p className="card__body muted">Ngày này không có món trong thực đơn đã công bố.</p>;
   return (
-    <div className="table-wrap">
-      <table className="table table--grid kr-table">
+    // Cùng kiểu lưới với thực đơn tuần: dải tên bữa, món có vạch màu theo loại
+    <div className="table-wrap td-week-wrap">
+      <table className="table table--grid td-week kr-menu">
         <thead>
           <tr>
-            <th>Bữa ăn</th>
+            <th className="td-week__label">Bữa ăn</th>
             {blocks.map((block) => (
               <th key={block}>{MEAL_BLOCK_LABELS[block] || block}</th>
             ))}
@@ -37,18 +41,29 @@ function MenuCard({ menu }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.session}>
-              <th scope="row">{MEAL_SESSION_LABELS[row.session] || row.session}</th>
-              {blocks.map((block) => (
-                <td key={block}>
-                  <ul className="kr-dishes">
-                    {(row.byBlock[block] || []).map((dish) => (
-                      <li key={dish.id}>{dish.name}</li>
-                    ))}
-                  </ul>
-                </td>
-              ))}
-            </tr>
+            <Fragment key={row.session}>
+              <tr className="td-week__band">
+                <th scope="colgroup" colSpan={blocks.length + 1}>
+                  {MEAL_SESSION_LABELS[row.session] || row.session}
+                </th>
+              </tr>
+              <tr>
+                <th scope="row" className="td-week__label">
+                  Món
+                </th>
+                {blocks.map((block) => (
+                  <td key={block}>
+                    <ul className="td-week__dishes">
+                      {(row.byBlock[block] || []).map((dish) => (
+                        <li key={dish.id} className={`td-dish ${dishTypeClass(dish.type)}`}>
+                          <span className="td-grow">{dish.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </td>
+                ))}
+              </tr>
+            </Fragment>
           ))}
         </tbody>
       </table>
@@ -207,7 +222,12 @@ export default function KitchenTodayPage() {
         <div>
           <h1 className="page__title">Bếp hôm nay</h1>
         </div>
-        <div className="page__actions">
+      </div>
+      <div className="kb-toolbar">
+        <KbDateFilter value={date} onChange={setDate} />
+        {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
+        {/* Nút đứng cùng hàng bộ lọc, căn phải (như Kho khô), không treo riêng một hàng dưới breadcrumb */}
+        <div className="kb-toolbar__end">
           <Link className="btn" to={linkTo(KITCHEN_RECORD_PAGES.foodSamples)}>
             <ClipboardCheck size={16} /> Lưu mẫu thức ăn
           </Link>
@@ -215,10 +235,6 @@ export default function KitchenTodayPage() {
             <Camera size={16} /> Ảnh bữa ăn
           </Link>
         </div>
-      </div>
-      <div className="kb-toolbar">
-        <KbDateFilter value={date} onChange={setDate} />
-        {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
       </div>
       {body}
     </div>
