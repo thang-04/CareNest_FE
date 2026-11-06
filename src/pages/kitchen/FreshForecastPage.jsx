@@ -1,15 +1,16 @@
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { FreshForecastDetail } from '@/components/kitchen/FreshForecastDetail';
-import { FreshForecastEditor } from '@/components/kitchen/FreshForecastEditor';
 import { FreshForecastList } from '@/components/kitchen/FreshForecastList';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import '@/styles/modules/kitchen.css';
 
-const VIEWS = { list: FreshForecastList, new: FreshForecastEditor, detail: FreshForecastDetail };
+const NewForecast = (props) => <FreshForecastList {...props} autoOpen />;
+const VIEWS = { list: FreshForecastList, new: NewForecast, detail: FreshForecastDetail };
 
 /**
- * Bản dự trù hàng tươi trên BE: `/kitchen/forecast` (danh sách), `/new` (lập: xem trước rồi lưu), `/:id` (xem, in, xóa).
+ * Bản dự trù hàng tươi trên BE: `/kitchen/forecast` (danh sách; nút Lập mở hộp xem trước rồi lưu), `/new` (danh sách mở sẵn hộp lập),
+ * `/:id` (xem, in, xóa).
  * Điểm trường chọn trên URL (?campusId=). Số lượng do BE tính; trang chỉ gom kỳ và số trẻ dự kiến.
  */
 export default function FreshForecastPage({ mode = 'list' }) {

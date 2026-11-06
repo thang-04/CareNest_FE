@@ -12,7 +12,7 @@ import { SUPPLIER_STATUS, SUPPLIER_STATUS_LABELS } from '@/models/kitchen/kitche
 import '@/styles/modules/kitchen.css';
 
 const EMPTY = { name: '', address: '', contactName: '', phone: '', taxCode: '', idCard: '', status: SUPPLIER_STATUS.ACTIVE };
-// BE: không có mã NCC, mã số thuế; có CCCD người giao hàng
+// BE: chưa có mã số thuế; mã NCC do FE sinh từ id (NCC001…); có CCCD nhà cung cấp
 const VIA_API = suppliersUseApi();
 const pick = (s) => Object.fromEntries(Object.keys(EMPTY).map((k) => [k, s[k] ?? '']));
 
@@ -124,7 +124,7 @@ export default function SupplierFormPage() {
               />
             </FormField>
             {VIA_API ? (
-              <FormField label="CCCD người giao hàng" error={show('idCard')} hint="9–12 chữ số, không bắt buộc">
+              <FormField label="CCCD nhà cung cấp" error={show('idCard')} hint="9–12 chữ số, không bắt buộc">
                 <input
                   className="input"
                   inputMode="numeric"

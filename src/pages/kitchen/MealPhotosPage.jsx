@@ -79,15 +79,15 @@ export default function MealPhotosPage() {
         <div>
           <h1 className="page__title">Ảnh bữa ăn</h1>
         </div>
-        <div className="page__actions">
-          <Link className="btn" to={KITCHEN_RECORD_PAGES.photoWindows.to}>
-            <Clock size={16} /> Khung giờ đăng ảnh
-          </Link>
-        </div>
       </div>
       <div className="kb-toolbar">
         <KbDateFilter value={date} onChange={setDate} />
         {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
+        <div className="kb-toolbar__end">
+          <Link className="btn" to={KITCHEN_RECORD_PAGES.photoWindows.to}>
+            <Clock size={16} /> Khung giờ đăng ảnh
+          </Link>
+        </div>
       </div>
       {body}
     </div>
