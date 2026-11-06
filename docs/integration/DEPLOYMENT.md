@@ -25,6 +25,7 @@ Thư mục trên VPS:
 | `compose.yaml` | Build (mạng host) + chạy container `carenest-web` bằng mạng host, nghe `127.0.0.1:18300` |
 | `.dockerignore` | Loại file khỏi docker build và khỏi rsync lên VPS |
 | `deploy/caddy/carenest-web.caddy` | Site Caddy cho subdomain; sửa ở repo, CI đẩy lên VPS (không sửa tay trên VPS — lần deploy sau sẽ ghi đè) |
+| `deploy/caddy/carenest-dev.caddy` | Site dev: `/api/*` tới API dev, còn lại tới FE dev |
 | `.github/workflows/deploy.yml` | verify → rsync source → `docker compose up -d --build` qua SSH → đồng bộ site Caddy (reload khi đổi, lỗi ⇒ khôi phục file cũ) → kiểm HTTPS |
 
 rsync dùng `--delete`: file trên VPS không còn trong repo sẽ bị xoá, trừ file khớp `.dockerignore` (vd. `.env` đặt tay). Không để dữ liệu khác trong `/data/thangnd/CAPSTONE/CareNest_FE`.
@@ -42,12 +43,17 @@ Mọi service CareNest trên VPS (FE, sau này BE, Keycloak, Postgres, AI) chạ
 | Service | Cổng `127.0.0.1` | Site Caddy |
 | --- | --- | --- |
 | `carenest-web` (FE) | 18300 | `web.carenest.edu.vn` |
+| `carenest-web-dev` (FE nhánh dev) | 18301 | `dev.carenest.edu.vn` (`deploy/caddy/carenest-dev.caddy`) |
 | api (BE) | 18310 (`BE:compose.vps.yaml`, prefix `/api`; route `/api/*` trong site FE; 8080 của server là app khác) | dùng chung `web.carenest.edu.vn` |
+| api dev (BE nhánh dev) | 18311 (`BE:compose.dev.yaml`) | route `/api/*` của `dev.carenest.edu.vn` |
+| Keycloak dev | 18322, management 18323 | `auth-dev.carenest.edu.vn` (site repo BE) |
 | Keycloak, Postgres, AI | chưa chốt — điền khi deploy BE | Keycloak: file site riêng của repo BE |
 
 ## Chế độ build: mock hoặc BE thật
 
 Mặc định (chưa đặt Variables) image build với `VITE_AUTH_MODE=mock`, `VITE_USE_MOCK=true`: đăng nhập bằng tài khoản demo (chip dưới form đăng nhập, danh sách đủ ở `src/mocks/seed.js`), dữ liệu mock lưu localStorage của trình duyệt. `VITE_*` nhúng vào bundle lúc build, đổi giá trị ⇒ chạy lại workflow.
+
+Bản dev đọc Variables của environment `development` (`VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api`); production đọc Variables cấp repo như cũ.
 
 Nối BE thật (BE chạy ở `127.0.0.1:18310`, đã bật gateway `CARENEST_AUTH_ENABLED=true` theo `BE:docs/system/DEPLOYMENT.md`): GitHub › Settings › Secrets and variables › Actions › **Variables** › đặt `VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api` (khớp `handle /api/*` của Caddy, cùng origin nên cookie phiên gateway path `/api/auth` dùng được), rồi chạy lại workflow. `gateway` đăng nhập qua `/api/auth/*` (`docs/integration/AUTH_FLOW.md`) và bật luôn các màn đã nối BE qua `beClient` (`SCHOOL_CONFIG_API` trong `src/config/env.js`). Kiểm tra: `curl -s https://web.carenest.edu.vn/api/auth/csrf` trả 200 `{code, desc, data}`. Phía BE: `CARENEST_AUTH_WEB_ORIGIN=https://web.carenest.edu.vn`.
 
@@ -122,6 +128,14 @@ Thư mục deploy cố định trong workflow (`APP_DIR` trong `.github/workflow
 VPS chỉ giữ bản source mới nhất. Quay về bản cũ: GitHub › Actions › mở run của commit cũ › Re-run jobs (rsync source và file Caddy cũ rồi build lại), hoặc revert qua PR vào `main`.
 
 Gỡ site: xoá dòng `import /data/thangnd/CAPSTONE/caddy/*.caddy` khỏi Caddyfile (hoặc khôi phục bản `.bak`), `caddy validate` rồi `systemctl reload caddy`.
+
+## Môi trường dev (nhánh `dev`)
+
+Push `dev` (merge PR) ⇒ cùng workflow, job `deploy` chọn đích theo nhánh: rsync vào `/data/thangnd/CAPSTONE/dev/CareNest_FE`, `docker compose -p carenest-fe-dev` với `WEB_CONTAINER=carenest-web-dev`, `WEB_IMAGE=carenest-web-dev:latest`, `WEB_LISTEN=127.0.0.1:18301` (mặc định của `compose.yaml` là giá trị production), đồng bộ `deploy/caddy/carenest-dev.caddy` ⇒ `https://dev.carenest.edu.vn` (`/api/*` ⇒ API dev 18311 của `BE:compose.dev.yaml`, BE: `BE:docs/system/DEPLOYMENT.md` mục Môi trường dev).
+
+- GitHub › Environments › `development` (deployment branch `dev`) giữ Variables riêng: `VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api`. `VPS_*` là repository secret hoặc chép vào environment `development`.
+- Deploy BE dev (và bật gateway trên Keycloak dev) trước FE dev; FE dev lên trước ⇒ `/api` trả 502, không đăng nhập được.
+- Release: tạo `release/*` từ `dev` đã test ⇒ PR vào `main` ⇒ production.
 
 ## Chạy thử ở máy local
 
