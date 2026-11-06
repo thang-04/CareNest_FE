@@ -52,11 +52,11 @@ jobs:
     # PR hoặc chạy tay trên nhánh khác chỉ verify
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
-    # Variables VITE_* đặt riêng trong từng environment (production / development)
-    environment: ${{ github.ref == 'refs/heads/dev' && 'development' || 'production' }}
+    # Variables VITE_* đặt riêng trong từng environment (production / dev)
+    environment: ${{ github.ref == 'refs/heads/dev' && 'dev' || 'production' }}
     env:
       IS_DEV: ${{ github.ref == 'refs/heads/dev' }}
-      APP_DIR: ${{ github.ref == 'refs/heads/dev' && '/data/thangnd/CAPSTONE/dev/CareNest_FE' || '/data/thangnd/CAPSTONE/CareNest_FE' }}
+      APP_DIR: ${{ github.ref == 'refs/heads/dev' && '/data/thangnd/CAPSTONE/CareNest_FE-dev' || '/data/thangnd/CAPSTONE/CareNest_FE' }}
       CADDY_DIR: /data/thangnd/CAPSTONE/caddy
       SITE_FILE: ${{ github.ref == 'refs/heads/dev' && 'carenest-dev.caddy' || 'carenest-web.caddy' }}
       SITE_URL: ${{ github.ref == 'refs/heads/dev' && 'https://dev.carenest.edu.vn/' || 'https://web.carenest.edu.vn/' }}
