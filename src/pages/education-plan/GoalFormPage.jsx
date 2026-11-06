@@ -9,7 +9,7 @@ import { useYearPlanAutosave } from '@/hooks/education-plan/useYearPlanAutosave'
 import { recoveryText } from '@/models/education-plan/yearPlanAutosave.mjs';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { ROLES } from '@/models/User';
+import { ROLES, ROLE_LABELS } from '@/models/User';
 import {
   AGE_GROUPS,
   DOMAINS,
@@ -96,14 +96,15 @@ export default function GoalFormPage() {
   useEffect(() => {
     if (id && handoffKey) editHandoffs.delete(handoffKey);
   }, [id, handoffKey]);
-  const { goals, schoolYear, saveGoal, startEditingGoal, finishEditingGoal, heartbeatGoal, toast, user, staff } = useEducationPlan();
+  const { goals, schoolYear, saveGoal, startEditingGoal, finishEditingGoal, heartbeatGoal, toast, user, staff, eduConfig } =
+    useEducationPlan();
   const [preview, setPreview] = useState(null);
   const { schoolYears: yearOptions } = useSchoolYear();
   const navigate = useNavigate();
   const existing = goals.find((g) => g.id === id);
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   const isLeader = user.role === ROLES.TEAM_LEADER;
-  const allowedAgeGroupIds = isLeader ? [user.ageGroupId] : AGE_GROUPS.map((a) => a.id);
+  const allowedAgeGroupIds = eduConfig?.yearCreationScopes ?? (isLeader ? [user.ageGroupId] : AGE_GROUPS.map((a) => a.id));
 
   const [form, setForm] = useState(() =>
     existing
@@ -138,12 +139,18 @@ export default function GoalFormPage() {
   };
   // Phó HT và tổ trưởng nhóm tuổi cùng soạn, mỗi lúc một người giữ khóa "Đang sửa" (BE:EDU-03, EDU-10);
   // đang chờ duyệt thì chỉ Phó HT tự sửa chỗ nhỏ. API thật dùng quyền BE trả; mock tự suy
-  const editor = existing?.status === EDU_STATUS.EDITING ? existing.editing : null;
+  const editor = existing?.editing;
   const lockedByOther = !!editor && editor.userId !== user.id;
-  const pendingEdit = isVp && existing?.status === EDU_STATUS.PENDING_VP;
-  const permitted = existing?.permissions
-    ? existing.permissions.canEdit
-    : pendingEdit || (editableStatus(existing?.status) && !lockedByOther && (isVp || (isLeader && form.ageGroupId === user.ageGroupId)));
+  const isReviewStatus = existing?.status === 'REVIEW' || existing?.status === EDU_STATUS.PENDING_VP;
+  const pendingEdit = false;
+  const permitted = !existing
+    ? allowedAgeGroupIds.includes(form.ageGroupId) || (!form.ageGroupId && allowedAgeGroupIds.length > 0)
+    : existing?.permissions
+      ? existing.permissions.canEdit
+      : !isReviewStatus &&
+        editableStatus(existing?.status) &&
+        !lockedByOther &&
+        (isVp || (isLeader && form.ageGroupId === user.ageGroupId));
 
   const [leaseReady, setLeaseReady] = useState(!existing || transferred);
   const [leaseError, setLeaseError] = useState('');
@@ -458,10 +465,10 @@ export default function GoalFormPage() {
     setFinishing(true);
     const item =
       action === 'submit'
-        ? build(EDU_STATUS.PENDING_VP, { sentAt: today(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt', note) })
+        ? build('REVIEW', { sentAt: today(), sentBy: me, history: log('Gửi duyệt', note) })
         : build(EDU_STATUS.APPROVED, {
             issued: me,
-            history: log(pendingEdit ? 'Phó hiệu trưởng chỉnh sửa và ban hành' : 'Ban hành', note),
+            history: log('Ban hành', note),
           });
     if (!(await saver.save())) {
       setFinishing(false);
@@ -476,7 +483,7 @@ export default function GoalFormPage() {
         sentBy: item.sentBy,
         id: heldId.current || form.id,
       },
-      { edit: { ...editRef.current, requestId: crypto.randomUUID() } },
+      { action: 'submit', edit: { ...editRef.current, requestId: crypto.randomUUID() } },
     );
     if (!saved) {
       finished.current = false;
@@ -484,7 +491,7 @@ export default function GoalFormPage() {
       return null;
     }
     saver.clearRecovery();
-    toast(action === 'submit' ? 'Đã gửi Phó hiệu trưởng duyệt' : 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
+    toast('Đã gửi kế hoạch năm học để duyệt');
     guard.leaveNow(exitTo(`/education/goals/${saved.id}`));
     return saved;
   };
@@ -586,8 +593,8 @@ export default function GoalFormPage() {
         <Notice tone="warn">
           {existing?.status === EDU_STATUS.APPROVED
             ? 'Kế hoạch đã ban hành nên không sửa được.'
-            : existing?.status === EDU_STATUS.PENDING_VP
-              ? 'Kế hoạch đang chờ Phó hiệu trưởng duyệt nên không sửa được.'
+            : isReviewStatus
+              ? `Kế hoạch đang ở trạng thái duyệt nên không sửa được.`
               : lockedByOther
                 ? `Kế hoạch đang được ${editor.name} sửa từ ${editor.at}.`
                 : 'Bạn chỉ lập, sửa được kế hoạch năm học của nhóm tuổi mình phụ trách.'}
@@ -670,14 +677,14 @@ export default function GoalFormPage() {
               </button>
               <ReviewActions
                 name="kế hoạch năm học"
-                sendTo="Phó HT"
+                sendTo={ROLE_LABELS[eduConfig?.workflowPolicy?.year?.reviewers?.[0]] || 'người duyệt'}
                 approveLabel={pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
-                can={{ send: isLeader && !pendingEdit, approve: isVp }}
+                can={{ send: existing?.permissions ? existing.permissions.canSubmit : canEdit, approve: false }}
                 variant="btn--outline-primary"
                 unsaved={saver.unsaved}
                 beforeOpen={checkBeforeFinish}
                 notes={{
-                  submit: `Gửi "${form.title}" cho Phó hiệu trưởng duyệt? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`,
+                  submit: `Gửi "${form.title}" cho người duyệt theo cấu hình? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`,
                   approve: `Ban hành "${form.title}"? Giáo viên trong khối sẽ thấy kế hoạch này. Sau đó xuất file để in và ký.`,
                 }}
                 onAct={finish}
@@ -752,7 +759,7 @@ export default function GoalFormPage() {
                       {AGE_GROUPS.map((a) => {
                         const taken = !existing && goals.some((g) => g.schoolYear === form.schoolYear && g.ageGroupId === a.id);
                         return (
-                          <option key={a.id} value={a.id} disabled={taken}>
+                          <option key={a.id} value={a.id} disabled={taken || (!existing && !allowedAgeGroupIds.includes(a.id))}>
                             {a.name}
                             {taken ? ' — Đã có kế hoạch' : ''}
                           </option>

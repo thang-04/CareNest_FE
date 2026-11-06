@@ -11,6 +11,7 @@ const stubs = `
 import React, {useEffect, useRef, useState} from 'react';
 const useParams=()=>({}), useLocation=()=>({state:null,search:''}), useSearchParams=()=>[new URLSearchParams()], useNavigate=()=>()=>{};
 const useSchoolYear=()=>({schoolYears:[]}), useMediaQuery=()=>false;
+const ROLE_LABELS={};
 const ROLES={VICE_PRINCIPAL:'vp',TEAM_LEADER:'leader'}, AGE_GROUPS=[{id:'ag-5',name:'Mẫu giáo lớn (5–6 tuổi)'},{id:'ag-4',name:'Mẫu giáo nhỡ (4–5 tuổi)'}], DOMAINS=[], SCHOOL_SCOPE='Toàn trường', EDU_STATUS={EDITING:'EDITING',DRAFT:'DRAFT',PENDING_VP:'PENDING_VP'}, EDU_ERROR_CODE={};
 export const formContext={goals:[],user:{id:'test',name:'Người soạn',role:'vp'}};
 const useEducationPlan=()=>({...formContext,schoolYear:'2026 – 2027',staff:[]});
@@ -86,6 +87,7 @@ const detailSource = await readFile(new URL('../../src/pages/education-plan/Goal
 const detailStubs = `
 import React, {useState} from 'react';
 const useParams=()=>({id:'test'}), useNavigate=()=>()=>{}, useLocation=()=>({state:null});
+const ROLE_LABELS={};
 const ROLES={VICE_PRINCIPAL:'vp'}, AGE_GROUPS=[], DOMAINS=[], SCHOOL_SCOPE='Toàn trường', EDU_STATUS={DRAFT:'DRAFT',EDITING:'EDITING',APPROVED:'APPROVED'};
 const useEducationPlan=()=>({goals:[{id:'test',title:'Kế hoạch thử',status:'DRAFT',domains:[],themes:[],permissions:{canEdit:true}}],themes:[],user:{id:'vp',role:'vp'},staff:[]});
 const goalIdsToTicks=(domains,themes)=>({domains,themes}), numberGoals=()=>({}), chainOf=()=>[], currentPlanOf=()=>null;

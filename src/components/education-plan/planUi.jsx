@@ -23,7 +23,7 @@ export { Cell, focusCell } from '@/components/ui/TableCell';
 /** Dữ liệu dùng chung của màn lớp. Kế hoạch năm chỉ dùng bản đã được Phó HT ban hành. */
 export function useClassPlanContext(classId) {
   // Lớp, giáo viên, tổ trưởng nạp cùng tài liệu của lớp (theo phạm vi người xem)
-  const { user, goals, schoolYear, classes, staff: users } = useEducationPlan();
+  const { user, goals, schoolYear, classes, creationCapabilities, staff: users } = useEducationPlan();
   const cls = classes.find((c) => c.id === classId) || null;
   // Phiên bản hiện hành = bản đã ban hành mới nhất (BE:EDU-25); phiên bản trước để chép tài liệu cũ
   const current = cls ? currentPlanOf(goals, cls.ageGroupId, schoolYear) : null;
@@ -60,6 +60,7 @@ export function useClassPlanContext(classId) {
     teachers,
     users,
     isClassTeacher,
+    canCreate: (kind) => creationCapabilities.some((cap) => String(cap.classId) === String(classId) && cap.kind === kind && cap.canCreate),
     canPickClass,
     isGroupLeader,
     isVp,
@@ -70,8 +71,15 @@ export function useClassPlanContext(classId) {
 /* ---------- Gửi, duyệt (ký tay trên bản in) ---------- */
 
 /** Đến lượt người dùng duyệt tài liệu: trạng thái chờ đúng vai trò; tổ trưởng phải là tổ trưởng của khối (chỉ là UX). */
-export const isMyReviewTurn = (doc, ctx, user) =>
-  !!doc && doc.status === PENDING_OF[user.role] && (user.role !== ROLES.TEAM_LEADER || ctx.isGroupLeader);
+export const isMyReviewTurn = (doc, ctx, user) => {
+  if (!doc) return false;
+  if (doc.permissions)
+    return !!(doc.permissions.canApprove ?? doc.permissions.canIssue) || !!(doc.permissions.canReject ?? doc.permissions.canReturn);
+  if (doc.status === 'REVIEW' && (doc.review?.waitingRole ?? doc.waitingRole) === user.role) {
+    return user.role !== ROLES.TEAM_LEADER || ctx.isGroupLeader;
+  }
+  return doc.status === PENDING_OF[user.role] && (user.role !== ROLES.TEAM_LEADER || ctx.isGroupLeader);
+};
 
 const isOpen = (doc) => !doc?.status || doc.status === EDU_STATUS.DRAFT || doc.status === EDU_STATUS.REJECTED;
 
@@ -96,13 +104,18 @@ export function reviewLabel(doc, ctx, user, kind = 'branch') {
  * Chỉ là UX, service quyết định khi gửi.
  */
 export function docReview(kind, doc, ctx, user, eduConfig) {
-  const chain = (eduConfig?.signers?.[kind === 'branch' ? 'branch' : 'week'] || []).filter(
+  const policy = eduConfig?.workflowPolicy?.[kind === 'branch' ? 'branch' : 'theme'];
+  const chain = (policy?.reviewers || eduConfig?.signers?.[kind === 'branch' ? 'branch' : 'week'] || []).filter(
     (r) => r !== ROLES.TEAM_LEADER || !ctx.skipLeader,
   );
   const myTurn = isMyReviewTurn(doc, ctx, user);
   return {
-    can: { send: ctx.isClassTeacher && !!doc && isOpen(doc), reject: myTurn, approve: myTurn },
-    sendTo: chain.length ? SIGNER_SHORT[chain[0]] : 'đi',
+    can: {
+      send: doc?.permissions ? doc.permissions.canSubmit : ctx.isClassTeacher && !!doc && isOpen(doc),
+      reject: doc?.permissions ? (doc.permissions.canReject ?? doc.permissions.canReturn) : myTurn,
+      approve: doc?.permissions ? (doc.permissions.canApprove ?? doc.permissions.canIssue) : myTurn,
+    },
+    sendTo: chain.length ? SIGNER_SHORT[chain[0]] || chain[0] : 'đi',
   };
 }
 

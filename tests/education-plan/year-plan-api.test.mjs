@@ -208,6 +208,10 @@ test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩ
   assert.deepEqual(toUiEduConfig(beConfig), {
     domainLabels: { 'Phát triển thể chất': 'Thể chất' },
     extraDomains: ['Lĩnh vực mới'],
+    workflowPolicy: null,
+    workflowRevision: 1,
+    canConfigure: false,
+    yearCreationScopes: [],
     signers,
     weekRows,
   });
@@ -336,4 +340,22 @@ test('import sources: team leader chọn được nhóm tuổi khác; chi tiết
   assert.equal(sent.params.actor, undefined);
   await assert.rejects(educationPlanApi.getGoalSource('42', leader), { status: 403 });
   assert.equal((await educationPlanApi.getGoalSource('43', leader)).id, '43');
+});
+
+test('toUiGoal: giữ nguyên quyền permissions, waitingRole và creationCapabilities từ server detail', () => {
+  const serverDetail = detail({
+    id: 99,
+    status: 'REVIEW',
+    waitingRole: 'VICE_PRINCIPAL',
+    waitingRoleLabel: 'Phó hiệu trưởng',
+    creationCapabilities: { canCreate: false, reason: 'ALREADY_EXISTS' },
+    permissions: { canEdit: false, canSubmit: false, canIssue: true, canReturn: true, canDelete: false },
+  });
+  const ui = toUiGoal(serverDetail, refs);
+  assert.equal(ui.status, 'REVIEW');
+  assert.equal(ui.waitingRole, 'VICE_PRINCIPAL');
+  assert.equal(ui.waitingRoleLabel, 'Phó hiệu trưởng');
+  assert.equal(ui.permissions.canEdit, false);
+  assert.equal(ui.permissions.canIssue, true);
+  assert.equal(ui.permissions.canReturn, true);
 });

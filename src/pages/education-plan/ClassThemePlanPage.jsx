@@ -64,7 +64,9 @@ function ThemePlanInner() {
   const [copying, setCopying] = useState(false);
   const [branchFolded, setBranchFolded] = useState(false);
   const version = useDocVersion('theme', saved, ctx, classThemePlans, { themeId });
-  const canWrite = isClassTeacher && !ctx.superseded && isEditableStatus(saved?.status || EDU_STATUS.DRAFT);
+  const canWrite =
+    !ctx.superseded &&
+    (saved?.permissions ? saved.permissions.canEdit : saved ? isClassTeacher && isEditableStatus(saved.status) : ctx.canCreate('theme'));
 
   // Lưu tay (nút Lưu, Ctrl+S). Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
   const saver = useManualSave({
@@ -97,7 +99,7 @@ function ThemePlanInner() {
     setDraft(doc);
     saver.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved?.id, saved?.status, saved?.history?.length, yearPlan?.id, classId, themeId]);
+  }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, yearPlan?.id, classId, themeId]);
 
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan || !theme) return <StatusPage kind="404" title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
@@ -185,7 +187,11 @@ function ThemePlanInner() {
     if (red) toast(`Còn ${red} mục đổi theo kế hoạch năm mới chưa sửa (ô đỏ). Sửa ở kế hoạch chủ đề / giáo án tuần rồi gửi.`, 'warn');
     return !red;
   };
-  const act = (action, note, savedDoc) => actOnClassDoc('theme', savedDoc?.id || saved?.id, { action, note });
+  const act = (action, note, savedDoc) =>
+    actOnClassDoc('theme', savedDoc?.id || saved?.id, { action, note }, user, {
+      version: savedDoc?.version ?? saved?.version,
+      dossierVersion: savedDoc?.dossierVersion ?? saved?.dossierVersion,
+    });
 
   return (
     <div className="page ga-page ga-class-editor">

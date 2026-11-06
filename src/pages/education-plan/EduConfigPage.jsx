@@ -1,58 +1,185 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { Check, Pencil, RotateCcw, Save, Trash2, X } from '@/components/ui/icons';
+import { ArrowDown, ArrowUp, Check, Pencil, RotateCcw, Save, Trash2, X } from '@/components/ui/icons';
 import { Card, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { STANDARD_DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { DOMAIN_ROMAN } from '@/models/education-plan/goalTable';
-import { DEFAULT_EDU_CONFIG, SIGN_DOCS, SIGN_ROLES } from '@/models/education-plan/eduConfig';
+import {
+  DEFAULT_EDU_CONFIG,
+  DEFAULT_WORKFLOW_POLICY,
+  WORKFLOW_ROLES,
+  CREATOR_ROLES,
+  REVIEWER_ROLES,
+  SIGN_DOCS,
+} from '@/models/education-plan/eduConfig';
 import { moveItem } from '@/hooks/useSortableList';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { RenumberButton, SortButtons, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
 
-/** Người ký của một loại tài liệu: thứ tự ký kéo-thả bằng tay nắm. */
-function SignerList({ docKey, docLabel, roles, setRoles, toast, editing, askDelete }) {
-  if (!editing)
-    return roles.map((r, i) => (
-      <div key={r} className="fw-600">
-        {i + 1}. {SIGN_ROLES[r]}
-      </div>
-    ));
+/**
+ * Cấu hình người tạo và người duyệt của từng loại tài liệu (FR-001, FR-002, AC-01).
+ * Chỉ Hiệu trưởng mới có quyền thay đổi. Phân tách rõ Người tạo và Người duyệt, cấm trùng lặp vai trò.
+ */
+function WorkflowPolicyConfig({ _docKey, docLabel, policy, onChange, editing, canEdit, askDelete, toast }) {
+  const creators = policy?.creators || [];
+  const reviewers = policy?.reviewers || [];
+
+  const toggleCreator = (role) => {
+    if (reviewers.includes(role)) {
+      toast(`${WORKFLOW_ROLES[role] || role} đang nằm trong danh sách người duyệt của tài liệu này, không thể chọn làm người tạo.`, 'warn');
+      return;
+    }
+    if (creators.includes(role)) {
+      if (creators.length <= 1) {
+        toast('Mỗi loại tài liệu phải có ít nhất một người tạo.', 'warn');
+        return;
+      }
+      onChange({ creators: creators.filter((r) => r !== role), reviewers });
+    } else {
+      onChange({ creators: [...creators, role], reviewers });
+    }
+  };
+
+  const removeReviewer = (role) => {
+    if (reviewers.length <= 1) {
+      toast('Mỗi loại tài liệu phải có ít nhất một người duyệt.', 'warn');
+      return;
+    }
+    askDelete({
+      title: `Bỏ ${WORKFLOW_ROLES[role] || role} khỏi người duyệt?`,
+      message: `${docLabel} sẽ không còn bước duyệt của ${WORKFLOW_ROLES[role] || role}. Thay đổi có hiệu lực khi bấm Lưu.`,
+      confirmLabel: 'Bỏ người duyệt',
+      run: () => onChange({ creators, reviewers: reviewers.filter((r) => r !== role) }),
+    });
+  };
+
+  const moveReviewer = (fromIdx, toIdx) => {
+    if (toIdx < 0 || toIdx >= reviewers.length) return;
+    const next = [...reviewers];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    onChange({ creators, reviewers: next });
+  };
+
+  const addReviewer = (role) => {
+    if (!role) return;
+    if (creators.includes(role)) {
+      toast(`${WORKFLOW_ROLES[role] || role} đang là người tạo của tài liệu này, không thể thêm vào danh sách duyệt.`, 'warn');
+      return;
+    }
+    if (reviewers.includes(role)) {
+      toast(`${WORKFLOW_ROLES[role] || role} đã có trong danh sách duyệt.`, 'warn');
+      return;
+    }
+    onChange({ creators, reviewers: [...reviewers, role] });
+  };
+
+  const availableReviewers = REVIEWER_ROLES.filter((r) => !reviewers.includes(r) && !creators.includes(r));
+
   return (
-    <SortableList ids={roles} onMove={(from, to) => setRoles((l) => moveItem(l, from, to))} labelOf={(i) => SIGN_ROLES[roles[i]]}>
-      {roles.map((r, i) => {
-        const locked = docKey === 'year' && r === 'VICE_PRINCIPAL';
-        return (
-          <SortableRow key={r} id={r} as="div" className="ga-signer row gap-1">
-            <SortHandle label={SIGN_ROLES[r]} />
-            <span className="fw-600 flex-1">
-              {i + 1}. {SIGN_ROLES[r]}
-            </span>
-            <button
-              type="button"
-              className="icon-btn icon-btn--danger"
-              aria-label={`Bỏ ${SIGN_ROLES[r]}`}
-              title="Bỏ người ký"
-              onClick={() =>
-                locked
-                  ? toast('Phó hiệu trưởng ban hành kế hoạch năm nên luôn là người ký, không bỏ được.', 'warn')
-                  : askDelete({
-                      title: `Bỏ ${SIGN_ROLES[r]} khỏi người ký?`,
-                      message: `${docLabel} sẽ không còn bước ký của ${SIGN_ROLES[r]}. Thay đổi có hiệu lực khi bấm Lưu.`,
-                      confirmLabel: 'Bỏ người ký',
-                      run: () => setRoles((l) => l.filter((x) => x !== r)),
-                    })
-              }
-            >
-              <Trash2 size={16} aria-hidden />
-            </button>
-          </SortableRow>
-        );
-      })}
-    </SortableList>
+    <div className="ga-goal-table__pad stack gap-2">
+      <div>
+        <div className="fw-600 text-xs muted uppercase mb-1">Người tạo (soạn thảo)</div>
+        {!editing || !canEdit ? (
+          <div className="row gap-1 flex-wrap">
+            {creators.map((r) => (
+              <span key={r} className="badge">
+                {WORKFLOW_ROLES[r] || r}
+              </span>
+            ))}
+            {creators.length === 0 && <span className="muted">Chưa cấu hình</span>}
+          </div>
+        ) : (
+          <div className="stack gap-1">
+            {CREATOR_ROLES.map((r) => {
+              const checked = creators.includes(r);
+              const disabledByReviewer = reviewers.includes(r);
+              return (
+                <label key={r} className={`row gap-1 text-sm ${disabledByReviewer ? 'muted' : ''}`}>
+                  <input type="checkbox" checked={checked} disabled={disabledByReviewer} onChange={() => toggleCreator(r)} />
+                  <span>{WORKFLOW_ROLES[r] || r}</span>
+                  {disabledByReviewer && <span className="text-xs muted">(Đang là người duyệt)</span>}
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-2">
+        <div className="fw-600 text-xs muted uppercase mb-1">Người duyệt (theo thứ tự)</div>
+        {!editing || !canEdit ? (
+          <div className="stack gap-1">
+            {reviewers.map((r, i) => (
+              <div key={`${r}-${i}`} className="fw-600">
+                {i + 1}. {WORKFLOW_ROLES[r] || r}
+              </div>
+            ))}
+            {reviewers.length === 0 && <span className="muted">Chưa cấu hình</span>}
+          </div>
+        ) : (
+          <div className="stack gap-1">
+            {reviewers.map((r, i) => (
+              <div key={`${r}-${i}`} className="row gap-1 items-center bg-subtle p-1 rounded">
+                <span className="fw-600 flex-1">
+                  {i + 1}. {WORKFLOW_ROLES[r] || r}
+                </span>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  disabled={i === 0}
+                  aria-label={`Chuyển ${WORKFLOW_ROLES[r]} lên trước`}
+                  title="Chuyển lên"
+                  onClick={() => moveReviewer(i, i - 1)}
+                >
+                  <ArrowUp size={14} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  disabled={i === reviewers.length - 1}
+                  aria-label={`Chuyển ${WORKFLOW_ROLES[r]} xuống sau`}
+                  title="Chuyển xuống"
+                  onClick={() => moveReviewer(i, i + 1)}
+                >
+                  <ArrowDown size={14} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn--danger"
+                  aria-label={`Bỏ ${WORKFLOW_ROLES[r]}`}
+                  title="Bỏ người duyệt"
+                  onClick={() => removeReviewer(r)}
+                >
+                  <Trash2 size={14} aria-hidden />
+                </button>
+              </div>
+            ))}
+            {availableReviewers.length > 0 && (
+              <div className="mt-1">
+                <select
+                  className="select w-full"
+                  aria-label={`Thêm người duyệt cho ${docLabel}`}
+                  value=""
+                  onChange={(e) => addReviewer(e.target.value)}
+                >
+                  <option value="">+ Thêm người duyệt</option>
+                  {availableReviewers.map((r) => (
+                    <option key={r} value={r}>
+                      {WORKFLOW_ROLES[r]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -63,7 +190,8 @@ function SignerList({ docKey, docLabel, roles, setRoles, toast, editing, askDele
  * xóa một mục phải xác nhận.
  */
 export default function EduConfigPage() {
-  const { eduConfig, saveEduConfig, toast } = useEducationPlan();
+  const { eduConfig, saveEduConfig, saveWorkflowPolicy, toast } = useEducationPlan();
+  const isPrincipal = eduConfig.canConfigure === true;
   const [draft, setDraft] = useState(eduConfig);
   const [newDomain, setNewDomain] = useState('');
   const [domainError, setDomainError] = useState('');
@@ -85,6 +213,10 @@ export default function EduConfigPage() {
     doc: editing ? draft : null,
     enabled: editing,
     save: async (doc) => {
+      if (JSON.stringify(doc.workflowPolicy) !== JSON.stringify(eduConfig.workflowPolicy)) {
+        toast('Lưu người tạo/duyệt trước khi lưu phần cấu hình còn lại.', 'warn');
+        return null;
+      }
       const res = await saveEduConfig(doc);
       if (!res) return null;
       toast('Đã lưu cấu hình kế hoạch giáo dục');
@@ -98,6 +230,19 @@ export default function EduConfigPage() {
     if (!editing) setDraft(eduConfig);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eduConfig]);
+
+  useEffect(() => {
+    setDraft((current) =>
+      current.workflowRevision === eduConfig.workflowRevision
+        ? current
+        : {
+            ...current,
+            workflowPolicy: eduConfig.workflowPolicy,
+            workflowRevision: eduConfig.workflowRevision,
+            canConfigure: eduConfig.canConfigure,
+          },
+    );
+  }, [eduConfig.workflowRevision, eduConfig.workflowPolicy, eduConfig.canConfigure]);
 
   const set = (fn) => setDraft((d) => fn(structuredClone(d)));
   const startEditing = () => {
@@ -116,6 +261,16 @@ export default function EduConfigPage() {
     set((x) => ((x.extraDomains = [...x.extraDomains, name]), x));
     setNewDomain('');
     setDomainError('');
+  };
+  const updateDocWorkflow = (docKey, nextPolicy) => {
+    set((x) => {
+      if (!x.workflowPolicy) x.workflowPolicy = structuredClone(DEFAULT_WORKFLOW_POLICY);
+      x.workflowPolicy[docKey] = nextPolicy;
+      if (docKey === 'theme' && x.workflowPolicy.week) {
+        x.workflowPolicy.week = nextPolicy;
+      }
+      return x;
+    });
   };
   // Hủy / Xong: bỏ mọi thay đổi chưa lưu, về chế độ xem
   const cancel = () => {
@@ -144,7 +299,19 @@ export default function EduConfigPage() {
           editing ? (
             <>
               <span className="muted text-sm">{saver.label}</span>
-              <button type="button" className="btn btn--ghost" onClick={() => setDraft(structuredClone(DEFAULT_EDU_CONFIG))}>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    ...structuredClone(DEFAULT_EDU_CONFIG),
+                    workflowRevision: current.workflowRevision,
+                    canConfigure: current.canConfigure,
+                    workflowPolicy: isPrincipal ? structuredClone(DEFAULT_WORKFLOW_POLICY) : current.workflowPolicy,
+                  }))
+                }
+              >
                 <RotateCcw size={16} aria-hidden /> Khôi phục mặc định
               </button>
               <button type="button" className="btn" onClick={() => (dirty ? setConfirmCancel(true) : cancel())}>
@@ -254,14 +421,32 @@ export default function EduConfigPage() {
         </div>
       </Card>
 
-      <Card title="2. Người ký" bodyClass={null}>
-        <div className="card__body">
+      <Card title="2. Người tạo/duyệt" bodyClass={null}>
+        {editing && isPrincipal && (
+          <div className="card__body">
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={async () => {
+                const saved = await saveWorkflowPolicy(draft);
+                if (saved) {
+                  setDraft((current) => ({ ...current, workflowPolicy: saved.workflowPolicy, workflowRevision: saved.workflowRevision }));
+                  toast('Đã lưu người tạo và người duyệt');
+                }
+              }}
+            >
+              Lưu người tạo/duyệt
+            </button>
+          </div>
+        )}
+        <div className="card__body stack gap-2">
+          {editing && !isPrincipal && <Notice tone="info">Chỉ Hiệu trưởng mới có quyền thay đổi cấu hình người tạo và người duyệt.</Notice>}
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table">
               <thead>
                 <tr>
-                  {SIGN_DOCS.map((doc) => (
-                    <th key={doc.key} className="center" title={doc.label}>
+                  {SIGN_DOCS.filter((doc) => doc.key !== 'week').map((doc) => (
+                    <th key={doc.key} className="center" title={doc.hint || doc.label}>
                       {doc.label}
                     </th>
                   ))}
@@ -269,41 +454,24 @@ export default function EduConfigPage() {
               </thead>
               <tbody>
                 <tr>
-                  {SIGN_DOCS.map((doc) => {
-                    const roles = draft.signers[doc.key];
-                    const free = Object.keys(SIGN_ROLES).filter((r) => !roles.includes(r));
-                    const setRoles = (fn) => set((x) => ((x.signers[doc.key] = fn(x.signers[doc.key])), x));
+                  {SIGN_DOCS.filter((doc) => doc.key !== 'week').map((doc) => {
+                    const policy = draft.workflowPolicy?.[doc.key] ||
+                      DEFAULT_WORKFLOW_POLICY[doc.key] || {
+                        creators: [],
+                        reviewers: draft.signers?.[doc.key] || [],
+                      };
                     return (
                       <td key={doc.key}>
-                        <div className="ga-goal-table__pad stack">
-                          {roles.length === 0 && <div className="muted">Chưa có người ký</div>}
-                          <SignerList
-                            docKey={doc.key}
-                            docLabel={doc.label}
-                            roles={roles}
-                            setRoles={setRoles}
-                            toast={toast}
-                            editing={editing}
-                            askDelete={setConfirmDelete}
-                          />
-                          {editing && free.length > 0 && (
-                            <div>
-                              <select
-                                className="select"
-                                aria-label={`Thêm người ký cho ${doc.label}`}
-                                value=""
-                                onChange={(e) => e.target.value && setRoles((l) => [...l, e.target.value])}
-                              >
-                                <option value="">+ Thêm người ký</option>
-                                {free.map((r) => (
-                                  <option key={r} value={r}>
-                                    {SIGN_ROLES[r]}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                        </div>
+                        <WorkflowPolicyConfig
+                          docKey={doc.key}
+                          docLabel={doc.label}
+                          policy={policy}
+                          onChange={(next) => updateDocWorkflow(doc.key, next)}
+                          editing={editing}
+                          canEdit={isPrincipal}
+                          askDelete={setConfirmDelete}
+                          toast={toast}
+                        />
                       </td>
                     );
                   })}

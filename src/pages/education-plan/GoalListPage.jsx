@@ -29,13 +29,16 @@ export function GoalsEntry() {
 }
 
 export default function GoalListPage() {
-  const { goals, schoolYear, role, user, classes } = useEducationPlan();
+  const { goals, schoolYear, role, user, classes, eduConfig } = useEducationPlan();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [age, setAge] = useState('');
   const isVP = role === ROLES.VICE_PRINCIPAL;
   const isLeader = role === ROLES.TEAM_LEADER;
   const isPrincipal = role === ROLES.PRINCIPAL;
+
+  const yearPolicy = eduConfig?.workflowPolicy?.year || { creators: ['TEAM_LEADER'], reviewers: ['VICE_PRINCIPAL'] };
+  const isYearCreator = (yearPolicy.creators || []).includes(role) && !(yearPolicy.reviewers || []).includes(role);
 
   // API thật (có permissions): danh sách BE đã theo phạm vi người xem (BE:EDU-06), không lọc lại ở client.
   // Mock: tổ trưởng thấy mọi bản của nhóm tuổi mình; giáo viên chỉ bản đã ban hành của nhóm tuổi các lớp mình dạy
@@ -50,11 +53,14 @@ export default function GoalListPage() {
       (issuedPlan(g) && (g.ageGroupId === user.ageGroupId || taught.includes(g.ageGroupId)));
     return goals.filter((g) => g.schoolYear === schoolYear && visible(g));
   }, [goals, classes, schoolYear, isVP, isPrincipal, isLeader, user]);
-  const canCreate = isVP || (isLeader && !scoped.some((g) => g.ageGroupId === user.ageGroupId));
+
+  const canCreate = eduConfig?.yearCreationScopes
+    ? eduConfig.yearCreationScopes.some((id) => !scoped.some((g) => g.ageGroupId === id))
+    : isYearCreator && (!user.ageGroupId || !scoped.some((g) => g.ageGroupId === user.ageGroupId));
   const rows = scoped.filter((g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())));
 
   const issued = scoped.filter((g) => g.status === EDU_STATUS.APPROVED || g.status === EDU_STATUS.SENT).length;
-  const pending = scoped.filter((g) => g.status === EDU_STATUS.PENDING_VP).length;
+  const pending = scoped.filter((g) => g.status === 'REVIEW' || g.status === EDU_STATUS.PENDING_VP).length;
 
   return (
     <div className="page ga-page">

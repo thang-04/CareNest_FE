@@ -21,25 +21,33 @@ export default function PlanReviewQueuePage() {
   const classOf = (id) => classes.find((c) => c.id === id);
   const mine = (doc) => {
     const cls = classOf(doc.classId);
-    return !!cls && doc.status === waiting && (user.role !== ROLES.TEAM_LEADER || cls.ageGroupId === user.ageGroupId);
+    if (!cls) return false;
+    if (doc.permissions)
+      return !!(doc.permissions.canApprove ?? doc.permissions.canIssue) || !!(doc.permissions.canReject ?? doc.permissions.canReturn);
+    if (doc.status === 'REVIEW' && (doc.review?.waitingRole ?? doc.waitingRole) === user.role) {
+      return user.role !== ROLES.TEAM_LEADER || cls.ageGroupId === user.ageGroupId;
+    }
+    return doc.status === waiting && (user.role !== ROLES.TEAM_LEADER || cls.ageGroupId === user.ageGroupId);
   };
   const themeName = (doc) => goals.find((g) => g.id === doc.yearPlanId)?.themes?.find((t) => t.id === doc.themeId)?.name || '—';
   const sentAt = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
   const items = [
-    ...(isVp
-      ? goals
-          .filter((g) => g.status === EDU_STATUS.PENDING_VP)
-          .map((g) => ({
-            key: `y-${g.id}`,
-            kind: 'year',
-            doc: g,
-            cls: '—',
-            what: `Khối ${AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name || ''}, năm học ${g.schoolYear}`,
-            to: `/education/goals/${g.id}`,
-            by: g.sentBy?.name || [...(g.history || [])].reverse().find((h) => h.action?.startsWith('Gửi'))?.by,
-            at: g.sentAt,
-          }))
-      : []),
+    ...goals
+      .filter((g) => {
+        if (g.permissions) return !!(g.permissions.canApprove ?? g.permissions.canIssue) || !!g.permissions.canReturn;
+        if (g.status === 'REVIEW' && (g.review?.waitingRole ?? g.waitingRole) === user.role) return true;
+        return isVp && g.status === EDU_STATUS.PENDING_VP;
+      })
+      .map((g) => ({
+        key: `y-${g.id}`,
+        kind: 'year',
+        doc: g,
+        cls: '—',
+        what: `Khối ${AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name || ''}, năm học ${g.schoolYear}`,
+        to: `/education/goals/${g.id}`,
+        by: g.sentBy?.name || [...(g.history || [])].reverse().find((h) => h.action?.startsWith('Gửi'))?.by,
+        at: g.sentAt,
+      })),
     ...branchPlans.filter(mine).map((d) => ({ kind: 'branch', doc: d, what: 'Cả năm học', to: `/education/branches/${d.classId}` })),
     // Hồ sơ chủ đề gửi và duyệt một lần (kế hoạch chủ đề + giáo án các nhánh)
     ...classThemePlans.filter(mine).map((d) => {

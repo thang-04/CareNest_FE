@@ -3,6 +3,7 @@ import { eduError } from './eduMockErrors';
 import { parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { SIGN_ROLES, withDefaults } from '@/models/education-plan/eduConfig';
 import { ROLES } from '@/models/User';
 import { duplicateAbbrThemeIds, toRows } from '@/models/education-plan/goalTable';
 import { chainOf, currentPlanOf, diffPlans, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -97,6 +98,56 @@ const editGoal = (apply) => async (id, user, edit) => {
 };
 
 // Lưu: trang soạn gửi status Nháp; đang giữ khóa thì vẫn là Đang sửa (BE:EDU-10), gửi / ban hành thì nhả khóa
+const mockRoles = (user) => [...(user?.roles || []), user?.role];
+const authorOf = (db, goal, user) =>
+  !withDefaults(db.eduConfig).workflowPolicy.year.reviewers.some((role) => mockRoles(user).includes(role)) &&
+  withDefaults(db.eduConfig).workflowPolicy.year.creators.some(
+    (role) =>
+      mockRoles(user).includes(role) && (![ROLES.TEACHER, ROLES.TEAM_LEADER].includes(role) || goal.ageGroupId === user?.ageGroupId),
+  );
+const creatorSlot = (db, goal) => ({
+  roleKey: 'CREATOR',
+  label: 'Người soạn',
+  names: [
+    ...new Set(
+      [
+        ...(db.users || []).filter((user) => (goal.authorIds || []).includes(user.id)).map((user) => user.fullName),
+        goal.owner?.name,
+      ].filter(Boolean),
+    ),
+  ],
+});
+const goalView = (db, goal, user) => {
+  const policy = withDefaults(db.eduConfig).workflowPolicy.year;
+  const review = {
+    ...(goal.review || {}),
+    policyRevision: db.eduConfig?.workflowRevision || 1,
+    round: goal.reviewRound || 0,
+    roles: policy.reviewers,
+    waitingRole: goal.waitingRole || null,
+    approvals: goal.approvals || [],
+    printSnapshot: goal.printSnapshot || null,
+  };
+  if (!user) return { ...goal, review };
+  const author = authorOf(db, goal, user);
+  const open = [EDU_STATUS.DRAFT, EDU_STATUS.EDITING, EDU_STATUS.REJECTED].includes(goal.status);
+  const canReview = goal.status === 'REVIEW' && mockRoles(user).includes(review.waitingRole) && !(goal.authorIds || []).includes(user.id);
+  return {
+    ...goal,
+    status: goal.status === EDU_STATUS.EDITING || goal.status === EDU_STATUS.REJECTED ? EDU_STATUS.DRAFT : goal.status,
+    review,
+    permissions: {
+      canEdit: author && open,
+      canSubmit: author && open,
+      canApprove: canReview,
+      canIssue: canReview,
+      canReturn: canReview,
+      canDelete: author && open,
+      canCreateVersion: author && goal.status === EDU_STATUS.APPROVED,
+    },
+  };
+};
+
 const saveGoal = async (item, options = {}) => {
   await delay();
   if (!item?.id) throw eduError('REQUIRED_FIELD_MISSING', 'mã bản ghi');
@@ -106,6 +157,40 @@ const saveGoal = async (item, options = {}) => {
     const list = ensureSeeded(db).eduGoals;
     const prev = list.find((x) => x.id === item.id);
     const edit = options.edit;
+    const actor = options.actor;
+    if (actor && options.action === 'approve') {
+      if (!goalView(db, prev, actor).permissions.canApprove) throw eduError('NOT_YOUR_REVIEW_STEP', 'duyệt');
+      const roles = withDefaults(db.eduConfig).workflowPolicy.year.reviewers;
+      const approval = { userId: actor.id, name: actor.name, roleKey: prev.waitingRole, at: stamp(), round: prev.reviewRound || 1 };
+      const waitingRole = roles[roles.indexOf(prev.waitingRole) + 1] || null;
+      const next = {
+        ...prev,
+        revision: (prev.revision || 0) + 1,
+        approvals: [...(prev.approvals || []), approval],
+        waitingRole,
+        status: waitingRole ? 'REVIEW' : EDU_STATUS.APPROVED,
+      };
+      if (!waitingRole)
+        next.printSnapshot = {
+          schemaVersion: 1,
+          origin: 'PUBLICATION',
+          capturedAt: new Date().toISOString(),
+          documentType: 'year',
+          policyRevision: db.eduConfig?.workflowRevision || 1,
+          slots: [
+            creatorSlot(db, next),
+            ...roles.map((role) => ({
+              roleKey: role,
+              label: SIGN_ROLES[role],
+              names: next.approvals.filter((a) => a.roleKey === role).map((a) => a.name),
+            })),
+          ],
+        };
+      return clone(goalView(db, upsert(list, next), actor));
+    }
+    if (actor && options.action === 'reject' && !goalView(db, prev, actor).permissions.canReturn)
+      throw eduError('NOT_YOUR_REVIEW_STEP', 'trả lại');
+    if (actor && !['reject'].includes(options.action) && !authorOf(db, item, actor)) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
     if (prev?.status === EDU_STATUS.APPROVED) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
     if (prev?.editSessionId && !edit && Date.now() - (prev.editingAt || 0) < EDIT_LOCK_MS)
       throw eduError('YEAR_PLAN_LOCKED_BY_OTHER', prev.editing?.name || 'người khác');
@@ -120,26 +205,65 @@ const saveGoal = async (item, options = {}) => {
     }
     const { editing, editingAt, editingFrom, editSessionId, ...rest } = clone(item);
     const draftLike = rest.status === EDU_STATUS.DRAFT || rest.status === EDU_STATUS.REJECTED;
+    const isReview = rest.status === 'REVIEW' || rest.status === EDU_STATUS.PENDING_VP;
     const keep = prev?.status === EDU_STATUS.EDITING && draftLike;
     const next = keep
       ? { ...rest, status: EDU_STATUS.EDITING, editing: prev.editing, editingFrom: prev.editingFrom, editingAt: Date.now() }
       : rest;
+    if (isReview) {
+      next.status = 'REVIEW';
+      const yearReviewers = db.eduConfig?.workflowPolicy?.year?.reviewers || ['VICE_PRINCIPAL'];
+      next.waitingRole = yearReviewers[0] || 'VICE_PRINCIPAL';
+      if (prev?.status === EDU_STATUS.DRAFT || prev?.status === EDU_STATUS.REJECTED || prev?.status === EDU_STATUS.EDITING) {
+        next.reviewRound = (prev?.reviewRound || 0) + 1;
+        next.approvals = [];
+      }
+      delete next.editSessionId;
+      delete next.editing;
+      delete next.editingAt;
+      delete next.editingFrom;
+    } else if (rest.status === EDU_STATUS.APPROVED) {
+      next.status = EDU_STATUS.APPROVED;
+      delete next.waitingRole;
+      delete next.editSessionId;
+      delete next.editing;
+      delete next.editingAt;
+      delete next.editingFrom;
+      if (!next.printSnapshot) {
+        const yearReviewers = db.eduConfig?.workflowPolicy?.year?.reviewers || ['VICE_PRINCIPAL'];
+        const slots = [
+          creatorSlot(db, next),
+          ...yearReviewers.map((r) => ({
+            roleKey: r,
+            label: SIGN_ROLES[r] || r,
+            names: next.issued?.name ? [next.issued.name] : [],
+          })),
+        ];
+        next.printSnapshot = {
+          schemaVersion: 1,
+          origin: 'PUBLICATION',
+          documentType: 'year',
+          policyRevision: db.eduConfig?.workflowRevision || 1,
+          capturedAt: new Date().toISOString(),
+          slots,
+        };
+      }
+    } else if (rest.status === EDU_STATUS.DRAFT) {
+      delete next.waitingRole;
+    }
     if (edit) {
       next.revision = (prev?.revision || 0) + 1;
       next.lastSaveRequestId = edit.requestId;
-      if (
-        rest.status !== EDU_STATUS.APPROVED &&
-        rest.status !== EDU_STATUS.REJECTED &&
-        !(rest.status === EDU_STATUS.PENDING_VP && prev?.status !== EDU_STATUS.PENDING_VP)
-      ) {
+      if (rest.status !== EDU_STATUS.APPROVED && rest.status !== EDU_STATUS.REJECTED && !isReview) {
         next.editSessionId = edit.sessionId;
         next.editingAt = Date.now();
         next.editing = prev?.editing || { userId: item.owner?.userId, name: item.createdBy, at: stamp() };
         next.editingFrom = prev?.editingFrom || rest.status;
-        next.status = rest.status === EDU_STATUS.PENDING_VP ? rest.status : EDU_STATUS.EDITING;
+        next.status = EDU_STATUS.EDITING;
       }
     }
-    return clone(upsert(list, next));
+    if (actor && (!options.action || options.action === 'submit')) next.authorIds = [...new Set([...(prev?.authorIds || []), actor.id])];
+    return clone(goalView(db, upsert(list, next), actor));
   });
 };
 
@@ -155,6 +279,9 @@ const copyPlan = (source, user, versionNo, code) => {
     versionNo,
     sourcePlanId: source.id,
     status: EDU_STATUS.DRAFT,
+    reviewRound: 0,
+    approvals: [],
+    printSnapshot: null,
     revision: 0,
     owner: { userId: user.id, name: user.fullName, title: null, at: stamp().slice(0, 10) },
     createdBy: user.fullName,
@@ -248,15 +375,20 @@ export const educationPlanMockRepository = {
     if (!sourceVisible(actor, goal)) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
     return clone({ ...goal, id: String(goal.id), revision: goal.revision ?? 0, goalCount: goalCount(goal) });
   },
-  async getAll() {
+  async getAll(user) {
     await delay();
     const db = readDb();
     if (db.eduSeedVersion !== EDU_SEED_VERSION) writeDb(ensureSeeded);
     const fresh = readDb();
-    return { goals: clone(fresh.eduGoals), themes: clone(fresh.eduThemes), lessons: clone(fresh.eduLessons) };
+    return {
+      goals: clone(fresh.eduGoals.map((goal) => goalView(fresh, goal, user))),
+      themes: clone(fresh.eduThemes),
+      lessons: clone(fresh.eduLessons),
+    };
   },
   saveGoal,
   startEditingGoal: editGoal((goal, user, edit) => {
+    if (!authorOf(readDb(), goal, user)) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
     if (lockedByOther(goal, user)) throw eduError('YEAR_PLAN_LOCKED_BY_OTHER', goal.editing.name);
     // BE:EDU-10 (27/10) — cùng tài khoản mở lại thì phiên mới nhận quyền ngay; người khác vẫn chờ hết hạn (lockedByOther)
     if (goal.status === EDU_STATUS.PENDING_VP && !edit) return goal;

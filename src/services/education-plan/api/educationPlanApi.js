@@ -11,12 +11,6 @@ import { buildRefs, planSteps, serverId, toUiEduConfig, toUiGoal, toYearPlanRequ
 const GOALS = '/education-plans/goals';
 
 const sourceError = (status, message) => Object.assign(new Error(message), { status });
-// BE:EDU-06 — Tổ trưởng chọn được nhóm tuổi khác; BE chỉ trả bản đã ban hành của nhóm đó
-const sourceGroup = (actor, requested) => {
-  if (actor?.role === ROLES.VICE_PRINCIPAL) return requested;
-  if (actor?.role === ROLES.TEAM_LEADER && actor.ageGroupId) return requested;
-  throw sourceError(403, 'Bạn không có quyền lấy mục tiêu từ kế hoạch này.');
-};
 const sourceSummary = (item, refs) => ({
   id: String(item.id),
   code: item.code,
@@ -30,7 +24,8 @@ const sourceSummary = (item, refs) => ({
 
 // Dữ liệu tham chiếu (năm học, nhóm tuổi, lĩnh vực) để đổi id UI ↔ BE; nạp một lần mỗi phiên trang
 let configCache = null;
-const loadConfig = () => {
+const loadConfig = (refresh = false) => {
+  if (refresh) configCache = null;
   configCache ||= axiosClient.get('/education-plans/config').catch((err) => {
     configCache = null;
     throw err;
@@ -54,11 +49,20 @@ const editHeaders = (edit) => ({
   'Idempotency-Key': edit.requestId || crypto.randomUUID(),
 });
 
-const runSteps = async (goal, refs, edit, forceSave = false) => {
+const reviewHeaders = (edit) => ({
+  'X-Plan-Revision': String(edit.revision ?? 0),
+  'Idempotency-Key': edit.requestId || crypto.randomUUID(),
+});
+
+const runSteps = async (goal, refs, edit, forceSave = false, action) => {
   let id = serverId(goal.id);
   let detail = null;
   const prev = id == null ? null : known.get(String(id));
-  for (const step of planSteps(prev, goal, forceSave || !prev || prev.body !== bodyKey(goal, refs))) {
+  const actionCall = { submit: 'submit', approve: 'issue', reject: 'return' }[action];
+  const steps = actionCall
+    ? [{ call: actionCall, note: goal.history?.at(-1)?.note || null }]
+    : planSteps(prev, goal, forceSave || !prev || prev.body !== bodyKey(goal, refs));
+  for (const step of steps) {
     if (step.call === 'create') detail = await axiosClient.post(GOALS, toYearPlanRequest(goal, refs), { headers: editHeaders(edit) });
     else if (step.call === 'update')
       detail = await axiosClient.put(`${GOALS}/${id}`, toYearPlanRequest(goal, refs), { headers: editHeaders(edit) });
@@ -66,7 +70,7 @@ const runSteps = async (goal, refs, edit, forceSave = false) => {
       detail = await axiosClient.post(
         `${GOALS}/${id}/${step.call}`,
         { note: step.note },
-        { headers: editHeaders({ ...edit, requestId: crypto.randomUUID() }) },
+        { headers: (step.call === 'submit' ? editHeaders : reviewHeaders)({ ...edit, requestId: crypto.randomUUID() }) },
       );
     edit.revision = detail.revision;
     id = detail.id;
@@ -106,7 +110,7 @@ export const educationPlanApi = {
   getCurriculumGoals: (ageGroupCode, options) => curriculumOf('goals', ageGroupCode, options),
   getCurriculumContents: (ageGroupCode, options) => curriculumOf('contents', ageGroupCode, options),
   listGoalSources: async ({ schoolYear, ageGroupId, excludeId } = {}, actor, options = {}) => {
-    const group = sourceGroup(actor, ageGroupId);
+    const group = ageGroupId;
     const refs = buildRefs(await loadConfig());
     const params = {};
     if (schoolYear) {
@@ -132,7 +136,6 @@ export const educationPlanApi = {
     return [...sources.values()];
   },
   getGoalSource: async (id, actor, options = {}) => {
-    sourceGroup(actor);
     const refs = buildRefs(await loadConfig());
     const goal = toUiGoal(await axiosClient.get(`${GOALS}/${id}`, { signal: options.signal }), refs);
     // BE:EDU-06/24 — giới hạn UX của import; quyền đọc thực tế vẫn do BE kiểm qua token.
@@ -160,7 +163,13 @@ export const educationPlanApi = {
     const id = serverId(item.id);
     let acquired = false;
     try {
-      if (!explicit && id != null) {
+      const reviewOnly =
+        id != null &&
+        (known.get(String(id))?.status === 'REVIEW' ||
+          item.permissions?.canApprove ||
+          item.permissions?.canIssue ||
+          item.permissions?.canReturn);
+      if (!explicit && id != null && !reviewOnly) {
         const current = await axiosClient.post(`${GOALS}/${id}/start-editing`, null, { headers: editHeaders(edit) });
         acquired = true;
         if ((item.revision ?? 0) !== (current.revision ?? 0)) {
@@ -168,7 +177,7 @@ export const educationPlanApi = {
         }
         remember(current, refs);
       }
-      const detail = await runSteps(item, refs, edit, !!options.silent);
+      const detail = await runSteps(item, refs, edit, !!options.silent, options.action);
       return detail ? toUiGoal(detail, refs) : item;
     } finally {
       if (acquired) await axiosClient.post(`${GOALS}/${id}/finish-editing`, null, { headers: editHeaders(edit) }).catch(() => {});
@@ -215,22 +224,56 @@ export const educationPlanApi = {
     const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
     return axiosClient.get('/education-plans/class-docs', { params: id == null ? {} : { schoolYearId: id } });
   },
-  getEduConfig: async () => toUiEduConfig(await loadConfig()),
+  getEduConfig: async () => {
+    const [config, workflow] = await Promise.all([loadConfig(true), axiosClient.get('/education-plans/workflow-policy')]);
+    const fresh = { ...config, workflow };
+    configCache = Promise.resolve(fresh);
+    return toUiEduConfig(fresh);
+  },
+  saveWorkflowPolicy: async (cfg) => {
+    try {
+      await axiosClient.put('/education-plans/workflow-policy', { revision: cfg.workflowRevision, policies: cfg.workflowPolicy });
+    } finally {
+      configCache = null;
+      known.clear();
+    }
+    return educationPlanApi.getEduConfig();
+  },
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
   saveEduConfig: async (cfg) => {
     const saved = await axiosClient.put('/education-plans/config', {
       domainLabels: cfg.domainLabels || {},
       extraDomains: cfg.extraDomains || [],
-      signers: cfg.signers,
       weekRows: cfg.weekRows,
     });
     configCache = Promise.resolve(saved);
     return toUiEduConfig(saved);
   },
-  saveClassDoc: (kind, doc) => axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, doc),
+  saveClassDoc: (kind, doc, options = {}) => {
+    const headers = { 'X-Class-Doc-Version': String(doc?.version ?? -1) };
+    if (doc?.dossierVersion != null) headers['X-Dossier-Version'] = String(doc.dossierVersion);
+    if (options?.headers) Object.assign(headers, options.headers);
+    if (kind === 'week' && doc?.dossierVersion == null) throw sourceError(409, 'Hãy tải lại hồ sơ chủ đề trước khi lưu tuần.');
+    const { version, dossierVersion, review, permissions, ...content } = doc;
+    return axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, content, { headers });
+  },
   // BE:EDU-27 — ô "Kế hoạch điều chỉnh và bổ sung", ghi được cả khi đã duyệt
-  saveClassDocAdjustments: (id, adjustments) => axiosClient.put(`/education-plans/class-docs/week/${id}/adjustments`, { adjustments }),
-  actOnClassDoc: (kind, id, body) => axiosClient.post(`/education-plans/class-docs/${kind}/${id}/actions`, body),
+  saveClassDocAdjustments: (id, adjustments, options = {}) => {
+    if (options.version == null || options.dossierVersion == null)
+      throw sourceError(409, 'Hãy tải lại hồ sơ chủ đề trước khi lưu điều chỉnh.');
+    const headers = { 'X-Class-Doc-Version': String(options.version) };
+    if (options?.dossierVersion != null) headers['X-Dossier-Version'] = String(options.dossierVersion);
+    if (options?.headers) Object.assign(headers, options.headers);
+    return axiosClient.put(`/education-plans/class-docs/week/${id}/adjustments`, { adjustments }, { headers });
+  },
+  actOnClassDoc: (kind, id, body, options = {}) => {
+    if (options.version == null) throw sourceError(409, 'Hãy tải lại tài liệu trước khi duyệt.');
+    const headers = { 'Idempotency-Key': options?.requestId || crypto.randomUUID() };
+    if (options?.version != null) headers['X-Class-Doc-Version'] = String(options.version);
+    if (options?.dossierVersion != null) headers['X-Dossier-Version'] = String(options.dossierVersion);
+    if (options?.headers) Object.assign(headers, options.headers);
+    return axiosClient.post(`/education-plans/class-docs/${kind}/${id}/actions`, body, { headers });
+  },
   suggestBranchNames: (input) => axiosClient.post('/education-plans/ai/branch-names', input),
   rewriteBranchName: (input) => axiosClient.post('/education-plans/ai/branch-names/rewrite', input),
   suggestLessonSteps: (input) => axiosClient.post('/education-plans/ai/lesson-steps', input),

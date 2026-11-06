@@ -1,6 +1,6 @@
 {
   "source": "CareNest_BE docs/api/openapi.yaml",
-  "syncedAt": "2026-11-04",
+  "syncedAt": "2026-11-06",
   "routes": [
     "DELETE /age-groups/{x}",
     "DELETE /campuses/{x}",
@@ -76,6 +76,7 @@
     "GET /education-plans/goals",
     "GET /education-plans/goals/{x}",
     "GET /education-plans/goals/{x}/changes",
+    "GET /education-plans/workflow-policy",
     "GET /health-checks",
     "GET /health-checks/schedule-warnings",
     "GET /health-checks/{x}",
@@ -253,6 +254,7 @@
     "PUT /education-plans/class-docs/{x}/{x}",
     "PUT /education-plans/config",
     "PUT /education-plans/goals/{x}",
+    "PUT /education-plans/workflow-policy",
     "PUT /health-checks/{x}",
     "PUT /health-checks/{x}/children/{x}/exam",
     "PUT /locations/{x}",

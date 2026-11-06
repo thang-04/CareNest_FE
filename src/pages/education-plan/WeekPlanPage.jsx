@@ -75,8 +75,10 @@ function WeekPlanInner() {
   const [copying, setCopying] = useState(false);
   const version = useDocVersion('week', saved, ctx, weekPlans, { themeId: week?.theme.id, weekStart, weekNo: week?.no });
   // Nội dung sửa khi Nháp / Bị trả lại trên phiên bản hiện hành; ô điều chỉnh của ngày ghi được ở mọi trạng thái (BE:EDU-27)
-  const contentEditable = isClassTeacher && !ctx.superseded && isEditableStatus(saved?.status || EDU_STATUS.DRAFT);
-  const adjustEditable = isClassTeacher && !!saved;
+  const contentEditable =
+    !ctx.superseded &&
+    (saved?.permissions ? saved.permissions.canEdit : saved ? isClassTeacher && isEditableStatus(saved.status) : ctx.canCreate('week'));
+  const adjustEditable = !!saved && (saved.permissions ? saved.permissions.canEditAdjustments : isClassTeacher);
   const sameAdjust = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {});
 
   // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
@@ -85,7 +87,7 @@ function WeekPlanInner() {
     enabled: contentEditable || adjustEditable,
     save: async (doc) => {
       let out = contentEditable ? await saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) }) : saved;
-      if (out && !sameAdjust(doc.adjustments, out.adjustments)) out = await saveClassDocAdjustments(out.id, doc.adjustments || {});
+      if (out && !sameAdjust(doc.adjustments, out.adjustments)) out = await saveClassDocAdjustments(out.id, doc.adjustments || {}, out);
       return out;
     },
     onSaved: (same) => same && setDirty(false),
@@ -116,7 +118,7 @@ function WeekPlanInner() {
     setDraft(doc);
     saver.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved?.id, saved?.status, saved?.history?.length, week?.start, classId]);
+  }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, week?.start, classId]);
 
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan || !week) return <StatusPage kind="404" title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;

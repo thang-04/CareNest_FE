@@ -64,6 +64,7 @@ export function PageHead({ crumbs, title, desc, actions }) {
 export const EduStatusBadge = createStatusBadge(
   {
     DRAFT: ['gray', FileEdit],
+    REVIEW: ['purple', Clock],
     SENT: ['green', Send],
     PENDING_TL: ['purple', Clock],
     PENDING_VP: ['purple', Clock],
@@ -90,6 +91,7 @@ export const DocAvailabilityBadge = createStatusBadge(
 export const YearPlanStatusBadge = createStatusBadge(
   {
     DRAFT: ['gray', FileEdit],
+    REVIEW: ['purple', Clock],
     EDITING: ['orange', Lock],
     SENT: ['green', Send],
     PENDING_TL: ['purple', Clock],

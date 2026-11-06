@@ -39,6 +39,10 @@ export const toUiEduConfig = (config) => {
   return {
     domainLabels: Object.fromEntries(domains.filter((d) => d.displayLabel).map((d) => [d.name, d.displayLabel])),
     extraDomains: domains.filter((d) => !d.standard).map((d) => d.name),
+    workflowPolicy: config?.workflow?.policies || config?.workflowPolicy || null,
+    workflowRevision: config?.workflow?.revision ?? config?.workflowRevision ?? 1,
+    canConfigure: config?.workflow?.canConfigure ?? false,
+    yearCreationScopes: (config?.yearCreationScopes || []).map((id) => buildRefs(config).ageGroupCode(id)).filter(Boolean),
     ...(config?.signers ? { signers: config.signers } : {}),
     ...(config?.weekRows ? { weekRows: config.weekRows } : {}),
     // BE:EDU-21 — họ tên Hiệu trưởng, Phó HT đang hoạt động để in dưới chỗ ký tay
@@ -105,6 +109,11 @@ export const toUiGoal = (detail, refs) => {
     sentBy: actor(detail.sentBy),
     issued: actor(detail.issued),
     editing: editor(detail.editing),
+    waitingRole: detail.review?.waitingRole ?? detail.waitingRole ?? null,
+    waitingRoleLabel: detail.waitingRoleLabel || null,
+    creationCapabilities: detail.creationCapabilities || null,
+    review: detail.review || null,
+    lastReturnNote: detail.lastReturnNote || null,
     history: (detail.history || []).map((h) => ({
       at: localDateTime(h.at),
       by: h.actorName,
@@ -185,9 +194,10 @@ export const planSteps = (prev, goal, changed = true) => {
   if (!prev) steps.push({ call: 'create' });
   else if (changed && canEdit && to !== EDU_STATUS.REJECTED) steps.push({ call: 'update' });
   if (to !== (from || EDU_STATUS.DRAFT)) {
-    if (to === EDU_STATUS.PENDING_VP) steps.push({ call: 'submit', note: lastNote(goal) });
+    if (to === EDU_STATUS.PENDING_VP || to === 'REVIEW') steps.push({ call: 'submit', note: lastNote(goal) });
     else if (to === EDU_STATUS.APPROVED) steps.push({ call: 'issue', note: lastNote(goal) });
-    else if (to === EDU_STATUS.REJECTED) steps.push({ call: 'return', note: lastNote(goal) });
+    else if (to === EDU_STATUS.REJECTED || (from === 'REVIEW' && to === EDU_STATUS.DRAFT))
+      steps.push({ call: 'return', note: lastNote(goal) });
   }
   return steps;
 };

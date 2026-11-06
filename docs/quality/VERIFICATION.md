@@ -1,5 +1,12 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Workflow người soạn/người duyệt — 06/11/2026
+
+- Nguồn: BE specs/011-plan-creator-reviewer, T062/T071; user cho phép sửa education FE. Policy GET/PUT tách config, expected revision, canConfigure/creation scopes và permissions server; queue hỗ trợ capability, review không author lease. Member/root versions bắt buộc, -1 create, reload hồ sơ sau ghi tuần/điều chỉnh; bản in tách CREATOR và giữ tên snapshot.
+- Adapter tests GET/PUT policy và reload/conflict; explicit intermediate year review không lease; class create/header/metadata; mock pending reconciliation/no-op/stale và dual role; frozen branch creator print. Lượt targeted: 207 tests, 0 fail/skip. ESLint toàn source: 0 errors, 1 warning ImportGoalFileModal hiện hữu.
+- Cổng full đầu fail vì snapshot route FE thiếu workflow-policy; đồng bộ từ actual BE OpenAPI bằng check-api-contract --sync, không khai pending để bỏ lỗi. Lượt full cuối được chạy sau source/docs; output VERIFY và verify.log là bằng chứng bàn giao. Browser real-BE do root chạy riêng sau BE ready, chưa gộp vào bằng chứng unit/adapter này. Không commit/push/deploy hoặc đổi dependency.
+
+
 ## EDU-48 xóa nhánh và Lĩnh vực ellipsis — 02/11/2026
 
 - Convergence ảnh cuối phát hiện ordinal xác nhận dùng subNo mutable: appendT023, local RED1→2 rồi capture const theo block. Local browser GREEN và real E2E chạy lại1/1passed20.3s, cleanupAPI0; assertion số thứ tự trong E2E. Review lại không gap. Các mốc386tests/15.7s bên dưới là vòng trước T023; cổng full cuối được chạy sau hồ sơ và source T023, output bàn giao là kết quả sau cùng.

@@ -36,7 +36,7 @@ export default function GoalDetailPage() {
   const [creating, setCreating] = useState(false);
   const found = goals.find((x) => x.id === id);
   // Giáo viên chỉ xem kế hoạch năm đã ban hành
-  const g = user.role === ROLES.TEACHER && found?.status !== EDU_STATUS.APPROVED ? null : found;
+  const g = found;
 
   if (!g)
     return (
@@ -77,18 +77,20 @@ export default function GoalDetailPage() {
   const log = (action, extra, tone) => [...history, { at: now(), by: user.name, action, note: extra || undefined, tone }];
   const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: now() };
   // Phó HT và tổ trưởng cùng soạn, mỗi lúc một người (BE:EDU-03, EDU-10); Phó HT duyệt, trả lại hoặc tự sửa khi đang chờ
-  const isOwner = !g.owner || g.owner.userId === user.id;
-  const draftLike = editable(g.status);
-  const pending = g.status === EDU_STATUS.PENDING_VP;
-  const editor = g.status === EDU_STATUS.EDITING ? g.editing : null;
+  const _isOwner = !g.owner || g.owner.userId === user.id;
+  const isReview = g.status === 'REVIEW' || g.status === EDU_STATUS.PENDING_VP;
+  const pending = isReview;
+  const draftLike = editable(g.status) && !isReview;
+  const editor = g.editing;
   const lockedByOther = !!editor && editor.userId !== user.id;
   // API thật: BE trả quyền của người xem (permissions); mock chưa có thì tự suy
   const perm = g.permissions;
   const free = draftLike && !lockedByOther;
-  const canEditNow = perm ? perm.canEdit : (free && (isVp || isLeader)) || (pending && isVp);
+  const isReviewerForPlan = isReview && (g.waitingRole ? g.waitingRole === user.role : isVp);
+  const canEditNow = perm ? perm.canEdit : free && (isVp || isLeader);
   const canSend = perm ? perm.canSubmit : free && isLeader;
-  const canIssue = perm ? perm.canIssue : isVp && (pending || (free && isOwner));
-  const canReturn = perm ? perm.canReturn : isVp && pending;
+  const canIssue = perm ? (perm.canApprove ?? perm.canIssue) : isReviewerForPlan;
+  const canReturn = perm ? perm.canReturn : isReviewerForPlan;
   const canDelete = perm ? perm.canDelete : isVp && !lockedByOther && (g.status === EDU_STATUS.DRAFT || g.editingFrom === EDU_STATUS.DRAFT);
   // BE:EDU-25 — sửa bản đã ban hành = tạo phiên bản mới; bản đã ban hành giữ nguyên
   const canCreateVersion =
@@ -128,17 +130,20 @@ export default function GoalDetailPage() {
   // Gửi / trả lại / ban hành theo mẫu chung (reviewUi); service quyết định trạng thái
   const act = async (action, note) => {
     const next = {
-      submit: { ...g, status: EDU_STATUS.PENDING_VP, sentAt: now(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt', note) },
-      reject: { ...g, status: EDU_STATUS.REJECTED, history: log('Trả lại để sửa', note, 'err') },
+      submit: { ...g, status: 'REVIEW', sentAt: now(), sentBy: me, history: log('Gửi duyệt', note) },
+      reject: { ...g, status: EDU_STATUS.DRAFT, history: log('Trả lại để sửa', note, 'err') },
       approve: { ...g, status: EDU_STATUS.APPROVED, issued: me, history: log('Ban hành', note) },
     }[action];
-    const saved = await saveGoal(next);
+    const saved = await saveGoal(next, { action });
     if (saved)
       toast(
         {
-          submit: 'Đã gửi Phó hiệu trưởng duyệt',
-          reject: 'Đã trả lại kế hoạch cho tổ trưởng',
-          approve: 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.',
+          submit: 'Đã gửi kế hoạch để duyệt',
+          reject: 'Đã trả lại kế hoạch để sửa',
+          approve:
+            saved.status === EDU_STATUS.APPROVED
+              ? 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.'
+              : 'Đã duyệt và chuyển bước tiếp theo.',
         }[action],
       );
     return saved;
@@ -186,7 +191,7 @@ export default function GoalDetailPage() {
             <ReviewActions
               name="kế hoạch năm học"
               sendTo="Phó HT"
-              approveLabel="Ban hành"
+              approveLabel={g.review?.roles?.at(-1) === g.review?.waitingRole ? 'Ban hành' : 'Duyệt'}
               variant="btn--outline-primary"
               can={{ send: canSend, reject: canReturn, approve: canIssue }}
               // EDU-52: chủ đề chưa chọn ngày thì chưa ban hành được; sửa ngày ở màn chỉnh sửa
@@ -224,9 +229,9 @@ export default function GoalDetailPage() {
           </Notice>
         </div>
       )}
-      {g.status === EDU_STATUS.PENDING_VP && !isVp && (
+      {isReview && !canIssue && (
         <div className="mb-16">
-          <Notice>Đã gửi Phó hiệu trưởng duyệt. Kế hoạch bị khóa cho tới khi được ban hành hoặc bị trả lại.</Notice>
+          <Notice>{`Đã gửi duyệt${g.waitingRoleLabel ? ` (${g.waitingRoleLabel})` : ''}. Kế hoạch bị khóa cho tới khi được ban hành hoặc bị trả lại.`}</Notice>
         </div>
       )}
 

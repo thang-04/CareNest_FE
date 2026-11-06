@@ -24,15 +24,40 @@ const domainTitle = (name) => `${domainRoman(name)}. Giáo dục ${domainLabel(n
 
 const BLANK_DATE = 'Ngày……tháng……năm……';
 
+const parseSnapshot = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 /**
- * Người ký theo chuỗi duyệt đã cấu hình: chức danh và họ tên (người đã duyệt; Tổ trưởng chưa duyệt thì lấy Tổ trưởng
- * của nhóm tuổi; còn lại để trống cho viết tay). approvals ghi vai trò bằng nhãn ("Tổ trưởng"…) như BE.
+ * Người ký theo chuỗi duyệt đã cấu hình hoặc snapshot đã lưu khi ban hành: chức danh và họ tên (người đã duyệt; Tổ trưởng chưa duyệt thì lấy Tổ trưởng
+ * của nhóm tuổi; còn lại để trống cho viết tay).
  */
-const signersOf = (chain, approvals = [], leaderName = '') =>
-  chain.map((r) => ({
+export const signersOf = (chain, approvals = [], leaderName = '', snapshotRaw = null) => {
+  const snapshot = parseSnapshot(snapshotRaw);
+  if (snapshot?.slots?.length) {
+    return snapshot.slots
+      .filter((slot) => slot.roleKey !== 'CREATOR')
+      .map((s) => ({
+        role: s.roleKey,
+        title: s.label || SIGN_ROLES[s.roleKey] || s.roleKey,
+        name: (s.names || []).join(', '),
+      }));
+  }
+  return chain.map((r) => ({
+    role: r,
     title: SIGN_ROLES[r],
-    name: approvals.find((a) => a.role === SIGN_ROLES[r])?.name || (r === 'TEAM_LEADER' ? leaderName : soleSignerName(r)) || '',
+    name:
+      approvals.find((a) => a.roleKey === r || a.role === SIGN_ROLES[r])?.name ||
+      (r === 'TEAM_LEADER' ? leaderName : soleSignerName(r)) ||
+      '',
   }));
+};
 /** Họ tên Tổ trưởng của nhóm tuổi (staff BE trả kèm tài liệu lớp: { fullName, role, ageGroupId }). */
 // staff là Tổ trưởng của năm học đang xem (đúng năm của tài liệu lớp); không có thì lấy theo cấu hình của năm schoolYear
 export const leaderNameOf = (staff = [], ageGroupId, schoolYear) =>
@@ -46,12 +71,17 @@ const signCell = (x, top = '') => `<td class="c">${top}<b>${esc(x.title)}</b><br
  * đã cấu hình (chức danh, chỗ ký tay, họ tên).
  */
 const approvalBox = (doc, week, leaderName) => {
-  const people = signersOf(getEduConfig().signers.week, doc.approvals, leaderName);
+  const snapshot = doc?.review?.printSnapshot || doc?.printSnapshot;
+  const people = signersOf(getEduConfig().signers.week, doc?.approvals, leaderName, snapshot);
+  const creators = (parseSnapshot(snapshot)?.slots || [])
+    .filter((slot) => slot.roleKey === 'CREATOR')
+    .map((slot) => signCell({ title: slot.label || 'Người soạn', name: (slot.names || []).join(', ') }))
+    .join('');
   const cells = (people.length ? people : [{ title: 'Người duyệt', name: '' }])
     .map((x) => signCell(x, `<i>${BLANK_DATE}</i><br/>`))
     .join('');
   return `<p>&nbsp;</p><p><b>Duyệt giáo án từ ngày ${fmt(week.start)} đến ngày ${fmt(week.end)}</b></p>
-<table class="plain sign-block"><tr><td style="width:50%"></td>${cells}</tr></table>`;
+<table class="plain sign-block"><tr>${creators || '<td style="width:50%"></td>'}${cells}</tr></table>`;
 };
 
 /**
@@ -193,10 +223,18 @@ export const branchFileHtml = ({ doc, cls, yearPlan, teachers, leaderName, blank
       return `<tr>${head}<td>- Nhánh ${no}: ${blank ? '' : esc(doc.names?.[r.start] || '')}</td><td>Tuần ${r.no}: ${fmt(r.start)}<br/>${fmt(r.end)}</td><td>${blank ? '' : esc(doc.notes?.[r.start] || '')}</td></tr>`;
     })
     .join('');
-  const approvers = signersOf(getEduConfig().signers.branch, blank ? [] : doc.approvals, leaderName).map((x) =>
+  const snapshot = doc?.review?.printSnapshot || doc?.printSnapshot;
+  const approvers = signersOf(getEduConfig().signers.branch, blank ? [] : doc?.approvals, leaderName, blank ? null : snapshot).map((x) =>
     blank ? { ...x, name: '' } : x,
   );
-  const people = teachers.length && !blank ? teachers : [{ fullName: '' }];
+  const frozen = !blank && parseSnapshot(snapshot);
+  const people = frozen
+    ? (frozen.slots || [])
+        .filter((slot) => slot.roleKey === 'CREATOR')
+        .flatMap((slot) => (slot.names || []).map((name) => ({ fullName: name, title: slot.label || 'Người soạn' })))
+    : teachers.length && !blank
+      ? teachers
+      : [{ fullName: '' }];
   return docShell(
     `Dự kiến các chủ đề nhánh ${cls.name}`,
     `<h1>DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH VÀ THỜI GIAN THỰC HIỆN NĂM HỌC ${esc(year)} - ${esc(cls.name.toUpperCase())}</h1>
@@ -207,7 +245,7 @@ export const branchFileHtml = ({ doc, cls, yearPlan, teachers, leaderName, blank
 <td class="c" style="width:50%"><br/><b>Người duyệt kế hoạch</b>
 <table class="plain"><tr>${approvers.map((x) => signCell(x)).join('')}</tr></table></td>
 <td class="c" style="width:50%"><i>${esc(commune)}, ngày …… tháng …… năm ……</i><br/><b>Người xây dựng kế hoạch</b>
-<table class="plain"><tr>${people.map((t) => signCell({ title: 'Giáo viên', name: t.fullName || '' })).join('')}</tr></table></td>
+<table class="plain"><tr>${people.map((t) => signCell({ title: t.title || 'Giáo viên', name: t.fullName || '' })).join('')}</tr></table></td>
 </tr></table>`,
   );
 };

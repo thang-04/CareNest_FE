@@ -159,7 +159,8 @@ export default function ClassPlanPage() {
           <Check size={16} aria-hidden /> Duyệt
         </Link>
       );
-    if (isClassTeacher && (!doc || isEditableStatus(doc.status)))
+    const kind = to.includes('/weeks/') ? 'week' : 'theme';
+    if (doc?.permissions ? doc.permissions.canEdit : doc ? isClassTeacher && isEditableStatus(doc.status) : ctx.canCreate(kind))
       return doc ? (
         <RowActions edit={{ to }} name={name} />
       ) : (

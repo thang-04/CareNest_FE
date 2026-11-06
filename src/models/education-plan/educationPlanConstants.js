@@ -44,6 +44,7 @@ export const WEEKDAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
 
 export const EDU_STATUS = {
   DRAFT: 'DRAFT',
+  REVIEW: 'REVIEW',
   EDITING: 'EDITING',
   SENT: 'SENT',
   PENDING_TL: 'PENDING_TL',
@@ -55,12 +56,13 @@ export const EDU_STATUS = {
 
 export const EDU_STATUS_LABELS = {
   DRAFT: 'Nháp',
+  REVIEW: 'Đang duyệt',
   EDITING: 'Đang sửa',
   SENT: 'Đã gửi tổ trưởng',
   PENDING_TL: 'Chờ tổ trưởng duyệt',
   PENDING_VP: 'Chờ Phó HT duyệt',
   PENDING_HT: 'Chờ Hiệu trưởng duyệt',
-  APPROVED: 'Đã duyệt',
+  APPROVED: 'Ban hành',
   // Tên trạng thái theo nghiệp vụ (BE:EDU-05, EDU-18): trả lại để sửa, không phải từ chối hẳn
   REJECTED: 'Bị trả lại',
 };

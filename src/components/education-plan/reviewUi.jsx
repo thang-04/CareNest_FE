@@ -165,7 +165,7 @@ export function ReviewActions({
 /** Thông báo dưới đầu trang khi tài liệu đang bị trả lại. */
 export function RejectedNotice({ status, history }) {
   const last = lastRejection(history);
-  if (status !== 'REJECTED' || !last?.note) return null;
+  if (!['DRAFT', 'REJECTED'].includes(status) || !last?.note) return null;
   return (
     <Notice tone="err">
       Bị trả lại bởi {last.by} ({fmtDateTime(last.at)}): {last.note}

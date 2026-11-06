@@ -35,3 +35,8 @@ test('review action cho phép đồng bộ kiểu viền ở màn năm học, ca
   assert.equal((html.match(/btn--outline-primary/g) || []).length, 2);
   assert.doesNotMatch(html, /btn--primary/);
 });
+
+test('approveLabel tùy biến cho phép hiển thị Ban hành hoặc Duyệt theo vòng', () => {
+  const html = render({ can: { approve: true }, approveLabel: 'Ban hành' });
+  assert.match(html, /Ban hành/);
+});

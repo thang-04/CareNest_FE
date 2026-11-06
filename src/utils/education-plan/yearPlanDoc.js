@@ -49,25 +49,44 @@ export const docHeader = () => `<table class="plain"><tr>
 <td class="c" style="width:55%"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br/><b>Độc lập - Tự do - Hạnh phúc</b></td>
 </tr></table>`;
 
+export const parseSnapshot = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 /**
- * Người xây dựng kế hoạch năm theo cấu hình (mặc định Phó HT, Tổ trưởng) để in họ tên dưới chỗ ký tay:
- * [{ role, title, name }]. Tên lấy từ người soạn, người gửi và người ban hành; Tổ trưởng chưa thao tác thì lấy Tổ trưởng
- * của nhóm tuổi (staff BE trả); không có thì để trống cho viết tay.
+ * Người xây dựng kế hoạch năm theo cấu hình hoặc snapshot đã lưu khi ban hành:
+ * [{ role, title, name }]. Bản đã ban hành giữ snapshot ô ký bất biến; bản chưa ban hành
+ * lấy từ cấu hình hiện tại và người thực tế.
  */
-export const yearSigners = (plan, staff = []) =>
-  getEduConfig().signers.year.map((role) => {
+export const yearSigners = (plan, staff = []) => {
+  const snapshot = parseSnapshot(plan?.review?.printSnapshot || plan?.printSnapshot);
+  if (snapshot?.slots?.length) {
+    return snapshot.slots.map((s) => ({
+      role: s.roleKey,
+      title: s.label || SIGN_ROLES[s.roleKey] || s.roleKey,
+      name: (s.names || []).join(', '),
+    }));
+  }
+  return getEduConfig().signers.year.map((role) => {
     // Người gửi duyệt luôn là Tổ trưởng, người ban hành luôn là Phó HT (EDU-04/05); người soạn suy từ chức danh BE trả
     const roleOfTitle = (t = '') => (/tổ trưởng/i.test(t) ? 'TEAM_LEADER' : /phó hiệu trưởng/i.test(t) ? 'VICE_PRINCIPAL' : null);
     const people = [
-      plan.owner && { ...plan.owner, role: plan.owner.role || roleOfTitle(plan.owner.title) },
-      plan.sentBy && { ...plan.sentBy, role: plan.sentBy.role || 'TEAM_LEADER' },
-      plan.issued && { ...plan.issued, role: plan.issued.role || 'VICE_PRINCIPAL' },
+      plan?.owner && { ...plan.owner, role: plan.owner.role || roleOfTitle(plan.owner.title) },
+      plan?.sentBy && { ...plan.sentBy, role: plan.sentBy.role || 'TEAM_LEADER' },
+      plan?.issued && { ...plan.issued, role: plan.issued.role || 'VICE_PRINCIPAL' },
     ].filter(Boolean);
-    const leader = role === 'TEAM_LEADER' ? staff.find((s) => s.role === 'TEAM_LEADER' && s.ageGroupId === plan.ageGroupId) : null;
+    const leader = role === 'TEAM_LEADER' ? staff.find((s) => s.role === 'TEAM_LEADER' && s.ageGroupId === plan?.ageGroupId) : null;
     const name =
-      people.find((p) => p.role === role)?.name || soleSignerName(role, plan.ageGroupId, plan.schoolYear) || leader?.fullName || '';
+      people.find((p) => p.role === role)?.name || soleSignerName(role, plan?.ageGroupId, plan?.schoolYear) || leader?.fullName || '';
     return { role, title: SIGN_ROLES[role], name };
   });
+};
 
 const domainTitle = (name) => `${domainRoman(name)}. Giáo dục ${domainLabel(name).replace(/^P/, 'p')}`;
 

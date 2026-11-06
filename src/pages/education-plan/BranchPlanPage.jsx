@@ -69,7 +69,9 @@ function BranchPlanInner({ classId }) {
   const [confirm, setConfirm] = useState(null);
   const [copying, setCopying] = useState(false);
   const version = useDocVersion('branch', saved, ctx, branchPlans);
-  const autoOk = isClassTeacher && !ctx.superseded && isEditableStatus(saved?.status || EDU_STATUS.DRAFT);
+  const autoOk =
+    !ctx.superseded &&
+    (saved?.permissions ? saved.permissions.canEdit : saved ? isClassTeacher && isEditableStatus(saved.status) : ctx.canCreate('branch'));
   const payload = payloadOf(draft, pending);
   const hasPending = Object.keys(pending).length > 0;
   // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
@@ -93,7 +95,7 @@ function BranchPlanInner({ classId }) {
     setDraft(doc);
     saver.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved?.id, saved?.status, saved?.history?.length, yearPlan?.id, classId]);
+  }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, yearPlan?.id, classId]);
 
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan) return <StatusPage kind="404" title="Không tìm thấy lớp hoặc kế hoạch năm của lớp chưa được ban hành" />;
@@ -267,15 +269,13 @@ function BranchPlanInner({ classId }) {
     return true;
   };
   // savedDoc: bản vừa lưu ở "Lưu và gửi" (bản nháp đầu tiên chỉ có id sau khi lưu)
-  const act = (action, note, savedDoc) => actOnClassDoc('branch', savedDoc?.id || draft.id, { action, note });
+  const act = (action, note, savedDoc) =>
+    actOnClassDoc('branch', savedDoc?.id || draft.id, { action, note }, user, {
+      version: savedDoc?.version ?? draft?.version,
+      dossierVersion: savedDoc?.dossierVersion ?? draft?.dossierVersion,
+    });
   const review = docReview('branch', saved, ctx, user, eduConfig);
-  const editReason = !isClassTeacher
-    ? 'Chỉ giáo viên được phân công vào lớp mới được sửa'
-    : ctx.superseded
-      ? 'Đang xem phiên bản kế hoạch năm cũ'
-      : !canEdit
-        ? 'Tài liệu đang chờ duyệt hoặc đã duyệt'
-        : null;
+  const editReason = ctx.superseded ? 'Đang xem phiên bản kế hoạch năm cũ' : !canEdit ? 'Tài liệu đang chờ duyệt hoặc đã duyệt' : null;
   const saveReason = editReason || (saver.saving ? 'Đang lưu' : !saver.unsaved && !saver.error ? 'Không có thay đổi cần lưu' : null);
   // Chưa lưu lần nào vẫn bấm Gửi được: hộp xác nhận lưu trước rồi gửi (Tiền 05/11)
   const sendReason = editReason || (saved && !review.can.send ? 'Bạn chưa thể gửi tài liệu này' : null);

@@ -72,7 +72,76 @@ const unresolvedOf = (db, kind, doc) => {
   if (!source || !plan || !from || from.id === plan.id) return 0;
   return unresolvedFlags(versionFlags(kind, doc, diffPlans(from, plan), plan, todayIso()), doc).length;
 };
-const decorate = (db, doc) => ({ ...doc, superseded: isSuperseded(db, doc.yearPlanId), adjustments: doc.adjustments || {} });
+const rolesOf = (user) => [...(user?.roles || []), user?.role];
+// BE:EDU-03/12..18 — fake backend tính quyền, UI chỉ đọc capabilities.
+const authorsOf = (db, doc) =>
+  new Set([
+    ...(doc.authorIds || []),
+    ...(db.eduClassWeek || [])
+      .filter((week) => week.classId === doc.classId && week.yearPlanId === doc.yearPlanId && week.themeId === doc.themeId)
+      .flatMap((week) => week.authorIds || []),
+  ]);
+const canAuthor = (db, kind, classId, user) => {
+  const cls = classOf(db, classId);
+  const policy = withDefaults(db.eduConfig).workflowPolicy[kind === 'branch' ? 'branch' : 'theme'];
+  if (policy.reviewers.some((role) => rolesOf(user).includes(role))) return false;
+  const roles = policy.creators;
+  return roles.some(
+    (role) =>
+      rolesOf(user).includes(role) &&
+      (role === ROLES.TEACHER ? teachesClass(cls, user) : role === ROLES.TEAM_LEADER ? user?.ageGroupId === cls?.ageGroupId : true),
+  );
+};
+const decorate = (db, doc, user, kind = doc.kind) => {
+  const root =
+    kind === 'week'
+      ? (db.eduClassTheme || []).find(
+          (item) => item.classId === doc.classId && item.yearPlanId === doc.yearPlanId && item.themeId === doc.themeId,
+        )
+      : null;
+  const review = {
+    ...(doc.review || {}),
+    policyRevision: db.eduConfig?.workflowRevision || 1,
+    round: doc.reviewRound || 0,
+    roles: withDefaults(db.eduConfig).workflowPolicy[kind === 'branch' ? 'branch' : 'theme'].reviewers,
+    waitingRole: doc.waitingRole || null,
+    approvals: doc.approvals || [],
+    printSnapshot: doc.printSnapshot || null,
+  };
+  const author = canAuthor(db, kind, doc.classId, user);
+  const reviewer =
+    kind !== 'week' && doc.status === 'REVIEW' && rolesOf(user).includes(review.waitingRole) && !authorsOf(db, doc).has(user?.id);
+  return {
+    ...doc,
+    version: doc.version ?? 0,
+    dossierVersion: kind === 'week' ? (root?.version ?? null) : null,
+    review,
+    superseded: isSuperseded(db, doc.yearPlanId),
+    adjustments: doc.adjustments || {},
+    ...(user
+      ? {
+          permissions: {
+            canEdit: author && isEditableStatus(doc.status),
+            canSubmit: kind !== 'week' && author && isEditableStatus(doc.status),
+            canApprove: reviewer,
+            canReject: reviewer,
+            canEditAdjustments: kind === 'week' && author,
+          },
+        }
+      : {}),
+  };
+};
+const assertVersion = (current, expected) => {
+  if (expected != null && expected !== (current?.version ?? -1)) throw eduError('YEAR_PLAN_REVISION_STALE');
+};
+const bumpRoot = (db, kind, doc, expected) => {
+  if (kind !== 'week') return;
+  const root = (db.eduClassTheme || []).find(
+    (item) => item.classId === doc.classId && item.yearPlanId === doc.yearPlanId && item.themeId === doc.themeId,
+  );
+  assertVersion(root, expected);
+  if (root) root.version = (root.version || 0) + 1;
+};
 
 export const classPlanMockRepository = {
   // BE:EDU-47 — demo CSV; Word/Excel được đọc bởi BE thật.
@@ -134,12 +203,14 @@ export const classPlanMockRepository = {
     return { matches, warnings };
   },
   /** BE:EDU-27 — "Kế hoạch điều chỉnh và bổ sung" ghi được ở mọi trạng thái, chỉ giáo viên của lớp. */
-  async saveAdjustments(id, adjustments, user) {
+  async saveAdjustments(id, adjustments, user, options = {}) {
     await delay();
     ensureSchoolSeeded();
     return writeDb((db) => {
       const doc = findDoc(db, CLASS_DOC.WEEK, id);
-      if (!teachesClass(classOf(db, doc.classId), user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
+      assertVersion(doc, options.version);
+      bumpRoot(db, 'week', doc, options.dossierVersion);
+      if (!canAuthor(db, 'week', doc.classId, user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
       const days = new Set((doc.days || []).map((d) => d.date));
       const next = {};
       Object.entries(adjustments || {}).forEach(([day, text]) => {
@@ -149,13 +220,14 @@ export const classPlanMockRepository = {
       });
       if (JSON.stringify(next) !== JSON.stringify(doc.adjustments || {})) {
         doc.adjustments = next;
+        doc.version = (doc.version || 0) + 1;
         doc.history = [...(doc.history || []), entry(user, 'Cập nhật kế hoạch điều chỉnh và bổ sung')];
       }
-      return clone(decorate(db, doc));
+      return clone(decorate(db, doc, user, 'week'));
     });
   },
 
-  async getAll() {
+  async getAll(user) {
     await delay();
     const db = readDb();
     // Bộ demo cũ: nạp bộ demo hiện hành (kế hoạch năm + bản nháp của lớp) trước khi đọc
@@ -164,9 +236,18 @@ export const classPlanMockRepository = {
     ensureSchoolSeeded();
     const fresh = readDb();
     return {
-      branchPlans: clone(fresh.eduClassBranch.map((d) => decorate(fresh, d))),
-      classThemePlans: clone(fresh.eduClassTheme.map((d) => decorate(fresh, d))),
-      weekPlans: clone(fresh.eduClassWeek.map((d) => decorate(fresh, d))),
+      branchPlans: clone(fresh.eduClassBranch.map((d) => decorate(fresh, d, user, 'branch'))),
+      classThemePlans: clone(fresh.eduClassTheme.map((d) => decorate(fresh, d, user, 'theme'))),
+      weekPlans: clone(fresh.eduClassWeek.map((d) => decorate(fresh, d, user, 'week'))),
+      creationCapabilities: (fresh.classes || []).flatMap((cls) =>
+        ['branch', 'theme', 'week'].map((kind) => ({
+          classId: cls.id,
+          kind,
+          canCreate: canAuthor(fresh, kind, cls.id, user),
+          requires: kind === 'branch' ? 'ISSUED_YEAR_PLAN' : kind === 'theme' ? 'APPROVED_BRANCH' : 'THEME_DOSSIER',
+          reasonCode: null,
+        })),
+      ),
       // Lớp và giáo viên, tổ trưởng (giống GET /education-plans/class-docs của BE)
       classes: clone(fresh.classes || []),
       staff: (fresh.users || [])
@@ -184,16 +265,20 @@ export const classPlanMockRepository = {
       const list = ensureCollections(db)[COLLECTIONS[kind]];
       const i = list.findIndex((x) => x.id === doc.id);
       const current = i === -1 ? null : list[i];
-      if (!teachesClass(classOf(db, doc.classId), user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
+      assertVersion(current, doc.version);
+      bumpRoot(db, kind, doc, doc.dossierVersion);
+      if (!canAuthor(db, kind, doc.classId, user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
       if (isSuperseded(db, doc.yearPlanId)) throw eduError('YEAR_PLAN_SUPERSEDED');
       if (!current) {
         const blocker = createBlocker(kind, doc, { branchPlans: db.eduClassBranch, classThemePlans: db.eduClassTheme });
         if (blocker) throw eduError('CLASS_DOC_NOT_READY', `Chưa thể bắt đầu: ${blocker.message}`);
       }
       if (current && !isEditableStatus(current.status)) throw eduError('CLASS_DOC_SUBMITTED');
-      const { superseded, ...body } = clone(doc);
+      const { superseded, review, permissions, dossierVersion, ...body } = clone(doc);
       const saved = {
         ...body,
+        version: (current?.version ?? -1) + 1,
+        authorIds: [...new Set([...(current?.authorIds || []), user.id])],
         sourceDocKey: current ? current.sourceDocKey : body.sourceDocKey,
         adjustments: current?.adjustments || {},
         status: current?.status || EDU_STATUS.DRAFT,
@@ -202,7 +287,7 @@ export const classPlanMockRepository = {
       };
       if (i === -1) list.unshift(saved);
       else list[i] = saved;
-      return clone(decorate(db, saved));
+      return clone(decorate(db, saved, user, kind));
     });
   },
 
@@ -213,7 +298,7 @@ export const classPlanMockRepository = {
    *   theo eduConfig.signers.week (Tổ trưởng → Phó HT). Giáo án các tuần mang cùng trạng thái với hồ sơ.
    * Bỏ bước tổ trưởng khi tổ trưởng của khối dạy lớp đó (gửi thẳng Phó HT).
    */
-  async act(kind, id, { action, note }, user) {
+  async act(kind, id, { action, note }, user, options = {}) {
     await delay();
     ensureSchoolSeeded();
     return writeDb((db) => {
@@ -222,26 +307,59 @@ export const classPlanMockRepository = {
       };
       if (kind === CLASS_DOC.WEEK) fail('WEEKLY_LESSON_VIA_THEME');
       const doc = findDoc(db, kind, id);
+      assertVersion(doc, options.version);
       const cls = classOf(db, doc.classId);
       const yearPlan = (db.eduGoals || []).find((g) => g.id === doc.yearPlanId);
       const leaders = leadersOf(db, cls);
       const isLeader = leaders.some((u) => u.id === user.id);
       const skipLeader = !leaders.length || leaders.some((u) => teachesClass(cls, u));
-      const chain = withDefaults(db.eduConfig).signers[kind === CLASS_DOC.BRANCH ? 'branch' : 'week'].filter(
-        (r) => r !== ROLES.TEAM_LEADER || !skipLeader,
-      );
-      const waiting = Object.keys(PENDING_OF).find((r) => PENDING_OF[r] === doc.status);
+      const policy = withDefaults(db.eduConfig).workflowPolicy?.[kind === CLASS_DOC.BRANCH ? 'branch' : 'theme'];
+      const rawChain = policy?.reviewers || withDefaults(db.eduConfig).signers[kind === CLASS_DOC.BRANCH ? 'branch' : 'week'] || [];
+      const chain = rawChain.filter((r) => r !== ROLES.TEAM_LEADER || !skipLeader);
+      const waiting = doc.waitingRole || Object.keys(PENDING_OF).find((r) => PENDING_OF[r] === doc.status);
       // Người đang được chờ: đúng vai trò; tổ trưởng phải là tổ trưởng của khối
-      const isWaitingFor = waiting && user.role === waiting && (waiting !== ROLES.TEAM_LEADER || isLeader);
-      const toStep = (role) => (role ? PENDING_OF[role] : EDU_STATUS.APPROVED);
+      const isWaitingFor =
+        waiting && rolesOf(user).includes(waiting) && (waiting !== ROLES.TEAM_LEADER || isLeader) && !authorsOf(db, doc).has(user.id);
       const lists = { branchPlans: db.eduClassBranch, weekPlans: db.eduClassWeek, classThemePlans: db.eduClassTheme, yearPlan };
       // Hồ sơ chủ đề: giáo án các tuần đi cùng trạng thái của kế hoạch chủ đề
       const weekDocs = kind === CLASS_DOC.THEME ? dossierWeekDocs(doc, yearPlan, db.eduClassWeek).map((x) => x.doc) : [];
       const all = [doc, ...weekDocs.filter(Boolean)];
-      const setStatus = (status, approval) =>
+      const setStatus = (status, waitingRole, approval) =>
         all.forEach((d) => {
           d.status = status;
-          d.approvals = approval ? [...(d.approvals || []), approval] : [];
+          d.waitingRole = waitingRole || null;
+          d.version = (d.version || 0) + 1;
+          if (kind === CLASS_DOC.THEME || d.dossierVersion != null) {
+            d.dossierVersion = (d.dossierVersion || 0) + 1;
+          }
+          d.approvals = approval ? [...(d.approvals || []), approval] : status === EDU_STATUS.DRAFT ? [] : d.approvals || [];
+          if (status === EDU_STATUS.APPROVED) {
+            d.completedAt = new Date().toISOString();
+            d.completionMode = 'MANUAL';
+            const slots = [
+              {
+                roleKey: 'CREATOR',
+                label: 'Người soạn',
+                names: (db.users || []).filter((account) => authorsOf(db, doc).has(account.id)).map((account) => account.fullName),
+              },
+              ...chain.map((r) => {
+                const app = (d.approvals || []).find((a) => a.roleKey === r || a.role === SIGN_ROLES[r]);
+                return {
+                  roleKey: r,
+                  label: SIGN_ROLES[r] || r,
+                  names: app?.name ? [app.name] : [],
+                };
+              }),
+            ];
+            d.printSnapshot = {
+              schemaVersion: 1,
+              origin: 'PUBLICATION',
+              documentType: kind,
+              policyRevision: db.eduConfig?.workflowRevision || 1,
+              capturedAt: d.completedAt,
+              slots,
+            };
+          }
         });
       const log = (e) =>
         all.forEach((d, i) => {
@@ -249,7 +367,7 @@ export const classPlanMockRepository = {
         });
 
       if (action === 'submit') {
-        if (!teachesClass(cls, user)) fail('CLASS_DOC_TEACHER_ONLY');
+        if (!canAuthor(db, kind, doc.classId, user)) fail('CLASS_DOC_TEACHER_ONLY');
         if (!isEditableStatus(doc.status)) fail('CLASS_DOC_SUBMITTED');
         if (isSuperseded(db, doc.yearPlanId)) fail('YEAR_PLAN_SUPERSEDED');
         const blocker = submitBlocker(kind, doc, lists);
@@ -262,28 +380,46 @@ export const classPlanMockRepository = {
           ).length;
           if (empty) fail('BRANCH_WEEKS_UNNAMED', empty);
         }
-        setStatus(toStep(chain[0]));
-        log(entry(user, chain[0] ? `Gửi ${SIGN_ROLES[chain[0]]} duyệt` : 'Gửi (không cần duyệt)', '', note));
+        all.forEach((d) => {
+          d.reviewRound = (d.reviewRound || 0) + 1;
+          d.approvals = [];
+        });
+        const firstRole = chain[0] || null;
+        setStatus(firstRole ? 'REVIEW' : EDU_STATUS.APPROVED, firstRole);
+        log(entry(user, firstRole ? `Gửi ${SIGN_ROLES[firstRole] || firstRole} duyệt` : 'Gửi (không cần duyệt)', '', note));
       } else if (action === 'approve') {
         if (!isWaitingFor) fail('NOT_YOUR_REVIEW_STEP', 'duyệt');
-        const next = chain[chain.indexOf(waiting) + 1];
-        setStatus(toStep(next), {
+        const nextIdx = chain.indexOf(waiting) + 1;
+        const next = nextIdx < chain.length ? chain[nextIdx] : null;
+        setStatus(next ? 'REVIEW' : EDU_STATUS.APPROVED, next, {
           userId: user.id,
           name: user.fullName,
-          role: ROLE_LABELS[user.role],
-          roleKey: user.role,
+          role: ROLE_LABELS[user.role] || user.role,
+          roleKey: waiting,
           at: now(),
           note: note || '',
         });
         // setStatus cộng dồn người duyệt vào từng tài liệu; giữ lại người duyệt các bước trước
-        log(entry(user, next ? `${SIGN_ROLES[waiting]} duyệt, chuyển ${SIGN_ROLES[next]}` : `${SIGN_ROLES[waiting]} duyệt`, 'ok', note));
+        log(
+          entry(
+            user,
+            next
+              ? `${SIGN_ROLES[waiting] || waiting} duyệt, chuyển ${SIGN_ROLES[next] || next}`
+              : `${SIGN_ROLES[waiting] || waiting} duyệt`,
+            'ok',
+            note,
+          ),
+        );
       } else if (action === 'reject') {
         if (!isWaitingFor) fail('NOT_YOUR_REVIEW_STEP', 'trả lại');
         if (!note?.trim()) fail('RETURN_REASON_REQUIRED');
-        setStatus(EDU_STATUS.REJECTED);
+        all.forEach((d) => {
+          d.lastReturnNote = note;
+        });
+        setStatus(EDU_STATUS.DRAFT, null);
         log(entry(user, 'Trả lại để sửa', 'err', note));
       } else fail('INVALID_VALUE', 'hành động');
-      return clone(decorate(db, doc));
+      return clone(decorate(db, doc, user, kind));
     });
   },
 };
