@@ -262,3 +262,36 @@ Làn L:            ghi đủ vào Progress log của plan; chat chỉ tóm tắt
 - Regression: `node --import ./scripts/register-auth-test-loader.mjs --test tests/education-plan/goal-list-status.test.mjs`: RED 0/2 → GREEN 2/2. Bao phủ V1/V2 đã ban hành cùng V3 đang sửa, current=false khi thiếu bản hiện hành trong danh sách, current=true, khác nhóm tuổi/năm; số phiên bản hiển thị cả V1.
 - Bổ sung sau góp ý màu/mã và ảnh bảng chi tiết: regression màu/mã RED 1/2 → GREEN 2/2; thêm kiểm bảng chi tiết, tổng GREEN 3/3. Dùng class text-xs/text-primary của design system, liên kết mở bản khác chuyển từ cột mã sang số phiên bản; VersionBadge bỏ logic/tone cũ.
 - Cổng cuối: chạy `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs`; kết quả thực tế trong output lượt bàn giao và verify.log. Chưa kiểm giao diện trình duyệt hoặc E2E với BE thật. Không sửa BE/APP, không commit/push.
+
+## Bỏ màn đánh giá tháng — 05/11/2026
+
+- User duyệt plan bằng ảnh màn `/assessment/periodic` và yêu cầu bỏ màn cho GV/PHT/HT. Bỏ menu cả tổ trưởng, chuyển ba route tháng về hồ sơ phát triển, dashboard ngừng tải/nhắc đánh giá tháng; giữ các luồng và dữ liệu khác.
+- Lần verify đầu: test menu cũ yêu cầu học kỳ đứng sau tháng thất bại đúng tại kỳ vọng đã bỏ. Cập nhật test xác nhận tháng vắng mặt và học kỳ/cuối năm/chất lượng tháng/phiếu còn hiện với bốn vai trò.
+- Sau sửa cuối: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log` (test, lint, format, design, API và build đạt). `check-ai-layer` không lỗi, 21 cảnh báo tài liệu cũ. Chưa kiểm trình duyệt thật, không sửa BE, không commit/push.
+
+## OBS-27 mô tả tỷ lệ hoạt động — 05/11/2026
+
+- ThemeEvaluationPage đổi hướng dẫn từ lần chấm cuối sang ít nhất 50% hoạt động đã chấm là Đạt, chưa chấm/trẻ vắng không tính. BE tính toàn bộ, không đổi DTO; màn học kỳ chưa thay.
+- Sau sửa source: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`. Chưa kiểm trình duyệt thật; không commit/push.
+
+## Đồng bộ tiêu đề mẫu đánh giá — 05/11/2026
+
+- User duyệt ảnh và yêu cầu sửa cả ba màn. Giai đoạn đầu thêm AssessmentFormHeading cho bảng cuối chủ đề/phiếu cuối năm, nhãn năm đọc SchoolYearContext, giữ callback/state/save/confirm, cột MT rõ mã.
+- Test xác nhận dùng harness loại import nên cần bổ sung stub context năm học khi component thêm hook; không sửa hành vi xác nhận để đáp ứng test. JSX fragment đã định dạng lại. Sau sửa source/test cuối: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`.
+- Học kỳ theo lĩnh vực và cuối năm lũy kế cần API/migration; artifact và kế hoạch BE đã soạn, đang chờ duyệt. Chưa báo hoàn tất ba form, không commit/push.
+
+## Đánh giá học kỳ, cuối chủ đề và cuối năm — 05/11/2026
+
+- Học kỳ có bảng lớp theo lĩnh vực, ngày lấy cấu hình HT, modal mục tiêu, lưu/xác nhận BE, in và Excel từ cùng board. Chặn phản hồi lưu gắn nhầm năm khi đổi scope.
+- Hai form cuối chủ đề/cuối năm dùng tiêu đề biểu mẫu chung. Phiếu năm ở trước nhận xét, căn cứ có thể mở. Nguồn năm từ hoạt động cả năm, bản chốt lấy snapshot.
+- VERIFY PASS full, hợp đồng FE đồng bộ snapshot BE. Kiểm local FE :5190/BE :8081 tới trang đăng nhập, chưa thao tác ghi bằng trình duyệt.
+
+## Bố cục phiếu đánh giá — 05/11/2026
+
+- Phiếu cuối năm gom thông tin trẻ, trạng thái và người xác nhận vào thẻ đầu. Bỏ khối nhận xét tháng khỏi màn cuối năm, hiện trực tiếp số liệu đánh giá hằng ngày.
+- Hai cột kết quả học kỳ và cuối năm có cùng chiều rộng trên màn và bản in. Duyệt Chrome trực tiếp hai màn, gồm bảng căn cứ cuối năm. Full FE verify đạt sau thay đổi.
+
+## Chữ ký học kỳ và lọc phiếu cuối năm — 06/11/2026
+
+- Bản in học kỳ có ba vị trí ký tay. Danh sách cuối năm của HT, PHT và Tổ trưởng chỉ tải hồ sơ khi chọn lớp từ danh sách lớp trong phạm vi BE trả.
+- `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`. Playwright Chrome với phản hồi API mẫu kiểm tra bộ lọc ở ba vai trò và đủ ba chỗ ký trong bản xem trước học kỳ.

@@ -421,6 +421,21 @@
 .dg-period-nav .select {
   min-width: 220px;
 }
+.dg-year-review-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-6);
+}
+.dg-year-review-head .dg-eval-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xl);
+}
 .dg-eval-head {
   display: flex;
   align-items: flex-start;
@@ -937,6 +952,52 @@
   margin-bottom: var(--space-2);
 }
 .dg-year-sheet__note > label {
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+.dg-form-heading {
+  text-align: center;
+  margin: var(--space-4) 0;
+}
+.dg-form-heading .card__title {
+  display: block;
+  margin: 0 0 var(--space-2);
+  text-align: center;
+}
+
+/* Hai cot rowspan da chiem dau hang, nen o Dat dau tien van can vach trai. */
+.dg-qr-table > thead > tr + tr > th:first-child,
+.dg-semester-table > thead > tr + tr > th:first-child {
+  border-left: 1px solid var(--color-text-disabled);
+}
+
+.dg-semester-table,
+.dg-year-sheet {
+  table-layout: fixed;
+  width: 100%;
+}
+.dg-eval-index-col {
+  width: var(--space-16);
+}
+.dg-semester-name-col {
+  width: 28%;
+}
+.dg-semester-table th,
+.dg-semester-table td:nth-child(2),
+.dg-year-sheet th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.dg-year-result-col {
+  width: 12%;
+}
+
+/* Phiếu cuối năm: nhận xét dưới từng lĩnh vực */
+.dg-year-sheet .dg-year-sheet__comment td {
+  white-space: normal;
+}
+.dg-year-sheet__comment label {
   display: block;
   margin-bottom: var(--space-1);
 }

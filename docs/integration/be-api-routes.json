@@ -1,6 +1,6 @@
 {
   "source": "CareNest_BE docs/api/openapi.yaml",
-  "syncedAt": "2026-11-04",
+  "syncedAt": "2026-11-06",
   "routes": [
     "DELETE /age-groups/{x}",
     "DELETE /campuses/{x}",
@@ -37,6 +37,7 @@
     "GET /assessment/quality-report",
     "GET /assessment/reward-lists",
     "GET /assessment/reward-lists/classes/{x}",
+    "GET /assessment/semester-evaluations",
     "GET /assessment/theme-evaluations",
     "GET /assessment/theme-evaluations/classes",
     "GET /assessment/theme-evaluations/themes",
@@ -157,6 +158,7 @@
     "POST /assessment/evaluations/{x}/redraft",
     "POST /assessment/reward-lists/{x}/decision",
     "POST /assessment/reward-lists/{x}/review",
+    "POST /assessment/semester-evaluations/confirm",
     "POST /assessment/theme-evaluations/confirm",
     "POST /attendance/day-unlocks",
     "POST /attendance/day-unlocks/{x}/revoke",
@@ -241,6 +243,7 @@
     "PUT /assessment/evaluations/{x}/program-completion",
     "PUT /assessment/evaluations/{x}/year-sheet",
     "PUT /assessment/reward-lists/classes/{x}",
+    "PUT /assessment/semester-evaluations",
     "PUT /assessment/theme-evaluations",
     "PUT /campuses/{x}",
     "PUT /children/{x}/health/measurements/{x}",

@@ -130,8 +130,6 @@ const AssessmentDayUnlockPage = lazyPage(() => import('@/pages/assessment/Assess
 const ChildDevelopmentListPage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentListPage'));
 const ChildDevelopmentProfilePage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
 const ChildDevelopmentProgressPage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProgressPage'));
-const PeriodicEvaluationListPage = lazyPage(() => import('@/pages/assessment/PeriodicEvaluationListPage'));
-const PeriodicEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/PeriodicEvaluationDetailPage'));
 const AiEvaluationDraftPage = lazyPage(() => import('@/pages/assessment/AiEvaluationDraftPage'));
 const ClassRatingsPage = lazyPage(() => import('@/pages/assessment/ClassRatingsPage'));
 const SemesterEvaluationListPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationListPage'));
@@ -466,9 +464,12 @@ export function AppRoutes() {
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />
-            <Route path="periodic" element={only([...LEADERS, ...CLASS_STAFF], <PeriodicEvaluationListPage />)} />
-            <Route path="periodic/:id" element={only([...LEADERS, ...CLASS_STAFF], <PeriodicEvaluationDetailPage />)} />
-            <Route path="periodic/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
+            <Route path="periodic" element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)} />
+            <Route path="periodic/:id" element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)} />
+            <Route
+              path="periodic/:id/ai-draft"
+              element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)}
+            />
             <Route path="semester" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationListPage />)} />
             <Route path="semester/:id" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationDetailPage />)} />
             <Route path="semester/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
