@@ -196,20 +196,20 @@ test('AC-6: giáo viên nhập số đo trong kỳ; đóng kỳ thì trẻ chưa
   const round = readDb().healthCheckCampaigns.find((c) => c.id === C2_ROUND);
   const before = await checks.getHealthCheckClass(C2_ROUND, child.classId, TUAN);
   assert.equal(before.canRecord, true);
-  assert.ok(before.children.every((r) => r.result === 'NOT_RECORDED'));
+  // Seed có sẵn số đo của vài trẻ (cảnh báo BMI, 2026-11-04); trẻ thử chưa cân đo.
+  assert.equal(before.children.find((r) => r.childId === child.id).result, 'NOT_RECORDED');
+  const notYet = before.children.filter((r) => r.result === 'NOT_RECORDED' && r.childId !== child.id).map((r) => r.childId);
+  assert.ok(notYet.length > 0);
 
-  const payload = { campaignId: C2_ROUND, date: todayInput(), heightCm: 105, weightKg: 17.5, note: '' };
-  await rejects(children.saveMeasurement(child.id, null, { ...payload, date: addDays(round.startDate, -1) }, TUAN), 422, 'date');
-  const saved = await children.saveMeasurement(child.id, null, payload, TUAN);
+  // Ngày đo do BE ghi (user chốt 2026-11-04): ngày client gửi (kể cả trước kỳ) bị bỏ qua, không còn 422 date.
+  const payload = { campaignId: C2_ROUND, heightCm: 105, weightKg: 17.5, note: '' };
+  const saved = await children.saveMeasurement(child.id, null, { ...payload, date: addDays(round.startDate, -1) }, TUAN);
+  assert.equal(saved.date, todayInput());
   assert.equal(saved.campaignId, C2_ROUND);
   assert.equal(saved.campaignKind, 'MEASUREMENT', 'Sổ sức khỏe không mở phiếu khám cho số đo của kỳ');
   assert.equal(saved.source, 'MEASUREMENT_ONLY');
   assert.equal(saved.published, true);
-  await rejects(
-    children.saveMeasurement(child.id, null, { ...payload, date: round.startDate }, TUAN),
-    422,
-    'campaignId',
-  );
+  await rejects(children.saveMeasurement(child.id, null, payload, TUAN), 422, 'campaignId');
 
   const after = await checks.getHealthCheckClass(C2_ROUND, child.classId, TUAN);
   const row = after.children.find((r) => r.childId === child.id);
@@ -220,16 +220,18 @@ test('AC-6: giáo viên nhập số đo trong kỳ; đóng kỳ thì trẻ chưa
   await checks.closeHealthCheck(C2_ROUND, DUC);
   const closed = await checks.getHealthCheckClass(C2_ROUND, child.classId, TUAN);
   assert.equal(closed.canRecord, false);
-  assert.ok(closed.children.filter((r) => r.childId !== child.id).every((r) => r.result === 'ABSENT'));
+  assert.ok(closed.children.filter((r) => notYet.includes(r.childId)).every((r) => r.result === 'ABSENT'));
+  assert.equal(closed.children.find((r) => r.childId === child.id).result, 'RECORDED');
   await rejects(
     children.saveMeasurement(child.id, saved.id, { ...payload, heightCm: 106, reason: 'Đo lại (giả).' }, TUAN),
     409,
   );
 });
 
-test('AC-7: không nhập lẻ ngoài kỳ; kết quả cũ ngoài đợt vẫn sửa được', async () => {
+// Khóa lần đo cũ ngoài đợt như BE (user chọn 2026-11-04, thay "kết quả cũ ngoài đợt vẫn sửa được" của 2026-10-31).
+test('AC-7: không nhập lẻ ngoài kỳ; kết quả cũ ngoài đợt chỉ xem, không sửa', async () => {
   const child = tuanChild();
-  const base = { date: todayInput(), heightCm: 105, weightKg: 17.5, note: '' };
+  const base = { heightCm: 105, weightKg: 17.5, note: '' };
   await rejects(children.saveMeasurement(child.id, null, base, TUAN), 422, 'campaignId');
   await rejects(children.saveMeasurement(child.id, null, { ...base, campaignId: C1_OPEN }, TUAN), 422, 'campaignId');
 
@@ -238,15 +240,17 @@ test('AC-7: không nhập lẻ ngoài kỳ; kết quả cũ ngoài đợt vẫn 
   assert.equal(record.openCampaign.kind, 'MEASUREMENT');
 
   const old = readDb().healthMeasurements.find((m) => !m.campaignId && !m.exam && m.childId === child.id);
-  if (old) {
-    const edited = await children.saveMeasurement(
+  assert.ok(old, 'seed có lần đo cũ ngoài đợt');
+  assert.equal(record.measurements.find((m) => m.id === old.id).locked, true);
+  await rejects(
+    children.saveMeasurement(
       child.id,
       old.id,
-      { date: old.date, heightCm: old.heightCm, weightKg: old.weightKg + 0.1, note: old.note || '', reason: 'Sửa số (giả).' },
+      { heightCm: old.heightCm, weightKg: old.weightKg + 0.1, note: old.note || '', reason: 'Sửa số (giả).' },
       TUAN,
-    );
-    assert.equal(edited.campaignId, null);
-  }
+    ),
+    409,
+  );
 });
 
 test('AC-8: lần đo của kỳ cân đo không là lần khám trước', async () => {

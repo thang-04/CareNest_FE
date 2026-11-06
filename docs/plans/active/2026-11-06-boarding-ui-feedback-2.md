@@ -2,8 +2,8 @@
 title: Bán trú — góp ý giao diện đợt 2 (sidebar, lưu ý tuần, thống kê, mẫu ngày, bếp, kho, thực phẩm)
 status: in-progress
 owner: thangnd
-jira: G94-272 / FE-FIX-01
-branch: fix/G94-272-FE-FIX-01-e2e-flow-fixes
+jira: G94-191 / FE-FEAT-48
+branch: feature/G94-191-FE-FEAT-48-nutrition-management
 modules: [menu-planning, kitchen, layouts]
 rules: []
 risk: medium
@@ -15,6 +15,7 @@ updated: 2026-11-06
 
 - Làn L (>8 file, ≥2 nhóm màn). Nguồn: góp ý user 06/11/2026 (10 điểm) trên bản chạy API thật `web.carenest.edu.vn`.
 - Chế độ tự chạy: phương án do agent chọn, ghi ở "Quyết định" để user soát.
+- User xác nhận 06/11/2026: đưa các thay đổi bán trú/dinh dưỡng của phiên này lên nhánh G94-191; phần phân quyền trường giữ ở nhánh G94-272.
 
 ## Nguyên nhân tìm được (từ source)
 
@@ -106,3 +107,8 @@ updated: 2026-11-06
 - Vi chất, chi tiết món và bảng định lượng món (chế độ vi chất): tiêu đề cột tô màu theo nhóm (khoáng chất xanh lá, vitamin vàng), ô thiếu thành badge "Chưa có" / "Chưa đủ". Helper `utils/menu-planning/microGroups.js`.
 - Nhà cung cấp: nhãn "CCCD người giao hàng" đổi thành "CCCD nhà cung cấp" (form và chi tiết).
 - Nhà cung cấp: BE `main` không có trường mã NCC (`SupplierResponse` chỉ có id, name, phone, address, idCard, deliveryPerson, status) nên thêm xong không có mã. FE (lớp API) sinh `code` = `NCC` + id đệm 3 số (NCC001…), cùng dạng mã của bản demo; test `nutrition-catalog-api` kiểm. Đề nghị BE thêm cột mã thật nếu cần mã không phụ thuộc id.
+
+### 2026-11-06 — chuyển lên nhánh G94-191 để mở PR vào dev
+
+- User chọn mã Jira G94-191 cho phần bán trú/dinh dưỡng. Worktree tính năng được tua nhanh lên `origin/dev` (`6a0554c`), sau đó áp diff đã có từ phiên G94-272; các file school-config, công cụ cục bộ và báo cáo ngoài phần bán trú không được chuyển.
+- Cổng kiểm chứng và giới hạn hiện tại ghi tại `docs/quality/VERIFICATION.md` mục G94-191; lỗi 2 test sức khỏe đã xuất hiện trên nền dev sạch trước khi chuyển diff.

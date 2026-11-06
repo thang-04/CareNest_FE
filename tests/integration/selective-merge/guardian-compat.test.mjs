@@ -14,7 +14,7 @@ const form = (patch = {}) => ({ fullName: 'Liên hệ minh họa', phone: '09876
 const rejectStatus = (status) => (error) => error.status === status;
 // Phụ huynh nhập ở hồ sơ trẻ rồi kích hoạt (AUTH-20); thêm phụ huynh kèm tạo tài khoản ngay đã bỏ (user chốt 2026-10-28, C-4 A).
 const addAndActivate = async (childId, f, actor) => {
-  writeDb((db) => { db.children.find((row) => row.id === childId).guardians.push({ fullName: f.fullName, relation: 'Mẹ', phone: f.phone, idNumber: f.idNumber, email: f.email, accountStatus: 'NOT_ACTIVATED' }); });
+  writeDb((db) => { const contacts = db.children.find((row) => row.id === childId).guardians; contacts.forEach(g => { g.accountRecipient = false; }); contacts.push({ accountRecipient: true, fullName: f.fullName, relation: 'Mẹ', phone: f.phone, idNumber: f.idNumber, email: f.email, accountStatus: 'NOT_ACTIVATED' }); });
   return (await repo.activateGuardians(childId, actor)).find((row) => row.phone === normalizePhone(f.phone));
 };
 beforeEach(async () => {
@@ -76,7 +76,7 @@ test('liên kết tài khoản đã có giữ ID/mật khẩu; không tạo trù
   assert.equal(linked.smsStatus, null, 'tài khoản có sẵn giữ mật khẩu, không gửi SMS');
   assert.ok(!('temporaryPassword' in linked));
   // Không còn ai chờ kích hoạt ⇒ 409, không tạo tài khoản trùng.
-  await assert.rejects(repo.activateGuardians(another.id, vp), rejectStatus(409));
+  assert.deepEqual(await repo.activateGuardians(another.id, vp), []);
   assert.deepEqual({ health: readDb().healthMeasurements, declarations: readDb().healthDeclarations, placements: readDb().childPlacements, pickups: readDb().pickups, users: readDb().users, classes: readDb().classes }, snapshot);
 });
 test('migration ID trùng idempotent, không khôi phục liên kết/mảng đã xóa', () => {

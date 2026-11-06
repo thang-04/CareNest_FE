@@ -17,18 +17,20 @@ import {
 import { callNoteError, validatePickupResult } from '@/utils/pickup/pickupValidation';
 import { formatDateTime, initials } from '@/utils/format';
 import { PickupOutcomeBadge } from './PickupBadges';
+import { PortraitImage } from '@/components/PortraitImage';
 
 const nowTime = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 function GuardianPhoto({ guardian }) {
-  if (guardian.photoUrl) return <img className="dt-photo" src={guardian.photoUrl} alt={`Ảnh đăng ký của ${guardian.fullName}`} />;
   return (
-    <div className="dt-photo dt-photo--empty" role="img" aria-label={`${guardian.fullName} chưa có ảnh đăng ký`}>
-      <span className="dt-photo__initials">{initials(guardian.fullName)}</span>
-      <span className="text-xs muted dt-photo__note">
-        <ImageOff size={13} /> Chưa có ảnh
-      </span>
-    </div>
+    <PortraitImage source={guardian.photoUrl} className="dt-photo" alt={`Ảnh đăng ký của ${guardian.fullName}`}>
+      <div className="dt-photo dt-photo--empty" role="img" aria-label={`${guardian.fullName} chưa có ảnh đăng ký`}>
+        <span className="dt-photo__initials">{initials(guardian.fullName)}</span>
+        <span className="text-xs muted dt-photo__note">
+          <ImageOff size={13} /> Chưa có ảnh
+        </span>
+      </div>
+    </PortraitImage>
   );
 }
 
@@ -87,6 +89,7 @@ export function PickupPhotoFlow({ childId, onDone }) {
     const payload = {
       childId,
       verification: VERIFICATION.PHOTO_MATCH,
+      guardianPosition: guardian.index,
       pickupPersonName: guardian.fullName,
       pickupPersonRelation: guardian.relation,
       pickupPersonPhone: '',

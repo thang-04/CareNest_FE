@@ -1,6 +1,10 @@
 # Current State — CareNest_FE
 
-Cập nhật: 2026-11-01 (mục "Trạng thái 2026-11-01": auth gateway, nguồn dữ liệu từng module, CI; cột Status bảng screen group). Trước đó: 2026-10-20 bảng screen group theo source; 2026-10-28 và 2026-10-29 đồng bộ rule BE. Cập nhật file này khi một screen group bắt đầu có code, đổi nguồn dữ liệu (`demo` ⇄ `api`) hoặc hoàn thành.
+Cập nhật: 2026-11-04 (mục "Sức khỏe 2026-11-04": bỏ phiếu theo dõi, cảnh báo ở Sổ sức khỏe, BMI theo tuổi). Trước đó: 2026-11-01 (mục "Trạng thái 2026-11-01": auth gateway, nguồn dữ liệu từng module, CI; cột Status bảng screen group). Trước đó: 2026-10-20 bảng screen group theo source; 2026-10-28 và 2026-10-29 đồng bộ rule BE. Cập nhật file này khi một screen group bắt đầu có code, đổi nguồn dữ liệu (`demo` ⇄ `api`) hoặc hoàn thành.
+
+## Sức khỏe 2026-11-04
+
+- User quyết định bỏ phiếu theo dõi sức khỏe để giảm việc giáo viên (BE: HLT-16 REMOVED; HLT-18 BMI theo tuổi WHO cho kỳ cân đo, HLT-19 cảnh báo ở Sổ sức khỏe — PROPOSED). Web đã bỏ màn, menu, API, thông báo, nhắc của phiếu theo dõi; Sổ sức khỏe có thẻ "Cảnh báo sức khỏe"; kỳ cân đo có mức BMI ở danh sách lớp, chi tiết, danh sách đợt. Plan client: `docs/plans/active/2026-11-04-health-warnings-book.md`; plan BE: `BE:docs/plans/active/2026-11-04-health-warnings-book.md`. Module `children` vẫn `demo` (mock theo contract coordinator).
 
 ## Trạng thái 2026-11-01
 
@@ -18,7 +22,7 @@ Nguồn: `BE:docs/business/BUSINESS_RULES.md` (khảo sát team 210/210, user ch
 UI mock **lệch BE (29/10), cần sửa khi tích hợp**:
 - Kế hoạch giáo dục (`/education/*`): đủ luồng theo BE EDU-01..28, EDU-39..41 (mục tiêu năm học + phiên bản, cấu hình, tài liệu lớp, hồ sơ chủ đề, duyệt theo chuỗi người ký), gọi BE thật khi `VITE_USE_MOCK=false`. Trang "Kế hoạch toàn trường" của HT còn đọc dữ liệu chủ đề/giáo án kiểu cũ nên trống khi nối BE.
 - Đánh giá hằng ngày (`/assessment/daily`): mock 3 nhóm, kiến thức–kỹ năng Đạt/Chưa đạt, PHT/HT mở lại ngày đã khóa. BE: 7 mặt, mức Đạt / Cần cố gắng / Chưa đạt (OBS-02), hết ngày thì khóa, không có bước mở lại (OBS-12). Chi tiết: [daily-assessment](../features/daily-assessment.md) mục "Lệch BE".
-- Sức khỏe (`/children/health-*`): mock có phiếu khám Phụ lục II, mức theo dõi, phiếu theo dõi; bác sĩ chọn tình trạng dinh dưỡng thay nhãn tự tính. BE: tự phân loại theo WHO, GV chỉnh kèm lý do (HLT-03, HLT-10); suy dinh dưỡng/thừa cân chỉ đánh dấu, không có quy trình theo dõi (HLT-12, OBS-03); nội dung ghi từ đợt khám bác sĩ chưa có rule (HLT-08). Cần team chốt trước khi tích hợp. Từ 2026-10-31 mock có kỳ cân đo (HT/PHT mở, cảnh báo dưới 2 tháng 15 ngày), đợt khám 1 lần/năm, bỏ cân đo lẻ ngoài đợt — chờ BE sửa HLT-01 ("3 lần/năm, cấu hình được"), HLT-08 ("2 lần/năm"); plan `docs/plans/completed/2026-10-31-health-measurement-rounds.md`.
+- Sức khỏe (`/children/health-*`): mock có phiếu khám Phụ lục II, mức theo dõi theo kết luận bác sĩ; bác sĩ chọn tình trạng dinh dưỡng thay nhãn tự tính. Từ 2026-11-04: không còn phiếu theo dõi (HLT-16 REMOVED); kỳ cân đo có mức BMI theo tuổi WHO (HLT-18), cảnh báo ở Sổ sức khỏe (HLT-19) — mục "Sức khỏe 2026-11-04". BE: tự phân loại theo WHO, GV chỉnh kèm lý do (HLT-03, HLT-10); suy dinh dưỡng/thừa cân chỉ đánh dấu, không có quy trình theo dõi (HLT-12, OBS-03); nội dung ghi từ đợt khám bác sĩ chưa có rule (HLT-08). Cần team chốt trước khi tích hợp. Từ 2026-10-31 mock có kỳ cân đo (HT/PHT mở, cảnh báo dưới 2 tháng 15 ngày), đợt khám 1 lần/năm, bỏ cân đo lẻ ngoài đợt — chờ BE sửa HLT-01 ("3 lần/năm, cấu hình được"), HLT-08 ("2 lần/năm"); plan `docs/plans/completed/2026-10-31-health-measurement-rounds.md`.
 - Đón trẻ (`/pickup/*`): mock xác minh bằng ảnh người giám hộ hoặc phụ huynh đồng ý qua điện thoại, gần PCK-02. Nguồn ảnh đối chiếu còn P-33; người lạ đón phải ghi lý do (PCK-02); không đăng ký trước người đón hộ (PCK-03).
 - CSVC (`/facility/*`): giữ ẩn (`FACILITY_ENABLED=false`), không phát triển thêm.
 
