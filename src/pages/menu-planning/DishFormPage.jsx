@@ -466,7 +466,7 @@ export default function DishFormPage() {
 
           <div className="td-aside-stack">{checks.length > 0 && <AutoChecks items={checks} />}</div>
         </div>
-        <section className="card">
+        <section className="card td-portion-card">
           <div className="card__header">
             <h2 className="card__title">Dinh dưỡng và chi phí 1 suất</h2>
             <span className="text-sm muted">Theo định lượng đang nhập; chi phí đã cộng hệ số thải bỏ</span>
