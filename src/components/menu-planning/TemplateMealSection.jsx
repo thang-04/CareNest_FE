@@ -11,7 +11,7 @@ const num = (v) => (v == null ? '—' : Number(v).toLocaleString('vi-VN', { maxi
  * Một bữa của mẫu ngày: món theo loại, mở món xem thành phần cho 1 trẻ (số do BE tính — `dishIngredients` của menu-statistics).
  * Thành phần chỉ xem; gam/trẻ thuộc công thức món theo nhóm tuổi (NUT-18) nên sửa ở trang món.
  */
-export function TemplateMealSection({ session, items, ingredients, editable, onAdd, onRemove }) {
+export function TemplateMealSection({ session, items, ingredients, loading, editable, canEditRecipe, onAdd, onRemove }) {
   // Món mở sẵn thành phần; người dùng thu gọn món nào thì nhớ món đó
   const [closed, setClosed] = useState(() => new Set());
   const toggle = (id) => setClosed((s) => (s.has(id) ? new Set([...s].filter((x) => x !== id)) : new Set([...s, id])));
@@ -20,7 +20,7 @@ export function TemplateMealSection({ session, items, ingredients, editable, onA
   const label = MEAL_SESSION_LABELS[session] || session;
 
   return (
-    <section className="card td-meal" aria-label={label}>
+    <section className={`card td-meal ${loading ? 'td-meal--busy' : ''}`} aria-label={label} aria-busy={!!loading}>
       <div className="card__header">
         <h2 className="card__title">{label}</h2>
         {editable && items.length > 0 && (
@@ -78,9 +78,11 @@ export function TemplateMealSection({ session, items, ingredients, editable, onA
                           {item.dishType && <span className="chip">{DISH_TYPE_LABELS[item.dishType] || item.dishType}</span>}
                           <span className="td-grow" />
                           {list.length > 0 && <span className="text-sm muted">{list.length} thành phần</span>}
-                          <Link className="btn btn--ghost btn--sm" to={`/menu/dishes/${item.dishId}/edit`}>
-                            Sửa công thức
-                          </Link>
+                          {canEditRecipe && (
+                            <Link className="btn btn--ghost btn--sm" to={`/menu/dishes/${item.dishId}/edit`}>
+                              Sửa công thức
+                            </Link>
+                          )}
                           {editable && (
                             <button
                               type="button"
@@ -114,9 +116,11 @@ export function TemplateMealSection({ session, items, ingredients, editable, onA
                       ) : (
                         <tr className="td-meal__line">
                           <td colSpan={7} className="text-sm muted">
-                            {ingredients === null
-                              ? 'Máy chủ chưa trả thành phần của món (cần bản máy chủ mới).'
-                              : 'Chưa có thành phần cho nhóm tuổi đang xem.'}
+                            {loading || ingredients === undefined
+                              ? 'Đang tải thành phần…'
+                              : ingredients === null
+                                ? 'Máy chủ chưa trả thành phần của món (cần bản máy chủ mới).'
+                                : 'Chưa có thành phần cho nhóm tuổi đang xem.'}
                           </td>
                         </tr>
                       ))}

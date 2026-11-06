@@ -66,6 +66,8 @@ export default function MenuTemplateEditorPage() {
   }, [data]);
 
   const editable = id ? !!data?.canEdit : hasBePermission(user, PERMISSIONS.MENU_MANAGE);
+  // Sửa công thức món là quyền danh mục (NUTRITION_MANAGE), khác quyền sửa mẫu (MENU_MANAGE): form món chặn nếu thiếu
+  const canEditRecipe = hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE);
   const sessions = data?.sessions?.length && data.block === form.block ? data.sessions : blockSessions(weekQ.data, form.block);
   const groupIds =
     data?.ageGroupIds?.length && data.block === form.block
@@ -84,6 +86,8 @@ export default function MenuTemplateEditorPage() {
   const bySession = itemsBySession(shownItems);
   const statsItems = useMemo(() => toStatisticsItems(shownItems).map((i) => ({ ...i, dishId: Number(i.dishId) })), [shownItems]);
   const statsQ = useMenuStatistics(currentGroup && statsItems.length ? { ageGroupId: Number(currentGroup), items: statsItems } : null);
+  // Đổi ngày/nhóm tuổi: giữ số liệu lần trước (làm mờ) tới khi BE trả số mới, không nhấp nháy khung chờ
+  const shownStats = statsQ.data ?? statsQ.stale;
   const dirty = JSON.stringify(toTemplateRequest(form)) !== JSON.stringify(toTemplateRequest(data ? toForm(data) : EMPTY));
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -209,8 +213,10 @@ export default function MenuTemplateEditorPage() {
             key={session}
             session={session}
             items={bySession[session] || []}
-            ingredients={statsQ.data ? (statsQ.data.dishIngredients ?? null) : undefined}
+            ingredients={shownStats ? (shownStats.dishIngredients ?? null) : undefined}
+            loading={statsQ.loading}
             editable={editable}
+            canEditRecipe={canEditRecipe}
             onAdd={() => setAdding(session)}
             onRemove={(dishId) => removeDish(session, dishId)}
           />
@@ -229,7 +235,7 @@ export default function MenuTemplateEditorPage() {
           ageGroups={groups}
           ageGroupId={currentGroup}
           onAgeGroup={setAgeGroupId}
-          statsQ={statsQ}
+          statsQ={{ ...statsQ, data: shownStats }}
           hasItems={shownItems.length > 0}
         />
       )}
