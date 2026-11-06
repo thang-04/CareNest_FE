@@ -13,7 +13,7 @@ import { RowActions } from '@/components/ui/RowActions';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { AllergenChips, DishStatusBadge } from '@/components/menu-planning/MenuBadges';
-import { CategoryNav } from '@/components/menu-planning/CategoryNav';
+import { CategoryNav } from '@/components/ui/CategoryNav';
 import { ReferenceLibraryPanel } from '@/components/menu-planning/ReferenceLibraryPanel';
 import { dishAllergens, missingPortionGroups } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups, ageAbbr } from '@/utils/menu-planning/nutritionSetup';

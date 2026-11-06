@@ -68,6 +68,12 @@ export const formatMoney = (n) => (typeof n === 'number' && !Number.isNaN(n) ? `
 export const formatQty = (n) =>
   n === null || n === undefined || Number.isNaN(Number(n)) ? '—' : Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
 
+/** Số có dấu và đủ số lẻ (z-score): 2.31 -> '+2,31', -0.5 -> '-0,50', 0 -> '0,00'; không phải số -> '—'. */
+export const formatSigned = (n, digits = 2) =>
+  n === null || n === undefined || n === '' || Number.isNaN(Number(n))
+    ? '—'
+    : Number(n).toLocaleString('vi-VN', { minimumFractionDigits: digits, maximumFractionDigits: digits, signDisplay: 'exceptZero' });
+
 /** Lower-case and strip Vietnamese accents for search. */
 export const normalizeText = (text) =>
   String(text || '')

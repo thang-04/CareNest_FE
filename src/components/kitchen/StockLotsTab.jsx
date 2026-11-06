@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, Plus } from '@/components/ui/icons';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
+import { CategoryNav } from '@/components/ui/CategoryNav';
+import { FOOD_GROUP_LABELS } from '@/models/foodGroups';
 import { EmptyState, ErrorState, LoadingState, SearchSelect, StatusBadge } from '@/components';
 import { useCanManageStock, useDryFoods, useLots } from '@/hooks/kitchen/useDryStock';
 import { expiryStatus, groupLotsByFood } from '@/utils/kitchen/stockLots';
@@ -35,7 +37,23 @@ export function StockLotsTab({ campusId }) {
   const canManage = useCanManageStock();
   const { foods } = useDryFoods();
   const lots = useLots({ campusId, foodId, includeEmpty });
-  const groups = useMemo(() => groupLotsByFood(lots.data || []), [lots.data]);
+  const [foodGroup, setFoodGroup] = useState('');
+  const allGroups = useMemo(() => groupLotsByFood(lots.data || []), [lots.data]);
+  const groupOfFood = useMemo(() => new Map(foods.map((f) => [String(f.id), f.group])), [foods]);
+  // Danh mục nhóm thực phẩm bên trái như màn Thực phẩm: chỉ hiện nhóm có hàng trong kho
+  const navItems = useMemo(
+    () => [
+      { key: '', label: 'Tất cả', count: allGroups.length },
+      ...Object.entries(FOOD_GROUP_LABELS)
+        .map(([key, label]) => ({ key, label, count: allGroups.filter((g) => groupOfFood.get(String(g.food?.id)) === key).length }))
+        .filter((item) => item.count > 0),
+    ],
+    [allGroups, groupOfFood],
+  );
+  const groups = useMemo(
+    () => (foodGroup ? allGroups.filter((g) => groupOfFood.get(String(g.food?.id)) === foodGroup) : allGroups),
+    [allGroups, foodGroup, groupOfFood],
+  );
   const foodOptions = useMemo(
     () => [{ value: '', label: 'Tất cả thực phẩm' }, ...foods.map((f) => ({ value: String(f.id), label: f.name }))],
     [foods],
@@ -125,20 +143,23 @@ export function StockLotsTab({ campusId }) {
     );
 
   return (
-    <section className="card">
-      <div className="card__body kb-toolbar kb-toolbar--card">
-        <button type="button" className="btn btn--sm kb-export" onClick={exportCsv} disabled={!groups.length}>
-          <Download size={15} /> Xuất Excel
-        </button>
-        <div className="field kb-field-food">
-          <span className="field__label">Thực phẩm</span>
-          <SearchSelect options={foodOptions} value={foodId} onChange={setFoodId} ariaLabel="Lọc theo thực phẩm" />
+    <section className="card td-split-nav">
+      <CategoryNav title="Nhóm thực phẩm" items={navItems} value={foodGroup} onChange={setFoodGroup} />
+      <div className="td-split-nav__main">
+        <div className="card__body kb-toolbar kb-toolbar--card">
+          <div className="field kb-field-food">
+            <span className="field__label">Thực phẩm</span>
+            <SearchSelect options={foodOptions} value={foodId} onChange={setFoodId} ariaLabel="Lọc theo thực phẩm" />
+          </div>
+          <label className="kb-check">
+            <input type="checkbox" checked={includeEmpty} onChange={(e) => setIncludeEmpty(e.target.checked)} /> Hiện cả lô đã hết
+          </label>
+          <button type="button" className="btn kb-toolbar__end" onClick={exportCsv} disabled={!groups.length}>
+            <Download size={16} /> Xuất Excel
+          </button>
         </div>
-        <label className="kb-check">
-          <input type="checkbox" checked={includeEmpty} onChange={(e) => setIncludeEmpty(e.target.checked)} /> Hiện cả lô đã hết
-        </label>
+        {body}
       </div>
-      {body}
     </section>
   );
 }

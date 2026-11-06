@@ -1,9 +1,10 @@
-name: Deploy production
+name: Deploy VPS
 
-# Chỉ main chạy CI: push main = verify + deploy, PR vào main = chỉ verify; thay đổi chỉ tài liệu không chạy
+# main = production (web.carenest.edu.vn), dev = môi trường dev (dev.carenest.edu.vn): push = verify + deploy,
+# PR vào main/dev = chỉ verify; thay đổi chỉ tài liệu không chạy
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -14,7 +15,7 @@ on:
       - 'mockups/**'
       - 'ui-review/**'
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -49,13 +50,21 @@ jobs:
   deploy:
     needs: verify
     # PR hoặc chạy tay trên nhánh khác chỉ verify
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
-    environment: production
+    # Variables VITE_* đặt riêng trong từng environment (production / dev)
+    environment: ${{ github.ref == 'refs/heads/dev' && 'dev' || 'production' }}
     env:
-      APP_DIR: /data/thangnd/CAPSTONE/CareNest_FE
+      IS_DEV: ${{ github.ref == 'refs/heads/dev' }}
+      APP_DIR: ${{ github.ref == 'refs/heads/dev' && '/data/thangnd/CAPSTONE/CareNest_FE-dev' || '/data/thangnd/CAPSTONE/CareNest_FE' }}
       CADDY_DIR: /data/thangnd/CAPSTONE/caddy
-      SITE_URL: https://web.carenest.edu.vn/
+      SITE_FILE: ${{ github.ref == 'refs/heads/dev' && 'carenest-dev.caddy' || 'carenest-web.caddy' }}
+      SITE_URL: ${{ github.ref == 'refs/heads/dev' && 'https://dev.carenest.edu.vn/' || 'https://web.carenest.edu.vn/' }}
+      # Dev chạy cạnh production: project, container, image và cổng riêng (compose.yaml đọc các biến này)
+      COMPOSE_PROJECT: ${{ github.ref == 'refs/heads/dev' && 'carenest-fe-dev' || 'carenest-fe' }}
+      WEB_CONTAINER: ${{ github.ref == 'refs/heads/dev' && 'carenest-web-dev' || 'carenest-web' }}
+      WEB_IMAGE: ${{ github.ref == 'refs/heads/dev' && 'carenest-web-dev:latest' || 'carenest-web:latest' }}
+      WEB_LISTEN: ${{ github.ref == 'refs/heads/dev' && '127.0.0.1:18301' || '127.0.0.1:18300' }}
       VPS_HOST: ${{ secrets.VPS_HOST }}
       VPS_PORT: ${{ secrets.VPS_PORT }}
       VPS_USER: ${{ secrets.VPS_USER }}
@@ -78,8 +87,8 @@ jobs:
       # deploy/ bị loại theo .dockerignore nên gửi riêng; đuôi .new không khớp `import *.caddy`
       - name: Upload Caddy site
         run: |
-          rsync -z -e "ssh -p $VPS_PORT" deploy/caddy/carenest-web.caddy \
-            "$VPS_USER@$VPS_HOST:$CADDY_DIR/carenest-web.caddy.new"
+          rsync -z -e "ssh -p $VPS_PORT" "deploy/caddy/$SITE_FILE" \
+            "$VPS_USER@$VPS_HOST:$CADDY_DIR/$SITE_FILE.new"
 
       - name: Build and restart on VPS
         env:
@@ -88,30 +97,31 @@ jobs:
           VITE_AUTH_MODE: ${{ vars.VITE_AUTH_MODE || 'mock' }}
         run: |
           ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
-            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' VITE_AUTH_MODE='$VITE_AUTH_MODE' bash -s" <<'EOF'
+            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' VITE_AUTH_MODE='$VITE_AUTH_MODE' COMPOSE_PROJECT='$COMPOSE_PROJECT' WEB_CONTAINER='$WEB_CONTAINER' WEB_IMAGE='$WEB_IMAGE' WEB_LISTEN='$WEB_LISTEN' bash -s" <<'EOF'
           set -e
-          docker compose up -d --build --remove-orphans
+          export WEB_CONTAINER WEB_IMAGE WEB_LISTEN
+          docker compose -p "$COMPOSE_PROJECT" up -d --build --remove-orphans
           docker image prune -f
           sleep 2
-          curl -fsS -o /dev/null http://127.0.0.1:18300/
+          curl -fsS -o /dev/null "http://$WEB_LISTEN/"
           EOF
 
       # Caddy dùng chung với site khác: reload lỗi thì Caddy giữ cấu hình đang chạy,
       # nhưng file lỗi còn trên đĩa sẽ làm Caddy không lên sau reboot ⇒ khôi phục file cũ
       - name: Apply Caddy site
         run: |
-          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "cd '$CADDY_DIR' && bash -s" <<'EOF'
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "cd '$CADDY_DIR' && SITE_FILE='$SITE_FILE' bash -s" <<'EOF'
           set -e
-          rm -f carenest-web.caddy.bak
-          if cmp -s carenest-web.caddy.new carenest-web.caddy; then
-            rm carenest-web.caddy.new
+          rm -f "$SITE_FILE.bak"
+          if cmp -s "$SITE_FILE.new" "$SITE_FILE"; then
+            rm "$SITE_FILE.new"
             echo "Caddy site unchanged"
             exit 0
           fi
-          if [ -f carenest-web.caddy ]; then cp -p carenest-web.caddy carenest-web.caddy.bak; fi
-          mv carenest-web.caddy.new carenest-web.caddy
+          if [ -f "$SITE_FILE" ]; then cp -p "$SITE_FILE" "$SITE_FILE.bak"; fi
+          mv "$SITE_FILE.new" "$SITE_FILE"
           if ! sudo -n systemctl reload caddy; then
-            if [ -f carenest-web.caddy.bak ]; then mv carenest-web.caddy.bak carenest-web.caddy; else rm carenest-web.caddy; fi
+            if [ -f "$SITE_FILE.bak" ]; then mv "$SITE_FILE.bak" "$SITE_FILE"; else rm "$SITE_FILE"; fi
             sudo -n systemctl reload caddy || true
             echo "Caddy reload failed, previous site file restored" >&2
             exit 1
@@ -119,16 +129,18 @@ jobs:
           EOF
 
       - name: Smoke test HTTPS
-        run: curl -fsSI -o /dev/null --retry 5 --retry-delay 3 --retry-all-errors "$SITE_URL"
+        run: curl -fsSI -o /dev/null --retry 10 --retry-delay 6 --retry-all-errors "$SITE_URL"
 
       # Proxy trước VPS (header x-cache-status) cache được /assets, nhưng file mới của mỗi bản deploy đều MISS và về VPS
       # (đường ra chậm, đo 03/11/2026: ~13–18 KB/s). Gọi trước từng file từ VPS để người dùng gặp HIT; lỗi không chặn deploy.
+      # Chỉ production: dev ít người dùng, không cần hâm cache
       - name: Warm asset cache
+        if: env.IS_DEV != 'true'
         continue-on-error: true
         run: |
-          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "SITE_URL='$SITE_URL' bash -s" <<'EOF'
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "SITE_URL='$SITE_URL' WEB_CONTAINER='$WEB_CONTAINER' bash -s" <<'EOF'
           enc='Accept-Encoding: gzip, deflate, br, zstd'
-          files=$(docker exec carenest-web ls /usr/share/nginx/html/assets)
+          files=$(docker exec "$WEB_CONTAINER" ls /usr/share/nginx/html/assets)
           echo "$files" | xargs -P 4 -I{} curl -s -o /dev/null -H "$enc" "${SITE_URL}assets/{}"
           hit=0; total=0
           for f in $(echo "$files" | head -20); do

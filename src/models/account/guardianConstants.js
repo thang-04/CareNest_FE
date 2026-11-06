@@ -6,4 +6,4 @@
  */
 export const GUARDIAN_RELATIONSHIPS = ['MOTHER', 'FATHER', 'GRANDFATHER', 'GRANDMOTHER', 'SIBLING', 'GUARDIAN', 'OTHER'];
 
-export { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationshipLabels';
+export { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';

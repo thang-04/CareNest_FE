@@ -1,4 +1,3 @@
-// Nhãn quan hệ hồ sơ trẻ dùng chung cho liên hệ phụ huynh và tài khoản.
 export const GUARDIAN_RELATIONSHIP_LABELS = {
   MOTHER: 'Mẹ',
   FATHER: 'Bố',

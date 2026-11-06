@@ -61,13 +61,13 @@ export default function SupplierDetailPage() {
     }
   };
 
-  // Trường nguồn dữ liệu không có (BE: mã, mã số thuế; người chỉ xem không nhận CCCD) thì ẩn dòng
+  // Trường nguồn dữ liệu không có (BE: mã số thuế; người chỉ xem không nhận CCCD) thì ẩn dòng
   const info = [
     ['Mã', s.code],
     ['Người liên hệ', s.contactName],
     ['Số điện thoại', s.phone],
     ['Mã số thuế', s.taxCode],
-    ['CCCD người giao hàng', s.idCard],
+    ['CCCD nhà cung cấp', s.idCard],
     ['Địa chỉ', s.address],
   ].filter(([, value]) => value !== undefined);
 

@@ -1,6 +1,6 @@
 import { axiosClient } from '@/services/http/axiosClient';
 import { dailyHealthSummary } from '@/mocks/dailyHealthSummary';
-import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationshipLabels';
+import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
 import { actionSummary } from '@/utils/dailyHealthValidation';
 
 /*

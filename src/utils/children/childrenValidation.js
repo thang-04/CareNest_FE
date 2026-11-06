@@ -1,5 +1,5 @@
+import { recipientError } from './accountRecipient';
 import { DECLARATION_STATE, GUARDIAN_RELATIONS, MAX_GUARDIANS } from '@/models/children/childrenConstants';
-import { FOLLOW_UP_CLOSE_OUTCOME, FOLLOW_UP_FIELD_LIMITS } from '@/models/children/healthCheckConstants';
 import { citizenIdError, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 
@@ -43,9 +43,23 @@ const PROFILE_REQUIRED_TEXT = [
   ['address.street', 'Nhập số nhà/thôn/xóm nơi ở'],
 ];
 
+// Dưới 37 tuần là sinh non: tuần thai phải khớp ô Sinh non (CHD-05, user chốt 2026-11-04).
+const PRETERM_BEFORE_WEEKS = 37;
+
+/** Tuần thai khi sinh, bắt buộc mọi trẻ (user chốt 2026-11-04); câu lỗi như BE. Trả câu lỗi hoặc null. */
+const gestationWeeksError = (w, premature) => {
+  if (w === '' || w == null || String(w).trim() === '') return 'Nhập tuần thai khi sinh';
+  const n = Number(w);
+  if (Number.isNaN(n) || n < 20 || n > 42) return 'Nhập tuần thai từ 20 đến 42';
+  if (!Number.isInteger(n)) return 'Nhập số tuần nguyên, ví dụ 38';
+  if (premature === 'YES' && n >= PRETERM_BEFORE_WEEKS) return 'Trẻ sinh non có tuần thai dưới 37';
+  if (premature === 'NO' && n < PRETERM_BEFORE_WEEKS) return 'Dưới 37 tuần là sinh non: chọn Sinh non là Có hoặc sửa tuần thai';
+  return null;
+};
+
 /**
- * Phần hành chính khi tiếp nhận, sửa hồ sơ: bắt buộc trừ CCCD trẻ và nhóm máu (user chốt 2026-10-22, thay 1a).
- * Phiếu khám chỉ đọc phần này nên phải đủ từ lúc nhập học. Khóa lỗi 'profile.x'.
+ * Phần hành chính khi tiếp nhận, sửa hồ sơ: bắt buộc trừ CCCD trẻ và nhóm máu (user chốt 2026-10-22, thay 1a); tuần thai bắt
+ * buộc mọi trẻ (2026-11-04). Phiếu khám chỉ đọc phần này nên phải đủ từ lúc nhập học. Khóa lỗi 'profile.x'.
  */
 export const validateChildProfile = (p = {}) => {
   const errors = {};
@@ -53,10 +67,8 @@ export const validateChildProfile = (p = {}) => {
   const tooLong = (v, max) => String(v ?? '').trim().length > max;
   if (String(p.idNumber ?? '').trim() && !isValidIdNumber(p.idNumber)) errors['profile.idNumber'] = ID_NUMBER_MESSAGE;
   if (!['YES', 'NO'].includes(p.premature)) errors['profile.premature'] = 'Chọn trẻ có sinh non hay không';
-  const w = p.gestationWeeks;
-  if (w === '' || w == null) {
-    if (p.premature === 'YES') errors['profile.gestationWeeks'] = 'Nhập tuần thai khi sinh của trẻ sinh non';
-  } else if (Number.isNaN(Number(w)) || Number(w) < 20 || Number(w) > 42) errors['profile.gestationWeeks'] = 'Nhập tuần thai từ 20 đến 42';
+  const weeksError = gestationWeeksError(p.gestationWeeks, p.premature);
+  if (weeksError) errors['profile.gestationWeeks'] = weeksError;
   PROFILE_REQUIRED_TEXT.forEach(([path, message]) => {
     if (!String(value(path) ?? '').trim()) errors[`profile.${path}`] = message;
   });
@@ -70,7 +82,7 @@ export const validateChildProfile = (p = {}) => {
 };
 
 /** Child + guardians block of the enrollment form (kèm phần hành chính). */
-export const validateChildInfo = (data) => {
+export const validateChildInfo = (data, { requireRecipient = true } = {}) => {
   const errors = { ...validateChildProfile(data.profile) };
   if (!data.fullName?.trim()) errors.fullName = 'Nhập họ tên trẻ';
   else if (data.fullName.trim().length > 100) errors.fullName = 'Họ tên tối đa 100 ký tự';
@@ -98,6 +110,8 @@ export const validateChildInfo = (data) => {
   if (new Set(phones).size !== phones.length) errors.guardians = 'Hai phụ huynh không được dùng chung số điện thoại';
   const ids = guardians.map((g) => normalizeCitizenId(g.idNumber)).filter(Boolean);
   if (new Set(ids).size !== ids.length) errors.guardians = 'Hai phụ huynh không được dùng chung số CCCD';
+  const selectionError = recipientError(guardians);
+  if (requireRecipient && selectionError) errors.accountRecipient = selectionError;
   if (guardians.length > MAX_GUARDIANS) errors.guardians = `Mỗi trẻ tối đa ${MAX_GUARDIANS} phụ huynh`;
   return errors;
 };
@@ -149,24 +163,17 @@ export const validateDeclaration = (d, { dateOfBirth } = {}) => {
 const isBlank = (v) => v === '' || v == null;
 
 /**
- * Cân đo ngoài đợt khám (GBR-HLT-01; user chốt 2026-10-17: chỉ chiều cao, cân nặng, vòng đầu, ghi chú; không kết luận).
- * headCircumferenceUntil: ngày cuối còn đo vòng đầu, BE trả trong sổ sức khỏe. Vòng đầu không bắt buộc khi cân đo tại lớp.
+ * Số đo của kỳ cân đo (HLT-01): chỉ chiều cao, cân nặng, ghi chú; không kết luận. Từ 2026-11-04 không còn vòng đầu, ngày đo do BE
+ * ghi (số đo mới = hôm nay, sửa giữ ngày) nên không kiểm ngày ở đây.
  */
-export const validateMeasurement = (m, { dateOfBirth, requireReason, headCircumferenceUntil } = {}) => {
+export const validateMeasurement = (m, { requireReason } = {}) => {
   const errors = {};
-  if (!m.date || !DATE_RE.test(m.date)) errors.date = 'Chọn ngày đo';
-  else if (m.date > today()) errors.date = 'Ngày đo không được ở tương lai';
-  else if (dateOfBirth && m.date < dateOfBirth) errors.date = 'Ngày đo không được trước ngày sinh của trẻ';
   const h = Number(m.heightCm);
   if (isBlank(m.heightCm) || Number.isNaN(h)) errors.heightCm = 'Nhập chiều cao (cm)';
   else if (h < 40 || h > 150) errors.heightCm = 'Nhập chiều cao từ 40 đến 150 cm';
   const w = Number(m.weightKg);
   if (isBlank(m.weightKg) || Number.isNaN(w)) errors.weightKg = 'Nhập cân nặng (kg)';
   else if (w < 3 || w > 60) errors.weightKg = 'Nhập cân nặng từ 3 đến 60 kg';
-  const headApplies = !headCircumferenceUntil || !m.date || m.date <= headCircumferenceUntil;
-  const hc = Number(m.headCircumferenceCm);
-  if (headApplies && !isBlank(m.headCircumferenceCm) && (Number.isNaN(hc) || hc < 30 || hc > 60))
-    errors.headCircumferenceCm = 'Nhập vòng đầu từ 30 đến 60 cm';
   if ((m.note || '').length > 500) errors.note = 'Ghi chú tối đa 500 ký tự';
   if (requireReason && !m.reason?.trim()) errors.reason = 'Nhập lý do sửa kết quả đã công bố';
   return errors;
@@ -188,42 +195,5 @@ export const validateHealthCheck = (c, { creating = false } = {}) => {
   else if (isIsoDate(c.startDate) && c.endDate < c.startDate) errors.endDate = 'Ngày kết thúc không được trước ngày bắt đầu';
   if ((c.examiner || '').length > 150) errors.examiner = 'Tối đa 150 ký tự';
   if ((c.note || '').length > 500) errors.note = 'Ghi chú tối đa 500 ký tự';
-  return errors;
-};
-
-/** Cập nhật phiếu theo dõi. kind: 'contact' | 'external' | 'close'. */
-/** kind: 'contact' | 'external' | 'close'. contactFrom: ngày khám của kết quả mở vòng theo dõi (BE trả). */
-export const validateFollowUpAction = (kind, b = {}, { contactFrom } = {}) => {
-  const errors = {};
-  if (kind === 'close') {
-    // Đóng phiếu chọn kết quả theo lời bác sĩ, không chọn sẵn (user chốt 2026-10-21).
-    if (!Object.values(FOLLOW_UP_CLOSE_OUTCOME).includes(b.outcome)) errors.outcome = 'Chọn kết quả theo lời bác sĩ';
-    if (b.outcome === FOLLOW_UP_CLOSE_OUTCOME.KNOWN_CONDITION) {
-      if (!b.conditionText?.trim()) errors.conditionText = 'Nhập tên vấn đề, ví dụ Cận thị – đeo kính';
-      else if (b.conditionText.trim().length > FOLLOW_UP_FIELD_LIMITS.condition)
-        errors.conditionText = `Tên vấn đề tối đa ${FOLLOW_UP_FIELD_LIMITS.condition} ký tự`;
-    }
-    if (!b.reason?.trim()) errors.reason = 'Nhập lý do đóng phiếu';
-    else if (b.reason.trim().length > 300) errors.reason = 'Lý do tối đa 300 ký tự';
-    return errors;
-  }
-  const dateField = kind === 'contact' ? 'contactedOn' : 'resultOn';
-  if (!b[dateField] || !DATE_RE.test(b[dateField])) errors[dateField] = kind === 'contact' ? 'Chọn ngày trao đổi' : 'Chọn ngày khám';
-  else if (b[dateField] > today()) errors[dateField] = 'Ngày không được ở tương lai';
-  else if (kind === 'contact' && contactFrom && b.contactedOn < contactFrom)
-    errors.contactedOn = `Ngày trao đổi không được trước ngày khám ${formatDate(contactFrom)}`;
-  if (!b.note?.trim())
-    errors.note = kind === 'contact' ? 'Nhập nội dung đã trao đổi với phụ huynh' : 'Nhập kết quả bác sĩ chuyên khoa đã báo lại';
-  else if (b.note.trim().length > 500) errors.note = 'Nội dung tối đa 500 ký tự';
-  // Kết quả chuyên khoa ghi chữ tự do, kèm chuyên khoa / nơi khám và ảnh giấy kết quả (user chốt 2026-10-17).
-  if (kind === 'external') {
-    if (!b.facility?.trim()) errors.facility = 'Nhập chuyên khoa / nơi khám, ví dụ Mắt — Bệnh viện Nhi';
-    else if (b.facility.trim().length > 150) errors.facility = 'Tối đa 150 ký tự';
-    if ((b.images || []).length > 3) errors.images = 'Tối đa 3 ảnh';
-  }
-  if (kind === 'external' && b.nextVisitOn) {
-    if (!DATE_RE.test(b.nextVisitOn)) errors.nextVisitOn = 'Chọn ngày hẹn khám lại hợp lệ';
-    else if (DATE_RE.test(b.resultOn || '') && b.nextVisitOn <= b.resultOn) errors.nextVisitOn = 'Ngày hẹn khám lại phải sau ngày khám';
-  }
   return errors;
 };

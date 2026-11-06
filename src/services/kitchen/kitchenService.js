@@ -41,7 +41,7 @@ export const saveStockReceipt = (payload, user) => repo.saveStockReceipt(payload
  * tạo/sửa ({ id?, ... }), xóa (mock: khi chưa có phiếu; BE: chuyển Ngừng dùng).
  */
 const supplierRepo = sourceOf('nutrition-catalog', mock, nutritionCatalogApi);
-/** Danh mục NCC dùng BE: không có mã NCC, số phiếu nhập; có CCCD người giao hàng. */
+/** Danh mục NCC dùng BE: mã NCC FE sinh từ id, chưa có số phiếu nhập; có CCCD nhà cung cấp. */
 export const suppliersUseApi = () => !isDemoModule('nutrition-catalog');
 /** Ẩn/hiện nút sửa NCC: BE theo NUTRITION_MANAGE (HT luôn có, PHT khi được cấp); mock theo vai trò. */
 export const canEditSuppliers = (user) =>

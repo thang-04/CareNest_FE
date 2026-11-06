@@ -91,7 +91,7 @@ export default function EditChildPage() {
   const effective = { ...form, guardians: withGuardianAccounts(form.guardians, accountOf) };
 
   const save = async () => {
-    const errs = validateChildInfo(effective);
+    const errs = validateChildInfo(effective, { requireRecipient: false });
     if (!reason.trim()) errs.reason = 'Nhập lý do chỉnh sửa hồ sơ';
     setErrors(errs);
     if (hasErrors(errs)) return;
@@ -120,7 +120,7 @@ export default function EditChildPage() {
 
   const change = (v) => {
     setForm(v);
-    const now = validateChildInfo({ ...v, guardians: withGuardianAccounts(v.guardians, accountOf) });
+    const now = validateChildInfo({ ...v, guardians: withGuardianAccounts(v.guardians, accountOf) }, { requireRecipient: false });
     setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k === 'reason' || now[k])));
   };
 

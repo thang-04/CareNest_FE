@@ -13,10 +13,11 @@ import {
 import { useMasterData } from '@/hooks';
 import { useBeAgeGroups, useMealPlan, useMenuStatistics } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
-import { WEEKDAY_LABELS, formatMoney, weekDates } from '@/models/menu-planning/menuPlanningConstants';
+import { WeekPicker } from '@/components/form/WeekPicker';
+import { WEEKDAY_LABELS, formatMoney, mondayOf, schoolWeekStart, weekDates } from '@/models/menu-planning/menuPlanningConstants';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { ageGroupOptions, planDayItems, templateDayItems } from '@/utils/menu-planning/menuStatistics';
-import { formatDate } from '@/utils/format';
+import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
 
 const CHILDREN_SOURCE = {
@@ -32,8 +33,10 @@ const CHILDREN_SOURCE = {
 export default function MenuStatisticsPage() {
   const [params, setParams] = useSearchParams();
   const templateId = params.get('template');
-  const week = params.get('week');
-  const date = params.get('date') || (week ? week : '');
+  // Mở từ menu (không ngữ cảnh) ⇒ tuần đang chạy, hôm nay nếu nằm trong tuần đó, không thì thứ Hai
+  const today = todayInput();
+  const week = templateId ? null : isIsoDate(params.get('week')) ? mondayOf(params.get('week')) : schoolWeekStart(today);
+  const date = templateId ? '' : params.get('date') || (weekDates(week).includes(today) ? today : week);
 
   const planQ = useMealPlan(templateId ? null : week);
   const templateQ = useMenuTemplate(templateId || null);
@@ -76,13 +79,6 @@ export default function MenuStatisticsPage() {
     ? menuCrumbs('Mẫu thực đơn ngày', `/menu/templates/${templateId}`, `Thống kê định lượng · ${title}`)
     : menuCrumbs('Thực đơn tuần', '/menu/weekly', `Thống kê định lượng · ${title}`);
 
-  if (!templateId && !week)
-    return (
-      <div className="page">
-        <Breadcrumb items={menuCrumbs('Thực đơn tuần', '/menu/weekly', 'Thống kê định lượng')} />
-        <EmptyState title="Chưa chọn ngày" description="Mở thống kê từ đầu cột ngày của thực đơn tuần hoặc bộ mẫu." />
-      </div>
-    );
   if (source.error)
     return (
       <div className="page">
@@ -109,6 +105,18 @@ export default function MenuStatisticsPage() {
 
       <section className="card">
         <div className="card__body td-stat-filters">
+          {templateId ? null : (
+            <WeekPicker
+              value={week}
+              thisWeek={schoolWeekStart(today)}
+              onChange={(next) => {
+                const p = new URLSearchParams(params);
+                p.set('week', next);
+                p.delete('date');
+                setParams(p, { replace: true });
+              }}
+            />
+          )}
           {templateId ? null : (
             <div className="tabs tabs--pill" role="tablist" aria-label="Ngày trong tuần">
               {weekDates(week).map((d, i) => (

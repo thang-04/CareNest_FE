@@ -2,7 +2,7 @@ import { Fragment, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, X } from '@/components/ui/icons';
 import { SearchSelect } from '@/components/ui/SearchSelect';
-import { dishTypeClass } from '@/utils/menu-planning/dishTypeClass';
+import { dishTypeClass } from '@/utils/dishTypeClass';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import {

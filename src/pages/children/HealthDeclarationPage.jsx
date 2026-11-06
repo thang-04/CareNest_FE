@@ -26,10 +26,11 @@ const HISTORY_LABELS = {
   UPDATED: 'Cập nhật khai báo',
   ALLERGY_CONFIRMED: 'Hiệu trưởng xác nhận dị ứng',
   UPDATED_FROM_EXAM: 'Cập nhật tiền sử từ phiếu khám',
+  // Dữ liệu cũ: phiếu theo dõi đã bỏ (HLT-16, 2026-11-04) nhưng lịch sử khai báo vẫn đọc được.
   UPDATED_FROM_FOLLOW_UP: 'Cập nhật tiền sử từ phiếu theo dõi',
 };
 
-// Lịch sử do hệ thống ghi khi lưu phiếu khám hoặc đóng phiếu theo dõi: ghi chú là nguồn, không phải lý do sửa.
+// Lịch sử do hệ thống ghi khi lưu phiếu khám (dữ liệu cũ: khi đóng phiếu theo dõi): ghi chú là nguồn, không phải lý do sửa.
 const SYSTEM_UPDATES = ['UPDATED_FROM_EXAM', 'UPDATED_FROM_FOLLOW_UP'];
 
 // Chỉ liệt kê mục tiền sử có thay đổi.

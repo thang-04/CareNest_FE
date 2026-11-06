@@ -115,6 +115,54 @@
   .page-actions--sticky .btn {
     padding: 0 var(--space-3);
   }
+  /* Phiếu khám (user chọn 1 hàng, 2026-11-04): nhóm nút bên phải và nút chính giãn hết chỗ còn lại; nút .btn--collapse chỉ còn
+     biểu tượng, chữ .btn__collapse ẩn khỏi mắt nhưng trình đọc màn hình vẫn đọc; .page-actions__desk / __phone đổi nút theo cỡ màn */
+  .page-actions--sticky > .row {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  .page-actions--sticky .btn--primary {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .page-actions--sticky .btn--collapse {
+    flex: none;
+    width: var(--btn-height);
+    min-width: 0;
+    padding: 0;
+  }
+  .page-actions--sticky .btn__collapse {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .page-actions--sticky .page-actions__desk {
+    display: none;
+  }
+  .page-actions--sticky .page-actions__phone {
+    display: inline-flex;
+  }
+  .page-actions--sticky .btn__phone {
+    display: inline;
+  }
+  /* Nút "…" (RowMenu) cùng cỡ, cùng viền với nút biểu tượng bên cạnh */
+  .page-actions--sticky .page-actions__phone .row-menu__btn {
+    width: var(--btn-height);
+    height: var(--btn-height);
+    border-color: var(--color-border-strong);
+    border-radius: var(--btn-radius);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+}
+/* Chỉ hiện trên điện thoại trong thanh dính đáy (xem khối trên) */
+.page-actions__phone,
+.btn__phone {
+  display: none;
 }
 
 /* ---------- Buttons ---------- */
@@ -2783,6 +2831,29 @@ button.stat-card .stat-card__label::after {
   /* Hàng lọc: ô tìm cao bằng ô chọn */
   height: var(--input-height);
 }
+/*
+ * Thanh lọc căn giữa một hàng (Thực phẩm): ô tìm giãn hết chỗ trống, các nút lọc cùng chiều cao và cùng hàng.
+ * Nút bật / tắt `.btn--toggle` sáng màu khi đang áp dụng.
+ */
+.filter-bar--aligned {
+  align-items: center;
+}
+.filter-bar--aligned > .search-submit {
+  flex: 1 1 320px;
+}
+.filter-bar--aligned > .btn,
+.filter-bar--aligned > .filter-more > summary,
+.filter-bar--aligned .search-submit .btn {
+  height: var(--input-height);
+}
+.btn--toggle[aria-pressed='true'] {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-border);
+  color: var(--color-primary);
+}
+.btn--toggle[aria-pressed='true'] svg {
+  color: var(--color-danger);
+}
 /* Tóm tắt khi đang lọc (FilterChips): "N kết quả" + chip bỏ từng bộ lọc, ngay dưới thanh lọc */
 .filter-summary {
   display: flex;
@@ -3686,4 +3757,73 @@ button.stat-card .stat-card__label::after {
 /* Tiêu đề "Thao tác" không gãy dòng kể cả khi bảng cho tiêu đề xuống dòng */
 .table thead th.cell--actions {
   white-space: nowrap;
+}
+
+/* Danh sách có danh mục bên trái (CategoryNav): Món ăn, Thực phẩm, Tồn kho khô */
+.td-split-nav {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  overflow: hidden;
+}
+.td-split-nav__main {
+  min-width: 0;
+}
+.td-cat-nav {
+  padding: var(--space-4) var(--space-3);
+  border-right: 1px solid var(--color-border);
+}
+.td-cat-nav h3 {
+  margin: 0 var(--space-2) var(--space-2);
+  font-size: var(--fs-sm);
+}
+.td-cat-nav button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 38px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.td-cat-nav button:hover {
+  background: var(--color-surface-hover);
+}
+/* Viền focus nằm trong nút để không bị cắt khi danh mục cuộn ngang */
+.td-cat-nav button:focus-visible {
+  outline-offset: -2px;
+}
+.td-cat-nav button[aria-current='true'] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+}
+.td-cat-nav em {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-style: normal;
+}
+@media (max-width: 900px) {
+  .td-split-nav {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .td-cat-nav {
+    display: flex;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .td-cat-nav h3 {
+    display: none;
+  }
+  .td-cat-nav button {
+    width: auto;
+    white-space: nowrap;
+  }
 }

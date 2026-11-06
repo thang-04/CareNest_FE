@@ -92,16 +92,20 @@ export function FreshRoundCard({ round, campusId, date, canManage, onSaved, onSt
         </p>
       )}
       {!round.available && !round.recorded && (
-        <div className="alert alert--info card__body" role="status">
-          {round.unavailableReason || 'Lần kiểm này chưa mở.'}
+        <div className="card__body">
+          <div className="alert alert--info" role="status">
+            {round.unavailableReason || 'Lần kiểm này chưa mở.'}
+          </div>
         </div>
       )}
       {round.available && !round.lines.length && <p className="card__body muted">Ngày này không có hàng tươi cần nhận.</p>}
       {round.lines.length > 0 && (
         <>
           {errors._form && (
-            <div className="alert alert--danger card__body" role="alert">
-              {errors._form}
+            <div className="card__body">
+              <div className="alert alert--danger" role="alert">
+                {errors._form}
+              </div>
             </div>
           )}
           <div className="table-wrap">
