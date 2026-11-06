@@ -1,5 +1,7 @@
 import { compareToNorm, dishTotals } from '@/utils/menu-planning/menuCalculations';
 import { ageAbbr } from '@/utils/menu-planning/nutritionSetup';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { microGroupOf } from '@/utils/menu-planning/microGroups';
 import { MICRONUTRIENT_GROUPS, MICRONUTRIENTS, MICRONUTRIENT_UNITS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 
 const g1 = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) : '—');
@@ -41,14 +43,14 @@ export function DishPortionTable({ dish, foodById, groups, norms = null, view = 
                     Nhóm tuổi
                   </th>
                   {MICRONUTRIENT_GROUPS.map((g) => (
-                    <th key={g.key} colSpan={g.items.length} className="center">
+                    <th key={g.key} colSpan={g.items.length} className={`center td-micro-th td-micro-th--${g.key}`}>
                       {g.label}
                     </th>
                   ))}
                 </tr>
                 <tr>
                   {MICRONUTRIENTS.map((k) => (
-                    <th key={k} className="num">
+                    <th key={k} className={`num td-micro-th td-micro-th--${microGroupOf(k)}`}>
                       {MICRO_SHORT[k]} ({MICRONUTRIENT_UNITS[k]})
                     </th>
                   ))}
@@ -110,7 +112,7 @@ export function DishPortionTable({ dish, foodById, groups, norms = null, view = 
                     <td className="fw-600 td-sticky-first">{ageAbbr(a.id)}</td>
                     {MICRONUTRIENTS.map((k) => (
                       <td key={k} className="num">
-                        {t[k] == null ? <span className="muted">Chưa đủ</span> : g2(t[k])}
+                        {t[k] == null ? <StatusBadge tone="orange" label="Chưa đủ" /> : g2(t[k])}
                       </td>
                     ))}
                   </tr>

@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Plus, Trash2, UtensilsCrossed } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/States';
-import { dishTypeClass } from '@/utils/menu-planning/dishTypeClass';
+import { dishTypeClass } from '@/utils/dishTypeClass';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 
 const num = (v) => (v == null ? '—' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 2 }));
@@ -15,6 +15,7 @@ export function TemplateMealSection({ session, items, ingredients, editable, onA
   // Món mở sẵn thành phần; người dùng thu gọn món nào thì nhớ món đó
   const [closed, setClosed] = useState(() => new Set());
   const toggle = (id) => setClosed((s) => (s.has(id) ? new Set([...s].filter((x) => x !== id)) : new Set([...s, id])));
+  // ingredients: mảng; null = máy chủ không trả thành phần món; undefined = đang tải
   const lines = (dishId) => (ingredients || []).filter((l) => l.session === session && String(l.dishId) === String(dishId));
   const label = MEAL_SESSION_LABELS[session] || session;
 
@@ -113,7 +114,9 @@ export function TemplateMealSection({ session, items, ingredients, editable, onA
                       ) : (
                         <tr className="td-meal__line">
                           <td colSpan={7} className="text-sm muted">
-                            Chưa có thành phần cho nhóm tuổi đang xem.
+                            {ingredients === null
+                              ? 'Máy chủ chưa trả thành phần của món (cần bản máy chủ mới).'
+                              : 'Chưa có thành phần cho nhóm tuổi đang xem.'}
                           </td>
                         </tr>
                       ))}

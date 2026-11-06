@@ -632,65 +632,6 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-/* Danh sách có danh mục bên trái (Món ăn, Thực phẩm) */
-.td-split-nav {
-  display: grid;
-  grid-template-columns: 230px minmax(0, 1fr);
-  overflow: hidden;
-}
-
-.td-split-nav__main {
-  min-width: 0;
-}
-
-.td-cat-nav {
-  padding: var(--space-4) var(--space-3);
-  border-right: 1px solid var(--color-border);
-}
-
-.td-cat-nav h3 {
-  margin: 0 var(--space-2) var(--space-2);
-  font-size: var(--fs-sm);
-}
-
-.td-cat-nav button {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  min-height: 38px;
-  padding: var(--space-2) var(--space-3);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--color-text-secondary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.td-cat-nav button:hover {
-  background: var(--color-surface-hover);
-}
-
-/* Viền focus nằm trong nút để không bị cắt khi danh mục cuộn ngang */
-.td-cat-nav button:focus-visible {
-  outline-offset: -2px;
-}
-
-.td-cat-nav button[aria-current='true'] {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-weight: var(--fw-semibold);
-}
-
-.td-cat-nav em {
-  margin-left: auto;
-  color: var(--color-text-muted);
-  font-size: var(--fs-xs);
-  font-style: normal;
-}
-
 .td-dish-table {
   min-width: 720px;
 }
@@ -763,25 +704,6 @@
 @media (max-width: 1200px) {
   .td-split-aside {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 900px) {
-  .td-split-nav {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .td-cat-nav {
-    display: flex;
-    overflow-x: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-  }
-  .td-cat-nav h3 {
-    display: none;
-  }
-  .td-cat-nav button {
-    width: auto;
-    white-space: nowrap;
   }
 }
 
@@ -1021,6 +943,59 @@
   padding-left: var(--space-5);
   color: var(--color-text-secondary);
   font-size: var(--fs-sm);
+}
+
+/* Mẫu ngày: lưới thẻ căn giữa trang, thẻ là nút mở modal xem chi tiết */
+.td-tpl-cards.td-tpl-cards--page {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 360px));
+  justify-content: center;
+  margin-top: 0;
+}
+.td-tpl-card--btn {
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.td-tpl-card--btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.td-tpl-card__name {
+  min-width: 0;
+  font-size: var(--fs-md);
+  overflow-wrap: anywhere;
+}
+.td-tpl-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.td-tpl-card__meals {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+}
+.td-tpl-card__meals li {
+  display: grid;
+  gap: var(--space-1);
+}
+.td-tpl-card__meals span {
+  color: var(--color-text-secondary);
+}
+/* Nội dung modal xem mẫu: các bữa và thẻ dinh dưỡng cách nhau đều */
+.td-tpl-preview {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.td-tpl-preview__meta {
+  gap: var(--space-2);
 }
 
 .td-tpl-empty {
@@ -2044,6 +2019,32 @@
   font-weight: var(--fw-bold);
 }
 
+/* Thành phần dinh dưỡng: 3 nhóm cạnh nhau (rộng ≥ 3 × 260px), thấp hơn thì xếp dọc */
+.td-nutrient-grid {
+  display: grid;
+  /* Nhóm năng lượng có tên dài nên rộng hơn hai nhóm vi chất */
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .td-nutrient-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.td-nutrient-group--energy .table.table--grid .td-nutrient-table__group th {
+  background: var(--color-info-bg);
+  color: var(--color-info-fg);
+}
+.td-nutrient-group--minerals .table.table--grid .td-nutrient-table__group th {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.td-nutrient-group--vitamins .table.table--grid .td-nutrient-table__group th {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+
 .td-nutrient-table tbody th[scope='row'] {
   font-weight: var(--fw-regular);
 }
@@ -2083,16 +2084,6 @@
 }
 
 /* Chi tiết thực phẩm: cột phải chứa bảng thành phần 3 cột (chất, hàm lượng, đơn vị) nên rộng hơn mặc định */
-.td-split-aside.td-split-aside--nutrients {
-  grid-template-columns: minmax(0, 1fr) calc(var(--space-16) * 5.625);
-}
-
-@media (max-width: 1100px) {
-  .td-split-aside.td-split-aside--nutrients {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 /* Form thực phẩm: nhóm ô vi chất (khoáng chất, vitamin) không viền mặc định của fieldset */
 .td-micro-fieldset {
   margin-inline: 0;
@@ -2770,4 +2761,81 @@
   .td-setup-fields {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Bảng cân đối khẩu phần một ngày: một bảng 5 cột, chia nhóm bằng dải tiêu đề có màu */
+.td-nut-table {
+  table-layout: fixed;
+}
+.td-nut-table__c1 {
+  width: 34%;
+}
+.td-nut-table__c5 {
+  width: 24%;
+}
+.table.table--grid .td-nut-sec th {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
+.table.table--grid .td-nut-sec--info th {
+  background: var(--color-info-bg);
+  color: var(--color-info-fg);
+}
+.table.table--grid .td-nut-sec--success th {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.table.table--grid .td-nut-sec--warning th {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.table.table--grid .td-nut-sec--gray th {
+  background: var(--table-header-bg);
+  color: var(--tone-gray-fg);
+}
+
+/* Thông tin bữa ăn dạng bảng: dải tên bữa, rồi mỗi món một dòng */
+.td-meals-table {
+  table-layout: fixed;
+}
+.td-meals-table__c1 {
+  width: 38%;
+}
+.td-meals-table__c3 {
+  width: 14%;
+}
+.td-meals-table__c4 {
+  width: 28%;
+}
+.table.table--grid .td-meal-band th {
+  background: var(--color-info-bg);
+  color: var(--color-info-fg);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
+.td-meals-table__changed td:first-child {
+  color: var(--color-success-fg);
+  font-weight: var(--fw-semibold);
+}
+
+/* Vi chất: tiêu đề cột tô màu theo nhóm (khoáng chất = xanh lá, vitamin = vàng), badge đếm số liệu */
+.table.table--grid th.td-micro-th--minerals {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.table.table--grid th.td-micro-th--vitamins {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.td-nutrient-table__group-in {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.td-micro-fieldset legend .chip,
+.td-food-more summary .chip {
+  margin-left: var(--space-1);
+  vertical-align: middle;
 }

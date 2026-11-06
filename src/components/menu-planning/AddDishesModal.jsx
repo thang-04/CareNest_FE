@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Search, X } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { SearchSelect } from '@/components/ui/SearchSelect';
-import { dishTypeClass } from '@/utils/menu-planning/dishTypeClass';
+import { dishTypeClass } from '@/utils/dishTypeClass';
 import { DISH_TYPE_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import { normalizeText } from '@/utils/format';
 

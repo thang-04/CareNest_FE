@@ -15,7 +15,7 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { RowActions } from '@/components/ui/RowActions';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { AllergenChips, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
-import { CategoryNav } from '@/components/menu-planning/CategoryNav';
+import { CategoryNav } from '@/components/ui/CategoryNav';
 import { FoodImportPanel } from '@/components/menu-planning/FoodImportPanel';
 import { FoodEditModal } from '@/components/menu-planning/FoodEditModal';
 import { SearchSelect } from '@/components/ui/SearchSelect';
@@ -57,13 +57,17 @@ export default function FoodListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
-  const { canManage } = useCatalogAccess();
+  const { canManage, personalFavorite } = useCatalogAccess();
   // Bộ lọc lưu trên URL: mở thực phẩm rồi Back vẫn giữ nhóm, từ khóa và bộ lọc phụ
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, group, quick, allergen, status, origin } = filters;
   const favoriteOnly = filters.favorite === '1';
   const [page, setPage] = useState(1);
   const [bulk, setBulk] = useState(false);
+  // Cột Thao tác chỉ có sửa; người chỉ xem không có thao tác nào nên bỏ cả cột
+  const showActions = canManage && !bulk;
+  const canFavorite = (canManage || personalFavorite) && !bulk;
+  const colCount = bulk ? 11 : showActions ? 9 : 8;
   const [drafts, setDrafts] = useState({});
   const [bulkErrors, setBulkErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -195,7 +199,7 @@ export default function FoodListPage() {
       <section className="card td-split-nav">
         <CategoryNav title="Nhóm thực phẩm" items={navItems} value={group} onChange={change('group')} />
         <div className="td-split-nav__main">
-          <div className="filter-bar">
+          <div className="filter-bar filter-bar--aligned">
             <SearchSubmit
               className="td-grow"
               value={keyword}
@@ -203,10 +207,15 @@ export default function FoodListPage() {
               label="Tìm thực phẩm"
               onSearch={change('keyword')}
             />
-            <label className="checkbox text-sm">
-              <input type="checkbox" checked={favoriteOnly} onChange={(e) => change('favorite')(e.target.checked ? '1' : '')} /> Chỉ hay
-              dùng
-            </label>
+            {/* Nút bật / tắt cùng chiều cao với ô tìm và các nút lọc, thay cho ô tích chữ lệch hàng */}
+            <button
+              type="button"
+              className="btn btn--toggle"
+              aria-pressed={favoriteOnly}
+              onClick={() => change('favorite')(favoriteOnly ? '' : '1')}
+            >
+              {favoriteOnly ? <HeartFilled size={16} /> : <Heart size={16} />} Chỉ hay dùng
+            </button>
             <FilterMore count={[quick, allergen, status, origin].filter(Boolean).length}>
               <div className="field">
                 <span className="field__label">Nguồn gốc</span>
@@ -240,7 +249,7 @@ export default function FoodListPage() {
                 />
               </div>
             </FilterMore>
-            <button type="button" className="btn" onClick={reset} disabled={!filtered}>
+            <button type="button" className="btn btn--ghost" onClick={reset} disabled={!filtered}>
               <RotateCcw size={15} /> Đặt lại bộ lọc
             </button>
           </div>
@@ -267,16 +276,18 @@ export default function FoodListPage() {
                       </>
                     )}
                     <th>Dị ứng</th>
-                    <th className="center">Hay dùng</th>
-                    <th className="cell--actions">Thao tác</th>
+                    <th className="center" title={personalFavorite ? 'Đánh dấu riêng của bạn, lưu trên trình duyệt này' : undefined}>
+                      Hay dùng
+                    </th>
+                    {showActions && <th className="cell--actions">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <SkeletonRows rows={5} cols={bulk ? 11 : 8} />
+                    <SkeletonRows rows={5} cols={colCount} />
                   ) : rows.length === 0 ? (
                     <tr>
-                      <td colSpan={bulk ? 12 : 9}>
+                      <td colSpan={colCount}>
                         <EmptyState
                           icon={Carrot}
                           title={filtered ? 'Không có kết quả phù hợp' : 'Chưa có thực phẩm'}
@@ -342,15 +353,17 @@ export default function FoodListPage() {
                             className={`icon-btn ${f.favorite ? 'td-fav--on' : ''}`}
                             aria-pressed={!!f.favorite}
                             aria-label={`${f.favorite ? 'Bỏ' : 'Đánh dấu'} hay dùng: ${f.name}`}
-                            disabled={!canManage || bulk}
+                            disabled={!canFavorite}
                             onClick={() => toggleFavorite(f)}
                           >
                             {f.favorite ? <HeartFilled size={17} /> : <Heart size={17} />}
                           </button>
                         </td>
-                        <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
-                          {!bulk && canManage && <RowActions edit={{ onClick: () => setEditing(f.id) }} name={f.name} />}
-                        </td>
+                        {showActions && (
+                          <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
+                            <RowActions edit={{ onClick: () => setEditing(f.id) }} name={f.name} />
+                          </td>
+                        )}
                       </tr>
                     ))
                   )}

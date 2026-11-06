@@ -8,7 +8,6 @@ import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
-import { TemplateListPanel } from '@/components/menu-planning/TemplateListPanel';
 import { TemplateMealSection } from '@/components/menu-planning/TemplateMealSection';
 import { AddDishesModal } from '@/components/menu-planning/AddDishesModal';
 import { MealNutritionCard } from '@/components/menu-planning/MealNutritionCard';
@@ -23,7 +22,17 @@ import { hasBePermission } from '@/utils/bePermissions';
 import { templateCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { blockSessions } from '@/utils/menu-planning/mealPlanGrid';
 import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
-import { itemsBySession, toStatisticsItems, toTemplateRequest } from '@/utils/menu-planning/menuTemplateGrid';
+import { TemplateDayPicker } from '@/components/menu-planning/TemplateDayPicker';
+import {
+  DEFAULT_DAY,
+  dayCounts,
+  dayItems,
+  hasTemplateDays,
+  itemsBySession,
+  sameDay,
+  toStatisticsItems,
+  toTemplateRequest,
+} from '@/utils/menu-planning/menuTemplateGrid';
 import { todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
 
@@ -50,6 +59,7 @@ export default function MenuTemplateEditorPage() {
   const [errors, setErrors] = useState({});
   const [adding, setAdding] = useState(null);
   const [ageGroupId, setAgeGroupId] = useState('');
+  const [day, setDay] = useState(null);
 
   useEffect(() => {
     setForm(data ? toForm(data) : EMPTY);
@@ -63,8 +73,16 @@ export default function MenuTemplateEditorPage() {
       : (weekQ.data?.blocks || []).find((b) => b.block === form.block)?.ageGroupIds;
   const groups = useMemo(() => ageGroupOptions(groupIds, ageGroups), [groupIds, ageGroups]);
   const currentGroup = groups.some((g) => g.id === ageGroupId) ? ageGroupId : groups[0]?.id;
-  const bySession = itemsBySession(form.items);
-  const statsItems = useMemo(() => toStatisticsItems(form.items).map((i) => ({ ...i, dishId: Number(i.dishId) })), [form.items]);
+  // Bộ 4 tuần (BE hiện tại): sửa từng ngày của bộ; mẫu mới cũng bắt đầu ở Tuần 1 · Thứ Hai
+  const dayMode = !form.items.length || hasTemplateDays(form.items);
+  const firstDay = useMemo(() => {
+    const first = [...form.items].sort((a, b) => a.weekNo - b.weekNo || a.weekday - b.weekday)[0];
+    return first?.weekNo != null ? { weekNo: first.weekNo, weekday: first.weekday } : DEFAULT_DAY;
+  }, [form.items]);
+  const currentDay = dayMode ? day || firstDay : null;
+  const shownItems = useMemo(() => dayItems(form.items, currentDay), [form.items, currentDay]);
+  const bySession = itemsBySession(shownItems);
+  const statsItems = useMemo(() => toStatisticsItems(shownItems).map((i) => ({ ...i, dishId: Number(i.dishId) })), [shownItems]);
   const statsQ = useMenuStatistics(currentGroup && statsItems.length ? { ageGroupId: Number(currentGroup), items: statsItems } : null);
   const dirty = JSON.stringify(toTemplateRequest(form)) !== JSON.stringify(toTemplateRequest(data ? toForm(data) : EMPTY));
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -110,8 +128,8 @@ export default function MenuTemplateEditorPage() {
     setForm((f) => ({
       ...f,
       items: [
-        ...f.items.filter((i) => i.session !== session),
-        ...picked.map((d) => ({ session, dishId: String(d.id), dishName: d.name, dishType: d.type })),
+        ...f.items.filter((i) => !(i.session === session && sameDay(i, currentDay))),
+        ...picked.map((d) => ({ ...(currentDay || {}), session, dishId: String(d.id), dishName: d.name, dishType: d.type })),
       ],
     }));
     setAdding(null);
@@ -119,7 +137,7 @@ export default function MenuTemplateEditorPage() {
   const removeDish = (session, dishId) =>
     set(
       'items',
-      form.items.filter((i) => !(i.session === session && i.dishId === String(dishId))),
+      form.items.filter((i) => !(i.session === session && i.dishId === String(dishId) && sameDay(i, currentDay))),
     );
 
   const crumbs = templateCrumbs(id ? data?.name || 'Mẫu ngày' : 'Tạo mẫu ngày');
@@ -185,12 +203,13 @@ export default function MenuTemplateEditorPage() {
             </FormField>
           </div>
         </section>
+        {dayMode && <TemplateDayPicker value={currentDay} onChange={setDay} counts={dayCounts(form.items)} />}
         {sessions.map((session) => (
           <TemplateMealSection
             key={session}
             session={session}
             items={bySession[session] || []}
-            ingredients={statsQ.data?.dishIngredients}
+            ingredients={statsQ.data ? (statsQ.data.dishIngredients ?? null) : undefined}
             editable={editable}
             onAdd={() => setAdding(session)}
             onRemove={(dishId) => removeDish(session, dishId)}
@@ -204,17 +223,14 @@ export default function MenuTemplateEditorPage() {
     <div className="page td-sections">
       <Breadcrumb items={crumbs} />
       <TemplateHead canCreate={canCreate && !!id} />
-      <div className="td-tpl-split">
-        <TemplateListPanel currentId={id} />
-        {body()}
-      </div>
+      {body()}
       {(!id || data) && (
         <MealNutritionCard
           ageGroups={groups}
           ageGroupId={currentGroup}
           onAgeGroup={setAgeGroupId}
           statsQ={statsQ}
-          hasItems={form.items.length > 0}
+          hasItems={shownItems.length > 0}
         />
       )}
       {adding && (
