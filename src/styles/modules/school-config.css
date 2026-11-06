@@ -867,6 +867,12 @@
 .sc-vp-table th:nth-child(2) {
   width: 18%;
 }
+.sc-vp-table--perms th:first-child {
+  width: 50%;
+}
+.sc-vp-table--perms th:nth-child(2) {
+  width: 22%;
+}
 .sc-vp-table td {
   white-space: normal;
   overflow-wrap: anywhere;
