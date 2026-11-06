@@ -100,6 +100,14 @@ updated: 2026-11-06
 - Nguyên nhân lệch: `.filter-bar` dùng `align-items: flex-end`; "Chỉ hay dùng" là checkbox chữ cao 20px nên thấp hơn các nút cao 36px.
 - Sửa: modifier `.filter-bar--aligned` (căn giữa một hàng, ô tìm `flex: 1 1 320px`, mọi nút cao `--input-height`); "Chỉ hay dùng" thành nút bật / tắt `.btn--toggle` có icon tim, sáng màu khi đang lọc; "Đặt lại bộ lọc" kiểu `btn--ghost`. Đo ở 1440 / 1100 / 760px: mọi phần tử cùng hàng cao 36px.
 
+### 2026-11-06 — badge vi chất; nhà cung cấp (nhãn CCCD, mã NCC)
+
+- Vi chất, chi tiết thực phẩm (`NutrientTable`): mỗi nhóm có badge đếm "n/m có số liệu" (xanh lá đủ · vàng thiếu · xám chưa có), mỗi chất có badge "Có" / "Chưa có", đơn vị gộp vào ô hàm lượng, lưới 3 nhóm tỉ lệ 1,4 : 1 : 1.
+- Vi chất, form sửa thực phẩm (`FoodEditor`, trang và modal): badge "n/m đã nhập" ở từng nhóm và ở dòng "8 vi chất", nhãn ô kèm đơn vị.
+- Vi chất, chi tiết món và bảng định lượng món (chế độ vi chất): tiêu đề cột tô màu theo nhóm (khoáng chất xanh lá, vitamin vàng), ô thiếu thành badge "Chưa có" / "Chưa đủ". Helper `utils/menu-planning/microGroups.js`.
+- Nhà cung cấp: nhãn "CCCD người giao hàng" đổi thành "CCCD nhà cung cấp" (form và chi tiết).
+- Nhà cung cấp: BE `main` không có trường mã NCC (`SupplierResponse` chỉ có id, name, phone, address, idCard, deliveryPerson, status) nên thêm xong không có mã. FE (lớp API) sinh `code` = `NCC` + id đệm 3 số (NCC001…), cùng dạng mã của bản demo; test `nutrition-catalog-api` kiểm. Đề nghị BE thêm cột mã thật nếu cần mã không phụ thuộc id.
+
 ### 2026-11-06 — chuyển lên nhánh G94-191 để mở PR vào dev
 
 - User chọn mã Jira G94-191 cho phần bán trú/dinh dưỡng. Worktree tính năng được tua nhanh lên `origin/dev` (`6a0554c`), sau đó áp diff đã có từ phiên G94-272; các file school-config, công cụ cục bộ và báo cáo ngoài phần bán trú không được chuyển.

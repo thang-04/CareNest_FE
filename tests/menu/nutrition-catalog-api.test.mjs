@@ -301,6 +301,7 @@ test('nhà cung cấp: người giao hàng ↔ contactName; BE không trả CCCD
   const [s] = await api.getSuppliers({ keyword: 'NCC', status: '' });
   assert.deepEqual(calls[0].body, { keyword: 'NCC' });
   assert.equal(s.contactName, 'Anh giao');
+  assert.equal(s.code, 'NCC003', 'BE chưa có mã NCC: sinh từ id');
   assert.ok(!('idCard' in s));
   assert.equal(s.receiptCount, null);
   calls = [];

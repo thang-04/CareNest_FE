@@ -2022,9 +2022,15 @@
 /* Thành phần dinh dưỡng: 3 nhóm cạnh nhau (rộng ≥ 3 × 260px), thấp hơn thì xếp dọc */
 .td-nutrient-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  /* Nhóm năng lượng có tên dài nên rộng hơn hai nhóm vi chất */
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
+}
+@media (max-width: 1100px) {
+  .td-nutrient-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .td-nutrient-group--energy .table.table--grid .td-nutrient-table__group th {
   background: var(--color-info-bg);
@@ -2812,4 +2818,24 @@
 .td-meals-table__changed td:first-child {
   color: var(--color-success-fg);
   font-weight: var(--fw-semibold);
+}
+
+/* Vi chất: tiêu đề cột tô màu theo nhóm (khoáng chất = xanh lá, vitamin = vàng), badge đếm số liệu */
+.table.table--grid th.td-micro-th--minerals {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.table.table--grid th.td-micro-th--vitamins {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.td-nutrient-table__group-in {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.td-micro-fieldset legend .chip,
+.td-food-more summary .chip {
+  margin-left: var(--space-1);
+  vertical-align: middle;
 }

@@ -269,8 +269,11 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
   const dish = withFields(DISH_FIELDS);
 
   /* ---------- nhà cung cấp ---------- */
+  // BE chưa có mã NCC: mã hiển thị sinh từ id (NCC001, NCC002…) — cố định, không trùng, cùng dạng mã của bản demo
+  const supplierCode = (id) => `NCC${String(id).padStart(3, '0')}`;
   const toSupplier = (s) => ({
     id: s.id,
+    code: supplierCode(s.id),
     name: s.name,
     phone: s.phone || '',
     address: s.address || '',
