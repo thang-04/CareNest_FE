@@ -53,7 +53,7 @@ Mọi service CareNest trên VPS (FE, sau này BE, Keycloak, Postgres, AI) chạ
 
 Mặc định (chưa đặt Variables) image build với `VITE_AUTH_MODE=mock`, `VITE_USE_MOCK=true`: đăng nhập bằng tài khoản demo (chip dưới form đăng nhập, danh sách đủ ở `src/mocks/seed.js`), dữ liệu mock lưu localStorage của trình duyệt. `VITE_*` nhúng vào bundle lúc build, đổi giá trị ⇒ chạy lại workflow.
 
-Bản dev đọc Variables của environment `development` (`VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api`); production đọc Variables cấp repo như cũ.
+Bản dev đọc Variables của environment `dev` (`VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api`); production đọc Variables cấp repo như cũ.
 
 Nối BE thật (BE chạy ở `127.0.0.1:18310`, đã bật gateway `CARENEST_AUTH_ENABLED=true` theo `BE:docs/system/DEPLOYMENT.md`): GitHub › Settings › Secrets and variables › Actions › **Variables** › đặt `VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api` (khớp `handle /api/*` của Caddy, cùng origin nên cookie phiên gateway path `/api/auth` dùng được), rồi chạy lại workflow. `gateway` đăng nhập qua `/api/auth/*` (`docs/integration/AUTH_FLOW.md`) và bật luôn các màn đã nối BE qua `beClient` (`SCHOOL_CONFIG_API` trong `src/config/env.js`). Kiểm tra: `curl -s https://web.carenest.edu.vn/api/auth/csrf` trả 200 `{code, desc, data}`. Phía BE: `CARENEST_AUTH_WEB_ORIGIN=https://web.carenest.edu.vn`.
 
@@ -131,9 +131,9 @@ Gỡ site: xoá dòng `import /data/thangnd/CAPSTONE/caddy/*.caddy` khỏi Caddy
 
 ## Môi trường dev (nhánh `dev`)
 
-Push `dev` (merge PR) ⇒ cùng workflow, job `deploy` chọn đích theo nhánh: rsync vào `/data/thangnd/CAPSTONE/dev/CareNest_FE`, `docker compose -p carenest-fe-dev` với `WEB_CONTAINER=carenest-web-dev`, `WEB_IMAGE=carenest-web-dev:latest`, `WEB_LISTEN=127.0.0.1:18301` (mặc định của `compose.yaml` là giá trị production), đồng bộ `deploy/caddy/carenest-dev.caddy` ⇒ `https://dev.carenest.edu.vn` (`/api/*` ⇒ API dev 18311 của `BE:compose.dev.yaml`, BE: `BE:docs/system/DEPLOYMENT.md` mục Môi trường dev).
+Push `dev` (merge PR) ⇒ cùng workflow, job `deploy` chọn đích theo nhánh: rsync vào `/data/thangnd/CAPSTONE/CareNest_FE-dev`, `docker compose -p carenest-fe-dev` với `WEB_CONTAINER=carenest-web-dev`, `WEB_IMAGE=carenest-web-dev:latest`, `WEB_LISTEN=127.0.0.1:18301` (mặc định của `compose.yaml` là giá trị production), đồng bộ `deploy/caddy/carenest-dev.caddy` ⇒ `https://dev.carenest.edu.vn` (`/api/*` ⇒ API dev 18311 của `BE:compose.dev.yaml`, BE: `BE:docs/system/DEPLOYMENT.md` mục Môi trường dev).
 
-- GitHub › Environments › `development` (deployment branch `dev`) giữ Variables riêng: `VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api`. `VPS_*` là repository secret hoặc chép vào environment `development`.
+- GitHub › Environments › `dev` (deployment branch `dev`) giữ Variables riêng: `VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api`. `VPS_*` là repository secret hoặc chép vào environment `dev`.
 - Deploy BE dev (và bật gateway trên Keycloak dev) trước FE dev; FE dev lên trước ⇒ `/api` trả 502, không đăng nhập được.
 - Release: tạo `release/*` từ `dev` đã test ⇒ PR vào `main` ⇒ production.
 
