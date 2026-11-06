@@ -192,3 +192,9 @@ test('module day-board khai source api cho /boarding', () => {
   assert.deepEqual(mod.routes, ['/boarding']);
   assert.deepEqual(mod.files, ['src/services/dayBoardApi.js']);
 });
+
+test('summarizeBoardRows đếm việc theo nhóm tông trạng thái của mọi điểm trường', async () => {
+  const { summarizeBoardRows } = await import('@/utils/boarding/dayBoardRows');
+  const rows = [{ tone: 'red' }, { tone: 'orange' }, { tone: 'purple' }, { tone: 'green' }, { tone: 'gray' }, { tone: 'unknown' }];
+  assert.deepEqual(summarizeBoardRows([rows, [{ tone: 'green' }]]), { attention: 1, waiting: 2, done: 2, idle: 2 });
+});
