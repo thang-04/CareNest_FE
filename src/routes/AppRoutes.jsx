@@ -106,7 +106,6 @@ const StockReceiptListPage = lazyPage(() => import('@/pages/kitchen/StockReceipt
 const StockReceiptFormPage = lazyPage(() => import('@/pages/kitchen/StockReceiptFormPage'));
 const SupplierListPage = lazyPage(() => import('@/pages/kitchen/SupplierListPage'));
 const SupplierDetailPage = lazyPage(() => import('@/pages/kitchen/SupplierDetailPage'));
-const SupplierFormPage = lazyPage(() => import('@/pages/kitchen/SupplierFormPage'));
 const KitchenFlowPage = lazyPage(() => import('@/pages/kitchen/KitchenFlowPage'));
 const DryStockPage = lazyPage(() => import('@/pages/kitchen/DryStockPage'));
 const FoodSampleLogPage = lazyPage(() => import('@/pages/kitchen/FoodSampleLogPage'));
@@ -175,7 +174,6 @@ const LEADERS = [R.PRINCIPAL, R.VICE_PRINCIPAL];
 const CATALOG_API = !isDemoModule('nutrition-catalog');
 const CATALOG_READERS = LEADERS;
 const CATALOG_EDITORS = LEADERS;
-const SUPPLIER_EDITORS = CATALOG_API ? LEADERS : [R.PRINCIPAL];
 // Bán trú nối BE (hub, kế hoạch tuần, kho khô): build mock (VITE_USE_MOCK mặc định) giữ màn demo cũ, không có mock cho contract mới.
 const BOARDING_API = !isDemoModule('day-board');
 const MEAL_PLAN_API = !isDemoModule('meal-plan');
@@ -192,9 +190,9 @@ function ThemeReviewRedirect() {
   return <Navigate to={`/education/class/${classId}/themes/${themeId}`} replace />;
 }
 
-function SupplierRedirect({ suffix = '' }) {
+function SupplierRedirect() {
   const { id } = useParams();
-  return <Navigate to={`/menu/suppliers/${id}${suffix}`} replace />;
+  return <Navigate to={`/menu/suppliers/${id}`} replace />;
 }
 
 /** Route element limited to the roles allowed by the SRS permission matrix. */
@@ -363,9 +361,10 @@ export function AppRoutes() {
             <Route path="dishes/:id" element={only(CATALOG_READERS, <DishDetailPage />)} />
             <Route path="dishes/:id/edit" element={only(CATALOG_EDITORS, <DishFormPage />)} />
             <Route path="suppliers" element={only(LEADERS, <SupplierListPage />)} />
-            <Route path="suppliers/new" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
+            {/* Thêm/sửa nhà cung cấp mở bằng modal trên danh sách và trang chi tiết: link cũ về trang tương ứng */}
+            <Route path="suppliers/new" element={<Navigate to="/menu/suppliers" replace />} />
             <Route path="suppliers/:id" element={only(LEADERS, <SupplierDetailPage />)} />
-            <Route path="suppliers/:id/edit" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
+            <Route path="suppliers/:id/edit" element={<SupplierRedirect />} />
             {/* Mẫu thực đơn một ngày trên BE (NUT-13) */}
             <Route
               path="templates"
@@ -440,9 +439,9 @@ export function AppRoutes() {
             )}
             {/* Nhà cung cấp chuyển sang Danh mục (/menu/suppliers): giữ đường dẫn cũ */}
             <Route path="suppliers" element={<Navigate to="/menu/suppliers" replace />} />
-            <Route path="suppliers/new" element={<Navigate to="/menu/suppliers/new" replace />} />
+            <Route path="suppliers/new" element={<Navigate to="/menu/suppliers" replace />} />
             <Route path="suppliers/:id" element={<SupplierRedirect />} />
-            <Route path="suppliers/:id/edit" element={<SupplierRedirect suffix="/edit" />} />
+            <Route path="suppliers/:id/edit" element={<SupplierRedirect />} />
             <Route path="published-menu" element={only(LEADERS, KITCHEN_RECORDS_API ? <KitchenTodayPage /> : <PublishedMenuPage />)} />
             <Route path="meal-count" element={only(LEADERS, <ConfirmedMealCountPage />)} />
             <Route path="required-quantity" element={only(LEADERS, <RequiredFoodQuantityPage />)} />
