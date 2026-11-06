@@ -1,5 +1,16 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## Lưu người tạo/duyệt cùng cấu hình trang — 06/11/2026
+
+- Sửa adapter PUT config gửi signers bắt buộc theo policy vừa lưu, tránh 400 sau khi workflow-policy đã thành công; giải thích vì sao Hủy bỏ vẫn hiện Giáo viên. Nguồn contract: BE EduConfigRequest.signers @NotNull và EduConfigServiceImpl so khớp projection hiện tại.
+- Regression RED: workflow-config 1/2 fail trước sửa; GREEN: workflow-config + year-plan-api 16/16 pass. Kiểm body có signers đúng dù cfg.signers cũ và giữ quyền/revision/creator TEACHER sau lưu. Không đổi contract, dependency hoặc dữ liệu người dùng.
+- Cổng full: node scripts/verify.mjs; bằng chứng cuối ở verify.log. Chưa chạy browser với backend thật cho lượt này.
+## Bảng cấu hình người tạo/người duyệt — 06/11/2026
+
+- Cấu hình hiển thị theo bảng: mỗi cột là loại hồ sơ, mỗi dòng là người tạo hoặc người duyệt; dùng đúng bộ class `table ga-plan-table ga-goal-table ga-sortable-table` và khoảng đệm `ga-goal-table__pad` của phần 3, cột nhãn dùng `cell--fixed`. Đã bỏ các rule màu/viền bảng và kích thước tay nắm riêng. Không thêm chú thích dưới tiêu đề mục 2. Bổ sung th.cell--fixed vào rule nền cố định khi hover để ô nhãn màu xám không đổi màu khi rê chuột.
+- Sửa prop policy để truyền đúng dữ liệu vai trò thay vì giá trị boolean. Chế độ chỉnh sửa cho thêm/bỏ vai trò tạo và duyệt bằng các ô chọn; danh sách duyệt kéo thả theo mẫu dòng hoạt động tuần và hiển thị thứ tự dạng số. Nút Lưu đầu trang lưu cả workflow policy và phần cấu hình còn lại.
+- `npm run verify`: PASS; bộ giáo dục 207/207, lint không lỗi (1 warning cũ ở `ImportGoalFileModal.jsx`), Prettier/design/API check và build đạt. API có 1 warning cũ về pickup; build in cảnh báo deprecation và annotation ở kitchen mock.
+
 ## Workflow người soạn/người duyệt — 06/11/2026
 
 - Nguồn: BE specs/011-plan-creator-reviewer, T062/T071; user cho phép sửa education FE. Policy GET/PUT tách config, expected revision, canConfigure/creation scopes và permissions server; queue hỗ trợ capability, review không author lease. Member/root versions bắt buộc, -1 create, reload hồ sơ sau ghi tuần/điều chỉnh; bản in tách CREATOR và giữ tên snapshot.
@@ -235,3 +246,4 @@ Làn L:            ghi đủ vào Progress log của plan; chat chỉ tóm tắt
 - Regression: `node --import ./scripts/register-auth-test-loader.mjs --test tests/education-plan/goal-list-status.test.mjs`: RED 0/2 → GREEN 2/2. Bao phủ V1/V2 đã ban hành cùng V3 đang sửa, current=false khi thiếu bản hiện hành trong danh sách, current=true, khác nhóm tuổi/năm; số phiên bản hiển thị cả V1.
 - Bổ sung sau góp ý màu/mã và ảnh bảng chi tiết: regression màu/mã RED 1/2 → GREEN 2/2; thêm kiểm bảng chi tiết, tổng GREEN 3/3. Dùng class text-xs/text-primary của design system, liên kết mở bản khác chuyển từ cột mã sang số phiên bản; VersionBadge bỏ logic/tone cũ.
 - Cổng cuối: chạy `node scripts/verify.mjs` và `node scripts/check-ai-layer.mjs`; kết quả thực tế trong output lượt bàn giao và verify.log. Chưa kiểm giao diện trình duyệt hoặc E2E với BE thật. Không sửa BE/APP, không commit/push.
+`n- 06/11: sửa EduConfigPage đồng bộ draft và clean baseline theo cùng response sau Lưu; không ghi đè thao tác phát sinh trong lúc request đang chạy. Cổng kiểm tra sau source: node scripts/verify.mjs, log verify.log. Chưa kiểm browser thật cho delta này.

@@ -638,7 +638,7 @@
 /* Dòng lĩnh vực con (1., 2.…) trong bảng mục tiêu: dải vàng chói như bút highlight của Word, trải hết hàng,
    cao vừa dòng chữ, chữ đen đậm. Hệ thống chưa có token vàng này nên khai báo biến riêng cho module (Tiền chọn màu 14/10). */
 .ga-goal-table {
-  --ga-highlight: #ffff00;
+  --ga-highlight: var(--surface) f00;
 }
 .ga-goal-table__subname {
   display: flex;
@@ -678,6 +678,7 @@
 }
 /* Ô cố định (class chung .cell--fixed): bảng mục tiêu tự đặt nền trắng ở selector mạnh hơn nên nhắc lại nền xám (Tiền duyệt 14/10) */
 .table.ga-goal-table th.cell--fixed,
+.table.ga-goal-table tbody tr:hover th.cell--fixed,
 .table.ga-goal-table tbody tr td.cell--fixed,
 .table.ga-goal-table tbody tr:hover td.cell--fixed,
 .table.ga-goal-table tbody tr:nth-child(even) td.cell--fixed,
@@ -1989,4 +1990,35 @@ h2.ga-cur-domain__head {
 }
 .ga-date-sug-all {
   margin: 0;
+}
+
+/* Chỉ đặt độ rộng cột nhãn; màu, viền và khoảng đệm dùng chung với bảng hoạt động tuần. */
+.ga-workflow-row-heading {
+  width: 220px;
+  min-width: 220px;
+}
+.ga-workflow-cell,
+.ga-workflow-roles {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 180px;
+}
+.ga-workflow-role-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+}
+.ga-workflow-role-name {
+  flex: 1;
+}
+.ga-workflow-reviewer-order {
+  min-width: 1.4em;
+  font-weight: var(--fw-semibold);
+}
+.ga-workflow-add .select {
+  width: 100%;
+  min-width: 180px;
+  border-color: var(--color-border-strong, var(--border));
+  background-color: var(--surface);
 }

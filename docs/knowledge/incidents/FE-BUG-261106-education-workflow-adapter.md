@@ -39,3 +39,11 @@ Chỉ education Web; source contract: `BE:specs/011-plan-creator-reviewer/contra
 
 ## Lesson
 Không dùng quyền phiên soạn cho review. Expected version phải lấy từ baseline người dùng đã xem và được truyền xuyên facade/hook, không suy từ status đích.
+
+## Bổ sung 06/11 — Lưu cả trang báo lỗi sau khi policy đã lưu
+
+- Tái hiện: Hiệu trưởng đổi người tạo chủ đề nhánh sang Giáo viên rồi bấm Lưu cả trang; UI báo chưa lưu được, Hủy bỏ vẫn thấy Giáo viên.
+- Nguyên nhân FE: PUT workflow-policy đã thành công, sau đó PUT config thiếu signers. EduConfigRequest yêu cầu @NotNull Signers nên request thứ hai bị chặn trước service. Hủy bỏ đọc lại cấu hình đã lưu nên vẫn thấy Giáo viên. Test cũ lại kỳ vọng signers bị bỏ khỏi body, che mất lệch contract này; lỗi lộ ra khi ghép hai bước vào một nút Lưu.
+- Sửa hẹp: adapter gửi signers bắt buộc theo reviewers của policy hiện tại (year/branch/theme → year/branch/week); fallback cfg.signers cho caller cấu hình cũ. Không gửi signers cũ sau khi vừa đổi chuỗi duyệt.
+- Attempts: regression workflow-config trước sửa 1 pass / 1 fail tại body.signers; sau sửa workflow-config và year-plan-api 16/16 pass. Kiểm cả trường hợp signers cũ khác policy vừa lưu và giữ TEACHER/canConfigure/revision sau lưu.
+- Phạm vi: chỉ education Web; không thay contract BE/APP, không hoàn tác cấu hình đã lưu trên server. Lỗi mạng giữa hai API vẫn phải hiển thị trạng thái lỗi, không coi Hủy bỏ là hoàn tác thao tác đã ghi.`n- Bổ sung dirty sau lưu: saver dùng response làm mốc sạch nhưng draft giữ signers/metadata cũ. EduConfigPage đồng bộ draft bằng cùng savedDoc khi người dùng chưa sửa thêm trong lúc lưu; giữ chỉnh sửa mới nếu có. Cổng cuối verify.log.

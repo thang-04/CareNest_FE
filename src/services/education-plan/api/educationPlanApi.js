@@ -244,6 +244,14 @@ export const educationPlanApi = {
     const saved = await axiosClient.put('/education-plans/config', {
       domainLabels: cfg.domainLabels || {},
       extraDomains: cfg.extraDomains || [],
+      // API cấu hình vẫn bắt buộc ô ký; lấy từ policy vừa lưu để khớp projection trên server.
+      signers: cfg.workflowPolicy
+        ? {
+            year: cfg.workflowPolicy.year.reviewers,
+            branch: cfg.workflowPolicy.branch.reviewers,
+            week: cfg.workflowPolicy.theme.reviewers,
+          }
+        : cfg.signers,
       weekRows: cfg.weekRows,
     });
     configCache = Promise.resolve(saved);

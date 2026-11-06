@@ -18,7 +18,11 @@ test('real adapter reads nested policy, saves expected revision separately and r
         workflow = { ...workflow, revision: 8 };
         return response(config, workflow);
       }
-      assert.equal(body.signers, undefined);
+      assert.deepEqual(body.signers, {
+        year: policies.year.reviewers,
+        branch: policies.branch.reviewers,
+        week: policies.theme.reviewers,
+      });
       assert.equal(body.workflow, undefined);
       assert.equal(body.workflowPolicy, undefined);
     }
@@ -30,7 +34,10 @@ test('real adapter reads nested policy, saves expected revision separately and r
   assert.equal(config.workflowRevision, 7);
   const saved = await educationPlanApi.saveWorkflowPolicy(config);
   assert.equal(saved.workflowRevision, 8);
-  await educationPlanApi.saveEduConfig(saved);
+  const configSaved = await educationPlanApi.saveEduConfig({ ...saved, signers: { year: [], branch: [], week: [] } });
+  assert.deepEqual(configSaved.workflowPolicy.branch.creators, ['TEACHER']);
+  assert.equal(configSaved.canConfigure, true);
+  assert.equal(configSaved.workflowRevision, 8);
   const reloaded = await educationPlanApi.getEduConfig();
   assert.equal(reloaded.workflowRevision, 8);
   assert.deepEqual(reloaded.workflowPolicy, policies);
