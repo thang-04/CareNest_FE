@@ -3,9 +3,17 @@ import { test } from 'node:test';
 
 globalThis.window = new EventTarget();
 
-const { applyTemplateDay, dayBlockItemCount, itemsBySession, toTemplateRequest, toStatisticsItems } = await import(
-  '@/utils/menu-planning/menuTemplateGrid'
-);
+const {
+  applyTemplateDay,
+  dayBlockItemCount,
+  dayCounts,
+  dayItems,
+  hasTemplateDays,
+  itemsBySession,
+  templateItemsForDate,
+  toTemplateRequest,
+  toStatisticsItems,
+} = await import('@/utils/menu-planning/menuTemplateGrid');
 const { createMenuTemplateApi } = await import('@/services/menuTemplateApi');
 
 const template = {
@@ -50,6 +58,55 @@ test('mẫu ngày: gom theo bữa, body lưu và body thống kê chỉ mang b�
     ],
   });
   assert.deepEqual(toStatisticsItems(template.items)[1], { session: 'AFTERNOON', dishId: 20 });
+});
+
+test('bộ 4 tuần: lọc món theo ngày, body lưu giữ weekNo + weekday của từng món', () => {
+  const items = [
+    { weekNo: 1, weekday: 1, session: 'LUNCH', dishId: '10' },
+    { weekNo: 1, weekday: 2, session: 'LUNCH', dishId: '11' },
+    { weekNo: 2, weekday: 1, session: 'LUNCH', dishId: '12' },
+  ];
+  assert.equal(hasTemplateDays(items), true);
+  assert.equal(hasTemplateDays(template.items), false);
+  assert.deepEqual(
+    dayItems(items, { weekNo: 1, weekday: 2 }).map((i) => i.dishId),
+    ['11'],
+  );
+  assert.equal(dayItems(template.items, null).length, template.items.length, 'không chọn ngày thì giữ nguyên');
+  assert.deepEqual(dayCounts(items), { '1-1': 1, '1-2': 1, '2-1': 1 });
+  assert.deepEqual(toTemplateRequest({ name: 'Bộ', block: 'NURSERY', items }).items[1], {
+    weekNo: 1,
+    weekday: 2,
+    session: 'LUNCH',
+    dishId: '11',
+  });
+});
+
+test('bộ 4 tuần: điền vào ngày kế hoạch lấy Tuần 1 cùng thứ, thứ chưa có món thì rỗng', () => {
+  const bo = {
+    block: 'KINDERGARTEN',
+    items: [
+      { weekNo: 1, weekday: 1, session: 'LUNCH', dishId: 10, dishName: 'A' },
+      { weekNo: 1, weekday: 2, session: 'LUNCH', dishId: 11, dishName: 'B' },
+      { weekNo: 2, weekday: 1, session: 'LUNCH', dishId: 12, dishName: 'C' },
+    ],
+  };
+  // 2026-11-16 là Thứ Hai, 2026-11-17 Thứ Ba, 2026-11-18 Thứ Tư
+  assert.deepEqual(
+    templateItemsForDate(bo, '2026-11-16').map((i) => i.dishId),
+    [10],
+  );
+  assert.deepEqual(
+    templateItemsForDate(bo, '2026-11-17').map((i) => i.dishId),
+    [11],
+  );
+  assert.deepEqual(templateItemsForDate(bo, '2026-11-18'), []);
+  assert.equal(templateItemsForDate(template, '2026-11-16').length, template.items.length, 'mẫu một ngày giữ nguyên');
+  const plan = { days: [{ date: '2026-11-17', off: false, items: [] }] };
+  assert.deepEqual(
+    applyTemplateDay(plan, '2026-11-17', bo).days[0].items.map((i) => i.dishId),
+    ['11'],
+  );
 });
 
 test('API bộ mẫu: tạo POST, sửa PUT, ngừng dùng PATCH status, lọc bỏ tham số trống', async () => {

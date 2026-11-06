@@ -88,17 +88,7 @@ export const RECORD_STATUS_LABELS = { ACTIVE: 'Đang sử dụng', INACTIVE: 'Ng
 export const DISH_STATUS = { DRAFT: 'DRAFT', ...RECORD_STATUS };
 export const DISH_STATUS_LABELS = { DRAFT: 'Nháp', ...RECORD_STATUS_LABELS };
 
-export const FOOD_GROUP_LABELS = {
-  GRAIN: 'Lương thực',
-  MEAT: 'Thịt',
-  SEAFOOD: 'Thủy hải sản',
-  EGG_DAIRY: 'Trứng, sữa',
-  LEGUME: 'Đậu, hạt',
-  VEGETABLE: 'Rau, củ',
-  FRUIT: 'Trái cây',
-  FAT_SUGAR: 'Dầu, đường',
-  OTHER: 'Khác',
-};
+export { FOOD_GROUP_LABELS } from '@/models/foodGroups';
 
 /** Nguồn gốc thực phẩm: đạm, béo của thực phẩm tính vào phần động vật hay thực vật. */
 export const FOOD_ORIGIN = { ANIMAL: 'ANIMAL', PLANT: 'PLANT' };

@@ -8,6 +8,10 @@
   margin-bottom: var(--space-4);
 }
 
+/* Lưới thực đơn bếp nhận dùng lớp td-week của thực đơn tuần; bỏ chiều rộng tối thiểu của lưới 5 ngày */
+.td-week.kr-menu {
+  min-width: 0;
+}
 .kr-table th,
 .kr-table td {
   vertical-align: top;

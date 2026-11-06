@@ -130,7 +130,8 @@ export default function FoodDetailPage() {
       />
       <div className="tab-panel">
         {tab === 'info' && (
-          <div className="td-split-aside td-split-aside--nutrients">
+          // Hai thẻ xếp dọc, thành phần dinh dưỡng chiếm cả bề ngang để 3 nhóm chất xếp cạnh nhau
+          <div className="td-sections">
             <section className="card">
               <div className="card__header">
                 <h2 className="card__title">Thông tin chung</h2>

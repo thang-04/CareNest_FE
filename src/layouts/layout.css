@@ -192,9 +192,15 @@
 }
 .nav-item__label {
   flex: 1;
+  /* min-width: 0 để nhãn dài co lại (cắt …) thay vì đẩy mũi tên ra khỏi nút */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .nav-item__chev {
+  flex: none;
+  margin-left: auto;
   color: var(--color-text-disabled);
   width: 14px;
   height: 14px;

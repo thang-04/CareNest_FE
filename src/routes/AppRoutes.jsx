@@ -168,14 +168,13 @@ const MenuTemplateEditorPage = lazyPage(() => import('@/pages/menu-planning/Menu
 const MenuStatisticsPage = lazyPage(() => import('@/pages/menu-planning/MenuStatisticsPage'));
 const MenuPlanListPage = lazyPage(() => import('@/pages/menu-planning/MenuPlanListPage'));
 const MenuPlanDetailPage = lazyPage(() => import('@/pages/menu-planning/MenuPlanDetailPage'));
-const VP_ONLY = [ROLES.VICE_PRINCIPAL];
 const R = ROLES;
 const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
 const LEADERS = [R.PRINCIPAL, R.VICE_PRINCIPAL];
 // Danh mục bán trú: HT, PHT đều xem; nút sửa theo NUTRITION_MANAGE khi dùng BE (BE vẫn kiểm). Form bản demo giữ phân quyền cũ.
 const CATALOG_API = !isDemoModule('nutrition-catalog');
 const CATALOG_READERS = LEADERS;
-const CATALOG_EDITORS = CATALOG_API ? LEADERS : VP_ONLY;
+const CATALOG_EDITORS = LEADERS;
 const SUPPLIER_EDITORS = CATALOG_API ? LEADERS : [R.PRINCIPAL];
 // Bán trú nối BE (hub, kế hoạch tuần, kho khô): build mock (VITE_USE_MOCK mặc định) giữ màn demo cũ, không có mock cho contract mới.
 const BOARDING_API = !isDemoModule('day-board');
@@ -184,7 +183,7 @@ const TEMPLATE_API = !isDemoModule('menu-template');
 const DRY_STOCK_API = !isDemoModule('dry-stock');
 const FRESH_GOODS_API = !isDemoModule('fresh-goods');
 const KITCHEN_RECORDS_API = !isDemoModule('kitchen-records');
-const STOCK_RECEIPT_ROLES = DRY_STOCK_API ? LEADERS : VP_ONLY;
+const STOCK_RECEIPT_ROLES = LEADERS;
 const DENIED = 'Chức năng này không thuộc quyền của vai trò hiện tại (theo ma trận phân quyền của hệ thống).';
 
 /** Trang hồ sơ chủ đề đã bỏ (Tiền 04/11): link cũ .../review mở trang kế hoạch chủ đề. */
@@ -353,7 +352,7 @@ export function AppRoutes() {
             <Route path="today" element={only(LEADERS, BOARDING_API ? <BoardingTodayPage /> : <KitchenFlowPage />)} />
           </Route>
           <Route path="menu">
-            <Route path="flow" element={BOARDING_API ? <Navigate to="/boarding/today" replace /> : only(VP_ONLY, <NutritionFlowPage />)} />
+            <Route path="flow" element={BOARDING_API ? <Navigate to="/boarding/today" replace /> : only(LEADERS, <NutritionFlowPage />)} />
             <Route path="setup" element={only(LEADERS, <NutritionSetupPage />)} />
             <Route path="foods" element={only(CATALOG_READERS, <FoodListPage />)} />
             <Route path="foods/new" element={only(CATALOG_EDITORS, <FoodFormPage />)} />
@@ -384,26 +383,27 @@ export function AppRoutes() {
               path="statistics"
               element={MEAL_PLAN_API ? only(LEADERS, <MenuStatisticsPage />) : <Navigate to="/menu/weekly" replace />}
             />
-            <Route path="menus" element={TEMPLATE_API ? <Navigate to="/menu/templates" replace /> : only(VP_ONLY, <MenuListPage />)} />
-            <Route path="menus/new" element={only(VP_ONLY, <MenuFormPage />)} />
-            <Route path="menus/:id" element={only(VP_ONLY, <MenuDetailPage />)} />
-            <Route path="menus/:id/edit" element={only(VP_ONLY, <MenuFormPage />)} />
-            <Route path="allergy-menus" element={only(VP_ONLY, <AllergyMenuListPage />)} />
-            <Route path="allergy-menus/new" element={only(VP_ONLY, <AllergyMenuFormPage />)} />
-            <Route path="allergy-menus/:id" element={only(VP_ONLY, <AllergyMenuDetailPage />)} />
-            <Route path="allergy-menus/:id/edit" element={only(VP_ONLY, <AllergyMenuFormPage />)} />
-            <Route path="ai-suggestion" element={only(VP_ONLY, <AiMenuSuggestionPage />)} />
+            {/* Hiệu trưởng và Phó hiệu trưởng thao tác bán trú trong bản demo; BE vẫn kiểm quyền khi nối API. */}
+            <Route path="menus" element={TEMPLATE_API ? <Navigate to="/menu/templates" replace /> : only(LEADERS, <MenuListPage />)} />
+            <Route path="menus/new" element={only(LEADERS, <MenuFormPage />)} />
+            <Route path="menus/:id" element={only(LEADERS, <MenuDetailPage />)} />
+            <Route path="menus/:id/edit" element={only(LEADERS, <MenuFormPage />)} />
+            <Route path="allergy-menus" element={only(LEADERS, <AllergyMenuListPage />)} />
+            <Route path="allergy-menus/new" element={only(LEADERS, <AllergyMenuFormPage />)} />
+            <Route path="allergy-menus/:id" element={only(LEADERS, <AllergyMenuDetailPage />)} />
+            <Route path="allergy-menus/:id/edit" element={only(LEADERS, <AllergyMenuFormPage />)} />
+            <Route path="ai-suggestion" element={only(LEADERS, <AiMenuSuggestionPage />)} />
             <Route path="weekly" element={only(LEADERS, MEAL_PLAN_API ? <WeeklyPlanPage /> : <WeeklyMenuListPage />)} />
             <Route
               path="weekly/new"
-              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only(VP_ONLY, <WeeklyMenuFormPage />)}
+              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only(LEADERS, <WeeklyMenuFormPage />)}
             />
-            <Route path="weekly/:id" element={only(VP_ONLY, <WeeklyMenuDetailPage />)} />
+            <Route path="weekly/:id" element={only(LEADERS, <WeeklyMenuDetailPage />)} />
             <Route
               path="weekly/:id/edit"
-              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only(VP_ONLY, <WeeklyMenuFormPage />)}
+              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only(LEADERS, <WeeklyMenuFormPage />)}
             />
-            <Route path="nutrition" element={only(VP_ONLY, <NutritionBalancePage />)} />
+            <Route path="nutrition" element={only(LEADERS, <NutritionBalancePage />)} />
             <Route
               path="plans"
               element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only([R.PRINCIPAL], <MenuPlanListPage />)}
@@ -445,8 +445,8 @@ export function AppRoutes() {
             <Route path="suppliers/:id/edit" element={<SupplierRedirect suffix="/edit" />} />
             <Route path="published-menu" element={only(LEADERS, KITCHEN_RECORDS_API ? <KitchenTodayPage /> : <PublishedMenuPage />)} />
             <Route path="meal-count" element={only(LEADERS, <ConfirmedMealCountPage />)} />
-            <Route path="required-quantity" element={only(VP_ONLY, <RequiredFoodQuantityPage />)} />
-            <Route path="missing-food" element={only(VP_ONLY, <MissingFoodReportPage />)} />
+            <Route path="required-quantity" element={only(LEADERS, <RequiredFoodQuantityPage />)} />
+            <Route path="missing-food" element={only(LEADERS, <MissingFoodReportPage />)} />
           </Route>
           <Route path="assessment">
             <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
