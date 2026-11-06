@@ -1,5 +1,10 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## FE-BUG-261106-xlsx-writer-merge — 06/11/2026
+
+- Trên `dev` sau pull: hai test `growth-report-sheet.test.mjs` fail vì `exportXlsx` chỉ nhận mảng dòng; test XLSX cũ vẫn pass. Dùng lại writer từ `9d299ad` làm test tăng trưởng pass nhưng test cũ fail; nhánh tương thích cho mảng dòng làm cả 7/7 test liên quan pass.
+- `node scripts/verify.mjs`: `VERIFY PASS full` sau sửa source. Chưa kiểm bằng trình duyệt hoặc BE thật; chi tiết trong [incident](../knowledge/incidents/FE-BUG-261106-xlsx-writer-merge.md).
+
 ## G94-191 — chuyển thay đổi bán trú/dinh dưỡng sang nhánh tính năng, 06/11/2026
 
 - Nền `origin/dev` (`6a0554c`) trước khi chuyển diff: `node scripts/verify.mjs` thất bại ở 2 ca của `tests/health/growth-report-sheet.test.mjs` (dòng 158, 174: `rows.map is not a function`, `undefined is not a function`); đây là lỗi có sẵn, ngoài phần bán trú.

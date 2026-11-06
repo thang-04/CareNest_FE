@@ -1,154 +1,307 @@
 import { downloadBlob } from './file';
 
 /*
- * Xuất .xlsx không cần thư viện: gói OOXML tối thiểu (1 sheet, chữ inline, số là số) trong file zip không nén.
- * Ô chữ ghi dạng inlineStr nên Excel không chạy công thức trong dữ liệu (=, +, -, @).
+ * Writer .xlsx tối giản, không thêm thư viện (package chỉ có read-excel-file, chỉ đọc): 1 sheet, chuỗi inline, số, ô gộp, độ rộng
+ * cột, chiều cao dòng, cố định dòng/cột, một bộ kiểu ô cố định, in ngang vừa khổ A4. ZIP lưu không nén (method 0) + CRC32.
+ *
+ * sheet = {
+ *   name,                                   // tên sheet (≤ 31 ký tự, bỏ ký tự cấm)
+ *   rows: [[cell]],                         // cell: null | string | number | { v, s } — s là khóa của XLSX_STYLES
+ *   merges: [{ row, col, rowSpan, colSpan }], // chỉ số 0
+ *   cols: [width],                          // độ rộng theo ký tự
+ *   rowHeights: { [rowIndex]: points },
+ *   freeze: { rows, cols },
+ * }
+ * Ô bị gộp (trừ ô đầu) tự nhận kiểu của ô đầu để Excel vẽ đủ viền.
  */
-const enc = new TextEncoder();
 
-const CRC_TABLE = (() => {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n += 1) {
-    let c = n;
-    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    t[n] = c >>> 0;
-  }
-  return t;
-})();
-const crc32 = (bytes) => {
-  let c = 0xffffffff;
-  for (let i = 0; i < bytes.length; i += 1) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
+const FONT = { normal: 0, bold: 1, title: 2, italic: 3, warn: 4, boldWarn: 5, band: 6 };
+const FILL = { none: 0, head: 2, total: 3, band: 4 };
+const BORDER = { none: 0, thin: 1 };
+const PCT_FMT = 164;
+
+// [font, fill, border, numFmt, horizontal, wrap]
+const XF = {
+  default: [FONT.normal, FILL.none, BORDER.none, 0, null, false],
+  title: [FONT.title, FILL.none, BORDER.none, 0, null, false],
+  subtitle: [FONT.normal, FILL.none, BORDER.none, 0, null, false],
+  head: [FONT.bold, FILL.head, BORDER.thin, 0, 'center', true],
+  cell: [FONT.normal, FILL.none, BORDER.thin, 0, null, false],
+  num: [FONT.normal, FILL.none, BORDER.thin, 0, 'center', false],
+  pct: [FONT.normal, FILL.none, BORDER.thin, PCT_FMT, 'center', false],
+  warnNum: [FONT.warn, FILL.none, BORDER.thin, 0, 'center', false],
+  band: [FONT.band, FILL.band, BORDER.thin, 0, null, false],
+  totalCell: [FONT.bold, FILL.total, BORDER.thin, 0, null, false],
+  totalNum: [FONT.bold, FILL.total, BORDER.thin, 0, 'center', false],
+  totalPct: [FONT.bold, FILL.total, BORDER.thin, PCT_FMT, 'center', false],
+  totalWarnNum: [FONT.boldWarn, FILL.total, BORDER.thin, 0, 'center', false],
+  note: [FONT.italic, FILL.none, BORDER.none, 0, null, true],
 };
 
-// Zip "stored" (không nén): đủ cho file xuất vài trăm dòng
-const zip = (files) => {
-  const parts = [];
-  const central = [];
-  let offset = 0;
-  for (const { name, data } of files) {
-    const nameBytes = enc.encode(name);
-    const crc = crc32(data);
-    const local = new DataView(new ArrayBuffer(30));
-    local.setUint32(0, 0x04034b50, true);
-    local.setUint16(4, 20, true);
-    local.setUint16(6, 0x0800, true); // tên file UTF-8
-    local.setUint32(14, crc, true);
-    local.setUint32(18, data.length, true);
-    local.setUint32(22, data.length, true);
-    local.setUint16(26, nameBytes.length, true);
-    parts.push(new Uint8Array(local.buffer), nameBytes, data);
-    const cd = new DataView(new ArrayBuffer(46));
-    cd.setUint32(0, 0x02014b50, true);
-    cd.setUint16(4, 20, true);
-    cd.setUint16(6, 20, true);
-    cd.setUint16(8, 0x0800, true);
-    cd.setUint32(16, crc, true);
-    cd.setUint32(20, data.length, true);
-    cd.setUint32(24, data.length, true);
-    cd.setUint16(28, nameBytes.length, true);
-    cd.setUint32(42, offset, true);
-    central.push(new Uint8Array(cd.buffer), nameBytes);
-    offset += 30 + nameBytes.length + data.length;
-  }
-  const size = central.reduce((s, b) => s + b.length, 0);
-  const end = new DataView(new ArrayBuffer(22));
-  end.setUint32(0, 0x06054b50, true);
-  end.setUint16(8, files.length, true);
-  end.setUint16(10, files.length, true);
-  end.setUint32(12, size, true);
-  end.setUint32(16, offset, true);
-  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+/** Kiểu ô dùng được trong sheet.rows ({ v, s }). pct: số hiển thị 1 chữ số thập phân (Excel đổi dấu thập phân theo máy). */
+export const XLSX_STYLES = Object.freeze(Object.keys(XF));
+const XF_INDEX = Object.fromEntries(XLSX_STYLES.map((k, i) => [k, i]));
+
+const STYLES_XML = (() => {
+  const font = (attrs) => `<font>${attrs}<sz val="11"/><name val="Times New Roman"/><family val="1"/></font>`;
+  const fonts = [
+    font(''),
+    font('<b/>'),
+    font('<b/>').replace('<sz val="11"/>', '<sz val="13"/>'),
+    font('<i/>').replace('<sz val="11"/>', '<sz val="10"/>'),
+    font('<color rgb="FFB45309"/>'),
+    font('<b/><color rgb="FFB45309"/>'),
+    font('<b/><color rgb="FFFFFFFF"/>'),
+  ];
+  const solid = (rgb) => `<fill><patternFill patternType="solid"><fgColor rgb="${rgb}"/><bgColor indexed="64"/></patternFill></fill>`;
+  const fills = [
+    '<fill><patternFill patternType="none"/></fill>',
+    '<fill><patternFill patternType="gray125"/></fill>',
+    solid('FFF1F5F9'),
+    solid('FFE8F0FE'),
+    solid('FF1E3A8A'),
+  ];
+  const side = (tag) => `<${tag} style="thin"><color rgb="FF94A3B8"/></${tag}>`;
+  const borders = [
+    '<border><left/><right/><top/><bottom/><diagonal/></border>',
+    `<border>${side('left')}${side('right')}${side('top')}${side('bottom')}<diagonal/></border>`,
+  ];
+  const xfs = Object.values(XF).map(([fontId, fillId, borderId, numFmtId, horizontal, wrap]) => {
+    const align = `<alignment vertical="center"${horizontal ? ` horizontal="${horizontal}"` : ''}${wrap ? ' wrapText="1"' : ''}/>`;
+    return (
+      `<xf numFmtId="${numFmtId}" fontId="${fontId}" fillId="${fillId}" borderId="${borderId}" xfId="0"` +
+      `${numFmtId ? ' applyNumberFormat="1"' : ''} applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">${align}</xf>`
+    );
   });
-};
+  return (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    `<numFmts count="1"><numFmt numFmtId="${PCT_FMT}" formatCode="0.0"/></numFmts>` +
+    `<fonts count="${fonts.length}">${fonts.join('')}</fonts>` +
+    `<fills count="${fills.length}">${fills.join('')}</fills>` +
+    `<borders count="${borders.length}">${borders.join('')}</borders>` +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    `<cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs>` +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    '</styleSheet>'
+  );
+})();
 
-const xml = (s) =>
-  String(s)
+const NS_MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+const NS_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const NS_PKG_REL = 'http://schemas.openxmlformats.org/package/2006/relationships';
+const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+
+const escapeXml = (text) =>
+  String(text)
     // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-const colName = (i) => {
-  let n = i + 1;
-  let s = '';
+/** Chữ cột Excel của chỉ số 0: 0 ⇒ A, 25 ⇒ Z, 26 ⇒ AA. */
+export const columnName = (index) => {
+  let n = index + 1;
+  let name = '';
   while (n > 0) {
-    const m = (n - 1) % 26;
-    s = String.fromCharCode(65 + m) + s;
+    const rem = (n - 1) % 26;
+    name = String.fromCharCode(65 + rem) + name;
     n = Math.floor((n - 1) / 26);
   }
-  return s;
+  return name;
+};
+const ref = (row, col) => `${columnName(col)}${row + 1}`;
+
+const safeSheetName = (name) =>
+  String(name || 'Sheet1')
+    .replace(/[[\]:*?/\\]/g, ' ')
+    .slice(0, 31) || 'Sheet1';
+
+const cellOf = (raw) => (raw != null && typeof raw === 'object' ? raw : { v: raw });
+
+const cellXml = (row, col, raw) => {
+  const { v, s } = cellOf(raw);
+  const style = s && XF_INDEX[s] ? ` s="${XF_INDEX[s]}"` : '';
+  if (typeof v === 'number' && Number.isFinite(v)) return `<c r="${ref(row, col)}"${style}><v>${v}</v></c>`;
+  if (v == null || v === '') return style ? `<c r="${ref(row, col)}"${style}/>` : '';
+  return `<c r="${ref(row, col)}"${style} t="inlineStr"><is><t xml:space="preserve">${escapeXml(v)}</t></is></c>`;
 };
 
-/** rows (mảng các mảng giá trị) -> nội dung xl/worksheets/sheet1.xml; dòng `headerRow` in đậm. */
-export const sheetXml = (rows, headerRow = -1) => {
-  const width = Math.max(1, ...rows.map((r) => r.length));
-  const widths = Array.from({ length: width }, (_, c) => Math.min(60, Math.max(8, ...rows.map((r) => String(r[c] ?? '').length + 2))));
-  const cols = widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('');
-  const body = rows
-    .map((r, ri) => {
-      const style = ri === headerRow ? ' s="1"' : '';
-      const cells = r
-        .map((v, ci) => {
-          if (v == null || v === '') return '';
-          const ref = `${colName(ci)}${ri + 1}`;
-          if (typeof v === 'number' && Number.isFinite(v)) return `<c r="${ref}"${style}><v>${v}</v></c>`;
-          return `<c r="${ref}" t="inlineStr"${style}><is><t xml:space="preserve">${xml(v)}</t></is></c>`;
-        })
-        .join('');
-      return `<row r="${ri + 1}">${cells}</row>`;
+/** Ô bị gộp nhận kiểu của ô đầu (viền của vùng gộp vẽ theo từng ô). */
+const withMergedStyles = (rows, merges) => {
+  const grid = rows.map((r) => [...r]);
+  merges.forEach(({ row, col, rowSpan = 1, colSpan = 1 }) => {
+    const { s } = cellOf(grid[row]?.[col]);
+    if (!s) return;
+    for (let r = row; r < row + rowSpan; r += 1)
+      for (let c = col; c < col + colSpan; c += 1) {
+        if (r === row && c === col) continue;
+        grid[r] = grid[r] || [];
+        if (grid[r][c] == null) grid[r][c] = { v: null, s };
+      }
+  });
+  return grid;
+};
+
+const legacySheet = (rows, { sheetName = 'Sheet1', headerRow = -1 } = {}) => {
+  const width = Math.max(1, ...rows.map((row) => row.length));
+  const cols = Array.from({ length: width }, (_, col) =>
+    Math.min(60, Math.max(8, ...rows.map((row) => String(row[col] ?? '').length + 2))),
+  );
+  return {
+    name: sheetName,
+    rows: rows.map((row, index) => (index === headerRow ? row.map((value) => ({ v: value, s: 'head' })) : row)),
+    cols,
+  };
+};
+
+export const sheetXml = (input, headerRow = -1) => {
+  const { rows = [], merges = [], cols = [], rowHeights = {}, freeze } = Array.isArray(input) ? legacySheet(input, { headerRow }) : input;
+  const grid = withMergedStyles(rows, merges);
+  const freezeRows = freeze?.rows || 0;
+  const freezeCols = freeze?.cols || 0;
+  const pane =
+    freezeRows || freezeCols
+      ? `<pane${freezeCols ? ` xSplit="${freezeCols}"` : ''}${freezeRows ? ` ySplit="${freezeRows}"` : ''} topLeftCell="${ref(freezeRows, freezeCols)}" activePane="${
+          freezeRows && freezeCols ? 'bottomRight' : freezeRows ? 'bottomLeft' : 'topRight'
+        }" state="frozen"/>`
+      : '';
+  const colsXml = cols.length
+    ? `<cols>${cols.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>`
+    : '';
+  const rowsXml = grid
+    .map((cells, r) => {
+      const height = rowHeights[r] ? ` ht="${rowHeights[r]}" customHeight="1"` : '';
+      return `<row r="${r + 1}"${height}>${(cells || []).map((cell, c) => cellXml(r, c, cell)).join('')}</row>`;
     })
     .join('');
+  const mergeXml = merges.length
+    ? `<mergeCells count="${merges.length}">${merges
+        .map(({ row, col, rowSpan = 1, colSpan = 1 }) => `<mergeCell ref="${ref(row, col)}:${ref(row + rowSpan - 1, col + colSpan - 1)}"/>`)
+        .join('')}</mergeCells>`
+    : '';
   return (
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    `<cols>${cols}</cols><sheetData>${body}</sheetData></worksheet>`
+    `${XML_HEAD}<worksheet xmlns="${NS_MAIN}" xmlns:r="${NS_REL}">` +
+    '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' +
+    `<sheetViews><sheetView workbookViewId="0">${pane}</sheetView></sheetViews>` +
+    '<sheetFormatPr defaultRowHeight="15"/>' +
+    `${colsXml}<sheetData>${rowsXml}</sheetData>${mergeXml}` +
+    '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>' +
+    '<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>' +
+    '</worksheet>'
   );
 };
 
-/** Tạo Blob .xlsx một sheet. */
-export const buildXlsx = (rows, { sheetName = 'Sheet1', headerRow = -1 } = {}) => {
-  const name = xml(
-    String(sheetName)
-      .replace(/[\\/?*[\]:]/g, ' ')
-      .slice(0, 31) || 'Sheet1',
-  );
-  const files = {
-    '[Content_Types].xml':
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
-      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
-      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
-      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
-    '_rels/.rels':
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
-    'xl/workbook.xml':
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-      `<sheets><sheet name="${name}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
-    'xl/_rels/workbook.xml.rels':
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
-      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
-    'xl/styles.xml':
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
-      '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
-      '<borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs>' +
-      '<cellXfs count="2"><xf fontId="0"/><xf fontId="1" applyFont="1"/></cellXfs></styleSheet>',
-    'xl/worksheets/sheet1.xml': sheetXml(rows, headerRow),
+const packageFiles = (sheet) => ({
+  '[Content_Types].xml':
+    `${XML_HEAD}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    '</Types>',
+  '_rels/.rels': `${XML_HEAD}<Relationships xmlns="${NS_PKG_REL}"><Relationship Id="rId1" Type="${NS_REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+  'xl/workbook.xml':
+    `${XML_HEAD}<workbook xmlns="${NS_MAIN}" xmlns:r="${NS_REL}">` +
+    `<sheets><sheet name="${escapeXml(safeSheetName(sheet.name))}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+  'xl/_rels/workbook.xml.rels':
+    `${XML_HEAD}<Relationships xmlns="${NS_PKG_REL}">` +
+    `<Relationship Id="rId1" Type="${NS_REL}/worksheet" Target="worksheets/sheet1.xml"/>` +
+    `<Relationship Id="rId2" Type="${NS_REL}/styles" Target="styles.xml"/></Relationships>`,
+  'xl/styles.xml': STYLES_XML,
+  'xl/worksheets/sheet1.xml': sheetXml(sheet),
+});
+
+// --- ZIP (lưu không nén) ---
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+export const crc32 = (bytes) => {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i += 1) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+};
+
+const dosDateTime = (date) => ({
+  time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+  date: ((Math.max(date.getFullYear(), 1980) - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate(),
+});
+
+const zipStored = (files, now) => {
+  const encoder = new TextEncoder();
+  const { time, date } = dosDateTime(now);
+  const entries = Object.entries(files).map(([name, text]) => {
+    const nameBytes = encoder.encode(name);
+    const data = encoder.encode(text);
+    return { nameBytes, data, crc: crc32(data) };
+  });
+  const localSize = entries.reduce((n, e) => n + 30 + e.nameBytes.length + e.data.length, 0);
+  const centralSize = entries.reduce((n, e) => n + 46 + e.nameBytes.length, 0);
+  const out = new Uint8Array(localSize + centralSize + 22);
+  const view = new DataView(out.buffer);
+  let pos = 0;
+  const u16 = (v) => {
+    view.setUint16(pos, v, true);
+    pos += 2;
   };
-  return zip(Object.entries(files).map(([n, d]) => ({ name: n, data: enc.encode(d) })));
+  const u32 = (v) => {
+    view.setUint32(pos, v, true);
+    pos += 4;
+  };
+  const bytes = (b) => {
+    out.set(b, pos);
+    pos += b.length;
+  };
+  const offsets = entries.map((e) => {
+    const offset = pos;
+    // Local file header; cờ bit 11: tên UTF-8.
+    [0x04034b50].forEach(u32);
+    [20, 0x0800, 0, time, date].forEach(u16);
+    [e.crc, e.data.length, e.data.length].forEach(u32);
+    [e.nameBytes.length, 0].forEach(u16);
+    bytes(e.nameBytes);
+    bytes(e.data);
+    return offset;
+  });
+  const centralStart = pos;
+  entries.forEach((e, i) => {
+    [0x02014b50].forEach(u32);
+    [20, 20, 0x0800, 0, time, date].forEach(u16);
+    [e.crc, e.data.length, e.data.length].forEach(u32);
+    [e.nameBytes.length, 0, 0, 0, 0].forEach(u16);
+    [0, offsets[i]].forEach(u32);
+    bytes(e.nameBytes);
+  });
+  [0x06054b50].forEach(u32);
+  [0, 0, entries.length, entries.length].forEach(u16);
+  [pos - centralStart, centralStart].forEach(u32);
+  u16(0);
+  return out;
 };
 
-/**
- * Xuất dữ liệu bảng ra file .xlsx. `headerRow`: chỉ số dòng tiêu đề cột (in đậm); mặc định dòng 1 nếu dòng 0 là tiêu đề
- * báo cáo một ô, ngược lại dòng 0.
- */
-export const downloadXlsx = (rows, filename, { sheetName, headerRow } = {}) => {
-  const header = headerRow ?? (rows[0]?.length === 1 && rows.length > 1 ? 1 : 0);
-  downloadBlob(buildXlsx(rows, { sheetName, headerRow: header }), filename.replace(/\.csv$/i, '.xlsx'));
+/** Nội dung file .xlsx (Uint8Array) của một sheet. Hàm thuần (now chỉ là ngày giờ ghi trong ZIP). */
+export const buildXlsx = (sheet, options = {}) => {
+  const bytes = zipStored(packageFiles(Array.isArray(sheet) ? legacySheet(sheet, options) : sheet), options.now ?? new Date());
+  return Array.isArray(sheet) ? new Blob([bytes], { type: XLSX_MIME }) : bytes;
+};
+
+export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** Tải file .xlsx về máy. */
+export const downloadXlsx = (sheet, filename, options = {}) => {
+  const effectiveOptions = Array.isArray(sheet)
+    ? { ...options, headerRow: options.headerRow ?? (sheet[0]?.length === 1 && sheet.length > 1 ? 1 : 0) }
+    : options;
+  const result = buildXlsx(sheet, effectiveOptions);
+  downloadBlob(result instanceof Blob ? result : new Blob([result], { type: XLSX_MIME }), filename.replace(/\.csv$/i, '.xlsx'));
 };
