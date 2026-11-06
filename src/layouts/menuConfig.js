@@ -301,7 +301,7 @@ const ITEMS = {
     to: '/menu/dishes',
   },
   menus: {
-    label: 'Bộ thực đơn mẫu',
+    label: 'Mẫu thực đơn ngày',
     to: '/menu/menus',
   },
   weeklyMenus: {

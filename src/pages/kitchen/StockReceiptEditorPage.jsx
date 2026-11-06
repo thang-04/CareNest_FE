@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, PackagePlus, Plus, Save, Trash2, XCircle } from '@/components/ui/icons';
+import { ArrowLeft, Download, FileImport, PackagePlus, Plus, Save, Trash2, XCircle } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import {
   Breadcrumb,
@@ -18,6 +18,8 @@ import { useActiveSuppliers, useCanManageStock, useDryFoods, useReceipt, useStoc
 import { dryStockApi } from '@/services/dryStockApi';
 import { RECEIPT_STATUS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
 import { emptyLine, emptyReceiptForm, mapReceiptErrors, receiptToForm, validateReceiptForm } from '@/utils/kitchen/stockReceiptForm';
+import { RECEIPT_IMPORT_COLUMNS, readReceiptFile } from '@/utils/kitchen/stockReceiptImport';
+import { downloadCsv } from '@/utils/exportCsv';
 import { personName } from '@/utils/kitchen/stockLots';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { formatDate, formatDateTime, formatMoney, todayInput } from '@/utils/format';
@@ -51,6 +53,22 @@ export default function StockReceiptEditorPage() {
   const [dialog, setDialog] = useState(null); // 'confirm' | 'delete' | 'cancel'
   const [dialogError, setDialogError] = useState('');
   const [reason, setReason] = useState('');
+  const [importNote, setImportNote] = useState(null); // { added, problems[] }
+
+  // Nhập dòng từ Excel/CSV: thêm vào form nháp (bỏ dòng trống), người dùng xem lại rồi lưu
+  const importFile = async (file) => {
+    if (!file) return;
+    try {
+      const { lines, problems } = await readReceiptFile(file, Object.values(foodById));
+      setForm((f) => ({ ...f, lines: [...f.lines.filter((l) => l.foodId || l.purchaseQty || l.lotNo), ...lines] }));
+      setImportNote({ added: lines.length, problems });
+      if (lines.length) toast.success(`Đã thêm ${lines.length} dòng từ file. Xem lại rồi bấm Lưu nháp.`);
+    } catch (err) {
+      toast.error(err, 'Không đọc được file');
+    }
+  };
+  const downloadTemplate = () =>
+    downloadCsv([RECEIPT_IMPORT_COLUMNS, ['TP001', 'Gạo tẻ', '50', 'L2611-01', '30/06/2027', '18000']], 'phieu-nhap-kho-mau.csv');
 
   useEffect(() => {
     if (receipt) setForm(receiptToForm(receipt));
@@ -197,6 +215,35 @@ export default function StockReceiptEditorPage() {
     const err = (i, field) => errors[`lines.${i}.${field}`];
     content = (
       <>
+        <div className="page-actions page-actions--top">
+          <Link className="btn" to={listPath}>
+            <ArrowLeft size={16} /> Quay lại
+          </Link>
+          {editable && !isNew && (
+            <button type="button" className="btn btn--outline-danger" disabled={busy} onClick={() => openDialog('delete')}>
+              <Trash2 size={16} /> Xóa phiếu nháp
+            </button>
+          )}
+          {editable && (
+            // Tổng tiền, Lưu nháp và Xác nhận đứng chung một nhóm bên phải
+            <div className="kb-actions-main">
+              <span className="kb-actions-total">
+                Tổng tạm tính <b>{formatMoney(form.lines.reduce((sum, l) => sum + (estimate(l) || 0), 0))}</b>
+              </span>
+              <button type="button" className="btn" onClick={saveDraft} disabled={busy}>
+                {busy ? <Spinner small /> : <Save size={16} />} Lưu nháp
+              </button>
+              <button type="button" className="btn btn--primary" disabled={busy} onClick={() => openDialog('confirm')}>
+                <PackagePlus size={16} /> Xác nhận nhập kho
+              </button>
+            </div>
+          )}
+          {receipt?.status === RECEIPT_STATUS.CONFIRMED && receipt.canManage && (
+            <button type="button" className="btn btn--danger" onClick={() => openDialog('cancel')}>
+              <XCircle size={16} /> Hủy phiếu
+            </button>
+          )}
+        </div>
         {errors._form && (
           <div className="alert alert--danger mb-16" role="alert">
             {errors._form}
@@ -261,11 +308,44 @@ export default function StockReceiptEditorPage() {
             <div className="card__header row row--between">
               <div className="card__title">Thực phẩm nhập kho</div>
               {editable && (
-                <button type="button" className="btn btn--sm" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }))}>
-                  <Plus size={15} /> Thêm thực phẩm
-                </button>
+                <div className="row kb-line-actions">
+                  <button type="button" className="btn btn--sm btn--ghost" onClick={downloadTemplate}>
+                    <Download size={15} /> Tải file mẫu
+                  </button>
+                  <label className="btn btn--sm">
+                    <FileImport size={15} /> Nhập từ Excel
+                    <input
+                      type="file"
+                      accept=".xlsx,.csv"
+                      className="sr-only"
+                      onChange={(e) => {
+                        importFile(e.target.files?.[0]);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }))}
+                  >
+                    <Plus size={15} /> Thêm thực phẩm
+                  </button>
+                </div>
               )}
             </div>
+            {importNote?.problems.length > 0 && (
+              <div className="alert alert--warning kb-card-error">
+                <div>
+                  <b>Có {importNote.problems.length} dòng chưa nhập được</b>
+                  <ul className="kb-import-problems">
+                    {importNote.problems.slice(0, 8).map((p) => (
+                      <li key={p}>{p}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
             {errors.lines && <div className="field__error kb-card-error">{errors.lines}</div>}
             <div className="table-wrap">
               <table className="table table--grid">
@@ -287,11 +367,7 @@ export default function StockReceiptEditorPage() {
                       Đơn giá <span className="req">*</span>
                     </th>
                     <th className="money cell--fixed">{editable ? 'Thành tiền (tạm tính)' : 'Thành tiền'}</th>
-                    {editable && (
-                      <th className="center">
-                        <span className="sr-only">Xóa dòng</span>
-                      </th>
-                    )}
+                    {editable && <th className="cell--actions">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -360,7 +436,7 @@ export default function StockReceiptEditorPage() {
                         </td>
                         <td className="money nowrap fw-600 cell--fixed">{value == null ? '—' : formatMoney(value)}</td>
                         {editable && (
-                          <td className="center">
+                          <td className="cell--actions">
                             <button
                               type="button"
                               className="icon-btn"
@@ -395,32 +471,6 @@ export default function StockReceiptEditorPage() {
             )}
           </div>
         </fieldset>
-
-        <div className="page-actions">
-          <Link className="btn" to={listPath}>
-            <ArrowLeft size={16} /> Quay lại
-          </Link>
-          {editable && !isNew && (
-            <button type="button" className="btn btn--outline-danger" disabled={busy} onClick={() => openDialog('delete')}>
-              <Trash2 size={16} /> Xóa phiếu nháp
-            </button>
-          )}
-          {editable && (
-            <>
-              <button type="button" className="btn" onClick={saveDraft} disabled={busy}>
-                {busy ? <Spinner small /> : <Save size={16} />} Lưu nháp
-              </button>
-              <button type="button" className="btn btn--primary" disabled={busy} onClick={() => openDialog('confirm')}>
-                <PackagePlus size={16} /> Xác nhận nhập kho
-              </button>
-            </>
-          )}
-          {receipt?.status === RECEIPT_STATUS.CONFIRMED && receipt.canManage && (
-            <button type="button" className="btn btn--danger" onClick={() => openDialog('cancel')}>
-              <XCircle size={16} /> Hủy phiếu
-            </button>
-          )}
-        </div>
       </>
     );
   }

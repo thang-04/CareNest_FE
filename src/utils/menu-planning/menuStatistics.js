@@ -16,10 +16,7 @@ export function planDayItems(plan, date, ageGroupId) {
 }
 
 /** Món của bộ mẫu ở tuần `weekNo` (1–4), thứ `weekday` (1 = thứ Hai). */
-export const templateDayItems = (template, weekNo, weekday) =>
-  (template?.items || [])
-    .filter((i) => Number(i.weekNo) === Number(weekNo) && Number(i.weekday) === Number(weekday))
-    .map((i) => ({ session: i.session, dishId: Number(i.dishId) }));
+export const templateDayItems = (template) => (template?.items || []).map((i) => ({ session: i.session, dishId: Number(i.dishId) }));
 
 /** Lựa chọn nhóm tuổi theo id BE trả, tên lấy từ danh mục nhóm tuổi. */
 export const ageGroupOptions = (ids, ageGroups) =>

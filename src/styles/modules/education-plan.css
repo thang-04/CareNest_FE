@@ -1884,9 +1884,6 @@ h2.ga-cur-domain__head {
 .table.ga-change-table td {
   vertical-align: middle;
 }
-.ga-version-table__code {
-  width: calc(var(--space-16) * 2 + var(--space-12));
-}
 .ga-version-table__version {
   width: calc(var(--space-16) * 3 - var(--space-2));
 }

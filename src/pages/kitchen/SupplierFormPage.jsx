@@ -76,6 +76,14 @@ export default function SupplierFormPage() {
       <Breadcrumb items={crumbs} />
       <h1 className="page__title">{title}</h1>
       <form onSubmit={submit} noValidate>
+        <div className="page-actions page-actions--top">
+          <button type="button" className="btn" onClick={() => navigate(backTo)}>
+            <ArrowLeft size={16} /> Hủy
+          </button>
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            {busy ? <Spinner small /> : <Save size={16} />} Lưu nhà cung cấp
+          </button>
+        </div>
         <div className="card wizard-card">
           <div className="card__header">
             <div className="card__title">Thông tin nhà cung cấp</div>
@@ -156,14 +164,6 @@ export default function SupplierFormPage() {
               />
             </FormField>
           </div>
-        </div>
-        <div className="page-actions">
-          <button type="button" className="btn" onClick={() => navigate(backTo)}>
-            <ArrowLeft size={16} /> Hủy
-          </button>
-          <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? <Spinner small /> : <Save size={16} />} Lưu nhà cung cấp
-          </button>
         </div>
       </form>
     </div>

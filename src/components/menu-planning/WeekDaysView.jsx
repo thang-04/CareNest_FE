@@ -21,11 +21,7 @@ export function WeekDaysView({ wm, catalog, linkMenus = false, balanceLink = fal
             <th>Món ăn</th>
             <th className="num w-120">Năng lượng</th>
             <th className="td-w-170">Dinh dưỡng</th>
-            {balanceLink && (
-              <th className="cell--actions">
-                <span className="sr-only">Thao tác</span>
-              </th>
-            )}
+            {balanceLink && <th className="cell--actions">Thao tác</th>}
           </tr>
         </thead>
         <tbody>

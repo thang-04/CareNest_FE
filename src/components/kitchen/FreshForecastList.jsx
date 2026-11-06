@@ -68,9 +68,6 @@ export function FreshForecastList({ campus }) {
       <div className="page__head">
         <div>
           <h1 className="page__title">Bản dự trù hàng tươi</h1>
-          <p className="page__desc">
-            Lượng hàng tươi cần đặt theo kỳ, tính từ thực đơn và số trẻ dự kiến. Dùng làm căn cứ kiểm nhận lần 1.
-          </p>
         </div>
         {canManage && <div className="page__actions">{create}</div>}
       </div>

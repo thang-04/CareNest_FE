@@ -227,7 +227,6 @@ export default function WeeklyMenuPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Thực đơn tuần</h1>
-          <p className="page__desc">Mỗi ngày lấy từ một thực đơn mẫu, sửa thêm được.</p>
         </div>
       </div>
       {/* Chọn nhóm tuổi, tuần và nút thao tác ở hàng riêng để không chen vào hàng tiêu đề */}

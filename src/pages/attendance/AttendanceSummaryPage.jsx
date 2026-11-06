@@ -16,7 +16,7 @@ import { useAttendanceClasses, useAttendanceSummary, useAttendanceYear } from '@
 import { validateSummaryRange } from '@/utils/attendance/attendanceValidation';
 import { addDays } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { downloadWorkbookXlsx } from '@/utils/exportXlsx';
+import { exportWithPreviewWorkbook } from '@/components/ui/ExportPreview';
 import { formatDate, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -109,7 +109,7 @@ export default function AttendanceSummaryPage() {
       : summary.children.map((c) => [c.child.fullName, c.present, c.excused, c.unexcused, c.meals]);
     const title = [`Tổng hợp điểm danh ${scopeName} ${formatDate(range.from)} – ${formatDate(range.to)}`];
     const slug = (classId ? summary.className : campusId ? campusName(campusId) : 'toan-truong').replace(/\s+/g, '-');
-    downloadWorkbookXlsx(
+    exportWithPreviewWorkbook(
       [
         { sheetName: 'Theo ngày', rows: [title, head, ...rows], headerRow: 1 },
         { sheetName: multi ? 'Theo lớp' : 'Theo trẻ', rows: [title, detailHead, ...detailRows], headerRow: 1 },

@@ -18,7 +18,7 @@ import { MEAL_SESSION_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendan
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -146,7 +146,7 @@ export default function MealCountPage() {
         ]),
       );
     });
-    downloadXlsx([[`Sổ báo ăn ngày ${formatDate(date)}`], ...rows], `so-bao-an-${date}.xlsx`);
+    exportWithPreview([[`Sổ báo ăn ngày ${formatDate(date)}`], ...rows], `so-bao-an-${date}.xlsx`);
   };
 
   return (

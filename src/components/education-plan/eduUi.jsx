@@ -96,9 +96,10 @@ export const YearPlanStatusBadge = createStatusBadge(
     PENDING_VP: ['purple', Clock],
     PENDING_HT: ['purple', Clock],
     APPROVED: ['green', CheckCircle2],
+    REPLACED: ['gray', FileText],
     REJECTED: ['red', XCircle],
   },
-  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành' },
+  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành', REPLACED: 'Đã thay thế' },
 );
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */

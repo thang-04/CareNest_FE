@@ -205,7 +205,7 @@ function ApprovalGroup({ group, showCampus, campusName, onRetry }) {
                     Trạng thái
                   </th>
                   <th scope="col" className="cell--actions">
-                    <span className="sr-only">Thao tác</span>
+                    Thao tác
                   </th>
                 </tr>
               </thead>
