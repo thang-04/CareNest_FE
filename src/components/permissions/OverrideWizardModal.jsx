@@ -6,7 +6,12 @@ import { Avatar } from '@/components/ui/Avatar';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { Stepper } from '@/components/ui/Stepper';
 import { PermissionStateBadge } from '@/components/permissions/PermissionBadges';
-import { PermissionCheckCell, PermissionFixedCell, PermissionTable } from '@/components/permissions/PermissionTable';
+import {
+  PermissionCheckCell,
+  PermissionFixedCell,
+  PermissionFlowCheckCell,
+  PermissionTable,
+} from '@/components/permissions/PermissionTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { usePermissionStaff } from '@/hooks/account/usePermissions';
@@ -14,7 +19,7 @@ import { usePermissionOverrides, useRolePermissionMatrix } from '@/hooks/account
 import { updatePermissionOverrides } from '@/services/account/permissionService';
 import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS, REASON_MAX_LENGTH } from '@/models/account/permissionConstants';
 import { overridesFromSwitches, permissionDraftRows } from '@/utils/account/personPermissions';
-import { permissionTableRows, toggleWithRequires } from '@/utils/account/permissionMatrix';
+import { flowCheckState, permissionTableRows, toggleFlow, toggleWithRequires } from '@/utils/account/permissionMatrix';
 import { validatePermissionChange } from '@/utils/account/permissionValidation';
 
 const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER'];
@@ -241,10 +246,20 @@ function StepConfigurePermissions({ staff, onBack, onNext, onChange }) {
     [catalog, rows],
   );
 
+  const applyCodes = (codes) => {
+    setValues(Object.fromEntries(configurableCodes.map((c) => [c, codes.includes(c)])));
+    onChange?.(true);
+  };
+
+  const toggleWholeFlow = (flow, on) => {
+    const result = toggleFlow(catalog, personCodes, flow.codes, on, isConfigurable);
+    applyCodes(result.codes);
+    setNotice(`Đã ${on ? 'tick' : 'bỏ tick'} cả luồng “${flow.label}” (${on ? result.added.length : result.removed.length} việc đổi).`);
+  };
+
   const toggle = (code, on) => {
     const result = toggleWithRequires(catalog, personCodes, code, on, isConfigurable);
-    setValues(Object.fromEntries(configurableCodes.map((c) => [c, result.codes.includes(c)])));
-    onChange?.(true);
+    applyCodes(result.codes);
     if (result.added.length) setNotice(`Đã tự tick “${result.added.map(taskLabel).join('”, “')}” vì “${taskLabel(code)}” cần quyền xem.`);
     else if (result.removed.length)
       setNotice(`Đã tự bỏ tick “${result.removed.map(taskLabel).join('”, “')}” vì cần quyền “${taskLabel(code)}”.`);
@@ -277,6 +292,17 @@ function StepConfigurePermissions({ staff, onBack, onNext, onChange }) {
     {
       key: 'person',
       header: 'Người này',
+      renderFlow: (flow) => {
+        const state = flowCheckState(flow.codes, personCodes, isConfigurable);
+        if (!state) return null;
+        return (
+          <PermissionFlowCheckCell
+            state={state}
+            label={`Cả luồng ${flow.label} — ${staff.fullName}`}
+            onChange={(on) => toggleWholeFlow(flow, on)}
+          />
+        );
+      },
       render: (code) => (
         <PermissionCheckCell
           checked={personCodes.includes(code)}
