@@ -24,12 +24,12 @@ export function ReasonModal({ title = 'Vì sao thay đổi?', changes, saving, o
             Quay lại
           </button>
           <button className="btn btn--primary" disabled={saving} onClick={submit}>
-            {saving ? 'Đang lưu…' : 'Lưu thay đổi demo'}
+            {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
           </button>
         </>
       }
     >
-      <p className="text-sm text-2">Lý do được lưu vào lịch sử demo, không thay quyền đang chạy.</p>
+      <p className="text-sm text-2">Lý do được lưu vào lịch sử thay đổi quyền.</p>
       <ul className="permission-reason-list">
         {changes.map((change, index) => (
           <li key={index}>{change}</li>

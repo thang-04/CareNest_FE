@@ -2,13 +2,13 @@ import { Link } from 'react-router-dom';
 import { RowActions } from '@/components/ui/RowActions';
 import { MealsView } from '@/components/menu-planning/MealsView';
 import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
-import { compareToNorm, mealsTotals } from '@/utils/menu-planning/menuCalculations';
+import { compareToNorm, mealsTotals, overallNormStatus } from '@/utils/menu-planning/menuCalculations';
+import { normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import { formatDate } from '@/utils/format';
 import { WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 
-/** Overall status of a day: the worst nutrient row. */
-export const dayNormStatus = (rows) =>
-  rows.some((r) => r.status === 'NA') ? 'NA' : rows.find((r) => r.status === 'LOW' || r.status === 'HIGH')?.status || 'OK';
+/** Trạng thái chung của một ngày (dùng chung bộ tính với mọi màn). */
+export const dayNormStatus = overallNormStatus;
 
 /** Days of a weekly menu with their dishes and energy (read-only). */
 export function WeekDaysView({ wm, catalog, linkMenus = false, balanceLink = false }) {
@@ -21,16 +21,19 @@ export function WeekDaysView({ wm, catalog, linkMenus = false, balanceLink = fal
             <th>Món ăn</th>
             <th className="num w-120">Năng lượng</th>
             <th className="td-w-170">Dinh dưỡng</th>
-            {balanceLink && (
-              <th className="cell--actions">
-                <span className="sr-only">Thao tác</span>
-              </th>
-            )}
+            {balanceLink && <th className="cell--actions">Thao tác</th>}
           </tr>
         </thead>
         <tbody>
           {wm.days.map((day, i) => {
-            const result = day.holiday ? null : mealsTotals(day.meals, catalog.dishById, catalog.foodById, wm.ageGroupId);
+            const result = day.holiday
+              ? null
+              : mealsTotals(
+                  normScopeMeals(day.meals, catalog.nutritionSetups, wm.ageGroupId),
+                  catalog.dishById,
+                  catalog.foodById,
+                  wm.ageGroupId,
+                );
             const rows = result ? compareToNorm(result.totals, wm.ageGroupId, result.missing.length > 0, catalog.norms) : [];
             const menu = catalog.menuById[day.menuId];
             return (

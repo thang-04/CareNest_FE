@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Play } from '@/components/ui/icons';
+import { AlertTriangle, CheckCircle2, ListChecks, Play } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
@@ -12,21 +12,33 @@ import { useYearReadiness } from '@/hooks/school-config/useSchoolConfig';
 import { activateSchoolYear } from '@/services/school-config/schoolConfigService';
 import { READINESS_STEPS } from '@/models/school-config/schoolConfigConstants';
 import { formatDate } from '@/utils/format';
+import { stepOfCheck } from '@/utils/school-config/yearSetup';
 
 const STEP_LINK = Object.fromEntries(READINESS_STEPS.map((s) => [s.key, s]));
 
 /** "Chuẩn bị năm học" card of a planned year: steps computed by the backend, each with a link to its screen. */
-export function YearReadinessCard({ year, onActivate }) {
+/** showSetup: nút mở Thiết lập năm học từng bước (ẩn khi card đã nằm trong bước cuối của luồng đó). */
+export function YearReadinessCard({ year, blockedBy, onActivate, showSetup = true }) {
   const { readiness, loading, error, reload } = useYearReadiness(year.id);
+  const toast = useToast();
   if (error) return <ErrorState error={error} onRetry={reload} />;
   const steps = readiness?.steps || [];
   const required = steps.filter((s) => s.required);
   const done = required.filter((s) => s.ok).length;
-  const reason = readiness?.canActivate
-    ? 'Đã đủ điều kiện kích hoạt.'
-    : readiness
-      ? `Kích hoạt được từ ${formatDate(readiness.openFrom)} khi xong ${required.length - done} bước bắt buộc còn lại.`
-      : '';
+  // Kích hoạt theo thứ tự: năm sau chỉ kích hoạt khi năm trước đó đã kích hoạt
+  const canActivate = !!readiness?.canActivate && !blockedBy;
+  // Trong wizard (showSetup=false) dẫn về đúng bước của wizard thay vì màn riêng
+  const linkOf = (key) => {
+    const step = showSetup ? -1 : stepOfCheck(key);
+    return step >= 0 ? `/school/years/${year.id}/setup/${step + 1}` : STEP_LINK[key].to(year.id);
+  };
+  const reason = blockedBy
+    ? `Kích hoạt năm học ${blockedBy.name} trước.`
+    : readiness?.canActivate
+      ? 'Đã đủ điều kiện kích hoạt.'
+      : readiness
+        ? `Kích hoạt được từ ${formatDate(readiness.openFrom)} khi xong ${required.length - done} bước bắt buộc còn lại.`
+        : '';
   return (
     <section className="card sc-ready" aria-label={`Chuẩn bị năm học ${year.name}`}>
       <div className="sc-ready__head">
@@ -39,10 +51,19 @@ export function YearReadinessCard({ year, onActivate }) {
           </span>
         </div>
         <div className="sc-ready__activate">
-          <button className="btn btn--primary" disabled={!readiness?.canActivate} title={reason} onClick={() => onActivate(year)}>
+          {showSetup && (
+            <Link className="btn" to={`/school/years/${year.id}/setup`}>
+              <ListChecks size={16} /> Thiết lập từng bước
+            </Link>
+          )}
+          {/* Nút luôn bấm được; chưa đủ điều kiện thì báo lý do khi bấm, không chiếm chỗ bằng dòng chữ (Cần 30/10/2026) */}
+          <button
+            className="btn btn--primary"
+            disabled={!readiness}
+            onClick={() => (canActivate ? onActivate(year) : toast.warning(reason, 'Chưa kích hoạt được'))}
+          >
             <Play size={16} /> Kích hoạt năm học
           </button>
-          <span className="muted text-xs">{reason}</span>
         </div>
       </div>
       {loading && !readiness ? (
@@ -53,15 +74,24 @@ export function YearReadinessCard({ year, onActivate }) {
           <ul className="sc-ready__steps">
             {steps.map((s) => (
               <li key={s.key} className="sc-ready__step">
-                <span className={`sc-ready__dot ${s.ok ? 'sc-ready__dot--ok' : s.required ? 'sc-ready__dot--todo' : 'sc-ready__dot--opt'}`}>
-                  {s.ok ? <CheckCircle2 size={16} aria-label="Đã xong" /> : <AlertTriangle size={16} aria-label="Chưa xong" />}
+                {/* warning: đạt (không chặn kích hoạt) nhưng còn việc nên làm ⇒ vàng như bước khuyến nghị */}
+                <span
+                  className={`sc-ready__dot ${
+                    s.ok && !s.warning ? 'sc-ready__dot--ok' : s.required && !s.ok ? 'sc-ready__dot--todo' : 'sc-ready__dot--opt'
+                  }`}
+                >
+                  {s.ok && !s.warning ? (
+                    <CheckCircle2 size={16} aria-label="Đã xong" />
+                  ) : (
+                    <AlertTriangle size={16} aria-label="Chưa xong" />
+                  )}
                 </span>
                 <b className="sc-ready__label">
                   {s.label}
                   {!s.required && <span className="muted text-xs"> · khuyến nghị</span>}
                 </b>
                 <span className="muted text-sm sc-ready__detail">{s.detail}</span>
-                <Link className={`btn btn--sm sc-ready__go ${s.ok ? '' : 'btn--outline-primary'}`} to={STEP_LINK[s.key].to(year.id)}>
+                <Link className={`btn btn--sm sc-ready__go ${s.ok ? '' : 'btn--outline-primary'}`} to={linkOf(s.key)}>
                   {s.ok ? 'Xem' : STEP_LINK[s.key].action}
                 </Link>
               </li>
@@ -94,7 +124,7 @@ export function ActivateYearModal({ year, activeYear, onClose, onDone }) {
       toast.success(`Đã kích hoạt năm học ${year.name}`);
       onDone();
     } catch (err) {
-      toast.error(err, 'Không kích hoạt được năm học');
+      setError(err.message);
     } finally {
       setBusy(false);
     }
@@ -144,7 +174,7 @@ export function ActivateYearModal({ year, activeYear, onClose, onDone }) {
               xếp lớp.
             </li>
             <li>Phân công Phó hiệu trưởng, giáo viên, tổ trưởng của năm {year.name} có hiệu lực.</li>
-            <li>Điểm danh, suất ăn, sức khỏe đầu ngày dùng lớp của năm {year.name}.</li>
+            <li>Điểm danh, suất ăn, sức khỏe trong ngày dùng lớp của năm {year.name}.</li>
           </ul>
           <FormField label={`Gõ "${year.name}" để xác nhận`} required error={error} className="mt-12">
             <input

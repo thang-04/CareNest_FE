@@ -1,31 +1,39 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check, FileDown, Pencil, Printer, Send, Trash2, Undo2 } from '@/components/ui/icons';
+import { Copy, FileDown, Pencil, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
-import { goalIdsToTicks, numberGoals, toRows } from '@/models/education-plan/goalTable';
-import { GoalTable, PlanTabs, ThemeEventTable } from '@/components/education-plan/GoalTables';
-import { downloadYearPlanDoc, printYearPlan } from '@/utils/education-plan/yearPlanDoc';
-import { Card, YearPlanStatusBadge, Field, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { goalIdsToTicks, numberGoals, themeWithoutDates, toRows } from '@/models/education-plan/goalTable';
+import { GoalTable, ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
+import { Card, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { StatusPage } from '@/components/ui/StatusPage';
+import { Spinner } from '@/components/ui/States';
+import { VersionBadge, YearPlanVersionPanel } from '@/components/education-plan/VersionWidgets';
+import { chainOf, currentPlanOf } from '@/models/education-plan/planVersions.mjs';
+import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const ISSUE_NOTE =
   'Sau khi ban hành, các lớp trong nhóm tuổi dùng kế hoạch này để lập kế hoạch chủ đề và giáo án. Xuất file để in và ký tay.';
-const editable = (s) => s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED;
+const editable = (s) => s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED || s === EDU_STATUS.EDITING;
 
 /** Kế hoạch giáo dục năm học của một nhóm tuổi: bảng mục tiêu (A), chủ đề, sự kiện (B), người xây dựng và ban hành. */
-const POPUP_BLOCKED = 'Trình duyệt chặn cửa sổ in. Cho phép cửa sổ bật lên rồi bấm lại.';
 
 export default function GoalDetailPage() {
   const { id } = useParams();
-  const { goals, themes: themePlans, user, saveGoal, deleteGoal, toast } = useEducationPlan();
+  const { goals, themes: themePlans, user, saveGoal, deleteGoal, createGoalVersion, toast, staff } = useEducationPlan();
+  const [preview, setPreview] = useState(null);
   const navigate = useNavigate();
   const [modal, setModal] = useState(null);
-  const [note, setNote] = useState('');
-  const [tried, setTried] = useState(false);
-  const [tab, setTab] = useState('goals');
+  // Thẻ thu gọn được như trang sửa (Tiền 03/11)
+  const [folded, setFolded] = useState({});
+  const fold = (key) => ({ collapsed: !!folded[key], onToggle: () => setFolded((f) => ({ ...f, [key]: !f[key] })) });
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [creating, setCreating] = useState(false);
   const found = goals.find((x) => x.id === id);
   // Giáo viên chỉ xem kế hoạch năm đã ban hành
   const g = user.role === ROLES.TEACHER && found?.status !== EDU_STATUS.APPROVED ? null : found;
@@ -66,95 +74,154 @@ export default function GoalDetailPage() {
   const plan = { ...g, domains, themes };
   const history = g.history || [];
   const now = () => new Date().toISOString().slice(0, 10);
-  const log = (action, extra) => [...history, { at: now(), by: user.name, action, note: extra || undefined }];
+  const log = (action, extra, tone) => [...history, { at: now(), by: user.name, action, note: extra || undefined, tone }];
   const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: now() };
-  // Người tạo là người duy nhất sửa / gửi khi còn nháp; Phó HT duyệt, trả lại hoặc tự sửa khi đang chờ
+  // Phó HT và tổ trưởng cùng soạn, mỗi lúc một người (BE:EDU-03, EDU-10); Phó HT duyệt, trả lại hoặc tự sửa khi đang chờ
   const isOwner = !g.owner || g.owner.userId === user.id;
   const draftLike = editable(g.status);
   const pending = g.status === EDU_STATUS.PENDING_VP;
-  const canEditNow = (draftLike && isOwner && (isVp || isLeader)) || (pending && isVp);
-  const canSend = draftLike && isOwner && isLeader;
-  const canIssue = isVp && (pending || (draftLike && isOwner));
-
-  const open = (kind) => {
-    setNote('');
-    setTried(false);
-    setModal(kind);
-  };
-  const act = () => {
-    setTried(true);
-    if (modal === 'reject') {
-      if (!note.trim()) return;
-      saveGoal({ ...g, status: EDU_STATUS.REJECTED, history: log('Trả lại để sửa', note.trim()) });
-      toast('Đã trả lại kế hoạch cho tổ trưởng');
-    } else if (modal === 'issue') {
-      saveGoal({ ...g, status: EDU_STATUS.APPROVED, issued: me, history: log('Ban hành', note.trim()) });
-      toast('Đã ban hành kế hoạch năm học. Xuất file để in và ký.');
-    } else if (modal === 'send') {
-      saveGoal({ ...g, status: EDU_STATUS.PENDING_VP, sentAt: now(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt', note.trim()) });
-      toast('Đã gửi Phó hiệu trưởng duyệt');
-    }
+  const editor = g.status === EDU_STATUS.EDITING ? g.editing : null;
+  const lockedByOther = !!editor && editor.userId !== user.id;
+  // API thật: BE trả quyền của người xem (permissions); mock chưa có thì tự suy
+  const perm = g.permissions;
+  const free = draftLike && !lockedByOther;
+  const canEditNow = perm ? perm.canEdit : (free && (isVp || isLeader)) || (pending && isVp);
+  const canSend = perm ? perm.canSubmit : free && isLeader;
+  const canIssue = perm ? perm.canIssue : isVp && (pending || (free && isOwner));
+  const canReturn = perm ? perm.canReturn : isVp && pending;
+  const canDelete = perm ? perm.canDelete : isVp && !lockedByOther && (g.status === EDU_STATUS.DRAFT || g.editingFrom === EDU_STATUS.DRAFT);
+  // BE:EDU-25 — sửa bản đã ban hành = tạo phiên bản mới; bản đã ban hành giữ nguyên
+  const canCreateVersion =
+    perm?.canCreateVersion ??
+    ((isVp || isLeader) &&
+      currentPlanOf(goals, g.ageGroupId, g.schoolYear)?.id === g.id &&
+      chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED));
+  const closeDelete = () => {
     setModal(null);
+    setDeleteError('');
+  };
+  // Chỉ báo "Đã xóa" và rời màn khi BE đã xóa; lỗi (403/409/5xx) hiện trong hộp, ở lại màn
+  const removePlan = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteGoal(g.id);
+      navigate('/education/goals');
+      toast('Đã xóa kế hoạch năm học');
+    } catch (err) {
+      setDeleteError(err.message || 'Không xóa được kế hoạch năm học. Thử lại sau.');
+      setDeleting(false);
+    }
+  };
+  const newVersion = async () => {
+    setCreating(true);
+    const plan = await createGoalVersion(g.id);
+    setCreating(false);
+    setModal(null);
+    if (plan) {
+      toast(`Đã tạo ${plan.code}. Sửa rồi gửi / ban hành như kế hoạch mới.`);
+      navigate(`/education/goals/${plan.id}/edit`, { replace: true, state: { backTo: '/education/goals' } });
+    }
+  };
+
+  // Gửi / trả lại / ban hành theo mẫu chung (reviewUi); service quyết định trạng thái
+  const act = async (action, note) => {
+    const next = {
+      submit: { ...g, status: EDU_STATUS.PENDING_VP, sentAt: now(), sentBy: me, history: log('Gửi Phó hiệu trưởng duyệt', note) },
+      reject: { ...g, status: EDU_STATUS.REJECTED, history: log('Trả lại để sửa', note, 'err') },
+      approve: { ...g, status: EDU_STATUS.APPROVED, issued: me, history: log('Ban hành', note) },
+    }[action];
+    const saved = await saveGoal(next);
+    if (saved)
+      toast(
+        {
+          submit: 'Đã gửi Phó hiệu trưởng duyệt',
+          reject: 'Đã trả lại kế hoạch cho tổ trưởng',
+          approve: 'Đã ban hành kế hoạch năm học. Xuất file để in và ký.',
+        }[action],
+      );
+    return saved;
   };
 
   return (
-    <div className="page ga-page">
-      <PageHead
-        crumbs={[
-          { label: 'Kế hoạch giáo dục' },
-          isPrincipal ? { label: 'Kế hoạch toàn trường', to: '/education/school' } : { label: 'Mục tiêu năm học', to: '/education/goals' },
-          { label: g.code },
-        ]}
-        title={g.title}
-        desc={<YearPlanStatusBadge status={g.status} size="lg" />}
-        actions={
-          <>
-            {/* Xuất / in ở mọi bước; bản đã ban hành thì Phó HT in ra ký, giáo viên in để dùng */}
-            <button className="btn btn--ghost" onClick={() => downloadYearPlanDoc(plan, numbers)}>
-              <FileDown size={16} aria-hidden /> Xuất Word
-            </button>
-            <button className="btn btn--ghost" onClick={() => printYearPlan(plan, numbers) || toast(POPUP_BLOCKED, 'warn')}>
-              <Printer size={16} aria-hidden /> In / Lưu PDF
-            </button>
-            {isOwner && (isVp || isLeader) && g.status === EDU_STATUS.DRAFT && (
-              <button className="btn btn--outline-danger" onClick={() => setModal('delete')}>
+    <div className="page ga-page ga-goal-detail ga-year-page ga-class-editor">
+      <div className="ga-sticky-head">
+        <PageHead
+          crumbs={[
+            { label: 'Kế hoạch giáo dục' },
+            isPrincipal
+              ? { label: 'Kế hoạch toàn trường', to: '/education/school' }
+              : { label: 'Mục tiêu năm học', to: '/education/goals' },
+            { label: g.code },
+          ]}
+          title={g.title}
+          // Đầu trang chỉ giữ nhãn phiên bản, bỏ nhãn trạng thái riêng (Tiền 31/10); trạng thái vẫn quyết định quyền và nút
+          desc={<VersionBadge plan={g} goals={goals} />}
+        />
+        <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch năm học">
+          <div className="ga-year-toolbar__group">
+            {canDelete && (
+              <button className="btn btn--sm btn--outline-danger" onClick={() => setModal('delete')}>
                 <Trash2 size={16} aria-hidden /> Xóa
               </button>
             )}
+            {canCreateVersion && (
+              <button className="btn btn--sm btn--outline-primary" onClick={() => setModal('version')}>
+                <Copy size={16} aria-hidden /> Tạo phiên bản điều chỉnh
+              </button>
+            )}
             {canEditNow && (
-              <Link className="btn btn--outline-primary" to={`/education/goals/${g.id}/edit`}>
+              <Link
+                className="btn btn--sm btn--outline-primary"
+                to={`/education/goals/${g.id}/edit`}
+                replace
+                state={{ backTo: '/education/goals' }}
+              >
                 <Pencil size={16} aria-hidden /> {pending ? 'Sửa trước khi duyệt' : 'Chỉnh sửa'}
               </Link>
             )}
-            {canSend && (
-              <button className="btn btn--primary" onClick={() => open('send')}>
-                <Send size={16} aria-hidden /> Gửi Phó HT duyệt
-              </button>
-            )}
-            {isVp && pending && (
-              <button className="btn btn--outline-primary" onClick={() => open('reject')}>
-                <Undo2 size={16} aria-hidden /> Trả lại
-              </button>
-            )}
-            {canIssue && (
-              <button className="btn btn--primary" onClick={() => open('issue')}>
-                <Check size={16} aria-hidden /> Ban hành
-              </button>
-            )}
-          </>
-        }
-      />
+          </div>
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            <ReviewActions
+              name="kế hoạch năm học"
+              sendTo="Phó HT"
+              approveLabel="Ban hành"
+              variant="btn--outline-primary"
+              can={{ send: canSend, reject: canReturn, approve: canIssue }}
+              // EDU-52: chủ đề chưa chọn ngày thì chưa ban hành được; sửa ngày ở màn chỉnh sửa
+              beforeOpen={(action) => {
+                const undated = action === 'approve' && themeWithoutDates(themes);
+                if (undated)
+                  toast(
+                    `Chủ đề "${undated.name || undated.abbr}" chưa chọn ngày. Bấm "Sửa trước khi duyệt" để chọn ngày rồi ban hành.`,
+                    'warn',
+                  );
+                return !undated;
+              }}
+              notes={{
+                submit: 'Kế hoạch sẽ bị khóa cho tới khi Phó hiệu trưởng ban hành hoặc trả lại.',
+                approve: `Kế hoạch có ${Object.keys(numbers).length} mục tiêu, ${themes.length} chủ đề. ${ISSUE_NOTE}`,
+              }}
+              onAct={act}
+            />
+            <button className="btn btn--sm btn--outline-primary" onClick={() => setPreview(yearPlanFile(plan, numbers, staff))}>
+              <FileDown size={16} aria-hidden /> Xuất file
+            </button>
+          </div>
+        </div>
+      </div>
 
-      {g.status === EDU_STATUS.REJECTED && history.at(-1)?.note && (
+      {g.status === EDU_STATUS.REJECTED && (
         <div className="mb-16">
-          <Notice tone="err">
-            Bị trả lại ({history.at(-1).by}, {fmtDate(history.at(-1).at)}): {history.at(-1).note}
-          </Notice>
+          <RejectedNotice status={g.status} history={history} />
         </div>
       )}
-      {draftLike && !isOwner && (isVp || isLeader) && (
+      {lockedByOther && (
         <div className="mb-16">
-          <Notice>Kế hoạch do {g.owner.name} soạn. Khi còn là bản nháp, chỉ người soạn được sửa và gửi.</Notice>
+          <Notice tone="warn">
+            Đang được {editor.name} sửa từ {editor.at}.
+          </Notice>
         </div>
       )}
       {g.status === EDU_STATUS.PENDING_VP && !isVp && (
@@ -163,7 +230,7 @@ export default function GoalDetailPage() {
         </div>
       )}
 
-      <Card title="Thông tin chung">
+      <Card title="1. Thông tin chung" {...fold('info')}>
         <dl className="info-list">
           <dt>Năm học</dt>
           <dd>{g.schoolYear}</dd>
@@ -184,73 +251,63 @@ export default function GoalDetailPage() {
         </dl>
       </Card>
 
-      <Card className="mt-16" bodyClass={null}>
-        <PlanTabs tab={tab} onTab={setTab} counts={{ themes: themes.length, goals: Object.keys(numbers).length }} />
-        <div className="card__body">
-          {tab === 'themes' ? (
-            <ThemeEventTable themes={themes} breaks={g.breaks || []} domains={domains} numbers={numbers} readOnly />
-          ) : (
-            <GoalTable domains={domains} themes={themes} numbers={numbers} readOnly />
-          )}
-        </div>
+      <Card title="2. Chủ đề, sự kiện trong năm" {...fold('themes')}>
+        <ThemeEventTable themes={themes} breaks={g.breaks || []} domains={domains} numbers={numbers} readOnly />
+      </Card>
+      <Card
+        title="3. Mục tiêu, nội dung giáo dục"
+        {...fold('goals')}
+        actions={<span className="muted text-xs nowrap">{Object.keys(numbers).length} mục tiêu</span>}
+      >
+        <GoalTable domains={domains} themes={themes} numbers={numbers} ageGroupId={g.ageGroupId} readOnly />
       </Card>
 
-      {(modal === 'send' || modal === 'reject' || modal === 'issue') && (
+      <YearPlanVersionPanel plan={g} goals={goals} />
+
+      <div className="mt-16">
+        <ReviewHistory items={history} />
+      </div>
+      {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
+
+      {modal === 'version' && (
         <Modal
-          title={
-            {
-              send: 'Gửi Phó hiệu trưởng duyệt',
-              reject: 'Trả lại kế hoạch',
-              issue: 'Ban hành kế hoạch năm học',
-            }[modal]
-          }
+          title="Tạo phiên bản điều chỉnh?"
           onClose={() => setModal(null)}
           footer={
             <>
               <button className="btn" onClick={() => setModal(null)}>
                 Hủy
               </button>
-              <button className="btn btn--primary" onClick={act}>
-                Xác nhận
+              <button className="btn btn--primary" disabled={creating} onClick={newVersion}>
+                <Copy size={16} aria-hidden /> Tạo phiên bản
               </button>
             </>
           }
         >
-          {modal === 'send' && <p>Kế hoạch sẽ bị khóa cho tới khi Phó hiệu trưởng ban hành hoặc trả lại.</p>}
-          {modal === 'issue' && <p>{`Kế hoạch có ${Object.keys(numbers).length} mục tiêu, ${themes.length} chủ đề. ${ISSUE_NOTE}`}</p>}
-          <Field
-            label={modal === 'reject' ? 'Lý do trả lại' : 'Ghi chú'}
-            required={modal === 'reject'}
-            error={tried && modal === 'reject' && !note.trim() ? 'Vui lòng ghi lý do' : undefined}
-          >
-            <textarea className="textarea" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
-          </Field>
+          <p>
+            Bản đã ban hành giữ nguyên. Hệ thống chép toàn bộ mục tiêu, nội dung, chủ đề, đợt nghỉ thành một phiên bản mới để sửa, rồi gửi /
+            ban hành như kế hoạch mới. Lớp vẫn dùng bản hiện hành tới khi phiên bản mới được ban hành; sau đó các ô liên quan trong tài liệu
+            lớp sẽ hiện đỏ để giáo viên sửa.
+          </p>
         </Modal>
       )}
 
       {modal === 'delete' && (
         <Modal
           title={`Xóa “${g.title}”?`}
-          onClose={() => setModal(null)}
+          onClose={deleting ? undefined : closeDelete}
           footer={
             <>
-              <button className="btn" onClick={() => setModal(null)}>
+              <button className="btn" onClick={closeDelete} disabled={deleting}>
                 Giữ lại
               </button>
-              <button
-                className="btn btn--outline-danger"
-                disabled={usedBy.length > 0}
-                onClick={() => {
-                  deleteGoal(g.id);
-                  toast('Đã xóa kế hoạch năm học');
-                  navigate('/education/goals');
-                }}
-              >
-                <Trash2 size={16} aria-hidden /> Xóa kế hoạch
+              <button className="btn btn--outline-danger" disabled={usedBy.length > 0 || deleting} onClick={removePlan}>
+                {deleting ? <Spinner small /> : <Trash2 size={16} aria-hidden />} Xóa kế hoạch
               </button>
             </>
           }
         >
+          {deleteError && <Notice tone="err">{deleteError}</Notice>}
           {usedBy.length > 0 ? (
             <Notice tone="err">Không xóa được vì đã có kế hoạch chủ đề sử dụng kế hoạch này.</Notice>
           ) : (

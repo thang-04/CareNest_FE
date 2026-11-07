@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEduMenuHidden } from '@/hooks/education-plan/useEduMenuHidden';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { CaretDown, SidebarCollapse, SidebarExpand, X } from '@/components/ui/icons';
 import { Logo } from '@/components/brand/Logo';
 import { getMenuForRole } from './menuConfig';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
+import { prefetchPath, prefetchWhenIdle } from '@/routes/routePrefetch';
 
 const OPEN_GROUPS_KEY = 'carenest.sidebar.openGroups';
 
@@ -45,7 +47,8 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
   const { user } = useAuth();
   // Menu tính theo quyền nên mỗi lần gọi là mảng mới: giữ cố định theo vai trò / người dùng,
   // nếu không effect bên dưới chạy lại mỗi lần render và đóng nhóm vừa mở
-  const menu = useMemo(() => getMenuForRole(role, user), [role, user]);
+  const hiddenItems = useEduMenuHidden(role);
+  const menu = useMemo(() => getMenuForRole(role, user, hiddenItems), [role, user, hiddenItems]);
   const [open, setOpen] = useState(readOpenGroups);
 
   // Open the group that contains the current page when navigating.
@@ -62,6 +65,18 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
     }
   }, [open]);
 
+  // Nhóm đang mở: tải trước các trang trong nhóm khi rảnh ⇒ bấm mục kế tiếp không phải chờ chunk
+  useEffect(() => {
+    const group = menu.find((m) => m.children && open[m.label]);
+    return group ? prefetchWhenIdle(group.children.map((c) => c.to)) : undefined;
+  }, [menu, open]);
+  const prefetchGroup = (item) => () => item.children.forEach((c) => prefetchPath(c.to));
+  const prefetchItem = (to) => () => prefetchPath(to);
+  // URL đổi ngay khi bấm nhưng trang mới còn chờ chunk ⇒ bấm lại cùng mục không đẩy thêm lượt điều hướng
+  const skipIfOpening = (to) => (event) => {
+    if (window.location.pathname === to) event.preventDefault();
+  };
+
   const toggleGroup = (label) => {
     if (collapsed) {
       onExpand();
@@ -74,6 +89,15 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
 
   // Mục "chung" (thông báo, tài khoản) tách xuống section dưới như design.md; danh sách mục vẫn theo role
   const isGeneral = (item) => item.to === '/notifications' || item.key === 'system';
+  // Mục liền nhau cùng `section` (vd. khu Bán trú) gom dưới một nhãn; mục không có section nằm dưới "Menu"
+  const sections = menu
+    .filter((item) => !isGeneral(item))
+    .reduce((acc, item) => {
+      const label = item.section || 'Menu';
+      if (acc.at(-1)?.label === label) acc.at(-1).items.push(item);
+      else acc.push({ label, items: [item] });
+      return acc;
+    }, []);
   const renderItem = (item) => {
     if (!item.children) {
       return (
@@ -83,6 +107,9 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
           end={item.to === '/'}
           className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
           title={collapsed ? item.label : undefined}
+          onMouseEnter={prefetchItem(item.to)}
+          onFocus={prefetchItem(item.to)}
+          onClick={skipIfOpening(item.to)}
         >
           {iconChip(item)}
           <span className="nav-item__label">{item.label}</span>
@@ -102,6 +129,8 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
         <button
           type="button"
           className={`nav-item ${groupActive ? 'nav-item--group-active' : ''}`}
+          onMouseEnter={prefetchGroup(item)}
+          onFocus={prefetchGroup(item)}
           onClick={() => toggleGroup(item.label)}
           aria-expanded={expanded}
           aria-controls={subId}
@@ -118,6 +147,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
                 key={child.label}
                 to={child.to}
                 end={!!child.exact}
+                onClick={skipIfOpening(child.to)}
                 className={() => `nav-sub__item ${isActivePath(pathname, child.to, child.exact) ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
@@ -135,6 +165,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
                 to={child.to}
                 end={!!child.exact}
                 role="menuitem"
+                onClick={skipIfOpening(child.to)}
                 className={() => `nav-sub__item ${isActivePath(pathname, child.to, child.exact) ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
@@ -167,12 +198,16 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
         </button>
       </div>
       <div className="sidebar__scroll">
-        <div className="sidebar__label" aria-hidden="true">
-          Menu
-        </div>
-        <nav className="sidebar__nav" aria-label="Menu chính">
-          {menu.filter((item) => !isGeneral(item)).map(renderItem)}
-        </nav>
+        {sections.map(({ label, items }, index) => (
+          <Fragment key={`${index}-${label}`}>
+            <div className="sidebar__label" aria-hidden="true">
+              {label}
+            </div>
+            <nav className="sidebar__nav" aria-label={label === 'Menu' ? 'Menu chính' : `Menu ${label.toLowerCase()}`}>
+              {items.map(renderItem)}
+            </nav>
+          </Fragment>
+        ))}
         {menu.some(isGeneral) && (
           <>
             <div className="sidebar__label" aria-hidden="true">

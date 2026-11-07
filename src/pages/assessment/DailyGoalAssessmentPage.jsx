@@ -1,0 +1,556 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ChildAvatar } from '@/components/ChildAvatar';
+import { ArrowLeft, ChevronDown, Lock, Save, UserX } from '@/components/ui/icons';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useDailyAssessment, useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
+import { saveDailySkills } from '@/services/assessment/assessmentService';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { SidePanel } from '@/components/ui/SidePanel';
+import { StatusPage } from '@/components/ui/StatusPage';
+import { DailyModeSelect } from '@/components/assessment/DailyModeSelect';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
+import { CellPopover } from '@/components/assessment/DailyAssessmentCells';
+import { Cell, focusCell } from '@/components/ui/TableCell';
+import { PARTICIPATION_LABELS, YCCD_RESULT, YCCD_RESULT_LABELS } from '@/models/assessment/dailyObservationOptions';
+import { DateInput } from '@/components/form/DateInput';
+import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
+import { todayIso } from '@/utils/assessment/assessmentPeriods';
+import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
+import '@/styles/modules/assessment.css';
+// Bảng cùng kiểu bảng mục tiêu năm học / giáo án (Tiền 20/10)
+import '@/styles/modules/education-plan.css';
+
+const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+const LEVEL_CLASS = { DAT: 'text-success', CHUA_DAT: 'text-danger fw-600' };
+// Mức của MT ↔ danh sách của BE
+const LISTS = { DAT: 'goalsMet', CHUA_DAT: 'goalsNotMet' };
+const goalName = (g) => (g.goalNo ? `MT${g.goalNo}` : 'MT');
+
+/** Kết quả đã ghi của một trẻ: { [activityKey]: { participation, results: { [goalId]: level } } }; MT chưa chấm thì trống. */
+const fromRow = (r) => ({
+  comment: r.comment || '',
+  activities: Object.fromEntries(
+    (r.activities || []).map((a) => [
+      a.key,
+      {
+        participation: a.participation || '',
+        results: Object.fromEntries(Object.entries(LISTS).flatMap(([level, list]) => (a[list] || []).map((id) => [id, level]))),
+      },
+    ]),
+  ),
+});
+// Trẻ đã chấm KTKN ngày đó (BE cũ chỉ có recorded)
+const isSkillsRecorded = (r) => r.skillsRecorded ?? r.recorded;
+// Trẻ chưa chấm: mọi MT của giáo án ngày mặc định Đạt (Cần chốt 04/11/2026), cô chỉ đổi trẻ Chưa đạt rồi Lưu
+const withDefaultMet = (draft, activities) => ({
+  ...draft,
+  activities: Object.fromEntries(
+    activities.map((a) => {
+      const act = draft.activities[a.key] || { participation: '', results: {} };
+      const results = { ...act.results };
+      a.goals.forEach((g) => {
+        if (!results[g.id]) results[g.id] = 'DAT';
+      });
+      return [a.key, { ...act, results }];
+    }),
+  ),
+});
+const toActivity = (key, act) => ({
+  key,
+  participation: act?.participation || null,
+  ...Object.fromEntries(
+    Object.entries(LISTS).map(([level, list]) => [
+      list,
+      Object.entries(act?.results || {})
+        .filter(([, v]) => v === level)
+        .map(([id]) => id),
+    ]),
+  ),
+});
+
+/**
+ * #52 Đánh giá hằng ngày – Kiến thức kỹ năng (EDU-19): hoạt động và MT lấy từ giáo án tuần đã duyệt (lesson của BE), mỗi
+ * hoạt động một cột, mỗi MT chọn Đạt / Chưa đạt. Trẻ chưa chấm hiện sẵn Đạt, chỉ ghi khi cô bấm Lưu.
+ * Chưa có giáo án duyệt thì khóa phần này. Bấm tên trẻ để ghi mức tham gia và xem đủ MT từng hoạt động.
+ */
+export default function DailyGoalAssessmentPage() {
+  const { user } = useAuth();
+  const toast = useToast();
+  const { classes, loading: classesLoading, error: classesError } = useDailyAssessmentClasses();
+  const [search] = useSearchParams();
+  const [classId, setClassId] = useState(search.get('classId') || '');
+  const [date, setDate] = useState(() => search.get('date') || '');
+  // Chưa chọn ngày: BE trả ngày học gần nhất theo ngày nghỉ trong cấu hình năm học (lễ, Tết…)
+  const currentClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id || '';
+  const params = useMemo(() => ({ classId: currentClassId, date: date || undefined }), [currentClassId, date]);
+  const { sheet, loading, error, reload } = useDailyAssessment(params);
+  const shownDate = date || sheet?.date || '';
+
+  const [drafts, setDrafts] = useState({});
+  // { [childId]: Set(activityKey | '_comment') } — chỉ gửi phần cô đã sửa
+  const [dirty, setDirty] = useState({});
+  const [saveError, setSaveError] = useState(null);
+  const [saveState, setSaveState] = useState({ phase: 'idle', at: null });
+  const [openChild, setOpenChild] = useState(null);
+  const inFlight = useRef(false);
+  // Thời điểm vừa lưu: bảng tải lại sau khi lưu vẫn hiện "Đã lưu"
+  const savedAt = useRef(null);
+
+  useEffect(() => {
+    if (!sheet) return;
+    const acts = sheet.lesson?.activities || [];
+    setDrafts(Object.fromEntries(sheet.rows.map((r) => [r.childId, isSkillsRecorded(r) ? fromRow(r) : withDefaultMet(fromRow(r), acts)])));
+    setDirty({});
+    setSaveError(null);
+    setSaveState(savedAt.current ? { phase: 'saved', at: savedAt.current } : { phase: 'idle', at: null });
+    savedAt.current = null;
+  }, [sheet]);
+
+  const lesson = sheet?.lesson || null;
+  const activities = lesson?.activities || [];
+  const writable = !!sheet && sheet.canRecord && !sheet.locked && !sheet.yearReadOnly && !!lesson;
+  const dirtyIds = Object.keys(dirty);
+  // Lưu: trẻ cô đã sửa + trẻ chưa chấm (lưu cả giá trị Đạt mặc định); giá trị mặc định không bật hỏi rời màn
+  const pendingDefaultIds = writable ? (sheet?.rows || []).filter((r) => !isSkillsRecorded(r)).map((r) => String(r.childId)) : [];
+  const changedIds = [...new Set([...dirtyIds, ...pendingDefaultIds])];
+  // Không có gì mới (cả lớp đã chấm): vẫn bấm Lưu được để xác nhận lại cả lớp như đang hiện
+  const resaveAll = changedIds.length === 0;
+  const saveIds = resaveAll ? (writable ? (sheet?.rows || []).map((r) => String(r.childId)) : []) : changedIds;
+
+  const touch = (childId, part) => {
+    setDirty((prev) => ({ ...prev, [childId]: new Set([...(prev[childId] || []), part]) }));
+    setSaveError(null);
+  };
+  const setComment = (childId, comment) => {
+    setDrafts((prev) => ({ ...prev, [childId]: { ...prev[childId], comment } }));
+    touch(childId, '_comment');
+  };
+  const updateActivity = (childId, key, patch) => {
+    setDrafts((prev) => {
+      const acts = prev[childId].activities;
+      const act = acts[key] || { participation: '', results: {} };
+      return { ...prev, [childId]: { ...prev[childId], activities: { ...acts, [key]: { ...act, ...patch(act) } } } };
+    });
+    touch(childId, key);
+  };
+  const setResult = (childId, key, goalId, level) =>
+    updateActivity(childId, key, (act) => {
+      const results = { ...act.results };
+      if (level) results[goalId] = level;
+      else delete results[goalId];
+      return { results };
+    });
+
+  const save = async () => {
+    if (!saveIds.length || inFlight.current) return false;
+    const entries = saveIds.map((childId) => {
+      const parts = dirty[childId] || new Set();
+      const d = drafts[childId];
+      // Trẻ chưa chấm: gửi đủ mọi hoạt động (kể cả MT để Đạt mặc định)
+      const keys =
+        resaveAll || pendingDefaultIds.includes(childId) ? activities.map((a) => a.key) : [...parts].filter((k) => k !== '_comment');
+      return {
+        childId,
+        // null = giữ nhận xét đang có (dùng chung với view Hoạt động chung)
+        comment: parts.has('_comment') ? d.comment : null,
+        activities: keys.map((k) => toActivity(k, d.activities[k])),
+      };
+    });
+    inFlight.current = true;
+    setSaveState((s) => ({ ...s, phase: 'saving' }));
+    try {
+      await saveDailySkills({ classId: currentClassId, date: sheet.date, entries }, user);
+      // Giữ khóa ô tới khi bảng tải lại xong: chọn thêm lúc đang tải sẽ bị bảng mới ghi đè
+      savedAt.current = new Date();
+      toast.success(`Đã lưu đánh giá của ${entries.length} trẻ.`);
+      await reload({ silent: true });
+      const at = savedAt.current || new Date();
+      setSaveState((st) => (st.phase === 'saving' ? { phase: 'saved', at } : st));
+      return true;
+    } catch (err) {
+      savedAt.current = null;
+      setSaveError(err);
+      setSaveState((s) => ({ ...s, phase: 'error' }));
+      toast.error(err, 'Không lưu được đánh giá');
+      return false;
+    } finally {
+      inFlight.current = false;
+    }
+  };
+  // Đóng tab / tải lại khi còn thay đổi chưa lưu: trình duyệt hỏi lại
+  const hasDirty = dirtyIds.length > 0;
+  // Rời màn, đổi chế độ, đổi lớp hoặc ngày khi còn thay đổi chưa lưu: hỏi trước
+  const guard = useLeaveGuard({ when: hasDirty, onSave: () => save() });
+  const [pendingChange, setPendingChange] = useState(null);
+  const confirmChange = (apply) => (hasDirty ? setPendingChange(() => apply) : apply());
+  useEffect(() => {
+    if (!hasDirty) return undefined;
+    const warn = (e) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasDirty]);
+  const saving = saveState.phase === 'saving';
+
+  const rows = sheet?.rows || [];
+  // Đếm theo phần KTKN (BE cũ chỉ có recorded)
+  const skillsRecorded = isSkillsRecorded;
+  const recordedCount = rows.filter(skillsRecorded).length;
+  const commentError = saveError?.details?.comment;
+  const formError = saveError && !commentError ? saveError.message : null;
+  const panelRow = openChild && rows.find((r) => r.childId === openChild);
+
+  const actTitle = (a) => [a.label, a.topic].filter(Boolean).join(': ');
+  const goalSelect = (r, a, g, d, disabled) => {
+    const level = d.activities[a.key]?.results[g.id] || '';
+    return (
+      <div key={g.id} className="dg-pop__line" title={`${goalName(g)}: ${g.text}`}>
+        <span className="dg-pop__label">{goalName(g)}</span>
+        <select
+          className={`select dg-select ${LEVEL_CLASS[level] || ''}`}
+          value={level}
+          disabled={disabled}
+          aria-label={`${goalName(g)} – ${a.label} của ${r.fullName}`}
+          onChange={(e) => setResult(r.childId, a.key, g.id, e.target.value)}
+        >
+          <option value="">Chưa đánh giá</option>
+          {Object.values(YCCD_RESULT).map((k) => (
+            <option key={k} value={k}>
+              {YCCD_RESULT_LABELS[k]}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  };
+
+  return (
+    <div className="page">
+      <Breadcrumb items={assessmentCrumbs(SECTIONS.daily)} />
+      {/* Bỏ khung tiêu đề lớn trên cùng (Tiền 20/10); tiêu đề vẫn có cho trình đọc màn hình */}
+      <h1 className="sr-only">Đánh giá hằng ngày</h1>
+
+      {classesError ? (
+        <ErrorState error={classesError} />
+      ) : !classesLoading && classes.length === 0 ? (
+        <StatusPage kind="403" title="Bạn chưa được phân công lớp" description="Chỉ giáo viên của lớp mới ghi nhận đánh giá hằng ngày." />
+      ) : (
+        <div className="card">
+          <div className="filter-bar">
+            <div className="field">
+              <label className="field__label" htmlFor="dg-class">
+                Lớp
+              </label>
+              {/* GV chỉ dạy một lớp: hiện tên lớp, không bắt chọn */}
+              {classes.length === 1 ? (
+                <span id="dg-class" className="fw-600">
+                  {classes[0].name}
+                </span>
+              ) : (
+                <select
+                  id="dg-class"
+                  className="select"
+                  value={currentClassId}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    confirmChange(() => setClassId(next));
+                  }}
+                >
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor="dg-date">
+                Ngày
+              </label>
+              <DateInput
+                id="dg-date"
+                value={shownDate}
+                min={sheet?.yearStart || undefined}
+                max={sheet?.today || todayIso()}
+                onChange={(v) => isIsoDate(v) && confirmChange(() => setDate(v))}
+              />
+            </div>
+            <DailyModeSelect mode="skills" classId={currentClassId} date={shownDate} />
+            <div className="spacer" />
+            {sheet && rows.length > 0 && (
+              <div className="text-sm text-2 dg-filter-count">
+                Đã ghi nhận <b>{recordedCount}</b>/{rows.length} trẻ có mặt
+                {writable && (
+                  <>
+                    {' · '}
+                    {saving
+                      ? 'Đang lưu…'
+                      : dirtyIds.length
+                        ? `${dirtyIds.length} trẻ có thay đổi chưa lưu`
+                        : pendingDefaultIds.length
+                          ? `${pendingDefaultIds.length} trẻ chưa chấm đang để Đạt, bấm Lưu để ghi`
+                          : saveState.at
+                            ? `Đã lưu lúc ${hhmm(saveState.at)}`
+                            : 'Chưa có thay đổi'}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {sheet?.yearReadOnly ? (
+            <div className="alert alert--info dg-alert-inset">
+              <Lock size={18} />
+              <div>Lớp thuộc năm học đã kết thúc hoặc chưa bắt đầu, chỉ xem được.</div>
+            </div>
+          ) : sheet?.locked ? (
+            <div className="alert alert--warning dg-alert-inset">
+              <Lock size={18} />
+              <div>
+                Ngày {formatDate(sheet.date)} đã khóa. Nếu cần đánh giá bổ sung, gửi mail cho Phó hiệu trưởng điểm trường hoặc Hiệu trưởng
+                để mở lại ngày này.
+              </div>
+            </div>
+          ) : (
+            sheet?.unlock && (
+              <div className="alert alert--info dg-alert-inset">
+                <Lock size={18} />
+                <div>
+                  Ngày {formatDate(sheet.date)} đã được {sheet.unlock.unlockedByName} mở lại, đánh giá được đến{' '}
+                  <strong>{formatDateTime(sheet.unlock.validUntil)}</strong>.
+                </div>
+              </div>
+            )
+          )}
+          {formError && (
+            <div className="alert alert--danger dg-alert-inset" role="alert">
+              {formError}
+            </div>
+          )}
+
+          {error ? (
+            <ErrorState error={error} onRetry={reload} />
+          ) : loading || classesLoading || !sheet ? (
+            <div className="card__body">
+              <table className="table">
+                <tbody>
+                  <SkeletonRows rows={5} cols={4} />
+                </tbody>
+              </table>
+            </div>
+          ) : !sheet.attendanceTaken ? (
+            <EmptyState
+              icon={UserX}
+              title={`Lớp chưa điểm danh ngày ${formatDate(sheet.date)}`}
+              description="Điểm danh trước, chỉ trẻ có mặt mới được đánh giá."
+              action={
+                <Link className="btn btn--primary" to={`/attendance?classId=${sheet.classId}&date=${sheet.date}`}>
+                  Điểm danh ngay
+                </Link>
+              }
+            />
+          ) : !lesson ? (
+            <EmptyState
+              icon={Lock}
+              title="Chưa có giáo án tuần đã duyệt cho ngày này"
+              description="Kiến thức kỹ năng chấm theo mục tiêu của giáo án đã duyệt; khi giáo án được duyệt, các hoạt động và mục tiêu sẽ hiện tại đây."
+            />
+          ) : rows.length === 0 ? (
+            <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng ngày này." />
+          ) : (
+            <div className="card__body">
+              <div className="table-wrap">
+                <table className="table ga-plan-table ga-goal-table dg-day-table dg-day-table--skills" onMouseDown={focusCell}>
+                  {/* Độ rộng cột dùng lại lớp của bảng mục tiêu năm: Trẻ, các hoạt động chia đều, Nhận xét */}
+                  <colgroup>
+                    <col className="ga-goal-table__group" />
+                    {activities.map((a) => (
+                      <col key={a.key} />
+                    ))}
+                    <col className="dg-skill-note" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th className="cell--fixed">Trẻ</th>
+                      {activities.map((a) => (
+                        <th key={a.key}>
+                          {/* Sổ xuống xem nội dung hoạt động và các MT trong ngày của hoạt động đó (Tiền 21/10) */}
+                          <span className="dg-head-goal">
+                            {a.label}
+                            <CellPopover label={`Xem mục tiêu trong ngày – ${a.label}`} icon={<ChevronDown size={14} />} minWidth={280}>
+                              <div className="dg-pop__title">{actTitle(a)}</div>
+                              {a.goals.map((g) => (
+                                <div key={g.id} className="text-sm">
+                                  <span className="fw-600">{goalName(g)}</span>: {g.text}
+                                </div>
+                              ))}
+                            </CellPopover>
+                          </span>
+                        </th>
+                      ))}
+                      <th>Nhận xét</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => {
+                      const id = r.childId;
+                      const d = drafts[id] || (isSkillsRecorded(r) ? fromRow(r) : withDefaultMet(fromRow(r), activities));
+                      const disabled = !writable || saving;
+                      const commentInvalid = !!commentError && !!dirty[id]?.has('_comment');
+                      return (
+                        <tr key={id} title={skillsRecorded(r) ? 'Đã ghi nhận' : 'Chưa ghi nhận'}>
+                          <td className="cell--fixed">
+                            <div className="ga-goal-table__pad dg-child">
+                              <ChildAvatar child={r} size="sm" />
+                              <div className="dg-child__info">
+                                <button type="button" className="dg-link-btn fw-600" onClick={() => setOpenChild(id)}>
+                                  {r.fullName}
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                          {activities.map((a) => (
+                            <td key={a.key} className="dg-day-cell">
+                              {a.goals.map((g) => goalSelect(r, a, g, d, disabled))}
+                            </td>
+                          ))}
+                          <td>
+                            <Cell
+                              editable={!disabled}
+                              value={d.comment}
+                              label={`Nhận xét trong ngày cho ${r.fullName}`}
+                              placeholder="Tùy chọn"
+                              onChange={(v) => setComment(id, v)}
+                            />
+                            {commentInvalid && <div className="field__error">{commentError}</div>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {writable && rows.length > 0 && (
+        <div className="page-actions">
+          {/* Quay lại Hoạt động chung cùng lớp, ngày (hỏi nếu còn thay đổi chưa lưu) */}
+          <Link className="btn" to={`/assessment/daily?classId=${currentClassId}&date=${shownDate}`}>
+            <ArrowLeft size={16} /> Quay lại Hoạt động chung
+          </Link>
+          <div className="spacer" />
+          <div className="row gap-2">
+            {dirtyIds.length > 0 && (
+              <button className="btn" onClick={() => reload()} disabled={saving}>
+                Hủy thay đổi
+              </button>
+            )}
+            <button className="btn btn--primary" onClick={save} disabled={saving || saveIds.length === 0}>
+              {saving ? <Spinner small /> : <Save size={16} />} Lưu đánh giá{saveIds.length ? ` (${saveIds.length})` : ''}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Chi tiết cả ngày của một trẻ: mọi hoạt động của giáo án, MT, mức tham gia, nhận xét */}
+      <SidePanel
+        open={!!panelRow}
+        title={panelRow ? `${panelRow.fullName} · ${formatDate(sheet.date)}` : ''}
+        onClose={() => setOpenChild(null)}
+      >
+        {panelRow &&
+          (() => {
+            const id = panelRow.childId;
+            const d = drafts[id] || fromRow(panelRow);
+            const disabled = !writable || saving;
+            return (
+              <div className="table-wrap">
+                <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+                  <thead>
+                    <tr>
+                      <th className="cell--fixed">Hoạt động</th>
+                      <th>Kết quả</th>
+                      <th>Tham gia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activities.map((a) => (
+                      <tr key={a.key}>
+                        <td className="cell--fixed">
+                          <div className="ga-goal-table__pad">
+                            <div className="fw-600">{a.label}</div>
+                            {a.topic && <div className="text-xs">{a.topic}</div>}
+                            {a.goals.map((g) => (
+                              <div key={g.id} className="text-xs muted">
+                                {goalName(g)}: {g.text}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td>{a.goals.map((g) => goalSelect(panelRow, a, g, d, disabled))}</td>
+                        <td>
+                          <select
+                            className="ga-cell-input"
+                            value={d.activities[a.key]?.participation || ''}
+                            disabled={disabled}
+                            aria-label={`Mức tham gia ${a.label} của ${panelRow.fullName}`}
+                            onChange={(e) => updateActivity(id, a.key, () => ({ participation: e.target.value }))}
+                          >
+                            <option value="">—</option>
+                            {Object.entries(PARTICIPATION_LABELS).map(([k, v]) => (
+                              <option key={k} value={k}>
+                                {v}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td className="cell--fixed">
+                        <div className="ga-goal-table__pad fw-600">Nhận xét trong ngày</div>
+                      </td>
+                      <td colSpan={2}>
+                        <Cell
+                          editable={!disabled}
+                          value={d.comment}
+                          label={`Nhận xét trong ngày cho ${panelRow.fullName}`}
+                          placeholder="Tùy chọn"
+                          onChange={(v) => setComment(id, v)}
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+      </SidePanel>
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave
+        message="Đánh giá kiến thức kỹ năng có thay đổi chưa lưu. Lưu trước khi rời màn hoặc bỏ các thay đổi."
+      />
+      <ConfirmationModal
+        open={!!pendingChange}
+        title="Đổi lớp hoặc ngày?"
+        message="Các đánh giá chưa lưu sẽ bị bỏ."
+        confirmLabel="Bỏ thay đổi và chuyển"
+        onClose={() => setPendingChange(null)}
+        onConfirm={() => {
+          pendingChange?.();
+          setPendingChange(null);
+        }}
+      />
+    </div>
+  );
+}

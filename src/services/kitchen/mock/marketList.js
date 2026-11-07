@@ -55,7 +55,8 @@ export function computeMarket(db, { date, counts, classById }) {
   const servings = {};
   COUNTED.forEach((s) =>
     (confirmed[s]?.classes || []).forEach((row) => {
-      const ag = classById[row.classId]?.ageGroupId;
+      // Sổ từ BE (dev) mang sẵn nhóm tuổi theo dòng; sổ mock tra theo lớp
+      const ag = row.ageGroupId || classById[row.classId]?.ageGroupId;
       if (!ag) return;
       servings[ag] ||= {};
       servings[ag][s] ||= { normal: 0, substitute: 0 };

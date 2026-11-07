@@ -1,14 +1,15 @@
-import { Fragment, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Pencil, Trash2 } from '@/components/ui/icons';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { AlertTriangle, IdCard, MapPin, Pencil, Phone, Trash2, Truck, UserRound } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSupplier } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState } from '@/components';
 import { ReceiptStatusBadge, SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
-import { deleteSupplier, saveSupplier } from '@/services/kitchen/kitchenService';
-import { canManageStock, canManageSuppliers } from '@/utils/kitchen/kitchenPermissions';
-import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
+import { SupplierEditModal } from '@/components/kitchen/SupplierEditModal';
+import { canEditSuppliers, deleteSupplier, saveSupplier } from '@/services/kitchen/kitchenService';
+import { canManageStock } from '@/utils/kitchen/kitchenPermissions';
+import { supplierCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate } from '@/utils/format';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
@@ -23,12 +24,13 @@ export default function SupplierDetailPage() {
   const toast = useToast();
   const { data: s, loading, error, reload } = useSupplier(id);
   const [ask, setAsk] = useState(null);
+  const [editing, setEditing] = useState(false);
   const [actionError, setActionError] = useState('');
-  const canManage = canManageSuppliers(user);
+  const canManage = canEditSuppliers(user);
   // Phiếu nhập chỉ PHT mở được (route nhập kho dành cho PHT)
   const canOpenReceipt = canManageStock(user);
 
-  const crumbs = kitchenCrumbs(KITCHEN_PAGES.suppliers, s?.name || 'Chi tiết');
+  const crumbs = supplierCrumbs(s?.name || 'Chi tiết');
   if (loading && !s) return <LoadingState />;
   if (error || !s)
     return (
@@ -54,31 +56,41 @@ export default function SupplierDetailPage() {
     try {
       await deleteSupplier({ id }, user);
       toast.success(`Đã xóa nhà cung cấp ${s.name}.`);
-      navigate('/kitchen/suppliers');
+      navigate('/menu/suppliers');
     } catch (err) {
       setAsk(null);
       setActionError(err.message);
     }
   };
 
-  const info = [
-    ['Mã', s.code],
-    ['Người liên hệ', s.contactName],
-    ['Số điện thoại', s.phone],
-    ['Mã số thuế', s.taxCode],
-    ['Địa chỉ', s.address],
-  ];
+  // Trường nguồn dữ liệu không có (BE: mã số thuế; người chỉ xem không nhận CCCD) thì ẩn ô
+  const facts = [
+    { icon: UserRound, label: 'Người liên hệ', value: s.contactName },
+    { icon: Phone, label: 'Số điện thoại', value: s.phone, href: s.phone ? `tel:${s.phone.replace(/\s/g, '')}` : undefined },
+    { icon: IdCard, label: 'Mã số thuế', value: s.taxCode },
+    { icon: IdCard, label: 'CCCD nhà cung cấp', value: s.idCard },
+    { icon: MapPin, label: 'Địa chỉ', value: s.address, wide: true },
+  ].filter((f) => f.value !== undefined);
 
   return (
     <div className="page">
       <Breadcrumb items={crumbs} />
-      <div className="page__head">
-        <div className="row">
-          <h1 className="page__title">{s.name}</h1>
-          <SupplierStatusBadge status={s.status} size="lg" />
+      <section className="card kb-sup-hero">
+        <span className="kb-sup-hero__avatar" aria-hidden="true">
+          <Truck size={26} />
+        </span>
+        <div className="kb-sup-hero__main">
+          <div className="kb-sup-hero__title">
+            <h1 className="page__title">{s.name}</h1>
+            <SupplierStatusBadge status={s.status} size="lg" />
+          </div>
+          <div className="kb-sup-hero__meta">
+            {s.code && <span className="td-tag td-tag--blue">{s.code}</span>}
+            <span className="text-sm muted">{s.receiptCount ?? s.receipts.length} phiếu nhập kho từ nhà cung cấp này</span>
+          </div>
         </div>
         {canManage && (
-          <div className="page__actions">
+          <div className="kb-sup-hero__actions">
             {s.receiptCount === 0 && (
               <button className="btn btn--outline-danger" onClick={() => setAsk('delete')}>
                 <Trash2 size={16} /> Xóa
@@ -87,34 +99,34 @@ export default function SupplierDetailPage() {
             <button className="btn" onClick={() => setAsk('toggle')}>
               {active ? 'Ngừng dùng' : 'Dùng lại'}
             </button>
-            <Link className="btn btn--primary" to={`/kitchen/suppliers/${id}/edit`}>
+            <button type="button" className="btn btn--primary" onClick={() => setEditing(true)}>
               <Pencil size={16} /> Sửa nhà cung cấp
-            </Link>
+            </button>
           </div>
         )}
-      </div>
+      </section>
       {actionError && (
         <div className="alert alert--danger mb-16">
           <AlertTriangle size={18} />
           <div>{actionError}</div>
         </div>
       )}
+      <ul className="kb-sup-facts" aria-label="Thông tin nhà cung cấp">
+        {facts.map(({ icon: Icon, label, value, href, wide }) => (
+          <li key={label} className={`kb-sup-fact ${wide ? 'kb-sup-fact--wide' : ''}`}>
+            <span className="kb-sup-fact__icon" aria-hidden="true">
+              <Icon size={18} />
+            </span>
+            <div className="kb-sup-fact__body">
+              <span className="kb-sup-fact__label">{label}</span>
+              <span className="kb-sup-fact__value">
+                {!value ? <span className="muted">—</span> : href ? <a href={href}>{value}</a> : value}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
       <section className="card">
-        <div className="card__header">
-          <h2 className="card__title">Thông tin nhà cung cấp</h2>
-        </div>
-        <div className="card__body">
-          <dl className="info-list">
-            {info.map(([label, value]) => (
-              <Fragment key={label}>
-                <dt>{label}</dt>
-                <dd>{value || <span className="muted">—</span>}</dd>
-              </Fragment>
-            ))}
-          </dl>
-        </div>
-      </section>
-      <section className="card mt-16">
         <div className="card__header">
           <h2 className="card__title">Phiếu nhập kho từ nhà cung cấp này</h2>
           <span className="text-sm muted">{s.receipts.length} phiếu · chỉ xem</span>
@@ -142,7 +154,7 @@ export default function SupplierDetailPage() {
                       ? { className: 'row-click', ...clickableRowProps(() => navigate(`/kitchen/stock-receipts/${r.id}/edit`)) }
                       : {})}
                   >
-                    <td className="fw-600">{r.code}</td>
+                    <td className="fw-600 text-primary">{r.code}</td>
                     <td>{formatDate(r.date)}</td>
                     <td>{r.campusName}</td>
                     <td className="num">{r.items.length}</td>
@@ -178,6 +190,7 @@ export default function SupplierDetailPage() {
         onConfirm={remove}
         onClose={() => setAsk(null)}
       />
+      {editing && <SupplierEditModal supplierId={id} onClose={() => setEditing(false)} onSaved={() => reload({ silent: true })} />}
     </div>
   );
 }

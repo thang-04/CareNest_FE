@@ -124,10 +124,26 @@ export const DEFAULT_CRITERIA = [
 /** Timetable slots that are not assessed (arrival, meals and nap, going home). */
 export const NON_ASSESSED_SLOT_KEYWORDS = ['Đón trẻ', 'Ăn', 'Trả trẻ'];
 
-export const PERIOD_TYPE = { WEEK: 'WEEK', MONTH: 'MONTH', YEAR: 'YEAR' };
-export const PERIOD_TYPE_LABELS = { WEEK: 'Tuần', MONTH: 'Tháng', YEAR: 'Cả năm học' };
+export const PERIOD_TYPE = { WEEK: 'WEEK', MONTH: 'MONTH', SEMESTER: 'SEMESTER', YEAR: 'YEAR' };
+export const PERIOD_TYPE_LABELS = { WEEK: 'Tuần', MONTH: 'Tháng', SEMESTER: 'Học kỳ', YEAR: 'Cả năm học' };
 
-export const EVAL_KIND = { PERIODIC: 'periodic', YEAR_END: 'year-end' };
+// Xếp loại nhóm lớp (sổ chỉ đạo chuyên môn mục 7, BE OBS-24): kỳ, mức và 7 tiêu chí (key = field BE `levels`)
+export const CLASS_RATING_PERIOD = { SEMESTER_1: 'SEMESTER_1', SEMESTER_2: 'SEMESTER_2', YEAR: 'YEAR' };
+export const CLASS_RATING_PERIOD_LABELS = { SEMESTER_1: 'Học kỳ I', SEMESTER_2: 'Học kỳ II', YEAR: 'Cuối năm' };
+export const CLASS_RATING_LEVELS = ['TOT', 'KHA', 'DAT', 'CHUA_DAT'];
+export const CLASS_RATING_LEVEL_LABELS = { TOT: 'Tốt', KHA: 'Khá', DAT: 'Đạt', CHUA_DAT: 'Chưa đạt' };
+export const CLASS_RATING_CRITERIA = [
+  { key: 'records', label: 'Hồ sơ sổ sách' },
+  { key: 'program', label: 'Thực hiện chương trình' },
+  { key: 'theme', label: 'Thực hiện chủ đề' },
+  { key: 'environment', label: 'Tạo môi trường ĐDĐC' },
+  { key: 'routine', label: 'Nề nếp trẻ' },
+  { key: 'health', label: 'Sức khỏe' },
+  { key: 'parents', label: 'Kết hợp với cha mẹ' },
+];
+
+// Giá trị = đoạn đường dẫn /assessment/<kind>
+export const EVAL_KIND = { PERIODIC: 'periodic', SEMESTER: 'semester', YEAR_END: 'year-end' };
 
 export const EVAL_STATUS = { AWAITING_REVIEW: 'AWAITING_REVIEW', AI_FAILED: 'AI_FAILED', CONFIRMED: 'CONFIRMED' };
 export const EVAL_STATUS_LABELS = {
@@ -147,7 +163,7 @@ export const EVAL_HISTORY_LABELS = {
 };
 
 export const TICKET_TYPE = { WEEKLY: 'WEEKLY', MONTHLY: 'MONTHLY' };
-export const TICKET_TYPE_LABELS = { WEEKLY: 'Phiếu bé ngoan tuần', MONTHLY: 'Phiếu bé ngoan tháng' };
+export const TICKET_TYPE_LABELS = { WEEKLY: 'Bé ngoan', MONTHLY: 'Bé ngoan toàn diện' };
 
 /** GBR-REW-01 / GBR-REW-02 thresholds. */
 export const TICKET_RULES = { WEEK_MIN_PRESENT_DAYS: 4, WEEK_MIN_FLAGS: 3, MONTH_MIN_WEEKLY_TICKETS: 3 };
@@ -161,35 +177,39 @@ export const REWARD_STATUS = {
   REJECTED: 'REJECTED',
 };
 
+// NONE: lớp chưa lập danh sách khen thưởng (BE trả status null)
 export const REWARD_STATUS_LABELS = {
-  DRAFT: 'Bản nháp',
-  PENDING_VP: 'Chờ Phó hiệu trưởng xem xét',
-  PENDING_PRINCIPAL: 'Chờ Hiệu trưởng phê duyệt',
+  NONE: 'Chưa lập',
+  DRAFT: 'Đang lập',
+  PENDING_VP: 'Chờ PHT xem xét',
+  PENDING_PRINCIPAL: 'Chờ HT phê duyệt',
   APPROVED: 'Đã phê duyệt',
   RETURNED: 'Bị trả lại',
   REJECTED: 'Bị từ chối',
 };
 
 export const REWARD_HISTORY_LABELS = {
-  CREATED: 'Tạo bản nháp',
-  UPDATED: 'Cập nhật đề xuất',
-  SUBMITTED: 'Gửi đề xuất',
-  RESUBMITTED: 'Gửi lại đề xuất',
+  CREATED: 'Lập danh sách',
+  UPDATED: 'Lưu danh sách',
+  SUBMITTED: 'Gửi danh sách',
+  RESUBMITTED: 'Gửi lại danh sách',
   FORWARDED: 'Phó hiệu trưởng chuyển Hiệu trưởng',
-  RETURNED: 'Phó hiệu trưởng trả lại',
+  RETURNED: 'Trả lại giáo viên',
   APPROVED: 'Hiệu trưởng phê duyệt',
   REJECTED: 'Hiệu trưởng từ chối',
 };
 
-/** Suggested reward titles (assumption: the SRS does not fix the list). */
-export const REWARD_TITLES = [
-  'Bé ngoan toàn diện',
-  'Bé chăm ngoan, học giỏi',
-  'Bé tích cực tham gia hoạt động',
-  'Bé lễ phép, hòa đồng',
-  'Bé có năng khiếu nghệ thuật',
-  'Bé khỏe – Bé đẹp',
-];
+/**
+ * Danh hiệu khen thưởng cuối năm (như BE RewardListServiceImpl, OBS-14): mỗi trẻ một danh hiệu bé ngoan và, lớp 5–6
+ * tuổi đã hoàn thành chương trình, tối đa một danh hiệu hoàn thành chương trình. BE trả danh sách áp dụng cho từng lớp.
+ */
+export const REWARD_GENERAL_TITLES = ['Bé ngoan', 'Bé chăm ngoan', 'Bé khỏe, bé ngoan', 'Bé chăm ngoan xuất sắc'];
+// Cháu ngoan Bác Hồ: mọi lớp, chọn thêm độc lập với danh hiệu bé ngoan (GV tự tích, không gợi ý)
+export const REWARD_UNCLE_HO_TITLE = 'Cháu ngoan Bác Hồ';
+export const REWARD_PROGRAM_TITLES = ['Hoàn thành xuất sắc chương trình giáo dục mầm non', 'Hoàn thành tốt chương trình giáo dục mầm non'];
+export const REWARD_CLASS_TITLES = [...REWARD_GENERAL_TITLES, REWARD_UNCLE_HO_TITLE];
+export const REWARD_TITLES = [...REWARD_CLASS_TITLES, ...REWARD_PROGRAM_TITLES];
+export const REWARD_NOTE_MAX = 300;
 
 /** Words that must not appear in criteria or evaluations (GBR-OBS-05). Lower case, accents kept. */
 export const DIAGNOSTIC_TERMS = [
@@ -205,3 +225,7 @@ export const DIAGNOSTIC_TERMS = [
   'chậm nói',
   'bệnh lý',
 ];
+
+/** Kỳ của màn Tổng quan đánh giá lớp: hôm nay, tuần học (T2–T6), tháng dương lịch. */
+export const OVERVIEW_PERIOD = { DAY: 'DAY', WEEK: 'WEEK', MONTH: 'MONTH' };
+export const OVERVIEW_PERIOD_LABELS = { DAY: 'Hôm nay', WEEK: 'Tuần này', MONTH: 'Tháng này' };

@@ -22,6 +22,38 @@
   flex: 1;
 }
 
+/* Đang tải chunk trang vừa bấm: trang cũ còn hiện nên cần dấu hiệu ngay đầu màn hình */
+.route-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--space-1);
+  z-index: var(--z-toast);
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--color-info-border);
+}
+.route-progress::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: var(--color-primary);
+  animation: route-progress-slide calc(var(--duration-slow) * 2) var(--ease-in-out) infinite;
+}
+@keyframes route-progress-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+/* Nhãn "Dữ liệu demo" phía trên trang: thẳng lề với .page */
+.app-content__notice {
+  margin: var(--space-2) var(--page-padding) 0;
+}
+
 /* Sidebar nổi: tách mép, bo lớn, nền trắng đặc trên tranh nền */
 .sidebar {
   width: var(--sidebar-width);
@@ -160,9 +192,15 @@
 }
 .nav-item__label {
   flex: 1;
+  /* min-width: 0 để nhãn dài co lại (cắt …) thay vì đẩy mũi tên ra khỏi nút */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .nav-item__chev {
+  flex: none;
+  margin-left: auto;
   color: var(--color-text-disabled);
   width: 14px;
   height: 14px;
@@ -265,6 +303,12 @@
 .sidebar--collapsed .nav-item__chev {
   display: none;
 }
+/* Thu gọn: nhãn khu ẩn ⇒ vạch mảnh giữa các khu (Menu · Bán trú · Chung) */
+.sidebar--collapsed .sidebar__nav + .sidebar__label + .sidebar__nav {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
 .sidebar--collapsed {
   padding: var(--space-4) var(--space-3);
 }
@@ -363,6 +407,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .drawer-backdrop {
+    animation: none;
+  }
+  .route-progress::before {
+    width: 100%;
     animation: none;
   }
   .sidebar,
@@ -628,6 +676,7 @@
     padding: 0 var(--space-3);
   }
   .header__center {
+    flex: 1 0 auto;
     justify-content: flex-end;
   }
   .header-search--compact {
@@ -665,10 +714,19 @@
   .header__create-caret {
     display: none;
   }
-  /* Chip năm học gọn: bỏ icon lịch, chỉ còn "2026 - 2027 ▾" */
+  /* Chip năm học gọn: bỏ icon lịch, co lại và cắt "…" — select rộng theo option dài nhất từng đẩy nút + và chuông ra ngoài màn (FE-BUG-261028-header-mobile-overflow) */
   .header__year {
+    flex: 0 1 auto;
+    min-width: 0;
     height: 36px;
     padding-left: var(--space-2-5);
+  }
+  .header .header__year-select {
+    min-width: 0;
+    width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
   }
   .header__year-icon {
     display: none;

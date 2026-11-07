@@ -15,25 +15,30 @@ export function TeamLeaderModal({ group, current, teachers, campuses, campusName
   const [query, setQuery] = useState('');
   const [campus, setCampus] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const kw = normalizeText(query.trim());
   // Chưa làm tổ trưởng nhóm nào lên trước, rồi theo tên
   const rows = teachers
     .filter((t) => (!kw || normalizeText(t.fullName).includes(kw)) && (!campus || t.campusId === campus))
     .sort((a, b) => Number(!!a.leadsGroup) - Number(!!b.leadsGroup) || a.fullName.localeCompare(b.fullName, 'vi'));
-  const picked = teachers.find((t) => t.id === value);
   const changed = value !== (current?.userId || '');
   const allowed = leaderOptionAllowed(acts, current?.userId, value);
 
   const pick = (id) => {
     const next = value === id ? '' : id;
-    if (leaderOptionAllowed(acts, current?.userId, next)) setValue(next);
+    if (leaderOptionAllowed(acts, current?.userId, next)) {
+      setValue(next);
+      setError('');
+    }
   };
 
   const save = async () => {
     setSaving(true);
-    const ok = await onSave(group, value || null);
+    const result = await onSave(group, value || null);
     setSaving(false);
-    if (ok !== false) onClose();
+    // onSave trả câu lỗi khi BE từ chối: giữ hộp mở và báo đỏ
+    if (typeof result === 'string') setError(result);
+    else if (result !== false) onClose();
   };
 
   return (
@@ -53,15 +58,11 @@ export function TeamLeaderModal({ group, current, teachers, campuses, campusName
         </>
       }
     >
-      <div className="sc-tpick__picked" aria-live="polite">
-        {picked ? (
-          <span className="chip chip--teal">
-            Tổ trưởng: {picked.fullName} · {campusName(picked.campusId)}
-          </span>
-        ) : (
-          <span className="muted text-sm">Chưa chọn tổ trưởng.</span>
-        )}
-      </div>
+      {error && (
+        <div className="alert alert--danger mb-12" role="alert">
+          {error}
+        </div>
+      )}
       {teachers.length === 0 ? (
         <EmptyState icon={Users} title="Chưa có giáo viên" description="Cần có tài khoản giáo viên để phân công tổ trưởng." />
       ) : (

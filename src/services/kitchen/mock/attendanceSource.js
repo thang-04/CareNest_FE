@@ -16,5 +16,7 @@ export const classMealSessions = (db, cls) => {
 
 export const mealSessionsForCampus = (db, campusId) => {
   const sessions = new Set(activeKitchenClasses(db, campusId).flatMap((cls) => classMealSessions(db, cls)));
+  // Sổ báo ăn từ BE (dev): điểm trường BE không có lớp trong CSDL mock, lấy bữa theo sổ đã đồng bộ
+  (db.mealCounts || []).filter((m) => m.source === 'BE' && m.campusId === campusId).forEach((m) => sessions.add(m.session));
   return MEAL_SESSIONS.filter((session) => sessions.has(session));
 };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, BookOpen, CircleCheck, Copy, Eye, Pencil, Plus, RotateCcw, Soup } from '@/components/ui/icons';
-import { useDishes, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
+import { AlertCircle, BookOpen, CircleCheck, Copy, Plus, RotateCcw, Soup } from '@/components/ui/icons';
+import { useDishes, useCatalogAccess, useCatalogLookups } from '@/hooks/menu-planning/useMenuPlanning';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
@@ -9,10 +9,11 @@ import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { FilterMore } from '@/components/ui/FilterMore';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
-import { RowMenu } from '@/components/ui/RowMenu';
+import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { AllergenChips, DishStatusBadge } from '@/components/menu-planning/MenuBadges';
-import { CategoryNav } from '@/components/menu-planning/CategoryNav';
+import { CategoryNav } from '@/components/ui/CategoryNav';
 import { ReferenceLibraryPanel } from '@/components/menu-planning/ReferenceLibraryPanel';
 import { dishAllergens, missingPortionGroups } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups, ageAbbr } from '@/utils/menu-planning/nutritionSetup';
@@ -26,8 +27,8 @@ const FILTER_DEFAULTS = { type: '', keyword: '', portion: '', allergen: '', stat
 /** Bước 2 luồng dinh dưỡng – danh mục món ăn: loại món bên trái, bảng bên phải; bấm món để mở trang sửa. */
 export default function DishListPage() {
   const navigate = useNavigate();
-  const { canManage } = useMenuAccess();
-  const { catalog } = useMenuCatalog();
+  const { canManage } = useCatalogAccess();
+  const { catalog } = useCatalogLookups();
   // Bộ lọc lưu trên URL: mở món rồi Back vẫn giữ loại món, từ khóa và bộ lọc phụ
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, type, portion, allergen, status } = filters;
@@ -41,7 +42,7 @@ export default function DishListPage() {
   const rows = items.filter((d) => (!type || d.type === type) && (!portion || missingOf(d).length > 0));
   const filtered = activeKeys.length > 0;
   const safePage = Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE)));
-  const open = (d) => navigate(canManage ? `/menu/dishes/${d.id}/edit` : `/menu/dishes/${d.id}`);
+  const open = (d) => navigate(`/menu/dishes/${d.id}`);
   const change = (key) => (v) => {
     setFilters({ [key]: v });
     setPage(1);
@@ -69,7 +70,6 @@ export default function DishListPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Món ăn</h1>
-          <p className="page__desc">Công thức món theo nhóm tuổi. Dinh dưỡng và chi phí do hệ thống tính từ định lượng.</p>
         </div>
         <div className="page__actions">
           <button type="button" className="btn" onClick={() => setLibrary(true)}>
@@ -132,7 +132,7 @@ export default function DishListPage() {
                     <th>Loại món</th>
                     <th>Nhóm tuổi áp dụng</th>
                     <th>Định lượng</th>
-                    <th className="td-num-col cell--actions" aria-label="Thao tác" />
+                    <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -165,7 +165,7 @@ export default function DishListPage() {
                     paginate(rows, safePage, PAGE).map((d, i) => {
                       const missing = missingOf(d);
                       return (
-                        <tr key={d.id} className="row-click" onClick={() => open(d)}>
+                        <tr key={d.id} className="row-click" {...clickableRowProps(() => open(d))}>
                           <td className="muted td-num-col center">{(safePage - 1) * PAGE + i + 1}</td>
                           <td>
                             <span className="fw-600">{d.name}</span>{' '}
@@ -186,19 +186,14 @@ export default function DishListPage() {
                               <StatusBadge tone="green" icon={CircleCheck} label="Đủ" />
                             )}
                           </td>
-                          <td className="td-num-col cell--actions">
-                            <RowMenu
-                              label={`Thao tác ${d.name}`}
-                              items={[
-                                { label: 'Xem chi tiết', to: `/menu/dishes/${d.id}`, icon: Eye },
-                                ...(canManage
-                                  ? [
-                                      { label: 'Sửa', to: `/menu/dishes/${d.id}/edit`, icon: Pencil },
-                                      { label: 'Nhân bản', to: `/menu/dishes/new?from=${d.id}`, icon: Copy },
-                                    ]
-                                  : []),
-                              ]}
-                            />
+                          <td className="cell--actions">
+                            {canManage && (
+                              <RowActions
+                                name={d.name}
+                                edit={{ to: `/menu/dishes/${d.id}/edit` }}
+                                extra={{ label: 'Nhân bản', icon: Copy, to: `/menu/dishes/new?from=${d.id}` }}
+                              />
+                            )}
                           </td>
                         </tr>
                       );

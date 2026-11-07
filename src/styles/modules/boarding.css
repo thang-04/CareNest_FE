@@ -1,0 +1,53 @@
+/* Bán trú hôm nay – class prefix bd- */
+
+.bd-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* Bảng việc × điểm trường: cột đầu là việc, mỗi điểm trường một cột; ô gồm huy hiệu, chi tiết, nút xử lý */
+.bd-matrix {
+  table-layout: fixed;
+}
+.bd-matrix th:first-child {
+  width: 200px;
+}
+.bd-matrix td {
+  vertical-align: top;
+}
+.bd-matrix__task {
+  vertical-align: top;
+  font-weight: var(--fw-semibold);
+  text-align: left;
+}
+.bd-matrix__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  vertical-align: middle;
+}
+.bd-cell {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding-block: var(--space-1);
+}
+.bd-detail {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+.bd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

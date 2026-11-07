@@ -1,49 +1,46 @@
-import { DEVELOPMENT_ITEMS, IMMUNIZATION_ITEMS } from '@/models/children/healthExamForm';
-import { ExamChoiceField } from './ExamFields';
+import { useId } from 'react';
+import { DEVELOPMENT_ITEMS, EXAM_STEPS, IMMUNIZATION_ITEMS } from '@/models/children/healthExamForm';
+import { EXAM_SECTIONS, ExamSheetBand, ExamSheetCard, ExamSheetChoiceCell, ExamSheetRows, ExamSheetTable } from './ExamFields';
 
 /** Bước 3 — Phần IV (phát triển tinh thần – vận động) và V (tiêm chủng). Không chọn sẵn: phải hỏi hoặc xem sổ tiêm chủng. */
 export function ExamDevelopmentStep({ form, set, errors, reference, disabled }) {
-  const dev = form.exam.development;
-  const imm = form.exam.immunization;
+  const uid = useId();
+  const rows = (items, prefix, path) =>
+    items.map((item) => ({
+      key: item.key,
+      label: item.label,
+      id: `${uid}-${prefix}-${item.key}`,
+      required: true,
+      cell: (
+        <ExamSheetChoiceCell
+          name={`${prefix}-${item.key}`}
+          labelledBy={`${uid}-${prefix}-${item.key}`}
+          options={item.options}
+          value={form.exam[path][item.key]}
+          onChange={(v) => set(`exam.${path}.${item.key}`, v)}
+          error={errors[`exam.${path}.${item.key}`]}
+          disabled={disabled}
+        />
+      ),
+    }));
   return (
-    <>
-      <section className="card wizard-card">
-        <h2 className="card__title mb-12">IV. Đánh giá phát triển tinh thần – vận động</h2>
-        <p className="muted text-sm mb-12">Hành vi và năng lực của trẻ theo độ tuổi, theo đánh giá của bác sĩ.</p>
-        <div className="grid-2">
-          {DEVELOPMENT_ITEMS.filter((i) => !i.ageMonths || reference.autismQuestion).map((item) => (
-            <ExamChoiceField
-              key={item.key}
-              name={`dev-${item.key}`}
-              label={item.label}
-              options={item.options}
-              value={dev[item.key]}
-              onChange={(v) => set(`exam.development.${item.key}`, v)}
-              error={errors[`exam.development.${item.key}`]}
-              disabled={disabled}
-            />
-          ))}
-        </div>
-        {!reference.autismQuestion && <p className="muted text-sm mt-12">Câu nguy cơ tự kỷ chỉ hỏi với trẻ từ 16 đến 30 tháng tuổi.</p>}
-      </section>
-      <section className="card wizard-card mt-16">
-        <h2 className="card__title mb-12">V. Đánh giá tiêm chủng</h2>
-        <p className="muted text-sm mb-12">Kiểm tra sổ tiêm chủng người đi cùng mang theo.</p>
-        <div className="grid-2">
-          {IMMUNIZATION_ITEMS.map((item) => (
-            <ExamChoiceField
-              key={item.key}
-              name={`imm-${item.key}`}
-              label={item.label}
-              options={item.options}
-              value={imm[item.key]}
-              onChange={(v) => set(`exam.immunization.${item.key}`, v)}
-              error={errors[`exam.immunization.${item.key}`]}
-              disabled={disabled}
-            />
-          ))}
-        </div>
-      </section>
-    </>
+    <ExamSheetCard
+      title={EXAM_STEPS[2].label}
+      info="Phần IV theo đánh giá của bác sĩ về hành vi và năng lực của trẻ theo độ tuổi. Phần V kiểm tra sổ tiêm chủng người đi cùng mang theo."
+      note={!reference.autismQuestion && 'Câu nguy cơ tự kỷ chỉ hỏi với trẻ từ 16 đến 30 tháng tuổi.'}
+    >
+      <ExamSheetTable label={`${EXAM_SECTIONS.development}; ${EXAM_SECTIONS.immunization}`}>
+        <ExamSheetBand primary>{EXAM_SECTIONS.development}</ExamSheetBand>
+        <ExamSheetRows
+          rows={rows(
+            DEVELOPMENT_ITEMS.filter((i) => !i.ageMonths || reference.autismQuestion),
+            'dev',
+            'development',
+          )}
+        />
+        <ExamSheetBand primary>{EXAM_SECTIONS.immunization}</ExamSheetBand>
+        <ExamSheetRows rows={rows(IMMUNIZATION_ITEMS, 'imm', 'immunization')} />
+      </ExamSheetTable>
+    </ExamSheetCard>
   );
 }

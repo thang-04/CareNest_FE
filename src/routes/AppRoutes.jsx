@@ -1,190 +1,197 @@
-import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Suspense } from 'react';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { lazyPage, registerRouteTree } from './routePrefetch';
 import { MainLayout } from '@/layouts/MainLayout';
 import { RoleGuard } from './RoleGuard';
 import { ProtectedRoute, GuestRoute } from './ProtectedRoute';
-import { LoadingState } from '@/components/ui/States';
+import { AppSplash } from '@/components/ui/AppSplash';
 import { ROLES } from '@/models/User';
-import { FACILITY_ENABLED } from '@/config/app';
 import HomePage from '@/pages/HomePage';
 import ComingSoonPage from '@/pages/ComingSoonPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import { canOpenTeacherAssignment } from '@/utils/school-config/schoolConfigPermissions';
+import { canManageParentAccounts } from '@/utils/account/accountPermissions';
+import { isDemoModule } from '@/services/demoSource';
 
 // Thư viện UI chỉ cho bản dev: bản build prod bỏ cả route lẫn chunk.
-const UiKitPage = import.meta.env.DEV ? lazy(() => import('@/pages/UiKitPage')) : null;
-const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
-const ForgotPasswordPage = lazy(() => import('@/pages/account/ForgotPasswordPage'));
-const VerifyOtpPage = lazy(() => import('@/pages/account/VerifyOtpPage'));
-const ResetPasswordPage = lazy(() => import('@/pages/account/ResetPasswordPage'));
-const ProfilePage = lazy(() => import('@/pages/account/ProfilePage'));
-const ChangePasswordPage = lazy(() => import('@/pages/account/ChangePasswordPage'));
-const NotificationDetailPage = lazy(() => import('@/pages/account/NotificationDetailPage'));
-const AppearancePage = lazy(() => import('@/pages/settings/AppearancePage'));
+const UiKitPage = import.meta.env.DEV ? lazyPage(() => import('@/pages/UiKitPage')) : null;
+const LoginPage = lazyPage(() => import('@/pages/auth/LoginPage'));
+const ForgotPasswordPage = lazyPage(() => import('@/pages/account/ForgotPasswordPage'));
+const VerifyOtpPage = lazyPage(() => import('@/pages/account/VerifyOtpPage'));
+const ResetPasswordPage = lazyPage(() => import('@/pages/account/ResetPasswordPage'));
+const ProfilePage = lazyPage(() => import('@/pages/account/ProfilePage'));
+const ChangePasswordPage = lazyPage(() => import('@/pages/account/ChangePasswordPage'));
+const NotificationDetailPage = lazyPage(() => import('@/pages/account/NotificationDetailPage'));
+const AppearancePage = lazyPage(() => import('@/pages/settings/AppearancePage'));
 
 /** Public page for signed-out users only (login, password recovery). */
 const guest = (page) => (
   <GuestRoute>
-    <Suspense fallback={<LoadingState />}>{page}</Suspense>
+    <Suspense fallback={<AppSplash />}>{page}</Suspense>
   </GuestRoute>
 );
-
-const TransferListPage = lazy(() => import('@/pages/facility-transfer/TransferListPage'));
-const CreateTransferPage = lazy(() => import('@/pages/facility-transfer/CreateTransferPage'));
-const TransferDetailPage = lazy(() => import('@/pages/facility-transfer/TransferDetailPage'));
-const TransferAdjustmentPage = lazy(() => import('@/pages/facility-transfer/TransferAdjustmentPage'));
-const HandoverPage = lazy(() => import('@/pages/facility-transfer/HandoverPage'));
-const ReceivePage = lazy(() => import('@/pages/facility-transfer/ReceivePage'));
-const TransferDiscrepancyPage = lazy(() => import('@/pages/facility-transfer/TransferDiscrepancyPage'));
-const TransferPrintPage = lazy(() => import('@/pages/facility-transfer/TransferPrintPage'));
-
-const InspectionListPage = lazy(() => import('@/pages/inventory-inspection/InspectionListPage'));
-const CreateInspectionPage = lazy(() => import('@/pages/inventory-inspection/CreateInspectionPage'));
-const InspectionRoundDetailPage = lazy(() => import('@/pages/inventory-inspection/InspectionRoundDetailPage'));
-const InspectionSheetPage = lazy(() => import('@/pages/inventory-inspection/InspectionSheetPage'));
-const InspectionPrintPage = lazy(() => import('@/pages/inventory-inspection/InspectionPrintPage'));
-
-const EducationPlanLayout = lazy(() => import('@/components/education-plan/EducationPlanLayout'));
-const EducationHomeRedirect = lazy(() => import('@/pages/education-plan/EducationHomeRedirect'));
-const GoalsEntry = lazy(() => import('@/pages/education-plan/GoalListPage').then((m) => ({ default: m.GoalsEntry })));
-const GoalFormPage = lazy(() => import('@/pages/education-plan/GoalFormPage'));
-const GoalDetailPage = lazy(() => import('@/pages/education-plan/GoalDetailPage'));
-const ClassPlanPage = lazy(() => import('@/pages/education-plan/ClassPlanPage'));
-const ClassPlanRedirect = lazy(() => import('@/pages/education-plan/ClassPlanPage').then((m) => ({ default: m.ClassPlanRedirect })));
-const BranchPlanPage = lazy(() => import('@/pages/education-plan/BranchPlanPage'));
-const BranchPlanLegacyRedirect = lazy(() =>
-  import('@/pages/education-plan/BranchPlanPage').then((m) => ({ default: m.BranchPlanLegacyRedirect })),
+const EducationPlanLayout = lazyPage(() => import('@/components/education-plan/EducationPlanLayout'));
+const EducationHomeRedirect = lazyPage(() => import('@/pages/education-plan/EducationHomeRedirect'));
+const GoalsEntry = lazyPage(() =>
+  import('@/pages/education-plan/GoalListPage').then((m) => ({
+    default: m.GoalsEntry,
+  })),
 );
-const ClassThemePlanPage = lazy(() => import('@/pages/education-plan/ClassThemePlanPage'));
-const ThemeDossierPage = lazy(() => import('@/pages/education-plan/ThemeDossierPage'));
-const WeekPlanPage = lazy(() => import('@/pages/education-plan/WeekPlanPage'));
-const PlanReviewQueuePage = lazy(() => import('@/pages/education-plan/PlanReviewQueuePage'));
-const EduConfigPage = lazy(() => import('@/pages/education-plan/EduConfigPage'));
-const SchoolPlansPage = lazy(() => import('@/pages/education-plan/SchoolPlansPage'));
-
-const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'));
-const AttendanceDayUnlockPage = lazy(() => import('@/pages/attendance/AttendanceDayUnlockPage'));
-const AttendanceSummaryPage = lazy(() => import('@/pages/attendance/AttendanceSummaryPage'));
-const MealCountPage = lazy(() => import('@/pages/attendance/MealCountPage'));
-const MealHandoverPage = lazy(() => import('@/pages/attendance/MealHandoverPage'));
-const DailyHealthOverviewPage = lazy(() => import('@/pages/attendance/DailyHealthOverviewPage'));
-const PickupListPage = lazy(() => import('@/pages/pickup/PickupListPage'));
-const PickupVerifyPage = lazy(() => import('@/pages/pickup/PickupVerifyPage'));
-const PickupResultPage = lazy(() => import('@/pages/pickup/PickupResultPage'));
-
-const SchoolYearListPage = lazy(() => import('@/pages/school-config/SchoolYearListPage'));
-const SchoolYearFormPage = lazy(() => import('@/pages/school-config/SchoolYearFormPage'));
-const AgeGroupsClassesPage = lazy(() => import('@/pages/school-config/AgeGroupsClassesPage'));
-const RoomListPage = lazy(() => import('@/pages/school-config/RoomListPage'));
-const StaffAccountsPage = lazy(() => import('@/pages/school-config/StaffAccountsPage'));
-const CutoffSettingPage = lazy(() => import('@/pages/school-config/CutoffSettingPage'));
-const CampusListPage = lazy(() => import('@/pages/school-config/CampusListPage'));
-const CampusFormPage = lazy(() => import('@/pages/school-config/CampusFormPage'));
-const CampusDetailPage = lazy(() => import('@/pages/school-config/CampusDetailPage'));
-const VicePrincipalAssignmentPage = lazy(() => import('@/pages/school-config/VicePrincipalAssignmentPage'));
-const RoleDefaultsPage = lazy(() => import('@/pages/school-config/RoleDefaultsPage'));
-const UserOverridesPage = lazy(() => import('@/pages/permissions/UserOverridesPage'));
-const PermissionHistoryPage = lazy(() => import('@/pages/school-config/PermissionHistoryPage'));
-const TeacherAssignmentPage = lazy(() => import('@/pages/school-config/TeacherAssignmentPage'));
-const YearPlacementPage = lazy(() => import('@/pages/school-config/YearPlacementPage'));
-
-const ChildrenListPage = lazy(() => import('@/pages/children/ChildrenListPage'));
-const EnrollChildPage = lazy(() => import('@/pages/children/EnrollChildPage'));
-const ImportChildrenPage = lazy(() => import('@/pages/children/ImportChildrenPage'));
-const ClassPlacementPage = lazy(() => import('@/pages/children/ClassPlacementPage'));
-const ParentActivationPage = lazy(() => import('@/pages/children/ParentActivationPage'));
-const ChildProfilePage = lazy(() => import('@/pages/children/ChildProfilePage'));
-const EditChildPage = lazy(() => import('@/pages/children/EditChildPage'));
-const HealthDeclarationPage = lazy(() => import('@/pages/children/HealthDeclarationPage'));
-const ChildHealthRecordPage = lazy(() => import('@/pages/children/ChildHealthRecordPage'));
-const HealthMeasurementFormPage = lazy(() => import('@/pages/children/HealthMeasurementFormPage'));
-const HealthTrendPage = lazy(() => import('@/pages/children/HealthTrendPage'));
-const HealthCheckListPage = lazy(() => import('@/pages/children/HealthCheckListPage'));
-const HealthCheckFormPage = lazy(() => import('@/pages/children/HealthCheckFormPage'));
-const HealthCheckDetailPage = lazy(() => import('@/pages/children/HealthCheckDetailPage'));
-const HealthExamFormPage = lazy(() => import('@/pages/children/HealthExamFormPage'));
-const HealthFollowUpListPage = lazy(() => import('@/pages/children/HealthFollowUpListPage'));
-const HealthFollowUpDetailPage = lazy(() => import('@/pages/children/HealthFollowUpDetailPage'));
-
-const FacilityAssetListPage = lazy(() => import('@/pages/facility/FacilityAssetListPage'));
-const IssueReportPage = lazy(() => import('@/pages/facility/IssueReportPage'));
-const RequestFormPage = lazy(() => import('@/pages/facility/RequestFormPage'));
-const MyReportsPage = lazy(() => import('@/pages/facility/MyReportsPage'));
-const IssueListPage = lazy(() => import('@/pages/facility/IssueListPage'));
-const IssueDetailPage = lazy(() => import('@/pages/facility/IssueDetailPage'));
-const RequestListPage = lazy(() => import('@/pages/facility/RequestListPage'));
-const RequestDetailPage = lazy(() => import('@/pages/facility/RequestDetailPage'));
-const ProposalListPage = lazy(() => import('@/pages/facility/ProposalListPage'));
-const ProposalFormPage = lazy(() => import('@/pages/facility/ProposalFormPage'));
-const ProposalDetailPage = lazy(() => import('@/pages/facility/ProposalDetailPage'));
-const StockReceiptListPage = lazy(() => import('@/pages/kitchen/StockReceiptListPage'));
-const StockReceiptFormPage = lazy(() => import('@/pages/kitchen/StockReceiptFormPage'));
-const SupplierListPage = lazy(() => import('@/pages/kitchen/SupplierListPage'));
-const SupplierDetailPage = lazy(() => import('@/pages/kitchen/SupplierDetailPage'));
-const SupplierFormPage = lazy(() => import('@/pages/kitchen/SupplierFormPage'));
-const KitchenFlowPage = lazy(() => import('@/pages/kitchen/KitchenFlowPage'));
-const DryStockPage = lazy(() => import('@/pages/kitchen/DryStockPage'));
-const FoodSampleLogPage = lazy(() => import('@/pages/kitchen/FoodSampleLogPage'));
-const WeeklyForecastPage = lazy(() => import('@/pages/kitchen/WeeklyForecastPage'));
-const FreshReceiptPage = lazy(() => import('@/pages/kitchen/FreshReceiptPage'));
-const StockIssueApprovalPage = lazy(() => import('@/pages/kitchen/StockIssueApprovalPage'));
-const MealPreparationStatusPage = lazy(() => import('@/pages/kitchen/MealPreparationStatusPage'));
-const PublishedMenuPage = lazy(() => import('@/pages/kitchen/PublishedMenuPage'));
-const ConfirmedMealCountPage = lazy(() => import('@/pages/kitchen/ConfirmedMealCountPage'));
-const RequiredFoodQuantityPage = lazy(() => import('@/pages/kitchen/RequiredFoodQuantityPage'));
-const IngredientReceiptPage = lazy(() => import('@/pages/kitchen/IngredientReceiptPage'));
-const MissingFoodReportPage = lazy(() => import('@/pages/kitchen/MissingFoodReportPage'));
-const MealPreparationUpdatePage = lazy(() => import('@/pages/kitchen/MealPreparationUpdatePage'));
-
-const DailyAssessmentPage = lazy(() => import('@/pages/assessment/DailyAssessmentPage'));
-const AssessmentDayUnlockPage = lazy(() => import('@/pages/assessment/AssessmentDayUnlockPage'));
-const ChildDevelopmentListPage = lazy(() => import('@/pages/assessment/ChildDevelopmentListPage'));
-const ChildDevelopmentProfilePage = lazy(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
-const ChildDevelopmentProgressPage = lazy(() => import('@/pages/assessment/ChildDevelopmentProgressPage'));
-const PeriodicEvaluationListPage = lazy(() => import('@/pages/assessment/PeriodicEvaluationListPage'));
-const PeriodicEvaluationDetailPage = lazy(() => import('@/pages/assessment/PeriodicEvaluationDetailPage'));
-const AiEvaluationDraftPage = lazy(() => import('@/pages/assessment/AiEvaluationDraftPage'));
-const YearEndEvaluationListPage = lazy(() => import('@/pages/assessment/YearEndEvaluationListPage'));
-const YearEndEvaluationDetailPage = lazy(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
-const GoodBehaviourTicketsPage = lazy(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
-const RewardProposalListPage = lazy(() => import('@/pages/assessment/RewardProposalListPage'));
-const RewardProposalFormPage = lazy(() => import('@/pages/assessment/RewardProposalFormPage'));
-const RewardProposalDetailPage = lazy(() => import('@/pages/assessment/RewardProposalDetailPage'));
-
-const PendingApprovalsPage = lazy(() => import('@/pages/dashboard/PendingApprovalsPage'));
-
-const FoodListPage = lazy(() => import('@/pages/menu-planning/FoodListPage'));
-const NutritionFlowPage = lazy(() => import('@/pages/menu-planning/NutritionFlowPage'));
-const NutritionSetupPage = lazy(() => import('@/pages/menu-planning/NutritionSetupPage'));
-const FoodDetailPage = lazy(() => import('@/pages/menu-planning/FoodDetailPage'));
-const FoodFormPage = lazy(() => import('@/pages/menu-planning/FoodFormPage'));
-const DishListPage = lazy(() => import('@/pages/menu-planning/DishListPage'));
-const DishDetailPage = lazy(() => import('@/pages/menu-planning/DishDetailPage'));
-const DishFormPage = lazy(() => import('@/pages/menu-planning/DishFormPage'));
-const MealPriceListPage = lazy(() => import('@/pages/menu-planning/MealPriceListPage'));
-const MealPriceFormPage = lazy(() => import('@/pages/menu-planning/MealPriceFormPage'));
-const MenuListPage = lazy(() => import('@/pages/menu-planning/MenuListPage'));
-const MenuDetailPage = lazy(() => import('@/pages/menu-planning/MenuDetailPage'));
-const MenuFormPage = lazy(() => import('@/pages/menu-planning/MenuFormPage'));
-const AllergyMenuListPage = lazy(() => import('@/pages/menu-planning/AllergyMenuListPage'));
-const AllergyMenuDetailPage = lazy(() => import('@/pages/menu-planning/AllergyMenuDetailPage'));
-const AllergyMenuFormPage = lazy(() => import('@/pages/menu-planning/AllergyMenuFormPage'));
-const AiMenuSuggestionPage = lazy(() => import('@/pages/menu-planning/AiMenuSuggestionPage'));
-const WeeklyMenuListPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuListPage'));
-const WeeklyMenuDetailPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuDetailPage'));
-const WeeklyMenuFormPage = lazy(() => import('@/pages/menu-planning/WeeklyMenuFormPage'));
-const NutritionBalancePage = lazy(() => import('@/pages/menu-planning/NutritionBalancePage'));
-const MenuPlanListPage = lazy(() => import('@/pages/menu-planning/MenuPlanListPage'));
-const MenuPlanDetailPage = lazy(() => import('@/pages/menu-planning/MenuPlanDetailPage'));
-
-const VP_ONLY = [ROLES.VICE_PRINCIPAL];
+const GoalFormPage = lazyPage(() => import('@/pages/education-plan/GoalFormPage'));
+const GoalDetailPage = lazyPage(() => import('@/pages/education-plan/GoalDetailPage'));
+const ClassPlanPage = lazyPage(() => import('@/pages/education-plan/ClassPlanPage'));
+const ClassPlanRedirect = lazyPage(() =>
+  import('@/pages/education-plan/ClassPlanPage').then((m) => ({
+    default: m.ClassPlanRedirect,
+  })),
+);
+const BranchPlanPage = lazyPage(() => import('@/pages/education-plan/BranchPlanPage'));
+const BranchPlanLegacyRedirect = lazyPage(() =>
+  import('@/pages/education-plan/BranchPlanPage').then((m) => ({
+    default: m.BranchPlanLegacyRedirect,
+  })),
+);
+const ClassThemePlanPage = lazyPage(() => import('@/pages/education-plan/ClassThemePlanPage'));
+const TeachingPresentationPage = lazyPage(() => import('@/pages/education-plan/TeachingPresentationPage'));
+const WeekPlanPage = lazyPage(() => import('@/pages/education-plan/WeekPlanPage'));
+const PlanReviewQueuePage = lazyPage(() => import('@/pages/education-plan/PlanReviewQueuePage'));
+const EduConfigPage = lazyPage(() => import('@/pages/education-plan/EduConfigPage'));
+const CurriculumSourcesPage = lazyPage(() => import('@/pages/education-plan/CurriculumSourcesPage'));
+const SchoolPlansPage = lazyPage(() => import('@/pages/education-plan/SchoolPlansPage'));
+const AttendancePage = lazyPage(() => import('@/pages/attendance/AttendancePage'));
+const AttendanceDayUnlockPage = lazyPage(() => import('@/pages/attendance/AttendanceDayUnlockPage'));
+const AttendanceSummaryPage = lazyPage(() => import('@/pages/attendance/AttendanceSummaryPage'));
+const MealCountPage = lazyPage(() => import('@/pages/attendance/MealCountPage'));
+const LeaveRequestsPage = lazyPage(() => import('@/pages/attendance/LeaveRequestsPage'));
+const DailyHealthOverviewPage = lazyPage(() => import('@/pages/attendance/DailyHealthOverviewPage'));
+const PickupListPage = lazyPage(() => import('@/pages/pickup/PickupListPage'));
+const PickupVerifyPage = lazyPage(() => import('@/pages/pickup/PickupVerifyPage'));
+const PickupResultPage = lazyPage(() => import('@/pages/pickup/PickupResultPage'));
+const SchoolYearListPage = lazyPage(() => import('@/pages/school-config/SchoolYearListPage'));
+const SchoolYearFormPage = lazyPage(() => import('@/pages/school-config/SchoolYearFormPage'));
+const SchoolYearSetupPage = lazyPage(() => import('@/pages/school-config/SchoolYearSetupPage'));
+const AgeGroupsClassesPage = lazyPage(() => import('@/pages/school-config/AgeGroupsClassesPage'));
+const RoomListPage = lazyPage(() => import('@/pages/school-config/RoomListPage'));
+const StaffAccountsPage = lazyPage(() => import('@/pages/school-config/StaffAccountsPage'));
+const CutoffSettingPage = lazyPage(() => import('@/pages/school-config/CutoffSettingPage'));
+const CampusListPage = lazyPage(() => import('@/pages/school-config/CampusListPage'));
+const CampusFormPage = lazyPage(() => import('@/pages/school-config/CampusFormPage'));
+const CampusDetailPage = lazyPage(() => import('@/pages/school-config/CampusDetailPage'));
+const VicePrincipalAssignmentPage = lazyPage(() => import('@/pages/school-config/VicePrincipalAssignmentPage'));
+const RoleDefaultsPage = lazyPage(() => import('@/pages/school-config/RoleDefaultsPage'));
+const UserOverridesPage = lazyPage(() => import('@/pages/permissions/UserOverridesPage'));
+const PermissionHistoryPage = lazyPage(() => import('@/pages/school-config/PermissionHistoryPage'));
+const TeacherAssignmentPage = lazyPage(() => import('@/pages/school-config/TeacherAssignmentPage'));
+const YearPlacementPage = lazyPage(() => import('@/pages/school-config/YearPlacementPage'));
+const ChildrenListPage = lazyPage(() => import('@/pages/children/ChildrenListPage'));
+const EnrollChildPage = lazyPage(() => import('@/pages/children/EnrollChildPage'));
+const ImportChildrenPage = lazyPage(() => import('@/pages/children/ImportChildrenPage'));
+const ClassPlacementPage = lazyPage(() => import('@/pages/children/ClassPlacementPage'));
+const ParentActivationPage = lazyPage(() => import('@/pages/children/ParentActivationPage'));
+const ChildProfilePage = lazyPage(() => import('@/pages/children/ChildProfilePage'));
+const EditChildPage = lazyPage(() => import('@/pages/children/EditChildPage'));
+const HealthDeclarationPage = lazyPage(() => import('@/pages/children/HealthDeclarationPage'));
+const ChildHealthRecordPage = lazyPage(() => import('@/pages/children/ChildHealthRecordPage'));
+const HealthMeasurementFormPage = lazyPage(() => import('@/pages/children/HealthMeasurementFormPage'));
+const HealthTrendPage = lazyPage(() => import('@/pages/children/HealthTrendPage'));
+const HealthCheckListPage = lazyPage(() => import('@/pages/children/HealthCheckListPage'));
+const HealthCheckFormPage = lazyPage(() => import('@/pages/children/HealthCheckFormPage'));
+const HealthCheckDetailPage = lazyPage(() => import('@/pages/children/HealthCheckDetailPage'));
+const HealthExamFormPage = lazyPage(() => import('@/pages/children/HealthExamFormPage'));
+const BoardingTodayPage = lazyPage(() => import('@/pages/boarding/BoardingTodayPage'));
+const DryStockLedgerPage = lazyPage(() => import('@/pages/kitchen/DryStockLedgerPage'));
+const StockReceiptEditorPage = lazyPage(() => import('@/pages/kitchen/StockReceiptEditorPage'));
+const StockReceiptListPage = lazyPage(() => import('@/pages/kitchen/StockReceiptListPage'));
+const StockReceiptFormPage = lazyPage(() => import('@/pages/kitchen/StockReceiptFormPage'));
+const SupplierListPage = lazyPage(() => import('@/pages/kitchen/SupplierListPage'));
+const SupplierDetailPage = lazyPage(() => import('@/pages/kitchen/SupplierDetailPage'));
+const KitchenFlowPage = lazyPage(() => import('@/pages/kitchen/KitchenFlowPage'));
+const DryStockPage = lazyPage(() => import('@/pages/kitchen/DryStockPage'));
+const FoodSampleLogPage = lazyPage(() => import('@/pages/kitchen/FoodSampleLogPage'));
+const WeeklyForecastPage = lazyPage(() => import('@/pages/kitchen/WeeklyForecastPage'));
+const FreshReceiptPage = lazyPage(() => import('@/pages/kitchen/FreshReceiptPage'));
+const FreshForecastPage = lazyPage(() => import('@/pages/kitchen/FreshForecastPage'));
+const FreshCheckPage = lazyPage(() => import('@/pages/kitchen/FreshCheckPage'));
+const PublishedMenuPage = lazyPage(() => import('@/pages/kitchen/PublishedMenuPage'));
+const KitchenTodayPage = lazyPage(() => import('@/pages/kitchen/KitchenTodayPage'));
+const FoodSampleQueuePage = lazyPage(() => import('@/pages/kitchen/FoodSampleQueuePage'));
+const MealPhotosPage = lazyPage(() => import('@/pages/kitchen/MealPhotosPage'));
+const MealPhotoWindowsPage = lazyPage(() => import('@/pages/kitchen/MealPhotoWindowsPage'));
+const ConfirmedMealCountPage = lazyPage(() => import('@/pages/kitchen/ConfirmedMealCountPage'));
+const RequiredFoodQuantityPage = lazyPage(() => import('@/pages/kitchen/RequiredFoodQuantityPage'));
+const MissingFoodReportPage = lazyPage(() => import('@/pages/kitchen/MissingFoodReportPage'));
+const DailyAssessmentPage = lazyPage(() => import('@/pages/assessment/DailyAssessmentPage'));
+const DailyGoalAssessmentPage = lazyPage(() => import('@/pages/assessment/DailyGoalAssessmentPage'));
+const AssessmentDayUnlockPage = lazyPage(() => import('@/pages/assessment/AssessmentDayUnlockPage'));
+const ChildDevelopmentListPage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentListPage'));
+const ChildDevelopmentProfilePage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
+const ChildDevelopmentProgressPage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProgressPage'));
+const AiEvaluationDraftPage = lazyPage(() => import('@/pages/assessment/AiEvaluationDraftPage'));
+const ClassRatingsPage = lazyPage(() => import('@/pages/assessment/ClassRatingsPage'));
+const SemesterEvaluationListPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationListPage'));
+const SemesterEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationDetailPage'));
+const YearEndEvaluationListPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationListPage'));
+const YearEndEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
+const GoodBehaviourTicketsPage = lazyPage(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
+const ClassAssessmentOverviewPage = lazyPage(() => import('@/pages/assessment/ClassAssessmentOverviewPage'));
+const ThemeEvaluationPage = lazyPage(() => import('@/pages/assessment/ThemeEvaluationPage'));
+const QualityReportPage = lazyPage(() => import('@/pages/assessment/QualityReportPage'));
+const RewardListPage = lazyPage(() => import('@/pages/assessment/RewardListPage'));
+const RewardClassPage = lazyPage(() => import('@/pages/assessment/RewardClassPage'));
+const PendingApprovalsPage = lazyPage(() => import('@/pages/dashboard/PendingApprovalsPage'));
+const FoodListPage = lazyPage(() => import('@/pages/menu-planning/FoodListPage'));
+const NutritionFlowPage = lazyPage(() => import('@/pages/menu-planning/NutritionFlowPage'));
+const NutritionSetupPage = lazyPage(() => import('@/pages/menu-planning/NutritionSetupPage'));
+const FoodDetailPage = lazyPage(() => import('@/pages/menu-planning/FoodDetailPage'));
+const FoodFormPage = lazyPage(() => import('@/pages/menu-planning/FoodFormPage'));
+const DishListPage = lazyPage(() => import('@/pages/menu-planning/DishListPage'));
+const DishDetailPage = lazyPage(() => import('@/pages/menu-planning/DishDetailPage'));
+const DishFormPage = lazyPage(() => import('@/pages/menu-planning/DishFormPage'));
+const MenuListPage = lazyPage(() => import('@/pages/menu-planning/MenuListPage'));
+const MenuDetailPage = lazyPage(() => import('@/pages/menu-planning/MenuDetailPage'));
+const MenuFormPage = lazyPage(() => import('@/pages/menu-planning/MenuFormPage'));
+const AllergyMenuListPage = lazyPage(() => import('@/pages/menu-planning/AllergyMenuListPage'));
+const AllergyMenuDetailPage = lazyPage(() => import('@/pages/menu-planning/AllergyMenuDetailPage'));
+const AllergyMenuFormPage = lazyPage(() => import('@/pages/menu-planning/AllergyMenuFormPage'));
+const AiMenuSuggestionPage = lazyPage(() => import('@/pages/menu-planning/AiMenuSuggestionPage'));
+const WeeklyMenuListPage = lazyPage(() => import('@/pages/menu-planning/WeeklyMenuListPage'));
+const WeeklyMenuDetailPage = lazyPage(() => import('@/pages/menu-planning/WeeklyMenuDetailPage'));
+const WeeklyMenuFormPage = lazyPage(() => import('@/pages/menu-planning/WeeklyMenuFormPage'));
+const NutritionBalancePage = lazyPage(() => import('@/pages/menu-planning/NutritionBalancePage'));
+const WeeklyPlanPage = lazyPage(() => import('@/pages/menu-planning/WeeklyPlanPage'));
+const MenuTemplateListPage = lazyPage(() => import('@/pages/menu-planning/MenuTemplateListPage'));
+const MenuTemplateEditorPage = lazyPage(() => import('@/pages/menu-planning/MenuTemplateEditorPage'));
+const MenuStatisticsPage = lazyPage(() => import('@/pages/menu-planning/MenuStatisticsPage'));
+const MenuPlanListPage = lazyPage(() => import('@/pages/menu-planning/MenuPlanListPage'));
+const MenuPlanDetailPage = lazyPage(() => import('@/pages/menu-planning/MenuPlanDetailPage'));
 const R = ROLES;
 const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
 const LEADERS = [R.PRINCIPAL, R.VICE_PRINCIPAL];
-const REPORTERS = [...CLASS_STAFF, R.KITCHEN_STAFF];
-const ALL_STAFF = [...LEADERS, ...REPORTERS];
+// Danh mục bán trú: HT, PHT đều xem; nút sửa theo NUTRITION_MANAGE khi dùng BE (BE vẫn kiểm). Form bản demo giữ phân quyền cũ.
+const CATALOG_API = !isDemoModule('nutrition-catalog');
+const CATALOG_READERS = LEADERS;
+const CATALOG_EDITORS = LEADERS;
+// Bán trú nối BE (hub, kế hoạch tuần, kho khô): build mock (VITE_USE_MOCK mặc định) giữ màn demo cũ, không có mock cho contract mới.
+const BOARDING_API = !isDemoModule('day-board');
+const MEAL_PLAN_API = !isDemoModule('meal-plan');
+const TEMPLATE_API = !isDemoModule('menu-template');
+const DRY_STOCK_API = !isDemoModule('dry-stock');
+const FRESH_GOODS_API = !isDemoModule('fresh-goods');
+const KITCHEN_RECORDS_API = !isDemoModule('kitchen-records');
+const STOCK_RECEIPT_ROLES = LEADERS;
 const DENIED = 'Chức năng này không thuộc quyền của vai trò hiện tại (theo ma trận phân quyền của hệ thống).';
+
+/** Trang hồ sơ chủ đề đã bỏ (Tiền 04/11): link cũ .../review mở trang kế hoạch chủ đề. */
+function ThemeReviewRedirect() {
+  const { classId, themeId } = useParams();
+  return <Navigate to={`/education/class/${classId}/themes/${themeId}`} replace />;
+}
+
+function SupplierRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/menu/suppliers/${id}`} replace />;
+}
 
 /** Route element limited to the roles allowed by the SRS permission matrix. */
 const only = (roles, page) => (
@@ -200,12 +207,11 @@ const EDU_DENIED =
   'Chức năng này dành cho Hiệu trưởng (chỉ xem), Phó hiệu trưởng, tổ trưởng nhóm tuổi hoặc giáo viên theo từng bước của kế hoạch giáo dục.';
 
 /** Route element guarded for education-plan roles. */
-const edu = (roles, page) => (
-  <RoleGuard roles={roles} description={EDU_DENIED}>
+const edu = (roles, page, description = EDU_DENIED) => (
+  <RoleGuard roles={roles} description={description}>
     {page}
   </RoleGuard>
 );
-
 export function AppRoutes() {
   return (
     <Routes>
@@ -214,7 +220,7 @@ export function AppRoutes() {
         path="login"
         element={
           <GuestRoute>
-            <Suspense fallback={<LoadingState />}>
+            <Suspense fallback={<AppSplash />}>
               <LoginPage />
             </Suspense>
           </GuestRoute>
@@ -229,63 +235,7 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route index element={<HomePage />} />
-          {FACILITY_ENABLED && (
-            <>
-              <Route path="facility/transfers">
-                <Route index element={<TransferListPage />} />
-                <Route
-                  path="new"
-                  element={
-                    <RoleGuard roles={VP_ONLY}>
-                      <CreateTransferPage />
-                    </RoleGuard>
-                  }
-                />
-                <Route path=":id" element={<TransferDetailPage />} />
-                <Route
-                  path=":id/edit"
-                  element={
-                    <RoleGuard roles={VP_ONLY}>
-                      <TransferAdjustmentPage />
-                    </RoleGuard>
-                  }
-                />
-                <Route
-                  path=":id/discrepancy"
-                  element={
-                    <RoleGuard roles={VP_ONLY}>
-                      <TransferDiscrepancyPage />
-                    </RoleGuard>
-                  }
-                />
-                <Route path=":id/handover" element={<HandoverPage />} />
-                <Route path=":id/receive" element={<ReceivePage />} />
-                <Route path=":id/print" element={<TransferPrintPage />} />
-              </Route>
-              <Route path="facility/inspections">
-                <Route index element={<InspectionListPage />} />
-                <Route
-                  path="new"
-                  element={
-                    <RoleGuard roles={VP_ONLY}>
-                      <CreateInspectionPage />
-                    </RoleGuard>
-                  }
-                />
-                <Route path=":id" element={<InspectionRoundDetailPage />} />
-                <Route
-                  path=":id/edit"
-                  element={
-                    <RoleGuard roles={VP_ONLY}>
-                      <CreateInspectionPage />
-                    </RoleGuard>
-                  }
-                />
-                <Route path=":id/sheets/:sheetId" element={<InspectionSheetPage />} />
-                <Route path=":id/print" element={<InspectionPrintPage />} />
-              </Route>
-            </>
-          )}
+          {false}
           <Route path="education" element={<EducationPlanLayout />}>
             <Route index element={edu(EDU_VIEW, <EducationHomeRedirect />)} />
             <Route path="school" element={edu([ROLES.PRINCIPAL], <SchoolPlansPage />)} />
@@ -303,20 +253,32 @@ export function AppRoutes() {
             <Route path="class/:classId/branches" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
             <Route path="class/:classId/branches/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
             <Route path="class/:classId/themes/:themeId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassThemePlanPage />)} />
-            <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeDossierPage />)} />
+            <Route path="class/:classId/themes/:themeId/teach" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <TeachingPresentationPage />)} />
+            <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeReviewRedirect />)} />
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
             <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />
             <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />
-            <Route path="settings" element={edu([ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL], <EduConfigPage />)} />
+            <Route path="curriculum-sources" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <CurriculumSourcesPage />)} />
+            <Route
+              path="settings"
+              element={edu(
+                [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
+                <EduConfigPage />,
+                'Cấu hình kế hoạch giáo dục dành cho Hiệu trưởng và Phó hiệu trưởng.',
+              )}
+            />
           </Route>
           <Route path="school">
             <Route path="years" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <SchoolYearListPage />)} />
-            <Route path="years/new" element={only([R.PRINCIPAL], <SchoolYearFormPage />)} />
+            {/* Tạo năm học = Thiết lập năm học từng bước (Cần 30/10/2026) */}
+            <Route path="years/new" element={only([R.PRINCIPAL], <SchoolYearSetupPage />)} />
+            <Route path="years/:id/setup" element={only([R.PRINCIPAL], <SchoolYearSetupPage />)} />
+            <Route path="years/:id/setup/:step" element={only([R.PRINCIPAL], <SchoolYearSetupPage />)} />
             <Route path="years/:id/edit" element={only([R.PRINCIPAL], <SchoolYearFormPage />)} />
             <Route path="classes" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AgeGroupsClassesPage />)} />
             <Route path="rooms" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <RoomListPage />)} />
             <Route path="staff" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <StaffAccountsPage />)} />
-            <Route path="placement" element={only([R.PRINCIPAL], <YearPlacementPage />)} />
+            <Route path="placement" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <YearPlacementPage />)} />
             <Route path="cutoff" element={only([R.PRINCIPAL], <CutoffSettingPage />)} />
             <Route path="campuses" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <CampusListPage />)} />
             <Route path="campuses/new" element={only([R.PRINCIPAL], <CampusFormPage />)} />
@@ -345,26 +307,30 @@ export function AppRoutes() {
           </Route>
           <Route path="children">
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />
-            <Route path="new" element={only(VP_ONLY, <EnrollChildPage />)} />
-            <Route path="import" element={only(VP_ONLY, <ImportChildrenPage />)} />
-            <Route path="placement" element={only(VP_ONLY, <ClassPlacementPage />)} />
-            <Route path="activation" element={only(VP_ONLY, <ParentActivationPage />)} />
+            {/* Tiếp nhận, nhập Excel, xếp lớp: Hiệu trưởng như PHT (user chốt 2026-10-27) */}
+            <Route path="new" element={only(LEADERS, <EnrollChildPage />)} />
+            <Route path="import" element={only(LEADERS, <ImportChildrenPage />)} />
+            <Route path="placement" element={only(LEADERS, <ClassPlacementPage />)} />
+            <Route
+              path="activation"
+              element={
+                <RoleGuard allow={canManageParentAccounts} description={DENIED}>
+                  <ParentActivationPage />
+                </RoleGuard>
+              }
+            />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
             <Route path="health-checks" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckListPage />)} />
-            <Route path="health-checks/new" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />
+            {/* Đợt khám, kỳ cân đo: Hiệu trưởng và PHT điểm trường quản lý (user chốt 2026-10-31) */}
+            <Route path="health-checks/new" element={only(LEADERS, <HealthCheckFormPage />)} />
             <Route
               path="health-checks/:campaignId"
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckDetailPage />)}
             />
-            <Route path="health-checks/:campaignId/edit" element={only([R.PRINCIPAL], <HealthCheckFormPage />)} />
+            <Route path="health-checks/:campaignId/edit" element={only(LEADERS, <HealthCheckFormPage />)} />
             <Route
               path="health-checks/:campaignId/exam/:childId"
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthExamFormPage />)}
-            />
-            <Route path="health-follow-ups" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthFollowUpListPage />)} />
-            <Route
-              path="health-follow-ups/:followUpId"
-              element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthFollowUpDetailPage />)}
             />
             <Route path=":id" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildProfilePage />)} />
             <Route path=":id/edit" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <EditChildPage />)} />
@@ -376,106 +342,143 @@ export function AppRoutes() {
             <Route path=":id/health/new" element={only(CLASS_STAFF, <HealthMeasurementFormPage />)} />
             <Route path=":id/health/:measurementId/edit" element={only(CLASS_STAFF, <HealthMeasurementFormPage />)} />
           </Route>
-          {FACILITY_ENABLED && (
-            <>
-              <Route path="facility/assets" element={only(ALL_STAFF, <FacilityAssetListPage />)} />
-              <Route path="facility/issues">
-                <Route index element={only(LEADERS, <IssueListPage />)} />
-                <Route path="new" element={only(REPORTERS, <IssueReportPage />)} />
-                <Route path=":id" element={only(ALL_STAFF, <IssueDetailPage />)} />
-              </Route>
-              <Route path="facility/requests">
-                <Route index element={only(LEADERS, <RequestListPage />)} />
-                <Route path="new" element={only(REPORTERS, <RequestFormPage />)} />
-                <Route path=":id" element={only(ALL_STAFF, <RequestDetailPage />)} />
-              </Route>
-              <Route path="facility/my-reports" element={only(REPORTERS, <MyReportsPage />)} />
-              <Route path="facility/proposals">
-                <Route index element={only(LEADERS, <ProposalListPage />)} />
-                <Route path="new" element={only(VP_ONLY, <ProposalFormPage />)} />
-                <Route path=":id" element={only(LEADERS, <ProposalDetailPage />)} />
-                <Route path=":id/edit" element={only(VP_ONLY, <ProposalFormPage />)} />
-              </Route>
-            </>
-          )}
+          {false}
+          <Route path="boarding">
+            <Route index element={<Navigate to="today" replace />} />
+            <Route path="today" element={only(LEADERS, BOARDING_API ? <BoardingTodayPage /> : <KitchenFlowPage />)} />
+          </Route>
           <Route path="menu">
-            <Route path="flow" element={only(VP_ONLY, <NutritionFlowPage />)} />
+            <Route path="flow" element={BOARDING_API ? <Navigate to="/boarding/today" replace /> : only(LEADERS, <NutritionFlowPage />)} />
             <Route path="setup" element={only(LEADERS, <NutritionSetupPage />)} />
-            <Route path="foods" element={only(VP_ONLY, <FoodListPage />)} />
-            <Route path="foods/new" element={only(VP_ONLY, <FoodFormPage />)} />
-            <Route path="foods/:id" element={only(VP_ONLY, <FoodDetailPage />)} />
-            <Route path="foods/:id/edit" element={only(VP_ONLY, <FoodFormPage />)} />
-            <Route path="dishes" element={only(VP_ONLY, <DishListPage />)} />
-            <Route path="dishes/new" element={only(VP_ONLY, <DishFormPage />)} />
-            <Route path="dishes/:id" element={only(VP_ONLY, <DishDetailPage />)} />
-            <Route path="dishes/:id/edit" element={only(VP_ONLY, <DishFormPage />)} />
-            <Route path="prices" element={only(VP_ONLY, <MealPriceListPage />)} />
-            <Route path="prices/new" element={only(VP_ONLY, <MealPriceFormPage />)} />
-            <Route path="prices/:id/edit" element={only(VP_ONLY, <MealPriceFormPage />)} />
-            <Route path="menus" element={only(VP_ONLY, <MenuListPage />)} />
-            <Route path="menus/new" element={only(VP_ONLY, <MenuFormPage />)} />
-            <Route path="menus/:id" element={only(VP_ONLY, <MenuDetailPage />)} />
-            <Route path="menus/:id/edit" element={only(VP_ONLY, <MenuFormPage />)} />
-            <Route path="allergy-menus" element={only(VP_ONLY, <AllergyMenuListPage />)} />
-            <Route path="allergy-menus/new" element={only(VP_ONLY, <AllergyMenuFormPage />)} />
-            <Route path="allergy-menus/:id" element={only(VP_ONLY, <AllergyMenuDetailPage />)} />
-            <Route path="allergy-menus/:id/edit" element={only(VP_ONLY, <AllergyMenuFormPage />)} />
-            <Route path="ai-suggestion" element={only(VP_ONLY, <AiMenuSuggestionPage />)} />
-            <Route path="weekly" element={only(LEADERS, <WeeklyMenuListPage />)} />
-            <Route path="weekly/new" element={only(VP_ONLY, <WeeklyMenuFormPage />)} />
-            <Route path="weekly/:id" element={only(VP_ONLY, <WeeklyMenuDetailPage />)} />
-            <Route path="weekly/:id/edit" element={only(VP_ONLY, <WeeklyMenuFormPage />)} />
-            <Route path="nutrition" element={only(VP_ONLY, <NutritionBalancePage />)} />
-            <Route path="plans" element={only([R.PRINCIPAL], <MenuPlanListPage />)} />
+            <Route path="foods" element={only(CATALOG_READERS, <FoodListPage />)} />
+            <Route path="foods/new" element={only(CATALOG_EDITORS, <FoodFormPage />)} />
+            <Route path="foods/:id" element={only(CATALOG_READERS, <FoodDetailPage />)} />
+            <Route path="foods/:id/edit" element={only(CATALOG_EDITORS, <FoodFormPage />)} />
+            <Route path="dishes" element={only(CATALOG_READERS, <DishListPage />)} />
+            <Route path="dishes/new" element={only(CATALOG_EDITORS, <DishFormPage />)} />
+            <Route path="dishes/:id" element={only(CATALOG_READERS, <DishDetailPage />)} />
+            <Route path="dishes/:id/edit" element={only(CATALOG_EDITORS, <DishFormPage />)} />
+            <Route path="suppliers" element={only(LEADERS, <SupplierListPage />)} />
+            {/* Thêm/sửa nhà cung cấp mở bằng modal trên danh sách và trang chi tiết: link cũ về trang tương ứng */}
+            <Route path="suppliers/new" element={<Navigate to="/menu/suppliers" replace />} />
+            <Route path="suppliers/:id" element={only(LEADERS, <SupplierDetailPage />)} />
+            <Route path="suppliers/:id/edit" element={<SupplierRedirect />} />
+            {/* Mẫu thực đơn một ngày trên BE (NUT-13) */}
+            <Route
+              path="templates"
+              element={TEMPLATE_API ? only(LEADERS, <MenuTemplateListPage />) : <Navigate to="/menu/menus" replace />}
+            />
+            <Route
+              path="templates/new"
+              element={TEMPLATE_API ? only(LEADERS, <MenuTemplateEditorPage />) : <Navigate to="/menu/menus" replace />}
+            />
+            <Route
+              path="templates/:id"
+              element={TEMPLATE_API ? only(LEADERS, <MenuTemplateEditorPage />) : <Navigate to="/menu/menus" replace />}
+            />
+            <Route
+              path="statistics"
+              element={MEAL_PLAN_API ? only(LEADERS, <MenuStatisticsPage />) : <Navigate to="/menu/weekly" replace />}
+            />
+            {/* Hiệu trưởng và Phó hiệu trưởng thao tác bán trú trong bản demo; BE vẫn kiểm quyền khi nối API. */}
+            <Route path="menus" element={TEMPLATE_API ? <Navigate to="/menu/templates" replace /> : only(LEADERS, <MenuListPage />)} />
+            <Route path="menus/new" element={only(LEADERS, <MenuFormPage />)} />
+            <Route path="menus/:id" element={only(LEADERS, <MenuDetailPage />)} />
+            <Route path="menus/:id/edit" element={only(LEADERS, <MenuFormPage />)} />
+            <Route path="allergy-menus" element={only(LEADERS, <AllergyMenuListPage />)} />
+            <Route path="allergy-menus/new" element={only(LEADERS, <AllergyMenuFormPage />)} />
+            <Route path="allergy-menus/:id" element={only(LEADERS, <AllergyMenuDetailPage />)} />
+            <Route path="allergy-menus/:id/edit" element={only(LEADERS, <AllergyMenuFormPage />)} />
+            <Route path="ai-suggestion" element={only(LEADERS, <AiMenuSuggestionPage />)} />
+            <Route path="weekly" element={only(LEADERS, MEAL_PLAN_API ? <WeeklyPlanPage /> : <WeeklyMenuListPage />)} />
+            <Route
+              path="weekly/new"
+              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only(LEADERS, <WeeklyMenuFormPage />)}
+            />
+            <Route path="weekly/:id" element={only(LEADERS, <WeeklyMenuDetailPage />)} />
+            <Route
+              path="weekly/:id/edit"
+              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only(LEADERS, <WeeklyMenuFormPage />)}
+            />
+            <Route path="nutrition" element={only(LEADERS, <NutritionBalancePage />)} />
+            <Route
+              path="plans"
+              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only([R.PRINCIPAL], <MenuPlanListPage />)}
+            />
             <Route path="plans/:id" element={only([R.PRINCIPAL], <MenuPlanDetailPage />)} />
           </Route>
           <Route path="kitchen">
-            <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <KitchenFlowPage />)} />
-            <Route path="dry-stock" element={only(LEADERS, <DryStockPage />)} />
-            <Route path="food-samples" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <FoodSampleLogPage />)} />
-            <Route path="forecast" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <WeeklyForecastPage />)} />
-            <Route path="fresh-receipts" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <FreshReceiptPage />)} />
-            <Route path="stock-receipts" element={only(VP_ONLY, <StockReceiptListPage />)} />
-            <Route path="stock-receipts/new" element={only(VP_ONLY, <StockReceiptFormPage />)} />
-            <Route path="stock-receipts/:id/edit" element={only(VP_ONLY, <StockReceiptFormPage />)} />
-            <Route path="suppliers" element={only(LEADERS, <SupplierListPage />)} />
-            <Route path="suppliers/new" element={only([R.PRINCIPAL], <SupplierFormPage />)} />
-            <Route path="suppliers/:id" element={only(LEADERS, <SupplierDetailPage />)} />
-            <Route path="suppliers/:id/edit" element={only([R.PRINCIPAL], <SupplierFormPage />)} />
-            <Route path="stock-issues" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <StockIssueApprovalPage />)} />
-            <Route path="preparation" element={only(VP_ONLY, <MealPreparationStatusPage />)} />
-            <Route path="preparation/update" element={only([R.KITCHEN_STAFF], <MealPreparationUpdatePage />)} />
-            <Route path="published-menu" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <PublishedMenuPage />)} />
-            <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <ConfirmedMealCountPage />)} />
-            <Route path="required-quantity" element={only([R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <RequiredFoodQuantityPage />)} />
-            <Route path="ingredient-receipts" element={only([R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <IngredientReceiptPage />)} />
-            <Route path="missing-food" element={only([R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MissingFoodReportPage />)} />
+            <Route index element={BOARDING_API ? <Navigate to="/boarding/today" replace /> : only(LEADERS, <KitchenFlowPage />)} />
+            <Route path="dry-stock" element={only(LEADERS, DRY_STOCK_API ? <DryStockLedgerPage tab="stock" /> : <DryStockPage />)} />
+            <Route path="stock-history" element={only(LEADERS, DRY_STOCK_API ? <DryStockLedgerPage tab="history" /> : <DryStockPage />)} />
+            <Route
+              path="stock-shortfalls"
+              element={only(LEADERS, DRY_STOCK_API ? <DryStockLedgerPage tab="shortfalls" /> : <DryStockPage />)}
+            />
+            <Route path="food-samples" element={only(LEADERS, KITCHEN_RECORDS_API ? <FoodSampleQueuePage /> : <FoodSampleLogPage />)} />
+            {KITCHEN_RECORDS_API && <Route path="meal-photos" element={only(LEADERS, <MealPhotosPage />)} />}
+            {KITCHEN_RECORDS_API && <Route path="photo-windows" element={only(LEADERS, <MealPhotoWindowsPage />)} />}
+            <Route path="forecast" element={only(LEADERS, FRESH_GOODS_API ? <FreshForecastPage /> : <WeeklyForecastPage />)} />
+            {FRESH_GOODS_API && <Route path="forecast/new" element={only(LEADERS, <FreshForecastPage mode="new" />)} />}
+            {FRESH_GOODS_API && <Route path="forecast/:id" element={only(LEADERS, <FreshForecastPage mode="detail" />)} />}
+            <Route path="fresh-receipts" element={only(LEADERS, FRESH_GOODS_API ? <FreshCheckPage /> : <FreshReceiptPage />)} />
+            <Route
+              path="stock-receipts"
+              element={only(STOCK_RECEIPT_ROLES, DRY_STOCK_API ? <DryStockLedgerPage tab="receipts" /> : <StockReceiptListPage />)}
+            />
+            <Route
+              path="stock-receipts/new"
+              element={only(STOCK_RECEIPT_ROLES, DRY_STOCK_API ? <StockReceiptEditorPage /> : <StockReceiptFormPage />)}
+            />
+            {DRY_STOCK_API ? (
+              <Route path="stock-receipts/:id" element={only(STOCK_RECEIPT_ROLES, <StockReceiptEditorPage />)} />
+            ) : (
+              <Route path="stock-receipts/:id/edit" element={only(STOCK_RECEIPT_ROLES, <StockReceiptFormPage />)} />
+            )}
+            {/* Nhà cung cấp chuyển sang Danh mục (/menu/suppliers): giữ đường dẫn cũ */}
+            <Route path="suppliers" element={<Navigate to="/menu/suppliers" replace />} />
+            <Route path="suppliers/new" element={<Navigate to="/menu/suppliers" replace />} />
+            <Route path="suppliers/:id" element={<SupplierRedirect />} />
+            <Route path="suppliers/:id/edit" element={<SupplierRedirect />} />
+            <Route path="published-menu" element={only(LEADERS, KITCHEN_RECORDS_API ? <KitchenTodayPage /> : <PublishedMenuPage />)} />
+            <Route path="meal-count" element={only(LEADERS, <ConfirmedMealCountPage />)} />
+            <Route path="required-quantity" element={only(LEADERS, <RequiredFoodQuantityPage />)} />
+            <Route path="missing-food" element={only(LEADERS, <MissingFoodReportPage />)} />
           </Route>
           <Route path="assessment">
             <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
+            <Route path="daily/skills" element={only(CLASS_STAFF, <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={only(LEADERS, <AssessmentDayUnlockPage />)} />
+            <Route path="overview" element={only([...LEADERS, R.TEAM_LEADER], <ClassAssessmentOverviewPage />)} />
+            <Route path="quality-report" element={only([...LEADERS, ...CLASS_STAFF], <QualityReportPage />)} />
+            <Route path="class-ratings" element={only([...LEADERS, ...CLASS_STAFF], <ClassRatingsPage />)} />
+            <Route path="themes" element={only([...LEADERS, ...CLASS_STAFF], <ThemeEvaluationPage />)} />
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />
-            <Route path="periodic" element={only([...LEADERS, ...CLASS_STAFF], <PeriodicEvaluationListPage />)} />
-            <Route path="periodic/:id" element={only([...LEADERS, ...CLASS_STAFF], <PeriodicEvaluationDetailPage />)} />
-            <Route path="periodic/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
+            <Route path="periodic" element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)} />
+            <Route path="periodic/:id" element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)} />
+            <Route
+              path="periodic/:id/ai-draft"
+              element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)}
+            />
+            <Route path="semester" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationListPage />)} />
+            <Route path="semester/:id" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationDetailPage />)} />
+            <Route path="semester/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
             <Route path="year-end" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationListPage />)} />
             <Route path="year-end/:id" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationDetailPage />)} />
             <Route path="year-end/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
-            <Route path="tickets" element={only(CLASS_STAFF, <GoodBehaviourTicketsPage />)} />
-            <Route path="rewards" element={only([...LEADERS, ...CLASS_STAFF], <RewardProposalListPage />)} />
-            <Route path="rewards/new" element={only(CLASS_STAFF, <RewardProposalFormPage />)} />
-            <Route path="rewards/:id" element={only([...LEADERS, ...CLASS_STAFF], <RewardProposalDetailPage />)} />
-            <Route path="rewards/:id/edit" element={only(CLASS_STAFF, <RewardProposalFormPage />)} />
+            <Route path="tickets" element={only([...LEADERS, ...CLASS_STAFF], <GoodBehaviourTicketsPage />)} />
+            <Route path="rewards" element={only([...LEADERS, ...CLASS_STAFF], <RewardListPage />)} />
+            <Route path="rewards/:classId" element={only([...LEADERS, ...CLASS_STAFF], <RewardClassPage />)} />
           </Route>
           <Route path="attendance">
-            <Route path="day-unlocks" element={only(VP_ONLY, <AttendanceDayUnlockPage />)} />
+            <Route path="day-unlocks" element={only(LEADERS, <AttendanceDayUnlockPage />)} />
             <Route index element={only(CLASS_STAFF, <AttendancePage />)} />
             <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
-            <Route path="meal-count" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.KITCHEN_STAFF], <MealCountPage />)} />
-            <Route path="meal-handover" element={only([...CLASS_STAFF, R.KITCHEN_STAFF], <MealHandoverPage />)} />
+            <Route path="meal-count" element={only(LEADERS, <MealCountPage />)} />
             <Route path="health" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <DailyHealthOverviewPage />)} />
+            <Route path="leave-requests" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <LeaveRequestsPage />)} />
           </Route>
           <Route path="pickup">
             <Route index element={only(CLASS_STAFF, <PickupListPage />)} />
@@ -490,10 +493,13 @@ export function AppRoutes() {
           <Route path="settings/appearance" element={<AppearancePage />} />
           {UiKitPage && <Route path="ui-kit" element={<UiKitPage />} />}
           <Route path="coming-soon/:slug" element={<ComingSoonPage />} />
-          {FACILITY_ENABLED && <Route path="facility" element={<Navigate to="/facility/transfers" replace />} />}
+          {false}
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>
     </Routes>
   );
 }
+
+// Cây route không phụ thuộc state ⇒ đọc lại được để tải trước chunk theo đường dẫn menu
+registerRouteTree(() => AppRoutes().props.children);

@@ -38,8 +38,9 @@ const publicUser = (u) => {
   const { password: _password, ...rest } = u; // carenest:allow-secret – tên field, không phải giá trị bí mật
   return clone(rest);
 };
-// Người đăng nhập mang theo quyền của vai trò (PENDING BE: GET /me trả permissions)
-const withPermissions = (u) => {
+// Người đăng nhập mang theo quyền của vai trò (PENDING BE: GET /me trả permissions).
+// Đăng nhập Keycloak dev cũng lấy quyền mặc định của vai trò ở đây vì "Vai trò & quyền" vẫn là demo.
+export const withPermissions = (u) => {
   const db = readDb();
   const permissions = grantsOf(db.rolePermissions, u.role);
   if (u.role !== 'VICE_PRINCIPAL') return { ...publicUser(u), permissions };
@@ -112,7 +113,7 @@ export const authMockRepository = {
     if (!normalized || !password) throw new ApiError(400, 'Vui lòng nhập email và mật khẩu');
     const user = readDb().users.find((u) => u.email.toLowerCase() === normalized);
     // Same message for wrong email or password (do not reveal which accounts exist).
-    if (!user) throw new ApiError(401, 'Email hoặc mật khẩu không đúng');
+    if (!user) throw new ApiError(401, 'Sai tài khoản hoặc mật khẩu');
 
     const cred = readDb().authCredentials?.[user.id];
     if (cred?.lockedUntil && cred.lockedUntil > Date.now()) {
@@ -135,7 +136,7 @@ export const authMockRepository = {
       if (lockedUntil) {
         throw new ApiError(423, `Tài khoản đang tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau ${clock(lockedUntil)}.`);
       }
-      throw new ApiError(401, 'Email hoặc mật khẩu không đúng');
+      throw new ApiError(401, 'Sai tài khoản hoặc mật khẩu');
     }
 
     if (user.status === 'LOCKED' || user.status === 'INACTIVE') {

@@ -3,20 +3,23 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Pencil, Trash2, AlertTriangle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useFood, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
+import { useFood, useCatalogAccess, useCatalogLookups } from '@/hooks/menu-planning/useMenuPlanning';
 import { deleteFood } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { Tabs } from '@/components/ui/Tabs';
+import { useTabParam } from '@/hooks/useTabParam';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
-import { NutrientBars } from '@/components/menu-planning/NutrientBars';
-import { hasNutrition, ingredientQty } from '@/utils/menu-planning/menuCalculations';
+import { NutrientTable } from '@/components/menu-planning/NutrientTable';
+import { hasNutrition, hasOrigin, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { foodUnits } from '@/utils/menu-planning/foodUnits';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import {
   DISH_TYPE_LABELS,
   FOOD_GROUP_LABELS,
+  FOOD_ORIGIN_LABELS,
   FOOD_STORAGE_LABELS,
   FOOD_UNIT_LABELS,
   formatMoney,
@@ -34,11 +37,12 @@ export default function FoodDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
-  const { canManage } = useMenuAccess();
-  const { catalog, loading: catLoading } = useMenuCatalog();
+  const { canManage, softDelete } = useCatalogAccess();
+  const { catalog, loading: catLoading } = useCatalogLookups();
   const { item: f, loading, error, reload } = useFood(id);
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [tab, setTab] = useTabParam(['info', 'dishes', 'history']);
 
   if (loading || catLoading) return <LoadingState />;
   if (error || !f)
@@ -52,7 +56,7 @@ export default function FoodDetailPage() {
   const remove = async () => {
     try {
       await deleteFood(id, user);
-      toast.success('Đã xóa bản ghi.');
+      toast.success(softDelete ? 'Đã chuyển sang Ngừng sử dụng.' : 'Đã xóa bản ghi.');
       navigate('/menu/foods');
     } catch (err) {
       setConfirm(false);
@@ -87,9 +91,11 @@ export default function FoodDetailPage() {
         </div>
         {canManage && (
           <div className="row row--wrap td-actions">
-            <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
-              <Trash2 size={16} /> Xóa
-            </button>
+            {!(softDelete && f.status === 'INACTIVE') && (
+              <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
+                <Trash2 size={16} /> {softDelete ? 'Ngừng sử dụng' : 'Xóa'}
+              </button>
+            )}
             <Link className="btn btn--primary" to={`/menu/foods/${id}/edit`}>
               <Pencil size={16} /> Sửa thực phẩm
             </Link>
@@ -102,56 +108,94 @@ export default function FoodDetailPage() {
           <div>{deleteError}</div>
         </div>
       )}
-      {!hasNutrition(f) && (
+      {!(hasNutrition(f) && hasOrigin(f)) && (
         <div className="alert alert--warning mb-16">
           <AlertTriangle size={18} />
-          <div>Thực phẩm chưa đủ số liệu dinh dưỡng; các món và thực đơn dùng thực phẩm này sẽ được báo là tính toán chưa đầy đủ.</div>
+          <div>
+            Thực phẩm chưa đủ {hasNutrition(f) ? 'nguồn gốc (động vật / thực vật)' : 'số liệu dinh dưỡng'}; các món và thực đơn dùng thực
+            phẩm này sẽ hiện "Chưa đủ dữ liệu" và chưa đánh giá cân đối.
+          </div>
         </div>
       )}
-      {/* Trái: thông tin chung rồi định lượng trong món; phải: dinh dưỡng rồi lịch sử (cùng bố cục trang chi tiết món) */}
-      <div className="td-split-aside">
-        <div className="td-aside-stack">
-          <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Thông tin chung</h2>
-            </div>
-            <div className="card__body td-food-info">
-              <dl className="info-list">
-                <dt>Mã</dt>
-                <dd className="fw-600">{f.code}</dd>
-                <dt>Nhóm</dt>
-                <dd>{FOOD_GROUP_LABELS[f.group]}</dd>
-                <dt>Bảo quản</dt>
-                <dd>{FOOD_STORAGE_LABELS[f.storage] || '—'}</dd>
-                <dt>Đơn vị định lượng</dt>
-                <dd>{FOOD_UNIT_LABELS[f.unit]}</dd>
-                <dt>Hay dùng</dt>
-                <dd>{f.favorite ? 'Có' : 'Không'}</dd>
-              </dl>
-              <dl className="info-list">
-                <dt>Đơn vị kho</dt>
-                <dd>
-                  {units.stockUnit} · 1 {units.stockUnit} = {units.stockUnitSize.toLocaleString('vi-VN')} {f.unit}
-                </dd>
-                <dt>Đơn vị mua</dt>
-                <dd>
-                  {units.purchaseUnit} · 1 {units.purchaseUnit} = {units.purchaseToStock.toLocaleString('vi-VN')} {units.stockUnit}
-                </dd>
-                <dt>Tỷ lệ thải bỏ</dt>
-                <dd>{f.wastePct ?? 0}%</dd>
-                <dt>Đơn giá</dt>
-                <dd className="fw-600">{f.unitPrice == null ? 'Chưa có' : `${formatMoney(f.unitPrice)} / ${f.purchaseUnit}`}</dd>
-              </dl>
-              <dl className="info-list td-food-info__full">
-                <dt>Chất gây dị ứng</dt>
-                <dd>
-                  <AllergenChips allergens={f.allergens} empty="Không có" />
-                </dd>
-                <dt>Ghi chú</dt>
-                <dd>{f.note || '—'}</dd>
-              </dl>
-            </div>
-          </section>
+      {/* Chia tab (DESIGN §6.3): thông tin + dinh dưỡng | món dùng thực phẩm | lịch sử */}
+      <Tabs
+        ariaLabel="Phần chi tiết thực phẩm"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { key: 'info', label: 'Thông tin & dinh dưỡng' },
+          { key: 'dishes', label: 'Dùng trong món', count: used.length },
+          { key: 'history', label: 'Lịch sử' },
+        ]}
+      />
+      <div className="tab-panel">
+        {tab === 'info' && (
+          // Hai thẻ xếp dọc, thành phần dinh dưỡng chiếm cả bề ngang để 3 nhóm chất xếp cạnh nhau
+          <div className="td-sections">
+            <section className="card">
+              <div className="card__header">
+                <h2 className="card__title">Thông tin chung</h2>
+              </div>
+              <div className="card__body td-food-info">
+                <dl className="info-list">
+                  <dt>Mã</dt>
+                  <dd className="fw-600">{f.code}</dd>
+                  <dt>Nhóm</dt>
+                  <dd>{FOOD_GROUP_LABELS[f.group]}</dd>
+                  <dt>Nguồn gốc</dt>
+                  <dd>{FOOD_ORIGIN_LABELS[f.origin] || <span className="td-warn">Chưa có</span>}</dd>
+                  <dt>Bảo quản</dt>
+                  <dd>{FOOD_STORAGE_LABELS[f.storage] || '—'}</dd>
+                  <dt>Đơn vị định lượng</dt>
+                  <dd>{FOOD_UNIT_LABELS[f.unit]}</dd>
+                  <dt>Hay dùng</dt>
+                  <dd>{f.favorite ? 'Có' : 'Không'}</dd>
+                </dl>
+                <dl className="info-list">
+                  <dt>Đơn vị kho</dt>
+                  <dd>
+                    {units.stockUnit} · 1 {units.stockUnit} = {units.stockUnitSize.toLocaleString('vi-VN')} {f.unit}
+                  </dd>
+                  <dt>Đơn vị mua</dt>
+                  <dd>
+                    {units.purchaseUnit} · 1 {units.purchaseUnit} = {units.purchaseToStock.toLocaleString('vi-VN')} {units.stockUnit}
+                  </dd>
+                  <dt>Tỷ lệ thải bỏ</dt>
+                  <dd>{f.wastePct ?? 0}%</dd>
+                  <dt>Đơn giá</dt>
+                  <dd className="fw-600">{f.unitPrice == null ? 'Chưa có' : `${formatMoney(f.unitPrice)} / ${f.purchaseUnit}`}</dd>
+                </dl>
+                <dl className="info-list td-food-info__full">
+                  <dt>Chất gây dị ứng</dt>
+                  <dd>
+                    <AllergenChips allergens={f.allergens} empty="Không có" />
+                  </dd>
+                  <dt>Ghi chú</dt>
+                  <dd>{f.note || '—'}</dd>
+                </dl>
+              </div>
+            </section>
+            <section className="card">
+              <div className="card__header">
+                <h2 className="card__title">Thành phần dinh dưỡng</h2>
+                <span className="text-sm muted">Trong 100 {f.unit} ăn được</span>
+              </div>
+              <div className="card__body">
+                <NutrientTable values={nut} />
+                {hasNutrition(f) && hasOrigin(f) && (
+                  <p className="text-sm muted mt-8">
+                    Đạm, béo tính vào phần {FOOD_ORIGIN_LABELS[f.origin].toLowerCase()} khi cân đối khẩu phần.
+                  </p>
+                )}
+                <p className="text-sm muted mt-8">
+                  Nguồn: {f.nutrientSource || 'chưa ghi'}
+                  {f.nutrientSourceVersion ? ` (${f.nutrientSourceVersion})` : ''}
+                </p>
+              </div>
+            </section>
+          </div>
+        )}
+        {tab === 'dishes' && (
           <section className="card">
             <div className="card__header">
               <h2 className="card__title">Định lượng trong từng món (một trẻ)</h2>
@@ -192,22 +236,8 @@ export default function FoodDetailPage() {
               </div>
             )}
           </section>
-        </div>
-        <div className="td-aside-stack">
-          <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Dinh dưỡng</h2>
-            </div>
-            <div className="card__body">
-              {hasNutrition(f) ? (
-                <NutrientBars values={nut} title={`Trong 100 ${f.unit} ăn được`} />
-              ) : (
-                <span className="td-warn">Chưa đủ số liệu dinh dưỡng.</span>
-              )}
-            </div>
-          </section>
-          <HistoryCard history={f.history} />
-        </div>
+        )}
+        {tab === 'history' && <HistoryCard history={f.history} />}
       </div>
       <div className="page-actions">
         <Link className="btn" to="/menu/foods">
@@ -217,9 +247,13 @@ export default function FoodDetailPage() {
       <ConfirmationModal
         open={confirm}
         danger
-        title="Xóa thực phẩm"
-        message={`Xóa thực phẩm "${f.name}"? Thực phẩm đang dùng trong món ăn sẽ không xóa được.`}
-        confirmLabel="Xóa thực phẩm"
+        title={softDelete ? 'Ngừng sử dụng thực phẩm' : 'Xóa thực phẩm'}
+        message={
+          softDelete
+            ? `Chuyển "${f.name}" sang Ngừng sử dụng? Món đã có giữ nguyên; món mới không chọn được thực phẩm này.`
+            : `Xóa thực phẩm "${f.name}"? Thực phẩm đang dùng trong món ăn sẽ không xóa được.`
+        }
+        confirmLabel={softDelete ? 'Ngừng sử dụng' : 'Xóa thực phẩm'}
         onConfirm={remove}
         onClose={() => setConfirm(false)}
       />

@@ -26,7 +26,12 @@ const HISTORY_LABELS = {
   UPDATED: 'Cập nhật khai báo',
   ALLERGY_CONFIRMED: 'Hiệu trưởng xác nhận dị ứng',
   UPDATED_FROM_EXAM: 'Cập nhật tiền sử từ phiếu khám',
+  // Dữ liệu cũ: phiếu theo dõi đã bỏ (HLT-16, 2026-11-04) nhưng lịch sử khai báo vẫn đọc được.
+  UPDATED_FROM_FOLLOW_UP: 'Cập nhật tiền sử từ phiếu theo dõi',
 };
+
+// Lịch sử do hệ thống ghi khi lưu phiếu khám (dữ liệu cũ: khi đóng phiếu theo dõi): ghi chú là nguồn, không phải lý do sửa.
+const SYSTEM_UPDATES = ['UPDATED_FROM_EXAM', 'UPDATED_FROM_FOLLOW_UP'];
 
 // Chỉ liệt kê mục tiền sử có thay đổi.
 const historyChangeLines = (c) =>
@@ -101,7 +106,7 @@ export default function HealthDeclarationPage() {
   const startEdit = () => openEditor(declaration || undefined);
 
   const save = async () => {
-    const errs = validateDeclaration(form);
+    const errs = validateDeclaration(form, { dateOfBirth: child.dateOfBirth });
     if (needsReason && !reason.trim()) errs.reason = 'Nhập lý do thay đổi khai báo';
     setErrors(errs);
     if (hasErrors(errs)) return;
@@ -147,6 +152,7 @@ export default function HealthDeclarationPage() {
         <>
           <section className="card wizard-card">
             <HealthDeclarationFields
+              dateOfBirth={child.dateOfBirth}
               value={form}
               onChange={(v) => {
                 setForm(v);
@@ -200,7 +206,7 @@ export default function HealthDeclarationPage() {
                         <div>{HISTORY_LABELS[h.action] || h.action}</div>
                         <div className="muted text-sm">
                           {md.userById(h.userId)?.fullName || '—'} · {formatDateTime(h.at)}
-                          {h.note ? (h.action === 'UPDATED_FROM_EXAM' ? ` · ${h.note}` : ` · Lý do: ${h.note}`) : ''}
+                          {h.note ? (SYSTEM_UPDATES.includes(h.action) ? ` · ${h.note}` : ` · Lý do: ${h.note}`) : ''}
                         </div>
                         {h.historyChange &&
                           historyChangeLines(h.historyChange).map(([label, from, to]) => (

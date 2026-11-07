@@ -21,6 +21,7 @@
  * @property {number} stockUnitSize     số g/ml trong 1 đơn vị kho
  * @property {number} unitPrice         VND per purchase unit
  * @property {Nutrition} nutrition
+ * @property {'ANIMAL'|'PLANT'|''} origin  nguồn gốc: đạm/béo của thực phẩm tính vào phần động vật hay thực vật
  * @property {string[]} allergens       labels from ALLERGENS
  * @property {'ACTIVE'|'INACTIVE'} status
  *
@@ -87,17 +88,13 @@ export const RECORD_STATUS_LABELS = { ACTIVE: 'Đang sử dụng', INACTIVE: 'Ng
 export const DISH_STATUS = { DRAFT: 'DRAFT', ...RECORD_STATUS };
 export const DISH_STATUS_LABELS = { DRAFT: 'Nháp', ...RECORD_STATUS_LABELS };
 
-export const FOOD_GROUP_LABELS = {
-  GRAIN: 'Lương thực',
-  MEAT: 'Thịt',
-  SEAFOOD: 'Thủy hải sản',
-  EGG_DAIRY: 'Trứng, sữa',
-  LEGUME: 'Đậu, hạt',
-  VEGETABLE: 'Rau, củ',
-  FRUIT: 'Trái cây',
-  FAT_SUGAR: 'Dầu, đường',
-  OTHER: 'Khác',
-};
+export { FOOD_GROUP_LABELS } from '@/models/foodGroups';
+
+/** Nguồn gốc thực phẩm: đạm, béo của thực phẩm tính vào phần động vật hay thực vật. */
+export const FOOD_ORIGIN = { ANIMAL: 'ANIMAL', PLANT: 'PLANT' };
+export const FOOD_ORIGIN_LABELS = { ANIMAL: 'Động vật', PLANT: 'Thực vật' };
+/** Nguồn gốc mặc định theo nhóm (chỉ dùng khi bổ sung dữ liệu cũ, nhập file thiếu cột): thịt, thủy sản, trứng sữa là động vật. */
+export const defaultOriginOf = (group) => (['MEAT', 'SEAFOOD', 'EGG_DAIRY'].includes(group) ? FOOD_ORIGIN.ANIMAL : FOOD_ORIGIN.PLANT);
 
 export const FOOD_UNIT_LABELS = { g: 'gam (g)', ml: 'mililít (ml)' };
 /** Cách bảo quản: tươi (giao trong ngày) hay khô (lấy từ kho); dùng khi tách phiếu đi chợ. */
@@ -120,7 +117,7 @@ export const DISH_TYPE_LABELS = {
 
 /* Same session codes as attendance (LUNCH, AFTERNOON); nursery groups have a third, morning snack. */
 export const MEAL_SESSION = { MORNING: 'MORNING', LUNCH: 'LUNCH', AFTERNOON: 'AFTERNOON' };
-export const MEAL_SESSION_LABELS = { MORNING: 'Bữa phụ sáng', LUNCH: 'Bữa trưa', AFTERNOON: 'Bữa chiều' };
+export { MEAL_SESSION_LABELS } from '@/models/mealSessions';
 export const SESSION_ORDER = [MEAL_SESSION.MORNING, MEAL_SESSION.LUNCH, MEAL_SESSION.AFTERNOON];
 
 /**
@@ -140,15 +137,107 @@ export const NUTRIENT_LABELS = {
 };
 export const NUTRIENT_UNITS = { kcal: 'kcal', protein: 'g', lipid: 'g', glucid: 'g' };
 
-export const NORM_STATUS = { LOW: 'LOW', OK: 'OK', HIGH: 'HIGH', NA: 'NA' };
+/**
+ * Vi chất theo bảng PMS (BE NUT-26): trên 100 g ăn được của thực phẩm; trống = chưa có số liệu, không chặn tính toán.
+ * Vitamin A tính theo đương lượng retinol (µg).
+ */
+export const MICRONUTRIENT_GROUPS = [
+  { key: 'minerals', label: 'Khoáng chất', items: ['calcium', 'phosphorus', 'iron'] },
+  { key: 'vitamins', label: 'Vitamin', items: ['vitaminA', 'vitaminB1', 'vitaminB2', 'vitaminPp', 'vitaminC'] },
+];
+export const MICRONUTRIENTS = MICRONUTRIENT_GROUPS.flatMap((g) => g.items);
+export const MICRONUTRIENT_LABELS = {
+  calcium: 'Canxi',
+  phosphorus: 'Phospho',
+  iron: 'Sắt',
+  vitaminA: 'Vitamin A',
+  vitaminB1: 'Vitamin B1',
+  vitaminB2: 'Vitamin B2',
+  vitaminPp: 'Vitamin PP',
+  vitaminC: 'Vitamin C',
+};
+export const MICRONUTRIENT_UNITS = {
+  calcium: 'mg',
+  phosphorus: 'mg',
+  iron: 'mg',
+  vitaminA: 'µg',
+  vitaminB1: 'mg',
+  vitaminB2: 'mg',
+  vitaminPp: 'mg',
+  vitaminC: 'mg',
+};
+
+/** Sáu chỉ số cân đối khẩu phần (lượng thực tế, g hoặc kcal). */
+export const INDICATOR_LABELS = {
+  animalProtein: 'Đạm động vật',
+  plantProtein: 'Đạm thực vật',
+  animalLipid: 'Béo động vật',
+  plantLipid: 'Béo thực vật',
+  glucid: 'Tinh bột (glucid)',
+  kcal: 'Năng lượng',
+};
+/** Tỷ lệ cơ cấu (%): phần động vật trong tổng đạm, tổng béo. */
+export const SHARE_LABELS = {
+  animalProteinPct: 'Đạm động vật / tổng đạm',
+  animalLipidPct: 'Béo động vật / tổng béo',
+};
+
+// NA = dòng chưa đặt định mức; INCOMPLETE = thiếu số liệu thực phẩm nên không đánh giá
+export const NORM_STATUS = { LOW: 'LOW', OK: 'OK', HIGH: 'HIGH', NA: 'NA', INCOMPLETE: 'INCOMPLETE' };
 export const NORM_STATUS_LABELS = {
   LOW: 'Thấp hơn định mức',
   OK: 'Trong định mức',
   HIGH: 'Cao hơn định mức',
-  NA: 'Chưa đủ dữ liệu đánh giá',
+  NA: 'Chưa đặt định mức',
+  INCOMPLETE: 'Chưa đủ dữ liệu',
+  NO_DISHES: 'Chưa có món',
 };
 
 export const ALLERGY_GROUP_LABELS = { ALLERGY: 'Dị ứng thực phẩm', DIET: 'Chế độ ăn đặc biệt' };
+
+/* Kế hoạch tuần theo khối trên BE (/nutrition/meal-plans): công bố cả tuần, không có phiên bản thay thế. */
+export const MEAL_BLOCK = { NURSERY: 'NURSERY', KINDERGARTEN: 'KINDERGARTEN' };
+export const MEAL_BLOCK_LABELS = { NURSERY: 'Nhà trẻ', KINDERGARTEN: 'Mẫu giáo' };
+export const MEAL_PLAN_STATUS = { NONE: 'NONE', DRAFT: 'DRAFT', PUBLISHED: 'PUBLISHED' };
+export const MEAL_PLAN_STATUS_LABELS = { NONE: 'Chưa lập', DRAFT: 'Bản nháp', PUBLISHED: 'Đã công bố' };
+export const PLAN_ISSUE_SEVERITY_LABELS = { BLOCKING: 'Cần sửa trước khi công bố', WARNING: 'Cảnh báo', INFO: 'Lưu ý' };
+// Dòng kiểm tra từng ngày của một nhóm tuổi (khóa `rows[].key` BE trả), theo thứ tự bảng dinh dưỡng PMS
+export const EVAL_ROW_KEYS = [
+  'kcal',
+  'animalProteinG',
+  'plantProteinG',
+  'animalLipidG',
+  'plantLipidG',
+  'glucidG',
+  'protein',
+  'lipid',
+  'glucid',
+  ...MICRONUTRIENTS,
+];
+export const EVAL_ROW_LABELS = {
+  ...MICRONUTRIENT_LABELS,
+  kcal: 'Năng lượng',
+  animalProteinG: 'Đạm động vật',
+  plantProteinG: 'Đạm thực vật',
+  animalLipidG: 'Béo động vật',
+  plantLipidG: 'Béo thực vật',
+  glucidG: 'Bột đường',
+  protein: 'Cơ cấu đạm (P)',
+  lipid: 'Cơ cấu béo (L)',
+  glucid: 'Cơ cấu bột đường (G)',
+};
+export const EVAL_ROW_UNITS = {
+  ...MICRONUTRIENT_UNITS,
+  kcal: 'kcal',
+  animalProteinG: 'g',
+  plantProteinG: 'g',
+  animalLipidG: 'g',
+  plantLipidG: 'g',
+  glucidG: 'g',
+  protein: 'g',
+  lipid: 'g',
+  glucid: 'g',
+};
 
 export const WEEKLY_STATUS = { DRAFT: 'DRAFT', PUBLISHED: 'PUBLISHED', REPLACED: 'REPLACED' };
 export const WEEKLY_STATUS_LABELS = { DRAFT: 'Bản nháp', PUBLISHED: 'Đã xuất bản', REPLACED: 'Đã thay thế' };
@@ -213,4 +302,4 @@ export const weekLabel = (weekStart) => {
   return `${d1}/${m1}${y1 !== y2 ? `/${y1}` : ''} – ${d2}/${m2}/${y2}`;
 };
 
-export const formatMoney = (n) => (typeof n === 'number' && !Number.isNaN(n) ? `${Math.round(n).toLocaleString('vi-VN')} đ` : '—');
+export { formatMoney } from '@/utils/format';

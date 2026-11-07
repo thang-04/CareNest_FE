@@ -26,7 +26,7 @@ import { allergyMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
 import { ageGroupById } from '@/models/School';
 import { ALLERGENS, ALLERGY_GROUP_LABELS, RECORD_STATUS, RECORD_STATUS_LABELS } from '@/models/menu-planning/menuPlanningConstants';
-import { mealLabel } from '@/utils/menu-planning/nutritionSetup';
+import { mealLabel, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import '@/styles/modules/menu-planning.css';
 
 const REMOVE = '__REMOVE__';
@@ -94,7 +94,9 @@ export default function AllergyMenuFormPage() {
   const effective = base ? applyReplacements(base.meals, form.replacements) : [];
   const conflicts = base ? restrictedConflicts(effective, form.restrictions, catalog.dishById, catalog.foodById) : [];
   const errors = validateAllergyMenu(form, catalog);
-  const result = base ? mealsTotals(effective, catalog.dishById, catalog.foodById, base.ageGroupId) : null;
+  const result = base
+    ? mealsTotals(normScopeMeals(effective, catalog.nutritionSetups, base.ageGroupId), catalog.dishById, catalog.foodById, base.ageGroupId)
+    : null;
   const affected = allergyRows.filter((r) => form.restrictions.some((x) => sameAllergen(x, r.allergen)));
   const title = id ? 'Sửa thực đơn thay thế' : 'Tạo thực đơn thay thế';
   const show = (k) => (submitted ? errors[k] : undefined);
@@ -137,6 +139,14 @@ export default function AllergyMenuFormPage() {
       <Breadcrumb items={allergyMenuCrumbs(title)} />
       <h1 className="page__title">{id ? `Sửa thực đơn thay thế ${item?.code || ''}` : title}</h1>
       <form onSubmit={submit} noValidate>
+        <div className="page-actions page-actions--top">
+          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/allergy-menus/${id}` : '/menu/allergy-menus')}>
+            <ArrowLeft size={16} /> Hủy
+          </button>
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            {busy ? <Spinner small /> : <Save size={16} />} Lưu thực đơn thay thế
+          </button>
+        </div>
         <div className="card wizard-card">
           <div className="card__header">
             <div className="card__title">Nhóm trẻ áp dụng</div>
@@ -315,21 +325,13 @@ export default function AllergyMenuFormPage() {
                   result={result}
                   ageGroupId={base.ageGroupId}
                   norms={catalog.norms}
+                  setups={catalog.nutritionSetups}
                   price={priceOn(catalog.mealPrices, base.ageGroupId, todayInput())?.price}
                 />
               </div>
             </div>
           </div>
         )}
-
-        <div className="page-actions">
-          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/allergy-menus/${id}` : '/menu/allergy-menus')}>
-            <ArrowLeft size={16} /> Hủy
-          </button>
-          <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? <Spinner small /> : <Save size={16} />} Lưu thực đơn thay thế
-          </button>
-        </div>
       </form>
     </div>
   );

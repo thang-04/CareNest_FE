@@ -1,29 +1,31 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Trash2, Info, Copy, Crown, UserCheck } from '@/components/ui/icons';
+import { Plus, Trash2, Info, Copy, UserCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useConfigYear } from '@/hooks/school-config/useConfigYear';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useSchoolStructure, useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
+import { useSchoolStructure, useSchoolYears, useTeamLeaders } from '@/hooks/school-config/useSchoolConfig';
+import { TeamLeaderModal } from '@/components/school-config/TeamLeaderModal';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { RowActions } from '@/components/ui/RowActions';
-import { YearPicker } from '@/components/school-config/YearPicker';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { ClassFormModal } from '@/components/school-config/ClassFormModal';
 import { AgeGroupFormModal } from '@/components/school-config/AgeGroupFormModal';
 import { CopyClassesModal, copySourcesFor } from '@/components/school-config/CopyClassesModal';
 import { ClassListSection } from '@/components/school-config/ClassListSection';
-import { deleteAgeGroup, deleteClass } from '@/services/school-config/schoolConfigService';
+import { AssignClassTeachersDialog } from '@/components/school-config/AssignDialogs';
+import { deleteAgeGroup, deleteClass, saveTeamLeader } from '@/services/school-config/schoolConfigService';
 import {
-  ASSIGN_TEACHER,
+  canAssignClass,
   canManageClasses,
   canViewSchoolStructure,
   canViewTeamLeaders,
+  teamLeaderActions,
   isPrincipal,
-  permissionAccess,
+  teacherAssignmentAccess,
 } from '@/utils/school-config/schoolConfigPermissions';
 import { classCrumbs } from '@/utils/school-config/breadcrumbs';
 import { PERMISSION_ACCESS, YEAR_STATUS, ageRangeLabel, mealSessionsLabel } from '@/models/school-config/schoolConfigConstants';
@@ -33,21 +35,24 @@ import '@/styles/modules/school-config.css';
  * #18 Age Groups & Classes (SRS 4.1.3, UC 2.2). Principal configures; VP / team leader / teacher view their scope.
  * Teachers and team leaders are assigned on Teacher Assignment and only shown here.
  */
-export default function AgeGroupsClassesPage() {
+/** embedded: nằm trong Thiết lập năm học, bỏ nút dẫn sang màn phân công (đã là bước kế tiếp) */
+export default function AgeGroupsClassesPage({ embedded = false }) {
   const { user } = useAuth();
   const toast = useToast();
-  const { schoolYear: headerYear } = useSchoolYear();
-  const [params, setParams] = useSearchParams();
-  const yearId = params.get('year') || headerYear;
-  // Bộ lọc nằm trên URL để tải lại trang vẫn giữ (?year=&campus=&q=&group=&status=)
+  const [params] = useSearchParams();
+  const yearId = useConfigYear();
+  // Bộ lọc nằm trên URL để tải lại trang vẫn giữ (?campus=&q=&group=&status=); năm học theo header
   const campusId = params.get('campus') || '';
   const md = useMasterData();
   const { years, error: yearsError } = useSchoolYears();
   const { structure, loading, error, reload } = useSchoolStructure(yearId, campusId);
   const [classModal, setClassModal] = useState(null); // { cls, defaults }
+  const [assigningNew, setAssigningNew] = useState(null);
   const [groupModal, setGroupModal] = useState(null); // { group }
   const [copyOpen, setCopyOpen] = useState(false);
   const [removing, setRemoving] = useState(null); // { kind, item }
+  const [removeError, setRemoveError] = useState('');
+  const [leaderGroup, setLeaderGroup] = useState(null);
 
   const year = structure?.year;
   const ageGroups = useMemo(() => structure?.ageGroups || [], [structure]);
@@ -56,8 +61,12 @@ export default function AgeGroupsClassesPage() {
   // Năm học đã kết thúc: chỉ xem, ẩn Thêm / Sửa / Xóa / Sao chép (SRS 4.1.3)
   const editable = canManageClasses(year, user);
   // Nút sang màn Phân công giáo viên: theo từng quyền (phân công giáo viên / phân công tổ trưởng)
-  const canAssignTeacherArea = permissionAccess(user, ASSIGN_TEACHER).access !== PERMISSION_ACCESS.NONE;
+  const canAssignTeacherArea = teacherAssignmentAccess(user).access !== PERMISSION_ACCESS.NONE;
   const canLeaders = canViewTeamLeaders(user);
+  // Phân công tổ trưởng ngay tại cột Tổ trưởng (không phải sang màn Phân công giáo viên)
+  const leaderActs = teamLeaderActions(user);
+  const canPickLeader = canLeaders && Object.values(leaderActs).some(Boolean) && structure?.year?.status !== YEAR_STATUS.CLOSED;
+  const leaders = useTeamLeaders(canPickLeader ? yearId : null);
   const assignUrl = (hash = '') => `/school/teachers${yearId ? `?year=${yearId}` : ''}${hash}`;
   const principal = isPrincipal(user);
   const canCopy = editable && copySourcesFor(years, year).length > 0;
@@ -81,8 +90,7 @@ export default function AgeGroupsClassesPage() {
       setRemoving(null);
       reload({ silent: true });
     } catch (err) {
-      setRemoving(null);
-      toast.error(err, 'Không xóa được');
+      setRemoveError(err.message);
     }
   };
 
@@ -116,19 +124,7 @@ export default function AgeGroupsClassesPage() {
         )}
       </div>
 
-      <div className="card mb-16">
-        <div className="filter-bar">
-          <YearPicker years={years} value={yearId} onChange={(v) => setParams({ year: v })} />
-        </div>
-      </div>
-
       {yearsError && <ErrorState error={yearsError} />}
-      {year && (
-        <p className="sc-summary text-2">
-          Năm học <b>{year.name}</b> · {ageGroups.length} nhóm tuổi · {classes.length} lớp
-          {campusId ? ` ở ${md.campusById(campusId)?.shortName || ''}` : ''}
-        </p>
-      )}
       {year?.status === YEAR_STATUS.CLOSED && (
         <div className="alert alert--info mb-16">
           <Info size={18} />
@@ -146,15 +142,15 @@ export default function AgeGroupsClassesPage() {
             <div className="card__header">
               <h2 className="card__title">Nhóm tuổi</h2>
               <div className="row row--wrap">
-                {/* Giáo viên và tổ trưởng phân công ở màn Phân công giáo viên; mỗi nút theo quyền riêng */}
-                {canAssignTeacherArea && (
-                  <Link className="btn btn--sm" to={assignUrl()}>
-                    <UserCheck size={15} /> Phân công giáo viên
-                  </Link>
-                )}
-                {canLeaders && (
-                  <Link className="btn btn--sm" to={assignUrl('#to-truong')}>
-                    <Crown size={15} /> Phân công tổ trưởng
+                {/* Giáo viên và tổ trưởng cùng ở màn Phân công giáo viên ⇒ một nút (Cần 30/10/2026); nhãn theo quyền đang có */}
+                {!embedded && (canAssignTeacherArea || canLeaders) && (
+                  <Link className="btn btn--sm" to={canAssignTeacherArea ? assignUrl() : assignUrl('#to-truong')}>
+                    <UserCheck size={15} />{' '}
+                    {canAssignTeacherArea && canLeaders
+                      ? 'Phân công giáo viên & tổ trưởng'
+                      : canAssignTeacherArea
+                        ? 'Phân công giáo viên'
+                        : 'Phân công tổ trưởng'}
                   </Link>
                 )}
                 {editable && (
@@ -189,8 +185,16 @@ export default function AgeGroupsClassesPage() {
                         <td>
                           {teamLeaders
                             .filter((a) => a.ageGroupId === g.id)
-                            .map((a) => `${md.userById(a.userId)?.fullName} (${md.campusById(a.campusId)?.shortName || '—'})`)
-                            .join(', ') || <span className="muted">—</span>}
+                            .map(
+                              (a) =>
+                                `${a.fullName || md.userById(a.userId)?.fullName || '—'} (${md.campusById(a.campusId)?.shortName || '—'})`,
+                            )
+                            .join(', ') || <span className="muted">Chưa có</span>}
+                          {canPickLeader && leaders.data && (
+                            <button type="button" className="btn btn--sm btn--ghost" onClick={() => setLeaderGroup(g)}>
+                              <UserCheck size={14} /> {teamLeaders.some((a) => a.ageGroupId === g.id) ? 'Đổi' : 'Phân công'}
+                            </button>
+                          )}
                         </td>
                         <td className="num">{count}</td>
                         {editable && (
@@ -243,7 +247,12 @@ export default function AgeGroupsClassesPage() {
 
       <ClassFormModal
         open={!!classModal}
-        onClose={closeModal(setClassModal)}
+        onClose={(changed, created) => {
+          closeModal(setClassModal)(changed);
+          // Lớp mới: mở luôn phân công giáo viên cho lớp đó (nếu có quyền và năm chưa kết thúc)
+          if (created?.id && year?.status !== YEAR_STATUS.CLOSED && canAssignClass({ teacherIds: [], ...created }, user))
+            setAssigningNew(created);
+        }}
         cls={classModal?.cls}
         defaults={classModal?.defaults}
         schoolYear={yearId}
@@ -253,6 +262,16 @@ export default function AgeGroupsClassesPage() {
         locations={md.locations}
         existing={classes}
       />
+      {assigningNew && (
+        <AssignClassTeachersDialog
+          cls={assigningNew}
+          schoolYear={yearId}
+          onClose={(changed) => {
+            setAssigningNew(null);
+            if (changed) reload({ silent: true });
+          }}
+        />
+      )}
       <AgeGroupFormModal
         open={!!groupModal}
         onClose={closeModal(setGroupModal)}
@@ -262,6 +281,28 @@ export default function AgeGroupsClassesPage() {
         yearName={year?.name}
       />
       <CopyClassesModal open={copyOpen} onClose={closeCopy} target={year} years={years} />
+      {leaderGroup && (
+        <TeamLeaderModal
+          group={leaderGroup}
+          current={leaders.data?.teamLeaders.find((x) => x.ageGroupId === leaderGroup.id)}
+          teachers={leaders.data?.leaderCandidates || []}
+          campuses={md.campuses}
+          campusName={(id) => md.campusById(id)?.shortName || ''}
+          acts={leaderActs}
+          onSave={async (group, userId) => {
+            try {
+              await saveTeamLeader({ schoolYear: yearId, ageGroupId: group.id, userId }, user);
+              toast.success(userId ? 'Đã lưu. Hãy báo trực tiếp cho tổ trưởng.' : 'Đã bỏ phân công tổ trưởng.', group.name);
+              leaders.reload({ silent: true });
+              reload({ silent: true });
+              return true;
+            } catch (err) {
+              return err.message;
+            }
+          }}
+          onClose={() => setLeaderGroup(null)}
+        />
+      )}
       <ConfirmationModal
         open={!!removing}
         title={removing?.kind === 'class' ? 'Xóa lớp' : 'Xóa nhóm tuổi'}
@@ -278,7 +319,11 @@ export default function AgeGroupsClassesPage() {
         confirmLabel={removing?.kind === 'class' ? 'Xóa lớp' : 'Xóa nhóm tuổi'}
         danger
         onConfirm={confirmRemove}
-        onClose={() => setRemoving(null)}
+        error={removeError}
+        onClose={() => {
+          setRemoving(null);
+          setRemoveError('');
+        }}
       />
     </div>
   );

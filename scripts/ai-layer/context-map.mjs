@@ -2,7 +2,7 @@
 // Parser theo dòng (không dependency) đủ cho 3 layout BE/FE/APP: list `[a, b]`, map `{k: v}`, block `- item`.
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { crossRepoRef, isSkeleton, readText, siblingRoot, stripYamlComment } from "./lib.mjs";
+import { crossRepoRef, isSkeleton, readText, siblingPath, stripYamlComment } from "./lib.mjs";
 
 const SKIP_SECTIONS = new Set(["version", "repository", "role", "external_sources", "related_repositories"]);
 const FILE_LIST_SECTIONS = new Set(["available", "skeleton_only", "planned"]);
@@ -67,8 +67,8 @@ function hasContent(abs) {
 export function resolveRef(root, config, item) {
   const ref = crossRepoRef(item);
   if (!ref) return { abs: join(root, item) };
-  const base = siblingRoot(root, config, ref.repo);
-  return base ? { abs: join(base, ref.rel) } : { skip: true };
+  const abs = siblingPath(root, config, ref.repo, ref.rel);
+  return abs ? { abs } : { skip: true };
 }
 
 export function plannedPaths(root, config) {

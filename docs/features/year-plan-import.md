@@ -1,0 +1,40 @@
+# Lấy mục tiêu từ kế hoạch có sẵn
+
+Nguồn nghiệp vụ và quyền: [EDU-24 và EDU-06](../../../CareNest_BE/docs/business/BUSINESS_RULES.md); [đặc tả](../../../CareNest_BE/specs/003-import-year-plan-goals/spec.md), [plan](../../../CareNest_BE/specs/003-import-year-plan-goals/plan.md). Quy trình lập/sửa dùng [bố cục một trang chốt 02/11/2026](year-plan-preview-edit.md); quyền và cách ghép dữ liệu giữ nguyên.
+
+## Giao diện
+
+Ở đầu trang soạn, mở Lấy từ kế hoạch có sẵn; chọn năm học và nhóm tuổi trong phạm vi được phép mà không đổi header. Xem tên nguồn, trạng thái, ngữ cảnh cha và nội dung giáo dục rồi tích từng mục tiêu, theo lĩnh vực hoặc tất cả. Đổi bộ lọc/nguồn bỏ lựa chọn cũ. Hủy không đổi bản đang soạn.
+
+Xác nhận đọc lại nguồn. Nguồn đã đổi hoặc mất quyền thì báo lỗi để xem/chọn lại; phản hồi sau khi đóng/đổi nguồn không được thêm dữ liệu. Kết quả thêm và bỏ qua được thông báo; mục không thể biểu diễn đúng phân cấp được liệt kê rõ. Lưu/Ctrl+S và cảnh báo rời màn tiếp tục qua hook hiện có.
+
+## Các điểm tích hợp
+
+- Facade listGoalSources/getGoalSource dùng API list/detail sẵn có, hoặc fake backend có scope cho mock; không dùng getAll của provider làm danh sách nguồn.
+- ImportGoalsModal/useGoalImportSources quản lý trạng thái đọc/selection và fresh-confirm; GoalFormPage kiểm quyền/lease hiện tại rồi gọi helper thuần importGoals.mjs.
+- Mapper/save/session hiện tại giữ nguyên. GET nguồn không lấy khóa hoặc ghi cache baseline của writer. Không thêm endpoint/dependency/migration.
+- Phạm vi import UI khác với toàn bộ quyền đọc của một người có nhiều vai trò. Không coi filter UI là authorization server; không có provenance nguồn trong PUT hiện hành.
+
+## Bẫy phân cấp
+
+EDU-48 (user chốt02/11): nút xóa lĩnh vực con trong GoalTable xóa đúng toàn nhánh sau xác nhận tên/số nhóm/mục tiêu/nội dung/dấu tích, không chỉ xóa heading. Quay lại giữ bản soạn, Lưu mới ghi; nhánh khác và danh sách chủ đề/đợt nghỉ giữ nguyên. Đặc tả và evidence tại BE:specs/006-year-plan-goal-hierarchy. Ô Lĩnh vực lấy từ Bộ dùng cùng native-select ellipsis với ô Thêm vào mục tiêu, có title đủ nhãn, không cắt value/options.
+
+Counter đánh số sub trong vòng render cần const snapshot cho callback xóa; không đóng trên biến đếm mutable. [Regression ordinal](../knowledge/incidents/FE-BUG-261102-subdomain-delete-ordinal.md).
+
+Nguồn và đích dùng flat rows với heading. Helper kiểm round-trip qua normalizer, tránh thêm sub đầu tiên làm đổi cha row đích cũ. Trường hợp không biểu diễn được báo chưa thêm, không tạo tên cha giả. Xem [case](../../../CareNest_BE/docs/knowledge/incidents/CASE-261028-year-plan-import-first-sub-reparent.md).
+
+Mục tiêu có liên kết Bộ phải dùng lại cha nguồn trong đúng lĩnh vực/sub và chèn trong đoạn của cha đó; không append cuối bảng rồi bỏ tiêu đề trùng. Xem [incident nhập lại](../knowledge/incidents/FE-BUG-261102-curriculum-reimport-headings.md).
+
+## Kiểm chứng
+
+### Giao diện chọn từ Bộ — user duyệt 02/11/2026
+
+Ảnh minh họa thứ hai là hướng trình bày được user duyệt, chỉ dùng chức năng đã có theo BE:EDU-28. GoalPicker dùng chung với lấy từ kế hoạch: ô tìm toàn chiều rộng, chip lĩnh vực, nút Chọn tất cả/Bỏ chọn tất cả có tông nhấn và ghi số mục đang hiển thị; giữ lựa chọn ngoài bộ lọc. Nhóm/lĩnh vực có trạng thái chọn một phần; nội dung đi kèm chỉ mở xem, không tick riêng. Viền và thụt cấp trong hộp chọn phân biệt lĩnh vực, lĩnh vực con, nhóm và mục tiêu; dòng đã chọn có nền nhấn.
+
+Thẻ Gợi ý nội dung có ba ô chọn đích/lĩnh vực/lĩnh vực con, xếp ngang trên desktop và dọc trên mobile; tick từng nội dung. Không thêm tìm kiếm, chọn tất cả nội dung, bộ lọc đã có/chưa có hoặc màn xem lại lựa chọn. Footer nhắc lưu tay; quyền, callback nhập, nguồn, đối chiếu, trạng thái và thông báo bỏ trùng giữ luồng cũ. CSS phân cấp mới giới hạn trong modal để trang nguồn không đổi bố cục.
+
+Node tests tại import-goals.test.mjs, import-goal-sources.test.mjs và year-plan-api.test.mjs; browser E2E ở tests/e2e/system/year-plan-import.spec.mjs. Kết quả cuối và giới hạn nằm trong [quickstart](../../../CareNest_BE/specs/003-import-year-plan-goals/quickstart.md). Chưa coi các lệnh dự kiến trong quickstart là bằng chứng đã chạy.
+
+Node test:edu 59/59 và Web verify đầy đủ đã đạt; browser mock happy/edge QA đạt. Real-BE E2E 13 ca chưa chạy vì chưa có E2E_DEV_PASSWORD; không coi vòng converge đã sạch khi T019/T021 còn mở.
+
+Cập nhật cuối 28/10/2026: 13/13 real-BE E2E đã đạt sau khi cấu hình đúng credential và database fixture; T019/T021 hoàn tất. Những ghi chú đang chờ trước đó là lịch sử. Xem quickstart để đối chiếu kết quả sau cùng.

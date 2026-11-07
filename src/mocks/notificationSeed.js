@@ -24,10 +24,10 @@ const SPECS = [
   ],
   [
     'u_hung',
-    'HEALTH_FOLLOW_UP',
-    'Phiếu theo dõi sức khỏe mới',
-    'Có 2 phiếu theo dõi sức khỏe mới mở sau đợt khám định kỳ.',
-    '/children/health-follow-ups',
+    'CHILD_TB_CONTACT',
+    'Trẻ có tiền sử tiếp xúc với người bệnh lao',
+    'Phụ huynh khai một trẻ Lớp Chồi 1 có tiền sử tiếp xúc với người bệnh lao. Nhà trường trao đổi với phụ huynh về việc đưa trẻ đi khám sàng lọc.',
+    '/children/ch_009/health-declaration',
     true,
     30,
   ],
@@ -101,7 +101,7 @@ const SPECS = [
     'u_ha',
     'EVALUATION_DRAFT_READY',
     'Bản nháp đánh giá đã sẵn sàng',
-    'Bản nháp AI đánh giá tuần của lớp Chồi 2 đã sẵn sàng để xem xét.',
+    'Bản nháp AI đánh giá tháng của lớp Chồi 2 đã sẵn sàng để xem xét.',
     '/assessment/periodic',
     true,
     28,
@@ -111,7 +111,7 @@ const SPECS = [
     'u_minhanh',
     'EVALUATION_DRAFT_READY',
     'Bản nháp đánh giá đã sẵn sàng',
-    'Bản nháp AI đánh giá tuần trước của lớp Chồi 1 đã sẵn sàng để bạn xem xét.',
+    'Bản nháp AI đánh giá tháng trước của lớp Chồi 1 đã sẵn sàng để bạn xem xét.',
     '/assessment/periodic',
     false,
     1,
@@ -147,7 +147,7 @@ const SPECS = [
     'u_an',
     'EVALUATION_DRAFT_READY',
     'Bản nháp đánh giá đã sẵn sàng',
-    'Bản nháp AI đánh giá tuần trước của lớp Mầm 1 đã sẵn sàng.',
+    'Bản nháp AI đánh giá tháng trước của lớp Mầm 1 đã sẵn sàng.',
     '/assessment/periodic',
     false,
     2,
@@ -227,7 +227,8 @@ const SPECS = [
   ],
 ];
 
-export const DEMO_NOTIFICATION_VERSION = 1;
+// v2: bỏ thông báo phiếu theo dõi (HLT-16 bỏ, 2026-11-04); giữ vị trí để id các thông báo khác không đổi.
+export const DEMO_NOTIFICATION_VERSION = 2;
 
 export const buildDemoNotifications = (now = new Date()) =>
   SPECS.map(([userId, type, title, message, link, read, hoursAgo], i) => ({

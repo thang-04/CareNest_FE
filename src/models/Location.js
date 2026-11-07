@@ -58,8 +58,14 @@ export const locationLabel = (loc) =>
 export const locationLabelIn = (loc, campusName) => (campusName ? `${locationBaseLabel(loc)} · ${campusName}` : locationLabel(loc));
 
 /** Staff who may be in charge of a room of `campusId`: active, working at that campus (the Principal always). */
-export const isRoomStaff = (u, campusId) =>
-  !!u && u.role !== 'PARENT' && (u.status || 'ACTIVE') === 'ACTIVE' && (u.role === 'PRINCIPAL' || u.campusId === campusId);
+export const isRoomStaff = (u, campusId, type) =>
+  !!u &&
+  u.role !== 'PARENT' &&
+  (u.status || 'ACTIVE') === 'ACTIVE' &&
+  // Bếp do nhân viên bếp của điểm trường phụ trách
+  (type === LOCATION_TYPES.KITCHEN
+    ? u.role === 'KITCHEN_STAFF' && u.campusId === campusId
+    : u.role === 'PRINCIPAL' || u.campusId === campusId);
 
 const norm = (v) =>
   String(v || '')

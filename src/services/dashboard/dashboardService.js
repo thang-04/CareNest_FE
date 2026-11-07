@@ -2,35 +2,14 @@ import { ROLES } from '@/models/User';
 import { formatDate } from '@/utils/format';
 import { getUsers } from '@/services/masterDataService';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
-import { getIssues, getRequests, getProposals } from '@/services/facility/facilityService';
-import { getRewardProposals } from '@/services/assessment/assessmentService';
-import { getInspections } from '@/services/inventory-inspection/inspectionService';
+import { getRewardLists } from '@/services/assessment/assessmentService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
-import { getStockIssue } from '@/services/kitchen/kitchenService';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { REQUEST_STATUS, PROPOSAL_STATUS, ISSUE_STATUS, ISSUE_TYPE_LABELS } from '@/models/facility/facilityConstants';
 import { REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
-import { ROUND_STATUS_LABELS, SHEET_STATUS_LABELS } from '@/models/inventory-inspection/inspectionConstants';
 import { MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
-import {
-  MEAL_SESSION_LABELS,
-  ISSUE_STATUS as STOCK_ISSUE_STATUS,
-  ISSUE_STATUS_LABELS as STOCK_LABELS,
-} from '@/models/kitchen/kitchenConstants';
-import { canDecideIssue, canReviewRequest, canPrincipalDecideRequest, canDecideProposal } from '@/utils/facility/facilityPermissions';
-import { canReviewRewardProposal, canDecideRewardProposal } from '@/utils/assessment/assessmentPermissions';
-import { canReviewSheet, canApproveRound } from '@/utils/inventory-inspection/inspectionPermissions';
+import { MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
 import { canConfirmMealCount } from '@/utils/attendance/attendancePermissions';
-import { canApproveStockIssue } from '@/utils/kitchen/kitchenPermissions';
 import { APPROVAL_TYPE, APPROVAL_TYPES_BY_ROLE } from '@/models/dashboard/dashboardConstants';
-import { FACILITY_ENABLED } from '@/config/app';
-
-const FACILITY_TYPES = [
-  APPROVAL_TYPE.FACILITY_ISSUE,
-  APPROVAL_TYPE.FACILITY_REQUEST,
-  APPROVAL_TYPE.FACILITY_PROPOSAL,
-  APPROVAL_TYPE.INSPECTION,
-];
 import { canViewPendingApprovals } from '@/utils/dashboard/dashboardPermissions';
 import { sortKey } from '@/utils/dashboard/dashboardFormat';
 
@@ -41,11 +20,15 @@ import { sortKey } from '@/utils/dashboard/dashboardFormat';
  * PROPOSED backend: GET /approvals/pending → PendingApprovalGroup[] (one call instead of many).
  */
 
-const LESSON_TYPE = { week: 'Kế hoạch tuần', day: 'Kế hoạch ngày' };
-const STATUS_EDU = { PENDING_TL: 'Chờ tổ trưởng duyệt', PENDING_VP: 'Chờ Phó HT duyệt' };
-
+const LESSON_TYPE = {
+  week: 'Kế hoạch tuần',
+  day: 'Kế hoạch ngày',
+};
+const STATUS_EDU = {
+  PENDING_TL: 'Chờ tổ trưởng duyệt',
+  PENDING_VP: 'Chờ Phó HT duyệt',
+};
 const lastAt = (history = []) => history[history.length - 1]?.at || null;
-
 const lessonPeriod = (l) => (l.type === 'day' ? `ngày ${formatDate(l.date)}` : `${formatDate(l.weekStart)} – ${formatDate(l.weekEnd)}`);
 
 /** Each source: (user, ctx) → Promise<PendingApprovalItem[]>. ctx = { users, schoolYear, date } */
@@ -65,7 +48,6 @@ const SOURCES = {
         to: '/education/plan-reviews',
       }));
   },
-
   [APPROVAL_TYPE.THEME_PLAN]: async () => {
     const { themes } = await getEducationPlans();
     return themes
@@ -81,7 +63,6 @@ const SOURCES = {
         to: '/education/plan-reviews',
       }));
   },
-
   [APPROVAL_TYPE.LESSON_PLAN]: async () => {
     const { lessons } = await getEducationPlans();
     return lessons
@@ -97,95 +78,22 @@ const SOURCES = {
         to: '/education/plan-reviews',
       }));
   },
-
-  [APPROVAL_TYPE.REWARD_REVIEW]: async (user, { users, schoolYear }) =>
-    (await getRewardProposals({ schoolYear }, user)).filter((p) => canReviewRewardProposal(p, user)).map((p) => rewardRow(p, users)),
-
-  [APPROVAL_TYPE.REWARD_DECISION]: async (user, { users, schoolYear }) =>
-    (await getRewardProposals({ schoolYear }, user)).filter((p) => canDecideRewardProposal(p, user)).map((p) => rewardRow(p, users)),
-
-  [APPROVAL_TYPE.FACILITY_ISSUE]: async (user, { users }) =>
-    (await getIssues({ status: ISSUE_STATUS.SUBMITTED }, user))
-      .filter((i) => canDecideIssue(i, user))
-      .map((i) => ({
-        id: i.id,
-        code: i.code,
-        title: `${ISSUE_TYPE_LABELS[i.type] || 'Sự cố'}: ${i.assetName}`,
-        by: users[i.reporterId] || '—',
-        at: i.createdAt,
-        campusId: i.campusId,
-        statusLabel: 'Chờ PHT duyệt',
-        to: `/facility/issues/${i.id}`,
-      })),
-
-  [APPROVAL_TYPE.FACILITY_REQUEST]: async (user, { users }) => {
-    const principal = user.role === ROLES.PRINCIPAL;
-    const status = principal ? REQUEST_STATUS.PENDING_PRINCIPAL : REQUEST_STATUS.SUBMITTED;
-    const can = principal ? canPrincipalDecideRequest : canReviewRequest;
-    return (await getRequests({ status }, user))
-      .filter((r) => can(r, user))
-      .map((r) => ({
-        id: r.id,
-        code: r.code,
-        title: `Bổ sung ${r.quantity} ${r.unit} ${r.itemName}`,
-        by: users[r.requesterId] || '—',
-        at: principal ? r.forwardedAt || r.createdAt : r.createdAt,
-        campusId: r.campusId,
-        statusLabel: principal ? 'Chờ Hiệu trưởng duyệt' : 'Chờ PHT duyệt',
-        to: `/facility/requests/${r.id}`,
-      }));
-  },
-
-  [APPROVAL_TYPE.FACILITY_PROPOSAL]: async (user, { users }) =>
-    (await getProposals({ status: PROPOSAL_STATUS.SUBMITTED }, user))
-      .filter((p) => canDecideProposal(p, user))
-      .map((p) => ({
-        id: p.id,
-        code: p.code,
-        title: p.title,
-        by: users[p.createdBy] || '—',
-        at: p.submittedAt || p.createdAt,
-        campusId: p.campusId,
-        statusLabel: 'Chờ Hiệu trưởng phê duyệt',
-        to: `/facility/proposals/${p.id}`,
-      })),
-
-  [APPROVAL_TYPE.INSPECTION]: async (user, { users }) => {
-    const rounds = await getInspections({}, user);
-    const rows = [];
-    rounds.forEach((r) => {
-      if (canApproveRound(r, user)) {
-        rows.push({
-          id: r.id,
-          code: r.code,
-          title: `Phê duyệt kết quả đợt: ${r.name}`,
-          by: users[r.createdBy] || '—',
-          at: r.updatedAt,
-          campusId: null,
-          statusLabel: ROUND_STATUS_LABELS.PENDING_APPROVAL,
-          to: `/facility/inspections/${r.id}`,
-        });
-      }
-      (r.sheets || [])
-        .filter((s) => canReviewSheet(r, s, user))
-        .forEach((s) =>
-          rows.push({
-            id: `${r.id}:${s.id}`,
-            code: s.code,
-            title: `Duyệt phiếu kiểm kê – ${r.name}`,
-            by: users[s.inspectorUserId] || '—',
-            at: s.submittedAt,
-            campusId: null,
-            statusLabel: SHEET_STATUS_LABELS.SUBMITTED,
-            to: `/facility/inspections/${r.id}/sheets/${s.id}`,
-          }),
-        );
-    });
-    return rows;
-  },
-
+  // Danh sách khen thưởng của lớp: PHT xem xét bản chờ PHT; HT phê duyệt bản chờ HT (BE cho HT xử lý cả bản chờ PHT)
+  [APPROVAL_TYPE.REWARD_REVIEW]: async (user, { schoolYear }) =>
+    user?.role === ROLES.VICE_PRINCIPAL
+      ? (await getRewardLists({ schoolYear }, user)).filter((r) => r.status === 'PENDING_VP').map(rewardRow)
+      : [],
+  [APPROVAL_TYPE.REWARD_DECISION]: async (user, { schoolYear }) =>
+    user?.role === ROLES.PRINCIPAL
+      ? (await getRewardLists({ schoolYear }, user)).filter((r) => r.status === 'PENDING_PRINCIPAL').map(rewardRow)
+      : [],
   [APPROVAL_TYPE.MEAL_COUNT]: async (user, { date }) => {
-    const { counts } = await getMealCounts({ date }, user);
+    const { counts } = await getMealCounts(
+      {
+        date,
+      },
+      user,
+    );
     return counts
       .filter((c) => c.id && canConfirmMealCount(c, user))
       .map((c) => ({
@@ -199,36 +107,17 @@ const SOURCES = {
         to: `/attendance/meal-count?date=${c.date}`,
       }));
   },
-
-  [APPROVAL_TYPE.STOCK_ISSUE]: async (user, { date }) => {
-    const view = await getStockIssue({ campusId: user.campusId, date }, user);
-    const issue = view?.issue;
-    if (view?.state !== STOCK_ISSUE_STATUS.PENDING_APPROVAL || !issue || !canApproveStockIssue(issue, user)) return [];
-    return [
-      {
-        id: issue.code,
-        code: issue.code,
-        title: `Xuất ${issue.items.length} loại thực phẩm cho bếp`,
-        by: 'Lập từ sĩ số suất ăn đã xác nhận',
-        at: date,
-        campusId: issue.campusId,
-        statusLabel: STOCK_LABELS.PENDING_APPROVAL,
-        to: '/kitchen/stock-issues',
-      },
-    ];
-  },
 };
-
-function rewardRow(p, users) {
+function rewardRow(r) {
   return {
-    id: p.id,
-    code: p.code,
-    title: `${p.rewardTitle} – ${p.childName} (${p.className})`,
-    by: users[p.createdBy] || '—',
-    at: p.submittedAt || p.createdAt,
-    campusId: p.campusId,
-    statusLabel: REWARD_STATUS_LABELS[p.status],
-    to: `/assessment/rewards/${p.id}`,
+    id: r.listId,
+    code: r.className,
+    title: `Danh sách khen thưởng lớp ${r.className} (${r.awarded ?? 0}/${r.children} trẻ)`,
+    by: '—',
+    at: r.submittedAt,
+    campusId: r.campusId,
+    statusLabel: REWARD_STATUS_LABELS[r.status],
+    to: `/assessment/rewards/${r.classId}`,
   };
 }
 
@@ -239,19 +128,33 @@ function rewardRow(p, users) {
  */
 export async function getPendingApprovals(user, { schoolYear, date }) {
   if (!canViewPendingApprovals(user)) return [];
-  const types = (APPROVAL_TYPES_BY_ROLE[user.role] || []).filter((t) => FACILITY_ENABLED || !FACILITY_TYPES.includes(t));
+  const types = APPROVAL_TYPES_BY_ROLE[user.role] || [];
   // Names only decorate the rows: the list still works when the user directory is unavailable.
   const users = await getUsers()
     .then((list) => Object.fromEntries(list.map((u) => [u.id, u.fullName])))
     .catch(() => ({}));
-  const ctx = { users, schoolYear, date };
+  const ctx = {
+    users,
+    schoolYear,
+    date,
+  };
   const results = await Promise.allSettled(types.map((type) => SOURCES[type](user, ctx)));
   return types.map((type, i) => {
     const r = results[i];
     const items =
       r.status === 'fulfilled'
-        ? r.value.map((it) => ({ ...it, type, key: `${type}:${it.id}` })).sort((a, b) => sortKey(a.at).localeCompare(sortKey(b.at)))
+        ? r.value
+            .map((it) => ({
+              ...it,
+              type,
+              key: `${type}:${it.id}`,
+            }))
+            .sort((a, b) => sortKey(a.at).localeCompare(sortKey(b.at)))
         : [];
-    return { type, items, error: r.status === 'rejected' ? r.reason : null };
+    return {
+      type,
+      items,
+      error: r.status === 'rejected' ? r.reason : null,
+    };
   });
 }

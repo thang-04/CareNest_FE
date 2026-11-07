@@ -26,15 +26,16 @@ function IconAction({ action, icon: Icon, fallback, name }) {
 }
 
 /**
- * Chuẩn hành động hàng bảng (DESIGN §6.4): tối đa 2 icon (Xem, Sửa) có tooltip + aria-label,
- * mọi thao tác khác và Xóa vào menu "…".
- * view / edit: { to } hoặc { onClick }, tùy chọn { label }. menu: items của RowMenu. name: tên đối tượng cho trình đọc màn hình.
+ * Chuẩn hành động hàng bảng (DESIGN §6.3): tối đa 2 icon có tooltip + aria-label, mọi thao tác khác và Xóa vào menu "…".
+ * view / edit: { to } hoặc { onClick }, tùy chọn { label }. extra: icon thao tác phụ khi dòng chỉ có 1 thao tác phụ,
+ * { to | onClick, label, icon } (thay menu chỉ 1 mục). menu: items của RowMenu. name: tên đối tượng cho trình đọc màn hình.
  */
-export function RowActions({ view, edit, menu = [], name }) {
+export function RowActions({ view, edit, extra, menu = [], name }) {
   return (
     <div className="row-actions">
       {view && <IconAction action={view} icon={Eye} fallback="Xem" name={name} />}
       {edit && <IconAction action={edit} icon={Pencil} fallback="Sửa" name={name} />}
+      {extra && <IconAction action={extra} icon={extra.icon} fallback={extra.label} name={name} />}
       {menu.length > 0 && <RowMenu label={`Thao tác khác${name ? ` ${name}` : ''}`} items={menu} />}
     </div>
   );

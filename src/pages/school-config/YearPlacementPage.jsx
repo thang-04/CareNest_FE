@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
@@ -12,15 +14,16 @@ import { PlacementClassPanel } from '@/components/school-config/PlacementClassPa
 import { PlacementActionBadge } from '@/components/school-config/SchoolConfigBadges';
 import { usePlacements, useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
 import { autoPlace } from '@/services/school-config/schoolConfigService';
-import { PLACEMENT_ACTION, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
-import { canConfigureSchool } from '@/utils/school-config/schoolConfigPermissions';
+import { PLACEMENT_ACTION } from '@/models/school-config/schoolConfigConstants';
+import { canConfigureSchool, canViewYearPlacement, nextYearToActivate } from '@/utils/school-config/schoolConfigPermissions';
 import { placementCrumbs } from '@/utils/school-config/breadcrumbs';
 import '@/styles/modules/school-config.css';
 
 const placedOf = (c) => c.children.filter((ch) => ch.placement).length;
 
 /**
- * Xếp lớp năm học mới (Hiệu trưởng): trái là danh sách lớp năm cũ, phải là trẻ của lớp đang chọn.
+ * Xếp lớp năm học mới (Hiệu trưởng, hoặc PHT được Hiệu trưởng giao theo điểm trường / toàn trường):
+ * trái là danh sách lớp năm cũ, phải là trẻ của lớp đang chọn.
  * Bản dự kiến, áp dụng khi kích hoạt năm học.
  */
 export default function YearPlacementPage() {
@@ -28,8 +31,9 @@ export default function YearPlacementPage() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const { years } = useSchoolYears();
-  const planned = years.filter((y) => y.status === YEAR_STATUS.PLANNED);
-  const yearId = params.get('year') || planned[0]?.id || '';
+  // CFG-YR-03: chỉ xếp lớp cho năm sắp diễn ra sớm nhất (năm kế tiếp năm đang hoạt động)
+  const nextYear = nextYearToActivate(years);
+  const yearId = nextYear?.id || '';
   const campusId = params.get('campus') || '';
   const groupId = params.get('group') || '';
   const filtered = !!(campusId || groupId);
@@ -38,6 +42,7 @@ export default function YearPlacementPage() {
   const [dirty, setDirty] = useState(false);
   const [pendingId, setPendingId] = useState(null);
   const [confirmAuto, setConfirmAuto] = useState(false);
+  const [autoError, setAutoError] = useState('');
 
   const campusName = (id) => plan?.campuses.find((c) => c.id === id)?.name || id;
   const groupName = (id) => plan?.ageGroups.find((g) => g.id === id)?.shortName || '—';
@@ -63,13 +68,22 @@ export default function YearPlacementPage() {
     ),
   ];
   const onDirty = useCallback((value) => setDirty(value), []);
+  // Rời màn / đổi bước wizard khi lớp đang chọn còn thay đổi chưa lưu: hỏi trước (lưu ở khung lớp)
+  const guard = useLeaveGuard({ when: dirty });
 
-  const setParam = (key, value) => {
+  const applyParam = (key, value) => {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
     setParams(next, { replace: true });
   };
+  // Đổi bộ lọc / xếp tự động làm khung lớp nạp lại: còn chọn chưa lưu thì hỏi trước (bỏ thay đổi mới làm tiếp)
+  const unlessDirty = (run) =>
+    guard.leave(() => {
+      setDirty(false);
+      run();
+    });
+  const setParam = (key, value) => unlessDirty(() => applyParam(key, value));
   // Đổi lớp khi đang sửa dở thì hỏi trước để không mất thay đổi
   const pick = (id) => {
     if (id === selected?.id) return;
@@ -86,21 +100,27 @@ export default function YearPlacementPage() {
   };
 
   const runAuto = async () => {
-    setConfirmAuto(false);
     try {
       const r = await autoPlace(yearId, user, { campusId: campusId || undefined, ageGroupId: groupId || undefined });
+      setConfirmAuto(false);
       const left = r.unplaced.map((u) => `${u.className}: ${u.count} trẻ`).join(', ');
-      toast.success(`${r.promoted} trẻ lên lớp, ${r.graduated} trẻ ra trường.${left ? ` Chưa đủ chỗ: ${left}.` : ''}`, 'Đã xếp tự động');
+      const undecided = r.undecided
+        ? ` ${r.undecided} trẻ lớp ra trường chưa hoàn thành chương trình / chưa đánh giá: chọn ra trường hoặc ở lại.`
+        : '';
+      toast.success(
+        `${r.promoted} trẻ lên lớp, ${r.graduated} trẻ ra trường.${undecided}${left ? ` Chưa đủ chỗ: ${left}.` : ''}`,
+        'Đã xếp tự động',
+      );
       const fresh = await reload({ silent: true });
       // Mở ngay lớp còn trẻ chưa xếp để Hiệu trưởng xử lý tiếp
       const todo = classes.map((c) => fresh?.classes.find((x) => x.id === c.id)).find((c) => c && placedOf(c) < c.children.length);
       if (todo) setSelectedId(todo.id);
     } catch (err) {
-      toast.error(err, 'Không xếp tự động được');
+      setAutoError(err.message);
     }
   };
 
-  if (!canConfigureSchool(user))
+  if (!canViewYearPlacement(user))
     return (
       <div className="page">
         <Breadcrumb items={placementCrumbs()} />
@@ -145,49 +165,48 @@ export default function YearPlacementPage() {
         </div>
       </div>
 
-      {!planned.length && !params.get('year') ? (
+      {!nextYear ? (
         <div className="card card__body">
           <EmptyState
             icon={CalendarRange}
             title="Chưa có năm học sắp diễn ra"
-            description="Tạo năm học mới và sao chép lớp trước khi xếp trẻ lên lớp."
+            description={
+              canConfigureSchool(user)
+                ? 'Tạo năm học mới và sao chép lớp trước khi xếp trẻ lên lớp.'
+                : 'Hiệu trưởng tạo năm học mới và sao chép lớp; sau đó bạn xếp trẻ lên lớp.'
+            }
             action={
-              <Link className="btn btn--primary" to="/school/years/new">
-                Thêm năm học
-              </Link>
+              canConfigureSchool(user) && (
+                <Link className="btn btn--primary" to="/school/years/new">
+                  Thêm năm học
+                </Link>
+              )
             }
           />
         </div>
       ) : (
         <>
           <div className="card sc-plc__filters">
-            {planned.length > 1 && (
+            <div className="sc-inline-field">
+              <span className="field__label">Năm học mới</span>
+              <strong>{nextYear.name}</strong>
+            </div>
+            {/* PHT được giao 1 điểm trường: không cần chọn điểm trường */}
+            {(plan?.campuses?.length || 0) > 1 && (
               <div className="sc-inline-field">
-                <label className="field__label" htmlFor="plc-year">
-                  Năm học mới
+                <label className="field__label" htmlFor="plc-campus">
+                  Điểm trường
                 </label>
-                <select id="plc-year" className="select" value={yearId} onChange={(e) => setParam('year', e.target.value)}>
-                  {planned.map((y) => (
-                    <option key={y.id} value={y.id}>
-                      {y.name}
+                <select id="plc-campus" className="select" value={campusId} onChange={(e) => setParam('campus', e.target.value)}>
+                  <option value="">Tất cả điểm trường</option>
+                  {(plan?.campuses || []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
               </div>
             )}
-            <div className="sc-inline-field">
-              <label className="field__label" htmlFor="plc-campus">
-                Điểm trường
-              </label>
-              <select id="plc-campus" className="select" value={campusId} onChange={(e) => setParam('campus', e.target.value)}>
-                <option value="">Tất cả điểm trường</option>
-                {(plan?.campuses || []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
             <div className="sc-inline-field">
               <label className="field__label" htmlFor="plc-group">
                 Nhóm tuổi
@@ -203,7 +222,7 @@ export default function YearPlacementPage() {
             </div>
             {/* Nút xếp tự động ở cuối hàng lọc: áp dụng đúng phạm vi đang lọc */}
             {plan?.editable && (
-              <button className="btn btn--primary sc-plc__auto" onClick={() => setConfirmAuto(true)}>
+              <button className="btn btn--primary sc-plc__auto" onClick={() => unlessDirty(() => setConfirmAuto(true))}>
                 <Wand2 size={16} /> {autoLabel}
               </button>
             )}
@@ -236,7 +255,8 @@ export default function YearPlacementPage() {
               <nav className="card sc-plc__list" aria-label="Lớp năm học cũ" onKeyDown={onListKey}>
                 {missingTargets.length > 0 && (
                   <p className="sc-plc__missing text-xs" role="note">
-                    <AlertTriangle size={14} /> Năm {plan.year.name} chưa có lớp: {missingTargets.join(', ')}
+                    <AlertTriangle size={14} /> Năm {plan.year.name} chưa có lớp: {missingTargets.join(', ')}.{' '}
+                    <Link to={`/school/classes?year=${plan.year.id}`}>Thêm lớp</Link>
                   </p>
                 )}
                 {classes.map((c) => {
@@ -333,10 +353,19 @@ export default function YearPlacementPage() {
       <ConfirmationModal
         open={confirmAuto}
         title={`${autoLabel}?`}
-        message={`${filtered ? `Chỉ các lớp đang hiện theo bộ lọc (${classes.length} lớp). ` : ''}Trẻ chưa xếp được chuyển cả lớp lên nhóm tuổi kế tiếp (lớp cùng điểm trường còn nhiều chỗ nhất); nhóm tuổi lớn nhất ra trường. Trẻ đã xếp giữ nguyên. Lớp mới hết chỗ thì trẻ còn lại để chưa xếp.`}
+        message={`${filtered ? `Chỉ các lớp đang hiện theo bộ lọc (${classes.length} lớp). ` : ''}Trẻ chưa xếp được chuyển cả lớp lên nhóm tuổi kế tiếp (lớp cùng điểm trường còn nhiều chỗ nhất); lớp nhóm tuổi lớn nhất: trẻ đã hoàn thành chương trình ra trường, trẻ chưa hoàn thành để chọn ra trường hoặc ở lại. Trẻ đã xếp giữ nguyên. Lớp mới hết chỗ thì trẻ còn lại để chưa xếp.`}
         confirmLabel="Xếp tự động"
         onConfirm={runAuto}
-        onClose={() => setConfirmAuto(false)}
+        error={autoError}
+        onClose={() => {
+          setConfirmAuto(false);
+          setAutoError('');
+        }}
+      />
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave={false}
+        message="Lớp đang chọn có thay đổi xếp lớp chưa lưu. Rời màn sẽ bỏ các thay đổi này."
       />
     </div>
   );

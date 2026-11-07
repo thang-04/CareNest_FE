@@ -37,7 +37,6 @@ import {
 } from '@/models/kitchen/kitchenConstants';
 import {
   canAccessCampus,
-  isVicePrincipal,
   canManageStock,
   canViewDryStock,
   canWriteStock,
@@ -121,6 +120,8 @@ const normalizeFood = (f) => {
     id: f.id,
     name: f.name || f.foodName || f.ingredientName || f.id,
     unit: u.stockUnit,
+    // Đơn vị định lượng món (g / ml một trẻ) — khác đơn vị kho (kg, lít) dùng khi đi chợ
+    baseUnit: f.unit || null,
     stockUnit: u.stockUnit,
     purchaseUnit: u.purchaseUnit,
     purchaseToStock: u.purchaseToStock,
@@ -338,9 +339,12 @@ const normalizeMealCount = (mc) => ({
   status: mc.status,
   confirmedAt: mc.confirmedAt || null,
   confirmedBy: mc.confirmedBy || null,
+  // Lần cuối số bếp dùng đổi (xác nhận / xác nhận lại) để đánh dấu "Mới"
+  changedAt: mc.confirmedAt || null,
   classes: (mc.classes || []).map((r) => ({
     classId: r.classId,
     className: r.className || '',
+    ...(r.ageGroupId ? { ageGroupId: r.ageGroupId } : {}),
     normal: Number(r.normal ?? r.normalServings ?? 0),
     substitute: Number(r.substitute ?? r.substituteServings ?? 0),
   })),
@@ -402,7 +406,7 @@ const computeSession = (db, cat, campusId, date, session) => {
     });
   };
   mealCount.classes.forEach((row) => {
-    const ageGroupId = classById[row.classId]?.ageGroupId || null;
+    const ageGroupId = row.ageGroupId || classById[row.classId]?.ageGroupId || null;
     const className = row.className || classById[row.classId]?.name || row.classId;
     const normalMenu = menuFor(menus, session, ageGroupId, MENU_TYPE.NORMAL);
     if (!normalMenu) {
@@ -968,7 +972,8 @@ const issueKeysToSync = (db) => {
   const keys = new Set();
   db.mealCounts.forEach((m) => {
     const key = `${m.campusId}|${m.date}`;
-    if (m.status !== 'CONFIRMED' || keys.has(key)) return;
+    // Sổ đồng bộ từ BE (dev): kho mock chỉ có điểm trường mock, chưa lập phiếu xuất cho điểm trường BE
+    if (m.source === 'BE' || m.status !== 'CONFIRMED' || keys.has(key)) return;
     const issue = db.stockIssues.find((i) => i.campusId === m.campusId && i.date === m.date);
     if (!issue && db.kitchenLegacyConfirmedKeys?.includes(key)) return;
     if (!dayConfirmed(db, m.campusId, m.date)) return;
@@ -1078,11 +1083,11 @@ const freshView = (db, campusId, date, user) => {
     lines,
     counts: Object.fromEntries(Object.values(FRESH_RESULT).map((r) => [r, lines.filter((l) => l.result === r).length])),
     canEdit: editable && isKitchenStaff(user) && canAccessCampus(user, campusId),
-    canReview: status === FRESH_RECEIPT_STATUS.SUBMITTED && isVicePrincipal(user) && canAccessCampus(user, campusId),
+    canReview: status === FRESH_RECEIPT_STATUS.SUBMITTED && canManageStock(user) && canAccessCampus(user, campusId),
     canMarkNotified:
       !!stored &&
       status !== FRESH_RECEIPT_STATUS.CONFIRMED &&
-      (isKitchenStaff(user) || isVicePrincipal(user)) &&
+      (isKitchenStaff(user) || canManageStock(user)) &&
       canAccessCampus(user, campusId),
   };
 };
@@ -1830,11 +1835,18 @@ const kitchenRepository = {
                     id,
                     name: dish?.name || id,
                     allergens: dish?.allergens || [],
-                    ingredients: (dish?.ingredients || []).map((i) => ({
-                      ...i,
-                      name: cat.foodById[i.foodId]?.name || i.foodId,
-                      unit: cat.foodById[i.foodId]?.unit || '',
-                    })),
+                    ingredients: (dish?.ingredients || []).map((i) => {
+                      const food = cat.foodById[i.foodId];
+                      // Món của Thực đơn: định lượng một trẻ theo nhóm tuổi của thực đơn (NUT định lượng món), đơn vị g / ml;
+                      // chưa nhập cho nhóm đó ⇒ null. Món mẫu của bếp (không có portions): khẩu phần chuẩn theo đơn vị kho.
+                      const qtyPerPortion = i.portions ? ingredientQty({ portions: i.portions }, m.ageGroupId) : i.qtyPerPortion;
+                      return {
+                        foodId: i.foodId,
+                        name: food?.name || i.foodId,
+                        qtyPerPortion,
+                        unit: (i.portions || cat.external ? food?.baseUnit : null) || food?.unit || '',
+                      };
+                    }),
                   };
                 }),
               })),
@@ -1862,6 +1874,7 @@ const kitchenRepository = {
           hasMenu: r.hasMenu,
           status: r.mealCountStatus,
           confirmedAt: r.confirmedAt,
+          changedAt: confirmed ? snapshot?.changedAt || r.confirmedAt : null,
           classes: confirmed
             ? (snapshot?.classes || []).map((row) => ({
                 ...row,
@@ -2046,7 +2059,7 @@ const kitchenRepository = {
   /** PHT xác nhận kết quả cuối (khóa phiếu) hoặc trả bếp kiểm lại kèm ghi chú. */
   async reviewFreshReceipt({ campusId, date, approve, note = '' }, user) {
     await delay();
-    guard(isVicePrincipal(user) && canAccessCampus(user, campusId));
+    guard(canManageStock(user) && canAccessCampus(user, campusId));
     if (!approve && !String(note).trim()) invalid({ note: 'Ghi điều bếp cần kiểm lại.' });
     if (String(note).length > NOTE_MAX) invalid({ note: `Ghi chú tối đa ${NOTE_MAX} ký tự.` });
     return writeDb((db) => {
@@ -2075,7 +2088,7 @@ const kitchenRepository = {
   /** Đánh dấu đã báo NCC dòng thiếu / trả lại (bếp hoặc PHT), tới khi PHT xác nhận. */
   async setFreshSupplierNotified({ campusId, date, foodId, notified }, user) {
     await delay();
-    guard((isKitchenStaff(user) || isVicePrincipal(user)) && canAccessCampus(user, campusId));
+    guard((isKitchenStaff(user) || canManageStock(user)) && canAccessCampus(user, campusId));
     return writeDb((db) => {
       ensureSeeded(db);
       const receipt = db.freshReceipts.find((r) => r.campusId === campusId && r.date === date);

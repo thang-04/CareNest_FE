@@ -1,16 +1,11 @@
 import { CheckCircle2, AlertTriangle, XCircle } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 import { dayNormStatus } from '@/components/menu-planning/WeekDaysView';
-import {
-  compareToNorm,
-  mealsAllergens,
-  mealsTotals,
-  priceOn,
-  repeatedMainDishes,
-  sameAllergen,
-} from '@/utils/menu-planning/menuCalculations';
+import { compareToNorm, mealsAllergens, mealsTotals, repeatedMainDishes, sameAllergen } from '@/utils/menu-planning/menuCalculations';
+import { weekBudgetCheck } from '@/utils/menu-planning/menuChecks';
 import { formatDate } from '@/utils/format';
-import { REPEAT_WINDOW_DAYS, RECORD_STATUS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
+import { REPEAT_WINDOW_DAYS, RECORD_STATUS } from '@/models/menu-planning/menuPlanningConstants';
 
 const Icon = ({ level }) =>
   level === 'ok' ? (
@@ -33,10 +28,16 @@ export function WeekChecks({ wm, catalog, previousDays = [], allergyRows = [] })
   const repeats = repeatedMainDishes([...previousDays, ...wm.days], catalog.dishById).filter((r) =>
     r.dates.some((x) => wm.days.some((d) => d.date === x)),
   );
-  const price = priceOn(catalog.mealPrices, wm.ageGroupId, wm.weekStart)?.price;
-  const perDay = school.map((d) => ({ day: d, result: mealsTotals(d.meals, catalog.dishById, catalog.foodById, wm.ageGroupId) }));
-  const cost = perDay.reduce((s, x) => s + x.result.cost, 0);
-  const budget = price ? price * school.length : null;
+  const perDay = school.map((d) => ({
+    day: d,
+    result: mealsTotals(normScopeMeals(d.meals, catalog.nutritionSetups, wm.ageGroupId), catalog.dishById, catalog.foodById, wm.ageGroupId),
+  }));
+  const budgetCheck = weekBudgetCheck({
+    days: perDay.map((x) => ({ date: x.day.date, cost: x.result.cost })),
+    ageGroupId: wm.ageGroupId,
+    weekStart: wm.weekStart,
+    catalog,
+  });
   const offNorm = perDay.filter(
     (x) =>
       x.day.meals?.length &&
@@ -74,14 +75,8 @@ export function WeekChecks({ wm, catalog, previousDays = [], allergyRows = [] })
         </div>
       </li>
       <li>
-        <Icon level={!budget ? 'warn' : cost > budget ? 'warn' : 'ok'} />
-        <div>
-          {budget
-            ? `Chi phí thực phẩm ước tính ${formatMoney(cost)} / ngân sách tuần ${formatMoney(budget)} (${formatMoney(price)} × ${school.length} ngày)${
-                cost > budget ? ' – vượt ngân sách.' : '.'
-              }`
-            : 'Chưa có giá suất ăn áp dụng cho tuần này nên chưa kiểm tra được ngân sách.'}
-        </div>
+        <Icon level={budgetCheck.level} />
+        <div>{budgetCheck.text}</div>
       </li>
       <li>
         <Icon level={offNorm.length ? 'warn' : 'ok'} />

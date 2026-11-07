@@ -14,6 +14,7 @@ export function ConfirmationModal({
   onConfirm,
   onClose,
   children,
+  error,
 }) {
   const [busy, setBusy] = useState(false);
   const handleConfirm = async () => {
@@ -53,6 +54,12 @@ export function ConfirmationModal({
         {message}
         {children}
       </div>
+      {/* Lỗi khi xác nhận (vd. 409 từ BE): giữ hộp mở, báo đỏ ngay trong hộp */}
+      {error && (
+        <div className="alert alert--danger mt-12" role="alert">
+          {error}
+        </div>
+      )}
     </Modal>
   );
 }

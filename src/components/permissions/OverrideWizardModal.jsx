@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Save, Search } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/form/FormField';
@@ -6,7 +6,12 @@ import { Avatar } from '@/components/ui/Avatar';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { Stepper } from '@/components/ui/Stepper';
 import { PermissionStateBadge } from '@/components/permissions/PermissionBadges';
-import { PermissionCheckCell, PermissionFixedCell, PermissionTable } from '@/components/permissions/PermissionTable';
+import {
+  PermissionCheckCell,
+  PermissionFixedCell,
+  PermissionFlowCheckCell,
+  PermissionTable,
+} from '@/components/permissions/PermissionTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { usePermissionStaff } from '@/hooks/account/usePermissions';
@@ -14,14 +19,14 @@ import { usePermissionOverrides, useRolePermissionMatrix } from '@/hooks/account
 import { updatePermissionOverrides } from '@/services/account/permissionService';
 import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS, REASON_MAX_LENGTH } from '@/models/account/permissionConstants';
 import { overridesFromSwitches, permissionDraftRows } from '@/utils/account/personPermissions';
-import { permissionTableRows, toggleWithRequires } from '@/utils/account/permissionMatrix';
+import { flowCheckState, permissionTableRows, toggleFlow, toggleWithRequires } from '@/utils/account/permissionMatrix';
 import { validatePermissionChange } from '@/utils/account/permissionValidation';
 
 const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER'];
 const taskLabel = (code) => PERMISSION_TASKS[code]?.label || code;
 const WIZARD_STEPS = ['Chọn người', 'Thiết lập quyền', 'Xác nhận & Lý do'];
 
-export function OverrideWizardModal({ open, initialStaff = null, onClose, onSaved }) {
+export function OverrideWizardModal({ open, initialStaff = null, onClose, onSaved, onDirty }) {
   const { user } = useAuth();
   const toast = useToast();
 
@@ -32,6 +37,12 @@ export function OverrideWizardModal({ open, initialStaff = null, onClose, onSave
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [ticked, setTicked] = useState(false);
+  // Báo màn cha còn thay đổi chưa lưu (đã tick ở bước 2 hoặc đang ở bước nhập lý do) để hỏi khi rời màn
+  const dirty = step === 3 || (step === 2 && ticked);
+  useEffect(() => {
+    onDirty?.(dirty);
+  }, [dirty, onDirty]);
 
   // Load danh sách nhân sự cho Bước 1
   const { data: staffData, loading: loadingStaff, error: staffError } = usePermissionStaff({ enabled: open && step === 1 });
@@ -49,6 +60,7 @@ export function OverrideWizardModal({ open, initialStaff = null, onClose, onSave
   }, [staffData?.items, filterRole, searchQuery, user]);
 
   const handleSelectStaff = (staff) => {
+    setTicked(false);
     setSelectedStaff(staff);
     setStep(2);
   };
@@ -58,7 +70,7 @@ export function OverrideWizardModal({ open, initialStaff = null, onClose, onSave
   return (
     <Modal
       open
-      size="lg"
+      size="xl"
       className="permission-center-modal"
       label="Gán quyền ngoại lệ cho nhân sự"
       title="Gán quyền ngoại lệ cho nhân sự"
@@ -85,6 +97,7 @@ export function OverrideWizardModal({ open, initialStaff = null, onClose, onSave
         <StepConfigurePermissions
           staff={selectedStaff}
           onBack={initialStaff ? null : () => setStep(1)}
+          onChange={setTicked}
           onNext={(overridesPayload, formattedChanges) => {
             setSelectedStaff((curr) => ({
               ...curr,
@@ -198,7 +211,7 @@ function StepSelectStaff({ loading, error, staffList, searchQuery, onSearchChang
 }
 
 /** Bước 2: Thiết lập quyền ngoại lệ */
-function StepConfigurePermissions({ staff, onBack, onNext }) {
+function StepConfigurePermissions({ staff, onBack, onNext, onChange }) {
   const staffId = staff.userId || staff.id;
   const matrix = useRolePermissionMatrix({ live: false });
   const overridesQuery = usePermissionOverrides(staffId, { live: false });
@@ -233,9 +246,20 @@ function StepConfigurePermissions({ staff, onBack, onNext }) {
     [catalog, rows],
   );
 
+  const applyCodes = (codes) => {
+    setValues(Object.fromEntries(configurableCodes.map((c) => [c, codes.includes(c)])));
+    onChange?.(true);
+  };
+
+  const toggleWholeFlow = (flow, on) => {
+    const result = toggleFlow(catalog, personCodes, flow.codes, on, isConfigurable);
+    applyCodes(result.codes);
+    setNotice(`Đã ${on ? 'tick' : 'bỏ tick'} cả luồng “${flow.label}” (${on ? result.added.length : result.removed.length} việc đổi).`);
+  };
+
   const toggle = (code, on) => {
     const result = toggleWithRequires(catalog, personCodes, code, on, isConfigurable);
-    setValues(Object.fromEntries(configurableCodes.map((c) => [c, result.codes.includes(c)])));
+    applyCodes(result.codes);
     if (result.added.length) setNotice(`Đã tự tick “${result.added.map(taskLabel).join('”, “')}” vì “${taskLabel(code)}” cần quyền xem.`);
     else if (result.removed.length)
       setNotice(`Đã tự bỏ tick “${result.removed.map(taskLabel).join('”, “')}” vì cần quyền “${taskLabel(code)}”.`);
@@ -268,6 +292,17 @@ function StepConfigurePermissions({ staff, onBack, onNext }) {
     {
       key: 'person',
       header: 'Người này',
+      renderFlow: (flow) => {
+        const state = flowCheckState(flow.codes, personCodes, isConfigurable);
+        if (!state) return null;
+        return (
+          <PermissionFlowCheckCell
+            state={state}
+            label={`Cả luồng ${flow.label} — ${staff.fullName}`}
+            onChange={(on) => toggleWholeFlow(flow, on)}
+          />
+        );
+      },
       render: (code) => (
         <PermissionCheckCell
           checked={personCodes.includes(code)}
@@ -369,7 +404,7 @@ function StepConfirmAndReason({ staff, reason, reasonError, saving, onReasonChan
         label="Lý do thay đổi phân quyền"
         required
         error={reasonError}
-        hint={`Lý do được ghi nhận vào lịch sử demo (tối đa ${REASON_MAX_LENGTH} ký tự).`}
+        hint={`Lý do được ghi vào lịch sử thay đổi quyền (tối đa ${REASON_MAX_LENGTH} ký tự).`}
       >
         <textarea
           className="textarea"

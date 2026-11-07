@@ -1,4 +1,4 @@
-import { PERMISSION_FEATURES } from '@/models/account/permissionConstants';
+import { PERMISSION_FEATURES, PERMISSION_FLOWS, PERMISSION_GROUPS, PERMISSION_MODULE_LABELS } from '@/models/account/permissionConstants';
 
 // Cột HT chỉ để đối chiếu: quyền HT cố định trong code BE, không có hàng trong ma trận (ADR-0017).
 export const PERMISSION_MATRIX_ROLES = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF'];
@@ -39,7 +39,10 @@ export const permissionFeatures = (catalog = []) => {
 };
 
 export const permissionFeatureLabel = (feature, catalog = []) =>
-  PERMISSION_FEATURES[feature.key]?.label || catalog.find((permission) => permission.feature === feature.key)?.description || feature.key;
+  PERMISSION_FEATURES[feature.key]?.label ||
+  PERMISSION_GROUPS[feature.key]?.label ||
+  catalog.find((permission) => permission.feature === feature.key)?.description ||
+  feature.key;
 
 /** Dòng bảng: mã xem đứng đầu nhóm, mã cần mã khác (`requires`) thụt vào dưới. */
 export const permissionTableRows = (catalog = [], features = permissionFeatures(catalog)) =>
@@ -50,6 +53,43 @@ export const permissionTableRows = (catalog = [], features = permissionFeatures(
       dependent: (catalog.find((permission) => permission.code === code)?.requires || []).length > 0,
     })),
   }));
+
+const flowKeyOf = (feature) => PERMISSION_FEATURES[feature.key]?.flow || feature.module || feature.key;
+
+export const permissionFlowLabel = (key) => PERMISSION_FLOWS[key]?.label || PERMISSION_MODULE_LABELS[key] || key;
+
+/** Gom các nhóm dòng (cấp 2) vào luồng lớn (cấp 1), giữ thứ tự xuất hiện. `codes` = mọi mã trong luồng. */
+export const groupByFlow = (groups = []) => {
+  const flows = new Map();
+  groups.forEach((group) => {
+    const key = flowKeyOf(group.feature);
+    if (!flows.has(key)) flows.set(key, { key, label: permissionFlowLabel(key), groups: [], codes: [] });
+    const flow = flows.get(key);
+    flow.groups.push(group);
+    flow.codes.push(...group.rows.map((row) => row.code));
+  });
+  return [...flows.values()];
+};
+
+/** Trạng thái ô tick của cả luồng, chỉ tính mã chỉnh được: all | some | none; không có mã chỉnh được ⇒ null. */
+export const flowCheckState = (flowCodes, checkedCodes, isConfigurable) => {
+  const editable = flowCodes.filter(isConfigurable);
+  if (!editable.length) return null;
+  const on = editable.filter((code) => checkedCodes.includes(code)).length;
+  if (on === 0) return 'none';
+  return on === editable.length ? 'all' : 'some';
+};
+
+/**
+ * Tick/bỏ tick cả luồng: đi từng mã chỉnh được qua `toggleWithRequires` nên quan hệ cần-có của catalog BE vẫn đúng
+ * (kể cả mã ngoài luồng cần mã trong luồng). Trả `{ codes, added, removed }` so với `codes` ban đầu.
+ */
+export const toggleFlow = (catalog, codes, flowCodes, on, isConfigurable) => {
+  const next = flowCodes
+    .filter(isConfigurable)
+    .reduce((acc, code) => toggleWithRequires(catalog, acc, code, on, isConfigurable).codes, codes);
+  return { codes: next, ...codeDiff(codes, next) };
+};
 
 /** Mã role được bật/tắt: role cấu hình được và mã nằm trong `configurablePermissions` BE trả. */
 export const configurableCheck = (entry) => (code) => !!entry?.editable && !!entry.configurablePermissions?.includes(code);

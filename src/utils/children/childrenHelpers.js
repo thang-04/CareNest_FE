@@ -25,7 +25,34 @@ export const maskPhone = (phone) => {
 export const formatNumber = (value, digits = 1) =>
   value == null || Number.isNaN(Number(value)) ? '—' : Number(value).toLocaleString('vi-VN', { maximumFractionDigits: digits });
 
-export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', email: '' });
+/** Tuổi lúc đo theo tháng BE trả: dưới 36 tháng ghi tháng, từ 36 tháng ghi năm + tháng. */
+export const formatAgeMonths = (months) =>
+  months == null ? '—' : months < 36 ? `${months} tháng` : `${Math.floor(months / 12)} tuổi ${months % 12} tháng`;
+
+/** Mức theo dõi theo bác sĩ được tính là cảnh báo ở Sổ sức khỏe (bộ lọc "Chỉ lần có cảnh báo"), cùng mức BMI khác Bình thường. */
+const WARNING_FOLLOW_UP_LEVELS = ['WATCH', 'CLOSE_WATCH', 'KNOWN_STABLE'];
+
+/** Lần đo có cảnh báo, theo trường BE trả (chỉ để lọc hiển thị, không tính lại mức). */
+export const hasHealthWarning = (m) => (!!m.bmiStatus && m.bmiStatus !== 'NORMAL') || WARNING_FOLLOW_UP_LEVELS.includes(m.followUpLevel);
+
+/** Điểm trường chọn sẵn khi tiếp nhận / nhập Excel: chỉ 1 thì chọn luôn; nhiều thì điểm trường của tài khoản nếu có trong danh sách. */
+export const defaultCampusId = (campuses, user) =>
+  campuses.length === 1 ? campuses[0].id : campuses.some((c) => c.id === user?.campusId) ? user.campusId : '';
+
+export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', idNumber: '', email: '' });
+
+/**
+ * Phụ huynh có CCCD trùng tài khoản (accountOf, BE trả): họ tên, SĐT, email theo tài khoản để hiển thị, kiểm nhập và gửi đi.
+ * accountOnly: người lưu không có quyền kích hoạt tài khoản phụ huynh ⇒ luôn theo tài khoản, không sửa được (P-18 A).
+ */
+export const withGuardianAccounts = (guardians, accountOf, { accountOnly = false } = {}) =>
+  guardians.map((g) => {
+    const acc = accountOf(g.idNumber);
+    if (!acc) return g;
+    if (accountOnly) return { ...g, fullName: acc.fullName, phone: acc.phone, email: acc.email || '' };
+    // Chỉ điền ô còn trống; số người dùng đã gõ giữ nguyên — sửa ở hồ sơ thì tài khoản đổi theo (user chốt 2026-10-28).
+    return { ...g, fullName: g.fullName || acc.fullName, phone: g.phone || acc.phone, email: g.email || acc.email || '' };
+  });
 
 /** Bước 1 của form tiếp nhận: thông tin trẻ, phụ huynh và phần hành chính (dùng cho phiếu khám). */
 export const emptyChildInfo = () => ({

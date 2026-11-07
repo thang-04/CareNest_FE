@@ -29,7 +29,8 @@
 }
 .ga-stack-cards > .card + .card,
 /* Các khối trên trang kế hoạch giáo dục cách nhau đều như các trang khác */
-.ga-page > * + :is(.card, .alert, .ga-week-hero) {
+.ga-page > * + :is(.card, .alert, .ga-week-hero),
+.ga-edit-fieldset > * + :is(.card, .alert, .ga-week-hero) {
   margin-top: var(--space-4);
 }
 .ga-week-hero {
@@ -329,14 +330,6 @@
   font-size: var(--fs-sm);
   line-height: 1.5;
 }
-.table.ga-plan-table th,
-.table.ga-plan-table td {
-  border-right: 1px solid var(--border);
-}
-.table.ga-plan-table th:last-child,
-.table.ga-plan-table td:last-child {
-  border-right: none;
-}
 .table.ga-plan-table tbody tr:hover {
   background: none;
 }
@@ -380,6 +373,92 @@
   font-size: var(--fs-md);
 }
 
+/* Màn soạn của lớp giữ thao tác và độ gọn như màn mục tiêu năm học. */
+.ga-class-editor .ga-sticky-head {
+  padding-top: var(--space-2);
+}
+/* Như chi tiết kế hoạch năm: nhiều nút nằm trên hàng riêng, không đè đường dẫn. */
+.ga-class-editor .ga-sticky-head .breadcrumb + .page__head > .page__actions {
+  position: static;
+  min-height: 0;
+}
+/* Điện thoại: nút đầu trang (đang dính) cỡ nhỏ như .btn--sm để gọn 2 hàng, không chiếm nửa màn khi cuộn */
+@media (max-width: 767px) {
+  .ga-class-editor .ga-sticky-head .page__actions .btn {
+    height: var(--btn-height-sm);
+    padding: 0 var(--space-3);
+    font-size: var(--fs-sm);
+  }
+}
+.ga-class-editor .ga-week-hero {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+.ga-class-editor .ga-week-hero__label {
+  color: var(--color-text-muted);
+}
+.ga-class-editor .ga-week-hero__name {
+  font-size: var(--fs-lg);
+  color: var(--color-text);
+}
+.ga-theme-weeks {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Tuần nhánh là chữ link thường, có gạch chân; ngày cách ra bên phải (Tiền 04/11) */
+.ga-theme-weeks a {
+  margin-right: var(--space-4);
+  text-decoration: underline;
+}
+.ga-class-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: var(--space-1);
+  overflow: visible;
+}
+.ga-class-tabs .tab {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+  white-space: normal;
+  text-align: center;
+}
+@media (max-width: 1100px) {
+  .ga-class-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .ga-class-tabs .tab {
+    min-height: var(--btn-height-lg);
+    padding: var(--space-2);
+  }
+  /* Tab ngày 2 dòng gọn: thứ / ngày (không gãy giữa "Thứ 2 · / 07/09") */
+  .ga-class-tabs .tab {
+    flex-direction: column;
+    gap: 0;
+  }
+  .ga-class-tab__sep {
+    display: none;
+  }
+  .ga-class-tab__date {
+    white-space: nowrap;
+  }
+  /* Cột nhãn/ghi chú không chiếm gần hết bảng hai hoặc ba cột trên điện thoại. */
+  .ga-class-editor .ga-plan-table:has(colgroup > :last-child:nth-child(2)) .ga-goal-table__group {
+    width: 30%;
+  }
+  .ga-class-editor .ga-plan-table:has(colgroup > :last-child:nth-child(3)) .ga-goal-table__group {
+    width: 20%;
+  }
+}
+
 /* Bảng mục tiêu năm học kiểu Word: kẻ đủ hàng/cột, độ rộng cột cố định, ô nhập không viền */
 .table.ga-goal-table {
   table-layout: fixed;
@@ -393,10 +472,6 @@
 .table.ga-goal-table input[type='checkbox'] {
   display: block;
   margin: 0 auto;
-}
-.table.ga-goal-table th,
-.table.ga-goal-table td {
-  border: 1px solid var(--color-border-strong);
 }
 .table.ga-goal-table td,
 .table.ga-goal-table td:first-child,
@@ -412,6 +487,30 @@
 }
 .ga-goal-table__del {
   width: 64px;
+}
+/* Cột "Sắp xếp" bảng chủ đề, đợt nghỉ: tay nắm kéo-thả và 2 nút lên/xuống trên 1 hàng */
+.ga-goal-table__sort {
+  width: 132px;
+}
+.ga-sort-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+/* Nút lên/xuống: nhích nhẹ theo hướng khi rê chuột để báo hướng di chuyển */
+.ga-sort-btn {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.ga-sort-btn:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.ga-sort-btn--up:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.ga-sort-btn--down:hover:not(:disabled) {
+  transform: translateY(2px);
 }
 /* Cột "Tháng" bảng chủ đề nhánh: đủ "Tháng 12" trên 1 dòng */
 .ga-col-month {
@@ -441,6 +540,12 @@
   resize: none;
   overflow: hidden;
 }
+/* Ô chữ tự cao theo nội dung bằng CSS (Chrome/Edge 123, Safari 26.2, Firefox 152); trình duyệt cũ đo bằng JS (TableCell.jsx) */
+@supports (field-sizing: content) {
+  textarea.ga-cell-input {
+    field-sizing: content;
+  }
+}
 .ga-cell-input:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
@@ -455,6 +560,11 @@
 .ga-goal-line__text .icon-btn {
   margin: var(--space-1);
   flex-shrink: 0;
+}
+/* Ô nhóm kết quả mong đợi: ô nhập chiếm hết chiều ngang để nút xóa luôn ở góc trên bên phải (Tiền 05/11) */
+.ga-goal-line__text > .search-select {
+  flex: 1;
+  min-width: 0;
 }
 /* Bảng mục tiêu một màu nền, không đổi màu khi rê chuột (ô mục tiêu gộp nhiều hàng YCCĐ nên bỏ nền xen kẽ) */
 .table.ga-goal-table tbody tr td,
@@ -489,9 +599,31 @@
 .ga-goal-table__domain .chip {
   font-size: var(--fs-2xs);
 }
-/* Bảng mục tiêu năm có các cột tích chủ đề (lấy từ phần B): cột chủ đề hẹp, bảng cuộn ngang khi màn hình hẹp */
-.table.ga-goal-table--themes {
-  min-width: 1500px;
+/* Bảng mục tiêu năm có các cột tích chủ đề (lấy từ phần B): màn rộng vừa khung (cột chủ đề hẹp, cột chữ theo %),
+   điện thoại cuộn ngang trong khung bảng vì không đủ chỗ cho mọi cột chủ đề (Tiền 30/10) */
+@media (max-width: 767px) {
+  /* Cột nhóm, STT, mục tiêu, chủ đề, Xóa cố định đã ~1000px ⇒ chừa ~200px cho cột nội dung (rà UI 31/10) */
+  .table.ga-plan-table.ga-goal-table--themes:has(tr > :nth-child(4)) {
+    min-width: calc(var(--space-16) * 19);
+  }
+}
+@media (min-width: 768px) {
+  .ga-goal-table--themes .ga-goal-table__theme {
+    width: var(--space-10);
+  }
+  /* Nhiều cột chủ đề + cột Xóa: thu cột nhóm / mục tiêu để cột nội dung không bị bóp còn 1 từ / dòng (rà UI 31/10) */
+  .ga-goal-table--themes .ga-goal-table__group {
+    width: 13%;
+  }
+  .ga-goal-table--themes .ga-goal-table__goaltext {
+    width: 18%;
+  }
+  .ga-goal-table--themes .ga-goal-table__del {
+    width: calc(var(--space-12) + var(--space-2));
+  }
+  .ga-goal-table--themes .ga-goal-table__code {
+    width: var(--space-16);
+  }
 }
 .ga-goal-table__theme {
   width: var(--space-12);
@@ -650,23 +782,18 @@
   border-radius: var(--radius-xs);
   vertical-align: middle;
 }
-/* Bảng kế hoạch năm (mục tiêu, chủ đề, đợt nghỉ) kiểu Word: góc vuông, viền đậm hơn, tiêu đề cột chữ đậm to hơn (Tiền yêu cầu 14/10) */
-.table-wrap:has(> .table.ga-goal-table) {
-  border-color: var(--color-text-disabled);
-  border-radius: 0;
-}
-.table.ga-goal-table th,
-.table.ga-goal-table td {
-  border-color: var(--color-text-disabled);
-}
+
+/* Tiêu đề cột bảng kế hoạch kiểu Word: chữ đậm, cỡ như ô (Tiền 14/10) */
 .table.ga-goal-table th {
-  white-space: normal;
   color: var(--color-text);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
 }
-/* Hàng tiêu đề thứ 2 (tên viết tắt chủ đề, cột hẹp): giữ chữ nhỏ, lề hẹp để vừa cột */
-.table.ga-goal-table thead tr + tr th {
+/* Hàng tiêu đề thứ 2 (tên viết tắt chủ đề, cột hẹp): giữ chữ nhỏ, lề hẹp để vừa cột; gồm cả ô đầu/cuối hàng
+   (luật th:first-child/last-child lề rộng ở trên ưu tiên hơn, làm "MN", "TN" bị ngắt từng chữ — Tiền 31/10) */
+.table.ga-goal-table thead tr + tr th,
+.table.ga-goal-table thead tr + tr th:first-child,
+.table.ga-goal-table thead tr + tr th:last-child {
   padding-left: var(--space-1);
   padding-right: var(--space-1);
   font-size: var(--fs-2xs);
@@ -692,16 +819,31 @@
   cursor: text;
 }
 
-/* Hồ sơ chủ đề (Tiền 16/10): thẻ chỉ có tiêu đề thì cách đều trên dưới; kế hoạch ngày thụt vào trong tuần, có vạch dọc */
-.ga-card--heading > .card__header {
-  padding-bottom: var(--space-6);
+/* Ô kế hoạch tuần: nhãn MT / "Chưa gắn MT" là nút cùng kiểu, luôn ở góc trái dưới của ô dù hàng cao bao nhiêu (Tiền 20/10).
+   td height: 1px để khối con cao bằng cả ô (table cell không nhận height: 100% nếu không có chiều cao) */
+.table.ga-goal-table td:has(> .ga-act-cell) {
+  height: 1px;
 }
-.ga-dossier-day {
-  margin-left: var(--space-4);
-  padding-left: var(--space-4);
-  border-left: 2px solid var(--color-border);
+.ga-act-cell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
-
+.ga-act-cell__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: auto;
+  padding: var(--space-2);
+}
+/* Cột Thứ 2–6 hẹp: nút được xuống dòng trong ô thay vì tràn sang ô bên */
+.ga-act-cell__foot .btn {
+  max-width: 100%;
+  height: auto;
+  min-height: var(--btn-height-sm);
+  padding: var(--space-1) var(--space-2);
+  white-space: normal;
+}
 /* Modal duyệt tên chủ đề nhánh AI điền: tuần · tên cũ gạch → tên AI · ✓ ✗ */
 .ga-ai-review {
   display: grid;
@@ -736,4 +878,1115 @@
   .ga-ai-review__week {
     grid-column: 1 / -1;
   }
+}
+
+/* Khung gợi ý hoạt động của ô kế hoạch tuần (Tiền 21/10, phương án A) */
+.ga-sug-panel .search-select__list {
+  max-height: 320px;
+}
+.ga-sug-panel {
+  overflow: hidden;
+  border: 1px solid var(--color-primary);
+  box-shadow: var(--shadow-lg);
+}
+/* Thanh đầu khung màu xanh nổi bật (Tiền 21/10) */
+.ga-sug-panel__hint {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  font-weight: var(--fw-semibold);
+}
+.ga-sug {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  border: 1px solid transparent;
+  background: none;
+  text-align: left;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+/* Cách nhau để hai dòng đã chọn (nền xanh lá) không dính viền */
+.ga-sug + .ga-sug {
+  margin-top: var(--space-1);
+}
+.ga-sug:hover {
+  background: var(--color-primary-soft);
+}
+.ga-sug--on,
+.ga-sug--on:hover {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+.ga-sug__mt {
+  flex: none;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-full);
+  color: var(--color-primary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  line-height: 20px;
+}
+.ga-sug__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.ga-sug__type {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.ga-sug__text {
+  color: var(--color-text);
+  font-weight: var(--fw-semibold);
+}
+.ga-sug__check {
+  flex: none;
+  color: var(--color-success-fg);
+}
+
+.ga-edit-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.ga-media-upload,
+.ga-teaching-files,
+.ga-teaching-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-4);
+}
+.ga-resource-list {
+  list-style: none;
+  padding: 0;
+}
+.ga-resource-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.ga-media-unbound {
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-lg);
+}
+.ga-media-viewer {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+  width: 100%;
+  min-width: 0;
+}
+.ga-media-viewer img,
+.ga-media-viewer video {
+  max-width: 100%;
+  max-height: 65vh;
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+}
+.ga-media-viewer object {
+  width: 100%;
+  height: 65vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.ga-teaching {
+  background: var(--color-surface-muted);
+}
+.ga-teaching:fullscreen {
+  overflow: auto;
+  padding: var(--space-6);
+}
+.ga-teaching-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+.ga-teaching-nav {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  max-height: 80vh;
+  overflow: auto;
+}
+.ga-teaching-nav h2 {
+  margin: 0 0 var(--space-4);
+}
+.ga-teaching-activity {
+  display: grid;
+  gap: var(--space-2);
+  text-align: left;
+  width: 100%;
+  padding: var(--space-4);
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+.ga-teaching-activity.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.ga-teaching-mt {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.ga-teaching-stage {
+  min-width: 0;
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.ga-teaching-title {
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  line-height: 1.3;
+  white-space: pre-wrap;
+  margin-bottom: var(--space-6);
+}
+.ga-teaching-controls {
+  justify-content: space-between;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+@media (max-width: 800px) {
+  .ga-teaching-layout {
+    grid-template-columns: 1fr;
+  }
+  .ga-teaching-nav {
+    max-height: 35vh;
+  }
+  .ga-teaching-stage {
+    padding: var(--space-4);
+  }
+}
+/* Điện thoại không có phím mũi tên: ẩn gợi ý phím (chữ thừa giữa 2 nút điều hướng) */
+@media (max-width: 767px) {
+  .ga-teaching-hint {
+    display: none;
+  }
+}
+
+/* Chi tiết kế hoạch năm: từ 3 nút hành động trở lên thì không đặt lên hàng breadcrumb (đè mã kế hoạch), để cùng hàng nhãn trạng thái */
+@media (min-width: 1024px) {
+  .ga-goal-detail .breadcrumb + .page__head > .page__actions:has(> :nth-child(3)) {
+    position: static;
+    min-height: 0;
+  }
+}
+
+/* ---------- Lấy từ Chương trình của Bộ (CurriculumGoalsModal) ---------- */
+.ga-cur-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.ga-cur-meta__source {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Thanh tìm / lọc dính đầu vùng cuộn của hộp, nền đặc để không lẫn chữ bên dưới */
+.ga-cur-toolbar {
+  position: sticky;
+  top: calc(-1 * var(--space-5));
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0 calc(-1 * var(--space-6));
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.ga-cur-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+/* Tên mục tiêu/lĩnh vực dài chỉ cắt phần hiển thị; title và danh sách chọn vẫn đủ chữ. */
+.ga-cur-filters > .field {
+  min-width: 0;
+}
+/* Không dùng base-select (components.css) cho ô này: base-select đặt chữ trong phần tử nội bộ, không cắt "…" được */
+.select.ga-cur-select--ellipsis:not([multiple]):not([size]) {
+  appearance: none;
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ga-cur-search {
+  position: relative;
+  display: block;
+  width: 100%;
+  color: var(--color-text-muted);
+}
+.ga-cur-search svg {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.ga-cur-search .input {
+  width: 100%;
+  padding-left: var(--space-10);
+}
+.ga-cur-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ga-cur-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.ga-cur-chip:hover {
+  background: var(--color-surface-hover);
+}
+.ga-cur-chip.is-on {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+}
+.ga-cur-chip__n {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.ga-cur-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+.ga-cur-selection p {
+  margin: 0;
+}
+.ga-cur-selection .btn {
+  flex: none;
+}
+.ga-cur-content-filters {
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+}
+.ga-cur-chip:focus-visible,
+.ga-cur-row input:focus-visible,
+.ga-cur-group__head input:focus-visible,
+.ga-cur-domain__head input:focus-visible,
+.ga-cur-contents summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.ga-cur-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.ga-cur-modal .ga-cur-domain {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.ga-cur-domain__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-primary-soft);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.ga-cur-modal .ga-cur-domain__head {
+  border-radius: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.ga-cur-sub {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.ga-cur-modal .ga-cur-sub {
+  margin-left: var(--space-6);
+  border-left: 1px solid var(--color-border-strong);
+}
+.ga-cur-sub__name {
+  padding: 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.ga-cur-modal .ga-cur-list .ga-cur-sub__name {
+  color: var(--color-text);
+  font-size: var(--fs-md);
+  text-transform: none;
+  letter-spacing: normal;
+}
+/* Lĩnh vực con có ô tích (chỉ lấy mục tiêu khi bỏ tích, Tiền 05/11) */
+label.ga-cur-sub__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  cursor: pointer;
+}
+.ga-cur-group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.ga-cur-modal .ga-cur-group {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+}
+.ga-cur-group__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.ga-cur-modal .ga-cur-group__head {
+  font-weight: var(--fw-semibold);
+}
+.ga-cur-modal .ga-cur-item {
+  margin-left: var(--space-6);
+  border-left: 1px solid var(--color-border);
+}
+.ga-cur-item:has(> .ga-cur-row input:checked),
+.ga-cur-suggestion:has(> .ga-cur-row input:checked) {
+  background: var(--color-primary-soft);
+}
+.ga-cur-item + .ga-cur-item {
+  border-top: 1px solid var(--color-border);
+}
+.ga-cur-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  padding: var(--space-2-5) var(--space-3);
+  cursor: pointer;
+}
+.ga-cur-row:hover {
+  background: var(--color-surface-hover);
+}
+.ga-cur-list > div > .ga-cur-row {
+  border-radius: var(--radius);
+}
+.ga-cur-row input,
+.ga-cur-group__head input,
+.ga-cur-domain__head input {
+  flex: none;
+  width: var(--space-4);
+  height: var(--space-4);
+  margin: var(--space-1) 0 0;
+  accent-color: var(--color-primary);
+}
+h2.ga-cur-domain__head {
+  margin: 0;
+  font-size: var(--fs-md);
+  cursor: default;
+}
+/* Câu mục tiêu dài: giới hạn độ dài dòng cho dễ đọc */
+.ga-cur-row__text {
+  min-width: 0;
+  max-width: 75ch;
+  overflow-wrap: anywhere;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+.ga-cur-row__text .ga-goal-code {
+  margin-right: var(--space-1);
+}
+.ga-cur-contents {
+  padding: 0 var(--space-3) var(--space-3) calc(var(--space-3) + var(--space-4) + var(--space-2-5));
+}
+.ga-cur-contents summary {
+  width: fit-content;
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+  color: var(--color-primary);
+}
+.ga-cur-contents ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+  color: var(--color-text-muted);
+}
+.ga-cur-content-list {
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.ga-cur-content-list .ga-cur-sub__name {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-primary-soft);
+}
+.ga-cur-content-list > .ga-cur-suggestion > .ga-cur-row {
+  border-radius: 0;
+}
+.ga-cur-suggestion + .ga-cur-suggestion {
+  border-top: 1px solid var(--color-border);
+}
+.ga-cur-modal .modal__footer {
+  align-items: center;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+/* Điện thoại: hộp chiếm cả màn hình */
+@media (max-width: 640px) {
+  .modal-backdrop:has(> .ga-cur-modal) {
+    padding: 0;
+  }
+  .modal.ga-cur-modal {
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .ga-cur-modal .modal__body,
+  .ga-cur-modal .modal__header,
+  .ga-cur-modal .modal__footer {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+  .ga-cur-toolbar {
+    margin: 0 calc(-1 * var(--space-4));
+    padding: var(--space-3) var(--space-4);
+  }
+  .ga-cur-search {
+    max-width: none;
+  }
+  .ga-cur-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: var(--space-1);
+  }
+  .ga-cur-chip {
+    flex: none;
+  }
+  .ga-cur-content-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ga-cur-modal .ga-cur-sub,
+  .ga-cur-modal .ga-cur-item {
+    margin-left: var(--space-3);
+  }
+  .ga-page .filter-bar .select[aria-label='Nhóm tuổi'] {
+    width: 100%;
+  }
+}
+
+/* ---------- Bảng kế hoạch giáo dục vừa khung, không cuộn ngang (Tiền 30/10) ---------- */
+/* Chữ dài (từ không dấu cách, đường link) xuống dòng trong ô thay vì đẩy bảng rộng ra */
+.table.ga-plan-table th,
+.table.ga-plan-table td {
+  overflow-wrap: break-word;
+}
+.table.ga-plan-table .ga-cell-input,
+.table.ga-plan-table input,
+.table.ga-plan-table select {
+  min-width: 0;
+  max-width: 100%;
+}
+/* Điện thoại: bảng từ 4 cột trở lên (mục tiêu, nội dung, hoạt động, lịch tuần) không đủ chỗ ⇒ giữ bề rộng đọc được và cuộn
+   ngang bên trong khung bảng (.table-wrap), trang không cuộn ngang */
+@media (max-width: 767px) {
+  .table.ga-plan-table:has(tr > :nth-child(4)) {
+    min-width: 760px;
+  }
+}
+/* Cột hẹp có độ rộng cố định; cột chữ (tên, mục tiêu, lễ hội, ghi chú) chia phần còn lại */
+.ga-col-stt {
+  width: calc(var(--space-16) + var(--space-2));
+}
+.ga-col-abbr {
+  width: calc(var(--space-16) + var(--space-6));
+}
+.ga-col-date {
+  width: calc(var(--space-16) + var(--space-12));
+}
+/* Cột "Cho gộp cả tuần" / "Mặc định cả tuần" (trang Cấu hình kế hoạch): đủ rộng để hiện trọn tiêu đề, không cắt "…";
+   cột Tên hoạt động co lại (Tiền 05/11) */
+.ga-col-flag {
+  width: calc(var(--space-16) * 2 + var(--space-12));
+}
+.ga-col-mt {
+  width: calc(var(--space-16) * 2 + var(--space-6));
+}
+/* Bảng chủ đề 11 cột: tiêu đề một dòng không cắt chữ cần ~1220px ⇒ khung hẹp hơn thì cuộn ngang trong khung bảng,
+   cột giữ độ rộng cố định (Tiền 03/11; trước chỉ áp cho điện thoại) */
+.table.ga-goal-table:has(col.ga-col-weeks) {
+  min-width: 1220px;
+}
+.ga-col-weeks {
+  width: calc(var(--space-16) + var(--space-4));
+}
+/* STT / số MT nằm chính giữa cột, cả ngang lẫn dọc */
+.table.ga-goal-table th.ga-stt,
+.table.ga-goal-table td.ga-stt,
+.table.ga-goal-table.ga-sortable-table td.ga-stt {
+  text-align: center;
+  vertical-align: middle;
+}
+.table.ga-goal-table td.ga-stt .ga-goal-table__pad {
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+}
+.table.ga-goal-table th.ga-stt {
+  white-space: nowrap;
+}
+.table.ga-goal-table th.ga-stt .stt-head {
+  align-items: center;
+}
+/* Mã ghép chủ đề xuống dòng theo từng mã để không bị cắt trong cột hẹp. */
+.table.ga-goal-table td.ga-theme-tick-cell {
+  cursor: pointer;
+}
+.table.ga-goal-table td .ga-theme-tick {
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  overflow: visible;
+}
+/* Xem trước tài liệu trước khi xuất / in: khung trang trắng cuộn được, hiển thị đúng HTML sẽ xuất (Tiền 31/10) */
+.ga-doc-preview {
+  display: block;
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+/* Điện thoại: khung xem trước giữ bề rộng trang A4 ngang để chữ không bị ép từng từ, cuộn ngang trong khung (Tiền 31/10) */
+@media (max-width: 767px) {
+  .ga-doc-preview-scroll {
+    overflow-x: auto;
+  }
+  .ga-doc-preview {
+    min-width: calc(var(--space-16) * 16);
+  }
+}
+
+.ga-year-page {
+  animation: none;
+}
+.ga-year-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+}
+.ga-year-toolbar__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.ga-year-toolbar__group--end {
+  margin-left: auto;
+}
+.ga-year-toolbar .btn {
+  flex: 0 0 auto;
+}
+.ga-year-page .table.ga-year-info th,
+.ga-year-page .table.ga-year-info tbody tr:nth-child(even) td {
+  background: var(--color-surface-muted);
+}
+.ga-year-info {
+  table-layout: fixed;
+}
+.table.ga-year-info th {
+  white-space: normal;
+}
+.ga-year-page .table.ga-year-info tbody tr:nth-child(odd) td {
+  background: var(--color-surface);
+}
+.ga-year-page .table.ga-year-info tbody tr:hover td {
+  transition: none;
+}
+.ga-year-save-status {
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .ga-year-save-status {
+    flex-basis: 100%;
+  }
+}
+.table.ga-year-info thead th:first-child,
+.table.ga-year-info th[scope='row'] {
+  width: calc(var(--space-16) * 3);
+  text-align: left;
+  vertical-align: middle;
+}
+@media (max-width: 767px) {
+  .table.ga-year-info thead th:first-child,
+  .table.ga-year-info th[scope='row'] {
+    width: 40%;
+  }
+}
+.ga-year-info .ga-field-meta,
+.ga-year-info .field__error {
+  padding-inline: var(--space-3);
+}
+
+/* Lịch sử phiên bản khi soạn (Tiền 03/11): nút đồng hồ + chấm xanh khi có bản chưa lưu, panel so khác biệt */
+.ga-history-btn {
+  position: relative;
+  flex: 0 0 auto;
+}
+.ga-history-btn__dot {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+.ga-history-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+.ga-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ga-history-item:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+.ga-history-item:disabled {
+  cursor: default;
+}
+.ga-history-item--active {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+}
+.ga-history-item__title {
+  font-weight: var(--fw-semibold);
+}
+.ga-history-preview {
+  display: grid;
+  gap: var(--space-2);
+}
+.ga-history-preview > p {
+  margin: 0;
+}
+.ga-history-count--add {
+  color: var(--color-success-fg);
+}
+.ga-history-count--del {
+  color: var(--color-danger-fg);
+}
+.ga-history-diff {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+}
+.ga-history-line {
+  display: grid;
+  grid-template-columns: var(--space-4) minmax(0, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.ga-history-line + .ga-history-line {
+  border-top: 1px solid var(--color-border);
+}
+.ga-history-line--add {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.ga-history-line--del {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+}
+.ga-history-line ins,
+.ga-history-line del {
+  text-decoration-thickness: 1px;
+}
+.ga-history-line ins {
+  text-decoration: none;
+}
+.ga-history-line--gap {
+  display: block;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.ga-history-foot {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Thẻ thu gọn được ở màn kế hoạch năm (Tiền 03/11): tiêu đề là nút, mũi tên xoay khi thu gọn */
+.ga-card-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ga-card-toggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+.ga-card-toggle__icon {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  transition: transform var(--duration-fast) ease;
+}
+.ga-card--collapsed .ga-card-toggle__icon {
+  transform: rotate(-90deg);
+}
+.ga-card--collapsed .card__header {
+  padding-bottom: var(--space-6);
+}
+
+/* Hộp xem trước xuất file: tên file + chỗ ký sửa được (Tiền 03/11) */
+.ga-export-form {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.ga-export-signers {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+/* Mỗi người ký một khung (chức danh + họ tên), các khung xếp 2 cột trên màn rộng (Tiền 03/11) */
+.ga-export-signer-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+/* Gọn một dòng (Tiền 05/11): số thứ tự | Chức danh | Họ tên | nút bỏ */
+.ga-export-signer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 1fr) var(--space-6);
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+}
+.ga-export-signers__body {
+  display: grid;
+  gap: var(--space-2);
+}
+.ga-export-signers__body[hidden] {
+  display: none;
+}
+.ga-export-signer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--space-6);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--color-primary);
+}
+.ga-export-signer .icon-btn {
+  width: var(--space-6);
+  height: var(--space-6);
+}
+.ga-export-signer__field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+@media (max-width: 767px) {
+  .ga-export-signer-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Màn hẹp: Chức danh, Họ tên xuống hai dòng, số thứ tự và nút bỏ giữ ở dòng đầu */
+  .ga-export-signer {
+    grid-template-columns: auto minmax(0, 1fr) var(--space-6);
+  }
+  .ga-export-signer__field {
+    grid-column: 2;
+  }
+  .ga-export-signer > .icon-btn,
+  .ga-export-signer > span:last-child {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .ga-doc-preview {
+    height: 55vh;
+  }
+}
+
+/* Tiêu đề cột mọi bảng kế hoạch giáo dục (Tiền 03/11): chữ một dòng, cùng canh giữa với ô STT; bảng giữ độ rộng cố định,
+   cột quá hẹp thì cắt "…" (ô có title đầy đủ) thay vì xuống dòng. Ô STT: chữ và nút đánh số lại nằm cùng một dòng */
+.table.ga-plan-table thead th {
+  white-space: nowrap;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.table.ga-plan-table thead th.ga-stt {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+.table.ga-plan-table thead th .stt-head {
+  flex-direction: row;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+/* Mọi ô chọn của module kế hoạch giáo dục (trang .ga-page, hộp .ga-modal): giá trị đang chọn một dòng, dài thì "…"
+   (Tiền 03/11); danh sách khi mở vẫn đầy đủ. Bỏ base-select vì nó đặt chữ trong phần tử nội bộ, không cắt được */
+.ga-page .select:not([multiple]):not([size]),
+.ga-modal .select:not([multiple]):not([size]) {
+  appearance: none;
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Nhãn loại mục trong hộp chọn mục tiêu (Bộ / kế hoạch có sẵn): lĩnh vực con, nhóm kết quả */
+.ga-cur-kind {
+  display: inline-block;
+  margin-right: var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+.ga-cur-kind--sub {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.ga-cur-kind--group {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+/* Hộp Xem trước (Tiền 03/11): tên file, chỗ ký và thanh nút cố định; chỉ khung tài liệu cuộn, hộp cao theo màn hình */
+.modal.ga-doc-preview-modal {
+  height: calc(100vh - var(--space-12));
+}
+.ga-doc-preview-modal .modal__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.ga-doc-preview-modal .modal__body > .stack {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.ga-doc-preview-modal .ga-doc-preview-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.ga-doc-preview-modal .ga-doc-preview {
+  height: 100%;
+}
+/* Trang Nguồn chương trình của Bộ: ô chọn nhóm tuổi đứng chỗ chip nhóm tuổi của hộp Lấy từ Bộ */
+.ga-cur-meta .ga-cur-age {
+  width: auto;
+  max-width: calc(var(--space-16) * 4);
+}
+
+/* Danh sách phiên bản và thay đổi so với phiên bản trước: chia cột thẳng hàng (Tiền 03/11) */
+.table.ga-version-table,
+.table.ga-change-table {
+  table-layout: fixed;
+}
+.table.ga-version-table td,
+.table.ga-change-table td {
+  vertical-align: middle;
+}
+.ga-version-table__version {
+  width: calc(var(--space-16) * 3 - var(--space-2));
+}
+.ga-version-table__status {
+  width: calc(var(--space-16) * 3 + var(--space-3));
+}
+.ga-version-table__date {
+  width: calc(var(--space-16) + var(--space-12));
+}
+/* Cột "Ngày ban hành" đủ rộng để hiện trọn tiêu đề, không cắt "…"; cột Người tạo co lại (Tiền 05/11) */
+.ga-version-table__issued {
+  width: calc(var(--space-16) * 2 + var(--space-4));
+}
+.ga-version-table__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ga-change-table__kind {
+  width: calc(var(--space-16) + var(--space-6));
+}
+.ga-change-table__code {
+  width: calc(var(--space-16) + var(--space-8));
+}
+.table.ga-change-table .chip {
+  justify-content: center;
+  min-width: var(--space-12);
+}
+
+/* Hệ bảng chung của module kế hoạch giáo dục (Tiền 03/11): tách viền, mỗi ô chỉ kẻ phải + dưới, bảng kẻ trên + trái,
+   khung .table-wrap bỏ viền ⇒ không còn viền đôi ở mép / ô gộp dòng; một màu vạch cho mọi bảng */
+.table-wrap:has(> .table.ga-plan-table) {
+  border: 0;
+  border-radius: 0;
+}
+.table.ga-plan-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-top: 1px solid var(--color-text-disabled);
+  border-left: 1px solid var(--color-text-disabled);
+}
+.table.ga-plan-table th,
+.table.ga-plan-table td,
+.table.ga-plan-table tr:last-child td {
+  border: 0;
+  border-right: 1px solid var(--color-text-disabled);
+  border-bottom: 1px solid var(--color-text-disabled);
+}
+/* Bảng danh sách (kế hoạch năm, toàn trường) và bảng xem trước khi nhập: cùng vạch, hàng cao đều, chữ canh giữa dòng */
+.table.ga-list-table th,
+.table.ga-list-table td,
+.table.ga-list-table th:first-child,
+.table.ga-list-table td:first-child,
+.table.ga-list-table th:last-child,
+.table.ga-list-table td:last-child {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+  vertical-align: middle;
+}
+.table.ga-list-table tbody tr td {
+  background: var(--color-surface);
+}
+/* Bảng phiên bản / thay đổi: ô một dòng (dài thì "…"), nền trắng không sọc để các cột đọc thẳng hàng;
+   cột Trạng thái đủ chip dài nhất ("Chờ Hiệu trưởng duyệt"), chip không tràn sang cột bên */
+.table.ga-version-table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.table.ga-version-table tbody tr td,
+.table.ga-change-table tbody tr td {
+  background: var(--color-surface);
+}
+
+/* Đầu trang cố định của các màn soạn: hàng nút sát breadcrumb hơn, đầu trang thấp 10px (Tiền 03/11) */
+.ga-sticky-head .page__head {
+  margin-bottom: var(--space-1-5);
+}
+.table.ga-version-table td .chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Không tô nền khi rê chuột vào dòng ở mọi bảng của module (Tiền 04/11); ô có màu riêng (dòng lĩnh vực, cột cố định,
+   nhãn thông tin chung) giữ màu vì luật của chúng cụ thể hơn */
+.table.ga-plan-table tbody tr:nth-child(even) td,
+.table.ga-plan-table tbody tr:hover td,
+.table.ga-plan-table tbody tr:hover th {
+  background: var(--color-surface);
+}
+/* Đầu trang cố định các màn soạn: chừa ít nhất 10px dưới hàng nút trước nội dung (kể cả khi cuộn, nền đầu trang che nội dung) */
+.ga-sticky-head {
+  padding-bottom: var(--space-2-5);
+}
+/* Ô ngày lệch (không trọn tuần thứ 2 – thứ 6 hoặc khác năm học): chữ đỏ, gợi ý dời ngày ngay dưới (Tiền 04/11) */
+.table.ga-goal-table td.ga-date--bad .ga-cal__trigger {
+  color: var(--color-danger-fg);
+}
+.ga-date-sug .link-btn,
+.ga-date-sug-all .link-btn {
+  font-size: inherit;
+}
+.ga-date-sug-all {
+  margin: 0;
 }

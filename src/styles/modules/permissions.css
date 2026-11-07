@@ -135,6 +135,26 @@
   text-align: left;
 }
 
+/* Cấp 1: luồng lớn, nổi hơn dòng nhóm cấp 2 */
+.table.table--grid.perm-table .perm-table__flow th,
+.table.table--grid.perm-table .perm-table__flow td,
+.table.table--grid.perm-table .perm-table__flow:hover th,
+.table.table--grid.perm-table .perm-table__flow:hover td {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-active);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
+
+.table.table--grid.perm-table .perm-table__flow td {
+  text-align: center;
+}
+
+.perm-table .perm-table__task .perm-table__note {
+  margin-top: var(--space-1);
+  font-weight: var(--fw-regular);
+}
+
 .perm-table .perm-table__col {
   width: 13%;
   padding: 0;
@@ -200,11 +220,7 @@
   min-height: 0;
 }
 
-/* Trong wizard: bảng cuộn riêng để nút Tiếp tục luôn thấy */
-.perm-wizard-table {
-  max-height: 55vh;
-  overflow-y: auto;
-}
+/* Trong wizard chỉ thân hộp cuộn (không cuộn lồng); nút Quay lại/Tiếp tục dính đáy, xem .perm-wizard-step__footer */
 
 .permission-history-changes {
   display: grid;
@@ -379,6 +395,11 @@
   margin-top: var(--space-6);
   padding-top: var(--card-padding-dense);
   border-top: 1px solid var(--color-border);
+  position: sticky;
+  bottom: calc(var(--space-5) * -1);
+  padding-bottom: var(--space-4);
+  background: var(--color-surface);
+  z-index: 2;
 }
 
 @media (max-width: 767px) {

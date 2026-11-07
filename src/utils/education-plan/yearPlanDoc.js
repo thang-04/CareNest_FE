@@ -6,7 +6,7 @@
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
 import { AGE_GROUPS, DOMAINS, domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, themeAbbr, themeGoalIds, weekCount } from '@/models/education-plan/goalTable';
-import { SIGN_ROLES, getEduConfig } from '@/models/education-plan/eduConfig';
+import { SIGN_ROLES, getEduConfig, soleSignerName } from '@/models/education-plan/eduConfig';
 
 export const esc = (s = '') => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 export const fmt = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
@@ -31,6 +31,8 @@ table { border-collapse: collapse; width: 100%; }
 table.grid td, table.grid th { border: 1px solid #000; padding: 2pt 4pt; font-size: 12pt; vertical-align: top; }
 table.grid th { font-weight: bold; text-align: center; vertical-align: middle; }
 table.grid th.abbr, table.grid td.tick { font-size: 10pt; text-align: center; font-weight: bold; padding: 2pt 1pt; }
+/* Ô để trống cho điền tay (file mẫu): giữ chiều cao một dòng chữ, Word không thu dòng trống lại */
+table.grid .blank { height: 20pt; }
 table.plain td { border: none; vertical-align: top; }
 .sign { height: 64px; }
 .sign-block { margin-top: 12pt; page-break-inside: avoid; }
@@ -49,21 +51,36 @@ export const docHeader = () => `<table class="plain"><tr>
 
 /**
  * Người xây dựng kế hoạch năm theo cấu hình (mặc định Phó HT, Tổ trưởng) để in họ tên dưới chỗ ký tay:
- * [{ role, title, name }]. Tên lấy từ người soạn, người gửi và người ban hành; chưa có thì để trống cho viết tay.
+ * [{ role, title, name }]. Tên lấy từ người soạn, người gửi và người ban hành; Tổ trưởng chưa thao tác thì lấy Tổ trưởng
+ * của nhóm tuổi (staff BE trả); không có thì để trống cho viết tay.
  */
-export const yearSigners = (plan) =>
+export const yearSigners = (plan, staff = []) =>
   getEduConfig().signers.year.map((role) => {
-    const people = [plan.owner, plan.sentBy, plan.issued].filter(Boolean);
-    return { role, title: SIGN_ROLES[role], name: people.find((p) => p.role === role)?.name || '' };
+    // Người gửi duyệt luôn là Tổ trưởng, người ban hành luôn là Phó HT (EDU-04/05); người soạn suy từ chức danh BE trả
+    const roleOfTitle = (t = '') => (/tổ trưởng/i.test(t) ? 'TEAM_LEADER' : /phó hiệu trưởng/i.test(t) ? 'VICE_PRINCIPAL' : null);
+    const people = [
+      plan.owner && { ...plan.owner, role: plan.owner.role || roleOfTitle(plan.owner.title) },
+      plan.sentBy && { ...plan.sentBy, role: plan.sentBy.role || 'TEAM_LEADER' },
+      plan.issued && { ...plan.issued, role: plan.issued.role || 'VICE_PRINCIPAL' },
+    ].filter(Boolean);
+    const leader = role === 'TEAM_LEADER' ? staff.find((s) => s.role === 'TEAM_LEADER' && s.ageGroupId === plan.ageGroupId) : null;
+    const name =
+      people.find((p) => p.role === role)?.name || soleSignerName(role, plan.ageGroupId, plan.schoolYear) || leader?.fullName || '';
+    return { role, title: SIGN_ROLES[role], name };
   });
 
 const domainTitle = (name) => `${domainRoman(name)}. Giáo dục ${domainLabel(name).replace(/^P/, 'p')}`;
 
-/** Bảng A: STT | Mục tiêu giáo dục năm | Nội dung giáo dục năm | Chủ đề thực hiện (mỗi chủ đề một cột). */
-const partA = (domains, themes, numbers) => {
+/**
+ * Bảng A: STT | Mục tiêu giáo dục năm | Nội dung giáo dục năm | Chủ đề thực hiện (mỗi chủ đề một cột) | dòng Tổng.
+ * Không gộp ô ngang (Tiền 03/11): đường kẻ dọc mọi cột liền từ tiêu đề tới cuối bảng; dòng lĩnh vực ghi ở cột mục tiêu.
+ * blankRows: số dòng trống dưới mỗi lĩnh vực (file mẫu).
+ */
+const partA = (domains, themes, numbers, { blankRows = 0 } = {}) => {
   const n = themes.length;
   const ticks = (c) => themes.map((t) => `<td class="tick">${c && c.themes.includes(t.id) ? esc(themeAbbr(t)) : ''}</td>`).join('');
-  const band = (html) => `<tr><td></td><td colspan="2">${html}</td>${ticks(null)}</tr>`;
+  const band = (html) => `<tr><td></td><td>${html}</td><td></td>${ticks(null)}</tr>`;
+  const blank = `<tr><td class="blank"></td><td></td><td></td>${ticks(null)}</tr>`;
   const body = DOMAINS.map((name) => domains.find((d) => d.name === name))
     .filter(Boolean)
     .map((d) => {
@@ -81,17 +98,30 @@ const partA = (domains, themes, numbers) => {
           contents.forEach((c, k) => rows.push(`<tr>${k === 0 ? head : ''}<td>- ${esc(c.text)}</td>${ticks(c)}</tr>`));
         }
       });
+      for (let i = 0; i < blankRows; i++) rows.push(blank);
       return rows.join('');
     })
     .join('');
+  // Dòng Tổng như file của trường: chữ ở cột STT (BE bỏ qua khi nhập lại), số mục tiêu mỗi chủ đề (file mẫu để trống)
+  const total = `<tr><td class="c"><b>Tổng</b></td><td></td><td></td>${themes
+    .map((t) => `<td class="tick">${blankRows ? '' : themeGoalIds(domains, t).length || ''}</td>`)
+    .join('')}</tr>`;
+  // Độ rộng ghi cả trên ô tiêu đề: Word bám theo ô hơn colgroup, cột không giãn theo chữ dòng lĩnh vực;
+  // ô viết tắt trống (file mẫu) đặt chiều cao trực tiếp vì Word không nhận nhiều class trên một ô
+  const w = { stt: 5, goal: n ? 27 : 40, content: n ? 38 : 55, theme: n ? +(30 / n).toFixed(2) : 0 };
   const themeHead = n
-    ? `<th colspan="${n}">Chủ đề thực hiện</th></tr><tr>${themes.map((t) => `<th class="abbr" title="${esc(t.name)}">${esc(themeAbbr(t))}</th>`).join('')}`
+    ? `<th colspan="${n}">Chủ đề thực hiện</th></tr><tr>${themes
+        .map(
+          (t) =>
+            `<th class="abbr" style="width:${w.theme}%${themeAbbr(t) ? '' : ';height:20pt'}" title="${esc(t.name)}">${esc(themeAbbr(t))}</th>`,
+        )
+        .join('')}`
     : '';
   const rs = n ? ' rowspan="2"' : '';
   return `<table class="grid">
-<colgroup><col style="width:5%"/><col style="width:${n ? 27 : 40}%"/><col style="width:${n ? 38 : 55}%"/>${themes.map(() => `<col style="width:${(30 / n).toFixed(2)}%"/>`).join('')}</colgroup>
-<thead><tr><th${rs}>STT</th><th${rs}>Mục tiêu giáo dục năm</th><th${rs}>Nội dung giáo dục năm</th>${themeHead}</tr></thead>
-<tbody>${body}</tbody></table>`;
+<colgroup><col style="width:${w.stt}%"/><col style="width:${w.goal}%"/><col style="width:${w.content}%"/>${themes.map(() => `<col style="width:${w.theme}%"/>`).join('')}</colgroup>
+<thead><tr><th${rs} style="width:${w.stt}%">STT</th><th${rs} style="width:${w.goal}%">Mục tiêu giáo dục năm</th><th${rs} style="width:${w.content}%">Nội dung giáo dục năm</th>${themeHead}</tr></thead>
+<tbody>${body}${n ? total : ''}</tbody></table>`;
 };
 
 /** Bảng B: chủ đề, sự kiện; đợt nghỉ ghi vào Ghi chú của chủ đề có tuần nghỉ, đợt nghỉ ngoài mọi chủ đề thành dòng riêng. */
@@ -120,30 +150,31 @@ const partB = (domains, themes, breaks, numbers) => {
       `<tr><td></td><td><i>${esc(b.label || 'Đợt nghỉ')}</i></td><td></td><td></td><td>Từ ${fmt(b.start)}${b.end ? `<br/>đến ${fmt(b.end)}` : ''}</td><td>Đợt nghỉ</td></tr>`,
     ),
   );
-  return `<table class="grid">
+  return partBTable(rows);
+};
+const partBTable = (rows) => `<table class="grid">
 <colgroup><col style="width:5%"/><col style="width:20%"/><col style="width:14%"/><col style="width:25%"/><col style="width:16%"/><col style="width:20%"/></colgroup>
 <thead><tr><th>STT</th><th>Tên chủ đề</th><th>Mục tiêu giáo dục</th><th>Ngày lễ hội</th><th>Thời gian</th><th>Ghi chú</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table>`;
-};
 
 // Chỗ ký tay: ngày ban hành (chưa có thì để trống), chức danh, khoảng trống ký, họ tên
-const signBlock = (plan) => {
-  const list = yearSigners(plan);
+const signBlock = (plan, staff, list = yearSigners(plan, staff)) => {
   const date = plan.issued?.at;
   const [y, m, d] = date ? date.slice(0, 10).split('-') : ['……', '……', '……'];
-  const width = Math.floor(100 / Math.max(list.length, 1));
-  const col = (x) => `<td class="c" style="width:${width}%"><b>${esc(x.title)}</b><br/><div class="sign"></div><b>${esc(x.name)}</b></td>`;
-  return `<table class="plain sign-block"><tr><td style="width:30%"></td><td style="width:70%" class="c">
-<i>${esc(commune)}, ngày ${d} tháng ${m} năm ${y}</i><br/><b>Người xây dựng kế hoạch</b>
-<table class="plain"><tr>${list.map(col).join('')}</tr></table>
-</td></tr></table>`;
+  const n = Math.max(list.length, 1);
+  const col = (x) =>
+    `<td class="c" style="width:${Math.floor(70 / n)}%"><b>${esc(x.title)}</b><br/><div class="sign"></div>${esc(x.name)}</td>`;
+  // Một bảng, không lồng bảng: BE đọc lại được file xuất / file mẫu khi Nhập file (EDU-46)
+  return `<table class="plain sign-block"><tr><td style="width:30%"></td><td colspan="${n}" class="c">
+<i>${esc(commune)}, ngày ${d} tháng ${m} năm ${y}</i><br/><b>Người xây dựng kế hoạch</b></td></tr>
+<tr><td></td>${list.map(col).join('')}</tr></table>`;
 };
 
 /**
  * HTML đầy đủ của kế hoạch năm học. plan: { schoolYear, ageGroupId, domains (dạng hàng), themes, breaks, owner, sentBy, issued };
  * numbers: số MT theo id mục tiêu.
  */
-export const yearPlanHtml = (plan, numbers) => {
+export const yearPlanHtml = (plan, numbers, staff = []) => {
   const ageName = (AGE_GROUPS.find((a) => a.id === plan.ageGroupId)?.name || '').replace(/[–—]/g, ' - ');
   const year = (plan.schoolYear || '').replace(/\s*[-–]\s*/, ' - ');
   return docShell(
@@ -156,7 +187,7 @@ export const yearPlanHtml = (plan, numbers) => {
 ${partA(plan.domains, plan.themes, numbers)}
 <h2>B. DỰ KIẾN KẾ HOẠCH CHỦ ĐỀ, SỰ KIỆN NĂM HỌC</h2>
 ${partB(plan.domains, plan.themes, plan.breaks || [], numbers)}
-${signBlock(plan)}`,
+${signBlock(plan, staff)}`,
   );
 };
 
@@ -207,5 +238,41 @@ export const printDoc = (html) => {
   return true;
 };
 
-export const downloadYearPlanDoc = (plan, numbers) => downloadDoc(yearPlanHtml(plan, numbers), yearPlanFileName(plan));
-export const printYearPlan = (plan, numbers) => printDoc(yearPlanHtml(plan, numbers));
+/** Tài liệu kế hoạch năm để xem trước rồi xuất / in: { html, name } (xem trước dùng đúng HTML sẽ xuất). */
+export const yearPlanFile = (plan, numbers, staff) => ({ html: yearPlanHtml(plan, numbers, staff), name: yearPlanFileName(plan) });
+// Số cột chủ đề của file mẫu: như file của trường (10 chủ đề/năm); cột thừa để trống
+export const TEMPLATE_THEME_COLUMNS = 10;
+const TEMPLATE_BLANK_ROWS = 3;
+const DOTS = '……………';
+
+/**
+ * File mẫu nhập mục tiêu (BE:EDU-46, Tiền 03/11): chỉ phần cố định theo bố cục kế hoạch năm của trường — quốc hiệu, tiêu đề
+ * năm học/khối để chấm, bảng A (dòng lĩnh vực theo cấu hình, dòng trống, cột chủ đề chưa đặt tên, dòng Tổng), bảng B trống,
+ * nơi ký chưa ghi tên. Không lấy dữ liệu của bản đang soạn.
+ */
+export const goalTemplateFile = () => {
+  const themes = Array.from({ length: TEMPLATE_THEME_COLUMNS }, (_, i) => ({ id: `tpl-${i}`, name: '', abbr: '' }));
+  const domains = DOMAINS.map((name) => ({ name, rows: [] }));
+  const signers = getEduConfig().signers.year.map((role) => ({ role, title: SIGN_ROLES[role], name: '' }));
+  const emptyB = Array.from(
+    { length: TEMPLATE_THEME_COLUMNS },
+    () => '<tr><td class="blank"></td><td></td><td></td><td></td><td></td><td></td></tr>',
+  );
+  return {
+    html: docShell(
+      'Mẫu kế hoạch giáo dục năm học',
+      `${docHeader()}
+<p>&nbsp;</p>
+<h1>KẾ HOẠCH GIÁO DỤC NĂM HỌC ${DOTS}</h1>
+<h1>KHỐI ${DOTS}</h1>
+<h2>A. MỤC TIÊU GIÁO DỤC, NỘI DUNG GIÁO DỤC</h2>
+${partA(domains, themes, {}, { blankRows: TEMPLATE_BLANK_ROWS })}
+<h2>B. DỰ KIẾN KẾ HOẠCH CHỦ ĐỀ, SỰ KIỆN NĂM HỌC</h2>
+${partBTable(emptyB)}
+${signBlock({}, [], signers)}`,
+    ),
+    name: 'Mẫu kế hoạch giáo dục năm học',
+  };
+};
+export const downloadYearPlanDoc = (plan, numbers, staff) => downloadDoc(yearPlanHtml(plan, numbers, staff), yearPlanFileName(plan));
+export const printYearPlan = (plan, numbers, staff) => printDoc(yearPlanHtml(plan, numbers, staff));

@@ -6,6 +6,12 @@ import { buildSeedSchoolConfig } from './schoolConfigSeed';
  * Phòng loại khác giữ người phụ trách do Hiệu trưởng chọn. BE phải tính giống vậy.
  */
 export const activeYearId = (db) => (db.schoolYears || buildSeedSchoolConfig().schoolYears).find((y) => y.status === 'ACTIVE')?.id || null;
+/** Ngày bắt đầu năm học đang hoạt động (mở lại điểm danh / đánh giá được lùi tới ngày này). */
+export const activeYearStart = (db) =>
+  (db.schoolYears || buildSeedSchoolConfig().schoolYears).find((y) => y.status === 'ACTIVE')?.startDate || null;
+/** Ngày kết thúc năm học đang hoạt động: hạn "Mở đến" không được quá ngày này (hết năm học là khóa hết). */
+export const activeYearEnd = (db) =>
+  (db.schoolYears || buildSeedSchoolConfig().schoolYears).find((y) => y.status === 'ACTIVE')?.endDate || null;
 
 /** Locations with the effective person in charge (`managerUserId`), plus `managerFromClass` / `managerClassId` for classrooms. */
 export const withRoomManagers = (db) => {

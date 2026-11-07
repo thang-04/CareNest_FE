@@ -13,6 +13,15 @@
   gap: var(--space-2);
   flex-wrap: wrap;
 }
+/* Lý do từng lần kiểm nhận chưa mở: mỗi lần một dòng, căn trái trong thẻ trống */
+.kb-reasons {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
 
 .kb-sessions {
   display: grid;
@@ -791,4 +800,328 @@
 /* Ô chiếm hết hàng trong form lưới 2 cột (địa chỉ NCC) */
 .kb-span-all {
   grid-column: 1 / -1;
+}
+
+/* Kho khô (BE): thanh lọc trong thẻ (Phiếu nhập, Lịch sử nhập/trừ) */
+.kb-toolbar--card {
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.kb-field-food {
+  min-width: 220px;
+}
+/* Nhà cung cấp: form modal chia nhóm, trang chi tiết gồm thẻ đầu trang, lưới thông tin và bảng phiếu nhập */
+.kb-sup-form {
+  display: grid;
+  gap: var(--space-5);
+}
+.kb-sup-form__group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.kb-sup-form__group + .kb-sup-form__group {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.kb-sup-form__group > legend {
+  margin-bottom: var(--space-3);
+  padding: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.kb-sup-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  padding: var(--space-5);
+}
+.kb-sup-hero__avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.kb-sup-hero__main {
+  display: grid;
+  flex: 1;
+  gap: var(--space-2);
+  min-width: 240px;
+}
+.kb-sup-hero__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* Bỏ lề mặc định của tiêu đề để khối chữ cân đúng giữa so với biểu tượng bên trái */
+.kb-sup-hero .page__title {
+  margin: 0;
+}
+.kb-sup-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.kb-sup-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.kb-sup-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+.kb-sup-fact {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.kb-sup-fact--wide {
+  grid-column: 1 / -1;
+}
+.kb-sup-fact__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.kb-sup-fact__body {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.kb-sup-fact__label {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.kb-sup-fact__value {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+}
+
+/* Bảng tồn theo lô: mỗi lô một dòng, cột sát nhau để vừa khung không cuộn ngang */
+.table.kb-lots-table th,
+.table.kb-lots-table td {
+  padding-inline: var(--space-2);
+}
+
+/* Hàng tươi (BE): kết quả Đủ/Thiếu/Thừa, đầu cột ngày của bản dự trù, ô ghi chú trống khi in */
+.kb-res.kb-res--fresh button[aria-pressed='true'][data-r='ENOUGH'] {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+  font-weight: var(--fw-semibold);
+}
+.kb-res.kb-res--fresh button[aria-pressed='true'][data-r='SHORT'] {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+  font-weight: var(--fw-semibold);
+}
+.kb-res.kb-res--fresh button[aria-pressed='true'][data-r='OVER'] {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font-weight: var(--fw-semibold);
+}
+.kb-day-plan {
+  margin-top: var(--space-1);
+  font-weight: var(--fw-regular);
+}
+.kb-field-action {
+  display: flex;
+  align-items: flex-end;
+}
+/* Hộp lập dự trù: kỳ, ghi chú và nút Tính cùng một hàng, đáy các ô thẳng nhau; hẹp thì xếp dọc */
+.kb-forecast-form {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) minmax(0, 2fr) auto;
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
+}
+@media (max-width: 900px) {
+  .kb-forecast-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.kb-stale {
+  opacity: 0.6;
+}
+.kb-print-note {
+  min-width: 40mm;
+  height: 10mm;
+}
+
+/* Kho: nút xuất Excel và nhóm nút dòng phiếu nhập */
+.kb-export {
+  order: 99;
+  margin-left: auto;
+}
+.kb-line-actions {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.kb-import-problems {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+  font-size: var(--fs-sm);
+}
+.kb-toolbar__end {
+  align-items: flex-end;
+}
+.kb-actions-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-left: auto;
+}
+.kb-actions-total {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+}
+
+/* Dòng thời gian bếp: dải "Bây giờ" đầu thẻ + vạch giờ hiện tại + bước nên làm (chỉ nhắc theo giờ dự kiến) */
+.kb-now {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+}
+.kb-now--due {
+  background: var(--color-warning-bg);
+}
+.kb-now__clock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.kb-now__task {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+.kb-day__now {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+  margin: calc(var(--space-2) * -1) 0 var(--space-3);
+}
+.kb-day__now .kb-day__time {
+  padding: 0;
+  color: var(--color-danger);
+  font-weight: var(--fw-semibold);
+}
+/* Vạch đỏ nằm ngang cắt qua trục, chữ "Bây giờ" ở đầu vạch */
+.kb-day__now-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-danger);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+.kb-day__now-line::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: var(--color-danger);
+}
+.kb-day__step--focus .kb-day__body {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+}
+/* Thực đơn bếp nhận (xem ngày): hướng dẫn của thực đơn dưới tên bữa */
+.kb-menu-table__note {
+  margin-top: var(--space-1);
+  font-weight: var(--fw-regular);
+}
+
+/*
+ * Quy trình bếp hôm nay: các bước trong ngày xếp ngang thành thẻ (hết cột phải trống), việc cần xử lý và thực đơn trong ngày
+ * chiếm đủ bề ngang bên dưới.
+ */
+.kb-flow-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.kb-flow-board__main,
+.kb-flow-board__aside {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.kb-flow-board .kb-day {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+.kb-flow-board .kb-day__step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.kb-flow-board .kb-day__time {
+  padding: 0;
+  text-align: left;
+  font-weight: var(--fw-semibold);
+}
+.kb-flow-board .kb-day__dot {
+  display: none;
+}
+.kb-flow-board .kb-day__body {
+  padding: 0;
+}
+.kb-flow-board .kb-day__step--done {
+  border-left: 3px solid var(--tone-green);
+}
+.kb-flow-board .kb-day__step--focus {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.kb-flow-board .kb-day__step--focus .kb-day__body {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+/* Giờ hiện tại đã có ở dải "Bây giờ" phía trên; bỏ vạch đỏ dọc của dòng thời gian cũ */
+.kb-flow-board .kb-day__now {
+  display: none;
 }

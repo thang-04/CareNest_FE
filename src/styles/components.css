@@ -64,6 +64,12 @@
     gap: var(--space-2);
     min-height: var(--btn-height-lg);
   }
+  /* Khu bán trú: nút giữ cùng hàng mô tả, sát nội dung, không đẩy lên hàng breadcrumb (góp ý 05/11) */
+  [data-area='boarding'] .breadcrumb + .page__head > :last-child:not(:first-child):not(p) {
+    position: static;
+    min-height: 0;
+    margin-left: auto;
+  }
 }
 .page-actions {
   display: flex;
@@ -73,8 +79,10 @@
   gap: var(--space-3);
   margin-top: var(--space-4);
 }
-/* Form (F1): thanh nút có nút chính dính đáy màn để luôn bấm được Lưu / Tiếp tục */
-.page-actions:has(.btn--primary) {
+/* Form (F1): thanh nút có nút chính dính đáy màn để luôn bấm được Lưu / Tiếp tục;
+   .page-actions--sticky: form nhiều bước giữ thanh dính đáy cả ở bước không có nút chính */
+.page-actions:has(.btn--primary),
+.page-actions--sticky {
   position: sticky;
   bottom: var(--space-3);
   z-index: var(--z-sticky);
@@ -84,6 +92,77 @@
   background: color-mix(in srgb, var(--color-surface) 88%, transparent);
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-blur);
+}
+/* Khu bán trú: không thanh nổi đè lên bảng (góp ý 05/11) — Hủy/Lưu nằm ở đầu trang; thanh còn lại ở cuối trang là hàng nút thường */
+[data-area='boarding'] .page-actions {
+  position: static;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+/* Điện thoại: thanh dính đáy của form nhiều bước gọn trên 1 hàng (nút sát hơn, không xuống dòng — Tiền 31/10) */
+@media (max-width: 767px) {
+  .page-actions--sticky,
+  .page-actions--sticky > .row {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+  .page-actions--sticky {
+    padding: var(--space-2) var(--space-3);
+  }
+  .page-actions--sticky .btn {
+    padding: 0 var(--space-3);
+  }
+  /* Phiếu khám (user chọn 1 hàng, 2026-11-04): nhóm nút bên phải và nút chính giãn hết chỗ còn lại; nút .btn--collapse chỉ còn
+     biểu tượng, chữ .btn__collapse ẩn khỏi mắt nhưng trình đọc màn hình vẫn đọc; .page-actions__desk / __phone đổi nút theo cỡ màn */
+  .page-actions--sticky > .row {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  .page-actions--sticky .btn--primary {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .page-actions--sticky .btn--collapse {
+    flex: none;
+    width: var(--btn-height);
+    min-width: 0;
+    padding: 0;
+  }
+  .page-actions--sticky .btn__collapse {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .page-actions--sticky .page-actions__desk {
+    display: none;
+  }
+  .page-actions--sticky .page-actions__phone {
+    display: inline-flex;
+  }
+  .page-actions--sticky .btn__phone {
+    display: inline;
+  }
+  /* Nút "…" (RowMenu) cùng cỡ, cùng viền với nút biểu tượng bên cạnh */
+  .page-actions--sticky .page-actions__phone .row-menu__btn {
+    width: var(--btn-height);
+    height: var(--btn-height);
+    border-color: var(--color-border-strong);
+    border-radius: var(--btn-radius);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+}
+/* Chỉ hiện trên điện thoại trong thanh dính đáy (xem khối trên) */
+.page-actions__phone,
+.btn__phone {
+  display: none;
 }
 
 /* ---------- Buttons ---------- */
@@ -232,25 +311,31 @@
   color: var(--color-danger-fg);
 }
 
-/* Sắp xếp kéo-thả (useSortableList): tay nắm ⋮⋮ đầu dòng, vạch xanh báo chỗ thả */
+/* Sắp xếp kéo-thả (components/ui/Sortable, dnd-kit): tay nắm ↕ có viền; khi kéo, dòng gốc thành ô giữ chỗ tô xanh
+   (đi theo vị trí sẽ thả), bản nhấc lên bám theo chuột; dòng vừa đổi chỗ nháy sáng */
 .drag-handle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: var(--space-6);
+  width: var(--space-8);
   height: var(--space-8);
   padding: 0;
-  border: 0;
-  border-radius: var(--radius-xs);
-  background: none;
-  color: var(--color-text-muted);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
   cursor: grab;
   touch-action: none;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 .drag-handle:hover {
-  background: var(--color-secondary);
-  color: var(--color-text);
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  transform: scale(1.06);
 }
 .drag-handle:active {
   cursor: grabbing;
@@ -260,28 +345,87 @@
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 .drag-handle--grabbed {
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+}
+.sortable-item {
+  position: relative;
+}
+/* Ô giữ chỗ: tô xanh cả dòng + khung nét đứt. !important vì nền sọc/ô cố định/hover của từng bảng
+   có độ ưu tiên cao hơn, mà khi đang kéo thì chỗ thả phải luôn nổi nhất */
+.sortable-item--placeholder,
+tr.sortable-item--placeholder > td {
+  background: var(--color-primary-soft-hover) !important;
+}
+.sortable-item--placeholder {
+  z-index: 1;
+  outline: 2px dashed var(--color-primary);
+  outline-offset: -2px;
+}
+.sortable-item--placeholder > * {
+  visibility: hidden;
+}
+tr.sortable-item--placeholder > td > * {
+  visibility: hidden;
+}
+/* Bản nhấc lên (DragOverlay): rộng bằng dòng, nổi bóng, nghiêng nhẹ như đang cầm */
+.sortable-overlay {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 100%;
+  min-height: var(--space-10);
+  padding: 0 var(--space-3);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  /* Nền xanh hơi trong: chỗ sẽ thả hiện xanh rõ, vẫn thấy kẻ ô bên dưới */
+  background: color-mix(in srgb, var(--color-primary-soft-hover) 88%, transparent);
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--shadow-lg);
+  cursor: grabbing;
+  transform: rotate(-0.6deg) scale(1.01);
+}
+.sortable-overlay__text {
+  overflow: hidden;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Tiêu đề cột STT có nút "Đánh số lại" xếp dưới chữ (cột STT hẹp); nút chỉ nổi màu khi STT đang lệch thứ tự */
+.stt-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.renumber-btn {
+  width: var(--space-6);
+  height: var(--space-6);
+  padding: 0;
+}
+.renumber-btn--active {
+  border: 1px solid var(--color-primary-border);
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
-.sortable-item--dragging {
-  opacity: 0.45;
+/* Dòng vừa đổi chỗ (nút ↑↓, bàn phím, thả): tô xanh cả dòng + khung xanh như ô giữ chỗ khi kéo, giữ ~1 giây (JS gỡ class).
+   Không dùng animation vì base.css ép mọi animation còn 0.01ms khi máy bật giảm chuyển động; !important để thắng nền sọc/ô cố định */
+.sortable-item--moved {
+  z-index: 1;
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
-.sortable-item--grabbed,
-tr.sortable-item--grabbed > td {
-  background: var(--color-primary-soft);
+div.sortable-item--moved,
+tr.sortable-item--moved > td {
+  background: var(--color-primary-soft-hover) !important;
 }
-.sortable-item--drop-before {
-  box-shadow: 0 -2px 0 var(--color-primary);
-}
-.sortable-item--drop-after {
-  box-shadow: 0 2px 0 var(--color-primary);
-}
-/* Ô bảng không vẽ box-shadow của tr: vẽ vạch trên từng ô */
-tr.sortable-item--drop-before > td {
-  box-shadow: inset 0 2px 0 var(--color-primary);
-}
-tr.sortable-item--drop-after > td {
-  box-shadow: inset 0 -2px 0 var(--color-primary);
+/* Giảm chuyển động: bỏ nghiêng bản nhấc lên; vẫn giữ tô xanh dòng vừa chuyển vì chỉ đổi màu, không chuyển động */
+@media (prefers-reduced-motion: reduce) {
+  .sortable-overlay {
+    transform: none;
+  }
 }
 .link-btn {
   border: none;
@@ -470,6 +614,15 @@ tr.sortable-item--drop-after > td {
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-blur);
 }
+/* Khu bán trú (MainLayout data-area): thẻ nền đặc, viền mảnh, không bóng, không kính */
+[data-area='boarding'] {
+  --glass-bg: var(--color-surface);
+  --glass-border: var(--color-border);
+  --glass-blur: none;
+  --card-radius: var(--radius-2xl);
+  --card-shadow: none;
+  --card-shadow-hover: none;
+}
 /* Thẻ chứa timeline xử lý (ProgressSteps) ở trang chi tiết: lề rộng hơn thẻ thường */
 .card.card--timeline {
   padding: var(--space-5) var(--space-6);
@@ -612,7 +765,13 @@ tr.sortable-item--drop-after > td {
 }
 /* Bảng kẻ ô theo bảng Mục tiêu năm học (Kế hoạch giáo dục): kẻ đủ mọi ô màu --color-text-disabled, tiêu đề chữ đậm */
 .table.table--grid th + th,
-.table.table--grid td + td {
+.table.table--grid td + td,
+.table.table--grid th + td,
+.table.table--grid td + th {
+  border-left: 1px solid var(--color-text-disabled);
+}
+/* Tiêu đề 2 tầng: ô đầu hàng thứ hai không có ô liền trước nên thiếu vạch trái (cột ghép rowSpan bên cạnh) */
+.table.table--grid thead tr + tr > th:first-child {
   border-left: 1px solid var(--color-text-disabled);
 }
 .table.table--grid th,
@@ -716,19 +875,20 @@ tr.sortable-item--drop-after > td {
 }
 
 /* ---------- Chip / badge ---------- */
-/* Badge (B): viên thuốc, nền đậm hơn nền nhạt một bậc, viền cùng tông, icon theo trạng thái */
+/* Badge: viên thuốc nền nhạt, viền cùng tông, chấm màu khi không có icon — một hình cho mọi trạng thái */
 .chip {
   --chip-c: var(--color-text-muted);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px var(--space-2-5) 2px var(--space-2);
-  border: 1px solid color-mix(in srgb, var(--chip-c) 34%, var(--color-surface));
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 var(--space-2-5);
+  border: 1px solid color-mix(in srgb, var(--chip-c) 30%, var(--color-surface));
   border-radius: var(--badge-radius);
-  background: color-mix(in srgb, var(--chip-c) 16%, var(--color-surface));
+  background: color-mix(in srgb, var(--chip-c) 10%, var(--color-surface));
   font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
-  line-height: 1.6;
+  font-weight: var(--fw-medium);
+  line-height: 1.4;
   white-space: nowrap;
 }
 .chip--blue {
@@ -759,6 +919,40 @@ tr.sortable-item--drop-after > td {
 .chip--teal {
   --chip-c: var(--tone-teal);
   color: var(--tone-teal-fg);
+}
+/* Nhãn giá trị nổi bật trong bảng nhiều số (nhóm tuổi, năng lượng, chi phí, mã): khối bo nhẹ, chữ đậm cỡ vừa, không chấm tròn */
+.td-tag {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.td-tag--blue {
+  background: var(--color-info-bg);
+  color: var(--color-primary);
+}
+.td-tag--orange {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.td-tag--green {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.td-tag--gray {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+.chip[class*='chip--']:not(:has(> svg, > .chip__live))::before {
+  content: '';
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--chip-c);
 }
 /* Mức nguy hiểm cao nhất (vd. "Sốt rất cao"): nền đỏ đậm, chữ sáng — nổi hơn chip--red */
 .chip--critical {
@@ -1128,6 +1322,13 @@ tr.sortable-item--drop-after > td {
 }
 .modal--confirm .modal__footer > .btn {
   flex: 1;
+  /* Nhãn dài (vd. tên nút dài) xuống dòng trong nút thay vì đẩy nút tràn khỏi hộp */
+  min-width: 0;
+  white-space: normal;
+}
+/* Ô nhập trong hộp xác nhận (lý do, ghi chú): hộp căn giữa chữ, form căn trái */
+.confirm__form {
+  text-align: left;
 }
 @media (prefers-reduced-motion: reduce) {
   .page,
@@ -1287,6 +1488,11 @@ tr.sortable-item--drop-after > td {
     background: color-mix(in srgb, var(--color-text) 3%, transparent);
   }
 }
+/* Chờ cả trang (con trực tiếp của .page / vùng nội dung): cao bằng vùng nội dung, ba chấm giữa — không dính lên đầu trang */
+.page > .state--loading,
+.app-content > .state--loading {
+  min-height: max(320px, calc(100dvh - var(--header-height) - 3 * var(--space-16)));
+}
 /* Khung chờ tải dữ liệu trong suốt suốt --loading-reveal-delay đầu rồi hiện dần: dữ liệu về nhanh thì không chớp,
    màn tải nối tiếp (khung chờ đã hiện lâu hơn hook đếm) chỉ thoáng mờ. Vẫn giữ chỗ nên nội dung không nhảy.
    Spinner trong nút gửi không hoãn. */
@@ -1420,6 +1626,62 @@ tr.sortable-item--drop-after > td {
 .import-reading--inline {
   width: 96px;
 }
+/* Hộp nhập từ Excel (ImportDialog): dải hướng dẫn + tệp mẫu, vùng kéo thả, dòng tệp đã chọn, bảng xem trước */
+.import-guide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+}
+.import-guide__text {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.import-drop {
+  min-height: 260px;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.import-drop__icon {
+  color: var(--color-primary);
+}
+.import-drop__btn {
+  margin-top: var(--space-2);
+  pointer-events: none;
+}
+.import-file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2-5) var(--space-3-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.import-file svg {
+  color: var(--file-sheet);
+}
+.import-file__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.import-preview {
+  display: grid;
+  gap: var(--space-4);
+}
+.import-preview h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-md);
+}
 /* Lớp phủ AI: giảm chuyển động — lớp phủ và câu phụ vẫn mờ dần theo nhịp thật thay vì 0.01ms; Lottie vẫn chạy (user chốt) */
 @media (prefers-reduced-motion: reduce) {
   .ai-veil,
@@ -1476,6 +1738,118 @@ tr.sortable-item--drop-after > td {
   border-radius: var(--radius-full);
   padding: 1px var(--space-2);
   font-size: var(--fs-xs);
+}
+/* Form một hàng trong thẻ (vd. Mở lại điểm danh / ngày đánh giá): ô xếp ngang, xuống dòng khi hẹp;
+   cho danh sách chọn lớp mở xuống đè lên thẻ bên dưới */
+.form-inline {
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.form-inline .field {
+  margin: 0;
+}
+.form-inline__class {
+  min-width: 300px;
+}
+.form-inline__grow {
+  flex: 1;
+  min-width: 240px;
+}
+.form-inline__pair {
+  display: flex;
+  gap: var(--space-2);
+}
+/* Ô ngày (có nút lịch) đủ rộng cho dd/mm/yyyy */
+.form-inline__pair .input-group {
+  min-width: calc(var(--space-16) * 2 + var(--space-10));
+}
+.form-inline__full {
+  flex-basis: 100%;
+}
+/* Chọn lớp có tìm kiếm, nhóm theo nhóm tuổi (ui/ClassPicker) */
+.class-picker .search-submit .btn {
+  height: var(--input-height);
+}
+.class-picker {
+  position: relative;
+}
+.class-picker__box {
+  /* Cao bằng các ô nhập cùng hàng */
+  height: var(--input-height);
+  min-width: 0;
+  width: 100%;
+  cursor: text;
+}
+.class-picker__box.is-invalid {
+  border-color: var(--color-danger);
+}
+.class-picker__panel {
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  top: calc(100% + var(--space-1));
+  width: max(100%, 320px);
+  max-width: calc(100vw - 2 * var(--space-4));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+.class-picker__campus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+.class-picker__campus .chip {
+  cursor: pointer;
+}
+.class-picker__list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--space-1);
+}
+.class-picker__group {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+}
+.class-picker__option {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: var(--space-1-5) var(--space-3);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+.class-picker__option.is-active {
+  background: var(--color-secondary);
+}
+.class-picker__option.is-selected {
+  background: var(--color-primary-soft);
+  font-weight: var(--fw-semibold);
+}
+.class-picker__empty {
+  padding: var(--space-3);
+}
+/* Ô chọn điểm trường dùng chung (ui/CampusFilter): nhãn trên, ô chọn dưới */
+.campus-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.campus-filter .select {
+  width: auto;
 }
 .tab--active .tab__count {
   background: var(--color-primary);
@@ -1660,29 +2034,6 @@ tr.sortable-item--drop-after > td {
   }
 }
 
-/* ---------- Asset thumbnail ---------- */
-.asset-thumb {
-  width: 64px;
-  height: 44px;
-  border-radius: var(--radius-xs);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--primary-25);
-  color: var(--asset-icon);
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-.asset-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.asset-thumb--sm {
-  width: 48px;
-  height: 32px;
-}
-
 /* ---------- Stepper (wizard header) ---------- */
 /* Thanh bước gọn (~70px) như form Lập kế hoạch năm học — mẫu chung cho mọi luồng nhiều bước (góp ý 20/10) */
 .stepper-card {
@@ -1757,6 +2108,18 @@ tr.sortable-item--drop-after > td {
 .stepper__item--current .stepper__label {
   color: var(--text);
   font-weight: 700;
+}
+/* Bước đã làm xong (Thiết lập năm học): xanh lá */
+.stepper__item--ok .stepper__dot {
+  border-color: var(--green-500);
+  color: var(--green-500);
+}
+.stepper__item--ok.stepper__item--current .stepper__dot {
+  background: var(--green-500);
+  color: var(--text-inverse);
+}
+.stepper__item--ok .stepper__label {
+  color: var(--green-700);
 }
 
 /* ---------- Wizard layout ---------- */
@@ -2107,23 +2470,39 @@ a.file-row__name:hover {
   background: var(--surface-hover);
 }
 
-/* ---------- Assign users (shared parts) ---------- */
+/* ---------- Ô chọn tự dựng (SearchSelect): dáng ô nhập, danh sách nổi portal ---------- */
 .search-select {
   position: relative;
+  min-width: 0;
 }
 .search-select__control {
   width: 100%;
-  min-height: 48px;
+  min-height: var(--btn-height-lg);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-1-5) var(--space-3);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-3-5);
+  border: 1px solid var(--input-border);
+  border-radius: var(--input-radius);
+  background: var(--input-bg);
+  color: var(--color-text);
   cursor: pointer;
   text-align: left;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+.search-select--sm .search-select__control {
+  min-height: var(--btn-height-sm);
+  padding-left: var(--space-2-5);
+  font-size: var(--fs-sm);
+}
+.search-select__control:focus-visible,
+.search-select__control[aria-expanded='true'] {
+  outline: none;
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 .search-select__control:disabled {
   background: var(--color-secondary);
@@ -2132,14 +2511,47 @@ a.file-row__name:hover {
 .search-select__value {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-/* .card có backdrop-filter nên tạo stacking context: nâng card khi panel mở để không bị .page-actions (sticky) che */
-.card:has(.search-select__panel) {
-  position: relative;
-  z-index: calc(var(--z-sticky) + 1); /* trên thanh dính đáy, dưới header */
+.search-select__chevron {
+  flex-shrink: 0;
+  transition: rotate var(--duration-fast) var(--ease-out);
+}
+[aria-expanded='true'] > .search-select__chevron {
+  rotate: 180deg;
+}
+/* Nút "Thêm …" viền đứt: thay cho select giả link trong ô lưới */
+.search-select__add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  width: 100%;
+  min-height: var(--btn-height-sm);
+  padding: 0 var(--space-2-5);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.search-select__add:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.search-select__add:focus-visible,
+.search-select__add[aria-expanded='true'] {
+  outline: none;
+  border-style: solid;
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 .search-select__empty {
-  padding: var(--space-3);
+  padding: var(--space-4);
+  text-align: center;
+  font-size: var(--fs-sm);
 }
 /* Ảnh xem trước trong ô tải ảnh bằng chứng */
 .upload-preview {
@@ -2147,51 +2559,90 @@ a.file-row__name:hover {
   border-radius: var(--radius-xs);
 }
 .search-select__panel {
-  position: absolute;
+  position: fixed;
   z-index: var(--z-dropdown);
-  left: 0;
-  right: 0;
-  top: calc(100% + var(--space-1));
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
+  display: grid;
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  animation: search-select-in var(--duration-fast) var(--ease-out);
+}
+@keyframes search-select-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+.search-select__heading {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 .search-select__search {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border);
+  height: 40px;
+  margin: 0 calc(var(--space-1) * -1) var(--space-1);
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--color-border);
 }
 .search-select__search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
   border: none;
   outline: none;
-  flex: 1;
-}
-.search-select__search:focus-within {
-  box-shadow: inset 0 -2px 0 var(--color-focus);
+  background: transparent;
 }
 .search-select__list {
-  max-height: 240px;
+  display: grid;
+  gap: 2px;
+  max-height: 300px;
   overflow-y: auto;
-  padding: var(--space-1);
+}
+.search-select__group {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
 }
 .search-select__option {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   width: 100%;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
   border: none;
+  border-radius: var(--radius-md);
   background: none;
+  color: var(--color-text);
   text-align: left;
-  padding: var(--space-1-5) var(--space-2);
-  border-radius: var(--radius-xs);
   cursor: pointer;
 }
-.search-select__option:hover {
-  background: var(--color-secondary);
+.search-select__option[data-active='true'] {
+  background: var(--color-surface-muted);
 }
-.search-select__option--active {
-  background: var(--primary-50);
+.search-select__option[aria-selected='true'] {
+  font-weight: var(--fw-medium);
+}
+.search-select__text {
+  display: grid;
+  min-width: 0;
+}
+.search-select__text small {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+}
+.search-select__check {
+  flex-shrink: 0;
+  color: var(--color-primary);
 }
 
 /* ---------- Review (shared parts) ---------- */
@@ -2361,6 +2812,13 @@ button.stat-card .stat-card__label::after {
   color: color-mix(in srgb, var(--stat-tone) 70%, var(--color-text));
   font-variant-numeric: tabular-nums;
 }
+/* Đang tải: vạch cao bằng dòng số để thẻ không nhảy khi số về */
+.stat-card__skeleton {
+  display: block;
+  width: 3ch;
+  height: 1em;
+  border-radius: var(--radius-md);
+}
 .stat-card__icon {
   position: absolute;
   right: calc(var(--space-2) * -1);
@@ -2402,6 +2860,29 @@ button.stat-card .stat-card__label::after {
   min-width: 260px;
   /* Hàng lọc: ô tìm cao bằng ô chọn */
   height: var(--input-height);
+}
+/*
+ * Thanh lọc căn giữa một hàng (Thực phẩm): ô tìm giãn hết chỗ trống, các nút lọc cùng chiều cao và cùng hàng.
+ * Nút bật / tắt `.btn--toggle` sáng màu khi đang áp dụng.
+ */
+.filter-bar--aligned {
+  align-items: center;
+}
+.filter-bar--aligned > .search-submit {
+  flex: 1 1 320px;
+}
+.filter-bar--aligned > .btn,
+.filter-bar--aligned > .filter-more > summary,
+.filter-bar--aligned .search-submit .btn {
+  height: var(--input-height);
+}
+.btn--toggle[aria-pressed='true'] {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-border);
+  color: var(--color-primary);
+}
+.btn--toggle[aria-pressed='true'] svg {
+  color: var(--color-danger);
 }
 /* Tóm tắt khi đang lọc (FilterChips): "N kết quả" + chip bỏ từng bộ lọc, ngay dưới thanh lọc */
 .filter-summary {
@@ -2549,6 +3030,10 @@ button.stat-card .stat-card__label::after {
 .info-columns > .info-list:first-child {
   padding-left: 0;
 }
+/* 2 cột đều nhau cho danh sách nhãn – giá trị dài (vd. phiếu khám đã kết luận) */
+.info-columns--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .split-2 {
   display: grid;
   grid-template-columns: 1fr 1.15fr;
@@ -2573,6 +3058,15 @@ button.stat-card .stat-card__label::after {
     grid-template-columns: 1fr;
     gap: var(--space-3);
   }
+  /* Hai nửa nối liền như một danh sách, chung cột nhãn (subgrid) để giá trị thẳng hàng */
+  .info-columns--2 {
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--space-2) 18px;
+  }
+  .info-columns--2 > .info-list {
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
   .info-columns > .info-list,
   .info-columns > .info-list:not(:last-child) {
     padding: 0;
@@ -2583,6 +3077,12 @@ button.stat-card .stat-card__label::after {
   }
   .review-sign__note {
     width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .info-columns--2 {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2665,6 +3165,10 @@ button.stat-card .stat-card__label::after {
 }
 .progress__track:has(.progress__bar--purple) {
   --bar-c: var(--tone-approval);
+}
+/* Việc đã kết thúc mà chưa đủ (vd. đợt khám đã đóng): thanh tĩnh màu trung tính */
+.progress__track:has(.progress__bar--gray) {
+  --bar-c: var(--color-text-muted);
 }
 .progress__bar {
   position: relative;
@@ -3113,6 +3617,8 @@ button.stat-card .stat-card__label::after {
   position: fixed;
   z-index: var(--z-dropdown);
   display: grid;
+  /* Rộng theo nội dung (không bị chỗ trống bên trái nút bóp xuống dòng); chỉ xuống dòng khi chạm max-width */
+  width: max-content;
   min-width: 180px;
   max-width: calc(100vw - 2 * var(--space-2));
   padding: var(--space-1);
@@ -3151,6 +3657,11 @@ button.stat-card .stat-card__label::after {
 
 .row-menu__item--danger {
   color: var(--color-danger);
+}
+.row-menu__item:disabled {
+  color: var(--color-text-disabled);
+  background: none;
+  cursor: not-allowed;
 }
 
 /* ---------- Điện thoại (≤640px): primitive dùng chung về 1 cột ---------- */
@@ -3238,5 +3749,111 @@ button.stat-card .stat-card__label::after {
   .stepper__item,
   .timeline__step {
     scroll-snap-align: center;
+  }
+}
+/* Hàng nút Hủy / Lưu đặt đầu màn sửa (khu bán trú): căn phải, cách nội dung bên dưới */
+.page-actions--top {
+  justify-content: flex-end;
+  margin: 0 0 var(--space-4);
+}
+/* Xem trước khi xuất Excel (ExportPreview): bảng cuộn trong hộp, dòng tiêu đề cột và tên phần nổi bật */
+.export-preview__meta {
+  margin: 0 0 var(--space-3);
+}
+.export-preview {
+  max-height: 60vh;
+  overflow: auto;
+}
+.export-preview .export-preview__head th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--table-header-bg);
+}
+.export-preview .export-preview__section th {
+  background: var(--color-surface-muted);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+}
+/* Màn chia tab (useTabParam + Tabs): nội dung tab cách thanh tab, các thẻ trong tab xếp dọc */
+.tab-panel {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+.tab-panel > * {
+  margin-top: 0;
+}
+/* Tiêu đề "Thao tác" không gãy dòng kể cả khi bảng cho tiêu đề xuống dòng */
+.table thead th.cell--actions {
+  white-space: nowrap;
+}
+
+/* Danh sách có danh mục bên trái (CategoryNav): Món ăn, Thực phẩm, Tồn kho khô */
+.td-split-nav {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  overflow: hidden;
+}
+.td-split-nav__main {
+  min-width: 0;
+}
+.td-cat-nav {
+  padding: var(--space-4) var(--space-3);
+  border-right: 1px solid var(--color-border);
+}
+.td-cat-nav h3 {
+  margin: 0 var(--space-2) var(--space-2);
+  font-size: var(--fs-sm);
+}
+.td-cat-nav button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 38px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.td-cat-nav button:hover {
+  background: var(--color-surface-hover);
+}
+/* Viền focus nằm trong nút để không bị cắt khi danh mục cuộn ngang */
+.td-cat-nav button:focus-visible {
+  outline-offset: -2px;
+}
+.td-cat-nav button[aria-current='true'] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+}
+.td-cat-nav em {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-style: normal;
+}
+@media (max-width: 900px) {
+  .td-split-nav {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .td-cat-nav {
+    display: flex;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .td-cat-nav h3 {
+    display: none;
+  }
+  .td-cat-nav button {
+    width: auto;
+    white-space: nowrap;
   }
 }

@@ -1,47 +1,71 @@
-import { BEHAVIOR_NOTE_TRIGGERS, CLINICAL_GROUPS, YES_NO } from '@/models/children/healthExamForm';
-import { ExamChoiceField, ExamTextField } from './ExamFields';
+import { Fragment, useId } from 'react';
+import { BEHAVIOR_NOTE_TRIGGERS, CLINICAL_GROUPS, EXAM_STEPS, YES_NO } from '@/models/children/healthExamForm';
+import {
+  EXAM_SECTIONS,
+  ExamSheetBand,
+  ExamSheetCard,
+  ExamSheetChoiceCell,
+  ExamSheetInputCell,
+  ExamSheetRows,
+  ExamSheetTable,
+} from './ExamFields';
 
 /** Bước 4 — Phần VI: khám lâm sàng. Các mục chọn sẵn "Bình thường"/"Không"; chỉ đổi mục bác sĩ nói bất thường. */
 export function ExamClinicalStep({ form, set, errors, disabled }) {
+  const uid = useId();
   const c = form.exam.clinical;
   const needNote = BEHAVIOR_NOTE_TRIGGERS.some((k) => c[k] === YES_NO.YES);
-  return (
-    <section className="card wizard-card">
-      <h2 className="card__title mb-12">VI. Khám lâm sàng</h2>
-      <p className="muted text-sm mb-16">
-        Quan sát nét mặt, tư thế, tỷ lệ, sự đối xứng và chuyển động của trẻ. Các mục đã chọn sẵn kết quả bình thường; chỉ đổi mục bác sĩ nói
-        bất thường.
-      </p>
-      {CLINICAL_GROUPS.map((group) => (
-        <div key={group.key} className="tr-exam-group">
-          <h3 className="subsection-title">{group.title}</h3>
-          <div className="grid-2">
-            {group.items.map((item) => (
-              <ExamChoiceField
-                key={item.key}
-                name={`clinical-${item.key}`}
-                label={item.label}
-                options={item.options}
-                value={c[item.key]}
-                onChange={(v) => set(`exam.clinical.${item.key}`, v)}
-                error={errors[`exam.clinical.${item.key}`]}
-                disabled={disabled}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-      <ExamTextField
-        label="Nếu có, ghi rõ"
-        required={needNote}
+  const lastGroup = CLINICAL_GROUPS[CLINICAL_GROUPS.length - 1].key;
+  const itemRow = (item) => ({
+    key: item.key,
+    label: item.label,
+    id: `${uid}-${item.key}`,
+    required: true,
+    cell: (
+      <ExamSheetChoiceCell
+        name={`clinical-${item.key}`}
+        labelledBy={`${uid}-${item.key}`}
+        options={item.options}
+        value={c[item.key]}
+        onChange={(v) => set(`exam.clinical.${item.key}`, v)}
+        error={errors[`exam.clinical.${item.key}`]}
+        disabled={disabled}
+      />
+    ),
+  });
+  // "Nếu có, ghi rõ" của mẫu đứng sau 2 câu tâm lý, hành vi ở nhóm cuối.
+  const noteRow = {
+    key: 'behaviorNote',
+    label: 'Nếu có, ghi rõ',
+    id: `${uid}-behaviorNote`,
+    required: needNote,
+    cell: (
+      <ExamSheetInputCell
         multiline
         maxLength={300}
+        labelledBy={`${uid}-behaviorNote`}
         value={c.behaviorNote}
         onChange={(v) => set('exam.clinical.behaviorNote', v)}
         error={errors['exam.clinical.behaviorNote']}
         hint="Bắt buộc khi trẻ có biểu hiện buồn bã, lo âu, mất ngủ kéo dài hoặc hành vi bất thường. Ghi đúng lời bác sĩ."
         disabled={disabled}
       />
-    </section>
+    ),
+  };
+  return (
+    <ExamSheetCard
+      title={EXAM_STEPS[3].label}
+      info="Quan sát nét mặt, tư thế, tỷ lệ, sự đối xứng và chuyển động của trẻ. Các mục đã chọn sẵn kết quả bình thường; chỉ đổi mục bác sĩ nói bất thường."
+    >
+      <ExamSheetTable label={EXAM_SECTIONS.clinical}>
+        <ExamSheetBand primary>{EXAM_SECTIONS.clinical}</ExamSheetBand>
+        {CLINICAL_GROUPS.map((group) => (
+          <Fragment key={group.key}>
+            <ExamSheetBand>{group.title}</ExamSheetBand>
+            <ExamSheetRows rows={[...group.items.map(itemRow), group.key === lastGroup && noteRow]} />
+          </Fragment>
+        ))}
+      </ExamSheetTable>
+    </ExamSheetCard>
   );
 }

@@ -9,6 +9,13 @@ import {
   defaultVpAreas,
   parseAreaGrant,
 } from '@/models/school-config/schoolConfigConstants';
+// Mã quyền BE (ma trận ADR-0017); tên khớp PERMISSIONS ở module account
+const STAFF_ASSIGNMENT_MANAGE = 'STAFF_ASSIGNMENT_MANAGE';
+// Màn Nhân sự điểm trường mở được khi có 1 trong các quyền tài khoản / phân công (StaffAccountsBeView)
+const STAFF_VIEW_PERMISSIONS = ['ACCOUNT_MANAGE', 'ACCOUNT_STATUS_MANAGE', STAFF_ASSIGNMENT_MANAGE, 'PERMISSION_MANAGE'];
+// Đăng nhập BE: PHT xem phòng và xếp lớp năm mới của mọi điểm trường, chỉ HT sửa (AUTH-20; BE chặn ghi)
+const BE_VIEW_ALL_AREAS = ['rooms', 'yearPlacement'];
+const isBeUser = (user) => Array.isArray(user?.bePermissions);
 
 /*
  * Who may do what in school configuration – SRS 4.4 Permission Matrix + UC 2.1–2.7 (GBR-CFG-01).
@@ -26,9 +33,20 @@ export const canConfigureSchool = isPrincipal;
 export const canViewSchoolStructure = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.TEACHER, ROLES.TEAM_LEADER);
 
 export const canEditYear = (year, user) => isPrincipal(user) && !!year && year.status !== YEAR_STATUS.CLOSED;
-export const canActivateYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.PLANNED;
+/** Năm được kích hoạt tiếp theo: năm PLANNED bắt đầu sớm nhất (BE chặn kích hoạt năm khác). */
+export const nextYearToActivate = (years = []) =>
+  years.filter((y) => y.status === YEAR_STATUS.PLANNED).sort((a, b) => a.startDate.localeCompare(b.startDate))[0] || null;
+export const canActivateYear = (year, user, years = [year]) =>
+  isPrincipal(user) && year?.status === YEAR_STATUS.PLANNED && nextYearToActivate(years)?.id === year.id;
+/** Kết thúc tay chỉ sau ngày kết thúc năm học (BE kiểm tra lại). */
+export const closeYearOpensOn = (year) => {
+  if (!year?.endDate) return null;
+  const d = new Date(`${year.endDate}T00:00:00`);
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 export const canCloseYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.ACTIVE;
-/** Only a planned year can be deleted (the repository also checks it has no classes – MSG53). */
+/** Chỉ xóa năm chưa bắt đầu; xóa kèm lớp và dữ liệu chuẩn bị của năm đó (Cần chốt 22/10/2026). */
 export const canDeleteYear = (year, user) => isPrincipal(user) && year?.status === YEAR_STATUS.PLANNED;
 
 /** Classes and age groups of a closed year are history: read only. */
@@ -46,6 +64,8 @@ export const roomCampusIds = (user, campuses, need = false) =>
   campuses.filter((c) => areaAllows(user, 'rooms', c.id, need)).map((c) => c.id);
 
 /** UC 2.7 / GBR-CFG-03. */
+/** Cấu hình thời gian (giờ chốt, học kỳ, ngày nghỉ): chỉ Hiệu trưởng (user chốt 03/11/2026). */
+export const canManageSchoolCalendar = isPrincipal;
 export const canConfigureCutoff = isPrincipal;
 
 /** "Campus – Create / Edit": Principal only. */
@@ -69,10 +89,16 @@ export const permissionLevel = (user, code) => {
   return user.permissions?.[code] || 'NONE';
 };
 
-/** { access, scope } of a Vice Principal's area (menu, teacherAssignment, facility). Principal: EDIT whole school. */
+/** { access, scope } of a Vice Principal's area (menu, teacherAssignment, rooms). Principal: EDIT whole school. */
 export const areaAccess = (user, key) => {
   if (isPrincipal(user)) return parseAreaGrant(`EDIT@${AREA_SCOPE_ALL}`);
   if (!isVicePrincipal(user)) return parseAreaGrant(PERMISSION_LEVEL.NONE);
+  // Người dùng BE: theo quyền BE, không theo mảng mock
+  if (isBeUser(user) && BE_VIEW_ALL_AREAS.includes(key)) return parseAreaGrant(`${PERMISSION_ACCESS.VIEW}@${AREA_SCOPE_ALL}`);
+  if (isBeUser(user) && key === 'staff') {
+    const allowed = user.bePermissions.some((code) => STAFF_VIEW_PERMISSIONS.includes(code));
+    return parseAreaGrant(allowed ? `${PERMISSION_ACCESS.VIEW}@${AREA_SCOPE_ALL}` : PERMISSION_LEVEL.NONE);
+  }
   const value = user.areas ? user.areas[key] : defaultVpAreas({ sharedService: user.sharedService }, user.permissions)[key];
   return parseAreaGrant(value, user.campusId);
 };
@@ -88,6 +114,19 @@ export const areaAllows = (user, key, campusId, need = false) => {
   return a.scope === PERMISSION_SCOPE.ALL || !campusId || campusId === a.campusId;
 };
 
+/**
+ * Xếp lớp năm học mới: Hiệu trưởng toàn trường; PHT theo mảng "Xếp lớp năm học mới" Hiệu trưởng giao
+ * (1 điểm trường hoặc toàn trường; Xem hoặc Xem + Sửa).
+ */
+export const canViewYearPlacement = (user, campusId) => isPrincipal(user) || areaAllows(user, 'yearPlacement', campusId);
+export const canEditYearPlacement = (user, campusId) => isPrincipal(user) || areaAllows(user, 'yearPlacement', campusId, 'update');
+/** Điểm trường PHT được xếp (null = toàn trường). */
+export const yearPlacementCampus = (user) => {
+  if (isPrincipal(user)) return null;
+  const a = areaAccess(user, 'yearPlacement');
+  return a.scope === PERMISSION_SCOPE.ALL ? null : a.campusId || user?.campusId || null;
+};
+
 /** { access: NONE | VIEW | EDIT, scope: ALL | CAMPUS } of one permission for the signed-in user. */
 export const permissionAccess = (user, code) => {
   const area = VP_AREAS.find((a) => a.code === code);
@@ -99,34 +138,45 @@ const inScope = ({ scope, campusId: granted }, campusId, user) =>
   !!campusId && (scope === PERMISSION_SCOPE.ALL || (granted || user.campusId) === campusId);
 
 /**
- * "Phân công giáo viên" follows the Role & Permission screen (tổ trưởng: quyền riêng bên dưới):
- * NONE = no menu / page; VIEW = see assignments read only; EDIT = assign. Scope ALL = every campus, CAMPUS = own campus.
+ * Phân công giáo viên / tổ trưởng theo quyền thật STAFF_ASSIGNMENT_MANAGE của BE (ma trận quyền của dev, ADR-0017).
+ * HT toàn trường; PHT chỉ điểm trường mình phụ trách (AUTH-16). Tổ trưởng: PHT xem, chỉ HT phân công.
+ * Đăng nhập demo (không có quyền BE): HT, PHT mặc định có quyền này.
  */
-export const ASSIGN_TEACHER = 'permission.assignTeacher';
-/** Màn "Phân công giáo viên" mở khi có quyền phân công giáo viên hoặc phân công tổ trưởng (mỗi phần hiện theo quyền riêng). */
-export const canOpenTeacherAssignment = (user) =>
-  permissionAccess(user, ASSIGN_TEACHER).access !== PERMISSION_ACCESS.NONE || canViewTeamLeaders(user);
-export const canViewTeacherAssignments = (campusId, user) => {
-  const p = permissionAccess(user, ASSIGN_TEACHER);
-  return p.access !== PERMISSION_ACCESS.NONE && inScope(p, campusId, user);
+const hasStaffAssignPermission = (user) =>
+  Array.isArray(user?.bePermissions) ? user.bePermissions.includes(STAFF_ASSIGNMENT_MANAGE) : isPrincipal(user) || isVicePrincipal(user);
+const teacherAssignAccess = (user) => {
+  if (!hasStaffAssignPermission(user) || !(isPrincipal(user) || isVicePrincipal(user))) {
+    return { access: PERMISSION_ACCESS.NONE, scope: PERMISSION_SCOPE.CAMPUS, campusId: null, actions: {} };
+  }
+  return {
+    access: PERMISSION_ACCESS.EDIT,
+    scope: isPrincipal(user) ? PERMISSION_SCOPE.ALL : PERMISSION_SCOPE.CAMPUS,
+    campusId: isPrincipal(user) ? null : user?.campusId || null,
+    actions: { create: true, update: true, delete: true },
+  };
 };
-/** action: 'create' phân công mới, 'update' đổi, 'delete' gỡ tổ trưởng; true = có ít nhất 1 thao tác ghi. */
+export const teacherAssignmentAccess = teacherAssignAccess;
+/** Màn "Phân công giáo viên" mở khi có quyền phân công nhân sự. */
+export const canOpenTeacherAssignment = (user) => teacherAssignAccess(user).access !== PERMISSION_ACCESS.NONE;
+// Xem: PHT xem phân công mọi điểm trường (BE AUTH-20); sửa vẫn chỉ điểm trường mình (canAssignTeachers)
+export const canViewTeacherAssignments = (campusId, user) => {
+  const p = teacherAssignAccess(user);
+  return p.access !== PERMISSION_ACCESS.NONE && !!campusId;
+};
+/** action: 'create' phân công mới, 'update' đổi, 'delete' gỡ; true = có ít nhất 1 thao tác ghi. */
 export const canAssignTeachers = (campusId, user, action = true) => {
-  const p = permissionAccess(user, ASSIGN_TEACHER);
+  const p = teacherAssignAccess(user);
   const ok = action === true ? p.access === PERMISSION_ACCESS.EDIT : !!p.actions?.[action];
   return ok && inScope(p, campusId, user);
 };
 
-/**
- * Tổ trưởng nhóm tuổi: 1 người cho cả trường mỗi năm học (người dùng chốt 14/10/2026).
- * Hiệu trưởng luôn được; PHT theo quyền riêng "Phân công tổ trưởng nhóm tuổi" (tách khỏi phân công giáo viên, chốt 14/10/2026).
- */
+/** Tổ trưởng nhóm tuổi: 1 người cho cả trường mỗi năm học (chốt 14/10/2026). */
 export function canViewTeamLeaders(user) {
-  return areaAccess(user, 'teamLeaders').access !== PERMISSION_ACCESS.NONE;
+  return teacherAssignAccess(user).access !== PERMISSION_ACCESS.NONE;
 }
 export const teamLeaderActions = (user) => {
-  const p = areaAccess(user, 'teamLeaders');
-  return Object.fromEntries(['create', 'update', 'delete'].map((k) => [k, !!p.actions?.[k]]));
+  const ok = isPrincipal(user) && hasStaffAssignPermission(user);
+  return { create: ok, update: ok, delete: ok };
 };
 
 /** Thao tác phân công được làm ở điểm trường: { create, update, delete }. */

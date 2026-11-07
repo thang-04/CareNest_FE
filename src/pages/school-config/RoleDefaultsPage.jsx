@@ -3,17 +3,26 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useRolePermissionMatrix } from '@/hooks/account/usePermissions';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { ReasonModal } from '@/components/permissions/ReasonModal';
 import { PermissionTabs } from '@/components/permissions/PermissionTabs';
-import { PermissionCheckCell, PermissionFixedCell, PermissionTable } from '@/components/permissions/PermissionTable';
+import {
+  PermissionCheckCell,
+  PermissionFixedCell,
+  PermissionFlowCheckCell,
+  PermissionTable,
+} from '@/components/permissions/PermissionTable';
 import { updateRolePermissions } from '@/services/account/permissionService';
 import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import {
   codeDiff,
   configurableCheck,
+  flowCheckState,
   permissionTableRows,
   PERMISSION_MATRIX_ROLES,
+  toggleFlow,
   toggleWithRequires,
 } from '@/utils/account/permissionMatrix';
 import { permissionCrumbs } from '@/utils/school-config/breadcrumbs';
@@ -36,14 +45,26 @@ export default function RoleDefaultsPage() {
   const originalOf = (role) => roleEntry(role)?.permissions || [];
   const codesOf = (role) => drafts[role] ?? originalOf(role);
 
-  const toggle = (role, code, on) => {
-    const result = toggleWithRequires(catalog, codesOf(role), code, on, configurableCheck(roleEntry(role)));
+  const setRoleCodes = (role, codes) =>
     setDrafts((current) => {
       const copy = { ...current };
-      if (sameCodes(result.codes, originalOf(role))) delete copy[role];
-      else copy[role] = result.codes;
+      if (sameCodes(codes, originalOf(role))) delete copy[role];
+      else copy[role] = codes;
       return copy;
     });
+
+  // Tick cả luồng lớn: mọi việc nhỏ chỉnh được của luồng đổi theo
+  const toggleWholeFlow = (role, flow, on) => {
+    const result = toggleFlow(catalog, codesOf(role), flow.codes, on, configurableCheck(roleEntry(role)));
+    setRoleCodes(role, result.codes);
+    setNotice(
+      `Đã ${on ? 'tick' : 'bỏ tick'} cả luồng “${flow.label}” cho ${PERMISSION_ROLE_LABELS[role]} (${on ? result.added.length : result.removed.length} việc đổi).`,
+    );
+  };
+
+  const toggle = (role, code, on) => {
+    const result = toggleWithRequires(catalog, codesOf(role), code, on, configurableCheck(roleEntry(role)));
+    setRoleCodes(role, result.codes);
     // Báo việc tự tick/bỏ tick kèm theo để người dùng không bất ngờ
     const roleName = PERMISSION_ROLE_LABELS[role];
     if (result.added.length)
@@ -54,6 +75,8 @@ export default function RoleDefaultsPage() {
   };
 
   const changedRoles = PERMISSION_MATRIX_ROLES.filter((role) => role in drafts);
+  // Lưu cần lý do (ReasonModal) ⇒ hộp rời màn không có nút Lưu; Hủy giữ nguyên các tick chưa lưu
+  const guard = useLeaveGuard({ when: changedRoles.length > 0 });
   const allChanges = changedRoles.flatMap((role) => {
     const { added, removed } = codeDiff(originalOf(role), codesOf(role));
     const roleName = PERMISSION_ROLE_LABELS[role];
@@ -101,6 +124,18 @@ export default function RoleDefaultsPage() {
       header: PERMISSION_ROLE_LABELS[role],
       note: fixed ? 'Cố định' : null,
       fixed,
+      renderFlow: (flow) => {
+        const state = flowCheckState(flow.codes, codesOf(role), isConfigurable);
+        if (!state) return null;
+        return (
+          <PermissionFlowCheckCell
+            state={state}
+            disabled={saving}
+            label={`Cả luồng ${flow.label} — ${PERMISSION_ROLE_LABELS[role]}`}
+            onChange={(on) => toggleWholeFlow(role, flow, on)}
+          />
+        );
+      },
       render: (code) => {
         const checked = codesOf(role).includes(code);
         if (!isConfigurable(code)) {
@@ -198,6 +233,11 @@ export default function RoleDefaultsPage() {
           )}
 
           {asking && <ReasonModal saving={saving} changes={allChanges} onClose={() => setAsking(false)} onSubmit={saveAll} />}
+          <LeaveConfirmModal
+            {...guard.modal}
+            canSave={false}
+            message="Bạn còn thay đổi phân quyền chưa lưu. Bấm Hủy để ở lại và Lưu phân quyền (cần nhập lý do); Không lưu thì bỏ các thay đổi."
+          />
         </>
       )}
     </div>

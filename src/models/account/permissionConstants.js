@@ -1,17 +1,11 @@
 /*
- * Danh mục demo từ UI G94-209; chưa phải contract của BE hiện tại.
+ * Nhãn hiển thị cho mã quyền BE (BE:src/main/java/com/carenest/utils/enums/Permission.java);
+ * STAFF_ACCOUNT_VIEW, PARENT_ACCOUNT_VIEW là đề xuất của UI G94-209, BE chưa có.
  * Không dùng các mã này để thay quyền hoặc scope đang chạy.
  */
 
-/** Mã quyền FE dùng để ẩn/hiện menu, route. Quyết định thật vẫn ở BE. */
-export const PERMISSIONS = {
-  CHILD_PROFILE_VIEW: 'CHILD_PROFILE_VIEW',
-  ACCOUNT_MANAGE: 'ACCOUNT_MANAGE',
-  ACCOUNT_STATUS_MANAGE: 'ACCOUNT_STATUS_MANAGE',
-  STAFF_ASSIGNMENT_MANAGE: 'STAFF_ASSIGNMENT_MANAGE',
-  PARENT_ACCOUNT_MANAGE: 'PARENT_ACCOUNT_MANAGE',
-  PERMISSION_MANAGE: 'PERMISSION_MANAGE',
-};
+/** Mã quyền FE dùng để ẩn/hiện menu, route (dùng chung nhiều module). */
+export { PERMISSIONS } from '@/models/bePermissions';
 
 /** Thứ tự cột của ma trận: cả 6 role của BE. */
 export const PERMISSION_ROLES = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF', 'PARENT', 'ADMIN'];
@@ -56,6 +50,7 @@ export const PERMISSION_GROUPS = {
   child: { key: 'child', label: 'Hồ sơ trẻ & Phát triển' },
   staff: { key: 'staff', label: 'Quản trị nhân sự & Phân công' },
   parent: { key: 'parent', label: 'Tài khoản phụ huynh' },
+  meals: { key: 'meals', label: 'Suất ăn' },
   system: { key: 'system', label: 'Quản lý hệ thống' },
 };
 
@@ -99,6 +94,37 @@ export const PERMISSION_TASKS = {
     hint: 'Kích hoạt theo SĐT, gắn hoặc gỡ liên kết trẻ, khóa/mở, cấp mật khẩu tạm',
     group: 'parent',
   },
+  MEAL_COUNT_CONFIRM: {
+    label: 'Xác nhận, điều chỉnh số suất ăn',
+    hint: 'Số suất của điểm trường phụ trách',
+    group: 'meals',
+  },
+  // Bán trú chia theo cấp của BE (BE:docs/business/flows/meal-management-permissions.md): danh mục, kho khô, thực đơn
+  NUTRITION_MANAGE: {
+    label: 'Quản lý danh mục bán trú',
+    hint: 'Thực phẩm, món ăn, cấu hình nhóm tuổi, nhà cung cấp',
+    group: 'meal-catalog',
+  },
+  STOCK_MANAGE: {
+    label: 'Nhập kho khô theo điểm trường',
+    hint: 'Lập phiếu nhập kho khô của điểm trường phụ trách',
+    group: 'meal-stock',
+  },
+  FOOD_SAFETY_APPROVE: {
+    label: 'Duyệt lưu mẫu thức ăn, duyệt hủy mẫu',
+    hint: 'Theo điểm trường; Hiệu trưởng có thể nâng lên cả trường',
+    group: 'meal-safety',
+  },
+  KITCHEN_RECORD: {
+    label: 'Ghi lưu mẫu, hủy mẫu, đăng ảnh bữa ăn',
+    hint: 'Tài khoản bếp chung của điểm trường',
+    group: 'meal-record',
+  },
+  MENU_MANAGE: {
+    label: 'Lập và công bố thực đơn tuần',
+    hint: 'Lập, sửa kế hoạch tuần và công bố cả tuần cho cả trường',
+    group: 'meal-menu',
+  },
   PERMISSION_MANAGE: {
     label: 'Phân quyền toàn trường',
     hint: 'Đặt quyền theo vai trò và ngoại lệ từng người; chỉ Hiệu trưởng',
@@ -106,12 +132,26 @@ export const PERMISSION_TASKS = {
   },
 };
 
-/** Nhóm dòng bảng = khóa `feature` của catalog BE. */
+/** Nhóm dòng bảng (cấp 2) = khóa `feature` của catalog BE; `flow` = luồng lớn (cấp 1) chứa nó. */
 export const PERMISSION_FEATURES = {
-  'child-profile': { label: 'Hồ sơ trẻ', group: 'child' },
-  staff: { label: 'Tài khoản & phân công nhân sự', group: 'staff' },
-  'parent-account': { label: 'Tài khoản phụ huynh', group: 'parent' },
-  permission: { label: 'Phân quyền', group: 'system' },
+  'child-profile': { label: 'Hồ sơ trẻ', group: 'child', flow: 'child' },
+  staff: { label: 'Tài khoản & phân công nhân sự', group: 'staff', flow: 'staff' },
+  'parent-account': { label: 'Tài khoản phụ huynh', group: 'parent', flow: 'child' },
+  permission: { label: 'Phân quyền', group: 'system', flow: 'system' },
+  meals: { label: 'Suất ăn', group: 'meals', flow: 'meals' },
+  'meal-catalog': { label: 'Danh mục bán trú', group: 'meals', flow: 'meals' },
+  'meal-stock': { label: 'Kho khô', group: 'meals', flow: 'meals' },
+  'meal-menu': { label: 'Thực đơn', group: 'meals', flow: 'meals' },
+  'meal-safety': { label: 'Duyệt mẫu thức ăn', group: 'meals', flow: 'meals' },
+  'meal-record': { label: 'Bếp ghi lưu mẫu, ảnh bữa ăn', group: 'meals', flow: 'meals' },
+};
+
+/** Luồng lớn (cấp 1) của ma trận quyền: tick cả luồng thì mọi việc nhỏ bên trong được tick theo. */
+export const PERMISSION_FLOWS = {
+  child: { label: 'Hồ sơ trẻ & phụ huynh' },
+  staff: { label: 'Nhân sự & phân công' },
+  meals: { label: 'Bán trú' },
+  system: { label: 'Phân quyền toàn trường' },
 };
 
 export const REASON_MAX_LENGTH = 500;

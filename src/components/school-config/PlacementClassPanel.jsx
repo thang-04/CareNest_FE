@@ -31,7 +31,10 @@ const initialRows = (from, targets) => {
       ch.id,
       ch.placement
         ? { action: ch.placement.action, toClassId: ch.placement.toClassId || '' }
-        : { action: first, toClassId: defaultTarget(targets, from, first) },
+        : // BE CFG-YR-04: lớp ra trường chỉ gợi ý "Ra trường" khi trẻ đã hoàn thành chương trình; còn lại HT tự chọn
+          from.graduating && ch.programCompleted !== true
+          ? { action: '', toClassId: '' }
+          : { action: first, toClassId: defaultTarget(targets, from, first) },
     ]),
   );
 };
@@ -51,9 +54,11 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
   const [bulkAction, setBulkAction] = useState('');
   const actions = from.graduating ? [GRADUATE, STAY, LEAVE] : [PROMOTE, STAY, LEAVE];
   const saved = useMemo(() => initialRows(from, targets), [from, targets]);
+  // Chỉ tính là sửa khi người dùng đổi so với bản đã lưu / gợi ý ban đầu; trẻ chưa xếp chỉ là gợi ý, chưa hỏi khi rời màn
   const dirty = from.children.some(
-    (ch) => !ch.placement || rows[ch.id]?.action !== saved[ch.id]?.action || rows[ch.id]?.toClassId !== saved[ch.id]?.toClassId,
+    (ch) => rows[ch.id]?.action !== saved[ch.id]?.action || rows[ch.id]?.toClassId !== saved[ch.id]?.toClassId,
   );
+  const suggested = from.children.filter((ch) => !ch.placement).length;
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
 
   // Số chỗ đã dùng sau khi lưu: chỗ của các lớp cũ khác + lựa chọn đang sửa ở lớp này
@@ -83,7 +88,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
       });
       return next;
     });
-    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([id]) => !ids.includes(id))));
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([id]) => id !== '_form' && !ids.includes(id))));
   };
   const applyWholeClass = () =>
     patchRows(
@@ -107,8 +112,8 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
   const submit = async () => {
     const missing = Object.fromEntries(
       Object.entries(rows)
-        .filter(([, r]) => PLACEMENT_IN_CLASS.includes(r.action) && !r.toClassId)
-        .map(([id]) => [id, 'Chọn lớp năm học mới']),
+        .filter(([, r]) => !r.action || (PLACEMENT_IN_CLASS.includes(r.action) && !r.toClassId))
+        .map(([id, r]) => [id, r.action ? 'Chọn lớp năm học mới' : 'Chọn ra trường hoặc ở lại']),
     );
     setErrors(missing);
     if (Object.keys(missing).length || over.length) return;
@@ -118,8 +123,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
       toast.success('Đã lưu xếp lớp (dự kiến).', from.name);
       onSaved();
     } catch (err) {
-      if (err.details) setErrors(err.details);
-      toast.error(err, 'Không lưu được xếp lớp');
+      setErrors(err.details || { _form: err.message });
     } finally {
       setSaving(false);
     }
@@ -127,11 +131,16 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
 
   return (
     <div className="sc-plc__panel">
+      {errors._form && (
+        <div className="alert alert--danger mb-12" role="alert">
+          {errors._form}
+        </div>
+      )}
       {/* Tên lớp và "Cả lớp lên" chung một hàng để bảng trẻ có nhiều chỗ hơn */}
       <div className="sc-plc__toolbar">
         {heading}
         {from.graduating ? (
-          <span className="chip chip--blue">Nhóm tuổi lớn nhất: mặc định ra trường</span>
+          <span className="chip chip--blue">Nhóm tuổi lớn nhất: trẻ hoàn thành chương trình ra trường, trẻ khác bạn chọn</span>
         ) : (
           <>
             <label className="field__label" htmlFor="plc-whole">
@@ -228,6 +237,18 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
                   <td className="nowrap sc-plc__child">
                     <ChildAvatar child={ch} size="sm" />
                     <span className="fw-600">{ch.fullName}</span>
+                    {/* Lớp ra trường: kết quả hoàn thành chương trình ở đánh giá cuối năm (BE OBS-14) */}
+                    {from.graduating && (
+                      <span
+                        className={`chip ${ch.programCompleted === true ? 'chip--green' : ch.programCompleted === false ? 'chip--orange' : 'chip--gray'}`}
+                      >
+                        {ch.programCompleted === true
+                          ? 'Hoàn thành CT'
+                          : ch.programCompleted === false
+                            ? 'Chưa hoàn thành CT'
+                            : 'Chưa đánh giá cuối năm'}
+                      </span>
+                    )}
                     <span className="muted text-xs">
                       {ch.code}
                       {!ch.placement && <span className="sc-plc__new"> · chưa lưu</span>}
@@ -282,6 +303,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
         <div className="row row--wrap">
           {[PROMOTE, STAY, LEAVE, GRADUATE].map((a) => (count(a) ? <PlacementActionBadge key={a} action={a} count={count(a)} /> : null))}
           {dirty && <span className="chip chip--orange">Có thay đổi chưa lưu</span>}
+          {!dirty && suggested > 0 && <span className="chip">{suggested} trẻ đang là gợi ý, bấm Lưu để xếp</span>}
         </div>
         <div className="row">
           <button className="btn" type="button" disabled={!dirty || saving} onClick={reset}>

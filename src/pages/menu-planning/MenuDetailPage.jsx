@@ -13,6 +13,7 @@ import { MealsView } from '@/components/menu-planning/MealsView';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
 import { AllergenWarnings } from '@/components/menu-planning/AllergenWarnings';
 import { mealsTotals, priceOn } from '@/utils/menu-planning/menuCalculations';
+import { normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import { sampleMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
 import { ageGroupById } from '@/models/School';
@@ -41,7 +42,12 @@ export default function MenuDetailPage() {
       </div>
     );
 
-  const result = mealsTotals(m.meals, catalog.dishById, catalog.foodById, m.ageGroupId);
+  const result = mealsTotals(
+    normScopeMeals(m.meals, catalog.nutritionSetups, m.ageGroupId),
+    catalog.dishById,
+    catalog.foodById,
+    m.ageGroupId,
+  );
   const price = priceOn(catalog.mealPrices, m.ageGroupId, todayInput())?.price;
   const remove = async () => {
     try {
@@ -104,58 +110,80 @@ export default function MenuDetailPage() {
             baseMenuId={m.id}
             canCreate={canManage}
           />
-          <NutritionTable result={result} ageGroupId={m.ageGroupId} norms={catalog.norms} price={price} />
+          <NutritionTable result={result} ageGroupId={m.ageGroupId} norms={catalog.norms} setups={catalog.nutritionSetups} price={price} />
         </div>
       </div>
-      <div className="td-split mt-16">
-        <div className="card">
-          <div className="card__header">
-            <div className="card__title">Thực đơn thay thế ({m.allergyMenus.length})</div>
-          </div>
-          <div className="card__body">
-            {m.allergyMenus.length === 0 ? (
-              <span className="muted">Chưa có thực đơn thay thế cho thực đơn này.</span>
-            ) : (
-              <ul className="td-check-list">
+      <div className="card mt-16">
+        <div className="card__header">
+          <div className="card__title">Thực đơn thay thế ({m.allergyMenus.length})</div>
+        </div>
+        {m.allergyMenus.length === 0 ? (
+          <div className="card__body muted">Chưa có thực đơn thay thế cho thực đơn này.</div>
+        ) : (
+          <div className="table-wrap td-card-table">
+            <table className="table table--grid table--compact">
+              <thead>
+                <tr>
+                  <th>Mã</th>
+                  <th>Tên thực đơn</th>
+                  <th>Nhóm</th>
+                  <th>Tránh</th>
+                </tr>
+              </thead>
+              <tbody>
                 {m.allergyMenus.map((a) => (
-                  <li key={a.id}>
-                    <div>
+                  <tr key={a.id}>
+                    <td className="nowrap">
                       <Link to={`/menu/menus/${id}/edit`} className="fw-600">
                         {a.code}
-                      </Link>{' '}
-                      · {a.name}
-                      <div className="text-sm muted">
-                        {ALLERGY_GROUP_LABELS[a.groupType]} · tránh {a.restrictions.join(', ')}
-                      </div>
-                    </div>
-                  </li>
+                      </Link>
+                    </td>
+                    <td>{a.name}</td>
+                    <td>{ALLERGY_GROUP_LABELS[a.groupType]}</td>
+                    <td>{a.restrictions.join(', ')}</td>
+                  </tr>
                 ))}
-              </ul>
-            )}
+              </tbody>
+            </table>
           </div>
+        )}
+      </div>
+      <div className="card mt-16">
+        <div className="card__header">
+          <div className="card__title">Dùng trong thực đơn tuần ({m.usedInWeeks.length})</div>
         </div>
-        <div className="card">
-          <div className="card__header">
-            <div className="card__title">Dùng trong thực đơn tuần ({m.usedInWeeks.length})</div>
-          </div>
-          <div className="card__body">
-            {m.usedInWeeks.length === 0 ? (
-              <span className="muted">Chưa được xếp vào tuần nào.</span>
-            ) : (
-              <ul className="td-check-list">
+        {m.usedInWeeks.length === 0 ? (
+          <div className="card__body muted">Chưa được xếp vào tuần nào.</div>
+        ) : (
+          <div className="table-wrap td-card-table">
+            <table className="table table--grid table--compact">
+              <thead>
+                <tr>
+                  <th>Mã thực đơn tuần</th>
+                  <th>Tuần</th>
+                  <th className="num">Phiên bản</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
                 {m.usedInWeeks.map((w) => (
-                  <li key={w.id}>
-                    <Link to={`/menu/weekly/${w.id}`}>
-                      {w.code} · tuần {weekLabel(w.weekStart)}
-                      {w.version > 1 ? ` · phiên bản ${w.version}` : ''}
-                    </Link>
-                    <WeeklyStatusBadge status={w.status} />
-                  </li>
+                  <tr key={w.id}>
+                    <td className="nowrap">
+                      <Link to={`/menu/weekly/${w.id}`} className="fw-600">
+                        {w.code}
+                      </Link>
+                    </td>
+                    <td className="nowrap">{weekLabel(w.weekStart)}</td>
+                    <td className="num">{w.version || 1}</td>
+                    <td>
+                      <WeeklyStatusBadge status={w.status} />
+                    </td>
+                  </tr>
                 ))}
-              </ul>
-            )}
+              </tbody>
+            </table>
           </div>
-        </div>
+        )}
       </div>
       <HistoryCard history={m.history} />
       <div className="page-actions">

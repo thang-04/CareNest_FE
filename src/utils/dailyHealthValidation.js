@@ -43,6 +43,14 @@ export const actionSummary = (entries = []) => {
   return parts.join(' · ');
 };
 
+// Gõ nhanh ba chữ số: 385 → 38.5; không đổi số có dấu thập phân hoặc chuỗi sai định dạng.
+export const normalizeTemperatureInput = (value) => {
+  const raw = String(value ?? '')
+    .trim()
+    .replace(',', '.');
+  return /^\d{3}$/.test(raw) ? `${raw.slice(0, 2)}.${raw[2]}` : raw;
+};
+
 export const validateDailyHealth = ({ temperature, observation, symptoms = [], note = '', actions = [], referral = null }) => {
   const errors = {};
   const raw = String(temperature ?? '')

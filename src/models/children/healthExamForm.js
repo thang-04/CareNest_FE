@@ -8,7 +8,7 @@
  * @typedef {Object} HealthExam
  * @property {number} step                       bước xa nhất đã tới (0–4), để mở lại phiếu nháp đúng chỗ
  * @property {ExamAdmin} admin
- * @property {{ self: YesNo|'', selfText: string, family: YesNo|'', familyText: string, tbContact: YesNo|'' }} history
+ * @property {{ self: YesNo|'', selfText: string, family: YesNo|'', familyText: string, tbContact: YesNo|'', tbContactDate: string }} history
  * @property {{ temperatureC: string|number, temperatureStatus: string, pulse: string|number, pulseStatus: string,
  *   respiratoryRate: string|number, respiratoryStatus: string }} vitals
  * @property {{ lengthForAgeSd: string|number, weightForAgeSd: string|number, headStatus: string,
@@ -34,11 +34,14 @@
  * @property {boolean} normal
  * @property {boolean} tbRisk
  * @property {boolean} healthIssue
+ * @property {'NEW'|'KNOWN'|''} issueKind        mẫu thường: vấn đề mới hay đã biết (khi có vấn đề, không chuyển khám)
+ * @property {'NO_NEW_FINDING'|'ADVICE'|'NEW_FINDING'|''} followUpFinding  mẫu FOLLOW_UP, chỉ còn ở phiếu đã kết luận trước 2026-11-04
  * @property {string} issueText
  * @property {'NONE'|'ADVICE'|'REFERRAL'|''} action
  * @property {string} adviceText
  * @property {string} specialty
  * @property {string} doctorName
+ * @property {string} parentOpinion              ý kiến phụ huynh tại buổi khám: có người đi cùng, mức Cần theo dõi sát (2026-10-23)
  *
  * @typedef {'YES'|'NO'} YesNo
  */
@@ -78,7 +81,14 @@ export const GUARDIAN_TO_COMPANION_RELATION = { Bố: 'Cha', Mẹ: 'Mẹ', Ông:
 export const HISTORY_ITEMS = [
   { key: 'self', label: 'Tiền sử bản thân', options: NO_YES, textKey: 'selfText', textLabel: 'Tên bệnh của trẻ' },
   { key: 'family', label: 'Tiền sử gia đình', options: NO_YES, textKey: 'familyText', textLabel: 'Tên bệnh trong gia đình' },
-  { key: 'tbContact', label: 'Tiền sử tiếp xúc với người bệnh lao', options: NO_YES },
+  // "Có" thì kèm ngày tiếp xúc gần nhất, điền sẵn từ khai báo (user chốt 2026-10-21).
+  {
+    key: 'tbContact',
+    label: 'Tiền sử tiếp xúc với người bệnh lao',
+    options: NO_YES,
+    dateKey: 'tbContactDate',
+    dateLabel: 'Ngày tiếp xúc gần nhất',
+  },
 ];
 
 export const VITAL_ITEMS = [
@@ -250,14 +260,72 @@ export const CONCLUSION_FLAGS = [
   { key: 'healthIssue', label: 'Có vấn đề về sức khỏe' },
 ];
 
-/** Nhóm kết luận BE trả cho thống kê đợt; nguy cơ lao đứng trước chuyển khám. */
-export const CONCLUSION_CATEGORY = { NORMAL: 'NORMAL', ISSUE: 'ISSUE', REFERRAL: 'REFERRAL', TB_RISK: 'TB_RISK' };
+// "Có vấn đề" không chuyển khám: "Cần theo dõi" chỉ cho vấn đề có thể chuyển biến (user chốt 2026-10-21).
+export const ISSUE_KIND = { NEW: 'NEW', KNOWN: 'KNOWN' };
+
+export const ISSUE_KIND_LABELS = {
+  NEW: 'Vấn đề mới hoặc có thay đổi',
+  KNOWN: 'Vấn đề đã biết, không thay đổi so với trước',
+};
+
+/**
+ * Mẫu kết luận BE chọn. Bỏ phiếu theo dõi (HLT-16, 2026-11-04): phiếu mới và phiếu nháp luôn STANDARD; FOLLOW_UP chỉ còn ở phiếu đã
+ * kết luận theo mẫu đó trước 2026-11-04, xem và sửa vẫn giữ mẫu.
+ */
+export const CONCLUSION_MODE = { STANDARD: 'STANDARD', FOLLOW_UP: 'FOLLOW_UP' };
+
+// Mẫu FOLLOW_UP (dữ liệu cũ): một câu so với vấn đề đang theo dõi thay cho 2 nhóm Kết luận, Hướng xử lý.
+export const FOLLOW_UP_FINDING = { NO_NEW_FINDING: 'NO_NEW_FINDING', ADVICE: 'ADVICE', NEW_FINDING: 'NEW_FINDING' };
+
+export const FOLLOW_UP_FINDING_LABELS = {
+  NO_NEW_FINDING: 'Chưa ghi nhận thêm bất thường',
+  ADVICE: 'Tư vấn',
+  NEW_FINDING: 'Có thêm bất thường mới',
+};
+
+export const FOLLOW_UP_FINDING_HINTS = {
+  NO_NEW_FINDING: 'Không có vấn đề mới so với lần khám trước.',
+  ADVICE: 'Có vấn đề nhỏ mới, bác sĩ chỉ tư vấn.',
+  NEW_FINDING: 'Ghi rõ bất thường mới; có đề nghị khám chuyên khoa thì ghi chuyên khoa.',
+};
+
+/** Câu kết luận để hiển thị; phiếu cũ mẫu FOLLOW_UP hiện lựa chọn so với vấn đề đang theo dõi. */
+export const conclusionLabelOf = (c) => {
+  if (!c) return '';
+  if (c.followUpFinding)
+    return [FOLLOW_UP_FINDING_LABELS[c.followUpFinding], c.tbRisk ? CONCLUSION_FLAGS.find((f) => f.key === 'tbRisk').label : null]
+      .filter(Boolean)
+      .join(', ');
+  return CONCLUSION_FLAGS.filter((f) => c[f.key])
+    .map((f) => f.label)
+    .join(', ');
+};
+
+/** Hướng xử lý để hiển thị; mẫu FOLLOW_UP không có nhóm này, chỉ có chuyên khoa đề nghị khi có bất thường mới. */
+export const conclusionActionLabelOf = (c) => {
+  if (!c) return '';
+  if (c.followUpFinding) return c.specialty ? `Đề nghị khám chuyên khoa: ${c.specialty}` : '';
+  const label = CONCLUSION_ACTION_LABELS[c.action] || '';
+  return c.action === CONCLUSION_ACTION.REFERRAL && c.specialty ? `${label}: ${c.specialty}` : label;
+};
+
+/** Nhóm kết luận BE trả (cảnh báo của đợt khám, HLT-19); nguy cơ lao đứng trước chuyển khám. FOLLOWING_* chỉ ở dữ liệu cũ. */
+export const CONCLUSION_CATEGORY = {
+  NORMAL: 'NORMAL',
+  ISSUE: 'ISSUE',
+  REFERRAL: 'REFERRAL',
+  TB_RISK: 'TB_RISK',
+  FOLLOWING_NO_NEW: 'FOLLOWING_NO_NEW',
+  FOLLOWING_NEW: 'FOLLOWING_NEW',
+};
 
 export const CONCLUSION_CATEGORY_LABELS = {
   NORMAL: 'Bình thường',
   ISSUE: 'Có vấn đề, tư vấn',
   REFERRAL: 'Chuyển khám chuyên khoa',
   TB_RISK: 'Nguy cơ lao',
+  FOLLOWING_NO_NEW: 'Đang theo dõi, chưa ghi nhận thêm',
+  FOLLOWING_NEW: 'Đang theo dõi, có bất thường mới',
 };
 
 export const EXAM_FIELD_LIMITS = { short: 100, text: 300, note: 500, idNumber: 20 };
@@ -279,7 +347,7 @@ export const buildEmptyExam = () => ({
     hasCompanion: '',
     companion: { guardianIndex: null, fullName: '', relation: '', phone: '', idNumber: '' },
   },
-  history: { self: '', selfText: '', family: '', familyText: '', tbContact: '' },
+  history: { self: '', selfText: '', family: '', familyText: '', tbContact: '', tbContactDate: '' },
   vitals: { temperatureC: '', temperatureStatus: '', pulse: '', pulseStatus: '', respiratoryRate: '', respiratoryStatus: '' },
   nutrition: { lengthForAgeSd: '', weightForAgeSd: '', headStatus: '', armCircumferenceMm: '', statuses: [] },
   development: { mental: '', motor: '', autismRisk: '' },
@@ -293,18 +361,21 @@ export const buildEmptyExam = () => ({
     normal: false,
     tbRisk: false,
     healthIssue: false,
+    issueKind: '',
+    followUpFinding: '',
     issueText: '',
     action: '',
     adviceText: '',
     specialty: '',
     doctorName: '',
+    parentOpinion: '',
   },
 });
 
-/** Bước chứa một ô (theo khóa lỗi BE trả), để form mở đúng bước có lỗi. */
+/** Bước chứa một ô (theo khóa lỗi BE trả), để form mở đúng bước có lỗi. Lỗi `date` (BE ghi ngày khám) hiện ở dòng ngày của bước 1. */
 export const stepOfField = (key) => {
-  if (/^exam\.(admin|history)\b/.test(key)) return 0;
-  if (/^(date|heightCm|weightKg|headCircumferenceCm)$/.test(key) || /^exam\.(vitals|nutrition)\b/.test(key)) return 1;
+  if (key === 'date' || /^exam\.(admin|history)\b/.test(key)) return 0;
+  if (/^(heightCm|weightKg|headCircumferenceCm)$/.test(key) || /^exam\.(vitals|nutrition)\b/.test(key)) return 1;
   if (/^exam\.(development|immunization)\b/.test(key)) return 2;
   if (/^exam\.clinical\b/.test(key)) return 3;
   return 4;

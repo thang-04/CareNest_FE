@@ -22,11 +22,11 @@ const keysOf = (role) => getMenuForRole(role).flatMap((m) => (m.children || []).
 
 beforeEach(() => values.clear());
 
-test('menu mới: HT có thực đơn tuần, PHT vào Quy trình và Thiết lập dinh dưỡng', () => {
+test('menu mới: HT có thực đơn tuần, PHT vào Bán trú hôm nay và Thiết lập dinh dưỡng', () => {
   assert.ok(keysOf(ROLES.PRINCIPAL).includes('weeklyMenus'));
   assert.ok(keysOf(ROLES.PRINCIPAL).includes('nutritionSetup'));
   const vp = keysOf(ROLES.VICE_PRINCIPAL);
-  assert.ok(vp.includes('menuFlow') && vp.includes('nutritionSetup'));
+  assert.ok(getMenuForRole(ROLES.VICE_PRINCIPAL).some((m) => m.key === 'boardingToday') && vp.includes('nutritionSetup'));
 });
 
 test('ngày cần xử lý: ngày chưa chọn thực đơn, món mặn lặp trong 7 ngày; ngày nghỉ bỏ qua', async () => {
@@ -56,11 +56,15 @@ test('ngày cần xử lý: ngày chưa chọn thực đơn, món mặn lặp tr
   );
 });
 
-test('HT chỉ đọc được bản đã xuất bản của nhóm tuổi', async () => {
+test('HT xem được cả bản nháp của nhóm tuổi; giáo viên không lưu được', async () => {
   const list = await repo.listWeeklyMenus({ ageGroupId: 'ag-4' }, HT);
   assert.ok(list.length > 0);
-  assert.ok(list.every((w) => w.status === 'PUBLISHED'));
-  await assert.rejects(repo.saveWeeklyMenu(null, { ageGroupId: 'ag-4', weekStart: '2026-11-02', days: [] }, HT), (e) => e.status === 403);
+  const asVp = await repo.listWeeklyMenus({ ageGroupId: 'ag-4' }, VP);
+  assert.equal(list.length, asVp.length, 'HT thấy đủ như PHT (cả bản nháp)');
+  await assert.rejects(
+    repo.saveWeeklyMenu(null, { ageGroupId: 'ag-4', weekStart: '2026-11-02', days: [] }, { id: 'u_teacher', role: 'TEACHER' }),
+    (e) => e.status === 403,
+  );
 });
 
 test('tóm tắt đầu cột ngày khớp bảng cân đối: kcal, tiền ăn, đánh giá; ngày nghỉ hoặc chưa có món thì không có số', async () => {

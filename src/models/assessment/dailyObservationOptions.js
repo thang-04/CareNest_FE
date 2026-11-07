@@ -9,7 +9,7 @@
  * khám sức khỏe. Điền sẵn từ lần khám sức khỏe mới nhất trong ngày; thân nhiệt từ các mức dưới đây trở lên điền thêm "Sốt".
  * Không hiển thị thân nhiệt ở màn Đánh giá (Cần chốt 15/10/2026).
  */
-export const PREFILL_FEVER_LEVELS = ['FEVER', 'HIGH', 'VERY_HIGH'];
+export const PREFILL_FEVER_LEVELS = ['MODERATE', 'HIGH', 'VERY_HIGH'];
 
 /** Ăn: theo từng bữa của nhóm tuổi (ageGroup.mealSessions), mặc định Ăn hết. */
 export const EATING = { AN_HET: 'AN_HET', AN_IT: 'AN_IT', KHONG_AN: 'KHONG_AN' };
@@ -37,5 +37,6 @@ export const PARTICIPATION = { TICH_CUC: 'TICH_CUC', BINH_THUONG: 'BINH_THUONG',
 export const PARTICIPATION_LABELS = { TICH_CUC: 'Tích cực', BINH_THUONG: 'Bình thường', CHUA_TICH_CUC: 'Chưa tích cực' };
 
 /** Kết quả từng mục tiêu: không chọn = chưa đánh giá (không tính là chưa đạt). */
+// Kiến thức kỹ năng theo MT chỉ Đạt / Chưa đạt như bảng đánh giá cuối chủ đề (Cần chốt 04/11/2026, bỏ "Cần cố gắng")
 export const YCCD_RESULT = { DAT: 'DAT', CHUA_DAT: 'CHUA_DAT' };
 export const YCCD_RESULT_LABELS = { DAT: 'Đạt', CHUA_DAT: 'Chưa đạt' };

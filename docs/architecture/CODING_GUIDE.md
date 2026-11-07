@@ -47,16 +47,16 @@ Muốn thử vai trò khác: menu tài khoản → _Đăng xuất_ → đăng nh
 ```
 (gốc dự án)
   DESIGN.md            design system chung web + app
-  README.md            cách chạy, tài khoản demo, routes
+  README.md            giới thiệu, tech stack, kiến trúc, cách chạy, quy ước
   docs/                tài liệu (file này: docs/architecture/CODING_GUIDE.md)
   mockups/             ảnh thiết kế gốc theo module (chuẩn để code giao diện, không import vào code)
     brand/             logo gốc
-    <ten-module>/      ví dụ facility-transfer/LuanChuyen1.png …
+    <ten-module>/      ví dụ attendance/DiemDanh.png …
   public/              favicon
   src/                 mã nguồn (bên dưới)
 ```
 
-Mã nguồn tổ chức theo **layer-first + module grouping**: các layer lớn nằm trực tiếp trong `src/`. Bên trong mỗi layer, phần riêng của từng nghiệp vụ được nhóm theo module (`education-plan/`, `facility-transfer/`, `inventory-inspection/`…). Phần dùng chung nhiều module nằm ở gốc của layer.
+Mã nguồn tổ chức theo **layer-first + module grouping**: các layer lớn nằm trực tiếp trong `src/`. Bên trong mỗi layer, phần riêng của từng nghiệp vụ được nhóm theo module (`education-plan/`, `attendance/`, `assessment/`…). Phần dùng chung nhiều module nằm ở gốc của layer.
 
 | Nhóm layer           | Thư mục                                                                   | Vai trò                                                                                     |
 | -------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -123,10 +123,10 @@ localStorage   Axios
   import Modal from '@/components/ui/Modal';
   import { useMasterData } from '@/hooks/useMasterData';
   import { formatDate } from '@/utils/format';
-  import { createTransferItem } from '@/models/facility-transfer/FacilityTransferItem';
-  import TransferAssetTable from '@/components/facility-transfer/TransferAssetTable';
+  import { getClassAttendance } from '@/services/attendance/attendanceService';
+  import { AttendanceRowBadge } from '@/components/attendance/AttendanceBadges';
   ```
-- Code của module A (`*/education-plan/`) **không import** code riêng của module B (`*/facility-transfer/`). Cần dùng chung → chuyển lên gốc layer: `src/components`, `src/hooks`, `src/services`, `src/models`, `src/utils`.
+- Code của module A (`*/education-plan/`) **không import** code riêng của module B (`*/attendance/`). Cần dùng chung → chuyển lên gốc layer: `src/components`, `src/hooks`, `src/services`, `src/models`, `src/utils`.
   (Ngoại lệ duy nhất: trang ở **gốc** `src/pages` (vd. `HomePage.jsx`) được đọc nhiều module; `*/dashboard/` không phải ngoại lệ — user chốt 20/10/2026.) ESLint chặn vi phạm (`npm run lint`); vi phạm cũ nằm trong danh sách nợ `CROSS_MODULE_DEBT` ở `.eslintrc.cjs`, chỉ được xóa bớt, không thêm.
 - **Chung hay riêng:** trước khi viết component/class mới, tra `DESIGN.md` §6.3. Dùng ở 1 module ⇒ `components/<module>/`. Module thứ 2 cần ⇒ chuyển lên phần chung (`components/ui/` hoặc nhóm chung) **trong cùng PR**, thêm vào §6.3 và `/ui-kit`. Không bọc lại component chung chỉ để đổi tên prop. Hàm ngày/số dùng `utils/format.js`; chưa có thì thêm vào đó một lần, không viết lại trong module.
 
@@ -152,7 +152,7 @@ Quy tắc:
 3. Style inline (`style={{…}}`) chỉ cho giá trị động (độ rộng %, màu từ dữ liệu). Màu, cỡ chữ, khoảng cách **không** viết inline – dùng class / token.
 4. Class đã có trong `components.css` thì **không viết lại** trong module.
 5. Module thấy một mẫu dùng ở ≥ 2 chỗ → chuyển lên `components.css` + component trong `src/components`.
-6. File CSS của module đặt trong `styles/modules/`, tên đúng tên module: `styles/modules/facility-transfer.css`. Import ở trang/component của module: `import '@/styles/modules/facility-transfer.css';`.
+6. File CSS của module đặt trong `styles/modules/`, tên đúng tên module: `styles/modules/attendance.css`. Import ở trang/component của module: `import '@/styles/modules/attendance.css';`.
 7. Class trong CSS module **mới** phải có tiền tố 2–3 chữ của module để không trùng (`kk-` = kiểm kê, ví dụ module Báo hỏng dùng `bh-`). Module Luân chuyển viết trước quy tắc này nên class chưa có tiền tố (tên đã đủ riêng: `campus-card`, `route-banner`…) – không đặt class mới trùng các tên đó.
 8. Bảng danh sách/cấu hình cần kẻ đủ ô dùng `.table-wrap > .table.table--grid`; thêm `table--compact` khi cần mật độ gọn. CSS module chỉ đặt độ rộng/căn chỉnh đặc thù, không viết lại viền, padding, màu header hoặc hover của `.table`. Bảng có ô nhập: cột cố định, không sửa được (STT, mã, ĐVT, số hệ thống, số tự tính) gắn `cell--fixed` ở cả `th` và `td` (nền xám). Ngoại lệ đã duyệt: bảng kiểu Word của Kế hoạch giáo dục (`ga-goal-table`, `ga-plan-table`) giữ CSS riêng nhưng vẫn dùng `cell--fixed`. Bảng nhiều cột số dễ tràn khung: thêm `table--wrap-head` (tiêu đề cột được xuống dòng) thay vì `min-width` cố định; mỗi thông tin một cột riêng, không gộp cột để cho vừa (user 20/10/2026). Card không tự có lề: nội dung đặt trong `.card__body`. Căn lề cột theo loại dữ liệu, `th` cùng class với ô: chữ/mã/ngày trái (mặc định), số `.num` (giữa), tiền `.money` (phải), trạng thái/ô tích/icon/nút `.center`; không dùng `.right` mới. Ngoại lệ mật độ (giữ để vừa một màn 1366px): màn Xếp lớp năm học mới (`.sc-plc-page` thu nhỏ nút, ô chọn, padding ô) và khối Tiếp nhận đầu ngày (`.dd-reception > .card` padding).
 
@@ -189,20 +189,20 @@ Hook dùng chung: người đang đăng nhập `const { user, hasRole, logout } 
 
 ## 5. Quy trình thêm module mới (từng bước)
 
-Ví dụ module **Báo hỏng** (`facility-issue`). Mỗi bước đặt file vào đúng layer, trong thư mục con `facility-issue/` của layer đó (đường dẫn dưới đây tính từ `src/`):
+Ví dụ module **Đón trẻ** (`pickup`, đã có trong source). Mỗi bước đặt file vào đúng layer, trong thư mục con `pickup/` của layer đó (đường dẫn dưới đây tính từ `src/`):
 
-0. **Mockup** – đặt ảnh thiết kế vào `mockups/facility-issue/` và thêm dòng mô tả vào `mockups/README.md`.
-1. **Model** – `models/facility-issue/issueConstants.js`: `ISSUE_STATUS`, `ISSUE_STATUS_LABELS`, typedef.
-2. **Quy tắc** – `utils/facility-issue/issueValidation.js` (trả về `{ field: message }`), `utils/facility-issue/issuePermissions.js` (`canApproveIssue(issue, user)`…).
-3. **Mock backend** – `services/facility-issue/mock/issueMockRepository.js`: dùng `readDb`, `writeDb`, `delay`, `ApiError` từ `@/mocks/mockDatabase`; gửi thông báo bằng `pushNotification`. Thêm dữ liệu mẫu vào `mocks/seed.js` (`buildSeedDatabase`) và đọc an toàn `db.issues ||= []`.
-4. **API thật** – `services/facility-issue/api/issueApi.js`: các hàm axios cùng tên/tham số với mock.
-5. **Facade** – `services/facility-issue/issueService.js`: `const repo = USE_MOCK ? mock : api;` rồi export các hàm `getIssues`, `approveIssue`…
-6. **Hook** – `hooks/facility-issue/useIssues.js` dùng `useAsync`.
-7. **Badge** – `components/facility-issue/IssueStatusBadge.jsx` bằng `createStatusBadge` (`DESIGN.md` mục 3.2).
-8. **Trang** – `pages/facility-issue/IssueListPage.jsx`… theo công thức `DESIGN.md` mục 8. Breadcrumb: `utils/facility-issue/breadcrumbs.js`.
-9. **Route** – `routes/AppRoutes.jsx`: thêm vào **bên trong** khối `<Route element={<ProtectedRoute />}>` → `<Route element={<MainLayout />}>` (tự bắt đăng nhập). Trang `lazy(() => import('@/pages/facility-issue/IssueListPage'))`; trang chỉ PHT dùng thì bọc `<RoleGuard roles={[ROLES.VICE_PRINCIPAL]}>`. Trang công khai (không cần đăng nhập) đặt ngoài khối đó, dùng `AuthLayout`.
-10. **Menu** – `layouts/menuConfig.js`: thêm mục vào `ITEMS` (tên, route) **một lần**, rồi thêm key đó vào nhóm `facility` (hoặc nhóm phù hợp) trong `MENUS` của từng vai trò được dùng. Không tạo tên/icon khác cho cùng chức năng.
-11. **CSS** – chỉ khi cần: `styles/modules/facility-issue.css` (trùng tên module), class có tiền tố `bh-`.
+0. **Mockup** – đặt ảnh thiết kế vào `mockups/pickup/` và thêm dòng mô tả vào `mockups/README.md`.
+1. **Model** – `models/pickup/pickupConstants.js`: `PICKUP_STATUS`, `PICKUP_STATUS_LABELS`, typedef.
+2. **Quy tắc** – `utils/pickup/pickupValidation.js` (`validatePickupResult` trả về `{ field: message }`), `utils/pickup/pickupPermissions.js` (`canOpenPickup(user)`…).
+3. **Mock backend** – `services/pickup/mock/pickupMockRepository.js`: dùng `readDb`, `writeDb`, `delay`, `ApiError` từ `@/mocks/mockDatabase`; gửi thông báo bằng `pushNotification` khi luồng cần. Thêm dữ liệu mẫu vào `mocks/seed.js` (`buildSeedDatabase`) hoặc file seed riêng như `mocks/pickupSeed.js`, và đọc an toàn khi db cũ chưa có khóa mới (`db.pickups`).
+4. **API thật** – `services/pickup/api/pickupApi.js`: các hàm axios cùng tên/tham số với mock.
+5. **Facade** – `services/pickup/pickupService.js`: `const repo = USE_MOCK ? mock : api;` rồi export các hàm `getPickupBoard`, `recordPickupResult`…
+6. **Hook** – `hooks/pickup/usePickups.js` dùng `useAsync`.
+7. **Badge** – `components/pickup/PickupBadges.jsx` (`PickupStatusBadge`…) bằng `createStatusBadge` (`DESIGN.md` mục 3.2).
+8. **Trang** – `pages/pickup/PickupListPage.jsx`… theo công thức `DESIGN.md` mục 8. Breadcrumb: `utils/pickup/breadcrumbs.js`.
+9. **Route** – `routes/AppRoutes.jsx`: thêm vào **bên trong** khối `<Route element={<ProtectedRoute />}>` → `<Route element={<MainLayout />}>` (tự bắt đăng nhập). Trang `lazy(() => import('@/pages/pickup/PickupListPage'))`; trang giới hạn vai trò thì bọc `<RoleGuard roles={[...]}>` (helper `only(roles, page)` trong file). Trang công khai (không cần đăng nhập) đặt ngoài khối đó, dùng `AuthLayout`.
+10. **Menu** – `layouts/menuConfig.js`: thêm mục vào `ITEMS` (tên, route) **một lần**, rồi thêm key đó vào nhóm `attendance` (hoặc nhóm phù hợp) trong `MENUS` của từng vai trò được dùng. Không tạo tên/icon khác cho cùng chức năng.
+11. **CSS** – chỉ khi cần: `styles/modules/pickup.css` (trùng tên module), class có tiền tố riêng của module (`dt-`).
 12. **Kiểm tra** – đăng nhập bằng từng tài khoản liên quan, test đủ luồng, `npm run check`.
 
 ---
@@ -239,7 +239,7 @@ Nghiệp vụ, quyền, contract do `CareNest_BE` sở hữu; mục này mô t�
 | ---------------- | ------------------- | ---------------------------------------------------------------------------------------------- |
 | `PRINCIPAL`      | Hiệu trưởng         | Xem toàn trường; cấu hình năm học, điểm trường, vai trò; phê duyệt cuối (khen thưởng, đề xuất) |
 | `VICE_PRINCIPAL` | Phó hiệu trưởng     | Tạo phiếu/đợt, duyệt, phê duyệt, hủy                                                           |
-| `TEAM_LEADER`    | Tổ trưởng nhóm tuổi | Kế hoạch chủ đề, duyệt giáo án trong khối; với CSVC xử lý việc được giao như giáo viên         |
+| `TEAM_LEADER`    | Tổ trưởng nhóm tuổi | Kế hoạch chủ đề, duyệt giáo án trong khối; đánh giá lớp được phân công         |
 | `TEACHER`        | Giáo viên           | Chỉ xử lý việc được giao                                                                       |
 | `KITCHEN_STAFF`  | Nhân viên bếp       | Chỉ xử lý việc được giao                                                                       |
 
@@ -270,7 +270,6 @@ Vai trò đến từ tài khoản đăng nhập (mục 6.1). Ẩn nút người 
 ### 6.6 Tồn kho & khóa dữ liệu
 
 - Số lượng tài sản chỉ thay đổi ở **bước hoàn tất cuối** (xác nhận nhận, phê duyệt kiểm kê) và luôn ghi lại trước/sau.
-- Đang kiểm kê → khóa luân chuyển của phòng đó. UI đọc bằng `useLockedLocations()` (`@/hooks`), service dùng `getLockedLocations()` (`@/services/facilityLockService`); luật phía server giả nằm ở `mocks/inventoryLock.js`. Module mới đụng tới tồn kho phải kiểm tra khóa này.
 
 ---
 
@@ -289,8 +288,8 @@ Vai trò đến từ tài khoản đăng nhập (mục 6.1). Ẩn nút người 
 | Mã trạng thái   | UPPER_SNAKE_CASE tiếng Anh             | `PENDING_HANDOVER`                                 |
 | Nhãn hiển thị   | map `XXX_LABELS` tiếng Việt            | `TRANSFER_STATUS_LABELS`                           |
 | Quyền           | `canXxx(entity, user)`                 | `canReceive(t, user)`                              |
-| Thư mục module  | kebab-case tiếng Anh                   | `facility-transfer`                                |
-| Route           | `/khu-vuc/doi-tuong[/:id[/hanh-dong]]` | `/facility/transfers/:id/handover`                 |
+| Thư mục module  | kebab-case tiếng Anh                   | `attendance`                                |
+| Route           | `/khu-vuc/doi-tuong[/:id[/hanh-dong]]` | `/attendance/summary`                 |
 
 - Code, tên biến: **tiếng Anh**. Chữ hiển thị cho người dùng: **tiếng Việt**. Comment theo khối "Comment trong code" của `AGENTS.md`.
 - Comment giải thích **vì sao**, không mô tả lại code.
@@ -300,7 +299,8 @@ Vai trò đến từ tài khoản đăng nhập (mục 6.1). Ẩn nút người 
 
 ## 8. Nối Spring Boot (bỏ mock)
 
-1. `.env`: `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=http://<host>/api`.
+1. `.env`: `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=http://<host>/api`. `VITE_USE_MOCK=false` **không** bật BE cho mọi màn: nguồn từng module theo `src/config/integrationModules.js` (`api` = BE, `demo` = dữ liệu mẫu, màn vẫn hiện kèm nhãn "Dữ liệu demo" — user chốt 2026-11-01). Facade module demo chọn nguồn qua `sourceOf('<module>', mock, api)` (`src/services/demoSource.js`); không fallback mock lặng lẽ.
+   - Thêm/đổi lời gọi HTTP ⇒ khai file vào module; module `api` gọi endpoint BE chưa có ⇒ khai `pending` hoặc giữ `demo`. Cổng `npm run check:api` (trong `verify`) so với `docs/integration/be-api-routes.json`; BE đổi API ⇒ `node scripts/check-api-contract.mjs --sync` (đọc `BE:docs/api/openapi.yaml`). Đủ endpoint ⇒ đổi module sang `api`.
 2. Mỗi module có sẵn `services/<module>/api/*Api.js` với đường dẫn đề xuất; backend làm theo, hoặc sửa đường dẫn trong file này (UI không phải sửa). Contract thật: `docs/integration/BACKEND_INTEGRATION.md` và BE.
 3. Làm 3 endpoint đăng nhập ở mục 6.1. `axiosClient` tự gắn `Authorization: Bearer <token>`, chuẩn hóa lỗi về `{ status, message }` – backend trả `{ message }` khi lỗi, `401` khi token hết hạn.
 4. Luật nghiệp vụ cần làm lại ở backend nằm trong các file `services/<module>/mock/*MockRepository.js`.

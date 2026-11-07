@@ -29,7 +29,7 @@ test('profile normalizes account identity and prioritizes supported server roles
 });
 
 test('each supported web role has deterministic priority independent of server ordering', () => {
-  const priority = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF'];
+  const priority = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'ADMIN'];
   for (let index = 0; index < priority.length; index += 1) {
     assert.equal(
       normalizeAccountProfile({
@@ -41,8 +41,8 @@ test('each supported web role has deterministic priority independent of server o
   }
 });
 
-test('unknown, parent, and admin roles never obtain a supported web role', () => {
-  for (const roles of [['TEAM_LEADER'], ['PARENT'], ['ADMIN'], []]) {
+test('unknown, parent, and kitchen roles never obtain a supported web role', () => {
+  for (const roles of [['TEAM_LEADER'], ['PARENT'], ['KITCHEN_STAFF'], []]) {
     const user = normalizeAccountProfile({ userId: 1, roles });
     assert.equal(user.role, null);
     assert.equal(user.roles.includes('TEAM_LEADER'), false);
@@ -69,6 +69,23 @@ test('assignments preserve server scopes and produce distinct keys without defau
   const noScope = normalizeAccountProfile({ userId: 8, roles: ['PRINCIPAL'], assignments: [{ staffRole: 'PRINCIPAL' }] });
   assert.deepEqual(noScope.locationIds, []);
   assert.deepEqual(noScope.classIds, []);
+});
+
+test('a teacher with an active age-group leader assignment is a team leader', () => {
+  const user = normalizeAccountProfile({
+    userId: 9,
+    roles: ['TEACHER'],
+    assignments: [
+      { staffRole: 'TEACHER', classroomId: 4 },
+      { staffRole: 'AGE_GROUP_TEAM_LEADER', campusId: 2, ageGroupId: 3 },
+    ],
+  });
+  assert.equal(user.role, 'TEAM_LEADER');
+  assert.deepEqual(user.roles, ['TEACHER']);
+  assert.equal(user.ageGroupId, 3);
+  assert.equal(normalizeAccountProfile({ userId: 9, roles: ['TEACHER'], assignments: [] }).ageGroupId, null);
+  const principal = normalizeAccountProfile({ userId: 1, roles: ['PRINCIPAL'], assignments: [{ staffRole: 'AGE_GROUP_TEAM_LEADER' }] });
+  assert.equal(principal.role, 'PRINCIPAL');
 });
 
 test('missing identity or roles rejects the profile instead of inventing access', () => {

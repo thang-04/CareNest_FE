@@ -1,52 +1,24 @@
 import { normalizeText } from '@/utils/format';
-import { DECLARATION_STATE, IMPORT_COLUMNS } from '@/models/children/childrenConstants';
+import { DECLARATION_STATE, GUARDIAN_RELATIONS, IMPORT_COLUMNS } from '@/models/children/childrenConstants';
 
 /*
  * Fake-backend parser for the enrollment template. Only CSV is read in the demo (no spreadsheet
  * dependency); the real backend reads .xlsx and returns the same row shape.
  */
 
-/** RFC 4180-ish CSV parser: quotes, escaped quotes, ',' or ';' separator, BOM. */
-export const parseCsv = (text) => {
-  const raw = String(text || '');
-  // Excel saves "CSV UTF-8" with a byte order mark (U+FEFF).
-  const src = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
-  const firstLine = src.split(/\r?\n/, 1)[0] || '';
-  const sep = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ';' : ',';
-  const rows = [];
-  let row = [];
-  let cell = '';
-  let quoted = false;
-  for (let i = 0; i < src.length; i += 1) {
-    const ch = src[i];
-    if (quoted) {
-      if (ch === '"' && src[i + 1] === '"') {
-        cell += '"';
-        i += 1;
-      } else if (ch === '"') quoted = false;
-      else cell += ch;
-    } else if (ch === '"') quoted = true;
-    else if (ch === sep) {
-      row.push(cell);
-      cell = '';
-    } else if (ch === '\n' || ch === '\r') {
-      if (ch === '\r' && src[i + 1] === '\n') i += 1;
-      row.push(cell);
-      rows.push(row);
-      row = [];
-      cell = '';
-    } else cell += ch;
-  }
-  if (cell !== '' || row.length) {
-    row.push(cell);
-    rows.push(row);
-  }
-  return rows.filter((r) => r.some((c) => c.trim() !== ''));
-};
+import { parseCsv } from '@/utils/csv';
+export { parseCsv } from '@/utils/csv';
 
 const headerKey = (header) => {
-  const h = normalizeText(header).trim();
-  const col = IMPORT_COLUMNS.find((c) => h.startsWith(normalizeText(c.label.split(' (')[0])));
+  const h = normalizeText(String(header ?? '')).trim();
+  const col = [...IMPORT_COLUMNS]
+    .sort((a, b) => b.label.length - a.label.length)
+    .find(
+      (c) =>
+        h === normalizeText(c.label) ||
+        h === normalizeText(c.label.split(' (')[0]) ||
+        h.startsWith(normalizeText(c.label.split(' (')[0]) + ' ('),
+    );
   return col?.key || null;
 };
 
@@ -64,6 +36,11 @@ const toGender = (value) => {
   if (['nu', 'female', 'f'].includes(v)) return 'FEMALE';
   return '';
 };
+
+// Quan hệ trong file so không dấu, không phân biệt hoa thường, bỏ khoảng trắng/dấu "/" ("anh chị" = "Anh/chị"); không khớp 6 lựa
+// chọn thì giữ nguyên để báo lỗi đúng dòng (user chốt 2026-10-28, D-5a B).
+const relationKey = (value) => normalizeText(value).replace(/[^a-z]/g, '');
+const toRelation = (value) => GUARDIAN_RELATIONS.find((r) => relationKey(r) === relationKey(value)) || String(value || '').trim();
 
 const isNone = (value) => ['khong', 'khong co', 'none', 'no'].includes(normalizeText(value).trim());
 const isYes = (value) => ['co', 'yes', 'x'].includes(normalizeText(value).trim());
@@ -116,21 +93,22 @@ const toDeclaration = (allergies, diet, raw = {}) => {
     medicalHistory: {
       self: toHistoryItem(raw.selfHistory),
       family: toHistoryItem(raw.familyHistory),
-      tbContact: { state: toTbState(raw.tbContact) },
+      tbContact: { state: toTbState(raw.tbContact), contactDate: toIsoDate(raw.tbContactDate) },
     },
   };
 };
 
 /** CSV text -> { missingColumns, rows: [{ rowNo, raw, payload }] } (payload = enrollment payload without class). */
-export const readEnrollmentCsv = (text) => {
-  const table = parseCsv(text);
+export const readEnrollmentCsv = (text) => readEnrollmentTable(parseCsv(text));
+
+export const readEnrollmentTable = (table) => {
   if (table.length === 0) return { missingColumns: IMPORT_COLUMNS.filter((c) => c.required).map((c) => c.label), rows: [] };
   const keys = table[0].map(headerKey);
   const missingColumns = IMPORT_COLUMNS.filter((c) => c.required && !keys.includes(c.key)).map((c) => c.label);
   const rows = table.slice(1).map((cells, i) => {
     const raw = {};
     keys.forEach((k, idx) => {
-      if (k) raw[k] = (cells[idx] || '').trim();
+      if (k) raw[k] = (cells[idx] instanceof Date ? cells[idx].toISOString().slice(0, 10) : String(cells[idx] ?? '')).trim();
     });
     return {
       rowNo: i + 2,
@@ -140,14 +118,26 @@ export const readEnrollmentCsv = (text) => {
           fullName: raw.fullName || '',
           dateOfBirth: toIsoDate(raw.dateOfBirth),
           gender: toGender(raw.gender),
-          guardians: [{ fullName: raw.guardianName || '', relation: raw.relation || '', phone: raw.phone || '', email: raw.email || '' }],
+          guardians: ['', '2', '3']
+            .filter(
+              (suffix) => !suffix || ['guardianName', 'relation', 'phone', 'guardianIdNumber', 'email'].some((key) => raw[key + suffix]),
+            )
+            .map((suffix) => ({
+              fullName: raw['guardianName' + suffix] || '',
+              relation: toRelation(raw['relation' + suffix]),
+              phone: raw['phone' + suffix] || '',
+              idNumber: raw['guardianIdNumber' + suffix] || '',
+              email: raw['email' + suffix] || '',
+              accountRecipient:
+                !!raw.accountRecipientIdNumber &&
+                raw.accountRecipientIdNumber.replace(/\s/g, '') === (raw['guardianIdNumber' + suffix] || '').replace(/\s/g, ''),
+            })),
           profile: {
             idNumber: raw.idNumber || '',
             premature: toYesNo(raw.premature),
             gestationWeeks: raw.gestationWeeks || '',
             ethnicity: raw.ethnicity || '',
             beneficiary: raw.beneficiary || '',
-            paymentSource: raw.paymentSource || '',
             bloodType: raw.bloodType || '',
             address: { province: raw.province || '', ward: raw.ward || '', street: raw.street || '' },
           },

@@ -1,5 +1,5 @@
 import { DonutChart } from '@/components/charts/MiniCharts';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, BarChart3, Buildings, School } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,12 +9,14 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DateInput } from '@/components/form/DateInput';
+import { SemesterSelect } from '@/components/form/SemesterSelect';
+import { semesterRange } from '@/utils/semesters';
 import { paginate } from '@/components/ui/Pagination';
-import { useAttendanceClasses, useAttendanceSummary } from '@/hooks/attendance/useAttendance';
+import { useAttendanceClasses, useAttendanceSummary, useAttendanceYear } from '@/hooks/attendance/useAttendance';
 import { validateSummaryRange } from '@/utils/attendance/attendanceValidation';
-import { addDays, schoolToday } from '@/utils/attendance/attendanceTime';
+import { addDays } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { downloadCsv } from '@/utils/exportCsv';
+import { exportWithPreviewWorkbook } from '@/components/ui/ExportPreview';
 import { formatDate, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -29,7 +31,7 @@ export default function AttendanceSummaryPage() {
   const { user } = useAuth();
   const md = useMasterData();
   const [params, setParams] = useSearchParams();
-  const today = schoolToday();
+  const { defaultDate: today } = useAttendanceYear();
   const { classes, loading: loadingClasses, error: classError, reload: reloadClasses } = useAttendanceClasses();
   const manager = [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL].includes(user?.role);
   // Điểm trường chọn được = điểm trường có lớp trong phạm vi xem (PHT thường chỉ điểm trường của mình)
@@ -37,9 +39,29 @@ export default function AttendanceSummaryPage() {
   const campusId = manager ? (campusOptions.length === 1 ? campusOptions[0].id : params.get('campus') || '') : '';
   const campusClasses = classes.filter((c) => !campusId || c.campusId === campusId);
   const paramClass = params.get('classId') || '';
-  const classId = manager ? (campusClasses.some((c) => c.id === paramClass) ? paramClass : '') : paramClass || classes[0]?.id || '';
-  const multi = manager && !classId;
+  // Tổ trưởng chuyên môn: xem lớp mình hoặc tổng hợp các lớp nhóm tuổi mình (BE lọc theo nhóm tuổi, Cần chốt 04/11)
+  const teamLeader = user?.role === ROLES.TEAM_LEADER;
+  // Tổ trưởng không dạy lớp nào thì chỉ có phạm vi các lớp nhóm tuổi
+  const groupMode = teamLeader && (params.get('scope') === 'group' || (!loadingClasses && classes.length === 0));
+  const classId = manager
+    ? campusClasses.some((c) => c.id === paramClass)
+      ? paramClass
+      : ''
+    : groupMode
+      ? paramClass // bấm một lớp trong bảng "Theo lớp" thì xem riêng lớp đó (BE cho tổ trưởng xem tổng hợp lớp nhóm mình)
+      : paramClass || classes[0]?.id || '';
+  const multi = (manager || groupMode) && !classId;
   const [range, setRange] = useState({ from: params.get('from') || addDays(today, -13), to: params.get('to') || today });
+  // Lọc nhanh theo học kỳ: đặt Từ ngày – Đến ngày theo học kỳ (cắt tới hôm nay); sửa ngày tay thì bỏ chọn
+  const [semester, setSemester] = useState('');
+  // Đổi năm học ở đầu trang: khoảng ngày và học kỳ về mặc định của năm mới (không gửi ngày của năm cũ)
+  const yearToday = useRef(today);
+  useEffect(() => {
+    if (yearToday.current === today) return;
+    yearToday.current = today;
+    setRange({ from: addDays(today, -13), to: today });
+    setSemester('');
+  }, [today]);
   const [pageSize, setPageSize] = useState(20);
   const [pageState, setPageState] = useState({ key: '', value: 1 });
   const rangeErrors = validateSummaryRange(range);
@@ -51,35 +73,48 @@ export default function AttendanceSummaryPage() {
   const summary =
     valid && !loading && !error && sameScope && loadedSummary.from === range.from && loadedSummary.to === range.to ? loadedSummary : null;
   const campusName = (id) => md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || '';
-  const scopeName = classId ? summary?.className || '' : campusId ? campusName(campusId) : 'Toàn trường';
-  const query = (next) => Object.fromEntries(Object.entries({ campus: campusId, classId, ...range, ...next }).filter(([, v]) => v));
+  const scopeName = classId ? summary?.className || '' : groupMode ? 'Các lớp nhóm tuổi' : campusId ? campusName(campusId) : 'Toàn trường';
+  const query = (next) =>
+    Object.fromEntries(
+      Object.entries({ campus: campusId, classId, scope: groupMode ? 'group' : '', ...range, ...next }).filter(([, v]) => v),
+    );
   const pageKey = `${campusId}:${classId}:${range.from}:${range.to}:${pageSize}`;
   const pageCount = Math.max(1, Math.ceil((summary?.days.length || 0) / pageSize));
   const page = Math.min(pageState.key === pageKey ? pageState.value : 1, pageCount);
   const setPage = (value) => setPageState({ key: pageKey, value });
 
-  const setRangeValue = (key, value) => {
-    const next = { ...range, [key]: value };
+  const applyRange = (next) => {
     setRange(next);
     if (isIsoDate(next.from) && isIsoDate(next.to)) setParams(query(next), { replace: true });
   };
+  const setRangeValue = (key, value) => {
+    setSemester('');
+    applyRange({ ...range, [key]: value });
+  };
+  const pickSemester = (key, sem) => {
+    const next = semesterRange(sem, today);
+    setSemester(next ? key : '');
+    if (next) applyRange(next);
+  };
 
-  const exportCsv = () => {
+  const exportExcel = () => {
     if (!summary) return;
-    const head = ['Ngày', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Chưa điểm danh', 'Suất ăn', 'Trong đó suất thay thế'];
+    const head = ['Ngày', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Chưa điểm danh', 'Lượt trẻ ăn', 'Trong đó ăn suất thay thế'];
     const rows = summary.days.map((d) => [formatDate(d.date), d.present, d.excused, d.unexcused, d.missing, d.mealTotal, d.substitute]);
-    // Nhiều lớp: thêm bảng theo lớp sau bảng theo ngày
-    const byClass = multi
-      ? [
-          [],
-          ['Lớp', 'Điểm trường', 'Sĩ số', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Suất ăn'],
-          ...summary.classes.map((c) => [c.className, campusName(c.campusId), c.size, c.present, c.excused, c.unexcused, c.meals]),
-        ]
-      : [];
+    const detailHead = multi
+      ? ['Lớp', 'Điểm trường', 'Sĩ số', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn']
+      : ['Trẻ', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn'];
+    const detailRows = multi
+      ? summary.classes.map((c) => [c.className, campusName(c.campusId), c.size, c.present, c.excused, c.unexcused, c.meals])
+      : summary.children.map((c) => [c.child.fullName, c.present, c.excused, c.unexcused, c.meals]);
+    const title = [`Tổng hợp điểm danh ${scopeName} ${formatDate(range.from)} – ${formatDate(range.to)}`];
     const slug = (classId ? summary.className : campusId ? campusName(campusId) : 'toan-truong').replace(/\s+/g, '-');
-    downloadCsv(
-      [[`Tổng hợp điểm danh ${scopeName} ${formatDate(range.from)} – ${formatDate(range.to)}`], head, ...rows, ...byClass],
-      `diem-danh-${slug}-${range.from}-${range.to}.csv`,
+    exportWithPreviewWorkbook(
+      [
+        { sheetName: 'Theo ngày', rows: [title, head, ...rows], headerRow: 1 },
+        { sheetName: multi ? 'Theo lớp' : 'Theo trẻ', rows: [title, detailHead, ...detailRows], headerRow: 1 },
+      ],
+      `diem-danh-${slug}-${range.from}-${range.to}.xlsx`,
     );
   };
 
@@ -105,14 +140,14 @@ export default function AttendanceSummaryPage() {
           )}
         </div>
         {summary?.days.length > 0 && (
-          <button className="btn mt-8" onClick={exportCsv}>
+          <button className="btn mt-8" onClick={exportExcel}>
             <Download size={16} /> Xuất Excel
           </button>
         )}
       </div>
       {classError ? (
         <ErrorState error={classError} onRetry={reloadClasses} />
-      ) : classes.length === 0 ? (
+      ) : classes.length === 0 && !teamLeader ? (
         <div className="card">
           <EmptyState
             icon={BarChart3}
@@ -123,10 +158,26 @@ export default function AttendanceSummaryPage() {
       ) : (
         <>
           <ClassDateBar
-            classes={manager ? undefined : classes}
+            classes={manager || groupMode ? undefined : classes}
             classId={classId}
             onClassChange={(v) => setParams(query({ classId: v }), { replace: true })}
           >
+            {teamLeader && (
+              <div className="dd-bar__field">
+                <label className="field__label" htmlFor="dd-scope">
+                  <Buildings size={15} /> Phạm vi
+                </label>
+                <select
+                  id="dd-scope"
+                  className="select"
+                  value={groupMode ? 'group' : ''}
+                  onChange={(e) => setParams(query({ scope: e.target.value, classId: '' }), { replace: true })}
+                >
+                  <option value="">Lớp của tôi</option>
+                  <option value="group">Các lớp nhóm tuổi</option>
+                </select>
+              </div>
+            )}
             {manager && campusOptions.length > 1 && (
               <div className="dd-bar__field">
                 <label className="field__label" htmlFor="dd-campus">
@@ -168,6 +219,12 @@ export default function AttendanceSummaryPage() {
                 </select>
               </div>
             )}
+            <div className="dd-bar__field">
+              <label className="field__label" htmlFor="dd-semester">
+                Học kỳ
+              </label>
+              <SemesterSelect id="dd-semester" value={semester} onChange={pickSemester} emptyLabel="Chọn ngày" />
+            </div>
             <div className="dd-bar__field">
               <label className="field__label" htmlFor="dd-from">
                 Từ ngày
@@ -249,7 +306,12 @@ export default function AttendanceSummaryPage() {
                     </div>
                     <div className="dd-stat dd-stat--blue">
                       <span className="dd-stat__value">{totals.meals}</span>
-                      <span className="dd-stat__label">Suất ăn</span>
+                      <span
+                        className="dd-stat__label"
+                        title="Số lượt trẻ có ăn trong ngày (mỗi trẻ 1 lượt/ngày); số suất theo bữa xem ở Sổ báo ăn"
+                      >
+                        Lượt trẻ ăn
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -269,7 +331,9 @@ export default function AttendanceSummaryPage() {
                           <th className="num">Có phép</th>
                           <th className="num">Không phép</th>
                           <th className="num">Chưa ĐD</th>
-                          <th className="num">Suất ăn</th>
+                          <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                            Lượt trẻ ăn
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -348,7 +412,9 @@ export default function AttendanceSummaryPage() {
                             <th className="num">Có mặt</th>
                             <th className="num">Có phép</th>
                             <th className="num">Không phép</th>
-                            <th className="num">Suất ăn</th>
+                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                              Lượt trẻ ăn
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -406,7 +472,9 @@ export default function AttendanceSummaryPage() {
                             <th className="num">Có mặt</th>
                             <th className="num">Có phép</th>
                             <th className="num">Không phép</th>
-                            <th className="num">Suất ăn</th>
+                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                              Lượt trẻ ăn
+                            </th>
                           </tr>
                         </thead>
                         <tbody>

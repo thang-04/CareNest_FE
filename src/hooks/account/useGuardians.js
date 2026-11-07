@@ -1,9 +1,20 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useGuardianQuery } from '@/hooks/account/useGuardianQuery';
-import { listAllChildrenForGuardians, listGuardians, getGuardianStructure } from '@/services/account/guardianService';
+import {
+  getAccountCandidates,
+  listAllChildrenForGuardians,
+  listGuardians,
+  listPendingGuardians,
+  getGuardianStructure,
+} from '@/services/account/guardianService';
 export function useChildGuardians(id) {
   const { user } = useAuth();
   return useGuardianQuery(() => listGuardians(id, user), [id], { enabled: !!id && !!user });
+}
+/** Phụ huynh trên hồ sơ trẻ chưa có tài khoản (thông tin theo hồ sơ, chỉ xem). */
+export function usePendingGuardians(id) {
+  const { user } = useAuth();
+  return useGuardianQuery(() => listPendingGuardians(id, user), [id], { enabled: !!id && !!user });
 }
 export function useCampusGuardianChildren(campusId, { enabled = true } = {}) {
   const { user } = useAuth();
@@ -21,4 +32,9 @@ export function useGuardianStructure() {
     campusName: (id) => campuses.find((row) => row.id === id)?.name || '',
     classroomName: (id) => classrooms.find((row) => row.id === id)?.name || '',
   };
+}
+
+export function useAccountCandidates(id) {
+  const { user } = useAuth();
+  return useGuardianQuery(() => getAccountCandidates(id, user), [id], { enabled: !!id && !!user });
 }

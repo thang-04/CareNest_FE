@@ -55,6 +55,25 @@ export const todayInput = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
+/** Ngày địa phương yyyy-mm-dd của một thời điểm ISO (toISOString lệch múi giờ). */
+export const localDateOf = (value) => {
+  const d = new Date(value);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+/** 1500000 -> '1.500.000 đ'; không phải số -> '—'. */
+export const formatMoney = (n) => (typeof n === 'number' && !Number.isNaN(n) ? `${Math.round(n).toLocaleString('vi-VN')} đ` : '—');
+
+/** Số lượng tối đa 3 số lẻ theo định dạng Việt Nam (2,4); không phải số -> '—'. */
+export const formatQty = (n) =>
+  n === null || n === undefined || Number.isNaN(Number(n)) ? '—' : Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+
+/** Số có dấu và đủ số lẻ (z-score): 2.31 -> '+2,31', -0.5 -> '-0,50', 0 -> '0,00'; không phải số -> '—'. */
+export const formatSigned = (n, digits = 2) =>
+  n === null || n === undefined || n === '' || Number.isNaN(Number(n))
+    ? '—'
+    : Number(n).toLocaleString('vi-VN', { minimumFractionDigits: digits, maximumFractionDigits: digits, signDisplay: 'exceptZero' });
+
 /** Lower-case and strip Vietnamese accents for search. */
 export const normalizeText = (text) =>
   String(text || '')
@@ -74,3 +93,11 @@ export const initials = (name) =>
 
 /** Chỉ số màu pastel 0–4 cố định theo tên (avatar chữ cái; chỉ trang trí). */
 export const avatarTone = (name) => [...String(name || '')].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 5;
+
+/** Ngày đầu, ngày cuối của tháng chứa ngày ISO `date` (YYYY-MM-DD), không qua múi giờ. */
+export const monthRangeOf = (date) => {
+  const [y, m] = String(date).split('-').map(Number);
+  const mm = String(m).padStart(2, '0');
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(last).padStart(2, '0')}` };
+};

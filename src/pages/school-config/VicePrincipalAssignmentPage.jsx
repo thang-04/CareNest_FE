@@ -1,9 +1,13 @@
+import { Link } from 'react-router-dom';
+import { SCHOOL_CONFIG_API } from '@/config/env';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { UserCog, AlertTriangle, Save, Utensils } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { usePermissionGrant } from '@/contexts/PermissionGrantContext';
+import { ROLES } from '@/models/User';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYears, useViceAssignments } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -29,10 +33,9 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState({
-    campusId: row.assignment?.campusId || row.user.campusId || '',
+    campusId: row.presetCampusId || row.assignment?.campusId || row.user.campusId || '',
     note: '',
   });
-  // Giữ cả mảng đang ẩn (CSVC khi tắt) để lưu không làm mất quyền cũ
   const [grants, setGrants] = useState(() => vpGrantsOf(row.assignment));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -70,8 +73,8 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
 
   const submit = async () => {
     const e = validateVpAssignment(form);
-    if (Object.values(grants).some((g) => !g.campusId)) e.areas = 'Chọn "Ở đâu" cho từng công việc được giao';
-    if (menuClash)
+    if (!SCHOOL_CONFIG_API && Object.values(grants).some((g) => !g.campusId)) e.areas = 'Chọn "Ở đâu" cho từng công việc được giao';
+    if (!SCHOOL_CONFIG_API && menuClash)
       e.areas = `Thực đơn & dịch vụ bán trú đang do ${sharedHolder.fullName} quản lý. Mỗi năm học chỉ một Phó hiệu trưởng được lập, sửa, xóa thực đơn.`;
     setErrors(e);
     if (hasErrors(e)) return;
@@ -83,8 +86,8 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
           composeAreaGrant({ actions: g.actions, campusId: g.campusId === AREA_SCOPE_ALL ? null : g.campusId }),
         ]),
       );
-      await saveViceAssignment(year.id, row.user.id, { ...form, areas }, user);
-      toast.success(`Đã lưu thay đổi. ${row.user.fullName} đã được thông báo.`, 'Phân công Phó hiệu trưởng');
+      await saveViceAssignment(year.id, row.user.id, { ...form, ...(!SCHOOL_CONFIG_API ? { areas } : {}) }, user);
+      toast.success(`Đã lưu phân công cho ${row.user.fullName}.`, 'Phân công Phó hiệu trưởng');
       onClose(true);
     } catch (err) {
       if (err.details) setErrors(err.details);
@@ -111,8 +114,20 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
       }
     >
       <p className="text-sm text-2 mb-12">
-        Năm học <b>{year.name}</b>. Phó hiệu trưởng chỉ thấy và làm được những công việc Hiệu trưởng giao dưới đây.
+        Năm học <b>{year.name}</b>.{' '}
+        {SCHOOL_CONFIG_API
+          ? 'Chọn điểm trường Phó hiệu trưởng phụ trách. Quyền thao tác của người này chỉnh ở màn Quyền ngoại lệ từng người.'
+          : 'Phó hiệu trưởng chỉ thấy và làm được những công việc Hiệu trưởng giao dưới đây.'}
       </p>
+      {row.assignment?.campusId && form.campusId && row.assignment.campusId !== form.campusId && (
+        <div className="alert alert--warning mb-12">
+          <AlertTriangle size={18} />
+          <div>
+            {row.user.fullName} đang phụ trách {campuses.find((c) => c.id === row.assignment.campusId)?.shortName || 'điểm trường khác'}.
+            Lưu phân công mới thì điểm trường đó sẽ chưa có Phó hiệu trưởng.
+          </div>
+        </div>
+      )}
       <FormField label="Điểm trường phụ trách" required error={errors.campusId}>
         <select className="select" value={form.campusId} onChange={(e) => setCampus(e.target.value)}>
           <option value="">Chọn điểm trường</option>
@@ -125,67 +140,75 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
       </FormField>
 
       <div className="mt-16">
-        <span className="field__label">Công việc được giao</span>
-        <div className="field__hint mb-8">
-          Chọn &quot;Ở đâu&quot; cho từng việc; chọn &quot;Không giao&quot; thì Phó hiệu trưởng không thấy việc đó. Không tích ô nào = chỉ
-          được xem.
-        </div>
-        <div className="sc-vp-edit">
-          {visibleVpAreas.map((area) => {
-            const g = grants[area.key];
-            const lockMenu = area.key === 'menu' && menuHeldByOther;
-            return (
-              <div key={area.key} className={`sc-vp-edit__row ${g ? '' : 'is-off'}`}>
-                <div className="sc-vp-edit__name">
-                  <div className="fw-600">{area.label}</div>
-                  <div className="text-xs muted">{area.hint}</div>
-                </div>
-                <select
-                  className={`select ${errors.areas && g && !g.campusId ? 'is-invalid' : ''}`}
-                  aria-label={`Ở đâu: ${area.label}`}
-                  value={g ? g.campusId : NOT_GIVEN}
-                  onChange={(e) => setScope(area, e.target.value)}
-                >
-                  <option value={NOT_GIVEN}>Không giao</option>
-                  {g && !g.campusId && <option value="">Chọn nơi…</option>}
-                  {area.scopes.includes('CAMPUS') &&
-                    campuses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.shortName || c.name}
-                      </option>
-                    ))}
-                  {area.scopes.includes('ALL') && <option value={AREA_SCOPE_ALL}>Toàn trường</option>}
-                </select>
-                <div className="sc-vp-edit__tasks" role="group" aria-label={`Việc được làm: ${area.label}`}>
-                  {g ? (
-                    <>
-                      {areaTasks(area).map((t) => {
-                        const on = taskOn(t, g.actions);
-                        return (
-                          <label key={t.id} className={`sc-vp-task ${lockMenu && !on ? 'is-off' : ''}`}>
-                            <input type="checkbox" checked={on} disabled={lockMenu && !on} onChange={() => toggleTask(area, t)} />
-                            {t.label}
-                          </label>
-                        );
-                      })}
-                      {lockMenu && (
-                        <span className="sc-vp-edit__warn text-xs">
-                          <AlertTriangle size={13} /> {sharedHolder.fullName} đang quản lý thực đơn. Mỗi năm học chỉ 1 người.
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="muted text-sm">—</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {errors.areas && (
-          <p className="field__error mt-8" role="alert">
-            {errors.areas}
+        {SCHOOL_CONFIG_API ? (
+          <p className="text-sm muted">
+            Quyền thao tác chỉnh ở <Link to={`/permissions/overrides?userId=${row.user.id}`}>Quyền ngoại lệ từng người</Link>.
           </p>
+        ) : (
+          <>
+            <span className="field__label">Công việc được giao</span>
+            <div className="field__hint mb-8">
+              Chọn &quot;Ở đâu&quot; cho từng việc; chọn &quot;Không giao&quot; thì Phó hiệu trưởng không thấy việc đó. Không tích ô nào =
+              chỉ được xem.
+            </div>
+            <div className="sc-vp-edit">
+              {visibleVpAreas.map((area) => {
+                const g = grants[area.key];
+                const lockMenu = area.key === 'menu' && menuHeldByOther;
+                return (
+                  <div key={area.key} className={`sc-vp-edit__row ${g ? '' : 'is-off'}`}>
+                    <div className="sc-vp-edit__name">
+                      <div className="fw-600">{area.label}</div>
+                      <div className="text-xs muted">{area.hint}</div>
+                    </div>
+                    <select
+                      className={`select ${errors.areas && g && !g.campusId ? 'is-invalid' : ''}`}
+                      aria-label={`Ở đâu: ${area.label}`}
+                      value={g ? g.campusId : NOT_GIVEN}
+                      onChange={(e) => setScope(area, e.target.value)}
+                    >
+                      <option value={NOT_GIVEN}>Không giao</option>
+                      {g && !g.campusId && <option value="">Chọn nơi…</option>}
+                      {area.scopes.includes('CAMPUS') &&
+                        campuses.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.shortName || c.name}
+                          </option>
+                        ))}
+                      {area.scopes.includes('ALL') && <option value={AREA_SCOPE_ALL}>Toàn trường</option>}
+                    </select>
+                    <div className="sc-vp-edit__tasks" role="group" aria-label={`Việc được làm: ${area.label}`}>
+                      {g ? (
+                        <>
+                          {areaTasks(area).map((t) => {
+                            const on = taskOn(t, g.actions);
+                            return (
+                              <label key={t.id} className={`sc-vp-task ${lockMenu && !on ? 'is-off' : ''}`}>
+                                <input type="checkbox" checked={on} disabled={lockMenu && !on} onChange={() => toggleTask(area, t)} />
+                                {t.label}
+                              </label>
+                            );
+                          })}
+                          {lockMenu && (
+                            <span className="sc-vp-edit__warn text-xs">
+                              <AlertTriangle size={13} /> {sharedHolder.fullName} đang quản lý thực đơn. Mỗi năm học chỉ 1 người.
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="muted text-sm">—</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {errors.areas && (
+              <p className="field__error mt-8" role="alert">
+                {errors.areas}
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -202,8 +225,75 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
   );
 }
 
+// Chọn tài khoản Phó hiệu trưởng để phụ trách điểm trường đang thiếu (người chưa phân công lên đầu)
+function ChooseViceModal({ campus, rows, campusName, onPick, onClose }) {
+  const sorted = [...rows].sort((a, b) => Number(!!a.assignment) - Number(!!b.assignment));
+  return (
+    <Modal open size="lg" title={`Phân công Phó hiệu trưởng cho ${campus.shortName || campus.name}`} onClose={onClose}>
+      {sorted.length === 0 ? (
+        <EmptyState
+          icon={UserCog}
+          title="Chưa có tài khoản Phó hiệu trưởng"
+          description="Tạo tài khoản Phó hiệu trưởng ở Tài khoản nhân sự rồi quay lại phân công."
+          action={
+            <Link className="btn btn--primary" to="/school/staff">
+              Tạo tài khoản
+            </Link>
+          }
+        />
+      ) : (
+        <>
+          <p className="text-sm text-2 mb-12">
+            Chọn người phụ trách {campus.shortName || campus.name}. Mỗi Phó hiệu trưởng phụ trách một điểm trường trong năm học; bước sau
+            chọn quyền thao tác.
+          </p>
+          <div className="table-wrap">
+            <table className="table table--grid table--compact">
+              <thead>
+                <tr>
+                  <th>Phó hiệu trưởng</th>
+                  <th>Đang phụ trách</th>
+                  <th className="cell--actions">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((r) => (
+                  <tr key={r.user.id}>
+                    <td>
+                      <div className="fw-600">{r.user.fullName}</div>
+                      <div className="text-xs muted">{r.user.email}</div>
+                    </td>
+                    <td className="text-sm">
+                      {r.assignment ? (
+                        <span className="chip chip--orange">
+                          {campusName(r.assignment.campusId)} · chọn thì chuyển sang điểm trường này
+                        </span>
+                      ) : (
+                        <span className="chip chip--gray">Chưa phân công</span>
+                      )}
+                    </td>
+                    <td className="cell--actions">
+                      <button type="button" className="btn btn--sm btn--primary" onClick={() => onPick(r)}>
+                        Chọn
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs muted mt-12">
+            Cần thêm người? Tạo tài khoản Phó hiệu trưởng ở <Link to="/school/staff">Tài khoản nhân sự</Link>.
+          </p>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 /** #23 Vice Principal Assignment (UC 2.5, GBR-GEN-03, GBR-GEN-10). Principal only. */
-export default function VicePrincipalAssignmentPage() {
+/** embedded: nằm trong Thiết lập năm học (năm học do bước thiết lập chọn, không hiện bộ chọn năm). */
+export default function VicePrincipalAssignmentPage({ embedded = false }) {
   const { user } = useAuth();
   const { schoolYear: headerYear } = useSchoolYear();
   const [params, setParams] = useSearchParams();
@@ -213,6 +303,8 @@ export default function VicePrincipalAssignmentPage() {
   const allowed = canAssignVicePrincipal(user);
   const { data, loading, error, reload } = useViceAssignments(allowed ? yearId : null);
   const [editing, setEditing] = useState(null);
+  const [choosingFor, setChoosingFor] = useState(null);
+  const { openPermissionGrant } = usePermissionGrant();
 
   if (!allowed)
     return (
@@ -227,7 +319,8 @@ export default function VicePrincipalAssignmentPage() {
   const rows = data?.rows || [];
   const readOnly = year?.status === YEAR_STATUS.CLOSED;
   const sharedRow = rows.find((r) => r.assignment?.sharedService);
-  const uncovered = md.campuses.filter((c) => !rows.some((r) => r.assignment?.campusId === c.id));
+  // Điểm trường đã ngừng hoạt động không phân công PHT (BE từ chối)
+  const uncovered = md.campuses.filter((c) => c.status !== 'INACTIVE' && !rows.some((r) => r.assignment?.campusId === c.id));
   const campusName = (id) => md.campusById(id)?.shortName || id;
 
   return (
@@ -235,19 +328,30 @@ export default function VicePrincipalAssignmentPage() {
       <Breadcrumb items={vpCrumbs()} />
       <h1 className="page__title">Phân công Phó hiệu trưởng</h1>
 
-      <div className="card mb-16">
-        <div className="filter-bar">
-          <YearPicker years={years} value={yearId} onChange={(v) => setParams({ year: v })} />
+      {!embedded && (
+        <div className="card mb-16">
+          <div className="filter-bar">
+            <YearPicker years={years} value={yearId} onChange={(v) => setParams({ year: v })} />
+          </div>
         </div>
-      </div>
+      )}
 
       {!loading && year && !readOnly && uncovered.length > 0 && (
         <div className="alert alert--warning mb-16">
           <AlertTriangle size={18} />
-          <div>Chưa có Phó hiệu trưởng phụ trách: {uncovered.map((c) => c.shortName).join(', ')}.</div>
+          <div className="flex-1">
+            Chưa có Phó hiệu trưởng phụ trách: {uncovered.map((c) => c.shortName).join(', ')}.
+            <div className="row mt-8">
+              {uncovered.map((c) => (
+                <button key={c.id} type="button" className="btn btn--sm btn--primary" onClick={() => setChoosingFor(c)}>
+                  <UserCog size={15} /> Phân công cho {c.shortName || c.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
-      {!loading && year && !readOnly && !sharedRow && rows.length > 0 && (
+      {!SCHOOL_CONFIG_API && !loading && year && !readOnly && !sharedRow && rows.length > 0 && (
         <div className="alert alert--warning mb-16">
           <Utensils size={18} />
           <div>Chưa có Phó hiệu trưởng phụ trách dịch vụ chung (bán trú toàn trường).</div>
@@ -274,6 +378,11 @@ export default function VicePrincipalAssignmentPage() {
             icon={UserCog}
             title="Chưa có tài khoản Phó hiệu trưởng"
             description="Tạo tài khoản Phó hiệu trưởng trước khi phân công."
+            action={
+              <Link className="btn btn--primary" to="/school/staff">
+                Tạo tài khoản
+              </Link>
+            }
           />
         </div>
       ) : (
@@ -286,11 +395,34 @@ export default function VicePrincipalAssignmentPage() {
               assignerName={r.assignment ? md.userById(r.assignment.assignedBy)?.fullName : null}
               readOnly={readOnly}
               onEdit={() => setEditing(r)}
+              onChoosePermissions={
+                SCHOOL_CONFIG_API
+                  ? () =>
+                      openPermissionGrant({
+                        ...r.user,
+                        userId: r.user.id,
+                        role: ROLES.VICE_PRINCIPAL,
+                        campusName: campusName(r.assignment?.campusId),
+                      })
+                  : undefined
+              }
             />
           ))}
         </div>
       )}
 
+      {choosingFor && (
+        <ChooseViceModal
+          campus={choosingFor}
+          rows={rows}
+          campusName={campusName}
+          onClose={() => setChoosingFor(null)}
+          onPick={(r) => {
+            setEditing({ ...r, presetCampusId: choosingFor.id });
+            setChoosingFor(null);
+          }}
+        />
+      )}
       {editing && year && (
         <AssignModal
           row={editing}

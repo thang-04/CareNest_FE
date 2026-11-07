@@ -5,7 +5,7 @@
  * @property {string} name
  * @property {string} campusId
  * @property {string} ageGroupId
- * @property {string|null} locationId   room of the class (facility module)
+ * @property {string|null} locationId   room of the class (school configuration)
  * @property {string|null} homeroomTeacherId
  * @property {string[]} teacherIds
  * @property {string} schoolYear         '2026-2027'

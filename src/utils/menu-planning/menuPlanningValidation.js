@@ -5,6 +5,8 @@ import {
   MEAL_SESSION_LABELS,
   DISH_TYPE_LABELS,
   FOOD_GROUP_LABELS,
+  FOOD_ORIGIN_LABELS,
+  MICRONUTRIENTS,
 } from '@/models/menu-planning/menuPlanningConstants';
 import { applyReplacements, byId, missingPortionGroups, restrictedConflicts } from '@/utils/menu-planning/menuCalculations';
 
@@ -29,6 +31,10 @@ export const validateFood = (form, others = []) => {
     e.name = 'Đã có thực phẩm cùng tên. Hãy xem thực phẩm đã có.';
   if (!FOOD_GROUP_LABELS[form.group]) e.group = REQUIRED;
   if (!['g', 'ml'].includes(form.unit)) e.unit = REQUIRED;
+  // Nguồn gốc quyết định đạm/béo tính vào phần động vật hay thực vật khi cân đối khẩu phần
+  if (!FOOD_ORIGIN_LABELS[form.origin]) e.origin = REQUIRED;
+  // NUT-05: số liệu dinh dưỡng phải ghi nguồn
+  if (!String(form.nutrientSource || '').trim()) e.nutrientSource = REQUIRED;
   if (!form.purchaseUnit?.trim()) e.purchaseUnit = REQUIRED;
   if (!isNum(form.purchaseUnitSize) || Number(form.purchaseUnitSize) <= 0) e.purchaseUnitSize = 'Nhập số lớn hơn 0.';
   // BA 02: tỷ lệ quy đổi không được bằng 0 hoặc âm (chỉ kiểm khi form có khai đơn vị kho)
@@ -48,6 +54,11 @@ export const validateFood = (form, others = []) => {
     if (!isNum(v) || Number(v) < 0) e[k] = 'Nhập số không âm.';
     else if (k !== 'kcal' && Number(v) > 100) e[k] = 'Tối đa 100 g trên 100 g thực phẩm.';
     else if (k === 'kcal' && Number(v) > 900) e[k] = 'Tối đa 900 kcal trên 100 g.';
+  });
+  // Vi chất không bắt buộc (BE NUT-26): để trống được, đã nhập thì phải là số không âm
+  MICRONUTRIENTS.forEach((k) => {
+    const v = form.nutrition?.[k];
+    if (v !== '' && v != null && (!isNum(v) || Number(v) < 0)) e[k] = 'Nhập số không âm.';
   });
   return e;
 };
@@ -91,15 +102,20 @@ export const validateDish = (form, others = [], { requireGroups = null } = {}) =
 
 const overlaps = (a, b) => a.effectiveFrom <= (b.effectiveTo || '9999-12-31') && b.effectiveFrom <= (a.effectiveTo || '9999-12-31');
 
-const PERCENT_KEYS = ['protein', 'lipid', 'glucid'];
+const SESSION_PCT_KEYS = ['morningKcalPct', 'lunchKcalPct', 'afternoonKcalPct'];
+const PERCENT_KEYS = ['protein', 'lipid', 'glucid', ...SESSION_PCT_KEYS];
+// Định mức gam theo chất và % năng lượng từng bữa không bắt buộc: để trống cả khoảng là chưa đặt
+const OPTIONAL_NORM_KEYS = ['animalProteinG', 'plantProteinG', 'animalLipidG', 'plantLipidG', 'glucidG', ...SESSION_PCT_KEYS];
 
 /**
  * Thiết lập dinh dưỡng (hỗ trợ nhập liệu; BE kiểm tra lại). Khóa lỗi: effectiveFrom,
  * `${ageGroupId}.price`, `${ageGroupId}.meals`, `${ageGroupId}.meals.${i}.name|countAs`, `${ageGroupId}.norms.${key}`.
  */
-export const validateNutritionSetup = (form, today) => {
+/** opts.mealsReadOnly: bữa lấy từ Cấu hình trường (BE) nên không kiểm; opts.minDate: ngày hiệu lực sớm nhất của bản mới. */
+export const validateNutritionSetup = (form, today, { mealsReadOnly = false, minDate } = {}) => {
   const e = {};
   if (!form.effectiveFrom) e.effectiveFrom = REQUIRED;
+  else if (minDate && form.effectiveFrom < minDate) e.effectiveFrom = 'Bản mới chỉ áp dụng từ ngày sau hôm nay.';
   else if (form.effectiveFrom < today) e.effectiveFrom = 'Giá chỉ áp dụng từ hôm nay trở đi.';
   (form.groups || []).forEach((g) => {
     const key = g.ageGroupId;
@@ -107,19 +123,36 @@ export const validateNutritionSetup = (form, today) => {
     const base = sessionsOf(key);
     if (!isNum(g.price) || Number(g.price) <= 0 || !Number.isInteger(Number(g.price)))
       e[`${key}.price`] = 'Nhập giá suất ăn một ngày (số tiền lớn hơn 0).';
-    if (base.some((code) => !meals.some((m) => m.code === code))) e[`${key}.meals`] = 'Không bỏ được bữa gốc của nhóm tuổi.';
-    meals.forEach((m, i) => {
-      const name = String(m.name || '').trim();
-      if (!name) e[`${key}.meals.${i}.name`] = REQUIRED;
-      else if (name.length > 50) e[`${key}.meals.${i}.name`] = 'Tối đa 50 ký tự.';
-      else if (meals.some((o, j) => j < i && sameName(o.name, name))) e[`${key}.meals.${i}.name`] = 'Trùng tên bữa khác.';
-      if (!base.includes(m.code) && !base.includes(m.countAs)) e[`${key}.meals.${i}.countAs`] = 'Chọn bữa dùng để tính số suất.';
-    });
+    if (!mealsReadOnly) {
+      if (base.some((code) => !meals.some((m) => m.code === code))) e[`${key}.meals`] = 'Không bỏ được bữa gốc của nhóm tuổi.';
+      meals.forEach((m, i) => {
+        const name = String(m.name || '').trim();
+        if (!name) e[`${key}.meals.${i}.name`] = REQUIRED;
+        else if (name.length > 50) e[`${key}.meals.${i}.name`] = 'Tối đa 50 ký tự.';
+        else if (meals.some((o, j) => j < i && sameName(o.name, name))) e[`${key}.meals.${i}.name`] = 'Trùng tên bữa khác.';
+        if (!base.includes(m.code) && !base.includes(m.countAs)) e[`${key}.meals.${i}.countAs`] = 'Chọn bữa dùng để tính số suất.';
+      });
+    }
     // Chuẩn tạm: để trống cả bốn = chưa nhập (chưa đánh giá); đã nhập thì phải đủ từng khoảng
     const blank = (v) => v === '' || v == null;
     const norms = Object.entries(g.norms || {});
     if (norms.every(([, range]) => (range || []).every(blank))) return;
+    const coreBlank = norms
+      .filter(([k]) => !OPTIONAL_NORM_KEYS.includes(k) && !MICRONUTRIENTS.includes(k))
+      .every(([, range]) => (range || []).every(blank));
     norms.forEach(([k, range]) => {
+      if (MICRONUTRIENTS.includes(k)) {
+        // Vi chất (BE NUT-26): không bắt buộc; có tối thiểu là đủ, tối đa để trống = chỉ cần đạt tối thiểu
+        const [min, max] = range || [];
+        if (blank(min) && blank(max)) return;
+        if (!isNum(min)) e[`${key}.norms.${k}`] = 'Nhập số tối thiểu.';
+        else if (!blank(max) && !isNum(max)) e[`${key}.norms.${k}`] = 'Nhập số hợp lệ.';
+        else if (Number(min) < 0 || (!blank(max) && Number(min) > Number(max)))
+          e[`${key}.norms.${k}`] = 'Số đầu phải nhỏ hơn hoặc bằng số sau.';
+        return;
+      }
+      if (OPTIONAL_NORM_KEYS.includes(k) && (range || []).every(blank)) return;
+      if (!OPTIONAL_NORM_KEYS.includes(k) && coreBlank) return;
       const [min, max] = range || [];
       if (!isNum(min) || !isNum(max)) e[`${key}.norms.${k}`] = 'Nhập đủ hai số.';
       else if (Number(min) < 0 || Number(min) > Number(max)) e[`${key}.norms.${k}`] = 'Số đầu phải nhỏ hơn hoặc bằng số sau.';

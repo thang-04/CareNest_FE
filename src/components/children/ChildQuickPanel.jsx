@@ -1,3 +1,4 @@
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowSquareOut, ClipboardText, Heartbeat, Pencil, Phone } from '@/components/ui/icons';
@@ -11,7 +12,7 @@ import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { DECLARATION_STATE } from '@/models/children/childrenConstants';
 import { CHILD_STATUS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { canEditChild, canViewParentAccounts } from '@/utils/children/childrenPermissions';
-import { avatarTone, formatDate, initials } from '@/utils/format';
+import { formatDate } from '@/utils/format';
 
 const missing = <span className="muted">Chưa cập nhật</span>;
 
@@ -65,9 +66,7 @@ export function ChildQuickPanel({ childId: current, onClose }) {
       ) : (
         <div className="stack gap-5">
           <div className="row gap-3-5 tr-quick__head">
-            <span className={`avatar avatar--xl avatar--tone-${avatarTone(child.fullName)}`} aria-hidden="true">
-              {initials(child.fullName)}
-            </span>
+            <ChildAvatar child={child} size="xl" />
             <div className="stack gap-1">
               <b className="text-lg">{child.fullName}</b>
               <span className="muted text-sm">
@@ -155,6 +154,7 @@ export function ChildQuickPanel({ childId: current, onClose }) {
                     <span className="fw-600">
                       {g.fullName} <span className="muted">({g.relation})</span>
                     </span>
+                    <span className="text-sm muted">{g.idNumber ? `CCCD ${g.idNumber}` : 'Chưa có CCCD'}</span>
                     <span className="text-sm muted">{g.email || 'Chưa có email'}</span>
                     {canViewParentAccounts(user) && (
                       <span>

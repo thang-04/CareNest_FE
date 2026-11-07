@@ -20,7 +20,7 @@ import { WeekChecks } from '@/components/menu-planning/WeekChecks';
 import { mealsTotals, priceOn } from '@/utils/menu-planning/menuCalculations';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
-import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
+import { activeAgeGroups, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import { AI_DRAFT_KIND, WEEKLY_STATUS, addDays, formatMoney, mondayOf } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 
@@ -91,7 +91,14 @@ export default function AiMenuSuggestionPage() {
     draft?.kind === AI_DRAFT_KIND.WEEKLY &&
     sameGroup.find((w) => w.weekStart === addDays(draft.weekStart, -7) && w.status === WEEKLY_STATUS.PUBLISHED);
   const dayResult =
-    draft?.kind === AI_DRAFT_KIND.DAILY ? mealsTotals(draft.meals, catalog.dishById, catalog.foodById, draft.ageGroupId) : null;
+    draft?.kind === AI_DRAFT_KIND.DAILY
+      ? mealsTotals(
+          normScopeMeals(draft.meals, catalog.nutritionSetups, draft.ageGroupId),
+          catalog.dishById,
+          catalog.foodById,
+          draft.ageGroupId,
+        )
+      : null;
 
   const resultBody = draft && (
     <>
@@ -117,7 +124,13 @@ export default function AiMenuSuggestionPage() {
           <MealsView meals={draft.meals} catalog={catalog} ageGroupId={draft.ageGroupId} linkDishes />
           <div className="mt-16">
             <AllergenWarnings meals={draft.meals} catalog={catalog} ageGroupId={draft.ageGroupId} contextRows={allergyRows} />
-            <NutritionTable result={dayResult} ageGroupId={draft.ageGroupId} norms={catalog.norms} price={draft.mealPrice} />
+            <NutritionTable
+              result={dayResult}
+              ageGroupId={draft.ageGroupId}
+              norms={catalog.norms}
+              setups={catalog.nutritionSetups}
+              price={draft.mealPrice}
+            />
           </div>
         </>
       )}

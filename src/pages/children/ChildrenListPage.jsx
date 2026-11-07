@@ -1,3 +1,4 @@
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound } from '@/components/ui/icons';
@@ -10,17 +11,16 @@ import { useFilterParams } from '@/hooks/useFilterParams';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
-import { FilterMore } from '@/components/ui/FilterMore';
 import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
-import { ChildStatusBadge, FollowUpLevelShortBadge } from '@/components/children/ChildBadges';
+import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
-import { FOLLOW_UP_LEVEL, FOLLOW_UP_LEVEL_SHORT_LABELS, PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
-import { avatarTone, formatDate, initials, normalizeText } from '@/utils/format';
+import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
+import { formatDate, normalizeText } from '@/utils/format';
 import {
   canEditChild,
   canEnrollChild,
@@ -31,24 +31,17 @@ import {
 } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
-import { StatCardIcon } from '@/components/ui/StatCardIcon';
+import { StatCard } from '@/components/ui/StatCard';
 
-// Lọc theo mức của lần khám gần nhất có xếp mức (BE trả latestHealth); NO_RESULT: chưa có lần khám nào được xếp mức.
-const NO_RESULT = 'NO_RESULT';
-const HEALTH_LEVEL_OPTIONS = [FOLLOW_UP_LEVEL.WATCH, FOLLOW_UP_LEVEL.CLOSE_WATCH, FOLLOW_UP_LEVEL.NONE].map((value) => ({
-  value,
-  label: FOLLOW_UP_LEVEL_SHORT_LABELS[value],
-}));
-const healthLevelLabel = (value) =>
-  value === NO_RESULT ? 'Chưa có kết quả khám' : HEALTH_LEVEL_OPTIONS.find((o) => o.value === value)?.label || value;
-const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '', healthLevel: '' };
+// Cảnh báo sức khỏe xem ở Sổ sức khỏe của từng trẻ, không ở danh sách (user yêu cầu 2026-10-31; HLT-19, 2026-11-04).
+const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
 
 export default function ChildrenListPage() {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();
   const md = useMasterData();
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
-  const { status, keyword, campusId, classId, healthLevel } = filters;
+  const { status, keyword, campusId, classId } = filters;
   const [page, setPage] = useState(1);
   const [quickViewId, setQuickViewId] = useState(null);
   const [withdrawing, setWithdrawing] = useState(null);
@@ -67,9 +60,8 @@ export default function ChildrenListPage() {
       .filter((c) => !status || c.status === status)
       .filter((c) => !campusId || c.campusId === campusId)
       .filter((c) => !classId || c.classId === classId)
-      .filter((c) => !healthLevel || (healthLevel === NO_RESULT ? !c.latestHealth : c.latestHealth?.followUpLevel === healthLevel))
       .filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw));
-  }, [all, status, campusId, classId, healthLevel, keyword]);
+  }, [all, status, campusId, classId, keyword]);
   const pageRows = paginate(rows, page);
   const filtered = activeKeys.length > 0;
   const setFilter = (patch) => {
@@ -98,13 +90,12 @@ export default function ChildrenListPage() {
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
   const showCampus = seesAllCampusChildren(user);
-  const cols = showCampus ? 8 : 7;
+  const cols = showCampus ? 7 : 6;
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
     status: `Trạng thái: ${CHILD_STATUS_LABELS[status] || status}`,
     campusId: `Điểm trường: ${md.campusById(campusId)?.name?.split(' - ')[0] || 'đã chọn'}`,
     classId: `Lớp: ${yearClasses.find((c) => c.id === classId)?.name || 'đã chọn'}`,
-    healthLevel: `Mức theo dõi: ${healthLevelLabel(healthLevel)}`,
   };
   // Bỏ điểm trường thì bỏ luôn lớp như khi đổi ô chọn điểm trường
   const chips = activeKeys.map((key) => ({
@@ -162,16 +153,15 @@ export default function ChildrenListPage() {
 
       <div className="stat-grid">
         {stats.map((s) => (
-          <button
+          <StatCard
             key={s.key || 'all'}
-            className={`stat-card stat-card--${s.tone} ${status === s.key ? 'stat-card--active' : ''}`}
-            aria-pressed={status === s.key}
+            tone={s.tone}
+            label={s.label}
+            value={s.value}
+            loading={loading}
+            active={status === s.key}
             onClick={() => setFilter({ status: s.key })}
-          >
-            <div className="stat-card__value">{s.value}</div>
-            <div className="stat-card__label">{s.label}</div>
-            <StatCardIcon tone={s.tone} />
-          </button>
+          />
         ))}
       </div>
 
@@ -209,39 +199,11 @@ export default function ChildrenListPage() {
               </option>
             ))}
           </select>
-          <FilterMore count={healthLevel ? 1 : 0}>
-            <label className="field">
-              <span className="field__label">Mức theo dõi sức khỏe</span>
-              <select
-                className="select"
-                value={healthLevel}
-                title="Theo lần khám gần nhất có kết luận; cân đo ngoài đợt không tính"
-                onChange={(e) => setFilter({ healthLevel: e.target.value })}
-              >
-                <option value="">Tất cả mức theo dõi</option>
-                {HEALTH_LEVEL_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-                <option value={NO_RESULT}>Chưa có kết quả khám</option>
-              </select>
-            </label>
-          </FilterMore>
           <button className="btn" onClick={resetFilters} disabled={!filtered}>
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
         </div>
         <FilterChips count={loading ? null : rows.length} unit="trẻ" chips={chips} />
-        {healthLevel && (
-          <div className="alert alert--info tr-alert-flat">
-            <Info size={18} />
-            <div>
-              Mức theo dõi theo lần khám gần nhất có kết luận của bác sĩ (hoặc kết quả mẫu cũ). Cân đo ngoài đợt không đánh giá lại nên
-              không tính; trẻ giữ mức tới lần khám sau.
-            </div>
-          </div>
-        )}
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
@@ -254,7 +216,6 @@ export default function ChildrenListPage() {
                   <th>Lớp</th>
                   {showCampus && <th>Điểm trường</th>}
                   <th>Phụ huynh</th>
-                  <th>Theo dõi sức khỏe</th>
                   <th className="center">Trạng thái</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
@@ -300,9 +261,7 @@ export default function ChildrenListPage() {
                         <td>
                           {/* Mã trẻ đặt dưới tên như màn Nhân sự (email dưới tên) để bảng vừa khung 1440px */}
                           <span className="row gap-2-5">
-                            <span className={`avatar avatar--sm avatar--tone-${avatarTone(c.fullName)}`} aria-hidden="true">
-                              {initials(c.fullName)}
-                            </span>
+                            <ChildAvatar child={c} size="sm" />
                             <span className="stack gap-0">
                               {/* Bấm tên: xem nhanh trong panel; nút Xem ở cột thao tác mở trang hồ sơ đầy đủ */}
                               <button
@@ -336,18 +295,6 @@ export default function ChildrenListPage() {
                             </>
                           ) : (
                             <span className="muted">Chưa có</span>
-                          )}
-                        </td>
-                        <td>
-                          {c.latestHealth ? (
-                            <div className="tr-cell-stack">
-                              <FollowUpLevelShortBadge status={c.latestHealth.followUpLevel} />
-                              <Link className="text-primary text-xs" to={`/children/${c.id}/health`}>
-                                Khám {formatDate(c.latestHealth.date)}
-                              </Link>
-                            </div>
-                          ) : (
-                            <span className="muted text-sm">Chưa có</span>
                           )}
                         </td>
                         <td className="center">

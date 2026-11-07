@@ -347,7 +347,7 @@
 
   --badge-radius: var(--radius-full); /* badge viên thuốc có icon + viền (B) */
 
-  --sidebar-width: 256px;
+  --sidebar-width: 284px; /* vừa nhãn dài nhất của menu ("Thực đơn & dinh dưỡng") + mũi tên */
   --sidebar-width-collapsed: 72px;
   --sidebar-bg-v2: var(--color-surface);
   --sidebar-item-radius: var(--radius-sm);
@@ -427,7 +427,6 @@
   --info-border: var(--color-info-border);
   --info-700: var(--color-info-fg);
 
-  --asset-icon: #5b7bb5;
   --placeholder-avatar: #cbd5e1;
   --neutral-avatar: #64748b;
   --file-pdf: var(--danger);

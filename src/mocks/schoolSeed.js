@@ -129,6 +129,9 @@ const M1_EXTRA = [
   ['Mai Đức Thịnh', 'MALE'],
 ];
 
+/** Trẻ 27 tháng viết tay của Lớp Mầm 1 (trước đây trùng id ch_037 với trẻ bổ sung). */
+export const SEED_YOUNG_CHILD_ID = 'ch_902';
+
 export const buildM1ExtraChildren = () => {
   const cls = seedClasses.find((c) => c.id === 'cls_c1_m1');
   const first = seedClasses.length * 6 + 1;
@@ -187,9 +190,10 @@ export const buildSeedSchool = () => ({
       ],
     },
     // Trẻ nhỏ tuổi học ghép Lớp Mầm 1 (27 tháng): để phiếu khám có câu "nguy cơ tự kỷ" (chỉ hỏi trẻ 16–30 tháng).
+    // Id số ngoài dải sinh tự động (bộ sinh số đo mẫu chỉ nhận id dạng số), tránh trùng trẻ bổ sung (FE-BUG-261023-seed-duplicate-child-id-ch037).
     {
-      id: 'ch_037',
-      code: 'HS26037',
+      id: SEED_YOUNG_CHILD_ID,
+      code: 'HS26902',
       fullName: 'Phạm Gia Khánh',
       gender: 'MALE',
       dateOfBirth: '2024-07-10',
@@ -203,7 +207,7 @@ export const buildSeedSchool = () => ({
           fullName: 'Phạm Thị Lan',
           relation: 'Mẹ',
           phone: '0987 012 037',
-          email: 'phuhuynh037@example.com',
+          email: 'phuhuynh902@example.com',
           accountStatus: 'ACTIVE',
         },
       ],

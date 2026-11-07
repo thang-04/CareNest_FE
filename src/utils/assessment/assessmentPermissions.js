@@ -33,24 +33,36 @@ export const ASSESSMENT_ROUTE_ROLES = {
 const has = (user, roles) => !!user && roles.includes(user.role);
 
 /** Footnote 2: a team leader acts as a teacher only for classes they teach, not their whole age group. */
-export const isClassTeacher = (cls, user) => !!cls && has(user, CLASS_ROLES) && (cls.teacherIds || []).includes(user.id);
+// BE trả cờ teaches theo phân công thật; mock dùng teacherIds của lớp
+export const isClassTeacher = (cls, user) => !!cls && has(user, CLASS_ROLES) && (cls.teaches ?? (cls.teacherIds || []).includes(user.id));
 
 export const isLeader = (user) => has(user, LEADER_ROLES);
 export const isPrincipal = (user) => user?.role === ROLES.PRINCIPAL;
 export const isVicePrincipal = (user) => user?.role === ROLES.VICE_PRINCIPAL;
 
-/** Leader scope: Principal whole school, Vice Principal own campus. */
-export const inLeaderScope = (campusId, user) => isPrincipal(user) || (isVicePrincipal(user) && user.campusId === campusId);
+/** PHT và Hiệu trưởng xem phiếu bé ngoan các lớp; phát phiếu vẫn là giáo viên lớp. */
+export const canViewTicketOverview = (user) => isLeader(user);
+/** Tổ trưởng chuyên môn: xem (chỉ xem) tổng quan, phiếu bé ngoan các lớp nhóm tuổi mình — BE lọc theo nhóm tuổi (Cần chốt 04/11). */
+export const isTeamLeader = (user) => user?.role === ROLES.TEAM_LEADER;
+/** Tổng quan đánh giá lớp: PHT, Hiệu trưởng; tổ trưởng xem các lớp nhóm tuổi mình. */
+export const canViewClassAssessmentOverview = (user) => isLeader(user) || isTeamLeader(user);
+// AUTH-20 (Cần chốt 03/11/2026): HT, PHT xem dữ liệu đánh giá mọi điểm trường; ghi theo inLeaderEditScope
+export const inLeaderScope = (campusId, user) => isLeader(user);
+/** Mở lại ngày, xét duyệt: Hiệu trưởng cả trường, PHT điểm trường mình. */
+export const inLeaderEditScope = (campusId, user) =>
+  isPrincipal(user) || (isVicePrincipal(user) && user.campusId != null && String(user.campusId) === String(campusId));
 
 /* ---------- Daily assessment / profile ---------- */
 export const canRecordDailyAssessment = (cls, user) => isClassTeacher(cls, user);
 /** Mở lại ngày đánh giá đã khóa: Hiệu trưởng (cả trường) hoặc PHT của điểm trường có lớp. */
-export const canUnlockAssessmentDay = (cls, user) => !!cls && inLeaderScope(cls.campusId, user);
+export const canUnlockAssessmentDay = (cls, user) => !!cls && inLeaderEditScope(cls.campusId, user);
 export const canViewDevelopmentProfile = (cls, user) => isClassTeacher(cls, user);
 export const canViewDevelopmentProgress = (child, user) => !!child && inLeaderScope(child.campusId, user);
 
 /* ---------- Evaluations ---------- */
-export const canReviewEvaluation = (ev, cls, user) => !!ev && ev.status !== EVAL_STATUS.CONFIRMED && isClassTeacher(cls, user);
+// BE: canEdit = GV đang phụ trách lớp của năm đang hoạt động
+export const canReviewEvaluation = (ev, cls, user) =>
+  !!ev && ev.status !== EVAL_STATUS.CONFIRMED && (cls?.canEdit ?? isClassTeacher(cls, user));
 
 export const canViewEvaluation = (ev, cls, user) =>
   !!ev && (isClassTeacher(cls, user) || (ev.status === EVAL_STATUS.CONFIRMED && inLeaderScope(ev.campusId, user)));

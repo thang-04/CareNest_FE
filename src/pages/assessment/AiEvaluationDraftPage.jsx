@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useAiRun } from '@/hooks/useAiRun';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
 import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime } from '@/utils/format';
@@ -29,9 +30,13 @@ const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp t
 export default function AiEvaluationDraftPage() {
   const { id } = useParams();
   const { pathname } = useLocation();
-  const kind = pathname.includes('/year-end/') ? EVAL_KIND.YEAR_END : EVAL_KIND.PERIODIC;
-  const base = `/assessment/${kind === EVAL_KIND.YEAR_END ? 'year-end' : 'periodic'}`;
-  const section = kind === EVAL_KIND.YEAR_END ? SECTIONS.yearEnd : SECTIONS.periodic;
+  const kind = pathname.includes('/year-end/')
+    ? EVAL_KIND.YEAR_END
+    : pathname.includes('/semester/')
+      ? EVAL_KIND.SEMESTER
+      : EVAL_KIND.PERIODIC;
+  const base = `/assessment/${kind}`;
+  const section = { [EVAL_KIND.YEAR_END]: SECTIONS.yearEnd, [EVAL_KIND.SEMESTER]: SECTIONS.semester }[kind] || SECTIONS.periodic;
   const { user } = useAuth();
   const toast = useToast();
   const { detail, loading, error, reload } = useEvaluation(kind, id);
@@ -67,15 +72,18 @@ export default function AiEvaluationDraftPage() {
       return <StatusPage kind="403" title="Không xem được bản nháp" description="Bản nháp AI chỉ dành cho giáo viên của lớp." />;
     const canRedraft = canReviewEvaluation(ev, detail.cls, user);
     const src = ev.aiDraft?.source;
-    const critName = Object.fromEntries(detail.criteria.map((c) => [c.id, c.name]));
+    const critName = Object.fromEntries((detail.criteria || []).map((c) => [c.id, c.name]));
     return (
       <>
         <div className="page__head">
-          <div>
-            <h1 className="page__title">Bản nháp AI – {ev.childName}</h1>
-            <div className="row row--wrap gap-2">
-              <EvaluationStatusBadge status={ev.status} size="lg" />
-              <AiDraftTag />
+          <div className="dg-eval-head">
+            <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
+            <div>
+              <h1 className="page__title">Bản nháp AI – {ev.childName}</h1>
+              <div className="row row--wrap gap-2">
+                <EvaluationStatusBadge status={ev.status} size="lg" />
+                <AiDraftTag />
+              </div>
             </div>
           </div>
         </div>

@@ -1,6 +1,12 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
-import { getClasses, getChildren } from '@/services/schoolService';
+import { getAgeGroups, getClasses, getChildren } from '@/services/schoolService';
+
+/** Nhóm tuổi của trường (thứ tự cấu hình). */
+export function useAgeGroups() {
+  const { data, loading, error } = useAsync(() => getAgeGroups(), []);
+  return { ageGroups: data || [], loading, error };
+}
 
 /** Classes visible to the signed-in user. filters: { campusId, ageGroupId, all } */
 export function useClasses(filters = {}) {

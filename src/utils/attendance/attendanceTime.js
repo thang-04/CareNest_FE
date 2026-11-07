@@ -14,6 +14,9 @@ export const schoolNow = (now = new Date()) => {
 
 export const schoolToday = () => schoolNow().date;
 
+/** Ngày mặc định theo năm học chọn ở header: hôm nay; năm đã kết thúc trước hôm nay ⇒ ngày kết thúc năm đó. */
+export const yearDefaultDate = (year, today = schoolToday()) => (year?.endDate && year.endDate < today ? year.endDate : today);
+
 /** Assumption until the school calendar exists: Monday–Friday are school days. */
 export const isSchoolDay = (date) => {
   const day = new Date(`${date}T00:00:00`).getDay();

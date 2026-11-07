@@ -7,10 +7,16 @@ const { readDb, writeDb, resetDb } = await import('@/mocks/mockDatabase');
 const { guardianMockRepository: repo } = await import('@/services/account/mock/guardianMockRepository');
 const { migrateGuardianAccounts, healthNotificationRecipients } = await import('@/services/account/mock/guardianCompatibility');
 const { authMockRepository: auth, DEMO_PASSWORD } = await import('@/mocks/authMockRepository');
+const { normalizePhone } = await import('@/utils/account/guardianValidation');
 let vp;
 let child;
-const form = (patch = {}) => ({ fullName: 'Liên hệ minh họa', phone: '0987654321', email: '', relationship: 'MOTHER', ...patch });
+const form = (patch = {}) => ({ fullName: 'Liên hệ minh họa', phone: '0987654321', email: '', relationship: 'MOTHER', idNumber: '999987654321', ...patch });
 const rejectStatus = (status) => (error) => error.status === status;
+// Phụ huynh nhập ở hồ sơ trẻ rồi kích hoạt (AUTH-20); thêm phụ huynh kèm tạo tài khoản ngay đã bỏ (user chốt 2026-10-28, C-4 A).
+const addAndActivate = async (childId, f, actor) => {
+  writeDb((db) => { const contacts = db.children.find((row) => row.id === childId).guardians; contacts.forEach(g => { g.accountRecipient = false; }); contacts.push({ accountRecipient: true, fullName: f.fullName, relation: 'Mẹ', phone: f.phone, idNumber: f.idNumber, email: f.email, accountStatus: 'NOT_ACTIVATED' }); });
+  return (await repo.activateGuardians(childId, actor)).find((row) => row.phone === normalizePhone(f.phone));
+};
 beforeEach(async () => {
   resetDb();
   const user = readDb().users.find((row) => row.role === 'VICE_PRINCIPAL' && row.campusId === 'c1');
@@ -19,23 +25,32 @@ beforeEach(async () => {
   child = rows.items.find((row) => row.canManage);
   assert.ok(child);
 });
-test('UI structure/scope giữ campus legacy; teacher/Principal không ghi tài khoản', async () => {
+test('UI structure/scope giữ campus legacy; teacher không ghi tài khoản, Hiệu trưởng ghi được (2026-10-23)', async () => {
   const structure = await repo.getStructure(vp);
   assert.ok(structure.campuses.some((row) => row.id === 'c1'));
   const principal = readDb().users.find((row) => row.role === 'PRINCIPAL');
-  await assert.rejects(repo.addGuardian(child.id, form(), principal), rejectStatus(403));
+  // Hiệu trưởng kích hoạt tài khoản phụ huynh toàn trường (user chốt 2026-10-23, thay quy định chỉ Phó hiệu trưởng).
+  assert.ok((await addAndActivate(child.id, form(), principal)).newAccount);
   await assert.rejects(repo.listGuardians(child.id, { id: 'teacher', role: 'TEACHER' }), rejectStatus(403));
   const other = readDb().children.find((row) => row.campusId === 'c2');
   await assert.rejects(repo.listGuardians(other.id, vp), rejectStatus(403));
 });
-test('email/phone nhân sự hoặc hai parent khác nhau bị chặn như activation cũ', async () => {
-  await assert.rejects(repo.addGuardian(child.id, form({ email: readDb().users[0].email }), vp), rejectStatus(409));
-  const [a, b] = readDb().parentAccounts.filter((row) => row.email).slice(0, 2);
+// User chốt lại 2026-10-29 (như 2026-10-28): trùng nhân sự vẫn tạo tài khoản phụ huynh riêng; email chỉ là liên hệ, tài khoản tìm theo SĐT.
+test('SĐT/email nhân sự không chặn; email của tài khoản khác không ghép, tài khoản tìm theo SĐT', async () => {
+  const staff = readDb().users.find((row) => row.role === 'TEACHER' && row.phone && row.email);
+  assert.ok((await addAndActivate(child.id, form({ phone: staff.phone, email: staff.email }), vp)).newAccount);
+  const [a, b] = readDb()
+    .parentAccounts.filter((row) => row.email && row.idNumber && !(row.childIds || []).includes(child.id))
+    .slice(0, 2);
   assert.ok(a && b);
-  await assert.rejects(repo.addGuardian(child.id, form({ phone: a.phone, email: b.email }), vp), rejectStatus(409));
+  const linked = await addAndActivate(child.id, form({ phone: a.phone, idNumber: a.idNumber, email: b.email }), vp);
+  assert.equal(linked.newAccount, false);
+  const accountOf = (id) => readDb().parentAccounts.find((row) => row.id === id);
+  assert.ok(accountOf(a.id).childIds.includes(child.id));
+  assert.ok(!accountOf(b.id).childIds.includes(child.id));
 });
 test('thêm phụ huynh không email: hồ sơ, thông báo demo, khóa/gỡ liên kết đồng nhất', async () => {
-  const added = await repo.addGuardian(child.id, form(), vp);
+  const added = await addAndActivate(child.id, form(), vp);
   assert.ok(added.newAccount);
   let db = readDb();
   let canonical = db.children.find((row) => row.id === child.id);
@@ -52,14 +67,16 @@ test('thêm phụ huynh không email: hồ sơ, thông báo demo, khóa/gỡ li�
   assert.equal(healthNotificationRecipients(db, canonical).some((row) => row.recipientKey === `parent:${added.userId}`), false);
 });
 test('liên kết tài khoản đã có giữ ID/mật khẩu; không tạo trùng và giữ history/health/pickup', async () => {
-  const added = await repo.addGuardian(child.id, form(), vp);
+  const added = await addAndActivate(child.id, form(), vp);
   const another = (await repo.searchChildren({ campusId: 'c1' }, vp)).items.find((row) => row.id !== child.id && row.canManage);
   const snapshot = structuredClone({ health: readDb().healthMeasurements, declarations: readDb().healthDeclarations, placements: readDb().childPlacements, pickups: readDb().pickups, users: readDb().users, classes: readDb().classes });
-  const linked = await repo.addGuardian(another.id, form(), vp);
+  const linked = await addAndActivate(another.id, form(), vp);
   assert.equal(linked.newAccount, false);
   assert.equal(linked.userId, added.userId);
-  assert.equal(linked.temporaryPassword, null);
-  await assert.rejects(repo.addGuardian(another.id, form(), vp), rejectStatus(409));
+  assert.equal(linked.smsStatus, null, 'tài khoản có sẵn giữ mật khẩu, không gửi SMS');
+  assert.ok(!('temporaryPassword' in linked));
+  // Không còn ai chờ kích hoạt ⇒ 409, không tạo tài khoản trùng.
+  assert.deepEqual(await repo.activateGuardians(another.id, vp), []);
   assert.deepEqual({ health: readDb().healthMeasurements, declarations: readDb().healthDeclarations, placements: readDb().childPlacements, pickups: readDb().pickups, users: readDb().users, classes: readDb().classes }, snapshot);
 });
 test('migration ID trùng idempotent, không khôi phục liên kết/mảng đã xóa', () => {
@@ -81,4 +98,13 @@ test('thông báo legacy giữ email key, không phát trùng và không nhận 
   assert.deepEqual(healthNotificationRecipients(db, canonical).map((row) => row.recipientKey), [guardian.email]);
   db.parentAccounts[0].childIds = [];
   assert.equal(healthNotificationRecipients(db, canonical).length, 0);
+});
+test('tra SĐT trước khi thêm: chưa có, đã có tài khoản (tên che), đã liên kết với bé', async () => {
+  assert.equal((await repo.lookupGuardian(child.id, '0987654321', vp)).exists, false);
+  const added = await addAndActivate(child.id, form(), vp);
+  const linked = await repo.lookupGuardian(child.id, '0987654321', vp);
+  assert.deepEqual([linked.exists, linked.alreadyLinked, linked.userId], [true, true, added.userId]);
+  assert.ok(!linked.maskedFullName.includes('Liên hệ minh họa'));
+  const other = (await repo.searchChildren({ campusId: 'c1' }, vp)).items.find((row) => row.canManage && row.id !== child.id);
+  assert.equal((await repo.lookupGuardian(other.id, '0987654321', vp)).alreadyLinked, false);
 });

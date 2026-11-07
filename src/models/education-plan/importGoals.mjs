@@ -1,0 +1,204 @@
+import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
+import { curriculumLink } from '@/models/education-plan/curriculum.mjs';
+import { toRows } from '@/models/education-plan/goalTable';
+
+const readRows = (domain, domainIndex) => {
+  let n = 0;
+  return toRows(domain, () => `legacy-${domainIndex}-${++n}`);
+};
+
+export const getImportGoals = (source) =>
+  (source.domains || []).flatMap((domain, domainIndex) => {
+    let sub = null;
+    let group = null;
+    return readRows(domain, domainIndex).flatMap((row, rowIndex) => {
+      if (row.kind === 'sub') {
+        sub = row;
+        group = null;
+      } else if (row.kind === 'group') group = row;
+      if (row.kind !== 'goal') return [];
+      return [
+        {
+          id: row.id,
+          domainId: domain.id,
+          domainName: domain.name,
+          text: row.text,
+          code: row.code || (domain.rows ? domain.items?.find((item) => item.id === row.id)?.code : domain.items?.[rowIndex]?.code) || '',
+          contents: row.contents || [],
+          // Mục tiêu lấy từ Chương trình của Bộ (BE:EDU-28): giữ liên kết nguồn khi chép
+          ...(row.curriculumGoalId
+            ? {
+                curriculumGoalId: row.curriculumGoalId,
+                curriculumGoalText: row.curriculumGoalText,
+                curriculumSectionRef: row.curriculumSectionRef,
+              }
+            : {}),
+          sub,
+          group,
+        },
+      ];
+    });
+  });
+
+const contexts = (rows) => {
+  let sub = null;
+  let group = null;
+  return new Map(
+    rows.map((row) => {
+      if (row.kind === 'sub') {
+        sub = row.id;
+        group = null;
+      } else if (row.kind === 'group') group = row.id;
+      return [row.id, [row.kind === 'sub' ? null : sub, row.kind === 'goal' ? group : null]];
+    }),
+  );
+};
+
+// Nhập file (BE:EDU-46): themesOf giữ dấu tích khớp viết tắt; freeContext — dòng file không ghi lĩnh vực con/nhóm thì
+// nằm cuối lĩnh vực như gõ tay, không bắt buộc khớp ngữ cảnh. Mặc định (EDU-24): bỏ dấu tích, ngữ cảnh phải khớp.
+// dropSubIds (Tiền 05/11): id lĩnh vực con nguồn người dùng bỏ tích ⇒ chỉ lấy mục tiêu (kèm nhóm), không lấy lĩnh vực con;
+// mục tiêu không có lĩnh vực con được chèn trước lĩnh vực con đầu tiên của lĩnh vực đích (thuộc thẳng lĩnh vực).
+export const mergeImportedGoals = (
+  target,
+  source,
+  selectedGoalIds,
+  makeId,
+  { themesOf = () => [], freeContext = false, dropSubIds = [] } = {},
+) => {
+  const selected = new Set(selectedGoalIds);
+  const dropSubs = new Set(dropSubIds);
+  const domains = [...(target.domains || [])];
+  const report = { added: 0, duplicates: 0, unavailable: [] };
+  const states = new Map();
+  const usedIds = new Set(
+    [target, source].flatMap((plan) =>
+      (plan.domains || []).flatMap((domain, i) =>
+        readRows(domain, i).flatMap((row) => [String(row.id), ...(row.contents || []).map((content) => String(content.id))]),
+      ),
+    ),
+  );
+  let suffix = 0;
+  const nextId = () => {
+    const raw = String(makeId());
+    const base = /^[a-z]/i.test(raw) ? raw : `import-${raw}`;
+    let id = base;
+    while (usedIds.has(id)) id = `${base}-${++suffix}`;
+    usedIds.add(id);
+    return id;
+  };
+  for (const raw of getImportGoals(source)) {
+    if (!selected.has(raw.id)) continue;
+    const incoming = raw.sub && dropSubs.has(raw.sub.id) ? { ...raw, sub: null } : raw;
+    const unavailable = (reason) =>
+      report.unavailable.push({ id: incoming.id, label: incoming.text, domainName: incoming.domainName, reason });
+    const index = domains.findIndex((domain) => domain.name === incoming.domainName);
+    if (index < 0 || domains[index].active === false || !DOMAINS.includes(incoming.domainName)) {
+      unavailable('Lĩnh vực không có trong danh mục hiện tại của kế hoạch đích.');
+      continue;
+    }
+    if (!states.has(index)) {
+      const rows = domains[index].rows || readRows(domains[index], index);
+      states.set(index, {
+        rows,
+        paths: contexts(toRows({ rows }, nextId)),
+        texts: new Set(rows.filter((row) => row.kind === 'goal').map((row) => row.text.trim())),
+        sub: null,
+        group: null,
+        subId: null,
+        groupId: null,
+      });
+    }
+    const state = states.get(index);
+    if (state.texts.has(incoming.text.trim())) {
+      report.duplicates += 1;
+      continue;
+    }
+    const additions = [];
+    const firstSub = state.rows.findIndex((existing) => existing.kind === 'sub');
+    let insertAt = !incoming.sub && !freeContext && firstSub >= 0 ? firstSub : state.rows.length;
+    let { sub, group, subId, groupId } = state;
+    const addHeading = (row) => {
+      // Lĩnh vực con/nhóm lấy từ Bộ giữ liên kết nguồn khi chép (BE:EDU-28)
+      const heading = { id: nextId(), kind: row.kind, text: row.text, ...curriculumLink(row) };
+      additions.push(heading);
+      return heading.id;
+    };
+    if (incoming.curriculumGoalId) {
+      const reuseHeading = (heading, parentId) => {
+        const field = heading.kind === 'sub' ? 'curriculumSubDomainId' : 'curriculumExpectedResultId';
+        const text = (value) => value.trim().replace(/\s+/g, ' ');
+        return state.rows.find(
+          (existing) =>
+            existing.kind === heading.kind &&
+            (heading.kind === 'sub' || state.paths.get(existing.id)?.[0] === parentId) &&
+            (heading[field] != null || existing[field] != null
+              ? heading[field] != null && existing[field] != null && String(heading[field]) === String(existing[field])
+              : text(existing.text) === text(heading.text)),
+        );
+      };
+      sub = incoming.sub;
+      group = incoming.group;
+      const existingSub = sub && reuseHeading(sub, null);
+      subId = sub ? existingSub?.id || addHeading(sub) : null;
+      const existingGroup = group && reuseHeading(group, subId);
+      groupId = group ? existingGroup?.id || addHeading(group) : null;
+    } else {
+      // Mục tiêu không có lĩnh vực con sau một mục tiêu có lĩnh vực con: bắt đầu lại ngữ cảnh ở phần đầu lĩnh vực
+      if (!incoming.sub && subId) {
+        sub = null;
+        subId = null;
+        group = null;
+        groupId = null;
+      }
+      if (incoming.sub && (incoming.sub !== sub || (!incoming.group && group))) {
+        subId = addHeading(incoming.sub);
+        sub = incoming.sub;
+        group = null;
+        groupId = null;
+      }
+      if (incoming.group && incoming.group !== group) {
+        groupId = addHeading(incoming.group);
+        group = incoming.group;
+      }
+    }
+    const anchor = state.rows.find((existing) => existing.id === groupId) || state.rows.find((existing) => existing.id === subId);
+    if (anchor) {
+      // Chèn vào đúng nhánh cha cũ, kể cả mục tiêu tự gõ đi cùng mục tiêu Bộ.
+      const start = state.rows.indexOf(anchor) + 1;
+      const boundary = state.rows.findIndex(
+        (existing, i) =>
+          i >= start && (existing.kind === 'sub' || ((anchor.kind === 'group' || !incoming.group) && existing.kind === 'group')),
+      );
+      insertAt = boundary < 0 ? state.rows.length : boundary;
+    }
+    const row = {
+      id: nextId(),
+      kind: 'goal',
+      text: incoming.text,
+      ...(incoming.curriculumGoalId
+        ? {
+            curriculumGoalId: incoming.curriculumGoalId,
+            curriculumGoalText: incoming.curriculumGoalText,
+            curriculumSectionRef: incoming.curriculumSectionRef,
+          }
+        : {}),
+      contents: incoming.contents.map((content) => ({ id: nextId(), text: content.text, themes: themesOf(content) })),
+    };
+    additions.push(row);
+    const candidate = [...state.rows.slice(0, insertAt), ...additions, ...state.rows.slice(insertAt)];
+    const candidatePaths = contexts(toRows({ rows: candidate }, nextId));
+    const expected = [incoming.sub ? subId : null, incoming.group ? groupId : null];
+    // Bộ chuẩn hóa có thể kéo sub đầu tiên lên trước các dòng đích cũ.
+    const preservesPaths = [...state.paths].every(([id, path]) => candidatePaths.get(id)?.every((parent, i) => parent === path[i]));
+    const fits = (parent, i) => parent === expected[i] || (freeContext && expected[i] === null);
+    if (!preservesPaths || !candidatePaths.get(row.id)?.every(fits)) {
+      unavailable('Không thể giữ nguyên lĩnh vực con/nhóm của mục tiêu và dữ liệu đích; vui lòng đặt lại ngữ cảnh thủ công.');
+      continue;
+    }
+    Object.assign(state, { rows: candidate, paths: candidatePaths, sub, group, subId, groupId });
+    state.texts.add(incoming.text.trim());
+    domains[index] = { ...domains[index], rows: candidate };
+    report.added += 1;
+  }
+  return { domains, report };
+};

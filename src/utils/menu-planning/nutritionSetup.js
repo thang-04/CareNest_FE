@@ -1,14 +1,54 @@
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
-import { MEAL_SESSION_LABELS, sessionsOf } from '@/models/menu-planning/menuPlanningConstants';
+import {
+  MEAL_SESSION_LABELS,
+  MICRONUTRIENT_GROUPS,
+  MICRONUTRIENT_LABELS,
+  MICRONUTRIENT_UNITS,
+  sessionsOf,
+} from '@/models/menu-planning/menuPlanningConstants';
 import { priceOn } from '@/utils/menu-planning/menuCalculations';
 
-/** Các cột định mức một ngày: năng lượng (kcal) và tỷ lệ năng lượng từ đạm, béo, bột (%). */
-export const NORM_COLUMNS = [
-  { key: 'kcal', label: 'Năng lượng / ngày (kcal)' },
-  { key: 'protein', label: 'Đạm' },
-  { key: 'lipid', label: 'Béo' },
-  { key: 'glucid', label: 'Tinh bột' },
+/** Năng lượng một ngày (kcal) — bắt buộc cùng cơ cấu P:L:G để đánh giá ngày (BE NUT-24). */
+export const KCAL_NORM = { key: 'kcal', label: 'Năng lượng', unit: 'kcal' };
+/** Cơ cấu áp dụng P:L:G: tỷ lệ năng lượng từ đạm, béo, bột đường (%). */
+export const STRUCTURE_NORM_COLUMNS = [
+  { key: 'protein', label: 'Đạm', unit: '%' },
+  { key: 'lipid', label: 'Béo', unit: '%' },
+  { key: 'glucid', label: 'Bột đường', unit: '%' },
 ];
+/** Định mức gam / trẻ / ngày theo chất (BE NUT-24); chất nào để trống thì không đánh giá chất đó. */
+export const GRAM_NORM_COLUMNS = [
+  { key: 'animalProteinG', label: 'Đạm động vật', unit: 'g' },
+  { key: 'plantProteinG', label: 'Đạm thực vật', unit: 'g' },
+  { key: 'animalLipidG', label: 'Béo động vật', unit: 'g' },
+  { key: 'plantLipidG', label: 'Béo thực vật', unit: 'g' },
+  { key: 'glucidG', label: 'Bột đường', unit: 'g' },
+];
+/** Tỷ lệ năng lượng từng bữa gốc (% nhu cầu năng lượng cả ngày `dailyKcalNeed`, BE NUT-25). */
+export const SESSION_NORM_KEYS = { MORNING: 'morningKcalPct', LUNCH: 'lunchKcalPct', AFTERNOON: 'afternoonKcalPct' };
+/** Định mức vi chất / trẻ / ngày (BE NUT-26), không bắt buộc; số sau trống = chỉ cần đạt tối thiểu. */
+export const MICRO_NORM_GROUPS = MICRONUTRIENT_GROUPS.map((g) => ({
+  ...g,
+  columns: g.items.map((key) => ({ key, label: MICRONUTRIENT_LABELS[key], unit: MICRONUTRIENT_UNITS[key] })),
+}));
+export const ALL_NORM_COLUMNS = [
+  KCAL_NORM,
+  ...STRUCTURE_NORM_COLUMNS,
+  ...GRAM_NORM_COLUMNS,
+  ...Object.values(SESSION_NORM_KEYS).map((key) => ({ key, unit: '%' })),
+  ...MICRO_NORM_GROUPS.flatMap((g) => g.columns),
+];
+
+// Khóa định mức cũ (trước khi khớp tên BE animalProteinPct*, animalLipidPct*) còn trong localStorage
+const LEGACY_NORM_KEYS = { animalProteinShare: 'animalProteinPct', animalLipidShare: 'animalLipidPct' };
+export const hasLegacyNormKeys = (norms) => Object.keys(norms || {}).some((k) => k in LEGACY_NORM_KEYS);
+/** Đổi khóa định mức cũ sang khóa mới; khóa mới đã có thì giữ. */
+export const migrateNormKeys = (norms = {}) =>
+  Object.entries(norms).reduce((out, [k, range]) => {
+    const key = LEGACY_NORM_KEYS[k] || k;
+    if (!(key in out) || key === k) out[key] = range;
+    return out;
+  }, {});
 
 /** Tên viết tắt nhóm tuổi dùng trong bảng (Nhà trẻ, MG bé, MG nhỡ, MG lớn). */
 export const ageAbbr = (ageGroupId) => (ageGroupById(ageGroupId)?.shortName || ageGroupId).replace('Mẫu giáo', 'MG');
@@ -26,6 +66,12 @@ export const mealsOf = (setups, ageGroupId) => {
 };
 
 export const mealCodesOf = (setups, ageGroupId) => mealsOf(setups, ageGroupId).map((m) => m.code);
+
+/** Định mức áp cho phạm vi các bữa trường phục vụ của nhóm tuổi: chỉ giữ các bữa đã cấu hình khi so định mức. */
+export const normScopeMeals = (meals, setups, ageGroupId) => {
+  const codes = mealCodesOf(setups, ageGroupId);
+  return (meals || []).filter((m) => codes.includes(m.session));
+};
 
 /** Tên bữa: theo nhóm tuổi nếu biết, không thì tìm ở mọi nhóm, cuối cùng là tên bữa gốc. */
 export const mealLabel = (setups, ageGroupId, code) =>
@@ -57,7 +103,11 @@ export const toSetupForm = (setups, today) => ({
     enabled: s.enabled,
     price: String(s.price ?? ''),
     meals: s.meals.map((m) => ({ code: m.code, name: m.name, countAs: m.countAs })),
-    norms: Object.fromEntries(NORM_COLUMNS.map(({ key }) => [key, (s.norms?.[key] || ['', '']).map(String)])),
+    // Số sau của vi chất có thể null (chỉ cần đạt tối thiểu) ⇒ ô trống, không thành chữ "null"
+    norms: Object.fromEntries(
+      ALL_NORM_COLUMNS.map(({ key }) => [key, (s.norms?.[key] || ['', '']).map((v) => (v == null ? '' : String(v)))]),
+    ),
+    dailyKcalNeed: String(s.dailyKcalNeed ?? ''),
   })),
 });
 
@@ -72,5 +122,6 @@ export const toSetupPayload = (form) => ({
     price: g.price,
     meals: g.meals.map(({ code, name, countAs }) => ({ code, name: name.trim(), countAs })),
     norms: g.norms,
+    dailyKcalNeed: g.dailyKcalNeed,
   })),
 });

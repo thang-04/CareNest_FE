@@ -11,9 +11,68 @@
     />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>CareNest</title>
+    <!-- Màn chờ khởi động: vẽ ngay từ HTML (chưa có CSS bundle nên mã màu chép từ tokens.css), React dùng lại đúng class này ở src/components/ui/AppSplash.jsx -->
+    <style>
+      .boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: #f1f9fe;
+        color: #66728a;
+        font: 500 14px 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+      .boot-splash__name {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+        color: #0269c5;
+      }
+      .boot-splash__name span {
+        color: #4fb0f5;
+      }
+      .boot-splash__dots {
+        display: inline-flex;
+        gap: 6px;
+        height: 22px;
+        align-items: center;
+      }
+      .boot-splash__dots i {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #4fb0f5;
+        animation: boot-hop 1.6s ease-in-out infinite;
+      }
+      .boot-splash__dots i:nth-child(2) {
+        background: #3fb98a;
+        animation-delay: 0.24s;
+      }
+      .boot-splash__dots i:nth-child(3) {
+        background: #fcd34d;
+        animation-delay: 0.48s;
+      }
+      @keyframes boot-hop {
+        0%, 60%, 100% { transform: translateY(0); opacity: 0.55; }
+        30% { transform: translateY(-4px); opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-splash__dots i { animation: none; opacity: 0.8; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-splash" role="status" aria-label="Đang mở CareNest">
+        <img src="/favicon.png" width="64" height="64" alt="" />
+        <div class="boot-splash__name">Care<span>Nest</span></div>
+        <div class="boot-splash__dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

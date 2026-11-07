@@ -1,5 +1,13 @@
 const BACKEND_ROLES = ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF', 'PARENT'];
-const WEB_ROLES = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF'];
+// Token Web chỉ mang role nhân sự (ADR-0022); bếp/phụ huynh bị BE chặn 403 1101. ADMIN xếp cuối vì Web chưa có màn riêng
+const WEB_ROLES = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'ADMIN'];
+// Tổ trưởng không phải role đăng nhập: GV có phân công AGE_GROUP_TEAM_LEADER đang hiệu lực (AUTH-23)
+const TEAM_LEADER_ASSIGNMENT = 'AGE_GROUP_TEAM_LEADER';
+
+const webRoleOf = (roles, assignments) => {
+  const role = WEB_ROLES.find((r) => roles.includes(r)) || null;
+  return role === 'TEACHER' && assignments.some((a) => a.staffRole === TEAM_LEADER_ASSIGNMENT) ? 'TEAM_LEADER' : role;
+};
 
 export const normalizeAccountProfile = (profile) => {
   if (profile?.userId == null || !Array.isArray(profile.roles)) {
@@ -23,8 +31,9 @@ export const normalizeAccountProfile = (profile) => {
     roles,
     // Quyền hiệu lực BE tính (ADR-0017); chỉ dùng ẩn/hiện UI, BE vẫn kiểm từng API
     permissions: Array.isArray(profile.permissions) ? [...new Set(profile.permissions)] : [],
-    role: WEB_ROLES.find((role) => roles.includes(role)) || null,
+    role: webRoleOf(roles, assignments),
     assignments,
+    ageGroupId: assignments.find((a) => a.staffRole === TEAM_LEADER_ASSIGNMENT && a.ageGroupId != null)?.ageGroupId ?? null,
     childIds: profile.childIds || [],
     locationIds: campusIds,
     campusId: campusIds.length === 1 ? campusIds[0] : null,

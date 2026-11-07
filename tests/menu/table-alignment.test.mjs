@@ -45,11 +45,6 @@ test('cột số hiển thị căn giữa cả tiêu đề bằng .num (ô nhậ
     'pages/school-config/CampusDetailPage.jsx': ['Sĩ số'],
     'pages/school-config/CampusListPage.jsx': ['Trẻ'],
     'components/school-config/CopyClassesModal.jsx': ['Sĩ số tối đa'],
-    'components/facility-transfer/StockMovementCard.jsx': ['Số lượng luân chuyển'],
-    'components/facility-transfer/wizard/StepAssignUsers.jsx': ['Số lượng luân chuyển'],
-    'components/facility-transfer/wizard/StepReview.jsx': ['Số lượng luân chuyển'],
-    'pages/facility-transfer/ReceivePage.jsx': ['SL theo phiếu', 'SL đã bàn giao', 'SL cần nhận'],
-    'pages/inventory-inspection/InspectionSheetPage.jsx': ['SL sổ sách', 'Chênh lệch'],
   };
   const bad = [];
   for (const [file, headers] of Object.entries(NUMERIC)) {

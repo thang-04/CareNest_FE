@@ -1,11 +1,29 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { AlertOctagon, ArrowLeft, Award, CheckCircle2, Copy, History, RefreshCw, Save } from '@/components/ui/icons';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  AlertOctagon,
+  ArrowLeft,
+  Award,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  History,
+  RefreshCw,
+  Save,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useEvaluation } from '@/hooks/assessment/useAssessment';
-import { confirmEvaluation, regenerateEvaluationDraft, saveEvaluationDraft } from '@/services/assessment/assessmentService';
+import { useEvaluation, useEvaluations } from '@/hooks/assessment/useAssessment';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import {
+  confirmEvaluation,
+  markProgramCompletion,
+  regenerateEvaluationDraft,
+  saveEvaluationDraft,
+} from '@/services/assessment/assessmentService';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
@@ -15,10 +33,10 @@ import { Modal } from '@/components/ui/Modal';
 import { useAiRun } from '@/hooks/useAiRun';
 import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
-import { EMOTION_LABELS, EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
-import { BEHAVIORS, NAP, NAP_LABELS } from '@/models/assessment/dailyObservationOptions';
-import { HEALTH_SYMPTOMS } from '@/utils/dailyHealthValidation';
-import { mealsText } from '@/components/assessment/DailyAssessmentCells';
+import { YearEndSheetCard } from '@/components/assessment/YearEndSheetCard';
+import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
+import { Pagination, paginate } from '@/components/ui/Pagination';
+import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
 import { canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
@@ -27,103 +45,78 @@ import { validateEvaluationContent, hasErrors } from '@/utils/assessment/assessm
 
 const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp tục viết đánh giá thủ công.';
 
-const GoalChip = ({ goal, tone }) => (
-  <span className={`chip chip--${tone}`} title={goal.description || goal.name}>
-    {goal.name}
-  </span>
-);
-
-/** Đánh giá hằng ngày trong kỳ, mỗi ngày một dòng, cùng cột với màn Đánh giá hằng ngày (căn cứ của bản nháp AI). */
-function DayTable({ days, mealSessions, classId, linkDays }) {
-  if (!days.length) return <div className="muted">Không có đánh giá hằng ngày nào trong kỳ.</div>;
-  const dash = <span className="muted">—</span>;
-  return (
-    <div className="table-wrap">
-      <table className="table table--grid dg-days">
-        <thead>
-          <tr>
-            <th>Ngày</th>
-            <th>Sức khỏe</th>
-            <th>Ăn</th>
-            <th>Ngủ</th>
-            <th>Cảm xúc</th>
-            <th>Hành vi</th>
-            <th>Kiến thức, kỹ năng</th>
-            <th>Nhận xét</th>
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((d) => (
-            <tr key={d.date}>
-              <td className="nowrap">
-                {linkDays ? (
-                  <Link to={`/assessment/daily?classId=${classId}&date=${d.date}`} title="Mở đánh giá hằng ngày của ngày này">
-                    {formatDate(d.date)}
-                  </Link>
-                ) : (
-                  formatDate(d.date)
-                )}
-              </td>
-              <td className={d.health?.signs.length ? 'dg-cell--warn' : ''}>
-                {d.health ? (
-                  <>
-                    {d.health.signs.length ? d.health.signs.map((x) => HEALTH_SYMPTOMS[x] || x).join(', ') : 'Bình thường'}
-                    {d.health.note && <div className="muted text-xs">{d.health.note}</div>}
-                  </>
-                ) : (
-                  dash
-                )}
-              </td>
-              <td>{d.meals ? mealsText(d.meals, mealSessions) : dash}</td>
-              <td className={d.nap && d.nap !== NAP.NGU_TOT ? 'dg-cell--warn' : ''}>{d.nap ? NAP_LABELS[d.nap] : dash}</td>
-              <td>{d.emotion ? EMOTION_LABELS[d.emotion] : dash}</td>
-              <td>
-                {d.behaviors.length ? d.behaviors.map((x) => BEHAVIORS[x] || x).join(', ') : dash}
-                {d.behaviorNote && <div className="muted text-xs">{d.behaviorNote}</div>}
-              </td>
-              <td>
-                {d.met.length || d.notMet.length ? (
-                  <div className="dg-days__goals">
-                    {d.met.map((g) => (
-                      <GoalChip key={g.id} goal={g} tone="green" />
-                    ))}
-                    {d.notMet.map((g) => (
-                      <GoalChip key={g.id} goal={g} tone="orange" />
-                    ))}
-                  </div>
-                ) : (
-                  dash
-                )}
-              </td>
-              <td className="dg-days__comment">{d.comment || dash}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 /** Shared body of #56 Periodic Evaluation Detail and #59 Year-end Evaluation Detail (UC 4.5, 4.6). */
 export function EvaluationReviewView({ kind, id }) {
   const { user } = useAuth();
   const toast = useToast();
-  const navigate = useNavigate();
   const md = useMasterData();
   const { detail, loading, error, reload } = useEvaluation(kind, id, { live: false });
   const [content, setContent] = useState('');
+  // Bản trên hệ thống mà ô nhập đang dựa vào; khác null mới so được "đã sửa" (không hỏi lưu khi vừa mở màn)
+  const [loadedFrom, setLoadedFrom] = useState(null);
   const [contentError, setContentError] = useState('');
+  const [programError, setProgramError] = useState('');
   const [busy, setBusy] = useState('');
   const { run: runAi } = useAiRun();
   const [fresh, setFresh] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dayPage, setDayPage] = useState(1);
   const yearEnd = kind === EVAL_KIND.YEAR_END;
-  const base = `/assessment/${yearEnd ? 'year-end' : 'periodic'}`;
+  const base = `/assessment/${kind}`;
 
   const ev = detail?.evaluation;
+  const savedContent = ev ? ev.finalContent || ev.aiDraft?.content || '' : '';
+  // Nạp lại ô nhập chỉ khi sang đánh giá khác hoặc nội dung đã lưu đổi (tải lại sau khi đánh dấu hoàn thành chương
+  // trình không xóa phần cô đang gõ)
+  const evId = ev?.id;
+  // Cùng một đánh giá mà cô đang gõ dở (vd. bấm "Tạo lại bản nháp" khi chưa lưu lần nào): giữ chữ của cô, bản nháp mới
+  // chỉ vào ô qua "Dùng bản nháp này"
+  const typed = useRef({ evId: null, content: '', loadedFrom: null });
+  typed.current.content = content;
+  typed.current.loadedFrom = loadedFrom;
   useEffect(() => {
-    if (ev) setContent(ev.finalContent || ev.aiDraft?.content || '');
-  }, [ev]);
+    if (!evId) return;
+    const t = typed.current;
+    const dirty = t.evId === evId && t.loadedFrom !== null && t.content !== t.loadedFrom;
+    t.evId = evId;
+    if (!dirty) setContent(savedContent);
+    setLoadedFrom(savedContent);
+  }, [evId, savedContent]);
+
+  // Trẻ cùng lớp, cùng kỳ (xếp theo tên) để chuyển ‹ › và mở trẻ chưa xác nhận tiếp theo
+  const { evaluations } = useEvaluations(kind, ev ? { classId: ev.classId, schoolYear: ev.schoolYearId || undefined } : null, {
+    enabled: !!ev,
+  });
+  const siblings = useMemo(
+    () =>
+      ev
+        ? evaluations
+            .filter((e) => e.periodType === ev.periodType && e.periodStart === ev.periodStart)
+            .sort((a, b) => a.childName.localeCompare(b.childName, 'vi'))
+        : [],
+    [evaluations, ev],
+  );
+  const at = siblings.findIndex((e) => String(e.id) === String(ev?.id));
+  const prev = at > 0 ? siblings[at - 1] : null;
+  const next = at >= 0 && at < siblings.length - 1 ? siblings[at + 1] : null;
+  const nextPending =
+    at >= 0 ? [...siblings.slice(at + 1), ...siblings.slice(0, at)].find((e) => e.status !== EVAL_STATUS.CONFIRMED) : null;
+  const linkOf = (e) => `${base}/${e.id}`;
+
+  // Sửa nội dung chưa lưu mà rời màn / sang trẻ khác: hỏi trước
+  const saveRef = useRef(null);
+  // Phiếu cuối năm (OBS-28): lưu phiếu trước khi xác nhận, hỏi khi rời màn còn sửa chưa lưu
+  const sheetRef = useRef(null);
+  const editing = !!ev && ev.status !== EVAL_STATUS.CONFIRMED && loadedFrom === savedContent && content !== savedContent;
+  const [sheetEdited, setSheetEdited] = useState(false);
+  const sheetDirty = () => !!sheetRef.current?.dirty;
+  const guard = useLeaveGuard({
+    when: editing || sheetEdited,
+    onSave: async () => {
+      if (sheetDirty() && !(await sheetRef.current.save())) return false;
+      return editing ? (saveRef.current?.() ?? false) : true;
+    },
+  });
 
   if (loading) return <LoadingState />;
   if (error) {
@@ -146,12 +139,31 @@ export function EvaluationReviewView({ kind, id }) {
   const showDraft = canViewAiDraft(ev, detail.cls, user);
   const confirmed = ev.status === EVAL_STATUS.CONFIRMED;
   const label = evaluationPeriodLabel(ev);
-  const name = (uid) => md.userById(uid)?.fullName || 'Hệ thống';
+  // BE gửi kèm tên người xử lý; mock tra danh mục người dùng
+  const name = (uid, shown) => shown || md.userById(uid)?.fullName || 'Hệ thống';
 
   const check = () => {
     const errors = validateEvaluationContent(content);
     setContentError(errors.content || '');
     return !hasErrors(errors);
+  };
+  // Lớp 5–6 tuổi: đánh giá cuối năm phải chọn Hoàn thành / Chưa hoàn thành chương trình trước khi xác nhận
+  const checkProgram = () => {
+    const missing = ev.programApplicable && ev.programCompleted == null;
+    setProgramError(missing ? 'Chọn Hoàn thành hoặc Chưa hoàn thành chương trình cho trẻ.' : '');
+    return !missing;
+  };
+  const markProgram = async (completed) => {
+    setProgramError('');
+    setBusy('program');
+    try {
+      await markProgramCompletion(ev.id, completed, user);
+      await reload({ silent: true });
+    } catch (err) {
+      setProgramError(err.details?.programCompleted || err.message || 'Chưa lưu được.');
+    } finally {
+      setBusy('');
+    }
   };
 
   const run = async (key, fn, success) => {
@@ -163,6 +175,9 @@ export function EvaluationReviewView({ kind, id }) {
       return res;
     } catch (err) {
       toast.error(err, 'Không thực hiện được');
+      // Lỗi nội dung từ BE (7340–7343) hiện đỏ dưới ô nhập
+      if (err.details?.content) setContentError(err.details.content);
+      if (err.details?.programCompleted) setProgramError(err.details.programCompleted);
       if (err.status === 409) reload({ silent: true });
       return null;
     } finally {
@@ -177,6 +192,16 @@ export function EvaluationReviewView({ kind, id }) {
       () => saveEvaluationDraft(kind, ev.id, content, user),
       () => 'Đã lưu chỉnh sửa. Đánh giá vẫn chờ bạn xác nhận.',
     );
+  saveRef.current = async () => {
+    if (!check()) return false;
+    let ok = false;
+    await run('save', async () => {
+      const res = await saveEvaluationDraft(kind, ev.id, content, user);
+      ok = true;
+      return res;
+    });
+    return ok;
+  };
 
   const redraft = async () => {
     setBusy('redraft');
@@ -195,45 +220,85 @@ export function EvaluationReviewView({ kind, id }) {
   };
 
   const doConfirm = async () => {
+    // Phiếu cuối năm còn sửa chưa lưu: lưu trước để xác nhận chốt đúng phiếu cô thấy
+    if (sheetDirty() && !(await sheetRef.current.save())) {
+      setConfirmOpen(false);
+      return null;
+    }
     const res = await run(
       'confirm',
       () => confirmEvaluation(kind, ev.id, content, user),
       () => 'Đánh giá đã được xác nhận thành công.',
     );
     setConfirmOpen(false);
+    // Xác nhận xong thì mở luôn trẻ chưa xác nhận tiếp theo cùng lớp, cùng kỳ
+    if (res && nextPending) guard.leaveNow(linkOf(nextPending));
     return res;
   };
 
   return (
     <>
-      <div className="page__head">
+      <div className={yearEnd ? 'card dg-year-review-head' : 'page__head'}>
         <div className="dg-eval-head">
           <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
           <div>
-            <h1 className="page__title">
+            <h1 className={yearEnd ? 'sr-only' : 'page__title'}>
               Đánh giá {PERIOD_TYPE_LABELS[ev.periodType].toLowerCase()} – {ev.childName}
             </h1>
+            {/* Tiêu đề h1 chỉ cho trình đọc màn hình: hiện rõ họ tên, ngày sinh để GV biết đang đánh giá bé nào */}
+            <div className="dg-eval-name">
+              {detail.child?.fullName || ev.childName}
+              {yearEnd && <EvaluationStatusBadge status={ev.status} />}
+              {!yearEnd && detail.child?.dateOfBirth && (
+                <span className="muted text-sm"> · Sinh ngày {formatDate(detail.child.dateOfBirth)}</span>
+              )}
+            </div>
             <div className="dg-eval-meta">
-              <EvaluationStatusBadge status={ev.status} />
+              {!yearEnd && <EvaluationStatusBadge status={ev.status} />}
+              {yearEnd && detail.child?.dateOfBirth && <span>Sinh ngày {formatDate(detail.child.dateOfBirth)}</span>}
               <span>{ev.className}</span>
               <span>{label}</span>
               {ev.themeName && <span>Chủ đề: {ev.themeName}</span>}
               <span>Có mặt {detail.summary.presentDays} ngày</span>
               {!yearEnd && <span>Đánh giá hằng ngày {detail.summary.assessedDays} ngày</span>}
-              {confirmed && (
+              {!yearEnd && confirmed && (
                 <span>
-                  Xác nhận bởi {name(ev.confirmedBy)} · {formatDateTime(ev.confirmedAt)}
+                  Xác nhận bởi {name(ev.confirmedBy, ev.confirmedByName)} · {formatDateTime(ev.confirmedAt)}
                 </span>
               )}
             </div>
+            {yearEnd && confirmed && (
+              <div className="dg-eval-meta mt-8">
+                <span>
+                  Xác nhận bởi {name(ev.confirmedBy, ev.confirmedByName)} · {formatDateTime(ev.confirmedAt)}
+                </span>
+                {!detail.cls?.teaches && <span className="chip">Chỉ xem</span>}
+              </div>
+            )}
           </div>
         </div>
         {yearEnd && confirmed && isClassTeacher(detail.cls, user) && (
-          <Link className="btn btn--outline-primary" to={`/assessment/rewards/new?childId=${ev.childId}&classId=${ev.classId}`}>
+          <Link className="btn btn--outline-primary" to={`/assessment/rewards/${ev.classId}`}>
             <Award size={16} /> Đề xuất khen thưởng
           </Link>
         )}
       </div>
+
+      {!yearEnd && confirmed && !detail.cls?.teaches && (
+        <div className="alert alert--info mt-16">Đánh giá đã xác nhận · Chỉ xem lịch sử của trẻ, không chỉnh sửa nội dung.</div>
+      )}
+
+      {yearEnd && (
+        <YearEndSheetCard
+          // Xác nhận (đổi trạng thái) ⇒ tải lại phiếu: phiếu chuyển chỉ xem, có ngày ký trên bản in
+          key={`${ev.id}-${ev.status}`}
+          evaluation={ev}
+          child={detail.child}
+          comment={canReview ? content : ev.finalContent}
+          sheetRef={sheetRef}
+          onDirtyChange={setSheetEdited}
+        />
+      )}
 
       {ev.status === EVAL_STATUS.AI_FAILED && canReview && (
         <div className="alert alert--danger mt-16">
@@ -249,12 +314,12 @@ export function EvaluationReviewView({ kind, id }) {
       )}
 
       {canReview ? (
-        <div className="split-2 mt-16">
-          <div className="card">
-            <div className="card__header">
-              <div className="card__title">Bản nháp AI</div>
+        <div className={yearEnd ? 'stack mt-16' : 'split-2 mt-16'}>
+          <details className="card">
+            <summary className="card__header">
+              <span className="card__title">Bản nháp AI làm căn cứ</span>
               <AiDraftTag />
-            </div>
+            </summary>
             <div className="card__body">
               {ev.aiDraft ? (
                 <>
@@ -262,7 +327,9 @@ export function EvaluationReviewView({ kind, id }) {
                   <div className="muted text-xs mt-8">
                     {yearEnd
                       ? `Tổng hợp từ ${detail.monthlyEvaluations.length} đánh giá tháng đã xác nhận`
-                      : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày`}{' '}
+                      : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày${
+                          detail.monthlyEvaluations?.length ? ` và ${detail.monthlyEvaluations.length} đánh giá tháng` : ''
+                        }`}{' '}
                     · tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
                   </div>
                   <div className="row row--wrap gap-2 mt-12">
@@ -285,7 +352,7 @@ export function EvaluationReviewView({ kind, id }) {
                 <div className="muted">Chưa có bản nháp AI. Cô tự viết đánh giá ở khung bên cạnh.</div>
               )}
             </div>
-          </div>
+          </details>
           <div className="card">
             <div className="card__header">
               <div className="card__title">Đánh giá chính thức</div>
@@ -310,6 +377,27 @@ export function EvaluationReviewView({ kind, id }) {
                 />
               </FormField>
               <div className="muted text-xs dg-right">{content.length}/3000</div>
+              {ev.programApplicable && (
+                <FormField label="Hoàn thành chương trình GDMN" required error={programError}>
+                  <div className="row gap-4" role="radiogroup" aria-label="Hoàn thành chương trình GDMN">
+                    {[
+                      [true, 'Hoàn thành'],
+                      [false, 'Chưa hoàn thành'],
+                    ].map(([value, text]) => (
+                      <label key={text} className="radio">
+                        <input
+                          type="radio"
+                          name={`program-${ev.id}`}
+                          checked={ev.programCompleted === value}
+                          disabled={!!busy}
+                          onChange={() => markProgram(value)}
+                        />
+                        {text}
+                      </label>
+                    ))}
+                  </div>
+                </FormField>
+              )}
             </div>
           </div>
         </div>
@@ -324,8 +412,13 @@ export function EvaluationReviewView({ kind, id }) {
             {confirmed ? (
               <>
                 <div className="dg-final">{ev.finalContent}</div>
+                {ev.programApplicable && (
+                  <div className="mt-12">
+                    Chương trình GDMN: <b>{ev.programCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}</b>
+                  </div>
+                )}
                 <div className="muted text-sm mt-12">
-                  Xác nhận bởi {name(ev.confirmedBy)} · {formatDateTime(ev.confirmedAt)}
+                  Xác nhận bởi {name(ev.confirmedBy, ev.confirmedByName)} · {formatDateTime(ev.confirmedAt)}
                 </div>
               </>
             ) : (
@@ -335,16 +428,32 @@ export function EvaluationReviewView({ kind, id }) {
         </div>
       )}
 
-      <PeriodSummaryTable data={detail.summary.structured} />
+      {yearEnd ? (
+        detail.summary.structured?.observedDays ? (
+          <PeriodSummaryTable data={detail.summary.structured} />
+        ) : (
+          <section className="card mt-16">
+            <div className="card__header">
+              <h2 className="card__title">Số liệu từ đánh giá hằng ngày</h2>
+            </div>
+            <div className="card__body muted">Chưa có ghi nhận đánh giá hằng ngày trong năm học.</div>
+          </section>
+        )
+      ) : (
+        <details className="card mt-16">
+          <summary className="card__header">Xem dữ liệu làm căn cứ</summary>
+          <PeriodSummaryTable data={detail.summary.structured} />
+        </details>
+      )}
 
-      <div className="card mt-16">
-        <div className="card__header">
-          <div className="card__title">{yearEnd ? 'Đánh giá tháng đã xác nhận trong năm học' : 'Đánh giá hằng ngày trong kỳ'}</div>
-          {!yearEnd && <span className="muted text-sm">Xanh: đạt · Cam: chưa đạt</span>}
-        </div>
-        <div className="card__body">
-          {yearEnd ? (
-            detail.monthlyEvaluations.length ? (
+      {/* Nhận xét tháng trong chi tiết học kỳ cũ. */}
+      {kind === EVAL_KIND.SEMESTER && (
+        <div className="card mt-16">
+          <div className="card__header">
+            <div className="card__title">Đánh giá tháng đã xác nhận trong học kỳ</div>
+          </div>
+          <div className="card__body">
+            {detail.monthlyEvaluations.length ? (
               <div className="stack">
                 {detail.monthlyEvaluations.map((m) => (
                   <div key={m.id}>
@@ -354,13 +463,38 @@ export function EvaluationReviewView({ kind, id }) {
                 ))}
               </div>
             ) : (
-              <div className="muted">Chưa có đánh giá tháng nào được xác nhận. Thiếu dữ liệu nguồn – hãy xem lại các hồ sơ hiện có.</div>
-            )
-          ) : (
-            <DayTable days={detail.days} mealSessions={detail.mealSessions} classId={ev.classId} linkDays={canReview} />
-          )}
+              <div className="muted">Chưa có đánh giá tháng nào được xác nhận trong kỳ này.</div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {!yearEnd && (
+        <div className="card mt-16">
+          <div className="card__header">
+            <div className="card__title">Đánh giá hằng ngày trong kỳ</div>
+            <span className="muted text-sm">Xanh: đạt · Đỏ: chưa đạt</span>
+          </div>
+          <div className="card__body">
+            {/* 10 ngày / trang như bảng này ở Hồ sơ phát triển */}
+            <DailyDaysTable
+              days={paginate(detail.days, Math.min(dayPage, Math.max(1, Math.ceil(detail.days.length / 10))), 10)}
+              mealSessions={detail.mealSessions}
+              classId={ev.classId}
+              linkDays={canReview}
+            />
+            {detail.days.length > 10 && (
+              <Pagination
+                page={Math.min(dayPage, Math.ceil(detail.days.length / 10))}
+                total={detail.days.length}
+                pageSize={10}
+                onChange={setDayPage}
+                unit="ngày"
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {showDraft && (
         <div className="card mt-16">
@@ -376,7 +510,7 @@ export function EvaluationReviewView({ kind, id }) {
                   <div className="history-list__dot" />
                   <div>
                     <div>
-                      <b>{EVAL_HISTORY_LABELS[h.action] || h.action}</b> · {name(h.userId)}
+                      <b>{EVAL_HISTORY_LABELS[h.action] || h.action}</b> · {name(h.userId, h.userName)}
                     </div>
                     {h.note && <div className="text-2">“{h.note}”</div>}
                     <div className="muted text-xs">{formatDateTime(h.at)}</div>
@@ -389,15 +523,32 @@ export function EvaluationReviewView({ kind, id }) {
       )}
 
       <div className="page-actions">
-        <button className="btn" onClick={() => navigate(base)}>
+        <button className="btn" onClick={() => guard.leave(base)}>
           <ArrowLeft size={16} /> Về danh sách
         </button>
+        {siblings.length > 1 && at >= 0 && (
+          <div className="row gap-2" aria-label="Chuyển trẻ cùng lớp, cùng kỳ">
+            <button className="btn" onClick={() => prev && guard.leave(linkOf(prev))} disabled={!prev} title={prev?.childName}>
+              <ChevronLeft size={16} /> Trẻ trước
+            </button>
+            <span className="muted text-sm">
+              {at + 1}/{siblings.length}
+            </span>
+            <button className="btn" onClick={() => next && guard.leave(linkOf(next))} disabled={!next} title={next?.childName}>
+              Trẻ sau <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
         {canReview && (
           <div className="row gap-2">
             <button className="btn" onClick={save} disabled={!!busy}>
               {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
             </button>
-            <button className="btn btn--primary" onClick={() => check() && setConfirmOpen(true)} disabled={!!busy}>
+            <button
+              className="btn btn--primary"
+              onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
+              disabled={!!busy}
+            >
               <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
             </button>
           </div>
@@ -412,7 +563,7 @@ export function EvaluationReviewView({ kind, id }) {
             ? 'Đánh giá sẽ trở thành chính thức, dùng cho Ban giám hiệu và đề xuất khen thưởng. Sau khi xác nhận không sửa được.'
             : 'Đánh giá sẽ trở thành chính thức và được công bố cho phụ huynh, Phó hiệu trưởng và Hiệu trưởng. Sau khi xác nhận không sửa được.'
         }
-        confirmLabel={yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+        confirmLabel={nextPending ? 'Xác nhận, trẻ tiếp' : yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
         onConfirm={doConfirm}
         onClose={() => setConfirmOpen(false)}
       />
@@ -447,6 +598,7 @@ export function EvaluationReviewView({ kind, id }) {
         <div className="dg-ai-box text-sm">{fresh?.content}</div>
       </Modal>
       {busy === 'redraft' && <AiWorkingOverlay text="Đang soạn bản nháp đánh giá…" />}
+      <LeaveConfirmModal {...guard.modal} canSave message="Nội dung đánh giá có chỉnh sửa chưa lưu." />
     </>
   );
 }
