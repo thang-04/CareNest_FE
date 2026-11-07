@@ -110,6 +110,16 @@ export const PERMISSION_TASKS = {
     hint: 'Lập phiếu nhập kho khô của điểm trường phụ trách',
     group: 'meal-stock',
   },
+  FOOD_SAFETY_APPROVE: {
+    label: 'Duyệt lưu mẫu thức ăn, duyệt hủy mẫu',
+    hint: 'Theo điểm trường; Hiệu trưởng có thể nâng lên cả trường',
+    group: 'meal-safety',
+  },
+  KITCHEN_RECORD: {
+    label: 'Ghi lưu mẫu, hủy mẫu, đăng ảnh bữa ăn',
+    hint: 'Tài khoản bếp chung của điểm trường',
+    group: 'meal-record',
+  },
   MENU_MANAGE: {
     label: 'Lập và công bố thực đơn tuần',
     hint: 'Lập, sửa kế hoạch tuần và công bố cả tuần cho cả trường',
@@ -132,6 +142,8 @@ export const PERMISSION_FEATURES = {
   'meal-catalog': { label: 'Danh mục bán trú', group: 'meals', flow: 'meals' },
   'meal-stock': { label: 'Kho khô', group: 'meals', flow: 'meals' },
   'meal-menu': { label: 'Thực đơn', group: 'meals', flow: 'meals' },
+  'meal-safety': { label: 'Duyệt mẫu thức ăn', group: 'meals', flow: 'meals' },
+  'meal-record': { label: 'Bếp ghi lưu mẫu, ảnh bữa ăn', group: 'meals', flow: 'meals' },
 };
 
 /** Luồng lớn (cấp 1) của ma trận quyền: tick cả luồng thì mọi việc nhỏ bên trong được tick theo. */
