@@ -1,4 +1,4 @@
-import { Children, cloneElement, useId, useState } from 'react';
+import { Children, cloneElement, useEffect, useId, useRef, useState } from 'react';
 import { FormField } from '@/components/form/FormField';
 import { ExamSheetBand, ExamSheetTable } from './exam/ExamFields';
 import { PortraitPicker } from './PortraitPicker';
@@ -112,17 +112,22 @@ export function IntakeChoiceField({ name, options, value, onChange, disabled, re
 export function IntakeSuggestField({ value, onChange, suggestions = [], maxLength = 100, placeholder, disabled, ...props }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const inputRef = useRef(null);
+  const blurTimer = useRef(null);
   const id = useId();
   const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
   const q = norm(query.trim());
   const filter = q ? suggestions.filter((s) => norm(s).includes(q)) : suggestions;
   const showList = open && filter.length > 0;
 
-  const pick = (s) => {
+  // preventDefault trên mousedown giữ focus ở input, tránh blur đóng list trước khi chọn được.
+  const onItemMouseDown = (s) => {
     onChange(s);
-    setQuery('');
+    setQuery(s);
     setOpen(false);
   };
+  // Cleanup timer blur khi unmount.
+  useEffect(() => () => clearTimeout(blurTimer.current), []);
 
   return (
     <IntakeField {...props}>
@@ -130,6 +135,7 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
         <div className={`tr-intake-suggest__control ${showList ? 'tr-intake-suggest__control--open' : ''}`}>
           <input
             id={id}
+            ref={inputRef}
             className="input"
             value={query}
             maxLength={maxLength}
@@ -140,6 +146,8 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
             aria-expanded={showList}
             aria-autocomplete="list"
             onFocus={() => {
+              clearTimeout(blurTimer.current);
+              blurTimer.current = null;
               setQuery(value ?? '');
               setOpen(true);
             }}
@@ -149,9 +157,11 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
               setOpen(true);
             }}
             onBlur={() => {
-              setTimeout(() => {
+              // Click ra ngoài: đóng list sau khoảng trễ, giữ giá trị người dùng (không xoá query).
+              blurTimer.current = setTimeout(() => {
                 setQuery('');
                 setOpen(false);
+                blurTimer.current = null;
               }, 150);
             }}
           />
@@ -164,8 +174,10 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
                 <button
                   type="button"
                   className="tr-intake-suggest__item"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => pick(s)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onItemMouseDown(s);
+                  }}
                 >
                   {s}
                 </button>
