@@ -114,6 +114,8 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
   const [query, setQuery] = useState('');
   const inputRef = useRef(null);
   const blurTimer = useRef(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
   const id = useId();
   const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
   const q = norm(query.trim());
@@ -128,6 +130,10 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
   };
   // Cleanup timer blur khi unmount.
   useEffect(() => () => clearTimeout(blurTimer.current), []);
+  // Giá trị đổi từ ngoài (reset form, chọn tỉnh ⇒ xoá phường): ô cập nhật theo, trừ khi đang gõ.
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) setQuery(value ?? '');
+  }, [value]);
 
   return (
     <IntakeField {...props}>
@@ -157,9 +163,9 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
               setOpen(true);
             }}
             onBlur={() => {
-              // Click ra ngoài: đóng list sau khoảng trễ, giữ giá trị người dùng (không xoá query).
+              // Click ra ngoài: đóng list, đồng bộ ô về giá trị đang chọn (value) — không xoá.
               blurTimer.current = setTimeout(() => {
-                setQuery('');
+                setQuery(valueRef.current ?? '');
                 setOpen(false);
                 blurTimer.current = null;
               }, 150);
