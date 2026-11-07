@@ -99,6 +99,32 @@ export const PERMISSION_TASKS = {
     hint: 'Số suất của điểm trường phụ trách',
     group: 'meals',
   },
+  // Bán trú chia theo cấp của BE (BE:docs/business/flows/meal-management-permissions.md): danh mục, kho khô, thực đơn
+  NUTRITION_MANAGE: {
+    label: 'Quản lý danh mục bán trú',
+    hint: 'Thực phẩm, món ăn, cấu hình nhóm tuổi, nhà cung cấp',
+    group: 'meal-catalog',
+  },
+  STOCK_MANAGE: {
+    label: 'Nhập kho khô theo điểm trường',
+    hint: 'Lập phiếu nhập kho khô của điểm trường phụ trách',
+    group: 'meal-stock',
+  },
+  FOOD_SAFETY_APPROVE: {
+    label: 'Duyệt lưu mẫu thức ăn, duyệt hủy mẫu',
+    hint: 'Theo điểm trường; Hiệu trưởng có thể nâng lên cả trường',
+    group: 'meal-safety',
+  },
+  KITCHEN_RECORD: {
+    label: 'Ghi lưu mẫu, hủy mẫu, đăng ảnh bữa ăn',
+    hint: 'Tài khoản bếp chung của điểm trường',
+    group: 'meal-record',
+  },
+  MENU_MANAGE: {
+    label: 'Lập và công bố thực đơn tuần',
+    hint: 'Lập, sửa kế hoạch tuần và công bố cả tuần cho cả trường',
+    group: 'meal-menu',
+  },
   PERMISSION_MANAGE: {
     label: 'Phân quyền toàn trường',
     hint: 'Đặt quyền theo vai trò và ngoại lệ từng người; chỉ Hiệu trưởng',
@@ -106,12 +132,26 @@ export const PERMISSION_TASKS = {
   },
 };
 
-/** Nhóm dòng bảng = khóa `feature` của catalog BE. */
+/** Nhóm dòng bảng (cấp 2) = khóa `feature` của catalog BE; `flow` = luồng lớn (cấp 1) chứa nó. */
 export const PERMISSION_FEATURES = {
-  'child-profile': { label: 'Hồ sơ trẻ', group: 'child' },
-  staff: { label: 'Tài khoản & phân công nhân sự', group: 'staff' },
-  'parent-account': { label: 'Tài khoản phụ huynh', group: 'parent' },
-  permission: { label: 'Phân quyền', group: 'system' },
+  'child-profile': { label: 'Hồ sơ trẻ', group: 'child', flow: 'child' },
+  staff: { label: 'Tài khoản & phân công nhân sự', group: 'staff', flow: 'staff' },
+  'parent-account': { label: 'Tài khoản phụ huynh', group: 'parent', flow: 'child' },
+  permission: { label: 'Phân quyền', group: 'system', flow: 'system' },
+  meals: { label: 'Suất ăn', group: 'meals', flow: 'meals' },
+  'meal-catalog': { label: 'Danh mục bán trú', group: 'meals', flow: 'meals' },
+  'meal-stock': { label: 'Kho khô', group: 'meals', flow: 'meals' },
+  'meal-menu': { label: 'Thực đơn', group: 'meals', flow: 'meals' },
+  'meal-safety': { label: 'Duyệt mẫu thức ăn', group: 'meals', flow: 'meals' },
+  'meal-record': { label: 'Bếp ghi lưu mẫu, ảnh bữa ăn', group: 'meals', flow: 'meals' },
+};
+
+/** Luồng lớn (cấp 1) của ma trận quyền: tick cả luồng thì mọi việc nhỏ bên trong được tick theo. */
+export const PERMISSION_FLOWS = {
+  child: { label: 'Hồ sơ trẻ & phụ huynh' },
+  staff: { label: 'Nhân sự & phân công' },
+  meals: { label: 'Bán trú' },
+  system: { label: 'Phân quyền toàn trường' },
 };
 
 export const REASON_MAX_LENGTH = 500;
