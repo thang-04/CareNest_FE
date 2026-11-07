@@ -1,4 +1,4 @@
-import { Children, cloneElement, useId } from 'react';
+import { Children, cloneElement, useId, useMemo, useRef, useState } from 'react';
 import { FormField } from '@/components/form/FormField';
 import { ExamSheetBand, ExamSheetTable } from './exam/ExamFields';
 import { PortraitPicker } from './PortraitPicker';
@@ -101,6 +101,68 @@ export function IntakeChoiceField({ name, options, value, onChange, disabled, re
           ))}
         </div>
       </fieldset>
+    </IntakeField>
+  );
+}
+
+/**
+ * Ô nhập tự do kèm dropdown gợi ý lọc theo từ gõ (không dấu, không phân biệt hoa thường).
+ * suggestions: danh sách chuỗi cố định; không tự hiện nếu chưa gõ. Giữ giá trị người nhập tự do.
+ */
+export function IntakeSuggestField({ value, onChange, suggestions = [], maxLength = 100, disabled, ...props }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const filter = useMemo(() => {
+    const q = String(value || '').trim();
+    if (!q) return [];
+    const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+    const nq = norm(q);
+    return suggestions.filter((s) => norm(s).includes(nq));
+  }, [value, suggestions]);
+
+  const showList = open && filter.length > 0;
+
+  return (
+    <IntakeField {...props}>
+      <div className="tr-intake-suggest">
+        <input
+          id={id}
+          className="input"
+          value={value ?? ''}
+          maxLength={maxLength}
+          disabled={disabled}
+          role="combobox"
+          aria-expanded={showList}
+          aria-autocomplete="list"
+          onChange={(e) => {
+            onChange(e.target.value);
+            setOpen(true);
+          }}
+          onBlur={() => {
+            // cho kịp bấm vào mục dropdown trước khi đóng
+            setTimeout(() => setOpen(false), 150);
+          }}
+        />
+        {showList && (
+          <ul className="tr-intake-suggest__list" role="listbox">
+            {filter.map((s) => (
+              <li key={s} role="option" aria-selected={String(value) === s}>
+                <button
+                  type="button"
+                  className="tr-intake-suggest__item"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onChange(s);
+                    setOpen(false);
+                  }}
+                >
+                  {s}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </IntakeField>
   );
 }

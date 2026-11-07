@@ -1,5 +1,6 @@
-import { IntakeChoiceField, IntakeNumberField, IntakeSheet, IntakeTextField } from './IntakeSheet';
+import { IntakeChoiceField, IntakeNumberField, IntakeSheet, IntakeSuggestField, IntakeTextField } from './IntakeSheet';
 import { ExamChoiceField, ExamNumberField, ExamTextField } from './exam/ExamFields';
+import { filterVnProvinces, districtsOfVnProvince, VN_PROVINCES } from '@/data/vnAdministrative';
 
 const PREMATURE_CHOICES = [
   { value: 'NO', label: 'Không' },
@@ -18,6 +19,11 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
   const Fields = sheet ? IntakeSheet : 'div';
   const set = (field, v) => onChange({ ...value, [field]: v });
   const setAddress = (field, v) => onChange({ ...value, address: { ...value.address, [field]: v } });
+  // Gợi ý tỉnh/thành + phường/xã (vẫn nhập tự do; danh sách chỉ gợi ý, BE là source of truth).
+  const provinceSuggestions = filterVnProvinces(value.address.province).map((p) => p.name);
+  const districtSuggestions = value.address.province
+    ? districtsOfVnProvince(value.address.province)
+    : VN_PROVINCES.flatMap((p) => p.districts);
   const text = (field, label, extra = {}) => (
     <TextField label={label} value={value[field]} onChange={(v) => set(field, v)} error={errors[`profile.${field}`]} required {...extra} />
   );
@@ -58,20 +64,42 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
         {text('ethnicity', 'Dân tộc')}
         {text('beneficiary', 'Đối tượng')}
         {text('bloodType', 'Nhóm máu (nếu có)', { required: false })}
-        <TextField
-          label="Nơi ở — Tỉnh/thành"
-          required
-          value={value.address.province}
-          onChange={(v) => setAddress('province', v)}
-          error={errors['profile.address.province']}
-        />
-        <TextField
-          label="Nơi ở — Phường/xã"
-          required
-          value={value.address.ward}
-          onChange={(v) => setAddress('ward', v)}
-          error={errors['profile.address.ward']}
-        />
+        {sheet ? (
+          <IntakeSuggestField
+            label="Nơi ở — Tỉnh/thành"
+            required
+            value={value.address.province}
+            onChange={(v) => setAddress('province', v)}
+            error={errors['profile.address.province']}
+            suggestions={provinceSuggestions}
+          />
+        ) : (
+          <TextField
+            label="Nơi ở — Tỉnh/thành"
+            required
+            value={value.address.province}
+            onChange={(v) => setAddress('province', v)}
+            error={errors['profile.address.province']}
+          />
+        )}
+        {sheet ? (
+          <IntakeSuggestField
+            label="Nơi ở — Phường/xã"
+            required
+            value={value.address.ward}
+            onChange={(v) => setAddress('ward', v)}
+            error={errors['profile.address.ward']}
+            suggestions={districtSuggestions}
+          />
+        ) : (
+          <TextField
+            label="Nơi ở — Phường/xã"
+            required
+            value={value.address.ward}
+            onChange={(v) => setAddress('ward', v)}
+            error={errors['profile.address.ward']}
+          />
+        )}
         <TextField
           label="Nơi ở — Số nhà/thôn/xóm"
           required
