@@ -65,7 +65,7 @@ export function OverrideWizardModal({ open, initialStaff = null, onClose, onSave
   return (
     <Modal
       open
-      size="lg"
+      size="xl"
       className="permission-center-modal"
       label="Gán quyền ngoại lệ cho nhân sự"
       title="Gán quyền ngoại lệ cho nhân sự"

@@ -6,6 +6,8 @@ import { UserCog, AlertTriangle, Save, Utensils } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { usePermissionGrant } from '@/contexts/PermissionGrantContext';
+import { ROLES } from '@/models/User';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYears, useViceAssignments } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -302,6 +304,7 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
   const { data, loading, error, reload } = useViceAssignments(allowed ? yearId : null);
   const [editing, setEditing] = useState(null);
   const [choosingFor, setChoosingFor] = useState(null);
+  const { openPermissionGrant } = usePermissionGrant();
 
   if (!allowed)
     return (
@@ -392,7 +395,17 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
               assignerName={r.assignment ? md.userById(r.assignment.assignedBy)?.fullName : null}
               readOnly={readOnly}
               onEdit={() => setEditing(r)}
-              permissionsLink={SCHOOL_CONFIG_API ? `/permissions/overrides?userId=${r.user.id}` : undefined}
+              onChoosePermissions={
+                SCHOOL_CONFIG_API
+                  ? () =>
+                      openPermissionGrant({
+                        ...r.user,
+                        userId: r.user.id,
+                        role: ROLES.VICE_PRINCIPAL,
+                        campusName: campusName(r.assignment?.campusId),
+                      })
+                  : undefined
+              }
             />
           ))}
         </div>
