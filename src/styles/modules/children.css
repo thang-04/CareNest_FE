@@ -143,6 +143,28 @@
 .tr-intake-suggest {
   position: relative;
 }
+.tr-intake-suggest__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.tr-intake-suggest__caret {
+  position: absolute;
+  right: var(--space-3);
+  width: 12px;
+  height: 12px;
+  border: solid var(--color-text-muted);
+  border-width: 0 0 2px 2px;
+  transform: rotate(-45deg) translateY(-2px);
+  pointer-events: none;
+}
+.tr-intake-suggest__control--open .tr-intake-suggest__caret {
+  border-width: 2px 0 0 2px;
+  transform: rotate(45deg) translateY(2px);
+}
+.tr-intake-suggest__control .input {
+  padding-right: calc(var(--space-3) * 2 + 12px);
+}
 .tr-intake-suggest__list {
   position: absolute;
   top: 100%;

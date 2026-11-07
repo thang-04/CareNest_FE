@@ -72,6 +72,7 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
             onChange={(v) => setAddress('province', v)}
             error={errors['profile.address.province']}
             suggestions={provinceSuggestions}
+            placeholder="Nhập hoặc chọn (vd: Hà)"
           />
         ) : (
           <TextField
@@ -90,6 +91,7 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
             onChange={(v) => setAddress('ward', v)}
             error={errors['profile.address.ward']}
             suggestions={districtSuggestions}
+            placeholder="Nhập hoặc chọn (vd: Lê Chân)"
           />
         ) : (
           <TextField

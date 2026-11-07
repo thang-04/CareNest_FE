@@ -1,4 +1,4 @@
-import { Children, cloneElement, useId, useMemo, useRef, useState } from 'react';
+import { Children, cloneElement, useId, useState } from 'react';
 import { FormField } from '@/components/form/FormField';
 import { ExamSheetBand, ExamSheetTable } from './exam/ExamFields';
 import { PortraitPicker } from './PortraitPicker';
@@ -106,43 +106,57 @@ export function IntakeChoiceField({ name, options, value, onChange, disabled, re
 }
 
 /**
- * Ô nhập tự do kèm dropdown gợi ý lọc theo từ gõ (không dấu, không phân biệt hoa thường).
- * suggestions: danh sách chuỗi cố định; không tự hiện nếu chưa gõ. Giữ giá trị người nhập tự do.
+ * Ô nhập tự do kèm dropdown gợi ý (click vào ô hiện danh sách, gõ để lọc; bỏ dấu, không phân biệt hoa thường).
+ * suggestions: danh sách chuỗi cố định. Giữ giá trị người nhập tự do — không chọn vẫn nhập được.
  */
-export function IntakeSuggestField({ value, onChange, suggestions = [], maxLength = 100, disabled, ...props }) {
+export function IntakeSuggestField({ value, onChange, suggestions = [], maxLength = 100, placeholder, disabled, ...props }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const id = useId();
-  const filter = useMemo(() => {
-    const q = String(value || '').trim();
-    if (!q) return [];
-    const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
-    const nq = norm(q);
-    return suggestions.filter((s) => norm(s).includes(nq));
-  }, [value, suggestions]);
-
+  const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+  const q = norm(query.trim());
+  const filter = q ? suggestions.filter((s) => norm(s).includes(q)) : suggestions;
   const showList = open && filter.length > 0;
+
+  const pick = (s) => {
+    onChange(s);
+    setQuery('');
+    setOpen(false);
+  };
 
   return (
     <IntakeField {...props}>
       <div className="tr-intake-suggest">
-        <input
-          id={id}
-          className="input"
-          value={value ?? ''}
-          maxLength={maxLength}
-          disabled={disabled}
-          role="combobox"
-          aria-expanded={showList}
-          aria-autocomplete="list"
-          onChange={(e) => {
-            onChange(e.target.value);
-            setOpen(true);
-          }}
-          onBlur={() => {
-            // cho kịp bấm vào mục dropdown trước khi đóng
-            setTimeout(() => setOpen(false), 150);
-          }}
-        />
+        <div className={`tr-intake-suggest__control ${showList ? 'tr-intake-suggest__control--open' : ''}`}>
+          <input
+            id={id}
+            className="input"
+            value={query}
+            maxLength={maxLength}
+            placeholder={placeholder}
+            disabled={disabled}
+            role="combobox"
+            aria-haspopup="listbox"
+            aria-expanded={showList}
+            aria-autocomplete="list"
+            onFocus={() => {
+              setQuery(value ?? '');
+              setOpen(true);
+            }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              onChange(e.target.value);
+              setOpen(true);
+            }}
+            onBlur={() => {
+              setTimeout(() => {
+                setQuery('');
+                setOpen(false);
+              }, 150);
+            }}
+          />
+          <span className="tr-intake-suggest__caret" aria-hidden="true" />
+        </div>
         {showList && (
           <ul className="tr-intake-suggest__list" role="listbox">
             {filter.map((s) => (
@@ -151,10 +165,7 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
                   type="button"
                   className="tr-intake-suggest__item"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    onChange(s);
-                    setOpen(false);
-                  }}
+                  onClick={() => pick(s)}
                 >
                   {s}
                 </button>
