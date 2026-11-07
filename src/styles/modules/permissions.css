@@ -200,11 +200,7 @@
   min-height: 0;
 }
 
-/* Trong wizard: bảng cuộn riêng để nút Tiếp tục luôn thấy */
-.perm-wizard-table {
-  max-height: 55vh;
-  overflow-y: auto;
-}
+/* Trong wizard chỉ thân hộp cuộn (không cuộn lồng); nút Quay lại/Tiếp tục dính đáy, xem .perm-wizard-step__footer */
 
 .permission-history-changes {
   display: grid;
@@ -379,6 +375,11 @@
   margin-top: var(--space-6);
   padding-top: var(--card-padding-dense);
   border-top: 1px solid var(--color-border);
+  position: sticky;
+  bottom: calc(var(--space-5) * -1);
+  padding-bottom: var(--space-4);
+  background: var(--color-surface);
+  z-index: 2;
 }
 
 @media (max-width: 767px) {
